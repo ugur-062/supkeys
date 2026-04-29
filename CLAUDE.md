@@ -55,9 +55,13 @@
    - Public landing (`/`)
    - Demo talep formu (`/demo-talep`) — react-hook-form + zod, success state, sonner toast
    - Login (`/login`) — email + password, "şifremi göster", validation
-   - Korumalı dashboard placeholder (`/dashboard`) — kullanıcı bilgisi + firma kartı + token doğrulama
+   - Modern tenant dashboard (`/dashboard`): collapsible sidebar (240px ↔ 64px, toggle persist localStorage `supkeys-sidebar`, Radix tooltip collapsed mode), Stripe/Vercel-style header (breadcrumb + search + bell + Radix dropdown user menu), 4 KPI placeholder kartları (boş veride "—" placeholder, slate-300 italik), onboarding checklist (3 adım: tedarikçi/ihale/ekip daveti, brand-50 gradient bg), 2 boş panel (yaklaşan ihaleler + son aktiviteler), responsive (mobil drawer + hamburger)
+   - 7 placeholder rota: `/dashboard/ihaleler`, `/dashboard/ihaleler/yeni`, `/dashboard/onay-bekleyenler`, `/dashboard/siparisler`, `/dashboard/tedarikciler`, `/dashboard/raporlar`, `/dashboard/ayarlar` — `PlaceholderPage` ortak komponenti (icon + "Yakında V2" pill + highlights bullets + dashboard'a dön)
+   - Sidebar nav config tek dosyada (`lib/dashboard/nav-config.ts`): "Operasyonel" grubu (Dashboard, İhaleler, Yeni İhale Aç CTA, Onay Bekleyenler badge, Siparişler), "Yönetimsel" grubu (Tedarikçiler, Raporlar, Ayarlar). Aktif state usePathname ile match, "Yeni İhale Aç" item'ı brand mavi gradient CTA görünümlü
+   - `DashboardShell` (sidebar + header + content), `app/dashboard/layout.tsx` `RequireAuth` ile sarmalı
    - Auth: Zustand persist (`supkeys-auth` localStorage key) + axios interceptor (request: bearer token; response: 401 → auto-logout & /login redirect)
    - `RequireAuth` boundary, `AuthHydrationBoundary` (SSR/CSR mismatch önler)
+   - Bağımlılıklar: `@radix-ui/react-tooltip`, `@radix-ui/react-dropdown-menu` eklendi
 7. **Frontend (apps/admin):**
    - Next.js 15 + Tailwind v4 admin paneli kuruldu, port 3001
    - Koyu sidebar (slate-900) + açık içerik (slate-50) tema, brand mavi accent, kırmızı "Admin" pill rozeti
@@ -80,9 +84,8 @@
    - `.env`'de `EMAIL_PROVIDER` (mailpit/resend), `MAILPIT_HOST/PORT`, `RESEND_API_KEY`, `EMAIL_FROM_NAME/ADDRESS/REPLY_TO`. Production geçişi: `EMAIL_PROVIDER=resend` + verified domain
 
 ### ⏳ Sıradaki (Bu Sprint)
-1. **Tenant register sayfası** (`/register`) — backend `POST /auth/register` zaten var
-2. Tenant dashboard'un gerçek layout'u (sidebar + KPI grid + ihale tablosu iskeleti)
-3. Admin dashboard KPI'ları (`GET /admin/demo-requests/stats` kullan)
+1. **Tenant register sayfası** (`/register`) + welcome e-postası — backend `POST /auth/register` zaten var
+2. Admin dashboard KPI'ları (`GET /admin/demo-requests/stats` kullan)
 
 ### 🔮 Yol Haritası (Sonra)
 - Tenant register sayfası (`/register`) — backend `POST /auth/register` zaten var

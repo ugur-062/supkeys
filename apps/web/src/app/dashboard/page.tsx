@@ -1,112 +1,135 @@
 "use client";
 
-import { SupkeysLogo } from "@/components/brand/logo";
-import { RequireAuth } from "@/components/providers/auth-hydration";
-import { Button } from "@/components/ui/button";
-import { useAuth, useLogout, useMe } from "@/hooks/use-auth";
-import { Building2, LogOut, User } from "lucide-react";
-
-function DashboardContent() {
-  const { user } = useAuth();
-  const logout = useLogout();
-  const meQuery = useMe(); // /auth/me ile token doğrulama
-
-  return (
-    <main className="min-h-screen">
-      <header className="px-8 py-4 border-b border-surface-border bg-white">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <SupkeysLogo />
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-slate-700 hidden md:block">
-              <span className="text-slate-500">Merhaba,</span>{" "}
-              <span className="font-medium">
-                {user?.firstName} {user?.lastName}
-              </span>
-            </div>
-            <Button variant="secondary" size="sm" onClick={logout}>
-              <LogOut className="w-4 h-4" />
-              Çıkış
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <section className="max-w-7xl mx-auto px-8 py-10">
-        <div className="space-y-2 mb-8">
-          <h1 className="font-display font-bold text-3xl text-brand-900">
-            Hoş geldin, {user?.firstName} 👋
-          </h1>
-          <p className="text-slate-600">
-            Supkeys panelin hazırlanıyor. Yakında ihalelerini, tedarikçilerini
-            ve tasarruflarını burada göreceksin.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="card p-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-brand-600" />
-              </div>
-              <h3 className="font-display font-bold text-lg text-brand-900">
-                Firma
-              </h3>
-            </div>
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Ad</dt>
-                <dd className="text-brand-900 font-medium">
-                  {user?.tenant.name}
-                </dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Slug</dt>
-                <dd className="text-brand-900 font-mono text-xs">
-                  {user?.tenant.slug}
-                </dd>
-              </div>
-            </dl>
-          </div>
-
-          <div className="card p-6">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center">
-                <User className="w-5 h-5 text-brand-600" />
-              </div>
-              <h3 className="font-display font-bold text-lg text-brand-900">
-                Hesap
-              </h3>
-            </div>
-            <dl className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-slate-500">E-posta</dt>
-                <dd className="text-brand-900">{user?.email}</dd>
-              </div>
-              <div className="flex justify-between">
-                <dt className="text-slate-500">Rol</dt>
-                <dd className="text-brand-900 font-medium">{user?.role}</dd>
-              </div>
-            </dl>
-          </div>
-        </div>
-
-        <div className="mt-10 p-4 rounded-lg bg-brand-50 border border-brand-100 text-sm text-brand-800">
-          🔐 <strong>Token doğrulandı:</strong>{" "}
-          {meQuery.isLoading
-            ? "Kontrol ediliyor..."
-            : meQuery.isError
-              ? "Token geçersiz"
-              : "API ile bağlantı sağlıklı."}
-        </div>
-      </section>
-    </main>
-  );
-}
+import { EmptyPanel } from "@/components/dashboard/empty-panel";
+import { KpiCard } from "@/components/dashboard/kpi-card";
+import { OnboardingCard } from "@/components/dashboard/onboarding-card";
+import { useAuth, useMe } from "@/hooks/use-auth";
+import {
+  Activity,
+  Calendar,
+  CheckSquare,
+  FileText,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  // Token doğrulama — sessizce arka planda /auth/me çağır
+  useMe();
+
+  // V1'de gerçek metrik yok — null/0 ile placeholder göster
+  const kpis = {
+    activeAuctions: 0,
+    pendingApprovals: 0,
+    monthSavings: 0,
+    suppliers: 0,
+  };
+
+  const allEmpty =
+    kpis.activeAuctions === 0 &&
+    kpis.pendingApprovals === 0 &&
+    kpis.monthSavings === 0 &&
+    kpis.suppliers === 0;
+
   return (
-    <RequireAuth>
-      <DashboardContent />
-    </RequireAuth>
+    <div className="space-y-6 max-w-7xl">
+      {/* Greeting */}
+      <header className="space-y-1">
+        <h1 className="font-display font-bold text-3xl text-brand-900">
+          Hoş geldin, {user?.firstName ?? "Supkeys kullanıcısı"} 👋
+        </h1>
+        <p className="text-slate-500">
+          {user?.tenant.name
+            ? `${user.tenant.name} hesabı için panele genel bakış.`
+            : "Panele genel bakış."}
+        </p>
+      </header>
+
+      {/* KPI grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          label="Aktif İhaleler"
+          value={kpis.activeAuctions === 0 ? null : kpis.activeAuctions}
+          icon={FileText}
+          accent="brand"
+          hint="Yayında olan"
+        />
+        <KpiCard
+          label="Onay Bekleyen"
+          value={kpis.pendingApprovals === 0 ? null : kpis.pendingApprovals}
+          icon={CheckSquare}
+          accent="warning"
+          hint="Sizin onayınızda"
+        />
+        <KpiCard
+          label="Bu Ay Tasarruf"
+          value={
+            kpis.monthSavings === 0 ? null : `₺${kpis.monthSavings.toLocaleString("tr-TR")}`
+          }
+          icon={TrendingUp}
+          accent="success"
+          hint="Toplam saving"
+        />
+        <KpiCard
+          label="Tedarikçiler"
+          value={kpis.suppliers === 0 ? null : kpis.suppliers}
+          icon={Users}
+          accent="brand"
+          hint="Onaylı listede"
+        />
+      </div>
+
+      {/* Onboarding — tüm KPI'lar 0 ise göster */}
+      {allEmpty && (
+        <OnboardingCard
+          heading="Supkeys'e hoş geldin 🎯"
+          subtitle="İlk değerini almak için 3 hızlı adım:"
+          steps={[
+            {
+              title: "İlk tedarikçini ekle",
+              description:
+                "Mevcut tedarikçilerini davet et veya 45 binlik tedarikçi havuzumuzdan keşfet.",
+              ctaLabel: "Tedarikçi Ekle",
+              ctaHref: "/dashboard/tedarikciler",
+            },
+            {
+              title: "İlk ihaleni aç",
+              description:
+                "Talebini yayınla, tekliflerini topla, tasarruf et.",
+              ctaLabel: "İhale Oluştur",
+              ctaHref: "/dashboard/ihaleler/yeni",
+            },
+            {
+              title: "Ekibine üye davet et",
+              description:
+                "Satın almacı veya onaylayıcı kullanıcılar ekle.",
+              ctaLabel: "Davet Gönder",
+              ctaHref: "/dashboard/ayarlar",
+            },
+          ]}
+        />
+      )}
+
+      {/* İki panelli alt grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <EmptyPanel
+          heading="Yaklaşan İhaleler"
+          subtitle="Kapanışı yaklaşan ihaleler burada görünecek."
+          icon={Calendar}
+          emptyTitle="Henüz aktif ihalen yok"
+          emptyDescription="İlk ihaleni oluşturduğunda burada listelenir."
+          ctaLabel="İlk ihaleni oluştur"
+          ctaHref="/dashboard/ihaleler/yeni"
+        />
+        <EmptyPanel
+          heading="Son Aktiviteler"
+          subtitle="Sistemdeki son hareketler."
+          icon={Activity}
+          emptyTitle="Henüz aktivite yok"
+          emptyDescription="İhale, teklif ve sipariş hareketleri burada listelenecek."
+        />
+      </div>
+    </div>
   );
 }
