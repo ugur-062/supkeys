@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap");
+
+@theme {
+  /* Brand — Supkeys mavi (web ile aynı) */
+  --color-brand-50:  #EFF4FF;
+  --color-brand-100: #DCE6FF;
+  --color-brand-200: #BACDFF;
+  --color-brand-300: #8FAEFF;
+  --color-brand-400: #5C85FF;
+  --color-brand-500: #3B6BFF;
+  --color-brand-600: #1E5BFF;
+  --color-brand-700: #1648CC;
+  --color-brand-800: #163A99;
+  --color-brand-900: #0A2540;
+  --color-brand-950: #061730;
+
+  /* Semantic */
+  --color-success-50:  #ECFDF5;
+  --color-success-500: #10B981;
+  --color-success-600: #059669;
+  --color-warning-50:  #FFFBEB;
+  --color-warning-500: #F59E0B;
+  --color-warning-600: #D97706;
+  --color-danger-50:   #FEF2F2;
+  --color-danger-500:  #EF4444;
+  --color-danger-600:  #DC2626;
+  --color-danger-700:  #B91C1C;
+
+  /* Admin tema — koyu sidebar / açık içerik */
+  --color-admin-bg:             #F8FAFC; /* slate-50 — content alanı */
+  --color-admin-surface:        #FFFFFF;
+  --color-admin-sidebar:        #0F172A; /* slate-900 */
+  --color-admin-sidebar-hover:  #1E293B; /* slate-800 */
+  --color-admin-sidebar-active: #1E40AF; /* brand-ish dark blue */
+  --color-admin-sidebar-text:   #E2E8F0; /* slate-200 */
+  --color-admin-sidebar-muted:  #94A3B8; /* slate-400 */
+  --color-admin-text:           #0F172A;
+  --color-admin-text-muted:     #64748B; /* slate-500 */
+  --color-admin-border:         #E2E8F0; /* slate-200 */
+  --color-admin-border-strong:  #CBD5E1; /* slate-300 */
+
+  /* Surface (web ile uyum) */
+  --color-surface-base:   #FFFFFF;
+  --color-surface-subtle: #F8FAFC;
+  --color-surface-muted:  #F1F5F9;
+  --color-surface-border: #E2E8F0;
+
+  /* Fonts */
+  --font-sans:    "Inter", system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Inter", sans-serif;
+
+  /* Shadows */
+  --shadow-card:       0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-card-hover: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-sidebar:    2px 0 8px rgba(15, 23, 42, 0.08);
+
+  /* Radius */
+  --radius-xl:  0.875rem;
+  --radius-2xl: 1.125rem;
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-admin-border);
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--color-admin-bg);
+    color: var(--color-admin-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+@layer components {
+  .admin-card {
+    @apply bg-admin-surface rounded-xl shadow-card border border-admin-border;
+  }
+
+  .admin-pill-danger {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full
+           bg-danger-50 text-danger-700 text-xs font-semibold uppercase tracking-wide
+           border border-danger-500/20;
+  }
+
+  .admin-sidebar-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+           text-admin-sidebar-text/80 hover:text-white hover:bg-admin-sidebar-hover
+           transition-colors;
+  }
+
+  .admin-sidebar-item-active {
+    @apply bg-admin-sidebar-hover text-white;
+  }
+}

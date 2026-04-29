@@ -58,15 +58,18 @@
    - Korumalı dashboard placeholder (`/dashboard`) — kullanıcı bilgisi + firma kartı + token doğrulama
    - Auth: Zustand persist (`supkeys-auth` localStorage key) + axios interceptor (request: bearer token; response: 401 → auto-logout & /login redirect)
    - `RequireAuth` boundary, `AuthHydrationBoundary` (SSR/CSR mismatch önler)
+7. **Frontend (apps/admin):**
+   - Next.js 15 + Tailwind v4 admin paneli kuruldu, port 3001
+   - Koyu sidebar (slate-900) + açık içerik (slate-50) tema, brand mavi accent, kırmızı "Admin" pill rozeti
+   - `/admin/login` — email + password formu, react-hook-form + zod, sonner toast
+   - Korumalı `/admin/dashboard` — `AdminShell` (sol sidebar nav + üst header + content), placeholder KPI kartları, token doğrulama
+   - Auth: AYRI Zustand store (`supkeys-admin-auth` localStorage key) + AYRI axios instance
+   - `RequireAdminAuth` boundary, `AuthHydrationBoundary`, root `/` token'a göre login/dashboard'a redirect
+   - Sidebar nav item'ları: Dashboard (aktif), Demo Talepleri / Müşteri Firmaları / Tedarikçiler / Ayarlar (yakında)
 
 ### ⏳ Sıradaki (Bu Sprint)
-1. **`apps/admin` Next.js app kur** (port 3001)
-2. Admin tasarım sistemi (**koyu tema** — kararlaştırıldı: koyu sidebar, açık içerik, mavi accent + uyarı kırmızısı; tenant app'ten net ayrışsın)
-3. Admin auth altyapısı (Zustand store: `supkeys-admin-auth` localStorage key — tenant'tan AYRI store ve AYRI axios instance)
-4. `/admin/login` sayfası
-5. Korumalı `/admin/dashboard` placeholder
-6. Sonra: Demo talepleri listesi sayfası (filtre, pagination, statü güncelleme, detay drawer/modal)
-7. Sonra: Admin dashboard KPI'ları (`GET /admin/demo-requests/stats` kullan)
+1. **Demo talepleri liste sayfası** (`/admin/demo-requests`) — filtre, pagination, statü güncelleme, detay drawer/modal
+2. Admin dashboard KPI'ları (`GET /admin/demo-requests/stats` kullan)
 
 ### 🔮 Yol Haritası (Sonra)
 - Tenant register sayfası (`/register`) — backend `POST /auth/register` zaten var
