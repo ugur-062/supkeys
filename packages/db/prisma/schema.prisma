@@ -8,44 +8,109 @@ datasource db {
 }
 
 // ============================================================
-// SUPKEYS — Çekirdek Şema (V0)
-// Sadece Tenant + User. Sonraki commitlerde genişleyecek.
+// SUPKEYS — Çekirdek Şema
 // ============================================================
 
-model Tenant {
-  id          String   @id @default(cuid())
-  name        String
-  slug        String   @unique
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+// ---------- TENANT TARAFI (müşteri firmalar) ----------
 
-  users       User[]
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users     User[]
 
   @@map("tenants")
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  passwordHash  String
-  firstName     String
-  lastName      String
-  role          UserRole  @default(BUYER)
-  isActive      Boolean   @default(true)
-  lastLoginAt   DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole  @default(BUYER)
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  tenantId      String
-  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
   @@map("users")
 }
 
 enum UserRole {
-  COMPANY_ADMIN  // Firma yöneticisi (key user)
-  BUYER          // İhale yöneticisi / satın almacı
-  APPROVER       // Onaylayıcı (limit aşımı)
+  COMPANY_ADMIN
+  BUYER
+  APPROVER
+}
+
+// ---------- PLATFORM TARAFI (Supkeys ekibi) ----------
+
+model PlatformAdmin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         AdminRole @default(SUPPORT)
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignedDemoRequests DemoRequest[]
+
+  @@map("platform_admins")
+}
+
+enum AdminRole {
+  SUPER_ADMIN  // her şey
+  SALES        // demo, tenant
+  SUPPORT      // sadece okuma + tenant impersonate
+}
+
+// ---------- LEAD / DEMO TALEPLERİ ----------
+
+model DemoRequest {
+  id           String            @id @default(cuid())
+  companyName  String
+  contactName  String
+  email        String
+  phone        String?
+  jobTitle     String?
+  companySize  String?
+  message      String?
+  status       DemoRequestStatus @default(NEW)
+  source       String?           // landing_page, referral, ...
+  notes        String?           // admin'in notları
+  contactedAt  DateTime?
+  closedAt     DateTime?
+  closedReason String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  assignedToId String?
+  assignedTo   PlatformAdmin? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([assignedToId])
+  @@index([createdAt])
+  @@map("demo_requests")
+}
+
+enum DemoRequestStatus {
+  NEW
+  CONTACTED
+  DEMO_SCHEDULED
+  DEMO_DONE
+  WON
+  LOST
+  SPAM
 }
