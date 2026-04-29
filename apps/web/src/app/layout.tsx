@@ -1,3 +1,4 @@
+import { AuthHydrationBoundary } from "@/components/providers/auth-hydration";
 import { QueryProvider } from "@/components/providers/query-provider";
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
@@ -17,7 +18,7 @@ export default function RootLayout({
     <html lang="tr">
       <body className="antialiased">
         <QueryProvider>
-          {children}
+          <AuthHydrationBoundary>{children}</AuthHydrationBoundary>
           <Toaster
             position="top-right"
             richColors
