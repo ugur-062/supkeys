@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { SupkeysLogo } from "@/components/brand/logo";
+import Link from "next/link";
 
 export default function HomePage() {
   return (
@@ -11,8 +11,8 @@ export default function HomePage() {
             <Link href="/login" className="btn-secondary">
               Giriş Yap
             </Link>
-            <Link href="/login" className="btn-primary">
-              Hemen Başla
+            <Link href="/demo-talep" className="btn-primary">
+              Demo Talep Et
             </Link>
           </nav>
         </div>
@@ -32,7 +32,7 @@ export default function HomePage() {
             yönetin. Şeffaf, denetlenebilir, AI destekli.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
-            <Link href="/login" className="btn-primary text-base px-6 py-3">
+            <Link href="/demo-talep" className="btn-primary text-base px-6 py-3">
               Demo Talep Et
             </Link>
             <Link href="/login" className="btn-secondary text-base px-6 py-3">
