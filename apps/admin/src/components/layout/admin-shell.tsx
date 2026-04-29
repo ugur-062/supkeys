@@ -3,6 +3,7 @@
 import { AdminLogo } from "@/components/brand/admin-logo";
 import { Button } from "@/components/ui/button";
 import { useAdminAuth, useAdminLogout } from "@/hooks/use-admin-auth";
+import { useDemoRequestStats } from "@/hooks/use-demo-requests";
 import { cn } from "@/lib/utils";
 import {
   Building2,
@@ -20,24 +21,57 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   disabled?: boolean;
+  /** Pathname'in match olacağı prefix; verilmezse exact href */
+  activeMatch?: string;
+  /** "Demo Talepleri" gibi öğelerde NEW sayısı için */
+  badgeKey?: "demoRequestsNew";
 }
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { label: "Demo Talepleri", href: "/admin/demo-requests", icon: UserCog, disabled: true },
-  { label: "Müşteri Firmaları", href: "/admin/tenants", icon: Building2, disabled: true },
-  { label: "Tedarikçiler", href: "/admin/suppliers", icon: Truck, disabled: true },
-  { label: "Ayarlar", href: "/admin/settings", icon: Settings, disabled: true },
+  {
+    label: "Demo Talepleri",
+    href: "/admin/demo-requests",
+    icon: UserCog,
+    activeMatch: "/admin/demo-requests",
+    badgeKey: "demoRequestsNew",
+  },
+  {
+    label: "Müşteri Firmaları",
+    href: "/admin/tenants",
+    icon: Building2,
+    disabled: true,
+  },
+  {
+    label: "Tedarikçiler",
+    href: "/admin/suppliers",
+    icon: Truck,
+    disabled: true,
+  },
+  {
+    label: "Ayarlar",
+    href: "/admin/settings",
+    icon: Settings,
+    disabled: true,
+  },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const { admin } = useAdminAuth();
   const logout = useAdminLogout();
   const pathname = usePathname();
+  const stats = useDemoRequestStats();
 
   const initials = admin
     ? `${admin.firstName[0] ?? ""}${admin.lastName[0] ?? ""}`.toUpperCase()
     : "??";
+
+  const newCount = stats.data?.byStatus.NEW ?? 0;
+
+  const getBadge = (key: NavItem["badgeKey"]) => {
+    if (key === "demoRequestsNew" && newCount > 0) return newCount;
+    return null;
+  };
 
   return (
     <div className="min-h-screen flex bg-admin-bg">
@@ -52,7 +86,10 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 px-3 py-4 space-y-0.5">
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
-            const active = pathname === item.href;
+            const matchPath = item.activeMatch ?? item.href;
+            const active = !!pathname && pathname.startsWith(matchPath);
+            const badge = getBadge(item.badgeKey);
+
             const baseClasses = cn(
               "admin-sidebar-item",
               active && "admin-sidebar-item-active",
@@ -79,7 +116,12 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
             return (
               <Link key={item.href} href={item.href} className={baseClasses}>
                 <Icon className="w-4 h-4" />
-                <span>{item.label}</span>
+                <span className="flex-1">{item.label}</span>
+                {badge !== null && (
+                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-danger-500 text-white text-[11px] font-semibold">
+                    {badge}
+                  </span>
+                )}
               </Link>
             );
           })}

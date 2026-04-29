@@ -63,12 +63,15 @@
    - Koyu sidebar (slate-900) + açık içerik (slate-50) tema, brand mavi accent, kırmızı "Admin" pill rozeti
    - `/admin/login` — email + password formu, react-hook-form + zod, sonner toast
    - Korumalı `/admin/dashboard` — `AdminShell` (sol sidebar nav + üst header + content), placeholder KPI kartları, token doğrulama
+   - Korumalı `/admin/demo-requests` — KPI cards (Toplam/Yeni/Demo Yapıldı/Kazanıldı), filters bar (search + status + temizle, URL search params ile sync), tablo (firma/kişi/email/statü/atanmış/tarih + detay), pagination, Radix Dialog tabanlı sağdan açılan detay drawer (statü güncelleme + closedReason WON/LOST/SPAM'da, notlar). TanStack Query cache invalidation, sonner toast
+   - Sidebar'da "Demo Talepleri" item aktif; NEW sayısı kırmızı badge olarak görünür (stats endpoint'inden)
    - Auth: AYRI Zustand store (`supkeys-admin-auth` localStorage key) + AYRI axios instance
    - `RequireAdminAuth` boundary, `AuthHydrationBoundary`, root `/` token'a göre login/dashboard'a redirect
-   - Sidebar nav item'ları: Dashboard (aktif), Demo Talepleri / Müşteri Firmaları / Tedarikçiler / Ayarlar (yakında)
+   - Sidebar nav item'ları: Dashboard, Demo Talepleri (aktif); Müşteri Firmaları / Tedarikçiler / Ayarlar (yakında)
+   - Bağımlılıklar: `@radix-ui/react-dialog`, `date-fns` (admin app'ine eklendi)
 
 ### ⏳ Sıradaki (Bu Sprint)
-1. **Demo talepleri liste sayfası** (`/admin/demo-requests`) — filtre, pagination, statü güncelleme, detay drawer/modal
+1. **Resend e-posta altyapısı** + admin'e yeni demo talebi bildirimi
 2. Admin dashboard KPI'ları (`GET /admin/demo-requests/stats` kullan)
 
 ### 🔮 Yol Haritası (Sonra)
