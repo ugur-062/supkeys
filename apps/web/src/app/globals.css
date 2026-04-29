@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap");
+
+@theme {
+  /* Brand — Supkeys mavi */
+  --color-brand-50:  #EFF4FF;
+  --color-brand-100: #DCE6FF;
+  --color-brand-200: #BACDFF;
+  --color-brand-300: #8FAEFF;
+  --color-brand-400: #5C85FF;
+  --color-brand-500: #3B6BFF;
+  --color-brand-600: #1E5BFF;
+  --color-brand-700: #1648CC;
+  --color-brand-800: #163A99;
+  --color-brand-900: #0A2540;
+  --color-brand-950: #061730;
+
+  /* Semantic */
+  --color-success-50:  #ECFDF5;
+  --color-success-500: #10B981;
+  --color-success-600: #059669;
+  --color-warning-50:  #FFFBEB;
+  --color-warning-500: #F59E0B;
+  --color-warning-600: #D97706;
+  --color-danger-50:   #FEF2F2;
+  --color-danger-500:  #EF4444;
+  --color-danger-600:  #DC2626;
+
+  /* Surface */
+  --color-surface-base:   #FFFFFF;
+  --color-surface-subtle: #F8FAFC;
+  --color-surface-muted:  #F1F5F9;
+  --color-surface-border: #E2E8F0;
+
+  /* Fonts */
+  --font-sans:    "Inter", system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Inter", sans-serif;
+
+  /* Shadows */
+  --shadow-card:       0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-card-hover: 0 4px 12px rgba(15, 23, 42, 0.08);
+
+  /* Radius */
+  --radius-xl:  0.875rem;
+  --radius-2xl: 1.125rem;
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-surface-border);
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--color-surface-subtle);
+    color: var(--color-brand-900);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
+           bg-brand-600 text-white font-medium text-sm
+           hover:bg-brand-700 active:bg-brand-800
+           transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
+           bg-white text-brand-700 font-medium text-sm border border-surface-border
+           hover:bg-brand-50 hover:border-brand-200
+           transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-card border border-surface-border;
+  }
+
+  .input-base {
+    @apply w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-white
+           text-brand-900 text-sm
+           placeholder:text-slate-400
+           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500
+           transition-colors;
+  }
+
+  .label-base {
+    @apply block text-sm font-medium text-brand-900 mb-1.5;
+  }
+}
