@@ -114,3 +114,40 @@ enum DemoRequestStatus {
   LOST
   SPAM
 }
+
+// ---------- E-POSTA LOGLARI ----------
+
+model EmailLog {
+  id                String      @id @default(cuid())
+  template          String      // "demo_request_received" | "demo_request_admin_alert" | ...
+  toEmail           String
+  toName            String?
+  subject           String
+  provider          String      // "resend" | "mailpit"
+  providerMessageId String?
+  status            EmailStatus @default(QUEUED)
+  errorMessage      String?
+  payload           Json?       // template'e geçen veri (debug için)
+  attemptCount      Int         @default(0)
+  queuedAt          DateTime    @default(now())
+  sentAt            DateTime?
+  failedAt          DateTime?
+
+  // Bağlam (opsiyonel, hangi entity için gönderildi)
+  contextType String? // "demo_request" | "user_invite" | ...
+  contextId   String?
+
+  @@index([status])
+  @@index([toEmail])
+  @@index([template])
+  @@index([contextType, contextId])
+  @@index([queuedAt])
+  @@map("email_logs")
+}
+
+enum EmailStatus {
+  QUEUED
+  SENDING
+  SENT
+  FAILED
+}

@@ -9,6 +9,7 @@ import {
   Building2,
   LayoutDashboard,
   LogOut,
+  Mail,
   Settings,
   Truck,
   UserCog,
@@ -35,6 +36,12 @@ const NAV_ITEMS: NavItem[] = [
     icon: UserCog,
     activeMatch: "/admin/demo-requests",
     badgeKey: "demoRequestsNew",
+  },
+  {
+    label: "E-posta Logları",
+    href: "/admin/email-logs",
+    icon: Mail,
+    activeMatch: "/admin/email-logs",
   },
   {
     label: "Müşteri Firmaları",

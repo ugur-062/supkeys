@@ -64,15 +64,25 @@
    - `/admin/login` — email + password formu, react-hook-form + zod, sonner toast
    - Korumalı `/admin/dashboard` — `AdminShell` (sol sidebar nav + üst header + content), placeholder KPI kartları, token doğrulama
    - Korumalı `/admin/demo-requests` — KPI cards (Toplam/Yeni/Demo Yapıldı/Kazanıldı), filters bar (search + status + temizle, URL search params ile sync), tablo (firma/kişi/email/statü/atanmış/tarih + detay), pagination, Radix Dialog tabanlı sağdan açılan detay drawer (statü güncelleme + closedReason WON/LOST/SPAM'da, notlar). TanStack Query cache invalidation, sonner toast
-   - Sidebar'da "Demo Talepleri" item aktif; NEW sayısı kırmızı badge olarak görünür (stats endpoint'inden)
+   - Korumalı `/admin/email-logs` — sistem tarafından gönderilen tüm e-postaların kaydı; filtreler (status / template / alıcı search), pagination, status badge (QUEUED/SENDING/SENT/FAILED), 5sn'de bir auto-refresh, detay drawer'da subject + alıcı + provider + provider message ID + payload JSON + errorMessage (varsa)
+   - Sidebar'da "Demo Talepleri" item aktif; NEW sayısı kırmızı badge olarak görünür (stats endpoint'inden). "E-posta Logları" item de aktif
    - Auth: AYRI Zustand store (`supkeys-admin-auth` localStorage key) + AYRI axios instance
    - `RequireAdminAuth` boundary, `AuthHydrationBoundary`, root `/` token'a göre login/dashboard'a redirect
-   - Sidebar nav item'ları: Dashboard, Demo Talepleri (aktif); Müşteri Firmaları / Tedarikçiler / Ayarlar (yakında)
+   - Sidebar nav item'ları: Dashboard, Demo Talepleri, E-posta Logları (aktif); Müşteri Firmaları / Tedarikçiler / Ayarlar (yakında)
    - Bağımlılıklar: `@radix-ui/react-dialog`, `date-fns` (admin app'ine eklendi)
+8. **E-posta altyapısı:**
+   - `packages/email` workspace paketi: React Email template'leri (`demo_request_received`, `demo_request_admin_alert`), Resend + Mailpit (nodemailer SMTP) provider'ları, `createEmailClient(config)` factory, `renderEmail(spec)` helper (HTML + plain-text fallback). Tsc ile `dist/` build edilir
+   - Mailpit container docker-compose'a eklendi (port 1025 SMTP, 8025 Web UI). Geliştirmede `EMAIL_PROVIDER=mailpit`
+   - Backend `EmailModule` (apps/api): BullMQ kuyruğu (`email`, attempts=3, exponential backoff), `EmailQueue` producer, `EmailProcessor` worker, `EmailService` (provider client + EmailLog yazımı). Redis bağlantısı `REDIS_URL`'den parse
+   - Yeni Prisma modeli `EmailLog` (template, toEmail, subject, provider, providerMessageId, status [QUEUED/SENDING/SENT/FAILED], errorMessage, payload JSON, attemptCount, queuedAt/sentAt/failedAt, contextType/contextId), migration: `add_email_logs`
+   - Demo talebi oluşturulduğunda fire-and-forget 2 e-posta tetiklenir: kullanıcıya teşekkür + tüm aktif SUPER_ADMIN'lere bildirim. Hata durumunda 201 dönüşü etkilenmez
+   - Admin endpoint'leri: `GET /api/admin/email-logs` (filtre/pagination), `GET /api/admin/email-logs/:id`
+   - `.env`'de `EMAIL_PROVIDER` (mailpit/resend), `MAILPIT_HOST/PORT`, `RESEND_API_KEY`, `EMAIL_FROM_NAME/ADDRESS/REPLY_TO`. Production geçişi: `EMAIL_PROVIDER=resend` + verified domain
 
 ### ⏳ Sıradaki (Bu Sprint)
-1. **Resend e-posta altyapısı** + admin'e yeni demo talebi bildirimi
-2. Admin dashboard KPI'ları (`GET /admin/demo-requests/stats` kullan)
+1. **Tenant register sayfası** (`/register`) — backend `POST /auth/register` zaten var
+2. Tenant dashboard'un gerçek layout'u (sidebar + KPI grid + ihale tablosu iskeleti)
+3. Admin dashboard KPI'ları (`GET /admin/demo-requests/stats` kullan)
 
 ### 🔮 Yol Haritası (Sonra)
 - Tenant register sayfası (`/register`) — backend `POST /auth/register` zaten var

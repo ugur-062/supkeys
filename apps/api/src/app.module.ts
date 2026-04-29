@@ -4,6 +4,7 @@ import { PrismaModule } from "./common/prisma/prisma.module";
 import { AdminAuthModule } from "./modules/admin-auth/admin-auth.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { DemoRequestsModule } from "./modules/demo-requests/demo-requests.module";
+import { EmailModule } from "./modules/email/email.module";
 import { HealthModule } from "./modules/health/health.module";
 
 @Module({
@@ -15,6 +16,7 @@ import { HealthModule } from "./modules/health/health.module";
     PrismaModule,
     AuthModule,
     AdminAuthModule,
+    EmailModule,
     DemoRequestsModule,
     HealthModule,
   ],

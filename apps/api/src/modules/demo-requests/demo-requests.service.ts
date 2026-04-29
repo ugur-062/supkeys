@@ -1,29 +1,39 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import type { Prisma } from "@prisma/client";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import type { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { EmailQueue } from "../email/email.queue";
 import { CreateDemoRequestDto } from "./dto/create-demo-request.dto";
 import { ListDemoRequestsDto } from "./dto/list-demo-requests.dto";
 import { UpdateDemoRequestDto } from "./dto/update-demo-request.dto";
 
 @Injectable()
 export class DemoRequestsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(DemoRequestsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailQueue: EmailQueue,
+    private readonly config: ConfigService,
+  ) {}
 
   // ---------- PUBLIC ----------
 
   async create(dto: CreateDemoRequestDto, ipAddress?: string) {
+    const data = {
+      companyName: dto.companyName.trim(),
+      contactName: dto.contactName.trim(),
+      email: dto.email.toLowerCase().trim(),
+      phone: dto.phone?.trim(),
+      jobTitle: dto.jobTitle?.trim(),
+      companySize: dto.companySize?.trim(),
+      message: dto.message?.trim(),
+      source: dto.source ?? "landing_page",
+      status: "NEW" as const,
+    };
+
     const created = await this.prisma.demoRequest.create({
-      data: {
-        companyName: dto.companyName.trim(),
-        contactName: dto.contactName.trim(),
-        email: dto.email.toLowerCase().trim(),
-        phone: dto.phone?.trim(),
-        jobTitle: dto.jobTitle?.trim(),
-        companySize: dto.companySize?.trim(),
-        message: dto.message?.trim(),
-        source: dto.source ?? "landing_page",
-        status: "NEW",
-      },
+      data,
       select: {
         id: true,
         createdAt: true,
@@ -33,11 +43,84 @@ export class DemoRequestsService {
     // ipAddress audit log için ileride kullanılacak
     void ipAddress;
 
+    // E-posta tetikle — fire and forget; talep yine de 201 dönsün
+    this.dispatchEmails(created.id, data).catch((err) => {
+      this.logger.error(
+        `Failed to dispatch demo-request emails for ${created.id}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    });
+
     return {
       id: created.id,
       message: "Talebiniz alındı, ekibimiz en kısa sürede dönüş yapacak.",
       submittedAt: created.createdAt,
     };
+  }
+
+  private async dispatchEmails(
+    demoRequestId: string,
+    data: {
+      companyName: string;
+      contactName: string;
+      email: string;
+      phone?: string;
+      jobTitle?: string;
+      companySize?: string;
+      message?: string;
+    },
+  ) {
+    const context = { type: "demo_request", id: demoRequestId };
+
+    // 1) Kullanıcıya teşekkür
+    await this.emailQueue.enqueue({
+      to: { email: data.email, name: data.contactName },
+      templateData: {
+        template: "demo_request_received",
+        data: {
+          contactName: data.contactName,
+          companyName: data.companyName,
+          email: data.email,
+          phone: data.phone,
+          message: data.message,
+        },
+      },
+      context,
+      subject: "Talebiniz alındı — Supkeys",
+    });
+
+    // 2) Tüm aktif SUPER_ADMIN'lere bildirim
+    const adminPanelUrl = this.config.get<string>(
+      "ADMIN_URL",
+      "http://localhost:3001",
+    );
+    const admins = await this.prisma.platformAdmin.findMany({
+      where: { role: "SUPER_ADMIN", isActive: true },
+      select: { email: true, firstName: true },
+    });
+
+    for (const admin of admins) {
+      await this.emailQueue.enqueue({
+        to: { email: admin.email, name: admin.firstName },
+        templateData: {
+          template: "demo_request_admin_alert",
+          data: {
+            contactName: data.contactName,
+            companyName: data.companyName,
+            email: data.email,
+            phone: data.phone,
+            jobTitle: data.jobTitle,
+            companySize: data.companySize,
+            message: data.message,
+            demoRequestId,
+            adminPanelUrl,
+          },
+        },
+        context,
+        subject: `🔔 Yeni demo talebi: ${data.companyName}`,
+      });
+    }
   }
 
   // ---------- ADMIN ----------
