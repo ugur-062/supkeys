@@ -1,0 +1,82 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: supkeys-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-supkeys}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-supkeys_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-supkeys}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-supkeys}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - supkeys
+
+  redis:
+    image: redis:7-alpine
+    container_name: supkeys-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - supkeys
+
+  minio:
+    image: minio/minio:latest
+    container_name: supkeys-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-supkeys}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-supkeys_dev_password}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - supkeys
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: supkeys-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER:-supkeys} ${MINIO_ROOT_PASSWORD:-supkeys_dev_password};
+      mc mb -p local/${MINIO_BUCKET:-supkeys-dev} || true;
+      mc anonymous set download local/${MINIO_BUCKET:-supkeys-dev} || true;
+      echo 'MinIO bucket ready';
+      "
+    networks:
+      - supkeys
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  supkeys:
+    driver: bridge
