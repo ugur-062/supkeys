@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { generateSlug, uniqueSlug } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailQueue } from "../../email/email.queue";
 import { VerifyEmailDto, VerifyEmailType } from "../dto/verify-email.dto";
@@ -30,18 +31,9 @@ export class EmailVerificationService {
   private async verifyBuyer(token: string) {
     const app = await this.prisma.buyerApplication.findUnique({
       where: { emailToken: token },
-      select: {
-        id: true,
-        status: true,
-        emailTokenExp: true,
-        emailVerifiedAt: true,
-        adminFirstName: true,
-        adminEmail: true,
-        adminPhone: true,
-        companyName: true,
-        taxNumber: true,
-        city: true,
-        industry: true,
+      include: {
+        // Demo daveti üzerinden gelmiş mi? Varsa otomatik onayla
+        fromDemoRequest: { select: { id: true } },
       },
     });
 
@@ -55,11 +47,88 @@ export class EmailVerificationService {
       );
     }
 
-    const now = new Date();
+    const fromDemo = !!app.fromDemoRequest;
+
+    if (fromDemo) {
+      // ----- Demo daveti ile geldi: otomatik onay (admin onayı atlanır) -----
+      const baseSlug = generateSlug(app.companyName) || "firma";
+      const slug = await uniqueSlug(baseSlug, async (candidate) => {
+        const existing = await this.prisma.tenant.findUnique({
+          where: { slug: candidate },
+          select: { id: true },
+        });
+        return existing !== null;
+      });
+
+      const result = await this.prisma.$transaction(async (tx) => {
+        const tenant = await tx.tenant.create({
+          data: {
+            name: app.companyName,
+            slug,
+            industry: app.industry,
+            city: app.city,
+            district: app.district,
+            addressLine: app.addressLine,
+            postalCode: app.postalCode,
+            taxNumber: app.taxNumber,
+            taxOffice: app.taxOffice,
+          },
+        });
+
+        const user = await tx.user.create({
+          data: {
+            email: app.adminEmail,
+            passwordHash: app.passwordHash,
+            firstName: app.adminFirstName,
+            lastName: app.adminLastName,
+            role: "COMPANY_ADMIN",
+            tenantId: tenant.id,
+          },
+        });
+
+        const updated = await tx.buyerApplication.update({
+          where: { id: app.id },
+          data: {
+            status: "APPROVED",
+            emailVerifiedAt: new Date(),
+            reviewedAt: new Date(),
+            reviewedById: null, // sistem otomatik onayladı (demo daveti)
+            tenantId: tenant.id,
+            emailToken: null,
+            rejectionReason: null,
+          },
+        });
+
+        return { tenant, user, updated };
+      });
+
+      this.dispatchBuyerApprovedEmail(app).catch((err) => {
+        this.logger.error(
+          `Buyer auto-approved email enqueue failed (${app.id}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      });
+
+      this.logger.log(
+        `Buyer application ${app.id} auto-approved via demo invite (tenant=${result.tenant.id})`,
+      );
+
+      return {
+        message:
+          "E-posta doğrulandı, hesabınız aktif edildi! Şimdi giriş yapabilirsiniz.",
+        applicationId: app.id,
+        type: "buyer" as const,
+        autoApproved: true,
+        tenantId: result.tenant.id,
+      };
+    }
+
+    // ----- Normal akış: admin review bekler -----
     await this.prisma.buyerApplication.update({
       where: { id: app.id },
       data: {
-        emailVerifiedAt: now,
+        emailVerifiedAt: new Date(),
         emailToken: null,
         status: "PENDING_REVIEW",
       },
@@ -87,6 +156,7 @@ export class EmailVerificationService {
       message: "E-posta doğrulandı, başvurunuz incelemeye alındı",
       applicationId: app.id,
       type: "buyer" as const,
+      autoApproved: false,
     };
   }
 
@@ -151,7 +221,30 @@ export class EmailVerificationService {
       message: "E-posta doğrulandı, başvurunuz incelemeye alındı",
       applicationId: app.id,
       type: "supplier" as const,
+      autoApproved: false,
     };
+  }
+
+  private async dispatchBuyerApprovedEmail(app: {
+    id: string;
+    adminFirstName: string;
+    adminEmail: string;
+    companyName: string;
+  }) {
+    const webUrl = this.config.get<string>("WEB_URL", "http://localhost:3000");
+    await this.emailQueue.enqueue({
+      to: { email: app.adminEmail, name: app.adminFirstName },
+      templateData: {
+        template: "buyer_application_approved",
+        data: {
+          firstName: app.adminFirstName,
+          companyName: app.companyName,
+          loginUrl: `${webUrl.replace(/\/$/, "")}/login`,
+        },
+      },
+      context: { type: "buyer_application", id: app.id },
+      subject: "🎉 Hesabınız aktif — Supkeys",
+    });
   }
 
   private async dispatchAdminAlert(

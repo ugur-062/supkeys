@@ -21,9 +21,20 @@ import * as Dialog from "@radix-ui/react-dialog";
 import axios from "axios";
 import { format, formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Loader2, Mail, Phone, X } from "lucide-react";
+import {
+  CheckCircle2,
+  Loader2,
+  Mail,
+  Phone,
+  RotateCcw,
+  Send,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { SendInviteModal } from "./send-invite-modal";
+
+const INVITE_ELIGIBLE_STATUSES: DemoRequestStatus[] = ["WON", "DEMO_DONE"];
 
 interface DetailDrawerProps {
   id: string | null;
@@ -68,6 +79,7 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
   const [statusDraft, setStatusDraft] = useState<DemoRequestStatus>("NEW");
   const [closedReasonDraft, setClosedReasonDraft] = useState("");
   const [notesDraft, setNotesDraft] = useState("");
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
   // Detay yüklenince form alanlarını senkronla
   useEffect(() => {
@@ -299,6 +311,82 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                   </Button>
                 </section>
 
+                {/* Davet (kayıt linki) bölümü — sadece WON veya DEMO_DONE statüsünde */}
+                {INVITE_ELIGIBLE_STATUSES.includes(item.status) && (
+                  <section className="space-y-3">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-admin-text-muted">
+                      Kayıt Daveti
+                    </h3>
+
+                    {item.linkedApplicationId ? (
+                      <div className="rounded-xl border border-success-500/30 bg-success-50 p-4">
+                        <div className="flex items-start gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-success-600 shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-success-700">
+                              Kayıt tamamlandı
+                            </p>
+                            <p className="text-xs text-success-600/80 mt-1">
+                              Müşteri kayıt formunu doldurdu, hesabı aktif edildi.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : !item.inviteSentAt ? (
+                      <Button
+                        type="button"
+                        onClick={() => setInviteModalOpen(true)}
+                        fullWidth
+                      >
+                        <Send className="w-4 h-4" />
+                        Davet Linki Gönder
+                      </Button>
+                    ) : (
+                      <div className="space-y-2.5">
+                        <div className="rounded-xl border border-brand-100 bg-brand-50 p-4">
+                          <div className="flex items-start gap-3">
+                            <Mail className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-brand-700">
+                                Davet gönderildi
+                              </p>
+                              <p className="text-sm text-admin-text mt-1 truncate">
+                                {item.inviteSentToEmail}
+                              </p>
+                              <p className="text-xs text-admin-text-muted mt-1">
+                                {formatRelative(item.inviteSentAt)}
+                                {item.inviteSentCount > 1 &&
+                                  ` · ${item.inviteSentCount} kez gönderildi`}
+                              </p>
+                              {item.inviteTokenExpAt &&
+                                new Date(item.inviteTokenExpAt) > new Date() && (
+                                  <p className="text-xs text-admin-text-muted mt-0.5">
+                                    Son geçerlilik:{" "}
+                                    {format(
+                                      new Date(item.inviteTokenExpAt),
+                                      "d MMM yyyy",
+                                      { locale: tr },
+                                    )}
+                                  </p>
+                                )}
+                            </div>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setInviteModalOpen(true)}
+                          fullWidth
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          Yeniden Gönder
+                        </Button>
+                      </div>
+                    )}
+                  </section>
+                )}
+
                 {/* TODO: assignedToId dropdown — PlatformAdmin liste endpoint'i geldiğinde ekle */}
 
                 <section className="text-xs text-admin-text-muted space-y-1 px-1">
@@ -328,6 +416,17 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
           </div>
         </Dialog.Content>
       </Dialog.Portal>
+
+      {item && (
+        <SendInviteModal
+          demoId={item.id}
+          defaultEmail={item.inviteSentToEmail ?? item.email}
+          companyName={item.companyName}
+          isResend={!!item.inviteSentAt}
+          open={inviteModalOpen}
+          onClose={() => setInviteModalOpen(false)}
+        />
+      )}
     </Dialog.Root>
   );
 }

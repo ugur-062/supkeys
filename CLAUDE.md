@@ -95,7 +95,15 @@
    - Admin approval transactional: buyer → Tenant (slug otomatik üretilir) + User(COMPANY_ADMIN); supplier → Supplier(STANDARD) + SupplierUser + (davetli ise) SupplierTenantRelation(ACTIVE) + invitation status=ACCEPTED
    - 8 yeni e-posta şablonu (yukarıda)
    - Aşama B-C: frontend register formları + e-posta doğrulama callback sayfası + admin paneli "Başvurular" sayfaları gelecek
-10. **Brand & üyelik kademesi yenileme:**
+10. **Demo davet akışı (admin → kayıt linki, otomatik onay):**
+    - `DemoRequest` modeline davet alanları: `inviteToken` (sha256 hash, unique), `inviteSentAt/SentToEmail/SentMessage/TokenExpAt/UsedAt/SentCount`, `linkedApplicationId` → `BuyerApplication` (1:1, "DemoToBuyerApp" relation). Migration: `add_demo_invite_fields`
+    - Admin endpoint: `POST /api/admin/demo-requests/:id/send-invite { email, message? }` — sadece WON/DEMO_DONE'da; 14 gün geçerli token, sentCount++; `linkedApplicationId` varsa 409
+    - Public endpoint: `GET /api/registration/buyer/invitation-info?token=...` → firma adı/iletişim/mesaj/expiresAt; 404/410/409 hata kodları
+    - Buyer registration `POST /api/registration/buyer/applications?invitation=` query param ile davet token kabul eder; transaction içinde `BuyerApplication.create` + `DemoRequest.linkedApplicationId/inviteUsedAt` set
+    - E-posta verify (`POST /api/registration/verify-email`): `BuyerApplication.fromDemoRequest` set ise admin onayı atlanır → otomatik `Tenant + User(COMPANY_ADMIN)` oluşur, `status=APPROVED`, `reviewedById=null` (sistem otomatik), "🎉 Hesabınız aktif" e-postası gönderilir; response'da `autoApproved: true, tenantId`
+    - Yeni e-posta şablonu: `demo_to_register_invitation` (kişisel mesaj quote box'ı, "Hesap Oluştur" CTA, 14 gün uyarısı, brand-50 notice box)
+    - Admin panel `/admin/demo-requests` detail drawer: WON/DEMO_DONE statüsünde "Davet Linki Gönder" butonu; Radix Dialog modal (e-posta editlenebilir + 500 karakter mesaj + 14 gün geçerli bilgi kutusu); davet gönderilmiş ise mavi bilgi kutusu (e-posta + tarih + sentCount) + "Yeniden Gönder"; kayıt tamamlanmış ise (`linkedApplicationId` var) yeşil "Kayıt tamamlandı" kutusu
+11. **Brand & üyelik kademesi yenileme:**
     - Resmi Supkeys logoları projeye dağıtıldı: `apps/web/public/`, `apps/admin/public/` (favicon.ico, apple-touch-icon, supkeys-logo-full + white, supkeys-icon 7 boyut + white) + `packages/email/src/templates/_assets/` (full + 128 ikon)
     - `SupkeysLogo` (web + admin) artık `next/image` tabanlı, variant (`full`/`icon`/`full-white`/`icon-white`) + size (`sm`/`md`/`lg`/`xl`) + priority destekliyor; `AdminLogo` `SupkeysLogo`'yu sarıp "ADMIN" pill ekliyor (light variant koyu sidebar için)
     - Logo kullanım yerleri güncellendi: tenant landing/login/demo-talep/dashboard sidebar (collapsed → icon, expanded → full); admin login (dark variant) + admin sidebar (light variant)

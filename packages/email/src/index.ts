@@ -10,6 +10,7 @@ export type {
   BuyerApplicationApprovedData,
   DemoRequestAdminAlertData,
   DemoRequestReceivedData,
+  DemoToRegisterInvitationData,
   EmailClientConfig,
   EmailProviderName,
   EmailRecipient,

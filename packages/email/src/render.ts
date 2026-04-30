@@ -26,6 +26,11 @@ import {
   renderDemoRequestReceivedText,
 } from "./templates/demo-request-received";
 import {
+  DEMO_TO_REGISTER_INVITATION_SUBJECT,
+  DemoToRegisterInvitationEmail,
+  renderDemoToRegisterInvitationText,
+} from "./templates/demo-to-register-invitation";
+import {
   BUYER_EMAIL_VERIFICATION_SUBJECT,
   EmailVerificationEmail,
   renderEmailVerificationText,
@@ -66,6 +71,17 @@ export async function renderEmail(
         subject: makeDemoRequestAdminAlertSubject(spec.data.companyName),
         html,
         text: renderDemoRequestAdminAlertText(spec.data),
+      };
+    }
+
+    case "demo_to_register_invitation": {
+      const html = await render(
+        React.createElement(DemoToRegisterInvitationEmail, spec.data),
+      );
+      return {
+        subject: DEMO_TO_REGISTER_INVITATION_SUBJECT,
+        html,
+        text: renderDemoToRegisterInvitationText(spec.data),
       };
     }
 

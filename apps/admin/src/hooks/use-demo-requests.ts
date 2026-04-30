@@ -6,6 +6,8 @@ import type {
   DemoRequestList,
   DemoRequestStats,
   ListDemoRequestsParams,
+  SendInviteInput,
+  SendInviteResult,
   UpdateDemoRequestInput,
 } from "@/lib/demo-requests/types";
 import {
@@ -84,6 +86,24 @@ export function useUpdateDemoRequest(id: string) {
     onSuccess: (data) => {
       queryClient.setQueryData(KEYS.detail(id), data);
       queryClient.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}
+
+export function useSendDemoInvite(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (input: SendInviteInput) => {
+      const { data } = await api.post<SendInviteResult>(
+        `/admin/demo-requests/${id}/send-invite`,
+        input,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.detail(id) });
+      queryClient.invalidateQueries({ queryKey: [...KEYS.all, "list"] });
     },
   });
 }

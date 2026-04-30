@@ -33,6 +33,28 @@ export interface DemoRequest {
   updatedAt: string;
   assignedToId: string | null;
   assignedTo: AssignedAdmin | null;
+
+  // Davet alanları (admin demo görüşmesi sonrası kayıt linki gönderir)
+  inviteSentAt: string | null;
+  inviteSentToEmail: string | null;
+  inviteSentMessage: string | null;
+  inviteTokenExpAt: string | null;
+  inviteUsedAt: string | null;
+  inviteSentCount: number;
+  linkedApplicationId: string | null;
+}
+
+export interface SendInviteInput {
+  email: string;
+  message?: string;
+}
+
+export interface SendInviteResult {
+  sentAt: string;
+  sentToEmail: string;
+  expiresAt: string;
+  sentCount: number;
+  message: string;
 }
 
 export interface DemoRequestPagination {

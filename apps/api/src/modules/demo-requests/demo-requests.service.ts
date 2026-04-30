@@ -1,11 +1,26 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Prisma } from "@supkeys/db";
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { EmailQueue } from "../email/email.queue";
+import {
+  generateRegistrationToken,
+  hashToken,
+} from "../registration/helpers/token.helper";
 import { CreateDemoRequestDto } from "./dto/create-demo-request.dto";
 import { ListDemoRequestsDto } from "./dto/list-demo-requests.dto";
+import { SendInviteDto } from "./dto/send-invite.dto";
 import { UpdateDemoRequestDto } from "./dto/update-demo-request.dto";
+
+const INVITE_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 gün
 
 @Injectable()
 export class DemoRequestsService {
@@ -272,5 +287,107 @@ export class DemoRequestsService {
     );
 
     return { total, byStatus };
+  }
+
+  // ---------- DAVET (admin → demo görüşmesinden sonra kayıt linki) ----------
+
+  async sendInvite(id: string, dto: SendInviteDto) {
+    const demo = await this.prisma.demoRequest.findUnique({ where: { id } });
+    if (!demo) throw new NotFoundException("Demo talebi bulunamadı");
+
+    if (!["WON", "DEMO_DONE"].includes(demo.status)) {
+      throw new BadRequestException(
+        "Sadece WON veya DEMO_DONE statüsündeki taleplere davet gönderilebilir",
+      );
+    }
+
+    if (demo.linkedApplicationId) {
+      throw new ConflictException(
+        "Bu demo talebi için kayıt zaten tamamlanmış",
+      );
+    }
+
+    const plainToken = generateRegistrationToken();
+    const tokenHash = hashToken(plainToken);
+    const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
+    const targetEmail = dto.email.toLowerCase().trim();
+
+    const updated = await this.prisma.demoRequest.update({
+      where: { id },
+      data: {
+        inviteToken: tokenHash,
+        inviteSentAt: new Date(),
+        inviteSentToEmail: targetEmail,
+        inviteSentMessage: dto.message?.trim() || null,
+        inviteTokenExpAt: expiresAt,
+        inviteUsedAt: null,
+        inviteSentCount: { increment: 1 },
+      },
+      select: {
+        id: true,
+        contactName: true,
+        companyName: true,
+        inviteSentAt: true,
+        inviteSentToEmail: true,
+        inviteTokenExpAt: true,
+        inviteSentCount: true,
+      },
+    });
+
+    this.dispatchInviteEmail({
+      demoId: updated.id,
+      contactName: updated.contactName,
+      companyName: updated.companyName,
+      toEmail: targetEmail,
+      message: dto.message?.trim(),
+      plainToken,
+      expiresAt,
+    }).catch((err) => {
+      this.logger.error(
+        `Demo invite email enqueue failed (${updated.id}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    });
+
+    return {
+      sentAt: updated.inviteSentAt,
+      sentToEmail: updated.inviteSentToEmail,
+      expiresAt: updated.inviteTokenExpAt,
+      sentCount: updated.inviteSentCount,
+      message: "Davet gönderildi",
+    };
+  }
+
+  private async dispatchInviteEmail(input: {
+    demoId: string;
+    contactName: string;
+    companyName: string;
+    toEmail: string;
+    message?: string;
+    plainToken: string;
+    expiresAt: Date;
+  }) {
+    const webUrl = this.config.get<string>("WEB_URL", "http://localhost:3000");
+    const registerUrl = `${webUrl.replace(/\/$/, "")}/register/buyer?invitation=${input.plainToken}`;
+    const expiresAtFormatted = format(input.expiresAt, "d MMMM yyyy", {
+      locale: tr,
+    });
+
+    await this.emailQueue.enqueue({
+      to: { email: input.toEmail, name: input.contactName },
+      templateData: {
+        template: "demo_to_register_invitation",
+        data: {
+          contactName: input.contactName,
+          companyName: input.companyName,
+          message: input.message,
+          registerUrl,
+          expiresAt: expiresAtFormatted,
+        },
+      },
+      context: { type: "demo_request", id: input.demoId },
+      subject: "Supkeys'e davet edildiniz — hesap oluşturun",
+    });
   }
 }

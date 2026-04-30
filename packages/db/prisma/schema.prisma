@@ -117,6 +117,19 @@ model DemoRequest {
   assignedToId String?
   assignedTo   PlatformAdmin? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
 
+  // ---------- DAVET (admin → demo görüşmesinden sonra kayıt linki) ----------
+  inviteToken       String?   @unique // sha256 hash; ham token sadece e-postada
+  inviteSentAt      DateTime?
+  inviteSentToEmail String? // davet hangi e-postaya gönderildi (demo.email'den farklı olabilir)
+  inviteSentMessage String? // admin'in kişisel notu
+  inviteTokenExpAt  DateTime?
+  inviteUsedAt      DateTime? // tek kullanımlık
+  inviteSentCount   Int       @default(0)
+
+  // Davetten kayıt akışı tamamlanınca bağlanan başvuru
+  linkedApplicationId String?           @unique
+  linkedApplication   BuyerApplication? @relation("DemoToBuyerApp", fields: [linkedApplicationId], references: [id])
+
   @@index([status])
   @@index([assignedToId])
   @@index([createdAt])
@@ -208,6 +221,9 @@ model BuyerApplication {
 
   tenantId        String?             @unique
   tenant          Tenant?             @relation("BuyerAppTenant", fields: [tenantId], references: [id])
+
+  // Demo görüşmesi sonrası gönderilen davetle mi geldi?
+  fromDemoRequest DemoRequest?        @relation("DemoToBuyerApp")
 
   ipAddress       String?
   userAgent       String?

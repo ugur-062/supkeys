@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  GoneException,
   Injectable,
   Logger,
   NotFoundException,
@@ -9,7 +10,7 @@ import * as bcrypt from "bcrypt";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailQueue } from "../../email/email.queue";
 import { CreateBuyerApplicationDto } from "../dto/create-buyer-application.dto";
-import { generateRegistrationToken } from "../helpers/token.helper";
+import { generateRegistrationToken, hashToken } from "../helpers/token.helper";
 
 const BCRYPT_ROUNDS = 12;
 const EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 saat
@@ -27,11 +28,42 @@ export class BuyerRegistrationService {
 
   async create(
     dto: CreateBuyerApplicationDto,
+    invitationToken?: string,
     ipAddress?: string,
     userAgent?: string,
   ) {
     const adminEmail = dto.adminEmail.toLowerCase().trim();
     const taxNumber = dto.taxNumber.trim();
+
+    // 0) Davet token (varsa) doğrula — invitation, demo→register akışından gelir
+    let demoInviteId: string | undefined;
+    if (invitationToken) {
+      const tokenHash = hashToken(invitationToken);
+      const demo = await this.prisma.demoRequest.findUnique({
+        where: { inviteToken: tokenHash },
+        select: {
+          id: true,
+          inviteTokenExpAt: true,
+          inviteUsedAt: true,
+          linkedApplicationId: true,
+        },
+      });
+
+      if (!demo) throw new NotFoundException("Davet bulunamadı");
+      if (demo.linkedApplicationId) {
+        throw new ConflictException(
+          "Bu davet zaten kullanılmış, kayıt tamamlanmış",
+        );
+      }
+      if (demo.inviteUsedAt) {
+        throw new ConflictException("Bu davet zaten kullanılmış");
+      }
+      if (demo.inviteTokenExpAt && demo.inviteTokenExpAt < new Date()) {
+        throw new GoneException("Davet süresi dolmuş");
+      }
+
+      demoInviteId = demo.id;
+    }
 
     // 1) E-posta zaten aktif tenant'a bağlı mı?
     const existingUser = await this.prisma.user.findUnique({
@@ -68,37 +100,51 @@ export class BuyerRegistrationService {
     const emailToken = generateRegistrationToken();
     const emailTokenExp = new Date(Date.now() + EMAIL_TOKEN_TTL_MS);
 
-    const created = await this.prisma.buyerApplication.create({
-      data: {
-        companyName: dto.companyName.trim(),
-        companyType: dto.companyType,
-        taxNumber,
-        taxOffice: dto.taxOffice.trim(),
-        taxCertUrl: dto.taxCertUrl.trim(),
-        industry: dto.industry?.trim(),
-        website: dto.website?.trim(),
-        city: dto.city.trim(),
-        district: dto.district.trim(),
-        addressLine: dto.addressLine.trim(),
-        postalCode: dto.postalCode?.trim(),
-        adminFirstName: dto.adminFirstName.trim(),
-        adminLastName: dto.adminLastName.trim(),
-        adminEmail,
-        adminPhone: dto.adminPhone?.trim(),
-        passwordHash,
-        emailToken,
-        emailTokenExp,
-        status: "PENDING_EMAIL_VERIFICATION",
-        ipAddress,
-        userAgent,
-      },
-      select: {
-        id: true,
-        adminFirstName: true,
-        adminEmail: true,
-        companyName: true,
-        emailTokenExp: true,
-      },
+    const created = await this.prisma.$transaction(async (tx) => {
+      const app = await tx.buyerApplication.create({
+        data: {
+          companyName: dto.companyName.trim(),
+          companyType: dto.companyType,
+          taxNumber,
+          taxOffice: dto.taxOffice.trim(),
+          taxCertUrl: dto.taxCertUrl.trim(),
+          industry: dto.industry?.trim(),
+          website: dto.website?.trim(),
+          city: dto.city.trim(),
+          district: dto.district.trim(),
+          addressLine: dto.addressLine.trim(),
+          postalCode: dto.postalCode?.trim(),
+          adminFirstName: dto.adminFirstName.trim(),
+          adminLastName: dto.adminLastName.trim(),
+          adminEmail,
+          adminPhone: dto.adminPhone?.trim(),
+          passwordHash,
+          emailToken,
+          emailTokenExp,
+          status: "PENDING_EMAIL_VERIFICATION",
+          ipAddress,
+          userAgent,
+        },
+        select: {
+          id: true,
+          adminFirstName: true,
+          adminEmail: true,
+          companyName: true,
+        },
+      });
+
+      // Davet ile geldiyse: DemoRequest'e bağla + invite kullanıldı işaretle
+      if (demoInviteId) {
+        await tx.demoRequest.update({
+          where: { id: demoInviteId },
+          data: {
+            linkedApplicationId: app.id,
+            inviteUsedAt: new Date(),
+          },
+        });
+      }
+
+      return app;
     });
 
     this.dispatchVerificationEmail(
@@ -117,6 +163,7 @@ export class BuyerRegistrationService {
       message:
         "Başvurunuz alındı. E-postanıza gönderdiğimiz doğrulama bağlantısına 24 saat içinde tıklayın.",
       expiresAt: emailTokenExp,
+      fromDemoInvite: !!demoInviteId,
     };
   }
 
@@ -131,6 +178,48 @@ export class BuyerRegistrationService {
     });
     if (!app) throw new NotFoundException("Başvuru bulunamadı");
     return app;
+  }
+
+  /**
+   * Public: davet token'ından firma bilgilerini döner — /register/buyer sayfası
+   * formu prefil etmek ve kullanıcıya bağlamı göstermek için kullanır.
+   */
+  async getInvitationInfo(token: string) {
+    const tokenHash = hashToken(token);
+    const demo = await this.prisma.demoRequest.findUnique({
+      where: { inviteToken: tokenHash },
+      select: {
+        companyName: true,
+        contactName: true,
+        inviteSentToEmail: true,
+        inviteSentMessage: true,
+        inviteTokenExpAt: true,
+        inviteUsedAt: true,
+        linkedApplicationId: true,
+      },
+    });
+
+    if (!demo) throw new NotFoundException("Davet bulunamadı");
+
+    if (demo.linkedApplicationId) {
+      throw new ConflictException(
+        "Bu davet zaten kullanılmış, kayıt tamamlanmış",
+      );
+    }
+    if (demo.inviteUsedAt) {
+      throw new ConflictException("Bu davet zaten kullanılmış");
+    }
+    if (demo.inviteTokenExpAt && demo.inviteTokenExpAt < new Date()) {
+      throw new GoneException("Davet süresi dolmuş");
+    }
+
+    return {
+      companyName: demo.companyName,
+      contactName: demo.contactName,
+      email: demo.inviteSentToEmail,
+      message: demo.inviteSentMessage,
+      expiresAt: demo.inviteTokenExpAt,
+    };
   }
 
   private async dispatchVerificationEmail(

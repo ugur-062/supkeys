@@ -1,6 +1,7 @@
 export type EmailTemplate =
   | "demo_request_received"
   | "demo_request_admin_alert"
+  | "demo_to_register_invitation"
   | "buyer_email_verification"
   | "supplier_email_verification"
   | "buyer_application_admin_alert"
@@ -89,6 +90,15 @@ export interface ApplicationRejectedData {
   supportEmail: string;
 }
 
+export interface DemoToRegisterInvitationData {
+  contactName: string;
+  companyName: string;
+  message?: string | null;
+  registerUrl: string;
+  /** Formatted human-readable date, e.g. "30 Nisan 2026" */
+  expiresAt: string;
+}
+
 export interface SupplierInvitationData {
   inviterTenantName: string;
   inviterUserName: string;
@@ -102,6 +112,10 @@ export interface SupplierInvitationData {
 export type EmailTemplateData =
   | { template: "demo_request_received"; data: DemoRequestReceivedData }
   | { template: "demo_request_admin_alert"; data: DemoRequestAdminAlertData }
+  | {
+      template: "demo_to_register_invitation";
+      data: DemoToRegisterInvitationData;
+    }
   | { template: "buyer_email_verification"; data: EmailVerificationData }
   | { template: "supplier_email_verification"; data: EmailVerificationData }
   | {
