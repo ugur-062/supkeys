@@ -44,12 +44,15 @@
 ### ✅ Tamamlanan
 1. **Monorepo iskeleti** — pnpm + turbo + tsconfig.base.json
 2. **Docker Compose** — Postgres + Redis + MinIO çalışıyor
-3. **Prisma şeması** — `Tenant`, `User` (UserRole: COMPANY_ADMIN/BUYER/APPROVER), `PlatformAdmin` (AdminRole: SUPER_ADMIN/SALES/SUPPORT), `DemoRequest` (DemoRequestStatus: NEW/CONTACTED/DEMO_SCHEDULED/DEMO_DONE/WON/LOST/SPAM)
+3. **Prisma şeması** — `Tenant` (yeni opsiyonel firma profil alanları: industry/city/district/addressLine/postalCode/taxNumber unique/taxOffice), `User` (UserRole: COMPANY_ADMIN/BUYER/APPROVER), `PlatformAdmin` (AdminRole: SUPER_ADMIN/SALES/SUPPORT), `DemoRequest` (NEW/CONTACTED/DEMO_SCHEDULED/DEMO_DONE/WON/LOST/SPAM), `EmailLog`, `BuyerApplication` + `SupplierApplication` (ApplicationStatus: PENDING_EMAIL_VERIFICATION/PENDING_REVIEW/APPROVED/REJECTED), `Supplier` (membership: BRONZE/SILVER) + `SupplierUser`, `SupplierTenantRelation` (RelationStatus: ACTIVE/PENDING_TENANT_APPROVAL/BLOCKED), `SupplierInvitation` (InvitationStatus: PENDING/ACCEPTED/EXPIRED/CANCELLED), `CompanyType` enum (JOINT_STOCK/LIMITED/SOLE_PROPRIETOR)
 4. **Backend modülleri:**
    - `health` — `GET /api/health` (DB ping)
-   - `auth` — `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me` (JWT, bcrypt rounds=12, 7d expiry)
+   - `auth` — `POST /api/auth/login`, `GET /api/auth/me` (JWT, bcrypt rounds=12, 7d expiry). `POST /auth/register` KALDIRILDI — kayıt artık `/registration/...` endpoint'leri üzerinden, admin onayıyla
    - `admin-auth` — `POST /api/admin/auth/login`, `GET /api/admin/auth/me`
    - `demo-requests` — Public: `POST /api/demo-requests`. Admin: `GET /api/admin/demo-requests` (filtre/pagination), `GET /api/admin/demo-requests/stats`, `GET /api/admin/demo-requests/:id`, `PATCH /api/admin/demo-requests/:id`
+   - `registration` — Public 3 akış: `POST /api/registration/buyer/applications`, `POST /api/registration/supplier/applications?invitation={token}`, `POST /api/registration/verify-email`, `GET /api/registration/{buyer|supplier}/applications/:id/status`. E-posta doğrulama (24 saat token), service-level + DB-level dedupe (aynı e-posta için bekleyen başvuru engeli)
+   - `admin-applications` — Admin: `/api/admin/buyer-applications` ve `/api/admin/supplier-applications` (list/filter, stats, detail, approve, reject). Approve transactional: buyer → Tenant + User(COMPANY_ADMIN); supplier → Supplier(BRONZE) + SupplierUser + (varsa) SupplierTenantRelation(ACTIVE) + invitation→ACCEPTED. Slug otomatik: companyName → Türkçe latinize → benzersizlik kontrolü (`@supkeys/shared` `generateSlug` + `uniqueSlug`)
+   - `tenant-suppliers` — Tenant: `/api/tenants/me/supplier-invitations` (POST/list/detail/resend/cancel). RolesGuard ile COMPANY_ADMIN role kısıtı (BUYER/APPROVER → 403). Token sha256 hash olarak saklanır, ham token sadece e-postada; 7 gün geçerli
 5. **Seed:** `pnpm --filter @supkeys/db seed` ile Demo tenant + ilk SUPER_ADMIN oluşur (`admin@supkeys.com / admin12345`).
 6. **Frontend (apps/web):**
    - Public landing (`/`)
@@ -78,17 +81,25 @@
    - Sidebar nav item'ları: Dashboard, Demo Talepleri, E-posta Logları (aktif); Müşteri Firmaları / Tedarikçiler / Ayarlar (yakında)
    - Bağımlılıklar: `@radix-ui/react-dialog`, `date-fns` (admin app'ine eklendi)
 8. **E-posta altyapısı:**
-   - `packages/email` workspace paketi: React Email template'leri (`demo_request_received`, `demo_request_admin_alert`), Resend + Mailpit (nodemailer SMTP) provider'ları, `createEmailClient(config)` factory, `renderEmail(spec)` helper (HTML + plain-text fallback). Tsc ile `dist/` build edilir
+   - `packages/email` workspace paketi: React Email template'leri (10 toplam: `demo_request_received`, `demo_request_admin_alert`, `buyer_email_verification`, `supplier_email_verification`, `buyer_application_admin_alert`, `supplier_application_admin_alert`, `buyer_application_approved`, `supplier_application_approved`, `application_rejected` — buyer/supplier ortak, `supplier_invitation`), Resend + Mailpit (nodemailer SMTP) provider'ları, `createEmailClient(config)` factory, `renderEmail(spec)` helper (HTML + plain-text fallback). Tsc ile `dist/` build edilir
    - Mailpit container docker-compose'a eklendi (port 1025 SMTP, 8025 Web UI). Geliştirmede `EMAIL_PROVIDER=mailpit`
    - Backend `EmailModule` (apps/api): BullMQ kuyruğu (`email`, attempts=3, exponential backoff), `EmailQueue` producer, `EmailProcessor` worker, `EmailService` (provider client + EmailLog yazımı). Redis bağlantısı `REDIS_URL`'den parse
-   - Yeni Prisma modeli `EmailLog` (template, toEmail, subject, provider, providerMessageId, status [QUEUED/SENDING/SENT/FAILED], errorMessage, payload JSON, attemptCount, queuedAt/sentAt/failedAt, contextType/contextId), migration: `add_email_logs`
-   - Demo talebi oluşturulduğunda fire-and-forget 2 e-posta tetiklenir: kullanıcıya teşekkür + tüm aktif SUPER_ADMIN'lere bildirim. Hata durumunda 201 dönüşü etkilenmez
+   - Demo talebi + registration akışlarında fire-and-forget e-posta tetiklenir (verification → admin alert on verify → approved/rejected on review)
    - Admin endpoint'leri: `GET /api/admin/email-logs` (filtre/pagination), `GET /api/admin/email-logs/:id`
    - `.env`'de `EMAIL_PROVIDER` (mailpit/resend), `MAILPIT_HOST/PORT`, `RESEND_API_KEY`, `EMAIL_FROM_NAME/ADDRESS/REPLY_TO`. Production geçişi: `EMAIL_PROVIDER=resend` + verified domain
+9. **Kayıt sistemi (Aşama A — backend):**
+   - 3 kayıt akışı: alıcı self, tedarikçi self (Silver kandidatı), tedarikçi davetli (alıcının daveti üzerinden)
+   - Migration `add_registration_and_suppliers` — `BuyerApplication`/`SupplierApplication` (vergi levhası URL string, KVKK + terms onay zorunlu, password 8-72 + en az 1 büyük + 1 küçük + 1 rakam validation), `Supplier` (BRONZE/SILVER), `SupplierUser`, `SupplierTenantRelation`, `SupplierInvitation`
+   - Token üretimi: `crypto.randomBytes(32).toString("hex")` (64 karakter); SupplierInvitation'da sadece sha256 hash saklanır, ham token e-postada
+   - E-posta doğrulama 24 saat geçerli, davet 7 gün geçerli; resend davet token'ı yeniler
+   - Admin approval transactional: buyer → Tenant (slug otomatik üretilir) + User(COMPANY_ADMIN); supplier → Supplier(BRONZE) + SupplierUser + (davetli ise) SupplierTenantRelation(ACTIVE) + invitation status=ACCEPTED
+   - 8 yeni e-posta şablonu (yukarıda)
+   - Aşama B-C: frontend register formları + e-posta doğrulama callback sayfası + admin paneli "Başvurular" sayfaları gelecek
 
 ### ⏳ Sıradaki (Bu Sprint)
-1. **Tenant register sayfası** (`/register`) + welcome e-postası — backend `POST /auth/register` zaten var
-2. Admin dashboard KPI'ları (`GET /admin/demo-requests/stats` kullan)
+1. **Aşama B**: Frontend register sayfaları (3 form: alıcı self / tedarikçi self / tedarikçi davetli) + e-posta doğrulama callback sayfası
+2. **Aşama C**: Admin panel "Başvurular" sayfaları (buyer-applications + supplier-applications listeleri + detail/approve/reject)
+3. Admin dashboard KPI'ları (`GET /admin/demo-requests/stats` kullan)
 
 ### 🔮 Yol Haritası (Sonra)
 - Tenant register sayfası (`/register`) — backend `POST /auth/register` zaten var

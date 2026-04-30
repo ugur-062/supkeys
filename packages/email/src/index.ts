@@ -4,6 +4,10 @@ export { MailpitProvider } from "./providers/mailpit";
 export { ResendProvider } from "./providers/resend";
 export { renderEmail } from "./render";
 export type {
+  ApplicantType,
+  ApplicationAdminAlertData,
+  ApplicationRejectedData,
+  BuyerApplicationApprovedData,
   DemoRequestAdminAlertData,
   DemoRequestReceivedData,
   EmailClientConfig,
@@ -11,7 +15,10 @@ export type {
   EmailRecipient,
   EmailTemplate,
   EmailTemplateData,
+  EmailVerificationData,
   RenderedEmail,
   SendEmailInput,
   SendEmailResult,
+  SupplierApplicationApprovedData,
+  SupplierInvitationData,
 } from "./types";

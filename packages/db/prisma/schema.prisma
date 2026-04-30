@@ -18,10 +18,24 @@ model Tenant {
   name      String
   slug      String   @unique
   isActive  Boolean  @default(true)
+
+  // Firma profili (registration sırasında dolar)
+  industry    String?
+  city        String?
+  district    String?
+  addressLine String?
+  postalCode  String?
+  taxNumber   String? @unique
+  taxOffice   String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users     User[]
+  users                User[]
+  buyerApplication     BuyerApplication?       @relation("BuyerAppTenant")
+  supplierInvitations  SupplierInvitation[]
+  supplierRelations    SupplierTenantRelation[]
+  invitedSupplierApps  SupplierApplication[]   @relation("SupplierAppInviter")
 
   @@map("tenants")
 }
@@ -40,6 +54,8 @@ model User {
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  sentSupplierInvitations SupplierInvitation[]
 
   @@index([tenantId])
   @@map("users")
@@ -65,7 +81,9 @@ model PlatformAdmin {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  assignedDemoRequests DemoRequest[]
+  assignedDemoRequests         DemoRequest[]
+  reviewedBuyerApplications    BuyerApplication[]    @relation("BuyerAppReviewer")
+  reviewedSupplierApplications SupplierApplication[] @relation("SupplierAppReviewer")
 
   @@map("platform_admins")
 }
@@ -88,8 +106,8 @@ model DemoRequest {
   companySize  String?
   message      String?
   status       DemoRequestStatus @default(NEW)
-  source       String?           // landing_page, referral, ...
-  notes        String?           // admin'in notları
+  source       String?
+  notes        String?
   contactedAt  DateTime?
   closedAt     DateTime?
   closedReason String?
@@ -119,22 +137,21 @@ enum DemoRequestStatus {
 
 model EmailLog {
   id                String      @id @default(cuid())
-  template          String      // "demo_request_received" | "demo_request_admin_alert" | ...
+  template          String
   toEmail           String
   toName            String?
   subject           String
-  provider          String      // "resend" | "mailpit"
+  provider          String
   providerMessageId String?
   status            EmailStatus @default(QUEUED)
   errorMessage      String?
-  payload           Json?       // template'e geçen veri (debug için)
+  payload           Json?
   attemptCount      Int         @default(0)
   queuedAt          DateTime    @default(now())
   sentAt            DateTime?
   failedAt          DateTime?
 
-  // Bağlam (opsiyonel, hangi entity için gönderildi)
-  contextType String? // "demo_request" | "user_invite" | ...
+  contextType String?
   contextId   String?
 
   @@index([status])
@@ -150,4 +167,250 @@ enum EmailStatus {
   SENDING
   SENT
   FAILED
+}
+
+// ============================================================
+// REGISTRATION & APPLICATIONS
+// ============================================================
+
+model BuyerApplication {
+  id              String              @id @default(cuid())
+
+  companyName     String
+  companyType     CompanyType
+  taxNumber       String
+  taxOffice       String
+  taxCertUrl      String
+  industry        String?
+  website         String?
+
+  city            String
+  district        String
+  addressLine     String
+  postalCode      String?
+
+  adminFirstName  String
+  adminLastName   String
+  adminEmail      String
+  adminPhone      String?
+  passwordHash    String
+
+  status          ApplicationStatus   @default(PENDING_EMAIL_VERIFICATION)
+
+  emailToken      String?             @unique
+  emailTokenExp   DateTime?
+  emailVerifiedAt DateTime?
+
+  reviewedById    String?
+  reviewedBy      PlatformAdmin?      @relation("BuyerAppReviewer", fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?
+  rejectionReason String?
+
+  tenantId        String?             @unique
+  tenant          Tenant?             @relation("BuyerAppTenant", fields: [tenantId], references: [id])
+
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([adminEmail, status])
+  @@index([status])
+  @@index([adminEmail])
+  @@index([createdAt])
+  @@map("buyer_applications")
+}
+
+model SupplierApplication {
+  id              String              @id @default(cuid())
+
+  companyName     String
+  companyType     CompanyType
+  taxNumber       String
+  taxOffice       String
+  taxCertUrl      String
+  industry        String?
+  website         String?
+
+  city            String
+  district        String
+  addressLine     String
+  postalCode      String?
+
+  adminFirstName  String
+  adminLastName   String
+  adminEmail      String
+  adminPhone      String?
+  passwordHash    String
+
+  status          ApplicationStatus   @default(PENDING_EMAIL_VERIFICATION)
+
+  emailToken      String?             @unique
+  emailTokenExp   DateTime?
+  emailVerifiedAt DateTime?
+
+  invitationId      String?             @unique
+  invitation        SupplierInvitation? @relation(fields: [invitationId], references: [id])
+  invitedByTenantId String?
+  invitedByTenant   Tenant?             @relation("SupplierAppInviter", fields: [invitedByTenantId], references: [id])
+
+  reviewedById    String?
+  reviewedBy      PlatformAdmin?      @relation("SupplierAppReviewer", fields: [reviewedById], references: [id])
+  reviewedAt      DateTime?
+  rejectionReason String?
+
+  supplierId      String?             @unique
+  supplier        Supplier?           @relation("SupplierAppSupplier", fields: [supplierId], references: [id])
+
+  ipAddress       String?
+  userAgent       String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([status])
+  @@index([adminEmail])
+  @@index([invitedByTenantId])
+  @@index([createdAt])
+  @@map("supplier_applications")
+}
+
+enum ApplicationStatus {
+  PENDING_EMAIL_VERIFICATION
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum CompanyType {
+  JOINT_STOCK
+  LIMITED
+  SOLE_PROPRIETOR
+}
+
+// ============================================================
+// SUPPLIER (gerçek tedarikçi entitysi)
+// ============================================================
+
+model Supplier {
+  id            String             @id @default(cuid())
+  companyName   String
+  companyType   CompanyType
+  taxNumber     String             @unique
+  taxOffice     String
+  taxCertUrl    String
+  industry      String?
+  website       String?
+  city          String
+  district      String
+  addressLine   String
+  postalCode    String?
+  membership    SupplierMembership @default(BRONZE)
+  isActive      Boolean            @default(true)
+  isBlocked     Boolean            @default(false)
+  blockedReason String?
+  blockedAt     DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  users               SupplierUser[]
+  tenantRelations     SupplierTenantRelation[]
+  application         SupplierApplication?      @relation("SupplierAppSupplier")
+  invitationsAccepted SupplierInvitation[]      @relation("AcceptedBySupplier")
+
+  @@index([taxNumber])
+  @@index([membership])
+  @@map("suppliers")
+}
+
+enum SupplierMembership {
+  BRONZE
+  SILVER
+}
+
+model SupplierUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  phone        String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId])
+  @@map("supplier_users")
+}
+
+model SupplierTenantRelation {
+  id            String         @id @default(cuid())
+  supplierId    String
+  supplier      Supplier       @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  status        RelationStatus @default(ACTIVE)
+  blockedAt     DateTime?
+  blockedReason String?
+  createdAt     DateTime       @default(now())
+
+  @@unique([supplierId, tenantId])
+  @@index([tenantId])
+  @@index([supplierId])
+  @@map("supplier_tenant_relations")
+}
+
+enum RelationStatus {
+  ACTIVE
+  PENDING_TENANT_APPROVAL
+  BLOCKED
+}
+
+// ============================================================
+// SUPPLIER INVITATIONS (alıcı → tedarikçi davetleri)
+// ============================================================
+
+model SupplierInvitation {
+  id              String           @id @default(cuid())
+  tenantId        String
+  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invitedByUserId String
+  invitedByUser   User             @relation(fields: [invitedByUserId], references: [id])
+
+  email           String
+  contactName     String?
+  message         String?
+
+  tokenHash       String           @unique
+  expiresAt       DateTime
+
+  status          InvitationStatus @default(PENDING)
+  acceptedAt      DateTime?
+  cancelledAt     DateTime?
+  acceptedBySupplierId String?
+  acceptedBySupplier   Supplier?  @relation("AcceptedBySupplier", fields: [acceptedBySupplierId], references: [id])
+
+  sentCount  Int      @default(1)
+  lastSentAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  application SupplierApplication?
+
+  @@index([tenantId])
+  @@index([email])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("supplier_invitations")
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
 }
