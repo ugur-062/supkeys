@@ -1,5 +1,4 @@
 import { PlaceholderPage } from "@/components/dashboard/placeholder-page";
-import { BarChart3 } from "lucide-react";
 
 export const metadata = {
   title: "Raporlar — Supkeys",
@@ -8,10 +7,10 @@ export const metadata = {
 export default function RaporlarPage() {
   return (
     <PlaceholderPage
+      iconKey="raporlar"
       title="Raporlar"
       subtitle="Satın alma performansınızı, tasarruf trendlerinizi ve kategori bazlı detayları görüntüleyin."
       description="Yöneticiye özet, satın alma ekibine detay, finansa harcama bazlı raporlar — hepsini tek yerden alın."
-      icon={BarChart3}
       estimatedRelease="V2"
       highlights={[
         "Tasarruf ve harcama dashboard'ı",

@@ -1,26 +1,51 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { ArrowLeft, type LucideIcon, Sparkles } from "lucide-react";
+import {
+  ArrowLeft,
+  BarChart3,
+  CheckSquare,
+  FileText,
+  type LucideIcon,
+  Package,
+  Plus,
+  Settings,
+  Sparkles,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 
+const ICON_MAP = {
+  ihaleler: FileText,
+  "ihaleler-yeni": Plus,
+  "onay-bekleyenler": CheckSquare,
+  siparisler: Package,
+  tedarikciler: Users,
+  raporlar: BarChart3,
+  ayarlar: Settings,
+} satisfies Record<string, LucideIcon>;
+
+export type PlaceholderIconKey = keyof typeof ICON_MAP;
+
 interface PlaceholderPageProps {
+  iconKey: PlaceholderIconKey;
   title: string;
   subtitle: string;
   description?: string;
-  icon: LucideIcon;
   estimatedRelease?: string;
   highlights?: string[];
 }
 
 export function PlaceholderPage({
+  iconKey,
   title,
   subtitle,
   description,
-  icon: Icon,
   estimatedRelease = "V2",
   highlights,
 }: PlaceholderPageProps) {
+  const Icon = ICON_MAP[iconKey] ?? FileText;
+
   return (
     <div className="max-w-3xl mx-auto">
       <section
