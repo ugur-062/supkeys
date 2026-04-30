@@ -87,7 +87,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         style={{ boxShadow: "var(--shadow-sidebar)" }}
       >
         <div className="px-5 py-5 border-b border-white/5">
-          <AdminLogo variant="light" badge />
+          <AdminLogo variant="light" size="md" badge priority />
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-0.5">

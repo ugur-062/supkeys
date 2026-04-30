@@ -12,7 +12,7 @@ export default function AdminLoginPage() {
       <section className="flex-1 px-4 py-12 md:py-16 flex items-start md:items-center">
         <div className="max-w-md mx-auto w-full">
           <div className="flex justify-center mb-8">
-            <AdminLogo variant="dark" badge />
+            <AdminLogo variant="dark" size="lg" badge priority />
           </div>
 
           <div className="text-center mb-8 space-y-2">

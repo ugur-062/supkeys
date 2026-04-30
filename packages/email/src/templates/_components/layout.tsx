@@ -4,6 +4,7 @@ import {
   Head,
   Hr,
   Html,
+  Img,
   Preview,
   Section,
   Text,
@@ -41,28 +42,9 @@ const headerSection = {
   marginBottom: "24px",
 };
 
-const logoBox = {
+const logoStyle = {
   display: "inline-block",
-  width: "36px",
-  height: "36px",
-  lineHeight: "36px",
-  borderRadius: "8px",
-  backgroundColor: COLORS.brand600,
-  color: "#FFFFFF",
-  fontFamily: FONTS.display,
-  fontWeight: 700,
-  fontSize: "18px",
-  textAlign: "center" as const,
-  verticalAlign: "middle",
-  marginRight: "8px",
-};
-
-const logoText = {
-  display: "inline-block",
-  fontFamily: FONTS.display,
-  fontWeight: 700,
-  fontSize: "20px",
-  verticalAlign: "middle",
+  height: "auto",
   margin: 0,
 };
 
@@ -74,6 +56,9 @@ const footerStyle = {
   lineHeight: "1.6",
 };
 
+const WEB_URL = (process.env.WEB_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const LOGO_URL = `${WEB_URL}/supkeys-logo-full.png`;
+
 export function Layout({ preview, children }: LayoutProps) {
   return (
     <Html lang="tr">
@@ -82,11 +67,13 @@ export function Layout({ preview, children }: LayoutProps) {
       <Body style={main}>
         <Container style={wrapper}>
           <Section style={headerSection}>
-            <span style={logoBox}>S</span>
-            <span style={logoText}>
-              <span style={{ color: COLORS.brand900 }}>sup</span>
-              <span style={{ color: COLORS.brand600 }}>keys</span>
-            </span>
+            <Img
+              src={LOGO_URL}
+              alt="Supkeys"
+              width="160"
+              height="40"
+              style={logoStyle}
+            />
           </Section>
 
           <Section style={card}>{children}</Section>

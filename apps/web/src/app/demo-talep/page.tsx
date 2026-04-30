@@ -13,7 +13,7 @@ export default function DemoTalepPage() {
       <header className="px-8 py-6 border-b border-surface-border bg-white">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/">
-            <SupkeysLogo />
+            <SupkeysLogo variant="full" size="md" priority />
           </Link>
           <Link href="/" className="text-sm text-slate-600 hover:text-brand-700">
             ← Ana Sayfa

@@ -129,7 +129,7 @@ export class AdminSupplierApplicationsService {
           district: app.district,
           addressLine: app.addressLine,
           postalCode: app.postalCode,
-          membership: "BRONZE",
+          membership: "STANDARD",
         },
       });
 

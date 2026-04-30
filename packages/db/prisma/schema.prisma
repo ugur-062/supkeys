@@ -304,7 +304,7 @@ model Supplier {
   district      String
   addressLine   String
   postalCode    String?
-  membership    SupplierMembership @default(BRONZE)
+  membership    SupplierMembership @default(STANDARD)
   isActive      Boolean            @default(true)
   isBlocked     Boolean            @default(false)
   blockedReason String?
@@ -323,8 +323,8 @@ model Supplier {
 }
 
 enum SupplierMembership {
-  BRONZE
-  SILVER
+  STANDARD // Davet ile veya self-register, ücretsiz (eski adı: BRONZE)
+  PREMIUM  // Havuza açık, ücretli (V2'de aktif olur, eski adı: SILVER)
 }
 
 model SupplierUser {

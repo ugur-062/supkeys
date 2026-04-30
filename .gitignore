@@ -14,3 +14,9 @@ coverage/
 .idea/
 *.swp
 .cache/
+
+# Next.js local env
+.env.local
+
+# Geçici logo kaynak klasörü
+.logo-source/

@@ -5,9 +5,22 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Supkeys Admin — Platform Yönetim Paneli",
-  description: "Supkeys platform admin paneli",
-  robots: { index: false, follow: false },
+  title: {
+    default: "Supkeys Admin",
+    template: "%s · Supkeys Admin",
+  },
+  description: "Supkeys platform yönetim paneli",
+  robots: {
+    index: false,
+    follow: false,
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/supkeys-icon-32.png", type: "image/png", sizes: "32x32" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({

@@ -44,7 +44,7 @@
 ### ✅ Tamamlanan
 1. **Monorepo iskeleti** — pnpm + turbo + tsconfig.base.json
 2. **Docker Compose** — Postgres + Redis + MinIO çalışıyor
-3. **Prisma şeması** — `Tenant` (yeni opsiyonel firma profil alanları: industry/city/district/addressLine/postalCode/taxNumber unique/taxOffice), `User` (UserRole: COMPANY_ADMIN/BUYER/APPROVER), `PlatformAdmin` (AdminRole: SUPER_ADMIN/SALES/SUPPORT), `DemoRequest` (NEW/CONTACTED/DEMO_SCHEDULED/DEMO_DONE/WON/LOST/SPAM), `EmailLog`, `BuyerApplication` + `SupplierApplication` (ApplicationStatus: PENDING_EMAIL_VERIFICATION/PENDING_REVIEW/APPROVED/REJECTED), `Supplier` (membership: BRONZE/SILVER) + `SupplierUser`, `SupplierTenantRelation` (RelationStatus: ACTIVE/PENDING_TENANT_APPROVAL/BLOCKED), `SupplierInvitation` (InvitationStatus: PENDING/ACCEPTED/EXPIRED/CANCELLED), `CompanyType` enum (JOINT_STOCK/LIMITED/SOLE_PROPRIETOR)
+3. **Prisma şeması** — `Tenant` (yeni opsiyonel firma profil alanları: industry/city/district/addressLine/postalCode/taxNumber unique/taxOffice), `User` (UserRole: COMPANY_ADMIN/BUYER/APPROVER), `PlatformAdmin` (AdminRole: SUPER_ADMIN/SALES/SUPPORT), `DemoRequest` (NEW/CONTACTED/DEMO_SCHEDULED/DEMO_DONE/WON/LOST/SPAM), `EmailLog`, `BuyerApplication` + `SupplierApplication` (ApplicationStatus: PENDING_EMAIL_VERIFICATION/PENDING_REVIEW/APPROVED/REJECTED), `Supplier` (membership: STANDARD/PREMIUM — eski BRONZE/SILVER yeniden adlandırıldı, migration: `rename_membership_enum_to_standard_premium`) + `SupplierUser`, `SupplierTenantRelation` (RelationStatus: ACTIVE/PENDING_TENANT_APPROVAL/BLOCKED), `SupplierInvitation` (InvitationStatus: PENDING/ACCEPTED/EXPIRED/CANCELLED), `CompanyType` enum (JOINT_STOCK/LIMITED/SOLE_PROPRIETOR)
 4. **Backend modülleri:**
    - `health` — `GET /api/health` (DB ping)
    - `auth` — `POST /api/auth/login`, `GET /api/auth/me` (JWT, bcrypt rounds=12, 7d expiry). `POST /auth/register` KALDIRILDI — kayıt artık `/registration/...` endpoint'leri üzerinden, admin onayıyla
@@ -88,13 +88,20 @@
    - Admin endpoint'leri: `GET /api/admin/email-logs` (filtre/pagination), `GET /api/admin/email-logs/:id`
    - `.env`'de `EMAIL_PROVIDER` (mailpit/resend), `MAILPIT_HOST/PORT`, `RESEND_API_KEY`, `EMAIL_FROM_NAME/ADDRESS/REPLY_TO`. Production geçişi: `EMAIL_PROVIDER=resend` + verified domain
 9. **Kayıt sistemi (Aşama A — backend):**
-   - 3 kayıt akışı: alıcı self, tedarikçi self (Silver kandidatı), tedarikçi davetli (alıcının daveti üzerinden)
-   - Migration `add_registration_and_suppliers` — `BuyerApplication`/`SupplierApplication` (vergi levhası URL string, KVKK + terms onay zorunlu, password 8-72 + en az 1 büyük + 1 küçük + 1 rakam validation), `Supplier` (BRONZE/SILVER), `SupplierUser`, `SupplierTenantRelation`, `SupplierInvitation`
+   - 3 kayıt akışı: alıcı self, tedarikçi self (Premium kandidatı), tedarikçi davetli (alıcının daveti üzerinden)
+   - Migration `add_registration_and_suppliers` — `BuyerApplication`/`SupplierApplication` (vergi levhası URL string, KVKK + terms onay zorunlu, password 8-72 + en az 1 büyük + 1 küçük + 1 rakam validation), `Supplier`, `SupplierUser`, `SupplierTenantRelation`, `SupplierInvitation`
    - Token üretimi: `crypto.randomBytes(32).toString("hex")` (64 karakter); SupplierInvitation'da sadece sha256 hash saklanır, ham token e-postada
    - E-posta doğrulama 24 saat geçerli, davet 7 gün geçerli; resend davet token'ı yeniler
-   - Admin approval transactional: buyer → Tenant (slug otomatik üretilir) + User(COMPANY_ADMIN); supplier → Supplier(BRONZE) + SupplierUser + (davetli ise) SupplierTenantRelation(ACTIVE) + invitation status=ACCEPTED
+   - Admin approval transactional: buyer → Tenant (slug otomatik üretilir) + User(COMPANY_ADMIN); supplier → Supplier(STANDARD) + SupplierUser + (davetli ise) SupplierTenantRelation(ACTIVE) + invitation status=ACCEPTED
    - 8 yeni e-posta şablonu (yukarıda)
    - Aşama B-C: frontend register formları + e-posta doğrulama callback sayfası + admin paneli "Başvurular" sayfaları gelecek
+10. **Brand & üyelik kademesi yenileme:**
+    - Resmi Supkeys logoları projeye dağıtıldı: `apps/web/public/`, `apps/admin/public/` (favicon.ico, apple-touch-icon, supkeys-logo-full + white, supkeys-icon 7 boyut + white) + `packages/email/src/templates/_assets/` (full + 128 ikon)
+    - `SupkeysLogo` (web + admin) artık `next/image` tabanlı, variant (`full`/`icon`/`full-white`/`icon-white`) + size (`sm`/`md`/`lg`/`xl`) + priority destekliyor; `AdminLogo` `SupkeysLogo`'yu sarıp "ADMIN" pill ekliyor (light variant koyu sidebar için)
+    - Logo kullanım yerleri güncellendi: tenant landing/login/demo-talep/dashboard sidebar (collapsed → icon, expanded → full); admin login (dark variant) + admin sidebar (light variant)
+    - Root layout `metadata`: title.template, description, icons (4 farklı boyut + apple-touch), OpenGraph (locale=tr_TR, image=full logo). Admin app icon set + robots noindex/nofollow
+    - E-posta `Layout` component artık `process.env.WEB_URL`/supkeys-logo-full.png URL'iyle `<Img>` render ediyor (dev'de localhost:3000, prod'da gerçek domain)
+    - Üyelik kademesi yeniden adlandırıldı: BRONZE → STANDARD, SILVER → PREMIUM (migration `rename_membership_enum_to_standard_premium`, manuel SQL ile mevcut data güvenli map'lendi). Tüm kod referansları + e-posta template metni ("Standart üyelik" / "Premium üyeliğe yükselterek") güncellendi
 
 ### ⏳ Sıradaki (Bu Sprint)
 1. **Aşama B**: Frontend register sayfaları (3 form: alıcı self / tedarikçi self / tedarikçi davetli) + e-posta doğrulama callback sayfası

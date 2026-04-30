@@ -5,8 +5,29 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Supkeys — Akıllı Satın Alma Platformu",
-  description: "AI destekli e-satın alma ve e-ihale platformu",
+  title: {
+    default: "Supkeys — AI Destekli E-Satın Alma Platformu",
+    template: "%s · Supkeys",
+  },
+  description:
+    "Tedarikçi yönetimi, RFQ, açık eksiltme — tek platformda. Tasarrufunuzu artırın, satın alma sürecinizi otomatikleştirin.",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/supkeys-icon-16.png", type: "image/png", sizes: "16x16" },
+      { url: "/supkeys-icon-32.png", type: "image/png", sizes: "32x32" },
+      { url: "/supkeys-icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/supkeys-icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: "Supkeys",
+    description: "AI Destekli E-Satın Alma Platformu",
+    images: ["/supkeys-logo-full.png"],
+    locale: "tr_TR",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

@@ -61,10 +61,10 @@ export function SupplierApplicationApprovedEmail(
       </Section>
 
       <Section style={upgradeBox}>
-        <strong style={{ color: COLORS.brand900 }}>BRONZE üyelik</strong> ile
+        <strong style={{ color: COLORS.brand900 }}>Standart üyelik</strong> ile
         davet edildiğiniz ihalelere teklif verebilirsiniz. Tüm açık ihalelere
         görünür olmak için ileride{" "}
-        <strong style={{ color: COLORS.brand700 }}>SILVER üyeliğe</strong>{" "}
+        <strong style={{ color: COLORS.brand700 }}>Premium üyeliğe</strong>{" "}
         yükseltebilirsiniz.
       </Section>
 
@@ -99,8 +99,8 @@ export function renderSupplierApplicationApprovedText(
     "",
     `Giriş yap: ${props.loginUrl}`,
     "",
-    "BRONZE üyelik ile davet edildiğiniz ihalelere teklif verebilirsiniz.",
-    "İleride SILVER üyeliğe yükselterek tüm açık ihalelere görünür olabilirsiniz.",
+    "Standart üyelik ile davet edildiğiniz ihalelere teklif verebilirsiniz.",
+    "İleride Premium üyeliğe yükselterek tüm açık ihalelere görünür olabilirsiniz.",
     "",
     "— Supkeys ekibi",
     "© 2026 Supkeys",

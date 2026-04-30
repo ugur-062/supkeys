@@ -50,7 +50,7 @@ export function Sidebar() {
         >
           {!collapsed ? (
             <>
-              <SupkeysLogo />
+              <SupkeysLogo variant="full" size="md" priority />
               <button
                 type="button"
                 onClick={toggle}
@@ -73,9 +73,9 @@ export function Sidebar() {
                 onClick={toggle}
                 aria-label="Sidebar'ı genişlet"
                 title="Genişlet"
-                className="flex items-center justify-center w-9 h-9 rounded-lg bg-brand-600 text-white font-display font-bold text-lg hover:bg-brand-700 shadow-sm transition-colors"
+                className="flex items-center justify-center hover:opacity-80 transition-opacity"
               >
-                S
+                <SupkeysLogo variant="icon" size="md" priority />
               </button>
               <button
                 type="button"

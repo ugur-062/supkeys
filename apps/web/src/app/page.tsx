@@ -6,7 +6,7 @@ export default function HomePage() {
     <main className="min-h-screen flex flex-col">
       <header className="px-8 py-6 border-b border-surface-border bg-white">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <SupkeysLogo />
+          <SupkeysLogo variant="full" size="md" priority />
           <nav className="flex items-center gap-3">
             <Link href="/login" className="btn-secondary">
               Giriş Yap

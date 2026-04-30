@@ -1,44 +1,42 @@
 import { cn } from "@/lib/utils";
+import { SupkeysLogo, type LogoSize, type LogoVariant } from "./supkeys-logo";
 
 interface AdminLogoProps {
   className?: string;
-  /** Sidebar (koyu zemin) için beyaz tipografi varyantı */
+  /**
+   * Sidebar (koyu zemin) için "light" → beyaz logo,
+   * Login (açık zemin) için "dark" → renkli logo.
+   */
   variant?: "light" | "dark";
-  /** "ADMIN" rozetini göster */
+  /** Sıkışık yerlerde sadece S kutusu */
+  iconOnly?: boolean;
+  /** Boyut — varsayılan md */
+  size?: LogoSize;
+  /** "ADMIN" rozeti */
   badge?: boolean;
+  /** LCP optimization — login gibi anasayfalarda true geçilmeli */
+  priority?: boolean;
 }
 
 export function AdminLogo({
   className,
   variant = "dark",
+  iconOnly = false,
+  size = "md",
   badge = true,
+  priority = false,
 }: AdminLogoProps) {
-  const isLight = variant === "light";
+  let logoVariant: LogoVariant;
+  if (iconOnly) {
+    logoVariant = variant === "light" ? "icon-white" : "icon";
+  } else {
+    logoVariant = variant === "light" ? "full-white" : "full";
+  }
 
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
-      <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-brand-600 text-white font-display font-bold text-lg shrink-0">
-        S
-      </div>
-      <div className="flex items-baseline gap-0.5">
-        <span
-          className={cn(
-            "font-display font-bold text-xl",
-            isLight ? "text-white" : "text-brand-900",
-          )}
-        >
-          sup
-        </span>
-        <span
-          className={cn(
-            "font-display font-bold text-xl",
-            isLight ? "text-brand-400" : "text-brand-600",
-          )}
-        >
-          keys
-        </span>
-      </div>
-      {badge && (
+      <SupkeysLogo variant={logoVariant} size={size} priority={priority} />
+      {badge && !iconOnly && (
         <span className="ml-1 admin-pill-danger">Admin</span>
       )}
     </div>
