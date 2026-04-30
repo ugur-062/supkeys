@@ -55,13 +55,16 @@
    - Public landing (`/`)
    - Demo talep formu (`/demo-talep`) — react-hook-form + zod, success state, sonner toast
    - Login (`/login`) — email + password, "şifremi göster", validation
-   - Modern tenant dashboard (`/dashboard`): collapsible sidebar (240px ↔ 64px, toggle persist localStorage `supkeys-sidebar`, Radix tooltip collapsed mode), Stripe/Vercel-style header (breadcrumb + search + bell + Radix dropdown user menu), 4 KPI placeholder kartları (boş veride "—" placeholder, slate-300 italik), onboarding checklist (3 adım: tedarikçi/ihale/ekip daveti, brand-50 gradient bg), 2 boş panel (yaklaşan ihaleler + son aktiviteler), responsive (mobil drawer + hamburger)
-   - 7 placeholder rota: `/dashboard/ihaleler`, `/dashboard/ihaleler/yeni`, `/dashboard/onay-bekleyenler`, `/dashboard/siparisler`, `/dashboard/tedarikciler`, `/dashboard/raporlar`, `/dashboard/ayarlar` — `PlaceholderPage` ortak komponenti (icon + "Yakında V2" pill + highlights bullets + dashboard'a dön)
-   - Sidebar nav config tek dosyada (`lib/dashboard/nav-config.ts`): "Operasyonel" grubu (Dashboard, İhaleler, Yeni İhale Aç CTA, Onay Bekleyenler badge, Siparişler), "Yönetimsel" grubu (Tedarikçiler, Raporlar, Ayarlar). Aktif state usePathname ile match, "Yeni İhale Aç" item'ı brand mavi gradient CTA görünümlü
-   - `DashboardShell` (sidebar + header + content), `app/dashboard/layout.tsx` `RequireAuth` ile sarmalı
+   - Tenant dashboard layout (modernized): collapsible sidebar with 10 routes (8 placeholder + 1 dashboard + Profil footer link), Stripe/Vercel-style premium look, rich KPI cards with trend pills, gradient onboarding checklist with time estimates, empty panels with CTAs
+   - `/dashboard` (gerçek): greeting (firstName + tenant + Aktif yeşil pill + bugünün tarihi `d MMMM yyyy, EEEE` TR locale), 4 KPI kartı (Aktif İhaleler/brand, Onay Bekleyen/warning, Bu Ay Tasarruf/success, Tedarikçiler/indigo — boş veride "—" + "Henüz veri yok" pill, hover -translate-y-0.5 shadow-md), gradient onboarding (brand-50 → white → indigo-50/40, 3 adım + süre rozetleri 2dk/5dk/1dk + outline CTA buttons), 2 boş panel (Yaklaşan İhaleler / Son Aktiviteler — büyük yumuşak ikon dairesi + CTA)
+   - 9 placeholder rota: `ihaleler`, `ihaleler/yeni`, `teklifler` (yeni), `onay-bekleyenler`, `siparisler`, `tedarikciler`, `raporlar`, `ayarlar`, `profil` (yeni) — `PlaceholderPage` ortak komponenti (`iconKey` string ile Server→Client güvenli, "Yakında V2" pill, highlights, dashboard'a dön)
+   - Sidebar nav config tek dosyada (`lib/dashboard/nav-config.ts`): "Operasyonel" (Dashboard, İhaleler, Teklifler, Yeni İhale Aç CTA, Onay Bekleyenler badge, Siparişler), "Yönetimsel" (Tedarikçiler, Raporlar, Ayarlar) + footer'da Profil link. Aktif state gradient bg-brand-50/40 + sol kenar 3px brand-600 indicator + iç gölge, "Yeni İhale Aç" brand-600→700 gradient CTA shadow-lg hover, footer kullanıcı kartı avatar + yeşil online dot
+   - Header: backdrop-blur, sayfa başlığı font-display text-xl + üstünde küçük slate-400 breadcrumb chain, search slate-50 bg focus:bg-white shadow-sm, bell + Radix dropdown user menu (avatar + ad + e-posta + tenant pill, Profilim/Ayarlar/Çıkış)
+   - `DashboardShell` (sidebar + header + content), `app/dashboard/layout.tsx` `RequireAuth` ile sarmalı, mobil hamburger + drawer
+   - Sidebar toggle: kenarda yuvarlak 24px chevron butonu (Stripe pattern), state localStorage'a persist
    - Auth: Zustand persist (`supkeys-auth` localStorage key) + axios interceptor (request: bearer token; response: 401 → auto-logout & /login redirect)
    - `RequireAuth` boundary, `AuthHydrationBoundary` (SSR/CSR mismatch önler)
-   - Bağımlılıklar: `@radix-ui/react-tooltip`, `@radix-ui/react-dropdown-menu` eklendi
+   - Bağımlılıklar: `@radix-ui/react-tooltip`, `@radix-ui/react-dropdown-menu`, `date-fns` eklendi
 7. **Frontend (apps/admin):**
    - Next.js 15 + Tailwind v4 admin paneli kuruldu, port 3001
    - Koyu sidebar (slate-900) + açık içerik (slate-50) tema, brand mavi accent, kırmızı "Admin" pill rozeti

@@ -2,12 +2,13 @@
 
 import { SupkeysLogo } from "@/components/brand/logo";
 import { useAuth } from "@/hooks/use-auth";
-import { navConfig } from "@/lib/dashboard/nav-config";
+import { navConfig, profileNavItem } from "@/lib/dashboard/nav-config";
 import { useSidebar } from "@/lib/dashboard/use-sidebar";
 import { cn } from "@/lib/utils";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SidebarGroup } from "./sidebar-group";
+import { SidebarItem } from "./sidebar-item";
 
 export function Sidebar() {
   const { collapsed, toggle, mobileOpen, closeMobile } = useSidebar();
@@ -25,7 +26,7 @@ export function Sidebar() {
           type="button"
           aria-label="Menüyü kapat"
           onClick={closeMobile}
-          className="fixed inset-0 bg-slate-900/40 z-40 md:hidden"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden"
         />
       )}
 
@@ -35,7 +36,6 @@ export function Sidebar() {
           "bg-white border-r border-surface-border",
           "flex flex-col transition-[width,transform] duration-200 ease-out",
           collapsed ? "w-16" : "w-60",
-          // Mobile: gizliyken sol dışarıda, açıldığında slide
           mobileOpen
             ? "translate-x-0"
             : "-translate-x-full md:translate-x-0",
@@ -44,8 +44,8 @@ export function Sidebar() {
         {/* Logo + toggle */}
         <div
           className={cn(
-            "flex items-center justify-between px-4 py-4 border-b border-surface-border h-16 shrink-0",
-            collapsed && "justify-center px-2",
+            "relative flex items-center px-4 border-b border-surface-border h-16 shrink-0",
+            collapsed ? "justify-center px-2" : "justify-between",
           )}
         >
           {!collapsed ? (
@@ -55,26 +55,48 @@ export function Sidebar() {
                 type="button"
                 onClick={toggle}
                 aria-label="Sidebar'ı küçült"
-                className="p-1.5 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                className={cn(
+                  "absolute right-[-12px] top-1/2 -translate-y-1/2",
+                  "flex items-center justify-center w-6 h-6 rounded-full",
+                  "bg-white border border-surface-border shadow-sm",
+                  "text-slate-400 hover:text-brand-600 hover:border-brand-200 hover:bg-brand-50",
+                  "transition-colors",
+                )}
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-3.5 h-3.5" />
               </button>
             </>
           ) : (
-            <button
-              type="button"
-              onClick={toggle}
-              aria-label="Sidebar'ı genişlet"
-              className="flex items-center justify-center w-9 h-9 rounded-lg bg-brand-600 text-white font-display font-bold text-lg hover:bg-brand-700 transition-colors"
-              title="Genişlet"
-            >
-              S
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={toggle}
+                aria-label="Sidebar'ı genişlet"
+                title="Genişlet"
+                className="flex items-center justify-center w-9 h-9 rounded-lg bg-brand-600 text-white font-display font-bold text-lg hover:bg-brand-700 shadow-sm transition-colors"
+              >
+                S
+              </button>
+              <button
+                type="button"
+                onClick={toggle}
+                aria-label="Sidebar'ı genişlet"
+                className={cn(
+                  "absolute right-[-12px] top-1/2 -translate-y-1/2",
+                  "flex items-center justify-center w-6 h-6 rounded-full",
+                  "bg-white border border-surface-border shadow-sm",
+                  "text-slate-400 hover:text-brand-600 hover:border-brand-200 hover:bg-brand-50",
+                  "transition-colors",
+                )}
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </>
           )}
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-4">
+        <nav className="flex-1 overflow-y-auto py-3 space-y-5">
           {navConfig.map((group) => (
             <SidebarGroup
               key={group.label}
@@ -84,38 +106,46 @@ export function Sidebar() {
           ))}
         </nav>
 
-        {/* Footer — küçük kullanıcı kartı */}
-        <div className="border-t border-surface-border shrink-0">
+        {/* Footer — Profil link + kullanıcı kartı */}
+        <div className="border-t border-surface-border shrink-0 py-2">
+          <div className="space-y-0.5">
+            <SidebarItem item={profileNavItem} collapsed={collapsed} />
+          </div>
+
           {collapsed ? (
-            <div className="flex items-center justify-center py-3">
+            <div className="flex items-center justify-center pt-2">
               <div
-                className="w-9 h-9 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-semibold text-sm"
+                className="relative"
                 title={`${user?.firstName ?? ""} ${user?.lastName ?? ""}`}
               >
-                {initials}
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-100 to-brand-200 text-brand-700 flex items-center justify-center font-semibold text-sm">
+                  {initials}
+                </div>
+                <span
+                  aria-hidden
+                  className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-success-500 ring-2 ring-white"
+                />
               </div>
             </div>
           ) : (
-            <div className="px-3 py-3 flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-semibold text-sm shrink-0">
-                {initials}
+            <div className="mx-1 mt-1 flex items-center gap-2.5 rounded-lg px-2.5 py-2 hover:bg-slate-50 transition-colors">
+              <div className="relative shrink-0">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-100 to-brand-200 text-brand-700 flex items-center justify-center font-semibold text-sm">
+                  {initials}
+                </div>
+                <span
+                  aria-hidden
+                  className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-success-500 ring-2 ring-white"
+                />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-slate-900 truncate">
+                <div className="text-sm font-semibold text-slate-900 truncate leading-tight">
                   {user?.firstName} {user?.lastName}
                 </div>
-                <div className="text-xs text-slate-500 truncate">
+                <div className="text-xs text-slate-500 truncate mt-0.5">
                   {user?.tenant.name}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={toggle}
-                aria-label="Sidebar'ı küçült"
-                className="hidden md:block p-1 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-              >
-                <ChevronRight className="w-3.5 h-3.5 rotate-180" />
-              </button>
             </div>
           )}
         </div>

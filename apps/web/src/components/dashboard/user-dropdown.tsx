@@ -25,10 +25,16 @@ export function UserDropdown() {
         <button
           type="button"
           aria-label="Hesap menüsü"
-          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+          className="flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-slate-100 transition-colors"
         >
-          <div className="w-8 h-8 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-semibold text-sm">
-            {initials}
+          <div className="relative">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand-100 to-brand-200 text-brand-700 flex items-center justify-center font-semibold text-sm">
+              {initials}
+            </div>
+            <span
+              aria-hidden
+              className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-success-500 ring-2 ring-white"
+            />
           </div>
           <ChevronDown className="w-4 h-4 text-slate-400 hidden md:block" />
         </button>
@@ -37,30 +43,41 @@ export function UserDropdown() {
       <DropdownMenu.Portal>
         <DropdownMenu.Content
           align="end"
-          sideOffset={8}
-          className="min-w-[240px] bg-white rounded-xl border border-surface-border shadow-lg p-1.5 z-50"
+          sideOffset={10}
+          className="w-72 max-w-72 bg-white rounded-xl border border-surface-border shadow-lg p-1.5 z-50"
         >
-          <div className="px-3 py-2.5">
-            <div className="text-sm font-medium text-slate-900 truncate">
-              {user?.firstName} {user?.lastName}
-            </div>
-            <div className="text-xs text-slate-500 truncate">{user?.email}</div>
-            {user?.tenant && (
-              <div className="mt-1.5 inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-xs text-slate-600">
-                {user.tenant.name}
+          {/* Header — avatar + ad + e-posta + tenant rozeti */}
+          <div className="px-2.5 py-3 flex items-start gap-3">
+            <div className="relative shrink-0">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-100 to-brand-200 text-brand-700 flex items-center justify-center font-semibold text-sm">
+                {initials}
               </div>
-            )}
+              <span
+                aria-hidden
+                className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-success-500 ring-2 ring-white"
+              />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold text-slate-900 truncate leading-tight">
+                {user?.firstName} {user?.lastName}
+              </div>
+              <div className="text-xs text-slate-500 truncate mt-0.5">
+                {user?.email}
+              </div>
+              {user?.tenant && (
+                <div className="mt-1.5 inline-flex items-center px-2 py-0.5 rounded-md bg-brand-50 border border-brand-100 text-[11px] font-medium text-brand-700">
+                  {user.tenant.name}
+                </div>
+              )}
+            </div>
           </div>
 
           <DropdownMenu.Separator className="h-px bg-surface-border my-1" />
 
           <DropdownMenu.Item asChild className={itemClass}>
-            <Link href="#" onClick={(e) => e.preventDefault()}>
+            <Link href="/dashboard/profil">
               <User className="w-4 h-4 text-slate-400" />
-              Profil
-              <span className="ml-auto text-[10px] text-slate-400 uppercase tracking-wide">
-                yakında
-              </span>
+              Profilim
             </Link>
           </DropdownMenu.Item>
 
@@ -74,7 +91,7 @@ export function UserDropdown() {
           <DropdownMenu.Separator className="h-px bg-surface-border my-1" />
 
           <DropdownMenu.Item
-            className={cn(itemClass, "text-danger-600")}
+            className={cn(itemClass, "text-danger-600 data-[highlighted]:bg-danger-50 data-[highlighted]:text-danger-700")}
             onSelect={(e) => {
               e.preventDefault();
               logout();

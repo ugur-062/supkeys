@@ -7,10 +7,12 @@ import {
   CheckSquare,
   FileText,
   type LucideIcon,
+  MessageSquare,
   Package,
   Plus,
   Settings,
   Sparkles,
+  User,
   Users,
 } from "lucide-react";
 import Link from "next/link";
@@ -18,11 +20,13 @@ import Link from "next/link";
 const ICON_MAP = {
   ihaleler: FileText,
   "ihaleler-yeni": Plus,
+  teklifler: MessageSquare,
   "onay-bekleyenler": CheckSquare,
   siparisler: Package,
   tedarikciler: Users,
   raporlar: BarChart3,
   ayarlar: Settings,
+  profil: User,
 } satisfies Record<string, LucideIcon>;
 
 export type PlaceholderIconKey = keyof typeof ICON_MAP;

@@ -4,9 +4,11 @@ import {
   FileText,
   LayoutDashboard,
   type LucideIcon,
+  MessageSquare,
   Package,
   Plus,
   Settings,
+  User,
   Users,
 } from "lucide-react";
 
@@ -46,6 +48,12 @@ export const navConfig: NavGroup[] = [
         icon: FileText,
         label: "İhaleler",
         href: "/dashboard/ihaleler",
+      },
+      {
+        type: "link",
+        icon: MessageSquare,
+        label: "Teklifler",
+        href: "/dashboard/teklifler",
       },
       {
         type: "cta",
@@ -94,6 +102,17 @@ export const navConfig: NavGroup[] = [
 ];
 
 /**
+ * Sidebar footer'da kullanıcı kartı üzerinde gösterilen tek-öğe profil linki.
+ * Gruplardan ayrı tutulur — semantik olarak "kişisel" bölge.
+ */
+export const profileNavItem: NavItem = {
+  type: "link",
+  icon: User,
+  label: "Profil",
+  href: "/dashboard/profil",
+};
+
+/**
  * Pathname → breadcrumb labelları. Tek ya da iki seviye.
  */
 export function getBreadcrumbs(pathname: string): string[] {
@@ -103,11 +122,13 @@ export function getBreadcrumbs(pathname: string): string[] {
     "/dashboard": "Dashboard",
     "/dashboard/ihaleler": "İhaleler",
     "/dashboard/ihaleler/yeni": "Yeni İhale",
+    "/dashboard/teklifler": "Teklifler",
     "/dashboard/onay-bekleyenler": "Onay Bekleyenler",
     "/dashboard/siparisler": "Siparişler",
     "/dashboard/tedarikciler": "Tedarikçiler",
     "/dashboard/raporlar": "Raporlar",
     "/dashboard/ayarlar": "Ayarlar",
+    "/dashboard/profil": "Profilim",
   };
 
   // Exact match önce

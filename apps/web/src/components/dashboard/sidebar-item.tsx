@@ -22,14 +22,27 @@ export function SidebarItem({ item, collapsed }: SidebarItemProps) {
         href={item.href}
         aria-label={item.label}
         className={cn(
-          "relative flex items-center rounded-lg font-medium text-sm transition-colors",
+          "group relative flex items-center rounded-lg font-semibold text-sm",
           "bg-gradient-to-br from-brand-600 to-brand-700 text-white",
           "hover:from-brand-500 hover:to-brand-600",
-          "shadow-sm",
-          collapsed ? "justify-center w-9 h-9 mx-auto" : "gap-2 px-3 py-2.5",
+          "shadow-md hover:shadow-lg",
+          "transition-[transform,box-shadow,background-color] duration-150",
+          "hover:-translate-y-px",
+          collapsed
+            ? "justify-center w-9 h-9 mx-auto"
+            : "gap-2 px-3 py-2.5 mx-1",
         )}
       >
-        <Icon className="w-4 h-4 shrink-0" />
+        <span
+          className={cn(
+            "flex items-center justify-center rounded-md",
+            collapsed
+              ? "w-5 h-5"
+              : "w-6 h-6 bg-white/15",
+          )}
+        >
+          <Icon className="w-[14px] h-[14px]" strokeWidth={2.5} />
+        </span>
         {!collapsed && <span className="truncate">{item.label}</span>}
       </Link>
     );
@@ -39,7 +52,7 @@ export function SidebarItem({ item, collapsed }: SidebarItemProps) {
     return (
       <Tooltip.Root delayDuration={150}>
         <Tooltip.Trigger asChild>{ctaContent}</Tooltip.Trigger>
-        <TooltipContent>{item.label}</TooltipContent>
+        <SidebarTooltipContent>{item.label}</SidebarTooltipContent>
       </Tooltip.Root>
     );
   }
@@ -54,27 +67,31 @@ export function SidebarItem({ item, collapsed }: SidebarItemProps) {
       aria-label={item.label}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "relative flex items-center rounded-lg text-sm font-medium transition-colors",
+        "group relative flex items-center rounded-lg text-sm transition-colors",
         active
-          ? "bg-brand-50 text-brand-700"
-          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
-        collapsed ? "justify-center w-9 h-9 mx-auto" : "gap-2.5 px-3 py-2",
+          ? "bg-gradient-to-r from-brand-50 to-brand-50/40 text-brand-700 font-semibold shadow-[inset_0_0_0_1px_rgb(var(--color-brand-100)/0.6)]"
+          : "text-slate-600 font-medium hover:bg-slate-50 hover:text-slate-900",
+        collapsed
+          ? "justify-center w-9 h-9 mx-auto"
+          : "gap-2.5 px-3 py-2 mx-1",
       )}
     >
-      {/* Aktif gösterge — sol kenar */}
+      {/* Aktif sol kenar indicator */}
       {active && (
         <span
           aria-hidden
           className={cn(
-            "absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-brand-600",
-            collapsed && "left-[-6px]",
+            "absolute top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-brand-600",
+            collapsed ? "left-[-7px]" : "left-0",
           )}
         />
       )}
       <Icon
         className={cn(
-          "w-[18px] h-[18px] shrink-0",
-          active ? "text-brand-600" : "text-slate-400 group-hover:text-slate-600",
+          "w-[18px] h-[18px] shrink-0 transition-colors",
+          active
+            ? "text-brand-600"
+            : "text-slate-400 group-hover:text-slate-700",
         )}
       />
       {!collapsed && (
@@ -102,21 +119,21 @@ export function SidebarItem({ item, collapsed }: SidebarItemProps) {
   return (
     <Tooltip.Root delayDuration={150}>
       <Tooltip.Trigger asChild>{content}</Tooltip.Trigger>
-      <TooltipContent>
+      <SidebarTooltipContent>
         {item.label}
         {showBadge && ` (${item.badge})`}
-      </TooltipContent>
+      </SidebarTooltipContent>
     </Tooltip.Root>
   );
 }
 
-function TooltipContent({ children }: { children: React.ReactNode }) {
+function SidebarTooltipContent({ children }: { children: React.ReactNode }) {
   return (
     <Tooltip.Portal>
       <Tooltip.Content
         side="right"
-        sideOffset={8}
-        className="bg-brand-900 text-white text-xs px-2.5 py-1.5 rounded-md shadow-lg z-50"
+        sideOffset={10}
+        className="bg-brand-900 text-white text-xs font-medium px-2.5 py-1.5 rounded-md shadow-lg z-50"
       >
         {children}
         <Tooltip.Arrow className="fill-brand-900" />
