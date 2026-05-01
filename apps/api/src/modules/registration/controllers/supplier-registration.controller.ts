@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -31,5 +32,11 @@ export class SupplierRegistrationController {
   @Get("applications/:id/status")
   status(@Param("id") id: string) {
     return this.service.getStatus(id);
+  }
+
+  @Get("invitation-info")
+  invitationInfo(@Query("token") token?: string) {
+    if (!token) throw new BadRequestException("Token gerekli");
+    return this.service.getInvitationInfo(token);
   }
 }

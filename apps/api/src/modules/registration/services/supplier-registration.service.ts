@@ -171,6 +171,44 @@ export class SupplierRegistrationService {
     return app;
   }
 
+  /**
+   * Public: davet token'ından tedarikçiye davet eden tenant + kişi bilgisini
+   * döner — /register/supplier sayfası formu prefil etmek için kullanır.
+   */
+  async getInvitationInfo(token: string) {
+    const tokenHash = hashToken(token);
+    const invitation = await this.prisma.supplierInvitation.findUnique({
+      where: { tokenHash },
+      select: {
+        email: true,
+        contactName: true,
+        message: true,
+        expiresAt: true,
+        status: true,
+        tenant: { select: { name: true } },
+      },
+    });
+
+    if (!invitation) throw new NotFoundException("Davet bulunamadı");
+    if (invitation.status === "ACCEPTED") {
+      throw new ConflictException("Bu davet zaten kullanılmış");
+    }
+    if (invitation.status === "CANCELLED") {
+      throw new GoneException("Davet iptal edilmiş");
+    }
+    if (invitation.expiresAt < new Date()) {
+      throw new GoneException("Davet süresi dolmuş");
+    }
+
+    return {
+      tenantName: invitation.tenant.name,
+      email: invitation.email,
+      contactName: invitation.contactName,
+      message: invitation.message,
+      expiresAt: invitation.expiresAt,
+    };
+  }
+
   private async dispatchVerificationEmail(
     app: {
       id: string;

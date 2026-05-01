@@ -103,7 +103,21 @@
     - E-posta verify (`POST /api/registration/verify-email`): `BuyerApplication.fromDemoRequest` set ise admin onayı atlanır → otomatik `Tenant + User(COMPANY_ADMIN)` oluşur, `status=APPROVED`, `reviewedById=null` (sistem otomatik), "🎉 Hesabınız aktif" e-postası gönderilir; response'da `autoApproved: true, tenantId`
     - Yeni e-posta şablonu: `demo_to_register_invitation` (kişisel mesaj quote box'ı, "Hesap Oluştur" CTA, 14 gün uyarısı, brand-50 notice box)
     - Admin panel `/admin/demo-requests` detail drawer: WON/DEMO_DONE statüsünde "Davet Linki Gönder" butonu; Radix Dialog modal (e-posta editlenebilir + 500 karakter mesaj + 14 gün geçerli bilgi kutusu); davet gönderilmiş ise mavi bilgi kutusu (e-posta + tarih + sentCount) + "Yeniden Gönder"; kayıt tamamlanmış ise (`linkedApplicationId` var) yeşil "Kayıt tamamlandı" kutusu
-11. **Brand & üyelik kademesi yenileme:**
+12. **Kayıt sistemi (Aşama B — frontend):**
+    - 4 yeni public rota: `/register/buyer`, `/register/buyer?invitation={token}` (demo davet), `/register/supplier`, `/register/supplier?invitation={token}` (tedarikçi davet), `/register/verify-email?token=...&type=buyer|supplier`
+    - 3 adımlı stepper: Firma Bilgileri → Yetkili → Tamamlandı (sticky header, mobile'da label gizli)
+    - Tek `useForm<FullRegistration>` (zod resolver, `firmInfoSchema.merge(userInfoBase).refine(passwords match)`); step 1'de `FIRM_FIELDS`, step 2'de `USER_FIELDS` `trigger`. Step 3 success ekranı (StepSuccess, davet ise "OTOMATİK aktif olacak" mesajı)
+    - `RegistrationLayout` (`apps/web/src/app/register/layout.tsx`): üst SupkeysLogo + "Giriş Yap" linki, footer KVKK + Hizmet Şartları
+    - Yeni komponentler `apps/web/src/components/registration/`: `stepper`, `step-firm-info`, `step-user-info`, `step-success`, `invitation-banner`, `file-upload` (react-dropzone, base64 data URL, max 10MB PDF/JPG/PNG), `password-strength` (3 bar, zayıf/orta/güçlü), `address-fields` (TR il-ilçe `<select>`, il değişince ilçe reset), `terms-checkbox` (KVKK + Hizmet Şartları tek onay)
+    - Şemalar `lib/registration/schemas.ts` (zod) + API helper `lib/registration/api.ts` (`fetchBuyerInvitationInfo`, `fetchSupplierInvitationInfo`, `submitBuyerApplication`, `submitSupplierApplication`, `verifyEmail`). UI tek `termsAccepted` onayını backend için `acceptTerms` + `acceptKvkk` ikilisine map eder
+    - Davet akışı: useQuery ile `invitation-info` çağrılır; 200 → banner + e-posta pre-fill; 404/410 → router.replace ile `?invitation` paramı temizlenir + kırmızı "süresi dolmuş" uyarısı (form normal akışa düşer); 409 → form gizli, "Bu davet zaten kullanılmış" + Giriş Yap CTA
+    - Verify-email callback: `useRef` flag ile StrictMode double-effect guard; auto-approve true → "Hoş geldin! Hesabın aktif" + Giriş Yap; false → "İncelemeye alındı"; 410 → "Yeniden Başvur" CTA; 409 → "Giriş Yap"; 404 → "Anasayfa"
+    - Backend ekleme: `GET /api/registration/supplier/invitation-info?token=` (404/410/409 hata kodları, tenant adı + email + contactName + message + expiresAt döner)
+    - Backend tweak: `taxCertUrl` Length(5,1000) → MinLength(5)+MaxLength(20_000_000) (base64 PDF için); `apps/api/src/main.ts` body parser limit `app.useBodyParser("json", { limit: "20mb" })` (default 100kb yetersizdi). MinIO V2'de gerçek upload'a geçilecek
+    - TR il-ilçe verisi: `packages/shared/src/data/turkey-locations.ts` — 81 il + ~970 ilçe (Wikipedia listesi), `getCityNames()` + `getDistrictsByCity(city)` helpers
+    - Landing CTA güncelleme: "Alıcı Olarak Kayıt Ol" + "Tedarikçi Olarak Kayıt Ol" linkleri eklendi; login formundaki "Kayıt ol" linki `/register/buyer`'a yönlendirildi
+    - Bağımlılıklar: `react-dropzone` eklendi (apps/web)
+13. **Brand & üyelik kademesi yenileme:**
     - Resmi Supkeys logoları projeye dağıtıldı: `apps/web/public/`, `apps/admin/public/` (favicon.ico, apple-touch-icon, supkeys-logo-full + white, supkeys-icon 7 boyut + white) + `packages/email/src/templates/_assets/` (full + 128 ikon)
     - `SupkeysLogo` (web + admin) artık `next/image` tabanlı, variant (`full`/`icon`/`full-white`/`icon-white`) + size (`sm`/`md`/`lg`/`xl`) + priority destekliyor; `AdminLogo` `SupkeysLogo`'yu sarıp "ADMIN" pill ekliyor (light variant koyu sidebar için)
     - Logo kullanım yerleri güncellendi: tenant landing/login/demo-talep/dashboard sidebar (collapsed → icon, expanded → full); admin login (dark variant) + admin sidebar (light variant)
@@ -112,9 +126,9 @@
     - Üyelik kademesi yeniden adlandırıldı: BRONZE → STANDARD, SILVER → PREMIUM (migration `rename_membership_enum_to_standard_premium`, manuel SQL ile mevcut data güvenli map'lendi). Tüm kod referansları + e-posta template metni ("Standart üyelik" / "Premium üyeliğe yükselterek") güncellendi
 
 ### ⏳ Sıradaki (Bu Sprint)
-1. **Aşama B**: Frontend register sayfaları (3 form: alıcı self / tedarikçi self / tedarikçi davetli) + e-posta doğrulama callback sayfası
-2. **Aşama C**: Admin panel "Başvurular" sayfaları (buyer-applications + supplier-applications listeleri + detail/approve/reject)
-3. Admin dashboard KPI'ları (`GET /admin/demo-requests/stats` kullan)
+1. **Aşama C**: Admin panel "Başvurular" sayfaları (`/admin/buyer-applications` + `/admin/supplier-applications`) — liste, detay drawer (firma bilgileri + vergi levhası önizleme + adres + yetkili + davet bilgisi), onay/red akışı (rejection reason zorunlu), KPI cards
+2. Admin dashboard KPI'ları (`GET /admin/demo-requests/stats` + buyer/supplier-applications stats kullan)
+3. MinIO entegrasyonu: vergi levhası base64 → MinIO upload + signed URL (V2)
 
 ### 🔮 Yol Haritası (Sonra)
 - Tenant register sayfası (`/register`) — backend `POST /auth/register` zaten var

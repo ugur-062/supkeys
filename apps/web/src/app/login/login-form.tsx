@@ -126,7 +126,7 @@ export function LoginForm() {
       <div className="text-center text-sm text-slate-600 pt-2 border-t border-surface-border">
         Hesabın yok mu?{" "}
         <Link
-          href="/register"
+          href="/register/buyer"
           className="text-brand-700 hover:text-brand-800 font-medium hover:underline"
         >
           Kayıt ol

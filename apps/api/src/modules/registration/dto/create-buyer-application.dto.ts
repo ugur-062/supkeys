@@ -39,8 +39,10 @@ export class CreateBuyerApplicationDto {
   @Length(2, 50)
   taxOffice!: string;
 
+  // base64 data URL veya HTTPS URL — V2'de MinIO'ya yüklenecek; şu an 20MB civarı base64 string kabul edilir.
   @IsString()
-  @Length(5, 1000)
+  @MinLength(5)
+  @MaxLength(20_000_000)
   taxCertUrl!: string;
 
   @IsOptional()
