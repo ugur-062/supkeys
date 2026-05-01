@@ -103,7 +103,14 @@
     - Buyer registration `POST /api/registration/buyer/applications?invitation=` query param ile davet token kabul eder; transaction içinde `BuyerApplication.create` + `DemoRequest.linkedApplicationId/inviteUsedAt` set. Davet token'ı OPSIYONEL DEĞİL — frontend `/register/buyer` davet token olmadan açıldığında `/demo-talep`'e redirect eder
     - E-posta verify (`POST /api/registration/verify-email`): TÜM buyer başvuruları (self veya demo davetli) `status=PENDING_REVIEW` olur — auto-approve YOK. Admin manual onayıyla `Tenant + User(COMPANY_ADMIN)` oluşur. `BuyerApplication.fromDemoRequest` ilişkisi sadece admin paneldeki başvuru detayında "demo davetli" rozetini göstermek için tutuluyor
     - Yeni e-posta şablonu: `demo_to_register_invitation` (kişisel mesaj quote box'ı, "Hesap Oluştur" CTA, 14 gün uyarısı, brand-50 notice box, "bilgilerinizi inceledikten sonra hesabınızı aktive edeceğiz" — auto-approve VAADİ YOK)
-    - Admin panel `/admin/demo-requests` detail drawer: WON/DEMO_DONE statüsünde "Davet Linki Gönder" butonu; Radix Dialog modal (e-posta editlenebilir + 500 karakter mesaj + 14 gün geçerli bilgi kutusu); davet gönderilmiş ise mavi bilgi kutusu (e-posta + tarih + sentCount) + "Yeniden Gönder"; kayıt tamamlanmış ise (`linkedApplicationId` var) yeşil "Kayıt tamamlandı" kutusu
+    - Admin panel `/admin/demo-requests` detail drawer: **buton tabanlı akış** (statü dropdown'u kaldırıldı). Statüye göre aksiyon paneli:
+      - `NEW`: [Demo Yapıldı] (primary) + [Reddet] (kırmızı outline). Demo Yapıldı → PATCH `status=DEMO_DONE`
+      - `DEMO_DONE` & `linkedApplicationId` yok: [Davet Linki Gönder / Yeniden Gönder] + [Reddet]
+      - `DEMO_DONE` & `linkedApplicationId` var: yeşil "Kayıt tamamlandı, başvuru admin onayını bekliyor" + [Kazanıldı olarak işaretle] CTA → PATCH `status=WON`
+      - `WON` / `LOST` / `SPAM`: salt bilgi (badge + closedReason etiketi insan diline çevrilmiş — `NOT_INTERESTED` → "Demo gerçekleşti, ilgilenmediler", "" → gizli, freetext olduğu gibi gösterilir)
+      - `CONTACTED` / `DEMO_SCHEDULED` (legacy, yeni akışta üretilmiyor): sarı uyarı kutusu + [Demo Yapıldı] + [Reddet] CTA'ları
+    - Reddet modal'ı (`reject-demo-modal.tsx`): Radix Dialog, 3 radio (Spam → `status=SPAM, closedReason=""`; "Demo gerçekleşti, ilgilenmediler" → `status=LOST, closedReason="NOT_INTERESTED"`; "Diğer" → textarea zorunlu, `status=LOST, closedReason=freetext` max 500 char)
+    - Send-invite modal bilgi kutusu güncellendi: "otomatik aktif olacak" → "başvuru incelemeye düşer, admin panelden manuel onay vereceksiniz" (auto-approve vaadi yok)
 12. **Kayıt sistemi (Aşama B — frontend):**
     - **Akış:** Alıcı = sadece demo + admin daveti yolu (self-register yok); Tedarikçi = self VEYA alıcı daveti. Her iki akışta da admin manuel onayı zorunlu, otomatik onay hiçbir senaryoda yok
     - 3 public rota: `/register/buyer?invitation={token}` (token zorunlu, yoksa server-side `redirect("/demo-talep")`), `/register/supplier` (self) + `?invitation={token}` (alıcı daveti), `/register/verify-email?token=...&type=buyer|supplier`

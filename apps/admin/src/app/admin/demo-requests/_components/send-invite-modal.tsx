@@ -157,8 +157,8 @@ export function SendInviteModal({
               <p className="text-xs text-brand-800 leading-relaxed">
                 Bu davet bağlantısı <strong>14 gün</strong> boyunca geçerli
                 olacak. Müşteri kayıt formunu doldurup e-postasını
-                doğruladığında hesabı <strong>otomatik aktif</strong> olacak —
-                ek admin onayı gerekmez.
+                doğruladığında başvuru <strong>incelemeye</strong> düşer —
+                ardından admin panelden manuel onay vereceksiniz.
               </p>
             </div>
 

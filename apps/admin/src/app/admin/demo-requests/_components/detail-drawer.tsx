@@ -1,20 +1,13 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
-import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useDemoRequestDetail,
   useUpdateDemoRequest,
 } from "@/hooks/use-demo-requests";
-import {
-  CLOSED_STATUSES,
-  DEMO_REQUEST_STATUS_META,
-  DEMO_REQUEST_STATUS_ORDER,
-  isClosedStatus,
-} from "@/lib/demo-requests/status";
+import { DEMO_REQUEST_STATUS_META } from "@/lib/demo-requests/status";
 import type { DemoRequestStatus } from "@/lib/demo-requests/types";
 import { cn } from "@/lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -29,12 +22,12 @@ import {
   RotateCcw,
   Send,
   X,
+  XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { RejectDemoModal } from "./reject-demo-modal";
 import { SendInviteModal } from "./send-invite-modal";
-
-const INVITE_ELIGIBLE_STATUSES: DemoRequestStatus[] = ["WON", "DEMO_DONE"];
 
 interface DetailDrawerProps {
   id: string | null;
@@ -71,49 +64,62 @@ function getErrorMessage(err: unknown, fallback: string) {
   return fallback;
 }
 
+/** Kapanış sebebi enum/freetext'ini insan diline çevir */
+function formatClosedReason(raw: string | null): string | null {
+  if (!raw) return null;
+  if (raw === "NOT_INTERESTED") return "Demo gerçekleşti, ilgilenmediler";
+  return raw;
+}
+
+const LEGACY_STATUSES: DemoRequestStatus[] = ["CONTACTED", "DEMO_SCHEDULED"];
+const CLOSED_DISPLAY_STATUSES: DemoRequestStatus[] = ["WON", "LOST", "SPAM"];
+
 export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
   const open = !!id;
   const detail = useDemoRequestDetail(id);
   const update = useUpdateDemoRequest(id ?? "");
 
-  const [statusDraft, setStatusDraft] = useState<DemoRequestStatus>("NEW");
-  const [closedReasonDraft, setClosedReasonDraft] = useState("");
   const [notesDraft, setNotesDraft] = useState("");
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
 
-  // Detay yüklenince form alanlarını senkronla
+  // Detay yüklenince notları senkronla
   useEffect(() => {
     if (detail.data) {
-      setStatusDraft(detail.data.status);
-      setClosedReasonDraft(detail.data.closedReason ?? "");
       setNotesDraft(detail.data.notes ?? "");
     }
   }, [detail.data]);
 
-  const showClosedReason = isClosedStatus(statusDraft);
   const item = detail.data;
-
-  const statusDirty =
-    item !== undefined &&
-    (statusDraft !== item.status ||
-      (showClosedReason && closedReasonDraft !== (item.closedReason ?? "")));
   const notesDirty = item !== undefined && notesDraft !== (item.notes ?? "");
 
-  const handleStatusSave = () => {
+  const closedReasonLabel = useMemo(
+    () => (item ? formatClosedReason(item.closedReason ?? null) : null),
+    [item],
+  );
+
+  const handleMarkAsDone = () => {
     if (!item) return;
-    const payload: {
-      status: DemoRequestStatus;
-      closedReason?: string;
-    } = { status: statusDraft };
+    update.mutate(
+      { status: "DEMO_DONE" as DemoRequestStatus },
+      {
+        onSuccess: () => toast.success("Demo yapıldı olarak işaretlendi"),
+        onError: (err) =>
+          toast.error(getErrorMessage(err, "Statü güncellenemedi")),
+      },
+    );
+  };
 
-    if (CLOSED_STATUSES.includes(statusDraft) && closedReasonDraft.trim()) {
-      payload.closedReason = closedReasonDraft.trim();
-    }
-
-    update.mutate(payload, {
-      onSuccess: () => toast.success("Statü güncellendi"),
-      onError: (err) => toast.error(getErrorMessage(err, "Statü güncellenemedi")),
-    });
+  const handleMarkAsWon = () => {
+    if (!item) return;
+    update.mutate(
+      { status: "WON" as DemoRequestStatus },
+      {
+        onSuccess: () => toast.success("Talep kazanıldı olarak işaretlendi"),
+        onError: (err) =>
+          toast.error(getErrorMessage(err, "Statü güncellenemedi")),
+      },
+    );
   };
 
   const handleNotesSave = () => {
@@ -236,57 +242,202 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                   </section>
                 )}
 
-                <section className="admin-card p-4 space-y-3">
+                {/* ---- AKSİYON BÖLÜMÜ — statüye göre buton şablonu ---- */}
+                <section className="space-y-3">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-admin-text-muted">
-                    Statü
+                    Aksiyonlar
                   </h3>
-                  <div>
-                    <Label htmlFor="status-select">Durum</Label>
-                    <select
-                      id="status-select"
-                      value={statusDraft}
-                      onChange={(e) =>
-                        setStatusDraft(e.target.value as DemoRequestStatus)
-                      }
-                      className={cn(
-                        "w-full px-3.5 py-2.5 rounded-lg border bg-white text-admin-text text-sm",
-                        "border-admin-border-strong focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-                      )}
-                    >
-                      {DEMO_REQUEST_STATUS_ORDER.map((s) => (
-                        <option key={s} value={s}>
-                          {DEMO_REQUEST_STATUS_META[s].label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
 
-                  {showClosedReason && (
-                    <Field
-                      hint="Neden kapandığını ekiple paylaşmak için kısa bir açıklama gir."
-                    >
-                      <Label htmlFor="closed-reason">Kapanış sebebi</Label>
-                      <Textarea
-                        id="closed-reason"
-                        value={closedReasonDraft}
-                        onChange={(e) => setClosedReasonDraft(e.target.value)}
-                        placeholder="Örn: Bütçe yetersizliği, başka bir çözüm seçildi…"
-                        className="min-h-[80px]"
-                      />
-                    </Field>
+                  {item.status === "NEW" && (
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        onClick={handleMarkAsDone}
+                        loading={update.isPending}
+                        disabled={update.isPending}
+                        className="flex-1"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        Demo Yapıldı
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setRejectModalOpen(true)}
+                        disabled={update.isPending}
+                        className="flex-1 !text-danger-600 !border-danger-200 hover:!bg-danger-50"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Reddet
+                      </Button>
+                    </div>
                   )}
 
-                  <div className="pt-1">
-                    <Button
-                      type="button"
-                      onClick={handleStatusSave}
-                      loading={update.isPending}
-                      disabled={!statusDirty || update.isPending}
-                      fullWidth
-                    >
-                      Statüyü Güncelle
-                    </Button>
-                  </div>
+                  {item.status === "DEMO_DONE" && !item.linkedApplicationId && (
+                    <div className="space-y-3">
+                      {/* Davet butonu: hiç gönderilmemişse primary */}
+                      {!item.inviteSentAt ? (
+                        <Button
+                          type="button"
+                          onClick={() => setInviteModalOpen(true)}
+                          fullWidth
+                        >
+                          <Send className="w-4 h-4" />
+                          Davet Linki Gönder
+                        </Button>
+                      ) : (
+                        <div className="space-y-2.5">
+                          <div className="rounded-xl border border-brand-100 bg-brand-50 p-4">
+                            <div className="flex items-start gap-3">
+                              <Mail className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-brand-700">
+                                  Davet gönderildi
+                                </p>
+                                <p className="text-sm text-admin-text mt-1 truncate">
+                                  {item.inviteSentToEmail}
+                                </p>
+                                <p className="text-xs text-admin-text-muted mt-1">
+                                  {formatRelative(item.inviteSentAt)}
+                                  {item.inviteSentCount > 1 &&
+                                    ` · ${item.inviteSentCount} kez gönderildi`}
+                                </p>
+                                {item.inviteTokenExpAt &&
+                                  new Date(item.inviteTokenExpAt) >
+                                    new Date() && (
+                                    <p className="text-xs text-admin-text-muted mt-0.5">
+                                      Son geçerlilik:{" "}
+                                      {format(
+                                        new Date(item.inviteTokenExpAt),
+                                        "d MMM yyyy",
+                                        { locale: tr },
+                                      )}
+                                    </p>
+                                  )}
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setInviteModalOpen(true)}
+                            fullWidth
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Yeniden Gönder
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Reddet butonu (her zaman alt sırada) */}
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setRejectModalOpen(true)}
+                        disabled={update.isPending}
+                        fullWidth
+                        className="!text-danger-600 !border-danger-200 hover:!bg-danger-50"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Reddet
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* DEMO_DONE + kayıt tamamlandı — invite gizli, "Kazanıldı'ya çevir" CTA */}
+                  {item.status === "DEMO_DONE" && item.linkedApplicationId && (
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-success-500/30 bg-success-50 p-4">
+                        <div className="flex items-start gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-success-600 shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-success-700">
+                              Kayıt tamamlandı
+                            </p>
+                            <p className="text-xs text-success-600/80 mt-1">
+                              Müşteri kayıt formunu doldurdu, başvuru admin
+                              onayını bekliyor.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={handleMarkAsWon}
+                        loading={update.isPending}
+                        disabled={update.isPending}
+                        fullWidth
+                      >
+                        Kazanıldı olarak işaretle
+                      </Button>
+                    </div>
+                  )}
+
+                  {CLOSED_DISPLAY_STATUSES.includes(item.status) && (
+                    <div className="rounded-xl border border-admin-border bg-surface-muted p-4 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <StatusBadge status={item.status} />
+                        <span className="text-sm font-semibold text-admin-text">
+                          {DEMO_REQUEST_STATUS_META[item.status].label}
+                        </span>
+                      </div>
+                      {closedReasonLabel && (
+                        <p className="text-xs text-admin-text-muted">
+                          Sebep:{" "}
+                          <span className="text-admin-text">
+                            {closedReasonLabel}
+                          </span>
+                        </p>
+                      )}
+                      {item.linkedApplicationId && item.status === "WON" && (
+                        <p className="text-xs text-success-600">
+                          ✓ Kayıt tamamlandı
+                        </p>
+                      )}
+                      {item.closedAt && (
+                        <p className="text-xs text-admin-text-muted">
+                          Kapanış: {formatFull(item.closedAt)}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {LEGACY_STATUSES.includes(item.status) && (
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-warning-500/30 bg-warning-50 p-4 text-sm text-warning-700">
+                        <p className="font-medium">
+                          Bu kayıt eski akıştan kalmış
+                        </p>
+                        <p className="text-xs mt-1 text-warning-600/90">
+                          Yeni akışta sadece &ldquo;Demo Yapıldı&rdquo; ve
+                          &ldquo;Reddet&rdquo; aksiyonları kullanılır.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={handleMarkAsDone}
+                        loading={update.isPending}
+                        disabled={update.isPending}
+                        fullWidth
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        Demo Yapıldı (DEMO_DONE&apos;a geç)
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => setRejectModalOpen(true)}
+                        disabled={update.isPending}
+                        fullWidth
+                        className="!text-danger-600 !border-danger-200 hover:!bg-danger-50"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Reddet
+                      </Button>
+                    </div>
+                  )}
                 </section>
 
                 <section className="admin-card p-4 space-y-2">
@@ -310,84 +461,6 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                     Notları Kaydet
                   </Button>
                 </section>
-
-                {/* Davet (kayıt linki) bölümü — sadece WON veya DEMO_DONE statüsünde */}
-                {INVITE_ELIGIBLE_STATUSES.includes(item.status) && (
-                  <section className="space-y-3">
-                    <h3 className="text-xs font-semibold uppercase tracking-wide text-admin-text-muted">
-                      Kayıt Daveti
-                    </h3>
-
-                    {item.linkedApplicationId ? (
-                      <div className="rounded-xl border border-success-500/30 bg-success-50 p-4">
-                        <div className="flex items-start gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-success-600 shrink-0 mt-0.5" />
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-success-700">
-                              Kayıt tamamlandı
-                            </p>
-                            <p className="text-xs text-success-600/80 mt-1">
-                              Müşteri kayıt formunu doldurdu, hesabı aktif edildi.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : !item.inviteSentAt ? (
-                      <Button
-                        type="button"
-                        onClick={() => setInviteModalOpen(true)}
-                        fullWidth
-                      >
-                        <Send className="w-4 h-4" />
-                        Davet Linki Gönder
-                      </Button>
-                    ) : (
-                      <div className="space-y-2.5">
-                        <div className="rounded-xl border border-brand-100 bg-brand-50 p-4">
-                          <div className="flex items-start gap-3">
-                            <Mail className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-brand-700">
-                                Davet gönderildi
-                              </p>
-                              <p className="text-sm text-admin-text mt-1 truncate">
-                                {item.inviteSentToEmail}
-                              </p>
-                              <p className="text-xs text-admin-text-muted mt-1">
-                                {formatRelative(item.inviteSentAt)}
-                                {item.inviteSentCount > 1 &&
-                                  ` · ${item.inviteSentCount} kez gönderildi`}
-                              </p>
-                              {item.inviteTokenExpAt &&
-                                new Date(item.inviteTokenExpAt) > new Date() && (
-                                  <p className="text-xs text-admin-text-muted mt-0.5">
-                                    Son geçerlilik:{" "}
-                                    {format(
-                                      new Date(item.inviteTokenExpAt),
-                                      "d MMM yyyy",
-                                      { locale: tr },
-                                    )}
-                                  </p>
-                                )}
-                            </div>
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setInviteModalOpen(true)}
-                          fullWidth
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          Yeniden Gönder
-                        </Button>
-                      </div>
-                    )}
-                  </section>
-                )}
-
-                {/* TODO: assignedToId dropdown — PlatformAdmin liste endpoint'i geldiğinde ekle */}
 
                 <section className="text-xs text-admin-text-muted space-y-1 px-1">
                   <div>
@@ -418,14 +491,22 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
       </Dialog.Portal>
 
       {item && (
-        <SendInviteModal
-          demoId={item.id}
-          defaultEmail={item.inviteSentToEmail ?? item.email}
-          companyName={item.companyName}
-          isResend={!!item.inviteSentAt}
-          open={inviteModalOpen}
-          onClose={() => setInviteModalOpen(false)}
-        />
+        <>
+          <SendInviteModal
+            demoId={item.id}
+            defaultEmail={item.inviteSentToEmail ?? item.email}
+            companyName={item.companyName}
+            isResend={!!item.inviteSentAt}
+            open={inviteModalOpen}
+            onClose={() => setInviteModalOpen(false)}
+          />
+          <RejectDemoModal
+            demoId={item.id}
+            companyName={item.companyName}
+            open={rejectModalOpen}
+            onClose={() => setRejectModalOpen(false)}
+          />
+        </>
       )}
     </Dialog.Root>
   );
