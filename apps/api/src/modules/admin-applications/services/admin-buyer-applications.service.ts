@@ -75,6 +75,15 @@ export class AdminBuyerApplicationsService {
           select: { id: true, firstName: true, lastName: true, email: true },
         },
         tenant: { select: { id: true, name: true, slug: true } },
+        fromDemoRequest: {
+          select: {
+            id: true,
+            companyName: true,
+            contactName: true,
+            email: true,
+            status: true,
+          },
+        },
       },
     });
     if (!app) throw new NotFoundException("Başvuru bulunamadı");
@@ -100,6 +109,7 @@ export class AdminBuyerApplicationsService {
   async approve(id: string, reviewerId: string) {
     const app = await this.prisma.buyerApplication.findUnique({
       where: { id },
+      include: { fromDemoRequest: { select: { id: true, status: true } } },
     });
     if (!app) throw new NotFoundException("Başvuru bulunamadı");
     if (app.status !== "PENDING_REVIEW") {
@@ -153,6 +163,16 @@ export class AdminBuyerApplicationsService {
           rejectionReason: null,
         },
       });
+
+      // Demo davet ile gelen başvuru onaylandığında bağlı DemoRequest'i WON'a geçir
+      // (closedAt henüz dolmadıysa onu da set et, demo-requests.service.update ile
+      // tutarlı kalsın)
+      if (app.fromDemoRequest && app.fromDemoRequest.status !== "WON") {
+        await tx.demoRequest.update({
+          where: { id: app.fromDemoRequest.id },
+          data: { status: "WON", closedAt: new Date() },
+        });
+      }
 
       return { tenant, user, application: updated };
     });

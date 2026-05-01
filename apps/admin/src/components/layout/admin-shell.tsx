@@ -3,10 +3,13 @@
 import { AdminLogo } from "@/components/brand/admin-logo";
 import { Button } from "@/components/ui/button";
 import { useAdminAuth, useAdminLogout } from "@/hooks/use-admin-auth";
+import { useBuyerApplicationStats } from "@/hooks/use-buyer-applications";
 import { useDemoRequestStats } from "@/hooks/use-demo-requests";
+import { useSupplierApplicationStats } from "@/hooks/use-supplier-applications";
 import { cn } from "@/lib/utils";
 import {
   Building2,
+  ClipboardList,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -17,16 +20,30 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-interface NavItem {
+type BadgeKey =
+  | "demoRequestsNew"
+  | "buyerAppsReview"
+  | "supplierAppsReview";
+
+interface NavLeaf {
+  type?: "leaf";
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   disabled?: boolean;
   /** Pathname'in match olacağı prefix; verilmezse exact href */
   activeMatch?: string;
-  /** "Demo Talepleri" gibi öğelerde NEW sayısı için */
-  badgeKey?: "demoRequestsNew";
+  badgeKey?: BadgeKey;
 }
+
+interface NavGroup {
+  type: "group";
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  children: NavLeaf[];
+}
+
+type NavItem = NavLeaf | NavGroup;
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
@@ -36,6 +53,27 @@ const NAV_ITEMS: NavItem[] = [
     icon: UserCog,
     activeMatch: "/admin/demo-requests",
     badgeKey: "demoRequestsNew",
+  },
+  {
+    type: "group",
+    label: "Başvurular",
+    icon: ClipboardList,
+    children: [
+      {
+        label: "Alıcı Başvuruları",
+        href: "/admin/buyer-applications",
+        icon: Building2,
+        activeMatch: "/admin/buyer-applications",
+        badgeKey: "buyerAppsReview",
+      },
+      {
+        label: "Tedarikçi Başvuruları",
+        href: "/admin/supplier-applications",
+        icon: Truck,
+        activeMatch: "/admin/supplier-applications",
+        badgeKey: "supplierAppsReview",
+      },
+    ],
   },
   {
     label: "E-posta Logları",
@@ -63,21 +101,73 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
+function CountBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-danger-500 text-white text-[11px] font-semibold">
+      {count}
+    </span>
+  );
+}
+
+interface NavLeafProps {
+  item: NavLeaf;
+  pathname: string | null;
+  badgeCount: number;
+  /** Group altındaki child mı? — sol padding farklı */
+  nested?: boolean;
+}
+
+function NavLeafItem({ item, pathname, badgeCount, nested }: NavLeafProps) {
+  const Icon = item.icon;
+  const matchPath = item.activeMatch ?? item.href;
+  const active = !!pathname && pathname.startsWith(matchPath);
+
+  const baseClasses = cn(
+    "admin-sidebar-item",
+    active && "admin-sidebar-item-active",
+    item.disabled && "opacity-50 cursor-not-allowed",
+    nested && "pl-8",
+  );
+
+  if (item.disabled) {
+    return (
+      <span className={baseClasses} title="Yakında" aria-disabled>
+        <Icon className="w-4 h-4" />
+        <span className="flex-1">{item.label}</span>
+        <span className="text-[10px] text-admin-sidebar-muted uppercase tracking-wide">
+          Yakında
+        </span>
+      </span>
+    );
+  }
+
+  return (
+    <Link href={item.href} className={baseClasses}>
+      <Icon className="w-4 h-4" />
+      <span className="flex-1">{item.label}</span>
+      <CountBadge count={badgeCount} />
+    </Link>
+  );
+}
+
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const { admin } = useAdminAuth();
   const logout = useAdminLogout();
   const pathname = usePathname();
-  const stats = useDemoRequestStats();
+
+  const demoStats = useDemoRequestStats();
+  const buyerStats = useBuyerApplicationStats();
+  const supplierStats = useSupplierApplicationStats();
 
   const initials = admin
     ? `${admin.firstName[0] ?? ""}${admin.lastName[0] ?? ""}`.toUpperCase()
     : "??";
 
-  const newCount = stats.data?.byStatus.NEW ?? 0;
-
-  const getBadge = (key: NavItem["badgeKey"]) => {
-    if (key === "demoRequestsNew" && newCount > 0) return newCount;
-    return null;
+  const counts: Record<BadgeKey, number> = {
+    demoRequestsNew: demoStats.data?.byStatus.NEW ?? 0,
+    buyerAppsReview: buyerStats.data?.byStatus.PENDING_REVIEW ?? 0,
+    supplierAppsReview: supplierStats.data?.byStatus.PENDING_REVIEW ?? 0,
   };
 
   return (
@@ -92,44 +182,43 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
 
         <nav className="flex-1 px-3 py-4 space-y-0.5">
           {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const matchPath = item.activeMatch ?? item.href;
-            const active = !!pathname && pathname.startsWith(matchPath);
-            const badge = getBadge(item.badgeKey);
-
-            const baseClasses = cn(
-              "admin-sidebar-item",
-              active && "admin-sidebar-item-active",
-              item.disabled && "opacity-50 cursor-not-allowed",
-            );
-
-            if (item.disabled) {
+            if (item.type === "group") {
+              const Icon = item.icon;
+              const groupTotal = item.children.reduce(
+                (sum, c) => sum + (c.badgeKey ? counts[c.badgeKey] : 0),
+                0,
+              );
               return (
-                <span
-                  key={item.href}
-                  className={baseClasses}
-                  title="Yakında"
-                  aria-disabled
-                >
-                  <Icon className="w-4 h-4" />
-                  <span className="flex-1">{item.label}</span>
-                  <span className="text-[10px] text-admin-sidebar-muted uppercase tracking-wide">
-                    Yakında
-                  </span>
-                </span>
+                <div key={item.label} className="pt-2">
+                  <div className="flex items-center gap-3 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-admin-sidebar-muted">
+                    <Icon className="w-3.5 h-3.5" />
+                    <span className="flex-1">{item.label}</span>
+                    <CountBadge count={groupTotal} />
+                  </div>
+                  <div className="space-y-0.5 mt-1">
+                    {item.children.map((child) => (
+                      <NavLeafItem
+                        key={child.href}
+                        item={child}
+                        pathname={pathname}
+                        badgeCount={
+                          child.badgeKey ? counts[child.badgeKey] : 0
+                        }
+                        nested
+                      />
+                    ))}
+                  </div>
+                </div>
               );
             }
 
             return (
-              <Link key={item.href} href={item.href} className={baseClasses}>
-                <Icon className="w-4 h-4" />
-                <span className="flex-1">{item.label}</span>
-                {badge !== null && (
-                  <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-danger-500 text-white text-[11px] font-semibold">
-                    {badge}
-                  </span>
-                )}
-              </Link>
+              <NavLeafItem
+                key={item.href}
+                item={item}
+                pathname={pathname}
+                badgeCount={item.badgeKey ? counts[item.badgeKey] : 0}
+              />
             );
           })}
         </nav>

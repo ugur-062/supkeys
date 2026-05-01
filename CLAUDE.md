@@ -126,7 +126,21 @@
     - TR il-ilçe verisi: `packages/shared/src/data/turkey-locations.ts` — 81 il + ~970 ilçe, `getCityNames()` + `getDistrictsByCity(city)` helpers
     - Landing CTA: sadece "Tedarikçi Olarak Kayıt Ol" linki var (alıcılar `/demo-talep` yolundan girer); login formunda "Tedarikçi misiniz? Tedarikçi olarak kayıt ol" linki
     - Bağımlılıklar: `react-dropzone` eklendi (apps/web)
-13. **Brand & üyelik kademesi yenileme:**
+13. **Kayıt sistemi (Aşama C — admin başvuru yönetimi):**
+    - 2 yeni admin sayfası: `/admin/buyer-applications` + `/admin/supplier-applications` (server component → `Suspense` → client view, `RequireAdminAuth` boundary)
+    - 5'li KPI cards (Toplam / E-posta Bekliyor / İncelemede / Onaylanan / Reddedilen) + URL-sync filter bar (search + status, 300ms debounce, "Temizle") + tablo + pagination + 5sn refetchInterval
+    - Buyer tablo kolonları: Firma / Yetkili / E-posta / Tip (kısa: A.Ş./Ltd./Şahıs) / Vergi No / Statü / Tarih / Detay
+    - Supplier tablo: aynı + "Davet" kolonu — `📩 {tenantName}` (indigo pill) veya `Self` (slate pill)
+    - Detay drawer (sağdan, `md:max-w-2xl`, sticky header + scroll içerik + sticky footer aksiyon): üst banner (buyer = sarı "🎯 Demo Davetli Başvuru" + bağlı demo'nun firma adı + `/admin/demo-requests` linki; supplier davetli = indigo "📩 {tenant} tarafından davet edildi" / supplier self = slate "Self Kayıt"), Firma Bilgileri (companyType label, vergi numarası mono, web sitesi link, Vergi Levhası tıklanabilir kart), Adres, Yetkili (e-posta kopyalanabilir), Süreç (createdAt + emailVerifiedAt + reviewedAt/reviewedBy + tenant/supplier link + rejectionReason kutusu + IP)
+    - `TaxCertModal` (`apps/admin/src/app/admin/buyer-applications/_components/tax-cert-modal.tsx`, supplier drawer'dan da import edilir): max-w-4xl, base64 data URL parse (`useMemo` ile sadece açıkken), PDF → `<iframe>`, image → `<img>`, format desteklemiyorsa "İndir" CTA. Header'da "İndir" butonu (download attribute, dosya adı: companyName-slug + uzantı)
+    - `ApproveDialog`: success-yeşil onay; buyer için "Demo {companyName} otomatik 'Kazanıldı' olarak işaretlenecek" notu (varsa); supplier için "Tenant ile aktif ilişki otomatik kurulacak" notu (davetli ise)
+    - `RejectModal`: 4 hazır sebep dropdown (Şirket bilgileri / Vergi numarası / Vergi levhası / Sektör hizmet kapsamı dışı) + "Diğer" → textarea zorunlu (5-500 char). Hazır sebep + ek not seçilirse "{sebep} — {not}" şeklinde gönderilir. Backend `RejectApplicationDto` ile uyumlu (MinLength 5)
+    - Sticky bottom aksiyonlar: PENDING_REVIEW → [Onayla] (success-600) + [Reddet] (kırmızı outline); PENDING_EMAIL_VERIFICATION → sarı bilgi notu, aksiyon yok; APPROVED/REJECTED → bilgi gösterimi, aksiyon yok
+    - Hooks: `use-buyer-applications.ts` + `use-supplier-applications.ts` (TanStack Query, list/detail/stats/approve/reject; approve sonrası demo-requests query'leri de invalidate edilir)
+    - Sidebar `Başvurular` parent grubu (icon `ClipboardList`, slate-400 başlık) + 2 child (`Alıcı Başvuruları`, `Tedarikçi Başvuruları`) — child'larda PENDING_REVIEW kırmızı badge, parent'ta toplam badge
+    - Backend ek: `admin-buyer-applications.service.approve()` artık `fromDemoRequest`'ı transaction içinde otomatik `WON` statüsüne geçirir + `closedAt` set eder (status zaten WON ise atlar). `findOne` artık `fromDemoRequest` (id + companyName + contactName + email + status) include ediyor
+    - Tipler: `apps/admin/src/lib/applications/{types,status,company-type}.ts` (ApplicationStatus, CompanyType, REJECTION_REASONS sabiti, status meta + label/badgeClass map'leri)
+14. **Brand & üyelik kademesi yenileme:**
     - Resmi Supkeys logoları projeye dağıtıldı: `apps/web/public/`, `apps/admin/public/` (favicon.ico, apple-touch-icon, supkeys-logo-full + white, supkeys-icon 7 boyut + white) + `packages/email/src/templates/_assets/` (full + 128 ikon)
     - `SupkeysLogo` (web + admin) artık `next/image` tabanlı, variant (`full`/`icon`/`full-white`/`icon-white`) + size (`sm`/`md`/`lg`/`xl`) + priority destekliyor; `AdminLogo` `SupkeysLogo`'yu sarıp "ADMIN" pill ekliyor (light variant koyu sidebar için)
     - Logo kullanım yerleri güncellendi: tenant landing/login/demo-talep/dashboard sidebar (collapsed → icon, expanded → full); admin login (dark variant) + admin sidebar (light variant)
@@ -135,8 +149,8 @@
     - Üyelik kademesi yeniden adlandırıldı: BRONZE → STANDARD, SILVER → PREMIUM (migration `rename_membership_enum_to_standard_premium`, manuel SQL ile mevcut data güvenli map'lendi). Tüm kod referansları + e-posta template metni ("Standart üyelik" / "Premium üyeliğe yükselterek") güncellendi
 
 ### ⏳ Sıradaki (Bu Sprint)
-1. **Aşama C**: Admin panel "Başvurular" sayfaları (`/admin/buyer-applications` + `/admin/supplier-applications`) — liste, detay drawer (firma bilgileri + vergi levhası önizleme + adres + yetkili + davet bilgisi), onay/red akışı (rejection reason zorunlu), KPI cards
-2. Admin dashboard KPI'ları (`GET /admin/demo-requests/stats` + buyer/supplier-applications stats kullan)
+1. **Aşama D**: Tenant tarafında "Tedarikçilerim" sayfası — davet gönder UI'sı (mevcut `/api/tenants/me/supplier-invitations` endpoint'leri) + supplier listesi (relation status: ACTIVE/PENDING/BLOCKED). Tedarikçinin profile sekmesinde ek alıcı eklemesi (multi-tenant supplier)
+2. Admin dashboard KPI'ları (demo + buyer + supplier stats agregasyonu, hızlı linkler)
 3. MinIO entegrasyonu: vergi levhası base64 → MinIO upload + signed URL (V2)
 
 ### 🔮 Yol Haritası (Sonra)
