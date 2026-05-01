@@ -147,9 +147,26 @@
     - Root layout `metadata`: title.template, description, icons (4 farklı boyut + apple-touch), OpenGraph (locale=tr_TR, image=full logo). Admin app icon set + robots noindex/nofollow
     - E-posta `Layout` component artık `process.env.WEB_URL`/supkeys-logo-full.png URL'iyle `<Img>` render ediyor (dev'de localhost:3000, prod'da gerçek domain)
     - Üyelik kademesi yeniden adlandırıldı: BRONZE → STANDARD, SILVER → PREMIUM (migration `rename_membership_enum_to_standard_premium`, manuel SQL ile mevcut data güvenli map'lendi). Tüm kod referansları + e-posta template metni ("Standart üyelik" / "Premium üyeliğe yükselterek") güncellendi
+15. **Tenant tedarikçi yönetimi (Aşama D.1):**
+    - `/dashboard/tedarikciler` placeholder kaldırıldı, yerine 3 tab'lı tam fonksiyonel sayfa: **Onaylı Tedarikçiler / Çağrılan Tedarikçiler (Davetler) / Engellenenler**. URL params: `?tab=approved|invitations|blocked`, `?search=`, `?invStatus=`, `?page=` (Suspense wrapped server component)
+    - Header card: gradient (brand-50 → white → indigo-50/40), 3 madde açıklama + 2 CTA: "Tedarikçi Havuzu" (Yakında pill, disabled) + "Yeni Tedarikçi Davet Et" (COMPANY_ADMIN değilse disabled, tooltip)
+    - Sekme başlıklarında count badge'leri: aktif sekme `border-brand-600 text-brand-700 bg-brand-50/30`, pasif `text-slate-500 hover:bg-slate-50`
+    - **Tab 1 (Onaylı):** kolonlar Üyelik (STANDARD slate-100 / PREMIUM yellow-50 pill) / Firma + companyType / Vergi No / İletişim (primary user) / İlişki Tarihi / Detay. Boş state'te "İlk Tedarikçinizi Davet Edin" CTA
+    - **Tab 2 (Davetler):** kolonlar E-posta / Yetkili / Statü (PENDING/ACCEPTED/EXPIRED/CANCELLED, geçmişse "Süresi Doldu") / Gönderildi / Geçerlilik (`formatDistanceToNowStrict tr`) / Aksiyon dropdown — PENDING'de [Yeniden Gönder + İptal Et], EXPIRED'da [Yeniden Davet Et], ACCEPTED'da kabul tarihi metni
+    - **Tab 3 (Engellenen):** kolonlar Firma / Vergi No / Engelleme Sebebi (60 char truncate + tooltip) / Engellenme Tarihi / "Engeli Kaldır" butonu (window.confirm + inline POST `/unblock`)
+    - **Davet modal (toplu):** Radix Dialog max-w-lg, virgül/noktalı virgül/satır sonu/boşluk ile bölünen e-posta parser (`parseEmails` lowercase + dedupe + email regex), validation pill'leri (yeşil = geçerli, kırmızı = format hatası veya `ALREADY_INVITED`/`ALREADY_SUPPLIER`), max 50 e-posta limit. Yetkili adı + 500 char mesaj + collapsible "E-posta Önizlemesini Göster" → iframe (`POST .../preview`, 500ms debounce). Submit POST `/batch`; karışık başarı/hata durumunda modal açık kalır, başarılı e-postalar input'tan çıkarılır, hatalılar pill'lerde sebep gösterir
+    - **Engelleme modal:** sebep min 10 max 500 char, sarı uyarı kutusu ("ihalelerinize teklif veremez", "havuzda görünmeye devam eder", "tedarikçiye gösterilmez")
+    - **Tedarikçi detay drawer (md:max-w-2xl):** sticky header (Building2 ikonu + companyName + taxNumber mono + Üyelik/RelationStatus pill'leri + "Tüm İşlemler" Radix DropdownMenu — ACTIVE'de [Engelle], BLOCKED'da [Engeli Kaldır]). Body: BLOCKED ise üstte kırmızı uyarı kutusu (sebep + tarih), ardından Firma Bilgileri / Adres / İletişim (e-posta kopyalanabilir) / İlişki bölümleri + 3 PlaceholderSection ("Yakında" pill — Performans / Kategori / İletişim Geçmişi)
+    - Permission: `useAuthStore.user.role === "COMPANY_ADMIN"` → davet/block/unblock görünür; BUYER/APPROVER salt görüntüleme. Backend `RolesGuard("COMPANY_ADMIN")` ile koruma
+    - **Backend ek (`apps/api/src/modules/tenant-suppliers`):**
+      - Yeni `TenantSuppliersController` + service: `GET /api/tenants/me/suppliers` (`?status=ACTIVE|BLOCKED|PENDING_TENANT_APPROVAL&search=&page=&pageSize=`), `GET .../stats` ({total, active, blocked, pending}), `GET .../:id` (relationId üzerinden tenant-scoped detay), `POST .../:id/block` (reason min10), `POST .../:id/unblock`. Response her zaman `{relationId, relationStatus, blockedAt, blockedReason, supplier: {…, users[primary]}}` formatında
+      - Mevcut `SupplierInvitationsController`'a 2 yeni endpoint: `POST .../batch` (≤50 emails, dedupe, per-row result `{email, success, invitationId|reason}` ve `summary`; mevcut PENDING davetli olanlar `ALREADY_INVITED`, aktif tedarikçi olanlar `ALREADY_SUPPLIER`); `POST .../preview` (`renderEmail("supplier_invitation")` ile fake `PREVIEW_TOKEN` üzerinden HTML üretir, frontend iframe'le gösterir)
+    - Hooks: `use-tenant-suppliers.ts` + `use-supplier-invitations.ts` (TanStack Query); davet aksiyonları sonrası ilgili query key'leri invalidate eder
+    - Tipler/lib: `apps/web/src/lib/tedarikciler/{types,status,membership,parse-emails}.ts`
+    - Bağımlılıklar: `@radix-ui/react-tabs` + `@radix-ui/react-dialog` (apps/web)
 
 ### ⏳ Sıradaki (Bu Sprint)
-1. **Aşama D**: Tenant tarafında "Tedarikçilerim" sayfası — davet gönder UI'sı (mevcut `/api/tenants/me/supplier-invitations` endpoint'leri) + supplier listesi (relation status: ACTIVE/PENDING/BLOCKED). Tedarikçinin profile sekmesinde ek alıcı eklemesi (multi-tenant supplier)
+1. **Aşama D.2**: Multi-tenant tedarikçi (mevcut tedarikçinin profil panelinden ek alıcı kabul) + tedarikçi paneli iskeleti (`/supplier/login`, `/supplier/dashboard`). Davet `ACCEPTED` olduğunda zaten supplier varsa yeni `SupplierTenantRelation` kurulumu (mevcut backend hazır, sadece UI eksik)
 2. Admin dashboard KPI'ları (demo + buyer + supplier stats agregasyonu, hızlı linkler)
 3. MinIO entegrasyonu: vergi levhası base64 → MinIO upload + signed URL (V2)
 

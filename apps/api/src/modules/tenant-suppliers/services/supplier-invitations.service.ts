@@ -6,12 +6,19 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Prisma } from "@supkeys/db";
+import { renderEmail } from "@supkeys/email";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailQueue } from "../../email/email.queue";
 import {
   generateRegistrationToken,
   hashToken,
 } from "../../registration/helpers/token.helper";
+import type {
+  BatchInvitationResponse,
+  BatchInvitationResult,
+  BatchInvitationsDto,
+  PreviewInvitationDto,
+} from "../dto/batch-invitations.dto";
 import { CreateInvitationDto } from "../dto/create-invitation.dto";
 import { ListInvitationsDto } from "../dto/list-invitations.dto";
 
@@ -226,6 +233,174 @@ export class SupplierInvitationsService {
     });
 
     return { message: "Davet iptal edildi" };
+  }
+
+  /**
+   * Toplu davet — tek transaction değil, her e-posta bağımsız değerlendirilir.
+   * Aynı e-posta için bekleyen davet veya aktif tedarikçi varsa bireysel hata
+   * döner; geri kalanlar başarılı şekilde gönderilir.
+   */
+  async batch(
+    tenantId: string,
+    inviterUserId: string,
+    dto: BatchInvitationsDto,
+  ): Promise<BatchInvitationResponse> {
+    // Normalize + dedupe
+    const seen = new Set<string>();
+    const emails = dto.emails
+      .map((e) => e.toLowerCase().trim())
+      .filter((e) => {
+        if (!e || seen.has(e)) return false;
+        seen.add(e);
+        return true;
+      });
+
+    // Tenant + inviter bilgisini bir kez çek (e-posta render için)
+    const inviter = await this.prisma.user.findUnique({
+      where: { id: inviterUserId },
+      select: {
+        firstName: true,
+        lastName: true,
+        tenant: { select: { name: true } },
+      },
+    });
+    if (!inviter) {
+      throw new NotFoundException("Davet eden kullanıcı bulunamadı");
+    }
+
+    // Daha önce davet edilmiş + aktif tedarikçi olarak bağlı e-postaları
+    // tek sorguda al
+    const [existingInvites, existingRelations] = await this.prisma.$transaction([
+      this.prisma.supplierInvitation.findMany({
+        where: { tenantId, status: "PENDING", email: { in: emails } },
+        select: { email: true },
+      }),
+      this.prisma.supplierUser.findMany({
+        where: {
+          email: { in: emails },
+          supplier: {
+            tenantRelations: {
+              some: {
+                tenantId,
+                status: { in: ["ACTIVE", "PENDING_TENANT_APPROVAL"] },
+              },
+            },
+          },
+        },
+        select: { email: true },
+      }),
+    ]);
+    const invitedEmails = new Set(existingInvites.map((r) => r.email));
+    const supplierEmails = new Set(existingRelations.map((r) => r.email));
+
+    const results: BatchInvitationResult[] = [];
+
+    for (const email of emails) {
+      if (supplierEmails.has(email)) {
+        results.push({ email, success: false, reason: "ALREADY_SUPPLIER" });
+        continue;
+      }
+      if (invitedEmails.has(email)) {
+        results.push({ email, success: false, reason: "ALREADY_INVITED" });
+        continue;
+      }
+
+      const plainToken = generateRegistrationToken();
+      const tokenHash = hashToken(plainToken);
+      const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
+
+      try {
+        const invitation = await this.prisma.supplierInvitation.create({
+          data: {
+            tenantId,
+            invitedByUserId: inviterUserId,
+            email,
+            contactName: dto.contactName?.trim(),
+            message: dto.message?.trim(),
+            tokenHash,
+            expiresAt,
+            status: "PENDING",
+          },
+          include: {
+            tenant: { select: { name: true } },
+            invitedByUser: { select: { firstName: true, lastName: true } },
+          },
+        });
+
+        results.push({
+          email,
+          success: true,
+          invitationId: invitation.id,
+        });
+
+        this.dispatchInvitationEmail(invitation, plainToken).catch((err) => {
+          this.logger.error(
+            `Batch invitation email enqueue failed (${invitation.id}): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        });
+      } catch (err) {
+        // Yarış koşulunda unique violation gelirse "zaten davetli" gibi sun
+        this.logger.warn(
+          `Batch invitation create failed for ${email}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        results.push({ email, success: false, reason: "ALREADY_INVITED" });
+      }
+    }
+
+    const successCount = results.filter((r) => r.success).length;
+    return {
+      results,
+      summary: {
+        total: results.length,
+        success: successCount,
+        failed: results.length - successCount,
+      },
+    };
+  }
+
+  /**
+   * E-posta önizleme — gerçek bir SupplierInvitation oluşturmadan template'i
+   * tenant adı + opsiyonel mesajla render eder. Frontend bunu iframe içinde
+   * gösterir; davet token'ı `PREVIEW_TOKEN` placeholder'ıdır.
+   */
+  async previewInvitationEmail(
+    tenantId: string,
+    inviterUserId: string,
+    dto: PreviewInvitationDto,
+  ): Promise<{ html: string; subject: string }> {
+    const inviter = await this.prisma.user.findUnique({
+      where: { id: inviterUserId },
+      select: {
+        firstName: true,
+        lastName: true,
+        tenant: { select: { id: true, name: true } },
+      },
+    });
+    if (!inviter || inviter.tenant?.id !== tenantId) {
+      throw new NotFoundException("Tenant bulunamadı");
+    }
+
+    const webUrl = this.config.get<string>("WEB_URL", "http://localhost:3000");
+    const acceptUrl = `${webUrl.replace(/\/$/, "")}/register/supplier?invitation=PREVIEW_TOKEN`;
+    const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
+
+    const rendered = await renderEmail({
+      template: "supplier_invitation",
+      data: {
+        inviterTenantName: inviter.tenant.name,
+        inviterUserName: `${inviter.firstName} ${inviter.lastName}`,
+        contactName: dto.contactName?.trim() || null,
+        message: dto.message?.trim() || null,
+        acceptUrl,
+        expiresAt: expiresAt.toISOString(),
+      },
+    });
+
+    return { html: rendered.html, subject: rendered.subject };
   }
 
   // ----------------- email helper -----------------

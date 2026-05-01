@@ -16,6 +16,10 @@ import {
 import { Roles } from "../../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
+import {
+  BatchInvitationsDto,
+  PreviewInvitationDto,
+} from "../dto/batch-invitations.dto";
 import { CreateInvitationDto } from "../dto/create-invitation.dto";
 import { ListInvitationsDto } from "../dto/list-invitations.dto";
 import { SupplierInvitationsService } from "../services/supplier-invitations.service";
@@ -35,6 +39,26 @@ export class SupplierInvitationsController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<unknown> {
     return this.service.create(user.tenantId, user.id, dto);
+  }
+
+  @Post("batch")
+  @Roles("COMPANY_ADMIN")
+  @HttpCode(HttpStatus.OK)
+  batch(
+    @Body() dto: BatchInvitationsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<unknown> {
+    return this.service.batch(user.tenantId, user.id, dto);
+  }
+
+  @Post("preview")
+  @Roles("COMPANY_ADMIN")
+  @HttpCode(HttpStatus.OK)
+  preview(
+    @Body() dto: PreviewInvitationDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<unknown> {
+    return this.service.previewInvitationEmail(user.tenantId, user.id, dto);
   }
 
   @Get()
