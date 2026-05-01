@@ -124,12 +124,12 @@ export function LoginForm() {
       </div>
 
       <div className="text-center text-sm text-slate-600 pt-2 border-t border-surface-border">
-        Hesabın yok mu?{" "}
+        Tedarikçi misiniz?{" "}
         <Link
-          href="/register/buyer"
+          href="/register/supplier"
           className="text-brand-700 hover:text-brand-800 font-medium hover:underline"
         >
-          Kayıt ol
+          Tedarikçi olarak kayıt ol
         </Link>
       </div>
     </form>

@@ -6,14 +6,9 @@ import Link from "next/link";
 
 interface StepSuccessProps {
   email: string;
-  /**
-   * Demo davet ile gelinmişse e-posta doğrulama otomatik onay yapacak —
-   * mesaj o duruma göre değişir.
-   */
-  autoApprove: boolean;
 }
 
-export function StepSuccess({ email, autoApprove }: StepSuccessProps) {
+export function StepSuccess({ email }: StepSuccessProps) {
   return (
     <div className="text-center space-y-5">
       <div className="w-20 h-20 rounded-full bg-success-50 flex items-center justify-center mx-auto">
@@ -38,9 +33,8 @@ export function StepSuccess({ email, autoApprove }: StepSuccessProps) {
               linki gönderdik.
             </p>
             <p className="text-slate-700 leading-relaxed">
-              {autoApprove
-                ? "Linki tıkladıktan sonra hesabınız OTOMATİK aktif olacak ve giriş yapabileceksiniz."
-                : "Linki tıkladıktan sonra ekibimiz başvurunuzu inceleyecek. En kısa sürede dönüş yapacağız."}
+              Linki tıkladıktan sonra ekibimiz başvurunuzu inceleyecek. Onay
+              sonrası giriş yapabileceksiniz.
             </p>
           </div>
         </div>

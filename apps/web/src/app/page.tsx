@@ -41,24 +41,13 @@ export default function HomePage() {
           </div>
 
           <div className="mt-8 flex flex-col items-center gap-3">
-            <p className="text-sm text-slate-500">
-              Hesap oluşturmak ister misiniz?
-            </p>
-            <div className="flex flex-wrap gap-3 justify-center">
-              <Link
-                href="/register/buyer"
-                className="text-brand-600 hover:text-brand-700 font-semibold underline-offset-4 hover:underline"
-              >
-                Alıcı Olarak Kayıt Ol
-              </Link>
-              <span className="text-slate-300">·</span>
-              <Link
-                href="/register/supplier"
-                className="text-brand-600 hover:text-brand-700 font-semibold underline-offset-4 hover:underline"
-              >
-                Tedarikçi Olarak Kayıt Ol
-              </Link>
-            </div>
+            <p className="text-sm text-slate-500">Tedarikçi misiniz?</p>
+            <Link
+              href="/register/supplier"
+              className="text-brand-600 hover:text-brand-700 font-semibold underline-offset-4 hover:underline"
+            >
+              Tedarikçi Olarak Kayıt Ol
+            </Link>
           </div>
         </div>
       </section>

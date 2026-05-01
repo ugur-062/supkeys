@@ -121,26 +121,16 @@ export function VerifyEmailClient({ token, type }: VerifyEmailClientProps) {
           </div>
           <div className="space-y-2">
             <h1 className="font-display font-bold text-2xl text-brand-900">
-              {state.data.autoApproved
-                ? "Hoş geldin! Hesabın aktif 🎉"
-                : "E-posta doğrulandı 🎉"}
+              E-posta doğrulandı 🎉
             </h1>
             <p className="text-slate-600">
-              {state.data.autoApproved
-                ? "Şimdi giriş yapabilir, Supkeys'i kullanmaya başlayabilirsin."
-                : "Başvurunuz incelemeye alındı, en kısa sürede dönüş yapacağız."}
+              Başvurunuz incelemeye alındı, en kısa sürede dönüş yapacağız.
             </p>
           </div>
           <div className="flex flex-wrap gap-3 justify-center pt-2">
-            {state.data.autoApproved ? (
-              <Link href="/login">
-                <Button>Giriş Yap →</Button>
-              </Link>
-            ) : (
-              <Link href="/">
-                <Button variant="secondary">Anasayfaya Dön</Button>
-              </Link>
-            )}
+            <Link href="/">
+              <Button variant="secondary">Anasayfaya Dön</Button>
+            </Link>
           </div>
         </>
       ) : null}

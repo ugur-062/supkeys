@@ -30,8 +30,6 @@ export interface VerifyEmailResponse {
   message: string;
   applicationId: string;
   type: RegistrationKind;
-  autoApproved: boolean;
-  tenantId?: string;
 }
 
 function buildPayload(values: FullRegistration) {

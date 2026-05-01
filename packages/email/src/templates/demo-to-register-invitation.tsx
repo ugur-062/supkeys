@@ -83,7 +83,8 @@ export function DemoToRegisterInvitationEmail(
       )}
 
       <Section style={noticeBox}>
-        Aşağıdaki bağlantıya tıklayarak hızlıca kayıt olabilirsiniz.{" "}
+        Aşağıdaki bağlantıya tıklayarak kayıt formunu doldurabilirsiniz.
+        Bilgilerinizi inceledikten sonra hesabınızı aktive edeceğiz.{" "}
         Davetiniz <strong>{props.expiresAt}</strong> tarihine kadar geçerli.
       </Section>
 
@@ -134,8 +135,9 @@ export function renderDemoToRegisterInvitationText(
   }
   lines.push(
     "",
-    `Hesap oluştur: ${props.registerUrl}`,
+    `Kayıt ol: ${props.registerUrl}`,
     "",
+    "Bilgilerinizi inceledikten sonra hesabınızı aktive edeceğiz.",
     `Davetiniz ${props.expiresAt} tarihine kadar geçerli.`,
     "",
     "Sorularınız için: support@supkeys.com",

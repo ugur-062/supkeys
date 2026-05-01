@@ -182,8 +182,7 @@ export function SupplierRegisterForm({
   if (step === 3) {
     return (
       <div className="card p-6 md:p-8">
-        {/* Tedarikçi tarafında otomatik onay yok — daima admin review beklenir */}
-        <StepSuccess email={submittedEmail} autoApprove={false} />
+        <StepSuccess email={submittedEmail} />
       </div>
     );
   }
