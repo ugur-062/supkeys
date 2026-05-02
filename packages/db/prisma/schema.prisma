@@ -36,6 +36,8 @@ model Tenant {
   supplierInvitations  SupplierInvitation[]
   supplierRelations    SupplierTenantRelation[]
   invitedSupplierApps  SupplierApplication[]   @relation("SupplierAppInviter")
+  tenders              Tender[]
+  orders               Order[]
 
   @@map("tenants")
 }
@@ -56,6 +58,7 @@ model User {
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   sentSupplierInvitations SupplierInvitation[]
+  tendersCreated          Tender[]                  @relation("TendersCreated")
 
   @@index([tenantId])
   @@map("users")
@@ -332,6 +335,9 @@ model Supplier {
   tenantRelations     SupplierTenantRelation[]
   application         SupplierApplication?      @relation("SupplierAppSupplier")
   invitationsAccepted SupplierInvitation[]      @relation("AcceptedBySupplier")
+  tenderInvitations   TenderInvitation[]
+  bids                Bid[]
+  orders              Order[]
 
   @@index([taxNumber])
   @@index([membership])
@@ -357,6 +363,8 @@ model SupplierUser {
 
   supplierId String
   supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  bidsSubmitted Bid[]
 
   @@index([supplierId])
   @@map("supplier_users")
@@ -439,4 +447,287 @@ enum InvitationStatus {
   ACCEPTED
   EXPIRED
   CANCELLED
+}
+
+// ============================================================
+// TENDER MODULE — Aşama E
+// ============================================================
+
+enum TenderType {
+  RFQ                  // Request for Quotation (kapalı teklif)
+  ENGLISH_AUCTION      // İngiliz usulü açık eksiltme (V2)
+}
+
+enum TenderStatus {
+  DRAFT                // Taslak (henüz yayınlanmadı)
+  OPEN_FOR_BIDS        // Yayında, teklif alıyor
+  IN_AWARD             // Süre doldu, alıcı kazandırma yapıyor
+  AWARDED              // Kazandırıldı, sipariş oluştu
+  CANCELLED            // İptal edildi
+  CLOSED_NO_AWARD      // Süre doldu, kazandırma yapılmadı
+}
+
+enum Currency {
+  TRY
+  USD
+  EUR
+}
+
+enum DeliveryTerm {
+  EXW
+  FCA
+  CPT
+  CIP
+  DAP
+  DPU
+  DDP
+  FAS
+  FOB
+  CFR
+  CIF
+}
+
+enum PaymentTerm {
+  CASH                 // Peşin
+  DEFERRED             // Vadeli
+}
+
+enum TenderInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum BidStatus {
+  DRAFT
+  SUBMITTED
+  WITHDRAWN
+  REJECTED
+  AWARDED_PARTIAL
+  AWARDED_FULL
+  LOST
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  IN_PROGRESS
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+model Tender {
+  id                  String          @id @default(cuid())
+
+  tenantId            String
+  tenant              Tenant          @relation(fields: [tenantId], references: [id])
+  createdById         String
+  createdBy           User            @relation("TendersCreated", fields: [createdById], references: [id])
+
+  tenderNumber        String          @unique
+  type                TenderType      @default(RFQ)
+  status              TenderStatus    @default(DRAFT)
+
+  title               String
+  description         String?
+  termsAndConditions  String?
+  internalNotes       String?
+
+  isSealedBid         Boolean         @default(true)
+  requireAllItems     Boolean         @default(false)
+  requireBidDocument  Boolean         @default(false)
+
+  primaryCurrency     Currency        @default(TRY)
+  allowedCurrencies   Currency[]      @default([TRY])
+  decimalPlaces       Int             @default(2)
+
+  deliveryTerm        DeliveryTerm?
+  deliveryAddress     String?
+
+  paymentTerm         PaymentTerm     @default(CASH)
+  paymentDays         Int?
+
+  publishedAt         DateTime?
+  bidsOpenAt          DateTime?
+  bidsCloseAt         DateTime
+  awardedAt           DateTime?
+  cancelledAt         DateTime?
+  cancelReason        String?
+
+  items               TenderItem[]
+  invitations         TenderInvitation[]
+  bids                Bid[]
+  orders              Order[]
+  attachments         TenderAttachment[]
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@index([tenantId, status])
+  @@index([status, bidsCloseAt])
+  @@map("tenders")
+}
+
+model TenderItem {
+  id                  String          @id @default(cuid())
+  tenderId            String
+  tender              Tender          @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+
+  orderIndex          Int
+  name                String
+  description         String?
+
+  quantity            Decimal         @db.Decimal(15, 4)
+  unit                String
+
+  materialCode        String?
+  requiredByDate      DateTime?
+  targetUnitPrice     Decimal?        @db.Decimal(15, 4)
+
+  customQuestion      String?
+
+  bidItems            BidItem[]
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@index([tenderId, orderIndex])
+  @@map("tender_items")
+}
+
+model TenderInvitation {
+  id                  String                @id @default(cuid())
+  tenderId            String
+  tender              Tender                @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  supplierId          String
+  supplier            Supplier              @relation(fields: [supplierId], references: [id])
+
+  status              TenderInvitationStatus @default(PENDING)
+  invitedAt           DateTime              @default(now())
+  respondedAt         DateTime?
+
+  emailSentAt         DateTime?
+  emailOpenedAt       DateTime?
+
+  @@unique([tenderId, supplierId])
+  @@index([supplierId, status])
+  @@map("tender_invitations")
+}
+
+model Bid {
+  id                  String          @id @default(cuid())
+  tenderId            String
+  tender              Tender          @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  supplierId          String
+  supplier            Supplier        @relation(fields: [supplierId], references: [id])
+  submittedById       String
+  submittedBy         SupplierUser    @relation(fields: [submittedById], references: [id])
+
+  status              BidStatus       @default(DRAFT)
+
+  currency            Currency
+  totalAmount         Decimal         @db.Decimal(20, 4)
+
+  notes               String?
+  version             Int             @default(1)
+
+  submittedAt         DateTime?
+  withdrawnAt         DateTime?
+
+  items               BidItem[]
+  attachments         BidAttachment[]
+  orders              Order[]
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@unique([tenderId, supplierId])
+  @@index([tenderId, status])
+  @@map("bids")
+}
+
+model BidItem {
+  id                  String          @id @default(cuid())
+  bidId               String
+  bid                 Bid             @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  tenderItemId        String
+  tenderItem          TenderItem      @relation(fields: [tenderItemId], references: [id])
+
+  unitPrice           Decimal?        @db.Decimal(15, 4)
+  totalPrice          Decimal?        @db.Decimal(20, 4)
+  currency            Currency
+
+  customAnswer        String?
+
+  isWinner            Boolean         @default(false)
+  awardedQuantity     Decimal?        @db.Decimal(15, 4)
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@unique([bidId, tenderItemId])
+  @@map("bid_items")
+}
+
+model BidAttachment {
+  id                  String          @id @default(cuid())
+  bidId               String
+  bid                 Bid             @relation(fields: [bidId], references: [id], onDelete: Cascade)
+
+  fileName            String
+  fileSize            Int
+  mimeType            String
+  fileUrl             String
+
+  uploadedAt          DateTime        @default(now())
+
+  @@map("bid_attachments")
+}
+
+model TenderAttachment {
+  id                  String          @id @default(cuid())
+  tenderId            String
+  tender              Tender          @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+
+  fileName            String
+  fileSize            Int
+  mimeType            String
+  fileUrl             String
+
+  uploadedAt          DateTime        @default(now())
+
+  @@map("tender_attachments")
+}
+
+model Order {
+  id                  String          @id @default(cuid())
+  orderNumber         String          @unique
+
+  tenderId            String
+  tender              Tender          @relation(fields: [tenderId], references: [id])
+  tenantId            String
+  tenant              Tenant          @relation(fields: [tenantId], references: [id])
+  supplierId          String
+  supplier            Supplier        @relation(fields: [supplierId], references: [id])
+  bidId               String
+  bid                 Bid             @relation(fields: [bidId], references: [id])
+
+  status              OrderStatus     @default(PENDING)
+
+  currency            Currency
+  totalAmount         Decimal         @db.Decimal(20, 4)
+
+  expectedDeliveryAt  DateTime?
+  deliveredAt         DateTime?
+
+  notes               String?
+
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@index([tenantId, status])
+  @@index([supplierId, status])
+  @@map("orders")
 }

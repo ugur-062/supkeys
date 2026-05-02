@@ -25,7 +25,6 @@ export const supplierNavConfig: SupplierNavItem[] = [
     icon: FileText,
     label: "İhaleler",
     href: "/supplier/ihaleler",
-    placeholder: true,
   },
   {
     icon: Package,

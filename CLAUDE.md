@@ -219,11 +219,39 @@
       - `InvitationsTable`'a "Görüldü mü?" kolonu: `OpenedBadge` (openedAt yok → slate "Açılmadı" + Clock; <5 dk → brand-50 animate-pulse "Şu an inceliyor" + Eye; ≥5 dk → success-50 "X önce açıldı" + CheckCircle2)
       - `Sidebar` "Tedarikçiler" item'ında live PENDING_TENANT_APPROVAL badge (kırmızı pill) — `useSupplierStats().pending` 30sn refetch
     - Manuel E2E doğrulandı: existing supplier davet (`isExistingSupplier=true`, shortCode üretildi) → supplier login + accept-invitation `{shortCode}` → PENDING_TENANT_APPROVAL relation + supplier_relation_pending e-posta admin'lere → tenant approve → ACTIVE + supplier_relation_approved e-posta. Reject akışı: aynı flow + `{reason}` → BLOCKED + supplier_relation_rejected e-posta. Cross-token: tenant token → /supplier-self-service 401. Re-invite ALREADY_SUPPLIER 409. Batch mixed sonuç. invitation-info açılınca openedAt set
+18. **İhale modülü temeli (Aşama E.1):**
+    - **Schema (`add_tender_models` migration):** Tender + TenderItem + TenderInvitation + Bid + BidItem + BidAttachment + TenderAttachment + Order + 8 enum (TenderType, TenderStatus, Currency, DeliveryTerm, PaymentTerm, TenderInvitationStatus, BidStatus, OrderStatus). Tenant/User/Supplier/SupplierUser modellerine geri ilişkiler eklendi. Tender unique `tenderNumber`, `(tenantId, status)` + `(status, bidsCloseAt)` index'leri; TenderInvitation `(tenderId, supplierId)` unique; Bid `(tenderId, supplierId)` unique (tedarikçi başına 1 aktif teklif). Decimal alanları `Decimal(15,4)` veya `Decimal(20,4)` (toplam). Migration manuel SQL ile uygulandı (env non-interactive)
+    - **Numara üreteci** `packages/shared/src/helpers/tender-number.ts`: `generateTenderNumber()` → `SUPK-YYYY-NNNN` formatı (yıl bazlı son sayı + 1, padStart(4)); `generateOrderNumber()` → `ORD-YYYY-NNNN`. Race koşulu DB unique constraint'le yakalanır (servis tarafında retry; v1 trafik düşük olduğu için yeterli)
+    - **Backend** yeni 2 modül:
+      - `TenantTendersModule` — `GET /api/tenants/me/tenders` (status/search/pagination, list item shape: itemCount/invitationCount/bidCount + createdBy minified), `GET /stats` (DRAFT/OPEN_FOR_BIDS/IN_AWARD/AWARDED/CANCELLED/CLOSED_NO_AWARD sayım), `GET /:id` (tenant scope kontrolü; items + invitations + attachments + bidStats). Auth: `JwtAuthGuard` (her tenant rolü okuyabilir)
+      - `SupplierTendersModule` — `GET /api/supplier/tenders` (filter=active/past/all + search + pagination, **DRAFT görünmez**, `invitations: { some: { supplierId } }` ile sadece davetli kayıtlar), `GET /stats` (activeInvitations + submittedBids + wonTenders + ongoingOrders), `GET /:id` (önce davet kontrolü; davetsizse 404). **Kapalı zarf:** detay response'unda `invitations`, `bids`, `bidStats` ASLA dönmez; sadece `myInvitation` ve `myBid` (varsa) dönüyor. Auth: `SupplierJwtAuthGuard`
+    - **Seed `packages/db/prisma/seed/tenders.ts`** (idempotent — title üzerinden tekrar etmez): 3 dummy tender + örnek tedarikçi + Demo Şirket COMPANY_ADMIN (`ugur@demo.com / demo12345`) ana seed'den çağrılır. Örnek tender'lar: SUPK-2026-0001 OPEN_FOR_BIDS (4 kalem + 3 davet, customQuestion'lı 2 kalem), SUPK-2026-0002 IN_AWARD (kapanmış), SUPK-2026-0003 DRAFT (yayınlanmamış)
+    - **Frontend tenant** `/dashboard/ihaleler` (placeholder kaldırıldı):
+      - Liste: 6'lı KPI (Toplam/Taslak/Yayında/Kazandırma/Tamamlandı/İptal+Kapalı) + 6 sekme (Tümü/Taslak/Yayında/Kazandırma/Tamamlandı/İptal-Kapalı) + URL sync (`?tab&search&page`) + 300ms debounce search + tablo (İhale No / Adı / Tip / Statü / Davetli / Teklif / Açılış / Kapanış: OPEN_FOR_BIDS'da CountdownTimer, diğerlerinde tarih) + 30sn refetch
+      - "Yeni İhale Aç" butonu disabled "YAKINDA" pill (E.2'de aktif)
+      - Detay `/dashboard/ihaleler/[id]`: gradient header (tenderNumber + TenderTypeBadge + StatusBadge + title + description + sağda OPEN_FOR_BIDS'de büyük CountdownTimer veya IN_AWARD'da disabled "Kazandırmayı Tamamla" CTA), 5 sekme (Genel Bilgi / Kalemler / Davetli Tedarikçiler / Teklifler placeholder / Dosyalar). Kalemler tablosu (orderIndex, name, description tooltip, qty/unit, materialCode, targetUnitPrice, customQuestion HelpCircle pill). InvitationsTab kart liste (companyName + Üyelik badge + VKN + InvitationStatus badge + emailOpenedAt göstergesi). BidsTab E.4 placeholder. 15sn detay refetch
+    - **Frontend supplier** `/supplier/ihaleler` (placeholder kaldırıldı):
+      - Liste: 4'lü mini KPI (Aktif Davet / Verilen Teklif / Kazanılan / Devam Eden Sipariş) + 3 sekme (Aktif/Geçmiş/Tümü) + tablo (İhale No / Adı / Alıcı / Statü / Kapanış: CountdownTimer / Teklif Durumum: BidStatusBadge)
+      - Detay `/supplier/ihaleler/[id]`: header card (tenderNumber + tip/statü + title + description + sağda CountdownTimer + disabled "Teklif Ver" YAKINDA pill), Alıcı Firma kutusu (sadece tenant.name), **3 sekme (Genel Bilgi / Kalemler / Dosyalar — KAPALI ZARF: Davetli Tedarikçiler ve Teklifler sekmeleri YOK)**. Items + Files tab tenant component'leri yeniden kullanılıyor (DRY)
+    - **Components & lib:**
+      - `apps/web/src/components/countdown-timer.tsx` — Web Crypto-bağımsız, dakika/saniye otomatik geçişli sayaç (>1sa: dakika tick; <1sa: saniye tick + kırmızı renk; <24sa: sarı). Sürenin dolması "Süresi Doldu"
+      - `apps/web/src/components/tenders/status-badge.tsx` — TenderStatusBadge / TenderTypeBadge / InvitationStatusBadge / BidStatusBadge
+      - `apps/web/src/lib/tenders/{types,labels}.ts` — tüm tender domain tipleri + Incoterm açılımları + para birimi sembolleri + status meta map'leri
+      - Hooks: `use-tenant-tenders.ts` (TanStack Query, list 30sn / detail 15sn) + `use-supplier-tenders.ts` (kendi `supplierApi` üzerinden)
+    - Sidebar: `/supplier/nav-config` "İhaleler" item'ından `placeholder: true` flag'i kaldırıldı; tenant nav-config zaten link olarak göstertiyordu
+    - **Manuel E2E doğrulandı:**
+      - migration + seed başarılı, 3 tender + 1 örnek tedarikçi + 1 ACTIVE relation oluştu
+      - tenant `/tenders/stats` → `{total:3, draft:1, openForBids:1, inAward:1}` ✓
+      - tenant detail → `bidStats: {total:0, submitted:0, draft:0}` ✓
+      - **Kapalı zarf:** supplier detail response'unda `invitations`/`bids`/`bidStats` field'ları YOK; sadece `myInvitation` + `myBid` (null) dönüyor ✓
+      - **DRAFT görünmezliği:** supplier `GET /supplier/tenders/{draftId}` → 404 "İhale bulunamadı" ✓
+      - **Cross-token:** tenant token → `/supplier/tenders` → 401 "Geçersiz token tipi"; supplier token → `/tenants/me/tenders` → 401 ✓
+      - liste/detay sayfaları HTTP 200 (her iki taraf)
 
 ### ⏳ Sıradaki (Bu Sprint)
-1. **Aşama E**: İhale modülü (ana ürün). `Tender` modeli (RFQ + İngiliz usulü açık eksiltme), tedarikçi davet, teklif toplama, kazandırma akışı
+1. **Aşama E.2**: İhale oluşturma 4-adımlı wizard (İhale Bilgileri → Kalemler → Tedarikçi Daveti → Özet/Yayınla). DRAFT → OPEN_FOR_BIDS state geçişi. Kalem sorusu UI. Para birimi seçimi (TRY/USD/EUR etiket). Tedarikçi davet (ACTIVE relations listesinden seç). Dosya upload (base64 V1). RolesGuard `COMPANY_ADMIN`
 2. Admin dashboard KPI'ları (demo + buyer + supplier stats agregasyonu, hızlı linkler)
-3. MinIO entegrasyonu: vergi levhası base64 → MinIO upload + signed URL (V2)
+3. MinIO entegrasyonu: vergi levhası + tender attachment base64 → MinIO upload + signed URL (V2)
 
 ### 🔮 Yol Haritası (Sonra)
 - Tenant register sayfası (`/register`) — backend `POST /auth/register` zaten var
