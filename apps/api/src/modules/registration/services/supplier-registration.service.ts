@@ -180,11 +180,14 @@ export class SupplierRegistrationService {
     const invitation = await this.prisma.supplierInvitation.findUnique({
       where: { tokenHash },
       select: {
+        id: true,
         email: true,
         contactName: true,
         message: true,
         expiresAt: true,
         status: true,
+        isExistingSupplier: true,
+        openedAt: true,
         tenant: { select: { name: true } },
       },
     });
@@ -200,12 +203,30 @@ export class SupplierRegistrationService {
       throw new GoneException("Davet süresi dolmuş");
     }
 
+    // Tracking: bu davet ilk kez açılıyorsa openedAt'i set et — alıcı tarafa
+    // "açıldı/açılmadı" göstergesi için. Fire-and-forget, hata yutar.
+    if (!invitation.openedAt) {
+      this.prisma.supplierInvitation
+        .update({
+          where: { id: invitation.id },
+          data: { openedAt: new Date() },
+        })
+        .catch((err) => {
+          this.logger.warn(
+            `Failed to set openedAt on invitation ${invitation.id}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        });
+    }
+
     return {
       tenantName: invitation.tenant.name,
       email: invitation.email,
       contactName: invitation.contactName,
       message: invitation.message,
       expiresAt: invitation.expiresAt,
+      isExistingSupplier: invitation.isExistingSupplier,
     };
   }
 

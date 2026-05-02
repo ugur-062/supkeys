@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { CompanyInfoCard } from "./_components/company-info-card";
 import { TenantRelationsList } from "./_components/tenant-relations-list";
 
@@ -18,7 +19,10 @@ export default function SupplierProfilePage() {
         </p>
       </div>
       <CompanyInfoCard />
-      <TenantRelationsList />
+      {/* useSearchParams için Suspense sınırı (Next.js 15 gereksinimi) */}
+      <Suspense fallback={null}>
+        <TenantRelationsList />
+      </Suspense>
     </div>
   );
 }

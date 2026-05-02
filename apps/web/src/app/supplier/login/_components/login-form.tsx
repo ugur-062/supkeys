@@ -9,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -22,8 +22,25 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>;
 
+/**
+ * Sadece /supplier/* altındaki path'leri kabul eden güvenli redirect helper.
+ * Open redirect ataklarını önler (örn `?next=//evil.com`).
+ */
+function safeNextPath(value: string | null): string {
+  if (!value) return "/supplier/dashboard";
+  // Sadece "/supplier/" ile başlayan göreli yollar
+  if (!value.startsWith("/supplier/") && value !== "/supplier") {
+    return "/supplier/dashboard";
+  }
+  // "//host" başlayan absolute URL'leri reddet
+  if (value.startsWith("//")) return "/supplier/dashboard";
+  return value;
+}
+
 export function SupplierLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextPath = safeNextPath(searchParams.get("next"));
   const login = useSupplierLogin();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -39,7 +56,7 @@ export function SupplierLoginForm() {
     login.mutate(values, {
       onSuccess: (data) => {
         toast.success(`Hoş geldin, ${data.supplierUser.firstName}!`);
-        router.push("/supplier/dashboard");
+        router.push(nextPath);
       },
       onError: (err) => {
         if (axios.isAxiosError(err)) {

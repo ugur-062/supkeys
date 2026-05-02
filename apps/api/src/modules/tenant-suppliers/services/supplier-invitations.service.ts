@@ -1,12 +1,14 @@
 import {
   ConflictException,
   Injectable,
+  InternalServerErrorException,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Prisma } from "@supkeys/db";
 import { renderEmail } from "@supkeys/email";
+import { generateShortCode } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailQueue } from "../../email/email.queue";
 import {
@@ -52,10 +54,15 @@ export class SupplierInvitationsService {
       );
     }
 
-    // Plain token üret + hash sakla
+    // Mevcut tedarikçi tespiti — e-posta zaten aktif bir SupplierUser'a aitse,
+    // davet "/supplier/login" branch'ine düşer ve manual short code görünür
+    const detection = await this.detectExistingSupplier(email, tenantId);
+
+    // Plain token + short code üret + hash sakla
     const plainToken = generateRegistrationToken();
     const tokenHash = hashToken(plainToken);
     const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
+    const shortCode = await this.generateUniqueShortCode();
 
     const invitation = await this.prisma.supplierInvitation.create({
       data: {
@@ -65,8 +72,10 @@ export class SupplierInvitationsService {
         contactName: dto.contactName?.trim(),
         message: dto.message?.trim(),
         tokenHash,
+        shortCode,
         expiresAt,
         status: "PENDING",
+        isExistingSupplier: detection.isExistingSupplier,
       },
       include: {
         tenant: { select: { name: true } },
@@ -86,8 +95,93 @@ export class SupplierInvitationsService {
       id: invitation.id,
       email: invitation.email,
       expiresAt: invitation.expiresAt,
+      isExistingSupplier: invitation.isExistingSupplier,
+      shortCode: invitation.shortCode,
       message: "Davet gönderildi",
     };
+  }
+
+  /**
+   * E-postanın aktif bir SupplierUser'a ait olup olmadığını ve bu tenant ile
+   * zaten bir ilişkisi olup olmadığını kontrol eder.
+   *
+   * - existingSupplier yok → `{ isExistingSupplier: false }`
+   * - existingSupplier var, bu tenant ile ilişkisi yok → `{ isExistingSupplier: true }`
+   * - existingSupplier var, ilişki var (ACTIVE/PENDING/BLOCKED) → ConflictException
+   *
+   * `throwOnExistingRelation: false` verilirse conflict atmaz; sadece flag döner
+   * (batch akışında her e-posta için ayrı sebep raporlamak gerekir).
+   */
+  private async detectExistingSupplier(
+    email: string,
+    tenantId: string,
+    options: { throwOnExistingRelation?: boolean } = {
+      throwOnExistingRelation: true,
+    },
+  ): Promise<{
+    isExistingSupplier: boolean;
+    relationStatus?: "ACTIVE" | "PENDING_TENANT_APPROVAL" | "BLOCKED";
+  }> {
+    const supplierUser = await this.prisma.supplierUser.findUnique({
+      where: { email },
+      include: { supplier: { select: { id: true, isActive: true, isBlocked: true } } },
+    });
+
+    if (
+      !supplierUser ||
+      !supplierUser.supplier.isActive ||
+      supplierUser.supplier.isBlocked
+    ) {
+      return { isExistingSupplier: false };
+    }
+
+    const relation = await this.prisma.supplierTenantRelation.findUnique({
+      where: {
+        supplierId_tenantId: {
+          supplierId: supplierUser.supplierId,
+          tenantId,
+        },
+      },
+      select: { status: true },
+    });
+
+    if (relation && options.throwOnExistingRelation) {
+      if (relation.status === "ACTIVE") {
+        throw new ConflictException("Bu tedarikçi zaten onaylı listenizde");
+      }
+      if (relation.status === "PENDING_TENANT_APPROVAL") {
+        throw new ConflictException(
+          "Bu tedarikçi için bekleyen bir bağlantı talebi zaten var",
+        );
+      }
+      throw new ConflictException(
+        "Bu tedarikçiyi engellediniz, davet gönderemezsiniz",
+      );
+    }
+
+    return {
+      isExistingSupplier: true,
+      relationStatus: relation?.status,
+    };
+  }
+
+  /**
+   * Crockford Base32 ile 8 karakterlik şifre üretir; collision durumunda
+   * 5 deneme yapar. ~1 trilyon kombinasyon olduğu için pratikte ilk denemede
+   * üretilir; retry sadece güvence amaçlı.
+   */
+  private async generateUniqueShortCode(): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = generateShortCode();
+      const exists = await this.prisma.supplierInvitation.findUnique({
+        where: { shortCode: candidate },
+        select: { id: true },
+      });
+      if (!exists) return candidate;
+    }
+    throw new InternalServerErrorException(
+      "Davet kodu üretilemedi, lütfen tekrar deneyin",
+    );
   }
 
   async list(tenantId: string, query: ListInvitationsDto) {
@@ -268,30 +362,38 @@ export class SupplierInvitationsService {
       throw new NotFoundException("Davet eden kullanıcı bulunamadı");
     }
 
-    // Daha önce davet edilmiş + aktif tedarikçi olarak bağlı e-postaları
-    // tek sorguda al
-    const [existingInvites, existingRelations] = await this.prisma.$transaction([
-      this.prisma.supplierInvitation.findMany({
-        where: { tenantId, status: "PENDING", email: { in: emails } },
-        select: { email: true },
-      }),
-      this.prisma.supplierUser.findMany({
-        where: {
-          email: { in: emails },
-          supplier: {
-            tenantRelations: {
-              some: {
-                tenantId,
-                status: { in: ["ACTIVE", "PENDING_TENANT_APPROVAL"] },
-              },
-            },
+    // Üç sorgu paralel:
+    //  1) Aynı tenant'a aynı e-posta için PENDING davet
+    //  2) Bu tenant ile ilişkili (her status: ACTIVE/PENDING/BLOCKED) → ALREADY_SUPPLIER
+    //  3) E-posta var olan, aktif, engelli olmayan SupplierUser'a ait mi
+    //     (ilişkisiz olanlar `isExistingSupplier=true` ile invitation oluşturur)
+    const [existingInvites, existingRelations, existingSupplierUsers] =
+      await this.prisma.$transaction([
+        this.prisma.supplierInvitation.findMany({
+          where: { tenantId, status: "PENDING", email: { in: emails } },
+          select: { email: true },
+        }),
+        this.prisma.supplierUser.findMany({
+          where: {
+            email: { in: emails },
+            supplier: { tenantRelations: { some: { tenantId } } },
           },
-        },
-        select: { email: true },
-      }),
-    ]);
+          select: { email: true },
+        }),
+        this.prisma.supplierUser.findMany({
+          where: {
+            email: { in: emails },
+            isActive: true,
+            supplier: { isActive: true, isBlocked: false },
+          },
+          select: { email: true },
+        }),
+      ]);
     const invitedEmails = new Set(existingInvites.map((r) => r.email));
     const supplierEmails = new Set(existingRelations.map((r) => r.email));
+    const existingSupplierEmails = new Set(
+      existingSupplierUsers.map((r) => r.email),
+    );
 
     const results: BatchInvitationResult[] = [];
 
@@ -305,9 +407,22 @@ export class SupplierInvitationsService {
         continue;
       }
 
+      const isExistingSupplier = existingSupplierEmails.has(email);
       const plainToken = generateRegistrationToken();
       const tokenHash = hashToken(plainToken);
       const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
+      let shortCode: string;
+      try {
+        shortCode = await this.generateUniqueShortCode();
+      } catch (err) {
+        this.logger.error(
+          `Short code generation failed for ${email}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        results.push({ email, success: false, reason: "ALREADY_INVITED" });
+        continue;
+      }
 
       try {
         const invitation = await this.prisma.supplierInvitation.create({
@@ -318,8 +433,10 @@ export class SupplierInvitationsService {
             contactName: dto.contactName?.trim(),
             message: dto.message?.trim(),
             tokenHash,
+            shortCode,
             expiresAt,
             status: "PENDING",
+            isExistingSupplier,
           },
           include: {
             tenant: { select: { name: true } },
@@ -405,6 +522,26 @@ export class SupplierInvitationsService {
 
   // ----------------- email helper -----------------
 
+  /**
+   * Mevcut tedarikçi: link `/supplier/login?next=/supplier/profil?invitation=<token>`
+   * Yeni tedarikçi:    link `/register/supplier?invitation=<token>`
+   */
+  private buildInvitationAcceptUrl(
+    plainToken: string,
+    isExistingSupplier: boolean,
+  ): string {
+    const webUrl = this.config
+      .get<string>("WEB_URL", "http://localhost:3000")
+      .replace(/\/$/, "");
+    if (isExistingSupplier) {
+      const next = encodeURIComponent(
+        `/supplier/profil?invitation=${plainToken}`,
+      );
+      return `${webUrl}/supplier/login?next=${next}`;
+    }
+    return `${webUrl}/register/supplier?invitation=${plainToken}`;
+  }
+
   private async dispatchInvitationEmail(
     invitation: {
       id: string;
@@ -412,13 +549,17 @@ export class SupplierInvitationsService {
       contactName: string | null;
       message: string | null;
       expiresAt: Date;
+      isExistingSupplier: boolean;
+      shortCode: string | null;
       tenant: { name: string };
       invitedByUser: { firstName: string; lastName: string };
     },
     plainToken: string,
   ) {
-    const webUrl = this.config.get<string>("WEB_URL", "http://localhost:3000");
-    const acceptUrl = `${webUrl.replace(/\/$/, "")}/register/supplier?invitation=${plainToken}`;
+    const acceptUrl = this.buildInvitationAcceptUrl(
+      plainToken,
+      invitation.isExistingSupplier,
+    );
 
     await this.emailQueue.enqueue({
       to: {
@@ -434,10 +575,14 @@ export class SupplierInvitationsService {
           message: invitation.message,
           acceptUrl,
           expiresAt: invitation.expiresAt.toISOString(),
+          isExistingSupplier: invitation.isExistingSupplier,
+          shortCode: invitation.shortCode,
         },
       },
       context: { type: "supplier_invitation", id: invitation.id },
-      subject: `${invitation.tenant.name} sizi tedarikçi olarak davet etti — Supkeys`,
+      subject: invitation.isExistingSupplier
+        ? `${invitation.tenant.name} sizinle yeni bir bağlantı kurmak istiyor — Supkeys`
+        : `${invitation.tenant.name} sizi tedarikçi olarak davet etti — Supkeys`,
     });
   }
 }

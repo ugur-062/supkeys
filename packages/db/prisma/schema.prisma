@@ -412,6 +412,16 @@ model SupplierInvitation {
   sentCount  Int      @default(1)
   lastSentAt DateTime @default(now())
 
+  // Multi-tenant tedarikçi davet kabul akışı (D.2.B)
+  // Davet oluşturulurken: e-posta zaten aktif bir SupplierUser'a aitse true.
+  // Mevcut tedarikçi /supplier/profil üzerinden, yeni tedarikçi /register/supplier üzerinden kabul eder.
+  isExistingSupplier Boolean @default(false)
+  // Kullanıcının e-posta dışında manuel girebilmesi için kısa kod (Crockford Base32 4-4: K7X9-3M2P).
+  // Legacy satırlarda NULL kalabilir; yeni davetlerde her zaman üretilir.
+  shortCode  String?  @unique
+  // Davet linki ilk açıldığında set edilir; alıcı tarafa "açıldı/açılmadı" göstergesi için.
+  openedAt   DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

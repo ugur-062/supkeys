@@ -11,7 +11,13 @@ import {
   formatDistanceToNowStrict,
 } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Inbox, MoreHorizontal } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock,
+  Eye,
+  Inbox,
+  MoreHorizontal,
+} from "lucide-react";
 
 interface InvitationsTableProps {
   items: InvitationItem[];
@@ -60,7 +66,45 @@ function SkeletonRow({ cols }: { cols: number }) {
   );
 }
 
-const COLS = 6;
+const COLS = 7;
+
+/**
+ * Davet linki / kısa kod takibi: alıcı tarafa "tedarikçi linki açtı mı"
+ * göstergesi. /api/registration/supplier/invitation-info çağrıldığında veya
+ * accept-invitation transaction'ında openedAt set edilir.
+ */
+function OpenedBadge({ openedAt }: { openedAt: string | null }) {
+  if (!openedAt) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-xs whitespace-nowrap">
+        <Clock className="h-3 w-3" />
+        Açılmadı
+      </span>
+    );
+  }
+
+  const date = new Date(openedAt);
+  const minutesAgo = (Date.now() - date.getTime()) / 60_000;
+
+  if (minutesAgo >= 0 && minutesAgo < 5) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-50 text-brand-700 text-xs whitespace-nowrap animate-pulse">
+        <Eye className="h-3 w-3" />
+        Şu an inceliyor
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-success-50 text-success-700 text-xs whitespace-nowrap"
+      title={format(date, "dd MMM yyyy HH:mm", { locale: tr })}
+    >
+      <CheckCircle2 className="h-3 w-3" />
+      {formatRelative(openedAt)} açıldı
+    </span>
+  );
+}
 
 export function InvitationsTable({
   items,
@@ -106,6 +150,9 @@ export function InvitationsTable({
             </th>
             <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
               Geçerlilik
+            </th>
+            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
+              Görüldü mü?
             </th>
             <th className="px-4 py-3" />
           </tr>
@@ -180,6 +227,9 @@ export function InvitationsTable({
                 </td>
                 <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                   {formatExpiresAt(it.expiresAt, it.status)}
+                </td>
+                <td className="px-4 py-3">
+                  <OpenedBadge openedAt={it.openedAt} />
                 </td>
                 <td className="px-4 py-3 text-right">
                   {canManage ? (

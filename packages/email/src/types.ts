@@ -9,7 +9,10 @@ export type EmailTemplate =
   | "buyer_application_approved"
   | "supplier_application_approved"
   | "application_rejected"
-  | "supplier_invitation";
+  | "supplier_invitation"
+  | "supplier_relation_pending"
+  | "supplier_relation_approved"
+  | "supplier_relation_rejected";
 
 export type EmailProviderName = "resend" | "mailpit";
 
@@ -104,9 +107,50 @@ export interface SupplierInvitationData {
   inviterUserName: string;
   contactName?: string | null;
   message?: string | null;
+  /**
+   * Yeni tedarikçi: register URL (`/register/supplier?invitation=…`).
+   * Mevcut tedarikçi: login redirect URL (`/supplier/login?next=/supplier/profil?invitation=…`).
+   */
   acceptUrl: string;
+  /**
+   * `true` → davet edilen e-posta zaten platforma kayıtlı bir SupplierUser'a ait;
+   * şablon "hesabınızla giriş yapın ve daveti kabul edin" akışına geçer + manuel
+   * kısa kod gösterir. `false` (varsayılan) → klasik "kayıt olun" akışı.
+   */
+  isExistingSupplier?: boolean;
+  /** Manuel girilebilen kısa kod (K7X9-3M2P). Sadece existingSupplier akışında gösterilir. */
+  shortCode?: string | null;
   /** ISO datetime — davet süresi */
   expiresAt: string;
+}
+
+export interface SupplierRelationPendingData {
+  /** Alıcı tarafındaki bildirim alıcısının adı */
+  recipientFirstName: string;
+  /** Bağlantı talep eden tedarikçi firma */
+  supplierCompanyName: string;
+  supplierTaxNumber: string;
+  supplierCity: string;
+  supplierIndustry?: string | null;
+  /** Alıcı paneline derin link (örn /dashboard/tedarikciler?tab=pending) */
+  reviewUrl: string;
+}
+
+export interface SupplierRelationApprovedData {
+  /** Tedarikçi yetkilisinin adı */
+  supplierContactName: string;
+  /** Onaylayan alıcı tenant'ın adı */
+  tenantName: string;
+  /** Tedarikçi paneli profil URL'i */
+  profileUrl: string;
+}
+
+export interface SupplierRelationRejectedData {
+  supplierContactName: string;
+  tenantName: string;
+  reason?: string | null;
+  profileUrl: string;
+  supportEmail: string;
 }
 
 export type EmailTemplateData =
@@ -135,7 +179,19 @@ export type EmailTemplateData =
       data: SupplierApplicationApprovedData;
     }
   | { template: "application_rejected"; data: ApplicationRejectedData }
-  | { template: "supplier_invitation"; data: SupplierInvitationData };
+  | { template: "supplier_invitation"; data: SupplierInvitationData }
+  | {
+      template: "supplier_relation_pending";
+      data: SupplierRelationPendingData;
+    }
+  | {
+      template: "supplier_relation_approved";
+      data: SupplierRelationApprovedData;
+    }
+  | {
+      template: "supplier_relation_rejected";
+      data: SupplierRelationRejectedData;
+    };
 
 export interface RenderedEmail {
   subject: string;

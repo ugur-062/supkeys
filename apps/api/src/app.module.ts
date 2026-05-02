@@ -9,6 +9,7 @@ import { EmailModule } from "./modules/email/email.module";
 import { HealthModule } from "./modules/health/health.module";
 import { RegistrationModule } from "./modules/registration/registration.module";
 import { SupplierAuthModule } from "./modules/supplier-auth/supplier-auth.module";
+import { SupplierSelfServiceModule } from "./modules/supplier-self-service/supplier-self-service.module";
 import { TenantSuppliersModule } from "./modules/tenant-suppliers/tenant-suppliers.module";
 
 @Module({
@@ -26,6 +27,7 @@ import { TenantSuppliersModule } from "./modules/tenant-suppliers/tenant-supplie
     RegistrationModule,
     AdminApplicationsModule,
     TenantSuppliersModule,
+    SupplierSelfServiceModule,
     HealthModule,
   ],
 })

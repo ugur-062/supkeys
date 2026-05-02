@@ -7,9 +7,33 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { Building2, Plus } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { AddInvitationModal } from "./add-invitation-modal";
 
 export function TenantRelationsList() {
   const { tenantRelations } = useSupplierAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const invitationToken = searchParams.get("invitation");
+  const [modalOpen, setModalOpen] = useState(false);
+
+  // URL'de invitation token varsa modalı otomatik aç
+  useEffect(() => {
+    if (invitationToken) setModalOpen(true);
+  }, [invitationToken]);
+
+  const handleClose = () => {
+    setModalOpen(false);
+    // Modal kapanınca URL'den invitation parametresini temizle —
+    // sayfa yenilenince modal yeniden açılmasın
+    if (invitationToken) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("invitation");
+      const qs = params.toString();
+      router.replace(qs ? `/supplier/profil?${qs}` : "/supplier/profil");
+    }
+  };
 
   return (
     <section className="card p-6 space-y-6">
@@ -84,18 +108,25 @@ export function TenantRelationsList() {
       )}
 
       <div className="pt-5 border-t border-surface-border space-y-2">
-        <Button variant="secondary" disabled fullWidth>
+        <Button
+          variant="secondary"
+          fullWidth
+          onClick={() => setModalOpen(true)}
+        >
           <Plus className="h-4 w-4" />
           Yeni Davet Kodu Ekle
-          <span className="ml-1 px-1.5 py-0.5 bg-warning-100 text-warning-700 text-[10px] rounded-md font-semibold uppercase tracking-wide">
-            Yakında
-          </span>
         </Button>
         <p className="text-xs text-slate-500 text-center">
-          Bir alıcı firma sizi davet ettiyse, davet kodunu buraya girerek
-          bağlantı kurabilirsiniz.
+          Bir alıcı firma sizi davet ettiyse, e-postanızdaki kodu buraya
+          girerek bağlantı talebinde bulunabilirsiniz.
         </p>
       </div>
+
+      <AddInvitationModal
+        open={modalOpen}
+        onClose={handleClose}
+        initialToken={invitationToken}
+      />
     </section>
   );
 }

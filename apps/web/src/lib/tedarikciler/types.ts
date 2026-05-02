@@ -82,6 +82,12 @@ export interface InvitationItem {
   acceptedAt: string | null;
   cancelledAt: string | null;
   createdAt: string;
+  /** Davet linki ilk açıldığında set edilir (D.2.B tracking) */
+  openedAt: string | null;
+  /** Davet edilen e-posta zaten kayıtlı bir SupplierUser'a mı ait */
+  isExistingSupplier: boolean;
+  /** Manuel kısa kod (K7X9-3M2P) — D.2.B sonrasında set edilir */
+  shortCode: string | null;
   invitedByUser: {
     id: string;
     firstName: string;
@@ -89,6 +95,34 @@ export interface InvitationItem {
     email: string;
   };
   acceptedBySupplier: { id: string; companyName: string } | null;
+}
+
+export interface PendingRelationItem {
+  relationId: string;
+  createdAt: string;
+  supplier: {
+    id: string;
+    companyName: string;
+    companyType: CompanyType;
+    taxNumber: string;
+    taxOffice: string;
+    industry: string | null;
+    city: string;
+    district: string;
+    membership: SupplierMembership;
+    primaryUser: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string | null;
+    } | null;
+  };
+}
+
+export interface PendingRelationsResponse {
+  items: PendingRelationItem[];
+  count: number;
 }
 
 export interface InvitationListResponse {

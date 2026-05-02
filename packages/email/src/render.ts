@@ -46,6 +46,21 @@ import {
   renderSupplierInvitationText,
   SupplierInvitationEmail,
 } from "./templates/supplier-invitation";
+import {
+  makeSupplierRelationApprovedSubject,
+  renderSupplierRelationApprovedText,
+  SupplierRelationApprovedEmail,
+} from "./templates/supplier-relation-approved";
+import {
+  makeSupplierRelationPendingSubject,
+  renderSupplierRelationPendingText,
+  SupplierRelationPendingEmail,
+} from "./templates/supplier-relation-pending";
+import {
+  makeSupplierRelationRejectedSubject,
+  renderSupplierRelationRejectedText,
+  SupplierRelationRejectedEmail,
+} from "./templates/supplier-relation-rejected";
 import type { EmailTemplateData, RenderedEmail } from "./types";
 
 export async function renderEmail(
@@ -174,9 +189,47 @@ export async function renderEmail(
         React.createElement(SupplierInvitationEmail, spec.data),
       );
       return {
-        subject: makeSupplierInvitationSubject(spec.data.inviterTenantName),
+        subject: makeSupplierInvitationSubject(
+          spec.data.inviterTenantName,
+          spec.data.isExistingSupplier,
+        ),
         html,
         text: renderSupplierInvitationText(spec.data),
+      };
+    }
+
+    case "supplier_relation_pending": {
+      const html = await render(
+        React.createElement(SupplierRelationPendingEmail, spec.data),
+      );
+      return {
+        subject: makeSupplierRelationPendingSubject(
+          spec.data.supplierCompanyName,
+        ),
+        html,
+        text: renderSupplierRelationPendingText(spec.data),
+      };
+    }
+
+    case "supplier_relation_approved": {
+      const html = await render(
+        React.createElement(SupplierRelationApprovedEmail, spec.data),
+      );
+      return {
+        subject: makeSupplierRelationApprovedSubject(spec.data.tenantName),
+        html,
+        text: renderSupplierRelationApprovedText(spec.data),
+      };
+    }
+
+    case "supplier_relation_rejected": {
+      const html = await render(
+        React.createElement(SupplierRelationRejectedEmail, spec.data),
+      );
+      return {
+        subject: makeSupplierRelationRejectedSubject(spec.data.tenantName),
+        html,
+        text: renderSupplierRelationRejectedText(spec.data),
       };
     }
 

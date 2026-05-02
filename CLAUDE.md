@@ -187,9 +187,41 @@
     - Landing + tenant /login footer: "Tedarikçi Girişi →" linki eklendi (yan yana "Kayıt Ol" ile)
     - **noindex**: `/supplier/layout.tsx`'de `metadata.robots: {index:false, follow:false}` — tüm `/supplier/*` rotaları arama motorlarına kapalı
     - Manuel doğrulama: 3 ayrı token cross-test edildi (tenant→supplier-auth/me 401, supplier→auth/me 401, admin→supplier-auth/me 401, tenant şifresi → supplier-auth/login 401), `/me` `tenantRelations` ile dolu, login sonrası redirect, sidebar collapse persist
+17. **Multi-tenant tedarikçi davet kabul akışı (Aşama D.2.B):**
+    - **Karar:** Mevcut bir tedarikçi (kayıtlı SupplierUser) yeni alıcının davetini aldığında **yeniden form doldurmaz**; hesabıyla giriş yapıp daveti tek tıkla kabul eder. Kabul anında `SupplierTenantRelation(status=PENDING_TENANT_APPROVAL)` oluşur — alıcı admin'i onaylayana kadar ilişki aktif değil. Onay/red akışı **platform admin'ini** atlar (zaten doğrulanmış tedarikçi)
+    - Migration `add_invitation_short_code_and_tracking`: `SupplierInvitation`'a `isExistingSupplier` (Boolean default false), `shortCode` (String? unique — 4-1-4 format K7X9-3M2P), `openedAt` (DateTime?) eklendi. Migration manual SQL olarak uygulandı (seed dışı baseline yok)
+    - **Kısa kod üreteci:** `packages/shared/src/helpers/short-code.ts` — Crockford Base32 alfabesi (32 karakter, I/L/O/U dışlanmış), 8 karakter (4-1-4 format). `generateShortCode()` Web Crypto API tabanlı (`globalThis.crypto.getRandomValues` — Node 19+ ve browser uyumlu, mask+retry ile uniform dağılım). `normalizeShortCode()` (lowercase→UPPERCASE, boşluk/`_`→`-`, çoklu `-`→tek), `validateShortCode()` (regex)
+    - Backend `SupplierInvitationsService` create + batch:
+      - `detectExistingSupplier(email, tenantId)` — aktif SupplierUser var + bu tenant ile ilişki yok → `isExistingSupplier=true`. İlişki varsa (ACTIVE/PENDING/BLOCKED) → ConflictException ("zaten onaylı listenizde" / "bekleyen talep var" / "engellediniz")
+      - `generateUniqueShortCode()` — 5 deneme retry collision handling (1 trilyon kombinasyon, pratik retry sıfır)
+      - Davet e-postasında `acceptUrl` branchli: existing → `/supplier/login?next=/supplier/profil?invitation=<token>`; new → `/register/supplier?invitation=<token>` (mevcut akış)
+      - Subject branchli: existing → "{tenant} sizinle yeni bir bağlantı kurmak istiyor"; new → "{tenant} sizi tedarikçi olarak davet etti"
+      - Batch endpoint mixed sonuç döner: ALREADY_INVITED (PENDING dup) / ALREADY_SUPPLIER (her status'ta ilişki var) / success (existing+ilişki yok → isExistingSupplier=true ile invitation oluşur)
+    - **E-posta şablonu** `supplier-invitation.tsx` `isExistingSupplier` branching ile yeniden yazıldı: existing branch'te "Hesabıma Giriş Yap ve Kabul Et" CTA + dashed-border CodeBox'da `shortCode` (font-mono, letter-spacing 0.15em) + "manuel kod kopyala" yönergesi. New branch davranışı korundu (mevcut)
+    - **Tracking:** `GET /api/registration/supplier/invitation-info` ilk açılışta `openedAt`'i fire-and-forget set eder; response'a `isExistingSupplier` eklendi (frontend register sayfasında ileride uyarı için kullanılabilir)
+    - Backend yeni modül `apps/api/src/modules/supplier-self-service/`:
+      - `POST /api/supplier-self-service/accept-invitation` (`SupplierJwtAuthGuard`) — body `{invitationToken?: string, shortCode?: string}` (en az biri zorunlu)
+      - Doğrulama: token/code bul → status (`ACCEPTED`/`CANCELLED`/expired) → `isExistingSupplier=false` ise 400 → invitation.email ≠ supplierUser.email → 403 → tenant ile mevcut ilişki (ACTIVE/PENDING/BLOCKED) → 409 sebep ile
+      - Transaction: `SupplierTenantRelation(status=PENDING_TENANT_APPROVAL)` create + `SupplierInvitation` (`status=ACCEPTED, acceptedBySupplierId, acceptedAt, openedAt fallback`) update
+      - Tenant'ın aktif tüm `COMPANY_ADMIN`'lerine `supplier_relation_pending` e-posta (fire-and-forget)
+    - **Tenant approval endpoints** (`TenantSuppliersController`):
+      - `GET /api/tenants/me/suppliers/pending-relations` — sadece bu tenant'ın PENDING_TENANT_APPROVAL ilişkileri (supplier + primary user). Sıralama: en yeni üstte
+      - `POST /api/tenants/me/suppliers/relations/:id/approve` (`@Roles("COMPANY_ADMIN")`) → status=ACTIVE, supplier_relation_approved e-posta
+      - `POST /api/tenants/me/suppliers/relations/:id/reject` body `{reason?: string max 500}` → status=BLOCKED, blockedReason set ("Alıcı tarafından reddedildi" varsayılan), supplier_relation_rejected e-posta
+      - Stats `pending` zaten mevcut PENDING_TENANT_APPROVAL count'unu döndürüyordu — değişmedi
+    - **3 yeni e-posta şablonu:** `supplier_relation_pending` (alıcı admin'lerine, summary box ile firma + vergi no + şehir + sektör + "Talebi İncele" CTA `/dashboard/tedarikciler?tab=pending`), `supplier_relation_approved` (tedarikçiye, profile CTA), `supplier_relation_rejected` (tedarikçiye, opsiyonel reason quote box, support CTA)
+    - **Frontend supplier:**
+      - `/supplier/login` artık `?next=` query param'ı okur ve başarılı login sonrası buraya gider; safeNextPath helper sadece `/supplier/*` whitelist'ler (open redirect koruması). Login page Suspense ile sarıldı (Next 15 useSearchParams)
+      - `/supplier/profil` "Yeni Davet Kodu Ekle" butonu artık aktif: URL'de `?invitation=<token>` varsa modal otomatik açılır + token mode (yeşil "Davet bulundu" kart, doğrudan kabul). Manuel mod: shortCode input (font-mono, uppercase tracking-wider), live `validateShortCode` kontrolü, format hatasında inline mesaj. Modal kapanırken `?invitation` URL'den temizlenir
+    - **Frontend tenant:**
+      - `/dashboard/tedarikciler` 4. tab "Onay Bekleyenler" eklendi (Clock icon + warning-100 badge; 0 ise default slate badge). `PendingRelationsTable` her satır warning-50 card: firma + üyelik + onay bekliyor pill + companyType + VKN + city + sektör + primary user (e-posta + telefon link) + relative tarih + sağda "Onayla" (success-yeşil) / "Reddet" (kırmızı outline) butonları. Boş state Users2 ikonu + "Onay bekleyen tedarikçi yok" mesajı. 30sn auto-refetch
+      - `RejectRelationModal` — Radix Dialog, opsiyonel sebep textarea (max 500), submit → POST `/relations/:id/reject`. Sebep boş bırakılırsa "Alıcı tarafından reddedildi" varsayılan
+      - `InvitationsTable`'a "Görüldü mü?" kolonu: `OpenedBadge` (openedAt yok → slate "Açılmadı" + Clock; <5 dk → brand-50 animate-pulse "Şu an inceliyor" + Eye; ≥5 dk → success-50 "X önce açıldı" + CheckCircle2)
+      - `Sidebar` "Tedarikçiler" item'ında live PENDING_TENANT_APPROVAL badge (kırmızı pill) — `useSupplierStats().pending` 30sn refetch
+    - Manuel E2E doğrulandı: existing supplier davet (`isExistingSupplier=true`, shortCode üretildi) → supplier login + accept-invitation `{shortCode}` → PENDING_TENANT_APPROVAL relation + supplier_relation_pending e-posta admin'lere → tenant approve → ACTIVE + supplier_relation_approved e-posta. Reject akışı: aynı flow + `{reason}` → BLOCKED + supplier_relation_rejected e-posta. Cross-token: tenant token → /supplier-self-service 401. Re-invite ALREADY_SUPPLIER 409. Batch mixed sonuç. invitation-info açılınca openedAt set
 
 ### ⏳ Sıradaki (Bu Sprint)
-1. **Aşama D.2.B**: Multi-tenant tedarikçi davet kabul akışı. Mevcut tedarikçi `/supplier/profil`'de "Yeni Davet Kodu Ekle" modal aktivasyonu (token girişi → `SupplierTenantRelation` kurulumu). Tenant tarafında `/dashboard/tedarikciler`'a "Onay Bekleyen Talepler" bölümü
+1. **Aşama E**: İhale modülü (ana ürün). `Tender` modeli (RFQ + İngiliz usulü açık eksiltme), tedarikçi davet, teklif toplama, kazandırma akışı
 2. Admin dashboard KPI'ları (demo + buyer + supplier stats agregasyonu, hızlı linkler)
 3. MinIO entegrasyonu: vergi levhası base64 → MinIO upload + signed URL (V2)
 

@@ -2,17 +2,39 @@
 
 import { SupkeysLogo } from "@/components/brand/logo";
 import { useAuth } from "@/hooks/use-auth";
-import { navConfig, profileNavItem } from "@/lib/dashboard/nav-config";
+import { useSupplierStats } from "@/hooks/use-tenant-suppliers";
+import {
+  navConfig,
+  profileNavItem,
+  type NavGroup,
+} from "@/lib/dashboard/nav-config";
 import { useSidebar } from "@/lib/dashboard/use-sidebar";
 import { cn } from "@/lib/utils";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo } from "react";
 import { SidebarGroup } from "./sidebar-group";
 import { SidebarItem } from "./sidebar-item";
 
 export function Sidebar() {
   const { collapsed, toggle, mobileOpen, closeMobile } = useSidebar();
   const { user } = useAuth();
+  const supplierStats = useSupplierStats();
+
+  // "Tedarikçiler" linkine canlı PENDING_TENANT_APPROVAL badge'i enjekte et
+  const liveNavConfig = useMemo<NavGroup[]>(() => {
+    const pending = supplierStats.data?.pending ?? 0;
+    if (pending <= 0) return navConfig;
+    return navConfig.map((group) => ({
+      ...group,
+      items: group.items.map((item) => {
+        if (item.type === "link" && item.href === "/dashboard/tedarikciler") {
+          return { ...item, badge: pending };
+        }
+        return item;
+      }),
+    }));
+  }, [supplierStats.data?.pending]);
 
   const initials = user
     ? `${user.firstName[0] ?? ""}${user.lastName[0] ?? ""}`.toUpperCase()
@@ -97,7 +119,7 @@ export function Sidebar() {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-3 space-y-5">
-          {navConfig.map((group) => (
+          {liveNavConfig.map((group) => (
             <SidebarGroup
               key={group.label}
               group={group}

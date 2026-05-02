@@ -52,11 +52,114 @@ const aboutBox = {
   lineHeight: "1.6",
 };
 
-export function makeSupplierInvitationSubject(tenantName: string): string {
+const codeBox = {
+  textAlign: "center" as const,
+  fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace',
+  fontSize: "22px",
+  fontWeight: 700,
+  letterSpacing: "0.15em",
+  color: COLORS.brand900,
+  backgroundColor: COLORS.surfaceMuted,
+  border: `2px dashed ${COLORS.surfaceBorder}`,
+  borderRadius: "10px",
+  padding: "16px 12px",
+  margin: "12px 0",
+};
+
+export function makeSupplierInvitationSubject(
+  tenantName: string,
+  isExistingSupplier?: boolean,
+): string {
+  if (isExistingSupplier) {
+    return `${tenantName} sizinle yeni bir bağlantı kurmak istiyor — Supkeys`;
+  }
   return `${tenantName} sizi tedarikçi olarak davet etti — Supkeys`;
 }
 
 export function SupplierInvitationEmail(props: SupplierInvitationData) {
+  if (props.isExistingSupplier) {
+    return <ExistingSupplierBranch {...props} />;
+  }
+  return <NewSupplierBranch {...props} />;
+}
+
+// ----------------------------------------------------------------
+// "Mevcut tedarikçi" akışı — hesabınla giriş yap, daveti kabul et
+// ----------------------------------------------------------------
+function ExistingSupplierBranch(props: SupplierInvitationData) {
+  return (
+    <Layout
+      preview={`${props.inviterTenantName} sizinle yeni bir bağlantı talep etti.`}
+    >
+      <Heading>Yeni alıcı bağlantısı 🤝</Heading>
+
+      <Text style={paragraph}>
+        Merhaba{props.contactName ? ` ${props.contactName}` : ""},
+      </Text>
+
+      <Text style={paragraph}>
+        <strong style={{ color: COLORS.brand900 }}>
+          {props.inviterTenantName}
+        </strong>{" "}
+        firmasından <strong>{props.inviterUserName}</strong>, sizi tedarikçi
+        olarak ağına eklemek istiyor. Supkeys&apos;te zaten kayıtlı olduğunuz
+        için yeniden form doldurmanıza gerek yok — hesabınıza giriş yapıp
+        daveti kabul edebilirsiniz.
+      </Text>
+
+      {props.message && (
+        <>
+          <Heading level={2}>{props.inviterUserName}&apos;den mesaj</Heading>
+          <Section style={messageBox}>“{props.message}”</Section>
+        </>
+      )}
+
+      <Section style={ctaWrap}>
+        <Button href={props.acceptUrl}>
+          Hesabıma Giriş Yap ve Kabul Et
+        </Button>
+      </Section>
+
+      {props.shortCode ? (
+        <>
+          <Text
+            style={{
+              ...paragraph,
+              fontSize: "13px",
+              marginBottom: "8px",
+              marginTop: "20px",
+            }}
+          >
+            Manuel girmek isterseniz, tedarikçi panelinizde{" "}
+            <strong>Profilim → Yeni Davet Kodu Ekle</strong> bölümüne aşağıdaki
+            kodu yapıştırın:
+          </Text>
+          <Section style={codeBox}>{props.shortCode}</Section>
+        </>
+      ) : null}
+
+      <Section style={noticeBox}>
+        Bu davet bağlantısı <strong>7 gün</strong> içinde geçerlidir. Onayınız
+        sonrası <strong>{props.inviterTenantName}</strong>, bağlantıyı kabul
+        edecek; ardından açtıkları ihalelere teklif verebilirsiniz.
+      </Section>
+
+      <Section style={aboutBox}>
+        <strong style={{ color: COLORS.slate700 }}>Yardım?</strong> Davet
+        listede çıkmıyorsa veya kod çalışmıyorsa{" "}
+        <a href="mailto:support@supkeys.com" style={{ color: COLORS.brand700 }}>
+          support@supkeys.com
+        </a>
+        .
+      </Section>
+    </Layout>
+  );
+}
+
+// ----------------------------------------------------------------
+// "Yeni tedarikçi" akışı — kayıt ol (mevcut davranış)
+// ----------------------------------------------------------------
+function NewSupplierBranch(props: SupplierInvitationData) {
   return (
     <Layout
       preview={`${props.inviterTenantName} sizi tedarikçi olarak davet etti.`}
@@ -106,6 +209,50 @@ export function SupplierInvitationEmail(props: SupplierInvitationData) {
 export function renderSupplierInvitationText(
   props: SupplierInvitationData,
 ): string {
+  if (props.isExistingSupplier) {
+    return renderExistingSupplierText(props);
+  }
+  return renderNewSupplierText(props);
+}
+
+function renderExistingSupplierText(props: SupplierInvitationData): string {
+  const lines = [
+    "Yeni alıcı bağlantısı",
+    "",
+    `Merhaba${props.contactName ? ` ${props.contactName}` : ""},`,
+    "",
+    `${props.inviterTenantName} firmasından ${props.inviterUserName},`,
+    "sizinle yeni bir bağlantı kurmak istiyor.",
+    "",
+    "Supkeys hesabınızla giriş yapıp daveti kabul edebilirsiniz:",
+    props.acceptUrl,
+  ];
+  if (props.shortCode) {
+    lines.push(
+      "",
+      "Manuel kod:",
+      props.shortCode,
+      "(Tedarikçi paneli → Profilim → Yeni Davet Kodu Ekle)",
+    );
+  }
+  if (props.message) {
+    lines.push(
+      "",
+      `${props.inviterUserName}'den mesaj:`,
+      `"${props.message}"`,
+    );
+  }
+  lines.push(
+    "",
+    "Bu davet 7 gün içinde geçerlidir.",
+    "",
+    "Yardım: support@supkeys.com",
+    "© 2026 Supkeys",
+  );
+  return lines.join("\n");
+}
+
+function renderNewSupplierText(props: SupplierInvitationData): string {
   const lines = [
     `${props.inviterTenantName} sizi davet etti`,
     "",
