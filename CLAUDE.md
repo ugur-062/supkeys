@@ -164,9 +164,32 @@
     - Hooks: `use-tenant-suppliers.ts` + `use-supplier-invitations.ts` (TanStack Query); davet aksiyonları sonrası ilgili query key'leri invalidate eder
     - Tipler/lib: `apps/web/src/lib/tedarikciler/{types,status,membership,parse-emails}.ts`
     - Bağımlılıklar: `@radix-ui/react-tabs` + `@radix-ui/react-dialog` (apps/web)
+16. **Tedarikçi paneli iskeleti (Aşama D.2.A):**
+    - **Üçüncü auth alanı:** Tenant (`apps/web /dashboard`) ve Admin (`apps/admin`) yanına yeni `apps/web /supplier/*` alanı. JWT izolasyonu: payload `type: "supplier"` field'ı + `SupplierJwtStrategy` (`type !== "supplier"` → 401 "Geçersiz token tipi"). Üç store bağımsız: tenant `supkeys-auth`, admin `supkeys-admin-auth`, supplier `supkeys-supplier-auth` (Zustand persist localStorage)
+    - Backend yeni modül `apps/api/src/modules/supplier-auth/`:
+      - `POST /api/supplier-auth/login` — bcrypt rounds=12, timing-safe (yoksa dummy hash ile compare). 401: yanlış kimlik; 403: `supplier.isBlocked` (sebep ile) / `supplier.isActive=false` / `user.isActive=false`. Başarılı: `{token, supplierUser, supplier}` (membership, isActive, isBlocked dahil), `lastLoginAt` güncellenir
+      - `GET /api/supplier-auth/me` (SupplierJwtAuthGuard) → `{supplierUser, supplier, tenantRelations[]}`. Her relation `{id, tenantId, tenantName, tenantSlug, status, blockedAt, blockedReason, createdAt}` formatında
+      - `SupplierJwtStrategy.validate()` ek olarak `user.isActive`, `supplier.isActive`, `supplier.isBlocked` runtime kontrolleri yapar — engellenen tedarikçi token'ı her istekte 401 alır
+    - Frontend (`apps/web`) yeni alan:
+      - `/supplier/login` — public, Suspense yok, kendi hidrasyon mantığı (token varsa `/supplier/dashboard`'a redirect). SupkeysLogo + "Tedarikçi Girişi" başlığı + form. Footer'da "Hesabınız yok mu? → Tedarikçi olarak kayıt ol" + "Alıcı musunuz? → /login"
+      - `/supplier/(authed)/` route group: `RequireSupplierAuth` → `SupplierShell` (sidebar + header + content). Group dışı `/supplier/login` public kalır
+      - `/supplier/dashboard` — greeting (firstName + companyName + bugünün TR tarihi), 4 KPI (`Devam Eden Siparişler`/brand, `Kazandığınız İhaleler`/success, `Teklif Verdiğiniz İhaleler`/indigo, `Davet Edildiğiniz İhaleler`/warning — hepsi "—" + "Henüz veri yok" pill), onboarding card 3 adım ("Profilini Tamamla" `/supplier/profil`, "Müşterilerinle Bağlantı Kur" — `tenantRelations.length > 0` ise tamamlandı, "İhalelere Katıl" yakında), 2 boş panel (Bekleyen İhaleler / Son Aktiviteler)
+      - `/supplier/profil` — CompanyInfoCard (Firma + Adres + Üyelik bölümleri, salt görünüm; STANDARD ise "Premium üyelik avantajları" upsell kutusu + disabled "Premium'a Yükselt"; "Düzenle" butonu disabled "Yakında"; alt notta `support@supkeys.com`) + TenantRelationsList (boş state veya satır listesi: Building2 ikonu + tenantName + bağlantı tarihi + RelationStatusBadge; BLOCKED'da kırmızı "Engelleme sebebi" satırı; alt panel "Yeni Davet Kodu Ekle" disabled "YAKINDA" — D.2.B'de aktif olacak)
+      - `/supplier/{ihaleler,siparisler,ayarlar}` — `PlaceholderPage` (yeniden kullanılan tenant component'i; yeni `icon: LucideIcon` + `backHref` + `backLabel` props ile parametrik oldu) + supplier-spesifik highlights
+    - SupplierShell (`apps/web/src/components/supplier-shell/`):
+      - **Sidebar 240↔64 collapse**, kendi Zustand persist key `supkeys-supplier-sidebar`. Üstte CompanyCard (Building2 placeholder logo + companyName + Üyelik badge: STANDARD slate / PREMIUM yellow, Award ikonu); collapsed modda sadece logo + 7×5 mini badge (tooltip ile firma + üyelik). Menu (5 item, gruplar yok): Ana Sayfa / İhaleler [yakında] / Siparişler [yakında] / Profilim / Ayarlar [yakında]. Aktif item `bg-brand-50 text-brand-700` + sol kenar 3px `brand-600` indicator
+      - **Header sticky** (h-16, beyaz/blur): sayfa breadcrumb (üstte küçük "Tedarikçi Paneli" üst satırı + büyük başlık), search input disabled "Yakında", bell disabled, user dropdown (Radix DropdownMenu — avatar+initials + ad + e-posta + Profil/Ayarlar/Çıkış kırmızı)
+    - Auth lib & hooks (`apps/web`):
+      - `lib/supplier-auth/{types,store,api}.ts` — `useSupplierAuthStore` (token + supplierUser + supplier + tenantRelations + isHydrated), `supplierApi` (kendi axios instance, kendi 401 → `/supplier/login` redirect interceptor)
+      - `hooks/use-supplier-auth.ts` — `useSupplierAuth`, `useSupplierLogin`, `useSupplierMe` (login sonrası SupplierShell mount'unda enabled, `staleTime: 60s`), `useSupplierLogout` (queryClient.clear + window.location)
+      - `components/providers/supplier-auth-hydration.tsx` — `RequireSupplierAuth` (isHydrated + token check, yoksa `/supplier/login`'e yönlendirir)
+      - `lib/supplier/{nav-config,membership,status,use-sidebar}.ts` — sidebar nav, membership/companyType etiketleri, relation status meta
+    - Landing + tenant /login footer: "Tedarikçi Girişi →" linki eklendi (yan yana "Kayıt Ol" ile)
+    - **noindex**: `/supplier/layout.tsx`'de `metadata.robots: {index:false, follow:false}` — tüm `/supplier/*` rotaları arama motorlarına kapalı
+    - Manuel doğrulama: 3 ayrı token cross-test edildi (tenant→supplier-auth/me 401, supplier→auth/me 401, admin→supplier-auth/me 401, tenant şifresi → supplier-auth/login 401), `/me` `tenantRelations` ile dolu, login sonrası redirect, sidebar collapse persist
 
 ### ⏳ Sıradaki (Bu Sprint)
-1. **Aşama D.2**: Multi-tenant tedarikçi (mevcut tedarikçinin profil panelinden ek alıcı kabul) + tedarikçi paneli iskeleti (`/supplier/login`, `/supplier/dashboard`). Davet `ACCEPTED` olduğunda zaten supplier varsa yeni `SupplierTenantRelation` kurulumu (mevcut backend hazır, sadece UI eksik)
+1. **Aşama D.2.B**: Multi-tenant tedarikçi davet kabul akışı. Mevcut tedarikçi `/supplier/profil`'de "Yeni Davet Kodu Ekle" modal aktivasyonu (token girişi → `SupplierTenantRelation` kurulumu). Tenant tarafında `/dashboard/tedarikciler`'a "Onay Bekleyen Talepler" bölümü
 2. Admin dashboard KPI'ları (demo + buyer + supplier stats agregasyonu, hızlı linkler)
 3. MinIO entegrasyonu: vergi levhası base64 → MinIO upload + signed URL (V2)
 

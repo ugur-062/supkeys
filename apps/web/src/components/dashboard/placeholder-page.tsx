@@ -32,23 +32,32 @@ const ICON_MAP = {
 export type PlaceholderIconKey = keyof typeof ICON_MAP;
 
 interface PlaceholderPageProps {
-  iconKey: PlaceholderIconKey;
+  /** Tenant placeholder'larında kullanılan kısayol harita anahtarı */
+  iconKey?: PlaceholderIconKey;
+  /** Doğrudan lucide ikon — supplier panel gibi farklı bağlamlar için */
+  icon?: LucideIcon;
   title: string;
   subtitle: string;
   description?: string;
   estimatedRelease?: string;
   highlights?: string[];
+  /** "Dashboard'a dön" yerine farklı bir geri linki (örn. /supplier/dashboard) */
+  backHref?: string;
+  backLabel?: string;
 }
 
 export function PlaceholderPage({
   iconKey,
+  icon: IconProp,
   title,
   subtitle,
   description,
   estimatedRelease = "V2",
   highlights,
+  backHref = "/dashboard",
+  backLabel = "Dashboard'a dön",
 }: PlaceholderPageProps) {
-  const Icon = ICON_MAP[iconKey] ?? FileText;
+  const Icon = IconProp ?? (iconKey ? ICON_MAP[iconKey] : FileText) ?? FileText;
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -99,11 +108,11 @@ export function PlaceholderPage({
 
         <div className="mt-8">
           <Link
-            href="/dashboard"
+            href={backHref}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:text-brand-800 hover:underline"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Dashboard&apos;a dön
+            {backLabel}
           </Link>
         </div>
       </section>

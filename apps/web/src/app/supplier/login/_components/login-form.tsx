@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useLogin } from "@/hooks/use-auth";
+import { useSupplierLogin } from "@/hooks/use-supplier-auth";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
@@ -22,10 +22,10 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>;
 
-export function LoginForm() {
-  const [showPassword, setShowPassword] = useState(false);
+export function SupplierLoginForm() {
   const router = useRouter();
-  const login = useLogin();
+  const login = useSupplierLogin();
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -38,8 +38,8 @@ export function LoginForm() {
   const onSubmit = (values: LoginValues) => {
     login.mutate(values, {
       onSuccess: (data) => {
-        toast.success(`Hoş geldin, ${data.user.firstName}!`);
-        router.push("/dashboard");
+        toast.success(`Hoş geldin, ${data.supplierUser.firstName}!`);
+        router.push("/supplier/dashboard");
       },
       onError: (err) => {
         if (axios.isAxiosError(err)) {
@@ -57,7 +57,7 @@ export function LoginForm() {
   return (
     <form
       onSubmit={handleSubmit(onSubmit)}
-      className="card p-6 md:p-8 space-y-5"
+      className="space-y-5"
       noValidate
     >
       <Field error={errors.email?.message}>
@@ -117,32 +117,9 @@ export function LoginForm() {
         </div>
       </Field>
 
-      <div className="pt-1">
-        <Button type="submit" loading={login.isPending} fullWidth size="lg">
-          {login.isPending ? "Giriş yapılıyor..." : "Giriş Yap"}
-        </Button>
-      </div>
-
-      <div className="text-center text-sm text-slate-600 pt-2 border-t border-surface-border space-y-1">
-        <div>
-          Tedarikçi misiniz?{" "}
-          <Link
-            href="/supplier/login"
-            className="text-brand-700 hover:text-brand-800 font-medium hover:underline"
-          >
-            Tedarikçi girişi →
-          </Link>
-        </div>
-        <div className="text-xs text-slate-500">
-          Yeni tedarikçi hesabı için{" "}
-          <Link
-            href="/register/supplier"
-            className="text-brand-600 hover:underline"
-          >
-            kayıt ol
-          </Link>
-        </div>
-      </div>
+      <Button type="submit" loading={login.isPending} fullWidth size="lg">
+        {login.isPending ? "Giriş yapılıyor..." : "Giriş Yap"}
+      </Button>
     </form>
   );
 }
