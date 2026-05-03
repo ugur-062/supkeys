@@ -11,10 +11,10 @@ async function bootstrap() {
   });
   const config = app.get(ConfigService);
 
-  // Vergi levhası base64 ile gönderilen kayıt formları 13MB'a kadar şişebilir
+  // Vergi levhası + tender attachment base64 payload'ları için yüksek limit
   // (MinIO V2'ye geçince düşürülür). Default 100kb yetersiz.
-  app.useBodyParser("json", { limit: "20mb" });
-  app.useBodyParser("urlencoded", { limit: "20mb", extended: true });
+  app.useBodyParser("json", { limit: "25mb" });
+  app.useBodyParser("urlencoded", { limit: "25mb", extended: true });
 
   app.setGlobalPrefix("api");
   app.useGlobalPipes(

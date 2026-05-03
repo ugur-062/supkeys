@@ -12,7 +12,8 @@ export type EmailTemplate =
   | "supplier_invitation"
   | "supplier_relation_pending"
   | "supplier_relation_approved"
-  | "supplier_relation_rejected";
+  | "supplier_relation_rejected"
+  | "tender_invitation";
 
 export type EmailProviderName = "resend" | "mailpit";
 
@@ -153,6 +154,23 @@ export interface SupplierRelationRejectedData {
   supportEmail: string;
 }
 
+export interface TenderInvitationEmailData {
+  /** Tedarikçi yetkilisinin adı (full name) */
+  supplierUserName: string;
+  /** Daveti gönderen alıcı tenant adı */
+  tenantName: string;
+  /** Otomatik üretilmiş ihale numarası (örn. SUPK-2026-0042) */
+  tenderNumber: string;
+  /** İhale başlığı */
+  tenderTitle: string;
+  /** Tedarikçi panelinde detaya götüren mutlak URL */
+  tenderUrl: string;
+  /** Kalem sayısı */
+  itemCount: number;
+  /** Kapanış tarihinin insan-okur biçimi (örn. "12 Mayıs 2026, 17:00") */
+  bidsCloseAtFormatted: string;
+}
+
 export type EmailTemplateData =
   | { template: "demo_request_received"; data: DemoRequestReceivedData }
   | { template: "demo_request_admin_alert"; data: DemoRequestAdminAlertData }
@@ -191,7 +209,8 @@ export type EmailTemplateData =
   | {
       template: "supplier_relation_rejected";
       data: SupplierRelationRejectedData;
-    };
+    }
+  | { template: "tender_invitation"; data: TenderInvitationEmailData };
 
 export interface RenderedEmail {
   subject: string;

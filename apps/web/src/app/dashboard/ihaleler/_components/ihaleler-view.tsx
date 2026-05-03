@@ -2,11 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/use-auth";
 import { useTenderStats, useTenders } from "@/hooks/use-tenant-tenders";
 import type { TenderStatus } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { Plus, Search, X } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TenderStatsCards } from "./stats-cards";
@@ -71,6 +73,8 @@ export function IhalelerView() {
   const tab = parseTab(searchParams.get("tab"));
   const search = searchParams.get("search") ?? "";
   const page = parsePage(searchParams.get("page"));
+  const { user } = useAuth();
+  const canCreate = user?.role === "COMPANY_ADMIN";
 
   const stats = useTenderStats();
 
@@ -153,13 +157,23 @@ export function IhalelerView() {
             Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın.
           </p>
         </div>
-        <Button variant="primary" disabled title="Yakında — E.2'de aktif olacak">
-          <Plus className="h-4 w-4" />
-          Yeni İhale Aç
-          <span className="ml-1 px-1.5 py-0.5 bg-warning-100 text-warning-700 text-[10px] rounded-md font-semibold uppercase tracking-wide">
-            Yakında
-          </span>
-        </Button>
+        {canCreate ? (
+          <Link href="/dashboard/ihaleler/yeni">
+            <Button variant="primary">
+              <Plus className="h-4 w-4" />
+              Yeni İhale Aç
+            </Button>
+          </Link>
+        ) : (
+          <Button
+            variant="primary"
+            disabled
+            title="Bu işlem için Firma Yöneticisi yetkisi gerekiyor"
+          >
+            <Plus className="h-4 w-4" />
+            Yeni İhale Aç
+          </Button>
+        )}
       </div>
 
       <TenderStatsCards />

@@ -121,7 +121,7 @@ export function TendersTable({
                     </p>
                     <p className="text-sm">
                       İlk ihalenizi açmak için &ldquo;Yeni İhale Aç&rdquo;
-                      butonunu kullanın (yakında).
+                      butonunu kullanın.
                     </p>
                   </div>
                 </div>

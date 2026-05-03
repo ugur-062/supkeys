@@ -247,11 +247,43 @@
       - **DRAFT görünmezliği:** supplier `GET /supplier/tenders/{draftId}` → 404 "İhale bulunamadı" ✓
       - **Cross-token:** tenant token → `/supplier/tenders` → 401 "Geçersiz token tipi"; supplier token → `/tenants/me/tenders` → 401 ✓
       - liste/detay sayfaları HTTP 200 (her iki taraf)
+19. **İhale oluşturma 4-adımlı wizard (Aşama E.2):**
+    - **Backend ek endpoint'ler** (`TenantTendersController` + service): `POST /api/tenants/me/tenders` (DRAFT oluştur), `PATCH /:id` (DRAFT update — items/invitations/attachments full-replace, V2'de delta), `POST /:id/publish` (DRAFT → OPEN_FOR_BIDS, validations: ≥1 item, ≥1 davet, kapanış geleceğe), `POST /:id/cancel` body `{reason min10 max500}` (OPEN_FOR_BIDS/IN_AWARD → CANCELLED), `DELETE /:id` (sadece DRAFT). Tüm yazma endpoint'leri `RolesGuard` + `@Roles("COMPANY_ADMIN")` — BUYER/APPROVER 403
+    - **DTOs** (`apps/api/src/modules/tenant-tenders/dto/`): `CreateTenderDto` + `TenderItemInputDto` (nested) + `TenderAttachmentInputDto` (5MB/file, max 10), `UpdateTenderDto extends CreateTenderDto`, `CancelTenderDto`. class-validator: `@ArrayMinSize(1)/@ArrayMaxSize(100)` items, `@ArrayMaxSize(50)` invitedSupplierIds, `@IsDateString` for tarihler, `@IsEnum` Currency/DeliveryTerm/PaymentTerm. Business rules `validateBusinessRules()` private helper'da: primaryCurrency ⊂ allowedCurrencies, DEFERRED → paymentDays zorunlu, bidsCloseAt > now, bidsOpenAt < bidsCloseAt, davetli liste duplicate yok
+    - **`assertActiveSuppliers(tx, tenantId, ids)`** — davetli tedarikçilerin tamamı bu tenant'ın `ACTIVE` ilişkisinde mi diye kontrol eder; engelli/pending/yabancı tedarikçi varsa 400 "X tanesi onaylı/aktif listenizde değil"
+    - **Publish flow:** `bidsOpenAt` null ise yayın anına set edilir; status update sonrası `setImmediate`/Promise dispatch ile her davetli supplier'ın aktif primary user'ına `tender_invitation` e-postası queue'ya bırakılır + `TenderInvitation.emailSentAt` set edilir. Hata olursa loglanır, ihale yayınlandı olarak kalır (re-send V2). Publish endpoint idempotent değil — DRAFT olmayanda 409
+    - **Yeni e-posta şablonu** `tender_invitation` (`packages/email/src/templates/tender-invitation.tsx`): "🎯 Yeni İhale Daveti: {title}" subject + summary box (tenderNumber mono · title · {itemCount} kalem · kapanış formatlı d MMMM yyyy HH:mm tr locale) + "İhaleyi İncele" CTA → `/supplier/ihaleler/:id`. types.ts'de `TenderInvitationEmailData` + render.ts switch-case eklendi
+    - **`apps/api/src/main.ts` body limit 20mb → 25mb** (10 attachment × 2MB ortalama + JSON overhead için pay)
+    - **Frontend `/dashboard/ihaleler/yeni`** + `/[id]/duzenle` paylaşılan `TenderWizard` komponenti (`apps/web/src/app/dashboard/ihaleler/yeni/_components/`):
+      - `WizardStepper` 4 adım (İhale Bilgileri → Kalemler → Tedarikçiler → Tamamla, mobile'da label gizli)
+      - **Step 1 (Step1Info):** 8 section — Genel (title/description/type — ENGLISH_AUCTION disabled "YAKINDA"), Kurallar (3 checkbox: kapalı zarf/tüm kalemler zorunlu/dosya zorunlu), Para (radio + multi-checkbox + decimal select 0-4 + TCMB info kutu), Teslimat (Incoterm select + adres), Ödeme (Peşin/Vadeli radio + DEFERRED'de paymentDays input), Hüküm/Notlar (termsAndConditions tedarikçiye açık + internalNotes dahili), Zaman (datetime-local açılış+kapanış), Dosyalar (`FileUploadMulti` drag-drop max 10×5MB, base64 PDF/DOC/XLS/JPG/PNG)
+      - **Step 2 (Step2Items):** `useFieldArray` items, satır kart layout: 1-100 kalem, her satırda `name/quantity/unit/materialCode` + collapsible "Detay & Soru Ekle" → description/requiredByDate/targetUnitPrice/customQuestion. "Soru var" rozeti (warning-50). En az 1 kalem, sil butonu sadece >1'de aktif
+      - **Step 3 (Step3Suppliers):** `useSuppliers({status:"ACTIVE"})` ile onaylı tedarikçi listesi + 300ms-debounce'suz arama (companyName/taxNumber/email) + checkbox kart liste (membership badge, VKN mono, primary user e-mail), "Görünenleri Seç"/"Temizle" toolbar + canlı seçili sayacı. Boş state'te "Tedarikçilere Git" CTA
+      - **Step 4 (Step4Review):** Edit-link'li 3 section (İhale Bilgileri / Kalemler tablosu / Davetli Tedarikçiler), tedarikçi adları runtime `useSuppliers` map'lenir, `onEditStep(s)` ile o adıma dön. Sticky footer altında [Geri] · [Taslak Olarak Kaydet] · [Yayınla → PublishConfirmDialog] (invitedCount=0'da disabled tooltip)
+      - **PublishConfirmDialog** (Radix `Dialog`, success-yeşil): "{N} tedarikçiye davet e-postası gönderilecek + yayın sonrası kalem/davet değişmez" warning-50 box → "Yayınla" CTA
+      - State: tek `useForm<TenderFormData>` (zod resolver = `tenderFormSchema` `lib/tenders/form-schema.ts` — primaryCurrency ⊂ allowedCurrencies, DEFERRED→paymentDays, bidsCloseAt>now, bidsOpenAt<close refine'leri). `STEP_FIELDS[1..3]` array'i ile her adımda `form.trigger(fields)` validation. Mutation hooks `useCreateTender`/`useUpdateTender`/`usePublishTender` aynı dosya `use-tenant-tenders.ts`'de
+      - `/dashboard/ihaleler/[id]/duzenle` — `EditLoader` `useTenderDetail(id)` ile DRAFT'ı çeker, status≠DRAFT ise sarı "düzenlenemez" kart + detay linki, DRAFT ise `tender → TenderFormData` map (datetime-local format, items.quantity Number(), tenders.invitations → invitedSupplierIds[]) + `<TenderWizard mode="edit" initialData={...}>`. **NOT: V1'de attachments edit modunda full-replace nedeniyle eski dosyalar silinir; "Düzenle"den çıkarken dosyalar yeniden yüklenmelidir (V2'de signed URL ile düzeltilecek — duzenle/_components/edit-loader.tsx'de yorum satırı var)**
+    - **Liste sayfası** `/dashboard/ihaleler` "Yeni İhale Aç" butonu artık aktif: COMPANY_ADMIN ise `<Link href="/dashboard/ihaleler/yeni">`, BUYER/APPROVER ise `disabled` + tooltip "Bu işlem için Firma Yöneticisi yetkisi gerekiyor". `useAuth().user.role` kontrolü
+    - **Detay sayfası** `header-card.tsx` status'a göre aksiyon paneli (sadece COMPANY_ADMIN'e gözükür):
+      - DRAFT: [Düzenle (Pencil)] · [Yayınla (Send, success-yeşil, davet=0'da disabled)] · [Sil (Trash2, danger outline)]
+      - OPEN_FOR_BIDS: [İhaleyi İptal Et (Ban, danger outline)] — header'ın altında ek satır
+      - CANCELLED: header altında danger-50 kutu içinde `cancelReason` + `cancelledAt` (varsa)
+      - IN_AWARD: disabled "Kazandırmayı Tamamla" YAKINDA (E.5'te)
+    - 3 yeni dialog: `PublishConfirmDialog` (yeniden kullanım — yeni/'den import), `DeleteConfirmDialog` (kalıcı silme uyarısı), `CancelTenderDialog` (sebep textarea min 10 max 500)
+    - **Manuel E2E doğrulandı:**
+      - `POST /tenders` SUPK-2026-0004 DRAFT oluştu ✓
+      - `POST /:id/publish` → status=OPEN_FOR_BIDS + publishedAt + emailSentAt set; Mailpit'te "🎯 Yeni İhale Daveti: …" subject ile demo-supplier@firma.com'a düştü ✓
+      - `POST /:id/cancel {reason}` → CANCELLED ✓; sonra `DELETE /:id` → 409 "Sadece taslak ihaleler silinebilir" ✓
+      - `DELETE` DRAFT → 200 ✓; `GET /:id` → 404 ✓
+      - validation: kapanış geçmişte → 400 ✓; davet=0 yayın → 400 ✓; geçersiz supplierId → 400 ✓
+      - supplier login + `GET /supplier/tenders?filter=all` cancelled tender görür ✓
+      - frontend `/dashboard/ihaleler` + `/dashboard/ihaleler/yeni` HTTP 200 ✓
+      - typecheck (api/web/admin/email/shared) tüm yeşil ✓
 
 ### ⏳ Sıradaki (Bu Sprint)
-1. **Aşama E.2**: İhale oluşturma 4-adımlı wizard (İhale Bilgileri → Kalemler → Tedarikçi Daveti → Özet/Yayınla). DRAFT → OPEN_FOR_BIDS state geçişi. Kalem sorusu UI. Para birimi seçimi (TRY/USD/EUR etiket). Tedarikçi davet (ACTIVE relations listesinden seç). Dosya upload (base64 V1). RolesGuard `COMPANY_ADMIN`
+1. **Aşama E.3**: Tedarikçi teklif verme. `/supplier/ihaleler/[id]/teklif-ver` — kalem bazlı teklif (Birim Fiyat × Miktar otomatik toplam), kalem sorusu cevabı, teklif notu, attachment, para birimi (allowedCurrencies içinden), taslak/gönder, teklif revize et (version++), kapalı zarf altında "Verildi" statüsü, kapanış sonrası teklif yok
 2. Admin dashboard KPI'ları (demo + buyer + supplier stats agregasyonu, hızlı linkler)
-3. MinIO entegrasyonu: vergi levhası + tender attachment base64 → MinIO upload + signed URL (V2)
+3. MinIO entegrasyonu: vergi levhası + tender attachment base64 → MinIO upload + signed URL (V2). Şu an `TenderAttachment.fileUrl` data URL — DRAFT update ediyorken eski dosyalar full-replace nedeniyle kaybediliyor
 
 ### 🔮 Yol Haritası (Sonra)
 - Tenant register sayfası (`/register`) — backend `POST /auth/register` zaten var

@@ -61,6 +61,11 @@ import {
   renderSupplierRelationRejectedText,
   SupplierRelationRejectedEmail,
 } from "./templates/supplier-relation-rejected";
+import {
+  makeTenderInvitationSubject,
+  renderTenderInvitationText,
+  TenderInvitationEmail,
+} from "./templates/tender-invitation";
 import type { EmailTemplateData, RenderedEmail } from "./types";
 
 export async function renderEmail(
@@ -230,6 +235,17 @@ export async function renderEmail(
         subject: makeSupplierRelationRejectedSubject(spec.data.tenantName),
         html,
         text: renderSupplierRelationRejectedText(spec.data),
+      };
+    }
+
+    case "tender_invitation": {
+      const html = await render(
+        React.createElement(TenderInvitationEmail, spec.data),
+      );
+      return {
+        subject: makeTenderInvitationSubject(spec.data.tenderTitle),
+        html,
+        text: renderTenderInvitationText(spec.data),
       };
     }
 
