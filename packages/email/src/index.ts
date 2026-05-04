@@ -22,8 +22,7 @@ export type {
   SendEmailResult,
   SupplierApplicationApprovedData,
   SupplierInvitationData,
-  SupplierRelationApprovedData,
-  SupplierRelationPendingData,
-  SupplierRelationRejectedData,
+  SupplierRelationEstablishedBuyerData,
+  SupplierRelationEstablishedSupplierData,
   TenderInvitationEmailData,
 } from "./types";

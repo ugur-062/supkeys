@@ -47,20 +47,15 @@ import {
   SupplierInvitationEmail,
 } from "./templates/supplier-invitation";
 import {
-  makeSupplierRelationApprovedSubject,
-  renderSupplierRelationApprovedText,
-  SupplierRelationApprovedEmail,
-} from "./templates/supplier-relation-approved";
+  makeSupplierRelationEstablishedBuyerSubject,
+  renderSupplierRelationEstablishedBuyerText,
+  SupplierRelationEstablishedBuyerEmail,
+} from "./templates/supplier-relation-established-buyer";
 import {
-  makeSupplierRelationPendingSubject,
-  renderSupplierRelationPendingText,
-  SupplierRelationPendingEmail,
-} from "./templates/supplier-relation-pending";
-import {
-  makeSupplierRelationRejectedSubject,
-  renderSupplierRelationRejectedText,
-  SupplierRelationRejectedEmail,
-} from "./templates/supplier-relation-rejected";
+  makeSupplierRelationEstablishedSupplierSubject,
+  renderSupplierRelationEstablishedSupplierText,
+  SupplierRelationEstablishedSupplierEmail,
+} from "./templates/supplier-relation-established-supplier";
 import {
   makeTenderInvitationSubject,
   renderTenderInvitationText,
@@ -203,38 +198,35 @@ export async function renderEmail(
       };
     }
 
-    case "supplier_relation_pending": {
+    case "supplier_relation_established_buyer": {
       const html = await render(
-        React.createElement(SupplierRelationPendingEmail, spec.data),
+        React.createElement(
+          SupplierRelationEstablishedBuyerEmail,
+          spec.data,
+        ),
       );
       return {
-        subject: makeSupplierRelationPendingSubject(
+        subject: makeSupplierRelationEstablishedBuyerSubject(
           spec.data.supplierCompanyName,
         ),
         html,
-        text: renderSupplierRelationPendingText(spec.data),
+        text: renderSupplierRelationEstablishedBuyerText(spec.data),
       };
     }
 
-    case "supplier_relation_approved": {
+    case "supplier_relation_established_supplier": {
       const html = await render(
-        React.createElement(SupplierRelationApprovedEmail, spec.data),
+        React.createElement(
+          SupplierRelationEstablishedSupplierEmail,
+          spec.data,
+        ),
       );
       return {
-        subject: makeSupplierRelationApprovedSubject(spec.data.tenantName),
+        subject: makeSupplierRelationEstablishedSupplierSubject(
+          spec.data.tenantName,
+        ),
         html,
-        text: renderSupplierRelationApprovedText(spec.data),
-      };
-    }
-
-    case "supplier_relation_rejected": {
-      const html = await render(
-        React.createElement(SupplierRelationRejectedEmail, spec.data),
-      );
-      return {
-        subject: makeSupplierRelationRejectedSubject(spec.data.tenantName),
-        html,
-        text: renderSupplierRelationRejectedText(spec.data),
+        text: renderSupplierRelationEstablishedSupplierText(spec.data),
       };
     }
 

@@ -4,7 +4,6 @@ import { api } from "@/lib/api";
 import type {
   BlockSupplierInput,
   ListSuppliersParams,
-  PendingRelationsResponse,
   SupplierListResponse,
   SupplierStats,
   SupplierWithRelation,
@@ -95,63 +94,6 @@ export function useUnblockSupplier(id: string) {
       const { data } = await api.post<SupplierWithRelation>(
         `/tenants/me/suppliers/${id}/unblock`,
       );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: KEYS.all });
-    },
-  });
-}
-
-// ----------------------------------------------------------------
-// D.2.B: Pending relations (PENDING_TENANT_APPROVAL)
-// ----------------------------------------------------------------
-
-const PENDING_KEYS = {
-  list: () => [...KEYS.all, "pending-relations"] as const,
-};
-
-export function usePendingRelations(options?: { refetchInterval?: number }) {
-  return useQuery({
-    queryKey: PENDING_KEYS.list(),
-    queryFn: async () => {
-      const { data } = await api.get<PendingRelationsResponse>(
-        "/tenants/me/suppliers/pending-relations",
-      );
-      return data;
-    },
-    refetchInterval: options?.refetchInterval ?? 30_000,
-    staleTime: 10_000,
-  });
-}
-
-export function useApproveRelation(relationId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async () => {
-      const { data } = await api.post<{
-        relationId: string;
-        status: string;
-        message: string;
-      }>(`/tenants/me/suppliers/relations/${relationId}/approve`);
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: KEYS.all });
-    },
-  });
-}
-
-export function useRejectRelation(relationId: string) {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (input: { reason?: string }) => {
-      const { data } = await api.post<{
-        relationId: string;
-        status: string;
-        blockedReason: string | null;
-        message: string;
-      }>(`/tenants/me/suppliers/relations/${relationId}/reject`, input);
       return data;
     },
     onSuccess: () => {

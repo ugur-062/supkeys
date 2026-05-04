@@ -10,9 +10,8 @@ export type EmailTemplate =
   | "supplier_application_approved"
   | "application_rejected"
   | "supplier_invitation"
-  | "supplier_relation_pending"
-  | "supplier_relation_approved"
-  | "supplier_relation_rejected"
+  | "supplier_relation_established_buyer"
+  | "supplier_relation_established_supplier"
   | "tender_invitation";
 
 export type EmailProviderName = "resend" | "mailpit";
@@ -125,33 +124,37 @@ export interface SupplierInvitationData {
   expiresAt: string;
 }
 
-export interface SupplierRelationPendingData {
-  /** Alıcı tarafındaki bildirim alıcısının adı */
-  recipientFirstName: string;
-  /** Bağlantı talep eden tedarikçi firma */
+/**
+ * Mevcut tedarikçi davet kabul ettiğinde alıcı tarafındaki COMPANY_ADMIN'lere
+ * giden bilgilendirme e-postası — onay aşaması yok, ilişki direkt ACTIVE.
+ */
+export interface SupplierRelationEstablishedBuyerData {
+  /** Bilgilendirilen tenant admininin adı */
+  adminFirstName: string;
+  /** Alıcı tenant adı (e-postanın gönderildiği tenant) */
+  tenantName: string;
+  /** Davete katılan tedarikçi firma adı */
   supplierCompanyName: string;
   supplierTaxNumber: string;
-  supplierCity: string;
+  supplierCity?: string | null;
   supplierIndustry?: string | null;
-  /** Alıcı paneline derin link (örn /dashboard/tedarikciler?tab=pending) */
-  reviewUrl: string;
+  /** Tedarikçinin primary user e-postası */
+  supplierContactEmail: string;
+  /** /dashboard/tedarikciler?tab=approved deep link */
+  tedarikciDetayUrl: string;
 }
 
-export interface SupplierRelationApprovedData {
+/**
+ * Mevcut tedarikçinin davet kabul akışı tamamlandığında kendisine giden
+ * "bağlantı aktif" bildirimi.
+ */
+export interface SupplierRelationEstablishedSupplierData {
   /** Tedarikçi yetkilisinin adı */
-  supplierContactName: string;
-  /** Onaylayan alıcı tenant'ın adı */
+  supplierUserName: string;
+  /** Yeni bağlanılan alıcı tenant adı */
   tenantName: string;
   /** Tedarikçi paneli profil URL'i */
   profileUrl: string;
-}
-
-export interface SupplierRelationRejectedData {
-  supplierContactName: string;
-  tenantName: string;
-  reason?: string | null;
-  profileUrl: string;
-  supportEmail: string;
 }
 
 export interface TenderInvitationEmailData {
@@ -199,16 +202,12 @@ export type EmailTemplateData =
   | { template: "application_rejected"; data: ApplicationRejectedData }
   | { template: "supplier_invitation"; data: SupplierInvitationData }
   | {
-      template: "supplier_relation_pending";
-      data: SupplierRelationPendingData;
+      template: "supplier_relation_established_buyer";
+      data: SupplierRelationEstablishedBuyerData;
     }
   | {
-      template: "supplier_relation_approved";
-      data: SupplierRelationApprovedData;
-    }
-  | {
-      template: "supplier_relation_rejected";
-      data: SupplierRelationRejectedData;
+      template: "supplier_relation_established_supplier";
+      data: SupplierRelationEstablishedSupplierData;
     }
   | { template: "tender_invitation"; data: TenderInvitationEmailData };
 

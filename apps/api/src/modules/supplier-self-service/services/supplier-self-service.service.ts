@@ -26,8 +26,12 @@ export class SupplierSelfServiceService {
 
   /**
    * Mevcut tedarikçi: aldığı davetin token'ını ya da kısa kodunu girerek
-   * `SupplierTenantRelation` (status=PENDING_TENANT_APPROVAL) oluşturur.
-   * Tenant tarafı sonra onaylar veya reddeder.
+   * `SupplierTenantRelation` (status=ACTIVE) oluşturur.
+   *
+   * Mimari karar (D.2.B sadeleştirmesi): Mevcut tedarikçi platform admin
+   * tarafından zaten doğrulanmış olduğu için tenant tarafında ek bir onay
+   * adımı gerekmez — ilişki direkt aktiftir. Alıcı tenant ve tedarikçi,
+   * paralel iki bilgilendirme e-postası alır.
    */
   async acceptInvitation(
     supplierUserId: string,
@@ -41,10 +45,8 @@ export class SupplierSelfServiceService {
       );
     }
 
-    // Davet kaydını bul
     const invitation = await this.findInvitation(dto);
 
-    // Aşamalı doğrulama (kullanıcıya en açıklayıcı hata)
     if (invitation.status === "ACCEPTED") {
       throw new ConflictException("Bu davet zaten kullanılmış");
     }
@@ -65,7 +67,8 @@ export class SupplierSelfServiceService {
       );
     }
 
-    // Aynı tenant ile ilişki var mı?
+    // Mevcut ilişki kontrolü — yeni akışta PENDING_TENANT_APPROVAL üretilmiyor
+    // ama legacy datada hâlâ olabilir; orijinal mesajı koruyoruz.
     const existingRelation = await this.prisma.supplierTenantRelation.findUnique({
       where: {
         supplierId_tenantId: {
@@ -92,13 +95,12 @@ export class SupplierSelfServiceService {
       }
     }
 
-    // Transaction: relation + invitation update
     const result = await this.prisma.$transaction(async (tx) => {
       const relation = await tx.supplierTenantRelation.create({
         data: {
           supplierId,
           tenantId: invitation.tenantId,
-          status: "PENDING_TENANT_APPROVAL",
+          status: "ACTIVE",
         },
       });
 
@@ -108,7 +110,7 @@ export class SupplierSelfServiceService {
           status: "ACCEPTED",
           acceptedAt: new Date(),
           acceptedBySupplierId: supplierId,
-          // Açılma henüz kaydedilmediyse şimdi de kaydet (manual short code akışında doğal)
+          // Manual short code akışında openedAt boş kalmış olabilir
           openedAt: invitation.openedAt ?? new Date(),
         },
       });
@@ -116,10 +118,14 @@ export class SupplierSelfServiceService {
       return { relation };
     });
 
-    // Tenant tarafına bildirim — tüm aktif COMPANY_ADMIN'ler
-    this.notifyTenantAdmins(invitation.tenantId, supplierId).catch((err) => {
+    // Bilgilendirme e-postaları (fire-and-forget, paralel)
+    this.notifyRelationEstablished(
+      invitation.tenantId,
+      supplierId,
+      supplierUserId,
+    ).catch((err) => {
       this.logger.error(
-        `notifyTenantAdmins failed for relation ${result.relation.id}: ${
+        `notifyRelationEstablished failed for relation ${result.relation.id}: ${
           err instanceof Error ? err.message : String(err)
         }`,
       );
@@ -129,9 +135,8 @@ export class SupplierSelfServiceService {
       relationId: result.relation.id,
       tenantId: invitation.tenantId,
       tenantName: invitation.tenantName,
-      status: "PENDING_TENANT_APPROVAL" as const,
-      message:
-        "Bağlantı talebiniz alındı. Alıcı firma onayladığında haberdar olacaksınız.",
+      status: "ACTIVE" as const,
+      message: `${invitation.tenantName} ile bağlantınız kuruldu! Profilinizde görüntüleyebilirsiniz.`,
     };
   }
 
@@ -157,7 +162,6 @@ export class SupplierSelfServiceService {
       };
     }
 
-    // shortCode path
     const normalized = normalizeShortCode(dto.shortCode!);
     if (!validateShortCode(normalized)) {
       throw new BadRequestException(
@@ -181,8 +185,17 @@ export class SupplierSelfServiceService {
     };
   }
 
-  private async notifyTenantAdmins(tenantId: string, supplierId: string) {
-    const [supplier, admins] = await Promise.all([
+  /**
+   * 2 paralel bilgilendirme e-postası:
+   *   - Alıcı tenant'ın aktif COMPANY_ADMIN'lerine "yeni tedarikçi eklendi"
+   *   - Tedarikçi user'a "alıcı bağlantınız aktif"
+   */
+  private async notifyRelationEstablished(
+    tenantId: string,
+    supplierId: string,
+    supplierUserId: string,
+  ) {
+    const [supplier, supplierUser, tenant, admins] = await Promise.all([
       this.prisma.supplier.findUnique({
         where: { id: supplierId },
         select: {
@@ -192,35 +205,74 @@ export class SupplierSelfServiceService {
           industry: true,
         },
       }),
+      this.prisma.supplierUser.findUnique({
+        where: { id: supplierUserId },
+        select: { email: true, firstName: true, lastName: true },
+      }),
+      this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { name: true },
+      }),
       this.prisma.user.findMany({
         where: { tenantId, role: "COMPANY_ADMIN", isActive: true },
         select: { email: true, firstName: true },
       }),
     ]);
-    if (!supplier || admins.length === 0) return;
+    if (!supplier || !supplierUser || !tenant) return;
 
     const webUrl = this.config
       .get<string>("WEB_URL", "http://localhost:3000")
       .replace(/\/$/, "");
-    const reviewUrl = `${webUrl}/dashboard/tedarikciler?tab=pending`;
 
+    const tedarikciDetayUrl = `${webUrl}/dashboard/tedarikciler?tab=approved`;
+    const profileUrl = `${webUrl}/supplier/profil`;
+
+    const tasks: Promise<unknown>[] = [];
+
+    // Alıcı admin'lerine bilgi
     for (const admin of admins) {
-      await this.emailQueue.enqueue({
-        to: { email: admin.email, name: admin.firstName },
+      tasks.push(
+        this.emailQueue.enqueue({
+          to: { email: admin.email, name: admin.firstName },
+          templateData: {
+            template: "supplier_relation_established_buyer",
+            data: {
+              adminFirstName: admin.firstName,
+              tenantName: tenant.name,
+              supplierCompanyName: supplier.companyName,
+              supplierTaxNumber: supplier.taxNumber,
+              supplierCity: supplier.city,
+              supplierIndustry: supplier.industry ?? null,
+              supplierContactEmail: supplierUser.email,
+              tedarikciDetayUrl,
+            },
+          },
+          context: { type: "supplier_relation", id: tenantId },
+          subject: `🤝 Yeni tedarikçi listenize eklendi: ${supplier.companyName}`,
+        }),
+      );
+    }
+
+    // Tedarikçiye bilgi
+    tasks.push(
+      this.emailQueue.enqueue({
+        to: {
+          email: supplierUser.email,
+          name: `${supplierUser.firstName} ${supplierUser.lastName}`,
+        },
         templateData: {
-          template: "supplier_relation_pending",
+          template: "supplier_relation_established_supplier",
           data: {
-            recipientFirstName: admin.firstName,
-            supplierCompanyName: supplier.companyName,
-            supplierTaxNumber: supplier.taxNumber,
-            supplierCity: supplier.city,
-            supplierIndustry: supplier.industry ?? null,
-            reviewUrl,
+            supplierUserName: `${supplierUser.firstName} ${supplierUser.lastName}`,
+            tenantName: tenant.name,
+            profileUrl,
           },
         },
-        context: { type: "supplier_relation", id: tenantId },
-        subject: `🤝 Yeni tedarikçi bağlantı talebi: ${supplier.companyName}`,
-      });
-    }
+        context: { type: "supplier_relation", id: supplierId },
+        subject: `✓ ${tenant.name} ile bağlantınız aktif — Supkeys`,
+      }),
+    );
+
+    await Promise.allSettled(tasks);
   }
 }

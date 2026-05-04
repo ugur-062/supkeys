@@ -33,7 +33,7 @@ interface AcceptResponse {
   relationId: string;
   tenantId: string;
   tenantName: string;
-  status: "PENDING_TENANT_APPROVAL";
+  status: "ACTIVE";
   message: string;
 }
 
@@ -78,7 +78,7 @@ export function AddInvitationModal({
     },
     onSuccess: (data) => {
       toast.success(
-        `${data.tenantName} bağlantı talebiniz alındı, onay bekleniyor`,
+        `${data.tenantName} ile bağlantınız kuruldu! Profilinizde görüntüleyebilirsiniz.`,
       );
       queryClient.invalidateQueries({ queryKey: ["supplier-auth", "me"] });
       onClose();
@@ -152,8 +152,8 @@ export function AddInvitationModal({
                 <div className="text-sm">
                   <p className="font-semibold text-success-700">Davet bulundu</p>
                   <p className="text-xs text-success-700/80 mt-1 leading-relaxed">
-                    Aşağıdaki butona basarak bağlantı talebinde bulunabilirsiniz.
-                    Alıcı firma talebi onayladığında haberdar olacaksınız.
+                    Aşağıdaki butona basarak bağlantıyı tamamlayabilirsiniz.
+                    Bağlantı kurulduğunda alıcı firma haberdar edilecek.
                   </p>
                 </div>
               </div>
@@ -220,10 +220,10 @@ export function AddInvitationModal({
               {acceptMutation.isPending ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Gönderiliyor…
+                  Bağlanıyor…
                 </>
               ) : (
-                "Bağlantı Talep Et"
+                "Bağlantıyı Tamamla"
               )}
             </Button>
           </footer>

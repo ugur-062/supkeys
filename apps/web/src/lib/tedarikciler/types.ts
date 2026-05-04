@@ -48,7 +48,6 @@ export interface SupplierStats {
   total: number;
   active: number;
   blocked: number;
-  pending: number;
 }
 
 export interface Pagination {
@@ -95,34 +94,6 @@ export interface InvitationItem {
     email: string;
   };
   acceptedBySupplier: { id: string; companyName: string } | null;
-}
-
-export interface PendingRelationItem {
-  relationId: string;
-  createdAt: string;
-  supplier: {
-    id: string;
-    companyName: string;
-    companyType: CompanyType;
-    taxNumber: string;
-    taxOffice: string;
-    industry: string | null;
-    city: string;
-    district: string;
-    membership: SupplierMembership;
-    primaryUser: {
-      id: string;
-      firstName: string;
-      lastName: string;
-      email: string;
-      phone: string | null;
-    } | null;
-  };
-}
-
-export interface PendingRelationsResponse {
-  items: PendingRelationItem[];
-  count: number;
 }
 
 export interface InvitationListResponse {

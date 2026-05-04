@@ -331,6 +331,22 @@
       - Detail response shape: `invitations/bids/bidStats` YOK; sadece `myBid` + `myInvitation` ✓
       - Frontend rotaları HTTP 200 (teklif-ver / supplier detail / supplier list / dashboard)
       - typecheck (api+web+admin+email+shared) yeşil ✓
+22. **D.2.B Mimari Sadeleştirmesi (tenant onay adımı kaldırıldı):** Mevcut tedarikçinin platform admin onayından geçmiş olması nedeniyle alıcı tenant'ın ayrıca bir onay adımına gerek olmadığı sonucuna varıldı — D.2.B'de eklenen tenant approval queue tamamen kaldırıldı:
+    - **Davranış değişikliği:** `accept-invitation` artık `SupplierTenantRelation` kaydını **direkt `status=ACTIVE`** ile oluşturuyor (eskiden `PENDING_TENANT_APPROVAL`). Response status `ACTIVE`, message "Bağlantınız kuruldu! Profilinizde görüntüleyebilirsiniz."
+    - **Backend silinenler** (`tenant-suppliers.controller.ts` + `service.ts`): `GET /tenants/me/suppliers/pending-relations`, `POST /relations/:id/approve`, `POST /relations/:id/reject` endpoint'leri + `listPendingRelations()/approveRelation()/rejectRelation()` service metodları + `dispatchRelationApprovedEmail/dispatchRelationRejectedEmail` helper'ları + `RejectRelationDto` (dosya silindi). `getStats()` artık `pending` field döndürmüyor; service constructor `EmailQueue` + `ConfigService` + `Logger` ihtiyacını kaybetti
+    - **E-posta şablonları:**
+      - SİLİNDİ: `supplier_relation_pending`, `supplier_relation_approved`, `supplier_relation_rejected` (.tsx + types interfaces + render switch case'leri)
+      - YENİ: `supplier_relation_established_buyer` (alıcı admin'lerine "🤝 Yeni tedarikçi listenize eklendi: {firma}" — 4-5 satırlık VKN/şehir/sektör/iletişim summary box + tedarikçilere git CTA + "iptal etmek istiyorsanız engelleyin" alt notu) + `supplier_relation_established_supplier` (tedarikçiye "✓ {tenant} ile bağlantınız aktif — Supkeys" — yeşil "Bağlantınız aktif" kutusu + profile CTA)
+      - `EmailTemplate` union, `EmailTemplateData`, `index.ts` export'ları ve subject helper'lar yeni şablonlara göre yeniden düzenlendi
+    - **Bilgilendirme akışı:** `supplier-self-service.service.ts` `notifyRelationEstablished()` private helper'ı: tek `Promise.allSettled` içinde alıcı tenant'ın aktif `COMPANY_ADMIN`'lerine + tedarikçi user'a paralel iki e-posta enqueue eder. Fire-and-forget, transaction'ı bloklamaz
+    - **Frontend silinenler:** `pending-relations-table.tsx` + `reject-relation-modal.tsx` (component dosyaları) + `usePendingRelations/useApproveRelation/useRejectRelation` hook'ları + `PendingRelationItem/PendingRelationsResponse` tip'leri + `SupplierStats.pending` field'ı
+    - **Frontend güncellenenler:**
+      - `tabs.tsx` artık 3 tab: Onaylı / Çağrılan / Engellenenler (4. "Onay Bekleyenler" tab kaldırıldı). `TedarikciTab` union ve `pendingCount` prop'u kaldırıldı, `CountBadge` warning variant'ı sadeleştirildi
+      - `tedarikciler-view.tsx` `VALID_TABS` 3 değer, `TabsContent value="pending"` bloğu silindi
+      - `sidebar.tsx` artık `useSupplierStats` çağırmıyor; `liveNavConfig` `useMemo` kaldırıldı, doğrudan `navConfig.map` ile render ediliyor — Tedarikçiler item'ında pending badge yok
+      - `add-invitation-modal.tsx`: `AcceptResponse.status: "ACTIVE"`, success toast "Bağlantınız kuruldu!", banner "bağlantıyı tamamlayabilirsiniz" + "Bağlantı kurulduğunda alıcı firma haberdar edilecek", submit butonu "Bağlantıyı Tamamla" / "Bağlanıyor…"
+    - **DB schema dokunulmadı:** `RelationStatus` enum'da `PENDING_TENANT_APPROVAL` value'su KALIYOR (legacy data uyumluluğu). UI'da artık 4. tab kaldırıldığı için bu statüdeki eski kayıtlar görünmüyor; gerekirse manuel SQL `UPDATE supplier_tenant_relations SET status='ACTIVE' WHERE status='PENDING_TENANT_APPROVAL'` ile temizlenebilir. `supplier-auth/types.ts` ve `tedarikciler/status.ts` / `supplier/status.ts` enum + label haritalarında değer korundu
+    - Manuel doğrulama: `pnpm typecheck` (api+web+admin+email+shared) tüm yeşil ✓; `GET /tenants/me/suppliers/stats` → `{total,active,blocked}` (no pending) ✓; `GET /pending-relations` → 404 ✓; `POST /relations/:id/approve|reject` → 404 "Cannot POST" ✓; `/dashboard/tedarikciler` + `/supplier/profil` HTTP 200 ✓
 
 ### ⏳ Sıradaki (Bu Sprint)
 1. **Aşama E.4**: Süre yönetimi + alıcı izleme paneli. `OPEN_FOR_BIDS` → kapanış sonrası `IN_AWARD`'a otomatik geçiş (cron). Alıcı detay sayfası "Teklifler" tab'ında gelen tüm tekliflerin listesi (real-time, kapanış öncesi sayı, kapanış sonrası detay)

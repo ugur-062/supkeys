@@ -2,42 +2,24 @@
 
 import { cn } from "@/lib/utils";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
-import { CheckCircle2, Clock, Send, XCircle } from "lucide-react";
+import { CheckCircle2, Send, XCircle } from "lucide-react";
 
-export type TedarikciTab =
-  | "approved"
-  | "invitations"
-  | "pending"
-  | "blocked";
+export type TedarikciTab = "approved" | "invitations" | "blocked";
 
 interface TabsRootProps {
   value: TedarikciTab;
   onChange: (value: TedarikciTab) => void;
   approvedCount: number | null;
   invitationsCount: number | null;
-  pendingCount: number | null;
   blockedCount: number | null;
   children: React.ReactNode;
 }
 
-function CountBadge({
-  value,
-  variant = "default",
-}: {
-  value: number | null;
-  variant?: "default" | "warning";
-}) {
+function CountBadge({ value }: { value: number | null }) {
   if (value === null) {
     return (
       <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-400">
         —
-      </span>
-    );
-  }
-  if (variant === "warning" && value > 0) {
-    return (
-      <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] font-bold bg-warning-100 text-warning-700 border border-warning-200 group-data-[state=active]:bg-warning-200">
-        {value}
       </span>
     );
   }
@@ -60,7 +42,6 @@ export function TedarikcilerTabs({
   onChange,
   approvedCount,
   invitationsCount,
-  pendingCount,
   blockedCount,
   children,
 }: TabsRootProps) {
@@ -83,11 +64,6 @@ export function TedarikcilerTabs({
           <Send className="h-4 w-4 mr-2" />
           Çağrılan Tedarikçiler
           <CountBadge value={invitationsCount} />
-        </TabsPrimitive.Trigger>
-        <TabsPrimitive.Trigger value="pending" className={TRIGGER_CLASSES}>
-          <Clock className="h-4 w-4 mr-2" />
-          Onay Bekleyenler
-          <CountBadge value={pendingCount} variant="warning" />
         </TabsPrimitive.Trigger>
         <TabsPrimitive.Trigger value="blocked" className={TRIGGER_CLASSES}>
           <XCircle className="h-4 w-4 mr-2" />

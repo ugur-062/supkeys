@@ -30,16 +30,10 @@ import { HeaderCard } from "./header-card";
 import { InvitationsTable } from "./invitations-table";
 import { InviteSupplierModal } from "./invite-supplier-modal";
 import { Pagination } from "./pagination";
-import { PendingRelationsTable } from "./pending-relations-table";
 import { SupplierDetailDrawer } from "./supplier-detail-drawer";
 import { TabsContent, TedarikcilerTabs, type TedarikciTab } from "./tabs";
 
-const VALID_TABS = new Set<string>([
-  "approved",
-  "invitations",
-  "pending",
-  "blocked",
-]);
+const VALID_TABS = new Set<string>(["approved", "invitations", "blocked"]);
 const VALID_INVITATION_STATUSES = new Set<string>(INVITATION_STATUS_ORDER);
 
 function parseTab(value: string | null): TedarikciTab {
@@ -274,7 +268,6 @@ export function TedarikcilerView() {
         onChange={handleTabChange}
         approvedCount={stats.data?.active ?? null}
         invitationsCount={invitationCount}
-        pendingCount={stats.data?.pending ?? null}
         blockedCount={stats.data?.blocked ?? null}
       >
         <TabsContent value="approved" className="space-y-4 outline-none">
@@ -348,10 +341,6 @@ export function TedarikcilerView() {
               />
             )}
           </div>
-        </TabsContent>
-
-        <TabsContent value="pending" className="space-y-4 outline-none">
-          <PendingRelationsTable canManage={canManage} />
         </TabsContent>
 
         <TabsContent value="blocked" className="space-y-4 outline-none">
