@@ -91,7 +91,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
           : tender.allowedCurrencies[0]),
       notes: existingBid?.notes ?? "",
       items: tender.items.map((ti) => {
-        const existingItem = existingBid?.items.find(
+        const existingItem = existingBid?.items?.find(
           (bi) => bi.tenderItemId === ti.id,
         );
         return {
@@ -103,12 +103,12 @@ export function TeklifForm({ tender, existingBid }: Props) {
         };
       }),
       attachments:
-        existingBid?.attachments?.map((a) => ({
+        (existingBid?.attachments ?? []).map((a) => ({
           fileName: a.fileName,
           fileSize: a.fileSize,
           mimeType: a.mimeType,
           fileUrl: a.fileUrl,
-        })) ?? [],
+        })),
     },
     mode: "onTouched",
   });

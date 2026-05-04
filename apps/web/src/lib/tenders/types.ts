@@ -277,8 +277,12 @@ export interface MyBidDetail {
   withdrawnAt: string | null;
   createdAt: string;
   updatedAt: string;
-  items: BidItemExpanded[];
-  attachments: BidAttachmentExpanded[];
+  /**
+   * Backend her zaman doldursa da minimal/cache yarış senaryolarında
+   * tüketicilerin `?? []` ile koruyabilmesi için optional işaretlendi.
+   */
+  items?: BidItemExpanded[];
+  attachments?: BidAttachmentExpanded[];
 }
 
 export interface BidFormItem {

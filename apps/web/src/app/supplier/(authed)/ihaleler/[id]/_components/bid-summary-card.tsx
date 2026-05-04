@@ -9,6 +9,10 @@ interface Props {
   bid: MyBidDetail;
 }
 
+// Backend her zaman items + attachments dolduruyor olsa da, query cache hızla
+// güncellenirken stale bir response (örn. taslak ilk save sonrası) eksik
+// alanlarla gelebilir. Render'da `?? []` ile null-safe oluyoruz.
+
 function formatMoney(value: string | number, currency: Currency): string {
   const num = typeof value === "string" ? Number(value) : value;
   if (Number.isNaN(num)) return "—";
@@ -30,6 +34,8 @@ function formatBytes(bytes: number): string {
 }
 
 export function BidSummaryCard({ bid }: Props) {
+  const items = bid.items ?? [];
+  const attachments = bid.attachments ?? [];
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-6">
       {/* Üst özet */}
@@ -59,13 +65,13 @@ export function BidSummaryCard({ bid }: Props) {
       </div>
 
       {/* Kalemler */}
-      {bid.items.length > 0 ? (
+      {items.length > 0 ? (
         <div>
           <h4 className="text-xs font-bold text-brand-900 uppercase tracking-wide mb-3">
-            Fiyatlandırılan Kalemler ({bid.items.length})
+            Fiyatlandırılan Kalemler ({items.length})
           </h4>
           <div className="space-y-2">
-            {bid.items.map((item) => (
+            {items.map((item) => (
               <div
                 key={item.id}
                 className="flex items-center justify-between gap-3 p-3 bg-slate-50 rounded-lg"
@@ -111,13 +117,13 @@ export function BidSummaryCard({ bid }: Props) {
       ) : null}
 
       {/* Dosyalar */}
-      {bid.attachments.length > 0 ? (
+      {attachments.length > 0 ? (
         <div>
           <h4 className="text-xs font-bold text-brand-900 uppercase tracking-wide mb-2">
-            Dosyalar ({bid.attachments.length})
+            Dosyalar ({attachments.length})
           </h4>
           <ul className="space-y-2">
-            {bid.attachments.map((att) => (
+            {attachments.map((att) => (
               <li key={att.id}>
                 <a
                   href={att.fileUrl}
