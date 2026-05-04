@@ -4,46 +4,32 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import { cn } from "@/lib/utils";
 import {
-  ChevronDown,
-  ChevronUp,
+  CheckCircle2,
+  FileText,
   HelpCircle,
   Info,
   Plus,
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
-import { useFieldArray, useFormContext } from "react-hook-form";
+import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
+import { ItemDetailModal } from "./item-detail-modal";
+import { ItemQuestionModal } from "./item-question-modal";
 
 export function Step2Items() {
   const {
-    register,
     control,
-    watch,
-    setValue,
     formState: { errors },
   } = useFormContext<TenderFormData>();
   const { fields, append, remove } = useFieldArray({
     control,
     name: "items",
   });
-  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
 
   const itemsArrayError = errors.items?.message ?? errors.items?.root?.message;
-
-  const items = watch("items");
-
-  const toggleRow = (idx: number) => {
-    setExpandedRows((prev) => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
-      return next;
-    });
-  };
 
   const handleAdd = () => {
     if (fields.length >= 100) return;
@@ -65,8 +51,9 @@ export function Step2Items() {
         <Info className="w-4 h-4 text-brand-600 mt-0.5 flex-shrink-0" />
         <p>
           Kalemleri tek tek ekleyin. Excel toplu yükleme V2&apos;de gelecek.
-          &quot;Kalem Sorusu&quot; eklerseniz tedarikçi teklif verirken cevaplamak
-          zorunda kalır (örn. &quot;Garanti süresi nedir?&quot;).
+          Her kalem için &ldquo;Detay Ekle&rdquo; (açıklama / tarih / hedef
+          fiyat) ve &ldquo;Soru Ekle&rdquo; (tedarikçinin cevaplaması zorunlu
+          teknik soru) butonlarını kullanabilirsiniz.
         </p>
       </div>
 
@@ -75,210 +62,14 @@ export function Step2Items() {
       ) : null}
 
       <div className="space-y-3">
-        {fields.map((field, idx) => {
-          const isExpanded = expandedRows.has(idx);
-          const item = items?.[idx];
-          const itemErrors = errors.items?.[idx];
-          const hasQuestion = !!item?.customQuestion?.trim();
-
-          return (
-            <div
-              key={field.id}
-              className={cn(
-                "rounded-xl border bg-white p-4",
-                Object.keys(itemErrors ?? {}).length > 0
-                  ? "border-danger-300"
-                  : "border-slate-200",
-              )}
-            >
-              <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center text-xs font-semibold text-brand-700">
-                  {idx + 1}
-                </div>
-
-                <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-3">
-                  <Field
-                    error={itemErrors?.name?.message}
-                    className="md:col-span-5"
-                  >
-                    <Label htmlFor={`items.${idx}.name`} required>
-                      Kalem Adı
-                    </Label>
-                    <Input
-                      id={`items.${idx}.name`}
-                      placeholder="Örn. A4 fotokopi kağıdı"
-                      hasError={!!itemErrors?.name}
-                      {...register(`items.${idx}.name`)}
-                    />
-                  </Field>
-
-                  <Field
-                    error={itemErrors?.quantity?.message}
-                    className="md:col-span-2"
-                  >
-                    <Label htmlFor={`items.${idx}.quantity`} required>
-                      Miktar
-                    </Label>
-                    <Input
-                      id={`items.${idx}.quantity`}
-                      type="number"
-                      min={0.0001}
-                      step="any"
-                      hasError={!!itemErrors?.quantity}
-                      {...register(`items.${idx}.quantity`, {
-                        valueAsNumber: true,
-                      })}
-                    />
-                  </Field>
-
-                  <Field
-                    error={itemErrors?.unit?.message}
-                    className="md:col-span-2"
-                  >
-                    <Label htmlFor={`items.${idx}.unit`} required>
-                      Birim
-                    </Label>
-                    <Input
-                      id={`items.${idx}.unit`}
-                      placeholder="adet"
-                      hasError={!!itemErrors?.unit}
-                      {...register(`items.${idx}.unit`)}
-                    />
-                  </Field>
-
-                  <Field
-                    error={itemErrors?.materialCode?.message}
-                    className="md:col-span-3"
-                  >
-                    <Label htmlFor={`items.${idx}.materialCode`}>
-                      Stok Kodu
-                    </Label>
-                    <Input
-                      id={`items.${idx}.materialCode`}
-                      placeholder="—"
-                      hasError={!!itemErrors?.materialCode}
-                      {...register(`items.${idx}.materialCode`)}
-                    />
-                  </Field>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => remove(idx)}
-                  disabled={fields.length === 1}
-                  className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-danger-600 hover:bg-danger-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  aria-label="Kalemi sil"
-                  title={
-                    fields.length === 1
-                      ? "En az 1 kalem olmalı"
-                      : "Bu kalemi sil"
-                  }
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Detay/Soru göstergeleri */}
-              <div className="flex items-center gap-3 mt-3 pl-11 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => toggleRow(idx)}
-                  className="text-xs text-brand-700 hover:text-brand-900 inline-flex items-center gap-1"
-                >
-                  {isExpanded ? (
-                    <ChevronUp className="w-3.5 h-3.5" />
-                  ) : (
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  )}
-                  {isExpanded ? "Detayları Gizle" : "Detay & Soru Ekle"}
-                </button>
-                {hasQuestion ? (
-                  <span className="text-xs px-2 py-0.5 rounded-md bg-warning-50 text-warning-700 inline-flex items-center gap-1">
-                    <HelpCircle className="w-3 h-3" />
-                    Soru var
-                  </span>
-                ) : null}
-              </div>
-
-              {/* Detay alanı */}
-              {isExpanded ? (
-                <div className="mt-4 pl-11 space-y-3 pt-3 border-t border-slate-100">
-                  <Field error={itemErrors?.description?.message}>
-                    <Label htmlFor={`items.${idx}.description`}>
-                      Açıklama / Spesifikasyon
-                    </Label>
-                    <Textarea
-                      id={`items.${idx}.description`}
-                      rows={2}
-                      placeholder="Marka, model, kalite gereksinimleri…"
-                      hasError={!!itemErrors?.description}
-                      {...register(`items.${idx}.description`)}
-                    />
-                  </Field>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Field error={itemErrors?.requiredByDate?.message}>
-                      <Label htmlFor={`items.${idx}.requiredByDate`}>
-                        Gereksinim Tarihi
-                      </Label>
-                      <Input
-                        id={`items.${idx}.requiredByDate`}
-                        type="date"
-                        hasError={!!itemErrors?.requiredByDate}
-                        {...register(`items.${idx}.requiredByDate`)}
-                      />
-                    </Field>
-                    <Field
-                      error={itemErrors?.targetUnitPrice?.message}
-                      hint="Tedarikçiye gösterilmez, dahili kullanım."
-                    >
-                      <Label htmlFor={`items.${idx}.targetUnitPrice`}>
-                        Hedef Birim Fiyat
-                      </Label>
-                      <Input
-                        id={`items.${idx}.targetUnitPrice`}
-                        type="number"
-                        min={0}
-                        step="any"
-                        placeholder="—"
-                        hasError={!!itemErrors?.targetUnitPrice}
-                        {...register(`items.${idx}.targetUnitPrice`, {
-                          setValueAs: (v) =>
-                            v === "" || v === undefined ? undefined : Number(v),
-                        })}
-                      />
-                    </Field>
-                  </div>
-
-                  <Field
-                    error={itemErrors?.customQuestion?.message}
-                    hint="Tedarikçi teklif verirken cevaplamak zorunda kalır."
-                  >
-                    <Label htmlFor={`items.${idx}.customQuestion`}>
-                      Kalem Sorusu (opsiyonel)
-                    </Label>
-                    <Textarea
-                      id={`items.${idx}.customQuestion`}
-                      rows={2}
-                      placeholder="Örn. Garanti süresi nedir? Üretim yılı? Menşei?"
-                      hasError={!!itemErrors?.customQuestion}
-                      {...register(`items.${idx}.customQuestion`)}
-                    />
-                    {hasQuestion ? (
-                      <button
-                        type="button"
-                        onClick={() => setValue(`items.${idx}.customQuestion`, "")}
-                        className="text-xs text-slate-500 hover:text-danger-600 mt-1"
-                      >
-                        Soruyu kaldır
-                      </button>
-                    ) : null}
-                  </Field>
-                </div>
-              ) : null}
-            </div>
-          );
-        })}
+        {fields.map((field, idx) => (
+          <ItemRow
+            key={field.id}
+            index={idx}
+            canRemove={fields.length > 1}
+            onRemove={() => remove(idx)}
+          />
+        ))}
       </div>
 
       <div className="flex items-center justify-between">
@@ -296,6 +87,200 @@ export function Step2Items() {
           Yeni Kalem Ekle
         </Button>
       </div>
+    </div>
+  );
+}
+
+interface ItemRowProps {
+  index: number;
+  canRemove: boolean;
+  onRemove: () => void;
+}
+
+function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
+  const {
+    register,
+    control,
+    formState: { errors },
+  } = useFormContext<TenderFormData>();
+
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [questionOpen, setQuestionOpen] = useState(false);
+
+  const description = useWatch({
+    control,
+    name: `items.${index}.description`,
+  });
+  const requiredByDate = useWatch({
+    control,
+    name: `items.${index}.requiredByDate`,
+  });
+  const targetUnitPrice = useWatch({
+    control,
+    name: `items.${index}.targetUnitPrice`,
+  });
+  const customQuestion = useWatch({
+    control,
+    name: `items.${index}.customQuestion`,
+  });
+
+  const hasDetails = !!(
+    (description && description.trim()) ||
+    (requiredByDate && requiredByDate.trim()) ||
+    (typeof targetUnitPrice === "number" && !Number.isNaN(targetUnitPrice))
+  );
+  const hasQuestion = !!(customQuestion && customQuestion.trim());
+
+  const itemErrors = errors.items?.[index];
+  const detailHasError = !!(
+    itemErrors?.description ??
+    itemErrors?.requiredByDate ??
+    itemErrors?.targetUnitPrice
+  );
+  const questionHasError = !!itemErrors?.customQuestion;
+
+  const rowHasError = Object.keys(itemErrors ?? {}).length > 0;
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl border bg-white p-4",
+        rowHasError ? "border-danger-300" : "border-slate-200",
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center text-xs font-semibold text-brand-700">
+          {index + 1}
+        </div>
+
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-3">
+          <Field error={itemErrors?.name?.message} className="md:col-span-5">
+            <Label htmlFor={`items.${index}.name`} required>
+              Kalem Adı
+            </Label>
+            <Input
+              id={`items.${index}.name`}
+              placeholder="Örn. A4 fotokopi kağıdı"
+              hasError={!!itemErrors?.name}
+              {...register(`items.${index}.name`)}
+            />
+          </Field>
+
+          <Field
+            error={itemErrors?.quantity?.message}
+            className="md:col-span-2"
+          >
+            <Label htmlFor={`items.${index}.quantity`} required>
+              Miktar
+            </Label>
+            <Input
+              id={`items.${index}.quantity`}
+              type="number"
+              min={0.0001}
+              step="any"
+              hasError={!!itemErrors?.quantity}
+              {...register(`items.${index}.quantity`, {
+                valueAsNumber: true,
+              })}
+            />
+          </Field>
+
+          <Field error={itemErrors?.unit?.message} className="md:col-span-2">
+            <Label htmlFor={`items.${index}.unit`} required>
+              Birim
+            </Label>
+            <Input
+              id={`items.${index}.unit`}
+              placeholder="adet"
+              hasError={!!itemErrors?.unit}
+              {...register(`items.${index}.unit`)}
+            />
+          </Field>
+
+          <Field
+            error={itemErrors?.materialCode?.message}
+            className="md:col-span-3"
+          >
+            <Label htmlFor={`items.${index}.materialCode`}>Stok Kodu</Label>
+            <Input
+              id={`items.${index}.materialCode`}
+              placeholder="—"
+              hasError={!!itemErrors?.materialCode}
+              {...register(`items.${index}.materialCode`)}
+            />
+          </Field>
+        </div>
+
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={!canRemove}
+          className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-danger-600 hover:bg-danger-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          aria-label="Kalemi sil"
+          title={canRemove ? "Bu kalemi sil" : "En az 1 kalem olmalı"}
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* 2 ayrı buton + chip özeti */}
+      <div className="mt-3 pt-3 border-t border-slate-100 pl-11 flex items-center gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setDetailOpen(true)}
+          className={cn(
+            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition border",
+            hasDetails
+              ? "bg-brand-50 text-brand-700 border-brand-200 hover:bg-brand-100"
+              : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100",
+            detailHasError && "ring-1 ring-danger-300",
+          )}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          {hasDetails ? "Detayı Düzenle" : "Detay Ekle"}
+          {hasDetails ? (
+            <CheckCircle2 className="w-3.5 h-3.5 text-success-600 ml-0.5" />
+          ) : null}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setQuestionOpen(true)}
+          className={cn(
+            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition border",
+            hasQuestion
+              ? "bg-warning-50 text-warning-700 border-warning-200 hover:bg-warning-100"
+              : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100",
+            questionHasError && "ring-1 ring-danger-300",
+          )}
+        >
+          <HelpCircle className="w-3.5 h-3.5" />
+          {hasQuestion ? "Soruyu Düzenle" : "Soru Ekle"}
+          {hasQuestion ? (
+            <CheckCircle2 className="w-3.5 h-3.5 text-success-600 ml-0.5" />
+          ) : null}
+        </button>
+
+        {hasDetails && description && description.trim() ? (
+          <span
+            className="text-xs text-slate-500 italic truncate max-w-xs"
+            title={description}
+          >
+            “{description}”
+          </span>
+        ) : null}
+      </div>
+
+      <ItemDetailModal
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        index={index}
+      />
+      <ItemQuestionModal
+        open={questionOpen}
+        onClose={() => setQuestionOpen(false)}
+        index={index}
+      />
     </div>
   );
 }

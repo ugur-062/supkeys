@@ -279,6 +279,20 @@
       - supplier login + `GET /supplier/tenders?filter=all` cancelled tender görür ✓
       - frontend `/dashboard/ihaleler` + `/dashboard/ihaleler/yeni` HTTP 200 ✓
       - typecheck (api/web/admin/email/shared) tüm yeşil ✓
+20. **E.2 Wizard UI Redesign (PratisPro tarzı):** _backend dokunulmadı, sadece UI/UX_
+    - **Adım 0 (yeni landing):** `/dashboard/ihaleler/yeni` artık `useSearchParams` ile dallanıyor (`yeni-router.tsx` içinde `<Suspense>` sarmalı). Param yoksa `TenderTypeSelection` 2 büyük kart gösterir: **RFQ (Teklif Talebi)** mavi şeritli, "Önerilen" success-pill, hover şerit kalınlaşır → `?type=rfq` push; **İngiliz Usulü** purple şeritli, "Yakında" warning pill, opacity-75 cursor-not-allowed (`?type=english` hâlâ landing'e düşer). Header breadcrumb (Dashboard › İhaleler › İhale Oluştur). `?type=rfq` ile direkt `<TenderWizard mode="create">` mount edilir
+    - **Edit akışı korundu:** `/dashboard/ihaleler/[id]/duzenle` zaten `<EditLoader>` içinde `<TenderWizard mode="edit" initialData>` çağırıyor — tip seçim ekranı görmez, direkt wizard'a girer
+    - **Adım 2 (Step2Items):** Tek "Detayları Göster/Gizle" toggle KALDIRILDI; row component'i `ItemRow`'a extract edildi, her satır kendi modal state'ini tutar:
+      - **"Detay Ekle"** butonu → `ItemDetailModal` (max-w-lg): description (rows=4 max 2000) + requiredByDate (date) + targetUnitPrice (dahili). Kayıtlıyken buton "Detayı Düzenle" + brand-50 bg + ✓ rozet, yanında description ilk 60 karakter italic özet (truncate)
+      - **"Soru Ekle"** butonu → `ItemQuestionModal` (max-w-md): warning-50 info kutu + customQuestion (rows=4 max 500) + footer'da "Soruyu Kaldır" inline (sebep boş değilse) + "Vazgeç"/"Kaydet". Kayıtlıyken buton "Soruyu Düzenle" + warning-50 bg + ✓ rozet
+      - Modal'lar `useFormContext` üzerinden register ediyor → form değerleri anlık update (V1 basit; "Vazgeç" değişiklikleri geri almaz, sadece modal kapatır). Validation hatası varsa buton'da `ring-1 ring-danger-300`
+    - **Adım 3 (Step3Suppliers) PratisPro radio-card layout:**
+      - **Davet yöntemi 2 radio kart:** "Tüm Supkeys Tedarikçileri" (disabled "Yakında" V2'de aktif olacak; engellediği tedarikçiler hariç açıklaması) + "Sadece Onaylı Tedarikçilerim" (V1 aktif, brand-400 border + ring-2 brand-100, "Aktif" success pill, 3 maddelik açıklama liste)
+      - **Bilgi banner'ları:** Loading'de skeleton; allSuppliers=0 → warning-50 boş state + "Tedarikçi Davet Et" Link CTA; aksi halde success-50 banner ("X onaylı tedarikçiniz bulundu") + arama input + "Tümünü Seç (X)" butonu (filtre sonucu üzerinden, `allVisibleSelected` ise disabled)
+      - **Tedarikçi liste:** max-h 480px scroll, satırlarda checkbox + companyName + membership badge + VKN/şehir/sektör + primary user. Seçiliyken `bg-brand-50 border-brand-300 shadow-sm`
+      - **Alt seçim özeti kartı:** seçili≥1 → brand-50 + chip listesi (Building2 + truncate companyName + X kaldır), seçili=0 → slate-50 dashed + "Henüz tedarikçi seçmediniz". Sağda "Temizle" butonu
+    - **Stepper, Step1, Step4 değişmedi.** Form schema (`tenderFormSchema`) ve API mutation hooks (`useCreateTender/useUpdateTender/usePublishTender`) tamamen aynen
+    - Manuel doğrulama: `/yeni` 2 kart landing ✓, `?type=rfq` wizard ✓, `?type=english` landing'e fallback ✓, `/duzenle` direkt wizard ✓, `pnpm --filter @supkeys/web typecheck` clean ✓
 
 ### ⏳ Sıradaki (Bu Sprint)
 1. **Aşama E.3**: Tedarikçi teklif verme. `/supplier/ihaleler/[id]/teklif-ver` — kalem bazlı teklif (Birim Fiyat × Miktar otomatik toplam), kalem sorusu cevabı, teklif notu, attachment, para birimi (allowedCurrencies içinden), taslak/gönder, teklif revize et (version++), kapalı zarf altında "Verildi" statüsü, kapanış sonrası teklif yok

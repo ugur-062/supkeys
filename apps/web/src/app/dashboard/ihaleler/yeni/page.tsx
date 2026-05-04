@@ -1,9 +1,14 @@
-import { TenderWizard } from "./_components/tender-wizard";
+import { Suspense } from "react";
+import { YeniIhaleRouter } from "./_components/yeni-router";
 
 export const metadata = {
   title: "Yeni İhale — Supkeys",
 };
 
 export default function YeniIhalePage() {
-  return <TenderWizard mode="create" />;
+  return (
+    <Suspense fallback={null}>
+      <YeniIhaleRouter />
+    </Suspense>
+  );
 }
