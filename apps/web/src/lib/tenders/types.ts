@@ -173,6 +173,7 @@ export interface SupplierTenderListItem {
   itemCount: number;
   invitationStatus: TenderInvitationStatus | null;
   myBidStatus: BidStatus | null;
+  myBidVersion: number | null;
 }
 
 export interface SupplierTenderListResponse {
@@ -233,4 +234,69 @@ export interface ListSupplierTendersParams {
   search?: string;
   page?: number;
   pageSize?: number;
+}
+
+// ---------- Bid (E.3) ----------
+
+export interface BidItemExpanded {
+  id: string;
+  tenderItemId: string;
+  unitPrice: string; // Decimal serialized
+  totalPrice: string;
+  currency: Currency;
+  customAnswer: string | null;
+  tenderItem: {
+    id: string;
+    orderIndex: number;
+    name: string;
+    description: string | null;
+    quantity: string;
+    unit: string;
+    materialCode: string | null;
+    customQuestion: string | null;
+  };
+}
+
+export interface BidAttachmentExpanded {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  fileUrl: string;
+  uploadedAt: string;
+}
+
+export interface MyBidDetail {
+  id: string;
+  status: BidStatus;
+  currency: Currency;
+  totalAmount: string;
+  notes: string | null;
+  version: number;
+  submittedAt: string | null;
+  withdrawnAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: BidItemExpanded[];
+  attachments: BidAttachmentExpanded[];
+}
+
+export interface BidFormItem {
+  tenderItemId: string;
+  unitPrice: number | null;
+  customAnswer?: string;
+}
+
+export interface BidFormAttachment {
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  fileUrl: string;
+}
+
+export interface BidFormPayload {
+  currency: Currency;
+  notes?: string;
+  items: BidFormItem[];
+  attachments?: BidFormAttachment[];
 }

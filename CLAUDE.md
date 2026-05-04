@@ -293,11 +293,49 @@
       - **Alt seçim özeti kartı:** seçili≥1 → brand-50 + chip listesi (Building2 + truncate companyName + X kaldır), seçili=0 → slate-50 dashed + "Henüz tedarikçi seçmediniz". Sağda "Temizle" butonu
     - **Stepper, Step1, Step4 değişmedi.** Form schema (`tenderFormSchema`) ve API mutation hooks (`useCreateTender/useUpdateTender/usePublishTender`) tamamen aynen
     - Manuel doğrulama: `/yeni` 2 kart landing ✓, `?type=rfq` wizard ✓, `?type=english` landing'e fallback ✓, `/duzenle` direkt wizard ✓, `pnpm --filter @supkeys/web typecheck` clean ✓
+21. **Tedarikçi teklif verme akışı (Aşama E.3):**
+    - **Backend (`apps/api/src/modules/supplier-tenders`):**
+      - **DTO** `bid.dto.ts`: `CreateOrUpdateBidDto` (currency enum + notes max2000 + items min1/max100 + attachments max10 × 10MB) + `BidItemDto` (tenderItemId + nullable unitPrice + customAnswer max2000) + `BidAttachmentDto`
+      - **5 yeni endpoint** (`SupplierJwtAuthGuard`): `GET /supplier/tenders/:id/my-bid` (kendi teklifi, davetli değilse 403), `POST /:id/bid` + `PATCH /:id/bid` (upsert; ikisi de aynı `saveOrUpdateBid` çağırır), `POST /:id/bid/submit` (DRAFT→SUBMITTED v=1; SUBMITTED→SUBMITTED version++ revize), `POST /:id/bid/withdraw` (SUBMITTED→WITHDRAWN, sadece kapanıştan önce)
+      - **`saveOrUpdateBid()` validasyonları:** davet kontrolü, status=`OPEN_FOR_BIDS`, `bidsCloseAt > now`, currency ∈ `allowedCurrencies`, kalem ID'leri tender'a ait, duplicate kalem yok, `customQuestion`'lı kaleme teklif verildiyse `customAnswer` zorunlu. Kilitli durumlar: WITHDRAWN/REJECTED/AWARDED_*/LOST → 409. **DRAFT VE SUBMITTED in-place edit edilebilir** (totalAmount/items/attachments full-replace; status SUBMITTED kalır, version sonraki `/submit`'te ++)
+      - **`submitBid()` validasyonları:** items.length > 0, `requireAllItems` ise tender.items ⊂ bidItems, `requireBidDocument` ise attachment ≥ 1. Revise: `version + 1`, ilk gönderim: `version = 1`. `submittedAt` her submit'te güncellenir
+      - **Total hesaplama** backend tarafında (`calculateTotalAmount`): `Σ unitPrice × tenderItem.quantity` — DTO'dan gelen `totalAmount` görmezden gelinir, tutarsızlık riski yok
+      - **Sealed-bid response shape değişmedi:** `findOne` hâlâ `invitations/bids/bidStats` döndürmüyor, sadece `myInvitation` + `myBid` (`status, currency, totalAmount, version, submittedAt, notes`). `getMyBid()` ek olarak `items[].tenderItem` (kalem detayı, soru, miktar/birim) + `attachments[]` döner
+      - **Liste endpoint'i** (`list`) artık her satıra `myBidVersion` ekliyor (BidStatusBadge yanında v1/v2 göstermek için)
+    - **Frontend hooks** (`apps/web/src/hooks/use-supplier-bid.ts`):
+      - `useMyBid(tenderId)` — TanStack Query, 30sn refetch
+      - `useSaveBid` / `useSubmitBid` / `useWithdrawBid` — mutation, başarılıda `my-bid` + `supplier-tender detail` + `supplier-tender stats` + tüm `supplier.tenders` query keylerini invalidate
+      - `bidFormSchema` (`lib/tenders/bid-form-schema.ts`): zod, currency enum, items array (unitPrice nullable), `.refine` "en az 1 kalem fiyatlandırılmalı"
+    - **Frontend `/supplier/ihaleler/[id]/teklif-ver`** route group içinde:
+      - `TeklifLoader` → tender detail + my-bid çekip 3 boundary kontrolü: bulunamadı/davetli değil 404 kart, `status≠OPEN_FOR_BIDS` warning, `bidsCloseAt < now` warning. Hepsi geçerse `<TeklifForm tender existingBid>` mount
+      - **TeklifForm** 2 kolonlu PratisPro layout: solda 5 section (Alıcı özeti gradient kart / Para Birimi `CurrencySelector` 3 radio kart / Kalem Fiyatları `BidItemsTable` + `requireAllItems` warning / Teklif Notu textarea / Dosyalar `AttachmentsUploader`); sağda **sticky** `BidTotalsCard` + 3 buton ([Yeni Teklifi Gönder/Teklif Gönder] success-yeşil, [Taslak Olarak Kaydet] secondary, "Vazgeç" link) + kapalı zarf warning kutu
+      - **BidItemRow** her kalem için: numara badge + adı/desc/qty/unit/materialCode + `unitPrice` input (Currency suffix + Decimal step="any") + canlı toplam + X butonu (teklif iptal). `customQuestion` varsa altında warning-50 soru kutu + `customAnswer` textarea (yalnızca unitPrice doluysa cevap input'u açılır + zorunlu mesajı). Boş kalemde "Bu kaleme teklif vermiyorum" italic
+      - **BidTotalsCard** sticky sağ panel: gradient brand-50→indigo-50, "Para Birimi / Kalem (X/Y fiyatlandırıldı) / Toplam Teklif" tutar `toLocaleString tr-TR`
+      - **AttachmentsUploader** drag-drop (PDF/DOC/XLS/JPG/PNG max 10×10MB, base64), Controller-render-prop'unda `useDropzone` çağrılma sorunu olmaması için iç `<AttachmentDropzone>` sub-component'ine extract edildi
+      - **SubmitConfirmDialog** Radix Dialog max-w-md: "Toplam Teklif Tutarınız" brand kart + "kapalı zarf" warning kutu. Revise mode'da başlık "Teklifi Revize Et" + "Revizeyi Onayla", ilk submit'te "Teklif Gönder"
+      - **Form save+submit pipeline** atomic: kullanıcı "Yayınla" butonunda saveMutation.mutateAsync(payload) → submitMutation.mutateAsync() sırayla. Hata durumunda toast, modal kapatılır
+    - **Detay sayfası `/supplier/ihaleler/[id]`:**
+      - **"Teklifim" tab** ilk sıraya eklendi (defaultValue=hasBid ? "my-bid" : "general"); BidStatusBadge tab başlığında. 4 sekme: Teklifim / Genel Bilgi / Kalemler / Dosyalar (Davetli + Teklifler hâlâ YOK — kapalı zarf)
+      - **MyBidTab** durum bazlı render: `null` + isOpen → "Henüz teklif vermediniz" + "Teklif Ver" CTA; `null` + kapalı → "Bu ihaleye teklif vermediniz"; DRAFT → warning-50 banner + `BidSummaryCard` + "Devam Et"; SUBMITTED → success banner (v + submittedAt) + summary + "Revize Et"/"Geri Çek" (in-place inline confirm flow); WITHDRAWN → slate banner + summary
+      - **BidSummaryCard** üst 3'lü grid (Statü/Versiyon/Toplam) + Fiyatlandırılan Kalemler liste (her kalemde miktar × unitPrice = total + customAnswer italic) + Genel Not + Dosyalar (download link)
+      - **HeaderCard CTA'sı durum-aware:** OPEN_FOR_BIDS + bid yok → primary "Teklif Ver" (Send); DRAFT → primary "Taslağa Devam Et" (Edit); SUBMITTED → secondary "Teklifi Revize Et (v{N})" (Edit); WITHDRAWN → primary "Yeniden Teklif Ver"
+    - **Liste sayfası "Teklif Durumum" kolonu:** mevcut `BidStatusBadge`'in yanına SUBMITTED'da "v{N}" mini-pill (`success-50` border)
+    - **Dashboard KPI grid:** `useSupplierTenderStats()` ile gerçek veriler doldu (`activeInvitations` / `submittedBids` / `wonTenders` / `ongoingOrders`). 0 olunca "Henüz veri yok" pill, sayı varsa direkt değer
+    - **Manuel E2E doğrulandı (SUPK-2026-0001 üzerinde):**
+      - DRAFT (total 810k) → submit v1 → SUBMITTED ✓
+      - SUBMITTED edit (price change → total 732k, status SUBMITTED kalır, v stays 1) → submit → SUBMITTED v2 ✓
+      - customQuestion'lı kaleme teklif + cevap yok → 400 ✓
+      - Withdraw → WITHDRAWN, withdrawnAt set ✓
+      - WITHDRAWN'dan re-submit → 409 ✓
+      - Tenant token /my-bid → 401 "Geçersiz token tipi" ✓
+      - Detail response shape: `invitations/bids/bidStats` YOK; sadece `myBid` + `myInvitation` ✓
+      - Frontend rotaları HTTP 200 (teklif-ver / supplier detail / supplier list / dashboard)
+      - typecheck (api+web+admin+email+shared) yeşil ✓
 
 ### ⏳ Sıradaki (Bu Sprint)
-1. **Aşama E.3**: Tedarikçi teklif verme. `/supplier/ihaleler/[id]/teklif-ver` — kalem bazlı teklif (Birim Fiyat × Miktar otomatik toplam), kalem sorusu cevabı, teklif notu, attachment, para birimi (allowedCurrencies içinden), taslak/gönder, teklif revize et (version++), kapalı zarf altında "Verildi" statüsü, kapanış sonrası teklif yok
+1. **Aşama E.4**: Süre yönetimi + alıcı izleme paneli. `OPEN_FOR_BIDS` → kapanış sonrası `IN_AWARD`'a otomatik geçiş (cron). Alıcı detay sayfası "Teklifler" tab'ında gelen tüm tekliflerin listesi (real-time, kapanış öncesi sayı, kapanış sonrası detay)
 2. Admin dashboard KPI'ları (demo + buyer + supplier stats agregasyonu, hızlı linkler)
-3. MinIO entegrasyonu: vergi levhası + tender attachment base64 → MinIO upload + signed URL (V2). Şu an `TenderAttachment.fileUrl` data URL — DRAFT update ediyorken eski dosyalar full-replace nedeniyle kaybediliyor
+3. MinIO entegrasyonu: vergi levhası + tender attachment + bid attachment base64 → MinIO upload + signed URL (V2). Şu an `TenderAttachment.fileUrl` ve `BidAttachment.fileUrl` data URL — DRAFT update ediyorken eski dosyalar full-replace nedeniyle kaybediliyor
 
 ### 🔮 Yol Haritası (Sonra)
 - Tenant register sayfası (`/register`) — backend `POST /auth/register` zaten var

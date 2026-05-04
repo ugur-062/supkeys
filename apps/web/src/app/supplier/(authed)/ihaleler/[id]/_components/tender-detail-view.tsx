@@ -4,6 +4,7 @@
 // (kapalı zarf gereği `Davetli Tedarikçiler` ve `Teklifler` tab'ları YOK).
 import { FilesTab } from "@/app/dashboard/ihaleler/[id]/_components/files-tab";
 import { ItemsTab } from "@/app/dashboard/ihaleler/[id]/_components/items-tab";
+import { BidStatusBadge } from "@/components/tenders/status-badge";
 import { Button } from "@/components/ui/button";
 import { useSupplierTenderDetail } from "@/hooks/use-supplier-tenders";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,7 @@ import {
 import Link from "next/link";
 import { SupplierGeneralInfoTab } from "./general-info-tab";
 import { SupplierTenderHeaderCard } from "./header-card";
+import { MyBidTab } from "./my-bid-tab";
 
 const TRIGGER_CLASSES = cn(
   "group inline-flex items-center px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
@@ -70,6 +72,7 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
   }
 
   const tender = detail.data;
+  const hasBid = !!tender.myBid;
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
@@ -97,11 +100,22 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
         </div>
       </section>
 
-      <TabsPrimitive.Root defaultValue="general" className="space-y-4">
+      <TabsPrimitive.Root
+        defaultValue={hasBid ? "my-bid" : "general"}
+        className="space-y-4"
+      >
         <TabsPrimitive.List
           className="border-b border-surface-border flex gap-1 overflow-x-auto"
           aria-label="İhale detay sekmeleri"
         >
+          <TabsPrimitive.Trigger value="my-bid" className={TRIGGER_CLASSES}>
+            Teklifim
+            {hasBid && tender.myBid ? (
+              <span className="ml-2">
+                <BidStatusBadge status={tender.myBid.status} />
+              </span>
+            ) : null}
+          </TabsPrimitive.Trigger>
           <TabsPrimitive.Trigger value="general" className={TRIGGER_CLASSES}>
             Genel Bilgi
           </TabsPrimitive.Trigger>
@@ -117,10 +131,12 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
             ÖNEMLİ — KAPALI ZARF:
             "Davetli Tedarikçiler" ve "Teklifler" sekmeleri tedarikçi tarafında
             YOK. Diğer tedarikçiler veya tekliflerine asla erişilemez.
-            "Teklifim" sekmesi E.3'te eklenecek.
           */}
         </TabsPrimitive.List>
 
+        <TabsPrimitive.Content value="my-bid" className="outline-none">
+          <MyBidTab tender={tender} />
+        </TabsPrimitive.Content>
         <TabsPrimitive.Content value="general" className="outline-none">
           <SupplierGeneralInfoTab tender={tender} />
         </TabsPrimitive.Content>

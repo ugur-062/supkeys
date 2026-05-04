@@ -160,7 +160,14 @@ export function SupplierTendersTable({
                 )}
               </td>
               <td className="px-4 py-3">
-                <BidStatusBadge status={t.myBidStatus} />
+                <span className="inline-flex items-center gap-1.5">
+                  <BidStatusBadge status={t.myBidStatus} />
+                  {t.myBidStatus === "SUBMITTED" && t.myBidVersion ? (
+                    <span className="text-[10px] font-semibold text-success-700 bg-success-50 px-1.5 py-0.5 rounded-md border border-success-200">
+                      v{t.myBidVersion}
+                    </span>
+                  ) : null}
+                </span>
               </td>
               <td className="px-4 py-3 text-right">
                 <Link href={`/supplier/ihaleler/${t.id}`}>
