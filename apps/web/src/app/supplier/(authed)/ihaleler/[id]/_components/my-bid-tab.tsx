@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Ban,
   CheckCircle2,
+  Clock,
   Edit,
   FileText,
   Info,
@@ -110,8 +111,23 @@ export function MyBidTab({ tender }: Props) {
     }
   };
 
+  const tenderClosed =
+    tender.status === "IN_AWARD" ||
+    tender.status === "AWARDED" ||
+    tender.status === "CLOSED_NO_AWARD";
+
   return (
     <div className="space-y-4">
+      {bid.status === "SUBMITTED" && tenderClosed ? (
+        <div className="rounded-xl bg-purple-50 border border-purple-200 p-4 flex gap-3 items-start">
+          <Clock className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 text-sm text-purple-900">
+            <strong>İhale teklif kabul aşaması sona erdi.</strong> Alıcı
+            kazandırma kararını verdiğinde sonuç bildirimi alacaksınız.
+          </div>
+        </div>
+      ) : null}
+
       {bid.status === "DRAFT" ? (
         <div className="rounded-xl bg-warning-50 border border-warning-200 p-4 flex gap-3 items-start">
           <Info className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />

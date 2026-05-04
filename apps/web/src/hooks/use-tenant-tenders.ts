@@ -3,7 +3,10 @@
 import { api } from "@/lib/api";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import type {
+  BidComparisonResponse,
+  BidDetailExpanded,
   ListTendersParams,
+  TenderBidsResponse,
   TenderDetail,
   TenderListResponse,
   TenderStats,
@@ -15,6 +18,11 @@ const KEYS = {
   list: (params: ListTendersParams) => [...KEYS.all, "list", params] as const,
   detail: (id: string) => [...KEYS.all, "detail", id] as const,
   stats: () => [...KEYS.all, "stats"] as const,
+  bids: (id: string) => [...KEYS.all, "bids", id] as const,
+  bidComparison: (id: string) =>
+    [...KEYS.all, "bid-comparison", id] as const,
+  bidDetail: (id: string, bidId: string) =>
+    [...KEYS.all, "bid-detail", id, bidId] as const,
 };
 
 function buildParams(params: ListTendersParams) {
@@ -66,6 +74,62 @@ export function useTenderStats() {
     },
     refetchInterval: 30_000,
     staleTime: 10_000,
+  });
+}
+
+// ============================================================
+// E.4 — Buyer bid monitoring (Teklifler tab)
+// ============================================================
+
+export function useTenderBids(
+  tenderId: string | null,
+  options?: { polling?: boolean },
+) {
+  return useQuery({
+    queryKey: KEYS.bids(tenderId ?? ""),
+    queryFn: async () => {
+      const { data } = await api.get<TenderBidsResponse>(
+        `/tenants/me/tenders/${tenderId}/bids`,
+      );
+      return data;
+    },
+    enabled: !!tenderId,
+    refetchInterval: options?.polling ? 30_000 : false,
+    staleTime: 10_000,
+  });
+}
+
+export function useTenderBidComparison(
+  tenderId: string | null,
+  options?: { polling?: boolean },
+) {
+  return useQuery({
+    queryKey: KEYS.bidComparison(tenderId ?? ""),
+    queryFn: async () => {
+      const { data } = await api.get<BidComparisonResponse>(
+        `/tenants/me/tenders/${tenderId}/bids/comparison`,
+      );
+      return data;
+    },
+    enabled: !!tenderId,
+    refetchInterval: options?.polling ? 30_000 : false,
+    staleTime: 10_000,
+  });
+}
+
+export function useBidDetail(
+  tenderId: string | null,
+  bidId: string | null,
+) {
+  return useQuery({
+    queryKey: KEYS.bidDetail(tenderId ?? "", bidId ?? ""),
+    queryFn: async () => {
+      const { data } = await api.get<BidDetailExpanded>(
+        `/tenants/me/tenders/${tenderId}/bids/${bidId}`,
+      );
+      return data;
+    },
+    enabled: !!tenderId && !!bidId,
   });
 }
 

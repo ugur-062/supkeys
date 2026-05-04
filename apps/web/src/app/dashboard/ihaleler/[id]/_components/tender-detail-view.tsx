@@ -100,7 +100,7 @@ export function TenderDetailView({ id }: { id: string }) {
           </TabsPrimitive.Trigger>
           <TabsPrimitive.Trigger value="bids" className={TRIGGER_CLASSES}>
             Teklifler
-            <TabBadge count={tender.bidStats.submitted} />
+            <TabBadge count={tender.bidStats.total} />
           </TabsPrimitive.Trigger>
           <TabsPrimitive.Trigger value="files" className={TRIGGER_CLASSES}>
             Dosyalar
@@ -118,11 +118,7 @@ export function TenderDetailView({ id }: { id: string }) {
           <InvitationsTab invitations={tender.invitations} />
         </TabsPrimitive.Content>
         <TabsPrimitive.Content value="bids" className="outline-none">
-          <BidsTab
-            submitted={tender.bidStats.submitted}
-            draft={tender.bidStats.draft}
-            total={tender.bidStats.total}
-          />
+          <BidsTab tender={tender} />
         </TabsPrimitive.Content>
         <TabsPrimitive.Content value="files" className="outline-none">
           <FilesTab attachments={tender.attachments} />

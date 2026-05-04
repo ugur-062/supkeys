@@ -57,6 +57,16 @@ import {
   SupplierRelationEstablishedSupplierEmail,
 } from "./templates/supplier-relation-established-supplier";
 import {
+  makeTenderClosedBuyerSubject,
+  renderTenderClosedBuyerText,
+  TenderClosedBuyerEmail,
+} from "./templates/tender-closed-buyer";
+import {
+  makeTenderClosedSupplierSubject,
+  renderTenderClosedSupplierText,
+  TenderClosedSupplierEmail,
+} from "./templates/tender-closed-supplier";
+import {
   makeTenderInvitationSubject,
   renderTenderInvitationText,
   TenderInvitationEmail,
@@ -238,6 +248,28 @@ export async function renderEmail(
         subject: makeTenderInvitationSubject(spec.data.tenderTitle),
         html,
         text: renderTenderInvitationText(spec.data),
+      };
+    }
+
+    case "tender_closed_supplier": {
+      const html = await render(
+        React.createElement(TenderClosedSupplierEmail, spec.data),
+      );
+      return {
+        subject: makeTenderClosedSupplierSubject(spec.data.tenderTitle),
+        html,
+        text: renderTenderClosedSupplierText(spec.data),
+      };
+    }
+
+    case "tender_closed_buyer": {
+      const html = await render(
+        React.createElement(TenderClosedBuyerEmail, spec.data),
+      );
+      return {
+        subject: makeTenderClosedBuyerSubject(spec.data.tenderTitle),
+        html,
+        text: renderTenderClosedBuyerText(spec.data),
       };
     }
 

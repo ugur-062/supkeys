@@ -348,8 +348,41 @@
     - **DB schema dokunulmadı:** `RelationStatus` enum'da `PENDING_TENANT_APPROVAL` value'su KALIYOR (legacy data uyumluluğu). UI'da artık 4. tab kaldırıldığı için bu statüdeki eski kayıtlar görünmüyor; gerekirse manuel SQL `UPDATE supplier_tenant_relations SET status='ACTIVE' WHERE status='PENDING_TENANT_APPROVAL'` ile temizlenebilir. `supplier-auth/types.ts` ve `tedarikciler/status.ts` / `supplier/status.ts` enum + label haritalarında değer korundu
     - Manuel doğrulama: `pnpm typecheck` (api+web+admin+email+shared) tüm yeşil ✓; `GET /tenants/me/suppliers/stats` → `{total,active,blocked}` (no pending) ✓; `GET /pending-relations` → 404 ✓; `POST /relations/:id/approve|reject` → 404 "Cannot POST" ✓; `/dashboard/tedarikciler` + `/supplier/profil` HTTP 200 ✓
 
+23. **Süre yönetimi + alıcı izleme paneli (Aşama E.4):** _PratisPro UX uyumlu_
+    - **NestJS Schedule cron** (`apps/api/src/modules/tender-scheduler/`): `@Cron(EVERY_MINUTE)` `closeExpiredTenders()` → `OPEN_FOR_BIDS` + `bidsCloseAt < now` tender'ları transaction içinde `IN_AWARD`'a çevirir + bekleyen `PENDING` davetleri `EXPIRED`'a düşürür. Her tender için fire-and-forget 2 grup e-posta enqueue eder (`tender_closed_supplier` davetlilere, `tender_closed_buyer` ihaleyi açan kullanıcıya). `app.module.ts`'de `ScheduleModule.forRoot()` + `TenderSchedulerModule` import edildi
+    - **3 yeni alıcı endpoint'i** (`TenantTendersController` + service):
+      - `GET /api/tenants/me/tenders/:id/bids` — İhale Bazlı Sıralama. Tüm bid'leri (SUBMITTED/AWARDED_*/LOST/WITHDRAWN) totalAmount ASC çeker, `totalItems` ile karşılaştırarak `complete` (tüm kalemlere fiyat verilmiş) / `incomplete` (eksik) / `withdrawn` gruplarına ayırır. Her bid'e `rank` (WITHDRAWN'da null), `itemsBidCount`, `isComplete` ekler. Response `{tender, summary, complete[], incomplete[], withdrawn[]}`
+      - `GET /api/tenants/me/tenders/:id/bids/comparison` — Kalem Bazlı Sıralama. Her tender item için tüm geçerli bid'lerin (SUBMITTED + AWARDED) `unitPrice`'larını toplar, en düşük olanı `bestBid` olarak işaretler. Response `{tender, items: [{tenderItem, allBids[], bestBid|null}]}`
+      - `GET /api/tenants/me/tenders/:id/bids/:bidId` — Tek teklifin tüm detayı + sıralama. Bid + supplier + submittedBy + items (orderIndex sıralı, tenderItem.customQuestion dahil) + attachments dolu döner; ek olarak `rank` (totalAmount ASC üzerinden hesap), `totalBids`, `totalItems`, `itemsBidCount`, `isComplete`, `isDifferentCurrency` (bid.currency ≠ tender.primaryCurrency)
+      - Controller'da route ordering kritik: `/comparison` ve `/:bidId` `:id/bids` parent'ından ÖNCE tanımlandı (Nest'in path-matching collision'ından kaçınmak için)
+      - `findOne()` dönen `bidStats` artık dolu: `{total, submitted, draft, withdrawn, invitedCount}` — UI tarafında tab badge ve KPI özet için kullanılıyor
+    - **2 yeni e-posta şablonu** (`packages/email/src/templates/`):
+      - `tender_closed_supplier`: subject "📋 İhale kapandı: {title}". `hasBid` branchli içerik — true: "Teklifiniz değerlendirme aşamasına alındı"; false: "Bu ihaleye teklif vermediniz". CTA "İhaleyi Görüntüle" → `/supplier/ihaleler/:id`
+      - `tender_closed_buyer`: subject "🎯 İhaleniz kapandı, kazandırma zamanı: {title}". Summary box (tenderNumber + title) + 2 stat (Davet Edilen / Teklif Alınan, başarı renginde) + "Teklifleri İncele" CTA. Alt notta "İhale durumu artık 'Kazandırma Aşamasında'"
+      - `EmailTemplate` union, `EmailTemplateData`, render switch, types.ts ve index.ts export'ları yeni şablonlara göre güncellendi
+    - **Frontend tenant** (`apps/web/src/app/dashboard/ihaleler/[id]/`):
+      - **HeaderCard PratisPro tarzı**: yeni `TenderLiveStatusPill` (sağ üstte yeşil pulse "Teklife Açık", mor "Kazandırma Aşamasında", lacivert "Sonuçlandı", kırmızı "İptal Edildi" — `apps/web/src/components/tenders/countdown-full.tsx`'de export). OPEN_FOR_BIDS'da "Kalan Süre: 23 saat 40 dakika 1 saniye" canlı sayaç (`CountdownFull` aynı dosya, saniye-saniye tick eden uzun format, `<24sa` sarı / `<1sa` kırmızı renk). IN_AWARD'da kapanış tarihi + disabled "Kazandırmayı Tamamla" YAKINDA CTA
+      - **BidsTab** (placeholder kaldırıldı): üstte canlı durum banner — OPEN_FOR_BIDS'da yeşil "Sayfa otomatik güncellenir" pulse pill, IN_AWARD'da mor "Kazandırma Aşaması" CTA banner. 4 KPI özet kartı (Davet Edilen / Teklif Veren / Tamamına / Eksik Veren). 2 ana Radix Tabs (Kalem Bazlı / İhale Bazlı). Polling 30sn sadece live ihalelerde (`useTenderBids`/`useTenderBidComparison` `polling: isLive`)
+      - **ItemBasedRanking** tablosu: No / Kalem Adı / Miktar / Hedef Fiyat / **Tedarikçi & Birim Fiyat** (yeşil 50 hücre — bestBid ise tedarikçi adı + para birimi + fiyat + "+N diğer teklif" mini-not). Tıklama → bid detay route'u
+      - **TenderBasedRanking**: 2 alt-tab (Tamamına Teklif Verenler / Eksik Teklif Verenler, count badge'li). Tablo: No / Tedarikçi (clickable, rank=1'de "Güncel en iyi teklif" yeşil rozet, version>1'de "v2" mono pill, VKN alt satırda) / Kalem Sayısı (X/Y) / Toplam Fiyat (rank=1 yeşil, diğerleri brand-900) / Sıralama (yuvarlak rozet 1/2/3) / "Teklifi İncele →" CTA
+      - **Bid detay route** `/dashboard/ihaleler/[id]/teklif/[bidId]/page.tsx` (yeni): server component → `<BidDetailView>`. Breadcrumb (İhaleler › TENDER_NO › Teklif), header ("Teklif Bilgileri" + Building2 + supplier.companyName, sağda disabled "Tüm İşlemler ▼ YAKINDA"). 3 KPI kart (Son Teklif: vN/N + Wallet ikon + para birimi farklıysa "Bu tedarikçi teklifini USD olarak vermiştir" mini-not / Kalem Sayısı: X/Y / Sıralama: rank/total). 4 section: Firma Bilgileri (companyName/VKN mono/yetkili/e-posta/telefon/şehir/sektör/gönderildi tarihi), Kalem Bazlı Teklif (tablo, tfoot brand-50 TOPLAM), Notlar/Dosyalar (whitespace-pre-wrap not + indirme link'leri formatBytes ile)
+      - `tender-detail-view.tsx` Teklifler tab badge artık `bidStats.total` (eski submitted-only); BidsTab signature `{tender}` tek prop
+    - **Frontend supplier** kapanmış ihale UX:
+      - `header-card.tsx`: `closeDeadlinePassed = bidsCloseAt < now` runtime kontrolü + `TenderLiveStatusPill` (paylaşılan component). OPEN_FOR_BIDS + future close: countdown + Teklif Ver/Revize CTA korundu. IN_AWARD: mor "İhale kapandı, sonuç bekleniyor" banner. AWARDED/CLOSED_NO_AWARD: slate "İhale sonuçlandı" banner. CTA otomatik kayboldu
+      - `my-bid-tab.tsx`: SUBMITTED bid + tender artık OPEN değilse en üstte mor "İhale teklif kabul aşaması sona erdi. Alıcı kazandırma kararını verdiğinde sonuç bildirimi alacaksınız" Clock-ikonlu kutu. Aksiyon butonları (Revize Et / Geri Çek) zaten `isOpen` guard'ı ile gizleniyordu — değişmedi
+    - **Sealed-bid korunuyor:** Tüm yeni bids endpoint'leri `JwtAuthGuard` ile tenant scope kontrolü yapar; tedarikçi tarafına yansımaz. Cross-token doğrulandı
+    - **Manuel E2E doğrulandı:**
+      - DRAFT yarat + publish → SUPK-2026-0008 OPEN_FOR_BIDS ✓
+      - SQL ile `bidsCloseAt = NOW() - INTERVAL '2 minutes'` → 75sn beklendi → tender IN_AWARD + invitation EXPIRED ✓
+      - Mailpit: davetli tedarikçiye "📋 İhale kapandı: …" + alıcıya "🎯 İhaleniz kapandı, kazandırma zamanı: …" düştü ✓
+      - `GET /tenants/me/tenders/:id/bids` ve `/comparison` doğru yapı döndürüyor (boş ihale için bile) ✓
+      - findOne `bidStats: {total:0, submitted:0, draft:0, withdrawn:0, invitedCount:1}` ✓
+      - Cross-token: admin token → tenant bids 401, anon → 401 ✓
+      - typecheck (api+web+admin+email+shared) tümü yeşil ✓
+    - **NOT:** `packages/db` typecheck pre-existing rootDir hatası veriyor (`reset-admin-password.ts` ve `seed.ts` `src/` dışında); E.4'le ilgisiz, ana commit öncesi de mevcuttu
+
 ### ⏳ Sıradaki (Bu Sprint)
-1. **Aşama E.4**: Süre yönetimi + alıcı izleme paneli. `OPEN_FOR_BIDS` → kapanış sonrası `IN_AWARD`'a otomatik geçiş (cron). Alıcı detay sayfası "Teklifler" tab'ında gelen tüm tekliflerin listesi (real-time, kapanış öncesi sayı, kapanış sonrası detay)
+1. **Aşama E.5**: Kazandırma + sipariş oluşumu. "Tüm İşlemler" dropdown aktif (Teklifi Ele / Kazandır). Bid status `AWARDED_FULL`/`AWARDED_PARTIAL`/`LOST` geçişleri. Tender → `AWARDED` veya `CLOSED_NO_AWARD`. `Order` modeli oluşur (ORD-YYYY-NNNN). Tedarikçilere kazandı/kaybetti sonuç e-postaları
 2. Admin dashboard KPI'ları (demo + buyer + supplier stats agregasyonu, hızlı linkler)
 3. MinIO entegrasyonu: vergi levhası + tender attachment + bid attachment base64 → MinIO upload + signed URL (V2). Şu an `TenderAttachment.fileUrl` ve `BidAttachment.fileUrl` data URL — DRAFT update ediyorken eski dosyalar full-replace nedeniyle kaybediliyor
 

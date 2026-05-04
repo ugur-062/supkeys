@@ -148,9 +148,16 @@ export class TenantTendersService {
     return {
       ...tender,
       bidStats: {
-        total: tender._count.bids,
+        total:
+          (byStatus.SUBMITTED ?? 0) +
+          (byStatus.WITHDRAWN ?? 0) +
+          (byStatus.AWARDED_FULL ?? 0) +
+          (byStatus.AWARDED_PARTIAL ?? 0) +
+          (byStatus.LOST ?? 0),
         submitted: byStatus.SUBMITTED ?? 0,
         draft: byStatus.DRAFT ?? 0,
+        withdrawn: byStatus.WITHDRAWN ?? 0,
+        invitedCount: tender.invitations.length,
       },
     };
   }
@@ -179,6 +186,276 @@ export class TenantTendersService {
       awarded: byStatus.AWARDED ?? 0,
       cancelled: byStatus.CANCELLED ?? 0,
       closedNoAward: byStatus.CLOSED_NO_AWARD ?? 0,
+    };
+  }
+
+  // ============================================================
+  // READ — bids (alıcı izleme paneli, E.4)
+  // ============================================================
+
+  /**
+   * "Teklifler" tab — İhale Bazlı Sıralama.
+   * Tüm bid'leri dolu/eksik gruplarına ayırır, totalAmount'a göre sıralar.
+   */
+  async getBids(tenantId: string, tenderId: string) {
+    const tender = await this.prisma.tender.findUnique({
+      where: { id: tenderId },
+      include: {
+        items: {
+          select: { id: true, name: true, quantity: true, unit: true },
+        },
+        _count: { select: { items: true, invitations: true } },
+      },
+    });
+
+    if (!tender) throw new NotFoundException("İhale bulunamadı");
+    if (tender.tenantId !== tenantId)
+      throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+    if (tender.status === "DRAFT")
+      throw new ConflictException("Taslak ihalede teklif olmaz");
+
+    const totalItems = tender._count.items;
+
+    const bids = await this.prisma.bid.findMany({
+      where: {
+        tenderId,
+        status: {
+          in: [
+            "SUBMITTED",
+            "AWARDED_FULL",
+            "AWARDED_PARTIAL",
+            "LOST",
+            "WITHDRAWN",
+          ],
+        },
+      },
+      include: {
+        supplier: {
+          select: {
+            id: true,
+            companyName: true,
+            taxNumber: true,
+            city: true,
+            membership: true,
+          },
+        },
+        submittedBy: {
+          select: { firstName: true, lastName: true, email: true, phone: true },
+        },
+        items: {
+          select: {
+            id: true,
+            tenderItemId: true,
+            unitPrice: true,
+            totalPrice: true,
+            currency: true,
+            customAnswer: true,
+          },
+        },
+        attachments: { select: { id: true, fileName: true, fileSize: true } },
+      },
+      orderBy: { totalAmount: "asc" },
+    });
+
+    // Ranking: WITHDRAWN dışında kalan bid'lere totalAmount sırasına göre 1..N
+    let rankCursor = 0;
+    const enriched = bids.map((bid) => {
+      const isComplete = bid.items.length === totalItems;
+      const isWithdrawn = bid.status === "WITHDRAWN";
+      const rank = isWithdrawn ? null : ++rankCursor;
+      return {
+        ...bid,
+        rank,
+        itemsBidCount: bid.items.length,
+        totalItems,
+        isComplete,
+      };
+    });
+
+    const complete = enriched.filter(
+      (b) => b.isComplete && b.status !== "WITHDRAWN",
+    );
+    const incomplete = enriched.filter(
+      (b) => !b.isComplete && b.status !== "WITHDRAWN",
+    );
+    const withdrawn = enriched.filter((b) => b.status === "WITHDRAWN");
+
+    return {
+      tender: {
+        id: tender.id,
+        tenderNumber: tender.tenderNumber,
+        title: tender.title,
+        status: tender.status,
+        bidsCloseAt: tender.bidsCloseAt,
+        primaryCurrency: tender.primaryCurrency,
+        totalItems,
+        invitedCount: tender._count.invitations,
+      },
+      summary: {
+        total: enriched.filter((b) => b.status !== "WITHDRAWN").length,
+        complete: complete.length,
+        incomplete: incomplete.length,
+        withdrawn: withdrawn.length,
+      },
+      complete,
+      incomplete,
+      withdrawn,
+    };
+  }
+
+  /**
+   * "Teklifler" tab — Kalem Bazlı Sıralama.
+   * Her kalem için tüm geçerli teklifler + en düşük unit price'lı bid.
+   */
+  async getBidComparison(tenantId: string, tenderId: string) {
+    const tender = await this.prisma.tender.findUnique({
+      where: { id: tenderId },
+      include: {
+        items: { orderBy: { orderIndex: "asc" } },
+        bids: {
+          where: {
+            status: {
+              in: ["SUBMITTED", "AWARDED_FULL", "AWARDED_PARTIAL"],
+            },
+          },
+          include: {
+            supplier: {
+              select: { id: true, companyName: true, membership: true },
+            },
+            items: true,
+          },
+        },
+      },
+    });
+
+    if (!tender) throw new NotFoundException("İhale bulunamadı");
+    if (tender.tenantId !== tenantId)
+      throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+    if (tender.status === "DRAFT")
+      throw new ConflictException("Taslak ihalede teklif olmaz");
+
+    const items = tender.items.map((item) => {
+      const bidsForItem = tender.bids.flatMap((bid) => {
+        const bi = bid.items.find((x) => x.tenderItemId === item.id);
+        if (!bi || bi.unitPrice == null) return [];
+        return [
+          {
+            bidId: bid.id,
+            supplierId: bid.supplier.id,
+            supplierName: bid.supplier.companyName,
+            membership: bid.supplier.membership,
+            unitPrice: bi.unitPrice,
+            totalPrice: bi.totalPrice,
+            currency: bi.currency,
+          },
+        ];
+      });
+
+      const best =
+        bidsForItem.length > 0
+          ? bidsForItem.reduce((min, curr) =>
+              Number(curr.unitPrice) < Number(min.unitPrice) ? curr : min,
+            )
+          : null;
+
+      return {
+        tenderItem: {
+          id: item.id,
+          orderIndex: item.orderIndex,
+          name: item.name,
+          quantity: item.quantity,
+          unit: item.unit,
+          targetUnitPrice: item.targetUnitPrice,
+        },
+        allBids: bidsForItem,
+        bestBid: best,
+      };
+    });
+
+    return {
+      tender: {
+        id: tender.id,
+        title: tender.title,
+        tenderNumber: tender.tenderNumber,
+        status: tender.status,
+        primaryCurrency: tender.primaryCurrency,
+      },
+      items,
+    };
+  }
+
+  /**
+   * Tek bir teklifin tüm detayı + bu ihaledeki sıralama bilgisi.
+   */
+  async getBidDetail(tenantId: string, tenderId: string, bidId: string) {
+    const tender = await this.prisma.tender.findUnique({
+      where: { id: tenderId },
+      select: {
+        id: true,
+        tenantId: true,
+        primaryCurrency: true,
+        items: { select: { id: true } },
+      },
+    });
+
+    if (!tender) throw new NotFoundException("İhale bulunamadı");
+    if (tender.tenantId !== tenantId)
+      throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+
+    const bid = await this.prisma.bid.findUnique({
+      where: { id: bidId },
+      include: {
+        supplier: true,
+        submittedBy: {
+          select: { firstName: true, lastName: true, email: true, phone: true },
+        },
+        items: {
+          include: {
+            tenderItem: {
+              select: {
+                id: true,
+                orderIndex: true,
+                name: true,
+                quantity: true,
+                unit: true,
+                customQuestion: true,
+                targetUnitPrice: true,
+              },
+            },
+          },
+          orderBy: { tenderItem: { orderIndex: "asc" } },
+        },
+        attachments: true,
+      },
+    });
+
+    if (!bid || bid.tenderId !== tenderId)
+      throw new NotFoundException("Teklif bulunamadı");
+
+    const totalItems = tender.items.length;
+
+    // Ranking: sadece SUBMITTED + AWARDED bid'ler arasında, totalAmount asc
+    const ranked = await this.prisma.bid.findMany({
+      where: {
+        tenderId,
+        status: { in: ["SUBMITTED", "AWARDED_FULL", "AWARDED_PARTIAL"] },
+      },
+      select: { id: true },
+      orderBy: { totalAmount: "asc" },
+    });
+
+    const rankIdx = ranked.findIndex((b) => b.id === bidId);
+    const rank = rankIdx >= 0 ? rankIdx + 1 : null;
+
+    return {
+      ...bid,
+      rank,
+      totalBids: ranked.length,
+      totalItems,
+      itemsBidCount: bid.items.length,
+      isComplete: bid.items.length === totalItems,
+      isDifferentCurrency: bid.currency !== tender.primaryCurrency,
+      primaryCurrency: tender.primaryCurrency,
     };
   }
 

@@ -50,6 +50,31 @@ export class TenantTendersController {
     return this.service.findOne(user.tenantId, id);
   }
 
+  @Get(":id/bids/comparison")
+  getBidComparison(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<unknown> {
+    return this.service.getBidComparison(user.tenantId, id);
+  }
+
+  @Get(":id/bids/:bidId")
+  getBidDetail(
+    @Param("id") id: string,
+    @Param("bidId") bidId: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<unknown> {
+    return this.service.getBidDetail(user.tenantId, id, bidId);
+  }
+
+  @Get(":id/bids")
+  getBids(
+    @Param("id") id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<unknown> {
+    return this.service.getBids(user.tenantId, id);
+  }
+
   // ---------- WRITE (COMPANY_ADMIN-only) ----------
 
   @Post()

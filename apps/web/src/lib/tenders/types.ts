@@ -140,7 +140,13 @@ export interface TenderDetail {
   items: TenderItemDetail[];
   invitations: TenderInvitationDetail[];
   attachments: TenderAttachment[];
-  bidStats: { total: number; submitted: number; draft: number };
+  bidStats: {
+    total: number;
+    submitted: number;
+    draft: number;
+    withdrawn: number;
+    invitedCount: number;
+  };
 }
 
 export interface TenderStats {
@@ -303,4 +309,142 @@ export interface BidFormPayload {
   notes?: string;
   items: BidFormItem[];
   attachments?: BidFormAttachment[];
+}
+
+// ---------- Buyer-side bid monitoring (E.4) ----------
+
+export interface TenderBidsListItem {
+  id: string;
+  status: BidStatus;
+  currency: Currency;
+  totalAmount: string;
+  version: number;
+  submittedAt: string | null;
+  withdrawnAt: string | null;
+  notes: string | null;
+  rank: number | null;
+  itemsBidCount: number;
+  totalItems: number;
+  isComplete: boolean;
+  supplier: {
+    id: string;
+    companyName: string;
+    taxNumber: string;
+    city: string | null;
+    membership: "STANDARD" | "PREMIUM";
+  };
+  submittedBy: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string | null;
+  };
+  items: Array<{
+    id: string;
+    tenderItemId: string;
+    unitPrice: string | null;
+    totalPrice: string | null;
+    currency: Currency;
+    customAnswer: string | null;
+  }>;
+  attachments: Array<{ id: string; fileName: string; fileSize: number }>;
+}
+
+export interface TenderBidsResponse {
+  tender: {
+    id: string;
+    tenderNumber: string;
+    title: string;
+    status: TenderStatus;
+    bidsCloseAt: string;
+    primaryCurrency: Currency;
+    totalItems: number;
+    invitedCount: number;
+  };
+  summary: {
+    total: number;
+    complete: number;
+    incomplete: number;
+    withdrawn: number;
+  };
+  complete: TenderBidsListItem[];
+  incomplete: TenderBidsListItem[];
+  withdrawn: TenderBidsListItem[];
+}
+
+export interface BidComparisonRow {
+  tenderItem: {
+    id: string;
+    orderIndex: number;
+    name: string;
+    quantity: string;
+    unit: string;
+    targetUnitPrice: string | null;
+  };
+  allBids: Array<{
+    bidId: string;
+    supplierId: string;
+    supplierName: string;
+    membership: "STANDARD" | "PREMIUM";
+    unitPrice: string;
+    totalPrice: string | null;
+    currency: Currency;
+  }>;
+  bestBid: {
+    bidId: string;
+    supplierId: string;
+    supplierName: string;
+    membership: "STANDARD" | "PREMIUM";
+    unitPrice: string;
+    totalPrice: string | null;
+    currency: Currency;
+  } | null;
+}
+
+export interface BidComparisonResponse {
+  tender: {
+    id: string;
+    title: string;
+    tenderNumber: string;
+    status: TenderStatus;
+    primaryCurrency: Currency;
+  };
+  items: BidComparisonRow[];
+}
+
+export interface BidDetailExpanded {
+  id: string;
+  tenderId: string;
+  status: BidStatus;
+  currency: Currency;
+  totalAmount: string;
+  notes: string | null;
+  version: number;
+  submittedAt: string | null;
+  withdrawnAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  rank: number | null;
+  totalBids: number;
+  totalItems: number;
+  itemsBidCount: number;
+  isComplete: boolean;
+  isDifferentCurrency: boolean;
+  primaryCurrency: Currency;
+  supplier: {
+    id: string;
+    companyName: string;
+    taxNumber: string;
+    city: string | null;
+    industry: string | null;
+    membership: "STANDARD" | "PREMIUM";
+  };
+  submittedBy: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string | null;
+  };
+  items: BidItemExpanded[];
+  attachments: BidAttachmentExpanded[];
 }

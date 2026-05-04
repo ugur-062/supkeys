@@ -24,5 +24,7 @@ export type {
   SupplierInvitationData,
   SupplierRelationEstablishedBuyerData,
   SupplierRelationEstablishedSupplierData,
+  TenderClosedBuyerData,
+  TenderClosedSupplierData,
   TenderInvitationEmailData,
 } from "./types";

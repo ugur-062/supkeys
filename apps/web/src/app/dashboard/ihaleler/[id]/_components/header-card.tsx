@@ -1,10 +1,10 @@
 "use client";
 
-import { CountdownTimer } from "@/components/countdown-timer";
 import {
-  TenderStatusBadge,
-  TenderTypeBadge,
-} from "@/components/tenders/status-badge";
+  CountdownFull,
+  TenderLiveStatusPill,
+} from "@/components/tenders/countdown-full";
+import { TenderTypeBadge } from "@/components/tenders/status-badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -90,7 +90,7 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                 {tender.tenderNumber}
               </code>
               <TenderTypeBadge type={tender.type} />
-              <TenderStatusBadge status={tender.status} />
+              <TenderLiveStatusPill status={tender.status} />
             </div>
             <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900 leading-tight">
               {tender.title}
@@ -104,28 +104,34 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
 
           <div className="flex-shrink-0 md:text-right space-y-3">
             {tender.status === "OPEN_FOR_BIDS" ? (
-              <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">
-                  Kapanmasına
+              <div className="md:text-right">
+                <p className="text-xs text-slate-500">
+                  Kalan Süre:{" "}
+                  <CountdownFull deadline={tender.bidsCloseAt} />
                 </p>
-                <CountdownTimer
-                  deadline={tender.bidsCloseAt}
-                  className="text-2xl"
-                />
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Kapanış:{" "}
                   {format(new Date(tender.bidsCloseAt), "d MMM yyyy HH:mm", {
                     locale: tr,
                   })}
                 </p>
               </div>
             ) : tender.status === "IN_AWARD" ? (
-              <Button variant="primary" disabled title="E.5'te aktif olacak">
-                <Award className="h-4 w-4" />
-                Kazandırmayı Tamamla
-                <span className="ml-1 px-1.5 py-0.5 bg-warning-100 text-warning-700 text-[10px] rounded-md font-semibold uppercase tracking-wide">
-                  Yakında
-                </span>
-              </Button>
+              <div className="md:text-right space-y-2">
+                <p className="text-[11px] text-slate-500">
+                  Kapandı:{" "}
+                  {format(new Date(tender.bidsCloseAt), "d MMM yyyy HH:mm", {
+                    locale: tr,
+                  })}
+                </p>
+                <Button variant="primary" disabled title="E.5'te aktif olacak">
+                  <Award className="h-4 w-4" />
+                  Kazandırmayı Tamamla
+                  <span className="ml-1 px-1.5 py-0.5 bg-warning-100 text-warning-700 text-[10px] rounded-md font-semibold uppercase tracking-wide">
+                    Yakında
+                  </span>
+                </Button>
+              </div>
             ) : null}
 
             {/* DRAFT için aksiyonlar */}

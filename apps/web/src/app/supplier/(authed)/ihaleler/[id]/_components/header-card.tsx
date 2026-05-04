@@ -1,15 +1,13 @@
 "use client";
 
 import { CountdownTimer } from "@/components/countdown-timer";
-import {
-  TenderStatusBadge,
-  TenderTypeBadge,
-} from "@/components/tenders/status-badge";
+import { TenderTypeBadge } from "@/components/tenders/status-badge";
+import { TenderLiveStatusPill } from "@/components/tenders/countdown-full";
 import { Button } from "@/components/ui/button";
 import type { SupplierTenderDetail } from "@/lib/tenders/types";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Edit, Send } from "lucide-react";
+import { CheckCircle2, Clock, Edit, Send } from "lucide-react";
 import Link from "next/link";
 
 export function SupplierTenderHeaderCard({
@@ -17,7 +15,13 @@ export function SupplierTenderHeaderCard({
 }: {
   tender: SupplierTenderDetail;
 }) {
-  const isOpen = tender.status === "OPEN_FOR_BIDS";
+  const closeDeadlinePassed =
+    new Date(tender.bidsCloseAt).getTime() <= Date.now();
+  const isOpen = tender.status === "OPEN_FOR_BIDS" && !closeDeadlinePassed;
+  const isClosed =
+    tender.status === "IN_AWARD" ||
+    tender.status === "AWARDED" ||
+    tender.status === "CLOSED_NO_AWARD";
   const formHref = `/supplier/ihaleler/${tender.id}/teklif-ver`;
   const myBid = tender.myBid;
 
@@ -71,7 +75,7 @@ export function SupplierTenderHeaderCard({
               {tender.tenderNumber}
             </code>
             <TenderTypeBadge type={tender.type} />
-            <TenderStatusBadge status={tender.status} />
+            <TenderLiveStatusPill status={tender.status} />
           </div>
           <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900 leading-tight">
             {tender.title}
@@ -99,6 +103,16 @@ export function SupplierTenderHeaderCard({
                 })}
               </p>
               {cta}
+            </div>
+          ) : tender.status === "IN_AWARD" ? (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg px-4 py-2.5 text-sm text-purple-700 flex items-center gap-2">
+              <Clock className="h-4 w-4 flex-shrink-0" />
+              <span>İhale kapandı, sonuç bekleniyor</span>
+            </div>
+          ) : isClosed ? (
+            <div className="bg-slate-100 border border-slate-200 rounded-lg px-4 py-2.5 text-sm text-slate-600 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+              <span>İhale sonuçlandı</span>
             </div>
           ) : null}
         </div>

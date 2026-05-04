@@ -12,7 +12,9 @@ export type EmailTemplate =
   | "supplier_invitation"
   | "supplier_relation_established_buyer"
   | "supplier_relation_established_supplier"
-  | "tender_invitation";
+  | "tender_invitation"
+  | "tender_closed_supplier"
+  | "tender_closed_buyer";
 
 export type EmailProviderName = "resend" | "mailpit";
 
@@ -174,6 +176,35 @@ export interface TenderInvitationEmailData {
   bidsCloseAtFormatted: string;
 }
 
+/**
+ * İhale kapandığında davetli tedarikçilere giden bilgilendirme.
+ * `hasBid` true → "değerlendirmeye alındı" tonu;
+ * false → "bu ihaleye teklif vermediniz" bilgisi.
+ */
+export interface TenderClosedSupplierData {
+  supplierUserName: string;
+  tenantName: string;
+  tenderNumber: string;
+  tenderTitle: string;
+  hasBid: boolean;
+  /** /supplier/ihaleler/:id mutlak URL */
+  tenderUrl: string;
+}
+
+/**
+ * İhale kapandığında ihaleyi açan kullanıcıya (createdBy) gider —
+ * davet/teklif sayılarıyla "kazandırma zamanı" bildirimi.
+ */
+export interface TenderClosedBuyerData {
+  buyerFirstName: string;
+  tenderNumber: string;
+  tenderTitle: string;
+  bidCount: number;
+  invitedCount: number;
+  /** /dashboard/ihaleler/:id mutlak URL */
+  tenderUrl: string;
+}
+
 export type EmailTemplateData =
   | { template: "demo_request_received"; data: DemoRequestReceivedData }
   | { template: "demo_request_admin_alert"; data: DemoRequestAdminAlertData }
@@ -209,7 +240,9 @@ export type EmailTemplateData =
       template: "supplier_relation_established_supplier";
       data: SupplierRelationEstablishedSupplierData;
     }
-  | { template: "tender_invitation"; data: TenderInvitationEmailData };
+  | { template: "tender_invitation"; data: TenderInvitationEmailData }
+  | { template: "tender_closed_supplier"; data: TenderClosedSupplierData }
+  | { template: "tender_closed_buyer"; data: TenderClosedBuyerData };
 
 export interface RenderedEmail {
   subject: string;
