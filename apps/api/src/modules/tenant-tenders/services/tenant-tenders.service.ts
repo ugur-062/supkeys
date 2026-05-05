@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import type { BidStatus, Prisma } from "@supkeys/db";
+import type { BidStatus, Prisma, TenderStatus } from "@supkeys/db";
 import { generateOrderNumber, generateTenderNumber } from "@supkeys/shared";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -995,7 +995,7 @@ export class TenantTendersService {
       id: string;
       tenderNumber: string;
       title: string;
-      status: Prisma.TenderGetPayload<unknown>["status"];
+      status: TenderStatus;
       bidsCloseAt: Date;
       tenant: { name: string };
     },

@@ -22,7 +22,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PublishConfirmDialog } from "../../yeni/_components/publish-confirm-dialog";
+import { AwardWizardModal } from "./award-wizard-modal";
 import { CancelTenderDialog } from "./cancel-tender-dialog";
+import { CloseNoAwardDialog } from "./close-no-award-dialog";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 
 export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
@@ -33,6 +35,8 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
   const [publishOpen, setPublishOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [awardOpen, setAwardOpen] = useState(false);
+  const [closeNoAwardOpen, setCloseNoAwardOpen] = useState(false);
 
   const publishMutation = usePublishTender();
   const deleteMutation = useDeleteTender();
@@ -124,13 +128,30 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                     locale: tr,
                   })}
                 </p>
-                <Button variant="primary" disabled title="E.5'te aktif olacak">
-                  <Award className="h-4 w-4" />
-                  Kazandırmayı Tamamla
-                  <span className="ml-1 px-1.5 py-0.5 bg-warning-100 text-warning-700 text-[10px] rounded-md font-semibold uppercase tracking-wide">
-                    Yakında
-                  </span>
-                </Button>
+                {isAdmin ? (
+                  <div className="flex md:justify-end items-center gap-2 flex-wrap">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setCloseNoAwardOpen(true)}
+                      className="!text-warning-700 !border-warning-300 hover:!bg-warning-50"
+                    >
+                      Kazanan Yok Kapat
+                    </Button>
+                    <Button
+                      variant="primary"
+                      onClick={() => setAwardOpen(true)}
+                      className="!bg-purple-600 hover:!bg-purple-700 focus:!ring-purple-500"
+                    >
+                      <Award className="h-4 w-4" />
+                      Kazandırmayı Tamamla
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-500">
+                    Kazandırma için Firma Yöneticisi yetkisi gerekli.
+                  </p>
+                )}
               </div>
             ) : null}
 
@@ -227,6 +248,18 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
         onConfirm={handleCancel}
         isSubmitting={cancelMutation.isPending}
         tenderTitle={tender.title}
+      />
+
+      <AwardWizardModal
+        open={awardOpen}
+        onClose={() => setAwardOpen(false)}
+        tender={tender}
+      />
+
+      <CloseNoAwardDialog
+        open={closeNoAwardOpen}
+        onClose={() => setCloseNoAwardOpen(false)}
+        tenderId={tender.id}
       />
     </>
   );

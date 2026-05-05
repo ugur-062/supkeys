@@ -269,10 +269,11 @@ export class SupplierTendersService {
 
   /**
    * Taslak oluştur veya güncelle (upsert).
-   * - SUBMITTED bir teklif varsa düzenleme reddedilir; revize için önce
-   *   formdaki değerleri tekrar gönderip /submit'e gitmeli.
-   * - items: createMany ile full-replace (V1 basit yaklaşımı).
-   * - attachments: aynı şekilde full-replace.
+   * - SUBMITTED bid → 409 (E.5 refactor: revize akışı kaldırıldı; alıcı ele
+   *   ederse tedarikçi yeniden teklif verebilir).
+   * - LOST bid → düzenleme serbest; submit edildiğinde version++ ve
+   *   eliminationReason/eliminatedAt temizlenir.
+   * - items / attachments: createMany ile full-replace (V1 basit yaklaşımı).
    */
   async saveOrUpdateBid(
     supplierUserId: string,
@@ -352,19 +353,33 @@ export class SupplierTendersService {
         select: { id: true, status: true, version: true },
       });
 
-      // Yeniden açılamaz durumlar — sadece bunlar editi engeller.
-      // SUBMITTED bidler "in-place revise" için edit edilebilir; status
-      // SUBMITTED kalır (totalAmount/items/attachments güncellenir),
-      // version ise sonraki /submit çağrısında ++ olur.
-      if (
-        existing &&
-        ["WITHDRAWN", "REJECTED", "AWARDED_FULL", "AWARDED_PARTIAL", "LOST"].includes(
-          existing.status,
-        )
-      ) {
-        throw new ConflictException(
-          "Bu teklif geri çekilmiş veya sonuçlanmış, düzenlenemez",
-        );
+      // E.5 refactor — Revize akışı kaldırıldı:
+      //   - SUBMITTED: alıcıyla iletişim gerekli; tedarikçi düzenleyemez
+      //   - WITHDRAWN: V1'de yeniden teklif yok (kalıcı)
+      //   - REJECTED / AWARDED_FULL / AWARDED_PARTIAL: kapanmış
+      //   - LOST: alıcı eledi → tedarikçi yeniden teklif verebilir (status
+      //     LOST kalır, submit edilince version++ ile SUBMITTED'a geçer)
+      if (existing) {
+        if (existing.status === "SUBMITTED") {
+          throw new ConflictException(
+            "Verilmiş teklif düzenlenemez. Değişiklik için alıcıyla iletişime geçin. Alıcı teklifinizi elerse yeniden teklif verebilirsiniz.",
+          );
+        }
+        if (existing.status === "WITHDRAWN") {
+          throw new ConflictException(
+            "Geri çekilmiş teklif yeniden açılamaz. Yeni teklif vermek için alıcıyla iletişime geçin.",
+          );
+        }
+        if (
+          ["REJECTED", "AWARDED_FULL", "AWARDED_PARTIAL"].includes(
+            existing.status,
+          )
+        ) {
+          throw new ConflictException(
+            "Bu teklif sonuçlandı, düzenlenemez",
+          );
+        }
+        // DRAFT veya LOST → düzenlemeye izin ver
       }
 
       // Toplam (sadece teklif verilen kalemler) — backend hesaplar
@@ -453,7 +468,9 @@ export class SupplierTendersService {
 
   /**
    * DRAFT → SUBMITTED (ilk gönderim, version=1 kalır).
-   * SUBMITTED → SUBMITTED (revize, version++).
+   * LOST → SUBMITTED (eleme sonrası yeniden teklif, version++ +
+   *   eliminationReason/eliminatedAt temizlenir).
+   * SUBMITTED → SUBMITTED ARTIK YASAK (E.5 refactor — revize kaldırıldı).
    * Submit öncesi requireAllItems / requireBidDocument validasyonları.
    */
   async submitBid(supplierId: string, tenderId: string) {
@@ -486,8 +503,13 @@ export class SupplierTendersService {
       if (!bid) {
         throw new NotFoundException("Önce bir taslak oluşturmalısınız");
       }
+      if (bid.status === "SUBMITTED") {
+        throw new ConflictException(
+          "Verilmiş teklif yeniden gönderilemez. Değişiklik için alıcıyla iletişime geçin.",
+        );
+      }
       if (
-        ["WITHDRAWN", "REJECTED", "AWARDED_FULL", "AWARDED_PARTIAL", "LOST"].includes(
+        ["WITHDRAWN", "REJECTED", "AWARDED_FULL", "AWARDED_PARTIAL"].includes(
           bid.status,
         )
       ) {
@@ -495,6 +517,7 @@ export class SupplierTendersService {
           "Bu durumdaki teklif tekrar gönderilemez",
         );
       }
+      // DRAFT veya LOST geçişi serbest
 
       if (bid.items.length === 0) {
         throw new BadRequestException(
@@ -521,14 +544,20 @@ export class SupplierTendersService {
         );
       }
 
-      const isRevise = bid.status === "SUBMITTED";
+      // LOST → SUBMITTED: eleme sonrası yeniden teklif, version++ ve
+      // eliminationReason/eliminatedAt temizlenir.
+      const isResubmissionAfterElimination = bid.status === "LOST";
 
       const updated = await tx.bid.update({
         where: { id: bid.id },
         data: {
           status: "SUBMITTED",
           submittedAt: new Date(),
-          version: isRevise ? bid.version + 1 : bid.version,
+          version: isResubmissionAfterElimination
+            ? bid.version + 1
+            : bid.version,
+          eliminationReason: isResubmissionAfterElimination ? null : undefined,
+          eliminatedAt: isResubmissionAfterElimination ? null : undefined,
         },
         select: {
           id: true,

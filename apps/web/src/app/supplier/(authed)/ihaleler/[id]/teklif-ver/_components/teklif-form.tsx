@@ -16,6 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
+  AlertCircle,
   ArrowLeft,
   ChevronRight,
   FileText,
@@ -76,7 +77,77 @@ export function TeklifForm({ tender, existingBid }: Props) {
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const isRevise = existingBid?.status === "SUBMITTED";
+  // E.5 — SUBMITTED bid'in form sayfasına gelinmesi engellenir.
+  // Tedarikçi sadece taslak doldurabilir veya alıcı eledikten sonra (LOST)
+  // yeniden teklif verebilir. SUBMITTED gelirse uyarı ekranı.
+  if (existingBid?.status === "SUBMITTED") {
+    return (
+      <div className="max-w-2xl mx-auto py-12">
+        <div className="card p-8 text-center space-y-4">
+          <div className="w-12 h-12 mx-auto rounded-full bg-warning-50 flex items-center justify-center">
+            <Lock className="w-6 h-6 text-warning-600" />
+          </div>
+          <p className="font-display font-bold text-brand-900 text-lg">
+            Teklif zaten verildi
+          </p>
+          <p className="text-sm text-slate-600 max-w-md mx-auto">
+            Bu ihaleye teklifinizi gönderdiniz (v{existingBid.version}).
+            Değişiklik için alıcıyla iletişime geçin. Alıcı teklifinizi elerse
+            yeniden teklif verebilirsiniz.
+          </p>
+          <div className="pt-2">
+            <Link
+              href={`/supplier/ihaleler/${tender.id}`}
+              className="inline-block"
+            >
+              <Button variant="secondary">
+                <ArrowLeft className="w-4 h-4" />
+                İhale Detayına Dön
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // WITHDRAWN bid: V1'de yeniden teklif yok
+  if (existingBid?.status === "WITHDRAWN") {
+    return (
+      <div className="max-w-2xl mx-auto py-12">
+        <div className="card p-8 text-center space-y-4">
+          <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center">
+            <AlertCircle className="w-6 h-6 text-slate-500" />
+          </div>
+          <p className="font-display font-bold text-brand-900 text-lg">
+            Teklif geri çekildi
+          </p>
+          <p className="text-sm text-slate-600 max-w-md mx-auto">
+            Bu ihaleye verdiğiniz teklifi geri çektiniz. Yeniden teklif vermek
+            için alıcıyla iletişime geçin.
+          </p>
+          <div className="pt-2">
+            <Link
+              href={`/supplier/ihaleler/${tender.id}`}
+              className="inline-block"
+            >
+              <Button variant="secondary">
+                <ArrowLeft className="w-4 h-4" />
+                İhale Detayına Dön
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // LOST bid: alıcı eledi → fresh form (önceki değerler dolu DEĞİL)
+  // DRAFT bid: kaldığı yerden devam (önceki değerler dolu)
+  // Hiç bid yok: temiz form
+  const isResubmissionAfterElimination = existingBid?.status === "LOST";
+  const draftBid =
+    existingBid && existingBid.status === "DRAFT" ? existingBid : null;
 
   const saveMutation = useSaveBid(tender.id);
   const submitMutation = useSubmitBid(tender.id);
@@ -85,25 +156,23 @@ export function TeklifForm({ tender, existingBid }: Props) {
     resolver: zodResolver(bidFormSchema),
     defaultValues: {
       currency:
-        existingBid?.currency ??
+        draftBid?.currency ??
         (tender.allowedCurrencies.includes(tender.primaryCurrency)
           ? tender.primaryCurrency
           : tender.allowedCurrencies[0]),
-      notes: existingBid?.notes ?? "",
+      notes: draftBid?.notes ?? "",
       items: tender.items.map((ti) => {
-        const existingItem = existingBid?.items?.find(
+        const draftItem = draftBid?.items?.find(
           (bi) => bi.tenderItemId === ti.id,
         );
         return {
           tenderItemId: ti.id,
-          unitPrice: existingItem
-            ? Number(existingItem.unitPrice)
-            : null,
-          customAnswer: existingItem?.customAnswer ?? "",
+          unitPrice: draftItem ? Number(draftItem.unitPrice) : null,
+          customAnswer: draftItem?.customAnswer ?? "",
         };
       }),
       attachments:
-        (existingBid?.attachments ?? []).map((a) => ({
+        (draftBid?.attachments ?? []).map((a) => ({
           fileName: a.fileName,
           fileSize: a.fileSize,
           mimeType: a.mimeType,
@@ -159,9 +228,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
       try {
         await saveMutation.mutateAsync(buildPayload(values));
         await submitMutation.mutateAsync();
-        toast.success(
-          isRevise ? "Teklif revize edildi" : "Teklif gönderildi",
-        );
+        toast.success("Teklif gönderildi");
         setConfirmOpen(false);
         router.push(`/supplier/ihaleler/${tender.id}`);
       } catch (err) {
@@ -199,26 +266,39 @@ export function TeklifForm({ tender, existingBid }: Props) {
             {tender.tenderNumber}
           </Link>
           <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-brand-700 font-medium">
-            {isRevise ? "Teklifi Revize Et" : "Teklif Ver"}
-          </span>
+          <span className="text-brand-700 font-medium">Teklif Ver</span>
         </nav>
 
         <header className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900">
-              {isRevise ? "Teklifimi Revize Et" : "Teklif Ver"}
+              {isResubmissionAfterElimination
+                ? "Yeniden Teklif Ver"
+                : "Teklif Ver"}
             </h1>
             <p className="text-sm text-slate-500 mt-1">
               {tender.tenderNumber} · {tender.title}
             </p>
           </div>
-          {isRevise && existingBid ? (
-            <span className="px-3 py-1.5 bg-brand-50 text-brand-700 text-xs font-semibold rounded-md border border-brand-200">
-              Mevcut Versiyon: v{existingBid.version}
-            </span>
-          ) : null}
         </header>
+
+        {/* LOST sonrası yeniden teklif uyarısı */}
+        {isResubmissionAfterElimination && existingBid?.eliminationReason ? (
+          <div className="rounded-xl bg-warning-50 border border-warning-200 p-4 flex gap-3 items-start">
+            <AlertCircle className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 text-sm space-y-1">
+              <p className="font-bold text-warning-900">
+                Önceki teklifiniz alıcı tarafından elendi.
+              </p>
+              <p className="text-warning-800">
+                <strong>Sebep:</strong> {existingBid.eliminationReason}
+              </p>
+              <p className="text-warning-700 text-xs mt-1">
+                Bu sebebi dikkate alarak yeni teklifinizi hazırlayabilirsiniz.
+              </p>
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-5">
@@ -333,7 +413,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
                   className="w-full !bg-success-600 hover:!bg-success-700 focus:!ring-success-500"
                 >
                   <Send className="w-4 h-4" />
-                  {isRevise ? "Yeni Teklifi Gönder" : "Teklifi Gönder"}
+                  Teklif Gönder
                 </Button>
 
                 <Button
@@ -367,7 +447,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
                 </span>
               </div>
 
-              {existingBid?.status === "DRAFT" ? (
+              {draftBid ? (
                 <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600 flex gap-2">
                   <FileText className="w-4 h-4 flex-shrink-0 mt-0.5 text-slate-400" />
                   <span>
@@ -386,7 +466,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
         onClose={() => setConfirmOpen(false)}
         onConfirm={() => handleSubmit()}
         isSubmitting={isBusy}
-        isRevise={isRevise}
+        isRevise={false}
         totalAmount={totalForDialog}
         currency={currencyForDialog}
       />

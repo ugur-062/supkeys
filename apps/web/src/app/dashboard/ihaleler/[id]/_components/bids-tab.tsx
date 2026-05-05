@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 import {
   useTenderBidComparison,
   useTenderBids,
@@ -14,8 +15,11 @@ import {
   Info,
   Loader2,
   Trophy,
+  XCircle,
 } from "lucide-react";
 import { useState } from "react";
+import { AwardWizardModal } from "./award-wizard-modal";
+import { CloseNoAwardDialog } from "./close-no-award-dialog";
 import { ItemBasedRanking } from "./item-based-ranking";
 import { TenderBasedRanking } from "./tender-based-ranking";
 
@@ -82,8 +86,10 @@ export function BidsTab({ tender }: { tender: TenderDetail }) {
       {/* Polling banner */}
       {isLive ? (
         <PollingBanner isError={bidsQuery.isError} />
+      ) : isClosed && tender.status === "IN_AWARD" ? (
+        <ClosedStatusBanner tender={tender} total={bidsData.summary.total} />
       ) : isClosed ? (
-        <ClosedStatusBanner total={bidsData.summary.total} />
+        <ResultBanner tender={tender} />
       ) : null}
 
       {/* KPI özet */}
@@ -173,34 +179,118 @@ function PollingBanner({ isError }: { isError: boolean }) {
   );
 }
 
-function ClosedStatusBanner({ total }: { total: number }) {
+function ClosedStatusBanner({
+  tender,
+  total,
+}: {
+  tender: TenderDetail;
+  total: number;
+}) {
+  const { user } = useAuth();
+  const isCompanyAdmin = user?.role === "COMPANY_ADMIN";
+  const [awardOpen, setAwardOpen] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
+
   return (
-    <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5">
-      <div className="flex items-start gap-3">
-        <div className="h-10 w-10 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
-          <Trophy className="h-5 w-5 text-purple-600" />
+    <>
+      <div className="bg-purple-50 border border-purple-200 rounded-2xl p-5">
+        <div className="flex items-start gap-3 flex-wrap">
+          <div className="h-10 w-10 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
+            <Trophy className="h-5 w-5 text-purple-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-purple-900">Kazandırma Aşaması</h3>
+            <p className="text-sm text-purple-700 mt-0.5">
+              İhale kapandı, {total} teklif değerlendirilmeyi bekliyor.
+            </p>
+          </div>
+          {isCompanyAdmin ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setCloseOpen(true)}
+                className="!text-warning-700 !border-warning-300 hover:!bg-warning-50"
+                disabled={total === 0}
+              >
+                <XCircle className="h-4 w-4" />
+                Kazanan Yok Kapat
+              </Button>
+              <Button
+                variant="primary"
+                onClick={() => setAwardOpen(true)}
+                className="!bg-purple-600 hover:!bg-purple-700"
+                disabled={total === 0}
+                title={
+                  total === 0 ? "Bu ihaleye teklif verilmemiş" : undefined
+                }
+              >
+                <Trophy className="h-4 w-4" />
+                Kazandırmayı Tamamla
+              </Button>
+            </div>
+          ) : (
+            <p className="text-xs text-purple-700">
+              Kazandırma için Firma Yöneticisi yetkisi gerekli.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <AwardWizardModal
+        open={awardOpen}
+        onClose={() => setAwardOpen(false)}
+        tender={tender}
+      />
+      <CloseNoAwardDialog
+        open={closeOpen}
+        onClose={() => setCloseOpen(false)}
+        tenderId={tender.id}
+      />
+    </>
+  );
+}
+
+function ResultBanner({ tender }: { tender: TenderDetail }) {
+  if (tender.status === "AWARDED") {
+    return (
+      <div className="bg-success-50 border border-success-200 rounded-2xl p-5 flex items-start gap-3">
+        <div className="h-10 w-10 rounded-xl bg-success-100 flex items-center justify-center flex-shrink-0">
+          <Trophy className="h-5 w-5 text-success-600" />
         </div>
         <div className="flex-1">
-          <h3 className="font-bold text-purple-900">Kazandırma Aşaması</h3>
-          <p className="text-sm text-purple-700 mt-0.5">
-            İhale kapandı, {total} teklif değerlendirilmeyi bekliyor.
+          <h3 className="font-bold text-success-900">İhale Kazandırıldı</h3>
+          <p className="text-sm text-success-700 mt-0.5">
+            Siparişler oluşturuldu, kazanan tedarikçilere bildirim gönderildi.
+            Detaylar için /dashboard/siparisler sayfasına gidin.
           </p>
         </div>
-        <Button
-          variant="primary"
-          disabled
-          title="E.5'te aktif olacak"
-          className="!bg-purple-600 hover:!bg-purple-700"
-        >
-          <Trophy className="h-4 w-4" />
-          Kazandırmayı Tamamla
-          <span className="ml-2 px-1.5 py-0.5 bg-white text-purple-700 text-[10px] rounded font-bold uppercase tracking-wide">
-            Yakında
-          </span>
-        </Button>
       </div>
-    </div>
-  );
+    );
+  }
+  if (tender.status === "CLOSED_NO_AWARD") {
+    return (
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex items-start gap-3">
+        <div className="h-10 w-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+          <XCircle className="h-5 w-5 text-slate-500" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-bold text-slate-800">
+            Kazanan Olmadan Kapatıldı
+          </h3>
+          {tender.cancelReason ? (
+            <p className="text-sm text-slate-600 mt-0.5 whitespace-pre-wrap">
+              {tender.cancelReason}
+            </p>
+          ) : (
+            <p className="text-sm text-slate-600 mt-0.5">
+              Bu ihale kazanan tedarikçi olmadan kapatıldı.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+  return null;
 }
 
 function BidsSummary({

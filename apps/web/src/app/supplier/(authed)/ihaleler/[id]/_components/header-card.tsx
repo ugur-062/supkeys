@@ -45,16 +45,8 @@ export function SupplierTenderHeaderCard({
           </Button>
         </Link>
       );
-    } else if (myBid.status === "SUBMITTED") {
-      cta = (
-        <Link href={formHref}>
-          <Button variant="secondary" className="mt-3">
-            <Edit className="w-4 h-4" />
-            Teklifi Revize Et (v{myBid.version})
-          </Button>
-        </Link>
-      );
-    } else if (myBid.status === "WITHDRAWN") {
+    } else if (myBid.status === "LOST") {
+      // E.5 — alıcı eledi, tedarikçi yeniden teklif verebilir
       cta = (
         <Link href={formHref}>
           <Button variant="primary" className="mt-3">
@@ -64,6 +56,7 @@ export function SupplierTenderHeaderCard({
         </Link>
       );
     }
+    // SUBMITTED + WITHDRAWN: header'da CTA yok (revize akışı kaldırıldı)
   }
 
   return (

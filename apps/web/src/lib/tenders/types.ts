@@ -281,6 +281,9 @@ export interface MyBidDetail {
   version: number;
   submittedAt: string | null;
   withdrawnAt: string | null;
+  /** E.5 — alıcı eleme yaptığında dolar (LOST + canResubmit). */
+  eliminationReason: string | null;
+  eliminatedAt: string | null;
   createdAt: string;
   updatedAt: string;
   /**
@@ -422,6 +425,9 @@ export interface BidDetailExpanded {
   version: number;
   submittedAt: string | null;
   withdrawnAt: string | null;
+  /** E.5 — alıcı bu teklifi elediyse dolu. */
+  eliminationReason: string | null;
+  eliminatedAt: string | null;
   createdAt: string;
   updatedAt: string;
   rank: number | null;
@@ -445,6 +451,175 @@ export interface BidDetailExpanded {
     email: string;
     phone: string | null;
   };
-  items: BidItemExpanded[];
+  items: Array<
+    BidItemExpanded & {
+      isWinner?: boolean;
+    }
+  >;
   attachments: BidAttachmentExpanded[];
+}
+
+// ---------- Order types (E.5) ----------
+
+export type OrderStatus =
+  | "PENDING"
+  | "ACCEPTED"
+  | "IN_PROGRESS"
+  | "DELIVERED"
+  | "COMPLETED"
+  | "CANCELLED";
+
+export interface OrderListItem {
+  id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  currency: Currency;
+  totalAmount: string;
+  expectedDeliveryAt: string | null;
+  deliveredAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // tenant-side: supplier info
+  supplier?: {
+    id: string;
+    companyName: string;
+    taxNumber: string;
+    city: string | null;
+    membership: "STANDARD" | "PREMIUM";
+  };
+  // supplier-side: tenant info
+  tenant?: {
+    id: string;
+    name: string;
+    slug: string;
+  };
+  tender: {
+    id: string;
+    tenderNumber: string;
+    title: string;
+  };
+  bid: {
+    id: string;
+    version: number;
+    status: BidStatus;
+    _count: { items: number };
+  };
+}
+
+export interface OrderListResponse {
+  items: OrderListItem[];
+  pagination: Pagination;
+}
+
+export interface OrderStats {
+  total: number;
+  pending: number;
+  accepted: number;
+  inProgress: number;
+  delivered: number;
+  completed: number;
+  cancelled: number;
+}
+
+export interface OrderDetailWinningItem {
+  id: string;
+  unitPrice: string | null;
+  totalPrice: string | null;
+  currency: Currency;
+  customAnswer: string | null;
+  awardedQuantity: string | null;
+  isWinner: boolean;
+  tenderItem: {
+    id: string;
+    orderIndex: number;
+    name: string;
+    description: string | null;
+    quantity: string;
+    unit: string;
+    materialCode: string | null;
+  };
+}
+
+export interface OrderDetail {
+  id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  currency: Currency;
+  totalAmount: string;
+  expectedDeliveryAt: string | null;
+  deliveredAt: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // tenant view: supplier dolu, supplier view: tenant dolu
+  supplier?: {
+    id: string;
+    companyName: string;
+    taxNumber: string;
+    taxOffice: string | null;
+    companyType: string | null;
+    city: string | null;
+    district: string | null;
+    addressLine: string | null;
+    industry: string | null;
+    membership: "STANDARD" | "PREMIUM";
+    users: Array<{
+      firstName: string;
+      lastName: string;
+      email: string;
+      phone: string | null;
+    }>;
+  };
+  tenant?: {
+    id: string;
+    name: string;
+    slug: string;
+    city: string | null;
+    district: string | null;
+  };
+  tender: {
+    id: string;
+    tenderNumber: string;
+    title: string;
+    status: TenderStatus;
+    primaryCurrency: Currency;
+    deliveryTerm: DeliveryTerm | null;
+    deliveryAddress: string | null;
+    paymentTerm: PaymentTerm;
+    paymentDays: number | null;
+    items: Array<{
+      id: string;
+      orderIndex: number;
+      name: string;
+      description: string | null;
+      quantity: string;
+      unit: string;
+      materialCode: string | null;
+    }>;
+  };
+  bid: {
+    id: string;
+    version: number;
+    status: BidStatus;
+    currency: Currency;
+    totalAmount: string;
+    notes: string | null;
+    submittedAt: string | null;
+    items: OrderDetailWinningItem[];
+    attachments: BidAttachmentExpanded[];
+    submittedBy?: {
+      firstName: string;
+      lastName: string;
+      email: string;
+    };
+  };
+}
+
+export interface ListOrdersParams {
+  status?: OrderStatus;
+  search?: string;
+  supplierId?: string;
+  page?: number;
+  pageSize?: number;
 }

@@ -94,8 +94,8 @@ export function SubmitConfirmDialog({
               <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>
                 Teklifiniz <strong>kapalı zarf</strong> altında saklanır. Sadece
-                alıcı görebilir, diğer tedarikçiler göremez. Kapanışa kadar
-                revize edebilir veya geri çekebilirsiniz.
+                alıcı görebilir. Gönderdikten sonra değişiklik için alıcıyla
+                iletişime geçmeniz gerekir.
               </span>
             </div>
           </div>

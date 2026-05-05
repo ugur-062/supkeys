@@ -380,9 +380,54 @@
       - Cross-token: admin token → tenant bids 401, anon → 401 ✓
       - typecheck (api+web+admin+email+shared) tümü yeşil ✓
     - **NOT:** `packages/db` typecheck pre-existing rootDir hatası veriyor (`reset-admin-password.ts` ve `seed.ts` `src/` dışında); E.4'le ilgisiz, ana commit öncesi de mevcuttu
+24. **Aşama E.5: Kazandırma + sipariş oluşumu + E.3 refactor (revize kaldırıldı):**
+    - **Migration `add_bid_elimination_fields`:** `Bid` modeline `eliminationReason String?` + `eliminatedAt DateTime?` eklendi (manuel SQL, dev DB'de uygulandı)
+    - **E.3 refactor — "Revize Et" tamamen kaldırıldı:**
+      - `supplier-tenders.service.saveOrUpdateBid()` artık `SUBMITTED` bid'e 409 dönüyor ("verilmiş teklif düzenlenemez. Değişiklik için alıcıyla iletişime geçin"). `WITHDRAWN` da 409. `LOST` durumunda update'e izin var (eleme sonrası yeniden teklif). `DRAFT` her zaman serbest
+      - `submitBid()` `LOST → SUBMITTED` geçişinde `version++` ve `eliminationReason/eliminatedAt = null`. `DRAFT → SUBMITTED` version stay. `SUBMITTED` resubmit 409 ("alıcıyla iletişime geçin")
+      - Frontend supplier `teklif-form.tsx`: `existingBid.status === "SUBMITTED"` → uyarı ekranı + "İhale Detayına Dön" CTA (form açılmaz). `WITHDRAWN` → benzer uyarı. `LOST` → fresh form (`draftBid` sadece `DRAFT` durumunda doluyor; `LOST`'tan gelen önceki değerler **dolu DEĞİL**, kullanıcı taze başlar). Üstte sarı "Önceki teklifiniz alıcı tarafından elendi, sebep: …" banner. Header "Yeniden Teklif Ver"
+      - Frontend supplier `my-bid-tab.tsx`: SUBMITTED + ihale açık → sadece "Teklifi Geri Çek" butonu (önceki "Teklifi Revize Et" CTA YOK), warning kutu "Teklifinizi mi değiştirmek istiyorsunuz? Alıcıyla iletişime geçin". LOST + ihale açık → "Yeniden Teklif Ver" mavi CTA + eleme sebebi sarı kart. AWARDED_FULL → 🏆 yeşil-emerald gradient banner + "Siparişlerimi Görüntüle" CTA. AWARDED_PARTIAL → 🏆 yeşil banner + sipariş CTA. LOST + tender AWARDED → bilgilendirme ("kazanamadınız")
+      - Frontend supplier `header-card.tsx`: SUBMITTED'da CTA YOK (revize kaldırıldı); LOST'ta "Yeniden Teklif Ver" mavi; DRAFT'ta "Taslağa Devam Et"; WITHDRAWN'ta CTA YOK
+      - `submit-confirm-dialog.tsx` warning kutusu güncel: "Gönderdikten sonra değişiklik için alıcıyla iletişime geçmeniz gerekir" (eski "kapanışa kadar revize edebilir" YOK)
+      - `MyBidDetail` ve `BidDetailExpanded` tiplerine `eliminationReason: string | null` + `eliminatedAt: string | null` eklendi
+    - **"Teklifi Ele" akışı:**
+      - Backend `tenant-tenders.service.eliminateBid(tenantId, tenderId, bidId, reason)` — `OPEN_FOR_BIDS`/`IN_AWARD` durumunda SUBMITTED bid'i transactional olarak `LOST + eliminationReason + eliminatedAt = now`'a çevirir. Tender açıksa fire-and-forget `bid_eliminated_supplier` e-posta (`canResubmit = tender.status === "OPEN_FOR_BIDS" && bidsCloseAt > now`)
+      - DTO `eliminate-bid.dto.ts`: `reason` 10-500 char zorunlu
+      - Endpoint: `POST /api/tenants/me/tenders/:id/bids/:bidId/eliminate` (`COMPANY_ADMIN` only)
+      - Frontend tenant `/dashboard/ihaleler/[id]/teklif/[bidId]`: E.4'te disabled "Tüm İşlemler" butonu artık aktif Radix DropdownMenu — sadece `COMPANY_ADMIN` görür; `bid.status === "SUBMITTED"` ve tender `OPEN_FOR_BIDS`/`IN_AWARD` ise "Teklifi Ele" enable, aksi halde tooltip ile sebep ("Bu teklif zaten elendi" / "kazandırıldı" / "ihale durumu uygun değil")
+      - `EliminateBidModal` (Radix Dialog max-w-lg): warning-50 info kutu + textarea (10-500 char, sayaç) + danger-600 "Teklifi Ele" submit. Başarıda toast + state cleanup
+      - `BidStatusBanner` (bid detail page üstü): LOST → kırmızı kart eleme sebebi + tarih + "Tedarikçi yeniden teklif verme hakkına sahip" notu. AWARDED → yeşil + sipariş referansı. WITHDRAWN → slate
+      - `useEliminateBid()` hook (TanStack Query); başarıda detail/bids/comparison/bidDetail invalidate
+    - **Kazandırma akışı (3 endpoint):**
+      - `awardFull(tenantId, tenderId, bidId)` — IN_AWARD + bid SUBMITTED + tüm kalemlere teklif (`bid.items.length === tender.items.length`) doğrular. Önceki winner flag'leri sıfırlar (idempotent), bu bid'in tüm BidItem'larını `isWinner=true`, bid status `AWARDED_FULL`. Order'ları finalize üretir
+      - `awardItemByItem(tenantId, tenderId, decisions[])` — her tenderItem için karar zorunlu (`tenderItemId + bidId`). Her decision'ın bid'in o kaleme teklif verip vermediği kontrol edilir. `bidItem.isWinner=true` set, sonra her bid için status hesaplanır: 0 winning → SUBMITTED kalır (finalize'da LOST); tüm kalemler → AWARDED_FULL; ara → AWARDED_PARTIAL
+      - `finalizeAward(tenantId, tenderId)` — IN_AWARD + ≥1 kazanan zorunlu. Tüm SUBMITTED'ları LOST'a düşürür, tender → AWARDED + awardedAt. Her kazanan bid için `Order` üretir (`ORD-YYYY-NNNN`, `generateOrderNumber()` shared helper, totalAmount = winningItems sum). Fire-and-forget e-postalar: kazananlara `award_won_supplier` (orderNumber + tutar + isFullWin), eleme'siz LOST'lara `award_lost_supplier`, alıcıya `award_completed_buyer` (sayılarla)
+      - `closeNoAward(tenantId, tenderId, dto)` — IN_AWARD'da SUBMITTED'lar LOST, tender → CLOSED_NO_AWARD + cancelReason (opsiyonel min10-max500). E-posta yok (V1)
+      - DTO'lar: `AwardFullDto`, `AwardItemByItemDto` (≥1 decision), `CloseNoAwardDto`. Tüm endpoint'ler `RolesGuard("COMPANY_ADMIN")` ile korumalı
+      - Frontend tenant `header-card.tsx`: IN_AWARD durumda "Kazandırmayı Tamamla" purple-600 CTA aktif (E.4'te disabled YAKINDA pill kaldırıldı) + "Kazanan Yok Kapat" warning outline. Sadece COMPANY_ADMIN görür; BUYER/APPROVER salt bilgi
+      - `bids-tab.tsx` ClosedStatusBanner aynı butonları daha görünür şekilde sunar (mor üstbant). AWARDED'da yeşil ResultBanner ("Siparişler oluşturuldu, /dashboard/siparisler"); CLOSED_NO_AWARD'da slate ResultBanner cancelReason ile
+      - **AwardWizardModal** (Radix Dialog max-w-3xl, 4 step): Step 1 (choose) — 2 radio kart (Toplu / Kalem Bazlı). Step 2 (full) — sadece `bidsData.complete` listesi (totalAmount ASC sıralı, idx=0 yeşil "EN DÜŞÜK" pill). Step 3 (item) — her tenderItem için bidsForItem (en düşük unitPrice'tan başlayarak), radio seçim. Step 4 (confirm) — yeşil özet kartı (orderCount/totalAmount/winners), warning kutu "Bu işlem geri alınamaz". Submit pipeline atomik: önce `awardFull`/`awardItemByItem`, sonra `finalizeAward`. Hatalarda toast
+      - **CloseNoAwardDialog** — Radix max-w-md, opsiyonel reason textarea (boş veya 10-500), warning-600 submit
+      - Hooks `use-tenant-tenders.ts`'e eklendi: `useEliminateBid`, `useAwardFull`, `useAwardItemByItem`, `useFinalizeAward`, `useCloseNoAward` — hepsi success'te `KEYS.all` invalidate
+    - **Order modülleri (V1: read-only, no status workflow):**
+      - Backend `apps/api/src/modules/tenant-orders/`: `TenantOrdersService` (list/stats/findOne), `TenantOrdersController` (`/api/tenants/me/orders` + `/stats` + `/:id`), `ListOrdersDto` (status/supplierId/search/page/pageSize). Tenant scope kontrolü findOne'da
+      - Backend `apps/api/src/modules/supplier-orders/`: aynı yapı, `SupplierJwtAuthGuard` ile `/api/supplier/orders` namespace. Supplier scope'u
+      - findOne her iki tarafta da bid + items (sadece `isWinner=true` kalemler) + attachments + tender items (ihale referansı için) include eder
+      - Frontend `/dashboard/siparisler` aktif (önceki PlaceholderPage kaldırıldı): KPI cards (Toplam/Bekliyor/Üretimde/Tamamlandı), 6 tab (Tümü/PENDING/ACCEPTED/IN_PROGRESS/DELIVERED/COMPLETED — URL ?tab sync), search debounce 300ms, tablo (Sipariş No mono / Tedarikçi / İhale link / Toplam / Statü pill / Tarih), pagination, 30sn refetch
+      - Frontend `/dashboard/siparisler/[id]`: Header gradient kart + KPI 3 (Toplam Tutar / Kazandırılan Kalem / Para Birimi) + Tedarikçi card (Building2 + companyName + VKN + city/industry/yetkili) + Tender link kart + kazanılan kalemler tablosu (TOPLAM tfoot brand-50) + opsiyonel notlar/dosyalar
+      - Frontend `/supplier/siparisler` + `/[id]`: aynı yapı, `tenant` info gösterir (alıcı bilgisi). Header gradient yeşil/emerald (kazanan vurgusu). `Trophy` ikon + sipariş özeti
+      - `OrderStatusBadge` component, `ORDER_STATUS_META` Türkçe label'larıyla (Bekliyor/Kabul/Üretimde/Teslim/Tamamlandı/İptal)
+      - Hooks `use-tenant-orders.ts` + `use-supplier-orders.ts` (TanStack Query, list/stats/detail)
+      - Tipler `lib/tenders/types.ts`'e eklendi: `OrderStatus`, `OrderListItem`, `OrderListResponse`, `OrderStats`, `OrderDetail`, `OrderDetailWinningItem`, `ListOrdersParams`
+    - **4 yeni e-posta şablonu** (V19'da zaten önceden oluşturulmuş, E.5 backend tarafından dispatch ediliyor):
+      - `bid_eliminated_supplier` — "🚫 Teklifiniz elendi: {tenderTitle}", `canResubmit` branchli (true: "Yeniden Teklif Ver" CTA → `/teklif-ver`; false: "İhaleyi Görüntüle"), eleme sebebi quote box
+      - `award_won_supplier` — "🏆 Tebrikler! İhaleyi kazandınız: {tenderTitle}", isFullWin/partial label, orderNumber + totalAmount + currency, "Siparişi Görüntüle" CTA
+      - `award_lost_supplier` — basit "İhale sonuçlandı: {tenderTitle}" + "İhaleyi Görüntüle"
+      - `award_completed_buyer` — "🎉 İhaleniz tamamlandı: {tenderTitle}", 4'lü stat grid (Toplam Sipariş / Toplam Harcama / Kazanan / Kaybeden)
+    - **Doğrulama:** `pnpm --filter @supkeys/{api,web,admin,email,shared} typecheck` tümü yeşil ✓; manuel runtime test bu commit'te yapılmadı (API process işin sonunda kapatıldı), kullanıcı IN_AWARD durumdaki bir tender üzerinde E2E adımları (eleme → resubmit / award full / award item / close-no-award) test edebilir
 
 ### ⏳ Sıradaki (Bu Sprint)
-1. **Aşama E.5**: Kazandırma + sipariş oluşumu. "Tüm İşlemler" dropdown aktif (Teklifi Ele / Kazandır). Bid status `AWARDED_FULL`/`AWARDED_PARTIAL`/`LOST` geçişleri. Tender → `AWARDED` veya `CLOSED_NO_AWARD`. `Order` modeli oluşur (ORD-YYYY-NNNN). Tedarikçilere kazandı/kaybetti sonuç e-postaları
+1. **Aşama E.6**: Polish + bildirimler. Dashboard KPI'lar canlı (gerçek veri agregasyonu), sipariş status workflow (Kabul/Reddet/Üretim/Teslim — V1.5), `packages/db` tsconfig fix (rootDir hatası), legacy `PENDING_TENANT_APPROVAL` data temizliği (manuel SQL)
 2. Admin dashboard KPI'ları (demo + buyer + supplier stats agregasyonu, hızlı linkler)
 3. MinIO entegrasyonu: vergi levhası + tender attachment + bid attachment base64 → MinIO upload + signed URL (V2). Şu an `TenderAttachment.fileUrl` ve `BidAttachment.fileUrl` data URL — DRAFT update ediyorken eski dosyalar full-replace nedeniyle kaybediliyor
 

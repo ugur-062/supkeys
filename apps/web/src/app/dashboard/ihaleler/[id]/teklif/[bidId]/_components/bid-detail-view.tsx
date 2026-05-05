@@ -1,24 +1,32 @@
 "use client";
 
+import { BidStatusBadge } from "@/components/tenders/status-badge";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 import { useBidDetail, useTenderDetail } from "@/hooks/use-tenant-tenders";
-import type { BidDetailExpanded } from "@/lib/tenders/types";
+import type { BidDetailExpanded, TenderDetail } from "@/lib/tenders/types";
+import { cn } from "@/lib/utils";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
   AlertCircle,
   ArrowLeft,
+  Ban,
   Building2,
   ChevronDown,
   ChevronRight,
   Download,
   FileText,
+  Info,
   Loader2,
   Package,
   Trophy,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { EliminateBidModal } from "./eliminate-bid-modal";
 
 function formatCurrency(amount: string | number, currency: string): string {
   const num = typeof amount === "string" ? Number(amount) : amount;
@@ -97,7 +105,14 @@ export function BidDetailView({
         tenderNumber={tender?.tenderNumber ?? "..."}
       />
 
-      <DetailHeader bid={bid} tenderTitle={tender?.title} />
+      <DetailHeader
+        bid={bid}
+        tender={tender ?? null}
+        tenderId={tenderId}
+        tenderTitle={tender?.title}
+      />
+
+      <BidStatusBanner bid={bid} />
 
       <KpiCards bid={bid} />
 
@@ -116,6 +131,63 @@ export function BidDetailView({
       ) : null}
     </div>
   );
+}
+
+function BidStatusBanner({ bid }: { bid: BidDetailExpanded }) {
+  if (bid.status === "LOST" && bid.eliminationReason) {
+    return (
+      <div className="rounded-xl bg-danger-50 border border-danger-200 p-4 flex gap-3 items-start">
+        <Ban className="w-5 h-5 text-danger-600 flex-shrink-0 mt-0.5" />
+        <div className="flex-1 text-sm space-y-1">
+          <p className="font-bold text-danger-800">Bu teklif elendi</p>
+          <p className="text-danger-700">
+            <strong>Sebep:</strong> {bid.eliminationReason}
+          </p>
+          {bid.eliminatedAt ? (
+            <p className="text-xs text-danger-600 mt-1">
+              Eleme:{" "}
+              {format(new Date(bid.eliminatedAt), "d MMM yyyy HH:mm", {
+                locale: tr,
+              })}
+            </p>
+          ) : null}
+          <p className="text-xs text-danger-600 mt-1">
+            Tedarikçi yeniden teklif verme hakkına sahip; e-posta ile
+            bilgilendirildi.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (bid.status === "AWARDED_FULL" || bid.status === "AWARDED_PARTIAL") {
+    return (
+      <div className="rounded-xl bg-success-50 border border-success-200 p-4 flex gap-3 items-start">
+        <Trophy className="w-5 h-5 text-success-600 flex-shrink-0 mt-0.5" />
+        <div className="flex-1 text-sm">
+          <p className="font-bold text-success-800">
+            {bid.status === "AWARDED_FULL"
+              ? "Bu teklif tüm kalemleri kazandı"
+              : "Bu teklif bazı kalemleri kazandı"}
+          </p>
+          <p className="text-success-700 mt-0.5">
+            Sipariş(ler) /dashboard/siparisler sayfasından izlenebilir.
+          </p>
+        </div>
+      </div>
+    );
+  }
+  if (bid.status === "WITHDRAWN") {
+    return (
+      <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 flex gap-3 items-start">
+        <Info className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
+        <div className="flex-1 text-sm text-slate-700">
+          <strong>Bu teklif geri çekildi.</strong> Tedarikçi tarafından iptal
+          edildi.
+        </div>
+      </div>
+    );
+  }
+  return null;
 }
 
 function Breadcrumb({
@@ -148,39 +220,115 @@ function Breadcrumb({
 
 function DetailHeader({
   bid,
+  tender,
+  tenderId,
   tenderTitle,
 }: {
   bid: BidDetailExpanded;
+  tender: TenderDetail | null;
+  tenderId: string;
   tenderTitle?: string;
 }) {
+  const { user } = useAuth();
+  const [eliminateOpen, setEliminateOpen] = useState(false);
+
+  const isCompanyAdmin = user?.role === "COMPANY_ADMIN";
+  const tenderActive =
+    tender?.status === "OPEN_FOR_BIDS" || tender?.status === "IN_AWARD";
+  const canEliminate =
+    isCompanyAdmin && tenderActive && bid.status === "SUBMITTED";
+
   return (
-    <div className="flex items-start justify-between gap-4 flex-wrap">
-      <div>
-        <h1 className="text-2xl font-display font-bold text-brand-900">
-          Teklif Bilgileri
-        </h1>
-        <p className="text-sm text-slate-500 mt-1 flex items-center gap-1.5">
-          <Building2 className="h-4 w-4" />
-          <span className="font-semibold text-brand-700">
-            {bid.supplier.companyName}
-          </span>
-          {tenderTitle ? (
-            <>
-              <span className="text-slate-300">•</span>
-              <span className="truncate">{tenderTitle}</span>
-            </>
-          ) : null}
-        </p>
+    <>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-display font-bold text-brand-900">
+              Teklif Bilgileri
+            </h1>
+            <BidStatusBadge status={bid.status} />
+            {bid.version > 1 ? (
+              <span className="text-xs px-1.5 py-0.5 bg-brand-50 text-brand-700 rounded border border-brand-200 font-mono font-bold">
+                v{bid.version}
+              </span>
+            ) : null}
+          </div>
+          <p className="text-sm text-slate-500 mt-1 flex items-center gap-1.5">
+            <Building2 className="h-4 w-4" />
+            <span className="font-semibold text-brand-700">
+              {bid.supplier.companyName}
+            </span>
+            {tenderTitle ? (
+              <>
+                <span className="text-slate-300">•</span>
+                <span className="truncate">{tenderTitle}</span>
+              </>
+            ) : null}
+          </p>
+        </div>
+
+        {isCompanyAdmin ? (
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <Button
+                variant="primary"
+                disabled={!canEliminate}
+                title={
+                  canEliminate
+                    ? undefined
+                    : bid.status === "LOST"
+                      ? "Bu teklif zaten elendi."
+                      : bid.status === "AWARDED_FULL" ||
+                          bid.status === "AWARDED_PARTIAL"
+                        ? "Bu teklif kazandırıldı."
+                        : !tenderActive
+                          ? "İhale durumu işlem yapmaya uygun değil."
+                          : "Bu teklif üzerinde yapılacak işlem yok."
+                }
+              >
+                Tüm İşlemler
+                <ChevronDown className="h-4 w-4 ml-1" />
+              </Button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content
+                align="end"
+                sideOffset={8}
+                className={cn(
+                  "min-w-[220px] rounded-xl bg-white p-1.5 shadow-xl border border-slate-200 z-[60]",
+                  "animate-in fade-in-0 zoom-in-95",
+                )}
+              >
+                <DropdownMenu.Item
+                  disabled={!canEliminate}
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    if (canEliminate) setEliminateOpen(true);
+                  }}
+                  className={cn(
+                    "px-3 py-2 text-sm rounded-lg cursor-pointer outline-none flex items-center gap-2",
+                    canEliminate
+                      ? "text-danger-700 hover:bg-danger-50 focus:bg-danger-50"
+                      : "text-slate-400 cursor-not-allowed",
+                  )}
+                >
+                  <Ban className="h-4 w-4" />
+                  Teklifi Ele
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        ) : null}
       </div>
 
-      <Button variant="primary" disabled title="E.5 / E.6'da aktif olacak">
-        Tüm İşlemler
-        <ChevronDown className="h-4 w-4" />
-        <span className="ml-1 px-1.5 py-0.5 bg-white text-brand-700 text-[10px] rounded font-bold uppercase tracking-wide">
-          Yakında
-        </span>
-      </Button>
-    </div>
+      <EliminateBidModal
+        open={eliminateOpen}
+        onClose={() => setEliminateOpen(false)}
+        tenderId={tenderId}
+        bidId={bid.id}
+        supplierName={bid.supplier.companyName}
+      />
+    </>
   );
 }
 

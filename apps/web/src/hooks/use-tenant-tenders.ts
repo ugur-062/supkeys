@@ -271,4 +271,102 @@ export function useDeleteTender() {
   });
 }
 
+// ============================================================
+// E.5 — Eleme + Kazandırma + close-no-award
+// ============================================================
+
+export function useEliminateBid(tenderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { bidId: string; reason: string }) => {
+      const { data } = await api.post<{
+        id: string;
+        status: "LOST";
+        version: number;
+      }>(`/tenants/me/tenders/${tenderId}/bids/${input.bidId}/eliminate`, {
+        reason: input.reason,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(tenderId) });
+      qc.invalidateQueries({ queryKey: KEYS.bids(tenderId) });
+      qc.invalidateQueries({ queryKey: KEYS.bidComparison(tenderId) });
+      qc.invalidateQueries({
+        queryKey: [...KEYS.all, "bid-detail", tenderId],
+      });
+    },
+  });
+}
+
+export function useAwardFull(tenderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (bidId: string) => {
+      const { data } = await api.post(
+        `/tenants/me/tenders/${tenderId}/award/full`,
+        { bidId },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}
+
+export interface AwardItemDecision {
+  tenderItemId: string;
+  bidId: string;
+}
+
+export function useAwardItemByItem(tenderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (decisions: AwardItemDecision[]) => {
+      const { data } = await api.post(
+        `/tenants/me/tenders/${tenderId}/award/item-by-item`,
+        { decisions },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}
+
+export function useFinalizeAward(tenderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post<{
+        tenderStatus: "AWARDED";
+        orderCount: number;
+        orders: Array<{ id: string; orderNumber: string }>;
+      }>(`/tenants/me/tenders/${tenderId}/award/finalize`);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}
+
+export function useCloseNoAward(tenderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { reason?: string }) => {
+      const { data } = await api.post<{ tenderStatus: "CLOSED_NO_AWARD" }>(
+        `/tenants/me/tenders/${tenderId}/close-no-award`,
+        input.reason ? { reason: input.reason } : {},
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}
+
 export const tenantTendersQueryKeys = KEYS;
