@@ -636,6 +636,10 @@ model Bid {
   submittedAt         DateTime?
   withdrawnAt         DateTime?
 
+  // Eleme alanları (E.5) — alıcı SUBMITTED bid'i LOST'a çevirdiğinde dolar.
+  eliminationReason   String?
+  eliminatedAt        DateTime?
+
   items               BidItem[]
   attachments         BidAttachment[]
   orders              Order[]

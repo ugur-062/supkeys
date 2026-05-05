@@ -57,6 +57,26 @@ import {
   SupplierRelationEstablishedSupplierEmail,
 } from "./templates/supplier-relation-established-supplier";
 import {
+  AwardCompletedBuyerEmail,
+  makeAwardCompletedBuyerSubject,
+  renderAwardCompletedBuyerText,
+} from "./templates/award-completed-buyer";
+import {
+  AwardLostSupplierEmail,
+  makeAwardLostSupplierSubject,
+  renderAwardLostSupplierText,
+} from "./templates/award-lost-supplier";
+import {
+  AwardWonSupplierEmail,
+  makeAwardWonSupplierSubject,
+  renderAwardWonSupplierText,
+} from "./templates/award-won-supplier";
+import {
+  BidEliminatedSupplierEmail,
+  makeBidEliminatedSupplierSubject,
+  renderBidEliminatedSupplierText,
+} from "./templates/bid-eliminated-supplier";
+import {
   makeTenderClosedBuyerSubject,
   renderTenderClosedBuyerText,
   TenderClosedBuyerEmail,
@@ -270,6 +290,50 @@ export async function renderEmail(
         subject: makeTenderClosedBuyerSubject(spec.data.tenderTitle),
         html,
         text: renderTenderClosedBuyerText(spec.data),
+      };
+    }
+
+    case "bid_eliminated_supplier": {
+      const html = await render(
+        React.createElement(BidEliminatedSupplierEmail, spec.data),
+      );
+      return {
+        subject: makeBidEliminatedSupplierSubject(spec.data.tenderTitle),
+        html,
+        text: renderBidEliminatedSupplierText(spec.data),
+      };
+    }
+
+    case "award_won_supplier": {
+      const html = await render(
+        React.createElement(AwardWonSupplierEmail, spec.data),
+      );
+      return {
+        subject: makeAwardWonSupplierSubject(spec.data.tenderTitle),
+        html,
+        text: renderAwardWonSupplierText(spec.data),
+      };
+    }
+
+    case "award_lost_supplier": {
+      const html = await render(
+        React.createElement(AwardLostSupplierEmail, spec.data),
+      );
+      return {
+        subject: makeAwardLostSupplierSubject(spec.data.tenderTitle),
+        html,
+        text: renderAwardLostSupplierText(spec.data),
+      };
+    }
+
+    case "award_completed_buyer": {
+      const html = await render(
+        React.createElement(AwardCompletedBuyerEmail, spec.data),
+      );
+      return {
+        subject: makeAwardCompletedBuyerSubject(spec.data.tenderTitle),
+        html,
+        text: renderAwardCompletedBuyerText(spec.data),
       };
     }
 

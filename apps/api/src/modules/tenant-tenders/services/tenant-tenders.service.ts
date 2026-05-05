@@ -7,12 +7,16 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import type { Prisma } from "@supkeys/db";
-import { generateTenderNumber } from "@supkeys/shared";
+import type { BidStatus, Prisma } from "@supkeys/db";
+import { generateOrderNumber, generateTenderNumber } from "@supkeys/shared";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailQueue } from "../../email/email.queue";
+import {
+  AwardItemDecisionDto,
+  CloseNoAwardDto,
+} from "../dto/award.dto";
 import { CancelTenderDto } from "../dto/cancel-tender.dto";
 import { CreateTenderDto } from "../dto/create-tender.dto";
 import { ListTendersDto } from "../dto/list-tenders.dto";
@@ -894,5 +898,662 @@ export class TenantTendersService {
         );
       }
     }
+  }
+
+  // ============================================================
+  // E.5 — Eleme + kazandırma + sipariş oluşumu
+  // ============================================================
+
+  private webUrl(): string {
+    return (this.config.get<string>("WEB_URL") ?? "http://localhost:3000")
+      .replace(/\/$/, "");
+  }
+
+  /**
+   * Alıcı tarafından SUBMITTED bir bid'in elenmesi → LOST + sebep + e-posta.
+   * Tedarikçi ihale hâlâ açıksa "Yeniden Teklif Ver" akışına yönlenir.
+   */
+  async eliminateBid(
+    tenantId: string,
+    tenderId: string,
+    bidId: string,
+    reason: string,
+  ) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const tender = await tx.tender.findUnique({
+        where: { id: tenderId },
+        include: { tenant: { select: { name: true } } },
+      });
+      if (!tender) throw new NotFoundException("İhale bulunamadı");
+      if (tender.tenantId !== tenantId)
+        throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+
+      const allowed: typeof tender.status[] = ["OPEN_FOR_BIDS", "IN_AWARD"];
+      if (!allowed.includes(tender.status)) {
+        throw new ConflictException(
+          "Bu durumdaki ihalede teklif elenemez",
+        );
+      }
+
+      const bid = await tx.bid.findUnique({
+        where: { id: bidId },
+        include: {
+          supplier: {
+            select: {
+              id: true,
+              users: {
+                where: { isActive: true },
+                orderBy: { createdAt: "asc" },
+                take: 1,
+                select: { email: true, firstName: true, lastName: true },
+              },
+            },
+          },
+        },
+      });
+      if (!bid || bid.tenderId !== tenderId)
+        throw new NotFoundException("Teklif bulunamadı");
+      if (bid.status !== "SUBMITTED")
+        throw new ConflictException(
+          "Sadece verilmiş (SUBMITTED) teklifler elenebilir",
+        );
+
+      const updated = await tx.bid.update({
+        where: { id: bidId },
+        data: {
+          status: "LOST",
+          eliminationReason: reason.trim(),
+          eliminatedAt: new Date(),
+        },
+        select: { id: true, status: true, version: true },
+      });
+
+      return {
+        updated,
+        tender,
+        primaryUser: bid.supplier.users[0] ?? null,
+      };
+    });
+
+    // Fire-and-forget bilgilendirme
+    this.dispatchEliminationEmail(
+      result.tender,
+      result.primaryUser,
+    ).catch((err) =>
+      this.logger.error(
+        `Eleme e-postası başarısız (${tenderId}/${bidId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
+
+    return result.updated;
+  }
+
+  private async dispatchEliminationEmail(
+    tender: {
+      id: string;
+      tenderNumber: string;
+      title: string;
+      status: Prisma.TenderGetPayload<unknown>["status"];
+      bidsCloseAt: Date;
+      tenant: { name: string };
+    },
+    primaryUser:
+      | { email: string; firstName: string; lastName: string }
+      | null,
+  ) {
+    if (!primaryUser) return;
+    const canResubmit =
+      tender.status === "OPEN_FOR_BIDS" &&
+      tender.bidsCloseAt.getTime() > Date.now();
+
+    // Eleme sebebi e-posta payload'ında — tx kapandıktan sonra DB'den çekmiyoruz
+    // (caller tx içinde update yaptı). Reason'ı tekrar fetch edelim:
+    const fresh = await this.prisma.bid.findFirst({
+      where: { tenderId: tender.id, status: "LOST" },
+      orderBy: { eliminatedAt: "desc" },
+      select: { eliminationReason: true },
+    });
+    const reason = fresh?.eliminationReason ?? "";
+
+    const webUrl = this.webUrl();
+    await this.emailQueue.enqueue({
+      to: {
+        email: primaryUser.email,
+        name: `${primaryUser.firstName} ${primaryUser.lastName}`,
+      },
+      templateData: {
+        template: "bid_eliminated_supplier",
+        data: {
+          supplierUserName: `${primaryUser.firstName} ${primaryUser.lastName}`,
+          tenantName: tender.tenant.name,
+          tenderNumber: tender.tenderNumber,
+          tenderTitle: tender.title,
+          eliminationReason: reason,
+          canResubmit,
+          tenderUrl: `${webUrl}/supplier/ihaleler/${tender.id}`,
+          submitNewBidUrl: `${webUrl}/supplier/ihaleler/${tender.id}/teklif-ver`,
+        },
+      },
+      context: { type: "bid_eliminated_supplier", id: tender.id },
+      subject: `🚫 Teklifiniz elendi: ${tender.title} — Supkeys`,
+    });
+  }
+
+  /**
+   * Toplu kazandırma — tek tedarikçi tüm kalemleri alır. Bid AWARDED_FULL,
+   * BidItem'lar isWinner=true. Sipariş finalize'da oluşur.
+   */
+  async awardFull(tenantId: string, tenderId: string, bidId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const tender = await tx.tender.findUnique({
+        where: { id: tenderId },
+        select: {
+          id: true,
+          tenantId: true,
+          status: true,
+          items: { select: { id: true } },
+        },
+      });
+      if (!tender) throw new NotFoundException("İhale bulunamadı");
+      if (tender.tenantId !== tenantId)
+        throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+      if (tender.status !== "IN_AWARD")
+        throw new ConflictException(
+          "Sadece IN_AWARD durumundaki ihalede kazandırma yapılabilir",
+        );
+
+      const bid = await tx.bid.findUnique({
+        where: { id: bidId },
+        select: {
+          id: true,
+          tenderId: true,
+          status: true,
+          items: { select: { id: true } },
+        },
+      });
+      if (!bid || bid.tenderId !== tenderId)
+        throw new NotFoundException("Teklif bulunamadı");
+      if (bid.status !== "SUBMITTED")
+        throw new ConflictException(
+          "Sadece verilmiş (SUBMITTED) teklif kazandırılabilir",
+        );
+
+      if (bid.items.length !== tender.items.length) {
+        throw new BadRequestException(
+          "Toplu kazandırma için tedarikçinin tüm kalemlere teklif vermesi gerekli. Kalem bazlı kazandırma kullanın.",
+        );
+      }
+
+      // Önce tüm bid'lerin önceki winner flag'lerini temizle (yeniden çağrı senaryosu)
+      await tx.bidItem.updateMany({
+        where: { bid: { tenderId } },
+        data: { isWinner: false },
+      });
+      await tx.bid.updateMany({
+        where: {
+          tenderId,
+          status: { in: ["AWARDED_FULL", "AWARDED_PARTIAL"] },
+        },
+        data: { status: "SUBMITTED" },
+      });
+
+      // Bu bid'in tüm kalemlerini isWinner=true yap
+      await tx.bidItem.updateMany({
+        where: { bidId },
+        data: { isWinner: true },
+      });
+      await tx.bid.update({
+        where: { id: bidId },
+        data: { status: "AWARDED_FULL" },
+      });
+
+      return {
+        bidId,
+        bidStatus: "AWARDED_FULL" as const,
+        winningItemCount: bid.items.length,
+      };
+    });
+  }
+
+  /**
+   * Kalem bazlı kazandırma — her tenderItem için bir bid seçilir.
+   * Tüm tender items için karar zorunlu.
+   */
+  async awardItemByItem(
+    tenantId: string,
+    tenderId: string,
+    decisions: AwardItemDecisionDto[],
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const tender = await tx.tender.findUnique({
+        where: { id: tenderId },
+        include: { items: true },
+      });
+      if (!tender) throw new NotFoundException("İhale bulunamadı");
+      if (tender.tenantId !== tenantId)
+        throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+      if (tender.status !== "IN_AWARD")
+        throw new ConflictException(
+          "Sadece IN_AWARD durumundaki ihalede kazandırma yapılabilir",
+        );
+
+      // Her tender item için karar zorunlu
+      const tenderItemIds = new Set(tender.items.map((i) => i.id));
+      const decidedItemIds = new Set(decisions.map((d) => d.tenderItemId));
+      for (const itemId of tenderItemIds) {
+        if (!decidedItemIds.has(itemId)) {
+          const item = tender.items.find((i) => i.id === itemId);
+          throw new BadRequestException(
+            `"${item?.name ?? itemId}" kalemi için kazanan seçilmedi`,
+          );
+        }
+      }
+      // Yabancı tenderItemId
+      for (const d of decisions) {
+        if (!tenderItemIds.has(d.tenderItemId)) {
+          throw new BadRequestException(
+            "Geçersiz kalem seçimi (bu ihaleye ait olmayan kalem)",
+          );
+        }
+      }
+
+      // Decision'larda yer alan bid'leri yükle + her birinin
+      // tenderItemId üzerine teklif verip vermediğini doğrula
+      const bidIdsSet = new Set(decisions.map((d) => d.bidId));
+      const bids = await tx.bid.findMany({
+        where: {
+          id: { in: [...bidIdsSet] },
+          tenderId,
+          status: { in: ["SUBMITTED", "LOST"] },
+        },
+        include: { items: { select: { id: true, tenderItemId: true } } },
+      });
+      const bidsById = new Map(bids.map((b) => [b.id, b] as const));
+
+      for (const d of decisions) {
+        const bid = bidsById.get(d.bidId);
+        if (!bid) {
+          throw new BadRequestException(
+            "Geçersiz bid ID veya bu ihaleye ait değil",
+          );
+        }
+        const bi = bid.items.find((x) => x.tenderItemId === d.tenderItemId);
+        if (!bi) {
+          throw new BadRequestException(
+            "Seçilen tedarikçi bu kaleme teklif vermemiş",
+          );
+        }
+      }
+
+      // Eski kazanım bayraklarını sıfırla
+      await tx.bidItem.updateMany({
+        where: { bid: { tenderId } },
+        data: { isWinner: false },
+      });
+
+      // Yeni kararları işle
+      for (const d of decisions) {
+        const bid = bidsById.get(d.bidId)!;
+        const bi = bid.items.find((x) => x.tenderItemId === d.tenderItemId)!;
+        await tx.bidItem.update({
+          where: { id: bi.id },
+          data: { isWinner: true },
+        });
+      }
+
+      // Her bid için yeni status hesapla — sadece SUBMITTED/AWARDED-* arasında
+      // gezerek (LOST'a el sürmüyoruz: zaten elenmiş veya kapanışta düşmüş)
+      const livingBids = await tx.bid.findMany({
+        where: {
+          tenderId,
+          status: { in: ["SUBMITTED", "AWARDED_FULL", "AWARDED_PARTIAL"] },
+        },
+        include: { items: { select: { isWinner: true } } },
+      });
+
+      for (const bid of livingBids) {
+        const winning = bid.items.filter((bi) => bi.isWinner).length;
+        let next: BidStatus;
+        if (winning === 0) next = "SUBMITTED"; // finalize'da LOST'a düşer
+        else if (winning === tender.items.length) next = "AWARDED_FULL";
+        else next = "AWARDED_PARTIAL";
+
+        if (next !== bid.status) {
+          await tx.bid.update({ where: { id: bid.id }, data: { status: next } });
+        }
+      }
+
+      return { decisions: decisions.length };
+    });
+  }
+
+  /**
+   * Kazandırmayı tamamla — tüm SUBMITTED bid'leri LOST yap, tender → AWARDED,
+   * her kazanan bid için Order üret, e-postaları queue'la.
+   */
+  async finalizeAward(tenantId: string, tenderId: string) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const tender = await tx.tender.findUnique({
+        where: { id: tenderId },
+        include: {
+          items: { select: { id: true } },
+          tenant: { select: { name: true } },
+          createdBy: {
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+              isActive: true,
+            },
+          },
+          bids: {
+            include: {
+              supplier: {
+                select: {
+                  id: true,
+                  companyName: true,
+                  users: {
+                    where: { isActive: true },
+                    orderBy: { createdAt: "asc" },
+                    take: 1,
+                    select: {
+                      email: true,
+                      firstName: true,
+                      lastName: true,
+                    },
+                  },
+                },
+              },
+              items: {
+                select: {
+                  id: true,
+                  tenderItemId: true,
+                  unitPrice: true,
+                  totalPrice: true,
+                  isWinner: true,
+                },
+              },
+            },
+          },
+        },
+      });
+      if (!tender) throw new NotFoundException("İhale bulunamadı");
+      if (tender.tenantId !== tenantId)
+        throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+      if (tender.status !== "IN_AWARD")
+        throw new ConflictException(
+          "Sadece IN_AWARD durumundaki ihale tamamlanabilir",
+        );
+
+      const winningBids = tender.bids.filter(
+        (b) => b.status === "AWARDED_FULL" || b.status === "AWARDED_PARTIAL",
+      );
+      if (winningBids.length === 0) {
+        throw new BadRequestException(
+          "Kazandırmayı tamamlamak için en az 1 kazanan teklif olmalı",
+        );
+      }
+
+      // Tüm SUBMITTED bid'leri LOST'a düşür
+      await tx.bid.updateMany({
+        where: { tenderId, status: "SUBMITTED" },
+        data: { status: "LOST" },
+      });
+
+      // Tender → AWARDED
+      await tx.tender.update({
+        where: { id: tenderId },
+        data: { status: "AWARDED", awardedAt: new Date() },
+      });
+
+      // Her kazanan bid için Order
+      const created: Array<{
+        order: { id: string; orderNumber: string; totalAmount: Prisma.Decimal };
+        bid: typeof winningBids[number];
+        winningItemCount: number;
+      }> = [];
+
+      for (const bid of winningBids) {
+        const winningItems = bid.items.filter(
+          (bi) => bi.isWinner && bi.totalPrice != null,
+        );
+        if (winningItems.length === 0) continue;
+
+        const orderTotal = winningItems.reduce(
+          (sum, bi) => sum + Number(bi.totalPrice),
+          0,
+        );
+
+        const orderNumber = await generateOrderNumber(tx);
+        const order = await tx.order.create({
+          data: {
+            orderNumber,
+            tenantId,
+            supplierId: bid.supplierId,
+            tenderId,
+            bidId: bid.id,
+            status: "PENDING",
+            currency: bid.currency,
+            totalAmount: orderTotal,
+          },
+          select: { id: true, orderNumber: true, totalAmount: true },
+        });
+
+        created.push({
+          order,
+          bid,
+          winningItemCount: winningItems.length,
+        });
+      }
+
+      const losingBids = tender.bids.filter(
+        (b) => b.status === "LOST" && b.eliminationReason == null,
+      );
+
+      return {
+        tender,
+        winners: created,
+        losers: losingBids,
+        totalSpend: created.reduce(
+          (sum, c) => sum + Number(c.order.totalAmount),
+          0,
+        ),
+      };
+    });
+
+    // Fire-and-forget bildirimler
+    this.dispatchAwardEmails(result).catch((err) =>
+      this.logger.error(
+        `Award e-postaları başarısız (${tenderId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
+
+    return {
+      tenderStatus: "AWARDED" as const,
+      orderCount: result.winners.length,
+      orders: result.winners.map((c) => ({
+        id: c.order.id,
+        orderNumber: c.order.orderNumber,
+      })),
+    };
+  }
+
+  private async dispatchAwardEmails(payload: {
+    tender: {
+      id: string;
+      tenderNumber: string;
+      title: string;
+      primaryCurrency: string;
+      tenant: { name: string };
+      createdBy: {
+        email: string;
+        firstName: string;
+        lastName: string;
+        isActive: boolean;
+      };
+      items: Array<{ id: string }>;
+    };
+    winners: Array<{
+      order: { id: string; orderNumber: string; totalAmount: Prisma.Decimal };
+      bid: {
+        currency: string;
+        supplier: {
+          companyName: string;
+          users: Array<{
+            email: string;
+            firstName: string;
+            lastName: string;
+          }>;
+        };
+      };
+      winningItemCount: number;
+    }>;
+    losers: Array<{
+      supplier: {
+        users: Array<{
+          email: string;
+          firstName: string;
+          lastName: string;
+        }>;
+      };
+    }>;
+    totalSpend: number;
+  }) {
+    const tender = payload.tender;
+    const totalItemsCount = tender.items.length;
+    const webUrl = this.webUrl();
+    const tasks: Promise<unknown>[] = [];
+
+    // Kazananlar
+    for (const w of payload.winners) {
+      const user = w.bid.supplier.users[0];
+      if (!user) continue;
+      tasks.push(
+        this.emailQueue.enqueue({
+          to: {
+            email: user.email,
+            name: `${user.firstName} ${user.lastName}`,
+          },
+          templateData: {
+            template: "award_won_supplier",
+            data: {
+              supplierUserName: `${user.firstName} ${user.lastName}`,
+              tenantName: tender.tenant.name,
+              tenderNumber: tender.tenderNumber,
+              tenderTitle: tender.title,
+              orderNumber: w.order.orderNumber,
+              winningItemsCount: w.winningItemCount,
+              totalItemsCount,
+              isFullWin: w.winningItemCount === totalItemsCount,
+              totalAmount: Number(w.order.totalAmount),
+              currency: w.bid.currency,
+              orderUrl: `${webUrl}/supplier/siparisler/${w.order.id}`,
+            },
+          },
+          context: { type: "award_won_supplier", id: w.order.id },
+          subject: `🏆 Tebrikler! İhaleyi kazandınız: ${tender.title} — Supkeys`,
+        }),
+      );
+    }
+
+    // Kaybedenler (eliminate edilenler ZATEN haberdar — burada atlanır)
+    for (const l of payload.losers) {
+      const user = l.supplier.users[0];
+      if (!user) continue;
+      tasks.push(
+        this.emailQueue.enqueue({
+          to: {
+            email: user.email,
+            name: `${user.firstName} ${user.lastName}`,
+          },
+          templateData: {
+            template: "award_lost_supplier",
+            data: {
+              supplierUserName: `${user.firstName} ${user.lastName}`,
+              tenantName: tender.tenant.name,
+              tenderNumber: tender.tenderNumber,
+              tenderTitle: tender.title,
+              tenderUrl: `${webUrl}/supplier/ihaleler/${tender.id}`,
+            },
+          },
+          context: { type: "award_lost_supplier", id: tender.id },
+          subject: `İhale sonuçlandı: ${tender.title} — Supkeys`,
+        }),
+      );
+    }
+
+    // Alıcı özeti
+    if (tender.createdBy.isActive) {
+      tasks.push(
+        this.emailQueue.enqueue({
+          to: {
+            email: tender.createdBy.email,
+            name: `${tender.createdBy.firstName} ${tender.createdBy.lastName}`,
+          },
+          templateData: {
+            template: "award_completed_buyer",
+            data: {
+              buyerFirstName: tender.createdBy.firstName,
+              tenderNumber: tender.tenderNumber,
+              tenderTitle: tender.title,
+              totalOrders: payload.winners.length,
+              winnerCount: payload.winners.length,
+              loserCount: payload.losers.length,
+              totalSpend: payload.totalSpend,
+              currency: tender.primaryCurrency,
+              tenderUrl: `${webUrl}/dashboard/ihaleler/${tender.id}`,
+            },
+          },
+          context: { type: "award_completed_buyer", id: tender.id },
+          subject: `🎉 İhaleniz tamamlandı: ${tender.title} — Supkeys`,
+        }),
+      );
+    }
+
+    await Promise.allSettled(tasks);
+  }
+
+  /**
+   * IN_AWARD durumundaki ihaleyi kazanan olmadan kapat —
+   * tüm SUBMITTED bid'ler LOST, tender → CLOSED_NO_AWARD.
+   */
+  async closeNoAward(
+    tenantId: string,
+    tenderId: string,
+    dto: CloseNoAwardDto,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const tender = await tx.tender.findUnique({
+        where: { id: tenderId },
+        select: { id: true, tenantId: true, status: true },
+      });
+      if (!tender) throw new NotFoundException("İhale bulunamadı");
+      if (tender.tenantId !== tenantId)
+        throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+      if (tender.status !== "IN_AWARD")
+        throw new ConflictException(
+          "Sadece IN_AWARD durumundaki ihale kazansız kapatılabilir",
+        );
+
+      await tx.bid.updateMany({
+        where: { tenderId, status: "SUBMITTED" },
+        data: { status: "LOST" },
+      });
+
+      await tx.tender.update({
+        where: { id: tenderId },
+        data: {
+          status: "CLOSED_NO_AWARD",
+          cancelledAt: new Date(),
+          cancelReason: dto.reason?.trim() || null,
+        },
+      });
+
+      return { tenderStatus: "CLOSED_NO_AWARD" as const };
+    });
   }
 }

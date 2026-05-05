@@ -14,7 +14,11 @@ export type EmailTemplate =
   | "supplier_relation_established_supplier"
   | "tender_invitation"
   | "tender_closed_supplier"
-  | "tender_closed_buyer";
+  | "tender_closed_buyer"
+  | "bid_eliminated_supplier"
+  | "award_won_supplier"
+  | "award_lost_supplier"
+  | "award_completed_buyer";
 
 export type EmailProviderName = "resend" | "mailpit";
 
@@ -205,6 +209,78 @@ export interface TenderClosedBuyerData {
   tenderUrl: string;
 }
 
+/**
+ * Alıcı tedarikçinin SUBMITTED teklifini elediğinde gönderilen e-posta.
+ * `canResubmit=true` → ihale OPEN_FOR_BIDS ve kapanış geleceğe; tedarikçi
+ * yeniden teklif verebilir. Aksi halde sadece bilgilendirme.
+ */
+export interface BidEliminatedSupplierData {
+  supplierUserName: string;
+  tenantName: string;
+  tenderNumber: string;
+  tenderTitle: string;
+  /** Alıcının verdiği serbest metin (10-500 karakter). */
+  eliminationReason: string;
+  /** İhale hâlâ aktifse true → "Yeniden Teklif Ver" CTA gösterilir. */
+  canResubmit: boolean;
+  /** /supplier/ihaleler/:id mutlak URL (canResubmit=false branch) */
+  tenderUrl: string;
+  /** /supplier/ihaleler/:id/teklif-ver mutlak URL (canResubmit=true branch) */
+  submitNewBidUrl: string;
+}
+
+/**
+ * Kazandırma sonrası kazanan tedarikçiye giden e-posta.
+ * `isFullWin=true` → tüm kalemler bu tedarikçide; aksi halde kısmi kazanım.
+ */
+export interface AwardWonSupplierData {
+  supplierUserName: string;
+  tenantName: string;
+  tenderNumber: string;
+  tenderTitle: string;
+  /** ORD-YYYY-NNNN */
+  orderNumber: string;
+  winningItemsCount: number;
+  totalItemsCount: number;
+  isFullWin: boolean;
+  /** Sayısal toplam tutar (number; client TR locale ile format eder) */
+  totalAmount: number;
+  /** Currency enum string ("TRY" | "USD" | "EUR") */
+  currency: string;
+  /** /supplier/siparisler/:id mutlak URL */
+  orderUrl: string;
+}
+
+/**
+ * Kaybeden tedarikçiye gider — kazanan başka biri.
+ */
+export interface AwardLostSupplierData {
+  supplierUserName: string;
+  tenantName: string;
+  tenderNumber: string;
+  tenderTitle: string;
+  /** /supplier/ihaleler/:id mutlak URL */
+  tenderUrl: string;
+}
+
+/**
+ * Kazandırma tamamlandığında alıcıya (createdBy) giden özet e-postası.
+ */
+export interface AwardCompletedBuyerData {
+  buyerFirstName: string;
+  tenderNumber: string;
+  tenderTitle: string;
+  totalOrders: number;
+  winnerCount: number;
+  loserCount: number;
+  /** Tüm sipariş tutarları toplamı (numeric) */
+  totalSpend: number;
+  /** Currency enum string */
+  currency: string;
+  /** /dashboard/ihaleler/:id mutlak URL */
+  tenderUrl: string;
+}
+
 export type EmailTemplateData =
   | { template: "demo_request_received"; data: DemoRequestReceivedData }
   | { template: "demo_request_admin_alert"; data: DemoRequestAdminAlertData }
@@ -242,7 +318,14 @@ export type EmailTemplateData =
     }
   | { template: "tender_invitation"; data: TenderInvitationEmailData }
   | { template: "tender_closed_supplier"; data: TenderClosedSupplierData }
-  | { template: "tender_closed_buyer"; data: TenderClosedBuyerData };
+  | { template: "tender_closed_buyer"; data: TenderClosedBuyerData }
+  | {
+      template: "bid_eliminated_supplier";
+      data: BidEliminatedSupplierData;
+    }
+  | { template: "award_won_supplier"; data: AwardWonSupplierData }
+  | { template: "award_lost_supplier"; data: AwardLostSupplierData }
+  | { template: "award_completed_buyer"; data: AwardCompletedBuyerData };
 
 export interface RenderedEmail {
   subject: string;

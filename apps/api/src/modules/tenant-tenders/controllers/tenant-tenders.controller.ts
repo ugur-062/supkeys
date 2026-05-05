@@ -16,8 +16,14 @@ import {
 import { Roles } from "../../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
+import {
+  AwardFullDto,
+  AwardItemByItemDto,
+  CloseNoAwardDto,
+} from "../dto/award.dto";
 import { CancelTenderDto } from "../dto/cancel-tender.dto";
 import { CreateTenderDto } from "../dto/create-tender.dto";
+import { EliminateBidDto } from "../dto/eliminate-bid.dto";
 import { ListTendersDto } from "../dto/list-tenders.dto";
 import { UpdateTenderDto } from "../dto/update-tender.dto";
 import { TenantTendersService } from "../services/tenant-tenders.service";
@@ -127,5 +133,62 @@ export class TenantTendersController {
     @Param("id") id: string,
   ): Promise<unknown> {
     return this.service.deleteDraft(user.tenantId, id);
+  }
+
+  // ---------- E.5 — Eleme + Kazandırma ----------
+
+  @Post(":id/bids/:bidId/eliminate")
+  @UseGuards(RolesGuard)
+  @Roles("COMPANY_ADMIN")
+  eliminateBid(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Param("bidId") bidId: string,
+    @Body() dto: EliminateBidDto,
+  ): Promise<unknown> {
+    return this.service.eliminateBid(user.tenantId, id, bidId, dto.reason);
+  }
+
+  @Post(":id/award/full")
+  @UseGuards(RolesGuard)
+  @Roles("COMPANY_ADMIN")
+  awardFull(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: AwardFullDto,
+  ): Promise<unknown> {
+    return this.service.awardFull(user.tenantId, id, dto.bidId);
+  }
+
+  @Post(":id/award/item-by-item")
+  @UseGuards(RolesGuard)
+  @Roles("COMPANY_ADMIN")
+  awardItemByItem(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: AwardItemByItemDto,
+  ): Promise<unknown> {
+    return this.service.awardItemByItem(user.tenantId, id, dto.decisions);
+  }
+
+  @Post(":id/award/finalize")
+  @UseGuards(RolesGuard)
+  @Roles("COMPANY_ADMIN")
+  finalizeAward(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ): Promise<unknown> {
+    return this.service.finalizeAward(user.tenantId, id);
+  }
+
+  @Post(":id/close-no-award")
+  @UseGuards(RolesGuard)
+  @Roles("COMPANY_ADMIN")
+  closeNoAward(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: CloseNoAwardDto,
+  ): Promise<unknown> {
+    return this.service.closeNoAward(user.tenantId, id, dto);
   }
 }
