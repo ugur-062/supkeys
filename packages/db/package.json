@@ -10,11 +10,13 @@
     "migrate:deploy": "prisma migrate deploy",
     "studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
+    "cleanup-pending-relations": "tsx prisma/scripts/cleanup-pending-relations.ts",
     "format": "prisma format",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
+    "@supkeys/shared": "workspace:*",
     "bcrypt": "^5.1.1"
   },
   "devDependencies": {

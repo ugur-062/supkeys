@@ -302,6 +302,9 @@ importers:
       '@prisma/client':
         specifier: ^6.1.0
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
+      '@supkeys/shared':
+        specifier: workspace:*
+        version: link:../shared
       bcrypt:
         specifier: ^5.1.1
         version: 5.1.1

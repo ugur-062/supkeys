@@ -1,8 +1,9 @@
 "use client";
 
-import { useSupplierTenderStats } from "@/hooks/use-supplier-tenders";
+import { useSupplierDashboardStats } from "@/hooks/use-supplier-dashboard";
 import { cn } from "@/lib/utils";
 import {
+  Building2,
   FileText,
   type LucideIcon,
   Mail,
@@ -59,51 +60,119 @@ function KpiCard({
   );
 }
 
-export function SupplierKpiGrid() {
-  const stats = useSupplierTenderStats();
+function formatTRY(amount: number): string {
+  if (!Number.isFinite(amount) || amount === 0) return "₺0";
+  return amount.toLocaleString("tr-TR", {
+    style: "currency",
+    currency: "TRY",
+    maximumFractionDigits: 0,
+  });
+}
 
-  const value = (n: number | undefined) =>
+export function SupplierKpiGrid() {
+  const stats = useSupplierDashboardStats();
+
+  const valueOf = (n: number | undefined) =>
     typeof n === "number" ? String(n) : "—";
 
-  const ongoingOrders = stats.data?.ongoingOrders;
+  const activeInvitations = stats.data?.invitations.active;
+  const activeBids = stats.data?.bids.active;
   const wonTenders = stats.data?.wonTenders;
-  const submittedBids = stats.data?.submittedBids;
-  const activeInvitations = stats.data?.activeInvitations;
+  const pendingOrders = stats.data?.orders.pending;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <KpiCard
-        label="Devam Eden Siparişler"
-        value={value(ongoingOrders)}
-        hint="Aktif siparişleriniz"
-        icon={Package}
-        iconClass="bg-brand-50 text-brand-600"
-        isEmpty={ongoingOrders === undefined || ongoingOrders === 0}
-      />
-      <KpiCard
-        label="Kazandığınız İhaleler"
-        value={value(wonTenders)}
-        hint="Toplam kazanılan"
-        icon={Trophy}
-        iconClass="bg-success-50 text-success-600"
-        isEmpty={wonTenders === undefined || wonTenders === 0}
-      />
-      <KpiCard
-        label="Teklif Verdiğiniz İhaleler"
-        value={value(submittedBids)}
-        hint="Verilmiş teklif sayısı"
-        icon={FileText}
-        iconClass="bg-indigo-50 text-indigo-600"
-        isEmpty={submittedBids === undefined || submittedBids === 0}
-      />
-      <KpiCard
-        label="Davet Edildiğiniz İhaleler"
-        value={value(activeInvitations)}
-        hint="Aktif davetler"
-        icon={Mail}
-        iconClass="bg-warning-50 text-warning-600"
-        isEmpty={activeInvitations === undefined || activeInvitations === 0}
-      />
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          label="Aktif Davetler"
+          value={valueOf(activeInvitations)}
+          hint="Henüz teklif vermediğiniz açık ihaleler"
+          icon={Mail}
+          iconClass="bg-warning-50 text-warning-600"
+          isEmpty={!activeInvitations}
+        />
+        <KpiCard
+          label="Aktif Tekliflerim"
+          value={valueOf(activeBids)}
+          hint="Verilmiş ve değerlendirilen teklifler"
+          icon={FileText}
+          iconClass="bg-indigo-50 text-indigo-600"
+          isEmpty={!activeBids}
+        />
+        <KpiCard
+          label="Kazandığım İhaleler"
+          value={valueOf(wonTenders)}
+          hint="Toplam kazanım sayısı"
+          icon={Trophy}
+          iconClass="bg-success-50 text-success-600"
+          isEmpty={!wonTenders}
+        />
+        <KpiCard
+          label="Bekleyen Siparişler"
+          value={valueOf(pendingOrders)}
+          hint="Henüz kabul etmediğim siparişler"
+          icon={Package}
+          iconClass="bg-brand-50 text-brand-600"
+          isEmpty={!pendingOrders}
+        />
+      </div>
+
+      {/* Performans özeti */}
+      {stats.data ? (
+        <section className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/60 via-white to-emerald-50/40 p-6">
+          <h2 className="text-xs font-bold text-brand-900 uppercase tracking-wider mb-4">
+            Performans
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <Stat
+              label="Son 30 Gün Teklif"
+              value={String(stats.data.last30Days.bidsSubmitted)}
+              icon={FileText}
+              iconClass="text-indigo-600"
+            />
+            <Stat
+              label="Toplam Gelir"
+              value={formatTRY(stats.data.revenue.total)}
+              icon={Trophy}
+              iconClass="text-success-600"
+            />
+            <Stat
+              label="Bağlı Alıcı"
+              value={String(stats.data.buyers.active)}
+              icon={Building2}
+              iconClass="text-brand-600"
+            />
+          </div>
+        </section>
+      ) : null}
+    </>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  icon: Icon,
+  iconClass,
+}: {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+  iconClass: string;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
+        <Icon className={cn("h-5 w-5", iconClass)} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">
+          {label}
+        </p>
+        <p className="text-xl font-bold text-brand-900 tabular-nums mt-0.5">
+          {value}
+        </p>
+      </div>
     </div>
   );
 }

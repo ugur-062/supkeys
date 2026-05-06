@@ -10,9 +10,11 @@ import { EmailModule } from "./modules/email/email.module";
 import { HealthModule } from "./modules/health/health.module";
 import { RegistrationModule } from "./modules/registration/registration.module";
 import { SupplierAuthModule } from "./modules/supplier-auth/supplier-auth.module";
+import { SupplierDashboardModule } from "./modules/supplier-dashboard/supplier-dashboard.module";
 import { SupplierOrdersModule } from "./modules/supplier-orders/supplier-orders.module";
 import { SupplierSelfServiceModule } from "./modules/supplier-self-service/supplier-self-service.module";
 import { SupplierTendersModule } from "./modules/supplier-tenders/supplier-tenders.module";
+import { TenantDashboardModule } from "./modules/tenant-dashboard/tenant-dashboard.module";
 import { TenantOrdersModule } from "./modules/tenant-orders/tenant-orders.module";
 import { TenantSuppliersModule } from "./modules/tenant-suppliers/tenant-suppliers.module";
 import { TenantTendersModule } from "./modules/tenant-tenders/tenant-tenders.module";
@@ -39,6 +41,8 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     SupplierTendersModule,
     TenantOrdersModule,
     SupplierOrdersModule,
+    TenantDashboardModule,
+    SupplierDashboardModule,
     TenderSchedulerModule,
     HealthModule,
   ],
