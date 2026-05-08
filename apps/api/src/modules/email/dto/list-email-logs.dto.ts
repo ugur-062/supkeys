@@ -12,6 +12,12 @@ export enum EmailStatusDto {
   QUEUED = "QUEUED",
   SENDING = "SENDING",
   SENT = "SENT",
+  // V2-1 — Resend webhook tracking
+  DELIVERED = "DELIVERED",
+  OPENED = "OPENED",
+  CLICKED = "CLICKED",
+  BOUNCED = "BOUNCED",
+  COMPLAINED = "COMPLAINED",
   FAILED = "FAILED",
 }
 

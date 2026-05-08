@@ -8,7 +8,8 @@
     "start": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
     "typecheck": "tsc --noEmit",
-    "test:emails": "ts-node --transpile-only src/scripts/test-emails.ts"
+    "test:emails": "ts-node --transpile-only src/scripts/test-emails.ts",
+    "test:webhook": "ts-node --transpile-only src/scripts/mock-resend-events.ts"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.4",
@@ -33,6 +34,7 @@
     "puppeteer": "^24.43.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "svix": "^1.93.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {

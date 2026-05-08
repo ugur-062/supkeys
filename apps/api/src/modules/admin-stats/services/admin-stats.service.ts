@@ -35,6 +35,10 @@ export interface OverviewStats {
     sentLast24h: number;
     failedLast24h: number;
     failureRate: number;
+    // V2-1 — Resend webhook breakdown (24h)
+    deliveredLast24h: number;
+    openedLast24h: number;
+    bouncedLast24h: number;
   };
 }
 
@@ -82,6 +86,9 @@ export class AdminStatsService {
       // Emails
       emailsLast24h,
       failedEmailsLast24h,
+      deliveredEmailsLast24h,
+      openedEmailsLast24h,
+      bouncedEmailsLast24h,
     ] = await Promise.all([
       this.prisma.tenant.count(),
       this.prisma.tenant.count({
@@ -139,6 +146,16 @@ export class AdminStatsService {
       this.prisma.emailLog.count({
         where: { queuedAt: { gte: last24h }, status: "FAILED" },
       }),
+      // V2-1 — webhook breakdown
+      this.prisma.emailLog.count({
+        where: { deliveredAt: { gte: last24h } },
+      }),
+      this.prisma.emailLog.count({
+        where: { openedAt: { gte: last24h } },
+      }),
+      this.prisma.emailLog.count({
+        where: { bouncedAt: { gte: last24h } },
+      }),
     ]);
 
     return {
@@ -189,6 +206,9 @@ export class AdminStatsService {
           emailsLast24h > 0
             ? Math.round((failedEmailsLast24h / emailsLast24h) * 100)
             : 0,
+        deliveredLast24h: deliveredEmailsLast24h,
+        openedLast24h: openedEmailsLast24h,
+        bouncedLast24h: bouncedEmailsLast24h,
       },
     };
   }

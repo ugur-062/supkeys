@@ -261,7 +261,7 @@ model EmailLog {
   toName            String?
   subject           String
   provider          String
-  providerMessageId String?
+  providerMessageId String?     @unique
   status            EmailStatus @default(QUEUED)
   errorMessage      String?
   payload           Json?
@@ -269,6 +269,17 @@ model EmailLog {
   queuedAt          DateTime    @default(now())
   sentAt            DateTime?
   failedAt          DateTime?
+
+  // V2-1 — Resend webhook delivery tracking
+  deliveredAt   DateTime?
+  openedAt      DateTime?     // ilk açılma
+  clickedAt     DateTime?     // ilk tıklama
+  bouncedAt     DateTime?
+  bounceType    String?       // "hard" | "soft" | "undetermined"
+  bounceReason  String?       @db.Text
+  complainedAt  DateTime?
+
+  events        EmailEvent[]
 
   contextType String?
   contextId   String?
@@ -285,6 +296,49 @@ enum EmailStatus {
   QUEUED
   SENDING
   SENT
+  // V2-1 — Resend webhook tracking
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  COMPLAINED
+  FAILED
+}
+
+// V2-1 — Resend webhook event audit trail
+model EmailEvent {
+  id          String    @id @default(cuid())
+  emailLogId  String
+  emailLog    EmailLog  @relation(fields: [emailLogId], references: [id], onDelete: Cascade)
+
+  /// Webhook idempotency key (svix-id header). Aynı event 2 kez işlenmesin.
+  eventId     String    @unique
+  eventType   EmailEventType
+  /// Resend payload'tan gelen orijinal timestamp.
+  occurredAt  DateTime
+  payload     Json
+
+  /// CLICKED event için tıklanan link.
+  clickedUrl  String?   @db.Text
+  /// BOUNCED event için bounce detay.
+  bounceType  String?
+  bounceReason String?  @db.Text
+
+  createdAt   DateTime  @default(now())
+
+  @@index([emailLogId, occurredAt])
+  @@index([eventType])
+  @@map("email_events")
+}
+
+enum EmailEventType {
+  SENT
+  DELIVERED
+  DELIVERY_DELAYED
+  BOUNCED
+  COMPLAINED
+  OPENED
+  CLICKED
   FAILED
 }
 

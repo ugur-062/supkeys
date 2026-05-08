@@ -42,6 +42,10 @@ export interface OverviewStats {
     sentLast24h: number;
     failedLast24h: number;
     failureRate: number;
+    /** V2-1 — Resend webhook breakdown */
+    deliveredLast24h: number;
+    openedLast24h: number;
+    bouncedLast24h: number;
   };
 }
 

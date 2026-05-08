@@ -2,12 +2,24 @@
 
 import { EmailStatusBadge } from "@/components/ui/email-status-badge";
 import { useEmailLogDetail } from "@/hooks/use-email-logs";
-import { getTemplateLabel } from "@/lib/email-logs/status";
+import { EMAIL_EVENT_META, getTemplateLabel } from "@/lib/email-logs/status";
+import type { EmailEvent } from "@/lib/email-logs/types";
 import { cn } from "@/lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
 import { format, formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Loader2, X } from "lucide-react";
+import {
+  AlertOctagon,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  Mail,
+  MailOpen,
+  MousePointerClick,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 
 interface DetailDrawerProps {
   id: string | null;
@@ -152,6 +164,36 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                   </section>
                 )}
 
+                {(item.bouncedAt || item.bounceReason) && (
+                  <section className="admin-card p-4 space-y-2 border-danger-500/30">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-danger-600">
+                      Bounce
+                    </h3>
+                    <p className="text-sm text-danger-800">
+                      <strong>{item.bounceType?.toUpperCase() ?? "—"}</strong>
+                      {" — "}
+                      {item.bounceReason ?? "Sebep belirtilmemiş"}
+                    </p>
+                  </section>
+                )}
+
+                {item.events && item.events.length > 0 ? (
+                  <EventTimelineSection events={item.events} />
+                ) : (
+                  <section className="admin-card p-4">
+                    <h3 className="text-xs font-semibold uppercase tracking-wide text-admin-text-muted mb-2">
+                      Webhook Event Timeline
+                    </h3>
+                    <p className="text-xs text-admin-text-muted">
+                      Henüz event yok. Mailpit dev ortamında webhook
+                      tetiklenmiyor; production'da Resend dashboard'undan
+                      gelir veya local'de{" "}
+                      <code className="font-mono">pnpm test:webhook</code>{" "}
+                      ile mock event tetiklenebilir.
+                    </p>
+                  </section>
+                )}
+
                 <section className="admin-card p-4 space-y-2">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-admin-text-muted">
                     Payload
@@ -172,6 +214,36 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                       {formatFull(item.sentAt)}
                     </div>
                   )}
+                  {item.deliveredAt && (
+                    <div>
+                      <span className="text-admin-text">Teslim edildi:</span>{" "}
+                      {formatFull(item.deliveredAt)}
+                    </div>
+                  )}
+                  {item.openedAt && (
+                    <div>
+                      <span className="text-admin-text">İlk açılma:</span>{" "}
+                      {formatFull(item.openedAt)}
+                    </div>
+                  )}
+                  {item.clickedAt && (
+                    <div>
+                      <span className="text-admin-text">İlk tıklama:</span>{" "}
+                      {formatFull(item.clickedAt)}
+                    </div>
+                  )}
+                  {item.bouncedAt && (
+                    <div>
+                      <span className="text-admin-text">Bounce:</span>{" "}
+                      {formatFull(item.bouncedAt)}
+                    </div>
+                  )}
+                  {item.complainedAt && (
+                    <div>
+                      <span className="text-admin-text">Şikayet:</span>{" "}
+                      {formatFull(item.complainedAt)}
+                    </div>
+                  )}
                   {item.failedAt && (
                     <div>
                       <span className="text-admin-text">Başarısız:</span>{" "}
@@ -186,4 +258,80 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
       </Dialog.Portal>
     </Dialog.Root>
   );
+}
+
+/**
+ * V2-1 — Resend webhook event timeline. Her event ayrı satır; ilk SENT'ten
+ * son CLICKED/BOUNCED'a kadar zaman çizelgesi.
+ */
+function EventTimelineSection({ events }: { events: EmailEvent[] }) {
+  return (
+    <section className="admin-card p-4 space-y-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-admin-text-muted">
+        Webhook Event Timeline ({events.length})
+      </h3>
+      <ol className="space-y-3">
+        {events.map((ev) => {
+          const meta = EMAIL_EVENT_META[ev.eventType] ?? {
+            label: ev.eventType,
+            iconColor: "text-slate-500",
+            iconBg: "bg-slate-50",
+            iconBorder: "border-slate-200",
+          };
+          const Icon = pickEventIcon(ev.eventType);
+          return (
+            <li key={ev.id} className="flex gap-3">
+              <div
+                className={cn(
+                  "h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0 border",
+                  meta.iconBg,
+                  meta.iconBorder,
+                )}
+              >
+                <Icon className={cn("h-4 w-4", meta.iconColor)} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="font-semibold text-admin-text text-sm">
+                    {meta.label}
+                  </p>
+                  <span className="text-[11px] text-admin-text-muted whitespace-nowrap">
+                    {format(new Date(ev.occurredAt), "d MMM HH:mm:ss", {
+                      locale: tr,
+                    })}
+                  </span>
+                </div>
+                {ev.clickedUrl ? (
+                  <p className="text-xs text-admin-text-muted mt-1 truncate">
+                    → {ev.clickedUrl}
+                  </p>
+                ) : null}
+                {ev.bounceReason ? (
+                  <p className="text-xs text-danger-600 mt-1">
+                    {ev.bounceType ? `${ev.bounceType}: ` : ""}
+                    {ev.bounceReason}
+                  </p>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+const EVENT_ICON_MAP: Record<string, LucideIcon> = {
+  SENT: Mail,
+  DELIVERED: CheckCircle2,
+  DELIVERY_DELAYED: Clock,
+  OPENED: MailOpen,
+  CLICKED: MousePointerClick,
+  BOUNCED: AlertOctagon,
+  COMPLAINED: AlertOctagon,
+  FAILED: AlertTriangle,
+};
+
+function pickEventIcon(type: string): LucideIcon {
+  return EVENT_ICON_MAP[type] ?? Mail;
 }

@@ -240,6 +240,50 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 
 🎉 **V1 COMPLETE** — Tüm temel ihale yönetim akışları (D.1-D.2.B + E.1-E.7.D) tamamlandı.
 
+### V2-1 — Resend Webhook Entegrasyonu (E-posta Delivery Tracking)
+- **Schema migration `v2_resend_webhook_tracking`:**
+  - `EmailStatus` enum: `DELIVERED` + `OPENED` + `CLICKED` + `BOUNCED` + `COMPLAINED` eklendi (`FAILED`'dan önce — Postgres `ALTER TYPE ADD VALUE IF NOT EXISTS BEFORE 'FAILED'`).
+  - `EmailEventType` enum (yeni): SENT/DELIVERED/DELIVERY_DELAYED/BOUNCED/COMPLAINED/OPENED/CLICKED/FAILED.
+  - `email_logs` tablosuna 7 alan: `deliveredAt` + `openedAt` + `clickedAt` + `bouncedAt` + `bounceType` + `bounceReason` + `complainedAt`.
+  - `providerMessageId` partial UNIQUE index (NULL hariç) — webhook lookup için.
+  - `email_events` yeni tablo: `eventId UNIQUE` (svix-id idempotency), `eventType`, `occurredAt`, `payload Json`, `clickedUrl?`, `bounceType?`, `bounceReason?`. FK `email_logs(id) ON DELETE CASCADE`.
+- **Backend `resend-webhook` modülü** (`/api/webhooks/resend`):
+  - **`WebhookSignatureGuard`** — `svix.Webhook(secret).verify(rawBody, headers)`. Headers: `svix-id` + `svix-timestamp` + `svix-signature`. Dev'de (`NODE_ENV !== production` veya secret yok) doğrulama atlanır + warning log.
+  - **`ResendEventService.handleEvent(event, eventId)`** — 4 aşama: (1) idempotency check (`emailEvent.findUnique({eventId})`), (2) `EmailLog.findUnique({providerMessageId})` lookup, (3) event type → enum map (`email.delivered` → `DELIVERED`), (4) atomik transaction: `EmailEvent.create` + `EmailLog.update`.
+  - **Status precedence** (`canTransitionTo`): `QUEUED < SENDING < SENT < DELIVERED < OPENED < CLICKED < FAILED < BOUNCED < COMPLAINED`. Sadece "ileri" yön. Bounce/complain her zaman geçer (status'u "geri" düşürür gibi gözükse de bunlar daha ağır). DELIVERY_DELAYED status'a yansıtılmaz; sadece event timeline'a kaydedilir.
+  - `ResendWebhookController.POST /` — `@HttpCode(200)` + `@UseGuards(WebhookSignatureGuard)`. Body shape: `{ type, created_at, data: { email_id, ... } }`. svix-id zorunlu; eksikse 400.
+- **`main.ts` raw body parse** — `bodyParser: false` + `app.useBodyParser("json", { verify })` ile sadece `/api/webhooks/resend` URL'si için `req.rawBody = buf` saklanır. Diğer endpoint'ler memory'i tutmaz. svix `Webhook.verify()` rawBody string'ine ihtiyaç duyar.
+- **`EmailService` providerMessageId**: Mailpit nodemailer Message-ID döndürüyor (`<uuid@resend.dev>` formatı), Resend SDK kendi `id`'sini döndürür — her ikisinde de mevcut providerMessageId field'ına yazılıyor (V2-1 öncesinden mevcut, sadece partial UNIQUE index eklendi).
+- **`AdminEmailLogsService.findOne`**: `events` include eklendi (`orderBy: occurredAt asc`).
+- **`AdminStatsService.getOverview` `emails` shape genişletildi**: `deliveredLast24h` + `openedLast24h` + `bouncedLast24h` paralel count'ları (`deliveredAt/openedAt/bouncedAt >= last24h`).
+- **`ListEmailLogsDto.EmailStatusDto` enum** 5 yeni status (DELIVERED/OPENED/CLICKED/BOUNCED/COMPLAINED) eklendi — admin liste filtre dropdown'ında çıkar.
+- **Admin frontend:**
+  - `lib/email-logs/types.ts` — `EmailLogStatus` 5 yeni varyant + `EmailEventType` + `EmailEvent` interface + `EmailLog.events?` opsiyonel.
+  - `lib/email-logs/status.ts` — `EMAIL_STATUS_META` 5 yeni renk paleti (DELIVERED yeşil / OPENED indigo / CLICKED mor / BOUNCED kırmızı / COMPLAINED koyu kırmızı). Yeni `EMAIL_EVENT_META` event ikon/renk haritası.
+  - `email-logs/_components/detail-drawer.tsx`:
+    - Bounce kartı (varsa): `bounceType.toUpperCase()` + `bounceReason`.
+    - **`EventTimelineSection`**: her event ayrı satır — icon (Mail/CheckCircle2/MailOpen/MousePointerClick/AlertOctagon vs.) + label + occurredAt + clickedUrl (varsa) + bounce reason. Boşsa "Mailpit dev ortamında webhook tetiklenmiyor; `pnpm test:webhook`" hint'i.
+    - Tarih bölümüne 5 yeni alan: deliveredAt / openedAt / clickedAt / bouncedAt / complainedAt.
+  - **Dashboard E-posta health card** — alt bölüme 3-grid breakdown (Teslim yeşil / Açılan indigo / Bounce kırmızı) eklendi. `border-t border-surface-border` ile gönderildi/başarısız satırından ayrıldı.
+  - `useAdminStats` `OverviewStats.emails` 3 yeni alan typed.
+- **`pnpm test:webhook` mock script** (`apps/api/src/scripts/mock-resend-events.ts`):
+  - Son SENT (veya üstü) EmailLog'u bul; providerMessageId yoksa fake `re_mock_<ts>_<id6>` set et.
+  - 3 event sırayla: DELIVERED → OPENED → CLICKED.
+  - **Idempotency test**: aynı `mock_<ts>_clicked` event-id'si tekrar gönderilir, `{ status: "skipped", reason: "duplicate_event" }` beklenir.
+  - Final state log: status, deliveredAt/openedAt/clickedAt, events count + admin URL.
+  - `ts-node --transpile-only` (NestJS DI emitDecoratorMetadata gerek). package.json `test:webhook` script.
+- **Manuel E2E** (5 senaryo + DB doğrulama):
+  - Migration: `\d email_events` tablo + 9'lu enum_range + email_logs 7 yeni alan ✓
+  - `pnpm test:emails` → 30 e-posta SENT (Mailpit `<uuid@resend.dev>` format providerMessageId) ✓
+  - `pnpm test:webhook` → DELIVERED/OPENED/CLICKED 3 event işlendi, EmailLog status `CLICKED` + 3 EmailEvent ✓
+  - Idempotency: aynı eventId ikinci kez → `{ status: "skipped", reason: "duplicate_event" }` ✓
+  - Admin overview email breakdown: `delivered:1, opened:1, bounced:0, failed:0` (mock CLICKED zincirinden) ✓
+  - Admin email-logs detail: events array 3 satır, providerMessageId, deliveredAt/openedAt/clickedAt dolu ✓
+  - Webhook endpoint dev'de svix-id header eksik → 400 "svix-id header zorunlu" (guard skip ama controller seviyesi validation) ✓
+  - typecheck (api+web+admin+email+shared+db) tüm yeşil ✓
+
+> **Production'a geçiş**: Resend dashboard → Webhooks → URL `https://api.supkeys.com/api/webhooks/resend` + `RESEND_WEBHOOK_SECRET=whsec_...` env'e set edilecek. `NODE_ENV=production` ile guard tam svix imza doğrulamasına geçer; eksik secret 401 döner.
+
 ### Polish-3 — UX Hijyeni (Form Hatası TR + Interceptor + Mobile + E-posta QA)
 - **Backend `common/error-messages.ts`** — TR doğrulama sözlüğü (`VALIDATION_MESSAGES` REQUIRED/EMAIL_INVALID/STRING_MIN(n)/NUMBER_MIN(n) vs + `BUSINESS_MESSAGES` NOT_FOUND/FORBIDDEN/CONFLICT vs) + **`translateValidatorMessage`** helper: class-validator İngilizce default mesajlarını regex pattern matching ile TR'ye çevirir. "longer than or equal to N" / "must be one of the following values" / "property X should not exist" gibi 15+ pattern.
 - **Backend `main.ts` ValidationPipe `exceptionFactory`** — `BadRequestException({ statusCode:400, error, message:"Doğrulama hatası", errors: { field: msg } })` structured response. Children dahil recursive collect; class-validator constraint'lerin ilk mesajı TR'ye çevrilir.

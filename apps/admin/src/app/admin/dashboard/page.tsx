@@ -313,6 +313,35 @@ function HealthRow({ overview }: { overview: OverviewStats }) {
             {failureRate}%)
           </div>
         ) : null}
+
+        {/* V2-1 — Resend webhook breakdown */}
+        <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-surface-border text-xs">
+          <div>
+            <p className="text-success-700 font-bold text-base">
+              {overview.emails.deliveredLast24h}
+            </p>
+            <p className="text-admin-text-muted">Teslim</p>
+          </div>
+          <div>
+            <p className="text-indigo-700 font-bold text-base">
+              {overview.emails.openedLast24h}
+            </p>
+            <p className="text-admin-text-muted">Açılan</p>
+          </div>
+          <div>
+            <p
+              className={cn(
+                "font-bold text-base",
+                overview.emails.bouncedLast24h > 0
+                  ? "text-danger-700"
+                  : "text-admin-text-muted",
+              )}
+            >
+              {overview.emails.bouncedLast24h}
+            </p>
+            <p className="text-admin-text-muted">Bounce</p>
+          </div>
+        </div>
       </div>
     </div>
   );

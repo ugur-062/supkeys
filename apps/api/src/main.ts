@@ -10,12 +10,34 @@ import { translateValidatorMessage } from "./common/error-messages";
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
+    /**
+     * V2-1 — Resend webhook svix signature verification için raw body gerekir.
+     * `rawBody: true` ile Nest, body parser tarafından buffer'ı `request.rawBody`'de
+     * saklar. Aşağıda webhook endpoint'i için raw verifier eklenir.
+     */
+    rawBody: true,
   });
   const config = app.get(ConfigService);
 
   // Vergi levhası + tender attachment base64 payload'ları için yüksek limit
   // (MinIO V2'ye geçince düşürülür). Default 100kb yetersiz.
-  app.useBodyParser("json", { limit: "25mb" });
+  app.useBodyParser("json", {
+    limit: "25mb",
+    /**
+     * Sadece `/api/webhooks/resend` için raw body sakla (svix verify gerekli).
+     * Diğer endpoint'ler için memory'i tutmuyoruz.
+     */
+    verify: (
+      req: { rawBody?: Buffer; url?: string },
+      _res: unknown,
+      buf: Buffer,
+    ) => {
+      const url = req.url ?? "";
+      if (url === "/api/webhooks/resend" || url.startsWith("/webhooks/resend")) {
+        req.rawBody = buf;
+      }
+    },
+  });
   app.useBodyParser("urlencoded", { limit: "25mb", extended: true });
 
   app.setGlobalPrefix("api");

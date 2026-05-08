@@ -43,7 +43,13 @@ export class AdminEmailLogsService {
   }
 
   async findOne(id: string) {
-    const log = await this.prisma.emailLog.findUnique({ where: { id } });
+    const log = await this.prisma.emailLog.findUnique({
+      where: { id },
+      // V2-1 — webhook event timeline'ı detayda göster
+      include: {
+        events: { orderBy: { occurredAt: "asc" } },
+      },
+    });
     if (!log) {
       throw new NotFoundException("E-posta logu bulunamadı");
     }
