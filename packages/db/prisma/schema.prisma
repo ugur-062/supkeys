@@ -981,6 +981,9 @@ model ApprovalRequest {
   startedAt       DateTime @default(now())
   completedAt     DateTime?
 
+  // V1.5 Oturum 2 — onay reminder cron idempotency
+  lastReminderAt  DateTime?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   useCancelOrder,
   useCompleteOrder,
+  useDownloadTenantOrderPdf,
   useOrderDetail,
 } from "@/hooks/use-tenant-orders";
 import type { OrderDetail } from "@/lib/tenders/types";
@@ -23,6 +24,7 @@ import {
   ChevronRight,
   Clock,
   Download,
+  FileDown,
   FileText,
   Loader2,
   Package,
@@ -282,6 +284,8 @@ function Breadcrumb({ orderNumber }: { orderNumber: string }) {
 }
 
 function Header({ order }: { order: OrderDetail }) {
+  const downloadPdf = useDownloadTenantOrderPdf();
+
   return (
     <div className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/60 via-white to-indigo-50/40 p-6">
       <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -306,6 +310,28 @@ function Header({ order }: { order: OrderDetail }) {
               </span>
             </div>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              downloadPdf.mutate(
+                { id: order.id, orderNumber: order.orderNumber },
+                {
+                  onSuccess: () => toast.success("PDF indirildi"),
+                  onError: (err) =>
+                    toast.error(getErrorMessage(err, "PDF indirilemedi")),
+                },
+              )
+            }
+            loading={downloadPdf.isPending}
+            disabled={downloadPdf.isPending}
+          >
+            <FileDown className="w-4 h-4" />
+            PDF İndir
+          </Button>
         </div>
       </div>
     </div>

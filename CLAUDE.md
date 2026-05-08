@@ -240,6 +240,61 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 
 🎉 **V1 COMPLETE** — Tüm temel ihale yönetim akışları (D.1-D.2.B + E.1-E.7.D) tamamlandı.
 
+### V1.5 Oturum 2 — Sipariş PDF Export + Onay Reminder Cron + Data Cleanup
+- **Schema migration `v15_approval_reminder_field`:** `ApprovalRequest.lastReminderAt DateTime?` eklendi (idempotency için — son reminder gönderim zamanı). Manuel SQL.
+- **Puppeteer kurulumu:** `puppeteer@24` apps/api'ye eklendi. `chrome-headless-shell` + `chrome` browsers `~/.cache/puppeteer/`'a indirildi (~170MB+). Production Docker image'ı için `chromium` + libnspr3/libgbm/libnss3 bağımlılıkları gerek (V2 hosting'de Alpine + chromium image).
+- **Backend `pdf` modülü** (`@Global` — tüm app'te tek browser instance):
+  - `PdfService onModuleInit` — sessiz lazy launch, hata olursa `Puppeteer init deferred` warning + ilk `generatePdfFromHtml` çağrısında tekrar dener (`ensureBrowser`). `--no-sandbox --disable-dev-shm-usage --disable-gpu` args.
+  - `generatePdfFromHtml(html, options)` — `page.setContent(networkidle0, 30s timeout)` + `page.pdf({format: A4, margin: 0, printBackground: true})`. Buffer döner.
+  - `onModuleDestroy` — graceful close.
+- **Backend `order-pdf` modülü** (shared, tenant + supplier order modüllerinde import):
+  - `OrderPdfService.generateOrderPdf(orderId, scope)` — order'ı tüm ilişkilerle çeker (tenant/supplier/tender/bid+winningItems/supplier.users[0]). `scope.tenantId || scope.supplierId` kontrolü 403 attığı için cross-tenant izolasyonu garantili.
+  - **Snapshot fallback pattern:** `tender.billingAddressSnapshot` varsa buyer için kullanır (tax info dahil), yoksa `tenant`'tan formatlar. `deliveryAddressSnapshot` varsa, yoksa `tender.deliveryAddress` text fallback.
+  - **Items hesabı:** `bid.items` `isWinner=true`, `awardedQuantity ?? tenderItem.quantity` × `unitPrice` = `totalPrice`. KDV %20 sabit (V1.5), `subtotal + vatAmount = total`.
+  - Status TR label sabit map (`PENDING/IN_DELIVERY/COMPLETED/CANCELLED + legacy`).
+- **Order PDF HTML template** (`pdf/templates/order-pdf.template.ts`):
+  - A4 page, brand-blue gradient header (`#2563eb→#1e40af`), supkeys logo + sub-tagline, sağ üstte sipariş no + status pill.
+  - 4 ana bölüm: Sipariş Bilgileri (tarih/ihale ref/title/tahmini teslim) + Teslimat Adresi (snapshot pre-line) + 2 info card (Alıcı/Tedarikçi: VKN/vergi dairesi/adres/iletişim) + Kalemler tablosu (#/Ürün+desc/Miktar/Birim/Birim Fiyat/Toplam) + Totals box (Ara Toplam / KDV %20 / Genel Toplam).
+  - Notlar bölümü (varsa Teklif Notu + Teslimat Notu — yellow `#fef3c7` callout).
+  - **2 imza kutusu** (Alıcı + Tedarikçi şirket adı + dashed `İmza & Tarih` placeholder).
+  - Footer "Bu belge supkeys.com üzerinden ... oluşturulmuştur".
+  - HTML escape utility (XSS koruması: `&<>"'` → entity).
+- **Endpoint'ler:**
+  - `GET /tenants/me/orders/:id/pdf` — `Res()` express response, `Content-Type: application/pdf`, `Content-Disposition: attachment; filename="Siparis-ORD-2026-XXXX.pdf"`.
+  - `GET /supplier/orders/:id/pdf` — supplier scope, aynı filename.
+- **Frontend hook'lar:**
+  - `useDownloadTenantOrderPdf` (use-tenant-orders.ts) — `api.get(path, {responseType:'blob'})` + `URL.createObjectURL` + `<a download>` trigger.
+  - `useDownloadSupplierOrderPdf` (use-supplier-orders.ts) — `supplierApi` instance.
+  - Helper `triggerBrowserDownload(blob, filename)` ortak download flow.
+- **Frontend "PDF İndir" butonları:**
+  - Tenant order detay header — sağ köşede `Button variant="secondary"` `FileDown` icon. Loading state `loading={isPending}`. Toast success/error.
+  - Supplier order detay header — aynı buton, supplier hook + supplier api.
+- **Backend `ApprovalReminderService`:**
+  - `@Cron("0 9 * * *", { timeZone: "Europe/Istanbul" })` — her gün İstanbul saati 09:00.
+  - `sendReminders()`: `status=PENDING` + `startedAt < now-3d` + (`lastReminderAt IS NULL` OR `lastReminderAt < now-3d`) filtresi. Batch 50.
+  - Her stale request için ilk PENDING step'i çek + approver `isActive` kontrol → pasifse atla (fallback cron ilgilenir). `approval_reminder` e-posta gönder + `lastReminderAt` güncelle. Başarısızsa skip count, error log.
+  - `daysWaiting = floor((now - startedAt) / DAY_MS)` — minimum 1.
+  - `POST /tenants/me/approval-requests/trigger-reminders` (RolesGuard COMPANY_ADMIN) — manuel test/operasyonel tetikleme. `{sent, skipped}` döner.
+- **E-posta `approval_reminder`** (yeni, 4. approval template):
+  - Subject: `⏰ Onay hatırlatma: {tenderTitle} ({daysWaiting} gündür bekliyor)`.
+  - Yellow summary box (`#fffbeb` border `#fde68a`): `{APR no} · {daysWaiting} gündür bekliyor` + tenderTitle + `{tenderNumber} · {flowName}` + `{amount} {currency}` (display font 22px).
+  - Footer info: "Bu hatırlatma 3 gün içinde cevap verilmediği için otomatik gönderildi. 3 gün sonra tekrar hatırlatılacak."
+- **DB cleanup script `v15-cleanup`** (`packages/db/prisma/scripts/v15-cleanup.ts`):
+  - PENDING_TENANT_APPROVAL → ACTIVE (defansif).
+  - `userInvitation.expiresAt < now` AND `status=PENDING` → `EXPIRED`.
+  - 30+ gün önce FAILED EmailLog count raporlaması (silinmez).
+  - `package.json` script: `pnpm --filter @supkeys/db v15-cleanup`.
+- **Manuel E2E doğrulama:**
+  - cleanup script: 0 PENDING + 0 expired + 0 old failed (boş ortam) ✓
+  - cleanup script: test expired invitation ekle → 1 expired UserInvitation marked EXPIRED ✓
+  - reminder cron: 25K tender publish → IN_APPROVAL + APR-2026-0001 → startedAt=now-4d → manuel trigger → `sent:1` + `approval_reminder` email SENT (subject: "⏰ Onay hatırlatma... (4 gündür bekliyor)") + `lastReminderAt` set ✓
+  - reminder idempotency: tekrar trigger → `sent:0` (lastReminderAt yeni) ✓
+  - reminder re-reminder: lastReminderAt=now-4d → trigger → `sent:1` (tekrar gönderildi) ✓
+  - PDF endpoints mounted (`/api/tenants/me/orders/:id/pdf` + `/api/supplier/orders/:id/pdf`) ✓
+  - PDF endpoint auth/scope: yok-id → 404 "Sipariş bulunamadı" ✓
+  - **Puppeteer Chromium runtime smoke test WSL host'ta libnspr4 bağımlılığı eksik** — `Puppeteer init deferred` warning. Çalıştırmak için: `sudo apt-get install -y libnss3 libnspr4 libgbm1 libgtk-3-0 libxcomposite1 libxdamage1 libxrandr2 libasound2t64 libatk-bridge2.0-0t64 libxkbcommon0 libpango-1.0-0 libcairo2 fonts-liberation libxshmfence1`. Production Docker image'ında pre-installed.
+  - typecheck (api+web+admin+email+shared+db) tümü yeşil ✓
+
 ### V1.5 Oturum 1 — Sipariş Workflow + Approver Fallback
 - **Schema migration `v15_order_status_workflow`:** `OrderStatus` enum'una `IN_DELIVERY` eklendi (PENDING'den sonra; legacy ACCEPTED/IN_PROGRESS/DELIVERED reserved). `Order`'a workflow alanları: `deliveryStartedAt`, `deliveryStartedById` + `deliveryStartedBy User?` relation, `deliveryNote @db.Text`, `expectedDeliveryDate`, `completedAt`, `completedById` + `completedBy User?` relation, `completedNote @db.Text`, `cancelledAt`, `cancelledById` + `cancelledBy User?` relation, `cancelReason @db.Text`. User'a 3 yeni reverse relation. FK constraints `users(id)` `ON DELETE SET NULL`.
 - **Backend tenant-orders genişletildi** (`/tenants/me/orders`):
@@ -293,12 +348,10 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 ## Bekleyen — V1.5 / V2 / V3
 
 ### V1.5 (kısa vadeli)
-- Sipariş PDF export (Puppeteer veya React-PDF)
-- Onay reminder e-postası (X gün PENDING ise hatırlatma)
+- Hosting / production setup (Coolify + Hetzner, Docker image with Chromium pre-installed for PDF)
 - Sipariş üzerinde mesajlaşma (V2 olabilir)
 - Sipariş listesi gelişmiş filtreleme/arama
 - Admin dashboard KPI'ları (demo + buyer + supplier stats agregasyonu)
-- PENDING_TENANT_APPROVAL data cleanup (E.6 script güncel mi?)
 
 ### V2 (orta vadeli)
 - TCMB API + döviz kuru dönüşümü (çoklu para birimi karşılaştırması)

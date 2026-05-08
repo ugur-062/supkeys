@@ -23,6 +23,7 @@ export type EmailTemplate =
   | "approval_required"
   | "approval_approved"
   | "approval_rejected"
+  | "approval_reminder"
   | "order_status_changed";
 
 export type EmailProviderName = "resend" | "mailpit";
@@ -346,6 +347,24 @@ export interface ApprovalApprovedData {
 }
 
 /**
+ * V1.5 — 3+ gün PENDING kalan approval request için bekleyen approver'a hatırlatma.
+ */
+export interface ApprovalReminderData {
+  approverFirstName: string;
+  approvalNumber: string;
+  tenderNumber: string;
+  tenderTitle: string;
+  initiatorName: string;
+  flowName: string;
+  amount: number;
+  currency: string;
+  approvalType: ApprovalEmailType;
+  /** /dashboard/onay-bekleyenler/:id mutlak URL */
+  approvalUrl: string;
+  daysWaiting: number;
+}
+
+/**
  * Bir onay adımı reddedildiğinde başlatıcıya gider.
  */
 export interface ApprovalRejectedData {
@@ -410,6 +429,7 @@ export type EmailTemplateData =
   | { template: "approval_required"; data: ApprovalRequiredData }
   | { template: "approval_approved"; data: ApprovalApprovedData }
   | { template: "approval_rejected"; data: ApprovalRejectedData }
+  | { template: "approval_reminder"; data: ApprovalReminderData }
   | { template: "order_status_changed"; data: OrderStatusChangedData };
 
 /**

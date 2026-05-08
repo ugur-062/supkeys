@@ -112,6 +112,11 @@ import {
   renderApprovalRejectedText,
 } from "./templates/approval-rejected";
 import {
+  ApprovalReminderEmail,
+  makeApprovalReminderSubject,
+  renderApprovalReminderText,
+} from "./templates/approval-reminder";
+import {
   OrderStatusChangedEmail,
   makeOrderStatusChangedSubject,
   renderOrderStatusChangedText,
@@ -417,6 +422,20 @@ export async function renderEmail(
         ),
         html,
         text: renderOrderStatusChangedText(spec.data),
+      };
+    }
+
+    case "approval_reminder": {
+      const html = await render(
+        React.createElement(ApprovalReminderEmail, spec.data),
+      );
+      return {
+        subject: makeApprovalReminderSubject(
+          spec.data.tenderTitle,
+          spec.data.daysWaiting,
+        ),
+        html,
+        text: renderApprovalReminderText(spec.data),
       };
     }
 

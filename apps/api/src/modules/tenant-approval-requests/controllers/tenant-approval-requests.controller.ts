@@ -11,16 +11,22 @@ import {
   CurrentUser,
   type AuthenticatedUser,
 } from "../../../common/decorators/current-user.decorator";
+import { Roles } from "../../../common/decorators/roles.decorator";
+import { RolesGuard } from "../../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { CancelRequestDto } from "../dto/cancel-request.dto";
 import { DecideStepDto } from "../dto/decide-step.dto";
 import { ListApprovalRequestsDto } from "../dto/list-approval-requests.dto";
+import { ApprovalReminderService } from "../services/approval-reminder.service";
 import { TenantApprovalRequestsService } from "../services/tenant-approval-requests.service";
 
 @Controller("tenants/me/approval-requests")
 @UseGuards(JwtAuthGuard)
 export class TenantApprovalRequestsController {
-  constructor(private readonly service: TenantApprovalRequestsService) {}
+  constructor(
+    private readonly service: TenantApprovalRequestsService,
+    private readonly reminders: ApprovalReminderService,
+  ) {}
 
   @Get()
   list(
@@ -35,6 +41,18 @@ export class TenantApprovalRequestsController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ count: number }> {
     return this.service.getPendingCount(user.tenantId, user.id);
+  }
+
+  /**
+   * V1.5 Oturum 2 — Manuel reminder cron tetikleme. COMPANY_ADMIN-only.
+   * Production'da cron her gün 09:00 İstanbul'da otomatik çalışır; bu endpoint
+   * tüm tenant'ları tarayan global bir tetikleyicidir (test/operasyonel).
+   */
+  @Post("trigger-reminders")
+  @UseGuards(RolesGuard)
+  @Roles("COMPANY_ADMIN")
+  triggerReminders(): Promise<{ sent: number; skipped: number }> {
+    return this.reminders.sendReminders();
   }
 
   @Get(":id")

@@ -11,6 +11,7 @@
     "studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
     "cleanup-pending-relations": "tsx prisma/scripts/cleanup-pending-relations.ts",
+    "v15-cleanup": "tsx prisma/scripts/v15-cleanup.ts",
     "format": "prisma format",
     "typecheck": "tsc --noEmit"
   },

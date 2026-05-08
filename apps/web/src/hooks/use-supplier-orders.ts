@@ -65,6 +65,30 @@ export function useSupplierOrderDetail(id: string | null) {
   });
 }
 
+// V1.5 — PDF download (supplier scope)
+
+export function useDownloadSupplierOrderPdf() {
+  return useMutation({
+    mutationFn: async (input: { id: string; orderNumber: string }) => {
+      const response = await supplierApi.get(
+        `/supplier/orders/${input.id}/pdf`,
+        { responseType: "blob" },
+      );
+      const blob = new Blob([response.data as BlobPart], {
+        type: "application/pdf",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Siparis-${input.orderNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    },
+  });
+}
+
 // V1.5 — Tedarikçi PENDING → IN_DELIVERY mutation
 
 export function useStartDelivery() {

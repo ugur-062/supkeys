@@ -17,6 +17,8 @@ import { SupplierOrdersModule } from "./modules/supplier-orders/supplier-orders.
 import { SupplierSelfServiceModule } from "./modules/supplier-self-service/supplier-self-service.module";
 import { SupplierTendersModule } from "./modules/supplier-tenders/supplier-tenders.module";
 import { TenantAddressesModule } from "./modules/tenant-addresses/tenant-addresses.module";
+import { OrderPdfModule } from "./modules/order-pdf/order-pdf.module";
+import { PdfModule } from "./modules/pdf/pdf.module";
 import { TenantApprovalFlowsModule } from "./modules/tenant-approval-flows/tenant-approval-flows.module";
 import { TenantApprovalRequestsModule } from "./modules/tenant-approval-requests/tenant-approval-requests.module";
 import { TenantDashboardModule } from "./modules/tenant-dashboard/tenant-dashboard.module";
@@ -34,6 +36,8 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     }),
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
+    PdfModule,
+    OrderPdfModule,
     PrismaModule,
     AuthModule,
     AdminAuthModule,

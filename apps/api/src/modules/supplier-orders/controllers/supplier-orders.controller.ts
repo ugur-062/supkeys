@@ -5,8 +5,11 @@ import {
   Param,
   Post,
   Query,
+  Res,
   UseGuards,
 } from "@nestjs/common";
+import type { Response } from "express";
+import { OrderPdfService } from "../../order-pdf/order-pdf.service";
 import {
   CurrentSupplierUser,
   type AuthenticatedSupplierUser,
@@ -19,7 +22,10 @@ import { SupplierOrdersService } from "../services/supplier-orders.service";
 @Controller("supplier/orders")
 @UseGuards(SupplierJwtAuthGuard)
 export class SupplierOrdersController {
-  constructor(private readonly service: SupplierOrdersService) {}
+  constructor(
+    private readonly service: SupplierOrdersService,
+    private readonly orderPdf: OrderPdfService,
+  ) {}
 
   @Get()
   list(
@@ -56,5 +62,23 @@ export class SupplierOrdersController {
       user.supplierUserId,
       dto,
     );
+  }
+
+  @Get(":id/pdf")
+  async downloadPdf(
+    @Param("id") id: string,
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+    @Res() res: Response,
+  ): Promise<void> {
+    const { buffer, filename } = await this.orderPdf.generateOrderPdf(id, {
+      supplierId: user.supplierId,
+    });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${filename}"`,
+    );
+    res.setHeader("Content-Length", buffer.length);
+    res.end(buffer);
   }
 }

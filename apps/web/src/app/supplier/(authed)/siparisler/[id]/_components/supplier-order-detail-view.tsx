@@ -5,6 +5,7 @@ import { StartDeliveryModal } from "@/components/orders/start-delivery-modal";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
 import { Button } from "@/components/ui/button";
 import {
+  useDownloadSupplierOrderPdf,
   useStartDelivery,
   useSupplierOrderDetail,
 } from "@/hooks/use-supplier-orders";
@@ -19,6 +20,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock,
+  FileDown,
   Loader2,
   Package,
   Truck,
@@ -94,6 +96,7 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
   const order = query.data;
   const winningCount = order.bid.items.length;
   const totalItems = order.tender.items.length;
+  const downloadPdf = useDownloadSupplierOrderPdf();
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -133,6 +136,25 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
               </span>
             </div>
           </div>
+
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              downloadPdf.mutate(
+                { id: order.id, orderNumber: order.orderNumber },
+                {
+                  onSuccess: () => toast.success("PDF indirildi"),
+                  onError: () => toast.error("PDF indirilemedi"),
+                },
+              )
+            }
+            loading={downloadPdf.isPending}
+            disabled={downloadPdf.isPending}
+          >
+            <FileDown className="w-4 h-4" />
+            PDF İndir
+          </Button>
         </div>
       </div>
 

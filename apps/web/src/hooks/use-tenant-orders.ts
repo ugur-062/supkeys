@@ -62,6 +62,34 @@ export function useOrderDetail(id: string | null) {
   });
 }
 
+// V1.5 — PDF download (tenant scope)
+
+function triggerBrowserDownload(blobData: BlobPart, filename: string): void {
+  const blob = new Blob([blobData], { type: "application/pdf" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}
+
+export function useDownloadTenantOrderPdf() {
+  return useMutation({
+    mutationFn: async (input: { id: string; orderNumber: string }) => {
+      const response = await api.get(`/tenants/me/orders/${input.id}/pdf`, {
+        responseType: "blob",
+      });
+      triggerBrowserDownload(
+        response.data as BlobPart,
+        `Siparis-${input.orderNumber}.pdf`,
+      );
+    },
+  });
+}
+
 // V1.5 — Order workflow mutations
 
 export function useCompleteOrder() {

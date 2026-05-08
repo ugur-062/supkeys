@@ -36,6 +36,7 @@ export type {
   ApprovalRequiredData,
   ApprovalApprovedData,
   ApprovalRejectedData,
+  ApprovalReminderData,
   OrderStatusChange,
   OrderStatusChangedData,
 } from "./types";
