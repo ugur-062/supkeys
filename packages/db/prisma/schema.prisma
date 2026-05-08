@@ -40,6 +40,7 @@ model Tenant {
   orders               Order[]
   userInvitations      UserInvitation[]
   addresses            TenantAddress[]
+  approvalFlows        ApprovalFlow[]
 
   @@map("tenants")
 }
@@ -118,6 +119,11 @@ model User {
   sentSupplierInvitations SupplierInvitation[]
   tendersCreated          Tender[]                  @relation("TendersCreated")
   sentUserInvitations     UserInvitation[]          @relation("UserInvitationInviter")
+
+  // E.7.C — onay akışı reverse relations
+  createdApprovalFlows ApprovalFlow[]            @relation("ApprovalFlowCreatedBy")
+  initiatorOfFlows     ApprovalFlowInitiator[]   @relation("ApprovalFlowInitiatorUser")
+  approverOfFlows      ApprovalFlowStep[]        @relation("ApprovalFlowStepApprover")
 
   @@index([tenantId])
   @@map("users")
@@ -827,4 +833,82 @@ model Order {
   @@index([tenantId, status])
   @@index([supplierId, status])
   @@map("orders")
+}
+
+// ============================================================
+// APPROVAL FLOW MODULE — Aşama E.7.C (config only; runtime E.7.D'de)
+// ============================================================
+
+model ApprovalFlow {
+  id           String              @id @default(cuid())
+  tenantId     String
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  flowNumber   Int                 // tenant-wide counter, 10001+
+  name         String
+  description  String?
+  type         ApprovalFlowType
+  status       ApprovalFlowStatus  @default(DRAFT)
+
+  createdById  String
+  createdBy    User                @relation("ApprovalFlowCreatedBy", fields: [createdById], references: [id])
+
+  initiators   ApprovalFlowInitiator[]
+  steps        ApprovalFlowStep[]
+
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([tenantId, flowNumber])
+  @@index([tenantId, type, status])
+  @@index([tenantId, status])
+  @@map("approval_flows")
+}
+
+model ApprovalFlowInitiator {
+  id        String       @id @default(cuid())
+  flowId    String
+  flow      ApprovalFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation("ApprovalFlowInitiatorUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime     @default(now())
+
+  @@unique([flowId, userId])
+  @@index([userId])
+  @@map("approval_flow_initiators")
+}
+
+model ApprovalFlowStep {
+  id                 String       @id @default(cuid())
+  flowId             String
+  flow               ApprovalFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  orderIndex         Int          // 1, 2, 3 — sıralı onay
+  approverUserId     String
+  approver           User         @relation("ApprovalFlowStepApprover", fields: [approverUserId], references: [id], onDelete: Cascade)
+
+  // Bütçe eşiği — null = her zaman aktif; değer = X ve üstü tutarlarda devreye girer
+  conditionMinAmount Decimal?     @db.Decimal(20, 2)
+  conditionCurrency  String?      @default("TRY")
+
+  // Diagram'da gösterilecek soft etiket (örn "Satınalma Müdürü")
+  displayLabel       String?
+
+  createdAt          DateTime     @default(now())
+
+  @@unique([flowId, orderIndex])
+  @@index([approverUserId])
+  @@map("approval_flow_steps")
+}
+
+enum ApprovalFlowType {
+  TENDER_PUBLISH
+  TENDER_AWARD
+}
+
+enum ApprovalFlowStatus {
+  DRAFT
+  ACTIVE
+  PASSIVE
 }

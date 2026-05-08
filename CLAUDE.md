@@ -174,12 +174,37 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
   - Yokolan adres ID → 404 ✓
   - Cross-token: supplier token → /addresses → 401 ✓
 
+### E.7.C — Onay Akışı Konfigürasyonu (CRUD-only; runtime E.7.D'de)
+- **Schema migration `e7c_approval_flow_config`:** `ApprovalFlow` (flowNumber tenant-wide 10001+, type/status, createdBy) + `ApprovalFlowInitiator` (M2M user) + `ApprovalFlowStep` (orderIndex/approver/conditionMinAmount Decimal/conditionCurrency/displayLabel) + `ApprovalFlowType` enum (TENDER_PUBLISH/TENDER_AWARD) + `ApprovalFlowStatus` enum (DRAFT/ACTIVE/PASSIVE). User'a 3 reverse relation. Tenant'a `approvalFlows` back-relation. Manuel SQL.
+- **Backend `tenant-approval-flows` modülü** (`/tenants/me/approval-flows`):
+  - `GET /` (filters: type, status), `GET /:id`. include shape: `createdBy + initiators.user + steps.approver` (orderIndex asc).
+  - `POST /` (COMPANY_ADMIN-only): tenant-wide flowNumber counter (`10001+`), `validateFlowConfig` (private): initiators ⊂ {COMPANY_ADMIN, BUYER} (APPROVER 400), approvers ⊂ {COMPANY_ADMIN, APPROVER} (BUYER 400), orderIndex 1..N sıralı + unique, monoton `conditionMinAmount` (her sıralı adım eşiği önceki adımdan büyük). **1-active-per-type kuralı:** ACTIVE oluşturulurken aynı tipteki diğer ACTIVE'ler atomik olarak PASSIVE'e çevrilir.
+  - `PATCH /:id` (full-replace initiators+steps if sent), `PATCH /:id/status` (atomik PASSIVE→ACTIVE swap), `POST /:id/duplicate` (DRAFT + " (Kopya)" suffix), `DELETE /:id` (V1: hard delete; E.7.D'de ApprovalRequest count check eklenecek).
+- **Frontend ayarlar 7. kart `Workflow` "Onay Akışları"** admin-only (Firma Tercihleri ↔ Bildirim Tercihleri arası).
+- **Frontend `/dashboard/ayarlar/onay-akislari` (liste):** header + arama + tablo (No / Akış Adı / Tür pill / Durum dot+label / Adım sayısı / Oluşturan / Son Güncelleme / 3-nokta menü). Empty state. Menü aksiyonları: Görüntüle/Düzenle, Aktif/Pasif Et, Kopyala, Sil. Admin-only guard + window.confirm delete.
+- **Frontend `/onay-akislari/yeni` 3-step wizard:**
+  - **Step 1 (FlowInfo):** 4'lü grid type radio cards — TENDER_PUBLISH/TENDER_AWARD aktif, ORDER/PURCHASE_REQUEST disabled "YAKINDA · V2" pill. Ad (2-100) + açıklama (0-500).
+  - **Step 2 (Steps):** PratisPro Resim 5 stili horizontal diagram — `Süreç Başlatıcılar` blue bordered card + `Adım N` purple bordered cards arrow ile bağlı + dashed `Yeni Adım Ekle` card. `InitiatorPickerModal` (multi-select, search, role pill, BUYER/COMPANY_ADMIN listede). `StepEditorModal` (approver select, opsiyonel etiket, opsiyonel bütçe eşiği TRY only V1, monoton frontend kontrolü + toast). Adım silme + reindex 1..N.
+  - **Step 3 (Summary):** type pill + ad + açıklama + initiators chip listesi + numbered step listesi (label + approver + condition). 2 CTA: `Taslak Olarak Kaydet` + `Aktif Olarak Kaydet` (success-yeşil).
+- **Frontend `/onay-akislari/[id]` detail:** Read-only 3-section view (initiators + steps + meta). 4 aksiyon butonu: `Düzenle` (in-place wizard mode="edit", aynı `ApprovalFlowWizard` component prefilled draft ile), `Aktif/Pasif Yap`, `Kopyala`, `Sil`. `useApprovalFlow` hook detail fetch (404 → error card + back link).
+- **Hooks** (`use-approval-flows.ts`): `useApprovalFlows` (filters), `useApprovalFlow` (id), `useCreateApprovalFlow`, `useUpdateApprovalFlow`, `useChangeApprovalFlowStatus`, `useDuplicateApprovalFlow`, `useDeleteApprovalFlow`. Tüm mutation'lar success'te `KEYS.all` invalidate.
+- **Manuel E2E doğrulama** (10 test):
+  - Liste boş başlangıç ✓
+  - Create (flowNumber 10001, 2 step, ACTIVE, demo metni: 10K-1M senaryo) ✓
+  - Monoton eşik validasyonu (Adım 2 < Adım 1) → 400 "Adım 2 eşiği önceki adımdan büyük olmalı" ✓
+  - Sıra atlama (1, 3) → 400 "Adım sıraları 1, 2, 3 şeklinde sıralı olmalı" ✓
+  - 1-active-per-type: 2. ACTIVE oluştur → eski PASSIVE'e geçti ✓
+  - Duplicate → flowNumber 10003, "(Kopya)" suffix, DRAFT status ✓
+  - Cleanup: 3 akış cascade delete ✓
+  - Cross-token: supplier → /approval-flows → 401 ✓
+  - 404: bilinmeyen id → 404 (loader) ✓
+  - typecheck (api+web+admin+email+shared+db) tüm yeşil ✓
+
 ---
 
 ## Bekleyen — V1.5 / V2 / V3
 
 ### V1.5 (kısa vadeli)
-- **Aşama E.7.C:** Onay zinciri konfigürasyonu (kim, hangi tutar, kaç aşama) — `/ayarlar/onay-akislari`
 - **Aşama E.7.D:** Onay çalıştırma (Onay Bekleyenler sayfası aktif, ApprovalRequest oluşturma + APPROVER user atama + onay akışı)
 - Sipariş status workflow (Kabul/Reddet/Üretim/Teslim/Tamamla)
 - Sipariş PDF export

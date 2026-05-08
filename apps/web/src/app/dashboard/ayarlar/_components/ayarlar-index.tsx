@@ -11,6 +11,7 @@ import {
   type LucideIcon,
   MapPin,
   UserPlus2,
+  Workflow,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -47,6 +48,13 @@ const SECTIONS: SettingsCard[] = [
     icon: MapPin,
     title: "Firma Tercihleri",
     description: "Fatura, İletişim ve Teslimat Adresleri",
+    adminOnly: true,
+  },
+  {
+    href: "/dashboard/ayarlar/onay-akislari",
+    icon: Workflow,
+    title: "Onay Akışları",
+    description: "İhale ve Kazanan Onay Süreç Tasarımı",
     adminOnly: true,
   },
   {
