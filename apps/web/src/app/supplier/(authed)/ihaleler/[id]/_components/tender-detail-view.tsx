@@ -125,7 +125,6 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
           </TabsPrimitive.Trigger>
           <TabsPrimitive.Trigger value="files" className={TRIGGER_CLASSES}>
             Dosyalar
-            <TabBadge count={tender.attachments.length} />
           </TabsPrimitive.Trigger>
           {/*
             ÖNEMLİ — KAPALI ZARF:
@@ -144,7 +143,7 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
           <ItemsTab items={tender.items} currency={tender.primaryCurrency} />
         </TabsPrimitive.Content>
         <TabsPrimitive.Content value="files" className="outline-none">
-          <FilesTab attachments={tender.attachments} />
+          <FilesTab surface="supplier" tender={tender} />
         </TabsPrimitive.Content>
       </TabsPrimitive.Root>
     </div>

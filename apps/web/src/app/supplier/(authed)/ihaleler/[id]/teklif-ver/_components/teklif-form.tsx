@@ -34,7 +34,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { AttachmentsUploader } from "./attachments-uploader";
+import { AttachmentList } from "@/components/attachments/attachment-list";
+import { AttachmentUpload } from "@/components/attachments/attachment-upload";
 import { BidItemsTable } from "./bid-items-table";
 import { BidTotalsCard } from "./bid-totals-card";
 import { CurrencySelector } from "./currency-selector";
@@ -395,7 +396,34 @@ export function TeklifForm({ tender, existingBid }: Props) {
                   </span>
                 </div>
               ) : null}
-              <AttachmentsUploader />
+
+              {draftBid?.id ? (
+                <div className="space-y-3">
+                  <AttachmentUpload
+                    surface="supplier"
+                    scope="BID_RESPONSE"
+                    scopeRefId={draftBid.id}
+                    hint="PDF, Word, Excel, görsel — tek dosya max 50 MB"
+                  />
+                  <AttachmentList
+                    surface="supplier"
+                    scope="BID_RESPONSE"
+                    scopeRefId={draftBid.id}
+                    canDelete={true}
+                    emptyText="Henüz dosya eklenmedi"
+                  />
+                </div>
+              ) : (
+                <div className="rounded-lg bg-slate-50 border border-slate-200 p-4 text-xs text-slate-600 flex gap-2">
+                  <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-slate-500" />
+                  <span>
+                    Dosya ekleyebilmek için önce
+                    {" "}<strong>Taslak Olarak Kaydet</strong>{" "}
+                    butonuna basın. Taslak oluştuktan sonra bu bölümde
+                    dosya yükleyebilirsiniz.
+                  </span>
+                </div>
+              )}
             </Section>
           </div>
 

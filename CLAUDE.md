@@ -12,7 +12,7 @@ Mavi & beyaz · Inter (UI) + Plus Jakarta Sans (display) · "S" mavi kutu + laci
 - Frontend: Next.js 15 (App Router) + React 19 + Tailwind v4 (`@theme` CSS) + Zustand persist + TanStack Query + react-hook-form + zod + sonner + lucide
 - E-posta: React Email + Resend (prod) + Mailpit (dev)
 - Cron: NestJS Schedule (V2'de BullMQ multi-instance)
-- Storage: MinIO (V2 — şu an base64 data URL)
+- Storage: Cloudflare R2 (V2-2'de aktif edildi; presigned PUT/GET, S3-compatible AWS SDK v3). Vergi levhası hâlâ base64 — V2.5'e ertelendi.
 - Node 22, pnpm 10.33
 
 ## Repo Yapısı
@@ -284,6 +284,60 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 
 > **Production'a geçiş**: Resend dashboard → Webhooks → URL `https://api.supkeys.com/api/webhooks/resend` + `RESEND_WEBHOOK_SECRET=whsec_...` env'e set edilecek. `NODE_ENV=production` ile guard tam svix imza doğrulamasına geçer; eksik secret 401 döner.
 
+### V2-2 — Cloudflare R2 + Dosya Upload Sistemi
+- **Schema migration `v2_attachments_r2`:**
+  - `Attachment` polymorphic model — `tenantId` + `scope` + `scopeRefId` + `key UNIQUE` + `originalFilename` + `mimeType` + `fileSize` + `status` + `createdAt` + `finalizedAt` + `uploadedByUserId?` + `uploadedBySupplierUserId?`. İki farklı yükleyen FK'si (tenant kullanıcı veya tedarikçi kullanıcı — sadece biri set olur).
+  - `AttachmentScope` enum: `TENDER_DOC` / `BID_RESPONSE` / `ORDER_INVOICE`.
+  - `AttachmentStatus` enum: `PENDING` / `UPLOADED`.
+  - Reverse relations: `Tenant.attachments` + `User.uploadedAttachments` + `SupplierUser.uploadedAttachments`.
+  - **Polymorphic FK kullanılmadı** — Service layer hep `scope+scopeRefId` ile sorguladığı için typed back-relation gereksiz; legacy `BidAttachment`/`TenderAttachment` ile clash yaratmadan eklendi.
+- **Bağımlılıklar** (`apps/api`): `@aws-sdk/client-s3` + `@aws-sdk/s3-request-presigner`.
+- **`apps/api/src/modules/storage/storage.service.ts`** (`@Global()` provider):
+  - `onModuleInit` → `R2_*` env'leri okur (placeholder `<account-id>` değerlerini de yakalar), `S3Client(region:"auto", endpoint, credentials, forcePathStyle:false)` kurar, `HeadBucketCommand` ile bağlantı health check. Hatada bootstrap fail.
+  - `buildKey(tenantId, attachmentId, originalFilename)` → `{env}/{tenantId}/{attachmentId}-{sanitizedFilename}`. `envPrefix = NODE_ENV==="production" ? "prod" : "dev"`.
+  - `sanitizeFilename` — `[^a-zA-Z0-9._-]` → `_`, double-underscore collapse, leading dot/under/dash strip, 100 char cap.
+  - `generatePresignedPut(key, mimeType)` — TTL 15 dk.
+  - `generatePresignedGet(key, originalFilename?)` — TTL 1 saat, `ResponseContentDisposition: attachment; filename="…"` ile orijinal isim restore.
+  - `checkExists(key)` — `HeadObjectCommand`, 404'te `{exists:false}`.
+  - `deleteObject(key)`.
+- **`apps/api/src/modules/attachments/services/attachments.service.ts`:**
+  - `ActorContext` discriminated union: `{ kind:"tenant", tenantId, userId, role }` veya `{ kind:"supplier", supplierId, supplierUserId }`.
+  - `requestUploadUrl(actor, params)` — MIME whitelist (15 tür: pdf/doc/docx/xls/xlsx/ppt/pptx/jpg/png/webp/gif/zip/txt/csv) + 50MB tek dosya cap + `FORBIDDEN_EXTENSIONS` (exe/sh/bat/cmd/js/html/php/py/rb/msi/dll/scr) + scope yetki + 200MB tender total cap (TENDER_DOC) → Attachment(PENDING, geçici key) → real key build → presigned PUT URL.
+  - `finalizeUpload(actor, attachmentId)` — owner check + HeadObject; dosya yoksa kaydı sil + 400; varsa size mismatch warn + UPLOADED + finalizedAt.
+  - `list(actor, scope, scopeRefId)` — read auth + status=UPLOADED only + `uploadedByUser`/`uploadedBySupplierUser` include + `uploadedBy: { firstName, lastName, kind:"tenant"|"supplier" }` projection.
+  - `getDownloadUrl(actor, attachmentId)` — read auth + presigned GET URL.
+  - `delete(actor, attachmentId)` — owner check (yükleyen veya COMPANY_ADMIN, ama tedarikçinin yüklediğine tenant tarafı dokunamaz) + status guard (yayınlanmış tender → 400, SUBMITTED bid → 400) + R2 delete (best-effort) + DB delete.
+  - **Yetki matrisi:**
+    - **TENDER_DOC write**: sadece kendi ihalesinin tenant'ı. **Read**: kendi tenant'ı VEYA davet edilmiş tedarikçi (`tenderInvitation` lookup).
+    - **BID_RESPONSE write**: sadece bid'in supplier'ı. **Read**: bid'in supplier'ı VEYA tender'ın tenant'ı.
+    - **ORDER_INVOICE write/read**: order'ın tenant'ı VEYA order'ın supplier'ı.
+- **2 Controller (paylaşılan service):**
+  - `TenantAttachmentsController` `/api/attachments` — `JwtAuthGuard`, tenant kullanıcıları için 5 endpoint: `POST upload-url` + `POST :id/finalize` + `GET ?scope=&scopeRefId=` + `GET :id/download-url` + `DELETE :id`.
+  - `SupplierAttachmentsController` `/api/supplier/attachments` — `SupplierJwtAuthGuard`, aynı 5 endpoint, supplier kullanıcıları için.
+  - Cross-token koruma: tenant token → `/supplier/attachments/...` 401, tersi de 401.
+- **DTO**: `RequestUploadUrlDto` (scope enum + scopeRefId + originalFilename ≤255 + mimeType + fileSize 1..50MB) + `ListAttachmentsDto` (scope + scopeRefId — Query).
+- **Frontend** (`apps/web`):
+  - `lib/attachments/types.ts` — `AttachmentSurface = "tenant" | "supplier"`, `AttachmentScope`, `AttachmentItem`, response shape'leri.
+  - `hooks/use-attachments.ts` — surface-aware (`api` vs `supplierApi`, path prefix `/attachments` vs `/supplier/attachments`):
+    - `useAttachments(surface, scope, scopeRefId)` — `enabled` koşullu, 30sn staleTime.
+    - `useUploadAttachment(surface)` — 3 aşamalı mutation: (1) backend'den presigned PUT URL iste, (2) `axios.put(uploadUrl, file)` (interceptor'sız fresh axios — auth header yok, R2 query param ile imzalı), `onUploadProgress` ile percent emit, (3) backend'e `:id/finalize` POST. Success'te ilgili list query invalidate.
+    - `useDeleteAttachment(surface)` + `useDownloadAttachment(surface)` (download'da `<a href={presignedUrl} download>` + `target="_blank"`).
+  - `components/attachments/attachment-upload.tsx` — drag-drop zone (state-driven `isDragOver` border-brand-500 + bg-brand-50) + multi-file paralel upload + her dosya için kart (Loader2/✓/✗ + filename + progress bar `width:%` + remove X). Upload sonrası 2 sn auto-clear. Toast'lar global interceptor + manuel.
+  - `components/attachments/attachment-list.tsx` — file row (icon by mimeType: FileImage/FileSpreadsheet/FileText/FileIcon + filename + size + uploadedBy + relative date + Download/Trash2 buton). `canDelete` prop + window.confirm.
+- **Entegrasyon noktaları:**
+  - **Tender detay `FilesTab`** (tenant + supplier ortak — `surface` prop): DRAFT/IN_APPROVAL'da AttachmentUpload + canDelete; aksi halde sadece read. Supplier surface'inde upload yok, sadece view.
+  - **Supplier `TeklifForm` "Teklif Dosyaları" section'ı**: legacy base64 `AttachmentsUploader` kaldırıldı. `draftBid?.id` varsa `<AttachmentUpload scope=BID_RESPONSE>` + `<AttachmentList>`. Yoksa "Önce Taslak Olarak Kaydet" hint card. `requireBidDocument` warning korundu.
+  - **Buyer Bid Detail Page**: `Section "Teklif Dosyaları"` — `AttachmentList scope=BID_RESPONSE` + `canDelete=false`. Tedarikçi yüklediği dosyaları buyer görür ama silemez.
+  - Tender wizard (yeni ihale): create modunda tenderId yok → upload bölümü gösterilmedi, kullanıcı önce taslak kaydedip detay sayfasından ekler.
+- **`.env.example`** — `R2_*` değişkenleri (Cloudflare R2 setup talimatı yorumlu).
+- **Manuel E2E doğrulama** (kullanıcı `apps/api/.env`'de gerçek R2 credentials'ı doldurduktan sonra çalışır):
+  - Schema: `\d attachments` tablo + `enum_range(AttachmentScope)` `{TENDER_DOC,BID_RESPONSE,ORDER_INVOICE}` + `AttachmentStatus` `{PENDING,UPLOADED}` ✓
+  - Bağımlılıklar: `@aws-sdk/client-s3@^3.x` + `@aws-sdk/s3-request-presigner@^3.x` `pnpm add` başarılı (+92 transitive) ✓
+  - typecheck 6/6 (api+web+admin+email+shared+db) yeşil ✓
+  - **Kullanıcı tarafı bekleyen**: gerçek R2 credentials → API reload → bucket health log → browser'dan upload/download/delete + Cloudflare R2 console doğrulama (8 senaryo: upload, list, download, delete, MIME reject, size reject, cross-tenant 403, published-tender delete-block) — kullanıcı bu env'leri verince tek tıkla test edilebilir.
+
+> **R2 setup**: Cloudflare Dashboard → R2 → Create bucket "supkeys-attachments" (region: APAC veya EEUR). Manage R2 API Tokens → Create Token → "Object Read & Write" permission, bucket scope'lu. Token oluşunca `R2_ACCOUNT_ID` (Cloudflare hesap ID), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` ve `R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com` `apps/api/.env`'e yazılır. Sonra API restart.
+
 ### Polish-3 — UX Hijyeni (Form Hatası TR + Interceptor + Mobile + E-posta QA)
 - **Backend `common/error-messages.ts`** — TR doğrulama sözlüğü (`VALIDATION_MESSAGES` REQUIRED/EMAIL_INVALID/STRING_MIN(n)/NUMBER_MIN(n) vs + `BUSINESS_MESSAGES` NOT_FOUND/FORBIDDEN/CONFLICT vs) + **`translateValidatorMessage`** helper: class-validator İngilizce default mesajlarını regex pattern matching ile TR'ye çevirir. "longer than or equal to N" / "must be one of the following values" / "property X should not exist" gibi 15+ pattern.
 - **Backend `main.ts` ValidationPipe `exceptionFactory`** — `BadRequestException({ statusCode:400, error, message:"Doğrulama hatası", errors: { field: msg } })` structured response. Children dahil recursive collect; class-validator constraint'lerin ilk mesajı TR'ye çevrilir.
@@ -525,7 +579,7 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 
 ### V2 (orta vadeli)
 - TCMB API + döviz kuru dönüşümü (çoklu para birimi karşılaştırması)
-- MinIO presigned URL (vergi levhası + tender/bid attachment) — V1'de base64 data URL
+- ~~MinIO presigned URL — V1'de base64 data URL~~ → **V2-2'de Cloudflare R2 ile tamamlandı** (TENDER_DOC + BID_RESPONSE + ORDER_INVOICE)
 - Resend domain doğrulaması + webhook tracking
 - STANDARD → PREMIUM upgrade akışı + ödeme (Iyzico/Stripe)
 - Tedarikçi havuzu sayfası ("Tüm Supkeys Tedarikçileri")

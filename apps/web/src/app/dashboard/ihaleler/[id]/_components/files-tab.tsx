@@ -1,54 +1,68 @@
 "use client";
 
-import type { TenderAttachment } from "@/lib/tenders/types";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
-import { FileText, Paperclip } from "lucide-react";
+import { AttachmentList } from "@/components/attachments/attachment-list";
+import { AttachmentUpload } from "@/components/attachments/attachment-upload";
+import { useAttachments } from "@/hooks/use-attachments";
+import type { AttachmentSurface } from "@/lib/attachments/types";
+import { Paperclip } from "lucide-react";
 
-function formatBytes(n: number): string {
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+interface Props {
+  surface?: AttachmentSurface;
+  tender: { id: string; status: string };
 }
 
-export function FilesTab({ attachments }: { attachments: TenderAttachment[] }) {
-  if (attachments.length === 0) {
-    return (
-      <div className="card p-12 text-center">
-        <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center">
-          <Paperclip className="w-6 h-6 text-slate-400" />
-        </div>
-        <p className="mt-3 font-medium text-brand-900">Dosya yok</p>
-        <p className="text-sm text-slate-500 mt-1">
-          Bu ihaleye henüz dosya eklenmedi. Dosya yükleme E.2'de gelecek.
-        </p>
-      </div>
-    );
-  }
+const TENANT_EDITABLE_STATUSES = new Set(["DRAFT", "IN_APPROVAL"]);
+
+export function FilesTab({ surface = "tenant", tender }: Props) {
+  const isTenant = surface === "tenant";
+  const canEdit = isTenant && TENANT_EDITABLE_STATUSES.has(tender.status);
+
+  const { data: items } = useAttachments(surface, "TENDER_DOC", tender.id);
 
   return (
-    <div className="space-y-2">
-      {attachments.map((att) => (
-        <article
-          key={att.id}
-          className="card p-3 flex items-center justify-between gap-3"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-9 w-9 rounded-lg bg-brand-50 flex items-center justify-center text-brand-600 shrink-0">
-              <FileText className="h-4 w-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-brand-900 truncate">
-                {att.fileName}
-              </p>
-              <p className="text-xs text-slate-500">
-                {formatBytes(att.fileSize)} ·{" "}
-                {format(new Date(att.uploadedAt), "d MMM yyyy", { locale: tr })}
-              </p>
-            </div>
-          </div>
-        </article>
-      ))}
+    <div className="space-y-5">
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <h3 className="font-bold text-brand-900 flex items-center gap-2">
+            <Paperclip className="h-4 w-4 text-slate-500" />
+            İhale Dökümanları
+            {items && items.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-600 font-normal">
+                {items.length}
+              </span>
+            )}
+          </h3>
+          <p className="text-sm text-slate-600 mt-1">
+            {isTenant
+              ? "Şartname, teknik özellikler, çizimler ve diğer ek dosyaları yükleyin. Davet edilen tedarikçiler bu dosyaları görür."
+              : "Alıcının ihale için paylaştığı dökümanlar."}
+          </p>
+        </div>
+      </header>
+
+      {canEdit ? (
+        <AttachmentUpload
+          surface="tenant"
+          scope="TENDER_DOC"
+          scopeRefId={tender.id}
+        />
+      ) : isTenant ? (
+        <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+          Yayınlanmış ihalelerde döküman ekleme veya silme yapılamaz.
+        </div>
+      ) : null}
+
+      <AttachmentList
+        surface={surface}
+        scope="TENDER_DOC"
+        scopeRefId={tender.id}
+        canDelete={canEdit}
+        emptyText={
+          isTenant
+            ? "Bu ihaleye eklenmiş döküman yok"
+            : "Alıcı henüz döküman paylaşmadı"
+        }
+      />
     </div>
   );
 }

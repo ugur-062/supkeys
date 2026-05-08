@@ -104,7 +104,6 @@ export function TenderDetailView({ id }: { id: string }) {
           </TabsPrimitive.Trigger>
           <TabsPrimitive.Trigger value="files" className={TRIGGER_CLASSES}>
             Dosyalar
-            <TabBadge count={tender.attachments.length} />
           </TabsPrimitive.Trigger>
         </TabsPrimitive.List>
 
@@ -121,7 +120,7 @@ export function TenderDetailView({ id }: { id: string }) {
           <BidsTab tender={tender} />
         </TabsPrimitive.Content>
         <TabsPrimitive.Content value="files" className="outline-none">
-          <FilesTab attachments={tender.attachments} />
+          <FilesTab tender={tender} />
         </TabsPrimitive.Content>
       </TabsPrimitive.Root>
     </div>

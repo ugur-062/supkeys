@@ -1,5 +1,6 @@
 "use client";
 
+import { AttachmentList } from "@/components/attachments/attachment-list";
 import { BidStatusBadge } from "@/components/tenders/status-badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
@@ -129,6 +130,16 @@ export function BidDetailView({
           <NotesAndAttachments bid={bid} />
         </Section>
       ) : null}
+
+      <Section title="Teklif Dosyaları">
+        <AttachmentList
+          surface="tenant"
+          scope="BID_RESPONSE"
+          scopeRefId={bid.id}
+          canDelete={false}
+          emptyText="Tedarikçi bu teklif için dosya eklemedi"
+        />
+      </Section>
     </div>
   );
 }
