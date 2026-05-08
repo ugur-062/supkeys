@@ -7,7 +7,8 @@
     "build": "tsc",
     "start": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:emails": "ts-node --transpile-only src/scripts/test-emails.ts"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.4",
@@ -46,6 +47,7 @@
     "ts-loader": "^9.5.1",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
 }

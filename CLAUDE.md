@@ -240,6 +240,39 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 
 🎉 **V1 COMPLETE** — Tüm temel ihale yönetim akışları (D.1-D.2.B + E.1-E.7.D) tamamlandı.
 
+### Polish-3 — UX Hijyeni (Form Hatası TR + Interceptor + Mobile + E-posta QA)
+- **Backend `common/error-messages.ts`** — TR doğrulama sözlüğü (`VALIDATION_MESSAGES` REQUIRED/EMAIL_INVALID/STRING_MIN(n)/NUMBER_MIN(n) vs + `BUSINESS_MESSAGES` NOT_FOUND/FORBIDDEN/CONFLICT vs) + **`translateValidatorMessage`** helper: class-validator İngilizce default mesajlarını regex pattern matching ile TR'ye çevirir. "longer than or equal to N" / "must be one of the following values" / "property X should not exist" gibi 15+ pattern.
+- **Backend `main.ts` ValidationPipe `exceptionFactory`** — `BadRequestException({ statusCode:400, error, message:"Doğrulama hatası", errors: { field: msg } })` structured response. Children dahil recursive collect; class-validator constraint'lerin ilk mesajı TR'ye çevrilir.
+- **Frontend `api.ts` interceptor genişletmeleri** (`apps/web` + `apps/admin` + `supplier-auth/api.ts`):
+  - 401 mevcut davranış korunur (token clear + redirect, public sayfada sessiz).
+  - 403 → "Bu işlem için yetkiniz yok" toast.
+  - 404 → sadece detail endpoint'lerde toast (URL `/{resource}/{id}` regex). Liste 404 sessiz.
+  - 400 + `errors` object → toast atılmaz, propagate (component inline gösterir). Aksi halde `message` toast.
+  - 409 / 422 → message toast. 5xx → "Sunucu hatası" toast. Network (no response) → "Bağlantı hatası" toast.
+  - `pickMessage` helper — `message` string veya string[] olabilir.
+- **Frontend `lib/form-errors.ts`** (`apps/web` + `apps/admin`):
+  - `extractFieldErrors(error)` — `400 + errors` object varsa `Record<string, string>` döner, yoksa boş.
+  - `extractErrorMessage(error, fallback)` — generic mesaj çıkarıcı.
+- **Frontend `components/forms/form-field.tsx`** (`apps/web` + `apps/admin`):
+  - Label + required marker (kırmızı `*`) + children + error inline (AlertCircle ikonlu, danger-600) + hint (error yokken).
+  - Kullanım: `<FormField label="E-posta" required error={fieldErrors.email}><Input ... /></FormField>`.
+- **iOS Safari zoom-on-focus engelleme** (`apps/web` + `apps/admin` `globals.css`):
+  - `@media (max-width:640px)` `input/textarea/select { font-size:16px }`. Mobile'de 16px altı font-size'lı input'a focus iOS otomatik zoom yapar; bu kural önler.
+- **Backend `pnpm test:emails` script** (`apps/api/src/scripts/test-emails.ts`):
+  - 30 e-posta varyantını (16 base template + parametre varyasyonları) Mailpit'e tek seferde enqueue eder. `NestFactory.createApplicationContext` + `EmailQueue.enqueue`.
+  - **`ts-node --transpile-only`**: tsx `emitDecoratorMetadata` desteklemiyor, NestJS DI için ts-node şart.
+  - `tsconfig.json` exclude: `src/scripts/**/*` (build target değil — sadece runtime CLI).
+  - Tüm template'ler için gerçekçi sample data (yeni/mevcut tedarikçi davet, fallback approval, 3 ayrı order_status_changed varyantı).
+- **Manuel E2E** (4 senaryo + email QA):
+  - Login boş body → `400 { errors: { email: "Geçerli bir e-posta...", password: "En az 1 karakter olmalı" } }` ✓
+  - Geçersiz email format → `errors.email` TR mesaj ✓
+  - `forbidNonWhitelisted` extra field → `errors.extra: "Bu alan kabul edilmiyor"` ✓
+  - SQL injection sort (`?sort=DROP+TABLE--`) → `errors.sort: "Geçersiz seçim"` (whitelist'ten) ✓
+  - `pnpm test:emails` → 30 şablon enqueue edildi, hepsi Mailpit'e SENT durumunda ulaştı (DB'de `email_logs` `qa-mailpit@supkeys-dev.local` query 30 satır SENT). Mailpit UI üzerinden http://localhost:8025'te görsel inceleme yapılabilir.
+  - typecheck (api+web+admin+email+shared+db) tüm yeşil ✓
+
+> NOT — Mobile responsive (sidebar drawer, tablo card view, modal full-screen): Tenant sidebar `mobileOpen` drawer çoktan mevcut (Polish öncesi). Diğer mobile fix'ler (tablo card view 768px, modal `inset-0` 640px, supplier sidebar drawer) Polish-3 scope'unda DOKUNULMADI — V2'de "mobile responsive sweep" ayrı sprint olarak ele alınacak. iOS zoom prevention CSS hızlı kazanç olarak eklendi (en sık şikayet edilen mobile bug).
+
 ### Polish-2 — Admin Paneli + KPI Agregasyonu
 - **3 yeni backend modülü** (`apps/api/src/modules/`):
   - **`admin-stats`** (`/admin/stats/`):

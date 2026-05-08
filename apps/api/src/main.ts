@@ -1,9 +1,11 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
-import { Logger, ValidationPipe } from "@nestjs/common";
+import { BadRequestException, Logger, ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { NestExpressApplication } from "@nestjs/platform-express";
+import type { ValidationError } from "class-validator";
 import { AppModule } from "./app.module";
+import { translateValidatorMessage } from "./common/error-messages";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -22,6 +24,36 @@ async function bootstrap() {
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: true,
+      /**
+       * Polish-3 — class-validator sonuçlarını TR mesajlarla
+       * `{ message, errors: { field: msg } }` shape'ine çevir.
+       * Frontend `extractFieldErrors` ile inline gösterir.
+       */
+      exceptionFactory: (errors: ValidationError[]) => {
+        const fieldErrors: Record<string, string> = {};
+
+        const collect = (errs: ValidationError[], prefix = ""): void => {
+          for (const err of errs) {
+            const path = prefix ? `${prefix}.${err.property}` : err.property;
+            if (err.constraints) {
+              const values = Object.values(err.constraints);
+              const firstMsg = values[0] ?? "Geçersiz değer";
+              fieldErrors[path] = translateValidatorMessage(firstMsg);
+            }
+            if (err.children && err.children.length > 0) {
+              collect(err.children, path);
+            }
+          }
+        };
+        collect(errors);
+
+        return new BadRequestException({
+          statusCode: 400,
+          error: "Bad Request",
+          message: "Doğrulama hatası",
+          errors: fieldErrors,
+        });
+      },
     }),
   );
 

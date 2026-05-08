@@ -99,3 +99,15 @@
     @apply block text-sm font-medium text-brand-900 mb-1.5;
   }
 }
+
+/* Polish-3 — iOS Safari zoom-on-focus engelleme.
+   16px altındaki font-size'lı input'lara odaklanınca iOS otomatik zoom yapar
+   (kullanıcı sayfayı kaydırırken rahatsızlık verir). Mobile'de tüm form
+   alanlarına minimum 16px uygula. Desktop'ta `text-sm` davranışı korunur. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}

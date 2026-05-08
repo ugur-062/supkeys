@@ -103,3 +103,13 @@
     @apply bg-admin-sidebar-hover text-white;
   }
 }
+
+/* Polish-3 — iOS Safari zoom-on-focus engelleme. 16px altındaki font-size'lı
+   input'lara odaklanınca iOS otomatik zoom yapar; mobile'de minimum 16px. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
