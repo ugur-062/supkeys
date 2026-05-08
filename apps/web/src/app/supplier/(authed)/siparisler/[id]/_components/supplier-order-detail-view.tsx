@@ -1,21 +1,44 @@
 "use client";
 
+import { OrderTimeline } from "@/components/orders/order-timeline";
+import { StartDeliveryModal } from "@/components/orders/start-delivery-modal";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
 import { Button } from "@/components/ui/button";
-import { useSupplierOrderDetail } from "@/hooks/use-supplier-orders";
+import {
+  useStartDelivery,
+  useSupplierOrderDetail,
+} from "@/hooks/use-supplier-orders";
 import type { OrderDetail } from "@/lib/tenders/types";
+import axios from "axios";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
   AlertCircle,
   ArrowLeft,
   Building2,
+  CheckCircle2,
   ChevronRight,
+  Clock,
   Loader2,
   Package,
+  Truck,
   Trophy,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { toast } from "sonner";
+
+function getErrorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as
+      | { message?: string | string[] }
+      | undefined;
+    if (Array.isArray(data?.message)) return data.message.join(", ");
+    return data?.message ?? fallback;
+  }
+  return fallback;
+}
 
 function formatMoney(value: string | number, currency: string): string {
   const num = typeof value === "string" ? Number(value) : value;
@@ -113,6 +136,9 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
         </div>
       </div>
 
+      {/* V1.5 — Aksiyon banner */}
+      <SupplierOrderActions order={order} />
+
       {/* KPI */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Kpi
@@ -126,6 +152,11 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
         />
         <Kpi label="Para Birimi" value={order.currency} />
       </div>
+
+      {/* Sipariş geçmişi timeline */}
+      <Section title="Sipariş Geçmişi">
+        <OrderTimeline order={order} />
+      </Section>
 
       {/* Tenant info */}
       <Section title="Alıcı">
@@ -163,6 +194,94 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
       ) : null}
     </div>
   );
+}
+
+function SupplierOrderActions({ order }: { order: OrderDetail }) {
+  const [deliveryOpen, setDeliveryOpen] = useState(false);
+  const startDelivery = useStartDelivery();
+
+  if (order.status === "PENDING") {
+    return (
+      <>
+        <div className="bg-white border border-surface-border rounded-xl p-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 text-sm text-slate-600 min-w-0">
+            <Truck className="h-4 w-4 text-blue-500 flex-shrink-0" />
+            <span>
+              Bu sipariş için teslimatı başlatın — kargo veya üretim bilgisini
+              ekleyebilirsiniz.
+            </span>
+          </div>
+          <Button
+            variant="primary"
+            onClick={() => setDeliveryOpen(true)}
+            className="!bg-blue-600 hover:!bg-blue-700 focus:!ring-blue-500"
+          >
+            <Truck className="w-4 h-4" />
+            Teslimat Başlat
+          </Button>
+        </div>
+
+        <StartDeliveryModal
+          open={deliveryOpen}
+          onClose={() => setDeliveryOpen(false)}
+          loading={startDelivery.isPending}
+          orderNumber={order.orderNumber}
+          onConfirm={(input) =>
+            startDelivery.mutate(
+              { id: order.id, ...input },
+              {
+                onSuccess: () => {
+                  toast.success("Teslimat başlatıldı");
+                  setDeliveryOpen(false);
+                },
+                onError: (err) =>
+                  toast.error(getErrorMessage(err, "Başlatılamadı")),
+              },
+            )
+          }
+        />
+      </>
+    );
+  }
+
+  if (order.status === "IN_DELIVERY") {
+    return (
+      <div className="bg-white border border-surface-border rounded-xl p-4 flex items-center gap-2 text-sm text-slate-600">
+        <Clock className="h-4 w-4 text-warning-500 flex-shrink-0" />
+        <span>
+          Alıcının teslim aldığını onaylaması bekleniyor. Süreç tamamlanınca
+          bildirileceksiniz.
+        </span>
+      </div>
+    );
+  }
+
+  if (order.status === "COMPLETED") {
+    return (
+      <div className="bg-success-50 border border-success-200 rounded-xl p-4 flex items-center gap-2 text-sm text-success-800">
+        <CheckCircle2 className="h-4 w-4 text-success-600 flex-shrink-0" />
+        <span>Sipariş alıcı tarafından teslim alındı, tamamlandı.</span>
+      </div>
+    );
+  }
+
+  if (order.status === "CANCELLED") {
+    return (
+      <div className="bg-danger-50 border border-danger-200 rounded-xl p-4">
+        <div className="flex items-center gap-2 text-sm text-danger-800 font-semibold">
+          <XCircle className="h-4 w-4 text-danger-600 flex-shrink-0" />
+          <span>Sipariş alıcı tarafından iptal edildi.</span>
+        </div>
+        {order.cancelReason ? (
+          <p className="text-xs text-danger-700 mt-2 whitespace-pre-wrap">
+            <strong>Sebep:</strong> {order.cancelReason}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function Section({

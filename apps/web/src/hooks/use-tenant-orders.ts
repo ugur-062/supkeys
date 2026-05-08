@@ -7,7 +7,7 @@ import type {
   OrderListResponse,
   OrderStats,
 } from "@/lib/tenders/types";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 const KEYS = {
   all: ["tenant", "orders"] as const,
@@ -59,6 +59,42 @@ export function useOrderDetail(id: string | null) {
       return data;
     },
     enabled: !!id,
+  });
+}
+
+// V1.5 — Order workflow mutations
+
+export function useCompleteOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; completedNote?: string }) => {
+      const { data } = await api.post<OrderDetail>(
+        `/tenants/me/orders/${input.id}/complete`,
+        { completedNote: input.completedNote },
+      );
+      return data;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      qc.invalidateQueries({ queryKey: KEYS.detail(vars.id) });
+    },
+  });
+}
+
+export function useCancelOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; reason: string }) => {
+      const { data } = await api.post<OrderDetail>(
+        `/tenants/me/orders/${input.id}/cancel`,
+        { reason: input.reason },
+      );
+      return data;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      qc.invalidateQueries({ queryKey: KEYS.detail(vars.id) });
+    },
   });
 }
 

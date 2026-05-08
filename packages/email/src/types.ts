@@ -22,7 +22,8 @@ export type EmailTemplate =
   | "user_invitation"
   | "approval_required"
   | "approval_approved"
-  | "approval_rejected";
+  | "approval_rejected"
+  | "order_status_changed";
 
 export type EmailProviderName = "resend" | "mailpit";
 
@@ -319,6 +320,13 @@ export interface ApprovalRequiredData {
   /** /dashboard/onay-bekleyenler/:id mutlak URL */
   approvalUrl: string;
   initiatorNote?: string | null;
+  /**
+   * V1.5 — Approver pasifleştirildiğinde cron başka bir admin'e atadığında true.
+   * UI'da "Otomatik Atama" sarı banner'ı göstermek için.
+   */
+  isFallback?: boolean;
+  /** Eski (pasifleştirilen) approver'ın adı; isFallback=true iken doldurulur. */
+  originalApproverName?: string;
 }
 
 /**
@@ -401,7 +409,34 @@ export type EmailTemplateData =
   | { template: "user_invitation"; data: UserInvitationData }
   | { template: "approval_required"; data: ApprovalRequiredData }
   | { template: "approval_approved"; data: ApprovalApprovedData }
-  | { template: "approval_rejected"; data: ApprovalRejectedData };
+  | { template: "approval_rejected"; data: ApprovalRejectedData }
+  | { template: "order_status_changed"; data: OrderStatusChangedData };
+
+/**
+ * V1.5 Oturum 1 — Sipariş status değişimlerinde karşı tarafa gider.
+ * - PENDING → IN_DELIVERY: tedarikçi başlattı, alıcıya bildirim
+ * - IN_DELIVERY → COMPLETED: alıcı teslim aldı, tedarikçiye bildirim
+ * - PENDING/IN_DELIVERY → CANCELLED: alıcı iptal etti, tedarikçiye bildirim
+ */
+export type OrderStatusChange = "IN_DELIVERY" | "COMPLETED" | "CANCELLED";
+
+export interface OrderStatusChangedData {
+  recipientName: string;
+  /** "buyer" → tedarikçi karşı tarafta; "supplier" → alıcı karşı tarafta */
+  recipient: "buyer" | "supplier";
+  orderNumber: string;
+  tenderNumber: string;
+  tenderTitle: string;
+  newStatus: OrderStatusChange;
+  /** Eski statü — sadece info amaçlı (UI'da render edilebilir) */
+  oldStatus: "PENDING" | "IN_DELIVERY";
+  /** Tedarikçi notu (kargo) veya alıcı notu (teslim) veya iptal sebebi */
+  note?: string | null;
+  /** ISO date — IN_DELIVERY'de tedarikçinin verdiği tahmini teslim */
+  expectedDeliveryDate?: string | null;
+  /** Karşı taraftaki sipariş detay URL'i (alıcı veya tedarikçi paneli) */
+  orderUrl: string;
+}
 
 export interface RenderedEmail {
   subject: string;

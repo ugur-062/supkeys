@@ -25,10 +25,9 @@ import { useEffect, useMemo, useState } from "react";
 const TABS: Array<{ key: string; label: string; status?: OrderStatus }> = [
   { key: "all", label: "Tümü" },
   { key: "pending", label: "Bekliyor", status: "PENDING" },
-  { key: "accepted", label: "Kabul Edildi", status: "ACCEPTED" },
-  { key: "in_progress", label: "Üretimde", status: "IN_PROGRESS" },
-  { key: "delivered", label: "Teslim Edildi", status: "DELIVERED" },
+  { key: "in_delivery", label: "Teslimatta", status: "IN_DELIVERY" },
   { key: "completed", label: "Tamamlandı", status: "COMPLETED" },
+  { key: "cancelled", label: "İptal Edildi", status: "CANCELLED" },
 ];
 
 const TRIGGER_CLS = cn(
@@ -105,10 +104,10 @@ export function SupplierOrdersListView() {
     return [
       { label: "Toplam", value: s.total, color: "text-brand-900" },
       { label: "Bekliyor", value: s.pending, color: "text-warning-700" },
-      { label: "Üretimde", value: s.inProgress, color: "text-indigo-700" },
+      { label: "Teslimatta", value: s.inDelivery ?? 0, color: "text-blue-700" },
       {
         label: "Tamamlandı",
-        value: s.completed + s.delivered,
+        value: s.completed,
         color: "text-success-700",
       },
     ];

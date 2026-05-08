@@ -7,7 +7,7 @@ import type {
   OrderListResponse,
   OrderStats,
 } from "@/lib/tenders/types";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 const KEYS = {
   all: ["supplier", "orders"] as const,
@@ -62,6 +62,32 @@ export function useSupplierOrderDetail(id: string | null) {
       return data;
     },
     enabled: !!id,
+  });
+}
+
+// V1.5 — Tedarikçi PENDING → IN_DELIVERY mutation
+
+export function useStartDelivery() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      id: string;
+      deliveryNote?: string;
+      expectedDeliveryDate?: string;
+    }) => {
+      const { data } = await supplierApi.post<OrderDetail>(
+        `/supplier/orders/${input.id}/start-delivery`,
+        {
+          deliveryNote: input.deliveryNote,
+          expectedDeliveryDate: input.expectedDeliveryDate,
+        },
+      );
+      return data;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      qc.invalidateQueries({ queryKey: KEYS.detail(vars.id) });
+    },
   });
 }
 

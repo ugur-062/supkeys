@@ -93,6 +93,22 @@ const helperText = {
   lineHeight: "1.5",
 };
 
+const fallbackBanner = {
+  background: "#fef3c7",
+  border: "1px solid #fde68a",
+  borderRadius: "8px",
+  padding: "12px 16px",
+  margin: "12px 0",
+};
+
+const fallbackText = {
+  fontFamily: FONTS.sans,
+  fontSize: "13px",
+  color: "#92400e",
+  margin: 0,
+  lineHeight: "1.5",
+};
+
 function formatAmount(amount: number, currency: string): string {
   try {
     return amount.toLocaleString("tr-TR", {
@@ -123,6 +139,17 @@ export function ApprovalRequiredEmail(props: ApprovalRequiredData) {
       <Heading>Onayınız bekleniyor 🔔</Heading>
 
       <Text style={paragraph}>Merhaba {props.approverFirstName},</Text>
+
+      {props.isFallback ? (
+        <Section style={fallbackBanner}>
+          <Text style={fallbackText}>
+            <strong>⚠️ Otomatik Atama:</strong> Bu onay daha önce{" "}
+            <strong>{props.originalApproverName}</strong> üzerine atanmıştı,
+            ancak ilgili kullanıcı pasif duruma geçtiği için yetkili Firma
+            Yöneticisi olarak size yönlendirildi.
+          </Text>
+        </Section>
+      ) : null}
 
       <Text style={paragraph}>
         <strong style={{ color: COLORS.brand900 }}>{props.initiatorName}</strong>
@@ -168,13 +195,21 @@ export function renderApprovalRequiredText(
     "",
     `Merhaba ${props.approverFirstName},`,
     "",
+  ];
+  if (props.isFallback && props.originalApproverName) {
+    lines.push(
+      `⚠️ Otomatik Atama: Bu onay daha önce ${props.originalApproverName} adına atanmıştı; pasif duruma geçtiği için size yönlendirildi.`,
+      "",
+    );
+  }
+  lines.push(
     `${props.initiatorName} sizden ${action} onayı talep etti.`,
     "",
     `Onay No   : ${props.approvalNumber}`,
     `İhale No  : ${props.tenderNumber}`,
     `Akış      : ${props.flowName}`,
     `Tutar     : ${formatAmount(props.amount, props.currency)}`,
-  ];
+  );
   if (props.initiatorNote) {
     lines.push("", `Açıklama  : ${props.initiatorNote}`);
   }

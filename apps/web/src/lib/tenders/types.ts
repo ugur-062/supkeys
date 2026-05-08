@@ -501,6 +501,7 @@ export interface BidDetailExpanded {
 
 export type OrderStatus =
   | "PENDING"
+  | "IN_DELIVERY"
   | "ACCEPTED"
   | "IN_PROGRESS"
   | "DELIVERED"
@@ -553,11 +554,14 @@ export interface OrderListResponse {
 export interface OrderStats {
   total: number;
   pending: number;
-  accepted: number;
-  inProgress: number;
-  delivered: number;
+  /** V1.5 — yeni iş akışı sayacı (PENDING → IN_DELIVERY → COMPLETED). */
+  inDelivery: number;
   completed: number;
   cancelled: number;
+  /** Legacy field'lar — V1.5'te 0; UI bunları render etmiyor. */
+  accepted?: number;
+  inProgress?: number;
+  delivered?: number;
 }
 
 export interface OrderDetailWinningItem {
@@ -652,6 +656,29 @@ export interface OrderDetail {
       email: string;
     };
   };
+  /** V1.5 — workflow event meta */
+  deliveryStartedAt: string | null;
+  deliveryStartedBy: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
+  deliveryNote: string | null;
+  expectedDeliveryDate: string | null;
+  completedAt: string | null;
+  completedBy: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
+  completedNote: string | null;
+  cancelledAt: string | null;
+  cancelledBy: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  } | null;
+  cancelReason: string | null;
 }
 
 export interface ListOrdersParams {

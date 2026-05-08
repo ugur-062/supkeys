@@ -1,22 +1,47 @@
 "use client";
 
+import { CancelOrderModal } from "@/components/orders/cancel-order-modal";
+import { CompleteOrderModal } from "@/components/orders/complete-order-modal";
+import { OrderTimeline } from "@/components/orders/order-timeline";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
 import { Button } from "@/components/ui/button";
-import { useOrderDetail } from "@/hooks/use-tenant-orders";
+import {
+  useCancelOrder,
+  useCompleteOrder,
+  useOrderDetail,
+} from "@/hooks/use-tenant-orders";
 import type { OrderDetail } from "@/lib/tenders/types";
+import axios from "axios";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
   AlertCircle,
   ArrowLeft,
+  Ban,
   Building2,
+  CheckCircle2,
   ChevronRight,
+  Clock,
   Download,
   FileText,
   Loader2,
   Package,
+  XCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { toast } from "sonner";
+
+function getErrorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError(err)) {
+    const data = err.response?.data as
+      | { message?: string | string[] }
+      | undefined;
+    if (Array.isArray(data?.message)) return data.message.join(", ");
+    return data?.message ?? fallback;
+  }
+  return fallback;
+}
 
 function formatMoney(value: string | number, currency: string): string {
   const num = typeof value === "string" ? Number(value) : value;
@@ -83,7 +108,13 @@ export function OrderDetailView({ id }: { id: string }) {
 
       <Header order={order} />
 
+      <TenantOrderActions order={order} />
+
       <KpiCards order={order} />
+
+      <Section title="Sipariş Geçmişi">
+        <OrderTimeline order={order} />
+      </Section>
 
       <Section title="Tedarikçi">
         <SupplierFields order={order} />
@@ -103,6 +134,126 @@ export function OrderDetailView({ id }: { id: string }) {
         </Section>
       ) : null}
     </div>
+  );
+}
+
+function TenantOrderActions({ order }: { order: OrderDetail }) {
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+
+  const completeMutation = useCompleteOrder();
+  const cancelMutation = useCancelOrder();
+
+  const isCancellable =
+    order.status === "PENDING" || order.status === "IN_DELIVERY";
+
+  // PENDING'de alıcı tarafında sadece bilgi gösterilir + iptal butonu;
+  // IN_DELIVERY'de "Teslim Aldım" + iptal butonu;
+  // COMPLETED veya CANCELLED'da aksiyon yok (banner yeterli).
+  if (
+    order.status !== "PENDING" &&
+    order.status !== "IN_DELIVERY" &&
+    order.status !== "COMPLETED" &&
+    order.status !== "CANCELLED"
+  ) {
+    return null;
+  }
+
+  return (
+    <>
+      <div className="bg-white border border-surface-border rounded-xl p-4 flex items-center justify-between gap-3 flex-wrap">
+        {order.status === "PENDING" ? (
+          <div className="flex items-center gap-2 text-sm text-slate-600 min-w-0">
+            <Clock className="h-4 w-4 text-warning-500 flex-shrink-0" />
+            <span>Tedarikçinin teslimat başlatması bekleniyor.</span>
+          </div>
+        ) : null}
+        {order.status === "IN_DELIVERY" ? (
+          <div className="flex items-center gap-2 text-sm text-slate-600 min-w-0">
+            <Clock className="h-4 w-4 text-blue-500 flex-shrink-0" />
+            <span>
+              Teslimat sürecinde — kalemler ulaştığında "Teslim Aldım"a
+              basın.
+            </span>
+          </div>
+        ) : null}
+        {order.status === "COMPLETED" ? (
+          <div className="flex items-center gap-2 text-sm text-success-700 min-w-0">
+            <CheckCircle2 className="h-4 w-4 text-success-600 flex-shrink-0" />
+            <span>Sipariş tamamlandı.</span>
+          </div>
+        ) : null}
+        {order.status === "CANCELLED" ? (
+          <div className="flex items-center gap-2 text-sm text-danger-700 min-w-0">
+            <XCircle className="h-4 w-4 text-danger-600 flex-shrink-0" />
+            <span>Sipariş iptal edildi.</span>
+          </div>
+        ) : null}
+
+        <div className="flex items-center gap-2">
+          {order.status === "IN_DELIVERY" ? (
+            <Button
+              variant="primary"
+              onClick={() => setCompleteOpen(true)}
+              className="!bg-success-600 hover:!bg-success-700 focus:!ring-success-500"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Teslim Aldım
+            </Button>
+          ) : null}
+          {isCancellable ? (
+            <Button
+              variant="ghost"
+              onClick={() => setCancelOpen(true)}
+              className="!text-danger-700 hover:!bg-danger-50"
+            >
+              <Ban className="w-4 h-4" />
+              Siparişi İptal Et
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      <CompleteOrderModal
+        open={completeOpen}
+        onClose={() => setCompleteOpen(false)}
+        loading={completeMutation.isPending}
+        orderNumber={order.orderNumber}
+        onConfirm={(note) =>
+          completeMutation.mutate(
+            { id: order.id, completedNote: note || undefined },
+            {
+              onSuccess: () => {
+                toast.success("Sipariş tamamlandı");
+                setCompleteOpen(false);
+              },
+              onError: (err) =>
+                toast.error(getErrorMessage(err, "Tamamlanamadı")),
+            },
+          )
+        }
+      />
+
+      <CancelOrderModal
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        loading={cancelMutation.isPending}
+        orderNumber={order.orderNumber}
+        onConfirm={(reason) =>
+          cancelMutation.mutate(
+            { id: order.id, reason },
+            {
+              onSuccess: () => {
+                toast.success("Sipariş iptal edildi");
+                setCancelOpen(false);
+              },
+              onError: (err) =>
+                toast.error(getErrorMessage(err, "İptal edilemedi")),
+            },
+          )
+        }
+      />
+    </>
   );
 }
 

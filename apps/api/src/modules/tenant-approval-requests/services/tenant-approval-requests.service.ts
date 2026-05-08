@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { Prisma } from "@supkeys/db";
 import type {
   ApprovalFlowType,
@@ -641,6 +642,7 @@ export class TenantApprovalRequestsService {
         isActive: boolean;
       };
     },
+    fallbackInfo?: { originalApproverName: string },
   ) {
     if (!step.approver.isActive) {
       this.logger.warn(
@@ -668,10 +670,14 @@ export class TenantApprovalRequestsService {
             approvalType: request.type,
             approvalUrl: `${this.webUrl()}/dashboard/onay-bekleyenler/${request.id}`,
             initiatorNote: request.initiatorNote,
+            isFallback: fallbackInfo ? true : undefined,
+            originalApproverName: fallbackInfo?.originalApproverName,
           },
         },
         context: { type: "approval_request_step", id: step.id },
-        subject: `🔔 Onayınız bekleniyor: ${request.tender.title} — Supkeys`,
+        subject: fallbackInfo
+          ? `🔔 [Otomatik Atama] Onayınız bekleniyor: ${request.tender.title} — Supkeys`
+          : `🔔 Onayınız bekleniyor: ${request.tender.title} — Supkeys`,
       });
     } catch (err) {
       this.logger.error(
@@ -797,5 +803,145 @@ export class TenantApprovalRequestsService {
     }
 
     return `APR-${year}-${String(nextSeq).padStart(4, "0")}`;
+  }
+
+  // ============================================================
+  // V1.5 — Inactive approver fallback cron
+  // ============================================================
+
+  /**
+   * Her dakika çalışır. PENDING request'lerde PENDING step'i olup approver'ı
+   * pasif olan adımları bulur ve her birini ilgili tenant'taki ilk aktif
+   * COMPANY_ADMIN'e yeniden atar. Yeni approver'a `approval_required`
+   * e-postası `isFallback: true` ile gider.
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async fallbackInactiveApprovers(): Promise<void> {
+    const inactiveSteps = await this.prisma.approvalRequestStep.findMany({
+      where: {
+        status: "PENDING",
+        approver: { isActive: false },
+        request: { status: "PENDING" },
+      },
+      include: {
+        approver: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+        request: {
+          include: {
+            tender: {
+              select: {
+                id: true,
+                tenantId: true,
+                tenderNumber: true,
+                title: true,
+              },
+            },
+            flow: { select: { name: true } },
+            initiatedBy: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+      take: 50,
+    });
+
+    if (inactiveSteps.length === 0) return;
+
+    this.logger.log(
+      `fallbackInactiveApprovers: ${inactiveSteps.length} adım pasif approver içeriyor, fallback uygulanıyor`,
+    );
+
+    for (const step of inactiveSteps) {
+      try {
+        await this.applyApproverFallback(step);
+      } catch (err) {
+        this.logger.error(
+          `applyApproverFallback failed for step ${step.id}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+  }
+
+  private async applyApproverFallback(step: {
+    id: string;
+    approverUserId: string;
+    approver: { firstName: string; lastName: string; email: string };
+    request: {
+      id: string;
+      approvalNumber: string;
+      type: ApprovalFlowType;
+      amount: Prisma.Decimal;
+      currency: string;
+      initiatorNote: string | null;
+      tender: { tenantId: string; tenderNumber: string; title: string };
+      flow: { name: string };
+      initiatedBy: { firstName: string; lastName: string };
+    };
+  }): Promise<void> {
+    const tenantId = step.request.tender.tenantId;
+    const oldApproverName = `${step.approver.firstName} ${step.approver.lastName}`;
+
+    // Bu tenant'taki ilk ACTIVE COMPANY_ADMIN (pasif approver hariç)
+    const fallbackAdmin = await this.prisma.user.findFirst({
+      where: {
+        tenantId,
+        role: "COMPANY_ADMIN",
+        isActive: true,
+        id: { not: step.approverUserId },
+      },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, email: true, firstName: true, lastName: true },
+    });
+
+    if (!fallbackAdmin) {
+      this.logger.error(
+        `No active COMPANY_ADMIN for fallback in tenant ${tenantId}, step ${step.id}, request ${step.request.approvalNumber}. Skipping.`,
+      );
+      return;
+    }
+
+    // Idempotency: aynı admin'e zaten atanmışsa atla
+    if (fallbackAdmin.id === step.approverUserId) {
+      return;
+    }
+
+    await this.prisma.approvalRequestStep.update({
+      where: { id: step.id },
+      data: { approverUserId: fallbackAdmin.id },
+    });
+
+    this.logger.log(
+      `Fallback applied: step ${step.id} (${step.request.approvalNumber}) reassigned from ${oldApproverName} to admin ${fallbackAdmin.email}`,
+    );
+
+    // Yeni approver'a fallback flag'li e-posta
+    await this.dispatchApprovalRequiredEmail(
+      {
+        id: step.request.id,
+        approvalNumber: step.request.approvalNumber,
+        type: step.request.type,
+        amount: step.request.amount,
+        currency: step.request.currency,
+        initiatorNote: step.request.initiatorNote,
+        flow: step.request.flow,
+        tender: {
+          tenderNumber: step.request.tender.tenderNumber,
+          title: step.request.tender.title,
+        },
+        initiatedBy: step.request.initiatedBy,
+      },
+      {
+        id: step.id,
+        approver: {
+          email: fallbackAdmin.email,
+          firstName: fallbackAdmin.firstName,
+          lastName: fallbackAdmin.lastName,
+          isActive: true,
+        },
+      },
+      { originalApproverName: oldApproverName },
+    );
   }
 }

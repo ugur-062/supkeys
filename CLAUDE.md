@@ -240,16 +240,65 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 
 🎉 **V1 COMPLETE** — Tüm temel ihale yönetim akışları (D.1-D.2.B + E.1-E.7.D) tamamlandı.
 
+### V1.5 Oturum 1 — Sipariş Workflow + Approver Fallback
+- **Schema migration `v15_order_status_workflow`:** `OrderStatus` enum'una `IN_DELIVERY` eklendi (PENDING'den sonra; legacy ACCEPTED/IN_PROGRESS/DELIVERED reserved). `Order`'a workflow alanları: `deliveryStartedAt`, `deliveryStartedById` + `deliveryStartedBy User?` relation, `deliveryNote @db.Text`, `expectedDeliveryDate`, `completedAt`, `completedById` + `completedBy User?` relation, `completedNote @db.Text`, `cancelledAt`, `cancelledById` + `cancelledBy User?` relation, `cancelReason @db.Text`. User'a 3 yeni reverse relation. FK constraints `users(id)` `ON DELETE SET NULL`.
+- **Backend tenant-orders genişletildi** (`/tenants/me/orders`):
+  - `POST /:id/complete` (RolesGuard COMPANY_ADMIN/BUYER): IN_DELIVERY → COMPLETED, `completedNote` opsiyonel ≤500 char, tedarikçiye `order_status_changed` (COMPLETED) e-posta.
+  - `POST /:id/cancel`: PENDING/IN_DELIVERY → CANCELLED, `reason` zorunlu 10-500 char, COMPLETED/CANCELLED'dayken 409, tedarikçiye `order_status_changed` (CANCELLED) e-posta.
+  - `findOne` include genişletildi (deliveryStartedBy/completedBy/cancelledBy User select). `stats` V1.5 formatına geçti: `{total, pending, inDelivery, completed, cancelled}`.
+  - Module: `EmailModule` import eklendi, `EmailQueue` + `ConfigService` inject.
+- **Backend supplier-orders genişletildi** (`/supplier/orders`):
+  - `POST /:id/start-delivery` (SupplierJwtAuthGuard): PENDING → IN_DELIVERY, `deliveryNote` ≤500 char + `expectedDeliveryDate` ISO opsiyonel. `deliveryStartedById` NULL bırakılır (SupplierUser ayrı tablo, FK uyumsuzluğu — info implicit). Alıcı COMPANY_ADMIN'e `order_status_changed` (IN_DELIVERY) e-posta + tahmini teslim tarihi.
+  - `findOne` include genişletildi (3 user select), `stats` V1.5 formatına geçti.
+- **State machine validasyonları** (transaction içinde): PENDING → IN_DELIVERY (supplier), IN_DELIVERY → COMPLETED (tenant), PENDING/IN_DELIVERY → CANCELLED (tenant), COMPLETED/CANCELLED final state. Yanlış geçişlerde 409.
+- **Frontend `/dashboard/siparisler` + `/supplier/siparisler` listesi:**
+  - TABS V1.5'e güncel: Tümü / Bekliyor / Teslimatta / Tamamlandı / İptal Edildi (legacy ACCEPTED/IN_PROGRESS/DELIVERED kaldırıldı).
+  - KPI cards: Toplam / Bekliyor / Teslimatta (mavi) / Tamamlandı (yeşil) — `useOrderStats`/`useSupplierOrderStats` invariant.
+  - `ORDER_STATUS_META` IN_DELIVERY için mavi pill + dot, COMPLETED yeşil, CANCELLED kırmızı. Eski statuslar (ACCEPTED/IN_PROGRESS/DELIVERED) backward-compat için bırakıldı.
+- **Frontend tenant order detay** (`/dashboard/siparisler/[id]`):
+  - `TenantOrderActions` banner: PENDING → "Tedarikçinin teslimat başlatması bekleniyor" + İptal CTA; IN_DELIVERY → "Teslim Aldım" success + İptal CTA; COMPLETED → success info; CANCELLED → danger info.
+  - `CompleteOrderModal` (success-yeşil, opsiyonel not ≤500 char) + `CancelOrderModal` (danger-kırmızı, sebep 10-500 char zorunlu, danger-50 warning kutu).
+  - Yeni section: **Sipariş Geçmişi** — `OrderTimeline` ortak component (Sipariş Oluşturuldu / Teslimat Başlatıldı / Teslim Alındı / İptal Edildi events with icon + timestamp + actor + meta).
+  - Hooks: `useCompleteOrder`, `useCancelOrder` (TanStack Query, KEYS.all + detail invalidate).
+- **Frontend supplier order detay** (`/supplier/siparisler/[id]`):
+  - `SupplierOrderActions` banner: PENDING → "Teslimat Başlat" mavi CTA; IN_DELIVERY → "Alıcının onayı bekleniyor" warning info; COMPLETED → success; CANCELLED → danger banner + sebep.
+  - `StartDeliveryModal` (mavi tema, opsiyonel kargo notu + opsiyonel tahmini tarih). Tarih min=bugün.
+  - `OrderTimeline` aynı component, supplier tarafında da render.
+  - Hook: `useStartDelivery` (supplier API'den).
+- **3 yeni ortak component** (`@/components/orders/`): `complete-order-modal.tsx`, `cancel-order-modal.tsx`, `start-delivery-modal.tsx`, `order-timeline.tsx`. Hepsi Radix Dialog + Field/Label/Textarea/Input.
+- **E-posta `order_status_changed`:** Dynamic 3-status content (IN_DELIVERY mavi / COMPLETED yeşil / CANCELLED kırmızı). `recipient: "buyer" | "supplier"` discriminator → headingForBuyer vs headingForSupplier (örn. "Sipariş için teslimat başlatıldı" vs "Siparişiniz teslimat sürecinde"). Opsiyonel not + opsiyonel `expectedDeliveryDate` (TR locale format). Subject örnek: `🚚 Sipariş teslimat sürecinde: {tenderTitle}`, `✅ Sipariş tamamlandı`, `❌ Sipariş iptal edildi`. text + html.
+- **Approver pasifleştirilirse cron-tabanlı fallback** (`@Cron(EVERY_MINUTE)` `fallbackInactiveApprovers` in `TenantApprovalRequestsService`):
+  - PENDING request'lerde PENDING step'i olup `approver.isActive=false` olanlar batch 50 fetch.
+  - Her step için: aynı tenant'taki ilk ACTIVE COMPANY_ADMIN'i bulur (eski approver hariç, createdAt asc), step'in `approverUserId`'sini günceller.
+  - Idempotency: zaten admin ise atla. Admin yoksa error log + skip (V2'de support@supkeys.com alert).
+  - Yeni approver'a `approval_required` e-postası `isFallback: true` + `originalApproverName` flag'leri ile. Subject prefix `[Otomatik Atama]`.
+  - `ApprovalRequiredData` typeına `isFallback?` + `originalApproverName?` eklendi. Şablon body'sinde sarı warning banner (HTML + text).
+- **Manuel E2E doğrulama** (10 senaryo + 3 fallback senaryosu):
+  - Stats yeni format `{total, pending, inDelivery, completed, cancelled}` ✓
+  - Tenant complete (PENDING'deyken) → 409 "Sadece IN_DELIVERY..." ✓
+  - Tenant cancel < 10 char → 400 "must be longer than..." ✓
+  - Supplier startDelivery → IN_DELIVERY + alanlar dolu (deliveryNote, expectedDeliveryDate) ✓
+  - `order_status_changed` IN_DELIVERY e-posta ugur'a SENT ✓
+  - Supplier startDelivery (zaten IN_DELIVERY) → 409 ✓
+  - Tenant complete → COMPLETED + completedAt + note dolu ✓
+  - `order_status_changed` COMPLETED tedarikçiye SENT ✓
+  - COMPLETED'i tekrar complete → 409, COMPLETED'i cancel → 409 ✓
+  - Tenant cancel (IN_DELIVERY → CANCELLED) → cancelReason dolu ✓
+  - `order_status_changed` CANCELLED tedarikçiye SENT ✓
+  - Approver fallback: 25K tender publish → IN_APPROVAL + Mehmet'e e-posta → Mehmet pasifleştir → 65sn bekle → step approver=ugur (admin'e fallback), ugur'a `approval_required` e-postası `isFallback` banner'ıyla SENT ✓
+  - typecheck (api+web+admin+email+shared+db) tümü yeşil ✓
+
 ---
 
 ## Bekleyen — V1.5 / V2 / V3
 
 ### V1.5 (kısa vadeli)
-- Sipariş status workflow (Kabul/Reddet/Üretim/Teslim/Tamamla)
-- Sipariş PDF export
-- Sipariş üzerinde mesajlaşma
+- Sipariş PDF export (Puppeteer veya React-PDF)
+- Onay reminder e-postası (X gün PENDING ise hatırlatma)
+- Sipariş üzerinde mesajlaşma (V2 olabilir)
 - Sipariş listesi gelişmiş filtreleme/arama
 - Admin dashboard KPI'ları (demo + buyer + supplier stats agregasyonu)
+- PENDING_TENANT_APPROVAL data cleanup (E.6 script güncel mi?)
 
 ### V2 (orta vadeli)
 - TCMB API + döviz kuru dönüşümü (çoklu para birimi karşılaştırması)

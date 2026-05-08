@@ -111,6 +111,11 @@ import {
   makeApprovalRejectedSubject,
   renderApprovalRejectedText,
 } from "./templates/approval-rejected";
+import {
+  OrderStatusChangedEmail,
+  makeOrderStatusChangedSubject,
+  renderOrderStatusChangedText,
+} from "./templates/order-status-changed";
 import type { EmailTemplateData, RenderedEmail } from "./types";
 
 export async function renderEmail(
@@ -398,6 +403,20 @@ export async function renderEmail(
         subject: makeApprovalRejectedSubject(spec.data.tenderTitle),
         html,
         text: renderApprovalRejectedText(spec.data),
+      };
+    }
+
+    case "order_status_changed": {
+      const html = await render(
+        React.createElement(OrderStatusChangedEmail, spec.data),
+      );
+      return {
+        subject: makeOrderStatusChangedSubject(
+          spec.data.newStatus,
+          spec.data.tenderTitle,
+        ),
+        html,
+        text: renderOrderStatusChangedText(spec.data),
       };
     }
 

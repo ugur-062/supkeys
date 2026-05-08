@@ -130,6 +130,11 @@ model User {
   initiatedApprovalRequests ApprovalRequest[]      @relation("InitiatedApprovalRequests")
   approverOfRequestSteps    ApprovalRequestStep[]  @relation("ApproverOfRequestSteps")
 
+  // V1.5 — sipariş workflow reverse relations
+  ordersDeliveryStarted Order[] @relation("OrderDeliveryStarted")
+  ordersCompleted       Order[] @relation("OrderCompleted")
+  ordersCancelled       Order[] @relation("OrderCancelled")
+
   @@index([tenantId])
   @@map("users")
 }
@@ -610,12 +615,13 @@ enum BidStatus {
 }
 
 enum OrderStatus {
-  PENDING
-  ACCEPTED
-  IN_PROGRESS
-  DELIVERED
-  COMPLETED
-  CANCELLED
+  PENDING        // Sipariş açıldı, henüz teslimat başlamadı
+  IN_DELIVERY    // V1.5 — tedarikçi teslimat sürecinde (kargo, üretim vs)
+  ACCEPTED       // (legacy, V1'de hiç kullanılmadı; reserved future use)
+  IN_PROGRESS    // (legacy)
+  DELIVERED      // (legacy)
+  COMPLETED      // Alıcı teslim aldı
+  CANCELLED      // Alıcı iptal etti (sebep ile)
 }
 
 model Tender {
@@ -830,10 +836,27 @@ model Order {
   currency            Currency
   totalAmount         Decimal         @db.Decimal(20, 4)
 
-  expectedDeliveryAt  DateTime?
-  deliveredAt         DateTime?
+  expectedDeliveryAt  DateTime?       // (legacy, V1.5'ten önce kullanılan)
+  deliveredAt         DateTime?       // (legacy)
 
   notes               String?
+
+  // V1.5 — sipariş workflow alanları
+  deliveryStartedAt   DateTime?
+  deliveryStartedById String?
+  deliveryStartedBy   User?           @relation("OrderDeliveryStarted", fields: [deliveryStartedById], references: [id])
+  deliveryNote        String?         @db.Text
+  expectedDeliveryDate DateTime?
+
+  completedAt         DateTime?
+  completedById       String?
+  completedBy         User?           @relation("OrderCompleted", fields: [completedById], references: [id])
+  completedNote       String?         @db.Text
+
+  cancelledAt         DateTime?
+  cancelledById       String?
+  cancelledBy         User?           @relation("OrderCancelled", fields: [cancelledById], references: [id])
+  cancelReason        String?         @db.Text
 
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
