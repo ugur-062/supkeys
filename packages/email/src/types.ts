@@ -19,7 +19,10 @@ export type EmailTemplate =
   | "award_won_supplier"
   | "award_lost_supplier"
   | "award_completed_buyer"
-  | "user_invitation";
+  | "user_invitation"
+  | "approval_required"
+  | "approval_approved"
+  | "approval_rejected";
 
 export type EmailProviderName = "resend" | "mailpit";
 
@@ -294,6 +297,62 @@ export interface AwardCompletedBuyerData {
   tenderUrl: string;
 }
 
+/**
+ * Onay süreci type discriminator — şablonlar TENDER_PUBLISH ve TENDER_AWARD
+ * için farklı dil kullanır ("İhale Yayını" vs "Kazandırma").
+ */
+export type ApprovalEmailType = "TENDER_PUBLISH" | "TENDER_AWARD";
+
+/**
+ * Bir onay adımı PENDING'e geçtiğinde ilgili approver'a gider.
+ */
+export interface ApprovalRequiredData {
+  approverFirstName: string;
+  approvalNumber: string;
+  tenderNumber: string;
+  tenderTitle: string;
+  initiatorName: string;
+  flowName: string;
+  amount: number;
+  currency: string;
+  approvalType: ApprovalEmailType;
+  /** /dashboard/onay-bekleyenler/:id mutlak URL */
+  approvalUrl: string;
+  initiatorNote?: string | null;
+}
+
+/**
+ * Tüm adımlar onayladıktan sonra request başlatıcısına gider.
+ */
+export interface ApprovalApprovedData {
+  initiatorFirstName: string;
+  approvalNumber: string;
+  tenderNumber: string;
+  tenderTitle: string;
+  flowName: string;
+  approvalType: ApprovalEmailType;
+  approverCount: number;
+  lastApproverName: string;
+  /** /dashboard/ihaleler/:id mutlak URL */
+  tenderUrl: string;
+}
+
+/**
+ * Bir onay adımı reddedildiğinde başlatıcıya gider.
+ */
+export interface ApprovalRejectedData {
+  initiatorFirstName: string;
+  approvalNumber: string;
+  tenderNumber: string;
+  tenderTitle: string;
+  flowName: string;
+  approvalType: ApprovalEmailType;
+  rejectorName: string;
+  rejectionNote: string;
+  /** /dashboard/ihaleler/:id mutlak URL */
+  tenderUrl: string;
+}
+
 export type EmailTemplateData =
   | { template: "demo_request_received"; data: DemoRequestReceivedData }
   | { template: "demo_request_admin_alert"; data: DemoRequestAdminAlertData }
@@ -339,7 +398,10 @@ export type EmailTemplateData =
   | { template: "award_won_supplier"; data: AwardWonSupplierData }
   | { template: "award_lost_supplier"; data: AwardLostSupplierData }
   | { template: "award_completed_buyer"; data: AwardCompletedBuyerData }
-  | { template: "user_invitation"; data: UserInvitationData };
+  | { template: "user_invitation"; data: UserInvitationData }
+  | { template: "approval_required"; data: ApprovalRequiredData }
+  | { template: "approval_approved"; data: ApprovalApprovedData }
+  | { template: "approval_rejected"; data: ApprovalRejectedData };
 
 export interface RenderedEmail {
   subject: string;

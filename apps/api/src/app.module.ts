@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { EventEmitterModule } from "@nestjs/event-emitter";
 import { ScheduleModule } from "@nestjs/schedule";
 import { PrismaModule } from "./common/prisma/prisma.module";
 import { AdminApplicationsModule } from "./modules/admin-applications/admin-applications.module";
@@ -17,6 +18,7 @@ import { SupplierSelfServiceModule } from "./modules/supplier-self-service/suppl
 import { SupplierTendersModule } from "./modules/supplier-tenders/supplier-tenders.module";
 import { TenantAddressesModule } from "./modules/tenant-addresses/tenant-addresses.module";
 import { TenantApprovalFlowsModule } from "./modules/tenant-approval-flows/tenant-approval-flows.module";
+import { TenantApprovalRequestsModule } from "./modules/tenant-approval-requests/tenant-approval-requests.module";
 import { TenantDashboardModule } from "./modules/tenant-dashboard/tenant-dashboard.module";
 import { TenantOrdersModule } from "./modules/tenant-orders/tenant-orders.module";
 import { TenantSuppliersModule } from "./modules/tenant-suppliers/tenant-suppliers.module";
@@ -31,6 +33,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
       envFilePath: ["../../.env"],
     }),
     ScheduleModule.forRoot(),
+    EventEmitterModule.forRoot(),
     PrismaModule,
     AuthModule,
     AdminAuthModule,
@@ -50,6 +53,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     TenantUsersModule,
     TenantAddressesModule,
     TenantApprovalFlowsModule,
+    TenantApprovalRequestsModule,
     PublicInvitationsModule,
     TenderSchedulerModule,
     HealthModule,

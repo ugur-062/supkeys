@@ -24,8 +24,10 @@ export type TenderType = "RFQ" | "ENGLISH_AUCTION";
 
 export type TenderStatus =
   | "DRAFT"
+  | "IN_APPROVAL"
   | "OPEN_FOR_BIDS"
   | "IN_AWARD"
+  | "IN_AWARD_APPROVAL"
   | "AWARDED"
   | "CANCELLED"
   | "CLOSED_NO_AWARD";
@@ -172,13 +174,22 @@ export interface TenderDetail {
     withdrawn: number;
     invitedCount: number;
   };
+  /** E.7.D — IN_APPROVAL/IN_AWARD_APPROVAL durumunda aktif onay request bilgisi. */
+  activeApprovalRequest: {
+    id: string;
+    approvalNumber: string;
+    type: "TENDER_PUBLISH" | "TENDER_AWARD";
+    initiatedById: string;
+  } | null;
 }
 
 export interface TenderStats {
   total: number;
   draft: number;
+  inApproval: number;
   openForBids: number;
   inAward: number;
+  inAwardApproval: number;
   awarded: number;
   cancelled: number;
   closedNoAward: number;

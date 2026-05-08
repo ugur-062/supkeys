@@ -83,8 +83,10 @@ export function TenderLiveStatusPill({
 }: {
   status:
     | "DRAFT"
+    | "IN_APPROVAL"
     | "OPEN_FOR_BIDS"
     | "IN_AWARD"
+    | "IN_AWARD_APPROVAL"
     | "AWARDED"
     | "CLOSED_NO_AWARD"
     | "CANCELLED";
@@ -97,6 +99,12 @@ export function TenderLiveStatusPill({
       dot: "bg-slate-400",
       pulse: false,
     },
+    IN_APPROVAL: {
+      label: "Onay Bekliyor",
+      bg: "bg-warning-50 text-warning-700 border-warning-200",
+      dot: "bg-warning-500",
+      pulse: true,
+    },
     OPEN_FOR_BIDS: {
       label: "Teklife Açık",
       bg: "bg-success-50 text-success-700 border-success-200",
@@ -108,6 +116,12 @@ export function TenderLiveStatusPill({
       bg: "bg-purple-50 text-purple-700 border-purple-200",
       dot: "bg-purple-500",
       pulse: false,
+    },
+    IN_AWARD_APPROVAL: {
+      label: "Kazandırma Onay Bekliyor",
+      bg: "bg-purple-50 text-purple-700 border-purple-200",
+      dot: "bg-purple-500",
+      pulse: true,
     },
     AWARDED: {
       label: "Sonuçlandı",

@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { MissingTargetWarningDialog } from "./missing-target-warning-dialog";
 import { PublishConfirmDialog } from "./publish-confirm-dialog";
 import { Step1Info } from "./step-1-info";
 import { Step2Items } from "./step-2-items";
@@ -38,6 +39,9 @@ export function TenderWizard({ mode, initialData }: Props) {
   const router = useRouter();
   const [step, setStep] = useState<WizardStep>(1);
   const [publishOpen, setPublishOpen] = useState(false);
+  const [missingTargetWarningOpen, setMissingTargetWarningOpen] =
+    useState(false);
+  const [itemsMissingTarget, setItemsMissingTarget] = useState(0);
 
   const form = useForm<TenderFormData>({
     resolver: zodResolver(tenderFormSchema),
@@ -98,8 +102,16 @@ export function TenderWizard({ mode, initialData }: Props) {
             ? await createMutation.mutateAsync(values)
             : await updateMutation.mutateAsync(values);
 
-        await publishMutation.mutateAsync(saved.id);
-        toast.success(`İhale yayınlandı: ${saved.tenderNumber}`);
+        const result = await publishMutation.mutateAsync(saved.id);
+        const status = (result as { status?: string } | undefined)?.status;
+        if (status === "IN_APPROVAL") {
+          const apr = (result as { approvalNumber?: string }).approvalNumber;
+          toast.success(
+            `Onay sürecine alındı${apr ? ` — ${apr}` : ""}. Onay tamamlanınca yayınlanacak.`,
+          );
+        } else {
+          toast.success(`İhale yayınlandı: ${saved.tenderNumber}`);
+        }
         router.push(`/dashboard/ihaleler/${saved.id}`);
       } catch (err) {
         toast.error(extractErrorMessage(err, "Yayınlama başarısız"));
@@ -112,6 +124,27 @@ export function TenderWizard({ mode, initialData }: Props) {
       setPublishOpen(false);
     },
   );
+
+  /**
+   * Yayınla butonuna basıldığında önce hedef fiyatı eksik kalemleri kontrol et.
+   * Eksik varsa warning modal göster; "Yine de Yayınla" derse asıl publish dialog açılır.
+   */
+  const checkAndOpenPublish = () => {
+    const items = form.getValues("items") ?? [];
+    const missing = items.filter((it) => {
+      const t = it.targetUnitPrice;
+      if (t === null || t === undefined) return true;
+      const num = Number(t);
+      return !Number.isFinite(num) || num <= 0;
+    }).length;
+
+    if (missing > 0) {
+      setItemsMissingTarget(missing);
+      setMissingTargetWarningOpen(true);
+      return;
+    }
+    setPublishOpen(true);
+  };
 
   const invitedCount = form.watch("invitedSupplierIds")?.length ?? 0;
 
@@ -181,7 +214,7 @@ export function TenderWizard({ mode, initialData }: Props) {
               <Button
                 type="button"
                 variant="primary"
-                onClick={() => setPublishOpen(true)}
+                onClick={checkAndOpenPublish}
                 disabled={isSubmitting || invitedCount === 0}
                 title={
                   invitedCount === 0
@@ -203,6 +236,13 @@ export function TenderWizard({ mode, initialData }: Props) {
         onConfirm={() => handlePublish()}
         invitedCount={invitedCount}
         isSubmitting={isSubmitting}
+      />
+
+      <MissingTargetWarningDialog
+        open={missingTargetWarningOpen}
+        onClose={() => setMissingTargetWarningOpen(false)}
+        onContinue={() => setPublishOpen(true)}
+        itemsMissingCount={itemsMissingTarget}
       />
     </FormProvider>
   );

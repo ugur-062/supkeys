@@ -16,7 +16,15 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import type { TenderDetail } from "@/lib/tenders/types";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Award, Ban, Pencil, Send, Trash2 } from "lucide-react";
+import {
+  Award,
+  Ban,
+  Clock,
+  ExternalLink,
+  Pencil,
+  Send,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -51,10 +59,18 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
 
   const handlePublish = async () => {
     try {
-      await publishMutation.mutateAsync(tender.id);
-      toast.success(
-        `İhale yayınlandı: ${tender.tenderNumber} — tedarikçilere e-posta gönderiliyor`,
-      );
+      const result = await publishMutation.mutateAsync(tender.id);
+      const status = (result as { status?: string } | undefined)?.status;
+      if (status === "IN_APPROVAL") {
+        const apr = (result as { approvalNumber?: string }).approvalNumber;
+        toast.success(
+          `Onay sürecine alındı${apr ? ` — ${apr}` : ""}. Onaylandıktan sonra yayınlanacak.`,
+        );
+      } else {
+        toast.success(
+          `İhale yayınlandı: ${tender.tenderNumber} — tedarikçilere e-posta gönderiliyor`,
+        );
+      }
     } catch (err) {
       toast.error(extractErrorMessage(err, "Yayınlama başarısız"));
     } finally {
@@ -207,6 +223,58 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
             ) : null}
           </div>
         </div>
+
+        {/* E.7.D — IN_APPROVAL / IN_AWARD_APPROVAL banner */}
+        {(tender.status === "IN_APPROVAL" ||
+          tender.status === "IN_AWARD_APPROVAL") &&
+        tender.activeApprovalRequest ? (
+          <div className="mt-4 p-4 rounded-lg bg-warning-50 border border-warning-200">
+            <div className="flex items-start gap-3">
+              <Clock className="w-5 h-5 text-warning-600 shrink-0 mt-0.5 animate-pulse" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-warning-800 text-sm">
+                  {tender.status === "IN_APPROVAL"
+                    ? "Onay Bekliyor — yayın askıda"
+                    : "Kazandırma Onayı Bekliyor"}
+                </p>
+                <p className="text-xs text-warning-700/90 mt-1 leading-relaxed">
+                  {tender.status === "IN_APPROVAL"
+                    ? "Bu ihale, onay süreci tamamlanana kadar yayınlanmayacak. Tüm onaycılar kararını verince davet e-postaları otomatik gönderilir."
+                    : "Kazandırma kararlarınız onay sürecindedir. Tüm onaycılar kararını verince siparişler otomatik oluşturulur."}{" "}
+                  Onay no:{" "}
+                  <code className="font-mono font-semibold">
+                    {tender.activeApprovalRequest.approvalNumber}
+                  </code>
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link
+                    href={`/dashboard/onay-bekleyenler/${tender.activeApprovalRequest.id}`}
+                  >
+                    <Button variant="secondary" size="sm">
+                      <ExternalLink className="w-4 h-4" />
+                      Onay Sürecini Görüntüle
+                    </Button>
+                  </Link>
+                  {isAdmin ||
+                  tender.activeApprovalRequest.initiatedById === user?.id ? (
+                    <Link
+                      href={`/dashboard/onay-bekleyenler/${tender.activeApprovalRequest.id}`}
+                    >
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="!text-warning-700 hover:!bg-warning-100"
+                      >
+                        <Ban className="w-4 h-4" />
+                        Onayı İptal Et
+                      </Button>
+                    </Link>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {/* CANCELLED açıklaması */}
         {tender.status === "CANCELLED" && tender.cancelReason ? (

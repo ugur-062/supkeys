@@ -96,6 +96,21 @@ import {
   renderUserInvitationText,
   UserInvitationEmail,
 } from "./templates/user-invitation";
+import {
+  ApprovalRequiredEmail,
+  makeApprovalRequiredSubject,
+  renderApprovalRequiredText,
+} from "./templates/approval-required";
+import {
+  ApprovalApprovedEmail,
+  makeApprovalApprovedSubject,
+  renderApprovalApprovedText,
+} from "./templates/approval-approved";
+import {
+  ApprovalRejectedEmail,
+  makeApprovalRejectedSubject,
+  renderApprovalRejectedText,
+} from "./templates/approval-rejected";
 import type { EmailTemplateData, RenderedEmail } from "./types";
 
 export async function renderEmail(
@@ -350,6 +365,39 @@ export async function renderEmail(
         subject: makeUserInvitationSubject(spec.data.tenantName),
         html,
         text: renderUserInvitationText(spec.data),
+      };
+    }
+
+    case "approval_required": {
+      const html = await render(
+        React.createElement(ApprovalRequiredEmail, spec.data),
+      );
+      return {
+        subject: makeApprovalRequiredSubject(spec.data.tenderTitle),
+        html,
+        text: renderApprovalRequiredText(spec.data),
+      };
+    }
+
+    case "approval_approved": {
+      const html = await render(
+        React.createElement(ApprovalApprovedEmail, spec.data),
+      );
+      return {
+        subject: makeApprovalApprovedSubject(spec.data.tenderTitle),
+        html,
+        text: renderApprovalApprovedText(spec.data),
+      };
+    }
+
+    case "approval_rejected": {
+      const html = await render(
+        React.createElement(ApprovalRejectedEmail, spec.data),
+      );
+      return {
+        subject: makeApprovalRejectedSubject(spec.data.tenderTitle),
+        html,
+        text: renderApprovalRejectedText(spec.data),
       };
     }
 

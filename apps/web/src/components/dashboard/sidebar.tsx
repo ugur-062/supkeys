@@ -1,22 +1,42 @@
 "use client";
 
 import { SupkeysLogo } from "@/components/brand/logo";
+import { useApprovalPendingCount } from "@/hooks/use-approval-requests";
 import { useAuth } from "@/hooks/use-auth";
 import { navConfig, profileNavItem } from "@/lib/dashboard/nav-config";
 import { useSidebar } from "@/lib/dashboard/use-sidebar";
 import { cn } from "@/lib/utils";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo } from "react";
 import { SidebarGroup } from "./sidebar-group";
 import { SidebarItem } from "./sidebar-item";
 
 export function Sidebar() {
   const { collapsed, toggle, mobileOpen, closeMobile } = useSidebar();
   const { user } = useAuth();
+  const { data: pendingApprovals } = useApprovalPendingCount();
 
   const initials = user
     ? `${user.firstName[0] ?? ""}${user.lastName[0] ?? ""}`.toUpperCase()
     : "??";
+
+  // E.7.D — "Onay Bekleyenler" item'ına live badge enjekte et
+  const liveNavConfig = useMemo(() => {
+    const count = pendingApprovals?.count ?? 0;
+    return navConfig.map((group) => ({
+      ...group,
+      items: group.items.map((item) => {
+        if (
+          item.type === "link" &&
+          item.href === "/dashboard/onay-bekleyenler"
+        ) {
+          return { ...item, badge: count };
+        }
+        return item;
+      }),
+    }));
+  }, [pendingApprovals?.count]);
 
   return (
     <Tooltip.Provider>
@@ -97,7 +117,7 @@ export function Sidebar() {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-3 space-y-5">
-          {navConfig.map((group) => (
+          {liveNavConfig.map((group) => (
             <SidebarGroup
               key={group.label}
               group={group}

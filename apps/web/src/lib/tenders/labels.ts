@@ -18,6 +18,10 @@ export const TENDER_STATUS_META: Record<TenderStatus, BadgeMeta> = {
     label: "Taslak",
     className: "bg-slate-100 text-slate-700 border-slate-200",
   },
+  IN_APPROVAL: {
+    label: "Onay Bekliyor",
+    className: "bg-warning-50 text-warning-700 border-warning-500/30",
+  },
   OPEN_FOR_BIDS: {
     label: "Yayında",
     className: "bg-success-50 text-success-700 border-success-500/30",
@@ -25,6 +29,10 @@ export const TENDER_STATUS_META: Record<TenderStatus, BadgeMeta> = {
   IN_AWARD: {
     label: "Kazandırma Aşamasında",
     className: "bg-warning-50 text-warning-700 border-warning-500/30",
+  },
+  IN_AWARD_APPROVAL: {
+    label: "Kazandırma Onay Bekliyor",
+    className: "bg-purple-50 text-purple-700 border-purple-200",
   },
   AWARDED: {
     label: "Tamamlandı",

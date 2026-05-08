@@ -200,12 +200,51 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
   - 404: bilinmeyen id → 404 (loader) ✓
   - typecheck (api+web+admin+email+shared+db) tüm yeşil ✓
 
+### E.7.D — Onay Çalıştırma Runtime (V1 Final)
+- **Schema migration `e7d_approval_request_runtime`:** `ApprovalRequest` (APR-YYYY-NNNN tenant-wide counter, polymorphic `tenderId` — V1'de sadece tender, V2'de Order/PurchaseRequest), `ApprovalRequestStep` (snapshot conditionMinAmount + displayLabel — rule sonradan değişse bile request bağımsız) + `ApprovalRequestStatus` (PENDING/APPROVED/REJECTED/CANCELLED) + `ApprovalStepStatus` (WAITING/PENDING/APPROVED/REJECTED/SKIPPED) enum'ları. **TenderStatus genişletildi:** `IN_APPROVAL` (yayın için onay bekliyor) + `IN_AWARD_APPROVAL` (kazandırma için onay bekliyor). User'a 2 yeni reverse relation, Tenant + Tender + ApprovalFlow + ApprovalFlowStep'e back-relation. Manuel SQL.
+- **Backend `tenant-approval-requests` modülü** (`/tenants/me/approval-requests`):
+  - `findMatchAndCreate(tx, params)` — tender service'ten transaction içinde çağrılır. Aktif `ApprovalFlow` arar (type + initiator approved), conditionMinAmount > amount ise step SKIPPED. İlk SKIPPED olmayan adım PENDING. Tüm adımlar SKIPPED ise `null` döner (caller direkt geçer). `amount <= 0` ise atlanır.
+  - `GET /` (filters: status, type, initiatorUserId, tenderNumber, approvalNumber, pendingForMe), `GET /pending-count` (sidebar badge için), `GET /:id` (tender items+invitations+createdBy include + steps approver expanded).
+  - `POST /:id/approve` (note opsiyonel ≤1000): pending step → APPROVED, sıradaki SKIPPED olmayan adım → PENDING (yeni approver'a `approval_required` e-posta). Tüm adımlar tamamlandıysa request → APPROVED + tender ileriye taşınır + `tender.publish.approved` veya `tender.award.approved` event emit edilir + initiator'a `approval_approved` e-posta.
+  - `POST /:id/reject` (note ≥10 char zorunlu): step → REJECTED, request → REJECTED, tender geri çevrilir (PUBLISH → DRAFT, AWARD → IN_AWARD), initiator'a `approval_rejected` e-posta (rejectionNote dahil).
+  - `POST /:id/cancel` (reason ≤500 opsiyonel): sadece initiator veya COMPANY_ADMIN. Request → CANCELLED, tender revert. Reason `initiatorNote`'a "İptal sebebi: ..." formatında append.
+- **Backend tender service refactor:**
+  - `publish(tenantId, tenderId, userId)` — Σ(targetUnitPrice × quantity) bütçesi hesaplar (boş kalemler 0). `findMatchAndCreate({ type: TENDER_PUBLISH })` ile aktif kural arar. Kural varsa: tender → IN_APPROVAL, ilk approver'a `approval_required` e-posta, response `{status:"IN_APPROVAL", approvalRequestId, approvalNumber}`. Kural yoksa: direkt OPEN_FOR_BIDS + davet e-postaları.
+  - `finalizeAward(tenantId, tenderId, userId)` — winning bid'lerin Σ(winningItems totalPrice) bütçesi. Kural varsa: tender → IN_AWARD_APPROVAL + e-posta; kural yoksa: `executeFinalizeAward()` (tüm SUBMITTED → LOST, Order create, e-postalar).
+  - `executeFinalizeAward()` — paylaşılan transaction (onaysız ve onaylı path'lerden çağrılır). Idempotency check (zaten AWARDED ise atla).
+  - **EventEmitter pattern:** `@nestjs/event-emitter` paketi eklendi, `EventEmitterModule.forRoot()` AppModule'a register. Approval onaylandığında approval-requests-service `tender.publish.approved` veya `tender.award.approved` event emit eder. Tender service `@OnEvent` listener'ları: `handlePublishApproved` (davet e-postaları) ve `handleAwardApproved` (executeFinalizeAward + dispatchAwardEmails). Dependency cycle riski yok.
+  - `findOne` response'una `activeApprovalRequest: {id, approvalNumber, type, initiatedById} | null` eklendi (banner için). `stats`'a `inApproval` + `inAwardApproval` count'ları eklendi.
+- **3 yeni e-posta şablonu** (`packages/email/src/templates/`):
+  - `approval_required` — yellow summary box (APR no + tender + flow + amount), opsiyonel açıklama quote box, "Onay Sürecini Görüntüle" CTA. Subject: `🔔 Onayınız bekleniyor: {tenderTitle}`.
+  - `approval_approved` — green summary, "{N} aşamalı onay süreci son olarak {lastApprover} tarafından onaylandı" + actionLabel ("İhale yayınlandı, davetler gönderildi" veya "Kazandırma tamamlandı"). Subject: `✅ Onayınız tamamlandı`.
+  - `approval_rejected` — red summary + reason quote box + reverseLabel ("DRAFT'a döndü" veya "IN_AWARD'a döndü"). Subject: `❌ Onay süreciniz reddedildi`.
+- **Frontend `/dashboard/onay-bekleyenler`** (placeholder kaldırıldı): 2 tab "Onay Bekleyenler" (pendingForMe) / "Tüm Onay Süreçleri" (filtre bar: status, başlatan, tür, ihale no, onay no — Suspense + URL sync). Tablo: APR no (mono link) + Tür pill + İhale (no + title) + Başlatan + Adım(`X/Y`)/Statü + Tutar TRY locale + Son İşlem + Görüntüle. Empty state ClipboardCheck. 30sn refetch.
+- **Frontend `/dashboard/onay-bekleyenler/[id]`:** 3 section — Üst kart (APR no + status badge + type badge + title + 6'lı meta grid + initiator note + aksiyon butonları), Onay Tarihçesi tablosu (süreç başlatıldı satırı + her step için icon + actionText + timestamp + note), İhale Özeti kartı (tender meta + invitations chips + first 10 items list + "İhale Detayını Aç" link). 3 modal: `DecisionModal` (approve/reject birleşik, reject min 10 char), `CancelModal` (warning yellow box + reverseLabel + reason).
+- **Tender detay header card:** IN_APPROVAL/IN_AWARD_APPROVAL durumunda warning-50 banner — Clock pulse icon + "Onay Bekliyor — yayın askıda" / "Kazandırma Onayı Bekliyor" + APR no mono code + "Onay Sürecini Görüntüle" + "Onayı İptal Et" (sadece initiator veya COMPANY_ADMIN). `TenderLiveStatusPill` ve `TENDER_STATUS_META` 2 yeni statu için güncellendi (warning-50 / purple).
+- **Tender wizard:** Yayınla butonuna basıldığında `checkAndOpenPublish()` itemlerden hedef fiyat kontrolü yapar; eksik kalem varsa `MissingTargetWarningDialog` (Geri Dön ve Düzelt / Yine de Yayınla CTA'lar). `handlePublish` IN_APPROVAL response'u algılayıp toast'unu farklılaştırır. Header card publish butonu da aynı.
+- **Sidebar pending count badge:** `useApprovalPendingCount()` 60sn refetch ile sidebar'da "Onay Bekleyenler" item'ına live badge enjekte edilir (`useMemo` ile `liveNavConfig` üretilir, mevcut `SidebarItem` `item.badge > 0` rendering pattern'ı kullanılır).
+- **Manuel E2E doğrulama** (8 senaryo + cross-token):
+  - Boş list + pending count 0 ✓
+  - Cross-token (admin → tenant approval-requests) → 401 ✓
+  - 25K tender publish (eşik 10K aşılır) → IN_APPROVAL + APR-2026-0001 + Mehmet'e approval_required ✓
+  - Self-approve → 403 "Bu adımda onaylama yetkiniz yok" ✓
+  - Reject < 10 char → 400 "en az 10 karakter olmalıdır" ✓
+  - Mehmet approve → REQUEST_APPROVED + tender → OPEN_FOR_BIDS otomatik (event emit) + ugur'a approval_approved + tedarikçiye tender_invitation ✓
+  - Already-approved approve → 409 "Bu onay süreci aktif değil" ✓
+  - 5K tender (eşik altı) → onaysız direkt OPEN_FOR_BIDS ✓
+  - Reject 30K tender → tender DRAFT, request REJECTED, ugur'a approval_rejected ✓
+  - Cancel by initiator (50K tender) → tender DRAFT, request CANCELLED ✓
+  - APR numbering sequential 0001/0002/0003 ✓
+  - Frontend rotaları HTTP 200 (/onay-bekleyenler + /onay-bekleyenler/:id) ✓
+  - typecheck (api+web+admin+email+shared+db) tümü yeşil ✓
+
+🎉 **V1 COMPLETE** — Tüm temel ihale yönetim akışları (D.1-D.2.B + E.1-E.7.D) tamamlandı.
+
 ---
 
 ## Bekleyen — V1.5 / V2 / V3
 
 ### V1.5 (kısa vadeli)
-- **Aşama E.7.D:** Onay çalıştırma (Onay Bekleyenler sayfası aktif, ApprovalRequest oluşturma + APPROVER user atama + onay akışı)
 - Sipariş status workflow (Kabul/Reddet/Üretim/Teslim/Tamamla)
 - Sipariş PDF export
 - Sipariş üzerinde mesajlaşma

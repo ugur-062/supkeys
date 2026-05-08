@@ -41,6 +41,7 @@ model Tenant {
   userInvitations      UserInvitation[]
   addresses            TenantAddress[]
   approvalFlows        ApprovalFlow[]
+  approvalRequests     ApprovalRequest[]
 
   @@map("tenants")
 }
@@ -124,6 +125,10 @@ model User {
   createdApprovalFlows ApprovalFlow[]            @relation("ApprovalFlowCreatedBy")
   initiatorOfFlows     ApprovalFlowInitiator[]   @relation("ApprovalFlowInitiatorUser")
   approverOfFlows      ApprovalFlowStep[]        @relation("ApprovalFlowStepApprover")
+
+  // E.7.D — onay request reverse relations
+  initiatedApprovalRequests ApprovalRequest[]      @relation("InitiatedApprovalRequests")
+  approverOfRequestSteps    ApprovalRequestStep[]  @relation("ApproverOfRequestSteps")
 
   @@index([tenantId])
   @@map("users")
@@ -553,8 +558,10 @@ enum TenderType {
 
 enum TenderStatus {
   DRAFT                // Taslak (henüz yayınlanmadı)
+  IN_APPROVAL          // E.7.D — yayın için onay bekliyor
   OPEN_FOR_BIDS        // Yayında, teklif alıyor
   IN_AWARD             // Süre doldu, alıcı kazandırma yapıyor
+  IN_AWARD_APPROVAL    // E.7.D — kazandırma için onay bekliyor
   AWARDED              // Kazandırıldı, sipariş oluştu
   CANCELLED            // İptal edildi
   CLOSED_NO_AWARD      // Süre doldu, kazandırma yapılmadı
@@ -660,6 +667,7 @@ model Tender {
   bids                Bid[]
   orders              Order[]
   attachments         TenderAttachment[]
+  approvalRequests    ApprovalRequest[]
 
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
@@ -855,6 +863,7 @@ model ApprovalFlow {
 
   initiators   ApprovalFlowInitiator[]
   steps        ApprovalFlowStep[]
+  requests     ApprovalRequest[]
 
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
@@ -895,6 +904,8 @@ model ApprovalFlowStep {
   // Diagram'da gösterilecek soft etiket (örn "Satınalma Müdürü")
   displayLabel       String?
 
+  requestSteps       ApprovalRequestStep[]
+
   createdAt          DateTime     @default(now())
 
   @@unique([flowId, orderIndex])
@@ -911,4 +922,91 @@ enum ApprovalFlowStatus {
   DRAFT
   ACTIVE
   PASSIVE
+}
+
+// ============================================================
+// APPROVAL REQUEST RUNTIME — Aşama E.7.D
+// ============================================================
+
+model ApprovalRequest {
+  id              String   @id @default(cuid())
+  approvalNumber  String   @unique // APR-YYYY-NNNN
+
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  flowId          String
+  flow            ApprovalFlow @relation(fields: [flowId], references: [id])
+
+  // Polymorphic — V1'de sadece tender. V2'de orderId/purchaseRequestId gelecek.
+  type            ApprovalFlowType
+  tenderId        String
+  tender          Tender   @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+
+  status          ApprovalRequestStatus @default(PENDING)
+
+  // Match anında hesaplanan bütçe (snapshot — rule değişse bile request bağımsız)
+  amount          Decimal  @db.Decimal(20, 2)
+  currency        String   @default("TRY")
+
+  initiatedById   String
+  initiatedBy     User     @relation("InitiatedApprovalRequests", fields: [initiatedById], references: [id])
+  initiatorNote   String?
+
+  steps           ApprovalRequestStep[]
+
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId, status, type])
+  @@index([tenantId, status])
+  @@index([tenderId])
+  @@index([initiatedById, status])
+  @@map("approval_requests")
+}
+
+enum ApprovalRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model ApprovalRequestStep {
+  id              String   @id @default(cuid())
+  requestId       String
+  request         ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  flowStepId      String
+  flowStep        ApprovalFlowStep @relation(fields: [flowStepId], references: [id])
+
+  approverUserId  String
+  approver        User     @relation("ApproverOfRequestSteps", fields: [approverUserId], references: [id])
+
+  status          ApprovalStepStatus @default(WAITING)
+  orderIndex      Int
+
+  // Snapshot (rule değişebilir, request bağımsız)
+  conditionMinAmount  Decimal? @db.Decimal(20, 2)
+  displayLabel    String?
+
+  decidedAt       DateTime?
+  decisionNote    String?
+
+  createdAt       DateTime @default(now())
+
+  @@index([approverUserId, status])
+  @@index([requestId, orderIndex])
+  @@map("approval_request_steps")
+}
+
+enum ApprovalStepStatus {
+  WAITING
+  PENDING
+  APPROVED
+  REJECTED
+  SKIPPED
 }

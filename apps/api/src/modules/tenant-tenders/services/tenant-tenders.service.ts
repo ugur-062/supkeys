@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { OnEvent } from "@nestjs/event-emitter";
 import type { BidStatus, Prisma, TenderStatus } from "@supkeys/db";
 import { generateOrderNumber, generateTenderNumber } from "@supkeys/shared";
 import { format } from "date-fns";
@@ -18,6 +19,11 @@ import {
   TenantAddressesService,
   type TenantAddressSnapshot,
 } from "../../tenant-addresses/services/tenant-addresses.service";
+import {
+  APPROVAL_EVENT,
+  TenantApprovalRequestsService,
+  type ApprovalApprovedEvent,
+} from "../../tenant-approval-requests/services/tenant-approval-requests.service";
 import {
   AwardItemDecisionDto,
   CloseNoAwardDto,
@@ -36,6 +42,7 @@ export class TenantTendersService {
     private readonly emailQueue: EmailQueue,
     private readonly config: ConfigService,
     private readonly addressesService: TenantAddressesService,
+    private readonly approvalRequests: TenantApprovalRequestsService,
   ) {}
 
   // ============================================================
@@ -138,6 +145,18 @@ export class TenantTendersService {
         _count: {
           select: { bids: true },
         },
+        // E.7.D — IN_APPROVAL/IN_AWARD_APPROVAL banner için aktif onay
+        approvalRequests: {
+          where: { status: "PENDING" },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            id: true,
+            approvalNumber: true,
+            type: true,
+            initiatedById: true,
+          },
+        },
       },
     });
     if (!tender) throw new NotFoundException("İhale bulunamadı");
@@ -155,8 +174,9 @@ export class TenantTendersService {
       {} as Record<string, number>,
     );
 
+    const { approvalRequests, ...rest } = tender;
     return {
-      ...tender,
+      ...rest,
       bidStats: {
         total:
           (byStatus.SUBMITTED ?? 0) +
@@ -169,6 +189,7 @@ export class TenantTendersService {
         withdrawn: byStatus.WITHDRAWN ?? 0,
         invitedCount: tender.invitations.length,
       },
+      activeApprovalRequest: approvalRequests[0] ?? null,
     };
   }
 
@@ -191,8 +212,10 @@ export class TenantTendersService {
     return {
       total,
       draft: byStatus.DRAFT ?? 0,
+      inApproval: byStatus.IN_APPROVAL ?? 0,
       openForBids: byStatus.OPEN_FOR_BIDS ?? 0,
       inAward: byStatus.IN_AWARD ?? 0,
+      inAwardApproval: byStatus.IN_AWARD_APPROVAL ?? 0,
       awarded: byStatus.AWARDED ?? 0,
       cancelled: byStatus.CANCELLED ?? 0,
       closedNoAward: byStatus.CLOSED_NO_AWARD ?? 0,
@@ -668,11 +691,14 @@ export class TenantTendersService {
     });
   }
 
-  async publish(tenantId: string, tenderId: string) {
+  async publish(tenantId: string, tenderId: string, userId: string) {
+    // 1) Tender'ı tüm gerekli ilişkilerle çek
     const tender = await this.prisma.tender.findUnique({
       where: { id: tenderId },
       include: {
-        items: { select: { id: true } },
+        items: {
+          select: { id: true, quantity: true, targetUnitPrice: true },
+        },
         invitations: {
           include: {
             supplier: {
@@ -718,14 +744,60 @@ export class TenantTendersService {
         "Kapanış tarihi geçmişte, yayınlamadan önce güncelleyin",
       );
 
-    const now = new Date();
+    // 2) Bütçe — Σ targetUnitPrice × quantity (boş kalemler 0 sayılır)
+    const estimatedAmount = tender.items.reduce((sum, it) => {
+      const target = it.targetUnitPrice ? Number(it.targetUnitPrice) : 0;
+      const qty = it.quantity ? Number(it.quantity) : 0;
+      return sum + target * qty;
+    }, 0);
 
+    // 3) Onay kuralı eşleşmesi (sadece amount > 0 ise dene)
+    const approvalRequest = await this.prisma.$transaction(async (tx) => {
+      if (estimatedAmount <= 0) return null;
+      return this.approvalRequests.findMatchAndCreate(tx, {
+        tenantId,
+        tenderId,
+        type: "TENDER_PUBLISH",
+        amount: estimatedAmount,
+        currency: tender.primaryCurrency || "TRY",
+        initiatedById: userId,
+      });
+    });
+
+    // 4a) Onay var → IN_APPROVAL'a al + ilk approver'a e-posta
+    if (approvalRequest) {
+      await this.prisma.tender.update({
+        where: { id: tenderId },
+        data: { status: "IN_APPROVAL" },
+      });
+
+      // ApprovalRequest oluşturulduktan sonra ilk PENDING adımı için e-posta
+      this.approvalRequests
+        .sendApprovalRequiredEmailForRequest(approvalRequest.id)
+        .catch((err) =>
+          this.logger.error(
+            `Initial approval_required dispatch failed for ${approvalRequest.id}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
+
+      return {
+        id: tender.id,
+        tenderNumber: tender.tenderNumber,
+        status: "IN_APPROVAL" as const,
+        approvalRequestId: approvalRequest.id,
+        approvalNumber: approvalRequest.approvalNumber,
+      };
+    }
+
+    // 4b) Onay yok → direkt yayınla
     const published = await this.prisma.tender.update({
       where: { id: tenderId },
       data: {
         status: "OPEN_FOR_BIDS",
-        publishedAt: now,
-        bidsOpenAt: tender.bidsOpenAt ?? now,
+        publishedAt: new Date(),
+        bidsOpenAt: tender.bidsOpenAt ?? new Date(),
       },
       select: {
         id: true,
@@ -735,7 +807,6 @@ export class TenantTendersService {
       },
     });
 
-    // Fire-and-forget: davetli tedarikçilerin primary user'ına e-posta
     this.dispatchInvitationEmails(tender, published).catch((err) => {
       this.logger.error(
         `Tender ${published.tenderNumber} publish e-posta dispatch hatası: ${
@@ -749,6 +820,63 @@ export class TenantTendersService {
       tenderNumber: published.tenderNumber,
       status: "OPEN_FOR_BIDS" as const,
     };
+  }
+
+  // ============================================================
+  // E.7.D — Onay sonrası post-process event listeners
+  // ============================================================
+
+  /**
+   * Approval onaylandığında ApprovalRequestsService event emit eder.
+   * `advanceTenderAfterApproval` zaten Tender'ı OPEN_FOR_BIDS'e taşıdı;
+   * burada davet e-postalarını ve diğer publish-time yan etkileri çalıştırırız.
+   */
+  @OnEvent(APPROVAL_EVENT.PUBLISH_APPROVED)
+  async handlePublishApproved(payload: ApprovalApprovedEvent) {
+    const tender = await this.prisma.tender.findUnique({
+      where: { id: payload.tenderId },
+      include: {
+        items: { select: { id: true } },
+        invitations: {
+          include: {
+            supplier: {
+              select: {
+                id: true,
+                users: {
+                  where: { isActive: true },
+                  orderBy: { createdAt: "asc" },
+                  take: 1,
+                  select: {
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        tenant: { select: { name: true } },
+      },
+    });
+    if (!tender) {
+      this.logger.warn(
+        `handlePublishApproved: tender ${payload.tenderId} bulunamadı`,
+      );
+      return;
+    }
+    try {
+      await this.dispatchInvitationEmails(tender, {
+        tenderNumber: tender.tenderNumber,
+        bidsCloseAt: tender.bidsCloseAt,
+      });
+    } catch (err) {
+      this.logger.error(
+        `Post-approval invitation dispatch failed for ${tender.tenderNumber}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
   }
 
   async cancel(
@@ -1291,11 +1419,179 @@ export class TenantTendersService {
   }
 
   /**
-   * Kazandırmayı tamamla — tüm SUBMITTED bid'leri LOST yap, tender → AWARDED,
-   * her kazanan bid için Order üret, e-postaları queue'la.
+   * Kazandırmayı tamamla — Tender IN_AWARD'dayken çağrılır.
+   * Aktif TENDER_AWARD kuralı varsa: ApprovalRequest oluşturur, Tender →
+   * IN_AWARD_APPROVAL'a geçer ve ilk approver'a e-posta gider. Onay
+   * tamamlanınca event listener `executeFinalizeAward()` çalıştırır.
+   * Kural yoksa direkt finalize edilir (tüm SUBMITTED → LOST, Order create,
+   * e-postalar).
    */
-  async finalizeAward(tenantId: string, tenderId: string) {
-    const result = await this.prisma.$transaction(async (tx) => {
+  async finalizeAward(tenantId: string, tenderId: string, userId: string) {
+    // 1) Tender + bids ön kontrol (transaction dışında — onay branch'inde
+    // büyük include'a girmeye gerek yok).
+    const tender = await this.prisma.tender.findUnique({
+      where: { id: tenderId },
+      select: {
+        id: true,
+        tenantId: true,
+        status: true,
+        primaryCurrency: true,
+        bids: {
+          where: { status: { in: ["AWARDED_FULL", "AWARDED_PARTIAL"] } },
+          select: {
+            id: true,
+            items: { select: { isWinner: true, totalPrice: true } },
+          },
+        },
+      },
+    });
+    if (!tender) throw new NotFoundException("İhale bulunamadı");
+    if (tender.tenantId !== tenantId)
+      throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+    if (tender.status !== "IN_AWARD")
+      throw new ConflictException(
+        "Sadece IN_AWARD durumundaki ihale tamamlanabilir",
+      );
+    if (tender.bids.length === 0) {
+      throw new BadRequestException(
+        "Kazandırmayı tamamlamak için en az 1 kazanan teklif olmalı",
+      );
+    }
+
+    // 2) Toplam award tutarı = Σ winning items totalPrice (tüm kazanan bidler)
+    const totalAwardAmount = tender.bids.reduce((sum, bid) => {
+      const winSum = bid.items
+        .filter((bi) => bi.isWinner && bi.totalPrice != null)
+        .reduce((s, bi) => s + Number(bi.totalPrice), 0);
+      return sum + winSum;
+    }, 0);
+
+    // 3) Kural eşleşmesi
+    const approvalRequest = await this.prisma.$transaction(async (tx) => {
+      if (totalAwardAmount <= 0) return null;
+      return this.approvalRequests.findMatchAndCreate(tx, {
+        tenantId,
+        tenderId,
+        type: "TENDER_AWARD",
+        amount: totalAwardAmount,
+        currency: tender.primaryCurrency || "TRY",
+        initiatedById: userId,
+      });
+    });
+
+    // 4a) Onay var → Tender IN_AWARD_APPROVAL + e-posta
+    if (approvalRequest) {
+      await this.prisma.tender.update({
+        where: { id: tenderId },
+        data: { status: "IN_AWARD_APPROVAL" },
+      });
+
+      this.approvalRequests
+        .sendApprovalRequiredEmailForRequest(approvalRequest.id)
+        .catch((err) =>
+          this.logger.error(
+            `Initial approval_required dispatch failed for ${approvalRequest.id}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
+
+      return {
+        tenderStatus: "IN_AWARD_APPROVAL" as const,
+        approvalRequestId: approvalRequest.id,
+        approvalNumber: approvalRequest.approvalNumber,
+        totalAmount: totalAwardAmount,
+      };
+    }
+
+    // 4b) Onay yok → direkt finalize
+    const result = await this.executeFinalizeAward(tenderId, tenantId);
+
+    this.dispatchAwardEmails(result).catch((err) =>
+      this.logger.error(
+        `Award e-postaları başarısız (${tenderId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
+
+    return {
+      tenderStatus: "AWARDED" as const,
+      orderCount: result.winners.length,
+      orders: result.winners.map((c) => ({
+        id: c.order.id,
+        orderNumber: c.order.orderNumber,
+      })),
+    };
+  }
+
+  /**
+   * Onay APPROVED olduktan sonra approval-requests-service event tetikler;
+   * burası dinler ve `executeFinalizeAward`'ı çalıştırır.
+   */
+  @OnEvent(APPROVAL_EVENT.AWARD_APPROVED)
+  async handleAwardApproved(payload: ApprovalApprovedEvent) {
+    let result: Awaited<ReturnType<typeof this.executeFinalizeAward>>;
+    try {
+      // Tenant'ı tender'dan oku (bu noktada hala IN_AWARD'da çünkü
+      // approval-requests-service onaylandığında AWARD branch'inde tender
+      // status'unu değiştirmiyor; finalize burada yapılır).
+      const tenderRow = await this.prisma.tender.findUnique({
+        where: { id: payload.tenderId },
+        select: { tenantId: true, status: true, tenderNumber: true },
+      });
+      if (!tenderRow) {
+        this.logger.warn(
+          `handleAwardApproved: tender ${payload.tenderId} bulunamadı`,
+        );
+        return;
+      }
+      // Idempotency: zaten AWARDED ise atla
+      if (tenderRow.status === "AWARDED") {
+        this.logger.warn(
+          `handleAwardApproved: tender ${tenderRow.tenderNumber} zaten AWARDED — atlandı`,
+        );
+        return;
+      }
+      // IN_AWARD'a geri çek (approval reverted etmedi, ama state yine de
+      // IN_AWARD beklenir; finalize methodu bu state'i şart koşar).
+      if (tenderRow.status !== "IN_AWARD") {
+        await this.prisma.tender.update({
+          where: { id: payload.tenderId },
+          data: { status: "IN_AWARD" },
+        });
+      }
+
+      result = await this.executeFinalizeAward(
+        payload.tenderId,
+        tenderRow.tenantId,
+      );
+    } catch (err) {
+      this.logger.error(
+        `Post-approval finalize failed for ${payload.tenderId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return;
+    }
+
+    try {
+      await this.dispatchAwardEmails(result);
+    } catch (err) {
+      this.logger.error(
+        `Post-approval award e-postaları başarısız (${payload.tenderId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
+  /**
+   * Asıl finalize transaction'ı — `finalizeAward` (onaysız) ve
+   * `handleAwardApproved` (onaylı) tarafından paylaşılır.
+   */
+  private async executeFinalizeAward(tenderId: string, tenantId: string) {
+    return this.prisma.$transaction(async (tx) => {
       const tender = await tx.tender.findUnique({
         where: { id: tenderId },
         include: {
@@ -1357,19 +1653,16 @@ export class TenantTendersService {
         );
       }
 
-      // Tüm SUBMITTED bid'leri LOST'a düşür
       await tx.bid.updateMany({
         where: { tenderId, status: "SUBMITTED" },
         data: { status: "LOST" },
       });
 
-      // Tender → AWARDED
       await tx.tender.update({
         where: { id: tenderId },
         data: { status: "AWARDED", awardedAt: new Date() },
       });
 
-      // Her kazanan bid için Order
       const created: Array<{
         order: { id: string; orderNumber: string; totalAmount: Prisma.Decimal };
         bid: typeof winningBids[number];
@@ -1423,24 +1716,6 @@ export class TenantTendersService {
         ),
       };
     });
-
-    // Fire-and-forget bildirimler
-    this.dispatchAwardEmails(result).catch((err) =>
-      this.logger.error(
-        `Award e-postaları başarısız (${tenderId}): ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      ),
-    );
-
-    return {
-      tenderStatus: "AWARDED" as const,
-      orderCount: result.winners.length,
-      orders: result.winners.map((c) => ({
-        id: c.order.id,
-        orderNumber: c.order.orderNumber,
-      })),
-    };
   }
 
   private async dispatchAwardEmails(payload: {

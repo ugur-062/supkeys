@@ -111,7 +111,7 @@ export class TenantTendersController {
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
   ): Promise<unknown> {
-    return this.service.publish(user.tenantId, id);
+    return this.service.publish(user.tenantId, id, user.id);
   }
 
   @Post(":id/cancel")
@@ -178,7 +178,7 @@ export class TenantTendersController {
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
   ): Promise<unknown> {
-    return this.service.finalizeAward(user.tenantId, id);
+    return this.service.finalizeAward(user.tenantId, id, user.id);
   }
 
   @Post(":id/close-no-award")
