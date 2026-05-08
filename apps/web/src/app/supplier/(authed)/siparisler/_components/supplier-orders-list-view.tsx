@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  EmptyState as EmptyStateComponent,
+  ListSkeleton,
+  ResultCount,
+  SearchInput,
+  SortDropdown,
+} from "@/components/list";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,16 +18,10 @@ import { cn } from "@/lib/utils";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import {
-  AlertCircle,
-  Building2,
-  Loader2,
-  Package,
-  Search,
-} from "lucide-react";
+import { AlertCircle, Building2, Package } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 const TABS: Array<{ key: string; label: string; status?: OrderStatus }> = [
   { key: "all", label: "Tümü" },
@@ -28,6 +29,13 @@ const TABS: Array<{ key: string; label: string; status?: OrderStatus }> = [
   { key: "in_delivery", label: "Teslimatta", status: "IN_DELIVERY" },
   { key: "completed", label: "Tamamlandı", status: "COMPLETED" },
   { key: "cancelled", label: "İptal Edildi", status: "CANCELLED" },
+];
+
+const SORT_OPTIONS = [
+  { value: "createdAt:desc", label: "En Yeni" },
+  { value: "createdAt:asc", label: "En Eski" },
+  { value: "totalAmount:desc", label: "Tutar (Yüksek → Düşük)" },
+  { value: "totalAmount:asc", label: "Tutar (Düşük → Yüksek)" },
 ];
 
 const TRIGGER_CLS = cn(
@@ -57,33 +65,35 @@ export function SupplierOrdersListView() {
 
   const tab = params.get("tab") ?? "all";
   const searchUrl = params.get("search") ?? "";
+  const sortUrl = params.get("sort") ?? "createdAt:desc";
   const page = Number(params.get("page") ?? 1);
 
-  const [searchInput, setSearchInput] = useState(searchUrl);
-  const [debouncedSearch, setDebouncedSearch] = useState(searchUrl);
-
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchInput), 300);
-    return () => clearTimeout(t);
-  }, [searchInput]);
-
-  useEffect(() => {
-    if (debouncedSearch === searchUrl) return;
+  const setSearch = (value: string) => {
     const next = new URLSearchParams(params.toString());
-    if (debouncedSearch) next.set("search", debouncedSearch);
+    if (value) next.set("search", value);
     else next.delete("search");
     next.delete("page");
     router.replace(`/supplier/siparisler?${next.toString()}`);
-  }, [debouncedSearch, searchUrl, params, router]);
+  };
+
+  const setSort = (value: string) => {
+    const next = new URLSearchParams(params.toString());
+    next.set("sort", value);
+    next.delete("page");
+    router.replace(`/supplier/siparisler?${next.toString()}`);
+  };
 
   const activeTab = TABS.find((t) => t.key === tab) ?? TABS[0]!;
 
   const stats = useSupplierOrderStats();
   const list = useSupplierOrders({
     status: activeTab.status,
-    search: debouncedSearch || undefined,
+    search: searchUrl || undefined,
+    sort: sortUrl,
     page,
   });
+
+  const isFiltered = Boolean(searchUrl) || Boolean(activeTab.status);
 
   const setTab = (next: string) => {
     const url = new URLSearchParams(params.toString());
@@ -142,43 +152,44 @@ export function SupplierOrdersListView() {
         </div>
       ) : null}
 
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <TabsPrimitive.Root value={tab} onValueChange={setTab}>
-          <TabsPrimitive.List
-            className="border-b border-slate-200 flex items-center gap-1 overflow-x-auto"
-            aria-label="Sipariş statü filtresi"
-          >
-            {TABS.map((t) => (
-              <TabsPrimitive.Trigger
-                key={t.key}
-                value={t.key}
-                className={TRIGGER_CLS}
-              >
-                {t.label}
-              </TabsPrimitive.Trigger>
-            ))}
-          </TabsPrimitive.List>
-        </TabsPrimitive.Root>
+      <TabsPrimitive.Root value={tab} onValueChange={setTab}>
+        <TabsPrimitive.List
+          className="border-b border-slate-200 flex items-center gap-1 overflow-x-auto"
+          aria-label="Sipariş statü filtresi"
+        >
+          {TABS.map((t) => (
+            <TabsPrimitive.Trigger
+              key={t.key}
+              value={t.key}
+              className={TRIGGER_CLS}
+            >
+              {t.label}
+            </TabsPrimitive.Trigger>
+          ))}
+        </TabsPrimitive.List>
+      </TabsPrimitive.Root>
 
-        <div className="relative w-full md:w-72 flex-shrink-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Sipariş no, ihale, alıcı…"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className={cn(
-              "w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-sm",
-              "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-            )}
+      <div className="flex flex-col md:flex-row md:items-center gap-3">
+        <SearchInput
+          value={searchUrl}
+          onChange={setSearch}
+          placeholder="Sipariş no, ihale veya alıcı…"
+          className="w-full md:w-80"
+        />
+        <SortDropdown value={sortUrl} onChange={setSort} options={SORT_OPTIONS} />
+        {list.data ? (
+          <ResultCount
+            total={list.data.pagination.total}
+            isFiltered={isFiltered}
+            unit="sipariş"
+            className="md:ml-auto"
           />
-        </div>
+        ) : null}
       </div>
 
       {list.isLoading && !list.data ? (
-        <div className="py-16 flex items-center justify-center text-slate-500">
-          <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          Siparişler yükleniyor…
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+          <ListSkeleton rows={5} />
         </div>
       ) : list.isError || !list.data ? (
         <div className="rounded-xl border border-danger-200 bg-danger-50 p-4 flex items-start gap-2">
@@ -186,7 +197,30 @@ export function SupplierOrdersListView() {
           <p className="text-sm text-danger-700">Siparişler yüklenemedi.</p>
         </div>
       ) : list.data.items.length === 0 ? (
-        <EmptyState />
+        isFiltered ? (
+          <EmptyStateComponent
+            icon={Package}
+            variant="no-results"
+            title="Filtre eşleşmedi"
+            description="Aramanız veya seçtiğiniz statü ile eşleşen sipariş yok."
+            action={
+              <button
+                type="button"
+                onClick={() => router.replace("/supplier/siparisler")}
+                className="text-sm text-brand-600 hover:underline font-semibold"
+              >
+                Filtreleri temizle
+              </button>
+            }
+          />
+        ) : (
+          <EmptyStateComponent
+            icon={Package}
+            variant="no-data"
+            title="Henüz sipariş yok"
+            description="Bir ihale kazandığınızda burada listelenecek."
+          />
+        )
       ) : (
         <>
           <OrdersTable orders={list.data.items} />
@@ -280,23 +314,6 @@ function OrdersTable({
           </tbody>
         </table>
       </div>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/40 p-16 text-center">
-      <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center">
-        <Package className="w-6 h-6 text-slate-400" />
-      </div>
-      <p className="font-display font-bold text-brand-900 mt-3">
-        Henüz sipariş yok
-      </p>
-      <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
-        Bir ihale kazandığınızda otomatik olarak burada sipariş(ler)
-        oluşacak.
-      </p>
     </div>
   );
 }

@@ -90,6 +90,20 @@ const ORDER_DETAIL_SELECT = {
   },
 } as const;
 
+/**
+ * Polish-1 — DTO whitelist'li `sort` (createdAt|totalAmount × asc|desc).
+ * Geçersizse createdAt:desc fallback.
+ */
+function parseOrderSort(
+  sort: string | undefined,
+): Prisma.OrderOrderByWithRelationInput {
+  const parts = (sort ?? "createdAt:desc").split(":");
+  const field = parts[0];
+  const dir: Prisma.SortOrder = parts[1] === "asc" ? "asc" : "desc";
+  if (field === "totalAmount") return { totalAmount: dir };
+  return { createdAt: dir };
+}
+
 @Injectable()
 export class SupplierOrdersService {
   private readonly logger = new Logger(SupplierOrdersService.name);
@@ -157,7 +171,7 @@ export class SupplierOrdersService {
             },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: parseOrderSort(query.sort),
         skip,
         take: pageSize,
       }),

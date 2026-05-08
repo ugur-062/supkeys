@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  EmptyState as EmptyStateComponent,
+  ListSkeleton,
+  ResultCount,
+  SearchInput,
+} from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useApprovalRequests } from "@/hooks/use-approval-requests";
@@ -66,8 +72,7 @@ export function OnayBekleyenlerView() {
   );
   const [typeFilter, setTypeFilter] = useState<ApprovalFlowType | "">("");
   const [initiatorFilter, setInitiatorFilter] = useState("");
-  const [tenderNumber, setTenderNumber] = useState("");
-  const [approvalNumber, setApprovalNumber] = useState("");
+  const [search, setSearch] = useState("");
 
   const { data: users } = useTenantUsers();
 
@@ -79,17 +84,17 @@ export function OnayBekleyenlerView() {
       ...(statusFilter && { status: statusFilter }),
       ...(typeFilter && { type: typeFilter }),
       ...(initiatorFilter && { initiatorUserId: initiatorFilter }),
-      ...(tenderNumber.trim() && { tenderNumber: tenderNumber.trim() }),
-      ...(approvalNumber.trim() && { approvalNumber: approvalNumber.trim() }),
+      ...(search.trim() && { search: search.trim() }),
     };
-  }, [
-    activeTab,
-    statusFilter,
-    typeFilter,
-    initiatorFilter,
-    tenderNumber,
-    approvalNumber,
-  ]);
+  }, [activeTab, statusFilter, typeFilter, initiatorFilter, search]);
+
+  const activeFilterCount =
+    activeTab === "all"
+      ? (statusFilter ? 1 : 0) +
+        (typeFilter ? 1 : 0) +
+        (initiatorFilter ? 1 : 0) +
+        (search.trim() ? 1 : 0)
+      : 0;
 
   const { data: requests, isLoading, refetch, isFetching } =
     useApprovalRequests(filters);
@@ -107,8 +112,7 @@ export function OnayBekleyenlerView() {
     setStatusFilter("");
     setTypeFilter("");
     setInitiatorFilter("");
-    setTenderNumber("");
-    setApprovalNumber("");
+    setSearch("");
   }, []);
 
   // Tab değişince filtreleri sıfırla (pending tab'da kullanılmıyor)
@@ -165,8 +169,15 @@ export function OnayBekleyenlerView() {
 
         {/* Filtreler — sadece "Tüm" tab'ında */}
         {activeTab === "all" ? (
-          <div className="px-4 sm:px-6 py-4 border-b border-surface-border bg-surface-subtle/40">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="px-4 sm:px-6 py-4 border-b border-surface-border bg-surface-subtle/40 space-y-3">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Onay no, ihale no veya başlık ara…"
+              className="w-full md:w-96"
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <select
                 className={SELECT_CLASS}
                 value={statusFilter}
@@ -209,44 +220,63 @@ export function OnayBekleyenlerView() {
                   </option>
                 ))}
               </select>
-
-              <Input
-                placeholder="İhale No"
-                value={tenderNumber}
-                onChange={(e) => setTenderNumber(e.target.value)}
-              />
-
-              <Input
-                placeholder="Onay No"
-                value={approvalNumber}
-                onChange={(e) => setApprovalNumber(e.target.value)}
-              />
             </div>
 
-            <div className="mt-3 flex items-center justify-between">
-              <p className="text-xs text-slate-500">
-                {requests
-                  ? `${requests.length} kayıt bulundu`
-                  : "Yükleniyor…"}
-              </p>
-              <button
-                type="button"
-                onClick={clearFilters}
-                className="text-xs text-brand-600 hover:underline"
-              >
-                Filtreleri Temizle
-              </button>
+            <div className="flex items-center justify-between">
+              <ResultCount
+                total={requests?.length ?? 0}
+                isFiltered={activeFilterCount > 0}
+                unit="kayıt"
+              />
+              {activeFilterCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-xs text-brand-600 hover:underline font-semibold"
+                >
+                  Filtreleri Temizle ({activeFilterCount})
+                </button>
+              ) : null}
             </div>
           </div>
         ) : null}
 
         {/* Tablo */}
         {isLoading ? (
-          <div className="p-12 text-center text-slate-500 text-sm">
-            Yükleniyor…
-          </div>
+          <ListSkeleton rows={5} />
         ) : !requests || requests.length === 0 ? (
-          <EmptyState tab={activeTab} />
+          activeFilterCount > 0 ? (
+            <EmptyStateComponent
+              icon={ClipboardCheck}
+              variant="no-results"
+              title="Filtre eşleşmedi"
+              description="Aramanız veya seçilen filtreler ile eşleşen onay süreci yok."
+              action={
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-sm text-brand-600 hover:underline font-semibold"
+                >
+                  Filtreleri temizle
+                </button>
+              }
+            />
+          ) : (
+            <EmptyStateComponent
+              icon={ClipboardCheck}
+              variant="no-data"
+              title={
+                activeTab === "pending"
+                  ? "Onay bekleyen süreciniz yok"
+                  : "Onay süreci yok"
+              }
+              description={
+                activeTab === "pending"
+                  ? "Sizden onay beklenen aktif bir süreç bulunmuyor."
+                  : "Bu firmaya henüz hiç onay süreci açılmamış."
+              }
+            />
+          )
         ) : (
           <ApprovalRequestsTable
             requests={requests}
@@ -280,26 +310,6 @@ function TabButton({
     >
       {children}
     </button>
-  );
-}
-
-function EmptyState({ tab }: { tab: TabKey }) {
-  return (
-    <div className="p-12 text-center">
-      <div className="h-14 w-14 mx-auto bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
-        <ClipboardCheck className="h-7 w-7 text-slate-400" />
-      </div>
-      <p className="text-slate-700 font-medium">
-        {tab === "pending"
-          ? "Onay bekleyen süreciniz yok"
-          : "Onay süreci bulunamadı"}
-      </p>
-      <p className="text-slate-500 text-sm mt-1">
-        {tab === "pending"
-          ? "Sizden onay beklenen aktif bir süreç bulunmuyor."
-          : "Filtrelere uyan kayıt yok. Filtreleri sıfırlayıp tekrar deneyin."}
-      </p>
-    </div>
   );
 }
 

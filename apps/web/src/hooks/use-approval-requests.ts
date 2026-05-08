@@ -23,6 +23,7 @@ function buildQuery(params: ListApprovalRequestsParams): string {
   if (params.initiatorUserId) search.set("initiatorUserId", params.initiatorUserId);
   if (params.tenderNumber) search.set("tenderNumber", params.tenderNumber);
   if (params.approvalNumber) search.set("approvalNumber", params.approvalNumber);
+  if (params.search) search.set("search", params.search);
   if (params.pendingForMe) search.set("pendingForMe", "true");
   const qs = search.toString();
   return qs ? `?${qs}` : "";

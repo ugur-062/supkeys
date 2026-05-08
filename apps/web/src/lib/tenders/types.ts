@@ -198,6 +198,8 @@ export interface TenderStats {
 export interface ListTendersParams {
   status?: TenderStatus;
   search?: string;
+  /** Polish-1 — "field:dir" whitelist'li sort */
+  sort?: string;
   page?: number;
   pageSize?: number;
 }
@@ -276,6 +278,8 @@ export interface SupplierTenderStats {
 export interface ListSupplierTendersParams {
   filter?: "active" | "past" | "all";
   search?: string;
+  /** Polish-1 — "field:dir" whitelist'li sort */
+  sort?: string;
   page?: number;
   pageSize?: number;
 }
@@ -685,6 +689,8 @@ export interface ListOrdersParams {
   status?: OrderStatus;
   search?: string;
   supplierId?: string;
+  /** Polish-1 — "field:dir" whitelist'li sort */
+  sort?: string;
   page?: number;
   pageSize?: number;
 }

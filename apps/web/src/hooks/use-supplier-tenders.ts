@@ -21,6 +21,7 @@ function buildParams(params: ListSupplierTendersParams) {
   const p: Record<string, string | number> = {};
   if (params.filter) p.filter = params.filter;
   if (params.search) p.search = params.search;
+  if (params.sort) p.sort = params.sort;
   if (params.page) p.page = params.page;
   if (params.pageSize) p.pageSize = params.pageSize;
   return p;

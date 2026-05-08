@@ -1,6 +1,7 @@
 import { Transform } from "class-transformer";
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -10,12 +11,25 @@ import {
 
 export enum TenderStatusDto {
   DRAFT = "DRAFT",
+  IN_APPROVAL = "IN_APPROVAL",
   OPEN_FOR_BIDS = "OPEN_FOR_BIDS",
   IN_AWARD = "IN_AWARD",
+  IN_AWARD_APPROVAL = "IN_AWARD_APPROVAL",
   AWARDED = "AWARDED",
   CANCELLED = "CANCELLED",
   CLOSED_NO_AWARD = "CLOSED_NO_AWARD",
 }
+
+/**
+ * Polish-1 — sort whitelist (createdAt: yeni→eski, bidsCloseAt: yakın→uzak).
+ */
+export const TENDER_SORT_OPTIONS = [
+  "createdAt:desc",
+  "createdAt:asc",
+  "bidsCloseAt:asc",
+  "bidsCloseAt:desc",
+] as const;
+export type TenderSortOption = (typeof TENDER_SORT_OPTIONS)[number];
 
 export class ListTendersDto {
   @IsOptional()
@@ -25,6 +39,10 @@ export class ListTendersDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @IsIn(TENDER_SORT_OPTIONS)
+  sort?: TenderSortOption;
 
   @IsOptional()
   @Transform(({ value }) => parseInt(value, 10))

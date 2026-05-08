@@ -14,6 +14,21 @@ import { CancelOrderDto } from "../dto/cancel-order.dto";
 import { CompleteOrderDto } from "../dto/complete-order.dto";
 import { ListOrdersDto } from "../dto/list-orders.dto";
 
+/**
+ * Polish-1 — DTO'da `sort` zaten whitelist'li (createdAt:desc / asc /
+ * totalAmount:desc / asc). Parse + Prisma orderBy çevirir. Geçersizse
+ * createdAt:desc fallback.
+ */
+function parseOrderSort(
+  sort: string | undefined,
+): Prisma.OrderOrderByWithRelationInput {
+  const parts = (sort ?? "createdAt:desc").split(":");
+  const field = parts[0];
+  const dir: Prisma.SortOrder = parts[1] === "asc" ? "asc" : "desc";
+  if (field === "totalAmount") return { totalAmount: dir };
+  return { createdAt: dir };
+}
+
 const ORDER_DETAIL_SELECT = {
   supplier: {
     select: {
@@ -150,6 +165,8 @@ export class TenantOrdersService {
         : {}),
     };
 
+    const orderBy = parseOrderSort(query.sort);
+
     const [items, total] = await Promise.all([
       this.prisma.order.findMany({
         where,
@@ -179,7 +196,7 @@ export class TenantOrdersService {
             },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy,
         skip,
         take: pageSize,
       }),

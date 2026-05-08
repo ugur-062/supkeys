@@ -234,6 +234,26 @@ export class TenantApprovalRequestsService {
         mode: "insensitive",
       };
     }
+    // Polish-1 — generic search OR (approvalNumber + tender.tenderNumber + tender.title)
+    if (filters.search?.trim()) {
+      const term = filters.search.trim();
+      where.AND = [
+        ...(Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : []),
+        {
+          OR: [
+            { approvalNumber: { contains: term, mode: "insensitive" } },
+            {
+              tender: {
+                OR: [
+                  { tenderNumber: { contains: term, mode: "insensitive" } },
+                  { title: { contains: term, mode: "insensitive" } },
+                ],
+              },
+            },
+          ],
+        },
+      ];
+    }
     if (filters.pendingForMe === "true") {
       where.status = "PENDING";
       where.steps = {

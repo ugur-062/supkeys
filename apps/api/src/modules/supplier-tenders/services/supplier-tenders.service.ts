@@ -60,12 +60,23 @@ export class SupplierTendersService {
       ];
     }
 
+    // Polish-1 — DTO whitelist'li sort. Geçersizse default
+    // (yakın biten önce, sonra yeni → eski).
+    const orderBy: Prisma.TenderOrderByWithRelationInput[] = (() => {
+      const parts = (query.sort ?? "").split(":");
+      const field = parts[0];
+      const dir: Prisma.SortOrder = parts[1] === "asc" ? "asc" : "desc";
+      if (field === "createdAt") return [{ createdAt: dir }];
+      if (field === "bidsCloseAt") return [{ bidsCloseAt: dir }];
+      return [{ bidsCloseAt: "asc" }, { createdAt: "desc" }];
+    })();
+
     const [items, total] = await this.prisma.$transaction([
       this.prisma.tender.findMany({
         where,
         skip,
         take: pageSize,
-        orderBy: [{ bidsCloseAt: "asc" }, { createdAt: "desc" }],
+        orderBy,
         select: {
           id: true,
           tenderNumber: true,

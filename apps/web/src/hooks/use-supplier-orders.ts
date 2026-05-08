@@ -26,6 +26,7 @@ export function useSupplierOrders(params: ListOrdersParams) {
           params: {
             ...(params.status ? { status: params.status } : {}),
             ...(params.search ? { search: params.search } : {}),
+            ...(params.sort ? { sort: params.sort } : {}),
             ...(params.page ? { page: params.page } : {}),
             ...(params.pageSize ? { pageSize: params.pageSize } : {}),
           },

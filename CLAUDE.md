@@ -240,6 +240,42 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 
 🎉 **V1 COMPLETE** — Tüm temel ihale yönetim akışları (D.1-D.2.B + E.1-E.7.D) tamamlandı.
 
+### Polish-1 — Liste Sayfaları UX Standardizasyonu
+- **Yeni paket:** `use-debounce@10` (apps/web).
+- **6 ortak component** (`apps/web/src/components/list/`):
+  - `SearchInput` — debounced (default 300ms) input + `X` clear butonu, dış `value` prop'u senkronlu.
+  - `FilterBar` — children + activeFilterCount + onClearAll genel container.
+  - `SortDropdown` — pre-defined `SortOption[]` (value/label) + ArrowUpDown ikonlu select.
+  - `EmptyState` — `variant: "no-data" | "no-results"` (renkli vs nötr accent), `icon` + `title` + `description?` + `action?`.
+  - `ListSkeleton` — `rows` prop'u ile avatar + 2 metin + pill placeholder satırlar.
+  - `ResultCount` — `total` + `isFiltered` (TR locale formatla; "filtrelenmiş" suffix).
+  - `index.ts` ile toplu re-export.
+- **`useListFilters<T>` hook** (`hooks/use-list-filters.ts`) — URL query string sync. `setFilters` boş/false/undefined değerleri URL'den siler ve `page` parametresini otomatik 1'e döndürür (kullanıcı page güncellemiyorsa). `clearFilters` bare URL'e döner. `activeFilterCount` `page+sort` dışındaki keys'i sayar.
+- **Backend search OR + sort whitelist:**
+  - **tenant-orders + supplier-orders DTO'ları:** `OrderStatus` enum'una `IN_DELIVERY` eklendi (legacy uyum için). `ORDER_SORT_OPTIONS = ["createdAt:desc","createdAt:asc","totalAmount:desc","totalAmount:asc"]` `@IsIn` whitelist. `parseOrderSort()` helper Prisma `orderBy` çevirir; geçersizse `createdAt:desc` fallback.
+  - **tenant-tenders DTO:** `TenderStatusDto` enum'a `IN_APPROVAL` + `IN_AWARD_APPROVAL` eklendi. `TENDER_SORT_OPTIONS = ["createdAt:desc","createdAt:asc","bidsCloseAt:asc","bidsCloseAt:desc"]`. `parseTenderSort()` helper.
+  - **supplier-tenders DTO:** `SUPPLIER_TENDER_SORT_OPTIONS` eklendi (default: yakın biten önce + yeni → eski). Service inline `parseTenderSort` whitelist parse.
+  - **tenant-approval-requests DTO:** `search?: string` (max 100 char) eklendi. Service'te `where.AND` array merge ile generic OR (`approvalNumber` + `tender.tenderNumber` + `tender.title`) `contains insensitive`.
+- **Frontend liste sayfaları refactor:**
+  - `/dashboard/siparisler` (orders-list-view): manuel debounce kaldırıldı → `SearchInput`. Yeni: `SortDropdown` + `ResultCount` + `ListSkeleton` (loader yerine) + `EmptyStateComponent` 2-variant (no-data → "İhale Oluştur" CTA / no-results → "Filtreleri temizle"). Sort URL `?sort=...`, filter değişimi page=1 reset.
+  - `/supplier/siparisler` (supplier-orders-list-view): aynı pattern (alıcı bilgisi search içinde).
+  - `/dashboard/ihaleler` (ihaleler-view): manuel debounce + ayrı "Temizle" butonu kaldırıldı → `SearchInput`. Yeni: `SortDropdown` (En Yeni / En Eski / Yakın Biten / Uzak Biten) + `ResultCount`. updateUrl `sort` desteği eklendi, search değişiminde page=1 reset.
+  - `/supplier/ihaleler` (supplier ihaleler-view): aynı pattern, default sort "Yakın Biten" (supplier öncelikli).
+  - `/dashboard/onay-bekleyenler`: 2 ayrı Input (tenderNumber + approvalNumber) tek `SearchInput` ile birleştirildi (backend `search` field'ı OR ile her ikisini ve title'ı kapsar). 5'li grid → 3'lü (status / başlatan / tür) + 1 SearchInput satırı. `ResultCount` + `EmptyStateComponent` 2-variant + `ListSkeleton`. `activeFilterCount` 4 alanı sayar.
+  - `/dashboard/tedarikciler`: Mevcut 3-tab (Onaylı / Davet Bekleyen / Engelli) + filters-bar yapısı korundu (zaten stable + komplekstir).
+- **Frontend hook'ları sort param eklendi:** `useOrders`, `useSupplierOrders`, `useTenders`, `useSupplierTenders` `params.sort` API'ye geçer. `useApprovalRequests` `params.search` eklendi.
+- **Frontend types:** `ListTendersParams` + `ListSupplierTendersParams` + `ListOrdersParams` + `ListApprovalRequestsParams` `sort?: string` ve `search?: string` (approval) eklendi. `OrderStatus` type'ına `IN_DELIVERY` eklendi.
+- **Manuel E2E** (8 senaryo + frontend route 200 testleri):
+  - Geçerli sort (createdAt:desc) → 200, items dönüyor ✓
+  - SQL injection (`DROP TABLE--`) → 400 whitelist enforce ✓
+  - Geçersiz sort field → 400 whitelist ✓
+  - Negatif page (-1) → 400 `Min(1)` validation ✓
+  - Search "demo" → DB query OR çalıştı ✓
+  - Tender sort `bidsCloseAt:asc` → items doğru sıralı (3 item bulundu) ✓
+  - Approval requests `?search=APR` → search field server-side aktif ✓
+  - Frontend rotaları (`/dashboard/siparisler`, `/dashboard/ihaleler`, `/dashboard/onay-bekleyenler`, `?sort=...&status=PENDING`) HTTP 200 ✓
+  - typecheck (api+web+admin+email+shared+db) tüm yeşil ✓
+
 ### V1.5 Oturum 2 — Sipariş PDF Export + Onay Reminder Cron + Data Cleanup
 - **Schema migration `v15_approval_reminder_field`:** `ApprovalRequest.lastReminderAt DateTime?` eklendi (idempotency için — son reminder gönderim zamanı). Manuel SQL.
 - **Puppeteer kurulumu:** `puppeteer@24` apps/api'ye eklendi. `chrome-headless-shell` + `chrome` browsers `~/.cache/puppeteer/`'a indirildi (~170MB+). Production Docker image'ı için `chromium` + libnspr3/libgbm/libnss3 bağımlılıkları gerek (V2 hosting'de Alpine + chromium image).

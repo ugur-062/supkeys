@@ -111,5 +111,7 @@ export interface ListApprovalRequestsParams {
   initiatorUserId?: string;
   tenderNumber?: string;
   approvalNumber?: string;
+  /** Polish-1 — generic search OR (approvalNumber + tenderNumber + tender.title) */
+  search?: string;
   pendingForMe?: boolean;
 }

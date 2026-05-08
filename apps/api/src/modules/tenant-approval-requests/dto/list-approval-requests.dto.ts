@@ -26,6 +26,14 @@ export class ListApprovalRequestsDto {
   @MaxLength(50)
   approvalNumber?: string;
 
+  /**
+   * Polish-1 — generic search across approvalNumber + tender.tenderNumber + tender.title
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  search?: string;
+
   @IsOptional()
   @IsBooleanString()
   @Transform(({ value }) => (typeof value === "string" ? value : String(value)))

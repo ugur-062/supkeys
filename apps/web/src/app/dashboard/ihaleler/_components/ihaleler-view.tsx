@@ -1,18 +1,25 @@
 "use client";
 
+import { ResultCount, SearchInput, SortDropdown } from "@/components/list";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
 import { useTenderStats, useTenders } from "@/hooks/use-tenant-tenders";
 import type { TenderStatus } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
-import { Plus, Search, X } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { TenderStatsCards } from "./stats-cards";
 import { TendersTable } from "./tenders-table";
+
+const SORT_OPTIONS = [
+  { value: "createdAt:desc", label: "En Yeni" },
+  { value: "createdAt:asc", label: "En Eski" },
+  { value: "bidsCloseAt:asc", label: "Yakın Biten" },
+  { value: "bidsCloseAt:desc", label: "Uzak Biten" },
+];
 
 type TabKey =
   | "all"
@@ -72,6 +79,7 @@ export function IhalelerView() {
   const searchParams = useSearchParams();
   const tab = parseTab(searchParams.get("tab"));
   const search = searchParams.get("search") ?? "";
+  const sort = searchParams.get("sort") ?? "createdAt:desc";
   const page = parsePage(searchParams.get("page"));
   const { user } = useAuth();
   const canCreate = user?.role === "COMPANY_ADMIN";
@@ -92,16 +100,22 @@ export function IhalelerView() {
     () => ({
       status: statusFilter,
       search: search || undefined,
+      sort,
       page,
       pageSize: PAGE_SIZE,
     }),
-    [statusFilter, search, page],
+    [statusFilter, search, sort, page],
   );
 
   const list = useTenders(queryParams);
 
   const updateUrl = useCallback(
-    (next: { tab?: TabKey; search?: string; page?: number }) => {
+    (next: {
+      tab?: TabKey;
+      search?: string;
+      sort?: string;
+      page?: number;
+    }) => {
       const params = new URLSearchParams(searchParams.toString());
       if (next.tab !== undefined) {
         if (next.tab === "all") params.delete("tab");
@@ -111,6 +125,11 @@ export function IhalelerView() {
       if (next.search !== undefined) {
         if (next.search === "") params.delete("search");
         else params.set("search", next.search);
+        params.delete("page");
+      }
+      if (next.sort !== undefined) {
+        params.set("sort", next.sort);
+        params.delete("page");
       }
       if (next.page !== undefined) {
         if (next.page <= 1) params.delete("page");
@@ -126,25 +145,9 @@ export function IhalelerView() {
     updateUrl({ tab: value as TabKey, search: "", page: 1 });
   };
 
-  // Search debounce
-  const [searchInput, setSearchInput] = useState(search);
-  useEffect(() => {
-    setSearchInput(search);
-  }, [search]);
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (searchInput !== search) updateUrl({ search: searchInput, page: 1 });
-    }, 300);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchInput]);
-
-  const handleClear = () => {
-    setSearchInput("");
-    updateUrl({ search: "", page: 1 });
-  };
-
   const items = list.data?.items ?? [];
+  const totalCount = list.data?.pagination.total ?? 0;
+  const isFiltered = Boolean(search) || tab !== "all";
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -224,25 +227,23 @@ export function IhalelerView() {
 
         <TabsPrimitive.Content value={tab} className="space-y-4 outline-none">
           <div className="card p-3 flex flex-col md:flex-row md:items-center gap-3">
-            <div className="relative flex-1 min-w-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                type="search"
-                placeholder="İhale adı veya numarası ara…"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleClear}
-              disabled={!search}
-            >
-              <X className="w-4 h-4" />
-              Temizle
-            </Button>
+            <SearchInput
+              value={search}
+              onChange={(v) => updateUrl({ search: v })}
+              placeholder="İhale adı veya numarası ara…"
+              className="flex-1 min-w-0"
+            />
+            <SortDropdown
+              value={sort}
+              onChange={(v) => updateUrl({ sort: v })}
+              options={SORT_OPTIONS}
+            />
+            <ResultCount
+              total={totalCount}
+              isFiltered={isFiltered}
+              unit="ihale"
+              className="md:ml-auto"
+            />
           </div>
 
           <div className="card overflow-hidden">

@@ -1,6 +1,7 @@
 import { Transform } from "class-transformer";
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -14,6 +15,15 @@ export enum SupplierTenderFilter {
   ALL = "all",
 }
 
+export const SUPPLIER_TENDER_SORT_OPTIONS = [
+  "createdAt:desc",
+  "createdAt:asc",
+  "bidsCloseAt:asc",
+  "bidsCloseAt:desc",
+] as const;
+export type SupplierTenderSortOption =
+  (typeof SUPPLIER_TENDER_SORT_OPTIONS)[number];
+
 export class ListSupplierTendersDto {
   @IsOptional()
   @IsEnum(SupplierTenderFilter)
@@ -22,6 +32,10 @@ export class ListSupplierTendersDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @IsIn(SUPPLIER_TENDER_SORT_OPTIONS)
+  sort?: SupplierTenderSortOption;
 
   @IsOptional()
   @Transform(({ value }) => parseInt(value, 10))

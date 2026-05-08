@@ -33,6 +33,19 @@ import { CreateTenderDto } from "../dto/create-tender.dto";
 import { ListTendersDto } from "../dto/list-tenders.dto";
 import { UpdateTenderDto } from "../dto/update-tender.dto";
 
+/**
+ * Polish-1 — DTO whitelist'li `sort`. Geçersizse createdAt:desc fallback.
+ */
+function parseTenderSort(
+  sort: string | undefined,
+): Prisma.TenderOrderByWithRelationInput {
+  const parts = (sort ?? "createdAt:desc").split(":");
+  const field = parts[0];
+  const dir: Prisma.SortOrder = parts[1] === "asc" ? "asc" : "desc";
+  if (field === "bidsCloseAt") return { bidsCloseAt: dir };
+  return { createdAt: dir };
+}
+
 @Injectable()
 export class TenantTendersService {
   private readonly logger = new Logger(TenantTendersService.name);
@@ -64,12 +77,14 @@ export class TenantTendersService {
       ];
     }
 
+    const orderBy = parseTenderSort(query.sort);
+
     const [items, total] = await this.prisma.$transaction([
       this.prisma.tender.findMany({
         where,
         skip,
         take: pageSize,
-        orderBy: { createdAt: "desc" },
+        orderBy,
         select: {
           id: true,
           tenderNumber: true,
