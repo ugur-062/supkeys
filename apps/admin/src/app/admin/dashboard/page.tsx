@@ -2,84 +2,536 @@
 
 import { AdminShell } from "@/components/layout/admin-shell";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
-import { useAdminAuth, useAdminMe } from "@/hooks/use-admin-auth";
-import { Activity, Building2, Inbox } from "lucide-react";
+import {
+  useAdminOverview,
+  useAdminRecentActivity,
+  useAdminTenderTrend,
+  type OverviewStats,
+  type RecentActivity,
+} from "@/hooks/use-admin-stats";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
+import {
+  Activity,
+  AlertTriangle,
+  Building2,
+  FileText,
+  Mail,
+  Package,
+  TrendingDown,
+  TrendingUp,
+  Truck,
+  type LucideIcon,
+} from "lucide-react";
+import Link from "next/link";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
-const PLACEHOLDER_CARDS = [
-  {
-    title: "Bekleyen Demo Talepleri",
-    description: "Yeni demo başvurularını burada listeleyeceğiz.",
-    icon: Inbox,
+type AccentColor = "brand" | "purple" | "indigo" | "success";
+
+const ACCENT_CLASSES: Record<
+  AccentColor,
+  { bg: string; icon: string; hover: string }
+> = {
+  brand: {
+    bg: "bg-brand-50",
+    icon: "text-brand-600",
+    hover: "hover:border-brand-300",
   },
-  {
-    title: "Aktif Tenant",
-    description: "Sisteme kayıtlı müşteri firma sayısı ve durum özeti.",
-    icon: Building2,
+  purple: {
+    bg: "bg-purple-50",
+    icon: "text-purple-600",
+    hover: "hover:border-purple-300",
   },
-  {
-    title: "Sistem Durumu",
-    description: "API, kuyruklar ve agent altyapısı sağlık göstergeleri.",
-    icon: Activity,
+  indigo: {
+    bg: "bg-indigo-50",
+    icon: "text-indigo-600",
+    hover: "hover:border-indigo-300",
   },
-];
+  success: {
+    bg: "bg-success-50",
+    icon: "text-success-600",
+    hover: "hover:border-success-300",
+  },
+};
 
 function DashboardContent() {
-  const { admin } = useAdminAuth();
-  const meQuery = useAdminMe();
+  const overviewQ = useAdminOverview();
+  const trendQ = useAdminTenderTrend(30);
+  const activityQ = useAdminRecentActivity(8);
 
   return (
-    <div className="space-y-8 max-w-6xl">
-      <div className="space-y-1">
-        <h1 className="font-display font-bold text-3xl text-admin-text">
-          Hoş geldin, {admin?.firstName}
-        </h1>
-        <p className="text-admin-text-muted">
-          Supkeys platform yönetim paneli. Modüller bu sprint içinde aktif olacak.
-        </p>
+    <div className="space-y-6 max-w-[1400px]">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="font-display font-bold text-2xl md:text-3xl text-admin-text">
+            Sistem Geneli
+          </h1>
+          <p className="text-sm text-admin-text-muted mt-1">
+            Supkeys ekosistem sağlığı ve son aktiviteler.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs text-admin-text-muted">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success-500 opacity-60" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-success-500" />
+          </span>
+          Canlı (60sn yenileme)
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {PLACEHOLDER_CARDS.map(({ title, description, icon: Icon }) => (
-          <div key={title} className="admin-card p-6 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center">
-                <Icon className="w-5 h-5 text-brand-600" />
-              </div>
-              <span className="text-[10px] uppercase tracking-wide text-admin-text-muted bg-surface-muted px-2 py-1 rounded">
-                Yakında
-              </span>
-            </div>
-            <div>
-              <h3 className="font-display font-bold text-lg text-admin-text">
-                {title}
-              </h3>
-              <p className="text-sm text-admin-text-muted mt-1">{description}</p>
-            </div>
+      {/* KPI Grid */}
+      {overviewQ.isLoading || !overviewQ.data ? (
+        <KpiGridSkeleton />
+      ) : (
+        <KpiGrid overview={overviewQ.data} />
+      )}
+
+      {/* Health Row */}
+      {overviewQ.data ? <HealthRow overview={overviewQ.data} /> : null}
+
+      {/* Trend Chart */}
+      <TrendChart trend={trendQ.data ?? []} loading={trendQ.isLoading} />
+
+      {/* Recent Activity */}
+      {activityQ.data ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <RecentRegistrationsCard
+            registrations={activityQ.data.recentRegistrations}
+          />
+          <RecentTendersCard tenders={activityQ.data.recentTenders} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function KpiGrid({ overview }: { overview: OverviewStats }) {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <KpiCard
+        icon={Building2}
+        label="Tenant"
+        value={overview.tenants.total}
+        sub={`${overview.tenants.newThisMonth} yeni bu ay`}
+        delta={overview.tenants.deltaPercent}
+        accent="brand"
+        href="/admin/tenants"
+      />
+      <KpiCard
+        icon={Truck}
+        label="Tedarikçi"
+        value={overview.suppliers.total}
+        sub={`${overview.suppliers.newThisMonth} yeni bu ay`}
+        delta={overview.suppliers.deltaPercent}
+        accent="purple"
+        href="/admin/suppliers"
+      />
+      <KpiCard
+        icon={FileText}
+        label="İhale"
+        value={overview.tenders.total}
+        sub={`${overview.tenders.openForBids} aktif · ${overview.tenders.thisMonth} bu ay`}
+        delta={overview.tenders.deltaPercent}
+        accent="indigo"
+      />
+      <KpiCard
+        icon={Package}
+        label="Sipariş"
+        value={overview.orders.total}
+        sub={`${overview.orders.pending} bekliyor · ${overview.orders.inDelivery} teslimatta`}
+        delta={overview.orders.deltaPercent}
+        accent="success"
+      />
+    </div>
+  );
+}
+
+interface KpiCardProps {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  sub: string;
+  delta: number;
+  accent: AccentColor;
+  href?: string;
+}
+
+function KpiCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  delta,
+  accent,
+  href,
+}: KpiCardProps) {
+  const styles = ACCENT_CLASSES[accent];
+  const card = (
+    <div
+      className={cn(
+        "admin-card p-5 transition-colors h-full",
+        href && styles.hover,
+      )}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div
+          className={cn(
+            "h-10 w-10 rounded-xl flex items-center justify-center",
+            styles.bg,
+          )}
+        >
+          <Icon className={cn("h-5 w-5", styles.icon)} />
+        </div>
+        {delta !== 0 ? (
+          <div
+            className={cn(
+              "flex items-center gap-1 text-xs font-semibold",
+              delta > 0 ? "text-success-600" : "text-danger-600",
+            )}
+          >
+            {delta > 0 ? (
+              <TrendingUp className="h-3 w-3" />
+            ) : (
+              <TrendingDown className="h-3 w-3" />
+            )}
+            {Math.abs(delta)}%
           </div>
-        ))}
+        ) : null}
+      </div>
+      <p className="text-xs uppercase text-admin-text-muted font-semibold tracking-wide">
+        {label}
+      </p>
+      <p className="text-2xl font-bold text-admin-text mt-1">
+        {value.toLocaleString("tr-TR")}
+      </p>
+      <p className="text-xs text-admin-text-muted mt-1">{sub}</p>
+    </div>
+  );
+  return href ? (
+    <Link href={href} className="block">
+      {card}
+    </Link>
+  ) : (
+    card
+  );
+}
+
+function KpiGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="admin-card p-5 h-32">
+          <div className="h-10 w-10 rounded-xl bg-slate-200 animate-pulse mb-3" />
+          <div className="h-3 bg-slate-200 rounded animate-pulse w-20 mb-2" />
+          <div className="h-7 bg-slate-200 rounded animate-pulse w-16" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function HealthRow({ overview }: { overview: OverviewStats }) {
+  const stale = overview.approvalRequests.staleOver3Days;
+  const failureRate = overview.emails.failureRate;
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div
+        className={cn(
+          "admin-card p-5 border",
+          stale > 0 ? "border-warning-200" : "border-surface-border",
+        )}
+      >
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <p className="text-xs uppercase text-admin-text-muted font-semibold tracking-wide">
+              Onay Süreçleri
+            </p>
+            <p className="text-2xl font-bold text-admin-text mt-1">
+              {overview.approvalRequests.totalPending}
+            </p>
+            <p className="text-xs text-admin-text-muted mt-1">
+              aktif onay sürecinde
+            </p>
+          </div>
+          <AlertTriangle
+            className={cn(
+              "h-5 w-5",
+              stale > 0 ? "text-warning-500" : "text-slate-300",
+            )}
+          />
+        </div>
+        {stale > 0 ? (
+          <div className="mt-3 pt-3 border-t border-warning-200 text-sm text-warning-700">
+            <strong>{stale}</strong> onay 3+ gündür bekliyor
+          </div>
+        ) : null}
       </div>
 
       <div
-        className={`p-4 rounded-lg border text-sm ${
-          meQuery.isError
-            ? "bg-danger-50 border-danger-500/30 text-danger-700"
-            : "bg-brand-50 border-brand-100 text-brand-800"
-        }`}
+        className={cn(
+          "admin-card p-5 border",
+          failureRate > 5 ? "border-danger-200" : "border-surface-border",
+        )}
       >
-        {meQuery.isLoading ? (
-          <span>🔐 Token doğrulanıyor…</span>
-        ) : meQuery.isError ? (
-          <span>
-            ⚠️ <strong>Token geçersiz.</strong> Tekrar giriş yapmanız gerekecek.
-          </span>
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <p className="text-xs uppercase text-admin-text-muted font-semibold tracking-wide">
+              E-posta (Son 24 saat)
+            </p>
+            <p className="text-2xl font-bold text-admin-text mt-1">
+              {overview.emails.sentLast24h}
+            </p>
+            <p className="text-xs text-admin-text-muted mt-1">gönderildi</p>
+          </div>
+          <Mail
+            className={cn(
+              "h-5 w-5",
+              failureRate > 5 ? "text-danger-500" : "text-success-500",
+            )}
+          />
+        </div>
+        {overview.emails.failedLast24h > 0 ? (
+          <div
+            className={cn(
+              "mt-3 pt-3 border-t text-sm",
+              failureRate > 5
+                ? "border-danger-200 text-danger-700"
+                : "border-surface-border text-admin-text-muted",
+            )}
+          >
+            <strong>{overview.emails.failedLast24h}</strong> başarısız (
+            {failureRate}%)
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function TrendChart({
+  trend,
+  loading,
+}: {
+  trend: Array<{ date: string; count: number }>;
+  loading: boolean;
+}) {
+  const data = trend.map((t) => ({
+    label: format(new Date(t.date), "d MMM", { locale: tr }),
+    count: t.count,
+  }));
+
+  return (
+    <div className="admin-card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-base font-bold text-admin-text">
+            İhale Oluşturma Trendi
+          </h3>
+          <p className="text-xs text-admin-text-muted mt-0.5">
+            Son 30 gün, günlük yeni ihale sayısı
+          </p>
+        </div>
+        <Activity className="h-4 w-4 text-admin-text-muted" />
+      </div>
+      <div style={{ width: "100%", height: 240 }}>
+        {loading ? (
+          <div className="h-full w-full bg-slate-100 rounded animate-pulse" />
         ) : (
-          <span>
-            🔐 <strong>Token doğrulandı:</strong> API ile bağlantı sağlıklı.
-            Oturum açan: <strong>{meQuery.data?.email}</strong>
-          </span>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={data}
+              margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 11, fill: "#64748b" }}
+                tickMargin={8}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tick={{ fontSize: 11, fill: "#64748b" }}
+                allowDecimals={false}
+                width={32}
+              />
+              <Tooltip
+                contentStyle={{
+                  borderRadius: "8px",
+                  border: "1px solid #cbd5e1",
+                  fontSize: "12px",
+                }}
+                labelStyle={{ color: "#0f172a", fontWeight: 600 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="count"
+                stroke="#2563eb"
+                strokeWidth={2}
+                dot={{ fill: "#2563eb", r: 3 }}
+                activeDot={{ r: 5 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         )}
       </div>
     </div>
+  );
+}
+
+function RecentRegistrationsCard({
+  registrations,
+}: {
+  registrations: RecentActivity["recentRegistrations"];
+}) {
+  return (
+    <div className="admin-card">
+      <div className="px-5 py-4 border-b border-surface-border flex items-center justify-between">
+        <h3 className="font-bold text-admin-text">Son Kayıtlar</h3>
+        <Link
+          href="/admin/tenants"
+          className="text-xs text-brand-600 hover:underline font-semibold"
+        >
+          Tümünü Gör →
+        </Link>
+      </div>
+      <div className="divide-y divide-surface-border">
+        {registrations.length === 0 ? (
+          <p className="p-6 text-sm text-admin-text-muted text-center">
+            Yeni kayıt yok
+          </p>
+        ) : (
+          registrations.map((r) => (
+            <Link
+              key={r.id}
+              href={`/admin/tenants/${r.id}`}
+              className="block px-5 py-3 hover:bg-surface-subtle transition-colors"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-admin-text truncate">
+                    {r.name}
+                  </p>
+                  <p className="text-xs text-admin-text-muted truncate">
+                    {r.users[0]?.email ?? "—"}
+                  </p>
+                </div>
+                <span className="text-xs text-admin-text-muted ml-3 flex-shrink-0">
+                  {format(new Date(r.createdAt), "d MMM HH:mm", { locale: tr })}
+                </span>
+              </div>
+            </Link>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RecentTendersCard({
+  tenders,
+}: {
+  tenders: RecentActivity["recentTenders"];
+}) {
+  return (
+    <div className="admin-card">
+      <div className="px-5 py-4 border-b border-surface-border">
+        <h3 className="font-bold text-admin-text">Son İhaleler</h3>
+      </div>
+      <div className="divide-y divide-surface-border">
+        {tenders.length === 0 ? (
+          <p className="p-6 text-sm text-admin-text-muted text-center">
+            Yeni ihale yok
+          </p>
+        ) : (
+          tenders.map((t) => (
+            <div
+              key={t.id}
+              className="px-5 py-3 hover:bg-surface-subtle transition-colors"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-mono text-xs text-admin-text-muted">
+                    {t.tenderNumber}
+                  </p>
+                  <p className="font-semibold text-admin-text truncate">
+                    {t.title}
+                  </p>
+                  <p className="text-xs text-admin-text-muted truncate">
+                    {t.tenant.name}
+                  </p>
+                </div>
+                <TenderStatusBadge status={t.status} />
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+const TENDER_STATUS_META: Record<
+  string,
+  { label: string; cls: string }
+> = {
+  DRAFT: {
+    label: "Taslak",
+    cls: "bg-slate-50 text-slate-700 border-slate-200",
+  },
+  IN_APPROVAL: {
+    label: "Onayda",
+    cls: "bg-warning-50 text-warning-700 border-warning-200",
+  },
+  OPEN_FOR_BIDS: {
+    label: "Açık",
+    cls: "bg-success-50 text-success-700 border-success-200",
+  },
+  IN_AWARD: {
+    label: "Kazandırma",
+    cls: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  },
+  IN_AWARD_APPROVAL: {
+    label: "Onayda",
+    cls: "bg-warning-50 text-warning-700 border-warning-200",
+  },
+  AWARDED: {
+    label: "Kazandırıldı",
+    cls: "bg-brand-50 text-brand-700 border-brand-200",
+  },
+  CANCELLED: {
+    label: "İptal",
+    cls: "bg-slate-100 text-slate-600 border-slate-200",
+  },
+  CLOSED_NO_AWARD: {
+    label: "Kapatıldı",
+    cls: "bg-slate-100 text-slate-600 border-slate-200",
+  },
+};
+
+function TenderStatusBadge({ status }: { status: string }) {
+  const meta = TENDER_STATUS_META[status] ?? {
+    label: status,
+    cls: "bg-slate-50 text-slate-700 border-slate-200",
+  };
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border whitespace-nowrap flex-shrink-0",
+        meta.cls,
+      )}
+    >
+      {meta.label}
+    </span>
   );
 }
 

@@ -1,0 +1,160 @@
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Prisma } from "@supkeys/db";
+import { PrismaService } from "../../../common/prisma/prisma.service";
+import { ListAdminTenantsDto } from "../dto/list-tenants.dto";
+
+function parseTenantSort(
+  sort: string | undefined,
+): Prisma.TenantOrderByWithRelationInput {
+  const parts = (sort ?? "createdAt:desc").split(":");
+  const field = parts[0];
+  const dir: Prisma.SortOrder = parts[1] === "asc" ? "asc" : "desc";
+  if (field === "name") return { name: dir };
+  return { createdAt: dir };
+}
+
+@Injectable()
+export class AdminTenantsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async list(query: ListAdminTenantsDto) {
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
+
+    const where: Prisma.TenantWhereInput = {};
+    if (query.search?.trim()) {
+      const term = query.search.trim();
+      where.OR = [
+        { name: { contains: term, mode: "insensitive" } },
+        { taxNumber: { contains: term, mode: "insensitive" } },
+        {
+          users: {
+            some: { email: { contains: term, mode: "insensitive" } },
+          },
+        },
+      ];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.tenant.findMany({
+        where,
+        include: {
+          _count: {
+            select: {
+              users: true,
+              tenders: true,
+              orders: true,
+              supplierRelations: { where: { status: "ACTIVE" } },
+            },
+          },
+          users: {
+            where: { role: "COMPANY_ADMIN" },
+            orderBy: { createdAt: "asc" },
+            take: 1,
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              lastLoginAt: true,
+            },
+          },
+        },
+        orderBy: parseTenantSort(query.sort),
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.tenant.count({ where }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+    };
+  }
+
+  async getOne(id: string) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id },
+      include: {
+        users: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+            isActive: true,
+            lastLoginAt: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: "asc" },
+        },
+        _count: {
+          select: {
+            users: true,
+            tenders: true,
+            orders: true,
+            supplierRelations: { where: { status: "ACTIVE" } },
+            approvalFlows: { where: { status: "ACTIVE" } },
+          },
+        },
+      },
+    });
+
+    if (!tenant) throw new NotFoundException("Tenant bulunamadı");
+
+    const [tendersByStatus, ordersByStatus, recentTenders, totalSpend] =
+      await Promise.all([
+        this.prisma.tender.groupBy({
+          by: ["status"],
+          where: { tenantId: id },
+          _count: { _all: true },
+        }),
+        this.prisma.order.groupBy({
+          by: ["status"],
+          where: { tenantId: id },
+          _count: { _all: true },
+        }),
+        this.prisma.tender.findMany({
+          where: { tenantId: id },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: {
+            id: true,
+            tenderNumber: true,
+            title: true,
+            status: true,
+            primaryCurrency: true,
+            createdAt: true,
+          },
+        }),
+        this.prisma.order.aggregate({
+          where: { tenantId: id, status: "COMPLETED" },
+          _sum: { totalAmount: true },
+        }),
+      ]);
+
+    return {
+      ...tenant,
+      analytics: {
+        tendersByStatus: tendersByStatus.map((t) => ({
+          status: t.status,
+          count: t._count._all,
+        })),
+        ordersByStatus: ordersByStatus.map((o) => ({
+          status: o.status,
+          count: o._count._all,
+        })),
+        totalSpendCompleted: totalSpend._sum.totalAmount ?? 0,
+        recentTenders,
+      },
+    };
+  }
+}

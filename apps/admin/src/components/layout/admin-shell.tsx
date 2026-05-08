@@ -85,13 +85,11 @@ const NAV_ITEMS: NavItem[] = [
     label: "Müşteri Firmaları",
     href: "/admin/tenants",
     icon: Building2,
-    disabled: true,
   },
   {
     label: "Tedarikçiler",
     href: "/admin/suppliers",
     icon: Truck,
-    disabled: true,
   },
   {
     label: "Ayarlar",

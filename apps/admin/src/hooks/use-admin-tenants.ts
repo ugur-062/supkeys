@@ -1,0 +1,126 @@
+"use client";
+
+import { api } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
+
+export interface AdminTenantListItem {
+  id: string;
+  name: string;
+  slug: string;
+  taxNumber: string | null;
+  taxOffice: string | null;
+  city: string | null;
+  isActive: boolean;
+  createdAt: string;
+  _count: {
+    users: number;
+    tenders: number;
+    orders: number;
+    supplierRelations: number;
+  };
+  users: Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    lastLoginAt: string | null;
+  }>;
+}
+
+export interface AdminTenantListResponse {
+  items: AdminTenantListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface AdminTenantDetail {
+  id: string;
+  name: string;
+  slug: string;
+  taxNumber: string | null;
+  taxOffice: string | null;
+  industry: string | null;
+  city: string | null;
+  district: string | null;
+  addressLine: string | null;
+  postalCode: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  users: Array<{
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+    isActive: boolean;
+    lastLoginAt: string | null;
+    createdAt: string;
+  }>;
+  _count: {
+    users: number;
+    tenders: number;
+    orders: number;
+    supplierRelations: number;
+    approvalFlows: number;
+  };
+  analytics: {
+    tendersByStatus: Array<{ status: string; count: number }>;
+    ordersByStatus: Array<{ status: string; count: number }>;
+    totalSpendCompleted: string | number;
+    recentTenders: Array<{
+      id: string;
+      tenderNumber: string;
+      title: string;
+      status: string;
+      primaryCurrency: string;
+      createdAt: string;
+    }>;
+  };
+}
+
+export interface ListAdminTenantsParams {
+  search?: string;
+  sort?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export function useAdminTenants(params: ListAdminTenantsParams = {}) {
+  const search = new URLSearchParams();
+  if (params.search) search.set("search", params.search);
+  if (params.sort) search.set("sort", params.sort);
+  if (params.page) search.set("page", String(params.page));
+  if (params.pageSize) search.set("pageSize", String(params.pageSize));
+  const qs = search.toString();
+
+  return useQuery({
+    queryKey: ["admin", "tenants", "list", params],
+    queryFn: async () => {
+      const { data } = await api.get<AdminTenantListResponse>(
+        `/admin/tenants${qs ? `?${qs}` : ""}`,
+      );
+      return data;
+    },
+    placeholderData: (prev) => prev,
+    staleTime: 30_000,
+  });
+}
+
+export function useAdminTenantDetail(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ["admin", "tenants", "detail", id ?? ""],
+    queryFn: async () => {
+      const { data } = await api.get<AdminTenantDetail>(
+        `/admin/tenants/${id}`,
+      );
+      return data;
+    },
+    enabled: Boolean(id),
+    staleTime: 30_000,
+  });
+}

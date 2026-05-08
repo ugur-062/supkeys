@@ -240,6 +240,63 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 
 🎉 **V1 COMPLETE** — Tüm temel ihale yönetim akışları (D.1-D.2.B + E.1-E.7.D) tamamlandı.
 
+### Polish-2 — Admin Paneli + KPI Agregasyonu
+- **3 yeni backend modülü** (`apps/api/src/modules/`):
+  - **`admin-stats`** (`/admin/stats/`):
+    - `getOverview()` — paralel sorgular: tenants/suppliers/tenders/orders × `total + newThisMonth + newLastMonth + activeThisMonth + deltaPercent`. ApprovalRequests `totalPending + staleOver3Days`. Emails `sentLast24h + failedLast24h + failureRate%`. `deltaPercent()` helper (önceki 0 → mevcut > 0 ise %100, aksi `(curr-prev)/prev * 100`). 22 paralel `Promise.all` count.
+    - `getRecentActivity(limit, max=50)` — son `recentTenders + recentOrders + recentRegistrations` (her biri tenant+createdBy include).
+    - `getTenderTrend(days=30, max=90)` — `$queryRaw` ile `DATE_TRUNC('day', "createdAt")` gruplandırma (`tenders` tablosu camelCase quote'lu). Eksik günleri 0 ile doldurma.
+  - **`admin-tenants`** (`/admin/tenants/`):
+    - `list()` — `ListAdminTenantsDto` whitelist sort (createdAt|name × asc|desc). Search OR (name + taxNumber + users.email). `_count: { users, tenders, orders, supplierRelations(ACTIVE) }` + ilk COMPANY_ADMIN user.
+    - `getOne(id)` — analytics: `tendersByStatus + ordersByStatus` Prisma `groupBy` + `totalSpendCompleted` aggregate (sum `totalAmount` where COMPLETED) + `recentTenders` (5) + tüm users (role/lastLoginAt).
+  - **`admin-suppliers`** (`/admin/suppliers/`):
+    - `list()` — sort whitelist (createdAt|companyName), search OR (companyName + taxNumber + users.email), membership filter STANDARD/PREMIUM. `_count: { users, bids, orders, tenantRelations(ACTIVE) }`.
+    - `getOne(id)` — analytics: `bidsByStatus + ordersByStatus` groupBy + `totalRevenueCompleted` aggregate + `winRatePercent` (private `calculateWinRate`: AWARDED_FULL+PARTIAL / decided where decided = AWARDED+LOST).
+- **AppModule register**: 3 modül eklendi.
+- **Admin frontend** (`apps/admin/`):
+  - **Yeni paketler**: `recharts@2`, `use-debounce@10`.
+  - **6 list component port** (`components/list/`): SearchInput / FilterBar / SortDropdown / EmptyState (no-data + no-results) / ListSkeleton / ResultCount + `index.ts`. Web'den birebir kopyalandı (admin theme aynı brand-* token + surface-border).
+  - **`useListFilters<T>` hook port** (`hooks/use-list-filters.ts`).
+  - **3 yeni hook** (`hooks/`):
+    - `useAdminStats.ts` — `useAdminOverview` (60sn refetchInterval) / `useAdminRecentActivity` / `useAdminTenderTrend` (5dk staleTime).
+    - `useAdminTenants.ts` — `useAdminTenants(params)` + `useAdminTenantDetail(id)`.
+    - `useAdminSuppliers.ts` — `useAdminSuppliers(params)` + `useAdminSupplierDetail(id)`.
+- **`/admin/dashboard` (refactor)**: Placeholder kartları kaldırıldı.
+  - Header + canlı pulse indicator (60sn refetch).
+  - 4 KPI card (Tenant/Tedarikçi/İhale/Sipariş): icon + accent bg + label + value (TR locale) + sub + delta% (TrendingUp/Down) + clickable href (Tenant→/admin/tenants, Supplier→/admin/suppliers). `KpiGridSkeleton` loading.
+  - Health row 2 kart: Onay Süreçleri (warning border eğer stale>0) + E-posta (danger border eğer failure>5%).
+  - **`TrendChart` Recharts**: `LineChart` (#2563eb 2px stroke) + CartesianGrid + Tooltip + ResponsiveContainer 240px height. Veri 30 gün format `d MMM` TR.
+  - 2 panel: Son Kayıtlar (clickable → tenant detay) + Son İhaleler (status badge).
+- **`/admin/tenants` liste**: Polish-1 pattern — SearchInput + SortDropdown + ResultCount + ListSkeleton + EmptyState 2-variant + `useListFilters` URL sync. Tablo: Firma (logo+isim+şehir) / VKN / Yetkili (ilk admin) / Kullanıcı / İhale / Sipariş / Kayıt. Pagination önceki/sonraki (mini).
+- **`/admin/tenants/[id]` detay**:
+  - Header + back link.
+  - 4 mini KPI (Kullanıcı/Aktif Tedarikçi/İhale/Sipariş) accent renkler.
+  - **Yeşil gradient kart**: Toplam Harcama (TRY locale 2 ondalık).
+  - 2 status distribution kart: İhale Durumları + Sipariş Durumları (groupBy → label/count satırları).
+  - Son İhaleler (5) + Tüm Kullanıcılar (rol + son giriş).
+- **`/admin/suppliers` liste**: Aynı Polish-1 pattern. Ek: membership filtre dropdown (STANDARD/PREMIUM). Tablo: Tedarikçi (logo+isim+şehir) / VKN / Üyelik+Engelli badge / Aktif Alıcı / Teklif / Sipariş / Kayıt.
+- **`/admin/suppliers/[id]` detay**:
+  - Header + membership badge + Engelli badge (şartlı).
+  - 4 mini KPI (Kullanıcı/Aktif Alıcı/Teklif/Sipariş).
+  - **Mor-indigo gradient**: Kazanma Oranı (`%X` decided bid'lere göre).
+  - **Yeşil gradient**: Toplam Gelir (COMPLETED siparişler).
+  - 2 status dağılımı: Teklif Durumları + Sipariş Durumları.
+  - Kullanıcılar (telefon + son giriş).
+- **Admin sidebar**: "Müşteri Firmaları" + "Tedarikçiler" `disabled: true` kaldırıldı, artık linkli.
+- **Manuel E2E** (10 senaryo + 3 frontend route):
+  - Admin login + overview KPI doğru: 2 tenants / 2 suppliers / 8 tenders / 0 orders DB count'larıyla eşleşti ✓
+  - Recent activity 3 tender + 0 order + 2 registration ✓
+  - Tender trend 31 gün, 7 toplam (2026-05-02: 3, 2026-05-03: 1, 2026-05-04: 3) ✓
+  - Tenants list (`?sort=name:asc`) → BBB → Demo Şirket ✓
+  - Tenant detail analytics: tendersByStatus groupBy çalıştı (OPEN_FOR_BIDS:1, IN_AWARD:2) ✓
+  - Suppliers list (`?sort=companyName:asc`) → 1 teklif var ✓
+  - Supplier detail winRate: 0% (sadece SUBMITTED bid var, decided yok) ✓
+  - Cross-token: tenant token → /admin/stats/overview → 401 "Geçersiz token tipi" ✓
+  - Sort SQL injection (`?sort=DROP+TABLE--`) → 400 whitelist ✓
+  - Non-existing tenant → 404 "Tenant bulunamadı" ✓
+  - Frontend rotaları (`/admin/dashboard`, `/admin/tenants`, `/admin/suppliers`) HTTP 200 ✓
+  - typecheck (api+web+admin+email+shared+db) tüm yeşil ✓
+
 ### Polish-1 — Liste Sayfaları UX Standardizasyonu
 - **Yeni paket:** `use-debounce@10` (apps/web).
 - **6 ortak component** (`apps/web/src/components/list/`):
