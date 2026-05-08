@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
-import { ValidationPipe } from "@nestjs/common";
+import { Logger, ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { AppModule } from "./app.module";
@@ -36,6 +36,27 @@ async function bootstrap() {
     origin: corsOrigins,
     credentials: true,
   });
+
+  // Graceful shutdown — Nest lifecycle hooks tetiklenir (BullMQ Worker
+  // active job'ları bitirir, Prisma bağlantısı kapatılır).
+  app.enableShutdownHooks();
+
+  const shutdownLogger = new Logger("Bootstrap");
+  const shutdown = async (signal: string) => {
+    shutdownLogger.log(`${signal} received — shutting down gracefully`);
+    try {
+      await app.close();
+      shutdownLogger.log("Application closed cleanly");
+      process.exit(0);
+    } catch (err) {
+      shutdownLogger.error(
+        `Shutdown error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      process.exit(1);
+    }
+  };
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGINT", () => void shutdown("SIGINT"));
 
   const port = config.get<number>("API_PORT", 4000);
   await app.listen(port);

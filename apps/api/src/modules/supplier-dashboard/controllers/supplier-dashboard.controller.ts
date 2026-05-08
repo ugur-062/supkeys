@@ -1,11 +1,5 @@
-import {
-  Controller,
-  DefaultValuePipe,
-  Get,
-  ParseIntPipe,
-  Query,
-  UseGuards,
-} from "@nestjs/common";
+import { Controller, Get, Query, UseGuards } from "@nestjs/common";
+import { ClampedIntPipe } from "../../../common/pipes/clamped-int.pipe";
 import {
   CurrentSupplierUser,
   type AuthenticatedSupplierUser,
@@ -28,9 +22,9 @@ export class SupplierDashboardController {
   @Get("recent-activity")
   getRecentActivity(
     @CurrentSupplierUser() user: AuthenticatedSupplierUser,
-    @Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query("limit", new ClampedIntPipe({ min: 1, max: 50, default: 10 }))
+    limit: number,
   ): Promise<unknown> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
-    return this.service.getRecentActivity(user.supplierId, safeLimit);
+    return this.service.getRecentActivity(user.supplierId, limit);
   }
 }

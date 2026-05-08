@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { AdminEmailLogsController } from "./admin-email-logs.controller";
 import { AdminEmailLogsService } from "./admin-email-logs.service";
 import { EMAIL_QUEUE_NAME } from "./dto/email-job.dto";
+import { EmailOutboxService } from "./email-outbox.service";
 import { EmailProcessor } from "./email.processor";
 import { EmailQueue } from "./email.queue";
 import { EmailService } from "./email.service";
@@ -36,7 +37,13 @@ import { EmailService } from "./email.service";
     }),
   ],
   controllers: [AdminEmailLogsController],
-  providers: [EmailService, EmailQueue, EmailProcessor, AdminEmailLogsService],
+  providers: [
+    EmailService,
+    EmailQueue,
+    EmailProcessor,
+    EmailOutboxService,
+    AdminEmailLogsService,
+  ],
   exports: [EmailQueue, EmailService],
 })
 export class EmailModule {}

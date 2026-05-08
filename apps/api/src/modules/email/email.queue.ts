@@ -53,13 +53,23 @@ export class EmailQueue {
       emailLogId: log.id,
     };
 
-    await this.queue.add(EMAIL_JOB_NAME, payload, {
-      jobId: log.id,
-    });
-
-    this.logger.log(
-      `Queued email ${log.id} (${input.templateData.template}) → ${input.to.email}`,
-    );
+    // Outbox pattern: DB INSERT source-of-truth; BullMQ add() best-effort.
+    // add() fail olursa (Redis disconnect vb.) caller'a yansıtmıyoruz —
+    // EmailOutboxService cron her dakika QUEUED satırları yeniden basar.
+    try {
+      await this.queue.add(EMAIL_JOB_NAME, payload, {
+        jobId: log.id,
+      });
+      this.logger.log(
+        `Queued email ${log.id} (${input.templateData.template}) → ${input.to.email}`,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(
+        `BullMQ enqueue failed for ${log.id} (${input.templateData.template}); ` +
+          `outbox cron will retry. Error: ${msg}`,
+      );
+    }
     return log.id;
   }
 }

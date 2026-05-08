@@ -28,7 +28,6 @@ interface ApplicationCommonFields {
   companyType: CompanyType;
   taxNumber: string;
   taxOffice: string;
-  taxCertUrl: string;
   industry: string | null;
   website: string | null;
 
@@ -69,6 +68,8 @@ export interface FromDemoRequestRef {
 }
 
 export interface BuyerApplicationDetail extends BuyerApplicationListItem {
+  /** Sadece detail endpoint'inde döner (Bug #1 — list bandwidth fix) */
+  taxCertUrl: string;
   tenant: TenantRef | null;
   fromDemoRequest: FromDemoRequestRef | null;
 }
@@ -87,6 +88,8 @@ export interface SupplierApplicationListItem extends ApplicationCommonFields {
 }
 
 export interface SupplierApplicationDetail extends SupplierApplicationListItem {
+  /** Sadece detail endpoint'inde döner (Bug #1 — list bandwidth fix) */
+  taxCertUrl: string;
   invitation: {
     id: string;
     email: string;

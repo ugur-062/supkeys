@@ -37,13 +37,42 @@ export class AdminSupplierApplicationsService {
       ];
     }
 
+    // Bug #1 fix: list response'unda büyük base64 alan dönmesin —
+    // taxCertUrl ve passwordHash hariç tüm tablo sütunlarını seç.
+    // Detail endpoint taxCertUrl'i tam halde döner.
     const [items, total] = await this.prisma.$transaction([
       this.prisma.supplierApplication.findMany({
         where,
         skip,
         take: pageSize,
         orderBy: { createdAt: "desc" },
-        include: {
+        select: {
+          id: true,
+          status: true,
+          companyName: true,
+          companyType: true,
+          taxNumber: true,
+          taxOffice: true,
+          industry: true,
+          website: true,
+          city: true,
+          district: true,
+          addressLine: true,
+          postalCode: true,
+          adminFirstName: true,
+          adminLastName: true,
+          adminEmail: true,
+          adminPhone: true,
+          emailVerifiedAt: true,
+          reviewedAt: true,
+          reviewedById: true,
+          rejectionReason: true,
+          invitationId: true,
+          invitedByTenantId: true,
+          supplierId: true,
+          ipAddress: true,
+          createdAt: true,
+          updatedAt: true,
           reviewedBy: {
             select: { id: true, firstName: true, lastName: true, email: true },
           },

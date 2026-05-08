@@ -57,6 +57,10 @@ async function main() {
   // gönderileceği target). Idempotent — varsa atlanır.
   await ensureDemoSupplierRelation(tenant.id);
 
+  // Tedarikçi şifresini her seed'de senkronla (relation idempotency'sini
+  // bozmadan, mevcut user'ın bcrypt hash'ini doğru parolaya çevir).
+  await syncDemoSupplierUserPassword();
+
   // Tender modülü için 3 dummy ihale (idempotent)
   await seedTenders(prisma);
 }
@@ -82,6 +86,26 @@ async function ensureDemoCompanyAdmin(tenantId: string) {
   console.log("✅ Demo tenant kullanıcısı oluşturuldu:", email, "(şifre: demo12345)");
 }
 
+// CLAUDE.md test hesapları tablosu ile senkron — geliştirici onboarding için tek doğruluk kaynağı.
+const SUPPLIER_PASSWORD = "Test1234";
+
+async function syncDemoSupplierUserPassword() {
+  // Bug #4 fix: relation zaten varsa bile supplier user şifresinin
+  // her seed çağrısında doğru hash ile güncellenmesini garantile.
+  const user = await prisma.supplierUser.findUnique({
+    where: { email: "demo-supplier@firma.com" },
+  });
+  if (!user) return; // İlk seed çağrısı — ensureDemoSupplierRelation oluşturacak
+  const passwordHash = await bcrypt.hash(SUPPLIER_PASSWORD, 12);
+  await prisma.supplierUser.update({
+    where: { id: user.id },
+    data: { passwordHash },
+  });
+  console.log(
+    `🔁 Tedarikçi şifresi senkronlandı: demo-supplier@firma.com (şifre: ${SUPPLIER_PASSWORD})`,
+  );
+}
+
 async function ensureDemoSupplierRelation(tenantId: string) {
   const existingRelation = await prisma.supplierTenantRelation.findFirst({
     where: { tenantId, status: "ACTIVE" },
@@ -92,14 +116,17 @@ async function ensureDemoSupplierRelation(tenantId: string) {
   }
 
   const taxNumber = "1112223334";
+  const passwordHash = await bcrypt.hash(SUPPLIER_PASSWORD, 12);
+
   const existingSupplier = await prisma.supplier.findUnique({
     where: { taxNumber },
   });
   let supplierId: string;
   if (existingSupplier) {
     supplierId = existingSupplier.id;
+    // Şifre senkronu zaten ayrı bir adım (`syncDemoSupplierUserPassword`)
+    // tarafından her seed çağrısında çalıştırılıyor.
   } else {
-    const passwordHash = await bcrypt.hash("Demo1234", 12);
     const supplier = await prisma.supplier.create({
       data: {
         companyName: "Demo Tedarikçi A.Ş.",
@@ -124,7 +151,7 @@ async function ensureDemoSupplierRelation(tenantId: string) {
     });
     supplierId = supplier.id;
     console.log(
-      "✅ Örnek tedarikçi oluşturuldu: demo-supplier@firma.com (şifre: Demo1234)",
+      `✅ Örnek tedarikçi oluşturuldu: demo-supplier@firma.com (şifre: ${SUPPLIER_PASSWORD})`,
     );
   }
 

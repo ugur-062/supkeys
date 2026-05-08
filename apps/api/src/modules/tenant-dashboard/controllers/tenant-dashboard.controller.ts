@@ -1,15 +1,9 @@
-import {
-  Controller,
-  DefaultValuePipe,
-  Get,
-  ParseIntPipe,
-  Query,
-  UseGuards,
-} from "@nestjs/common";
+import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import {
   CurrentUser,
   type AuthenticatedUser,
 } from "../../../common/decorators/current-user.decorator";
+import { ClampedIntPipe } from "../../../common/pipes/clamped-int.pipe";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { TenantDashboardService } from "../services/tenant-dashboard.service";
 
@@ -26,9 +20,9 @@ export class TenantDashboardController {
   @Get("recent-activity")
   getRecentActivity(
     @CurrentUser() user: AuthenticatedUser,
-    @Query("limit", new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query("limit", new ClampedIntPipe({ min: 1, max: 50, default: 10 }))
+    limit: number,
   ): Promise<unknown> {
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
-    return this.service.getRecentActivity(user.tenantId, safeLimit);
+    return this.service.getRecentActivity(user.tenantId, limit);
   }
 }

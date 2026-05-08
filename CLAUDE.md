@@ -31,7 +31,7 @@ packages/email    @supkeys/email     React Email templates + Resend/Mailpit prov
 |-----|-----|---------|-------|
 | Tenant | localhost:3000/login | ugur@demo.com | demo12345 |
 | Admin | localhost:3001/admin/login | admin@supkeys.com | admin12345 |
-| Supplier | localhost:3000/supplier/login | (seed'den) | (seed'den) |
+| Supplier | localhost:3000/supplier/login | demo-supplier@firma.com | Test1234 |
 | Mailpit UI | localhost:8025 | — | — |
 
 ## Servis Başlatma
