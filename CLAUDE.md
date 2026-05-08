@@ -129,12 +129,38 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 - Hooks: `useTenantDashboardStats` + `useTenantRecentActivity`, `useSupplierDashboardStats` + `useSupplierRecentActivity` (TanStack Query, 30sn staleTime, refetchInterval YOK)
 - Ortak `<ActivityFeed>` component (`@/components/dashboard/activity-feed`)
 - CLAUDE.md trim (87k → ~24k karakter, eski tam içerik `CLAUDE.md.backup`'ta)
+- **V1 Final QA + 4 bug fix:** Bug #1 admin list bandwidth (taxCertUrl select dışına alındı, 2.79 MB → ~1 KB), Bug #2 Outbox pattern (DB ↔ BullMQ atomik koordinasyon, EmailOutboxService cron @EVERY_MINUTE re-enqueue, fail-tolerant enqueue, graceful shutdown), Bug #3 ClampedIntPipe (regex `/^-?\d+$/` katı integer + clamp), Bug #4 seed/CLAUDE.md test şifre senkronu (`syncDemoSupplierUserPassword` her seed'de günceller). `docs/v1-qa-report.md` arşivlendi.
+
+### E.7.A — Sidebar temizlik + Ayarlar (5 alt sayfa) + Kullanıcı Yönetimi
+- **Schema migration `e7a_user_invitation_and_phone_prefs`:** `User`'a `phone`, `invitedById` (self-relation), `invitedAt`, `notificationPrefs` (Json) eklendi. `UserInvitation` modeli + `UserInvitationStatus` enum (PENDING/ACCEPTED/EXPIRED/CANCELLED). UserRole.APPROVER zaten enum'daydı, lastLoginAt zaten User'daydı.
+- **Sidebar cleanup:** `Teklifler` item'ı + `/dashboard/teklifler` rotası kaldırıldı. `Onay Bekleyenler` ve `Ayarlar` artık aktif (sidebar config'te zaten YAKINDA rozeti yoktu, placeholder sayfa içerikleri güncellendi). Onay Bekleyenler placeholder rewrite (brand-50 box + ClipboardCheck + dashboard'a dön CTA, E.7.D'de aktif olacak).
+- **Backend modülleri:**
+  - `tenant-users` (`/tenants/me/users` namespace): `GET /` (list), `GET /me`, `PATCH /me` (sadece firstName/lastName/phone, role/isActive strip), `POST /change-password`, `PATCH /me/notification-prefs` ({prefs} body, sanitize boolean only). COMPANY_ADMIN-only: `POST /invite`, `GET /invitations`, `DELETE /invitations/:id`, `POST /invitations/:id/resend`, `PATCH /:id`. **Son admin protection** servis seviyesinde: COMPANY_ADMIN'i pasif yapamaz veya rolünü değiştiremez (en az 1 aktif admin kontrolü).
+  - `public-invitations` (`/invitations` namespace, JWT yok): `GET /:token` (davet bilgisi), `POST /:token/accept` (user create + JWT döner — auto-login). On-the-fly EXPIRED detection (kayıt update + 409). Race protection: aynı e-posta zaten user olarak kayıtlıysa 409.
+  - `AuthModule` artık `JwtModule`'ü export ediyor — diğer modüller (PublicInvitations) aynı imza ile token üretebilsin.
+- **E-posta:** `user_invitation` şablonu (Layout + heading + info box "Davet bilgileri: firma/rol/süre" + acceptUrl CTA + "beklemiyorsan yok say" footer). Subject `👥 {tenantName} ekibine davet edildiniz — Supkeys`. types.ts/render.ts/index.ts'e tam entegre.
+- **Frontend ayarlar (`/dashboard/ayarlar`):** Ana sayfa 5 kart (Hesap Bilgileri / Şifre İşlemleri / Kullanıcı İşlemleri (admin-only) / Bildirim Tercihleri / Firma Profili) PratisPro stili. Tüm alt sayfalarda `<BackToSettings>` ortak komponent.
+  - **Hesap Bilgileri:** read-only mode + Pencil "Düzenle" butonu → react-hook-form + zod (firstName/lastName/phone). E-posta disabled. Rol read-only (label).
+  - **Şifre İşlemleri:** 3 alan (mevcut/yeni/onay), zod refine ile "şifreler eşleşmiyor" + "yeni şifre eski ile aynı olamaz". Backend `currentPassword` bcrypt karşılaştırma + 400.
+  - **Kullanıcı İşlemleri:** UsersTable (avatar + ad + e-posta + rol pill + aktif/pasif chip + son giriş relative time + Radix DropdownMenu "Düzenle" / "Pasif Yap" / "Aktif Et"). InvitationsList (sadece bekleyen davetler — Mail ikon + e-posta + rol + invitedBy + süre + Yeniden Gönder/İptal Et). InviteUserModal (e-posta + 3 radio kart rol seçimi). EditUserModal (firstName/lastName/phone/role). BUYER/APPROVER login olduğunda sayfa "sadece COMPANY_ADMIN" warning kartına düşer.
+  - **Bildirim Tercihleri:** 5 grup (İhale 8 alt, Onay 2, Sipariş 2, Tedarikçi 2, Sistem 2 — sistem `locked: true`). Group-level toggle (indeterminate state) + alt-checkbox. Auto-save (her toggle'da PATCH `/me/notification-prefs`). Default opt-in (key yoksa `true`).
+  - **Firma Profili:** read-only (companyName/taxNumber/taxOffice/industry/city/district/addressLine/postalCode) + warning pill "Düzenleme · V2" + destek@supkeys.com link.
+  - Hooks: `useTenantUsers/UserMe/UpdateMe/ChangePassword/UpdateUser/InviteUser/Invitations/CancelInvitation/ResendInvitation/UpdateNotificationPrefs`. Public hooks: `useInvitation` (retry: false) + `useAcceptInvitation`.
+- **Frontend `/accept-invite/[token]` (public):** Server component → token-aware client. `useInvitation(token)` ile davet bilgisi (loading/error states + 409/404 farklı mesajlar). Form: ad/soyad/telefon (opsiyonel)/şifre/şifre tekrar. Şifre regex `/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/`. Submit → `useAcceptInvitation` → setAuth → `/dashboard` redirect + welcome toast. metadata.robots noindex/nofollow.
+- **Manuel E2E doğrulama:**
+  - 14 backend test geçti: login + me + list + update phone + change password (yanlış şifre 400) + notification prefs + invite + duplicate invite 409 + token GET + accept + auto-login token ile me + BUYER user invite endpoint 403 + token reuse 409 + e-posta SENT (latency <300ms)
+  - Last admin protection: self role/isActive update 403 ✓
+  - Cross-token: BUYER → admin endpoint 403 ✓
+  - Sidebar/breadcrumbs Teklifler temiz ✓
 
 ---
 
 ## Bekleyen — V1.5 / V2 / V3
 
 ### V1.5 (kısa vadeli)
+- **Aşama E.7.B:** Firma Tercihleri (Fatura/İletişim/Teslimat adres yönetimi) + İhale wizard refactor (manuel adres → dropdown)
+- **Aşama E.7.C:** Onay zinciri konfigürasyonu (kim, hangi tutar, kaç aşama)
+- **Aşama E.7.D:** Onay çalıştırma (Onay Bekleyenler sayfası aktif, ApprovalRequest oluşturma + APPROVER user atama + onay akışı)
 - Sipariş status workflow (Kabul/Reddet/Üretim/Teslim/Tamamla)
 - Sipariş PDF export
 - Sipariş üzerinde mesajlaşma

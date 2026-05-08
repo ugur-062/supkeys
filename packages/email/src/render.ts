@@ -91,6 +91,11 @@ import {
   renderTenderInvitationText,
   TenderInvitationEmail,
 } from "./templates/tender-invitation";
+import {
+  makeUserInvitationSubject,
+  renderUserInvitationText,
+  UserInvitationEmail,
+} from "./templates/user-invitation";
 import type { EmailTemplateData, RenderedEmail } from "./types";
 
 export async function renderEmail(
@@ -334,6 +339,17 @@ export async function renderEmail(
         subject: makeAwardCompletedBuyerSubject(spec.data.tenderTitle),
         html,
         text: renderAwardCompletedBuyerText(spec.data),
+      };
+    }
+
+    case "user_invitation": {
+      const html = await render(
+        React.createElement(UserInvitationEmail, spec.data),
+      );
+      return {
+        subject: makeUserInvitationSubject(spec.data.tenantName),
+        html,
+        text: renderUserInvitationText(spec.data),
       };
     }
 

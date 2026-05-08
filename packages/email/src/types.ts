@@ -18,7 +18,8 @@ export type EmailTemplate =
   | "bid_eliminated_supplier"
   | "award_won_supplier"
   | "award_lost_supplier"
-  | "award_completed_buyer";
+  | "award_completed_buyer"
+  | "user_invitation";
 
 export type EmailProviderName = "resend" | "mailpit";
 
@@ -106,6 +107,18 @@ export interface DemoToRegisterInvitationData {
   registerUrl: string;
   /** Formatted human-readable date, e.g. "30 Nisan 2026" */
   expiresAt: string;
+}
+
+export interface UserInvitationData {
+  recipientEmail: string;
+  tenantName: string;
+  inviterName: string;
+  /** Enum value (örn "COMPANY_ADMIN", "BUYER", "APPROVER") */
+  role: string;
+  /** Türkçe rol etiketi (örn "Firma Yöneticisi") */
+  roleLabel: string;
+  acceptUrl: string;
+  expiresInDays: number;
 }
 
 export interface SupplierInvitationData {
@@ -325,7 +338,8 @@ export type EmailTemplateData =
     }
   | { template: "award_won_supplier"; data: AwardWonSupplierData }
   | { template: "award_lost_supplier"; data: AwardLostSupplierData }
-  | { template: "award_completed_buyer"; data: AwardCompletedBuyerData };
+  | { template: "award_completed_buyer"; data: AwardCompletedBuyerData }
+  | { template: "user_invitation"; data: UserInvitationData };
 
 export interface RenderedEmail {
   subject: string;

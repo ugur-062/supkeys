@@ -38,6 +38,7 @@ model Tenant {
   invitedSupplierApps  SupplierApplication[]   @relation("SupplierAppInviter")
   tenders              Tender[]
   orders               Order[]
+  userInvitations      UserInvitation[]
 
   @@map("tenants")
 }
@@ -48,20 +49,60 @@ model User {
   passwordHash String
   firstName    String
   lastName     String
+  phone        String?
   role         UserRole  @default(BUYER)
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+
+  // E.7.A — davetle eklenen kullanıcılar için
+  invitedById String?
+  invitedBy   User?   @relation("UserInvitedBy", fields: [invitedById], references: [id])
+  invitees    User[]  @relation("UserInvitedBy")
+  invitedAt   DateTime?
+
+  // E.7.A — kategori bazlı bildirim tercihleri (key: boolean)
+  notificationPrefs Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   sentSupplierInvitations SupplierInvitation[]
   tendersCreated          Tender[]                  @relation("TendersCreated")
+  sentUserInvitations     UserInvitation[]          @relation("UserInvitationInviter")
 
   @@index([tenantId])
   @@map("users")
+}
+
+model UserInvitation {
+  id          String                 @id @default(cuid())
+  tenantId    String
+  tenant      Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email       String
+  role        UserRole
+  token       String                 @unique
+  invitedById String
+  invitedBy   User                   @relation("UserInvitationInviter", fields: [invitedById], references: [id])
+  status      UserInvitationStatus   @default(PENDING)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  @@index([tenantId, email, status])
+  @@index([token])
+  @@map("user_invitations")
+}
+
+enum UserInvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  CANCELLED
 }
 
 enum UserRole {

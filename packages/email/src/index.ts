@@ -31,4 +31,5 @@ export type {
   TenderClosedBuyerData,
   TenderClosedSupplierData,
   TenderInvitationEmailData,
+  UserInvitationData,
 } from "./types";

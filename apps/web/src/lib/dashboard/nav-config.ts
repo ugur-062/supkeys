@@ -4,7 +4,6 @@ import {
   FileText,
   LayoutDashboard,
   type LucideIcon,
-  MessageSquare,
   Package,
   Plus,
   Settings,
@@ -48,12 +47,6 @@ export const navConfig: NavGroup[] = [
         icon: FileText,
         label: "İhaleler",
         href: "/dashboard/ihaleler",
-      },
-      {
-        type: "link",
-        icon: MessageSquare,
-        label: "Teklifler",
-        href: "/dashboard/teklifler",
       },
       {
         type: "cta",
@@ -122,7 +115,6 @@ export function getBreadcrumbs(pathname: string): string[] {
     "/dashboard": "Dashboard",
     "/dashboard/ihaleler": "İhaleler",
     "/dashboard/ihaleler/yeni": "Yeni İhale",
-    "/dashboard/teklifler": "Teklifler",
     "/dashboard/onay-bekleyenler": "Onay Bekleyenler",
     "/dashboard/siparisler": "Siparişler",
     "/dashboard/tedarikciler": "Tedarikçiler",

@@ -1,4 +1,6 @@
-import { PlaceholderPage } from "@/components/dashboard/placeholder-page";
+import { Button } from "@/components/ui/button";
+import { ClipboardCheck } from "lucide-react";
+import Link from "next/link";
 
 export const metadata = {
   title: "Onay Bekleyenler — Supkeys",
@@ -6,17 +8,25 @@ export const metadata = {
 
 export default function OnayBekleyenlerPage() {
   return (
-    <PlaceholderPage
-      iconKey="onay-bekleyenler"
-      title="Onay Bekleyenler"
-      subtitle="Sizin onayınızı bekleyen ihale, sipariş ve tedarikçi başvuruları burada listelenecek."
-      description="Tek tıkla onaylayabilir, gerekirse geri yollayabilirsiniz. Onay zincirleri rol ve harcama limitine göre konfigüre edilebilir."
-      estimatedRelease="V2"
-      highlights={[
-        "Çok aşamalı onay akışları",
-        "Mobil onay bildirimleri",
-        "Onay yetki seviyeleri",
-      ]}
-    />
+    <div className="max-w-2xl mx-auto px-6 py-12">
+      <div className="bg-brand-50 border border-brand-200 rounded-2xl p-8 text-center">
+        <div className="h-16 w-16 mx-auto bg-brand-100 rounded-2xl flex items-center justify-center mb-4">
+          <ClipboardCheck className="h-8 w-8 text-brand-600" />
+        </div>
+        <h1 className="text-2xl font-display font-bold text-brand-900">
+          Onay Bekleyenler
+        </h1>
+        <p className="text-slate-600 mt-2 leading-relaxed">
+          Bu özellik şu an geliştirilme aşamasında. Yakında onay zincirleri
+          aktifleşecek; sizin onayınızı bekleyen ihale, sipariş ve tedarikçi
+          başvuruları burada listelenecek.
+        </p>
+        <div className="mt-6">
+          <Link href="/dashboard">
+            <Button variant="secondary">Dashboard&apos;a Dön</Button>
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
