@@ -158,7 +158,8 @@ function buildPayload(data: TenderFormData) {
     allowedCurrencies: data.allowedCurrencies,
     decimalPlaces: data.decimalPlaces,
     deliveryTerm: data.deliveryTerm,
-    deliveryAddress: sanitize(data.deliveryAddress),
+    billingAddressId: data.billingAddressId,
+    deliveryAddressId: data.deliveryAddressId,
     paymentTerm: data.paymentTerm,
     paymentDays:
       data.paymentTerm === "DEFERRED" ? data.paymentDays : undefined,

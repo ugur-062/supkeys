@@ -61,6 +61,9 @@ async function main() {
   // bozmadan, mevcut user'ın bcrypt hash'ini doğru parolaya çevir).
   await syncDemoSupplierUserPassword();
 
+  // E.7.B — Demo tenant adresleri (FATURA + TESLIMAT + ILETISIM)
+  await ensureDemoAddresses(tenant.id);
+
   // Tender modülü için 3 dummy ihale (idempotent)
   await seedTenders(prisma);
 }
@@ -161,6 +164,72 @@ async function ensureDemoSupplierRelation(tenantId: string) {
     create: { supplierId, tenantId, status: "ACTIVE" },
   });
   console.log("✅ Demo tenant ↔ örnek tedarikçi ACTIVE ilişki kuruldu");
+}
+
+// E.7.B — Demo tenant adresleri. Her tipte 1 default + active.
+// Idempotent: tenant'ın herhangi bir adresi varsa skip.
+async function ensureDemoAddresses(tenantId: string) {
+  const existing = await prisma.tenantAddress.count({
+    where: { tenantId },
+  });
+  if (existing > 0) {
+    console.log(`ℹ️  Demo tenant'ta ${existing} adres zaten var, seed atlandı`);
+    return;
+  }
+
+  await prisma.tenantAddress.createMany({
+    data: [
+      {
+        tenantId,
+        type: "FATURA",
+        title: "Genel Merkez (Fatura)",
+        country: "Türkiye",
+        city: "İstanbul",
+        district: "Ataşehir",
+        fullAddress:
+          "Barbaros Mah. Begonya Sok. No:1 K:5 D:12 Ataşehir/İstanbul",
+        postalCode: "34746",
+        taxOffice: "Ataşehir V.D.",
+        taxNumber: "1234567890",
+        contactName: "Muhasebe",
+        contactPhone: "+90 216 555 00 11",
+        contactEmail: "muhasebe@demo.com",
+        isActive: true,
+        isDefault: true,
+      },
+      {
+        tenantId,
+        type: "TESLIMAT",
+        title: "Genel Merkez (Teslimat)",
+        country: "Türkiye",
+        city: "İstanbul",
+        district: "Ataşehir",
+        fullAddress:
+          "Barbaros Mah. Begonya Sok. No:1 Lojistik Girişi Ataşehir/İstanbul",
+        postalCode: "34746",
+        contactName: "Lojistik",
+        contactPhone: "+90 216 555 00 22",
+        isActive: true,
+        isDefault: true,
+      },
+      {
+        tenantId,
+        type: "ILETISIM",
+        title: "Genel İletişim",
+        country: "Türkiye",
+        city: "İstanbul",
+        district: "Ataşehir",
+        fullAddress:
+          "Barbaros Mah. Begonya Sok. No:1 Resepsiyon Ataşehir/İstanbul",
+        contactName: "Resepsiyon",
+        contactPhone: "+90 216 555 00 00",
+        contactEmail: "info@demo.com",
+        isActive: true,
+        isDefault: true,
+      },
+    ],
+  });
+  console.log("✅ Demo tenant'a 3 adres eklendi (FATURA/TESLIMAT/ILETISIM)");
 }
 
 main()

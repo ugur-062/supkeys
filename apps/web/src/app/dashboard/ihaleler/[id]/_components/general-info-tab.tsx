@@ -5,7 +5,7 @@ import {
   DELIVERY_TERM_LABELS,
   PAYMENT_TERM_LABELS,
 } from "@/lib/tenders/labels";
-import type { TenderDetail } from "@/lib/tenders/types";
+import type { TenderAddressSnapshot, TenderDetail } from "@/lib/tenders/types";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { Check, Lock, X } from "lucide-react";
@@ -98,10 +98,23 @@ export function GeneralInfoTab({ tender }: { tender: TenderDetail }) {
                 ? DELIVERY_TERM_LABELS[tender.deliveryTerm]
                 : "—"}
             </InfoRow>
+            {tender.billingAddressSnapshot ? (
+              <InfoRow label="Fatura Adresi">
+                <AddressSnapshotDisplay
+                  snapshot={tender.billingAddressSnapshot}
+                />
+              </InfoRow>
+            ) : null}
             <InfoRow label="Teslimat Adresi">
-              <span className="whitespace-pre-wrap">
-                {tender.deliveryAddress || "—"}
-              </span>
+              {tender.deliveryAddressSnapshot ? (
+                <AddressSnapshotDisplay
+                  snapshot={tender.deliveryAddressSnapshot}
+                />
+              ) : (
+                <span className="whitespace-pre-wrap">
+                  {tender.deliveryAddress || "—"}
+                </span>
+              )}
             </InfoRow>
             <InfoRow label="Ödeme">
               {PAYMENT_TERM_LABELS[tender.paymentTerm]}
@@ -156,6 +169,40 @@ export function GeneralInfoTab({ tender }: { tender: TenderDetail }) {
             {tender.internalNotes}
           </p>
         </section>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * E.7.B — Tender oluşturma anında snapshot'lanmış adresi formatlı göster.
+ * Adres sonradan değişse veya silinse bile burada eski hali kalır.
+ */
+function AddressSnapshotDisplay({
+  snapshot,
+}: {
+  snapshot: TenderAddressSnapshot;
+}) {
+  return (
+    <div className="space-y-0.5 text-sm">
+      <p className="font-semibold text-brand-900">{snapshot.title}</p>
+      <p className="text-slate-700 whitespace-pre-line">
+        {snapshot.fullAddress}
+      </p>
+      <p className="text-slate-600">
+        {snapshot.district} / {snapshot.city}
+        {snapshot.postalCode ? ` · ${snapshot.postalCode}` : ""}
+      </p>
+      {snapshot.taxOffice && snapshot.taxNumber ? (
+        <p className="text-xs text-slate-500 mt-1">
+          Vergi Dairesi: {snapshot.taxOffice} · VKN: {snapshot.taxNumber}
+        </p>
+      ) : null}
+      {snapshot.contactName ? (
+        <p className="text-xs text-slate-500">
+          İletişim: {snapshot.contactName}
+          {snapshot.contactPhone ? ` · ${snapshot.contactPhone}` : ""}
+        </p>
       ) : null}
     </div>
   );

@@ -9,6 +9,7 @@ import {
   IdCard,
   Lock,
   type LucideIcon,
+  MapPin,
   UserPlus2,
 } from "lucide-react";
 import Link from "next/link";
@@ -39,6 +40,13 @@ const SECTIONS: SettingsCard[] = [
     icon: UserPlus2,
     title: "Kullanıcı İşlemleri",
     description: "Kullanıcı Ekleme ve Yetkilendirme",
+    adminOnly: true,
+  },
+  {
+    href: "/dashboard/ayarlar/firma-tercihleri",
+    icon: MapPin,
+    title: "Firma Tercihleri",
+    description: "Fatura, İletişim ve Teslimat Adresleri",
     adminOnly: true,
   },
   {

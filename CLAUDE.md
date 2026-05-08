@@ -153,13 +153,33 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
   - Cross-token: BUYER → admin endpoint 403 ✓
   - Sidebar/breadcrumbs Teklifler temiz ✓
 
+### E.7.B — Firma Tercihleri (adres yönetimi) + İhale wizard adres dropdown refactor
+- **Schema migration `e7b_tenant_address_management`:** `TenantAddress` modeli (tenantId / type / title / country / state / city / district / fullAddress / postalCode / taxOffice / taxNumber / contactName/Phone/Email / isActive / isDefault / notes) + `AddressType` enum (FATURA / ILETISIM / TESLIMAT). `Tender`'a `billingAddressSnapshot` + `deliveryAddressSnapshot` Json alanları eklendi (snapshot pattern — adres değişse de tender'da kayıt korunur). Tenant'a `addresses` back-relation. Manuel SQL.
+- **Backend `tenant-addresses` modülü:** `/tenants/me/addresses` namespace. Endpoint'ler: `GET /` (filters: type, activeOnly), `GET /:id`, `POST /` (FATURA için tax info zorunlu, ilk adres otomatik default+active), `PATCH /:id` (FATURA için tax info zorunlu kalır; default kapatma → 409, son aktif/default pasifleştirme/silme → 409), `POST /:id/set-default` (atomik; pasif adres default yapılamaz), `DELETE /:id` (default → 409, son aktif → 409). COMPANY_ADMIN-only yazma. Helper: `getAddressSnapshot(tenantId, id)` + `formatAddressSnapshotText(snap)` tender service için.
+- **Backend tender create/update refactor:** `CreateTenderDto` `deliveryAddress?: string` → `billingAddressId!: string` + `deliveryAddressId!: string`. `tenant-tenders.service.createDraft/updateDraft` `snapshotForType(tenantId, addressId, expected)` helper'ı ile snapshot çekip type validate eder, `Tender.billingAddressSnapshot` + `deliveryAddressSnapshot` Json'a yazar, geriye dönük uyumlu `deliveryAddress` text alanını formatlı string ile doldurur. `TenantTendersModule` artık `TenantAddressesModule` import ediyor.
+- **Backend supplier-tenders findOne:** `deliveryAddressSnapshot` response shape'ine eklendi (kapalı zarf gereği fatura tarafı supplier'a gösterilmez — sadece teslimat).
+- **Frontend hooks/types/labels:** `lib/addresses/{types,...}.ts` — `TenantAddress`, `CreateAddressPayload`, `UpdateAddressPayload`, `ADDRESS_TYPE_META` (label/emoji/pillClass). `hooks/use-tenant-addresses.ts` — `useTenantAddresses(filters)` + `useCreateAddress` + `useUpdateAddress` + `useSetDefaultAddress` + `useDeleteAddress`. `TenderAddressSnapshot` tipi `lib/tenders/types.ts`'e + `TenderDetail.billingAddressSnapshot/deliveryAddressSnapshot` + `SupplierTenderDetail.deliveryAddressSnapshot` field'ları.
+- **Frontend `/dashboard/ayarlar/firma-tercihleri`:** Ayarlar ana sayfaya 6. kart MapPin "Firma Tercihleri" admin-only (Kullanıcı İşlemleri ile Bildirim Tercihleri arası). Sayfa: 3 collapse `AddressGroupSection` (FATURA/ILETISIM/TESLIMAT) — header (emoji + count badge + description) + tablo (No / Başlık+default badge / İl/İlçe / Aktif/Pasif / 3-nokta menü) + "Yeni Adres Ekle" CTA. `AddressFormModal` ortak component (mode: create/edit) — type radio cards (edit'te disabled), title/country/il-ilçe (TR locations), fullAddress, postalCode, FATURA için Vergi Bilgileri conditional bölümü (zod refine: `^\d{10,11}$`), iletişim opsiyonel, isDefault checkbox. BUYER/APPROVER → "Sadece Firma Yöneticileri için" warning kartı.
+- **Frontend tender wizard Step 1:** `Teslimat Adresi` textarea kaldırıldı. Yerine `AddressDropdownGroup` — 2 ayrı dropdown (FATURA aktif + TESLIMAT aktif). Default adresler `useEffect` ile otomatik seçilir. Dropdown altında `SelectedAddressPreview` (title + fullAddress + il/ilçe + tax info billing'de). Hiç adres yoksa warning kart + "Adres Yönetimine Git" CTA. `tenderFormSchema`: `deliveryAddress` → `billingAddressId` + `deliveryAddressId` (her ikisi cuid required). `STEP_FIELDS[1]` + `DEFAULT_FORM_VALUES` güncel. `use-tenant-tenders.ts buildPayload` ID'leri gönderiyor. `edit-loader.tsx` snapshot'tan ID'yi initial olarak set ediyor; adres silinmişse boş kalır.
+- **Frontend tender detail (buyer + supplier):** `general-info-tab.tsx`'lere `AddressSnapshotDisplay` (title + fullAddress + il/ilçe + postalCode + tax info + iletişim). Snapshot varsa render, yoksa eski `deliveryAddress` text fallback. Supplier sadece teslimat snapshot'ı görür (sealed-bid). Buyer hem fatura hem teslimat. `step-4-review` adres satırları title + il/ilçe ile özet.
+- **Seed:** `ensureDemoAddresses(tenantId)` — idempotent, demo tenant'ta hiç adres yoksa 3 default adres ekler (Genel Merkez Fatura/Teslimat + Genel İletişim, hepsi Ataşehir, FATURA tax info dolu).
+- **Manuel E2E doğrulama:**
+  - Address CRUD: list + filter (type+activeOnly) + create + setDefault + delete ✓
+  - FATURA tax info olmadan create → 400 ✓
+  - Default adres delete → 409 ✓
+  - setDefault sonra eski default'u sil → 200 ✓
+  - Tender create billingAddressId+deliveryAddressId ile → SUPK-2026-0009 oluştu, snapshot dolu, legacy text fallback dolu ✓
+  - Detail GET: `billingAddressSnapshot`/`deliveryAddressSnapshot` Json döndü ✓
+  - Yanlış tip (FATURA yerine TESLIMAT id) → 400 "Fatura adresi tipi yanlış" ✓
+  - Yokolan adres ID → 404 ✓
+  - Cross-token: supplier token → /addresses → 401 ✓
+
 ---
 
 ## Bekleyen — V1.5 / V2 / V3
 
 ### V1.5 (kısa vadeli)
-- **Aşama E.7.B:** Firma Tercihleri (Fatura/İletişim/Teslimat adres yönetimi) + İhale wizard refactor (manuel adres → dropdown)
-- **Aşama E.7.C:** Onay zinciri konfigürasyonu (kim, hangi tutar, kaç aşama)
+- **Aşama E.7.C:** Onay zinciri konfigürasyonu (kim, hangi tutar, kaç aşama) — `/ayarlar/onay-akislari`
 - **Aşama E.7.D:** Onay çalıştırma (Onay Bekleyenler sayfası aktif, ApprovalRequest oluşturma + APPROVER user atama + onay akışı)
 - Sipariş status workflow (Kabul/Reddet/Üretim/Teslim/Tamamla)
 - Sipariş PDF export

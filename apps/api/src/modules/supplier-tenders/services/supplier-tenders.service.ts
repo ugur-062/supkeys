@@ -173,6 +173,9 @@ export class SupplierTendersService {
       decimalPlaces: tender.decimalPlaces,
       deliveryTerm: tender.deliveryTerm,
       deliveryAddress: tender.deliveryAddress,
+      // E.7.B — tedarikçi teslimat adresi snapshot'ı görür.
+      // Fatura adresi snapshot'ı kapalı zarf gereği gösterilmez (alıcı bilgisi).
+      deliveryAddressSnapshot: tender.deliveryAddressSnapshot,
       paymentTerm: tender.paymentTerm,
       paymentDays: tender.paymentDays,
       publishedAt: tender.publishedAt,

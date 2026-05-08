@@ -103,7 +103,11 @@ export function EditLoader({ id }: Props) {
     allowedCurrencies: tender.allowedCurrencies,
     decimalPlaces: tender.decimalPlaces,
     deliveryTerm: tender.deliveryTerm ?? undefined,
-    deliveryAddress: tender.deliveryAddress ?? "",
+    // E.7.B — snapshot'tan adres ID'si. Snapshot yoksa boş bırak (kullanıcı dropdown'dan
+    // yeniden seçer). Snapshot ID'si silinmiş bir adresi gösteriyorsa kullanıcı yeni
+    // adres seçmek zorunda kalır.
+    billingAddressId: tender.billingAddressSnapshot?.id ?? "",
+    deliveryAddressId: tender.deliveryAddressSnapshot?.id ?? "",
     paymentTerm: tender.paymentTerm,
     paymentDays: tender.paymentDays ?? undefined,
     termsAndConditions: tender.termsAndConditions ?? "",

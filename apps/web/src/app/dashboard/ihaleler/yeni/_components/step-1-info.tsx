@@ -1,9 +1,11 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useTenantAddresses } from "@/hooks/use-tenant-addresses";
 import {
   CURRENCY_SYMBOL,
   DELIVERY_TERM_LABELS,
@@ -11,7 +13,19 @@ import {
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import type { Currency, DeliveryTerm } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
-import { Calendar, Clock, FileText, Info, Truck, Wallet } from "lucide-react";
+import {
+  AlertCircle,
+  Calendar,
+  Clock,
+  FileText,
+  Info,
+  MapPin,
+  Star,
+  Truck,
+  Wallet,
+} from "lucide-react";
+import Link from "next/link";
+import { useEffect } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { FileUploadMulti } from "./file-upload-multi";
 
@@ -331,16 +345,7 @@ export function Step1Info() {
             </select>
           </Field>
 
-          <Field error={errors.deliveryAddress?.message}>
-            <Label htmlFor="deliveryAddress">Teslimat Adresi</Label>
-            <Textarea
-              id="deliveryAddress"
-              rows={2}
-              placeholder="Tedarikçilere iletilecek teslim noktası, depo, fabrika…"
-              hasError={!!errors.deliveryAddress}
-              {...register("deliveryAddress")}
-            />
-          </Field>
+          <AddressDropdownGroup />
         </div>
       </section>
 
@@ -500,6 +505,197 @@ export function Step1Info() {
           )}
         />
       </section>
+    </div>
+  );
+}
+
+/**
+ * E.7.B — Tender wizard adres seçim grubu.
+ * - FATURA + TESLIMAT aktif adresleri ayrı ayrı dropdown
+ * - Default adres ilk yüklemede otomatik seçilir
+ * - Hiç adres yoksa uyarı + "Adres Ekle" CTA
+ */
+function AddressDropdownGroup() {
+  const {
+    register,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useFormContext<TenderFormData>();
+
+  const billingQuery = useTenantAddresses({
+    type: "FATURA",
+    activeOnly: true,
+  });
+  const deliveryQuery = useTenantAddresses({
+    type: "TESLIMAT",
+    activeOnly: true,
+  });
+
+  const billingAddresses = billingQuery.data ?? [];
+  const deliveryAddresses = deliveryQuery.data ?? [];
+
+  const billingId = watch("billingAddressId");
+  const deliveryId = watch("deliveryAddressId");
+
+  // Default adresi otomatik seç (ilk yüklemede + form bos ise)
+  useEffect(() => {
+    if (!billingId && billingAddresses.length > 0) {
+      const def = billingAddresses.find((a) => a.isDefault) ?? billingAddresses[0];
+      if (def) setValue("billingAddressId", def.id, { shouldValidate: true });
+    }
+  }, [billingId, billingAddresses, setValue]);
+
+  useEffect(() => {
+    if (!deliveryId && deliveryAddresses.length > 0) {
+      const def =
+        deliveryAddresses.find((a) => a.isDefault) ?? deliveryAddresses[0];
+      if (def) setValue("deliveryAddressId", def.id, { shouldValidate: true });
+    }
+  }, [deliveryId, deliveryAddresses, setValue]);
+
+  const noBilling =
+    !billingQuery.isLoading && billingAddresses.length === 0;
+  const noDelivery =
+    !deliveryQuery.isLoading && deliveryAddresses.length === 0;
+
+  if (noBilling || noDelivery) {
+    const missing: string[] = [];
+    if (noBilling) missing.push("fatura adresi");
+    if (noDelivery) missing.push("teslimat adresi");
+    return (
+      <div className="rounded-xl border border-warning-200 bg-warning-50 p-4 flex gap-3 items-start">
+        <AlertCircle className="h-5 w-5 text-warning-600 flex-shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="font-bold text-warning-900 text-sm">
+            Önce adres ekleyin
+          </p>
+          <p className="text-sm text-warning-800 mt-1">
+            İhale oluşturmak için en az bir aktif {missing.join(" ve ")}{" "}
+            tanımlamanız gerekiyor.
+          </p>
+          <div className="mt-3">
+            <Link href="/dashboard/ayarlar/firma-tercihleri">
+              <Button type="button" variant="secondary" size="sm">
+                <MapPin className="h-4 w-4" />
+                Adres Yönetimine Git
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const renderOption = (
+    a: (typeof billingAddresses)[number],
+    showTax: boolean,
+  ) => {
+    const meta: string[] = [`${a.city} / ${a.district}`];
+    if (showTax && a.taxOffice) meta.push(a.taxOffice);
+    const label = `${a.title} — ${meta.join(" · ")}${
+      a.isDefault ? " ★" : ""
+    }`;
+    return (
+      <option key={a.id} value={a.id}>
+        {label}
+      </option>
+    );
+  };
+
+  return (
+    <>
+      <Field error={errors.billingAddressId?.message}>
+        <Label htmlFor="billingAddressId">
+          Fatura Adresi <span className="text-danger-500">*</span>
+        </Label>
+        <select
+          id="billingAddressId"
+          className={cn(
+            "w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm",
+            "text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
+            errors.billingAddressId
+              ? "border-danger-500"
+              : "border-surface-border",
+          )}
+          {...register("billingAddressId")}
+        >
+          <option value="">— Fatura adresi seçin —</option>
+          {billingAddresses.map((a) => renderOption(a, true))}
+        </select>
+        <SelectedAddressPreview
+          addresses={billingAddresses}
+          id={billingId}
+          showTax
+        />
+      </Field>
+
+      <Field error={errors.deliveryAddressId?.message}>
+        <Label htmlFor="deliveryAddressId">
+          Teslimat Adresi <span className="text-danger-500">*</span>
+        </Label>
+        <select
+          id="deliveryAddressId"
+          className={cn(
+            "w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm",
+            "text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
+            errors.deliveryAddressId
+              ? "border-danger-500"
+              : "border-surface-border",
+          )}
+          {...register("deliveryAddressId")}
+        >
+          <option value="">— Teslimat adresi seçin —</option>
+          {deliveryAddresses.map((a) => renderOption(a, false))}
+        </select>
+        <SelectedAddressPreview
+          addresses={deliveryAddresses}
+          id={deliveryId}
+        />
+      </Field>
+
+      <div className="flex items-start gap-2 p-3 rounded-lg bg-brand-50/40 border border-brand-100 text-xs text-slate-600">
+        <Star className="w-4 h-4 text-warning-600 mt-0.5 flex-shrink-0 fill-warning-500" />
+        <p>
+          Default adresler otomatik seçildi. Adres listesini{" "}
+          <Link
+            href="/dashboard/ayarlar/firma-tercihleri"
+            className="text-brand-600 hover:underline font-semibold"
+          >
+            Firma Tercihleri
+          </Link>
+          &apos;nden yönetebilirsiniz.
+        </p>
+      </div>
+    </>
+  );
+}
+
+function SelectedAddressPreview({
+  addresses,
+  id,
+  showTax,
+}: {
+  addresses: ReturnType<typeof useTenantAddresses>["data"];
+  id?: string;
+  showTax?: boolean;
+}) {
+  if (!id || !addresses) return null;
+  const sel = addresses.find((a) => a.id === id);
+  if (!sel) return null;
+  return (
+    <div className="mt-2 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
+      <p className="font-semibold text-brand-900">{sel.title}</p>
+      <p className="mt-0.5 whitespace-pre-line">{sel.fullAddress}</p>
+      <p className="mt-0.5">
+        {sel.district} / {sel.city}
+        {sel.postalCode ? ` · ${sel.postalCode}` : ""}
+      </p>
+      {showTax && sel.taxOffice && sel.taxNumber ? (
+        <p className="mt-0.5 text-slate-500">
+          Vergi Dairesi: {sel.taxOffice} · VKN: {sel.taxNumber}
+        </p>
+      ) : null}
     </div>
   );
 }

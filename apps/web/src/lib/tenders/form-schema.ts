@@ -64,7 +64,9 @@ const baseTenderSchema = z.object({
     .max(3),
   decimalPlaces: z.number().int().min(0).max(4),
   deliveryTerm: z.enum(DELIVERY_TERM_VALUES).optional(),
-  deliveryAddress: z.string().max(1000).optional(),
+  // E.7.B — adresler artık dropdown'dan seçilen TenantAddress kayıtlarının id'si.
+  billingAddressId: z.string().min(1, "Fatura adresi seçin"),
+  deliveryAddressId: z.string().min(1, "Teslimat adresi seçin"),
   paymentTerm: z.enum(PAYMENT_TERM_VALUES),
   paymentDays: z
     .number({ invalid_type_error: "Geçersiz gün sayısı" })
@@ -136,7 +138,8 @@ export const STEP_FIELDS: Record<1 | 2 | 3, (keyof TenderFormData)[]> = {
     "allowedCurrencies",
     "decimalPlaces",
     "deliveryTerm",
-    "deliveryAddress",
+    "billingAddressId",
+    "deliveryAddressId",
     "paymentTerm",
     "paymentDays",
     "termsAndConditions",
@@ -160,7 +163,8 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   allowedCurrencies: ["TRY"],
   decimalPlaces: 2,
   deliveryTerm: undefined,
-  deliveryAddress: "",
+  billingAddressId: "",
+  deliveryAddressId: "",
   paymentTerm: "CASH",
   paymentDays: undefined,
   termsAndConditions: "",

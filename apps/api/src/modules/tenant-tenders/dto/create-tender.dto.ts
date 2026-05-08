@@ -156,10 +156,15 @@ export class CreateTenderDto {
   @IsEnum(DeliveryTermDto)
   deliveryTerm?: DeliveryTermDto;
 
-  @IsOptional()
+  // E.7.B — adresler artık dropdown'dan seçilen TenantAddress kayıtlarının ID'si.
+  // Backend snapshot oluşturup `Tender.{billing,delivery}AddressSnapshot`'a yazar.
   @IsString()
-  @MaxLength(1000)
-  deliveryAddress?: string;
+  @IsNotEmpty()
+  billingAddressId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  deliveryAddressId!: string;
 
   // Ödeme
   @IsEnum(PaymentTermDto)

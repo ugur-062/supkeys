@@ -1,3 +1,25 @@
+/**
+ * E.7.B — Tender oluşturma anındaki TenantAddress JSON snapshot'ı.
+ * Adres sonradan değişse veya silinse bile tender bu kaydı korur.
+ */
+export interface TenderAddressSnapshot {
+  id: string;
+  type: "FATURA" | "ILETISIM" | "TESLIMAT";
+  title: string;
+  country: string;
+  state: string | null;
+  city: string;
+  district: string;
+  fullAddress: string;
+  postalCode: string | null;
+  taxOffice: string | null;
+  taxNumber: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  snapshotAt: string;
+}
+
 export type TenderType = "RFQ" | "ENGLISH_AUCTION";
 
 export type TenderStatus =
@@ -121,6 +143,9 @@ export interface TenderDetail {
   decimalPlaces: number;
   deliveryTerm: DeliveryTerm | null;
   deliveryAddress: string | null;
+  /** E.7.B — Tender oluşturma anındaki TenantAddress JSON snapshot'ı. */
+  billingAddressSnapshot: TenderAddressSnapshot | null;
+  deliveryAddressSnapshot: TenderAddressSnapshot | null;
   paymentTerm: PaymentTerm;
   paymentDays: number | null;
   publishedAt: string | null;
@@ -203,6 +228,8 @@ export interface SupplierTenderDetail {
   decimalPlaces: number;
   deliveryTerm: DeliveryTerm | null;
   deliveryAddress: string | null;
+  /** E.7.B — supplier teslimat snapshot'ı görür (alıcı tarafı kapalı zarf). */
+  deliveryAddressSnapshot: TenderAddressSnapshot | null;
   paymentTerm: PaymentTerm;
   paymentDays: number | null;
   publishedAt: string | null;

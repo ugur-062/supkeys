@@ -14,6 +14,11 @@ import { tr } from "date-fns/locale";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailQueue } from "../../email/email.queue";
 import {
+  formatAddressSnapshotText,
+  TenantAddressesService,
+  type TenantAddressSnapshot,
+} from "../../tenant-addresses/services/tenant-addresses.service";
+import {
   AwardItemDecisionDto,
   CloseNoAwardDto,
 } from "../dto/award.dto";
@@ -30,6 +35,7 @@ export class TenantTendersService {
     private readonly prisma: PrismaService,
     private readonly emailQueue: EmailQueue,
     private readonly config: ConfigService,
+    private readonly addressesService: TenantAddressesService,
   ) {}
 
   // ============================================================
@@ -474,6 +480,18 @@ export class TenantTendersService {
   ) {
     this.validateBusinessRules(dto);
 
+    // Adres snapshot'larını al (transaction dışında — adres okuma)
+    const billingSnapshot = await this.snapshotForType(
+      tenantId,
+      dto.billingAddressId,
+      "FATURA",
+    );
+    const deliverySnapshot = await this.snapshotForType(
+      tenantId,
+      dto.deliveryAddressId,
+      "TESLIMAT",
+    );
+
     return this.prisma.$transaction(async (tx) => {
       await this.assertActiveSuppliers(tx, tenantId, dto.invitedSupplierIds);
 
@@ -497,7 +515,11 @@ export class TenantTendersService {
           allowedCurrencies: dto.allowedCurrencies,
           decimalPlaces: dto.decimalPlaces,
           deliveryTerm: dto.deliveryTerm ?? null,
-          deliveryAddress: dto.deliveryAddress?.trim() || null,
+          // Snapshot pattern — JSON kayıt + geriye uyumlu text fallback
+          billingAddressSnapshot: billingSnapshot as unknown as Prisma.InputJsonValue,
+          deliveryAddressSnapshot:
+            deliverySnapshot as unknown as Prisma.InputJsonValue,
+          deliveryAddress: formatAddressSnapshotText(deliverySnapshot),
           paymentTerm: dto.paymentTerm,
           paymentDays:
             dto.paymentTerm === "DEFERRED" ? (dto.paymentDays ?? null) : null,
@@ -550,6 +572,17 @@ export class TenantTendersService {
   ) {
     this.validateBusinessRules(dto);
 
+    const billingSnapshot = await this.snapshotForType(
+      tenantId,
+      dto.billingAddressId,
+      "FATURA",
+    );
+    const deliverySnapshot = await this.snapshotForType(
+      tenantId,
+      dto.deliveryAddressId,
+      "TESLIMAT",
+    );
+
     return this.prisma.$transaction(async (tx) => {
       const tender = await tx.tender.findUnique({
         where: { id: tenderId },
@@ -586,7 +619,11 @@ export class TenantTendersService {
           allowedCurrencies: dto.allowedCurrencies,
           decimalPlaces: dto.decimalPlaces,
           deliveryTerm: dto.deliveryTerm ?? null,
-          deliveryAddress: dto.deliveryAddress?.trim() || null,
+          billingAddressSnapshot:
+            billingSnapshot as unknown as Prisma.InputJsonValue,
+          deliveryAddressSnapshot:
+            deliverySnapshot as unknown as Prisma.InputJsonValue,
+          deliveryAddress: formatAddressSnapshotText(deliverySnapshot),
           paymentTerm: dto.paymentTerm,
           paymentDays:
             dto.paymentTerm === "DEFERRED" ? (dto.paymentDays ?? null) : null,
@@ -793,6 +830,30 @@ export class TenantTendersService {
     if (set.size !== dto.invitedSupplierIds.length) {
       throw new BadRequestException("Davetli tedarikçi listesinde tekrar var");
     }
+  }
+
+  /**
+   * Adres ID'sinden snapshot çek + tip kontrolü (FATURA/TESLIMAT).
+   * Snapshot tender'a JSON olarak yazılır; adres sonradan değişse bile
+   * tender'da kayıtlı kalır.
+   */
+  private async snapshotForType(
+    tenantId: string,
+    addressId: string,
+    expectedType: "FATURA" | "TESLIMAT",
+  ): Promise<TenantAddressSnapshot> {
+    const snapshot = await this.addressesService.getAddressSnapshot(
+      tenantId,
+      addressId,
+    );
+    if (snapshot.type !== expectedType) {
+      throw new BadRequestException(
+        expectedType === "FATURA"
+          ? "Fatura adresi tipi yanlış (FATURA olmalı)"
+          : "Teslimat adresi tipi yanlış (TESLIMAT olmalı)",
+      );
+    }
+    return snapshot;
   }
 
   /**

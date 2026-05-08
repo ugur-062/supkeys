@@ -15,6 +15,7 @@ import { SupplierDashboardModule } from "./modules/supplier-dashboard/supplier-d
 import { SupplierOrdersModule } from "./modules/supplier-orders/supplier-orders.module";
 import { SupplierSelfServiceModule } from "./modules/supplier-self-service/supplier-self-service.module";
 import { SupplierTendersModule } from "./modules/supplier-tenders/supplier-tenders.module";
+import { TenantAddressesModule } from "./modules/tenant-addresses/tenant-addresses.module";
 import { TenantDashboardModule } from "./modules/tenant-dashboard/tenant-dashboard.module";
 import { TenantOrdersModule } from "./modules/tenant-orders/tenant-orders.module";
 import { TenantSuppliersModule } from "./modules/tenant-suppliers/tenant-suppliers.module";
@@ -46,6 +47,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     TenantDashboardModule,
     SupplierDashboardModule,
     TenantUsersModule,
+    TenantAddressesModule,
     PublicInvitationsModule,
     TenderSchedulerModule,
     HealthModule,

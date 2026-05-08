@@ -1,5 +1,6 @@
 "use client";
 
+import { useTenantAddresses } from "@/hooks/use-tenant-addresses";
 import { useSuppliers } from "@/hooks/use-tenant-suppliers";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import {
@@ -92,6 +93,19 @@ export function Step4Review({ onEditStep }: Props) {
     .map((id) => supplierMap.get(id))
     .filter((s): s is NonNullable<typeof s> => !!s);
 
+  // Adres preview (ID → label)
+  const billingQuery = useTenantAddresses({ type: "FATURA", activeOnly: true });
+  const deliveryQuery = useTenantAddresses({
+    type: "TESLIMAT",
+    activeOnly: true,
+  });
+  const billingSel = billingQuery.data?.find(
+    (a) => a.id === data.billingAddressId,
+  );
+  const deliverySel = deliveryQuery.data?.find(
+    (a) => a.id === data.deliveryAddressId,
+  );
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-success-200 bg-success-50/40 p-4 flex items-start gap-3">
@@ -147,8 +161,17 @@ export function Step4Review({ onEditStep }: Props) {
             value={DELIVERY_TERM_LABELS[data.deliveryTerm]}
           />
         ) : null}
-        {data.deliveryAddress ? (
-          <Row label="Teslimat Adresi" value={data.deliveryAddress} />
+        {billingSel ? (
+          <Row
+            label="Fatura Adresi"
+            value={`${billingSel.title} — ${billingSel.city} / ${billingSel.district}`}
+          />
+        ) : null}
+        {deliverySel ? (
+          <Row
+            label="Teslimat Adresi"
+            value={`${deliverySel.title} — ${deliverySel.city} / ${deliverySel.district}`}
+          />
         ) : null}
         <Row
           label="Ödeme"

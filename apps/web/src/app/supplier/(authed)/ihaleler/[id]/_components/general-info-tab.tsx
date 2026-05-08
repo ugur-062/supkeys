@@ -5,7 +5,10 @@ import {
   DELIVERY_TERM_LABELS,
   PAYMENT_TERM_LABELS,
 } from "@/lib/tenders/labels";
-import type { SupplierTenderDetail } from "@/lib/tenders/types";
+import type {
+  SupplierTenderDetail,
+  TenderAddressSnapshot,
+} from "@/lib/tenders/types";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { Check, X } from "lucide-react";
@@ -97,9 +100,15 @@ export function SupplierGeneralInfoTab({
                 : "—"}
             </InfoRow>
             <InfoRow label="Teslimat Adresi">
-              <span className="whitespace-pre-wrap">
-                {tender.deliveryAddress || "—"}
-              </span>
+              {tender.deliveryAddressSnapshot ? (
+                <AddressSnapshotDisplay
+                  snapshot={tender.deliveryAddressSnapshot}
+                />
+              ) : (
+                <span className="whitespace-pre-wrap">
+                  {tender.deliveryAddress || "—"}
+                </span>
+              )}
             </InfoRow>
             <InfoRow label="Ödeme">
               {PAYMENT_TERM_LABELS[tender.paymentTerm]}
@@ -140,6 +149,36 @@ export function SupplierGeneralInfoTab({
             {tender.termsAndConditions}
           </p>
         </section>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * E.7.B — Tedarikçi tarafında teslimat adresi snapshot'ı.
+ * Sadece title + fullAddress + city/district + iletişim (varsa).
+ * VKN/Vergi Dairesi alıcı tarafıdır, gösterilmez.
+ */
+function AddressSnapshotDisplay({
+  snapshot,
+}: {
+  snapshot: TenderAddressSnapshot;
+}) {
+  return (
+    <div className="space-y-0.5 text-sm">
+      <p className="font-semibold text-brand-900">{snapshot.title}</p>
+      <p className="text-slate-700 whitespace-pre-line">
+        {snapshot.fullAddress}
+      </p>
+      <p className="text-slate-600">
+        {snapshot.district} / {snapshot.city}
+        {snapshot.postalCode ? ` · ${snapshot.postalCode}` : ""}
+      </p>
+      {snapshot.contactName ? (
+        <p className="text-xs text-slate-500 mt-1">
+          İletişim: {snapshot.contactName}
+          {snapshot.contactPhone ? ` · ${snapshot.contactPhone}` : ""}
+        </p>
       ) : null}
     </div>
   );

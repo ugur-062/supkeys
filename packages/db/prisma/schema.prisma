@@ -39,8 +39,54 @@ model Tenant {
   tenders              Tender[]
   orders               Order[]
   userInvitations      UserInvitation[]
+  addresses            TenantAddress[]
 
   @@map("tenants")
+}
+
+model TenantAddress {
+  id          String      @id @default(cuid())
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  type        AddressType
+  title       String
+
+  // Adres bilgileri
+  country     String      @default("Türkiye")
+  state       String?
+  city        String
+  district    String
+  fullAddress String      @db.Text
+  postalCode  String?
+
+  // Sadece FATURA için (yine de optional — backend zorunlu kılar)
+  taxOffice   String?
+  taxNumber   String?
+
+  // İletişim (opsiyonel)
+  contactName  String?
+  contactPhone String?
+  contactEmail String?
+
+  // Status
+  isActive    Boolean     @default(true)
+  isDefault   Boolean     @default(false)
+
+  notes       String?     @db.Text
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([tenantId, type, isActive])
+  @@index([tenantId, type, isDefault])
+  @@map("tenant_addresses")
+}
+
+enum AddressType {
+  FATURA
+  ILETISIM
+  TESLIMAT
 }
 
 model User {
@@ -585,7 +631,13 @@ model Tender {
   decimalPlaces       Int             @default(2)
 
   deliveryTerm        DeliveryTerm?
+  // E.7.B'den önce: free-text. E.7.B sonrası: backward-compat fallback —
+  // yeni tender'larda deliveryAddressSnapshot'tan formatlı string yazılır.
   deliveryAddress     String?
+  // E.7.B — tender oluşturma anında TenantAddress'in JSON snapshot'ı.
+  // Adres sonradan değişse/silinse bile tender bu kaydı korur.
+  billingAddressSnapshot  Json?
+  deliveryAddressSnapshot Json?
 
   paymentTerm         PaymentTerm     @default(CASH)
   paymentDays         Int?
