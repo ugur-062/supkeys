@@ -75,10 +75,11 @@ export function SupplierKpiGrid() {
   const valueOf = (n: number | undefined) =>
     typeof n === "number" ? String(n) : "—";
 
-  const activeInvitations = stats.data?.invitations.active;
-  const activeBids = stats.data?.bids.active;
+  // Defensive: tüm nested erişimler optional + ?? 0 fallback
+  const activeInvitations = stats.data?.invitations?.active;
+  const activeBids = stats.data?.bids?.active;
   const wonTenders = stats.data?.wonTenders;
-  const pendingOrders = stats.data?.orders.pending;
+  const pendingOrders = stats.data?.orders?.pending;
 
   return (
     <>
@@ -126,19 +127,19 @@ export function SupplierKpiGrid() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <Stat
               label="Son 30 Gün Teklif"
-              value={String(stats.data.last30Days.bidsSubmitted)}
+              value={String(stats.data?.last30Days?.bidsSubmitted ?? 0)}
               icon={FileText}
               iconClass="text-indigo-600"
             />
             <Stat
               label="Toplam Gelir"
-              value={formatTRY(stats.data.revenue.total)}
+              value={formatTRY(stats.data?.revenue?.total ?? 0)}
               icon={Trophy}
               iconClass="text-success-600"
             />
             <Stat
               label="Bağlı Alıcı"
-              value={String(stats.data.buyers.active)}
+              value={String(stats.data?.buyers?.active ?? 0)}
               icon={Building2}
               iconClass="text-brand-600"
             />

@@ -49,12 +49,25 @@ export default function DashboardPage() {
   const stats = statsQuery.data;
   const activities = activityQuery.data ?? [];
 
+  // Defensive: ilk render'da `stats` undefined olabilir; tüm aşağı bileşenlerde
+  // optional chaining + ?? 0 kullanıyoruz, ancak hesaplanan flag'leri burada
+  // güvenli şekilde okuyalım.
+  const activeCount = stats?.tenders?.active ?? 0;
+  const inAwardCount = stats?.tenders?.inAward ?? 0;
+  const draftCount = stats?.tenders?.draft ?? 0;
+  const awardedCount = stats?.tenders?.awarded ?? 0;
+  const activeSuppliersCount = stats?.suppliers?.active ?? 0;
+  const pendingOrdersCount = stats?.orders?.pending ?? 0;
+
   const allEmpty =
     !!stats &&
-    stats.tenders.active === 0 &&
-    stats.tenders.inAward === 0 &&
-    stats.suppliers.active === 0 &&
-    stats.orders.pending === 0;
+    activeCount === 0 &&
+    inAwardCount === 0 &&
+    activeSuppliersCount === 0 &&
+    pendingOrdersCount === 0;
+
+  const showActiveTendersSummary =
+    !!stats && (activeCount > 0 || inAwardCount > 0);
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -85,28 +98,28 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Aktif İhaleler"
-          value={stats?.tenders.active}
+          value={stats ? activeCount : undefined}
           icon={FileText}
           accent="brand"
           hint="Yayında ve teklif kabul ediyor"
         />
         <KpiCard
           label="Kazandırma Aşamasında"
-          value={stats?.tenders.inAward}
+          value={stats ? inAwardCount : undefined}
           icon={CheckSquare}
           accent="warning"
           hint="Süresi dolmuş, kazandırma bekleyen"
         />
         <KpiCard
           label="Aktif Tedarikçiler"
-          value={stats?.suppliers.active}
+          value={stats ? activeSuppliersCount : undefined}
           icon={Users}
           accent="indigo"
           hint="Onaylı listenizde"
         />
         <KpiCard
           label="Bekleyen Siparişler"
-          value={stats?.orders.pending}
+          value={stats ? pendingOrdersCount : undefined}
           icon={Package}
           accent="success"
           hint="Tedarikçi henüz kabul etmedi"
@@ -128,7 +141,7 @@ export default function DashboardPage() {
                 Tamamlanan İhale
               </p>
               <p className="text-2xl font-bold text-brand-900 tabular-nums mt-1">
-                {stats.last30Days.completedTenders}
+                {stats?.last30Days?.completedTenders ?? 0}
               </p>
             </div>
             <div>
@@ -136,7 +149,7 @@ export default function DashboardPage() {
                 Gelen Teklif
               </p>
               <p className="text-2xl font-bold text-brand-900 tabular-nums mt-1">
-                {stats.last30Days.bidsReceived}
+                {stats?.last30Days?.bidsReceived ?? 0}
               </p>
             </div>
             <div>
@@ -144,7 +157,7 @@ export default function DashboardPage() {
                 Toplam Harcama
               </p>
               <p className="text-2xl font-bold text-brand-900 tabular-nums mt-1">
-                {formatTRY(stats.last30Days.totalSpend)}
+                {formatTRY(stats?.last30Days?.totalSpend ?? 0)}
               </p>
             </div>
           </div>
@@ -187,18 +200,7 @@ export default function DashboardPage() {
 
       {/* Alt grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {stats && stats.tenders.active === 0 && stats.tenders.inAward === 0 ? (
-          <EmptyPanel
-            heading="Yaklaşan İhaleler"
-            subtitle="Kapanışı yaklaşan ihaleler burada görünecek."
-            icon={Calendar}
-            iconAccent="brand"
-            emptyTitle="Aktif ihale yok"
-            emptyDescription="İlk ihaleni oluşturarak tasarrufa başla."
-            ctaLabel="İlk ihalemi aç"
-            ctaHref="/dashboard/ihaleler/yeni"
-          />
-        ) : (
+        {showActiveTendersSummary && stats ? (
           <section className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6">
             <header className="mb-4 flex items-center justify-between">
               <div>
@@ -210,8 +212,19 @@ export default function DashboardPage() {
                 </p>
               </div>
             </header>
-            <ActiveTendersSummary stats={stats!} />
+            <ActiveTendersSummary stats={stats} />
           </section>
+        ) : (
+          <EmptyPanel
+            heading="Yaklaşan İhaleler"
+            subtitle="Kapanışı yaklaşan ihaleler burada görünecek."
+            icon={Calendar}
+            iconAccent="brand"
+            emptyTitle="Aktif ihale yok"
+            emptyDescription="İlk ihaleni oluşturarak tasarrufa başla."
+            ctaLabel="İlk ihalemi aç"
+            ctaHref="/dashboard/ihaleler/yeni"
+          />
         )}
 
         <section className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6">
@@ -237,28 +250,30 @@ function ActiveTendersSummary({
 }: {
   stats: NonNullable<ReturnType<typeof useTenantDashboardStats>["data"]>;
 }) {
+  // Defensive: backend her zaman dolu döner, ama cache'den gelen stale shape
+  // veya eski deploy senaryosunda nested objeler eksik gelebilir.
   const items = [
     {
       label: "Yayında",
-      value: stats.tenders.active,
+      value: stats?.tenders?.active ?? 0,
       href: "/dashboard/ihaleler?tab=open",
       tone: "bg-success-50 text-success-700",
     },
     {
       label: "Kazandırma",
-      value: stats.tenders.inAward,
+      value: stats?.tenders?.inAward ?? 0,
       href: "/dashboard/ihaleler?tab=in-award",
       tone: "bg-warning-50 text-warning-700",
     },
     {
       label: "Taslak",
-      value: stats.tenders.draft,
+      value: stats?.tenders?.draft ?? 0,
       href: "/dashboard/ihaleler?tab=draft",
       tone: "bg-slate-100 text-slate-700",
     },
     {
       label: "Tamamlandı",
-      value: stats.tenders.awarded,
+      value: stats?.tenders?.awarded ?? 0,
       href: "/dashboard/ihaleler?tab=awarded",
       tone: "bg-brand-50 text-brand-700",
     },

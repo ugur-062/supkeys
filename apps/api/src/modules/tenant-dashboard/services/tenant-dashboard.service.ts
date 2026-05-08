@@ -101,19 +101,21 @@ export class TenantDashboardService {
       }),
     ]);
 
+    // Deterministic shape — Prisma count'lar number, aggregate _sum nullable
+    // olabilir (kayıt yoksa). Tüm alanlarda explicit ?? 0 fallback.
     return {
       tenders: {
-        active: activeTenders,
-        draft: draftTenders,
-        inAward: inAwardTenders,
-        awarded: awardedTenders,
+        active: activeTenders ?? 0,
+        draft: draftTenders ?? 0,
+        inAward: inAwardTenders ?? 0,
+        awarded: awardedTenders ?? 0,
       },
-      suppliers: { active: activeSuppliers },
-      orders: { pending: pendingOrders },
+      suppliers: { active: activeSuppliers ?? 0 },
+      orders: { pending: pendingOrders ?? 0 },
       last30Days: {
-        completedTenders: completedTendersLast30,
-        totalSpend: Number(totalSpendLast30._sum.totalAmount ?? 0),
-        bidsReceived: bidsReceivedLast30,
+        completedTenders: completedTendersLast30 ?? 0,
+        totalSpend: Number(totalSpendLast30?._sum?.totalAmount ?? 0),
+        bidsReceived: bidsReceivedLast30 ?? 0,
       },
     };
   }

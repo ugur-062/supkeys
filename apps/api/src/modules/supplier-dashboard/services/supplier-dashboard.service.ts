@@ -106,14 +106,16 @@ export class SupplierDashboardService {
       }),
     ]);
 
+    // Deterministic shape — count'lar nullable değil ama defensive ?? 0;
+    // aggregate _sum kayıt yokken null döner.
     return {
-      invitations: { active: activeInvitations },
-      bids: { active: activeBids },
-      wonTenders,
-      orders: { pending: pendingOrders },
-      revenue: { total: Number(totalRevenueAgg._sum.totalAmount ?? 0) },
-      last30Days: { bidsSubmitted: bidsLast30 },
-      buyers: { active: activeBuyers },
+      invitations: { active: activeInvitations ?? 0 },
+      bids: { active: activeBids ?? 0 },
+      wonTenders: wonTenders ?? 0,
+      orders: { pending: pendingOrders ?? 0 },
+      revenue: { total: Number(totalRevenueAgg?._sum?.totalAmount ?? 0) },
+      last30Days: { bidsSubmitted: bidsLast30 ?? 0 },
+      buyers: { active: activeBuyers ?? 0 },
     };
   }
 
