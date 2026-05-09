@@ -814,6 +814,11 @@ model Bid {
   eliminationReason   String?
   eliminatedAt        DateTime?
 
+  // V2-3 — submit anındaki TCMB kuru snapshot'ı.
+  // Shape: { rate: number, fetchedAt: ISO, source: "TCMB"|"MANUAL"|"FALLBACK", rateDate: ISO }
+  // bid.currency=TRY ise null kalır (gerek yok).
+  exchangeRateSnapshot Json?
+
   items               BidItem[]
   attachments         BidAttachment[]
   orders              Order[]
@@ -1148,4 +1153,23 @@ enum AttachmentScope {
 enum AttachmentStatus {
   PENDING   // Presigned URL üretildi, R2'ye henüz yüklenmedi
   UPLOADED  // R2'de mevcut, kullanılabilir
+}
+
+// ---------- V2-3: ÇOKLU PARA BİRİMİ + TCMB KUR CACHE ----------
+//
+// TCMB (Türkiye Cumhuriyet Merkez Bankası) günlük gösterge kurları.
+// Hafta içi 15:30 civarı yayınlar; cron 16:00 İstanbul saatinde fetch eder.
+// TRY için kayıt YOK (rate=1 sabit). Sadece USD/EUR.
+
+model ExchangeRate {
+  id        String   @id @default(cuid())
+  currency  Currency
+  rate      Decimal  @db.Decimal(15, 6) // 1 {currency} = X TRY
+  rateDate  DateTime @db.Date           // TCMB tarihi (gün-bazlı)
+  source    String   @default("TCMB")   // TCMB | MANUAL | FALLBACK
+  fetchedAt DateTime @default(now())
+
+  @@unique([currency, rateDate])
+  @@index([rateDate])
+  @@map("exchange_rates")
 }

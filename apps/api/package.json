@@ -14,6 +14,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1045.0",
     "@aws-sdk/s3-request-presigner": "^3.1045.0",
+    "@nestjs/axios": "^4.0.1",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^10.4.15",
     "@nestjs/config": "^3.3.0",
@@ -26,6 +27,7 @@
     "@supkeys/db": "workspace:*",
     "@supkeys/email": "workspace:*",
     "@supkeys/shared": "workspace:*",
+    "axios": "^1.15.2",
     "bcrypt": "^5.1.1",
     "bullmq": "^5.76.4",
     "class-transformer": "^0.5.1",
@@ -37,6 +39,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "svix": "^1.93.0",
+    "xml2js": "^0.6.2",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -46,6 +49,7 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.2",
     "@types/passport-jwt": "^4.0.1",
+    "@types/xml2js": "^0.4.14",
     "concurrently": "^9.1.2",
     "nodemon": "^3.1.9",
     "ts-loader": "^9.5.1",

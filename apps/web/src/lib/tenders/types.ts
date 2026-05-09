@@ -479,6 +479,13 @@ export interface BidDetailExpanded {
   isComplete: boolean;
   isDifferentCurrency: boolean;
   primaryCurrency: Currency;
+  /** V2-3 — bid submit anındaki TCMB kuru. bid.currency=TRY ise null. */
+  exchangeRateSnapshot: {
+    rate: number;
+    rateDate: string;
+    fetchedAt: string;
+    source: "TCMB" | "MANUAL" | "FALLBACK";
+  } | null;
   supplier: {
     id: string;
     companyName: string;

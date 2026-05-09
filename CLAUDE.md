@@ -338,6 +338,36 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 
 > **R2 setup**: Cloudflare Dashboard → R2 → bucket oluştur (ad fark etmez; `R2_BUCKET` env'i ile eşleştir). Bu kurulumda bucket adı `supkeys-documents`. Manage R2 API Tokens → Create Token → "Object Read & Write" permission, bucket scope'lu. Token oluşunca `R2_ACCOUNT_ID` (Cloudflare hesap ID), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`, `R2_BUCKET=<bucket-adı>` **root `/.env`'e** yazılır (ConfigModule sadece root .env'i okur). Sonra API restart.
 
+### V2-3 — Multi-Currency + TCMB Integration
+- **Schema migration `v2_multi_currency`:**
+  - `ExchangeRate` model (`currency` Currency + `rate` Decimal(15,6) + `rateDate` @db.Date + `source` TCMB|MANUAL|FALLBACK + `fetchedAt`). UNIQUE on `(currency, rateDate)`. TRY için kayıt YOK (rate=1 sabit) — sadece USD/EUR.
+  - `Bid.exchangeRateSnapshot` Json? — submit anındaki TCMB kuru: `{rate, rateDate, fetchedAt, source}`. bid.currency=TRY ise null kalır.
+  - `Currency` enum (TRY/USD/EUR), `Tender.primaryCurrency`, `Tender.allowedCurrencies`, `Bid.currency` zaten mevcuttu (V1).
+- **Bağımlılıklar** (`apps/api`): `@nestjs/axios` + `axios` + `xml2js` + `@types/xml2js`.
+- **Backend `currency` modülü** (`@Global`):
+  - `TcmbService.fetchTodayRates()` — TCMB `https://www.tcmb.gov.tr/kurlar/today.xml` GET, xml2js parse, `Tarih_Date.$.Tarih` (TR format DD.MM.YYYY) veya `.Date` (US MM/DD/YYYY) attribute'unu kabul eder, `ForexSelling` (Döviz Satış) değerini USD + EUR için döndürür. Hata durumunda null + warn.
+  - `ExchangeRateService` — `getCurrentRate(currency)` (TRY=1, diğerleri DB latest), `getRateOnDate(currency, date)` (snapshot için), `getCurrentRates()` (3'lü Record), `takeSnapshot(currency)` (bid submit için: en güncel kur + rateDate + fetchedAt + source — TRY için null), `toTry(amount, currency, onDate?)`, `refreshFromTcmb()` (USD+EUR upsert atomik). Fallback rates: USD=34, EUR=37 (DB boşsa veya TCMB down).
+  - `ExchangeRateScheduler` — `@Cron("0 16 * * 1-5", { timeZone: "Europe/Istanbul" })` (Pzt-Cum 16:00 — TCMB ~15:30 yayın + buffer). Hafta sonu TCMB yayınlamaz, cron tetiklenmez. `onApplicationBootstrap` 30 sn sonra bir kez fetch dener (DB seeding için, idempotent).
+  - **2 controller paylaşılan service:**
+    - `ExchangeRateController` `/api/exchange-rates` (auth yok — public): `GET /current` → `{rates:{TRY:1,USD:...,EUR:...}, timestamp}`.
+    - `AdminExchangeRateController` `/api/admin/exchange-rates` (`AdminJwtAuthGuard`): `POST /refresh-now` → manuel TCMB fetch + upsert.
+- **Bid submit snapshot:** `supplier-tenders.service.ts submitBid()` artık `exchangeRateService.takeSnapshot(bid.currency)` çağırır; sonuç `Bid.exchangeRateSnapshot` Json'a yazılır. TRY bid'lerde null. Geriye dönük doğru karşılaştırma garanti — kur sonradan değişse de bid kaydı bağımsız.
+- **Frontend** (`apps/web`):
+  - `lib/format-currency.ts` — `Currency` type, `getCurrencySymbol`, `formatPrice(amount, currency, decimals=2)` (Intl.NumberFormat tr-TR/en-US/de-DE locale), `formatPriceWithTry(amount, currency, rate)` (orijinal + ≈ TRY).
+  - `hooks/use-exchange-rates.ts` — `useCurrentExchangeRates()` 5dk cache + 5dk refetchInterval, public endpoint'ten okur.
+  - `components/currency-badge.tsx` — `<CurrencyBadge currency={...} codeOnly?>` 3 renk paleti (TRY yeşil/USD mavi/EUR mor).
+  - `lib/tenders/types.ts` `BidDetailExpanded.exchangeRateSnapshot` field eklendi.
+  - `bid-detail-view.tsx` KPI kartında: bid.currency≠TRY ise `≈ ₺X,XXX (kur: 45.2714 · 2026-05-08 TCMB)` ek satırı. TRY bid'lerde değişiklik yok.
+- **Manuel E2E doğrulama:**
+  - `tcmb-probe.mjs` standalone test: TCMB ulaşılabilir ✓, USD=45.27 EUR=53.23 ✓, Tarih="08.05.2026" parse ✓.
+  - Migration: `\d exchange_rates` + Bid.exchangeRateSnapshot jsonb ✓.
+  - `POST /admin/exchange-rates/refresh-now` → `{success:true, date:"2026-05-08", rates:{USD:45.2714, EUR:53.232}}` ✓ DB'ye 2 satır yazıldı.
+  - `GET /exchange-rates/current` → `{rates:{TRY:1, USD:45.2714, EUR:53.232}, timestamp:...}` ✓.
+  - Cron registered "0 16 * * 1-5" Europe/Istanbul ✓.
+  - typecheck (api+web+admin+email+shared+db) tüm yeşil ✓.
+
+> **Bilinen tuzaklar (V2-3)**: (1) TCMB XML'de `Tarih` (DD.MM.YYYY) ile `Date` (MM/DD/YYYY) attribute'u farklı format — parser ikisini de kabul eder. (2) Prisma `@db.Date` field'ına `new Date("YYYY-MM-DD")` valid (UTC midnight'a çevrilir); ISO timestamp string'i `Invalid Date` verir. (3) TCMB hafta sonu yayınlamaz — son iş günü kuru kullanılır (Cumartesi 09.05.2026'da 08.05.2026 Cuma kuru). (4) Fallback rates (USD=34, EUR=37) güncel değil — production'da first cron fetch ile düzelir; hiç TCMB yoksa muhafazakâr kalır.
+
 > **Bilinen tuzaklar**: (1) `tsconfig.tsbuildinfo` bozuksa `tsc` sessizce hiçbir dosya emit etmez — `rm tsconfig.tsbuildinfo && tsc` ile force rebuild. (2) `R2_BUCKET` env'i set edilmezse StorageService bootstrap fail eder — fallback default kaldırıldı, hatalı sessiz bağlanmayı önlemek için. (3) HeadBucket 404 → bucket adı yanlış veya token bu bucket'a scope'lu değil; doğrulama için ListBuckets ile token'ın gördüğü bucket'ları listele. (4) **Bucket CORS**: Browser direkt R2'ye PUT yaptığı için bucket CORS policy şart — yoksa preflight fail, upload sessizce başarısız olur. `StorageService.onModuleInit` artık `ensureCorsPolicy()` çağırıyor: `GetBucketCors` + idempotent `PutBucketCors` (origins = `CORS_ORIGINS` env, methods = PUT/GET/HEAD, ExposeHeaders=ETag, MaxAge=3600). Token'da `PutBucketCors` izni gerekir; yoksa warn'la geçilir (manuel Cloudflare Dashboard fallback). Origin değişirse boot'ta auto-update. Debug: `GET /api/health/storage` → `{ bucket, envPrefix, cors }`. (5) Presigned GET URL'i sadece GET method'u için imzalanır — `curl -I` (HEAD) 403 alır; `<a href download>` veya `curl -L` ile GET çalışır.
 
 ### Polish-3 — UX Hijyeni (Form Hatası TR + Interceptor + Mobile + E-posta QA)
@@ -580,7 +610,7 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 - Admin dashboard KPI'ları (demo + buyer + supplier stats agregasyonu)
 
 ### V2 (orta vadeli)
-- TCMB API + döviz kuru dönüşümü (çoklu para birimi karşılaştırması)
+- ~~TCMB API + döviz kuru dönüşümü~~ → **V2-3'te tamamlandı** (cron 16:00 Pzt-Cum İstanbul + bid submit snapshot pattern + public/admin endpoint)
 - ~~MinIO presigned URL — V1'de base64 data URL~~ → **V2-2'de Cloudflare R2 ile tamamlandı** (TENDER_DOC + BID_RESPONSE + ORDER_INVOICE)
 - Resend domain doğrulaması + webhook tracking
 - STANDARD → PREMIUM upgrade akışı + ödeme (Iyzico/Stripe)

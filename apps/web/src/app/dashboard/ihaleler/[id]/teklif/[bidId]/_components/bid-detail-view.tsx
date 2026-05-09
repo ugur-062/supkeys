@@ -359,7 +359,18 @@ function KpiCards({ bid }: { bid: BidDetailExpanded }) {
             <p className="text-2xl font-bold text-brand-900 tabular-nums truncate">
               {formatCurrency(bid.totalAmount, bid.currency)}
             </p>
-            {bid.isDifferentCurrency ? (
+            {bid.currency !== "TRY" && bid.exchangeRateSnapshot ? (
+              <p className="text-[11px] text-slate-500 mt-1 tabular-nums">
+                ≈ {formatCurrency(
+                  Number(bid.totalAmount) * bid.exchangeRateSnapshot.rate,
+                  "TRY",
+                )}{" "}
+                <span className="text-slate-400">
+                  (kur: {bid.exchangeRateSnapshot.rate.toFixed(4)} ·{" "}
+                  {bid.exchangeRateSnapshot.rateDate} TCMB)
+                </span>
+              </p>
+            ) : bid.isDifferentCurrency ? (
               <p className="text-[11px] text-slate-500 mt-1">
                 Bu tedarikçi teklifini {bid.currency} olarak vermiştir.
               </p>

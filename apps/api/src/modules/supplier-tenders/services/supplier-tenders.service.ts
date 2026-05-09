@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import type { Prisma, TenderStatus } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { ExchangeRateService } from "../../currency/services/exchange-rate.service";
 import { CreateOrUpdateBidDto } from "../dto/bid.dto";
 import {
   ListSupplierTendersDto,
@@ -30,7 +31,10 @@ const VISIBLE_STATUSES: TenderStatus[] = [
 
 @Injectable()
 export class SupplierTendersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly exchangeRateService: ExchangeRateService,
+  ) {}
 
   async list(supplierId: string, query: ListSupplierTendersDto) {
     const page = query.page ?? 1;
@@ -562,6 +566,10 @@ export class SupplierTendersService {
       // eliminationReason/eliminatedAt temizlenir.
       const isResubmissionAfterElimination = bid.status === "LOST";
 
+      // V2-3 — submit anındaki TCMB kurunu snapshot olarak yaz.
+      // bid.currency=TRY ise null kalır (gerek yok).
+      const snapshot = await this.exchangeRateService.takeSnapshot(bid.currency);
+
       const updated = await tx.bid.update({
         where: { id: bid.id },
         data: {
@@ -572,6 +580,10 @@ export class SupplierTendersService {
             : bid.version,
           eliminationReason: isResubmissionAfterElimination ? null : undefined,
           eliminatedAt: isResubmissionAfterElimination ? null : undefined,
+          ...(snapshot && {
+            exchangeRateSnapshot:
+              snapshot as unknown as Prisma.InputJsonValue,
+          }),
         },
         select: {
           id: true,

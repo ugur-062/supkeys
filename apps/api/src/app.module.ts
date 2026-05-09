@@ -25,6 +25,7 @@ import { PdfModule } from "./modules/pdf/pdf.module";
 import { ResendWebhookModule } from "./modules/resend-webhook/resend-webhook.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { AttachmentsModule } from "./modules/attachments/attachments.module";
+import { CurrencyModule } from "./modules/currency/currency.module";
 import { TenantApprovalFlowsModule } from "./modules/tenant-approval-flows/tenant-approval-flows.module";
 import { TenantApprovalRequestsModule } from "./modules/tenant-approval-requests/tenant-approval-requests.module";
 import { TenantDashboardModule } from "./modules/tenant-dashboard/tenant-dashboard.module";
@@ -72,6 +73,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     ResendWebhookModule,
     StorageModule,
     AttachmentsModule,
+    CurrencyModule,
     HealthModule,
   ],
 })
