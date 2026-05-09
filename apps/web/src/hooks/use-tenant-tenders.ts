@@ -183,10 +183,6 @@ function buildPayload(data: TenderFormData) {
       customQuestion: sanitize(it.customQuestion),
     })),
     invitedSupplierIds: data.invitedSupplierIds,
-    attachments:
-      data.attachments && data.attachments.length > 0
-        ? data.attachments
-        : undefined,
   };
 }
 

@@ -114,16 +114,6 @@ export function EditLoader({ id }: Props) {
     internalNotes: tender.internalNotes ?? "",
     bidsCloseAt: toDatetimeLocal(tender.bidsCloseAt),
     bidsOpenAt: toDatetimeLocal(tender.bidsOpenAt),
-    attachments: tender.attachments.map((a) => ({
-      fileName: a.fileName,
-      fileSize: a.fileSize,
-      mimeType: a.mimeType,
-      // V1: dosya URL'i edit drawer'ında yeniden gönderilemiyor (data URL detail
-      // payload'ında dönmüyor). Edit modunda mevcut dosyalar korunur — yeni
-      // dosya eklenebilir, ama eski dosyalar full-replace nedeniyle silinir.
-      // V2'de signed URL ile gerçek persistans gelecek.
-      fileUrl: "",
-    })),
     items: tender.items.map((it) => ({
       name: it.name,
       description: it.description ?? "",

@@ -5,24 +5,19 @@ import { AlertCircle, FileText, Upload, X } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useDropzone, type FileRejection } from "react-dropzone";
 
-export interface AttachmentValue {
-  fileName: string;
-  fileSize: number;
-  mimeType: string;
-  fileUrl: string;
-}
-
-interface FileUploadMultiProps {
-  value: AttachmentValue[];
-  onChange: (value: AttachmentValue[]) => void;
-  maxFiles?: number;
-  maxSizeMB?: number;
-}
+/**
+ * V2-2 — Tender wizard'ında dosyalar wizard state'inde `File[]` olarak
+ * stage edilir. Tender create edildikten sonra `useUploadAttachment` ile
+ * paralel R2'ye yüklenir. Bu component sadece browser'da seçim + listeleme
+ * yapar; backend'e hiç dokunmaz.
+ */
 
 const ACCEPT: Record<string, string[]> = {
   "application/pdf": [".pdf"],
   "image/jpeg": [".jpg", ".jpeg"],
   "image/png": [".png"],
+  "image/webp": [".webp"],
+  "image/gif": [".gif"],
   "application/msword": [".doc"],
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [
     ".docx",
@@ -31,7 +26,17 @@ const ACCEPT: Record<string, string[]> = {
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
     ".xlsx",
   ],
+  "application/vnd.ms-powerpoint": [".ppt"],
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": [
+    ".pptx",
+  ],
+  "application/zip": [".zip"],
+  "text/plain": [".txt"],
+  "text/csv": [".csv"],
 };
+
+const MAX_FILES = 10;
+const MAX_SIZE_MB = 50;
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -39,80 +44,55 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function readAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === "string") resolve(result);
-      else reject(new Error("Dosya okunamadı"));
-    };
-    reader.onerror = () => reject(new Error("Dosya okunamadı"));
-    reader.readAsDataURL(file);
-  });
+interface Props {
+  files: File[];
+  onChange: (files: File[]) => void;
 }
 
-export function FileUploadMulti({
-  value,
-  onChange,
-  maxFiles = 10,
-  maxSizeMB = 5,
-}: FileUploadMultiProps) {
+export function TenderDocStaging({ files, onChange }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const onDrop = useCallback(
-    async (acceptedFiles: File[], rejections: FileRejection[]) => {
+    (acceptedFiles: File[], rejections: FileRejection[]) => {
       setError(null);
 
       if (rejections.length > 0) {
         const code = rejections[0]?.errors[0]?.code;
         if (code === "file-too-large") {
-          setError(`Dosya çok büyük (max ${maxSizeMB}MB)`);
+          setError(`Dosya çok büyük (max ${MAX_SIZE_MB} MB)`);
         } else if (code === "file-invalid-type") {
           setError("Desteklenmeyen dosya tipi");
         } else {
-          setError("Dosya yüklenemedi");
+          setError("Dosya eklenemedi");
         }
         return;
       }
 
-      const remainingSlots = maxFiles - value.length;
-      if (acceptedFiles.length > remainingSlots) {
-        setError(`En fazla ${maxFiles} dosya yükleyebilirsiniz`);
+      const remaining = MAX_FILES - files.length;
+      if (acceptedFiles.length > remaining) {
+        setError(`En fazla ${MAX_FILES} dosya ekleyebilirsiniz`);
         return;
       }
 
-      try {
-        const newAttachments: AttachmentValue[] = await Promise.all(
-          acceptedFiles.map(async (file) => ({
-            fileName: file.name,
-            fileSize: file.size,
-            mimeType: file.type || "application/octet-stream",
-            fileUrl: await readAsDataUrl(file),
-          })),
-        );
-        onChange([...value, ...newAttachments]);
-      } catch {
-        setError("Bir veya daha fazla dosya okunamadı");
-      }
+      onChange([...files, ...acceptedFiles]);
     },
-    [maxFiles, maxSizeMB, onChange, value],
+    [files, onChange],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: ACCEPT,
-    maxSize: maxSizeMB * 1024 * 1024,
+    maxSize: MAX_SIZE_MB * 1024 * 1024,
     multiple: true,
   });
 
   const handleRemove = (idx: number) => {
-    onChange(value.filter((_, i) => i !== idx));
+    onChange(files.filter((_, i) => i !== idx));
   };
 
   return (
     <div className="space-y-3">
-      {value.length < maxFiles ? (
+      {files.length < MAX_FILES ? (
         <div
           {...getRootProps()}
           className={cn(
@@ -133,13 +113,16 @@ export function FileUploadMulti({
               : "Dosya sürükleyin veya tıklayın"}
           </p>
           <p className="text-xs text-slate-500">
-            PDF, DOC, XLS, JPG, PNG · max {maxSizeMB}MB · {value.length}/
-            {maxFiles}
+            PDF, Word, Excel, PowerPoint, görsel, ZIP · max {MAX_SIZE_MB} MB ·{" "}
+            {files.length}/{MAX_FILES}
+          </p>
+          <p className="text-[11px] text-slate-400">
+            Yayınladığınızda otomatik yüklenir.
           </p>
         </div>
       ) : (
         <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs text-slate-500">
-          Maksimum dosya sayısına ulaştınız ({maxFiles}).
+          Maksimum dosya sayısına ulaştınız ({MAX_FILES}).
         </div>
       )}
 
@@ -149,11 +132,11 @@ export function FileUploadMulti({
         </p>
       ) : null}
 
-      {value.length > 0 ? (
+      {files.length > 0 ? (
         <ul className="space-y-2">
-          {value.map((file, idx) => (
+          {files.map((file, idx) => (
             <li
-              key={`${file.fileName}-${idx}`}
+              key={`${file.name}-${idx}`}
               className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white"
             >
               <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
@@ -161,10 +144,10 @@ export function FileUploadMulti({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-brand-900 truncate">
-                  {file.fileName}
+                  {file.name}
                 </p>
                 <p className="text-xs text-slate-500">
-                  {formatBytes(file.fileSize)}
+                  {formatBytes(file.size)}
                 </p>
               </div>
               <button

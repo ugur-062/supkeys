@@ -27,7 +27,7 @@ import {
 import Link from "next/link";
 import { useEffect } from "react";
 import { Controller, useFormContext } from "react-hook-form";
-import { FileUploadMulti } from "./file-upload-multi";
+import { TenderDocStaging } from "./tender-doc-staging";
 
 const CURRENCIES: Currency[] = ["TRY", "USD", "EUR"];
 const DELIVERY_TERMS: DeliveryTerm[] = [
@@ -70,7 +70,13 @@ function SectionHeader({
   );
 }
 
-export function Step1Info() {
+interface Step1Props {
+  /** V2-2 — wizard'da `File[]` olarak stage edilen dosyalar. Yayın sonrası R2'ye yüklenir. */
+  stagedFiles: File[];
+  setStagedFiles: (files: File[]) => void;
+}
+
+export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
   const {
     register,
     control,
@@ -492,18 +498,9 @@ export function Step1Info() {
         <SectionHeader
           icon={FileText}
           title="Dosyalar (opsiyonel)"
-          description="Şartname, teknik resim, model dosyaları…"
+          description="Şartname, teknik resim, model dosyaları… Yayınladığınızda otomatik R2'ye yüklenir."
         />
-        <Controller
-          control={control}
-          name="attachments"
-          render={({ field }) => (
-            <FileUploadMulti
-              value={field.value ?? []}
-              onChange={field.onChange}
-            />
-          )}
-        />
+        <TenderDocStaging files={stagedFiles} onChange={setStagedFiles} />
       </section>
     </div>
   );

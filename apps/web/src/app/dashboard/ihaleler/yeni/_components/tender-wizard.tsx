@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useUploadAttachment } from "@/hooks/use-attachments";
 import {
   useCreateTender,
   usePublishTender,
@@ -50,23 +51,23 @@ export function TenderWizard({ mode, initialData }: Props) {
   });
 
   /**
-   * V2-2 — Step 4'te dosya yükleyebilmek için tenderId şart. İlk
-   * "Taslak Olarak Kaydet"ten sonra burada tutuyoruz; sonraki kayıt/
-   * yayın çağrılarında update path'i kullanılıyor (yeni tender yaratmak
-   * yerine).
+   * V2-2 — Step 1'de eklenen dosyalar `File[]` olarak burada stage edilir.
+   * Save Draft veya Yayınla'dan sonra tender id alınınca paralel R2'ye
+   * yüklenir.
    */
-  const [savedId, setSavedId] = useState<string | undefined>(initialData?.id);
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
 
   const createMutation = useCreateTender();
-  const updateMutation = useUpdateTender(savedId ?? "");
+  const updateMutation = useUpdateTender(initialData?.id ?? "");
   const publishMutation = usePublishTender();
-
-  const isEdit = !!savedId;
+  const uploadMutation = useUploadAttachment("tenant");
 
   const isSubmitting =
     createMutation.isPending ||
     updateMutation.isPending ||
-    publishMutation.isPending;
+    publishMutation.isPending ||
+    isUploadingFiles;
 
   const validateStepAndNext = async (currentStep: 1 | 2 | 3) => {
     const fields = STEP_FIELDS[currentStep];
@@ -84,27 +85,53 @@ export function TenderWizard({ mode, initialData }: Props) {
     if (typeof window !== "undefined") window.scrollTo({ top: 0 });
   };
 
+  /**
+   * Tender oluştuktan sonra staged dosyaları paralel R2'ye yükle.
+   * Best-effort: hata olan dosyalar atlanır, kullanıcıya toast ile bildirilir.
+   * Tender create başarılı olduktan sonra çağrılır — dönen değer atılan
+   * dosya sayısı.
+   */
+  const uploadStagedFiles = async (tenderId: string): Promise<number> => {
+    if (stagedFiles.length === 0) return 0;
+    setIsUploadingFiles(true);
+    try {
+      const results = await Promise.allSettled(
+        stagedFiles.map((file) =>
+          uploadMutation.mutateAsync({
+            scope: "TENDER_DOC",
+            scopeRefId: tenderId,
+            file,
+          }),
+        ),
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        toast.error(
+          `${failed} dosya yüklenemedi. Detay sayfasından tekrar deneyebilirsiniz.`,
+        );
+      }
+      return stagedFiles.length - failed;
+    } finally {
+      setIsUploadingFiles(false);
+    }
+  };
+
   const handleSaveDraft = form.handleSubmit(
     async (values) => {
       try {
-        const saved = isEdit
-          ? await updateMutation.mutateAsync(values)
-          : await createMutation.mutateAsync(values);
+        const saved =
+          mode === "create"
+            ? await createMutation.mutateAsync(values)
+            : await updateMutation.mutateAsync(values);
 
-        // İlk save: redirect değil, aynı sayfada kal — tenderId artık var,
-        // Step 4 dosya yükleme bölümü aktifleşir. Edit mode'unda ya da
-        // tekrarlı save'de toast farklı.
-        if (!isEdit) {
-          setSavedId(saved.id);
-          toast.success(
-            `Taslak oluşturuldu: ${saved.tenderNumber} — artık dosya ekleyebilirsiniz`,
-          );
-          // Eğer kullanıcı henüz Step 4'e gelmediyse otomatik geç.
-          if (step < 4) setStep(4);
-          if (typeof window !== "undefined") window.scrollTo({ top: 0 });
-        } else {
-          toast.success("Taslak güncellendi");
-        }
+        const uploaded = await uploadStagedFiles(saved.id);
+
+        toast.success(
+          mode === "create"
+            ? `Taslak oluşturuldu: ${saved.tenderNumber}${uploaded > 0 ? ` · ${uploaded} dosya yüklendi` : ""}`
+            : `Taslak güncellendi${uploaded > 0 ? ` · ${uploaded} dosya yüklendi` : ""}`,
+        );
+        router.push(`/dashboard/ihaleler/${saved.id}`);
       } catch (err) {
         toast.error(extractErrorMessage(err, "Taslak kaydedilemedi"));
       }
@@ -115,19 +142,23 @@ export function TenderWizard({ mode, initialData }: Props) {
   const handlePublish = form.handleSubmit(
     async (values) => {
       try {
-        const saved = isEdit
-          ? await updateMutation.mutateAsync(values)
-          : await createMutation.mutateAsync(values);
+        const saved =
+          mode === "create"
+            ? await createMutation.mutateAsync(values)
+            : await updateMutation.mutateAsync(values);
+
+        const uploaded = await uploadStagedFiles(saved.id);
 
         const result = await publishMutation.mutateAsync(saved.id);
         const status = (result as { status?: string } | undefined)?.status;
+        const fileNote = uploaded > 0 ? ` · ${uploaded} dosya yüklendi` : "";
         if (status === "IN_APPROVAL") {
           const apr = (result as { approvalNumber?: string }).approvalNumber;
           toast.success(
-            `Onay sürecine alındı${apr ? ` — ${apr}` : ""}. Onay tamamlanınca yayınlanacak.`,
+            `Onay sürecine alındı${apr ? ` — ${apr}` : ""}${fileNote}`,
           );
         } else {
-          toast.success(`İhale yayınlandı: ${saved.tenderNumber}`);
+          toast.success(`İhale yayınlandı: ${saved.tenderNumber}${fileNote}`);
         }
         router.push(`/dashboard/ihaleler/${saved.id}`);
       } catch (err) {
@@ -184,13 +215,18 @@ export function TenderWizard({ mode, initialData }: Props) {
         </div>
 
         <div className="bg-white border border-slate-200 rounded-2xl p-5 md:p-7">
-          {step === 1 ? <Step1Info /> : null}
+          {step === 1 ? (
+            <Step1Info
+              stagedFiles={stagedFiles}
+              setStagedFiles={setStagedFiles}
+            />
+          ) : null}
           {step === 2 ? <Step2Items /> : null}
           {step === 3 ? <Step3Suppliers /> : null}
           {step === 4 ? (
             <Step4Review
               onEditStep={(s) => setStep(s)}
-              tenderId={savedId}
+              stagedFiles={stagedFiles}
             />
           ) : null}
         </div>
@@ -226,7 +262,9 @@ export function TenderWizard({ mode, initialData }: Props) {
                 variant="secondary"
                 onClick={handleSaveDraft}
                 loading={
-                  createMutation.isPending || updateMutation.isPending
+                  createMutation.isPending ||
+                  updateMutation.isPending ||
+                  isUploadingFiles
                 }
                 disabled={isSubmitting}
               >

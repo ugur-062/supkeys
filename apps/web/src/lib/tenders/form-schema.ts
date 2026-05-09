@@ -39,13 +39,6 @@ export const tenderItemSchema = z.object({
   customQuestion: z.string().max(500, "Maksimum 500 karakter").optional(),
 });
 
-export const tenderAttachmentSchema = z.object({
-  fileName: z.string().min(1).max(255),
-  fileSize: z.number().int().min(1),
-  mimeType: z.string().min(1).max(120),
-  fileUrl: z.string().min(1),
-});
-
 const baseTenderSchema = z.object({
   // Adım 1
   title: z
@@ -78,7 +71,6 @@ const baseTenderSchema = z.object({
   internalNotes: z.string().max(5000).optional(),
   bidsCloseAt: z.string().min(1, "Kapanış tarihi seçmelisin"),
   bidsOpenAt: z.string().optional(),
-  attachments: z.array(tenderAttachmentSchema).max(10).optional(),
 
   // Adım 2
   items: z
@@ -146,7 +138,6 @@ export const STEP_FIELDS: Record<1 | 2 | 3, (keyof TenderFormData)[]> = {
     "internalNotes",
     "bidsCloseAt",
     "bidsOpenAt",
-    "attachments",
   ],
   2: ["items"],
   3: ["invitedSupplierIds"],
@@ -171,7 +162,6 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   internalNotes: "",
   bidsCloseAt: "",
   bidsOpenAt: "",
-  attachments: [],
   items: [
     {
       name: "",

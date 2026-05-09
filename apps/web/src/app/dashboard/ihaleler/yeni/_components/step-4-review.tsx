@@ -1,7 +1,5 @@
 "use client";
 
-import { AttachmentList } from "@/components/attachments/attachment-list";
-import { AttachmentUpload } from "@/components/attachments/attachment-upload";
 import { useTenantAddresses } from "@/hooks/use-tenant-addresses";
 import { useSuppliers } from "@/hooks/use-tenant-suppliers";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
@@ -12,13 +10,13 @@ import {
 } from "@/lib/tenders/labels";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { CheckCircle2, FileText, Info, Paperclip, Pencil } from "lucide-react";
+import { CheckCircle2, FileText, Paperclip, Pencil, Upload } from "lucide-react";
 import { useFormContext } from "react-hook-form";
 
 interface Props {
   onEditStep: (step: 1 | 2 | 3) => void;
-  /** İlk "Taslak Olarak Kaydet" sonrası set olur — dosya yüklemek için zorunlu. */
-  tenderId?: string;
+  /** Step 1'de stage edilmiş, henüz yüklenmemiş dosyalar. Yayın sonrası R2'ye gider. */
+  stagedFiles: File[];
 }
 
 function fmt(value: string | undefined | null) {
@@ -80,7 +78,7 @@ function Row({
   );
 }
 
-export function Step4Review({ onEditStep, tenderId }: Props) {
+export function Step4Review({ onEditStep, stagedFiles }: Props) {
   const { watch } = useFormContext<TenderFormData>();
   const data = watch();
 
@@ -190,25 +188,6 @@ export function Step4Review({ onEditStep, tenderId }: Props) {
         />
         <Row label="Açılış" value={fmt(data.bidsOpenAt) === "—" ? "Yayınlanır anda" : fmt(data.bidsOpenAt)} />
         <Row label="Kapanış" value={fmt(data.bidsCloseAt)} />
-        {data.attachments && data.attachments.length > 0 ? (
-          <Row
-            label="Dosyalar"
-            value={
-              <ul className="space-y-1">
-                {data.attachments.map((f, i) => (
-                  <li
-                    key={`${f.fileName}-${i}`}
-                    className="flex items-center gap-2 text-xs"
-                  >
-                    <FileText className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{f.fileName}</span>
-                    <span className="text-slate-400">({bytes(f.fileSize)})</span>
-                  </li>
-                ))}
-              </ul>
-            }
-          />
-        ) : null}
       </Section>
 
       {/* Kalemler */}
@@ -252,44 +231,54 @@ export function Step4Review({ onEditStep, tenderId }: Props) {
         </div>
       </Section>
 
-      {/* İhale Dökümanları (V2-2) */}
+      {/* İhale Dökümanları — Step 1'de stage edilmiş dosyalar (V2-2) */}
       <section className="rounded-xl border border-slate-200 bg-white">
-        <header className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
-          <Paperclip className="w-4 h-4 text-slate-500" />
-          <h3 className="font-display font-bold text-base text-brand-900">
-            İhale Dökümanları
-          </h3>
+        <header className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Paperclip className="w-4 h-4 text-slate-500" />
+            <h3 className="font-display font-bold text-base text-brand-900">
+              İhale Dökümanları ({stagedFiles.length})
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => onEditStep(1)}
+            className="text-xs text-brand-700 hover:text-brand-900 inline-flex items-center gap-1"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Düzenle
+          </button>
         </header>
         <div className="px-5 py-4 space-y-3">
-          <p className="text-xs text-slate-500">
-            Şartname, teknik özellikler, çizimler — davet edilen tedarikçiler
-            görür.
-          </p>
-
-          {tenderId ? (
-            <>
-              <AttachmentUpload
-                surface="tenant"
-                scope="TENDER_DOC"
-                scopeRefId={tenderId}
-              />
-              <AttachmentList
-                surface="tenant"
-                scope="TENDER_DOC"
-                scopeRefId={tenderId}
-                canDelete={true}
-                emptyText="Henüz dosya eklenmedi"
-              />
-            </>
+          {stagedFiles.length === 0 ? (
+            <p className="text-xs text-slate-500">
+              Dosya eklenmedi. Adım 1'deki "Dosyalar" bölümünden ekleyebilirsiniz.
+            </p>
           ) : (
-            <div className="rounded-lg bg-brand-50 border border-brand-100 p-3 text-xs text-brand-900 flex gap-2">
-              <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-brand-700" />
-              <span>
-                Dosya eklemek için önce <strong>Taslak Olarak Kaydet</strong>{" "}
-                butonuna basın. Taslak oluştuktan sonra burada dosya
-                yükleyebilirsiniz; ardından yayınlayabilirsiniz.
-              </span>
-            </div>
+            <>
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-brand-50/40 border border-brand-100 text-xs text-brand-900">
+                <Upload className="w-4 h-4 flex-shrink-0 mt-0.5 text-brand-700" />
+                <span>
+                  Bu dosyalar yayınladığınızda otomatik olarak yüklenir.
+                </span>
+              </div>
+              <ul className="space-y-2">
+                {stagedFiles.map((file, i) => (
+                  <li
+                    key={`${file.name}-${i}`}
+                    className="flex items-center gap-3 p-2.5 rounded-lg border border-slate-200 bg-white"
+                  >
+                    <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                    <span className="text-sm text-brand-900 truncate flex-1">
+                      {file.name}
+                    </span>
+                    <span className="text-xs text-slate-400 flex-shrink-0">
+                      {bytes(file.size)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </div>
       </section>
