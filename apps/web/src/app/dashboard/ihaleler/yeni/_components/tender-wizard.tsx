@@ -49,9 +49,19 @@ export function TenderWizard({ mode, initialData }: Props) {
     mode: "onTouched",
   });
 
+  /**
+   * V2-2 — Step 4'te dosya yükleyebilmek için tenderId şart. İlk
+   * "Taslak Olarak Kaydet"ten sonra burada tutuyoruz; sonraki kayıt/
+   * yayın çağrılarında update path'i kullanılıyor (yeni tender yaratmak
+   * yerine).
+   */
+  const [savedId, setSavedId] = useState<string | undefined>(initialData?.id);
+
   const createMutation = useCreateTender();
-  const updateMutation = useUpdateTender(initialData?.id ?? "");
+  const updateMutation = useUpdateTender(savedId ?? "");
   const publishMutation = usePublishTender();
+
+  const isEdit = !!savedId;
 
   const isSubmitting =
     createMutation.isPending ||
@@ -77,16 +87,24 @@ export function TenderWizard({ mode, initialData }: Props) {
   const handleSaveDraft = form.handleSubmit(
     async (values) => {
       try {
-        const saved =
-          mode === "create"
-            ? await createMutation.mutateAsync(values)
-            : await updateMutation.mutateAsync(values);
-        toast.success(
-          mode === "create"
-            ? `Taslak oluşturuldu: ${saved.tenderNumber}`
-            : "Taslak güncellendi",
-        );
-        router.push(`/dashboard/ihaleler/${saved.id}`);
+        const saved = isEdit
+          ? await updateMutation.mutateAsync(values)
+          : await createMutation.mutateAsync(values);
+
+        // İlk save: redirect değil, aynı sayfada kal — tenderId artık var,
+        // Step 4 dosya yükleme bölümü aktifleşir. Edit mode'unda ya da
+        // tekrarlı save'de toast farklı.
+        if (!isEdit) {
+          setSavedId(saved.id);
+          toast.success(
+            `Taslak oluşturuldu: ${saved.tenderNumber} — artık dosya ekleyebilirsiniz`,
+          );
+          // Eğer kullanıcı henüz Step 4'e gelmediyse otomatik geç.
+          if (step < 4) setStep(4);
+          if (typeof window !== "undefined") window.scrollTo({ top: 0 });
+        } else {
+          toast.success("Taslak güncellendi");
+        }
       } catch (err) {
         toast.error(extractErrorMessage(err, "Taslak kaydedilemedi"));
       }
@@ -97,10 +115,9 @@ export function TenderWizard({ mode, initialData }: Props) {
   const handlePublish = form.handleSubmit(
     async (values) => {
       try {
-        const saved =
-          mode === "create"
-            ? await createMutation.mutateAsync(values)
-            : await updateMutation.mutateAsync(values);
+        const saved = isEdit
+          ? await updateMutation.mutateAsync(values)
+          : await createMutation.mutateAsync(values);
 
         const result = await publishMutation.mutateAsync(saved.id);
         const status = (result as { status?: string } | undefined)?.status;
@@ -170,7 +187,12 @@ export function TenderWizard({ mode, initialData }: Props) {
           {step === 1 ? <Step1Info /> : null}
           {step === 2 ? <Step2Items /> : null}
           {step === 3 ? <Step3Suppliers /> : null}
-          {step === 4 ? <Step4Review onEditStep={(s) => setStep(s)} /> : null}
+          {step === 4 ? (
+            <Step4Review
+              onEditStep={(s) => setStep(s)}
+              tenderId={savedId}
+            />
+          ) : null}
         </div>
 
         {/* Sticky footer navigation */}

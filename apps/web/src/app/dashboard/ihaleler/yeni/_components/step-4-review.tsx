@@ -1,5 +1,7 @@
 "use client";
 
+import { AttachmentList } from "@/components/attachments/attachment-list";
+import { AttachmentUpload } from "@/components/attachments/attachment-upload";
 import { useTenantAddresses } from "@/hooks/use-tenant-addresses";
 import { useSuppliers } from "@/hooks/use-tenant-suppliers";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
@@ -10,11 +12,13 @@ import {
 } from "@/lib/tenders/labels";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { CheckCircle2, FileText, Pencil } from "lucide-react";
+import { CheckCircle2, FileText, Info, Paperclip, Pencil } from "lucide-react";
 import { useFormContext } from "react-hook-form";
 
 interface Props {
   onEditStep: (step: 1 | 2 | 3) => void;
+  /** İlk "Taslak Olarak Kaydet" sonrası set olur — dosya yüklemek için zorunlu. */
+  tenderId?: string;
 }
 
 function fmt(value: string | undefined | null) {
@@ -76,7 +80,7 @@ function Row({
   );
 }
 
-export function Step4Review({ onEditStep }: Props) {
+export function Step4Review({ onEditStep, tenderId }: Props) {
   const { watch } = useFormContext<TenderFormData>();
   const data = watch();
 
@@ -247,6 +251,48 @@ export function Step4Review({ onEditStep }: Props) {
           </table>
         </div>
       </Section>
+
+      {/* İhale Dökümanları (V2-2) */}
+      <section className="rounded-xl border border-slate-200 bg-white">
+        <header className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
+          <Paperclip className="w-4 h-4 text-slate-500" />
+          <h3 className="font-display font-bold text-base text-brand-900">
+            İhale Dökümanları
+          </h3>
+        </header>
+        <div className="px-5 py-4 space-y-3">
+          <p className="text-xs text-slate-500">
+            Şartname, teknik özellikler, çizimler — davet edilen tedarikçiler
+            görür.
+          </p>
+
+          {tenderId ? (
+            <>
+              <AttachmentUpload
+                surface="tenant"
+                scope="TENDER_DOC"
+                scopeRefId={tenderId}
+              />
+              <AttachmentList
+                surface="tenant"
+                scope="TENDER_DOC"
+                scopeRefId={tenderId}
+                canDelete={true}
+                emptyText="Henüz dosya eklenmedi"
+              />
+            </>
+          ) : (
+            <div className="rounded-lg bg-brand-50 border border-brand-100 p-3 text-xs text-brand-900 flex gap-2">
+              <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-brand-700" />
+              <span>
+                Dosya eklemek için önce <strong>Taslak Olarak Kaydet</strong>{" "}
+                butonuna basın. Taslak oluştuktan sonra burada dosya
+                yükleyebilirsiniz; ardından yayınlayabilirsiniz.
+              </span>
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Tedarikçiler */}
       <Section
