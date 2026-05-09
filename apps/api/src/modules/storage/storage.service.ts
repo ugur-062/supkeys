@@ -6,10 +6,13 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
+  type CORSRule,
   DeleteObjectCommand,
+  GetBucketCorsCommand,
   GetObjectCommand,
   HeadBucketCommand,
   HeadObjectCommand,
+  PutBucketCorsCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -17,6 +20,16 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const PUT_TTL_SECONDS = 15 * 60;
 const GET_TTL_SECONDS = 60 * 60;
+
+/**
+ * Browser → R2 direct PUT/GET için bucket CORS policy gerekli.
+ * R2 bucket default'unda CORS YOK; preflight fail → upload silently başarısız.
+ * `onModuleInit`'te idempotent set ediyoruz.
+ */
+const CORS_ALLOWED_METHODS: CORSRule["AllowedMethods"] = ["PUT", "GET", "HEAD"];
+const CORS_ALLOWED_HEADERS: CORSRule["AllowedHeaders"] = ["*"];
+const CORS_EXPOSE_HEADERS: CORSRule["ExposeHeaders"] = ["ETag"];
+const CORS_MAX_AGE_SECONDS = 3600;
 
 @Injectable()
 export class StorageService implements OnModuleInit {
@@ -67,6 +80,7 @@ export class StorageService implements OnModuleInit {
       this.logger.log(
         `R2 bucket "${this.bucket}" erişilebilir (env prefix: ${this.envPrefix})`,
       );
+      await this.ensureCorsPolicy();
     } catch (err) {
       const e = err as {
         name?: string;
@@ -151,5 +165,102 @@ export class StorageService implements OnModuleInit {
 
   getEnvPrefix(): string {
     return this.envPrefix;
+  }
+
+  getBucketName(): string {
+    return this.bucket;
+  }
+
+  /**
+   * Mevcut bucket CORS policy'sini oku. Set edilmemişse [].
+   */
+  async getBucketCorsConfig(): Promise<CORSRule[]> {
+    try {
+      const result = await this.client.send(
+        new GetBucketCorsCommand({ Bucket: this.bucket }),
+      );
+      return result.CORSRules ?? [];
+    } catch (err) {
+      const e = err as { name?: string; Code?: string };
+      // R2'de policy yoksa NoSuchCORSConfiguration döner
+      if (e?.name === "NoSuchCORSConfiguration" || e?.Code === "NoSuchCORSConfiguration") {
+        return [];
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Allowed origin'leri `CORS_ORIGINS` env'inden okur — backend CORS ile aynı set.
+   * Tedarikçi paneli + alıcı paneli aynı host'ta (apps/web), admin ayrı host
+   * (apps/admin) — ikisini de kapsar.
+   */
+  private buildAllowedOrigins(): string[] {
+    const raw = this.configService.get<string>(
+      "CORS_ORIGINS",
+      "http://localhost:3000,http://localhost:3001",
+    );
+    return raw
+      .split(",")
+      .map((o) => o.trim())
+      .filter(Boolean);
+  }
+
+  /**
+   * Idempotent — istenen config zaten kuruluysa skip, değilse PutBucketCors.
+   */
+  private async ensureCorsPolicy(): Promise<void> {
+    const desired: CORSRule[] = [
+      {
+        AllowedOrigins: this.buildAllowedOrigins(),
+        AllowedMethods: CORS_ALLOWED_METHODS,
+        AllowedHeaders: CORS_ALLOWED_HEADERS,
+        ExposeHeaders: CORS_EXPOSE_HEADERS,
+        MaxAgeSeconds: CORS_MAX_AGE_SECONDS,
+      },
+    ];
+
+    const current = await this.getBucketCorsConfig();
+    if (this.corsRulesEqual(current, desired)) {
+      this.logger.log(
+        `R2 bucket CORS policy güncel (origins: ${desired[0]!.AllowedOrigins?.join(", ")})`,
+      );
+      return;
+    }
+
+    try {
+      await this.client.send(
+        new PutBucketCorsCommand({
+          Bucket: this.bucket,
+          CORSConfiguration: { CORSRules: desired },
+        }),
+      );
+      this.logger.log(
+        `R2 bucket CORS policy ${current.length === 0 ? "kuruldu" : "güncellendi"} (origins: ${desired[0]!.AllowedOrigins?.join(", ")})`,
+      );
+    } catch (err) {
+      const e = err as { name?: string; message?: string };
+      this.logger.warn(
+        `R2 bucket CORS policy set edilemedi (${e?.name ?? "?"}): ${e?.message ?? String(err)}. Browser uploadları başarısız olabilir; token'ın PutBucketCors izni olduğunu kontrol et.`,
+      );
+    }
+  }
+
+  /**
+   * Sıralamadan bağımsız basit equality — set'lerin aynı olup olmadığına bakar.
+   */
+  private corsRulesEqual(a: CORSRule[], b: CORSRule[]): boolean {
+    if (a.length !== b.length) return false;
+    const norm = (rules: CORSRule[]) =>
+      JSON.stringify(
+        rules.map((r) => ({
+          o: [...(r.AllowedOrigins ?? [])].sort(),
+          m: [...(r.AllowedMethods ?? [])].sort(),
+          h: [...(r.AllowedHeaders ?? [])].sort(),
+          e: [...(r.ExposeHeaders ?? [])].sort(),
+          x: r.MaxAgeSeconds ?? null,
+        })),
+      );
+    return norm(a) === norm(b);
   }
 }
