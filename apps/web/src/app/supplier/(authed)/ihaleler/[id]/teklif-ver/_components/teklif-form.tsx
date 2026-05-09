@@ -38,7 +38,6 @@ import { AttachmentList } from "@/components/attachments/attachment-list";
 import { AttachmentUpload } from "@/components/attachments/attachment-upload";
 import { BidItemsTable } from "./bid-items-table";
 import { BidTotalsCard } from "./bid-totals-card";
-import { CurrencySelector } from "./currency-selector";
 import { SubmitConfirmDialog } from "./submit-confirm-dialog";
 
 interface Props {
@@ -156,11 +155,9 @@ export function TeklifForm({ tender, existingBid }: Props) {
   const form = useForm<BidFormValues>({
     resolver: zodResolver(bidFormSchema),
     defaultValues: {
-      currency:
-        draftBid?.currency ??
-        (tender.allowedCurrencies.includes(tender.primaryCurrency)
-          ? tender.primaryCurrency
-          : tender.allowedCurrencies[0]),
+      // V2-3 — bid.currency artık tender.primaryCurrency'den sabit;
+      // tedarikçi seçim yapamaz.
+      currency: tender.primaryCurrency,
       notes: draftBid?.notes ?? "",
       items: tender.items.map((ti) => {
         const draftItem = draftBid?.items?.find(
@@ -334,11 +331,25 @@ export function TeklifForm({ tender, existingBid }: Props) {
             <Section
               title="Para Birimi"
               icon={Wallet}
-              hint="Tüm kalemler için aynı para birimi kullanılır."
+              hint="Bu ihalenin para birimi alıcı tarafından belirlendi; değiştirilemez."
             >
-              <CurrencySelector
-                allowedCurrencies={tender.allowedCurrencies}
-              />
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-brand-100 text-brand-700 font-bold">
+                  {tender.primaryCurrency === "TRY"
+                    ? "₺"
+                    : tender.primaryCurrency === "USD"
+                      ? "$"
+                      : "€"}
+                </span>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-brand-900">
+                    {tender.primaryCurrency}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Tüm kalem fiyatları {tender.primaryCurrency} cinsinden girilir.
+                  </p>
+                </div>
+              </div>
             </Section>
 
             <Section

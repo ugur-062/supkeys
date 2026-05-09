@@ -51,11 +51,6 @@ const baseTenderSchema = z.object({
   requireAllItems: z.boolean(),
   requireBidDocument: z.boolean(),
   primaryCurrency: z.enum(CURRENCY_VALUES),
-  allowedCurrencies: z
-    .array(z.enum(CURRENCY_VALUES))
-    .min(1, "En az 1 para birimi seçmelisin")
-    .max(3),
-  decimalPlaces: z.number().int().min(0).max(4),
   deliveryTerm: z.enum(DELIVERY_TERM_VALUES).optional(),
   // E.7.B — adresler artık dropdown'dan seçilen TenantAddress kayıtlarının id'si.
   billingAddressId: z.string().min(1, "Fatura adresi seçin"),
@@ -83,10 +78,6 @@ const baseTenderSchema = z.object({
 });
 
 export const tenderFormSchema = baseTenderSchema
-  .refine((d) => d.allowedCurrencies.includes(d.primaryCurrency), {
-    message: "Ana para birimi izin verilenler arasında olmalı",
-    path: ["primaryCurrency"],
-  })
   .refine(
     (d) =>
       d.paymentTerm === "CASH" ||
@@ -127,8 +118,6 @@ export const STEP_FIELDS: Record<1 | 2 | 3, (keyof TenderFormData)[]> = {
     "requireAllItems",
     "requireBidDocument",
     "primaryCurrency",
-    "allowedCurrencies",
-    "decimalPlaces",
     "deliveryTerm",
     "billingAddressId",
     "deliveryAddressId",
@@ -151,8 +140,6 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   requireAllItems: false,
   requireBidDocument: false,
   primaryCurrency: "TRY",
-  allowedCurrencies: ["TRY"],
-  decimalPlaces: 2,
   deliveryTerm: undefined,
   billingAddressId: "",
   deliveryAddressId: "",

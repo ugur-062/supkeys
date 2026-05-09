@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
-import { Controller, useFormContext } from "react-hook-form";
+import { useFormContext } from "react-hook-form";
 import { TenderDocStaging } from "./tender-doc-staging";
 
 const CURRENCIES: Currency[] = ["TRY", "USD", "EUR"];
@@ -79,13 +79,12 @@ interface Step1Props {
 export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
   const {
     register,
-    control,
     formState: { errors },
     watch,
   } = useFormContext<TenderFormData>();
 
   const paymentTerm = watch("paymentTerm");
-  const allowedCurrencies = watch("allowedCurrencies");
+  const primaryCurrency = watch("primaryCurrency");
 
   return (
     <div className="space-y-8">
@@ -224,16 +223,16 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
         </div>
       </section>
 
-      {/* SECTION: Para Ayarları */}
+      {/* SECTION: Para Birimi (V2-3 — tek seçim) */}
       <section>
         <SectionHeader
           icon={Wallet}
           title="Para Birimi"
-          description="Hangi para birimleriyle teklif kabul edilecek?"
+          description="Tedarikçilerden hangi para biriminde teklif istiyorsun?"
         />
         <div className="space-y-4">
           <Field error={errors.primaryCurrency?.message}>
-            <Label required>Ana Para Birimi</Label>
+            <Label required>Para Birimi</Label>
             <div className="grid grid-cols-3 gap-3">
               {CURRENCIES.map((c) => (
                 <label
@@ -257,73 +256,26 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
             </div>
           </Field>
 
-          <Controller
-            control={control}
-            name="allowedCurrencies"
-            render={({ field, fieldState }) => (
-              <Field
-                error={fieldState.error?.message}
-                hint="Ana para birimi otomatik dahildir."
-              >
-                <Label>İzin Verilen Para Birimleri</Label>
-                <div className="grid grid-cols-3 gap-3">
-                  {CURRENCIES.map((c) => {
-                    const checked = field.value?.includes(c);
-                    return (
-                      <label
-                        key={c}
-                        className={cn(
-                          "flex items-center justify-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-colors",
-                          checked
-                            ? "border-brand-500 bg-brand-50/40"
-                            : "border-slate-200 hover:bg-slate-50",
-                        )}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={checked ?? false}
-                          onChange={(e) => {
-                            const set = new Set(field.value ?? []);
-                            if (e.target.checked) set.add(c);
-                            else set.delete(c);
-                            field.onChange(Array.from(set));
-                          }}
-                        />
-                        <span className="text-sm font-semibold text-brand-900">
-                          {CURRENCY_SYMBOL[c]} {c}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </Field>
-            )}
-          />
-
-          <Field error={errors.decimalPlaces?.message}>
-            <Label htmlFor="decimalPlaces">Ondalık Basamak</Label>
-            <select
-              id="decimalPlaces"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-white text-sm"
-              {...register("decimalPlaces", { valueAsNumber: true })}
-            >
-              {[0, 1, 2, 3, 4].map((n) => (
-                <option key={n} value={n}>
-                  {n} basamak
-                </option>
-              ))}
-            </select>
-          </Field>
-
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-brand-50/40 border border-brand-100 text-xs text-slate-600">
-            <Info className="w-4 h-4 text-brand-600 mt-0.5 flex-shrink-0" />
-            <p>
-              TCMB kur dönüşümü V2&apos;de gelecek. V1&apos;de teklifler kendi
-              para biriminde gösterilir; karşılaştırma manueldir. Seçili para
-              birimleri:{" "}
-              <strong>{(allowedCurrencies ?? []).join(", ") || "—"}</strong>
+          {primaryCurrency && primaryCurrency !== "TRY" ? (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-success-50 border border-success-200 text-xs text-success-900">
+              <Info className="w-4 h-4 text-success-600 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-semibold mb-0.5">
+                  TCMB Kuru ile Otomatik Karşılaştırma
+                </p>
+                <p className="text-success-800/80">
+                  Teklifler {primaryCurrency} para biriminde alınır.
+                  Karşılaştırmada otomatik TRY karşılığı gösterilir (kaynak:
+                  TCMB günlük kuru, tedarikçinin teklifi gönderdiği tarihteki
+                  kur ile sabitlenir).
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500">
+              Yayınlandıktan sonra para birimi değiştirilemez.
             </p>
-          </div>
+          )}
         </div>
       </section>
 

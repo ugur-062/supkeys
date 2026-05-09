@@ -184,8 +184,6 @@ export class SupplierTendersService {
       requireAllItems: tender.requireAllItems,
       requireBidDocument: tender.requireBidDocument,
       primaryCurrency: tender.primaryCurrency,
-      allowedCurrencies: tender.allowedCurrencies,
-      decimalPlaces: tender.decimalPlaces,
       deliveryTerm: tender.deliveryTerm,
       deliveryAddress: tender.deliveryAddress,
       // E.7.B — tedarikçi teslimat adresi snapshot'ı görür.
@@ -323,12 +321,9 @@ export class SupplierTendersService {
         throw new ConflictException("Teklif kapanış tarihi geçmiş");
       }
 
-      // Para birimi kontrolü
-      if (!tender.allowedCurrencies.includes(dto.currency)) {
-        throw new BadRequestException(
-          `Bu ihale için ${dto.currency} para birimi kabul edilmiyor`,
-        );
-      }
+      // V2-3 — bid.currency artık her zaman tender.primaryCurrency.
+      // DTO'dan gelen currency yok sayılır (cross-currency bid V2.5'e ertelendi).
+      const bidCurrency = tender.primaryCurrency;
 
       // Kalem ID'leri tender'a ait mi?
       const tenderItemMap = new Map(
@@ -410,13 +405,13 @@ export class SupplierTendersService {
           supplierId,
           submittedById: supplierUserId,
           status: "DRAFT",
-          currency: dto.currency,
+          currency: bidCurrency,
           totalAmount,
           notes: dto.notes?.trim() || null,
           version: 1,
         },
         update: {
-          currency: dto.currency,
+          currency: bidCurrency,
           totalAmount,
           notes: dto.notes?.trim() || null,
           submittedById: supplierUserId,
@@ -436,7 +431,7 @@ export class SupplierTendersService {
             tenderItemId: i.tenderItemId,
             unitPrice: i.unitPrice!,
             totalPrice,
-            currency: dto.currency,
+            currency: bidCurrency,
             customAnswer: i.customAnswer?.trim() || null,
           };
         });

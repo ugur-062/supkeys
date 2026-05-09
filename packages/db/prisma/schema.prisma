@@ -707,8 +707,6 @@ model Tender {
   requireBidDocument  Boolean         @default(false)
 
   primaryCurrency     Currency        @default(TRY)
-  allowedCurrencies   Currency[]      @default([TRY])
-  decimalPlaces       Int             @default(2)
 
   deliveryTerm        DeliveryTerm?
   // E.7.B'den önce: free-text. E.7.B sonrası: backward-compat fallback —

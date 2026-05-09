@@ -141,8 +141,6 @@ export interface TenderDetail {
   requireAllItems: boolean;
   requireBidDocument: boolean;
   primaryCurrency: Currency;
-  allowedCurrencies: Currency[];
-  decimalPlaces: number;
   deliveryTerm: DeliveryTerm | null;
   deliveryAddress: string | null;
   /** E.7.B — Tender oluşturma anındaki TenantAddress JSON snapshot'ı. */
@@ -237,8 +235,6 @@ export interface SupplierTenderDetail {
   requireAllItems: boolean;
   requireBidDocument: boolean;
   primaryCurrency: Currency;
-  allowedCurrencies: Currency[];
-  decimalPlaces: number;
   deliveryTerm: DeliveryTerm | null;
   deliveryAddress: string | null;
   /** E.7.B — supplier teslimat snapshot'ı görür (alıcı tarafı kapalı zarf). */
@@ -371,6 +367,13 @@ export interface TenderBidsListItem {
   itemsBidCount: number;
   totalItems: number;
   isComplete: boolean;
+  /** V2-3 — submit anındaki TCMB kuru. currency=TRY ise null. */
+  exchangeRateSnapshot: {
+    rate: number;
+    rateDate: string;
+    fetchedAt: string;
+    source: "TCMB" | "MANUAL" | "FALLBACK";
+  } | null;
   supplier: {
     id: string;
     companyName: string;
@@ -434,6 +437,11 @@ export interface BidComparisonRow {
     unitPrice: string;
     totalPrice: string | null;
     currency: Currency;
+    /** V2-3 — TRY equivalent (snapshot kuru ile). currency=TRY ise rate=1. */
+    unitPriceTry: number;
+    totalPriceTry: number | null;
+    exchangeRate: number;
+    exchangeRateDate: string | null;
   }>;
   bestBid: {
     bidId: string;
@@ -443,6 +451,10 @@ export interface BidComparisonRow {
     unitPrice: string;
     totalPrice: string | null;
     currency: Currency;
+    unitPriceTry: number;
+    totalPriceTry: number | null;
+    exchangeRate: number;
+    exchangeRateDate: string | null;
   } | null;
 }
 

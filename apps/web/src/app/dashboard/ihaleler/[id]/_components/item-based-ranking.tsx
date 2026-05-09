@@ -94,6 +94,17 @@ export function ItemBasedRanking({
                           {CURRENCY_SYMBOL[row.bestBid.currency]}{" "}
                           {formatNumber(row.bestBid.unitPrice)}
                         </p>
+                        {row.bestBid.currency !== "TRY" ? (
+                          <p className="text-[10px] text-success-700 tabular-nums">
+                            ≈ ₺{formatNumber(row.bestBid.unitPriceTry)}
+                            {row.bestBid.exchangeRateDate ? (
+                              <span className="text-success-600/80 ml-1">
+                                (kur: {row.bestBid.exchangeRate.toFixed(4)} ·{" "}
+                                {row.bestBid.exchangeRateDate})
+                              </span>
+                            ) : null}
+                          </p>
+                        ) : null}
                         {row.allBids.length > 1 ? (
                           <p className="text-[10px] text-success-600 mt-0.5">
                             +{row.allBids.length - 1} diğer teklif

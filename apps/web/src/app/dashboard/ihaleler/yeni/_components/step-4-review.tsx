@@ -133,15 +133,11 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
         <Row
           label="Para Birimi"
           value={
-            <>
-              <strong>{CURRENCY_SYMBOL[data.primaryCurrency]} {data.primaryCurrency}</strong>{" "}
-              <span className="text-xs text-slate-500">
-                (izin: {(data.allowedCurrencies ?? []).join(", ")})
-              </span>
-            </>
+            <strong>
+              {CURRENCY_SYMBOL[data.primaryCurrency]} {data.primaryCurrency}
+            </strong>
           }
         />
-        <Row label="Ondalık" value={`${data.decimalPlaces} basamak`} />
         <Row
           label="Kurallar"
           value={

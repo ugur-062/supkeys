@@ -136,20 +136,10 @@ export class CreateTenderDto {
   @IsBoolean()
   requireBidDocument!: boolean;
 
-  // Para Ayarları
+  // Para Ayarları — V2-3 sonrası tek currency. Tedarikçiler tender'ın
+  // primaryCurrency'sinde teklif verir; cross-currency bid V2.5'e ertelendi.
   @IsEnum(CurrencyDto)
   primaryCurrency!: CurrencyDto;
-
-  @IsArray()
-  @ArrayMinSize(1)
-  @ArrayMaxSize(3)
-  @IsEnum(CurrencyDto, { each: true })
-  allowedCurrencies!: CurrencyDto[];
-
-  @IsInt()
-  @Min(0)
-  @Max(4)
-  decimalPlaces!: number;
 
   // Teslimat
   @IsOptional()

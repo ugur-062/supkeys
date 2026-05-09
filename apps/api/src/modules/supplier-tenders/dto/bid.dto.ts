@@ -67,8 +67,11 @@ export class BidAttachmentDto {
 }
 
 export class CreateOrUpdateBidDto {
+  // V2-3 — bid.currency artık tender.primaryCurrency'den otomatik;
+  // DTO'da yok sayılır. Geriye dönük kabul için optional bıraktık.
+  @IsOptional()
   @IsEnum(CurrencyDto)
-  currency!: CurrencyDto;
+  currency?: CurrencyDto;
 
   @IsOptional()
   @IsString()

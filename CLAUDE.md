@@ -368,6 +368,33 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 
 > **Bilinen tuzaklar (V2-3)**: (1) TCMB XML'de `Tarih` (DD.MM.YYYY) ile `Date` (MM/DD/YYYY) attribute'u farklı format — parser ikisini de kabul eder. (2) Prisma `@db.Date` field'ına `new Date("YYYY-MM-DD")` valid (UTC midnight'a çevrilir); ISO timestamp string'i `Invalid Date` verir. (3) TCMB hafta sonu yayınlamaz — son iş günü kuru kullanılır (Cumartesi 09.05.2026'da 08.05.2026 Cuma kuru). (4) Fallback rates (USD=34, EUR=37) güncel değil — production'da first cron fetch ile düzelir; hiç TCMB yoksa muhafazakâr kalır.
 
+### V2-3 düzeltme — Tek Currency Modeli (allowed-currencies + decimalPlaces drop)
+- **Sorun:** Wizard'da "İzin Verilen Para Birimleri" multi-checkbox + "Ondalık Basamak" dropdown + "TCMB kur dönüşümü V2'de gelecek" disclaimer V1'den kalmıştı; V2-3 spec'i tek currency + otomatik TRY equivalent karşılaştırması istiyor.
+- **Schema migration `v2_3_remove_redundant_currency_fields`:** `Tender.allowedCurrencies Currency[]` + `Tender.decimalPlaces Int` DROP COLUMN. `Tender.primaryCurrency` tek belirleyici.
+- **Backend temizlik:**
+  - `CreateTenderDto` `allowedCurrencies` + `decimalPlaces` field'ları kaldırıldı.
+  - `tenant-tenders.service` createDraft + updateDraft + `validateBusinessRules` (allowedCurrencies cross-check) bu field'ları kullanmıyor.
+  - `supplier-tenders.service` `findOne` response'undan `allowedCurrencies` + `decimalPlaces` kaldırıldı; `saveOrUpdateBid` artık `bid.currency = tender.primaryCurrency` override ediyor (DTO'dan gelen currency yok sayılıyor — cross-currency bid V2.5'e ertelendi).
+  - `CreateOrUpdateBidDto.currency` `@IsOptional()` yapıldı (geriye uyum).
+  - **Bid comparison TRY equivalent:** `getBidComparison` her bidsForItem için `unitPriceTry` + `totalPriceTry` + `exchangeRate` + `exchangeRateDate` (snapshot.rate veya 1) ekler. `bestBid` artık TRY equivalent karşılaştırmasına göre seçilir (cross-currency tutarlılık).
+- **Frontend temizlik:**
+  - `tenderFormSchema` `allowedCurrencies` + `decimalPlaces` field'ları kaldırıldı (ana zod schema + DEFAULT_FORM_VALUES + STEP_FIELDS).
+  - `step-1-info.tsx` "İzin Verilen Para Birimleri" Controller bloğu, "Ondalık Basamak" dropdown ve "TCMB kur dönüşümü V2'de gelecek" disclaimer kaldırıldı. Yerine: `primaryCurrency` seçimi sonrası TRY dışı seçimde green info kartı "TCMB Kuru ile Otomatik Karşılaştırma" + tedarikçinin gönderdiği tarihteki kurun snapshot ile sabitlendiği açıklaması.
+  - `step-4-review.tsx` "Para Birimi" satırından `(izin: ...)` kaldırıldı; "Ondalık" satırı silindi.
+  - `edit-loader.tsx` `tender.allowedCurrencies` + `tender.decimalPlaces` mapping'i kaldırıldı.
+  - `general-info-tab.tsx` (tenant + supplier) Para Birimi InfoRow'undan ek currency'ler ve "Ondalık Hassasiyet" satırı kaldırıldı.
+  - `teklif-form.tsx` `<CurrencySelector>` kaldırıldı; yerine sabit "Para Birimi" kartı (tender.primaryCurrency rozet + açıklama). `currency-selector.tsx` dosyası silindi.
+  - `tenders/types.ts` `TenderDetail`/`SupplierTenderDetail`/`BidComparisonRow.allBids+bestBid` field'ları temizlendi; `unitPriceTry`/`totalPriceTry`/`exchangeRate`/`exchangeRateDate` bid comparison row'larına eklendi.
+  - `TenderBidsListItem.exchangeRateSnapshot` typed (zaten Json olarak dönüyordu).
+  - `item-based-ranking.tsx` bestBid kartında `currency!=="TRY"` için `≈ ₺X,XXX (kur: 45.27 · 2026-05-08)` ek satırı.
+  - `tender-based-ranking.tsx` bid satırında `≈ ₺X,XXX (kur: 45.27)` ek satırı.
+- **Seed:** `prisma/seed/tenders.ts` 3 tender'da `allowedCurrencies` + `decimalPlaces` satırları temizlendi.
+- **E2E doğrulama:**
+  - DB: `tenders` tablosundan kolon DROP, sadece `primaryCurrency` kaldı ✓
+  - USD tender create payload `allowedCurrencies`/`decimalPlaces` olmadan → SUPK-2026-0015 OK, DB primaryCurrency=USD ✓
+  - typecheck (api+web+admin+email+shared+db) tüm yeşil ✓
+  - V2.5 ertelendi: cross-currency bid (tender USD ama tedarikçi EUR teklif) — şu an DTO'da currency optional ama backend tender.primaryCurrency override ediyor.
+
 > **Bilinen tuzaklar**: (1) `tsconfig.tsbuildinfo` bozuksa `tsc` sessizce hiçbir dosya emit etmez — `rm tsconfig.tsbuildinfo && tsc` ile force rebuild. (2) `R2_BUCKET` env'i set edilmezse StorageService bootstrap fail eder — fallback default kaldırıldı, hatalı sessiz bağlanmayı önlemek için. (3) HeadBucket 404 → bucket adı yanlış veya token bu bucket'a scope'lu değil; doğrulama için ListBuckets ile token'ın gördüğü bucket'ları listele. (4) **Bucket CORS**: Browser direkt R2'ye PUT yaptığı için bucket CORS policy şart — yoksa preflight fail, upload sessizce başarısız olur. `StorageService.onModuleInit` artık `ensureCorsPolicy()` çağırıyor: `GetBucketCors` + idempotent `PutBucketCors` (origins = `CORS_ORIGINS` env, methods = PUT/GET/HEAD, ExposeHeaders=ETag, MaxAge=3600). Token'da `PutBucketCors` izni gerekir; yoksa warn'la geçilir (manuel Cloudflare Dashboard fallback). Origin değişirse boot'ta auto-update. Debug: `GET /api/health/storage` → `{ bucket, envPrefix, cors }`. (5) Presigned GET URL'i sadece GET method'u için imzalanır — `curl -I` (HEAD) 403 alır; `<a href download>` veya `curl -L` ile GET çalışır.
 
 ### Polish-3 — UX Hijyeni (Form Hatası TR + Interceptor + Mobile + E-posta QA)

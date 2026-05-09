@@ -386,6 +386,13 @@ export class TenantTendersService {
       const bidsForItem = tender.bids.flatMap((bid) => {
         const bi = bid.items.find((x) => x.tenderItemId === item.id);
         if (!bi || bi.unitPrice == null) return [];
+        // V2-3 — bid submit anındaki snapshot kuru. TRY bid'lerde null →
+        // rate=1; eski (snapshot'sız) USD/EUR bid'lerinde fallback=1
+        // (frontend warning gösterir).
+        const snap = bid.exchangeRateSnapshot as
+          | { rate?: number; rateDate?: string; fetchedAt?: string }
+          | null;
+        const rate = bi.currency === "TRY" ? 1 : (snap?.rate ?? 1);
         return [
           {
             bidId: bid.id,
@@ -395,6 +402,11 @@ export class TenantTendersService {
             unitPrice: bi.unitPrice,
             totalPrice: bi.totalPrice,
             currency: bi.currency,
+            unitPriceTry: Number(bi.unitPrice) * rate,
+            totalPriceTry:
+              bi.totalPrice != null ? Number(bi.totalPrice) * rate : null,
+            exchangeRate: rate,
+            exchangeRateDate: snap?.rateDate ?? null,
           },
         ];
       });
@@ -402,7 +414,9 @@ export class TenantTendersService {
       const best =
         bidsForItem.length > 0
           ? bidsForItem.reduce((min, curr) =>
-              Number(curr.unitPrice) < Number(min.unitPrice) ? curr : min,
+              // En iyi: TRY equivalent karşılaştırması (cross-currency
+              // teklifler arası tutarlı sıralama).
+              curr.unitPriceTry < min.unitPriceTry ? curr : min,
             )
           : null;
 
@@ -550,8 +564,6 @@ export class TenantTendersService {
           requireAllItems: dto.requireAllItems,
           requireBidDocument: dto.requireBidDocument,
           primaryCurrency: dto.primaryCurrency,
-          allowedCurrencies: dto.allowedCurrencies,
-          decimalPlaces: dto.decimalPlaces,
           deliveryTerm: dto.deliveryTerm ?? null,
           // Snapshot pattern — JSON kayıt + geriye uyumlu text fallback
           billingAddressSnapshot: billingSnapshot as unknown as Prisma.InputJsonValue,
@@ -654,8 +666,6 @@ export class TenantTendersService {
           requireAllItems: dto.requireAllItems,
           requireBidDocument: dto.requireBidDocument,
           primaryCurrency: dto.primaryCurrency,
-          allowedCurrencies: dto.allowedCurrencies,
-          decimalPlaces: dto.decimalPlaces,
           deliveryTerm: dto.deliveryTerm ?? null,
           billingAddressSnapshot:
             billingSnapshot as unknown as Prisma.InputJsonValue,
@@ -943,11 +953,6 @@ export class TenantTendersService {
   // ============================================================
 
   private validateBusinessRules(dto: CreateTenderDto) {
-    if (!dto.allowedCurrencies.includes(dto.primaryCurrency)) {
-      throw new BadRequestException(
-        "Ana para birimi izin verilen para birimleri arasında olmalı",
-      );
-    }
     if (
       dto.paymentTerm === "DEFERRED" &&
       (!dto.paymentDays || dto.paymentDays < 1)

@@ -169,6 +169,19 @@ function BidsTable({
                     >
                       {formatCurrency(bid.totalAmount, bid.currency)}
                     </p>
+                    {bid.currency !== "TRY" && bid.exchangeRateSnapshot ? (
+                      <p className="text-[11px] text-slate-500 tabular-nums">
+                        ≈{" "}
+                        {formatCurrency(
+                          Number(bid.totalAmount) *
+                            bid.exchangeRateSnapshot.rate,
+                          "TRY",
+                        )}
+                        <span className="text-slate-400 ml-1">
+                          (kur: {bid.exchangeRateSnapshot.rate.toFixed(4)})
+                        </span>
+                      </p>
+                    ) : null}
                   </td>
                   <td className="px-4 py-4 text-center">
                     {bid.rank ? (

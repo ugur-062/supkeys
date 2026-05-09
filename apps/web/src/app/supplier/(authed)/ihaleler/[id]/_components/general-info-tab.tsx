@@ -71,20 +71,10 @@ export function SupplierGeneralInfoTab({
             <InfoRow label="Teklif Açılış">{fmt(tender.bidsOpenAt)}</InfoRow>
             <InfoRow label="Teklif Kapanış">{fmt(tender.bidsCloseAt)}</InfoRow>
             <InfoRow label="Para Birimi">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold">
-                  {tender.primaryCurrency}{" "}
-                  {CURRENCY_SYMBOL[tender.primaryCurrency]}
-                </span>
-                {tender.allowedCurrencies.length > 1 ? (
-                  <span className="text-xs text-slate-500">
-                    Kabul edilen: {tender.allowedCurrencies.join(", ")}
-                  </span>
-                ) : null}
-              </div>
-            </InfoRow>
-            <InfoRow label="Ondalık Hassasiyet">
-              {tender.decimalPlaces} hane
+              <span className="font-semibold">
+                {tender.primaryCurrency}{" "}
+                {CURRENCY_SYMBOL[tender.primaryCurrency]}
+              </span>
             </InfoRow>
           </dl>
         </div>
