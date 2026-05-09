@@ -32,20 +32,21 @@ export class StorageService implements OnModuleInit {
     const accessKey = this.configService.get<string>("R2_ACCESS_KEY_ID");
     const secretKey = this.configService.get<string>("R2_SECRET_ACCESS_KEY");
     const endpoint = this.configService.get<string>("R2_ENDPOINT");
-    const bucket = this.configService.get<string>("R2_BUCKET") ?? "supkeys-attachments";
+    const bucket = this.configService.get<string>("R2_BUCKET");
 
     if (
       !accountId ||
       !accessKey ||
       !secretKey ||
       !endpoint ||
+      !bucket ||
       accountId.startsWith("<") ||
       accessKey.startsWith("<") ||
       secretKey.startsWith("<") ||
       endpoint.includes("<account-id>")
     ) {
       this.logger.error(
-        "R2 yapılandırması eksik veya placeholder. apps/api/.env içinde R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT değerlerini doldur.",
+        "R2 yapılandırması eksik veya placeholder. Root `.env` dosyasında (ConfigModule `envFilePath: '../../.env'`) R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET değerlerini doldur.",
       );
       throw new InternalServerErrorException("R2 storage configuration missing");
     }
@@ -67,9 +68,17 @@ export class StorageService implements OnModuleInit {
         `R2 bucket "${this.bucket}" erişilebilir (env prefix: ${this.envPrefix})`,
       );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const e = err as {
+        name?: string;
+        message?: string;
+        Code?: string;
+        $metadata?: { httpStatusCode?: number };
+        $response?: { statusCode?: number };
+      };
+      const msg = e?.message ?? String(err);
+      const status = e?.$metadata?.httpStatusCode ?? e?.$response?.statusCode;
       this.logger.error(
-        `R2 bucket erişilemiyor: ${msg}. Bucket adını ve API token izinlerini doğrula.`,
+        `R2 bucket erişilemiyor (name=${e?.name ?? "?"}, code=${e?.Code ?? "?"}, status=${status ?? "?"}): ${msg}. Endpoint=${endpoint}, Bucket=${this.bucket}.`,
       );
       throw new InternalServerErrorException("R2 bucket erişilemiyor");
     }

@@ -330,13 +330,15 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
   - **Buyer Bid Detail Page**: `Section "Teklif Dosyaları"` — `AttachmentList scope=BID_RESPONSE` + `canDelete=false`. Tedarikçi yüklediği dosyaları buyer görür ama silemez.
   - Tender wizard (yeni ihale): create modunda tenderId yok → upload bölümü gösterilmedi, kullanıcı önce taslak kaydedip detay sayfasından ekler.
 - **`.env.example`** — `R2_*` değişkenleri (Cloudflare R2 setup talimatı yorumlu).
-- **Manuel E2E doğrulama** (kullanıcı `apps/api/.env`'de gerçek R2 credentials'ı doldurduktan sonra çalışır):
+- **Manuel E2E doğrulama** (kullanıcı root `/.env`'de gerçek R2 credentials'ı doldurduktan sonra çalışır — `apps/api/.env` yüklenmez, ConfigModule `envFilePath: "../../.env"`):
   - Schema: `\d attachments` tablo + `enum_range(AttachmentScope)` `{TENDER_DOC,BID_RESPONSE,ORDER_INVOICE}` + `AttachmentStatus` `{PENDING,UPLOADED}` ✓
   - Bağımlılıklar: `@aws-sdk/client-s3@^3.x` + `@aws-sdk/s3-request-presigner@^3.x` `pnpm add` başarılı (+92 transitive) ✓
   - typecheck 6/6 (api+web+admin+email+shared+db) yeşil ✓
   - **Kullanıcı tarafı bekleyen**: gerçek R2 credentials → API reload → bucket health log → browser'dan upload/download/delete + Cloudflare R2 console doğrulama (8 senaryo: upload, list, download, delete, MIME reject, size reject, cross-tenant 403, published-tender delete-block) — kullanıcı bu env'leri verince tek tıkla test edilebilir.
 
-> **R2 setup**: Cloudflare Dashboard → R2 → Create bucket "supkeys-attachments" (region: APAC veya EEUR). Manage R2 API Tokens → Create Token → "Object Read & Write" permission, bucket scope'lu. Token oluşunca `R2_ACCOUNT_ID` (Cloudflare hesap ID), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` ve `R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com` `apps/api/.env`'e yazılır. Sonra API restart.
+> **R2 setup**: Cloudflare Dashboard → R2 → bucket oluştur (ad fark etmez; `R2_BUCKET` env'i ile eşleştir). Bu kurulumda bucket adı `supkeys-documents`. Manage R2 API Tokens → Create Token → "Object Read & Write" permission, bucket scope'lu. Token oluşunca `R2_ACCOUNT_ID` (Cloudflare hesap ID), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`, `R2_BUCKET=<bucket-adı>` **root `/.env`'e** yazılır (ConfigModule sadece root .env'i okur). Sonra API restart.
+
+> **Bilinen tuzaklar**: (1) `tsconfig.tsbuildinfo` bozuksa `tsc` sessizce hiçbir dosya emit etmez — `rm tsconfig.tsbuildinfo && tsc` ile force rebuild. (2) `R2_BUCKET` env'i set edilmezse StorageService bootstrap fail eder — fallback default kaldırıldı, hatalı sessiz bağlanmayı önlemek için. (3) HeadBucket 404 → bucket adı yanlış veya token bu bucket'a scope'lu değil; doğrulama için ListBuckets ile token'ın gördüğü bucket'ları listele.
 
 ### Polish-3 — UX Hijyeni (Form Hatası TR + Interceptor + Mobile + E-posta QA)
 - **Backend `common/error-messages.ts`** — TR doğrulama sözlüğü (`VALIDATION_MESSAGES` REQUIRED/EMAIL_INVALID/STRING_MIN(n)/NUMBER_MIN(n) vs + `BUSINESS_MESSAGES` NOT_FOUND/FORBIDDEN/CONFLICT vs) + **`translateValidatorMessage`** helper: class-validator İngilizce default mesajlarını regex pattern matching ile TR'ye çevirir. "longer than or equal to N" / "must be one of the following values" / "property X should not exist" gibi 15+ pattern.
