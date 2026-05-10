@@ -72,27 +72,32 @@ export default function DashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
-      <header>
-        <div className="flex items-center gap-3 mb-1">
-          <h1 className="font-display font-bold text-3xl text-brand-900 leading-tight">
-            Hoş geldin, {user?.firstName ?? "Supkeys kullanıcısı"} 👋
-          </h1>
-          <span className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-success-50 text-success-700 font-semibold border border-success-500/20">
-            <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-success-500" />
-            Aktif
-          </span>
+      <header className="flex items-start justify-between gap-6 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="font-display font-bold text-3xl text-brand-900 leading-tight">
+              Hoş geldin, {user?.firstName ?? "Supkeys kullanıcısı"} 👋
+            </h1>
+            <span className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-success-50 text-success-700 font-semibold border border-success-500/20">
+              <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-success-500" />
+              Aktif
+            </span>
+          </div>
+          <p className="text-slate-500 text-sm">
+            {user?.tenant.name
+              ? `${user.tenant.name} hesabına genel bakış`
+              : "Panele genel bakış"}
+            {todayLabel && (
+              <>
+                <span className="mx-2 text-slate-300">·</span>
+                <span>{todayLabel}</span>
+              </>
+            )}
+          </p>
         </div>
-        <p className="text-slate-500 text-sm">
-          {user?.tenant.name
-            ? `${user.tenant.name} hesabına genel bakış`
-            : "Panele genel bakış"}
-          {todayLabel && (
-            <>
-              <span className="mx-2 text-slate-300">·</span>
-              <span>{todayLabel}</span>
-            </>
-          )}
-        </p>
+        <div className="w-full md:w-auto md:max-w-md md:flex-shrink-0">
+          <TcmbRatesWidget />
+        </div>
       </header>
 
       {/* KPI grid */}
@@ -199,8 +204,8 @@ export default function DashboardPage() {
         />
       ) : null}
 
-      {/* Alt grid: aktif ihaleler + son aktiviteler + TCMB kurları */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Alt grid: aktif ihaleler + son aktiviteler */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {showActiveTendersSummary && stats ? (
           <section className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6">
             <header className="mb-4 flex items-center justify-between">
@@ -241,8 +246,6 @@ export default function DashboardPage() {
             emptyIcon={Activity}
           />
         </section>
-
-        <TcmbRatesWidget />
       </div>
     </div>
   );

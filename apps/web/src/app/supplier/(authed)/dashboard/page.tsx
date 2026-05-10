@@ -12,15 +12,17 @@ export const metadata: Metadata = {
 export default function SupplierDashboardPage() {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      <SupplierGreeting />
+      <header className="flex items-start justify-between gap-6 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <SupplierGreeting />
+        </div>
+        <div className="w-full md:w-auto md:max-w-md md:flex-shrink-0">
+          <TcmbRatesWidget />
+        </div>
+      </header>
       <SupplierKpiGrid />
       <SupplierOnboardingCard />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2">
-          <SupplierEmptyPanels />
-        </div>
-        <TcmbRatesWidget />
-      </div>
+      <SupplierEmptyPanels />
     </div>
   );
 }

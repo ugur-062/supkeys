@@ -13,11 +13,13 @@ export function TcmbRatesWidget() {
 
   if (isLoading) {
     return (
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 animate-pulse">
-        <div className="h-4 bg-slate-200 rounded w-1/2 mb-3" />
-        <div className="space-y-2">
-          <div className="h-10 bg-slate-200 rounded" />
-          <div className="h-10 bg-slate-200 rounded" />
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 animate-pulse">
+        <div className="flex items-center justify-between gap-4">
+          <div className="h-4 bg-slate-200 rounded w-32" />
+          <div className="flex gap-3">
+            <div className="h-10 bg-slate-200 rounded w-28" />
+            <div className="h-10 bg-slate-200 rounded w-28" />
+          </div>
         </div>
       </div>
     );
@@ -35,60 +37,53 @@ export function TcmbRatesWidget() {
   const eur = data?.rates.EUR ?? 0;
 
   return (
-    <div className="bg-gradient-to-br from-success-50 to-success-50/40 border border-success-200 rounded-2xl p-5">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h3 className="text-sm font-bold text-success-900 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4" />
+    <div className="bg-gradient-to-r from-success-50 to-success-50/40 border border-success-200 rounded-2xl px-4 py-3">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <h3 className="text-xs font-bold text-success-900 flex items-center gap-1.5">
+            <TrendingUp className="h-3.5 w-3.5" />
             TCMB Döviz Kurları
           </h3>
-          <p className="text-xs text-success-700 mt-0.5">
-            Günlük gösterge kuru
+          <p className="text-[10px] text-success-700 mt-0.5">
+            Günlük gösterge kuru · TCMB
+            {dataUpdatedAt > 0 ? (
+              <>
+                {" · "}
+                {new Date(dataUpdatedAt).toLocaleTimeString("tr-TR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </>
+            ) : null}
           </p>
         </div>
-        {dataUpdatedAt > 0 ? (
-          <span className="text-[10px] text-success-600 font-medium">
-            {new Date(dataUpdatedAt).toLocaleTimeString("tr-TR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-        ) : null}
-      </div>
 
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between bg-white/60 rounded-lg p-2.5">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl" aria-hidden>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1.5 bg-white/70 rounded-lg px-2.5 py-1.5">
+            <span className="text-base" aria-hidden>
               🇺🇸
             </span>
-            <span className="text-sm font-semibold text-success-900">
-              1 USD
-            </span>
+            <div className="leading-tight">
+              <p className="text-[10px] text-success-700 font-medium">USD</p>
+              <p className="text-sm font-bold text-success-900 font-mono tabular-nums">
+                {formatTry(usd)}
+              </p>
+            </div>
           </div>
-          <span className="text-base font-bold text-success-900 font-mono tabular-nums">
-            {formatTry(usd)}
-          </span>
-        </div>
 
-        <div className="flex items-center justify-between bg-white/60 rounded-lg p-2.5">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl" aria-hidden>
+          <div className="flex items-center gap-1.5 bg-white/70 rounded-lg px-2.5 py-1.5">
+            <span className="text-base" aria-hidden>
               🇪🇺
             </span>
-            <span className="text-sm font-semibold text-success-900">
-              1 EUR
-            </span>
+            <div className="leading-tight">
+              <p className="text-[10px] text-success-700 font-medium">EUR</p>
+              <p className="text-sm font-bold text-success-900 font-mono tabular-nums">
+                {formatTry(eur)}
+              </p>
+            </div>
           </div>
-          <span className="text-base font-bold text-success-900 font-mono tabular-nums">
-            {formatTry(eur)}
-          </span>
         </div>
       </div>
-
-      <p className="text-[10px] text-success-700 mt-3 pt-3 border-t border-success-200">
-        Kaynak: TCMB · Her gün 16:00&apos;da güncellenir
-      </p>
     </div>
   );
 }
