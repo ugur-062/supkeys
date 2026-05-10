@@ -1,5 +1,6 @@
 "use client";
 
+import { MessageThread } from "@/components/messaging/message-thread";
 import { OrderTimeline } from "@/components/orders/order-timeline";
 import { StartDeliveryModal } from "@/components/orders/start-delivery-modal";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
@@ -214,6 +215,16 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
           </div>
         </Section>
       ) : null}
+
+      {/* V2-4 — Alıcıyla 1-on-1 mesajlaşma */}
+      <Section title="Mesajlar">
+        <MessageThread
+          surface="supplier"
+          context="ORDER"
+          contextRefId={order.id}
+          currentUserType="SUPPLIER_USER"
+        />
+      </Section>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { MessageThread } from "@/components/messaging/message-thread";
 import { CancelOrderModal } from "@/components/orders/cancel-order-modal";
 import { CompleteOrderModal } from "@/components/orders/complete-order-modal";
 import { OrderTimeline } from "@/components/orders/order-timeline";
@@ -135,6 +136,16 @@ export function OrderDetailView({ id }: { id: string }) {
           <NotesAndAttachments order={order} />
         </Section>
       ) : null}
+
+      {/* V2-4 — Tedarikçiyle 1-on-1 mesajlaşma */}
+      <Section title="Mesajlar">
+        <MessageThread
+          surface="tenant"
+          context="ORDER"
+          contextRefId={order.id}
+          currentUserType="TENANT_USER"
+        />
+      </Section>
     </div>
   );
 }

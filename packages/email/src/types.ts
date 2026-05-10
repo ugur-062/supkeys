@@ -24,7 +24,8 @@ export type EmailTemplate =
   | "approval_approved"
   | "approval_rejected"
   | "approval_reminder"
-  | "order_status_changed";
+  | "order_status_changed"
+  | "message_notification";
 
 export type EmailProviderName = "resend" | "mailpit";
 
@@ -430,7 +431,28 @@ export type EmailTemplateData =
   | { template: "approval_approved"; data: ApprovalApprovedData }
   | { template: "approval_rejected"; data: ApprovalRejectedData }
   | { template: "approval_reminder"; data: ApprovalReminderData }
-  | { template: "order_status_changed"; data: OrderStatusChangedData };
+  | { template: "order_status_changed"; data: OrderStatusChangedData }
+  | { template: "message_notification"; data: MessageNotificationData };
+
+/**
+ * V2-4 — 1-on-1 mesajlaşma. Karşı taraf 5dk içinde okumadıysa
+ * cron debounce ile bu e-posta gider.
+ */
+export interface MessageNotificationData {
+  recipientName: string;
+  /** Gönderen tarafın firma adı (Tenant veya Supplier) */
+  senderCompanyName: string;
+  /** Gönderen kişi adı (firstName + lastName) */
+  senderPersonName: string;
+  /** Bağlam etiketi: "Sipariş ORD-2026-0042" veya "İhale SUPK-2026-0019" */
+  contextLabel: string;
+  /** Mesaj içeriğinin ilk 200 karakteri (TR — eklenmiş ellipsis flag) */
+  messagePreview: string;
+  /** En fazla 200 karakter mi gösterildi? UI "..." gösterir */
+  isTruncated: boolean;
+  /** Detay sayfasına dönen URL (tenant veya supplier panel) */
+  ctaUrl: string;
+}
 
 /**
  * V1.5 Oturum 1 — Sipariş status değişimlerinde karşı tarafa gider.

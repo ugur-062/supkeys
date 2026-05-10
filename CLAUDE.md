@@ -368,6 +368,50 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 
 > **Bilinen tuzaklar (V2-3)**: (1) TCMB XML'de `Tarih` (DD.MM.YYYY) ile `Date` (MM/DD/YYYY) attribute'u farklı format — parser ikisini de kabul eder. (2) Prisma `@db.Date` field'ına `new Date("YYYY-MM-DD")` valid (UTC midnight'a çevrilir); ISO timestamp string'i `Invalid Date` verir. (3) TCMB hafta sonu yayınlamaz — son iş günü kuru kullanılır (Cumartesi 09.05.2026'da 08.05.2026 Cuma kuru). (4) Fallback rates (USD=34, EUR=37) güncel değil — production'da first cron fetch ile düzelir; hiç TCMB yoksa muhafazakâr kalır.
 
+### V2-4 — 1-on-1 Mesajlaşma (WhatsApp-style)
+- **Schema migration `v2_4_messaging`:**
+  - 2 model: `MessageThread` (polymorphic context: ORDER|TENDER, contextRefId, tenant+supplier FK, lastMessageAt + tenantLastReadAt + supplierLastReadAt) + `Message` (threadId FK CASCADE, senderType TENANT_USER|SUPPLIER_USER, senderUserId/senderSupplierUserId, content @db.Text, attachmentIds Json default '[]', emailNotifiedAt, sentAt).
+  - 2 enum: `MessageContext`, `MessageSenderType`.
+  - `AttachmentScope` enum'a `MESSAGE_ATTACHMENT` eklendi (V2-2 R2 attachment ile entegre).
+  - UNIQUE `(context, contextRefId, tenantId, supplierId)` — bir alıcı-tedarikçi-context kombinasyonu için tek thread. Tedarikçiler birbirinin thread'ini ASLA göremez.
+  - Tenant + Supplier reverse relations (`messageThreads`).
+- **Backend `messaging` modülü:**
+  - `MessagesService` — `getOrCreateThread`, `listMessages` (auto mark-read), `sendMessage` (event emit), `getUnreadCount`, `listTenderThreadsForTenant`. Polymorphic ORDER/TENDER + tenant/supplier authz `resolveParties` helper'ı ile (TENANT_USER tender context'inde `targetSupplierId` zorunlu; SUPPLIER_USER tender context'inde `tenderInvitation` zorunlu).
+  - `TenantMessagesController` `/tenants/me/...` — order messages (GET/POST), tender threads (GET — listele), tender messages (GET/POST per supplier), unread-count.
+  - `SupplierMessagesController` `/supplier/...` — order messages (GET/POST), tender messages (tek thread; davet edilmiş olmak şart), unread-count.
+  - `SendMessageDto` — content max 5000, attachmentIds max 5.
+  - `MessageEmailScheduler` `@Cron(EVERY_5_MINUTES)` — `emailNotifiedAt NULL` + `sentAt ≤ now-5dk` mesajlar batch (100). Karşı taraf 5dk içinde okuduysa email atlanır + mark notified. Karşı taraf yoksa skip + mark. Recipient: TENANT_USER sender → 1. SupplierUser; SUPPLIER_USER sender → 1. COMPANY_ADMIN. Context label resolve (Sipariş ORD-... | İhale SUPK-...). CTA URL surface'a göre `WEB_URL/dashboard|supplier`.
+  - `AttachmentsService` MESSAGE_ATTACHMENT scope authz: scopeRefId polymorphic (önce order, sonra tender lookup). Tenant=kendi tarafı, Supplier=order tarafı veya tender'a davet edilmiş.
+- **E-posta `message_notification` template** — Layout + heading "Yeni mesajınız var" + brand-blue borderLeft preview kutu (mesaj 200 char + ellipsis) + "Mesajı Görüntüle ve Yanıtla" CTA + helper "5 dakika içinde okunmadığı için otomatik gönderildi". Subject `💬 {senderCompanyName} mesaj gönderdi · {contextLabel}`. types.ts `MessageNotificationData` + render.ts case branch + index.ts export.
+- **Frontend hooks** (`use-messages.ts`):
+  - `useThreadMessages(surface, context, refId, targetSupplierId?)` — surface-aware (`api`/`supplierApi`), 30sn polling, path matrix (`/tenants/me/orders/:id/messages` | `/tenants/me/tenders/:id/threads/:supplierId/messages` | `/supplier/orders/:id/messages` | `/supplier/tenders/:id/messages`). Auto mark-read backend'de.
+  - `useSendMessage` — POST + invalidate (thread + unread + tender-threads).
+  - `useTenderThreadsForTenant(tenderId)` — sol-rail listesi.
+  - `useUnreadCount(surface)` — 60sn refetch.
+- **Frontend components** (`components/messaging/`):
+  - `MessageThread` — WhatsApp tarzı bubble UI. Sender side branching (mavi sağ / beyaz sol), `senderName` üstte (sadece karşı taraf), timestamp altta (Today/Yesterday/full), Enter→gönder Shift+Enter→yeni satır, file picker (multi up to 5, R2 upload via `useUploadAttachment` MESSAGE_ATTACHMENT scope), pending file chips, auto-scroll bottom.
+  - `MessageAttachment` — bubble içinde dosya satırı, click → `useDownloadAttachment` presigned GET (browser Content-Disposition'dan filename'i alır).
+  - `TenderThreadsList` — tedarikçi listesi: avatar (Building2) + ad + unread dot + son mesaj preview (80 char, "Sen: " prefix tenant gönderdiğinde) + relative timestamp.
+- **Entegrasyon noktaları:**
+  - `dashboard/siparisler/[id]/_components/order-detail-view.tsx` — Section "Mesajlar" + `<MessageThread surface="tenant" context="ORDER">`.
+  - `supplier/(authed)/siparisler/[id]/_components/supplier-order-detail-view.tsx` — aynı pattern surface="supplier".
+  - `dashboard/ihaleler/[id]/_components/tender-detail-view.tsx` — yeni `messages` tab + `TenderMessagesTab` (12-col grid: 4-col ThreadList + 8-col selected MessageThread).
+  - `supplier/(authed)/ihaleler/[id]/_components/tender-detail-view.tsx` — yeni `messages` tab + tek thread MessageThread.
+- **Manuel E2E** (8 senaryo):
+  - tenant tender threads list (davet edilmiş supplier görünür, threadId=null) ✓
+  - tenant ilk mesaj → TENANT_USER ✓
+  - supplier list+reply ✓
+  - tenant unread=1 (supplier mesajı henüz okumadı) ✓
+  - tenant list mesajları (auto mark-read) ✓
+  - tenant unread=0 ✓
+  - empty content → 400 "Mesaj boş olamaz" ✓
+  - cross-token (supplier→tenant endpoint) → 401 "Geçersiz token tipi" ✓
+  - DB doğrulama: 1 thread, 2 message, lastMessageAt set ✓
+  - 11 messaging route registered ("Mapped {/api/tenants/me/orders/:orderId/messages, GET}", vd.) ✓
+  - typecheck (api+web+admin+email+shared+db) tüm yeşil ✓
+
+> **Sapma**: Spec "Sidebar mesaj ikonu + unread badge" istiyordu; üst-seviye `/mesajlar` inbox sayfası V2.5'e bırakıldığı için sidebar item gerçek hedefe işaret edemiyor. `useUnreadCount(surface)` hook'u + backend endpoint hazır — V2.5'te inbox sayfası eklendiğinde sidebar bağlanır. Şu an mesajlar sipariş+ihale detay tab'larından erişilir.
+
 ### V2-3 düzeltme — Tek Currency Modeli (allowed-currencies + decimalPlaces drop)
 - **Sorun:** Wizard'da "İzin Verilen Para Birimleri" multi-checkbox + "Ondalık Basamak" dropdown + "TCMB kur dönüşümü V2'de gelecek" disclaimer V1'den kalmıştı; V2-3 spec'i tek currency + otomatik TRY equivalent karşılaştırması istiyor.
 - **Schema migration `v2_3_remove_redundant_currency_fields`:** `Tender.allowedCurrencies Currency[]` + `Tender.decimalPlaces Int` DROP COLUMN. `Tender.primaryCurrency` tek belirleyici.

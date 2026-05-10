@@ -322,6 +322,11 @@ export class AttachmentsService {
       }
       return order.tenantId;
     }
+    if (scope === "MESSAGE_ATTACHMENT") {
+      // V2-4 — scopeRefId polymorphic: önce order, sonra tender lookup.
+      // Yetki: order için her iki taraf, tender için tenant veya invited supplier.
+      return this.assertMessageAttachmentAccess(actor, scopeRefId);
+    }
     throw new BadRequestException(`Geçersiz scope: ${scope}`);
   }
 
@@ -385,7 +390,58 @@ export class AttachmentsService {
       if (order.supplierId !== actor.supplierId) throw new ForbiddenException();
       return;
     }
+    if (scope === "MESSAGE_ATTACHMENT") {
+      await this.assertMessageAttachmentAccess(actor, scopeRefId);
+      return;
+    }
     throw new BadRequestException(`Geçersiz scope: ${scope}`);
+  }
+
+  /**
+   * V2-4 MESSAGE_ATTACHMENT — scopeRefId polymorphic (order|tender).
+   * Önce order, sonra tender lookup. Tenant: kendi tarafı. Supplier: order
+   * tarafı veya tender'a davet edilmiş.
+   */
+  private async assertMessageAttachmentAccess(
+    actor: ActorContext,
+    scopeRefId: string,
+  ): Promise<string> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: scopeRefId },
+      select: { tenantId: true, supplierId: true },
+    });
+    if (order) {
+      if (actor.kind === "tenant") {
+        if (order.tenantId !== actor.tenantId) throw new ForbiddenException();
+      } else {
+        if (order.supplierId !== actor.supplierId) {
+          throw new ForbiddenException();
+        }
+      }
+      return order.tenantId;
+    }
+
+    const tender = await this.prisma.tender.findUnique({
+      where: { id: scopeRefId },
+      select: { id: true, tenantId: true },
+    });
+    if (!tender) throw new NotFoundException("Bağlam bulunamadı");
+
+    if (actor.kind === "tenant") {
+      if (tender.tenantId !== actor.tenantId) throw new ForbiddenException();
+      return tender.tenantId;
+    }
+    const invited = await this.prisma.tenderInvitation.findUnique({
+      where: {
+        tenderId_supplierId: {
+          tenderId: tender.id,
+          supplierId: actor.supplierId,
+        },
+      },
+      select: { id: true },
+    });
+    if (!invited) throw new ForbiddenException();
+    return tender.tenantId;
   }
 
   /**

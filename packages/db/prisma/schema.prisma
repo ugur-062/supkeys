@@ -43,6 +43,7 @@ model Tenant {
   approvalFlows        ApprovalFlow[]
   approvalRequests     ApprovalRequest[]
   attachments          Attachment[]
+  messageThreads       MessageThread[] @relation("TenantMessageThreads")
 
   @@map("tenants")
 }
@@ -499,6 +500,7 @@ model Supplier {
   tenderInvitations   TenderInvitation[]
   bids                Bid[]
   orders              Order[]
+  messageThreads      MessageThread[] @relation("SupplierMessageThreads")
 
   @@index([taxNumber])
   @@index([membership])
@@ -1146,6 +1148,7 @@ enum AttachmentScope {
   TENDER_DOC
   BID_RESPONSE
   ORDER_INVOICE
+  MESSAGE_ATTACHMENT  // V2-4 — mesaj eki (scopeRefId = order veya tender id)
 }
 
 enum AttachmentStatus {
@@ -1170,4 +1173,69 @@ model ExchangeRate {
   @@unique([currency, rateDate])
   @@index([rateDate])
   @@map("exchange_rates")
+}
+
+// ---------- V2-4: 1-ON-1 MESAJLAŞMA ----------
+//
+// Polymorphic thread — context (ORDER veya TENDER) + contextRefId.
+// 1 alıcı-tedarikçi-context kombinasyonu için tek thread.
+// Tedarikçiler birbirini görmez (kapalı zarf gereği).
+
+model MessageThread {
+  id           String          @id @default(cuid())
+
+  context      MessageContext
+  contextRefId String           // orderId veya tenderId
+
+  tenantId     String
+  tenant       Tenant           @relation("TenantMessageThreads", fields: [tenantId], references: [id], onDelete: Cascade)
+
+  supplierId   String
+  supplier     Supplier         @relation("SupplierMessageThreads", fields: [supplierId], references: [id], onDelete: Cascade)
+
+  messages     Message[]
+
+  lastMessageAt      DateTime?
+  tenantLastReadAt   DateTime?
+  supplierLastReadAt DateTime?
+
+  createdAt    DateTime         @default(now())
+
+  @@unique([context, contextRefId, tenantId, supplierId])
+  @@index([tenantId, lastMessageAt])
+  @@index([supplierId, lastMessageAt])
+  @@index([context, contextRefId])
+  @@map("message_threads")
+}
+
+model Message {
+  id                   String              @id @default(cuid())
+  threadId             String
+  thread               MessageThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  senderType           MessageSenderType
+  senderUserId         String?             // User.id (TENANT_USER ise)
+  senderSupplierUserId String?             // SupplierUser.id (SUPPLIER_USER ise)
+
+  content              String              @db.Text
+  /** R2 Attachment.id'lerinin array'i (MESSAGE_ATTACHMENT scope'lu). */
+  attachmentIds        Json                @default("[]")
+
+  emailNotifiedAt      DateTime?
+
+  sentAt               DateTime            @default(now())
+
+  @@index([threadId, sentAt])
+  @@index([emailNotifiedAt, sentAt])
+  @@map("messages")
+}
+
+enum MessageContext {
+  ORDER
+  TENDER
+}
+
+enum MessageSenderType {
+  TENANT_USER
+  SUPPLIER_USER
 }

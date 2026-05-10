@@ -117,6 +117,11 @@ import {
   renderApprovalReminderText,
 } from "./templates/approval-reminder";
 import {
+  MessageNotificationEmail,
+  makeMessageNotificationSubject,
+  renderMessageNotificationText,
+} from "./templates/message-notification";
+import {
   OrderStatusChangedEmail,
   makeOrderStatusChangedSubject,
   renderOrderStatusChangedText,
@@ -436,6 +441,20 @@ export async function renderEmail(
         ),
         html,
         text: renderApprovalReminderText(spec.data),
+      };
+    }
+
+    case "message_notification": {
+      const html = await render(
+        React.createElement(MessageNotificationEmail, spec.data),
+      );
+      return {
+        subject: makeMessageNotificationSubject(
+          spec.data.contextLabel,
+          spec.data.senderCompanyName,
+        ),
+        html,
+        text: renderMessageNotificationText(spec.data),
       };
     }
 

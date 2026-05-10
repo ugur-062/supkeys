@@ -6,7 +6,11 @@
  */
 export type AttachmentSurface = "tenant" | "supplier";
 
-export type AttachmentScope = "TENDER_DOC" | "BID_RESPONSE" | "ORDER_INVOICE";
+export type AttachmentScope =
+  | "TENDER_DOC"
+  | "BID_RESPONSE"
+  | "ORDER_INVOICE"
+  | "MESSAGE_ATTACHMENT";
 
 export interface AttachmentItem {
   id: string;

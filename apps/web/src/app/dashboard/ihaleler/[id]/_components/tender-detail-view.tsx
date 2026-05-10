@@ -12,6 +12,7 @@ import { GeneralInfoTab } from "./general-info-tab";
 import { TenderHeaderCard } from "./header-card";
 import { InvitationsTab } from "./invitations-tab";
 import { ItemsTab } from "./items-tab";
+import { TenderMessagesTab } from "./tender-messages-tab";
 
 const TRIGGER_CLASSES = cn(
   "group inline-flex items-center px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
@@ -105,6 +106,9 @@ export function TenderDetailView({ id }: { id: string }) {
           <TabsPrimitive.Trigger value="files" className={TRIGGER_CLASSES}>
             Dosyalar
           </TabsPrimitive.Trigger>
+          <TabsPrimitive.Trigger value="messages" className={TRIGGER_CLASSES}>
+            Mesajlar
+          </TabsPrimitive.Trigger>
         </TabsPrimitive.List>
 
         <TabsPrimitive.Content value="general" className="outline-none">
@@ -121,6 +125,9 @@ export function TenderDetailView({ id }: { id: string }) {
         </TabsPrimitive.Content>
         <TabsPrimitive.Content value="files" className="outline-none">
           <FilesTab tender={tender} />
+        </TabsPrimitive.Content>
+        <TabsPrimitive.Content value="messages" className="outline-none">
+          <TenderMessagesTab tenderId={tender.id} />
         </TabsPrimitive.Content>
       </TabsPrimitive.Root>
     </div>
