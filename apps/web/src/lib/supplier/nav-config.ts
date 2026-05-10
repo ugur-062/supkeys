@@ -2,7 +2,6 @@ import {
   FileText,
   LayoutDashboard,
   type LucideIcon,
-  MessageCircle,
   Package,
   Settings,
   User,
@@ -32,11 +31,6 @@ export const supplierNavConfig: SupplierNavItem[] = [
     label: "Siparişler",
     href: "/supplier/siparisler",
     placeholder: true,
-  },
-  {
-    icon: MessageCircle,
-    label: "Mesajlar",
-    href: "/supplier/mesajlar",
   },
   {
     icon: User,
