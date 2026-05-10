@@ -1,3 +1,4 @@
+import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
 import type { Metadata } from "next";
 import { SupplierEmptyPanels } from "./_components/empty-panels";
 import { SupplierGreeting } from "./_components/greeting";
@@ -14,7 +15,12 @@ export default function SupplierDashboardPage() {
       <SupplierGreeting />
       <SupplierKpiGrid />
       <SupplierOnboardingCard />
-      <SupplierEmptyPanels />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <SupplierEmptyPanels />
+        </div>
+        <TcmbRatesWidget />
+      </div>
     </div>
   );
 }

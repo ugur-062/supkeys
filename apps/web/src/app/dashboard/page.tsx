@@ -4,6 +4,7 @@ import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { EmptyPanel } from "@/components/dashboard/empty-panel";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { OnboardingCard } from "@/components/dashboard/onboarding-card";
+import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
 import { useAuth, useMe } from "@/hooks/use-auth";
 import {
   useTenantDashboardStats,
@@ -198,8 +199,8 @@ export default function DashboardPage() {
         />
       ) : null}
 
-      {/* Alt grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Alt grid: aktif ihaleler + son aktiviteler + TCMB kurları */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {showActiveTendersSummary && stats ? (
           <section className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6">
             <header className="mb-4 flex items-center justify-between">
@@ -240,6 +241,8 @@ export default function DashboardPage() {
             emptyIcon={Activity}
           />
         </section>
+
+        <TcmbRatesWidget />
       </div>
     </div>
   );
