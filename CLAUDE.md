@@ -442,6 +442,22 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
   - typecheck (api+web+admin+email+shared+db) tüm yeşil ✓
 - **Sidebar/header bağlanması ile V2-4 ilk commit'teki "Sapma" notu kapatıldı**: artık üst-seviye `/mesajlar` inbox sayfası mevcut + sidebar badge canlı + header dropdown her sayfadan erişilebilir.
 
+### V2-4 düzeltme — Real-time polling fix (sayfa yenilemeden mesaj görünmüyordu)
+- **Sorun:** mesaj gönderildiğinde karşı tarafta sayfa yenilemeden görünmüyordu, header badge geç güncelleniyordu. İki neden:
+  1. **React Query polling ayarları:** `refetchInterval: 30_000` (30sn — uzun) + `staleTime: 15_000`/`30_000` + window focus refetch yok + mount'ta force refetch yok → cache eski veriyi gösterir, tab'a dönülünce hemen yenilenmez.
+  2. **Express conditional GET:** `If-None-Match` header ile gelen polling istekleri `304 Not Modified` dönüyordu (Express default `fresh` algoritması) — tarayıcı eski body'i kullanıyor, useQuery cache stale kalıyor.
+- **Hook düzeltmesi `use-messages.ts`:** Tek bir `LIVE_QUERY_OPTIONS` sabiti ile tüm mesaj query'leri için: `refetchInterval: 5_000` (5sn) + `refetchIntervalInBackground: false` (tab inaktifken durur — CPU/pil tasarrufu) + `refetchOnWindowFocus: true` + `refetchOnMount: "always"` + `refetchOnReconnect: true` + `staleTime: 0` (cache her zaman stale → her render fresh fetch). Tüm 5 query (useAllThreads/useThreadMessages/useTenderThreadsForTenant/useUnreadCount) bu config'i kullanır.
+- **Optimistic update `useSendMessage`:** `onMutate` query cancel + previous snapshot + temp message (`temp-{Date.now()}` id, "Sen" sender adı, ISO sentAt) thread'e push edilir → kullanıcı kendi mesajını anında görür. `onError` rollback. `onSettled` invalidate (server'dan gerçek mesaj gelir, temp replace olur).
+- **Backend `NoCacheInterceptor`:** `messaging` modülüne controller-level interceptor.
+  - Request seviyesinde `If-None-Match` + `If-Modified-Since` header'ları silinir → Express `fresh` check bypass olur → her zaman 200 + fresh body döner.
+  - Response seviyesinde `Cache-Control: no-cache, no-store, must-revalidate, private` + `Pragma: no-cache` + `Expires: 0` set edilir.
+- **E2E doğrulama:**
+  - `If-None-Match: stale-etag` ile request → `HTTP 200` + full body (304 değil) ✓
+  - `Cache-Control: no-store` response'ta mevcut ✓
+  - typecheck (api+web+admin+email+shared+db) tüm yeşil ✓
+
+> **UX sonucu:** Browser A mesaj gönderdikten sonra Browser B'de sayfa yenilemeden ~5 saniye içinde balona düşer. Header badge ~5 saniye içinde güncellenir. Kullanıcı kendi mesajını gönderdiği anda optimistic olarak balonda görür (~0sn).
+
 ### V2-3 düzeltme — Tek Currency Modeli (allowed-currencies + decimalPlaces drop)
 - **Sorun:** Wizard'da "İzin Verilen Para Birimleri" multi-checkbox + "Ondalık Basamak" dropdown + "TCMB kur dönüşümü V2'de gelecek" disclaimer V1'den kalmıştı; V2-3 spec'i tek currency + otomatik TRY equivalent karşılaştırması istiyor.
 - **Schema migration `v2_3_remove_redundant_currency_fields`:** `Tender.allowedCurrencies Currency[]` + `Tender.decimalPlaces Int` DROP COLUMN. `Tender.primaryCurrency` tek belirleyici.

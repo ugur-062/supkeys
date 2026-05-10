@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import type {
   AllThreadSummary,
   MessageContext,
+  MessageItem,
   MessageSurface,
   SendMessagePayload,
   ThreadMessagesResponse,
@@ -25,7 +26,12 @@ import type { AxiosInstance } from "axios";
  *   tenant + TENDER → /tenants/me/tenders/:id/threads/:supplierId/messages
  *   supplier + ORDER  → /supplier/orders/:id/messages
  *   supplier + TENDER → /supplier/tenders/:id/messages (tek thread)
+ *
+ * Polling 5 saniye + staleTime 0 + window focus + mount'ta force refetch.
+ * Kullanıcı sayfa yenilemeden karşı tarafın mesajını ~5 saniye içinde görür.
  */
+
+const POLLING_MS = 5_000;
 
 function clientFor(surface: MessageSurface): AxiosInstance {
   return surface === "tenant" ? api : supplierApi;
@@ -59,8 +65,8 @@ const KEYS = {
     refId: string,
     targetSupplierId?: string,
   ) => ["messages", surface, context, refId, targetSupplierId ?? null] as const,
-  tenderThreads: (tenderId: string) =>
-    ["tender-threads", tenderId] as const,
+  tenderThreads: (tenantTenderId: string) =>
+    ["tender-threads", tenantTenderId] as const,
   allThreads: (surface: MessageSurface) =>
     ["messages-all-threads", surface] as const,
   unread: (surface: MessageSurface) =>
@@ -68,8 +74,20 @@ const KEYS = {
 };
 
 /**
+ * Tüm mesajlaşma query'lerinin paylaştığı taze-veri konfigürasyonu.
+ * Mesajlaşma için cache yok — her render'da fresh çek.
+ */
+const LIVE_QUERY_OPTIONS = {
+  refetchInterval: POLLING_MS,
+  refetchIntervalInBackground: false,
+  refetchOnWindowFocus: true,
+  refetchOnMount: "always" as const,
+  refetchOnReconnect: true,
+  staleTime: 0,
+};
+
+/**
  * V2-4 — Header dropdown + /mesajlar sayfası için tüm thread'lerin özeti.
- * Surface'a göre tenant veya supplier kullanıcısının thread'leri.
  */
 export function useAllThreads(surface: MessageSurface) {
   return useQuery<AllThreadSummary[]>({
@@ -80,8 +98,7 @@ export function useAllThreads(surface: MessageSurface) {
       const { data } = await clientFor(surface).get<AllThreadSummary[]>(path);
       return data;
     },
-    refetchInterval: 30_000,
-    staleTime: 15_000,
+    ...LIVE_QUERY_OPTIONS,
   });
 }
 
@@ -115,7 +132,7 @@ export function useThreadMessages(
       return data;
     },
     enabled,
-    refetchInterval: 30_000,
+    ...LIVE_QUERY_OPTIONS,
   });
 }
 
@@ -126,16 +143,60 @@ export function useSendMessage(
   targetSupplierId?: string,
 ) {
   const qc = useQueryClient();
+  const queryKey = KEYS.thread(
+    surface,
+    context,
+    contextRefId,
+    targetSupplierId,
+  );
+  const senderType = surface === "tenant" ? "TENANT_USER" : "SUPPLIER_USER";
+
   return useMutation({
     mutationFn: async (payload: SendMessagePayload) => {
       const path = pathFor(surface, context, contextRefId, targetSupplierId);
       const { data } = await clientFor(surface).post(path, payload);
       return data;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({
-        queryKey: KEYS.thread(surface, context, contextRefId, targetSupplierId),
-      });
+
+    /**
+     * Optimistic update — kendi mesajın server response'unu beklemeden
+     * anında balona düşer. Hata olursa rollback (onError).
+     */
+    onMutate: async (payload) => {
+      await qc.cancelQueries({ queryKey });
+      const previous = qc.getQueryData<ThreadMessagesResponse>(queryKey);
+
+      const optimistic: MessageItem = {
+        id: `temp-${Date.now()}`,
+        threadId: previous?.thread.id ?? "",
+        senderType,
+        senderUserId: null,
+        senderSupplierUserId: null,
+        senderName: "Sen",
+        content: payload.content,
+        attachmentIds: payload.attachmentIds ?? [],
+        emailNotifiedAt: null,
+        sentAt: new Date().toISOString(),
+      };
+
+      if (previous) {
+        qc.setQueryData<ThreadMessagesResponse>(queryKey, {
+          ...previous,
+          messages: [...previous.messages, optimistic],
+        });
+      }
+
+      return { previous };
+    },
+
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.previous) {
+        qc.setQueryData(queryKey, ctx.previous);
+      }
+    },
+
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey });
       qc.invalidateQueries({ queryKey: KEYS.unread(surface) });
       qc.invalidateQueries({ queryKey: KEYS.allThreads(surface) });
       if (surface === "tenant" && context === "TENDER") {
@@ -155,7 +216,7 @@ export function useTenderThreadsForTenant(tenderId: string | undefined) {
       return data;
     },
     enabled: !!tenderId,
-    refetchInterval: 30_000,
+    ...LIVE_QUERY_OPTIONS,
   });
 }
 
@@ -170,7 +231,6 @@ export function useUnreadCount(surface: MessageSurface) {
       const { data } = await clientFor(surface).get<{ count: number }>(path);
       return data;
     },
-    refetchInterval: 60_000,
-    staleTime: 30_000,
+    ...LIVE_QUERY_OPTIONS,
   });
 }

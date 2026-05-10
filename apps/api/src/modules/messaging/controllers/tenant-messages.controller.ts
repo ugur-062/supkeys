@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   UseGuards,
+  UseInterceptors,
 } from "@nestjs/common";
 import {
   CurrentUser,
@@ -12,6 +13,7 @@ import {
 } from "../../../common/decorators/current-user.decorator";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { SendMessageDto } from "../dto/send-message.dto";
+import { NoCacheInterceptor } from "../interceptors/no-cache.interceptor";
 import {
   type MessageActor,
   MessagesService,
@@ -19,6 +21,7 @@ import {
 
 @Controller("tenants/me")
 @UseGuards(JwtAuthGuard)
+@UseInterceptors(NoCacheInterceptor)
 export class TenantMessagesController {
   constructor(private readonly service: MessagesService) {}
 
