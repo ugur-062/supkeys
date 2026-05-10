@@ -1,355 +1,350 @@
 "use client";
 
-import {
-  EmptyState as EmptyStateComponent,
-  ListSkeleton,
-  ResultCount,
-  SearchInput,
-  SortDropdown,
-} from "@/components/list";
-import { OrderStatusBadge } from "@/components/orders/status-badge";
-import { Button } from "@/components/ui/button";
+import { PanelCard } from "@/components/supplier/panel-card";
 import {
   useSupplierOrderStats,
   useSupplierOrders,
 } from "@/hooks/use-supplier-orders";
 import type { OrderStatus } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
-import { AlertCircle, Building2, Package } from "lucide-react";
-import Link from "next/link";
+import {
+  CheckCircle2,
+  Clock,
+  Inbox,
+  Package,
+  Search,
+  Truck,
+  XCircle,
+} from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
-
-const TABS: Array<{ key: string; label: string; status?: OrderStatus }> = [
-  { key: "all", label: "Tümü" },
-  { key: "pending", label: "Bekliyor", status: "PENDING" },
-  { key: "in_delivery", label: "Teslimatta", status: "IN_DELIVERY" },
-  { key: "completed", label: "Tamamlandı", status: "COMPLETED" },
-  { key: "cancelled", label: "İptal Edildi", status: "CANCELLED" },
-];
+import { OrderCard } from "./order-card";
 
 const SORT_OPTIONS = [
   { value: "createdAt:desc", label: "En Yeni" },
   { value: "createdAt:asc", label: "En Eski" },
-  { value: "totalAmount:desc", label: "Tutar (Yüksek → Düşük)" },
-  { value: "totalAmount:asc", label: "Tutar (Düşük → Yüksek)" },
+  { value: "totalAmount:desc", label: "Tutar (Y→D)" },
+  { value: "totalAmount:asc", label: "Tutar (D→Y)" },
 ];
 
-const TRIGGER_CLS = cn(
-  "px-3.5 py-2 text-sm font-semibold border-b-2 -mb-px transition whitespace-nowrap",
-  "data-[state=active]:border-brand-500 data-[state=active]:text-brand-700",
-  "data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500",
-  "hover:text-slate-700 focus:outline-none",
-);
+const STATUS_FILTERS: Array<{
+  key: string;
+  status?: OrderStatus;
+  label: string;
+  icon: typeof Package;
+}> = [
+  { key: "all", label: "Tümü", icon: Inbox },
+  { key: "PENDING", status: "PENDING", label: "Bekliyor", icon: Clock },
+  {
+    key: "IN_DELIVERY",
+    status: "IN_DELIVERY",
+    label: "Teslimat Sürüyor",
+    icon: Truck,
+  },
+  {
+    key: "COMPLETED",
+    status: "COMPLETED",
+    label: "Tamamlandı",
+    icon: CheckCircle2,
+  },
+  {
+    key: "CANCELLED",
+    status: "CANCELLED",
+    label: "İptal Edildi",
+    icon: XCircle,
+  },
+];
 
-function formatMoney(value: string | number, currency: string): string {
-  const num = typeof value === "string" ? Number(value) : value;
-  if (Number.isNaN(num)) return "—";
-  try {
-    return num.toLocaleString("tr-TR", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-    });
-  } catch {
-    return `${num.toFixed(2)} ${currency}`;
-  }
-}
+const PAGE_SIZE = 20;
 
 export function SupplierOrdersListView() {
   const router = useRouter();
   const params = useSearchParams();
 
-  const tab = params.get("tab") ?? "all";
-  const searchUrl = params.get("search") ?? "";
-  const sortUrl = params.get("sort") ?? "createdAt:desc";
-  const page = Number(params.get("page") ?? 1);
-
-  const setSearch = (value: string) => {
-    const next = new URLSearchParams(params.toString());
-    if (value) next.set("search", value);
-    else next.delete("search");
-    next.delete("page");
-    router.replace(`/supplier/siparisler?${next.toString()}`);
-  };
-
-  const setSort = (value: string) => {
-    const next = new URLSearchParams(params.toString());
-    next.set("sort", value);
-    next.delete("page");
-    router.replace(`/supplier/siparisler?${next.toString()}`);
-  };
-
-  const activeTab = TABS.find((t) => t.key === tab) ?? TABS[0]!;
+  const statusKey = params.get("status") ?? "all";
+  const search = params.get("search") ?? "";
+  const sort = params.get("sort") ?? "createdAt:desc";
+  const page = Math.max(1, Number(params.get("page") ?? 1));
 
   const stats = useSupplierOrderStats();
-  const list = useSupplierOrders({
-    status: activeTab.status,
-    search: searchUrl || undefined,
-    sort: sortUrl,
-    page,
-  });
 
-  const isFiltered = Boolean(searchUrl) || Boolean(activeTab.status);
+  const queryParams = useMemo(() => {
+    const status =
+      statusKey !== "all" ? (statusKey as OrderStatus) : undefined;
+    return {
+      status,
+      search: search || undefined,
+      sort,
+      page,
+      pageSize: PAGE_SIZE,
+    };
+  }, [statusKey, search, sort, page]);
 
-  const setTab = (next: string) => {
-    const url = new URLSearchParams(params.toString());
-    url.set("tab", next);
-    url.delete("page");
-    router.replace(`/supplier/siparisler?${url.toString()}`);
+  const list = useSupplierOrders(queryParams);
+
+  const updateUrl = (next: {
+    status?: string;
+    search?: string;
+    sort?: string;
+    page?: number;
+  }) => {
+    const p = new URLSearchParams(params.toString());
+    if (next.status !== undefined) {
+      if (next.status === "all") p.delete("status");
+      else p.set("status", next.status);
+      p.delete("page");
+    }
+    if (next.search !== undefined) {
+      if (next.search === "") p.delete("search");
+      else p.set("search", next.search);
+      p.delete("page");
+    }
+    if (next.sort !== undefined) {
+      if (next.sort === "createdAt:desc") p.delete("sort");
+      else p.set("sort", next.sort);
+      p.delete("page");
+    }
+    if (next.page !== undefined) {
+      if (next.page <= 1) p.delete("page");
+      else p.set("page", String(next.page));
+    }
+    const qs = p.toString();
+    router.replace(qs ? `/supplier/siparisler?${qs}` : "/supplier/siparisler");
   };
 
-  const setPage = (next: number) => {
-    const url = new URLSearchParams(params.toString());
-    url.set("page", String(next));
-    router.replace(`/supplier/siparisler?${url.toString()}`);
-  };
-
-  const kpi = useMemo(() => {
-    const s = stats.data;
-    if (!s) return null;
-    return [
-      { label: "Toplam", value: s.total, color: "text-brand-900" },
-      { label: "Bekliyor", value: s.pending, color: "text-warning-700" },
-      { label: "Teslimatta", value: s.inDelivery ?? 0, color: "text-blue-700" },
-      {
-        label: "Tamamlandı",
-        value: s.completed,
-        color: "text-success-700",
-      },
-    ];
-  }, [stats.data]);
+  const items = list.data?.items ?? [];
+  const totalCount = list.data?.pagination.total ?? 0;
+  const totalPages = list.data?.pagination.totalPages ?? 1;
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6">
       <header>
-        <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900">
-          Siparişlerim
+        <h1 className="font-display font-bold text-3xl text-brand-900">
+          Siparişler
         </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Kazandığınız ihalelerden oluşan siparişler burada listelenir.
+        <p className="text-slate-600 mt-1 text-sm">
+          Kazandığınız ihalelerden oluşan siparişler.
         </p>
       </header>
 
-      {kpi ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {kpi.map((it) => (
-            <div
-              key={it.label}
-              className="bg-white border border-slate-200 rounded-xl p-4"
-            >
-              <p className="text-[11px] text-slate-500 uppercase font-semibold tracking-wide">
-                {it.label}
-              </p>
-              <p className={cn("text-2xl font-bold mt-1", it.color)}>
-                {it.value}
-              </p>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      <TabsPrimitive.Root value={tab} onValueChange={setTab}>
-        <TabsPrimitive.List
-          className="border-b border-slate-200 flex items-center gap-1 overflow-x-auto"
-          aria-label="Sipariş statü filtresi"
-        >
-          {TABS.map((t) => (
-            <TabsPrimitive.Trigger
-              key={t.key}
-              value={t.key}
-              className={TRIGGER_CLS}
-            >
-              {t.label}
-            </TabsPrimitive.Trigger>
-          ))}
-        </TabsPrimitive.List>
-      </TabsPrimitive.Root>
-
-      <div className="flex flex-col md:flex-row md:items-center gap-3">
-        <SearchInput
-          value={searchUrl}
-          onChange={setSearch}
-          placeholder="Sipariş no, ihale veya alıcı…"
-          className="w-full md:w-80"
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <MiniKpi
+          label="Toplam"
+          value={stats.data?.total ?? 0}
+          icon={Package}
+          accent="bg-slate-100 text-slate-600"
+          loading={stats.isLoading}
         />
-        <SortDropdown value={sortUrl} onChange={setSort} options={SORT_OPTIONS} />
-        {list.data ? (
-          <ResultCount
-            total={list.data.pagination.total}
-            isFiltered={isFiltered}
-            unit="sipariş"
-            className="md:ml-auto"
-          />
-        ) : null}
+        <MiniKpi
+          label="Bekleyen"
+          value={stats.data?.pending ?? 0}
+          icon={Clock}
+          accent="bg-blue-50 text-blue-600"
+          loading={stats.isLoading}
+        />
+        <MiniKpi
+          label="Teslimatta"
+          value={stats.data?.inDelivery ?? 0}
+          icon={Truck}
+          accent="bg-amber-50 text-amber-600"
+          loading={stats.isLoading}
+        />
+        <MiniKpi
+          label="Tamamlanan"
+          value={stats.data?.completed ?? 0}
+          icon={CheckCircle2}
+          accent="bg-emerald-50 text-emerald-600"
+          loading={stats.isLoading}
+        />
       </div>
 
-      {list.isLoading && !list.data ? (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-          <ListSkeleton rows={5} />
-        </div>
-      ) : list.isError || !list.data ? (
-        <div className="rounded-xl border border-danger-200 bg-danger-50 p-4 flex items-start gap-2">
-          <AlertCircle className="w-5 h-5 text-danger-600 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-danger-700">Siparişler yüklenemedi.</p>
-        </div>
-      ) : list.data.items.length === 0 ? (
-        isFiltered ? (
-          <EmptyStateComponent
-            icon={Package}
-            variant="no-results"
-            title="Filtre eşleşmedi"
-            description="Aramanız veya seçtiğiniz statü ile eşleşen sipariş yok."
-            action={
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <aside className="lg:col-span-3">
+          <PanelCard padding="sm" className="lg:sticky lg:top-4">
+            <div className="relative mb-4">
+              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={search}
+                onChange={(e) => updateUrl({ search: e.target.value })}
+                placeholder="Sipariş ara..."
+                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+              />
+            </div>
+
+            <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">
+              Durum
+            </h3>
+            <div className="space-y-1">
+              {STATUS_FILTERS.map((f) => (
+                <button
+                  type="button"
+                  key={f.key}
+                  onClick={() => updateUrl({ status: f.key })}
+                  className={cn(
+                    "w-full text-left px-3 py-2 rounded-lg flex items-center gap-2.5 text-sm transition-colors",
+                    statusKey === f.key
+                      ? "bg-brand-50 text-brand-700 font-semibold"
+                      : "text-slate-600 hover:bg-slate-50",
+                  )}
+                >
+                  <f.icon
+                    className={cn(
+                      "h-4 w-4 flex-shrink-0",
+                      statusKey === f.key
+                        ? "text-brand-600"
+                        : "text-slate-400",
+                    )}
+                  />
+                  <span className="flex-1">{f.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-5 pt-4 border-t border-slate-100">
+              <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">
+                Sıralama
+              </h3>
+              <select
+                value={sort}
+                onChange={(e) => updateUrl({ sort: e.target.value })}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
+              >
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </PanelCard>
+        </aside>
+
+        <main className="lg:col-span-9">
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-xs text-slate-500">
+              {list.isLoading
+                ? "Yükleniyor…"
+                : `${totalCount.toLocaleString("tr-TR")} sipariş${search || statusKey !== "all" ? " (filtrelenmiş)" : ""}`}
+            </p>
+          </div>
+
+          {list.isError ? (
+            <PanelCard className="text-center py-12">
+              <p className="text-brand-900 font-medium mb-2">Veri alınamadı</p>
               <button
                 type="button"
-                onClick={() => router.replace("/supplier/siparisler")}
-                className="text-sm text-brand-600 hover:underline font-semibold"
+                onClick={() => list.refetch()}
+                className="text-sm text-brand-700 hover:underline"
               >
-                Filtreleri temizle
+                Tekrar dene
               </button>
-            }
-          />
-        ) : (
-          <EmptyStateComponent
-            icon={Package}
-            variant="no-data"
-            title="Henüz sipariş yok"
-            description="Bir ihale kazandığınızda burada listelenecek."
-          />
-        )
-      ) : (
-        <>
-          <OrdersTable orders={list.data.items} />
-          {list.data.pagination.totalPages > 1 ? (
-            <Pagination
-              page={list.data.pagination.page}
-              totalPages={list.data.pagination.totalPages}
-              onPage={setPage}
-            />
-          ) : null}
-        </>
-      )}
-    </div>
-  );
-}
+            </PanelCard>
+          ) : list.isLoading ? (
+            <CardGridSkeleton />
+          ) : items.length === 0 ? (
+            <PanelCard className="text-center py-16">
+              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+                <Inbox className="h-5 w-5 text-slate-400" />
+              </div>
+              <p className="font-semibold text-brand-900">
+                {search
+                  ? "Aramayla eşleşen sipariş yok"
+                  : statusKey === "all"
+                    ? "Henüz sipariş yok"
+                    : "Bu durumda sipariş yok"}
+              </p>
+              <p className="text-sm text-slate-500 mt-1">
+                Bir ihale kazandığınızda sipariş otomatik oluşur.
+              </p>
+            </PanelCard>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {items.map((o) => (
+                  <OrderCard key={o.id} order={o} />
+                ))}
+              </div>
 
-function OrdersTable({
-  orders,
-}: {
-  orders: import("@/lib/tenders/types").OrderListItem[];
-}) {
-  return (
-    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                Sipariş No
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                Alıcı
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                İhale
-              </th>
-              <th className="text-right px-4 py-3 font-semibold text-slate-700">
-                Toplam
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                Statü
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                Tarih
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((order) => (
-              <tr
-                key={order.id}
-                className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60 transition cursor-pointer"
-              >
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/supplier/siparisler/${order.id}`}
-                    className="font-mono font-bold text-brand-700 hover:underline"
+              {totalPages > 1 ? (
+                <div className="mt-6 flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    disabled={page <= 1}
+                    onClick={() => updateUrl({ page: page - 1 })}
+                    className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    {order.orderNumber}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Building2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                    <span className="truncate font-medium text-brand-900">
-                      {order.tenant?.name ?? "—"}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-slate-600">
-                  <span className="font-mono text-xs text-slate-500 block">
-                    {order.tender.tenderNumber}
+                    Önceki
+                  </button>
+                  <span className="text-sm text-slate-600 px-3">
+                    {page} / {totalPages}
                   </span>
-                  <span className="block max-w-[200px] truncate">
-                    {order.tender.title}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right font-bold text-brand-900 tabular-nums">
-                  {formatMoney(order.totalAmount, order.currency)}
-                </td>
-                <td className="px-4 py-3">
-                  <OrderStatusBadge status={order.status} />
-                </td>
-                <td className="px-4 py-3 text-xs text-slate-500">
-                  {format(new Date(order.createdAt), "d MMM yyyy", {
-                    locale: tr,
-                  })}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  <button
+                    type="button"
+                    disabled={page >= totalPages}
+                    onClick={() => updateUrl({ page: page + 1 })}
+                    className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Sonraki
+                  </button>
+                </div>
+              ) : null}
+            </>
+          )}
+        </main>
       </div>
     </div>
   );
 }
 
-function Pagination({
-  page,
-  totalPages,
-  onPage,
+function MiniKpi({
+  label,
+  value,
+  icon: Icon,
+  accent,
+  loading,
 }: {
-  page: number;
-  totalPages: number;
-  onPage: (n: number) => void;
+  label: string;
+  value: number;
+  icon: typeof Package;
+  accent: string;
+  loading: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 pt-2">
-      <p className="text-sm text-slate-500">
-        {page} / {totalPages} sayfa
-      </p>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => onPage(Math.max(1, page - 1))}
-          disabled={page <= 1}
-        >
-          Önceki
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => onPage(Math.min(totalPages, page + 1))}
-          disabled={page >= totalPages}
-        >
-          Sonraki
-        </Button>
+    <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm p-3 flex items-center gap-3">
+      <div
+        className={cn(
+          "h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0",
+          accent,
+        )}
+      >
+        <Icon className="h-4 w-4" />
       </div>
+      <div className="min-w-0">
+        <p className="text-[10px] text-slate-500 uppercase tracking-wide font-semibold">
+          {label}
+        </p>
+        <p className="text-xl font-bold text-brand-900 tabular-nums leading-tight">
+          {loading ? "…" : value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function CardGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div
+          key={i}
+          className="bg-white border border-slate-200/80 rounded-2xl p-5 animate-pulse"
+        >
+          <div className="h-3 bg-slate-200 rounded w-24 mb-2" />
+          <div className="h-5 bg-slate-200 rounded w-full mb-3" />
+          <div className="h-4 bg-slate-200 rounded w-3/4 mb-4" />
+          <div className="h-2 bg-slate-200 rounded w-full" />
+        </div>
+      ))}
     </div>
   );
 }

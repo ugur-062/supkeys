@@ -52,6 +52,41 @@ interface SectionProps {
   children: React.ReactNode;
 }
 
+/**
+ * V2-5 — Header'a entegre küçük deadline countdown paneli.
+ * "X gün Y saat kaldı" + acil renk kodu.
+ */
+function DeadlineMiniPanel({ closeAt }: { closeAt: string }) {
+  const ms = new Date(closeAt).getTime() - Date.now();
+  const expired = ms <= 0;
+  const days = Math.floor(ms / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const tone = expired
+    ? "bg-rose-50 border-rose-200 text-rose-700"
+    : days < 1
+      ? "bg-rose-50 border-rose-200 text-rose-700"
+      : days < 3
+        ? "bg-amber-50 border-amber-200 text-amber-700"
+        : "bg-emerald-50 border-emerald-200 text-emerald-700";
+  return (
+    <div className={cn("rounded-xl border px-4 py-2.5 min-w-[200px]", tone)}>
+      <p className="text-[10px] uppercase tracking-wide font-semibold opacity-80">
+        Son Teklif Tarihi
+      </p>
+      <p className="text-sm font-bold mt-0.5">
+        {format(new Date(closeAt), "d MMM yyyy HH:mm", { locale: tr })}
+      </p>
+      <p className="text-xs font-semibold mt-0.5">
+        {expired
+          ? "Süre doldu"
+          : days > 0
+            ? `${days} gün ${hours} saat kaldı`
+            : `${hours} saat kaldı`}
+      </p>
+    </div>
+  );
+}
+
 function Section({ title, icon: Icon, hint, children }: SectionProps) {
   return (
     <section className="bg-white border border-slate-200 rounded-2xl p-5 md:p-6">
@@ -278,6 +313,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
               {tender.tenderNumber} · {tender.title}
             </p>
           </div>
+          <DeadlineMiniPanel closeAt={tender.bidsCloseAt} />
         </header>
 
         {/* LOST sonrası yeniden teklif uyarısı */}

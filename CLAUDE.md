@@ -716,6 +716,44 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
   - Approver fallback: 25K tender publish → IN_APPROVAL + Mehmet'e e-posta → Mehmet pasifleştir → 65sn bekle → step approver=ugur (admin'e fallback), ugur'a `approval_required` e-postası `isFallback` banner'ıyla SENT ✓
   - typecheck (api+web+admin+email+shared+db) tümü yeşil ✓
 
+### V2-5 — Tedarikçi Paneli Redesign (modern dashboard stili)
+- **Tasarım felsefesi:** Linear/Stripe/Vercel referansı — kart tabanlı, gradient KPI, generous whitespace, sticky sidebar pattern, status visualization (pills/dots/timeline). Backend dokunulmadı — sadece UI/UX. Mevcut hook'lar + data shape'leri korundu.
+- **2 yeni shared component** (`components/supplier/`):
+  - `panel-card.tsx` — `<PanelCard title? subtitle? action? padding?>` modern kart kaplaması (white + slate-200/80 border + shadow-sm + 2xl radius). Tüm tedarikçi sayfalarında tek tip.
+  - `status-badges.tsx` — `<SupplierBidStatusBadge>`, `<SupplierOrderStatusBadge>` (dot + label, 4 state). `deriveSupplierTenderState(tenderStatus, bidStatus)` helper'ı tedarikçi perspektifinden okunabilir state ("Davet Edildi", "Taslak Teklifim", "Teklif Gönderildi", "Değerlendiriliyor", "Kazandın", "Kaybettin", vd.) üretir.
+- **Sayfa 1 — `/supplier/dashboard` (komple yeniden yazıldı):**
+  - Welcome header (today + supplier company name + "İhaleleri Görüntüle" CTA).
+  - Action items banner (sarı): aktif davet sayısı + bekleyen sipariş varsa Link'lerle gösterir.
+  - 4 gradient KPI cards (Aktif Davetler blue / Aktif Tekliflerim amber / Kazanılan Award emerald / Aktif Sipariş violet) — ArrowRight icon hover + tıklayınca filtrelenmiş liste'ye yönlendirir.
+  - 2-kolon alt grid: sol "Performans" (3'lü gradient mini-KPI: 30 gün teklif/toplam gelir/bağlı alıcı) + "Son Aktiviteler" `ActivityFeed`. Sağ TcmbRatesWidget + "Hızlı Erişim" link listesi.
+  - Eski `kpi-grid.tsx`/`empty-panels.tsx`/`greeting.tsx`/`onboarding-card.tsx` silindi.
+- **Sayfa 2 — `/supplier/ihaleler` (komple yeniden yazıldı):**
+  - 4'lü mini KPI özeti üstte (aktif davet/verilen teklif/kazanılan/devam eden sipariş).
+  - 12-col grid: sol `lg:col-span-3` filter sidebar (PanelCard sticky) — search input + 3 status filter button (Aktif/Geçmiş/Tümü, count badge'li) + sıralama dropdown.
+  - Sağ `lg:col-span-9` 2-kolon (`md:grid-cols-2`) `<TenderCard>` grid.
+  - `tender-card.tsx`: tenderNumber + line-clamp title + `deriveSupplierTenderState` rozet (sağ üst), Building2 buyer adı, CurrencyBadge + kalem sayısı, footer'da deadline (urgency renkleri: ≤1 gün rose, ≤3 gün amber, default emerald) + "X gün kaldı".
+  - `tenders-table.tsx` silindi.
+- **Sayfa 3 — `/supplier/ihaleler/[id]/teklif-ver` (header polish):**
+  - Mevcut sticky 2/3 + 1/3 layout zaten modern (V2-2 R2 attachment + V2-3 currency göstergeleri ile entegre); büyük rewrite yapılmadı — sadece header'a `<DeadlineMiniPanel>` eklendi (urgency renkleri + "X gün Y saat kaldı" anlık countdown).
+- **Sayfa 4 — `/supplier/siparisler` (komple yeniden yazıldı):**
+  - 4'lü mini KPI (toplam/bekleyen/teslimatta/tamamlanan).
+  - Sol filter sidebar (search + 5 status filter: Tümü/Bekliyor/Teslimat/Tamamlandı/İptal + sıralama dropdown).
+  - Sağ `<OrderCard>` grid: orderNumber + title + `<SupplierOrderStatusBadge>` (sağ üst), Building2 buyer + emerald-600 total amount, **horizontal 3-stage timeline preview** (Onaylandı→Teslimat→Tamamlandı, dot+line emerald-fill done / brand-500 ring-4 active), footer durum açıklaması + currency code + creation date.
+- **Sayfa 5 — `/supplier/siparisler/[id]` (3-kolon layout'a refactor):**
+  - Breadcrumb + status badge size=lg + creation date.
+  - 12-col grid: sol `lg:col-span-3` sticky `<PanelCard "Sipariş Akışı">` + `<OrderTimeline>` (vertical, mevcut component korundu).
+  - Orta `lg:col-span-6` Radix Tabs (Kalemler/Dosyalar/Mesajlar): items table (mevcut korundu), `AttachmentUpload + AttachmentList ORDER_INVOICE`, `<MessageThread surface="supplier" context="ORDER" headerInfo>`.
+  - Sağ `lg:col-span-3` sticky action sidebar: aksiyon banner'ı (PENDING→Teslimatı Başlat butonu + StartDeliveryModal; IN_DELIVERY/COMPLETED/CANCELLED→bilgi paneli), Tutar `<PanelCard>` (success-700 toplam + kalem oranı), Alıcı kart (Building2 + ad), Bağlı İhale link, Teslimat adresi (varsa MapPin), "Sipariş PDF İndir" button.
+- **Manuel doğrulama:**
+  - typecheck (api+web+admin+email+shared+db) tümü yeşil ✓
+  - 4 supplier page route 200 (browser smoke kullanıcıya bırakıldı)
+  - Eski legacy 5 component dosyası silindi (kpi-grid, empty-panels, greeting, onboarding-card, tenders-table) — toplam +1041 / -700 satır
+- **`PanelCard` + `SupplierOrderStatusBadge` + `getAvatarProps` 3 shared util** sayfalar arası tutarlılık veriyor.
+
+🎉 **V2 COMPLETE** — V2-1 (Resend webhook) + V2-2 (R2 attachments) + V2-3 (TCMB multi-currency) + V2-4 (1-on-1 messaging) + V2-5 (supplier panel redesign) tamamlandı.
+
+> **Sıradaki major adım**: V2.5 ufak iyileştirmeler (cross-currency bid, message inbox/floating chat, attachment versioning) sonra **production hosting** (Coolify + Hetzner, Docker image + Chromium pre-installed PDF + Resend domain verification + webhook secret).
+
 ---
 
 ## Bekleyen — V1.5 / V2 / V3
