@@ -26,6 +26,13 @@ export class TenantMessagesController {
     return { kind: "tenant", tenantId: user.tenantId, userId: user.id };
   }
 
+  // ---------- Tüm thread'ler (header dropdown + /mesajlar) ----------
+
+  @Get("threads")
+  listAllThreads(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {
+    return this.service.listAllThreadsForUser(this.actor(user));
+  }
+
   // ---------- ORDER context ----------
 
   @Get("orders/:orderId/messages")

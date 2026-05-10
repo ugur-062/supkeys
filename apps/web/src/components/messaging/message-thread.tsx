@@ -23,7 +23,31 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { AvatarInitials } from "@/components/ui/avatar-initials";
+import { ContextBadge } from "./context-badge";
 import { MessageAttachment } from "./message-attachment";
+
+function ThreadChatHeader({
+  otherPartyName,
+  context,
+  contextNumber,
+}: {
+  otherPartyName: string;
+  context: MessageContext;
+  contextNumber: string;
+}) {
+  return (
+    <div className="border-b border-slate-200 px-3 py-2.5 bg-white flex items-center gap-3">
+      <AvatarInitials name={otherPartyName} size="md" />
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-sm text-brand-900 truncate">
+          {otherPartyName}
+        </p>
+        <ContextBadge context={context} number={contextNumber} />
+      </div>
+    </div>
+  );
+}
 
 interface Props {
   surface: MessageSurface;
@@ -33,6 +57,11 @@ interface Props {
   targetSupplierId?: string;
   /** Mesaj balonlarında "ben" tarafını belirler. */
   currentUserType: MessageSenderType;
+  /** V2-4 — opsiyonel chat-header (avatar + ad + bağlam rozeti). */
+  headerInfo?: {
+    otherPartyName: string;
+    contextNumber: string;
+  };
   className?: string;
 }
 
@@ -48,6 +77,7 @@ export function MessageThread({
   contextRefId,
   targetSupplierId,
   currentUserType,
+  headerInfo,
   className,
 }: Props) {
   const { data, isLoading } = useThreadMessages(
@@ -147,6 +177,14 @@ export function MessageThread({
     <div
       className={`flex flex-col h-[600px] bg-white border border-slate-200 rounded-2xl overflow-hidden ${className ?? ""}`}
     >
+      {headerInfo ? (
+        <ThreadChatHeader
+          otherPartyName={headerInfo.otherPartyName}
+          context={context}
+          contextNumber={headerInfo.contextNumber}
+        />
+      ) : null}
+
       {/* Mesaj listesi */}
       <div className="flex-1 overflow-y-auto px-4 py-4 bg-slate-50">
         {messages.length === 0 ? (

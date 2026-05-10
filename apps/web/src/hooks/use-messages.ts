@@ -2,6 +2,7 @@
 
 import { api } from "@/lib/api";
 import type {
+  AllThreadSummary,
   MessageContext,
   MessageSurface,
   SendMessagePayload,
@@ -60,9 +61,29 @@ const KEYS = {
   ) => ["messages", surface, context, refId, targetSupplierId ?? null] as const,
   tenderThreads: (tenderId: string) =>
     ["tender-threads", tenderId] as const,
+  allThreads: (surface: MessageSurface) =>
+    ["messages-all-threads", surface] as const,
   unread: (surface: MessageSurface) =>
     ["messages-unread", surface] as const,
 };
+
+/**
+ * V2-4 — Header dropdown + /mesajlar sayfası için tüm thread'lerin özeti.
+ * Surface'a göre tenant veya supplier kullanıcısının thread'leri.
+ */
+export function useAllThreads(surface: MessageSurface) {
+  return useQuery<AllThreadSummary[]>({
+    queryKey: KEYS.allThreads(surface),
+    queryFn: async () => {
+      const path =
+        surface === "tenant" ? "/tenants/me/threads" : "/supplier/threads";
+      const { data } = await clientFor(surface).get<AllThreadSummary[]>(path);
+      return data;
+    },
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+}
 
 export function useThreadMessages(
   surface: MessageSurface,
@@ -116,7 +137,7 @@ export function useSendMessage(
         queryKey: KEYS.thread(surface, context, contextRefId, targetSupplierId),
       });
       qc.invalidateQueries({ queryKey: KEYS.unread(surface) });
-      // Tenant-tender thread listesi de değişebilir (lastMessageAt vs.)
+      qc.invalidateQueries({ queryKey: KEYS.allThreads(surface) });
       if (surface === "tenant" && context === "TENDER") {
         qc.invalidateQueries({ queryKey: KEYS.tenderThreads(contextRefId) });
       }

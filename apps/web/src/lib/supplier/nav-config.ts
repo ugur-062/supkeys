@@ -2,6 +2,7 @@ import {
   FileText,
   LayoutDashboard,
   type LucideIcon,
+  MessageCircle,
   Package,
   Settings,
   User,
@@ -33,6 +34,11 @@ export const supplierNavConfig: SupplierNavItem[] = [
     placeholder: true,
   },
   {
+    icon: MessageCircle,
+    label: "Mesajlar",
+    href: "/supplier/mesajlar",
+  },
+  {
     icon: User,
     label: "Profilim",
     href: "/supplier/profil",
@@ -49,6 +55,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   "/supplier/dashboard": "Ana Sayfa",
   "/supplier/ihaleler": "İhaleler",
   "/supplier/siparisler": "Siparişler",
+  "/supplier/mesajlar": "Mesajlar",
   "/supplier/profil": "Profilim",
   "/supplier/ayarlar": "Ayarlar",
 };

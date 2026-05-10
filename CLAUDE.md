@@ -412,6 +412,36 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 
 > **Sapma**: Spec "Sidebar mesaj ikonu + unread badge" istiyordu; üst-seviye `/mesajlar` inbox sayfası V2.5'e bırakıldığı için sidebar item gerçek hedefe işaret edemiyor. `useUnreadCount(surface)` hook'u + backend endpoint hazır — V2.5'te inbox sayfası eklendiğinde sidebar bağlanır. Şu an mesajlar sipariş+ihale detay tab'larından erişilir.
 
+### V2-4 düzeltme — Messenger-stili UX (header dropdown + /mesajlar sayfası)
+- **Schema migration `v2_4_messaging_preview`:** `MessageThread.lastMessagePreview VARCHAR(200)` field eklendi. `sendMessage` her mesajda preview'i (içerik 200 char veya `📎 N dosya`) cache'ler — her thread liste yüklemesinde `Message.findFirst` yapmaktan kaçınılır.
+- **Backend `MessagesService.listAllThreadsForUser`** + `GET /tenants/me/threads` + `GET /supplier/threads`:
+  - Tüm thread'leri (sipariş + ihale karışık) `lastMessageAt desc` sıralayıp döner; bağlam metadata'sı (orderNumber/tenderNumber/title) batch fetch ile zenginleştirilir.
+  - Shape: `{threadId, context, contextRefId, contextLabel, contextNumber, contextTitle, otherPartyId, otherPartyName, lastMessagePreview, lastMessageAt, unread}`.
+  - `lastMessageAt: { not: null }` filter — boş thread'ler listeye düşmez.
+- **Frontend yeni dosyalar:**
+  - `lib/avatar-utils.ts` — `getAvatarProps(name)` deterministik renk + initials (8 paletli, djb2-ish hash).
+  - `components/ui/avatar-initials.tsx` — sm/md/lg boyut, `select-none`, aria-label.
+  - `components/messaging/context-badge.tsx` — `📦 Sipariş` (success-50) / `📋 İhale` (blue-50) rozet.
+  - `components/messaging/thread-list-item.tsx` — Avatar + ad + ContextBadge + son mesaj preview + relative timestamp (Today/Yesterday/full) + unread dot.
+  - `components/messaging/header-messages-dropdown.tsx` — `MessageCircle` button + unread badge (>9 → "9+") + dropdown (son 5 thread + "Tüm Mesajları Görüntüle"). Click outside ile kapanır. Thread tıklandığında: ORDER → bağlam sayfası, TENDER → `/mesajlar?thread=<id>`.
+  - `app/dashboard/mesajlar/page.tsx` + `app/supplier/(authed)/mesajlar/page.tsx` — WhatsApp Web 2-kolon layout (lg:col-span-4 list + lg:col-span-8 MessageThread). `?thread=<id>` query param ile auto-select; ilk yüklemede ilk thread otomatik seçilir. `Suspense` boundary.
+  - `MessageThread`'a opsiyonel `headerInfo` prop eklendi — `ThreadChatHeader` (avatar + ad + bağlam rozeti) küçük header bandı.
+- **Hook'lar:**
+  - `useAllThreads(surface)` — surface-aware path (`/tenants/me/threads` veya `/supplier/threads`), 30sn refetch + 15sn staleTime.
+  - `useSendMessage` invalidate'ine `KEYS.allThreads(surface)` eklendi.
+- **Sidebar nav:**
+  - `nav-config.ts` (tenant) — yeni "Mesajlar" link `/dashboard/mesajlar` + `MessageCircle` icon + live badge (sidebar'da `useUnreadCount("tenant").data.count`).
+  - `supplier/nav-config.ts` — yeni "Mesajlar" link `/supplier/mesajlar` (badge için `liveNavConfig` infrastructure supplier sidebar'da yok; future iyileştirme).
+- **Header'lara `<HeaderMessagesDropdown surface=...>` mount:**
+  - Tenant: `dashboard/header.tsx` Bell button'unun yanına.
+  - Supplier: `supplier-shell/header.tsx` Bell button'unun yanına.
+- **E2E (smoke):**
+  - `GET /tenants/me/threads` → 200, mevcut thread `{contextLabel:İhale, contextNumber:SUPK-2026-0015, otherPartyName, lastMessageAt}` ✓
+  - `GET /supplier/threads` → 200, boş array (demo-supplier'ın mesajı yok) ✓
+  - 13 messaging route registered (eski 11 + 2 yeni `/threads`) ✓
+  - typecheck (api+web+admin+email+shared+db) tüm yeşil ✓
+- **Sidebar/header bağlanması ile V2-4 ilk commit'teki "Sapma" notu kapatıldı**: artık üst-seviye `/mesajlar` inbox sayfası mevcut + sidebar badge canlı + header dropdown her sayfadan erişilebilir.
+
 ### V2-3 düzeltme — Tek Currency Modeli (allowed-currencies + decimalPlaces drop)
 - **Sorun:** Wizard'da "İzin Verilen Para Birimleri" multi-checkbox + "Ondalık Basamak" dropdown + "TCMB kur dönüşümü V2'de gelecek" disclaimer V1'den kalmıştı; V2-3 spec'i tek currency + otomatik TRY equivalent karşılaştırması istiyor.
 - **Schema migration `v2_3_remove_redundant_currency_fields`:** `Tender.allowedCurrencies Currency[]` + `Tender.decimalPlaces Int` DROP COLUMN. `Tender.primaryCurrency` tek belirleyici.

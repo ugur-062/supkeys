@@ -46,3 +46,21 @@ export interface SendMessagePayload {
   content: string;
   attachmentIds?: string[];
 }
+
+/**
+ * Header dropdown + /mesajlar sayfası için tüm thread'leri özet halinde döndüren
+ * /threads endpoint'inin shape'i.
+ */
+export interface AllThreadSummary {
+  threadId: string;
+  context: MessageContext;
+  contextRefId: string;
+  contextLabel: "Sipariş" | "İhale";
+  contextNumber: string;
+  contextTitle: string | null;
+  otherPartyId: string;
+  otherPartyName: string;
+  lastMessagePreview: string | null;
+  lastMessageAt: string | null;
+  unread: boolean;
+}

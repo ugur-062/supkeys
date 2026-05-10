@@ -1,5 +1,6 @@
 "use client";
 
+import { HeaderMessagesDropdown } from "@/components/messaging/header-messages-dropdown";
 import { Input } from "@/components/ui/input";
 import { getBreadcrumbs } from "@/lib/dashboard/nav-config";
 import { useSidebar } from "@/lib/dashboard/use-sidebar";
@@ -70,6 +71,7 @@ export function Header() {
 
         {/* Sağ blok */}
         <div className="ml-auto flex items-center gap-1.5">
+          <HeaderMessagesDropdown surface="tenant" />
           <button
             type="button"
             aria-label="Bildirimler"

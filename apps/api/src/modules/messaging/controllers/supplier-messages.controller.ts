@@ -30,6 +30,13 @@ export class SupplierMessagesController {
     };
   }
 
+  @Get("threads")
+  listAllThreads(
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+  ): Promise<unknown> {
+    return this.service.listAllThreadsForUser(this.actor(user));
+  }
+
   @Get("orders/:orderId/messages")
   listOrderMessages(
     @CurrentSupplierUser() user: AuthenticatedSupplierUser,

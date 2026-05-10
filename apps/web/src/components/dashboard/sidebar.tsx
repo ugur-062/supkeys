@@ -3,6 +3,7 @@
 import { SupkeysLogo } from "@/components/brand/logo";
 import { useApprovalPendingCount } from "@/hooks/use-approval-requests";
 import { useAuth } from "@/hooks/use-auth";
+import { useUnreadCount } from "@/hooks/use-messages";
 import { navConfig, profileNavItem } from "@/lib/dashboard/nav-config";
 import { useSidebar } from "@/lib/dashboard/use-sidebar";
 import { cn } from "@/lib/utils";
@@ -16,27 +17,30 @@ export function Sidebar() {
   const { collapsed, toggle, mobileOpen, closeMobile } = useSidebar();
   const { user } = useAuth();
   const { data: pendingApprovals } = useApprovalPendingCount();
+  const { data: unreadMessages } = useUnreadCount("tenant");
 
   const initials = user
     ? `${user.firstName[0] ?? ""}${user.lastName[0] ?? ""}`.toUpperCase()
     : "??";
 
-  // E.7.D — "Onay Bekleyenler" item'ına live badge enjekte et
+  // Live badge enjekte et: Onay Bekleyenler (E.7.D) + Mesajlar (V2-4).
   const liveNavConfig = useMemo(() => {
-    const count = pendingApprovals?.count ?? 0;
+    const approvalCount = pendingApprovals?.count ?? 0;
+    const messagesCount = unreadMessages?.count ?? 0;
     return navConfig.map((group) => ({
       ...group,
       items: group.items.map((item) => {
-        if (
-          item.type === "link" &&
-          item.href === "/dashboard/onay-bekleyenler"
-        ) {
-          return { ...item, badge: count };
+        if (item.type !== "link") return item;
+        if (item.href === "/dashboard/onay-bekleyenler") {
+          return { ...item, badge: approvalCount };
+        }
+        if (item.href === "/dashboard/mesajlar") {
+          return { ...item, badge: messagesCount };
         }
         return item;
       }),
     }));
-  }, [pendingApprovals?.count]);
+  }, [pendingApprovals?.count, unreadMessages?.count]);
 
   return (
     <Tooltip.Provider>

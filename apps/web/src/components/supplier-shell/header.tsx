@@ -1,5 +1,6 @@
 "use client";
 
+import { HeaderMessagesDropdown } from "@/components/messaging/header-messages-dropdown";
 import { getSupplierBreadcrumb } from "@/lib/supplier/nav-config";
 import { Bell, Search } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -30,6 +31,8 @@ export function SupplierHeader() {
             className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-50 border border-transparent text-sm placeholder:text-slate-400 focus:outline-none disabled:cursor-not-allowed"
           />
         </div>
+
+        <HeaderMessagesDropdown surface="supplier" />
 
         <button
           type="button"

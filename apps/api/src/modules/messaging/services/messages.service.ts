@@ -180,10 +180,16 @@ export class MessagesService {
       },
     });
 
+    // V2-4 — preview: header dropdown + thread listesinde cache'lenmiş gösterim.
+    const preview = content
+      ? content.substring(0, 200)
+      : `📎 ${attIds.length} dosya`;
+
     await this.prisma.messageThread.update({
       where: { id: thread.id },
       data: {
         lastMessageAt: message.sentAt,
+        lastMessagePreview: preview,
         ...(actor.kind === "tenant"
           ? { tenantLastReadAt: message.sentAt }
           : { supplierLastReadAt: message.sentAt }),
@@ -236,6 +242,90 @@ export class MessagesService {
       if (!lastReadAt || lastReadAt < last) count += 1;
     }
     return { count };
+  }
+
+  /**
+   * V2-4 düzeltme — Header dropdown + /mesajlar sayfası için tüm thread'leri
+   * (sipariş + ihale karışık) son mesaj zamanına göre sıralayarak döndürür.
+   * Bağlam metadata'sı (orderNumber/tenderNumber) batch fetch ile zenginleştirilir.
+   */
+  async listAllThreadsForUser(actor: MessageActor) {
+    const where =
+      actor.kind === "tenant"
+        ? { tenantId: actor.tenantId, lastMessageAt: { not: null } }
+        : { supplierId: actor.supplierId, lastMessageAt: { not: null } };
+
+    const threads = await this.prisma.messageThread.findMany({
+      where,
+      orderBy: { lastMessageAt: "desc" },
+      include: {
+        tenant: { select: { id: true, name: true } },
+        supplier: { select: { id: true, companyName: true } },
+      },
+      take: 50,
+    });
+
+    const orderIds = threads
+      .filter((t) => t.context === "ORDER")
+      .map((t) => t.contextRefId);
+    const tenderIds = threads
+      .filter((t) => t.context === "TENDER")
+      .map((t) => t.contextRefId);
+
+    const [orders, tenders] = await Promise.all([
+      orderIds.length
+        ? this.prisma.order.findMany({
+            where: { id: { in: orderIds } },
+            select: { id: true, orderNumber: true },
+          })
+        : Promise.resolve([]),
+      tenderIds.length
+        ? this.prisma.tender.findMany({
+            where: { id: { in: tenderIds } },
+            select: { id: true, tenderNumber: true, title: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    return threads.map((t) => {
+      const isTenantSide = actor.kind === "tenant";
+      const otherPartyId = isTenantSide ? t.supplier.id : t.tenant.id;
+      const otherPartyName = isTenantSide ? t.supplier.companyName : t.tenant.name;
+
+      let contextLabel: "Sipariş" | "İhale";
+      let contextNumber: string;
+      let contextTitle: string | null = null;
+      if (t.context === "ORDER") {
+        const o = orders.find((x) => x.id === t.contextRefId);
+        contextLabel = "Sipariş";
+        contextNumber = o?.orderNumber ?? "—";
+      } else {
+        const tender = tenders.find((x) => x.id === t.contextRefId);
+        contextLabel = "İhale";
+        contextNumber = tender?.tenderNumber ?? "—";
+        contextTitle = tender?.title ?? null;
+      }
+
+      const lastReadAt = isTenantSide
+        ? t.tenantLastReadAt
+        : t.supplierLastReadAt;
+      const unread =
+        !!t.lastMessageAt && (!lastReadAt || lastReadAt < t.lastMessageAt);
+
+      return {
+        threadId: t.id,
+        context: t.context,
+        contextRefId: t.contextRefId,
+        contextLabel,
+        contextNumber,
+        contextTitle,
+        otherPartyId,
+        otherPartyName,
+        lastMessagePreview: t.lastMessagePreview,
+        lastMessageAt: t.lastMessageAt,
+        unread,
+      };
+    });
   }
 
   /**

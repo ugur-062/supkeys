@@ -1196,6 +1196,7 @@ model MessageThread {
   messages     Message[]
 
   lastMessageAt      DateTime?
+  lastMessagePreview String?    @db.VarChar(200) // V2-4 — son mesaj preview (header dropdown + thread list için cached)
   tenantLastReadAt   DateTime?
   supplierLastReadAt DateTime?
 
