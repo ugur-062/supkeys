@@ -89,15 +89,16 @@ export async function submitBuyerApplication(
 
 export async function submitSupplierApplication(
   values: FullRegistration,
-  invitationToken?: string,
+  invitationToken: string | undefined,
+  // V2-6 — Tedarikçi kategori seçimi (Family seviyesi). Backend zorunlu kabul eder.
+  categoryIds: string[],
 ) {
   const url = "/registration/supplier/applications";
   const params = invitationToken ? { invitation: invitationToken } : undefined;
-  const { data } = await api.post<CreateApplicationResponse>(
-    url,
-    buildPayload(values),
-    { params },
-  );
+  const payload = { ...buildPayload(values), categoryIds };
+  const { data } = await api.post<CreateApplicationResponse>(url, payload, {
+    params,
+  });
   return data;
 }
 

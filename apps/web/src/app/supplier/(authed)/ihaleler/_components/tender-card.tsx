@@ -1,3 +1,4 @@
+import { CategoryBadge } from "@/components/categories/category-badge";
 import { CurrencyBadge } from "@/components/currency-badge";
 import { deriveSupplierTenderState } from "@/components/supplier/status-badges";
 import type { SupplierTenderListItem } from "@/lib/tenders/types";
@@ -54,8 +55,11 @@ export function TenderCard({ tender }: { tender: SupplierTenderListItem }) {
           <span className="truncate">{tender.tenant.name}</span>
         </div>
 
-        <div className="flex items-center gap-3 text-xs text-slate-500 mb-3">
+        <div className="flex items-center flex-wrap gap-2 text-xs text-slate-500 mb-3">
           <CurrencyBadge currency={tender.primaryCurrency} />
+          {tender.category ? (
+            <CategoryBadge category={tender.category} size="sm" />
+          ) : null}
           <span className="inline-flex items-center gap-1">
             <FileText className="h-3 w-3" />
             {tender.itemCount} kalem

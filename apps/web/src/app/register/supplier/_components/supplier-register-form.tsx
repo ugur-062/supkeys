@@ -1,10 +1,11 @@
 "use client";
 
+import { CategorySelector } from "@/components/categories/category-selector";
 import { InvitationBanner } from "@/components/registration/invitation-banner";
 import { StepFirmInfo } from "@/components/registration/step-firm-info";
 import { StepSuccess } from "@/components/registration/step-success";
 import { StepUserInfo } from "@/components/registration/step-user-info";
-import { Stepper } from "@/components/registration/stepper";
+import { Stepper, type StepperItem } from "@/components/registration/stepper";
 import { Button } from "@/components/ui/button";
 import {
   fetchSupplierInvitationInfo,
@@ -27,7 +28,14 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-type StepNo = 1 | 2 | 3;
+type StepNo = 1 | 2 | 3 | 4;
+
+const SUPPLIER_STEPS: readonly StepperItem[] = [
+  { id: 1, label: "Firma Bilgileri" },
+  { id: 2, label: "Yetkili" },
+  { id: 3, label: "Kategoriler" },
+  { id: 4, label: "Tamamlandı" },
+];
 
 interface SupplierRegisterFormProps {
   invitationToken?: string;
@@ -40,6 +48,8 @@ export function SupplierRegisterForm({
   const searchParams = useSearchParams();
   const [step, setStep] = useState<StepNo>(1);
   const [submittedEmail, setSubmittedEmail] = useState<string>("");
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
+  const [categoriesError, setCategoriesError] = useState<string | undefined>();
   const [usedInviteToken, setUsedInviteToken] = useState<string | undefined>(
     invitationToken,
   );
@@ -119,10 +129,10 @@ export function SupplierRegisterForm({
 
   const submitMutation = useMutation({
     mutationFn: (values: FullRegistration) =>
-      submitSupplierApplication(values, usedInviteToken),
+      submitSupplierApplication(values, usedInviteToken, categoryIds),
     onSuccess: (data, variables) => {
       setSubmittedEmail(variables.adminEmail);
-      setStep(3);
+      setStep(4);
       toast.success(data.message ?? "Başvurunuz alındı");
     },
     onError: (err) => {
@@ -148,6 +158,14 @@ export function SupplierRegisterForm({
         USER_FIELDS as unknown as readonly (keyof FullRegistration)[],
       );
       if (!ok) return;
+      setStep(3);
+      return;
+    }
+    if (step === 3) {
+      if (categoryIds.length === 0) {
+        setCategoriesError("En az 1 kategori seçmelisiniz");
+        return;
+      }
       submitMutation.mutate(form.getValues());
     }
   };
@@ -179,7 +197,7 @@ export function SupplierRegisterForm({
     );
   }
 
-  if (step === 3) {
+  if (step === 4) {
     return (
       <div className="card p-6 md:p-8">
         <StepSuccess email={submittedEmail} />
@@ -189,7 +207,7 @@ export function SupplierRegisterForm({
 
   return (
     <div className="space-y-5">
-      <Stepper current={step} />
+      <Stepper current={step} steps={SUPPLIER_STEPS} />
 
       {inviteStatusCode === 410 ? (
         <div className="rounded-xl border border-danger-500 bg-danger-50/50 p-4 flex items-start gap-3">
@@ -239,7 +257,8 @@ export function SupplierRegisterForm({
               watch={form.watch}
               setValue={form.setValue}
             />
-          ) : (
+          ) : null}
+          {step === 2 ? (
             <StepUserInfo
               control={form.control}
               register={form.register}
@@ -252,14 +271,42 @@ export function SupplierRegisterForm({
                   : undefined
               }
             />
-          )}
+          ) : null}
+          {step === 3 ? (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-bold text-brand-900">
+                  Tedarik Kategorileriniz
+                </h3>
+                <p className="text-sm text-slate-600 mt-1">
+                  Tedarik edebileceğiniz ürün/hizmet kategorilerini seçin. Bu
+                  seçim, alıcılara önerilirken kullanılır.
+                </p>
+              </div>
+
+              <CategorySelector
+                value={categoryIds}
+                onChange={(ids) => {
+                  setCategoryIds(ids);
+                  if (categoriesError) setCategoriesError(undefined);
+                }}
+                mode="multi"
+                maxSelection={20}
+                error={categoriesError}
+              />
+
+              <p className="text-xs text-slate-500">
+                ⚠️ En az 1, en fazla 20 kategori seçebilirsiniz.
+              </p>
+            </div>
+          ) : null}
 
           <div className="flex items-center justify-between mt-8 gap-3">
-            {step === 2 ? (
+            {step > 1 ? (
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() => setStep(1)}
+                onClick={() => setStep((step - 1) as StepNo)}
                 disabled={submitMutation.isPending}
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -270,7 +317,7 @@ export function SupplierRegisterForm({
             )}
 
             <Button type="submit" loading={submitMutation.isPending}>
-              {step === 1 ? (
+              {step < 3 ? (
                 <>
                   İleri
                   <ArrowRight className="w-4 h-4" />

@@ -71,6 +71,15 @@ export interface Pagination {
   totalPages: number;
 }
 
+/** V2-6 — UNSPSC kategori (Family seviyesi) — backend'den gelen enriched shape. */
+export interface TenderCategoryRef {
+  id: string;
+  code: string;
+  nameTr: string;
+  level: number;
+  breadcrumb: string;
+}
+
 export interface TenderListItem {
   id: string;
   tenderNumber: string;
@@ -82,6 +91,8 @@ export interface TenderListItem {
   publishedAt: string | null;
   createdAt: string;
   createdBy: { id: string; firstName: string; lastName: string };
+  /** V2-6 — V1 backward-compat: legacy ihalelerde null. */
+  category: TenderCategoryRef | null;
   itemCount: number;
   invitationCount: number;
   bidCount: number;
@@ -135,6 +146,8 @@ export interface TenderDetail {
   status: TenderStatus;
   title: string;
   description: string | null;
+  /** V2-6 — V1 backward-compat: legacy ihalelerde null. */
+  category: TenderCategoryRef | null;
   termsAndConditions: string | null;
   internalNotes: string | null;
   isSealedBid: boolean;
@@ -212,6 +225,8 @@ export interface SupplierTenderListItem {
   bidsCloseAt: string;
   publishedAt: string | null;
   tenant: { name: string };
+  /** V2-6 — V1 backward-compat: legacy ihalelerde null. */
+  category: TenderCategoryRef | null;
   itemCount: number;
   invitationStatus: TenderInvitationStatus | null;
   myBidStatus: BidStatus | null;
@@ -230,6 +245,8 @@ export interface SupplierTenderDetail {
   status: TenderStatus;
   title: string;
   description: string | null;
+  /** V2-6 — V1 backward-compat: legacy ihalelerde null. */
+  category: TenderCategoryRef | null;
   termsAndConditions: string | null;
   isSealedBid: boolean;
   requireAllItems: boolean;

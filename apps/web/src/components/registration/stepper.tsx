@@ -3,18 +3,24 @@
 import { cn } from "@/lib/utils";
 import { CheckCircle2 } from "lucide-react";
 
+export interface StepperItem {
+  id: number;
+  label: string;
+}
+
 interface StepperProps {
-  current: 1 | 2 | 3;
+  current: number;
+  steps?: readonly StepperItem[];
   className?: string;
 }
 
-const STEPS = [
+const DEFAULT_STEPS: readonly StepperItem[] = [
   { id: 1, label: "Firma Bilgileri" },
   { id: 2, label: "Yetkili" },
   { id: 3, label: "Tamamlandı" },
-] as const;
+];
 
-export function Stepper({ current, className }: StepperProps) {
+export function Stepper({ current, steps = DEFAULT_STEPS, className }: StepperProps) {
   return (
     <div
       className={cn(
@@ -23,7 +29,7 @@ export function Stepper({ current, className }: StepperProps) {
       )}
     >
       <ol className="flex items-center max-w-xl mx-auto">
-        {STEPS.map((step, idx) => {
+        {steps.map((step, idx) => {
           const isDone = current > step.id;
           const isActive = current === step.id;
 
@@ -32,7 +38,7 @@ export function Stepper({ current, className }: StepperProps) {
               key={step.id}
               className={cn(
                 "flex items-center",
-                idx < STEPS.length - 1 && "flex-1",
+                idx < steps.length - 1 && "flex-1",
               )}
             >
               <div className="flex flex-col items-center gap-2">
@@ -57,7 +63,7 @@ export function Stepper({ current, className }: StepperProps) {
                   {step.label}
                 </span>
               </div>
-              {idx < STEPS.length - 1 ? (
+              {idx < steps.length - 1 ? (
                 <div
                   className={cn(
                     "flex-1 h-px mx-3 mb-5 transition-colors",

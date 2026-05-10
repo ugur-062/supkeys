@@ -1,5 +1,6 @@
 "use client";
 
+import { useCategoryTree } from "@/hooks/use-categories";
 import { useTenantAddresses } from "@/hooks/use-tenant-addresses";
 import { useSuppliers } from "@/hooks/use-tenant-suppliers";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
@@ -108,6 +109,19 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
     (a) => a.id === data.deliveryAddressId,
   );
 
+  // V2-6 — kategori özeti için tree'den breadcrumb resolve et.
+  const treeQuery = useCategoryTree();
+  const categoryLabel = (() => {
+    if (!data.categoryId || !treeQuery.data) return null;
+    for (const seg of treeQuery.data) {
+      const family = seg.children?.find((c) => c.id === data.categoryId);
+      if (family) {
+        return `${seg.segmentLetter ?? ""}. ${seg.nameTr} › ${family.nameTr}`;
+      }
+    }
+    return null;
+  })();
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-success-200 bg-success-50/40 p-4 flex items-start gap-3">
@@ -125,6 +139,7 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
 
       {/* İhale Bilgileri */}
       <Section title="İhale Bilgileri" onEdit={() => onEditStep(1)}>
+        <Row label="Kategori" value={categoryLabel ?? "—"} />
         <Row label="Adı" value={data.title || "—"} />
         {data.description ? (
           <Row label="Açıklama" value={data.description} />

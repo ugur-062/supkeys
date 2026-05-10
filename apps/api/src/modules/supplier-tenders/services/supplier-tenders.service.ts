@@ -90,6 +90,17 @@ export class SupplierTendersService {
           bidsCloseAt: true,
           publishedAt: true,
           tenant: { select: { name: true } },
+          category: {
+            select: {
+              id: true,
+              code: true,
+              nameTr: true,
+              level: true,
+              parent: {
+                select: { id: true, nameTr: true, segmentLetter: true },
+              },
+            },
+          },
           _count: { select: { items: true } },
           invitations: {
             where: { supplierId },
@@ -116,6 +127,17 @@ export class SupplierTendersService {
         bidsCloseAt: t.bidsCloseAt,
         publishedAt: t.publishedAt,
         tenant: t.tenant,
+        category: t.category
+          ? {
+              id: t.category.id,
+              code: t.category.code,
+              nameTr: t.category.nameTr,
+              level: t.category.level,
+              breadcrumb: t.category.parent
+                ? `${t.category.parent.segmentLetter}. ${t.category.parent.nameTr} › ${t.category.nameTr}`
+                : t.category.nameTr,
+            }
+          : null,
         itemCount: t._count.items,
         invitationStatus: t.invitations[0]?.status ?? null,
         myBidStatus: t.bids[0]?.status ?? null,
@@ -142,6 +164,13 @@ export class SupplierTendersService {
         tenant: { select: { id: true, name: true } },
         items: { orderBy: { orderIndex: "asc" } },
         attachments: { orderBy: { uploadedAt: "asc" } },
+        category: {
+          include: {
+            parent: {
+              select: { id: true, nameTr: true, segmentLetter: true },
+            },
+          },
+        },
       },
     });
     if (!tender) throw new NotFoundException("İhale bulunamadı");
@@ -197,6 +226,17 @@ export class SupplierTendersService {
       awardedAt: tender.awardedAt,
       cancelledAt: tender.cancelledAt,
       tenant: tender.tenant,
+      category: tender.category
+        ? {
+            id: tender.category.id,
+            code: tender.category.code,
+            nameTr: tender.category.nameTr,
+            level: tender.category.level,
+            breadcrumb: tender.category.parent
+              ? `${tender.category.parent.segmentLetter}. ${tender.category.parent.nameTr} › ${tender.category.nameTr}`
+              : tender.category.nameTr,
+          }
+        : null,
       items: tender.items,
       attachments: tender.attachments,
       myInvitation: invitation,

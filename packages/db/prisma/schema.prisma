@@ -424,6 +424,10 @@ model SupplierApplication {
   adminPhone      String?
   passwordHash    String
 
+  // V2-6 — register sırasında seçilen kategori ID'leri (Family seviyesi).
+  // Admin onayında Supplier oluşturulurken SupplierCategory junction'a aktarılır.
+  categoryIds     Json?
+
   status          ApplicationStatus   @default(PENDING_EMAIL_VERIFICATION)
 
   emailToken      String?             @unique
@@ -501,6 +505,7 @@ model Supplier {
   bids                Bid[]
   orders              Order[]
   messageThreads      MessageThread[] @relation("SupplierMessageThreads")
+  categories          SupplierCategory[]
 
   @@index([taxNumber])
   @@index([membership])
@@ -729,6 +734,10 @@ model Tender {
   cancelledAt         DateTime?
   cancelReason        String?
 
+  // V2-6 — UNSPSC kategorisi (sadece Family / level 2; null = legacy V1 ihaleler)
+  categoryId          String?
+  category            Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
   items               TenderItem[]
   invitations         TenderInvitation[]
   bids                Bid[]
@@ -741,6 +750,7 @@ model Tender {
 
   @@index([tenantId, status])
   @@index([status, bidsCloseAt])
+  @@index([categoryId])
   @@map("tenders")
 }
 
@@ -1239,4 +1249,52 @@ enum MessageContext {
 enum MessageSenderType {
   TENANT_USER
   SUPPLIER_USER
+}
+
+// ---------- V2-6: KATEGORİ SİSTEMİ (UNSPSC tabanlı, 2 seviye) ----------
+//
+// Self-referencing tek tablo: Segment (level 1) → Family (level 2).
+// Tedarikçiler: many-to-many (SupplierCategory junction, sadece level 2).
+// İhaleler: single category (Tender.categoryId, sadece level 2).
+
+model Category {
+  id              String              @id @default(cuid())
+  /** UNSPSC 8-haneli kod (örn "10000000" segment, "10100000" family) */
+  code            String              @unique
+  nameTr          String
+  nameEn          String
+  /** 1 = Segment (üst), 2 = Family (alt) */
+  level           Int
+
+  parentId        String?
+  parent          Category?           @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children        Category[]          @relation("CategoryHierarchy")
+
+  /** Sadece level 1: PratisPro tarzı harf prefix (A, B, C...) */
+  segmentLetter   String?
+  sortOrder       Int                 @default(0)
+  isActive        Boolean             @default(true)
+
+  supplierCategories SupplierCategory[]
+  tenders            Tender[]
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([parentId, sortOrder])
+  @@index([level, sortOrder])
+  @@map("categories")
+}
+
+model SupplierCategory {
+  id          String   @id @default(cuid())
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([supplierId, categoryId])
+  @@index([categoryId])
+  @@map("supplier_categories")
 }

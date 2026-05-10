@@ -173,6 +173,21 @@ export class AdminSupplierApplicationsService {
         },
       });
 
+      // V2-6 — register'da seçilen kategorileri SupplierCategory junction'a kopyala.
+      // Geriye dönük uyum: eski Application kayıtlarında categoryIds null/undefined.
+      const categoryIds = Array.isArray(app.categoryIds)
+        ? (app.categoryIds as string[]).filter((id) => typeof id === "string")
+        : [];
+      if (categoryIds.length > 0) {
+        await tx.supplierCategory.createMany({
+          data: categoryIds.map((categoryId) => ({
+            supplierId: supplier.id,
+            categoryId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
       // Davetli ise tenant ile ilişkilendir
       if (app.invitedByTenantId) {
         await tx.supplierTenantRelation.upsert({

@@ -9,6 +9,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import * as bcrypt from "bcrypt";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { CategoryService } from "../../categories/services/category.service";
 import { EmailQueue } from "../../email/email.queue";
 import { CreateSupplierApplicationDto } from "../dto/create-supplier-application.dto";
 import {
@@ -28,6 +29,7 @@ export class SupplierRegistrationService {
     private readonly prisma: PrismaService,
     private readonly emailQueue: EmailQueue,
     private readonly config: ConfigService,
+    private readonly categoryService: CategoryService,
   ) {}
 
   async create(
@@ -38,6 +40,9 @@ export class SupplierRegistrationService {
   ) {
     const adminEmail = dto.adminEmail.toLowerCase().trim();
     const taxNumber = dto.taxNumber.trim();
+
+    // 0) Kategori ID'lerini doğrula (Family seviyesi zorunlu)
+    await this.categoryService.validateIds(dto.categoryIds, 2);
 
     // 1) E-posta zaten aktif bir SupplierUser'a mı bağlı?
     const existingUser = await this.prisma.supplierUser.findUnique({
@@ -122,6 +127,7 @@ export class SupplierRegistrationService {
         adminEmail,
         adminPhone: dto.adminPhone?.trim(),
         passwordHash,
+        categoryIds: dto.categoryIds,
         emailToken,
         emailTokenExp,
         status: "PENDING_EMAIL_VERIFICATION",

@@ -13,6 +13,7 @@ import { generateOrderNumber, generateTenderNumber } from "@supkeys/shared";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { CategoryService } from "../../categories/services/category.service";
 import { EmailQueue } from "../../email/email.queue";
 import {
   formatAddressSnapshotText,
@@ -56,6 +57,7 @@ export class TenantTendersService {
     private readonly config: ConfigService,
     private readonly addressesService: TenantAddressesService,
     private readonly approvalRequests: TenantApprovalRequestsService,
+    private readonly categoryService: CategoryService,
   ) {}
 
   // ============================================================
@@ -98,6 +100,17 @@ export class TenantTendersService {
           createdBy: {
             select: { id: true, firstName: true, lastName: true },
           },
+          category: {
+            select: {
+              id: true,
+              code: true,
+              nameTr: true,
+              level: true,
+              parent: {
+                select: { id: true, nameTr: true, segmentLetter: true },
+              },
+            },
+          },
           _count: {
             select: { items: true, invitations: true, bids: true },
           },
@@ -118,6 +131,17 @@ export class TenantTendersService {
         publishedAt: t.publishedAt,
         createdAt: t.createdAt,
         createdBy: t.createdBy,
+        category: t.category
+          ? {
+              id: t.category.id,
+              code: t.category.code,
+              nameTr: t.category.nameTr,
+              level: t.category.level,
+              breadcrumb: t.category.parent
+                ? `${t.category.parent.segmentLetter}. ${t.category.parent.nameTr} › ${t.category.nameTr}`
+                : t.category.nameTr,
+            }
+          : null,
         itemCount: t._count.items,
         invitationCount: t._count.invitations,
         bidCount: t._count.bids,
@@ -140,6 +164,13 @@ export class TenantTendersService {
         },
         items: {
           orderBy: { orderIndex: "asc" },
+        },
+        category: {
+          include: {
+            parent: {
+              select: { id: true, nameTr: true, segmentLetter: true },
+            },
+          },
         },
         invitations: {
           include: {
@@ -189,9 +220,20 @@ export class TenantTendersService {
       {} as Record<string, number>,
     );
 
-    const { approvalRequests, ...rest } = tender;
+    const { approvalRequests, category, ...rest } = tender;
     return {
       ...rest,
+      category: category
+        ? {
+            id: category.id,
+            code: category.code,
+            nameTr: category.nameTr,
+            level: category.level,
+            breadcrumb: category.parent
+              ? `${category.parent.segmentLetter}. ${category.parent.nameTr} › ${category.nameTr}`
+              : category.nameTr,
+          }
+        : null,
       bidStats: {
         total:
           (byStatus.SUBMITTED ?? 0) +
@@ -532,6 +574,9 @@ export class TenantTendersService {
   ) {
     this.validateBusinessRules(dto);
 
+    // V2-6 — kategori (Family seviyesi) zorunlu
+    await this.categoryService.validateIds([dto.categoryId], 2);
+
     // Adres snapshot'larını al (transaction dışında — adres okuma)
     const billingSnapshot = await this.snapshotForType(
       tenantId,
@@ -554,6 +599,7 @@ export class TenantTendersService {
           tenderNumber,
           tenantId,
           createdById: userId,
+          categoryId: dto.categoryId,
           type: dto.type,
           status: "DRAFT",
           title: dto.title.trim(),
@@ -622,6 +668,9 @@ export class TenantTendersService {
   ) {
     this.validateBusinessRules(dto);
 
+    // V2-6 — kategori (Family seviyesi) zorunlu
+    await this.categoryService.validateIds([dto.categoryId], 2);
+
     const billingSnapshot = await this.snapshotForType(
       tenantId,
       dto.billingAddressId,
@@ -657,6 +706,7 @@ export class TenantTendersService {
       await tx.tender.update({
         where: { id: tenderId },
         data: {
+          categoryId: dto.categoryId,
           type: dto.type,
           title: dto.title.trim(),
           description: dto.description?.trim() || null,

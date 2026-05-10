@@ -1,5 +1,6 @@
 "use client";
 
+import { CategorySelector } from "@/components/categories/category-selector";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ import {
   Info,
   MapPin,
   Star,
+  Tag,
   Truck,
   Wallet,
 } from "lucide-react";
@@ -80,14 +82,38 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
   const {
     register,
     formState: { errors },
+    setValue,
     watch,
   } = useFormContext<TenderFormData>();
 
   const paymentTerm = watch("paymentTerm");
   const primaryCurrency = watch("primaryCurrency");
 
+  const categoryId = watch("categoryId");
+
   return (
     <div className="space-y-8">
+      {/* V2-6 — SECTION: Kategori (en üstte, en kritik seçim) */}
+      <section>
+        <SectionHeader
+          icon={Tag}
+          title="Kategori"
+          description="İhalenizin konusu olan ürün/hizmet kategorisini seçin. Doğru kategori seçimi, raporlama ve tedarikçi eşleştirmesi için kritik."
+        />
+        <Field error={errors.categoryId?.message}>
+          <Label required>Kategori</Label>
+          <CategorySelector
+            value={categoryId ? [categoryId] : []}
+            onChange={(ids) =>
+              setValue("categoryId", ids[0] ?? "", { shouldValidate: true })
+            }
+            mode="single"
+            placeholder="İhale kategorisini arayın veya seçin"
+            error={errors.categoryId?.message}
+          />
+        </Field>
+      </section>
+
       {/* SECTION: Genel Bilgiler */}
       <section>
         <SectionHeader

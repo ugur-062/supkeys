@@ -752,7 +752,59 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 
 🎉 **V2 COMPLETE** — V2-1 (Resend webhook) + V2-2 (R2 attachments) + V2-3 (TCMB multi-currency) + V2-4 (1-on-1 messaging) + V2-5 (supplier panel redesign) tamamlandı.
 
-> **Sıradaki major adım**: V2.5 ufak iyileştirmeler (cross-currency bid, message inbox/floating chat, attachment versioning) sonra **production hosting** (Coolify + Hetzner, Docker image + Chromium pre-installed PDF + Resend domain verification + webhook secret).
+### V2-6 — UNSPSC Kategori Sistemi (foundation)
+- **Schema migration `v2_6_categories`:**
+  - `Category` self-ref model (`code` UNIQUE, `nameTr`/`nameEn`, `level` 1|2, `parentId` self-ref ON DELETE CASCADE, `segmentLetter`, `sortOrder`, `isActive`). 2 seviye: Segment (level 1, codes 10000000-80000000) → Family (level 2). Indexler: `(parentId, sortOrder)` + `(level, sortOrder)`.
+  - `SupplierCategory` junction (`supplierId` + `categoryId` + UNIQUE composite + `categoryId` index).
+  - `Tender.categoryId String?` + FK ON DELETE SetNull (V1 backward-compat: legacy ihaleler null).
+  - `Supplier.categories` + `Tenant…` reverse relations; `SupplierApplication.categoryIds Json?` (register'da seçilen ID'ler, admin onayında junction'a kopyalanır).
+- **Seed `packages/db/src/seeds/categories.json`** — 8 segment (A-H, PratisPro tarzı Türkçe isimler) × 46-57 family = **400 kayıt** Türkçe + İngilizce. `pnpm --filter @supkeys/db seed-categories` idempotent upsert (re-run güvenli).
+- **Backend `categories` modülü** (`@Global`, `apps/api/src/modules/categories/`):
+  - `CategoryService.getTree()` — segment + nested children (1 query + filter).
+  - `CategoryService.search(q)` — Family seviyesi case-insensitive `nameTr/nameEn` OR + `breadcrumb` ("A. Segment Adı › Family Adı"). Min 2 char (boş array <2). Top 50.
+  - `CategoryService.getByIds(ids)` + `validateIds(ids, requireLevel?)` — service-içi validation (NotFound missing, BadRequest wrong-level).
+  - `CategoryController` `GET /api/categories` (Cache-Control 1h, public no-auth) + `GET /api/categories/search?q=`.
+- **Backend `supplier-profile` modülü** (`apps/api/src/modules/supplier-profile/`): `GET /supplier-profile/me/categories` + `PATCH /supplier-profile/me/categories` (replace-all transaction, validateIds level 2). SupplierJwtAuthGuard.
+- **Backend entegrasyonlar:**
+  - `CreateSupplierApplicationDto.categoryIds` (1-20 Family ID'leri, Turkish error messages); `SupplierRegistrationService.create` validate + persist (`Application.categoryIds`'e Json olarak yazar).
+  - `AdminSupplierApplicationsService.approve` — yeni Supplier oluşunca `categoryIds` Json'dan SupplierCategory junction'a `createMany` (idempotent skipDuplicates).
+  - `SupplierAuthService.getMe` — `categories` array (breadcrumb ile) eklendi.
+  - `CreateTenderDto.categoryId` zorunlu (`@IsNotEmpty`); `TenantTendersService.createDraft/updateDraft` validate + persist; `findOne` + list response'larında `category: { id, code, nameTr, level, breadcrumb }` enriched.
+  - `SupplierTendersService.list/findOne` — aynı enrichment.
+- **Frontend hooks** (`apps/web/src/hooks/`):
+  - `use-categories.ts` — `useCategoryTree` (1h staleTime + 24h gcTime) + `useCategorySearch(q)` (5dk staleTime, enabled q≥2).
+  - `use-debounced-value.ts` — generic debounce (300ms default).
+  - `use-supplier-profile.ts` — `useSupplierCategories` (60sn staleTime) + `useUpdateSupplierCategories` (PATCH + invalidate).
+- **Frontend components** (`apps/web/src/components/categories/`):
+  - `CategorySelector` — accordion (segment toggle + selected count badge per segment) + search panel (debounced 300ms, breadcrumb visible) + max selection guard (warning auto-clear 3s) + single|multi mode + disabled/error props. max-h-96 + overflow-y scroll. PratisPro tarzı brand-50 selected, slate-50 hover.
+  - `CategoryBadge` — Tag icon + segmentLetter mono prefix + nameTr truncate + title tooltip = breadcrumb. sm|md size.
+- **Frontend entegrasyonlar:**
+  - **Supplier register** (`/register/supplier`) — Stepper artık 4 step (Firma → Yetkili → **Kategoriler** → Tamamlandı). Stepper component'i `steps` prop'u kabul ediyor; buyer akışı default 3 step kalır.
+  - **Supplier profile** (`/supplier/profil`) — Yeni `CategoriesCard` (view: chip listesi; edit: CategorySelector + Kaydet/İptal, replace-all PATCH).
+  - **Tender wizard Step 1** — En üste "Kategori" section (Tag ikonu + CategorySelector single-mode). Form schema'ya `categoryId` zorunlu eklendi (`STEP_FIELDS[1]`), `DEFAULT_FORM_VALUES`, `buildPayload`, `edit-loader` mapping. Step 4 review'da "Kategori" özet satırı (tree'den breadcrumb resolve).
+  - **Tender detail (tenant + supplier)** — `general-info-tab.tsx` "Kategori" InfoRow + breadcrumb.
+  - **Tender list (tenant tablosu + supplier card)** — başlık altında küçük `CategoryBadge`. Legacy null-category ihalelerde gizli.
+- **Manuel E2E doğrulama:**
+  - Migration: `\d categories` + `\d supplier_categories` + `tenders.categoryId` + `supplier_applications.categoryIds` jsonb ✓
+  - `pnpm seed-categories` → 8 segment / 392 family / **400 toplam** idempotent ✓
+  - GET /api/categories tree shape (segment.children populated) + Cache-Control 1h ✓
+  - GET /api/categories/search?q=software → 8 Family (breadcrumb "G. ... › Yazılım lisansı …") ✓
+  - GET /api/categories/search?q=k → boş array (min 2 char) ✓
+  - Tender create missing categoryId → 400 "Kategori zorunludur" ✓
+  - Tender create wrong-level (segment id) → 400 "Sadece level 2 (Family) ..." ✓
+  - Tender create invalid id → 404 "Geçersiz kategori ID" ✓
+  - Tender create valid Family → SUPK-2026-0016 ✓
+  - Tender list/detail response category enrich (breadcrumb dahil) + V1 backward-compat (legacy null) ✓
+  - Supplier /me categories field present ✓
+  - PATCH /supplier-profile/me/categories replace-all ✓ + boş/21/wrong-level → 400/400/400 + invalid id → 404 ✓
+  - Cross-token: tenant token → /supplier-profile/me/categories → 401 ✓
+  - Register frontend payload (2 family ID) → SupplierApplication.categoryIds Json'da ✓ → admin approve → SupplierCategory junction'da 2 satır ✓
+  - Frontend smoke (200): /register/supplier, /supplier/profil, /dashboard/ihaleler, /dashboard/ihaleler/yeni ✓
+  - typecheck (api+web+admin+email+shared+db) **8/8 yeşil** ✓
+
+> **Sapma**: Spec yeni bir wizard step öneriyordu; kategori seçimi kritik bir field olduğu için Step 1'in **en üstüne** entegre edildi (form schema `STEP_FIELDS[1]` içinde). Ek navigasyon adımı yerine, Genel Bilgiler içinde first-class section. Step 1 ileri butonuna basıldığında zaten validate ediliyor (zod min 1 char).
+
+> **Sıradaki major adım**: V2-7 (açık ihale + kategoriye göre kategoriye uygun e-mail bildirim + tedarikçi başvuru) sonra **production hosting** (Coolify + Hetzner, Docker image + Chromium pre-installed PDF + Resend domain verification + webhook secret).
 
 ---
 
@@ -776,7 +828,9 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 - Kayıt UX 6 haneli kod (self supplier akışı)
 - İngiliz Usulü açık eksiltme
 - Excel kalem import
-- Kategori sistemi (UNSPSC, ~14k satır)
+- ~~Kategori sistemi (UNSPSC, ~14k satır)~~ → **V2-6'da 2-seviye foundation tamamlandı** (8 segment + 392 family ~400 satır). Açık ihale + kategoriye göre e-mail bildirim V2-7'de.
+- Açık ihale (PUBLIC visibility) + tedarikçi başvuru sistemi (V2-7)
+- Kategoriye uygun email bildirim — yeni ihale yayınlandığında o kategoriyi seçmiş tedarikçilere otomatik bildirim (V2-7)
 - Eleme/Kazandırma geri alma
 - Hatırlatma e-postası özel süre
 - Tedarikçi paneli PratisPro tablo redesign

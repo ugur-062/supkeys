@@ -95,6 +95,21 @@ export class SupplierAuthService {
               },
               orderBy: { createdAt: "desc" },
             },
+            categories: {
+              include: {
+                category: {
+                  include: {
+                    parent: {
+                      select: {
+                        id: true,
+                        nameTr: true,
+                        segmentLetter: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -122,6 +137,15 @@ export class SupplierAuthService {
         blockedAt: rel.blockedAt,
         blockedReason: rel.blockedReason,
         createdAt: rel.createdAt,
+      })),
+      categories: user.supplier.categories.map((sc) => ({
+        id: sc.category.id,
+        code: sc.category.code,
+        nameTr: sc.category.nameTr,
+        level: sc.category.level,
+        breadcrumb: sc.category.parent
+          ? `${sc.category.parent.segmentLetter}. ${sc.category.parent.nameTr} › ${sc.category.nameTr}`
+          : sc.category.nameTr,
       })),
     };
   }

@@ -67,6 +67,13 @@ export function SupplierGeneralInfoTab({
             Süreç
           </h3>
           <dl className="space-y-3">
+            {tender.category ? (
+              <InfoRow label="Kategori">
+                <span className="text-brand-900 font-medium">
+                  {tender.category.breadcrumb}
+                </span>
+              </InfoRow>
+            ) : null}
             <InfoRow label="Yayın Tarihi">{fmt(tender.publishedAt)}</InfoRow>
             <InfoRow label="Teklif Açılış">{fmt(tender.bidsOpenAt)}</InfoRow>
             <InfoRow label="Teklif Kapanış">{fmt(tender.bidsCloseAt)}</InfoRow>
