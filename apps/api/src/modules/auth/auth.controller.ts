@@ -28,6 +28,8 @@ export class AuthController {
   @Get("me")
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: AuthenticatedUser) {
-    return user;
+    // V2-6.5 — request.user JWT'den gelir, permissions yok. Fresh DB lookup ile
+    // role + override → efektif permission listesi hesaplanır.
+    return this.authService.getMe(user.id);
   }
 }

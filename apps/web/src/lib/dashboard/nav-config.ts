@@ -19,12 +19,16 @@ export type NavItem =
       href: string;
       /** Sidebar'da kırmızı/mavi rakamlı badge — 0 ise gizlenir */
       badge?: number;
+      /** V2-6.5 — Sidebar'da görünürlüğü için gerekli RBAC permission. null/undefined = herkese açık */
+      permission?: string;
     }
   | {
       type: "cta";
       icon: LucideIcon;
       label: string;
       href: string;
+      /** V2-6.5 — RBAC permission */
+      permission?: string;
     };
 
 export interface NavGroup {
@@ -47,12 +51,14 @@ export const navConfig: NavGroup[] = [
         icon: FileText,
         label: "İhaleler",
         href: "/dashboard/ihaleler",
+        permission: "tender:view",
       },
       {
         type: "cta",
         icon: Plus,
         label: "Yeni İhale Aç",
         href: "/dashboard/ihaleler/yeni",
+        permission: "tender:create",
       },
       {
         type: "link",
@@ -60,12 +66,14 @@ export const navConfig: NavGroup[] = [
         label: "Onay Bekleyenler",
         href: "/dashboard/onay-bekleyenler",
         badge: 0,
+        permission: "approval:view",
       },
       {
         type: "link",
         icon: Package,
         label: "Siparişler",
         href: "/dashboard/siparisler",
+        permission: "order:view",
       },
     ],
   },
@@ -77,12 +85,14 @@ export const navConfig: NavGroup[] = [
         icon: Users,
         label: "Tedarikçiler",
         href: "/dashboard/tedarikciler",
+        permission: "settings:suppliers",
       },
       {
         type: "link",
         icon: BarChart3,
         label: "Raporlar",
         href: "/dashboard/raporlar",
+        permission: "reports:view",
       },
       {
         type: "link",

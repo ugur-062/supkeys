@@ -109,6 +109,16 @@ export class TenantUsersController {
     return this.service.resendInvitation(user.tenantId, id);
   }
 
+  @Get(":id")
+  @UseGuards(RolesGuard)
+  @Roles("COMPANY_ADMIN")
+  getOne(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ): Promise<unknown> {
+    return this.service.findById(user.tenantId, id);
+  }
+
   @Patch(":id")
   @UseGuards(RolesGuard)
   @Roles("COMPANY_ADMIN")

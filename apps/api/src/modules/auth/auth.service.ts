@@ -1,8 +1,10 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import type { UserRole } from "@supkeys/db";
 import * as bcrypt from "bcrypt";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { LoginDto } from "./dto/login.dto";
+import { resolveUserPermissions } from "./permissions/permissions.utils";
 import type { JwtPayload } from "./strategies/jwt.strategy";
 
 @Injectable()
@@ -78,6 +80,7 @@ export class AuthService {
       firstName: string;
       lastName: string;
       role: string;
+      permissionsOverride: unknown;
     },
     tenant: { id: string; name: string; slug: string },
   ) {
@@ -87,6 +90,11 @@ export class AuthService {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      // V2-6.5 — RBAC efektif permission listesi
+      permissions: resolveUserPermissions(
+        user.role as UserRole,
+        user.permissionsOverride,
+      ),
       tenant: {
         id: tenant.id,
         name: tenant.name,

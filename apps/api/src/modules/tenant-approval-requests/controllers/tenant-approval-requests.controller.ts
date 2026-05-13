@@ -14,6 +14,10 @@ import {
 import { Roles } from "../../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
+import {
+  PermissionsGuard,
+  RequirePermissions,
+} from "../../auth/permissions/permissions.guard";
 import { CancelRequestDto } from "../dto/cancel-request.dto";
 import { DecideStepDto } from "../dto/decide-step.dto";
 import { ListApprovalRequestsDto } from "../dto/list-approval-requests.dto";
@@ -21,7 +25,7 @@ import { ApprovalReminderService } from "../services/approval-reminder.service";
 import { TenantApprovalRequestsService } from "../services/tenant-approval-requests.service";
 
 @Controller("tenants/me/approval-requests")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class TenantApprovalRequestsController {
   constructor(
     private readonly service: TenantApprovalRequestsService,
@@ -29,6 +33,7 @@ export class TenantApprovalRequestsController {
   ) {}
 
   @Get()
+  @RequirePermissions("approval:view")
   list(
     @CurrentUser() user: AuthenticatedUser,
     @Query() query: ListApprovalRequestsDto,
@@ -37,6 +42,7 @@ export class TenantApprovalRequestsController {
   }
 
   @Get("pending-count")
+  @RequirePermissions("approval:view")
   getPendingCount(
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<{ count: number }> {
@@ -56,6 +62,7 @@ export class TenantApprovalRequestsController {
   }
 
   @Get(":id")
+  @RequirePermissions("approval:view")
   getOne(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -64,6 +71,7 @@ export class TenantApprovalRequestsController {
   }
 
   @Post(":id/approve")
+  @RequirePermissions("approval:approve")
   approve(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -73,6 +81,7 @@ export class TenantApprovalRequestsController {
   }
 
   @Post(":id/reject")
+  @RequirePermissions("approval:approve")
   reject(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -82,6 +91,7 @@ export class TenantApprovalRequestsController {
   }
 
   @Post(":id/cancel")
+  @RequirePermissions("approval:view")
   cancel(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,

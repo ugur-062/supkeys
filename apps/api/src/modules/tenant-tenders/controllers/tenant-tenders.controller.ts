@@ -13,9 +13,11 @@ import {
   CurrentUser,
   type AuthenticatedUser,
 } from "../../../common/decorators/current-user.decorator";
-import { Roles } from "../../../common/decorators/roles.decorator";
-import { RolesGuard } from "../../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
+import {
+  PermissionsGuard,
+  RequirePermissions,
+} from "../../auth/permissions/permissions.guard";
 import {
   AwardFullDto,
   AwardItemByItemDto,
@@ -29,13 +31,14 @@ import { UpdateTenderDto } from "../dto/update-tender.dto";
 import { TenantTendersService } from "../services/tenant-tenders.service";
 
 @Controller("tenants/me/tenders")
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class TenantTendersController {
   constructor(private readonly service: TenantTendersService) {}
 
   // ---------- READ ----------
 
   @Get()
+  @RequirePermissions("tender:view")
   list(
     @Query() query: ListTendersDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -44,11 +47,13 @@ export class TenantTendersController {
   }
 
   @Get("stats")
+  @RequirePermissions("tender:view")
   stats(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {
     return this.service.stats(user.tenantId);
   }
 
   @Get(":id")
+  @RequirePermissions("tender:view")
   findOne(
     @Param("id") id: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -57,6 +62,7 @@ export class TenantTendersController {
   }
 
   @Get(":id/bids/comparison")
+  @RequirePermissions("bid:compare")
   getBidComparison(
     @Param("id") id: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -65,6 +71,7 @@ export class TenantTendersController {
   }
 
   @Get(":id/bids/:bidId")
+  @RequirePermissions("bid:compare")
   getBidDetail(
     @Param("id") id: string,
     @Param("bidId") bidId: string,
@@ -74,6 +81,7 @@ export class TenantTendersController {
   }
 
   @Get(":id/bids")
+  @RequirePermissions("bid:compare")
   getBids(
     @Param("id") id: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -81,11 +89,10 @@ export class TenantTendersController {
     return this.service.getBids(user.tenantId, id);
   }
 
-  // ---------- WRITE (COMPANY_ADMIN-only) ----------
+  // ---------- WRITE — V2-6.5 RBAC permission-based ----------
 
   @Post()
-  @UseGuards(RolesGuard)
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("tender:create")
   create(
     @CurrentUser() user: AuthenticatedUser,
     @Body() dto: CreateTenderDto,
@@ -94,8 +101,7 @@ export class TenantTendersController {
   }
 
   @Patch(":id")
-  @UseGuards(RolesGuard)
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("tender:edit")
   update(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -105,8 +111,7 @@ export class TenantTendersController {
   }
 
   @Post(":id/publish")
-  @UseGuards(RolesGuard)
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("tender:publish")
   publish(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -115,8 +120,7 @@ export class TenantTendersController {
   }
 
   @Post(":id/cancel")
-  @UseGuards(RolesGuard)
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("tender:cancel")
   cancel(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -126,8 +130,7 @@ export class TenantTendersController {
   }
 
   @Delete(":id")
-  @UseGuards(RolesGuard)
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("tender:delete")
   delete(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -138,8 +141,7 @@ export class TenantTendersController {
   // ---------- E.5 — Eleme + Kazandırma ----------
 
   @Post(":id/bids/:bidId/eliminate")
-  @UseGuards(RolesGuard)
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("bid:eliminate")
   eliminateBid(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -150,8 +152,7 @@ export class TenantTendersController {
   }
 
   @Post(":id/award/full")
-  @UseGuards(RolesGuard)
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("tender:award")
   awardFull(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -161,8 +162,7 @@ export class TenantTendersController {
   }
 
   @Post(":id/award/item-by-item")
-  @UseGuards(RolesGuard)
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("tender:award")
   awardItemByItem(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -172,8 +172,7 @@ export class TenantTendersController {
   }
 
   @Post(":id/award/finalize")
-  @UseGuards(RolesGuard)
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("tender:award")
   finalizeAward(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
@@ -182,8 +181,7 @@ export class TenantTendersController {
   }
 
   @Post(":id/close-no-award")
-  @UseGuards(RolesGuard)
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("tender:cancel")
   closeNoAward(
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,

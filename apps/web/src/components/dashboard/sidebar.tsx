@@ -3,6 +3,7 @@
 import { SupkeysLogo } from "@/components/brand/logo";
 import { useApprovalPendingCount } from "@/hooks/use-approval-requests";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { navConfig, profileNavItem } from "@/lib/dashboard/nav-config";
 import { useSidebar } from "@/lib/dashboard/use-sidebar";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ import { SidebarItem } from "./sidebar-item";
 export function Sidebar() {
   const { collapsed, toggle, mobileOpen, closeMobile } = useSidebar();
   const { user } = useAuth();
+  const { has } = usePermissions();
   const { data: pendingApprovals } = useApprovalPendingCount();
 
   const initials = user
@@ -23,21 +25,27 @@ export function Sidebar() {
 
   // E.7.D — "Onay Bekleyenler" item'ına live badge enjekte et.
   // (V2-4 mesaj badge'i sidebar'dan kaldırıldı — header dropdown ana erişim noktası.)
+  // V2-6.5 — Önce permission filter, sonra badge enjeksiyonu. permission undefined ise
+  // her zaman görünür; tanımlıysa user.permissions içinde olmak şart.
   const liveNavConfig = useMemo(() => {
     const count = pendingApprovals?.count ?? 0;
-    return navConfig.map((group) => ({
-      ...group,
-      items: group.items.map((item) => {
-        if (
-          item.type === "link" &&
-          item.href === "/dashboard/onay-bekleyenler"
-        ) {
-          return { ...item, badge: count };
-        }
-        return item;
-      }),
-    }));
-  }, [pendingApprovals?.count]);
+    return navConfig
+      .map((group) => ({
+        ...group,
+        items: group.items
+          .filter((item) => !item.permission || has(item.permission))
+          .map((item) => {
+            if (
+              item.type === "link" &&
+              item.href === "/dashboard/onay-bekleyenler"
+            ) {
+              return { ...item, badge: count };
+            }
+            return item;
+          }),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [pendingApprovals?.count, has]);
 
   return (
     <Tooltip.Provider>

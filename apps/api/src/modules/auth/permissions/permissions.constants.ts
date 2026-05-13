@@ -1,0 +1,131 @@
+import type { UserRole } from "@supkeys/db";
+
+/**
+ * V2-6.5 — RBAC permission constants.
+ * 6 grup, 22 permission.
+ */
+export const PERMISSIONS = {
+  TENDER: {
+    CREATE: "tender:create",
+    EDIT: "tender:edit",
+    PUBLISH: "tender:publish",
+    DELETE: "tender:delete",
+    AWARD: "tender:award",
+    CANCEL: "tender:cancel",
+    VIEW: "tender:view",
+  },
+  BID: {
+    COMPARE: "bid:compare",
+    ELIMINATE: "bid:eliminate",
+  },
+  ORDER: {
+    EDIT: "order:edit",
+    COMPLETE: "order:complete",
+    CANCEL: "order:cancel",
+    VIEW: "order:view",
+  },
+  APPROVAL: {
+    APPROVE: "approval:approve",
+    VIEW: "approval:view",
+  },
+  SETTINGS: {
+    USERS: "settings:users",
+    SUPPLIERS: "settings:suppliers",
+    ADDRESSES: "settings:addresses",
+    APPROVAL_FLOW: "settings:approval",
+    COMPANY: "settings:company",
+  },
+  REPORTS: {
+    VIEW: "reports:view",
+    EXPORT: "reports:export",
+  },
+} as const;
+
+export const ALL_PERMISSIONS: readonly string[] = Object.values(PERMISSIONS)
+  .flatMap((group) => Object.values(group))
+  .map((p) => p as string);
+
+export const PERMISSION_LABELS: Record<
+  string,
+  { tr: string; groupTr: string }
+> = {
+  "tender:create": { tr: "İhale oluşturabilir", groupTr: "İhale" },
+  "tender:edit": { tr: "İhale düzenleyebilir", groupTr: "İhale" },
+  "tender:publish": { tr: "İhale yayınlayabilir", groupTr: "İhale" },
+  "tender:delete": { tr: "İhale silebilir", groupTr: "İhale" },
+  "tender:award": { tr: "Kazananı seçebilir", groupTr: "İhale" },
+  "tender:cancel": { tr: "İhale iptal edebilir", groupTr: "İhale" },
+  "tender:view": { tr: "İhaleleri görüntüleyebilir", groupTr: "İhale" },
+  "bid:compare": { tr: "Teklifleri karşılaştırabilir", groupTr: "Teklif" },
+  "bid:eliminate": { tr: "Teklif eleyebilir", groupTr: "Teklif" },
+  "order:edit": { tr: "Sipariş düzenleyebilir", groupTr: "Sipariş" },
+  "order:complete": { tr: "Sipariş tamamlayabilir", groupTr: "Sipariş" },
+  "order:cancel": { tr: "Sipariş iptal edebilir", groupTr: "Sipariş" },
+  "order:view": { tr: "Siparişleri görüntüleyebilir", groupTr: "Sipariş" },
+  "approval:approve": {
+    tr: "Onay süreçlerinde onaylayabilir",
+    groupTr: "Onay",
+  },
+  "approval:view": {
+    tr: "Onay süreçlerini görüntüleyebilir",
+    groupTr: "Onay",
+  },
+  "settings:users": { tr: "Kullanıcı yönetebilir", groupTr: "Ayarlar" },
+  "settings:suppliers": { tr: "Tedarikçi yönetebilir", groupTr: "Ayarlar" },
+  "settings:addresses": { tr: "Adresleri yönetebilir", groupTr: "Ayarlar" },
+  "settings:approval": { tr: "Onay akışını yönetebilir", groupTr: "Ayarlar" },
+  "settings:company": {
+    tr: "Firma bilgilerini düzenleyebilir",
+    groupTr: "Ayarlar",
+  },
+  "reports:view": { tr: "Raporları görüntüleyebilir", groupTr: "Raporlar" },
+  "reports:export": { tr: "Rapor dışa aktarabilir", groupTr: "Raporlar" },
+};
+
+/**
+ * Rol başına default permission seti. Override yoksa user bu setle çalışır.
+ *
+ * Tasarım:
+ * - COMPANY_ADMIN: yalnızca yönetim (kullanıcı/tedarikçi/adres/onay-akışı/firma)
+ *   + tüm görüntüleme + raporlar. İhale OLUŞTURAMAZ default'ta — yönetici
+ *   isterse kendisine `tender:create` ekleyebilir.
+ * - BUYER (Satın Almacı): tüm ihale + sipariş operasyonu + bid işlemleri +
+ *   reports:view. Ayarları yönetemez.
+ * - APPROVER: sadece onay süreçleri + temel view (tender/order okuyabilir).
+ */
+export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
+  COMPANY_ADMIN: [
+    "settings:users",
+    "settings:suppliers",
+    "settings:addresses",
+    "settings:approval",
+    "settings:company",
+    "tender:view",
+    "order:view",
+    "approval:view",
+    "reports:view",
+    "reports:export",
+  ],
+  BUYER: [
+    "tender:create",
+    "tender:edit",
+    "tender:publish",
+    "tender:delete",
+    "tender:award",
+    "tender:cancel",
+    "tender:view",
+    "bid:compare",
+    "bid:eliminate",
+    "order:edit",
+    "order:complete",
+    "order:cancel",
+    "order:view",
+    "reports:view",
+  ],
+  APPROVER: [
+    "approval:approve",
+    "approval:view",
+    "tender:view",
+    "order:view",
+  ],
+};

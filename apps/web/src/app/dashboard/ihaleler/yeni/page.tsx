@@ -1,3 +1,4 @@
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { Suspense } from "react";
 import { YeniIhaleRouter } from "./_components/yeni-router";
 
@@ -7,8 +8,10 @@ export const metadata = {
 
 export default function YeniIhalePage() {
   return (
-    <Suspense fallback={null}>
-      <YeniIhaleRouter />
-    </Suspense>
+    <PermissionGuard permission="tender:create">
+      <Suspense fallback={null}>
+        <YeniIhaleRouter />
+      </Suspense>
+    </PermissionGuard>
   );
 }

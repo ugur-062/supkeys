@@ -17,6 +17,9 @@ export interface TenantUserListItem {
   lastLoginAt: string | null;
   createdAt: string;
   invitedAt: string | null;
+  /** V2-6.5 — RBAC efektif permission listesi */
+  permissions?: string[];
+  hasCustomPermissions?: boolean;
 }
 
 export interface TenantUserMe {
@@ -75,6 +78,11 @@ export interface UpdateUserPayload {
   phone?: string;
   role?: UserRole;
   isActive?: boolean;
+  /** V2-6.5 — null = saf default; obje verirseniz added/removed listeleri kabul edilir */
+  permissionsOverride?: {
+    added?: string[];
+    removed?: string[];
+  } | null;
 }
 
 export interface ChangePasswordPayload {

@@ -9,7 +9,12 @@ import {
 import { ConfigService } from "@nestjs/config";
 import * as bcrypt from "bcrypt";
 import * as crypto from "crypto";
+import { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import {
+  ALL_PERMISSIONS,
+} from "../../auth/permissions/permissions.constants";
+import { resolveUserPermissions } from "../../auth/permissions/permissions.utils";
 import { EmailQueue } from "../../email/email.queue";
 import { ChangePasswordDto } from "../dto/change-password.dto";
 import { InviteUserDto } from "../dto/invite-user.dto";
@@ -40,8 +45,8 @@ export class TenantUsersService {
 
   // ----- LIST + ME -----
 
-  async list(tenantId: string) {
-    return this.prisma.user.findMany({
+  async list(tenantId: string): Promise<unknown[]> {
+    const rows = await this.prisma.user.findMany({
       where: { tenantId },
       select: {
         id: true,
@@ -54,9 +59,41 @@ export class TenantUsersService {
         lastLoginAt: true,
         createdAt: true,
         invitedAt: true,
+        permissionsOverride: true,
       },
       orderBy: [{ role: "asc" }, { createdAt: "asc" }],
     });
+    // V2-6.5 — Her satıra efektif permission listesi + override flag ekle
+    return rows.map((u) => ({
+      ...u,
+      permissions: resolveUserPermissions(u.role, u.permissionsOverride),
+      hasCustomPermissions: u.permissionsOverride !== null,
+    }));
+  }
+
+  async findById(tenantId: string, userId: string): Promise<unknown> {
+    const u = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        lastLoginAt: true,
+        createdAt: true,
+        invitedAt: true,
+        permissionsOverride: true,
+      },
+    });
+    if (!u) throw new NotFoundException("Kullanıcı bulunamadı");
+    return {
+      ...u,
+      permissions: resolveUserPermissions(u.role, u.permissionsOverride),
+      hasCustomPermissions: u.permissionsOverride !== null,
+    };
   }
 
   async getMe(userId: string): Promise<unknown> {
@@ -71,6 +108,7 @@ export class TenantUsersService {
         role: true,
         isActive: true,
         notificationPrefs: true,
+        permissionsOverride: true,
         lastLoginAt: true,
         createdAt: true,
         tenant: {
@@ -94,12 +132,20 @@ export class TenantUsersService {
     });
     if (!user) throw new NotFoundException("Kullanıcı bulunamadı");
 
+    // V2-6.5 — efektif permission listesi (saf role default veya override sonrası)
+    const permissions = resolveUserPermissions(
+      user.role,
+      user.permissionsOverride,
+    );
+
     // V2-6 — buyerApplication alt-nesnesini düzleştir (TenantUserMe.tenant'ta
     // companyType + taxCertUrl direkt erişilebilir olsun).
     if (user.tenant) {
       const { buyerApplication, ...rest } = user.tenant;
       return {
         ...user,
+        permissions,
+        hasCustomPermissions: user.permissionsOverride !== null,
         tenant: {
           ...rest,
           companyType: buyerApplication?.companyType ?? null,
@@ -166,7 +212,45 @@ export class TenantUsersService {
       }
     }
 
-    return this.prisma.user.update({
+    // V2-6.5 — permissionsOverride: self-update'te değiştirilemez (kullanıcı
+    // kendi yetkilerini boost edemez). Sadece admin başkasını yetkilendirebilir.
+    if (dto.permissionsOverride !== undefined && isSelf) {
+      throw new ForbiddenException(
+        "Kendi yetkilerinizi düzenleyemezsiniz",
+      );
+    }
+
+    // permissionsOverride validation — added/removed her permission ALL_PERMISSIONS içinde mi?
+    let normalizedOverride: { added?: string[]; removed?: string[] } | null | undefined =
+      undefined;
+    if (dto.permissionsOverride === null) {
+      normalizedOverride = null; // saf default'a dön
+    } else if (dto.permissionsOverride !== undefined) {
+      const ov = dto.permissionsOverride;
+      const allKeys = [...(ov.added ?? []), ...(ov.removed ?? [])];
+      const invalid = allKeys.filter((k) => !ALL_PERMISSIONS.includes(k));
+      if (invalid.length > 0) {
+        throw new BadRequestException(
+          `Geçersiz yetki: ${invalid.join(", ")}`,
+        );
+      }
+      // Hem added hem removed boşsa null olarak sakla (saf default)
+      if (
+        (ov.added ?? []).length === 0 &&
+        (ov.removed ?? []).length === 0
+      ) {
+        normalizedOverride = null;
+      } else {
+        normalizedOverride = {
+          ...(ov.added && ov.added.length > 0 ? { added: ov.added } : {}),
+          ...(ov.removed && ov.removed.length > 0
+            ? { removed: ov.removed }
+            : {}),
+        };
+      }
+    }
+
+    const updated = await this.prisma.user.update({
       where: { id: targetUserId },
       data: {
         firstName: dto.firstName,
@@ -174,6 +258,14 @@ export class TenantUsersService {
         phone: dto.phone,
         role: dto.role,
         isActive: dto.isActive,
+        ...(normalizedOverride === null
+          ? { permissionsOverride: Prisma.JsonNull }
+          : normalizedOverride !== undefined
+            ? {
+                permissionsOverride:
+                  normalizedOverride as unknown as Prisma.InputJsonValue,
+              }
+            : {}),
       },
       select: {
         id: true,
@@ -183,8 +275,14 @@ export class TenantUsersService {
         phone: true,
         role: true,
         isActive: true,
+        permissionsOverride: true,
       },
     });
+    return {
+      ...updated,
+      permissions: resolveUserPermissions(updated.role, updated.permissionsOverride),
+      hasCustomPermissions: updated.permissionsOverride !== null,
+    };
   }
 
   // ----- CHANGE PASSWORD -----

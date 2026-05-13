@@ -6,6 +6,8 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   role: UserRole;
+  /** V2-6.5 — RBAC efektif permission listesi (role default + override). */
+  permissions: string[];
   tenant: {
     id: string;
     name: string;

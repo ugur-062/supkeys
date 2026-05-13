@@ -113,6 +113,10 @@ model User {
   // E.7.A — kategori bazlı bildirim tercihleri (key: boolean)
   notificationPrefs Json?
 
+  // V2-6.5 — RBAC override: { added?: string[], removed?: string[] }
+  // null = saf role default; dolu = role default'undan eklenen/eksiltilen permission'lar
+  permissionsOverride Json?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
