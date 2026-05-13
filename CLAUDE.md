@@ -819,6 +819,18 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 > - `categories.json` silindi, `categories.txt` UTF-8 (1618 satır) yeni kaynak.
 > - typecheck 6/6 yeşil. Manuel E2E: tender L1/L2 reject + L3/L4 accept + invalid id 404 + backward-compat V1 null-category, supplier L2/L3/L4 reject + L1 accept, `/search-tree?q=monitör` hiyerarşik tree, cross-token izolasyonu.
 
+> **V2-6.5 — RBAC (Role-Based Access Control)**:
+> - Schema migration `v2_6_5_rbac_permissions` — `User.permissionsOverride Json?` (null = saf default; `{ added?: string[], removed?: string[] }`).
+> - **22 permission / 6 grup** (`apps/api/.../auth/permissions/`): tender (7), bid (2), order (4), approval (2), settings (5), reports (2).
+> - **3 default rol** (`ROLE_DEFAULT_PERMISSIONS`):
+>   - **COMPANY_ADMIN** → yönetim-only: 5 settings + tüm view + reports (10). İhale **oluşturamaz** default'ta.
+>   - **BUYER** → tender CRUD + award/cancel + bid + order + reports:view (14).
+>   - **APPROVER** → approval + view (4).
+> - Backend: `resolveUserPermissions(role, override)` = role default - removed + added (dedup). `PermissionsGuard` + `@RequirePermissions(...)` decorator AND mantığı. Login + `/auth/me` (DB lookup) + `/tenants/me/users/(me|:id|list)` response'larında `permissions: string[]` + `hasCustomPermissions: boolean`. Guard'lar: tender (create/edit/publish/delete/award/cancel/view + bid:compare/eliminate), order (view/complete/cancel), approval-requests (view/approve). Settings controller'ları `@Roles("COMPANY_ADMIN")` ile korundu (backward compat).
+> - User update endpoint `permissionsOverride` kabul eder (added/removed validation ALL_PERMISSIONS whitelist'i karşı; self-update bloklu; null gönderim Prisma.JsonNull ile saf default'a döner). Boş added+removed normalize edilir.
+> - Frontend: `lib/permissions.ts` (PERMISSION_GROUPS, ROLE_DEFAULT_PERMISSIONS, computePermissionsOverride). `usePermissions` hook (has/hasAny/hasAll). `<PermissionGuard>` route wrapper. `NavItem.permission` + sidebar filter. `/dashboard/ihaleler/yeni` PermissionGuard ile sarıldı. `EditUserModal` artık rol radio + 6 grup permission checkbox + role değişiminde otomatik default sync + +/− görsel rozet (eklenen/kaldırılan) + "Varsayılana Dön" + "Özelleştirilmiş" warning.
+> - Doğrulama: COMPANY_ADMIN POST tender → 403 (default tender:create yok). DB ile override eklendikten sonra → 201. Login response 10 yetki, BUYER 14, APPROVER 4. typecheck 6/6 ✓.
+
 > **Sıradaki major adım**: V2-7 (açık ihale + kategoriye göre kategoriye uygun e-mail bildirim + tedarikçi başvuru) sonra **production hosting** (Coolify + Hetzner, Docker image + Chromium pre-installed PDF + Resend domain verification + webhook secret).
 
 ---
