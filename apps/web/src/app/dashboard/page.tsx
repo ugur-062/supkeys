@@ -1,39 +1,37 @@
 "use client";
 
-import { ActivityFeed } from "@/components/dashboard/activity-feed";
-import { EmptyPanel } from "@/components/dashboard/empty-panel";
-import { KpiCard } from "@/components/dashboard/kpi-card";
-import { OnboardingCard } from "@/components/dashboard/onboarding-card";
-import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
 import { useAuth, useMe } from "@/hooks/use-auth";
-import {
-  useTenantDashboardStats,
-  useTenantRecentActivity,
-  type TenantActivity,
-} from "@/hooks/use-tenant-dashboard";
-import { TENDER_STATUS_META } from "@/lib/tenders/labels";
-import type { TenderStatus } from "@/lib/tenders/types";
+import { cn } from "@/lib/utils";
+import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import {
-  Activity,
-  Calendar,
-  CheckSquare,
-  FileText,
-  Package,
-  TrendingUp,
-  Users,
-} from "lucide-react";
 import { useEffect, useState } from "react";
+import { IhaleTab } from "./_components/ihale-tab";
+import {
+  MOCK_IHALE,
+  MOCK_TASARRUF,
+  MOCK_TEDARIKCI,
+} from "./_components/mock-data";
+import { TasarrufTab } from "./_components/tasarruf-tab";
+import { TedarikciTab } from "./_components/tedarikci-tab";
 
-function formatTRY(amount: number): string {
-  if (!Number.isFinite(amount) || amount === 0) return "₺0";
-  return amount.toLocaleString("tr-TR", {
-    style: "currency",
-    currency: "TRY",
-    maximumFractionDigits: 0,
-  });
-}
+const TABS = [
+  { value: "ihale", label: "İhale" },
+  { value: "tasarruf", label: "Tasarruf" },
+  { value: "tedarikci", label: "Tedarikçi" },
+] as const;
+
+const TRIGGER_CLASSES = cn(
+  "group inline-flex items-center px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+  "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50/60",
+  "data-[state=active]:border-brand-500 data-[state=active]:text-brand-700 data-[state=active]:bg-brand-50/30",
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30 rounded-t-md",
+);
+
+const CONTENT_CLASSES = cn(
+  "outline-none",
+  "data-[state=active]:animate-in data-[state=active]:fade-in-50 data-[state=active]:duration-200",
+);
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -44,46 +42,23 @@ export default function DashboardPage() {
     setTodayLabel(format(new Date(), "d MMMM yyyy, EEEE", { locale: tr }));
   }, []);
 
-  const statsQuery = useTenantDashboardStats();
-  const activityQuery = useTenantRecentActivity(10);
-
-  const stats = statsQuery.data;
-  const activities = activityQuery.data ?? [];
-
-  // Defensive: ilk render'da `stats` undefined olabilir; tüm aşağı bileşenlerde
-  // optional chaining + ?? 0 kullanıyoruz, ancak hesaplanan flag'leri burada
-  // güvenli şekilde okuyalım.
-  const activeCount = stats?.tenders?.active ?? 0;
-  const inAwardCount = stats?.tenders?.inAward ?? 0;
-  const draftCount = stats?.tenders?.draft ?? 0;
-  const awardedCount = stats?.tenders?.awarded ?? 0;
-  const activeSuppliersCount = stats?.suppliers?.active ?? 0;
-  const pendingOrdersCount = stats?.orders?.pending ?? 0;
-
-  const allEmpty =
-    !!stats &&
-    activeCount === 0 &&
-    inAwardCount === 0 &&
-    activeSuppliersCount === 0 &&
-    pendingOrdersCount === 0;
-
-  const showActiveTendersSummary =
-    !!stats && (activeCount > 0 || inAwardCount > 0);
-
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      <header className="flex items-start justify-between gap-6 flex-wrap">
+    <div className="mx-auto max-w-7xl space-y-6">
+      <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="font-display font-bold text-3xl text-brand-900 leading-tight">
+          <div className="mb-1 flex items-center gap-3">
+            <h1 className="font-display text-2xl font-bold leading-tight text-brand-900 sm:text-3xl">
               Hoş geldin, {user?.firstName ?? "Supkeys kullanıcısı"} 👋
             </h1>
-            <span className="inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-md bg-success-50 text-success-700 font-semibold border border-success-500/20">
-              <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-success-500" />
+            <span className="inline-flex items-center gap-1.5 rounded-md border border-success-500/20 bg-success-50 px-2 py-1 text-xs font-semibold text-success-700">
+              <span
+                aria-hidden
+                className="h-1.5 w-1.5 rounded-full bg-success-500"
+              />
               Aktif
             </span>
           </div>
-          <p className="text-slate-500 text-sm">
+          <p className="text-sm text-slate-500">
             {user?.tenant.name
               ? `${user.tenant.name} hesabına genel bakış`
               : "Panele genel bakış"}
@@ -95,248 +70,36 @@ export default function DashboardPage() {
             )}
           </p>
         </div>
-        <div className="w-full md:w-auto md:max-w-md md:flex-shrink-0">
-          <TcmbRatesWidget />
-        </div>
       </header>
 
-      {/* KPI grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard
-          label="Aktif İhaleler"
-          value={stats ? activeCount : undefined}
-          icon={FileText}
-          accent="brand"
-          hint="Yayında ve teklif kabul ediyor"
-        />
-        <KpiCard
-          label="Kazandırma Aşamasında"
-          value={stats ? inAwardCount : undefined}
-          icon={CheckSquare}
-          accent="warning"
-          hint="Süresi dolmuş, kazandırma bekleyen"
-        />
-        <KpiCard
-          label="Aktif Tedarikçiler"
-          value={stats ? activeSuppliersCount : undefined}
-          icon={Users}
-          accent="indigo"
-          hint="Onaylı listenizde"
-        />
-        <KpiCard
-          label="Bekleyen Siparişler"
-          value={stats ? pendingOrdersCount : undefined}
-          icon={Package}
-          accent="success"
-          hint="Tedarikçi henüz kabul etmedi"
-        />
-      </div>
-
-      {/* Son 30 gün özeti */}
-      {stats ? (
-        <section className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/60 via-white to-indigo-50/40 p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-4 w-4 text-brand-600" />
-            <h2 className="text-xs font-bold text-brand-900 uppercase tracking-wider">
-              Son 30 Gün
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            <div>
-              <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">
-                Tamamlanan İhale
-              </p>
-              <p className="text-2xl font-bold text-brand-900 tabular-nums mt-1">
-                {stats?.last30Days?.completedTenders ?? 0}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">
-                Gelen Teklif
-              </p>
-              <p className="text-2xl font-bold text-brand-900 tabular-nums mt-1">
-                {stats?.last30Days?.bidsReceived ?? 0}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">
-                Toplam Harcama
-              </p>
-              <p className="text-2xl font-bold text-brand-900 tabular-nums mt-1">
-                {formatTRY(stats?.last30Days?.totalSpend ?? 0)}
-              </p>
-            </div>
-          </div>
-        </section>
-      ) : null}
-
-      {/* Onboarding — yeni hesap (hiç veri yok) ise */}
-      {allEmpty ? (
-        <OnboardingCard
-          heading="Supkeys'e hoş geldin"
-          subtitle="İlk değerini almak için 3 hızlı adım"
-          steps={[
-            {
-              title: "İlk tedarikçini ekle",
-              description:
-                "Mevcut tedarikçilerini davet et veya tedarikçi havuzundan keşfet.",
-              ctaLabel: "Tedarikçi Ekle",
-              ctaHref: "/dashboard/tedarikciler",
-              duration: "2dk",
-            },
-            {
-              title: "İlk ihaleni aç",
-              description:
-                "Talebini yayınla, tekliflerini topla, tasarruf et.",
-              ctaLabel: "İhale Oluştur",
-              ctaHref: "/dashboard/ihaleler/yeni",
-              duration: "5dk",
-            },
-            {
-              title: "Ekibine üye davet et",
-              description:
-                "Satın almacı veya onaylayıcı kullanıcılar ekle.",
-              ctaLabel: "Davet Gönder",
-              ctaHref: "/dashboard/ayarlar",
-              duration: "1dk",
-            },
-          ]}
-        />
-      ) : null}
-
-      {/* Alt grid: aktif ihaleler + son aktiviteler */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {showActiveTendersSummary && stats ? (
-          <section className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6">
-            <header className="mb-4 flex items-center justify-between">
-              <div>
-                <h2 className="font-display font-bold text-base text-brand-900">
-                  Aktif İhaleleriniz
-                </h2>
-                <p className="text-sm text-slate-500 mt-0.5">
-                  Yayında ve kazandırmayı bekleyen ihaleler
-                </p>
-              </div>
-            </header>
-            <ActiveTendersSummary stats={stats} />
-          </section>
-        ) : (
-          <EmptyPanel
-            heading="Yaklaşan İhaleler"
-            subtitle="Kapanışı yaklaşan ihaleler burada görünecek."
-            icon={Calendar}
-            iconAccent="brand"
-            emptyTitle="Aktif ihale yok"
-            emptyDescription="İlk ihaleni oluşturarak tasarrufa başla."
-            ctaLabel="İlk ihalemi aç"
-            ctaHref="/dashboard/ihaleler/yeni"
-          />
-        )}
-
-        <section className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-6">
-          <header className="mb-4 flex items-center gap-2">
-            <Activity className="h-4 w-4 text-indigo-600" />
-            <h2 className="font-display font-bold text-base text-brand-900">
-              Son Aktiviteler
-            </h2>
-          </header>
-          <ActivityFeed
-            rows={activities.map(toActivityRow)}
-            emptyMessage="Henüz aktivite yok"
-            emptyIcon={Activity}
-          />
-        </section>
-      </div>
-    </div>
-  );
-}
-
-function ActiveTendersSummary({
-  stats,
-}: {
-  stats: NonNullable<ReturnType<typeof useTenantDashboardStats>["data"]>;
-}) {
-  // Defensive: backend her zaman dolu döner, ama cache'den gelen stale shape
-  // veya eski deploy senaryosunda nested objeler eksik gelebilir.
-  const items = [
-    {
-      label: "Yayında",
-      value: stats?.tenders?.active ?? 0,
-      href: "/dashboard/ihaleler?tab=open",
-      tone: "bg-success-50 text-success-700",
-    },
-    {
-      label: "Kazandırma",
-      value: stats?.tenders?.inAward ?? 0,
-      href: "/dashboard/ihaleler?tab=in-award",
-      tone: "bg-warning-50 text-warning-700",
-    },
-    {
-      label: "Taslak",
-      value: stats?.tenders?.draft ?? 0,
-      href: "/dashboard/ihaleler?tab=draft",
-      tone: "bg-slate-100 text-slate-700",
-    },
-    {
-      label: "Tamamlandı",
-      value: stats?.tenders?.awarded ?? 0,
-      href: "/dashboard/ihaleler?tab=awarded",
-      tone: "bg-brand-50 text-brand-700",
-    },
-  ];
-
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {items.map((it) => (
-        <a
-          key={it.label}
-          href={it.href}
-          className="flex items-center justify-between gap-3 p-3 rounded-lg border border-slate-100 hover:border-brand-300 hover:bg-slate-50 transition"
+      <TabsPrimitive.Root defaultValue="ihale" className="space-y-6">
+        <TabsPrimitive.List
+          className="flex gap-1 overflow-x-auto border-b border-slate-200"
+          aria-label="Dashboard bölümleri"
         >
-          <span className="text-sm text-slate-600">{it.label}</span>
-          <span
-            className={`inline-flex min-w-[2.5rem] items-center justify-center px-2.5 py-1 rounded-md text-sm font-bold tabular-nums ${it.tone}`}
-          >
-            {it.value}
-          </span>
-        </a>
-      ))}
+          {TABS.map((t) => (
+            <TabsPrimitive.Trigger
+              key={t.value}
+              value={t.value}
+              className={TRIGGER_CLASSES}
+            >
+              {t.label}
+            </TabsPrimitive.Trigger>
+          ))}
+        </TabsPrimitive.List>
+
+        <TabsPrimitive.Content value="ihale" className={CONTENT_CLASSES}>
+          <IhaleTab data={MOCK_IHALE} />
+        </TabsPrimitive.Content>
+
+        <TabsPrimitive.Content value="tasarruf" className={CONTENT_CLASSES}>
+          <TasarrufTab data={MOCK_TASARRUF} />
+        </TabsPrimitive.Content>
+
+        <TabsPrimitive.Content value="tedarikci" className={CONTENT_CLASSES}>
+          <TedarikciTab data={MOCK_TEDARIKCI} />
+        </TabsPrimitive.Content>
+      </TabsPrimitive.Root>
     </div>
   );
-}
-
-function toActivityRow(activity: TenantActivity) {
-  if (activity.type === "tender") {
-    const statusMeta =
-      TENDER_STATUS_META[activity.data.status as TenderStatus];
-    return {
-      href: `/dashboard/ihaleler/${activity.data.id}`,
-      icon: FileText,
-      iconBgClass: "bg-brand-50",
-      iconClass: "text-brand-600",
-      label: `${activity.data.tenderNumber} — ${activity.data.title}`,
-      sublabel: `İhale · ${statusMeta?.label ?? activity.data.status}`,
-      timestamp: activity.timestamp,
-    };
-  }
-  if (activity.type === "bid") {
-    return {
-      href: `/dashboard/ihaleler/${activity.data.tender.id}/teklif/${activity.data.id}`,
-      icon: TrendingUp,
-      iconBgClass: "bg-success-50",
-      iconClass: "text-success-600",
-      label: `${activity.data.supplier.companyName} teklif verdi`,
-      sublabel: `${activity.data.tender.tenderNumber} · v${activity.data.version}`,
-      timestamp: activity.timestamp,
-    };
-  }
-  return {
-    href: `/dashboard/siparisler/${activity.data.id}`,
-    icon: Package,
-    iconBgClass: "bg-purple-50",
-    iconClass: "text-purple-600",
-    label: `${activity.data.orderNumber} oluşturuldu`,
-    sublabel: activity.data.supplier.companyName,
-    timestamp: activity.timestamp,
-  };
 }
