@@ -103,6 +103,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     "tender:view",
     "order:view",
     "approval:view",
+    // V2-6.5 düzeltme: Firma Yöneticisi onay akışında sıklıkla son onaylayıcı
+    // olduğu için approve yetkisi default'ta verilir.
+    "approval:approve",
     "reports:view",
     "reports:export",
   ],
