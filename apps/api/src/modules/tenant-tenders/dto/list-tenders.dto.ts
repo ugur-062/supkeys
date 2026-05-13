@@ -31,6 +31,20 @@ export const TENDER_SORT_OPTIONS = [
 ] as const;
 export type TenderSortOption = (typeof TENDER_SORT_OPTIONS)[number];
 
+/**
+ * V2-6 — Liste için tarih aralığı filtresi. Varsayılan "3m" (son 3 ay).
+ * "all" filtreyi kaldırır.
+ */
+export const TENDER_DATE_RANGE_OPTIONS = [
+  "7d",
+  "30d",
+  "3m",
+  "6m",
+  "12m",
+  "all",
+] as const;
+export type TenderDateRangeOption = (typeof TENDER_DATE_RANGE_OPTIONS)[number];
+
 export class ListTendersDto {
   @IsOptional()
   @IsEnum(TenderStatusDto)
@@ -43,6 +57,10 @@ export class ListTendersDto {
   @IsOptional()
   @IsIn(TENDER_SORT_OPTIONS)
   sort?: TenderSortOption;
+
+  @IsOptional()
+  @IsIn(TENDER_DATE_RANGE_OPTIONS)
+  range?: TenderDateRangeOption;
 
   @IsOptional()
   @Transform(({ value }) => parseInt(value, 10))

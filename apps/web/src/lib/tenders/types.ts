@@ -216,11 +216,15 @@ export interface TenderStats {
   closedNoAward: number;
 }
 
+export type TenderDateRange = "7d" | "30d" | "3m" | "6m" | "12m" | "all";
+
 export interface ListTendersParams {
   status?: TenderStatus;
   search?: string;
   /** Polish-1 — "field:dir" whitelist'li sort */
   sort?: string;
+  /** V2-6 — Yaratım tarihi aralığı; default "3m" (son 3 ay). */
+  range?: TenderDateRange;
   page?: number;
   pageSize?: number;
 }

@@ -4,10 +4,10 @@ import { ResultCount, SearchInput, SortDropdown } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useTenderStats, useTenders } from "@/hooks/use-tenant-tenders";
-import type { TenderStatus } from "@/lib/tenders/types";
+import type { TenderDateRange, TenderStatus } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
-import { Plus } from "lucide-react";
+import { CalendarRange, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
@@ -20,6 +20,24 @@ const SORT_OPTIONS = [
   { value: "bidsCloseAt:asc", label: "Yakın Biten" },
   { value: "bidsCloseAt:desc", label: "Uzak Biten" },
 ];
+
+const RANGE_OPTIONS: { value: TenderDateRange; label: string }[] = [
+  { value: "7d", label: "Son 7 Gün" },
+  { value: "30d", label: "Son 30 Gün" },
+  { value: "3m", label: "Son 3 Ay" },
+  { value: "6m", label: "Son 6 Ay" },
+  { value: "12m", label: "Son 1 Yıl" },
+  { value: "all", label: "Tümü" },
+];
+const VALID_RANGES: TenderDateRange[] = ["7d", "30d", "3m", "6m", "12m", "all"];
+const DEFAULT_RANGE: TenderDateRange = "3m";
+
+function parseRange(value: string | null): TenderDateRange {
+  if (value && (VALID_RANGES as string[]).includes(value)) {
+    return value as TenderDateRange;
+  }
+  return DEFAULT_RANGE;
+}
 
 type TabKey =
   | "all"
@@ -80,6 +98,7 @@ export function IhalelerView() {
   const tab = parseTab(searchParams.get("tab"));
   const search = searchParams.get("search") ?? "";
   const sort = searchParams.get("sort") ?? "createdAt:desc";
+  const range = parseRange(searchParams.get("range"));
   const page = parsePage(searchParams.get("page"));
   const { user } = useAuth();
   const canCreate = user?.role === "COMPANY_ADMIN";
@@ -101,10 +120,11 @@ export function IhalelerView() {
       status: statusFilter,
       search: search || undefined,
       sort,
+      range,
       page,
       pageSize: PAGE_SIZE,
     }),
-    [statusFilter, search, sort, page],
+    [statusFilter, search, sort, range, page],
   );
 
   const list = useTenders(queryParams);
@@ -114,6 +134,7 @@ export function IhalelerView() {
       tab?: TabKey;
       search?: string;
       sort?: string;
+      range?: TenderDateRange;
       page?: number;
     }) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -129,6 +150,11 @@ export function IhalelerView() {
       }
       if (next.sort !== undefined) {
         params.set("sort", next.sort);
+        params.delete("page");
+      }
+      if (next.range !== undefined) {
+        if (next.range === DEFAULT_RANGE) params.delete("range");
+        else params.set("range", next.range);
         params.delete("page");
       }
       if (next.page !== undefined) {
@@ -147,7 +173,8 @@ export function IhalelerView() {
 
   const items = list.data?.items ?? [];
   const totalCount = list.data?.pagination.total ?? 0;
-  const isFiltered = Boolean(search) || tab !== "all";
+  const isFiltered =
+    Boolean(search) || tab !== "all" || range !== DEFAULT_RANGE;
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -233,6 +260,27 @@ export function IhalelerView() {
               placeholder="İhale adı veya numarası ara…"
               className="flex-1 min-w-0"
             />
+            <div className="relative">
+              <CalendarRange className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <select
+                value={range}
+                onChange={(e) =>
+                  updateUrl({ range: e.target.value as TenderDateRange })
+                }
+                className={cn(
+                  "pl-9 pr-8 py-2 text-sm rounded-lg appearance-none bg-white cursor-pointer min-w-[160px]",
+                  "border border-surface-border text-brand-900",
+                  "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
+                )}
+                aria-label="Tarih aralığı"
+              >
+                {RANGE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <SortDropdown
               value={sort}
               onChange={(v) => updateUrl({ sort: v })}

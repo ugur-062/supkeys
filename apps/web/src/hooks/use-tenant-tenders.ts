@@ -30,6 +30,7 @@ function buildParams(params: ListTendersParams) {
   if (params.status) p.status = params.status;
   if (params.search) p.search = params.search;
   if (params.sort) p.sort = params.sort;
+  if (params.range) p.range = params.range;
   if (params.page) p.page = params.page;
   if (params.pageSize) p.pageSize = params.pageSize;
   return p;

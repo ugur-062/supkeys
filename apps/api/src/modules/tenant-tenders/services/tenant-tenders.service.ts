@@ -81,6 +81,31 @@ export class TenantTendersService {
         { tenderNumber: { contains: term, mode: "insensitive" } },
       ];
     }
+    // V2-6 — Tarih aralığı (createdAt.gte). "all" verilirse veya hiç verilmezse
+    // varsayılan "3m" uygulanır (kullanıcı açıkça "all" demedikçe son 3 ay).
+    const range = query.range ?? "3m";
+    if (range !== "all") {
+      const now = new Date();
+      const since = new Date(now);
+      switch (range) {
+        case "7d":
+          since.setDate(now.getDate() - 7);
+          break;
+        case "30d":
+          since.setDate(now.getDate() - 30);
+          break;
+        case "3m":
+          since.setMonth(now.getMonth() - 3);
+          break;
+        case "6m":
+          since.setMonth(now.getMonth() - 6);
+          break;
+        case "12m":
+          since.setFullYear(now.getFullYear() - 1);
+          break;
+      }
+      where.createdAt = { gte: since };
+    }
 
     const orderBy = parseTenderSort(query.sort);
 
