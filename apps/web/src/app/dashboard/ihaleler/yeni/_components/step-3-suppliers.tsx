@@ -14,12 +14,14 @@ import {
   Info,
   Plus,
   Search,
+  UserPlus2,
   Users2,
   X,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
+import { InviteSupplierFromTenderModal } from "./invite-supplier-modal";
 
 const MEMBERSHIP_LABEL = {
   STANDARD: "Standart",
@@ -32,8 +34,11 @@ const MEMBERSHIP_BADGE = {
 } as const;
 
 export function Step3Suppliers() {
-  const { control, formState } = useFormContext<TenderFormData>();
+  const { control, formState, watch } = useFormContext<TenderFormData>();
+  const tenderTitle = watch("title") ?? "";
   const [search, setSearch] = useState("");
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState<string[]>([]);
 
   const { data, isLoading, isError, refetch } = useSuppliers({
     status: "ACTIVE",
@@ -214,15 +219,27 @@ export function Step3Suppliers() {
                   Henüz onaylı tedarikçiniz yok
                 </p>
                 <p className="text-sm text-warning-700 mt-1">
-                  İhale açabilmek için en az 1 onaylı tedarikçi gerekli.
+                  İhale açabilmek için en az 1 onaylı tedarikçi gerekli — şimdi
+                  davet edebilirsiniz.
                 </p>
-                <Link
-                  href="/dashboard/tedarikciler"
-                  className="inline-flex items-center gap-1 mt-4 px-4 py-2 bg-warning-600 text-white rounded-lg text-sm font-semibold hover:bg-warning-700"
-                >
-                  <Plus className="h-4 w-4" />
-                  Tedarikçi Davet Et
-                </Link>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setInviteOpen(true)}
+                  >
+                    <UserPlus2 className="h-4 w-4" />
+                    Yeni Tedarikçi Davet Et
+                  </Button>
+                  <Link
+                    href="/dashboard/tedarikciler"
+                    className="inline-flex items-center gap-1 rounded-lg border border-warning-300 bg-white px-3 py-2 text-sm font-semibold text-warning-700 hover:bg-warning-50"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Tedarikçi Listesi
+                  </Link>
+                </div>
               </div>
             ) : (
               <>
@@ -239,7 +256,7 @@ export function Step3Suppliers() {
                   </div>
                 </div>
 
-                {/* 3. Search + Tümünü Seç */}
+                {/* 3. Search + Tümünü Seç + Yeni Tedarikçi Davet */}
                 <div className="flex gap-2 items-center flex-wrap md:flex-nowrap">
                   <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -262,6 +279,15 @@ export function Step3Suppliers() {
                   >
                     <CheckSquare className="w-4 h-4" />
                     Tümünü Seç ({filteredSuppliers.length})
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setInviteOpen(true)}
+                  >
+                    <UserPlus2 className="w-4 h-4" />
+                    Yeni Tedarikçi Davet Et
                   </Button>
                 </div>
 
@@ -389,6 +415,32 @@ export function Step3Suppliers() {
               )}
             </div>
 
+            {/* Pending invitations — wizard session içinde davet edilenler */}
+            {pendingInvites.length > 0 ? (
+              <div className="rounded-xl border-2 border-warning-200 bg-warning-50/40 p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="font-display text-sm font-bold text-warning-900">
+                    Davet Bekleyen Tedarikçiler ({pendingInvites.length})
+                  </p>
+                </div>
+                <ul className="space-y-1.5">
+                  {pendingInvites.map((email) => (
+                    <li
+                      key={email}
+                      className="flex items-center gap-2 text-sm text-warning-800"
+                    >
+                      <UserPlus2 className="h-3.5 w-3.5 flex-shrink-0 text-warning-600" />
+                      <span className="font-mono">{email}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-xs text-warning-700">
+                  Davet kabul edildikten sonra bu tedarikçiler onaylı listenize
+                  eklenir; sonra ihaleye davet edebilirsiniz.
+                </p>
+              </div>
+            ) : null}
+
             {/* Bilgi notu */}
             <div className="flex items-start gap-2 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
               <Info className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
@@ -398,6 +450,18 @@ export function Step3Suppliers() {
                 liste değiştirilemez (V1).
               </p>
             </div>
+
+            {/* Modal: yeni tedarikçi davet et */}
+            <InviteSupplierFromTenderModal
+              open={inviteOpen}
+              onClose={() => setInviteOpen(false)}
+              tenderTitle={tenderTitle}
+              onInvited={(email) =>
+                setPendingInvites((prev) =>
+                  prev.includes(email) ? prev : [...prev, email],
+                )
+              }
+            />
           </div>
         );
       }}

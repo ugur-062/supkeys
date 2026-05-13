@@ -45,6 +45,30 @@ export function useInvitations(params: ListInvitationsParams) {
   });
 }
 
+/**
+ * V2-6.5 — Tek e-postalı davet (wizard içinden çağrılır). Backend
+ * `POST /tenants/me/supplier-invitations` endpoint'i.
+ */
+export function useCreateInvitation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      email: string;
+      contactName?: string;
+      message?: string;
+    }) => {
+      const { data } = await api.post<InvitationItem>(
+        "/tenants/me/supplier-invitations",
+        input,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}
+
 export function useBatchInvitations() {
   const queryClient = useQueryClient();
   return useMutation({
