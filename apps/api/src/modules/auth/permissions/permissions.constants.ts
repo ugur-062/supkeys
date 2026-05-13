@@ -120,6 +120,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     "order:complete",
     "order:cancel",
     "order:view",
+    // Tedarikçi listesini görüntüleme + davet etme her rolde varsayılan
+    "settings:suppliers",
     "reports:view",
   ],
   APPROVER: [
@@ -127,5 +129,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     "approval:view",
     "tender:view",
     "order:view",
+    // Tedarikçi listesini görüntüleme + davet etme her rolde varsayılan
+    "settings:suppliers",
   ],
 };

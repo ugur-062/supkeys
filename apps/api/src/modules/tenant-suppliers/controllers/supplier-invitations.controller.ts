@@ -13,9 +13,11 @@ import {
   CurrentUser,
   type AuthenticatedUser,
 } from "../../../common/decorators/current-user.decorator";
-import { Roles } from "../../../common/decorators/roles.decorator";
-import { RolesGuard } from "../../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
+import {
+  PermissionsGuard,
+  RequirePermissions,
+} from "../../auth/permissions/permissions.guard";
 import {
   BatchInvitationsDto,
   PreviewInvitationDto,
@@ -25,14 +27,14 @@ import { ListInvitationsDto } from "../dto/list-invitations.dto";
 import { SupplierInvitationsService } from "../services/supplier-invitations.service";
 
 @Controller("tenants/me/supplier-invitations")
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class SupplierInvitationsController {
   constructor(
     private readonly service: SupplierInvitationsService,
   ) {}
 
   @Post()
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("settings:suppliers")
   @HttpCode(HttpStatus.CREATED)
   create(
     @Body() dto: CreateInvitationDto,
@@ -42,7 +44,7 @@ export class SupplierInvitationsController {
   }
 
   @Post("batch")
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("settings:suppliers")
   @HttpCode(HttpStatus.OK)
   batch(
     @Body() dto: BatchInvitationsDto,
@@ -52,7 +54,7 @@ export class SupplierInvitationsController {
   }
 
   @Post("preview")
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("settings:suppliers")
   @HttpCode(HttpStatus.OK)
   preview(
     @Body() dto: PreviewInvitationDto,
@@ -62,6 +64,7 @@ export class SupplierInvitationsController {
   }
 
   @Get()
+  @RequirePermissions("settings:suppliers")
   list(
     @Query() query: ListInvitationsDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -70,6 +73,7 @@ export class SupplierInvitationsController {
   }
 
   @Get(":id")
+  @RequirePermissions("settings:suppliers")
   findOne(
     @Param("id") id: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -78,7 +82,7 @@ export class SupplierInvitationsController {
   }
 
   @Post(":id/resend")
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("settings:suppliers")
   @HttpCode(HttpStatus.OK)
   resend(
     @Param("id") id: string,
@@ -88,7 +92,7 @@ export class SupplierInvitationsController {
   }
 
   @Post(":id/cancel")
-  @Roles("COMPANY_ADMIN")
+  @RequirePermissions("settings:suppliers")
   @HttpCode(HttpStatus.OK)
   cancel(
     @Param("id") id: string,
