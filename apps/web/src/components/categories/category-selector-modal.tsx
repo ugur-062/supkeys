@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { ChevronDown, Loader2, Search, X } from "lucide-react";
 import {
   type CategoryNode,
-  type CategorySearchResult,
-  useCategorySearch,
+  type SearchTreeClass,
+  type SearchTreeFamily,
+  type SearchTreeSegment,
+  useCategorySearchTree,
   useChildren,
   useRoots,
 } from "@/hooks/use-categories";
@@ -55,8 +57,8 @@ export function CategorySelectorModal({
   );
 
   const { data: roots, isLoading: rootsLoading } = useRoots();
-  const { data: searchResults, isLoading: searchLoading } =
-    useCategorySearch(debouncedSearch);
+  const { data: searchTree, isLoading: searchLoading } =
+    useCategorySearchTree(debouncedSearch);
 
   const isSearching = debouncedSearch.trim().length >= 2;
 
@@ -132,14 +134,14 @@ export function CategorySelectorModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-8 pb-4 sm:pt-12"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-4 pb-4 sm:pt-6"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="category-modal-title"
     >
       <div
-        className="flex max-h-[88vh] w-full max-w-3xl flex-col rounded-2xl bg-white shadow-2xl"
+        className="flex max-h-[94vh] w-full max-w-[90vw] flex-col rounded-2xl bg-white shadow-2xl xl:max-w-7xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -206,7 +208,8 @@ export function CategorySelectorModal({
           {isSearching ? (
             <SearchResults
               loading={searchLoading}
-              results={searchResults ?? []}
+              segments={searchTree?.segments ?? []}
+              query={debouncedSearch.trim()}
               selected={draftIds}
               mode={mode}
               onToggle={toggleSelection}
@@ -565,15 +568,23 @@ function CommodityList({
 
 interface SearchResultsProps {
   loading: boolean;
-  results: CategorySearchResult[];
+  segments: SearchTreeSegment[];
+  query: string;
   selected: string[];
   mode: "single" | "multi";
   onToggle: (id: string) => void;
 }
 
+/**
+ * PratisPro tarzı hiyerarşik arama sonucu: eşleşen Class/Commodity'leri
+ * parent path'leri (Segment → Family → Class → Commodity) ile birlikte
+ * tree olarak gösterir. Path başlıkları auto-expanded, kardeş kategoriler
+ * gizli — sadece match yolundaki düğümler render olur.
+ */
 function SearchResults({
   loading,
-  results,
+  segments,
+  query,
   selected,
   mode,
   onToggle,
@@ -586,7 +597,7 @@ function SearchResults({
     );
   }
 
-  if (results.length === 0) {
+  if (segments.length === 0) {
     return (
       <div className="py-12 text-center text-sm text-slate-500">
         Sonuç bulunamadı
@@ -595,36 +606,203 @@ function SearchResults({
   }
 
   return (
-    <ul className="space-y-1">
-      {results.map((r) => {
-        const isSelected = selected.includes(r.id);
-        return (
-          <li key={r.id}>
-            <button
-              type="button"
-              onClick={() => onToggle(r.id)}
-              className={`flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left ${
-                isSelected ? "bg-brand-50" : "hover:bg-slate-50"
-              }`}
-            >
-              <input
-                type={mode === "single" ? "radio" : "checkbox"}
-                checked={isSelected}
-                onChange={() => undefined}
-                readOnly
-                className="mt-0.5 flex-shrink-0"
-                aria-label={r.nameTr}
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-slate-900">{r.nameTr}</p>
-                <p className="truncate text-xs text-slate-500">
-                  {r.breadcrumb}
-                </p>
-              </div>
-            </button>
-          </li>
-        );
-      })}
+    <ul className="space-y-3">
+      {segments.map((seg) => (
+        <SearchSegmentBlock
+          key={seg.id}
+          segment={seg}
+          query={query}
+          selected={selected}
+          onToggle={onToggle}
+          mode={mode}
+        />
+      ))}
     </ul>
+  );
+}
+
+function SearchSegmentBlock({
+  segment,
+  query,
+  selected,
+  onToggle,
+  mode,
+}: {
+  segment: SearchTreeSegment;
+  query: string;
+  selected: string[];
+  onToggle: (id: string) => void;
+  mode: "single" | "multi";
+}) {
+  return (
+    <li>
+      <div className="flex items-center gap-2 py-2 text-sm font-semibold text-brand-900">
+        <ChevronDown className="h-4 w-4 text-slate-400" />
+        {segment.segmentLetter ? (
+          <span className="text-xs text-slate-500">
+            {segment.segmentLetter}.
+          </span>
+        ) : null}
+        <span>{segment.nameTr}</span>
+      </div>
+      <ul className="ml-6 space-y-1 border-l border-slate-200 pl-3">
+        {segment.families.map((fam) => (
+          <SearchFamilyBlock
+            key={fam.id}
+            family={fam}
+            query={query}
+            selected={selected}
+            onToggle={onToggle}
+            mode={mode}
+          />
+        ))}
+      </ul>
+    </li>
+  );
+}
+
+function SearchFamilyBlock({
+  family,
+  query,
+  selected,
+  onToggle,
+  mode,
+}: {
+  family: SearchTreeFamily;
+  query: string;
+  selected: string[];
+  onToggle: (id: string) => void;
+  mode: "single" | "multi";
+}) {
+  return (
+    <li>
+      <div className="flex items-center gap-2 py-1.5 text-sm text-slate-700">
+        <ChevronDown className="h-4 w-4 text-slate-400" />
+        <span>{family.nameTr}</span>
+      </div>
+      <ul className="ml-6 space-y-0.5 border-l border-slate-200 pl-3">
+        {family.classes.map((cls) => (
+          <SearchClassBlock
+            key={cls.id}
+            cls={cls}
+            query={query}
+            selected={selected}
+            onToggle={onToggle}
+            mode={mode}
+          />
+        ))}
+      </ul>
+    </li>
+  );
+}
+
+function SearchClassBlock({
+  cls,
+  query,
+  selected,
+  onToggle,
+  mode,
+}: {
+  cls: SearchTreeClass;
+  query: string;
+  selected: string[];
+  onToggle: (id: string) => void;
+  mode: "single" | "multi";
+}) {
+  const isSelected = selected.includes(cls.id);
+  const hasCommodities = cls.commodities.length > 0;
+
+  return (
+    <li>
+      {cls.isMatch ? (
+        <div
+          className={`flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50 ${
+            isSelected ? "bg-brand-50" : ""
+          }`}
+        >
+          <input
+            type={mode === "single" ? "radio" : "checkbox"}
+            checked={isSelected}
+            onChange={() => onToggle(cls.id)}
+            className="flex-shrink-0"
+            aria-label={cls.nameTr}
+          />
+          <button
+            type="button"
+            onClick={() => onToggle(cls.id)}
+            className="flex-1 text-left text-sm text-slate-700"
+          >
+            <HighlightMatch text={cls.nameTr} query={query} />
+          </button>
+        </div>
+      ) : hasCommodities ? (
+        <div className="flex items-center gap-2 py-1.5 text-xs text-slate-500">
+          <ChevronDown className="h-3 w-3" />
+          <span>{cls.nameTr}</span>
+        </div>
+      ) : null}
+
+      {hasCommodities ? (
+        <ul
+          className={`space-y-0.5 ${
+            cls.isMatch
+              ? "ml-6 border-l border-slate-200 pl-3"
+              : "ml-5 pl-3"
+          }`}
+        >
+          {cls.commodities.map((com) => {
+            const comSelected = selected.includes(com.id);
+            return (
+              <li
+                key={com.id}
+                className={`flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-slate-50 ${
+                  comSelected ? "bg-brand-50" : ""
+                }`}
+              >
+                <input
+                  type={mode === "single" ? "radio" : "checkbox"}
+                  checked={comSelected}
+                  onChange={() => onToggle(com.id)}
+                  className="flex-shrink-0"
+                  aria-label={com.nameTr}
+                />
+                <button
+                  type="button"
+                  onClick={() => onToggle(com.id)}
+                  className="flex-1 text-left text-xs text-slate-600"
+                >
+                  <HighlightMatch text={com.nameTr} query={query} />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
+/** Eşleşen substring'i bold/highlight ile vurgular (case-insensitive). */
+function HighlightMatch({ text, query }: { text: string; query: string }) {
+  const trimmed = query.trim();
+  if (!trimmed) return <>{text}</>;
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parts = text.split(new RegExp(`(${escaped})`, "i"));
+  const lower = trimmed.toLowerCase();
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.toLowerCase() === lower ? (
+          <mark
+            key={i}
+            className="rounded bg-amber-100 px-0.5 font-semibold text-amber-900"
+          >
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </>
   );
 }

@@ -100,6 +100,224 @@ export class CategoryService {
     }));
   }
 
+  /**
+   * Hiyerarşik search — eşleşen Class/Commodity'leri parent path'leri ile birlikte
+   * tree olarak döner. Aynı segment/family altındaki match'ler birlikte gruplanır;
+   * eşleşmeyen kardeşler gizlenir. Frontend modalında PratisPro tarzı render için.
+   */
+  async searchHierarchical(query: string): Promise<{
+    segments: Array<{
+      id: string;
+      code: string;
+      nameTr: string;
+      level: number;
+      segmentLetter: string | null;
+      families: Array<{
+        id: string;
+        code: string;
+        nameTr: string;
+        level: number;
+        classes: Array<{
+          id: string;
+          code: string;
+          nameTr: string;
+          level: number;
+          isMatch: boolean;
+          commodities: Array<{
+            id: string;
+            code: string;
+            nameTr: string;
+            level: number;
+            isMatch: boolean;
+          }>;
+        }>;
+      }>;
+    }>;
+  }> {
+    const q = query?.trim() ?? "";
+    if (q.length < 2) return { segments: [] };
+
+    const matched = await this.prisma.category.findMany({
+      where: {
+        isActive: true,
+        level: { in: [3, 4] },
+        nameTr: { contains: q, mode: "insensitive" },
+      },
+      include: {
+        parent: {
+          include: {
+            parent: {
+              include: {
+                parent: true,
+              },
+            },
+          },
+        },
+      },
+      take: 200,
+      orderBy: [{ level: "desc" }, { sortOrder: "asc" }],
+    });
+
+    if (matched.length === 0) return { segments: [] };
+
+    interface ClassAcc {
+      id: string;
+      code: string;
+      nameTr: string;
+      level: number;
+      sortOrder: number;
+      isMatch: boolean;
+      commodities: Map<
+        string,
+        {
+          id: string;
+          code: string;
+          nameTr: string;
+          level: number;
+          sortOrder: number;
+          isMatch: boolean;
+        }
+      >;
+    }
+    interface FamilyAcc {
+      id: string;
+      code: string;
+      nameTr: string;
+      level: number;
+      sortOrder: number;
+      classes: Map<string, ClassAcc>;
+    }
+    interface SegmentAcc {
+      id: string;
+      code: string;
+      nameTr: string;
+      level: number;
+      segmentLetter: string | null;
+      sortOrder: number;
+      families: Map<string, FamilyAcc>;
+    }
+
+    const segmentMap = new Map<string, SegmentAcc>();
+
+    for (const cat of matched) {
+      // Tüm match level 3 veya 4. Parent zinciri 4-seviye yukarı çıkar.
+      let segment: typeof cat.parent | null = null;
+      let family: typeof cat.parent | null = null;
+      let cls: typeof cat | typeof cat.parent | null = null;
+      let commodity: typeof cat | null = null;
+
+      if (cat.level === 4) {
+        commodity = cat;
+        cls = cat.parent;
+        family = cls?.parent ?? null;
+        segment = family?.parent ?? null;
+      } else if (cat.level === 3) {
+        cls = cat;
+        family = (cat as typeof cat & { parent: typeof cat.parent }).parent;
+        segment = family?.parent ?? null;
+      }
+
+      if (!segment || !family || !cls) continue;
+
+      let segAcc = segmentMap.get(segment.id);
+      if (!segAcc) {
+        segAcc = {
+          id: segment.id,
+          code: segment.code,
+          nameTr: segment.nameTr,
+          level: segment.level,
+          segmentLetter: segment.segmentLetter,
+          sortOrder: segment.sortOrder,
+          families: new Map(),
+        };
+        segmentMap.set(segment.id, segAcc);
+      }
+
+      let famAcc = segAcc.families.get(family.id);
+      if (!famAcc) {
+        famAcc = {
+          id: family.id,
+          code: family.code,
+          nameTr: family.nameTr,
+          level: family.level,
+          sortOrder: family.sortOrder,
+          classes: new Map(),
+        };
+        segAcc.families.set(family.id, famAcc);
+      }
+
+      let clsAcc = famAcc.classes.get(cls.id);
+      if (!clsAcc) {
+        clsAcc = {
+          id: cls.id,
+          code: cls.code,
+          nameTr: cls.nameTr,
+          level: cls.level,
+          sortOrder: cls.sortOrder,
+          isMatch: cat.level === 3 && cat.id === cls.id,
+          commodities: new Map(),
+        };
+        famAcc.classes.set(cls.id, clsAcc);
+      } else if (cat.level === 3 && cat.id === cls.id) {
+        clsAcc.isMatch = true;
+      }
+
+      if (commodity) {
+        if (!clsAcc.commodities.has(commodity.id)) {
+          clsAcc.commodities.set(commodity.id, {
+            id: commodity.id,
+            code: commodity.code,
+            nameTr: commodity.nameTr,
+            level: commodity.level,
+            sortOrder: commodity.sortOrder,
+            isMatch: true,
+          });
+        }
+      }
+    }
+
+    const sortByOrder = <T extends { sortOrder: number }>(a: T, b: T) =>
+      a.sortOrder - b.sortOrder;
+
+    const segments = Array.from(segmentMap.values())
+      .sort(sortByOrder)
+      .map((seg) => ({
+        id: seg.id,
+        code: seg.code,
+        nameTr: seg.nameTr,
+        level: seg.level,
+        segmentLetter: seg.segmentLetter,
+        families: Array.from(seg.families.values())
+          .sort(sortByOrder)
+          .map((fam) => ({
+            id: fam.id,
+            code: fam.code,
+            nameTr: fam.nameTr,
+            level: fam.level,
+            classes: Array.from(fam.classes.values())
+              .sort(sortByOrder)
+              .map((cls) => ({
+                id: cls.id,
+                code: cls.code,
+                nameTr: cls.nameTr,
+                level: cls.level,
+                isMatch: cls.isMatch,
+                commodities: Array.from(cls.commodities.values())
+                  .sort(sortByOrder)
+                  .map((com) => ({
+                    id: com.id,
+                    code: com.code,
+                    nameTr: com.nameTr,
+                    level: com.level,
+                    isMatch: com.isMatch,
+                  })),
+              })),
+          })),
+      }));
+
+    return { segments };
+  }
+
   /** Belirli ID'lerin breadcrumb bilgisi (chip listesi için). */
   async getByIds(ids: string[]) {
     if (ids.length === 0) return [];

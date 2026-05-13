@@ -82,6 +82,57 @@ export function useCategorySearch(query: string) {
   });
 }
 
+export interface SearchTreeCommodity {
+  id: string;
+  code: string;
+  nameTr: string;
+  level: number;
+  isMatch: boolean;
+}
+
+export interface SearchTreeClass {
+  id: string;
+  code: string;
+  nameTr: string;
+  level: number;
+  isMatch: boolean;
+  commodities: SearchTreeCommodity[];
+}
+
+export interface SearchTreeFamily {
+  id: string;
+  code: string;
+  nameTr: string;
+  level: number;
+  classes: SearchTreeClass[];
+}
+
+export interface SearchTreeSegment {
+  id: string;
+  code: string;
+  nameTr: string;
+  level: number;
+  segmentLetter: string | null;
+  families: SearchTreeFamily[];
+}
+
+/**
+ * Hiyerarşik arama — eşleşenleri parent path'leri ile tree olarak döner.
+ * Modal'da PratisPro tarzı tree render için. Min 2 char (backend enforce).
+ */
+export function useCategorySearchTree(query: string) {
+  const trimmed = query.trim();
+  return useQuery<{ segments: SearchTreeSegment[] }>({
+    queryKey: ["category-search-tree", trimmed],
+    queryFn: () =>
+      api
+        .get("/categories/search-tree", { params: { q: trimmed } })
+        .then((r) => r.data),
+    enabled: trimmed.length >= 2,
+    staleTime: FIVE_MIN_MS,
+  });
+}
+
 /** Seçili ID'lerin breadcrumb bilgisi (chip listesi için). */
 export function useCategoriesByIds(ids: string[]) {
   const key = [...ids].sort().join(",");

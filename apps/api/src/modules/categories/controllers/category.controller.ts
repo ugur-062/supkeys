@@ -35,6 +35,12 @@ export class CategoryController {
     return this.service.search(query ?? "");
   }
 
+  @Get("search-tree")
+  @Header("Cache-Control", "no-cache")
+  searchTree(@Query("q") query?: string): Promise<unknown> {
+    return this.service.searchHierarchical(query ?? "");
+  }
+
   @Get("by-ids")
   getByIds(@Query("ids") idsParam?: string): Promise<unknown> {
     const ids = idsParam
