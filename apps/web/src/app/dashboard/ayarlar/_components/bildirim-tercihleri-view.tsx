@@ -6,7 +6,13 @@ import {
 } from "@/hooks/use-tenant-users";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
-import { Bell, Lock as LockIcon, Loader2 } from "lucide-react";
+import {
+  Bell,
+  Check as CheckIcon,
+  Loader2,
+  Lock as LockIcon,
+  Search,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -34,22 +40,57 @@ export function BildirimTercihleriView() {
   }, [meQuery.data?.notificationPrefs]);
 
   const [prefs, setPrefs] = useState<Record<string, boolean>>(initial);
+  const [search, setSearch] = useState("");
+  const [savedAt, setSavedAt] = useState<number | null>(null);
 
   // me yüklendiğinde state'i sync'le
   useEffect(() => {
     setPrefs(initial);
   }, [initial]);
 
+  // "Kaydedildi" rozeti 2sn sonra kaybolur
+  useEffect(() => {
+    if (!savedAt) return;
+    const t = setTimeout(() => setSavedAt(null), 2000);
+    return () => clearTimeout(t);
+  }, [savedAt]);
+
   const persist = (next: Record<string, boolean>) => {
     setPrefs(next);
     updateMutation.mutate(next, {
+      onSuccess: () => setSavedAt(Date.now()),
       onError: (err) => {
         toast.error(extractErrorMessage(err, "Tercih güncellenemedi"));
-        // Önceki state'e geri dön
         setPrefs(initial);
       },
     });
   };
+
+  const setAll = (value: boolean) => {
+    const next: Record<string, boolean> = { ...prefs };
+    for (const group of NOTIFICATION_GROUPS) {
+      if (group.locked) continue;
+      for (const it of group.items) {
+        next[it.key] = value;
+      }
+    }
+    persist(next);
+  };
+
+  // Search filtering (group label OR item label)
+  const filteredGroups = useMemo(() => {
+    const q = search.trim().toLocaleLowerCase("tr-TR");
+    if (!q) return NOTIFICATION_GROUPS;
+    return NOTIFICATION_GROUPS.map((group) => {
+      const groupHit = group.label.toLocaleLowerCase("tr-TR").includes(q);
+      const items = groupHit
+        ? group.items
+        : group.items.filter((it) =>
+            it.label.toLocaleLowerCase("tr-TR").includes(q),
+          );
+      return items.length > 0 ? { ...group, items } : null;
+    }).filter((g): g is typeof NOTIFICATION_GROUPS[number] => g !== null);
+  }, [search]);
 
   const togglePref = (key: string, locked: boolean) => {
     if (locked) return;
@@ -75,28 +116,67 @@ export function BildirimTercihleriView() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
+    <div className="mx-auto max-w-3xl px-6 py-8">
       <BackToSettings />
 
       <div className="mt-4">
-        <div className="flex items-center gap-3 mb-1">
-          <div className="h-10 w-10 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
+        <div className="mb-1 flex items-center gap-3">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50">
             <Bell className="h-5 w-5 text-brand-600" />
           </div>
-          <div>
-            <h1 className="font-display text-2xl font-bold text-brand-900">
-              Bildirim Tercihleri
-            </h1>
-            <p className="text-slate-500 text-sm mt-0.5">
-              E-posta bildirimlerinizi kategoriler bazında yönetin.
-              Değişiklikler otomatik kaydedilir.
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h1 className="font-display text-2xl font-bold text-brand-900">
+                Bildirim Tercihleri
+              </h1>
+              {savedAt ? (
+                <span className="inline-flex items-center gap-1 rounded-md bg-success-50 px-2 py-0.5 text-xs font-semibold text-success-700">
+                  <CheckIcon className="h-3 w-3" />
+                  Kaydedildi
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Değişiklikler otomatik kaydedilir. Sistem bildirimleri kapatılamaz.
             </p>
           </div>
         </div>
       </div>
 
-      <div className="mt-6 space-y-4">
-        {NOTIFICATION_GROUPS.map((group) => {
+      {/* Toolbar: search + bulk actions */}
+      <div className="mt-6 flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Bildirim ara…"
+            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => setAll(true)}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-success-300 hover:text-success-700"
+        >
+          Hepsini Aç
+        </button>
+        <button
+          type="button"
+          onClick={() => setAll(false)}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-danger-300 hover:text-danger-700"
+        >
+          Hepsini Kapat
+        </button>
+      </div>
+
+      <div className="mt-4 space-y-4">
+        {filteredGroups.length === 0 ? (
+          <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+            "{search}" için sonuç bulunamadı.
+          </p>
+        ) : null}
+        {filteredGroups.map((group) => {
           const allOn = group.items.every((it) => prefs[it.key] !== false);
           const someOn = group.items.some((it) => prefs[it.key] !== false);
           const groupOn = group.locked ? true : allOn;

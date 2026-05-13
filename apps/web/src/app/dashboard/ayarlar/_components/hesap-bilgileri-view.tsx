@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +10,9 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { roleLabel } from "@/lib/users/labels";
 import type { TenantUserMe } from "@/lib/users/types";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Pencil } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+import { tr } from "date-fns/locale";
+import { Calendar, Clock, Loader2, Mail, Pencil, Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -38,7 +41,6 @@ export function HesapBilgileriView() {
     defaultValues: { firstName: "", lastName: "", phone: "" },
   });
 
-  // me yüklendiğinde formu doldur
   useEffect(() => {
     if (meQuery.data) {
       form.reset({
@@ -51,8 +53,8 @@ export function HesapBilgileriView() {
 
   if (meQuery.isLoading || !meQuery.data) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-12 flex items-center justify-center text-slate-500">
-        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+      <div className="mx-auto flex max-w-3xl items-center justify-center px-6 py-12 text-slate-500">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
         Yükleniyor…
       </div>
     );
@@ -80,17 +82,23 @@ export function HesapBilgileriView() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-8">
+    <div className="mx-auto max-w-3xl px-6 py-8">
       <BackToSettings />
 
-      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-6">
+      {/* Üst kart: avatar + meta */}
+      <ProfileHeaderCard me={me} />
+
+      {/* İçerik */}
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="mb-6 flex items-start justify-between gap-3">
           <div>
-            <h1 className="font-display text-2xl font-bold text-brand-900">
-              Hesap Bilgileri
-            </h1>
-            <p className="text-slate-500 text-sm mt-1">
-              Kişisel bilgilerinizi güncelleyin.
+            <h2 className="font-display text-lg font-bold text-brand-900">
+              Kişisel Bilgiler
+            </h2>
+            <p className="mt-0.5 text-sm text-slate-500">
+              {editing
+                ? "Bilgilerinizi güncelleyin ve kaydet'e tıklayın."
+                : "Düzenlemek için sağ üstteki butonu kullanın."}
             </p>
           </div>
           {!editing ? (
@@ -121,28 +129,30 @@ export function HesapBilgileriView() {
                 disabled
                 className="bg-surface-muted"
               />
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="mt-1 text-xs text-slate-400">
                 E-posta adresi değiştirilemez.
               </p>
             </Field>
 
-            <Field error={form.formState.errors.firstName?.message}>
-              <Label htmlFor="firstName">Ad</Label>
-              <Input
-                id="firstName"
-                hasError={!!form.formState.errors.firstName}
-                {...form.register("firstName")}
-              />
-            </Field>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field error={form.formState.errors.firstName?.message}>
+                <Label htmlFor="firstName">Ad</Label>
+                <Input
+                  id="firstName"
+                  hasError={!!form.formState.errors.firstName}
+                  {...form.register("firstName")}
+                />
+              </Field>
 
-            <Field error={form.formState.errors.lastName?.message}>
-              <Label htmlFor="lastName">Soyad</Label>
-              <Input
-                id="lastName"
-                hasError={!!form.formState.errors.lastName}
-                {...form.register("lastName")}
-              />
-            </Field>
+              <Field error={form.formState.errors.lastName?.message}>
+                <Label htmlFor="lastName">Soyad</Label>
+                <Input
+                  id="lastName"
+                  hasError={!!form.formState.errors.lastName}
+                  {...form.register("lastName")}
+                />
+              </Field>
+            </div>
 
             <Field
               error={form.formState.errors.phone?.message}
@@ -188,14 +198,61 @@ export function HesapBilgileriView() {
   );
 }
 
+function ProfileHeaderCard({ me }: { me: TenantUserMe }) {
+  const fullName = `${me.firstName} ${me.lastName}`.trim();
+  return (
+    <div className="mt-4 rounded-2xl border border-slate-200 bg-gradient-to-br from-brand-50/40 to-white p-6 shadow-sm">
+      <div className="flex flex-wrap items-start gap-4">
+        <AvatarInitials name={fullName || me.email} size="lg" />
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-xl font-bold text-brand-900">
+            {fullName || "—"}
+          </p>
+          <p className="mt-0.5 text-sm text-slate-500">{me.email}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            <span className="inline-flex items-center gap-1 rounded-md border border-brand-200 bg-white px-2 py-0.5 font-semibold text-brand-700">
+              <Shield className="h-3 w-3" />
+              {roleLabel(me.role)}
+            </span>
+            {me.lastLoginAt ? (
+              <span
+                className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-slate-600"
+                title={format(new Date(me.lastLoginAt), "d MMM yyyy HH:mm", {
+                  locale: tr,
+                })}
+              >
+                <Clock className="h-3 w-3" />
+                Son giriş:{" "}
+                {formatDistanceToNow(new Date(me.lastLoginAt), {
+                  locale: tr,
+                  addSuffix: true,
+                })}
+              </span>
+            ) : null}
+            <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-slate-600">
+              <Calendar className="h-3 w-3" />
+              Üyelik:{" "}
+              {format(new Date(me.createdAt), "d MMM yyyy", { locale: tr })}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ReadOnlyView({ me }: { me: TenantUserMe }) {
   return (
-    <dl className="space-y-4">
-      <Row label="E-posta" value={me.email} hint="Değiştirilemez" />
+    <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <Row
+        label="E-posta"
+        value={me.email}
+        icon={Mail}
+        hint="Değiştirilemez"
+      />
+      <Row label="Telefon" value={me.phone || "—"} />
       <Row label="Ad" value={me.firstName} />
       <Row label="Soyad" value={me.lastName} />
-      <Row label="Telefon" value={me.phone || "—"} />
-      <Row label="Rol" value={roleLabel(me.role)} />
     </dl>
   );
 }
@@ -204,18 +261,21 @@ function Row({
   label,
   value,
   hint,
+  icon: Icon,
 }: {
   label: string;
   value: string;
   hint?: string;
+  icon?: typeof Mail;
 }) {
   return (
-    <div>
-      <dt className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
+    <div className="rounded-lg border border-slate-100 bg-slate-50/40 p-3">
+      <dt className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        {Icon ? <Icon className="h-3 w-3" /> : null}
         {label}
       </dt>
-      <dd className="text-sm text-brand-900 mt-1 font-medium">{value}</dd>
-      {hint ? <p className="text-xs text-slate-400 mt-0.5">{hint}</p> : null}
+      <dd className="mt-1 text-sm font-medium text-brand-900">{value}</dd>
+      {hint ? <p className="mt-0.5 text-xs text-slate-400">{hint}</p> : null}
     </div>
   );
 }
