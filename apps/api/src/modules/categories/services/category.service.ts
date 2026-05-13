@@ -354,17 +354,24 @@ export class CategoryService {
   }
 
   /**
-   * Validation — ID'ler aktif kategoriye işaret etmeli; `requireMinLevel`
-   * verilirse her ID'nin level'ı en az o seviyede olmalı.
-   *
-   * Tender + Supplier seçimi → requireMinLevel = 3 (Class veya Commodity).
-   * Level 1/2 (Segment/Family) sadece accordion grup başlığıdır; seçilemez.
+   * Validation — ID'ler aktif kategoriye işaret etmeli; options ile level
+   * kısıtı uygulanır. İki mod:
+   *   - `minLevel`: her ID'nin level'ı >= minLevel olmalı (tender → 3 ile çağrılır;
+   *     Class veya Commodity kabul, Segment/Family reddedilir).
+   *   - `exactLevel`: her ID'nin level'ı tam olarak verilen değer olmalı
+   *     (tedarikçi → 1 ile çağrılır; sadece ana başlık/Segment kabul).
+   * Numeric arg geriye uyum için minLevel olarak yorumlanır.
    */
   async validateIds(
     ids: string[],
-    requireMinLevel: number = 3,
+    options: number | { minLevel?: number; exactLevel?: number } = {
+      minLevel: 3,
+    },
   ): Promise<void> {
     if (ids.length === 0) return;
+
+    const opts =
+      typeof options === "number" ? { minLevel: options } : options;
 
     const found = await this.prisma.category.findMany({
       where: { id: { in: ids }, isActive: true },
@@ -379,11 +386,25 @@ export class CategoryService {
       );
     }
 
-    const tooHigh = found.filter((c) => c.level < requireMinLevel);
-    if (tooHigh.length > 0) {
-      throw new BadRequestException(
-        `Sadece Class veya Commodity seviyesindeki kategoriler seçilebilir (Segment/Family seçilemez).`,
-      );
+    if (opts.exactLevel !== undefined) {
+      const wrong = found.filter((c) => c.level !== opts.exactLevel);
+      if (wrong.length > 0) {
+        throw new BadRequestException(
+          opts.exactLevel === 1
+            ? "Sadece ana başlık (Segment) seviyesindeki kategoriler seçilebilir."
+            : `Sadece level ${opts.exactLevel} kategoriler seçilebilir.`,
+        );
+      }
+      return;
+    }
+
+    if (opts.minLevel !== undefined) {
+      const tooHigh = found.filter((c) => c.level < (opts.minLevel as number));
+      if (tooHigh.length > 0) {
+        throw new BadRequestException(
+          "Sadece Class veya Commodity seviyesindeki kategoriler seçilebilir (Segment/Family seçilemez).",
+        );
+      }
     }
   }
 }

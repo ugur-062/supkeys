@@ -1,6 +1,6 @@
 "use client";
 
-import { CategorySelectorButton } from "@/components/categories/category-selector-button";
+import { SegmentOnlySelector } from "@/components/categories/segment-only-selector";
 import { InvitationBanner } from "@/components/registration/invitation-banner";
 import { StepFirmInfo } from "@/components/registration/step-firm-info";
 import { StepSuccess } from "@/components/registration/step-success";
@@ -276,28 +276,27 @@ export function SupplierRegisterForm({
             <div className="space-y-4">
               <div>
                 <h3 className="text-lg font-bold text-brand-900">
-                  Tedarik Kategorileriniz
+                  Faaliyet Alanlarınız
                 </h3>
                 <p className="text-sm text-slate-600 mt-1">
-                  Tedarik edebileceğiniz ürün/hizmet kategorilerini seçin. Bu
-                  seçim, alıcılara önerilirken kullanılır.
+                  Tedarik edebileceğiniz ana kategorileri seçin. Birden fazla
+                  kategori seçebilirsiniz; bu seçim alıcılara önerilirken
+                  kullanılır.
                 </p>
               </div>
 
-              <CategorySelectorButton
+              <SegmentOnlySelector
                 value={categoryIds}
                 onChange={(ids) => {
                   setCategoryIds(ids);
                   if (categoriesError) setCategoriesError(undefined);
                 }}
-                mode="multi"
-                maxSelection={20}
-                modalTitle="Tedarik Kategorileri"
+                maxSelection={10}
                 error={categoriesError}
               />
 
               <p className="text-xs text-slate-500">
-                ⚠️ En az 1, en fazla 20 kategori seçebilirsiniz.
+                ⚠️ En az 1, en fazla 10 ana kategori seçebilirsiniz.
               </p>
             </div>
           ) : null}

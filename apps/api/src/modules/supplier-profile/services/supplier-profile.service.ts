@@ -56,8 +56,8 @@ export class SupplierProfileService {
     });
     if (!user) throw new NotFoundException("Tedarikçi kullanıcı bulunamadı");
 
-    // Class/Commodity seviyesi zorunlu — wrong-level / missing → 400/404.
-    await this.categoryService.validateIds(categoryIds, 3);
+    // Tedarikçi SADECE ana başlık (Segment level 1) seçer — wrong-level / missing → 400/404.
+    await this.categoryService.validateIds(categoryIds, { exactLevel: 1 });
 
     // Replace-all: tek transactionda eski satırları temizle + yenilerini yaz.
     await this.prisma.$transaction([
