@@ -1,12 +1,12 @@
 "use client";
 
+import { SegmentOnlyPicker } from "@/components/categories/segment-only-picker";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
   COMPANY_TYPE_OPTIONS,
-  INDUSTRY_OPTIONS,
   type FullRegistration,
 } from "@/lib/registration/schemas";
 import {
@@ -26,6 +26,11 @@ interface StepFirmInfoProps {
   errors: FieldErrors<FullRegistration>;
   watch: UseFormWatch<FullRegistration>;
   setValue: UseFormSetValue<FullRegistration>;
+  /** V2-6 — Tedarikçi faaliyet alanları (Segment level 1). Opsiyonel: tedarikçi
+   * formunda render edilir, alıcı tarafında undefined geçilir → bölüm gizlenir. */
+  categoryIds?: string[];
+  onCategoryIdsChange?: (ids: string[]) => void;
+  categoriesError?: string;
 }
 
 export function StepFirmInfo({
@@ -34,6 +39,9 @@ export function StepFirmInfo({
   errors,
   watch,
   setValue,
+  categoryIds,
+  onCategoryIdsChange,
+  categoriesError,
 }: StepFirmInfoProps) {
   const taxCertUrl = watch("taxCertUrl");
 
@@ -155,61 +163,44 @@ export function StepFirmInfo({
         />
       </Field>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-        <Field error={errors.industry?.message} hint="Opsiyonel">
-          <Label htmlFor="industry">Sektör</Label>
-          <Controller
-            control={control}
-            name="industry"
-            render={({ field }) => (
-              <select
-                id="industry"
-                value={field.value ?? ""}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-                className={cn(
-                  "w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm",
-                  "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-                  "border-surface-border",
-                  field.value ? "text-brand-900" : "text-slate-400",
-                )}
-              >
-                <option value="">Seçiniz</option>
-                {INDUSTRY_OPTIONS.map((ind) => (
-                  <option key={ind} value={ind}>
-                    {ind}
-                  </option>
-                ))}
-              </select>
-            )}
+      {onCategoryIdsChange ? (
+        <Field error={categoriesError}>
+          <Label required>Faaliyet Alanları</Label>
+          <SegmentOnlyPicker
+            value={categoryIds ?? []}
+            onChange={onCategoryIdsChange}
+            maxSelection={10}
+            error={categoriesError}
+            placeholder="Faaliyet alanlarınızı seçin"
+            title="Faaliyet Alanlarınız"
           />
         </Field>
+      ) : null}
 
-        <Field error={errors.website?.message} hint="Opsiyonel">
-          <Label htmlFor="website">Web Sitesi</Label>
-          <Controller
-            control={control}
-            name="website"
-            render={({ field }) => (
-              <Input
-                id="website"
-                placeholder="https://www.firma.com"
-                autoComplete="url"
-                hasError={!!errors.website}
-                value={field.value ?? ""}
-                onChange={field.onChange}
-                onBlur={(e) => {
-                  const v = e.target.value.trim();
-                  if (v && !/^https?:\/\//i.test(v)) {
-                    field.onChange(`https://${v}`);
-                  }
-                  field.onBlur();
-                }}
-              />
-            )}
-          />
-        </Field>
-      </div>
+      <Field error={errors.website?.message} hint="Opsiyonel">
+        <Label htmlFor="website">Web Sitesi</Label>
+        <Controller
+          control={control}
+          name="website"
+          render={({ field }) => (
+            <Input
+              id="website"
+              placeholder="https://www.firma.com"
+              autoComplete="url"
+              hasError={!!errors.website}
+              value={field.value ?? ""}
+              onChange={field.onChange}
+              onBlur={(e) => {
+                const v = e.target.value.trim();
+                if (v && !/^https?:\/\//i.test(v)) {
+                  field.onChange(`https://${v}`);
+                }
+                field.onBlur();
+              }}
+            />
+          )}
+        />
+      </Field>
 
       <div className="pt-2 border-t border-surface-border space-y-1">
         <h3 className="text-sm font-semibold text-brand-900 uppercase tracking-wide">

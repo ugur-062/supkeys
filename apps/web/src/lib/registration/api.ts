@@ -41,7 +41,6 @@ function buildPayload(values: FullRegistration) {
     taxNumber: values.taxNumber.trim(),
     taxOffice: values.taxOffice.trim(),
     taxCertUrl: values.taxCertUrl,
-    industry: values.industry?.trim() || undefined,
     website: values.website?.trim() || undefined,
     city: values.city.trim(),
     district: values.district.trim(),

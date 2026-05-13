@@ -139,7 +139,6 @@ export function BuyerRegisterForm({ invitationToken }: BuyerRegisterFormProps) {
       taxNumber: "",
       taxOffice: "",
       taxCertUrl: "",
-      industry: "",
       website: "",
       city: "",
       district: "",

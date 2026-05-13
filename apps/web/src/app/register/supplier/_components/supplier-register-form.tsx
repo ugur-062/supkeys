@@ -1,6 +1,5 @@
 "use client";
 
-import { SegmentOnlySelector } from "@/components/categories/segment-only-selector";
 import { InvitationBanner } from "@/components/registration/invitation-banner";
 import { StepFirmInfo } from "@/components/registration/step-firm-info";
 import { StepSuccess } from "@/components/registration/step-success";
@@ -28,13 +27,12 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-type StepNo = 1 | 2 | 3 | 4;
+type StepNo = 1 | 2 | 3;
 
 const SUPPLIER_STEPS: readonly StepperItem[] = [
   { id: 1, label: "Firma Bilgileri" },
   { id: 2, label: "Yetkili" },
-  { id: 3, label: "Kategoriler" },
-  { id: 4, label: "Tamamlandı" },
+  { id: 3, label: "Tamamlandı" },
 ];
 
 interface SupplierRegisterFormProps {
@@ -98,7 +96,6 @@ export function SupplierRegisterForm({
       taxNumber: "",
       taxOffice: "",
       taxCertUrl: "",
-      industry: "",
       website: "",
       city: "",
       district: "",
@@ -132,7 +129,7 @@ export function SupplierRegisterForm({
       submitSupplierApplication(values, usedInviteToken, categoryIds),
     onSuccess: (data, variables) => {
       setSubmittedEmail(variables.adminEmail);
-      setStep(4);
+      setStep(3);
       toast.success(data.message ?? "Başvurunuz alındı");
     },
     onError: (err) => {
@@ -150,7 +147,12 @@ export function SupplierRegisterForm({
       const ok = await form.trigger(
         FIRM_FIELDS as unknown as readonly (keyof FullRegistration)[],
       );
-      if (ok) setStep(2);
+      if (!ok) return;
+      if (categoryIds.length === 0) {
+        setCategoriesError("En az 1 faaliyet alanı seçmelisiniz");
+        return;
+      }
+      setStep(2);
       return;
     }
     if (step === 2) {
@@ -158,14 +160,6 @@ export function SupplierRegisterForm({
         USER_FIELDS as unknown as readonly (keyof FullRegistration)[],
       );
       if (!ok) return;
-      setStep(3);
-      return;
-    }
-    if (step === 3) {
-      if (categoryIds.length === 0) {
-        setCategoriesError("En az 1 kategori seçmelisiniz");
-        return;
-      }
       submitMutation.mutate(form.getValues());
     }
   };
@@ -197,7 +191,7 @@ export function SupplierRegisterForm({
     );
   }
 
-  if (step === 4) {
+  if (step === 3) {
     return (
       <div className="card p-6 md:p-8">
         <StepSuccess email={submittedEmail} />
@@ -256,6 +250,12 @@ export function SupplierRegisterForm({
               errors={form.formState.errors}
               watch={form.watch}
               setValue={form.setValue}
+              categoryIds={categoryIds}
+              onCategoryIdsChange={(ids) => {
+                setCategoryIds(ids);
+                if (categoriesError) setCategoriesError(undefined);
+              }}
+              categoriesError={categoriesError}
             />
           ) : null}
           {step === 2 ? (
@@ -272,35 +272,6 @@ export function SupplierRegisterForm({
               }
             />
           ) : null}
-          {step === 3 ? (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-lg font-bold text-brand-900">
-                  Faaliyet Alanlarınız
-                </h3>
-                <p className="text-sm text-slate-600 mt-1">
-                  Tedarik edebileceğiniz ana kategorileri seçin. Birden fazla
-                  kategori seçebilirsiniz; bu seçim alıcılara önerilirken
-                  kullanılır.
-                </p>
-              </div>
-
-              <SegmentOnlySelector
-                value={categoryIds}
-                onChange={(ids) => {
-                  setCategoryIds(ids);
-                  if (categoriesError) setCategoriesError(undefined);
-                }}
-                maxSelection={10}
-                error={categoriesError}
-              />
-
-              <p className="text-xs text-slate-500">
-                ⚠️ En az 1, en fazla 10 ana kategori seçebilirsiniz.
-              </p>
-            </div>
-          ) : null}
-
           <div className="flex items-center justify-between mt-8 gap-3">
             {step > 1 ? (
               <Button
@@ -317,7 +288,7 @@ export function SupplierRegisterForm({
             )}
 
             <Button type="submit" loading={submitMutation.isPending}>
-              {step < 3 ? (
+              {step < 2 ? (
                 <>
                   İleri
                   <ArrowRight className="w-4 h-4" />

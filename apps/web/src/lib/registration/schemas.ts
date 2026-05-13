@@ -10,20 +10,6 @@ export const COMPANY_TYPE_OPTIONS = [
   { value: "SOLE_PROPRIETOR", label: "Şahıs Şirketi" },
 ] as const;
 
-export const INDUSTRY_OPTIONS = [
-  "Üretim ve İmalat",
-  "Hizmet",
-  "Lojistik ve Taşımacılık",
-  "İnşaat",
-  "Perakende ve Toptan",
-  "Bilgi Teknolojileri",
-  "Sağlık",
-  "Eğitim",
-  "Finans",
-  "Tarım",
-  "Diğer",
-] as const;
-
 export const firmInfoSchema = z.object({
   companyName: z
     .string()
@@ -40,7 +26,6 @@ export const firmInfoSchema = z.object({
     .min(2, "Vergi dairesi gerekli")
     .max(50, "Vergi dairesi 50 karakteri aşamaz"),
   taxCertUrl: z.string().min(1, "Vergi levhası yüklemelisiniz"),
-  industry: z.string().optional().or(z.literal("")),
   website: z
     .string()
     .url("Geçerli bir URL giriniz (https://...)")
@@ -109,7 +94,6 @@ export const FIRM_FIELDS = [
   "taxNumber",
   "taxOffice",
   "taxCertUrl",
-  "industry",
   "website",
   "city",
   "district",
