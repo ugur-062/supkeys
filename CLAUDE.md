@@ -804,6 +804,21 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 
 > **Sapma**: Spec yeni bir wizard step öneriyordu; kategori seçimi kritik bir field olduğu için Step 1'in **en üstüne** entegre edildi (form schema `STEP_FIELDS[1]` içinde). Ek navigasyon adımı yerine, Genel Bilgiler içinde first-class section. Step 1 ileri butonuna basıldığında zaten validate ediliyor (zod min 1 char).
 
+> **V2-6 reset → 4 seviye UNSPSC + modal selector + hiyerarşik search + tedarikçi sadece Segment kuralı**:
+> - Schema migration `v2_6_reset_4_level_categories` — eski 2-seviye veri silindi, `nameEn` drop, code lookup index. `Category.level` 1–4 (Segment/Family/Class/Commodity).
+> - Seed `categories.txt` (1618 satır) parse → **2213 kategori** (56 Segment / 259 Family / 767 Class / 1131 Commodity). Idempotent `deleteMany` + `create`.
+> - Backend `CategoryService` lazy loading: `getRoots` / `getChildren(parentId)` / `getByIds` / `search` (Level 3+4 flat) / `searchHierarchical` (tree). Shared `buildBreadcrumb` helper. `validateIds` artık options bag kabul ediyor (`{ minLevel?, exactLevel? }`); numeric arg geriye uyum (minLevel).
+> - Endpoint'ler: `GET /api/categories/{roots,children,search,search-tree,by-ids}` (public, Cache-Control 1h roots/children).
+> - **Kategori seçim kuralları**:
+>   - **Tender** (`tenant-tenders` create/update): `minLevel: 3` → sadece Class veya Commodity kabul; Segment/Family → 400.
+>   - **Tedarikçi** (`supplier-registration`, `supplier-profile`): `exactLevel: 1` → SADECE ana başlık (Segment); Family/Class/Commodity → 400 "Sadece ana başlık (Segment) ...". Max 10 segment.
+> - Frontend:
+>   - **Tender wizard** Step 1 → `CategorySelectorButton` (boş=dashed CTA, dolu=chip+Değiştir) + `CategorySelectorModal` (PratisPro tarzı full-screen popup, 4-seviye lazy accordion, hiyerarşik `/search-tree` + `HighlightMatch`, draft state).
+>   - **Tedarikçi register Step 3 + supplier profil categories-card** → `SegmentOnlySelector` (inline checkbox listesi, max 10, counter + clear all). Modal yok, sade görünüm.
+>   - `useRoots` / `useChildren(parentId)` / `useCategoriesByIds(ids)` / `useCategorySearch(q)` / `useCategorySearchTree(q)` hooks; eski `useCategoryTree` kaldırıldı.
+> - `categories.json` silindi, `categories.txt` UTF-8 (1618 satır) yeni kaynak.
+> - typecheck 6/6 yeşil. Manuel E2E: tender L1/L2 reject + L3/L4 accept + invalid id 404 + backward-compat V1 null-category, supplier L2/L3/L4 reject + L1 accept, `/search-tree?q=monitör` hiyerarşik tree, cross-token izolasyonu.
+
 > **Sıradaki major adım**: V2-7 (açık ihale + kategoriye göre kategoriye uygun e-mail bildirim + tedarikçi başvuru) sonra **production hosting** (Coolify + Hetzner, Docker image + Chromium pre-installed PDF + Resend domain verification + webhook secret).
 
 ---
