@@ -1253,17 +1253,20 @@ enum MessageSenderType {
 
 // ---------- V2-6: KATEGORİ SİSTEMİ (UNSPSC tabanlı, 2 seviye) ----------
 //
-// Self-referencing tek tablo: Segment (level 1) → Family (level 2).
-// Tedarikçiler: many-to-many (SupplierCategory junction, sadece level 2).
-// İhaleler: single category (Tender.categoryId, sadece level 2).
+// Self-referencing tek tablo, 4 seviye UNSPSC:
+//   level 1 = Segment   (XX000000)
+//   level 2 = Family    (XXXX0000)
+//   level 3 = Class     (XXXXXX00)
+//   level 4 = Commodity (XXXXXXXX)
+// Tedarikçi (many) ve Tender (single) Level 3 veya 4'e bağlanır.
+// Level 1+2 sadece UI accordion grup başlığıdır — seçilemez.
 
 model Category {
   id              String              @id @default(cuid())
-  /** UNSPSC 8-haneli kod (örn "10000000" segment, "10100000" family) */
+  /** UNSPSC 8-haneli kod (10000000=segment, 10100000=family, 10101500=class, 10101501=commodity) */
   code            String              @unique
   nameTr          String
-  nameEn          String
-  /** 1 = Segment (üst), 2 = Family (alt) */
+  /** 1=Segment, 2=Family, 3=Class, 4=Commodity */
   level           Int
 
   parentId        String?
@@ -1283,6 +1286,7 @@ model Category {
 
   @@index([parentId, sortOrder])
   @@index([level, sortOrder])
+  @@index([code])
   @@map("categories")
 }
 

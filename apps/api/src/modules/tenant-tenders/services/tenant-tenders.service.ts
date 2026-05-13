@@ -13,7 +13,10 @@ import { generateOrderNumber, generateTenderNumber } from "@supkeys/shared";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { CategoryService } from "../../categories/services/category.service";
+import {
+  buildBreadcrumb,
+  CategoryService,
+} from "../../categories/services/category.service";
 import { EmailQueue } from "../../email/email.queue";
 import {
   formatAddressSnapshotText,
@@ -101,13 +104,22 @@ export class TenantTendersService {
             select: { id: true, firstName: true, lastName: true },
           },
           category: {
-            select: {
-              id: true,
-              code: true,
-              nameTr: true,
-              level: true,
+            include: {
               parent: {
-                select: { id: true, nameTr: true, segmentLetter: true },
+                include: {
+                  parent: {
+                    include: {
+                      parent: {
+                        select: {
+                          id: true,
+                          nameTr: true,
+                          segmentLetter: true,
+                          level: true,
+                        },
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -137,9 +149,7 @@ export class TenantTendersService {
               code: t.category.code,
               nameTr: t.category.nameTr,
               level: t.category.level,
-              breadcrumb: t.category.parent
-                ? `${t.category.parent.segmentLetter}. ${t.category.parent.nameTr} › ${t.category.nameTr}`
-                : t.category.nameTr,
+              breadcrumb: buildBreadcrumb(t.category),
             }
           : null,
         itemCount: t._count.items,
@@ -168,7 +178,20 @@ export class TenantTendersService {
         category: {
           include: {
             parent: {
-              select: { id: true, nameTr: true, segmentLetter: true },
+              include: {
+                parent: {
+                  include: {
+                    parent: {
+                      select: {
+                        id: true,
+                        nameTr: true,
+                        segmentLetter: true,
+                        level: true,
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -229,9 +252,7 @@ export class TenantTendersService {
             code: category.code,
             nameTr: category.nameTr,
             level: category.level,
-            breadcrumb: category.parent
-              ? `${category.parent.segmentLetter}. ${category.parent.nameTr} › ${category.nameTr}`
-              : category.nameTr,
+            breadcrumb: buildBreadcrumb(category),
           }
         : null,
       bidStats: {
@@ -575,7 +596,7 @@ export class TenantTendersService {
     this.validateBusinessRules(dto);
 
     // V2-6 — kategori (Family seviyesi) zorunlu
-    await this.categoryService.validateIds([dto.categoryId], 2);
+    await this.categoryService.validateIds([dto.categoryId], 3);
 
     // Adres snapshot'larını al (transaction dışında — adres okuma)
     const billingSnapshot = await this.snapshotForType(
@@ -669,7 +690,7 @@ export class TenantTendersService {
     this.validateBusinessRules(dto);
 
     // V2-6 — kategori (Family seviyesi) zorunlu
-    await this.categoryService.validateIds([dto.categoryId], 2);
+    await this.categoryService.validateIds([dto.categoryId], 3);
 
     const billingSnapshot = await this.snapshotForType(
       tenantId,

@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import type { Prisma, TenderStatus } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { buildBreadcrumb } from "../../categories/services/category.service";
 import { ExchangeRateService } from "../../currency/services/exchange-rate.service";
 import { CreateOrUpdateBidDto } from "../dto/bid.dto";
 import {
@@ -91,13 +92,22 @@ export class SupplierTendersService {
           publishedAt: true,
           tenant: { select: { name: true } },
           category: {
-            select: {
-              id: true,
-              code: true,
-              nameTr: true,
-              level: true,
+            include: {
               parent: {
-                select: { id: true, nameTr: true, segmentLetter: true },
+                include: {
+                  parent: {
+                    include: {
+                      parent: {
+                        select: {
+                          id: true,
+                          nameTr: true,
+                          segmentLetter: true,
+                          level: true,
+                        },
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -133,9 +143,7 @@ export class SupplierTendersService {
               code: t.category.code,
               nameTr: t.category.nameTr,
               level: t.category.level,
-              breadcrumb: t.category.parent
-                ? `${t.category.parent.segmentLetter}. ${t.category.parent.nameTr} › ${t.category.nameTr}`
-                : t.category.nameTr,
+              breadcrumb: buildBreadcrumb(t.category),
             }
           : null,
         itemCount: t._count.items,
@@ -167,7 +175,20 @@ export class SupplierTendersService {
         category: {
           include: {
             parent: {
-              select: { id: true, nameTr: true, segmentLetter: true },
+              include: {
+                parent: {
+                  include: {
+                    parent: {
+                      select: {
+                        id: true,
+                        nameTr: true,
+                        segmentLetter: true,
+                        level: true,
+                      },
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -232,9 +253,7 @@ export class SupplierTendersService {
             code: tender.category.code,
             nameTr: tender.category.nameTr,
             level: tender.category.level,
-            breadcrumb: tender.category.parent
-              ? `${tender.category.parent.segmentLetter}. ${tender.category.parent.nameTr} › ${tender.category.nameTr}`
-              : tender.category.nameTr,
+            breadcrumb: buildBreadcrumb(tender.category),
           }
         : null,
       items: tender.items,

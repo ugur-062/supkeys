@@ -6,6 +6,7 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { buildBreadcrumb } from "../../categories/services/category.service";
 import { SupplierLoginDto } from "../dto/supplier-login.dto";
 import type { SupplierJwtPayload } from "../strategies/supplier-jwt.strategy";
 
@@ -100,10 +101,19 @@ export class SupplierAuthService {
                 category: {
                   include: {
                     parent: {
-                      select: {
-                        id: true,
-                        nameTr: true,
-                        segmentLetter: true,
+                      include: {
+                        parent: {
+                          include: {
+                            parent: {
+                              select: {
+                                id: true,
+                                nameTr: true,
+                                segmentLetter: true,
+                                level: true,
+                              },
+                            },
+                          },
+                        },
                       },
                     },
                   },
@@ -143,9 +153,7 @@ export class SupplierAuthService {
         code: sc.category.code,
         nameTr: sc.category.nameTr,
         level: sc.category.level,
-        breadcrumb: sc.category.parent
-          ? `${sc.category.parent.segmentLetter}. ${sc.category.parent.nameTr} › ${sc.category.nameTr}`
-          : sc.category.nameTr,
+        breadcrumb: buildBreadcrumb(sc.category),
       })),
     };
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { CategorySelector } from "@/components/categories/category-selector";
+import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -102,13 +102,14 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
         />
         <Field error={errors.categoryId?.message}>
           <Label required>Kategori</Label>
-          <CategorySelector
+          <CategorySelectorButton
             value={categoryId ? [categoryId] : []}
             onChange={(ids) =>
               setValue("categoryId", ids[0] ?? "", { shouldValidate: true })
             }
             mode="single"
-            placeholder="İhale kategorisini arayın veya seçin"
+            placeholder="İhale kategorisini seçin"
+            modalTitle="İhale Kategorisi Seç"
             error={errors.categoryId?.message}
           />
         </Field>

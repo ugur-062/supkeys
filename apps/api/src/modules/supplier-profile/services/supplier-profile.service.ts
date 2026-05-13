@@ -1,6 +1,23 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { CategoryService } from "../../categories/services/category.service";
+import {
+  buildBreadcrumb,
+  CategoryService,
+} from "../../categories/services/category.service";
+
+const CATEGORY_PARENT_CHAIN_INCLUDE = {
+  parent: {
+    include: {
+      parent: {
+        include: {
+          parent: {
+            select: { id: true, nameTr: true, segmentLetter: true, level: true },
+          },
+        },
+      },
+    },
+  },
+} as const;
 
 @Injectable()
 export class SupplierProfileService {
@@ -19,13 +36,7 @@ export class SupplierProfileService {
     const rows = await this.prisma.supplierCategory.findMany({
       where: { supplierId: user.supplierId },
       include: {
-        category: {
-          include: {
-            parent: {
-              select: { id: true, nameTr: true, segmentLetter: true },
-            },
-          },
-        },
+        category: { include: CATEGORY_PARENT_CHAIN_INCLUDE },
       },
     });
 
@@ -34,9 +45,7 @@ export class SupplierProfileService {
       code: sc.category.code,
       nameTr: sc.category.nameTr,
       level: sc.category.level,
-      breadcrumb: sc.category.parent
-        ? `${sc.category.parent.segmentLetter}. ${sc.category.parent.nameTr} › ${sc.category.nameTr}`
-        : sc.category.nameTr,
+      breadcrumb: buildBreadcrumb(sc.category),
     }));
   }
 
@@ -47,8 +56,8 @@ export class SupplierProfileService {
     });
     if (!user) throw new NotFoundException("Tedarikçi kullanıcı bulunamadı");
 
-    // Family seviyesi zorunlu — wrong-level / missing → 400/404.
-    await this.categoryService.validateIds(categoryIds, 2);
+    // Class/Commodity seviyesi zorunlu — wrong-level / missing → 400/404.
+    await this.categoryService.validateIds(categoryIds, 3);
 
     // Replace-all: tek transactionda eski satırları temizle + yenilerini yaz.
     await this.prisma.$transaction([

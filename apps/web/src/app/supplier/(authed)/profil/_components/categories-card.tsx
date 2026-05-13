@@ -1,7 +1,7 @@
 "use client";
 
 import { CategoryBadge } from "@/components/categories/category-badge";
-import { CategorySelector } from "@/components/categories/category-selector";
+import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { Button } from "@/components/ui/button";
 import {
   useSupplierCategories,
@@ -86,11 +86,12 @@ export function CategoriesCard() {
         )
       ) : (
         <div className="space-y-3">
-          <CategorySelector
+          <CategorySelectorButton
             value={draftIds}
             onChange={setDraftIds}
             mode="multi"
             maxSelection={20}
+            modalTitle="Tedarik Kategorileri"
           />
 
           <div className="flex gap-2 justify-end">

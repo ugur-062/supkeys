@@ -1,6 +1,6 @@
 "use client";
 
-import { CategorySelector } from "@/components/categories/category-selector";
+import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { InvitationBanner } from "@/components/registration/invitation-banner";
 import { StepFirmInfo } from "@/components/registration/step-firm-info";
 import { StepSuccess } from "@/components/registration/step-success";
@@ -284,7 +284,7 @@ export function SupplierRegisterForm({
                 </p>
               </div>
 
-              <CategorySelector
+              <CategorySelectorButton
                 value={categoryIds}
                 onChange={(ids) => {
                   setCategoryIds(ids);
@@ -292,6 +292,7 @@ export function SupplierRegisterForm({
                 }}
                 mode="multi"
                 maxSelection={20}
+                modalTitle="Tedarik Kategorileri"
                 error={categoriesError}
               />
 

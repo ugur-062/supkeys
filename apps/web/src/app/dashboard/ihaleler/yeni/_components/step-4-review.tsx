@@ -1,6 +1,6 @@
 "use client";
 
-import { useCategoryTree } from "@/hooks/use-categories";
+import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useTenantAddresses } from "@/hooks/use-tenant-addresses";
 import { useSuppliers } from "@/hooks/use-tenant-suppliers";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
@@ -109,18 +109,11 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
     (a) => a.id === data.deliveryAddressId,
   );
 
-  // V2-6 — kategori özeti için tree'den breadcrumb resolve et.
-  const treeQuery = useCategoryTree();
-  const categoryLabel = (() => {
-    if (!data.categoryId || !treeQuery.data) return null;
-    for (const seg of treeQuery.data) {
-      const family = seg.children?.find((c) => c.id === data.categoryId);
-      if (family) {
-        return `${seg.segmentLetter ?? ""}. ${seg.nameTr} › ${family.nameTr}`;
-      }
-    }
-    return null;
-  })();
+  // V2-6 — kategori özeti backend breadcrumb'ından (4 seviye).
+  const categoryQuery = useCategoriesByIds(
+    data.categoryId ? [data.categoryId] : [],
+  );
+  const categoryLabel = categoryQuery.data?.[0]?.breadcrumb ?? null;
 
   return (
     <div className="space-y-4">

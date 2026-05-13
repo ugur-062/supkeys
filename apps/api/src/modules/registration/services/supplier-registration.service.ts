@@ -41,8 +41,8 @@ export class SupplierRegistrationService {
     const adminEmail = dto.adminEmail.toLowerCase().trim();
     const taxNumber = dto.taxNumber.trim();
 
-    // 0) Kategori ID'lerini doğrula (Family seviyesi zorunlu)
-    await this.categoryService.validateIds(dto.categoryIds, 2);
+    // 0) Kategori ID'lerini doğrula (Class veya Commodity seviyesi zorunlu)
+    await this.categoryService.validateIds(dto.categoryIds, 3);
 
     // 1) E-posta zaten aktif bir SupplierUser'a mı bağlı?
     const existingUser = await this.prisma.supplierUser.findUnique({

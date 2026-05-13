@@ -6,53 +6,57 @@ import {
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
 /**
- * V2-6 — UNSPSC kategori sistemi servisi.
- * 2 seviye: Segment (level 1) → Family (level 2). Sadece Family
- * "seçilebilir" — Tedarikçi (many) + Tender (single) Family'e bağlanır.
+ * V2-6 — 4 seviye UNSPSC kategori servisi.
+ *   level 1 = Segment   (XX000000)
+ *   level 2 = Family    (XXXX0000)
+ *   level 3 = Class     (XXXXXX00)
+ *   level 4 = Commodity (XXXXXXXX)
+ *
+ * Lazy loading: frontend ilk açılışta sadece roots (level 1) çeker, expand
+ * edildiğinde o parent'ın direkt çocuklarını ister. Tedarikçi ve tender
+ * "seçim" katmanları sadece Level 3+4'tür (Class veya Commodity).
  */
 @Injectable()
 export class CategoryService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Tüm aktif kategorileri tree (segment → families) yapısında döner.
-   * Frontend kategori seçici accordion kullanır.
-   */
-  async getTree() {
-    const categories = await this.prisma.category.findMany({
-      where: { isActive: true },
-      orderBy: [{ level: "asc" }, { sortOrder: "asc" }],
+  /** Level 1 (Segment) kategorilerini getirir — ilk açılış için. */
+  async getRoots() {
+    return this.prisma.category.findMany({
+      where: { level: 1, isActive: true },
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        code: true,
+        nameTr: true,
+        level: true,
+        segmentLetter: true,
+        sortOrder: true,
+        _count: { select: { children: true } },
+      },
     });
+  }
 
-    const segments = categories.filter((c) => c.level === 1);
-    const families = categories.filter((c) => c.level === 2);
-
-    return segments.map((segment) => ({
-      id: segment.id,
-      code: segment.code,
-      nameTr: segment.nameTr,
-      nameEn: segment.nameEn,
-      level: segment.level,
-      segmentLetter: segment.segmentLetter,
-      sortOrder: segment.sortOrder,
-      children: families
-        .filter((f) => f.parentId === segment.id)
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((f) => ({
-          id: f.id,
-          code: f.code,
-          nameTr: f.nameTr,
-          nameEn: f.nameEn,
-          level: f.level,
-          parentId: f.parentId,
-          sortOrder: f.sortOrder,
-        })),
-    }));
+  /** Bir parent'ın direkt çocukları — lazy expand. */
+  async getChildren(parentId: string) {
+    return this.prisma.category.findMany({
+      where: { parentId, isActive: true },
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        code: true,
+        nameTr: true,
+        level: true,
+        parentId: true,
+        sortOrder: true,
+        _count: { select: { children: true } },
+      },
+    });
   }
 
   /**
-   * Family seviyesinde arama. Min 2 karakter; max 50 sonuç.
-   * Breadcrumb formatı: "A. Segment Adı › Family Adı".
+   * Search — sadece Level 3+4 (Class + Commodity) döner, 4 seviye breadcrumb ile.
+   * Min 2 karakter. Top 100.
    */
   async search(query: string) {
     const q = query?.trim() ?? "";
@@ -61,37 +65,42 @@ export class CategoryService {
     const matched = await this.prisma.category.findMany({
       where: {
         isActive: true,
-        level: 2,
-        OR: [
-          { nameTr: { contains: q, mode: "insensitive" } },
-          { nameEn: { contains: q, mode: "insensitive" } },
-        ],
+        level: { in: [3, 4] },
+        nameTr: { contains: q, mode: "insensitive" },
       },
       include: {
         parent: {
-          select: { id: true, nameTr: true, segmentLetter: true },
+          include: {
+            parent: {
+              include: {
+                parent: {
+                  select: {
+                    id: true,
+                    nameTr: true,
+                    segmentLetter: true,
+                    level: true,
+                  },
+                },
+              },
+            },
+          },
         },
       },
-      take: 50,
-      orderBy: [{ sortOrder: "asc" }],
+      take: 100,
+      orderBy: [{ level: "desc" }, { sortOrder: "asc" }],
     });
 
     return matched.map((c) => ({
       id: c.id,
       code: c.code,
       nameTr: c.nameTr,
-      nameEn: c.nameEn,
       level: c.level,
       parentId: c.parentId,
-      breadcrumb: c.parent
-        ? `${c.parent.segmentLetter}. ${c.parent.nameTr} › ${c.nameTr}`
-        : c.nameTr,
+      breadcrumb: buildBreadcrumb(c),
     }));
   }
 
-  /**
-   * ID listesi → enriched detay (chip listesi gösterimi için).
-   */
+  /** Belirli ID'lerin breadcrumb bilgisi (chip listesi için). */
   async getByIds(ids: string[]) {
     if (ids.length === 0) return [];
 
@@ -99,7 +108,20 @@ export class CategoryService {
       where: { id: { in: ids }, isActive: true },
       include: {
         parent: {
-          select: { id: true, nameTr: true, segmentLetter: true },
+          include: {
+            parent: {
+              include: {
+                parent: {
+                  select: {
+                    id: true,
+                    nameTr: true,
+                    segmentLetter: true,
+                    level: true,
+                  },
+                },
+              },
+            },
+          },
         },
       },
     });
@@ -109,20 +131,21 @@ export class CategoryService {
       code: c.code,
       nameTr: c.nameTr,
       level: c.level,
-      breadcrumb: c.parent
-        ? `${c.parent.segmentLetter}. ${c.parent.nameTr} › ${c.nameTr}`
-        : c.nameTr,
+      breadcrumb: buildBreadcrumb(c),
     }));
   }
 
   /**
-   * Validation — service-içi kullanım için. ID'ler aktif kategoriye işaret
-   * etmeli; `requireLevel` verilirse her ID'nin o level'da olduğu doğrulanır.
+   * Validation — ID'ler aktif kategoriye işaret etmeli; `requireMinLevel`
+   * verilirse her ID'nin level'ı en az o seviyede olmalı.
    *
-   * Tender create → `requireLevel=2` (Family zorunlu).
-   * Supplier register → `requireLevel=2` (Family çoklu).
+   * Tender + Supplier seçimi → requireMinLevel = 3 (Class veya Commodity).
+   * Level 1/2 (Segment/Family) sadece accordion grup başlığıdır; seçilemez.
    */
-  async validateIds(ids: string[], requireLevel?: number): Promise<void> {
+  async validateIds(
+    ids: string[],
+    requireMinLevel: number = 3,
+  ): Promise<void> {
     if (ids.length === 0) return;
 
     const found = await this.prisma.category.findMany({
@@ -138,13 +161,33 @@ export class CategoryService {
       );
     }
 
-    if (requireLevel !== undefined) {
-      const wrongLevel = found.filter((c) => c.level !== requireLevel);
-      if (wrongLevel.length > 0) {
-        throw new BadRequestException(
-          `Sadece level ${requireLevel} (Family) kategoriler seçilebilir. Lütfen alt kategori seçin.`,
-        );
-      }
+    const tooHigh = found.filter((c) => c.level < requireMinLevel);
+    if (tooHigh.length > 0) {
+      throw new BadRequestException(
+        `Sadece Class veya Commodity seviyesindeki kategoriler seçilebilir (Segment/Family seçilemez).`,
+      );
     }
   }
+}
+
+/**
+ * Bir kategorinin (4 seviye parent chain ile birlikte) breadcrumb string'ini
+ * üretir: "A. Segment Adı › Family Adı › Class Adı › Commodity Adı".
+ *
+ * Caller include'da `parent.parent.parent.parent` (en az level 1'e ulaşana
+ * kadar) zincirini sağlamalı. Eksik zincirde mevcut kısmı verir.
+ */
+export function buildBreadcrumb(node: unknown): string {
+  const parts: string[] = [];
+  let cur: any = node;
+  while (cur) {
+    if (cur.level === 1) {
+      const letter = cur.segmentLetter ? `${cur.segmentLetter}. ` : "";
+      parts.unshift(`${letter}${cur.nameTr}`);
+    } else if (cur.nameTr) {
+      parts.unshift(cur.nameTr);
+    }
+    cur = cur.parent;
+  }
+  return parts.join(" › ");
 }
