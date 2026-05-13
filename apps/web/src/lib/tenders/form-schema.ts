@@ -1,6 +1,15 @@
 import { z } from "zod";
 
-const CURRENCY_VALUES = ["TRY", "USD", "EUR"] as const;
+const CURRENCY_VALUES = [
+  "TRY",
+  "USD",
+  "EUR",
+  "GBP",
+  "CHF",
+  "JPY",
+  "AED",
+  "CNY",
+] as const;
 const TYPE_VALUES = ["RFQ", "ENGLISH_AUCTION"] as const;
 const DELIVERY_TERM_VALUES = [
   "EXW",
@@ -56,6 +65,11 @@ const baseTenderSchema = z.object({
   requireAllItems: z.boolean(),
   requireBidDocument: z.boolean(),
   primaryCurrency: z.enum(CURRENCY_VALUES),
+  // V2-6 — Kabul edilen para birimleri (1-8). primaryCurrency listenin başı.
+  allowedCurrencies: z
+    .array(z.enum(CURRENCY_VALUES))
+    .min(1, "En az 1 para birimi zorunludur")
+    .max(8, "En fazla 8 para birimi seçebilirsiniz"),
   deliveryTerm: z.enum(DELIVERY_TERM_VALUES).optional(),
   // E.7.B — adresler artık dropdown'dan seçilen TenantAddress kayıtlarının id'si.
   billingAddressId: z.string().min(1, "Fatura adresi seçin"),
@@ -124,6 +138,7 @@ export const STEP_FIELDS: Record<1 | 2 | 3, (keyof TenderFormData)[]> = {
     "requireAllItems",
     "requireBidDocument",
     "primaryCurrency",
+    "allowedCurrencies",
     "deliveryTerm",
     "billingAddressId",
     "deliveryAddressId",
@@ -147,6 +162,7 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   requireAllItems: false,
   requireBidDocument: false,
   primaryCurrency: "TRY",
+  allowedCurrencies: ["TRY"],
   deliveryTerm: undefined,
   billingAddressId: "",
   deliveryAddressId: "",

@@ -88,6 +88,7 @@ export class SupplierTendersService {
           title: true,
           status: true,
           primaryCurrency: true,
+          allowedCurrencies: true,
           bidsCloseAt: true,
           publishedAt: true,
           tenant: { select: { name: true } },
@@ -139,6 +140,7 @@ export class SupplierTendersService {
         title: t.title,
         status: t.status,
         primaryCurrency: t.primaryCurrency,
+        allowedCurrencies: t.allowedCurrencies,
         bidsCloseAt: t.bidsCloseAt,
         publishedAt: t.publishedAt,
         tenant: t.tenant,
@@ -242,6 +244,7 @@ export class SupplierTendersService {
       requireAllItems: tender.requireAllItems,
       requireBidDocument: tender.requireBidDocument,
       primaryCurrency: tender.primaryCurrency,
+      allowedCurrencies: tender.allowedCurrencies,
       deliveryTerm: tender.deliveryTerm,
       deliveryAddress: tender.deliveryAddress,
       // E.7.B — tedarikçi teslimat adresi snapshot'ı görür.

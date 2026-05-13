@@ -32,7 +32,15 @@ export type TenderStatus =
   | "CANCELLED"
   | "CLOSED_NO_AWARD";
 
-export type Currency = "TRY" | "USD" | "EUR";
+export type Currency =
+  | "TRY"
+  | "USD"
+  | "EUR"
+  | "GBP"
+  | "CHF"
+  | "JPY"
+  | "AED"
+  | "CNY";
 
 export type DeliveryTerm =
   | "EXW"
@@ -87,6 +95,7 @@ export interface TenderListItem {
   type: TenderType;
   status: TenderStatus;
   primaryCurrency: Currency;
+  allowedCurrencies: Currency[];
   bidsCloseAt: string;
   publishedAt: string | null;
   createdAt: string;
@@ -154,6 +163,7 @@ export interface TenderDetail {
   requireAllItems: boolean;
   requireBidDocument: boolean;
   primaryCurrency: Currency;
+  allowedCurrencies: Currency[];
   deliveryTerm: DeliveryTerm | null;
   deliveryAddress: string | null;
   /** E.7.B — Tender oluşturma anındaki TenantAddress JSON snapshot'ı. */
@@ -222,6 +232,7 @@ export interface SupplierTenderListItem {
   title: string;
   status: TenderStatus;
   primaryCurrency: Currency;
+  allowedCurrencies: Currency[];
   bidsCloseAt: string;
   publishedAt: string | null;
   tenant: { name: string };
@@ -252,6 +263,7 @@ export interface SupplierTenderDetail {
   requireAllItems: boolean;
   requireBidDocument: boolean;
   primaryCurrency: Currency;
+  allowedCurrencies: Currency[];
   deliveryTerm: DeliveryTerm | null;
   deliveryAddress: string | null;
   /** E.7.B — supplier teslimat snapshot'ı görür (alıcı tarafı kapalı zarf). */
@@ -423,6 +435,7 @@ export interface TenderBidsResponse {
     status: TenderStatus;
     bidsCloseAt: string;
     primaryCurrency: Currency;
+  allowedCurrencies: Currency[];
     totalItems: number;
     invitedCount: number;
   };
@@ -482,6 +495,7 @@ export interface BidComparisonResponse {
     tenderNumber: string;
     status: TenderStatus;
     primaryCurrency: Currency;
+  allowedCurrencies: Currency[];
   };
   items: BidComparisonRow[];
 }
@@ -508,6 +522,7 @@ export interface BidDetailExpanded {
   isComplete: boolean;
   isDifferentCurrency: boolean;
   primaryCurrency: Currency;
+  allowedCurrencies: Currency[];
   /** V2-3 — bid submit anındaki TCMB kuru. bid.currency=TRY ise null. */
   exchangeRateSnapshot: {
     rate: number;
@@ -666,6 +681,7 @@ export interface OrderDetail {
     title: string;
     status: TenderStatus;
     primaryCurrency: Currency;
+  allowedCurrencies: Currency[];
     deliveryTerm: DeliveryTerm | null;
     deliveryAddress: string | null;
     paymentTerm: PaymentTerm;

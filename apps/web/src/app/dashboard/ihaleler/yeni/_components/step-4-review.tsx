@@ -152,11 +152,30 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
         ) : null}
         <Row label="Tip" value={data.type === "RFQ" ? "RFQ (Kapalı Teklif)" : "İngiliz Usulü"} />
         <Row
-          label="Para Birimi"
+          label={
+            data.allowedCurrencies && data.allowedCurrencies.length > 1
+              ? "Para Birimleri"
+              : "Para Birimi"
+          }
           value={
-            <strong>
-              {CURRENCY_SYMBOL[data.primaryCurrency]} {data.primaryCurrency}
-            </strong>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {(data.allowedCurrencies ?? [data.primaryCurrency]).map((c) => {
+                const isPrimary = c === data.primaryCurrency;
+                return (
+                  <span
+                    key={c}
+                    className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold ${
+                      isPrimary
+                        ? "border-brand-500 bg-brand-50 text-brand-800"
+                        : "border-slate-200 bg-white text-slate-700"
+                    }`}
+                  >
+                    {isPrimary ? "⭐ " : ""}
+                    {CURRENCY_SYMBOL[c]} {c}
+                  </span>
+                );
+              })}
+            </div>
           }
         />
         <Row

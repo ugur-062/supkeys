@@ -102,6 +102,10 @@ export function EditLoader({ id }: Props) {
     requireAllItems: tender.requireAllItems,
     requireBidDocument: tender.requireBidDocument,
     primaryCurrency: tender.primaryCurrency,
+    allowedCurrencies:
+      tender.allowedCurrencies && tender.allowedCurrencies.length > 0
+        ? tender.allowedCurrencies
+        : [tender.primaryCurrency],
     deliveryTerm: tender.deliveryTerm ?? undefined,
     // E.7.B — snapshot'tan adres ID'si. Snapshot yoksa boş bırak (kullanıcı dropdown'dan
     // yeniden seçer). Snapshot ID'si silinmiş bir adresi gösteriyorsa kullanıcı yeni

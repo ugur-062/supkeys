@@ -1,20 +1,38 @@
 /**
- * V2-3 — Çoklu para birimi formatlama yardımcıları.
- * Şu an supkeys 3 currency destekler: TRY (₺), USD ($), EUR (€).
+ * V2-6 — Çoklu para birimi formatlama yardımcıları (8 birim).
+ * TRY (₺), USD ($), EUR (€), GBP (£), CHF (₣), JPY (¥), AED (د.إ), CNY (¥).
  */
 
-export type Currency = "TRY" | "USD" | "EUR";
+export type Currency =
+  | "TRY"
+  | "USD"
+  | "EUR"
+  | "GBP"
+  | "CHF"
+  | "JPY"
+  | "AED"
+  | "CNY";
 
 const symbols: Record<Currency, string> = {
   TRY: "₺",
   USD: "$",
   EUR: "€",
+  GBP: "£",
+  CHF: "₣",
+  JPY: "¥",
+  AED: "د.إ",
+  CNY: "¥",
 };
 
 const localeMap: Record<Currency, string> = {
   TRY: "tr-TR",
   USD: "en-US",
   EUR: "de-DE",
+  GBP: "en-GB",
+  CHF: "de-CH",
+  JPY: "ja-JP",
+  AED: "ar-AE",
+  CNY: "zh-CN",
 };
 
 export function getCurrencySymbol(currency: Currency): string {

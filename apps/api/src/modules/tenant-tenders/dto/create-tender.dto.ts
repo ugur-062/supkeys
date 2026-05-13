@@ -27,6 +27,11 @@ export enum CurrencyDto {
   TRY = "TRY",
   USD = "USD",
   EUR = "EUR",
+  GBP = "GBP",
+  CHF = "CHF",
+  JPY = "JPY",
+  AED = "AED",
+  CNY = "CNY",
 }
 
 export enum DeliveryTermDto {
@@ -136,8 +141,14 @@ export class CreateTenderDto {
   @IsBoolean()
   requireBidDocument!: boolean;
 
-  // Para Ayarları — V2-3 sonrası tek currency. Tedarikçiler tender'ın
-  // primaryCurrency'sinde teklif verir; cross-currency bid V2.5'e ertelendi.
+  // V2-6 — Birden fazla para birimi kabul (1-8). primaryCurrency listenin başı,
+  // TRY equivalent karşılaştırma bazıdır. Backend `primaryCurrency ∈ allowedCurrencies` enforce eder.
+  @IsArray()
+  @ArrayMinSize(1, { message: "En az 1 para birimi zorunludur" })
+  @ArrayMaxSize(8, { message: "En fazla 8 para birimi seçebilirsiniz" })
+  @IsEnum(CurrencyDto, { each: true })
+  allowedCurrencies!: CurrencyDto[];
+
   @IsEnum(CurrencyDto)
   primaryCurrency!: CurrencyDto;
 

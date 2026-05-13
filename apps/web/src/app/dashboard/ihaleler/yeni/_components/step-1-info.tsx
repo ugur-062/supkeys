@@ -1,17 +1,14 @@
 "use client";
 
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
+import { CurrencyMultiSelect } from "@/components/currency-multi-select";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useCurrentExchangeRates } from "@/hooks/use-exchange-rates";
 import { useTenantAddresses } from "@/hooks/use-tenant-addresses";
-import {
-  CURRENCY_SYMBOL,
-  DELIVERY_TERM_LABELS,
-} from "@/lib/tenders/labels";
+import { DELIVERY_TERM_LABELS } from "@/lib/tenders/labels";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import type { Currency, DeliveryTerm } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
@@ -32,12 +29,6 @@ import { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 import { TenderDocStaging } from "./tender-doc-staging";
 
-const CURRENCIES: Currency[] = ["TRY", "USD", "EUR"];
-const CURRENCY_NAMES: Record<Currency, string> = {
-  TRY: "Türk Lirası",
-  USD: "Amerikan Doları",
-  EUR: "Euro",
-};
 const DELIVERY_TERMS: DeliveryTerm[] = [
   "EXW",
   "FCA",
@@ -91,10 +82,10 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
     setValue,
     watch,
   } = useFormContext<TenderFormData>();
-  const ratesQuery = useCurrentExchangeRates();
 
   const paymentTerm = watch("paymentTerm");
   const primaryCurrency = watch("primaryCurrency");
+  const allowedCurrencies = watch("allowedCurrencies") ?? [];
 
   const categoryIds = watch("categoryIds") ?? [];
 
@@ -258,73 +249,44 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
         </div>
       </section>
 
-      {/* SECTION: Para Birimi (V2-3 — tek seçim) */}
+      {/* SECTION: Para Birimleri — V2-6 çoklu seçim, 8 birim */}
       <section>
         <SectionHeader
           icon={Wallet}
-          title="Para Birimi"
-          description="Tedarikçilerden hangi para biriminde teklif istiyorsun?"
+          title="Para Birimleri"
+          description="Tedarikçilerin hangi para birimlerinde teklif verebileceğini belirle. Birden fazla seçebilirsin; ⭐ ana para birimi TRY equivalent karşılaştırmasının bazıdır."
         />
         <div className="space-y-4">
-          <Field error={errors.primaryCurrency?.message}>
-            <Label required>Para Birimi</Label>
-            <div className="relative">
-              <select
-                {...register("primaryCurrency")}
-                className={cn(
-                  "w-full appearance-none rounded-lg border-2 bg-white px-4 py-2.5 pr-10 text-sm font-semibold text-brand-900",
-                  "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-                  errors.primaryCurrency
-                    ? "border-rose-300"
-                    : "border-slate-200 hover:border-slate-300",
-                )}
-              >
-                {CURRENCIES.map((c) => {
-                  const rate = ratesQuery.data?.rates?.[c];
-                  const rateLabel =
-                    c === "TRY"
-                      ? "1.0000"
-                      : rate
-                        ? `₺${rate.toLocaleString("tr-TR", { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
-                        : "...";
-                  return (
-                    <option key={c} value={c}>
-                      {CURRENCY_SYMBOL[c]} {c} — {CURRENCY_NAMES[c]} ({rateLabel})
-                    </option>
-                  );
-                })}
-              </select>
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
-                ▾
-              </span>
-            </div>
-            {/* TCMB kurları özet satırı */}
-            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-              <span className="font-semibold text-slate-600">TCMB Kurları:</span>
-              {ratesQuery.isLoading ? (
-                <span>Yükleniyor...</span>
-              ) : ratesQuery.data ? (
-                CURRENCIES.filter((c) => c !== "TRY").map((c) => {
-                  const rate = ratesQuery.data?.rates?.[c];
-                  return (
-                    <span key={c} className="inline-flex items-center gap-1">
-                      <span className="font-mono">{c}</span>
-                      <span>
-                        ₺
-                        {rate
-                          ? rate.toLocaleString("tr-TR", {
-                              minimumFractionDigits: 4,
-                              maximumFractionDigits: 4,
-                            })
-                          : "—"}
-                      </span>
-                    </span>
-                  );
-                })
-              ) : (
-                <span>Kur bilgisi alınamadı</span>
-              )}
-            </div>
+          <Field
+            error={
+              (errors.allowedCurrencies?.message as string | undefined) ??
+              (errors.primaryCurrency?.message as string | undefined)
+            }
+          >
+            <Label required>Para Birimleri</Label>
+            <CurrencyMultiSelect
+              value={allowedCurrencies as Currency[]}
+              onChange={(next) => {
+                setValue("allowedCurrencies", next, {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                });
+                // primary kaybolduysa ilk öğeyi primary yap
+                if (!next.includes(primaryCurrency)) {
+                  setValue("primaryCurrency", next[0] ?? "TRY", {
+                    shouldValidate: true,
+                  });
+                }
+              }}
+              primary={primaryCurrency}
+              onPrimaryChange={(p) =>
+                setValue("primaryCurrency", p, { shouldValidate: true })
+              }
+              error={
+                (errors.allowedCurrencies?.message as string | undefined) ??
+                (errors.primaryCurrency?.message as string | undefined)
+              }
+            />
           </Field>
 
           {primaryCurrency && primaryCurrency !== "TRY" ? (
@@ -335,16 +297,15 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
                   TCMB Kuru ile Otomatik Karşılaştırma
                 </p>
                 <p className="text-success-800/80">
-                  Teklifler {primaryCurrency} para biriminde alınır.
-                  Karşılaştırmada otomatik TRY karşılığı gösterilir (kaynak:
-                  TCMB günlük kuru, tedarikçinin teklifi gönderdiği tarihteki
-                  kur ile sabitlenir).
+                  Ana para birimi olarak {primaryCurrency} seçildi. Diğer
+                  birimlerdeki teklifler tedarikçinin gönderim tarihindeki TCMB
+                  kuruyla TRY'ye çevrilerek karşılaştırılır.
                 </p>
               </div>
             </div>
           ) : (
             <p className="text-xs text-slate-500">
-              Yayınlandıktan sonra para birimi değiştirilemez.
+              Yayınlandıktan sonra para birimleri değiştirilemez.
             </p>
           )}
         </div>

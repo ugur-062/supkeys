@@ -14,13 +14,30 @@ export interface ExchangeRateSnapshot {
 }
 
 /**
- * TCMB API down ise / DB boşken kullanılan koruma kurları.
- * V2-3 başlangıcında 2026 ortalama tahminleri; production'a geçince ilk
- * cron fetch ile güncellenir.
+ * V2-6 — Türk B2B'de en yaygın 8 birim. TRY base, diğer 7'si TCMB'den fetch'lenir.
+ */
+const TRACKED_CURRENCIES = [
+  "USD",
+  "EUR",
+  "GBP",
+  "CHF",
+  "JPY",
+  "AED",
+  "CNY",
+] as const satisfies readonly Exclude<Currency, "TRY">[];
+
+/**
+ * TCMB API down ise / DB boşken kullanılan koruma kurları (2026 ortalama tahminleri).
+ * Production'a geçince ilk cron fetch ile güncellenir.
  */
 const FALLBACK_RATES: Record<Exclude<Currency, "TRY">, number> = {
   USD: 34,
   EUR: 37,
+  GBP: 43,
+  CHF: 38,
+  JPY: 0.23,
+  AED: 9.25,
+  CNY: 4.75,
 };
 
 @Injectable()
@@ -56,13 +73,16 @@ export class ExchangeRateService {
     return Number(row.rate);
   }
 
-  /** Public endpoint için { TRY: 1, USD: ..., EUR: ... } shape'i */
+  /** Public endpoint için { TRY: 1, USD: ..., EUR: ..., GBP: ..., ... } shape'i */
   async getCurrentRates(): Promise<Record<Currency, number>> {
-    const [usd, eur] = await Promise.all([
-      this.getCurrentRate("USD"),
-      this.getCurrentRate("EUR"),
-    ]);
-    return { TRY: 1, USD: usd, EUR: eur };
+    const values = await Promise.all(
+      TRACKED_CURRENCIES.map((c) => this.getCurrentRate(c)),
+    );
+    const result = { TRY: 1 } as Record<Currency, number>;
+    TRACKED_CURRENCIES.forEach((c, i) => {
+      result[c] = values[i] ?? FALLBACK_RATES[c] ?? 1;
+    });
+    return result;
   }
 
   /**
@@ -100,54 +120,52 @@ export class ExchangeRateService {
   }
 
   /**
-   * TCMB'den fetch + upsert. İdempotent: aynı gün tekrar çağrılınca update.
+   * TCMB'den fetch + upsert (8 birim için). İdempotent: aynı gün tekrar çağrılınca update.
    */
   async refreshFromTcmb(): Promise<{
     success: boolean;
     date?: string;
-    rates?: { USD: number; EUR: number };
+    rates?: Partial<Record<Currency, number>>;
     reason?: string;
   }> {
-    const rates = await this.tcmb.fetchTodayRates();
-    if (!rates) {
+    const fetched = await this.tcmb.fetchTodayRates();
+    if (!fetched) {
       return { success: false, reason: "TCMB unreachable or invalid response" };
     }
 
-    // Prisma `@db.Date` field UTC midnight Date object bekler.
-    const rateDate = new Date(rates.date);
+    const rateDate = new Date(fetched.date);
     if (Number.isNaN(rateDate.getTime())) {
-      this.logger.error(`TCMB tarihi parse edilemedi: ${rates.date}`);
+      this.logger.error(`TCMB tarihi parse edilemedi: ${fetched.date}`);
       return { success: false, reason: "Invalid TCMB date" };
     }
 
-    await this.prisma.$transaction([
-      this.prisma.exchangeRate.upsert({
-        where: { currency_rateDate: { currency: "USD", rateDate } },
-        create: {
-          currency: "USD",
-          rate: rates.USD,
-          rateDate,
-          source: "TCMB",
-        },
-        update: { rate: rates.USD, fetchedAt: new Date(), source: "TCMB" },
-      }),
-      this.prisma.exchangeRate.upsert({
-        where: { currency_rateDate: { currency: "EUR", rateDate } },
-        create: {
-          currency: "EUR",
-          rate: rates.EUR,
-          rateDate,
-          source: "TCMB",
-        },
-        update: { rate: rates.EUR, fetchedAt: new Date(), source: "TCMB" },
-      }),
-    ]);
+    const upserts = TRACKED_CURRENCIES.flatMap((currency) => {
+      const rate = fetched.rates[currency];
+      if (typeof rate !== "number" || !Number.isFinite(rate)) return [];
+      return [
+        this.prisma.exchangeRate.upsert({
+          where: { currency_rateDate: { currency, rateDate } },
+          create: { currency, rate, rateDate, source: "TCMB" },
+          update: { rate, fetchedAt: new Date(), source: "TCMB" },
+        }),
+      ];
+    });
 
-    this.logger.log(`ExchangeRate upsert OK ${rates.date}`);
-    return {
-      success: true,
-      date: rates.date,
-      rates: { USD: rates.USD, EUR: rates.EUR },
-    };
+    if (upserts.length === 0) {
+      return { success: false, reason: "No tracked currencies in TCMB response" };
+    }
+
+    await this.prisma.$transaction(upserts);
+
+    const persisted: Partial<Record<Currency, number>> = {};
+    for (const c of TRACKED_CURRENCIES) {
+      const v = fetched.rates[c];
+      if (typeof v === "number") persisted[c] = v;
+    }
+
+    this.logger.log(
+      `ExchangeRate upsert OK ${fetched.date} (${Object.keys(persisted).length}/${TRACKED_CURRENCIES.length} kur)`,
+    );
+    return { success: true, date: fetched.date, rates: persisted };
   }
 }

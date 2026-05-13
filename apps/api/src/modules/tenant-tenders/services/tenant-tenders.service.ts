@@ -97,6 +97,7 @@ export class TenantTendersService {
           type: true,
           status: true,
           primaryCurrency: true,
+          allowedCurrencies: true,
           bidsCloseAt: true,
           publishedAt: true,
           createdAt: true,
@@ -144,6 +145,7 @@ export class TenantTendersService {
         type: t.type,
         status: t.status,
         primaryCurrency: t.primaryCurrency,
+        allowedCurrencies: t.allowedCurrencies,
         bidsCloseAt: t.bidsCloseAt,
         publishedAt: t.publishedAt,
         createdAt: t.createdAt,
@@ -640,6 +642,7 @@ export class TenantTendersService {
           requireAllItems: dto.requireAllItems,
           requireBidDocument: dto.requireBidDocument,
           primaryCurrency: dto.primaryCurrency,
+          allowedCurrencies: dto.allowedCurrencies,
           deliveryTerm: dto.deliveryTerm ?? null,
           // Snapshot pattern — JSON kayıt + geriye uyumlu text fallback
           billingAddressSnapshot: billingSnapshot as unknown as Prisma.InputJsonValue,
@@ -750,6 +753,7 @@ export class TenantTendersService {
           requireAllItems: dto.requireAllItems,
           requireBidDocument: dto.requireBidDocument,
           primaryCurrency: dto.primaryCurrency,
+          allowedCurrencies: dto.allowedCurrencies,
           deliveryTerm: dto.deliveryTerm ?? null,
           billingAddressSnapshot:
             billingSnapshot as unknown as Prisma.InputJsonValue,
@@ -1037,6 +1041,18 @@ export class TenantTendersService {
   // ============================================================
 
   private validateBusinessRules(dto: CreateTenderDto) {
+    // V2-6 — primaryCurrency mutlaka allowedCurrencies içinde olmalı
+    if (!dto.allowedCurrencies.includes(dto.primaryCurrency)) {
+      throw new BadRequestException(
+        "Ana para birimi seçilen para birimleri listesinde olmalı",
+      );
+    }
+    // Duplicate currency check
+    if (new Set(dto.allowedCurrencies).size !== dto.allowedCurrencies.length) {
+      throw new BadRequestException(
+        "Para birimi listesinde tekrar olmamalı",
+      );
+    }
     if (
       dto.paymentTerm === "DEFERRED" &&
       (!dto.paymentDays || dto.paymentDays < 1)

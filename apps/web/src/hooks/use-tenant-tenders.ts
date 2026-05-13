@@ -157,6 +157,7 @@ function buildPayload(data: TenderFormData) {
     requireAllItems: data.requireAllItems,
     requireBidDocument: data.requireBidDocument,
     primaryCurrency: data.primaryCurrency,
+    allowedCurrencies: data.allowedCurrencies,
     deliveryTerm: data.deliveryTerm,
     billingAddressId: data.billingAddressId,
     deliveryAddressId: data.deliveryAddressId,

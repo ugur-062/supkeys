@@ -133,4 +133,20 @@ export const CURRENCY_SYMBOL: Record<Currency, string> = {
   TRY: "₺",
   USD: "$",
   EUR: "€",
+  GBP: "£",
+  CHF: "₣",
+  JPY: "¥",
+  AED: "د.إ",
+  CNY: "¥",
+};
+
+export const CURRENCY_NAMES: Record<Currency, string> = {
+  TRY: "Türk Lirası",
+  USD: "Amerikan Doları",
+  EUR: "Euro",
+  GBP: "İngiliz Sterlini",
+  CHF: "İsviçre Frangı",
+  JPY: "Japon Yeni",
+  AED: "BAE Dirhemi",
+  CNY: "Çin Yuanı",
 };

@@ -1,6 +1,15 @@
 import { z } from "zod";
 
-const CURRENCY_VALUES = ["TRY", "USD", "EUR"] as const;
+const CURRENCY_VALUES = [
+  "TRY",
+  "USD",
+  "EUR",
+  "GBP",
+  "CHF",
+  "JPY",
+  "AED",
+  "CNY",
+] as const;
 
 export const bidFormItemSchema = z.object({
   tenderItemId: z.string().min(1),
