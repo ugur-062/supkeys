@@ -89,7 +89,7 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
   const paymentTerm = watch("paymentTerm");
   const primaryCurrency = watch("primaryCurrency");
 
-  const categoryId = watch("categoryId");
+  const categoryIds = watch("categoryIds") ?? [];
 
   return (
     <div className="space-y-8">
@@ -97,20 +97,21 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
       <section>
         <SectionHeader
           icon={Tag}
-          title="Kategori"
-          description="İhalenizin konusu olan ürün/hizmet kategorisini seçin. Doğru kategori seçimi, raporlama ve tedarikçi eşleştirmesi için kritik."
+          title="Kategoriler"
+          description="İhalenizin konusu olan ürün/hizmet kategorilerini seçin. Birden fazla kategori seçebilirsiniz (en fazla 10). Doğru kategori seçimi, raporlama ve tedarikçi eşleştirmesi için kritik."
         />
-        <Field error={errors.categoryId?.message}>
-          <Label required>Kategori</Label>
+        <Field error={errors.categoryIds?.message as string | undefined}>
+          <Label required>Kategoriler</Label>
           <CategorySelectorButton
-            value={categoryId ? [categoryId] : []}
+            value={categoryIds}
             onChange={(ids) =>
-              setValue("categoryId", ids[0] ?? "", { shouldValidate: true })
+              setValue("categoryIds", ids, { shouldValidate: true })
             }
-            mode="single"
-            placeholder="İhale kategorisini seçin"
-            modalTitle="İhale Kategorisi Seç"
-            error={errors.categoryId?.message}
+            mode="multi"
+            maxSelection={10}
+            placeholder="İhale kategorilerini seçin"
+            modalTitle="İhale Kategorileri Seç"
+            error={errors.categoryIds?.message as string | undefined}
           />
         </Field>
       </section>

@@ -150,9 +150,22 @@ export function TendersTable({
                 >
                   {t.title}
                 </Link>
-                {t.category ? (
-                  <div className="mt-1">
-                    <CategoryBadge category={t.category} size="sm" />
+                {t.categories && t.categories.length > 0 ? (
+                  <div className="mt-1 flex flex-wrap items-center gap-1">
+                    {t.categories.slice(0, 2).map((c) => (
+                      <CategoryBadge key={c.id} category={c} size="sm" />
+                    ))}
+                    {t.categories.length > 2 ? (
+                      <span
+                        className="text-[10px] font-semibold text-slate-500"
+                        title={t.categories
+                          .slice(2)
+                          .map((c) => c.breadcrumb)
+                          .join("\n")}
+                      >
+                        +{t.categories.length - 2}
+                      </span>
+                    ) : null}
                   </div>
                 ) : null}
               </td>

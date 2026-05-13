@@ -91,18 +91,22 @@ export class SupplierTendersService {
           bidsCloseAt: true,
           publishedAt: true,
           tenant: { select: { name: true } },
-          category: {
+          categories: {
             include: {
-              parent: {
+              category: {
                 include: {
                   parent: {
                     include: {
                       parent: {
-                        select: {
-                          id: true,
-                          nameTr: true,
-                          segmentLetter: true,
-                          level: true,
+                        include: {
+                          parent: {
+                            select: {
+                              id: true,
+                              nameTr: true,
+                              segmentLetter: true,
+                              level: true,
+                            },
+                          },
                         },
                       },
                     },
@@ -110,6 +114,7 @@ export class SupplierTendersService {
                 },
               },
             },
+            orderBy: { createdAt: "asc" },
           },
           _count: { select: { items: true } },
           invitations: {
@@ -137,15 +142,13 @@ export class SupplierTendersService {
         bidsCloseAt: t.bidsCloseAt,
         publishedAt: t.publishedAt,
         tenant: t.tenant,
-        category: t.category
-          ? {
-              id: t.category.id,
-              code: t.category.code,
-              nameTr: t.category.nameTr,
-              level: t.category.level,
-              breadcrumb: buildBreadcrumb(t.category),
-            }
-          : null,
+        categories: t.categories.map((tc) => ({
+          id: tc.category.id,
+          code: tc.category.code,
+          nameTr: tc.category.nameTr,
+          level: tc.category.level,
+          breadcrumb: buildBreadcrumb(tc.category),
+        })),
         itemCount: t._count.items,
         invitationStatus: t.invitations[0]?.status ?? null,
         myBidStatus: t.bids[0]?.status ?? null,
@@ -172,18 +175,22 @@ export class SupplierTendersService {
         tenant: { select: { id: true, name: true } },
         items: { orderBy: { orderIndex: "asc" } },
         attachments: { orderBy: { uploadedAt: "asc" } },
-        category: {
+        categories: {
           include: {
-            parent: {
+            category: {
               include: {
                 parent: {
                   include: {
                     parent: {
-                      select: {
-                        id: true,
-                        nameTr: true,
-                        segmentLetter: true,
-                        level: true,
+                      include: {
+                        parent: {
+                          select: {
+                            id: true,
+                            nameTr: true,
+                            segmentLetter: true,
+                            level: true,
+                          },
+                        },
                       },
                     },
                   },
@@ -191,6 +198,7 @@ export class SupplierTendersService {
               },
             },
           },
+          orderBy: { createdAt: "asc" },
         },
       },
     });
@@ -247,15 +255,13 @@ export class SupplierTendersService {
       awardedAt: tender.awardedAt,
       cancelledAt: tender.cancelledAt,
       tenant: tender.tenant,
-      category: tender.category
-        ? {
-            id: tender.category.id,
-            code: tender.category.code,
-            nameTr: tender.category.nameTr,
-            level: tender.category.level,
-            breadcrumb: buildBreadcrumb(tender.category),
-          }
-        : null,
+      categories: tender.categories.map((tc) => ({
+        id: tc.category.id,
+        code: tc.category.code,
+        nameTr: tc.category.nameTr,
+        level: tc.category.level,
+        breadcrumb: buildBreadcrumb(tc.category),
+      })),
       items: tender.items,
       attachments: tender.attachments,
       myInvitation: invitation,

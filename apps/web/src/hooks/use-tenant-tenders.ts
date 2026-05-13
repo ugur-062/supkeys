@@ -149,7 +149,7 @@ function buildPayload(data: TenderFormData) {
     v === "" || v === undefined ? undefined : v;
 
   return {
-    categoryId: data.categoryId,
+    categoryIds: data.categoryIds,
     title: data.title,
     description: sanitize(data.description),
     type: data.type,

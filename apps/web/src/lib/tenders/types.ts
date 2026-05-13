@@ -71,7 +71,7 @@ export interface Pagination {
   totalPages: number;
 }
 
-/** V2-6 — UNSPSC kategori (Family seviyesi) — backend'den gelen enriched shape. */
+/** V2-6 — UNSPSC kategori (Class veya Commodity) — backend'den gelen enriched shape. */
 export interface TenderCategoryRef {
   id: string;
   code: string;
@@ -91,8 +91,8 @@ export interface TenderListItem {
   publishedAt: string | null;
   createdAt: string;
   createdBy: { id: string; firstName: string; lastName: string };
-  /** V2-6 — V1 backward-compat: legacy ihalelerde null. */
-  category: TenderCategoryRef | null;
+  /** V2-6 — Birden fazla kategori. V1 backward-compat: legacy ihalelerde boş array. */
+  categories: TenderCategoryRef[];
   itemCount: number;
   invitationCount: number;
   bidCount: number;
@@ -146,8 +146,8 @@ export interface TenderDetail {
   status: TenderStatus;
   title: string;
   description: string | null;
-  /** V2-6 — V1 backward-compat: legacy ihalelerde null. */
-  category: TenderCategoryRef | null;
+  /** V2-6 — Birden fazla kategori. V1 backward-compat: legacy ihalelerde boş array. */
+  categories: TenderCategoryRef[];
   termsAndConditions: string | null;
   internalNotes: string | null;
   isSealedBid: boolean;
@@ -225,8 +225,8 @@ export interface SupplierTenderListItem {
   bidsCloseAt: string;
   publishedAt: string | null;
   tenant: { name: string };
-  /** V2-6 — V1 backward-compat: legacy ihalelerde null. */
-  category: TenderCategoryRef | null;
+  /** V2-6 — Birden fazla kategori. V1 backward-compat: legacy ihalelerde boş array. */
+  categories: TenderCategoryRef[];
   itemCount: number;
   invitationStatus: TenderInvitationStatus | null;
   myBidStatus: BidStatus | null;
@@ -245,8 +245,8 @@ export interface SupplierTenderDetail {
   status: TenderStatus;
   title: string;
   description: string | null;
-  /** V2-6 — V1 backward-compat: legacy ihalelerde null. */
-  category: TenderCategoryRef | null;
+  /** V2-6 — Birden fazla kategori. V1 backward-compat: legacy ihalelerde boş array. */
+  categories: TenderCategoryRef[];
   termsAndConditions: string | null;
   isSealedBid: boolean;
   requireAllItems: boolean;

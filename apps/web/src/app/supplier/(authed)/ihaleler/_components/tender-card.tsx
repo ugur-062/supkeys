@@ -57,8 +57,23 @@ export function TenderCard({ tender }: { tender: SupplierTenderListItem }) {
 
         <div className="flex items-center flex-wrap gap-2 text-xs text-slate-500 mb-3">
           <CurrencyBadge currency={tender.primaryCurrency} />
-          {tender.category ? (
-            <CategoryBadge category={tender.category} size="sm" />
+          {tender.categories && tender.categories.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1">
+              {tender.categories.slice(0, 2).map((c) => (
+                <CategoryBadge key={c.id} category={c} size="sm" />
+              ))}
+              {tender.categories.length > 2 ? (
+                <span
+                  className="text-[10px] font-semibold text-slate-500"
+                  title={tender.categories
+                    .slice(2)
+                    .map((c) => c.breadcrumb)
+                    .join("\n")}
+                >
+                  +{tender.categories.length - 2}
+                </span>
+              ) : null}
+            </div>
           ) : null}
           <span className="inline-flex items-center gap-1">
             <FileText className="h-3 w-3" />

@@ -109,11 +109,9 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
     (a) => a.id === data.deliveryAddressId,
   );
 
-  // V2-6 — kategori özeti backend breadcrumb'ından (4 seviye).
-  const categoryQuery = useCategoriesByIds(
-    data.categoryId ? [data.categoryId] : [],
-  );
-  const categoryLabel = categoryQuery.data?.[0]?.breadcrumb ?? null;
+  // V2-6 — kategoriler özeti backend breadcrumb'larından (multi).
+  const categoryQuery = useCategoriesByIds(data.categoryIds ?? []);
+  const categoryLabels = categoryQuery.data?.map((c) => c.breadcrumb) ?? [];
 
   return (
     <div className="space-y-4">
@@ -132,7 +130,22 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
 
       {/* İhale Bilgileri */}
       <Section title="İhale Bilgileri" onEdit={() => onEditStep(1)}>
-        <Row label="Kategori" value={categoryLabel ?? "—"} />
+        <Row
+          label={categoryLabels.length > 1 ? "Kategoriler" : "Kategori"}
+          value={
+            categoryLabels.length === 0 ? (
+              "—"
+            ) : (
+              <ul className="space-y-0.5">
+                {categoryLabels.map((label, i) => (
+                  <li key={i} className="text-sm">
+                    {label}
+                  </li>
+                ))}
+              </ul>
+            )
+          }
+        />
         <Row label="Adı" value={data.title || "—"} />
         {data.description ? (
           <Row label="Açıklama" value={data.description} />

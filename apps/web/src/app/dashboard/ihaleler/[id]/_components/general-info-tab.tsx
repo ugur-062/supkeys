@@ -63,11 +63,19 @@ export function GeneralInfoTab({ tender }: { tender: TenderDetail }) {
             <InfoRow label="Sahibi">
               {tender.createdBy.firstName} {tender.createdBy.lastName}
             </InfoRow>
-            {tender.category ? (
-              <InfoRow label="Kategori">
-                <span className="text-brand-900 font-medium">
-                  {tender.category.breadcrumb}
-                </span>
+            {tender.categories && tender.categories.length > 0 ? (
+              <InfoRow
+                label={
+                  tender.categories.length > 1 ? "Kategoriler" : "Kategori"
+                }
+              >
+                <ul className="space-y-0.5">
+                  {tender.categories.map((c) => (
+                    <li key={c.id} className="text-brand-900 font-medium">
+                      {c.breadcrumb}
+                    </li>
+                  ))}
+                </ul>
               </InfoRow>
             ) : null}
             <InfoRow label="Oluşturulma">{fmt(tender.createdAt)}</InfoRow>

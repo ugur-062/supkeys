@@ -156,12 +156,14 @@ export class CreateTenderDto {
   @IsNotEmpty()
   deliveryAddressId!: string;
 
-  // V2-6 — UNSPSC kategori (Family seviyesi) zorunlu. Tedarikçi havuzu
-  // filtreleme + raporlama için kullanılır. V1 backward-compat: legacy
-  // tender'larda `null` kalır, ancak yeni create için zorunlu.
-  @IsString()
-  @IsNotEmpty({ message: "Kategori zorunludur" })
-  categoryId!: string;
+  // V2-6 — UNSPSC kategorileri (Class veya Commodity). Alıcı 1-10 arası kategori
+  // seçebilir; tedarikçi havuzu filtreleme + raporlama için kullanılır. V1
+  // backward-compat: legacy tender'larda junction'da satır yok (empty array).
+  @IsArray()
+  @ArrayMinSize(1, { message: "En az 1 kategori zorunludur" })
+  @ArrayMaxSize(10, { message: "En fazla 10 kategori seçebilirsiniz" })
+  @IsString({ each: true })
+  categoryIds!: string[];
 
   // Ödeme
   @IsEnum(PaymentTermDto)

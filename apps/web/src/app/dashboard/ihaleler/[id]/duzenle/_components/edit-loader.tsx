@@ -93,8 +93,8 @@ export function EditLoader({ id }: Props) {
   // Map server tender → form values
   const initialData: TenderFormData & { id: string } = {
     id: tender.id,
-    // V2-6 — kategori (V1 backward-compat: legacy tender'larda null)
-    categoryId: tender.category?.id ?? "",
+    // V2-6 — kategoriler (multi); V1 backward-compat: legacy ihalelerde boş array
+    categoryIds: tender.categories?.map((c) => c.id) ?? [],
     title: tender.title,
     description: tender.description ?? "",
     type: tender.type,

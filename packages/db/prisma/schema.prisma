@@ -734,9 +734,8 @@ model Tender {
   cancelledAt         DateTime?
   cancelReason        String?
 
-  // V2-6 — UNSPSC kategorisi (sadece Family / level 2; null = legacy V1 ihaleler)
-  categoryId          String?
-  category            Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  // V2-6 — Birden fazla UNSPSC kategorisi (Class veya Commodity). Junction tablo.
+  categories          TenderCategory[]
 
   items               TenderItem[]
   invitations         TenderInvitation[]
@@ -750,7 +749,6 @@ model Tender {
 
   @@index([tenantId, status])
   @@index([status, bidsCloseAt])
-  @@index([categoryId])
   @@map("tenders")
 }
 
@@ -1279,7 +1277,7 @@ model Category {
   isActive        Boolean             @default(true)
 
   supplierCategories SupplierCategory[]
-  tenders            Tender[]
+  tenderCategories   TenderCategory[]
 
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
@@ -1301,4 +1299,18 @@ model SupplierCategory {
   @@unique([supplierId, categoryId])
   @@index([categoryId])
   @@map("supplier_categories")
+}
+
+model TenderCategory {
+  id          String   @id @default(cuid())
+  tenderId   String
+  tender     Tender   @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([tenderId, categoryId])
+  @@index([categoryId])
+  @@index([tenderId])
+  @@map("tender_categories")
 }

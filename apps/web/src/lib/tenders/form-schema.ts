@@ -41,8 +41,11 @@ export const tenderItemSchema = z.object({
 
 const baseTenderSchema = z.object({
   // Adım 1
-  // V2-6 — UNSPSC kategori (Family). Backend `categoryId` zorunlu kabul ediyor.
-  categoryId: z.string().min(1, "Kategori seçimi zorunludur"),
+  // V2-6 — Birden fazla UNSPSC kategorisi (Class veya Commodity), 1-10 arası.
+  categoryIds: z
+    .array(z.string().min(1))
+    .min(1, "En az 1 kategori seçmelisiniz")
+    .max(10, "En fazla 10 kategori seçebilirsiniz"),
   title: z
     .string()
     .min(3, "İhale adı en az 3 karakter olmalı")
@@ -113,7 +116,7 @@ export type TenderFormData = z.infer<typeof tenderFormSchema>;
 
 export const STEP_FIELDS: Record<1 | 2 | 3, (keyof TenderFormData)[]> = {
   1: [
-    "categoryId",
+    "categoryIds",
     "title",
     "description",
     "type",
@@ -136,7 +139,7 @@ export const STEP_FIELDS: Record<1 | 2 | 3, (keyof TenderFormData)[]> = {
 };
 
 export const DEFAULT_FORM_VALUES: TenderFormData = {
-  categoryId: "",
+  categoryIds: [],
   title: "",
   description: "",
   type: "RFQ",

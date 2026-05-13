@@ -103,18 +103,22 @@ export class TenantTendersService {
           createdBy: {
             select: { id: true, firstName: true, lastName: true },
           },
-          category: {
+          categories: {
             include: {
-              parent: {
+              category: {
                 include: {
                   parent: {
                     include: {
                       parent: {
-                        select: {
-                          id: true,
-                          nameTr: true,
-                          segmentLetter: true,
-                          level: true,
+                        include: {
+                          parent: {
+                            select: {
+                              id: true,
+                              nameTr: true,
+                              segmentLetter: true,
+                              level: true,
+                            },
+                          },
                         },
                       },
                     },
@@ -122,6 +126,7 @@ export class TenantTendersService {
                 },
               },
             },
+            orderBy: { createdAt: "asc" },
           },
           _count: {
             select: { items: true, invitations: true, bids: true },
@@ -143,15 +148,13 @@ export class TenantTendersService {
         publishedAt: t.publishedAt,
         createdAt: t.createdAt,
         createdBy: t.createdBy,
-        category: t.category
-          ? {
-              id: t.category.id,
-              code: t.category.code,
-              nameTr: t.category.nameTr,
-              level: t.category.level,
-              breadcrumb: buildBreadcrumb(t.category),
-            }
-          : null,
+        categories: t.categories.map((tc) => ({
+          id: tc.category.id,
+          code: tc.category.code,
+          nameTr: tc.category.nameTr,
+          level: tc.category.level,
+          breadcrumb: buildBreadcrumb(tc.category),
+        })),
         itemCount: t._count.items,
         invitationCount: t._count.invitations,
         bidCount: t._count.bids,
@@ -175,18 +178,22 @@ export class TenantTendersService {
         items: {
           orderBy: { orderIndex: "asc" },
         },
-        category: {
+        categories: {
           include: {
-            parent: {
+            category: {
               include: {
                 parent: {
                   include: {
                     parent: {
-                      select: {
-                        id: true,
-                        nameTr: true,
-                        segmentLetter: true,
-                        level: true,
+                      include: {
+                        parent: {
+                          select: {
+                            id: true,
+                            nameTr: true,
+                            segmentLetter: true,
+                            level: true,
+                          },
+                        },
                       },
                     },
                   },
@@ -194,6 +201,7 @@ export class TenantTendersService {
               },
             },
           },
+          orderBy: { createdAt: "asc" },
         },
         invitations: {
           include: {
@@ -243,18 +251,16 @@ export class TenantTendersService {
       {} as Record<string, number>,
     );
 
-    const { approvalRequests, category, ...rest } = tender;
+    const { approvalRequests, categories, ...rest } = tender;
     return {
       ...rest,
-      category: category
-        ? {
-            id: category.id,
-            code: category.code,
-            nameTr: category.nameTr,
-            level: category.level,
-            breadcrumb: buildBreadcrumb(category),
-          }
-        : null,
+      categories: categories.map((tc) => ({
+        id: tc.category.id,
+        code: tc.category.code,
+        nameTr: tc.category.nameTr,
+        level: tc.category.level,
+        breadcrumb: buildBreadcrumb(tc.category),
+      })),
       bidStats: {
         total:
           (byStatus.SUBMITTED ?? 0) +
@@ -595,8 +601,9 @@ export class TenantTendersService {
   ) {
     this.validateBusinessRules(dto);
 
-    // V2-6 — kategori (Family seviyesi) zorunlu
-    await this.categoryService.validateIds([dto.categoryId], 3);
+    // V2-6 — kategoriler (Class veya Commodity) zorunlu; dedup + validate
+    const categoryIds = Array.from(new Set(dto.categoryIds));
+    await this.categoryService.validateIds(categoryIds, 3);
 
     // Adres snapshot'larını al (transaction dışında — adres okuma)
     const billingSnapshot = await this.snapshotForType(
@@ -620,7 +627,9 @@ export class TenantTendersService {
           tenderNumber,
           tenantId,
           createdById: userId,
-          categoryId: dto.categoryId,
+          categories: {
+            create: categoryIds.map((categoryId) => ({ categoryId })),
+          },
           type: dto.type,
           status: "DRAFT",
           title: dto.title.trim(),
@@ -689,8 +698,9 @@ export class TenantTendersService {
   ) {
     this.validateBusinessRules(dto);
 
-    // V2-6 — kategori (Family seviyesi) zorunlu
-    await this.categoryService.validateIds([dto.categoryId], 3);
+    // V2-6 — kategoriler (Class veya Commodity) zorunlu; dedup + validate
+    const categoryIds = Array.from(new Set(dto.categoryIds));
+    await this.categoryService.validateIds(categoryIds, 3);
 
     const billingSnapshot = await this.snapshotForType(
       tenantId,
@@ -719,15 +729,18 @@ export class TenantTendersService {
 
       await this.assertActiveSuppliers(tx, tenantId, dto.invitedSupplierIds);
 
-      // Items + invitations + attachments full-replace (V1 yaklaşımı)
+      // Items + invitations + attachments + categories full-replace (V1 yaklaşımı)
       await tx.tenderItem.deleteMany({ where: { tenderId } });
       await tx.tenderInvitation.deleteMany({ where: { tenderId } });
       await tx.tenderAttachment.deleteMany({ where: { tenderId } });
+      await tx.tenderCategory.deleteMany({ where: { tenderId } });
 
       await tx.tender.update({
         where: { id: tenderId },
         data: {
-          categoryId: dto.categoryId,
+          categories: {
+            create: categoryIds.map((categoryId) => ({ categoryId })),
+          },
           type: dto.type,
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
