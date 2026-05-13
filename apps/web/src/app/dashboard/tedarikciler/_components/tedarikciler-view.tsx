@@ -11,6 +11,7 @@ import {
   useUnblockSupplier,
 } from "@/hooks/use-tenant-suppliers";
 import { useAuthStore } from "@/lib/auth/store";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   INVITATION_STATUS_META,
   INVITATION_STATUS_ORDER,
@@ -61,6 +62,10 @@ export function TedarikcilerView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const role = useAuthStore((s) => s.user?.role);
+  const { has } = usePermissions();
+  // V2-6.5 — RBAC: davet etme yetkisi permission tabanlı (default'ta 3 rol de var).
+  // Engelle/Engeli Kaldır gibi yönetim aksiyonları hâlâ COMPANY_ADMIN-only kalır.
+  const canInvite = has("settings:suppliers");
   const canManage = role === "COMPANY_ADMIN";
 
   const tab = parseTab(searchParams.get("tab"));
@@ -256,7 +261,7 @@ export function TedarikcilerView() {
       </div>
 
       <HeaderCard
-        canInvite={canManage}
+        canInvite={canInvite}
         onInviteClick={() => {
           setInviteInitial(undefined);
           setInviteModalOpen(true);
@@ -291,7 +296,7 @@ export function TedarikcilerView() {
                 setInviteInitial(undefined);
                 setInviteModalOpen(true);
               }}
-              canInvite={canManage}
+              canInvite={canInvite}
             />
             {approvedPagination && (
               <Pagination

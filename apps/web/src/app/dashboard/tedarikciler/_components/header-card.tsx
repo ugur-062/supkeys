@@ -50,7 +50,7 @@ export function HeaderCard({ onInviteClick, canInvite }: HeaderCardProps) {
             title={
               canInvite
                 ? undefined
-                : "Davet göndermek için COMPANY_ADMIN yetkisi gerekli"
+                : "Davet göndermek için 'Tedarikçi yönetebilir' yetkisi gerekli"
             }
           >
             <UserPlus className="h-4 w-4" />
