@@ -1,17 +1,19 @@
 "use client";
 
+import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
 import { useAuth, useMe } from "@/hooks/use-auth";
+import {
+  useTenantDashboardIhale,
+  useTenantDashboardTasarruf,
+  useTenantDashboardTedarikci,
+} from "@/hooks/use-tenant-dashboard";
 import { cn } from "@/lib/utils";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { IhaleTab } from "./_components/ihale-tab";
-import {
-  MOCK_IHALE,
-  MOCK_TASARRUF,
-  MOCK_TEDARIKCI,
-} from "./_components/mock-data";
 import { TasarrufTab } from "./_components/tasarruf-tab";
 import { TedarikciTab } from "./_components/tedarikci-tab";
 
@@ -42,9 +44,13 @@ export default function DashboardPage() {
     setTodayLabel(format(new Date(), "d MMMM yyyy, EEEE", { locale: tr }));
   }, []);
 
+  const ihaleQuery = useTenantDashboardIhale();
+  const tasarrufQuery = useTenantDashboardTasarruf();
+  const tedarikciQuery = useTenantDashboardTedarikci();
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center gap-3">
             <h1 className="font-display text-2xl font-bold leading-tight text-brand-900 sm:text-3xl">
@@ -70,6 +76,10 @@ export default function DashboardPage() {
             )}
           </p>
         </div>
+        {/* V2-3 — TCMB döviz kurları (USD + EUR), 5dk cache */}
+        <div className="w-full md:w-auto md:max-w-md md:flex-shrink-0">
+          <TcmbRatesWidget />
+        </div>
       </header>
 
       <TabsPrimitive.Root defaultValue="ihale" className="space-y-6">
@@ -89,17 +99,48 @@ export default function DashboardPage() {
         </TabsPrimitive.List>
 
         <TabsPrimitive.Content value="ihale" className={CONTENT_CLASSES}>
-          <IhaleTab data={MOCK_IHALE} />
+          {ihaleQuery.data ? (
+            <IhaleTab data={ihaleQuery.data} />
+          ) : (
+            <TabLoading message={ihaleQuery.isError ? "Veri alınamadı" : undefined} />
+          )}
         </TabsPrimitive.Content>
 
         <TabsPrimitive.Content value="tasarruf" className={CONTENT_CLASSES}>
-          <TasarrufTab data={MOCK_TASARRUF} />
+          {tasarrufQuery.data ? (
+            <TasarrufTab data={tasarrufQuery.data} />
+          ) : (
+            <TabLoading
+              message={tasarrufQuery.isError ? "Veri alınamadı" : undefined}
+            />
+          )}
         </TabsPrimitive.Content>
 
         <TabsPrimitive.Content value="tedarikci" className={CONTENT_CLASSES}>
-          <TedarikciTab data={MOCK_TEDARIKCI} />
+          {tedarikciQuery.data ? (
+            <TedarikciTab data={tedarikciQuery.data} />
+          ) : (
+            <TabLoading
+              message={tedarikciQuery.isError ? "Veri alınamadı" : undefined}
+            />
+          )}
         </TabsPrimitive.Content>
       </TabsPrimitive.Root>
+    </div>
+  );
+}
+
+function TabLoading({ message }: { message?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-20 text-sm text-slate-500 shadow-sm">
+      {message ? (
+        message
+      ) : (
+        <>
+          <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+          Yükleniyor…
+        </>
+      )}
     </div>
   );
 }

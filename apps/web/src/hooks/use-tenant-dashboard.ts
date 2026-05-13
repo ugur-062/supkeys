@@ -2,6 +2,37 @@
 
 import { api } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
+import type { IhaleTabData } from "@/app/dashboard/_components/ihale-tab";
+import type { TasarrufTabData } from "@/app/dashboard/_components/tasarruf-tab";
+import type { TedarikciTabData } from "@/app/dashboard/_components/tedarikci-tab";
+
+// V2-6 — Dashboard tab endpoint'leri (real data, mock yerine)
+export function useTenantDashboardIhale() {
+  return useQuery<IhaleTabData>({
+    queryKey: ["tenant-dashboard", "ihale"],
+    queryFn: () =>
+      api.get("/tenants/me/dashboard/ihale").then((r) => r.data),
+    staleTime: 60_000,
+  });
+}
+
+export function useTenantDashboardTasarruf() {
+  return useQuery<TasarrufTabData>({
+    queryKey: ["tenant-dashboard", "tasarruf"],
+    queryFn: () =>
+      api.get("/tenants/me/dashboard/tasarruf").then((r) => r.data),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useTenantDashboardTedarikci() {
+  return useQuery<TedarikciTabData>({
+    queryKey: ["tenant-dashboard", "tedarikci"],
+    queryFn: () =>
+      api.get("/tenants/me/dashboard/tedarikci").then((r) => r.data),
+    staleTime: 5 * 60_000,
+  });
+}
 
 export interface TenantDashboardStats {
   tenders: {

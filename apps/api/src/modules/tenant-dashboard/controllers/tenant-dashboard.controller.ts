@@ -17,6 +17,21 @@ export class TenantDashboardController {
     return this.service.getStats(user.tenantId);
   }
 
+  @Get("ihale")
+  getIhaleTab(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {
+    return this.service.getIhaleTab(user.tenantId, user.id);
+  }
+
+  @Get("tasarruf")
+  getTasarrufTab(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {
+    return this.service.getTasarrufTab(user.tenantId);
+  }
+
+  @Get("tedarikci")
+  getTedarikciTab(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {
+    return this.service.getTedarikciTab(user.tenantId);
+  }
+
   @Get("recent-activity")
   getRecentActivity(
     @CurrentUser() user: AuthenticatedUser,
