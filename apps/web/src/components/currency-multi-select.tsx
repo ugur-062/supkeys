@@ -137,14 +137,24 @@ export function CurrencyMultiSelect({
 
   return (
     <div className="relative" ref={rootRef}>
-      {/* Trigger */}
-      <button
-        type="button"
-        onClick={() => !disabled && setOpen((v) => !v)}
-        disabled={disabled}
+      {/* Trigger — combobox role (div, button değil; içeride chip X butonları olabilsin) */}
+      <div
+        role="combobox"
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`flex min-h-[52px] w-full items-center gap-2 rounded-xl border-2 bg-white px-3 py-2 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+        aria-disabled={disabled}
+        tabIndex={disabled ? -1 : 0}
+        onClick={() => !disabled && setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (disabled) return;
+          if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
+        className={`flex min-h-[52px] w-full cursor-pointer items-center gap-2 rounded-xl border-2 bg-white px-3 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/30 ${
+          disabled ? "cursor-not-allowed opacity-60" : ""
+        } ${
           error
             ? "border-rose-300"
             : open
@@ -206,7 +216,7 @@ export function CurrencyMultiSelect({
             }`}
           />
         </span>
-      </button>
+      </div>
 
       {error ? (
         <p className="mt-1.5 text-xs text-rose-600">{error}</p>
@@ -250,17 +260,20 @@ export function CurrencyMultiSelect({
                   const isSelected = value.includes(c);
                   const isPrimary = c === effectivePrimary;
                   return (
-                    <li key={c}>
+                    <li
+                      key={c}
+                      role="option"
+                      aria-selected={isSelected}
+                      className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${
+                        isSelected
+                          ? "bg-brand-50 hover:bg-brand-100"
+                          : "hover:bg-slate-50"
+                      }`}
+                    >
                       <button
                         type="button"
-                        role="option"
-                        aria-selected={isSelected}
                         onClick={() => toggle(c)}
-                        className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors ${
-                          isSelected
-                            ? "bg-brand-50 hover:bg-brand-100"
-                            : "hover:bg-slate-50"
-                        }`}
+                        className="flex flex-1 items-center gap-3 text-left"
                       >
                         <div
                           className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 ${
@@ -295,31 +308,31 @@ export function CurrencyMultiSelect({
                         <span className="font-mono text-xs text-slate-500">
                           {formatRate(c)}
                         </span>
-
-                        {isSelected && onPrimaryChange ? (
-                          <button
-                            type="button"
-                            onClick={(e) => setAsPrimary(c, e)}
-                            className={`rounded p-1 ${
-                              isPrimary
-                                ? "text-amber-500"
-                                : "text-slate-300 hover:text-amber-500"
-                            }`}
-                            title={
-                              isPrimary
-                                ? "Ana para birimi"
-                                : "Ana para birimi yap"
-                            }
-                            aria-label="Ana para birimi"
-                          >
-                            <Star
-                              className={`h-4 w-4 ${
-                                isPrimary ? "fill-current" : ""
-                              }`}
-                            />
-                          </button>
-                        ) : null}
                       </button>
+
+                      {isSelected && onPrimaryChange ? (
+                        <button
+                          type="button"
+                          onClick={(e) => setAsPrimary(c, e)}
+                          className={`flex-shrink-0 rounded p-1 ${
+                            isPrimary
+                              ? "text-amber-500"
+                              : "text-slate-300 hover:text-amber-500"
+                          }`}
+                          title={
+                            isPrimary
+                              ? "Ana para birimi"
+                              : "Ana para birimi yap"
+                          }
+                          aria-label="Ana para birimi"
+                        >
+                          <Star
+                            className={`h-4 w-4 ${
+                              isPrimary ? "fill-current" : ""
+                            }`}
+                          />
+                        </button>
+                      ) : null}
                     </li>
                   );
                 })}
