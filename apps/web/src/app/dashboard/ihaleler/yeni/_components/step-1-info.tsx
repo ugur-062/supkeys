@@ -6,6 +6,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useCurrentExchangeRates } from "@/hooks/use-exchange-rates";
 import { useTenantAddresses } from "@/hooks/use-tenant-addresses";
 import {
   CURRENCY_SYMBOL,
@@ -32,6 +33,11 @@ import { useFormContext } from "react-hook-form";
 import { TenderDocStaging } from "./tender-doc-staging";
 
 const CURRENCIES: Currency[] = ["TRY", "USD", "EUR"];
+const CURRENCY_NAMES: Record<Currency, string> = {
+  TRY: "Türk Lirası",
+  USD: "Amerikan Doları",
+  EUR: "Euro",
+};
 const DELIVERY_TERMS: DeliveryTerm[] = [
   "EXW",
   "FCA",
@@ -85,6 +91,7 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
     setValue,
     watch,
   } = useFormContext<TenderFormData>();
+  const ratesQuery = useCurrentExchangeRates();
 
   const paymentTerm = watch("paymentTerm");
   const primaryCurrency = watch("primaryCurrency");
@@ -261,26 +268,62 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
         <div className="space-y-4">
           <Field error={errors.primaryCurrency?.message}>
             <Label required>Para Birimi</Label>
-            <div className="grid grid-cols-3 gap-3">
-              {CURRENCIES.map((c) => (
-                <label
-                  key={c}
-                  className={cn(
-                    "flex items-center justify-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-colors",
-                    "has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/40",
-                    "border-slate-200 hover:bg-slate-50",
-                  )}
-                >
-                  <input
-                    type="radio"
-                    value={c}
-                    {...register("primaryCurrency")}
-                  />
-                  <span className="text-sm font-semibold text-brand-900">
-                    {CURRENCY_SYMBOL[c]} {c}
-                  </span>
-                </label>
-              ))}
+            <div className="relative">
+              <select
+                {...register("primaryCurrency")}
+                className={cn(
+                  "w-full appearance-none rounded-lg border-2 bg-white px-4 py-2.5 pr-10 text-sm font-semibold text-brand-900",
+                  "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
+                  errors.primaryCurrency
+                    ? "border-rose-300"
+                    : "border-slate-200 hover:border-slate-300",
+                )}
+              >
+                {CURRENCIES.map((c) => {
+                  const rate = ratesQuery.data?.rates?.[c];
+                  const rateLabel =
+                    c === "TRY"
+                      ? "1.0000"
+                      : rate
+                        ? `₺${rate.toLocaleString("tr-TR", { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
+                        : "...";
+                  return (
+                    <option key={c} value={c}>
+                      {CURRENCY_SYMBOL[c]} {c} — {CURRENCY_NAMES[c]} ({rateLabel})
+                    </option>
+                  );
+                })}
+              </select>
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                ▾
+              </span>
+            </div>
+            {/* TCMB kurları özet satırı */}
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
+              <span className="font-semibold text-slate-600">TCMB Kurları:</span>
+              {ratesQuery.isLoading ? (
+                <span>Yükleniyor...</span>
+              ) : ratesQuery.data ? (
+                CURRENCIES.filter((c) => c !== "TRY").map((c) => {
+                  const rate = ratesQuery.data?.rates?.[c];
+                  return (
+                    <span key={c} className="inline-flex items-center gap-1">
+                      <span className="font-mono">{c}</span>
+                      <span>
+                        ₺
+                        {rate
+                          ? rate.toLocaleString("tr-TR", {
+                              minimumFractionDigits: 4,
+                              maximumFractionDigits: 4,
+                            })
+                          : "—"}
+                      </span>
+                    </span>
+                  );
+                })
+              ) : (
+                <span>Kur bilgisi alınamadı</span>
+              )}
             </div>
           </Field>
 
