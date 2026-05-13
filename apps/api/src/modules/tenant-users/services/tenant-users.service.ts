@@ -85,11 +85,28 @@ export class TenantUsersService {
             district: true,
             addressLine: true,
             postalCode: true,
+            buyerApplication: {
+              select: { companyType: true, taxCertUrl: true },
+            },
           },
         },
       },
     });
     if (!user) throw new NotFoundException("Kullanıcı bulunamadı");
+
+    // V2-6 — buyerApplication alt-nesnesini düzleştir (TenantUserMe.tenant'ta
+    // companyType + taxCertUrl direkt erişilebilir olsun).
+    if (user.tenant) {
+      const { buyerApplication, ...rest } = user.tenant;
+      return {
+        ...user,
+        tenant: {
+          ...rest,
+          companyType: buyerApplication?.companyType ?? null,
+          taxCertUrl: buyerApplication?.taxCertUrl ?? null,
+        },
+      };
+    }
     return user;
   }
 

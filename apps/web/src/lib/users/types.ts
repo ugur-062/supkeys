@@ -41,6 +41,9 @@ export interface TenantUserMe {
     district: string | null;
     addressLine: string | null;
     postalCode: string | null;
+    /** V2-6 — buyerApplication'dan düzleştirilmiş */
+    companyType: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR" | null;
+    taxCertUrl: string | null;
   };
 }
 
