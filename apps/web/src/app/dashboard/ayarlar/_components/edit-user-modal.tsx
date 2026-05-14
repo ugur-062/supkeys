@@ -59,11 +59,18 @@ export function EditUserModal({ user, onClose }: Props) {
         phone: user.phone ?? "",
         role: user.role,
       });
-      // Mevcut efektif permission listesini base al; yoksa role default'una düş
+      // BUG FIX #5 — Edge case: kullanıcı tüm permission'lar override ile
+      // boşaltılmışsa (`permissions: []`), `length > 0` kontrolü fallback'e
+      // düşüyordu ve admin GERÇEK durumu (boş) yerine role default görüyordu.
+      // Düzeltme: hasCustomPermissions flag'i true ise permissions array'i
+      // gerçek durumdur (boş bile olsa). Sadece flag false (saf default)
+      // veya array undefined ise role default'una düş.
       const initial =
-        user.permissions && user.permissions.length > 0
-          ? user.permissions
-          : (ROLE_DEFAULT_PERMISSIONS[user.role] ?? []);
+        user.hasCustomPermissions === true
+          ? (user.permissions ?? [])
+          : user.permissions && user.permissions.length > 0
+            ? user.permissions
+            : (ROLE_DEFAULT_PERMISSIONS[user.role] ?? []);
       setSelectedPerms(new Set(initial));
     }
   }, [user, form]);

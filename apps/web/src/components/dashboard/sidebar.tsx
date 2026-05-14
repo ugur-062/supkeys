@@ -16,7 +16,10 @@ import { SidebarItem } from "./sidebar-item";
 export function Sidebar() {
   const { collapsed, toggle, mobileOpen, closeMobile } = useSidebar();
   const { user } = useAuth();
-  const { has } = usePermissions();
+  // BUG FIX #6 — useMemo dep'i stabilize et: `has` her render'da yeni fonksiyon
+  // referansı olduğu için useMemo işe yaramıyordu. Bunun yerine permissions
+  // array'inin kendisine bağlı (auth store'da stable referans).
+  const { permissions } = usePermissions();
   const { data: pendingApprovals } = useApprovalPendingCount();
 
   const initials = user
@@ -27,13 +30,15 @@ export function Sidebar() {
   // (V2-4 mesaj badge'i sidebar'dan kaldırıldı — header dropdown ana erişim noktası.)
   // V2-6.5 — Önce permission filter, sonra badge enjeksiyonu. permission undefined ise
   // her zaman görünür; tanımlıysa user.permissions içinde olmak şart.
+  // Fix #6 — dep olarak permissions array referansı (auth store'da stable).
   const liveNavConfig = useMemo(() => {
     const count = pendingApprovals?.count ?? 0;
+    const permSet = new Set(permissions);
     return navConfig
       .map((group) => ({
         ...group,
         items: group.items
-          .filter((item) => !item.permission || has(item.permission))
+          .filter((item) => !item.permission || permSet.has(item.permission))
           .map((item) => {
             if (
               item.type === "link" &&
@@ -45,7 +50,7 @@ export function Sidebar() {
           }),
       }))
       .filter((group) => group.items.length > 0);
-  }, [pendingApprovals?.count, has]);
+  }, [pendingApprovals?.count, permissions]);
 
   return (
     <Tooltip.Provider>
