@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
   CurrentUser,
   type AuthenticatedUser,
@@ -20,6 +21,8 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post("login")
+  // V2-6.5 Fix #4 — Sıkı rate limit (10 deneme/dk per IP) brute-force koruması.
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: LoginDto) {
     return this.authService.login(dto);

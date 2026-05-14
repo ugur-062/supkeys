@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
   CurrentSupplierUser,
   type AuthenticatedSupplierUser,
@@ -20,6 +21,8 @@ export class SupplierAuthController {
   constructor(private readonly service: SupplierAuthService) {}
 
   @Post("login")
+  // V2-6.5 Fix #4 — brute-force koruması (10 deneme/dk per IP)
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: SupplierLoginDto) {
     return this.service.login(dto);

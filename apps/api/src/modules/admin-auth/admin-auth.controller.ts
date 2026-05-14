@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
   CurrentAdmin,
   type AuthenticatedAdmin,
@@ -20,6 +21,8 @@ export class AdminAuthController {
   constructor(private readonly adminAuthService: AdminAuthService) {}
 
   @Post("login")
+  // V2-6.5 Fix #4 — brute-force koruması (10 deneme/dk per IP)
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
   login(@Body() dto: AdminLoginDto) {
     return this.adminAuthService.login(dto);

@@ -1,7 +1,9 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { APP_GUARD } from "@nestjs/core";
 import { EventEmitterModule } from "@nestjs/event-emitter";
 import { ScheduleModule } from "@nestjs/schedule";
+import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "./common/prisma/prisma.module";
 import { AdminApplicationsModule } from "./modules/admin-applications/admin-applications.module";
 import { AdminAuthModule } from "./modules/admin-auth/admin-auth.module";
@@ -47,6 +49,12 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     }),
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
+    // BUG FIX #4 — Global rate limiter. Default: 100 req / 60sn / IP.
+    // Daha sıkı limitler login + register endpoint'lerinde @Throttle override ile.
+    ThrottlerModule.forRoot([
+      { name: "default", ttl: 60_000, limit: 100 },
+      { name: "auth", ttl: 60_000, limit: 10 },
+    ]),
     PdfModule,
     OrderPdfModule,
     PrismaModule,
@@ -83,6 +91,10 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     MessagingModule,
     CategoriesModule,
     HealthModule,
+  ],
+  providers: [
+    // Global guard: @SkipThrottle ile özel endpoint'lerde bypass edilebilir.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
 export class AppModule {}
