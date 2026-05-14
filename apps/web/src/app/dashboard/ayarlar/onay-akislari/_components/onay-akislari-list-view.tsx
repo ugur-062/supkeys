@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   useApprovalFlows,
   useChangeApprovalFlowStatus,
@@ -38,8 +38,9 @@ import { toast } from "sonner";
 import { BackToSettings } from "../../_components/back-to-settings";
 
 export function OnayAkislariListView() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "COMPANY_ADMIN";
+  // V2-6.5 RBAC — settings:approval permission'a göre erişim
+  const { has } = usePermissions();
+  const isAdmin = has("settings:approval");
 
   const [search, setSearch] = useState("");
   const flowsQuery = useApprovalFlows();

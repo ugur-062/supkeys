@@ -7,6 +7,7 @@ import {
 import { TenderTypeBadge } from "@/components/tenders/status-badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   useCancelTender,
   useDeleteTender,
@@ -38,6 +39,15 @@ import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
   const router = useRouter();
   const { user } = useAuth();
+  // V2-6.5 RBAC — aksiyon butonları permission tabanlı
+  const { has } = usePermissions();
+  const canEdit = has("tender:edit");
+  const canPublish = has("tender:publish");
+  const canDelete = has("tender:delete");
+  const canCancel = has("tender:cancel");
+  const canAward = has("tender:award");
+  // "Onayı İptal Et" — initiator kendi süreci için iptal eder; COMPANY_ADMIN'a
+  // admin override hakkı kalır (role check).
   const isAdmin = user?.role === "COMPANY_ADMIN";
 
   const [publishOpen, setPublishOpen] = useState(false);
@@ -144,72 +154,82 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                     locale: tr,
                   })}
                 </p>
-                {isAdmin ? (
+                {canAward || canCancel ? (
                   <div className="flex md:justify-end items-center gap-2 flex-wrap">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setCloseNoAwardOpen(true)}
-                      className="!text-warning-700 !border-warning-300 hover:!bg-warning-50"
-                    >
-                      Kazanan Yok Kapat
-                    </Button>
-                    <Button
-                      variant="primary"
-                      onClick={() => setAwardOpen(true)}
-                      className="!bg-purple-600 hover:!bg-purple-700 focus:!ring-purple-500"
-                    >
-                      <Award className="h-4 w-4" />
-                      Kazandırmayı Tamamla
-                    </Button>
+                    {canCancel ? (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setCloseNoAwardOpen(true)}
+                        className="!text-warning-700 !border-warning-300 hover:!bg-warning-50"
+                      >
+                        Kazanan Yok Kapat
+                      </Button>
+                    ) : null}
+                    {canAward ? (
+                      <Button
+                        variant="primary"
+                        onClick={() => setAwardOpen(true)}
+                        className="!bg-purple-600 hover:!bg-purple-700 focus:!ring-purple-500"
+                      >
+                        <Award className="h-4 w-4" />
+                        Kazandırmayı Tamamla
+                      </Button>
+                    ) : null}
                   </div>
                 ) : (
                   <p className="text-[11px] text-slate-500">
-                    Kazandırma için Firma Yöneticisi yetkisi gerekli.
+                    Kazandırma için gerekli yetkiniz yok.
                   </p>
                 )}
               </div>
             ) : null}
 
             {/* DRAFT için aksiyonlar */}
-            {tender.status === "DRAFT" && isAdmin ? (
+            {tender.status === "DRAFT" && (canEdit || canPublish || canDelete) ? (
               <div className="flex md:justify-end items-center gap-2 flex-wrap">
-                <Link href={`/dashboard/ihaleler/${tender.id}/duzenle`}>
-                  <Button variant="secondary" size="sm" disabled={isBusy}>
-                    <Pencil className="w-4 h-4" />
-                    Düzenle
+                {canEdit ? (
+                  <Link href={`/dashboard/ihaleler/${tender.id}/duzenle`}>
+                    <Button variant="secondary" size="sm" disabled={isBusy}>
+                      <Pencil className="w-4 h-4" />
+                      Düzenle
+                    </Button>
+                  </Link>
+                ) : null}
+                {canPublish ? (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setPublishOpen(true)}
+                    disabled={isBusy || invitedCount === 0}
+                    className="!bg-success-600 hover:!bg-success-700 focus:!ring-success-500"
+                    title={
+                      invitedCount === 0
+                        ? "Yayınlamak için en az 1 tedarikçi davet edilmelidir"
+                        : undefined
+                    }
+                  >
+                    <Send className="w-4 h-4" />
+                    Yayınla
                   </Button>
-                </Link>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => setPublishOpen(true)}
-                  disabled={isBusy || invitedCount === 0}
-                  className="!bg-success-600 hover:!bg-success-700 focus:!ring-success-500"
-                  title={
-                    invitedCount === 0
-                      ? "Yayınlamak için en az 1 tedarikçi davet edilmelidir"
-                      : undefined
-                  }
-                >
-                  <Send className="w-4 h-4" />
-                  Yayınla
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setDeleteOpen(true)}
-                  disabled={isBusy}
-                  className="!text-danger-600 !border-danger-200 hover:!bg-danger-50"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Sil
-                </Button>
+                ) : null}
+                {canDelete ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setDeleteOpen(true)}
+                    disabled={isBusy}
+                    className="!text-danger-600 !border-danger-200 hover:!bg-danger-50"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    Sil
+                  </Button>
+                ) : null}
               </div>
             ) : null}
 
             {/* OPEN_FOR_BIDS için iptal */}
-            {tender.status === "OPEN_FOR_BIDS" && isAdmin ? (
+            {tender.status === "OPEN_FOR_BIDS" && canCancel ? (
               <Button
                 variant="secondary"
                 size="sm"

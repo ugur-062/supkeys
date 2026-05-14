@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   useTenderBidComparison,
   useTenderBids,
@@ -186,8 +186,9 @@ function ClosedStatusBanner({
   tender: TenderDetail;
   total: number;
 }) {
-  const { user } = useAuth();
-  const isCompanyAdmin = user?.role === "COMPANY_ADMIN";
+  const { has } = usePermissions();
+  const canAward = has("tender:award");
+  const canCancel = has("tender:cancel");
   const [awardOpen, setAwardOpen] = useState(false);
   const [closeOpen, setCloseOpen] = useState(false);
 
@@ -204,33 +205,37 @@ function ClosedStatusBanner({
               İhale kapandı, {total} teklif değerlendirilmeyi bekliyor.
             </p>
           </div>
-          {isCompanyAdmin ? (
+          {canAward || canCancel ? (
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => setCloseOpen(true)}
-                className="!text-warning-700 !border-warning-300 hover:!bg-warning-50"
-                disabled={total === 0}
-              >
-                <XCircle className="h-4 w-4" />
-                Kazanan Yok Kapat
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => setAwardOpen(true)}
-                className="!bg-purple-600 hover:!bg-purple-700"
-                disabled={total === 0}
-                title={
-                  total === 0 ? "Bu ihaleye teklif verilmemiş" : undefined
-                }
-              >
-                <Trophy className="h-4 w-4" />
-                Kazandırmayı Tamamla
-              </Button>
+              {canCancel ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => setCloseOpen(true)}
+                  className="!text-warning-700 !border-warning-300 hover:!bg-warning-50"
+                  disabled={total === 0}
+                >
+                  <XCircle className="h-4 w-4" />
+                  Kazanan Yok Kapat
+                </Button>
+              ) : null}
+              {canAward ? (
+                <Button
+                  variant="primary"
+                  onClick={() => setAwardOpen(true)}
+                  className="!bg-purple-600 hover:!bg-purple-700"
+                  disabled={total === 0}
+                  title={
+                    total === 0 ? "Bu ihaleye teklif verilmemiş" : undefined
+                  }
+                >
+                  <Trophy className="h-4 w-4" />
+                  Kazandırmayı Tamamla
+                </Button>
+              ) : null}
             </div>
           ) : (
             <p className="text-xs text-purple-700">
-              Kazandırma için Firma Yöneticisi yetkisi gerekli.
+              Kazandırma için gerekli yetkiniz yok.
             </p>
           )}
         </div>

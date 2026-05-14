@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   useTenantInvitations,
   useTenantUsers,
@@ -15,8 +15,9 @@ import { InvitationsList } from "./invitations-list";
 import { UsersTable } from "./users-table";
 
 export function KullaniciIslemleriView() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "COMPANY_ADMIN";
+  // V2-6.5 RBAC — settings:users permission'a göre erişim
+  const { has } = usePermissions();
+  const isAdmin = has("settings:users");
 
   const usersQuery = useTenantUsers();
   const invitationsQuery = useTenantInvitations();

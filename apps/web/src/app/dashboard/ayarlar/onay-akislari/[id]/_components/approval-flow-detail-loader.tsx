@@ -2,14 +2,15 @@
 
 import { Button } from "@/components/ui/button";
 import { useApprovalFlow } from "@/hooks/use-approval-flows";
-import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { AlertCircle, ChevronLeft, Loader2, Shield } from "lucide-react";
 import Link from "next/link";
 import { ApprovalFlowDetailView } from "./approval-flow-detail-view";
 
 export function ApprovalFlowDetailLoader({ id }: { id: string }) {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "COMPANY_ADMIN";
+  // V2-6.5 RBAC — settings:approval permission'a göre
+  const { has } = usePermissions();
+  const isAdmin = has("settings:approval");
   const flowQuery = useApprovalFlow(id);
 
   if (!isAdmin) {

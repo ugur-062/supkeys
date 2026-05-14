@@ -2,7 +2,7 @@
 
 import { ResultCount, SearchInput, SortDropdown } from "@/components/list";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { useTenderStats, useTenders } from "@/hooks/use-tenant-tenders";
 import type { TenderDateRange, TenderStatus } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
@@ -100,8 +100,9 @@ export function IhalelerView() {
   const sort = searchParams.get("sort") ?? "createdAt:desc";
   const range = parseRange(searchParams.get("range"));
   const page = parsePage(searchParams.get("page"));
-  const { user } = useAuth();
-  const canCreate = user?.role === "COMPANY_ADMIN";
+  // V2-6.5 RBAC — "Yeni İhale Aç" tender:create permission'a göre (default'ta BUYER'da var).
+  const { has } = usePermissions();
+  const canCreate = has("tender:create");
 
   const stats = useTenderStats();
 

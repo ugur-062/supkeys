@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import {
   useCreateApprovalFlow,
   useUpdateApprovalFlow,
@@ -36,8 +36,9 @@ type Props = CreateProps | EditProps;
 
 export function ApprovalFlowWizard(props: Props) {
   const router = useRouter();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "COMPANY_ADMIN";
+  // V2-6.5 RBAC — settings:approval permission'a göre
+  const { has } = usePermissions();
+  const isAdmin = has("settings:approval");
   const usersQuery = useTenantUsers();
   const createMutation = useCreateApprovalFlow();
   const updateMutation = useUpdateApprovalFlow();

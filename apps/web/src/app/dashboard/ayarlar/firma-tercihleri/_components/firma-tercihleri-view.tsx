@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { useTenantAddresses } from "@/hooks/use-tenant-addresses";
 import { ADDRESS_TYPE_META, type AddressType } from "@/lib/addresses/types";
 import { Loader2, MapPin, Plus, Shield } from "lucide-react";
@@ -14,8 +14,9 @@ import { AddressGroupSection } from "./address-group-section";
 const TYPES: AddressType[] = ["FATURA", "ILETISIM", "TESLIMAT"];
 
 export function FirmaTercihleriView() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "COMPANY_ADMIN";
+  // V2-6.5 RBAC — settings:addresses permission'a göre erişim
+  const { has } = usePermissions();
+  const isAdmin = has("settings:addresses");
 
   const addressesQuery = useTenantAddresses();
 

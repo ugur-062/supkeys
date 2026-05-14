@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { cn } from "@/lib/utils";
 import {
   Bell,
@@ -21,7 +21,8 @@ interface SettingsCard {
   icon: LucideIcon;
   title: string;
   description: string;
-  adminOnly?: boolean;
+  /** V2-6.5 — Gerekli permission; undefined = herkese açık */
+  permission?: string;
   accent: "brand" | "indigo" | "success" | "warning" | "danger";
 }
 
@@ -75,7 +76,7 @@ const GROUPS: SettingsGroup[] = [
         icon: MapPin,
         title: "Adres Yönetimi",
         description: "Fatura, iletişim ve teslimat adresleri",
-        adminOnly: true,
+        permission: "settings:addresses",
         accent: "success",
       },
       {
@@ -83,7 +84,7 @@ const GROUPS: SettingsGroup[] = [
         icon: UserPlus2,
         title: "Kullanıcı Yönetimi",
         description: "Ekip üyeleri ve yetkilendirme",
-        adminOnly: true,
+        permission: "settings:users",
         accent: "indigo",
       },
       {
@@ -91,7 +92,7 @@ const GROUPS: SettingsGroup[] = [
         icon: Workflow,
         title: "Onay Akışları",
         description: "İhale yayın ve kazandırma onay süreçleri",
-        adminOnly: true,
+        permission: "settings:approval",
         accent: "danger",
       },
     ],
@@ -107,8 +108,8 @@ const ACCENT_ICON_BG: Record<SettingsCard["accent"], string> = {
 };
 
 export function AyarlarIndex() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "COMPANY_ADMIN";
+  // V2-6.5 RBAC — gizli card'lar permission tabanlı
+  const { has } = usePermissions();
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
@@ -124,7 +125,7 @@ export function AyarlarIndex() {
       <div className="mt-8 space-y-8">
         {GROUPS.map((group) => {
           const visibleItems = group.items.filter(
-            (i) => !i.adminOnly || isAdmin,
+            (i) => !i.permission || has(i.permission),
           );
           if (visibleItems.length === 0) return null;
           return (
@@ -158,13 +159,13 @@ export function AyarlarIndex() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="font-bold text-brand-900">{s.title}</p>
-                        {s.adminOnly ? (
+                        {s.permission ? (
                           <span
                             className="inline-flex items-center gap-0.5 rounded-md bg-brand-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-brand-700"
-                            title="Sadece Firma Yöneticileri"
+                            title={`Gerekli yetki: ${s.permission}`}
                           >
                             <Shield className="h-2.5 w-2.5" />
-                            Admin
+                            Yetki
                           </span>
                         ) : null}
                       </div>

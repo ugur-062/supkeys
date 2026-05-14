@@ -3,7 +3,7 @@
 import { AttachmentList } from "@/components/attachments/attachment-list";
 import { BidStatusBadge } from "@/components/tenders/status-badge";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { useBidDetail, useTenderDetail } from "@/hooks/use-tenant-tenders";
 import type { BidDetailExpanded, TenderDetail } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
@@ -240,14 +240,15 @@ function DetailHeader({
   tenderId: string;
   tenderTitle?: string;
 }) {
-  const { user } = useAuth();
+  const { has } = usePermissions();
   const [eliminateOpen, setEliminateOpen] = useState(false);
 
-  const isCompanyAdmin = user?.role === "COMPANY_ADMIN";
+  // V2-6.5 RBAC — bid:eliminate yetkisi (default'ta BUYER'da var).
+  const canEliminatePerm = has("bid:eliminate");
   const tenderActive =
     tender?.status === "OPEN_FOR_BIDS" || tender?.status === "IN_AWARD";
   const canEliminate =
-    isCompanyAdmin && tenderActive && bid.status === "SUBMITTED";
+    canEliminatePerm && tenderActive && bid.status === "SUBMITTED";
 
   return (
     <>
@@ -278,7 +279,7 @@ function DetailHeader({
           </p>
         </div>
 
-        {isCompanyAdmin ? (
+        {canEliminatePerm ? (
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <Button
