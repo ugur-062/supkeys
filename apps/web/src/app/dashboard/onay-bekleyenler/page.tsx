@@ -1,3 +1,4 @@
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { Suspense } from "react";
 import { OnayBekleyenlerView } from "./_components/onay-bekleyenler-view";
 
@@ -7,8 +8,10 @@ export const metadata = {
 
 export default function OnayBekleyenlerPage() {
   return (
-    <Suspense fallback={null}>
-      <OnayBekleyenlerView />
-    </Suspense>
+    <PermissionGuard permission="approval:view">
+      <Suspense fallback={null}>
+        <OnayBekleyenlerView />
+      </Suspense>
+    </PermissionGuard>
   );
 }

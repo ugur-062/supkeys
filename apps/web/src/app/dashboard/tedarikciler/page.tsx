@@ -1,3 +1,4 @@
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { Suspense } from "react";
 import { TedarikcilerView } from "./_components/tedarikciler-view";
 
@@ -7,8 +8,10 @@ export const metadata = {
 
 export default function TedarikcilerPage() {
   return (
-    <Suspense fallback={null}>
-      <TedarikcilerView />
-    </Suspense>
+    <PermissionGuard permission="settings:suppliers">
+      <Suspense fallback={null}>
+        <TedarikcilerView />
+      </Suspense>
+    </PermissionGuard>
   );
 }

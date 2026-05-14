@@ -1,3 +1,4 @@
+import { PermissionGuard } from "@/components/auth/permission-guard";
 import { Suspense } from "react";
 import { OrdersListView } from "./_components/orders-list-view";
 
@@ -7,8 +8,10 @@ export const metadata = {
 
 export default function SiparislerPage() {
   return (
-    <Suspense fallback={null}>
-      <OrdersListView />
-    </Suspense>
+    <PermissionGuard permission="order:view">
+      <Suspense fallback={null}>
+        <OrdersListView />
+      </Suspense>
+    </PermissionGuard>
   );
 }
