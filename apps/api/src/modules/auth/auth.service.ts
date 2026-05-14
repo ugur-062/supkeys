@@ -7,6 +7,13 @@ import { LoginDto } from "./dto/login.dto";
 import { resolveUserPermissions } from "./permissions/permissions.utils";
 import type { JwtPayload } from "./strategies/jwt.strategy";
 
+// Timing-attack neutralizer: hesap bulunmasa bile bcrypt.compare çalıştırılır
+// ki "email bilinmiyor" vs "şifre yanlış" arasındaki response süresi farkı
+// (user enumeration vektörü) kapansın. supplier-auth aynı pattern'i kullanıyor.
+const DUMMY_HASH =
+  "$2b$12$8b/5VmH1kS7lHe9b8p2E6.7jZqL1k4rNQ3sP1bMxUVwYZcTfGdW6e";
+const INVALID_CREDENTIALS_MESSAGE = "E-posta veya şifre hatalı";
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -20,17 +27,22 @@ export class AuthService {
       include: { tenant: true },
     });
 
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException("E-posta veya şifre hatalı");
-    }
+    // BUG FIX #2 — Timing attack mitigation: kullanıcı yoksa, pasifse veya
+    // tenant pasifse bile bcrypt.compare DUMMY_HASH ile çalıştırılır. Hangi
+    // sebeple başarısız olursa olsun aynı generic mesaj döner.
+    // BUG FIX #3 — "Firma hesabı pasif durumda" özel mesajı kaldırıldı;
+    // ayrımı sızdırıyordu (user enumeration).
+    const passwordMatches = user
+      ? await bcrypt.compare(dto.password, user.passwordHash)
+      : await bcrypt.compare(dto.password, DUMMY_HASH).then(() => false);
 
-    if (!user.tenant.isActive) {
-      throw new UnauthorizedException("Firma hesabı pasif durumda");
-    }
-
-    const valid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!valid) {
-      throw new UnauthorizedException("E-posta veya şifre hatalı");
+    if (
+      !user ||
+      !user.isActive ||
+      !user.tenant.isActive ||
+      !passwordMatches
+    ) {
+      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
     await this.prisma.user.update({
