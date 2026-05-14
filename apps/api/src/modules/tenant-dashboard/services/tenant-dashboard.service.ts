@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
+import type { Currency } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { ExchangeRateService } from "../../currency/services/exchange-rate.service";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -61,7 +63,10 @@ function approximateRank(status: string): number {
 
 @Injectable()
 export class TenantDashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly exchangeRate: ExchangeRateService,
+  ) {}
 
   async getStats(tenantId: string) {
     const last30 = new Date(Date.now() - 30 * MS_PER_DAY);
@@ -279,59 +284,85 @@ export class TenantDashboardService {
     });
 
     // Tender bazlı toplam: savings + volume
+    // BUG FIX #1 — Tasarruf hesabı multi-currency normalization:
+    // Önceki hata: USD/EUR/TRY savings + volume düz toplanıyordu (anlamsız sayı).
+    // Düzeltme: her tender awardedAt tarihindeki TCMB kuruyla TRY equivalent'a çevir.
     interface TenderAgg {
       id: string;
       tenderNumber: string;
       title: string;
+      /** Orijinal currency — referans için saklanır, hesaba katılmaz. */
       currency: string;
       awardedAt: Date;
+      /** TRY equivalent toplam savings (awardedAt tarihindeki kur ile). */
       savings: number;
+      /** TRY equivalent toplam volume. */
       volume: number;
       categoryLabel: string | null;
     }
-    const aggregates: TenderAgg[] = tenders.map((t) => {
-      let savings = 0;
-      let volume = 0;
-      const itemMap = new Map(t.items.map((i) => [i.id, i]));
-      for (const bid of t.bids) {
-        for (const bi of bid.items) {
-          const item = itemMap.get(bi.tenderItemId);
-          if (!item) continue;
-          const qty = Number(bi.awardedQuantity ?? item.quantity);
-          const winPrice = Number(bi.unitPrice);
-          const targetPrice =
-            item.targetUnitPrice !== null
-              ? Number(item.targetUnitPrice)
-              : null;
-          volume += winPrice * qty;
-          if (targetPrice !== null && targetPrice > winPrice) {
-            savings += (targetPrice - winPrice) * qty;
+
+    // Kur cache — aynı (currency, day) için tek lookup
+    const rateCache = new Map<string, number>();
+    const rateKey = (c: Currency, d: Date) =>
+      `${c}|${d.toISOString().slice(0, 10)}`;
+    const getRate = async (c: Currency, d: Date): Promise<number> => {
+      if (c === "TRY") return 1;
+      const k = rateKey(c, d);
+      const cached = rateCache.get(k);
+      if (cached !== undefined) return cached;
+      const r = await this.exchangeRate.getRateOnDate(c, d);
+      rateCache.set(k, r);
+      return r;
+    };
+
+    const aggregates: TenderAgg[] = await Promise.all(
+      tenders.map(async (t) => {
+        const awardedAt = t.awardedAt!;
+        const rate = await getRate(t.primaryCurrency as Currency, awardedAt);
+        let savings = 0;
+        let volume = 0;
+        const itemMap = new Map(t.items.map((i) => [i.id, i]));
+        for (const bid of t.bids) {
+          for (const bi of bid.items) {
+            const item = itemMap.get(bi.tenderItemId);
+            if (!item) continue;
+            const qty = Number(bi.awardedQuantity ?? item.quantity);
+            const winPrice = Number(bi.unitPrice);
+            const targetPrice =
+              item.targetUnitPrice !== null
+                ? Number(item.targetUnitPrice)
+                : null;
+            // TRY equivalent
+            volume += winPrice * qty * rate;
+            if (targetPrice !== null && targetPrice > winPrice) {
+              savings += (targetPrice - winPrice) * qty * rate;
+            }
           }
         }
-      }
-      // Kategori label (segment seviyesine yükseltilmiş üst başlık)
-      let categoryLabel: string | null = null;
-      const cat = t.categories[0]?.category;
-      if (cat) {
-        let segment: any = cat;
-        while (segment?.parent) segment = segment.parent;
-        if (segment?.level === 1) {
-          categoryLabel = segment.nameTr;
-        } else {
-          categoryLabel = cat.nameTr;
+        // Kategori label (segment seviyesine yükseltilmiş üst başlık)
+        let categoryLabel: string | null = null;
+        const cat = t.categories[0]?.category;
+        if (cat) {
+          let segment: any = cat;
+          while (segment?.parent) segment = segment.parent;
+          if (segment?.level === 1) {
+            categoryLabel = segment.nameTr;
+          } else {
+            categoryLabel = cat.nameTr;
+          }
         }
-      }
-      return {
-        id: t.id,
-        tenderNumber: t.tenderNumber,
-        title: t.title,
-        currency: t.primaryCurrency,
-        awardedAt: t.awardedAt!,
-        savings,
-        volume,
-        categoryLabel,
-      };
-    });
+        return {
+          id: t.id,
+          tenderNumber: t.tenderNumber,
+          title: t.title,
+          currency: t.primaryCurrency,
+          awardedAt,
+          savings,
+          volume,
+          categoryLabel,
+        };
+      }),
+    );
 
     const inMonth = (a: TenderAgg) => a.awardedAt >= monthStart;
     const monthAggs = aggregates.filter(inMonth);
