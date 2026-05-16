@@ -48,6 +48,10 @@ export function useTenders(params: ListTendersParams) {
     },
     placeholderData: (prev) => prev,
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false, // P-6
+    // Performans audit P-7 — Window focus / hızlı tab geçişlerinde anlık
+    // refetch'i engelle; refetchInterval zaten 30s'de bir taze veri çekiyor.
+    staleTime: 10_000,
   });
 }
 
@@ -62,6 +66,8 @@ export function useTenderDetail(id: string | null) {
     },
     enabled: !!id,
     refetchInterval: 15_000,
+    refetchIntervalInBackground: false, // P-6
+    staleTime: 5_000, // P-7
   });
 }
 
@@ -75,6 +81,7 @@ export function useTenderStats() {
       return data;
     },
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false, // P-6
     staleTime: 10_000,
   });
 }
@@ -97,6 +104,7 @@ export function useTenderBids(
     },
     enabled: !!tenderId,
     refetchInterval: options?.polling ? 30_000 : false,
+    refetchIntervalInBackground: false, // P-6
     staleTime: 10_000,
   });
 }
@@ -115,6 +123,7 @@ export function useTenderBidComparison(
     },
     enabled: !!tenderId,
     refetchInterval: options?.polling ? 30_000 : false,
+    refetchIntervalInBackground: false, // P-6
     staleTime: 10_000,
   });
 }
