@@ -14,6 +14,7 @@
     "v15-cleanup": "tsx prisma/scripts/v15-cleanup.ts",
     "seed-categories": "tsx prisma/scripts/seed-categories.ts",
     "cleanup-categories": "tsx prisma/scripts/cleanup-categories.ts",
+    "seed-custom-categories": "tsx prisma/scripts/seed-custom-categories.ts",
     "format": "prisma format",
     "typecheck": "tsc --noEmit"
   },
