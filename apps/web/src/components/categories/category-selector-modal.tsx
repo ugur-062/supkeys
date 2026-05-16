@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
+  Folder,
+  FolderOpen,
   FolderTree,
   Loader2,
   Search,
@@ -69,6 +71,11 @@ export function CategorySelectorModal({
     useCategorySearchTree(debouncedSearch);
   // Seçilen kategorilerin breadcrumb'larını getir — header chip listesi için.
   const { data: selectedInfo } = useCategoriesByIds(draftIds);
+  // O(1) lookup için Map'e dönüştür — N seçimde linear .find() yerine.
+  const selectedInfoMap = useMemo(() => {
+    if (!selectedInfo) return null;
+    return new Map(selectedInfo.map((c) => [c.id, c]));
+  }, [selectedInfo]);
 
   const isSearching = debouncedSearch.trim().length >= 2;
 
@@ -234,15 +241,9 @@ export function CategorySelectorModal({
             ) : (
               <ul className="flex flex-wrap gap-1.5">
                 {draftIds.map((id) => {
-                  const info = selectedInfo?.find((c) => c.id === id);
-                  // Backend henüz cevaplamadıysa veya id silinmişse:
-                  // - selectedInfo undefined (ilk fetch) → tüm chip'ler için
-                  //   skeleton dot göster.
-                  // - selectedInfo dizi ama bu id yok → kategori hard-delete,
-                  //   "(silinmiş)" işaretle, yine kaldırılabilir.
-                  const loading = selectedInfo === undefined;
-                  const missing =
-                    Array.isArray(selectedInfo) && info === undefined;
+                  const info = selectedInfoMap?.get(id);
+                  const loading = selectedInfoMap === null;
+                  const missing = selectedInfoMap !== null && !info;
                   return (
                     <li
                       key={id}
@@ -480,23 +481,35 @@ function FamilyList({
   }
 
   return (
-    <ul className="ml-6 mt-1 space-y-1 border-l border-slate-200 pl-3">
+    <ul className="ml-4 mt-1 space-y-0.5 border-l-2 border-brand-100 pl-3">
       {(families ?? []).map((family) => {
         const isExpanded = expandedFamilies.has(family.id);
+        const childCount = family._count?.children ?? 0;
         return (
           <li key={family.id}>
             <button
               type="button"
               onClick={() => onToggleFamily(family.id)}
-              className="flex w-full items-center justify-between rounded-lg px-2 py-2 text-left hover:bg-slate-50"
+              className={`flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left transition-colors ${
+                isExpanded ? "bg-slate-100" : "hover:bg-slate-50"
+              }`}
             >
-              <span className="flex items-center gap-2 text-sm text-slate-700">
-                <span className="h-1 w-1 rounded-full bg-slate-300" />
+              {isExpanded ? (
+                <FolderOpen className="h-4 w-4 flex-shrink-0 text-brand-500" />
+              ) : (
+                <Folder className="h-4 w-4 flex-shrink-0 text-slate-400" />
+              )}
+              <span className="flex-1 text-sm font-medium text-slate-800">
                 {family.nameTr}
               </span>
+              {childCount > 0 ? (
+                <span className="rounded-full bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+                  {childCount}
+                </span>
+              ) : null}
               <ChevronDown
-                className={`h-4 w-4 text-slate-400 transition-transform ${
-                  isExpanded ? "rotate-180" : ""
+                className={`h-4 w-4 flex-shrink-0 text-slate-400 transition-transform ${
+                  isExpanded ? "rotate-180 text-brand-500" : ""
                 }`}
               />
             </button>
@@ -546,7 +559,7 @@ function ClassList({
   }
 
   return (
-    <ul className="ml-6 mt-1 space-y-0.5 border-l border-slate-200 pl-3">
+    <ul className="ml-4 mt-0.5 space-y-0.5 border-l-2 border-slate-200 pl-3">
       {(classes ?? []).map((cls) => (
         <ClassRow
           key={cls.id}
@@ -579,43 +592,55 @@ function ClassRow({
   onToggleSelection,
   mode,
 }: ClassRowProps) {
-  const hasCommodities = (cls._count?.children ?? 0) > 0;
+  const commodityCount = cls._count?.children ?? 0;
+  const hasCommodities = commodityCount > 0;
   const isSelected = selected.includes(cls.id);
 
   return (
     <li>
       <div
-        className={`flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50 ${
-          isSelected ? "bg-brand-50" : ""
+        className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors ${
+          isSelected
+            ? "bg-brand-50 ring-1 ring-brand-200"
+            : "hover:bg-slate-50"
         }`}
       >
         <input
           type={mode === "single" ? "radio" : "checkbox"}
           checked={isSelected}
           onChange={() => onToggleSelection(cls.id)}
-          className="flex-shrink-0"
+          className="h-4 w-4 flex-shrink-0 cursor-pointer accent-brand-500"
           aria-label={cls.nameTr}
         />
         <button
           type="button"
           onClick={() => onToggleSelection(cls.id)}
-          className="flex-1 text-left text-sm text-slate-700"
+          className={`flex-1 text-left text-sm transition-colors ${
+            isSelected
+              ? "font-semibold text-brand-900"
+              : "text-slate-700 hover:text-slate-900"
+          }`}
         >
           {cls.nameTr}
         </button>
         {hasCommodities ? (
-          <button
-            type="button"
-            onClick={() => onToggleExpand(cls.id)}
-            className="rounded p-1 hover:bg-slate-100"
-            aria-label={isExpanded ? "Daralt" : "Genişlet"}
-          >
-            <ChevronDown
-              className={`h-4 w-4 text-slate-400 transition-transform ${
-                isExpanded ? "rotate-180" : ""
-              }`}
-            />
-          </button>
+          <>
+            <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
+              {commodityCount}
+            </span>
+            <button
+              type="button"
+              onClick={() => onToggleExpand(cls.id)}
+              className="rounded p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
+              aria-label={isExpanded ? "Daralt" : "Genişlet"}
+            >
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${
+                  isExpanded ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+          </>
         ) : null}
       </div>
 
@@ -655,27 +680,34 @@ function CommodityList({
   }
 
   return (
-    <ul className="ml-6 mt-0.5 space-y-0.5 border-l border-slate-200 pl-3">
+    <ul className="ml-4 mt-0.5 space-y-0.5 border-l-2 border-slate-100 pl-3">
       {(commodities ?? []).map((com) => {
         const isSelected = selected.includes(com.id);
         return (
           <li
             key={com.id}
-            className={`flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-slate-50 ${
-              isSelected ? "bg-brand-50" : ""
+            className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 transition-colors ${
+              isSelected
+                ? "bg-brand-50 ring-1 ring-brand-200"
+                : "hover:bg-slate-50"
             }`}
           >
             <input
               type={mode === "single" ? "radio" : "checkbox"}
               checked={isSelected}
               onChange={() => onToggleSelection(com.id)}
-              className="flex-shrink-0"
+              className="h-4 w-4 flex-shrink-0 cursor-pointer accent-brand-500"
               aria-label={com.nameTr}
             />
+            <span className="h-1 w-1 flex-shrink-0 rounded-full bg-slate-400" />
             <button
               type="button"
               onClick={() => onToggleSelection(com.id)}
-              className="flex-1 text-left text-xs text-slate-600"
+              className={`flex-1 text-left text-xs transition-colors ${
+                isSelected
+                  ? "font-medium text-brand-900"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
             >
               {com.nameTr}
             </button>

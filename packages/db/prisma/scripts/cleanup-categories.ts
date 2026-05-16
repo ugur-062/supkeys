@@ -27,28 +27,27 @@ const prisma = new PrismaClient();
  * dikeylerinde anlamsız olan segment kodları. UNSPSC 2-haneli prefix +
  * "000000" formatında.
  */
+/**
+ * V2-6.5 fix — Geniş KOBİ kapsamı için 7 segment HIDE'dan çıkarıldı:
+ * baskı (45), gıda (50), ev aletleri (52), yönetim/muhasebe (80),
+ * tasarım (82), sigorta (84), eğitim (86). KOBİ bu hizmetleri ihale ile
+ * alabilir veya bu sektörde imalat yapabilir.
+ */
 const HIDE_SEGMENT_CODES = [
-  "10000000", // Canlı Bitki ve Hayvan Materyalleri (tarım)
+  "10000000", // Canlı Bitki ve Hayvan Materyalleri (tarım, KOBİ değil)
   "20000000", // Madencilik Makineleri
   "21000000", // Tarım ve Balıkçılık Makineleri
-  "42000000", // Tıbbi Ekipmanlar
-  "45000000", // Baskı, Fotoğraf, Ses ve Görsel
+  "42000000", // Tıbbi Ekipmanlar (sağlık dışı KOBİ değil)
   "46000000", // Savunma, Kolluk Kuvvetleri Ekipmanları
   "48000000", // Hizmet Sektörü Makineleri (turizm/otel)
   "49000000", // Spor ve Eğlence Ekipmanları
-  "50000000", // Gıda, İçecek ve Tütün
-  "51000000", // İlaç ve Farmasötik
-  "52000000", // Ev Aletleri ve Tüketici Elektroniği
+  "51000000", // İlaç ve Farmasötik (regülasyonlu)
   "54000000", // Saat, Mücevher ve Değerli Taş
-  "55000000", // Yayınlanmış Ürünler
+  "55000000", // Yayınlanmış Ürünler (kitap/dergi)
   "60000000", // Müzik Aletleri, Oyunlar, Oyuncaklar
   "70000000", // Tarım, Balıkçılık Hizmetleri
   "71000000", // Madencilik ve Petrol/Gaz Hizmetleri
-  "80000000", // Yönetim ve İşletme Profesyonelleri (idari hizmetler)
-  "82000000", // Editörlük, Tasarım, Grafik
-  "83000000", // Kamu Hizmetleri ve Kamu Sektörü
-  "84000000", // Finansal ve Sigorta Hizmetleri
-  "86000000", // Eğitim ve Öğretim Hizmetleri
+  "83000000", // Kamu Hizmetleri (kamu ihalesi ayrı domain)
   "90000000", // Kafeterya/Seyahat/Konaklama/Eğlence
   "91000000", // Kişisel ve Ev Hizmetleri
   "92000000", // Ulusal Savunma, Kamu Düzeni
@@ -81,7 +80,10 @@ const RENAME_MAP: Record<string, string> = {
   "41000000": "Laboratuvar ve Ölçüm Cihazları",
   "43000000": "Bilgi Teknolojisi ve Telekom",
   "44000000": "Ofis Ekipmanları ve Sarf",
+  "45000000": "Baskı, Etiket ve Dijital Baskı",
   "47000000": "Temizlik Ekipmanları ve Sarf",
+  "50000000": "Gıda, İçecek ve Tütün",
+  "52000000": "Ev Aletleri ve Tüketici Elektroniği",
   "53000000": "İş Kıyafetleri ve KKD",
   "56000000": "Mobilya ve Mefruşat",
   "72000000": "İnşaat ve Bakım Hizmetleri",
@@ -89,8 +91,12 @@ const RENAME_MAP: Record<string, string> = {
   "76000000": "Endüstriyel Temizlik Hizmetleri",
   "77000000": "Çevre ve Atık Yönetimi Hizmetleri",
   "78000000": "Nakliye ve Lojistik Hizmetleri",
+  "80000000": "Muhasebe, Hukuk ve Yönetim Hizmetleri",
   "81000000": "Mühendislik ve Danışmanlık Hizmetleri",
+  "82000000": "Grafik Tasarım ve Editörlük",
+  "84000000": "Finansal ve Sigorta Hizmetleri",
   "85000000": "OSGB ve Sağlık Hizmetleri",
+  "86000000": "Eğitim ve Sertifika Hizmetleri",
 };
 
 interface CatRow {
@@ -150,37 +156,47 @@ async function main() {
     return result;
   }
 
-  // 1) HIDE: segment + tüm descendant'ları isActive=false
-  console.log(`[1/2] Gizlenecek segment'ler:`);
-  let totalHidden = 0;
-  let totalHideTouched = 0;
-  for (const code of HIDE_SEGMENT_CODES) {
-    const segment = all.find((c) => c.code === code && c.level === 1);
-    if (!segment) {
-      console.warn(`  ⚠️  segment kodu bulunamadı: ${code}`);
-      continue;
-    }
-    const ids = collectDescendantIds(segment.id);
-    const activeIds = ids.filter((id) => byId.get(id)?.isActive);
-    totalHideTouched += ids.length;
-    totalHidden += activeIds.length;
+  // 1) Çift-yönlü senkronizasyon: HIDE listesindekiler false, diğerleri true.
+  // Geri açma da dahil — eğer bir segment HIDE'dan çıkarıldıysa, önceden
+  // isActive=false yapılmış descendant'ları geri aktive eder.
+  const hideSet = new Set(HIDE_SEGMENT_CODES);
+  const allSegments = all.filter((c) => c.level === 1);
 
-    if (isApply && activeIds.length > 0) {
+  console.log(`[1/2] Segment aktiflik senkronizasyonu:`);
+  let totalHidden = 0;
+  let totalReactivated = 0;
+  for (const segment of allSegments) {
+    const shouldHide = hideSet.has(segment.code);
+    const targetActive = !shouldHide;
+    const ids = collectDescendantIds(segment.id);
+    // Yanlış state'teki kayıtları bul
+    const wrongState = ids.filter((id) => {
+      const cat = byId.get(id);
+      return cat && cat.isActive !== targetActive;
+    });
+    if (wrongState.length === 0) continue;
+
+    if (isApply) {
       await prisma.category.updateMany({
-        where: { id: { in: activeIds } },
-        data: { isActive: false },
+        where: { id: { in: wrongState } },
+        data: { isActive: targetActive },
       });
     }
+
     const namePreview =
       segment.nameTr.length > 50
         ? segment.nameTr.slice(0, 47) + "..."
         : segment.nameTr;
+    const icon = shouldHide ? "⛔" : "✅";
+    const action = shouldHide ? "gizlenecek" : "aktive edilecek";
     console.log(
-      `  ⛔ ${code}  ${namePreview.padEnd(52, " ")}  ${activeIds.length}/${ids.length} kayıt`,
+      `  ${icon} ${segment.code}  ${namePreview.padEnd(52, " ")}  ${wrongState.length}/${ids.length} ${action}`,
     );
+    if (shouldHide) totalHidden += wrongState.length;
+    else totalReactivated += wrongState.length;
   }
 
-  // 2) RENAME: segment nameTr update
+  // 2) RENAME: segment nameTr güncelleme
   console.log(`\n[2/2] Yeniden adlandırılacak segment'ler:`);
   let totalRenamed = 0;
   for (const [code, newName] of Object.entries(RENAME_MAP)) {
@@ -205,16 +221,18 @@ async function main() {
   // Özet
   console.log(`\n📊 Özet:`);
   console.log(
-    `   HIDE — ${HIDE_SEGMENT_CODES.length} segment, ${totalHideTouched} toplam kayıt (descendant dahil)`,
+    `   HIDE listesi: ${HIDE_SEGMENT_CODES.length} segment (gizli kalmalı)`,
   );
-  console.log(`   Şu anda aktif → gizlenecek: ${totalHidden} kayıt`);
-  console.log(`   RENAME — ${totalRenamed} segment ismi güncellenecek`);
+  console.log(`   Gizlenecek (yeni): ${totalHidden} kayıt`);
+  console.log(`   Aktive edilecek (yeniden açılan): ${totalReactivated} kayıt`);
+  console.log(`   RENAME: ${totalRenamed} segment ismi güncellenecek`);
   console.log("");
 
   const activeBefore = all.filter((c) => c.isActive).length;
-  const activeAfter = activeBefore - totalHidden;
+  const activeAfter = activeBefore - totalHidden + totalReactivated;
+  const delta = activeAfter - activeBefore;
   console.log(
-    `   Aktif kategori: ${activeBefore} → ${activeAfter} (${Math.round(((activeBefore - activeAfter) / activeBefore) * 100)}% azalma)`,
+    `   Aktif kategori: ${activeBefore} → ${activeAfter} (${delta >= 0 ? "+" : ""}${delta})`,
   );
 
   if (!isApply) {

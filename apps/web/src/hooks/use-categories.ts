@@ -133,7 +133,14 @@ export function useCategorySearchTree(query: string) {
   });
 }
 
-/** Seçili ID'lerin breadcrumb bilgisi (chip listesi için). */
+/**
+ * Seçili ID'lerin breadcrumb bilgisi (chip listesi için).
+ *
+ * V2-6.5 fix — Hızlı seçim ekleme/çıkarmada chip listesinde loading flicker
+ * ve uzun süreli "yükleniyor" hissini önlemek için:
+ *   - placeholderData: önceki cevap korunur, yeni fetch arka planda
+ *   - gcTime: HOUR_MS — cache entry'leri çabuk düşmesin
+ */
 export function useCategoriesByIds(ids: string[]) {
   const key = [...ids].sort().join(",");
   return useQuery<CategoryWithBreadcrumb[]>({
@@ -146,5 +153,7 @@ export function useCategoriesByIds(ids: string[]) {
     },
     enabled: ids.length > 0,
     staleTime: FIVE_MIN_MS,
+    gcTime: HOUR_MS,
+    placeholderData: (prev) => prev,
   });
 }
