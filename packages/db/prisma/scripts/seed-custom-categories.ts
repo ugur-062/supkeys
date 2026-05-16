@@ -19,7 +19,7 @@ const prisma = new PrismaClient();
 
 interface CustomCategory {
   code: string;
-  level: 2 | 3;
+  level: 2 | 3 | 4;
   nameTr: string;
   parentCode: string;
 }
@@ -163,6 +163,260 @@ const CUSTOM_CATEGORIES: CustomCategory[] = [
   { code: "32900400", level: 3, nameTr: "Optik Sensör / Fotoselektör", parentCode: "32900000" },
   { code: "32900500", level: 3, nameTr: "Encoder (Mutlak/Artımlı)", parentCode: "32900000" },
   { code: "32900600", level: 3, nameTr: "Limit Switch (Sınır Anahtarı)", parentCode: "32900000" },
+
+  // ═══════════════════════════════════════════════════════════════════
+  // LEVEL 4 COMMODITY — Her Class altında ürün varyantları
+  // ═══════════════════════════════════════════════════════════════════
+
+  // ─── 22900100 Ekskavatör (Paletli) ───
+  { code: "22900101", level: 4, nameTr: "Mini Ekskavatör (1-5 ton)", parentCode: "22900100" },
+  { code: "22900102", level: 4, nameTr: "Orta Sınıf Ekskavatör (5-15 ton)", parentCode: "22900100" },
+  { code: "22900103", level: 4, nameTr: "Büyük Ekskavatör (15-30 ton)", parentCode: "22900100" },
+  { code: "22900104", level: 4, nameTr: "Endüstriyel Ekskavatör (30+ ton)", parentCode: "22900100" },
+  // ─── 22900200 Yükleyici ───
+  { code: "22900201", level: 4, nameTr: "Mini Yükleyici (Skid Steer)", parentCode: "22900200" },
+  { code: "22900202", level: 4, nameTr: "Kompakt Lastik Yükleyici", parentCode: "22900200" },
+  { code: "22900203", level: 4, nameTr: "Orta Boy Lastik Yükleyici", parentCode: "22900200" },
+  { code: "22900204", level: 4, nameTr: "Ağır İş Yükleyici", parentCode: "22900200" },
+  // ─── 22920100 Beton Mikseri (Sahada) ───
+  { code: "22920101", level: 4, nameTr: "150 L Sahada Mikser", parentCode: "22920100" },
+  { code: "22920102", level: 4, nameTr: "350 L Sahada Mikser", parentCode: "22920100" },
+  { code: "22920103", level: 4, nameTr: "500 L+ Sahada Mikser", parentCode: "22920100" },
+  // ─── 22920200 Transmikser ───
+  { code: "22920201", level: 4, nameTr: "6 m³ Transmikser", parentCode: "22920200" },
+  { code: "22920202", level: 4, nameTr: "8 m³ Transmikser", parentCode: "22920200" },
+  { code: "22920203", level: 4, nameTr: "10 m³ Transmikser", parentCode: "22920200" },
+  { code: "22920204", level: 4, nameTr: "12 m³ Transmikser", parentCode: "22920200" },
+  // ─── 22920300 Beton Pompası ───
+  { code: "22920301", level: 4, nameTr: "24 m Bom Beton Pompası", parentCode: "22920300" },
+  { code: "22920302", level: 4, nameTr: "32 m Bom Beton Pompası", parentCode: "22920300" },
+  { code: "22920303", level: 4, nameTr: "42 m+ Bom Beton Pompası", parentCode: "22920300" },
+  { code: "22920304", level: 4, nameTr: "Sabit Beton Pompası (Stationary)", parentCode: "22920300" },
+  // ─── 22930100 Kule Vinç ───
+  { code: "22930101", level: 4, nameTr: "Üst Döner Kule Vinç", parentCode: "22930100" },
+  { code: "22930102", level: 4, nameTr: "Alt Döner Kule Vinç", parentCode: "22930100" },
+  { code: "22930103", level: 4, nameTr: "Self-Erecting (Self-Kurulan) Vinç", parentCode: "22930100" },
+  // ─── 22930200 Mobil Vinç ───
+  { code: "22930201", level: 4, nameTr: "25 ton Mobil Vinç", parentCode: "22930200" },
+  { code: "22930202", level: 4, nameTr: "50 ton Mobil Vinç", parentCode: "22930200" },
+  { code: "22930203", level: 4, nameTr: "100 ton+ Mobil Vinç", parentCode: "22930200" },
+  { code: "22930204", level: 4, nameTr: "All-Terrain (Tüm Arazi) Vinç", parentCode: "22930200" },
+
+  // ─── 30900100 Cephe İskelesi ───
+  { code: "30900101", level: 4, nameTr: "Çerçeve (Frame) Tipi İskele", parentCode: "30900100" },
+  { code: "30900102", level: 4, nameTr: "Ringlock İskele Sistemi", parentCode: "30900100" },
+  { code: "30900103", level: 4, nameTr: "Cuplock İskele Sistemi", parentCode: "30900100" },
+  { code: "30900104", level: 4, nameTr: "H Tip Cephe İskelesi", parentCode: "30900100" },
+  // ─── 30900400 Mobil İskele Kulesi ───
+  { code: "30900401", level: 4, nameTr: "2-4 m Mobil İskele Kulesi", parentCode: "30900400" },
+  { code: "30900402", level: 4, nameTr: "4-6 m Mobil İskele Kulesi", parentCode: "30900400" },
+  { code: "30900403", level: 4, nameTr: "6-8 m Mobil İskele Kulesi", parentCode: "30900400" },
+  { code: "30900404", level: 4, nameTr: "8 m+ Mobil İskele Kulesi", parentCode: "30900400" },
+  // ─── 30910100 HEA / HEB Profil ───
+  { code: "30910101", level: 4, nameTr: "HEA 100", parentCode: "30910100" },
+  { code: "30910102", level: 4, nameTr: "HEA 120", parentCode: "30910100" },
+  { code: "30910103", level: 4, nameTr: "HEA 140", parentCode: "30910100" },
+  { code: "30910104", level: 4, nameTr: "HEA 160", parentCode: "30910100" },
+  { code: "30910105", level: 4, nameTr: "HEA 180", parentCode: "30910100" },
+  { code: "30910106", level: 4, nameTr: "HEA 200", parentCode: "30910100" },
+  { code: "30910107", level: 4, nameTr: "HEA 220", parentCode: "30910100" },
+  { code: "30910108", level: 4, nameTr: "HEA 240", parentCode: "30910100" },
+  { code: "30910109", level: 4, nameTr: "HEA 260", parentCode: "30910100" },
+  { code: "30910110", level: 4, nameTr: "HEA 280", parentCode: "30910100" },
+  { code: "30910111", level: 4, nameTr: "HEA 300", parentCode: "30910100" },
+  { code: "30910112", level: 4, nameTr: "HEA 320+", parentCode: "30910100" },
+  { code: "30910113", level: 4, nameTr: "HEB 100", parentCode: "30910100" },
+  { code: "30910114", level: 4, nameTr: "HEB 140", parentCode: "30910100" },
+  { code: "30910115", level: 4, nameTr: "HEB 180", parentCode: "30910100" },
+  { code: "30910116", level: 4, nameTr: "HEB 200", parentCode: "30910100" },
+  { code: "30910117", level: 4, nameTr: "HEB 240", parentCode: "30910100" },
+  { code: "30910118", level: 4, nameTr: "HEB 280+", parentCode: "30910100" },
+  // ─── 30910200 IPE / IPN Profil ───
+  { code: "30910201", level: 4, nameTr: "IPE 80", parentCode: "30910200" },
+  { code: "30910202", level: 4, nameTr: "IPE 100", parentCode: "30910200" },
+  { code: "30910203", level: 4, nameTr: "IPE 120", parentCode: "30910200" },
+  { code: "30910204", level: 4, nameTr: "IPE 140", parentCode: "30910200" },
+  { code: "30910205", level: 4, nameTr: "IPE 160", parentCode: "30910200" },
+  { code: "30910206", level: 4, nameTr: "IPE 180", parentCode: "30910200" },
+  { code: "30910207", level: 4, nameTr: "IPE 200", parentCode: "30910200" },
+  { code: "30910208", level: 4, nameTr: "IPE 220+", parentCode: "30910200" },
+  { code: "30910209", level: 4, nameTr: "IPN 80-200", parentCode: "30910200" },
+  // ─── 30910300 Köşebent (L Profil) ───
+  { code: "30910301", level: 4, nameTr: "L 20×20", parentCode: "30910300" },
+  { code: "30910302", level: 4, nameTr: "L 30×30", parentCode: "30910300" },
+  { code: "30910303", level: 4, nameTr: "L 40×40", parentCode: "30910300" },
+  { code: "30910304", level: 4, nameTr: "L 50×50", parentCode: "30910300" },
+  { code: "30910305", level: 4, nameTr: "L 60×60", parentCode: "30910300" },
+  { code: "30910306", level: 4, nameTr: "L 80×80", parentCode: "30910300" },
+  { code: "30910307", level: 4, nameTr: "L 100×100+", parentCode: "30910300" },
+  // ─── 30910400 Çelik Boru ve Kutu Profil ───
+  { code: "30910401", level: 4, nameTr: "Kare Kutu Profil 20×20", parentCode: "30910400" },
+  { code: "30910402", level: 4, nameTr: "Kare Kutu Profil 30×30", parentCode: "30910400" },
+  { code: "30910403", level: 4, nameTr: "Kare Kutu Profil 40×40", parentCode: "30910400" },
+  { code: "30910404", level: 4, nameTr: "Kare Kutu Profil 50×50", parentCode: "30910400" },
+  { code: "30910405", level: 4, nameTr: "Kare Kutu Profil 60×60+", parentCode: "30910400" },
+  { code: "30910406", level: 4, nameTr: "Dikdörtgen Kutu Profil 40×20", parentCode: "30910400" },
+  { code: "30910407", level: 4, nameTr: "Dikdörtgen Kutu Profil 60×40", parentCode: "30910400" },
+  { code: "30910408", level: 4, nameTr: "Dikiş li Çelik Boru (Galvaniz)", parentCode: "30910400" },
+  { code: "30910409", level: 4, nameTr: "Dikiş siz Çelik Boru", parentCode: "30910400" },
+  // ─── 30910600 Sac ───
+  { code: "30910601", level: 4, nameTr: "Siyah Sac 1-3 mm", parentCode: "30910600" },
+  { code: "30910602", level: 4, nameTr: "Siyah Sac 4-8 mm", parentCode: "30910600" },
+  { code: "30910603", level: 4, nameTr: "Galvanizli Sac (DKP)", parentCode: "30910600" },
+  { code: "30910604", level: 4, nameTr: "Trapez Sac (Çatı Kaplama)", parentCode: "30910600" },
+  { code: "30910605", level: 4, nameTr: "Sandviç Panel (Çatı/Cephe)", parentCode: "30910600" },
+  { code: "30910606", level: 4, nameTr: "Baklava Desenli Sac", parentCode: "30910600" },
+  // ─── 30920100 Hazır Beton ───
+  { code: "30920101", level: 4, nameTr: "C20/25 Hazır Beton", parentCode: "30920100" },
+  { code: "30920102", level: 4, nameTr: "C25/30 Hazır Beton", parentCode: "30920100" },
+  { code: "30920103", level: 4, nameTr: "C30/37 Hazır Beton", parentCode: "30920100" },
+  { code: "30920104", level: 4, nameTr: "C35/45 Hazır Beton", parentCode: "30920100" },
+  { code: "30920105", level: 4, nameTr: "C40/50+ Hazır Beton", parentCode: "30920100" },
+  // ─── 30920200 Çimento ───
+  { code: "30920201", level: 4, nameTr: "CEM I 42.5 R (Portland)", parentCode: "30920200" },
+  { code: "30920202", level: 4, nameTr: "CEM I 52.5 R (Yüksek Mukavemet)", parentCode: "30920200" },
+  { code: "30920203", level: 4, nameTr: "CEM II 32.5 (Portland Kompoze)", parentCode: "30920200" },
+  { code: "30920204", level: 4, nameTr: "CEM III (Yüksek Fırın Cürufu)", parentCode: "30920200" },
+  { code: "30920205", level: 4, nameTr: "CEM IV (Puzolanik)", parentCode: "30920200" },
+  { code: "30920206", level: 4, nameTr: "Beyaz Çimento", parentCode: "30920200" },
+  // ─── 30920600 Donatı Çeliği ───
+  { code: "30920601", level: 4, nameTr: "Ø 8 mm Nervürlü Demir", parentCode: "30920600" },
+  { code: "30920602", level: 4, nameTr: "Ø 10 mm Nervürlü Demir", parentCode: "30920600" },
+  { code: "30920603", level: 4, nameTr: "Ø 12 mm Nervürlü Demir", parentCode: "30920600" },
+  { code: "30920604", level: 4, nameTr: "Ø 14 mm Nervürlü Demir", parentCode: "30920600" },
+  { code: "30920605", level: 4, nameTr: "Ø 16 mm Nervürlü Demir", parentCode: "30920600" },
+  { code: "30920606", level: 4, nameTr: "Ø 20 mm Nervürlü Demir", parentCode: "30920600" },
+  { code: "30920607", level: 4, nameTr: "Ø 25 mm Nervürlü Demir", parentCode: "30920600" },
+  { code: "30920608", level: 4, nameTr: "Ø 32 mm+ Nervürlü Demir", parentCode: "30920600" },
+  // ─── 30930100 Yangın Söndürücü ───
+  { code: "30930101", level: 4, nameTr: "Kuru Tozlu Yangın Söndürücü (6 kg)", parentCode: "30930100" },
+  { code: "30930102", level: 4, nameTr: "Kuru Tozlu Yangın Söndürücü (12 kg)", parentCode: "30930100" },
+  { code: "30930103", level: 4, nameTr: "CO₂ Yangın Söndürücü", parentCode: "30930100" },
+  { code: "30930104", level: 4, nameTr: "Köpüklü Yangın Söndürücü", parentCode: "30930100" },
+  { code: "30930105", level: 4, nameTr: "Mutfak Yangın Söndürücü (F Sınıfı)", parentCode: "30930100" },
+
+  // ─── 39900100 AG Panosu ───
+  { code: "39900101", level: 4, nameTr: "AG Pano 250A", parentCode: "39900100" },
+  { code: "39900102", level: 4, nameTr: "AG Pano 400A", parentCode: "39900100" },
+  { code: "39900103", level: 4, nameTr: "AG Pano 630A", parentCode: "39900100" },
+  { code: "39900104", level: 4, nameTr: "AG Pano 800A", parentCode: "39900100" },
+  { code: "39900105", level: 4, nameTr: "AG Pano 1000A", parentCode: "39900100" },
+  { code: "39900106", level: 4, nameTr: "AG Pano 1250A", parentCode: "39900100" },
+  { code: "39900107", level: 4, nameTr: "AG Pano 1600A", parentCode: "39900100" },
+  { code: "39900108", level: 4, nameTr: "AG Pano 2000A", parentCode: "39900100" },
+  { code: "39900109", level: 4, nameTr: "AG Pano 2500A", parentCode: "39900100" },
+  { code: "39900110", level: 4, nameTr: "AG Pano 3200A+", parentCode: "39900100" },
+  // ─── 39900200 OG Panosu ───
+  { code: "39900201", level: 4, nameTr: "OG Pano 12 kV (Hücre)", parentCode: "39900200" },
+  { code: "39900202", level: 4, nameTr: "OG Pano 17.5 kV", parentCode: "39900200" },
+  { code: "39900203", level: 4, nameTr: "OG Pano 24 kV", parentCode: "39900200" },
+  { code: "39900204", level: 4, nameTr: "OG Pano 36 kV", parentCode: "39900200" },
+  { code: "39900205", level: 4, nameTr: "Gaz İzolelilik (GIS) OG Pano", parentCode: "39900200" },
+  // ─── 39900300 MCC Panosu ───
+  { code: "39900301", level: 4, nameTr: "MCC Konvansiyonel (Tek Cer)", parentCode: "39900300" },
+  { code: "39900302", level: 4, nameTr: "MCC Plug-in (Çıkarılabilir Cer)", parentCode: "39900300" },
+  { code: "39900303", level: 4, nameTr: "MCC Akıllı (Profibus/Modbus)", parentCode: "39900300" },
+  // ─── 39900700 UPS Panosu ───
+  { code: "39900701", level: 4, nameTr: "UPS 1-10 kVA Tek Faz", parentCode: "39900700" },
+  { code: "39900702", level: 4, nameTr: "UPS 10-40 kVA 3 Faz", parentCode: "39900700" },
+  { code: "39900703", level: 4, nameTr: "UPS 40-200 kVA 3 Faz", parentCode: "39900700" },
+  { code: "39900704", level: 4, nameTr: "UPS 200+ kVA Endüstriyel", parentCode: "39900700" },
+
+  // ─── 39910100 MCCB ───
+  { code: "39910101", level: 4, nameTr: "MCCB 25-100 A", parentCode: "39910100" },
+  { code: "39910102", level: 4, nameTr: "MCCB 100-250 A", parentCode: "39910100" },
+  { code: "39910103", level: 4, nameTr: "MCCB 250-630 A", parentCode: "39910100" },
+  { code: "39910104", level: 4, nameTr: "MCCB 630-1600 A", parentCode: "39910100" },
+  { code: "39910105", level: 4, nameTr: "Air Circuit Breaker (ACB) 1600-6300 A", parentCode: "39910100" },
+  // ─── 39910200 MCB ───
+  { code: "39910201", level: 4, nameTr: "MCB 1P B Tipi 6-63 A", parentCode: "39910200" },
+  { code: "39910202", level: 4, nameTr: "MCB 1P C Tipi 6-63 A", parentCode: "39910200" },
+  { code: "39910203", level: 4, nameTr: "MCB 1P D Tipi (Motor) 6-63 A", parentCode: "39910200" },
+  { code: "39910204", level: 4, nameTr: "MCB 3P B Tipi 6-63 A", parentCode: "39910200" },
+  { code: "39910205", level: 4, nameTr: "MCB 3P C Tipi 6-63 A", parentCode: "39910200" },
+  { code: "39910206", level: 4, nameTr: "MCB 4P (3F+N) 6-63 A", parentCode: "39910200" },
+  // ─── 39910300 RCD/RCBO ───
+  { code: "39910301", level: 4, nameTr: "RCD 2P 30 mA Kaçak", parentCode: "39910300" },
+  { code: "39910302", level: 4, nameTr: "RCD 4P 30 mA Kaçak", parentCode: "39910300" },
+  { code: "39910303", level: 4, nameTr: "RCD 4P 300 mA Yangın Koruma", parentCode: "39910300" },
+  { code: "39910304", level: 4, nameTr: "RCBO Kombo (MCB + RCD)", parentCode: "39910300" },
+  // ─── 39910400 Kontaktör ───
+  { code: "39910401", level: 4, nameTr: "Kontaktör 9-12 A (AC3)", parentCode: "39910400" },
+  { code: "39910402", level: 4, nameTr: "Kontaktör 18-25 A", parentCode: "39910400" },
+  { code: "39910403", level: 4, nameTr: "Kontaktör 32-40 A", parentCode: "39910400" },
+  { code: "39910404", level: 4, nameTr: "Kontaktör 50-80 A", parentCode: "39910400" },
+  { code: "39910405", level: 4, nameTr: "Kontaktör 95-150 A", parentCode: "39910400" },
+  { code: "39910406", level: 4, nameTr: "Kontaktör 185-400 A", parentCode: "39910400" },
+  { code: "39910407", level: 4, nameTr: "Kontaktör 500-800 A+", parentCode: "39910400" },
+  // ─── 39910500 Termik Röle ───
+  { code: "39910501", level: 4, nameTr: "Termik Röle 0.1-1 A", parentCode: "39910500" },
+  { code: "39910502", level: 4, nameTr: "Termik Röle 1-10 A", parentCode: "39910500" },
+  { code: "39910503", level: 4, nameTr: "Termik Röle 10-25 A", parentCode: "39910500" },
+  { code: "39910504", level: 4, nameTr: "Termik Röle 25-100 A", parentCode: "39910500" },
+  { code: "39910505", level: 4, nameTr: "Termik Röle 100-630 A", parentCode: "39910500" },
+  // ─── 39910700 Parafudr ───
+  { code: "39910701", level: 4, nameTr: "Parafudr Tip 1 (Class B)", parentCode: "39910700" },
+  { code: "39910702", level: 4, nameTr: "Parafudr Tip 2 (Class C)", parentCode: "39910700" },
+  { code: "39910703", level: 4, nameTr: "Parafudr Tip 3 (Class D)", parentCode: "39910700" },
+  { code: "39910704", level: 4, nameTr: "Kombi Parafudr Tip 1+2", parentCode: "39910700" },
+
+  // ─── 39920100 PLC ───
+  { code: "39920101", level: 4, nameTr: "Siemens S7-1200", parentCode: "39920100" },
+  { code: "39920102", level: 4, nameTr: "Siemens S7-1500", parentCode: "39920100" },
+  { code: "39920103", level: 4, nameTr: "Siemens LOGO!", parentCode: "39920100" },
+  { code: "39920104", level: 4, nameTr: "Schneider M221 / M241", parentCode: "39920100" },
+  { code: "39920105", level: 4, nameTr: "Schneider M340 / M580", parentCode: "39920100" },
+  { code: "39920106", level: 4, nameTr: "Mitsubishi FX / Q Serisi", parentCode: "39920100" },
+  { code: "39920107", level: 4, nameTr: "Allen-Bradley (Rockwell) PLC", parentCode: "39920100" },
+  { code: "39920108", level: 4, nameTr: "Omron CP / CJ Serisi PLC", parentCode: "39920100" },
+  { code: "39920109", level: 4, nameTr: "Delta DVP / AS Serisi PLC", parentCode: "39920100" },
+  // ─── 39920200 HMI ───
+  { code: "39920201", level: 4, nameTr: "HMI 4 inç", parentCode: "39920200" },
+  { code: "39920202", level: 4, nameTr: "HMI 7 inç", parentCode: "39920200" },
+  { code: "39920203", level: 4, nameTr: "HMI 10 inç", parentCode: "39920200" },
+  { code: "39920204", level: 4, nameTr: "HMI 12-15 inç", parentCode: "39920200" },
+  { code: "39920205", level: 4, nameTr: "Endüstriyel PC Panel", parentCode: "39920200" },
+  // ─── 39920300 VFD ───
+  { code: "39920301", level: 4, nameTr: "VFD 0.4-2.2 kW", parentCode: "39920300" },
+  { code: "39920302", level: 4, nameTr: "VFD 2.2-7.5 kW", parentCode: "39920300" },
+  { code: "39920303", level: 4, nameTr: "VFD 7.5-22 kW", parentCode: "39920300" },
+  { code: "39920304", level: 4, nameTr: "VFD 22-75 kW", parentCode: "39920300" },
+  { code: "39920305", level: 4, nameTr: "VFD 75-160 kW", parentCode: "39920300" },
+  { code: "39920306", level: 4, nameTr: "VFD 160-450 kW+", parentCode: "39920300" },
+
+  // ─── 39930200 Şönt Kapasitör ───
+  { code: "39930201", level: 4, nameTr: "Şönt Kapasitör 2.5-12.5 kVAr", parentCode: "39930200" },
+  { code: "39930202", level: 4, nameTr: "Şönt Kapasitör 12.5-25 kVAr", parentCode: "39930200" },
+  { code: "39930203", level: 4, nameTr: "Şönt Kapasitör 25-50 kVAr", parentCode: "39930200" },
+  { code: "39930204", level: 4, nameTr: "Şönt Kapasitör 50-100 kVAr+", parentCode: "39930200" },
+
+  // ─── 39940100 Akım Trafosu (AT) ───
+  { code: "39940101", level: 4, nameTr: "AT 100/5 A", parentCode: "39940100" },
+  { code: "39940102", level: 4, nameTr: "AT 200/5 A", parentCode: "39940100" },
+  { code: "39940103", level: 4, nameTr: "AT 400/5 A", parentCode: "39940100" },
+  { code: "39940104", level: 4, nameTr: "AT 800/5 A", parentCode: "39940100" },
+  { code: "39940105", level: 4, nameTr: "AT 1600/5 A", parentCode: "39940100" },
+  { code: "39940106", level: 4, nameTr: "AT 2500/5 A+", parentCode: "39940100" },
+  { code: "39940107", level: 4, nameTr: "Geçmeli (Toroid) AT", parentCode: "39940100" },
+
+  // ─── 32900100 Yaklaşım Sensörü ───
+  { code: "32900101", level: 4, nameTr: "İndüktif M8 / M12 / M18 / M30", parentCode: "32900100" },
+  { code: "32900102", level: 4, nameTr: "Kapasitif Yaklaşım Sensörü", parentCode: "32900100" },
+  { code: "32900103", level: 4, nameTr: "Manyetik Yaklaşım Sensörü (Reed)", parentCode: "32900100" },
+  { code: "32900104", level: 4, nameTr: "Ultrasonik Yaklaşım Sensörü", parentCode: "32900100" },
+  // ─── 32900200 Sıcaklık Sensörü ───
+  { code: "32900201", level: 4, nameTr: "PT100 Sıcaklık Sensörü", parentCode: "32900200" },
+  { code: "32900202", level: 4, nameTr: "PT1000 Sıcaklık Sensörü", parentCode: "32900200" },
+  { code: "32900203", level: 4, nameTr: "NTC / PTC Termistör", parentCode: "32900200" },
+  { code: "32900204", level: 4, nameTr: "K-Tipi Termokupl", parentCode: "32900200" },
+  { code: "32900205", level: 4, nameTr: "J/T/N/S-Tipi Termokupl", parentCode: "32900200" },
+  { code: "32900206", level: 4, nameTr: "Kızılötesi (IR) Sıcaklık Sensörü", parentCode: "32900200" },
+  // ─── 32900300 Basınç Sensörü ───
+  { code: "32900301", level: 4, nameTr: "Basınç Sensörü 0-10 bar (4-20 mA)", parentCode: "32900300" },
+  { code: "32900302", level: 4, nameTr: "Basınç Sensörü 0-100 bar", parentCode: "32900300" },
+  { code: "32900303", level: 4, nameTr: "Basınç Sensörü 0-400 bar (Hidrolik)", parentCode: "32900300" },
+  { code: "32900304", level: 4, nameTr: "Diferansiyel Basınç Transmitteri", parentCode: "32900300" },
+  { code: "32900305", level: 4, nameTr: "Basınç Anahtarı (Pressostat)", parentCode: "32900300" },
 ];
 /* eslint-enable prettier/prettier */
 
@@ -182,16 +436,17 @@ async function main() {
   const codeToId = new Map<string, string>();
   for (const p of existingParents) codeToId.set(p.code, p.id);
 
-  // 2) Custom kategorilerin kendileri de parent olabilir (Level 2 family →
-  //    Level 3 class). Önce Level 2'leri ekle, sonra Level 3'ler.
+  // 2) Custom kategorilerin kendileri de parent olabilir:
+  //    Level 2 family → Level 3 class → Level 4 commodity. Sırayla ekle.
   const families = CUSTOM_CATEGORIES.filter((c) => c.level === 2);
   const classes = CUSTOM_CATEGORIES.filter((c) => c.level === 3);
+  const commodities = CUSTOM_CATEGORIES.filter((c) => c.level === 4);
 
   let inserted = 0;
   let skipped = 0;
 
   // 3) Family'leri insert (idempotent)
-  console.log(`[1/2] Family (Level 2) ekleniyor: ${families.length} adet`);
+  console.log(`[1/3] Family (Level 2) ekleniyor: ${families.length} adet`);
   for (const fam of families) {
     const existing = await prisma.category.findUnique({
       where: { code: fam.code },
@@ -224,7 +479,7 @@ async function main() {
   }
 
   // 4) Class'ları insert (idempotent)
-  console.log(`\n[2/2] Class (Level 3) ekleniyor: ${classes.length} adet`);
+  console.log(`\n[2/3] Class (Level 3) ekleniyor: ${classes.length} adet`);
   let classInserted = 0;
   let classSkipped = 0;
   for (const cls of classes) {
@@ -232,6 +487,7 @@ async function main() {
       where: { code: cls.code },
     });
     if (existing) {
+      codeToId.set(cls.code, existing.id);
       classSkipped++;
       continue;
     }
@@ -241,7 +497,7 @@ async function main() {
       continue;
     }
     const sortOrder = parseInt(cls.code.slice(6, 8), 10);
-    await prisma.category.create({
+    const created = await prisma.category.create({
       data: {
         code: cls.code,
         nameTr: cls.nameTr,
@@ -251,14 +507,58 @@ async function main() {
         isActive: true,
       },
     });
+    codeToId.set(cls.code, created.id);
     classInserted++;
   }
 
-  console.log(`\n📊 Özet:`);
-  console.log(`   Family: ${inserted} eklendi, ${skipped} zaten vardı (atlandı)`);
-  console.log(
-    `   Class:  ${classInserted} eklendi, ${classSkipped} zaten vardı (atlandı)`,
+  // 5) Commodity'leri insert (Level 4 — ürün varyantları)
+  console.log(`\n[3/3] Commodity (Level 4) ekleniyor: ${commodities.length} adet`);
+  let comInserted = 0;
+  let comSkipped = 0;
+  // Class parent kodları DB'den (mevcut UNSPSC class'lar da olabilir parent)
+  const commodityParentCodes = Array.from(
+    new Set(commodities.map((c) => c.parentCode)),
   );
+  const missingParents = commodityParentCodes.filter((c) => !codeToId.has(c));
+  if (missingParents.length > 0) {
+    const fetched = await prisma.category.findMany({
+      where: { code: { in: missingParents } },
+      select: { id: true, code: true },
+    });
+    for (const p of fetched) codeToId.set(p.code, p.id);
+  }
+  for (const com of commodities) {
+    const existing = await prisma.category.findUnique({
+      where: { code: com.code },
+    });
+    if (existing) {
+      comSkipped++;
+      continue;
+    }
+    const parentId = codeToId.get(com.parentCode);
+    if (!parentId) {
+      console.warn(`  ⚠️  Parent bulunamadı: ${com.parentCode} (atlandı: ${com.code})`);
+      continue;
+    }
+    // Commodity sortOrder: son 2 hane (01-99 arası)
+    const sortOrder = parseInt(com.code.slice(6, 8), 10);
+    await prisma.category.create({
+      data: {
+        code: com.code,
+        nameTr: com.nameTr,
+        level: 4,
+        parentId,
+        sortOrder,
+        isActive: true,
+      },
+    });
+    comInserted++;
+  }
+
+  console.log(`\n📊 Özet:`);
+  console.log(`   Family:    ${inserted} eklendi, ${skipped} zaten vardı`);
+  console.log(`   Class:     ${classInserted} eklendi, ${classSkipped} zaten vardı`);
+  console.log(`   Commodity: ${comInserted} eklendi, ${comSkipped} zaten vardı`);
 
   const totalActive = await prisma.category.count({ where: { isActive: true } });
   console.log(`\n✅ Toplam aktif kategori: ${totalActive}`);
