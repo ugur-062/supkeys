@@ -15,7 +15,10 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
       useFactory: (config: ConfigService) => ({
         secret: config.getOrThrow<string>("JWT_SECRET"),
         signOptions: {
-          expiresIn: config.get<string>("JWT_EXPIRES_IN", "7d"),
+          // Security audit Y-1 — eski 7d default, refresh token mekanizması
+          // gelmeden access token uzun TTL ile tutmak riskli. V2 refresh
+          // token sprint'inde 15dk'ya inecek; şimdilik 1h.
+          expiresIn: config.get<string>("JWT_EXPIRES_IN", "1h"),
         },
       }),
     }),

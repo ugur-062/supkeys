@@ -15,7 +15,8 @@ import { SupplierJwtStrategy } from "./strategies/supplier-jwt.strategy";
       useFactory: (config: ConfigService) => ({
         secret: config.getOrThrow<string>("JWT_SECRET"),
         signOptions: {
-          expiresIn: config.get<string>("JWT_EXPIRES_IN", "7d"),
+          // Security audit Y-1 — V2 refresh token mekanizmasına kadar 1h
+          expiresIn: config.get<string>("JWT_EXPIRES_IN", "1h"),
         },
       }),
     }),
