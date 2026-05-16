@@ -5,10 +5,16 @@ import { usePermissions } from "@/hooks/use-permissions";
 import { useTenantAddresses } from "@/hooks/use-tenant-addresses";
 import { ADDRESS_TYPE_META, type AddressType } from "@/lib/addresses/types";
 import { Loader2, MapPin, Plus, Shield } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { BackToSettings } from "../../_components/back-to-settings";
-import { AddressFormModal } from "./address-form-modal";
+// Performans audit P-4 — 541 satırlık modal; "Yeni Adres Ekle" tıklanana
+// kadar bundle'a girmesin.
+const AddressFormModal = dynamic(
+  () => import("./address-form-modal").then((m) => m.AddressFormModal),
+  { ssr: false },
+);
 import { AddressGroupSection } from "./address-group-section";
 
 const TYPES: AddressType[] = ["FATURA", "ILETISIM", "TESLIMAT"];

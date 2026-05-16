@@ -24,9 +24,14 @@ import {
   Star,
   Trash2,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { toast } from "sonner";
-import { AddressFormModal } from "./address-form-modal";
+// Performans audit P-4 — Lazy load
+const AddressFormModal = dynamic(
+  () => import("./address-form-modal").then((m) => m.AddressFormModal),
+  { ssr: false },
+);
 
 interface Props {
   type: AddressType;

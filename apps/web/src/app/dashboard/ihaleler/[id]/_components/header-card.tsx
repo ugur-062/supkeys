@@ -27,11 +27,17 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PublishConfirmDialog } from "../../yeni/_components/publish-confirm-dialog";
-import { AwardWizardModal } from "./award-wizard-modal";
+// Performans audit P-4 — 650 satırlık wizard; kazandırma yapılana kadar
+// route bundle'ına girmesin.
+const AwardWizardModal = dynamic(
+  () => import("./award-wizard-modal").then((m) => m.AwardWizardModal),
+  { ssr: false },
+);
 import { CancelTenderDialog } from "./cancel-tender-dialog";
 import { CloseNoAwardDialog } from "./close-no-award-dialog";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
