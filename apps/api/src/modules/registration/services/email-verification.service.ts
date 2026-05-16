@@ -177,33 +177,35 @@ export class EmailVerificationService {
         ? "supplier_application_admin_alert"
         : "buyer_application_admin_alert";
 
-    for (const admin of admins) {
-      await this.emailQueue.enqueue({
-        to: { email: admin.email, name: admin.firstName },
-        templateData: {
-          template,
-          data: {
-            applicationId: payload.applicationId,
-            companyName: payload.companyName,
-            contactName: payload.contactName,
-            contactEmail: payload.contactEmail,
-            contactPhone: payload.contactPhone,
-            taxNumber: payload.taxNumber,
-            city: payload.city,
-            industry: payload.industry,
-            invitedByTenantName: payload.invitedByTenantName,
-            reviewUrl,
+    await Promise.allSettled(
+      admins.map((admin) =>
+        this.emailQueue.enqueue({
+          to: { email: admin.email, name: admin.firstName },
+          templateData: {
+            template,
+            data: {
+              applicationId: payload.applicationId,
+              companyName: payload.companyName,
+              contactName: payload.contactName,
+              contactEmail: payload.contactEmail,
+              contactPhone: payload.contactPhone,
+              taxNumber: payload.taxNumber,
+              city: payload.city,
+              industry: payload.industry,
+              invitedByTenantName: payload.invitedByTenantName,
+              reviewUrl,
+            },
           },
-        },
-        context: {
-          type: `${applicantType}_application`,
-          id: payload.applicationId,
-        },
-        subject:
-          applicantType === "supplier"
-            ? `🔔 Yeni tedarikçi başvurusu: ${payload.companyName}`
-            : `🔔 Yeni alıcı başvurusu: ${payload.companyName}`,
-      });
-    }
+          context: {
+            type: `${applicantType}_application`,
+            id: payload.applicationId,
+          },
+          subject:
+            applicantType === "supplier"
+              ? `🔔 Yeni tedarikçi başvurusu: ${payload.companyName}`
+              : `🔔 Yeni alıcı başvurusu: ${payload.companyName}`,
+        }),
+      ),
+    );
   }
 }
