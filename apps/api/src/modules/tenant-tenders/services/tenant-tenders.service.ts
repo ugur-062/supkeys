@@ -109,6 +109,11 @@ export class TenantTendersService {
 
     const orderBy = parseTenderSort(query.sort);
 
+    // Performans audit P-5 — Kategori 4-seviye `parent.parent.parent.parent`
+    // include'u kaldırıldı. Sadece categoryId'leri çekiyoruz, breadcrumb'ı
+    // CategoryService.getBreadcrumbsByIds (in-memory cache) ile hidrate
+    // ediyoruz. Eski: list başına 4 ek batched join query. Yeni: in-memory
+    // O(1) lookup. List latency ~50ms↓.
     const [items, total] = await this.prisma.$transaction([
       this.prisma.tender.findMany({
         where,
@@ -130,28 +135,7 @@ export class TenantTendersService {
             select: { id: true, firstName: true, lastName: true },
           },
           categories: {
-            include: {
-              category: {
-                include: {
-                  parent: {
-                    include: {
-                      parent: {
-                        include: {
-                          parent: {
-                            select: {
-                              id: true,
-                              nameTr: true,
-                              segmentLetter: true,
-                              level: true,
-                            },
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
+            select: { categoryId: true },
             orderBy: { createdAt: "asc" },
           },
           _count: {
@@ -161,6 +145,12 @@ export class TenantTendersService {
       }),
       this.prisma.tender.count({ where }),
     ]);
+
+    const categoryIds = Array.from(
+      new Set(items.flatMap((t) => t.categories.map((c) => c.categoryId))),
+    );
+    const breadcrumbMap =
+      await this.categoryService.getBreadcrumbsByIds(categoryIds);
 
     return {
       items: items.map((t) => ({
@@ -175,13 +165,19 @@ export class TenantTendersService {
         publishedAt: t.publishedAt,
         createdAt: t.createdAt,
         createdBy: t.createdBy,
-        categories: t.categories.map((tc) => ({
-          id: tc.category.id,
-          code: tc.category.code,
-          nameTr: tc.category.nameTr,
-          level: tc.category.level,
-          breadcrumb: buildBreadcrumb(tc.category),
-        })),
+        categories: t.categories
+          .map((tc) => {
+            const entry = breadcrumbMap.get(tc.categoryId);
+            if (!entry) return null;
+            return {
+              id: entry.node.id,
+              code: entry.node.code,
+              nameTr: entry.node.nameTr,
+              level: entry.node.level,
+              breadcrumb: entry.breadcrumb,
+            };
+          })
+          .filter((c): c is NonNullable<typeof c> => c !== null),
         itemCount: t._count.items,
         invitationCount: t._count.invitations,
         bidCount: t._count.bids,
@@ -205,29 +201,9 @@ export class TenantTendersService {
         items: {
           orderBy: { orderIndex: "asc" },
         },
+        // Performans audit P-5 — categoryId yeterli; breadcrumb cache'ten hidrate.
         categories: {
-          include: {
-            category: {
-              include: {
-                parent: {
-                  include: {
-                    parent: {
-                      include: {
-                        parent: {
-                          select: {
-                            id: true,
-                            nameTr: true,
-                            segmentLetter: true,
-                            level: true,
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
+          select: { categoryId: true },
           orderBy: { createdAt: "asc" },
         },
         invitations: {
@@ -279,15 +255,24 @@ export class TenantTendersService {
     );
 
     const { approvalRequests, categories, ...rest } = tender;
+    const breadcrumbMap = await this.categoryService.getBreadcrumbsByIds(
+      categories.map((c) => c.categoryId),
+    );
     return {
       ...rest,
-      categories: categories.map((tc) => ({
-        id: tc.category.id,
-        code: tc.category.code,
-        nameTr: tc.category.nameTr,
-        level: tc.category.level,
-        breadcrumb: buildBreadcrumb(tc.category),
-      })),
+      categories: categories
+        .map((tc) => {
+          const entry = breadcrumbMap.get(tc.categoryId);
+          if (!entry) return null;
+          return {
+            id: entry.node.id,
+            code: entry.node.code,
+            nameTr: entry.node.nameTr,
+            level: entry.node.level,
+            breadcrumb: entry.breadcrumb,
+          };
+        })
+        .filter((c): c is NonNullable<typeof c> => c !== null),
       bidStats: {
         total:
           (byStatus.SUBMITTED ?? 0) +

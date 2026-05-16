@@ -16,13 +16,117 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
  * edildiğinde o parent'ın direkt çocuklarını ister. Tedarikçi ve tender
  * "seçim" katmanları sadece Level 3+4'tür (Class veya Commodity).
  */
+/**
+ * Performans audit P-3 — Kategoriler statik (deploy'da seed edilir, runtime
+ * değişmez). Her request'te DB'ye gitmek gereksiz; 1 saatlik in-memory cache
+ * ile DB load azaltılır. HTTP Cache-Control da var ama farklı user/tenant
+ * cache hit oranı düşük; server-side cache çok daha etkili.
+ *
+ * Invalidation: seed cron'u yoksa boot süresi cache ömrü ile sınırlı; manuel
+ * yeniden başlatma yeterli (production'da kategori statik, V2-7'ye kadar
+ * değişmiyor).
+ */
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 saat
+
+interface CacheEntry<T> {
+  data: T;
+  expiresAt: number;
+}
+
+interface CategoryNode {
+  id: string;
+  code: string;
+  nameTr: string;
+  level: number;
+  parentId: string | null;
+  segmentLetter: string | null;
+}
+
 @Injectable()
 export class CategoryService {
+  private readonly rootsCache: CacheEntry<unknown> = { data: null, expiresAt: 0 };
+  private readonly childrenCache = new Map<string, CacheEntry<unknown>>();
+  /**
+   * Performans audit P-5 — Tüm aktif kategorileri tek seferde yükleyen index.
+   * `tender.list` ve `tender.findOne` her tender × kategori için 4-seviye
+   * `parent.parent.parent.parent` include'u atıyordu (her join seviyesi ayrı
+   * batched query). UNSPSC tüm subset ~4000 kayıt, ~400KB JS object → tek
+   * boot/cache turunda Map'e yüklenirse breadcrumb O(depth) lookup, list
+   * endpoint Prisma include'u tek seviyeye düşer.
+   */
+  private allCategoriesById: Map<string, CategoryNode> | null = null;
+  private allCategoriesExpiresAt = 0;
+
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Tüm aktif kategorileri Map'e yükle (1h cache). Breadcrumb lookup için
+   * `parent.parent...` zinciri burada in-memory yürütülür.
+   */
+  private async loadAllCategories(): Promise<Map<string, CategoryNode>> {
+    const now = Date.now();
+    if (
+      this.allCategoriesById &&
+      this.allCategoriesExpiresAt > now
+    ) {
+      return this.allCategoriesById;
+    }
+    const rows = await this.prisma.category.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        code: true,
+        nameTr: true,
+        level: true,
+        parentId: true,
+        segmentLetter: true,
+      },
+    });
+    const map = new Map<string, CategoryNode>();
+    for (const r of rows) {
+      map.set(r.id, r);
+    }
+    this.allCategoriesById = map;
+    this.allCategoriesExpiresAt = now + CACHE_TTL_MS;
+    return map;
+  }
+
+  /**
+   * Verilen ID'ler için breadcrumb string'lerini in-memory map üzerinden
+   * O(depth) hesaplar. Aktif olmayan veya bulunamayan ID için map'te entry yok.
+   */
+  async getBreadcrumbsByIds(
+    ids: string[],
+  ): Promise<Map<string, { node: CategoryNode; breadcrumb: string }>> {
+    if (ids.length === 0) return new Map();
+    const all = await this.loadAllCategories();
+    const result = new Map<string, { node: CategoryNode; breadcrumb: string }>();
+    for (const id of ids) {
+      const node = all.get(id);
+      if (!node) continue;
+      const parts: string[] = [];
+      let cur: CategoryNode | undefined = node;
+      while (cur) {
+        if (cur.level === 1) {
+          const letter = cur.segmentLetter ? `${cur.segmentLetter}. ` : "";
+          parts.unshift(`${letter}${cur.nameTr}`);
+        } else {
+          parts.unshift(cur.nameTr);
+        }
+        cur = cur.parentId ? all.get(cur.parentId) : undefined;
+      }
+      result.set(id, { node, breadcrumb: parts.join(" › ") });
+    }
+    return result;
+  }
+
   /** Level 1 (Segment) kategorilerini getirir — ilk açılış için. */
-  async getRoots() {
-    return this.prisma.category.findMany({
+  async getRoots(): Promise<unknown> {
+    const now = Date.now();
+    if (this.rootsCache.expiresAt > now && this.rootsCache.data !== null) {
+      return this.rootsCache.data;
+    }
+    const data = await this.prisma.category.findMany({
       where: { level: 1, isActive: true },
       orderBy: { sortOrder: "asc" },
       select: {
@@ -35,11 +139,19 @@ export class CategoryService {
         _count: { select: { children: true } },
       },
     });
+    this.rootsCache.data = data;
+    this.rootsCache.expiresAt = now + CACHE_TTL_MS;
+    return data;
   }
 
   /** Bir parent'ın direkt çocukları — lazy expand. */
-  async getChildren(parentId: string) {
-    return this.prisma.category.findMany({
+  async getChildren(parentId: string): Promise<unknown> {
+    const now = Date.now();
+    const cached = this.childrenCache.get(parentId);
+    if (cached && cached.expiresAt > now) {
+      return cached.data;
+    }
+    const data = await this.prisma.category.findMany({
       where: { parentId, isActive: true },
       orderBy: { sortOrder: "asc" },
       select: {
@@ -52,6 +164,8 @@ export class CategoryService {
         _count: { select: { children: true } },
       },
     });
+    this.childrenCache.set(parentId, { data, expiresAt: now + CACHE_TTL_MS });
+    return data;
   }
 
   /**
