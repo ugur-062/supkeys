@@ -1,12 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, Loader2, Search, X } from "lucide-react";
+import {
+  ChevronDown,
+  FolderTree,
+  Loader2,
+  Search,
+  Sparkles,
+  X,
+} from "lucide-react";
 import {
   type CategoryNode,
   type SearchTreeClass,
   type SearchTreeFamily,
   type SearchTreeSegment,
+  useCategoriesByIds,
   useCategorySearchTree,
   useChildren,
   useRoots,
@@ -59,6 +67,8 @@ export function CategorySelectorModal({
   const { data: roots, isLoading: rootsLoading } = useRoots();
   const { data: searchTree, isLoading: searchLoading } =
     useCategorySearchTree(debouncedSearch);
+  // Seçilen kategorilerin breadcrumb'larını getir — header chip listesi için.
+  const { data: selectedInfo } = useCategoriesByIds(draftIds);
 
   const isSearching = debouncedSearch.trim().length >= 2;
 
@@ -129,79 +139,138 @@ export function CategorySelectorModal({
 
   const defaultDescription =
     mode === "single"
-      ? "İhalenizin doğru tedarikçilerle eşleştirilmesi için ihale kategorisini seçmelisiniz."
-      : "Tedarik edebileceğiniz kategorileri seçmelisiniz. Doğru ihalelere davet edilmek için isabetli seçim önemlidir.";
+      ? "İhale için 1 kategori seçin — tedarikçi eşleşmesi bu seçime göre yapılır."
+      : "Tedarik edebildiğiniz kategorileri işaretleyin — ilgili ihalelere davet alırsınız.";
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-4 pb-4 sm:pt-6"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/60 px-4 pt-4 pb-4 backdrop-blur-sm sm:pt-6"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="category-modal-title"
     >
       <div
-        className="flex max-h-[94vh] w-full max-w-[90vw] flex-col rounded-2xl bg-white shadow-2xl xl:max-w-7xl"
+        className="flex max-h-[94vh] w-full max-w-[90vw] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl xl:max-w-5xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <h2
-            id="category-modal-title"
-            className="text-lg font-bold text-brand-900"
-          >
-            {title}
-          </h2>
+        {/* Header — ikon + title + subtitle */}
+        <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-gradient-to-br from-brand-50/60 to-white px-6 py-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-500/10 ring-1 ring-brand-500/20">
+              <FolderTree className="h-5 w-5 text-brand-600" />
+            </div>
+            <div>
+              <h2
+                id="category-modal-title"
+                className="font-display text-lg font-bold text-brand-900"
+              >
+                {title}
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {description ?? defaultDescription}
+              </p>
+            </div>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 hover:bg-slate-100"
+            className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
             aria-label="Kapat"
           >
-            <X className="h-5 w-5 text-slate-600" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Search + summary */}
-        <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
+        {/* Search bar */}
+        <div className="border-b border-slate-200 bg-white px-6 py-4">
           <div className="relative">
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="500'den fazla ana kategori arasından arayın"
-              className="w-full rounded-lg border border-slate-200 bg-white py-3 pl-4 pr-12 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              placeholder="Kategori ara (örn: çelik, kablo, vinç, kaynak)"
+              className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
-            <Search className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-          </div>
-          <p className="mt-2 text-xs text-slate-500">
-            {description ?? defaultDescription}
-          </p>
-
-          <div className="mt-3 flex items-center justify-between text-sm">
-            <span className="text-slate-600">
-              {mode === "single"
-                ? draftIds.length > 0
-                  ? "1 kategori seçildi"
-                  : "Henüz kategori seçilmedi"
-                : `${draftIds.length} kategori seçildi (max ${maxSelection})`}
-            </span>
-            {draftIds.length > 0 ? (
+            {search ? (
               <button
                 type="button"
-                onClick={() => setDraftIds([])}
-                className="text-sm font-semibold text-brand-600 hover:text-brand-700"
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                aria-label="Aramayı temizle"
               >
-                Tüm Seçimi Temizle
+                <X className="h-4 w-4" />
               </button>
             ) : null}
           </div>
-
-          {warningMsg ? (
-            <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-              ⚠️ {warningMsg}
-            </div>
-          ) : null}
         </div>
+
+        {/* Seçilenler — chip listesi (mode=multi'de görünür) */}
+        {mode === "multi" ? (
+          <div className="border-b border-slate-200 bg-slate-50/60 px-6 py-3">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600">
+                <Sparkles className="h-3.5 w-3.5 text-brand-500" />
+                Seçimleriniz
+                <span className="ml-1 rounded-full bg-brand-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {draftIds.length}/{maxSelection}
+                </span>
+              </span>
+              {draftIds.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setDraftIds([])}
+                  className="text-xs font-semibold text-slate-500 hover:text-danger-600"
+                >
+                  Tümünü temizle
+                </button>
+              ) : null}
+            </div>
+            {draftIds.length === 0 ? (
+              <p className="py-1 text-xs italic text-slate-400">
+                Henüz seçim yok — aşağıdaki listeden veya arama ile kategori
+                ekleyin.
+              </p>
+            ) : (
+              <ul className="flex flex-wrap gap-1.5">
+                {draftIds.map((id) => {
+                  const info = selectedInfo?.find((c) => c.id === id);
+                  return (
+                    <li
+                      key={id}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white px-2.5 py-1 text-xs font-medium text-brand-800 shadow-sm"
+                    >
+                      <span className="max-w-[260px] truncate">
+                        {info?.nameTr ?? "Yükleniyor…"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => toggleSelection(id)}
+                        className="rounded-full p-0.5 text-brand-400 hover:bg-brand-50 hover:text-danger-600"
+                        aria-label="Kaldır"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        ) : draftIds.length > 0 ? (
+          // single-mode: küçük "seçildi" bilgi rozeti
+          <div className="border-b border-slate-200 bg-brand-50/60 px-6 py-2.5">
+            <span className="text-xs font-semibold text-brand-700">
+              ✓ Seçili: {selectedInfo?.[0]?.nameTr ?? "Yükleniyor…"}
+            </span>
+          </div>
+        ) : null}
+
+        {warningMsg ? (
+          <div className="border-b border-amber-200 bg-amber-50 px-6 py-2.5 text-xs font-medium text-amber-800">
+            ⚠️ {warningMsg}
+          </div>
+        ) : null}
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-3">
@@ -235,22 +304,31 @@ export function CategorySelectorModal({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-          >
-            Vazgeç
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={draftIds.length === 0}
-            className="rounded-lg bg-brand-500 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
-            Onayla {draftIds.length > 0 ? `(${draftIds.length})` : ""}
-          </button>
+        <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-6 py-3.5">
+          <span className="text-xs text-slate-500">
+            {mode === "multi" && draftIds.length > 0
+              ? `${draftIds.length} seçim hazır — Onayla'ya tıklayın`
+              : mode === "single" && draftIds.length === 1
+                ? "1 kategori hazır"
+                : "Listeden seçim yapın"}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+            >
+              Vazgeç
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={draftIds.length === 0}
+              className="rounded-lg bg-brand-500 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+            >
+              Onayla{draftIds.length > 0 ? ` (${draftIds.length})` : ""}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -286,8 +364,18 @@ function SegmentList({
   onToggleSelection,
   mode,
 }: SegmentListProps) {
+  if (roots.length === 0) {
+    return (
+      <div className="py-12 text-center">
+        <p className="text-sm text-slate-500">
+          Kategori bulunamadı. Sistem yöneticisiyle iletişime geçin.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <ul className="space-y-1">
+    <ul className="space-y-0.5">
       {roots.map((segment) => {
         const isExpanded = expandedSegments.has(segment.id);
         return (
@@ -295,16 +383,31 @@ function SegmentList({
             <button
               type="button"
               onClick={() => onToggleSegment(segment.id)}
-              className="flex w-full items-center justify-between rounded-lg px-2 py-3 text-left hover:bg-slate-50"
+              className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2.5 text-left transition-colors ${
+                isExpanded
+                  ? "bg-brand-50"
+                  : "hover:bg-slate-50"
+              }`}
             >
-              <span className="flex items-center gap-2 text-sm font-medium text-brand-900">
-                <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                {segment.segmentLetter ? `${segment.segmentLetter}. ` : ""}
-                {segment.nameTr}
+              <span className="flex items-center gap-3 text-sm font-semibold text-brand-900">
+                {segment.segmentLetter ? (
+                  <span
+                    className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-xs font-bold transition-colors ${
+                      isExpanded
+                        ? "bg-brand-500 text-white shadow-sm"
+                        : "bg-brand-50 text-brand-700 ring-1 ring-brand-100"
+                    }`}
+                  >
+                    {segment.segmentLetter}
+                  </span>
+                ) : (
+                  <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                )}
+                <span>{segment.nameTr}</span>
               </span>
               <ChevronDown
-                className={`h-4 w-4 text-slate-400 transition-transform ${
-                  isExpanded ? "rotate-180" : ""
+                className={`h-4 w-4 flex-shrink-0 transition-transform ${
+                  isExpanded ? "rotate-180 text-brand-600" : "text-slate-400"
                 }`}
               />
             </button>
