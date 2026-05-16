@@ -22,6 +22,18 @@ export class MessageEmailScheduler {
     private readonly configService: ConfigService,
   ) {}
 
+  /**
+   * Performans audit P-1 — Batch dependency fetch.
+   *
+   * Eski yaklaşım: her mesaj için 4 ardışık DB call (recipient + sender +
+   * context + update) → 100 mesaj × 4 = 400 sequential round-trip ≈ 2 sn.
+   * Aynı thread'de birden çok unread mesaj varsa context (order/tender)
+   * tekrar tekrar fetch ediliyordu.
+   *
+   * Yeni yaklaşım: tüm ID setleri'ni topla → 6 batch findMany (paralel) →
+   * in-memory map ile O(1) lookup → enqueue + update paralel.
+   * 100 mesaj için 4 batched query + N paralel enqueue = ~150ms (~13×).
+   */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async processNotifications(): Promise<void> {
     const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
@@ -46,151 +58,304 @@ export class MessageEmailScheduler {
     if (messages.length === 0) return;
     this.logger.log(`Processing ${messages.length} pending message email(s)`);
 
+    // 1) Already-read olanları ayır (in-memory check), tek updateMany ile kapat.
+    const alreadyReadIds: string[] = [];
+    const pendingMessages: typeof messages = [];
     for (const msg of messages) {
-      try {
-        // Mesajdan sonra karşı taraf okudu mu? (oku-zamanı > sent-zamanı)
-        const opponentReadAt =
-          msg.senderType === "TENANT_USER"
-            ? msg.thread.supplierLastReadAt
-            : msg.thread.tenantLastReadAt;
-        if (opponentReadAt && opponentReadAt >= msg.sentAt) {
-          // Okumuş — e-postaya gerek yok, mark notified.
-          await this.prisma.message.update({
-            where: { id: msg.id },
-            data: { emailNotifiedAt: new Date() },
-          });
-          continue;
-        }
-
-        const recipient = await this.resolveRecipient(msg);
-        if (!recipient) {
-          // Karşı tarafta aktif kullanıcı yok — skip & mark.
-          await this.prisma.message.update({
-            where: { id: msg.id },
-            data: { emailNotifiedAt: new Date() },
-          });
-          continue;
-        }
-
-        const senderInfo = await this.resolveSender(msg);
-        const contextLabel = await this.resolveContextLabel(
-          msg.thread.context,
-          msg.thread.contextRefId,
-        );
-        const ctaUrl = this.buildCtaUrl(
-          recipient.surface,
-          msg.thread.context,
-          msg.thread.contextRefId,
-          msg.thread.supplierId,
-        );
-
-        const isTruncated = msg.content.length > 200;
-        const messagePreview = isTruncated
-          ? msg.content.substring(0, 200)
-          : msg.content || "(dosya eki)";
-
-        await this.emailQueue.enqueue({
-          to: { email: recipient.email, name: recipient.name },
-          templateData: {
-            template: "message_notification",
-            data: {
-              recipientName: recipient.firstName,
-              senderCompanyName: senderInfo.companyName,
-              senderPersonName: senderInfo.personName,
-              contextLabel,
-              messagePreview,
-              isTruncated,
-              ctaUrl,
-            },
-          },
-          context: { type: "message", id: msg.id },
-        });
-
-        await this.prisma.message.update({
-          where: { id: msg.id },
-          data: { emailNotifiedAt: new Date() },
-        });
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        this.logger.error(
-          `Email enqueue failed for message ${msg.id}: ${errMsg}`,
-        );
+      const opponentReadAt =
+        msg.senderType === "TENANT_USER"
+          ? msg.thread.supplierLastReadAt
+          : msg.thread.tenantLastReadAt;
+      if (opponentReadAt && opponentReadAt >= msg.sentAt) {
+        alreadyReadIds.push(msg.id);
+      } else {
+        pendingMessages.push(msg);
       }
+    }
+
+    if (alreadyReadIds.length > 0) {
+      await this.prisma.message.updateMany({
+        where: { id: { in: alreadyReadIds } },
+        data: { emailNotifiedAt: new Date() },
+      });
+    }
+
+    if (pendingMessages.length === 0) return;
+
+    // 2) Dependency ID setlerini topla.
+    const recipientSupplierIds = new Set<string>();
+    const recipientTenantIds = new Set<string>();
+    const senderUserIds = new Set<string>();
+    const senderSupplierUserIds = new Set<string>();
+    const orderIds = new Set<string>();
+    const tenderIds = new Set<string>();
+
+    for (const msg of pendingMessages) {
+      if (msg.senderType === "TENANT_USER") {
+        recipientSupplierIds.add(msg.thread.supplierId);
+      } else {
+        recipientTenantIds.add(msg.thread.tenantId);
+      }
+      if (msg.senderType === "TENANT_USER" && msg.senderUserId) {
+        senderUserIds.add(msg.senderUserId);
+      } else if (
+        msg.senderType === "SUPPLIER_USER" &&
+        msg.senderSupplierUserId
+      ) {
+        senderSupplierUserIds.add(msg.senderSupplierUserId);
+      }
+      if (msg.thread.context === "ORDER") {
+        orderIds.add(msg.thread.contextRefId);
+      } else {
+        tenderIds.add(msg.thread.contextRefId);
+      }
+    }
+
+    // 3) Tüm dependencies'i paralel batch fetch et.
+    const [
+      supplierPrimaryUsers,
+      tenantAdmins,
+      senderUsers,
+      senderSupplierUsers,
+      orders,
+      tenders,
+    ] = await Promise.all([
+      recipientSupplierIds.size > 0
+        ? this.prisma.supplierUser.findMany({
+            where: {
+              supplierId: { in: [...recipientSupplierIds] },
+              isActive: true,
+            },
+            select: {
+              supplierId: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: "asc" },
+          })
+        : Promise.resolve([] as Array<{
+            supplierId: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            createdAt: Date;
+          }>),
+      recipientTenantIds.size > 0
+        ? this.prisma.user.findMany({
+            where: {
+              tenantId: { in: [...recipientTenantIds] },
+              role: "COMPANY_ADMIN",
+              isActive: true,
+            },
+            select: {
+              tenantId: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: "asc" },
+          })
+        : Promise.resolve([] as Array<{
+            tenantId: string | null;
+            email: string;
+            firstName: string;
+            lastName: string;
+            createdAt: Date;
+          }>),
+      senderUserIds.size > 0
+        ? this.prisma.user.findMany({
+            where: { id: { in: [...senderUserIds] } },
+            select: { id: true, firstName: true, lastName: true },
+          })
+        : Promise.resolve([] as Array<{
+            id: string;
+            firstName: string;
+            lastName: string;
+          }>),
+      senderSupplierUserIds.size > 0
+        ? this.prisma.supplierUser.findMany({
+            where: { id: { in: [...senderSupplierUserIds] } },
+            select: { id: true, firstName: true, lastName: true },
+          })
+        : Promise.resolve([] as Array<{
+            id: string;
+            firstName: string;
+            lastName: string;
+          }>),
+      orderIds.size > 0
+        ? this.prisma.order.findMany({
+            where: { id: { in: [...orderIds] } },
+            select: { id: true, orderNumber: true },
+          })
+        : Promise.resolve([] as Array<{ id: string; orderNumber: string }>),
+      tenderIds.size > 0
+        ? this.prisma.tender.findMany({
+            where: { id: { in: [...tenderIds] } },
+            select: { id: true, tenderNumber: true, title: true },
+          })
+        : Promise.resolve([] as Array<{
+            id: string;
+            tenderNumber: string;
+            title: string;
+          }>),
+    ]);
+
+    // 4) O(1) lookup map'leri kur. Recipient için orderBy createdAt asc geldi:
+    // her supplier/tenant için ilk match'i tut.
+    const supplierFirstUser = new Map<
+      string,
+      { email: string; firstName: string; lastName: string }
+    >();
+    for (const u of supplierPrimaryUsers) {
+      if (!supplierFirstUser.has(u.supplierId)) {
+        supplierFirstUser.set(u.supplierId, {
+          email: u.email,
+          firstName: u.firstName,
+          lastName: u.lastName,
+        });
+      }
+    }
+    const tenantFirstAdmin = new Map<
+      string,
+      { email: string; firstName: string; lastName: string }
+    >();
+    for (const u of tenantAdmins) {
+      if (u.tenantId && !tenantFirstAdmin.has(u.tenantId)) {
+        tenantFirstAdmin.set(u.tenantId, {
+          email: u.email,
+          firstName: u.firstName,
+          lastName: u.lastName,
+        });
+      }
+    }
+    const senderUserMap = new Map(
+      senderUsers.map((u) => [u.id, u] as const),
+    );
+    const senderSupplierUserMap = new Map(
+      senderSupplierUsers.map((u) => [u.id, u] as const),
+    );
+    const orderMap = new Map(orders.map((o) => [o.id, o] as const));
+    const tenderMap = new Map(tenders.map((t) => [t.id, t] as const));
+
+    const webUrl =
+      this.configService.get<string>("WEB_URL") ?? "http://localhost:3000";
+
+    // 5) Mesajları paralel işle. Her birinin enqueue + update'i bağımsız.
+    const enqueuedIds: string[] = [];
+    const skippedIds: string[] = []; // recipient yok → mark as notified (no-retry)
+
+    await Promise.allSettled(
+      pendingMessages.map(async (msg) => {
+        try {
+          // Recipient
+          const recipient =
+            msg.senderType === "TENANT_USER"
+              ? supplierFirstUser.get(msg.thread.supplierId)
+              : tenantFirstAdmin.get(msg.thread.tenantId);
+          if (!recipient) {
+            skippedIds.push(msg.id);
+            return;
+          }
+          const recipientSurface: "tenant" | "supplier" =
+            msg.senderType === "TENANT_USER" ? "supplier" : "tenant";
+
+          // Sender
+          const senderInfo = this.resolveSenderFromMaps(msg, {
+            senderUserMap,
+            senderSupplierUserMap,
+          });
+
+          // Context
+          const contextLabel = this.resolveContextLabelFromMaps(
+            msg.thread.context,
+            msg.thread.contextRefId,
+            { orderMap, tenderMap },
+          );
+
+          const ctaUrl = this.buildCtaUrl(
+            recipientSurface,
+            msg.thread.context,
+            msg.thread.contextRefId,
+            msg.thread.supplierId,
+            webUrl,
+          );
+
+          const isTruncated = msg.content.length > 200;
+          const messagePreview = isTruncated
+            ? msg.content.substring(0, 200)
+            : msg.content || "(dosya eki)";
+
+          await this.emailQueue.enqueue({
+            to: {
+              email: recipient.email,
+              name: `${recipient.firstName} ${recipient.lastName}`,
+            },
+            templateData: {
+              template: "message_notification",
+              data: {
+                recipientName: recipient.firstName,
+                senderCompanyName: senderInfo.companyName,
+                senderPersonName: senderInfo.personName,
+                contextLabel,
+                messagePreview,
+                isTruncated,
+                ctaUrl,
+              },
+            },
+            context: { type: "message", id: msg.id },
+          });
+          enqueuedIds.push(msg.id);
+        } catch (err) {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          this.logger.error(
+            `Email enqueue failed for message ${msg.id}: ${errMsg}`,
+          );
+        }
+      }),
+    );
+
+    // 6) Başarılı + skip'lenenleri tek updateMany ile notified işaretle.
+    const notifyIds = [...enqueuedIds, ...skippedIds];
+    if (notifyIds.length > 0) {
+      await this.prisma.message.updateMany({
+        where: { id: { in: notifyIds } },
+        data: { emailNotifiedAt: new Date() },
+      });
     }
   }
 
   // ---------- helpers ----------
 
-  private async resolveRecipient(msg: {
-    senderType: "TENANT_USER" | "SUPPLIER_USER";
-    thread: { tenantId: string; supplierId: string };
-  }): Promise<
-    | {
-        email: string;
-        firstName: string;
-        name: string;
-        surface: "tenant" | "supplier";
-      }
-    | null
-  > {
-    if (msg.senderType === "TENANT_USER") {
-      // Tenant gönderdi → supplier'a bildir (1. supplierUser).
-      const supUser = await this.prisma.supplierUser.findFirst({
-        where: { supplierId: msg.thread.supplierId, isActive: true },
-        select: { email: true, firstName: true, lastName: true },
-        orderBy: { createdAt: "asc" },
-      });
-      if (!supUser) return null;
-      return {
-        email: supUser.email,
-        firstName: supUser.firstName,
-        name: `${supUser.firstName} ${supUser.lastName}`,
-        surface: "supplier",
+  private resolveSenderFromMaps(
+    msg: {
+      senderType: "TENANT_USER" | "SUPPLIER_USER";
+      senderUserId: string | null;
+      senderSupplierUserId: string | null;
+      thread: {
+        tenant: { name: string };
+        supplier: { companyName: string };
       };
-    }
-    // SUPPLIER_USER gönderdi → tenant COMPANY_ADMIN'lere
-    const admin = await this.prisma.user.findFirst({
-      where: {
-        tenantId: msg.thread.tenantId,
-        role: "COMPANY_ADMIN",
-        isActive: true,
-      },
-      select: { email: true, firstName: true, lastName: true },
-      orderBy: { createdAt: "asc" },
-    });
-    if (!admin) return null;
-    return {
-      email: admin.email,
-      firstName: admin.firstName,
-      name: `${admin.firstName} ${admin.lastName}`,
-      surface: "tenant",
-    };
-  }
-
-  private async resolveSender(msg: {
-    senderType: "TENANT_USER" | "SUPPLIER_USER";
-    senderUserId: string | null;
-    senderSupplierUserId: string | null;
-    thread: {
-      tenant: { name: string };
-      supplier: { companyName: string };
-    };
-  }): Promise<{ companyName: string; personName: string }> {
+    },
+    maps: {
+      senderUserMap: Map<string, { firstName: string; lastName: string }>;
+      senderSupplierUserMap: Map<
+        string,
+        { firstName: string; lastName: string }
+      >;
+    },
+  ): { companyName: string; personName: string } {
     if (msg.senderType === "TENANT_USER" && msg.senderUserId) {
-      const u = await this.prisma.user.findUnique({
-        where: { id: msg.senderUserId },
-        select: { firstName: true, lastName: true },
-      });
+      const u = maps.senderUserMap.get(msg.senderUserId);
       return {
         companyName: msg.thread.tenant.name,
         personName: u ? `${u.firstName} ${u.lastName}` : "Kullanıcı",
       };
     }
     if (msg.senderType === "SUPPLIER_USER" && msg.senderSupplierUserId) {
-      const su = await this.prisma.supplierUser.findUnique({
-        where: { id: msg.senderSupplierUserId },
-        select: { firstName: true, lastName: true },
-      });
+      const su = maps.senderSupplierUserMap.get(msg.senderSupplierUserId);
       return {
         companyName: msg.thread.supplier.companyName,
         personName: su ? `${su.firstName} ${su.lastName}` : "Kullanıcı",
@@ -205,21 +370,19 @@ export class MessageEmailScheduler {
     };
   }
 
-  private async resolveContextLabel(
+  private resolveContextLabelFromMaps(
     context: MessageContext,
     contextRefId: string,
-  ): Promise<string> {
+    maps: {
+      orderMap: Map<string, { orderNumber: string }>;
+      tenderMap: Map<string, { tenderNumber: string; title: string }>;
+    },
+  ): string {
     if (context === "ORDER") {
-      const order = await this.prisma.order.findUnique({
-        where: { id: contextRefId },
-        select: { orderNumber: true },
-      });
+      const order = maps.orderMap.get(contextRefId);
       return order ? `Sipariş ${order.orderNumber}` : "Sipariş";
     }
-    const tender = await this.prisma.tender.findUnique({
-      where: { id: contextRefId },
-      select: { tenderNumber: true, title: true },
-    });
+    const tender = maps.tenderMap.get(contextRefId);
     return tender
       ? `İhale ${tender.tenderNumber} — ${tender.title}`
       : "İhale";
@@ -230,10 +393,8 @@ export class MessageEmailScheduler {
     context: MessageContext,
     contextRefId: string,
     supplierId: string,
+    base: string,
   ): string {
-    const base =
-      this.configService.get<string>("WEB_URL") ?? "http://localhost:3000";
-
     if (surface === "tenant") {
       if (context === "ORDER") {
         return `${base}/dashboard/siparisler/${contextRefId}?tab=messages`;
