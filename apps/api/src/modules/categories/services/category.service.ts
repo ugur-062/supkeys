@@ -41,40 +41,6 @@ export class CategoryService {
     });
   }
 
-  /** Level 1 (Segment) kategorilerini getirir — ilk açılış için. */
-  async getRoots() {
-    return this.prisma.category.findMany({
-      where: { level: 1, isActive: true },
-      orderBy: { sortOrder: "asc" },
-      select: {
-        id: true,
-        code: true,
-        nameTr: true,
-        level: true,
-        segmentLetter: true,
-        sortOrder: true,
-        _count: { select: { children: true } },
-      },
-    });
-  }
-
-  /** Bir parent'ın direkt çocukları — lazy expand. */
-  async getChildren(parentId: string) {
-    return this.prisma.category.findMany({
-      where: { parentId, isActive: true },
-      orderBy: { sortOrder: "asc" },
-      select: {
-        id: true,
-        code: true,
-        nameTr: true,
-        level: true,
-        parentId: true,
-        sortOrder: true,
-        _count: { select: { children: true } },
-      },
-    });
-  }
-
   /**
    * Search — sadece Level 3+4 (Class + Commodity) döner, 4 seviye breadcrumb ile.
    * Min 2 karakter. Top 100.
