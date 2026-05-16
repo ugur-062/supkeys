@@ -12,10 +12,21 @@ import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { Loader2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { IhaleTab } from "./_components/ihale-tab";
-import { TasarrufTab } from "./_components/tasarruf-tab";
-import { TedarikciTab } from "./_components/tedarikci-tab";
+
+// Performans audit P-8 — recharts (~150KB gzip) içeren tab'lar lazy yüklenir.
+// Kullanıcı "İhale" tab'ında geliyor; diğer 2 tab'a tıkladığında recharts
+// chunk'ı fetch edilir. Dashboard initial JS ~150KB↓, TTI ~500ms↓ (3G).
+const TasarrufTab = dynamic(
+  () => import("./_components/tasarruf-tab").then((m) => m.TasarrufTab),
+  { ssr: false, loading: () => <TabLoading /> },
+);
+const TedarikciTab = dynamic(
+  () => import("./_components/tedarikci-tab").then((m) => m.TedarikciTab),
+  { ssr: false, loading: () => <TabLoading /> },
+);
 
 const TABS = [
   { value: "ihale", label: "İhale" },
