@@ -20,3 +20,18 @@ coverage/
 
 # Geçici logo kaynak klasörü
 .logo-source/
+
+# Security audit D-3 — backup dosyaları (CLAUDE.md.backup vd.) içerikleri
+# hassas mimari/test bilgisi taşıyor. Repo'ya girmemeli.
+*.backup
+*.bak
+
+# Jest/ts-jest derleme artifact'leri — helper kaynak .ts'leri commit'lenir,
+# .js/.d.ts/.map çıktıları repo'ya girmez.
+apps/api/test/helpers/*.js
+apps/api/test/helpers/*.d.ts
+apps/api/test/helpers/*.d.ts.map
+apps/api/test/helpers/*.js.map
+
+# Windows/WSL "downloaded from internet" alternate data stream artifact'leri.
+*:Zone.Identifier
