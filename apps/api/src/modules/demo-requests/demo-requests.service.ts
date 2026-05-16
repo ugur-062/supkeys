@@ -115,27 +115,29 @@ export class DemoRequestsService {
       select: { email: true, firstName: true },
     });
 
-    for (const admin of admins) {
-      await this.emailQueue.enqueue({
-        to: { email: admin.email, name: admin.firstName },
-        templateData: {
-          template: "demo_request_admin_alert",
-          data: {
-            contactName: data.contactName,
-            companyName: data.companyName,
-            email: data.email,
-            phone: data.phone,
-            jobTitle: data.jobTitle,
-            companySize: data.companySize,
-            message: data.message,
-            demoRequestId,
-            adminPanelUrl,
+    await Promise.allSettled(
+      admins.map((admin) =>
+        this.emailQueue.enqueue({
+          to: { email: admin.email, name: admin.firstName },
+          templateData: {
+            template: "demo_request_admin_alert",
+            data: {
+              contactName: data.contactName,
+              companyName: data.companyName,
+              email: data.email,
+              phone: data.phone,
+              jobTitle: data.jobTitle,
+              companySize: data.companySize,
+              message: data.message,
+              demoRequestId,
+              adminPanelUrl,
+            },
           },
-        },
-        context,
-        subject: `🔔 Yeni demo talebi: ${data.companyName}`,
-      });
-    }
+          context,
+          subject: `🔔 Yeni demo talebi: ${data.companyName}`,
+        }),
+      ),
+    );
   }
 
   // ---------- ADMIN ----------
