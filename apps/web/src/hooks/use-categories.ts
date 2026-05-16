@@ -50,14 +50,17 @@ const FIVE_MIN_MS = 5 * 60 * 1000;
  * yüzlerce paralel /children isteği yerine tek istek (~150KB) + in-memory
  * traverse. parentId üzerinden grupla → useChildren bu cache'ten okur.
  *
- * Static veri (kategori tree V2-7'ye kadar değişmez): staleTime: Infinity.
+ * staleTime 5 dk: tedarikçi yönetim panelinden kategori ekleme/güncelleme
+ * yapıldığında alıcı/tedarikçi tarafının max 5dk'da güncel listeyi görsün.
+ * refetchOnMount: modal her açıldığında stale olabilirse yeniden çek.
  */
 export function useCategoryTree() {
   return useQuery<CategoryNode[]>({
     queryKey: ["category-tree"],
     queryFn: () => api.get("/categories/all").then((r) => r.data),
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000,
     gcTime: 24 * HOUR_MS,
+    refetchOnMount: true,
   });
 }
 

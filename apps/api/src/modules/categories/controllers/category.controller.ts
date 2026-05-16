@@ -25,10 +25,14 @@ export class CategoryController {
    * V2-6.5 — Tüm aktif kategoriler flat liste. Frontend modal'ı tek
    * fetch'le tüm tree'yi alır, in-memory traverse yapar. Birden fazla
    * segment'i ardarda açan kullanıcılarda yüzlerce paralel /children
-   * isteği yerine tek istek. ~1810 kayıt × ~80 byte ≈ ~150KB JSON.
+   * isteği yerine tek istek. ~2126 kayıt × ~80 byte ≈ ~170KB JSON.
+   *
+   * Cache-Control 60s — kategori ekleme/güncelleme sonrası max 1 dakikada
+   * tarayıcılarda görünür. Statik veri (V2-7'ye kadar değişmez) olmasına
+   * rağmen geliştirme/seed sürecinde kısa cache tutarlı sonuç verir.
    */
   @Get("all")
-  @Header("Cache-Control", "public, max-age=3600")
+  @Header("Cache-Control", "public, max-age=60")
   getAll(): Promise<unknown> {
     return this.service.getAllActive();
   }
