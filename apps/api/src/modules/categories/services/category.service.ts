@@ -318,12 +318,21 @@ export class CategoryService {
     return { segments };
   }
 
-  /** Belirli ID'lerin breadcrumb bilgisi (chip listesi için). */
+  /**
+   * Belirli ID'lerin breadcrumb bilgisi (chip listesi için).
+   *
+   * V2-6.5 fix — `isActive` filtresi kaldırıldı. Eski tender'larda seçilmiş
+   * kategori sonradan gizlenmişse (cleanup script ile `isActive=false`), chip
+   * listesinde "Yükleniyor…" sonsuza dek kalıyordu. Artık adı/breadcrumb'ı
+   * yine döner — kullanıcı eski seçimi görür ama yeni kategori seçim
+   * listesinde (getRoots/getChildren) görünmez. Hard-delete'lenmiş id boş
+   * döner (findMany doğal davranış).
+   */
   async getByIds(ids: string[]) {
     if (ids.length === 0) return [];
 
     const cats = await this.prisma.category.findMany({
-      where: { id: { in: ids }, isActive: true },
+      where: { id: { in: ids } },
       include: {
         parent: {
           include: {

@@ -151,7 +151,7 @@ export function CategorySelectorModal({
       aria-labelledby="category-modal-title"
     >
       <div
-        className="flex max-h-[94vh] w-full max-w-[90vw] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl xl:max-w-5xl"
+        className="flex max-h-[94vh] w-full max-w-[95vw] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl xl:max-w-[1400px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header — ikon + title + subtitle */}
@@ -235,13 +235,28 @@ export function CategorySelectorModal({
               <ul className="flex flex-wrap gap-1.5">
                 {draftIds.map((id) => {
                   const info = selectedInfo?.find((c) => c.id === id);
+                  // Backend henüz cevaplamadıysa veya id silinmişse:
+                  // - selectedInfo undefined (ilk fetch) → tüm chip'ler için
+                  //   skeleton dot göster.
+                  // - selectedInfo dizi ama bu id yok → kategori hard-delete,
+                  //   "(silinmiş)" işaretle, yine kaldırılabilir.
+                  const loading = selectedInfo === undefined;
+                  const missing =
+                    Array.isArray(selectedInfo) && info === undefined;
                   return (
                     <li
                       key={id}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-white px-2.5 py-1 text-xs font-medium text-brand-800 shadow-sm"
+                      className={`inline-flex items-center gap-1.5 rounded-full border bg-white px-2.5 py-1 text-xs font-medium shadow-sm ${
+                        missing
+                          ? "border-slate-200 text-slate-400 italic"
+                          : "border-brand-200 text-brand-800"
+                      }`}
                     >
                       <span className="max-w-[260px] truncate">
-                        {info?.nameTr ?? "Yükleniyor…"}
+                        {info?.nameTr ??
+                          (loading
+                            ? "…"
+                            : "(silinmiş kategori)")}
                       </span>
                       <button
                         type="button"
@@ -261,7 +276,9 @@ export function CategorySelectorModal({
           // single-mode: küçük "seçildi" bilgi rozeti
           <div className="border-b border-slate-200 bg-brand-50/60 px-6 py-2.5">
             <span className="text-xs font-semibold text-brand-700">
-              ✓ Seçili: {selectedInfo?.[0]?.nameTr ?? "Yükleniyor…"}
+              ✓ Seçili:{" "}
+              {selectedInfo?.[0]?.nameTr ??
+                (selectedInfo === undefined ? "…" : "(silinmiş kategori)")}
             </span>
           </div>
         ) : null}
