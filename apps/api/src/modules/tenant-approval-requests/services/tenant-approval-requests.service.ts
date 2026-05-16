@@ -709,11 +709,16 @@ export class TenantApprovalRequestsService {
   }
 
   private async sendApprovalApprovedEmailForRequest(requestId: string) {
-    const req = await this.prisma.approvalRequest.findUnique({
+    // Bug fix #759 — findFirst kullan (findUnique relation required olarak
+    // belirtiyor; initiator user silinmişse "Inconsistent query result"
+    // fırlatır). findFirst aynı sonucu döner ama relation null olabilir
+    // varsayar. Ayrıca initiatedBy varlığını defansif kontrol et — production
+    // RESTRICT FK ile silinemez ama test/race senaryolarında null gelebilir.
+    const req = await this.prisma.approvalRequest.findFirst({
       where: { id: requestId },
       include: REQUEST_INCLUDE,
     });
-    if (!req) return;
+    if (!req || !req.initiatedBy) return;
 
     const approvedSteps = req.steps.filter((s) => s.status === "APPROVED");
     const lastApprover = approvedSteps[approvedSteps.length - 1]?.approver;
@@ -756,13 +761,14 @@ export class TenantApprovalRequestsService {
     requestId: string,
     rejectedStepId: string,
   ) {
-    const req = await this.prisma.approvalRequest.findUnique({
+    // Bug fix #759 — findFirst + null check (yukarıdaki yorum)
+    const req = await this.prisma.approvalRequest.findFirst({
       where: { id: requestId },
       include: REQUEST_INCLUDE,
     });
-    if (!req) return;
+    if (!req || !req.initiatedBy) return;
     const rejectedStep = req.steps.find((s) => s.id === rejectedStepId);
-    if (!rejectedStep) return;
+    if (!rejectedStep || !rejectedStep.approver) return;
 
     try {
       await this.emailQueue.enqueue({
