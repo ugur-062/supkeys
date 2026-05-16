@@ -40,6 +40,7 @@ export function useApprovalRequests(params: ListApprovalRequestsParams = {}) {
     },
     staleTime: 15_000,
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false, // P-6
   });
 }
 
@@ -68,6 +69,7 @@ export function useApprovalPendingCount() {
     },
     staleTime: 30_000,
     refetchInterval: 60_000,
+    refetchIntervalInBackground: false, // P-6
   });
 }
 

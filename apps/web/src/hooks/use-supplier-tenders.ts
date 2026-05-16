@@ -39,6 +39,7 @@ export function useSupplierTenders(params: ListSupplierTendersParams) {
     },
     placeholderData: (prev) => prev,
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false, // P-6
   });
 }
 
@@ -53,6 +54,7 @@ export function useSupplierTenderDetail(id: string | null) {
     },
     enabled: !!id,
     refetchInterval: 15_000,
+    refetchIntervalInBackground: false, // P-6
   });
 }
 
@@ -66,6 +68,7 @@ export function useSupplierTenderStats() {
       return data;
     },
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false, // P-6
     staleTime: 10_000,
   });
 }

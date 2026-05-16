@@ -26,5 +26,6 @@ export function useCurrentExchangeRates() {
     },
     staleTime: 5 * 60_000,
     refetchInterval: 5 * 60_000,
+    refetchIntervalInBackground: false, // P-6 — tab inaktifken polling durur
   });
 }

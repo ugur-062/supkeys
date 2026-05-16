@@ -36,6 +36,7 @@ export function useSupplierOrders(params: ListOrdersParams) {
     },
     placeholderData: (prev) => prev,
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false, // P-6
   });
 }
 
@@ -49,6 +50,7 @@ export function useSupplierOrderStats() {
       return data;
     },
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false, // P-6
     staleTime: 10_000,
   });
 }
