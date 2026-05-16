@@ -509,6 +509,25 @@ function FamilyList({
     );
   }
 
+  // V2-6.5 — Tek family chain'i atla. Family seviyesinde sadece 1 alt
+  // kategori varsa, kullanıcıya "A → tek-B → C..." şeklinde anlamsız bir
+  // ara seviye göstermek yerine direkt Class'ları render et. Family ID
+  // selection'da kullanılmaz (sadece accordion grup başlığı idi).
+  if (families && families.length === 1) {
+    return (
+      <div className="ml-4 mt-1 border-l-2 border-brand-100 pl-3">
+        <ClassList
+          familyId={families[0].id}
+          expandedClasses={expandedClasses}
+          onToggleClass={onToggleClass}
+          selected={selected}
+          onToggleSelection={onToggleSelection}
+          mode={mode}
+        />
+      </div>
+    );
+  }
+
   return (
     <ul className="ml-4 mt-1 space-y-0.5 border-l-2 border-brand-100 pl-3">
       {(families ?? []).map((family) => {
@@ -624,6 +643,11 @@ function ClassRow({
   const commodityCount = cls._count?.children ?? 0;
   const hasCommodities = commodityCount > 0;
   const isSelected = selected.includes(cls.id);
+  // V2-6.5 — Tek commodity zincirinde otomatik açık. Kullanıcı "Class
+  // expand → tek alt görme" çift tıklamasından kurtulur. Chevron yine
+  // gözükür ama state değişmez (auto-show).
+  const autoOpen = commodityCount === 1;
+  const effectivelyExpanded = isExpanded || autoOpen;
 
   return (
     <li>
@@ -667,23 +691,26 @@ function ClassRow({
             <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">
               {commodityCount}
             </span>
-            <button
-              type="button"
-              onClick={() => onToggleExpand(cls.id)}
-              className="rounded p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
-              aria-label={isExpanded ? "Daralt" : "Genişlet"}
-            >
-              <ChevronDown
-                className={`h-4 w-4 transition-transform ${
-                  isExpanded ? "rotate-180" : ""
-                }`}
-              />
-            </button>
+            {/* Tek commodity → toggle anlamsız, chevron gizli */}
+            {!autoOpen ? (
+              <button
+                type="button"
+                onClick={() => onToggleExpand(cls.id)}
+                className="rounded p-1 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700"
+                aria-label={isExpanded ? "Daralt" : "Genişlet"}
+              >
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform ${
+                    isExpanded ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+            ) : null}
           </>
         ) : null}
       </div>
 
-      {isExpanded && hasCommodities ? (
+      {effectivelyExpanded && hasCommodities ? (
         <CommodityList
           classId={cls.id}
           selected={selected}
