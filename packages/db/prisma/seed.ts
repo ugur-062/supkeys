@@ -29,6 +29,18 @@ async function main() {
       "⚠️  INITIAL_ADMIN_EMAIL / INITIAL_ADMIN_PASSWORD .env'de yok, admin atlandı.",
     );
   } else {
+    // Security audit O-1 — Production'da placeholder/zayıf parola ile admin
+    // create etmek kritik risk. .env.example "changeme" değeri dev için
+    // tasarlandı; prod deploy'unda yanlışlıkla bırakılırsa burada fail.
+    const WEAK_PLACEHOLDERS = ["changeme", "change_me", "admin", "password"];
+    if (
+      process.env.NODE_ENV === "production" &&
+      WEAK_PLACEHOLDERS.includes(adminPassword.toLowerCase())
+    ) {
+      throw new Error(
+        `🚨 Üretim ortamında INITIAL_ADMIN_PASSWORD placeholder değer olamaz ("${adminPassword}"). .env'de güçlü bir parola koy.`,
+      );
+    }
     const existingAdmin = await prisma.platformAdmin.findUnique({
       where: { email: adminEmail.toLowerCase() },
     });
@@ -46,7 +58,10 @@ async function main() {
         },
       });
       console.log("✅ Super Admin oluşturuldu:", admin.email);
-      console.log("   Şifre:", adminPassword, "(.env'den)");
+      // Security audit K-1 — parola log'a yazılmıyor (production stdout +
+      // CI artifact'larında sızıntı riski). Parola .env'deki INITIAL_ADMIN_PASSWORD
+      // değeridir; geliştirici oradan bakar.
+      console.log("   Şifre: .env içindeki INITIAL_ADMIN_PASSWORD değeri");
     }
   }
 
@@ -86,7 +101,9 @@ async function ensureDemoCompanyAdmin(tenantId: string) {
       tenantId,
     },
   });
-  console.log("✅ Demo tenant kullanıcısı oluşturuldu:", email, "(şifre: demo12345)");
+  // Security audit K-1 — parola CLAUDE.md "Test Hesapları" tablosunda;
+  // seed log'a yazılmıyor (CI/prod stdout sızıntısı önlemi).
+  console.log("✅ Demo tenant kullanıcısı oluşturuldu:", email);
 }
 
 // CLAUDE.md test hesapları tablosu ile senkron — geliştirici onboarding için tek doğruluk kaynağı.

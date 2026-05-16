@@ -5,16 +5,11 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
+import { DUMMY_HASH } from "../../../common/auth/dummy-hash";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { buildBreadcrumb } from "../../categories/services/category.service";
 import { SupplierLoginDto } from "../dto/supplier-login.dto";
 import type { SupplierJwtPayload } from "../strategies/supplier-jwt.strategy";
-
-// Hesap bulunamadığında bcrypt.compare çalıştırarak timing attack'tan korunmak için
-// kullanılan sabit dummy hash. "invalid-password-placeholder" üzerinden bcrypt(rounds=12).
-// Sadece compare süresini eşitlemek amacıyla, hiçbir kullanıcının şifresine eşit değil.
-const DUMMY_HASH =
-  "$2b$12$8b/5VmH1kS7lHe9b8p2E6.7jZqL1k4rNQ3sP1bMxUVwYZcTfGdW6e";
 
 @Injectable()
 export class SupplierAuthService {

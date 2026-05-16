@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import type { AttachmentScope, Bid, Order, Tender } from "@supkeys/db";
+import { randomBytes } from "crypto";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { StorageService } from "../../storage/storage.service";
 
@@ -557,8 +558,11 @@ export class AttachmentsService {
     return order;
   }
 
-  /** Cuid'ten kısa bir random — geçici key suffix'i için. */
+  /**
+   * Geçici key suffix'i için kriptografik random.
+   * Security audit O-4 — Math.random() predictable; randomBytes ile değiştirildi.
+   */
   private cuidish(): string {
-    return Math.random().toString(36).slice(2, 12);
+    return randomBytes(8).toString("hex");
   }
 }

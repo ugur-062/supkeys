@@ -1,13 +1,11 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as bcrypt from "bcrypt";
+import { DUMMY_HASH } from "../../common/auth/dummy-hash";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import type { AdminJwtPayload } from "./strategies/admin-jwt.strategy";
 
-// BUG FIX #2 — timing-attack neutralizer; supplier-auth + tenant auth ile aynı pattern
-const DUMMY_HASH =
-  "$2b$12$8b/5VmH1kS7lHe9b8p2E6.7jZqL1k4rNQ3sP1bMxUVwYZcTfGdW6e";
 const INVALID_CREDENTIALS_MESSAGE = "E-posta veya şifre hatalı";
 
 @Injectable()

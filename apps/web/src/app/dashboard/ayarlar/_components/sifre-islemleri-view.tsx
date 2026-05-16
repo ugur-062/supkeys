@@ -21,7 +21,10 @@ const schema = z
     newPassword: z
       .string()
       .min(8, "En az 8 karakter")
-      .max(72, "En fazla 72 karakter"),
+      .max(72, "En fazla 72 karakter")
+      .regex(/[A-Z]/, "En az 1 büyük harf (A-Z)")
+      .regex(/[a-z]/, "En az 1 küçük harf (a-z)")
+      .regex(/\d/, "En az 1 rakam"),
     confirmPassword: z.string(),
   })
   .refine((data) => data.newPassword === data.confirmPassword, {
@@ -43,8 +46,8 @@ interface Requirement {
 
 const REQUIREMENTS: Requirement[] = [
   { key: "min", label: "En az 8 karakter", test: (pw) => pw.length >= 8 },
-  { key: "upper", label: "En az 1 büyük harf", test: (pw) => /[A-ZĞÜŞİÖÇ]/.test(pw) },
-  { key: "lower", label: "En az 1 küçük harf", test: (pw) => /[a-zğüşıiöç]/.test(pw) },
+  { key: "upper", label: "En az 1 büyük harf (A-Z)", test: (pw) => /[A-Z]/.test(pw) },
+  { key: "lower", label: "En az 1 küçük harf (a-z)", test: (pw) => /[a-z]/.test(pw) },
   { key: "digit", label: "En az 1 rakam", test: (pw) => /\d/.test(pw) },
 ];
 

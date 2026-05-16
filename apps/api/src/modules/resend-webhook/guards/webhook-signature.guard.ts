@@ -12,9 +12,10 @@ import { Webhook } from "svix";
 /**
  * V2-1 — Resend webhook svix imza doğrulayıcısı.
  *
- * Prod'da `RESEND_WEBHOOK_SECRET` zorunlu. Dev'de (NODE_ENV=development VEYA
- * secret yokken) doğrulama atlanır — local mock test scriptlerine izin
- * verilir.
+ * Security audit Y-5 — fail-closed: dev bypass artık explicit opt-in.
+ * `RESEND_WEBHOOK_SECRET` yoksa **sadece** `ALLOW_INSECURE_WEBHOOK=true` flag'i
+ * set edilmiş + non-production ortamda devre dışı kalır. Production'da
+ * `NODE_ENV` set edilmesi unutulsa bile secret yoksa 401 döner.
  *
  * IMPORTANT: Bu guard `request.rawBody`'ye erişmek zorunda; main.ts
  * `/webhooks/resend` için raw body parser ayarlanmış olmalı (`rawBody:
@@ -32,17 +33,24 @@ export class WebhookSignatureGuard implements CanActivate {
     >();
 
     const secret = this.config.get<string>("RESEND_WEBHOOK_SECRET");
-    const isProduction =
-      this.config.get<string>("NODE_ENV") === "production";
+    const nodeEnv = this.config.get<string>("NODE_ENV") ?? "development";
+    const isProduction = nodeEnv === "production";
+    const allowInsecure =
+      this.config.get<string>("ALLOW_INSECURE_WEBHOOK") === "true";
 
     if (!secret) {
-      if (!isProduction) {
-        // Dev/test ortamında secret yoksa skip — mock script ile test için
+      // Fail-closed: bypass sadece (1) explicit ALLOW_INSECURE_WEBHOOK=true
+      // VE (2) production değilse mümkün. Eksik env config production'da
+      // hata fırlatır.
+      if (!isProduction && allowInsecure) {
         this.logger.warn(
-          "RESEND_WEBHOOK_SECRET yok; webhook imza doğrulaması atlanıyor (dev)",
+          "RESEND_WEBHOOK_SECRET yok + ALLOW_INSECURE_WEBHOOK=true → imza doğrulaması atlanıyor (sadece dev/test)",
         );
         return true;
       }
+      this.logger.error(
+        `Webhook secret yapılandırılmamış (NODE_ENV=${nodeEnv}, allowInsecure=${allowInsecure})`,
+      );
       throw new UnauthorizedException("Webhook secret yapılandırılmamış");
     }
 
