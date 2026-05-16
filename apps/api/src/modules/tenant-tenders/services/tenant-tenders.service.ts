@@ -1188,50 +1188,52 @@ export class TenantTendersService {
       where: { tenderId: tender.id },
     });
 
-    for (const invitation of tender.invitations) {
-      const primary = invitation.supplier.users[0];
-      if (!primary) {
-        this.logger.warn(
-          `Invitation ${invitation.id}: aktif primary user yok, e-posta atlandı`,
-        );
-        continue;
-      }
+    await Promise.allSettled(
+      tender.invitations.map(async (invitation) => {
+        const primary = invitation.supplier.users[0];
+        if (!primary) {
+          this.logger.warn(
+            `Invitation ${invitation.id}: aktif primary user yok, e-posta atlandı`,
+          );
+          return;
+        }
 
-      try {
-        await this.emailQueue.enqueue({
-          to: { email: primary.email, name: `${primary.firstName} ${primary.lastName}` },
-          templateData: {
-            template: "tender_invitation",
-            data: {
-              supplierUserName: `${primary.firstName} ${primary.lastName}`,
-              tenantName: tender.tenant.name,
-              tenderNumber: published.tenderNumber,
-              tenderTitle: tender.title,
-              tenderUrl: `${webUrl}/supplier/ihaleler/${tender.id}`,
-              itemCount,
-              bidsCloseAtFormatted: format(
-                published.bidsCloseAt,
-                "d MMMM yyyy, HH:mm",
-                { locale: tr },
-              ),
+        try {
+          await this.emailQueue.enqueue({
+            to: { email: primary.email, name: `${primary.firstName} ${primary.lastName}` },
+            templateData: {
+              template: "tender_invitation",
+              data: {
+                supplierUserName: `${primary.firstName} ${primary.lastName}`,
+                tenantName: tender.tenant.name,
+                tenderNumber: published.tenderNumber,
+                tenderTitle: tender.title,
+                tenderUrl: `${webUrl}/supplier/ihaleler/${tender.id}`,
+                itemCount,
+                bidsCloseAtFormatted: format(
+                  published.bidsCloseAt,
+                  "d MMMM yyyy, HH:mm",
+                  { locale: tr },
+                ),
+              },
             },
-          },
-          context: { type: "tender_invitation", id: invitation.id },
-          subject: `🎯 Yeni İhale Daveti: ${tender.title} — Supkeys`,
-        });
+            context: { type: "tender_invitation", id: invitation.id },
+            subject: `🎯 Yeni İhale Daveti: ${tender.title} — Supkeys`,
+          });
 
-        await this.prisma.tenderInvitation.update({
-          where: { id: invitation.id },
-          data: { emailSentAt: new Date() },
-        });
-      } catch (err) {
-        this.logger.error(
-          `Invitation ${invitation.id} e-posta gönderilemedi: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-      }
-    }
+          await this.prisma.tenderInvitation.update({
+            where: { id: invitation.id },
+            data: { emailSentAt: new Date() },
+          });
+        } catch (err) {
+          this.logger.error(
+            `Invitation ${invitation.id} e-posta gönderilemedi: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        }
+      }),
+    );
   }
 
   // ============================================================
