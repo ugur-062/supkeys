@@ -65,15 +65,41 @@ export function useCategoryTree() {
 }
 
 /**
+ * V2-6.5 — Çocuk sayım map'i (parentId → child count). Bir kere
+ * hesaplanır, useRoots ve useChildren _count.children'ı buradan okur.
+ * Backend /categories/all _count döndürmüyor; in-memory hesaplama
+ * kullanıcı için "alt kategori var mı" göstergesini doğru yapar
+ * (chevron, folder ikonu, tek-child auto-expand).
+ */
+function useChildCountMap(tree: CategoryNode[] | undefined) {
+  return useMemo(() => {
+    if (!tree) return null;
+    const map = new Map<string, number>();
+    for (const c of tree) {
+      if (c.parentId) {
+        map.set(c.parentId, (map.get(c.parentId) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [tree]);
+}
+
+/**
  * Level 1 (Segment) listesi — modal ilk açılışta. category-tree
  * cache'inden filtre, ek network çağrısı yok.
  */
 export function useRoots() {
   const { data: tree, isLoading } = useCategoryTree();
+  const childCountMap = useChildCountMap(tree);
   const data = useMemo(() => {
-    if (!tree) return undefined;
-    return tree.filter((c) => c.level === 1);
-  }, [tree]);
+    if (!tree || !childCountMap) return undefined;
+    return tree
+      .filter((c) => c.level === 1)
+      .map((c) => ({
+        ...c,
+        _count: { children: childCountMap.get(c.id) ?? 0 },
+      }));
+  }, [tree, childCountMap]);
   return { data, isLoading };
 }
 
@@ -81,13 +107,22 @@ export function useRoots() {
  * Bir parent'ın direkt çocukları — category-tree cache'inden filtre,
  * ek network çağrısı yok. Eskiden her parentId için ayrı /children
  * fetch idi → birden çok segment açılınca patlama yaşanıyordu.
+ *
+ * _count.children in-memory hesaplanır — ClassRow/FamilyList'in
+ * "expand var mı / klasör ikon göster" mantığı buna bağlı.
  */
 export function useChildren(parentId: string | null | undefined) {
   const { data: tree, isLoading } = useCategoryTree();
+  const childCountMap = useChildCountMap(tree);
   const data = useMemo(() => {
-    if (!tree || !parentId) return undefined;
-    return tree.filter((c) => c.parentId === parentId);
-  }, [tree, parentId]);
+    if (!tree || !parentId || !childCountMap) return undefined;
+    return tree
+      .filter((c) => c.parentId === parentId)
+      .map((c) => ({
+        ...c,
+        _count: { children: childCountMap.get(c.id) ?? 0 },
+      }));
+  }, [tree, parentId, childCountMap]);
   return { data, isLoading };
 }
 
