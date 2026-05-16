@@ -92,21 +92,21 @@ export class ApprovalReminderService {
     let sent = 0;
     let skipped = 0;
 
-    for (const request of stale) {
+    const tasks = stale.map(async (request) => {
       const pendingStep = request.steps[0];
       if (!pendingStep) {
         skipped++;
         this.logger.warn(
           `Skipping ${request.approvalNumber}: no PENDING step found`,
         );
-        continue;
+        return;
       }
       if (!pendingStep.approver.isActive) {
         skipped++;
         this.logger.warn(
           `Skipping ${request.approvalNumber}: approver pasif (fallback cron ilgilenir)`,
         );
-        continue;
+        return;
       }
 
       const daysWaiting = Math.max(
@@ -159,7 +159,9 @@ export class ApprovalReminderService {
           }`,
         );
       }
-    }
+    });
+
+    await Promise.allSettled(tasks);
 
     this.logger.log(
       `Approval reminder scan complete: sent=${sent}, skipped=${skipped}`,
