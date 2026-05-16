@@ -25,15 +25,6 @@ export interface CategoryNode {
   _count?: { children: number };
 }
 
-export interface CategorySearchResult {
-  id: string;
-  code: string;
-  nameTr: string;
-  level: number;
-  parentId?: string | null;
-  breadcrumb: string;
-}
-
 export interface CategoryWithBreadcrumb {
   id: string;
   code: string;
@@ -124,20 +115,6 @@ export function useChildren(parentId: string | null | undefined) {
       }));
   }, [tree, parentId, childCountMap]);
   return { data, isLoading };
-}
-
-/** Class+Commodity arama (min 2 char). Backend zaten min-char enforce eder. */
-export function useCategorySearch(query: string) {
-  const trimmed = query.trim();
-  return useQuery<CategorySearchResult[]>({
-    queryKey: ["category-search", trimmed],
-    queryFn: () =>
-      api
-        .get("/categories/search", { params: { q: trimmed } })
-        .then((r) => r.data),
-    enabled: trimmed.length >= 2,
-    staleTime: FIVE_MIN_MS,
-  });
 }
 
 export interface SearchTreeCommodity {

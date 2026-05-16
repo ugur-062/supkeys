@@ -42,52 +42,6 @@ export class CategoryService {
   }
 
   /**
-   * Search — sadece Level 3+4 (Class + Commodity) döner, 4 seviye breadcrumb ile.
-   * Min 2 karakter. Top 100.
-   */
-  async search(query: string) {
-    const q = query?.trim() ?? "";
-    if (q.length < 2) return [];
-
-    const matched = await this.prisma.category.findMany({
-      where: {
-        isActive: true,
-        level: { in: [3, 4] },
-        nameTr: { contains: q, mode: "insensitive" },
-      },
-      include: {
-        parent: {
-          include: {
-            parent: {
-              include: {
-                parent: {
-                  select: {
-                    id: true,
-                    nameTr: true,
-                    segmentLetter: true,
-                    level: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      take: 100,
-      orderBy: [{ level: "desc" }, { sortOrder: "asc" }],
-    });
-
-    return matched.map((c) => ({
-      id: c.id,
-      code: c.code,
-      nameTr: c.nameTr,
-      level: c.level,
-      parentId: c.parentId,
-      breadcrumb: buildBreadcrumb(c),
-    }));
-  }
-
-  /**
    * Hiyerarşik search — eşleşen Class/Commodity'leri parent path'leri ile birlikte
    * tree olarak döner. Aynı segment/family altındaki match'ler birlikte gruplanır;
    * eşleşmeyen kardeşler gizlenir. Frontend modalında PratisPro tarzı render için.

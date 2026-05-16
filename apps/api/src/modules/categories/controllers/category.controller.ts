@@ -23,11 +23,6 @@ export class CategoryController {
     return this.service.getAllActive();
   }
 
-  @Get("search")
-  search(@Query("q") query?: string): Promise<unknown> {
-    return this.service.search(query ?? "");
-  }
-
   @Get("search-tree")
   @Header("Cache-Control", "no-cache")
   searchTree(@Query("q") query?: string): Promise<unknown> {
