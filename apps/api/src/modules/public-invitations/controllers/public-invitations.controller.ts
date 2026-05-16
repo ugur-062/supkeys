@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { AcceptInvitationDto } from "../dto/accept-invitation.dto";
 import { PublicInvitationsService } from "../services/public-invitations.service";
 
@@ -18,6 +19,8 @@ export class PublicInvitationsController {
     return this.service.getByToken(token);
   }
 
+  // Security audit O-1 — token brute-force koruması: dakikada 5 deneme/IP
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post(":token/accept")
   accept(
     @Param("token") token: string,
