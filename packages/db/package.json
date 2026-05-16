@@ -13,6 +13,7 @@
     "cleanup-pending-relations": "tsx prisma/scripts/cleanup-pending-relations.ts",
     "v15-cleanup": "tsx prisma/scripts/v15-cleanup.ts",
     "seed-categories": "tsx prisma/scripts/seed-categories.ts",
+    "cleanup-categories": "tsx prisma/scripts/cleanup-categories.ts",
     "format": "prisma format",
     "typecheck": "tsc --noEmit"
   },
