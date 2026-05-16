@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
@@ -44,28 +45,47 @@ export interface CategoryWithBreadcrumb {
 const HOUR_MS = 60 * 60 * 1000;
 const FIVE_MIN_MS = 5 * 60 * 1000;
 
-/** Level 1 (Segment) listesi — modal ilk açılışta tek istek. */
-export function useRoots() {
+/**
+ * V2-6.5 — Tüm aktif kategoriler tek fetch. Modal/segment expand'lerinde
+ * yüzlerce paralel /children isteği yerine tek istek (~150KB) + in-memory
+ * traverse. parentId üzerinden grupla → useChildren bu cache'ten okur.
+ *
+ * Static veri (kategori tree V2-7'ye kadar değişmez): staleTime: Infinity.
+ */
+export function useCategoryTree() {
   return useQuery<CategoryNode[]>({
-    queryKey: ["category-roots"],
-    queryFn: () => api.get("/categories/roots").then((r) => r.data),
-    staleTime: HOUR_MS,
+    queryKey: ["category-tree"],
+    queryFn: () => api.get("/categories/all").then((r) => r.data),
+    staleTime: Infinity,
     gcTime: 24 * HOUR_MS,
   });
 }
 
-/** Bir parent'ın direkt çocukları — lazy expand. Enabled sadece parentId varsa. */
+/**
+ * Level 1 (Segment) listesi — modal ilk açılışta. category-tree
+ * cache'inden filtre, ek network çağrısı yok.
+ */
+export function useRoots() {
+  const { data: tree, isLoading } = useCategoryTree();
+  const data = useMemo(() => {
+    if (!tree) return undefined;
+    return tree.filter((c) => c.level === 1);
+  }, [tree]);
+  return { data, isLoading };
+}
+
+/**
+ * Bir parent'ın direkt çocukları — category-tree cache'inden filtre,
+ * ek network çağrısı yok. Eskiden her parentId için ayrı /children
+ * fetch idi → birden çok segment açılınca patlama yaşanıyordu.
+ */
 export function useChildren(parentId: string | null | undefined) {
-  return useQuery<CategoryNode[]>({
-    queryKey: ["category-children", parentId],
-    queryFn: () =>
-      api
-        .get("/categories/children", { params: { parentId } })
-        .then((r) => r.data),
-    enabled: Boolean(parentId),
-    staleTime: HOUR_MS,
-    gcTime: 24 * HOUR_MS,
-  });
+  const { data: tree, isLoading } = useCategoryTree();
+  const data = useMemo(() => {
+    if (!tree || !parentId) return undefined;
+    return tree.filter((c) => c.parentId === parentId);
+  }, [tree, parentId]);
+  return { data, isLoading };
 }
 
 /** Class+Commodity arama (min 2 char). Backend zaten min-char enforce eder. */

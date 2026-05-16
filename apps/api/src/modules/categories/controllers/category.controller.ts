@@ -21,6 +21,18 @@ export class CategoryController {
     return this.service.getRoots();
   }
 
+  /**
+   * V2-6.5 — Tüm aktif kategoriler flat liste. Frontend modal'ı tek
+   * fetch'le tüm tree'yi alır, in-memory traverse yapar. Birden fazla
+   * segment'i ardarda açan kullanıcılarda yüzlerce paralel /children
+   * isteği yerine tek istek. ~1810 kayıt × ~80 byte ≈ ~150KB JSON.
+   */
+  @Get("all")
+  @Header("Cache-Control", "public, max-age=3600")
+  getAll(): Promise<unknown> {
+    return this.service.getAllActive();
+  }
+
   @Get("children")
   @Header("Cache-Control", "public, max-age=3600")
   getChildren(@Query("parentId") parentId?: string): Promise<unknown> {

@@ -20,6 +20,27 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
 export class CategoryService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * V2-6.5 — Tüm aktif kategoriler (flat). Modal'ın tek seferde
+   * tree'nin tamamını çekmesi için. parentId üzerinden client-side
+   * traverse yapılır; lazy /children endpoint çağrıları gerekmez.
+   */
+  async getAllActive() {
+    return this.prisma.category.findMany({
+      where: { isActive: true },
+      orderBy: [{ level: "asc" }, { sortOrder: "asc" }],
+      select: {
+        id: true,
+        code: true,
+        nameTr: true,
+        level: true,
+        parentId: true,
+        segmentLetter: true,
+        sortOrder: true,
+      },
+    });
+  }
+
   /** Level 1 (Segment) kategorilerini getirir — ilk açılış için. */
   async getRoots() {
     return this.prisma.category.findMany({

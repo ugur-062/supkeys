@@ -392,60 +392,89 @@ function SegmentList({
     );
   }
 
-  return (
-    <ul className="space-y-0.5">
-      {roots.map((segment) => {
-        const isExpanded = expandedSegments.has(segment.id);
-        return (
-          <li key={segment.id}>
-            <button
-              type="button"
-              onClick={() => onToggleSegment(segment.id)}
-              className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2.5 text-left transition-colors ${
-                isExpanded
-                  ? "bg-brand-50"
-                  : "hover:bg-slate-50"
-              }`}
-            >
-              <span className="flex items-center gap-3 text-sm font-semibold text-brand-900">
-                {segment.segmentLetter ? (
-                  <span
-                    className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-xs font-bold transition-colors ${
-                      isExpanded
-                        ? "bg-brand-500 text-white shadow-sm"
-                        : "bg-brand-50 text-brand-700 ring-1 ring-brand-100"
-                    }`}
-                  >
-                    {segment.segmentLetter}
-                  </span>
-                ) : (
-                  <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                )}
-                <span>{segment.nameTr}</span>
-              </span>
-              <ChevronDown
-                className={`h-4 w-4 flex-shrink-0 transition-transform ${
-                  isExpanded ? "rotate-180 text-brand-600" : "text-slate-400"
-                }`}
-              />
-            </button>
+  // UNSPSC standardı: 70-89 arası segment kodları hizmettir, diğerleri
+  // mal/ürün/ekipman. Roots'u 2 grup olarak render ediyoruz.
+  const malSegments = roots.filter(
+    (s) => s.code[0] !== "7" && s.code[0] !== "8",
+  );
+  const hizmetSegments = roots.filter(
+    (s) => s.code[0] === "7" || s.code[0] === "8",
+  );
 
-            {isExpanded ? (
-              <FamilyList
-                segmentId={segment.id}
-                expandedFamilies={expandedFamilies}
-                expandedClasses={expandedClasses}
-                onToggleFamily={onToggleFamily}
-                onToggleClass={onToggleClass}
-                selected={selected}
-                onToggleSelection={onToggleSelection}
-                mode={mode}
-              />
-            ) : null}
-          </li>
-        );
-      })}
-    </ul>
+  const renderSegment = (segment: CategoryNode) => {
+    const isExpanded = expandedSegments.has(segment.id);
+    return (
+      <li key={segment.id}>
+        <button
+          type="button"
+          onClick={() => onToggleSegment(segment.id)}
+          className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2.5 text-left transition-colors ${
+            isExpanded ? "bg-brand-50" : "hover:bg-slate-50"
+          }`}
+        >
+          <span className="flex items-center gap-3 text-sm font-semibold text-brand-900">
+            {segment.segmentLetter ? (
+              <span
+                className={`flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md text-xs font-bold transition-colors ${
+                  isExpanded
+                    ? "bg-brand-500 text-white shadow-sm"
+                    : "bg-brand-50 text-brand-700 ring-1 ring-brand-100"
+                }`}
+              >
+                {segment.segmentLetter}
+              </span>
+            ) : (
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+            )}
+            <span>{segment.nameTr}</span>
+          </span>
+          <ChevronDown
+            className={`h-4 w-4 flex-shrink-0 transition-transform ${
+              isExpanded ? "rotate-180 text-brand-600" : "text-slate-400"
+            }`}
+          />
+        </button>
+
+        {isExpanded ? (
+          <FamilyList
+            segmentId={segment.id}
+            expandedFamilies={expandedFamilies}
+            expandedClasses={expandedClasses}
+            onToggleFamily={onToggleFamily}
+            onToggleClass={onToggleClass}
+            selected={selected}
+            onToggleSelection={onToggleSelection}
+            mode={mode}
+          />
+        ) : null}
+      </li>
+    );
+  };
+
+  return (
+    <div className="space-y-5">
+      {malSegments.length > 0 ? (
+        <section>
+          <h3 className="mb-2 flex items-center gap-2 px-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span>Mal ve Ekipman ({malSegments.length})</span>
+            <span className="h-px flex-1 bg-slate-200" />
+          </h3>
+          <ul className="space-y-0.5">{malSegments.map(renderSegment)}</ul>
+        </section>
+      ) : null}
+
+      {hizmetSegments.length > 0 ? (
+        <section>
+          <h3 className="mb-2 flex items-center gap-2 px-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            <span className="h-px flex-1 bg-slate-200" />
+            <span>Hizmetler ({hizmetSegments.length})</span>
+            <span className="h-px flex-1 bg-slate-200" />
+          </h3>
+          <ul className="space-y-0.5">{hizmetSegments.map(renderSegment)}</ul>
+        </section>
+      ) : null}
+    </div>
   );
 }
 
@@ -612,6 +641,16 @@ function ClassRow({
           className="h-4 w-4 flex-shrink-0 cursor-pointer accent-brand-500"
           aria-label={cls.nameTr}
         />
+        {/* Alt kategorisi varsa klasör ikonu — Family ile aynı görsel ipucu */}
+        {hasCommodities ? (
+          isExpanded ? (
+            <FolderOpen className="h-4 w-4 flex-shrink-0 text-brand-500" />
+          ) : (
+            <Folder className="h-4 w-4 flex-shrink-0 text-slate-400" />
+          )
+        ) : (
+          <span className="h-1 w-1 flex-shrink-0 rounded-full bg-slate-400" />
+        )}
         <button
           type="button"
           onClick={() => onToggleSelection(cls.id)}
