@@ -37,6 +37,8 @@ export function useOrders(params: ListOrdersParams) {
     },
     placeholderData: (prev) => prev,
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false, // P-6
+    staleTime: 10_000, // P-7
   });
 }
 
@@ -48,6 +50,7 @@ export function useOrderStats() {
       return data;
     },
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false, // P-6
     staleTime: 10_000,
   });
 }
@@ -60,6 +63,7 @@ export function useOrderDetail(id: string | null) {
       return data;
     },
     enabled: !!id,
+    staleTime: 10_000, // P-7
   });
 }
 

@@ -1,7 +1,8 @@
 "use client";
 
+import { useNow } from "@/hooks/use-now";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 
 interface CountdownFullProps {
   deadline: string;
@@ -34,17 +35,15 @@ function parts(deadline: Date, now: Date = new Date()): Parts {
 /**
  * Saniye-saniye uzun format ("23 saat 40 dakika 1 saniye"). PratisPro tarzı.
  * Süre dolduğunda "Süre doldu" metnini döner.
+ *
+ * Performans audit P-11 — Paylaşılan `useNow(1000)` ile module-level tek
+ * setInterval. Tek instance'lık kullanım için fark yok, ama liste içine
+ * gömüldüğünde önemli (N component → 1 timer).
  */
 export function CountdownFull({ deadline, className }: CountdownFullProps) {
-  const [p, setP] = useState<Parts>(() => parts(new Date(deadline)));
-
-  useEffect(() => {
-    const target = new Date(deadline);
-    const tick = () => setP(parts(target));
-    tick();
-    const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
-  }, [deadline]);
+  const target = useMemo(() => new Date(deadline), [deadline]);
+  const now = useNow(1000);
+  const p = parts(target, new Date(now));
 
   if (p.totalMs <= 0) {
     return (

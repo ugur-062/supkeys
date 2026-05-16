@@ -395,78 +395,81 @@ export class SupplierInvitationsService {
       existingSupplierUsers.map((r) => r.email),
     );
 
-    const results: BatchInvitationResult[] = [];
+    // Performans audit P-2 — Email'leri paralel işle.
+    // Eski: `for (const email of emails)` her email için ardışık
+    //   generateUniqueShortCode (5 DB query'e kadar) + supplierInvitation.create
+    //   → 20 email × ~7 query = 140 ardışık ≈ 700ms.
+    // Yeni: Promise.all ile paralel. Unique constraint çakışmasında catch zaten
+    //   "ALREADY_INVITED" gibi sun — yarış koşulu güvenli.
+    const results: BatchInvitationResult[] = await Promise.all(
+      emails.map(async (email): Promise<BatchInvitationResult> => {
+        if (supplierEmails.has(email)) {
+          return { email, success: false, reason: "ALREADY_SUPPLIER" };
+        }
+        if (invitedEmails.has(email)) {
+          return { email, success: false, reason: "ALREADY_INVITED" };
+        }
 
-    for (const email of emails) {
-      if (supplierEmails.has(email)) {
-        results.push({ email, success: false, reason: "ALREADY_SUPPLIER" });
-        continue;
-      }
-      if (invitedEmails.has(email)) {
-        results.push({ email, success: false, reason: "ALREADY_INVITED" });
-        continue;
-      }
-
-      const isExistingSupplier = existingSupplierEmails.has(email);
-      const plainToken = generateRegistrationToken();
-      const tokenHash = hashToken(plainToken);
-      const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
-      let shortCode: string;
-      try {
-        shortCode = await this.generateUniqueShortCode();
-      } catch (err) {
-        this.logger.error(
-          `Short code generation failed for ${email}: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-        results.push({ email, success: false, reason: "ALREADY_INVITED" });
-        continue;
-      }
-
-      try {
-        const invitation = await this.prisma.supplierInvitation.create({
-          data: {
-            tenantId,
-            invitedByUserId: inviterUserId,
-            email,
-            contactName: dto.contactName?.trim(),
-            message: dto.message?.trim(),
-            tokenHash,
-            shortCode,
-            expiresAt,
-            status: "PENDING",
-            isExistingSupplier,
-          },
-          include: {
-            tenant: { select: { name: true } },
-            invitedByUser: { select: { firstName: true, lastName: true } },
-          },
-        });
-
-        results.push({
-          email,
-          success: true,
-          invitationId: invitation.id,
-        });
-
-        this.dispatchInvitationEmail(invitation, plainToken).catch((err) => {
+        const isExistingSupplier = existingSupplierEmails.has(email);
+        const plainToken = generateRegistrationToken();
+        const tokenHash = hashToken(plainToken);
+        const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
+        let shortCode: string;
+        try {
+          shortCode = await this.generateUniqueShortCode();
+        } catch (err) {
           this.logger.error(
-            `Batch invitation email enqueue failed (${invitation.id}): ${
+            `Short code generation failed for ${email}: ${
               err instanceof Error ? err.message : String(err)
             }`,
           );
-        });
-      } catch (err) {
-        // Yarış koşulunda unique violation gelirse "zaten davetli" gibi sun
-        this.logger.warn(
-          `Batch invitation create failed for ${email}: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-        results.push({ email, success: false, reason: "ALREADY_INVITED" });
-      }
-    }
+          return { email, success: false, reason: "ALREADY_INVITED" };
+        }
+
+        try {
+          const invitation = await this.prisma.supplierInvitation.create({
+            data: {
+              tenantId,
+              invitedByUserId: inviterUserId,
+              email,
+              contactName: dto.contactName?.trim(),
+              message: dto.message?.trim(),
+              tokenHash,
+              shortCode,
+              expiresAt,
+              status: "PENDING",
+              isExistingSupplier,
+            },
+            include: {
+              tenant: { select: { name: true } },
+              invitedByUser: { select: { firstName: true, lastName: true } },
+            },
+          });
+
+          this.dispatchInvitationEmail(invitation, plainToken).catch((err) => {
+            this.logger.error(
+              `Batch invitation email enqueue failed (${invitation.id}): ${
+                err instanceof Error ? err.message : String(err)
+              }`,
+            );
+          });
+
+          return {
+            email,
+            success: true,
+            invitationId: invitation.id,
+          };
+        } catch (err) {
+          // Yarış koşulunda unique violation gelirse "zaten davetli" gibi sun
+          this.logger.warn(
+            `Batch invitation create failed for ${email}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+          return { email, success: false, reason: "ALREADY_INVITED" };
+        }
+      }),
+    );
 
     const successCount = results.filter((r) => r.success).length;
     return {

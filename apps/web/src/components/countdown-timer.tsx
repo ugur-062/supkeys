@@ -1,7 +1,8 @@
 "use client";
 
+import { useNow } from "@/hooks/use-now";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 
 interface CountdownTimerProps {
   /** ISO datetime string */
@@ -32,13 +33,6 @@ function parts(deadline: Date, now: Date = new Date()): Parts {
   return { days, hours, minutes, seconds, totalMs };
 }
 
-function pickInterval(totalMs: number): number {
-  if (totalMs <= 0) return 60_000; // Süre dolmuşsa nadiren güncelle
-  if (totalMs < 60 * 60 * 1000) return 1_000; // <1sa: saniye-saniye
-  if (totalMs < 24 * 60 * 60 * 1000) return 60_000; // <24sa: dakika
-  return 60_000; // >24sa: dakika yeterli
-}
-
 function formatParts(p: Parts): string {
   if (p.totalMs <= 0) return "Süresi Doldu";
   if (p.days > 0) return `${p.days} gün ${p.hours} saat`;
@@ -47,21 +41,30 @@ function formatParts(p: Parts): string {
   return `${p.seconds} sn`;
 }
 
+/**
+ * Performans audit P-11 — Her instance kendi `setInterval`'ını kurmak yerine
+ * paylaşılan `useNow` hook'unu kullanır. Tenders liste sayfasında 20 satır =
+ * önceden 20 timer, şimdi 1 timer.
+ *
+ * Bucket: <1 saat kalan tender'lar saniye-saniye (1s) tick alır; daha
+ * uzunları dakika-bazlı (60s) tick yeterli. Mount anında karar verilir;
+ * eşik geçişlerinde diğer bucket'a kendiliğinden geçmez (kullanıcı sayfayı
+ * yenileyince ya da satır remount olunca yeniden hesaplanır — pratik kabul).
+ */
 export function CountdownTimer({
   deadline,
   className,
   expiredLabel = "Süresi Doldu",
 }: CountdownTimerProps) {
-  const target = new Date(deadline);
-  const [p, setP] = useState<Parts>(() => parts(target));
-
-  useEffect(() => {
-    const tick = () => setP(parts(target));
-    tick();
-    const interval = setInterval(tick, pickInterval(p.totalMs));
-    return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deadline]);
+  const target = useMemo(() => new Date(deadline), [deadline]);
+  const initialTotalMs = useMemo(
+    () => target.getTime() - Date.now(),
+    [target],
+  );
+  const bucket: 1000 | 60_000 =
+    initialTotalMs > 0 && initialTotalMs < 60 * 60 * 1000 ? 1000 : 60_000;
+  const now = useNow(bucket);
+  const p = parts(target, new Date(now));
 
   // Renk: <1sa kalan süreler kırmızı, <24sa sarı, daha fazlası nötr
   const tone =

@@ -42,6 +42,7 @@ export function useSuppliers(params: ListSuppliersParams) {
       return data;
     },
     placeholderData: (prev) => prev,
+    staleTime: 30_000, // P-7
   });
 }
 
@@ -68,6 +69,7 @@ export function useSupplierDetail(id: string | null) {
       return data;
     },
     enabled: !!id,
+    staleTime: 30_000, // P-7
   });
 }
 

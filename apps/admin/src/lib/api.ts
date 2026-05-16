@@ -1,9 +1,10 @@
 import axios, { type AxiosError } from "axios";
 import { toast } from "sonner";
 import { useAdminAuthStore } from "./auth/store";
+import { resolveApiBaseUrl } from "./resolve-api-url";
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api",
+  baseURL: resolveApiBaseUrl(),
   headers: {
     "Content-Type": "application/json",
   },

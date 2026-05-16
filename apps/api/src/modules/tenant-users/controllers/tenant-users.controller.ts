@@ -8,6 +8,7 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
   CurrentUser,
   type AuthenticatedUser,
@@ -54,6 +55,8 @@ export class TenantUsersController {
     return this.service.update(user.tenantId, user.id, user.id, safe);
   }
 
+  // Security audit O-1 — sensitive endpoint, dakikada 5 deneme
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("change-password")
   changePassword(
     @CurrentUser() user: AuthenticatedUser,

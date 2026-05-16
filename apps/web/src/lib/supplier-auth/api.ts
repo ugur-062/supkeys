@@ -2,6 +2,7 @@
 
 import axios, { type AxiosError } from "axios";
 import { toast } from "sonner";
+import { resolveApiBaseUrl } from "../resolve-api-url";
 import { useSupplierAuthStore } from "./store";
 
 /**
@@ -9,7 +10,7 @@ import { useSupplierAuthStore } from "./store";
  * Kendi store'undan token okur, 401'de kendi login sayfasına yönlendirir.
  */
 export const supplierApi = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api",
+  baseURL: resolveApiBaseUrl(),
   headers: { "Content-Type": "application/json" },
 });
 

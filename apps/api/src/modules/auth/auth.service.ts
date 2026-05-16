@@ -2,16 +2,12 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type { UserRole } from "@supkeys/db";
 import * as bcrypt from "bcrypt";
+import { DUMMY_HASH } from "../../common/auth/dummy-hash";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { LoginDto } from "./dto/login.dto";
 import { resolveUserPermissions } from "./permissions/permissions.utils";
 import type { JwtPayload } from "./strategies/jwt.strategy";
 
-// Timing-attack neutralizer: hesap bulunmasa bile bcrypt.compare çalıştırılır
-// ki "email bilinmiyor" vs "şifre yanlış" arasındaki response süresi farkı
-// (user enumeration vektörü) kapansın. supplier-auth aynı pattern'i kullanıyor.
-const DUMMY_HASH =
-  "$2b$12$8b/5VmH1kS7lHe9b8p2E6.7jZqL1k4rNQ3sP1bMxUVwYZcTfGdW6e";
 const INVALID_CREDENTIALS_MESSAGE = "E-posta veya şifre hatalı";
 
 @Injectable()

@@ -13,5 +13,12 @@
     "noUncheckedIndexedAccess": false
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/scripts/**/*"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/scripts/**/*",
+    "src/**/*.spec.ts",
+    "src/**/*.e2e.spec.ts",
+    "src/**/*.integration.spec.ts"
+  ]
 }

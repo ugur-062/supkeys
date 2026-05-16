@@ -1,4 +1,4 @@
-import { IsString, MaxLength, MinLength } from "class-validator";
+import { IsString, Matches, MaxLength, MinLength } from "class-validator";
 
 export class ChangePasswordDto {
   @IsString()
@@ -8,5 +8,9 @@ export class ChangePasswordDto {
   @IsString()
   @MinLength(8, { message: "Yeni şifre en az 8 karakter olmalı" })
   @MaxLength(72)
+  // Security audit O-2 — backend tarafında da karakter sınıfı zorunlu
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/, {
+    message: "Yeni şifre en az 1 büyük harf, 1 küçük harf ve 1 rakam içermeli",
+  })
   newPassword!: string;
 }

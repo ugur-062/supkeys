@@ -11,6 +11,7 @@ import {
   Post,
   Query,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import { CreateBuyerApplicationDto } from "../dto/create-buyer-application.dto";
 import { BuyerRegistrationService } from "../services/buyer-registration.service";
 
@@ -18,6 +19,8 @@ import { BuyerRegistrationService } from "../services/buyer-registration.service
 export class BuyerRegistrationController {
   constructor(private readonly service: BuyerRegistrationService) {}
 
+  // Security audit O-1 — abuse protection: dakikada 5 başvuru/IP
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post("applications")
   @HttpCode(HttpStatus.CREATED)
   create(

@@ -17,8 +17,13 @@ import {
   Trophy,
   XCircle,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useState } from "react";
-import { AwardWizardModal } from "./award-wizard-modal";
+// Performans audit P-4 — Lazy load (650 satır wizard)
+const AwardWizardModal = dynamic(
+  () => import("./award-wizard-modal").then((m) => m.AwardWizardModal),
+  { ssr: false },
+);
 import { CloseNoAwardDialog } from "./close-no-award-dialog";
 import { ItemBasedRanking } from "./item-based-ranking";
 import { TenderBasedRanking } from "./tender-based-ranking";

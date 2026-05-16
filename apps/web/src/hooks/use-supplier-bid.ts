@@ -31,6 +31,7 @@ export function useMyBid(tenderId: string | null) {
     },
     enabled: !!tenderId,
     refetchInterval: 30_000,
+    refetchIntervalInBackground: false, // P-6
     staleTime: 10_000,
   });
 }

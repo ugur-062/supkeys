@@ -2,8 +2,15 @@
 
 import { useState } from "react";
 import { ChevronRight, Plus, Tag, X as XIcon } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useCategoriesByIds } from "@/hooks/use-categories";
-import { CategorySelectorModal } from "./category-selector-modal";
+
+// Performans audit P-4 — Modal 808 satır, kullanıcı açana kadar bundle'a
+// girmesin. dynamic + ssr:false ile route'un First Load JS'i ~30KB azalır.
+const CategorySelectorModal = dynamic(
+  () => import("./category-selector-modal").then((m) => m.CategorySelectorModal),
+  { ssr: false },
+);
 
 interface Props {
   value: string[];
