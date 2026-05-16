@@ -16,22 +16,9 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
  * edildiğinde o parent'ın direkt çocuklarını ister. Tedarikçi ve tender
  * "seçim" katmanları sadece Level 3+4'tür (Class veya Commodity).
  */
-/**
- * Performans audit P-3 — Kategoriler statik (deploy'da seed edilir, runtime
- * değişmez). Her request'te DB'ye gitmek gereksiz; 1 saatlik in-memory cache
- * ile DB load azaltılır. HTTP Cache-Control da var ama farklı user/tenant
- * cache hit oranı düşük; server-side cache çok daha etkili.
- *
- * Invalidation: seed cron'u yoksa boot süresi cache ömrü ile sınırlı; manuel
- * yeniden başlatma yeterli (production'da kategori statik, V2-7'ye kadar
- * değişmiyor).
- */
+// CACHE_TTL_MS — allCategoriesById (P-5) breadcrumb cache TTL. Kategoriler
+// statik (V2-7'ye kadar değişmez), 1 saat yeterli; restart cache'i temizler.
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 saat
-
-interface CacheEntry<T> {
-  data: T;
-  expiresAt: number;
-}
 
 interface CategoryNode {
   id: string;
@@ -44,8 +31,6 @@ interface CategoryNode {
 
 @Injectable()
 export class CategoryService {
-  private readonly rootsCache: CacheEntry<unknown> = { data: null, expiresAt: 0 };
-  private readonly childrenCache = new Map<string, CacheEntry<unknown>>();
   /**
    * Performans audit P-5 — Tüm aktif kategorileri tek seferde yükleyen index.
    * `tender.list` ve `tender.findOne` her tender × kategori için 4-seviye
@@ -122,11 +107,7 @@ export class CategoryService {
 
   /** Level 1 (Segment) kategorilerini getirir — ilk açılış için. */
   async getRoots(): Promise<unknown> {
-    const now = Date.now();
-    if (this.rootsCache.expiresAt > now && this.rootsCache.data !== null) {
-      return this.rootsCache.data;
-    }
-    const data = await this.prisma.category.findMany({
+    return this.prisma.category.findMany({
       where: { level: 1, isActive: true },
       orderBy: { sortOrder: "asc" },
       select: {
@@ -139,19 +120,11 @@ export class CategoryService {
         _count: { select: { children: true } },
       },
     });
-    this.rootsCache.data = data;
-    this.rootsCache.expiresAt = now + CACHE_TTL_MS;
-    return data;
   }
 
   /** Bir parent'ın direkt çocukları — lazy expand. */
   async getChildren(parentId: string): Promise<unknown> {
-    const now = Date.now();
-    const cached = this.childrenCache.get(parentId);
-    if (cached && cached.expiresAt > now) {
-      return cached.data;
-    }
-    const data = await this.prisma.category.findMany({
+    return this.prisma.category.findMany({
       where: { parentId, isActive: true },
       orderBy: { sortOrder: "asc" },
       select: {
@@ -164,8 +137,6 @@ export class CategoryService {
         _count: { select: { children: true } },
       },
     });
-    this.childrenCache.set(parentId, { data, expiresAt: now + CACHE_TTL_MS });
-    return data;
   }
 
   /**
