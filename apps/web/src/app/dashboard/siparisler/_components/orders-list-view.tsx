@@ -9,6 +9,7 @@ import {
 } from "@/components/list";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
 import { Button } from "@/components/ui/button";
+import { usePermissions } from "@/hooks/use-permissions";
 import { useOrders, useOrderStats } from "@/hooks/use-tenant-orders";
 import { ORDER_STATUS_META } from "@/lib/orders/status";
 import type { OrderStatus } from "@/lib/tenders/types";
@@ -60,6 +61,10 @@ function formatMoney(value: string | number, currency: string): string {
 export function OrdersListView() {
   const router = useRouter();
   const params = useSearchParams();
+  const { has } = usePermissions();
+  // V2-6.5 — "İhale Oluştur" butonu sadece tender:create yetkisi olan
+  // (BUYER) kullanıcıya gösterilir. Yönetici ve Onaylayıcı için yasak.
+  const canCreateTender = has("tender:create");
 
   const tab = params.get("tab") ?? "all";
   const searchUrl = params.get("search") ?? "";
@@ -224,12 +229,14 @@ export function OrdersListView() {
             title="Henüz sipariş yok"
             description="Bir ihale kazandırdığınızda otomatik olarak burada sipariş(ler) oluşturulacak."
             action={
-              <Link href="/dashboard/ihaleler/yeni">
-                <Button variant="primary" size="sm">
-                  <Plus className="w-4 h-4" />
-                  İhale Oluştur
-                </Button>
-              </Link>
+              canCreateTender ? (
+                <Link href="/dashboard/ihaleler/yeni">
+                  <Button variant="primary" size="sm">
+                    <Plus className="w-4 h-4" />
+                    İhale Oluştur
+                  </Button>
+                </Link>
+              ) : undefined
             }
           />
         )
