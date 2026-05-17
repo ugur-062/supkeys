@@ -57,7 +57,16 @@ export function useApprovalRequest(id: string | null | undefined) {
   });
 }
 
-export function useApprovalPendingCount() {
+/**
+ * Sidebar'daki "Onay Bekleyenler" badge sayımı.
+ *
+ * Bug fix #7 — Backend bu endpoint için `approval:view` izni kontrol ediyor;
+ * BUYER rolünde default'ta bu izin yok → eski koşulsuz çağrı 60 sn'de bir
+ * 403 dönüp axios interceptor "Bu işlem için yetkiniz yok" toast'unu
+ * tekrar tekrar atıyordu. `enabled` parametresi ile çağrıyı sadece izni
+ * olan kullanıcılarda yap.
+ */
+export function useApprovalPendingCount(enabled: boolean = true) {
   return useQuery({
     queryKey: KEYS.pendingCount(),
     queryFn: async () => {
@@ -66,8 +75,10 @@ export function useApprovalPendingCount() {
       );
       return data;
     },
+    enabled,
     staleTime: 30_000,
-    refetchInterval: 60_000,
+    refetchInterval: enabled ? 60_000 : false,
+    refetchIntervalInBackground: false,
   });
 }
 
