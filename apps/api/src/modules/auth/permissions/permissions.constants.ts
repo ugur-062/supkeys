@@ -121,6 +121,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     "settings:approval",
     "settings:company",
     "tender:view",
+    // V2-6.5 düzeltme: Firma Yöneticisi tekliflerini görebilmeli (yönetim
+    // işlevi). Eleme (bid:eliminate) yine operasyonel — sadece BUYER'da.
+    "bid:compare",
     "order:view",
     "approval:view",
     // V2-6.5 düzeltme: Firma Yöneticisi onay akışında sıklıkla son onaylayıcı
