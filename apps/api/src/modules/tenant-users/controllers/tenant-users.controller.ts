@@ -138,4 +138,15 @@ export class TenantUsersController {
   ): Promise<unknown> {
     return this.service.update(user.tenantId, id, user.id, dto);
   }
+
+  // V2-6.5 — Soft-delete: ekipten çıkarma + anonimleştirme
+  @Delete(":id")
+  @UseGuards(RolesGuard)
+  @Roles("COMPANY_ADMIN")
+  delete(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ): Promise<unknown> {
+    return this.service.delete(user.tenantId, id, user.id);
+  }
 }

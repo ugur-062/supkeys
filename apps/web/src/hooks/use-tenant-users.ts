@@ -107,6 +107,20 @@ export function useUpdateUser() {
   });
 }
 
+export function useDeleteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.delete(`/tenants/me/users/${id}`);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.list() });
+      qc.invalidateQueries({ queryKey: KEYS.buyerSeats() });
+    },
+  });
+}
+
 export function useInviteUser() {
   const qc = useQueryClient();
   return useMutation({

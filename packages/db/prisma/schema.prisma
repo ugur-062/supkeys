@@ -126,6 +126,12 @@ model User {
   // null = saf role default; dolu = role default'undan eklenen/eksiltilen permission'lar
   permissionsOverride Json?
 
+  // V2-6.5 — Soft delete. Firma yöneticisi "Sil" deyince:
+  // deletedAt=now, isActive=false, kişisel veriler anonimleştirilir
+  // (KVKK/GDPR + e-posta tekrar kullanılabilir). Tender/Order referansları
+  // KIRILMAZ; sadece kullanıcı listede gizli + login engelli.
+  deletedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -49,6 +49,7 @@ export class AuthService {
     if (
       !user ||
       !user.isActive ||
+      user.deletedAt !== null ||
       !user.tenant.isActive ||
       !passwordMatches
     ) {

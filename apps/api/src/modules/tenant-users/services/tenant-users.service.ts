@@ -56,7 +56,8 @@ export class TenantUsersService {
 
   async list(tenantId: string): Promise<unknown[]> {
     const rows = await this.prisma.user.findMany({
-      where: { tenantId },
+      // V2-6.5 — soft-delete edilen kullanıcılar listede gözükmez
+      where: { tenantId, deletedAt: null },
       select: {
         id: true,
         email: true,
@@ -82,7 +83,7 @@ export class TenantUsersService {
 
   async findById(tenantId: string, userId: string): Promise<unknown> {
     const u = await this.prisma.user.findFirst({
-      where: { id: userId, tenantId },
+      where: { id: userId, tenantId, deletedAt: null },
       select: {
         id: true,
         email: true,
@@ -189,6 +190,7 @@ export class TenantUsersService {
           tenantId,
           role: "BUYER",
           isActive: true,
+          deletedAt: null,
           ...(opts.excludeUserId ? { id: { not: opts.excludeUserId } } : {}),
         },
       }),
@@ -368,6 +370,75 @@ export class TenantUsersService {
       permissions: resolveUserPermissions(updated.role, updated.permissionsOverride),
       hasCustomPermissions: updated.permissionsOverride !== null,
     };
+  }
+
+  // ----- DELETE (soft-delete + anonymize) -----
+
+  /**
+   * V2-6.5 — Firma yöneticisi kullanıcıyı ekipten çıkarır. Soft-delete:
+   *   - deletedAt = now
+   *   - isActive = false
+   *   - email + isim anonimleştirilir (KVKK + e-posta yeniden kullanılabilir)
+   * Tender/Order/ApprovalRequest referansları KIRILMAZ.
+   *
+   * Kurallar:
+   *   - Self-delete yasak (caller hedefiyle aynı olamaz)
+   *   - Hedef zaten silinmişse 404 (idempotent değil — UI zaten gizler)
+   *   - Hedef son aktif COMPANY_ADMIN ise reddet
+   *   - Yetki: caller COMPANY_ADMIN olmalı (controller'da RolesGuard ile)
+   */
+  async delete(tenantId: string, targetUserId: string, callerUserId: string) {
+    if (targetUserId === callerUserId) {
+      throw new ForbiddenException("Kendinizi silemezsiniz");
+    }
+
+    const target = await this.prisma.user.findFirst({
+      where: { id: targetUserId, tenantId, deletedAt: null },
+      select: { id: true, role: true, email: true },
+    });
+    if (!target) throw new NotFoundException("Kullanıcı bulunamadı");
+
+    // Son aktif COMPANY_ADMIN'i silemez
+    if (target.role === "COMPANY_ADMIN") {
+      const others = await this.prisma.user.count({
+        where: {
+          tenantId,
+          role: "COMPANY_ADMIN",
+          isActive: true,
+          deletedAt: null,
+          id: { not: targetUserId },
+        },
+      });
+      if (others === 0) {
+        throw new ConflictException(
+          "En az bir aktif Firma Yöneticisi olmak zorunda",
+        );
+      }
+    }
+
+    // Anonimleştir: e-postayı invalid bir formata çevir ki başka kullanıcı
+    // aynı e-postayla davet edilebilsin. unique constraint korunur.
+    const now = new Date();
+    const anonymizedEmail = `deleted-${targetUserId}@supkeys.local`;
+
+    await this.prisma.user.update({
+      where: { id: targetUserId },
+      data: {
+        deletedAt: now,
+        isActive: false,
+        email: anonymizedEmail,
+        firstName: "Silinmiş",
+        lastName: "Kullanıcı",
+        phone: null,
+        // Token-equivalent hash bırakılır (zaten isActive=false login'i bloklar)
+      },
+    });
+
+    this.logger.log(
+      `User ${targetUserId} (${target.email}) soft-deleted by ${callerUserId} in tenant ${tenantId}`,
+    );
+
+    return { success: true };
   }
 
   // ----- CHANGE PASSWORD -----

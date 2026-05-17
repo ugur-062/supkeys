@@ -2,21 +2,25 @@
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { useUpdateUser } from "@/hooks/use-tenant-users";
+import { useDeleteUser, useUpdateUser } from "@/hooks/use-tenant-users";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { USER_ROLE_LABELS, roleLabel } from "@/lib/users/labels";
 import type { TenantUserListItem } from "@/lib/users/types";
 import { cn } from "@/lib/utils";
+import * as Dialog from "@radix-ui/react-dialog";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { formatDistanceToNowStrict } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
+  AlertTriangle,
   Loader2,
   MoreVertical,
   PowerOff,
   Power,
   Pencil,
+  Trash2,
   Users2,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -30,7 +34,9 @@ interface Props {
 export function UsersTable({ users, loading }: Props) {
   const { user: me } = useAuth();
   const updateMutation = useUpdateUser();
+  const deleteMutation = useDeleteUser();
   const [editing, setEditing] = useState<TenantUserListItem | null>(null);
+  const [deleting, setDeleting] = useState<TenantUserListItem | null>(null);
 
   if (loading) {
     return (
@@ -57,6 +63,19 @@ export function UsersTable({ users, loading }: Props) {
         },
       },
     );
+  };
+
+  const handleDelete = () => {
+    if (!deleting) return;
+    deleteMutation.mutate(deleting.id, {
+      onSuccess: () => {
+        toast.success(`${deleting.firstName} ${deleting.lastName} silindi`);
+        setDeleting(null);
+      },
+      onError: (err) => {
+        toast.error(extractErrorMessage(err, "Silme başarısız"));
+      },
+    });
   };
 
   return (
@@ -180,7 +199,7 @@ export function UsersTable({ users, loading }: Props) {
                                 className={cn(
                                   "px-3 py-2 text-sm rounded-lg cursor-pointer outline-none flex items-center gap-2",
                                   u.isActive
-                                    ? "text-danger-700 hover:bg-danger-50 focus:bg-danger-50"
+                                    ? "text-warning-700 hover:bg-warning-50 focus:bg-warning-50"
                                     : "text-success-700 hover:bg-success-50 focus:bg-success-50",
                                 )}
                               >
@@ -195,6 +214,17 @@ export function UsersTable({ users, loading }: Props) {
                                     Tekrar Aktif Et
                                   </>
                                 )}
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
+                              <DropdownMenu.Item
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  setDeleting(u);
+                                }}
+                                className="px-3 py-2 text-sm rounded-lg cursor-pointer outline-none flex items-center gap-2 text-danger-700 hover:bg-danger-50 focus:bg-danger-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Sil
                               </DropdownMenu.Item>
                             </DropdownMenu.Content>
                           </DropdownMenu.Portal>
@@ -217,9 +247,99 @@ export function UsersTable({ users, loading }: Props) {
         user={editing}
         onClose={() => setEditing(null)}
       />
+
+      <Dialog.Root
+        open={Boolean(deleting)}
+        onOpenChange={(o) => {
+          if (!o && !deleteMutation.isPending) setDeleting(null);
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[60] bg-slate-900/60" />
+          <Dialog.Content
+            className={cn(
+              "fixed left-1/2 top-1/2 z-[60] -translate-x-1/2 -translate-y-1/2",
+              "w-[calc(100vw-2rem)] max-w-md rounded-2xl bg-white shadow-2xl outline-none",
+            )}
+          >
+            <header className="flex items-start justify-between gap-3 border-b border-surface-border px-5 py-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-danger-50">
+                  <AlertTriangle className="h-5 w-5 text-danger-600" />
+                </div>
+                <div>
+                  <Dialog.Title className="font-display text-lg font-bold text-brand-900">
+                    Kullanıcıyı Sil
+                  </Dialog.Title>
+                  <Dialog.Description className="mt-0.5 text-sm text-slate-500">
+                    Bu işlem geri alınamaz.
+                  </Dialog.Description>
+                </div>
+              </div>
+              <Dialog.Close asChild>
+                <button
+                  type="button"
+                  aria-label="Kapat"
+                  disabled={deleteMutation.isPending}
+                  className="flex-shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-surface-muted hover:text-slate-600 disabled:opacity-40"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </Dialog.Close>
+            </header>
+
+            <div className="px-5 py-5">
+              {deleting ? (
+                <>
+                  <p className="text-sm text-slate-700">
+                    <strong className="text-brand-900">
+                      {deleting.firstName} {deleting.lastName}
+                    </strong>{" "}
+                    ({deleting.email}) kullanıcısını ekipten çıkarmak istediğinize
+                    emin misiniz?
+                  </p>
+                  <ul className="mt-3 space-y-1.5 text-xs text-slate-600 list-disc pl-4">
+                    <li>Kullanıcı sisteme giriş yapamaz</li>
+                    <li>Listede görünmez ve davet edilemez</li>
+                    <li>
+                      Açtığı ihaleler ve onayladığı süreçler kayıtta kalır
+                    </li>
+                    <li>
+                      E-posta tekrar kullanılabilir (yeni kullanıcı davet
+                      edebilirsiniz)
+                    </li>
+                  </ul>
+                </>
+              ) : null}
+            </div>
+
+            <footer className="flex items-center gap-2 border-t border-surface-border px-5 py-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setDeleting(null)}
+                disabled={deleteMutation.isPending}
+                className="flex-1"
+              >
+                Vazgeç
+              </Button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleteMutation.isPending}
+                className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-danger-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-danger-700 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                Sil
+              </button>
+            </footer>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </>
   );
 }
-
-// Unused import suppression
-void Button;
