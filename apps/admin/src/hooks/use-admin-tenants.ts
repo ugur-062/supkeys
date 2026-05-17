@@ -205,6 +205,87 @@ export function useCancelTenantInvitation(tenantId: string) {
   });
 }
 
+export interface AdminTenantTenderItem {
+  id: string;
+  tenderNumber: string;
+  title: string;
+  status: string;
+  primaryCurrency: string;
+  bidsCloseAt: string;
+  awardedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  createdBy: { firstName: string; lastName: string; email: string };
+  _count: { items: number; invitations: number; bids: number };
+}
+
+export interface AdminTenantOrderItem {
+  id: string;
+  orderNumber: string;
+  status: string;
+  totalAmount: string | number;
+  currency: string;
+  createdAt: string;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  tender: { id: string; tenderNumber: string; title: string };
+  supplier: { id: string; companyName: string };
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export function useAdminTenantTenders(
+  tenantId: string,
+  params: { page?: number; status?: string } = {},
+) {
+  const search = new URLSearchParams();
+  if (params.page) search.set("page", String(params.page));
+  if (params.status) search.set("status", params.status);
+  const qs = search.toString();
+
+  return useQuery({
+    queryKey: ["admin", "tenants", "tenders", tenantId, params],
+    queryFn: async () => {
+      const { data } = await api.get<PaginatedResponse<AdminTenantTenderItem>>(
+        `/admin/tenants/${tenantId}/tenders${qs ? `?${qs}` : ""}`,
+      );
+      return data;
+    },
+    enabled: Boolean(tenantId),
+    staleTime: 30_000,
+  });
+}
+
+export function useAdminTenantOrders(
+  tenantId: string,
+  params: { page?: number; status?: string } = {},
+) {
+  const search = new URLSearchParams();
+  if (params.page) search.set("page", String(params.page));
+  if (params.status) search.set("status", params.status);
+  const qs = search.toString();
+
+  return useQuery({
+    queryKey: ["admin", "tenants", "orders", tenantId, params],
+    queryFn: async () => {
+      const { data } = await api.get<PaginatedResponse<AdminTenantOrderItem>>(
+        `/admin/tenants/${tenantId}/orders${qs ? `?${qs}` : ""}`,
+      );
+      return data;
+    },
+    enabled: Boolean(tenantId),
+    staleTime: 30_000,
+  });
+}
+
 export function useUpdateAdminTenant(id: string) {
   const queryClient = useQueryClient();
   return useMutation({

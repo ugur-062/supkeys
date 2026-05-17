@@ -33,6 +33,8 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { EditTenantMetaModal } from "./_components/edit-tenant-meta-modal";
+import { OrdersTab } from "./_components/orders-tab";
+import { TendersTab } from "./_components/tenders-tab";
 
 const TENDER_STATUS_LABELS: Record<string, string> = {
   DRAFT: "Taslak",
@@ -116,7 +118,76 @@ function DetailContent() {
       {/* Tenant aktif/pasif kontrolü */}
       <TenantActivationCard tenant={t} />
 
-      {/* Mini KPI'lar */}
+      {/* Üyelik + BUYER kontenjanı */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <MembershipCard tenantId={t.id} tenant={t} />
+        <BuyerSeatCard tenantId={t.id} tenant={t} />
+      </div>
+
+      {/* Sekmeli içerik */}
+      <DetailTabs tenant={t} />
+    </div>
+  );
+}
+
+type TabKey = "overview" | "users" | "tenders" | "orders";
+
+function DetailTabs({ tenant }: { tenant: AdminTenantDetail }) {
+  const [tab, setTab] = useState<TabKey>("overview");
+  const tabs: Array<{ key: TabKey; label: string; count?: number }> = [
+    { key: "overview", label: "Genel" },
+    { key: "users", label: "Kullanıcılar", count: tenant._count.users },
+    { key: "tenders", label: "İhaleler", count: tenant._count.tenders },
+    { key: "orders", label: "Siparişler", count: tenant._count.orders },
+  ];
+
+  return (
+    <div>
+      <div className="border-b border-surface-border flex gap-1 overflow-x-auto">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            className={cn(
+              "px-4 py-2.5 text-sm font-semibold whitespace-nowrap transition border-b-2 -mb-px",
+              tab === t.key
+                ? "border-brand-500 text-brand-700"
+                : "border-transparent text-admin-text-muted hover:text-admin-text",
+            )}
+          >
+            {t.label}
+            {t.count !== undefined ? (
+              <span
+                className={cn(
+                  "ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                  tab === t.key
+                    ? "bg-brand-100 text-brand-700"
+                    : "bg-slate-100 text-slate-600",
+                )}
+              >
+                {t.count}
+              </span>
+            ) : null}
+          </button>
+        ))}
+      </div>
+
+      <div className="mt-4">
+        {tab === "overview" ? <OverviewTab tenant={tenant} /> : null}
+        {tab === "users" ? (
+          <UsersBlock tenantId={tenant.id} users={tenant.users} />
+        ) : null}
+        {tab === "tenders" ? <TendersTab tenantId={tenant.id} /> : null}
+        {tab === "orders" ? <OrdersTab tenantId={tenant.id} /> : null}
+      </div>
+    </div>
+  );
+}
+
+function OverviewTab({ tenant: t }: { tenant: AdminTenantDetail }) {
+  return (
+    <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MiniStat
           icon={Users}
@@ -144,13 +215,6 @@ function DetailContent() {
         />
       </div>
 
-      {/* Üyelik + BUYER kontenjanı */}
-      <div className="grid gap-4 md:grid-cols-2">
-        <MembershipCard tenantId={t.id} tenant={t} />
-        <BuyerSeatCard tenantId={t.id} tenant={t} />
-      </div>
-
-      {/* Toplam Harcama */}
       <div className="rounded-2xl p-6 text-white bg-gradient-to-r from-success-500 to-success-600">
         <p className="text-xs uppercase opacity-85 font-semibold tracking-wide">
           Toplam Harcama (Tamamlanan Siparişler)
@@ -167,7 +231,6 @@ function DetailContent() {
         </p>
       </div>
 
-      {/* Status dağılımları */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <StatusDistributionCard
           title="İhale Durumları"
@@ -183,11 +246,7 @@ function DetailContent() {
         />
       </div>
 
-      {/* Son ihaleler */}
       <RecentTendersBlock recentTenders={t.analytics.recentTenders} />
-
-      {/* Kullanıcılar */}
-      <UsersBlock tenantId={t.id} users={t.users} />
     </div>
   );
 }

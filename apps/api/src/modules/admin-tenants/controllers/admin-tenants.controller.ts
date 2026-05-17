@@ -40,6 +40,34 @@ export class AdminTenantsController {
     return this.service.getOne(id);
   }
 
+  @Get(":id/tenders")
+  listTenders(
+    @Param("id") id: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+    @Query("status") status?: string,
+  ): Promise<unknown> {
+    return this.service.listTenders(id, {
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+      status,
+    });
+  }
+
+  @Get(":id/orders")
+  listOrders(
+    @Param("id") id: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
+    @Query("status") status?: string,
+  ): Promise<unknown> {
+    return this.service.listOrders(id, {
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined,
+      status,
+    });
+  }
+
   @Patch(":id")
   update(
     @Param("id") id: string,

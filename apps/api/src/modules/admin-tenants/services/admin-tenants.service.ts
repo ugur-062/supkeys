@@ -242,4 +242,107 @@ export class AdminTenantsService {
       select: selectFields,
     });
   }
+
+  // ----- READ-ONLY: tenant ihaleleri -----
+
+  async listTenders(
+    id: string,
+    opts: { page?: number; pageSize?: number; status?: string } = {},
+  ) {
+    const page = opts.page ?? 1;
+    const pageSize = Math.min(opts.pageSize ?? 20, 100);
+    const skip = (page - 1) * pageSize;
+
+    const where: Prisma.TenderWhereInput = { tenantId: id };
+    if (opts.status) {
+      where.status = opts.status as Prisma.EnumTenderStatusFilter["equals"];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.tender.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+        select: {
+          id: true,
+          tenderNumber: true,
+          title: true,
+          status: true,
+          primaryCurrency: true,
+          bidsCloseAt: true,
+          awardedAt: true,
+          cancelledAt: true,
+          createdAt: true,
+          createdBy: {
+            select: { firstName: true, lastName: true, email: true },
+          },
+          _count: {
+            select: { items: true, invitations: true, bids: true },
+          },
+        },
+      }),
+      this.prisma.tender.count({ where }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+    };
+  }
+
+  // ----- READ-ONLY: tenant siparişleri -----
+
+  async listOrders(
+    id: string,
+    opts: { page?: number; pageSize?: number; status?: string } = {},
+  ) {
+    const page = opts.page ?? 1;
+    const pageSize = Math.min(opts.pageSize ?? 20, 100);
+    const skip = (page - 1) * pageSize;
+
+    const where: Prisma.OrderWhereInput = { tenantId: id };
+    if (opts.status) {
+      where.status = opts.status as Prisma.EnumOrderStatusFilter["equals"];
+    }
+
+    const [items, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+        select: {
+          id: true,
+          orderNumber: true,
+          status: true,
+          totalAmount: true,
+          currency: true,
+          createdAt: true,
+          completedAt: true,
+          cancelledAt: true,
+          tender: {
+            select: { id: true, tenderNumber: true, title: true },
+          },
+          supplier: { select: { id: true, companyName: true } },
+        },
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+    };
+  }
 }
