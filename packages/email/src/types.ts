@@ -122,7 +122,7 @@ export interface UserInvitationData {
   inviterName: string;
   /** Enum value (örn "COMPANY_ADMIN", "BUYER", "APPROVER") */
   role: string;
-  /** Türkçe rol etiketi (örn "Firma Yöneticisi") */
+  /** Türkçe rol etiketi (örn "Yönetici") */
   roleLabel: string;
   acceptUrl: string;
   expiresInDays: number;

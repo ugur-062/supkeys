@@ -99,7 +99,7 @@ export function InitiatorPickerModal({
               />
             </div>
             <p className="text-[11px] text-slate-500 mt-2">
-              Sadece <strong>Firma Yöneticisi</strong> ve{" "}
+              Sadece <strong>Yönetici</strong> ve{" "}
               <strong>Satın Almacı</strong> roller listede.
             </p>
           </div>

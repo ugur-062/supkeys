@@ -26,7 +26,7 @@ export function ApprovalFlowDetailLoader({ id }: { id: string }) {
         <div className="mt-4 rounded-2xl border border-warning-200 bg-warning-50 p-6 flex gap-3 items-start">
           <Shield className="h-5 w-5 text-warning-600 flex-shrink-0 mt-0.5" />
           <p className="text-sm text-warning-800">
-            Bu sayfa yalnızca <strong>Firma Yöneticisi</strong> rolündeki
+            Bu sayfa yalnızca <strong>Yönetici</strong> rolündeki
             kullanıcılara açıktır.
           </p>
         </div>

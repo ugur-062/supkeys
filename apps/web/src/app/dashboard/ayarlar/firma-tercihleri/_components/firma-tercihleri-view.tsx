@@ -52,7 +52,7 @@ export function FirmaTercihleriView() {
               Sadece Firma Yöneticileri için
             </p>
             <p className="text-sm text-warning-800 mt-1">
-              Adres yönetimi yalnızca <strong>Firma Yöneticisi</strong>{" "}
+              Adres yönetimi yalnızca <strong>Yönetici</strong>{" "}
               rolündeki kullanıcılar tarafından yapılabilir.
             </p>
             <Link

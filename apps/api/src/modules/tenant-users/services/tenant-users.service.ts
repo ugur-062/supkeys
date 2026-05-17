@@ -27,7 +27,7 @@ import {
 import { UpdateUserDto } from "../dto/update-user.dto";
 
 const ROLE_LABELS: Record<string, string> = {
-  COMPANY_ADMIN: "Firma Yöneticisi",
+  COMPANY_ADMIN: "Yönetici",
   BUYER: "Satın Almacı",
   APPROVER: "Onaylayıcı",
 };
@@ -230,7 +230,7 @@ export class TenantUsersService {
       });
       if (caller?.role !== "COMPANY_ADMIN") {
         throw new ForbiddenException(
-          "Bu işlem için Firma Yöneticisi yetkisi gerekli",
+          "Bu işlem için Yönetici yetkisi gerekli",
         );
       }
     }
@@ -276,7 +276,7 @@ export class TenantUsersService {
         });
         if (adminCount === 0) {
           throw new ConflictException(
-            "En az bir aktif Firma Yöneticisi olmak zorunda",
+            "En az bir aktif Yönetici olmak zorunda",
           );
         }
       }
@@ -411,7 +411,7 @@ export class TenantUsersService {
       });
       if (others === 0) {
         throw new ConflictException(
-          "En az bir aktif Firma Yöneticisi olmak zorunda",
+          "En az bir aktif Yönetici olmak zorunda",
         );
       }
     }

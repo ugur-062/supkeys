@@ -386,7 +386,7 @@ export class TenantApprovalFlowsService {
     const badApprovers = approverUsers.filter((u) => u.role === "BUYER");
     if (badApprovers.length > 0) {
       throw new BadRequestException(
-        "Satın Almacı (BUYER) rolündeki kullanıcılar onaylayıcı olamaz. Onaylayıcı veya Firma Yöneticisi olmalı.",
+        "Satın Almacı (BUYER) rolündeki kullanıcılar onaylayıcı olamaz. Onaylayıcı veya Yönetici olmalı.",
       );
     }
 

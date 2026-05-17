@@ -141,7 +141,7 @@ export function StepEditorModal({
           </header>
 
           <div className="px-5 py-5 space-y-4 overflow-y-auto flex-1">
-            <Field hint="Sadece Firma Yöneticisi ve Onaylayıcı roller listede.">
+            <Field hint="Sadece Yönetici ve Onaylayıcı roller listede.">
               <Label htmlFor="step-approver">
                 Onaylayıcı <span className="text-danger-500">*</span>
               </Label>

@@ -86,12 +86,12 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     "settings:approval",
     "settings:company",
     "tender:view",
-    // V2-6.5 düzeltme: Firma Yöneticisi tekliflerini görebilmeli (yönetim
+    // V2-6.5 düzeltme: Yönetici tekliflerini görebilmeli (yönetim
     // işlevi). Eleme (bid:eliminate) yine operasyonel — sadece BUYER'da.
     "bid:compare",
     "order:view",
     "approval:view",
-    // V2-6.5 düzeltme: Firma Yöneticisi onay akışında sıklıkla son onaylayıcı
+    // V2-6.5 düzeltme: Yönetici onay akışında sıklıkla son onaylayıcı
     // olduğu için approve yetkisi default'ta verilir.
     "approval:approve",
     "reports:view",
@@ -131,7 +131,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
 };
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  COMPANY_ADMIN: "Firma Yöneticisi",
+  COMPANY_ADMIN: "Yönetici",
   BUYER: "Satın Almacı",
   APPROVER: "Onaylayıcı",
 };

@@ -59,7 +59,7 @@ export class AdminTenantUsersService {
         });
         if (others === 0) {
           throw new ConflictException(
-            "En az bir aktif Firma Yöneticisi olmak zorunda",
+            "En az bir aktif Yönetici olmak zorunda",
           );
         }
       }

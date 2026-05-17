@@ -56,7 +56,7 @@ export function OnayAkislariListView() {
               Sadece Firma Yöneticileri için
             </p>
             <p className="text-sm text-warning-800 mt-1">
-              Onay akışı yönetimi yalnızca <strong>Firma Yöneticisi</strong>{" "}
+              Onay akışı yönetimi yalnızca <strong>Yönetici</strong>{" "}
               rolündeki kullanıcılar tarafından yapılabilir.
             </p>
             <Link

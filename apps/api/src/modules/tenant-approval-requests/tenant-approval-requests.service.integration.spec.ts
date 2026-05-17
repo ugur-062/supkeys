@@ -260,7 +260,7 @@ describe("TenantApprovalRequestsService — state machine", () => {
       ).rejects.toThrow(ForbiddenException);
       await expect(
         service.cancel(tenant.id, requestId, otherBuyer.id, "BUYER"),
-      ).rejects.toThrow("başlatan veya Firma Yöneticisi");
+      ).rejects.toThrow("başlatan veya Yönetici");
     });
 
     it("zaten CANCELLED → 409", async () => {

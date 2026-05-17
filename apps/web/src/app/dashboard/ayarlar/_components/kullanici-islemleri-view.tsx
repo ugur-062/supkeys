@@ -37,7 +37,7 @@ export function KullaniciIslemleriView() {
               Sadece Firma Yöneticileri için
             </p>
             <p className="text-sm text-warning-800 mt-1">
-              Kullanıcı yönetimi yalnızca <strong>Firma Yöneticisi</strong>{" "}
+              Kullanıcı yönetimi yalnızca <strong>Yönetici</strong>{" "}
               rolündeki kullanıcılar tarafından yapılabilir.
             </p>
             <Link

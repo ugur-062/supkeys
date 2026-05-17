@@ -558,7 +558,7 @@ export class TenantApprovalRequestsService {
         userRole !== "COMPANY_ADMIN"
       ) {
         throw new ForbiddenException(
-          "Bu onayı sadece başlatan veya Firma Yöneticisi iptal edebilir",
+          "Bu onayı sadece başlatan veya Yönetici iptal edebilir",
         );
       }
 

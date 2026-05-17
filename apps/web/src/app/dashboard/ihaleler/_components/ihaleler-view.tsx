@@ -199,7 +199,7 @@ export function IhalelerView() {
           <Button
             variant="primary"
             disabled
-            title="Bu işlem için Firma Yöneticisi yetkisi gerekiyor"
+            title="Bu işlem için Yönetici yetkisi gerekiyor"
           >
             <Plus className="h-4 w-4" />
             Yeni İhale Aç

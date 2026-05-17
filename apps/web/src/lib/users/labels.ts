@@ -9,7 +9,7 @@ export interface RoleMeta {
 
 export const USER_ROLE_LABELS: Record<UserRole, RoleMeta> = {
   COMPANY_ADMIN: {
-    label: "Firma Yöneticisi",
+    label: "Yönetici",
     description:
       "Tüm yetkiler — kullanıcı yönetimi, ihale, onay, sipariş.",
     pillClass: "bg-brand-50 text-brand-700 border-brand-200",

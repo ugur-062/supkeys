@@ -58,7 +58,7 @@ const ORDER_STATUS_LABELS: Record<string, string> = {
 };
 
 const ROLE_LABELS: Record<string, string> = {
-  COMPANY_ADMIN: "Firma Yöneticisi",
+  COMPANY_ADMIN: "Yönetici",
   BUYER: "Satınalmacı",
   APPROVER: "Onaylayıcı",
 };
@@ -947,7 +947,7 @@ function UserRow({
             disabled={updateMutation.isPending}
             className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-admin-text focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:opacity-50"
           >
-            <option value="COMPANY_ADMIN">Firma Yöneticisi</option>
+            <option value="COMPANY_ADMIN">Yönetici</option>
             <option value="BUYER">Satınalmacı</option>
             <option value="APPROVER">Onaylayıcı</option>
           </select>
