@@ -4,6 +4,7 @@ import { AdminShell } from "@/components/layout/admin-shell";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import {
   useAdminTenantDetail,
+  useUpdateAdminTenant,
   type AdminTenantDetail,
 } from "@/hooks/use-admin-tenants";
 import { cn } from "@/lib/utils";
@@ -11,15 +12,19 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
   Building2,
+  Check,
   ChevronLeft,
   FileText,
   Package,
+  Pencil,
   Truck,
   Users,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 const TENDER_STATUS_LABELS: Record<string, string> = {
   DRAFT: "Taslak",
@@ -142,6 +147,9 @@ function DetailContent() {
         />
       </div>
 
+      {/* BUYER kontenjanı */}
+      <BuyerSeatCard tenantId={t.id} tenant={t} />
+
       {/* Toplam Harcama */}
       <div className="rounded-2xl p-6 text-white bg-gradient-to-r from-success-500 to-success-600">
         <p className="text-xs uppercase opacity-85 font-semibold tracking-wide">
@@ -197,6 +205,157 @@ const ACCENT_CLASSES = {
   indigo: { bg: "bg-indigo-50", icon: "text-indigo-600" },
   success: { bg: "bg-success-50", icon: "text-success-600" },
 };
+
+function BuyerSeatCard({
+  tenantId,
+  tenant,
+}: {
+  tenantId: string;
+  tenant: AdminTenantDetail;
+}) {
+  const mutation = useUpdateAdminTenant(tenantId);
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(String(tenant.buyerSeatLimit));
+  const usage = tenant.buyerSeatUsage;
+
+  useEffect(() => {
+    setValue(String(tenant.buyerSeatLimit));
+  }, [tenant.buyerSeatLimit]);
+
+  const isOver = usage.used > usage.limit;
+  const isAtLimit = usage.used >= usage.limit && !isOver;
+
+  const save = () => {
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < 0 || parsed > 1000) {
+      toast.error("0–1000 arası bir sayı girin");
+      return;
+    }
+    if (parsed === tenant.buyerSeatLimit) {
+      setEditing(false);
+      return;
+    }
+    mutation.mutate(
+      { buyerSeatLimit: parsed },
+      {
+        onSuccess: () => {
+          toast.success("Kontenjan güncellendi");
+          setEditing(false);
+        },
+        onError: (err: unknown) => {
+          const msg =
+            err instanceof Error ? err.message : "Güncelleme başarısız";
+          toast.error(msg);
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="admin-card p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-brand-600" />
+            <h3 className="font-bold text-admin-text">Satın Almacı Kontenjanı</h3>
+          </div>
+          <p className="mt-1 text-xs text-admin-text-muted">
+            Aktif satın almacı + bekleyen davetler kontenjandan düşer.
+            COMPANY_ADMIN ve APPROVER sayılmaz.
+          </p>
+        </div>
+        {!editing ? (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-100"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Düzenle
+          </button>
+        ) : null}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-end gap-4">
+        <div>
+          <p className="text-[11px] uppercase tracking-wide text-admin-text-muted font-semibold">
+            Kullanım
+          </p>
+          <p
+            className={cn(
+              "mt-1 font-display text-2xl font-bold",
+              isOver
+                ? "text-danger-600"
+                : isAtLimit
+                  ? "text-warning-600"
+                  : "text-admin-text",
+            )}
+          >
+            {usage.used}
+            <span className="text-admin-text-muted">/{usage.limit}</span>
+          </p>
+          <p className="mt-0.5 text-xs text-admin-text-muted">
+            {usage.active} aktif · {usage.pending} bekleyen
+          </p>
+        </div>
+
+        <div className="min-w-[200px] flex-1">
+          <p className="text-[11px] uppercase tracking-wide text-admin-text-muted font-semibold">
+            Kontenjan
+          </p>
+          {editing ? (
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                type="number"
+                min={0}
+                max={1000}
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                disabled={mutation.isPending}
+                className="w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+              />
+              <button
+                type="button"
+                onClick={save}
+                disabled={mutation.isPending}
+                className="inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+              >
+                <Check className="h-3.5 w-3.5" />
+                Kaydet
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setValue(String(tenant.buyerSeatLimit));
+                  setEditing(false);
+                }}
+                disabled={mutation.isPending}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-admin-text transition hover:bg-slate-50 disabled:opacity-50"
+              >
+                Vazgeç
+              </button>
+            </div>
+          ) : (
+            <p className="mt-1 font-display text-2xl font-bold text-admin-text">
+              {tenant.buyerSeatLimit}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {isOver ? (
+        <p className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-700">
+          Kullanım kontenjandan fazla. Kontenjanı arttırın veya fazla
+          kullanıcıyı pasifleştirin.
+        </p>
+      ) : isAtLimit ? (
+        <p className="mt-3 rounded-lg bg-warning-50 px-3 py-2 text-xs text-warning-700">
+          Kontenjan dolu — bu firma yeni satın almacı davet edemez.
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 function MiniStat({ icon: Icon, label, value, accent }: MiniStatProps) {
   const styles = ACCENT_CLASSES[accent];

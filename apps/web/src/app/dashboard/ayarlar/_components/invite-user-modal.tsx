@@ -4,14 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useInviteUser } from "@/hooks/use-tenant-users";
+import {
+  useBuyerSeatUsage,
+  useInviteUser,
+} from "@/hooks/use-tenant-users";
 import type { UserRole } from "@/lib/auth/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { USER_ROLE_LABELS } from "@/lib/users/labels";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Send, UserPlus2, X } from "lucide-react";
+import { AlertCircle, Send, UserPlus2, X } from "lucide-react";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -33,6 +36,7 @@ interface Props {
 
 export function InviteUserModal({ open, onClose }: Props) {
   const inviteMutation = useInviteUser();
+  const buyerSeats = useBuyerSeatUsage();
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { email: "", role: "BUYER" },
@@ -42,7 +46,17 @@ export function InviteUserModal({ open, onClose }: Props) {
     if (open) form.reset({ email: "", role: "BUYER" });
   }, [open, form]);
 
+  const selectedRole = form.watch("role");
+  const buyerSeatsFull =
+    selectedRole === "BUYER" &&
+    buyerSeats.data !== undefined &&
+    buyerSeats.data.used >= buyerSeats.data.limit;
+
   const onSubmit = (values: FormValues) => {
+    if (values.role === "BUYER" && buyerSeatsFull) {
+      toast.error("Satın Almacı kontenjanı dolu");
+      return;
+    }
     inviteMutation.mutate(
       { email: values.email.trim().toLowerCase(), role: values.role },
       {
@@ -58,8 +72,6 @@ export function InviteUserModal({ open, onClose }: Props) {
       },
     );
   };
-
-  const selectedRole = form.watch("role");
 
   return (
     <Dialog.Root
@@ -154,6 +166,31 @@ export function InviteUserModal({ open, onClose }: Props) {
                 })}
               </div>
             </Field>
+
+            {/* V2-6.5 — BUYER kontenjan göstergesi */}
+            {selectedRole === "BUYER" && buyerSeats.data ? (
+              <div
+                className={cn(
+                  "flex items-start gap-2 rounded-lg border px-3 py-2 text-xs",
+                  buyerSeatsFull
+                    ? "border-warning-200 bg-warning-50 text-warning-800"
+                    : "border-brand-200 bg-brand-50/40 text-brand-800",
+                )}
+              >
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold">
+                    Satın Almacı kontenjanı: {buyerSeats.data.used}/
+                    {buyerSeats.data.limit}
+                  </p>
+                  <p className="mt-0.5 opacity-90">
+                    {buyerSeatsFull
+                      ? "Kontenjan dolu. Yeni satın almacı davet edemezsiniz; super-admin'den kontenjan artırımı talep edin."
+                      : `${buyerSeats.data.active} aktif · ${buyerSeats.data.pending} bekleyen davet.`}
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </form>
 
           <footer className="px-5 py-4 border-t border-surface-border flex items-center gap-2">
@@ -171,7 +208,7 @@ export function InviteUserModal({ open, onClose }: Props) {
               variant="primary"
               onClick={form.handleSubmit(onSubmit)}
               loading={inviteMutation.isPending}
-              disabled={inviteMutation.isPending}
+              disabled={inviteMutation.isPending || buyerSeatsFull}
               className="flex-1"
             >
               <Send className="w-4 h-4" />

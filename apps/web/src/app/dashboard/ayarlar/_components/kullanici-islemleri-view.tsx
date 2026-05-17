@@ -3,10 +3,12 @@
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/use-permissions";
 import {
+  useBuyerSeatUsage,
   useTenantInvitations,
   useTenantUsers,
 } from "@/hooks/use-tenant-users";
-import { Shield, UserPlus2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Shield, ShoppingCart, UserPlus2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { BackToSettings } from "./back-to-settings";
@@ -21,6 +23,7 @@ export function KullaniciIslemleriView() {
 
   const usersQuery = useTenantUsers();
   const invitationsQuery = useTenantInvitations();
+  const buyerSeats = useBuyerSeatUsage();
   const [inviteOpen, setInviteOpen] = useState(false);
 
   if (!isAdmin) {
@@ -62,10 +65,26 @@ export function KullaniciIslemleriView() {
             Ekibinize üye davet edin ve yetkileri yönetin.
           </p>
         </div>
-        <Button variant="primary" onClick={() => setInviteOpen(true)}>
-          <UserPlus2 className="h-4 w-4" />
-          Üye Davet Et
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {buyerSeats.data ? (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold",
+                buyerSeats.data.used >= buyerSeats.data.limit
+                  ? "border-warning-200 bg-warning-50 text-warning-800"
+                  : "border-brand-200 bg-brand-50 text-brand-700",
+              )}
+              title="Aktif satın almacılar + bekleyen davetler / kontenjan"
+            >
+              <ShoppingCart className="h-3.5 w-3.5" />
+              Satın Almacı {buyerSeats.data.used}/{buyerSeats.data.limit}
+            </span>
+          ) : null}
+          <Button variant="primary" onClick={() => setInviteOpen(true)}>
+            <UserPlus2 className="h-4 w-4" />
+            Üye Davet Et
+          </Button>
+        </div>
       </div>
 
       <UsersTable users={usersQuery.data ?? []} loading={usersQuery.isLoading} />

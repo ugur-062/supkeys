@@ -1,7 +1,7 @@
 "use client";
 
 import { api } from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface AdminTenantListItem {
   id: string;
@@ -48,6 +48,13 @@ export interface AdminTenantDetail {
   district: string | null;
   addressLine: string | null;
   postalCode: string | null;
+  buyerSeatLimit: number;
+  buyerSeatUsage: {
+    active: number;
+    pending: number;
+    used: number;
+    limit: number;
+  };
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -122,5 +129,27 @@ export function useAdminTenantDetail(id: string | null | undefined) {
     },
     enabled: Boolean(id),
     staleTime: 30_000,
+  });
+}
+
+export function useUpdateAdminTenant(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { buyerSeatLimit?: number }) => {
+      const { data } = await api.patch<{
+        id: string;
+        buyerSeatLimit: number;
+        updatedAt: string;
+      }>(`/admin/tenants/${id}`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "tenants", "detail", id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "tenants", "list"],
+      });
+    },
   });
 }

@@ -16,7 +16,29 @@ const KEYS = {
   list: () => [...KEYS.all, "list"] as const,
   me: () => [...KEYS.all, "me"] as const,
   invitations: () => [...KEYS.all, "invitations"] as const,
+  buyerSeats: () => [...KEYS.all, "buyer-seats"] as const,
 };
+
+export interface BuyerSeatUsage {
+  active: number;
+  pending: number;
+  used: number;
+  limit: number;
+  available: number;
+}
+
+export function useBuyerSeatUsage() {
+  return useQuery({
+    queryKey: KEYS.buyerSeats(),
+    queryFn: async () => {
+      const { data } = await api.get<BuyerSeatUsage>(
+        "/tenants/me/users/buyer-seats",
+      );
+      return data;
+    },
+    staleTime: 15_000,
+  });
+}
 
 export function useTenantUsers() {
   return useQuery({
@@ -80,6 +102,7 @@ export function useUpdateUser() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.list() });
+      qc.invalidateQueries({ queryKey: KEYS.buyerSeats() });
     },
   });
 }
@@ -94,6 +117,7 @@ export function useInviteUser() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.invitations() });
       qc.invalidateQueries({ queryKey: KEYS.list() });
+      qc.invalidateQueries({ queryKey: KEYS.buyerSeats() });
     },
   });
 }
@@ -122,6 +146,7 @@ export function useCancelInvitation() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.invitations() });
+      qc.invalidateQueries({ queryKey: KEYS.buyerSeats() });
     },
   });
 }

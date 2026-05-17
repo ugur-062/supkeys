@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useUpdateUser } from "@/hooks/use-tenant-users";
+import { useBuyerSeatUsage, useUpdateUser } from "@/hooks/use-tenant-users";
 import type { UserRole } from "@/lib/auth/types";
 import {
   computePermissionsOverride,
@@ -18,7 +18,7 @@ import type { TenantUserListItem } from "@/lib/users/types";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as Dialog from "@radix-ui/react-dialog";
-import { AlertTriangle, Pencil, RotateCcw, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Pencil, RotateCcw, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -42,6 +42,7 @@ interface Props {
 
 export function EditUserModal({ user, onClose }: Props) {
   const updateMutation = useUpdateUser();
+  const buyerSeats = useBuyerSeatUsage();
   const open = Boolean(user);
 
   const form = useForm<FormValues>({
@@ -105,9 +106,23 @@ export function EditUserModal({ user, onClose }: Props) {
     );
   };
 
+  // V2-6.5 — BUYER'a yükseltme kontrolü. Kullanıcı zaten BUYER ise saymıyoruz.
+  const isPromotingToBuyer = Boolean(
+    role === "BUYER" && user && user.role !== "BUYER",
+  );
+  const buyerSeatsFullForPromotion = Boolean(
+    isPromotingToBuyer &&
+      buyerSeats.data !== undefined &&
+      buyerSeats.data.used >= buyerSeats.data.limit,
+  );
+
   if (!user) return null;
 
   const onSubmit = (values: FormValues) => {
+    if (buyerSeatsFullForPromotion) {
+      toast.error("Satın Almacı kontenjanı dolu");
+      return;
+    }
     updateMutation.mutate(
       {
         id: user.id,
@@ -210,26 +225,46 @@ export function EditUserModal({ user, onClose }: Props) {
                 {ROLES.map((r) => {
                   const meta = USER_ROLE_LABELS[r];
                   const isSelected = role === r;
+                  // V2-6.5 — Kullanıcı zaten BUYER değilse ve kontenjan
+                  // doluysa BUYER seçeneği disabled görünür.
+                  const seatsBlockBuyer =
+                    r === "BUYER" &&
+                    user.role !== "BUYER" &&
+                    buyerSeats.data !== undefined &&
+                    buyerSeats.data.used >= buyerSeats.data.limit;
                   return (
                     <label
                       key={r}
+                      title={
+                        seatsBlockBuyer
+                          ? "Satın Almacı kontenjanı dolu"
+                          : undefined
+                      }
                       className={cn(
-                        "flex cursor-pointer gap-3 rounded-lg border p-2.5 text-sm transition",
-                        isSelected
-                          ? "border-brand-400 bg-brand-50/40"
-                          : "border-slate-200 bg-white hover:border-brand-300",
+                        "flex gap-3 rounded-lg border p-2.5 text-sm transition",
+                        seatsBlockBuyer
+                          ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-60"
+                          : isSelected
+                            ? "cursor-pointer border-brand-400 bg-brand-50/40"
+                            : "cursor-pointer border-slate-200 bg-white hover:border-brand-300",
                       )}
                     >
                       <input
                         type="radio"
                         value={r}
                         checked={isSelected}
+                        disabled={seatsBlockBuyer}
                         onChange={() => handleRoleChange(r)}
-                        className="mt-0.5 h-4 w-4 text-brand-600"
+                        className="mt-0.5 h-4 w-4 text-brand-600 disabled:cursor-not-allowed"
                       />
                       <span>
                         <span className="font-semibold text-brand-900">
                           {meta.label}
+                          {seatsBlockBuyer ? (
+                            <span className="ml-1 text-[10px] font-semibold uppercase text-warning-700">
+                              kontenjan dolu
+                            </span>
+                          ) : null}
                         </span>
                         <span className="mt-0.5 block text-xs text-slate-500">
                           {meta.description}
@@ -240,6 +275,31 @@ export function EditUserModal({ user, onClose }: Props) {
                 })}
               </div>
             </Field>
+
+            {/* V2-6.5 — BUYER kontenjan göstergesi (sadece BUYER seçildiğinde) */}
+            {role === "BUYER" && buyerSeats.data ? (
+              <div
+                className={cn(
+                  "flex items-start gap-2 rounded-lg border px-3 py-2 text-xs",
+                  buyerSeatsFullForPromotion
+                    ? "border-warning-200 bg-warning-50 text-warning-800"
+                    : "border-brand-200 bg-brand-50/40 text-brand-800",
+                )}
+              >
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 flex-shrink-0" />
+                <div>
+                  <p className="font-semibold">
+                    Satın Almacı kontenjanı: {buyerSeats.data.used}/
+                    {buyerSeats.data.limit}
+                  </p>
+                  <p className="mt-0.5 opacity-90">
+                    {buyerSeatsFullForPromotion
+                      ? "Kontenjan dolu. Bu kullanıcıyı satın almacıya yükseltemezsiniz."
+                      : `${buyerSeats.data.active} aktif · ${buyerSeats.data.pending} bekleyen davet.`}
+                  </p>
+                </div>
+              </div>
+            ) : null}
 
             {/* V2-6.5 — Yetkiler */}
             <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4">
@@ -362,7 +422,7 @@ export function EditUserModal({ user, onClose }: Props) {
               variant="primary"
               onClick={form.handleSubmit(onSubmit)}
               loading={updateMutation.isPending}
-              disabled={updateMutation.isPending}
+              disabled={updateMutation.isPending || buyerSeatsFullForPromotion}
               className="flex-1"
             >
               Kaydet
