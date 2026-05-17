@@ -132,21 +132,39 @@ export function isForbiddenForRole(role: UserRole, permission: string): boolean 
 }
 
 export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
+  // V2-6.5 — Yönetici (COMPANY_ADMIN): yasak olan tender:create hariç TÜM
+  // yetkilere default'ta sahip ("süper-yönetici" yaklaşımı). Suistimal
+  // koruması tender:create yasağıyla sağlanır: yönetici ihale AÇAMAZ,
+  // dolayısıyla tek başına bir RFQ döngüsü tamamlayamaz — her tenant'a
+  // en az 1 BUYER (ücretli koltuk) lazım kalır. Diğer yetkiler yönetim
+  // ve operasyonel esneklik için açıktır; istenirse override.removed ile
+  // kısıtlanabilir.
   COMPANY_ADMIN: [
+    // Ayarlar
     "settings:users",
     "settings:suppliers",
     "settings:addresses",
     "settings:approval",
     "settings:company",
+    // İhale (tender:create YASAK — defaultta yok ve verilemez)
     "tender:view",
-    // V2-6.5 düzeltme: Yönetici tekliflerini görebilmeli (yönetim
-    // işlevi). Eleme (bid:eliminate) yine operasyonel — sadece BUYER'da.
+    "tender:edit",
+    "tender:publish",
+    "tender:delete",
+    "tender:cancel",
+    "tender:award",
+    // Teklif
     "bid:compare",
+    "bid:eliminate",
+    // Sipariş
+    "order:edit",
+    "order:complete",
+    "order:cancel",
     "order:view",
+    // Onay (sıklıkla son onaylayıcı)
     "approval:view",
-    // V2-6.5 düzeltme: Yönetici onay akışında sıklıkla son onaylayıcı
-    // olduğu için approve yetkisi default'ta verilir.
     "approval:approve",
+    // Raporlar
     "reports:view",
     "reports:export",
   ],

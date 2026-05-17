@@ -79,21 +79,36 @@ export const PERMISSION_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
+  // V2-6.5 — Yönetici: yasak tender:create dışında TÜM yetkilere default'ta
+  // sahip. Suistimal koruması tender:create yasağıyla: yönetici ihale
+  // açamadığı için tek başına RFQ döngüsü tamamlayamaz → her tenant'a
+  // en az 1 BUYER (ücretli koltuk) lazım kalır.
   COMPANY_ADMIN: [
+    // Ayarlar
     "settings:users",
     "settings:suppliers",
     "settings:addresses",
     "settings:approval",
     "settings:company",
+    // İhale (tender:create YASAK)
     "tender:view",
-    // V2-6.5 düzeltme: Yönetici tekliflerini görebilmeli (yönetim
-    // işlevi). Eleme (bid:eliminate) yine operasyonel — sadece BUYER'da.
+    "tender:edit",
+    "tender:publish",
+    "tender:delete",
+    "tender:cancel",
+    "tender:award",
+    // Teklif
     "bid:compare",
+    "bid:eliminate",
+    // Sipariş
+    "order:edit",
+    "order:complete",
+    "order:cancel",
     "order:view",
+    // Onay
     "approval:view",
-    // V2-6.5 düzeltme: Yönetici onay akışında sıklıkla son onaylayıcı
-    // olduğu için approve yetkisi default'ta verilir.
     "approval:approve",
+    // Raporlar
     "reports:view",
     "reports:export",
   ],
