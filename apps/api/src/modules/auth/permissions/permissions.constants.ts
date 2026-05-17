@@ -179,5 +179,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     "order:view",
     // Tedarikçi listesini görüntüleme + davet etme her rolde varsayılan
     "settings:suppliers",
+    // V2-6.5 — Onaylayıcı raporları görüntüleyebilir ve dışa aktarabilir
+    "reports:view",
+    "reports:export",
   ],
 };
