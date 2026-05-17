@@ -184,6 +184,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     "order:view",
     // Tedarikçi listesini görüntüleme + davet etme her rolde varsayılan
     "settings:suppliers",
+    // V2-6.5 — Satın almacı sahaya yakın; teslimat/fatura adreslerini
+    // yönetebilmeli ki RFQ akışı yöneticiyi beklemekle yavaşlamasın.
+    "settings:addresses",
     "reports:view",
   ],
   APPROVER: [
