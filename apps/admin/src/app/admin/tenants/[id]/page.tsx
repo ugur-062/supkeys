@@ -26,6 +26,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { EditTenantMetaModal } from "./_components/edit-tenant-meta-modal";
 
 const TENDER_STATUS_LABELS: Record<string, string> = {
   DRAFT: "Taslak",
@@ -104,21 +105,10 @@ function DetailContent() {
       </Link>
 
       {/* Header */}
-      <div className="flex items-start gap-4">
-        <div className="h-16 w-16 rounded-2xl bg-brand-50 flex items-center justify-center flex-shrink-0">
-          <Building2 className="h-8 w-8 text-brand-500" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl font-display font-bold text-admin-text">
-            {t.name}
-          </h1>
-          <p className="text-sm text-admin-text-muted mt-1">
-            VKN: {t.taxNumber ?? "—"}
-            {t.city ? ` · ${t.city}` : ""} · Kayıt:{" "}
-            {format(new Date(t.createdAt), "d MMMM yyyy", { locale: tr })}
-          </p>
-        </div>
-      </div>
+      <TenantHeader tenant={t} />
+
+      {/* Tenant aktif/pasif kontrolü */}
+      <TenantActivationCard tenant={t} />
 
       {/* Mini KPI'lar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -209,6 +199,104 @@ const ACCENT_CLASSES = {
   indigo: { bg: "bg-indigo-50", icon: "text-indigo-600" },
   success: { bg: "bg-success-50", icon: "text-success-600" },
 };
+
+function TenantHeader({ tenant }: { tenant: AdminTenantDetail }) {
+  const [editOpen, setEditOpen] = useState(false);
+  return (
+    <>
+      <div className="flex items-start gap-4">
+        <div className="h-16 w-16 rounded-2xl bg-brand-50 flex items-center justify-center flex-shrink-0">
+          <Building2 className="h-8 w-8 text-brand-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-display font-bold text-admin-text">
+              {tenant.name}
+            </h1>
+            {!tenant.isActive ? (
+              <span className="inline-flex items-center gap-1 rounded-md border border-danger-200 bg-danger-50 px-2 py-0.5 text-xs font-semibold text-danger-700">
+                PASİF
+              </span>
+            ) : null}
+          </div>
+          <p className="text-sm text-admin-text-muted mt-1">
+            VKN: {tenant.taxNumber ?? "—"}
+            {tenant.city ? ` · ${tenant.city}` : ""} · Kayıt:{" "}
+            {format(new Date(tenant.createdAt), "d MMMM yyyy", { locale: tr })}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setEditOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-semibold text-brand-700 transition hover:bg-brand-100"
+        >
+          <Pencil className="h-4 w-4" />
+          Bilgileri Düzenle
+        </button>
+      </div>
+      <EditTenantMetaModal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        tenant={tenant}
+      />
+    </>
+  );
+}
+
+function TenantActivationCard({ tenant }: { tenant: AdminTenantDetail }) {
+  const mutation = useUpdateAdminTenant(tenant.id);
+  const toggle = () => {
+    const next = !tenant.isActive;
+    if (
+      !confirm(
+        next
+          ? "Tenant'ı aktif etmek istediğine emin misin?"
+          : "Tenant'ı pasif yaparsan tüm kullanıcılar giriş yapamaz. Devam edilsin mi?",
+      )
+    )
+      return;
+    mutation.mutate(
+      { isActive: next },
+      {
+        onSuccess: () =>
+          toast.success(next ? "Tenant aktif edildi" : "Tenant pasifleştirildi"),
+        onError: (err: unknown) =>
+          toast.error(err instanceof Error ? err.message : "Hata"),
+      },
+    );
+  };
+
+  return (
+    <div
+      className={cn(
+        "admin-card flex items-center justify-between gap-4 p-4",
+        !tenant.isActive ? "border-danger-200 bg-danger-50/40" : "",
+      )}
+    >
+      <div className="min-w-0">
+        <p className="font-semibold text-admin-text">
+          {tenant.isActive ? "Tenant aktif" : "Tenant pasif — login engellendi"}
+        </p>
+        <p className="mt-0.5 text-xs text-admin-text-muted">
+          Pasif yaparsan tüm kullanıcılar (COMPANY_ADMIN dahil) giriş yapamaz.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={mutation.isPending}
+        className={cn(
+          "rounded-lg px-4 py-2 text-sm font-semibold transition disabled:opacity-50",
+          tenant.isActive
+            ? "border border-danger-300 bg-white text-danger-700 hover:bg-danger-50"
+            : "bg-brand-600 text-white hover:bg-brand-700",
+        )}
+      >
+        {tenant.isActive ? "Pasifleştir" : "Aktifleştir"}
+      </button>
+    </div>
+  );
+}
 
 function MembershipCard({
   tenantId,

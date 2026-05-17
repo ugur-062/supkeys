@@ -137,6 +137,15 @@ export interface UpdateAdminTenantPayload {
   buyerSeatLimit?: number;
   membershipEndAt?: string | null;
   extendMonths?: number;
+  isActive?: boolean;
+  name?: string;
+  taxNumber?: string | null;
+  taxOffice?: string | null;
+  industry?: string | null;
+  city?: string | null;
+  district?: string | null;
+  addressLine?: string | null;
+  postalCode?: string | null;
 }
 
 export function useUpdateAdminTenant(id: string) {

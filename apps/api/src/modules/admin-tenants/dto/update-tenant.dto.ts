@@ -1,7 +1,11 @@
 import {
+  IsBoolean,
   IsDateString,
   IsInt,
   IsOptional,
+  IsString,
+  Length,
+  Matches,
   Max,
   Min,
   ValidateIf,
@@ -30,4 +34,50 @@ export class UpdateTenantDto {
   @Min(1)
   @Max(12)
   extendMonths?: number;
+
+  // V2-6.5 — Tenant meta (admin destek operasyonları için).
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Length(2, 120)
+  name?: string;
+
+  @IsOptional()
+  @ValidateIf((_, value) => value !== null)
+  @IsString()
+  @Matches(/^\d{10,11}$/, { message: "VKN/TCKN 10 veya 11 haneli olmalı" })
+  taxNumber?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 120)
+  taxOffice?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 120)
+  industry?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 80)
+  city?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 80)
+  district?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 500)
+  addressLine?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 20)
+  postalCode?: string | null;
 }

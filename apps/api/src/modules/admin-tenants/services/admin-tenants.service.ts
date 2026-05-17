@@ -187,6 +187,17 @@ export class AdminTenantsService {
       data.buyerSeatLimit = dto.buyerSeatLimit;
     }
 
+    // V2-6.5 — Tenant meta (destek operasyonları).
+    if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.taxNumber !== undefined) data.taxNumber = dto.taxNumber;
+    if (dto.taxOffice !== undefined) data.taxOffice = dto.taxOffice;
+    if (dto.industry !== undefined) data.industry = dto.industry;
+    if (dto.city !== undefined) data.city = dto.city;
+    if (dto.district !== undefined) data.district = dto.district;
+    if (dto.addressLine !== undefined) data.addressLine = dto.addressLine;
+    if (dto.postalCode !== undefined) data.postalCode = dto.postalCode;
+
     // V2-6.5 — Üyelik süresi: extendMonths öncelikli; yoksa membershipEndAt
     // doğrudan setlenir (null → sınırsız).
     if (dto.extendMonths !== undefined) {
@@ -202,26 +213,33 @@ export class AdminTenantsService {
         dto.membershipEndAt === null ? null : new Date(dto.membershipEndAt);
     }
 
+    const selectFields = {
+      id: true,
+      name: true,
+      isActive: true,
+      taxNumber: true,
+      taxOffice: true,
+      industry: true,
+      city: true,
+      district: true,
+      addressLine: true,
+      postalCode: true,
+      buyerSeatLimit: true,
+      membershipEndAt: true,
+      updatedAt: true,
+    } as const;
+
     if (Object.keys(data).length === 0) {
       return this.prisma.tenant.findUnique({
         where: { id },
-        select: {
-          id: true,
-          buyerSeatLimit: true,
-          membershipEndAt: true,
-        },
+        select: selectFields,
       });
     }
 
     return this.prisma.tenant.update({
       where: { id },
       data,
-      select: {
-        id: true,
-        buyerSeatLimit: true,
-        membershipEndAt: true,
-        updatedAt: true,
-      },
+      select: selectFields,
     });
   }
 }
