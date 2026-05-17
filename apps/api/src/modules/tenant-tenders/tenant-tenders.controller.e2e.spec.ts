@@ -495,11 +495,30 @@ describe("tenant-tenders controller (E2E)", () => {
         .expect(200);
     });
 
-    it("APPROVER (bid:compare yok) → 403", async () => {
+    // V2-6.5 — APPROVER artık default'ta bid:compare yetkisine sahip
+    // (onay öncesi teklif inceleme için). 200 dönmeli.
+    it("APPROVER (bid:compare default) → 200", async () => {
       const { tender, tenant } = await setupTenderWithBid();
       const approver = await createUser(prisma, tenant, {
         email: `app-${Date.now()}-${Math.random()}@test.local`,
         role: "APPROVER",
+      });
+      const login = await request(app.getHttpServer())
+        .post("/api/auth/login")
+        .send({ email: approver.email, password: approver.plaintextPassword })
+        .expect(200);
+      await request(app.getHttpServer())
+        .get(`/api/tenants/me/tenders/${tender.id}/bids`)
+        .set("Authorization", `Bearer ${login.body.token}`)
+        .expect(200);
+    });
+
+    it("APPROVER + override.removed bid:compare → 403", async () => {
+      const { tender, tenant } = await setupTenderWithBid();
+      const approver = await createUser(prisma, tenant, {
+        email: `app-rm-${Date.now()}-${Math.random()}@test.local`,
+        role: "APPROVER",
+        permissionsOverride: { removed: ["bid:compare"] },
       });
       const login = await request(app.getHttpServer())
         .post("/api/auth/login")

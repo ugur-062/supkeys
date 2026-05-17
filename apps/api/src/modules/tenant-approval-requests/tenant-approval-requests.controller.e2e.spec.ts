@@ -67,14 +67,23 @@ describe("tenant-approval-requests controller (E2E)", () => {
 
   async function loginAs(
     role: "COMPANY_ADMIN" | "BUYER" | "APPROVER",
-    tenantId?: string,
+    opts: {
+      tenantId?: string;
+      permissionsOverride?: { added?: string[]; removed?: string[] };
+    } = {},
   ): Promise<{ token: string; tenantId: string; userId: string; email: string }> {
-    const tenant = tenantId
-      ? await prisma.tenant.findUnique({ where: { id: tenantId } })
+    const tenant = opts.tenantId
+      ? await prisma.tenant.findUnique({ where: { id: opts.tenantId } })
       : await createTenant(prisma);
     if (!tenant) throw new Error("tenant lookup fail");
     const email = `${role.toLowerCase()}-${Date.now()}-${Math.random()}@test.local`;
-    const user = await createUser(prisma, tenant.id, { email, role });
+    const user = await createUser(prisma, tenant.id, {
+      email,
+      role,
+      ...(opts.permissionsOverride
+        ? { permissionsOverride: opts.permissionsOverride }
+        : {}),
+    });
     const res = await request(app.getHttpServer())
       .post("/api/auth/login")
       .send({ email, password: user.plaintextPassword })
@@ -106,12 +115,14 @@ describe("tenant-approval-requests controller (E2E)", () => {
       expect(Array.isArray(res.body)).toBe(true);
     });
 
-    it("BUYER (approval:view yok) → 403", async () => {
+    // V2-6.5 — BUYER artık default'ta approval:view sahibi (kendi açtığı
+    // ihalenin onay sürecini görmesi için). 200 dönmeli.
+    it("BUYER (approval:view default) → 200", async () => {
       const { token } = await loginAs("BUYER");
       await request(app.getHttpServer())
         .get("/api/tenants/me/approval-requests")
         .set("Authorization", `Bearer ${token}`)
-        .expect(403);
+        .expect(200);
     });
 
     it("token yok → 401", async () => {
@@ -271,13 +282,30 @@ describe("tenant-approval-requests controller (E2E)", () => {
   });
 
   describe("POST /:id/cancel — initiator only (approval:view permission gerek)", () => {
-    it("BUYER (approval:view yok) → 403 RBAC", async () => {
-      // BUYER default permission'unda approval:view yok — initiator olsa
-      // bile cancel endpoint'ine erişemez. PermissionsGuard servis seviyesi
-      // initiator check'ine ulaşmadan engeller.
+    // V2-6.5 — BUYER artık default'ta approval:view sahibi. RBAC geçer;
+    // initiator olduğu için kendi sürecini iptal edebilir → 201.
+    it("BUYER initiator kendi sürecini iptal eder → 201", async () => {
       const { token, tenantId, userId } = await loginAs("BUYER");
       const approver = await createUser(prisma, tenantId, {
         email: `app-${Date.now()}@test.local`,
+        role: "COMPANY_ADMIN",
+      });
+      const { requestId } = await seedPendingApproval(tenantId, userId, approver.id);
+
+      await request(app.getHttpServer())
+        .post(`/api/tenants/me/approval-requests/${requestId}/cancel`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ reason: "İhale kapsamı değişti" })
+        .expect(201);
+    });
+
+    it("BUYER override.removed approval:view → 403 RBAC", async () => {
+      // approval:view kaldırılırsa cancel endpoint'i de erişilemez olmalı
+      const { token, tenantId, userId } = await loginAs("BUYER", {
+        permissionsOverride: { removed: ["approval:view"] },
+      });
+      const approver = await createUser(prisma, tenantId, {
+        email: `app-rm-${Date.now()}@test.local`,
         role: "COMPANY_ADMIN",
       });
       const { requestId } = await seedPendingApproval(tenantId, userId, approver.id);
@@ -319,7 +347,9 @@ describe("tenant-approval-requests controller (E2E)", () => {
       const { requestId } = await seedPendingApproval(tenantId, initiatorId, approver.id);
 
       // Aynı tenant'tan farklı COMPANY_ADMIN
-      const { token: adminToken } = await loginAs("COMPANY_ADMIN", tenantId);
+      const { token: adminToken } = await loginAs("COMPANY_ADMIN", {
+        tenantId,
+      });
 
       await request(app.getHttpServer())
         .post(`/api/tenants/me/approval-requests/${requestId}/cancel`)

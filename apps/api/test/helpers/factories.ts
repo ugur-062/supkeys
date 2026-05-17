@@ -70,6 +70,9 @@ export async function createUser(
       isActive: overrides.isActive ?? true,
       phone: overrides.phone ?? null,
       tenantId,
+      ...(overrides.permissionsOverride !== undefined
+        ? { permissionsOverride: overrides.permissionsOverride }
+        : {}),
     },
   });
   return Object.assign(created, { plaintextPassword: password });

@@ -61,12 +61,12 @@ describe("resolveUserPermissions", () => {
   });
 
   describe("override.added", () => {
-    it("COMPANY_ADMIN'e tender:create ekle → 12 yetki", () => {
-      const perms = resolveUserPermissions("COMPANY_ADMIN", {
-        added: ["tender:create"],
+    it("APPROVER'a settings:users ekle (yasak değil) → +1 yetki", () => {
+      const perms = resolveUserPermissions("APPROVER", {
+        added: ["settings:users"],
       });
-      expect(perms).toContain("tender:create");
-      expect(perms.length).toBe(ROLE_DEFAULT_PERMISSIONS.COMPANY_ADMIN.length + 1);
+      expect(perms).toContain("settings:users");
+      expect(perms.length).toBe(ROLE_DEFAULT_PERMISSIONS.APPROVER.length + 1);
     });
 
     it("default'ta zaten olan yetki added → duplicate edilmez", () => {
@@ -77,11 +77,11 @@ describe("resolveUserPermissions", () => {
       expect(perms.length).toBe(ROLE_DEFAULT_PERMISSIONS.BUYER.length);
     });
 
-    it("aynı permission added array'inde 2 kez → tek kez", () => {
+    it("aynı permission added array'inde 2 kez → tek kez (yasak değilse)", () => {
       const perms = resolveUserPermissions("APPROVER", {
-        added: ["bid:eliminate", "bid:eliminate"],
+        added: ["settings:users", "settings:users"],
       });
-      expect(perms.filter((p) => p === "bid:eliminate")).toHaveLength(1);
+      expect(perms.filter((p) => p === "settings:users")).toHaveLength(1);
     });
   });
 
@@ -103,13 +103,13 @@ describe("resolveUserPermissions", () => {
   });
 
   describe("override.added + removed birlikte", () => {
-    it("COMPANY_ADMIN: tender:create eklenir, settings:users kaldırılır", () => {
-      const perms = resolveUserPermissions("COMPANY_ADMIN", {
-        added: ["tender:create"],
-        removed: ["settings:users"],
+    it("APPROVER: settings:users eklenir (yasak değil), tender:view kaldırılır", () => {
+      const perms = resolveUserPermissions("APPROVER", {
+        added: ["settings:users"],
+        removed: ["tender:view"],
       });
-      expect(perms).toContain("tender:create");
-      expect(perms).not.toContain("settings:users");
+      expect(perms).toContain("settings:users");
+      expect(perms).not.toContain("tender:view");
     });
 
     it("added + removed aynı permission'a işaret ederse → added kazanır (Set semantic)", () => {
@@ -119,6 +119,87 @@ describe("resolveUserPermissions", () => {
         removed: ["tender:create"],
       });
       expect(perms).toContain("tender:create");
+    });
+  });
+
+  // V2-6.5 — FORBIDDEN_PERMISSIONS_BY_ROLE güvencesi: yasak yetkiler
+  // override.added ile bile efektif listede çıkmaz. Bu RBAC tasarımının
+  // savunma katmanı — saldırgan veya buggy code override yazsa bile
+  // resolveUserPermissions yasak yetkileri filtreler.
+  describe("FORBIDDEN_PERMISSIONS_BY_ROLE savunma katmanı", () => {
+    it("COMPANY_ADMIN: tender:create override.added ile bile verilemez", () => {
+      const perms = resolveUserPermissions("COMPANY_ADMIN", {
+        added: ["tender:create"],
+      });
+      expect(perms).not.toContain("tender:create");
+    });
+
+    it("COMPANY_ADMIN: tender:edit/publish/delete + bid:eliminate + order:edit yasak", () => {
+      const perms = resolveUserPermissions("COMPANY_ADMIN", {
+        added: [
+          "tender:edit",
+          "tender:publish",
+          "tender:delete",
+          "bid:eliminate",
+          "order:edit",
+        ],
+      });
+      expect(perms).not.toContain("tender:edit");
+      expect(perms).not.toContain("tender:publish");
+      expect(perms).not.toContain("tender:delete");
+      expect(perms).not.toContain("bid:eliminate");
+      expect(perms).not.toContain("order:edit");
+    });
+
+    it("APPROVER: yazma yetkileri (tender:*, bid:eliminate, order:*) yasak", () => {
+      const perms = resolveUserPermissions("APPROVER", {
+        added: [
+          "tender:create",
+          "tender:edit",
+          "tender:publish",
+          "tender:delete",
+          "tender:cancel",
+          "tender:award",
+          "bid:eliminate",
+          "order:edit",
+          "order:complete",
+          "order:cancel",
+        ],
+      });
+      expect(perms).not.toContain("tender:create");
+      expect(perms).not.toContain("tender:edit");
+      expect(perms).not.toContain("tender:publish");
+      expect(perms).not.toContain("tender:delete");
+      expect(perms).not.toContain("tender:cancel");
+      expect(perms).not.toContain("tender:award");
+      expect(perms).not.toContain("bid:eliminate");
+      expect(perms).not.toContain("order:edit");
+      expect(perms).not.toContain("order:complete");
+      expect(perms).not.toContain("order:cancel");
+    });
+
+    it("APPROVER: settings:* yasak DEĞİL → override ile verilebilir", () => {
+      const perms = resolveUserPermissions("APPROVER", {
+        added: [
+          "settings:users",
+          "settings:addresses",
+          "settings:approval",
+          "settings:company",
+        ],
+      });
+      expect(perms).toContain("settings:users");
+      expect(perms).toContain("settings:addresses");
+      expect(perms).toContain("settings:approval");
+      expect(perms).toContain("settings:company");
+    });
+
+    it("BUYER: yasak listesi boş → tüm yetkiler override ile verilebilir", () => {
+      const perms = resolveUserPermissions("BUYER", {
+        added: ["settings:users", "settings:approval", "approval:approve"],
+      });
+      expect(perms).toContain("settings:users");
+      expect(perms).toContain("settings:approval");
+      expect(perms).toContain("approval:approve");
     });
   });
 
@@ -149,10 +230,20 @@ describe("resolveUserPermissions", () => {
       expect(hasPermission("APPROVER", null, "tender:create")).toBe(false);
     });
 
-    it("override.added ile yetki kazanan kullanıcı → true", () => {
+    it("override.added ile yetki kazanan kullanıcı → true (yasak değilse)", () => {
       expect(
-        hasPermission("COMPANY_ADMIN", { added: ["tender:create"] }, "tender:create"),
+        hasPermission("APPROVER", { added: ["settings:users"] }, "settings:users"),
       ).toBe(true);
+    });
+
+    it("yasak yetki override.added ile verilse de → false", () => {
+      expect(
+        hasPermission(
+          "COMPANY_ADMIN",
+          { added: ["tender:create"] },
+          "tender:create",
+        ),
+      ).toBe(false);
     });
 
     it("override.removed ile yetki kaybeden kullanıcı → false", () => {
