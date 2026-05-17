@@ -130,7 +130,10 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     "settings:suppliers",
     // V2-6.5 — Satın almacı teslimat/fatura adreslerini yönetebilir
     "settings:addresses",
+    // V2-6.5 — Açtığı ihalenin onay sürecini görmeli
+    "approval:view",
     "reports:view",
+    "reports:export",
   ],
   APPROVER: [
     "approval:approve",

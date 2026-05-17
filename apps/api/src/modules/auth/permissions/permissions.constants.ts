@@ -169,6 +169,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     "reports:export",
   ],
   BUYER: [
+    // İhale operasyonu (BUYER'ın ana iş alanı)
     "tender:create",
     "tender:edit",
     "tender:publish",
@@ -176,8 +177,10 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     "tender:award",
     "tender:cancel",
     "tender:view",
+    // Teklif değerlendirme
     "bid:compare",
     "bid:eliminate",
+    // Sipariş operasyonu
     "order:edit",
     "order:complete",
     "order:cancel",
@@ -187,7 +190,12 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     // V2-6.5 — Satın almacı sahaya yakın; teslimat/fatura adreslerini
     // yönetebilmeli ki RFQ akışı yöneticiyi beklemekle yavaşlamasın.
     "settings:addresses",
+    // V2-6.5 — Açtığı ihalenin onay sürecinde nerede olduğunu görmeli
+    // (yöneticiye sormadan takip edebilsin).
+    "approval:view",
+    // Raporlar
     "reports:view",
+    "reports:export",
   ],
   APPROVER: [
     "approval:approve",
