@@ -128,6 +128,27 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   APPROVER: "Onaylayıcı",
 };
 
+/**
+ * V2-6.5 fix — Rol başına KESİNLİKLE atanamayacak izinler. Backend ile
+ * birebir SENKRON (permissions.constants.ts).
+ *
+ * - COMPANY_ADMIN bir yönetim rolüdür; ihale OLUŞTURMA yetkisi verilemez.
+ *   UI'da bu izin toggle'ı disabled görünür.
+ */
+export const FORBIDDEN_PERMISSIONS_BY_ROLE: Record<UserRole, readonly string[]> =
+  {
+    COMPANY_ADMIN: ["tender:create"],
+    BUYER: [],
+    APPROVER: [],
+  };
+
+export function isPermissionForbiddenForRole(
+  role: UserRole,
+  permission: string,
+): boolean {
+  return FORBIDDEN_PERMISSIONS_BY_ROLE[role].includes(permission);
+}
+
 export interface PermissionsOverride {
   added?: string[];
   removed?: string[];

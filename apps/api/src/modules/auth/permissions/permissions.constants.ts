@@ -93,6 +93,26 @@ export const PERMISSION_LABELS: Record<
  *   reports:view. Ayarları yönetemez.
  * - APPROVER: sadece onay süreçleri + temel view (tender/order okuyabilir).
  */
+/**
+ * V2-6.5 fix — Rol başına KESİNLİKLE atanamayacak izinler. Override.added
+ * ile bile verilmez; resolveUserPermissions efektif listede filtreler.
+ *
+ * Kural:
+ * - COMPANY_ADMIN (Firma Yöneticisi) bir yönetim rolüdür. İhale OLUŞTURMAK
+ *   onun işi değil; default'ta da yok. Bu listeyle, yanlışlıkla veya
+ *   kasten override ile bile verilmesi engellenir.
+ */
+export const FORBIDDEN_PERMISSIONS_BY_ROLE: Record<UserRole, readonly string[]> =
+  {
+    COMPANY_ADMIN: ["tender:create"],
+    BUYER: [],
+    APPROVER: [],
+  };
+
+export function isForbiddenForRole(role: UserRole, permission: string): boolean {
+  return FORBIDDEN_PERMISSIONS_BY_ROLE[role].includes(permission);
+}
+
 export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
   COMPANY_ADMIN: [
     "settings:users",

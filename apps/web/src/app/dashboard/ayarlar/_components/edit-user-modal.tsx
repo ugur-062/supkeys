@@ -8,6 +8,7 @@ import { useUpdateUser } from "@/hooks/use-tenant-users";
 import type { UserRole } from "@/lib/auth/types";
 import {
   computePermissionsOverride,
+  isPermissionForbiddenForRole,
   PERMISSION_GROUPS,
   ROLE_DEFAULT_PERMISSIONS,
 } from "@/lib/permissions";
@@ -280,32 +281,57 @@ export function EditUserModal({ user, onClose }: Props) {
                         const isDefault = (
                           ROLE_DEFAULT_PERMISSIONS[role as UserRole] ?? []
                         ).includes(item.key);
+                        // V2-6.5 — Rol bazlı yasak izin: COMPANY_ADMIN'e
+                        // tender:create verilemez. Toggle disabled + tooltip.
+                        const forbidden = isPermissionForbiddenForRole(
+                          role as UserRole,
+                          item.key,
+                        );
                         return (
                           <label
                             key={item.key}
-                            className="flex cursor-pointer items-start gap-2 rounded px-2 py-1.5 hover:bg-white"
+                            title={
+                              forbidden
+                                ? "Bu yetki bu rol için verilemez"
+                                : undefined
+                            }
+                            className={cn(
+                              "flex items-start gap-2 rounded px-2 py-1.5",
+                              forbidden
+                                ? "cursor-not-allowed opacity-50"
+                                : "cursor-pointer hover:bg-white",
+                            )}
                           >
                             <input
                               type="checkbox"
-                              checked={isChecked}
-                              onChange={() => togglePerm(item.key)}
-                              className="mt-0.5 h-4 w-4 rounded text-brand-600"
+                              checked={isChecked && !forbidden}
+                              disabled={forbidden}
+                              onChange={() => {
+                                if (forbidden) return;
+                                togglePerm(item.key);
+                              }}
+                              className="mt-0.5 h-4 w-4 rounded text-brand-600 disabled:cursor-not-allowed"
                             />
                             <span
                               className={cn(
                                 "text-sm",
-                                isChecked
-                                  ? "font-medium text-slate-900"
-                                  : "text-slate-600",
+                                forbidden
+                                  ? "text-slate-400 line-through"
+                                  : isChecked
+                                    ? "font-medium text-slate-900"
+                                    : "text-slate-600",
                               )}
                             >
                               {item.label}
-                              {!isDefault && isChecked ? (
+                              {forbidden ? (
+                                <span className="ml-1 text-[10px] font-semibold uppercase text-slate-400">
+                                  yasak
+                                </span>
+                              ) : !isDefault && isChecked ? (
                                 <span className="ml-1 text-[10px] font-semibold uppercase text-warning-600">
                                   +
                                 </span>
-                              ) : null}
-                              {isDefault && !isChecked ? (
+                              ) : isDefault && !isChecked ? (
                                 <span className="ml-1 text-[10px] font-semibold uppercase text-danger-600">
                                   −
                                 </span>

@@ -1,5 +1,8 @@
 import type { UserRole } from "@supkeys/db";
-import { ROLE_DEFAULT_PERMISSIONS } from "./permissions.constants";
+import {
+  FORBIDDEN_PERMISSIONS_BY_ROLE,
+  ROLE_DEFAULT_PERMISSIONS,
+} from "./permissions.constants";
 
 export interface PermissionsOverride {
   added?: string[];
@@ -12,14 +15,19 @@ export interface PermissionsOverride {
  * - override.removed: bu listeden çıkarılır.
  * - override.added: bu listeye eklenir (zaten varsa duplicate edilmez).
  * - null override → saf role default.
+ * - FORBIDDEN_PERMISSIONS_BY_ROLE: rol bazında yasak izinler her durumda
+ *   filtrelenir (override.added bile verse efektif listede çıkmaz).
  */
 export function resolveUserPermissions(
   role: UserRole,
   override: unknown,
 ): string[] {
   const rolePerms = ROLE_DEFAULT_PERMISSIONS[role] ?? [];
+  const forbidden = new Set(FORBIDDEN_PERMISSIONS_BY_ROLE[role] ?? []);
 
-  if (!override || typeof override !== "object") return [...rolePerms];
+  if (!override || typeof override !== "object") {
+    return rolePerms.filter((p) => !forbidden.has(p));
+  }
 
   const { added = [], removed = [] } = override as PermissionsOverride;
 
@@ -30,6 +38,8 @@ export function resolveUserPermissions(
   for (const p of added) {
     final.add(p);
   }
+  // Yasak izinleri her durumda çıkar — savunma katmanı.
+  for (const p of forbidden) final.delete(p);
   return Array.from(final);
 }
 

@@ -13,6 +13,8 @@ import { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import {
   ALL_PERMISSIONS,
+  FORBIDDEN_PERMISSIONS_BY_ROLE,
+  PERMISSION_LABELS,
 } from "../../auth/permissions/permissions.constants";
 import { resolveUserPermissions } from "../../auth/permissions/permissions.utils";
 import { EmailQueue } from "../../email/email.queue";
@@ -234,6 +236,23 @@ export class TenantUsersService {
           `Geçersiz yetki: ${invalid.join(", ")}`,
         );
       }
+
+      // V2-6.5 fix — Role bazında yasak izin kontrolü. COMPANY_ADMIN'e
+      // tender:create gibi yetkiler override.added ile verilemez.
+      const effectiveRole = dto.role ?? target.role;
+      const forbiddenForRole = FORBIDDEN_PERMISSIONS_BY_ROLE[effectiveRole] ?? [];
+      const violations = (ov.added ?? []).filter((p) =>
+        forbiddenForRole.includes(p),
+      );
+      if (violations.length > 0) {
+        const labels = violations
+          .map((p) => PERMISSION_LABELS[p]?.tr ?? p)
+          .join(", ");
+        throw new BadRequestException(
+          `${ROLE_LABELS[effectiveRole] ?? effectiveRole} rolüne şu yetkiler verilemez: ${labels}`,
+        );
+      }
+
       // Hem added hem removed boşsa null olarak sakla (saf default)
       if (
         (ov.added ?? []).length === 0 &&
