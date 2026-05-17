@@ -102,8 +102,9 @@ export const PERMISSION_LABELS: Record<
  *   onun işi değil; default'ta da yok. Bu listeyle, yanlışlıkla veya
  *   kasten override ile bile verilmesi engellenir.
  * - APPROVER (Onaylayıcı) salt-okunur + onaylama rolüdür. İhale/teklif/sipariş
- *   yazma yetkileri ve yönetim ayarları yasaktır. Sadece view + approval:approve
- *   + reports + (default'ta) settings:suppliers (görüntüleme amaçlı) verilebilir.
+ *   YAZMA yetkileri yasaktır (override.added ile bile verilemez). Yönetim
+ *   ayarları (settings:*) yasak DEĞİL — default'ta yok ama firma yöneticisi
+ *   isterse override.added ile verebilir.
  */
 export const FORBIDDEN_PERMISSIONS_BY_ROLE: Record<UserRole, readonly string[]> =
   {
@@ -123,11 +124,6 @@ export const FORBIDDEN_PERMISSIONS_BY_ROLE: Record<UserRole, readonly string[]> 
       "order:edit",
       "order:complete",
       "order:cancel",
-      // Yönetim ayarları (settings:suppliers default'ta görüntüleme amaçlı bırakıldı)
-      "settings:users",
-      "settings:addresses",
-      "settings:approval",
-      "settings:company",
     ],
   };
 
