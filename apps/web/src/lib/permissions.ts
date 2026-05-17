@@ -79,36 +79,24 @@ export const PERMISSION_LABELS: Record<string, string> = Object.fromEntries(
 );
 
 export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
-  // V2-6.5 — Yönetici: yasak tender:create dışında TÜM yetkilere default'ta
-  // sahip. Suistimal koruması tender:create yasağıyla: yönetici ihale
-  // açamadığı için tek başına RFQ döngüsü tamamlayamaz → her tenant'a
-  // en az 1 BUYER (ücretli koltuk) lazım kalır.
+  // V2-6.5 — Yönetici: sorumluluk ayrımı. Operasyonel yetkiler BUYER'da,
+  // yönetimsel karar yetkileri (cancel, award, order:complete/cancel) ve
+  // tüm ayarlar + onay + raporlar Yönetici'de.
   COMPANY_ADMIN: [
-    // Ayarlar
     "settings:users",
     "settings:suppliers",
     "settings:addresses",
     "settings:approval",
     "settings:company",
-    // İhale (tender:create YASAK)
     "tender:view",
-    "tender:edit",
-    "tender:publish",
-    "tender:delete",
     "tender:cancel",
     "tender:award",
-    // Teklif
     "bid:compare",
-    "bid:eliminate",
-    // Sipariş
-    "order:edit",
+    "order:view",
     "order:complete",
     "order:cancel",
-    "order:view",
-    // Onay
     "approval:view",
     "approval:approve",
-    // Raporlar
     "reports:view",
     "reports:export",
   ],
@@ -168,7 +156,15 @@ export const ROLE_LABELS: Record<UserRole, string> = {
  */
 export const FORBIDDEN_PERMISSIONS_BY_ROLE: Record<UserRole, readonly string[]> =
   {
-    COMPANY_ADMIN: ["tender:create"],
+    // Yönetici: operasyonel yetkiler yasak (sorumluluk ayrımı)
+    COMPANY_ADMIN: [
+      "tender:create",
+      "tender:edit",
+      "tender:publish",
+      "tender:delete",
+      "bid:eliminate",
+      "order:edit",
+    ],
     BUYER: [],
     APPROVER: [
       "tender:create",

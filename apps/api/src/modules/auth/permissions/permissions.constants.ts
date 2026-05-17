@@ -108,7 +108,18 @@ export const PERMISSION_LABELS: Record<
  */
 export const FORBIDDEN_PERMISSIONS_BY_ROLE: Record<UserRole, readonly string[]> =
   {
-    COMPANY_ADMIN: ["tender:create"],
+    // V2-6.5 — Yönetici: sorumluluk ayrımı için OPERASYONEL yetkiler yasak.
+    // Karar yetkileri (tender:cancel, tender:award, order:complete, order:cancel)
+    // yönetimde kalır; operasyon (oluşturma, düzenleme, yayın, silme, eleme,
+    // sipariş ince ayarı) BUYER'ın işi.
+    COMPANY_ADMIN: [
+      "tender:create",
+      "tender:edit",
+      "tender:publish",
+      "tender:delete",
+      "bid:eliminate",
+      "order:edit",
+    ],
     BUYER: [],
     APPROVER: [
       // İhale yazma operasyonları
@@ -132,35 +143,29 @@ export function isForbiddenForRole(role: UserRole, permission: string): boolean 
 }
 
 export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
-  // V2-6.5 — Yönetici (COMPANY_ADMIN): yasak olan tender:create hariç TÜM
-  // yetkilere default'ta sahip ("süper-yönetici" yaklaşımı). Suistimal
-  // koruması tender:create yasağıyla sağlanır: yönetici ihale AÇAMAZ,
-  // dolayısıyla tek başına bir RFQ döngüsü tamamlayamaz — her tenant'a
-  // en az 1 BUYER (ücretli koltuk) lazım kalır. Diğer yetkiler yönetim
-  // ve operasyonel esneklik için açıktır; istenirse override.removed ile
-  // kısıtlanabilir.
+  // V2-6.5 — Yönetici (COMPANY_ADMIN): sorumluluk ayrımı. Operasyonel
+  // yetkiler (create/edit/publish/delete/eleme/order edit) BUYER'a bırakılır
+  // ve yasaktır — yönetici override.added ile de alamaz. Yönetici "karar
+  // verici" rolündedir: kazandırma, iptal, teslim onayı, ayarlar, onay,
+  // raporlar. İş modeli koruması (BUYER ücretli koltuk) zaten korunuyor:
+  // yönetici ihale açamadığı için her tenant'a en az 1 BUYER lazım.
   COMPANY_ADMIN: [
-    // Ayarlar
+    // Ayarlar (yönetim)
     "settings:users",
     "settings:suppliers",
     "settings:addresses",
     "settings:approval",
     "settings:company",
-    // İhale (tender:create YASAK — defaultta yok ve verilemez)
+    // İhale — sadece görüntüleme + yönetim kararları
     "tender:view",
-    "tender:edit",
-    "tender:publish",
-    "tender:delete",
     "tender:cancel",
     "tender:award",
-    // Teklif
+    // Teklif — sadece görüntüleme (compare)
     "bid:compare",
-    "bid:eliminate",
-    // Sipariş
-    "order:edit",
+    // Sipariş — görüntüleme + yönetim kararları (teslim/iptal)
+    "order:view",
     "order:complete",
     "order:cancel",
-    "order:view",
     // Onay (sıklıkla son onaylayıcı)
     "approval:view",
     "approval:approve",
