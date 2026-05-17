@@ -28,6 +28,10 @@ model Tenant {
   taxNumber   String? @unique
   taxOffice   String?
 
+  // V2-6.5 — Tenant başına BUYER (Satın Almacı) kontenjanı. Super-admin
+  // yönetir. APPROVER ve COMPANY_ADMIN sayılmaz; sadece role = BUYER sayılır.
+  buyerSeatLimit Int @default(2)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

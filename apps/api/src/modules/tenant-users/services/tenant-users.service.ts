@@ -35,6 +35,13 @@ const ROLE_LABELS: Record<string, string> = {
 const INVITATION_TTL_DAYS = 7;
 const BCRYPT_ROUNDS = 12;
 
+// V2-6.5 — BUYER kontenjan exclude opsiyonu: bir kullanıcı zaten
+// BUYER'sa ve rolünü güncellerken kendisini saymak istemiyorsak excludeUserId
+// veriyoruz. Davet için sadece active+pending sayılır.
+interface BuyerSeatExclude {
+  excludeUserId?: string;
+}
+
 @Injectable()
 export class TenantUsersService {
   private readonly logger = new Logger(TenantUsersService.name);
@@ -158,6 +165,47 @@ export class TenantUsersService {
     return user;
   }
 
+  // ----- BUYER KONTENJANI -----
+
+  /**
+   * V2-6.5 — Tenant'ın BUYER kontenjan kullanımı:
+   *   used = aktif BUYER user'lar + bekleyen BUYER davetleri
+   *   limit = tenant.buyerSeatLimit
+   *
+   * Sadece role = "BUYER" sayılır. COMPANY_ADMIN ve APPROVER sınırsızdır.
+   * excludeUserId: rol değişiminde, hedef kullanıcı zaten BUYER ise kendini
+   * say(ma)mak için kullanılır.
+   */
+  async getBuyerSeatUsage(tenantId: string, opts: BuyerSeatExclude = {}) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { buyerSeatLimit: true },
+    });
+    if (!tenant) throw new NotFoundException("Firma bulunamadı");
+
+    const [active, pending] = await Promise.all([
+      this.prisma.user.count({
+        where: {
+          tenantId,
+          role: "BUYER",
+          isActive: true,
+          ...(opts.excludeUserId ? { id: { not: opts.excludeUserId } } : {}),
+        },
+      }),
+      this.prisma.userInvitation.count({
+        where: { tenantId, role: "BUYER", status: "PENDING" },
+      }),
+    ]);
+
+    return {
+      active,
+      pending,
+      used: active + pending,
+      limit: tenant.buyerSeatLimit,
+      available: Math.max(0, tenant.buyerSeatLimit - (active + pending)),
+    };
+  }
+
   // ----- UPDATE -----
 
   async update(
@@ -191,6 +239,24 @@ export class TenantUsersService {
       throw new ForbiddenException(
         "Kendi rolünüzü veya aktiflik durumunuzu değiştiremezsiniz",
       );
+    }
+
+    // V2-6.5 — BUYER kontenjan kontrolü: rol BUYER'a yükseltiliyorsa
+    // mevcut kullanım + 1 limiti aşıyor mu? (kullanıcı zaten BUYER ise atla)
+    if (
+      dto.role === "BUYER" &&
+      target.role !== "BUYER" &&
+      dto.isActive !== false
+    ) {
+      const usage = await this.getBuyerSeatUsage(tenantId, {
+        excludeUserId: target.id,
+      });
+      if (usage.used >= usage.limit) {
+        throw new ConflictException(
+          `Satın Almacı kontenjanı dolu (${usage.used}/${usage.limit}). ` +
+            `Daha fazla satın almacı eklemek için firma yöneticinizden kontenjan artırımı talep edin.`,
+        );
+      }
     }
 
     // Son COMPANY_ADMIN korumaları
@@ -365,6 +431,18 @@ export class TenantUsersService {
       throw new ConflictException(
         "Bu e-postaya zaten bekleyen bir davet var",
       );
+    }
+
+    // V2-6.5 — BUYER kontenjan kontrolü: rol BUYER ise mevcut kullanım +
+    // bekleyen davetler kontenjanı aşıyor mu?
+    if (dto.role === "BUYER") {
+      const usage = await this.getBuyerSeatUsage(tenantId);
+      if (usage.used >= usage.limit) {
+        throw new ConflictException(
+          `Satın Almacı kontenjanı dolu (${usage.used}/${usage.limit}). ` +
+            `Daha fazla satın almacı davet etmek için kontenjan artırımı talep edin.`,
+        );
+      }
     }
 
     const token = crypto.randomBytes(32).toString("hex");

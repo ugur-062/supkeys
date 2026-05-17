@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { ListAdminTenantsDto } from "../dto/list-tenants.dto";
+import { UpdateTenantDto } from "../dto/update-tenant.dto";
 
 function parseTenantSort(
   sort: string | undefined,
@@ -141,8 +142,24 @@ export class AdminTenantsService {
         }),
       ]);
 
+    // V2-6.5 — BUYER kontenjan kullanımı (aktif user + bekleyen davet)
+    const [buyerActiveCount, buyerPendingInvites] = await Promise.all([
+      this.prisma.user.count({
+        where: { tenantId: id, role: "BUYER", isActive: true },
+      }),
+      this.prisma.userInvitation.count({
+        where: { tenantId: id, role: "BUYER", status: "PENDING" },
+      }),
+    ]);
+
     return {
       ...tenant,
+      buyerSeatUsage: {
+        active: buyerActiveCount,
+        pending: buyerPendingInvites,
+        used: buyerActiveCount + buyerPendingInvites,
+        limit: tenant.buyerSeatLimit,
+      },
       analytics: {
         tendersByStatus: tendersByStatus.map((t) => ({
           status: t.status,
@@ -156,5 +173,30 @@ export class AdminTenantsService {
         recentTenders,
       },
     };
+  }
+
+  async update(id: string, dto: UpdateTenantDto) {
+    const exists = await this.prisma.tenant.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    if (!exists) throw new NotFoundException("Tenant bulunamadı");
+
+    const data: Prisma.TenantUpdateInput = {};
+    if (dto.buyerSeatLimit !== undefined) {
+      data.buyerSeatLimit = dto.buyerSeatLimit;
+    }
+    if (Object.keys(data).length === 0) {
+      return this.prisma.tenant.findUnique({
+        where: { id },
+        select: { id: true, buyerSeatLimit: true },
+      });
+    }
+
+    return this.prisma.tenant.update({
+      where: { id },
+      data,
+      select: { id: true, buyerSeatLimit: true, updatedAt: true },
+    });
   }
 }

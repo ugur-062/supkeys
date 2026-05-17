@@ -73,6 +73,12 @@ export class TenantUsersController {
     return this.service.updateNotificationPrefs(user.id, dto);
   }
 
+  // V2-6.5 — BUYER kontenjan kullanımı (header'da göstermek için)
+  @Get("buyer-seats")
+  buyerSeats(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {
+    return this.service.getBuyerSeatUsage(user.tenantId);
+  }
+
   // ---------- WRITE — COMPANY_ADMIN ----------
 
   @Get("invitations")
