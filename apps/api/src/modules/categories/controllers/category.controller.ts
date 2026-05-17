@@ -1,38 +1,26 @@
-import {
-  BadRequestException,
-  Controller,
-  Get,
-  Header,
-  Query,
-} from "@nestjs/common";
+import { Controller, Get, Header, Query } from "@nestjs/common";
 import { CategoryService } from "../services/category.service";
 
 /**
  * V2-6 — Public kategori endpoint'leri (auth gerekmez).
- * Lazy loading: roots → children → search.
+ *
+ * V2-6.5 değişikliği: lazy /roots + /children mimarisi /all'a taşındı.
+ * Frontend tek fetch ile tüm tree'yi alır, in-memory traverse yapar.
+ * Eski /roots ve /children endpoint'leri kaldırıldı (kullanıcı yok).
  */
 @Controller("categories")
 export class CategoryController {
   constructor(private readonly service: CategoryService) {}
 
-  @Get("roots")
-  @Header("Cache-Control", "public, max-age=3600")
-  getRoots(): Promise<unknown> {
-    return this.service.getRoots();
-  }
-
-  @Get("children")
-  @Header("Cache-Control", "public, max-age=3600")
-  getChildren(@Query("parentId") parentId?: string): Promise<unknown> {
-    if (!parentId || !parentId.trim()) {
-      throw new BadRequestException("parentId zorunlu");
-    }
-    return this.service.getChildren(parentId.trim());
-  }
-
-  @Get("search")
-  search(@Query("q") query?: string): Promise<unknown> {
-    return this.service.search(query ?? "");
+  /**
+   * Tüm aktif kategoriler flat liste. ~2284 kayıt × ~80 byte ≈ ~180KB JSON.
+   * Cache-Control 60s — kategori ekleme/güncelleme sonrası max 1 dakikada
+   * tarayıcılarda görünür.
+   */
+  @Get("all")
+  @Header("Cache-Control", "public, max-age=60")
+  getAll(): Promise<unknown> {
+    return this.service.getAllActive();
   }
 
   @Get("search-tree")

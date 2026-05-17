@@ -20,7 +20,11 @@ export function Sidebar() {
   // referansı olduğu için useMemo işe yaramıyordu. Bunun yerine permissions
   // array'inin kendisine bağlı (auth store'da stable referans).
   const { permissions } = usePermissions();
-  const { data: pendingApprovals } = useApprovalPendingCount();
+  // BUG FIX #7 — useApprovalPendingCount sadece `approval:view` izni olan
+  // kullanıcılarda fetch atılsın. BUYER default izninde yok; eski koşulsuz
+  // çağrı 60 sn'de bir 403 → toast spam yaratıyordu.
+  const canViewApprovals = permissions.includes("approval:view");
+  const { data: pendingApprovals } = useApprovalPendingCount(canViewApprovals);
 
   const initials = user
     ? `${user.firstName[0] ?? ""}${user.lastName[0] ?? ""}`.toUpperCase()

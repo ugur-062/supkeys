@@ -105,84 +105,25 @@ export class CategoryService {
     return result;
   }
 
-  /** Level 1 (Segment) kategorilerini getirir — ilk açılış için. */
-  async getRoots(): Promise<unknown> {
+  /**
+   * V2-6.5 — Tüm aktif kategoriler (flat). Modal'ın tek seferde tree'nin
+   * tamamını çekmesi için. parentId üzerinden client-side traverse yapılır;
+   * eski lazy /children endpoint çağrılarına gerek yok.
+   */
+  async getAllActive() {
     return this.prisma.category.findMany({
-      where: { level: 1, isActive: true },
-      orderBy: { sortOrder: "asc" },
-      select: {
-        id: true,
-        code: true,
-        nameTr: true,
-        level: true,
-        segmentLetter: true,
-        sortOrder: true,
-        _count: { select: { children: true } },
-      },
-    });
-  }
-
-  /** Bir parent'ın direkt çocukları — lazy expand. */
-  async getChildren(parentId: string): Promise<unknown> {
-    return this.prisma.category.findMany({
-      where: { parentId, isActive: true },
-      orderBy: { sortOrder: "asc" },
+      where: { isActive: true },
+      orderBy: [{ level: "asc" }, { sortOrder: "asc" }],
       select: {
         id: true,
         code: true,
         nameTr: true,
         level: true,
         parentId: true,
+        segmentLetter: true,
         sortOrder: true,
-        _count: { select: { children: true } },
       },
     });
-  }
-
-  /**
-   * Search — sadece Level 3+4 (Class + Commodity) döner, 4 seviye breadcrumb ile.
-   * Min 2 karakter. Top 100.
-   */
-  async search(query: string) {
-    const q = query?.trim() ?? "";
-    if (q.length < 2) return [];
-
-    const matched = await this.prisma.category.findMany({
-      where: {
-        isActive: true,
-        level: { in: [3, 4] },
-        nameTr: { contains: q, mode: "insensitive" },
-      },
-      include: {
-        parent: {
-          include: {
-            parent: {
-              include: {
-                parent: {
-                  select: {
-                    id: true,
-                    nameTr: true,
-                    segmentLetter: true,
-                    level: true,
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      take: 100,
-      orderBy: [{ level: "desc" }, { sortOrder: "asc" }],
-    });
-
-    return matched.map((c) => ({
-      id: c.id,
-      code: c.code,
-      nameTr: c.nameTr,
-      level: c.level,
-      parentId: c.parentId,
-      breadcrumb: buildBreadcrumb(c),
-    }));
   }
 
   /**
@@ -403,12 +344,21 @@ export class CategoryService {
     return { segments };
   }
 
-  /** Belirli ID'lerin breadcrumb bilgisi (chip listesi için). */
+  /**
+   * Belirli ID'lerin breadcrumb bilgisi (chip listesi için).
+   *
+   * V2-6.5 fix — `isActive` filtresi kaldırıldı. Eski tender'larda seçilmiş
+   * kategori sonradan gizlenmişse (cleanup script ile `isActive=false`), chip
+   * listesinde "Yükleniyor…" sonsuza dek kalıyordu. Artık adı/breadcrumb'ı
+   * yine döner — kullanıcı eski seçimi görür ama yeni kategori seçim
+   * listesinde (getRoots/getChildren) görünmez. Hard-delete'lenmiş id boş
+   * döner (findMany doğal davranış).
+   */
   async getByIds(ids: string[]) {
     if (ids.length === 0) return [];
 
     const cats = await this.prisma.category.findMany({
-      where: { id: { in: ids }, isActive: true },
+      where: { id: { in: ids } },
       include: {
         parent: {
           include: {

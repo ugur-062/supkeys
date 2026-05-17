@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
@@ -24,15 +25,6 @@ export interface CategoryNode {
   _count?: { children: number };
 }
 
-export interface CategorySearchResult {
-  id: string;
-  code: string;
-  nameTr: string;
-  level: number;
-  parentId?: string | null;
-  breadcrumb: string;
-}
-
 export interface CategoryWithBreadcrumb {
   id: string;
   code: string;
@@ -44,42 +36,85 @@ export interface CategoryWithBreadcrumb {
 const HOUR_MS = 60 * 60 * 1000;
 const FIVE_MIN_MS = 5 * 60 * 1000;
 
-/** Level 1 (Segment) listesi — modal ilk açılışta tek istek. */
+/**
+ * V2-6.5 — Tüm aktif kategoriler tek fetch. Modal/segment expand'lerinde
+ * yüzlerce paralel /children isteği yerine tek istek (~150KB) + in-memory
+ * traverse. parentId üzerinden grupla → useChildren bu cache'ten okur.
+ *
+ * staleTime 5 dk: tedarikçi yönetim panelinden kategori ekleme/güncelleme
+ * yapıldığında alıcı/tedarikçi tarafının max 5dk'da güncel listeyi görsün.
+ * refetchOnMount: modal her açıldığında stale olabilirse yeniden çek.
+ */
+export function useCategoryTree() {
+  return useQuery<CategoryNode[]>({
+    queryKey: ["category-tree"],
+    queryFn: () => api.get("/categories/all").then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 24 * HOUR_MS,
+    refetchOnMount: true,
+  });
+}
+
+/**
+ * V2-6.5 — Çocuk sayım map'i (parentId → child count). Bir kere
+ * hesaplanır, useRoots ve useChildren _count.children'ı buradan okur.
+ * Backend /categories/all _count döndürmüyor; in-memory hesaplama
+ * kullanıcı için "alt kategori var mı" göstergesini doğru yapar
+ * (chevron, folder ikonu, tek-child auto-expand).
+ */
+function useChildCountMap(tree: CategoryNode[] | undefined) {
+  return useMemo(() => {
+    if (!tree) return null;
+    const map = new Map<string, number>();
+    for (const c of tree) {
+      if (c.parentId) {
+        map.set(c.parentId, (map.get(c.parentId) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [tree]);
+}
+
+/**
+ * Level 1 (Segment) listesi — modal ilk açılışta. category-tree
+ * cache'inden filtre, ek network çağrısı yok.
+ */
 export function useRoots() {
-  return useQuery<CategoryNode[]>({
-    queryKey: ["category-roots"],
-    queryFn: () => api.get("/categories/roots").then((r) => r.data),
-    staleTime: HOUR_MS,
-    gcTime: 24 * HOUR_MS,
-  });
+  const { data: tree, isLoading } = useCategoryTree();
+  const childCountMap = useChildCountMap(tree);
+  const data = useMemo(() => {
+    if (!tree || !childCountMap) return undefined;
+    return tree
+      .filter((c) => c.level === 1)
+      .map((c) => ({
+        ...c,
+        _count: { children: childCountMap.get(c.id) ?? 0 },
+      }));
+  }, [tree, childCountMap]);
+  return { data, isLoading };
 }
 
-/** Bir parent'ın direkt çocukları — lazy expand. Enabled sadece parentId varsa. */
+/**
+ * Bir parent'ın direkt çocukları — category-tree cache'inden filtre,
+ * ek network çağrısı yok. Eskiden her parentId için ayrı /children
+ * fetch idi → birden çok segment açılınca patlama yaşanıyordu.
+ *
+ * _count.children in-memory hesaplanır — ClassRow/FamilyList'in
+ * "expand var mı / klasör ikon göster" mantığı buna bağlı.
+ */
 export function useChildren(parentId: string | null | undefined) {
-  return useQuery<CategoryNode[]>({
-    queryKey: ["category-children", parentId],
-    queryFn: () =>
-      api
-        .get("/categories/children", { params: { parentId } })
-        .then((r) => r.data),
-    enabled: Boolean(parentId),
-    staleTime: HOUR_MS,
-    gcTime: 24 * HOUR_MS,
-  });
-}
-
-/** Class+Commodity arama (min 2 char). Backend zaten min-char enforce eder. */
-export function useCategorySearch(query: string) {
-  const trimmed = query.trim();
-  return useQuery<CategorySearchResult[]>({
-    queryKey: ["category-search", trimmed],
-    queryFn: () =>
-      api
-        .get("/categories/search", { params: { q: trimmed } })
-        .then((r) => r.data),
-    enabled: trimmed.length >= 2,
-    staleTime: FIVE_MIN_MS,
-  });
+  const { data: tree, isLoading } = useCategoryTree();
+  const childCountMap = useChildCountMap(tree);
+  const data = useMemo(() => {
+    if (!tree || !parentId || !childCountMap) return undefined;
+    return tree
+      .filter((c) => c.parentId === parentId)
+      .map((c) => ({
+        ...c,
+        _count: { children: childCountMap.get(c.id) ?? 0 },
+      }));
+  }, [tree, parentId, childCountMap]);
+  return { data, isLoading };
 }
 
 export interface SearchTreeCommodity {
@@ -133,7 +168,14 @@ export function useCategorySearchTree(query: string) {
   });
 }
 
-/** Seçili ID'lerin breadcrumb bilgisi (chip listesi için). */
+/**
+ * Seçili ID'lerin breadcrumb bilgisi (chip listesi için).
+ *
+ * V2-6.5 fix — Hızlı seçim ekleme/çıkarmada chip listesinde loading flicker
+ * ve uzun süreli "yükleniyor" hissini önlemek için:
+ *   - placeholderData: önceki cevap korunur, yeni fetch arka planda
+ *   - gcTime: HOUR_MS — cache entry'leri çabuk düşmesin
+ */
 export function useCategoriesByIds(ids: string[]) {
   const key = [...ids].sort().join(",");
   return useQuery<CategoryWithBreadcrumb[]>({
@@ -146,5 +188,7 @@ export function useCategoriesByIds(ids: string[]) {
     },
     enabled: ids.length > 0,
     staleTime: FIVE_MIN_MS,
+    gcTime: HOUR_MS,
+    placeholderData: (prev) => prev,
   });
 }
