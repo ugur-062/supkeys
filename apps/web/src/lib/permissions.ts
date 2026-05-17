@@ -119,6 +119,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     "approval:approve",
     "approval:view",
     "tender:view",
+    // V2-6.5 — Onaylayıcı teklifleri karşılaştırabilir (onay öncesi inceleme)
+    "bid:compare",
     "order:view",
     // Tedarikçi listesini görüntüleme + davet etme her rolde varsayılan
     "settings:suppliers",
