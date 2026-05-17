@@ -153,8 +153,28 @@ model User {
   // V2-2 — R2 dosya yükleme
   uploadedAttachments   Attachment[] @relation("UploadedAttachments")
 
+  // V2-6.5 — Admin tarafından üretilen parola sıfırlama linkleri
+  passwordResetTokens   PasswordResetToken[]
+
   @@index([tenantId])
   @@map("users")
+}
+
+// V2-6.5 — Admin destek operasyonları için tek-kullanımlık parola
+// sıfırlama tokenleri. Token plain DB'de tutulmaz; sadece SHA-256
+// hash'i saklanır. Süresi 1 saat (TTL service'te enforce edilir).
+model PasswordResetToken {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String   @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+  createdByAdminId String?
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model UserInvitation {

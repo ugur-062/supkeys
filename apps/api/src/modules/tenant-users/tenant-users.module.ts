@@ -8,5 +8,6 @@ import { TenantUsersService } from "./services/tenant-users.service";
   imports: [AuthModule, EmailModule],
   controllers: [TenantUsersController],
   providers: [TenantUsersService],
+  exports: [TenantUsersService],
 })
 export class TenantUsersModule {}

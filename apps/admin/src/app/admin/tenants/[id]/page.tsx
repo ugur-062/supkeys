@@ -4,7 +4,9 @@ import { AdminShell } from "@/components/layout/admin-shell";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import {
   useAdminTenantDetail,
+  useIssuePasswordReset,
   useUpdateAdminTenant,
+  useUpdateTenantUser,
   type AdminTenantDetail,
 } from "@/hooks/use-admin-tenants";
 import { cn } from "@/lib/utils";
@@ -15,9 +17,13 @@ import {
   Calendar,
   Check,
   ChevronLeft,
+  Copy,
   FileText,
+  KeyRound,
   Package,
   Pencil,
+  Power,
+  ShieldOff,
   Truck,
   Users,
   type LucideIcon,
@@ -181,7 +187,7 @@ function DetailContent() {
       <RecentTendersBlock recentTenders={t.analytics.recentTenders} />
 
       {/* Kullanıcılar */}
-      <UsersBlock users={t.users} />
+      <UsersBlock tenantId={t.id} users={t.users} />
     </div>
   );
 }
@@ -742,53 +748,217 @@ function RecentTendersBlock({
   );
 }
 
-function UsersBlock({ users }: { users: AdminTenantDetail["users"] }) {
+function UsersBlock({
+  tenantId,
+  users,
+}: {
+  tenantId: string;
+  users: AdminTenantDetail["users"];
+}) {
   return (
     <div className="admin-card">
       <div className="px-5 py-4 border-b border-surface-border">
         <h3 className="font-bold text-admin-text">
           Kullanıcılar ({users.length})
         </h3>
+        <p className="text-xs text-admin-text-muted mt-0.5">
+          Rolü değiştir, kullanıcıyı pasifleştir veya parola sıfırlama linki gönder.
+        </p>
       </div>
       <div className="divide-y divide-surface-border">
         {users.map((u) => (
-          <div
-            key={u.id}
-            className="px-5 py-3 flex items-center justify-between gap-3"
-          >
-            <div className="min-w-0">
-              <p className="font-semibold text-admin-text truncate">
-                {u.firstName} {u.lastName}
-              </p>
-              <p className="text-xs text-admin-text-muted truncate">
-                {u.email} · {ROLE_LABELS[u.role] ?? u.role}
-              </p>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <span
-                className={cn(
-                  "inline-flex px-2 py-0.5 rounded-md text-xs font-semibold",
-                  u.isActive
-                    ? "bg-success-50 text-success-700 border border-success-200"
-                    : "bg-slate-100 text-slate-600 border border-slate-200",
-                )}
-              >
-                {u.isActive ? "Aktif" : "Pasif"}
-              </span>
-              {u.lastLoginAt ? (
-                <p className="text-xs text-admin-text-muted mt-1">
-                  Son giriş:{" "}
-                  {format(new Date(u.lastLoginAt), "d MMM HH:mm", {
-                    locale: tr,
-                  })}
-                </p>
-              ) : (
-                <p className="text-xs text-admin-text-muted mt-1">Hiç giriş yok</p>
-              )}
-            </div>
-          </div>
+          <UserRow key={u.id} tenantId={tenantId} user={u} />
         ))}
       </div>
+    </div>
+  );
+}
+
+function UserRow({
+  tenantId,
+  user,
+}: {
+  tenantId: string;
+  user: AdminTenantDetail["users"][number];
+}) {
+  const updateMutation = useUpdateTenantUser(tenantId);
+  const resetMutation = useIssuePasswordReset(tenantId);
+  const [showReset, setShowReset] = useState<string | null>(null);
+
+  const toggleActive = () => {
+    const next = !user.isActive;
+    if (
+      !confirm(
+        next
+          ? `${user.firstName} ${user.lastName} kullanıcısını aktif etmek istediğine emin misin?`
+          : `${user.firstName} ${user.lastName} kullanıcısını pasifleştir? Login yapamayacak.`,
+      )
+    )
+      return;
+    updateMutation.mutate(
+      { userId: user.id, payload: { isActive: next } },
+      {
+        onSuccess: () =>
+          toast.success(next ? "Kullanıcı aktif edildi" : "Kullanıcı pasifleştirildi"),
+        onError: (err: unknown) =>
+          toast.error(err instanceof Error ? err.message : "Hata"),
+      },
+    );
+  };
+
+  const changeRole = (newRole: "COMPANY_ADMIN" | "BUYER" | "APPROVER") => {
+    if (newRole === user.role) return;
+    if (!confirm(`Rolü "${ROLE_LABELS[newRole]}" olarak değiştir?`)) return;
+    updateMutation.mutate(
+      { userId: user.id, payload: { role: newRole } },
+      {
+        onSuccess: () => toast.success("Rol güncellendi"),
+        onError: (err: unknown) =>
+          toast.error(err instanceof Error ? err.message : "Hata"),
+      },
+    );
+  };
+
+  const issueReset = () => {
+    if (
+      !confirm(
+        `${user.email} adresine parola sıfırlama linki gönderilsin mi?`,
+      )
+    )
+      return;
+    resetMutation.mutate(user.id, {
+      onSuccess: (data) => {
+        toast.success("Sıfırlama linki e-postayla gönderildi");
+        setShowReset(data.resetUrl);
+      },
+      onError: (err: unknown) =>
+        toast.error(err instanceof Error ? err.message : "Hata"),
+    });
+  };
+
+  const copyLink = () => {
+    if (!showReset) return;
+    navigator.clipboard
+      .writeText(showReset)
+      .then(() => toast.success("Link kopyalandı"))
+      .catch(() => toast.error("Kopyalanamadı"));
+  };
+
+  return (
+    <div className="px-5 py-3">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-admin-text truncate">
+            {user.firstName} {user.lastName}
+          </p>
+          <p className="text-xs text-admin-text-muted truncate">
+            {user.email} · {ROLE_LABELS[user.role] ?? user.role}
+          </p>
+          {user.lastLoginAt ? (
+            <p className="text-xs text-admin-text-muted mt-1">
+              Son giriş:{" "}
+              {format(new Date(user.lastLoginAt), "d MMM HH:mm", {
+                locale: tr,
+              })}
+            </p>
+          ) : (
+            <p className="text-xs text-admin-text-muted mt-1">Hiç giriş yok</p>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <span
+            className={cn(
+              "inline-flex px-2 py-0.5 rounded-md text-xs font-semibold",
+              user.isActive
+                ? "bg-success-50 text-success-700 border border-success-200"
+                : "bg-slate-100 text-slate-600 border border-slate-200",
+            )}
+          >
+            {user.isActive ? "Aktif" : "Pasif"}
+          </span>
+
+          <select
+            value={user.role}
+            onChange={(e) =>
+              changeRole(
+                e.target.value as "COMPANY_ADMIN" | "BUYER" | "APPROVER",
+              )
+            }
+            disabled={updateMutation.isPending}
+            className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-admin-text focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:opacity-50"
+          >
+            <option value="COMPANY_ADMIN">Firma Yöneticisi</option>
+            <option value="BUYER">Satınalmacı</option>
+            <option value="APPROVER">Onaylayıcı</option>
+          </select>
+
+          <button
+            type="button"
+            onClick={toggleActive}
+            disabled={updateMutation.isPending}
+            title={user.isActive ? "Pasifleştir" : "Aktifleştir"}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-xs font-semibold transition disabled:opacity-50",
+              user.isActive
+                ? "border-danger-200 bg-white text-danger-700 hover:bg-danger-50"
+                : "border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100",
+            )}
+          >
+            {user.isActive ? (
+              <ShieldOff className="h-3.5 w-3.5" />
+            ) : (
+              <Power className="h-3.5 w-3.5" />
+            )}
+            {user.isActive ? "Pasifleştir" : "Aktifleştir"}
+          </button>
+
+          <button
+            type="button"
+            onClick={issueReset}
+            disabled={resetMutation.isPending || !user.isActive}
+            title={
+              user.isActive ? "Parola sıfırlama linki gönder" : "Pasif kullanıcı"
+            }
+            className="inline-flex items-center gap-1 rounded-lg border border-warning-200 bg-warning-50 px-2 py-1 text-xs font-semibold text-warning-700 transition hover:bg-warning-100 disabled:opacity-50"
+          >
+            <KeyRound className="h-3.5 w-3.5" />
+            Parola Sıfırla
+          </button>
+        </div>
+      </div>
+
+      {showReset ? (
+        <div className="mt-3 rounded-lg border border-warning-200 bg-warning-50 p-3 text-xs">
+          <p className="font-semibold text-warning-800">
+            Sıfırlama linki üretildi (60 dakika geçerli, tek kullanımlık)
+          </p>
+          <p className="mt-1 text-warning-700">
+            E-posta gönderildi. Müşteri postayı bulamazsa aşağıdaki linki manuel
+            iletebilirsin:
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <code className="flex-1 truncate rounded bg-white px-2 py-1 font-mono text-[11px] text-admin-text">
+              {showReset}
+            </code>
+            <button
+              type="button"
+              onClick={copyLink}
+              className="inline-flex items-center gap-1 rounded-lg border border-warning-300 bg-white px-2 py-1 font-semibold text-warning-800 hover:bg-warning-100"
+            >
+              <Copy className="h-3 w-3" />
+              Kopyala
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowReset(null)}
+              className="rounded-lg border border-slate-300 bg-white px-2 py-1 font-semibold text-admin-text hover:bg-slate-50"
+            >
+              Kapat
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

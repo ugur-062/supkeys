@@ -148,6 +148,63 @@ export interface UpdateAdminTenantPayload {
   postalCode?: string | null;
 }
 
+export interface UpdateTenantUserPayload {
+  role?: "COMPANY_ADMIN" | "BUYER" | "APPROVER";
+  isActive?: boolean;
+}
+
+export function useUpdateTenantUser(tenantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      userId: string;
+      payload: UpdateTenantUserPayload;
+    }) => {
+      const { data } = await api.patch(
+        `/admin/tenants/${tenantId}/users/${input.userId}`,
+        input.payload,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "tenants", "detail", tenantId],
+      });
+    },
+  });
+}
+
+export function useIssuePasswordReset(tenantId: string) {
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const { data } = await api.post<{
+        success: boolean;
+        email: string;
+        expiresAt: string;
+        resetUrl: string;
+      }>(`/admin/tenants/${tenantId}/users/${userId}/password-reset`);
+      return data;
+    },
+  });
+}
+
+export function useCancelTenantInvitation(tenantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (invitationId: string) => {
+      const { data } = await api.delete(
+        `/admin/tenants/${tenantId}/invitations/${invitationId}`,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "tenants", "detail", tenantId],
+      });
+    },
+  });
+}
+
 export function useUpdateAdminTenant(id: string) {
   const queryClient = useQueryClient();
   return useMutation({

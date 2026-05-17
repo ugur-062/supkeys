@@ -97,6 +97,11 @@ import {
   UserInvitationEmail,
 } from "./templates/user-invitation";
 import {
+  AdminPasswordResetEmail,
+  makeAdminPasswordResetSubject,
+  renderAdminPasswordResetText,
+} from "./templates/admin-password-reset";
+import {
   ApprovalRequiredEmail,
   makeApprovalRequiredSubject,
   renderApprovalRequiredText,
@@ -380,6 +385,17 @@ export async function renderEmail(
         subject: makeUserInvitationSubject(spec.data.tenantName),
         html,
         text: renderUserInvitationText(spec.data),
+      };
+    }
+
+    case "admin_password_reset": {
+      const html = await render(
+        React.createElement(AdminPasswordResetEmail, spec.data),
+      );
+      return {
+        subject: makeAdminPasswordResetSubject(),
+        html,
+        text: renderAdminPasswordResetText(spec.data),
       };
     }
 

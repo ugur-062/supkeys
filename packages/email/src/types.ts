@@ -25,7 +25,8 @@ export type EmailTemplate =
   | "approval_rejected"
   | "approval_reminder"
   | "order_status_changed"
-  | "message_notification";
+  | "message_notification"
+  | "admin_password_reset";
 
 export type EmailProviderName = "resend" | "mailpit";
 
@@ -432,7 +433,20 @@ export type EmailTemplateData =
   | { template: "approval_rejected"; data: ApprovalRejectedData }
   | { template: "approval_reminder"; data: ApprovalReminderData }
   | { template: "order_status_changed"; data: OrderStatusChangedData }
-  | { template: "message_notification"; data: MessageNotificationData };
+  | { template: "message_notification"; data: MessageNotificationData }
+  | { template: "admin_password_reset"; data: AdminPasswordResetData };
+
+/**
+ * V2-6.5 — Super-admin destek operasyonu sonucu kullanıcıya gönderilen
+ * tek kullanımlık parola sıfırlama linki.
+ */
+export interface AdminPasswordResetData {
+  firstName: string;
+  email: string;
+  resetUrl: string;
+  /** Token TTL — şablonda "60 dakika" gibi gösterilir. */
+  expiresInMinutes: number;
+}
 
 /**
  * V2-4 — 1-on-1 mesajlaşma. Karşı taraf 5dk içinde okumadıysa
