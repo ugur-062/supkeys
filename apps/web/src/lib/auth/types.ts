@@ -12,6 +12,8 @@ export interface AuthUser {
     id: string;
     name: string;
     slug: string;
+    /** V2-6.5 — Üyelik bitiş tarihi (ISO 8601). null = sınırsız. */
+    membershipEndAt: string | null;
   };
 }
 

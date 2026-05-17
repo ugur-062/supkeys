@@ -12,6 +12,7 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
   Building2,
+  Calendar,
   Check,
   ChevronLeft,
   FileText,
@@ -147,8 +148,11 @@ function DetailContent() {
         />
       </div>
 
-      {/* BUYER kontenjanı */}
-      <BuyerSeatCard tenantId={t.id} tenant={t} />
+      {/* Üyelik + BUYER kontenjanı */}
+      <div className="grid gap-4 md:grid-cols-2">
+        <MembershipCard tenantId={t.id} tenant={t} />
+        <BuyerSeatCard tenantId={t.id} tenant={t} />
+      </div>
 
       {/* Toplam Harcama */}
       <div className="rounded-2xl p-6 text-white bg-gradient-to-r from-success-500 to-success-600">
@@ -205,6 +209,197 @@ const ACCENT_CLASSES = {
   indigo: { bg: "bg-indigo-50", icon: "text-indigo-600" },
   success: { bg: "bg-success-50", icon: "text-success-600" },
 };
+
+function MembershipCard({
+  tenantId,
+  tenant,
+}: {
+  tenantId: string;
+  tenant: AdminTenantDetail;
+}) {
+  const mutation = useUpdateAdminTenant(tenantId);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualValue, setManualValue] = useState(
+    tenant.membershipEndAt
+      ? format(new Date(tenant.membershipEndAt), "yyyy-MM-dd")
+      : "",
+  );
+
+  useEffect(() => {
+    setManualValue(
+      tenant.membershipEndAt
+        ? format(new Date(tenant.membershipEndAt), "yyyy-MM-dd")
+        : "",
+    );
+  }, [tenant.membershipEndAt]);
+
+  const now = Date.now();
+  const endsAt = tenant.membershipEndAt
+    ? new Date(tenant.membershipEndAt)
+    : null;
+  const expired = endsAt !== null && endsAt.getTime() < now;
+  const daysLeft = endsAt
+    ? Math.ceil((endsAt.getTime() - now) / (24 * 3600 * 1000))
+    : null;
+  const soon = !expired && daysLeft !== null && daysLeft <= 14;
+
+  const extend = (months: number) => {
+    mutation.mutate(
+      { extendMonths: months },
+      {
+        onSuccess: () => {
+          toast.success(`Üyelik ${months} ay uzatıldı`);
+        },
+        onError: (err: unknown) => {
+          toast.error(err instanceof Error ? err.message : "Hata");
+        },
+      },
+    );
+  };
+
+  const saveManual = () => {
+    if (!manualValue) {
+      mutation.mutate(
+        { membershipEndAt: null },
+        {
+          onSuccess: () => {
+            toast.success("Üyelik sınırsız yapıldı");
+            setManualOpen(false);
+          },
+          onError: (err: unknown) => {
+            toast.error(err instanceof Error ? err.message : "Hata");
+          },
+        },
+      );
+      return;
+    }
+    const parsed = new Date(manualValue);
+    if (Number.isNaN(parsed.getTime())) {
+      toast.error("Geçerli bir tarih girin");
+      return;
+    }
+    mutation.mutate(
+      { membershipEndAt: parsed.toISOString() },
+      {
+        onSuccess: () => {
+          toast.success("Üyelik tarihi güncellendi");
+          setManualOpen(false);
+        },
+        onError: (err: unknown) => {
+          toast.error(err instanceof Error ? err.message : "Hata");
+        },
+      },
+    );
+  };
+
+  return (
+    <div className="admin-card p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-brand-600" />
+            <h3 className="font-bold text-admin-text">Üyelik Süresi</h3>
+          </div>
+          <p className="mt-1 text-xs text-admin-text-muted">
+            Süre dolduğunda tenant kullanıcıları giriş yapamaz.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <p className="text-[11px] uppercase tracking-wide text-admin-text-muted font-semibold">
+          Bitiş Tarihi
+        </p>
+        <p
+          className={cn(
+            "mt-1 font-display text-2xl font-bold",
+            expired
+              ? "text-danger-600"
+              : soon
+                ? "text-warning-600"
+                : "text-admin-text",
+          )}
+        >
+          {endsAt
+            ? format(endsAt, "d MMMM yyyy", { locale: tr })
+            : "Sınırsız"}
+        </p>
+        {endsAt ? (
+          <p
+            className={cn(
+              "mt-0.5 text-xs",
+              expired
+                ? "text-danger-600 font-semibold"
+                : soon
+                  ? "text-warning-700"
+                  : "text-admin-text-muted",
+            )}
+          >
+            {expired
+              ? `${Math.abs(daysLeft ?? 0)} gün önce sona erdi`
+              : `${daysLeft} gün kaldı`}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-2">
+        {[1, 3, 6, 12].map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => extend(m)}
+            disabled={mutation.isPending}
+            className="rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 transition hover:bg-brand-100 disabled:opacity-50"
+          >
+            +{m} ay
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setManualOpen((o) => !o)}
+          disabled={mutation.isPending}
+          className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-admin-text transition hover:bg-slate-50 disabled:opacity-50"
+        >
+          {manualOpen ? "Kapat" : "Tarih Belirle"}
+        </button>
+      </div>
+
+      {manualOpen ? (
+        <div className="mt-3 flex items-center gap-2">
+          <input
+            type="date"
+            value={manualValue}
+            onChange={(e) => setManualValue(e.target.value)}
+            disabled={mutation.isPending}
+            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
+          />
+          <button
+            type="button"
+            onClick={saveManual}
+            disabled={mutation.isPending}
+            className="inline-flex items-center gap-1 rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-brand-700 disabled:opacity-50"
+          >
+            <Check className="h-3.5 w-3.5" />
+            Kaydet
+          </button>
+          <span className="text-xs text-admin-text-muted">
+            (boş bırak = sınırsız)
+          </span>
+        </div>
+      ) : null}
+
+      {expired ? (
+        <p className="mt-3 rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-700">
+          Üyelik sona erdi — tenant kullanıcıları giriş yapamıyor.
+        </p>
+      ) : soon ? (
+        <p className="mt-3 rounded-lg bg-warning-50 px-3 py-2 text-xs text-warning-700">
+          Üyelik 2 hafta içinde sona eriyor. Süreyi uzatmayı düşünün.
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 function BuyerSeatCard({
   tenantId,

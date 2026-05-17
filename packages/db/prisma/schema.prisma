@@ -32,6 +32,11 @@ model Tenant {
   // yönetir. APPROVER ve COMPANY_ADMIN sayılmaz; sadece role = BUYER sayılır.
   buyerSeatLimit Int @default(2)
 
+  // V2-6.5 — Üyelik bitiş tarihi. NULL = sınırsız (legacy/dev). Tarihten
+  // sonra tenant kullanıcıları login olamaz; admin login etkilenmez.
+  // Super-admin 1-12 ay opsiyonlarıyla uzatır.
+  membershipEndAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

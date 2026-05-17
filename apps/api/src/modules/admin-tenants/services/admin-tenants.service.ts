@@ -176,27 +176,52 @@ export class AdminTenantsService {
   }
 
   async update(id: string, dto: UpdateTenantDto) {
-    const exists = await this.prisma.tenant.findUnique({
+    const tenant = await this.prisma.tenant.findUnique({
       where: { id },
-      select: { id: true },
+      select: { id: true, membershipEndAt: true },
     });
-    if (!exists) throw new NotFoundException("Tenant bulunamadı");
+    if (!tenant) throw new NotFoundException("Tenant bulunamadı");
 
     const data: Prisma.TenantUpdateInput = {};
     if (dto.buyerSeatLimit !== undefined) {
       data.buyerSeatLimit = dto.buyerSeatLimit;
     }
+
+    // V2-6.5 — Üyelik süresi: extendMonths öncelikli; yoksa membershipEndAt
+    // doğrudan setlenir (null → sınırsız).
+    if (dto.extendMonths !== undefined) {
+      const now = new Date();
+      const base =
+        tenant.membershipEndAt && tenant.membershipEndAt.getTime() > now.getTime()
+          ? new Date(tenant.membershipEndAt)
+          : now;
+      base.setMonth(base.getMonth() + dto.extendMonths);
+      data.membershipEndAt = base;
+    } else if (dto.membershipEndAt !== undefined) {
+      data.membershipEndAt =
+        dto.membershipEndAt === null ? null : new Date(dto.membershipEndAt);
+    }
+
     if (Object.keys(data).length === 0) {
       return this.prisma.tenant.findUnique({
         where: { id },
-        select: { id: true, buyerSeatLimit: true },
+        select: {
+          id: true,
+          buyerSeatLimit: true,
+          membershipEndAt: true,
+        },
       });
     }
 
     return this.prisma.tenant.update({
       where: { id },
       data,
-      select: { id: true, buyerSeatLimit: true, updatedAt: true },
+      select: {
+        id: true,
+        buyerSeatLimit: true,
+        membershipEndAt: true,
+        updatedAt: true,
+      },
     });
   }
 }

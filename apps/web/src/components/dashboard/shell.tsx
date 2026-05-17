@@ -4,6 +4,7 @@ import { useSidebar } from "@/lib/dashboard/use-sidebar";
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Header } from "./header";
+import { MembershipBanner } from "./membership-banner";
 import { Sidebar } from "./sidebar";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -20,6 +21,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Header />
+        <MembershipBanner />
         <main className="flex-1 px-4 md:px-8 py-6 md:py-8">{children}</main>
       </div>
     </div>

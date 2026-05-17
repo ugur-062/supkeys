@@ -32,6 +32,20 @@ export class AuthService {
       ? await bcrypt.compare(dto.password, user.passwordHash)
       : await bcrypt.compare(dto.password, DUMMY_HASH).then(() => false);
 
+    // V2-6.5 — Üyelik süresi dolmuşsa: ŞİFRE DOĞRUYSA spesifik mesaj
+    // göster. Saldırgan şifre bilmediği sürece bu sızıntı değil ve müşteri
+    // deneyimi için gerekli (yanlış mesajla kafa karışıklığı yaratmaz).
+    if (
+      user &&
+      passwordMatches &&
+      user.tenant.membershipEndAt &&
+      user.tenant.membershipEndAt.getTime() < Date.now()
+    ) {
+      throw new UnauthorizedException(
+        "Firmanızın üyelik süresi sona erdi. Yöneticinizle iletişime geçin.",
+      );
+    }
+
     if (
       !user ||
       !user.isActive ||
@@ -90,7 +104,12 @@ export class AuthService {
       role: string;
       permissionsOverride: unknown;
     },
-    tenant: { id: string; name: string; slug: string },
+    tenant: {
+      id: string;
+      name: string;
+      slug: string;
+      membershipEndAt: Date | null;
+    },
   ) {
     return {
       id: user.id,
@@ -107,6 +126,10 @@ export class AuthService {
         id: tenant.id,
         name: tenant.name,
         slug: tenant.slug,
+        // V2-6.5 — Üyelik bitiş tarihi (web banner için)
+        membershipEndAt: tenant.membershipEndAt
+          ? tenant.membershipEndAt.toISOString()
+          : null,
       },
     };
   }

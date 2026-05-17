@@ -55,6 +55,7 @@ export interface AdminTenantDetail {
     used: number;
     limit: number;
   };
+  membershipEndAt: string | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -132,13 +133,20 @@ export function useAdminTenantDetail(id: string | null | undefined) {
   });
 }
 
+export interface UpdateAdminTenantPayload {
+  buyerSeatLimit?: number;
+  membershipEndAt?: string | null;
+  extendMonths?: number;
+}
+
 export function useUpdateAdminTenant(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { buyerSeatLimit?: number }) => {
+    mutationFn: async (payload: UpdateAdminTenantPayload) => {
       const { data } = await api.patch<{
         id: string;
         buyerSeatLimit: number;
+        membershipEndAt: string | null;
         updatedAt: string;
       }>(`/admin/tenants/${id}`, payload);
       return data;
