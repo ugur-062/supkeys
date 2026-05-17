@@ -11,6 +11,7 @@ export interface AdminTenantListItem {
   taxOffice: string | null;
   city: string | null;
   isActive: boolean;
+  membershipEndAt: string | null;
   createdAt: string;
   _count: {
     users: number;
@@ -25,6 +26,37 @@ export interface AdminTenantListItem {
     email: string;
     lastLoginAt: string | null;
   }>;
+}
+
+export interface MembershipAlertTenant {
+  id: string;
+  name: string;
+  city: string | null;
+  taxNumber: string | null;
+  membershipEndAt: string;
+  isActive: boolean;
+}
+
+export interface MembershipAlerts {
+  expiringSoon: MembershipAlertTenant[];
+  expired: MembershipAlertTenant[];
+  counts: { expiringSoon: number; expired: number };
+  daysAhead: number;
+}
+
+export function useMembershipAlerts(daysAhead = 30, limit = 20) {
+  return useQuery({
+    queryKey: ["admin", "tenants", "membership-alerts", daysAhead, limit],
+    queryFn: async () => {
+      const { data } = await api.get<MembershipAlerts>(
+        `/admin/tenants/membership-alerts?daysAhead=${daysAhead}&limit=${limit}`,
+      );
+      return data;
+    },
+    staleTime: 60_000,
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
+  });
 }
 
 export interface AdminTenantListResponse {

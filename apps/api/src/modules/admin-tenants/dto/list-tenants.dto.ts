@@ -6,6 +6,8 @@ export const TENANT_SORT_OPTIONS = [
   "createdAt:asc",
   "name:asc",
   "name:desc",
+  "membershipEndAt:asc",
+  "membershipEndAt:desc",
 ] as const;
 export type TenantSortOption = (typeof TENANT_SORT_OPTIONS)[number];
 

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { MembershipAlertsCard } from "./_components/membership-alerts-card";
 
 // Performans audit P-8 — recharts (~150KB gzip) trend chart bileşeninde,
 // initial bundle'a dahil değil. Admin dashboard ilk render'da KPI'lar +
@@ -105,6 +106,9 @@ function DashboardContent() {
 
       {/* Health Row */}
       {overviewQ.data ? <HealthRow overview={overviewQ.data} /> : null}
+
+      {/* V2-6.5 — Üyelik bitiş uyarıları */}
+      <MembershipAlertsCard />
 
       {/* Trend Chart */}
       <TrendChart trend={trendQ.data ?? []} loading={trendQ.isLoading} />

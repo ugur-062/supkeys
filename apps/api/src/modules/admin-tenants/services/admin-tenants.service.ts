@@ -11,6 +11,10 @@ function parseTenantSort(
   const field = parts[0];
   const dir: Prisma.SortOrder = parts[1] === "asc" ? "asc" : "desc";
   if (field === "name") return { name: dir };
+  if (field === "membershipEndAt") {
+    // V2-6.5 — Sınırsız (null) üyelikler asc'de sona, desc'te sona iter
+    return { membershipEndAt: { sort: dir, nulls: "last" } };
+  }
   return { createdAt: dir };
 }
 
@@ -241,6 +245,74 @@ export class AdminTenantsService {
       data,
       select: selectFields,
     });
+  }
+
+  // ----- Dashboard: yaklaşan / dolmuş üyelikler -----
+
+  async listMembershipAlerts(opts: { daysAhead?: number; limit?: number } = {}) {
+    const daysAhead = opts.daysAhead ?? 30;
+    const limit = Math.min(opts.limit ?? 20, 100);
+    const now = new Date();
+    const cutoff = new Date(now.getTime() + daysAhead * 24 * 3600 * 1000);
+
+    const [expiringSoon, expired, soonCount, expiredCount] = await Promise.all(
+      [
+        this.prisma.tenant.findMany({
+          where: {
+            isActive: true,
+            membershipEndAt: { gte: now, lte: cutoff },
+          },
+          orderBy: { membershipEndAt: "asc" },
+          take: limit,
+          select: {
+            id: true,
+            name: true,
+            city: true,
+            taxNumber: true,
+            membershipEndAt: true,
+            isActive: true,
+          },
+        }),
+        this.prisma.tenant.findMany({
+          where: {
+            isActive: true,
+            membershipEndAt: { lt: now },
+          },
+          orderBy: { membershipEndAt: "desc" },
+          take: limit,
+          select: {
+            id: true,
+            name: true,
+            city: true,
+            taxNumber: true,
+            membershipEndAt: true,
+            isActive: true,
+          },
+        }),
+        this.prisma.tenant.count({
+          where: {
+            isActive: true,
+            membershipEndAt: { gte: now, lte: cutoff },
+          },
+        }),
+        this.prisma.tenant.count({
+          where: {
+            isActive: true,
+            membershipEndAt: { lt: now },
+          },
+        }),
+      ],
+    );
+
+    return {
+      expiringSoon,
+      expired,
+      counts: {
+        expiringSoon: soonCount,
+        expired: expiredCount,
+      },
+      daysAhead,
+    };
   }
 
   // ----- READ-ONLY: tenant ihaleleri -----

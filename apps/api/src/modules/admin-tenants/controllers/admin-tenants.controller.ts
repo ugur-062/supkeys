@@ -35,6 +35,18 @@ export class AdminTenantsController {
     return this.service.list(query);
   }
 
+  // V2-6.5 — Yaklaşan ve dolmuş üyelikler (dashboard widget'ı için)
+  @Get("membership-alerts")
+  membershipAlerts(
+    @Query("daysAhead") daysAhead?: string,
+    @Query("limit") limit?: string,
+  ): Promise<unknown> {
+    return this.service.listMembershipAlerts({
+      daysAhead: daysAhead ? Number(daysAhead) : undefined,
+      limit: limit ? Number(limit) : undefined,
+    });
+  }
+
   @Get(":id")
   getOne(@Param("id") id: string): Promise<unknown> {
     return this.service.getOne(id);
