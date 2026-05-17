@@ -137,12 +137,29 @@ export const ROLE_LABELS: Record<UserRole, string> = {
  *
  * - COMPANY_ADMIN bir yönetim rolüdür; ihale OLUŞTURMA yetkisi verilemez.
  *   UI'da bu izin toggle'ı disabled görünür.
+ * - APPROVER salt-okunur + onaylama rolüdür; yazma operasyonları ve yönetim
+ *   ayarları yasaktır.
  */
 export const FORBIDDEN_PERMISSIONS_BY_ROLE: Record<UserRole, readonly string[]> =
   {
     COMPANY_ADMIN: ["tender:create"],
     BUYER: [],
-    APPROVER: [],
+    APPROVER: [
+      "tender:create",
+      "tender:edit",
+      "tender:publish",
+      "tender:delete",
+      "tender:cancel",
+      "tender:award",
+      "bid:eliminate",
+      "order:edit",
+      "order:complete",
+      "order:cancel",
+      "settings:users",
+      "settings:addresses",
+      "settings:approval",
+      "settings:company",
+    ],
   };
 
 export function isPermissionForbiddenForRole(

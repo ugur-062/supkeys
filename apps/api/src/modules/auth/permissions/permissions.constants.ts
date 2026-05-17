@@ -101,12 +101,34 @@ export const PERMISSION_LABELS: Record<
  * - COMPANY_ADMIN (Firma Yöneticisi) bir yönetim rolüdür. İhale OLUŞTURMAK
  *   onun işi değil; default'ta da yok. Bu listeyle, yanlışlıkla veya
  *   kasten override ile bile verilmesi engellenir.
+ * - APPROVER (Onaylayıcı) salt-okunur + onaylama rolüdür. İhale/teklif/sipariş
+ *   yazma yetkileri ve yönetim ayarları yasaktır. Sadece view + approval:approve
+ *   + reports + (default'ta) settings:suppliers (görüntüleme amaçlı) verilebilir.
  */
 export const FORBIDDEN_PERMISSIONS_BY_ROLE: Record<UserRole, readonly string[]> =
   {
     COMPANY_ADMIN: ["tender:create"],
     BUYER: [],
-    APPROVER: [],
+    APPROVER: [
+      // İhale yazma operasyonları
+      "tender:create",
+      "tender:edit",
+      "tender:publish",
+      "tender:delete",
+      "tender:cancel",
+      "tender:award",
+      // Teklif eleme (yazma)
+      "bid:eliminate",
+      // Sipariş yazma operasyonları
+      "order:edit",
+      "order:complete",
+      "order:cancel",
+      // Yönetim ayarları (settings:suppliers default'ta görüntüleme amaçlı bırakıldı)
+      "settings:users",
+      "settings:addresses",
+      "settings:approval",
+      "settings:company",
+    ],
   };
 
 export function isForbiddenForRole(role: UserRole, permission: string): boolean {
