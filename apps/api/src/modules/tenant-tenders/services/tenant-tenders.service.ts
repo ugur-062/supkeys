@@ -12,6 +12,7 @@ import type { BidStatus, Prisma, TenderStatus } from "@supkeys/db";
 import { generateOrderNumber, generateTenderNumber } from "@supkeys/shared";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import { assertCanActOnTender } from "../../../common/rbac/tender-owner.guard";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import {
   buildBreadcrumb,
@@ -709,8 +710,21 @@ export class TenantTendersService {
   async updateDraft(
     tenantId: string,
     tenderId: string,
+    userId: string,
+    userRole: string,
     dto: UpdateTenderDto,
   ) {
+    // Erken ownership gate — validation/kategori sorgularını yapmadan
+    // önce yetkisiz kullanıcıyı reddet.
+    const existing = await this.prisma.tender.findUnique({
+      where: { id: tenderId },
+      select: { id: true, tenantId: true, createdById: true },
+    });
+    if (!existing) throw new NotFoundException("İhale bulunamadı");
+    if (existing.tenantId !== tenantId)
+      throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+    assertCanActOnTender(existing, { id: userId, role: userRole });
+
     this.validateBusinessRules(dto);
 
     // V2-6 — kategoriler (Class veya Commodity) zorunlu; dedup + validate
@@ -731,12 +745,19 @@ export class TenantTendersService {
     return this.prisma.$transaction(async (tx) => {
       const tender = await tx.tender.findUnique({
         where: { id: tenderId },
-        select: { id: true, tenantId: true, status: true, tenderNumber: true },
+        select: {
+          id: true,
+          tenantId: true,
+          status: true,
+          tenderNumber: true,
+          createdById: true,
+        },
       });
 
       if (!tender) throw new NotFoundException("İhale bulunamadı");
       if (tender.tenantId !== tenantId)
         throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+      assertCanActOnTender(tender, { id: userId, role: userRole });
       if (tender.status !== "DRAFT")
         throw new ConflictException(
           "Sadece taslak durumdaki ihaleler düzenlenebilir",
@@ -816,7 +837,12 @@ export class TenantTendersService {
     });
   }
 
-  async publish(tenantId: string, tenderId: string, userId: string) {
+  async publish(
+    tenantId: string,
+    tenderId: string,
+    userId: string,
+    userRole: string,
+  ) {
     // 1) Tender'ı tüm gerekli ilişkilerle çek
     const tender = await this.prisma.tender.findUnique({
       where: { id: tenderId },
@@ -852,6 +878,7 @@ export class TenantTendersService {
     if (!tender) throw new NotFoundException("İhale bulunamadı");
     if (tender.tenantId !== tenantId)
       throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+    assertCanActOnTender(tender, { id: userId, role: userRole });
     if (tender.status !== "DRAFT")
       throw new ConflictException(
         "Sadece taslak durumdaki ihaleler yayınlanabilir",
@@ -1007,15 +1034,23 @@ export class TenantTendersService {
   async cancel(
     tenantId: string,
     tenderId: string,
+    userId: string,
+    userRole: string,
     dto: CancelTenderDto,
   ) {
     const tender = await this.prisma.tender.findUnique({
       where: { id: tenderId },
-      select: { id: true, tenantId: true, status: true },
+      select: {
+        id: true,
+        tenantId: true,
+        status: true,
+        createdById: true,
+      },
     });
     if (!tender) throw new NotFoundException("İhale bulunamadı");
     if (tender.tenantId !== tenantId)
       throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+    assertCanActOnTender(tender, { id: userId, role: userRole });
 
     const cancellable: typeof tender.status[] = ["OPEN_FOR_BIDS", "IN_AWARD"];
     if (!cancellable.includes(tender.status))
@@ -1032,14 +1067,25 @@ export class TenantTendersService {
     });
   }
 
-  async deleteDraft(tenantId: string, tenderId: string) {
+  async deleteDraft(
+    tenantId: string,
+    tenderId: string,
+    userId: string,
+    userRole: string,
+  ) {
     const tender = await this.prisma.tender.findUnique({
       where: { id: tenderId },
-      select: { id: true, tenantId: true, status: true },
+      select: {
+        id: true,
+        tenantId: true,
+        status: true,
+        createdById: true,
+      },
     });
     if (!tender) throw new NotFoundException("İhale bulunamadı");
     if (tender.tenantId !== tenantId)
       throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+    assertCanActOnTender(tender, { id: userId, role: userRole });
     if (tender.status !== "DRAFT")
       throw new ConflictException("Sadece taslak ihaleler silinebilir");
 
@@ -1241,6 +1287,8 @@ export class TenantTendersService {
     tenderId: string,
     bidId: string,
     reason: string,
+    userId: string,
+    userRole: string,
   ) {
     const result = await this.prisma.$transaction(async (tx) => {
       const tender = await tx.tender.findUnique({
@@ -1250,6 +1298,7 @@ export class TenantTendersService {
       if (!tender) throw new NotFoundException("İhale bulunamadı");
       if (tender.tenantId !== tenantId)
         throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+      assertCanActOnTender(tender, { id: userId, role: userRole });
 
       const allowed: typeof tender.status[] = ["OPEN_FOR_BIDS", "IN_AWARD"];
       if (!allowed.includes(tender.status)) {
@@ -1368,7 +1417,13 @@ export class TenantTendersService {
    * Toplu kazandırma — tek tedarikçi tüm kalemleri alır. Bid AWARDED_FULL,
    * BidItem'lar isWinner=true. Sipariş finalize'da oluşur.
    */
-  async awardFull(tenantId: string, tenderId: string, bidId: string) {
+  async awardFull(
+    tenantId: string,
+    tenderId: string,
+    bidId: string,
+    userId: string,
+    userRole: string,
+  ) {
     return this.prisma.$transaction(async (tx) => {
       const tender = await tx.tender.findUnique({
         where: { id: tenderId },
@@ -1376,12 +1431,14 @@ export class TenantTendersService {
           id: true,
           tenantId: true,
           status: true,
+          createdById: true,
           items: { select: { id: true } },
         },
       });
       if (!tender) throw new NotFoundException("İhale bulunamadı");
       if (tender.tenantId !== tenantId)
         throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+      assertCanActOnTender(tender, { id: userId, role: userRole });
       if (tender.status !== "IN_AWARD")
         throw new ConflictException(
           "Sadece IN_AWARD durumundaki ihalede kazandırma yapılabilir",
@@ -1448,6 +1505,8 @@ export class TenantTendersService {
     tenantId: string,
     tenderId: string,
     decisions: AwardItemDecisionDto[],
+    userId: string,
+    userRole: string,
   ) {
     return this.prisma.$transaction(async (tx) => {
       const tender = await tx.tender.findUnique({
@@ -1457,6 +1516,7 @@ export class TenantTendersService {
       if (!tender) throw new NotFoundException("İhale bulunamadı");
       if (tender.tenantId !== tenantId)
         throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+      assertCanActOnTender(tender, { id: userId, role: userRole });
       if (tender.status !== "IN_AWARD")
         throw new ConflictException(
           "Sadece IN_AWARD durumundaki ihalede kazandırma yapılabilir",
@@ -1560,7 +1620,12 @@ export class TenantTendersService {
    * Kural yoksa direkt finalize edilir (tüm SUBMITTED → LOST, Order create,
    * e-postalar).
    */
-  async finalizeAward(tenantId: string, tenderId: string, userId: string) {
+  async finalizeAward(
+    tenantId: string,
+    tenderId: string,
+    userId: string,
+    userRole: string,
+  ) {
     // 1) Tender + bids ön kontrol (transaction dışında — onay branch'inde
     // büyük include'a girmeye gerek yok).
     const tender = await this.prisma.tender.findUnique({
@@ -1569,6 +1634,7 @@ export class TenantTendersService {
         id: true,
         tenantId: true,
         status: true,
+        createdById: true,
         primaryCurrency: true,
         bids: {
           where: { status: { in: ["AWARDED_FULL", "AWARDED_PARTIAL"] } },
@@ -1582,6 +1648,7 @@ export class TenantTendersService {
     if (!tender) throw new NotFoundException("İhale bulunamadı");
     if (tender.tenantId !== tenantId)
       throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+    assertCanActOnTender(tender, { id: userId, role: userRole });
     if (tender.status !== "IN_AWARD")
       throw new ConflictException(
         "Sadece IN_AWARD durumundaki ihale tamamlanabilir",
@@ -1995,15 +2062,22 @@ export class TenantTendersService {
   async closeBiddingEarly(
     tenantId: string,
     tenderId: string,
-    _userId: string,
+    userId: string,
+    userRole: string,
   ): Promise<{ tenderStatus: "IN_AWARD" }> {
     const tender = await this.prisma.tender.findUnique({
       where: { id: tenderId },
-      select: { id: true, tenantId: true, status: true },
+      select: {
+        id: true,
+        tenantId: true,
+        status: true,
+        createdById: true,
+      },
     });
     if (!tender) throw new NotFoundException("İhale bulunamadı");
     if (tender.tenantId !== tenantId)
       throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+    assertCanActOnTender(tender, { id: userId, role: userRole });
     if (tender.status !== "OPEN_FOR_BIDS")
       throw new ConflictException(
         `Sadece teklif alımındaki ihale erken kapatılabilir. Mevcut: ${tender.status}`,
@@ -2020,16 +2094,24 @@ export class TenantTendersService {
   async closeNoAward(
     tenantId: string,
     tenderId: string,
+    userId: string,
+    userRole: string,
     dto: CloseNoAwardDto,
   ) {
     return this.prisma.$transaction(async (tx) => {
       const tender = await tx.tender.findUnique({
         where: { id: tenderId },
-        select: { id: true, tenantId: true, status: true },
+        select: {
+          id: true,
+          tenantId: true,
+          status: true,
+          createdById: true,
+        },
       });
       if (!tender) throw new NotFoundException("İhale bulunamadı");
       if (tender.tenantId !== tenantId)
         throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+      assertCanActOnTender(tender, { id: userId, role: userRole });
       if (tender.status !== "IN_AWARD")
         throw new ConflictException(
           "Sadece IN_AWARD durumundaki ihale kazansız kapatılabilir",

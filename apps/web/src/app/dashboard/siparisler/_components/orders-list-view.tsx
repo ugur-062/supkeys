@@ -269,84 +269,121 @@ function OrdersTable({
   orders: import("@/lib/tenders/types").OrderListItem[];
 }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                Sipariş No
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                Tedarikçi
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                İhale
-              </th>
-              <th className="text-right px-4 py-3 font-semibold text-slate-700">
-                Toplam
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                Statü
-              </th>
-              <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                Tarih
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {orders.map((order) => (
-              <tr
-                key={order.id}
-                className="border-b border-slate-100 last:border-0 hover:bg-slate-50/60 transition cursor-pointer"
-              >
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/dashboard/siparisler/${order.id}`}
-                    className="font-mono font-bold text-brand-700 hover:underline"
-                  >
-                    {order.orderNumber}
-                  </Link>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Building2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                    <span className="truncate font-medium text-brand-900">
-                      {order.supplier?.companyName ?? "—"}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-slate-600">
-                  <Link
-                    href={`/dashboard/ihaleler/${order.tender.id}`}
-                    className="hover:text-brand-700 hover:underline"
-                  >
-                    <span className="font-mono text-xs text-slate-500">
-                      {order.tender.tenderNumber}
-                    </span>
-                    <span className="block max-w-[200px] truncate">
-                      {order.tender.title}
-                    </span>
-                  </Link>
-                </td>
-                <td className="px-4 py-3 text-right font-bold text-brand-900 tabular-nums">
-                  {formatMoney(order.totalAmount, order.currency)}
-                </td>
-                <td className="px-4 py-3">
-                  <OrderStatusBadge status={order.status} />
-                </td>
-                <td className="px-4 py-3 text-xs text-slate-500">
-                  {format(new Date(order.createdAt), "d MMM yyyy", {
-                    locale: tr,
-                  })}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {orders.map((order) => (
+        <OrderCard key={order.id} order={order} />
+      ))}
     </div>
   );
+}
+
+function OrderCard({
+  order,
+}: {
+  order: import("@/lib/tenders/types").OrderListItem;
+}) {
+  const { active, lastDone, isTerminated } = getStageState(order.status);
+  const stages = ["Oluşturuldu", "Onaylandı", "Gönderildi", "Tamamlandı"];
+
+  return (
+    <Link
+      href={`/dashboard/siparisler/${order.id}`}
+      className="group block bg-white border border-slate-200 rounded-2xl p-5 hover:border-brand-300 hover:shadow-md transition-all"
+    >
+      {/* Header: order no + status */}
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-mono text-[11px] text-slate-500 tracking-wide">
+            {order.orderNumber}
+          </p>
+          <p className="font-semibold text-brand-900 line-clamp-2 mt-0.5 leading-snug group-hover:text-brand-700">
+            {order.tender.title}
+          </p>
+        </div>
+        <OrderStatusBadge status={order.status} />
+      </div>
+
+      {/* Supplier + amount */}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2 text-sm text-slate-600 min-w-0">
+          <Building2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
+          <span className="truncate font-medium">
+            {order.supplier?.companyName ?? "—"}
+          </span>
+        </div>
+        <p className="text-base font-bold text-success-700 font-mono tabular-nums whitespace-nowrap">
+          {formatMoney(order.totalAmount, order.currency)}
+        </p>
+      </div>
+
+      {/* 4-stage progress bar */}
+      {!isTerminated ? (
+        <div className="space-y-1.5 mb-3">
+          <div className="flex items-center gap-1">
+            {stages.map((_, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "h-1.5 flex-1 rounded-full transition",
+                  i === active
+                    ? "bg-brand-500"
+                    : i <= lastDone
+                      ? "bg-success-500"
+                      : "bg-slate-200",
+                )}
+              />
+            ))}
+          </div>
+          <div className="flex items-center justify-between text-[10px] font-medium text-slate-500 tracking-tight">
+            {stages.map((label, i) => (
+              <span
+                key={label}
+                className={cn(
+                  "w-1/4 text-center first:text-left last:text-right truncate",
+                  i === active && "text-brand-700",
+                  i < active && "text-success-700",
+                )}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="mb-3 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-600">
+          {order.status === "REJECTED"
+            ? "Tedarikçi reddetti"
+            : "Sipariş iptal edildi"}
+        </div>
+      )}
+
+      {/* Footer: tender link + date */}
+      <div className="flex items-center justify-between gap-3 text-xs text-slate-500 pt-2 border-t border-slate-100">
+        <span className="font-mono truncate">
+          {order.tender.tenderNumber}
+        </span>
+        <span className="whitespace-nowrap">
+          {format(new Date(order.createdAt), "d MMM yyyy", { locale: tr })}
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+function getStageState(status: string): {
+  active: number;
+  lastDone: number;
+  isTerminated: boolean;
+} {
+  if (status === "REJECTED" || status === "CANCELLED")
+    return { active: -1, lastDone: 0, isTerminated: true };
+  if (status === "PENDING") return { active: 0, lastDone: 0, isTerminated: false };
+  if (status === "ACCEPTED") return { active: 1, lastDone: 1, isTerminated: false };
+  if (status === "IN_DELIVERY" || status === "IN_PROGRESS")
+    return { active: 2, lastDone: 2, isTerminated: false };
+  if (status === "COMPLETED" || status === "DELIVERED")
+    return { active: 3, lastDone: 3, isTerminated: false };
+  return { active: 0, lastDone: 0, isTerminated: false };
 }
 
 function Pagination({

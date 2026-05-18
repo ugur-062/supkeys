@@ -5,7 +5,9 @@ import { CancelOrderModal } from "@/components/orders/cancel-order-modal";
 import { CompleteOrderModal } from "@/components/orders/complete-order-modal";
 import { OrderTimeline } from "@/components/orders/order-timeline";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
+import { ReadOnlyBanner } from "@/components/tenders/read-only-banner";
 import { Button } from "@/components/ui/button";
+import { useTenderOwnership } from "@/hooks/use-tender-ownership";
 import {
   useCancelOrder,
   useCompleteOrder,
@@ -105,47 +107,80 @@ export function OrderDetailView({ id }: { id: string }) {
 
   const order = query.data;
 
+  return <OrderDetailContent order={order} />;
+}
+
+function OrderDetailContent({ order }: { order: OrderDetail }) {
+  const ownership = useTenderOwnership(order.tender.createdBy);
+  const hasBankInfo =
+    !!order.bankAccountHolder || !!order.bankIban || !!order.invoiceDate;
+
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-5">
       <Breadcrumb orderNumber={order.orderNumber} />
+
+      {!ownership.canAct && ownership.owner ? (
+        <ReadOnlyBanner
+          ownerName={`${ownership.owner.firstName} ${ownership.owner.lastName}`}
+          context="order"
+        />
+      ) : null}
 
       <Header order={order} />
 
-      <TenantOrderActions order={order} />
+      <OrderProgressBar order={order} />
+
+      {ownership.canAct ? (
+        <div className="sticky top-2 z-30">
+          <TenantOrderActions order={order} />
+        </div>
+      ) : null}
 
       <KpiCards order={order} />
 
-      <Section title="Sipariş Geçmişi">
-        <OrderTimeline order={order} />
-      </Section>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div className="lg:col-span-8 space-y-5">
+          <Section title="Sipariş Geçmişi">
+            <OrderTimeline order={order} />
+          </Section>
 
-      <Section title="Tedarikçi">
-        <SupplierFields order={order} />
-      </Section>
+          <Section title="Kazandırılan Kalemler">
+            <ItemsTable order={order} />
+          </Section>
 
-      <Section title="Bağlı İhale">
-        <TenderLink order={order} />
-      </Section>
+          {order.bid.notes || (order.bid.attachments?.length ?? 0) > 0 ? (
+            <Section title="Teklif Detayları">
+              <NotesAndAttachments order={order} />
+            </Section>
+          ) : null}
 
-      <Section title="Kazandırılan Kalemler">
-        <ItemsTable order={order} />
-      </Section>
+          {/* V2-4 — Tedarikçiyle 1-on-1 mesajlaşma */}
+          <Section title="Mesajlar">
+            <MessageThread
+              surface="tenant"
+              context="ORDER"
+              contextRefId={order.id}
+              currentUserType="TENANT_USER"
+            />
+          </Section>
+        </div>
 
-      {(order.bid.notes || (order.bid.attachments?.length ?? 0) > 0) ? (
-        <Section title="Teklif Detayları">
-          <NotesAndAttachments order={order} />
-        </Section>
-      ) : null}
+        <aside className="lg:col-span-4 space-y-5">
+          <Section title="Tedarikçi">
+            <SupplierCard order={order} />
+          </Section>
 
-      {/* V2-4 — Tedarikçiyle 1-on-1 mesajlaşma */}
-      <Section title="Mesajlar">
-        <MessageThread
-          surface="tenant"
-          context="ORDER"
-          contextRefId={order.id}
-          currentUserType="TENANT_USER"
-        />
-      </Section>
+          {hasBankInfo ? (
+            <Section title="Ödeme & Fatura">
+              <BankInvoiceCard order={order} />
+            </Section>
+          ) : null}
+
+          <Section title="Bağlı İhale">
+            <TenderLink order={order} />
+          </Section>
+        </aside>
+      </div>
     </div>
   );
 }
@@ -435,42 +470,202 @@ function Section({
   );
 }
 
-function SupplierFields({ order }: { order: OrderDetail }) {
+function SupplierCard({ order }: { order: OrderDetail }) {
   const supplier = order.supplier;
   if (!supplier) return null;
   const primaryUser = supplier.users[0];
+  const initials = supplier.companyName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("");
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
-          <Building2 className="w-5 h-5 text-brand-600" />
+    <div className="bg-white border border-slate-200 rounded-2xl p-5">
+      <div className="flex items-start gap-3 mb-4">
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-500 to-indigo-500 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm shadow-sm">
+          {initials || <Building2 className="w-5 h-5" />}
         </div>
-        <div>
-          <p className="font-bold text-brand-900">{supplier.companyName}</p>
-          <p className="text-xs text-slate-500 mt-0.5 font-mono">
+        <div className="min-w-0">
+          <p className="font-bold text-brand-900 leading-tight">
+            {supplier.companyName}
+          </p>
+          <p className="text-[11px] text-slate-500 mt-1 font-mono">
             VKN: {supplier.taxNumber}
           </p>
+          {supplier.city ? (
+            <p className="text-xs text-slate-500 mt-0.5">
+              {supplier.city}
+              {supplier.industry ? ` · ${supplier.industry}` : ""}
+            </p>
+          ) : null}
         </div>
       </div>
-      <dl className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {supplier.city ? <Field label="Şehir" value={supplier.city} /> : null}
-        {supplier.industry ? (
-          <Field label="Sektör" value={supplier.industry} />
-        ) : null}
-        {primaryUser ? (
-          <>
-            <Field
-              label="Yetkili"
-              value={`${primaryUser.firstName} ${primaryUser.lastName}`}
-            />
-            <Field label="E-posta" value={primaryUser.email} />
+
+      {primaryUser ? (
+        <div className="space-y-2 pt-3 border-t border-slate-100">
+          <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+            Yetkili Kişi
+          </p>
+          <p className="text-sm font-medium text-brand-900">
+            {primaryUser.firstName} {primaryUser.lastName}
+          </p>
+          <div className="space-y-1 text-xs text-slate-600">
+            <p className="flex items-center gap-1.5">
+              <span className="text-slate-400">@</span>
+              <a
+                href={`mailto:${primaryUser.email}`}
+                className="hover:text-brand-700 hover:underline truncate"
+              >
+                {primaryUser.email}
+              </a>
+            </p>
             {primaryUser.phone ? (
-              <Field label="Telefon" value={primaryUser.phone} />
+              <p className="flex items-center gap-1.5">
+                <span className="text-slate-400">☎</span>
+                <a
+                  href={`tel:${primaryUser.phone}`}
+                  className="hover:text-brand-700 hover:underline"
+                >
+                  {primaryUser.phone}
+                </a>
+              </p>
             ) : null}
-          </>
-        ) : null}
-      </dl>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function OrderProgressBar({ order }: { order: OrderDetail }) {
+  const status = order.status;
+  // Index: 0=Oluşturuldu, 1=Onaylandı, 2=Gönderildi, 3=Tamamlandı
+  const map: Record<string, number> = {
+    PENDING: 0,
+    ACCEPTED: 1,
+    IN_DELIVERY: 2,
+    IN_PROGRESS: 2,
+    DELIVERED: 3,
+    COMPLETED: 3,
+  };
+  const isTerminated = status === "REJECTED" || status === "CANCELLED";
+  const activeIdx = isTerminated ? -1 : (map[status] ?? 0);
+
+  const stages = [
+    { key: "created", label: "Oluşturuldu" },
+    { key: "accepted", label: "Onaylandı" },
+    { key: "delivery", label: "Gönderildi" },
+    { key: "completed", label: "Tamamlandı" },
+  ];
+
+  if (isTerminated) {
+    const isRejected = status === "REJECTED";
+    return (
+      <div
+        className={`flex items-center gap-3 rounded-2xl border p-4 ${
+          isRejected
+            ? "border-orange-200 bg-orange-50"
+            : "border-rose-200 bg-rose-50"
+        }`}
+      >
+        <XCircle
+          className={`h-5 w-5 ${
+            isRejected ? "text-orange-600" : "text-rose-600"
+          }`}
+        />
+        <p
+          className={`text-sm font-semibold ${
+            isRejected ? "text-orange-800" : "text-rose-800"
+          }`}
+        >
+          {isRejected ? "Sipariş reddedildi" : "Sipariş iptal edildi"}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-5">
+      <div className="flex items-center justify-between">
+        {stages.map((s, i) => {
+          const isDone = i < activeIdx;
+          const isActive = i === activeIdx;
+          return (
+            <div key={s.key} className="flex items-center flex-1 last:flex-none">
+              <div className="flex flex-col items-center gap-2 min-w-0">
+                <div
+                  className={`h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold border-2 transition ${
+                    isActive
+                      ? "bg-brand-600 text-white border-brand-600 ring-4 ring-brand-100"
+                      : isDone
+                        ? "bg-success-500 text-white border-success-500"
+                        : "bg-white text-slate-400 border-slate-200"
+                  }`}
+                >
+                  {isDone ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
+                </div>
+                <p
+                  className={`text-[11px] font-semibold tracking-tight text-center ${
+                    isActive
+                      ? "text-brand-700"
+                      : isDone
+                        ? "text-success-700"
+                        : "text-slate-400"
+                  }`}
+                >
+                  {s.label}
+                </p>
+              </div>
+              {i < stages.length - 1 ? (
+                <div
+                  className={`h-0.5 flex-1 mx-1 mb-6 transition ${
+                    i < activeIdx ? "bg-success-400" : "bg-slate-200"
+                  }`}
+                />
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BankInvoiceCard({ order }: { order: OrderDetail }) {
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+      {order.bankAccountHolder ? (
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+            Hesap Sahibi
+          </p>
+          <p className="text-sm text-brand-900 font-medium mt-0.5">
+            {order.bankAccountHolder}
+          </p>
+        </div>
+      ) : null}
+      {order.bankIban ? (
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+            IBAN
+          </p>
+          <p className="text-sm text-brand-900 font-mono mt-0.5 break-all">
+            {order.bankIban}
+          </p>
+        </div>
+      ) : null}
+      {order.invoiceDate ? (
+        <div>
+          <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
+            Fatura Kesim Tarihi
+          </p>
+          <p className="text-sm text-brand-900 font-medium mt-0.5">
+            {format(new Date(order.invoiceDate), "d MMMM yyyy", { locale: tr })}
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

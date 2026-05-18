@@ -6,8 +6,10 @@ import {
 } from "@/components/tenders/countdown-full";
 import { TenderTypeBadge } from "@/components/tenders/status-badge";
 import { Button } from "@/components/ui/button";
+import { ReadOnlyBanner } from "@/components/tenders/read-only-banner";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
+import { useTenderOwnership } from "@/hooks/use-tender-ownership";
 import {
   useCancelTender,
   useCloseBiddingEarly,
@@ -50,11 +52,13 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
   const { user } = useAuth();
   // V2-6.5 RBAC — aksiyon butonları permission tabanlı
   const { has } = usePermissions();
-  const canEdit = has("tender:edit");
-  const canPublish = has("tender:publish");
-  const canDelete = has("tender:delete");
-  const canCancel = has("tender:cancel");
-  const canAward = has("tender:award");
+  // Creator-gate — bir BUYER ekibin diğer BUYER'ının ihalesine karışamaz.
+  const ownership = useTenderOwnership(tender.createdBy);
+  const canEdit = has("tender:edit") && ownership.canAct;
+  const canPublish = has("tender:publish") && ownership.canAct;
+  const canDelete = has("tender:delete") && ownership.canAct;
+  const canCancel = has("tender:cancel") && ownership.canAct;
+  const canAward = has("tender:award") && ownership.canAct;
   // "Onayı İptal Et" — initiator kendi süreci için iptal eder; COMPANY_ADMIN'a
   // admin override hakkı kalır (role check).
   const isAdmin = user?.role === "COMPANY_ADMIN";
@@ -136,6 +140,13 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
 
   return (
     <>
+      {!ownership.canAct && ownership.owner ? (
+        <ReadOnlyBanner
+          ownerName={`${ownership.owner.firstName} ${ownership.owner.lastName}`}
+          context="tender"
+        />
+      ) : null}
+
       <section className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/60 via-white to-indigo-50/40 p-6">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5">
           <div className="flex-1 min-w-0 space-y-2">

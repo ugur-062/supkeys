@@ -117,7 +117,7 @@ describe("TenantOrdersService — buyer order state machine", () => {
     it("happy path: IN_DELIVERY → COMPLETED + completedAt + completedBy + note", async () => {
       const { tenant, user, order } = await setupOrder(prisma, "IN_DELIVERY");
 
-      const updated = await service.completeOrder(tenant.id, order.id, user.id, {
+      const updated = await service.completeOrder(tenant.id, order.id, user.id, user.role, {
         completedNote: "Eksiksiz teslim alındı",
       });
 
@@ -132,7 +132,7 @@ describe("TenantOrdersService — buyer order state machine", () => {
 
     it("not opsiyonel — boş gönderilirse null kalır", async () => {
       const { tenant, user, order } = await setupOrder(prisma, "IN_DELIVERY");
-      const updated = await service.completeOrder(tenant.id, order.id, user.id, {});
+      const updated = await service.completeOrder(tenant.id, order.id, user.id, user.role, {});
       expect(updated.status).toBe("COMPLETED");
       expect(updated.completedNote).toBeNull();
     });
@@ -141,24 +141,24 @@ describe("TenantOrdersService — buyer order state machine", () => {
       const { tenant, user, order } = await setupOrder(prisma, "PENDING");
 
       await expect(
-        service.completeOrder(tenant.id, order.id, user.id, {}),
+        service.completeOrder(tenant.id, order.id, user.id, user.role, {}),
       ).rejects.toThrow(ConflictException);
       await expect(
-        service.completeOrder(tenant.id, order.id, user.id, {}),
+        service.completeOrder(tenant.id, order.id, user.id, user.role, {}),
       ).rejects.toThrow("Sadece IN_DELIVERY");
     });
 
     it("COMPLETED state'ten tekrar complete → 409", async () => {
       const { tenant, user, order } = await setupOrder(prisma, "COMPLETED");
       await expect(
-        service.completeOrder(tenant.id, order.id, user.id, {}),
+        service.completeOrder(tenant.id, order.id, user.id, user.role, {}),
       ).rejects.toThrow(ConflictException);
     });
 
     it("CANCELLED state'ten complete → 409", async () => {
       const { tenant, user, order } = await setupOrder(prisma, "CANCELLED");
       await expect(
-        service.completeOrder(tenant.id, order.id, user.id, {}),
+        service.completeOrder(tenant.id, order.id, user.id, user.role, {}),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -166,7 +166,7 @@ describe("TenantOrdersService — buyer order state machine", () => {
       const { user, order } = await setupOrder(prisma, "IN_DELIVERY");
       const intruder = await createTenant(prisma);
       await expect(
-        service.completeOrder(intruder.id, order.id, user.id, {}),
+        service.completeOrder(intruder.id, order.id, user.id, user.role, {}),
       ).rejects.toThrow(ForbiddenException);
     });
   });
@@ -175,7 +175,7 @@ describe("TenantOrdersService — buyer order state machine", () => {
     it("PENDING → CANCELLED (sebep dolu)", async () => {
       const { tenant, user, order } = await setupOrder(prisma, "PENDING");
 
-      const updated = await service.cancelOrder(tenant.id, order.id, user.id, {
+      const updated = await service.cancelOrder(tenant.id, order.id, user.id, user.role, {
         reason: "Tedarikçi süreyi geçirdi — iptal ediyoruz",
       });
 
@@ -189,7 +189,7 @@ describe("TenantOrdersService — buyer order state machine", () => {
 
     it("ACCEPTED → CANCELLED", async () => {
       const { tenant, user, order } = await setupOrder(prisma, "ACCEPTED");
-      const updated = await service.cancelOrder(tenant.id, order.id, user.id, {
+      const updated = await service.cancelOrder(tenant.id, order.id, user.id, user.role, {
         reason: "İhtiyaç ortadan kalktı, iptal ediyoruz",
       });
       expect(updated.status).toBe("CANCELLED");
@@ -197,7 +197,7 @@ describe("TenantOrdersService — buyer order state machine", () => {
 
     it("IN_DELIVERY → CANCELLED", async () => {
       const { tenant, user, order } = await setupOrder(prisma, "IN_DELIVERY");
-      const updated = await service.cancelOrder(tenant.id, order.id, user.id, {
+      const updated = await service.cancelOrder(tenant.id, order.id, user.id, user.role, {
         reason: "Teslimat sırasında ürün hasarlı geldi",
       });
       expect(updated.status).toBe("CANCELLED");
@@ -206,7 +206,7 @@ describe("TenantOrdersService — buyer order state machine", () => {
     it("REJECTED → 409 (zaten reddedildi)", async () => {
       const { tenant, user, order } = await setupOrder(prisma, "REJECTED");
       await expect(
-        service.cancelOrder(tenant.id, order.id, user.id, {
+        service.cancelOrder(tenant.id, order.id, user.id, user.role, {
           reason: "Reddedileni iptal etmeye çalışma",
         }),
       ).rejects.toThrow(ConflictException);
@@ -215,7 +215,7 @@ describe("TenantOrdersService — buyer order state machine", () => {
     it("COMPLETED → 409 (final state)", async () => {
       const { tenant, user, order } = await setupOrder(prisma, "COMPLETED");
       await expect(
-        service.cancelOrder(tenant.id, order.id, user.id, {
+        service.cancelOrder(tenant.id, order.id, user.id, user.role, {
           reason: "Sonradan iptal denemesi",
         }),
       ).rejects.toThrow(ConflictException);
@@ -224,7 +224,7 @@ describe("TenantOrdersService — buyer order state machine", () => {
     it("CANCELLED → 409 (tekrar iptal)", async () => {
       const { tenant, user, order } = await setupOrder(prisma, "CANCELLED");
       await expect(
-        service.cancelOrder(tenant.id, order.id, user.id, {
+        service.cancelOrder(tenant.id, order.id, user.id, user.role, {
           reason: "Tekrar iptal denemesi",
         }),
       ).rejects.toThrow(ConflictException);
@@ -234,7 +234,7 @@ describe("TenantOrdersService — buyer order state machine", () => {
       const { user, order } = await setupOrder(prisma);
       const intruder = await createTenant(prisma);
       await expect(
-        service.cancelOrder(intruder.id, order.id, user.id, {
+        service.cancelOrder(intruder.id, order.id, user.id, user.role, {
           reason: "Yetkisiz iptal denemesi (>=10 char)",
         }),
       ).rejects.toThrow(ForbiddenException);
@@ -426,6 +426,99 @@ describe("TenantOrdersService — buyer order state machine", () => {
       const intruder = await createTenant(prisma);
       const stats = await service.stats(intruder.id);
       expect(stats.total).toBe(0);
+    });
+  });
+
+  // ============================================================
+  // Creator-based ACL: order action'ları tender'ın sahibine veya
+  // COMPANY_ADMIN'e izin verir. Diğer BUYER → 403.
+  // ============================================================
+  describe("creator-gate — sipariş action'ları", () => {
+    async function setupOrderWithTwoBuyers(status: any = "IN_DELIVERY") {
+      const tenant = await createTenant(prisma);
+      const ownerBuyer = await createUser(prisma, tenant.id, {
+        email: `o-${Date.now()}-${Math.random()}@test.local`,
+        role: "BUYER",
+      });
+      const otherBuyer = await createUser(prisma, tenant.id, {
+        email: `x-${Date.now()}-${Math.random()}@test.local`,
+        role: "BUYER",
+      });
+      const supplier = await createSupplier(prisma);
+      const sUser = await createSupplierUser(prisma, supplier.id);
+      const tender = await createTender(prisma, tenant.id, ownerBuyer.id, {
+        status: "AWARDED",
+      });
+      const bid = await createBid(prisma, tender.id, supplier.id, sUser.id, {
+        status: "AWARDED_FULL",
+      });
+      const order = await createOrder(
+        prisma,
+        {
+          tenantId: tenant.id,
+          supplierId: supplier.id,
+          tenderId: tender.id,
+          bidId: bid.id,
+        },
+        { status },
+      );
+      return { tenant, ownerBuyer, otherBuyer, order };
+    }
+
+    it("BUYER B (sahibi değil) completeOrder denerse → 403", async () => {
+      const { tenant, otherBuyer, order } = await setupOrderWithTwoBuyers();
+      await expect(
+        service.completeOrder(
+          tenant.id,
+          order.id,
+          otherBuyer.id,
+          otherBuyer.role,
+          {},
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("BUYER B cancelOrder denerse → 403", async () => {
+      const { tenant, otherBuyer, order } = await setupOrderWithTwoBuyers(
+        "PENDING",
+      );
+      await expect(
+        service.cancelOrder(
+          tenant.id,
+          order.id,
+          otherBuyer.id,
+          otherBuyer.role,
+          { reason: "Yanlışlıkla iptal denedim" },
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("BUYER A (sahibi) completeOrder başarılı", async () => {
+      const { tenant, ownerBuyer, order } = await setupOrderWithTwoBuyers();
+      const result = await service.completeOrder(
+        tenant.id,
+        order.id,
+        ownerBuyer.id,
+        ownerBuyer.role,
+        {},
+      );
+      expect(result.status).toBe("COMPLETED");
+    });
+
+    it("COMPANY_ADMIN override eder", async () => {
+      const { tenant, order } = await setupOrderWithTwoBuyers();
+      const admin = await createUser(prisma, tenant.id, {
+        email: `adm-${Date.now()}-${Math.random()}@test.local`,
+        role: "COMPANY_ADMIN",
+      });
+      const result = await service.completeOrder(
+        tenant.id,
+        order.id,
+        admin.id,
+        admin.role,
+        {},
+      );
+      expect(result.status).toBe("COMPLETED");
     });
   });
 });

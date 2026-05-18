@@ -63,7 +63,13 @@ export class TenantOrdersController {
     @Param("id") id: string,
     @Body() dto: CompleteOrderDto,
   ): Promise<unknown> {
-    return this.service.completeOrder(user.tenantId, id, user.id, dto);
+    return this.service.completeOrder(
+      user.tenantId,
+      id,
+      user.id,
+      user.role,
+      dto,
+    );
   }
 
   @Post(":id/cancel")
@@ -73,7 +79,13 @@ export class TenantOrdersController {
     @Param("id") id: string,
     @Body() dto: CancelOrderDto,
   ): Promise<unknown> {
-    return this.service.cancelOrder(user.tenantId, id, user.id, dto);
+    return this.service.cancelOrder(
+      user.tenantId,
+      id,
+      user.id,
+      user.role,
+      dto,
+    );
   }
 
   @Get(":id/pdf")

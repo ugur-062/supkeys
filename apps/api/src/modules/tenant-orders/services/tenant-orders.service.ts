@@ -9,6 +9,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import type { OrderStatus, Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { assertCanActOnTender } from "../../../common/rbac/tender-owner.guard";
 import { EmailQueue } from "../../email/email.queue";
 import { CancelOrderDto } from "../dto/cancel-order.dto";
 import { CompleteOrderDto } from "../dto/complete-order.dto";
@@ -66,6 +67,11 @@ const ORDER_DETAIL_SELECT = {
       deliveryAddress: true,
       paymentTerm: true,
       paymentDays: true,
+      // Creator gate — UI'da action butonlarını yalnızca ihale sahibine veya
+      // COMPANY_ADMIN'e göstermek için kullanılır.
+      createdBy: {
+        select: { id: true, firstName: true, lastName: true },
+      },
       items: {
         select: {
           id: true,
@@ -263,16 +269,26 @@ export class TenantOrdersService {
     tenantId: string,
     orderId: string,
     userId: string,
+    userRole: string,
     dto: CompleteOrderDto,
   ) {
     const updated = await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
         where: { id: orderId },
-        select: { id: true, tenantId: true, status: true },
+        select: {
+          id: true,
+          tenantId: true,
+          status: true,
+          tender: { select: { createdById: true } },
+        },
       });
       if (!order) throw new NotFoundException("Sipariş bulunamadı");
       if (order.tenantId !== tenantId)
         throw new ForbiddenException("Bu siparişe erişim yetkiniz yok");
+      assertCanActOnTender(
+        { createdById: order.tender.createdById },
+        { id: userId, role: userRole },
+      );
       if (order.status !== "IN_DELIVERY") {
         throw new ConflictException(
           `Sadece IN_DELIVERY durumundaki siparişler tamamlanabilir. Mevcut durum: ${order.status}`,
@@ -311,6 +327,7 @@ export class TenantOrdersService {
     tenantId: string,
     orderId: string,
     userId: string,
+    userRole: string,
     dto: CancelOrderDto,
   ) {
     const reason = dto.reason.trim();
@@ -323,11 +340,20 @@ export class TenantOrdersService {
     const updated = await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
         where: { id: orderId },
-        select: { id: true, tenantId: true, status: true },
+        select: {
+          id: true,
+          tenantId: true,
+          status: true,
+          tender: { select: { createdById: true } },
+        },
       });
       if (!order) throw new NotFoundException("Sipariş bulunamadı");
       if (order.tenantId !== tenantId)
         throw new ForbiddenException("Bu siparişe erişim yetkiniz yok");
+      assertCanActOnTender(
+        { createdById: order.tender.createdById },
+        { id: userId, role: userRole },
+      );
       if (
         order.status !== "PENDING" &&
         order.status !== "ACCEPTED" &&

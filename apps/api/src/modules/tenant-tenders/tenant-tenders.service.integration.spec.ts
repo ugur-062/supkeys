@@ -121,7 +121,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         status: "OPEN_FOR_BIDS",
       });
 
-      const result = await service.cancel(tenant.id, tender.id, {
+      const result = await service.cancel(tenant.id, tender.id, user.id, user.role, {
         reason: "Müşteri vazgeçti",
       });
 
@@ -137,7 +137,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       const tender = await createTender(prisma, tenant.id, user.id, {
         status: "IN_AWARD",
       });
-      const result = await service.cancel(tenant.id, tender.id, {
+      const result = await service.cancel(tenant.id, tender.id, user.id, user.role, {
         reason: "Iptal",
       });
       expect(result.status).toBe("CANCELLED");
@@ -150,7 +150,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         status: "DRAFT",
       });
       await expect(
-        service.cancel(tenant.id, tender.id, { reason: "x" }),
+        service.cancel(tenant.id, tender.id, user.id, user.role, { reason: "x" }),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -161,14 +161,14 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         status: "AWARDED",
       });
       await expect(
-        service.cancel(tenant.id, tender.id, { reason: "Sonradan iptal" }),
+        service.cancel(tenant.id, tender.id, user.id, user.role, { reason: "Sonradan iptal" }),
       ).rejects.toThrow(ConflictException);
     });
 
     it("bilinmeyen tenderId → 404", async () => {
       const tenant = await createTenant(prisma);
       await expect(
-        service.cancel(tenant.id, "yok", { reason: "x" }),
+        service.cancel(tenant.id, "yok", "user-yok", "COMPANY_ADMIN", { reason: "x" }),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -181,7 +181,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
 
       const intruder = await createTenant(prisma);
       await expect(
-        service.cancel(intruder.id, tender.id, { reason: "Yetkisiz" }),
+        service.cancel(intruder.id, tender.id, user.id, user.role, { reason: "Yetkisiz" }),
       ).rejects.toThrow(ForbiddenException);
     });
   });
@@ -194,7 +194,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         status: "DRAFT",
       });
 
-      const result = await service.deleteDraft(tenant.id, tender.id);
+      const result = await service.deleteDraft(tenant.id, tender.id, user.id, user.role);
       expect(result.id).toBe(tender.id);
 
       const fresh = await prisma.tender.findUnique({ where: { id: tender.id } });
@@ -214,13 +214,13 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         status: "OPEN_FOR_BIDS",
       });
       await expect(
-        service.deleteDraft(tenant.id, tender.id),
+        service.deleteDraft(tenant.id, tender.id, user.id, user.role),
       ).rejects.toThrow(ConflictException);
     });
 
     it("bilinmeyen tender → 404", async () => {
       const tenant = await createTenant(prisma);
-      await expect(service.deleteDraft(tenant.id, "yok")).rejects.toThrow(
+      await expect(service.deleteDraft(tenant.id, "yok", "user-yok", "COMPANY_ADMIN")).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -233,7 +233,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       });
       const intruder = await createTenant(prisma);
       await expect(
-        service.deleteDraft(intruder.id, tender.id),
+        service.deleteDraft(intruder.id, tender.id, user.id, user.role),
       ).rejects.toThrow(ForbiddenException);
     });
   });
@@ -286,7 +286,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
     it("happy path: OPEN_FOR_BIDS olur + publishedAt set + davet kaydı tutulur", async () => {
       const { tenant, user, tender } = await setupPublishableTender();
 
-      const result = await service.publish(tenant.id, tender.id, user.id);
+      const result = await service.publish(tenant.id, tender.id, user.id, user.role);
 
       expect(result.status).toBe("OPEN_FOR_BIDS");
       const fresh = await prisma.tender.findUnique({ where: { id: tender.id } });
@@ -298,7 +298,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
 
     it("findMatchAndCreate çağrılır (estimatedAmount > 0)", async () => {
       const { tenant, user, tender } = await setupPublishableTender();
-      await service.publish(tenant.id, tender.id, user.id);
+      await service.publish(tenant.id, tender.id, user.id, user.role);
 
       expect(approvalMock.findMatchAndCreate).toHaveBeenCalledWith(
         expect.anything(), // tx
@@ -323,7 +323,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       });
       await inviteSupplierToTender(prisma, tender.id, supplier.id);
 
-      const result = await service.publish(tenant.id, tender.id, user.id);
+      const result = await service.publish(tenant.id, tender.id, user.id, user.role);
 
       expect(result.status).toBe("OPEN_FOR_BIDS");
       expect(approvalMock.findMatchAndCreate).not.toHaveBeenCalled();
@@ -346,7 +346,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         approvalNumber: "APR-2026-9999",
       });
 
-      const result = await service.publish(tenant.id, tender.id, user.id);
+      const result = await service.publish(tenant.id, tender.id, user.id, user.role);
 
       expect(result.status).toBe("IN_APPROVAL");
       expect(result).toHaveProperty("approvalRequestId", "apr-mock-1");
@@ -370,7 +370,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         status: "OPEN_FOR_BIDS",
       });
       await expect(
-        service.publish(tenant.id, tender.id, user.id),
+        service.publish(tenant.id, tender.id, user.id, user.role),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -382,10 +382,10 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       });
       // invitation YOK
       await expect(
-        service.publish(tenant.id, tender.id, user.id),
+        service.publish(tenant.id, tender.id, user.id, user.role),
       ).rejects.toThrow(BadRequestException);
       await expect(
-        service.publish(tenant.id, tender.id, user.id),
+        service.publish(tenant.id, tender.id, user.id, user.role),
       ).rejects.toThrow("en az 1 tedarikçi");
     });
 
@@ -401,7 +401,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       await inviteSupplierToTender(prisma, tender.id, supplier.id);
 
       await expect(
-        service.publish(tenant.id, tender.id, user.id),
+        service.publish(tenant.id, tender.id, user.id, user.role),
       ).rejects.toThrow("en az 1 kalem");
     });
 
@@ -416,7 +416,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       await inviteSupplierToTender(prisma, tender.id, supplier.id);
 
       await expect(
-        service.publish(tenant.id, tender.id, user.id),
+        service.publish(tenant.id, tender.id, user.id, user.role),
       ).rejects.toThrow("Kapanış tarihi");
     });
 
@@ -435,7 +435,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
 
       const intruder = await createTenant(prisma);
       await expect(
-        service.publish(intruder.id, tender.id, user.id),
+        service.publish(intruder.id, tender.id, user.id, user.role),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -443,7 +443,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       const tenant = await createTenant(prisma);
       const user = await createUser(prisma, tenant.id);
       await expect(
-        service.publish(tenant.id, "yok", user.id),
+        service.publish(tenant.id, "yok", user.id, user.role),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -485,9 +485,9 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
     }
 
     it("SUBMITTED bid → AWARDED_FULL + items isWinner=true", async () => {
-      const { tenant, tender, bid } = await setupInAward();
+      const { tenant, user, tender, bid } = await setupInAward();
 
-      await service.awardFull(tenant.id, tender.id, bid.id);
+      await service.awardFull(tenant.id, tender.id, bid.id, user.id, user.role);
 
       const fresh = await prisma.bid.findUnique({
         where: { id: bid.id },
@@ -513,23 +513,23 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       );
 
       await expect(
-        service.awardFull(tenant.id, otherTender.id, otherBid.id),
+        service.awardFull(tenant.id, otherTender.id, otherBid.id, user.id, user.role),
       ).rejects.toThrow(ConflictException);
     });
 
     it("SUBMITTED olmayan bid → 409", async () => {
-      const { tenant, tender, bid } = await setupInAward();
+      const { tenant, user, tender, bid } = await setupInAward();
       await prisma.bid.update({
         where: { id: bid.id },
         data: { status: "DRAFT" },
       });
       await expect(
-        service.awardFull(tenant.id, tender.id, bid.id),
+        service.awardFull(tenant.id, tender.id, bid.id, user.id, user.role),
       ).rejects.toThrow("SUBMITTED");
     });
 
     it("bid başka tender'ın bid'i → 404", async () => {
-      const { tenant, tender } = await setupInAward();
+      const { tenant, user, tender } = await setupInAward();
       // farklı tender + farklı bid
       const supplier2 = await createSupplier(prisma);
       const sUser2 = await createSupplierUser(prisma, supplier2.id);
@@ -542,15 +542,15 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         { status: "SUBMITTED" },
       );
       await expect(
-        service.awardFull(tenant.id, tender.id, wrongBid.id),
+        service.awardFull(tenant.id, tender.id, wrongBid.id, user.id, user.role),
       ).rejects.toThrow(NotFoundException);
     });
 
     it("başka tenant award denemesi → 403", async () => {
-      const { tender, bid } = await setupInAward();
+      const { user, tender, bid } = await setupInAward();
       const intruder = await createTenant(prisma);
       await expect(
-        service.awardFull(intruder.id, tender.id, bid.id),
+        service.awardFull(intruder.id, tender.id, bid.id, user.id, user.role),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -575,7 +575,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       });
 
       await expect(
-        service.awardFull(tenant.id, tender.id, bid.id),
+        service.awardFull(tenant.id, tender.id, bid.id, user.id, user.role),
       ).rejects.toThrow("Kalem bazlı");
     });
   });
@@ -596,6 +596,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         tenant.id,
         tender.id,
         user.id,
+        user.role,
       );
 
       expect(result.tenderStatus).toBe("IN_AWARD");
@@ -621,6 +622,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         tenant.id,
         tender.id,
         user.id,
+        user.role,
       );
       expect(result.tenderStatus).toBe("IN_AWARD");
     });
@@ -632,7 +634,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         status: "DRAFT",
       });
       await expect(
-        service.closeBiddingEarly(tenant.id, tender.id, user.id),
+        service.closeBiddingEarly(tenant.id, tender.id, user.id, user.role),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -643,7 +645,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         status: "IN_AWARD",
       });
       await expect(
-        service.closeBiddingEarly(tenant.id, tender.id, user.id),
+        service.closeBiddingEarly(tenant.id, tender.id, user.id, user.role),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -654,7 +656,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         status: "AWARDED",
       });
       await expect(
-        service.closeBiddingEarly(tenant.id, tender.id, user.id),
+        service.closeBiddingEarly(tenant.id, tender.id, user.id, user.role),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -666,14 +668,14 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       });
       const intruder = await createTenant(prisma);
       await expect(
-        service.closeBiddingEarly(intruder.id, tender.id, user.id),
+        service.closeBiddingEarly(intruder.id, tender.id, user.id, user.role),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it("bilinmeyen tender → 404", async () => {
       const tenant = await createTenant(prisma);
       await expect(
-        service.closeBiddingEarly(tenant.id, "yok", "user-yok"),
+        service.closeBiddingEarly(tenant.id, "yok", "user-yok", "COMPANY_ADMIN"),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -695,7 +697,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         items: [{ tenderItemId: item!.id, unitPrice: 100 }],
       });
 
-      await service.closeNoAward(tenant.id, tender.id, {
+      await service.closeNoAward(tenant.id, tender.id, user.id, user.role, {
         reason: "Hiçbir teklif kabul edilmedi — bütçe üstü",
       });
 
@@ -713,7 +715,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         status: "OPEN_FOR_BIDS",
       });
       await expect(
-        service.closeNoAward(tenant.id, tender.id, {
+        service.closeNoAward(tenant.id, tender.id, user.id, user.role, {
           reason: "Erken kapatma denemesi",
         }),
       ).rejects.toThrow(ConflictException);
@@ -727,7 +729,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       });
       const intruder = await createTenant(prisma);
       await expect(
-        service.closeNoAward(intruder.id, tender.id, {
+        service.closeNoAward(intruder.id, tender.id, user.id, user.role, {
           reason: "Yetkisiz kapatma denemesi",
         }),
       ).rejects.toThrow(ForbiddenException);
@@ -736,7 +738,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
     it("bilinmeyen tender → 404", async () => {
       const tenant = await createTenant(prisma);
       await expect(
-        service.closeNoAward(tenant.id, "yok", { reason: "x" }),
+        service.closeNoAward(tenant.id, "yok", "user-yok", "COMPANY_ADMIN", { reason: "x" }),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -778,12 +780,18 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
     }
 
     it("happy: A→bidA, B→bidB → ikisi de AWARDED_PARTIAL + isWinner doğru", async () => {
-      const { tenant, items, bidA, bidB } = await setupTwoItemsTwoBids();
+      const { tenant, user, items, bidA, bidB } = await setupTwoItemsTwoBids();
 
-      await service.awardItemByItem(tenant.id, items[0]!.tenderId, [
-        { tenderItemId: items[0]!.id, bidId: bidA.id },
-        { tenderItemId: items[1]!.id, bidId: bidB.id },
-      ]);
+      await service.awardItemByItem(
+        tenant.id,
+        items[0]!.tenderId,
+        [
+          { tenderItemId: items[0]!.id, bidId: bidA.id },
+          { tenderItemId: items[1]!.id, bidId: bidB.id },
+        ],
+        user.id,
+        user.role,
+      );
 
       const freshA = await prisma.bid.findUnique({
         where: { id: bidA.id },
@@ -805,24 +813,36 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
     });
 
     it("eksik karar (1 item için decision yok) → 400 'kalemi için kazanan seçilmedi'", async () => {
-      const { tenant, items, bidA } = await setupTwoItemsTwoBids();
+      const { tenant, user, items, bidA } = await setupTwoItemsTwoBids();
 
       await expect(
-        service.awardItemByItem(tenant.id, items[0]!.tenderId, [
-          { tenderItemId: items[0]!.id, bidId: bidA.id },
-          // items[1] eksik
-        ]),
+        service.awardItemByItem(
+          tenant.id,
+          items[0]!.tenderId,
+          [
+            { tenderItemId: items[0]!.id, bidId: bidA.id },
+            // items[1] eksik
+          ],
+          user.id,
+          user.role,
+        ),
       ).rejects.toThrow("kazanan seçilmedi");
     });
 
     it("yabancı tenderItemId → 400 'Geçersiz kalem'", async () => {
-      const { tenant, items, bidA } = await setupTwoItemsTwoBids();
+      const { tenant, user, items, bidA } = await setupTwoItemsTwoBids();
       await expect(
-        service.awardItemByItem(tenant.id, items[0]!.tenderId, [
-          { tenderItemId: items[0]!.id, bidId: bidA.id },
-          { tenderItemId: items[1]!.id, bidId: bidA.id },
-          { tenderItemId: "foreign-item", bidId: bidA.id },
-        ]),
+        service.awardItemByItem(
+          tenant.id,
+          items[0]!.tenderId,
+          [
+            { tenderItemId: items[0]!.id, bidId: bidA.id },
+            { tenderItemId: items[1]!.id, bidId: bidA.id },
+            { tenderItemId: "foreign-item", bidId: bidA.id },
+          ],
+          user.id,
+          user.role,
+        ),
       ).rejects.toThrow("Geçersiz kalem");
     });
 
@@ -849,10 +869,16 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       });
 
       await expect(
-        service.awardItemByItem(tenant.id, tender.id, [
-          { tenderItemId: items[0]!.id, bidId: bidA.id },
-          { tenderItemId: items[1]!.id, bidId: bidA.id }, // teklifsiz
-        ]),
+        service.awardItemByItem(
+          tenant.id,
+          tender.id,
+          [
+            { tenderItemId: items[0]!.id, bidId: bidA.id },
+            { tenderItemId: items[1]!.id, bidId: bidA.id }, // teklifsiz
+          ],
+          user.id,
+          user.role,
+        ),
       ).rejects.toThrow("teklif vermemiş");
     });
 
@@ -866,9 +892,13 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         where: { tenderId: tender.id },
       });
       await expect(
-        service.awardItemByItem(tenant.id, tender.id, [
-          { tenderItemId: item!.id, bidId: "any" },
-        ]),
+        service.awardItemByItem(
+          tenant.id,
+          tender.id,
+          [{ tenderItemId: item!.id, bidId: "any" }],
+          user.id,
+          user.role,
+        ),
       ).rejects.toThrow(ConflictException);
     });
   });
@@ -915,7 +945,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
 
       approvalMock.findMatchAndCreate.mockResolvedValueOnce(null); // onay yok
 
-      const result = await service.finalizeAward(tenant.id, tender.id, user.id);
+      const result = await service.finalizeAward(tenant.id, tender.id, user.id, user.role);
 
       expect(result.tenderStatus).toBe("AWARDED");
       expect(result.orderCount).toBe(1);
@@ -949,7 +979,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         approvalNumber: "APR-2026-9998",
       });
 
-      const result = await service.finalizeAward(tenant.id, tender.id, user.id);
+      const result = await service.finalizeAward(tenant.id, tender.id, user.id, user.role);
 
       expect(result.tenderStatus).toBe("IN_AWARD_APPROVAL");
       const fresh = await prisma.tender.findUnique({ where: { id: tender.id } });
@@ -974,7 +1004,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         status: "IN_AWARD",
       });
       await expect(
-        service.finalizeAward(tenant.id, tender.id, user.id),
+        service.finalizeAward(tenant.id, tender.id, user.id, user.role),
       ).rejects.toThrow("en az 1 kazanan");
     });
 
@@ -985,7 +1015,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         status: "OPEN_FOR_BIDS",
       });
       await expect(
-        service.finalizeAward(tenant.id, tender.id, user.id),
+        service.finalizeAward(tenant.id, tender.id, user.id, user.role),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -993,7 +1023,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       const { tender, user } = await setupAwardedBid();
       const intruder = await createTenant(prisma);
       await expect(
-        service.finalizeAward(intruder.id, tender.id, user.id),
+        service.finalizeAward(intruder.id, tender.id, user.id, user.role),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -1001,7 +1031,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       const tenant = await createTenant(prisma);
       const user = await createUser(prisma, tenant.id);
       await expect(
-        service.finalizeAward(tenant.id, "yok", user.id),
+        service.finalizeAward(tenant.id, "yok", user.id, user.role),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -1271,6 +1301,124 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
         where: { id: (result as any).id },
       });
       expect(fresh?.status).toBe("DRAFT");
+    });
+  });
+
+  // ============================================================
+  // Creator-based ACL: bir BUYER, ekibin diğer BUYER'ının ihalesine
+  // karışamaz; COMPANY_ADMIN her zaman override.
+  // ============================================================
+  describe("creator-gate — BUYER vs diğer BUYER'ın tender'ı", () => {
+    async function setupTwoBuyers() {
+      const tenant = await createTenant(prisma);
+      const ownerBuyer = await createUser(prisma, tenant.id, {
+        email: `owner-${Date.now()}@test.local`,
+        role: "BUYER",
+      });
+      const otherBuyer = await createUser(prisma, tenant.id, {
+        email: `other-${Date.now()}@test.local`,
+        role: "BUYER",
+      });
+      const tender = await createTender(prisma, tenant.id, ownerBuyer.id, {
+        status: "OPEN_FOR_BIDS",
+      });
+      return { tenant, ownerBuyer, otherBuyer, tender };
+    }
+
+    it("BUYER B (sahibi değil) cancel denerse → 403", async () => {
+      const { tenant, otherBuyer, tender } = await setupTwoBuyers();
+      await expect(
+        service.cancel(tenant.id, tender.id, otherBuyer.id, otherBuyer.role, {
+          reason: "Yanlışlıkla iptal",
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("BUYER B closeBiddingEarly denerse → 403", async () => {
+      const { tenant, otherBuyer, tender } = await setupTwoBuyers();
+      await expect(
+        service.closeBiddingEarly(
+          tenant.id,
+          tender.id,
+          otherBuyer.id,
+          otherBuyer.role,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("BUYER B updateDraft denerse → 403", async () => {
+      const tenant = await createTenant(prisma);
+      const ownerBuyer = await createUser(prisma, tenant.id, {
+        email: `owner-up-${Date.now()}@test.local`,
+        role: "BUYER",
+      });
+      const otherBuyer = await createUser(prisma, tenant.id, {
+        email: `other-up-${Date.now()}@test.local`,
+        role: "BUYER",
+      });
+      const tender = await createTender(prisma, tenant.id, ownerBuyer.id, {
+        status: "DRAFT",
+      });
+      await expect(
+        service.updateDraft(
+          tenant.id,
+          tender.id,
+          otherBuyer.id,
+          otherBuyer.role,
+          {} as any,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("BUYER B deleteDraft denerse → 403", async () => {
+      const tenant = await createTenant(prisma);
+      const ownerBuyer = await createUser(prisma, tenant.id, {
+        email: `owner-del-${Date.now()}@test.local`,
+        role: "BUYER",
+      });
+      const otherBuyer = await createUser(prisma, tenant.id, {
+        email: `other-del-${Date.now()}@test.local`,
+        role: "BUYER",
+      });
+      const tender = await createTender(prisma, tenant.id, ownerBuyer.id, {
+        status: "DRAFT",
+      });
+      await expect(
+        service.deleteDraft(
+          tenant.id,
+          tender.id,
+          otherBuyer.id,
+          otherBuyer.role,
+        ),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("BUYER A (sahibi) cancel başarılı", async () => {
+      const { tenant, ownerBuyer, tender } = await setupTwoBuyers();
+      const result = await service.cancel(
+        tenant.id,
+        tender.id,
+        ownerBuyer.id,
+        ownerBuyer.role,
+        { reason: "Sahibi iptal etti" },
+      );
+      expect(result.status).toBe("CANCELLED");
+    });
+
+    it("COMPANY_ADMIN her zaman override eder", async () => {
+      const { tenant, tender } = await setupTwoBuyers();
+      const admin = await createUser(prisma, tenant.id, {
+        email: `admin-${Date.now()}@test.local`,
+        role: "COMPANY_ADMIN",
+      });
+      const result = await service.cancel(
+        tenant.id,
+        tender.id,
+        admin.id,
+        admin.role,
+        { reason: "Admin override" },
+      );
+      expect(result.status).toBe("CANCELLED");
     });
   });
 });

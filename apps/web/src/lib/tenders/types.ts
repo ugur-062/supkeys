@@ -692,6 +692,12 @@ export interface OrderDetail {
     deliveryAddress: string | null;
     paymentTerm: PaymentTerm;
     paymentDays: number | null;
+    /** Creator gate — UI'da action butonlarını gizlemek için kullanılır. */
+    createdBy: {
+      id: string;
+      firstName: string;
+      lastName: string;
+    };
     items: Array<{
       id: string;
       orderIndex: number;

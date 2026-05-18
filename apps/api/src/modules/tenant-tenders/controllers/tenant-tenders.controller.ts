@@ -107,7 +107,7 @@ export class TenantTendersController {
     @Param("id") id: string,
     @Body() dto: UpdateTenderDto,
   ): Promise<unknown> {
-    return this.service.updateDraft(user.tenantId, id, dto);
+    return this.service.updateDraft(user.tenantId, id, user.id, user.role, dto);
   }
 
   @Post(":id/publish")
@@ -116,7 +116,7 @@ export class TenantTendersController {
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
   ): Promise<unknown> {
-    return this.service.publish(user.tenantId, id, user.id);
+    return this.service.publish(user.tenantId, id, user.id, user.role);
   }
 
   @Post(":id/cancel")
@@ -126,7 +126,7 @@ export class TenantTendersController {
     @Param("id") id: string,
     @Body() dto: CancelTenderDto,
   ): Promise<unknown> {
-    return this.service.cancel(user.tenantId, id, dto);
+    return this.service.cancel(user.tenantId, id, user.id, user.role, dto);
   }
 
   @Delete(":id")
@@ -135,7 +135,7 @@ export class TenantTendersController {
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
   ): Promise<unknown> {
-    return this.service.deleteDraft(user.tenantId, id);
+    return this.service.deleteDraft(user.tenantId, id, user.id, user.role);
   }
 
   // ---------- E.5 — Eleme + Kazandırma ----------
@@ -148,7 +148,14 @@ export class TenantTendersController {
     @Param("bidId") bidId: string,
     @Body() dto: EliminateBidDto,
   ): Promise<unknown> {
-    return this.service.eliminateBid(user.tenantId, id, bidId, dto.reason);
+    return this.service.eliminateBid(
+      user.tenantId,
+      id,
+      bidId,
+      dto.reason,
+      user.id,
+      user.role,
+    );
   }
 
   @Post(":id/award/full")
@@ -158,7 +165,13 @@ export class TenantTendersController {
     @Param("id") id: string,
     @Body() dto: AwardFullDto,
   ): Promise<unknown> {
-    return this.service.awardFull(user.tenantId, id, dto.bidId);
+    return this.service.awardFull(
+      user.tenantId,
+      id,
+      dto.bidId,
+      user.id,
+      user.role,
+    );
   }
 
   @Post(":id/award/item-by-item")
@@ -168,7 +181,13 @@ export class TenantTendersController {
     @Param("id") id: string,
     @Body() dto: AwardItemByItemDto,
   ): Promise<unknown> {
-    return this.service.awardItemByItem(user.tenantId, id, dto.decisions);
+    return this.service.awardItemByItem(
+      user.tenantId,
+      id,
+      dto.decisions,
+      user.id,
+      user.role,
+    );
   }
 
   @Post(":id/award/finalize")
@@ -177,7 +196,7 @@ export class TenantTendersController {
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
   ): Promise<unknown> {
-    return this.service.finalizeAward(user.tenantId, id, user.id);
+    return this.service.finalizeAward(user.tenantId, id, user.id, user.role);
   }
 
   @Post(":id/close-no-award")
@@ -187,7 +206,13 @@ export class TenantTendersController {
     @Param("id") id: string,
     @Body() dto: CloseNoAwardDto,
   ): Promise<unknown> {
-    return this.service.closeNoAward(user.tenantId, id, dto);
+    return this.service.closeNoAward(
+      user.tenantId,
+      id,
+      user.id,
+      user.role,
+      dto,
+    );
   }
 
   @Post(":id/close-bidding")
@@ -196,6 +221,11 @@ export class TenantTendersController {
     @CurrentUser() user: AuthenticatedUser,
     @Param("id") id: string,
   ): Promise<unknown> {
-    return this.service.closeBiddingEarly(user.tenantId, id, user.id);
+    return this.service.closeBiddingEarly(
+      user.tenantId,
+      id,
+      user.id,
+      user.role,
+    );
   }
 }
