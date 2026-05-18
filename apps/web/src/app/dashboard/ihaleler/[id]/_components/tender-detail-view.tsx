@@ -115,7 +115,11 @@ export function TenderDetailView({ id }: { id: string }) {
           <GeneralInfoTab tender={tender} />
         </TabsPrimitive.Content>
         <TabsPrimitive.Content value="items" className="outline-none">
-          <ItemsTab items={tender.items} currency={tender.primaryCurrency} />
+          <ItemsTab
+            items={tender.items}
+            currency={tender.primaryCurrency}
+            showTargetPrice
+          />
         </TabsPrimitive.Content>
         <TabsPrimitive.Content value="invitations" className="outline-none">
           <InvitationsTab invitations={tender.invitations} />

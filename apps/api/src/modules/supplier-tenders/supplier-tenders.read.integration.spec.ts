@@ -208,6 +208,31 @@ describe("SupplierTendersService — list + findOne (kapalı zarf)", () => {
       expect(result).not.toHaveProperty("bidStats");
     });
 
+    it("response.items'ta `targetUnitPrice` ASLA yok (kapalı zarf — alıcı hedef fiyatı)", async () => {
+      const tenant = await createTenant(prisma);
+      const user = await createUser(prisma, tenant.id);
+      const supplier = await createSupplier(prisma);
+      const tender = await createTender(prisma, tenant.id, user.id, {
+        status: "OPEN_FOR_BIDS",
+        // Hedef fiyat ile item — sızmamalı
+        items: [
+          {
+            name: "Test kalem",
+            quantity: 10,
+            unit: "adet",
+            targetUnitPrice: 999,
+          },
+        ],
+      });
+      await inviteSupplierToTender(prisma, tender.id, supplier.id);
+
+      const result = await service.findOne(supplier.id, tender.id);
+      expect(result.items.length).toBeGreaterThan(0);
+      for (const it of result.items) {
+        expect(it).not.toHaveProperty("targetUnitPrice");
+      }
+    });
+
     it("myInvitation + myBid sadece tedarikçinin kendi kaydını içerir", async () => {
       const { supplier, supplierUser, tender } = await seedFindOneCase();
 

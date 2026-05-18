@@ -1,10 +1,10 @@
 "use client";
 
-import type { Currency, TenderItemDetail } from "@/lib/tenders/types";
+import type { Currency, SupplierTenderItem } from "@/lib/tenders/types";
 import { BidItemRow } from "./bid-item-row";
 
 interface Props {
-  tenderItems: TenderItemDetail[];
+  tenderItems: SupplierTenderItem[];
   currency: Currency;
 }
 

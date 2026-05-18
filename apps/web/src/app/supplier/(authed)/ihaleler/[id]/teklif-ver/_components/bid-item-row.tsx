@@ -6,14 +6,14 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { BidFormValues } from "@/lib/tenders/bid-form-schema";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
-import type { Currency, TenderItemDetail } from "@/lib/tenders/types";
+import type { Currency, SupplierTenderItem } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import { HelpCircle, X } from "lucide-react";
 import { useFormContext, useWatch } from "react-hook-form";
 
 interface Props {
   index: number;
-  tenderItem: TenderItemDetail;
+  tenderItem: SupplierTenderItem;
   currency: Currency;
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
-import type { Currency, TenderItemDetail } from "@/lib/tenders/types";
+import type { Currency } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import { HelpCircle, Inbox } from "lucide-react";
 
@@ -15,12 +15,32 @@ function fmtNumber(value: string | null | undefined, decimals = 2): string {
   });
 }
 
-interface Props {
-  items: TenderItemDetail[];
-  currency: Currency;
+/**
+ * Alıcı + tedarikçi ortak kalem satırı şape. `targetUnitPrice` opsiyonel —
+ * tedarikçi tarafında undefined gelir (KAPALI ZARF). Showcase prop'u ile
+ * kolonun gösterilip gösterilmeyeceği kontrol edilir.
+ */
+interface ItemRow {
+  id: string;
+  orderIndex: number;
+  name: string;
+  description: string | null;
+  quantity: string;
+  unit: string;
+  materialCode: string | null;
+  requiredByDate: string | null;
+  targetUnitPrice?: string | null;
+  customQuestion: string | null;
 }
 
-export function ItemsTab({ items, currency }: Props) {
+interface Props {
+  items: ItemRow[];
+  currency: Currency;
+  /** Alıcı tarafı `true` geçer; tedarikçi tarafında kolon hiç görünmez. */
+  showTargetPrice?: boolean;
+}
+
+export function ItemsTab({ items, currency, showTargetPrice = false }: Props) {
   if (items.length === 0) {
     return (
       <div className="card p-12 text-center">
@@ -56,9 +76,11 @@ export function ItemsTab({ items, currency }: Props) {
               <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
                 Stok Kodu
               </th>
-              <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-                Hedef Fiyat
-              </th>
+              {showTargetPrice ? (
+                <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
+                  Hedef Fiyat
+                </th>
+              ) : null}
               <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
                 Soru
               </th>
@@ -91,11 +113,13 @@ export function ItemsTab({ items, currency }: Props) {
                 <td className="px-4 py-3 text-slate-600 font-mono text-xs">
                   {it.materialCode || "—"}
                 </td>
-                <td className="px-4 py-3 text-slate-600 tabular-nums">
-                  {it.targetUnitPrice
-                    ? `${fmtNumber(it.targetUnitPrice)} ${CURRENCY_SYMBOL[currency]}`
-                    : "—"}
-                </td>
+                {showTargetPrice ? (
+                  <td className="px-4 py-3 text-slate-600 tabular-nums">
+                    {it.targetUnitPrice
+                      ? `${fmtNumber(it.targetUnitPrice)} ${CURRENCY_SYMBOL[currency]}`
+                      : "—"}
+                  </td>
+                ) : null}
                 <td className="px-4 py-3">
                   {it.customQuestion ? (
                     <span

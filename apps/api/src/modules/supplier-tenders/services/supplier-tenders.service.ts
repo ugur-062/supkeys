@@ -237,7 +237,25 @@ export class SupplierTendersService {
       },
       include: {
         tenant: { select: { id: true, name: true } },
-        items: { orderBy: { orderIndex: "asc" } },
+        // KAPALI ZARF — targetUnitPrice alıcının internal hedef fiyatı,
+        // tedarikçi göremez. Diğer kalem field'ları açıkça seç.
+        items: {
+          select: {
+            id: true,
+            tenderId: true,
+            orderIndex: true,
+            name: true,
+            description: true,
+            quantity: true,
+            unit: true,
+            materialCode: true,
+            requiredByDate: true,
+            customQuestion: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { orderIndex: "asc" },
+        },
         attachments: { orderBy: { uploadedAt: "asc" } },
         categories: {
           include: {

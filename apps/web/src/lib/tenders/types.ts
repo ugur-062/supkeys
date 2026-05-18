@@ -278,6 +278,25 @@ export interface SupplierTenderListResponse {
   pagination: Pagination;
 }
 
+/**
+ * Tedarikçinin gördüğü ihale kalemi. Alıcının `targetUnitPrice` hedef
+ * fiyatını KAPALI ZARF gereği içermez.
+ */
+export interface SupplierTenderItem {
+  id: string;
+  tenderId: string;
+  orderIndex: number;
+  name: string;
+  description: string | null;
+  quantity: string;
+  unit: string;
+  materialCode: string | null;
+  requiredByDate: string | null;
+  customQuestion: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SupplierTenderDetail {
   id: string;
   tenderNumber: string;
@@ -305,7 +324,7 @@ export interface SupplierTenderDetail {
   awardedAt: string | null;
   cancelledAt: string | null;
   tenant: { id: string; name: string };
-  items: TenderItemDetail[];
+  items: SupplierTenderItem[];
   attachments: TenderAttachment[];
   myInvitation: {
     status: TenderInvitationStatus;
