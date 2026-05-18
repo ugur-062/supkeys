@@ -46,6 +46,20 @@ export class TenantTendersController {
     return this.service.list(user.tenantId, query);
   }
 
+  @Get("filters/buyers")
+  @RequirePermissions("tender:view")
+  distinctBuyers(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {
+    return this.service.distinctBuyers(user.tenantId);
+  }
+
+  @Get("filters/categories")
+  @RequirePermissions("tender:view")
+  distinctCategories(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<unknown> {
+    return this.service.distinctCategories(user.tenantId);
+  }
+
   @Get("stats")
   @RequirePermissions("tender:view")
   stats(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {

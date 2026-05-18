@@ -24,6 +24,17 @@ export const SUPPLIER_TENDER_SORT_OPTIONS = [
 export type SupplierTenderSortOption =
   (typeof SUPPLIER_TENDER_SORT_OPTIONS)[number];
 
+export const SUPPLIER_TENDER_DATE_RANGE_OPTIONS = [
+  "7d",
+  "30d",
+  "3m",
+  "6m",
+  "12m",
+  "all",
+] as const;
+export type SupplierTenderDateRangeOption =
+  (typeof SUPPLIER_TENDER_DATE_RANGE_OPTIONS)[number];
+
 export class ListSupplierTendersDto {
   @IsOptional()
   @IsEnum(SupplierTenderFilter)
@@ -36,6 +47,20 @@ export class ListSupplierTendersDto {
   @IsOptional()
   @IsIn(SUPPLIER_TENDER_SORT_OPTIONS)
   sort?: SupplierTenderSortOption;
+
+  @IsOptional()
+  @IsIn(SUPPLIER_TENDER_DATE_RANGE_OPTIONS)
+  range?: SupplierTenderDateRangeOption;
+
+  /** Alıcı (tenant) filtresi. */
+  @IsOptional()
+  @IsString()
+  tenantId?: string;
+
+  /** UNSPSC kategori filtresi. */
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
 
   @IsOptional()
   @Transform(({ value }) => parseInt(value, 10))

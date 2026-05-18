@@ -1421,4 +1421,114 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       expect(result.status).toBe("CANCELLED");
     });
   });
+
+  // ============================================================
+  // V2-7 — Tender list filtreleri: createdBy + category + currency + amount
+  // ============================================================
+  describe("list — yeni filtreler", () => {
+    it("createdById → sadece o kullanıcının ihaleleri", async () => {
+      const tenant = await createTenant(prisma);
+      const buyerA = await createUser(prisma, tenant.id, {
+        email: `a-${Date.now()}-${Math.random()}@test.local`,
+        role: "BUYER",
+      });
+      const buyerB = await createUser(prisma, tenant.id, {
+        email: `b-${Date.now()}-${Math.random()}@test.local`,
+        role: "BUYER",
+      });
+      await createTender(prisma, tenant.id, buyerA.id, { status: "DRAFT" });
+      await createTender(prisma, tenant.id, buyerB.id, { status: "DRAFT" });
+
+      const result = await service.list(tenant.id, {
+        createdById: buyerA.id,
+        range: "all",
+      } as any);
+      expect(result.items.length).toBe(1);
+      expect(result.items[0]?.createdBy.id).toBe(buyerA.id);
+    });
+
+    it("currency=USD → sadece USD ihaleler", async () => {
+      const tenant = await createTenant(prisma);
+      const user = await createUser(prisma, tenant.id);
+      await createTender(prisma, tenant.id, user.id, {
+        status: "DRAFT",
+        primaryCurrency: "TRY",
+      });
+      await createTender(prisma, tenant.id, user.id, {
+        status: "DRAFT",
+        primaryCurrency: "USD",
+      });
+      const result = await service.list(tenant.id, {
+        currency: "USD",
+        range: "all",
+      } as any);
+      expect(result.items.length).toBe(1);
+      expect(result.items[0]?.primaryCurrency).toBe("USD");
+    });
+
+    it("amountMin/amountMax filtresi estimatedTotal'a karşı", async () => {
+      const tenant = await createTenant(prisma);
+      const user = await createUser(prisma, tenant.id);
+      const t1 = await createTender(prisma, tenant.id, user.id, {
+        status: "DRAFT",
+      });
+      const t2 = await createTender(prisma, tenant.id, user.id, {
+        status: "DRAFT",
+      });
+      const t3 = await createTender(prisma, tenant.id, user.id, {
+        status: "DRAFT",
+      });
+      await prisma.tender.update({
+        where: { id: t1.id },
+        data: { estimatedTotal: 500 },
+      });
+      await prisma.tender.update({
+        where: { id: t2.id },
+        data: { estimatedTotal: 1500 },
+      });
+      await prisma.tender.update({
+        where: { id: t3.id },
+        data: { estimatedTotal: 5000 },
+      });
+
+      const result = await service.list(tenant.id, {
+        amountMin: 1000,
+        amountMax: 3000,
+        range: "all",
+      } as any);
+      expect(result.items.length).toBe(1);
+      expect(result.items[0]?.id).toBe(t2.id);
+    });
+  });
+
+  describe("distinctBuyers — alıcı filter dropdown'u", () => {
+    it("ihale açan distinct kullanıcılar, tenderCount azalan", async () => {
+      const tenant = await createTenant(prisma);
+      const userA = await createUser(prisma, tenant.id, {
+        email: `a-${Date.now()}-${Math.random()}@test.local`,
+        firstName: "Ali",
+        lastName: "X",
+      });
+      const userB = await createUser(prisma, tenant.id, {
+        email: `b-${Date.now()}-${Math.random()}@test.local`,
+        firstName: "Bora",
+        lastName: "Y",
+      });
+      await createTender(prisma, tenant.id, userA.id, { status: "DRAFT" });
+      await createTender(prisma, tenant.id, userA.id, { status: "DRAFT" });
+      await createTender(prisma, tenant.id, userB.id, { status: "DRAFT" });
+
+      const result = await service.distinctBuyers(tenant.id);
+      expect(result.length).toBe(2);
+      expect(result[0]?.firstName).toBe("Ali");
+      expect(result[0]?.tenderCount).toBe(2);
+      expect(result[1]?.firstName).toBe("Bora");
+      expect(result[1]?.tenderCount).toBe(1);
+    });
+
+    it("ihale yoksa boş array", async () => {
+      const tenant = await createTenant(prisma);
+      expect(await service.distinctBuyers(tenant.id)).toEqual([]);
+    });
+  });
 });

@@ -774,6 +774,12 @@ model Tender {
   paymentTerm         PaymentTerm     @default(CASH)
   paymentDays         Int?
 
+  // Tahmini toplam tutar (primaryCurrency'de) — tüm items targetUnitPrice
+  // ve quantity'sinden hesaplanır. Bir item targetUnitPrice'ı yoksa null.
+  // List filter (tutar aralığı) için denormalize, createDraft/updateDraft
+  // sırasında güncellenir.
+  estimatedTotal      Decimal?        @db.Decimal(20, 4)
+
   publishedAt         DateTime?
   bidsOpenAt          DateTime?
   bidsCloseAt         DateTime

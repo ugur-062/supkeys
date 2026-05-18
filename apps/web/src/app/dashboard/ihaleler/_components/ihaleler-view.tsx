@@ -3,11 +3,21 @@
 import { ResultCount, SearchInput, SortDropdown } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/use-permissions";
-import { useTenderStats, useTenders } from "@/hooks/use-tenant-tenders";
+import {
+  useTenderBuyers,
+  useTenderCategoryOptions,
+  useTenderStats,
+  useTenders,
+} from "@/hooks/use-tenant-tenders";
 import type { TenderDateRange, TenderStatus } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
-import { CalendarRange, Plus } from "lucide-react";
+import {
+  Building2,
+  CalendarRange,
+  FolderTree,
+  Plus,
+  User as UserIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
@@ -38,6 +48,16 @@ function parseRange(value: string | null): TenderDateRange {
   }
   return DEFAULT_RANGE;
 }
+
+const STATUS_OPTIONS: { value: TabKey; label: string }[] = [
+  { value: "all", label: "Tüm Durumlar" },
+  { value: "DRAFT", label: "Taslak" },
+  { value: "OPEN_FOR_BIDS", label: "Yayında" },
+  { value: "IN_AWARD", label: "Kazandırma" },
+  { value: "AWARDED", label: "Tamamlandı" },
+  { value: "CANCELLED", label: "İptal/Kapalı" },
+];
+
 
 type TabKey =
   | "all"
@@ -70,28 +90,6 @@ function parsePage(value: string | null): number {
 
 const PAGE_SIZE = 20;
 
-const TRIGGER_CLASSES = cn(
-  "group inline-flex items-center px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-  "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50",
-  "data-[state=active]:border-brand-600 data-[state=active]:text-brand-700 data-[state=active]:bg-brand-50/30",
-  "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30 rounded-t-md",
-);
-
-function TabBadge({ count }: { count: number | null }) {
-  if (count === null) {
-    return (
-      <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-400">
-        —
-      </span>
-    );
-  }
-  return (
-    <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-600 group-data-[state=active]:bg-brand-100 group-data-[state=active]:text-brand-700">
-      {count}
-    </span>
-  );
-}
-
 export function IhalelerView() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -99,20 +97,17 @@ export function IhalelerView() {
   const search = searchParams.get("search") ?? "";
   const sort = searchParams.get("sort") ?? "createdAt:desc";
   const range = parseRange(searchParams.get("range"));
+  const createdById = searchParams.get("createdById") ?? "";
+  const categoryId = searchParams.get("categoryId") ?? "";
   const page = parsePage(searchParams.get("page"));
   // V2-6.5 RBAC — "Yeni İhale Aç" tender:create permission'a göre (default'ta BUYER'da var).
   const { has } = usePermissions();
   const canCreate = has("tender:create");
 
   const stats = useTenderStats();
+  const buyers = useTenderBuyers();
+  const categoryOptions = useTenderCategoryOptions();
 
-  // Tab → status filter map
-  // "CANCELLED" tab içinde CANCELLED + CLOSED_NO_AWARD bir arada gösterilir;
-  // backend tek status filtreliyor, ikisini ayrı çekip union yerine sadece
-  // CANCELLED'ı status query'sinde gönderelim, KPI badge'inde toplam
-  // sayıyı kullanıyoruz. CLOSED_NO_AWARD'ı da görebilmek için "all" sekmesine
-  // yönlendirme tercih edilebilir; V1 için CANCELLED tab'ında sadece
-  // cancelled gösteriliyor ve closedNoAward "İptal/Kapalı" KPI'sında.
   const statusFilter: TenderStatus | undefined =
     tab === "all" ? undefined : (tab as TenderStatus);
 
@@ -122,10 +117,12 @@ export function IhalelerView() {
       search: search || undefined,
       sort,
       range,
+      createdById: createdById || undefined,
+      categoryId: categoryId || undefined,
       page,
       pageSize: PAGE_SIZE,
     }),
-    [statusFilter, search, sort, range, page],
+    [statusFilter, search, sort, range, createdById, categoryId, page],
   );
 
   const list = useTenders(queryParams);
@@ -136,28 +133,23 @@ export function IhalelerView() {
       search?: string;
       sort?: string;
       range?: TenderDateRange;
+      createdById?: string;
+      categoryId?: string;
       page?: number;
     }) => {
       const params = new URLSearchParams(searchParams.toString());
-      if (next.tab !== undefined) {
-        if (next.tab === "all") params.delete("tab");
-        else params.set("tab", next.tab);
+      const setOrDelete = (key: string, value: string | undefined, deleteOn: string | undefined = "") => {
+        if (value === undefined) return;
+        if (value === deleteOn) params.delete(key);
+        else params.set(key, value);
         params.delete("page");
-      }
-      if (next.search !== undefined) {
-        if (next.search === "") params.delete("search");
-        else params.set("search", next.search);
-        params.delete("page");
-      }
-      if (next.sort !== undefined) {
-        params.set("sort", next.sort);
-        params.delete("page");
-      }
-      if (next.range !== undefined) {
-        if (next.range === DEFAULT_RANGE) params.delete("range");
-        else params.set("range", next.range);
-        params.delete("page");
-      }
+      };
+      if (next.tab !== undefined) setOrDelete("tab", next.tab, "all");
+      if (next.search !== undefined) setOrDelete("search", next.search, "");
+      if (next.sort !== undefined) setOrDelete("sort", next.sort, undefined);
+      if (next.range !== undefined) setOrDelete("range", next.range, DEFAULT_RANGE);
+      if (next.createdById !== undefined) setOrDelete("createdById", next.createdById, "");
+      if (next.categoryId !== undefined) setOrDelete("categoryId", next.categoryId, "");
       if (next.page !== undefined) {
         if (next.page <= 1) params.delete("page");
         else params.set("page", String(next.page));
@@ -168,14 +160,14 @@ export function IhalelerView() {
     [router, searchParams],
   );
 
-  const handleTabChange = (value: string) => {
-    updateUrl({ tab: value as TabKey, search: "", page: 1 });
-  };
-
   const items = list.data?.items ?? [];
   const totalCount = list.data?.pagination.total ?? 0;
   const isFiltered =
-    Boolean(search) || tab !== "all" || range !== DEFAULT_RANGE;
+    Boolean(search) ||
+    tab !== "all" ||
+    range !== DEFAULT_RANGE ||
+    Boolean(createdById) ||
+    Boolean(categoryId);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -209,103 +201,149 @@ export function IhalelerView() {
 
       <TenderStatsCards />
 
-      <TabsPrimitive.Root
-        value={tab}
-        onValueChange={handleTabChange}
-        className="space-y-4"
-      >
-        <TabsPrimitive.List
-          className="border-b border-surface-border flex gap-1 overflow-x-auto"
-          aria-label="İhale sekmeleri"
-        >
-          <TabsPrimitive.Trigger value="all" className={TRIGGER_CLASSES}>
-            Tümü
-            <TabBadge count={stats.data?.total ?? null} />
-          </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger value="DRAFT" className={TRIGGER_CLASSES}>
-            Taslak
-            <TabBadge count={stats.data?.draft ?? null} />
-          </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger
-            value="OPEN_FOR_BIDS"
-            className={TRIGGER_CLASSES}
-          >
-            Yayında
-            <TabBadge count={stats.data?.openForBids ?? null} />
-          </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger value="IN_AWARD" className={TRIGGER_CLASSES}>
-            Kazandırma
-            <TabBadge count={stats.data?.inAward ?? null} />
-          </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger value="AWARDED" className={TRIGGER_CLASSES}>
-            Tamamlandı
-            <TabBadge count={stats.data?.awarded ?? null} />
-          </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger value="CANCELLED" className={TRIGGER_CLASSES}>
-            İptal/Kapalı
-            <TabBadge
-              count={
-                stats.data
-                  ? stats.data.cancelled + stats.data.closedNoAward
-                  : null
-              }
-            />
-          </TabsPrimitive.Trigger>
-        </TabsPrimitive.List>
+      {/* Toolbar — arama + tarih + durum + satın almacı + sıralama + kategori */}
+      <div className="card p-3">
+        <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-3">
+          <SearchInput
+            value={search}
+            onChange={(v) => updateUrl({ search: v })}
+            placeholder="İhale adı veya numarası ara…"
+            className="flex-1 min-w-0 md:max-w-md"
+          />
+          <IconSelect
+            icon={CalendarRange}
+            value={range}
+            onChange={(v) => updateUrl({ range: v as TenderDateRange })}
+            options={RANGE_OPTIONS.map((o) => ({
+              value: o.value,
+              label: o.label,
+            }))}
+            ariaLabel="Tarih aralığı"
+          />
+          <IconSelect
+            icon={Building2}
+            value={tab}
+            onChange={(v) => updateUrl({ tab: v as TabKey })}
+            options={STATUS_OPTIONS.map((o) => ({
+              value: o.value,
+              label:
+                o.value === "all"
+                  ? `Tümü (${stats.data?.total ?? "—"})`
+                  : `${o.label}${getCountSuffix(o.value, stats.data)}`,
+            }))}
+            ariaLabel="Durum filtresi"
+          />
+          <IconSelect
+            icon={UserIcon}
+            value={createdById}
+            onChange={(v) => updateUrl({ createdById: v })}
+            options={[
+              { value: "", label: "Tüm Satın Almacılar" },
+              ...(buyers.data ?? []).map((b) => ({
+                value: b.id,
+                label: `${b.firstName} ${b.lastName} (${b.tenderCount})`,
+              })),
+            ]}
+            ariaLabel="Satın almacı filtresi"
+            loading={buyers.isLoading}
+          />
+          <SortDropdown
+            value={sort}
+            onChange={(v) => updateUrl({ sort: v })}
+            options={SORT_OPTIONS}
+          />
+          <IconSelect
+            icon={FolderTree}
+            value={categoryId}
+            onChange={(v) => updateUrl({ categoryId: v })}
+            options={[
+              { value: "", label: "Tüm Kategoriler" },
+              ...(categoryOptions.data ?? []).map((c) => ({
+                value: c.id,
+                label: `${c.breadcrumb} (${c.tenderCount})`,
+              })),
+            ]}
+            ariaLabel="Kategori filtresi"
+            loading={categoryOptions.isLoading}
+          />
+          <ResultCount
+            total={totalCount}
+            isFiltered={isFiltered}
+            unit="ihale"
+            className="md:ml-auto"
+          />
+        </div>
+      </div>
 
-        <TabsPrimitive.Content value={tab} className="space-y-4 outline-none">
-          <div className="card p-3 flex flex-col md:flex-row md:items-center gap-3">
-            <SearchInput
-              value={search}
-              onChange={(v) => updateUrl({ search: v })}
-              placeholder="İhale adı veya numarası ara…"
-              className="flex-1 min-w-0"
-            />
-            <div className="relative">
-              <CalendarRange className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              <select
-                value={range}
-                onChange={(e) =>
-                  updateUrl({ range: e.target.value as TenderDateRange })
-                }
-                className={cn(
-                  "pl-9 pr-8 py-2 text-sm rounded-lg appearance-none bg-white cursor-pointer min-w-[160px]",
-                  "border border-surface-border text-brand-900",
-                  "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-                )}
-                aria-label="Tarih aralığı"
-              >
-                {RANGE_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <SortDropdown
-              value={sort}
-              onChange={(v) => updateUrl({ sort: v })}
-              options={SORT_OPTIONS}
-            />
-            <ResultCount
-              total={totalCount}
-              isFiltered={isFiltered}
-              unit="ihale"
-              className="md:ml-auto"
-            />
-          </div>
-
-          <div className="card overflow-hidden">
-            <TendersTable
-              items={items}
-              isLoading={list.isLoading}
-              isError={list.isError}
-              pageSize={PAGE_SIZE}
-              onRetry={() => list.refetch()}
-            />
-          </div>
-        </TabsPrimitive.Content>
-      </TabsPrimitive.Root>
+      <div className="card overflow-hidden">
+        <TendersTable
+          items={items}
+          isLoading={list.isLoading}
+          isError={list.isError}
+          pageSize={PAGE_SIZE}
+          onRetry={() => list.refetch()}
+        />
+      </div>
     </div>
   );
 }
+
+function getCountSuffix(
+  value: TabKey,
+  stats: ReturnType<typeof useTenderStats>["data"],
+): string {
+  if (!stats) return "";
+  const count =
+    value === "DRAFT"
+      ? stats.draft
+      : value === "OPEN_FOR_BIDS"
+        ? stats.openForBids
+        : value === "IN_AWARD"
+          ? stats.inAward
+          : value === "AWARDED"
+            ? stats.awarded
+            : value === "CANCELLED"
+              ? stats.cancelled + stats.closedNoAward
+              : null;
+  return count != null ? ` (${count})` : "";
+}
+
+function IconSelect({
+  icon: Icon,
+  value,
+  onChange,
+  options,
+  ariaLabel,
+  loading,
+}: {
+  icon: typeof CalendarRange;
+  value: string;
+  onChange: (v: string) => void;
+  options: Array<{ value: string; label: string }>;
+  ariaLabel: string;
+  loading?: boolean;
+}) {
+  return (
+    <div className="relative w-full md:w-auto">
+      <Icon className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={ariaLabel}
+        disabled={loading}
+        className={cn(
+          "pl-9 pr-8 py-2 text-sm rounded-lg appearance-none bg-white cursor-pointer w-full md:w-auto md:min-w-[160px]",
+          "border border-surface-border text-brand-900",
+          "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
+        )}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+

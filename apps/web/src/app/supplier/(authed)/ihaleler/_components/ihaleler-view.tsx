@@ -2,15 +2,20 @@
 
 import { PanelCard } from "@/components/supplier/panel-card";
 import {
+  useSupplierTenderCategoryOptions,
   useSupplierTenderStats,
+  useSupplierTenderTenants,
   useSupplierTenders,
 } from "@/hooks/use-supplier-tenders";
+import type { TenderDateRange } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import {
-  Award,
   Briefcase,
+  Building2,
+  CalendarRange,
   CheckCircle2,
   FileText,
+  FolderTree,
   Inbox,
   Mail,
   Package,
@@ -28,67 +33,39 @@ const SORT_OPTIONS = [
   { value: "createdAt:desc", label: "En Yeni" },
 ];
 
+const RANGE_OPTIONS: { value: TenderDateRange; label: string }[] = [
+  { value: "all", label: "Tüm Zamanlar" },
+  { value: "7d", label: "Son 7 Gün" },
+  { value: "30d", label: "Son 30 Gün" },
+  { value: "3m", label: "Son 3 Ay" },
+  { value: "6m", label: "Son 6 Ay" },
+  { value: "12m", label: "Son 1 Yıl" },
+];
+
 type TabKey = "active" | "past" | "all";
 
 const VALID_TABS: TabKey[] = ["active", "past", "all"];
+
+const STATUS_OPTIONS: { value: TabKey; label: string }[] = [
+  { value: "active", label: "Aktif" },
+  { value: "past", label: "Geçmiş" },
+  { value: "all", label: "Tümü" },
+];
 
 function parseTab(v: string | null): TabKey {
   if (v && (VALID_TABS as string[]).includes(v)) return v as TabKey;
   return "active";
 }
 
+function parseRange(v: string | null): TenderDateRange {
+  const ranges: TenderDateRange[] = ["7d", "30d", "3m", "6m", "12m", "all"];
+  if (v && (ranges as string[]).includes(v)) return v as TenderDateRange;
+  return "all";
+}
+
 function parsePage(v: string | null): number {
   const n = v ? parseInt(v, 10) : 1;
   return Number.isFinite(n) && n > 0 ? n : 1;
-}
-
-interface FilterButtonProps {
-  active: boolean;
-  onClick: () => void;
-  icon: typeof Briefcase;
-  label: string;
-  count?: number | string;
-}
-
-function FilterButton({
-  active,
-  onClick,
-  icon: Icon,
-  label,
-  count,
-}: FilterButtonProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "w-full text-left px-3 py-2 rounded-lg flex items-center gap-2.5 text-sm transition-colors",
-        active
-          ? "bg-brand-50 text-brand-700 font-semibold"
-          : "text-slate-600 hover:bg-slate-50",
-      )}
-    >
-      <Icon
-        className={cn(
-          "h-4 w-4 flex-shrink-0",
-          active ? "text-brand-600" : "text-slate-400",
-        )}
-      />
-      <span className="flex-1">{label}</span>
-      {count !== undefined ? (
-        <span
-          className={cn(
-            "text-[11px] font-semibold tabular-nums px-1.5 py-0.5 rounded",
-            active
-              ? "bg-brand-100 text-brand-700"
-              : "bg-slate-100 text-slate-600",
-          )}
-        >
-          {count}
-        </span>
-      ) : null}
-    </button>
-  );
 }
 
 export function SupplierIhalelerView() {
@@ -97,40 +74,63 @@ export function SupplierIhalelerView() {
   const tab = parseTab(searchParams.get("tab"));
   const search = searchParams.get("search") ?? "";
   const sort = searchParams.get("sort") ?? "bidsCloseAt:asc";
+  const range = parseRange(searchParams.get("range"));
+  const tenantId = searchParams.get("tenantId") ?? "";
+  const categoryId = searchParams.get("categoryId") ?? "";
   const page = parsePage(searchParams.get("page"));
 
   const stats = useSupplierTenderStats();
+  const tenants = useSupplierTenderTenants();
+  const categoryOptions = useSupplierTenderCategoryOptions();
 
   const queryParams = useMemo(
     () => ({
       filter: tab,
       search: search || undefined,
       sort,
+      range,
+      tenantId: tenantId || undefined,
+      categoryId: categoryId || undefined,
       page,
       pageSize: PAGE_SIZE,
     }),
-    [tab, search, sort, page],
+    [tab, search, sort, range, tenantId, categoryId, page],
   );
 
   const list = useSupplierTenders(queryParams);
 
   const updateUrl = useCallback(
-    (next: { tab?: TabKey; search?: string; sort?: string; page?: number }) => {
+    (next: {
+      tab?: TabKey;
+      search?: string;
+      sort?: string;
+      range?: TenderDateRange;
+      tenantId?: string;
+      categoryId?: string;
+      page?: number;
+    }) => {
       const params = new URLSearchParams(searchParams.toString());
-      if (next.tab !== undefined) {
-        if (next.tab === "active") params.delete("tab");
-        else params.set("tab", next.tab);
+      const setOrDelete = (
+        key: string,
+        value: string | undefined,
+        deleteOn: string,
+      ) => {
+        if (value === undefined) return;
+        if (value === deleteOn) params.delete(key);
+        else params.set(key, value);
         params.delete("page");
-      }
-      if (next.search !== undefined) {
-        if (next.search === "") params.delete("search");
-        else params.set("search", next.search);
-        params.delete("page");
-      }
+      };
+      if (next.tab !== undefined) setOrDelete("tab", next.tab, "active");
+      if (next.search !== undefined) setOrDelete("search", next.search, "");
       if (next.sort !== undefined) {
         params.set("sort", next.sort);
         params.delete("page");
       }
+      if (next.range !== undefined) setOrDelete("range", next.range, "all");
+      if (next.tenantId !== undefined)
+        setOrDelete("tenantId", next.tenantId, "");
+      if (next.categoryId !== undefined)
+        setOrDelete("categoryId", next.categoryId, "");
       if (next.page !== undefined) {
         if (next.page <= 1) params.delete("page");
         else params.set("page", String(next.page));
@@ -188,124 +188,178 @@ export function SupplierIhalelerView() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Sol sidebar — filtreler */}
-        <aside className="lg:col-span-3">
-          <PanelCard padding="sm" className="lg:sticky lg:top-4">
-            <div className="relative mb-4">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                value={search}
-                onChange={(e) => updateUrl({ search: e.target.value })}
-                placeholder="İhale ara..."
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-              />
-            </div>
-
-            <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">
-              Durum
-            </h3>
-            <div className="space-y-1">
-              <FilterButton
-                active={tab === "active"}
-                onClick={() => updateUrl({ tab: "active" })}
-                icon={Briefcase}
-                label="Aktif"
-                count={stats.data?.activeInvitations ?? "—"}
-              />
-              <FilterButton
-                active={tab === "past"}
-                onClick={() => updateUrl({ tab: "past" })}
-                icon={Award}
-                label="Geçmiş"
-              />
-              <FilterButton
-                active={tab === "all"}
-                onClick={() => updateUrl({ tab: "all" })}
-                icon={Inbox}
-                label="Tümü"
-              />
-            </div>
-
-            <div className="mt-5 pt-4 border-t border-slate-100">
-              <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">
-                Sıralama
-              </h3>
-              <select
-                value={sort}
-                onChange={(e) => updateUrl({ sort: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
-              >
-                {SORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </PanelCard>
-        </aside>
-
-        {/* Sağ — kart grid */}
-        <main className="lg:col-span-9">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs text-slate-500">
-              {list.isLoading
-                ? "Yükleniyor…"
-                : `${totalCount.toLocaleString("tr-TR")} ihale${search || tab !== "active" ? " (filtrelenmiş)" : ""}`}
-            </p>
+      {/* Toolbar — arama + 5 dropdown yatay */}
+      <PanelCard padding="sm">
+        <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-3">
+          <div className="relative flex-1 min-w-0 md:max-w-md">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              value={search}
+              onChange={(e) => updateUrl({ search: e.target.value })}
+              placeholder="İhale ara..."
+              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+            />
           </div>
 
-          {list.isError ? (
-            <PanelCard className="text-center py-12">
-              <p className="text-brand-900 font-medium mb-2">Veri alınamadı</p>
+          <IconSelect
+            icon={Briefcase}
+            value={tab}
+            onChange={(v) => updateUrl({ tab: v as TabKey })}
+            options={STATUS_OPTIONS}
+            ariaLabel="Durum filtresi"
+          />
+          <IconSelect
+            icon={CalendarRange}
+            value={range}
+            onChange={(v) => updateUrl({ range: v as TenderDateRange })}
+            options={RANGE_OPTIONS}
+            ariaLabel="Tarih aralığı"
+          />
+          <IconSelect
+            icon={Building2}
+            value={tenantId}
+            onChange={(v) => updateUrl({ tenantId: v })}
+            options={[
+              { value: "", label: "Tüm Alıcılar" },
+              ...(tenants.data ?? []).map((t) => ({
+                value: t.id,
+                label: `${t.name} (${t.tenderCount})`,
+              })),
+            ]}
+            ariaLabel="Alıcı filtresi"
+            loading={tenants.isLoading}
+          />
+          <IconSelect
+            icon={FolderTree}
+            value={categoryId}
+            onChange={(v) => updateUrl({ categoryId: v })}
+            options={[
+              { value: "", label: "Tüm Kategoriler" },
+              ...(categoryOptions.data ?? []).map((c) => ({
+                value: c.id,
+                label: `${c.breadcrumb} (${c.tenderCount})`,
+              })),
+            ]}
+            ariaLabel="Kategori filtresi"
+            loading={categoryOptions.isLoading}
+          />
+          <select
+            value={sort}
+            onChange={(e) => updateUrl({ sort: e.target.value })}
+            aria-label="Sıralama"
+            className="w-full md:w-auto md:min-w-[160px] px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white cursor-pointer"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          <p className="text-xs text-slate-500 whitespace-nowrap md:ml-auto">
+            {list.isLoading
+              ? "Yükleniyor…"
+              : `${totalCount.toLocaleString("tr-TR")} ihale${
+                  search ||
+                  tab !== "active" ||
+                  range !== "all" ||
+                  tenantId ||
+                  categoryId
+                    ? " (filtrelenmiş)"
+                    : ""
+                }`}
+          </p>
+        </div>
+      </PanelCard>
+
+      {/* Kart grid */}
+      {list.isError ? (
+        <PanelCard className="text-center py-12">
+          <p className="text-brand-900 font-medium mb-2">Veri alınamadı</p>
+          <button
+            type="button"
+            onClick={() => list.refetch()}
+            className="text-sm text-brand-700 hover:underline"
+          >
+            Tekrar dene
+          </button>
+        </PanelCard>
+      ) : list.isLoading ? (
+        <CardGridSkeleton />
+      ) : items.length === 0 ? (
+        <EmptyState tab={tab} hasSearch={!!search} />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {items.map((t) => (
+              <TenderCard key={t.id} tender={t} />
+            ))}
+          </div>
+
+          {totalPages > 1 ? (
+            <div className="mt-6 flex items-center justify-center gap-2">
               <button
                 type="button"
-                onClick={() => list.refetch()}
-                className="text-sm text-brand-700 hover:underline"
+                disabled={page <= 1}
+                onClick={() => updateUrl({ page: page - 1 })}
+                className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Tekrar dene
+                Önceki
               </button>
-            </PanelCard>
-          ) : list.isLoading ? (
-            <CardGridSkeleton />
-          ) : items.length === 0 ? (
-            <EmptyState tab={tab} hasSearch={!!search} />
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {items.map((t) => (
-                  <TenderCard key={t.id} tender={t} />
-                ))}
-              </div>
+              <span className="text-sm text-slate-600 px-3">
+                {page} / {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => updateUrl({ page: page + 1 })}
+                className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Sonraki
+              </button>
+            </div>
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
 
-              {totalPages > 1 ? (
-                <div className="mt-6 flex items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    disabled={page <= 1}
-                    onClick={() => updateUrl({ page: page - 1 })}
-                    className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Önceki
-                  </button>
-                  <span className="text-sm text-slate-600 px-3">
-                    {page} / {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={page >= totalPages}
-                    onClick={() => updateUrl({ page: page + 1 })}
-                    className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Sonraki
-                  </button>
-                </div>
-              ) : null}
-            </>
-          )}
-        </main>
-      </div>
+function IconSelect({
+  icon: Icon,
+  value,
+  onChange,
+  options,
+  ariaLabel,
+  loading,
+}: {
+  icon: typeof Briefcase;
+  value: string;
+  onChange: (v: string) => void;
+  options: Array<{ value: string; label: string }>;
+  ariaLabel: string;
+  loading?: boolean;
+}) {
+  return (
+    <div className="relative w-full md:w-auto">
+      <Icon className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={ariaLabel}
+        disabled={loading}
+        className={cn(
+          "pl-9 pr-8 py-2 text-sm rounded-lg appearance-none bg-white cursor-pointer w-full md:w-auto md:min-w-[160px]",
+          "border border-slate-200 text-brand-900",
+          "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
+        )}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

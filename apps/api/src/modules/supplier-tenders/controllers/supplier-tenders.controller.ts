@@ -39,6 +39,20 @@ export class SupplierTendersController {
     return this.service.stats(user.supplierId);
   }
 
+  @Get("filters/tenants")
+  distinctTenants(
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+  ): Promise<unknown> {
+    return this.service.distinctTenants(user.supplierId);
+  }
+
+  @Get("filters/categories")
+  distinctCategories(
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+  ): Promise<unknown> {
+    return this.service.distinctCategories(user.supplierId);
+  }
+
   @Get(":id")
   findOne(
     @Param("id") id: string,

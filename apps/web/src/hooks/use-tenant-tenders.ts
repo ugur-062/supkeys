@@ -7,6 +7,8 @@ import type {
   BidDetailExpanded,
   ListTendersParams,
   TenderBidsResponse,
+  TenderBuyer,
+  TenderCategoryFilter,
   TenderDetail,
   TenderListResponse,
   TenderStats,
@@ -23,6 +25,8 @@ const KEYS = {
     [...KEYS.all, "bid-comparison", id] as const,
   bidDetail: (id: string, bidId: string) =>
     [...KEYS.all, "bid-detail", id, bidId] as const,
+  filterBuyers: () => [...KEYS.all, "filters", "buyers"] as const,
+  filterCategories: () => [...KEYS.all, "filters", "categories"] as const,
 };
 
 function buildParams(params: ListTendersParams) {
@@ -31,9 +35,42 @@ function buildParams(params: ListTendersParams) {
   if (params.search) p.search = params.search;
   if (params.sort) p.sort = params.sort;
   if (params.range) p.range = params.range;
+  if (params.createdById) p.createdById = params.createdById;
+  if (params.categoryId) p.categoryId = params.categoryId;
+  if (params.currency) p.currency = params.currency;
+  if (params.amountMin != null) p.amountMin = params.amountMin;
+  if (params.amountMax != null) p.amountMax = params.amountMax;
   if (params.page) p.page = params.page;
   if (params.pageSize) p.pageSize = params.pageSize;
   return p;
+}
+
+/** İhaleyi açan distinct satın almacı listesi (filter dropdown). */
+export function useTenderBuyers() {
+  return useQuery({
+    queryKey: KEYS.filterBuyers(),
+    queryFn: async () => {
+      const { data } = await api.get<TenderBuyer[]>(
+        "/tenants/me/tenders/filters/buyers",
+      );
+      return data;
+    },
+    staleTime: 60_000,
+  });
+}
+
+/** İhalelerde kullanılmış distinct kategori listesi (filter dropdown). */
+export function useTenderCategoryOptions() {
+  return useQuery({
+    queryKey: KEYS.filterCategories(),
+    queryFn: async () => {
+      const { data } = await api.get<TenderCategoryFilter[]>(
+        "/tenants/me/tenders/filters/categories",
+      );
+      return data;
+    },
+    staleTime: 60_000,
+  });
 }
 
 export function useTenders(params: ListTendersParams) {

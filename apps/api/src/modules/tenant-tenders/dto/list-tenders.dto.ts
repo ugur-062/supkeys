@@ -3,11 +3,13 @@ import {
   IsEnum,
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   Max,
   Min,
 } from "class-validator";
+import { Currency } from "@supkeys/db";
 
 export enum TenderStatusDto {
   DRAFT = "DRAFT",
@@ -61,6 +63,34 @@ export class ListTendersDto {
   @IsOptional()
   @IsIn(TENDER_DATE_RANGE_OPTIONS)
   range?: TenderDateRangeOption;
+
+  /** UNSPSC kategori filtresi — Tender.categories içinde ≥1 eşleşme. */
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  /** İhaleyi açan satın almacı (user) — User.id. */
+  @IsOptional()
+  @IsString()
+  createdById?: string;
+
+  /** Para birimi — Tender.primaryCurrency eşleşmesi. */
+  @IsOptional()
+  @IsEnum(Currency)
+  currency?: Currency;
+
+  /** Tahmini tutar aralığı — Tender.estimatedTotal'a karşı. */
+  @IsOptional()
+  @Transform(({ value }) => (value === undefined ? undefined : Number(value)))
+  @IsNumber()
+  @Min(0)
+  amountMin?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => (value === undefined ? undefined : Number(value)))
+  @IsNumber()
+  @Min(0)
+  amountMax?: number;
 
   @IsOptional()
   @Transform(({ value }) => parseInt(value, 10))

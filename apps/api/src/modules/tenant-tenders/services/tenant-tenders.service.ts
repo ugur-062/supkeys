@@ -52,6 +52,26 @@ function parseTenderSort(
   return { createdAt: dir };
 }
 
+/**
+ * Items'tan tahmini toplam tutar hesaplar (primaryCurrency'de).
+ * Bir item'da targetUnitPrice yoksa null döner — tutar aralığı filtresinde
+ * "bilinmiyor" olarak değerlendirilir.
+ */
+function computeEstimatedTotal(
+  items: Array<{ quantity: number | string; targetUnitPrice?: number | string | null }>,
+): number | null {
+  if (items.length === 0) return null;
+  let total = 0;
+  for (const item of items) {
+    if (item.targetUnitPrice == null) return null;
+    const price = Number(item.targetUnitPrice);
+    const qty = Number(item.quantity);
+    if (!Number.isFinite(price) || !Number.isFinite(qty)) return null;
+    total += price * qty;
+  }
+  return total;
+}
+
 @Injectable()
 export class TenantTendersService {
   private readonly logger = new Logger(TenantTendersService.name);
@@ -83,6 +103,21 @@ export class TenantTendersService {
         { title: { contains: term, mode: "insensitive" } },
         { tenderNumber: { contains: term, mode: "insensitive" } },
       ];
+    }
+    // Creator (satın almacı) filtresi
+    if (query.createdById) where.createdById = query.createdById;
+    // Kategori — tender.categories içinde ≥1 eşleşme
+    if (query.categoryId) {
+      where.categories = { some: { categoryId: query.categoryId } };
+    }
+    // Para birimi
+    if (query.currency) where.primaryCurrency = query.currency;
+    // Tutar aralığı — null estimatedTotal'lar filter dışında kalır
+    if (query.amountMin != null || query.amountMax != null) {
+      const range: Prisma.DecimalFilter = {};
+      if (query.amountMin != null) range.gte = query.amountMin;
+      if (query.amountMax != null) range.lte = query.amountMax;
+      where.estimatedTotal = range;
     }
     // V2-6 — Tarih aralığı (createdAt.gte). "all" verilirse veya hiç verilmezse
     // varsayılan "3m" uygulanır (kullanıcı açıkça "all" demedikçe son 3 ay).
@@ -290,6 +325,60 @@ export class TenantTendersService {
       },
       activeApprovalRequest: approvalRequests[0] ?? null,
     };
+  }
+
+  /**
+   * Tenant'ın ihaleleri açan distinct satın almacıları döner —
+   * filtre dropdown'u için. tenderCount azalan sırada.
+   */
+  async distinctBuyers(tenantId: string) {
+    const groups = await this.prisma.tender.groupBy({
+      by: ["createdById"],
+      where: { tenantId },
+      _count: { _all: true },
+    });
+    if (groups.length === 0) return [];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: groups.map((g) => g.createdById) } },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    const countById = new Map(
+      groups.map((g) => [g.createdById, g._count._all]),
+    );
+    return users
+      .map((u) => ({
+        id: u.id,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        tenderCount: countById.get(u.id) ?? 0,
+      }))
+      .sort((a, b) => b.tenderCount - a.tenderCount);
+  }
+
+  /**
+   * Tenant'ın ihalelerinde kullanılmış distinct kategorileri döner.
+   * Breadcrumb'lı, en sık kullanılan üstte.
+   */
+  async distinctCategories(tenantId: string) {
+    const groups = await this.prisma.tenderCategory.groupBy({
+      by: ["categoryId"],
+      where: { tender: { tenantId } },
+      _count: { _all: true },
+    });
+    if (groups.length === 0) return [];
+    const ids = groups.map((g) => g.categoryId);
+    const breadcrumbs = await this.categoryService.getBreadcrumbsByIds(ids);
+    const countById = new Map(
+      groups.map((g) => [g.categoryId, g._count._all]),
+    );
+    return Array.from(breadcrumbs.values())
+      .map((entry) => ({
+        id: entry.node.id,
+        breadcrumb: entry.breadcrumb,
+        level: entry.node.level,
+        tenderCount: countById.get(entry.node.id) ?? 0,
+      }))
+      .sort((a, b) => b.tenderCount - a.tenderCount);
   }
 
   async stats(tenantId: string) {
@@ -632,6 +721,8 @@ export class TenantTendersService {
       "TESLIMAT",
     );
 
+    const estimatedTotal = computeEstimatedTotal(dto.items);
+
     return this.prisma.$transaction(async (tx) => {
       await this.assertActiveSuppliers(tx, tenantId, dto.invitedSupplierIds);
 
@@ -667,6 +758,7 @@ export class TenantTendersService {
             dto.paymentTerm === "DEFERRED" ? (dto.paymentDays ?? null) : null,
           bidsCloseAt: new Date(dto.bidsCloseAt),
           bidsOpenAt: dto.bidsOpenAt ? new Date(dto.bidsOpenAt) : null,
+          estimatedTotal,
           items: {
             create: dto.items.map((item, idx) => ({
               orderIndex: idx + 1,
@@ -798,6 +890,7 @@ export class TenantTendersService {
             dto.paymentTerm === "DEFERRED" ? (dto.paymentDays ?? null) : null,
           bidsCloseAt: new Date(dto.bidsCloseAt),
           bidsOpenAt: dto.bidsOpenAt ? new Date(dto.bidsOpenAt) : null,
+          estimatedTotal: computeEstimatedTotal(dto.items),
           items: {
             create: dto.items.map((item, idx) => ({
               orderIndex: idx + 1,

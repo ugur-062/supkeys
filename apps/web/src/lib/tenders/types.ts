@@ -225,8 +225,33 @@ export interface ListTendersParams {
   sort?: string;
   /** V2-6 — Yaratım tarihi aralığı; default "3m" (son 3 ay). */
   range?: TenderDateRange;
+  /** İhaleyi açan satın almacı (User.id). */
+  createdById?: string;
+  /** UNSPSC kategori filtresi (TenderCategory üzerinden). */
+  categoryId?: string;
+  /** Para birimi (Tender.primaryCurrency). */
+  currency?: Currency;
+  /** Tahmini tutar aralığı (Tender.estimatedTotal). */
+  amountMin?: number;
+  amountMax?: number;
   page?: number;
   pageSize?: number;
+}
+
+/** İhale toolbar filtre listesi: ihaleyi açan satın almacı. */
+export interface TenderBuyer {
+  id: string;
+  firstName: string;
+  lastName: string;
+  tenderCount: number;
+}
+
+/** İhale toolbar filtre listesi: kullanılmış kategori. */
+export interface TenderCategoryFilter {
+  id: string;
+  breadcrumb: string;
+  level: number;
+  tenderCount: number;
 }
 
 // Supplier-side types
@@ -309,8 +334,27 @@ export interface ListSupplierTendersParams {
   search?: string;
   /** Polish-1 — "field:dir" whitelist'li sort */
   sort?: string;
+  /** Yaratım tarihi aralığı. */
+  range?: TenderDateRange;
+  /** Alıcı (tenant) filtresi. */
+  tenantId?: string;
+  /** UNSPSC kategori filtresi. */
+  categoryId?: string;
   page?: number;
   pageSize?: number;
+}
+
+export interface SupplierTenderTenant {
+  id: string;
+  name: string;
+  tenderCount: number;
+}
+
+export interface SupplierTenderCategoryFilter {
+  id: string;
+  breadcrumb: string;
+  level: number;
+  tenderCount: number;
 }
 
 // ---------- Bid (E.3) ----------

@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import type { Prisma, TenderStatus } from "@supkeys/db";
+import { rangeToSinceDate } from "../../../common/filters/date-range";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { buildBreadcrumb } from "../../categories/services/category.service";
 import { ExchangeRateService } from "../../currency/services/exchange-rate.service";
@@ -37,6 +38,56 @@ export class SupplierTendersService {
     private readonly exchangeRateService: ExchangeRateService,
   ) {}
 
+  // ============================================================
+  // FILTER OPTIONS (toolbar dropdown'ları için)
+  // ============================================================
+
+  /** Tedarikçinin davet edildiği distinct alıcılar — tenderCount azalan. */
+  async distinctTenants(supplierId: string) {
+    const groups = await this.prisma.tender.groupBy({
+      by: ["tenantId"],
+      where: { invitations: { some: { supplierId } } },
+      _count: { _all: true },
+    });
+    if (groups.length === 0) return [];
+    const tenants = await this.prisma.tenant.findMany({
+      where: { id: { in: groups.map((g) => g.tenantId) } },
+      select: { id: true, name: true },
+    });
+    const countById = new Map(groups.map((g) => [g.tenantId, g._count._all]));
+    return tenants
+      .map((t) => ({
+        id: t.id,
+        name: t.name,
+        tenderCount: countById.get(t.id) ?? 0,
+      }))
+      .sort((a, b) => b.tenderCount - a.tenderCount);
+  }
+
+  /** Tedarikçinin davet edildiği ihalelerde kullanılmış distinct kategoriler. */
+  async distinctCategories(supplierId: string) {
+    const groups = await this.prisma.tenderCategory.groupBy({
+      by: ["categoryId"],
+      where: { tender: { invitations: { some: { supplierId } } } },
+      _count: { _all: true },
+    });
+    if (groups.length === 0) return [];
+    const ids = groups.map((g) => g.categoryId);
+    const cats = await this.prisma.category.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, nameTr: true, level: true },
+    });
+    const countById = new Map(groups.map((g) => [g.categoryId, g._count._all]));
+    return cats
+      .map((c) => ({
+        id: c.id,
+        breadcrumb: c.nameTr, // sadeleştirilmiş: supplier tarafında full path opsiyonel
+        level: c.level,
+        tenderCount: countById.get(c.id) ?? 0,
+      }))
+      .sort((a, b) => b.tenderCount - a.tenderCount);
+  }
+
   async list(supplierId: string, query: ListSupplierTendersDto) {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
@@ -63,6 +114,17 @@ export class SupplierTendersService {
           ],
         },
       ];
+    }
+    // Alıcı (tenant) filtresi
+    if (query.tenantId) where.tenantId = query.tenantId;
+    // Kategori filtresi — tender.categories içinde ≥1 eşleşme
+    if (query.categoryId) {
+      where.categories = { some: { categoryId: query.categoryId } };
+    }
+    // Tarih aralığı (createdAt.gte). "all" verilirse filtre uygulanmaz.
+    if (query.range && query.range !== "all") {
+      const since = rangeToSinceDate(query.range);
+      if (since) where.createdAt = { gte: since };
     }
 
     // Polish-1 — DTO whitelist'li sort. Geçersizse default
