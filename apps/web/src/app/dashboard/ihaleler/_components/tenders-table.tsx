@@ -16,6 +16,7 @@ import {
   Inbox,
   Mail,
   MessageSquare,
+  User as UserIcon,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -27,7 +28,7 @@ interface TendersTableProps {
   onRetry: () => void;
 }
 
-const COLS = 8;
+const COLS = 9;
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -86,6 +87,9 @@ export function TendersTable({
             </th>
             <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
               Statü
+            </th>
+            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
+              Açan
             </th>
             <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
               Davetli
@@ -174,6 +178,12 @@ export function TendersTable({
               </td>
               <td className="px-4 py-3">
                 <TenderStatusBadge status={t.status} />
+              </td>
+              <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
+                <span className="inline-flex items-center gap-1.5">
+                  <UserIcon className="h-3.5 w-3.5 text-slate-400" />
+                  {t.createdBy.firstName} {t.createdBy.lastName}
+                </span>
               </td>
               <td className="px-4 py-3 text-slate-600">
                 <span className="inline-flex items-center gap-1.5">
