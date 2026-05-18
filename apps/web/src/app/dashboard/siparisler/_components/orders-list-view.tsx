@@ -14,10 +14,9 @@ import { useOrders, useOrderStats } from "@/hooks/use-tenant-orders";
 import { ORDER_STATUS_META } from "@/lib/orders/status";
 import type { OrderStatus } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { AlertCircle, Building2, Package, Plus } from "lucide-react";
+import { AlertCircle, Building2, Filter, Package, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
@@ -39,12 +38,35 @@ const SORT_OPTIONS = [
   { value: "totalAmount:asc", label: "Tutar (Düşük → Yüksek)" },
 ];
 
-const TRIGGER_CLS = cn(
-  "px-3.5 py-2 text-sm font-semibold border-b-2 -mb-px transition whitespace-nowrap",
-  "data-[state=active]:border-brand-500 data-[state=active]:text-brand-700",
-  "data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500",
-  "hover:text-slate-700 focus:outline-none",
-);
+function StatusDropdown({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="relative w-full md:w-auto">
+      <Filter className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label="Sipariş durumu filtresi"
+        className={cn(
+          "pl-9 pr-8 py-2 text-sm rounded-lg appearance-none bg-white cursor-pointer w-full md:min-w-[180px]",
+          "border border-surface-border text-brand-900",
+          "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
+        )}
+      >
+        {TABS.map((t) => (
+          <option key={t.key} value={t.key}>
+            {t.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 function formatMoney(value: string | number, currency: string): string {
   const num = typeof value === "string" ? Number(value) : value;
@@ -165,25 +187,7 @@ export function OrdersListView() {
         </div>
       ) : null}
 
-      {/* Tabs */}
-      <TabsPrimitive.Root value={tab} onValueChange={setTab}>
-        <TabsPrimitive.List
-          className="border-b border-slate-200 flex items-center gap-1 overflow-x-auto"
-          aria-label="Sipariş statü filtresi"
-        >
-          {TABS.map((t) => (
-            <TabsPrimitive.Trigger
-              key={t.key}
-              value={t.key}
-              className={TRIGGER_CLS}
-            >
-              {t.label}
-            </TabsPrimitive.Trigger>
-          ))}
-        </TabsPrimitive.List>
-      </TabsPrimitive.Root>
-
-      {/* Search + Sort */}
+      {/* Search + Status + Sort */}
       <div className="flex flex-col md:flex-row md:items-center gap-3">
         <SearchInput
           value={searchUrl}
@@ -191,6 +195,7 @@ export function OrdersListView() {
           placeholder="Sipariş no, ihale veya tedarikçi…"
           className="w-full md:w-80"
         />
+        <StatusDropdown value={tab} onChange={setTab} />
         <SortDropdown value={sortUrl} onChange={setSort} options={SORT_OPTIONS} />
         {list.data ? (
           <ResultCount

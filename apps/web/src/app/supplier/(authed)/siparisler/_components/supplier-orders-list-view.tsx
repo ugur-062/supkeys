@@ -199,31 +199,18 @@ export function SupplierOrdersListView() {
             <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">
               Durum
             </h3>
-            <div className="space-y-1">
+            <select
+              value={statusKey}
+              onChange={(e) => updateUrl({ status: e.target.value })}
+              aria-label="Sipariş durumu filtresi"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white cursor-pointer"
+            >
               {STATUS_FILTERS.map((f) => (
-                <button
-                  type="button"
-                  key={f.key}
-                  onClick={() => updateUrl({ status: f.key })}
-                  className={cn(
-                    "w-full text-left px-3 py-2 rounded-lg flex items-center gap-2.5 text-sm transition-colors",
-                    statusKey === f.key
-                      ? "bg-brand-50 text-brand-700 font-semibold"
-                      : "text-slate-600 hover:bg-slate-50",
-                  )}
-                >
-                  <f.icon
-                    className={cn(
-                      "h-4 w-4 flex-shrink-0",
-                      statusKey === f.key
-                        ? "text-brand-600"
-                        : "text-slate-400",
-                    )}
-                  />
-                  <span className="flex-1">{f.label}</span>
-                </button>
+                <option key={f.key} value={f.key}>
+                  {f.label}
+                </option>
               ))}
-            </div>
+            </select>
 
             <div className="mt-5 pt-4 border-t border-slate-100">
               <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">
