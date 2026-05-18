@@ -98,10 +98,7 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
                   {...register(`items.${index}.requiredByDate`)}
                 />
               </Field>
-              <Field
-                error={itemErrors?.targetUnitPrice?.message}
-                hint="Tedarikçiye gösterilmez (dahili)."
-              >
+              <Field error={itemErrors?.targetUnitPrice?.message}>
                 <Label htmlFor={`detail-targetUnitPrice-${index}`}>
                   Hedef Birim Fiyat
                 </Label>

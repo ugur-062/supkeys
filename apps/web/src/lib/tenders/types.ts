@@ -280,7 +280,7 @@ export interface SupplierTenderListResponse {
 
 /**
  * Tedarikçinin gördüğü ihale kalemi. Alıcının `targetUnitPrice` hedef
- * fiyatını KAPALI ZARF gereği içermez.
+ * fiyatı rehber olarak tedarikçiye de gösterilir.
  */
 export interface SupplierTenderItem {
   id: string;
@@ -292,6 +292,7 @@ export interface SupplierTenderItem {
   unit: string;
   materialCode: string | null;
   requiredByDate: string | null;
+  targetUnitPrice: string | null;
   customQuestion: string | null;
   createdAt: string;
   updatedAt: string;

@@ -237,8 +237,8 @@ export class SupplierTendersService {
       },
       include: {
         tenant: { select: { id: true, name: true } },
-        // KAPALI ZARF — targetUnitPrice alıcının internal hedef fiyatı,
-        // tedarikçi göremez. Diğer kalem field'ları açıkça seç.
+        // Hedef birim fiyat alıcı tarafından konulur; tedarikçinin
+        // bunu görmesi ürün gereği (rehber fiyat). Açıkça seçilir.
         items: {
           select: {
             id: true,
@@ -250,6 +250,7 @@ export class SupplierTendersService {
             unit: true,
             materialCode: true,
             requiredByDate: true,
+            targetUnitPrice: true,
             customQuestion: true,
             createdAt: true,
             updatedAt: true,
@@ -659,7 +660,7 @@ export class SupplierTendersService {
 
       const bid = await tx.bid.findUnique({
         where: { tenderId_supplierId: { tenderId, supplierId } },
-        include: { items: true, attachments: { select: { id: true } } },
+        include: { items: true },
       });
       if (!bid) {
         throw new NotFoundException("Önce bir taslak oluşturmalısınız");
@@ -699,10 +700,20 @@ export class SupplierTendersService {
         }
       }
 
-      if (tender.requireBidDocument && bid.attachments.length === 0) {
-        throw new BadRequestException(
-          "Bu ihalede en az 1 teklif dosyası yüklemek zorunludur",
-        );
+      if (tender.requireBidDocument) {
+        // Yeni Attachment sistemi — scope=BID_RESPONSE, scopeRefId=bid.id
+        const bidAttachmentCount = await tx.attachment.count({
+          where: {
+            scope: "BID_RESPONSE",
+            scopeRefId: bid.id,
+            status: "UPLOADED",
+          },
+        });
+        if (bidAttachmentCount === 0) {
+          throw new BadRequestException(
+            "Bu ihalede en az 1 teklif dosyası yüklemek zorunludur",
+          );
+        }
       }
 
       // LOST → SUBMITTED: eleme sonrası yeniden teklif, version++ ve

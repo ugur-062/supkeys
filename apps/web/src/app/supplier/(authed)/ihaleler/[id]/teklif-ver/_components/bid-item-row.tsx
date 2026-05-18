@@ -82,6 +82,15 @@ export function BidItemRow({ index, tenderItem, currency }: Props) {
               </span>
             ) : null}
           </p>
+          {tenderItem.targetUnitPrice ? (
+            <p className="text-xs text-brand-700 mt-1.5 font-medium">
+              Hedef:{" "}
+              <span className="tabular-nums">
+                {Number(tenderItem.targetUnitPrice).toLocaleString("tr-TR")}{" "}
+                {CURRENCY_SYMBOL[currency]} / {tenderItem.unit}
+              </span>
+            </p>
+          ) : null}
         </div>
 
         <div className="flex-shrink-0 w-40">

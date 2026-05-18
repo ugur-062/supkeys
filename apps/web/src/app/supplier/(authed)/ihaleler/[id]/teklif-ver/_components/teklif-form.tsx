@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useUploadAttachment } from "@/hooks/use-attachments";
 import { useSaveBid, useSubmitBid } from "@/hooks/use-supplier-bid";
 import {
   bidFormSchema,
@@ -27,7 +28,9 @@ import {
   Paperclip,
   Save,
   Send,
+  Upload,
   Wallet,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -186,6 +189,39 @@ export function TeklifForm({ tender, existingBid }: Props) {
 
   const saveMutation = useSaveBid(tender.id);
   const submitMutation = useSubmitBid(tender.id);
+  const uploadMutation = useUploadAttachment("supplier");
+
+  // Taslak henüz oluşmadıysa dosyalar local'de tutulur, save sonrası bid id'ye
+  // yüklenir — kullanıcı "önce taslak kaydet" zorunluluğu yaşamasın.
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+  const [isUploadingStaged, setIsUploadingStaged] = useState(false);
+
+  const uploadStagedToBid = async (bidId: string): Promise<number> => {
+    if (stagedFiles.length === 0) return 0;
+    setIsUploadingStaged(true);
+    try {
+      const results = await Promise.allSettled(
+        stagedFiles.map((file) =>
+          uploadMutation.mutateAsync({
+            scope: "BID_RESPONSE",
+            scopeRefId: bidId,
+            file,
+          }),
+        ),
+      );
+      const failed = results.filter((r) => r.status === "rejected").length;
+      if (failed > 0) {
+        toast.error(
+          `${failed} dosya yüklenemedi. Detay sayfasından tekrar deneyebilirsiniz.`,
+        );
+      }
+      const ok = stagedFiles.length - failed;
+      setStagedFiles([]);
+      return ok;
+    } finally {
+      setIsUploadingStaged(false);
+    }
+  };
 
   const form = useForm<BidFormValues>({
     resolver: zodResolver(bidFormSchema),
@@ -245,8 +281,11 @@ export function TeklifForm({ tender, existingBid }: Props) {
   const handleSaveDraft = form.handleSubmit(
     async (values) => {
       try {
-        await saveMutation.mutateAsync(buildPayload(values));
-        toast.success("Taslak kaydedildi");
+        const saved = await saveMutation.mutateAsync(buildPayload(values));
+        const uploaded = await uploadStagedToBid(saved.id);
+        toast.success(
+          `Taslak kaydedildi${uploaded > 0 ? ` · ${uploaded} dosya yüklendi` : ""}`,
+        );
       } catch (err) {
         toast.error(extractErrorMessage(err, "Taslak kaydedilemedi"));
       }
@@ -259,7 +298,10 @@ export function TeklifForm({ tender, existingBid }: Props) {
   const handleSubmit = form.handleSubmit(
     async (values) => {
       try {
-        await saveMutation.mutateAsync(buildPayload(values));
+        const saved = await saveMutation.mutateAsync(buildPayload(values));
+        // Submit'ten önce staged dosyaları yükle — requireBidDocument check'i
+        // bu Attachment'ları sayar.
+        await uploadStagedToBid(saved.id);
         await submitMutation.mutateAsync();
         toast.success("Teklif gönderildi");
         setConfirmOpen(false);
@@ -461,15 +503,14 @@ export function TeklifForm({ tender, existingBid }: Props) {
                   />
                 </div>
               ) : (
-                <div className="rounded-lg bg-slate-50 border border-slate-200 p-4 text-xs text-slate-600 flex gap-2">
-                  <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-slate-500" />
-                  <span>
-                    Dosya ekleyebilmek için önce
-                    {" "}<strong>Taslak Olarak Kaydet</strong>{" "}
-                    butonuna basın. Taslak oluştuktan sonra bu bölümde
-                    dosya yükleyebilirsiniz.
-                  </span>
-                </div>
+                <StagedFileUpload
+                  files={stagedFiles}
+                  onAdd={(files) => setStagedFiles((prev) => [...prev, ...files])}
+                  onRemove={(idx) =>
+                    setStagedFiles((prev) => prev.filter((_, i) => i !== idx))
+                  }
+                  uploading={isUploadingStaged}
+                />
               )}
             </Section>
           </div>
@@ -546,5 +587,85 @@ export function TeklifForm({ tender, existingBid }: Props) {
         currency={currencyForDialog}
       />
     </FormProvider>
+  );
+}
+
+/**
+ * Henüz bid kaydedilmediği için (draft yok) dosyaları client'ta tutan
+ * picker. Taslak/submit sırasında bu dosyalar bid oluştuktan sonra
+ * sırayla R2'ye yüklenir (uploadStagedToBid).
+ */
+function StagedFileUpload({
+  files,
+  onAdd,
+  onRemove,
+  uploading,
+}: {
+  files: File[];
+  onAdd: (files: File[]) => void;
+  onRemove: (idx: number) => void;
+  uploading: boolean;
+}) {
+  return (
+    <div className="space-y-3">
+      <label
+        className={cn(
+          "block border-2 border-dashed border-slate-300 rounded-lg p-5 text-center cursor-pointer transition",
+          "hover:border-brand-400 hover:bg-brand-50/30",
+          uploading && "opacity-50 cursor-wait",
+        )}
+      >
+        <input
+          type="file"
+          multiple
+          className="hidden"
+          disabled={uploading}
+          onChange={(e) => {
+            const picked = Array.from(e.target.files ?? []);
+            if (picked.length > 0) onAdd(picked);
+            // Reset value, böylece aynı dosyayı tekrar seçebilir
+            e.target.value = "";
+          }}
+        />
+        <Upload className="w-5 h-5 mx-auto text-slate-400" />
+        <p className="text-sm font-medium text-brand-900 mt-2">
+          Dosya seçmek için tıklayın
+        </p>
+        <p className="text-xs text-slate-500 mt-1">
+          PDF, Word, Excel, görsel — tek dosya max 50 MB. Dosyalar
+          taslak/teklif kaydedildiğinde yüklenir.
+        </p>
+      </label>
+
+      {files.length > 0 ? (
+        <ul className="space-y-2">
+          {files.map((f, i) => (
+            <li
+              key={`${f.name}-${i}`}
+              className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-lg"
+            >
+              <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-brand-900 truncate">
+                  {f.name}
+                </p>
+                <p className="text-xs text-slate-500">
+                  {(f.size / 1024).toFixed(1)} KB · Yüklemeye hazır
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => onRemove(i)}
+                disabled={uploading}
+                className="p-1.5 text-slate-400 hover:text-danger-600 hover:bg-danger-50 rounded-md disabled:opacity-40"
+                aria-label="Kaldır"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }

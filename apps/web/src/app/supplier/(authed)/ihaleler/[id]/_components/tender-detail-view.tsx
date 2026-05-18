@@ -144,7 +144,11 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
           <SupplierGeneralInfoTab tender={tender} />
         </TabsPrimitive.Content>
         <TabsPrimitive.Content value="items" className="outline-none">
-          <ItemsTab items={tender.items} currency={tender.primaryCurrency} />
+          <ItemsTab
+            items={tender.items}
+            currency={tender.primaryCurrency}
+            showTargetPrice
+          />
         </TabsPrimitive.Content>
         <TabsPrimitive.Content value="files" className="outline-none">
           <FilesTab surface="supplier" tender={tender} />
