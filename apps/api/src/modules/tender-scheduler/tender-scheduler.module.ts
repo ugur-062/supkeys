@@ -5,5 +5,6 @@ import { TenderSchedulerService } from "./tender-scheduler.service";
 @Module({
   imports: [EmailModule],
   providers: [TenderSchedulerService],
+  exports: [TenderSchedulerService],
 })
 export class TenderSchedulerModule {}

@@ -189,4 +189,13 @@ export class TenantTendersController {
   ): Promise<unknown> {
     return this.service.closeNoAward(user.tenantId, id, dto);
   }
+
+  @Post(":id/close-bidding")
+  @RequirePermissions("tender:award")
+  closeBiddingEarly(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ): Promise<unknown> {
+    return this.service.closeBiddingEarly(user.tenantId, id, user.id);
+  }
 }

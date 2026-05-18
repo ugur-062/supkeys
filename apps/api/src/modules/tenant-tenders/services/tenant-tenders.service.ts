@@ -32,6 +32,7 @@ import {
   AwardItemDecisionDto,
   CloseNoAwardDto,
 } from "../dto/award.dto";
+import { TenderSchedulerService } from "../../tender-scheduler/tender-scheduler.service";
 import { CancelTenderDto } from "../dto/cancel-tender.dto";
 import { CreateTenderDto } from "../dto/create-tender.dto";
 import { ListTendersDto } from "../dto/list-tenders.dto";
@@ -61,6 +62,7 @@ export class TenantTendersService {
     private readonly addressesService: TenantAddressesService,
     private readonly approvalRequests: TenantApprovalRequestsService,
     private readonly categoryService: CategoryService,
+    private readonly tenderScheduler: TenderSchedulerService,
   ) {}
 
   // ============================================================
@@ -1983,6 +1985,32 @@ export class TenantTendersService {
     }
 
     await Promise.allSettled(tasks);
+  }
+
+  /**
+   * Erken kapatma — alıcı bidsCloseAt'ı beklemeden OPEN_FOR_BIDS ihaleyi
+   * manuel olarak IN_AWARD'a taşır. Cron'un yaptığı tüm yan etkileri
+   * (PENDING davetler → EXPIRED, kapanış e-postaları) çalıştırır.
+   */
+  async closeBiddingEarly(
+    tenantId: string,
+    tenderId: string,
+    _userId: string,
+  ): Promise<{ tenderStatus: "IN_AWARD" }> {
+    const tender = await this.prisma.tender.findUnique({
+      where: { id: tenderId },
+      select: { id: true, tenantId: true, status: true },
+    });
+    if (!tender) throw new NotFoundException("İhale bulunamadı");
+    if (tender.tenantId !== tenantId)
+      throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+    if (tender.status !== "OPEN_FOR_BIDS")
+      throw new ConflictException(
+        `Sadece teklif alımındaki ihale erken kapatılabilir. Mevcut: ${tender.status}`,
+      );
+
+    await this.tenderScheduler.closeOpenBidding(tenderId);
+    return { tenderStatus: "IN_AWARD" };
   }
 
   /**

@@ -377,4 +377,21 @@ export function useCloseNoAward(tenderId: string) {
   });
 }
 
+// Erken kapatma — OPEN_FOR_BIDS → IN_AWARD (alıcı bidsCloseAt'ı beklemiyor)
+export function useCloseBiddingEarly(tenderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post<{ tenderStatus: "IN_AWARD" }>(
+        `/tenants/me/tenders/${tenderId}/close-bidding`,
+        {},
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}
+
 export const tenantTendersQueryKeys = KEYS;

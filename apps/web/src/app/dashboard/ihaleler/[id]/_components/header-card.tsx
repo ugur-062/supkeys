@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
 import {
   useCancelTender,
+  useCloseBiddingEarly,
   useDeleteTender,
   usePublishTender,
 } from "@/hooks/use-tenant-tenders";
@@ -24,6 +25,7 @@ import {
   ExternalLink,
   Pencil,
   Send,
+  Timer,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
@@ -39,6 +41,7 @@ const AwardWizardModal = dynamic(
   { ssr: false },
 );
 import { CancelTenderDialog } from "./cancel-tender-dialog";
+import { CloseBiddingEarlyDialog } from "./close-bidding-early-dialog";
 import { CloseNoAwardDialog } from "./close-no-award-dialog";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 
@@ -61,15 +64,30 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [awardOpen, setAwardOpen] = useState(false);
   const [closeNoAwardOpen, setCloseNoAwardOpen] = useState(false);
+  const [closeBiddingOpen, setCloseBiddingOpen] = useState(false);
 
   const publishMutation = usePublishTender();
   const deleteMutation = useDeleteTender();
   const cancelMutation = useCancelTender();
+  const closeBiddingMutation = useCloseBiddingEarly(tender.id);
 
   const isBusy =
     publishMutation.isPending ||
     deleteMutation.isPending ||
-    cancelMutation.isPending;
+    cancelMutation.isPending ||
+    closeBiddingMutation.isPending;
+
+  const submittedBidCount = tender.bidStats?.submitted ?? 0;
+
+  const handleCloseBidding = async () => {
+    try {
+      await closeBiddingMutation.mutateAsync();
+      toast.success("İhale erken kapatıldı, kazandırmaya başlayabilirsiniz");
+      setCloseBiddingOpen(false);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "İhale kapatılamadı"));
+    }
+  };
 
   const invitedCount = tender.invitations.length;
 
@@ -140,7 +158,7 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
 
           <div className="flex-shrink-0 md:text-right space-y-3">
             {tender.status === "OPEN_FOR_BIDS" ? (
-              <div className="md:text-right">
+              <div className="md:text-right space-y-2">
                 <p className="text-xs text-slate-500">
                   Kalan Süre:{" "}
                   <CountdownFull deadline={tender.bidsCloseAt} />
@@ -151,6 +169,21 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                     locale: tr,
                   })}
                 </p>
+                {canAward ? (
+                  <div className="flex md:justify-end pt-1">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setCloseBiddingOpen(true)}
+                      disabled={isBusy}
+                      className="!text-purple-700 !border-purple-200 hover:!bg-purple-50"
+                      title="Süreyi beklemeden ihaleyi kapat ve kazandırmaya geç"
+                    >
+                      <Timer className="w-4 h-4" />
+                      Erken Kapat & Kazandırmaya Geç
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             ) : tender.status === "IN_AWARD" ? (
               <div className="md:text-right space-y-2">
@@ -354,6 +387,15 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
         open={closeNoAwardOpen}
         onClose={() => setCloseNoAwardOpen(false)}
         tenderId={tender.id}
+      />
+
+      <CloseBiddingEarlyDialog
+        open={closeBiddingOpen}
+        onClose={() => setCloseBiddingOpen(false)}
+        onConfirm={handleCloseBidding}
+        isSubmitting={closeBiddingMutation.isPending}
+        tenderTitle={tender.title}
+        submittedBidCount={submittedBidCount}
       />
     </>
   );

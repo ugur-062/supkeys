@@ -1,4 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  ConflictException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../common/prisma/prisma.service";
@@ -105,6 +110,61 @@ export class TenderSchedulerService {
         );
       }
     }
+  }
+
+  /**
+   * Manuel erken kapatma — alıcı IN_AWARD'a geçmek istediğinde
+   * cron'u beklemeden çağrılır. Tender'ı aynı şekilde yükler, state
+   * kontrolü yapar ve mevcut closeTender + email akışını çalıştırır.
+   *
+   * Tenant scope check'i caller'ın sorumluluğundadır (TenantTendersService
+   * üzerinden çağrılır).
+   */
+  async closeOpenBidding(tenderId: string): Promise<void> {
+    const tender = await this.prisma.tender.findUnique({
+      where: { id: tenderId },
+      include: {
+        tenant: { select: { name: true } },
+        createdBy: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            isActive: true,
+          },
+        },
+        invitations: {
+          include: {
+            supplier: {
+              select: {
+                id: true,
+                companyName: true,
+                users: {
+                  where: { isActive: true },
+                  orderBy: { createdAt: "asc" },
+                  take: 1,
+                  select: { email: true, firstName: true, lastName: true },
+                },
+              },
+            },
+          },
+        },
+        bids: {
+          where: { status: "SUBMITTED" },
+          select: { id: true, supplierId: true },
+        },
+      },
+    });
+
+    if (!tender) throw new NotFoundException("İhale bulunamadı");
+    if (tender.status !== "OPEN_FOR_BIDS") {
+      throw new ConflictException(
+        `Sadece OPEN_FOR_BIDS durumundaki ihale erken kapatılabilir. Mevcut: ${tender.status}`,
+      );
+    }
+
+    await this.closeTender(tender);
   }
 
   private async closeTender(tender: ExpiredTenderPayload) {

@@ -19,6 +19,7 @@ import { TenantTendersController } from "./controllers/tenant-tenders.controller
 import { TenantTendersService } from "./services/tenant-tenders.service";
 import { TenantApprovalRequestsService } from "../tenant-approval-requests/services/tenant-approval-requests.service";
 import { ApprovalReminderService } from "../tenant-approval-requests/services/approval-reminder.service";
+import { TenderSchedulerService } from "../tender-scheduler/tender-scheduler.service";
 import { EmailQueue } from "../email/email.queue";
 import { buildTestApp } from "../../../test/helpers/test-app";
 import {
@@ -51,6 +52,7 @@ const configMock = { get: jest.fn().mockReturnValue("http://localhost:3000") };
     TenantTendersService,
     TenantApprovalRequestsService,
     ApprovalReminderService,
+    TenderSchedulerService,
     { provide: EmailQueue, useValue: emailMock },
     { provide: ConfigService, useValue: configMock },
   ],
@@ -763,6 +765,81 @@ describe("tenant-tenders controller (E2E)", () => {
         .set("Authorization", `Bearer ${login.body.token}`)
         .send({ reason: "Yetkisiz kapatma denemesi" })
         .expect(403);
+    });
+  });
+
+  describe("POST /:id/close-bidding — erken kapatma RBAC + state", () => {
+    it("BUYER + OPEN_FOR_BIDS → 201 + IN_AWARD", async () => {
+      const { token, tenantId, userId } = await loginAs("BUYER");
+      const tender = await createTender(prisma, tenantId, userId, {
+        status: "OPEN_FOR_BIDS",
+      });
+
+      await request(app.getHttpServer())
+        .post(`/api/tenants/me/tenders/${tender.id}/close-bidding`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({})
+        .expect(201);
+
+      const fresh = await prisma.tender.findUnique({
+        where: { id: tender.id },
+      });
+      expect(fresh?.status).toBe("IN_AWARD");
+    });
+
+    it("DRAFT durumdaki ihale → 409", async () => {
+      const { token, tenantId, userId } = await loginAs("BUYER");
+      const tender = await createTender(prisma, tenantId, userId, {
+        status: "DRAFT",
+      });
+
+      await request(app.getHttpServer())
+        .post(`/api/tenants/me/tenders/${tender.id}/close-bidding`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({})
+        .expect(409);
+    });
+
+    it("başka tenant erken kapatma → 403 (IDOR)", async () => {
+      const { tenantId: t1, userId: u1 } = await loginAs("BUYER");
+      const tender = await createTender(prisma, t1, u1, {
+        status: "OPEN_FOR_BIDS",
+      });
+      const { token: intruderToken } = await loginAs("BUYER");
+
+      await request(app.getHttpServer())
+        .post(`/api/tenants/me/tenders/${tender.id}/close-bidding`)
+        .set("Authorization", `Bearer ${intruderToken}`)
+        .send({})
+        .expect(403);
+    });
+
+    it("APPROVER (tender:award yok) → 403", async () => {
+      const { tenantId, userId } = await loginAs("BUYER");
+      const tender = await createTender(prisma, tenantId, userId, {
+        status: "OPEN_FOR_BIDS",
+      });
+      const approver = await createUser(prisma, tenantId, {
+        email: `app-${Date.now()}@test.local`,
+        role: "APPROVER",
+      });
+      const login = await request(app.getHttpServer())
+        .post("/api/auth/login")
+        .send({ email: approver.email, password: approver.plaintextPassword })
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .post(`/api/tenants/me/tenders/${tender.id}/close-bidding`)
+        .set("Authorization", `Bearer ${login.body.token}`)
+        .send({})
+        .expect(403);
+    });
+
+    it("token yok → 401", async () => {
+      await request(app.getHttpServer())
+        .post("/api/tenants/me/tenders/x/close-bidding")
+        .send({})
+        .expect(401);
     });
   });
 });

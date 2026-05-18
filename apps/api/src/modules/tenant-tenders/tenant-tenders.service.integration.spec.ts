@@ -19,6 +19,7 @@ import { EmailQueue } from "../email/email.queue";
 import { TenantAddressesService } from "../tenant-addresses/services/tenant-addresses.service";
 import { TenantApprovalRequestsService } from "../tenant-approval-requests/services/tenant-approval-requests.service";
 import { CategoryService } from "../categories/services/category.service";
+import { TenderSchedulerService } from "../tender-scheduler/tender-scheduler.service";
 import {
   getTestPrisma,
   resetDatabase,
@@ -58,6 +59,7 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
     moduleRef = await buildTestModule({
       providers: [
         TenantTendersService,
+        TenderSchedulerService,
         { provide: EmailQueue, useValue: emailMock },
         {
           provide: ConfigService,
@@ -575,6 +577,104 @@ describe("TenantTendersService — subset (read + state machine + publish + crea
       await expect(
         service.awardFull(tenant.id, tender.id, bid.id),
       ).rejects.toThrow("Kalem bazlı");
+    });
+  });
+
+  describe("closeBiddingEarly — OPEN_FOR_BIDS → IN_AWARD", () => {
+    it("happy path: status IN_AWARD'a geçer + PENDING davetler EXPIRED olur", async () => {
+      const tenant = await createTenant(prisma);
+      const user = await createUser(prisma, tenant.id);
+      const supplierA = await createSupplier(prisma);
+      const supplierB = await createSupplier(prisma);
+      const tender = await createTender(prisma, tenant.id, user.id, {
+        status: "OPEN_FOR_BIDS",
+      });
+      await inviteSupplierToTender(prisma, tender.id, supplierA.id);
+      await inviteSupplierToTender(prisma, tender.id, supplierB.id);
+
+      const result = await service.closeBiddingEarly(
+        tenant.id,
+        tender.id,
+        user.id,
+      );
+
+      expect(result.tenderStatus).toBe("IN_AWARD");
+
+      const fresh = await prisma.tender.findUnique({ where: { id: tender.id } });
+      expect(fresh?.status).toBe("IN_AWARD");
+
+      const invitations = await prisma.tenderInvitation.findMany({
+        where: { tenderId: tender.id },
+      });
+      expect(invitations).toHaveLength(2);
+      expect(invitations.every((i) => i.status === "EXPIRED")).toBe(true);
+    });
+
+    it("hiç teklif yokken de kapatılabilir", async () => {
+      const tenant = await createTenant(prisma);
+      const user = await createUser(prisma, tenant.id);
+      const tender = await createTender(prisma, tenant.id, user.id, {
+        status: "OPEN_FOR_BIDS",
+      });
+
+      const result = await service.closeBiddingEarly(
+        tenant.id,
+        tender.id,
+        user.id,
+      );
+      expect(result.tenderStatus).toBe("IN_AWARD");
+    });
+
+    it("DRAFT durumdaki ihale → 409", async () => {
+      const tenant = await createTenant(prisma);
+      const user = await createUser(prisma, tenant.id);
+      const tender = await createTender(prisma, tenant.id, user.id, {
+        status: "DRAFT",
+      });
+      await expect(
+        service.closeBiddingEarly(tenant.id, tender.id, user.id),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it("IN_AWARD durumdaki ihale → 409 (zaten kapanmış)", async () => {
+      const tenant = await createTenant(prisma);
+      const user = await createUser(prisma, tenant.id);
+      const tender = await createTender(prisma, tenant.id, user.id, {
+        status: "IN_AWARD",
+      });
+      await expect(
+        service.closeBiddingEarly(tenant.id, tender.id, user.id),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it("AWARDED durumdaki ihale → 409", async () => {
+      const tenant = await createTenant(prisma);
+      const user = await createUser(prisma, tenant.id);
+      const tender = await createTender(prisma, tenant.id, user.id, {
+        status: "AWARDED",
+      });
+      await expect(
+        service.closeBiddingEarly(tenant.id, tender.id, user.id),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it("başka tenant erken kapatma → 403", async () => {
+      const tenant = await createTenant(prisma);
+      const user = await createUser(prisma, tenant.id);
+      const tender = await createTender(prisma, tenant.id, user.id, {
+        status: "OPEN_FOR_BIDS",
+      });
+      const intruder = await createTenant(prisma);
+      await expect(
+        service.closeBiddingEarly(intruder.id, tender.id, user.id),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("bilinmeyen tender → 404", async () => {
+      const tenant = await createTenant(prisma);
+      await expect(
+        service.closeBiddingEarly(tenant.id, "yok", "user-yok"),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
