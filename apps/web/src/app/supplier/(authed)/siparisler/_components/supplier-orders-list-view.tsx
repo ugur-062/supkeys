@@ -1,11 +1,16 @@
 "use client";
 
+import {
+  CounterpartDropdown,
+  RangeDropdown,
+} from "@/components/orders/filter-dropdowns";
 import { PanelCard } from "@/components/supplier/panel-card";
 import {
+  useSupplierOrderCounterparts,
   useSupplierOrderStats,
   useSupplierOrders,
 } from "@/hooks/use-supplier-orders";
-import type { OrderStatus } from "@/lib/tenders/types";
+import type { OrderDateRange, OrderStatus } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import {
   CheckCircle2,
@@ -82,9 +87,12 @@ export function SupplierOrdersListView() {
   const statusKey = params.get("status") ?? "all";
   const search = params.get("search") ?? "";
   const sort = params.get("sort") ?? "createdAt:desc";
+  const range = (params.get("range") as OrderDateRange | null) ?? "all";
+  const tenantIdFilter = params.get("tenantId") ?? "";
   const page = Math.max(1, Number(params.get("page") ?? 1));
 
   const stats = useSupplierOrderStats();
+  const counterparts = useSupplierOrderCounterparts();
 
   const queryParams = useMemo(() => {
     const status =
@@ -92,11 +100,13 @@ export function SupplierOrdersListView() {
     return {
       status,
       search: search || undefined,
+      tenantId: tenantIdFilter || undefined,
+      range,
       sort,
       page,
       pageSize: PAGE_SIZE,
     };
-  }, [statusKey, search, sort, page]);
+  }, [statusKey, search, sort, range, tenantIdFilter, page]);
 
   const list = useSupplierOrders(queryParams);
 
@@ -104,6 +114,8 @@ export function SupplierOrdersListView() {
     status?: string;
     search?: string;
     sort?: string;
+    range?: string;
+    tenantId?: string;
     page?: number;
   }) => {
     const p = new URLSearchParams(params.toString());
@@ -120,6 +132,16 @@ export function SupplierOrdersListView() {
     if (next.sort !== undefined) {
       if (next.sort === "createdAt:desc") p.delete("sort");
       else p.set("sort", next.sort);
+      p.delete("page");
+    }
+    if (next.range !== undefined) {
+      if (next.range === "all") p.delete("range");
+      else p.set("range", next.range);
+      p.delete("page");
+    }
+    if (next.tenantId !== undefined) {
+      if (next.tenantId === "") p.delete("tenantId");
+      else p.set("tenantId", next.tenantId);
       p.delete("page");
     }
     if (next.page !== undefined) {
@@ -183,10 +205,10 @@ export function SupplierOrdersListView() {
         />
       </div>
 
-      {/* Toolbar — search + durum + sıralama tek satırda */}
+      {/* Toolbar — search + durum + tarih + alıcı + sıralama */}
       <PanelCard padding="sm">
-        <div className="flex flex-col md:flex-row md:items-center gap-3">
-          <div className="relative flex-1 min-w-0">
+        <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-3">
+          <div className="relative flex-1 min-w-0 md:max-w-md">
             <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               value={search}
@@ -209,6 +231,19 @@ export function SupplierOrdersListView() {
             ))}
           </select>
 
+          <RangeDropdown
+            value={range}
+            onChange={(v) => updateUrl({ range: v })}
+          />
+
+          <CounterpartDropdown
+            value={tenantIdFilter}
+            onChange={(v) => updateUrl({ tenantId: v })}
+            options={counterparts.data ?? []}
+            loading={counterparts.isLoading}
+            placeholder="Tüm Alıcılar"
+          />
+
           <select
             value={sort}
             onChange={(e) => updateUrl({ sort: e.target.value })}
@@ -222,10 +257,17 @@ export function SupplierOrdersListView() {
             ))}
           </select>
 
-          <p className="text-xs text-slate-500 whitespace-nowrap md:ml-2">
+          <p className="text-xs text-slate-500 whitespace-nowrap md:ml-auto">
             {list.isLoading
               ? "Yükleniyor…"
-              : `${totalCount.toLocaleString("tr-TR")} sipariş${search || statusKey !== "all" ? " (filtrelenmiş)" : ""}`}
+              : `${totalCount.toLocaleString("tr-TR")} sipariş${
+                  search ||
+                  statusKey !== "all" ||
+                  range !== "all" ||
+                  tenantIdFilter
+                    ? " (filtrelenmiş)"
+                    : ""
+                }`}
           </p>
         </div>
       </PanelCard>

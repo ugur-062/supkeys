@@ -7,12 +7,20 @@ import {
   SearchInput,
   SortDropdown,
 } from "@/components/list";
+import {
+  CounterpartDropdown,
+  RangeDropdown,
+} from "@/components/orders/filter-dropdowns";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/use-permissions";
-import { useOrders, useOrderStats } from "@/hooks/use-tenant-orders";
+import {
+  useOrderCounterparts,
+  useOrders,
+  useOrderStats,
+} from "@/hooks/use-tenant-orders";
 import { ORDER_STATUS_META } from "@/lib/orders/status";
-import type { OrderStatus } from "@/lib/tenders/types";
+import type { OrderDateRange, OrderStatus } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -37,6 +45,7 @@ const SORT_OPTIONS = [
   { value: "totalAmount:desc", label: "Tutar (Yüksek → Düşük)" },
   { value: "totalAmount:asc", label: "Tutar (Düşük → Yüksek)" },
 ];
+
 
 function StatusDropdown({
   value,
@@ -93,34 +102,47 @@ export function OrdersListView() {
   const tab = params.get("tab") ?? "all";
   const searchUrl = params.get("search") ?? "";
   const sortUrl = params.get("sort") ?? "createdAt:desc";
+  const rangeUrl = (params.get("range") as OrderDateRange | null) ?? "all";
+  const supplierIdUrl = params.get("supplierId") ?? "";
   const page = Number(params.get("page") ?? 1);
 
-  const setSearch = (value: string) => {
+  const replaceUrl = (key: string, value: string | undefined) => {
     const next = new URLSearchParams(params.toString());
-    if (value) next.set("search", value);
-    else next.delete("search");
+    if (value && value !== "all" && value !== "") next.set(key, value);
+    else next.delete(key);
     next.delete("page");
     router.replace(`/dashboard/siparisler?${next.toString()}`);
   };
 
+  const setSearch = (value: string) => replaceUrl("search", value);
   const setSort = (value: string) => {
+    // sort'un default'u "createdAt:desc"; bu zaman delete edilebilir
     const next = new URLSearchParams(params.toString());
     next.set("sort", value);
     next.delete("page");
     router.replace(`/dashboard/siparisler?${next.toString()}`);
   };
+  const setRange = (value: string) => replaceUrl("range", value);
+  const setSupplierId = (value: string) => replaceUrl("supplierId", value);
 
   const activeTab = TABS.find((t) => t.key === tab) ?? TABS[0]!;
 
   const stats = useOrderStats();
+  const counterparts = useOrderCounterparts();
   const list = useOrders({
     status: activeTab.status,
     search: searchUrl || undefined,
+    supplierId: supplierIdUrl || undefined,
+    range: rangeUrl,
     sort: sortUrl,
     page,
   });
 
-  const isFiltered = Boolean(searchUrl) || Boolean(activeTab.status);
+  const isFiltered =
+    Boolean(searchUrl) ||
+    Boolean(activeTab.status) ||
+    Boolean(supplierIdUrl) ||
+    rangeUrl !== "all";
 
   const setTab = (next: string) => {
     const url = new URLSearchParams(params.toString());
@@ -187,15 +209,23 @@ export function OrdersListView() {
         </div>
       ) : null}
 
-      {/* Search + Status + Sort */}
-      <div className="flex flex-col md:flex-row md:items-center gap-3">
+      {/* Filters toolbar */}
+      <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-3">
         <SearchInput
           value={searchUrl}
           onChange={setSearch}
           placeholder="Sipariş no, ihale veya tedarikçi…"
-          className="w-full md:w-80"
+          className="w-full md:w-72"
         />
         <StatusDropdown value={tab} onChange={setTab} />
+        <RangeDropdown value={rangeUrl} onChange={setRange} />
+        <CounterpartDropdown
+          value={supplierIdUrl}
+          onChange={setSupplierId}
+          options={counterparts.data ?? []}
+          loading={counterparts.isLoading}
+          placeholder="Tüm Tedarikçiler"
+        />
         <SortDropdown value={sortUrl} onChange={setSort} options={SORT_OPTIONS} />
         {list.data ? (
           <ResultCount

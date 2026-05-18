@@ -758,12 +758,27 @@ export interface OrderDetail {
   cancelReason: string | null;
 }
 
+/** Sipariş listesi tarih aralığı — tender pattern'iyle aynı. */
+export type OrderDateRange = "7d" | "30d" | "3m" | "6m" | "12m" | "all";
+
 export interface ListOrdersParams {
   status?: OrderStatus;
   search?: string;
   supplierId?: string;
+  /** Tedarikçi tarafından kullanılır — hangi alıcıdan gelen siparişler. */
+  tenantId?: string;
   /** Polish-1 — "field:dir" whitelist'li sort */
   sort?: string;
+  /** Oluşturma tarihine göre filtre. Default "all". */
+  range?: OrderDateRange;
   page?: number;
   pageSize?: number;
+}
+
+export interface OrderCounterpart {
+  /** id — alıcı için supplierId, tedarikçi için tenantId */
+  id: string;
+  /** companyName (supplier) veya name (tenant) — UI tek field gösterir */
+  label: string;
+  orderCount: number;
 }

@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { OrderStatus, Prisma } from "@supkeys/db";
+import { rangeToSinceDate } from "../../../common/filters/date-range";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailQueue } from "../../email/email.queue";
 import { AcceptOrderDto } from "../dto/accept-order.dto";
@@ -126,9 +127,13 @@ export class SupplierOrdersService {
     const pageSize = query.pageSize ?? 20;
     const skip = (page - 1) * pageSize;
 
+    const since = rangeToSinceDate(query.range);
+
     const where: Prisma.OrderWhereInput = {
       supplierId,
       ...(query.status ? { status: query.status as OrderStatus } : {}),
+      ...(query.tenantId ? { tenantId: query.tenantId } : {}),
+      ...(since ? { createdAt: { gte: since } } : {}),
       ...(query.search?.trim()
         ? {
             OR: [
@@ -215,6 +220,31 @@ export class SupplierOrdersService {
       rejected,
       cancelled,
     };
+  }
+
+  /**
+   * Tedarikçinin sipariş aldığı distinct alıcıları (tenant'ları) döner —
+   * filtre dropdown'u için. Sipariş sayısı azalan sırada.
+   */
+  async counterparts(supplierId: string) {
+    const groups = await this.prisma.order.groupBy({
+      by: ["tenantId"],
+      where: { supplierId },
+      _count: { _all: true },
+    });
+    if (groups.length === 0) return [];
+    const tenants = await this.prisma.tenant.findMany({
+      where: { id: { in: groups.map((g) => g.tenantId) } },
+      select: { id: true, name: true },
+    });
+    const countById = new Map(groups.map((g) => [g.tenantId, g._count._all]));
+    return tenants
+      .map((t) => ({
+        id: t.id,
+        name: t.name,
+        orderCount: countById.get(t.id) ?? 0,
+      }))
+      .sort((a, b) => b.orderCount - a.orderCount);
   }
 
   async findOne(supplierId: string, orderId: string) {

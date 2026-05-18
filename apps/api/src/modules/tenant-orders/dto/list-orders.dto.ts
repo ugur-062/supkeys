@@ -3,12 +3,13 @@ import { IsIn, IsInt, IsOptional, IsString, Max, Min } from "class-validator";
 
 const ORDER_STATUSES = [
   "PENDING",
-  "IN_DELIVERY",
   "ACCEPTED",
+  "IN_DELIVERY",
+  "COMPLETED",
+  "REJECTED",
+  "CANCELLED",
   "IN_PROGRESS",
   "DELIVERED",
-  "COMPLETED",
-  "CANCELLED",
 ] as const;
 
 /**
@@ -22,6 +23,21 @@ export const ORDER_SORT_OPTIONS = [
   "totalAmount:asc",
 ] as const;
 export type OrderSortOption = (typeof ORDER_SORT_OPTIONS)[number];
+
+/**
+ * Sipariş oluşturma tarihine göre aralık filtresi.
+ * Varsayılan = "all" (tender list'inden farkımız: sipariş hacmi düşük,
+ * varsayılanı kısıtlamıyoruz).
+ */
+export const ORDER_DATE_RANGE_OPTIONS = [
+  "7d",
+  "30d",
+  "3m",
+  "6m",
+  "12m",
+  "all",
+] as const;
+export type OrderDateRangeOption = (typeof ORDER_DATE_RANGE_OPTIONS)[number];
 
 export class ListOrdersDto {
   @IsOptional()
@@ -39,6 +55,10 @@ export class ListOrdersDto {
   @IsOptional()
   @IsIn(ORDER_SORT_OPTIONS)
   sort?: OrderSortOption;
+
+  @IsOptional()
+  @IsIn(ORDER_DATE_RANGE_OPTIONS)
+  range?: OrderDateRangeOption;
 
   @IsOptional()
   @Transform(({ value }) => (value === undefined ? undefined : Number(value)))

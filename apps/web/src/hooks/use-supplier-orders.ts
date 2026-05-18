@@ -3,6 +3,7 @@
 import { supplierApi } from "@/lib/supplier-auth/api";
 import type {
   ListOrdersParams,
+  OrderCounterpart,
   OrderDetail,
   OrderListResponse,
   OrderStats,
@@ -14,6 +15,7 @@ const KEYS = {
   list: (params: ListOrdersParams) => [...KEYS.all, "list", params] as const,
   detail: (id: string) => [...KEYS.all, "detail", id] as const,
   stats: () => [...KEYS.all, "stats"] as const,
+  counterparts: () => [...KEYS.all, "counterparts"] as const,
 };
 
 export function useSupplierOrders(params: ListOrdersParams) {
@@ -26,6 +28,8 @@ export function useSupplierOrders(params: ListOrdersParams) {
           params: {
             ...(params.status ? { status: params.status } : {}),
             ...(params.search ? { search: params.search } : {}),
+            ...(params.tenantId ? { tenantId: params.tenantId } : {}),
+            ...(params.range ? { range: params.range } : {}),
             ...(params.sort ? { sort: params.sort } : {}),
             ...(params.page ? { page: params.page } : {}),
             ...(params.pageSize ? { pageSize: params.pageSize } : {}),
@@ -37,6 +41,24 @@ export function useSupplierOrders(params: ListOrdersParams) {
     placeholderData: (prev) => prev,
     refetchInterval: 30_000,
     refetchIntervalInBackground: false, // P-6
+  });
+}
+
+/** Tedarikçinin sipariş aldığı distinct alıcı (tenant) listesi. */
+export function useSupplierOrderCounterparts() {
+  return useQuery({
+    queryKey: KEYS.counterparts(),
+    queryFn: async () => {
+      const { data } = await supplierApi.get<
+        Array<{ id: string; name: string; orderCount: number }>
+      >("/supplier/orders/counterparts");
+      return data.map<OrderCounterpart>((it) => ({
+        id: it.id,
+        label: it.name,
+        orderCount: it.orderCount,
+      }));
+    },
+    staleTime: 60_000,
   });
 }
 

@@ -37,6 +37,13 @@ export class SupplierOrdersController {
     return this.service.list(user.supplierId, query);
   }
 
+  @Get("counterparts")
+  counterparts(
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+  ): Promise<unknown> {
+    return this.service.counterparts(user.supplierId);
+  }
+
   @Get("stats")
   stats(
     @CurrentSupplierUser() user: AuthenticatedSupplierUser,

@@ -41,6 +41,14 @@ export class TenantOrdersController {
     return this.service.list(user.tenantId, query);
   }
 
+  @Get("counterparts")
+  @RequirePermissions("order:view")
+  counterparts(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<unknown> {
+    return this.service.counterparts(user.tenantId);
+  }
+
   @Get("stats")
   @RequirePermissions("order:view")
   stats(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {

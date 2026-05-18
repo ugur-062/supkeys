@@ -369,6 +369,102 @@ describe("TenantOrdersService — buyer order state machine", () => {
       const result = await service.list(tenant.id, { page: 2, pageSize: 2 });
       expect(result.items.length).toBe(1);
     });
+
+    it("range=7d → 7 günden eski siparişler filtrelenir", async () => {
+      const { tenant, supplier, tender, bid } = await setupOrder(
+        prisma,
+        "PENDING",
+      );
+      // 10 gün önce oluşturulmuş 1 sipariş
+      const old = new Date(Date.now() - 10 * 24 * 3600 * 1000);
+      await prisma.order.create({
+        data: {
+          orderNumber: `ORD-old-${Date.now()}`,
+          tenantId: tenant.id,
+          supplierId: supplier.id,
+          tenderId: tender.id,
+          bidId: bid.id,
+          status: "PENDING",
+          currency: "TRY",
+          totalAmount: 50,
+          createdAt: old,
+        },
+      });
+      const result = await service.list(tenant.id, { range: "7d" });
+      // İlk seed bugün, eski olan elendi
+      expect(result.items.length).toBe(1);
+    });
+
+    it("range=all → eski siparişler dahil", async () => {
+      const { tenant, supplier, tender, bid } = await setupOrder(prisma);
+      await prisma.order.create({
+        data: {
+          orderNumber: `ORD-old2-${Date.now()}`,
+          tenantId: tenant.id,
+          supplierId: supplier.id,
+          tenderId: tender.id,
+          bidId: bid.id,
+          status: "PENDING",
+          currency: "TRY",
+          totalAmount: 50,
+          createdAt: new Date(Date.now() - 365 * 24 * 3600 * 1000),
+        },
+      });
+      const result = await service.list(tenant.id, { range: "all" });
+      expect(result.items.length).toBe(2);
+    });
+  });
+
+  describe("counterparts — distinct tedarikçi listesi", () => {
+    it("siparişi olan supplier'lar döner, orderCount azalan", async () => {
+      const tenant = await createTenant(prisma);
+      const user = await createUser(prisma, tenant.id);
+      const supplierA = await createSupplier(prisma, { companyName: "Alfa" });
+      const sUserA = await createSupplierUser(prisma, supplierA.id);
+      const supplierB = await createSupplier(prisma, { companyName: "Beta" });
+      const sUserB = await createSupplierUser(prisma, supplierB.id);
+      const tender = await createTender(prisma, tenant.id, user.id, {
+        status: "AWARDED",
+      });
+      const bidA = await createBid(prisma, tender.id, supplierA.id, sUserA.id, {
+        status: "AWARDED_FULL",
+      });
+      const bidB = await createBid(prisma, tender.id, supplierB.id, sUserB.id, {
+        status: "AWARDED_FULL",
+      });
+      // A: 2 sipariş, B: 1 sipariş
+      await createOrder(prisma, {
+        tenantId: tenant.id,
+        supplierId: supplierA.id,
+        tenderId: tender.id,
+        bidId: bidA.id,
+      });
+      await createOrder(prisma, {
+        tenantId: tenant.id,
+        supplierId: supplierA.id,
+        tenderId: tender.id,
+        bidId: bidA.id,
+      });
+      await createOrder(prisma, {
+        tenantId: tenant.id,
+        supplierId: supplierB.id,
+        tenderId: tender.id,
+        bidId: bidB.id,
+      });
+
+      const result = await service.counterparts(tenant.id);
+      expect(result.length).toBe(2);
+      expect(result[0]?.companyName).toBe("Alfa");
+      expect(result[0]?.orderCount).toBe(2);
+      expect(result[1]?.companyName).toBe("Beta");
+      expect(result[1]?.orderCount).toBe(1);
+    });
+
+    it("siparişi olmayan tenant → boş array", async () => {
+      const tenant = await createTenant(prisma);
+      const result = await service.counterparts(tenant.id);
+      expect(result).toEqual([]);
+    });
   });
 
   describe("stats — agregasyon", () => {

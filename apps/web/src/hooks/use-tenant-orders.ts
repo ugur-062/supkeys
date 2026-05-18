@@ -3,6 +3,7 @@
 import { api } from "@/lib/api";
 import type {
   ListOrdersParams,
+  OrderCounterpart,
   OrderDetail,
   OrderListResponse,
   OrderStats,
@@ -14,6 +15,7 @@ const KEYS = {
   list: (params: ListOrdersParams) => [...KEYS.all, "list", params] as const,
   detail: (id: string) => [...KEYS.all, "detail", id] as const,
   stats: () => [...KEYS.all, "stats"] as const,
+  counterparts: () => [...KEYS.all, "counterparts"] as const,
 };
 
 export function useOrders(params: ListOrdersParams) {
@@ -27,6 +29,7 @@ export function useOrders(params: ListOrdersParams) {
             ...(params.status ? { status: params.status } : {}),
             ...(params.search ? { search: params.search } : {}),
             ...(params.supplierId ? { supplierId: params.supplierId } : {}),
+            ...(params.range ? { range: params.range } : {}),
             ...(params.sort ? { sort: params.sort } : {}),
             ...(params.page ? { page: params.page } : {}),
             ...(params.pageSize ? { pageSize: params.pageSize } : {}),
@@ -39,6 +42,24 @@ export function useOrders(params: ListOrdersParams) {
     refetchInterval: 30_000,
     refetchIntervalInBackground: false, // P-6
     staleTime: 10_000, // P-7
+  });
+}
+
+/** Alıcının sipariş geçmişindeki distinct tedarikçi listesi. */
+export function useOrderCounterparts() {
+  return useQuery({
+    queryKey: KEYS.counterparts(),
+    queryFn: async () => {
+      const { data } = await api.get<
+        Array<{ id: string; companyName: string; orderCount: number }>
+      >("/tenants/me/orders/counterparts");
+      return data.map<OrderCounterpart>((it) => ({
+        id: it.id,
+        label: it.companyName,
+        orderCount: it.orderCount,
+      }));
+    },
+    staleTime: 60_000,
   });
 }
 
