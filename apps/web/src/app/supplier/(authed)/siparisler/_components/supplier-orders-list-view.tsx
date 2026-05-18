@@ -183,127 +183,116 @@ export function SupplierOrdersListView() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <aside className="lg:col-span-3">
-          <PanelCard padding="sm" className="lg:sticky lg:top-4">
-            <div className="relative mb-4">
-              <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                value={search}
-                onChange={(e) => updateUrl({ search: e.target.value })}
-                placeholder="Sipariş ara..."
-                className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-              />
-            </div>
-
-            <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">
-              Durum
-            </h3>
-            <select
-              value={statusKey}
-              onChange={(e) => updateUrl({ status: e.target.value })}
-              aria-label="Sipariş durumu filtresi"
-              className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white cursor-pointer"
-            >
-              {STATUS_FILTERS.map((f) => (
-                <option key={f.key} value={f.key}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
-
-            <div className="mt-5 pt-4 border-t border-slate-100">
-              <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2 px-1">
-                Sıralama
-              </h3>
-              <select
-                value={sort}
-                onChange={(e) => updateUrl({ sort: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
-              >
-                {SORT_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </PanelCard>
-        </aside>
-
-        <main className="lg:col-span-9">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-xs text-slate-500">
-              {list.isLoading
-                ? "Yükleniyor…"
-                : `${totalCount.toLocaleString("tr-TR")} sipariş${search || statusKey !== "all" ? " (filtrelenmiş)" : ""}`}
-            </p>
+      {/* Toolbar — search + durum + sıralama tek satırda */}
+      <PanelCard padding="sm">
+        <div className="flex flex-col md:flex-row md:items-center gap-3">
+          <div className="relative flex-1 min-w-0">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              value={search}
+              onChange={(e) => updateUrl({ search: e.target.value })}
+              placeholder="Sipariş ara..."
+              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+            />
           </div>
 
-          {list.isError ? (
-            <PanelCard className="text-center py-12">
-              <p className="text-brand-900 font-medium mb-2">Veri alınamadı</p>
+          <select
+            value={statusKey}
+            onChange={(e) => updateUrl({ status: e.target.value })}
+            aria-label="Sipariş durumu filtresi"
+            className="w-full md:w-auto md:min-w-[170px] px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white cursor-pointer"
+          >
+            {STATUS_FILTERS.map((f) => (
+              <option key={f.key} value={f.key}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={sort}
+            onChange={(e) => updateUrl({ sort: e.target.value })}
+            aria-label="Sıralama"
+            className="w-full md:w-auto md:min-w-[180px] px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white cursor-pointer"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+
+          <p className="text-xs text-slate-500 whitespace-nowrap md:ml-2">
+            {list.isLoading
+              ? "Yükleniyor…"
+              : `${totalCount.toLocaleString("tr-TR")} sipariş${search || statusKey !== "all" ? " (filtrelenmiş)" : ""}`}
+          </p>
+        </div>
+      </PanelCard>
+
+      {/* Sipariş grid */}
+      {list.isError ? (
+        <PanelCard className="text-center py-12">
+          <p className="text-brand-900 font-medium mb-2">Veri alınamadı</p>
+          <button
+            type="button"
+            onClick={() => list.refetch()}
+            className="text-sm text-brand-700 hover:underline"
+          >
+            Tekrar dene
+          </button>
+        </PanelCard>
+      ) : list.isLoading ? (
+        <CardGridSkeleton />
+      ) : items.length === 0 ? (
+        <PanelCard className="text-center py-16">
+          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <Inbox className="h-5 w-5 text-slate-400" />
+          </div>
+          <p className="font-semibold text-brand-900">
+            {search
+              ? "Aramayla eşleşen sipariş yok"
+              : statusKey === "all"
+                ? "Henüz sipariş yok"
+                : "Bu durumda sipariş yok"}
+          </p>
+          <p className="text-sm text-slate-500 mt-1">
+            Bir ihale kazandığınızda sipariş otomatik oluşur.
+          </p>
+        </PanelCard>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {items.map((o) => (
+              <OrderCard key={o.id} order={o} />
+            ))}
+          </div>
+
+          {totalPages > 1 ? (
+            <div className="mt-6 flex items-center justify-center gap-2">
               <button
                 type="button"
-                onClick={() => list.refetch()}
-                className="text-sm text-brand-700 hover:underline"
+                disabled={page <= 1}
+                onClick={() => updateUrl({ page: page - 1 })}
+                className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Tekrar dene
+                Önceki
               </button>
-            </PanelCard>
-          ) : list.isLoading ? (
-            <CardGridSkeleton />
-          ) : items.length === 0 ? (
-            <PanelCard className="text-center py-16">
-              <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                <Inbox className="h-5 w-5 text-slate-400" />
-              </div>
-              <p className="font-semibold text-brand-900">
-                {search
-                  ? "Aramayla eşleşen sipariş yok"
-                  : statusKey === "all"
-                    ? "Henüz sipariş yok"
-                    : "Bu durumda sipariş yok"}
-              </p>
-              <p className="text-sm text-slate-500 mt-1">
-                Bir ihale kazandığınızda sipariş otomatik oluşur.
-              </p>
-            </PanelCard>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {items.map((o) => (
-                  <OrderCard key={o.id} order={o} />
-                ))}
-              </div>
-
-              {totalPages > 1 ? (
-                <div className="mt-6 flex items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    disabled={page <= 1}
-                    onClick={() => updateUrl({ page: page - 1 })}
-                    className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Önceki
-                  </button>
-                  <span className="text-sm text-slate-600 px-3">
-                    {page} / {totalPages}
-                  </span>
-                  <button
-                    type="button"
-                    disabled={page >= totalPages}
-                    onClick={() => updateUrl({ page: page + 1 })}
-                    className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Sonraki
-                  </button>
-                </div>
-              ) : null}
-            </>
-          )}
-        </main>
-      </div>
+              <span className="text-sm text-slate-600 px-3">
+                {page} / {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={page >= totalPages}
+                onClick={() => updateUrl({ page: page + 1 })}
+                className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Sonraki
+              </button>
+            </div>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
