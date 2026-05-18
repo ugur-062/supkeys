@@ -112,77 +112,14 @@ function Section({ title, icon: Icon, hint, children }: SectionProps) {
 }
 
 export function TeklifForm({ tender, existingBid }: Props) {
+  // KURAL: Tüm hook'lar component'in en üstünde, erken return'lerden ÖNCE
+  // çağrılmalı (React Rules of Hooks). Submit sonrası existingBid.status
+  // SUBMITTED'a değişip "Teklif zaten verildi" ekranına geçtiğimizde
+  // aşağıdaki hooks atlanıyor olsaydı "Rendered fewer hooks" hatası alırdık.
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  // E.5 — SUBMITTED bid'in form sayfasına gelinmesi engellenir.
-  // Tedarikçi sadece taslak doldurabilir veya alıcı eledikten sonra (LOST)
-  // yeniden teklif verebilir. SUBMITTED gelirse uyarı ekranı.
-  if (existingBid?.status === "SUBMITTED") {
-    return (
-      <div className="max-w-2xl mx-auto py-12">
-        <div className="card p-8 text-center space-y-4">
-          <div className="w-12 h-12 mx-auto rounded-full bg-warning-50 flex items-center justify-center">
-            <Lock className="w-6 h-6 text-warning-600" />
-          </div>
-          <p className="font-display font-bold text-brand-900 text-lg">
-            Teklif zaten verildi
-          </p>
-          <p className="text-sm text-slate-600 max-w-md mx-auto">
-            Bu ihaleye teklifinizi gönderdiniz (v{existingBid.version}).
-            Değişiklik için alıcıyla iletişime geçin. Alıcı teklifinizi elerse
-            yeniden teklif verebilirsiniz.
-          </p>
-          <div className="pt-2">
-            <Link
-              href={`/supplier/ihaleler/${tender.id}`}
-              className="inline-block"
-            >
-              <Button variant="secondary">
-                <ArrowLeft className="w-4 h-4" />
-                İhale Detayına Dön
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // WITHDRAWN bid: V1'de yeniden teklif yok
-  if (existingBid?.status === "WITHDRAWN") {
-    return (
-      <div className="max-w-2xl mx-auto py-12">
-        <div className="card p-8 text-center space-y-4">
-          <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center">
-            <AlertCircle className="w-6 h-6 text-slate-500" />
-          </div>
-          <p className="font-display font-bold text-brand-900 text-lg">
-            Teklif geri çekildi
-          </p>
-          <p className="text-sm text-slate-600 max-w-md mx-auto">
-            Bu ihaleye verdiğiniz teklifi geri çektiniz. Yeniden teklif vermek
-            için alıcıyla iletişime geçin.
-          </p>
-          <div className="pt-2">
-            <Link
-              href={`/supplier/ihaleler/${tender.id}`}
-              className="inline-block"
-            >
-              <Button variant="secondary">
-                <ArrowLeft className="w-4 h-4" />
-                İhale Detayına Dön
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // LOST bid: alıcı eledi → fresh form (önceki değerler dolu DEĞİL)
-  // DRAFT bid: kaldığı yerden devam (önceki değerler dolu)
-  // Hiç bid yok: temiz form
+  // LOST bid: alıcı eledi → fresh form. DRAFT: kaldığı yerden. Yok: temiz.
   const isResubmissionAfterElimination = existingBid?.status === "LOST";
   const draftBid =
     existingBid && existingBid.status === "DRAFT" ? existingBid : null;
@@ -250,6 +187,70 @@ export function TeklifForm({ tender, existingBid }: Props) {
     },
     mode: "onTouched",
   });
+
+  // Erken render kararları — tüm hook'lar çağrıldıktan SONRA.
+  // SUBMITTED bid form sayfasına gelinmesi engellenir; submit sonrası
+  // existingBid bu duruma geçince banner gösterilir.
+  if (existingBid?.status === "SUBMITTED") {
+    return (
+      <div className="max-w-2xl mx-auto py-12">
+        <div className="card p-8 text-center space-y-4">
+          <div className="w-12 h-12 mx-auto rounded-full bg-warning-50 flex items-center justify-center">
+            <Lock className="w-6 h-6 text-warning-600" />
+          </div>
+          <p className="font-display font-bold text-brand-900 text-lg">
+            Teklif zaten verildi
+          </p>
+          <p className="text-sm text-slate-600 max-w-md mx-auto">
+            Bu ihaleye teklifinizi gönderdiniz (v{existingBid.version}).
+            Değişiklik için alıcıyla iletişime geçin. Alıcı teklifinizi elerse
+            yeniden teklif verebilirsiniz.
+          </p>
+          <div className="pt-2">
+            <Link
+              href={`/supplier/ihaleler/${tender.id}`}
+              className="inline-block"
+            >
+              <Button variant="secondary">
+                <ArrowLeft className="w-4 h-4" />
+                İhale Detayına Dön
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (existingBid?.status === "WITHDRAWN") {
+    return (
+      <div className="max-w-2xl mx-auto py-12">
+        <div className="card p-8 text-center space-y-4">
+          <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center">
+            <AlertCircle className="w-6 h-6 text-slate-500" />
+          </div>
+          <p className="font-display font-bold text-brand-900 text-lg">
+            Teklif geri çekildi
+          </p>
+          <p className="text-sm text-slate-600 max-w-md mx-auto">
+            Bu ihaleye verdiğiniz teklifi geri çektiniz. Yeniden teklif vermek
+            için alıcıyla iletişime geçin.
+          </p>
+          <div className="pt-2">
+            <Link
+              href={`/supplier/ihaleler/${tender.id}`}
+              className="inline-block"
+            >
+              <Button variant="secondary">
+                <ArrowLeft className="w-4 h-4" />
+                İhale Detayına Dön
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const isBusy = saveMutation.isPending || submitMutation.isPending;
 
