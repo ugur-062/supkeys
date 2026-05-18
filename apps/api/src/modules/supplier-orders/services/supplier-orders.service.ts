@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -9,7 +10,9 @@ import { ConfigService } from "@nestjs/config";
 import type { OrderStatus, Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailQueue } from "../../email/email.queue";
+import { AcceptOrderDto } from "../dto/accept-order.dto";
 import { ListOrdersDto } from "../dto/list-orders.dto";
+import { RejectOrderDto } from "../dto/reject-order.dto";
 import { StartDeliveryDto } from "../dto/start-delivery.dto";
 
 const ORDER_DETAIL_SELECT = {
@@ -190,15 +193,28 @@ export class SupplierOrdersService {
   }
 
   async stats(supplierId: string) {
-    const [total, pending, inDelivery, completed, cancelled] = await Promise.all([
-      this.prisma.order.count({ where: { supplierId } }),
-      this.prisma.order.count({ where: { supplierId, status: "PENDING" } }),
-      this.prisma.order.count({ where: { supplierId, status: "IN_DELIVERY" } }),
-      this.prisma.order.count({ where: { supplierId, status: "COMPLETED" } }),
-      this.prisma.order.count({ where: { supplierId, status: "CANCELLED" } }),
-    ]);
+    const [total, pending, accepted, inDelivery, completed, rejected, cancelled] =
+      await Promise.all([
+        this.prisma.order.count({ where: { supplierId } }),
+        this.prisma.order.count({ where: { supplierId, status: "PENDING" } }),
+        this.prisma.order.count({ where: { supplierId, status: "ACCEPTED" } }),
+        this.prisma.order.count({
+          where: { supplierId, status: "IN_DELIVERY" },
+        }),
+        this.prisma.order.count({ where: { supplierId, status: "COMPLETED" } }),
+        this.prisma.order.count({ where: { supplierId, status: "REJECTED" } }),
+        this.prisma.order.count({ where: { supplierId, status: "CANCELLED" } }),
+      ]);
 
-    return { total, pending, inDelivery, completed, cancelled };
+    return {
+      total,
+      pending,
+      accepted,
+      inDelivery,
+      completed,
+      rejected,
+      cancelled,
+    };
   }
 
   async findOne(supplierId: string, orderId: string) {
@@ -219,11 +235,135 @@ export class SupplierOrdersService {
   // ============================================================
 
   /**
-   * Tedarikçi PENDING → IN_DELIVERY. Alıcıya `order_status_changed` e-posta.
-   *
-   * Not: `deliveryStartedById` tenant `users` tablosuna FK; SupplierUser
-   * ayrı tabloda olduğu için NULL bırakılır. "Kim başlattı" supplier
-   * tarafında implicit (tüm aktif supplier user'ları aynı şirketten).
+   * Tedarikçi PENDING → ACCEPTED. Onay anında tahmini teslim tarihi
+   * (zorunlu), opsiyonel not + banka/fatura bilgileri kaydedilir.
+   * Alıcıya `order_status_changed` (ACCEPTED) e-posta atılır.
+   */
+  async acceptOrder(
+    supplierId: string,
+    orderId: string,
+    _supplierUserId: string,
+    dto: AcceptOrderDto,
+  ) {
+    const expected = new Date(dto.expectedDeliveryDate);
+    if (Number.isNaN(expected.getTime())) {
+      throw new BadRequestException("Geçersiz tahmini teslim tarihi");
+    }
+    if (expected.getTime() < Date.now() - 24 * 60 * 60 * 1000) {
+      throw new BadRequestException(
+        "Tahmini teslim tarihi geçmişte olamaz",
+      );
+    }
+
+    let invoice: Date | null = null;
+    if (dto.invoiceDate) {
+      const parsed = new Date(dto.invoiceDate);
+      if (Number.isNaN(parsed.getTime())) {
+        throw new BadRequestException("Geçersiz fatura tarihi");
+      }
+      invoice = parsed;
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { id: true, supplierId: true, status: true },
+      });
+      if (!order) throw new NotFoundException("Sipariş bulunamadı");
+      if (order.supplierId !== supplierId)
+        throw new ForbiddenException("Bu siparişe erişim yetkiniz yok");
+      if (order.status !== "PENDING") {
+        throw new ConflictException(
+          `Sadece bekleyen siparişler onaylanabilir. Mevcut durum: ${order.status}`,
+        );
+      }
+
+      return tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: "ACCEPTED",
+          acceptedAt: new Date(),
+          acceptedNote: dto.acceptedNote?.trim() || null,
+          expectedDeliveryDate: expected,
+          bankAccountHolder: dto.bankAccountHolder?.trim() || null,
+          bankIban: dto.bankIban?.trim() || null,
+          invoiceDate: invoice,
+        },
+        include: ORDER_DETAIL_SELECT,
+      });
+    });
+
+    setImmediate(() =>
+      this.dispatchStatusEmailToBuyer(updated, "ACCEPTED").catch((err) =>
+        this.logger.error(
+          `order_status_changed (ACCEPTED) dispatch failed for ${updated.orderNumber}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      ),
+    );
+
+    return updated;
+  }
+
+  /**
+   * Tedarikçi PENDING → REJECTED. Sebep zorunlu (≥10 char, DTO validator).
+   * Alıcıya `order_status_changed` (REJECTED) e-posta atılır.
+   */
+  async rejectOrder(
+    supplierId: string,
+    orderId: string,
+    _supplierUserId: string,
+    dto: RejectOrderDto,
+  ) {
+    const reason = dto.reason.trim();
+    if (reason.length < 10) {
+      throw new BadRequestException(
+        "Red sebebi en az 10 karakter olmalıdır",
+      );
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        select: { id: true, supplierId: true, status: true },
+      });
+      if (!order) throw new NotFoundException("Sipariş bulunamadı");
+      if (order.supplierId !== supplierId)
+        throw new ForbiddenException("Bu siparişe erişim yetkiniz yok");
+      if (order.status !== "PENDING") {
+        throw new ConflictException(
+          `Sadece bekleyen siparişler reddedilebilir. Mevcut durum: ${order.status}`,
+        );
+      }
+
+      return tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: "REJECTED",
+          rejectedAt: new Date(),
+          rejectReason: reason,
+        },
+        include: ORDER_DETAIL_SELECT,
+      });
+    });
+
+    setImmediate(() =>
+      this.dispatchStatusEmailToBuyer(updated, "REJECTED").catch((err) =>
+        this.logger.error(
+          `order_status_changed (REJECTED) dispatch failed for ${updated.orderNumber}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      ),
+    );
+
+    return updated;
+  }
+
+  /**
+   * Tedarikçi ACCEPTED → IN_DELIVERY. Tahmini teslim tarihi onay anında
+   * girildiği için bu adımda yalnızca isteğe bağlı gönderim notu vardır.
    */
   async startDelivery(
     supplierId: string,
@@ -239,19 +379,10 @@ export class SupplierOrdersService {
       if (!order) throw new NotFoundException("Sipariş bulunamadı");
       if (order.supplierId !== supplierId)
         throw new ForbiddenException("Bu siparişe erişim yetkiniz yok");
-      if (order.status !== "PENDING") {
+      if (order.status !== "ACCEPTED") {
         throw new ConflictException(
-          `Sadece PENDING durumundaki siparişlerde teslimat başlatılabilir. Mevcut: ${order.status}`,
+          `Sadece onaylanmış siparişlerde gönderim başlatılabilir. Mevcut: ${order.status}`,
         );
-      }
-
-      let expectedDelivery: Date | null = null;
-      if (dto.expectedDeliveryDate) {
-        const parsed = new Date(dto.expectedDeliveryDate);
-        if (Number.isNaN(parsed.getTime())) {
-          throw new ConflictException("Geçersiz tahmini teslim tarihi");
-        }
-        expectedDelivery = parsed;
       }
 
       return tx.order.update({
@@ -260,7 +391,6 @@ export class SupplierOrdersService {
           status: "IN_DELIVERY",
           deliveryStartedAt: new Date(),
           deliveryNote: dto.deliveryNote?.trim() || null,
-          expectedDeliveryDate: expectedDelivery,
         },
         include: ORDER_DETAIL_SELECT,
       });
@@ -290,7 +420,7 @@ export class SupplierOrdersService {
 
   private async dispatchStatusEmailToBuyer(
     order: Prisma.OrderGetPayload<{ include: typeof ORDER_DETAIL_SELECT }>,
-    newStatus: "IN_DELIVERY",
+    newStatus: "ACCEPTED" | "REJECTED" | "IN_DELIVERY",
   ): Promise<void> {
     const buyerAdmin = order.tenant.users[0];
     if (!buyerAdmin) {
@@ -299,6 +429,18 @@ export class SupplierOrdersService {
       );
       return;
     }
+
+    const note =
+      newStatus === "ACCEPTED"
+        ? order.acceptedNote
+        : newStatus === "REJECTED"
+          ? order.rejectReason
+          : order.deliveryNote;
+
+    // Önceki statü: ACCEPTED/REJECTED'a PENDING'den geçilir,
+    // IN_DELIVERY'ye ACCEPTED'dan geçilir.
+    const oldStatus: "PENDING" | "ACCEPTED" =
+      newStatus === "IN_DELIVERY" ? "ACCEPTED" : "PENDING";
 
     await this.emailQueue.enqueue({
       to: {
@@ -314,8 +456,8 @@ export class SupplierOrdersService {
           tenderNumber: order.tender.tenderNumber,
           tenderTitle: order.tender.title,
           newStatus,
-          oldStatus: "PENDING",
-          note: order.deliveryNote,
+          oldStatus,
+          note,
           expectedDeliveryDate: order.expectedDeliveryDate
             ? order.expectedDeliveryDate.toISOString()
             : null,

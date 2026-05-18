@@ -1,11 +1,15 @@
 /**
- * V1.5 Order workflow — supplier (tedarikçi) tarafı.
+ * Order workflow — supplier (tedarikçi) tarafı.
  *
- * State transition: PENDING → IN_DELIVERY (sadece supplier başlatabilir)
+ * State transitions:
+ *   PENDING → ACCEPTED  (tedarikçi onaylar + bilgi girer)
+ *   PENDING → REJECTED  (tedarikçi reddeder, sebep zorunlu)
+ *   ACCEPTED → IN_DELIVERY (tedarikçi gönderim başlatır)
  * Multi-supplier scope: başka supplier'a ait order → 403
  */
 import { TestingModule } from "@nestjs/testing";
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -106,9 +110,147 @@ describe("SupplierOrdersService — supplier order state machine", () => {
     });
   });
 
-  describe("startDelivery — PENDING → IN_DELIVERY", () => {
-    it("happy path: PENDING → IN_DELIVERY + deliveryStartedAt + note", async () => {
+  describe("acceptOrder — PENDING → ACCEPTED", () => {
+    const futureIso = () =>
+      new Date(Date.now() + 5 * 24 * 3600 * 1000).toISOString();
+
+    it("happy path: PENDING → ACCEPTED + acceptedAt + alanlar", async () => {
       const { supplier, supplierUser, order } = await setupSupplierOrder(prisma);
+
+      const updated = await service.acceptOrder(
+        supplier.id,
+        order.id,
+        supplierUser.id,
+        {
+          expectedDeliveryDate: futureIso(),
+          acceptedNote: "İki hafta içinde teslim",
+          bankAccountHolder: "Demo Ltd.",
+          bankIban: "TR00 0000 0000 0000 0000 0000 00",
+          invoiceDate: futureIso(),
+        },
+      );
+
+      expect(updated.status).toBe("ACCEPTED");
+      expect(updated.acceptedAt).toBeInstanceOf(Date);
+      expect(updated.acceptedNote).toBe("İki hafta içinde teslim");
+      expect(updated.bankAccountHolder).toBe("Demo Ltd.");
+      expect(updated.bankIban).toBe("TR00 0000 0000 0000 0000 0000 00");
+      expect(updated.expectedDeliveryDate).toBeInstanceOf(Date);
+      expect(updated.invoiceDate).toBeInstanceOf(Date);
+
+      // Alıcıya `order_status_changed` (ACCEPTED) e-posta enqueue
+      await flushMicrotasks();
+      expect(emailMock.enqueue).toHaveBeenCalled();
+    });
+
+    it("geçersiz expectedDeliveryDate → 400", async () => {
+      const { supplier, supplierUser, order } = await setupSupplierOrder(prisma);
+      await expect(
+        service.acceptOrder(supplier.id, order.id, supplierUser.id, {
+          expectedDeliveryDate: "not-a-date",
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("geçmiş expectedDeliveryDate → 400", async () => {
+      const { supplier, supplierUser, order } = await setupSupplierOrder(prisma);
+      const past = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+      await expect(
+        service.acceptOrder(supplier.id, order.id, supplierUser.id, {
+          expectedDeliveryDate: past,
+        }),
+      ).rejects.toThrow(/geçmişte/);
+    });
+
+    it("ACCEPTED'dan tekrar acceptOrder → 409", async () => {
+      const { supplier, supplierUser, order } = await setupSupplierOrder(
+        prisma,
+        "ACCEPTED",
+      );
+      await expect(
+        service.acceptOrder(supplier.id, order.id, supplierUser.id, {
+          expectedDeliveryDate: futureIso(),
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it("başka supplier acceptOrder → 403", async () => {
+      const { supplierUser, order } = await setupSupplierOrder(prisma);
+      const intruder = await createSupplier(prisma);
+      await expect(
+        service.acceptOrder(intruder.id, order.id, supplierUser.id, {
+          expectedDeliveryDate: futureIso(),
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it("bilinmeyen orderId → 404", async () => {
+      const supplier = await createSupplier(prisma);
+      await expect(
+        service.acceptOrder(supplier.id, "yok", "user-yok", {
+          expectedDeliveryDate: futureIso(),
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe("rejectOrder — PENDING → REJECTED", () => {
+    it("happy path: PENDING → REJECTED + rejectReason", async () => {
+      const { supplier, supplierUser, order } = await setupSupplierOrder(prisma);
+
+      const updated = await service.rejectOrder(
+        supplier.id,
+        order.id,
+        supplierUser.id,
+        { reason: "Stoğumuzda yok, üretim takvimi dolu." },
+      );
+
+      expect(updated.status).toBe("REJECTED");
+      expect(updated.rejectedAt).toBeInstanceOf(Date);
+      expect(updated.rejectReason).toContain("Stoğumuzda");
+
+      await flushMicrotasks();
+      expect(emailMock.enqueue).toHaveBeenCalled();
+    });
+
+    it("sebep <10 char → 400", async () => {
+      const { supplier, supplierUser, order } = await setupSupplierOrder(prisma);
+      await expect(
+        service.rejectOrder(supplier.id, order.id, supplierUser.id, {
+          reason: "kısa",
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("ACCEPTED'dan rejectOrder → 409", async () => {
+      const { supplier, supplierUser, order } = await setupSupplierOrder(
+        prisma,
+        "ACCEPTED",
+      );
+      await expect(
+        service.rejectOrder(supplier.id, order.id, supplierUser.id, {
+          reason: "Çok geç oldu, üretim dolu",
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it("başka supplier reject → 403", async () => {
+      const { supplierUser, order } = await setupSupplierOrder(prisma);
+      const intruder = await createSupplier(prisma);
+      await expect(
+        service.rejectOrder(intruder.id, order.id, supplierUser.id, {
+          reason: "İlgisiz red sebebi 10+ karakter",
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe("startDelivery — ACCEPTED → IN_DELIVERY", () => {
+    it("happy path: ACCEPTED → IN_DELIVERY + deliveryStartedAt", async () => {
+      const { supplier, supplierUser, order } = await setupSupplierOrder(
+        prisma,
+        "ACCEPTED",
+      );
 
       const updated = await service.startDelivery(
         supplier.id,
@@ -121,36 +263,15 @@ describe("SupplierOrdersService — supplier order state machine", () => {
       expect(updated.deliveryStartedAt).toBeInstanceOf(Date);
       expect(updated.deliveryNote).toBe("Kargo MNG ile gönderildi");
 
-      // Alıcıya `order_status_changed` (IN_DELIVERY) e-posta enqueue
       await flushMicrotasks();
       expect(emailMock.enqueue).toHaveBeenCalled();
     });
 
-    it("expectedDeliveryDate parse + persist", async () => {
-      const { supplier, supplierUser, order } = await setupSupplierOrder(prisma);
-
-      const futureIso = new Date(Date.now() + 5 * 24 * 3600 * 1000).toISOString();
-      const updated = await service.startDelivery(
-        supplier.id,
-        order.id,
-        supplierUser.id,
-        { expectedDeliveryDate: futureIso },
-      );
-      expect(updated.expectedDeliveryDate).toBeInstanceOf(Date);
-    });
-
-    it("geçersiz expectedDeliveryDate (invalid string) → 409", async () => {
+    it("PENDING'den startDelivery → 409 (önce ACCEPTED gerek)", async () => {
       const { supplier, supplierUser, order } = await setupSupplierOrder(prisma);
       await expect(
-        service.startDelivery(supplier.id, order.id, supplierUser.id, {
-          expectedDeliveryDate: "not-a-date",
-        }),
+        service.startDelivery(supplier.id, order.id, supplierUser.id, {}),
       ).rejects.toThrow(ConflictException);
-      await expect(
-        service.startDelivery(supplier.id, order.id, supplierUser.id, {
-          expectedDeliveryDate: "not-a-date",
-        }),
-      ).rejects.toThrow("Geçersiz tahmini teslim tarihi");
     });
 
     it("IN_DELIVERY'den tekrar startDelivery → 409", async () => {
@@ -184,7 +305,7 @@ describe("SupplierOrdersService — supplier order state machine", () => {
     });
 
     it("başka supplier startDelivery → 403", async () => {
-      const { supplierUser, order } = await setupSupplierOrder(prisma);
+      const { supplierUser, order } = await setupSupplierOrder(prisma, "ACCEPTED");
       const intruder = await createSupplier(prisma);
       await expect(
         service.startDelivery(intruder.id, order.id, supplierUser.id, {}),
@@ -285,7 +406,7 @@ describe("SupplierOrdersService — supplier order state machine", () => {
   });
 
   describe("stats", () => {
-    it("kendi supplier scope'unda sayar", async () => {
+    it("kendi supplier scope'unda tüm statüleri sayar", async () => {
       const { supplier, tenant, tender, bid } = await setupSupplierOrder(
         prisma,
         "PENDING",
@@ -293,13 +414,31 @@ describe("SupplierOrdersService — supplier order state machine", () => {
       await createOrder(
         prisma,
         { tenantId: tenant.id, supplierId: supplier.id, tenderId: tender.id, bidId: bid.id },
+        { status: "ACCEPTED" },
+      );
+      await createOrder(
+        prisma,
+        { tenantId: tenant.id, supplierId: supplier.id, tenderId: tender.id, bidId: bid.id },
+        { status: "IN_DELIVERY" },
+      );
+      await createOrder(
+        prisma,
+        { tenantId: tenant.id, supplierId: supplier.id, tenderId: tender.id, bidId: bid.id },
         { status: "COMPLETED" },
+      );
+      await createOrder(
+        prisma,
+        { tenantId: tenant.id, supplierId: supplier.id, tenderId: tender.id, bidId: bid.id },
+        { status: "REJECTED" },
       );
 
       const stats = await service.stats(supplier.id);
-      expect(stats.total).toBe(2);
+      expect(stats.total).toBe(5);
       expect(stats.pending).toBe(1);
+      expect(stats.accepted).toBe(1);
+      expect(stats.inDelivery).toBe(1);
       expect(stats.completed).toBe(1);
+      expect(stats.rejected).toBe(1);
     });
 
     it("başka supplier siparişleri sızmaz", async () => {

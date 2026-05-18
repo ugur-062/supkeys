@@ -560,12 +560,13 @@ export interface BidDetailExpanded {
 
 export type OrderStatus =
   | "PENDING"
-  | "IN_DELIVERY"
   | "ACCEPTED"
-  | "IN_PROGRESS"
-  | "DELIVERED"
+  | "IN_DELIVERY"
   | "COMPLETED"
-  | "CANCELLED";
+  | "REJECTED"
+  | "CANCELLED"
+  | "IN_PROGRESS"
+  | "DELIVERED";
 
 export interface OrderListItem {
   id: string;
@@ -613,12 +614,13 @@ export interface OrderListResponse {
 export interface OrderStats {
   total: number;
   pending: number;
-  /** V1.5 — yeni iş akışı sayacı (PENDING → IN_DELIVERY → COMPLETED). */
+  /** 4-aşamalı akış: PENDING → ACCEPTED → IN_DELIVERY → COMPLETED. */
+  accepted: number;
   inDelivery: number;
   completed: number;
+  rejected: number;
   cancelled: number;
-  /** Legacy field'lar — V1.5'te 0; UI bunları render etmiyor. */
-  accepted?: number;
+  /** Legacy field'lar — yeni akışta üretilmiyor; eski kayıtlar için kalmıştır. */
   inProgress?: number;
   delivered?: number;
 }
@@ -716,7 +718,16 @@ export interface OrderDetail {
       email: string;
     };
   };
-  /** V1.5 — workflow event meta */
+  /** Tedarikçi onay (PENDING → ACCEPTED) */
+  acceptedAt: string | null;
+  acceptedNote: string | null;
+  bankAccountHolder: string | null;
+  bankIban: string | null;
+  invoiceDate: string | null;
+  /** Tedarikçi red (PENDING → REJECTED) */
+  rejectedAt: string | null;
+  rejectReason: string | null;
+  /** Gönderim (ACCEPTED → IN_DELIVERY) */
   deliveryStartedAt: string | null;
   deliveryStartedBy: {
     id: string;

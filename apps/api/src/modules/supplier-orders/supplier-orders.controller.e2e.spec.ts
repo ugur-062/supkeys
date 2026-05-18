@@ -172,10 +172,112 @@ describe("supplier-orders controller (E2E)", () => {
     });
   });
 
-  describe("POST /api/supplier/orders/:id/start-delivery", () => {
-    it("PENDING → 201 + IN_DELIVERY + email enqueue", async () => {
+  const futureIso = () =>
+    new Date(Date.now() + 5 * 24 * 3600 * 1000).toISOString();
+
+  describe("POST /api/supplier/orders/:id/accept", () => {
+    it("PENDING → 201 + ACCEPTED + alanlar set", async () => {
       const { token, supplierId } = await loginSupplier();
       const order = await seedSupplierOrder(supplierId, "PENDING");
+
+      const res = await request(app.getHttpServer())
+        .post(`/api/supplier/orders/${order.id}/accept`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          expectedDeliveryDate: futureIso(),
+          acceptedNote: "İki hafta içinde teslim",
+          bankAccountHolder: "Demo Ltd.",
+          bankIban: "TR000000000000000000000000",
+        })
+        .expect(201);
+      expect(res.body.status).toBe("ACCEPTED");
+      expect(res.body.acceptedAt).toBeTruthy();
+      expect(res.body.bankAccountHolder).toBe("Demo Ltd.");
+    });
+
+    it("ACCEPTED → 409 (tekrar onaylama)", async () => {
+      const { token, supplierId } = await loginSupplier();
+      const order = await seedSupplierOrder(supplierId, "ACCEPTED");
+
+      await request(app.getHttpServer())
+        .post(`/api/supplier/orders/${order.id}/accept`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ expectedDeliveryDate: futureIso() })
+        .expect(409);
+    });
+
+    it("expectedDeliveryDate eksik → 400 (DTO)", async () => {
+      const { token, supplierId } = await loginSupplier();
+      const order = await seedSupplierOrder(supplierId, "PENDING");
+
+      await request(app.getHttpServer())
+        .post(`/api/supplier/orders/${order.id}/accept`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({})
+        .expect(400);
+    });
+
+    it("başka supplier → 403", async () => {
+      const { token } = await loginSupplier();
+      const other = await createSupplier(prisma);
+      const order = await seedSupplierOrder(other.id, "PENDING");
+
+      await request(app.getHttpServer())
+        .post(`/api/supplier/orders/${order.id}/accept`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ expectedDeliveryDate: futureIso() })
+        .expect(403);
+    });
+
+    it("token yok → 401", async () => {
+      await request(app.getHttpServer())
+        .post("/api/supplier/orders/x/accept")
+        .send({ expectedDeliveryDate: futureIso() })
+        .expect(401);
+    });
+  });
+
+  describe("POST /api/supplier/orders/:id/reject", () => {
+    it("PENDING → 201 + REJECTED + reason", async () => {
+      const { token, supplierId } = await loginSupplier();
+      const order = await seedSupplierOrder(supplierId, "PENDING");
+
+      const res = await request(app.getHttpServer())
+        .post(`/api/supplier/orders/${order.id}/reject`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ reason: "Stoğumuzda yok, üretim takvimi dolu." })
+        .expect(201);
+      expect(res.body.status).toBe("REJECTED");
+      expect(res.body.rejectReason).toContain("Stoğumuzda");
+    });
+
+    it("sebep <10 char → 400 (DTO)", async () => {
+      const { token, supplierId } = await loginSupplier();
+      const order = await seedSupplierOrder(supplierId, "PENDING");
+
+      await request(app.getHttpServer())
+        .post(`/api/supplier/orders/${order.id}/reject`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ reason: "kısa" })
+        .expect(400);
+    });
+
+    it("ACCEPTED'dan reject → 409", async () => {
+      const { token, supplierId } = await loginSupplier();
+      const order = await seedSupplierOrder(supplierId, "ACCEPTED");
+
+      await request(app.getHttpServer())
+        .post(`/api/supplier/orders/${order.id}/reject`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ reason: "Geç oldu, üretim takvimi dolu" })
+        .expect(409);
+    });
+  });
+
+  describe("POST /api/supplier/orders/:id/start-delivery", () => {
+    it("ACCEPTED → 201 + IN_DELIVERY + email enqueue", async () => {
+      const { token, supplierId } = await loginSupplier();
+      const order = await seedSupplierOrder(supplierId, "ACCEPTED");
 
       const res = await request(app.getHttpServer())
         .post(`/api/supplier/orders/${order.id}/start-delivery`)
@@ -183,6 +285,17 @@ describe("supplier-orders controller (E2E)", () => {
         .send({ deliveryNote: "Kargo MNG ile gönderildi" })
         .expect(201);
       expect(res.body.status).toBe("IN_DELIVERY");
+    });
+
+    it("PENDING → 409 (önce ACCEPTED gerek)", async () => {
+      const { token, supplierId } = await loginSupplier();
+      const order = await seedSupplierOrder(supplierId, "PENDING");
+
+      await request(app.getHttpServer())
+        .post(`/api/supplier/orders/${order.id}/start-delivery`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({})
+        .expect(409);
     });
 
     it("IN_DELIVERY → 409 (tekrar başlatma)", async () => {
@@ -199,25 +312,13 @@ describe("supplier-orders controller (E2E)", () => {
     it("başka supplier sipariş → 403 (IDOR)", async () => {
       const { token } = await loginSupplier();
       const other = await createSupplier(prisma);
-      const order = await seedSupplierOrder(other.id, "PENDING");
+      const order = await seedSupplierOrder(other.id, "ACCEPTED");
 
       await request(app.getHttpServer())
         .post(`/api/supplier/orders/${order.id}/start-delivery`)
         .set("Authorization", `Bearer ${token}`)
         .send({})
         .expect(403);
-    });
-
-    it("invalid expectedDeliveryDate → 400 (DTO veya 409)", async () => {
-      const { token, supplierId } = await loginSupplier();
-      const order = await seedSupplierOrder(supplierId, "PENDING");
-
-      const res = await request(app.getHttpServer())
-        .post(`/api/supplier/orders/${order.id}/start-delivery`)
-        .set("Authorization", `Bearer ${token}`)
-        .send({ expectedDeliveryDate: "not-a-date" });
-      // DTO @IsDateString varsa 400, yoksa service 409
-      expect([400, 409]).toContain(res.status);
     });
 
     it("token yok → 401", async () => {
@@ -229,18 +330,22 @@ describe("supplier-orders controller (E2E)", () => {
   });
 
   describe("GET /api/supplier/orders/stats", () => {
-    it("supplier scope stats", async () => {
+    it("supplier scope stats — yeni alanlar (accepted, rejected)", async () => {
       const { token, supplierId } = await loginSupplier();
       await seedSupplierOrder(supplierId, "PENDING");
+      await seedSupplierOrder(supplierId, "ACCEPTED");
       await seedSupplierOrder(supplierId, "COMPLETED");
+      await seedSupplierOrder(supplierId, "REJECTED");
 
       const res = await request(app.getHttpServer())
         .get("/api/supplier/orders/stats")
         .set("Authorization", `Bearer ${token}`)
         .expect(200);
-      expect(res.body.total).toBe(2);
+      expect(res.body.total).toBe(4);
       expect(res.body.pending).toBe(1);
+      expect(res.body.accepted).toBe(1);
       expect(res.body.completed).toBe(1);
+      expect(res.body.rejected).toBe(1);
     });
   });
 });

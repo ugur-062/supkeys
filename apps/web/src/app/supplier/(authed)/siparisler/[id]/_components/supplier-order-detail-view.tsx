@@ -3,13 +3,17 @@
 import { AttachmentList } from "@/components/attachments/attachment-list";
 import { AttachmentUpload } from "@/components/attachments/attachment-upload";
 import { MessageThread } from "@/components/messaging/message-thread";
+import { AcceptOrderModal } from "@/components/orders/accept-order-modal";
 import { OrderTimeline } from "@/components/orders/order-timeline";
+import { RejectOrderModal } from "@/components/orders/reject-order-modal";
 import { StartDeliveryModal } from "@/components/orders/start-delivery-modal";
 import { PanelCard } from "@/components/supplier/panel-card";
 import { SupplierOrderStatusBadge } from "@/components/supplier/status-badges";
 import { Button } from "@/components/ui/button";
 import {
+  useAcceptOrder,
   useDownloadSupplierOrderPdf,
+  useRejectOrder,
   useStartDelivery,
   useSupplierOrderDetail,
 } from "@/hooks/use-supplier-orders";
@@ -34,6 +38,7 @@ import {
   MessageCircle,
   Package,
   Paperclip,
+  ThumbsUp,
   Truck,
   XCircle,
 } from "lucide-react";
@@ -307,26 +312,103 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
 }
 
 function SupplierOrderActions({ order }: { order: OrderDetail }) {
+  const [acceptOpen, setAcceptOpen] = useState(false);
+  const [rejectOpen, setRejectOpen] = useState(false);
   const [deliveryOpen, setDeliveryOpen] = useState(false);
+
+  const acceptOrder = useAcceptOrder();
+  const rejectOrder = useRejectOrder();
   const startDelivery = useStartDelivery();
 
   if (order.status === "PENDING") {
     return (
       <>
-        <PanelCard padding="md" className="border-blue-200 bg-blue-50/40">
+        <PanelCard padding="md" className="border-brand-200 bg-brand-50/40">
           <div className="flex items-start gap-2 mb-3">
-            <Truck className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-blue-900 leading-relaxed">
-              Teslimatı başlatın — kargo veya üretim bilgisini ekleyin.
+            <ThumbsUp className="h-4 w-4 text-brand-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-brand-900 leading-relaxed">
+              Siparişi inceleyin: onaylamak için tahmini teslim tarihi ve
+              ödeme bilgilerinizi girin, veya gerekiyorsa reddedin.
             </p>
           </div>
           <Button
             variant="primary"
-            className="w-full !bg-blue-600 hover:!bg-blue-700 focus:!ring-blue-500"
+            className="w-full !bg-brand-600 hover:!bg-brand-700 focus:!ring-brand-500 mb-2"
+            onClick={() => setAcceptOpen(true)}
+          >
+            <ThumbsUp className="w-4 h-4" />
+            Siparişi Onayla
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full !text-orange-700 hover:!bg-orange-50"
+            onClick={() => setRejectOpen(true)}
+          >
+            <XCircle className="w-4 h-4" />
+            Reddet
+          </Button>
+        </PanelCard>
+
+        <AcceptOrderModal
+          open={acceptOpen}
+          onClose={() => setAcceptOpen(false)}
+          loading={acceptOrder.isPending}
+          orderNumber={order.orderNumber}
+          onConfirm={(input) =>
+            acceptOrder.mutate(
+              { id: order.id, ...input },
+              {
+                onSuccess: () => {
+                  toast.success("Sipariş onaylandı");
+                  setAcceptOpen(false);
+                },
+                onError: (err) =>
+                  toast.error(getErrorMessage(err, "Onaylanamadı")),
+              },
+            )
+          }
+        />
+
+        <RejectOrderModal
+          open={rejectOpen}
+          onClose={() => setRejectOpen(false)}
+          loading={rejectOrder.isPending}
+          orderNumber={order.orderNumber}
+          onConfirm={(reason) =>
+            rejectOrder.mutate(
+              { id: order.id, reason },
+              {
+                onSuccess: () => {
+                  toast.success("Sipariş reddedildi");
+                  setRejectOpen(false);
+                },
+                onError: (err) =>
+                  toast.error(getErrorMessage(err, "Reddedilemedi")),
+              },
+            )
+          }
+        />
+      </>
+    );
+  }
+
+  if (order.status === "ACCEPTED") {
+    return (
+      <>
+        <PanelCard padding="md" className="border-indigo-200 bg-indigo-50/40">
+          <div className="flex items-start gap-2 mb-3">
+            <Truck className="h-4 w-4 text-indigo-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-indigo-900 leading-relaxed">
+              Hazırlık tamamlandığında sipariş gönderildi olarak işaretleyin.
+            </p>
+          </div>
+          <Button
+            variant="primary"
+            className="w-full !bg-indigo-600 hover:!bg-indigo-700 focus:!ring-indigo-500"
             onClick={() => setDeliveryOpen(true)}
           >
             <Truck className="w-4 h-4" />
-            Teslimatı Başlat
+            Siparişi Gönder
           </Button>
         </PanelCard>
 
@@ -335,16 +417,17 @@ function SupplierOrderActions({ order }: { order: OrderDetail }) {
           onClose={() => setDeliveryOpen(false)}
           loading={startDelivery.isPending}
           orderNumber={order.orderNumber}
+          expectedDeliveryDate={order.expectedDeliveryDate}
           onConfirm={(input) =>
             startDelivery.mutate(
               { id: order.id, ...input },
               {
                 onSuccess: () => {
-                  toast.success("Teslimat başlatıldı");
+                  toast.success("Sipariş gönderildi");
                   setDeliveryOpen(false);
                 },
                 onError: (err) =>
-                  toast.error(getErrorMessage(err, "Başlatılamadı")),
+                  toast.error(getErrorMessage(err, "Gönderilemedi")),
               },
             )
           }
@@ -374,6 +457,26 @@ function SupplierOrderActions({ order }: { order: OrderDetail }) {
           <p className="text-xs text-emerald-900 leading-relaxed font-medium">
             Sipariş alıcı tarafından teslim alındı, tamamlandı.
           </p>
+        </div>
+      </PanelCard>
+    );
+  }
+
+  if (order.status === "REJECTED") {
+    return (
+      <PanelCard padding="md" className="border-orange-200 bg-orange-50/40">
+        <div className="flex items-start gap-2">
+          <XCircle className="h-4 w-4 text-orange-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs text-orange-900 font-semibold">
+              Siparişi reddettiniz.
+            </p>
+            {order.rejectReason ? (
+              <p className="text-[11px] text-orange-700 mt-1.5 whitespace-pre-wrap">
+                <strong>Sebep:</strong> {order.rejectReason}
+              </p>
+            ) : null}
+          </div>
         </div>
       </PanelCard>
     );

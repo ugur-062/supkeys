@@ -15,7 +15,9 @@ import {
   type AuthenticatedSupplierUser,
 } from "../../supplier-auth/decorators/current-supplier-user.decorator";
 import { SupplierJwtAuthGuard } from "../../supplier-auth/guards/supplier-jwt-auth.guard";
+import { AcceptOrderDto } from "../dto/accept-order.dto";
 import { ListOrdersDto } from "../dto/list-orders.dto";
+import { RejectOrderDto } from "../dto/reject-order.dto";
 import { StartDeliveryDto } from "../dto/start-delivery.dto";
 import { SupplierOrdersService } from "../services/supplier-orders.service";
 
@@ -48,6 +50,34 @@ export class SupplierOrdersController {
     @CurrentSupplierUser() user: AuthenticatedSupplierUser,
   ): Promise<unknown> {
     return this.service.findOne(user.supplierId, id);
+  }
+
+  @Post(":id/accept")
+  acceptOrder(
+    @Param("id") id: string,
+    @Body() dto: AcceptOrderDto,
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+  ): Promise<unknown> {
+    return this.service.acceptOrder(
+      user.supplierId,
+      id,
+      user.supplierUserId,
+      dto,
+    );
+  }
+
+  @Post(":id/reject")
+  rejectOrder(
+    @Param("id") id: string,
+    @Body() dto: RejectOrderDto,
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+  ): Promise<unknown> {
+    return this.service.rejectOrder(
+      user.supplierId,
+      id,
+      user.supplierUserId,
+      dto,
+    );
   }
 
   @Post(":id/start-delivery")

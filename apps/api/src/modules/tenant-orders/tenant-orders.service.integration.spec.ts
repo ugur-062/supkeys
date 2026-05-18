@@ -171,7 +171,7 @@ describe("TenantOrdersService — buyer order state machine", () => {
     });
   });
 
-  describe("cancelOrder — PENDING|IN_DELIVERY → CANCELLED", () => {
+  describe("cancelOrder — PENDING|ACCEPTED|IN_DELIVERY → CANCELLED", () => {
     it("PENDING → CANCELLED (sebep dolu)", async () => {
       const { tenant, user, order } = await setupOrder(prisma, "PENDING");
 
@@ -187,12 +187,29 @@ describe("TenantOrdersService — buyer order state machine", () => {
       expect(emailMock.enqueue).toHaveBeenCalled();
     });
 
+    it("ACCEPTED → CANCELLED", async () => {
+      const { tenant, user, order } = await setupOrder(prisma, "ACCEPTED");
+      const updated = await service.cancelOrder(tenant.id, order.id, user.id, {
+        reason: "İhtiyaç ortadan kalktı, iptal ediyoruz",
+      });
+      expect(updated.status).toBe("CANCELLED");
+    });
+
     it("IN_DELIVERY → CANCELLED", async () => {
       const { tenant, user, order } = await setupOrder(prisma, "IN_DELIVERY");
       const updated = await service.cancelOrder(tenant.id, order.id, user.id, {
         reason: "Teslimat sırasında ürün hasarlı geldi",
       });
       expect(updated.status).toBe("CANCELLED");
+    });
+
+    it("REJECTED → 409 (zaten reddedildi)", async () => {
+      const { tenant, user, order } = await setupOrder(prisma, "REJECTED");
+      await expect(
+        service.cancelOrder(tenant.id, order.id, user.id, {
+          reason: "Reddedileni iptal etmeye çalışma",
+        }),
+      ).rejects.toThrow(ConflictException);
     });
 
     it("COMPLETED → 409 (final state)", async () => {
@@ -361,14 +378,21 @@ describe("TenantOrdersService — buyer order state machine", () => {
       expect(stats).toEqual({
         total: 0,
         pending: 0,
+        accepted: 0,
         inDelivery: 0,
         completed: 0,
+        rejected: 0,
         cancelled: 0,
       });
     });
 
-    it("karışık siparişler doğru sayılır", async () => {
+    it("karışık siparişler doğru sayılır (PENDING/ACCEPTED/IN_DELIVERY/COMPLETED/REJECTED)", async () => {
       const { tenant, supplier, tender, bid } = await setupOrder(prisma, "PENDING");
+      await createOrder(
+        prisma,
+        { tenantId: tenant.id, supplierId: supplier.id, tenderId: tender.id, bidId: bid.id },
+        { status: "ACCEPTED" },
+      );
       await createOrder(
         prisma,
         { tenantId: tenant.id, supplierId: supplier.id, tenderId: tender.id, bidId: bid.id },
@@ -382,15 +406,17 @@ describe("TenantOrdersService — buyer order state machine", () => {
       await createOrder(
         prisma,
         { tenantId: tenant.id, supplierId: supplier.id, tenderId: tender.id, bidId: bid.id },
-        { status: "COMPLETED" },
+        { status: "REJECTED" },
       );
 
       const stats = await service.stats(tenant.id);
       expect(stats).toEqual({
-        total: 4,
+        total: 5,
         pending: 1,
+        accepted: 1,
         inDelivery: 1,
-        completed: 2,
+        completed: 1,
+        rejected: 1,
         cancelled: 0,
       });
     });

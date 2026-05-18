@@ -92,22 +92,66 @@ export function useDownloadSupplierOrderPdf() {
   });
 }
 
-// V1.5 — Tedarikçi PENDING → IN_DELIVERY mutation
+// Tedarikçi PENDING → ACCEPTED mutation
 
-export function useStartDelivery() {
+export function useAcceptOrder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
       id: string;
-      deliveryNote?: string;
-      expectedDeliveryDate?: string;
+      expectedDeliveryDate: string;
+      acceptedNote?: string;
+      bankAccountHolder?: string;
+      bankIban?: string;
+      invoiceDate?: string;
     }) => {
       const { data } = await supplierApi.post<OrderDetail>(
-        `/supplier/orders/${input.id}/start-delivery`,
+        `/supplier/orders/${input.id}/accept`,
         {
-          deliveryNote: input.deliveryNote,
           expectedDeliveryDate: input.expectedDeliveryDate,
+          acceptedNote: input.acceptedNote,
+          bankAccountHolder: input.bankAccountHolder,
+          bankIban: input.bankIban,
+          invoiceDate: input.invoiceDate,
         },
+      );
+      return data;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      qc.invalidateQueries({ queryKey: KEYS.detail(vars.id) });
+    },
+  });
+}
+
+// Tedarikçi PENDING → REJECTED mutation
+
+export function useRejectOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; reason: string }) => {
+      const { data } = await supplierApi.post<OrderDetail>(
+        `/supplier/orders/${input.id}/reject`,
+        { reason: input.reason },
+      );
+      return data;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      qc.invalidateQueries({ queryKey: KEYS.detail(vars.id) });
+    },
+  });
+}
+
+// Tedarikçi ACCEPTED → IN_DELIVERY mutation
+
+export function useStartDelivery() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; deliveryNote?: string }) => {
+      const { data } = await supplierApi.post<OrderDetail>(
+        `/supplier/orders/${input.id}/start-delivery`,
+        { deliveryNote: input.deliveryNote },
       );
       return data;
     },

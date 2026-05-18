@@ -30,6 +30,30 @@ interface StatusContent {
 }
 
 const STATUS_CONTENT: Record<OrderStatusChange, StatusContent> = {
+  ACCEPTED: {
+    emoji: "👍",
+    bg: "#eff6ff",
+    border: "#bfdbfe",
+    textColor: "#1e3a8a",
+    headingForSupplier: "Siparişi onayladınız",
+    headingForBuyer: "Tedarikçi siparişi onayladı",
+    bodyForSupplier:
+      "Sipariş onayınız ve teslim tarihi bilgileriniz alıcıya iletildi.",
+    bodyForBuyer:
+      "Tedarikçi siparişi onayladı; tahmini teslim tarihi ve ödeme bilgileri panele eklendi.",
+  },
+  REJECTED: {
+    emoji: "🚫",
+    bg: "#fff7ed",
+    border: "#fed7aa",
+    textColor: "#7c2d12",
+    headingForSupplier: "Siparişi reddettiniz",
+    headingForBuyer: "Tedarikçi siparişi reddetti",
+    bodyForSupplier:
+      "Sipariş reddiniz alıcıya iletildi. Gerekirse alıcıyla iletişime geçebilirsiniz.",
+    bodyForBuyer:
+      "Tedarikçi siparişi reddetti. Detayları aşağıdaki sebepte bulabilirsiniz.",
+  },
   IN_DELIVERY: {
     emoji: "🚚",
     bg: "#eff6ff",
@@ -150,11 +174,15 @@ export function makeOrderStatusChangedSubject(
 ): string {
   const c = STATUS_CONTENT[newStatus];
   const verb =
-    newStatus === "IN_DELIVERY"
-      ? "Sipariş teslimat sürecinde"
-      : newStatus === "COMPLETED"
-        ? "Sipariş tamamlandı"
-        : "Sipariş iptal edildi";
+    newStatus === "ACCEPTED"
+      ? "Sipariş onaylandı"
+      : newStatus === "REJECTED"
+        ? "Sipariş reddedildi"
+        : newStatus === "IN_DELIVERY"
+          ? "Sipariş teslimat sürecinde"
+          : newStatus === "COMPLETED"
+            ? "Sipariş tamamlandı"
+            : "Sipariş iptal edildi";
   return `${c.emoji} ${verb}: ${tenderTitle}`;
 }
 
@@ -169,9 +197,17 @@ export function OrderStatusChangedEmail(props: OrderStatusChangedData) {
   const noteLabelText =
     props.newStatus === "CANCELLED"
       ? "İptal Sebebi"
-      : props.newStatus === "IN_DELIVERY"
-        ? "Tedarikçi Notu"
-        : "Alıcı Notu";
+      : props.newStatus === "REJECTED"
+        ? "Red Sebebi"
+        : props.newStatus === "ACCEPTED"
+          ? "Tedarikçi Notu"
+          : props.newStatus === "IN_DELIVERY"
+            ? "Tedarikçi Notu"
+            : "Alıcı Notu";
+
+  const showExpected =
+    (props.newStatus === "ACCEPTED" || props.newStatus === "IN_DELIVERY") &&
+    !!expectedFmt;
 
   return (
     <Layout preview={`${heading} — ${props.tenderTitle}`}>
@@ -196,7 +232,7 @@ export function OrderStatusChangedEmail(props: OrderStatusChangedData) {
         </Section>
       ) : null}
 
-      {props.newStatus === "IN_DELIVERY" && expectedFmt ? (
+      {showExpected ? (
         <Text style={paragraph}>
           <strong>Tahmini Teslim Tarihi:</strong> {expectedFmt}
         </Text>
@@ -219,9 +255,13 @@ export function renderOrderStatusChangedText(
   const noteLabelText =
     props.newStatus === "CANCELLED"
       ? "İptal Sebebi"
-      : props.newStatus === "IN_DELIVERY"
-        ? "Tedarikçi Notu"
-        : "Alıcı Notu";
+      : props.newStatus === "REJECTED"
+        ? "Red Sebebi"
+        : props.newStatus === "ACCEPTED"
+          ? "Tedarikçi Notu"
+          : props.newStatus === "IN_DELIVERY"
+            ? "Tedarikçi Notu"
+            : "Alıcı Notu";
 
   const lines = [
     `${c.emoji} ${heading}`,
@@ -235,7 +275,10 @@ export function renderOrderStatusChangedText(
   if (props.note) {
     lines.push("", `${noteLabelText}:`, props.note);
   }
-  if (props.newStatus === "IN_DELIVERY" && expectedFmt) {
+  if (
+    (props.newStatus === "ACCEPTED" || props.newStatus === "IN_DELIVERY") &&
+    expectedFmt
+  ) {
     lines.push("", `Tahmini Teslim Tarihi: ${expectedFmt}`);
   }
   lines.push(

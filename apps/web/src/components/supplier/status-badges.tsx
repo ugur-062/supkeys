@@ -60,35 +60,40 @@ const ORDER_STATUS_META: Record<
   { label: string; className: string; dot: string }
 > = {
   PENDING: {
+    label: "Onay Bekliyor",
+    className: "bg-amber-50 text-amber-700 border-amber-200",
+    dot: "bg-amber-500",
+  },
+  ACCEPTED: {
     label: "Onaylandı",
     className: "bg-blue-50 text-blue-700 border-blue-200",
     dot: "bg-blue-500",
   },
   IN_DELIVERY: {
-    label: "Teslimat Sürüyor",
-    className: "bg-amber-50 text-amber-700 border-amber-200",
-    dot: "bg-amber-500",
+    label: "Gönderildi",
+    className: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    dot: "bg-indigo-500",
   },
   COMPLETED: {
     label: "Tamamlandı",
     className: "bg-emerald-50 text-emerald-700 border-emerald-200",
     dot: "bg-emerald-500",
   },
+  REJECTED: {
+    label: "Reddedildi",
+    className: "bg-orange-50 text-orange-700 border-orange-200",
+    dot: "bg-orange-500",
+  },
   CANCELLED: {
     label: "İptal Edildi",
     className: "bg-rose-50 text-rose-700 border-rose-200",
     dot: "bg-rose-500",
   },
-  // Legacy support
-  ACCEPTED: {
-    label: "Onaylandı",
-    className: "bg-blue-50 text-blue-700 border-blue-200",
-    dot: "bg-blue-500",
-  },
+  // Legacy support — eski kayıtlar için fallback
   IN_PROGRESS: {
-    label: "Teslimat Sürüyor",
-    className: "bg-amber-50 text-amber-700 border-amber-200",
-    dot: "bg-amber-500",
+    label: "Üretimde",
+    className: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    dot: "bg-indigo-500",
   },
   DELIVERED: {
     label: "Tamamlandı",

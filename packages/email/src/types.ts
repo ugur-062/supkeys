@@ -469,12 +469,19 @@ export interface MessageNotificationData {
 }
 
 /**
- * V1.5 Oturum 1 — Sipariş status değişimlerinde karşı tarafa gider.
- * - PENDING → IN_DELIVERY: tedarikçi başlattı, alıcıya bildirim
+ * Sipariş statü değişimlerinde karşı tarafa gider.
+ * - PENDING → ACCEPTED: tedarikçi onayladı, alıcıya bildirim
+ * - PENDING → REJECTED: tedarikçi reddetti, alıcıya bildirim
+ * - ACCEPTED → IN_DELIVERY: tedarikçi gönderim başlattı, alıcıya bildirim
  * - IN_DELIVERY → COMPLETED: alıcı teslim aldı, tedarikçiye bildirim
- * - PENDING/IN_DELIVERY → CANCELLED: alıcı iptal etti, tedarikçiye bildirim
+ * - PENDING/ACCEPTED/IN_DELIVERY → CANCELLED: alıcı iptal, tedarikçiye bildirim
  */
-export type OrderStatusChange = "IN_DELIVERY" | "COMPLETED" | "CANCELLED";
+export type OrderStatusChange =
+  | "ACCEPTED"
+  | "REJECTED"
+  | "IN_DELIVERY"
+  | "COMPLETED"
+  | "CANCELLED";
 
 export interface OrderStatusChangedData {
   recipientName: string;
@@ -485,10 +492,10 @@ export interface OrderStatusChangedData {
   tenderTitle: string;
   newStatus: OrderStatusChange;
   /** Eski statü — sadece info amaçlı (UI'da render edilebilir) */
-  oldStatus: "PENDING" | "IN_DELIVERY";
-  /** Tedarikçi notu (kargo) veya alıcı notu (teslim) veya iptal sebebi */
+  oldStatus: "PENDING" | "ACCEPTED" | "IN_DELIVERY";
+  /** Onay notu, red sebebi, kargo notu, teslim notu veya iptal sebebi */
   note?: string | null;
-  /** ISO date — IN_DELIVERY'de tedarikçinin verdiği tahmini teslim */
+  /** ISO date — ACCEPT veya IN_DELIVERY anında tedarikçinin verdiği tahmini teslim */
   expectedDeliveryDate?: string | null;
   /** Karşı taraftaki sipariş detay URL'i (alıcı veya tedarikçi paneli) */
   orderUrl: string;

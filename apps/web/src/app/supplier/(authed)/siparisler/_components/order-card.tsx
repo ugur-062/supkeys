@@ -13,25 +13,29 @@ interface Props {
 }
 
 const STAGE_LABELS: Array<{ key: string; label: string }> = [
-  { key: "approved", label: "Onaylandı" },
-  { key: "delivery", label: "Teslimat" },
+  { key: "created", label: "Oluşturuldu" },
+  { key: "accepted", label: "Onaylandı" },
+  { key: "delivery", label: "Gönderildi" },
   { key: "completed", label: "Tamamlandı" },
 ];
 
 function getStageState(status: string) {
-  // Stage indices: 0=approved, 1=delivery, 2=completed
+  // Stage indices: 0=created, 1=accepted, 2=delivery, 3=completed
   if (status === "PENDING") return { active: 0, lastDone: 0 };
-  if (status === "IN_DELIVERY" || status === "ACCEPTED" || status === "IN_PROGRESS")
-    return { active: 1, lastDone: 1 };
-  if (status === "COMPLETED" || status === "DELIVERED")
+  if (status === "ACCEPTED") return { active: 1, lastDone: 1 };
+  if (status === "IN_DELIVERY" || status === "IN_PROGRESS")
     return { active: 2, lastDone: 2 };
-  if (status === "CANCELLED") return { active: -1, lastDone: 0 };
+  if (status === "COMPLETED" || status === "DELIVERED")
+    return { active: 3, lastDone: 3 };
+  if (status === "REJECTED" || status === "CANCELLED")
+    return { active: -1, lastDone: 0 };
   return { active: 0, lastDone: 0 };
 }
 
 export function OrderCard({ order }: Props) {
   const { active, lastDone } = getStageState(order.status);
-  const isCancelled = order.status === "CANCELLED";
+  const isTerminated =
+    order.status === "CANCELLED" || order.status === "REJECTED";
 
   return (
     <Link
@@ -63,8 +67,8 @@ export function OrderCard({ order }: Props) {
           </p>
         </div>
 
-        {/* Horizontal timeline preview (3 stage) */}
-        {!isCancelled ? (
+        {/* Horizontal timeline preview (4 stage) */}
+        {!isTerminated ? (
           <div className="flex items-center gap-1 mb-3">
             {STAGE_LABELS.map((stage, idx) => {
               const isDone = idx <= lastDone;
@@ -108,12 +112,13 @@ export function OrderCard({ order }: Props) {
         {/* Footer durum mesajı */}
         <div className="text-xs text-slate-500 flex items-center justify-between">
           <span>
-            {order.status === "PENDING" && "Teslimata başlanmadı"}
-            {order.status === "IN_DELIVERY" && "Teslimat sürecinde"}
+            {order.status === "PENDING" && "Onayınız bekleniyor"}
+            {order.status === "ACCEPTED" && "Gönderim hazırlığında"}
+            {order.status === "IN_DELIVERY" && "Gönderildi"}
             {order.status === "COMPLETED" && "Sipariş tamamlandı"}
+            {order.status === "REJECTED" && "Sipariş reddedildi"}
             {order.status === "CANCELLED" && "Sipariş iptal edildi"}
-            {(order.status === "ACCEPTED" || order.status === "IN_PROGRESS") &&
-              "Teslimat sürecinde"}
+            {order.status === "IN_PROGRESS" && "Üretimde"}
             {order.status === "DELIVERED" && "Teslim edildi"}
           </span>
           <span className="flex items-center gap-1">

@@ -215,15 +215,28 @@ export class TenantOrdersService {
   }
 
   async stats(tenantId: string) {
-    const [total, pending, inDelivery, completed, cancelled] = await Promise.all([
-      this.prisma.order.count({ where: { tenantId } }),
-      this.prisma.order.count({ where: { tenantId, status: "PENDING" } }),
-      this.prisma.order.count({ where: { tenantId, status: "IN_DELIVERY" } }),
-      this.prisma.order.count({ where: { tenantId, status: "COMPLETED" } }),
-      this.prisma.order.count({ where: { tenantId, status: "CANCELLED" } }),
-    ]);
+    const [total, pending, accepted, inDelivery, completed, rejected, cancelled] =
+      await Promise.all([
+        this.prisma.order.count({ where: { tenantId } }),
+        this.prisma.order.count({ where: { tenantId, status: "PENDING" } }),
+        this.prisma.order.count({ where: { tenantId, status: "ACCEPTED" } }),
+        this.prisma.order.count({
+          where: { tenantId, status: "IN_DELIVERY" },
+        }),
+        this.prisma.order.count({ where: { tenantId, status: "COMPLETED" } }),
+        this.prisma.order.count({ where: { tenantId, status: "REJECTED" } }),
+        this.prisma.order.count({ where: { tenantId, status: "CANCELLED" } }),
+      ]);
 
-    return { total, pending, inDelivery, completed, cancelled };
+    return {
+      total,
+      pending,
+      accepted,
+      inDelivery,
+      completed,
+      rejected,
+      cancelled,
+    };
   }
 
   async findOne(tenantId: string, orderId: string) {
@@ -315,14 +328,13 @@ export class TenantOrdersService {
       if (!order) throw new NotFoundException("Sipariş bulunamadı");
       if (order.tenantId !== tenantId)
         throw new ForbiddenException("Bu siparişe erişim yetkiniz yok");
-      if (order.status === "COMPLETED" || order.status === "CANCELLED") {
+      if (
+        order.status !== "PENDING" &&
+        order.status !== "ACCEPTED" &&
+        order.status !== "IN_DELIVERY"
+      ) {
         throw new ConflictException(
           `${order.status} durumundaki sipariş iptal edilemez`,
-        );
-      }
-      if (order.status !== "PENDING" && order.status !== "IN_DELIVERY") {
-        throw new ConflictException(
-          `Bu sipariş durumunda iptal işlemi yapılamaz: ${order.status}`,
         );
       }
 
@@ -375,14 +387,16 @@ export class TenantOrdersService {
     const note =
       newStatus === "COMPLETED" ? order.completedNote : order.cancelReason;
 
-    // Eski statü için: COMPLETED'a geçişte daima IN_DELIVERY'den geliyoruz.
-    // CANCELLED'a geçişte deliveryStartedAt varsa IN_DELIVERY, yoksa PENDING'di.
-    const previous: "PENDING" | "IN_DELIVERY" =
+    // Eski statü: COMPLETED'a daima IN_DELIVERY'den; CANCELLED'a
+    // önce gönderildiyse IN_DELIVERY, onaylandıysa ACCEPTED, aksi PENDING.
+    const previous: "PENDING" | "ACCEPTED" | "IN_DELIVERY" =
       newStatus === "COMPLETED"
         ? "IN_DELIVERY"
         : order.deliveryStartedAt
           ? "IN_DELIVERY"
-          : "PENDING";
+          : order.acceptedAt
+            ? "ACCEPTED"
+            : "PENDING";
 
     await this.emailQueue.enqueue({
       to: {

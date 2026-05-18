@@ -280,6 +280,18 @@ describe("tenant-orders controller (E2E)", () => {
       expect(res.body.errors).toHaveProperty("reason");
     });
 
+    it("BUYER + ACCEPTED + reason → 201", async () => {
+      const { token, tenantId, userId } = await loginAs("BUYER");
+      const order = await seedOrder(tenantId, userId, "ACCEPTED");
+
+      const res = await request(app.getHttpServer())
+        .post(`/api/tenants/me/orders/${order.id}/cancel`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ reason: "İhtiyaç değişti, iptal ediyoruz" })
+        .expect(201);
+      expect(res.body.status).toBe("CANCELLED");
+    });
+
     it("COMPLETED state'ten cancel → 409", async () => {
       const { token, tenantId, userId } = await loginAs("BUYER");
       const order = await seedOrder(tenantId, userId, "COMPLETED");
@@ -290,23 +302,38 @@ describe("tenant-orders controller (E2E)", () => {
         .send({ reason: "Geç iptal denemesi (10+ char)" })
         .expect(409);
     });
+
+    it("REJECTED state'ten cancel → 409", async () => {
+      const { token, tenantId, userId } = await loginAs("BUYER");
+      const order = await seedOrder(tenantId, userId, "REJECTED");
+
+      await request(app.getHttpServer())
+        .post(`/api/tenants/me/orders/${order.id}/cancel`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ reason: "Reddedildikten sonra iptal denemesi" })
+        .expect(409);
+    });
   });
 
   describe("GET /api/tenants/me/orders/stats", () => {
-    it("BUYER → 200 + stats shape", async () => {
+    it("BUYER → 200 + stats shape (accepted/rejected dahil)", async () => {
       const { token, tenantId, userId } = await loginAs("BUYER");
       await seedOrder(tenantId, userId, "PENDING");
+      await seedOrder(tenantId, userId, "ACCEPTED");
       await seedOrder(tenantId, userId, "COMPLETED");
+      await seedOrder(tenantId, userId, "REJECTED");
 
       const res = await request(app.getHttpServer())
         .get("/api/tenants/me/orders/stats")
         .set("Authorization", `Bearer ${token}`)
         .expect(200);
       expect(res.body).toEqual({
-        total: 2,
+        total: 4,
         pending: 1,
+        accepted: 1,
         inDelivery: 0,
         completed: 1,
+        rejected: 1,
         cancelled: 0,
       });
     });

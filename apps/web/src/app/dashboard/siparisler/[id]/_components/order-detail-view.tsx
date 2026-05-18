@@ -158,15 +158,20 @@ function TenantOrderActions({ order }: { order: OrderDetail }) {
   const cancelMutation = useCancelOrder();
 
   const isCancellable =
-    order.status === "PENDING" || order.status === "IN_DELIVERY";
+    order.status === "PENDING" ||
+    order.status === "ACCEPTED" ||
+    order.status === "IN_DELIVERY";
 
-  // PENDING'de alıcı tarafında sadece bilgi gösterilir + iptal butonu;
-  // IN_DELIVERY'de "Teslim Aldım" + iptal butonu;
-  // COMPLETED veya CANCELLED'da aksiyon yok (banner yeterli).
+  // PENDING'de alıcı sadece bekler + iptal edebilir;
+  // ACCEPTED'de tedarikçinin gönderim başlatması beklenir + iptal edilebilir;
+  // IN_DELIVERY'de "Teslim Aldım" + iptal;
+  // COMPLETED / CANCELLED / REJECTED'da aksiyon yok (banner yeterli).
   if (
     order.status !== "PENDING" &&
+    order.status !== "ACCEPTED" &&
     order.status !== "IN_DELIVERY" &&
     order.status !== "COMPLETED" &&
+    order.status !== "REJECTED" &&
     order.status !== "CANCELLED"
   ) {
     return null;
@@ -178,15 +183,20 @@ function TenantOrderActions({ order }: { order: OrderDetail }) {
         {order.status === "PENDING" ? (
           <div className="flex items-center gap-2 text-sm text-slate-600 min-w-0">
             <Clock className="h-4 w-4 text-warning-500 flex-shrink-0" />
-            <span>Tedarikçinin teslimat başlatması bekleniyor.</span>
+            <span>Tedarikçinin onaylaması bekleniyor.</span>
+          </div>
+        ) : null}
+        {order.status === "ACCEPTED" ? (
+          <div className="flex items-center gap-2 text-sm text-slate-600 min-w-0">
+            <Clock className="h-4 w-4 text-brand-500 flex-shrink-0" />
+            <span>Tedarikçi onayladı — gönderim bekleniyor.</span>
           </div>
         ) : null}
         {order.status === "IN_DELIVERY" ? (
           <div className="flex items-center gap-2 text-sm text-slate-600 min-w-0">
-            <Clock className="h-4 w-4 text-blue-500 flex-shrink-0" />
+            <Clock className="h-4 w-4 text-indigo-500 flex-shrink-0" />
             <span>
-              Teslimat sürecinde — kalemler ulaştığında "Teslim Aldım"a
-              basın.
+              Gönderildi — kalemler ulaştığında &quot;Teslim Aldım&quot;a basın.
             </span>
           </div>
         ) : null}
@@ -194,6 +204,19 @@ function TenantOrderActions({ order }: { order: OrderDetail }) {
           <div className="flex items-center gap-2 text-sm text-success-700 min-w-0">
             <CheckCircle2 className="h-4 w-4 text-success-600 flex-shrink-0" />
             <span>Sipariş tamamlandı.</span>
+          </div>
+        ) : null}
+        {order.status === "REJECTED" ? (
+          <div className="flex items-start gap-2 text-sm text-orange-700 min-w-0">
+            <XCircle className="h-4 w-4 text-orange-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium">Tedarikçi siparişi reddetti.</p>
+              {order.rejectReason ? (
+                <p className="text-xs text-orange-600 mt-0.5 whitespace-pre-wrap">
+                  Sebep: {order.rejectReason}
+                </p>
+              ) : null}
+            </div>
           </div>
         ) : null}
         {order.status === "CANCELLED" ? (

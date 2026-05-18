@@ -727,13 +727,14 @@ enum BidStatus {
 }
 
 enum OrderStatus {
-  PENDING        // Sipariş açıldı, henüz teslimat başlamadı
-  IN_DELIVERY    // V1.5 — tedarikçi teslimat sürecinde (kargo, üretim vs)
-  ACCEPTED       // (legacy, V1'de hiç kullanılmadı; reserved future use)
-  IN_PROGRESS    // (legacy)
-  DELIVERED      // (legacy)
+  PENDING        // Sipariş açıldı, tedarikçi onayı bekleniyor
+  ACCEPTED       // Tedarikçi siparişi onayladı + bilgileri (teslim tarihi, banka, fatura) girdi
+  IN_DELIVERY    // Tedarikçi gönderim başlattı
   COMPLETED      // Alıcı teslim aldı
+  REJECTED       // Tedarikçi siparişi reddetti (sebep ile)
   CANCELLED      // Alıcı iptal etti (sebep ile)
+  IN_PROGRESS    // (legacy, kullanılmıyor — eski kayıtlar için)
+  DELIVERED      // (legacy, kullanılmıyor — eski kayıtlar için)
 }
 
 model Tender {
@@ -961,7 +962,20 @@ model Order {
 
   notes               String?
 
-  // V1.5 — sipariş workflow alanları
+  // Tedarikçi onay aşaması (PENDING → ACCEPTED). Onay anında tahmini teslim
+  // tarihi, banka/fatura bilgileri ve isteğe bağlı not girer.
+  acceptedAt          DateTime?
+  acceptedNote        String?         @db.Text
+  bankAccountHolder   String?
+  bankIban            String?
+  invoiceDate         DateTime?
+
+  // Tedarikçi red aşaması (PENDING → REJECTED). Sebep zorunlu.
+  rejectedAt          DateTime?
+  rejectReason        String?         @db.Text
+
+  // Gönderim aşaması (ACCEPTED → IN_DELIVERY). expectedDeliveryDate ACCEPT
+  // adımında girilir; bu blokta tedarikçinin gönderim notu kalır.
   deliveryStartedAt   DateTime?
   deliveryStartedById String?
   deliveryStartedBy   User?           @relation("OrderDeliveryStarted", fields: [deliveryStartedById], references: [id])

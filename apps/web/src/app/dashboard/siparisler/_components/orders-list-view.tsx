@@ -24,9 +24,11 @@ import { useMemo } from "react";
 
 const TABS: Array<{ key: string; label: string; status?: OrderStatus }> = [
   { key: "all", label: "Tümü" },
-  { key: "pending", label: "Bekliyor", status: "PENDING" },
-  { key: "in_delivery", label: "Teslimatta", status: "IN_DELIVERY" },
+  { key: "pending", label: "Onay Bekliyor", status: "PENDING" },
+  { key: "accepted", label: "Onaylandı", status: "ACCEPTED" },
+  { key: "in_delivery", label: "Gönderildi", status: "IN_DELIVERY" },
   { key: "completed", label: "Tamamlandı", status: "COMPLETED" },
+  { key: "rejected", label: "Reddedildi", status: "REJECTED" },
   { key: "cancelled", label: "İptal Edildi", status: "CANCELLED" },
 ];
 
@@ -116,8 +118,13 @@ export function OrdersListView() {
     if (!s) return null;
     return [
       { label: "Toplam", value: s.total, color: "text-brand-900" },
-      { label: "Bekliyor", value: s.pending, color: "text-warning-700" },
-      { label: "Teslimatta", value: s.inDelivery ?? 0, color: "text-blue-700" },
+      { label: "Onay Bekliyor", value: s.pending, color: "text-warning-700" },
+      { label: "Onaylandı", value: s.accepted ?? 0, color: "text-brand-700" },
+      {
+        label: "Gönderildi",
+        value: s.inDelivery ?? 0,
+        color: "text-indigo-700",
+      },
       {
         label: "Tamamlandı",
         value: s.completed,
@@ -141,7 +148,7 @@ export function OrdersListView() {
 
       {/* KPI cards */}
       {kpi ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {kpi.map((it) => (
             <div
               key={it.label}

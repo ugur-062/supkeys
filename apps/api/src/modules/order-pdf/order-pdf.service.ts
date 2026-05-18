@@ -13,13 +13,14 @@ import {
 } from "../pdf/templates/order-pdf.template";
 
 const STATUS_LABEL: Record<OrderStatus, string> = {
-  PENDING: "Bekliyor",
-  IN_DELIVERY: "Teslimatta",
-  ACCEPTED: "Kabul Edildi",
+  PENDING: "Onay Bekliyor",
+  ACCEPTED: "Onaylandı",
+  IN_DELIVERY: "Gönderildi",
+  COMPLETED: "Tamamlandı",
+  REJECTED: "Reddedildi",
+  CANCELLED: "İptal Edildi",
   IN_PROGRESS: "Üretimde",
   DELIVERED: "Teslim Edildi",
-  COMPLETED: "Tamamlandı",
-  CANCELLED: "İptal Edildi",
 };
 
 interface AddressSnapshot {

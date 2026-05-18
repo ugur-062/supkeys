@@ -13,6 +13,7 @@ import {
   Inbox,
   Package,
   Search,
+  ThumbsUp,
   Truck,
   XCircle,
 } from "lucide-react";
@@ -34,11 +35,22 @@ const STATUS_FILTERS: Array<{
   icon: typeof Package;
 }> = [
   { key: "all", label: "Tümü", icon: Inbox },
-  { key: "PENDING", status: "PENDING", label: "Bekliyor", icon: Clock },
+  {
+    key: "PENDING",
+    status: "PENDING",
+    label: "Onay Bekliyor",
+    icon: Clock,
+  },
+  {
+    key: "ACCEPTED",
+    status: "ACCEPTED",
+    label: "Onaylandı",
+    icon: ThumbsUp,
+  },
   {
     key: "IN_DELIVERY",
     status: "IN_DELIVERY",
-    label: "Teslimat Sürüyor",
+    label: "Gönderildi",
     icon: Truck,
   },
   {
@@ -46,6 +58,12 @@ const STATUS_FILTERS: Array<{
     status: "COMPLETED",
     label: "Tamamlandı",
     icon: CheckCircle2,
+  },
+  {
+    key: "REJECTED",
+    status: "REJECTED",
+    label: "Reddedildi",
+    icon: XCircle,
   },
   {
     key: "CANCELLED",
@@ -127,7 +145,7 @@ export function SupplierOrdersListView() {
         </p>
       </header>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <MiniKpi
           label="Toplam"
           value={stats.data?.total ?? 0}
@@ -136,17 +154,24 @@ export function SupplierOrdersListView() {
           loading={stats.isLoading}
         />
         <MiniKpi
-          label="Bekleyen"
+          label="Onay Bekliyor"
           value={stats.data?.pending ?? 0}
           icon={Clock}
+          accent="bg-amber-50 text-amber-600"
+          loading={stats.isLoading}
+        />
+        <MiniKpi
+          label="Onaylandı"
+          value={stats.data?.accepted ?? 0}
+          icon={ThumbsUp}
           accent="bg-blue-50 text-blue-600"
           loading={stats.isLoading}
         />
         <MiniKpi
-          label="Teslimatta"
+          label="Gönderildi"
           value={stats.data?.inDelivery ?? 0}
           icon={Truck}
-          accent="bg-amber-50 text-amber-600"
+          accent="bg-indigo-50 text-indigo-600"
           loading={stats.isLoading}
         />
         <MiniKpi
