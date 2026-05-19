@@ -86,7 +86,7 @@ export function OrderDetailView({ id }: { id: string }) {
     );
   }
 
-  if (query.isError || !query.data) {
+  if (!query.data) {
     return (
       <div className="max-w-2xl mx-auto py-12">
         <div className="card p-8 text-center space-y-3">

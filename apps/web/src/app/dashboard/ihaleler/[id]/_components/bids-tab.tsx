@@ -68,7 +68,7 @@ export function BidsTab({ tender }: { tender: TenderDetail }) {
     );
   }
 
-  if (bidsQuery.isError || !bidsQuery.data) {
+  if (!bidsQuery.data) {
     return (
       <div className="rounded-2xl border border-danger-200 bg-danger-50 p-6 flex items-start gap-3">
         <AlertCircle className="h-5 w-5 text-danger-600 mt-0.5 flex-shrink-0" />
@@ -150,7 +150,7 @@ function ItemBasedRankingWrapper({
     );
   }
 
-  if (comparison.isError || !comparison.data) {
+  if (!comparison.data) {
     return (
       <div className="rounded-xl border border-danger-200 bg-danger-50 p-4 text-sm text-danger-700">
         Karşılaştırma yüklenemedi.

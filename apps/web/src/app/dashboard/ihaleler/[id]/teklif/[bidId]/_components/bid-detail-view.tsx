@@ -74,7 +74,7 @@ export function BidDetailView({
     );
   }
 
-  if (bidQuery.isError || !bidQuery.data) {
+  if (!bidQuery.data) {
     return (
       <div className="max-w-2xl mx-auto py-12">
         <div className="card p-8 text-center space-y-3">

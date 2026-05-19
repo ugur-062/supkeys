@@ -43,7 +43,7 @@ export function ApprovalFlowDetailLoader({ id }: { id: string }) {
     );
   }
 
-  if (flowQuery.isError || !flowQuery.data) {
+  if (!flowQuery.data) {
     return (
       <div className="max-w-2xl mx-auto px-6 py-8">
         <Link

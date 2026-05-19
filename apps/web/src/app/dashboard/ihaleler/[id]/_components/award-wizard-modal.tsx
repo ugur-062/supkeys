@@ -128,7 +128,7 @@ export function AwardWizardModal({ open, onClose, tender }: Props) {
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
                 Teklifler yükleniyor…
               </div>
-            ) : bidsQuery.isError || !bidsQuery.data ? (
+            ) : !bidsQuery.data ? (
               <div className="py-12 text-center text-danger-600">
                 Teklifler yüklenemedi.
               </div>

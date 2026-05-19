@@ -70,7 +70,7 @@ export function AcceptInviteView({ token }: { token: string }) {
     );
   }
 
-  if (invitationQuery.isError || !invitationQuery.data) {
+  if (!invitationQuery.data) {
     const status =
       (invitationQuery.error as { response?: { status?: number } })?.response
         ?.status;

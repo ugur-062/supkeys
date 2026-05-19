@@ -83,7 +83,7 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
     );
   }
 
-  if (query.isError || !query.data) {
+  if (!query.data) {
     return (
       <div className="max-w-2xl mx-auto py-12">
         <PanelCard className="text-center space-y-3">

@@ -242,7 +242,7 @@ export function OrdersListView() {
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
           <ListSkeleton rows={5} />
         </div>
-      ) : list.isError || !list.data ? (
+      ) : !list.data ? (
         <div className="rounded-xl border border-danger-200 bg-danger-50 p-4 flex items-start gap-2">
           <AlertCircle className="w-5 h-5 text-danger-600 mt-0.5 flex-shrink-0" />
           <p className="text-sm text-danger-700">Siparişler yüklenemedi.</p>

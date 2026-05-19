@@ -42,7 +42,7 @@ export function EditLoader({ id }: Props) {
     );
   }
 
-  if (detail.isError || !detail.data) {
+  if (!detail.data) {
     return (
       <div className="max-w-2xl mx-auto py-12">
         <div className="card p-8 text-center space-y-3">
