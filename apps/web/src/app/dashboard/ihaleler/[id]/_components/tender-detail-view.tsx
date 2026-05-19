@@ -32,6 +32,7 @@ function TabBadge({ count }: { count: number }) {
 export function TenderDetailView({ id }: { id: string }) {
   const detail = useTenderDetail(id);
 
+  // İlk yükleme (cache'te veri yok ve fetch ilerliyor)
   if (detail.isLoading && !detail.data) {
     return (
       <div className="max-w-7xl mx-auto py-16 flex flex-col items-center text-slate-500">
@@ -41,7 +42,10 @@ export function TenderDetailView({ id }: { id: string }) {
     );
   }
 
-  if (detail.isError || !detail.data) {
+  // Veri yoksa hata göster — `isError` tek başına yeterli değil çünkü
+  // refetch hatası kayıtlı veriyi silmez; sadece data tamamen yoksa
+  // "bulunamadı" göster.
+  if (!detail.data) {
     return (
       <div className="max-w-2xl mx-auto py-12">
         <div className="card p-8 text-center space-y-3">

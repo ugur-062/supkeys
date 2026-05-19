@@ -15,7 +15,7 @@ export function TeklifLoader({ id }: Props) {
   const detail = useSupplierTenderDetail(id);
   const myBidQuery = useMyBid(id);
 
-  if (detail.isLoading || myBidQuery.isLoading) {
+  if ((detail.isLoading && !detail.data) || (myBidQuery.isLoading && !myBidQuery.data)) {
     return (
       <div className="max-w-5xl mx-auto py-16 flex flex-col items-center text-slate-500">
         <Loader2 className="w-6 h-6 animate-spin" />
@@ -24,7 +24,8 @@ export function TeklifLoader({ id }: Props) {
     );
   }
 
-  if (detail.isError || !detail.data) {
+  // Refetch hatasında cached veriyi koru; sadece veri tamamen yoksa hata göster.
+  if (!detail.data) {
     return (
       <div className="max-w-2xl mx-auto py-12">
         <div className="card p-8 text-center space-y-3">

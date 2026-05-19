@@ -49,7 +49,8 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
     );
   }
 
-  if (detail.isError || !detail.data) {
+  // Refetch hatasında cached veriyi koru; sadece veri tamamen yoksa hata göster.
+  if (!detail.data) {
     return (
       <div className="max-w-2xl mx-auto py-12">
         <div className="card p-8 text-center space-y-3">
