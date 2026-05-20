@@ -10,7 +10,7 @@ import type { Prisma } from "@supkeys/db";
 import { renderEmail } from "@supkeys/email";
 import { generateShortCode } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
 import {
   generateRegistrationToken,
   hashToken,
@@ -32,7 +32,7 @@ export class SupplierInvitationsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
 
@@ -564,7 +564,7 @@ export class SupplierInvitationsService {
       invitation.isExistingSupplier,
     );
 
-    await this.emailQueue.enqueue({
+    await this.emailService.send({
       to: {
         email: invitation.email,
         name: invitation.contactName ?? undefined,

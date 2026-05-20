@@ -138,8 +138,8 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // Graceful shutdown — Nest lifecycle hooks tetiklenir (BullMQ Worker
-  // active job'ları bitirir, Prisma bağlantısı kapatılır).
+  // Graceful shutdown — Nest lifecycle hooks tetiklenir (Prisma bağlantısı
+  // kapatılır, in-flight HTTP istekleri tamamlanır).
   app.enableShutdownHooks();
 
   const bootstrapLogger = new Logger("Bootstrap");

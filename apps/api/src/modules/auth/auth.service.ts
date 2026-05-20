@@ -1,9 +1,8 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type { UserRole } from "@supkeys/db";
-import * as bcrypt from "bcrypt";
-import { DUMMY_HASH } from "../../common/auth/dummy-hash";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { LoginDto } from "./dto/login.dto";
 import { resolveUserPermissions } from "./permissions/permissions.utils";
 import type { JwtPayload } from "./strategies/jwt.strategy";
@@ -15,45 +14,49 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly supabaseAuth: SupabaseAuthService,
   ) {}
 
   async login(dto: LoginDto) {
+    // Supabase Auth source-of-truth. verifyPassword başarısızsa generic 401
+    // döndürür — user enumeration sızıntısı yok. Timing-safe (Supabase API
+    // call latency'si user var/yok ayrımı yapmaz).
+    let authId: string;
+    try {
+      const result = await this.supabaseAuth.verifyPassword(
+        dto.email.toLowerCase(),
+        dto.password,
+      );
+      authId = result.authId;
+    } catch {
+      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+    }
+
     const user = await this.prisma.user.findUnique({
-      where: { email: dto.email.toLowerCase() },
+      where: { authId },
       include: { tenant: true },
     });
 
-    // BUG FIX #2 — Timing attack mitigation: kullanıcı yoksa, pasifse veya
-    // tenant pasifse bile bcrypt.compare DUMMY_HASH ile çalıştırılır. Hangi
-    // sebeple başarısız olursa olsun aynı generic mesaj döner.
-    // BUG FIX #3 — "Firma hesabı pasif durumda" özel mesajı kaldırıldı;
-    // ayrımı sızdırıyordu (user enumeration).
-    const passwordMatches = user
-      ? await bcrypt.compare(dto.password, user.passwordHash)
-      : await bcrypt.compare(dto.password, DUMMY_HASH).then(() => false);
-
-    // V2-6.5 — Üyelik süresi dolmuşsa: ŞİFRE DOĞRUYSA spesifik mesaj
-    // göster. Saldırgan şifre bilmediği sürece bu sızıntı değil ve müşteri
-    // deneyimi için gerekli (yanlış mesajla kafa karışıklığı yaratmaz).
+    // Domain user yok, pasif, soft-deleted veya tenant pasif → user
+    // enumeration önlemek için aynı generic mesaj.
     if (
-      user &&
-      passwordMatches &&
+      !user ||
+      !user.isActive ||
+      user.deletedAt !== null ||
+      !user.tenant.isActive
+    ) {
+      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+    }
+
+    // V2-6.5 — Şifre doğru ama üyelik bitmiş: müşteri deneyimi için spesifik
+    // mesaj (saldırgan şifreyi zaten bildiği için sızıntı değil).
+    if (
       user.tenant.membershipEndAt &&
       user.tenant.membershipEndAt.getTime() < Date.now()
     ) {
       throw new UnauthorizedException(
         "Firmanızın üyelik süresi sona erdi. Yöneticinizle iletişime geçin.",
       );
-    }
-
-    if (
-      !user ||
-      !user.isActive ||
-      user.deletedAt !== null ||
-      !user.tenant.isActive ||
-      !passwordMatches
-    ) {
-      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
     await this.prisma.user.update({

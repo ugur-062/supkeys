@@ -20,11 +20,10 @@
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",
-    "@supkeys/shared": "workspace:*",
-    "bcrypt": "^5.1.1"
+    "@supabase/supabase-js": "^2.106.0",
+    "@supkeys/shared": "workspace:*"
   },
   "devDependencies": {
-    "@types/bcrypt": "^5.0.2",
     "prisma": "^6.1.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"

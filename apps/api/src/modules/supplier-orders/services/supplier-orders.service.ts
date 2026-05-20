@@ -10,7 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import type { OrderStatus, Prisma } from "@supkeys/db";
 import { rangeToSinceDate } from "../../../common/filters/date-range";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
 import { AcceptOrderDto } from "../dto/accept-order.dto";
 import { ListOrdersDto } from "../dto/list-orders.dto";
 import { RejectOrderDto } from "../dto/reject-order.dto";
@@ -114,7 +114,7 @@ export class SupplierOrdersService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
 
@@ -472,7 +472,7 @@ export class SupplierOrdersService {
     const oldStatus: "PENDING" | "ACCEPTED" =
       newStatus === "IN_DELIVERY" ? "ACCEPTED" : "PENDING";
 
-    await this.emailQueue.enqueue({
+    await this.emailService.send({
       to: {
         email: buyerAdmin.email,
         name: `${buyerAdmin.firstName} ${buyerAdmin.lastName}`,

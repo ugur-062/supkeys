@@ -8,11 +8,12 @@ Mavi & beyaz · Inter (UI) + Plus Jakarta Sans (display) · "S" mavi kutu + laci
 
 ## Tech Stack
 - Monorepo: pnpm 10 + Turborepo
-- Backend: NestJS 10 + Prisma 6 + PostgreSQL 16 + Redis 7 (BullMQ) + JWT
+- Backend: NestJS 10 + Prisma 6 + Supabase (Postgres + Auth) + kendi JWT'miz
 - Frontend: Next.js 15 (App Router) + React 19 + Tailwind v4 (`@theme` CSS) + Zustand persist + TanStack Query + react-hook-form + zod + sonner + lucide
-- E-posta: React Email + Resend (prod) + Mailpit (dev)
-- Cron: NestJS Schedule (V2'de BullMQ multi-instance)
-- Storage: Cloudflare R2 (S3-compatible AWS SDK v3). Vergi levhası hâlâ base64 — V2.5'e ertelendi.
+- E-posta: React Email + Resend (synchronous, BullMQ kaldırıldı 2026-05-20)
+- Cron: NestJS Schedule (in-process, Redis yok)
+- Storage: Cloudflare R2 (S3-compatible AWS SDK v3)
+- **Docker yok**: Tüm yan servisler managed (Supabase/Resend/R2). Lokal dev `pnpm dev` yeterli.
 - Node 22, pnpm 10.33
 
 ## Repo Yapısı
@@ -22,7 +23,7 @@ apps/web      Next.js        port 3000  app.supkeys.com  (tenant + supplier rota
 apps/admin    Next.js        port 3001  admin.supkeys.com
 packages/db       @supkeys/db        Prisma schema + migrations + seed + scripts
 packages/shared   @supkeys/shared    Zod + types + helpers (slug, short-code, tender-number)
-packages/email    @supkeys/email     React Email templates + Resend/Mailpit providers
+packages/email    @supkeys/email     React Email templates + Resend provider
 ```
 
 ## Test Hesapları (Dev)
@@ -34,17 +35,18 @@ packages/email    @supkeys/email     React Email templates + Resend/Mailpit prov
 | Tenant | localhost:3000/login | ugur@demo.com | demo12345 |
 | Admin | localhost:3001/admin/login | admin@supkeys.com | admin12345 |
 | Supplier | localhost:3000/supplier/login | demo-supplier@firma.com | Test1234 |
-| Mailpit UI | localhost:8025 | — | — |
+
+E-postalar Resend `onboarding@resend.dev` test domain'inden gerçekten gönderilir — kullanıcı kayıtlı gerçek bir adres olmalı (test için kendi adresini kullan).
 
 ## Servis Başlatma
 ```bash
-docker compose up -d
 pnpm dev   # turbo, hepsi paralel
 # veya tek tek:
 pnpm --filter @supkeys/api dev
 pnpm --filter @supkeys/web dev
 pnpm --filter @supkeys/admin dev
 ```
+Yan servis yok — Supabase Postgres, Supabase Auth, Cloudflare R2, Resend hepsi managed.
 
 ## Önemli Mimari Kararlar
 
@@ -56,7 +58,7 @@ pnpm --filter @supkeys/admin dev
 6. **SUBMITTED bid editlenmez** (alıcıyla iletişim mesajı + Geri Çek). Alıcı eleme yaparsa LOST → tedarikçi yeniden teklif verebilir (version++).
 7. **Kazandırma kalıcı:** Toplu (tek tedarikçi, tüm kalemler) veya Kalem Bazlı (her kalem ayrı tedarikçi). Finalize edilince Tender → AWARDED + Order'lar (`ORD-YYYY-NNNN`). V1'de geri alma YOK.
 8. **V1 sadece RFQ:** İngiliz Usulü açık eksiltme V2'de.
-9. **Body parser 25MB:** Vergi levhası + tender/bid attachment base64 (V2'de MinIO presigned URL).
+9. **Body parser 25MB:** Vergi levhası + tender/bid attachment base64 (V2'de R2 presigned URL).
 10. **Audit log append-only**, AI agent event-bus altyapısı V3'te (Kafka/RabbitMQ).
 
 ## Konvansiyonlar
@@ -85,12 +87,12 @@ JWT payload `type` field'ıyla doğrulanır. Tenant token → admin/supplier end
 
 ## Test & Kalite Durumu
 
-- **Test sayısı:** 534 test, 25 suite, hepsi yeşil (~7 dk)
-- **Coverage:** Kritik dosyalarda %85-100 (auth, permissions, controllers)
+- **Test sayısı:** 534 test, 25 suite — Supabase Auth geçişi (2026-05-19/20) sonrası bcrypt mock'ları kırık. Login/register/password servisleri `SupabaseAuthService` bridge'i bekliyor, mock güncellenmedi. **Smoke test manuel doğrulandı** (admin/tenant/supplier login → JWT alındı, generic 401 davranışı korundu). V2.7'de test paketi refactor edilmeli.
+- **Coverage (geçiş öncesi):** Kritik dosyalarda %85-100 (auth, permissions, controllers)
 - **Test DB:** İzole `supkeys_test`
 - **Komutlar:**
   ```bash
-  pnpm test              # tüm testler
+  pnpm test              # tüm testler (şu an kırık — V2.7'de fix edilecek)
   pnpm test:cov          # +coverage rapor
   npx jest e2e.spec      # sadece E2E (13 suite, ~3 dk)
   ```
@@ -102,7 +104,7 @@ Yapılan audit'ler:
 - ✅ Auth/IDOR/RBAC E2E coverage
 - ✅ Plain text parola sızıntısı (seed.ts) kapatıldı
 - ✅ Yutulan catch'ler temizlendi
-- ✅ Health endpoint Redis + Queue + DB ping
+- ✅ Health endpoint DB ping (Redis kaldırıldıktan sonra)
 - ✅ Console.log → NestJS Logger (production)
 - ⏳ Bekleyen: Structured logger (Pino + redact), Sentry, alert webhook, audit_logs populate, CSP (helmet), V2 httpOnly cookie auth
 
@@ -145,6 +147,8 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 - Excel kalem import
 - Açık ihale (PUBLIC visibility) + tedarikçi başvuru sistemi (V2-7)
 - Kategoriye göre e-mail bildirim (V2-7)
+- **Test paketi refactor (V2-7):** 534 testin bcrypt mock'ları `SupabaseAuthService` bridge'i ile uyumsuz. Login/register/password mgmt test'leri Supabase auth.users mock'larıyla yeniden yazılmalı. Smoke-test E2E paketi de güncellenecek.
+- **Apply form `password` alanı temizliği (V2-7):** Buyer/Supplier başvurusunda kullanıcı şifre giriyor ama backend hash'i discard ediyor (Supabase reset-link akışı). DTO + frontend form'dan `password` field'ı kaldırılabilir; aksi halde wonky UX (kullanıcı yazıyor ama kullanılmıyor).
 - Eleme/Kazandırma geri alma
 - Hatırlatma e-postası özel süre
 - WebSocket real-time bildirim
@@ -163,7 +167,7 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 **Görev kapsamı:**
 - "Kritik dosyalar" = auth, ödeme, multi-tenant scope, state machine olan dosyalar
 - Coverage hedefi: kritik dosyalarda %80, diğerlerinde zorunlu değil
-- Scope dışı testler: BullMQ workers, Puppeteer (PDF), R2 integration, email queue, webhook'lar
+- Scope dışı testler: Puppeteer (PDF), R2 integration, webhook'lar
 
 **Çalışma şekli:**
 - `/loop` KULLANMA, her görev tek seferde bitsin

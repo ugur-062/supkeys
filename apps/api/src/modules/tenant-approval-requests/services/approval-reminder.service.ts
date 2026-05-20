@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
 
 const REMINDER_THRESHOLD_DAYS = 3;
 const RE_REMINDER_INTERVAL_DAYS = 3;
@@ -25,7 +25,7 @@ export class ApprovalReminderService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
 
@@ -115,7 +115,7 @@ export class ApprovalReminderService {
       );
 
       try {
-        await this.emailQueue.enqueue({
+        await this.emailService.send({
           to: {
             email: pendingStep.approver.email,
             name: `${pendingStep.approver.firstName} ${pendingStep.approver.lastName}`,

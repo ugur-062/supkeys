@@ -10,7 +10,7 @@ import type { Prisma } from "@supkeys/db";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { PrismaService } from "../../common/prisma/prisma.service";
-import { EmailQueue } from "../email/email.queue";
+import { EmailService } from "../email/email.service";
 import {
   generateRegistrationToken,
   hashToken,
@@ -28,7 +28,7 @@ export class DemoRequestsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
 
@@ -89,7 +89,7 @@ export class DemoRequestsService {
     const context = { type: "demo_request", id: demoRequestId };
 
     // 1) Kullanıcıya teşekkür
-    await this.emailQueue.enqueue({
+    await this.emailService.send({
       to: { email: data.email, name: data.contactName },
       templateData: {
         template: "demo_request_received",
@@ -117,7 +117,7 @@ export class DemoRequestsService {
 
     await Promise.allSettled(
       admins.map((admin) =>
-        this.emailQueue.enqueue({
+        this.emailService.send({
           to: { email: admin.email, name: admin.firstName },
           templateData: {
             template: "demo_request_admin_alert",
@@ -376,7 +376,7 @@ export class DemoRequestsService {
       locale: tr,
     });
 
-    await this.emailQueue.enqueue({
+    await this.emailService.send({
       to: { email: input.toEmail, name: input.contactName },
       templateData: {
         template: "demo_to_register_invitation",

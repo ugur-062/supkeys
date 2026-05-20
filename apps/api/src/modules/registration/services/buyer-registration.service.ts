@@ -6,13 +6,11 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as bcrypt from "bcrypt";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
 import { CreateBuyerApplicationDto } from "../dto/create-buyer-application.dto";
 import { generateRegistrationToken, hashToken } from "../helpers/token.helper";
 
-const BCRYPT_ROUNDS = 12;
 const EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 saat
 const ACTIVE_STATUSES = ["PENDING_EMAIL_VERIFICATION", "PENDING_REVIEW"] as const;
 
@@ -22,7 +20,7 @@ export class BuyerRegistrationService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
 
@@ -96,7 +94,9 @@ export class BuyerRegistrationService {
       );
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+    // Supabase Auth geçişi sonrası başvuru sırasında girilen şifre
+    // saklanmıyor — admin onayında Supabase reset-link tetikleniyor,
+    // applicant şifresini orada belirliyor.
     const emailToken = generateRegistrationToken();
     const emailTokenExp = new Date(Date.now() + EMAIL_TOKEN_TTL_MS);
 
@@ -118,7 +118,6 @@ export class BuyerRegistrationService {
           adminLastName: dto.adminLastName.trim(),
           adminEmail,
           adminPhone: dto.adminPhone?.trim(),
-          passwordHash,
           emailToken,
           emailTokenExp,
           status: "PENDING_EMAIL_VERIFICATION",
@@ -235,7 +234,7 @@ export class BuyerRegistrationService {
     const webUrl = this.config.get<string>("WEB_URL", "http://localhost:3000");
     const verifyUrl = `${webUrl.replace(/\/$/, "")}/register/verify-email?token=${token}&type=buyer`;
 
-    await this.emailQueue.enqueue({
+    await this.emailService.send({
       to: { email: app.adminEmail, name: app.adminFirstName },
       templateData: {
         template: "buyer_email_verification",

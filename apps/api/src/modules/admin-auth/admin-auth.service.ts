@@ -1,8 +1,7 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import * as bcrypt from "bcrypt";
-import { DUMMY_HASH } from "../../common/auth/dummy-hash";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import type { AdminJwtPayload } from "./strategies/admin-jwt.strategy";
 
@@ -13,21 +12,27 @@ export class AdminAuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly supabaseAuth: SupabaseAuthService,
   ) {}
 
   async login(dto: AdminLoginDto) {
+    // Supabase Auth source-of-truth. verifyPassword başarısızsa generic 401.
+    let authId: string;
+    try {
+      const result = await this.supabaseAuth.verifyPassword(
+        dto.email.toLowerCase(),
+        dto.password,
+      );
+      authId = result.authId;
+    } catch {
+      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+    }
+
     const admin = await this.prisma.platformAdmin.findUnique({
-      where: { email: dto.email.toLowerCase() },
+      where: { authId },
     });
 
-    // BUG FIX #2 — bcrypt.compare her durumda çalışır (timing attack ile
-    // user enumeration vektörü kapanır). Kayıt yoksa veya pasifse DUMMY_HASH
-    // ile compare; başarı false olarak normalize edilir.
-    const passwordMatches = admin
-      ? await bcrypt.compare(dto.password, admin.passwordHash)
-      : await bcrypt.compare(dto.password, DUMMY_HASH).then(() => false);
-
-    if (!admin || !admin.isActive || !passwordMatches) {
+    if (!admin || !admin.isActive) {
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 

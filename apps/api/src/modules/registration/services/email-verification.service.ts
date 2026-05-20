@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
 import { VerifyEmailDto, VerifyEmailType } from "../dto/verify-email.dto";
 
 @Injectable()
@@ -16,7 +16,7 @@ export class EmailVerificationService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
 
@@ -179,7 +179,7 @@ export class EmailVerificationService {
 
     await Promise.allSettled(
       admins.map((admin) =>
-        this.emailQueue.enqueue({
+        this.emailService.send({
           to: { email: admin.email, name: admin.firstName },
           templateData: {
             template,

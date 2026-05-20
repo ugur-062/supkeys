@@ -1,8 +1,5 @@
 import { Controller, Get, Logger } from "@nestjs/common";
-import { InjectQueue } from "@nestjs/bullmq";
-import type { Queue } from "bullmq";
 import { PrismaService } from "../../common/prisma/prisma.service";
-import { EMAIL_QUEUE_NAME } from "../email/dto/email-job.dto";
 import { StorageService } from "../storage/storage.service";
 
 interface HealthCheckResult {
@@ -11,13 +8,6 @@ interface HealthCheckResult {
   timestamp: string;
   checks: {
     database: "up" | "down";
-    redis: "up" | "down" | "unknown";
-    queue: {
-      waiting: number | null;
-      failed: number | null;
-      // failed > 50 → degraded sinyali, ops alert tetiklemeli
-      warning: boolean;
-    };
   };
 }
 
@@ -28,13 +18,10 @@ export class HealthController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
-    @InjectQueue(EMAIL_QUEUE_NAME) private readonly emailQueue: Queue,
   ) {}
 
   @Get()
   async check(): Promise<HealthCheckResult> {
-    // Logging audit O-2 — boş catch yutması yerine err logla. Response yine
-    // "down" döner; ops debug için log gerekli.
     let dbStatus: "up" | "down" = "down";
     try {
       await this.prisma.$queryRaw`SELECT 1`;
@@ -47,44 +34,11 @@ export class HealthController {
       );
     }
 
-    // Logging audit O-1 — Redis ping + BullMQ queue waiting/failed.
-    // Redis down olduğunda BullMQ Worker job alamaz → e-posta gönderilmez.
-    // Health endpoint bu durumu yansıtmalı.
-    let redisStatus: "up" | "down" | "unknown" = "unknown";
-    let queueWaiting: number | null = null;
-    let queueFailed: number | null = null;
-    try {
-      const client = await this.emailQueue.client;
-      const pong = await client.ping();
-      redisStatus = pong === "PONG" ? "up" : "down";
-      queueWaiting = await this.emailQueue.getWaitingCount();
-      queueFailed = await this.emailQueue.getFailedCount();
-    } catch (err) {
-      redisStatus = "down";
-      this.logger.error(
-        `Health Redis/queue ping failed: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-    }
-
-    const queueWarning = (queueFailed ?? 0) > 50;
-    const isDegraded =
-      dbStatus === "down" || redisStatus === "down" || queueWarning;
-
     return {
-      status: isDegraded ? "degraded" : "ok",
+      status: dbStatus === "down" ? "degraded" : "ok",
       service: "supkeys-api",
       timestamp: new Date().toISOString(),
-      checks: {
-        database: dbStatus,
-        redis: redisStatus,
-        queue: {
-          waiting: queueWaiting,
-          failed: queueFailed,
-          warning: queueWarning,
-        },
-      },
+      checks: { database: dbStatus },
     };
   }
 

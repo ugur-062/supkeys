@@ -5,10 +5,31 @@ import {
   renderEmail,
   type EmailClient,
   type EmailProviderName,
+  type EmailRecipient,
+  type EmailTemplateData,
 } from "@supkeys/email";
 import { PrismaService } from "../../common/prisma/prisma.service";
-import type { EmailJobPayload } from "./dto/email-job.dto";
 
+export interface SendEmailInput {
+  to: EmailRecipient;
+  templateData: EmailTemplateData;
+  context?: { type: string; id: string };
+  /** Render edilmiş subject — fallback olarak log'a yazılır */
+  subject?: string;
+}
+
+/**
+ * E-posta gönderim servisi.
+ *
+ * BullMQ kuyruğu kaldırıldıktan sonra (2026-05-20) senkron pipeline:
+ *   1. EmailLog INSERT (QUEUED) — audit + idempotency
+ *   2. Render (React Email → HTML/text)
+ *   3. Resend send
+ *   4. EmailLog UPDATE (SENT veya FAILED)
+ *
+ * Caller pattern: fire-and-forget — `emailService.send({...}).catch(logger.error)`.
+ * Resend kendi retry mantığına sahip, dahili olarak idempotent.
+ */
 @Injectable()
 export class EmailService implements OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
@@ -22,7 +43,7 @@ export class EmailService implements OnModuleInit {
 
   onModuleInit() {
     const provider = (this.config.get<string>("EMAIL_PROVIDER") ??
-      "mailpit") as EmailProviderName;
+      "resend") as EmailProviderName;
     const fromEmail = this.config.getOrThrow<string>("EMAIL_FROM_ADDRESS");
     const fromName = this.config.get<string>("EMAIL_FROM_NAME");
     const replyTo = this.config.get<string>("EMAIL_REPLY_TO");
@@ -36,56 +57,52 @@ export class EmailService implements OnModuleInit {
         provider === "resend"
           ? { apiKey: this.config.getOrThrow<string>("RESEND_API_KEY") }
           : undefined,
-      mailpit:
-        provider === "mailpit"
-          ? {
-              host: this.config.get<string>("MAILPIT_HOST", "localhost"),
-              port: parseInt(
-                this.config.get<string>("MAILPIT_PORT", "1025"),
-                10,
-              ),
-            }
-          : undefined,
     });
 
     this.logger.log(`EmailService ready (provider=${provider}, from=${fromEmail})`);
   }
 
   /**
-   * Job processor'dan çağrılır. Render et + gönder + EmailLog'u güncelle.
-   * Hata fırlatırsa BullMQ retry yapar.
+   * EmailLog kaydı + render + provider send + status update.
+   * Hata caller'a fırlatılır; fire-and-forget istiyorsan `.catch(...)`.
    */
-  async processJob(payload: EmailJobPayload): Promise<void> {
-    const log = await this.prisma.emailLog.findUnique({
-      where: { id: payload.emailLogId },
-    });
-
-    if (!log) {
-      this.logger.warn(`EmailLog ${payload.emailLogId} not found, skipping`);
-      return;
-    }
-
-    if (log.status === "SENT") {
-      // İdempotansi: aynı job tekrar tetiklenirse yine göndermeyelim
-      this.logger.log(`EmailLog ${log.id} already SENT, skipping`);
-      return;
-    }
-
-    const rendered = await renderEmail(payload.templateData);
-
-    await this.prisma.emailLog.update({
-      where: { id: log.id },
+  async send(input: SendEmailInput): Promise<{ emailLogId: string }> {
+    const log = await this.prisma.emailLog.create({
       data: {
-        status: "SENDING",
-        subject: rendered.subject,
+        template: input.templateData.template,
+        toEmail: input.to.email,
+        toName: input.to.name,
+        subject: input.subject ?? input.templateData.template,
         provider: this.providerName,
-        attemptCount: { increment: 1 },
+        status: "SENDING",
+        payload: input.templateData.data as object,
+        contextType: input.context?.type,
+        contextId: input.context?.id,
+        attemptCount: 1,
       },
+      select: { id: true },
     });
+
+    let rendered;
+    try {
+      rendered = await renderEmail(input.templateData);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      await this.prisma.emailLog.update({
+        where: { id: log.id },
+        data: {
+          status: "FAILED",
+          errorMessage: `render: ${errorMessage}`,
+          failedAt: new Date(),
+        },
+      });
+      this.logger.error(`Email ${log.id} render failed: ${errorMessage}`);
+      throw err;
+    }
 
     try {
       const result = await this.client.send({
-        to: payload.to,
+        to: input.to,
         rendered,
       });
 
@@ -93,6 +110,7 @@ export class EmailService implements OnModuleInit {
         where: { id: log.id },
         data: {
           status: "SENT",
+          subject: rendered.subject,
           providerMessageId: result.providerMessageId,
           sentAt: new Date(),
           errorMessage: null,
@@ -100,25 +118,22 @@ export class EmailService implements OnModuleInit {
       });
 
       this.logger.log(
-        `Sent email ${log.id} (${log.template}) → ${payload.to.email} via ${this.providerName}`,
+        `Sent email ${log.id} (${input.templateData.template}) → ${input.to.email} via ${this.providerName}`,
       );
+      return { emailLogId: log.id };
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : String(err);
-
+      const errorMessage = err instanceof Error ? err.message : String(err);
       await this.prisma.emailLog.update({
         where: { id: log.id },
         data: {
           status: "FAILED",
+          subject: rendered.subject,
           errorMessage,
           failedAt: new Date(),
         },
       });
-
-      this.logger.error(
-        `Email ${log.id} failed: ${errorMessage}`,
-      );
-      throw err; // BullMQ retry tetikler
+      this.logger.error(`Email ${log.id} send failed: ${errorMessage}`);
+      throw err;
     }
   }
 }

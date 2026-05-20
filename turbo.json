@@ -14,16 +14,6 @@
     "typecheck": {
       "dependsOn": ["^build"]
     },
-    "test": {
-      "dependsOn": ["^build"],
-      "cache": false,
-      "outputs": ["coverage/**"]
-    },
-    "test:cov": {
-      "dependsOn": ["^build"],
-      "cache": false,
-      "outputs": ["coverage/**"]
-    },
     "clean": {
       "cache": false
     }

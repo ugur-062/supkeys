@@ -10,7 +10,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { normalizeShortCode, validateShortCode } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
 import { hashToken } from "../../registration/helpers/token.helper";
 import { AcceptInvitationDto } from "../dto/accept-invitation.dto";
 
@@ -20,7 +20,7 @@ export class SupplierSelfServiceService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
 
@@ -232,7 +232,7 @@ export class SupplierSelfServiceService {
     // Alıcı admin'lerine bilgi
     for (const admin of admins) {
       tasks.push(
-        this.emailQueue.enqueue({
+        this.emailService.send({
           to: { email: admin.email, name: admin.firstName },
           templateData: {
             template: "supplier_relation_established_buyer",
@@ -255,7 +255,7 @@ export class SupplierSelfServiceService {
 
     // Tedarikçiye bilgi
     tasks.push(
-      this.emailQueue.enqueue({
+      this.emailService.send({
         to: {
           email: supplierUser.email,
           name: `${supplierUser.firstName} ${supplierUser.lastName}`,

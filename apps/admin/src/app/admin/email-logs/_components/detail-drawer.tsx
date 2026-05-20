@@ -185,11 +185,8 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                       Webhook Event Timeline
                     </h3>
                     <p className="text-xs text-admin-text-muted">
-                      Henüz event yok. Mailpit dev ortamında webhook
-                      tetiklenmiyor; production'da Resend dashboard'undan
-                      gelir veya local'de{" "}
-                      <code className="font-mono">pnpm test:webhook</code>{" "}
-                      ile mock event tetiklenebilir.
+                      Henüz event yok. Resend webhook'u prod'da delivery
+                      güncellemeleriyle bu listeyi doldurur.
                     </p>
                   </section>
                 )}

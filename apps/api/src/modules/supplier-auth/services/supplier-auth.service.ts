@@ -4,10 +4,9 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import * as bcrypt from "bcrypt";
-import { DUMMY_HASH } from "../../../common/auth/dummy-hash";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { buildBreadcrumb } from "../../categories/services/category.service";
+import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import { SupplierLoginDto } from "../dto/supplier-login.dto";
 import type { SupplierJwtPayload } from "../strategies/supplier-jwt.strategy";
 
@@ -16,19 +15,27 @@ export class SupplierAuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly supabaseAuth: SupabaseAuthService,
   ) {}
 
   async login(dto: SupplierLoginDto) {
     const email = dto.email.toLowerCase().trim();
 
+    // Supabase Auth source-of-truth. verifyPassword başarısızsa generic 401.
+    let authId: string;
+    try {
+      const result = await this.supabaseAuth.verifyPassword(email, dto.password);
+      authId = result.authId;
+    } catch {
+      throw new UnauthorizedException("E-posta veya şifre hatalı");
+    }
+
     const user = await this.prisma.supplierUser.findUnique({
-      where: { email },
+      where: { authId },
       include: { supplier: true },
     });
 
-    // Timing-safe: kullanıcı yoksa bile bcrypt.compare çalıştır
     if (!user) {
-      await bcrypt.compare(dto.password, DUMMY_HASH);
       throw new UnauthorizedException("E-posta veya şifre hatalı");
     }
 
@@ -45,11 +52,6 @@ export class SupplierAuthService {
     }
     if (!user.isActive) {
       throw new ForbiddenException("Kullanıcı hesabı aktif değil");
-    }
-
-    const valid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!valid) {
-      throw new UnauthorizedException("E-posta veya şifre hatalı");
     }
 
     await this.prisma.supplierUser.update({

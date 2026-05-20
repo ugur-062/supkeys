@@ -5,10 +5,12 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import * as crypto from "crypto";
 import type { Prisma } from "@supkeys/db";
 import { generateSlug, uniqueSlug } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
+import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import {
   ApplicationStatusDto,
   ListApplicationsDto,
@@ -21,8 +23,9 @@ export class AdminBuyerApplicationsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
+    private readonly supabaseAuth: SupabaseAuthService,
   ) {}
 
   async list(query: ListApplicationsDto) {
@@ -154,55 +157,94 @@ export class AdminBuyerApplicationsService {
       return exists !== null;
     });
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      const tenant = await tx.tenant.create({
-        data: {
-          name: app.companyName,
-          slug,
-          industry: app.industry,
-          city: app.city,
-          district: app.district,
-          addressLine: app.addressLine,
-          postalCode: app.postalCode,
-          taxNumber: app.taxNumber,
-          taxOffice: app.taxOffice,
-        },
-      });
+    // Supabase Auth source-of-truth. Apply formundaki bcrypt hash artık
+    // kullanılmıyor — Supabase'e random parola ile user yaratılır, sonra
+    // sendPasswordResetEmail ile kullanıcı kendi parolasını kurar.
+    // createUser $transaction dışı; tx fail olursa compensate edilir.
+    const tempPassword = crypto.randomBytes(32).toString("base64url");
+    const { authId } = await this.supabaseAuth.createUser(
+      app.adminEmail,
+      tempPassword,
+      { role: "tenant_user", from_application: app.id },
+    );
 
-      const user = await tx.user.create({
-        data: {
-          email: app.adminEmail,
-          passwordHash: app.passwordHash,
-          firstName: app.adminFirstName,
-          lastName: app.adminLastName,
-          role: "COMPANY_ADMIN",
-          tenantId: tenant.id,
-        },
-      });
-
-      const updated = await tx.buyerApplication.update({
-        where: { id: app.id },
-        data: {
-          status: "APPROVED",
-          reviewedById: reviewerId,
-          reviewedAt: new Date(),
-          tenantId: tenant.id,
-          rejectionReason: null,
-        },
-      });
-
-      // Demo davet ile gelen başvuru onaylandığında bağlı DemoRequest'i WON'a geçir
-      // (closedAt henüz dolmadıysa onu da set et, demo-requests.service.update ile
-      // tutarlı kalsın)
-      if (app.fromDemoRequest && app.fromDemoRequest.status !== "WON") {
-        await tx.demoRequest.update({
-          where: { id: app.fromDemoRequest.id },
-          data: { status: "WON", closedAt: new Date() },
+    let result;
+    try {
+      result = await this.prisma.$transaction(async (tx) => {
+        const tenant = await tx.tenant.create({
+          data: {
+            name: app.companyName,
+            slug,
+            industry: app.industry,
+            city: app.city,
+            district: app.district,
+            addressLine: app.addressLine,
+            postalCode: app.postalCode,
+            taxNumber: app.taxNumber,
+            taxOffice: app.taxOffice,
+          },
         });
-      }
 
-      return { tenant, user, application: updated };
-    });
+        const user = await tx.user.create({
+          data: {
+            email: app.adminEmail,
+            authId,
+            passwordHash: null,
+            firstName: app.adminFirstName,
+            lastName: app.adminLastName,
+            role: "COMPANY_ADMIN",
+            tenantId: tenant.id,
+          },
+        });
+
+        const updated = await tx.buyerApplication.update({
+          where: { id: app.id },
+          data: {
+            status: "APPROVED",
+            reviewedById: reviewerId,
+            reviewedAt: new Date(),
+            tenantId: tenant.id,
+            rejectionReason: null,
+          },
+        });
+
+        // Demo davet ile gelen başvuru onaylandığında bağlı DemoRequest'i WON'a geçir
+        if (app.fromDemoRequest && app.fromDemoRequest.status !== "WON") {
+          await tx.demoRequest.update({
+            where: { id: app.fromDemoRequest.id },
+            data: { status: "WON", closedAt: new Date() },
+          });
+        }
+
+        return { tenant, user, application: updated };
+      });
+    } catch (err) {
+      try {
+        await this.supabaseAuth.deleteUser(authId);
+      } catch (cleanupErr) {
+        this.logger.error(
+          `Buyer approval rollback sonrası auth.users cleanup hatası (${authId}): ${
+            cleanupErr instanceof Error ? cleanupErr.message : cleanupErr
+          }`,
+        );
+      }
+      throw err;
+    }
+
+    // Kullanıcının parolasını kurabilmesi için Supabase reset link e-postası.
+    const webUrl = this.config.get<string>("WEB_URL", "http://localhost:3000");
+    this.supabaseAuth
+      .sendPasswordResetEmail(
+        app.adminEmail,
+        `${webUrl.replace(/\/$/, "")}/auth/reset-callback`,
+      )
+      .catch((err) => {
+        this.logger.error(
+          `Buyer approval reset email gönderilemedi (${app.adminEmail}): ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+      });
 
     this.dispatchApprovedEmail(app).catch((err) => {
       this.logger.error(
@@ -261,7 +303,7 @@ export class AdminBuyerApplicationsService {
     companyName: string;
   }) {
     const webUrl = this.config.get<string>("WEB_URL", "http://localhost:3000");
-    await this.emailQueue.enqueue({
+    await this.emailService.send({
       to: { email: app.adminEmail, name: app.adminFirstName },
       templateData: {
         template: "buyer_application_approved",
@@ -289,7 +331,7 @@ export class AdminBuyerApplicationsService {
       "EMAIL_REPLY_TO",
       "support@supkeys.com",
     );
-    await this.emailQueue.enqueue({
+    await this.emailService.send({
       to: { email: app.adminEmail, name: app.adminFirstName },
       templateData: {
         template: "application_rejected",

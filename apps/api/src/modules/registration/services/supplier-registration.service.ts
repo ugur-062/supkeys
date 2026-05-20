@@ -7,17 +7,14 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as bcrypt from "bcrypt";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { CategoryService } from "../../categories/services/category.service";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
 import { CreateSupplierApplicationDto } from "../dto/create-supplier-application.dto";
 import {
   generateRegistrationToken,
   hashToken,
 } from "../helpers/token.helper";
-
-const BCRYPT_ROUNDS = 12;
 const EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 const ACTIVE_STATUSES = ["PENDING_EMAIL_VERIFICATION", "PENDING_REVIEW"] as const;
 
@@ -27,7 +24,7 @@ export class SupplierRegistrationService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
     private readonly categoryService: CategoryService,
   ) {}
@@ -105,7 +102,8 @@ export class SupplierRegistrationService {
       invitedByTenantId = invitation.tenantId;
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
+    // Supabase Auth geçişi sonrası başvuru sırasında girilen şifre
+    // saklanmıyor — admin onayında reset-link tetikleniyor.
     const emailToken = generateRegistrationToken();
     const emailTokenExp = new Date(Date.now() + EMAIL_TOKEN_TTL_MS);
 
@@ -126,7 +124,6 @@ export class SupplierRegistrationService {
         adminLastName: dto.adminLastName.trim(),
         adminEmail,
         adminPhone: dto.adminPhone?.trim(),
-        passwordHash,
         categoryIds: dto.categoryIds,
         emailToken,
         emailTokenExp,
@@ -249,7 +246,7 @@ export class SupplierRegistrationService {
     const webUrl = this.config.get<string>("WEB_URL", "http://localhost:3000");
     const verifyUrl = `${webUrl.replace(/\/$/, "")}/register/verify-email?token=${token}&type=supplier`;
 
-    await this.emailQueue.enqueue({
+    await this.emailService.send({
       to: { email: app.adminEmail, name: app.adminFirstName },
       templateData: {
         template: "supplier_email_verification",

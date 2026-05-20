@@ -7,7 +7,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../common/prisma/prisma.service";
-import { EmailQueue } from "../email/email.queue";
+import { EmailService } from "../email/email.service";
 
 interface ExpiredTenderPayload {
   id: string;
@@ -43,7 +43,7 @@ export class TenderSchedulerService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
 
@@ -237,7 +237,7 @@ export class TenderSchedulerService {
       if (!primary) continue;
       const hasBid = submittedSupplierIds.has(inv.supplierId);
       tasks.push(
-        this.emailQueue.enqueue({
+        this.emailService.send({
           to: {
             email: primary.email,
             name: `${primary.firstName} ${primary.lastName}`,
@@ -262,7 +262,7 @@ export class TenderSchedulerService {
     // İhaleyi açan kullanıcıya
     if (tender.createdBy.isActive) {
       tasks.push(
-        this.emailQueue.enqueue({
+        this.emailService.send({
           to: {
             email: tender.createdBy.email,
             name: `${tender.createdBy.firstName} ${tender.createdBy.lastName}`,

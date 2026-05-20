@@ -28,7 +28,7 @@ export type EmailTemplate =
   | "message_notification"
   | "admin_password_reset";
 
-export type EmailProviderName = "resend" | "mailpit";
+export type EmailProviderName = "resend";
 
 export interface EmailRecipient {
   email: string;
@@ -523,5 +523,4 @@ export interface EmailClientConfig {
   from: { email: string; name?: string };
   replyTo?: string;
   resend?: { apiKey: string };
-  mailpit?: { host: string; port: number };
 }

@@ -18,7 +18,7 @@ import {
   buildBreadcrumb,
   CategoryService,
 } from "../../categories/services/category.service";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
 import {
   formatAddressSnapshotText,
   TenantAddressesService,
@@ -78,7 +78,7 @@ export class TenantTendersService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
     private readonly addressesService: TenantAddressesService,
     private readonly approvalRequests: TenantApprovalRequestsService,
@@ -1325,7 +1325,7 @@ export class TenantTendersService {
         }
 
         try {
-          await this.emailQueue.enqueue({
+          await this.emailService.send({
             to: { email: primary.email, name: `${primary.firstName} ${primary.lastName}` },
             templateData: {
               template: "tender_invitation",
@@ -1483,7 +1483,7 @@ export class TenantTendersService {
     const reason = fresh?.eliminationReason ?? "";
 
     const webUrl = this.webUrl();
-    await this.emailQueue.enqueue({
+    await this.emailService.send({
       to: {
         email: primaryUser.email,
         name: `${primaryUser.firstName} ${primaryUser.lastName}`,
@@ -2063,7 +2063,7 @@ export class TenantTendersService {
       const user = w.bid.supplier.users[0];
       if (!user) continue;
       tasks.push(
-        this.emailQueue.enqueue({
+        this.emailService.send({
           to: {
             email: user.email,
             name: `${user.firstName} ${user.lastName}`,
@@ -2095,7 +2095,7 @@ export class TenantTendersService {
       const user = l.supplier.users[0];
       if (!user) continue;
       tasks.push(
-        this.emailQueue.enqueue({
+        this.emailService.send({
           to: {
             email: user.email,
             name: `${user.firstName} ${user.lastName}`,
@@ -2119,7 +2119,7 @@ export class TenantTendersService {
     // Alıcı özeti
     if (tender.createdBy.isActive) {
       tasks.push(
-        this.emailQueue.enqueue({
+        this.emailService.send({
           to: {
             email: tender.createdBy.email,
             name: `${tender.createdBy.firstName} ${tender.createdBy.lastName}`,

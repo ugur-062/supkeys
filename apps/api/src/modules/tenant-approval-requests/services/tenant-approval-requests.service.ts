@@ -15,7 +15,7 @@ import type {
   ApprovalRequestStatus,
 } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
 import { ListApprovalRequestsDto } from "../dto/list-approval-requests.dto";
 
 /**
@@ -68,7 +68,7 @@ export class TenantApprovalRequestsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
@@ -671,7 +671,7 @@ export class TenantApprovalRequestsService {
       return;
     }
     try {
-      await this.emailQueue.enqueue({
+      await this.emailService.send({
         to: {
           email: step.approver.email,
           name: `${step.approver.firstName} ${step.approver.lastName}`,
@@ -724,7 +724,7 @@ export class TenantApprovalRequestsService {
     const lastApprover = approvedSteps[approvedSteps.length - 1]?.approver;
 
     try {
-      await this.emailQueue.enqueue({
+      await this.emailService.send({
         to: {
           email: req.initiatedBy.email,
           name: `${req.initiatedBy.firstName} ${req.initiatedBy.lastName}`,
@@ -771,7 +771,7 @@ export class TenantApprovalRequestsService {
     if (!rejectedStep || !rejectedStep.approver) return;
 
     try {
-      await this.emailQueue.enqueue({
+      await this.emailService.send({
         to: {
           email: req.initiatedBy.email,
           name: `${req.initiatedBy.firstName} ${req.initiatedBy.lastName}`,

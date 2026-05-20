@@ -7,7 +7,6 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as bcrypt from "bcrypt";
 import * as crypto from "crypto";
 import { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -17,7 +16,8 @@ import {
   PERMISSION_LABELS,
 } from "../../auth/permissions/permissions.constants";
 import { resolveUserPermissions } from "../../auth/permissions/permissions.utils";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
+import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import { ChangePasswordDto } from "../dto/change-password.dto";
 import { InviteUserDto } from "../dto/invite-user.dto";
 import {
@@ -33,7 +33,6 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const INVITATION_TTL_DAYS = 7;
-const BCRYPT_ROUNDS = 12;
 
 // V2-6.5 — BUYER kontenjan exclude opsiyonu: bir kullanıcı zaten
 // BUYER'sa ve rolünü güncellerken kendisini saymak istemiyorsak excludeUserId
@@ -48,8 +47,9 @@ export class TenantUsersService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
+    private readonly supabaseAuth: SupabaseAuthService,
   ) {}
 
   // ----- LIST + ME -----
@@ -445,23 +445,20 @@ export class TenantUsersService {
 
   async changePassword(userId: string, dto: ChangePasswordDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException();
+    if (!user || !user.authId) throw new NotFoundException();
 
-    const valid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
-    if (!valid) {
+    // Mevcut şifre Supabase Auth üzerinden doğrulanır (source-of-truth).
+    try {
+      await this.supabaseAuth.verifyPassword(user.email, dto.currentPassword);
+    } catch {
       throw new BadRequestException("Mevcut şifre yanlış");
     }
+
     if (dto.currentPassword === dto.newPassword) {
-      throw new BadRequestException(
-        "Yeni şifre eski şifreyle aynı olamaz",
-      );
+      throw new BadRequestException("Yeni şifre eski şifreyle aynı olamaz");
     }
 
-    const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_ROUNDS);
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { passwordHash },
-    });
+    await this.supabaseAuth.updatePassword(user.authId, dto.newPassword);
     return { success: true };
   }
 
@@ -647,7 +644,7 @@ export class TenantUsersService {
         (invitation.expiresAt.getTime() - Date.now()) / (24 * 3600 * 1000),
       ),
     );
-    await this.emailQueue.enqueue({
+    await this.emailService.send({
       to: { email: invitation.email },
       templateData: {
         template: "user_invitation",

@@ -11,7 +11,7 @@ import type { OrderStatus, Prisma } from "@supkeys/db";
 import { rangeToSinceDate } from "../../../common/filters/date-range";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { assertCanActOnTender } from "../../../common/rbac/tender-owner.guard";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
 import { CancelOrderDto } from "../dto/cancel-order.dto";
 import { CompleteOrderDto } from "../dto/complete-order.dto";
 import { ListOrdersDto } from "../dto/list-orders.dto";
@@ -133,7 +133,7 @@ export class TenantOrdersService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
 
@@ -454,7 +454,7 @@ export class TenantOrdersService {
             ? "ACCEPTED"
             : "PENDING";
 
-    await this.emailQueue.enqueue({
+    await this.emailService.send({
       to: {
         email: supplierUser.email,
         name: `${supplierUser.firstName} ${supplierUser.lastName}`,

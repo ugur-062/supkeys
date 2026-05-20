@@ -1,5 +1,4 @@
 import { BaseEmailProvider } from "./providers/base";
-import { MailpitProvider } from "./providers/mailpit";
 import { ResendProvider } from "./providers/resend";
 import type {
   EmailClientConfig,
@@ -21,10 +20,6 @@ export class EmailClient {
         throw new Error("[email] RESEND_API_KEY missing for provider=resend");
       }
       this.provider = new ResendProvider(config.resend.apiKey);
-    } else if (config.provider === "mailpit") {
-      const host = config.mailpit?.host ?? "localhost";
-      const port = config.mailpit?.port ?? 1025;
-      this.provider = new MailpitProvider({ host, port });
     } else {
       throw new Error(
         `[email] unsupported provider: ${String(config.provider)}`,

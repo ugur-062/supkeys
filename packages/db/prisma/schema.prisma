@@ -112,7 +112,9 @@ model User {
   // Supabase Auth bridge — `auth.users.id` (UUID). Migration sırasında nullable;
   // her aktif kullanıcı için zorunlu hâle gelecek (V2).
   authId       String?   @unique
-  passwordHash String
+  // Supabase Auth source-of-truth olduktan sonra bcrypt hash gereksiz; legacy
+  // / migration kayıtları için nullable bırakıldı, V2'de DROP edilecek.
+  passwordHash String?
   firstName    String
   lastName     String
   phone        String?
@@ -231,7 +233,7 @@ model PlatformAdmin {
   email        String   @unique
   // Supabase Auth bridge — `auth.users.id` (UUID).
   authId       String?  @unique
-  passwordHash String
+  passwordHash String?
   firstName    String
   lastName     String
   role         AdminRole @default(SUPPORT)
@@ -419,7 +421,10 @@ model BuyerApplication {
   adminLastName   String
   adminEmail      String
   adminPhone      String?
-  passwordHash    String
+  // Supabase Auth geçişi sonrası kullanılmıyor — onay anında Supabase
+  // sendPasswordResetEmail tetikleniyor, applicant şifresini sıfırlama
+  // linkiyle kuruyor. V2'de DROP edilecek.
+  passwordHash    String?
 
   status          ApplicationStatus   @default(PENDING_EMAIL_VERIFICATION)
 
@@ -470,7 +475,8 @@ model SupplierApplication {
   adminLastName   String
   adminEmail      String
   adminPhone      String?
-  passwordHash    String
+  // Supabase Auth geçişi sonrası kullanılmıyor — bkz. BuyerApplication.passwordHash.
+  passwordHash    String?
 
   // V2-6 — register sırasında seçilen kategori ID'leri (Family seviyesi).
   // Admin onayında Supplier oluşturulurken SupplierCategory junction'a aktarılır.
@@ -570,7 +576,7 @@ model SupplierUser {
   email        String    @unique
   // Supabase Auth bridge — `auth.users.id` (UUID).
   authId       String?   @unique
-  passwordHash String
+  passwordHash String?
   firstName    String
   lastName     String
   phone        String?

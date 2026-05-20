@@ -10,7 +10,8 @@ import { ConfigService } from "@nestjs/config";
 import * as crypto from "crypto";
 import { Prisma, type UserRole } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
+import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import { TenantUsersService } from "../../tenant-users/services/tenant-users.service";
 import { AdminUpdateTenantUserDto } from "../dto/admin-update-tenant-user.dto";
 
@@ -22,9 +23,10 @@ export class AdminTenantUsersService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
     private readonly tenantUsers: TenantUsersService,
+    private readonly supabaseAuth: SupabaseAuthService,
   ) {}
 
   // ----- PATCH user (isActive + role) -----
@@ -180,7 +182,7 @@ export class AdminTenantUsersService {
     const resetUrl = `${baseUrl}/reset-password?token=${plainToken}`;
 
     try {
-      await this.emailQueue.enqueue({
+      await this.emailService.send({
         to: { email: target.email, name: target.firstName },
         templateData: {
           template: "admin_password_reset",
@@ -224,7 +226,7 @@ export class AdminTenantUsersService {
 
     const record = await this.prisma.passwordResetToken.findUnique({
       where: { tokenHash },
-      include: { user: { select: { id: true, isActive: true } } },
+      include: { user: { select: { id: true, isActive: true, authId: true } } },
     });
     if (!record) {
       throw new ForbiddenException("Geçersiz veya kullanılmış bağlantı");
@@ -238,20 +240,20 @@ export class AdminTenantUsersService {
     if (!record.user.isActive) {
       throw new ForbiddenException("Hesap pasif");
     }
+    if (!record.user.authId) {
+      throw new ForbiddenException(
+        "Bu hesap Supabase Auth'a bağlı değil — destek ekibiyle iletişime geçin",
+      );
+    }
 
-    const bcrypt = await import("bcrypt");
-    const passwordHash = await bcrypt.hash(newPassword, 12);
-
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: record.userId },
-        data: { passwordHash },
-      }),
-      this.prisma.passwordResetToken.update({
-        where: { id: record.id },
-        data: { usedAt: new Date() },
-      }),
-    ]);
+    // Supabase Auth source-of-truth: şifreyi auth.users üzerinde güncelle,
+    // token'ı kullanıldı olarak işaretle. updatePassword $transaction dışı
+    // olsa da idempotent — DB tx fail olsa bile yeniden çalıştırılabilir.
+    await this.supabaseAuth.updatePassword(record.user.authId, newPassword);
+    await this.prisma.passwordResetToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    });
 
     return { success: true };
   }

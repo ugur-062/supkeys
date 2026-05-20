@@ -5,9 +5,11 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import * as crypto from "crypto";
 import type { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
+import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import { ListApplicationsDto } from "../dto/list-applications.dto";
 import { RejectApplicationDto } from "../dto/reject-application.dto";
 
@@ -17,8 +19,9 @@ export class AdminSupplierApplicationsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly config: ConfigService,
+    private readonly supabaseAuth: SupabaseAuthService,
   ) {}
 
   async list(query: ListApplicationsDto) {
@@ -144,7 +147,19 @@ export class AdminSupplierApplicationsService {
       );
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    // Supabase Auth source-of-truth. Apply formundaki bcrypt hash artık
+    // kullanılmıyor — random parola ile Supabase user yaratılır, sonra
+    // sendPasswordResetEmail ile kullanıcı kendi parolasını kurar.
+    const tempPassword = crypto.randomBytes(32).toString("base64url");
+    const { authId } = await this.supabaseAuth.createUser(
+      app.adminEmail,
+      tempPassword,
+      { role: "supplier_user", from_application: app.id },
+    );
+
+    let result;
+    try {
+      result = await this.prisma.$transaction(async (tx) => {
       const supplier = await tx.supplier.create({
         data: {
           companyName: app.companyName,
@@ -165,7 +180,8 @@ export class AdminSupplierApplicationsService {
       const supplierUser = await tx.supplierUser.create({
         data: {
           email: app.adminEmail,
-          passwordHash: app.passwordHash,
+          authId,
+          passwordHash: null,
           firstName: app.adminFirstName,
           lastName: app.adminLastName,
           phone: app.adminPhone,
@@ -230,7 +246,34 @@ export class AdminSupplierApplicationsService {
       });
 
       return { supplier, supplierUser, application: updatedApp };
-    });
+      });
+    } catch (err) {
+      try {
+        await this.supabaseAuth.deleteUser(authId);
+      } catch (cleanupErr) {
+        this.logger.error(
+          `Supplier approval rollback sonrası auth.users cleanup hatası (${authId}): ${
+            cleanupErr instanceof Error ? cleanupErr.message : cleanupErr
+          }`,
+        );
+      }
+      throw err;
+    }
+
+    // Tedarikçinin kendi parolasını kurabilmesi için Supabase reset email.
+    const webUrl = this.config.get<string>("WEB_URL", "http://localhost:3000");
+    this.supabaseAuth
+      .sendPasswordResetEmail(
+        app.adminEmail,
+        `${webUrl.replace(/\/$/, "")}/auth/reset-callback`,
+      )
+      .catch((err) => {
+        this.logger.error(
+          `Supplier approval reset email gönderilemedi (${app.adminEmail}): ${
+            err instanceof Error ? err.message : err
+          }`,
+        );
+      });
 
     this.dispatchApprovedEmail(app, app.invitedByTenant?.name ?? null).catch(
       (err) => {
@@ -291,7 +334,7 @@ export class AdminSupplierApplicationsService {
     invitedByTenantName: string | null,
   ) {
     const webUrl = this.config.get<string>("WEB_URL", "http://localhost:3000");
-    await this.emailQueue.enqueue({
+    await this.emailService.send({
       to: { email: app.adminEmail, name: app.adminFirstName },
       templateData: {
         template: "supplier_application_approved",
@@ -320,7 +363,7 @@ export class AdminSupplierApplicationsService {
       "EMAIL_REPLY_TO",
       "support@supkeys.com",
     );
-    await this.emailQueue.enqueue({
+    await this.emailService.send({
       to: { email: app.adminEmail, name: app.adminFirstName },
       templateData: {
         template: "application_rejected",

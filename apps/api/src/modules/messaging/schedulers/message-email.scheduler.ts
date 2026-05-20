@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import type { MessageContext } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { EmailQueue } from "../../email/email.queue";
+import { EmailService } from "../../email/email.service";
 
 /**
  * V2-4 — Mesaj e-posta bildirimi cron'u.
@@ -18,7 +18,7 @@ export class MessageEmailScheduler {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly emailQueue: EmailQueue,
+    private readonly emailService: EmailService,
     private readonly configService: ConfigService,
   ) {}
 
@@ -288,7 +288,7 @@ export class MessageEmailScheduler {
             ? msg.content.substring(0, 200)
             : msg.content || "(dosya eki)";
 
-          await this.emailQueue.enqueue({
+          await this.emailService.send({
             to: {
               email: recipient.email,
               name: `${recipient.firstName} ${recipient.lastName}`,
