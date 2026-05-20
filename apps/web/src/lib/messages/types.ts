@@ -16,12 +16,15 @@ export interface MessageItem {
   attachmentIds: string[];
   emailNotifiedAt: string | null;
   sentAt: string;
+  /** V2-4.2 — Hangi tender/order'dan gönderildiğinin etiketi. */
+  context: MessageContext | null;
+  contextRefId: string | null;
+  /** Backend'de pre-resolve edilmiş insan-okur etiket. */
+  contextLabel: string | null;
 }
 
 export interface MessageThreadInfo {
   id: string;
-  context: MessageContext;
-  contextRefId: string;
   tenantId: string;
   supplierId: string;
   lastMessageAt: string | null;
@@ -45,6 +48,10 @@ export interface TenderThreadSummary {
 export interface SendMessagePayload {
   content: string;
   attachmentIds?: string[];
+  /** V2-4.2 — gönderilen mesajın context etiketi (tender/order detay
+   * sayfalarından gönderiminde otomatik set edilir). Boşsa DIRECT. */
+  context?: MessageContext;
+  contextRefId?: string;
 }
 
 /**

@@ -152,11 +152,11 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
         open={messageOpen}
         onClose={() => setMessageOpen(false)}
         surface="supplier"
-        context="ORDER"
-        contextRefId={order.id}
+        otherPartyId={order.tenant?.id ?? ""}
+        defaultContext={{ context: "ORDER", contextRefId: order.id }}
         currentUserType="SUPPLIER_USER"
         otherPartyName={order.tenant?.name ?? "Alıcı"}
-        contextNumber={order.orderNumber}
+        contextNumber={`Sipariş ${order.orderNumber}`}
       />
 
       {/* 3-kolon ana grid */}

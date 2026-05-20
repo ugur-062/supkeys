@@ -14,29 +14,27 @@ interface Props {
   open: boolean;
   onClose: () => void;
   surface: MessageSurface;
-  context: MessageContext;
-  contextRefId: string;
-  /** SADECE surface=tenant + context=TENDER için zorunlu (multi-supplier ayrımı) */
-  targetSupplierId?: string;
+  /** Karşı taraf ID — tenant için supplierId, supplier için tenantId. */
+  otherPartyId: string;
+  /** Bu dialog'tan gönderilen mesajlara auto-tag (örn. tender detay açtıysa
+   * TENDER+tenderId). Boşsa DIRECT. */
+  defaultContext?: { context: MessageContext; contextRefId?: string };
   currentUserType: MessageSenderType;
-  /** Header'da görünecek karşı taraf adı (tedarikçi adı veya alıcı firma adı) */
   otherPartyName: string;
-  /** "İhale SUPK-..." veya "Sipariş ORD-..." */
   contextNumber: string;
 }
 
 /**
- * Messenger-tarzı modal mesaj kutusu. Tender/Order detay sayfalarında
- * inline mesajlaşma yerine kullanılır. Desktop'ta merkez modal, mobilde
- * full-screen sheet.
+ * V2-4.2 — Unified thread modal. Hangi context'ten açılırsa açılsın aynı
+ * (tenant, supplier) thread'inin tüm geçmişini gösterir; gönderilen yeni
+ * mesajlar defaultContext etiketiyle gider.
  */
 export function MessageDialog({
   open,
   onClose,
   surface,
-  context,
-  contextRefId,
-  targetSupplierId,
+  otherPartyId,
+  defaultContext,
   currentUserType,
   otherPartyName,
   contextNumber,
@@ -48,9 +46,7 @@ export function MessageDialog({
         <Dialog.Content
           className={cn(
             "fixed z-[60] outline-none bg-white shadow-2xl",
-            // Mobile: bottom sheet full-screen
             "inset-x-0 bottom-0 top-0 sm:inset-auto",
-            // Desktop: centered modal
             "sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2",
             "sm:w-[calc(100vw-2rem)] sm:max-w-2xl sm:h-[80vh] sm:max-h-[700px]",
             "sm:rounded-2xl",
@@ -64,7 +60,6 @@ export function MessageDialog({
             {contextNumber}
           </Dialog.Description>
 
-          {/* Close button - dialog header overlay'i, MessageThread'in kendi header'ı zaten var */}
           <Dialog.Close asChild>
             <button
               aria-label="Kapat"
@@ -77,9 +72,8 @@ export function MessageDialog({
           <div className="flex-1 min-h-0 flex flex-col">
             <MessageThread
               surface={surface}
-              context={context}
-              contextRefId={contextRefId}
-              targetSupplierId={targetSupplierId}
+              otherPartyId={otherPartyId}
+              defaultContext={defaultContext}
               currentUserType={currentUserType}
               headerInfo={{ otherPartyName, contextNumber }}
               className="h-full !h-full flex-1"

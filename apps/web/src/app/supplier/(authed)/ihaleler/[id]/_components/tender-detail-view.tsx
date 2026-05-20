@@ -170,11 +170,11 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
         open={messageOpen}
         onClose={() => setMessageOpen(false)}
         surface="supplier"
-        context="TENDER"
-        contextRefId={tender.id}
+        otherPartyId={tender.tenant.id}
+        defaultContext={{ context: "TENDER", contextRefId: tender.id }}
         currentUserType="SUPPLIER_USER"
         otherPartyName={tender.tenant.name}
-        contextNumber={tender.tenderNumber}
+        contextNumber={`İhale ${tender.tenderNumber}`}
       />
     </div>
   );

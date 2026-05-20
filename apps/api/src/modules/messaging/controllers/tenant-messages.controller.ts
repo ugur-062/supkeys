@@ -29,65 +29,45 @@ export class TenantMessagesController {
     return { kind: "tenant", tenantId: user.tenantId, userId: user.id };
   }
 
-  // ---------- Tüm thread'ler (header dropdown) ----------
+  // ---------- Header dropdown ----------
 
   @Get("threads")
   listAllThreads(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {
     return this.service.listAllThreadsForUser(this.actor(user));
   }
 
-  // ---------- V2-4.1 — Şirket-bazlı DIRECT mesajlar (/mesajlar sayfası) ----------
+  // ---------- /mesajlar sayfası ----------
 
   @Get("contacts")
   listContacts(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {
     return this.service.listContactsForUser(this.actor(user));
   }
 
+  // ---------- V2-4.2 — Unified supplier thread (TENDER/ORDER/DIRECT) ----------
+
   @Get("suppliers/:supplierId/messages")
-  listDirectMessages(
+  listMessages(
     @CurrentUser() user: AuthenticatedUser,
     @Param("supplierId") supplierId: string,
   ): Promise<unknown> {
-    return this.service.listMessages(
-      this.actor(user),
-      "DIRECT",
-      supplierId,
-      supplierId,
-    );
+    return this.service.listMessages(this.actor(user), supplierId);
   }
 
   @Post("suppliers/:supplierId/messages")
-  sendDirectMessage(
+  sendMessage(
     @CurrentUser() user: AuthenticatedUser,
     @Param("supplierId") supplierId: string,
     @Body() dto: SendMessageDto,
   ): Promise<unknown> {
-    return this.service.sendMessage(this.actor(user), "DIRECT", supplierId, {
-      ...dto,
-      targetSupplierId: supplierId,
+    return this.service.sendMessage(this.actor(user), supplierId, {
+      content: dto.content,
+      attachmentIds: dto.attachmentIds,
+      context: dto.context,
+      contextRefId: dto.contextRefId,
     });
   }
 
-  // ---------- ORDER context ----------
-
-  @Get("orders/:orderId/messages")
-  listOrderMessages(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param("orderId") orderId: string,
-  ): Promise<unknown> {
-    return this.service.listMessages(this.actor(user), "ORDER", orderId);
-  }
-
-  @Post("orders/:orderId/messages")
-  sendOrderMessage(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param("orderId") orderId: string,
-    @Body() dto: SendMessageDto,
-  ): Promise<unknown> {
-    return this.service.sendMessage(this.actor(user), "ORDER", orderId, dto);
-  }
-
-  // ---------- TENDER context ----------
+  // ---------- Tender detay dropdown ----------
 
   @Get("tenders/:tenderId/threads")
   listTenderThreads(
@@ -95,33 +75,6 @@ export class TenantMessagesController {
     @Param("tenderId") tenderId: string,
   ) {
     return this.service.listTenderThreadsForTenant(this.actor(user), tenderId);
-  }
-
-  @Get("tenders/:tenderId/threads/:supplierId/messages")
-  listTenderMessages(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param("tenderId") tenderId: string,
-    @Param("supplierId") supplierId: string,
-  ): Promise<unknown> {
-    return this.service.listMessages(
-      this.actor(user),
-      "TENDER",
-      tenderId,
-      supplierId,
-    );
-  }
-
-  @Post("tenders/:tenderId/threads/:supplierId/messages")
-  sendTenderMessage(
-    @CurrentUser() user: AuthenticatedUser,
-    @Param("tenderId") tenderId: string,
-    @Param("supplierId") supplierId: string,
-    @Body() dto: SendMessageDto,
-  ): Promise<unknown> {
-    return this.service.sendMessage(this.actor(user), "TENDER", tenderId, {
-      ...dto,
-      targetSupplierId: supplierId,
-    });
   }
 
   // ---------- Sidebar badge ----------

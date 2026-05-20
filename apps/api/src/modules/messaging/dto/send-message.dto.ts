@@ -1,6 +1,7 @@
 import {
   ArrayMaxSize,
   IsArray,
+  IsEnum,
   IsOptional,
   IsString,
   MaxLength,
@@ -16,4 +17,15 @@ export class SendMessageDto {
   @ArrayMaxSize(5, { message: "En fazla 5 dosya eklenebilir" })
   @IsString({ each: true })
   attachmentIds?: string[];
+
+  /** V2-4.2 — Hangi tender/order kapsamında gönderildiği (opsiyonel). */
+  @IsOptional()
+  @IsEnum(["TENDER", "ORDER", "DIRECT"], {
+    message: "context TENDER | ORDER | DIRECT olabilir",
+  })
+  context?: "TENDER" | "ORDER" | "DIRECT";
+
+  @IsOptional()
+  @IsString()
+  contextRefId?: string;
 }

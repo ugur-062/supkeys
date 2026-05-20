@@ -10,13 +10,25 @@ import type { MessageContext, Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
 /**
- * V2-4 — 1-on-1 mesajlaşma servisi.
- * Her TENANT-SUPPLIER-CONTEXT kombinasyonu için tek thread.
- * Tedarikçi A ve B birbirinin thread'ini ASLA göremez.
+ * V2-4.2 — Unified 1-on-1 mesajlaşma servisi.
+ *
+ * Bir tenant ↔ supplier çifti için TEK MessageThread. Mesaj seviyesinde
+ * `context` tag (TENDER/ORDER/DIRECT) ile hangi sipariş veya ihaleden
+ * gelen mesaj olduğu işaretlenir. Tedarikçi A ve B birbirinin thread'ini
+ * ASLA göremez (thread tenant-supplier scope'unda).
  */
 export type MessageActor =
   | { kind: "tenant"; tenantId: string; userId: string }
   | { kind: "supplier"; supplierId: string; supplierUserId: string };
+
+interface SendMessageParams {
+  content: string;
+  attachmentIds?: string[];
+  /** Hangi context'ten geldiğinin etiketi. Boşsa DIRECT (genel sohbet). */
+  context?: MessageContext;
+  /** TENDER için tenderId, ORDER için orderId. DIRECT'te yok. */
+  contextRefId?: string;
+}
 
 @Injectable()
 export class MessagesService {
@@ -27,72 +39,49 @@ export class MessagesService {
     private readonly events: EventEmitter2,
   ) {}
 
+  // ============================================================================
+  // Thread CRUD
+  // ============================================================================
+
   /**
-   * Thread'i bul veya oluştur. Yetki + context validation.
-   * `targetSupplierId` SADECE TENANT-TENDER context'inde gerekir
-   * (alıcı hangi tedarikçiyle konuşuyor — davet edilmiş olmalı).
+   * (tenant, supplier) çifti için thread'i bul veya oluştur. ACTIVE relation
+   * zorunlu — relation yoksa ForbiddenException.
    */
-  async getOrCreateThread(
-    actor: MessageActor,
-    context: MessageContext,
-    contextRefId: string,
-    targetSupplierId?: string,
-  ) {
+  async getOrCreateThread(actor: MessageActor, otherPartyId: string) {
     const { tenantId, supplierId } = await this.resolveParties(
       actor,
-      context,
-      contextRefId,
-      targetSupplierId,
+      otherPartyId,
     );
 
-    // DIRECT context için canonical contextRefId = supplierId. URL'de
-    // hangi taraf gelirse gelsin aynı thread'i bul (tek konuşma kanalı).
-    const effectiveContextRefId =
-      context === "DIRECT" ? supplierId : contextRefId;
-
     const existing = await this.prisma.messageThread.findUnique({
-      where: {
-        context_contextRefId_tenantId_supplierId: {
-          context,
-          contextRefId: effectiveContextRefId,
-          tenantId,
-          supplierId,
-        },
-      },
+      where: { tenantId_supplierId: { tenantId, supplierId } },
     });
     if (existing) return existing;
 
     return this.prisma.messageThread.create({
-      data: {
-        context,
-        contextRefId: effectiveContextRefId,
-        tenantId,
-        supplierId,
-      },
+      data: { tenantId, supplierId },
     });
   }
 
-  async listMessages(
-    actor: MessageActor,
-    context: MessageContext,
-    contextRefId: string,
-    targetSupplierId?: string,
-  ) {
-    const thread = await this.getOrCreateThread(
-      actor,
-      context,
-      contextRefId,
-      targetSupplierId,
-    );
+  /**
+   * Unified thread'in tüm mesajlarını döndürür (kronolojik), her balona
+   * context bilgisi enrich edilir. Read marker güncellenir.
+   */
+  async listMessages(actor: MessageActor, otherPartyId: string) {
+    const thread = await this.getOrCreateThread(actor, otherPartyId);
 
     const messages = await this.prisma.message.findMany({
       where: { threadId: thread.id },
       orderBy: { sentAt: "asc" },
     });
 
-    // Sender adlarını enrich et
+    // Sender isimlerini enrich et
     const userIds = Array.from(
-      new Set(messages.map((m) => m.senderUserId).filter((v): v is string => !!v)),
+      new Set(
+        messages
+          .map((m) => m.senderUserId)
+          .filter((v): v is string => !!v),
+      ),
     );
     const supUserIds = Array.from(
       new Set(
@@ -102,20 +91,59 @@ export class MessagesService {
       ),
     );
 
-    const [users, supUsers] = await Promise.all([
+    // Context label lookup için tender ve order ID'leri topla
+    const tenderRefIds = Array.from(
+      new Set(
+        messages
+          .filter((m) => m.context === "TENDER" && m.contextRefId)
+          .map((m) => m.contextRefId as string),
+      ),
+    );
+    const orderRefIds = Array.from(
+      new Set(
+        messages
+          .filter((m) => m.context === "ORDER" && m.contextRefId)
+          .map((m) => m.contextRefId as string),
+      ),
+    );
+
+    const [users, supUsers, tenders, orders] = await Promise.all([
       userIds.length
         ? this.prisma.user.findMany({
             where: { id: { in: userIds } },
             select: { id: true, firstName: true, lastName: true },
           })
-        : Promise.resolve([]),
+        : Promise.resolve(
+            [] as Array<{ id: string; firstName: string; lastName: string }>,
+          ),
       supUserIds.length
         ? this.prisma.supplierUser.findMany({
             where: { id: { in: supUserIds } },
             select: { id: true, firstName: true, lastName: true },
           })
-        : Promise.resolve([]),
+        : Promise.resolve(
+            [] as Array<{ id: string; firstName: string; lastName: string }>,
+          ),
+      tenderRefIds.length
+        ? this.prisma.tender.findMany({
+            where: { id: { in: tenderRefIds } },
+            select: { id: true, tenderNumber: true, title: true },
+          })
+        : Promise.resolve(
+            [] as Array<{ id: string; tenderNumber: string; title: string }>,
+          ),
+      orderRefIds.length
+        ? this.prisma.order.findMany({
+            where: { id: { in: orderRefIds } },
+            select: { id: true, orderNumber: true },
+          })
+        : Promise.resolve(
+            [] as Array<{ id: string; orderNumber: string }>,
+          ),
     ]);
+
+    const tenderMap = new Map(tenders.map((t) => [t.id, t]));
+    const orderMap = new Map(orders.map((o) => [o.id, o]));
 
     const enriched = messages.map((m) => {
       let senderName = "—";
@@ -126,10 +154,20 @@ export class MessagesService {
         const su = supUsers.find((x) => x.id === m.senderSupplierUserId);
         if (su) senderName = `${su.firstName} ${su.lastName}`;
       }
-      return { ...m, senderName };
+
+      let contextLabel: string | null = null;
+      if (m.context === "TENDER" && m.contextRefId) {
+        const t = tenderMap.get(m.contextRefId);
+        contextLabel = t ? `İhale ${t.tenderNumber}` : "İhale";
+      } else if (m.context === "ORDER" && m.contextRefId) {
+        const o = orderMap.get(m.contextRefId);
+        contextLabel = o ? `Sipariş ${o.orderNumber}` : "Sipariş";
+      }
+
+      return { ...m, senderName, contextLabel };
     });
 
-    // Read marker güncelle
+    // Read marker
     await this.prisma.messageThread.update({
       where: { id: thread.id },
       data:
@@ -141,8 +179,6 @@ export class MessagesService {
     return {
       thread: {
         id: thread.id,
-        context: thread.context,
-        contextRefId: thread.contextRefId,
         tenantId: thread.tenantId,
         supplierId: thread.supplierId,
         lastMessageAt: thread.lastMessageAt,
@@ -153,13 +189,8 @@ export class MessagesService {
 
   async sendMessage(
     actor: MessageActor,
-    context: MessageContext,
-    contextRefId: string,
-    params: {
-      content: string;
-      attachmentIds?: string[];
-      targetSupplierId?: string;
-    },
+    otherPartyId: string,
+    params: SendMessageParams,
   ) {
     const content = params.content?.trim() ?? "";
     const attIds = params.attachmentIds ?? [];
@@ -171,12 +202,20 @@ export class MessagesService {
       throw new BadRequestException("En fazla 5 dosya eklenebilir");
     }
 
-    const thread = await this.getOrCreateThread(
-      actor,
-      context,
-      contextRefId,
-      params.targetSupplierId,
-    );
+    const context = params.context ?? "DIRECT";
+    const contextRefId =
+      context === "DIRECT" ? null : (params.contextRefId ?? null);
+
+    if ((context === "TENDER" || context === "ORDER") && !contextRefId) {
+      throw new BadRequestException(
+        `${context} context için contextRefId zorunlu`,
+      );
+    }
+
+    // Context-spesifik authz
+    await this.validateContextAuthz(actor, context, contextRefId, otherPartyId);
+
+    const thread = await this.getOrCreateThread(actor, otherPartyId);
 
     const message = await this.prisma.message.create({
       data: {
@@ -186,11 +225,12 @@ export class MessagesService {
         senderSupplierUserId:
           actor.kind === "supplier" ? actor.supplierUserId : null,
         content,
+        context,
+        contextRefId,
         attachmentIds: attIds as unknown as Prisma.InputJsonValue,
       },
     });
 
-    // V2-4 — preview: header dropdown + thread listesinde cache'lenmiş gösterim.
     const preview = content
       ? content.substring(0, 200)
       : `📎 ${attIds.length} dosya`;
@@ -206,7 +246,6 @@ export class MessagesService {
       },
     });
 
-    // Email scheduler 5dk debounce ile karşı tarafa bildirim gönderir.
     this.events.emit("message.created", {
       messageId: message.id,
       threadId: thread.id,
@@ -247,17 +286,20 @@ export class MessagesService {
     for (const t of threads) {
       const last = t.messages[0]?.sentAt;
       if (!last) continue;
-      const lastReadAt =
+      const readAt =
         actor.kind === "tenant" ? t.tenantLastReadAt : t.supplierLastReadAt;
-      if (!lastReadAt || lastReadAt < last) count += 1;
+      if (!readAt || readAt < last) count++;
     }
     return { count };
   }
 
+  // ============================================================================
+  // List endpoints
+  // ============================================================================
+
   /**
-   * V2-4 düzeltme — Header dropdown + /mesajlar sayfası için tüm thread'leri
-   * (sipariş + ihale karışık) son mesaj zamanına göre sıralayarak döndürür.
-   * Bağlam metadata'sı (orderNumber/tenderNumber) batch fetch ile zenginleştirilir.
+   * Header dropdown için kullanıcının tüm thread özetleri (en yeni mesaja
+   * göre desc). Bir tedarikçi için tek satır gelir (unified).
    */
   async listAllThreadsForUser(actor: MessageActor) {
     const where =
@@ -275,46 +317,12 @@ export class MessagesService {
       take: 50,
     });
 
-    const orderIds = threads
-      .filter((t) => t.context === "ORDER")
-      .map((t) => t.contextRefId);
-    const tenderIds = threads
-      .filter((t) => t.context === "TENDER")
-      .map((t) => t.contextRefId);
-
-    const [orders, tenders] = await Promise.all([
-      orderIds.length
-        ? this.prisma.order.findMany({
-            where: { id: { in: orderIds } },
-            select: { id: true, orderNumber: true },
-          })
-        : Promise.resolve([]),
-      tenderIds.length
-        ? this.prisma.tender.findMany({
-            where: { id: { in: tenderIds } },
-            select: { id: true, tenderNumber: true, title: true },
-          })
-        : Promise.resolve([]),
-    ]);
-
     return threads.map((t) => {
       const isTenantSide = actor.kind === "tenant";
       const otherPartyId = isTenantSide ? t.supplier.id : t.tenant.id;
-      const otherPartyName = isTenantSide ? t.supplier.companyName : t.tenant.name;
-
-      let contextLabel: "Sipariş" | "İhale";
-      let contextNumber: string;
-      let contextTitle: string | null = null;
-      if (t.context === "ORDER") {
-        const o = orders.find((x) => x.id === t.contextRefId);
-        contextLabel = "Sipariş";
-        contextNumber = o?.orderNumber ?? "—";
-      } else {
-        const tender = tenders.find((x) => x.id === t.contextRefId);
-        contextLabel = "İhale";
-        contextNumber = tender?.tenderNumber ?? "—";
-        contextTitle = tender?.title ?? null;
-      }
+      const otherPartyName = isTenantSide
+        ? t.supplier.companyName
+        : t.tenant.name;
 
       const lastReadAt = isTenantSide
         ? t.tenantLastReadAt
@@ -324,11 +332,6 @@ export class MessagesService {
 
       return {
         threadId: t.id,
-        context: t.context,
-        contextRefId: t.contextRefId,
-        contextLabel,
-        contextNumber,
-        contextTitle,
         otherPartyId,
         otherPartyName,
         lastMessagePreview: t.lastMessagePreview,
@@ -339,76 +342,8 @@ export class MessagesService {
   }
 
   /**
-   * TENANT-TENDER context için davet edilen tedarikçiler listesi + thread özeti.
-   * Sol-rail kullanıcı arayüzünde "hangi tedarikçiyle konuşuyor" seçimi yapılır.
-   */
-  async listTenderThreadsForTenant(actor: MessageActor, tenderId: string) {
-    if (actor.kind !== "tenant") {
-      throw new ForbiddenException();
-    }
-
-    const tender = await this.prisma.tender.findUnique({
-      where: { id: tenderId },
-      select: {
-        id: true,
-        tenantId: true,
-        invitations: {
-          select: {
-            supplier: { select: { id: true, companyName: true } },
-          },
-          orderBy: { invitedAt: "asc" },
-        },
-      },
-    });
-    if (!tender) throw new NotFoundException("İhale bulunamadı");
-    if (tender.tenantId !== actor.tenantId) throw new ForbiddenException();
-
-    const threads = await this.prisma.messageThread.findMany({
-      where: { context: "TENDER", contextRefId: tenderId, tenantId: actor.tenantId },
-      include: {
-        messages: { orderBy: { sentAt: "desc" }, take: 1 },
-      },
-    });
-    const threadBySupplier = new Map(threads.map((t) => [t.supplierId, t]));
-
-    const result = tender.invitations.map((inv) => {
-      const t = threadBySupplier.get(inv.supplier.id);
-      const lastMsg = t?.messages[0];
-      const unread =
-        !!t &&
-        !!lastMsg &&
-        lastMsg.senderType === "SUPPLIER_USER" &&
-        (!t.tenantLastReadAt || t.tenantLastReadAt < lastMsg.sentAt);
-      return {
-        supplierId: inv.supplier.id,
-        supplierName: inv.supplier.companyName,
-        threadId: t?.id ?? null,
-        lastMessageAt: t?.lastMessageAt ?? null,
-        lastMessageContent: lastMsg?.content
-          ? lastMsg.content.substring(0, 80)
-          : null,
-        lastMessageSenderType: lastMsg?.senderType ?? null,
-        unread,
-      };
-    });
-
-    return result.sort((a, b) => {
-      if (a.lastMessageAt && b.lastMessageAt) {
-        return (
-          new Date(b.lastMessageAt).getTime() -
-          new Date(a.lastMessageAt).getTime()
-        );
-      }
-      if (a.lastMessageAt) return -1;
-      if (b.lastMessageAt) return 1;
-      return a.supplierName.localeCompare(b.supplierName);
-    });
-  }
-
-  /**
-   * V2-4.1 — Tüm aktif bağlantılar (relations) + DIRECT thread özeti.
-   * Hiç mesajlaşmamış olanlar dahil, lastMessageAt desc; null'lar en altta.
-   * Mesajlar sayfasının kontak listesi için.
+   * V2-4.1 — Tüm aktif bağlantılar (relations) + unified thread özeti.
+   * Hiç mesajlaşmamış olanlar dahil; lastMessageAt desc, null'lar en altta.
    */
   async listContactsForUser(actor: MessageActor) {
     if (actor.kind === "tenant") {
@@ -424,7 +359,6 @@ export class MessagesService {
       const threads = await this.prisma.messageThread.findMany({
         where: {
           tenantId: actor.tenantId,
-          context: "DIRECT",
           supplierId: { in: supplierIds },
         },
         select: {
@@ -464,7 +398,6 @@ export class MessagesService {
     const threads = await this.prisma.messageThread.findMany({
       where: {
         supplierId: actor.supplierId,
-        context: "DIRECT",
         tenantId: { in: tenantIds },
       },
       select: {
@@ -493,11 +426,71 @@ export class MessagesService {
     return this.sortContacts(rows);
   }
 
+  /**
+   * Tender detayında "Mesajlaş" dropdown'u için davetli tedarikçiler + her
+   * birinin unified thread'inin özeti. Tedarikçi ile mesajlaşmamış olsa
+   * dahi davetliyse listede yer alır.
+   */
+  async listTenderThreadsForTenant(actor: MessageActor, tenderId: string) {
+    if (actor.kind !== "tenant") {
+      throw new ForbiddenException();
+    }
+
+    const tender = await this.prisma.tender.findUnique({
+      where: { id: tenderId },
+      select: { id: true, tenantId: true },
+    });
+    if (!tender || tender.tenantId !== actor.tenantId) {
+      throw new NotFoundException("İhale bulunamadı");
+    }
+
+    const invitations = await this.prisma.tenderInvitation.findMany({
+      where: { tenderId },
+      include: { supplier: { select: { id: true, companyName: true } } },
+    });
+
+    const supplierIds = invitations.map((i) => i.supplierId);
+    if (supplierIds.length === 0) return [];
+
+    const threads = await this.prisma.messageThread.findMany({
+      where: {
+        tenantId: actor.tenantId,
+        supplierId: { in: supplierIds },
+      },
+      select: {
+        supplierId: true,
+        lastMessageAt: true,
+        lastMessagePreview: true,
+        tenantLastReadAt: true,
+      },
+    });
+    const threadMap = new Map(threads.map((t) => [t.supplierId, t]));
+
+    return invitations.map((inv) => {
+      const t = threadMap.get(inv.supplierId);
+      const lastMessageAt = t?.lastMessageAt ?? null;
+      const unread =
+        !!lastMessageAt &&
+        (!t?.tenantLastReadAt || t.tenantLastReadAt < lastMessageAt);
+      return {
+        supplierId: inv.supplier.id,
+        supplierName: inv.supplier.companyName,
+        lastMessageAt: lastMessageAt ? lastMessageAt.toISOString() : null,
+        lastMessageContent: t?.lastMessagePreview ?? null,
+        lastMessageSenderType: null as null,
+        unread,
+      };
+    });
+  }
+
+  // ============================================================================
+  // Private helpers
+  // ============================================================================
+
   private sortContacts<
     T extends { lastMessageAt: string | null; otherPartyName: string },
   >(rows: T[]): T[] {
     return rows.sort((a, b) => {
-      // En son mesajlaşılan üstte; mesajsızlar isim alfabetik en altta.
       if (a.lastMessageAt && b.lastMessageAt) {
         return b.lastMessageAt.localeCompare(a.lastMessageAt);
       }
@@ -507,99 +500,82 @@ export class MessagesService {
     });
   }
 
-  // ----- private helpers -----
-
   /**
-   * Authz + party resolution. Çıktı: { tenantId, supplierId } — thread'in
-   * iki tarafının ID'leri (database literal değerleri).
+   * Authz + party resolution. Thread (tenant, supplier) çifti olduğu için
+   * otherPartyId interpreted by actor type: tenant verirse supplierId,
+   * supplier verirse tenantId. ACTIVE relation zorunlu.
    */
   private async resolveParties(
     actor: MessageActor,
-    context: MessageContext,
-    contextRefId: string,
-    targetSupplierId?: string,
+    otherPartyId: string,
   ): Promise<{ tenantId: string; supplierId: string }> {
-    if (context === "DIRECT") {
-      // DIRECT context: tenant ↔ supplier şirket-bazlı sohbet. Bağlantı
-      // ACTIVE olmalı. Convention: contextRefId = supplierId (taraf
-      // önemli değil, sadece thread uniqueness için placeholder).
-      const supplierId =
-        actor.kind === "tenant"
-          ? (targetSupplierId ?? contextRefId)
-          : actor.supplierId;
-      const tenantId =
-        actor.kind === "tenant" ? actor.tenantId : contextRefId;
-      const relation = await this.prisma.supplierTenantRelation.findUnique({
-        where: {
-          supplierId_tenantId: { supplierId, tenantId },
-        },
-        select: { status: true },
-      });
-      if (!relation || relation.status !== "ACTIVE") {
-        throw new ForbiddenException(
-          "Bu firmayla aktif bir bağlantınız yok",
-        );
-      }
-      return { tenantId, supplierId };
+    const tenantId = actor.kind === "tenant" ? actor.tenantId : otherPartyId;
+    const supplierId =
+      actor.kind === "tenant" ? otherPartyId : actor.supplierId;
+
+    const relation = await this.prisma.supplierTenantRelation.findUnique({
+      where: {
+        supplierId_tenantId: { supplierId, tenantId },
+      },
+      select: { status: true },
+    });
+    if (!relation || relation.status !== "ACTIVE") {
+      throw new ForbiddenException(
+        "Bu firmayla aktif bir bağlantınız yok",
+      );
     }
+    return { tenantId, supplierId };
+  }
+
+  /**
+   * Context'e özgü authz: TENDER için davet doğrulaması, ORDER için
+   * sipariş sahipliği doğrulaması. DIRECT için ek kontrol yok
+   * (resolveParties'in ACTIVE relation kontrolü yeterli).
+   */
+  private async validateContextAuthz(
+    actor: MessageActor,
+    context: MessageContext,
+    contextRefId: string | null,
+    otherPartyId: string,
+  ): Promise<void> {
+    if (context === "DIRECT" || !contextRefId) return;
+
+    const { tenantId, supplierId } = await this.resolveParties(
+      actor,
+      otherPartyId,
+    );
 
     if (context === "ORDER") {
       const order = await this.prisma.order.findUnique({
         where: { id: contextRefId },
-        select: { id: true, tenantId: true, supplierId: true },
+        select: { tenantId: true, supplierId: true },
       });
       if (!order) throw new NotFoundException("Sipariş bulunamadı");
-      if (actor.kind === "tenant" && order.tenantId !== actor.tenantId) {
-        throw new ForbiddenException();
+      if (order.tenantId !== tenantId || order.supplierId !== supplierId) {
+        throw new ForbiddenException(
+          "Bu sipariş bu iki firma arasında değil",
+        );
       }
-      if (actor.kind === "supplier" && order.supplierId !== actor.supplierId) {
-        throw new ForbiddenException();
-      }
-      return { tenantId: order.tenantId, supplierId: order.supplierId };
+      return;
     }
 
     // TENDER
     const tender = await this.prisma.tender.findUnique({
       where: { id: contextRefId },
-      select: { id: true, tenantId: true },
+      select: { tenantId: true },
     });
     if (!tender) throw new NotFoundException("İhale bulunamadı");
-
-    if (actor.kind === "tenant") {
-      if (tender.tenantId !== actor.tenantId) throw new ForbiddenException();
-      if (!targetSupplierId) {
-        throw new BadRequestException(
-          "Hangi tedarikçi ile konuşulacağı belirtilmeli",
-        );
-      }
-      const invited = await this.prisma.tenderInvitation.findUnique({
-        where: {
-          tenderId_supplierId: {
-            tenderId: contextRefId,
-            supplierId: targetSupplierId,
-          },
-        },
-        select: { id: true },
-      });
-      if (!invited) {
-        throw new BadRequestException(
-          "Bu tedarikçi ihaleye davet edilmemiş",
-        );
-      }
-      return { tenantId: tender.tenantId, supplierId: targetSupplierId };
+    if (tender.tenantId !== tenantId) {
+      throw new ForbiddenException("Bu ihale bu alıcıya ait değil");
     }
-
-    // supplier
     const invited = await this.prisma.tenderInvitation.findUnique({
-      where: {
-        tenderId_supplierId: {
-          tenderId: contextRefId,
-          supplierId: actor.supplierId,
-        },
-      },
+      where: { tenderId_supplierId: { tenderId: contextRefId, supplierId } },
       select: { id: true },
     });
-    if (!invited) throw new ForbiddenException("Bu ihaleye davetli değilsiniz");
-    return { tenantId: tender.tenantId, supplierId: actor.supplierId };
+    if (!invited) {
+      throw new BadRequestException(
+        "Tedarikçi bu ihaleye davet edilmemiş",
+      );
+    }
   }
 }

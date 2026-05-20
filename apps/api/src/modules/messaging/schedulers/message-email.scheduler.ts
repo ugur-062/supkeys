@@ -104,10 +104,12 @@ export class MessageEmailScheduler {
       ) {
         senderSupplierUserIds.add(msg.senderSupplierUserId);
       }
-      if (msg.thread.context === "ORDER") {
-        orderIds.add(msg.thread.contextRefId);
-      } else {
-        tenderIds.add(msg.thread.contextRefId);
+      // V2-4.2 — context artık message seviyesinde. DIRECT mesajlarda ek
+      // tender/order lookup gerekmez (context label boş gösterilir).
+      if (msg.context === "ORDER" && msg.contextRefId) {
+        orderIds.add(msg.contextRefId);
+      } else if (msg.context === "TENDER" && msg.contextRefId) {
+        tenderIds.add(msg.contextRefId);
       }
     }
 
@@ -268,17 +270,18 @@ export class MessageEmailScheduler {
             senderSupplierUserMap,
           });
 
-          // Context
+          // V2-4.2 — context message seviyesinde
           const contextLabel = this.resolveContextLabelFromMaps(
-            msg.thread.context,
-            msg.thread.contextRefId,
+            msg.context,
+            msg.contextRefId,
             { orderMap, tenderMap },
           );
 
           const ctaUrl = this.buildCtaUrl(
             recipientSurface,
-            msg.thread.context,
-            msg.thread.contextRefId,
+            msg.context,
+            msg.contextRefId,
+            msg.thread.tenantId,
             msg.thread.supplierId,
             webUrl,
           );
@@ -371,13 +374,16 @@ export class MessageEmailScheduler {
   }
 
   private resolveContextLabelFromMaps(
-    context: MessageContext,
-    contextRefId: string,
+    context: MessageContext | null,
+    contextRefId: string | null,
     maps: {
       orderMap: Map<string, { orderNumber: string }>;
       tenderMap: Map<string, { tenderNumber: string; title: string }>;
     },
   ): string {
+    if (!context || context === "DIRECT" || !contextRefId) {
+      return "Şirket sohbeti";
+    }
     if (context === "ORDER") {
       const order = maps.orderMap.get(contextRefId);
       return order ? `Sipariş ${order.orderNumber}` : "Sipariş";
@@ -388,23 +394,22 @@ export class MessageEmailScheduler {
       : "İhale";
   }
 
+  /**
+   * V2-4.2 — Unified thread modeli. Context bağlam etiketi olsa bile CTA
+   * doğrudan /mesajlar sayfasındaki contact'a yönlendirir; full conversation
+   * orada görünür.
+   */
   private buildCtaUrl(
     surface: "tenant" | "supplier",
-    context: MessageContext,
-    contextRefId: string,
+    _context: MessageContext | null,
+    _contextRefId: string | null,
+    tenantId: string,
     supplierId: string,
     base: string,
   ): string {
     if (surface === "tenant") {
-      if (context === "ORDER") {
-        return `${base}/dashboard/siparisler/${contextRefId}?tab=messages`;
-      }
-      return `${base}/dashboard/ihaleler/${contextRefId}?tab=messages&supplier=${supplierId}`;
+      return `${base}/dashboard/mesajlar?contact=${supplierId}`;
     }
-    // supplier surface
-    if (context === "ORDER") {
-      return `${base}/supplier/siparisler/${contextRefId}?tab=messages`;
-    }
-    return `${base}/supplier/ihaleler/${contextRefId}?tab=messages`;
+    return `${base}/supplier/mesajlar?contact=${tenantId}`;
   }
 }

@@ -1272,11 +1272,10 @@ model ExchangeRate {
 // 1 alıcı-tedarikçi-context kombinasyonu için tek thread.
 // Tedarikçiler birbirini görmez (kapalı zarf gereği).
 
+/// V2-4.2 — Unified thread per (tenant, supplier). Tender/order/direct
+/// ayrımı artık thread seviyesinde değil, mesaj seviyesindeki context tag'inde.
 model MessageThread {
   id           String          @id @default(cuid())
-
-  context      MessageContext
-  contextRefId String           // orderId veya tenderId
 
   tenantId     String
   tenant       Tenant           @relation("TenantMessageThreads", fields: [tenantId], references: [id], onDelete: Cascade)
@@ -1287,16 +1286,15 @@ model MessageThread {
   messages     Message[]
 
   lastMessageAt      DateTime?
-  lastMessagePreview String?    @db.VarChar(200) // V2-4 — son mesaj preview (header dropdown + thread list için cached)
+  lastMessagePreview String?    @db.VarChar(200)
   tenantLastReadAt   DateTime?
   supplierLastReadAt DateTime?
 
   createdAt    DateTime         @default(now())
 
-  @@unique([context, contextRefId, tenantId, supplierId])
+  @@unique([tenantId, supplierId])
   @@index([tenantId, lastMessageAt])
   @@index([supplierId, lastMessageAt])
-  @@index([context, contextRefId])
   @@map("message_threads")
 }
 
@@ -1304,6 +1302,11 @@ model Message {
   id                   String              @id @default(cuid())
   threadId             String
   thread               MessageThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  /// V2-4.2 — Her mesaj bir context taşır. NULL = legacy / tarif edilmeyen.
+  /// DIRECT için contextRefId = null. TENDER: tenderId. ORDER: orderId.
+  context              MessageContext?
+  contextRefId         String?
 
   senderType           MessageSenderType
   senderUserId         String?             // User.id (TENANT_USER ise)
@@ -1319,6 +1322,7 @@ model Message {
 
   @@index([threadId, sentAt])
   @@index([emailNotifiedAt, sentAt])
+  @@index([context, contextRefId])
   @@map("messages")
 }
 

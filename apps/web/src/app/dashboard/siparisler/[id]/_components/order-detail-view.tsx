@@ -409,11 +409,11 @@ function Header({ order }: { order: OrderDetail }) {
         open={messageOpen}
         onClose={() => setMessageOpen(false)}
         surface="tenant"
-        context="ORDER"
-        contextRefId={order.id}
+        otherPartyId={order.supplier?.id ?? ""}
+        defaultContext={{ context: "ORDER", contextRefId: order.id }}
         currentUserType="TENANT_USER"
         otherPartyName={order.supplier?.companyName ?? "Tedarikçi"}
-        contextNumber={order.orderNumber}
+        contextNumber={`Sipariş ${order.orderNumber}`}
       />
     </div>
   );

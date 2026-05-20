@@ -14,7 +14,15 @@ import type {
 import { extractErrorMessage } from "@/lib/form-errors";
 import { format, isToday, isYesterday } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Loader2, Paperclip, Send, X } from "lucide-react";
+import {
+  Building2,
+  ClipboardList,
+  Loader2,
+  Package,
+  Paperclip,
+  Send,
+  X,
+} from "lucide-react";
 import {
   type KeyboardEvent,
   type ChangeEvent,
@@ -24,16 +32,13 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
-import { ContextBadge } from "./context-badge";
 import { MessageAttachment } from "./message-attachment";
 
 function ThreadChatHeader({
   otherPartyName,
-  context,
   contextNumber,
 }: {
   otherPartyName: string;
-  context: MessageContext;
   contextNumber: string;
 }) {
   return (
@@ -43,7 +48,7 @@ function ThreadChatHeader({
         <p className="font-semibold text-sm text-brand-900 truncate">
           {otherPartyName}
         </p>
-        <ContextBadge context={context} number={contextNumber} />
+        <p className="text-[11px] text-slate-500 truncate">{contextNumber}</p>
       </div>
     </div>
   );
@@ -51,13 +56,14 @@ function ThreadChatHeader({
 
 interface Props {
   surface: MessageSurface;
-  context: MessageContext;
-  contextRefId: string;
-  /** SADECE surface=tenant + context=TENDER için zorunlu */
-  targetSupplierId?: string;
+  /** V2-4.2 — Karşı tarafın ID'si (tenant için supplierId, supplier için tenantId). */
+  otherPartyId: string;
+  /** Gönderilen yeni mesajlara otomatik etiketlenecek context (örn. tender
+   * detayından açılan dialog için TENDER+tenderId). */
+  defaultContext?: { context: MessageContext; contextRefId?: string };
   /** Mesaj balonlarında "ben" tarafını belirler. */
   currentUserType: MessageSenderType;
-  /** V2-4 — opsiyonel chat-header (avatar + ad + bağlam rozeti). */
+  /** Opsiyonel chat-header (avatar + ad + bağlam). */
   headerInfo?: {
     otherPartyName: string;
     contextNumber: string;
@@ -73,25 +79,14 @@ interface PendingAttachment {
 
 export function MessageThread({
   surface,
-  context,
-  contextRefId,
-  targetSupplierId,
+  otherPartyId,
+  defaultContext,
   currentUserType,
   headerInfo,
   className,
 }: Props) {
-  const { data, isLoading } = useThreadMessages(
-    surface,
-    context,
-    contextRefId,
-    targetSupplierId,
-  );
-  const sendMutation = useSendMessage(
-    surface,
-    context,
-    contextRefId,
-    targetSupplierId,
-  );
+  const { data, isLoading } = useThreadMessages(surface, otherPartyId);
+  const sendMutation = useSendMessage(surface, otherPartyId, defaultContext);
   const uploadMutation = useUploadAttachment(surface);
 
   const [content, setContent] = useState("");
@@ -141,7 +136,7 @@ export function MessageThread({
       try {
         const result = await uploadMutation.mutateAsync({
           scope: "MESSAGE_ATTACHMENT",
-          scopeRefId: contextRefId,
+          scopeRefId: otherPartyId,
           file,
         });
         setPending((prev) => [
@@ -180,9 +175,20 @@ export function MessageThread({
       {headerInfo ? (
         <ThreadChatHeader
           otherPartyName={headerInfo.otherPartyName}
-          context={context}
           contextNumber={headerInfo.contextNumber}
         />
+      ) : null}
+
+      {defaultContext && defaultContext.context !== "DIRECT" ? (
+        <div className="px-3 py-1.5 bg-slate-50 border-b border-slate-200">
+          <p className="text-[11px] text-slate-500">
+            Bu sohbete gönderdiğin yeni mesajlar otomatik olarak{" "}
+            <span className="font-medium text-slate-700">
+              {defaultContext.context === "TENDER" ? "ihale" : "sipariş"}
+            </span>{" "}
+            etiketi alır.
+          </p>
+        </div>
       ) : null}
 
       {/* Mesaj listesi */}
@@ -200,7 +206,11 @@ export function MessageThread({
             </p>
           </div>
         ) : (
-          <MessageList messages={messages} currentUserType={currentUserType} surface={surface} />
+          <MessageList
+            messages={messages}
+            currentUserType={currentUserType}
+            surface={surface}
+          />
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -293,6 +303,28 @@ function formatTimestamp(date: Date): string {
   return format(date, "d MMM HH:mm", { locale: tr });
 }
 
+function MessageContextChip({ msg }: { msg: MessageItem }) {
+  if (!msg.context || msg.context === "DIRECT") return null;
+  const label = msg.contextLabel ?? (msg.context === "TENDER" ? "İhale" : "Sipariş");
+  const isOrder = msg.context === "ORDER";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold mb-1 ${
+        isOrder
+          ? "bg-success-50 text-success-700"
+          : "bg-blue-50 text-blue-700"
+      }`}
+    >
+      {isOrder ? (
+        <Package className="h-2.5 w-2.5" />
+      ) : (
+        <ClipboardList className="h-2.5 w-2.5" />
+      )}
+      {label}
+    </span>
+  );
+}
+
 function MessageList({
   messages,
   currentUserType,
@@ -320,6 +352,7 @@ function MessageList({
                   {msg.senderName}
                 </div>
               ) : null}
+              <MessageContextChip msg={msg} />
               <div
                 className={`rounded-2xl px-3.5 py-2 ${
                   isMine

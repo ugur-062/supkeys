@@ -132,9 +132,8 @@ export function TenderMessagesButton({ tenderId, tenderNumber }: Props) {
           open={!!openSupplier}
           onClose={() => setOpenSupplier(null)}
           surface="tenant"
-          context="TENDER"
-          contextRefId={tenderId}
-          targetSupplierId={openSupplier.supplierId}
+          otherPartyId={openSupplier.supplierId}
+          defaultContext={{ context: "TENDER", contextRefId: tenderId }}
           currentUserType="TENANT_USER"
           otherPartyName={openSupplier.supplierName}
           contextNumber={tenderNumber}

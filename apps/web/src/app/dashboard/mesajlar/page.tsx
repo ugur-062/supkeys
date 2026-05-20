@@ -119,13 +119,11 @@ function MessagesPageInner() {
             <MessageThread
               key={selected.otherPartyId}
               surface="tenant"
-              context="DIRECT"
-              contextRefId={selected.otherPartyId}
-              targetSupplierId={selected.otherPartyId}
+              otherPartyId={selected.otherPartyId}
               currentUserType="TENANT_USER"
               headerInfo={{
                 otherPartyName: selected.otherPartyName,
-                contextNumber: "Şirket sohbeti",
+                contextNumber: "Tüm konuşma",
               }}
               className="h-full !h-full"
             />
