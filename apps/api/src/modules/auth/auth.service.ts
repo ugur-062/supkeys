@@ -1,8 +1,10 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import type { UserRole } from "@supkeys/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
+import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { LoginDto } from "./dto/login.dto";
 import { resolveUserPermissions } from "./permissions/permissions.utils";
 import type { JwtPayload } from "./strategies/jwt.strategy";
@@ -15,7 +17,23 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly supabaseAuth: SupabaseAuthService,
+    private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Şifre sıfırlama linki Supabase üzerinden gönderilir. Kullanıcının
+   * tenant/supplier/admin olması fark etmez — Supabase auth.users e-posta
+   * üzerinden bulur. Var/yok ayrımı user'a sızdırılmaz (her zaman success
+   * döner; SupabaseAuthService sessizce logger.warn yapar).
+   */
+  async forgotPassword(dto: ForgotPasswordDto): Promise<{ success: true }> {
+    const webUrl = this.config.get<string>("WEB_URL", "http://localhost:3000");
+    await this.supabaseAuth.sendPasswordResetEmail(
+      dto.email.toLowerCase().trim(),
+      `${webUrl.replace(/\/$/, "")}/auth/reset-callback`,
+    );
+    return { success: true };
+  }
 
   async login(dto: LoginDto) {
     // Supabase Auth source-of-truth. verifyPassword başarısızsa generic 401

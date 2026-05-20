@@ -98,12 +98,8 @@ export function SupplierLoginForm() {
             Şifre
           </Label>
           <Link
-            href="#"
+            href="/supplier/forgot-password"
             className="text-xs text-brand-700 hover:text-brand-800 hover:underline"
-            onClick={(e) => {
-              e.preventDefault();
-              toast.info("Şifre sıfırlama yakında aktif olacak.");
-            }}
           >
             Şifremi unuttum
           </Link>
