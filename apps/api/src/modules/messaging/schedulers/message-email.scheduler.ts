@@ -8,9 +8,9 @@ import { EmailService } from "../../email/email.service";
 /**
  * V2-4 — Mesaj e-posta bildirimi cron'u.
  *
- * Mesaj gönderildikten sonra karşı taraf 5 dk içinde panele girip okumadıysa
- * cron e-posta gönderir (debounce: peş peşe gönderilen mesajlarda spam önlenir
- * — kullanıcı uygulamada zaten görür, dışarıdaysa tek e-posta yeterli).
+ * Cron her dakika çalışır; gönderildikten 2 dk geçmiş + henüz okunmamış
+ * mesajlara e-posta atar. Worst case bildirim gecikmesi 2-3 dk. Debounce
+ * mantığı: alıcı 2 dk içinde panele girip okuduysa bildirim atılmaz.
  */
 @Injectable()
 export class MessageEmailScheduler {
@@ -34,14 +34,14 @@ export class MessageEmailScheduler {
    * in-memory map ile O(1) lookup → enqueue + update paralel.
    * 100 mesaj için 4 batched query + N paralel enqueue = ~150ms (~13×).
    */
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_MINUTE)
   async processNotifications(): Promise<void> {
-    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000);
 
     const messages = await this.prisma.message.findMany({
       where: {
         emailNotifiedAt: null,
-        sentAt: { lte: fiveMinAgo },
+        sentAt: { lte: twoMinAgo },
       },
       include: {
         thread: {

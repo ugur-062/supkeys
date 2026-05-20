@@ -4,7 +4,7 @@
 // (kapalı zarf gereği `Davetli Tedarikçiler` ve `Teklifler` tab'ları YOK).
 import { FilesTab } from "@/app/dashboard/ihaleler/[id]/_components/files-tab";
 import { ItemsTab } from "@/app/dashboard/ihaleler/[id]/_components/items-tab";
-import { MessageThread } from "@/components/messaging/message-thread";
+import { MessageDialog } from "@/components/messaging/message-dialog";
 import { BidStatusBadge } from "@/components/tenders/status-badge";
 import { Button } from "@/components/ui/button";
 import { useSupplierTenderDetail } from "@/hooks/use-supplier-tenders";
@@ -16,8 +16,10 @@ import {
   Building2,
   ChevronRight,
   Loader2,
+  MessageCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 import { SupplierGeneralInfoTab } from "./general-info-tab";
 import { SupplierTenderHeaderCard } from "./header-card";
 import { MyBidTab } from "./my-bid-tab";
@@ -39,6 +41,7 @@ function TabBadge({ count }: { count: number }) {
 
 export function SupplierTenderDetailView({ id }: { id: string }) {
   const detail = useSupplierTenderDetail(id);
+  const [messageOpen, setMessageOpen] = useState(false);
 
   if (detail.isLoading && !detail.data) {
     return (
@@ -92,14 +95,24 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
       <SupplierTenderHeaderCard tender={tender} />
 
       {/* Alıcı firma bilgisi — sadece adı (kapalı zarf) */}
-      <section className="card p-4 bg-slate-50/40 border-slate-200">
-        <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">
-          Alıcı Firma
-        </p>
-        <div className="flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-slate-400" />
-          <p className="font-semibold text-brand-900">{tender.tenant.name}</p>
+      <section className="card p-4 bg-slate-50/40 border-slate-200 flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold mb-1">
+            Alıcı Firma
+          </p>
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-slate-400" />
+            <p className="font-semibold text-brand-900">{tender.tenant.name}</p>
+          </div>
         </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setMessageOpen(true)}
+        >
+          <MessageCircle className="w-4 h-4" />
+          Alıcıya Mesaj
+        </Button>
       </section>
 
       <TabsPrimitive.Root
@@ -128,9 +141,6 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
           <TabsPrimitive.Trigger value="files" className={TRIGGER_CLASSES}>
             Dosyalar
           </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger value="messages" className={TRIGGER_CLASSES}>
-            Mesajlar
-          </TabsPrimitive.Trigger>
           {/*
             ÖNEMLİ — KAPALI ZARF:
             "Davetli Tedarikçiler" ve "Teklifler" sekmeleri tedarikçi tarafında
@@ -154,15 +164,18 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
         <TabsPrimitive.Content value="files" className="outline-none">
           <FilesTab surface="supplier" tender={tender} />
         </TabsPrimitive.Content>
-        <TabsPrimitive.Content value="messages" className="outline-none">
-          <MessageThread
-            surface="supplier"
-            context="TENDER"
-            contextRefId={tender.id}
-            currentUserType="SUPPLIER_USER"
-          />
-        </TabsPrimitive.Content>
       </TabsPrimitive.Root>
+
+      <MessageDialog
+        open={messageOpen}
+        onClose={() => setMessageOpen(false)}
+        surface="supplier"
+        context="TENDER"
+        contextRefId={tender.id}
+        currentUserType="SUPPLIER_USER"
+        otherPartyName={tender.tenant.name}
+        contextNumber={tender.tenderNumber}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { TenderMessagesButton } from "@/components/messaging/tender-messages-button";
 import { Button } from "@/components/ui/button";
 import { useTenderDetail } from "@/hooks/use-tenant-tenders";
 import { cn } from "@/lib/utils";
@@ -12,7 +13,6 @@ import { GeneralInfoTab } from "./general-info-tab";
 import { TenderHeaderCard } from "./header-card";
 import { InvitationsTab } from "./invitations-tab";
 import { ItemsTab } from "./items-tab";
-import { TenderMessagesTab } from "./tender-messages-tab";
 
 const TRIGGER_CLASSES = cn(
   "group inline-flex items-center px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
@@ -85,35 +85,40 @@ export function TenderDetailView({ id }: { id: string }) {
       <TenderHeaderCard tender={tender} />
 
       <TabsPrimitive.Root defaultValue="general" className="space-y-4">
-        <TabsPrimitive.List
-          className="border-b border-surface-border flex gap-1 overflow-x-auto"
-          aria-label="İhale detay sekmeleri"
-        >
-          <TabsPrimitive.Trigger value="general" className={TRIGGER_CLASSES}>
-            Genel Bilgi
-          </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger value="items" className={TRIGGER_CLASSES}>
-            Kalemler
-            <TabBadge count={tender.items.length} />
-          </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger
-            value="invitations"
-            className={TRIGGER_CLASSES}
+        <div className="border-b border-surface-border flex items-center gap-2">
+          <TabsPrimitive.List
+            className="flex gap-1 overflow-x-auto flex-1"
+            aria-label="İhale detay sekmeleri"
           >
-            Davetli Tedarikçiler
-            <TabBadge count={tender.invitations.length} />
-          </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger value="bids" className={TRIGGER_CLASSES}>
-            Teklifler
-            <TabBadge count={tender.bidStats.total} />
-          </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger value="files" className={TRIGGER_CLASSES}>
-            Dosyalar
-          </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger value="messages" className={TRIGGER_CLASSES}>
-            Mesajlar
-          </TabsPrimitive.Trigger>
-        </TabsPrimitive.List>
+            <TabsPrimitive.Trigger value="general" className={TRIGGER_CLASSES}>
+              Genel Bilgi
+            </TabsPrimitive.Trigger>
+            <TabsPrimitive.Trigger value="items" className={TRIGGER_CLASSES}>
+              Kalemler
+              <TabBadge count={tender.items.length} />
+            </TabsPrimitive.Trigger>
+            <TabsPrimitive.Trigger
+              value="invitations"
+              className={TRIGGER_CLASSES}
+            >
+              Davetli Tedarikçiler
+              <TabBadge count={tender.invitations.length} />
+            </TabsPrimitive.Trigger>
+            <TabsPrimitive.Trigger value="bids" className={TRIGGER_CLASSES}>
+              Teklifler
+              <TabBadge count={tender.bidStats.total} />
+            </TabsPrimitive.Trigger>
+            <TabsPrimitive.Trigger value="files" className={TRIGGER_CLASSES}>
+              Dosyalar
+            </TabsPrimitive.Trigger>
+          </TabsPrimitive.List>
+          <div className="pb-1.5 pr-1">
+            <TenderMessagesButton
+              tenderId={tender.id}
+              tenderNumber={tender.tenderNumber}
+            />
+          </div>
+        </div>
 
         <TabsPrimitive.Content value="general" className="outline-none">
           <GeneralInfoTab tender={tender} />
@@ -133,9 +138,6 @@ export function TenderDetailView({ id }: { id: string }) {
         </TabsPrimitive.Content>
         <TabsPrimitive.Content value="files" className="outline-none">
           <FilesTab tender={tender} />
-        </TabsPrimitive.Content>
-        <TabsPrimitive.Content value="messages" className="outline-none">
-          <TenderMessagesTab tenderId={tender.id} />
         </TabsPrimitive.Content>
       </TabsPrimitive.Root>
     </div>

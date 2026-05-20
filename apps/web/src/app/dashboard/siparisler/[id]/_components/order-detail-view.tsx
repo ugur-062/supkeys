@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageThread } from "@/components/messaging/message-thread";
+import { MessageDialog } from "@/components/messaging/message-dialog";
 import { CancelOrderModal } from "@/components/orders/cancel-order-modal";
 import { CompleteOrderModal } from "@/components/orders/complete-order-modal";
 import { OrderTimeline } from "@/components/orders/order-timeline";
@@ -30,6 +30,7 @@ import {
   FileDown,
   FileText,
   Loader2,
+  MessageCircle,
   Package,
   XCircle,
 } from "lucide-react";
@@ -154,15 +155,6 @@ function OrderDetailContent({ order }: { order: OrderDetail }) {
             </Section>
           ) : null}
 
-          {/* V2-4 — Tedarikçiyle 1-on-1 mesajlaşma */}
-          <Section title="Mesajlar">
-            <MessageThread
-              surface="tenant"
-              context="ORDER"
-              contextRefId={order.id}
-              currentUserType="TENANT_USER"
-            />
-          </Section>
         </div>
 
         <aside className="lg:col-span-4 space-y-5">
@@ -354,6 +346,7 @@ function Breadcrumb({ orderNumber }: { orderNumber: string }) {
 
 function Header({ order }: { order: OrderDetail }) {
   const downloadPdf = useDownloadTenantOrderPdf();
+  const [messageOpen, setMessageOpen] = useState(false);
 
   return (
     <div className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/60 via-white to-indigo-50/40 p-6">
@@ -385,6 +378,14 @@ function Header({ order }: { order: OrderDetail }) {
           <Button
             variant="secondary"
             size="sm"
+            onClick={() => setMessageOpen(true)}
+          >
+            <MessageCircle className="w-4 h-4" />
+            Tedarikçiye Mesaj
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() =>
               downloadPdf.mutate(
                 { id: order.id, orderNumber: order.orderNumber },
@@ -403,6 +404,17 @@ function Header({ order }: { order: OrderDetail }) {
           </Button>
         </div>
       </div>
+
+      <MessageDialog
+        open={messageOpen}
+        onClose={() => setMessageOpen(false)}
+        surface="tenant"
+        context="ORDER"
+        contextRefId={order.id}
+        currentUserType="TENANT_USER"
+        otherPartyName={order.supplier?.companyName ?? "Tedarikçi"}
+        contextNumber={order.orderNumber}
+      />
     </div>
   );
 }

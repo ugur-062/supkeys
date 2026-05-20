@@ -2,7 +2,7 @@
 
 import { AttachmentList } from "@/components/attachments/attachment-list";
 import { AttachmentUpload } from "@/components/attachments/attachment-upload";
-import { MessageThread } from "@/components/messaging/message-thread";
+import { MessageDialog } from "@/components/messaging/message-dialog";
 import { AcceptOrderModal } from "@/components/orders/accept-order-modal";
 import { OrderTimeline } from "@/components/orders/order-timeline";
 import { RejectOrderModal } from "@/components/orders/reject-order-modal";
@@ -73,6 +73,7 @@ const TAB_TRIGGER_CLASSES = cn(
 export function SupplierOrderDetailView({ id }: { id: string }) {
   const query = useSupplierOrderDetail(id);
   const downloadPdf = useDownloadSupplierOrderPdf();
+  const [messageOpen, setMessageOpen] = useState(false);
 
   if (query.isLoading && !query.data) {
     return (
@@ -136,8 +137,27 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
               </span>
             </div>
           </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setMessageOpen(true)}
+          >
+            <MessageCircle className="w-4 h-4" />
+            Alıcıya Mesaj
+          </Button>
         </div>
       </div>
+
+      <MessageDialog
+        open={messageOpen}
+        onClose={() => setMessageOpen(false)}
+        surface="supplier"
+        context="ORDER"
+        contextRefId={order.id}
+        currentUserType="SUPPLIER_USER"
+        otherPartyName={order.tenant?.name ?? "Alıcı"}
+        contextNumber={order.orderNumber}
+      />
 
       {/* 3-kolon ana grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -164,13 +184,6 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
               <TabsPrimitive.Trigger value="files" className={TAB_TRIGGER_CLASSES}>
                 <Paperclip className="h-4 w-4" />
                 Dosyalar
-              </TabsPrimitive.Trigger>
-              <TabsPrimitive.Trigger
-                value="messages"
-                className={TAB_TRIGGER_CLASSES}
-              >
-                <MessageCircle className="h-4 w-4" />
-                Mesajlar
               </TabsPrimitive.Trigger>
             </TabsPrimitive.List>
 
@@ -206,18 +219,6 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
               </PanelCard>
             </TabsPrimitive.Content>
 
-            <TabsPrimitive.Content value="messages" className="outline-none">
-              <MessageThread
-                surface="supplier"
-                context="ORDER"
-                contextRefId={order.id}
-                currentUserType="SUPPLIER_USER"
-                headerInfo={{
-                  otherPartyName: order.tenant?.name ?? "Alıcı",
-                  contextNumber: order.orderNumber,
-                }}
-              />
-            </TabsPrimitive.Content>
           </TabsPrimitive.Root>
         </main>
 
