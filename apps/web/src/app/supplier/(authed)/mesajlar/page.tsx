@@ -60,8 +60,8 @@ function SupplierMessagesPageInner() {
         </p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-220px)] min-h-[500px]">
-        <aside className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:h-[calc(100vh-220px)] lg:min-h-[500px]">
+        <aside className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col h-[60vh] lg:h-auto">
           <div className="px-3 py-3 border-b border-slate-200 space-y-2">
             <h3 className="font-bold text-brand-900 text-sm px-1">
               Alıcı Firmalar
@@ -113,7 +113,7 @@ function SupplierMessagesPageInner() {
           </div>
         </aside>
 
-        <main className="lg:col-span-8">
+        <main className="lg:col-span-8 min-h-0">
           {selected ? (
             <MessageThread
               key={selected.otherPartyId}
@@ -124,10 +124,10 @@ function SupplierMessagesPageInner() {
                 otherPartyName: selected.otherPartyName,
                 contextNumber: "Tüm konuşma",
               }}
-              className="h-full !h-full"
+              className="lg:h-full lg:!h-full"
             />
           ) : (
-            <div className="bg-white border border-slate-200 rounded-2xl flex items-center justify-center h-full">
+            <div className="bg-white border border-slate-200 rounded-2xl flex items-center justify-center min-h-[400px] lg:h-full">
               <div className="text-center text-slate-400 px-4">
                 <MessageCircle className="h-10 w-10 mx-auto mb-3" />
                 <p className="text-sm">Soldan bir alıcı seçin</p>

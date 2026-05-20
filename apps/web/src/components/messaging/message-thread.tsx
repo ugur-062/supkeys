@@ -158,20 +158,21 @@ export function MessageThread({
     }
   };
 
+  // V2-4.2 — Yükseklik viewport-relative + max cap. Parent constraint yoksa
+  // bile MessageThread kendi içine sığar; mesaj artışında SAYFA değil
+  // mesaj listesi scroll eder. className ile override edilebilir.
+  const wrapperCls = "flex flex-col h-[calc(100vh-200px)] max-h-[700px] min-h-[400px] bg-white border border-slate-200 rounded-2xl overflow-hidden";
+
   if (isLoading) {
     return (
-      <div
-        className={`flex items-center justify-center h-[600px] bg-white border border-slate-200 rounded-2xl ${className ?? ""}`}
-      >
+      <div className={`${wrapperCls} items-center justify-center ${className ?? ""}`}>
         <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
       </div>
     );
   }
 
   return (
-    <div
-      className={`flex flex-col h-[600px] bg-white border border-slate-200 rounded-2xl overflow-hidden ${className ?? ""}`}
-    >
+    <div className={`${wrapperCls} ${className ?? ""}`}>
       {headerInfo ? (
         <ThreadChatHeader
           otherPartyName={headerInfo.otherPartyName}
