@@ -3,6 +3,7 @@
 import { api } from "@/lib/api";
 import type {
   AllThreadSummary,
+  ContactSummary,
   MessageContext,
   MessageItem,
   MessageSurface,
@@ -47,6 +48,10 @@ function pathFor(
     if (context === "ORDER") {
       return `/tenants/me/orders/${contextRefId}/messages`;
     }
+    if (context === "DIRECT") {
+      // contextRefId = supplierId (tenant perspektifinden DIRECT)
+      return `/tenants/me/suppliers/${contextRefId}/messages`;
+    }
     if (!targetSupplierId) {
       throw new Error("Tenant + TENDER context için targetSupplierId şart");
     }
@@ -54,6 +59,10 @@ function pathFor(
   }
   if (context === "ORDER") {
     return `/supplier/orders/${contextRefId}/messages`;
+  }
+  if (context === "DIRECT") {
+    // contextRefId = tenantId (supplier perspektifinden DIRECT)
+    return `/supplier/tenants/${contextRefId}/messages`;
   }
   return `/supplier/tenders/${contextRefId}/messages`;
 }
@@ -69,6 +78,8 @@ const KEYS = {
     ["tender-threads", tenantTenderId] as const,
   allThreads: (surface: MessageSurface) =>
     ["messages-all-threads", surface] as const,
+  contacts: (surface: MessageSurface) =>
+    ["messages-contacts", surface] as const,
   unread: (surface: MessageSurface) =>
     ["messages-unread", surface] as const,
 };
@@ -87,7 +98,24 @@ const LIVE_QUERY_OPTIONS = {
 };
 
 /**
- * V2-4 — Header dropdown + /mesajlar sayfası için tüm thread'lerin özeti.
+ * V2-4.1 — /mesajlar sayfası kontak listesi (ACTIVE relations + DIRECT
+ * thread özeti). Hiç mesajlaşmamış olanlar da listelenir.
+ */
+export function useContacts(surface: MessageSurface) {
+  return useQuery<ContactSummary[]>({
+    queryKey: KEYS.contacts(surface),
+    queryFn: async () => {
+      const path =
+        surface === "tenant" ? "/tenants/me/contacts" : "/supplier/contacts";
+      const { data } = await clientFor(surface).get<ContactSummary[]>(path);
+      return data;
+    },
+    ...LIVE_QUERY_OPTIONS,
+  });
+}
+
+/**
+ * V2-4 — Header dropdown için tüm thread'lerin özeti (TENDER + ORDER + DIRECT).
  */
 export function useAllThreads(surface: MessageSurface) {
   return useQuery<AllThreadSummary[]>({
@@ -199,6 +227,7 @@ export function useSendMessage(
       qc.invalidateQueries({ queryKey });
       qc.invalidateQueries({ queryKey: KEYS.unread(surface) });
       qc.invalidateQueries({ queryKey: KEYS.allThreads(surface) });
+      qc.invalidateQueries({ queryKey: KEYS.contacts(surface) });
       if (surface === "tenant" && context === "TENDER") {
         qc.invalidateQueries({ queryKey: KEYS.tenderThreads(contextRefId) });
       }

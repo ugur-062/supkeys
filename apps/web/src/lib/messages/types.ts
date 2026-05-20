@@ -1,7 +1,7 @@
 /**
  * V2-4 — Mesajlaşma tipleri.
  */
-export type MessageContext = "ORDER" | "TENDER";
+export type MessageContext = "ORDER" | "TENDER" | "DIRECT";
 export type MessageSenderType = "TENANT_USER" | "SUPPLIER_USER";
 export type MessageSurface = "tenant" | "supplier";
 
@@ -51,6 +51,19 @@ export interface SendMessagePayload {
  * Header dropdown + /mesajlar sayfası için tüm thread'leri özet halinde döndüren
  * /threads endpoint'inin shape'i.
  */
+/**
+ * V2-4.1 — /mesajlar sayfası kontak listesi. Bağlantılı (ACTIVE relation)
+ * tüm tedarikçiler/alıcılar dahil; mesajlaşmamış olanlar da listelenir.
+ * lastMessageAt desc; null'lar alfabetik en altta.
+ */
+export interface ContactSummary {
+  otherPartyId: string;
+  otherPartyName: string;
+  lastMessageAt: string | null;
+  lastMessagePreview: string | null;
+  unread: boolean;
+}
+
 export interface AllThreadSummary {
   threadId: string;
   context: MessageContext;

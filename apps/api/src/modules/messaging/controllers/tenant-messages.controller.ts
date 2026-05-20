@@ -29,11 +29,43 @@ export class TenantMessagesController {
     return { kind: "tenant", tenantId: user.tenantId, userId: user.id };
   }
 
-  // ---------- Tüm thread'ler (header dropdown + /mesajlar) ----------
+  // ---------- Tüm thread'ler (header dropdown) ----------
 
   @Get("threads")
   listAllThreads(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {
     return this.service.listAllThreadsForUser(this.actor(user));
+  }
+
+  // ---------- V2-4.1 — Şirket-bazlı DIRECT mesajlar (/mesajlar sayfası) ----------
+
+  @Get("contacts")
+  listContacts(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {
+    return this.service.listContactsForUser(this.actor(user));
+  }
+
+  @Get("suppliers/:supplierId/messages")
+  listDirectMessages(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("supplierId") supplierId: string,
+  ): Promise<unknown> {
+    return this.service.listMessages(
+      this.actor(user),
+      "DIRECT",
+      supplierId,
+      supplierId,
+    );
+  }
+
+  @Post("suppliers/:supplierId/messages")
+  sendDirectMessage(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("supplierId") supplierId: string,
+    @Body() dto: SendMessageDto,
+  ): Promise<unknown> {
+    return this.service.sendMessage(this.actor(user), "DIRECT", supplierId, {
+      ...dto,
+      targetSupplierId: supplierId,
+    });
   }
 
   // ---------- ORDER context ----------

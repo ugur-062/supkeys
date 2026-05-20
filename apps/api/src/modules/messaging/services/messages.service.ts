@@ -45,11 +45,16 @@ export class MessagesService {
       targetSupplierId,
     );
 
+    // DIRECT context için canonical contextRefId = supplierId. URL'de
+    // hangi taraf gelirse gelsin aynı thread'i bul (tek konuşma kanalı).
+    const effectiveContextRefId =
+      context === "DIRECT" ? supplierId : contextRefId;
+
     const existing = await this.prisma.messageThread.findUnique({
       where: {
         context_contextRefId_tenantId_supplierId: {
           context,
-          contextRefId,
+          contextRefId: effectiveContextRefId,
           tenantId,
           supplierId,
         },
@@ -58,7 +63,12 @@ export class MessagesService {
     if (existing) return existing;
 
     return this.prisma.messageThread.create({
-      data: { context, contextRefId, tenantId, supplierId },
+      data: {
+        context,
+        contextRefId: effectiveContextRefId,
+        tenantId,
+        supplierId,
+      },
     });
   }
 
@@ -395,6 +405,108 @@ export class MessagesService {
     });
   }
 
+  /**
+   * V2-4.1 — Tüm aktif bağlantılar (relations) + DIRECT thread özeti.
+   * Hiç mesajlaşmamış olanlar dahil, lastMessageAt desc; null'lar en altta.
+   * Mesajlar sayfasının kontak listesi için.
+   */
+  async listContactsForUser(actor: MessageActor) {
+    if (actor.kind === "tenant") {
+      const relations = await this.prisma.supplierTenantRelation.findMany({
+        where: { tenantId: actor.tenantId, status: "ACTIVE" },
+        include: {
+          supplier: { select: { id: true, companyName: true } },
+        },
+      });
+      const supplierIds = relations.map((r) => r.supplierId);
+      if (supplierIds.length === 0) return [];
+
+      const threads = await this.prisma.messageThread.findMany({
+        where: {
+          tenantId: actor.tenantId,
+          context: "DIRECT",
+          supplierId: { in: supplierIds },
+        },
+        select: {
+          supplierId: true,
+          lastMessageAt: true,
+          lastMessagePreview: true,
+          tenantLastReadAt: true,
+        },
+      });
+      const threadMap = new Map(threads.map((t) => [t.supplierId, t]));
+
+      const rows = relations.map((r) => {
+        const t = threadMap.get(r.supplierId);
+        const lastMessageAt = t?.lastMessageAt ?? null;
+        const unread =
+          !!lastMessageAt &&
+          (!t?.tenantLastReadAt || t.tenantLastReadAt < lastMessageAt);
+        return {
+          otherPartyId: r.supplier.id,
+          otherPartyName: r.supplier.companyName,
+          lastMessageAt: lastMessageAt ? lastMessageAt.toISOString() : null,
+          lastMessagePreview: t?.lastMessagePreview ?? null,
+          unread,
+        };
+      });
+      return this.sortContacts(rows);
+    }
+
+    // supplier
+    const relations = await this.prisma.supplierTenantRelation.findMany({
+      where: { supplierId: actor.supplierId, status: "ACTIVE" },
+      include: { tenant: { select: { id: true, name: true } } },
+    });
+    const tenantIds = relations.map((r) => r.tenantId);
+    if (tenantIds.length === 0) return [];
+
+    const threads = await this.prisma.messageThread.findMany({
+      where: {
+        supplierId: actor.supplierId,
+        context: "DIRECT",
+        tenantId: { in: tenantIds },
+      },
+      select: {
+        tenantId: true,
+        lastMessageAt: true,
+        lastMessagePreview: true,
+        supplierLastReadAt: true,
+      },
+    });
+    const threadMap = new Map(threads.map((t) => [t.tenantId, t]));
+
+    const rows = relations.map((r) => {
+      const t = threadMap.get(r.tenantId);
+      const lastMessageAt = t?.lastMessageAt ?? null;
+      const unread =
+        !!lastMessageAt &&
+        (!t?.supplierLastReadAt || t.supplierLastReadAt < lastMessageAt);
+      return {
+        otherPartyId: r.tenant.id,
+        otherPartyName: r.tenant.name,
+        lastMessageAt: lastMessageAt ? lastMessageAt.toISOString() : null,
+        lastMessagePreview: t?.lastMessagePreview ?? null,
+        unread,
+      };
+    });
+    return this.sortContacts(rows);
+  }
+
+  private sortContacts<
+    T extends { lastMessageAt: string | null; otherPartyName: string },
+  >(rows: T[]): T[] {
+    return rows.sort((a, b) => {
+      // En son mesajlaşılan üstte; mesajsızlar isim alfabetik en altta.
+      if (a.lastMessageAt && b.lastMessageAt) {
+        return b.lastMessageAt.localeCompare(a.lastMessageAt);
+      }
+      if (a.lastMessageAt) return -1;
+      if (b.lastMessageAt) return 1;
+      return a.otherPartyName.localeCompare(b.otherPartyName, "tr");
+    });
+  }
+
   // ----- private helpers -----
 
   /**
@@ -407,6 +519,30 @@ export class MessagesService {
     contextRefId: string,
     targetSupplierId?: string,
   ): Promise<{ tenantId: string; supplierId: string }> {
+    if (context === "DIRECT") {
+      // DIRECT context: tenant ↔ supplier şirket-bazlı sohbet. Bağlantı
+      // ACTIVE olmalı. Convention: contextRefId = supplierId (taraf
+      // önemli değil, sadece thread uniqueness için placeholder).
+      const supplierId =
+        actor.kind === "tenant"
+          ? (targetSupplierId ?? contextRefId)
+          : actor.supplierId;
+      const tenantId =
+        actor.kind === "tenant" ? actor.tenantId : contextRefId;
+      const relation = await this.prisma.supplierTenantRelation.findUnique({
+        where: {
+          supplierId_tenantId: { supplierId, tenantId },
+        },
+        select: { status: true },
+      });
+      if (!relation || relation.status !== "ACTIVE") {
+        throw new ForbiddenException(
+          "Bu firmayla aktif bir bağlantınız yok",
+        );
+      }
+      return { tenantId, supplierId };
+    }
+
     if (context === "ORDER") {
       const order = await this.prisma.order.findUnique({
         where: { id: contextRefId },

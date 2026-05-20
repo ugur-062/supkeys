@@ -1325,6 +1325,11 @@ model Message {
 enum MessageContext {
   ORDER
   TENDER
+  // V2-4.1 — Şirket-bazlı doğrudan sohbet. Tender/Order'a bağlı değil.
+  // contextRefId = supplierId (tenant->supplier yönünde başlatıldıysa) veya
+  // tenantId (supplier->tenant yönünde başlatıldıysa). Thread uniqueness
+  // (tenantId, supplierId, context, contextRefId) garantili, çakışmaz.
+  DIRECT
 }
 
 enum MessageSenderType {

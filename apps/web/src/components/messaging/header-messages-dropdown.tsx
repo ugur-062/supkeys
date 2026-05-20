@@ -38,8 +38,8 @@ export function HeaderMessagesDropdown({ surface }: Props) {
 
   const handleThreadClick = (t: AllThreadSummary) => {
     setOpen(false);
-    // Sipariş thread'i: doğrudan sipariş detayına; ihale thread'i: /mesajlar
-    // sayfasına (alıcı tarafında supplierId param'ı seçilebilsin diye).
+    // ORDER + TENDER thread'leri ilgili detay sayfasına (orada mesaj butonu
+    // var). DIRECT thread'i /mesajlar'a contact=<otherPartyId> ile yönlendirilir.
     if (t.context === "ORDER") {
       const path =
         surface === "tenant"
@@ -48,9 +48,18 @@ export function HeaderMessagesDropdown({ surface }: Props) {
       router.push(path);
       return;
     }
+    if (t.context === "TENDER") {
+      const path =
+        surface === "tenant"
+          ? `/dashboard/ihaleler/${t.contextRefId}`
+          : `/supplier/ihaleler/${t.contextRefId}`;
+      router.push(path);
+      return;
+    }
+    // DIRECT
     const base = surface === "tenant" ? "/dashboard/mesajlar" : "/supplier/mesajlar";
     router.push(
-      `${base}?thread=${encodeURIComponent(t.threadId)}`,
+      `${base}?contact=${encodeURIComponent(t.otherPartyId)}`,
     );
   };
 
