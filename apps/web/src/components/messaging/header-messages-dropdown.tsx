@@ -38,29 +38,12 @@ export function HeaderMessagesDropdown({ surface }: Props) {
 
   const handleThreadClick = (t: AllThreadSummary) => {
     setOpen(false);
-    // ORDER + TENDER thread'leri ilgili detay sayfasına (orada mesaj butonu
-    // var). DIRECT thread'i /mesajlar'a contact=<otherPartyId> ile yönlendirilir.
-    if (t.context === "ORDER") {
-      const path =
-        surface === "tenant"
-          ? `/dashboard/siparisler/${t.contextRefId}`
-          : `/supplier/siparisler/${t.contextRefId}`;
-      router.push(path);
-      return;
-    }
-    if (t.context === "TENDER") {
-      const path =
-        surface === "tenant"
-          ? `/dashboard/ihaleler/${t.contextRefId}`
-          : `/supplier/ihaleler/${t.contextRefId}`;
-      router.push(path);
-      return;
-    }
-    // DIRECT
-    const base = surface === "tenant" ? "/dashboard/mesajlar" : "/supplier/mesajlar";
-    router.push(
-      `${base}?contact=${encodeURIComponent(t.otherPartyId)}`,
-    );
+    // V2-4.2 — Unified thread: tıklamalar tek bir yere, /mesajlar'a contact
+    // query param'ı ile gider. Tedarikçi/alıcı bazlı tüm konuşma orada
+    // gösterilir; içeride mesaj başına context chip görülür.
+    const base =
+      surface === "tenant" ? "/dashboard/mesajlar" : "/supplier/mesajlar";
+    router.push(`${base}?contact=${encodeURIComponent(t.otherPartyId)}`);
   };
 
   const allMessagesUrl =

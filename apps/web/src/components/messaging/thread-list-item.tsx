@@ -5,7 +5,6 @@ import type { AllThreadSummary } from "@/lib/messages/types";
 import { cn } from "@/lib/utils";
 import { format, isToday, isYesterday } from "date-fns";
 import { tr } from "date-fns/locale";
-import { ContextBadge } from "./context-badge";
 
 interface Props {
   thread: AllThreadSummary;
@@ -21,8 +20,8 @@ function formatTime(date: string): string {
 }
 
 /**
- * V2-4 — Thread listesinde tek satır:
- * Avatar + ad + bağlam rozeti + son mesaj preview + relative timestamp + unread dot.
+ * V2-4.2 — Unified thread modelinde header dropdown'un satırı.
+ * Karşı taraf adı + son mesaj preview + timestamp + unread badge.
  */
 export function ThreadListItem({ thread, onClick, isActive }: Props) {
   return (
@@ -56,13 +55,6 @@ export function ThreadListItem({ thread, onClick, isActive }: Props) {
                 {formatTime(thread.lastMessageAt)}
               </span>
             ) : null}
-          </div>
-
-          <div className="mb-1">
-            <ContextBadge
-              context={thread.context}
-              number={thread.contextNumber}
-            />
           </div>
 
           <div className="flex items-center justify-between gap-2">

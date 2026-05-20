@@ -71,13 +71,12 @@ export interface ContactSummary {
   unread: boolean;
 }
 
+/**
+ * V2-4.2 — Unified thread modelinde header dropdown'un kullandığı özet.
+ * Context bilgisi artık thread'de değil, message seviyesinde.
+ */
 export interface AllThreadSummary {
   threadId: string;
-  context: MessageContext;
-  contextRefId: string;
-  contextLabel: "Sipariş" | "İhale";
-  contextNumber: string;
-  contextTitle: string | null;
   otherPartyId: string;
   otherPartyName: string;
   lastMessagePreview: string | null;
