@@ -69,6 +69,11 @@ export function SupplierTenderHeaderCard({
             </code>
             <TenderTypeBadge type={tender.type} />
             <TenderLiveStatusPill status={tender.status} />
+            {tender.roundNumber > 1 ? (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 text-xs font-bold">
+                Tur #{tender.roundNumber}
+              </span>
+            ) : null}
           </div>
           <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900 leading-tight">
             {tender.title}

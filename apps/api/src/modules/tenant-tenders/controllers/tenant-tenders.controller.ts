@@ -24,6 +24,8 @@ import {
   CloseNoAwardDto,
 } from "../dto/award.dto";
 import { CancelTenderDto } from "../dto/cancel-tender.dto";
+import { ChangeClosingTimeDto } from "../dto/change-closing-time.dto";
+import { CreateNextRoundDto } from "../dto/create-next-round.dto";
 import { CreateTenderDto } from "../dto/create-tender.dto";
 import { EliminateBidDto } from "../dto/eliminate-bid.dto";
 import { ListTendersDto } from "../dto/list-tenders.dto";
@@ -240,6 +242,46 @@ export class TenantTendersController {
       id,
       user.id,
       user.role,
+    );
+  }
+
+  /**
+   * V2-7 — Kapanış zamanını değiştir (modal: yeni zaman VEYA hemen kapat).
+   * Davetli tedarikçilere alıcı notu ile e-posta gönderir.
+   */
+  @Patch(":id/closing-time")
+  @RequirePermissions("tender:edit")
+  changeClosingTime(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: ChangeClosingTimeDto,
+  ): Promise<unknown> {
+    return this.service.changeClosingTime(
+      user.tenantId,
+      id,
+      user.id,
+      user.role,
+      dto,
+    );
+  }
+
+  /**
+   * V2-7 — Yeni Tur Oluştur. Önceki tender'dan items + invitations + ayarları
+   * kopyalayıp yeni tender üretir; opsiyonel bid carry.
+   */
+  @Post(":id/next-round")
+  @RequirePermissions("tender:edit")
+  createNextRound(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: CreateNextRoundDto,
+  ): Promise<unknown> {
+    return this.service.createNextRound(
+      user.tenantId,
+      id,
+      user.id,
+      user.role,
+      dto,
     );
   }
 }

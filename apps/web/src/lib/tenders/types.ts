@@ -155,6 +155,8 @@ export interface TenderDetail {
   status: TenderStatus;
   title: string;
   description: string | null;
+  /** V2-7 — Tedarikçi havuzunda arama için anahtar kelimeler (0-10) */
+  keywords: string[];
   /** V2-6 — Birden fazla kategori. V1 backward-compat: legacy ihalelerde boş array. */
   categories: TenderCategoryRef[];
   termsAndConditions: string | null;
@@ -202,6 +204,26 @@ export interface TenderDetail {
     type: "TENDER_PUBLISH" | "TENDER_AWARD";
     initiatedById: string;
   } | null;
+
+  // V2-7 — İngiliz Usulü açık eksiltme alanları (RFQ için default değerler döner)
+  bidVisibility:
+    | "OWN_ONLY"
+    | "BEST_PRICE"
+    | "OWN_RANK"
+    | "BEST_AND_OWN_RANK"
+    | "ALL";
+  priceDecrementType: "AMOUNT" | "PERCENT" | null;
+  priceDecrementValue: string | null;
+  priceDecrementBasis: "OWN_LAST_BID" | "BEST_BID" | null;
+  decimalPlaces: number;
+  sendClosingReminder: boolean;
+  reminderMinutesBefore: number;
+  autoExtendOnLateBid: boolean;
+  autoExtendThresholdMin: number;
+  autoExtendByMinutes: number;
+  // V2-7 — Round zinciri
+  previousTenderId: string | null;
+  roundNumber: number;
 }
 
 export interface TenderStats {
@@ -339,6 +361,41 @@ export interface SupplierTenderDetail {
     version: number;
     submittedAt: string | null;
     notes: string | null;
+  } | null;
+
+  // V2-7 — İngiliz Usulü açık eksiltme alanları (RFQ için default değerler döner)
+  bidVisibility:
+    | "OWN_ONLY"
+    | "BEST_PRICE"
+    | "OWN_RANK"
+    | "BEST_AND_OWN_RANK"
+    | "ALL";
+  priceDecrementType: "AMOUNT" | "PERCENT" | null;
+  priceDecrementValue: string | null;
+  priceDecrementBasis: "OWN_LAST_BID" | "BEST_BID" | null;
+  decimalPlaces: number;
+  autoExtendOnLateBid: boolean;
+  autoExtendThresholdMin: number;
+  autoExtendByMinutes: number;
+  /** ENGLISH_AUCTION ise visibility'ye göre filtrelenmiş ranking; RFQ ise null */
+  auctionView: {
+    bestTotal: number | null;
+    myRank: number | null;
+    participantCount: number | null;
+    allBids: { rank: number; total: number; isMine: boolean }[] | null;
+  } | null;
+  // V2-7 — Yeni Tur LAZY carry için önceki round bid prefill
+  previousTenderId: string | null;
+  roundNumber: number;
+  previousRoundBid: {
+    tenderId: string;
+    totalAmount: string;
+    notes: string | null;
+    items: Array<{
+      tenderItemId: string;
+      unitPrice: string | null;
+      customAnswer: string | null;
+    }>;
   } | null;
 }
 

@@ -30,6 +30,8 @@ export type {
   TenderClosedBuyerData,
   TenderClosedSupplierData,
   TenderInvitationEmailData,
+  AuctionClosingReminderData,
+  TenderClosingTimeChangedData,
   UserInvitationData,
   ApprovalEmailType,
   ApprovalRequiredData,

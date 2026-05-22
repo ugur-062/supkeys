@@ -182,10 +182,10 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
           label="Kurallar"
           value={
             <>
-              {data.isSealedBid ? "Kapalı Zarf · " : ""}
+              {data.type === "RFQ" && data.isSealedBid ? "Kapalı Zarf · " : ""}
               {data.requireAllItems ? "Tüm kalemler zorunlu · " : ""}
               {data.requireBidDocument ? "Dosya zorunlu" : ""}
-              {!data.isSealedBid &&
+              {(!data.isSealedBid || data.type === "ENGLISH_AUCTION") &&
               !data.requireAllItems &&
               !data.requireBidDocument
                 ? "—"
@@ -193,6 +193,45 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
             </>
           }
         />
+        {data.type === "ENGLISH_AUCTION" ? (
+          <>
+            <Row
+              label="Tedarikçi Görünürlüğü"
+              value={
+                {
+                  OWN_ONLY: "Sadece kendi teklifi",
+                  BEST_PRICE: "Sadece en iyi teklif",
+                  OWN_RANK: "Sadece kendi sıralaması",
+                  BEST_AND_OWN_RANK: "En iyi teklif + kendi sıralaması",
+                  ALL: "Tüm teklifler ve sıralama",
+                }[data.bidVisibility] ?? "—"
+              }
+            />
+            <Row
+              label="Min. Fiyat Azaltma"
+              value={
+                data.priceDecrementType && data.priceDecrementValue != null
+                  ? data.priceDecrementType === "PERCENT"
+                    ? `%${data.priceDecrementValue} (kendi son teklifine göre)`
+                    : `${data.priceDecrementValue} ${data.primaryCurrency} (kendi son teklifine göre)`
+                  : "—"
+              }
+            />
+            <Row label="Ondalık Basamak" value={String(data.decimalPlaces)} />
+            {data.sendClosingReminder ? (
+              <Row
+                label="Kapanış Hatırlatma"
+                value={`Kapanışa ${data.reminderMinutesBefore ?? 60} dk kala e-posta`}
+              />
+            ) : null}
+            {data.autoExtendOnLateBid ? (
+              <Row
+                label="Süre Uzatma"
+                value={`Son ${data.autoExtendThresholdMin ?? 2} dk içinde teklif gelirse ${data.autoExtendByMinutes ?? 2} dk uzatılır`}
+              />
+            ) : null}
+          </>
+        ) : null}
         {data.deliveryTerm ? (
           <Row
             label="Teslim Şekli"

@@ -87,6 +87,16 @@ import {
   TenderClosedSupplierEmail,
 } from "./templates/tender-closed-supplier";
 import {
+  makeAuctionClosingReminderSubject,
+  renderAuctionClosingReminderText,
+  AuctionClosingReminderEmail,
+} from "./templates/auction-closing-reminder";
+import {
+  makeTenderClosingTimeChangedSubject,
+  renderTenderClosingTimeChangedText,
+  TenderClosingTimeChangedEmail,
+} from "./templates/tender-closing-time-changed";
+import {
   makeTenderInvitationSubject,
   renderTenderInvitationText,
   TenderInvitationEmail,
@@ -319,6 +329,34 @@ export async function renderEmail(
         subject: makeTenderClosedSupplierSubject(spec.data.tenderTitle),
         html,
         text: renderTenderClosedSupplierText(spec.data),
+      };
+    }
+
+    case "auction_closing_reminder": {
+      const html = await render(
+        React.createElement(AuctionClosingReminderEmail, spec.data),
+      );
+      return {
+        subject: makeAuctionClosingReminderSubject(
+          spec.data.tenderTitle,
+          spec.data.minutesLeft,
+        ),
+        html,
+        text: renderAuctionClosingReminderText(spec.data),
+      };
+    }
+
+    case "tender_closing_time_changed": {
+      const html = await render(
+        React.createElement(TenderClosingTimeChangedEmail, spec.data),
+      );
+      return {
+        subject: makeTenderClosingTimeChangedSubject(
+          spec.data.tenderTitle,
+          spec.data.closedImmediately,
+        ),
+        html,
+        text: renderTenderClosingTimeChangedText(spec.data),
       };
     }
 

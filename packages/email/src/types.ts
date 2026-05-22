@@ -15,6 +15,8 @@ export type EmailTemplate =
   | "tender_invitation"
   | "tender_closed_supplier"
   | "tender_closed_buyer"
+  | "auction_closing_reminder"
+  | "tender_closing_time_changed"
   | "bid_eliminated_supplier"
   | "award_won_supplier"
   | "award_lost_supplier"
@@ -212,6 +214,42 @@ export interface TenderClosedSupplierData {
   tenderTitle: string;
   hasBid: boolean;
   /** /supplier/ihaleler/:id mutlak URL */
+  tenderUrl: string;
+}
+
+/**
+ * V2-7 — İngiliz Usulü açık eksiltmenin kapanışı yaklaştığında davetli
+ * tedarikçilere giden hatırlatma. `minutesLeft` mevcut kalan dakika
+ * (geç gönderim durumunda küçük olabilir).
+ */
+export interface AuctionClosingReminderData {
+  supplierUserName: string;
+  tenantName: string;
+  tenderNumber: string;
+  tenderTitle: string;
+  minutesLeft: number;
+  /** ISO tarih (UTC) */
+  closesAt: string;
+  tenderUrl: string;
+}
+
+/**
+ * V2-7 — Alıcı kapanış zamanını değiştirdiğinde / ihaleyi hemen kapattığında
+ * davetli tedarikçilere giden bildirim.
+ * `closedImmediately=true` → kapatma; false → tarih güncellendi.
+ */
+export interface TenderClosingTimeChangedData {
+  supplierUserName: string;
+  tenantName: string;
+  tenderNumber: string;
+  tenderTitle: string;
+  closedImmediately: boolean;
+  /** Yeni kapanış (closedImmediately=true ise "şimdi"); ISO */
+  newCloseAt: string;
+  /** Eski kapanış; ISO */
+  previousCloseAt: string;
+  /** Alıcı tarafından girilen değişiklik notu (zorunlu) */
+  note: string;
   tenderUrl: string;
 }
 
@@ -420,6 +458,14 @@ export type EmailTemplateData =
   | { template: "tender_invitation"; data: TenderInvitationEmailData }
   | { template: "tender_closed_supplier"; data: TenderClosedSupplierData }
   | { template: "tender_closed_buyer"; data: TenderClosedBuyerData }
+  | {
+      template: "auction_closing_reminder";
+      data: AuctionClosingReminderData;
+    }
+  | {
+      template: "tender_closing_time_changed";
+      data: TenderClosingTimeChangedData;
+    }
   | {
       template: "bid_eliminated_supplier";
       data: BidEliminatedSupplierData;

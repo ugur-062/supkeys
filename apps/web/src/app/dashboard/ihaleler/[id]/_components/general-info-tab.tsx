@@ -145,6 +145,39 @@ export function GeneralInfoTab({ tender }: { tender: TenderDetail }) {
         </ul>
       </section>
 
+      {/* V2-7 — İngiliz Usulü açık eksiltme ayarları (sadece bu tipte göster) */}
+      {tender.type === "ENGLISH_AUCTION" ? (
+        <section className="card p-5 space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Açık Eksiltme Ayarları
+          </h3>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3">
+            <InfoRow label="Tedarikçi Görünürlüğü">
+              {{
+                OWN_ONLY: "Sadece kendi teklifi",
+                BEST_PRICE: "Sadece en iyi teklif",
+                OWN_RANK: "Sadece kendi sıralaması",
+                BEST_AND_OWN_RANK: "En iyi teklif + kendi sıralaması",
+                ALL: "Tüm teklifler ve sıralama",
+              }[tender.bidVisibility] ?? "—"}
+            </InfoRow>
+            <InfoRow label="Min. Fiyat Azaltma">
+              {tender.priceDecrementType && tender.priceDecrementValue
+                ? tender.priceDecrementType === "PERCENT"
+                  ? `%${Number(tender.priceDecrementValue)} (kendi son teklifine göre)`
+                  : `${Number(tender.priceDecrementValue)} ${tender.primaryCurrency} (kendi son teklifine göre)`
+                : "—"}
+            </InfoRow>
+            <InfoRow label="Ondalık Basamak">{String(tender.decimalPlaces)}</InfoRow>
+            <InfoRow label="Otomatik Süre Uzatma">
+              {tender.autoExtendOnLateBid
+                ? `Son ${tender.autoExtendThresholdMin}dk içinde teklif → ${tender.autoExtendByMinutes}dk uzar`
+                : "Kapalı"}
+            </InfoRow>
+          </dl>
+        </section>
+      ) : null}
+
       {tender.termsAndConditions ? (
         <section className="card p-5 space-y-2">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">

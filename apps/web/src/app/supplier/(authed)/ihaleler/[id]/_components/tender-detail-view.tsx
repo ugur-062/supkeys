@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { AuctionLiveCard } from "./auction-live-card";
 import { SupplierGeneralInfoTab } from "./general-info-tab";
 import { SupplierTenderHeaderCard } from "./header-card";
 import { MyBidTab } from "./my-bid-tab";
@@ -93,6 +94,11 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
       </nav>
 
       <SupplierTenderHeaderCard tender={tender} />
+
+      {/* V2-7 — İngiliz Usulü canlı eksiltme kartı (sadece açık eksiltmede) */}
+      {tender.type === "ENGLISH_AUCTION" ? (
+        <AuctionLiveCard tender={tender} />
+      ) : null}
 
       {/* Alıcı firma bilgisi — sadece adı (kapalı zarf) */}
       <section className="card p-4 bg-slate-50/40 border-slate-200 flex items-center justify-between gap-3 flex-wrap">

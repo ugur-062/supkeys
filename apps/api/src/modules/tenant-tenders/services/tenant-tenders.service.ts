@@ -35,7 +35,7 @@ import {
 } from "../dto/award.dto";
 import { TenderSchedulerService } from "../../tender-scheduler/tender-scheduler.service";
 import { CancelTenderDto } from "../dto/cancel-tender.dto";
-import { CreateTenderDto } from "../dto/create-tender.dto";
+import { CreateTenderDto, DecrementBasisDto } from "../dto/create-tender.dto";
 import { ListTendersDto } from "../dto/list-tenders.dto";
 import { UpdateTenderDto } from "../dto/update-tender.dto";
 
@@ -722,6 +722,7 @@ export class TenantTendersService {
     );
 
     const estimatedTotal = computeEstimatedTotal(dto.items);
+    const auctionFields = this.auctionFieldsFor(dto);
 
     return this.prisma.$transaction(async (tx) => {
       await this.assertActiveSuppliers(tx, tenantId, dto.invitedSupplierIds);
@@ -740,11 +741,25 @@ export class TenantTendersService {
           status: "DRAFT",
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
+          keywords: (dto.keywords ?? [])
+            .map((k) => k.trim())
+            .filter((k) => k.length > 0)
+            .slice(0, 10),
           termsAndConditions: dto.termsAndConditions?.trim() || null,
           internalNotes: dto.internalNotes?.trim() || null,
-          isSealedBid: dto.isSealedBid,
+          isSealedBid: auctionFields.isSealedBid,
           requireAllItems: dto.requireAllItems,
           requireBidDocument: dto.requireBidDocument,
+          bidVisibility: auctionFields.bidVisibility,
+          priceDecrementType: auctionFields.priceDecrementType,
+          priceDecrementValue: auctionFields.priceDecrementValue,
+          priceDecrementBasis: auctionFields.priceDecrementBasis,
+          decimalPlaces: auctionFields.decimalPlaces,
+          sendClosingReminder: auctionFields.sendClosingReminder,
+          reminderMinutesBefore: auctionFields.reminderMinutesBefore,
+          autoExtendOnLateBid: auctionFields.autoExtendOnLateBid,
+          autoExtendThresholdMin: auctionFields.autoExtendThresholdMin,
+          autoExtendByMinutes: auctionFields.autoExtendByMinutes,
           primaryCurrency: dto.primaryCurrency,
           allowedCurrencies: dto.allowedCurrencies,
           deliveryTerm: dto.deliveryTerm ?? null,
@@ -863,6 +878,8 @@ export class TenantTendersService {
       await tx.tenderAttachment.deleteMany({ where: { tenderId } });
       await tx.tenderCategory.deleteMany({ where: { tenderId } });
 
+      const auctionFields = this.auctionFieldsFor(dto);
+
       await tx.tender.update({
         where: { id: tenderId },
         data: {
@@ -872,11 +889,27 @@ export class TenantTendersService {
           type: dto.type,
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
+          keywords: (dto.keywords ?? [])
+            .map((k) => k.trim())
+            .filter((k) => k.length > 0)
+            .slice(0, 10),
           termsAndConditions: dto.termsAndConditions?.trim() || null,
           internalNotes: dto.internalNotes?.trim() || null,
-          isSealedBid: dto.isSealedBid,
+          isSealedBid: auctionFields.isSealedBid,
           requireAllItems: dto.requireAllItems,
           requireBidDocument: dto.requireBidDocument,
+          bidVisibility: auctionFields.bidVisibility,
+          priceDecrementType: auctionFields.priceDecrementType,
+          priceDecrementValue: auctionFields.priceDecrementValue,
+          priceDecrementBasis: auctionFields.priceDecrementBasis,
+          decimalPlaces: auctionFields.decimalPlaces,
+          sendClosingReminder: auctionFields.sendClosingReminder,
+          reminderMinutesBefore: auctionFields.reminderMinutesBefore,
+          autoExtendOnLateBid: auctionFields.autoExtendOnLateBid,
+          autoExtendThresholdMin: auctionFields.autoExtendThresholdMin,
+          autoExtendByMinutes: auctionFields.autoExtendByMinutes,
+          // Editing draft after auto-extend resets reminder idempotency.
+          closingReminderSentAt: null,
           primaryCurrency: dto.primaryCurrency,
           allowedCurrencies: dto.allowedCurrencies,
           deliveryTerm: dto.deliveryTerm ?? null,
@@ -1187,9 +1220,294 @@ export class TenantTendersService {
     return { id: tender.id };
   }
 
+  /**
+   * V2-7 — Yeni Tur Oluştur. Önceki tender'ı baz alıp yeni Tender türetir.
+   * - Items + categories + adresler + auction ayarları kopyalanır.
+   * - Invitations: eliminateNonBidders=true ise sadece SUBMITTED veren tedarikçiler.
+   * - carryBids:
+   *   - AUTO: önceki SUBMITTED bid'leri yeni tender'a DRAFT olarak kopyalar.
+   *   - LAZY: bid oluşturulmaz; supplier teklif formu önceki round bid'i prefill eder.
+   *   - NONE: hiç kopya yok.
+   * - openImmediately=true → publish'i hemen tetikler (status → OPEN_FOR_BIDS).
+   */
+  async createNextRound(
+    tenantId: string,
+    previousTenderId: string,
+    userId: string,
+    userRole: string,
+    dto: {
+      type: "RFQ" | "ENGLISH_AUCTION";
+      carryBids: "AUTO" | "LAZY" | "NONE";
+      eliminateNonBidders: boolean;
+      openImmediately: boolean;
+      bidsOpenAt?: string;
+      bidsCloseAt: string;
+      previewBeforeOpen?: boolean;
+      autoExtendOnLateBid?: boolean;
+    },
+  ): Promise<{ id: string; tenderNumber: string; roundNumber: number }> {
+    const previous = await this.prisma.tender.findUnique({
+      where: { id: previousTenderId },
+      include: {
+        items: { orderBy: { orderIndex: "asc" } },
+        categories: { select: { categoryId: true } },
+        invitations: { select: { supplierId: true } },
+        bids: {
+          where: { status: "SUBMITTED" },
+          select: {
+            id: true,
+            supplierId: true,
+            submittedById: true,
+            totalAmount: true,
+            currency: true,
+            notes: true,
+            items: {
+              select: {
+                tenderItemId: true,
+                unitPrice: true,
+                customAnswer: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!previous) throw new NotFoundException("Önceki ihale bulunamadı");
+    if (previous.tenantId !== tenantId)
+      throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+    assertCanActOnTender(previous, { id: userId, role: userRole });
+    if (!["IN_AWARD", "OPEN_FOR_BIDS", "CLOSED_NO_AWARD"].includes(previous.status)) {
+      throw new ConflictException(
+        `Yeni tur sadece IN_AWARD / OPEN_FOR_BIDS / CLOSED_NO_AWARD ihaleler için açılabilir. Mevcut: ${previous.status}`,
+      );
+    }
+
+    const closeAt = new Date(dto.bidsCloseAt);
+    if (Number.isNaN(closeAt.getTime()) || closeAt <= new Date()) {
+      throw new BadRequestException("Kapanış tarihi gelecekte olmalı");
+    }
+    const openAt = dto.openImmediately
+      ? null
+      : dto.bidsOpenAt
+      ? new Date(dto.bidsOpenAt)
+      : null;
+    if (!dto.openImmediately && (!openAt || openAt >= closeAt)) {
+      throw new BadRequestException(
+        "Açılış tarihi geçerli ve kapanıştan önce olmalı",
+      );
+    }
+
+    // Davetli tedarikçi listesi
+    const submitterIds = new Set(previous.bids.map((b) => b.supplierId));
+    let invitedSupplierIds = previous.invitations.map((i) => i.supplierId);
+    if (dto.eliminateNonBidders) {
+      invitedSupplierIds = invitedSupplierIds.filter((sid) =>
+        submitterIds.has(sid),
+      );
+    }
+    if (invitedSupplierIds.length === 0) {
+      throw new BadRequestException(
+        "Yeni turda davetli tedarikçi kalmadı (eleme sonucu sıfır)",
+      );
+    }
+
+    // Auction settings — önceki tender'dan kopyala, type değişikliği uygula.
+    const isNewAuction = dto.type === "ENGLISH_AUCTION";
+    const auctionFieldsCopy = {
+      bidVisibility: isNewAuction ? previous.bidVisibility : "OWN_ONLY",
+      priceDecrementType: isNewAuction ? previous.priceDecrementType : null,
+      priceDecrementValue: isNewAuction ? previous.priceDecrementValue : null,
+      priceDecrementBasis: isNewAuction ? previous.priceDecrementBasis : null,
+      decimalPlaces: previous.decimalPlaces,
+      sendClosingReminder: previous.sendClosingReminder,
+      reminderMinutesBefore: previous.reminderMinutesBefore,
+      autoExtendOnLateBid: isNewAuction
+        ? (dto.autoExtendOnLateBid ?? previous.autoExtendOnLateBid)
+        : false,
+      autoExtendThresholdMin: previous.autoExtendThresholdMin,
+      autoExtendByMinutes: previous.autoExtendByMinutes,
+      isSealedBid: isNewAuction ? true : previous.isSealedBid,
+    };
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      await this.assertActiveSuppliers(tx, tenantId, invitedSupplierIds);
+      const tenderNumber = await generateTenderNumber(tx);
+      const newRoundNumber = previous.roundNumber + 1;
+
+      const created = await tx.tender.create({
+        data: {
+          tenderNumber,
+          tenantId,
+          createdById: userId,
+          type: dto.type,
+          status: dto.openImmediately ? "OPEN_FOR_BIDS" : "DRAFT",
+          title: previous.title,
+          description: previous.description,
+          keywords: previous.keywords,
+          termsAndConditions: previous.termsAndConditions,
+          internalNotes: previous.internalNotes,
+          isSealedBid: auctionFieldsCopy.isSealedBid,
+          requireAllItems: previous.requireAllItems,
+          requireBidDocument: previous.requireBidDocument,
+          bidVisibility: auctionFieldsCopy.bidVisibility,
+          priceDecrementType: auctionFieldsCopy.priceDecrementType,
+          priceDecrementValue: auctionFieldsCopy.priceDecrementValue,
+          priceDecrementBasis: auctionFieldsCopy.priceDecrementBasis,
+          decimalPlaces: auctionFieldsCopy.decimalPlaces,
+          sendClosingReminder: auctionFieldsCopy.sendClosingReminder,
+          reminderMinutesBefore: auctionFieldsCopy.reminderMinutesBefore,
+          autoExtendOnLateBid: auctionFieldsCopy.autoExtendOnLateBid,
+          autoExtendThresholdMin: auctionFieldsCopy.autoExtendThresholdMin,
+          autoExtendByMinutes: auctionFieldsCopy.autoExtendByMinutes,
+          primaryCurrency: previous.primaryCurrency,
+          allowedCurrencies: isNewAuction
+            ? [previous.primaryCurrency]
+            : previous.allowedCurrencies,
+          deliveryTerm: previous.deliveryTerm,
+          billingAddressSnapshot:
+            previous.billingAddressSnapshot as unknown as Prisma.InputJsonValue,
+          deliveryAddressSnapshot:
+            previous.deliveryAddressSnapshot as unknown as Prisma.InputJsonValue,
+          deliveryAddress: previous.deliveryAddress,
+          paymentTerm: previous.paymentTerm,
+          paymentDays: previous.paymentDays,
+          estimatedTotal: previous.estimatedTotal,
+          previousTenderId: previous.id,
+          roundNumber: newRoundNumber,
+          bidsOpenAt: openAt,
+          bidsCloseAt: closeAt,
+          publishedAt: dto.openImmediately ? new Date() : null,
+          categories: {
+            create: previous.categories.map((c) => ({ categoryId: c.categoryId })),
+          },
+          items: {
+            create: previous.items.map((it) => ({
+              orderIndex: it.orderIndex,
+              name: it.name,
+              description: it.description,
+              quantity: it.quantity,
+              unit: it.unit,
+              materialCode: it.materialCode,
+              requiredByDate: it.requiredByDate,
+              targetUnitPrice: it.targetUnitPrice,
+              customQuestion: it.customQuestion,
+            })),
+          },
+          invitations: {
+            create: invitedSupplierIds.map((supplierId) => ({
+              supplierId,
+              status: dto.openImmediately
+                ? ("PENDING" as const)
+                : ("PENDING" as const),
+            })),
+          },
+        },
+        include: {
+          items: { select: { id: true, orderIndex: true } },
+        },
+      });
+
+      // AUTO bid carry: önceki SUBMITTED bidler → yeni tender'da DRAFT bid
+      if (dto.carryBids === "AUTO" && previous.bids.length > 0) {
+        // Yeni tender item id eşlemesi (orderIndex bazlı, çünkü kopyalandı)
+        const newItemByOrder = new Map(
+          created.items.map((i) => [i.orderIndex, i.id]),
+        );
+        const previousItemById = new Map(
+          previous.items.map((i) => [i.id, i]),
+        );
+
+        for (const prevBid of previous.bids) {
+          // Davetli mi kontrol et
+          if (!invitedSupplierIds.includes(prevBid.supplierId)) continue;
+
+          const newBid = await tx.bid.create({
+            data: {
+              tenderId: created.id,
+              supplierId: prevBid.supplierId,
+              submittedById: prevBid.submittedById,
+              status: "DRAFT",
+              currency: previous.primaryCurrency,
+              totalAmount: prevBid.totalAmount,
+              notes: prevBid.notes,
+              version: 1,
+            },
+          });
+          // Items
+          const itemsToCreate = prevBid.items
+            .map((bi) => {
+              const prevItem = previousItemById.get(bi.tenderItemId);
+              if (!prevItem) return null;
+              const newItemId = newItemByOrder.get(prevItem.orderIndex);
+              if (!newItemId || bi.unitPrice == null) return null;
+              return {
+                bidId: newBid.id,
+                tenderItemId: newItemId,
+                unitPrice: bi.unitPrice,
+                totalPrice:
+                  Number(bi.unitPrice) * Number(prevItem.quantity),
+                currency: previous.primaryCurrency,
+                customAnswer: bi.customAnswer,
+              };
+            })
+            .filter((x): x is NonNullable<typeof x> => x !== null);
+          if (itemsToCreate.length > 0) {
+            await tx.bidItem.createMany({ data: itemsToCreate });
+          }
+        }
+      }
+
+      return {
+        id: created.id,
+        tenderNumber: created.tenderNumber,
+        roundNumber: newRoundNumber,
+      };
+    });
+
+    return result;
+  }
+
   // ============================================================
   // PRIVATE HELPERS
   // ============================================================
+
+  /**
+   * V2-7 — Auction ayar alanlarını normalize et.
+   * RFQ ise: bidVisibility=OWN_ONLY, decrement alanları null, auto-extend ignore.
+   * ENGLISH_AUCTION ise: validateBusinessRules garanti etmiş; DTO'dan al.
+   */
+  private auctionFieldsFor(dto: CreateTenderDto) {
+    if (dto.type === "ENGLISH_AUCTION") {
+      return {
+        bidVisibility: dto.bidVisibility!,
+        priceDecrementType: dto.priceDecrementType!,
+        priceDecrementValue: dto.priceDecrementValue!,
+        priceDecrementBasis: dto.priceDecrementBasis ?? DecrementBasisDto.OWN_LAST_BID,
+        decimalPlaces: dto.decimalPlaces ?? 2,
+        sendClosingReminder: dto.sendClosingReminder ?? false,
+        reminderMinutesBefore: dto.reminderMinutesBefore ?? 60,
+        autoExtendOnLateBid: dto.autoExtendOnLateBid ?? true,
+        autoExtendThresholdMin: dto.autoExtendThresholdMin ?? 2,
+        autoExtendByMinutes: dto.autoExtendByMinutes ?? 2,
+        // ENGLISH_AUCTION ⇒ tedarikçi isimleri her zaman gizli
+        isSealedBid: true,
+      };
+    }
+    // RFQ: decrement/auto-extend yok, sealed-bid alıcı seçimine bırakılır.
+    return {
+      bidVisibility: "OWN_ONLY" as const,
+      priceDecrementType: null,
+      priceDecrementValue: null,
+      priceDecrementBasis: null,
+      decimalPlaces: dto.decimalPlaces ?? 2,
+      sendClosingReminder: dto.sendClosingReminder ?? false,
+      reminderMinutesBefore: dto.reminderMinutesBefore ?? 60,
+      autoExtendOnLateBid: false,
+      autoExtendThresholdMin: 2,
+      autoExtendByMinutes: 2,
+      isSealedBid: dto.isSealedBid,
+    };
+  }
 
   private validateBusinessRules(dto: CreateTenderDto) {
     // V2-6 — primaryCurrency mutlaka allowedCurrencies içinde olmalı
@@ -1228,6 +1546,53 @@ export class TenantTendersService {
     const set = new Set(dto.invitedSupplierIds);
     if (set.size !== dto.invitedSupplierIds.length) {
       throw new BadRequestException("Davetli tedarikçi listesinde tekrar var");
+    }
+
+    // V2-7 — Açık eksiltme decimal places sınırı
+    if (dto.decimalPlaces != null && (dto.decimalPlaces < 0 || dto.decimalPlaces > 4)) {
+      throw new BadRequestException("Ondalık basamak 0-4 arasında olmalı");
+    }
+
+    // V2-7 — İngiliz Usulü için ek kurallar
+    if (dto.type === "ENGLISH_AUCTION") {
+      if (!dto.bidVisibility) {
+        throw new BadRequestException(
+          "Açık eksiltme için görünürlük modu seçilmelidir",
+        );
+      }
+      if (!dto.priceDecrementType) {
+        throw new BadRequestException(
+          "Açık eksiltme için fiyat azaltma tipi seçilmelidir",
+        );
+      }
+      if (
+        dto.priceDecrementValue == null ||
+        Number(dto.priceDecrementValue) <= 0
+      ) {
+        throw new BadRequestException(
+          "Açık eksiltme için fiyat azaltma değeri 0'dan büyük olmalı",
+        );
+      }
+      if (
+        dto.priceDecrementType === "PERCENT" &&
+        Number(dto.priceDecrementValue) >= 100
+      ) {
+        throw new BadRequestException(
+          "Yüzde azaltma 100'den küçük olmalı",
+        );
+      }
+      // Açık eksiltmede tek para birimi → primaryCurrency
+      if (dto.allowedCurrencies.length !== 1) {
+        throw new BadRequestException(
+          "Açık eksiltme tek para biriminde yapılır",
+        );
+      }
+      // bidsOpenAt zorunlu — canlı yarışma için planlanmalı
+      if (!dto.bidsOpenAt) {
+        throw new BadRequestException(
+          "Açık eksiltme için açılış tarihi zorunludur",
+        );
+      }
     }
   }
 
@@ -2178,6 +2543,149 @@ export class TenantTendersService {
 
     await this.tenderScheduler.closeOpenBidding(tenderId);
     return { tenderStatus: "IN_AWARD" };
+  }
+
+  /**
+   * V2-7 — Kapanış zamanını değiştir veya ihaleyi hemen kapat.
+   * - closeNow=true → closeBiddingEarly çağırılır (mevcut akış).
+   * - closeNow=false → bidsCloseAt güncellenir; gelecekte olmalı.
+   * Her iki durumda da davetli tedarikçilere bilgilendirme e-postası gönderilir,
+   * alıcı notu zorunlu ve doğrudan e-postada yer alır.
+   */
+  async changeClosingTime(
+    tenantId: string,
+    tenderId: string,
+    userId: string,
+    userRole: string,
+    dto: {
+      closeNow: boolean;
+      newCloseAt?: string;
+      note: string;
+    },
+  ): Promise<{
+    status: "OPEN_FOR_BIDS" | "IN_AWARD";
+    bidsCloseAt: Date;
+    notifiedCount: number;
+  }> {
+    const tender = await this.prisma.tender.findUnique({
+      where: { id: tenderId },
+      select: {
+        id: true,
+        tenantId: true,
+        status: true,
+        createdById: true,
+        bidsCloseAt: true,
+        tenderNumber: true,
+        title: true,
+        tenant: { select: { name: true } },
+        invitations: {
+          where: { status: { in: ["PENDING", "ACCEPTED"] } },
+          select: {
+            id: true,
+            supplier: {
+              select: {
+                id: true,
+                users: {
+                  where: { isActive: true },
+                  orderBy: { createdAt: "asc" },
+                  take: 1,
+                  select: { email: true, firstName: true, lastName: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!tender) throw new NotFoundException("İhale bulunamadı");
+    if (tender.tenantId !== tenantId)
+      throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+    assertCanActOnTender(tender, { id: userId, role: userRole });
+    if (tender.status !== "OPEN_FOR_BIDS") {
+      throw new ConflictException(
+        `Sadece teklif alımındaki ihalenin kapanış zamanı değiştirilebilir. Mevcut: ${tender.status}`,
+      );
+    }
+    if (!dto.note || dto.note.trim().length < 5) {
+      throw new BadRequestException("Not en az 5 karakter olmalı");
+    }
+
+    const previousCloseAt = tender.bidsCloseAt;
+    let newCloseAt: Date;
+
+    if (dto.closeNow) {
+      // Mevcut erken kapat akışı tüm yan etkileri (status → IN_AWARD,
+      // PENDING davetler → EXPIRED, closure emails) çalıştırır.
+      await this.tenderScheduler.closeOpenBidding(tenderId);
+      newCloseAt = new Date();
+    } else {
+      if (!dto.newCloseAt) {
+        throw new BadRequestException(
+          "Yeni kapanış tarihi belirtilmedi",
+        );
+      }
+      const parsed = new Date(dto.newCloseAt);
+      if (Number.isNaN(parsed.getTime()) || parsed <= new Date()) {
+        throw new BadRequestException("Yeni kapanış tarihi gelecekte olmalı");
+      }
+      // bidsCloseAt güncelle; auto-extend idempotency reset edilir.
+      await this.prisma.tender.update({
+        where: { id: tenderId },
+        data: {
+          bidsCloseAt: parsed,
+          closingReminderSentAt: null,
+        },
+      });
+      newCloseAt = parsed;
+    }
+
+    // E-posta gönderimi (fire-and-forget; failure log'lanır ama tx etkilenmez)
+    const webUrl = (
+      this.config.get<string>("WEB_URL") ?? "http://localhost:3000"
+    ).replace(/\/$/, "");
+
+    let notifiedCount = 0;
+    const tasks: Promise<unknown>[] = [];
+    for (const inv of tender.invitations) {
+      const primary = inv.supplier.users[0];
+      if (!primary) continue;
+      notifiedCount++;
+      tasks.push(
+        this.emailService.send({
+          to: {
+            email: primary.email,
+            name: `${primary.firstName} ${primary.lastName}`,
+          },
+          templateData: {
+            template: "tender_closing_time_changed",
+            data: {
+              supplierUserName: `${primary.firstName} ${primary.lastName}`,
+              tenantName: tender.tenant.name,
+              tenderNumber: tender.tenderNumber,
+              tenderTitle: tender.title,
+              closedImmediately: dto.closeNow,
+              previousCloseAt: previousCloseAt.toISOString(),
+              newCloseAt: newCloseAt.toISOString(),
+              note: dto.note.trim(),
+              tenderUrl: `${webUrl}/supplier/ihaleler/${tender.id}`,
+            },
+          },
+          context: { type: "tender_closing_time_changed", id: inv.id },
+          subject: dto.closeNow
+            ? `🔒 İhale kapatıldı: ${tender.title} — Supkeys`
+            : `⏰ Kapanış zamanı değişti: ${tender.title} — Supkeys`,
+        }),
+      );
+    }
+    Promise.allSettled(tasks).catch(() => {
+      // ignore — Promise.allSettled aslında reject etmez ama tip için
+    });
+
+    return {
+      status: dto.closeNow ? "IN_AWARD" : "OPEN_FOR_BIDS",
+      bidsCloseAt: newCloseAt,
+      notifiedCount,
+    };
   }
 
   /**

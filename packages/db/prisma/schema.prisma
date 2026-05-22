@@ -743,6 +743,29 @@ enum BidStatus {
   LOST
 }
 
+// V2-7 — İngiliz Usulü açık eksiltme: tedarikçiye gösterilecek bilgi seviyesi.
+// Hiçbir modda tedarikçi başka tedarikçinin İSMİNİ göremez; sadece agrega.
+enum BidVisibility {
+  OWN_ONLY            // Sadece kendi teklifini görür (sealed-bid gibi)
+  BEST_PRICE          // Sadece şu anki en iyi teklif tutarını görür
+  OWN_RANK            // Sadece kendi sıralamasını görür
+  BEST_AND_OWN_RANK   // En iyi teklif + kendi sıralaması
+  ALL                 // Tüm teklifler (anonim) + sıralama
+}
+
+// V2-7 — Açık eksiltmede minimum azaltma kuralının cinsi.
+enum DecrementType {
+  AMOUNT              // Sabit tutar (primaryCurrency cinsinden)
+  PERCENT             // Yüzde (önceki teklif × oran)
+}
+
+// V2-7 — Decrement'in baz alınacağı referans.
+// V2-7'de sadece OWN_LAST_BID aktif; BEST_BID enum'da hazır.
+enum DecrementBasis {
+  OWN_LAST_BID        // Tedarikçinin kendi son teklifi
+  BEST_BID            // İhaledeki en iyi teklif (V3)
+}
+
 enum OrderStatus {
   PENDING        // Sipariş açıldı, tedarikçi onayı bekleniyor
   ACCEPTED       // Tedarikçi siparişi onayladı + bilgileri (teslim tarihi, banka, fatura) girdi
@@ -768,6 +791,8 @@ model Tender {
 
   title               String
   description         String?
+  /** V2-7 — Tedarikçilere ihale listesinde arama/eşleştirme için anahtar kelimeler. 0-10 adet, her biri ≤50 karakter. */
+  keywords            String[]        @default([])
   termsAndConditions  String?
   internalNotes       String?
 
@@ -778,6 +803,35 @@ model Tender {
   primaryCurrency     Currency        @default(TRY)
   /** V2-6 — Kabul edilen para birimleri (1-8); primaryCurrency listenin başı (TRY equivalent base). */
   allowedCurrencies   Currency[]      @default([])
+
+  // V2-7 — İngiliz Usulü açık eksiltme ayarları.
+  // type=RFQ ise bidVisibility=OWN_ONLY zorunlu, decrement alanları null.
+  // type=ENGLISH_AUCTION ise bidVisibility + decrement zorunlu.
+  bidVisibility            BidVisibility   @default(OWN_ONLY)
+  priceDecrementType       DecrementType?
+  priceDecrementValue      Decimal?        @db.Decimal(15, 4)
+  priceDecrementBasis      DecrementBasis?
+  /** Fiyat gösteriminde kullanılacak ondalık basamak sayısı (0-4). */
+  decimalPlaces            Int             @default(2)
+  /** Kapanış öncesi tedarikçilere hatırlatma e-postası gönderilsin mi? */
+  sendClosingReminder      Boolean         @default(false)
+  /** Kapanışa X dk kala hatırlatma (sendClosingReminder=true iken). */
+  reminderMinutesBefore    Int             @default(60)
+  /** ENGLISH_AUCTION: son dakika gelen teklif ile bidsCloseAt otomatik uzatılır. */
+  autoExtendOnLateBid      Boolean         @default(true)
+  /** Son dakika eşiği (dk) — daha az süre kala teklif gelirse uzatılır. */
+  autoExtendThresholdMin   Int             @default(2)
+  /** Her uzatmada eklenecek dakika. */
+  autoExtendByMinutes      Int             @default(2)
+  /** Sistem tarafından gönderilen "kapanış hatırlatma" e-postasının zamanı (idempotency). */
+  closingReminderSentAt    DateTime?
+
+  // V2-7 — Yeni Tur (round) zinciri. Round #1 → previousTenderId=null, roundNumber=1.
+  // Sonraki turlar previousTenderId=öncekinin id, roundNumber=öncekinin+1.
+  previousTenderId         String?
+  previousTender           Tender?         @relation("TenderRounds", fields: [previousTenderId], references: [id])
+  nextRounds               Tender[]        @relation("TenderRounds")
+  roundNumber              Int             @default(1)
 
   deliveryTerm        DeliveryTerm?
   // E.7.B'den önce: free-text. E.7.B sonrası: backward-compat fallback —

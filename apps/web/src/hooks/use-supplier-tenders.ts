@@ -86,7 +86,18 @@ export function useSupplierTenderDetail(id: string | null) {
       return data;
     },
     enabled: !!id,
-    refetchInterval: 15_000,
+    // V2-7 — Açık eksiltme + OPEN_FOR_BIDS iken 3s polling (canlı sıralama).
+    // Diğer durumlarda 15s. Sekme arkadaysa hiç poll yok (refetchIntervalInBackground=false).
+    refetchInterval: (query) => {
+      const data = query.state.data as SupplierTenderDetail | undefined;
+      if (
+        data?.type === "ENGLISH_AUCTION" &&
+        data?.status === "OPEN_FOR_BIDS"
+      ) {
+        return 3_000;
+      }
+      return 15_000;
+    },
     refetchIntervalInBackground: false, // P-6
   });
 }

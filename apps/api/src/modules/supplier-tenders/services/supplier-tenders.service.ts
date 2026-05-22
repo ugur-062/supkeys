@@ -313,6 +313,83 @@ export class SupplierTendersService {
       },
     });
 
+    // V2-7 — İngiliz Usulü açık eksiltme view (visibility'ye göre).
+    const auctionView =
+      tender.type === "ENGLISH_AUCTION"
+        ? await this.computeAuctionView(
+            tender.id,
+            supplierId,
+            tender.bidVisibility,
+            myBid?.id ?? null,
+          )
+        : null;
+
+    // V2-7 — Yeni Tur (LAZY carry) için önceki turun bid'i. AUTO modunda
+    // myBid zaten DRAFT olarak gelir, bu yüzden sadece myBid yoksa lazım.
+    let previousRoundBid: {
+      tenderId: string;
+      totalAmount: string;
+      notes: string | null;
+      items: Array<{
+        tenderItemId: string;
+        unitPrice: string | null;
+        customAnswer: string | null;
+      }>;
+    } | null = null;
+    if (tender.previousTenderId && !myBid) {
+      // Önceki tender'daki kalem orderIndex'leri ile bu tender'daki kalem id'leri
+      // eşle. Önceki bid item'larını yeni tender item id'lerine map'le.
+      const prevTender = await this.prisma.tender.findUnique({
+        where: { id: tender.previousTenderId },
+        select: { items: { select: { id: true, orderIndex: true } } },
+      });
+      const prevBid = await this.prisma.bid.findUnique({
+        where: {
+          tenderId_supplierId: {
+            tenderId: tender.previousTenderId,
+            supplierId,
+          },
+        },
+        select: {
+          totalAmount: true,
+          notes: true,
+          items: {
+            select: {
+              tenderItemId: true,
+              unitPrice: true,
+              customAnswer: true,
+            },
+          },
+        },
+      });
+      if (prevBid && prevTender) {
+        const prevOrderById = new Map(
+          prevTender.items.map((i) => [i.id, i.orderIndex]),
+        );
+        const newIdByOrder = new Map(
+          tender.items.map((i) => [i.orderIndex, i.id]),
+        );
+        previousRoundBid = {
+          tenderId: tender.previousTenderId,
+          totalAmount: prevBid.totalAmount.toString(),
+          notes: prevBid.notes,
+          items: prevBid.items
+            .map((bi) => {
+              const order = prevOrderById.get(bi.tenderItemId);
+              if (order === undefined) return null;
+              const newItemId = newIdByOrder.get(order);
+              if (!newItemId) return null;
+              return {
+                tenderItemId: newItemId,
+                unitPrice: bi.unitPrice ? bi.unitPrice.toString() : null,
+                customAnswer: bi.customAnswer,
+              };
+            })
+            .filter((x): x is NonNullable<typeof x> => x !== null),
+        };
+      }
+    }
+
     return {
       id: tender.id,
       tenderNumber: tender.tenderNumber,
@@ -338,6 +415,15 @@ export class SupplierTendersService {
       bidsCloseAt: tender.bidsCloseAt,
       awardedAt: tender.awardedAt,
       cancelledAt: tender.cancelledAt,
+      // V2-7 — açık eksiltme alanları (tedarikçi tarafına gerekli olanlar)
+      bidVisibility: tender.bidVisibility,
+      priceDecrementType: tender.priceDecrementType,
+      priceDecrementValue: tender.priceDecrementValue,
+      priceDecrementBasis: tender.priceDecrementBasis,
+      decimalPlaces: tender.decimalPlaces,
+      autoExtendOnLateBid: tender.autoExtendOnLateBid,
+      autoExtendThresholdMin: tender.autoExtendThresholdMin,
+      autoExtendByMinutes: tender.autoExtendByMinutes,
       tenant: tender.tenant,
       categories: tender.categories.map((tc) => ({
         id: tc.category.id,
@@ -350,6 +436,78 @@ export class SupplierTendersService {
       attachments: tender.attachments,
       myInvitation: invitation,
       myBid,
+      auctionView,
+      // V2-7 — Yeni Tur (LAZY) için önceki round bid'i; UI prefill için.
+      previousRoundBid,
+      previousTenderId: tender.previousTenderId ?? null,
+      roundNumber: tender.roundNumber ?? 1,
+    };
+  }
+
+  /**
+   * V2-7 — Açık eksiltme görünürlük moduna göre tedarikçiye gösterilecek bilgi:
+   * - bestTotal: ihaledeki en iyi SUBMITTED bid totalAmount'ı
+   * - myRank: tedarikçinin sıralaması (1 = en iyi)
+   * - participantCount: SUBMITTED bid sayısı
+   * - allBids: anonim sıralı liste (sadece ALL modu)
+   * Tüm modlarda tedarikçi adı/idsi ASLA dönmez.
+   */
+  private async computeAuctionView(
+    tenderId: string,
+    supplierId: string,
+    visibility: string,
+    myBidId: string | null,
+  ): Promise<{
+    bestTotal: number | null;
+    myRank: number | null;
+    participantCount: number | null;
+    allBids: { rank: number; total: number; isMine: boolean }[] | null;
+  } | null> {
+    if (visibility === "OWN_ONLY") return null;
+
+    // Sadece SUBMITTED biz ranking'e dahil
+    const submittedBids = await this.prisma.bid.findMany({
+      where: { tenderId, status: "SUBMITTED" },
+      select: { id: true, supplierId: true, totalAmount: true },
+      orderBy: { totalAmount: "asc" },
+    });
+
+    if (submittedBids.length === 0) {
+      return {
+        bestTotal: null,
+        myRank: null,
+        participantCount: 0,
+        allBids: visibility === "ALL" ? [] : null,
+      };
+    }
+
+    const totals = submittedBids.map((b) => Number(b.totalAmount));
+    const bestTotal = totals[0];
+    const myIdx = submittedBids.findIndex((b) => b.supplierId === supplierId);
+    const myRank = myIdx >= 0 ? myIdx + 1 : null;
+    const participantCount = submittedBids.length;
+
+    const wantsBest =
+      visibility === "BEST_PRICE" ||
+      visibility === "BEST_AND_OWN_RANK" ||
+      visibility === "ALL";
+    const wantsRank =
+      visibility === "OWN_RANK" ||
+      visibility === "BEST_AND_OWN_RANK" ||
+      visibility === "ALL";
+
+    return {
+      bestTotal: wantsBest ? bestTotal : null,
+      myRank: wantsRank ? myRank : null,
+      participantCount: wantsRank ? participantCount : null,
+      allBids:
+        visibility === "ALL"
+          ? submittedBids.map((b, i) => ({
+              rank: i + 1,
+              total: Number(b.totalAmount),
+              isMine: b.id === myBidId,
+            }))
+          : null,
     };
   }
 
@@ -515,14 +673,11 @@ export class SupplierTendersService {
         select: { id: true, status: true, version: true },
       });
 
-      // E.5 refactor — Revize akışı kaldırıldı:
-      //   - SUBMITTED: alıcıyla iletişim gerekli; tedarikçi düzenleyemez
-      //   - WITHDRAWN: V1'de yeniden teklif yok (kalıcı)
-      //   - REJECTED / AWARDED_FULL / AWARDED_PARTIAL: kapanmış
-      //   - LOST: alıcı eledi → tedarikçi yeniden teklif verebilir (status
-      //     LOST kalır, submit edilince version++ ile SUBMITTED'a geçer)
+      // V2-7 refactor — ENGLISH_AUCTION için SUBMITTED bid düzenlenebilir
+      // (canlı eksiltme akışı). RFQ akışı eski kuralı koruyor.
+      const isAuction = tender.type === "ENGLISH_AUCTION";
       if (existing) {
-        if (existing.status === "SUBMITTED") {
+        if (existing.status === "SUBMITTED" && !isAuction) {
           throw new ConflictException(
             "Verilmiş teklif düzenlenemez. Değişiklik için alıcıyla iletişime geçin. Alıcı teklifinizi elerse yeniden teklif verebilirsiniz.",
           );
@@ -541,11 +696,43 @@ export class SupplierTendersService {
             "Bu teklif sonuçlandı, düzenlenemez",
           );
         }
-        // DRAFT veya LOST → düzenlemeye izin ver
+        // RFQ: DRAFT/LOST düzenlenebilir
+        // ENGLISH_AUCTION: DRAFT/LOST/SUBMITTED düzenlenebilir
       }
 
       // Toplam (sadece teklif verilen kalemler) — backend hesaplar
       const totalAmount = this.calculateTotalAmount(dto.items, tender.items);
+
+      // V2-7 — Açık eksiltmede önceki SUBMITTED bid'e göre min. azaltma kontrolü.
+      // Basis=OWN_LAST_BID (V2-7 tek seçenek). Yeni totalAmount < previous - decrement.
+      if (
+        isAuction &&
+        existing &&
+        existing.status === "SUBMITTED" &&
+        tender.priceDecrementType &&
+        tender.priceDecrementValue != null
+      ) {
+        // Önceki SUBMITTED totalAmount'ı çek
+        const previous = await tx.bid.findUnique({
+          where: { id: existing.id },
+          select: { totalAmount: true },
+        });
+        const previousTotal = Number(previous?.totalAmount ?? 0);
+        const decrementValue = Number(tender.priceDecrementValue);
+        const minDelta =
+          tender.priceDecrementType === "PERCENT"
+            ? previousTotal * (decrementValue / 100)
+            : decrementValue;
+        const maxAllowed = previousTotal - minDelta;
+        // Floating-point tolerance: 0.0001
+        if (totalAmount > maxAllowed + 1e-4) {
+          throw new BadRequestException(
+            tender.priceDecrementType === "PERCENT"
+              ? `Yeni teklif önceki teklifinizden en az %${decrementValue} daha düşük olmalı (max ${maxAllowed.toFixed(4)} ${tender.primaryCurrency})`
+              : `Yeni teklif önceki teklifinizden en az ${decrementValue} ${tender.primaryCurrency} düşük olmalı (max ${maxAllowed.toFixed(4)})`,
+          );
+        }
+      }
 
       const bid = await tx.bid.upsert({
         where: { tenderId_supplierId: { tenderId, supplierId } },
@@ -665,7 +852,8 @@ export class SupplierTendersService {
       if (!bid) {
         throw new NotFoundException("Önce bir taslak oluşturmalısınız");
       }
-      if (bid.status === "SUBMITTED") {
+      const isAuction = tender.type === "ENGLISH_AUCTION";
+      if (bid.status === "SUBMITTED" && !isAuction) {
         throw new ConflictException(
           "Verilmiş teklif yeniden gönderilemez. Değişiklik için alıcıyla iletişime geçin.",
         );
@@ -679,7 +867,11 @@ export class SupplierTendersService {
           "Bu durumdaki teklif tekrar gönderilemez",
         );
       }
-      // DRAFT veya LOST geçişi serbest
+      // RFQ: DRAFT/LOST geçişi serbest
+      // ENGLISH_AUCTION: DRAFT/LOST/SUBMITTED geçişi serbest (re-bid)
+      // Not: decrement enforce'u saveOrUpdateBid yapar (yeni total yazılmadan
+      // önce eski SUBMITTED total ile karşılaştırır). Submit aşamasında
+      // total artık kayıtlı; ek kontrol gereksiz.
 
       if (bid.items.length === 0) {
         throw new BadRequestException(
@@ -718,7 +910,10 @@ export class SupplierTendersService {
 
       // LOST → SUBMITTED: eleme sonrası yeniden teklif, version++ ve
       // eliminationReason/eliminatedAt temizlenir.
+      // ENGLISH_AUCTION SUBMITTED → SUBMITTED: re-bid, version++ (her tur).
       const isResubmissionAfterElimination = bid.status === "LOST";
+      const isAuctionRebid = isAuction && bid.status === "SUBMITTED";
+      const bumpVersion = isResubmissionAfterElimination || isAuctionRebid;
 
       // V2-3 — submit anındaki TCMB kurunu snapshot olarak yaz.
       // bid.currency=TRY ise null kalır (gerek yok).
@@ -729,9 +924,7 @@ export class SupplierTendersService {
         data: {
           status: "SUBMITTED",
           submittedAt: new Date(),
-          version: isResubmissionAfterElimination
-            ? bid.version + 1
-            : bid.version,
+          version: bumpVersion ? bid.version + 1 : bid.version,
           eliminationReason: isResubmissionAfterElimination ? null : undefined,
           eliminatedAt: isResubmissionAfterElimination ? null : undefined,
           ...(snapshot && {
@@ -749,7 +942,28 @@ export class SupplierTendersService {
         },
       });
 
-      return updated;
+      // V2-7 — Auto-extend: son dakika gelen teklif kapanışı uzatır.
+      let extendedTo: Date | null = null;
+      if (isAuction && tender.autoExtendOnLateBid) {
+        const now = new Date();
+        const msLeft = tender.bidsCloseAt.getTime() - now.getTime();
+        const thresholdMs = tender.autoExtendThresholdMin * 60_000;
+        if (msLeft > 0 && msLeft < thresholdMs) {
+          extendedTo = new Date(
+            tender.bidsCloseAt.getTime() + tender.autoExtendByMinutes * 60_000,
+          );
+          await tx.tender.update({
+            where: { id: tenderId },
+            data: {
+              bidsCloseAt: extendedTo,
+              // Uzatma → hatırlatma e-postası tekrar gönderilebilsin
+              closingReminderSentAt: null,
+            },
+          });
+        }
+      }
+
+      return { ...updated, extendedTo };
     });
   }
 

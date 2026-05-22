@@ -113,6 +113,111 @@ export class TenderSchedulerService {
   }
 
   /**
+   * V2-7 — İngiliz Usulü açık eksiltme: kapanışa X dk kala tedarikçilere
+   * hatırlatma e-postası gönderir. Her dakika tarar, idempotent
+   * (closingReminderSentAt set edilen tender bir daha gönderilmez).
+   * RFQ tender'ları bu sorguda yer almaz (type filtresi).
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async sendClosingReminders() {
+    const now = new Date();
+    const candidates = await this.prisma.tender.findMany({
+      where: {
+        status: "OPEN_FOR_BIDS",
+        type: "ENGLISH_AUCTION",
+        sendClosingReminder: true,
+        closingReminderSentAt: null,
+        bidsCloseAt: { gt: now },
+      },
+      select: {
+        id: true,
+        tenderNumber: true,
+        title: true,
+        bidsCloseAt: true,
+        reminderMinutesBefore: true,
+        tenant: { select: { name: true } },
+        invitations: {
+          where: { status: { in: ["PENDING", "ACCEPTED"] } },
+          select: {
+            id: true,
+            supplier: {
+              select: {
+                id: true,
+                companyName: true,
+                users: {
+                  where: { isActive: true },
+                  orderBy: { createdAt: "asc" },
+                  take: 1,
+                  select: { email: true, firstName: true, lastName: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (candidates.length === 0) return;
+
+    const webUrl = (
+      this.config.get<string>("WEB_URL") ?? "http://localhost:3000"
+    ).replace(/\/$/, "");
+
+    for (const tender of candidates) {
+      const msLeft = tender.bidsCloseAt.getTime() - now.getTime();
+      const triggerMs = tender.reminderMinutesBefore * 60_000;
+      if (msLeft > triggerMs) continue; // henüz vakti gelmedi
+
+      try {
+        // Idempotency — bir başka dakika tekrar göndermesin
+        const claim = await this.prisma.tender.updateMany({
+          where: { id: tender.id, closingReminderSentAt: null },
+          data: { closingReminderSentAt: new Date() },
+        });
+        if (claim.count === 0) continue;
+
+        const tasks: Promise<unknown>[] = [];
+        for (const inv of tender.invitations) {
+          const primary = inv.supplier.users[0];
+          if (!primary) continue;
+          tasks.push(
+            this.emailService.send({
+              to: {
+                email: primary.email,
+                name: `${primary.firstName} ${primary.lastName}`,
+              },
+              templateData: {
+                template: "auction_closing_reminder",
+                data: {
+                  supplierUserName: `${primary.firstName} ${primary.lastName}`,
+                  tenantName: tender.tenant.name,
+                  tenderNumber: tender.tenderNumber,
+                  tenderTitle: tender.title,
+                  minutesLeft: Math.max(1, Math.round(msLeft / 60_000)),
+                  closesAt: tender.bidsCloseAt.toISOString(),
+                  tenderUrl: `${webUrl}/supplier/ihaleler/${tender.id}`,
+                },
+              },
+              context: { type: "auction_closing_reminder", id: inv.id },
+              subject: `⏰ Açık eksiltme yakında kapanıyor: ${tender.title} — Supkeys`,
+            }),
+          );
+        }
+        await Promise.allSettled(tasks);
+        this.logger.log(
+          `Sent closing reminder for ${tender.tenderNumber} to ${tender.invitations.length} supplier(s)`,
+        );
+      } catch (err) {
+        this.logger.error(
+          `Failed to send closing reminder for ${tender.tenderNumber}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+  }
+
+  /**
    * Manuel erken kapatma — alıcı IN_AWARD'a geçmek istediğinde
    * cron'u beklemeden çağrılır. Tender'ı aynı şekilde yükler, state
    * kontrolü yapar ve mevcut closeTender + email akışını çalıştırır.

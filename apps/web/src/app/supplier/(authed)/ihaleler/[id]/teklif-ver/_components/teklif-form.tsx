@@ -120,9 +120,22 @@ export function TeklifForm({ tender, existingBid }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   // LOST bid: alıcı eledi → fresh form. DRAFT: kaldığı yerden. Yok: temiz.
+  // V2-7 — ENGLISH_AUCTION SUBMITTED: re-bid akışı, önceki teklif değerleriyle
+  // form seed edilir (tedarikçi düşürür).
+  // V2-7 — Yeni Tur LAZY: existingBid yok ama previousRoundBid varsa onu prefill.
   const isResubmissionAfterElimination = existingBid?.status === "LOST";
+  const isAuctionRebid =
+    tender.type === "ENGLISH_AUCTION" && existingBid?.status === "SUBMITTED";
   const draftBid =
-    existingBid && existingBid.status === "DRAFT" ? existingBid : null;
+    existingBid &&
+    (existingBid.status === "DRAFT" || isAuctionRebid)
+      ? existingBid
+      : null;
+  // Lazy prefill: yeni turda henüz hiç bid yok ama önceki turdan kalmış teklif var.
+  const lazyPrefill =
+    !existingBid && tender.previousRoundBid
+      ? tender.previousRoundBid
+      : null;
 
   const saveMutation = useSaveBid(tender.id);
   const submitMutation = useSubmitBid(tender.id);
@@ -166,15 +179,26 @@ export function TeklifForm({ tender, existingBid }: Props) {
       // V2-3 — bid.currency artık tender.primaryCurrency'den sabit;
       // tedarikçi seçim yapamaz.
       currency: tender.primaryCurrency,
-      notes: draftBid?.notes ?? "",
+      notes: draftBid?.notes ?? lazyPrefill?.notes ?? "",
       items: tender.items.map((ti) => {
         const draftItem = draftBid?.items?.find(
           (bi) => bi.tenderItemId === ti.id,
         );
+        if (draftItem) {
+          return {
+            tenderItemId: ti.id,
+            unitPrice: draftItem ? Number(draftItem.unitPrice) : null,
+            customAnswer: draftItem?.customAnswer ?? "",
+          };
+        }
+        // V2-7 LAZY prefill — önceki tur bid item'ı varsa kullan
+        const lazyItem = lazyPrefill?.items.find(
+          (bi) => bi.tenderItemId === ti.id,
+        );
         return {
           tenderItemId: ti.id,
-          unitPrice: draftItem ? Number(draftItem.unitPrice) : null,
-          customAnswer: draftItem?.customAnswer ?? "",
+          unitPrice: lazyItem?.unitPrice ? Number(lazyItem.unitPrice) : null,
+          customAnswer: lazyItem?.customAnswer ?? "",
         };
       }),
       attachments:
@@ -189,9 +213,13 @@ export function TeklifForm({ tender, existingBid }: Props) {
   });
 
   // Erken render kararları — tüm hook'lar çağrıldıktan SONRA.
-  // SUBMITTED bid form sayfasına gelinmesi engellenir; submit sonrası
-  // existingBid bu duruma geçince banner gösterilir.
-  if (existingBid?.status === "SUBMITTED") {
+  // RFQ: SUBMITTED bid form sayfasına gelinmesi engellenir.
+  // V2-7 — ENGLISH_AUCTION: SUBMITTED bid yine editlenebilir (re-bid akışı);
+  //   ayrı banner göstermeyiz, form çalışsın.
+  if (
+    existingBid?.status === "SUBMITTED" &&
+    tender.type !== "ENGLISH_AUCTION"
+  ) {
     return (
       <div className="max-w-2xl mx-auto py-12">
         <div className="card p-8 text-center space-y-4">

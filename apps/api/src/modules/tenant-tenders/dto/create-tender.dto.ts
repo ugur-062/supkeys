@@ -53,6 +53,25 @@ export enum PaymentTermDto {
   DEFERRED = "DEFERRED",
 }
 
+// V2-7 — İngiliz Usulü açık eksiltme enum'ları.
+export enum BidVisibilityDto {
+  OWN_ONLY = "OWN_ONLY",
+  BEST_PRICE = "BEST_PRICE",
+  OWN_RANK = "OWN_RANK",
+  BEST_AND_OWN_RANK = "BEST_AND_OWN_RANK",
+  ALL = "ALL",
+}
+
+export enum DecrementTypeDto {
+  AMOUNT = "AMOUNT",
+  PERCENT = "PERCENT",
+}
+
+export enum DecrementBasisDto {
+  OWN_LAST_BID = "OWN_LAST_BID",
+  BEST_BID = "BEST_BID",
+}
+
 export class TenderItemInputDto {
   @IsString()
   @IsNotEmpty()
@@ -127,6 +146,14 @@ export class CreateTenderDto {
   @IsString()
   @MaxLength(5000)
   description?: string;
+
+  // V2-7 — Anahtar kelimeler (0-10 adet, her biri ≤50 karakter)
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10, { message: "En fazla 10 anahtar kelime" })
+  @IsString({ each: true })
+  @MaxLength(50, { each: true, message: "Her anahtar kelime en fazla 50 karakter" })
+  keywords?: string[];
 
   @IsEnum(TenderTypeDto)
   type!: TenderTypeDto;
@@ -204,6 +231,58 @@ export class CreateTenderDto {
   @IsOptional()
   @IsDateString()
   bidsOpenAt?: string;
+
+  // ---------- V2-7: İngiliz Usulü Açık Eksiltme Ayarları ----------
+  // Tüm alanlar her tender'da DTO'da gelir; service ENGLISH_AUCTION değilse
+  // decrement* alanlarını null'lar ve bidVisibility'yi OWN_ONLY'ye sabitler.
+  @IsOptional()
+  @IsEnum(BidVisibilityDto)
+  bidVisibility?: BidVisibilityDto;
+
+  @IsOptional()
+  @IsEnum(DecrementTypeDto)
+  priceDecrementType?: DecrementTypeDto;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
+  priceDecrementValue?: number;
+
+  @IsOptional()
+  @IsEnum(DecrementBasisDto)
+  priceDecrementBasis?: DecrementBasisDto;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(4)
+  decimalPlaces?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  sendClosingReminder?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(720)
+  reminderMinutesBefore?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  autoExtendOnLateBid?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(30)
+  autoExtendThresholdMin?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(30)
+  autoExtendByMinutes?: number;
 
   // ---------- Adım 2: Kalemler ----------
   @IsArray()

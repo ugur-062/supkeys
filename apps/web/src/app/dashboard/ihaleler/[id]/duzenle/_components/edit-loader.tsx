@@ -97,6 +97,7 @@ export function EditLoader({ id }: Props) {
     categoryIds: tender.categories?.map((c) => c.id) ?? [],
     title: tender.title,
     description: tender.description ?? "",
+    keywords: tender.keywords ?? [],
     type: tender.type,
     isSealedBid: tender.isSealedBid,
     requireAllItems: tender.requireAllItems,
@@ -118,6 +119,19 @@ export function EditLoader({ id }: Props) {
     internalNotes: tender.internalNotes ?? "",
     bidsCloseAt: toDatetimeLocal(tender.bidsCloseAt),
     bidsOpenAt: toDatetimeLocal(tender.bidsOpenAt),
+    // V2-7 — Açık eksiltme alanları
+    bidVisibility: tender.bidVisibility,
+    priceDecrementType: tender.priceDecrementType ?? undefined,
+    priceDecrementValue: tender.priceDecrementValue
+      ? Number(tender.priceDecrementValue)
+      : undefined,
+    priceDecrementBasis: tender.priceDecrementBasis ?? undefined,
+    decimalPlaces: tender.decimalPlaces,
+    sendClosingReminder: tender.sendClosingReminder,
+    reminderMinutesBefore: tender.reminderMinutesBefore,
+    autoExtendOnLateBid: tender.autoExtendOnLateBid,
+    autoExtendThresholdMin: tender.autoExtendThresholdMin,
+    autoExtendByMinutes: tender.autoExtendByMinutes,
     items: tender.items.map((it) => ({
       name: it.name,
       description: it.description ?? "",

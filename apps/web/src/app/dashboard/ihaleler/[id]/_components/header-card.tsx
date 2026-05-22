@@ -26,6 +26,7 @@ import {
   Clock,
   ExternalLink,
   Pencil,
+  RefreshCw,
   Send,
   Timer,
   Trash2,
@@ -43,6 +44,7 @@ const AwardWizardModal = dynamic(
   { ssr: false },
 );
 import { CancelTenderDialog } from "./cancel-tender-dialog";
+import { ChangeClosingTimeDialog } from "./change-closing-time-dialog";
 import { CloseBiddingEarlyDialog } from "./close-bidding-early-dialog";
 import { CloseNoAwardDialog } from "./close-no-award-dialog";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
@@ -69,6 +71,7 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
   const [awardOpen, setAwardOpen] = useState(false);
   const [closeNoAwardOpen, setCloseNoAwardOpen] = useState(false);
   const [closeBiddingOpen, setCloseBiddingOpen] = useState(false);
+  const [changeTimeOpen, setChangeTimeOpen] = useState(false);
 
   const publishMutation = usePublishTender();
   const deleteMutation = useDeleteTender();
@@ -156,6 +159,11 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
               </code>
               <TenderTypeBadge type={tender.type} />
               <TenderLiveStatusPill status={tender.status} />
+              {tender.roundNumber > 1 ? (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 text-xs font-bold">
+                  Tur #{tender.roundNumber}
+                </span>
+              ) : null}
             </div>
             <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900 leading-tight">
               {tender.title}
@@ -164,6 +172,21 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
               <p className="text-slate-600 leading-relaxed max-w-3xl">
                 {tender.description}
               </p>
+            ) : null}
+            {tender.keywords && tender.keywords.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                <span className="text-xs text-slate-500 font-semibold">
+                  Anahtar Kelimeler:
+                </span>
+                {tender.keywords.map((kw) => (
+                  <span
+                    key={kw}
+                    className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs"
+                  >
+                    {kw}
+                  </span>
+                ))}
+              </div>
             ) : null}
           </div>
 
@@ -180,8 +203,20 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                     locale: tr,
                   })}
                 </p>
-                {canAward ? (
-                  <div className="flex md:justify-end pt-1">
+                <div className="flex md:justify-end items-center gap-2 flex-wrap pt-1">
+                  {canEdit ? (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => setChangeTimeOpen(true)}
+                      disabled={isBusy}
+                      title="Kapanış zamanını değiştir veya ihaleyi hemen kapat"
+                    >
+                      <Clock className="w-4 h-4" />
+                      Kapanış Zamanını Değiştir
+                    </Button>
+                  ) : null}
+                  {canAward ? (
                     <Button
                       variant="secondary"
                       size="sm"
@@ -193,8 +228,8 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                       <Timer className="w-4 h-4" />
                       Erken Kapat & Kazandırmaya Geç
                     </Button>
-                  </div>
-                ) : null}
+                  ) : null}
+                </div>
               </div>
             ) : tender.status === "IN_AWARD" ? (
               <div className="md:text-right space-y-2">
@@ -204,8 +239,22 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                     locale: tr,
                   })}
                 </p>
-                {canAward || canCancel ? (
+                {canAward || canCancel || canEdit ? (
                   <div className="flex md:justify-end items-center gap-2 flex-wrap">
+                    {canEdit ? (
+                      <Link
+                        href={`/dashboard/ihaleler/${tender.id}/yeni-tur`}
+                      >
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          title="Aynı kalemler + tedarikçilerle yeni tur aç"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          Yeni Tur Oluştur
+                        </Button>
+                      </Link>
+                    ) : null}
                     {canCancel ? (
                       <Button
                         variant="secondary"
@@ -407,6 +456,13 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
         isSubmitting={closeBiddingMutation.isPending}
         tenderTitle={tender.title}
         submittedBidCount={submittedBidCount}
+      />
+
+      <ChangeClosingTimeDialog
+        open={changeTimeOpen}
+        onClose={() => setChangeTimeOpen(false)}
+        tenderId={tender.id}
+        currentCloseAt={tender.bidsCloseAt}
       />
     </>
   );

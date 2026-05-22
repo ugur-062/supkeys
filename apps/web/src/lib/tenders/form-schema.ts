@@ -26,6 +26,22 @@ const DELIVERY_TERM_VALUES = [
 ] as const;
 const PAYMENT_TERM_VALUES = ["CASH", "DEFERRED"] as const;
 
+// V2-7 — İngiliz Usulü açık eksiltme enum değerleri
+export const BID_VISIBILITY_VALUES = [
+  "OWN_ONLY",
+  "BEST_PRICE",
+  "OWN_RANK",
+  "BEST_AND_OWN_RANK",
+  "ALL",
+] as const;
+export type BidVisibility = (typeof BID_VISIBILITY_VALUES)[number];
+
+export const DECREMENT_TYPE_VALUES = ["AMOUNT", "PERCENT"] as const;
+export type DecrementType = (typeof DECREMENT_TYPE_VALUES)[number];
+
+export const DECREMENT_BASIS_VALUES = ["OWN_LAST_BID", "BEST_BID"] as const;
+export type DecrementBasis = (typeof DECREMENT_BASIS_VALUES)[number];
+
 export const tenderItemSchema = z.object({
   name: z
     .string()
@@ -60,6 +76,10 @@ const baseTenderSchema = z.object({
     .min(3, "İhale adı en az 3 karakter olmalı")
     .max(200, "Maksimum 200 karakter"),
   description: z.string().max(5000, "Maksimum 5000 karakter").optional(),
+  // V2-7 — Tedarikçi havuzunda arama için anahtar kelimeler
+  keywords: z
+    .array(z.string().min(1).max(50, "Maksimum 50 karakter"))
+    .max(10, "En fazla 10 anahtar kelime"),
   type: z.enum(TYPE_VALUES),
   isSealedBid: z.boolean(),
   requireAllItems: z.boolean(),
@@ -85,6 +105,40 @@ const baseTenderSchema = z.object({
   internalNotes: z.string().max(5000).optional(),
   bidsCloseAt: z.string().min(1, "Kapanış tarihi seçmelisin"),
   bidsOpenAt: z.string().optional(),
+
+  // V2-7 — İngiliz Usulü Açık Eksiltme ayarları
+  bidVisibility: z.enum(BID_VISIBILITY_VALUES),
+  priceDecrementType: z.enum(DECREMENT_TYPE_VALUES).optional(),
+  priceDecrementValue: z
+    .number({ invalid_type_error: "Geçersiz değer" })
+    .min(0)
+    .optional(),
+  priceDecrementBasis: z.enum(DECREMENT_BASIS_VALUES).optional(),
+  decimalPlaces: z
+    .number({ invalid_type_error: "Geçersiz ondalık basamak" })
+    .int()
+    .min(0)
+    .max(4),
+  sendClosingReminder: z.boolean(),
+  reminderMinutesBefore: z
+    .number({ invalid_type_error: "Geçersiz değer" })
+    .int()
+    .min(5)
+    .max(720)
+    .optional(),
+  autoExtendOnLateBid: z.boolean(),
+  autoExtendThresholdMin: z
+    .number({ invalid_type_error: "Geçersiz değer" })
+    .int()
+    .min(1)
+    .max(30)
+    .optional(),
+  autoExtendByMinutes: z
+    .number({ invalid_type_error: "Geçersiz değer" })
+    .int()
+    .min(1)
+    .max(30)
+    .optional(),
 
   // Adım 2
   items: z
@@ -124,6 +178,49 @@ export const tenderFormSchema = baseTenderSchema
       message: "Açılış tarihi kapanıştan önce olmalı",
       path: ["bidsOpenAt"],
     },
+  )
+  // V2-7 — ENGLISH_AUCTION için extra kontroller
+  .refine(
+    (d) => d.type !== "ENGLISH_AUCTION" || d.bidVisibility !== undefined,
+    {
+      message: "Açık eksiltme için görünürlük modu seçilmelidir",
+      path: ["bidVisibility"],
+    },
+  )
+  .refine(
+    (d) =>
+      d.type !== "ENGLISH_AUCTION" ||
+      (d.priceDecrementType !== undefined &&
+        d.priceDecrementValue !== undefined &&
+        d.priceDecrementValue > 0),
+    {
+      message: "Açık eksiltme için fiyat azaltma değeri zorunlu",
+      path: ["priceDecrementValue"],
+    },
+  )
+  .refine(
+    (d) =>
+      d.type !== "ENGLISH_AUCTION" ||
+      d.priceDecrementType !== "PERCENT" ||
+      (d.priceDecrementValue ?? 0) < 100,
+    {
+      message: "Yüzde azaltma 100'den küçük olmalı",
+      path: ["priceDecrementValue"],
+    },
+  )
+  .refine(
+    (d) => d.type !== "ENGLISH_AUCTION" || d.allowedCurrencies.length === 1,
+    {
+      message: "Açık eksiltme tek para biriminde yapılır",
+      path: ["allowedCurrencies"],
+    },
+  )
+  .refine(
+    (d) => d.type !== "ENGLISH_AUCTION" || (d.bidsOpenAt && d.bidsOpenAt.length > 0),
+    {
+      message: "Açık eksiltme için açılış tarihi zorunludur",
+      path: ["bidsOpenAt"],
+    },
   );
 
 export type TenderFormData = z.infer<typeof tenderFormSchema>;
@@ -133,6 +230,7 @@ export const STEP_FIELDS: Record<1 | 2 | 3, (keyof TenderFormData)[]> = {
     "categoryIds",
     "title",
     "description",
+    "keywords",
     "type",
     "isSealedBid",
     "requireAllItems",
@@ -148,6 +246,16 @@ export const STEP_FIELDS: Record<1 | 2 | 3, (keyof TenderFormData)[]> = {
     "internalNotes",
     "bidsCloseAt",
     "bidsOpenAt",
+    "bidVisibility",
+    "priceDecrementType",
+    "priceDecrementValue",
+    "priceDecrementBasis",
+    "decimalPlaces",
+    "sendClosingReminder",
+    "reminderMinutesBefore",
+    "autoExtendOnLateBid",
+    "autoExtendThresholdMin",
+    "autoExtendByMinutes",
   ],
   2: ["items"],
   3: ["invitedSupplierIds"],
@@ -157,6 +265,7 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   categoryIds: [],
   title: "",
   description: "",
+  keywords: [],
   type: "RFQ",
   isSealedBid: true,
   requireAllItems: false,
@@ -172,6 +281,16 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   internalNotes: "",
   bidsCloseAt: "",
   bidsOpenAt: "",
+  bidVisibility: "OWN_ONLY",
+  priceDecrementType: undefined,
+  priceDecrementValue: undefined,
+  priceDecrementBasis: undefined,
+  decimalPlaces: 2,
+  sendClosingReminder: false,
+  reminderMinutesBefore: 60,
+  autoExtendOnLateBid: true,
+  autoExtendThresholdMin: 2,
+  autoExtendByMinutes: 2,
   items: [
     {
       name: "",

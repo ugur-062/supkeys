@@ -1,5 +1,6 @@
 "use client";
 
+import { AuctionLiveCard } from "@/app/supplier/(authed)/ihaleler/[id]/_components/auction-live-card";
 import { Button } from "@/components/ui/button";
 import { useMyBid } from "@/hooks/use-supplier-bid";
 import { useSupplierTenderDetail } from "@/hooks/use-supplier-tenders";
@@ -105,6 +106,11 @@ export function TeklifLoader({ id }: Props) {
   }
 
   return (
-    <TeklifForm tender={tender} existingBid={myBidQuery.data ?? null} />
+    <div className="space-y-4">
+      {tender.type === "ENGLISH_AUCTION" ? (
+        <AuctionLiveCard tender={tender} />
+      ) : null}
+      <TeklifForm tender={tender} existingBid={myBidQuery.data ?? null} />
+    </div>
   );
 }

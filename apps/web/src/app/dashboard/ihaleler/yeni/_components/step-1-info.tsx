@@ -16,7 +16,9 @@ import {
   AlertCircle,
   Calendar,
   Clock,
+  Eye,
   FileText,
+  Gavel,
   Info,
   MapPin,
   Star,
@@ -42,6 +44,115 @@ const DELIVERY_TERMS: DeliveryTerm[] = [
   "CFR",
   "CIF",
 ];
+
+// V2-7 — Anahtar kelimeler input'u: enter veya virgül ile chip ekler
+function KeywordsInput() {
+  const { setValue, watch, formState: { errors } } = useFormContext<TenderFormData>();
+  const keywords = watch("keywords") ?? [];
+
+  const addKeyword = (raw: string) => {
+    const trimmed = raw.trim().slice(0, 50);
+    if (!trimmed) return;
+    if (keywords.includes(trimmed)) return;
+    if (keywords.length >= 10) return;
+    setValue("keywords", [...keywords, trimmed], { shouldValidate: true, shouldDirty: true });
+  };
+
+  const removeKeyword = (kw: string) => {
+    setValue(
+      "keywords",
+      keywords.filter((k) => k !== kw),
+      { shouldValidate: true, shouldDirty: true },
+    );
+  };
+
+  return (
+    <Field
+      error={errors.keywords?.message as string | undefined}
+      hint="Tedarikçi havuzunda arama eşleşmesi için. Enter veya virgülle ayırın, en fazla 10."
+    >
+      <Label htmlFor="keywords-input">Anahtar Kelimeler</Label>
+      <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg border border-surface-border bg-white min-h-[42px] focus-within:ring-2 focus-within:ring-brand-500/30 focus-within:border-brand-500">
+        {keywords.map((kw) => (
+          <span
+            key={kw}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-100/70 text-brand-800 text-xs font-semibold"
+          >
+            {kw}
+            <button
+              type="button"
+              onClick={() => removeKeyword(kw)}
+              className="hover:text-danger-600"
+              aria-label={`${kw} kaldır`}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <input
+          id="keywords-input"
+          type="text"
+          maxLength={50}
+          placeholder={keywords.length === 0 ? "Örn. monitör, laptop, kırtasiye" : ""}
+          className="flex-1 min-w-[120px] text-sm outline-none bg-transparent"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === ",") {
+              e.preventDefault();
+              const t = e.currentTarget;
+              addKeyword(t.value);
+              t.value = "";
+            } else if (e.key === "Backspace" && e.currentTarget.value === "" && keywords.length > 0) {
+              removeKeyword(keywords[keywords.length - 1]);
+            }
+          }}
+          onBlur={(e) => {
+            const t = e.currentTarget;
+            if (t.value) {
+              addKeyword(t.value);
+              t.value = "";
+            }
+          }}
+        />
+      </div>
+      <p className="text-[11px] text-slate-400 mt-1">{keywords.length}/10</p>
+    </Field>
+  );
+}
+
+// V2-7 — Açık eksiltme görünürlük modu kartı
+function VisibilityOption({
+  value,
+  title,
+  desc,
+}: {
+  value: "OWN_ONLY" | "BEST_PRICE" | "OWN_RANK" | "BEST_AND_OWN_RANK" | "ALL";
+  title: string;
+  desc: string;
+}) {
+  const { register } = useFormContext<TenderFormData>();
+  return (
+    <label
+      className={cn(
+        "flex flex-col gap-2 p-3 rounded-lg border-2 cursor-pointer transition-colors",
+        "has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/40",
+        "border-slate-200 hover:bg-slate-50",
+      )}
+    >
+      <div className="flex items-start gap-2">
+        <input
+          type="radio"
+          value={value}
+          className="mt-0.5"
+          {...register("bidVisibility")}
+        />
+        <p className="text-sm font-semibold text-brand-900 leading-tight">
+          {title}
+        </p>
+      </div>
+      <p className="text-xs text-slate-500 ml-5">{desc}</p>
+    </label>
+  );
+}
 
 function SectionHeader({
   icon: Icon,
@@ -86,6 +197,27 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
   const paymentTerm = watch("paymentTerm");
   const primaryCurrency = watch("primaryCurrency");
   const allowedCurrencies = watch("allowedCurrencies") ?? [];
+  const tenderType = watch("type");
+  const decrementType = watch("priceDecrementType");
+  const sendClosingReminder = watch("sendClosingReminder");
+  const autoExtendOnLateBid = watch("autoExtendOnLateBid");
+  const isAuction = tenderType === "ENGLISH_AUCTION";
+
+  // V2-7 — Açık eksiltme seçilince tek para birimi zorunlu + decrement default'ları.
+  useEffect(() => {
+    if (isAuction) {
+      if (allowedCurrencies.length > 1) {
+        setValue("allowedCurrencies", [primaryCurrency], {
+          shouldValidate: true,
+        });
+      }
+      if (!decrementType) {
+        setValue("priceDecrementType", "AMOUNT", { shouldValidate: false });
+        setValue("priceDecrementBasis", "OWN_LAST_BID", { shouldValidate: false });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuction]);
 
   const categoryIds = watch("categoryIds") ?? [];
 
@@ -145,15 +277,12 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
             />
           </Field>
 
+          <KeywordsInput />
+
           <Field>
             <Label>İhale Tipi</Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label
-                className={cn(
-                  "flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors",
-                  "border-brand-500 bg-brand-50/40",
-                )}
-              >
+              <label className="flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/40 border-slate-200 hover:bg-slate-50">
                 <input
                   type="radio"
                   value="RFQ"
@@ -169,20 +298,22 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
                   </p>
                 </div>
               </label>
-              <label
-                className="flex items-start gap-3 p-3 rounded-lg border-2 border-slate-200 cursor-not-allowed opacity-60"
-                title="V2'de aktif olacak"
-              >
-                <input type="radio" value="ENGLISH_AUCTION" disabled />
+              <label className="flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/40 border-slate-200 hover:bg-slate-50">
+                <input
+                  type="radio"
+                  value="ENGLISH_AUCTION"
+                  className="mt-0.5"
+                  {...register("type")}
+                />
                 <div>
-                  <p className="text-sm font-semibold text-slate-700">
+                  <p className="text-sm font-semibold text-brand-900">
                     İngiliz Usulü{" "}
-                    <span className="ml-1 px-1.5 py-0.5 bg-warning-100 text-warning-700 text-[10px] rounded-md font-semibold uppercase">
-                      Yakında
+                    <span className="ml-1 px-1.5 py-0.5 bg-success-100 text-success-700 text-[10px] rounded-md font-semibold uppercase">
+                      Yeni
                     </span>
                   </p>
                   <p className="text-xs text-slate-500">
-                    Açık eksiltme, canlı teklif yarışması.
+                    Açık eksiltme, canlı teklif yarışması. Tedarikçi sıralaması ve fiyat azaltma kuralları aktif.
                   </p>
                 </div>
               </label>
@@ -191,61 +322,338 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
         </div>
       </section>
 
+      {/* V2-7 — SECTION: Teklif ve Sıralama Görünürlüğü (sadece İngiliz Usulü) */}
+      {isAuction ? (
+        <section>
+          <SectionHeader
+            icon={Eye}
+            title="Teklif ve Sıralama Görünürlüğü"
+            description="Tedarikçilerin canlı eksiltmede ne göreceğini belirleyin."
+          />
+          <div className="rounded-xl border border-brand-100 bg-brand-50/30 p-4 mb-4 flex items-start gap-2">
+            <Info className="w-4 h-4 text-brand-600 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-slate-700">
+              Yapacağınız seçimlerin hiçbirinde tedarikçiler birbirlerinin
+              ismini göremez.
+            </p>
+          </div>
+          <Field error={errors.bidVisibility?.message as string | undefined}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+              <VisibilityOption
+                value="OWN_ONLY"
+                title="Sadece kendi teklifi"
+                desc="Tedarikçi, ihaledeki hiçbir teklifi ve sıralamayı göremez."
+              />
+              <VisibilityOption
+                value="BEST_PRICE"
+                title="Sadece en iyi teklif"
+                desc="Tedarikçi, ihaledeki en iyi teklifi görür."
+              />
+              <VisibilityOption
+                value="OWN_RANK"
+                title="Sadece kendi sıralaması"
+                desc="Tedarikçi, sadece kendi sıralamasını görür."
+              />
+              <VisibilityOption
+                value="BEST_AND_OWN_RANK"
+                title="En iyi teklif ve kendi sıralaması"
+                desc="Tedarikçi, ihaledeki en iyi teklifi ve kendi sıralamasını görür."
+              />
+              <VisibilityOption
+                value="ALL"
+                title="Tüm teklifler ve sıralama"
+                desc="Tedarikçi, ihaledeki tüm teklifleri ve sıralamaları görür."
+              />
+            </div>
+          </Field>
+        </section>
+      ) : null}
+
       {/* SECTION: İhale Kuralları */}
       <section>
         <SectionHeader
-          icon={FileText}
+          icon={Gavel}
           title="İhale Kuralları"
           description="Tedarikçilerin teklif verme şeklini belirleyin."
         />
         <div className="space-y-3">
-          <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              {...register("isSealedBid")}
-            />
-            <div>
-              <p className="text-sm font-semibold text-brand-900">
-                Kapalı Zarf (varsayılan)
-              </p>
-              <p className="text-xs text-slate-500">
-                Tedarikçiler birbirinin tekliflerini görmez. Süre dolunca tüm
-                teklifler size açılır.
-              </p>
-            </div>
-          </label>
-          <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              {...register("requireAllItems")}
-            />
-            <div>
-              <p className="text-sm font-semibold text-brand-900">
-                Tüm kalemlere teklif zorunlu
-              </p>
-              <p className="text-xs text-slate-500">
-                Tedarikçi tek bir kaleme teklif veremez; tümüne fiyat girmek
-                zorundadır.
-              </p>
-            </div>
-          </label>
-          <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              {...register("requireBidDocument")}
-            />
-            <div>
-              <p className="text-sm font-semibold text-brand-900">
-                Teklif dosyası zorunlu
-              </p>
-              <p className="text-xs text-slate-500">
-                Tedarikçi teklifi gönderirken en az 1 dosya yüklemelidir.
-              </p>
-            </div>
-          </label>
+          {isAuction ? (
+            // İngiliz Usulü: decrement kuralı + checkboxlar
+            <>
+              <div className="rounded-xl border border-slate-200 p-4">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked
+                    disabled
+                    className="mt-0.5"
+                    aria-label="Fiyatlar sürekli azalır (sabit kural)"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-brand-900">
+                      Tedarikçilerin kalem bazında verdiği teklif fiyatları sürekli azalsın.
+                    </p>
+                    <div className="mt-3 ml-1 flex items-start gap-3">
+                      <input
+                        type="radio"
+                        value="OWN_LAST_BID"
+                        className="mt-0.5"
+                        {...register("priceDecrementBasis")}
+                      />
+                      <p className="text-sm font-semibold text-brand-900">
+                        Kendi son teklifini baz alsın.
+                      </p>
+                    </div>
+
+                    <div className="mt-4 ml-7">
+                      <p className="text-xs font-semibold text-slate-700 mb-2">
+                        Fiyat Azaltma Seçenekleri
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <Field
+                          error={
+                            errors.priceDecrementType?.message as
+                              | string
+                              | undefined
+                          }
+                        >
+                          <Label htmlFor="priceDecrementType">
+                            Fiyat Azaltma Tipi
+                          </Label>
+                          <select
+                            id="priceDecrementType"
+                            className="w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-white text-sm"
+                            {...register("priceDecrementType")}
+                          >
+                            <option value="">— Seçiniz —</option>
+                            <option value="AMOUNT">Tutar</option>
+                            <option value="PERCENT">Yüzde</option>
+                          </select>
+                        </Field>
+                        <Field
+                          error={
+                            errors.priceDecrementValue?.message as
+                              | string
+                              | undefined
+                          }
+                        >
+                          <Label htmlFor="priceDecrementValue">
+                            Fiyat Azaltma Değeri
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id="priceDecrementValue"
+                              type="number"
+                              step="0.0001"
+                              min={0}
+                              placeholder="0.00"
+                              hasError={!!errors.priceDecrementValue}
+                              {...register("priceDecrementValue", {
+                                setValueAs: (v) =>
+                                  v === "" || v === undefined
+                                    ? undefined
+                                    : Number(v),
+                              })}
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500">
+                              {decrementType === "PERCENT"
+                                ? "%"
+                                : primaryCurrency}
+                            </span>
+                          </div>
+                        </Field>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  {...register("requireAllItems")}
+                />
+                <p className="text-sm font-semibold text-brand-900">
+                  Tedarikçilerin tüm kalemlere teklif vermesi zorunludur.
+                </p>
+              </label>
+              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  {...register("requireBidDocument")}
+                />
+                <p className="text-sm font-semibold text-brand-900">
+                  Tedarikçilerin, teklif dosyası yüklemesi zorunludur.
+                </p>
+              </label>
+              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  {...register("sendClosingReminder")}
+                />
+                <p className="text-sm font-semibold text-brand-900">
+                  Tedarikçilere, ihale kapanışından önce hatırlatma e-postası gönderilsin.
+                </p>
+              </label>
+              {sendClosingReminder ? (
+                <div className="ml-6 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Field
+                    error={
+                      errors.reminderMinutesBefore?.message as
+                        | string
+                        | undefined
+                    }
+                    hint="5-720 dk arası"
+                  >
+                    <Label htmlFor="reminderMinutesBefore">
+                      Kapanışa kaç dk kala?
+                    </Label>
+                    <Input
+                      id="reminderMinutesBefore"
+                      type="number"
+                      min={5}
+                      max={720}
+                      placeholder="60"
+                      hasError={!!errors.reminderMinutesBefore}
+                      {...register("reminderMinutesBefore", {
+                        setValueAs: (v) =>
+                          v === "" || v === undefined
+                            ? undefined
+                            : Number(v),
+                      })}
+                    />
+                  </Field>
+                </div>
+              ) : null}
+
+              {/* Auto-extend (son dakika teklif → süre uzatma) */}
+              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  {...register("autoExtendOnLateBid")}
+                />
+                <div>
+                  <p className="text-sm font-semibold text-brand-900">
+                    Son dakika gelen teklif kapanışı otomatik uzatsın.
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Kapanışa az süre kalmışken yeni teklif gelirse süre uzatılır (snipe koruma).
+                  </p>
+                </div>
+              </label>
+              {autoExtendOnLateBid ? (
+                <div className="ml-6 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Field
+                    error={
+                      errors.autoExtendThresholdMin?.message as
+                        | string
+                        | undefined
+                    }
+                    hint="Kapanışa kaç dk kala teklif gelirse uzatılsın"
+                  >
+                    <Label htmlFor="autoExtendThresholdMin">
+                      Eşik (dk)
+                    </Label>
+                    <Input
+                      id="autoExtendThresholdMin"
+                      type="number"
+                      min={1}
+                      max={30}
+                      placeholder="2"
+                      hasError={!!errors.autoExtendThresholdMin}
+                      {...register("autoExtendThresholdMin", {
+                        setValueAs: (v) =>
+                          v === "" || v === undefined
+                            ? undefined
+                            : Number(v),
+                      })}
+                    />
+                  </Field>
+                  <Field
+                    error={
+                      errors.autoExtendByMinutes?.message as
+                        | string
+                        | undefined
+                    }
+                    hint="Her uzatmada eklenecek süre"
+                  >
+                    <Label htmlFor="autoExtendByMinutes">
+                      Uzatma (dk)
+                    </Label>
+                    <Input
+                      id="autoExtendByMinutes"
+                      type="number"
+                      min={1}
+                      max={30}
+                      placeholder="2"
+                      hasError={!!errors.autoExtendByMinutes}
+                      {...register("autoExtendByMinutes", {
+                        setValueAs: (v) =>
+                          v === "" || v === undefined
+                            ? undefined
+                            : Number(v),
+                      })}
+                    />
+                  </Field>
+                </div>
+              ) : null}
+            </>
+          ) : (
+            // RFQ: mevcut kurallar
+            <>
+              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  {...register("isSealedBid")}
+                />
+                <div>
+                  <p className="text-sm font-semibold text-brand-900">
+                    Kapalı Zarf (varsayılan)
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Tedarikçiler birbirinin tekliflerini görmez. Süre dolunca tüm
+                    teklifler size açılır.
+                  </p>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  {...register("requireAllItems")}
+                />
+                <div>
+                  <p className="text-sm font-semibold text-brand-900">
+                    Tüm kalemlere teklif zorunlu
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Tedarikçi tek bir kaleme teklif veremez; tümüne fiyat girmek
+                    zorundadır.
+                  </p>
+                </div>
+              </label>
+              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  {...register("requireBidDocument")}
+                />
+                <div>
+                  <p className="text-sm font-semibold text-brand-900">
+                    Teklif dosyası zorunlu
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Tedarikçi teklifi gönderirken en az 1 dosya yüklemelidir.
+                  </p>
+                </div>
+              </label>
+            </>
+          )}
         </div>
       </section>
 
@@ -253,60 +661,127 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
       <section>
         <SectionHeader
           icon={Wallet}
-          title="Para Birimleri"
-          description="Tedarikçilerin hangi para birimlerinde teklif verebileceğini belirle. Birden fazla seçebilirsin; ⭐ ana para birimi TRY equivalent karşılaştırmasının bazıdır."
+          title={isAuction ? "İhale Para Ayarları" : "Para Birimleri"}
+          description={
+            isAuction
+              ? "Açık eksiltme tek para biriminde yapılır. Ondalık basamak fiyat gösteriminde kullanılır."
+              : "Tedarikçilerin hangi para birimlerinde teklif verebileceğini belirle. Birden fazla seçebilirsin; ⭐ ana para birimi TRY equivalent karşılaştırmasının bazıdır."
+          }
         />
         <div className="space-y-4">
-          <Field
-            error={
-              (errors.allowedCurrencies?.message as string | undefined) ??
-              (errors.primaryCurrency?.message as string | undefined)
-            }
-          >
-            <Label required>Para Birimleri</Label>
-            <CurrencyMultiSelect
-              value={allowedCurrencies as Currency[]}
-              onChange={(next) => {
-                setValue("allowedCurrencies", next, {
-                  shouldValidate: true,
-                  shouldDirty: true,
-                });
-                // primary kaybolduysa ilk öğeyi primary yap
-                if (!next.includes(primaryCurrency)) {
-                  setValue("primaryCurrency", next[0] ?? "TRY", {
-                    shouldValidate: true,
-                  });
-                }
-              }}
-              primary={primaryCurrency}
-              onPrimaryChange={(p) =>
-                setValue("primaryCurrency", p, { shouldValidate: true })
-              }
-              error={
-                (errors.allowedCurrencies?.message as string | undefined) ??
-                (errors.primaryCurrency?.message as string | undefined)
-              }
-            />
-          </Field>
-
-          {primaryCurrency && primaryCurrency !== "TRY" ? (
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-success-50 border border-success-200 text-xs text-success-900">
-              <Info className="w-4 h-4 text-success-600 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="font-semibold mb-0.5">
-                  TCMB Kuru ile Otomatik Karşılaştırma
-                </p>
-                <p className="text-success-800/80">
-                  Ana para birimi olarak {primaryCurrency} seçildi. Diğer
-                  birimlerdeki teklifler tedarikçinin gönderim tarihindeki TCMB
-                  kuruyla TRY'ye çevrilerek karşılaştırılır.
-                </p>
-              </div>
+          {isAuction ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Field error={errors.primaryCurrency?.message as string | undefined}>
+                <Label htmlFor="primaryCurrency" required>
+                  İhale Para Birimi
+                </Label>
+                <select
+                  id="primaryCurrency"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-white text-sm"
+                  value={primaryCurrency}
+                  onChange={(e) => {
+                    const next = e.target.value as Currency;
+                    setValue("primaryCurrency", next, { shouldValidate: true });
+                    setValue("allowedCurrencies", [next], {
+                      shouldValidate: true,
+                    });
+                  }}
+                >
+                  <option value="TRY">TRY</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="GBP">GBP</option>
+                  <option value="CHF">CHF</option>
+                  <option value="JPY">JPY</option>
+                  <option value="AED">AED</option>
+                  <option value="CNY">CNY</option>
+                </select>
+              </Field>
+              <Field error={errors.decimalPlaces?.message as string | undefined}>
+                <Label htmlFor="decimalPlaces" required>
+                  Ondalık Basamak İzni
+                </Label>
+                <select
+                  id="decimalPlaces"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-white text-sm"
+                  {...register("decimalPlaces", {
+                    setValueAs: (v) => Number(v),
+                  })}
+                >
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </Field>
+              <Field>
+                <Label htmlFor="auctionExtraCurrencies">
+                  Farklı Para Birimi
+                </Label>
+                <select
+                  id="auctionExtraCurrencies"
+                  disabled
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-slate-100 text-sm text-slate-400 cursor-not-allowed"
+                  title="Açık eksiltme tek para biriminde yapılır"
+                >
+                  <option>—</option>
+                </select>
+              </Field>
             </div>
           ) : (
-            <p className="text-xs text-slate-500">
-              Yayınlandıktan sonra para birimleri değiştirilemez.
-            </p>
+            <>
+              <Field
+                error={
+                  (errors.allowedCurrencies?.message as string | undefined) ??
+                  (errors.primaryCurrency?.message as string | undefined)
+                }
+              >
+                <Label required>Para Birimleri</Label>
+                <CurrencyMultiSelect
+                  value={allowedCurrencies as Currency[]}
+                  onChange={(next) => {
+                    setValue("allowedCurrencies", next, {
+                      shouldValidate: true,
+                      shouldDirty: true,
+                    });
+                    if (!next.includes(primaryCurrency)) {
+                      setValue("primaryCurrency", next[0] ?? "TRY", {
+                        shouldValidate: true,
+                      });
+                    }
+                  }}
+                  primary={primaryCurrency}
+                  onPrimaryChange={(p) =>
+                    setValue("primaryCurrency", p, { shouldValidate: true })
+                  }
+                  error={
+                    (errors.allowedCurrencies?.message as string | undefined) ??
+                    (errors.primaryCurrency?.message as string | undefined)
+                  }
+                />
+              </Field>
+
+              {primaryCurrency && primaryCurrency !== "TRY" ? (
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-success-50 border border-success-200 text-xs text-success-900">
+                  <Info className="w-4 h-4 text-success-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold mb-0.5">
+                      TCMB Kuru ile Otomatik Karşılaştırma
+                    </p>
+                    <p className="text-success-800/80">
+                      Ana para birimi olarak {primaryCurrency} seçildi. Diğer
+                      birimlerdeki teklifler tedarikçinin gönderim tarihindeki
+                      TCMB kuruyla TRY'ye çevrilerek karşılaştırılır.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500">
+                  Yayınlandıktan sonra para birimleri değiştirilemez.
+                </p>
+              )}
+            </>
           )}
         </div>
       </section>

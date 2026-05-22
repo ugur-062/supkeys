@@ -431,4 +431,57 @@ export function useCloseBiddingEarly(tenderId: string) {
   });
 }
 
+// V2-7 — Yeni Tur Oluştur
+export interface CreateNextRoundPayload {
+  type: "RFQ" | "ENGLISH_AUCTION";
+  carryBids: "AUTO" | "LAZY" | "NONE";
+  eliminateNonBidders: boolean;
+  openImmediately: boolean;
+  bidsOpenAt?: string;
+  bidsCloseAt: string;
+  previewBeforeOpen?: boolean;
+  autoExtendOnLateBid?: boolean;
+}
+
+export function useCreateNextRound(previousTenderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: CreateNextRoundPayload) => {
+      const { data } = await api.post<{
+        id: string;
+        tenderNumber: string;
+        roundNumber: number;
+      }>(`/tenants/me/tenders/${previousTenderId}/next-round`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}
+
+// V2-7 — Kapanış zamanını değiştir / ihaleyi hemen kapat (notlu, e-postalı)
+export interface ChangeClosingTimePayload {
+  closeNow: boolean;
+  newCloseAt?: string;
+  note: string;
+}
+
+export function useChangeClosingTime(tenderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: ChangeClosingTimePayload) => {
+      const { data } = await api.patch<{
+        status: "OPEN_FOR_BIDS" | "IN_AWARD";
+        bidsCloseAt: string;
+        notifiedCount: number;
+      }>(`/tenants/me/tenders/${tenderId}/closing-time`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}
+
 export const tenantTendersQueryKeys = KEYS;
