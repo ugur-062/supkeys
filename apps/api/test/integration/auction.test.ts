@@ -311,35 +311,147 @@ async function main() {
       { tenderItemId: tender.items[1]!.id, unitPrice: 100 },
     ]);
 
-    // Her supplier perspektifinden detayı oku
-    const aView = await getTenderAsSupplier(suppliers[0]!.token!, tender.id);
-    const bView = await getTenderAsSupplier(suppliers[1]!.token!, tender.id);
-    const aRanking = aView.data?.auctionView;
-    const bRanking = bView.data?.auctionView;
+    // 3 tedarikçinin de perspektifini topla
+    const views = await Promise.all(
+      suppliers.map((s) => getTenderAsSupplier(s.token!, tender.id)),
+    );
+    const [aView, bView, cView] = views;
+    const aRanking = aView!.data?.auctionView;
+    const bRanking = bView!.data?.auctionView;
+    const cRanking = cView!.data?.auctionView;
+
+    // Anonimlik kontrolü: hangi modda olursa olsun, response gövdesinde
+    // DİĞER tedarikçilerin firma adı/ID'si geçmemeli.
+    // Test stratejisi: A perspektifinden cevap içinde B'nin veya C'nin
+    // şirket adı arıyoruz.
+    const aBody = JSON.stringify(aView!.data ?? {});
+    assert(
+      !aBody.includes("AuctionTest B.Ş.") && !aBody.includes("AuctionTest C.Ş."),
+      `${mode} anonimlik: A görüntüsü diğer firma adlarını içermez`,
+      `body içinde diğer şirket adı saptandı`,
+    );
+    // Diğer supplierId'leri de saptama
+    const aBodyHasOtherId =
+      aBody.includes(suppliers[1]!.id) || aBody.includes(suppliers[2]!.id);
+    assert(
+      !aBodyHasOtherId,
+      `${mode} anonimlik: A görüntüsü diğer supplierId'leri içermez`,
+    );
 
     if (mode === "OWN_ONLY") {
-      assert(aRanking === null, "OWN_ONLY: auctionView null", `got: ${JSON.stringify(aRanking)}`);
+      assert(aRanking === null, "OWN_ONLY A: auctionView null");
+      assert(bRanking === null, "OWN_ONLY B: auctionView null");
+      assert(cRanking === null, "OWN_ONLY C: auctionView null");
     } else if (mode === "BEST_PRICE") {
-      assert(aRanking?.bestTotal === 1500, "BEST_PRICE: bestTotal=1500", `got: ${aRanking?.bestTotal}`);
-      assert(aRanking?.myRank === null, "BEST_PRICE: myRank null (görünmez)", `got: ${aRanking?.myRank}`);
-      assert(aRanking?.allBids === null, "BEST_PRICE: allBids null", `got: ${aRanking?.allBids}`);
+      for (const [label, r] of [["A", aRanking], ["B", bRanking], ["C", cRanking]] as const) {
+        assert(r?.bestTotal === 1500, `BEST_PRICE ${label}: bestTotal=1500`, `got: ${r?.bestTotal}`);
+        assert(r?.myRank === null, `BEST_PRICE ${label}: myRank null`, `got: ${r?.myRank}`);
+        assert(r?.allBids === null, `BEST_PRICE ${label}: allBids null`);
+      }
     } else if (mode === "OWN_RANK") {
-      assert(aRanking?.bestTotal === null, "OWN_RANK: bestTotal null (görünmez)", `got: ${aRanking?.bestTotal}`);
       assert(aRanking?.myRank === 1, "OWN_RANK A: myRank=1 (en düşük)", `got: ${aRanking?.myRank}`);
       assert(bRanking?.myRank === 2, "OWN_RANK B: myRank=2 (ortada)", `got: ${bRanking?.myRank}`);
-      assert(aRanking?.participantCount === 3, "OWN_RANK: participantCount=3", `got: ${aRanking?.participantCount}`);
+      assert(cRanking?.myRank === 3, "OWN_RANK C: myRank=3 (en yüksek)", `got: ${cRanking?.myRank}`);
+      for (const [label, r] of [["A", aRanking], ["B", bRanking], ["C", cRanking]] as const) {
+        assert(r?.bestTotal === null, `OWN_RANK ${label}: bestTotal null (görünmez)`, `got: ${r?.bestTotal}`);
+        assert(r?.participantCount === 3, `OWN_RANK ${label}: participantCount=3`, `got: ${r?.participantCount}`);
+      }
     } else if (mode === "BEST_AND_OWN_RANK") {
-      assert(aRanking?.bestTotal === 1500, "BEST_AND_OWN_RANK: bestTotal=1500", `got: ${aRanking?.bestTotal}`);
-      assert(aRanking?.myRank === 1, "BEST_AND_OWN_RANK A: myRank=1", `got: ${aRanking?.myRank}`);
-      assert(bRanking?.myRank === 2, "BEST_AND_OWN_RANK B: myRank=2", `got: ${bRanking?.myRank}`);
-      assert(aRanking?.allBids === null, "BEST_AND_OWN_RANK: allBids null", `got: ${aRanking?.allBids}`);
+      for (const [label, r] of [["A", aRanking], ["B", bRanking], ["C", cRanking]] as const) {
+        assert(r?.bestTotal === 1500, `BEST_AND_OWN_RANK ${label}: bestTotal=1500`, `got: ${r?.bestTotal}`);
+        assert(r?.allBids === null, `BEST_AND_OWN_RANK ${label}: allBids null`);
+      }
+      assert(aRanking?.myRank === 1, "BEST_AND_OWN_RANK A: myRank=1");
+      assert(bRanking?.myRank === 2, "BEST_AND_OWN_RANK B: myRank=2");
+      assert(cRanking?.myRank === 3, "BEST_AND_OWN_RANK C: myRank=3");
     } else if (mode === "ALL") {
-      assert(Array.isArray(aRanking?.allBids), "ALL: allBids array", `got: ${typeof aRanking?.allBids}`);
-      assert(aRanking?.allBids?.length === 3, "ALL: 3 bid", `got: ${aRanking?.allBids?.length}`);
-      assert(aRanking?.allBids?.[0]?.rank === 1 && aRanking.allBids[0]?.total === 1500, "ALL: rank1=1500");
-      assert(aRanking?.allBids?.[0]?.isMine === true, "ALL: A sees rank1 isMine=true", `got: ${aRanking?.allBids?.[0]?.isMine}`);
-      assert(bRanking?.allBids?.[1]?.isMine === true, "ALL: B sees rank2 isMine=true", `got: ${bRanking?.allBids?.[1]?.isMine}`);
+      // Her supplier 3 bid görmeli ve sadece KENDİ bid'inde isMine=true olmalı
+      for (const [label, r, expectedMyIdx] of [
+        ["A", aRanking, 0],
+        ["B", bRanking, 1],
+        ["C", cRanking, 2],
+      ] as const) {
+        assert(Array.isArray(r?.allBids), `ALL ${label}: allBids array`);
+        assert(r?.allBids?.length === 3, `ALL ${label}: 3 bid`, `got: ${r?.allBids?.length}`);
+        // Rank sıralaması: 1500/1700/1900
+        assert(r?.allBids?.[0]?.total === 1500, `ALL ${label}: rank1=1500`);
+        assert(r?.allBids?.[1]?.total === 1700, `ALL ${label}: rank2=1700`);
+        assert(r?.allBids?.[2]?.total === 1900, `ALL ${label}: rank3=1900`);
+        // isMine flag: sadece KENDİ bid'inde true
+        const mineCount = r?.allBids?.filter((b) => b.isMine).length ?? -1;
+        assert(mineCount === 1, `ALL ${label}: sadece 1 satırda isMine=true`, `got: ${mineCount}`);
+        assert(
+          r?.allBids?.[expectedMyIdx]?.isMine === true,
+          `ALL ${label}: kendi rank=${expectedMyIdx + 1} isMine=true`,
+        );
+        // Anonimlik: allBids içinde supplierName/supplierId yok
+        const allBidsJson = JSON.stringify(r?.allBids ?? []);
+        assert(
+          !allBidsJson.includes("AuctionTest"),
+          `ALL ${label}: allBids içinde firma adı yok (anonim)`,
+        );
+      }
     }
+  }
+
+  // ============================================================================
+  // TEST 1.5: Bid değişikliği sonrası sıralama canlı güncelleniyor mu?
+  // ============================================================================
+  console.log("\n— Bonus: Bid güncellemesi sonrası ranking değişimi");
+  {
+    const tender = await createAuction({
+      tenantUserId: tenantUser.id,
+      tenantId: tenant.id,
+      title: "Ranking refresh testi",
+      bidVisibility: "ALL",
+      bidsCloseInMin: 60,
+      decrementType: "AMOUNT",
+      decrementValue: 1,
+      supplierIds: suppliers.map((s) => s.id),
+    });
+    // Başlangıç: A=1500, B=1700, C=1900 (A en düşük)
+    await submitBid(suppliers[0]!.token!, tender.id, [
+      { tenderItemId: tender.items[0]!.id, unitPrice: 100 },
+      { tenderItemId: tender.items[1]!.id, unitPrice: 100 },
+    ]);
+    await submitBid(suppliers[1]!.token!, tender.id, [
+      { tenderItemId: tender.items[0]!.id, unitPrice: 120 },
+      { tenderItemId: tender.items[1]!.id, unitPrice: 100 },
+    ]);
+    await submitBid(suppliers[2]!.token!, tender.id, [
+      { tenderItemId: tender.items[0]!.id, unitPrice: 140 },
+      { tenderItemId: tender.items[1]!.id, unitPrice: 100 },
+    ]);
+
+    // C indirim yapıp en düşüğe geçsin: 1900 → 1000 (item1: 100, item2: 0 yerine 1)
+    // Yeni total: 10*90 + 5*100 = 1400 (B=1700, C=1400 → C 1.)
+    // Aslında 10*90+5*20 = 900+100=1000
+    await submitBid(suppliers[2]!.token!, tender.id, [
+      { tenderItemId: tender.items[0]!.id, unitPrice: 90 },
+      { tenderItemId: tender.items[1]!.id, unitPrice: 20 },
+    ]);
+
+    // Yeni sıralama: C=1000 (1.), A=1500 (2.), B=1700 (3.)
+    const aView2 = await getTenderAsSupplier(suppliers[0]!.token!, tender.id);
+    const cView2 = await getTenderAsSupplier(suppliers[2]!.token!, tender.id);
+    assert(
+      aView2.data?.auctionView?.allBids?.[0]?.total === 1000,
+      "Sıralama refresh: yeni rank1=1000 (C)",
+      `got: ${aView2.data?.auctionView?.allBids?.[0]?.total}`,
+    );
+    assert(
+      aView2.data?.auctionView?.allBids?.[1]?.total === 1500,
+      "Sıralama refresh: yeni rank2=1500 (A)",
+      `got: ${aView2.data?.auctionView?.allBids?.[1]?.total}`,
+    );
+    assert(
+      cView2.data?.auctionView?.allBids?.[0]?.isMine === true,
+      "Sıralama refresh: C şimdi en başta (isMine=true)",
+    );
+    assert(
+      aView2.data?.auctionView?.allBids?.[1]?.isMine === true,
+      "Sıralama refresh: A şimdi 2. (isMine=true)",
+    );
   }
 
   // ============================================================================
