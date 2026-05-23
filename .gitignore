@@ -35,3 +35,7 @@ apps/api/test/helpers/*.js.map
 
 # Windows/WSL "downloaded from internet" alternate data stream artifact'leri.
 *:Zone.Identifier
+
+# Playwright test artifacts
+apps/web/test-results/
+apps/web/playwright-report/
