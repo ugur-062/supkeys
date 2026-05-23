@@ -66,6 +66,17 @@ async function main() {
     process.env.TEST_USER_PASSWORD ?? `Test${crypto.randomBytes(4).toString("hex")}!`;
   const firstName = process.env.TEST_USER_FIRST_NAME ?? "Test";
   const lastName = process.env.TEST_USER_LAST_NAME ?? "User";
+  const roleInput = (process.env.TEST_USER_ROLE ?? "COMPANY_ADMIN")
+    .toUpperCase()
+    .trim();
+  const allowedRoles = ["COMPANY_ADMIN", "BUYER", "APPROVER"] as const;
+  if (!allowedRoles.includes(roleInput as (typeof allowedRoles)[number])) {
+    console.error(
+      `TEST_USER_ROLE geçersiz: ${roleInput}. Geçerli değerler: ${allowedRoles.join(", ")}`,
+    );
+    process.exit(1);
+  }
+  const role = roleInput as "COMPANY_ADMIN" | "BUYER" | "APPROVER";
 
   if (!email) {
     console.error("TEST_USER_EMAIL env değişkeni gerekli.");
@@ -104,7 +115,7 @@ async function main() {
         passwordHash: null,
         firstName,
         lastName,
-        role: "COMPANY_ADMIN",
+        role,
         tenantId: tenant.id,
         isActive: true,
       },

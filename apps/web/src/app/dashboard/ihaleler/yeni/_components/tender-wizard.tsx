@@ -16,8 +16,8 @@ import {
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Save, Send } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { MissingTargetWarningDialog } from "./missing-target-warning-dialog";
@@ -38,15 +38,27 @@ interface Props {
 
 export function TenderWizard({ mode, initialData }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<WizardStep>(1);
   const [publishOpen, setPublishOpen] = useState(false);
   const [missingTargetWarningOpen, setMissingTargetWarningOpen] =
     useState(false);
   const [itemsMissingTarget, setItemsMissingTarget] = useState(0);
 
+  // V2-7 — Landing'den ?type=auction ile gelmişse İngiliz Usulü ön-seçili
+  const defaults = useMemo<TenderFormData>(() => {
+    if (initialData) return initialData;
+    const urlType = searchParams.get("type");
+    if (urlType === "auction") {
+      return { ...DEFAULT_FORM_VALUES, type: "ENGLISH_AUCTION" };
+    }
+    return DEFAULT_FORM_VALUES;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData]);
+
   const form = useForm<TenderFormData>({
     resolver: zodResolver(tenderFormSchema),
-    defaultValues: initialData ?? DEFAULT_FORM_VALUES,
+    defaultValues: defaults,
     mode: "onTouched",
   });
 

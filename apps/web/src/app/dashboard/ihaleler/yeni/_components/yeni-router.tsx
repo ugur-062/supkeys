@@ -6,16 +6,14 @@ import { TenderWizard } from "./tender-wizard";
 
 /**
  * /dashboard/ihaleler/yeni → tip seçim landing
- * /dashboard/ihaleler/yeni?type=rfq → wizard (Adım 1'den)
- *
- * V1: sadece "rfq" tanınır. "english" V2'de aktif olacak; o zamana kadar
- * landing'e geri düşer.
+ * /dashboard/ihaleler/yeni?type=rfq → wizard, RFQ
+ * /dashboard/ihaleler/yeni?type=auction → wizard, İngiliz Usulü (V2-7)
  */
 export function YeniIhaleRouter() {
   const searchParams = useSearchParams();
   const type = searchParams.get("type");
 
-  if (type === "rfq") {
+  if (type === "rfq" || type === "auction") {
     return <TenderWizard mode="create" />;
   }
 
