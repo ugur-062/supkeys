@@ -1,4 +1,10 @@
 import "reflect-metadata";
+// .env'i NestFactory'den ÖNCE yükle — decorator'larda process.env'e güvenen
+// modüller (ThrottlerModule.forRoot vb.) için critical.
+import * as dotenv from "dotenv";
+import * as path from "path";
+dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+
 import { NestFactory } from "@nestjs/core";
 import { BadRequestException, Logger, ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";

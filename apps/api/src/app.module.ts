@@ -52,9 +52,18 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     EventEmitterModule.forRoot(),
     // BUG FIX #4 — Global rate limiter. Default: 100 req / 60sn / IP.
     // Daha sıkı limitler login + register endpoint'lerinde @Throttle override ile.
+    // Test/dev için THROTTLE_DEFAULT_LIMIT env ile geçici olarak yükseltilebilir.
     ThrottlerModule.forRoot([
-      { name: "default", ttl: 60_000, limit: 100 },
-      { name: "auth", ttl: 60_000, limit: 10 },
+      {
+        name: "default",
+        ttl: 60_000,
+        limit: Number(process.env.THROTTLE_DEFAULT_LIMIT ?? 100),
+      },
+      {
+        name: "auth",
+        ttl: 60_000,
+        limit: Number(process.env.THROTTLE_AUTH_LIMIT ?? 10),
+      },
     ]),
     PdfModule,
     OrderPdfModule,
