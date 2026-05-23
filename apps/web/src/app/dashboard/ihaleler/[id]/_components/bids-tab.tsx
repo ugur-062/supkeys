@@ -234,7 +234,7 @@ function ClosedStatusBanner({
                   }
                 >
                   <Trophy className="h-4 w-4" />
-                  Kazandırmayı Tamamla
+                  Kazananı Belirle
                 </Button>
               ) : null}
             </div>

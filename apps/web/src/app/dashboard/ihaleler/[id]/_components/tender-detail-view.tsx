@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { AlertCircle, ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useMemo } from "react";
 import { BidsTab } from "./bids-tab";
 import { FilesTab } from "./files-tab";
 import { GeneralInfoTab } from "./general-info-tab";
@@ -29,8 +31,38 @@ function TabBadge({ count }: { count: number }) {
   );
 }
 
+const VALID_TABS = ["general", "items", "invitations", "bids", "files"] as const;
+type TabKey = (typeof VALID_TABS)[number];
+
+function isValidTab(value: string | null): value is TabKey {
+  return value != null && (VALID_TABS as readonly string[]).includes(value);
+}
+
 export function TenderDetailView({ id }: { id: string }) {
   const detail = useTenderDetail(id);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const activeTab = useMemo<TabKey>(() => {
+    const raw = searchParams.get("tab");
+    return isValidTab(raw) ? raw : "general";
+  }, [searchParams]);
+
+  const handleTabChange = useCallback(
+    (next: string) => {
+      if (!isValidTab(next)) return;
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === "general") {
+        params.delete("tab");
+      } else {
+        params.set("tab", next);
+      }
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
+  );
 
   // İlk yükleme (cache'te veri yok ve fetch ilerliyor)
   if (detail.isLoading && !detail.data) {
@@ -84,7 +116,11 @@ export function TenderDetailView({ id }: { id: string }) {
 
       <TenderHeaderCard tender={tender} />
 
-      <TabsPrimitive.Root defaultValue="general" className="space-y-4">
+      <TabsPrimitive.Root
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="space-y-4"
+      >
         <div className="border-b border-surface-border flex items-center gap-2">
           <TabsPrimitive.List
             className="flex gap-1 overflow-x-auto flex-1"

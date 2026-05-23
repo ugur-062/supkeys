@@ -18,18 +18,23 @@ import {
 } from "@/hooks/use-tenant-tenders";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import type { TenderDetail } from "@/lib/tenders/types";
+import { cn } from "@/lib/utils";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
   Award,
   Ban,
+  ChevronDown,
   Clock,
   ExternalLink,
+  MoreHorizontal,
   Pencil,
   RefreshCw,
   Send,
   Timer,
   Trash2,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -48,6 +53,29 @@ import { ChangeClosingTimeDialog } from "./change-closing-time-dialog";
 import { CloseBiddingEarlyDialog } from "./close-bidding-early-dialog";
 import { CloseNoAwardDialog } from "./close-no-award-dialog";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
+
+const MORE_TRIGGER_CLASSES = cn(
+  "inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium",
+  "bg-white border border-surface-border text-slate-700",
+  "hover:bg-slate-50 hover:text-slate-900 transition-colors",
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30",
+  "disabled:opacity-40 disabled:cursor-not-allowed",
+);
+
+const MORE_ITEM_CLASSES = cn(
+  "flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 rounded-md cursor-pointer outline-none",
+  "data-[highlighted]:bg-slate-100 data-[highlighted]:text-slate-900",
+);
+
+const MORE_ITEM_DANGER = cn(
+  "flex items-center gap-2 w-full px-3 py-2 text-sm text-danger-600 rounded-md cursor-pointer outline-none",
+  "data-[highlighted]:bg-danger-50 data-[highlighted]:text-danger-700",
+);
+
+const MORE_ITEM_WARNING = cn(
+  "flex items-center gap-2 w-full px-3 py-2 text-sm text-purple-700 rounded-md cursor-pointer outline-none",
+  "data-[highlighted]:bg-purple-50 data-[highlighted]:text-purple-800",
+);
 
 export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
   const router = useRouter();
@@ -204,6 +232,7 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                   })}
                 </p>
                 <div className="flex md:justify-end items-center gap-2 flex-wrap pt-1">
+                  <EditTenderButton tender={tender} canEdit={canEdit} />
                   {canEdit ? (
                     <Button
                       variant="primary"
@@ -216,18 +245,49 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                       Kapanış Zamanını Değiştir
                     </Button>
                   ) : null}
-                  {canAward ? (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => setCloseBiddingOpen(true)}
-                      disabled={isBusy}
-                      className="!text-purple-700 !border-purple-200 hover:!bg-purple-50"
-                      title="Süreyi beklemeden ihaleyi kapat ve kazandırmaya geç"
-                    >
-                      <Timer className="w-4 h-4" />
-                      Erken Kapat & Kazandırmaya Geç
-                    </Button>
+                  <SupplierActionsButton tenderId={tender.id} />
+                  {canAward || canCancel ? (
+                    <DropdownMenu.Root>
+                      <DropdownMenu.Trigger
+                        className={MORE_TRIGGER_CLASSES}
+                        disabled={isBusy}
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                        Diğer İşlemler
+                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                      </DropdownMenu.Trigger>
+                      <DropdownMenu.Portal>
+                        <DropdownMenu.Content
+                          align="end"
+                          sideOffset={6}
+                          className="w-64 bg-white rounded-xl border border-surface-border shadow-lg p-1.5 z-50"
+                        >
+                          {canAward ? (
+                            <DropdownMenu.Item
+                              className={MORE_ITEM_WARNING}
+                              onSelect={() => setCloseBiddingOpen(true)}
+                            >
+                              <Timer className="w-4 h-4" />
+                              Erken Kapat & Kazandırmaya Geç
+                            </DropdownMenu.Item>
+                          ) : null}
+                          {canCancel ? (
+                            <>
+                              {canAward ? (
+                                <DropdownMenu.Separator className="h-px bg-surface-border my-1" />
+                              ) : null}
+                              <DropdownMenu.Item
+                                className={MORE_ITEM_DANGER}
+                                onSelect={() => setCancelOpen(true)}
+                              >
+                                <Ban className="w-4 h-4" />
+                                İhaleyi İptal Et
+                              </DropdownMenu.Item>
+                            </>
+                          ) : null}
+                        </DropdownMenu.Content>
+                      </DropdownMenu.Portal>
+                    </DropdownMenu.Root>
                   ) : null}
                 </div>
               </div>
@@ -241,12 +301,13 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                 </p>
                 {canAward || canCancel || canEdit ? (
                   <div className="flex md:justify-end items-center gap-2 flex-wrap">
+                    <EditTenderButton tender={tender} canEdit={canEdit} />
                     {canEdit ? (
                       <Link
                         href={`/dashboard/ihaleler/${tender.id}/yeni-tur`}
                       >
                         <Button
-                          variant="secondary"
+                          variant="primary"
                           size="sm"
                           title="Aynı kalemler + tedarikçilerle yeni tur aç"
                         >
@@ -255,25 +316,48 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                         </Button>
                       </Link>
                     ) : null}
-                    {canCancel ? (
+                    {canAward ? (
                       <Button
                         variant="secondary"
                         size="sm"
-                        onClick={() => setCloseNoAwardOpen(true)}
-                        className="!text-warning-700 !border-warning-300 hover:!bg-warning-50"
-                      >
-                        Kazanan Yok Kapat
-                      </Button>
-                    ) : null}
-                    {canAward ? (
-                      <Button
-                        variant="primary"
                         onClick={() => setAwardOpen(true)}
-                        className="!bg-purple-600 hover:!bg-purple-700 focus:!ring-purple-500"
+                        className="!text-purple-700 !border-purple-200 hover:!bg-purple-50"
+                        title="Kalemlere/Tedarikçilere kazanan ata ve siparişleri oluştur"
                       >
                         <Award className="h-4 w-4" />
-                        Kazandırmayı Tamamla
+                        Kazananı Belirle
                       </Button>
+                    ) : null}
+                    <SupplierActionsButton tenderId={tender.id} />
+                    {canCancel ? (
+                      <DropdownMenu.Root>
+                        <DropdownMenu.Trigger
+                          className={MORE_TRIGGER_CLASSES}
+                          disabled={isBusy}
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                          Diğer İşlemler
+                          <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                        </DropdownMenu.Trigger>
+                        <DropdownMenu.Portal>
+                          <DropdownMenu.Content
+                            align="end"
+                            sideOffset={6}
+                            className="w-64 bg-white rounded-xl border border-surface-border shadow-lg p-1.5 z-50"
+                          >
+                            <DropdownMenu.Item
+                              className={cn(
+                                MORE_ITEM_CLASSES,
+                                "!text-warning-700 data-[highlighted]:!bg-warning-50",
+                              )}
+                              onSelect={() => setCloseNoAwardOpen(true)}
+                            >
+                              <Ban className="w-4 h-4" />
+                              Kazanan Yok Kapat
+                            </DropdownMenu.Item>
+                          </DropdownMenu.Content>
+                        </DropdownMenu.Portal>
+                      </DropdownMenu.Root>
                     ) : null}
                   </div>
                 ) : (
@@ -325,20 +409,6 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                   </Button>
                 ) : null}
               </div>
-            ) : null}
-
-            {/* OPEN_FOR_BIDS için iptal */}
-            {tender.status === "OPEN_FOR_BIDS" && canCancel ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setCancelOpen(true)}
-                disabled={isBusy}
-                className="!text-danger-600 !border-danger-200 hover:!bg-danger-50 mt-2"
-              >
-                <Ban className="w-4 h-4" />
-                İhaleyi İptal Et
-              </Button>
             ) : null}
           </div>
         </div>
@@ -465,5 +535,52 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
         currentCloseAt={tender.bidsCloseAt}
       />
     </>
+  );
+}
+
+function EditTenderButton({
+  tender,
+  canEdit,
+}: {
+  tender: TenderDetail;
+  canEdit: boolean;
+}) {
+  if (!canEdit) return null;
+  const editable = tender.status === "DRAFT";
+  if (editable) {
+    return (
+      <Link href={`/dashboard/ihaleler/${tender.id}/duzenle`}>
+        <Button variant="secondary" size="sm">
+          <Pencil className="w-4 h-4" />
+          İhaleyi Düzenle
+        </Button>
+      </Link>
+    );
+  }
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      disabled
+      title="Sadece taslak ihaleler düzenlenebilir"
+    >
+      <Pencil className="w-4 h-4" />
+      İhaleyi Düzenle
+    </Button>
+  );
+}
+
+function SupplierActionsButton({ tenderId }: { tenderId: string }) {
+  return (
+    <Link href={`/dashboard/ihaleler/${tenderId}?tab=invitations`} scroll={false}>
+      <Button
+        variant="secondary"
+        size="sm"
+        title="Davetli tedarikçileri görüntüle ve yönet"
+      >
+        <Users className="w-4 h-4" />
+        Tedarikçi İşlemleri
+      </Button>
+    </Link>
   );
 }
