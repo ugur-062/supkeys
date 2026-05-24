@@ -284,6 +284,27 @@ export function usePublishTender() {
   });
 }
 
+/**
+ * V2-7+ — Mevcut ihaleye sonradan tedarikçi davet ekleme.
+ */
+export function useAddTenderInvitations(tenderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (supplierIds: string[]) => {
+      const { data } = await api.post<{
+        added: number;
+        skipped: number;
+        invitations: Array<{ id: string; supplierId: string }>;
+      }>(`/tenants/me/tenders/${tenderId}/invitations`, { supplierIds });
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+      qc.invalidateQueries({ queryKey: KEYS.detail(tenderId) });
+    },
+  });
+}
+
 export function useCancelTender() {
   const qc = useQueryClient();
   return useMutation({

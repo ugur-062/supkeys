@@ -23,6 +23,7 @@ import {
   AwardItemByItemDto,
   CloseNoAwardDto,
 } from "../dto/award.dto";
+import { AddInvitationsDto } from "../dto/add-invitations.dto";
 import { CancelTenderDto } from "../dto/cancel-tender.dto";
 import { ChangeClosingTimeDto } from "../dto/change-closing-time.dto";
 import { CreateNextRoundDto } from "../dto/create-next-round.dto";
@@ -124,6 +125,26 @@ export class TenantTendersController {
     @Body() dto: UpdateTenderDto,
   ): Promise<unknown> {
     return this.service.updateDraft(user.tenantId, id, user.id, user.role, dto);
+  }
+
+  /**
+   * V2-7+ — Mevcut ihaleye sonradan tedarikçi davet ekleme.
+   * DRAFT veya OPEN_FOR_BIDS durumunda; İngiliz Usulü'nde son 2dk hariç.
+   */
+  @Post(":id/invitations")
+  @RequirePermissions("tender:edit")
+  addInvitations(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: AddInvitationsDto,
+  ): Promise<unknown> {
+    return this.service.addInvitations(
+      user.tenantId,
+      id,
+      user.id,
+      user.role,
+      dto.supplierIds,
+    );
   }
 
   @Post(":id/publish")

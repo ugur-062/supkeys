@@ -865,10 +865,24 @@ export class TenantTendersService {
       if (tender.tenantId !== tenantId)
         throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
       assertCanActOnTender(tender, { id: userId, role: userRole });
-      if (tender.status !== "DRAFT")
-        throw new ConflictException(
-          "Sadece taslak durumdaki ihaleler düzenlenebilir",
-        );
+
+      // Düzenlenebilirlik: DRAFT her zaman, OPEN_FOR_BIDS ise henüz SUBMITTED
+      // bid YOKsa (tedarikçi henüz teklif vermediyse karar/strateji kirlenmemiş).
+      if (tender.status !== "DRAFT") {
+        if (tender.status !== "OPEN_FOR_BIDS") {
+          throw new ConflictException(
+            "Sadece taslak veya henüz teklif gelmemiş ihaleler düzenlenebilir",
+          );
+        }
+        const submittedCount = await tx.bid.count({
+          where: { tenderId, status: "SUBMITTED" },
+        });
+        if (submittedCount > 0) {
+          throw new ConflictException(
+            "Bu ihaleye teklif verilmiş; düzenleme yapılamaz",
+          );
+        }
+      }
 
       await this.assertActiveSuppliers(tx, tenantId, dto.invitedSupplierIds);
 
@@ -1618,6 +1632,147 @@ export class TenantTendersService {
       );
     }
     return snapshot;
+  }
+
+  /**
+   * Mevcut ihaleye tedarikçi davet ekle.
+   * Kural:
+   *   - DRAFT veya OPEN_FOR_BIDS olmalı (diğer durumlarda 409)
+   *   - İngiliz Usulü + OPEN_FOR_BIDS + bidsCloseAt'a 2dk'dan az kaldıysa
+   *     reddedilir (auto-extend ile davet karışıklığını önler)
+   *   - Tedarikçi ACTIVE relation olmalı
+   *   - Zaten davetli olanlar sessizce skip edilir
+   *   - Yeni davetlere mail gönderilir
+   */
+  async addInvitations(
+    tenantId: string,
+    tenderId: string,
+    userId: string,
+    userRole: string,
+    supplierIds: string[],
+  ) {
+    const existing = await this.prisma.tender.findUnique({
+      where: { id: tenderId },
+      select: {
+        id: true,
+        tenantId: true,
+        createdById: true,
+        status: true,
+        type: true,
+        bidsCloseAt: true,
+        publishedAt: true,
+      },
+    });
+    if (!existing) throw new NotFoundException("İhale bulunamadı");
+    if (existing.tenantId !== tenantId) throw new ForbiddenException();
+    assertCanActOnTender(existing, { id: userId, role: userRole });
+
+    if (existing.status !== "DRAFT" && existing.status !== "OPEN_FOR_BIDS") {
+      throw new ConflictException(
+        "Sadece taslak veya teklif toplama aşamasındaki ihalelere tedarikçi eklenebilir",
+      );
+    }
+
+    // İngiliz Usulü + son 2dk: davet engelli
+    if (
+      existing.type === "ENGLISH_AUCTION" &&
+      existing.status === "OPEN_FOR_BIDS" &&
+      existing.bidsCloseAt
+    ) {
+      const msLeft = existing.bidsCloseAt.getTime() - Date.now();
+      if (msLeft > 0 && msLeft < 2 * 60_000) {
+        throw new ConflictException(
+          "Kapanışa 2 dakikadan az kala İngiliz Usulü ihaleye tedarikçi eklenemez",
+        );
+      }
+    }
+
+    const uniqueIds = Array.from(new Set(supplierIds));
+
+    return this.prisma.$transaction(async (tx) => {
+      await this.assertActiveSuppliers(tx, tenantId, uniqueIds);
+
+      // Zaten davetli olanları filtrele
+      const alreadyInvited = await tx.tenderInvitation.findMany({
+        where: { tenderId, supplierId: { in: uniqueIds } },
+        select: { supplierId: true },
+      });
+      const existingSet = new Set(alreadyInvited.map((i) => i.supplierId));
+      const toAdd = uniqueIds.filter((id) => !existingSet.has(id));
+
+      if (toAdd.length === 0) {
+        return { added: 0, skipped: uniqueIds.length, invitations: [] };
+      }
+
+      const newInvitations = await Promise.all(
+        toAdd.map((supplierId) =>
+          tx.tenderInvitation.create({
+            data: {
+              tenderId,
+              supplierId,
+              status: "PENDING",
+            },
+            select: {
+              id: true,
+              supplier: {
+                select: {
+                  id: true,
+                  users: {
+                    where: { isActive: true },
+                    select: {
+                      email: true,
+                      firstName: true,
+                      lastName: true,
+                      createdAt: true,
+                    },
+                    orderBy: { createdAt: "asc" },
+                    take: 1,
+                  },
+                },
+              },
+            },
+          }),
+        ),
+      );
+
+      // Tender + tenant info — mail dispatcher için
+      const tenderFull = await tx.tender.findUnique({
+        where: { id: tenderId },
+        select: {
+          id: true,
+          tenderNumber: true,
+          title: true,
+          bidsCloseAt: true,
+          tenant: { select: { name: true } },
+        },
+      });
+      if (tenderFull && existing.status === "OPEN_FOR_BIDS") {
+        // Sadece yayındaysa hemen mail at; DRAFT ise yayında zaten dispatcher çalışacak
+        this.dispatchInvitationEmails(
+          {
+            ...tenderFull,
+            bidsCloseAt: tenderFull.bidsCloseAt!,
+            invitations: newInvitations,
+          },
+          {
+            tenderNumber: tenderFull.tenderNumber,
+            bidsCloseAt: tenderFull.bidsCloseAt!,
+          },
+        ).catch((err) =>
+          this.logger.error(
+            `addInvitations email dispatch fail (${tenderId}): ${
+              err instanceof Error ? err.message : err
+            }`,
+          ),
+        );
+      }
+
+      return {
+        added: toAdd.length,
+        skipped: uniqueIds.length - toAdd.length,
+        invitations: newInvitations.map((i) => ({ id: i.id, supplierId: i.supplier.id })),
+      };
+    });
   }
 
   /**

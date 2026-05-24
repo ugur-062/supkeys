@@ -34,7 +34,6 @@ import {
   Send,
   Timer,
   Trash2,
-  Users,
 } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -42,6 +41,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PublishConfirmDialog } from "../../yeni/_components/publish-confirm-dialog";
+import { InviteSupplierButton } from "./invite-supplier-button";
 // Performans audit P-4 — 650 satırlık wizard; kazandırma yapılana kadar
 // route bundle'ına girmesin.
 const AwardWizardModal = dynamic(
@@ -232,7 +232,11 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                   })}
                 </p>
                 <div className="flex md:justify-end items-center gap-2 flex-wrap pt-1">
-                  <EditTenderButton tender={tender} canEdit={canEdit} />
+                  <EditTenderButton
+                    tender={tender}
+                    canEdit={canEdit}
+                    submittedBidCount={submittedBidCount}
+                  />
                   {canEdit ? (
                     <Button
                       variant="primary"
@@ -245,7 +249,15 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                       Kapanış Zamanını Değiştir
                     </Button>
                   ) : null}
-                  <SupplierActionsButton tenderId={tender.id} />
+                  {canEdit ? (
+                    <InviteSupplierButton
+                      tenderId={tender.id}
+                      enabled
+                      alreadyInvitedSupplierIds={tender.invitations.map(
+                        (i) => i.supplier.id,
+                      )}
+                    />
+                  ) : null}
                   {canAward || canCancel ? (
                     <DropdownMenu.Root>
                       <DropdownMenu.Trigger
@@ -301,7 +313,11 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                 </p>
                 {canAward || canCancel || canEdit ? (
                   <div className="flex md:justify-end items-center gap-2 flex-wrap">
-                    <EditTenderButton tender={tender} canEdit={canEdit} />
+                    <EditTenderButton
+                      tender={tender}
+                      canEdit={canEdit}
+                      submittedBidCount={submittedBidCount}
+                    />
                     {canEdit ? (
                       <Link
                         href={`/dashboard/ihaleler/${tender.id}/yeni-tur`}
@@ -328,7 +344,6 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                         Kazananı Belirle
                       </Button>
                     ) : null}
-                    <SupplierActionsButton tenderId={tender.id} />
                     {canCancel ? (
                       <DropdownMenu.Root>
                         <DropdownMenu.Trigger
@@ -541,12 +556,17 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
 function EditTenderButton({
   tender,
   canEdit,
+  submittedBidCount,
 }: {
   tender: TenderDetail;
   canEdit: boolean;
+  submittedBidCount: number;
 }) {
   if (!canEdit) return null;
-  const editable = tender.status === "DRAFT";
+  // V2-7+ — DRAFT her zaman, OPEN_FOR_BIDS henüz teklif gelmediyse düzenlenebilir
+  const editable =
+    tender.status === "DRAFT" ||
+    (tender.status === "OPEN_FOR_BIDS" && submittedBidCount === 0);
   if (editable) {
     return (
       <Link href={`/dashboard/ihaleler/${tender.id}/duzenle`}>
@@ -562,25 +582,10 @@ function EditTenderButton({
       variant="secondary"
       size="sm"
       disabled
-      title="Sadece taslak ihaleler düzenlenebilir"
+      title="Teklif geldikten sonra ihale düzenlenemez"
     >
       <Pencil className="w-4 h-4" />
       İhaleyi Düzenle
     </Button>
-  );
-}
-
-function SupplierActionsButton({ tenderId }: { tenderId: string }) {
-  return (
-    <Link href={`/dashboard/ihaleler/${tenderId}?tab=invitations`} scroll={false}>
-      <Button
-        variant="secondary"
-        size="sm"
-        title="Davetli tedarikçileri görüntüle ve yönet"
-      >
-        <Users className="w-4 h-4" />
-        Tedarikçi İşlemleri
-      </Button>
-    </Link>
   );
 }
