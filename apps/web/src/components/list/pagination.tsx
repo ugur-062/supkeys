@@ -11,6 +11,10 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
 }
 
+/**
+ * Liste sayfalama çubuğu — kayıt aralığı + Önceki/Sonraki + sayfa göstergesi.
+ * Kart'ın alt kenarına oturur (border-t). Tek sayfada butonlar disabled olur.
+ */
 export function Pagination({
   page,
   totalPages,

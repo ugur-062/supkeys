@@ -261,11 +261,30 @@ export class TenantApprovalRequestsService {
       };
     }
 
-    return this.prisma.approvalRequest.findMany({
-      where,
-      include: REQUEST_INCLUDE,
-      orderBy: { createdAt: "desc" },
-    });
+    const page = filters.page ?? 1;
+    const pageSize = filters.pageSize ?? 20;
+    const skip = (page - 1) * pageSize;
+
+    const [items, total] = await Promise.all([
+      this.prisma.approvalRequest.findMany({
+        where,
+        include: REQUEST_INCLUDE,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+      }),
+      this.prisma.approvalRequest.count({ where }),
+    ]);
+
+    return {
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
   }
 
   async getOne(tenantId: string, id: string) {

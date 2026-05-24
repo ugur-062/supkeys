@@ -1,6 +1,6 @@
 "use client";
 
-import { PageHeader } from "@/components/list";
+import { PageHeader, Pagination } from "@/components/list";
 import {
   useCancelInvitation,
   useInvitations,
@@ -31,7 +31,6 @@ import { FiltersBar } from "./filters-bar";
 import { HeaderCard } from "./header-card";
 import { InvitationsTable } from "./invitations-table";
 import { InviteSupplierModal } from "./invite-supplier-modal";
-import { Pagination } from "./pagination";
 import { SupplierDetailDrawer } from "./supplier-detail-drawer";
 import { TabsContent, TedarikcilerTabs, type TedarikciTab } from "./tabs";
 

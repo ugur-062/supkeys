@@ -1,5 +1,14 @@
 import { Transform } from "class-transformer";
-import { IsBooleanString, IsOptional, IsString, IsIn, MaxLength } from "class-validator";
+import {
+  IsBooleanString,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from "class-validator";
 
 export class ListApprovalRequestsDto {
   @IsOptional()
@@ -38,4 +47,17 @@ export class ListApprovalRequestsDto {
   @IsBooleanString()
   @Transform(({ value }) => (typeof value === "string" ? value : String(value)))
   pendingForMe?: string;
+
+  @IsOptional()
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  @Min(1)
+  page?: number = 1;
+
+  @IsOptional()
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number = 20;
 }

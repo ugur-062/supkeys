@@ -3,7 +3,7 @@
 import { api } from "@/lib/api";
 import type {
   ApprovalRequestDetail,
-  ApprovalRequestListItem,
+  ApprovalRequestListResponse,
   ListApprovalRequestsParams,
 } from "@/lib/approval-requests/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -25,6 +25,8 @@ function buildQuery(params: ListApprovalRequestsParams): string {
   if (params.approvalNumber) search.set("approvalNumber", params.approvalNumber);
   if (params.search) search.set("search", params.search);
   if (params.pendingForMe) search.set("pendingForMe", "true");
+  if (params.page) search.set("page", String(params.page));
+  if (params.pageSize) search.set("pageSize", String(params.pageSize));
   const qs = search.toString();
   return qs ? `?${qs}` : "";
 }
@@ -33,7 +35,7 @@ export function useApprovalRequests(params: ListApprovalRequestsParams = {}) {
   return useQuery({
     queryKey: KEYS.list(params),
     queryFn: async () => {
-      const { data } = await api.get<ApprovalRequestListItem[]>(
+      const { data } = await api.get<ApprovalRequestListResponse>(
         `/tenants/me/approval-requests${buildQuery(params)}`,
       );
       return data;

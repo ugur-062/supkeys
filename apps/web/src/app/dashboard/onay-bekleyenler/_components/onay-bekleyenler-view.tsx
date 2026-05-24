@@ -4,6 +4,7 @@ import {
   EmptyState as EmptyStateComponent,
   ListSkeleton,
   PageHeader,
+  Pagination,
   ResultCount,
   SearchInput,
 } from "@/components/list";
@@ -58,6 +59,8 @@ const SELECT_CLASS = cn(
   "border-surface-border",
 );
 
+const PAGE_SIZE = 20;
+
 export function OnayBekleyenlerView() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -69,19 +72,26 @@ export function OnayBekleyenlerView() {
   const [typeFilter, setTypeFilter] = useState<ApprovalFlowType | "">("");
   const [initiatorFilter, setInitiatorFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data: users } = useTenantUsers();
 
   const filters: ListApprovalRequestsParams = useMemo(() => {
-    if (activeTab === "pending") {
-      return { pendingForMe: true };
-    }
-    return {
-      ...(statusFilter && { status: statusFilter }),
-      ...(typeFilter && { type: typeFilter }),
-      ...(initiatorFilter && { initiatorUserId: initiatorFilter }),
-      ...(search.trim() && { search: search.trim() }),
-    };
+    const base: ListApprovalRequestsParams =
+      activeTab === "pending"
+        ? { pendingForMe: true }
+        : {
+            ...(statusFilter && { status: statusFilter }),
+            ...(typeFilter && { type: typeFilter }),
+            ...(initiatorFilter && { initiatorUserId: initiatorFilter }),
+            ...(search.trim() && { search: search.trim() }),
+          };
+    return { ...base, page, pageSize: PAGE_SIZE };
+  }, [activeTab, statusFilter, typeFilter, initiatorFilter, search, page]);
+
+  // Filtre/sekme değişince sayfa 1'e dön (aksi halde boş sayfada kalınabilir)
+  useEffect(() => {
+    setPage(1);
   }, [activeTab, statusFilter, typeFilter, initiatorFilter, search]);
 
   const activeFilterCount =
@@ -92,8 +102,10 @@ export function OnayBekleyenlerView() {
         (search.trim() ? 1 : 0)
       : 0;
 
-  const { data: requests, isLoading, refetch, isFetching } =
+  const { data, isLoading, refetch, isFetching } =
     useApprovalRequests(filters);
+  const requests = data?.items ?? [];
+  const total = data?.pagination.total ?? 0;
 
   const setTab = useCallback(
     (tab: TabKey) => {
@@ -216,7 +228,7 @@ export function OnayBekleyenlerView() {
 
             <div className="flex items-center justify-between">
               <ResultCount
-                total={requests?.length ?? 0}
+                total={total}
                 isFiltered={activeFilterCount > 0}
                 unit="kayıt"
               />
@@ -236,7 +248,7 @@ export function OnayBekleyenlerView() {
         {/* Tablo */}
         {isLoading ? (
           <ListSkeleton rows={5} />
-        ) : !requests || requests.length === 0 ? (
+        ) : requests.length === 0 ? (
           activeFilterCount > 0 ? (
             <EmptyStateComponent
               icon={ClipboardCheck}
@@ -270,10 +282,18 @@ export function OnayBekleyenlerView() {
             />
           )
         ) : (
-          <ApprovalRequestsTable
-            requests={requests}
-            activeTab={activeTab}
-          />
+          <>
+            <ApprovalRequestsTable requests={requests} activeTab={activeTab} />
+            {data && data.pagination.totalPages > 1 ? (
+              <Pagination
+                page={data.pagination.page}
+                totalPages={data.pagination.totalPages}
+                total={data.pagination.total}
+                pageSize={data.pagination.pageSize}
+                onPageChange={setPage}
+              />
+            ) : null}
+          </>
         )}
       </div>
     </div>

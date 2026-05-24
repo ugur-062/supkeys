@@ -2,6 +2,7 @@
 
 import {
   PageHeader,
+  Pagination,
   ResultCount,
   SearchInput,
   SortDropdown,
@@ -284,6 +285,15 @@ export function IhalelerView() {
           pageSize={PAGE_SIZE}
           onRetry={() => list.refetch()}
         />
+        {list.data && list.data.pagination.totalPages > 1 && (
+          <Pagination
+            page={list.data.pagination.page}
+            totalPages={list.data.pagination.totalPages}
+            total={list.data.pagination.total}
+            pageSize={list.data.pagination.pageSize}
+            onPageChange={(p) => updateUrl({ page: p })}
+          />
+        )}
       </div>
     </div>
   );

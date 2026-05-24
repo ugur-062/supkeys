@@ -114,4 +114,16 @@ export interface ListApprovalRequestsParams {
   /** Polish-1 — generic search OR (approvalNumber + tenderNumber + tender.title) */
   search?: string;
   pendingForMe?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface ApprovalRequestListResponse {
+  items: ApprovalRequestListItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
 }
