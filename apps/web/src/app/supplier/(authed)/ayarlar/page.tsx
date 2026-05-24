@@ -1,5 +1,4 @@
 import { PlaceholderPage } from "@/components/dashboard/placeholder-page";
-import { Settings } from "lucide-react";
 
 export const metadata = {
   title: "Ayarlar",
@@ -8,7 +7,7 @@ export const metadata = {
 export default function SupplierAyarlarPage() {
   return (
     <PlaceholderPage
-      icon={Settings}
+      iconKey="ayarlar"
       title="Ayarlar"
       subtitle="Hesap ayarlarınız, bildirim tercihleriniz ve güvenlik."
       description="Şifre değiştirme, ekip üyesi davet etme, bildirim kanalları gibi ayarlar yakında eklenecek."
