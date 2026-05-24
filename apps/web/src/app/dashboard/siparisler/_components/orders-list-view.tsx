@@ -4,6 +4,7 @@ import {
   EmptyState as EmptyStateComponent,
   ListSkeleton,
   PageHeader,
+  Pagination,
   ResultCount,
   SearchInput,
   SortDropdown,
@@ -282,9 +283,12 @@ export function OrdersListView() {
           <OrdersTable orders={list.data.items} />
           {list.data.pagination.totalPages > 1 ? (
             <Pagination
+              variant="bare"
               page={list.data.pagination.page}
               totalPages={list.data.pagination.totalPages}
-              onPage={setPage}
+              total={list.data.pagination.total}
+              pageSize={list.data.pagination.pageSize}
+              onPageChange={setPage}
             />
           ) : null}
         </>
@@ -414,42 +418,6 @@ function getStageState(status: string): {
   if (status === "COMPLETED" || status === "DELIVERED")
     return { active: 3, lastDone: 3, isTerminated: false };
   return { active: 0, lastDone: 0, isTerminated: false };
-}
-
-function Pagination({
-  page,
-  totalPages,
-  onPage,
-}: {
-  page: number;
-  totalPages: number;
-  onPage: (n: number) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 pt-2">
-      <p className="text-sm text-slate-500">
-        {page} / {totalPages} sayfa
-      </p>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => onPage(Math.max(1, page - 1))}
-          disabled={page <= 1}
-        >
-          Önceki
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => onPage(Math.min(totalPages, page + 1))}
-          disabled={page >= totalPages}
-        >
-          Sonraki
-        </Button>
-      </div>
-    </div>
-  );
 }
 
 // Re-export ORDER_STATUS_META so the ESLint detects the import is used in

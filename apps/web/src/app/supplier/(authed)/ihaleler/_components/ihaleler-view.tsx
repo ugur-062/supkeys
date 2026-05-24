@@ -1,5 +1,6 @@
 "use client";
 
+import { Pagination } from "@/components/list";
 import { PanelCard } from "@/components/supplier/panel-card";
 import {
   useSupplierTenderCategoryOptions,
@@ -297,27 +298,14 @@ export function SupplierIhalelerView() {
           </div>
 
           {totalPages > 1 ? (
-            <div className="mt-6 flex items-center justify-center gap-2">
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => updateUrl({ page: page - 1 })}
-                className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Önceki
-              </button>
-              <span className="text-sm text-slate-600 px-3">
-                {page} / {totalPages}
-              </span>
-              <button
-                type="button"
-                disabled={page >= totalPages}
-                onClick={() => updateUrl({ page: page + 1 })}
-                className="px-3 py-1.5 text-sm rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Sonraki
-              </button>
-            </div>
+            <Pagination
+              variant="bare"
+              page={page}
+              totalPages={totalPages}
+              total={totalCount}
+              pageSize={PAGE_SIZE}
+              onPageChange={(p) => updateUrl({ page: p })}
+            />
           ) : null}
         </>
       )}
