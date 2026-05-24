@@ -1574,3 +1574,26 @@ model SupplierTemplateMember {
   @@index([supplierId])
   @@map("supplier_template_members")
 }
+
+// V2-7+ — Güvenlik denetim izi (OWASP A09). Append-only: servis katmanı
+// yalnızca create yapar; update/delete yok. Aktör sistemde olmayabilir
+// (başarısız login) → actorId/tenantId nullable.
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String?
+  actorType  String   // "tenant" | "admin" | "supplier" | "system"
+  actorId    String?
+  actorEmail String?
+  action     String   // "auth.login", "auth.login_failed", "tender.awarded", ...
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([action, createdAt])
+  @@index([actorId])
+  @@map("audit_logs")
+}

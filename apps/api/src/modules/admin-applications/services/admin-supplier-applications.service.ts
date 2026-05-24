@@ -8,6 +8,7 @@ import { ConfigService } from "@nestjs/config";
 import * as crypto from "crypto";
 import type { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { AuditService } from "../../audit/audit.service";
 import { EmailService } from "../../email/email.service";
 import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import { ListApplicationsDto } from "../dto/list-applications.dto";
@@ -22,6 +23,7 @@ export class AdminSupplierApplicationsService {
     private readonly emailService: EmailService,
     private readonly config: ConfigService,
     private readonly supabaseAuth: SupabaseAuthService,
+    private readonly audit: AuditService,
   ) {}
 
   async list(query: ListApplicationsDto) {
@@ -309,6 +311,19 @@ export class AdminSupplierApplicationsService {
       },
     );
 
+    void this.audit.log({
+      action: "supplier.application_approved",
+      actorType: "admin",
+      actorId: reviewerId,
+      entityType: "supplier_application",
+      entityId: app.id,
+      metadata: {
+        supplierId: result.supplier.id,
+        supplierUserId: result.supplierUser.id,
+        email: app.adminEmail,
+      },
+    });
+
     return {
       supplierId: result.supplier.id,
       supplierUserId: result.supplierUser.id,
@@ -333,6 +348,15 @@ export class AdminSupplierApplicationsService {
         reviewedAt: new Date(),
         rejectionReason: dto.reason,
       },
+    });
+
+    void this.audit.log({
+      action: "supplier.application_rejected",
+      actorType: "admin",
+      actorId: reviewerId,
+      entityType: "supplier_application",
+      entityId: app.id,
+      metadata: { email: app.adminEmail, reason: dto.reason },
     });
 
     this.dispatchRejectedEmail(app, dto.reason).catch((err) => {

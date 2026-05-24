@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import type { UserRole } from "@supkeys/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { LoginDto } from "./dto/login.dto";
@@ -18,6 +19,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly supabaseAuth: SupabaseAuthService,
     private readonly config: ConfigService,
+    private readonly audit: AuditService,
   ) {}
 
   /**
@@ -35,18 +37,28 @@ export class AuthService {
     return { success: true };
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, ctx?: { ip?: string; userAgent?: string }) {
+    const email = dto.email.toLowerCase();
+    // Başarısız login'i denetim izine yaz (OWASP A09 — brute-force/anomali tespiti)
+    const auditFail = (reason: string) =>
+      void this.audit.log({
+        action: "auth.login_failed",
+        actorType: "system",
+        actorEmail: email,
+        metadata: { reason },
+        ip: ctx?.ip,
+        userAgent: ctx?.userAgent,
+      });
+
     // Supabase Auth source-of-truth. verifyPassword başarısızsa generic 401
     // döndürür — user enumeration sızıntısı yok. Timing-safe (Supabase API
     // call latency'si user var/yok ayrımı yapmaz).
     let authId: string;
     try {
-      const result = await this.supabaseAuth.verifyPassword(
-        dto.email.toLowerCase(),
-        dto.password,
-      );
+      const result = await this.supabaseAuth.verifyPassword(email, dto.password);
       authId = result.authId;
     } catch {
+      auditFail("bad_credentials");
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
@@ -63,6 +75,7 @@ export class AuthService {
       user.deletedAt !== null ||
       !user.tenant.isActive
     ) {
+      auditFail("inactive_or_missing");
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
@@ -83,6 +96,16 @@ export class AuthService {
     });
 
     const token = this.signToken(user, user.tenant);
+
+    void this.audit.log({
+      action: "auth.login",
+      actorType: "tenant",
+      actorId: user.id,
+      actorEmail: user.email,
+      tenantId: user.tenantId,
+      ip: ctx?.ip,
+      userAgent: ctx?.userAgent,
+    });
 
     return {
       token,

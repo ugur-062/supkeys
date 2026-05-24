@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { assertCanActOnTender } from "../../../common/rbac/tender-owner.guard";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { AuditService } from "../../audit/audit.service";
 import {
   buildBreadcrumb,
   CategoryService,
@@ -86,6 +87,7 @@ export class TenantTendersService {
     private readonly categoryService: CategoryService,
     private readonly tenderScheduler: TenderSchedulerService,
     private readonly supplierInvitations: SupplierInvitationsService,
+    private readonly audit: AuditService,
   ) {}
 
   // ============================================================
@@ -2404,6 +2406,22 @@ export class TenantTendersService {
       ),
     );
 
+    void this.audit.log({
+      action: "tender.awarded",
+      actorType: "tenant",
+      actorId: userId,
+      tenantId,
+      entityType: "tender",
+      entityId: tenderId,
+      metadata: {
+        totalAmount: totalAwardAmount,
+        currency: tender.primaryCurrency || "TRY",
+        orderCount: result.winners.length,
+        orderNumbers: result.winners.map((c) => c.order.orderNumber),
+        viaApproval: false,
+      },
+    });
+
     return {
       tenderStatus: "AWARDED" as const,
       orderCount: result.winners.length,
@@ -2455,6 +2473,19 @@ export class TenantTendersService {
         payload.tenderId,
         tenderRow.tenantId,
       );
+
+      void this.audit.log({
+        action: "tender.awarded",
+        actorType: "tenant",
+        tenantId: tenderRow.tenantId,
+        entityType: "tender",
+        entityId: payload.tenderId,
+        metadata: {
+          orderCount: result.winners.length,
+          orderNumbers: result.winners.map((c) => c.order.orderNumber),
+          viaApproval: true,
+        },
+      });
     } catch (err) {
       this.logger.error(
         `Post-approval finalize failed for ${payload.tenderId}: ${

@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { AuditService } from "../../audit/audit.service";
 import { buildBreadcrumb } from "../../categories/services/category.service";
 import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import { SupplierLoginDto } from "../dto/supplier-login.dto";
@@ -16,10 +17,23 @@ export class SupplierAuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly supabaseAuth: SupabaseAuthService,
+    private readonly audit: AuditService,
   ) {}
 
-  async login(dto: SupplierLoginDto) {
+  async login(
+    dto: SupplierLoginDto,
+    ctx?: { ip?: string; userAgent?: string },
+  ) {
     const email = dto.email.toLowerCase().trim();
+    const auditFail = (reason: string) =>
+      void this.audit.log({
+        action: "auth.login_failed",
+        actorType: "supplier",
+        actorEmail: email,
+        metadata: { reason, portal: "supplier" },
+        ip: ctx?.ip,
+        userAgent: ctx?.userAgent,
+      });
 
     // Supabase Auth source-of-truth. verifyPassword başarısızsa generic 401.
     let authId: string;
@@ -27,6 +41,7 @@ export class SupplierAuthService {
       const result = await this.supabaseAuth.verifyPassword(email, dto.password);
       authId = result.authId;
     } catch {
+      auditFail("bad_credentials");
       throw new UnauthorizedException("E-posta veya şifre hatalı");
     }
 
@@ -36,10 +51,12 @@ export class SupplierAuthService {
     });
 
     if (!user) {
+      auditFail("user_missing");
       throw new UnauthorizedException("E-posta veya şifre hatalı");
     }
 
     if (user.supplier.isBlocked) {
+      auditFail("supplier_blocked");
       const reason = user.supplier.blockedReason
         ? `Sebep: ${user.supplier.blockedReason}`
         : "Lütfen Supkeys ekibiyle iletişime geçin.";
@@ -48,9 +65,11 @@ export class SupplierAuthService {
       );
     }
     if (!user.supplier.isActive) {
+      auditFail("supplier_inactive");
       throw new ForbiddenException("Tedarikçi hesabı aktif değil");
     }
     if (!user.isActive) {
+      auditFail("user_inactive");
       throw new ForbiddenException("Kullanıcı hesabı aktif değil");
     }
 
@@ -66,6 +85,16 @@ export class SupplierAuthService {
       supplierUserId: user.id,
       supplierId: user.supplierId,
     };
+
+    void this.audit.log({
+      action: "auth.login",
+      actorType: "supplier",
+      actorId: user.id,
+      actorEmail: user.email,
+      metadata: { portal: "supplier", supplierId: user.supplierId },
+      ip: ctx?.ip,
+      userAgent: ctx?.userAgent,
+    });
 
     return {
       token: this.jwt.sign(payload),

@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import type { AdminJwtPayload } from "./strategies/admin-jwt.strategy";
@@ -13,18 +14,28 @@ export class AdminAuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly supabaseAuth: SupabaseAuthService,
+    private readonly audit: AuditService,
   ) {}
 
-  async login(dto: AdminLoginDto) {
+  async login(dto: AdminLoginDto, ctx?: { ip?: string; userAgent?: string }) {
+    const email = dto.email.toLowerCase();
+    const auditFail = (reason: string) =>
+      void this.audit.log({
+        action: "auth.login_failed",
+        actorType: "admin",
+        actorEmail: email,
+        metadata: { reason, portal: "admin" },
+        ip: ctx?.ip,
+        userAgent: ctx?.userAgent,
+      });
+
     // Supabase Auth source-of-truth. verifyPassword başarısızsa generic 401.
     let authId: string;
     try {
-      const result = await this.supabaseAuth.verifyPassword(
-        dto.email.toLowerCase(),
-        dto.password,
-      );
+      const result = await this.supabaseAuth.verifyPassword(email, dto.password);
       authId = result.authId;
     } catch {
+      auditFail("bad_credentials");
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
@@ -33,6 +44,7 @@ export class AdminAuthService {
     });
 
     if (!admin || !admin.isActive) {
+      auditFail("inactive_or_missing");
       throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
     }
 
@@ -47,6 +59,16 @@ export class AdminAuthService {
       role: admin.role,
       type: "admin",
     };
+
+    void this.audit.log({
+      action: "auth.login",
+      actorType: "admin",
+      actorId: admin.id,
+      actorEmail: admin.email,
+      metadata: { portal: "admin", role: admin.role },
+      ip: ctx?.ip,
+      userAgent: ctx?.userAgent,
+    });
 
     return {
       token: this.jwt.sign(payload),

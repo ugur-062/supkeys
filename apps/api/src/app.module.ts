@@ -7,6 +7,7 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "./common/prisma/prisma.module";
 import { AdminApplicationsModule } from "./modules/admin-applications/admin-applications.module";
 import { AdminAuthModule } from "./modules/admin-auth/admin-auth.module";
+import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { PermissionsModule } from "./modules/auth/permissions/permissions.module";
 import { DemoRequestsModule } from "./modules/demo-requests/demo-requests.module";
@@ -106,6 +107,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     MessagingModule,
     CategoriesModule,
     HealthModule,
+    AuditModule,
   ],
   providers: [
     // Global guard: @SkipThrottle ile özel endpoint'lerde bypass edilebilir.

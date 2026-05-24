@@ -2,8 +2,10 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
+  Ip,
   Post,
   UseGuards,
 } from "@nestjs/common";
@@ -25,8 +27,12 @@ export class AuthController {
   // V2-6.5 Fix #4 — Sıkı rate limit (10 deneme/dk per IP) brute-force koruması.
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  login(
+    @Body() dto: LoginDto,
+    @Ip() ip: string,
+    @Headers("user-agent") userAgent: string,
+  ) {
+    return this.authService.login(dto, { ip, userAgent });
   }
 
   @Post("forgot-password")

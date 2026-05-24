@@ -2,8 +2,10 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
+  Ip,
   Post,
   UseGuards,
 } from "@nestjs/common";
@@ -24,8 +26,12 @@ export class AdminAuthController {
   // V2-6.5 Fix #4 — brute-force koruması (10 deneme/dk per IP)
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
-  login(@Body() dto: AdminLoginDto) {
-    return this.adminAuthService.login(dto);
+  login(
+    @Body() dto: AdminLoginDto,
+    @Ip() ip: string,
+    @Headers("user-agent") userAgent: string,
+  ) {
+    return this.adminAuthService.login(dto, { ip, userAgent });
   }
 
   @Get("me")
