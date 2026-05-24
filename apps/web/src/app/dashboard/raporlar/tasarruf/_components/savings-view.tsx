@@ -18,7 +18,6 @@ import { tr } from "date-fns/locale";
 import {
   ArrowLeft,
   FileSpreadsheet,
-  FileText,
   Loader2,
   TrendingDown,
   TrendingUp,
@@ -61,11 +60,11 @@ export function SavingsReportView() {
     }
   };
 
-  const handleDownload = async (fmt: "pdf" | "xlsx") => {
+  const handleDownload = async () => {
     const p = buildPayload();
     if (!p) return;
     try {
-      const { filename } = await downloadMutation.mutateAsync({ payload: p, format: fmt });
+      const { filename } = await downloadMutation.mutateAsync({ payload: p, format: "xlsx" });
       toast.success(`${filename} indiriliyor`);
     } catch (err) {
       toast.error(extractErrorMessage(err, "İndirme başarısız"));
@@ -161,20 +160,11 @@ export function SavingsReportView() {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => handleDownload("pdf")}
-              disabled={!canSubmit || downloadMutation.isPending}
-            >
-              <FileText className="w-4 h-4" />
-              PDF
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => handleDownload("xlsx")}
+              onClick={() => handleDownload()}
               disabled={!canSubmit || downloadMutation.isPending}
             >
               <FileSpreadsheet className="w-4 h-4" />
-              Excel
+              Excel İndir
             </Button>
           </div>
         </div>

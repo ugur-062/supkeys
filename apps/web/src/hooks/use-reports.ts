@@ -73,7 +73,7 @@ export function useDownloadGeneralReport() {
   return useMutation({
     mutationFn: async (input: {
       payload: GeneralPayload;
-      format: "pdf" | "xlsx";
+      format: "xlsx";
     }) => {
       const { data, headers } = await api.post(
         `/tenants/me/reports/general?format=${input.format}`,
@@ -107,7 +107,7 @@ export function useDownloadSavingsReport() {
   return useMutation({
     mutationFn: async (input: {
       payload: SavingsPayload;
-      format: "pdf" | "xlsx";
+      format: "xlsx";
     }) => {
       const { data, headers } = await api.post(
         `/tenants/me/reports/savings?format=${input.format}`,
@@ -141,7 +141,7 @@ export function useDownloadBidComparisonReport() {
   return useMutation({
     mutationFn: async (input: {
       payload: BidComparisonPayload;
-      format: "pdf" | "xlsx";
+      format: "xlsx";
     }) => {
       const { data, headers } = await api.post(
         `/tenants/me/reports/bid-comparison?format=${input.format}`,

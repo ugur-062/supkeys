@@ -20,7 +20,6 @@ import {
   ChevronDown,
   Download,
   FileSpreadsheet,
-  FileText,
   Loader2,
 } from "lucide-react";
 import Link from "next/link";
@@ -72,11 +71,11 @@ export function BidComparisonView() {
     }
   };
 
-  const handleDownload = async (format: "pdf" | "xlsx") => {
+  const handleDownload = async () => {
     const payload = buildPayload();
     if (!payload) return;
     try {
-      const { filename } = await downloadMutation.mutateAsync({ payload, format });
+      const { filename } = await downloadMutation.mutateAsync({ payload, format: "xlsx" });
       toast.success(`${filename} indiriliyor`);
     } catch (err) {
       toast.error(extractErrorMessage(err, "İndirme başarısız"));
@@ -203,20 +202,11 @@ export function BidComparisonView() {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => handleDownload("pdf")}
-              disabled={!canSubmit || downloadMutation.isPending}
-            >
-              <FileText className="w-4 h-4" />
-              PDF
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => handleDownload("xlsx")}
+              onClick={() => handleDownload()}
               disabled={!canSubmit || downloadMutation.isPending}
             >
               <FileSpreadsheet className="w-4 h-4" />
-              Excel
+              Excel İndir
             </Button>
           </div>
         </div>

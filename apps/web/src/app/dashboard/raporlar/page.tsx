@@ -38,7 +38,7 @@ export default function RaporlarPage() {
           </h1>
           <p className="text-sm text-slate-600 mt-1">
             Bir rapor tipi seçin, kriterleri doldurun ve sonucu web'de
-            görüntüleyin ya da Excel/PDF olarak indirin.
+            görüntüleyin ya da Excel olarak indirin.
           </p>
         </header>
 

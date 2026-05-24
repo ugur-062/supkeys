@@ -21,14 +21,9 @@ import { GeneralReportDto } from "../dto/general-report.dto";
 import { SavingsReportDto } from "../dto/savings-report.dto";
 import { ReportsExcelService } from "../services/reports-excel.service";
 import { TenantReportsService } from "../services/tenant-reports.service";
-import { PdfService } from "../../pdf/pdf.service";
-import {
-  generateBidComparisonReportHtml,
-  generateGeneralReportHtml,
-  generateSavingsReportHtml,
-} from "../templates/reports-pdf.template";
 
-type ExportFormat = "json" | "pdf" | "xlsx";
+// Not: PDF export kaldırıldı (Excel yeterli + Puppeteer/Chromium bağımlılığı).
+type ExportFormat = "json" | "xlsx";
 
 @Controller("tenants/me/reports")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -36,7 +31,6 @@ export class TenantReportsController {
   constructor(
     private readonly service: TenantReportsService,
     private readonly excel: ReportsExcelService,
-    private readonly pdf: PdfService,
   ) {}
 
   // ---------------- GENEL İHALE RAPORU ----------------
@@ -50,10 +44,9 @@ export class TenantReportsController {
     @Res({ passthrough: true }) res?: Response,
   ): Promise<unknown> {
     const data = await this.service.general(user.tenantId, dto);
-    return this.respond(res, format, data, "genel-ihale-raporu", {
-      pdf: () => this.pdf.generatePdfFromHtml(generateGeneralReportHtml(data)),
-      xlsx: () => this.excel.general(data),
-    });
+    return this.respond(res, format, data, "genel-ihale-raporu", () =>
+      this.excel.general(data),
+    );
   }
 
   // ---------------- TASARRUF RAPORU ----------------
@@ -67,10 +60,9 @@ export class TenantReportsController {
     @Res({ passthrough: true }) res?: Response,
   ): Promise<unknown> {
     const data = await this.service.savings(user.tenantId, dto);
-    return this.respond(res, format, data, "tasarruf-raporu", {
-      pdf: () => this.pdf.generatePdfFromHtml(generateSavingsReportHtml(data)),
-      xlsx: () => this.excel.savings(data),
-    });
+    return this.respond(res, format, data, "tasarruf-raporu", () =>
+      this.excel.savings(data),
+    );
   }
 
   // ---------------- TEKLİF KARŞILAŞTIRMA ----------------
@@ -84,13 +76,9 @@ export class TenantReportsController {
     @Res({ passthrough: true }) res?: Response,
   ): Promise<unknown> {
     const data = await this.service.bidComparison(user.tenantId, dto);
-    return this.respond(res, format, data, "teklif-karsilastirma-raporu", {
-      pdf: () =>
-        this.pdf.generatePdfFromHtml(generateBidComparisonReportHtml(data), {
-          landscape: true,
-        }),
-      xlsx: () => this.excel.bidComparison(data),
-    });
+    return this.respond(res, format, data, "teklif-karsilastirma-raporu", () =>
+      this.excel.bidComparison(data),
+    );
   }
 
   // ---------------- yardımcı ----------------
@@ -100,27 +88,17 @@ export class TenantReportsController {
     format: ExportFormat,
     data: unknown,
     baseFileName: string,
-    binaryGenerators: {
-      pdf: () => Promise<Buffer>;
-      xlsx: () => Promise<Buffer>;
-    },
+    generateXlsx: () => Promise<Buffer>,
   ): Promise<unknown> {
-    if (format === "json") return data;
-    if (format !== "pdf" && format !== "xlsx") return data;
+    // Sadece xlsx export; geri kalan her şey JSON döner.
+    if (format !== "xlsx") return data;
     if (!res)
-      throw new Error("Response object yok — format export için gerekli");
+      throw new Error("Response object yok — Excel export için gerekli");
 
-    // Bu rotalar reports:view kontrolü yapıyor; export için ek olarak
-    // reports:export gerekli — yetki yoksa silent fall-back yerine net 403.
-    const buffer =
-      format === "pdf"
-        ? await binaryGenerators.pdf()
-        : await binaryGenerators.xlsx();
-    const ext = format === "pdf" ? "pdf" : "xlsx";
+    const buffer = await generateXlsx();
+    const ext = "xlsx";
     const mime =
-      format === "pdf"
-        ? "application/pdf"
-        : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     const ts = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, "");
     const filename = `${baseFileName}_${ts}.${ext}`;
 
