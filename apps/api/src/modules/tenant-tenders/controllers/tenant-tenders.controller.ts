@@ -31,6 +31,7 @@ import { CreateTenderDto } from "../dto/create-tender.dto";
 import { EliminateBidDto } from "../dto/eliminate-bid.dto";
 import { ListTendersDto } from "../dto/list-tenders.dto";
 import { UpdateTenderDto } from "../dto/update-tender.dto";
+import { UpdateTenderNotesDto } from "../dto/update-tender-notes.dto";
 import { TenantTendersService } from "../services/tenant-tenders.service";
 
 @Controller("tenants/me/tenders")
@@ -303,6 +304,39 @@ export class TenantTendersController {
       user.id,
       user.role,
       dto,
+    );
+  }
+
+  /**
+   * V2-7+ — Tur zinciri (round history). previousTenderId zincirini gezip
+   * tüm önceki turları + sonraki turları döner. Sadece tenantId kapsamında.
+   */
+  @Get(":id/round-history")
+  @RequirePermissions("tender:view")
+  getRoundHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ): Promise<unknown> {
+    return this.service.getRoundHistory(user.tenantId, id);
+  }
+
+  /**
+   * V2-7+ — "Not Al" — alıcının dahili notunu günceller. Statüden bağımsız,
+   * tedarikçilere yansımaz. Boş string → notu temizle.
+   */
+  @Patch(":id/notes")
+  @RequirePermissions("tender:edit")
+  updateNotes(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: UpdateTenderNotesDto,
+  ): Promise<unknown> {
+    return this.service.updateNotes(
+      user.tenantId,
+      id,
+      user.id,
+      user.role,
+      dto.internalNotes ?? null,
     );
   }
 }

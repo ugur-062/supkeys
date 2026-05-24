@@ -27,8 +27,12 @@ import {
   Ban,
   ChevronDown,
   Clock,
+  Copy,
   ExternalLink,
+  FileText,
+  History,
   MoreHorizontal,
+  NotebookPen,
   Pencil,
   RefreshCw,
   Send,
@@ -53,6 +57,8 @@ import { ChangeClosingTimeDialog } from "./change-closing-time-dialog";
 import { CloseBiddingEarlyDialog } from "./close-bidding-early-dialog";
 import { CloseNoAwardDialog } from "./close-no-award-dialog";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
+import { InternalNotesDialog } from "./internal-notes-dialog";
+import { RoundHistoryDialog } from "./round-history-dialog";
 
 const MORE_TRIGGER_CLASSES = cn(
   "inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium",
@@ -100,6 +106,8 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
   const [closeNoAwardOpen, setCloseNoAwardOpen] = useState(false);
   const [closeBiddingOpen, setCloseBiddingOpen] = useState(false);
   const [changeTimeOpen, setChangeTimeOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [roundHistoryOpen, setRoundHistoryOpen] = useState(false);
 
   const publishMutation = usePublishTender();
   const deleteMutation = useDeleteTender();
@@ -256,49 +264,18 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                       invitations={tender.invitations}
                     />
                   ) : null}
-                  {canAward || canCancel ? (
-                    <DropdownMenu.Root>
-                      <DropdownMenu.Trigger
-                        className={MORE_TRIGGER_CLASSES}
-                        disabled={isBusy}
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                        Diğer İşlemler
-                        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                      </DropdownMenu.Trigger>
-                      <DropdownMenu.Portal>
-                        <DropdownMenu.Content
-                          align="end"
-                          sideOffset={6}
-                          className="w-64 bg-white rounded-xl border border-surface-border shadow-lg p-1.5 z-50"
-                        >
-                          {canAward ? (
-                            <DropdownMenu.Item
-                              className={MORE_ITEM_WARNING}
-                              onSelect={() => setCloseBiddingOpen(true)}
-                            >
-                              <Timer className="w-4 h-4" />
-                              Erken Kapat & Kazandırmaya Geç
-                            </DropdownMenu.Item>
-                          ) : null}
-                          {canCancel ? (
-                            <>
-                              {canAward ? (
-                                <DropdownMenu.Separator className="h-px bg-surface-border my-1" />
-                              ) : null}
-                              <DropdownMenu.Item
-                                className={MORE_ITEM_DANGER}
-                                onSelect={() => setCancelOpen(true)}
-                              >
-                                <Ban className="w-4 h-4" />
-                                İhaleyi İptal Et
-                              </DropdownMenu.Item>
-                            </>
-                          ) : null}
-                        </DropdownMenu.Content>
-                      </DropdownMenu.Portal>
-                    </DropdownMenu.Root>
-                  ) : null}
+                  <MoreActionsMenu
+                    tender={tender}
+                    canEdit={canEdit}
+                    canCancel={canCancel}
+                    canAward={canAward}
+                    disabled={isBusy}
+                    onRoundHistoryClick={() => setRoundHistoryOpen(true)}
+                    onNotesClick={() => setNotesOpen(true)}
+                    onCloseBiddingClick={() => setCloseBiddingOpen(true)}
+                    onCancelClick={() => setCancelOpen(true)}
+                    onCloseNoAwardClick={() => setCloseNoAwardOpen(true)}
+                  />
                 </div>
               </div>
             ) : tender.status === "IN_AWARD" ? (
@@ -342,36 +319,18 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                         Kazananı Belirle
                       </Button>
                     ) : null}
-                    {canCancel ? (
-                      <DropdownMenu.Root>
-                        <DropdownMenu.Trigger
-                          className={MORE_TRIGGER_CLASSES}
-                          disabled={isBusy}
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                          Diğer İşlemler
-                          <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                        </DropdownMenu.Trigger>
-                        <DropdownMenu.Portal>
-                          <DropdownMenu.Content
-                            align="end"
-                            sideOffset={6}
-                            className="w-64 bg-white rounded-xl border border-surface-border shadow-lg p-1.5 z-50"
-                          >
-                            <DropdownMenu.Item
-                              className={cn(
-                                MORE_ITEM_CLASSES,
-                                "!text-warning-700 data-[highlighted]:!bg-warning-50",
-                              )}
-                              onSelect={() => setCloseNoAwardOpen(true)}
-                            >
-                              <Ban className="w-4 h-4" />
-                              Kazanan Yok Kapat
-                            </DropdownMenu.Item>
-                          </DropdownMenu.Content>
-                        </DropdownMenu.Portal>
-                      </DropdownMenu.Root>
-                    ) : null}
+                    <MoreActionsMenu
+                      tender={tender}
+                      canEdit={canEdit}
+                      canCancel={canCancel}
+                      canAward={canAward}
+                      disabled={isBusy}
+                      onRoundHistoryClick={() => setRoundHistoryOpen(true)}
+                      onNotesClick={() => setNotesOpen(true)}
+                      onCloseBiddingClick={() => setCloseBiddingOpen(true)}
+                      onCancelClick={() => setCancelOpen(true)}
+                      onCloseNoAwardClick={() => setCloseNoAwardOpen(true)}
+                    />
                   </div>
                 ) : (
                   <p className="text-[11px] text-slate-500">
@@ -547,7 +506,142 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
         tenderId={tender.id}
         currentCloseAt={tender.bidsCloseAt}
       />
+
+      <InternalNotesDialog
+        open={notesOpen}
+        onClose={() => setNotesOpen(false)}
+        tenderId={tender.id}
+        initialNotes={tender.internalNotes ?? null}
+      />
+
+      <RoundHistoryDialog
+        open={roundHistoryOpen}
+        onClose={() => setRoundHistoryOpen(false)}
+        tenderId={tender.id}
+      />
     </>
+  );
+}
+
+interface MoreActionsMenuProps {
+  tender: TenderDetail;
+  canEdit: boolean;
+  canCancel: boolean;
+  canAward: boolean;
+  disabled: boolean;
+  onRoundHistoryClick: () => void;
+  onNotesClick: () => void;
+  onCloseBiddingClick: () => void;
+  onCancelClick: () => void;
+  onCloseNoAwardClick: () => void;
+}
+
+function MoreActionsMenu({
+  tender,
+  canEdit,
+  canCancel,
+  canAward,
+  disabled,
+  onRoundHistoryClick,
+  onNotesClick,
+  onCloseBiddingClick,
+  onCancelClick,
+  onCloseNoAwardClick,
+}: MoreActionsMenuProps) {
+  const isOpen = tender.status === "OPEN_FOR_BIDS";
+  const isAward = tender.status === "IN_AWARD";
+  const isTerminal =
+    tender.status === "CANCELLED" ||
+    tender.status === "AWARDED" ||
+    tender.status === "CLOSED_NO_AWARD";
+
+  // Statüye göre değişen aksiyonlardan hiçbiri mevcut değilse +
+  // ortak item'lar da yetkilerle gizleniyorsa menüyü hiç gösterme.
+  const hasStatusSpecific =
+    (isOpen && (canAward || canCancel)) || (isAward && canCancel);
+  // Ortak item'lardan en az "İhale Detayını Gör" + "Teklif Tarihçesi" +
+  // "İhaleyi Kopyala" zaten her zaman var — menüyü gizleme.
+
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger className={MORE_TRIGGER_CLASSES} disabled={disabled}>
+        <MoreHorizontal className="w-4 h-4" />
+        Diğer İşlemler
+        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="end"
+          sideOffset={6}
+          className="w-64 bg-white rounded-xl border border-surface-border shadow-lg p-1.5 z-50"
+        >
+          {/* Ortak: Tüm statülerde */}
+          <DropdownMenu.Item asChild className={MORE_ITEM_CLASSES}>
+            <Link href={`/dashboard/ihaleler/${tender.id}?view=detail`}>
+              <FileText className="w-4 h-4" />
+              İhale Detayını Gör
+            </Link>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item
+            className={MORE_ITEM_CLASSES}
+            onSelect={onRoundHistoryClick}
+          >
+            <History className="w-4 h-4" />
+            Teklif Tarihçesi
+          </DropdownMenu.Item>
+          <DropdownMenu.Item asChild className={MORE_ITEM_CLASSES}>
+            <Link href={`/dashboard/ihaleler/yeni?from=${tender.id}`}>
+              <Copy className="w-4 h-4" />
+              İhaleyi Kopyala
+            </Link>
+          </DropdownMenu.Item>
+          {canEdit && !isTerminal ? (
+            <DropdownMenu.Item
+              className={MORE_ITEM_CLASSES}
+              onSelect={onNotesClick}
+            >
+              <NotebookPen className="w-4 h-4" />
+              Not Al
+            </DropdownMenu.Item>
+          ) : null}
+
+          {/* Statüye özel aksiyonlar */}
+          {hasStatusSpecific ? (
+            <DropdownMenu.Separator className="h-px bg-surface-border my-1" />
+          ) : null}
+          {isOpen && canAward ? (
+            <DropdownMenu.Item
+              className={MORE_ITEM_WARNING}
+              onSelect={onCloseBiddingClick}
+            >
+              <Timer className="w-4 h-4" />
+              Erken Kapat & Kazandırmaya Geç
+            </DropdownMenu.Item>
+          ) : null}
+          {isAward && canCancel ? (
+            <DropdownMenu.Item
+              className={cn(
+                MORE_ITEM_CLASSES,
+                "!text-warning-700 data-[highlighted]:!bg-warning-50",
+              )}
+              onSelect={onCloseNoAwardClick}
+            >
+              <Ban className="w-4 h-4" />
+              Kazanan Yok Kapat
+            </DropdownMenu.Item>
+          ) : null}
+          {isOpen && canCancel ? (
+            <DropdownMenu.Item
+              className={MORE_ITEM_DANGER}
+              onSelect={onCancelClick}
+            >
+              <Ban className="w-4 h-4" />
+              İhaleyi İptal Et
+            </DropdownMenu.Item>
+          ) : null}
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 

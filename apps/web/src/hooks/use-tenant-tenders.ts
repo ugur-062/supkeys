@@ -505,4 +505,54 @@ export function useChangeClosingTime(tenderId: string) {
   });
 }
 
+/**
+ * V2-7+ — "Not Al" — alıcı dahili notu günceller.
+ */
+export function useUpdateTenderNotes(tenderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (internalNotes: string) => {
+      const { data } = await api.patch<{ internalNotes: string | null }>(
+        `/tenants/me/tenders/${tenderId}/notes`,
+        { internalNotes },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(tenderId) });
+    },
+  });
+}
+
+export interface RoundHistoryItem {
+  id: string;
+  tenderNumber: string;
+  title: string;
+  status: string;
+  type: "RFQ" | "ENGLISH_AUCTION";
+  roundNumber: number;
+  bidsOpenAt: string | null;
+  bidsCloseAt: string;
+  publishedAt: string | null;
+  previousTenderId: string | null;
+  createdAt: string;
+}
+
+/**
+ * V2-7+ — Tur zinciri (tüm previousTenderId → nextRounds yolu).
+ */
+export function useRoundHistory(tenderId: string | null) {
+  return useQuery({
+    queryKey: ["round-history", tenderId],
+    enabled: !!tenderId,
+    queryFn: async () => {
+      const { data } = await api.get<{
+        currentId: string;
+        rounds: RoundHistoryItem[];
+      }>(`/tenants/me/tenders/${tenderId}/round-history`);
+      return data;
+    },
+  });
+}
+
 export const tenantTendersQueryKeys = KEYS;

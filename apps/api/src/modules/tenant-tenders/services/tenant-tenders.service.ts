@@ -2890,4 +2890,106 @@ export class TenantTendersService {
       return { tenderStatus: "CLOSED_NO_AWARD" as const };
     });
   }
+
+  /**
+   * V2-7+ — Tur zinciri (round history). Verilen tender'ın previousTenderId
+   * zincirini geçmişe doğru gez, sonra nextRounds ile geleceğe doğru gez.
+   * Sadece tenantId kapsamında. Sıralama: en eski tur → en yeni tur.
+   */
+  async getRoundHistory(tenantId: string, tenderId: string) {
+    const SELECT = {
+      id: true,
+      tenderNumber: true,
+      title: true,
+      status: true,
+      type: true,
+      roundNumber: true,
+      bidsOpenAt: true,
+      bidsCloseAt: true,
+      publishedAt: true,
+      previousTenderId: true,
+      createdAt: true,
+    } as const;
+
+    const seed = await this.prisma.tender.findFirst({
+      where: { id: tenderId, tenantId },
+      select: SELECT,
+    });
+    if (!seed) throw new NotFoundException("İhale bulunamadı");
+
+    // Geçmiş — previousTenderId zincirini geri çök
+    const past: typeof seed[] = [];
+    let cursorId: string | null = seed.previousTenderId;
+    const guard = new Set<string>([seed.id]);
+    while (cursorId && !guard.has(cursorId)) {
+      const prev = await this.prisma.tender.findFirst({
+        where: { id: cursorId, tenantId },
+        select: SELECT,
+      });
+      if (!prev) break;
+      guard.add(prev.id);
+      past.unshift(prev);
+      cursorId = prev.previousTenderId;
+    }
+
+    // Gelecek — nextRounds (previousTenderId === current) zincirini ileri yürüt
+    const future: typeof seed[] = [];
+    let lastId: string = seed.id;
+    while (true) {
+      const next = await this.prisma.tender.findFirst({
+        where: { previousTenderId: lastId, tenantId },
+        select: SELECT,
+      });
+      if (!next || guard.has(next.id)) break;
+      guard.add(next.id);
+      future.push(next);
+      lastId = next.id;
+    }
+
+    return {
+      currentId: seed.id,
+      rounds: [...past, seed, ...future],
+    };
+  }
+
+  /**
+   * V2-7+ — Alıcının dahili notunu günceller (internalNotes).
+   * Statüden bağımsız çalışır; tedarikçilere yansımaz. Boş/null → temizle.
+   */
+  async updateNotes(
+    tenantId: string,
+    tenderId: string,
+    userId: string,
+    userRole: string,
+    internalNotes: string | null,
+  ) {
+    const tender = await this.prisma.tender.findUnique({
+      where: { id: tenderId },
+      select: {
+        id: true,
+        tenantId: true,
+        createdById: true,
+        status: true,
+      },
+    });
+    if (!tender) throw new NotFoundException("İhale bulunamadı");
+    if (tender.tenantId !== tenantId)
+      throw new ForbiddenException("Bu ihaleye erişim yetkiniz yok");
+    assertCanActOnTender(tender, { id: userId, role: userRole });
+
+    // İhale tamamen kapanmışsa not güncellenmesin (audit izi netliği)
+    const terminal = new Set(["CANCELLED", "AWARDED", "CLOSED_NO_AWARD"]);
+    if (terminal.has(tender.status)) {
+      throw new ConflictException(
+        "Sonuçlanmış ihalede not güncellenemez",
+      );
+    }
+
+    const trimmed = internalNotes?.trim() || null;
+    await this.prisma.tender.update({
+      where: { id: tenderId },
+      data: { internalNotes: trimmed },
+    });
+    return { internalNotes: trimmed };
+  }
 }

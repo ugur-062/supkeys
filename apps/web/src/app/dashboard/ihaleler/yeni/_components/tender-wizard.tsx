@@ -32,8 +32,12 @@ type WizardStep = 1 | 2 | 3 | 4;
 
 interface Props {
   mode: "create" | "edit";
-  /** edit mode'da var: backend'den gelen mevcut DRAFT'ı form'a yükler */
-  initialData?: TenderFormData & { id: string };
+  /**
+   * edit mode'da: backend'den gelen mevcut DRAFT'ı form'a yükler (id zorunlu).
+   * create mode'da: "İhaleyi Kopyala" akışında kaynak tender'dan kopyalanmış
+   * form değerleri (id verilmez, çünkü yeni tender oluşturulur).
+   */
+  initialData?: TenderFormData & { id?: string };
 }
 
 export function TenderWizard({ mode, initialData }: Props) {

@@ -44,16 +44,22 @@ export function TenderDetailView({ id }: { id: string }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Default landing = sadece Teklifler. "Diğer İşlemler → İhale Detayını Gör"
+  // tıklanınca ?view=detail gelir ve tab bar açılır.
+  const isDetailView = searchParams.get("view") === "detail";
+
   const activeTab = useMemo<TabKey>(() => {
     const raw = searchParams.get("tab");
-    return isValidTab(raw) ? raw : "general";
-  }, [searchParams]);
+    if (isValidTab(raw)) return raw;
+    return isDetailView ? "general" : "bids";
+  }, [searchParams, isDetailView]);
 
   const handleTabChange = useCallback(
     (next: string) => {
       if (!isValidTab(next)) return;
       const params = new URLSearchParams(searchParams.toString());
-      if (next === "general") {
+      // Detail view içinde general default — ?tab=general'a gerek yok
+      if (isDetailView && next === "general") {
         params.delete("tab");
       } else {
         params.set("tab", next);
@@ -61,7 +67,7 @@ export function TenderDetailView({ id }: { id: string }) {
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [pathname, router, searchParams],
+    [isDetailView, pathname, router, searchParams],
   );
 
   // İlk yükleme (cache'te veri yok ve fetch ilerliyor)
@@ -116,66 +122,80 @@ export function TenderDetailView({ id }: { id: string }) {
 
       <TenderHeaderCard tender={tender} />
 
-      <TabsPrimitive.Root
-        value={activeTab}
-        onValueChange={handleTabChange}
-        className="space-y-4"
-      >
-        <div className="border-b border-surface-border flex items-center gap-2">
-          <TabsPrimitive.List
-            className="flex gap-1 overflow-x-auto flex-1"
-            aria-label="İhale detay sekmeleri"
-          >
-            <TabsPrimitive.Trigger value="general" className={TRIGGER_CLASSES}>
-              Genel Bilgi
-            </TabsPrimitive.Trigger>
-            <TabsPrimitive.Trigger value="items" className={TRIGGER_CLASSES}>
-              Kalemler
-              <TabBadge count={tender.items.length} />
-            </TabsPrimitive.Trigger>
-            <TabsPrimitive.Trigger
-              value="invitations"
-              className={TRIGGER_CLASSES}
+      {isDetailView ? (
+        <TabsPrimitive.Root
+          value={activeTab}
+          onValueChange={handleTabChange}
+          className="space-y-4"
+        >
+          <div className="border-b border-surface-border flex items-center gap-2">
+            <TabsPrimitive.List
+              className="flex gap-1 overflow-x-auto flex-1"
+              aria-label="İhale detay sekmeleri"
             >
-              Davetli Tedarikçiler
-              <TabBadge count={tender.invitations.length} />
-            </TabsPrimitive.Trigger>
-            <TabsPrimitive.Trigger value="bids" className={TRIGGER_CLASSES}>
-              Teklifler
-              <TabBadge count={tender.bidStats.total} />
-            </TabsPrimitive.Trigger>
-            <TabsPrimitive.Trigger value="files" className={TRIGGER_CLASSES}>
-              Dosyalar
-            </TabsPrimitive.Trigger>
-          </TabsPrimitive.List>
-          <div className="pb-1.5 pr-1">
+              <TabsPrimitive.Trigger value="general" className={TRIGGER_CLASSES}>
+                Genel Bilgi
+              </TabsPrimitive.Trigger>
+              <TabsPrimitive.Trigger value="items" className={TRIGGER_CLASSES}>
+                Kalemler
+                <TabBadge count={tender.items.length} />
+              </TabsPrimitive.Trigger>
+              <TabsPrimitive.Trigger
+                value="invitations"
+                className={TRIGGER_CLASSES}
+              >
+                Davetli Tedarikçiler
+                <TabBadge count={tender.invitations.length} />
+              </TabsPrimitive.Trigger>
+              <TabsPrimitive.Trigger value="bids" className={TRIGGER_CLASSES}>
+                Teklifler
+                <TabBadge count={tender.bidStats.total} />
+              </TabsPrimitive.Trigger>
+              <TabsPrimitive.Trigger value="files" className={TRIGGER_CLASSES}>
+                Dosyalar
+              </TabsPrimitive.Trigger>
+            </TabsPrimitive.List>
+            <div className="pb-1.5 pr-1">
+              <TenderMessagesButton
+                tenderId={tender.id}
+                tenderNumber={tender.tenderNumber}
+              />
+            </div>
+          </div>
+
+          <TabsPrimitive.Content value="general" className="outline-none">
+            <GeneralInfoTab tender={tender} />
+          </TabsPrimitive.Content>
+          <TabsPrimitive.Content value="items" className="outline-none">
+            <ItemsTab
+              items={tender.items}
+              currency={tender.primaryCurrency}
+              showTargetPrice
+            />
+          </TabsPrimitive.Content>
+          <TabsPrimitive.Content value="invitations" className="outline-none">
+            <InvitationsTab invitations={tender.invitations} />
+          </TabsPrimitive.Content>
+          <TabsPrimitive.Content value="bids" className="outline-none">
+            <BidsTab tender={tender} />
+          </TabsPrimitive.Content>
+          <TabsPrimitive.Content value="files" className="outline-none">
+            <FilesTab tender={tender} />
+          </TabsPrimitive.Content>
+        </TabsPrimitive.Root>
+      ) : (
+        // Default view — sadece Teklifler tablosu, tab bar gizli.
+        // "Diğer İşlemler → İhale Detayını Gör" tab bar'ı açar.
+        <div className="space-y-4">
+          <div className="flex items-center justify-end">
             <TenderMessagesButton
               tenderId={tender.id}
               tenderNumber={tender.tenderNumber}
             />
           </div>
-        </div>
-
-        <TabsPrimitive.Content value="general" className="outline-none">
-          <GeneralInfoTab tender={tender} />
-        </TabsPrimitive.Content>
-        <TabsPrimitive.Content value="items" className="outline-none">
-          <ItemsTab
-            items={tender.items}
-            currency={tender.primaryCurrency}
-            showTargetPrice
-          />
-        </TabsPrimitive.Content>
-        <TabsPrimitive.Content value="invitations" className="outline-none">
-          <InvitationsTab invitations={tender.invitations} />
-        </TabsPrimitive.Content>
-        <TabsPrimitive.Content value="bids" className="outline-none">
           <BidsTab tender={tender} />
-        </TabsPrimitive.Content>
-        <TabsPrimitive.Content value="files" className="outline-none">
-          <FilesTab tender={tender} />
-        </TabsPrimitive.Content>
-      </TabsPrimitive.Root>
+        </div>
+      )}
     </div>
   );
 }
