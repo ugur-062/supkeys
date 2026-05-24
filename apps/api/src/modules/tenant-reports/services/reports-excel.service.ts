@@ -22,6 +22,26 @@ type BidComparisonResult = Awaited<
 const BRAND = "1E3A8A"; // brand-900
 const BRAND_LIGHT = "DBEAFE"; // brand-100
 
+// Ham TenderStatus enum'unu Excel çıktısında Türkçe göster (frontend ile aynı
+// etiketler). DB/iş mantığı değişmez — yalnızca üretilen dosyadaki görünüm.
+const TENDER_STATUS_TR: Record<string, string> = {
+  DRAFT: "Taslak",
+  IN_APPROVAL: "Onay Bekliyor",
+  OPEN_FOR_BIDS: "Yayında",
+  IN_AWARD: "Kazandırma Aşamasında",
+  IN_AWARD_APPROVAL: "Kazandırma Onay Bekliyor",
+  AWARDED: "Tamamlandı",
+  CANCELLED: "İptal",
+  CLOSED_NO_AWARD: "Kapatıldı",
+};
+const tenderStatusTr = (s: string): string => TENDER_STATUS_TR[s] ?? s;
+
+const TENDER_TYPE_TR: Record<string, string> = {
+  RFQ: "RFQ",
+  ENGLISH_AUCTION: "İngiliz Usulü",
+};
+const tenderTypeTr = (s: string): string => TENDER_TYPE_TR[s] ?? s;
+
 @Injectable()
 export class ReportsExcelService {
   async general(data: GeneralResult): Promise<Buffer> {
@@ -77,8 +97,8 @@ export class ReportsExcelService {
       ws.addRow([
         t.tenderNumber,
         t.title,
-        t.type,
-        t.status,
+        tenderTypeTr(t.type),
+        tenderStatusTr(t.status),
         t.currency,
         `Tur #${t.roundNumber}`,
         format(new Date(t.bidsCloseAt), "dd.MM.yyyy HH:mm", { locale: tr }),
@@ -120,7 +140,7 @@ export class ReportsExcelService {
       color: { argb: BRAND },
     };
     Object.entries(s.statusBreakdown).forEach(([st, count]) => {
-      ws.addRow([st, count]);
+      ws.addRow([tenderStatusTr(st), count]);
     });
 
     this.autoFitColumns(ws);
