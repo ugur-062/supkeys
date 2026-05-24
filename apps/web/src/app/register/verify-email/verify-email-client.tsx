@@ -121,7 +121,7 @@ export function VerifyEmailClient({ token, type }: VerifyEmailClientProps) {
           </div>
           <div className="space-y-2">
             <h1 className="font-display font-bold text-2xl text-brand-900">
-              E-posta doğrulandı 🎉
+              E-posta doğrulandı
             </h1>
             <p className="text-slate-600">
               Başvurunuz incelemeye alındı, en kısa sürede dönüş yapacağız.

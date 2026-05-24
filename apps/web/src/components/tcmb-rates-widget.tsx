@@ -60,9 +60,6 @@ export function TcmbRatesWidget() {
 
         <div className="flex items-center gap-2 flex-shrink-0">
           <div className="flex items-center gap-1.5 bg-white/70 rounded-lg px-2.5 py-1.5">
-            <span className="text-base" aria-hidden>
-              🇺🇸
-            </span>
             <div className="leading-tight">
               <p className="text-[10px] text-success-700 font-medium">USD</p>
               <p className="text-sm font-bold text-success-900 font-mono tabular-nums">
@@ -72,9 +69,6 @@ export function TcmbRatesWidget() {
           </div>
 
           <div className="flex items-center gap-1.5 bg-white/70 rounded-lg px-2.5 py-1.5">
-            <span className="text-base" aria-hidden>
-              🇪🇺
-            </span>
             <div className="leading-tight">
               <p className="text-[10px] text-success-700 font-medium">EUR</p>
               <p className="text-sm font-bold text-success-900 font-mono tabular-nums">

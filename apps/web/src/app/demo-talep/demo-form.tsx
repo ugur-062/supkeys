@@ -89,7 +89,7 @@ export function DemoForm() {
         </div>
         <div className="space-y-2">
           <h2 className="text-2xl font-display font-bold text-brand-900">
-            Talebiniz alındı 🎉
+            Talebiniz alındı
           </h2>
           <p className="text-slate-600">
             En kısa sürede ekibimizden biri sizinle iletişime geçecek.

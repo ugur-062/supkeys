@@ -555,7 +555,7 @@ export function Step3Suppliers() {
             <div className="flex items-start gap-2 p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-600">
               <Info className="w-4 h-4 text-slate-500 mt-0.5 flex-shrink-0" />
               <p>
-                Yayınladığınızda seçili tedarikçilere &ldquo;🎯 Yeni İhale
+                Yayınladığınızda seçili tedarikçilere &ldquo;Yeni İhale
                 Daveti&rdquo; e-postası gönderilecek. Yayın sonrası davetli
                 liste değiştirilemez (V1).
               </p>

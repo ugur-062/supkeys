@@ -14,7 +14,7 @@ interface Props {
 }
 
 /**
- * V2-4 — Header sağ üst 💬 ikonu + dropdown.
+ * V2-4 — Header sağ üst mesaj ikonu + dropdown.
  * Son 5 thread + "Tüm Mesajları Görüntüle" link'i.
  * Click outside → kapan. Thread tıklandığında bağlam sayfasına git.
  */

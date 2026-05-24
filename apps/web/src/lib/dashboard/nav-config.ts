@@ -8,7 +8,6 @@ import {
   Package,
   Plus,
   Settings,
-  User,
   Users,
 } from "lucide-react";
 
@@ -113,17 +112,6 @@ export const navConfig: NavGroup[] = [
 ];
 
 /**
- * Sidebar footer'da kullanıcı kartı üzerinde gösterilen tek-öğe profil linki.
- * Gruplardan ayrı tutulur — semantik olarak "kişisel" bölge.
- */
-export const profileNavItem: NavItem = {
-  type: "link",
-  icon: User,
-  label: "Profil",
-  href: "/dashboard/profil",
-};
-
-/**
  * Pathname → breadcrumb labelları. Tek ya da iki seviye.
  */
 export function getBreadcrumbs(pathname: string): string[] {
@@ -139,7 +127,6 @@ export function getBreadcrumbs(pathname: string): string[] {
     "/dashboard/raporlar": "Raporlar",
     "/dashboard/sablonlar": "Şablonlar",
     "/dashboard/ayarlar": "Ayarlar",
-    "/dashboard/profil": "Profilim",
   };
 
   // Exact match önce

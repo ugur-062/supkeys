@@ -1,5 +1,5 @@
 import { PermissionGuard } from "@/components/auth/permission-guard";
-import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/list";
 import { ArrowRight, FileText, GitCompare, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
@@ -32,15 +32,10 @@ export default function RaporlarPage() {
   return (
     <PermissionGuard permission="reports:view">
       <div className="max-w-4xl mx-auto space-y-6">
-        <header>
-          <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900">
-            Raporlar
-          </h1>
-          <p className="text-sm text-slate-600 mt-1">
-            Bir rapor tipi seçin, kriterleri doldurun ve sonucu web'de
-            görüntüleyin ya da Excel olarak indirin.
-          </p>
-        </header>
+        <PageHeader
+          title="Raporlar"
+          description="Bir rapor tipi seçin, kriterleri doldurun ve sonucu web'de görüntüleyin ya da Excel olarak indirin."
+        />
 
         <ul className="space-y-3">
           {REPORTS.map((r) => (

@@ -1,5 +1,6 @@
 "use client";
 
+import { ListSkeleton } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useDeleteUser, useUpdateUser } from "@/hooks/use-tenant-users";
@@ -40,9 +41,8 @@ export function UsersTable({ users, loading }: Props) {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-12 flex items-center justify-center text-slate-500">
-        <Loader2 className="h-5 w-5 animate-spin mr-2" />
-        Kullanıcılar yükleniyor…
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+        <ListSkeleton rows={4} />
       </div>
     );
   }

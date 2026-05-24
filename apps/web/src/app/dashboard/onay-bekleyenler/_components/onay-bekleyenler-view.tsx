@@ -3,18 +3,14 @@
 import {
   EmptyState as EmptyStateComponent,
   ListSkeleton,
+  PageHeader,
   ResultCount,
   SearchInput,
 } from "@/components/list";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useApprovalRequests } from "@/hooks/use-approval-requests";
 import { useTenantUsers } from "@/hooks/use-tenant-users";
-import {
-  APPROVAL_REQUEST_STATUS_META,
-  APPROVAL_TYPE_LABEL,
-  formatAmountTR,
-} from "@/lib/approval-requests/labels";
+import { formatAmountTR } from "@/lib/approval-requests/labels";
 import type {
   ApprovalFlowType,
   ApprovalRequestListItem,
@@ -24,7 +20,7 @@ import type {
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { ChevronLeft, ClipboardCheck, RefreshCw, Search } from "lucide-react";
+import { ChevronLeft, ClipboardCheck, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -132,15 +128,11 @@ export function OnayBekleyenlerView() {
         Ana Sayfa
       </Link>
 
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-display font-bold text-brand-900">
-          Onay Süreçleri
-        </h1>
-        <p className="text-slate-500 mt-1 text-sm">
-          Onayda bekleyen süreçleriniz için işlem gerçekleştirebilir, geçmiş tüm
-          onay süreçlerinizi görüntüleyebilirsiniz.
-        </p>
-      </div>
+      <PageHeader
+        className="mb-6"
+        title="Onay Süreçleri"
+        description="Onayda bekleyen süreçleriniz için işlem gerçekleştirebilir, geçmiş tüm onay süreçlerinizi görüntüleyebilirsiniz."
+      />
 
       <div className="bg-white border border-surface-border rounded-2xl shadow-sm">
         {/* Tab'lar */}

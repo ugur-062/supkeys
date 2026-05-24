@@ -28,8 +28,8 @@ export function InvitationBanner({
 
   const heading =
     type === "demo"
-      ? "🎉 Supkeys ekibi sizi davet etti"
-      : `🎉 ${tenantName ?? "Bir firma"} sizi tedarikçi olarak davet etti`;
+      ? "Supkeys ekibi sizi davet etti"
+      : `${tenantName ?? "Bir firma"} sizi tedarikçi olarak davet etti`;
 
   const subtitle =
     type === "demo"
@@ -39,7 +39,9 @@ export function InvitationBanner({
   return (
     <div className="rounded-xl border border-brand-200 bg-gradient-to-r from-brand-50 via-indigo-50 to-brand-50 p-5 shadow-sm">
       <div className="flex items-start gap-4">
-        <div className="text-3xl flex-shrink-0">🎉</div>
+        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-600">
+          <Sparkles className="h-5 w-5" />
+        </div>
         <div className="flex-1 min-w-0 space-y-2">
           <h3 className="font-display font-bold text-brand-900 text-base leading-tight">
             {heading}

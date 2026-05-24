@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { ArrowRight, CheckCircle2, Circle } from "lucide-react";
+import { ArrowRight, CheckCircle2, Circle, Target } from "lucide-react";
 import Link from "next/link";
 
 interface OnboardingStep {
@@ -37,7 +37,7 @@ export function OnboardingCard({
       <div className="flex items-start justify-between gap-4 mb-5">
         <div>
           <h2 className="font-display font-bold text-lg text-brand-900 flex items-center gap-2">
-            <span aria-hidden>🎯</span>
+            <Target className="h-5 w-5 text-brand-500" aria-hidden />
             {heading}
           </h2>
           <p className="text-sm text-slate-600 mt-1">{subtitle}</p>

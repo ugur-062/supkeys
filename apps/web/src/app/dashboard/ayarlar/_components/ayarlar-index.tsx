@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/list";
 import { usePermissions } from "@/hooks/use-permissions";
 import { cn } from "@/lib/utils";
 import {
@@ -113,14 +114,10 @@ export function AyarlarIndex() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
-      <header>
-        <h1 className="font-display text-3xl font-bold text-brand-900">
-          Ayarlar
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Hesabınızı, firmanızı ve bildirim tercihlerinizi yönetin.
-        </p>
-      </header>
+      <PageHeader
+        title="Ayarlar"
+        description="Hesabınızı, firmanızı ve bildirim tercihlerinizi yönetin."
+      />
 
       <div className="mt-8 space-y-8">
         {GROUPS.map((group) => {

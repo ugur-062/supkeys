@@ -113,7 +113,7 @@ export function CopyLoader({ sourceId }: { sourceId: string }) {
     <>
       <div className="max-w-5xl mx-auto mb-4 p-3 rounded-xl border border-brand-200 bg-brand-50/60 flex items-center gap-3 text-sm">
         <span className="text-brand-700">
-          📋 <strong>{detail.data.tenderNumber}</strong> kopyalanıyor — tarihler
+          <strong>{detail.data.tenderNumber}</strong> kopyalanıyor — tarihler
           ve başlık dahil değerleri istediğiniz gibi düzenleyin.
         </span>
       </div>

@@ -2,7 +2,7 @@
 
 import { HeaderMessagesDropdown } from "@/components/messaging/header-messages-dropdown";
 import { getSupplierBreadcrumb } from "@/lib/supplier/nav-config";
-import { Bell, Search } from "lucide-react";
+import { Bell } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { SupplierUserDropdown } from "./user-dropdown";
 
@@ -21,17 +21,7 @@ export function SupplierHeader() {
         </h1>
       </div>
 
-      <div className="flex items-center gap-2 flex-1 max-w-md justify-end">
-        <div className="relative hidden md:block flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input
-            type="search"
-            disabled
-            placeholder="Ara… (yakında)"
-            className="w-full pl-9 pr-3 py-2 rounded-lg bg-slate-50 border border-transparent text-sm placeholder:text-slate-400 focus:outline-none disabled:cursor-not-allowed"
-          />
-        </div>
-
+      <div className="flex items-center gap-2 justify-end">
         <HeaderMessagesDropdown surface="supplier" />
 
         <button

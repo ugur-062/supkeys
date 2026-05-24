@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/list";
 import {
   useCancelInvitation,
   useInvitations,
@@ -250,15 +251,10 @@ export function TedarikcilerView() {
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
-        <h1 className="font-display font-bold text-3xl text-brand-900">
-          Tedarikçi Yönetimi
-        </h1>
-        <p className="text-slate-600">
-          Onaylı tedarikçileriniz, gönderdiğiniz davetler ve engelli kayıtlar
-          tek yerden.
-        </p>
-      </div>
+      <PageHeader
+        title="Tedarikçi Yönetimi"
+        description="Onaylı tedarikçileriniz, gönderdiğiniz davetler ve engelli kayıtlar tek yerden."
+      />
 
       <HeaderCard
         canInvite={canInvite}

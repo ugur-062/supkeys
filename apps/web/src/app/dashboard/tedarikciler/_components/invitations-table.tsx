@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { INVITATION_STATUS_META } from "@/lib/tedarikciler/status";
 import type { InvitationItem } from "@/lib/tedarikciler/types";
@@ -166,20 +167,12 @@ export function InvitationsTable({
 
           {showEmpty && (
             <tr>
-              <td colSpan={COLS} className="px-6 py-16 text-center">
-                <div className="flex flex-col items-center gap-3 text-slate-500">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
-                    <Inbox className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-brand-900">
-                      Henüz davet göndermediniz
-                    </p>
-                    <p className="text-sm">
-                      &ldquo;Yeni Tedarikçi Davet Et&rdquo; ile başlayın.
-                    </p>
-                  </div>
-                </div>
+              <td colSpan={COLS}>
+                <EmptyState
+                  icon={Inbox}
+                  title="Henüz davet göndermediniz"
+                  description="“Yeni Tedarikçi Davet Et” ile başlayın."
+                />
               </td>
             </tr>
           )}

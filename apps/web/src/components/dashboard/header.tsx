@@ -1,10 +1,9 @@
 "use client";
 
 import { HeaderMessagesDropdown } from "@/components/messaging/header-messages-dropdown";
-import { Input } from "@/components/ui/input";
 import { getBreadcrumbs } from "@/lib/dashboard/nav-config";
 import { useSidebar } from "@/lib/dashboard/use-sidebar";
-import { Bell, ChevronRight, Menu, Search } from "lucide-react";
+import { Bell, ChevronRight, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { UserDropdown } from "./user-dropdown";
 
@@ -51,22 +50,6 @@ export function Header() {
           >
             {currentTitle}
           </h1>
-        </div>
-
-        {/* Search */}
-        <div className="hidden md:flex flex-1 justify-center">
-          <div className="relative w-full max-w-md">
-            <Search
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"
-              aria-hidden
-            />
-            <Input
-              type="search"
-              placeholder="Ara..."
-              aria-label="Ara"
-              className="pl-9 bg-slate-50 border-transparent focus:bg-white focus:border-brand-500 focus:shadow-sm"
-            />
-          </div>
         </div>
 
         {/* Sağ blok */}

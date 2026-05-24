@@ -2,6 +2,7 @@
 
 // V2-7+ — Kalem Sorusu Şablonları liste sayfası + yeni şablon modal'ı.
 
+import { EmptyState, ListSkeleton, PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/use-permissions";
 import {
@@ -13,8 +14,7 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
   ArrowLeft,
-  Globe2,
-  Loader2,
+  HelpCircle,
   Lock,
   Plus,
   Trash2,
@@ -60,40 +60,29 @@ export function QuestionTemplatesView() {
           </Link>
         </nav>
 
-        <section className="card p-5">
-          <header>
-            <h1 className="font-display font-bold text-2xl text-brand-900">
-              Kalem Sorusu Şablonları
-            </h1>
-            <p className="text-sm text-slate-600 mt-1 max-w-3xl leading-relaxed">
-              İhale oluştururken zamandan tasarruf edin! Bu ekranda, kalem
-              sorusu şablonlarınızı oluşturabilirsiniz. Bu şablonlar, sıkça
-              kullandığınız sorularınızı kaydetmenize ve gelecekteki
-              işlemlerinizi hızlandırmanıza yardımcı olur.
-            </p>
-          </header>
-
-          {canEdit ? (
-            <div className="mt-4">
+        <PageHeader
+          title="Kalem Sorusu Şablonları"
+          description="İhale oluştururken zamandan tasarruf edin! Bu ekranda, kalem sorusu şablonlarınızı oluşturabilirsiniz. Bu şablonlar, sıkça kullandığınız sorularınızı kaydetmenize ve gelecekteki işlemlerinizi hızlandırmanıza yardımcı olur."
+          action={
+            canEdit ? (
               <Button variant="primary" onClick={() => setCreateOpen(true)}>
                 <Plus className="w-4 h-4" />
                 Yeni Şablon Oluştur
               </Button>
-            </div>
-          ) : null}
+            ) : null
+          }
+        />
 
-          <div className="mt-5">
-            <h2 className="text-sm font-semibold text-slate-700 mb-3">
-              Kalem Sorusu Şablonları
-            </h2>
+        <section className="card p-5">
+          <div>
             {list.isLoading ? (
-              <div className="py-10 flex items-center justify-center text-slate-500">
-                <Loader2 className="w-5 h-5 animate-spin" />
-              </div>
+              <ListSkeleton rows={3} />
             ) : !list.data || list.data.length === 0 ? (
-              <p className="text-center py-8 text-sm text-slate-500">
-                Henüz şablon eklenmemiş.
-              </p>
+              <EmptyState
+                icon={HelpCircle}
+                title="Henüz şablon eklenmemiş"
+                description="Sık kullandığınız kalem sorularını kaydederek ihale hazırlığını hızlandırın."
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">

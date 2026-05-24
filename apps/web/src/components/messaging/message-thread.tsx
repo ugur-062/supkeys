@@ -15,7 +15,6 @@ import { extractErrorMessage } from "@/lib/form-errors";
 import { format, isToday, isYesterday } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
-  Building2,
   ClipboardList,
   Loader2,
   Package,

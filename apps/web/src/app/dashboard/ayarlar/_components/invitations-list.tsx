@@ -1,5 +1,6 @@
 "use client";
 
+import { ListSkeleton } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import {
   useCancelInvitation,
@@ -10,7 +11,7 @@ import { roleLabel } from "@/lib/users/labels";
 import type { TenantInvitation } from "@/lib/users/types";
 import { formatDistanceToNowStrict } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Loader2, Mail, RotateCcw, X } from "lucide-react";
+import { Mail, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 
 interface Props {
@@ -24,9 +25,8 @@ export function InvitationsList({ invitations, loading }: Props) {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 flex items-center justify-center text-slate-500">
-        <Loader2 className="h-5 w-5 animate-spin mr-2" />
-        Davetler yükleniyor…
+      <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+        <ListSkeleton rows={3} />
       </div>
     );
   }

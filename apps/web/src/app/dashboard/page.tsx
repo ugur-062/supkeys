@@ -63,18 +63,9 @@ export default function DashboardPage() {
     <div className="mx-auto max-w-7xl space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <div className="mb-1 flex items-center gap-3">
-            <h1 className="font-display text-2xl font-bold leading-tight text-brand-900 sm:text-3xl">
-              Hoş geldin, {user?.firstName ?? "Supkeys kullanıcısı"} 👋
-            </h1>
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-success-500/20 bg-success-50 px-2 py-1 text-xs font-semibold text-success-700">
-              <span
-                aria-hidden
-                className="h-1.5 w-1.5 rounded-full bg-success-500"
-              />
-              Aktif
-            </span>
-          </div>
+          <h1 className="mb-1 font-display text-2xl font-bold leading-tight text-brand-900 sm:text-3xl">
+            Hoş geldin, {user?.firstName ?? "Supkeys kullanıcısı"}
+          </h1>
           <p className="text-sm text-slate-500">
             {user?.tenant.name
               ? `${user.tenant.name} hesabına genel bakış`
@@ -95,7 +86,7 @@ export default function DashboardPage() {
 
       <TabsPrimitive.Root defaultValue="ihale" className="space-y-6">
         <TabsPrimitive.List
-          className="flex gap-1 overflow-x-auto border-b border-slate-200"
+          className="flex gap-1 border-b border-slate-200"
           aria-label="Dashboard bölümleri"
         >
           {TABS.map((t) => (

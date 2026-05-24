@@ -30,8 +30,10 @@ import {
   FileDown,
   FileText,
   Loader2,
+  Mail,
   MessageCircle,
   Package,
+  Phone,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -525,7 +527,7 @@ function SupplierCard({ order }: { order: OrderDetail }) {
           </p>
           <div className="space-y-1 text-xs text-slate-600">
             <p className="flex items-center gap-1.5">
-              <span className="text-slate-400">@</span>
+              <Mail className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
               <a
                 href={`mailto:${primaryUser.email}`}
                 className="hover:text-brand-700 hover:underline truncate"
@@ -535,7 +537,7 @@ function SupplierCard({ order }: { order: OrderDetail }) {
             </p>
             {primaryUser.phone ? (
               <p className="flex items-center gap-1.5">
-                <span className="text-slate-400">☎</span>
+                <Phone className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
                 <a
                   href={`tel:${primaryUser.phone}`}
                   className="hover:text-brand-700 hover:underline"
@@ -678,31 +680,6 @@ function BankInvoiceCard({ order }: { order: OrderDetail }) {
           </p>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div>
-      <dt className="text-[11px] text-slate-500 uppercase font-semibold tracking-wide">
-        {label}
-      </dt>
-      <dd
-        className={`text-sm text-brand-900 mt-1 break-words ${
-          mono ? "font-mono" : "font-medium"
-        }`}
-      >
-        {value}
-      </dd>
     </div>
   );
 }

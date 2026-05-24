@@ -4,14 +4,13 @@ import { SupkeysLogo } from "@/components/brand/logo";
 import { useApprovalPendingCount } from "@/hooks/use-approval-requests";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
-import { navConfig, profileNavItem } from "@/lib/dashboard/nav-config";
+import { navConfig } from "@/lib/dashboard/nav-config";
 import { useSidebar } from "@/lib/dashboard/use-sidebar";
 import { cn } from "@/lib/utils";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemo } from "react";
 import { SidebarGroup } from "./sidebar-group";
-import { SidebarItem } from "./sidebar-item";
 
 export function Sidebar() {
   const { collapsed, toggle, mobileOpen, closeMobile } = useSidebar();
@@ -144,12 +143,8 @@ export function Sidebar() {
           ))}
         </nav>
 
-        {/* Footer — Profil link + kullanıcı kartı */}
+        {/* Footer — kullanıcı kartı */}
         <div className="border-t border-surface-border shrink-0 py-2">
-          <div className="space-y-0.5">
-            <SidebarItem item={profileNavItem} collapsed={collapsed} />
-          </div>
-
           {collapsed ? (
             <div className="flex items-center justify-center pt-2">
               <div

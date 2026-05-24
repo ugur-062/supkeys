@@ -247,8 +247,9 @@ export function SupplierDetailDrawer({
               <>
                 {item.relationStatus === "BLOCKED" && (
                   <div className="rounded-xl bg-danger-50 border border-danger-200 p-4 space-y-1">
-                    <h4 className="font-semibold text-danger-700 text-sm">
-                      🚫 Bu tedarikçi engellenmiş
+                    <h4 className="flex items-center gap-1.5 font-semibold text-danger-700 text-sm">
+                      <Ban className="h-4 w-4 flex-shrink-0" />
+                      Bu tedarikçi engellenmiş
                     </h4>
                     {item.blockedReason && (
                       <p className="text-xs text-danger-700/90 whitespace-pre-wrap">

@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState, ListSkeleton } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -21,7 +22,6 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
   Copy,
-  Loader2,
   MoreVertical,
   Pencil,
   Plus,
@@ -122,12 +122,28 @@ export function OnayAkislariListView() {
         </div>
 
         {flowsQuery.isLoading ? (
-          <div className="p-12 flex items-center justify-center text-slate-500">
-            <Loader2 className="h-5 w-5 animate-spin mr-2" />
-            Akışlar yükleniyor…
-          </div>
+          <ListSkeleton rows={4} />
         ) : filtered.length === 0 ? (
-          <EmptyState hasSearch={!!search} />
+          <EmptyState
+            icon={Workflow}
+            variant={search ? "no-results" : "no-data"}
+            title={search ? "Eşleşen akış yok" : "Henüz onay akışı yok"}
+            description={
+              search
+                ? "Aramanızı değiştirin ya da yeni bir akış oluşturun."
+                : "İlk onay akışınızı oluşturarak süreçlerinizi otomatikleştirin."
+            }
+            action={
+              !search ? (
+                <Link href="/dashboard/ayarlar/onay-akislari/yeni">
+                  <Button variant="secondary" size="sm">
+                    <Plus className="h-4 w-4" />
+                    İlk Akışı Oluştur
+                  </Button>
+                </Link>
+              ) : null
+            }
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -152,34 +168,6 @@ export function OnayAkislariListView() {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function EmptyState({ hasSearch }: { hasSearch: boolean }) {
-  return (
-    <div className="p-16 text-center">
-      <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center">
-        <Workflow className="h-6 w-6 text-slate-400" />
-      </div>
-      <p className="font-display font-bold text-brand-900 mt-3">
-        {hasSearch ? "Eşleşen akış yok" : "Henüz onay akışı yok"}
-      </p>
-      <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
-        {hasSearch
-          ? "Aramanızı değiştirin ya da yeni bir akış oluşturun."
-          : "İlk onay akışınızı oluşturarak süreçlerinizi otomatikleştirin."}
-      </p>
-      {!hasSearch ? (
-        <div className="mt-4">
-          <Link href="/dashboard/ayarlar/onay-akislari/yeni">
-            <Button variant="secondary" size="sm">
-              <Plus className="h-4 w-4" />
-              İlk Akışı Oluştur
-            </Button>
-          </Link>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import {
   COMPANY_TYPE_SHORT_LABEL,
@@ -100,26 +101,19 @@ export function ApprovedSuppliersTable({
 
           {showEmpty && (
             <tr>
-              <td colSpan={6} className="px-6 py-16 text-center">
-                <div className="flex flex-col items-center gap-3 text-slate-500">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
-                    <Users2 className="w-6 h-6" />
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-medium text-brand-900">
-                      Henüz onaylı tedarikçiniz yok
-                    </p>
-                    <p className="text-sm">
-                      Tedarikçilerinizi davet ederek listenizi oluşturmaya
-                      başlayın.
-                    </p>
-                  </div>
-                  {canInvite && (
-                    <Button onClick={onInvite} size="sm">
-                      İlk Tedarikçinizi Davet Edin
-                    </Button>
-                  )}
-                </div>
+              <td colSpan={6}>
+                <EmptyState
+                  icon={Users2}
+                  title="Henüz onaylı tedarikçiniz yok"
+                  description="Tedarikçilerinizi davet ederek listenizi oluşturmaya başlayın."
+                  action={
+                    canInvite ? (
+                      <Button onClick={onInvite} size="sm">
+                        İlk Tedarikçinizi Davet Edin
+                      </Button>
+                    ) : null
+                  }
+                />
               </td>
             </tr>
           )}

@@ -3,6 +3,7 @@
 // V2-7+ — Tasarruf Raporu UI.
 // Tarih aralığı + opsiyonel para birimi; AWARDED ihalelerde hedef vs kazanan farkı.
 
+import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -90,15 +91,10 @@ export function SavingsReportView() {
         </Link>
       </nav>
 
-      <header>
-        <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900">
-          Tasarruf Raporu
-        </h1>
-        <p className="text-sm text-slate-600 mt-1">
-          Verilen tarih aralığında kazandırılmış ihalelerde hedef fiyat ile
-          kazanan teklif arasındaki farkı (tasarruf) gösterir.
-        </p>
-      </header>
+      <PageHeader
+        title="Tasarruf Raporu"
+        description="Verilen tarih aralığında kazandırılmış ihalelerde hedef fiyat ile kazanan teklif arasındaki farkı (tasarruf) gösterir."
+      />
 
       <section className="card p-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

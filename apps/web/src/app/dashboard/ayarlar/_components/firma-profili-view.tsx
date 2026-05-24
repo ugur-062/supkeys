@@ -39,7 +39,7 @@ export function FirmaProfiliView() {
     <div className="mx-auto max-w-4xl px-6 py-8">
       <BackToSettings />
 
-      <h1 className="mt-4 font-display text-3xl font-bold text-brand-900">
+      <h1 className="mt-4 font-display text-2xl font-bold text-brand-900">
         Firma Profili
       </h1>
 

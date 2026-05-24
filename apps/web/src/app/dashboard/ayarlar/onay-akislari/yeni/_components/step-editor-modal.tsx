@@ -229,7 +229,7 @@ export function StepEditorModal({
 
               {previousMaxAmount > 0 ? (
                 <p className="text-[11px] text-warning-700">
-                  💡 Önceki adımın eşiği:{" "}
+                  Önceki adımın eşiği:{" "}
                   <strong>
                     {formatAmountTR(previousMaxAmount, conditionCurrency)}
                   </strong>

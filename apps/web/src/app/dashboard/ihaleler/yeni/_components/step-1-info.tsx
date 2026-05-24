@@ -684,7 +684,7 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
           description={
             isAuction
               ? "Açık eksiltme tek para biriminde yapılır. Ondalık basamak fiyat gösteriminde kullanılır."
-              : "Tedarikçilerin hangi para birimlerinde teklif verebileceğini belirle. Birden fazla seçebilirsin; ⭐ ana para birimi TRY equivalent karşılaştırmasının bazıdır."
+              : "Tedarikçilerin hangi para birimlerinde teklif verebileceğini belirle. Birden fazla seçebilirsin; ★ ana para birimi TRY equivalent karşılaştırmasının bazıdır."
           }
         />
         <div className="space-y-4">

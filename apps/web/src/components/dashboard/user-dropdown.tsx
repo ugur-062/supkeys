@@ -3,7 +3,7 @@
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { ChevronDown, LogOut, Settings, User } from "lucide-react";
+import { ChevronDown, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
 
 export function UserDropdown() {
@@ -73,13 +73,6 @@ export function UserDropdown() {
           </div>
 
           <DropdownMenu.Separator className="h-px bg-surface-border my-1" />
-
-          <DropdownMenu.Item asChild className={itemClass}>
-            <Link href="/dashboard/profil">
-              <User className="w-4 h-4 text-slate-400" />
-              Profilim
-            </Link>
-          </DropdownMenu.Item>
 
           <DropdownMenu.Item asChild className={itemClass}>
             <Link href="/dashboard/ayarlar">

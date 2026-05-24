@@ -170,7 +170,7 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
                         : "border-slate-200 bg-white text-slate-700"
                     }`}
                   >
-                    {isPrimary ? "⭐ " : ""}
+                    {isPrimary ? "★ " : ""}
                     {CURRENCY_SYMBOL[c]} {c}
                   </span>
                 );

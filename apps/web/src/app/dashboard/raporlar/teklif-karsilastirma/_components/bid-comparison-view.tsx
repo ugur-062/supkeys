@@ -4,6 +4,7 @@
 // Form: İhale No (tender number veya UUID) + criteria + 3 checkbox.
 // Submit → web'de tablo render; ek olarak PDF/Excel indir.
 
+import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,6 @@ import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
   ChevronDown,
-  Download,
   FileSpreadsheet,
   Loader2,
 } from "lucide-react";
@@ -103,11 +103,7 @@ export function BidComparisonView() {
         </Link>
       </nav>
 
-      <header>
-        <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900">
-          Teklif Karşılaştırma Raporu
-        </h1>
-      </header>
+      <PageHeader title="Teklif Karşılaştırma Raporu" />
 
       <section className="card p-5 space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

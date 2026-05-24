@@ -17,7 +17,7 @@ export function StepSuccess({ email }: StepSuccessProps) {
 
       <div className="space-y-2">
         <h2 className="text-2xl font-display font-bold text-brand-900">
-          Başvurunuz alındı 🎉
+          Başvurunuz alındı
         </h2>
         <p className="text-slate-600">
           Devam etmek için e-postanızı doğrulamanız gerekiyor.

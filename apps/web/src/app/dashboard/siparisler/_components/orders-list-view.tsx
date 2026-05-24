@@ -3,6 +3,7 @@
 import {
   EmptyState as EmptyStateComponent,
   ListSkeleton,
+  PageHeader,
   ResultCount,
   SearchInput,
   SortDropdown,
@@ -179,16 +180,10 @@ export function OrdersListView() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900">
-            Siparişler
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            İhalelerinizden çıkan siparişler buradan takip edilir.
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        title="Siparişler"
+        description="İhalelerinizden çıkan siparişler buradan takip edilir."
+      />
 
       {/* KPI cards */}
       {kpi ? (

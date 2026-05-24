@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import type { SupplierWithRelation } from "@/lib/tedarikciler/types";
 import { format } from "date-fns";
@@ -98,20 +99,13 @@ export function BlockedSuppliersTable({
 
           {showEmpty && (
             <tr>
-              <td colSpan={COLS} className="px-6 py-16 text-center">
-                <div className="flex flex-col items-center gap-3 text-slate-500">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
-                    <ShieldOff className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-brand-900">
-                      Engellenmiş tedarikçi yok
-                    </p>
-                    <p className="text-sm">
-                      Henüz hiçbir tedarikçiyi engellememişsiniz.
-                    </p>
-                  </div>
-                </div>
+              <td colSpan={COLS}>
+                <EmptyState
+                  icon={ShieldOff}
+                  variant="no-results"
+                  title="Engellenmiş tedarikçi yok"
+                  description="Henüz hiçbir tedarikçiyi engellememişsiniz."
+                />
               </td>
             </tr>
           )}

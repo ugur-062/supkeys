@@ -343,7 +343,7 @@ export function CurrencyMultiSelect({
           {/* Footer */}
           <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/60 px-3 py-2 text-xs">
             <span className="text-slate-600">
-              {value.length}/{maxSelection} seçildi · ⭐ ana
+              {value.length}/{maxSelection} seçildi · ★ ana
             </span>
             <button
               type="button"

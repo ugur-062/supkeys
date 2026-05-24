@@ -3,6 +3,7 @@
 // V2-7+ — Genel İhale Raporu UI.
 // Mod: SINGLE (tek tender) veya RANGE (tarih aralığı + filtreler).
 
+import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -125,11 +126,7 @@ export function GeneralReportView() {
         </Link>
       </nav>
 
-      <header>
-        <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900">
-          Genel İhale Raporu
-        </h1>
-      </header>
+      <PageHeader title="Genel İhale Raporu" />
 
       <section className="card p-5 space-y-4">
         <div>

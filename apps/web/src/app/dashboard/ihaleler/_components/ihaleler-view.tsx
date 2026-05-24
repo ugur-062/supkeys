@@ -1,6 +1,11 @@
 "use client";
 
-import { ResultCount, SearchInput, SortDropdown } from "@/components/list";
+import {
+  PageHeader,
+  ResultCount,
+  SearchInput,
+  SortDropdown,
+} from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/use-permissions";
 import {
@@ -171,33 +176,29 @@ export function IhalelerView() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="font-display font-bold text-3xl text-brand-900">
-            İhaleler
-          </h1>
-          <p className="text-slate-600 mt-1">
-            Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın.
-          </p>
-        </div>
-        {canCreate ? (
-          <Link href="/dashboard/ihaleler/yeni">
-            <Button variant="primary">
+      <PageHeader
+        title="İhaleler"
+        description="Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın."
+        action={
+          canCreate ? (
+            <Link href="/dashboard/ihaleler/yeni">
+              <Button variant="primary">
+                <Plus className="h-4 w-4" />
+                Yeni İhale Aç
+              </Button>
+            </Link>
+          ) : (
+            <Button
+              variant="primary"
+              disabled
+              title="Bu işlem için Yönetici yetkisi gerekiyor"
+            >
               <Plus className="h-4 w-4" />
               Yeni İhale Aç
             </Button>
-          </Link>
-        ) : (
-          <Button
-            variant="primary"
-            disabled
-            title="Bu işlem için Yönetici yetkisi gerekiyor"
-          >
-            <Plus className="h-4 w-4" />
-            Yeni İhale Aç
-          </Button>
-        )}
-      </div>
+          )
+        }
+      />
 
       <TenderStatsCards />
 
