@@ -43,6 +43,8 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
+    "eslint": "^9.17.0",
+    "typescript-eslint": "^8.59.0",
     "@nestjs/schematics": "^10.2.3",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.2",
