@@ -63,7 +63,15 @@ export function EditLoader({ id }: Props) {
 
   const tender = detail.data;
 
-  if (tender.status !== "DRAFT") {
+  const isDraft = tender.status === "DRAFT";
+  const isEditableOpen =
+    tender.status === "OPEN_FOR_BIDS" && tender.bidStats.submitted === 0;
+
+  if (!isDraft && !isEditableOpen) {
+    const reason =
+      tender.status === "OPEN_FOR_BIDS"
+        ? "Bu ihaleye teklif gönderilmiş; teklif aldıktan sonra ihale düzenlenemez."
+        : `Bu ihale şu an "${tender.status}" durumunda.`;
     return (
       <div className="max-w-2xl mx-auto py-12">
         <div className="card p-8 text-center space-y-3">
@@ -71,11 +79,9 @@ export function EditLoader({ id }: Props) {
             <AlertCircle className="w-6 h-6 text-warning-600" />
           </div>
           <p className="font-medium text-brand-900">
-            Sadece taslak ihaleler düzenlenebilir
+            Bu ihale düzenlenemez
           </p>
-          <p className="text-sm text-slate-500">
-            Bu ihale şu an &ldquo;{tender.status}&rdquo; durumunda.
-          </p>
+          <p className="text-sm text-slate-500">{reason}</p>
           <Link
             href={`/dashboard/ihaleler/${tender.id}`}
             className="inline-block"
@@ -148,5 +154,24 @@ export function EditLoader({ id }: Props) {
     invitedSupplierIds: tender.invitations.map((i) => i.supplier.id),
   };
 
-  return <TenderWizard mode="edit" initialData={initialData} />;
+  return (
+    <>
+      {isEditableOpen ? (
+        <div className="max-w-5xl mx-auto mb-4 p-4 rounded-xl border border-warning-200 bg-warning-50/70 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-warning-600 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-semibold text-warning-800">
+              Yayınlanmış ihale düzenleniyor
+            </p>
+            <p className="text-warning-700 mt-0.5 leading-relaxed">
+              Bu ihale yayında ve henüz teklif gönderilmemiş. Kaydettiğinizde
+              mevcut davetler, kalemler ve dosyalar değiştirilir; tedarikçilere
+              güncel davet e-postaları yeniden gönderilir.
+            </p>
+          </div>
+        </div>
+      ) : null}
+      <TenderWizard mode="edit" initialData={initialData} />
+    </>
+  );
 }
