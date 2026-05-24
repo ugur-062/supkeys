@@ -13,7 +13,6 @@ import {
   useDownloadBidComparisonReport,
   type BidComparisonPayload,
 } from "@/hooks/use-reports";
-import { useTenders } from "@/hooks/use-tenant-tenders";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import {
@@ -38,18 +37,6 @@ export function BidComparisonView() {
   const [includeNonBidders, setIncludeNonBidders] = useState(false);
   const [showBidCurrencies, setShowBidCurrencies] = useState(true);
 
-  // Tender number → ID resolve için liste (max 200 kayıt görür)
-  const list = useTenders({ pageSize: 200 });
-
-  const resolveTenderId = (raw: string): string | null => {
-    const v = raw.trim();
-    if (!v) return null;
-    // UUID ise direkt
-    if (/^[0-9a-f-]{30,}$/i.test(v)) return v;
-    const found = list.data?.items.find((t) => t.tenderNumber === v);
-    return found?.id ?? null;
-  };
-
   const reportMutation = useBidComparisonReport();
   const downloadMutation = useDownloadBidComparisonReport();
 
@@ -60,11 +47,12 @@ export function BidComparisonView() {
   }, [tenderInput, criteria]);
 
   const buildPayload = (): BidComparisonPayload | null => {
-    const tenderId = resolveTenderId(tenderInput);
+    const tenderId = tenderInput.trim();
     if (!tenderId) {
-      toast.error("Geçerli bir ihale numarası ya da ID girin");
+      toast.error("Bir ihale numarası ya da ID girin");
       return null;
     }
+    // Numara/ID çözümü backend'de (tenant scope) — "ilk 100" sınırı yok.
     return {
       tenderId,
       criteria,

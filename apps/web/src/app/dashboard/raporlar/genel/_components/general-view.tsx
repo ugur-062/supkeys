@@ -12,7 +12,6 @@ import {
   useGeneralReport,
   type GeneralPayload,
 } from "@/hooks/use-reports";
-import { useTenders } from "@/hooks/use-tenant-tenders";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -50,14 +49,6 @@ export function GeneralReportView() {
   const [status, setStatus] = useState<string>("");
   const [currency, setCurrency] = useState<string>("");
 
-  const list = useTenders({ pageSize: 200 });
-  const resolveTenderId = (raw: string): string | null => {
-    const v = raw.trim();
-    if (!v) return null;
-    if (/^[0-9a-f-]{30,}$/i.test(v)) return v;
-    return list.data?.items.find((t) => t.tenderNumber === v)?.id ?? null;
-  };
-
   const reportMutation = useGeneralReport();
   const downloadMutation = useDownloadGeneralReport();
 
@@ -69,11 +60,12 @@ export function GeneralReportView() {
 
   const buildPayload = (): GeneralPayload | null => {
     if (mode === "SINGLE") {
-      const id = resolveTenderId(tenderInput);
+      const id = tenderInput.trim();
       if (!id) {
-        toast.error("Geçerli bir ihale numarası ya da ID girin");
+        toast.error("Bir ihale numarası ya da ID girin");
         return null;
       }
+      // Numara/ID çözümü backend'de (tenant scope) — "ilk 100" sınırı yok.
       return { mode: "SINGLE", tenderId: id };
     }
     if (mode === "RANGE") {

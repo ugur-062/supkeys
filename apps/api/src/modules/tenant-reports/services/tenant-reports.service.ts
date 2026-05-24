@@ -59,7 +59,6 @@ export class TenantReportsService {
             id: true,
             status: true,
             totalAmount: true,
-            isWinner: true,
           },
         },
         createdBy: { select: { firstName: true, lastName: true } },
@@ -77,9 +76,30 @@ export class TenantReportsService {
     };
   }
 
-  private async findTenderInScope(tenantId: string, tenderId: string) {
+  /**
+   * Kullanıcı ihale NUMARASI (SUPK-2026-0007) ya da ID girebilir → gerçek ID'ye
+   * çözer. Tenant scope'unda; bulunamazsa NotFound. Client-side liste eşleştirme
+   * yerine bunu kullanmak, "ilk 100 ihale" sınırını kaldırır.
+   */
+  private async resolveTenderId(
+    tenantId: string,
+    idOrNumber: string,
+  ): Promise<string> {
+    const v = idOrNumber.trim();
     const tender = await this.prisma.tender.findFirst({
-      where: { id: tenderId, tenantId },
+      where: { tenantId, OR: [{ id: v }, { tenderNumber: v }] },
+      select: { id: true },
+    });
+    if (!tender)
+      throw new NotFoundException(
+        "İhale bulunamadı — numara veya ID hatalı olabilir",
+      );
+    return tender.id;
+  }
+
+  private async findTenderInScope(tenantId: string, idOrNumber: string) {
+    const tender = await this.prisma.tender.findFirst({
+      where: { tenantId, OR: [{ id: idOrNumber }, { tenderNumber: idOrNumber }] },
       include: {
         invitations: { select: { id: true, status: true } },
         bids: {
@@ -87,7 +107,6 @@ export class TenantReportsService {
             id: true,
             status: true,
             totalAmount: true,
-            isWinner: true,
           },
         },
         createdBy: { select: { firstName: true, lastName: true } },
@@ -101,10 +120,20 @@ export class TenantReportsService {
   private serializeGeneralRow(
     t: Awaited<ReturnType<TenantReportsService["findTenderInScope"]>>,
   ) {
-    const winningBid = t.bids.find((b) => b.isWinner);
-    const submittedCount = t.bids.filter(
-      (b) => b.status === "SUBMITTED" || b.status === "WON" || b.status === "LOST",
+    // Kazanan = kalem/ihale bazlı kazandırma sonrası AWARDED_* statüsü
+    // (Bid modelinde ayrı isWinner alanı yok). Kalem bazlı kazandırmada
+    // birden çok tedarikçi AWARDED_PARTIAL olabilir → toplamı al.
+    const awardedBids = t.bids.filter(
+      (b) => b.status === "AWARDED_FULL" || b.status === "AWARDED_PARTIAL",
+    );
+    const submittedCount = t.bids.filter((b) =>
+      ["SUBMITTED", "AWARDED_FULL", "AWARDED_PARTIAL", "LOST", "REJECTED"].includes(
+        b.status,
+      ),
     ).length;
+    const winningTotal = awardedBids.length
+      ? awardedBids.reduce((sum, b) => sum + Number(b.totalAmount), 0)
+      : null;
     return {
       id: t.id,
       tenderNumber: t.tenderNumber,
@@ -120,7 +149,7 @@ export class TenantReportsService {
         : null,
       invitedCount: t.invitations.length,
       submittedBidCount: submittedCount,
-      winningTotal: winningBid?.totalAmount ? Number(winningBid.totalAmount) : null,
+      winningTotal,
       roundNumber: t.roundNumber,
     };
   }
@@ -133,8 +162,12 @@ export class TenantReportsService {
     const totalTenders = tenders.length;
     const awarded = tenders.filter((t) => t.status === "AWARDED").length;
     const totalAwardedValue = tenders.reduce((sum, t) => {
-      const w = t.bids.find((b) => b.isWinner);
-      return sum + (w?.totalAmount ? Number(w.totalAmount) : 0);
+      const awarded = t.bids
+        .filter(
+          (b) => b.status === "AWARDED_FULL" || b.status === "AWARDED_PARTIAL",
+        )
+        .reduce((s, b) => s + Number(b.totalAmount), 0);
+      return sum + awarded;
     }, 0);
     return {
       totalTenders,
@@ -172,7 +205,7 @@ export class TenantReportsService {
           },
         },
         bids: {
-          where: { isWinner: true },
+          where: { status: { in: ["AWARDED_FULL", "AWARDED_PARTIAL"] } },
           include: {
             supplier: { select: { id: true, companyName: true } },
             items: {
@@ -262,10 +295,12 @@ export class TenantReportsService {
   // ============================================================
 
   async bidComparison(tenantId: string, dto: BidComparisonReportDto) {
+    // Numara ya da ID kabul et → gerçek ID'ye çöz (bulunamazsa NotFound)
+    const rootId = await this.resolveTenderId(tenantId, dto.tenderId);
     // Tek tender ya da tüm round chain
     const tenderIds = dto.includeAllRounds
-      ? await this.collectRoundChainIds(tenantId, dto.tenderId)
-      : [dto.tenderId];
+      ? await this.collectRoundChainIds(tenantId, rootId)
+      : [rootId];
 
     const tenders = await this.prisma.tender.findMany({
       where: { id: { in: tenderIds }, tenantId },
