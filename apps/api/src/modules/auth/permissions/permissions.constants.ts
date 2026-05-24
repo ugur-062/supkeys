@@ -39,6 +39,10 @@ export const PERMISSIONS = {
     VIEW: "reports:view",
     EXPORT: "reports:export",
   },
+  TEMPLATES: {
+    VIEW: "templates:view",
+    EDIT: "templates:edit",
+  },
 } as const;
 
 export const ALL_PERMISSIONS: readonly string[] = Object.values(PERMISSIONS)
@@ -80,6 +84,14 @@ export const PERMISSION_LABELS: Record<
   },
   "reports:view": { tr: "Raporları görüntüleyebilir", groupTr: "Raporlar" },
   "reports:export": { tr: "Rapor dışa aktarabilir", groupTr: "Raporlar" },
+  "templates:view": {
+    tr: "Şablonları görüntüleyebilir",
+    groupTr: "Şablonlar",
+  },
+  "templates:edit": {
+    tr: "Şablon oluşturup düzenleyebilir",
+    groupTr: "Şablonlar",
+  },
 };
 
 /**
@@ -172,6 +184,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     // Raporlar
     "reports:view",
     "reports:export",
+    // Şablonlar — yönetici şablon yönetebilir
+    "templates:view",
+    "templates:edit",
   ],
   BUYER: [
     // İhale operasyonu (BUYER'ın ana iş alanı)
@@ -201,6 +216,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     // Raporlar
     "reports:view",
     "reports:export",
+    // Şablonlar — BUYER hızlı ihale aç(mak için) şablon yönetir
+    "templates:view",
+    "templates:edit",
   ],
   APPROVER: [
     "approval:approve",
@@ -214,5 +232,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, string[]> = {
     // V2-6.5 — Onaylayıcı raporları görüntüleyebilir ve dışa aktarabilir
     "reports:view",
     "reports:export",
+    // Onaylayıcı şablonları görüntüleyebilir (ihale içeriği bağlamı için)
+    "templates:view",
   ],
 };

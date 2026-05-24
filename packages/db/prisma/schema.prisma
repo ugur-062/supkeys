@@ -57,6 +57,8 @@ model Tenant {
   approvalRequests     ApprovalRequest[]
   attachments          Attachment[]
   messageThreads       MessageThread[] @relation("TenantMessageThreads")
+  questionTemplates    QuestionTemplate[]
+  supplierTemplates    SupplierTemplate[]
 
   @@map("tenants")
 }
@@ -170,6 +172,10 @@ model User {
 
   // V2-6.5 — Admin tarafından üretilen parola sıfırlama linkleri
   passwordResetTokens   PasswordResetToken[]
+
+  // V2-7+ — Şablon sahipliği (createdBy)
+  createdQuestionTemplates QuestionTemplate[] @relation("QuestionTemplateCreatedBy")
+  createdSupplierTemplates SupplierTemplate[] @relation("SupplierTemplateCreatedBy")
 
   @@index([tenantId])
   @@map("users")
@@ -560,6 +566,8 @@ model Supplier {
   orders              Order[]
   messageThreads      MessageThread[] @relation("SupplierMessageThreads")
   categories          SupplierCategory[]
+  // V2-7+ — Tedarikçi şablonu üyelikleri
+  templateMemberships SupplierTemplateMember[]
 
   @@index([taxNumber])
   @@index([membership])
@@ -1468,4 +1476,94 @@ model TenderCategory {
   @@index([categoryId])
   @@index([tenderId])
   @@map("tender_categories")
+}
+
+// ============================================================
+// V2-7+ — ŞABLONLAR
+// Alıcı kendi sık kullandığı kalem soruları + tedarikçi grupları için
+// şablonlar tanımlar; ihale wizard'ında tek tıkla uygulanır.
+// ============================================================
+
+model QuestionTemplate {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  // Herkese Açık (true) — tenant içindeki tüm BUYER/ADMIN kullanır;
+  // Özel (false) — sadece createdBy görür.
+  isPublic    Boolean  @default(true)
+  // "Bu şablondaki soruların tamamı ihalelere otomatik olarak eklensin"
+  autoApply   Boolean  @default(false)
+
+  createdById String
+  createdBy   User     @relation("QuestionTemplateCreatedBy", fields: [createdById], references: [id])
+
+  items       QuestionTemplateItem[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([createdById])
+  @@map("question_templates")
+}
+
+model QuestionTemplateItem {
+  id         String   @id @default(cuid())
+  templateId String
+  template   QuestionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  text       String
+  // Cevaplama Zorunluluğu: REQUIRED / OPTIONAL
+  required   Boolean  @default(false)
+  // Cevap Türü: TEXT, NUMBER, YES_NO, DATE
+  answerType QuestionAnswerType
+  orderIndex Int      @default(0)
+
+  createdAt  DateTime @default(now())
+
+  @@index([templateId])
+  @@map("question_template_items")
+}
+
+enum QuestionAnswerType {
+  TEXT
+  NUMBER
+  YES_NO
+  DATE
+}
+
+model SupplierTemplate {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  isPublic    Boolean  @default(true)
+
+  createdById String
+  createdBy   User     @relation("SupplierTemplateCreatedBy", fields: [createdById], references: [id])
+
+  members     SupplierTemplateMember[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([createdById])
+  @@map("supplier_templates")
+}
+
+model SupplierTemplateMember {
+  templateId String
+  template   SupplierTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+
+  @@id([templateId, supplierId])
+  @@index([supplierId])
+  @@map("supplier_template_members")
 }

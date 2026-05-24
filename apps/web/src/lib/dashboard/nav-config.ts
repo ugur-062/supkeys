@@ -2,6 +2,7 @@ import {
   BarChart3,
   CheckSquare,
   FileText,
+  FolderOpen,
   LayoutDashboard,
   type LucideIcon,
   Package,
@@ -96,6 +97,13 @@ export const navConfig: NavGroup[] = [
       },
       {
         type: "link",
+        icon: FolderOpen,
+        label: "Şablonlar",
+        href: "/dashboard/sablonlar",
+        permission: "templates:view",
+      },
+      {
+        type: "link",
         icon: Settings,
         label: "Ayarlar",
         href: "/dashboard/ayarlar",
@@ -129,6 +137,7 @@ export function getBreadcrumbs(pathname: string): string[] {
     "/dashboard/siparisler": "Siparişler",
     "/dashboard/tedarikciler": "Tedarikçiler",
     "/dashboard/raporlar": "Raporlar",
+    "/dashboard/sablonlar": "Şablonlar",
     "/dashboard/ayarlar": "Ayarlar",
     "/dashboard/profil": "Profilim",
   };

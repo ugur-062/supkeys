@@ -40,6 +40,7 @@ import { TenantOrdersModule } from "./modules/tenant-orders/tenant-orders.module
 import { TenantReportsModule } from "./modules/tenant-reports/tenant-reports.module";
 import { TenantSuppliersModule } from "./modules/tenant-suppliers/tenant-suppliers.module";
 import { TenantTendersModule } from "./modules/tenant-tenders/tenant-tenders.module";
+import { TenantTemplatesModule } from "./modules/tenant-templates/tenant-templates.module";
 import { TenantUsersModule } from "./modules/tenant-users/tenant-users.module";
 import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-scheduler.module";
 
@@ -89,6 +90,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     SupplierOrdersModule,
     TenantDashboardModule,
     TenantReportsModule,
+    TenantTemplatesModule,
     SupplierDashboardModule,
     SupplierProfileModule,
     TenantUsersModule,
