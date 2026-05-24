@@ -2,6 +2,10 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  useSupplierTemplate,
+  useSupplierTemplates,
+} from "@/hooks/use-templates";
 import { useSuppliers } from "@/hooks/use-tenant-suppliers";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import type { SupplierWithRelation } from "@/lib/tedarikciler/types";
@@ -11,7 +15,9 @@ import {
   Building2,
   CheckCircle2,
   CheckSquare,
+  ChevronDown,
   Info,
+  LayoutTemplate,
   Plus,
   Search,
   UserPlus2,
@@ -19,8 +25,9 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
+import { toast } from "sonner";
 import { InviteSupplierFromTenderModal } from "./invite-supplier-modal";
 
 const MEMBERSHIP_LABEL = {
@@ -34,7 +41,8 @@ const MEMBERSHIP_BADGE = {
 } as const;
 
 export function Step3Suppliers() {
-  const { control, formState, watch } = useFormContext<TenderFormData>();
+  const { control, formState, watch, setValue, getValues } =
+    useFormContext<TenderFormData>();
   const tenderTitle = watch("title") ?? "";
   const [search, setSearch] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -46,6 +54,44 @@ export function Step3Suppliers() {
   });
 
   const allSuppliers: SupplierWithRelation[] = data?.items ?? [];
+
+  // V2-7+ — Tedarikçi şablonundan yükle
+  const [tplOpen, setTplOpen] = useState(false);
+  const [applyingTplId, setApplyingTplId] = useState<string | null>(null);
+  const supplierTemplates = useSupplierTemplates();
+  const tplDetail = useSupplierTemplate(applyingTplId);
+
+  // Seçilen şablonun detayı gelince davet listesine merge et (sadece aktif
+  // listede olan tedarikçiler; zaten ekli olanlar atlanır).
+  useEffect(() => {
+    if (!applyingTplId || !tplDetail.data) return;
+    if (tplDetail.data.id !== applyingTplId) return;
+    const activeIds = new Set(allSuppliers.map((s) => s.supplier.id));
+    const current = new Set<string>(getValues("invitedSupplierIds") ?? []);
+    let added = 0;
+    let skipped = 0;
+    for (const sup of tplDetail.data.suppliers) {
+      if (!activeIds.has(sup.id)) {
+        skipped++;
+        continue;
+      }
+      if (current.has(sup.id)) continue;
+      current.add(sup.id);
+      added++;
+    }
+    setValue("invitedSupplierIds", Array.from(current), {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    toast.success(
+      `${added} tedarikçi eklendi${
+        skipped > 0 ? ` · ${skipped} aktif listenizde değil, atlandı` : ""
+      }`,
+    );
+    setApplyingTplId(null);
+    setTplOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applyingTplId, tplDetail.data]);
 
   const filteredSuppliers = useMemo<SupplierWithRelation[]>(() => {
     const term = search.trim().toLowerCase();
@@ -282,6 +328,21 @@ export function Step3Suppliers() {
                   </Button>
                   <Button
                     type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setTplOpen((o) => !o)}
+                  >
+                    <LayoutTemplate className="w-4 h-4" />
+                    Şablondan Yükle
+                    <ChevronDown
+                      className={cn(
+                        "w-3.5 h-3.5 transition-transform",
+                        tplOpen && "rotate-180",
+                      )}
+                    />
+                  </Button>
+                  <Button
+                    type="button"
                     variant="primary"
                     size="sm"
                     onClick={() => setInviteOpen(true)}
@@ -290,6 +351,55 @@ export function Step3Suppliers() {
                     Yeni Tedarikçi Davet Et
                   </Button>
                 </div>
+
+                {/* V2-7+ — Tedarikçi şablonu seçim paneli */}
+                {tplOpen ? (
+                  <div className="rounded-xl border border-surface-border bg-white p-3 space-y-2 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Tedarikçi Şablonları
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => setTplOpen(false)}
+                        aria-label="Kapat"
+                        className="text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    {supplierTemplates.isLoading ? (
+                      <p className="text-xs text-slate-500">Yükleniyor…</p>
+                    ) : (supplierTemplates.data?.length ?? 0) === 0 ? (
+                      <p className="text-xs text-slate-500">
+                        Kayıtlı tedarikçi şablonunuz yok. Şablonlar →
+                        Tedarikçi'den oluşturabilirsiniz.
+                      </p>
+                    ) : (
+                      <ul className="space-y-1 max-h-52 overflow-y-auto pr-1">
+                        {supplierTemplates.data?.map((t) => (
+                          <li key={t.id}>
+                            <button
+                              type="button"
+                              onClick={() => setApplyingTplId(t.id)}
+                              disabled={applyingTplId !== null}
+                              className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg border border-surface-border hover:border-brand-300 hover:bg-brand-50/40 transition-colors disabled:opacity-50 text-left"
+                            >
+                              <span className="text-sm font-medium text-brand-900 truncate">
+                                {t.name}
+                              </span>
+                              <span className="text-[11px] text-slate-500 shrink-0">
+                                {applyingTplId === t.id
+                                  ? "Ekleniyor…"
+                                  : `${t.memberCount} tedarikçi`}
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ) : null}
 
                 <p className="text-xs text-slate-500">
                   {filteredSuppliers.length} tedarikçi gösteriliyor ·{" "}

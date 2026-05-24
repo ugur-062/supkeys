@@ -4,11 +4,23 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  useQuestionTemplate,
+  useQuestionTemplates,
+} from "@/hooks/use-templates";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import { cn } from "@/lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
-import { HelpCircle, Info, X } from "lucide-react";
+import { ChevronDown, HelpCircle, Info, LayoutTemplate, X } from "lucide-react";
+import { useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
+
+const ANSWER_TYPE_TR: Record<string, string> = {
+  TEXT: "Metin",
+  NUMBER: "Sayı",
+  YES_NO: "Evet/Hayır",
+  DATE: "Tarih",
+};
 
 interface Props {
   open: boolean;
@@ -28,6 +40,20 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
 
   const value = useWatch({ control, name: `items.${index}.customQuestion` }) ?? "";
   const itemErrors = errors.items?.[index];
+
+  // V2-7+ — Soru şablonundan seçim
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [tplId, setTplId] = useState<string | null>(null);
+  const templates = useQuestionTemplates();
+  const tplDetail = useQuestionTemplate(pickerOpen ? tplId : null);
+
+  const applyQuestion = (text: string) => {
+    setValue(`items.${index}.customQuestion`, text.slice(0, MAX_QUESTION), {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
+    setPickerOpen(false);
+  };
 
   return (
     <Dialog.Root
@@ -76,6 +102,78 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                 Tedarikçi bu kaleme teklif verirken sorunuza cevap girmek
                 zorunda kalır.
               </span>
+            </div>
+
+            {/* V2-7+ — Soru şablonundan seç */}
+            <div className="rounded-lg border border-surface-border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setPickerOpen((o) => !o)}
+                className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium text-brand-700 hover:bg-brand-50/50 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  <LayoutTemplate className="w-4 h-4" />
+                  Şablondan Seç
+                </span>
+                <ChevronDown
+                  className={cn(
+                    "w-4 h-4 text-slate-400 transition-transform",
+                    pickerOpen && "rotate-180",
+                  )}
+                />
+              </button>
+              {pickerOpen ? (
+                <div className="px-3 py-3 border-t border-surface-border space-y-2.5 bg-slate-50/40">
+                  {templates.isLoading ? (
+                    <p className="text-xs text-slate-500">Yükleniyor…</p>
+                  ) : (templates.data?.length ?? 0) === 0 ? (
+                    <p className="text-xs text-slate-500">
+                      Kayıtlı soru şablonunuz yok. Şablonlar → Kalem Sorusu'ndan
+                      oluşturabilirsiniz.
+                    </p>
+                  ) : (
+                    <>
+                      <select
+                        value={tplId ?? ""}
+                        onChange={(e) => setTplId(e.target.value || null)}
+                        className="w-full px-3 py-2 rounded-lg border border-surface-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                      >
+                        <option value="">Şablon seçin…</option>
+                        {templates.data?.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} ({t.itemCount} soru)
+                          </option>
+                        ))}
+                      </select>
+                      {tplId && tplDetail.isLoading ? (
+                        <p className="text-xs text-slate-500">
+                          Sorular yükleniyor…
+                        </p>
+                      ) : tplDetail.data ? (
+                        <ul className="space-y-1 max-h-48 overflow-y-auto pr-1">
+                          {tplDetail.data.items.map((q) => (
+                            <li key={q.id}>
+                              <button
+                                type="button"
+                                onClick={() => applyQuestion(q.text)}
+                                className="w-full text-left px-2.5 py-2 rounded-md bg-white border border-surface-border hover:border-brand-300 hover:bg-brand-50/40 transition-colors"
+                              >
+                                <span className="text-sm text-brand-900 block">
+                                  {q.text}
+                                </span>
+                                <span className="text-[11px] text-slate-500">
+                                  {ANSWER_TYPE_TR[q.answerType] ?? q.answerType}
+                                  {q.required ? " · Zorunlu" : ""}
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              ) : null}
             </div>
 
             <Field
