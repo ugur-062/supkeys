@@ -15,6 +15,7 @@ import {
   Info,
   Loader2,
   Send,
+  TrendingDown,
   Trophy,
 } from "lucide-react";
 import Link from "next/link";
@@ -58,6 +59,8 @@ export function MyBidTab({ tender }: Props) {
 
   const bid = myBidQuery.data ?? null;
   const isOpen = tender.status === "OPEN_FOR_BIDS";
+  // V2-7 — Açık eksiltmede tedarikçi SUBMITTED teklifini açıkken düşürebilir.
+  const isAuction = tender.type === "ENGLISH_AUCTION";
   const formHref = `/supplier/ihaleler/${tender.id}/teklif-ver`;
 
   // 1. Henüz teklif yok
@@ -284,24 +287,47 @@ export function MyBidTab({ tender }: Props) {
 
       <BidSummaryCard bid={bid} />
 
-      {/* SUBMITTED + ihale açık: revize YOK, sadece geri çek + bilgilendirme */}
+      {/* SUBMITTED + ihale açık.
+          ENGLISH_AUCTION: fiyat düşürerek yeniden teklif verilebilir.
+          RFQ: revize yok, sadece geri çek + bilgilendirme. */}
       {bid.status === "SUBMITTED" && isOpen ? (
         <>
-          <div className="rounded-xl bg-warning-50 border border-warning-200 p-4">
-            <h4 className="font-bold text-warning-900 text-sm">
-              Teklifinizi mi değiştirmek istiyorsunuz?
-            </h4>
-            <p className="text-sm text-warning-800 mt-1">
-              Teklifinizi değiştirmek için alıcıyla iletişime geçin. Alıcı
-              teklifinizi elerse yeniden teklif verebilirsiniz.
-            </p>
-            <p className="text-xs text-warning-700 mt-2">
-              Acil durumlarda teklifinizi geri çekebilirsiniz; ancak bu durumda
-              yeniden teklif veremezsiniz.
-            </p>
-          </div>
+          {isAuction ? (
+            <div className="rounded-xl bg-brand-50 border border-brand-200 p-4">
+              <h4 className="font-bold text-brand-900 text-sm">
+                Açık eksiltme — fiyatınızı düşürebilirsiniz
+              </h4>
+              <p className="text-sm text-brand-800 mt-1">
+                İhale açık olduğu sürece daha düşük bir teklif vererek
+                sıralamanızı iyileştirebilirsiniz. Yeni teklifiniz öncekinden
+                en az belirlenen azaltma kadar düşük olmalıdır.
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-xl bg-warning-50 border border-warning-200 p-4">
+              <h4 className="font-bold text-warning-900 text-sm">
+                Teklifinizi mi değiştirmek istiyorsunuz?
+              </h4>
+              <p className="text-sm text-warning-800 mt-1">
+                Teklifinizi değiştirmek için alıcıyla iletişime geçin. Alıcı
+                teklifinizi elerse yeniden teklif verebilirsiniz.
+              </p>
+              <p className="text-xs text-warning-700 mt-2">
+                Acil durumlarda teklifinizi geri çekebilirsiniz; ancak bu
+                durumda yeniden teklif veremezsiniz.
+              </p>
+            </div>
+          )}
 
           <div className="flex items-center gap-2 flex-wrap">
+            {isAuction && !confirmingWithdraw ? (
+              <Link href={formHref}>
+                <Button type="button" variant="primary">
+                  <TrendingDown className="w-4 h-4" />
+                  Yeni Teklif Ver (Fiyat Düşür)
+                </Button>
+              </Link>
+            ) : null}
             {confirmingWithdraw ? (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-600">Emin misiniz?</span>
