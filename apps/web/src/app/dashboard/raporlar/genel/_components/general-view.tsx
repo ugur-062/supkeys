@@ -13,6 +13,7 @@ import {
   type GeneralPayload,
 } from "@/hooks/use-reports";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { tenderStatusLabel } from "@/lib/tenders/labels";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -207,7 +208,10 @@ export function GeneralReportView() {
                 onChange={setStatus}
                 options={[
                   { value: "", label: "Hepsi" },
-                  ...STATUSES.map((s) => ({ value: s, label: s })),
+                  ...STATUSES.map((s) => ({
+                    value: s,
+                    label: tenderStatusLabel(s),
+                  })),
                 ]}
               />
             </Field>
@@ -434,7 +438,9 @@ function GeneralResults({
                     <td className="px-3 py-2 max-w-[220px] truncate" title={t.title}>
                       {t.title}
                     </td>
-                    <td className="px-3 py-2 text-slate-600">{t.status}</td>
+                    <td className="px-3 py-2 text-slate-600">
+                      {tenderStatusLabel(t.status)}
+                    </td>
                     <td className="px-3 py-2 text-center">#{t.roundNumber}</td>
                     <td className="px-3 py-2 text-center">{t.invitedCount}</td>
                     <td className="px-3 py-2 text-center">

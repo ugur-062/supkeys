@@ -4,6 +4,7 @@ import { AuctionLiveCard } from "@/app/supplier/(authed)/ihaleler/[id]/_componen
 import { Button } from "@/components/ui/button";
 import { useMyBid } from "@/hooks/use-supplier-bid";
 import { useSupplierTenderDetail } from "@/hooks/use-supplier-tenders";
+import { tenderStatusLabel } from "@/lib/tenders/labels";
 import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { TeklifForm } from "./teklif-form";
@@ -63,7 +64,8 @@ export function TeklifLoader({ id }: Props) {
             Bu ihaleye artık teklif verilemez
           </p>
           <p className="text-sm text-slate-500">
-            İhale &ldquo;{tender.status}&rdquo; durumunda. Teklif kabul aşaması
+            İhale &ldquo;{tenderStatusLabel(tender.status)}&rdquo; durumunda.
+            Teklif kabul aşaması
             kapandı.
           </p>
           <Link

@@ -15,6 +15,7 @@ import type {
   ApprovalRequestDetail,
   ApprovalRequestStep,
 } from "@/lib/approval-requests/types";
+import { tenderStatusLabel } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import axios from "axios";
 import { format, formatDistanceToNowStrict } from "date-fns";
@@ -333,7 +334,10 @@ export function OnayDetayView({
           </div>
 
           <dl className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 text-sm border-t border-surface-border pt-4">
-            <DetailField label="Statü" value={request.tender.status} />
+            <DetailField
+              label="Statü"
+              value={tenderStatusLabel(request.tender.status)}
+            />
             <DetailField
               label="Para Birimi"
               value={request.tender.primaryCurrency}

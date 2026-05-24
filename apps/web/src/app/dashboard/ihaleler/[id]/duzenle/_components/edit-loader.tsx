@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import { useTenderDetail } from "@/hooks/use-tenant-tenders";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
+import { tenderStatusLabel } from "@/lib/tenders/labels";
 import { format } from "date-fns";
 import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -71,7 +72,7 @@ export function EditLoader({ id }: Props) {
     const reason =
       tender.status === "OPEN_FOR_BIDS"
         ? "Bu ihaleye teklif gönderilmiş; teklif aldıktan sonra ihale düzenlenemez."
-        : `Bu ihale şu an "${tender.status}" durumunda.`;
+        : `Bu ihale şu an "${tenderStatusLabel(tender.status)}" durumunda.`;
     return (
       <div className="max-w-2xl mx-auto py-12">
         <div className="card p-8 text-center space-y-3">

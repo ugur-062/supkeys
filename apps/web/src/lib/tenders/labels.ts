@@ -48,6 +48,17 @@ export const TENDER_STATUS_META: Record<TenderStatus, BadgeMeta> = {
   },
 };
 
+/**
+ * Ham TenderStatus enum'unu (DB/back-end değeri, ör. OPEN_FOR_BIDS) kullanıcıya
+ * Türkçe gösterir. DB/back-end değişmez; bu yalnızca görünüm içindir.
+ * Bilinmeyen değer gelirse ham değeri döndürür (kırılmaz).
+ */
+export function tenderStatusLabel(status: string): string {
+  return (
+    (TENDER_STATUS_META as Record<string, BadgeMeta>)[status]?.label ?? status
+  );
+}
+
 export const TENDER_TYPE_META: Record<TenderType, BadgeMeta> = {
   RFQ: {
     label: "RFQ",
