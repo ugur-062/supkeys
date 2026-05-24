@@ -37,6 +37,7 @@ import { TenantApprovalFlowsModule } from "./modules/tenant-approval-flows/tenan
 import { TenantApprovalRequestsModule } from "./modules/tenant-approval-requests/tenant-approval-requests.module";
 import { TenantDashboardModule } from "./modules/tenant-dashboard/tenant-dashboard.module";
 import { TenantOrdersModule } from "./modules/tenant-orders/tenant-orders.module";
+import { TenantReportsModule } from "./modules/tenant-reports/tenant-reports.module";
 import { TenantSuppliersModule } from "./modules/tenant-suppliers/tenant-suppliers.module";
 import { TenantTendersModule } from "./modules/tenant-tenders/tenant-tenders.module";
 import { TenantUsersModule } from "./modules/tenant-users/tenant-users.module";
@@ -87,6 +88,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     TenantOrdersModule,
     SupplierOrdersModule,
     TenantDashboardModule,
+    TenantReportsModule,
     SupplierDashboardModule,
     SupplierProfileModule,
     TenantUsersModule,
