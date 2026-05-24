@@ -66,6 +66,66 @@ const codeBox = {
   margin: "12px 0",
 };
 
+const tenderBox = {
+  backgroundColor: COLORS.brand50,
+  border: `1px solid ${COLORS.brand100}`,
+  borderRadius: "10px",
+  padding: "16px 18px",
+  margin: "20px 0",
+  fontFamily: FONTS.sans,
+};
+
+const tenderRow = {
+  fontFamily: FONTS.sans,
+  fontSize: "13px",
+  color: COLORS.slate700,
+  lineHeight: "1.6",
+  margin: "2px 0",
+};
+
+// V2-7 — Davet bir ihaleye bağlıysa gösterilen özet kutusu.
+function TenderSummary({
+  tender,
+}: {
+  tender: NonNullable<SupplierInvitationData["tender"]>;
+}) {
+  return (
+    <Section style={tenderBox}>
+      <Text
+        style={{
+          fontFamily: FONTS.sans,
+          fontSize: "11px",
+          fontWeight: 700,
+          textTransform: "uppercase" as const,
+          letterSpacing: "0.05em",
+          color: COLORS.brand700,
+          margin: "0 0 8px 0",
+        }}
+      >
+        İhale Daveti · {tender.number}
+      </Text>
+      <Text
+        style={{
+          fontFamily: FONTS.sans,
+          fontSize: "16px",
+          fontWeight: 700,
+          color: COLORS.brand900,
+          margin: "0 0 10px 0",
+          lineHeight: "1.4",
+        }}
+      >
+        {tender.title}
+      </Text>
+      <Text style={tenderRow}>
+        📦 {tender.itemCount} kalem
+      </Text>
+      <Text style={tenderRow}>
+        ⏰ Son teklif: <strong>{tender.bidsCloseAtFormatted}</strong>
+      </Text>
+    </Section>
+  );
+}
+
 export function makeSupplierInvitationSubject(
   tenantName: string,
   isExistingSupplier?: boolean,
@@ -101,11 +161,15 @@ function ExistingSupplierBranch(props: SupplierInvitationData) {
         <strong style={{ color: COLORS.brand900 }}>
           {props.inviterTenantName}
         </strong>{" "}
-        firmasından <strong>{props.inviterUserName}</strong>, sizi tedarikçi
-        olarak ağına eklemek istiyor. Supkeys&apos;te zaten kayıtlı olduğunuz
-        için yeniden form doldurmanıza gerek yok — hesabınıza giriş yapıp
-        daveti kabul edebilirsiniz.
+        firmasından <strong>{props.inviterUserName}</strong>,{" "}
+        {props.tender
+          ? "sizi aşağıdaki ihaleye davet etti"
+          : "sizi tedarikçi olarak ağına eklemek istiyor"}
+        . Supkeys&apos;te zaten kayıtlı olduğunuz için yeniden form doldurmanıza
+        gerek yok — hesabınıza giriş yapıp daveti kabul edebilirsiniz.
       </Text>
+
+      {props.tender ? <TenderSummary tender={props.tender} /> : null}
 
       {props.message && (
         <>
@@ -176,9 +240,13 @@ function NewSupplierBranch(props: SupplierInvitationData) {
         <strong style={{ color: COLORS.brand900 }}>
           {props.inviterTenantName}
         </strong>{" "}
-        firmasından <strong>{props.inviterUserName}</strong>, sizi Supkeys
-        platformunda tedarikçi olarak kayıt olmaya davet etti.
+        firmasından <strong>{props.inviterUserName}</strong>,{" "}
+        {props.tender
+          ? "sizi aşağıdaki ihaleye davet etti. Teklif verebilmek için Supkeys'e ücretsiz kayıt olun."
+          : "sizi Supkeys platformunda tedarikçi olarak kayıt olmaya davet etti."}
       </Text>
+
+      {props.tender ? <TenderSummary tender={props.tender} /> : null}
 
       {props.message && (
         <>
@@ -222,11 +290,22 @@ function renderExistingSupplierText(props: SupplierInvitationData): string {
     `Merhaba${props.contactName ? ` ${props.contactName}` : ""},`,
     "",
     `${props.inviterTenantName} firmasından ${props.inviterUserName},`,
-    "sizinle yeni bir bağlantı kurmak istiyor.",
+    props.tender
+      ? "sizi aşağıdaki ihaleye davet etti."
+      : "sizinle yeni bir bağlantı kurmak istiyor.",
+  ];
+  if (props.tender) {
+    lines.push(
+      "",
+      `İhale: ${props.tender.number} — ${props.tender.title}`,
+      `Kalem: ${props.tender.itemCount} · Son teklif: ${props.tender.bidsCloseAtFormatted}`,
+    );
+  }
+  lines.push(
     "",
     "Supkeys hesabınızla giriş yapıp daveti kabul edebilirsiniz:",
     props.acceptUrl,
-  ];
+  );
   if (props.shortCode) {
     lines.push(
       "",
@@ -259,8 +338,17 @@ function renderNewSupplierText(props: SupplierInvitationData): string {
     `Merhaba${props.contactName ? ` ${props.contactName}` : ""},`,
     "",
     `${props.inviterTenantName} firmasından ${props.inviterUserName},`,
-    "sizi Supkeys platformunda tedarikçi olarak kayıt olmaya davet etti.",
+    props.tender
+      ? "sizi aşağıdaki ihaleye davet etti. Teklif vermek için Supkeys'e ücretsiz kayıt olun."
+      : "sizi Supkeys platformunda tedarikçi olarak kayıt olmaya davet etti.",
   ];
+  if (props.tender) {
+    lines.push(
+      "",
+      `İhale: ${props.tender.number} — ${props.tender.title}`,
+      `Kalem: ${props.tender.itemCount} · Son teklif: ${props.tender.bidsCloseAtFormatted}`,
+    );
+  }
   if (props.message) {
     lines.push("", `${props.inviterUserName}'den mesaj:`, `"${props.message}"`);
   }

@@ -9,6 +9,8 @@ import { ConfigService } from "@nestjs/config";
 import type { Prisma } from "@supkeys/db";
 import { renderEmail } from "@supkeys/email";
 import { generateShortCode } from "@supkeys/shared";
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailService } from "../../email/email.service";
 import {
@@ -99,6 +101,188 @@ export class SupplierInvitationsService {
       shortCode: invitation.shortCode,
       message: "Davet gönderildi",
     };
+  }
+
+  /**
+   * V2-7 — Belirli bir ihaleye e-posta ile tedarikçi daveti. Kayıtsız veya
+   * (bu tenant'a) bağlı olmayan kayıtlı tedarikçiler için. Davet kabul edilince
+   * (kayıtlı → direkt, yeni → admin onayı sonrası) otomatik TenderInvitation
+   * oluşur (bkz. supplier-self-service & admin-supplier-applications).
+   *
+   * Çağıran (TenantTendersService) tender'ın tenant'a aitliğini + statüsünü +
+   * creator-gate'i zaten doğrular; burada sadece davet mantığı çalışır.
+   */
+  async createForTender(
+    tenantId: string,
+    inviterUserId: string,
+    tender: {
+      id: string;
+      tenderNumber: string;
+      title: string;
+      bidsCloseAt: Date;
+      itemCount: number;
+    },
+    dto: { email: string; contactName?: string; message?: string },
+  ) {
+    const email = dto.email.toLowerCase().trim();
+
+    // Zaten aktif/bağlantılı tedarikçi → liste üzerinden davet edilmeli
+    const detection = await this.detectExistingSupplier(email, tenantId, {
+      throwOnExistingRelation: false,
+    });
+    if (detection.relationStatus === "ACTIVE") {
+      throw new ConflictException(
+        "Bu e-posta zaten aktif tedarikçinize ait — yukarıdaki listeden seçerek davet edebilirsiniz.",
+      );
+    }
+    if (detection.relationStatus === "PENDING_TENANT_APPROVAL") {
+      throw new ConflictException(
+        "Bu tedarikçiyle bekleyen bir bağlantı talebiniz var; o onaylandığında ihaleye ekleyebilirsiniz.",
+      );
+    }
+    if (detection.relationStatus === "BLOCKED") {
+      throw new ConflictException(
+        "Bu tedarikçiyi engellediniz, davet gönderemezsiniz.",
+      );
+    }
+
+    // Aynı e-posta bu ihaleye zaten davet edildi mi?
+    const existingForTender = await this.prisma.supplierInvitation.findFirst({
+      where: { tenantId, email, tenderId: tender.id, status: "PENDING" },
+      select: { id: true },
+    });
+    if (existingForTender) {
+      throw new ConflictException(
+        "Bu e-posta bu ihaleye zaten davet edildi.",
+      );
+    }
+
+    const inviter = await this.prisma.user.findUnique({
+      where: { id: inviterUserId },
+      select: {
+        firstName: true,
+        lastName: true,
+        tenant: { select: { name: true } },
+      },
+    });
+    if (!inviter?.tenant) {
+      throw new NotFoundException("Davet eden kullanıcı bulunamadı");
+    }
+
+    const plainToken = generateRegistrationToken();
+    const tokenHash = hashToken(plainToken);
+    const expiresAt = new Date(Date.now() + INVITATION_TTL_MS);
+    const shortCode = await this.generateUniqueShortCode();
+
+    const invitation = await this.prisma.supplierInvitation.create({
+      data: {
+        tenantId,
+        invitedByUserId: inviterUserId,
+        email,
+        contactName: dto.contactName?.trim(),
+        message: dto.message?.trim(),
+        tokenHash,
+        shortCode,
+        expiresAt,
+        status: "PENDING",
+        isExistingSupplier: detection.isExistingSupplier,
+        tenderId: tender.id,
+      },
+      select: { id: true },
+    });
+
+    this.dispatchTenderInvitationEmail({
+      invitationId: invitation.id,
+      email,
+      contactName: dto.contactName?.trim() ?? null,
+      message: dto.message?.trim() ?? null,
+      expiresAt,
+      isExistingSupplier: detection.isExistingSupplier,
+      shortCode,
+      plainToken,
+      tenantName: inviter.tenant.name,
+      inviterUserName: `${inviter.firstName} ${inviter.lastName}`,
+      tender,
+    }).catch((err) => {
+      this.logger.error(
+        `Tender invitation email failed (${invitation.id}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    });
+
+    return {
+      id: invitation.id,
+      email,
+      expiresAt,
+      isExistingSupplier: detection.isExistingSupplier,
+      message: detection.isExistingSupplier
+        ? "Davet gönderildi — tedarikçi giriş yapıp kabul edince ihaleye eklenir."
+        : "Davet gönderildi — kayıt + admin onayı sonrası ihaleye eklenir.",
+    };
+  }
+
+  private async dispatchTenderInvitationEmail(params: {
+    invitationId: string;
+    email: string;
+    contactName: string | null;
+    message: string | null;
+    expiresAt: Date;
+    isExistingSupplier: boolean;
+    shortCode: string | null;
+    plainToken: string;
+    tenantName: string;
+    inviterUserName: string;
+    tender: {
+      tenderNumber: string;
+      title: string;
+      bidsCloseAt: Date;
+      itemCount: number;
+    };
+  }) {
+    const acceptUrl = this.buildInvitationAcceptUrl(
+      params.plainToken,
+      params.isExistingSupplier,
+    );
+
+    await this.emailService.send({
+      to: {
+        email: params.email,
+        name: params.contactName ?? undefined,
+      },
+      templateData: {
+        template: "supplier_invitation",
+        data: {
+          inviterTenantName: params.tenantName,
+          inviterUserName: params.inviterUserName,
+          contactName: params.contactName,
+          message: params.message,
+          acceptUrl,
+          expiresAt: params.expiresAt.toISOString(),
+          isExistingSupplier: params.isExistingSupplier,
+          shortCode: params.shortCode,
+          tender: {
+            number: params.tender.tenderNumber,
+            title: params.tender.title,
+            bidsCloseAtFormatted: format(
+              params.tender.bidsCloseAt,
+              "d MMMM yyyy, HH:mm",
+              { locale: tr },
+            ),
+            itemCount: params.tender.itemCount,
+          },
+        },
+      },
+      context: { type: "supplier_invitation", id: params.invitationId },
+      subject: `🎯 ${params.tenantName} sizi "${params.tender.title}" ihalesine davet etti — Supkeys`,
+    });
+
+    await this.prisma.supplierInvitation
+      .update({
+        where: { id: params.invitationId },
+        data: { lastSentAt: new Date() },
+      })
+      .catch(() => undefined);
   }
 
   /**

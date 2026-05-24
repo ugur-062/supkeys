@@ -644,6 +644,12 @@ model SupplierInvitation {
   acceptedBySupplierId String?
   acceptedBySupplier   Supplier?  @relation("AcceptedBySupplier", fields: [acceptedBySupplierId], references: [id])
 
+  // V2-7 — Davet belirli bir ihaleye bağlıysa: kabul edilince (kayıtlı tedarikçi
+  // direkt, yeni tedarikçi admin onayı sonrası) otomatik TenderInvitation oluşur.
+  // Tender silinirse davet kalır ama bağ kopar (SetNull).
+  tenderId             String?
+  tender               Tender?    @relation(fields: [tenderId], references: [id], onDelete: SetNull)
+
   sentCount  Int      @default(1)
   lastSentAt DateTime @default(now())
 
@@ -666,6 +672,7 @@ model SupplierInvitation {
   @@index([email])
   @@index([status])
   @@index([expiresAt])
+  @@index([tenderId])
   @@map("supplier_invitations")
 }
 
@@ -867,6 +874,8 @@ model Tender {
   orders              Order[]
   attachments         TenderAttachment[]
   approvalRequests    ApprovalRequest[]
+  // V2-7 — E-posta ile (kayıtsız/bağlantısız) tedarikçiyi doğrudan bu ihaleye davet.
+  supplierInvitations SupplierInvitation[]
 
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt

@@ -138,7 +138,11 @@ export class AdminSupplierApplicationsService {
   async approve(id: string, reviewerId: string) {
     const app = await this.prisma.supplierApplication.findUnique({
       where: { id },
-      include: { invitedByTenant: { select: { name: true } } },
+      include: {
+        invitedByTenant: { select: { name: true } },
+        // V2-7 — Davet bir ihaleye bağlıysa onay sonrası tedarikçiyi o ihaleye ekle
+        invitation: { select: { tenderId: true } },
+      },
     });
     if (!app) throw new NotFoundException("Başvuru bulunamadı");
     if (app.status !== "PENDING_REVIEW") {
@@ -232,6 +236,26 @@ export class AdminSupplierApplicationsService {
             acceptedBySupplierId: supplier.id,
           },
         });
+      }
+
+      // V2-7 — Davet bir ihaleye bağlıysa, onay sonrası tedarikçiyi o ihaleye
+      // davetli yap (ihale hâlâ DRAFT/OPEN_FOR_BIDS ise; kapanmışsa atla).
+      if (app.invitation?.tenderId) {
+        const tenderId = app.invitation.tenderId;
+        const tender = await tx.tender.findUnique({
+          where: { id: tenderId },
+          select: { status: true },
+        });
+        if (
+          tender &&
+          (tender.status === "OPEN_FOR_BIDS" || tender.status === "DRAFT")
+        ) {
+          await tx.tenderInvitation.upsert({
+            where: { tenderId_supplierId: { tenderId, supplierId: supplier.id } },
+            create: { tenderId, supplierId: supplier.id, status: "PENDING" },
+            update: {},
+          });
+        }
       }
 
       const updatedApp = await tx.supplierApplication.update({

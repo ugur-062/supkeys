@@ -150,6 +150,16 @@ export interface SupplierInvitationData {
   shortCode?: string | null;
   /** ISO datetime — davet süresi */
   expiresAt: string;
+  /**
+   * V2-7 — Davet belirli bir ihaleye bağlıysa ihale özeti gösterilir
+   * ("X sizi şu ihaleye davet etti, teklif vermek için kayıt olun").
+   */
+  tender?: {
+    number: string;
+    title: string;
+    bidsCloseAtFormatted: string;
+    itemCount: number;
+  } | null;
 }
 
 /**

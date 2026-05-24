@@ -8,6 +8,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import type { Prisma } from "@supkeys/db";
 import { normalizeShortCode, validateShortCode } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailService } from "../../email/email.service";
@@ -115,6 +116,12 @@ export class SupplierSelfServiceService {
         },
       });
 
+      // V2-7 — Davet bir ihaleye bağlıysa, ilişki kurulduğu an tedarikçiyi
+      // o ihaleye davetli yap (ihale hâlâ açıksa).
+      if (invitation.tenderId) {
+        await this.linkTenderInvitation(tx, invitation.tenderId, supplierId);
+      }
+
       return { relation };
     });
 
@@ -142,6 +149,33 @@ export class SupplierSelfServiceService {
 
   // ---------- helpers ----------
 
+  /**
+   * V2-7 — Davet kabulüyle tedarikçiyi ihaleye davetli yap. Idempotent (zaten
+   * davetliyse atla); ihale DRAFT/OPEN_FOR_BIDS değilse (kapanmış vb.) atla.
+   */
+  private async linkTenderInvitation(
+    tx: Prisma.TransactionClient,
+    tenderId: string,
+    supplierId: string,
+  ) {
+    const tender = await tx.tender.findUnique({
+      where: { id: tenderId },
+      select: { status: true },
+    });
+    if (
+      !tender ||
+      (tender.status !== "OPEN_FOR_BIDS" && tender.status !== "DRAFT")
+    ) {
+      return;
+    }
+
+    await tx.tenderInvitation.upsert({
+      where: { tenderId_supplierId: { tenderId, supplierId } },
+      create: { tenderId, supplierId, status: "PENDING" },
+      update: {},
+    });
+  }
+
   private async findInvitation(dto: AcceptInvitationDto) {
     if (dto.invitationToken) {
       const tokenHash = hashToken(dto.invitationToken);
@@ -159,6 +193,7 @@ export class SupplierSelfServiceService {
         expiresAt: invitation.expiresAt,
         isExistingSupplier: invitation.isExistingSupplier,
         openedAt: invitation.openedAt,
+        tenderId: invitation.tenderId,
       };
     }
 

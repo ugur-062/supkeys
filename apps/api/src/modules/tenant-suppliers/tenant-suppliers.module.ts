@@ -10,5 +10,7 @@ import { TenantSuppliersService } from "./services/tenant-suppliers.service";
   imports: [AuthModule, EmailModule],
   controllers: [SupplierInvitationsController, TenantSuppliersController],
   providers: [SupplierInvitationsService, TenantSuppliersService],
+  // V2-7 — tenant-tenders, ihaleye e-posta ile davet için createForTender'ı kullanır
+  exports: [SupplierInvitationsService],
 })
 export class TenantSuppliersModule {}

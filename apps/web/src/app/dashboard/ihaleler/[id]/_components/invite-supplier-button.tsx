@@ -5,13 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAddTenderInvitations } from "@/hooks/use-tenant-tenders";
+import {
+  useAddTenderInvitations,
+  useInviteByEmail,
+} from "@/hooks/use-tenant-tenders";
 import { useSuppliers } from "@/hooks/use-tenant-suppliers";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import type { TenderInvitationDetail } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import * as Dialog from "@radix-ui/react-dialog";
-import { Building2, Search, UserPlus, Users, X } from "lucide-react";
+import { Building2, Info, Mail, Search, UserPlus, Users, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -35,12 +38,15 @@ export function InviteSupplierButton({
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteContactName, setInviteContactName] = useState("");
 
   const suppliersQuery = useSuppliers({
     status: "ACTIVE",
     pageSize: 100,
   });
   const addMutation = useAddTenderInvitations(tenderId);
+  const emailMutation = useInviteByEmail(tenderId);
 
   const alreadyInvitedSupplierIds = useMemo(
     () => invitations.map((i) => i.supplier.id),
@@ -59,10 +65,28 @@ export function InviteSupplierButton({
   }, [suppliersQuery.data, alreadyInvitedSupplierIds, search]);
 
   const handleClose = () => {
-    if (addMutation.isPending) return;
+    if (addMutation.isPending || emailMutation.isPending) return;
     setOpen(false);
     setSelectedIds([]);
     setSearch("");
+    setInviteEmail("");
+    setInviteContactName("");
+  };
+
+  const handleEmailInvite = async () => {
+    const email = inviteEmail.trim();
+    if (!email) return;
+    try {
+      const res = await emailMutation.mutateAsync({
+        email,
+        contactName: inviteContactName.trim() || undefined,
+      });
+      toast.success(res.message ?? "Davet gönderildi");
+      setInviteEmail("");
+      setInviteContactName("");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Davet gönderilemedi"));
+    }
   };
 
   const handleSubmit = async () => {
@@ -102,8 +126,8 @@ export function InviteSupplierButton({
           <Dialog.Content
             className={cn(
               "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[60]",
-              "w-[calc(100vw-2rem)] max-w-xl bg-white rounded-2xl shadow-2xl outline-none",
-              "max-h-[85vh] flex flex-col",
+              "w-[calc(100vw-2rem)] max-w-5xl bg-white rounded-2xl shadow-2xl outline-none",
+              "h-[90vh] max-h-[calc(100vh-2rem)] flex flex-col",
             )}
           >
             <header className="px-5 py-4 border-b border-surface-border flex items-start justify-between gap-3">
@@ -146,7 +170,7 @@ export function InviteSupplierButton({
                     Bu ihaleye henüz tedarikçi davet edilmedi.
                   </p>
                 ) : (
-                  <ul className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                  <ul className="space-y-1.5 max-h-80 overflow-y-auto pr-1">
                     {invitations.map((inv) => (
                       <li
                         key={inv.id}
@@ -175,11 +199,11 @@ export function InviteSupplierButton({
                 )}
               </section>
 
-              {/* SECTION 2 — Yeni Davet Et */}
-              <section className="px-5 py-4">
+              {/* SECTION 2 — Listeden Davet Et (aktif tedarikçiler) */}
+              <section className="px-5 py-4 border-t border-surface-border">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Yeni Davet Et
+                    Listeden Davet Et
                   </h3>
                   <span className="text-[11px] text-slate-400">
                     Aktif tedarikçiler
@@ -220,7 +244,7 @@ export function InviteSupplierButton({
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+                    <div className="space-y-1 max-h-80 overflow-y-auto pr-1">
                       {candidates.map((s) => {
                         const id = s.supplier.id;
                         const checked = selectedIds.includes(id);
@@ -267,6 +291,76 @@ export function InviteSupplierButton({
                       })}
                     </div>
                   )}
+                </div>
+              </section>
+
+              {/* SECTION 3 — E-posta ile Davet Et (kayıtsız/bağlantısız) */}
+              <section className="px-5 py-4 border-t border-surface-border bg-slate-50/40">
+                <div className="flex items-center gap-2 mb-1">
+                  <Mail className="w-4 h-4 text-brand-600" />
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    E-posta ile Davet Et
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 mb-3">
+                  Listenizde olmayan bir firmayı e-posta ile bu ihaleye davet
+                  edin. Kayıtlı değilse bile davet e-postasında ihale özetini
+                  görür ve teklif vermek için kayıt olabilir.
+                </p>
+
+                <div className="space-y-2.5">
+                  <Field>
+                    <Label htmlFor="invite-email" className="sr-only">
+                      E-posta
+                    </Label>
+                    <div className="relative">
+                      <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <Input
+                        id="invite-email"
+                        type="email"
+                        placeholder="firma@ornek.com"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                  </Field>
+                  <Field>
+                    <Label htmlFor="invite-contact" className="sr-only">
+                      İletişim adı (opsiyonel)
+                    </Label>
+                    <Input
+                      id="invite-contact"
+                      type="text"
+                      placeholder="İletişim kişisi adı (opsiyonel)"
+                      value={inviteContactName}
+                      onChange={(e) => setInviteContactName(e.target.value)}
+                    />
+                  </Field>
+
+                  <div className="flex items-center justify-end">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleEmailInvite}
+                      disabled={!inviteEmail.trim() || emailMutation.isPending}
+                      loading={emailMutation.isPending}
+                    >
+                      <Mail className="w-4 h-4" />
+                      E-posta Daveti Gönder
+                    </Button>
+                  </div>
+
+                  <div className="flex items-start gap-2 text-[11px] text-slate-500 bg-white border border-surface-border rounded-lg px-3 py-2">
+                    <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-slate-400" />
+                    <span>
+                      Hiç kayıtlı olmayan firmalar kaydını tamamlayıp{" "}
+                      <strong>admin onayından</strong> geçtikten sonra ihaleye
+                      eklenir. Onay ihale kapanışından sonra gelirse teklif
+                      veremez.
+                    </span>
+                  </div>
                 </div>
               </section>
             </div>

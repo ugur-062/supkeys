@@ -34,6 +34,7 @@ import {
   CloseNoAwardDto,
 } from "../dto/award.dto";
 import { TenderSchedulerService } from "../../tender-scheduler/tender-scheduler.service";
+import { SupplierInvitationsService } from "../../tenant-suppliers/services/supplier-invitations.service";
 import { CancelTenderDto } from "../dto/cancel-tender.dto";
 import { CreateTenderDto, DecrementBasisDto } from "../dto/create-tender.dto";
 import { ListTendersDto } from "../dto/list-tenders.dto";
@@ -84,6 +85,7 @@ export class TenantTendersService {
     private readonly approvalRequests: TenantApprovalRequestsService,
     private readonly categoryService: CategoryService,
     private readonly tenderScheduler: TenderSchedulerService,
+    private readonly supplierInvitations: SupplierInvitationsService,
   ) {}
 
   // ============================================================
@@ -252,6 +254,8 @@ export class TenantTendersService {
                 companyName: true,
                 membership: true,
                 taxNumber: true,
+                city: true,
+                district: true,
               },
             },
           },
@@ -1773,6 +1777,55 @@ export class TenantTendersService {
         invitations: newInvitations.map((i) => ({ id: i.id, supplierId: i.supplier.id })),
       };
     });
+  }
+
+  /**
+   * V2-7 — İhaleye e-posta ile tedarikçi daveti (kayıtsız veya bağlı olmayan
+   * kayıtlı tedarikçi). SupplierInvitation(tenderId) oluşturulur; kabul edilince
+   * otomatik TenderInvitation'a dönüşür. Tender doğrulaması + creator-gate burada.
+   */
+  async inviteByEmail(
+    tenantId: string,
+    tenderId: string,
+    userId: string,
+    userRole: string,
+    dto: { email: string; contactName?: string; message?: string },
+  ) {
+    const tender = await this.prisma.tender.findUnique({
+      where: { id: tenderId },
+      select: {
+        id: true,
+        tenantId: true,
+        createdById: true,
+        status: true,
+        tenderNumber: true,
+        title: true,
+        bidsCloseAt: true,
+        _count: { select: { items: true } },
+      },
+    });
+    if (!tender) throw new NotFoundException("İhale bulunamadı");
+    if (tender.tenantId !== tenantId) throw new ForbiddenException();
+    assertCanActOnTender(tender, { id: userId, role: userRole });
+
+    if (tender.status !== "DRAFT" && tender.status !== "OPEN_FOR_BIDS") {
+      throw new ConflictException(
+        "Sadece taslak veya teklif toplama aşamasındaki ihalelere tedarikçi davet edilebilir",
+      );
+    }
+
+    return this.supplierInvitations.createForTender(
+      tenantId,
+      userId,
+      {
+        id: tender.id,
+        tenderNumber: tender.tenderNumber,
+        title: tender.title,
+        bidsCloseAt: tender.bidsCloseAt,
+        itemCount: tender._count.items,
+      },
+      dto,
+    );
   }
 
   /**

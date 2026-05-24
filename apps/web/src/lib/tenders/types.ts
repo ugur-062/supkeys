@@ -137,6 +137,8 @@ export interface TenderInvitationDetail {
     companyName: string;
     membership: "STANDARD" | "PREMIUM";
     taxNumber: string;
+    city: string;
+    district: string;
   };
 }
 

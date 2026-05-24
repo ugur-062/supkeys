@@ -305,6 +305,29 @@ export function useAddTenderInvitations(tenderId: string) {
   });
 }
 
+/**
+ * V2-7 — İhaleye e-posta ile tedarikçi daveti (kayıtsız veya bağlı olmayan
+ * kayıtlı tedarikçi). Kabul + (yeni tedarikçi için) admin onayı sonrası
+ * otomatik TenderInvitation oluşur.
+ */
+export function useInviteByEmail(tenderId: string) {
+  return useMutation({
+    mutationFn: async (input: {
+      email: string;
+      contactName?: string;
+      message?: string;
+    }) => {
+      const { data } = await api.post<{
+        id: string;
+        email: string;
+        isExistingSupplier: boolean;
+        message: string;
+      }>(`/tenants/me/tenders/${tenderId}/email-invitations`, input);
+      return data;
+    },
+  });
+}
+
 export function useCancelTender() {
   const qc = useQueryClient();
   return useMutation({

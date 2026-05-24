@@ -29,6 +29,7 @@ import { ChangeClosingTimeDto } from "../dto/change-closing-time.dto";
 import { CreateNextRoundDto } from "../dto/create-next-round.dto";
 import { CreateTenderDto } from "../dto/create-tender.dto";
 import { EliminateBidDto } from "../dto/eliminate-bid.dto";
+import { InviteByEmailDto } from "../dto/invite-by-email.dto";
 import { ListTendersDto } from "../dto/list-tenders.dto";
 import { UpdateTenderDto } from "../dto/update-tender.dto";
 import { UpdateTenderNotesDto } from "../dto/update-tender-notes.dto";
@@ -145,6 +146,22 @@ export class TenantTendersController {
       user.id,
       user.role,
       dto.supplierIds,
+    );
+  }
+
+  @Post(":id/email-invitations")
+  @RequirePermissions("tender:edit")
+  inviteByEmail(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+    @Body() dto: InviteByEmailDto,
+  ): Promise<unknown> {
+    return this.service.inviteByEmail(
+      user.tenantId,
+      id,
+      user.id,
+      user.role,
+      dto,
     );
   }
 

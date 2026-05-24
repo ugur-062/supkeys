@@ -59,6 +59,7 @@ import { CloseNoAwardDialog } from "./close-no-award-dialog";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 import { InternalNotesDialog } from "./internal-notes-dialog";
 import { RoundHistoryDialog } from "./round-history-dialog";
+import { TenderDetailDialog } from "./tender-detail-dialog";
 
 const MORE_TRIGGER_CLASSES = cn(
   "inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-medium",
@@ -108,6 +109,7 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
   const [changeTimeOpen, setChangeTimeOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [roundHistoryOpen, setRoundHistoryOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const publishMutation = usePublishTender();
   const deleteMutation = useDeleteTender();
@@ -270,6 +272,7 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                     canCancel={canCancel}
                     canAward={canAward}
                     disabled={isBusy}
+                    onDetailClick={() => setDetailOpen(true)}
                     onRoundHistoryClick={() => setRoundHistoryOpen(true)}
                     onNotesClick={() => setNotesOpen(true)}
                     onCloseBiddingClick={() => setCloseBiddingOpen(true)}
@@ -325,6 +328,7 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                       canCancel={canCancel}
                       canAward={canAward}
                       disabled={isBusy}
+                      onDetailClick={() => setDetailOpen(true)}
                       onRoundHistoryClick={() => setRoundHistoryOpen(true)}
                       onNotesClick={() => setNotesOpen(true)}
                       onCloseBiddingClick={() => setCloseBiddingOpen(true)}
@@ -519,6 +523,12 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
         onClose={() => setRoundHistoryOpen(false)}
         tenderId={tender.id}
       />
+
+      <TenderDetailDialog
+        open={detailOpen}
+        onClose={() => setDetailOpen(false)}
+        tender={tender}
+      />
     </>
   );
 }
@@ -529,6 +539,7 @@ interface MoreActionsMenuProps {
   canCancel: boolean;
   canAward: boolean;
   disabled: boolean;
+  onDetailClick: () => void;
   onRoundHistoryClick: () => void;
   onNotesClick: () => void;
   onCloseBiddingClick: () => void;
@@ -542,6 +553,7 @@ function MoreActionsMenu({
   canCancel,
   canAward,
   disabled,
+  onDetailClick,
   onRoundHistoryClick,
   onNotesClick,
   onCloseBiddingClick,
@@ -576,11 +588,12 @@ function MoreActionsMenu({
           className="w-64 bg-white rounded-xl border border-surface-border shadow-lg p-1.5 z-50"
         >
           {/* Ortak: Tüm statülerde */}
-          <DropdownMenu.Item asChild className={MORE_ITEM_CLASSES}>
-            <Link href={`/dashboard/ihaleler/${tender.id}?view=detail`}>
-              <FileText className="w-4 h-4" />
-              İhale Detayını Gör
-            </Link>
+          <DropdownMenu.Item
+            className={MORE_ITEM_CLASSES}
+            onSelect={onDetailClick}
+          >
+            <FileText className="w-4 h-4" />
+            İhale Detayını Gör
           </DropdownMenu.Item>
           <DropdownMenu.Item
             className={MORE_ITEM_CLASSES}
