@@ -166,7 +166,7 @@ export class DemoRequestsService {
       ];
     }
 
-    const [items, total] = await this.prisma.$transaction([
+    const [items, total] = await Promise.all([
       this.prisma.demoRequest.findMany({
         where,
         skip,

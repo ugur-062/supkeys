@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import type { UserRole } from "@supkeys/db";
+import type { AuthenticatedUser } from "../../common/decorators/current-user.decorator";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
@@ -113,15 +114,29 @@ export class AuthService {
     };
   }
 
-  async getMe(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { tenant: true },
-    });
-    if (!user) {
-      throw new UnauthorizedException();
-    }
-    return this.toPublicUser(user, user.tenant);
+  /**
+   * /auth/me — JwtAuthGuard `validate()` zaten user+tenant satırını yükledi
+   * (permissionsOverride + membershipEndAt dahil). İkinci bir DB round-trip'i
+   * yapmadan request.user'dan publicUser inşa edilir. (Perf: uzak Supabase'de
+   * her sorgu ~215ms; bu çağrı her sayfa yüklemesinde tetiklenir.)
+   */
+  buildMe(user: AuthenticatedUser) {
+    return this.toPublicUser(
+      {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        permissionsOverride: user.permissionsOverride,
+      },
+      {
+        id: user.tenant.id,
+        name: user.tenant.name,
+        slug: user.tenant.slug,
+        membershipEndAt: user.tenant.membershipEndAt,
+      },
+    );
   }
 
   // ----------------- helpers -----------------

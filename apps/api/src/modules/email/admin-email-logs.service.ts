@@ -21,7 +21,7 @@ export class AdminEmailLogsService {
     if (query.contextType) where.contextType = query.contextType;
     if (query.contextId) where.contextId = query.contextId;
 
-    const [items, total] = await this.prisma.$transaction([
+    const [items, total] = await Promise.all([
       this.prisma.emailLog.findMany({
         where,
         skip,

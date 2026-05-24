@@ -6,11 +6,14 @@ export interface AuthenticatedUser {
   firstName: string;
   lastName: string;
   role: string;
+  // RBAC override (JSON) — guard yükler, /auth/me ek sorgu yapmadan kullanır.
+  permissionsOverride: unknown;
   tenantId: string;
   tenant: {
     id: string;
     name: string;
     slug: string;
+    membershipEndAt: Date | null;
   };
 }
 

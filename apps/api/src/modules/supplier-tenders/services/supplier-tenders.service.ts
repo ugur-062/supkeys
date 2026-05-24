@@ -138,7 +138,7 @@ export class SupplierTendersService {
       return [{ bidsCloseAt: "asc" }, { createdAt: "desc" }];
     })();
 
-    const [items, total] = await this.prisma.$transaction([
+    const [items, total] = await Promise.all([
       this.prisma.tender.findMany({
         where,
         skip,

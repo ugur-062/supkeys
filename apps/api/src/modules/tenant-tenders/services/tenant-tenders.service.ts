@@ -156,7 +156,7 @@ export class TenantTendersService {
     // CategoryService.getBreadcrumbsByIds (in-memory cache) ile hidrate
     // ediyoruz. Eski: list başına 4 ek batched join query. Yeni: in-memory
     // O(1) lookup. List latency ~50ms↓.
-    const [items, total] = await this.prisma.$transaction([
+    const [items, total] = await Promise.all([
       this.prisma.tender.findMany({
         where,
         skip,

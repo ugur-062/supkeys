@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
+import type { AuthenticatedUser } from "../../../common/decorators/current-user.decorator";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
 export interface JwtPayload {
@@ -25,7 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
     });
   }
 
-  async validate(payload: JwtPayload) {
+  async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
     if (payload.type !== "tenant") {
       throw new UnauthorizedException("Geçersiz token tipi");
     }
@@ -49,11 +50,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
+      // /auth/me ikinci bir DB sorgusu yapmasın diye guard'ın zaten yüklediği
+      // permissionsOverride + membershipEndAt'i de döndürüyoruz.
+      permissionsOverride: user.permissionsOverride,
       tenantId: user.tenantId,
       tenant: {
         id: user.tenant.id,
         name: user.tenant.name,
         slug: user.tenant.slug,
+        membershipEndAt: user.tenant.membershipEndAt,
       },
     };
   }

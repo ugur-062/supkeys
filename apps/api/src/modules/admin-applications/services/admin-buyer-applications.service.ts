@@ -47,7 +47,7 @@ export class AdminBuyerApplicationsService {
     // Bug #1 fix: list response'unda büyük base64 alan dönmesin —
     // taxCertUrl ve passwordHash hariç tüm tablo sütunlarını seç.
     // taxCertUrl detail endpoint'inde lazım (drawer detail çağırıyor).
-    const [items, total] = await this.prisma.$transaction([
+    const [items, total] = await Promise.all([
       this.prisma.buyerApplication.findMany({
         where,
         skip,

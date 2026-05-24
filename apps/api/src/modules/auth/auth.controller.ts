@@ -46,8 +46,7 @@ export class AuthController {
   @Get("me")
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: AuthenticatedUser) {
-    // V2-6.5 — request.user JWT'den gelir, permissions yok. Fresh DB lookup ile
-    // role + override → efektif permission listesi hesaplanır.
-    return this.authService.getMe(user.id);
+    // V2-7 perf — guard zaten user+tenant'ı yükledi; ikinci DB sorgusu yok.
+    return this.authService.buildMe(user);
   }
 }
