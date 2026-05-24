@@ -87,7 +87,15 @@ async function bootstrap() {
   // presigned R2 URL'lerini fetch ediyoruz.
   app.use(
     helmet({
-      contentSecurityPolicy: false,
+      // API saf JSON döner (HTML/script/Swagger sunmaz) → en sıkı CSP güvenli.
+      // default-src 'none' + frame-ancestors 'none' (clickjacking koruması).
+      contentSecurityPolicy: {
+        useDefaults: false,
+        directives: {
+          defaultSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+        },
+      },
       crossOriginEmbedderPolicy: false,
       crossOriginResourcePolicy: { policy: "cross-origin" },
     }),
