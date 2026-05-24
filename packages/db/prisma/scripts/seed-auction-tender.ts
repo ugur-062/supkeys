@@ -88,7 +88,7 @@ async function main() {
       },
       include: { items: true },
     });
-    console.log(`✓ ${number} (${basis}) id=${t.id} item=${t.items[0].id}`);
+    console.log(`✓ ${number} (${basis}) id=${t.id} item=${t.items[0]!.id}`);
   }
 
   await makeAuction("TEST-AUC-OWN", "OWN_LAST_BID");

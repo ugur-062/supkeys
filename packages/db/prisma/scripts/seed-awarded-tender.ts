@@ -94,7 +94,7 @@ async function main() {
     include: { items: true },
   });
 
-  const tenderItem = tender.items[0];
+  const tenderItem = tender.items[0]!;
 
   // Kazanan teklif: 10 * 90 = 900
   await prisma.bid.create({

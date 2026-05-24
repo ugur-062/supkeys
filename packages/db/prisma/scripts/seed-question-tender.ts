@@ -81,7 +81,7 @@ async function main() {
     include: { items: true },
   });
 
-  console.log("✓ Sorulu ihale:", tender.tenderNumber, "| item:", tender.items[0].id);
+  console.log("✓ Sorulu ihale:", tender.tenderNumber, "| item:", tender.items[0]!.id);
 }
 
 main()

@@ -72,7 +72,7 @@ async function main() {
     include: { items: true },
   });
 
-  console.log(`${t.id}|${t.items[0].id}|${closeAt.toISOString()}`);
+  console.log(`${t.id}|${t.items[0]!.id}|${closeAt.toISOString()}`);
 }
 
 main()
