@@ -728,33 +728,56 @@ export class SupplierTendersService {
       // Toplam (sadece teklif verilen kalemler) — backend hesaplar
       const totalAmount = this.calculateTotalAmount(dto.items, tender.items);
 
-      // V2-7 — Açık eksiltmede önceki SUBMITTED bid'e göre min. azaltma kontrolü.
-      // Basis=OWN_LAST_BID (V2-7 tek seçenek). Yeni totalAmount < previous - decrement.
-      if (
-        isAuction &&
-        existing &&
-        existing.status === "SUBMITTED" &&
-        tender.priceDecrementType &&
-        tender.priceDecrementValue != null
-      ) {
-        // Önceki SUBMITTED totalAmount'ı çek
+      // V2-7+ — Açık eksiltme re-bid kuralı: fiyat HER ZAMAN düşürülmeli
+      // (yükseltme/eşitleme yasak). Decrement tanımlıysa en az o kadar düşük.
+      // Basis: OWN_LAST_BID (kendi son teklifi) | BEST_BID (ihaledeki en iyi teklif).
+      if (isAuction && existing && existing.status === "SUBMITTED") {
         const previous = await tx.bid.findUnique({
           where: { id: existing.id },
           select: { totalAmount: true },
         });
         const previousTotal = Number(previous?.totalAmount ?? 0);
-        const decrementValue = Number(tender.priceDecrementValue);
+
+        // Referans tutar — BEST_BID ise mevcut en iyi SUBMITTED teklif (kendi
+        // teklifinden de düşükse onu hedefle: "en iyiyi geç").
+        let reference = previousTotal;
+        const useBest = tender.priceDecrementBasis === "BEST_BID";
+        if (useBest) {
+          const best = await tx.bid.findFirst({
+            where: { tenderId, status: "SUBMITTED" },
+            orderBy: { totalAmount: "asc" },
+            select: { totalAmount: true },
+          });
+          if (best) {
+            reference = Math.min(previousTotal, Number(best.totalAmount));
+          }
+        }
+
+        const decVal =
+          tender.priceDecrementValue != null
+            ? Number(tender.priceDecrementValue)
+            : 0;
         const minDelta =
           tender.priceDecrementType === "PERCENT"
-            ? previousTotal * (decrementValue / 100)
-            : decrementValue;
-        const maxAllowed = previousTotal - minDelta;
-        // Floating-point tolerance: 0.0001
-        if (totalAmount > maxAllowed + 1e-4) {
+            ? reference * (decVal / 100)
+            : decVal;
+        const maxAllowed = reference - minDelta;
+        const tol = 1e-4;
+        // minDelta>0 → en az minDelta düşmeli; minDelta=0 → en azından kesinlikle düşmeli.
+        const violates =
+          minDelta > 0
+            ? totalAmount > maxAllowed + tol
+            : totalAmount >= previousTotal - tol;
+        if (violates) {
+          const refLabel = useBest
+            ? "mevcut en iyi tekliften"
+            : "önceki teklifinizden";
           throw new BadRequestException(
-            tender.priceDecrementType === "PERCENT"
-              ? `Yeni teklif önceki teklifinizden en az %${decrementValue} daha düşük olmalı (max ${maxAllowed.toFixed(4)} ${tender.primaryCurrency})`
-              : `Yeni teklif önceki teklifinizden en az ${decrementValue} ${tender.primaryCurrency} düşük olmalı (max ${maxAllowed.toFixed(4)})`,
+            minDelta <= 0
+              ? "Açık eksiltmede fiyat yükseltilemez — yeni teklif öncekinden daha düşük olmalı."
+              : tender.priceDecrementType === "PERCENT"
+                ? `Yeni teklif ${refLabel} en az %${decVal} daha düşük olmalı (max ${maxAllowed.toFixed(4)} ${tender.primaryCurrency})`
+                : `Yeni teklif ${refLabel} en az ${decVal} ${tender.primaryCurrency} düşük olmalı (max ${maxAllowed.toFixed(4)})`,
           );
         }
       }

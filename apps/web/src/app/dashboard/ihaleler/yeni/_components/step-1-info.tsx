@@ -402,6 +402,25 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
                       />
                       <p className="text-sm font-semibold text-brand-900">
                         Kendi son teklifini baz alsın.
+                        <span className="block text-xs font-normal text-slate-500">
+                          Her yeni teklif, tedarikçinin kendi önceki teklifinden
+                          en az azaltma kadar düşük olur.
+                        </span>
+                      </p>
+                    </div>
+                    <div className="mt-2 ml-1 flex items-start gap-3">
+                      <input
+                        type="radio"
+                        value="BEST_BID"
+                        className="mt-0.5"
+                        {...register("priceDecrementBasis")}
+                      />
+                      <p className="text-sm font-semibold text-brand-900">
+                        İhaledeki en iyi teklifi baz alsın.
+                        <span className="block text-xs font-normal text-slate-500">
+                          Yeni teklif vermek için mevcut en iyi teklifi en az
+                          azaltma kadar geçmek gerekir (klasik ters eksiltme).
+                        </span>
                       </p>
                     </div>
 
