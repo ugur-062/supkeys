@@ -253,9 +253,7 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
                     <InviteSupplierButton
                       tenderId={tender.id}
                       enabled
-                      alreadyInvitedSupplierIds={tender.invitations.map(
-                        (i) => i.supplier.id,
-                      )}
+                      invitations={tender.invitations}
                     />
                   ) : null}
                   {canAward || canCancel ? (
