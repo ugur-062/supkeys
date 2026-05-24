@@ -55,7 +55,11 @@ export class ReportsExcelService {
       "Kapanış",
       "Davetli",
       "Teklif",
+      "Yanıt %",
+      "Tahmini Toplam",
       "Kazanan Tutar",
+      "Kazanan Tedarikçi",
+      "Tasarruf",
       "Oluşturan",
     ];
     const headerRow = ws.addRow(header);
@@ -80,31 +84,43 @@ export class ReportsExcelService {
         format(new Date(t.bidsCloseAt), "dd.MM.yyyy HH:mm", { locale: tr }),
         t.invitedCount,
         t.submittedBidCount,
+        t.responseRate != null ? `${t.responseRate}%` : "-",
+        t.estimatedTotal ?? "-",
         t.winningTotal ?? "-",
+        t.winnerName ?? "-",
+        t.savings ?? "-",
         t.createdBy ?? "-",
       ]);
     });
 
+    // ── Özet KPI bloğu ──
+    const s = data.summary;
     ws.addRow([]);
-    const summary = ws.addRow([
-      "Toplam:",
-      `${data.summary.totalTenders} ihale`,
-      `${data.summary.awardedTenders} kazandırıldı`,
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      data.summary.totalAwardedValue,
-    ]);
-    summary.font = { bold: true };
-    summary.eachCell((cell) => {
-      cell.fill = {
-        type: "pattern",
-        pattern: "solid",
-        fgColor: { argb: BRAND_LIGHT },
-      };
+    ws.addRow(["Özet"]).font = { bold: true, size: 13, color: { argb: BRAND } };
+    const kpis: Array<[string, string | number]> = [
+      ["Toplam İhale", s.totalTenders],
+      ["Kazandırılan", s.awardedTenders],
+      ["İptal", s.cancelledTenders],
+      ["Toplam Davet", s.totalInvited],
+      ["Toplam Teklif", s.totalSubmittedBids],
+      ["Yanıt Oranı", `${s.overallResponseRate}%`],
+      ["Ort. Teklif / İhale", s.avgBidsPerTender],
+      ["Tahmini Toplam", s.totalEstimated],
+      ["Kazanan Toplam", s.totalAwardedValue],
+      ["Toplam Tasarruf", s.totalSavings],
+    ];
+    kpis.forEach(([k, v]) => {
+      const r = ws.addRow([k, v]);
+      r.getCell(1).font = { bold: true };
+    });
+
+    ws.addRow([]);
+    ws.addRow(["Durum Dağılımı"]).font = {
+      bold: true,
+      color: { argb: BRAND },
+    };
+    Object.entries(s.statusBreakdown).forEach(([st, count]) => {
+      ws.addRow([st, count]);
     });
 
     this.autoFitColumns(ws);
@@ -184,7 +200,74 @@ export class ReportsExcelService {
       };
     });
 
+    const sm = data.summary;
+    ws.addRow([]);
+    ws.addRow(["Ortalama Tasarruf %", `${sm.avgSavingsPct.toFixed(2)}%`]);
+    if (sm.bestTender)
+      ws.addRow([
+        "En İyi",
+        `${sm.bestTender.tenderNumber} — ${sm.bestTender.title}`,
+        sm.bestTender.savingsPct != null
+          ? `${sm.bestTender.savingsPct.toFixed(2)}%`
+          : "-",
+      ]);
+    if (sm.worstTender)
+      ws.addRow([
+        "En Düşük",
+        `${sm.worstTender.tenderNumber} — ${sm.worstTender.title}`,
+        sm.worstTender.savingsPct != null
+          ? `${sm.worstTender.savingsPct.toFixed(2)}%`
+          : "-",
+      ]);
+
+    if (sm.bySupplier.length > 0) {
+      ws.addRow([]);
+      ws.addRow(["Tedarikçi Bazlı Kazanılan Tutar"]).font = {
+        bold: true,
+        color: { argb: BRAND },
+      };
+      sm.bySupplier.forEach((b) => ws.addRow([b.name, b.awarded]));
+    }
+
     this.autoFitColumns(ws);
+
+    // ── 2. sayfa: Kalem bazlı tasarruf ──
+    const wsItems = wb.addWorksheet("Kalem Bazlı");
+    const itemHeader = wsItems.addRow([
+      "İhale No",
+      "Kalem",
+      "Birim",
+      "Kazanan Adet",
+      "Hedef Birim",
+      "Kazanan Birim",
+      "Kazanan Tedarikçi",
+      "Hedef Tutar",
+      "Kazanan Tutar",
+      "Tasarruf",
+    ]);
+    itemHeader.eachCell((cell) => {
+      cell.font = { bold: true, color: { argb: "FFFFFF" } };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND } };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+    });
+    data.rows.forEach((r) => {
+      r.items.forEach((it) => {
+        wsItems.addRow([
+          r.tenderNumber,
+          it.name,
+          it.unit,
+          it.awardedQuantity ?? "-",
+          it.targetUnitPrice ?? "-",
+          it.winningUnitPrice ?? "-",
+          it.winnerName ?? "-",
+          it.itemTarget ?? "-",
+          it.itemActual ?? "-",
+          it.savings ?? "-",
+        ]);
+      });
+    });
+    this.autoFitColumns(wsItems);
+
     return Buffer.from(await wb.xlsx.writeBuffer());
   }
 
@@ -205,6 +288,11 @@ export class ReportsExcelService {
       ws.addRow([
         `${round.tenderNumber} · ${round.currency} · Tur #${round.roundNumber}`,
       ]).font = { italic: true, color: { argb: "64748B" } };
+      if (data.includePrice && round.targetTotal > 0)
+        ws.addRow([`Hedef Toplam: ${round.targetTotal}`]).font = {
+          bold: true,
+          color: { argb: BRAND },
+        };
       ws.addRow([]);
 
       // Header: Kalem | (her tedarikçi için fiyat/yanıt sütunları)
@@ -240,28 +328,54 @@ export class ReportsExcelService {
           item.quantity,
           item.targetUnitPrice ?? "-",
         ];
+        // En düşük birim fiyat hücrelerini yeşil vurgulamak için kolon takibi
+        const lowestCols: number[] = [];
+        let col = 4;
         round.suppliers.forEach((s) => {
           if (data.includePrice) {
             const ip = s.itemPrices.find((x) => x.tenderItemId === item.id);
             row.push(ip?.unitPrice ?? "-");
+            col++;
+            if (ip?.isLowest) lowestCols.push(col);
             row.push(ip?.totalPrice ?? "-");
+            col++;
           }
           if (data.includeAnswers) {
             const ia = s.itemAnswers.find((x) => x.tenderItemId === item.id);
             row.push(ia?.customAnswer ?? "-");
+            col++;
           }
         });
-        ws.addRow(row);
+        const added = ws.addRow(row);
+        lowestCols.forEach((c) => {
+          const cell = added.getCell(c);
+          cell.font = { bold: true, color: { argb: "166534" } };
+          cell.fill = {
+            type: "pattern",
+            pattern: "solid",
+            fgColor: { argb: "DCFCE7" },
+          };
+        });
       });
 
-      // Toplam satırı (sadece price varsa)
+      // Toplam + sıra + hedefe göre tasarruf satırları (sadece price varsa)
       if (data.includePrice) {
         ws.addRow([]);
-        const totalRow: (string | number | null)[] = ["GENEL TOPLAM", "", "", ""];
+        const totalRow: (string | number)[] = ["GENEL TOPLAM", "", "", ""];
+        const rankRow: (string | number)[] = ["SIRA (en ucuz=1)", "", "", ""];
+        const savRow: (string | number)[] = ["Hedefe Göre Tasarruf", "", "", ""];
         round.suppliers.forEach((s) => {
-          totalRow.push("");
           totalRow.push(s.totalAmount ?? "-");
-          if (data.includeAnswers) totalRow.push("");
+          totalRow.push("");
+          rankRow.push(s.rank ?? "-");
+          rankRow.push("");
+          savRow.push(s.savingsVsTarget ?? "-");
+          savRow.push("");
+          if (data.includeAnswers) {
+            totalRow.push("");
+            rankRow.push("");
+            savRow.push("");
+          }
         });
         const r = ws.addRow(totalRow);
         r.font = { bold: true };
@@ -272,6 +386,27 @@ export class ReportsExcelService {
             fgColor: { argb: BRAND_LIGHT },
           };
         });
+        ws.addRow(rankRow).font = { bold: true };
+        ws.addRow(savRow);
+
+        // Önerilen kazanan (kalem bazında en düşük teklif)
+        if (round.recommendedAwards.length > 0) {
+          ws.addRow([]);
+          ws.addRow(["Önerilen Kazanan (kalem bazında en düşük)"]).font = {
+            bold: true,
+            color: { argb: BRAND },
+          };
+          const recHeader = ws.addRow(["Kalem", "Tedarikçi", "Birim Fiyat"]);
+          recHeader.eachCell((cell) => {
+            cell.font = { bold: true };
+          });
+          round.recommendedAwards.forEach((ra) => {
+            const itemName =
+              round.items.find((i) => i.id === ra.tenderItemId)?.name ??
+              ra.tenderItemId;
+            ws.addRow([itemName, ra.supplierName, ra.unitPrice]);
+          });
+        }
       }
 
       this.autoFitColumns(ws);

@@ -221,6 +221,77 @@ function SavingsResults({
         </div>
       </section>
 
+      {/* İkincil KPI'lar: ortalama + en iyi/en düşük */}
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <SummaryStat
+          label="Ortalama Tasarruf %"
+          value={`${data.summary.avgSavingsPct.toFixed(2)}%`}
+        />
+        <div className="rounded-xl border border-success-200 bg-success-50/50 p-4">
+          <div className="text-xs font-medium text-success-700">
+            En İyi Tasarruf
+          </div>
+          {data.summary.bestTender ? (
+            <>
+              <div className="mt-1 text-sm font-bold text-brand-900">
+                {data.summary.bestTender.tenderNumber} ·{" "}
+                {data.summary.bestTender.savingsPct?.toFixed(2) ?? "-"}%
+              </div>
+              <div
+                className="text-xs text-slate-600 truncate"
+                title={data.summary.bestTender.title}
+              >
+                {data.summary.bestTender.title}
+              </div>
+            </>
+          ) : (
+            <div className="mt-1 text-sm text-slate-400">-</div>
+          )}
+        </div>
+        <div className="rounded-xl border border-surface-border bg-white p-4">
+          <div className="text-xs font-medium text-slate-500">
+            En Düşük Tasarruf
+          </div>
+          {data.summary.worstTender ? (
+            <>
+              <div className="mt-1 text-sm font-bold text-brand-900">
+                {data.summary.worstTender.tenderNumber} ·{" "}
+                {data.summary.worstTender.savingsPct?.toFixed(2) ?? "-"}%
+              </div>
+              <div
+                className="text-xs text-slate-600 truncate"
+                title={data.summary.worstTender.title}
+              >
+                {data.summary.worstTender.title}
+              </div>
+            </>
+          ) : (
+            <div className="mt-1 text-sm text-slate-400">-</div>
+          )}
+        </div>
+      </section>
+
+      {data.summary.bySupplier.length > 0 ? (
+        <section className="card p-5">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">
+            Tedarikçi Bazlı Kazanılan Tutar
+          </h3>
+          <ul className="space-y-1.5">
+            {data.summary.bySupplier.map((b) => (
+              <li
+                key={b.name}
+                className="flex items-center justify-between text-sm"
+              >
+                <span className="text-brand-900">{b.name}</span>
+                <span className="font-semibold tabular-nums">
+                  {fmtMoney(b.awarded)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       <section className="card overflow-hidden">
         <header className="px-5 py-3 border-b border-surface-border bg-slate-50/60 flex items-center justify-between flex-wrap gap-2">
           <span className="text-sm text-slate-600">
@@ -289,6 +360,79 @@ function SavingsResults({
           </table>
         </div>
       </section>
+
+      {data.rows.some((r) => r.items.length > 0) ? (
+        <section className="card overflow-hidden">
+          <header className="px-5 py-3 border-b border-surface-border bg-slate-50/60">
+            <h3 className="text-sm font-semibold text-brand-900">
+              Kalem Bazlı Tasarruf
+            </h3>
+          </header>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm whitespace-nowrap">
+              <thead className="bg-brand-50 text-brand-900">
+                <tr>
+                  <th className="px-3 py-2 text-left font-semibold">İhale No</th>
+                  <th className="px-3 py-2 text-left font-semibold">Kalem</th>
+                  <th className="px-3 py-2 text-center font-semibold">
+                    Kazanan Adet
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    Hedef Birim
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    Kazanan Birim
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold">Kazanan</th>
+                  <th className="px-3 py-2 text-right font-semibold">Tasarruf</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.flatMap((r) =>
+                  r.items.map((it, idx) => (
+                    <tr
+                      key={`${r.id}-${idx}`}
+                      className="border-t border-surface-border"
+                    >
+                      <td className="px-3 py-2 font-mono text-brand-700">
+                        {r.tenderNumber}
+                      </td>
+                      <td className="px-3 py-2">{it.name}</td>
+                      <td className="px-3 py-2 text-center">
+                        {it.awardedQuantity ?? "-"}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {it.targetUnitPrice !== null
+                          ? fmtMoney(it.targetUnitPrice)
+                          : "-"}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {it.winningUnitPrice !== null
+                          ? fmtMoney(it.winningUnitPrice)
+                          : "-"}
+                      </td>
+                      <td className="px-3 py-2 text-slate-600">
+                        {it.winnerName ?? "-"}
+                      </td>
+                      <td
+                        className={`px-3 py-2 text-right font-medium ${
+                          it.savings !== null && it.savings >= 0
+                            ? "text-success-700"
+                            : it.savings !== null
+                              ? "text-danger-600"
+                              : "text-slate-400"
+                        }`}
+                      >
+                        {it.savings !== null ? fmtMoney(it.savings) : "-"}
+                      </td>
+                    </tr>
+                  )),
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
     </>
   );
 }

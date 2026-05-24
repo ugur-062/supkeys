@@ -317,79 +317,167 @@ function SelectInput({
   );
 }
 
+function StatCard({
+  label,
+  value,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  tone?: "default" | "success" | "danger" | "brand";
+}) {
+  const toneCls =
+    tone === "success"
+      ? "text-success-700"
+      : tone === "danger"
+        ? "text-danger-600"
+        : tone === "brand"
+          ? "text-brand-700"
+          : "text-brand-900";
+  return (
+    <div className="rounded-xl border border-surface-border bg-white px-4 py-3">
+      <p className="text-[11px] uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+      <p className={`mt-0.5 text-lg font-bold ${toneCls}`}>{value}</p>
+    </div>
+  );
+}
+
 function GeneralResults({
   data,
 }: {
   data: NonNullable<ReturnType<typeof useGeneralReport>["data"]>;
 }) {
+  const s = data.summary;
   return (
-    <section className="card overflow-hidden">
-      <header className="px-5 py-3 border-b border-surface-border bg-slate-50/60 flex items-center justify-between flex-wrap gap-2">
-        <div className="text-sm">
-          <span className="font-semibold text-brand-900">
-            {data.summary.totalTenders}
-          </span>{" "}
-          ihale ·{" "}
-          <span className="font-semibold text-success-700">
-            {data.summary.awardedTenders}
-          </span>{" "}
-          kazandırıldı ·{" "}
-          <span className="font-semibold">
-            {fmtMoney(data.summary.totalAwardedValue)}
-          </span>{" "}
-          toplam
-        </div>
-        <span className="text-xs text-slate-500">
-          {format(new Date(data.generatedAt), "dd MMM yyyy HH:mm", { locale: tr })}
-        </span>
-      </header>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-brand-50 text-brand-900">
-            <tr>
-              <th className="px-3 py-2 text-left font-semibold">İhale No</th>
-              <th className="px-3 py-2 text-left font-semibold">Başlık</th>
-              <th className="px-3 py-2 text-left font-semibold">Tip</th>
-              <th className="px-3 py-2 text-left font-semibold">Statü</th>
-              <th className="px-3 py-2 text-center font-semibold">Tur</th>
-              <th className="px-3 py-2 text-center font-semibold">Davetli</th>
-              <th className="px-3 py-2 text-center font-semibold">Teklif</th>
-              <th className="px-3 py-2 text-right font-semibold">Kazanan Tutar</th>
-              <th className="px-3 py-2 text-left font-semibold">Oluşturan</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.tenders.length === 0 ? (
-              <tr>
-                <td colSpan={9} className="px-3 py-8 text-center text-slate-500">
-                  Sonuç bulunamadı
-                </td>
-              </tr>
-            ) : (
-              data.tenders.map((t) => (
-                <tr key={t.id} className="border-t border-surface-border">
-                  <td className="px-3 py-2 font-mono text-brand-700 font-semibold">
-                    {t.tenderNumber}
-                  </td>
-                  <td className="px-3 py-2">{t.title}</td>
-                  <td className="px-3 py-2">{t.type === "RFQ" ? "RFQ" : "İngiliz"}</td>
-                  <td className="px-3 py-2 text-slate-600">{t.status}</td>
-                  <td className="px-3 py-2 text-center">#{t.roundNumber}</td>
-                  <td className="px-3 py-2 text-center">{t.invitedCount}</td>
-                  <td className="px-3 py-2 text-center">{t.submittedBidCount}</td>
-                  <td className="px-3 py-2 text-right">
-                    {t.winningTotal !== null
-                      ? `${fmtMoney(t.winningTotal)} ${t.currency}`
-                      : "-"}
-                  </td>
-                  <td className="px-3 py-2 text-slate-600">{t.createdBy ?? "-"}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+    <div className="space-y-4">
+      {/* KPI kartları */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <StatCard label="Toplam İhale" value={String(s.totalTenders)} />
+        <StatCard
+          label="Kazandırılan"
+          value={String(s.awardedTenders)}
+          tone="success"
+        />
+        <StatCard
+          label="İptal"
+          value={String(s.cancelledTenders)}
+          tone="danger"
+        />
+        <StatCard
+          label="Yanıt Oranı"
+          value={`%${s.overallResponseRate}`}
+          tone="brand"
+        />
+        <StatCard
+          label="Ort. Teklif / İhale"
+          value={String(s.avgBidsPerTender)}
+        />
+        <StatCard label="Tahmini Toplam" value={fmtMoney(s.totalEstimated)} />
+        <StatCard
+          label="Kazanan Toplam"
+          value={fmtMoney(s.totalAwardedValue)}
+        />
+        <StatCard
+          label="Toplam Tasarruf"
+          value={fmtMoney(s.totalSavings)}
+          tone={s.totalSavings >= 0 ? "success" : "danger"}
+        />
       </div>
-    </section>
+
+      <section className="card overflow-hidden">
+        <header className="px-5 py-3 border-b border-surface-border bg-slate-50/60 flex items-center justify-end">
+          <span className="text-xs text-slate-500">
+            {format(new Date(data.generatedAt), "dd MMM yyyy HH:mm", {
+              locale: tr,
+            })}
+          </span>
+        </header>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm whitespace-nowrap">
+            <thead className="bg-brand-50 text-brand-900">
+              <tr>
+                <th className="px-3 py-2 text-left font-semibold">İhale No</th>
+                <th className="px-3 py-2 text-left font-semibold">Başlık</th>
+                <th className="px-3 py-2 text-left font-semibold">Statü</th>
+                <th className="px-3 py-2 text-center font-semibold">Tur</th>
+                <th className="px-3 py-2 text-center font-semibold">Davetli</th>
+                <th className="px-3 py-2 text-center font-semibold">Teklif</th>
+                <th className="px-3 py-2 text-center font-semibold">Yanıt %</th>
+                <th className="px-3 py-2 text-right font-semibold">Tahmini</th>
+                <th className="px-3 py-2 text-right font-semibold">
+                  Kazanan Tutar
+                </th>
+                <th className="px-3 py-2 text-left font-semibold">
+                  Kazanan Tedarikçi
+                </th>
+                <th className="px-3 py-2 text-right font-semibold">Tasarruf</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.tenders.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={11}
+                    className="px-3 py-8 text-center text-slate-500"
+                  >
+                    Sonuç bulunamadı
+                  </td>
+                </tr>
+              ) : (
+                data.tenders.map((t) => (
+                  <tr key={t.id} className="border-t border-surface-border">
+                    <td className="px-3 py-2 font-mono text-brand-700 font-semibold">
+                      {t.tenderNumber}
+                    </td>
+                    <td className="px-3 py-2 max-w-[220px] truncate" title={t.title}>
+                      {t.title}
+                    </td>
+                    <td className="px-3 py-2 text-slate-600">{t.status}</td>
+                    <td className="px-3 py-2 text-center">#{t.roundNumber}</td>
+                    <td className="px-3 py-2 text-center">{t.invitedCount}</td>
+                    <td className="px-3 py-2 text-center">
+                      {t.submittedBidCount}
+                    </td>
+                    <td className="px-3 py-2 text-center text-slate-600">
+                      {t.responseRate !== null ? `%${t.responseRate}` : "-"}
+                    </td>
+                    <td className="px-3 py-2 text-right text-slate-600">
+                      {t.estimatedTotal !== null
+                        ? fmtMoney(t.estimatedTotal)
+                        : "-"}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      {t.winningTotal !== null
+                        ? `${fmtMoney(t.winningTotal)} ${t.currency}`
+                        : "-"}
+                    </td>
+                    <td
+                      className="px-3 py-2 max-w-[180px] truncate"
+                      title={t.winnerName ?? ""}
+                    >
+                      {t.winnerName ?? "-"}
+                    </td>
+                    <td
+                      className={`px-3 py-2 text-right font-medium ${
+                        t.savings !== null && t.savings >= 0
+                          ? "text-success-700"
+                          : t.savings !== null
+                            ? "text-danger-600"
+                            : "text-slate-400"
+                      }`}
+                    >
+                      {t.savings !== null ? fmtMoney(t.savings) : "-"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   );
 }
 

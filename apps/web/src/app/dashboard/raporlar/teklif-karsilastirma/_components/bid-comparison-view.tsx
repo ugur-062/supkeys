@@ -300,6 +300,14 @@ function RoundTable({
           <span className="text-sm text-slate-500">· {round.currency}</span>
         </div>
         <p className="font-semibold text-brand-900 mt-1">{round.title}</p>
+        {data.includePrice && round.targetTotal > 0 ? (
+          <p className="text-xs text-slate-500 mt-0.5">
+            Hedef Toplam:{" "}
+            <span className="font-semibold text-brand-700">
+              {fmtMoney(round.targetTotal)} {round.currency}
+            </span>
+          </p>
+        ) : null}
       </header>
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -392,72 +400,152 @@ function RoundTable({
                   return (
                     <Cell
                       key={s.supplierId}
-                      supplierId={s.supplierId}
                       includePrice={data.includePrice}
                       includeAnswers={data.includeAnswers}
                       unitPrice={ip?.unitPrice ?? null}
                       totalPrice={ip?.totalPrice ?? null}
                       answer={ia?.customAnswer ?? null}
+                      isLowest={ip?.isLowest ?? false}
+                      deltaVsTargetPct={ip?.deltaVsTargetPct ?? null}
                     />
                   );
                 })}
               </tr>
             ))}
             {data.includePrice ? (
-              <tr className="border-t border-surface-border bg-brand-50 font-semibold">
-                <td className="px-3 py-2" colSpan={3}>
-                  GENEL TOPLAM
-                </td>
-                {round.suppliers.map((s) => (
-                  <TotalCells
-                    key={s.supplierId}
-                    includePrice={data.includePrice}
-                    includeAnswers={data.includeAnswers}
-                    total={s.totalAmount}
-                  />
-                ))}
-              </tr>
+              <>
+                <tr className="border-t border-surface-border bg-brand-50 font-semibold">
+                  <td className="px-3 py-2" colSpan={3}>
+                    GENEL TOPLAM
+                  </td>
+                  {round.suppliers.map((s) => (
+                    <TotalCells
+                      key={s.supplierId}
+                      includePrice={data.includePrice}
+                      includeAnswers={data.includeAnswers}
+                      total={s.totalAmount}
+                    />
+                  ))}
+                </tr>
+                <tr className="border-t border-surface-border text-xs">
+                  <td className="px-3 py-1.5 text-slate-500" colSpan={3}>
+                    Sıra (en ucuz = 1)
+                  </td>
+                  {round.suppliers.map((s) => (
+                    <RankSavingsCells
+                      key={s.supplierId}
+                      includeAnswers={data.includeAnswers}
+                      value={s.rank !== null ? `#${s.rank}` : "-"}
+                    />
+                  ))}
+                </tr>
+                <tr className="text-xs">
+                  <td className="px-3 py-1.5 text-slate-500" colSpan={3}>
+                    Hedefe Göre Tasarruf
+                  </td>
+                  {round.suppliers.map((s) => (
+                    <RankSavingsCells
+                      key={s.supplierId}
+                      includeAnswers={data.includeAnswers}
+                      value={
+                        s.savingsVsTarget !== null
+                          ? fmtMoney(s.savingsVsTarget)
+                          : "-"
+                      }
+                      tone={
+                        s.savingsVsTarget !== null && s.savingsVsTarget >= 0
+                          ? "success"
+                          : s.savingsVsTarget !== null
+                            ? "danger"
+                            : undefined
+                      }
+                    />
+                  ))}
+                </tr>
+              </>
             ) : null}
           </tbody>
         </table>
       </div>
+
+      {data.includePrice && round.recommendedAwards.length > 0 ? (
+        <div className="px-5 py-4 border-t border-surface-border bg-success-50/30">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-success-700 mb-2">
+            Önerilen Kazanan (kalem bazında en düşük teklif)
+          </h4>
+          <ul className="space-y-1 text-sm">
+            {round.recommendedAwards.map((ra) => {
+              const itemName =
+                round.items.find((i) => i.id === ra.tenderItemId)?.name ??
+                ra.tenderItemId;
+              return (
+                <li
+                  key={ra.tenderItemId}
+                  className="flex items-center justify-between gap-4"
+                >
+                  <span className="text-slate-700">{itemName}</span>
+                  <span className="text-brand-900">
+                    <strong>{ra.supplierName}</strong> ·{" "}
+                    {fmtMoney(ra.unitPrice)} {round.currency}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
     </section>
   );
 }
 
 function Cell({
-  supplierId,
   includePrice,
   includeAnswers,
   unitPrice,
   totalPrice,
   answer,
+  isLowest,
+  deltaVsTargetPct,
 }: {
-  supplierId: string;
   includePrice: boolean;
   includeAnswers: boolean;
   unitPrice: number | null;
   totalPrice: number | null;
   answer: string | null;
+  isLowest: boolean;
+  deltaVsTargetPct: number | null;
 }) {
   return (
     <>
       {includePrice ? (
         <>
           <td
-            key={`u-${supplierId}`}
-            className="px-3 py-2 text-right border-l border-surface-border"
+            className={cn(
+              "px-3 py-2 text-right border-l border-surface-border",
+              isLowest && "bg-success-50 text-success-800 font-bold",
+            )}
+            title={isLowest ? "Bu kalemde en düşük teklif" : undefined}
           >
             {unitPrice !== null ? fmtMoney(unitPrice) : "-"}
+            {deltaVsTargetPct !== null ? (
+              <span
+                className={cn(
+                  "block text-[10px] font-normal",
+                  deltaVsTargetPct <= 0 ? "text-success-600" : "text-danger-500",
+                )}
+              >
+                {deltaVsTargetPct > 0 ? "+" : ""}
+                {deltaVsTargetPct}% hedef
+              </span>
+            ) : null}
           </td>
-          <td key={`t-${supplierId}`} className="px-3 py-2 text-right">
+          <td className="px-3 py-2 text-right">
             {totalPrice !== null ? fmtMoney(totalPrice) : "-"}
           </td>
         </>
       ) : null}
       {includeAnswers ? (
         <td
-          key={`a-${supplierId}`}
           className={cn(
             "px-3 py-2 text-slate-700 max-w-[240px] truncate",
             !includePrice && "border-l border-surface-border",
@@ -466,6 +554,37 @@ function Cell({
           {answer ?? "-"}
         </td>
       ) : null}
+    </>
+  );
+}
+
+function RankSavingsCells({
+  includeAnswers,
+  value,
+  tone,
+}: {
+  includeAnswers: boolean;
+  value: string;
+  tone?: "success" | "danger";
+}) {
+  const toneCls =
+    tone === "success"
+      ? "text-success-700"
+      : tone === "danger"
+        ? "text-danger-600"
+        : "text-slate-700";
+  return (
+    <>
+      <td
+        className={cn(
+          "px-3 py-1.5 text-right border-l border-surface-border font-medium",
+          toneCls,
+        )}
+      >
+        {value}
+      </td>
+      <td className="px-3 py-1.5" />
+      {includeAnswers ? <td className="px-3 py-1.5" /> : null}
     </>
   );
 }

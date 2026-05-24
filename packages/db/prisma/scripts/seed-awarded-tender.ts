@@ -47,6 +47,9 @@ async function main() {
     select: { id: true },
   });
   if (existing) {
+    // Önce bid'ler (bidItem'lar cascade) — BidItem→TenderItem FK restrict olduğu
+    // için tender'ı doğrudan silmek FK ihlali verir.
+    await prisma.bid.deleteMany({ where: { tenderId: existing.id } });
     await prisma.tender.delete({ where: { id: existing.id } });
     console.log(`Eski ${TENDER_NUMBER} silindi.`);
   }
@@ -65,6 +68,8 @@ async function main() {
       description: "Rapor savings/winningTotal testi için seed edildi.",
       primaryCurrency: "TRY",
       paymentTerm: "CASH",
+      // Tahmini (hedef) toplam — gerçek ihalelerde wizard hesaplar: 10 × 100 = 1000
+      estimatedTotal: "1000",
       publishedAt: closedAt,
       bidsOpenAt: closedAt,
       bidsCloseAt: closedAt,

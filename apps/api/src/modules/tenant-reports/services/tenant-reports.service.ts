@@ -59,6 +59,7 @@ export class TenantReportsService {
             id: true,
             status: true,
             totalAmount: true,
+            supplier: { select: { companyName: true } },
           },
         },
         createdBy: { select: { firstName: true, lastName: true } },
@@ -107,6 +108,7 @@ export class TenantReportsService {
             id: true,
             status: true,
             totalAmount: true,
+            supplier: { select: { companyName: true } },
           },
         },
         createdBy: { select: { firstName: true, lastName: true } },
@@ -134,6 +136,24 @@ export class TenantReportsService {
     const winningTotal = awardedBids.length
       ? awardedBids.reduce((sum, b) => sum + Number(b.totalAmount), 0)
       : null;
+    const winnerName =
+      awardedBids.length > 0
+        ? Array.from(
+            new Set(awardedBids.map((b) => b.supplier.companyName)),
+          ).join(", ")
+        : null;
+    const invitedCount = t.invitations.length;
+    const responseRate =
+      invitedCount > 0
+        ? Math.round((submittedCount / invitedCount) * 1000) / 10
+        : null;
+    const estimatedTotal =
+      t.estimatedTotal != null ? Number(t.estimatedTotal) : null;
+    // Tasarruf = tahmini (hedef) toplam − kazanan toplam (her ikisi de varsa)
+    const savings =
+      estimatedTotal != null && winningTotal != null
+        ? estimatedTotal - winningTotal
+        : null;
     return {
       id: t.id,
       tenderNumber: t.tenderNumber,
@@ -147,9 +167,13 @@ export class TenantReportsService {
       createdBy: t.createdBy
         ? `${t.createdBy.firstName} ${t.createdBy.lastName}`
         : null,
-      invitedCount: t.invitations.length,
+      invitedCount,
       submittedBidCount: submittedCount,
+      responseRate,
+      estimatedTotal,
       winningTotal,
+      winnerName,
+      savings,
       roundNumber: t.roundNumber,
     };
   }
@@ -161,18 +185,76 @@ export class TenantReportsService {
   ) {
     const totalTenders = tenders.length;
     const awarded = tenders.filter((t) => t.status === "AWARDED").length;
-    const totalAwardedValue = tenders.reduce((sum, t) => {
-      const awarded = t.bids
-        .filter(
-          (b) => b.status === "AWARDED_FULL" || b.status === "AWARDED_PARTIAL",
-        )
-        .reduce((s, b) => s + Number(b.totalAmount), 0);
-      return sum + awarded;
+
+    // Durum dağılımı
+    const statusBreakdown: Record<string, number> = {};
+    for (const t of tenders) {
+      statusBreakdown[t.status] = (statusBreakdown[t.status] ?? 0) + 1;
+    }
+
+    const totalInvited = tenders.reduce(
+      (s, t) => s + t.invitations.length,
+      0,
+    );
+    const totalSubmittedBids = tenders.reduce((s, t) => {
+      return (
+        s +
+        t.bids.filter((b) =>
+          [
+            "SUBMITTED",
+            "AWARDED_FULL",
+            "AWARDED_PARTIAL",
+            "LOST",
+            "REJECTED",
+          ].includes(b.status),
+        ).length
+      );
     }, 0);
+
+    const isAwardedBid = (s: string) =>
+      s === "AWARDED_FULL" || s === "AWARDED_PARTIAL";
+    const totalAwardedValue = tenders.reduce((sum, t) => {
+      return (
+        sum +
+        t.bids
+          .filter((b) => isAwardedBid(b.status))
+          .reduce((s, b) => s + Number(b.totalAmount), 0)
+      );
+    }, 0);
+
+    // Tahmini (hedef) toplam — sadece estimatedTotal'ı olan ihalelerde
+    const totalEstimated = tenders.reduce(
+      (s, t) => s + (t.estimatedTotal != null ? Number(t.estimatedTotal) : 0),
+      0,
+    );
+    // Toplam tasarruf — awarded + hem tahmini hem kazanan tutarı olanlar
+    const totalSavings = tenders.reduce((sum, t) => {
+      if (t.status !== "AWARDED" || t.estimatedTotal == null) return sum;
+      const win = t.bids
+        .filter((b) => isAwardedBid(b.status))
+        .reduce((s, b) => s + Number(b.totalAmount), 0);
+      if (win === 0) return sum;
+      return sum + (Number(t.estimatedTotal) - win);
+    }, 0);
+
     return {
       totalTenders,
       awardedTenders: awarded,
+      cancelledTenders: statusBreakdown.CANCELLED ?? 0,
+      statusBreakdown,
+      totalInvited,
+      totalSubmittedBids,
+      overallResponseRate:
+        totalInvited > 0
+          ? Math.round((totalSubmittedBids / totalInvited) * 1000) / 10
+          : 0,
+      avgBidsPerTender:
+        totalTenders > 0
+          ? Math.round((totalSubmittedBids / totalTenders) * 10) / 10
+          : 0,
+      totalEstimated,
       totalAwardedValue,
+      totalSavings,
     };
   }
 
@@ -214,6 +296,7 @@ export class TenantReportsService {
                 unitPrice: true,
                 totalPrice: true,
                 awardedQuantity: true,
+                isWinner: true,
               },
             },
           },
@@ -223,34 +306,84 @@ export class TenantReportsService {
     });
 
     const rows = tenders.map((t) => {
+      // Kazanan kalemleri tek haritada topla: tenderItemId → kazanan BidItem + tedarikçi.
+      // KISMİ kazandırma için yalnızca isWinner=true kalemler sayılır (eski kod tüm
+      // bid.items.totalPrice'ı topluyordu → kazanılmayan kalemleri de sayıyordu).
+      const winningByItem = new Map<
+        string,
+        {
+          supplierId: string;
+          supplierName: string;
+          unitPrice: number | null;
+          awardedQty: number;
+          totalPrice: number | null;
+        }
+      >();
+      for (const bid of t.bids) {
+        if (!bid.supplier) continue;
+        for (const bi of bid.items) {
+          if (!bi.isWinner) continue;
+          winningByItem.set(bi.tenderItemId, {
+            supplierId: bid.supplier.id,
+            supplierName: bid.supplier.companyName,
+            unitPrice: bi.unitPrice != null ? Number(bi.unitPrice) : null,
+            awardedQty:
+              bi.awardedQuantity != null ? Number(bi.awardedQuantity) : 0,
+            totalPrice: bi.totalPrice != null ? Number(bi.totalPrice) : null,
+          });
+        }
+      }
+
       let targetTotal = 0;
       let actualTotal = 0;
       const winners = new Map<string, { name: string; total: number }>();
 
-      for (const item of t.items) {
-        const target = item.targetUnitPrice
-          ? Number(item.targetUnitPrice) * Number(item.quantity)
-          : null;
-        if (target !== null) targetTotal += target;
-      }
+      const items = t.items.map((item) => {
+        const win = winningByItem.get(item.id);
+        const targetUnit =
+          item.targetUnitPrice != null ? Number(item.targetUnitPrice) : null;
+        // Kazanılan adet: awardedQuantity varsa onu, yoksa kalem miktarını kullan
+        const qty =
+          win && win.awardedQty > 0 ? win.awardedQty : Number(item.quantity);
+        const winningUnit = win?.unitPrice ?? null;
+        const itemActual =
+          win == null
+            ? null
+            : winningUnit != null
+              ? winningUnit * qty
+              : (win.totalPrice ?? 0);
+        const itemTarget =
+          win != null && targetUnit != null ? targetUnit * qty : null;
+        const itemSavings =
+          itemTarget != null && itemActual != null
+            ? itemTarget - itemActual
+            : null;
 
-      for (const bid of t.bids) {
-        const sup = bid.supplier
-          ? winners.get(bid.supplier.id) ?? {
-              name: bid.supplier.companyName,
-              total: 0,
-            }
-          : null;
-        const bidTotal = bid.items.reduce(
-          (sum, bi) => sum + (bi.totalPrice ? Number(bi.totalPrice) : 0),
-          0,
-        );
-        actualTotal += bidTotal;
-        if (sup && bid.supplier) {
-          sup.total += bidTotal;
-          winners.set(bid.supplier.id, sup);
+        // Toplamlara yalnızca kazanılan (awarded) kalemler katılır → adil kıyas
+        if (itemActual != null) actualTotal += itemActual;
+        if (itemTarget != null) targetTotal += itemTarget;
+        if (win && itemActual != null) {
+          const agg = winners.get(win.supplierId) ?? {
+            name: win.supplierName,
+            total: 0,
+          };
+          agg.total += itemActual;
+          winners.set(win.supplierId, agg);
         }
-      }
+
+        return {
+          name: item.name,
+          unit: item.unit,
+          quantity: Number(item.quantity),
+          awardedQuantity: win ? qty : null,
+          targetUnitPrice: targetUnit,
+          winningUnitPrice: winningUnit,
+          winnerName: win?.supplierName ?? null,
+          itemTarget,
+          itemActual,
+          savings: itemSavings,
+        };
+      });
 
       const savings = targetTotal > 0 ? targetTotal - actualTotal : null;
       const savingsPct =
@@ -266,12 +399,34 @@ export class TenantReportsService {
         savings,
         savingsPct,
         winners: Array.from(winners.values()),
+        items,
         awardedAt: t.bidsCloseAt.toISOString(),
       };
     });
 
     const grandTarget = rows.reduce((s, r) => s + r.targetTotal, 0);
     const grandActual = rows.reduce((s, r) => s + r.actualTotal, 0);
+
+    // En iyi / en kötü tasarruflu ihale (yüzdeye göre)
+    const withPct = rows.filter((r) => r.savingsPct != null);
+    const best =
+      withPct.length > 0
+        ? withPct.reduce((a, b) => (b.savingsPct! > a.savingsPct! ? b : a))
+        : null;
+    const worst =
+      withPct.length > 0
+        ? withPct.reduce((a, b) => (b.savingsPct! < a.savingsPct! ? b : a))
+        : null;
+
+    // Tedarikçi bazlı tasarruf agregasyonu (tüm ihaleler genelinde)
+    const bySupplier = new Map<string, { name: string; awarded: number }>();
+    for (const r of rows) {
+      for (const w of r.winners) {
+        const agg = bySupplier.get(w.name) ?? { name: w.name, awarded: 0 };
+        agg.awarded += w.total;
+        bySupplier.set(w.name, agg);
+      }
+    }
 
     return {
       generatedAt: new Date().toISOString(),
@@ -286,6 +441,27 @@ export class TenantReportsService {
         grandSavings: grandTarget > 0 ? grandTarget - grandActual : 0,
         grandSavingsPct:
           grandTarget > 0 ? ((grandTarget - grandActual) / grandTarget) * 100 : 0,
+        avgSavingsPct:
+          withPct.length > 0
+            ? withPct.reduce((s, r) => s + r.savingsPct!, 0) / withPct.length
+            : 0,
+        bestTender: best
+          ? {
+              tenderNumber: best.tenderNumber,
+              title: best.title,
+              savingsPct: best.savingsPct,
+            }
+          : null,
+        worstTender: worst
+          ? {
+              tenderNumber: worst.tenderNumber,
+              title: worst.title,
+              savingsPct: worst.savingsPct,
+            }
+          : null,
+        bySupplier: Array.from(bySupplier.values()).sort(
+          (a, b) => b.awarded - a.awarded,
+        ),
       },
     };
   }
@@ -353,35 +529,95 @@ export class TenantReportsService {
         t.invitations.map((i) => [i.supplierId, i.supplier.companyName]),
       );
 
+      const itemMeta = t.items.map((it) => ({
+        id: it.id,
+        name: it.name,
+        unit: it.unit,
+        quantity: Number(it.quantity),
+        targetUnitPrice:
+          it.targetUnitPrice != null ? Number(it.targetUnitPrice) : null,
+        customQuestion: it.customQuestion,
+      }));
+
+      // Kalem bazında en düşük birim fiyat (teklif veren tedarikçiler arasında)
+      const lowestByItem = new Map<
+        string,
+        { supplierId: string; unitPrice: number }
+      >();
+      if (includePrice) {
+        for (const it of t.items) {
+          let best: { supplierId: string; unitPrice: number } | null = null;
+          for (const b of t.bids) {
+            if (b.status === "DRAFT") continue;
+            const bi = b.items.find((x) => x.tenderItemId === it.id);
+            const up = bi?.unitPrice != null ? Number(bi.unitPrice) : null;
+            if (up == null || up <= 0) continue;
+            if (!best || up < best.unitPrice)
+              best = { supplierId: b.supplierId, unitPrice: up };
+          }
+          if (best) lowestByItem.set(it.id, best);
+        }
+      }
+
+      const targetTotal = itemMeta.reduce(
+        (sum, it) =>
+          sum +
+          (it.targetUnitPrice != null
+            ? it.targetUnitPrice * it.quantity
+            : 0),
+        0,
+      );
+
       const suppliers = supplierIdsToShow.map((sid) => {
         const bid = t.bids.find((b) => b.supplierId === sid);
+        const totalAmount =
+          includePrice && bid?.totalAmount ? Number(bid.totalAmount) : null;
         return {
           supplierId: sid,
           companyName: supplierLookup.get(sid) ?? "(bilinmiyor)",
           submitted: !!bid && bid.status !== "DRAFT",
           status: bid?.status ?? "NO_BID",
-          totalAmount:
-            includePrice && bid?.totalAmount ? Number(bid.totalAmount) : null,
+          totalAmount,
           bidCurrency: dto.showBidCurrencies ? bid?.currency ?? null : null,
+          rank: null as number | null,
+          savingsVsTarget:
+            totalAmount != null && targetTotal > 0
+              ? targetTotal - totalAmount
+              : null,
           itemPrices:
             includePrice && bid
-              ? t.items.map((it) => {
-                  const bi = bid.items.find(
-                    (x) => x.tenderItemId === it.id,
-                  );
+              ? itemMeta.map((it) => {
+                  const bi = bid.items.find((x) => x.tenderItemId === it.id);
+                  const unitPrice =
+                    bi?.unitPrice != null ? Number(bi.unitPrice) : null;
+                  const low = lowestByItem.get(it.id);
                   return {
                     tenderItemId: it.id,
-                    unitPrice: bi?.unitPrice ? Number(bi.unitPrice) : null,
-                    totalPrice: bi?.totalPrice ? Number(bi.totalPrice) : null,
+                    unitPrice,
+                    totalPrice:
+                      bi?.totalPrice != null ? Number(bi.totalPrice) : null,
+                    isLowest:
+                      low != null &&
+                      unitPrice != null &&
+                      low.supplierId === sid &&
+                      Math.abs(low.unitPrice - unitPrice) < 1e-9,
+                    deltaVsTargetPct:
+                      unitPrice != null &&
+                      it.targetUnitPrice != null &&
+                      it.targetUnitPrice > 0
+                        ? Math.round(
+                            ((unitPrice - it.targetUnitPrice) /
+                              it.targetUnitPrice) *
+                              1000,
+                          ) / 10
+                        : null,
                   };
                 })
               : [],
           itemAnswers:
             includeAnswers && bid
-              ? t.items.map((it) => {
-                  const bi = bid.items.find(
-                    (x) => x.tenderItemId === it.id,
-                  );
+              ? itemMeta.map((it) => {
+                  const bi = bid.items.find((x) => x.tenderItemId === it.id);
                   return {
                     tenderItemId: it.id,
                     customAnswer: bi?.customAnswer ?? null,
@@ -391,23 +627,38 @@ export class TenantReportsService {
         };
       });
 
+      // Tedarikçi sıralaması (teklif toplamına göre artan; en ucuz = 1)
+      suppliers
+        .filter((s) => s.totalAmount != null)
+        .sort((a, b) => a.totalAmount! - b.totalAmount!)
+        .forEach((s, i) => {
+          s.rank = i + 1;
+        });
+
+      // Önerilen kazanan — her kalemde en düşük teklifi veren tedarikçi
+      const recommendedAwards = Array.from(lowestByItem.entries()).map(
+        ([itemId, low]) => ({
+          tenderItemId: itemId,
+          supplierId: low.supplierId,
+          supplierName: supplierLookup.get(low.supplierId) ?? "(bilinmiyor)",
+          unitPrice: low.unitPrice,
+        }),
+      );
+
       return {
         tenderId: t.id,
         tenderNumber: t.tenderNumber,
         roundNumber: t.roundNumber,
         title: t.title,
         currency: t.primaryCurrency,
-        items: t.items.map((it) => ({
-          id: it.id,
-          name: it.name,
-          unit: it.unit,
-          quantity: Number(it.quantity),
-          targetUnitPrice: it.targetUnitPrice
-            ? Number(it.targetUnitPrice)
-            : null,
-          customQuestion: it.customQuestion,
+        targetTotal,
+        items: itemMeta.map((it) => ({
+          ...it,
+          lowestUnitPrice: lowestByItem.get(it.id)?.unitPrice ?? null,
+          lowestSupplierId: lowestByItem.get(it.id)?.supplierId ?? null,
         })),
         suppliers,
+        recommendedAwards,
       };
     });
 
