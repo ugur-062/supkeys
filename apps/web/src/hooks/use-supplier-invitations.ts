@@ -152,4 +152,4 @@ export function useInvitationPreview({
 
 export const supplierInvitationsQueryKeys = KEYS;
 
-export interface InvitationDetailLike extends InvitationItem {}
+export type InvitationDetailLike = InvitationItem;

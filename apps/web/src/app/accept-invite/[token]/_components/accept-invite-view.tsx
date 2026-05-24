@@ -74,7 +74,7 @@ export function AcceptInviteView({ token }: { token: string }) {
     const status =
       (invitationQuery.error as { response?: { status?: number } })?.response
         ?.status;
-    let title = "Davet geçersiz";
+    const title = "Davet geçersiz";
     let detail =
       "Bu davet bağlantısı geçersiz, iptal edilmiş veya süresi dolmuş olabilir.";
     if (status === 409) {

@@ -36,7 +36,7 @@ export function useMyBid(tenderId: string | null) {
   });
 }
 
-interface SaveBidResponse extends MyBidDetail {}
+type SaveBidResponse = MyBidDetail;
 
 export function useSaveBid(tenderId: string) {
   const qc = useQueryClient();
