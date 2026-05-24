@@ -70,6 +70,7 @@ export function CopyLoader({ sourceId }: { sourceId: string }) {
         targetUnitPrice:
           it.targetUnitPrice !== null ? Number(it.targetUnitPrice) : undefined,
         customQuestion: it.customQuestion ?? "",
+        questions: it.questions ?? [],
       })),
       invitedSupplierIds: t.invitations.map((i) => i.supplier.id),
     };

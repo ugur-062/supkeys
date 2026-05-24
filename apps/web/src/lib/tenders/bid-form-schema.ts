@@ -11,6 +11,11 @@ const CURRENCY_VALUES = [
   "CNY",
 ] as const;
 
+export const bidFormAnswerSchema = z.object({
+  questionId: z.string().min(1),
+  value: z.string().max(2000),
+});
+
 export const bidFormItemSchema = z.object({
   tenderItemId: z.string().min(1),
   // null = bu kaleme teklif yok; sayı = teklif var
@@ -19,6 +24,8 @@ export const bidFormItemSchema = z.object({
     .min(0, "Fiyat 0'dan büyük veya eşit olmalı")
     .nullable(),
   customAnswer: z.string().max(2000).optional(),
+  // V2-7+ — kalemin sorularına cevaplar
+  answers: z.array(bidFormAnswerSchema).optional(),
 });
 
 export const bidFormAttachmentSchema = z.object({

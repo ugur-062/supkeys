@@ -43,6 +43,7 @@ export function BidItemRow({ index, tenderItem, currency }: Props) {
     name: `items.${index}.unitPrice`,
   });
 
+  const questions = tenderItem.questions ?? [];
   const itemErrors = errors.items?.[index];
   const hasOffer =
     typeof unitPrice === "number" && !Number.isNaN(unitPrice) && unitPrice >= 0;
@@ -148,8 +149,60 @@ export function BidItemRow({ index, tenderItem, currency }: Props) {
         </div>
       </div>
 
-      {/* Kalem sorusu — sadece bu kaleme teklif verildiyse cevap zorunlu */}
-      {tenderItem.customQuestion ? (
+      {/* Kalem soruları — çoklu + tipli (V2-7+). Legacy tek soru fallback. */}
+      {questions.length > 0 ? (
+        <div
+          className={cn(
+            "mt-3 pt-3 border-t space-y-3",
+            hasOffer ? "border-warning-200" : "border-slate-100",
+          )}
+        >
+          <div className="flex items-center gap-2">
+            <HelpCircle
+              className={cn(
+                "h-4 w-4",
+                hasOffer ? "text-warning-600" : "text-slate-400",
+              )}
+            />
+            <p
+              className={cn(
+                "text-xs font-semibold uppercase tracking-wide",
+                hasOffer ? "text-warning-800" : "text-slate-500",
+              )}
+            >
+              Kalem Soruları ({questions.length})
+            </p>
+          </div>
+          {hasOffer ? (
+            questions.map((q, qi) => (
+              <div key={q.id} className="ml-6">
+                <Label htmlFor={`bid-${index}-ans-${qi}`}>
+                  {q.text}
+                  {q.required ? (
+                    <span className="text-danger-600 ml-0.5">*</span>
+                  ) : null}
+                </Label>
+                {/* questionId form state'inde tutulur */}
+                <input
+                  type="hidden"
+                  {...register(`items.${index}.answers.${qi}.questionId`)}
+                />
+                <AnswerInput
+                  id={`bid-${index}-ans-${qi}`}
+                  answerType={q.answerType}
+                  registerProps={register(
+                    `items.${index}.answers.${qi}.value`,
+                  )}
+                />
+              </div>
+            ))
+          ) : (
+            <p className="text-xs text-slate-500 italic ml-6">
+              Bu kaleme teklif verirseniz sorular aktif olur.
+            </p>
+          )}
+        </div>
+      ) : tenderItem.customQuestion ? (
         <div
           className={cn(
             "mt-3 pt-3 border-t",
@@ -196,9 +249,7 @@ export function BidItemRow({ index, tenderItem, currency }: Props) {
             </p>
           )}
         </div>
-      ) : null}
-
-      {!hasOffer && !tenderItem.customQuestion ? (
+      ) : !hasOffer ? (
         <div className="mt-3 pt-3 border-t border-slate-100">
           <p className="text-xs text-slate-500 italic ml-11">
             Bu kaleme teklif vermiyorum. Birim fiyat girince aktif olur.
@@ -206,5 +257,38 @@ export function BidItemRow({ index, tenderItem, currency }: Props) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function AnswerInput({
+  id,
+  answerType,
+  registerProps,
+}: {
+  id: string;
+  answerType: string;
+  registerProps: ReturnType<ReturnType<typeof useFormContext>["register"]>;
+}) {
+  if (answerType === "NUMBER") {
+    return <Input id={id} type="number" step="any" {...registerProps} />;
+  }
+  if (answerType === "DATE") {
+    return <Input id={id} type="date" {...registerProps} />;
+  }
+  if (answerType === "YES_NO") {
+    return (
+      <select
+        id={id}
+        className="w-full px-3 py-2 rounded-lg border border-surface-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+        {...registerProps}
+      >
+        <option value="">Seçin…</option>
+        <option value="Evet">Evet</option>
+        <option value="Hayır">Hayır</option>
+      </select>
+    );
+  }
+  return (
+    <Textarea id={id} rows={2} maxLength={2000} placeholder="Cevabınızı yazın…" {...registerProps} />
   );
 }

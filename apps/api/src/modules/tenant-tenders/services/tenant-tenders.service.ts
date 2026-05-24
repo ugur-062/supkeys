@@ -658,6 +658,7 @@ export class TenantTendersService {
                 quantity: true,
                 unit: true,
                 customQuestion: true,
+                questions: true,
                 targetUnitPrice: true,
               },
             },
@@ -791,6 +792,15 @@ export class TenantTendersService {
                 : null,
               targetUnitPrice: item.targetUnitPrice ?? null,
               customQuestion: item.customQuestion?.trim() || null,
+              questions:
+                item.questions && item.questions.length > 0
+                  ? item.questions.map((q) => ({
+                      id: q.id,
+                      text: q.text.trim(),
+                      answerType: q.answerType,
+                      required: !!q.required,
+                    }))
+                  : undefined,
             })),
           },
           invitations: {
@@ -955,6 +965,15 @@ export class TenantTendersService {
                 : null,
               targetUnitPrice: item.targetUnitPrice ?? null,
               customQuestion: item.customQuestion?.trim() || null,
+              questions:
+                item.questions && item.questions.length > 0
+                  ? item.questions.map((q) => ({
+                      id: q.id,
+                      text: q.text.trim(),
+                      answerType: q.answerType,
+                      required: !!q.required,
+                    }))
+                  : undefined,
             })),
           },
           invitations: {
@@ -1409,6 +1428,9 @@ export class TenantTendersService {
               requiredByDate: it.requiredByDate,
               targetUnitPrice: it.targetUnitPrice,
               customQuestion: it.customQuestion,
+              questions: (it.questions ?? undefined) as
+                | Prisma.InputJsonValue
+                | undefined,
             })),
           },
           invitations: {

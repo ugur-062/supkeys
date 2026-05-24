@@ -42,6 +42,21 @@ export type DecrementType = (typeof DECREMENT_TYPE_VALUES)[number];
 export const DECREMENT_BASIS_VALUES = ["OWN_LAST_BID", "BEST_BID"] as const;
 export type DecrementBasis = (typeof DECREMENT_BASIS_VALUES)[number];
 
+export const ANSWER_TYPE_VALUES = ["TEXT", "NUMBER", "YES_NO", "DATE"] as const;
+export type AnswerTypeValue = (typeof ANSWER_TYPE_VALUES)[number];
+
+// V2-7+ — Kalem başına çoklu + tipli soru
+export const tenderItemQuestionSchema = z.object({
+  id: z.string().min(1),
+  text: z
+    .string()
+    .min(1, "Soru metni zorunlu")
+    .max(500, "Maksimum 500 karakter"),
+  answerType: z.enum(ANSWER_TYPE_VALUES),
+  required: z.boolean(),
+});
+export type TenderItemQuestion = z.infer<typeof tenderItemQuestionSchema>;
+
 export const tenderItemSchema = z.object({
   name: z
     .string()
@@ -62,6 +77,7 @@ export const tenderItemSchema = z.object({
     .min(0)
     .optional(),
   customQuestion: z.string().max(500, "Maksimum 500 karakter").optional(),
+  questions: z.array(tenderItemQuestionSchema).max(20).optional(),
 });
 
 const baseTenderSchema = z.object({
@@ -301,6 +317,7 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
       requiredByDate: "",
       targetUnitPrice: undefined,
       customQuestion: "",
+      questions: [],
     },
   ],
   invitedSupplierIds: [],

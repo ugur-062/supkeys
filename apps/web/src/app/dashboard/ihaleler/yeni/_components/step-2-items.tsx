@@ -42,6 +42,7 @@ export function Step2Items() {
       requiredByDate: "",
       targetUnitPrice: undefined,
       customQuestion: "",
+      questions: [],
     });
   };
 
@@ -119,17 +120,18 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
     control,
     name: `items.${index}.targetUnitPrice`,
   });
-  const customQuestion = useWatch({
+  const questions = useWatch({
     control,
-    name: `items.${index}.customQuestion`,
+    name: `items.${index}.questions`,
   });
+  const questionCount = Array.isArray(questions) ? questions.length : 0;
 
   const hasDetails = !!(
     (description && description.trim()) ||
     (requiredByDate && requiredByDate.trim()) ||
     (typeof targetUnitPrice === "number" && !Number.isNaN(targetUnitPrice))
   );
-  const hasQuestion = !!(customQuestion && customQuestion.trim());
+  const hasQuestion = questionCount > 0;
 
   const itemErrors = errors.items?.[index];
   const detailHasError = !!(
@@ -137,7 +139,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
     itemErrors?.requiredByDate ??
     itemErrors?.targetUnitPrice
   );
-  const questionHasError = !!itemErrors?.customQuestion;
+  const questionHasError = !!itemErrors?.questions;
 
   const rowHasError = Object.keys(itemErrors ?? {}).length > 0;
 
@@ -255,7 +257,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
           )}
         >
           <HelpCircle className="w-3.5 h-3.5" />
-          {hasQuestion ? "Soruyu Düzenle" : "Soru Ekle"}
+          {hasQuestion ? `Sorular (${questionCount})` : "Soru Ekle"}
           {hasQuestion ? (
             <CheckCircle2 className="w-3.5 h-3.5 text-success-600 ml-0.5" />
           ) : null}

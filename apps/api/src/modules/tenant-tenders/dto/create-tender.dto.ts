@@ -72,6 +72,32 @@ export enum DecrementBasisDto {
   BEST_BID = "BEST_BID",
 }
 
+export enum AnswerTypeDto {
+  TEXT = "TEXT",
+  NUMBER = "NUMBER",
+  YES_NO = "YES_NO",
+  DATE = "DATE",
+}
+
+// V2-7+ — Kalem başına çoklu + tipli soru
+export class TenderItemQuestionDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(80)
+  id!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(500)
+  text!: string;
+
+  @IsEnum(AnswerTypeDto)
+  answerType!: AnswerTypeDto;
+
+  @IsBoolean()
+  required!: boolean;
+}
+
 export class TenderItemInputDto {
   @IsString()
   @IsNotEmpty()
@@ -110,6 +136,13 @@ export class TenderItemInputDto {
   @IsString()
   @MaxLength(500)
   customQuestion?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => TenderItemQuestionDto)
+  questions?: TenderItemQuestionDto[];
 }
 
 export class TenderAttachmentInputDto {

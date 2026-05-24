@@ -525,7 +525,32 @@ function ItemsTable({ bid }: { bid: BidDetailExpanded }) {
                   <p className="font-medium text-slate-900">
                     {bi.tenderItem.name}
                   </p>
-                  {bi.tenderItem.customQuestion && bi.customAnswer ? (
+                  {bi.tenderItem.questions &&
+                  bi.tenderItem.questions.length > 0 ? (
+                    <div className="mt-2 bg-warning-50 border border-warning-200 rounded p-2 max-w-xl space-y-2">
+                      {bi.tenderItem.questions.map((q) => {
+                        const ans = bi.answers?.find(
+                          (a) => a.questionId === q.id,
+                        )?.value;
+                        return (
+                          <div key={q.id}>
+                            <p className="text-[10px] font-semibold text-warning-800 uppercase tracking-wide">
+                              Soru
+                            </p>
+                            <p className="text-xs text-slate-700 mt-0.5">
+                              {q.text}
+                            </p>
+                            <p className="text-[10px] font-semibold text-warning-800 uppercase tracking-wide mt-1">
+                              Cevap
+                            </p>
+                            <p className="text-xs text-slate-700 mt-0.5 whitespace-pre-wrap">
+                              {ans || "—"}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : bi.tenderItem.customQuestion && bi.customAnswer ? (
                     <div className="mt-2 bg-warning-50 border border-warning-200 rounded p-2 max-w-xl">
                       <p className="text-[10px] font-semibold text-warning-800 uppercase tracking-wide">
                         Soru

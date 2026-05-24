@@ -181,6 +181,16 @@ export function TeklifForm({ tender, existingBid }: Props) {
       currency: tender.primaryCurrency,
       notes: draftBid?.notes ?? lazyPrefill?.notes ?? "",
       items: tender.items.map((ti) => {
+        // V2-7+ — kalemin sorularına göre answers dizisini hazırla (mevcut
+        // cevap varsa değerini taşı, yoksa boş).
+        const buildAnswers = (
+          existing?: Array<{ questionId: string; value: string }> | null,
+        ) =>
+          (ti.questions ?? []).map((q) => ({
+            questionId: q.id,
+            value:
+              existing?.find((a) => a.questionId === q.id)?.value ?? "",
+          }));
         const draftItem = draftBid?.items?.find(
           (bi) => bi.tenderItemId === ti.id,
         );
@@ -189,6 +199,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
             tenderItemId: ti.id,
             unitPrice: draftItem ? Number(draftItem.unitPrice) : null,
             customAnswer: draftItem?.customAnswer ?? "",
+            answers: buildAnswers(draftItem.answers),
           };
         }
         // V2-7 LAZY prefill — önceki tur bid item'ı varsa kullan
@@ -199,6 +210,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
           tenderItemId: ti.id,
           unitPrice: lazyItem?.unitPrice ? Number(lazyItem.unitPrice) : null,
           customAnswer: lazyItem?.customAnswer ?? "",
+          answers: buildAnswers(null),
         };
       }),
       attachments:
@@ -300,6 +312,12 @@ export function TeklifForm({ tender, existingBid }: Props) {
       tenderItemId: i.tenderItemId,
       unitPrice: i.unitPrice,
       customAnswer: i.customAnswer?.trim() || undefined,
+      answers:
+        i.answers && i.answers.length > 0
+          ? i.answers
+              .filter((a) => a.value != null && a.value.trim().length > 0)
+              .map((a) => ({ questionId: a.questionId, value: a.value.trim() }))
+          : undefined,
     })),
     attachments:
       values.attachments && values.attachments.length > 0

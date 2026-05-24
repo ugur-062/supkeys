@@ -252,6 +252,7 @@ export class SupplierTendersService {
             requiredByDate: true,
             targetUnitPrice: true,
             customQuestion: true,
+            questions: true,
             createdAt: true,
             updatedAt: true,
           },
@@ -580,6 +581,7 @@ export class SupplierTendersService {
                 unit: true,
                 materialCode: true,
                 customQuestion: true,
+                questions: true,
               },
             },
           },
@@ -658,7 +660,30 @@ export class SupplierTendersService {
       for (const dtoItem of dto.items) {
         if (dtoItem.unitPrice == null) continue;
         const tenderItem = tenderItemMap.get(dtoItem.tenderItemId)!;
-        if (
+        // V2-7+ — çoklu+tipli sorular
+        const questions = Array.isArray(tenderItem.questions)
+          ? (tenderItem.questions as Array<{
+              id: string;
+              text: string;
+              required: boolean;
+            }>)
+          : [];
+        if (questions.length > 0) {
+          const answerMap = new Map(
+            (dtoItem.answers ?? []).map((a) => [
+              a.questionId,
+              (a.value ?? "").trim(),
+            ]),
+          );
+          for (const q of questions) {
+            if (q.required && !answerMap.get(q.id)) {
+              throw new BadRequestException(
+                `"${tenderItem.name}" kalemi için "${q.text}" sorusu zorunlu`,
+              );
+            }
+          }
+        } else if (
+          // Legacy tek soru (eski ihaleler)
           tenderItem.customQuestion &&
           (!dtoItem.customAnswer || dtoItem.customAnswer.trim().length === 0)
         ) {
@@ -769,6 +794,13 @@ export class SupplierTendersService {
             totalPrice,
             currency: bidCurrency,
             customAnswer: i.customAnswer?.trim() || null,
+            answers:
+              i.answers && i.answers.length > 0
+                ? i.answers.map((a) => ({
+                    questionId: a.questionId,
+                    value: (a.value ?? "").trim(),
+                  }))
+                : undefined,
           };
         });
       if (itemsToCreate.length > 0) {

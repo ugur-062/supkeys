@@ -1,3 +1,16 @@
+// V2-7+ — Kalem başına çoklu + tipli soru ve tedarikçi cevapları (JSON kolonlar)
+export type ItemAnswerType = "TEXT" | "NUMBER" | "YES_NO" | "DATE";
+export interface ItemQuestion {
+  id: string;
+  text: string;
+  answerType: ItemAnswerType;
+  required: boolean;
+}
+export interface ItemAnswer {
+  questionId: string;
+  value: string;
+}
+
 /**
  * E.7.B — Tender oluşturma anındaki TenantAddress JSON snapshot'ı.
  * Adres sonradan değişse veya silinse bile tender bu kaydı korur.
@@ -123,6 +136,7 @@ export interface TenderItemDetail {
   requiredByDate: string | null;
   targetUnitPrice: string | null;
   customQuestion: string | null;
+  questions: ItemQuestion[] | null;
 }
 
 export interface TenderInvitationDetail {
@@ -318,6 +332,7 @@ export interface SupplierTenderItem {
   requiredByDate: string | null;
   targetUnitPrice: string | null;
   customQuestion: string | null;
+  questions: ItemQuestion[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -445,6 +460,7 @@ export interface BidItemExpanded {
   totalPrice: string;
   currency: Currency;
   customAnswer: string | null;
+  answers: ItemAnswer[] | null;
   tenderItem: {
     id: string;
     orderIndex: number;
@@ -454,6 +470,7 @@ export interface BidItemExpanded {
     unit: string;
     materialCode: string | null;
     customQuestion: string | null;
+    questions: ItemQuestion[] | null;
   };
 }
 
@@ -492,6 +509,7 @@ export interface BidFormItem {
   tenderItemId: string;
   unitPrice: number | null;
   customAnswer?: string;
+  answers?: ItemAnswer[];
 }
 
 export interface BidFormAttachment {
@@ -550,6 +568,7 @@ export interface TenderBidsListItem {
     totalPrice: string | null;
     currency: Currency;
     customAnswer: string | null;
+    answers: ItemAnswer[] | null;
   }>;
   attachments: Array<{ id: string; fileName: string; fileSize: number }>;
 }

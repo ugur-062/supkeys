@@ -1,7 +1,7 @@
 "use client";
 
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
-import type { Currency } from "@/lib/tenders/types";
+import type { Currency, ItemQuestion } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import { HelpCircle, Inbox } from "lucide-react";
 
@@ -31,6 +31,7 @@ interface ItemRow {
   requiredByDate: string | null;
   targetUnitPrice?: string | null;
   customQuestion: string | null;
+  questions?: ItemQuestion[] | null;
 }
 
 interface Props {
@@ -121,7 +122,18 @@ export function ItemsTab({ items, currency, showTargetPrice = false }: Props) {
                   </td>
                 ) : null}
                 <td className="px-4 py-3">
-                  {it.customQuestion ? (
+                  {it.questions && it.questions.length > 0 ? (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs",
+                        "bg-brand-50 text-brand-700 border border-brand-200",
+                      )}
+                      title={it.questions.map((q) => `• ${q.text}`).join("\n")}
+                    >
+                      <HelpCircle className="h-3 w-3" />
+                      {it.questions.length} soru
+                    </span>
+                  ) : it.customQuestion ? (
                     <span
                       className={cn(
                         "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs",

@@ -22,6 +22,18 @@ export enum CurrencyDto {
   EUR = "EUR",
 }
 
+// V2-7+ — Kalemin bir sorusuna verilen cevap
+export class BidItemAnswerDto {
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(80)
+  questionId!: string;
+
+  @IsString()
+  @MaxLength(2000)
+  value!: string;
+}
+
 export class BidItemDto {
   @IsString()
   @IsNotEmpty()
@@ -42,6 +54,13 @@ export class BidItemDto {
   @IsString()
   @MaxLength(2000)
   customAnswer?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => BidItemAnswerDto)
+  answers?: BidItemAnswerDto[];
 }
 
 export class BidAttachmentDto {

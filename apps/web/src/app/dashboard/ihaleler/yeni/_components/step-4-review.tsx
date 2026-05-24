@@ -297,7 +297,14 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
                   </td>
                   <td className="py-2 pr-3">{item.unit}</td>
                   <td className="py-2 text-xs text-slate-500">
-                    {item.customQuestion ? "✓" : "—"}
+                    {(item.questions && item.questions.length > 0) ||
+                    item.customQuestion
+                      ? `✓${
+                          item.questions && item.questions.length > 0
+                            ? ` (${item.questions.length})`
+                            : ""
+                        }`
+                      : "—"}
                   </td>
                 </tr>
               ))}

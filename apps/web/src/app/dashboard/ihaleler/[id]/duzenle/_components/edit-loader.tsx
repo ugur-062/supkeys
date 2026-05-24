@@ -151,6 +151,7 @@ export function EditLoader({ id }: Props) {
           ? Number(it.targetUnitPrice)
           : undefined,
       customQuestion: it.customQuestion ?? "",
+      questions: it.questions ?? [],
     })),
     invitedSupplierIds: tender.invitations.map((i) => i.supplier.id),
   };

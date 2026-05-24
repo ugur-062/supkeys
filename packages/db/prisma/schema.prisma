@@ -909,7 +909,11 @@ model TenderItem {
   requiredByDate      DateTime?
   targetUnitPrice     Decimal?        @db.Decimal(15, 4)
 
+  // V2-7+ — Kalem başına çoklu + tipli soru: [{ id, text, answerType, required }]
+  // answerType: TEXT | NUMBER | YES_NO | DATE. Legacy tek soru `customQuestion`'da
+  // kalır; okuma katmanı questions boşsa ona fallback yapar.
   customQuestion      String?
+  questions           Json?
 
   bidItems            BidItem[]
 
@@ -991,7 +995,10 @@ model BidItem {
   totalPrice          Decimal?        @db.Decimal(20, 4)
   currency            Currency
 
+  // V2-7+ — Kalemin çoklu sorularına cevaplar: [{ questionId, value }].
+  // Legacy tek cevap `customAnswer`'da kalır (fallback).
   customAnswer        String?
+  answers             Json?
 
   isWinner            Boolean         @default(false)
   awardedQuantity     Decimal?        @db.Decimal(15, 4)

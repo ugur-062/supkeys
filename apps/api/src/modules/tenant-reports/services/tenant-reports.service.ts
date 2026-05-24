@@ -489,6 +489,7 @@ export class TenantReportsService {
             quantity: true,
             targetUnitPrice: true,
             customQuestion: true,
+            questions: true,
             orderIndex: true,
           },
           orderBy: { orderIndex: "asc" },
@@ -618,9 +619,28 @@ export class TenantReportsService {
             includeAnswers && bid
               ? itemMeta.map((it) => {
                   const bi = bid.items.find((x) => x.tenderItemId === it.id);
+                  // V2-7+ — çoklu cevapları "Soru: Cevap" olarak katla;
+                  // yoksa legacy customAnswer'a düş.
+                  const ans = Array.isArray(bi?.answers)
+                    ? (bi!.answers as Array<{
+                        questionId: string;
+                        value: string;
+                      }>)
+                    : [];
+                  let display: string | null = bi?.customAnswer ?? null;
+                  if (ans.length > 0) {
+                    const src = t.items.find((x) => x.id === it.id);
+                    const qs = Array.isArray(src?.questions)
+                      ? (src!.questions as Array<{ id: string; text: string }>)
+                      : [];
+                    const qText = new Map(qs.map((q) => [q.id, q.text]));
+                    display = ans
+                      .map((a) => `${qText.get(a.questionId) ?? "Soru"}: ${a.value}`)
+                      .join(" | ");
+                  }
                   return {
                     tenderItemId: it.id,
-                    customAnswer: bi?.customAnswer ?? null,
+                    customAnswer: display,
                   };
                 })
               : [],

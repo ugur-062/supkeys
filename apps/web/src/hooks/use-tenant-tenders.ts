@@ -228,6 +228,18 @@ function buildPayload(data: TenderFormData) {
         : undefined,
       targetUnitPrice: it.targetUnitPrice,
       customQuestion: sanitize(it.customQuestion),
+      // V2-7+ — kalem başına çoklu + tipli soru
+      questions:
+        it.questions && it.questions.length > 0
+          ? it.questions
+              .filter((q) => q.text.trim().length > 0)
+              .map((q) => ({
+                id: q.id,
+                text: q.text.trim(),
+                answerType: q.answerType,
+                required: q.required,
+              }))
+          : undefined,
     })),
     invitedSupplierIds: data.invitedSupplierIds,
   };
