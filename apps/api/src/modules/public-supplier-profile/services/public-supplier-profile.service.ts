@@ -22,12 +22,24 @@ export interface PublicSupplierProfileResponse {
   linkedinUrl: string | null;
   instagramUrl: string | null;
   coverImageUrl: string | null;
+  /** V2-PUBLIC-PROFILE — Logo (profil resmi). Hero avatar yerine. */
+  logoImageUrl: string | null;
   aboutText: string | null;
   services: string[];
   categories: { id: string; nameTr: string }[];
   photos: { id: string; url: string; caption: string | null }[];
   /** "X yıldır Supkeys üyesi" gibi etiket için. */
   memberSinceIso: string;
+  /** V2-PUBLIC-PROFILE-DETAILS — Detaylı alanlar. */
+  foundedYear: number | null;
+  employeeCount: string | null;
+  certifications: string[];
+  /** V2-TRUST — Tescil ve doğrulama. Şahıs işletmesi için tax/mersis hep null. */
+  taxNumber: string | null;
+  taxOffice: string | null;
+  mersisNo: string | null;
+  /** En az bir trust signal public olarak gösteriliyor mu (hero "Doğrulanmış" rozeti için). */
+  verifiedBusiness: boolean;
   /** V2-REVIEWS — Toplam istatistikler (tüm review'ları sayar, public ya da değil). */
   rating: {
     average: number | null;
@@ -86,13 +98,20 @@ export class PublicSupplierProfileService {
       throw new NotFoundException("Profil bulunamadı");
     }
 
-    // Cover/galeri URL + rating aggregate + son yorumlar paralel
-    const [coverImageUrl, photoUrls, aggregate, distribution, reviewsRaw] =
-      await Promise.all([
-        this.storage.resolveImageUrl(supplier.coverImageUrl),
-        Promise.all(
-          supplier.photos.map((p) => this.storage.resolveImageUrl(p.url)),
-        ),
+    // Cover/logo/galeri URL + rating aggregate + son yorumlar paralel
+    const [
+      coverImageUrl,
+      logoImageUrl,
+      photoUrls,
+      aggregate,
+      distribution,
+      reviewsRaw,
+    ] = await Promise.all([
+      this.storage.resolveImageUrl(supplier.coverImageUrl),
+      this.storage.resolveImageUrl(supplier.logoImageUrl),
+      Promise.all(
+        supplier.photos.map((p) => this.storage.resolveImageUrl(p.url)),
+      ),
         this.prisma.supplierReview.aggregate({
           where: { supplierId: supplier.id },
           _avg: { rating: true },
@@ -139,6 +158,7 @@ export class PublicSupplierProfileService {
       linkedinUrl: supplier.linkedinUrl,
       instagramUrl: supplier.instagramUrl,
       coverImageUrl,
+      logoImageUrl,
       aboutText: supplier.aboutText,
       services: supplier.services,
       categories: supplier.categories.map((sc) => ({
@@ -151,6 +171,21 @@ export class PublicSupplierProfileService {
         caption: p.caption,
       })),
       memberSinceIso: supplier.createdAt.toISOString(),
+      foundedYear: supplier.foundedYear,
+      employeeCount: supplier.employeeCount,
+      certifications: supplier.certifications,
+      // V2-TRUST — KVKK filter: SOLE_PROPRIETOR'da vergi/MERSİS hep null
+      ...(() => {
+        const isSoleProp = supplier.companyType === "SOLE_PROPRIETOR";
+        const showTax = supplier.publicShowTaxInfo && !isSoleProp;
+        const showMersis = supplier.publicShowMersis && !isSoleProp;
+        return {
+          taxNumber: showTax ? supplier.taxNumber : null,
+          taxOffice: showTax ? supplier.taxOffice : null,
+          mersisNo: showMersis ? supplier.mersisNo : null,
+          verifiedBusiness: showTax || showMersis,
+        };
+      })(),
       rating: {
         average: aggregate._avg.rating
           ? Number(aggregate._avg.rating.toFixed(2))

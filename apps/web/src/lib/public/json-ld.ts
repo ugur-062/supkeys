@@ -31,6 +31,11 @@ export function buildOrganizationJsonLd(
     data.image = profile.coverImageUrl;
   }
 
+  // V2-PUBLIC-PROFILE — logo (schema.org Organization.logo, Google ImagePack için)
+  if (profile.logoImageUrl) {
+    data.logo = profile.logoImageUrl;
+  }
+
   if (profile.aboutText) {
     // Google description ~500 char limit önerir
     data.description = profile.aboutText.slice(0, 500);
@@ -41,6 +46,19 @@ export function buildOrganizationJsonLd(
   if (profile.linkedinUrl) sameAs.push(profile.linkedinUrl);
   if (profile.instagramUrl) sameAs.push(profile.instagramUrl);
   if (sameAs.length > 0) data.sameAs = sameAs;
+
+  // V2-TRUST — Tescil bilgileri (opt-in, KVKK filtreli)
+  if (profile.taxNumber) {
+    data.taxID = profile.taxNumber;
+  }
+  if (profile.mersisNo) {
+    // PropertyValue → Google bunu structured identifier olarak okur
+    data.identifier = {
+      "@type": "PropertyValue",
+      propertyID: "MERSIS",
+      value: profile.mersisNo,
+    };
+  }
 
   // AggregateRating: sadece yıldız varsa Google yıldız gösterir
   if (profile.rating.count > 0 && profile.rating.average !== null) {

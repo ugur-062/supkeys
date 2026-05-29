@@ -178,7 +178,7 @@ export class StorageService implements OnModuleInit {
    */
   buildSupplierProfileKey(
     supplierId: string,
-    kind: "cover" | "photo",
+    kind: "cover" | "photo" | "logo",
     id: string,
     originalFilename: string,
   ): string {

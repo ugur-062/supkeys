@@ -122,6 +122,22 @@ export function GallerySection({ photos }: Props) {
                 alt={p.caption ?? "Galeri görseli"}
                 className="w-full h-full object-cover"
                 loading="lazy"
+                onError={(e) => {
+                  // R2 public erişim açık değilse görsel 404/timeout olur.
+                  // Broken image yerine bilgilendirici placeholder göster.
+                  const img = e.currentTarget;
+                  img.style.display = "none";
+                  const parent = img.parentElement;
+                  if (parent && !parent.querySelector("[data-broken]")) {
+                    const div = document.createElement("div");
+                    div.setAttribute("data-broken", "true");
+                    div.className =
+                      "absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-amber-50 text-amber-800 text-[11px]";
+                    div.textContent =
+                      "Görsel yüklenemedi — R2 public erişim aktif değil";
+                    parent.appendChild(div);
+                  }
+                }}
               />
               <button
                 type="button"

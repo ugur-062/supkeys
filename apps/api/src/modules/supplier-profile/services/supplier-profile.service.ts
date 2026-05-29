@@ -112,6 +112,7 @@ export class SupplierProfileService {
         slug: true,
         publicEnabled: true,
         coverImageUrl: true,
+        logoImageUrl: true,
         aboutText: true,
         services: true,
         website: true,
@@ -119,6 +120,15 @@ export class SupplierProfileService {
         instagramUrl: true,
         membership: true,
         companyName: true,
+        companyType: true,
+        taxNumber: true,
+        taxOffice: true,
+        mersisNo: true,
+        publicShowTaxInfo: true,
+        publicShowMersis: true,
+        foundedYear: true,
+        employeeCount: true,
+        certifications: true,
         photos: {
           orderBy: { orderIndex: "asc" },
           select: { id: true, url: true, caption: true },
@@ -127,9 +137,10 @@ export class SupplierProfileService {
     });
     if (!supplier) throw new NotFoundException("Tedarikçi bulunamadı");
 
-    // Cover key → URL (public veya presigned GET); photos.url da aynı
-    const [coverImageUrl, photoUrls] = await Promise.all([
+    // Cover + logo + photos key → URL (public veya presigned GET)
+    const [coverImageUrl, logoImageUrl, photoUrls] = await Promise.all([
       this.storage.resolveImageUrl(supplier.coverImageUrl),
+      this.storage.resolveImageUrl(supplier.logoImageUrl),
       Promise.all(
         supplier.photos.map((p) => this.storage.resolveImageUrl(p.url)),
       ),
@@ -139,12 +150,22 @@ export class SupplierProfileService {
       slug: supplier.slug,
       publicEnabled: supplier.publicEnabled,
       coverImageUrl,
+      logoImageUrl,
       aboutText: supplier.aboutText,
       services: supplier.services,
       website: supplier.website,
       linkedinUrl: supplier.linkedinUrl,
       instagramUrl: supplier.instagramUrl,
       companyName: supplier.companyName,
+      foundedYear: supplier.foundedYear,
+      employeeCount: supplier.employeeCount,
+      certifications: supplier.certifications,
+      companyType: supplier.companyType,
+      taxNumber: supplier.taxNumber,
+      taxOffice: supplier.taxOffice,
+      mersisNo: supplier.mersisNo,
+      publicShowTaxInfo: supplier.publicShowTaxInfo,
+      publicShowMersis: supplier.publicShowMersis,
       photos: supplier.photos.map((p, i) => ({
         id: p.id,
         url: photoUrls[i] ?? "",
@@ -170,13 +191,24 @@ export class SupplierProfileService {
 
     const supplier = await this.prisma.supplier.findUnique({
       where: { id: user.supplierId },
-      select: { id: true, membership: true },
+      select: { id: true, membership: true, companyType: true },
     });
     if (!supplier) throw new NotFoundException("Tedarikçi bulunamadı");
 
     if (supplier.membership !== "PREMIUM") {
       throw new ForbiddenException(
         "Public profil özelliği PREMIUM üyelere özeldir",
+      );
+    }
+
+    // V2-TRUST KVKK gate: şahıs işletmesinde vergi no = TC kimlik no →
+    // herkese açık paylaşılması kişisel veri ihlali. Reddet.
+    if (
+      (dto.publicShowTaxInfo === true || dto.publicShowMersis === true) &&
+      supplier.companyType === "SOLE_PROPRIETOR"
+    ) {
+      throw new BadRequestException(
+        "Şahıs işletmelerinde vergi numarası ve MERSİS herkese açık paylaşılamaz (KVKK)",
       );
     }
 
@@ -222,6 +254,30 @@ export class SupplierProfileService {
       data.instagramUrl =
         dto.instagramUrl.trim() === "" ? null : dto.instagramUrl;
     }
+    // V2-PUBLIC-PROFILE-DETAILS — kuruluş yılı, çalışan sayısı, sertifikalar
+    if (dto.foundedYear !== undefined) {
+      data.foundedYear = dto.foundedYear;
+    }
+    if (dto.employeeCount !== undefined) {
+      const trimmed = dto.employeeCount.trim();
+      data.employeeCount = trimmed === "" ? null : trimmed;
+    }
+    if (dto.certifications !== undefined) {
+      data.certifications = dto.certifications
+        .map((c) => c.trim())
+        .filter((c) => c.length > 0);
+    }
+    // V2-TRUST — MERSİS + opt-in toggle'lar
+    if (dto.mersisNo !== undefined) {
+      const trimmed = dto.mersisNo.trim();
+      data.mersisNo = trimmed === "" ? null : trimmed;
+    }
+    if (dto.publicShowTaxInfo !== undefined) {
+      data.publicShowTaxInfo = dto.publicShowTaxInfo;
+    }
+    if (dto.publicShowMersis !== undefined) {
+      data.publicShowMersis = dto.publicShowMersis;
+    }
 
     await this.prisma.supplier.update({
       where: { id: supplier.id },
@@ -263,7 +319,7 @@ export class SupplierProfileService {
   private assertKeyBelongsToSupplier(
     key: string,
     supplierId: string,
-    kind: "cover" | "photo",
+    kind: "cover" | "photo" | "logo",
   ): void {
     const expected = `/supplier-profile/${supplierId}/${kind}-`;
     if (!key.includes(expected)) {
@@ -333,6 +389,69 @@ export class SupplierProfileService {
       await this.prisma.supplier.update({
         where: { id: supplier.id },
         data: { coverImageUrl: null },
+      });
+    }
+    return this.getPublicProfile(supplierUserId);
+  }
+
+  /** Logo (profil resmi) için presigned PUT URL üretir. */
+  async requestLogoUpload(
+    supplierUserId: string,
+    dto: RequestProfileUploadDto,
+  ) {
+    const supplier = await this.getPremiumSupplier(supplierUserId);
+    const id = randomUUID();
+    const key = this.storage.buildSupplierProfileKey(
+      supplier.id,
+      "logo",
+      id,
+      dto.filename,
+    );
+    const uploadUrl = await this.storage.generatePresignedPut(key, dto.mimeType);
+    return { uploadUrl, key };
+  }
+
+  /** Logo finalize: cover ile aynı pattern, supplier.logoImageUrl = key. */
+  async finalizeLogo(supplierUserId: string, dto: FinalizeCoverDto) {
+    const supplier = await this.getPremiumSupplier(supplierUserId);
+    this.assertKeyBelongsToSupplier(dto.key, supplier.id, "logo");
+
+    const check = await this.storage.checkExists(dto.key);
+    if (!check.exists) {
+      throw new BadRequestException(
+        "Yüklenmiş dosya bulunamadı — önce R2'ya PUT atın",
+      );
+    }
+
+    const old = await this.prisma.supplier.findUnique({
+      where: { id: supplier.id },
+      select: { logoImageUrl: true },
+    });
+    if (old?.logoImageUrl && old.logoImageUrl !== dto.key) {
+      await this.storage.deleteObject(old.logoImageUrl).catch(() => undefined);
+    }
+
+    await this.prisma.supplier.update({
+      where: { id: supplier.id },
+      data: { logoImageUrl: dto.key },
+    });
+
+    return this.getPublicProfile(supplierUserId);
+  }
+
+  async removeLogo(supplierUserId: string) {
+    const supplier = await this.getPremiumSupplier(supplierUserId);
+    const current = await this.prisma.supplier.findUnique({
+      where: { id: supplier.id },
+      select: { logoImageUrl: true },
+    });
+    if (current?.logoImageUrl) {
+      await this.storage
+        .deleteObject(current.logoImageUrl)
+        .catch(() => undefined);
+      await this.prisma.supplier.update({
+        where: { id: supplier.id },
+        data: { logoImageUrl: null },
       });
     }
     return this.getPublicProfile(supplierUserId);

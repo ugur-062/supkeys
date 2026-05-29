@@ -30,6 +30,7 @@ export interface SupplierPublicProfile {
   slug: string | null;
   publicEnabled: boolean;
   coverImageUrl: string | null;
+  logoImageUrl: string | null;
   aboutText: string | null;
   services: string[];
   website: string | null;
@@ -38,6 +39,17 @@ export interface SupplierPublicProfile {
   companyName: string;
   isPremium: boolean;
   photos: SupplierProfilePhoto[];
+  /** V2-PUBLIC-PROFILE-DETAILS — Detaylı alanlar. */
+  foundedYear: number | null;
+  employeeCount: string | null;
+  certifications: string[];
+  /** V2-TRUST — Tescil. Editor read-only + opt-in toggle'lar. */
+  companyType: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR";
+  taxNumber: string;
+  taxOffice: string;
+  mersisNo: string | null;
+  publicShowTaxInfo: boolean;
+  publicShowMersis: boolean;
 }
 
 export interface UpdatePublicProfilePayload {
@@ -48,6 +60,12 @@ export interface UpdatePublicProfilePayload {
   website?: string;
   linkedinUrl?: string;
   instagramUrl?: string;
+  foundedYear?: number | null;
+  employeeCount?: string;
+  certifications?: string[];
+  mersisNo?: string;
+  publicShowTaxInfo?: boolean;
+  publicShowMersis?: boolean;
 }
 
 /**
@@ -161,6 +179,46 @@ export function useRemoveCover() {
     mutationFn: () =>
       supplierApi
         .delete("/supplier-profile/me/public-profile/cover")
+        .then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.myPublicProfile });
+    },
+  });
+}
+
+/**
+ * V2-PUBLIC-PROFILE — Logo (profil resmi) upload: presigned PUT → R2 → finalize.
+ */
+export function useUploadLogo() {
+  const qc = useQueryClient();
+  return useMutation<SupplierPublicProfile, unknown, File>({
+    mutationFn: async (file) => {
+      const { data: presign } = await supplierApi.post<{
+        uploadUrl: string;
+        key: string;
+      }>("/supplier-profile/me/public-profile/logo/upload-url", {
+        filename: file.name,
+        mimeType: file.type,
+      });
+      await uploadToR2(presign.uploadUrl, file);
+      const { data: profile } = await supplierApi.post<SupplierPublicProfile>(
+        "/supplier-profile/me/public-profile/logo/finalize",
+        { key: presign.key },
+      );
+      return profile;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.myPublicProfile });
+    },
+  });
+}
+
+export function useRemoveLogo() {
+  const qc = useQueryClient();
+  return useMutation<SupplierPublicProfile, unknown, void>({
+    mutationFn: () =>
+      supplierApi
+        .delete("/supplier-profile/me/public-profile/logo")
         .then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: KEYS.myPublicProfile });

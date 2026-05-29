@@ -65,17 +65,32 @@ export function CoverImageSection({ coverImageUrl }: Props) {
     >
       <div
         className="relative h-40 md:h-48 w-full rounded-xl overflow-hidden bg-gradient-to-br from-brand-500 via-brand-600 to-brand-800 border border-surface-border"
-        style={
-          coverImageUrl
-            ? {
-                backgroundImage: `url(${coverImageUrl})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }
-            : undefined
-        }
         aria-hidden
       >
+        {coverImageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={coverImageUrl}
+            alt=""
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              // R2 public erişim açık değilse 404 → kullanıcı broken image
+              // görmek yerine uyarı görsün.
+              const img = e.currentTarget;
+              img.style.display = "none";
+              const parent = img.parentElement;
+              if (parent && !parent.querySelector("[data-broken]")) {
+                const div = document.createElement("div");
+                div.setAttribute("data-broken", "true");
+                div.className =
+                  "absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-amber-50 text-amber-800";
+                div.innerHTML =
+                  '<p class="text-sm font-semibold">Kapak yüklenemedi</p><p class="text-xs mt-1">R2 bucket public erişim aktif değil — Cloudflare panelden "Allow Access" tıkla.</p>';
+                parent.appendChild(div);
+              }
+            }}
+          />
+        )}
         {busy && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
             <Loader2 className="h-6 w-6 text-white animate-spin" />

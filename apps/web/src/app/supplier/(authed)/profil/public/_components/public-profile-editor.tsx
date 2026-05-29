@@ -13,6 +13,8 @@ import {
 import { cn } from "@/lib/utils";
 import { CoverImageSection } from "./cover-image-section";
 import { GallerySection } from "./gallery-section";
+import { LogoImageSection } from "./logo-image-section";
+import { generateSlug } from "@supkeys/shared";
 import axios from "axios";
 import {
   Award,
@@ -22,6 +24,7 @@ import {
   Linkedin,
   Loader2,
   Plus,
+  Shield,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -40,6 +43,13 @@ export function PublicProfileEditor() {
   const [website, setWebsite] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [instagramUrl, setInstagramUrl] = useState("");
+  const [foundedYear, setFoundedYear] = useState("");
+  const [employeeCount, setEmployeeCount] = useState("");
+  const [certifications, setCertifications] = useState<string[]>([]);
+  const [newCertification, setNewCertification] = useState("");
+  const [mersisNo, setMersisNo] = useState("");
+  const [publicShowTaxInfo, setPublicShowTaxInfo] = useState(false);
+  const [publicShowMersis, setPublicShowMersis] = useState(false);
 
   // Backend'den veri gelince form state'i hidrate et
   useEffect(() => {
@@ -51,6 +61,12 @@ export function PublicProfileEditor() {
     setWebsite(data.website ?? "");
     setLinkedinUrl(data.linkedinUrl ?? "");
     setInstagramUrl(data.instagramUrl ?? "");
+    setFoundedYear(data.foundedYear ? String(data.foundedYear) : "");
+    setEmployeeCount(data.employeeCount ?? "");
+    setCertifications(data.certifications);
+    setMersisNo(data.mersisNo ?? "");
+    setPublicShowTaxInfo(data.publicShowTaxInfo);
+    setPublicShowMersis(data.publicShowMersis);
   }, [data]);
 
   if (isLoading) {
@@ -108,18 +124,73 @@ export function PublicProfileEditor() {
     setWebsite(data.website ?? "");
     setLinkedinUrl(data.linkedinUrl ?? "");
     setInstagramUrl(data.instagramUrl ?? "");
+    setFoundedYear(data.foundedYear ? String(data.foundedYear) : "");
+    setEmployeeCount(data.employeeCount ?? "");
+    setCertifications(data.certifications);
+    setMersisNo(data.mersisNo ?? "");
+    setPublicShowTaxInfo(data.publicShowTaxInfo);
+    setPublicShowMersis(data.publicShowMersis);
+  };
+
+  const addCertification = () => {
+    const v = newCertification.trim();
+    if (!v || certifications.includes(v) || certifications.length >= 20)
+      return;
+    setCertifications((prev) => [...prev, v]);
+    setNewCertification("");
+  };
+  const removeCertification = (c: string) => {
+    setCertifications((prev) => prev.filter((x) => x !== c));
   };
 
   const onSubmit = async () => {
+    // Frontend pre-validation — backend reddetmeden önce kullanıcıya net
+    // mesaj ver. Bunlar olmasa da backend yine validate eder; ama UX için
+    // burada da kontrol önemli.
+    const currentYear = new Date().getFullYear();
+    const parsedYear = foundedYear.trim()
+      ? parseInt(foundedYear.trim(), 10)
+      : null;
+
+    if (parsedYear !== null) {
+      if (Number.isNaN(parsedYear)) {
+        toast.error("Kuruluş yılı geçerli bir sayı olmalı");
+        return;
+      }
+      if (parsedYear < 1800 || parsedYear > currentYear) {
+        toast.error(
+          `Kuruluş yılı 1800-${currentYear} arasında olmalı (veya boş bırakın)`,
+        );
+        return;
+      }
+    }
+
+    const trimmedMersis = mersisNo.trim();
+    if (trimmedMersis && trimmedMersis.length !== 10) {
+      toast.error(
+        "MERSİS numarası 10 haneli rakam olmalı (boş bırakabilirsiniz)",
+      );
+      return;
+    }
+
+    // URL alanlarını backend gönderirken: boşsa "" olarak gönder (service null'a çevirir);
+    // doluysa trim ve protocol kontrolü kullanıcıya net hata verir.
+    // aboutText/services hep gönder (boş = silindi anlamı taşır).
     try {
       await update.mutateAsync({
-        slug,
+        slug: slug.trim(),
         publicEnabled,
         aboutText,
         services,
-        website,
-        linkedinUrl,
-        instagramUrl,
+        website: website.trim(),
+        linkedinUrl: linkedinUrl.trim(),
+        instagramUrl: instagramUrl.trim(),
+        foundedYear: parsedYear === null || Number.isNaN(parsedYear) ? null : parsedYear,
+        employeeCount: employeeCount.trim(),
+        certifications,
+        mersisNo: mersisNo.trim(),
+        publicShowTaxInfo,
+        publicShowMersis,
       });
       toast.success("Profil güncellendi");
     } catch (err) {
@@ -135,29 +206,49 @@ export function PublicProfileEditor() {
 
   return (
     <div className="space-y-5">
-      {/* Yayındaki public link */}
-      {slug && publicEnabled && (
-        <PanelCard className="bg-brand-50/40 border-brand-200">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div>
-              <p className="text-xs uppercase tracking-wide font-semibold text-brand-700">
-                Herkese açık profil
-              </p>
-              <p className="font-display font-bold text-brand-900 mt-0.5 font-mono">
-                /t/{slug}
-              </p>
+      {/* Hero — sade tek satır: avatar + identity + status + Profili Aç */}
+      <div className="bg-white rounded-xl border border-surface-border shadow-card p-4 md:p-5">
+        <div className="flex items-center gap-4 flex-wrap">
+          <div
+            className={cn(
+              "w-14 h-14 rounded-xl shrink-0",
+              "bg-gradient-to-br from-brand-100 to-brand-200 text-brand-700",
+              "flex items-center justify-center text-lg font-bold font-display",
+            )}
+            aria-hidden
+          >
+            {initials(data.companyName)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="font-display font-bold text-base md:text-lg text-brand-900 truncate">
+                {data.companyName}
+              </h2>
+              <StatusBadge slug={slug} publicEnabled={publicEnabled} />
             </div>
+            {slug ? (
+              <p className="font-mono text-xs md:text-sm text-slate-500 mt-0.5 break-all">
+                supkeys.com/t/{slug}
+              </p>
+            ) : (
+              <p className="text-xs md:text-sm text-slate-500 mt-0.5">
+                Aşağıdan slug ata; profilinin herkese açık URL'i bu olur.
+              </p>
+            )}
+          </div>
+          {slug && publicEnabled && (
             <Link
               href={`/t/${slug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-brand-700 hover:underline font-medium"
             >
-              Aç <ExternalLink className="h-3.5 w-3.5" />
+              <Button type="button" variant="primary" size="sm">
+                <ExternalLink className="h-3.5 w-3.5" /> Profili Aç
+              </Button>
             </Link>
-          </div>
-        </PanelCard>
-      )}
+          )}
+        </div>
+      </div>
 
       {/* Slug + publicEnabled */}
       <PanelCard title="Temel Ayarlar" subtitle="URL slug ve görünürlük">
@@ -171,9 +262,13 @@ export function PublicProfileEditor() {
               <Input
                 id="slug"
                 value={slug}
-                onChange={(e) =>
-                  setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"))
-                }
+                onChange={(e) => {
+                  // generateSlug Türkçe karakterleri (ş→s, ı→i...) latinize
+                  // eder ve geçersiz karakterleri tireye çevirir. Backend
+                  // regex'iyle (/^[a-z0-9-]*$/) garantili uyumlu çıktı.
+                  const normalized = generateSlug(e.target.value).slice(0, 60);
+                  setSlug(normalized);
+                }}
                 placeholder="abc-tekstil"
                 pattern="[a-z0-9-]*"
                 maxLength={60}
@@ -280,6 +375,110 @@ export function PublicProfileEditor() {
         </div>
       </PanelCard>
 
+      {/* Firma detayları — kuruluş, ekip, sertifikalar */}
+      <PanelCard
+        title="Firma Detayları"
+        subtitle="Hero'da ve detaylar bölümünde gösterilir"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field>
+              <Label htmlFor="foundedYear">Kuruluş Yılı</Label>
+              <Input
+                id="foundedYear"
+                type="number"
+                inputMode="numeric"
+                min={1800}
+                max={new Date().getFullYear()}
+                value={foundedYear}
+                onChange={(e) => setFoundedYear(e.target.value)}
+                placeholder="örn. 1995"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Profilde &ldquo;{new Date().getFullYear() - 1995} yıllık tecrübe&rdquo; etiketi
+                oluşturur.
+              </p>
+            </Field>
+            <Field>
+              <Label htmlFor="employeeCount">Çalışan Sayısı</Label>
+              <Input
+                id="employeeCount"
+                value={employeeCount}
+                onChange={(e) => setEmployeeCount(e.target.value)}
+                placeholder="örn. 50-100 veya 10'dan az"
+                maxLength={40}
+              />
+            </Field>
+          </div>
+
+          <div className="space-y-3">
+            <Label>Sertifikalar / Ödüller (maks. 20)</Label>
+            <div className="flex flex-wrap gap-2 min-h-[2rem]">
+              {certifications.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  Henüz sertifika eklenmedi (örn. ISO 9001, OEKO-TEX, CE).
+                </p>
+              ) : (
+                certifications.map((c) => (
+                  <span
+                    key={c}
+                    className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-sm text-emerald-700 font-medium"
+                  >
+                    {c}
+                    <button
+                      type="button"
+                      onClick={() => removeCertification(c)}
+                      aria-label={`${c} sertifikasını kaldır`}
+                      className="rounded-full hover:bg-emerald-200 p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={newCertification}
+                onChange={(e) => setNewCertification(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addCertification();
+                  }
+                }}
+                placeholder="örn. ISO 9001:2015, OEKO-TEX Standard 100"
+                maxLength={60}
+                disabled={certifications.length >= 20}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={addCertification}
+                disabled={
+                  !newCertification.trim() || certifications.length >= 20
+                }
+              >
+                <Plus className="h-4 w-4" /> Ekle
+              </Button>
+            </div>
+          </div>
+        </div>
+      </PanelCard>
+
+      {/* V2-TRUST — Tescil ve Doğrulama */}
+      <TrustVerificationSection
+        companyType={data.companyType}
+        taxNumber={data.taxNumber}
+        taxOffice={data.taxOffice}
+        mersisNo={mersisNo}
+        onMersisNoChange={setMersisNo}
+        publicShowTaxInfo={publicShowTaxInfo}
+        onPublicShowTaxInfoChange={setPublicShowTaxInfo}
+        publicShowMersis={publicShowMersis}
+        onPublicShowMersisChange={setPublicShowMersis}
+      />
+
       {/* Web ve sosyal medya */}
       <PanelCard
         title="Web ve Sosyal Medya"
@@ -331,6 +530,12 @@ export function PublicProfileEditor() {
         </div>
       </PanelCard>
 
+      {/* Logo (profil resmi) */}
+      <LogoImageSection
+        logoImageUrl={data.logoImageUrl}
+        initials={initials(data.companyName)}
+      />
+
       {/* Kapak görseli */}
       <CoverImageSection coverImageUrl={data.coverImageUrl} />
 
@@ -353,5 +558,175 @@ export function PublicProfileEditor() {
         </Button>
       </div>
     </div>
+  );
+}
+
+// ============================================================
+// Hero helper'ları
+// ============================================================
+
+function initials(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  );
+}
+
+function StatusBadge({
+  slug,
+  publicEnabled,
+}: {
+  slug: string;
+  publicEnabled: boolean;
+}) {
+  if (slug && publicEnabled) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-success-50 border border-success-500/20 text-xs font-semibold text-success-700">
+        <span
+          aria-hidden
+          className="h-1.5 w-1.5 rounded-full bg-success-500"
+        />
+        Yayında
+      </span>
+    );
+  }
+  if (slug && !publicEnabled) {
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-600">
+        Yayın Dışı
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-700">
+      Slug bekliyor
+    </span>
+  );
+}
+
+// ============================================================
+// V2-TRUST — Tescil ve Doğrulama section'ı
+// ============================================================
+
+function TrustVerificationSection({
+  companyType,
+  taxNumber,
+  taxOffice,
+  mersisNo,
+  onMersisNoChange,
+  publicShowTaxInfo,
+  onPublicShowTaxInfoChange,
+  publicShowMersis,
+  onPublicShowMersisChange,
+}: {
+  companyType: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR";
+  taxNumber: string;
+  taxOffice: string;
+  mersisNo: string;
+  onMersisNoChange: (v: string) => void;
+  publicShowTaxInfo: boolean;
+  onPublicShowTaxInfoChange: (v: boolean) => void;
+  publicShowMersis: boolean;
+  onPublicShowMersisChange: (v: boolean) => void;
+}) {
+  const isSoleProp = companyType === "SOLE_PROPRIETOR";
+
+  return (
+    <PanelCard
+      title="Tescil ve Doğrulama"
+      subtitle="Public profilde &ldquo;Doğrulanmış İşletme&rdquo; rozeti için"
+    >
+      {isSoleProp ? (
+        // Şahıs işletmesi — KVKK info banner, hiçbir alan paylaşılamaz
+        <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <Shield className="h-4 w-4 text-amber-700" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-semibold text-amber-900 text-sm">
+              Şahıs İşletmesi — KVKK koruması
+            </h4>
+            <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+              Şahıs işletmelerinde vergi numarası kişinin TC kimlik
+              numarasıdır. Kişisel veri olduğu için herkese açık profilde
+              paylaşılması KVKK'ya aykırıdır. Bu nedenle vergi numarası ve
+              MERSİS alanları otomatik kapalıdır. Profilinde
+              &ldquo;Şahıs İşletmesi&rdquo; rozeti gözükür.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {/* Vergi no + dairesi — read-only, opt-in toggle */}
+          <div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Field>
+                <Label>Vergi Numarası</Label>
+                <Input value={taxNumber} disabled readOnly />
+              </Field>
+              <Field>
+                <Label>Vergi Dairesi</Label>
+                <Input value={taxOffice} disabled readOnly />
+              </Field>
+            </div>
+            <p className="text-xs text-slate-500 mt-1.5">
+              Kayıt sırasında verildi, buradan değiştirilemez.
+            </p>
+            <label className="flex items-center gap-2 mt-3 text-sm text-brand-900 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={publicShowTaxInfo}
+                onChange={(e) => onPublicShowTaxInfoChange(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+              />
+              <span>
+                Vergi numarası ve vergi dairesini herkese açık profilde göster
+              </span>
+            </label>
+          </div>
+
+          {/* MERSİS no + opt-in toggle */}
+          <div className="pt-4 border-t border-surface-border">
+            <Field>
+              <Label htmlFor="mersisNo">MERSİS Numarası</Label>
+              <Input
+                id="mersisNo"
+                value={mersisNo}
+                onChange={(e) =>
+                  onMersisNoChange(
+                    e.target.value.replace(/\D/g, "").slice(0, 10),
+                  )
+                }
+                placeholder="10 haneli MERSİS no"
+                maxLength={10}
+                inputMode="numeric"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Boş bırakırsan profilde gösterilmez.
+              </p>
+            </Field>
+            <label className="flex items-center gap-2 mt-3 text-sm text-brand-900 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={publicShowMersis}
+                onChange={(e) => onPublicShowMersisChange(e.target.checked)}
+                disabled={!mersisNo}
+                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 disabled:opacity-40"
+              />
+              <span>MERSİS numarasını herkese açık profilde göster</span>
+            </label>
+          </div>
+
+          <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800 leading-relaxed">
+            <strong>İpucu:</strong> En az bir alanı public yaparsan hero'da
+            &ldquo;Doğrulanmış İşletme&rdquo; rozetin görünür ve Google arama
+            sonuçlarında güven sinyali artar.
+          </div>
+        </div>
+      )}
+    </PanelCard>
   );
 }

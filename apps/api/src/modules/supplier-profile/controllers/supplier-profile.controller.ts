@@ -77,6 +77,29 @@ export class SupplierProfileController {
     return this.service.removeCover(user.supplierUserId);
   }
 
+  // ===== Logo (profil resmi) =====
+
+  @Post("me/public-profile/logo/upload-url")
+  requestLogoUploadUrl(
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+    @Body() dto: RequestProfileUploadDto,
+  ) {
+    return this.service.requestLogoUpload(user.supplierUserId, dto);
+  }
+
+  @Post("me/public-profile/logo/finalize")
+  finalizeLogo(
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+    @Body() dto: FinalizeCoverDto,
+  ) {
+    return this.service.finalizeLogo(user.supplierUserId, dto);
+  }
+
+  @Delete("me/public-profile/logo")
+  removeLogo(@CurrentSupplierUser() user: AuthenticatedSupplierUser) {
+    return this.service.removeLogo(user.supplierUserId);
+  }
+
   // ===== Gallery photos =====
 
   @Post("me/public-profile/photos/upload-url")

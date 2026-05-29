@@ -570,11 +570,26 @@ model Supplier {
   /// Opt-out: PREMIUM olur olmaz default açık. Editor'den kapatılabilir.
   publicEnabled Boolean            @default(true)
   coverImageUrl String?
+  /// Logo (profil resmi). Hero'da initials yerine gösterilir. R2 key.
+  logoImageUrl  String?
   aboutText     String?
   linkedinUrl   String?
   instagramUrl  String?
   /// Kısa hizmet etiketleri (örn. ["Tekstil", "Hazır Giyim"]).
   services      String[]           @default([])
+  /// Firma kuruluş yılı (4 haneli, örn. 1995). Hero'da gösterilir.
+  foundedYear   Int?
+  /// Çalışan sayısı bandı — serbest metin (örn. "50-100", "100+", "10'dan az").
+  employeeCount String?
+  /// Sertifika/ödül etiketleri (örn. ["ISO 9001", "OEKO-TEX"]).
+  certifications String[]          @default([])
+  /// V2-TRUST — MERSİS numarası (10 haneli). Sadece kurumsal firmalar girer.
+  mersisNo       String?
+  /// V2-TRUST — Vergi no + vergi dairesi public profilde gözüksün mü.
+  /// SOLE_PROPRIETOR (şahıs) için backend reddeder (TC kimlik = KVKK kişisel veri).
+  publicShowTaxInfo Boolean        @default(false)
+  /// V2-TRUST — MERSİS no public profilde gözüksün mü. SOLE_PROPRIETOR'da yok.
+  publicShowMersis  Boolean        @default(false)
 
   users               SupplierUser[]
   tenantRelations     SupplierTenantRelation[]
