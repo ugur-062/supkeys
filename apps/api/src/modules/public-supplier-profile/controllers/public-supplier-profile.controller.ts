@@ -21,4 +21,15 @@ export class PublicSupplierProfileController {
   getBySlug(@Param("slug") slug: string): Promise<unknown> {
     return this.service.getBySlug(slug);
   }
+
+  /**
+   * V2-SEO — Sitemap üretimi için tüm görünür slug'ları listeler.
+   * Web tarafı `app/sitemap.ts` bunu fetch edip `MetadataRoute.Sitemap` üretir.
+   * Throttle gevşek (saatte bir Google çekecek, manual fetch için 6 req/dk).
+   */
+  @Throttle({ default: { limit: 6, ttl: 60_000 } })
+  @Get()
+  listForSitemap(): Promise<unknown> {
+    return this.service.listForSitemap();
+  }
 }

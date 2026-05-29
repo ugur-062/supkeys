@@ -167,4 +167,26 @@ export class PublicSupplierProfileService {
       })),
     };
   }
+
+  /**
+   * V2-SEO — Tüm görünür (PREMIUM + publicEnabled + slug + aktif) tedarikçileri
+   * sitemap için döner. updatedAt: profile change → sitemap revalidate sinyali.
+   */
+  async listForSitemap(): Promise<{ slug: string; updatedAt: string }[]> {
+    const rows = await this.prisma.supplier.findMany({
+      where: {
+        slug: { not: null },
+        membership: "PREMIUM",
+        publicEnabled: true,
+        isActive: true,
+        isBlocked: false,
+      },
+      select: { slug: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+    });
+    return rows.map((r) => ({
+      slug: r.slug!,
+      updatedAt: r.updatedAt.toISOString(),
+    }));
+  }
 }
