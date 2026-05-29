@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CategoriesCard } from "./_components/categories-card";
 import { CompanyInfoCard } from "./_components/company-info-card";
+import { PublicProfileCard } from "./_components/public-profile-card";
 import { TenantRelationsList } from "./_components/tenant-relations-list";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default function SupplierProfilePage() {
         title="Profilim"
         description="Firma bilgilerinizi ve bağlı olduğunuz alıcıları yönetin."
       />
+      <PublicProfileCard />
       <CompanyInfoCard />
       <CategoriesCard />
       {/* useSearchParams için Suspense sınırı (Next.js 15 gereksinimi) */}
