@@ -557,6 +557,21 @@ model Supplier {
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
+  // ============================================================
+  // V2-PUBLIC-PROFILE — PREMIUM tedarikçilerin herkese açık profili
+  // ============================================================
+  /// URL slug (örn. /t/abc-tekstil). Null ise public profil 404.
+  /// PREMIUM upgrade akışında otomatik üretilir; editör'den değiştirilebilir.
+  slug          String?            @unique
+  /// Opt-out: PREMIUM olur olmaz default açık. Editor'den kapatılabilir.
+  publicEnabled Boolean            @default(true)
+  coverImageUrl String?
+  aboutText     String?
+  linkedinUrl   String?
+  instagramUrl  String?
+  /// Kısa hizmet etiketleri (örn. ["Tekstil", "Hazır Giyim"]).
+  services      String[]           @default([])
+
   users               SupplierUser[]
   tenantRelations     SupplierTenantRelation[]
   application         SupplierApplication?      @relation("SupplierAppSupplier")
@@ -568,10 +583,26 @@ model Supplier {
   categories          SupplierCategory[]
   // V2-7+ — Tedarikçi şablonu üyelikleri
   templateMemberships SupplierTemplateMember[]
+  // V2-PUBLIC-PROFILE — galeri fotoğrafları
+  photos              SupplierPhoto[]
 
   @@index([taxNumber])
   @@index([membership])
   @@map("suppliers")
+}
+
+/// V2-PUBLIC-PROFILE — Tedarikçi profil galerisi (R2'da host edilen fotolar).
+model SupplierPhoto {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  url        String
+  caption    String?
+  orderIndex Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([supplierId])
+  @@map("supplier_photos")
 }
 
 enum SupplierMembership {
