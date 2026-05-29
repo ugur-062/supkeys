@@ -15,6 +15,7 @@ import { EmailModule } from "./modules/email/email.module";
 import { HealthModule } from "./modules/health/health.module";
 import { PublicInvitationsModule } from "./modules/public-invitations/public-invitations.module";
 import { PublicSupplierProfileModule } from "./modules/public-supplier-profile/public-supplier-profile.module";
+import { SupplierReviewsModule } from "./modules/supplier-reviews/supplier-reviews.module";
 import { RegistrationModule } from "./modules/registration/registration.module";
 import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module";
 import { SupplierAuthModule } from "./modules/supplier-auth/supplier-auth.module";
@@ -101,6 +102,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     TenantApprovalRequestsModule,
     PublicInvitationsModule,
     PublicSupplierProfileModule,
+    SupplierReviewsModule,
     TenderSchedulerModule,
     ResendWebhookModule,
     StorageModule,

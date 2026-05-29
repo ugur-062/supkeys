@@ -2,6 +2,15 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { StorageService } from "../../storage/storage.service";
 
+export interface PublicSupplierReview {
+  id: string;
+  rating: number;
+  reviewText: string | null;
+  /** B2B normu — değerlendiren alıcı firmanın adı. */
+  reviewerName: string;
+  createdAt: string;
+}
+
 export interface PublicSupplierProfileResponse {
   slug: string;
   companyName: string;
@@ -19,6 +28,15 @@ export interface PublicSupplierProfileResponse {
   photos: { id: string; url: string; caption: string | null }[];
   /** "X yıldır Supkeys üyesi" gibi etiket için. */
   memberSinceIso: string;
+  /** V2-REVIEWS — Toplam istatistikler (tüm review'ları sayar, public ya da değil). */
+  rating: {
+    average: number | null;
+    count: number;
+    /** 1-5 yıldız bazında kaç değerlendirme var (anahtarlar "1"-"5"). */
+    distribution: Record<string, number>;
+  };
+  /** V2-REVIEWS — Son 10 herkese açık yorum (en yeni → en eski). */
+  reviews: PublicSupplierReview[];
 }
 
 @Injectable()
@@ -68,13 +86,47 @@ export class PublicSupplierProfileService {
       throw new NotFoundException("Profil bulunamadı");
     }
 
-    // Cover ve galeri key'lerini render-ready URL'e çevir (public veya presigned)
-    const [coverImageUrl, photoUrls] = await Promise.all([
-      this.storage.resolveImageUrl(supplier.coverImageUrl),
-      Promise.all(
-        supplier.photos.map((p) => this.storage.resolveImageUrl(p.url)),
-      ),
-    ]);
+    // Cover/galeri URL + rating aggregate + son yorumlar paralel
+    const [coverImageUrl, photoUrls, aggregate, distribution, reviewsRaw] =
+      await Promise.all([
+        this.storage.resolveImageUrl(supplier.coverImageUrl),
+        Promise.all(
+          supplier.photos.map((p) => this.storage.resolveImageUrl(p.url)),
+        ),
+        this.prisma.supplierReview.aggregate({
+          where: { supplierId: supplier.id },
+          _avg: { rating: true },
+          _count: { _all: true },
+        }),
+        this.prisma.supplierReview.groupBy({
+          by: ["rating"],
+          where: { supplierId: supplier.id },
+          _count: { _all: true },
+        }),
+        this.prisma.supplierReview.findMany({
+          where: { supplierId: supplier.id, isPublic: true },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: {
+            id: true,
+            rating: true,
+            reviewText: true,
+            createdAt: true,
+            tenant: { select: { name: true } },
+          },
+        }),
+      ]);
+
+    const ratingDist: Record<string, number> = {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+    };
+    for (const row of distribution) {
+      ratingDist[String(row.rating)] = row._count._all;
+    }
 
     return {
       slug: supplier.slug!,
@@ -99,6 +151,20 @@ export class PublicSupplierProfileService {
         caption: p.caption,
       })),
       memberSinceIso: supplier.createdAt.toISOString(),
+      rating: {
+        average: aggregate._avg.rating
+          ? Number(aggregate._avg.rating.toFixed(2))
+          : null,
+        count: aggregate._count._all,
+        distribution: ratingDist,
+      },
+      reviews: reviewsRaw.map((r) => ({
+        id: r.id,
+        rating: r.rating,
+        reviewText: r.reviewText,
+        reviewerName: r.tenant.name,
+        createdAt: r.createdAt.toISOString(),
+      })),
     };
   }
 }

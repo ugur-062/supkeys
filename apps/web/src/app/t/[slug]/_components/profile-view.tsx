@@ -1,5 +1,10 @@
-import type { PublicSupplierProfile } from "@/lib/public/types";
-import { Award, Globe, Instagram, Linkedin, MapPin } from "lucide-react";
+import type {
+  PublicSupplierProfile,
+  PublicSupplierReview,
+} from "@/lib/public/types";
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
+import { Award, Globe, Instagram, Linkedin, MapPin, Star } from "lucide-react";
 
 interface Props {
   profile: PublicSupplierProfile;
@@ -118,6 +123,23 @@ export function PublicSupplierProfileView({ profile }: Props) {
           </section>
         )}
 
+        {/* Değerlendirmeler */}
+        {profile.rating.count > 0 && (
+          <section className="bg-white rounded-2xl shadow-card border border-surface-border p-5 md:p-6 mt-5">
+            <h2 className="font-display font-bold text-lg text-brand-900 mb-4">
+              Değerlendirmeler
+            </h2>
+            <RatingSummary rating={profile.rating} />
+            {profile.reviews.length > 0 && (
+              <ul className="mt-5 space-y-4">
+                {profile.reviews.map((r) => (
+                  <ReviewItem key={r.id} review={r} />
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
         {/* Galeri */}
         {profile.photos.length > 0 && (
           <section className="bg-white rounded-2xl shadow-card border border-surface-border p-5 md:p-6 mt-5">
@@ -199,5 +221,112 @@ export function PublicSupplierProfileView({ profile }: Props) {
         </section>
       </div>
     </div>
+  );
+}
+
+// ============================================================
+// V2-REVIEWS — Rating özet (ortalama + yıldızlar + dağılım barı)
+// ============================================================
+
+function RatingSummary({
+  rating,
+}: {
+  rating: PublicSupplierProfile["rating"];
+}) {
+  const avg = rating.average ?? 0;
+  const total = rating.count;
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-6 md:gap-8 items-center">
+      {/* Sol — büyük ortalama */}
+      <div className="text-center md:text-left md:border-r md:border-surface-border md:pr-8">
+        <p className="font-display font-bold text-4xl md:text-5xl text-brand-900 leading-none">
+          {avg.toFixed(1)}
+        </p>
+        <div className="mt-2 inline-flex items-center gap-0.5">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <Star
+              key={n}
+              className={
+                avg >= n
+                  ? "h-4 w-4 fill-yellow-400 text-yellow-500"
+                  : avg >= n - 0.5
+                    ? "h-4 w-4 fill-yellow-400/50 text-yellow-500"
+                    : "h-4 w-4 text-slate-300"
+              }
+            />
+          ))}
+        </div>
+        <p className="text-xs text-slate-500 mt-2">
+          {total} değerlendirme
+        </p>
+      </div>
+
+      {/* Sağ — 5→1 dağılım barı */}
+      <div className="space-y-1.5">
+        {[5, 4, 3, 2, 1].map((star) => {
+          const count = rating.distribution[String(star)] ?? 0;
+          const pct = total > 0 ? (count / total) * 100 : 0;
+          return (
+            <div
+              key={star}
+              className="flex items-center gap-3 text-xs text-slate-600"
+            >
+              <span className="inline-flex items-center gap-0.5 w-6 tabular-nums">
+                {star}
+                <Star className="h-3 w-3 fill-yellow-400 text-yellow-500" />
+              </span>
+              <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-yellow-400 rounded-full"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <span className="w-8 text-right tabular-nums">{count}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// V2-REVIEWS — Tek yorum kartı
+// ============================================================
+
+function ReviewItem({ review }: { review: PublicSupplierReview }) {
+  const date = (() => {
+    try {
+      return format(new Date(review.createdAt), "d MMMM yyyy", { locale: tr });
+    } catch {
+      return "";
+    }
+  })();
+  return (
+    <li className="border-t border-surface-border pt-4 first:border-t-0 first:pt-0">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="font-semibold text-brand-900 text-sm">
+          {review.reviewerName}
+        </p>
+        <div className="inline-flex items-center gap-0.5">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <Star
+              key={n}
+              className={
+                review.rating >= n
+                  ? "h-3.5 w-3.5 fill-yellow-400 text-yellow-500"
+                  : "h-3.5 w-3.5 text-slate-300"
+              }
+            />
+          ))}
+        </div>
+      </div>
+      {date && <p className="text-xs text-slate-500 mt-0.5">{date}</p>}
+      {review.reviewText && (
+        <p className="text-sm text-slate-700 mt-2 whitespace-pre-line leading-relaxed">
+          {review.reviewText}
+        </p>
+      )}
+    </li>
   );
 }

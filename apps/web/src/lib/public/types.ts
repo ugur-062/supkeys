@@ -1,3 +1,12 @@
+export interface PublicSupplierReview {
+  id: string;
+  rating: number;
+  reviewText: string | null;
+  /** B2B normu — değerlendiren alıcı firma adı (Tenant.name). */
+  reviewerName: string;
+  createdAt: string;
+}
+
 /**
  * Public tedarikçi profil tipi — API'den döner.
  * Backend: PublicSupplierProfileResponse ile birebir aynı şekil.
@@ -19,4 +28,13 @@ export interface PublicSupplierProfile {
   photos: { id: string; url: string; caption: string | null }[];
   /** ISO date — "X yıldır Supkeys üyesi" hesabı için. */
   memberSinceIso: string;
+  /** V2-REVIEWS — Toplam yıldız istatistikleri. */
+  rating: {
+    average: number | null;
+    count: number;
+    /** 1-5 yıldız bazında kaç değerlendirme var ("1"-"5" anahtarları). */
+    distribution: Record<string, number>;
+  };
+  /** V2-REVIEWS — Son 10 herkese açık yorum (en yeni → en eski). */
+  reviews: PublicSupplierReview[];
 }

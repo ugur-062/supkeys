@@ -7,6 +7,7 @@ import { OrderTimeline } from "@/components/orders/order-timeline";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
 import { ReadOnlyBanner } from "@/components/tenders/read-only-banner";
 import { Button } from "@/components/ui/button";
+import { ReviewCard } from "./review-card";
 import { useTenderOwnership } from "@/hooks/use-tender-ownership";
 import {
   useCancelOrder,
@@ -157,6 +158,11 @@ function OrderDetailContent({ order }: { order: OrderDetail }) {
             </Section>
           ) : null}
 
+          {/* V2-REVIEWS — COMPLETED siparişlerde değerlendirme kartı */}
+          <ReviewCard
+            orderId={order.id}
+            supplierName={order.supplier?.companyName ?? "Tedarikçi"}
+          />
         </div>
 
         <aside className="lg:col-span-4 space-y-5">

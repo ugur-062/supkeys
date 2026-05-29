@@ -55,6 +55,8 @@ model Tenant {
   addresses            TenantAddress[]
   approvalFlows        ApprovalFlow[]
   approvalRequests     ApprovalRequest[]
+  /// V2-REVIEWS — Bu alıcı firmanın yazdığı tedarikçi değerlendirmeleri.
+  supplierReviews      SupplierReview[]
   attachments          Attachment[]
   messageThreads       MessageThread[] @relation("TenantMessageThreads")
   questionTemplates    QuestionTemplate[]
@@ -161,6 +163,8 @@ model User {
   // E.7.D — onay request reverse relations
   initiatedApprovalRequests ApprovalRequest[]      @relation("InitiatedApprovalRequests")
   approverOfRequestSteps    ApprovalRequestStep[]  @relation("ApproverOfRequestSteps")
+  /// V2-REVIEWS — Bu kullanıcının yazdığı tedarikçi değerlendirmeleri.
+  supplierReviewsCreated    SupplierReview[]       @relation("SupplierReviewsCreated")
 
   // V1.5 — sipariş workflow reverse relations
   ordersDeliveryStarted Order[] @relation("OrderDeliveryStarted")
@@ -585,6 +589,8 @@ model Supplier {
   templateMemberships SupplierTemplateMember[]
   // V2-PUBLIC-PROFILE — galeri fotoğrafları
   photos              SupplierPhoto[]
+  // V2-REVIEWS — alıcılardan gelen değerlendirmeler
+  reviews             SupplierReview[]
 
   @@index([taxNumber])
   @@index([membership])
@@ -603,6 +609,33 @@ model SupplierPhoto {
 
   @@index([supplierId])
   @@map("supplier_photos")
+}
+
+/// V2-REVIEWS — Sipariş-sonu alıcı değerlendirmesi (1-5 yıldız + opsiyonel metin).
+/// Tek sipariş için tek değerlendirme (idempotent — orderId unique).
+/// 30 günlük düzenleme penceresi servis seviyesinde uygulanır.
+model SupplierReview {
+  id          String   @id @default(cuid())
+  supplierId  String
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  orderId     String   @unique
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Yazan kullanıcı silinirse review kalır (anonim olur).
+  createdById String?
+  createdBy   User?    @relation("SupplierReviewsCreated", fields: [createdById], references: [id], onDelete: SetNull)
+  /// 1-5; servis seviyesinde validasyon.
+  rating      Int
+  reviewText  String?
+  /// Buyer "gizli" işaretlerse aggregate'a girer ama liste'de görünmez.
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([supplierId])
+  @@index([tenantId])
+  @@map("supplier_reviews")
 }
 
 enum SupplierMembership {
@@ -1123,6 +1156,9 @@ model Order {
   cancelledById       String?
   cancelledBy         User?           @relation("OrderCancelled", fields: [cancelledById], references: [id])
   cancelReason        String?         @db.Text
+
+  // V2-REVIEWS — Sipariş tamamlanınca alıcı 1-5 yıldız + opsiyonel yorum bırakır.
+  review              SupplierReview?
 
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
