@@ -11,6 +11,8 @@ import {
   useUpdateSupplierPublicProfile,
 } from "@/hooks/use-supplier-profile";
 import { cn } from "@/lib/utils";
+import { CoverImageSection } from "./cover-image-section";
+import { GallerySection } from "./gallery-section";
 import axios from "axios";
 import {
   Award,
@@ -329,13 +331,11 @@ export function PublicProfileEditor() {
         </div>
       </PanelCard>
 
-      {/* Cover/Gallery placeholder — Adım 4b */}
-      <PanelCard title="Kapak Görseli ve Galeri" subtitle="Yakında">
-        <p className="text-sm text-slate-500">
-          Kapak görseli ve foto galerisi bir sonraki güncellemede aktif olacak.
-          Şu an profilde varsayılan bir mavi gradient kapak görünür.
-        </p>
-      </PanelCard>
+      {/* Kapak görseli */}
+      <CoverImageSection coverImageUrl={data.coverImageUrl} />
+
+      {/* Galeri */}
+      <GallerySection photos={data.photos} />
 
       {/* Submit */}
       <div className="flex items-center justify-end gap-2 sticky bottom-4 z-10 bg-white/90 backdrop-blur p-3 rounded-xl border border-surface-border shadow-card">

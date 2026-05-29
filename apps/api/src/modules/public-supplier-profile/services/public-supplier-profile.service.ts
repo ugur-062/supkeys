@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { StorageService } from "../../storage/storage.service";
 
 export interface PublicSupplierProfileResponse {
   slug: string;
@@ -22,7 +23,10 @@ export interface PublicSupplierProfileResponse {
 
 @Injectable()
 export class PublicSupplierProfileService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   /**
    * Slug ile herkese açık tedarikçi profilini döner.
@@ -64,6 +68,14 @@ export class PublicSupplierProfileService {
       throw new NotFoundException("Profil bulunamadı");
     }
 
+    // Cover ve galeri key'lerini render-ready URL'e çevir (public veya presigned)
+    const [coverImageUrl, photoUrls] = await Promise.all([
+      this.storage.resolveImageUrl(supplier.coverImageUrl),
+      Promise.all(
+        supplier.photos.map((p) => this.storage.resolveImageUrl(p.url)),
+      ),
+    ]);
+
     return {
       slug: supplier.slug!,
       companyName: supplier.companyName,
@@ -74,14 +86,18 @@ export class PublicSupplierProfileService {
       website: supplier.website,
       linkedinUrl: supplier.linkedinUrl,
       instagramUrl: supplier.instagramUrl,
-      coverImageUrl: supplier.coverImageUrl,
+      coverImageUrl,
       aboutText: supplier.aboutText,
       services: supplier.services,
       categories: supplier.categories.map((sc) => ({
         id: sc.category.id,
         nameTr: sc.category.nameTr,
       })),
-      photos: supplier.photos,
+      photos: supplier.photos.map((p, i) => ({
+        id: p.id,
+        url: photoUrls[i] ?? "",
+        caption: p.caption,
+      })),
       memberSinceIso: supplier.createdAt.toISOString(),
     };
   }

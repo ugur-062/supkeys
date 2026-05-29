@@ -172,6 +172,48 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * V2-PUBLIC-PROFILE — Tedarikçi public profili için R2 key üretici.
+   * Cover (tek) ve photo (galeri) için ayrı kind'lar.
+   * Pattern: `{env}/supplier-profile/{supplierId}/{kind}-{id}-{sanitized}`
+   */
+  buildSupplierProfileKey(
+    supplierId: string,
+    kind: "cover" | "photo",
+    id: string,
+    originalFilename: string,
+  ): string {
+    const sanitized = this.sanitizeFilename(originalFilename);
+    return `${this.envPrefix}/supplier-profile/${supplierId}/${kind}-${id}-${sanitized}`;
+  }
+
+  /**
+   * Persistent public URL — `R2_PUBLIC_BASE_URL` set edilmişse (Cloudflare R2
+   * public bucket veya custom domain) doğrudan URL döner. Aksi null →
+   * caller presigned GET'e fallback yapar (kısa TTL, public profil için
+   * ideal değil; production'da env doldurulmalı).
+   */
+  getPublicUrl(key: string | null | undefined): string | null {
+    if (!key) return null;
+    const base = this.configService.get<string>("R2_PUBLIC_BASE_URL");
+    if (!base) return null;
+    const normalized = base.replace(/\/$/, "");
+    return `${normalized}/${key}`;
+  }
+
+  /**
+   * Public URL varsa onu; yoksa presigned GET (1 saat TTL). Public profil
+   * cover/galeri render'ında kullanılır.
+   */
+  async resolveImageUrl(
+    key: string | null | undefined,
+  ): Promise<string | null> {
+    if (!key) return null;
+    const publicUrl = this.getPublicUrl(key);
+    if (publicUrl) return publicUrl;
+    return this.generatePresignedGet(key);
+  }
+
+  /**
    * Mevcut bucket CORS policy'sini oku. Set edilmemişse [].
    */
   async getBucketCorsConfig(): Promise<CORSRule[]> {

@@ -1,9 +1,23 @@
-import { Body, Controller, Get, Patch, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from "@nestjs/common";
 import {
   AuthenticatedSupplierUser,
   CurrentSupplierUser,
 } from "../../supplier-auth/decorators/current-supplier-user.decorator";
 import { SupplierJwtAuthGuard } from "../../supplier-auth/guards/supplier-jwt-auth.guard";
+import {
+  AddProfilePhotoDto,
+  FinalizeCoverDto,
+  RequestProfileUploadDto,
+} from "../dto/request-profile-upload.dto";
 import { UpdatePublicProfileDto } from "../dto/update-public-profile.dto";
 import { UpdateSupplierCategoriesDto } from "../dto/update-supplier-categories.dto";
 import { SupplierProfileService } from "../services/supplier-profile.service";
@@ -38,5 +52,54 @@ export class SupplierProfileController {
     @Body() dto: UpdatePublicProfileDto,
   ) {
     return this.service.updatePublicProfile(user.supplierUserId, dto);
+  }
+
+  // ===== Cover image =====
+
+  @Post("me/public-profile/cover/upload-url")
+  requestCoverUploadUrl(
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+    @Body() dto: RequestProfileUploadDto,
+  ) {
+    return this.service.requestCoverUpload(user.supplierUserId, dto);
+  }
+
+  @Post("me/public-profile/cover/finalize")
+  finalizeCover(
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+    @Body() dto: FinalizeCoverDto,
+  ) {
+    return this.service.finalizeCover(user.supplierUserId, dto);
+  }
+
+  @Delete("me/public-profile/cover")
+  removeCover(@CurrentSupplierUser() user: AuthenticatedSupplierUser) {
+    return this.service.removeCover(user.supplierUserId);
+  }
+
+  // ===== Gallery photos =====
+
+  @Post("me/public-profile/photos/upload-url")
+  requestPhotoUploadUrl(
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+    @Body() dto: RequestProfileUploadDto,
+  ) {
+    return this.service.requestPhotoUpload(user.supplierUserId, dto);
+  }
+
+  @Post("me/public-profile/photos")
+  addPhoto(
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+    @Body() dto: AddProfilePhotoDto,
+  ) {
+    return this.service.addPhoto(user.supplierUserId, dto);
+  }
+
+  @Delete("me/public-profile/photos/:id")
+  removePhoto(
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.removePhoto(user.supplierUserId, id);
   }
 }
