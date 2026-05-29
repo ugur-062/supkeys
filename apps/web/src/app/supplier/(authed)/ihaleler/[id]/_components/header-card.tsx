@@ -75,7 +75,7 @@ export function SupplierTenderHeaderCard({
               </span>
             ) : null}
           </div>
-          <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900 leading-tight">
+          <h1 className="font-display font-bold text-2xl sm:text-3xl text-brand-900 leading-tight">
             {tender.title}
           </h1>
           {tender.description ? (

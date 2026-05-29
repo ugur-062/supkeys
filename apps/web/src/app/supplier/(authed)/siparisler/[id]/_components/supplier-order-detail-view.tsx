@@ -124,7 +124,7 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
 
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="min-w-0 flex-1">
-            <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900">
+            <h1 className="font-display font-bold text-2xl sm:text-3xl text-brand-900">
               {order.tender.title}
             </h1>
             <div className="flex items-center gap-2 mt-2 flex-wrap">

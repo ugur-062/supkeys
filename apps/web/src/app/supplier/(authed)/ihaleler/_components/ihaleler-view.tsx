@@ -1,6 +1,6 @@
 "use client";
 
-import { Pagination } from "@/components/list";
+import { EmptyState, PageHeader, Pagination } from "@/components/list";
 import { PanelCard } from "@/components/supplier/panel-card";
 import {
   useSupplierTenderCategoryOptions,
@@ -148,14 +148,10 @@ export function SupplierIhalelerView() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <header>
-        <h1 className="font-display font-bold text-3xl text-brand-900">
-          İhaleler
-        </h1>
-        <p className="text-slate-600 mt-1 text-sm">
-          Bağlı olduğunuz alıcı firmaların ihalelerine teklif verin.
-        </p>
-      </header>
+      <PageHeader
+        title="İhaleler"
+        description="Bağlı olduğunuz alıcı firmaların ihalelerine teklif verin."
+      />
 
       {/* Mini KPI özeti */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -288,7 +284,26 @@ export function SupplierIhalelerView() {
       ) : list.isLoading ? (
         <CardGridSkeleton />
       ) : items.length === 0 ? (
-        <EmptyState tab={tab} hasSearch={!!search} />
+        <EmptyState
+          icon={Inbox}
+          variant={search ? "no-results" : "no-data"}
+          title={
+            search
+              ? "Aramayla eşleşen ihale yok"
+              : tab === "active"
+                ? "Henüz aktif davet yok"
+                : tab === "past"
+                  ? "Geçmiş ihale yok"
+                  : "Hiç ihale yok"
+          }
+          description={
+            search
+              ? "Farklı bir terim deneyin"
+              : tab === "active"
+                ? "Yeni davetler buradan listelenir"
+                : undefined
+          }
+        />
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -408,28 +423,3 @@ function CardGridSkeleton() {
   );
 }
 
-function EmptyState({ tab, hasSearch }: { tab: TabKey; hasSearch: boolean }) {
-  return (
-    <PanelCard className="text-center py-16">
-      <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-        <Inbox className="h-5 w-5 text-slate-400" />
-      </div>
-      <p className="font-semibold text-brand-900">
-        {hasSearch
-          ? "Aramayla eşleşen ihale yok"
-          : tab === "active"
-            ? "Henüz aktif davet yok"
-            : tab === "past"
-              ? "Geçmiş ihale yok"
-              : "Hiç ihale yok"}
-      </p>
-      <p className="text-sm text-slate-500 mt-1">
-        {hasSearch
-          ? "Farklı bir terim deneyin"
-          : tab === "active"
-            ? "Yeni davetler buradan listelenir"
-            : "—"}
-      </p>
-    </PanelCard>
-  );
-}

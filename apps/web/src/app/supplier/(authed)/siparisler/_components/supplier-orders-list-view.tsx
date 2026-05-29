@@ -1,6 +1,6 @@
 "use client";
 
-import { Pagination } from "@/components/list";
+import { EmptyState, PageHeader, Pagination } from "@/components/list";
 import {
   CounterpartDropdown,
   RangeDropdown,
@@ -159,14 +159,10 @@ export function SupplierOrdersListView() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-      <header>
-        <h1 className="font-display font-bold text-3xl text-brand-900">
-          Siparişler
-        </h1>
-        <p className="text-slate-600 mt-1 text-sm">
-          Kazandığınız ihalelerden oluşan siparişler.
-        </p>
-      </header>
+      <PageHeader
+        title="Siparişler"
+        description="Kazandığınız ihalelerden oluşan siparişler."
+      />
 
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <MiniKpi
@@ -288,21 +284,18 @@ export function SupplierOrdersListView() {
       ) : list.isLoading ? (
         <CardGridSkeleton />
       ) : items.length === 0 ? (
-        <PanelCard className="text-center py-16">
-          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-4">
-            <Inbox className="h-5 w-5 text-slate-400" />
-          </div>
-          <p className="font-semibold text-brand-900">
-            {search
+        <EmptyState
+          icon={Inbox}
+          variant={search ? "no-results" : "no-data"}
+          title={
+            search
               ? "Aramayla eşleşen sipariş yok"
               : statusKey === "all"
                 ? "Henüz sipariş yok"
-                : "Bu durumda sipariş yok"}
-          </p>
-          <p className="text-sm text-slate-500 mt-1">
-            Bir ihale kazandığınızda sipariş otomatik oluşur.
-          </p>
-        </PanelCard>
+                : "Bu durumda sipariş yok"
+          }
+          description="Bir ihale kazandığınızda sipariş otomatik oluşur."
+        />
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

@@ -19,7 +19,8 @@ const PADDING: Record<NonNullable<Props["padding"]>, string> = {
 
 /**
  * V2-5 — Tedarikçi panelinde tutarlı kullanım için ortak kart kaplaması.
- * Modern dashboard stili: yumuşak border + shadow-sm + 2xl radius.
+ * Alıcı panelinin `.card` utility'siyle aynı bordür/radius/gölge —
+ * iki panel arasında görsel tutarlılık.
  */
 export function PanelCard({
   title,
@@ -32,7 +33,7 @@ export function PanelCard({
   return (
     <div
       className={cn(
-        "bg-white border border-slate-200/80 rounded-2xl shadow-sm",
+        "bg-white border border-surface-border rounded-xl shadow-card",
         PADDING[padding],
         className,
       )}

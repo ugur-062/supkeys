@@ -132,7 +132,7 @@ export function MyBidTab({ tender }: Props) {
             </div>
             <div className="flex-1 space-y-1">
               <p className="font-display font-bold text-success-900 text-lg">
-                🏆 Tebrikler! Tüm kalemleri kazandınız.
+                Tebrikler! Tüm kalemleri kazandınız.
               </p>
               <p className="text-sm text-success-800">
                 Sipariş oluşturuldu. Detaylar için sipariş sayfasına gidin.
@@ -161,7 +161,7 @@ export function MyBidTab({ tender }: Props) {
             </div>
             <div className="flex-1 space-y-1">
               <p className="font-display font-bold text-success-900 text-lg">
-                🏆 Bazı kalemleri kazandınız.
+                Bazı kalemleri kazandınız.
               </p>
               <p className="text-sm text-success-800">
                 Kazandığınız kalemler için sipariş oluşturuldu.

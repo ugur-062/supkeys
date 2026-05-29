@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/list";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { Input } from "@/components/ui/input";
 import { MessageThread } from "@/components/messaging/message-thread";
@@ -50,15 +51,10 @@ function SupplierMessagesPageInner() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-4">
-      <header>
-        <h1 className="font-display font-bold text-2xl text-brand-900">
-          Mesajlar
-        </h1>
-        <p className="text-sm text-slate-500 mt-0.5">
-          Bağlantılı alıcı firmalarınızla doğrudan sohbet. Sipariş ve ihale
-          içi konuşmalar ilgili detay sayfasından erişilir.
-        </p>
-      </header>
+      <PageHeader
+        title="Mesajlar"
+        description="Bağlantılı alıcı firmalarınızla doğrudan sohbet. Sipariş ve ihale içi konuşmalar ilgili detay sayfasından erişilir."
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:h-[calc(100vh-220px)] lg:min-h-[500px]">
         <aside className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col h-[60vh] lg:h-auto">

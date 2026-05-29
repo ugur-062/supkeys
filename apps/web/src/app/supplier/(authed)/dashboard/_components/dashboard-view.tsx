@@ -2,6 +2,7 @@
 
 import { ActivityFeed } from "@/components/dashboard/activity-feed";
 import { PanelCard } from "@/components/supplier/panel-card";
+import { Button } from "@/components/ui/button";
 import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
 import { useSupplierAuth } from "@/hooks/use-supplier-auth";
 import {
@@ -144,26 +145,28 @@ export function SupplierDashboardView() {
   return (
     <div className="max-w-7xl mx-auto space-y-8">
       {/* Welcome header */}
-      <header className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <p className="text-xs uppercase tracking-wider text-slate-400 font-medium">
-            {today}
-          </p>
-          <h1 className="font-display font-bold text-3xl text-brand-900 leading-tight mt-1">
-            Hoş geldin, {supplierUser?.firstName ?? "—"} 👋
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="mb-1 font-display text-2xl font-bold leading-tight text-brand-900 sm:text-3xl">
+            Hoş geldin, {supplierUser?.firstName ?? "—"}
           </h1>
-          <p className="text-slate-600 mt-1 text-sm">
+          <p className="text-sm text-slate-500">
             {supplier?.companyName
               ? `${supplier.companyName} hesabına genel bakış`
               : "Hesabınıza genel bakış"}
+            {today && (
+              <>
+                <span className="mx-2 text-slate-300">·</span>
+                <span>{today}</span>
+              </>
+            )}
           </p>
         </div>
-        <Link
-          href="/supplier/ihaleler"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-semibold text-sm transition-colors"
-        >
-          İhaleleri Görüntüle
-          <ArrowRight className="h-4 w-4" />
+        <Link href="/supplier/ihaleler" className="flex-shrink-0">
+          <Button variant="primary">
+            İhaleleri Görüntüle
+            <ArrowRight className="h-4 w-4" />
+          </Button>
         </Link>
       </header>
 

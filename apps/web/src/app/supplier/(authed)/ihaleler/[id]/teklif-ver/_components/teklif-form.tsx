@@ -393,7 +393,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
 
         <header className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900">
+            <h1 className="font-display font-bold text-2xl sm:text-3xl text-brand-900">
               {isResubmissionAfterElimination
                 ? "Yeniden Teklif Ver"
                 : "Teklif Ver"}
