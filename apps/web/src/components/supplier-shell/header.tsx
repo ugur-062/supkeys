@@ -2,39 +2,56 @@
 
 import { HeaderMessagesDropdown } from "@/components/messaging/header-messages-dropdown";
 import { getSupplierBreadcrumb } from "@/lib/supplier/nav-config";
-import { Bell } from "lucide-react";
+import { useSupplierSidebar } from "@/lib/supplier/use-sidebar";
+import { Bell, Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { SupplierUserDropdown } from "./user-dropdown";
 
 export function SupplierHeader() {
   const pathname = usePathname();
   const breadcrumb = pathname ? getSupplierBreadcrumb(pathname) : "—";
+  const openMobile = useSupplierSidebar((s) => s.openMobile);
 
   return (
-    <header className="sticky top-0 z-20 h-16 bg-white/80 backdrop-blur border-b border-surface-border px-4 md:px-6 flex items-center justify-between gap-4">
-      <div>
-        <p className="text-[11px] uppercase tracking-wider text-slate-400">
-          Tedarikçi Paneli
-        </p>
-        <h1 className="font-display text-lg font-bold text-brand-900 leading-tight truncate">
-          {breadcrumb}
-        </h1>
-      </div>
-
-      <div className="flex items-center gap-2 justify-end">
-        <HeaderMessagesDropdown surface="supplier" />
-
+    <header className="sticky top-0 z-30 h-16 bg-white/85 backdrop-blur-md border-b border-surface-border">
+      <div className="h-full px-4 md:px-6 flex items-center gap-3 md:gap-6">
+        {/* Mobile hamburger */}
         <button
           type="button"
-          disabled
-          className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-surface-muted transition-colors disabled:cursor-not-allowed"
-          title="Bildirimler — yakında"
-          aria-label="Bildirimler"
+          onClick={openMobile}
+          aria-label="Menüyü aç"
+          className="md:hidden p-2 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100"
         >
-          <Bell className="h-4 w-4" />
+          <Menu className="w-5 h-5" />
         </button>
 
-        <SupplierUserDropdown />
+        {/* Başlık — sabit "Tedarikçi Paneli" üstte küçük + breadcrumb altta */}
+        <div className="min-w-0 flex flex-col justify-center shrink-0">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-slate-400 leading-none">
+            Tedarikçi Paneli
+          </p>
+          <h1
+            className="font-display font-bold text-xl text-brand-900 leading-tight mt-0.5 truncate"
+            title={breadcrumb}
+          >
+            {breadcrumb}
+          </h1>
+        </div>
+
+        {/* Sağ blok */}
+        <div className="ml-auto flex items-center gap-1.5">
+          <HeaderMessagesDropdown surface="supplier" />
+          <button
+            type="button"
+            disabled
+            aria-label="Bildirimler"
+            title="Bildirimler — yakında"
+            className="relative p-2 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors disabled:cursor-not-allowed"
+          >
+            <Bell className="w-5 h-5" />
+          </button>
+          <SupplierUserDropdown />
+        </div>
       </div>
     </header>
   );

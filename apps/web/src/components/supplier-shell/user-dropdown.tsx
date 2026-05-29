@@ -6,7 +6,7 @@ import {
 } from "@/hooks/use-supplier-auth";
 import { cn } from "@/lib/utils";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { ChevronDown, LogOut, Settings, User } from "lucide-react";
+import { ChevronDown, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
 
 export function SupplierUserDropdown() {
@@ -57,15 +57,6 @@ export function SupplierUserDropdown() {
               {supplierUser.email}
             </p>
           </div>
-          <DropdownMenu.Item asChild>
-            <Link
-              href="/supplier/profil"
-              className="flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-surface-muted cursor-pointer outline-none"
-            >
-              <User className="h-4 w-4" />
-              Profilim
-            </Link>
-          </DropdownMenu.Item>
           <DropdownMenu.Item asChild>
             <Link
               href="/supplier/ayarlar"
