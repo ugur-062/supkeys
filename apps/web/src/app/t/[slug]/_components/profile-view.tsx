@@ -501,7 +501,7 @@ function VerifiedBadge() {
         "border border-blue-200 text-blue-700",
         "shadow-sm",
       )}
-      title="Vergi numarası veya MERSİS firma tarafından açık paylaşıldı"
+      title="Supkeys onay sürecinden geçen aktif PREMIUM tedarikçi"
     >
       <BadgeCheck className="h-3.5 w-3.5" />
       Doğrulanmış İşletme

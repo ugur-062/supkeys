@@ -175,6 +175,11 @@ export class PublicSupplierProfileService {
       employeeCount: supplier.employeeCount,
       certifications: supplier.certifications,
       // V2-TRUST — KVKK filter: SOLE_PROPRIETOR'da vergi/MERSİS hep null
+      // (kişisel veri). verifiedBusiness ise her görünür tedarikçide true:
+      // profile zaten PREMIUM + publicEnabled + isActive + !isBlocked
+      // kontrollerini geçti → Supkeys onayından geçmiş demektir, doğrulanmış
+      // sayılır. Opt-in toggle'lar sadece vergi/MERSİS bilgilerinin
+      // gösteriminden sorumlu, rozetten DEĞİL.
       ...(() => {
         const isSoleProp = supplier.companyType === "SOLE_PROPRIETOR";
         const showTax = supplier.publicShowTaxInfo && !isSoleProp;
@@ -183,7 +188,7 @@ export class PublicSupplierProfileService {
           taxNumber: showTax ? supplier.taxNumber : null,
           taxOffice: showTax ? supplier.taxOffice : null,
           mersisNo: showMersis ? supplier.mersisNo : null,
-          verifiedBusiness: showTax || showMersis,
+          verifiedBusiness: true,
         };
       })(),
       rating: {

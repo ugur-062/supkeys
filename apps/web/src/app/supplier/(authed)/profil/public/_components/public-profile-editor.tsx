@@ -637,7 +637,7 @@ function TrustVerificationSection({
   return (
     <PanelCard
       title="Tescil ve Doğrulama"
-      subtitle="Public profilde &ldquo;Doğrulanmış İşletme&rdquo; rozeti için"
+      subtitle="Vergi numarası ve MERSİS bilgilerinin gösterimi"
     >
       {isSoleProp ? (
         // Şahıs işletmesi — KVKK info banner, hiçbir alan paylaşılamaz
@@ -653,8 +653,10 @@ function TrustVerificationSection({
               Şahıs işletmelerinde vergi numarası kişinin TC kimlik
               numarasıdır. Kişisel veri olduğu için herkese açık profilde
               paylaşılması KVKK'ya aykırıdır. Bu nedenle vergi numarası ve
-              MERSİS alanları otomatik kapalıdır. Profilinde
-              &ldquo;Şahıs İşletmesi&rdquo; rozeti gözükür.
+              MERSİS alanları otomatik kapalıdır. Supkeys onay sürecinden
+              geçtiğin için profilinde otomatik &ldquo;Doğrulanmış
+              İşletme&rdquo; rozetin görünür; ayrıca &ldquo;Şahıs
+              İşletmesi&rdquo; rozeti de eklenir.
             </p>
           </div>
         </div>
@@ -721,9 +723,10 @@ function TrustVerificationSection({
           </div>
 
           <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800 leading-relaxed">
-            <strong>İpucu:</strong> En az bir alanı public yaparsan hero'da
-            &ldquo;Doğrulanmış İşletme&rdquo; rozetin görünür ve Google arama
-            sonuçlarında güven sinyali artar.
+            <strong>Bilgi:</strong> &ldquo;Doğrulanmış İşletme&rdquo; rozeti
+            Supkeys onay sürecinden geçtiğin için profilinde otomatik görünür.
+            Buradaki seçimler sadece vergi numarası ve MERSİS bilgilerinin
+            herkese açık profilde gösterilip gösterilmeyeceğini belirler.
           </div>
         </div>
       )}
