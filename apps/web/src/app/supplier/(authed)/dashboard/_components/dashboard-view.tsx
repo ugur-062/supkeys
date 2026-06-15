@@ -281,6 +281,7 @@ export function SupplierDashboardView() {
               rows={activities.map(toActivityRow)}
               emptyMessage="Henüz aktivite yok"
               emptyIcon={Activity}
+              maxHeightClass="max-h-80"
             />
           </PanelCard>
         </div>

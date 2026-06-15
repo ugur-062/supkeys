@@ -27,12 +27,15 @@ interface Props {
   rows: ActivityRow[];
   emptyMessage?: string;
   emptyIcon?: LucideIcon;
+  /** Verilirse liste sabit yükseklikte kaydırılabilir olur (sayfayı aşağı uzatmaz). */
+  maxHeightClass?: string;
 }
 
 export function ActivityFeed({
   rows,
   emptyMessage = "Henüz aktivite yok",
   emptyIcon: EmptyIcon = FileText,
+  maxHeightClass,
 }: Props) {
   if (rows.length === 0) {
     return (
@@ -46,7 +49,12 @@ export function ActivityFeed({
   }
 
   return (
-    <div className="space-y-2">
+    <div
+      className={cn(
+        "space-y-2",
+        maxHeightClass && `${maxHeightClass} overflow-y-auto pr-1`,
+      )}
+    >
       {rows.map((row, idx) => (
         <Link
           key={`${row.href}-${idx}`}
