@@ -140,6 +140,8 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 - STANDARD → PREMIUM upgrade akışı + ödeme (Iyzico/Stripe)
 - Tedarikçi havuzu sayfası
 - Profil düzenleme + logo upload
+- **Alıcı (tenant) firma profili:** Alıcı tarafında firma profili sayfası (tedarikçideki profil/logo akışına benzer). `/dashboard` içinde firma bilgisi + logo + tanıtım. (İstendi 2026-06-15.)
+- **Yurtdışı şirket kaydı:** Yabancı (TR dışı) firmaların kayıt olabilmesi. Şu an kayıt TR'ye varsayılı (10-11 haneli VKN/TC, il/ilçe TR locations, vergi dairesi). Ülke seçimi + ülkeye göre vergi no/format esnetme + adres modeli (state/province) + i18n gerekir. (İstendi 2026-06-15.)
 - SMS doğrulama, password reset
 - Multi-language (EN)
 - Kayıt UX 6 haneli kod
