@@ -31,6 +31,7 @@ export function QuestionTemplatesView() {
   const list = useQuestionTemplates();
   const deleteMutation = useDeleteQuestionTemplate();
   const [createOpen, setCreateOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const handleDelete = async (id: string, name: string) => {
     if (
@@ -121,9 +122,13 @@ export function QuestionTemplatesView() {
                       >
                         <td className="px-3 py-3 text-slate-500">{idx + 1}</td>
                         <td className="px-3 py-3">
-                          <span className="font-semibold text-brand-700 hover:underline cursor-default">
+                          <button
+                            type="button"
+                            onClick={() => setEditId(t.id)}
+                            className="font-semibold text-brand-700 hover:underline text-left"
+                          >
                             {t.name}
-                          </span>
+                          </button>
                           {t.autoApply ? (
                             <span
                               className="ml-2 text-[10px] uppercase font-bold text-success-700 bg-success-50 px-1.5 py-0.5 rounded"
@@ -189,6 +194,13 @@ export function QuestionTemplatesView() {
       <QuestionTemplateCreateDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
+      />
+
+      <QuestionTemplateCreateDialog
+        key={editId ?? "none"}
+        open={editId !== null}
+        templateId={editId}
+        onClose={() => setEditId(null)}
       />
     </>
   );

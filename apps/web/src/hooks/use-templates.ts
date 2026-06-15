@@ -71,6 +71,29 @@ export function useCreateQuestionTemplate() {
   });
 }
 
+export function useUpdateQuestionTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: QuestionTemplatePayload;
+    }) => {
+      const { data } = await api.patch<QuestionTemplateDetail>(
+        `/tenants/me/templates/item-questions/${id}`,
+        payload,
+      );
+      return data;
+    },
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: KEYS.questions });
+      qc.invalidateQueries({ queryKey: KEYS.question(id) });
+    },
+  });
+}
+
 export function useDeleteQuestionTemplate() {
   const qc = useQueryClient();
   return useMutation({
@@ -128,6 +151,29 @@ export function useCreateSupplierTemplate() {
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.suppliers }),
+  });
+}
+
+export function useUpdateSupplierTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: SupplierTemplatePayload;
+    }) => {
+      const { data } = await api.patch<SupplierTemplateDetail>(
+        `/tenants/me/templates/suppliers/${id}`,
+        payload,
+      );
+      return data;
+    },
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: KEYS.suppliers });
+      qc.invalidateQueries({ queryKey: KEYS.supplier(id) });
+    },
   });
 }
 

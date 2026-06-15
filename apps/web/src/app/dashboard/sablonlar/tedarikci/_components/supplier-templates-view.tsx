@@ -24,6 +24,7 @@ export function SupplierTemplatesView() {
   const list = useSupplierTemplates();
   const deleteMutation = useDeleteSupplierTemplate();
   const [createOpen, setCreateOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
 
   const handleDelete = async (id: string, name: string) => {
     if (
@@ -113,8 +114,14 @@ export function SupplierTemplatesView() {
                         className="border-t border-surface-border hover:bg-slate-50/40"
                       >
                         <td className="px-3 py-3 text-slate-500">{idx + 1}</td>
-                        <td className="px-3 py-3 font-semibold text-brand-700">
-                          {t.name}
+                        <td className="px-3 py-3">
+                          <button
+                            type="button"
+                            onClick={() => setEditId(t.id)}
+                            className="font-semibold text-brand-700 hover:underline text-left"
+                          >
+                            {t.name}
+                          </button>
                         </td>
                         <td className="px-3 py-3 text-center">
                           {t.isPublic ? (
@@ -172,6 +179,13 @@ export function SupplierTemplatesView() {
       <SupplierTemplateCreateDialog
         open={createOpen}
         onClose={() => setCreateOpen(false)}
+      />
+
+      <SupplierTemplateCreateDialog
+        key={editId ?? "none"}
+        open={editId !== null}
+        templateId={editId}
+        onClose={() => setEditId(null)}
       />
     </>
   );
