@@ -95,14 +95,7 @@ export function SupplierSidebar() {
               >
                 <Icon className="h-4 w-4 shrink-0" />
                 {!collapsed && (
-                  <>
-                    <span className="flex-1 truncate">{item.label}</span>
-                    {item.placeholder && (
-                      <span className="text-[10px] uppercase tracking-wide font-semibold text-slate-400">
-                        Yakında
-                      </span>
-                    )}
-                  </>
+                  <span className="flex-1 truncate">{item.label}</span>
                 )}
               </Link>
             );

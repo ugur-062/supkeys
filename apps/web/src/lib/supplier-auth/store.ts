@@ -25,6 +25,8 @@ interface SupplierAuthState {
     supplier: SupplierProfile;
     tenantRelations: SupplierTenantRelation[];
   }) => void;
+  setSupplier: (supplier: SupplierProfile) => void;
+  setSupplierUser: (supplierUser: SupplierUserDto) => void;
   clear: () => void;
   setHydrated: () => void;
 }
@@ -41,6 +43,8 @@ export const useSupplierAuthStore = create<SupplierAuthState>()(
         set({ token, supplierUser, supplier }),
       setMe: ({ supplierUser, supplier, tenantRelations }) =>
         set({ supplierUser, supplier, tenantRelations }),
+      setSupplier: (supplier) => set({ supplier }),
+      setSupplierUser: (supplierUser) => set({ supplierUser }),
       clear: () =>
         set({
           token: null,

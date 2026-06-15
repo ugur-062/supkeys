@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import type { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import {
   buildBreadcrumb,
@@ -17,6 +18,7 @@ import type {
   FinalizeCoverDto,
   RequestProfileUploadDto,
 } from "../dto/request-profile-upload.dto";
+import type { UpdateCompanyInfoDto } from "../dto/update-company-info.dto";
 import type { UpdatePublicProfileDto } from "../dto/update-public-profile.dto";
 
 const CATEGORY_PARENT_CHAIN_INCLUDE = {
@@ -89,6 +91,54 @@ export class SupplierProfileService {
     ]);
 
     return this.getCategories(supplierUserId);
+  }
+
+  // ============================================================
+  // Çekirdek firma bilgisi (iletişim/adres) — self-servis düzenleme
+  // ============================================================
+
+  /**
+   * Tedarikçinin iletişim/adres bilgilerini günceller. Yasal kimlik alanları
+   * (ünvan, firma tipi, vergi no, vergi dairesi) bilinçli olarak değiştirilemez.
+   * Dönüş: login/me ile aynı SupplierProfile şekli (store senkronu için).
+   */
+  async updateCompanyInfo(supplierUserId: string, dto: UpdateCompanyInfoDto) {
+    const user = await this.prisma.supplierUser.findUnique({
+      where: { id: supplierUserId },
+      select: { supplierId: true },
+    });
+    if (!user) throw new NotFoundException("Tedarikçi kullanıcı bulunamadı");
+
+    const data: Prisma.SupplierUpdateInput = {};
+    if (dto.industry !== undefined) data.industry = dto.industry.trim() || null;
+    if (dto.website !== undefined) data.website = dto.website?.trim() || null;
+    if (dto.city !== undefined) data.city = dto.city.trim();
+    if (dto.district !== undefined) data.district = dto.district.trim();
+    if (dto.addressLine !== undefined)
+      data.addressLine = dto.addressLine.trim();
+    if (dto.postalCode !== undefined)
+      data.postalCode = dto.postalCode.trim() || null;
+
+    return this.prisma.supplier.update({
+      where: { id: user.supplierId },
+      data,
+      select: {
+        id: true,
+        companyName: true,
+        companyType: true,
+        taxNumber: true,
+        taxOffice: true,
+        industry: true,
+        website: true,
+        city: true,
+        district: true,
+        addressLine: true,
+        postalCode: true,
+        membership: true,
+        isActive: true,
+        isBlocked: true,
+      },
+    });
   }
 
   // ============================================================

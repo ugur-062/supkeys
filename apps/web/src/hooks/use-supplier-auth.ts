@@ -5,6 +5,7 @@ import { useSupplierAuthStore } from "@/lib/supplier-auth/store";
 import type {
   SupplierLoginResponse,
   SupplierMeResponse,
+  SupplierProfile,
 } from "@/lib/supplier-auth/types";
 import {
   useMutation,
@@ -60,6 +61,32 @@ export function useSupplierMe(enabled = true) {
     },
     enabled: !!token && enabled,
     staleTime: 60 * 1000,
+  });
+}
+
+export interface UpdateCompanyInfoPayload {
+  industry?: string;
+  website?: string;
+  city?: string;
+  district?: string;
+  addressLine?: string;
+  postalCode?: string;
+}
+
+/** Çekirdek firma bilgisi (iletişim/adres) güncelle + store senkronu. */
+export function useUpdateCompanyInfo() {
+  const setSupplier = useSupplierAuthStore((s) => s.setSupplier);
+  return useMutation({
+    mutationFn: async (payload: UpdateCompanyInfoPayload) => {
+      const { data } = await supplierApi.patch<SupplierProfile>(
+        "/supplier-profile/me/company-info",
+        payload,
+      );
+      return data;
+    },
+    onSuccess: (supplier) => {
+      setSupplier(supplier);
+    },
   });
 }
 

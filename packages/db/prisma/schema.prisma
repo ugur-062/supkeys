@@ -606,10 +606,33 @@ model Supplier {
   photos              SupplierPhoto[]
   // V2-REVIEWS — alıcılardan gelen değerlendirmeler
   reviews             SupplierReview[]
+  // Ekip — firma kullanıcı davetleri
+  userInvitations     SupplierUserInvitation[]
 
   @@index([taxNumber])
   @@index([membership])
   @@map("suppliers")
+}
+
+/// Ekip — tedarikçi firmasına yeni çalışan davet (rolsüz, herkes eşit).
+model SupplierUserInvitation {
+  id          String               @id @default(cuid())
+  supplierId  String
+  supplier    Supplier             @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  email       String
+  token       String               @unique
+  invitedById String
+  invitedBy   SupplierUser         @relation("SupplierUserInvitationInviter", fields: [invitedById], references: [id])
+  status      UserInvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([supplierId, email, status])
+  @@index([token])
+  @@map("supplier_user_invitations")
 }
 
 /// V2-PUBLIC-PROFILE — Tedarikçi profil galerisi (R2'da host edilen fotolar).
@@ -668,6 +691,8 @@ model SupplierUser {
   lastName     String
   phone        String?
   isActive     Boolean   @default(true)
+  // Ayarlar — e-posta bildirim tercihleri (key: boolean). null = tüm varsayılan açık.
+  notificationPrefs Json?
   lastLoginAt  DateTime?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -679,6 +704,9 @@ model SupplierUser {
 
   // V2-2 — R2 dosya yükleme
   uploadedAttachments Attachment[] @relation("UploadedAttachmentsSupplier")
+
+  // Ekip — bu kullanıcının gönderdiği davetler
+  sentInvitations SupplierUserInvitation[] @relation("SupplierUserInvitationInviter")
 
   @@index([supplierId])
   @@map("supplier_users")

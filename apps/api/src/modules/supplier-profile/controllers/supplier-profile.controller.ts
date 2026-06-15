@@ -18,6 +18,7 @@ import {
   FinalizeCoverDto,
   RequestProfileUploadDto,
 } from "../dto/request-profile-upload.dto";
+import { UpdateCompanyInfoDto } from "../dto/update-company-info.dto";
 import { UpdatePublicProfileDto } from "../dto/update-public-profile.dto";
 import { UpdateSupplierCategoriesDto } from "../dto/update-supplier-categories.dto";
 import { SupplierProfileService } from "../services/supplier-profile.service";
@@ -38,6 +39,15 @@ export class SupplierProfileController {
     @Body() dto: UpdateSupplierCategoriesDto,
   ) {
     return this.service.updateCategories(user.supplierUserId, dto.categoryIds);
+  }
+
+  // Çekirdek firma bilgisi (iletişim/adres) self-servis düzenleme
+  @Patch("me/company-info")
+  updateCompanyInfo(
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+    @Body() dto: UpdateCompanyInfoDto,
+  ) {
+    return this.service.updateCompanyInfo(user.supplierUserId, dto);
   }
 
   // V2-PUBLIC-PROFILE — PREMIUM tedarikçi public profil editör endpoint'leri

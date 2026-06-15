@@ -11,8 +11,6 @@ export interface SupplierNavItem {
   icon: LucideIcon;
   label: string;
   href: string;
-  /** "Yakında" rozeti gösterilsin mi */
-  placeholder?: boolean;
 }
 
 export const supplierNavConfig: SupplierNavItem[] = [
@@ -30,7 +28,6 @@ export const supplierNavConfig: SupplierNavItem[] = [
     icon: Package,
     label: "Siparişler",
     href: "/supplier/siparisler",
-    placeholder: true,
   },
   {
     icon: User,
@@ -41,7 +38,6 @@ export const supplierNavConfig: SupplierNavItem[] = [
     icon: Settings,
     label: "Ayarlar",
     href: "/supplier/ayarlar",
-    placeholder: true,
   },
 ];
 
@@ -52,6 +48,9 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   "/supplier/mesajlar": "Mesajlar",
   "/supplier/profil": "Profilim",
   "/supplier/ayarlar": "Ayarlar",
+  "/supplier/ayarlar/hesap-bilgileri": "Hesap Bilgileri",
+  "/supplier/ayarlar/sifre-islemleri": "Şifre İşlemleri",
+  "/supplier/ayarlar/bildirim-tercihleri": "Bildirim Tercihleri",
 };
 
 export function getSupplierBreadcrumb(pathname: string): string {
