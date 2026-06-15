@@ -17,6 +17,7 @@ import {
   MinLength,
   ValidateNested,
 } from "class-validator";
+import { LogisticsDetailsDto } from "./logistics-details.dto";
 
 export enum TenderTypeDto {
   RFQ = "RFQ",
@@ -190,6 +191,18 @@ export class CreateTenderDto {
 
   @IsEnum(TenderTypeDto)
   type!: TenderTypeDto;
+
+  // ---------- Lojistik İhalesi ----------
+  // type=RFQ üstüne yapılandırılmış lojistik katmanı. isLogistics=true ise
+  // logistics dolu olmalı (service enforce eder).
+  @IsOptional()
+  @IsBoolean()
+  isLogistics?: boolean;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LogisticsDetailsDto)
+  logistics?: LogisticsDetailsDto;
 
   // İhale Kuralları
   @IsBoolean()

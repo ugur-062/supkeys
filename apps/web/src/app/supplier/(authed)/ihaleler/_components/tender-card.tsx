@@ -1,4 +1,5 @@
 import { CategoryBadge } from "@/components/categories/category-badge";
+import { LogisticsBadge } from "@/components/tenders/logistics-info";
 import { CurrencyBadge } from "@/components/currency-badge";
 import { deriveSupplierTenderState } from "@/components/supplier/status-badges";
 import type { SupplierTenderListItem } from "@/lib/tenders/types";
@@ -33,9 +34,12 @@ export function TenderCard({ tender }: { tender: SupplierTenderListItem }) {
       <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-brand-300 transition-all h-full flex flex-col">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] text-slate-500 font-mono">
-              {tender.tenderNumber}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-[11px] text-slate-500 font-mono">
+                {tender.tenderNumber}
+              </p>
+              {tender.isLogistics ? <LogisticsBadge /> : null}
+            </div>
             <h3 className="font-semibold text-brand-900 line-clamp-2 mt-0.5 leading-snug">
               {tender.title}
             </h3>

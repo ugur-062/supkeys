@@ -8,7 +8,8 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { OnEvent } from "@nestjs/event-emitter";
-import type { BidStatus, Prisma, TenderStatus } from "@supkeys/db";
+import type { BidStatus, TenderStatus } from "@supkeys/db";
+import { Prisma } from "@supkeys/db";
 import { generateOrderNumber, generateTenderNumber } from "@supkeys/shared";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -167,6 +168,7 @@ export class TenantTendersService {
           tenderNumber: true,
           title: true,
           type: true,
+          isLogistics: true,
           status: true,
           primaryCurrency: true,
           allowedCurrencies: true,
@@ -200,6 +202,7 @@ export class TenantTendersService {
         tenderNumber: t.tenderNumber,
         title: t.title,
         type: t.type,
+        isLogistics: t.isLogistics,
         status: t.status,
         primaryCurrency: t.primaryCurrency,
         allowedCurrencies: t.allowedCurrencies,
@@ -730,6 +733,8 @@ export class TenantTendersService {
 
     const estimatedTotal = computeEstimatedTotal(dto.items);
     const auctionFields = this.auctionFieldsFor(dto);
+    const isLogistics = await this.deriveIsLogistics(categoryIds);
+    const logistics = this.normalizeLogistics(isLogistics, dto);
 
     return this.prisma.$transaction(async (tx) => {
       await this.assertActiveSuppliers(tx, tenantId, dto.invitedSupplierIds);
@@ -746,6 +751,8 @@ export class TenantTendersService {
           },
           type: dto.type,
           status: "DRAFT",
+          isLogistics: logistics.isLogistics,
+          logisticsDetails: logistics.logisticsDetails,
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
           keywords: (dto.keywords ?? [])
@@ -909,6 +916,8 @@ export class TenantTendersService {
       await tx.tenderCategory.deleteMany({ where: { tenderId } });
 
       const auctionFields = this.auctionFieldsFor(dto);
+      const isLogistics = await this.deriveIsLogistics(categoryIds);
+      const logistics = this.normalizeLogistics(isLogistics, dto);
 
       await tx.tender.update({
         where: { id: tenderId },
@@ -917,6 +926,8 @@ export class TenantTendersService {
             create: categoryIds.map((categoryId) => ({ categoryId })),
           },
           type: dto.type,
+          isLogistics: logistics.isLogistics,
+          logisticsDetails: logistics.logisticsDetails,
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
           keywords: (dto.keywords ?? [])
@@ -1548,6 +1559,67 @@ export class TenantTendersService {
       autoExtendThresholdMin: 2,
       autoExtendByMinutes: 2,
       isSealedBid: dto.isSealedBid,
+    };
+  }
+
+  /**
+   * Lojistik kategorisi mi? UNSPSC Segment 78 (Nakliye/Depolama/Posta) altındaki
+   * tüm kodlar "78" ile başlar. Seçilen kategorilerden biri lojistikse ihale
+   * otomatik lojistik olur (ayrı tür/seçim yok).
+   */
+  private async deriveIsLogistics(categoryIds: string[]): Promise<boolean> {
+    if (categoryIds.length === 0) return false;
+    const rows = await this.prisma.category.findMany({
+      where: { id: { in: categoryIds } },
+      select: { code: true },
+    });
+    return rows.some((r) => r.code.startsWith("78"));
+  }
+
+  /**
+   * Lojistik İhalesi — isLogistics + logisticsDetails normalize eder.
+   * isLogistics kategoriden türetilir; true ise logistics zorunlu, değilse null.
+   */
+  private normalizeLogistics(
+    isLogistics: boolean,
+    dto: CreateTenderDto,
+  ): {
+    isLogistics: boolean;
+    logisticsDetails: Prisma.InputJsonValue | typeof Prisma.JsonNull;
+  } {
+    if (!isLogistics) {
+      return { isLogistics: false, logisticsDetails: Prisma.JsonNull };
+    }
+    const l = dto.logistics;
+    if (!l) {
+      throw new BadRequestException(
+        "Lojistik ihalesi için taşıma bilgileri zorunludur",
+      );
+    }
+    const details = {
+      transportMode: l.transportMode,
+      originCity: l.originCity.trim(),
+      originDistrict: l.originDistrict?.trim() || null,
+      originAddress: l.originAddress?.trim() || null,
+      destinationCity: l.destinationCity.trim(),
+      destinationDistrict: l.destinationDistrict?.trim() || null,
+      destinationAddress: l.destinationAddress?.trim() || null,
+      cargoType: l.cargoType.trim(),
+      weightKg: l.weightKg ?? null,
+      volumeM3: l.volumeM3 ?? null,
+      packageCount: l.packageCount ?? null,
+      vehicleType: l.vehicleType?.trim() || null,
+      loadingDate: l.loadingDate ?? null,
+      deliveryDate: l.deliveryDate ?? null,
+      hazardous: !!l.hazardous,
+      refrigerated: !!l.refrigerated,
+      fragile: !!l.fragile,
+      stackable: !!l.stackable,
+      notes: l.notes?.trim() || null,
+    };
+    return {
+      isLogistics: true,
+      logisticsDetails: details as Prisma.InputJsonValue,
     };
   }
 

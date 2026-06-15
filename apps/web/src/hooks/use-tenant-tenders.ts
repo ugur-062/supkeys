@@ -200,6 +200,35 @@ function buildPayload(data: TenderFormData) {
     title: data.title,
     description: sanitize(data.description),
     type: data.type,
+    isLogistics: data.isLogistics,
+    logistics:
+      data.isLogistics && data.logistics
+        ? {
+            transportMode: data.logistics.transportMode,
+            originCity: data.logistics.originCity?.trim(),
+            originDistrict: sanitize(data.logistics.originDistrict),
+            originAddress: sanitize(data.logistics.originAddress),
+            destinationCity: data.logistics.destinationCity?.trim(),
+            destinationDistrict: sanitize(data.logistics.destinationDistrict),
+            destinationAddress: sanitize(data.logistics.destinationAddress),
+            cargoType: data.logistics.cargoType?.trim(),
+            weightKg: data.logistics.weightKg,
+            volumeM3: data.logistics.volumeM3,
+            packageCount: data.logistics.packageCount,
+            vehicleType: sanitize(data.logistics.vehicleType),
+            loadingDate: data.logistics.loadingDate
+              ? new Date(data.logistics.loadingDate).toISOString()
+              : undefined,
+            deliveryDate: data.logistics.deliveryDate
+              ? new Date(data.logistics.deliveryDate).toISOString()
+              : undefined,
+            hazardous: data.logistics.hazardous,
+            refrigerated: data.logistics.refrigerated,
+            fragile: data.logistics.fragile,
+            stackable: data.logistics.stackable,
+            notes: sanitize(data.logistics.notes),
+          }
+        : undefined,
     isSealedBid: data.isSealedBid,
     requireAllItems: data.requireAllItems,
     requireBidDocument: data.requireBidDocument,

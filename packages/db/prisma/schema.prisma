@@ -936,6 +936,11 @@ model Tender {
   billingAddressSnapshot  Json?
   deliveryAddressSnapshot Json?
 
+  // Lojistik İhalesi — RFQ üstüne yapılandırılmış lojistik bilgi katmanı.
+  // isLogistics=true ise logisticsDetails dolu olur (mod, çıkış/varış, kargo, vb.).
+  isLogistics         Boolean         @default(false)
+  logisticsDetails    Json?
+
   paymentTerm         PaymentTerm     @default(CASH)
   paymentDays         Int?
 

@@ -45,6 +45,44 @@ export type DecrementBasis = (typeof DECREMENT_BASIS_VALUES)[number];
 export const ANSWER_TYPE_VALUES = ["TEXT", "NUMBER", "YES_NO", "DATE"] as const;
 export type AnswerTypeValue = (typeof ANSWER_TYPE_VALUES)[number];
 
+// Lojistik İhalesi — taşıma modu
+export const TRANSPORT_MODE_VALUES = [
+  "ROAD",
+  "SEA",
+  "AIR",
+  "RAIL",
+  "MULTIMODAL",
+] as const;
+export type TransportMode = (typeof TRANSPORT_MODE_VALUES)[number];
+
+// Lojistik bilgileri — alanlar opsiyonel; zorunluluk isLogistics ile refine'da enforce edilir.
+export const logisticsSchema = z.object({
+  transportMode: z.enum(TRANSPORT_MODE_VALUES).optional(),
+  originCity: z.string().max(60, "Maksimum 60 karakter").optional(),
+  originDistrict: z.string().max(60).optional(),
+  originAddress: z.string().max(300).optional(),
+  destinationCity: z.string().max(60, "Maksimum 60 karakter").optional(),
+  destinationDistrict: z.string().max(60).optional(),
+  destinationAddress: z.string().max(300).optional(),
+  cargoType: z.string().max(200, "Maksimum 200 karakter").optional(),
+  weightKg: z.number({ invalid_type_error: "Geçersiz değer" }).min(0).optional(),
+  volumeM3: z.number({ invalid_type_error: "Geçersiz değer" }).min(0).optional(),
+  packageCount: z
+    .number({ invalid_type_error: "Geçersiz değer" })
+    .int()
+    .min(0)
+    .optional(),
+  vehicleType: z.string().max(120).optional(),
+  loadingDate: z.string().optional(),
+  deliveryDate: z.string().optional(),
+  hazardous: z.boolean().optional(),
+  refrigerated: z.boolean().optional(),
+  fragile: z.boolean().optional(),
+  stackable: z.boolean().optional(),
+  notes: z.string().max(2000).optional(),
+});
+export type LogisticsFormData = z.infer<typeof logisticsSchema>;
+
 // V2-7+ — Kalem başına çoklu + tipli soru
 export const tenderItemQuestionSchema = z.object({
   id: z.string().min(1),
@@ -97,6 +135,9 @@ const baseTenderSchema = z.object({
     .array(z.string().min(1).max(50, "Maksimum 50 karakter"))
     .max(10, "En fazla 10 anahtar kelime"),
   type: z.enum(TYPE_VALUES),
+  // Lojistik İhalesi — RFQ üstüne lojistik katmanı.
+  isLogistics: z.boolean(),
+  logistics: logisticsSchema.optional(),
   isSealedBid: z.boolean(),
   requireAllItems: z.boolean(),
   requireBidDocument: z.boolean(),
@@ -237,7 +278,24 @@ export const tenderFormSchema = baseTenderSchema
       message: "Açık eksiltme için açılış tarihi zorunludur",
       path: ["bidsOpenAt"],
     },
-  );
+  )
+  // Lojistik İhalesi — isLogistics ise zorunlu alanlar
+  .refine((d) => !d.isLogistics || !!d.logistics?.transportMode, {
+    message: "Taşıma modu seçilmelidir",
+    path: ["logistics", "transportMode"],
+  })
+  .refine((d) => !d.isLogistics || !!d.logistics?.originCity?.trim(), {
+    message: "Çıkış ili zorunlu",
+    path: ["logistics", "originCity"],
+  })
+  .refine((d) => !d.isLogistics || !!d.logistics?.destinationCity?.trim(), {
+    message: "Varış ili zorunlu",
+    path: ["logistics", "destinationCity"],
+  })
+  .refine((d) => !d.isLogistics || !!d.logistics?.cargoType?.trim(), {
+    message: "Kargo cinsi zorunlu",
+    path: ["logistics", "cargoType"],
+  });
 
 export type TenderFormData = z.infer<typeof tenderFormSchema>;
 
@@ -248,6 +306,8 @@ export const STEP_FIELDS: Record<1 | 2 | 3, (keyof TenderFormData)[]> = {
     "description",
     "keywords",
     "type",
+    "isLogistics",
+    "logistics",
     "isSealedBid",
     "requireAllItems",
     "requireBidDocument",
@@ -283,6 +343,28 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   description: "",
   keywords: [],
   type: "RFQ",
+  isLogistics: false,
+  logistics: {
+    transportMode: undefined,
+    originCity: "",
+    originDistrict: "",
+    originAddress: "",
+    destinationCity: "",
+    destinationDistrict: "",
+    destinationAddress: "",
+    cargoType: "",
+    weightKg: undefined,
+    volumeM3: undefined,
+    packageCount: undefined,
+    vehicleType: "",
+    loadingDate: "",
+    deliveryDate: "",
+    hazardous: false,
+    refrigerated: false,
+    fragile: false,
+    stackable: false,
+    notes: "",
+  },
   isSealedBid: true,
   requireAllItems: false,
   requireBidDocument: false,

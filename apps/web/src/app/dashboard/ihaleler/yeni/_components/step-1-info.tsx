@@ -7,6 +7,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useTenantAddresses } from "@/hooks/use-tenant-addresses";
 import { DELIVERY_TERM_LABELS } from "@/lib/tenders/labels";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
@@ -186,6 +187,252 @@ interface Step1Props {
   setStagedFiles: (files: File[]) => void;
 }
 
+// UNSPSC Segment 78 = "Nakliye, Depolama ve Posta Hizmetleri" (lojistik).
+// Bu segment altındaki tüm kategori kodları "78" ile başlar.
+function isLogisticsCategoryCode(code: string): boolean {
+  return code.startsWith("78");
+}
+
+const TRANSPORT_MODE_OPTIONS = [
+  { value: "ROAD", label: "Karayolu" },
+  { value: "SEA", label: "Denizyolu" },
+  { value: "AIR", label: "Havayolu" },
+  { value: "RAIL", label: "Demiryolu" },
+  { value: "MULTIMODAL", label: "Karma" },
+] as const;
+
+const asOptionalNumber = (v: unknown) =>
+  v === "" || v === undefined || v === null ? undefined : Number(v);
+
+function LogisticsSection() {
+  const {
+    register,
+    formState: { errors },
+  } = useFormContext<TenderFormData>();
+  const lerr = errors.logistics;
+
+  return (
+    <section>
+      <SectionHeader
+        icon={Truck}
+        title="Lojistik Bilgileri"
+        description="Taşınacak yükün rota, mod ve özelliklerini belirtin."
+      />
+      <div className="space-y-4">
+        {/* Taşıma modu */}
+        <Field error={lerr?.transportMode?.message}>
+          <Label required>Taşıma Modu</Label>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+            {TRANSPORT_MODE_OPTIONS.map((o) => (
+              <label
+                key={o.value}
+                className="flex items-center justify-center gap-2 p-2.5 rounded-lg border-2 cursor-pointer text-sm font-medium transition-colors has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50/50 border-slate-200 hover:bg-slate-50"
+              >
+                <input
+                  type="radio"
+                  value={o.value}
+                  className="sr-only"
+                  {...register("logistics.transportMode")}
+                />
+                {o.label}
+              </label>
+            ))}
+          </div>
+        </Field>
+
+        {/* Çıkış / Varış */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Çıkış Noktası
+            </p>
+            <Field error={lerr?.originCity?.message}>
+              <Label htmlFor="lo-origin-city" required>
+                İl
+              </Label>
+              <Input
+                id="lo-origin-city"
+                placeholder="Örn. İstanbul"
+                hasError={!!lerr?.originCity}
+                {...register("logistics.originCity")}
+              />
+            </Field>
+            <Field error={lerr?.originDistrict?.message}>
+              <Label htmlFor="lo-origin-district">İlçe</Label>
+              <Input
+                id="lo-origin-district"
+                placeholder="Örn. Tuzla"
+                {...register("logistics.originDistrict")}
+              />
+            </Field>
+            <Field error={lerr?.originAddress?.message}>
+              <Label htmlFor="lo-origin-address">Açık Adres</Label>
+              <Textarea
+                id="lo-origin-address"
+                rows={2}
+                placeholder="Yükleme adresi (opsiyonel)"
+                {...register("logistics.originAddress")}
+              />
+            </Field>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 p-4 space-y-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+              Varış Noktası
+            </p>
+            <Field error={lerr?.destinationCity?.message}>
+              <Label htmlFor="lo-dest-city" required>
+                İl
+              </Label>
+              <Input
+                id="lo-dest-city"
+                placeholder="Örn. Ankara"
+                hasError={!!lerr?.destinationCity}
+                {...register("logistics.destinationCity")}
+              />
+            </Field>
+            <Field error={lerr?.destinationDistrict?.message}>
+              <Label htmlFor="lo-dest-district">İlçe</Label>
+              <Input
+                id="lo-dest-district"
+                placeholder="Örn. Çankaya"
+                {...register("logistics.destinationDistrict")}
+              />
+            </Field>
+            <Field error={lerr?.destinationAddress?.message}>
+              <Label htmlFor="lo-dest-address">Açık Adres</Label>
+              <Textarea
+                id="lo-dest-address"
+                rows={2}
+                placeholder="Teslim adresi (opsiyonel)"
+                {...register("logistics.destinationAddress")}
+              />
+            </Field>
+          </div>
+        </div>
+
+        {/* Kargo */}
+        <Field error={lerr?.cargoType?.message}>
+          <Label htmlFor="lo-cargo" required>
+            Kargo Cinsi
+          </Label>
+          <Input
+            id="lo-cargo"
+            placeholder="Örn. Paletli genel kargo, makine parçası…"
+            hasError={!!lerr?.cargoType}
+            {...register("logistics.cargoType")}
+          />
+        </Field>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Field error={lerr?.weightKg?.message}>
+            <Label htmlFor="lo-weight">Ağırlık (kg)</Label>
+            <Input
+              id="lo-weight"
+              type="number"
+              step="0.01"
+              min={0}
+              placeholder="0"
+              {...register("logistics.weightKg", {
+                setValueAs: asOptionalNumber,
+              })}
+            />
+          </Field>
+          <Field error={lerr?.volumeM3?.message}>
+            <Label htmlFor="lo-volume">Hacim (m³)</Label>
+            <Input
+              id="lo-volume"
+              type="number"
+              step="0.01"
+              min={0}
+              placeholder="0"
+              {...register("logistics.volumeM3", {
+                setValueAs: asOptionalNumber,
+              })}
+            />
+          </Field>
+          <Field error={lerr?.packageCount?.message}>
+            <Label htmlFor="lo-pkg">Kap / Palet Sayısı</Label>
+            <Input
+              id="lo-pkg"
+              type="number"
+              step="1"
+              min={0}
+              placeholder="0"
+              {...register("logistics.packageCount", {
+                setValueAs: asOptionalNumber,
+              })}
+            />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Field error={lerr?.vehicleType?.message}>
+            <Label htmlFor="lo-vehicle">Araç / Ekipman Tipi</Label>
+            <Input
+              id="lo-vehicle"
+              placeholder="Örn. Tır (tenteli), Frigo, 40' konteyner"
+              {...register("logistics.vehicleType")}
+            />
+          </Field>
+          <Field error={lerr?.loadingDate?.message}>
+            <Label htmlFor="lo-loading">Yükleme Tarihi</Label>
+            <Input
+              id="lo-loading"
+              type="date"
+              {...register("logistics.loadingDate")}
+            />
+          </Field>
+          <Field error={lerr?.deliveryDate?.message}>
+            <Label htmlFor="lo-delivery">Teslim Tarihi</Label>
+            <Input
+              id="lo-delivery"
+              type="date"
+              {...register("logistics.deliveryDate")}
+            />
+          </Field>
+        </div>
+
+        {/* Özel durumlar */}
+        <Field>
+          <Label>Özel Durumlar</Label>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {(
+              [
+                ["hazardous", "Tehlikeli Madde (ADR)"],
+                ["refrigerated", "Soğuk Zincir"],
+                ["fragile", "Kırılabilir"],
+                ["stackable", "İstiflenebilir"],
+              ] as const
+            ).map(([key, label]) => (
+              <label
+                key={key}
+                className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 cursor-pointer text-sm hover:bg-slate-50"
+              >
+                <input
+                  type="checkbox"
+                  {...register(`logistics.${key}` as const)}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </Field>
+
+        <Field error={lerr?.notes?.message}>
+          <Label htmlFor="lo-notes">Lojistik Notu</Label>
+          <Textarea
+            id="lo-notes"
+            rows={2}
+            placeholder="Özel taşıma koşulları, sigorta, gümrük vb. (opsiyonel)"
+            {...register("logistics.notes")}
+          />
+        </Field>
+      </div>
+    </section>
+  );
+}
+
 export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
   const {
     register,
@@ -198,6 +445,7 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
   const primaryCurrency = watch("primaryCurrency");
   const allowedCurrencies = watch("allowedCurrencies") ?? [];
   const tenderType = watch("type");
+  const isLogistics = watch("isLogistics");
   const decrementType = watch("priceDecrementType");
   const sendClosingReminder = watch("sendClosingReminder");
   const autoExtendOnLateBid = watch("autoExtendOnLateBid");
@@ -220,6 +468,18 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
   }, [isAuction]);
 
   const categoryIds = watch("categoryIds") ?? [];
+
+  // Lojistik — seçilen kategorilerden biri Nakliye/Depolama/Posta segmentinde
+  // (UNSPSC kod 78…) ise ihale otomatik "lojistik" olur ve taşıma alanları açılır.
+  const selectedCategories = useCategoriesByIds(categoryIds);
+  const categoriesAreLogistics = (selectedCategories.data ?? []).some((c) =>
+    isLogisticsCategoryCode(c.code),
+  );
+  useEffect(() => {
+    if (categoriesAreLogistics !== isLogistics) {
+      setValue("isLogistics", categoriesAreLogistics, { shouldValidate: true });
+    }
+  }, [categoriesAreLogistics, isLogistics, setValue]);
 
   return (
     <div className="space-y-8">
@@ -321,6 +581,9 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
           </Field>
         </div>
       </section>
+
+      {/* Lojistik — seçilen kategori Nakliye/Depolama segmentindeyse açılır */}
+      {isLogistics ? <LogisticsSection /> : null}
 
       {/* V2-7 — SECTION: Teklif ve Sıralama Görünürlüğü (sadece İngiliz Usulü) */}
       {isAuction ? (

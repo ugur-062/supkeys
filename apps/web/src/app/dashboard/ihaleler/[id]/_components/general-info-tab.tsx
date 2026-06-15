@@ -5,6 +5,7 @@ import {
   DELIVERY_TERM_LABELS,
   PAYMENT_TERM_LABELS,
 } from "@/lib/tenders/labels";
+import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
 import type { TenderAddressSnapshot, TenderDetail } from "@/lib/tenders/types";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -54,6 +55,9 @@ function RuleItem({ active, label }: { active: boolean; label: string }) {
 export function GeneralInfoTab({ tender }: { tender: TenderDetail }) {
   return (
     <div className="space-y-5">
+      {tender.isLogistics && tender.logisticsDetails ? (
+        <LogisticsInfoCard details={tender.logisticsDetails} />
+      ) : null}
       <section className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
         <div className="space-y-4">
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">

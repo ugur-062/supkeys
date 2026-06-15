@@ -1,9 +1,11 @@
 "use client";
 
+import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useTenantAddresses } from "@/hooks/use-tenant-addresses";
 import { useSuppliers } from "@/hooks/use-tenant-suppliers";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
+import type { TenderLogisticsDetails } from "@/lib/tenders/types";
 import {
   CURRENCY_SYMBOL,
   DELIVERY_TERM_LABELS,
@@ -113,8 +115,38 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
   const categoryQuery = useCategoriesByIds(data.categoryIds ?? []);
   const categoryLabels = categoryQuery.data?.map((c) => c.breadcrumb) ?? [];
 
+  // Lojistik İhalesi — form değerlerinden görüntüleme şekline adapte et.
+  const lg = data.logistics;
+  const logisticsForCard: TenderLogisticsDetails | null =
+    data.isLogistics && lg?.transportMode
+      ? {
+          transportMode: lg.transportMode,
+          originCity: lg.originCity ?? "",
+          originDistrict: lg.originDistrict || null,
+          originAddress: lg.originAddress || null,
+          destinationCity: lg.destinationCity ?? "",
+          destinationDistrict: lg.destinationDistrict || null,
+          destinationAddress: lg.destinationAddress || null,
+          cargoType: lg.cargoType ?? "",
+          weightKg: lg.weightKg ?? null,
+          volumeM3: lg.volumeM3 ?? null,
+          packageCount: lg.packageCount ?? null,
+          vehicleType: lg.vehicleType || null,
+          loadingDate: lg.loadingDate || null,
+          deliveryDate: lg.deliveryDate || null,
+          hazardous: !!lg.hazardous,
+          refrigerated: !!lg.refrigerated,
+          fragile: !!lg.fragile,
+          stackable: !!lg.stackable,
+          notes: lg.notes || null,
+        }
+      : null;
+
   return (
     <div className="space-y-4">
+      {logisticsForCard ? (
+        <LogisticsInfoCard details={logisticsForCard} />
+      ) : null}
       <div className="rounded-xl border border-success-200 bg-success-50/40 p-4 flex items-start gap-3">
         <CheckCircle2 className="w-5 h-5 text-success-600 mt-0.5 flex-shrink-0" />
         <div>

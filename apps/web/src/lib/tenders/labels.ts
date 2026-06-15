@@ -140,6 +140,15 @@ export const PAYMENT_TERM_LABELS: Record<PaymentTerm, string> = {
   DEFERRED: "Vadeli",
 };
 
+// Lojistik İhalesi — taşıma modu etiketleri
+export const TRANSPORT_MODE_LABELS: Record<string, string> = {
+  ROAD: "Karayolu",
+  SEA: "Denizyolu",
+  AIR: "Havayolu",
+  RAIL: "Demiryolu",
+  MULTIMODAL: "Karma",
+};
+
 export const CURRENCY_SYMBOL: Record<Currency, string> = {
   TRY: "₺",
   USD: "$",

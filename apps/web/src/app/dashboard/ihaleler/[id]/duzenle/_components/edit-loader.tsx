@@ -2,7 +2,10 @@
 
 import { Button } from "@/components/ui/button";
 import { useTenderDetail } from "@/hooks/use-tenant-tenders";
-import type { TenderFormData } from "@/lib/tenders/form-schema";
+import {
+  DEFAULT_FORM_VALUES,
+  type TenderFormData,
+} from "@/lib/tenders/form-schema";
 import { tenderStatusLabel } from "@/lib/tenders/labels";
 import { format } from "date-fns";
 import { AlertCircle, ArrowLeft, Loader2 } from "lucide-react";
@@ -106,6 +109,31 @@ export function EditLoader({ id }: Props) {
     description: tender.description ?? "",
     keywords: tender.keywords ?? [],
     type: tender.type,
+    isLogistics: tender.isLogistics,
+    logistics: tender.logisticsDetails
+      ? {
+          transportMode: tender.logisticsDetails.transportMode,
+          originCity: tender.logisticsDetails.originCity,
+          originDistrict: tender.logisticsDetails.originDistrict ?? "",
+          originAddress: tender.logisticsDetails.originAddress ?? "",
+          destinationCity: tender.logisticsDetails.destinationCity,
+          destinationDistrict:
+            tender.logisticsDetails.destinationDistrict ?? "",
+          destinationAddress: tender.logisticsDetails.destinationAddress ?? "",
+          cargoType: tender.logisticsDetails.cargoType,
+          weightKg: tender.logisticsDetails.weightKg ?? undefined,
+          volumeM3: tender.logisticsDetails.volumeM3 ?? undefined,
+          packageCount: tender.logisticsDetails.packageCount ?? undefined,
+          vehicleType: tender.logisticsDetails.vehicleType ?? "",
+          loadingDate: toDateInput(tender.logisticsDetails.loadingDate),
+          deliveryDate: toDateInput(tender.logisticsDetails.deliveryDate),
+          hazardous: tender.logisticsDetails.hazardous,
+          refrigerated: tender.logisticsDetails.refrigerated,
+          fragile: tender.logisticsDetails.fragile,
+          stackable: tender.logisticsDetails.stackable,
+          notes: tender.logisticsDetails.notes ?? "",
+        }
+      : DEFAULT_FORM_VALUES.logistics,
     isSealedBid: tender.isSealedBid,
     requireAllItems: tender.requireAllItems,
     requireBidDocument: tender.requireBidDocument,

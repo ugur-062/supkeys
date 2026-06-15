@@ -33,6 +33,31 @@ export interface TenderAddressSnapshot {
   snapshotAt: string;
 }
 
+export type TransportMode = "ROAD" | "SEA" | "AIR" | "RAIL" | "MULTIMODAL";
+
+// Lojistik İhalesi — Tender.logisticsDetails JSON şekli (backend ile uyumlu).
+export interface TenderLogisticsDetails {
+  transportMode: TransportMode;
+  originCity: string;
+  originDistrict: string | null;
+  originAddress: string | null;
+  destinationCity: string;
+  destinationDistrict: string | null;
+  destinationAddress: string | null;
+  cargoType: string;
+  weightKg: number | null;
+  volumeM3: number | null;
+  packageCount: number | null;
+  vehicleType: string | null;
+  loadingDate: string | null;
+  deliveryDate: string | null;
+  hazardous: boolean;
+  refrigerated: boolean;
+  fragile: boolean;
+  stackable: boolean;
+  notes: string | null;
+}
+
 export type TenderType = "RFQ" | "ENGLISH_AUCTION";
 
 export type TenderStatus =
@@ -106,6 +131,7 @@ export interface TenderListItem {
   tenderNumber: string;
   title: string;
   type: TenderType;
+  isLogistics: boolean;
   status: TenderStatus;
   primaryCurrency: Currency;
   allowedCurrencies: Currency[];
@@ -168,6 +194,8 @@ export interface TenderDetail {
   id: string;
   tenderNumber: string;
   type: TenderType;
+  isLogistics: boolean;
+  logisticsDetails: TenderLogisticsDetails | null;
   status: TenderStatus;
   title: string;
   description: string | null;
@@ -297,6 +325,7 @@ export interface SupplierTenderListItem {
   id: string;
   tenderNumber: string;
   title: string;
+  isLogistics: boolean;
   status: TenderStatus;
   primaryCurrency: Currency;
   allowedCurrencies: Currency[];
@@ -341,6 +370,8 @@ export interface SupplierTenderDetail {
   id: string;
   tenderNumber: string;
   type: TenderType;
+  isLogistics: boolean;
+  logisticsDetails: TenderLogisticsDetails | null;
   status: TenderStatus;
   title: string;
   description: string | null;

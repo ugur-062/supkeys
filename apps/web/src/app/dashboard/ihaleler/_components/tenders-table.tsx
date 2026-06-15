@@ -1,6 +1,7 @@
 "use client";
 
 import { CategoryBadge } from "@/components/categories/category-badge";
+import { LogisticsBadge } from "@/components/tenders/logistics-info";
 import { CountdownTimer } from "@/components/countdown-timer";
 import {
   TenderStatusBadge,
@@ -174,7 +175,10 @@ export function TendersTable({
                 ) : null}
               </td>
               <td className="px-4 py-3">
-                <TenderTypeBadge type={t.type} />
+                <div className="flex flex-wrap items-center gap-1">
+                  <TenderTypeBadge type={t.type} />
+                  {t.isLogistics ? <LogisticsBadge /> : null}
+                </div>
               </td>
               <td className="px-4 py-3">
                 <TenderStatusBadge status={t.status} />
