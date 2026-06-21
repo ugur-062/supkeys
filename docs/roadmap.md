@@ -1,7 +1,7 @@
 # Supkeys — Geliştirme Yol Haritası (33 madde)
 
 > Oluşturulma: 2026-06-17 · Kaynak: ürün sahibi backlog
-> Son denetim: 2026-06-21 · Durum: **Faz 1 tamamlandı**, Faz 2 kısmen.
+> Son denetim: 2026-06-21 · Durum: **Faz 1 + G5 (sipariş ekranı) tamamlandı**. Sıradaki: Faz 3.
 
 ## İlerleme (kodla denetlendi — 2026-06-21)
 
@@ -20,7 +20,7 @@
 | G5 | 11 (fatura kesim tarihi kaldır) | ✅ (2026-06-21 · invoiceDate kolonu drop) |
 | G5 | 15 (PDF indirme fix) | ✅ kod (2026-06-21) — zarif 503 + net hata mesajı. **Kök neden: dev'de Chromium sistem kütüphaneleri eksik (`libnspr4.so`); prod Docker'da çalışır.** |
 | G5 | 12/14 (fatura no — "Gönderildi"ye geçişte zorunlu) | ✅ (2026-06-21 · `invoiceNumber` kolonu + zorunlu DTO + modal input + timeline + PDF) |
-| G5 | 19/21 (sipariş Dosyalar: proforma/teknik/fatura/**Teslimat Evrakları**) | ❌ kalan iş |
+| G5 | 19/21 (sipariş Dosyalar: proforma/teknik/fatura/**Teslimat Evrakları**) | ✅ (2026-06-21) — kategori bazlı belge paneli; tedarikçi yükler, alıcı görür; statüye göre kademeli; COMPLETED'de teslimat evrakı boşsa uyarı |
 
 ### G5 kilitli kararlar (2026-06-21 ürün sahibi cevapları)
 - **Fatura no:** Tedarikçi siparişi **"Gönderildi"ye geçirmek için fatura no girmek ZORUNDA** (kargo no değil).
@@ -28,7 +28,7 @@
 - **İmzalı irsaliye:** "Tamamlandı"yı **bloklamaz**; eksikse küçük uyarı gösterilir ("opsiyonel" yazısı yok).
 - **Belge kategori adı:** "İmzalı İrsaliye" değil → **"Teslimat Evrakları"** (2026-06-21).
 
-**Sonuç:** Faz 1 ✅. G5'in 11+15'i ✅. Kalan G5 = **12/14 (fatura no) + 19/21 (belge modeli)**.
+**Sonuç:** Faz 1 ✅. **G5 tamamlandı** (11, 12/14, 15, 19/21 ✅). Sıradaki = **Faz 3** (16 direkt ödeme + 20 banka/rol + 6 Supkeys ID), G6 ile birlikte.
 
 ## Alınan Kararlar (kilitli)
 

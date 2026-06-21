@@ -10,6 +10,10 @@ export type AttachmentScope =
   | "TENDER_DOC"
   | "BID_RESPONSE"
   | "ORDER_INVOICE"
+  // G5 madde 19/21 — sipariş belge kategorileri (scopeRefId = order id)
+  | "ORDER_PROFORMA"
+  | "ORDER_TECHNICAL"
+  | "ORDER_DELIVERY"
   | "MESSAGE_ATTACHMENT";
 
 export interface AttachmentItem {

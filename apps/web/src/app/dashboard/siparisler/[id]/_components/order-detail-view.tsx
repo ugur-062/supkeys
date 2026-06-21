@@ -10,6 +10,7 @@ import {
 } from "@/components/catalyst/table";
 import { MessageDialog } from "@/components/messaging/message-dialog";
 import { CompleteOrderModal } from "@/components/orders/complete-order-modal";
+import { OrderDocuments } from "@/components/orders/order-documents";
 import { OrderTimeline } from "@/components/orders/order-timeline";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
 import { ReadOnlyBanner } from "@/components/tenders/read-only-banner";
@@ -162,6 +163,16 @@ function OrderDetailContent({ order }: { order: OrderDetail }) {
               <NotesAndAttachments order={order} />
             </Section>
           ) : null}
+
+          <Section title="Sipariş Belgeleri">
+            <div className="bg-white border border-slate-200 rounded-xl p-5">
+              <OrderDocuments
+                surface="tenant"
+                orderId={order.id}
+                status={order.status}
+              />
+            </div>
+          </Section>
 
           {/* V2-REVIEWS — COMPLETED siparişlerde değerlendirme kartı */}
           <ReviewCard

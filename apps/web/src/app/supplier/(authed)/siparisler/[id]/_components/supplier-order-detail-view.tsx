@@ -8,10 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/catalyst/table";
-import { AttachmentList } from "@/components/attachments/attachment-list";
-import { AttachmentUpload } from "@/components/attachments/attachment-upload";
 import { MessageDialog } from "@/components/messaging/message-dialog";
 import { AcceptOrderModal } from "@/components/orders/accept-order-modal";
+import { OrderDocuments } from "@/components/orders/order-documents";
 import { OrderTimeline } from "@/components/orders/order-timeline";
 import { RejectOrderModal } from "@/components/orders/reject-order-modal";
 import { StartDeliveryModal } from "@/components/orders/start-delivery-modal";
@@ -217,20 +216,11 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
 
               <TabPanel className="outline-none">
                 <PanelCard title="Sipariş Dosyaları">
-                  <div className="space-y-3">
-                    <AttachmentUpload
-                      surface="supplier"
-                      scope="ORDER_INVOICE"
-                      scopeRefId={order.id}
-                    />
-                    <AttachmentList
-                      surface="supplier"
-                      scope="ORDER_INVOICE"
-                      scopeRefId={order.id}
-                      canDelete
-                      emptyText="Henüz dosya yüklenmedi"
-                    />
-                  </div>
+                  <OrderDocuments
+                    surface="supplier"
+                    orderId={order.id}
+                    status={order.status}
+                  />
                 </PanelCard>
               </TabPanel>
             </TabPanels>

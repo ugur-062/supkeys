@@ -323,6 +323,22 @@ export class AttachmentsService {
       }
       return order.tenantId;
     }
+    // G5 madde 19/21 — sipariş belgeleri (proforma/teknik/teslimat) yalnızca
+    // siparişin tedarikçisi tarafından yüklenir/silinir. Alıcı sadece okur.
+    if (
+      scope === "ORDER_PROFORMA" ||
+      scope === "ORDER_TECHNICAL" ||
+      scope === "ORDER_DELIVERY"
+    ) {
+      if (actor.kind !== "supplier") {
+        throw new ForbiddenException(
+          "Bu belgeleri yalnızca tedarikçi yükleyebilir",
+        );
+      }
+      const order = await this.requireOrder(scopeRefId);
+      if (order.supplierId !== actor.supplierId) throw new ForbiddenException();
+      return order.tenantId;
+    }
     if (scope === "MESSAGE_ATTACHMENT") {
       // V2-4 — scopeRefId polymorphic: önce order, sonra tender lookup.
       // Yetki: order için her iki taraf, tender için tenant veya invited supplier.
@@ -377,7 +393,14 @@ export class AttachmentsService {
       if (bid.supplierId !== actor.supplierId) throw new ForbiddenException();
       return;
     }
-    if (scope === "ORDER_INVOICE") {
+    // ORDER_INVOICE ve G5 sipariş belgeleri (proforma/teknik/teslimat) —
+    // okuma izni siparişin her iki tarafına açık.
+    if (
+      scope === "ORDER_INVOICE" ||
+      scope === "ORDER_PROFORMA" ||
+      scope === "ORDER_TECHNICAL" ||
+      scope === "ORDER_DELIVERY"
+    ) {
       const order = await this.prisma.order.findUnique({
         where: { id: scopeRefId },
         select: { tenantId: true, supplierId: true },
