@@ -1,12 +1,11 @@
 "use client";
 
-import { Select } from "@/components/catalyst/select";
 import {
+  FilterSelect,
   PageHeader,
   Pagination,
   ResultCount,
   SearchInput,
-  SortDropdown,
 } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -16,8 +15,8 @@ import {
   useTenders,
 } from "@/hooks/use-tenant-tenders";
 import type { TenderDateRange, TenderStatus } from "@/lib/tenders/types";
-import { cn } from "@/lib/utils";
 import {
+  ArrowUpDown,
   Building2,
   CalendarRange,
   Plus,
@@ -26,7 +25,6 @@ import {
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
-import { TenderStatsCards } from "./stats-cards";
 import { TendersTable } from "./tenders-table";
 
 const SORT_OPTIONS = [
@@ -194,73 +192,70 @@ export function IhalelerView() {
         }
       />
 
-      <TenderStatsCards />
+      {/* Arama + filtreler — kutusuz, pill-tarzı filtreler */}
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <SearchInput
+            value={search}
+            onChange={(v) => updateUrl({ search: v })}
+            placeholder="İhale adı veya numarası ara…"
+            className="flex-1"
+          />
+          <FilterSelect
+            icon={ArrowUpDown}
+            value={sort}
+            onChange={(v) => updateUrl({ sort: v })}
+            options={SORT_OPTIONS}
+            ariaLabel="Sıralama"
+            active={sort !== "createdAt:desc"}
+            className="sm:min-w-[150px]"
+          />
+        </div>
 
-      {/* Toolbar — geniş arama + sıralama üstte, filtreler altta (tedarikçi paneliyle aynı) */}
-      <div className="card p-4">
-        <div className="space-y-3">
-          {/* Üst satır: geniş arama + sıralama */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <SearchInput
-              value={search}
-              onChange={(v) => updateUrl({ search: v })}
-              placeholder="İhale adı veya numarası ara…"
-              className="flex-1"
-            />
-            <SortDropdown
-              value={sort}
-              onChange={(v) => updateUrl({ sort: v })}
-              options={SORT_OPTIONS}
-              className="sm:w-44"
-            />
-          </div>
-
-          {/* Alt satır: filtreler + sonuç sayısı */}
-          <div className="flex flex-wrap items-center gap-2">
-            <IconSelect
-              icon={CalendarRange}
-              value={range}
-              onChange={(v) => updateUrl({ range: v as TenderDateRange })}
-              options={RANGE_OPTIONS.map((o) => ({
-                value: o.value,
-                label: o.label,
-              }))}
-              ariaLabel="Tarih aralığı"
-            />
-            <IconSelect
-              icon={Building2}
-              value={tab}
-              onChange={(v) => updateUrl({ tab: v as TabKey })}
-              options={STATUS_OPTIONS.map((o) => ({
-                value: o.value,
-                label:
-                  o.value === "all"
-                    ? `Tümü (${stats.data?.total ?? "—"})`
-                    : `${o.label}${getCountSuffix(o.value, stats.data)}`,
-              }))}
-              ariaLabel="Durum filtresi"
-            />
-            <IconSelect
-              icon={UserIcon}
-              value={createdById}
-              onChange={(v) => updateUrl({ createdById: v })}
-              options={[
-                { value: "", label: "Tüm Satın Almacılar" },
-                ...(buyers.data ?? []).map((b) => ({
-                  value: b.id,
-                  label: `${b.firstName} ${b.lastName} (${b.tenderCount})`,
-                })),
-              ]}
-              ariaLabel="Satın almacı filtresi"
-              loading={buyers.isLoading}
-            />
-            <ResultCount
-              total={totalCount}
-              isFiltered={isFiltered}
-              unit="ihale"
-              className="ml-auto"
-            />
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterSelect
+            icon={Building2}
+            value={tab}
+            onChange={(v) => updateUrl({ tab: v as TabKey })}
+            options={STATUS_OPTIONS.map((o) => ({
+              value: o.value,
+              label:
+                o.value === "all"
+                  ? `Tümü (${stats.data?.total ?? "—"})`
+                  : `${o.label}${getCountSuffix(o.value, stats.data)}`,
+            }))}
+            ariaLabel="Durum filtresi"
+            active={tab !== "all"}
+          />
+          <FilterSelect
+            icon={CalendarRange}
+            value={range}
+            onChange={(v) => updateUrl({ range: v as TenderDateRange })}
+            options={RANGE_OPTIONS}
+            ariaLabel="Tarih aralığı"
+            active={range !== DEFAULT_RANGE}
+          />
+          <FilterSelect
+            icon={UserIcon}
+            value={createdById}
+            onChange={(v) => updateUrl({ createdById: v })}
+            options={[
+              { value: "", label: "Tüm Satın Almacılar" },
+              ...(buyers.data ?? []).map((b) => ({
+                value: b.id,
+                label: `${b.firstName} ${b.lastName} (${b.tenderCount})`,
+              })),
+            ]}
+            ariaLabel="Satın almacı filtresi"
+            active={!!createdById}
+            disabled={buyers.isLoading}
+          />
+          <ResultCount
+            total={totalCount}
+            isFiltered={isFiltered}
+            unit="ihale"
+            className="ml-auto"
+          />
         </div>
       </div>
 
@@ -306,34 +301,4 @@ function getCountSuffix(
   return count != null ? ` (${count})` : "";
 }
 
-function IconSelect({
-  value,
-  onChange,
-  options,
-  ariaLabel,
-  loading,
-}: {
-  icon?: typeof CalendarRange;
-  value: string;
-  onChange: (v: string) => void;
-  options: Array<{ value: string; label: string }>;
-  ariaLabel: string;
-  loading?: boolean;
-}) {
-  return (
-    <Select
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      aria-label={ariaLabel}
-      disabled={loading}
-      className="w-full md:w-auto md:min-w-[160px]"
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </Select>
-  );
-}
 

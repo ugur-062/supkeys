@@ -1,8 +1,12 @@
 "use client";
 
 import { Input, InputGroup } from "@/components/catalyst/input";
-import { Select } from "@/components/catalyst/select";
-import { EmptyState, PageHeader, Pagination } from "@/components/list";
+import {
+  EmptyState,
+  FilterSelect,
+  PageHeader,
+  Pagination,
+} from "@/components/list";
 import {
   CounterpartDropdown,
   RangeDropdown,
@@ -13,13 +17,29 @@ import {
   useSupplierOrderStats,
   useSupplierOrders,
 } from "@/hooks/use-supplier-orders";
-import type { OrderDateRange, OrderStatus } from "@/lib/tenders/types";
-import { cn } from "@/lib/utils";
+import type {
+  OrderDateRange,
+  OrderStats,
+  OrderStatus,
+} from "@/lib/tenders/types";
+
+const STATUS_COUNT_KEY: Record<string, keyof OrderStats> = {
+  all: "total",
+  PENDING: "pending",
+  ACCEPTED: "accepted",
+  IN_DELIVERY: "inDelivery",
+  DELIVERED: "delivered",
+  COMPLETED: "completed",
+  REJECTED: "rejected",
+  CANCELLED: "cancelled",
+};
 import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
 import {
+  ArrowUpDown,
   CheckCircle2,
   Clock,
   Inbox,
+  ListFilter,
   Package,
   ThumbsUp,
   Truck,
@@ -173,102 +193,61 @@ export function SupplierOrdersListView() {
         description="Kazandığınız ihalelerden oluşan siparişler."
       />
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <MiniKpi
-          label="Toplam"
-          value={stats.data?.total ?? 0}
-          icon={Package}
-          accent="bg-slate-100 text-slate-600"
-          loading={stats.isLoading}
-        />
-        <MiniKpi
-          label="Onay Bekliyor"
-          value={stats.data?.pending ?? 0}
-          icon={Clock}
-          accent="bg-amber-50 text-amber-600"
-          loading={stats.isLoading}
-        />
-        <MiniKpi
-          label="Onaylandı"
-          value={stats.data?.accepted ?? 0}
-          icon={ThumbsUp}
-          accent="bg-zinc-50 text-zinc-600"
-          loading={stats.isLoading}
-        />
-        <MiniKpi
-          label="Gönderildi"
-          value={stats.data?.inDelivery ?? 0}
-          icon={Truck}
-          accent="bg-zinc-50 text-zinc-600"
-          loading={stats.isLoading}
-        />
-        <MiniKpi
-          label="Tamamlanan"
-          value={stats.data?.completed ?? 0}
-          icon={CheckCircle2}
-          accent="bg-emerald-50 text-emerald-600"
-          loading={stats.isLoading}
-        />
-      </div>
-
-      {/* Toolbar — geniş arama üstte, filtreler altta */}
-      <PanelCard padding="sm">
-        <div className="space-y-3">
-          {/* Üst satır: geniş arama + sıralama */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex-1">
-              <InputGroup>
-                <MagnifyingGlassIcon data-slot="icon" />
-                <Input
-                  value={search}
-                  onChange={(e) => updateUrl({ search: e.target.value })}
-                  placeholder="Sipariş ara..."
-                />
-              </InputGroup>
-            </div>
-            <Select
-              value={sort}
-              onChange={(e) => updateUrl({ sort: e.target.value })}
-              aria-label="Sıralama"
-              className="sm:w-44"
-            >
-              {SORT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </Select>
+      {/* Arama + filtreler — kutusuz, pill-tarzı */}
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex-1">
+            <InputGroup>
+              <MagnifyingGlassIcon data-slot="icon" />
+              <Input
+                value={search}
+                onChange={(e) => updateUrl({ search: e.target.value })}
+                placeholder="Sipariş ara..."
+              />
+            </InputGroup>
           </div>
+          <FilterSelect
+            icon={ArrowUpDown}
+            value={sort}
+            onChange={(v) => updateUrl({ sort: v })}
+            options={SORT_OPTIONS}
+            ariaLabel="Sıralama"
+            active={sort !== "createdAt:desc"}
+            className="sm:min-w-[150px]"
+          />
+        </div>
 
-          {/* Alt satır: filtreler + sonuç sayısı */}
-          <div className="flex flex-wrap items-center gap-2">
-            <Select
-              value={statusKey}
-              onChange={(e) => updateUrl({ status: e.target.value })}
-              aria-label="Sipariş durumu filtresi"
-              className="w-full sm:w-auto sm:min-w-[160px]"
-            >
-              {STATUS_FILTERS.map((f) => (
-                <option key={f.key} value={f.key}>
-                  {f.label}
-                </option>
-              ))}
-            </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterSelect
+            icon={ListFilter}
+            value={statusKey}
+            onChange={(v) => updateUrl({ status: v })}
+            ariaLabel="Sipariş durumu filtresi"
+            active={statusKey !== "all"}
+            options={STATUS_FILTERS.map((f) => ({
+              value: f.key,
+              label: `${f.label}${
+                stats.data
+                  ? ` (${stats.data[STATUS_COUNT_KEY[f.key] ?? "total"]})`
+                  : ""
+              }`,
+            }))}
+          />
 
-            <RangeDropdown
-              value={range}
-              onChange={(v) => updateUrl({ range: v })}
-            />
+          <RangeDropdown
+            value={range}
+            onChange={(v) => updateUrl({ range: v })}
+          />
 
-            <CounterpartDropdown
-              value={tenantIdFilter}
-              onChange={(v) => updateUrl({ tenantId: v })}
-              options={counterparts.data ?? []}
-              loading={counterparts.isLoading}
-              placeholder="Tüm Müşteriler"
-            />
+          <CounterpartDropdown
+            value={tenantIdFilter}
+            onChange={(v) => updateUrl({ tenantId: v })}
+            options={counterparts.data ?? []}
+            loading={counterparts.isLoading}
+            placeholder="Tüm Müşteriler"
+          />
 
-            <p className="ml-auto whitespace-nowrap text-xs text-zinc-500">
+          <p className="ml-auto whitespace-nowrap text-xs text-zinc-500">
               {list.isLoading
                 ? "Yükleniyor…"
                 : `${totalCount.toLocaleString("tr-TR")} sipariş${
@@ -281,8 +260,7 @@ export function SupplierOrdersListView() {
                   }`}
             </p>
           </div>
-        </div>
-      </PanelCard>
+      </div>
 
       {/* Sipariş grid */}
       {list.isError ? (
@@ -331,41 +309,6 @@ export function SupplierOrdersListView() {
           ) : null}
         </>
       )}
-    </div>
-  );
-}
-
-function MiniKpi({
-  label,
-  value,
-  icon: Icon,
-  accent,
-  loading,
-}: {
-  label: string;
-  value: number;
-  icon: typeof Package;
-  accent: string;
-  loading: boolean;
-}) {
-  return (
-    <div className="bg-white ring-1 ring-zinc-950/5 rounded-xl shadow-sm p-3 flex items-center gap-3">
-      <div
-        className={cn(
-          "h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0",
-          accent,
-        )}
-      >
-        <Icon className="h-4 w-4" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-[10px] text-slate-500 uppercase tracking-wide font-semibold">
-          {label}
-        </p>
-        <p className="text-xl font-bold text-zinc-900 tabular-nums leading-tight">
-          {loading ? "…" : value}
-        </p>
-      </div>
     </div>
   );
 }

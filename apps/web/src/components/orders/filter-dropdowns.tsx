@@ -1,7 +1,8 @@
 "use client";
 
-import { Select } from "@/components/catalyst/select";
+import { FilterSelect } from "@/components/list";
 import type { OrderCounterpart, OrderDateRange } from "@/lib/tenders/types";
+import { Building2, CalendarRange } from "lucide-react";
 
 const RANGE_OPTIONS: Array<{ value: OrderDateRange; label: string }> = [
   { value: "all", label: "Tüm Zamanlar" },
@@ -20,18 +21,14 @@ export function RangeDropdown({
   onChange: (v: string) => void;
 }) {
   return (
-    <Select
+    <FilterSelect
+      icon={CalendarRange}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      aria-label="Tarih aralığı"
-      className="w-full md:w-auto md:min-w-[170px]"
-    >
-      {RANGE_OPTIONS.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </Select>
+      onChange={onChange}
+      options={RANGE_OPTIONS}
+      ariaLabel="Tarih aralığı"
+      active={value !== "all"}
+    />
   );
 }
 
@@ -52,19 +49,20 @@ export function CounterpartDropdown({
   placeholder,
 }: CounterpartProps) {
   return (
-    <Select
+    <FilterSelect
+      icon={Building2}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      aria-label={placeholder}
+      onChange={onChange}
+      ariaLabel={placeholder}
       disabled={loading}
-      className="w-full md:w-auto md:min-w-[200px]"
-    >
-      <option value="">{placeholder}</option>
-      {options.map((o) => (
-        <option key={o.id} value={o.id}>
-          {o.label} ({o.orderCount})
-        </option>
-      ))}
-    </Select>
+      active={value !== ""}
+      options={[
+        { value: "", label: placeholder },
+        ...options.map((o) => ({
+          value: o.id,
+          label: `${o.label} (${o.orderCount})`,
+        })),
+      ]}
+    />
   );
 }

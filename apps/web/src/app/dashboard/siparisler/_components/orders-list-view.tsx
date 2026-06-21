@@ -1,14 +1,13 @@
 "use client";
 
-import { Select } from "@/components/catalyst/select";
 import {
   EmptyState as EmptyStateComponent,
+  FilterSelect,
   ListSkeleton,
   PageHeader,
   Pagination,
   ResultCount,
   SearchInput,
-  SortDropdown,
 } from "@/components/list";
 import {
   CounterpartDropdown,
@@ -23,14 +22,24 @@ import {
   useOrderStats,
 } from "@/hooks/use-tenant-orders";
 import { ORDER_STATUS_META } from "@/lib/orders/status";
-import type { OrderDateRange, OrderStatus } from "@/lib/tenders/types";
+import type {
+  OrderDateRange,
+  OrderStats,
+  OrderStatus,
+} from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { AlertCircle, Building2, Package, Plus } from "lucide-react";
+import {
+  AlertCircle,
+  ArrowUpDown,
+  Building2,
+  ListFilter,
+  Package,
+  Plus,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo } from "react";
 
 const TABS: Array<{ key: string; label: string; status?: OrderStatus }> = [
   { key: "all", label: "Tümü" },
@@ -51,26 +60,40 @@ const SORT_OPTIONS = [
 ];
 
 
+const STATUS_COUNT_KEY: Record<string, keyof OrderStats> = {
+  all: "total",
+  pending: "pending",
+  accepted: "accepted",
+  in_delivery: "inDelivery",
+  delivered: "delivered",
+  completed: "completed",
+  rejected: "rejected",
+  cancelled: "cancelled",
+};
+
 function StatusDropdown({
   value,
   onChange,
+  stats,
 }: {
   value: string;
   onChange: (value: string) => void;
+  stats: OrderStats | undefined;
 }) {
   return (
-    <Select
+    <FilterSelect
+      icon={ListFilter}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
-      aria-label="Sipariş durumu filtresi"
-      className="w-full md:w-auto md:min-w-[180px]"
-    >
-      {TABS.map((t) => (
-        <option key={t.key} value={t.key}>
-          {t.label}
-        </option>
-      ))}
-    </Select>
+      onChange={onChange}
+      ariaLabel="Sipariş durumu filtresi"
+      active={value !== "all"}
+      options={TABS.map((t) => ({
+        value: t.key,
+        label: `${t.label}${
+          stats ? ` (${stats[STATUS_COUNT_KEY[t.key] ?? "total"]})` : ""
+        }`,
+      }))}
+    />
   );
 }
 
@@ -154,31 +177,6 @@ export function OrdersListView() {
     router.replace(`/dashboard/siparisler?${url.toString()}`);
   };
 
-  const kpi = useMemo(() => {
-    const s = stats.data;
-    if (!s) return null;
-    return [
-      { label: "Toplam", value: s.total, color: "text-brand-900" },
-      { label: "Onay Bekliyor", value: s.pending, color: "text-warning-700" },
-      { label: "Onaylandı", value: s.accepted ?? 0, color: "text-brand-700" },
-      {
-        label: "Gönderildi",
-        value: s.inDelivery ?? 0,
-        color: "text-zinc-700",
-      },
-      {
-        label: "Ödeme Bekliyor",
-        value: s.delivered ?? 0,
-        color: "text-amber-700",
-      },
-      {
-        label: "Tamamlandı",
-        value: s.completed,
-        color: "text-success-700",
-      },
-    ];
-  }, [stats.data]);
-
   return (
     <div className="space-y-6">
       <PageHeader
@@ -186,61 +184,43 @@ export function OrdersListView() {
         description="İhalelerinizden çıkan siparişler buradan takip edilir."
       />
 
-      {/* KPI cards */}
-      {kpi ? (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {kpi.map((it) => (
-            <div
-              key={it.label}
-              className="bg-white ring-1 ring-zinc-950/5 shadow-sm rounded-xl p-4"
-            >
-              <p className="text-[11px] text-zinc-500 uppercase font-semibold tracking-wide">
-                {it.label}
-              </p>
-              <p className={cn("text-2xl font-bold mt-1", it.color)}>
-                {it.value}
-              </p>
-            </div>
-          ))}
+      {/* Arama + filtreler — kutusuz, pill-tarzı */}
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <SearchInput
+            value={searchUrl}
+            onChange={setSearch}
+            placeholder="Sipariş no, ihale veya tedarikçi…"
+            className="flex-1"
+          />
+          <FilterSelect
+            icon={ArrowUpDown}
+            value={sortUrl}
+            onChange={setSort}
+            options={SORT_OPTIONS}
+            ariaLabel="Sıralama"
+            active={sortUrl !== "createdAt:desc"}
+            className="sm:min-w-[180px]"
+          />
         </div>
-      ) : null}
-
-      {/* Toolbar — geniş arama + sıralama üstte, filtreler altta (tedarikçi paneliyle aynı) */}
-      <div className="card p-4">
-        <div className="space-y-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <SearchInput
-              value={searchUrl}
-              onChange={setSearch}
-              placeholder="Sipariş no, ihale veya tedarikçi…"
-              className="flex-1"
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusDropdown value={tab} onChange={setTab} stats={stats.data} />
+          <RangeDropdown value={rangeUrl} onChange={setRange} />
+          <CounterpartDropdown
+            value={supplierIdUrl}
+            onChange={setSupplierId}
+            options={counterparts.data ?? []}
+            loading={counterparts.isLoading}
+            placeholder="Tüm Tedarikçiler"
+          />
+          {list.data ? (
+            <ResultCount
+              total={list.data.pagination.total}
+              isFiltered={isFiltered}
+              unit="sipariş"
+              className="ml-auto"
             />
-            <SortDropdown
-              value={sortUrl}
-              onChange={setSort}
-              options={SORT_OPTIONS}
-              className="w-full sm:w-48"
-            />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusDropdown value={tab} onChange={setTab} />
-            <RangeDropdown value={rangeUrl} onChange={setRange} />
-            <CounterpartDropdown
-              value={supplierIdUrl}
-              onChange={setSupplierId}
-              options={counterparts.data ?? []}
-              loading={counterparts.isLoading}
-              placeholder="Tüm Tedarikçiler"
-            />
-            {list.data ? (
-              <ResultCount
-                total={list.data.pagination.total}
-                isFiltered={isFiltered}
-                unit="sipariş"
-                className="ml-auto"
-              />
-            ) : null}
-          </div>
+          ) : null}
         </div>
       </div>
 
