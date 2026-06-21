@@ -12,6 +12,7 @@ import {
   CurrentSupplierUser,
 } from "../../supplier-auth/decorators/current-supplier-user.decorator";
 import { SupplierJwtAuthGuard } from "../../supplier-auth/guards/supplier-jwt-auth.guard";
+import { SupplierManagerGuard } from "../../supplier-auth/guards/supplier-manager.guard";
 import { InviteTeamMemberDto } from "../dto/invite-team-member.dto";
 import { SupplierTeamService } from "../services/supplier-team.service";
 
@@ -31,6 +32,7 @@ export class SupplierTeamController {
   }
 
   @Post("invite")
+  @UseGuards(SupplierManagerGuard)
   invite(
     @CurrentSupplierUser() user: AuthenticatedSupplierUser,
     @Body() dto: InviteTeamMemberDto,
@@ -39,6 +41,7 @@ export class SupplierTeamController {
   }
 
   @Post("invitations/:id/resend")
+  @UseGuards(SupplierManagerGuard)
   resend(
     @CurrentSupplierUser() user: AuthenticatedSupplierUser,
     @Param("id") id: string,
@@ -47,6 +50,7 @@ export class SupplierTeamController {
   }
 
   @Delete("invitations/:id")
+  @UseGuards(SupplierManagerGuard)
   revoke(
     @CurrentSupplierUser() user: AuthenticatedSupplierUser,
     @Param("id") id: string,
@@ -55,6 +59,7 @@ export class SupplierTeamController {
   }
 
   @Delete(":id")
+  @UseGuards(SupplierManagerGuard)
   removeMember(
     @CurrentSupplierUser() user: AuthenticatedSupplierUser,
     @Param("id") id: string,

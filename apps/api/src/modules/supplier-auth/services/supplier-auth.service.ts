@@ -104,6 +104,7 @@ export class SupplierAuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         phone: user.phone,
+        isManager: user.isManager,
         lastLoginAt: new Date(),
       },
       supplier: this.serializeSupplier(user.supplier),
@@ -161,6 +162,8 @@ export class SupplierAuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         phone: user.phone,
+        // G6 madde 20 — yönetici mi (UI gate: banka + kullanıcı yönetimi)
+        isManager: user.isManager,
         lastLoginAt: user.lastLoginAt,
       },
       supplier: this.serializeSupplier(user.supplier),
