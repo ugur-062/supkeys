@@ -7,7 +7,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "crypto";
 import type { Prisma } from "@supkeys/db";
-import { generateSlug, uniqueSlug } from "@supkeys/shared";
+import { generateShortCode, generateSlug, uniqueSlug } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailService } from "../../email/email.service";
 import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
@@ -175,6 +175,7 @@ export class AdminBuyerApplicationsService {
           data: {
             name: app.companyName,
             slug,
+            supkeysId: generateShortCode(),
             industry: app.industry,
             city: app.city,
             district: app.district,

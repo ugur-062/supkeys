@@ -632,6 +632,41 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
               </div>
             </FormRadioGroup>
           </Field>
+
+          {/* Açık İhale — görünürlük */}
+          <Field
+            hint="Herkese açık ihaleye premium tedarikçiler davet beklemeden teklif verebilir; davetli ihale yalnızca davet ettiklerinize gider."
+          >
+            <Label>İhale Görünürlüğü</Label>
+            <FormRadioGroup
+              name="visibility"
+              className="grid grid-cols-1 md:grid-cols-2 gap-3"
+            >
+              <div className="flex items-start gap-3 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
+                <Radio value="PRIVATE" className="mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900">
+                    Davetli (Kapalı)
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    Sadece davet ettiğiniz tedarikçiler görür ve teklif verir.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
+                <Radio value="PUBLIC" className="mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900">
+                    Herkese Açık
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    Davetlilere ek olarak premium tedarikçiler de teklif
+                    verebilir. (Kapalı zarf gizliliği korunur.)
+                  </p>
+                </div>
+              </div>
+            </FormRadioGroup>
+          </Field>
         </div>
       </section>
 

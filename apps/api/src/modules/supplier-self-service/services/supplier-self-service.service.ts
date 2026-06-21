@@ -147,6 +147,149 @@ export class SupplierSelfServiceService {
     };
   }
 
+  // ---------- Faz 3 madde 6 — Supkeys ID + Alıcı Havuzu ----------
+
+  /** Standart tedarikçinin bağlanabileceği en fazla alıcı sayısı. */
+  private static readonly STANDARD_CONNECTION_LIMIT = 2;
+
+  /** Supplier → alıcıya bağlantı isteği (tedarikçi havuzu / Supkeys ID). */
+  async requestConnectToBuyer(
+    supplierId: string,
+    supplierUserId: string,
+    tenantId: string,
+  ) {
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { id: true, name: true, isActive: true },
+    });
+    if (!tenant || !tenant.isActive) {
+      throw new NotFoundException("Alıcı bulunamadı");
+    }
+
+    const existing = await this.prisma.supplierTenantRelation.findUnique({
+      where: { supplierId_tenantId: { supplierId, tenantId } },
+      select: { status: true },
+    });
+    if (existing) {
+      if (existing.status === "ACTIVE")
+        throw new ConflictException("Bu alıcıyla zaten bağlısınız");
+      if (existing.status === "PENDING_TENANT_APPROVAL")
+        throw new ConflictException("Bu alıcının onayı zaten bekleniyor");
+      if (existing.status === "BLOCKED")
+        throw new ConflictException("Bu alıcı tarafından engellenmişsiniz");
+    }
+
+    // Standart üyelik — en fazla 2 aktif/bekleyen bağlantı. Premium sınırsız
+    // (premium ayrıca açık ihalelere zaten davetsiz teklif verebilir).
+    const supplier = await this.prisma.supplier.findUnique({
+      where: { id: supplierId },
+      select: { membership: true },
+    });
+    if (supplier?.membership !== "PREMIUM") {
+      const count = await this.prisma.supplierTenantRelation.count({
+        where: {
+          supplierId,
+          status: { in: ["ACTIVE", "PENDING_TENANT_APPROVAL"] },
+        },
+      });
+      if (count >= SupplierSelfServiceService.STANDARD_CONNECTION_LIMIT) {
+        throw new ForbiddenException(
+          `Standart üyelikte en fazla ${SupplierSelfServiceService.STANDARD_CONNECTION_LIMIT} alıcıyla bağlanabilirsiniz. Sınırsız bağlantı ve tüm açık ihalelere teklif için premium'a geçin.`,
+        );
+      }
+    }
+
+    const relation = await this.prisma.supplierTenantRelation.create({
+      data: {
+        supplierId,
+        tenantId,
+        status: "PENDING_TENANT_APPROVAL",
+        origin: "CONNECT_REQUEST",
+        requestedAt: new Date(),
+      },
+    });
+
+    return {
+      relationId: relation.id,
+      tenantName: tenant.name,
+      status: "PENDING_TENANT_APPROVAL" as const,
+      message: `${tenant.name} firmasına bağlantı isteği gönderildi; onayladığında bağlantınız kurulacak.`,
+    };
+  }
+
+  /** Supplier → Supkeys ID ile alıcı bul + bağlantı isteği. */
+  async connectToBuyerBySupkeysId(
+    supplierId: string,
+    supplierUserId: string,
+    supkeysIdInput: string,
+  ) {
+    const code = normalizeShortCode(
+      supkeysIdInput.trim().replace(/^SK-?/i, ""),
+    );
+    if (!validateShortCode(code)) {
+      throw new BadRequestException("Geçersiz Supkeys ID formatı");
+    }
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { supkeysId: code },
+      select: { id: true },
+    });
+    if (!tenant) {
+      throw new NotFoundException("Bu Supkeys ID ile bir alıcı bulunamadı");
+    }
+    return this.requestConnectToBuyer(supplierId, supplierUserId, tenant.id);
+  }
+
+  /** Alıcı havuzu — tüm tedarikçiler arar/listeler (ad + Supkeys ID). */
+  async getBuyerPool(supplierId: string, search?: string) {
+    const term = search?.trim();
+    // Supkeys ID araması: "SK-XXXX-XXXX" → "XXXX-XXXX" normalize.
+    const idTerm = term
+      ? normalizeShortCode(term.replace(/^SK-?/i, ""))
+      : "";
+    const where: Prisma.TenantWhereInput = {
+      isActive: true,
+      ...(term
+        ? {
+            OR: [
+              { name: { contains: term, mode: "insensitive" } },
+              { city: { contains: term, mode: "insensitive" } },
+              { industry: { contains: term, mode: "insensitive" } },
+              { supkeysId: { equals: idTerm } },
+            ],
+          }
+        : {}),
+    };
+
+    const tenants = await this.prisma.tenant.findMany({
+      where,
+      orderBy: { name: "asc" },
+      take: 100,
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        supkeysId: true,
+        publicEnabled: true,
+        city: true,
+        district: true,
+        industry: true,
+        logoUrl: true,
+        services: true,
+      },
+    });
+
+    const relations = await this.prisma.supplierTenantRelation.findMany({
+      where: { supplierId, tenantId: { in: tenants.map((t) => t.id) } },
+      select: { tenantId: true, status: true },
+    });
+    const relMap = new Map(relations.map((r) => [r.tenantId, r.status]));
+
+    return tenants.map((t) => ({
+      ...t,
+      relationStatus: relMap.get(t.id) ?? null,
+    }));
+  }
+
   // ---------- helpers ----------
 
   /**

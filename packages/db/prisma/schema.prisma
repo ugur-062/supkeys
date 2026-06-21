@@ -23,6 +23,11 @@ model Tenant {
   slug     String  @unique
   isActive Boolean @default(true)
 
+  // Faz 3 madde 6 — kalıcı "Supkeys ID" (Crockford Base32, ör. K7X9-3M2P).
+  // Tedarikçiler bu ID ile alıcıyı bulup bağlantı isteği gönderebilir.
+  // Legacy satırlarda NULL olabilir; backfill + creation'da set edilir.
+  supkeysId String? @unique
+
   // Firma profili (registration sırasında dolar)
   industry    String?
   city        String?
@@ -582,6 +587,9 @@ enum CompanyType {
 
 model Supplier {
   id                String             @id @default(cuid())
+  // Faz 3 madde 6 — kalıcı "Supkeys ID"; alıcılar bu ID ile tedarikçiyi
+  // bulup bağlantı kurabilir. Legacy NULL olabilir; backfill + creation'da set.
+  supkeysId         String?            @unique
   companyName       String
   companyType       CompanyType
   taxNumber         String             @unique
@@ -898,6 +906,11 @@ enum TenderType {
   ENGLISH_AUCTION // İngiliz usulü açık eksiltme (V2)
 }
 
+enum TenderVisibility {
+  PRIVATE // Sadece davetli tedarikçiler görür/teklif verir (mevcut model)
+  PUBLIC // Herkese açık — premium tedarikçiler davet olmadan teklif verebilir
+}
+
 enum TenderStatus {
   DRAFT // Taslak (henüz yayınlanmadı)
   IN_APPROVAL // E.7.D — yayın için onay bekliyor
@@ -1020,6 +1033,9 @@ model Tender {
 
   tenderNumber String       @unique
   type         TenderType   @default(RFQ)
+  // Faz: Açık İhale — PRIVATE = sadece davetli tedarikçiler; PUBLIC = herkese
+  // açık, premium tedarikçiler davet olmadan teklif verebilir.
+  visibility   TenderVisibility @default(PRIVATE)
   status       TenderStatus @default(DRAFT)
 
   title              String

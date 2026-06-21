@@ -24,6 +24,12 @@ export enum TenderTypeDto {
   ENGLISH_AUCTION = "ENGLISH_AUCTION",
 }
 
+// Açık İhale — görünürlük.
+export enum TenderVisibilityDto {
+  PRIVATE = "PRIVATE",
+  PUBLIC = "PUBLIC",
+}
+
 export enum CurrencyDto {
   TRY = "TRY",
   USD = "USD",
@@ -197,6 +203,11 @@ export class CreateTenderDto {
 
   @IsEnum(TenderTypeDto)
   type!: TenderTypeDto;
+
+  // Açık İhale — görünürlük (varsayılan PRIVATE = davetli).
+  @IsOptional()
+  @IsEnum(TenderVisibilityDto)
+  visibility?: TenderVisibilityDto;
 
   // ---------- Lojistik İhalesi ----------
   // type=RFQ üstüne yapılandırılmış lojistik katmanı. isLogistics=true ise

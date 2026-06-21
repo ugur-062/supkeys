@@ -22,6 +22,25 @@ const KEYS = {
   stats: () => [...KEYS.all, "stats"] as const,
 };
 
+/** Faz 3 madde 6 — alıcı, Supkeys ID ile tedarikçi ekler (direkt ACTIVE). */
+export function useConnectSupplierBySupkeysId() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (supkeysId: string) => {
+      const { data } = await api.post<{
+        relationId: string;
+        supplierName: string;
+        status: string;
+        message: string;
+      }>("/tenants/me/suppliers/connect-by-supkeys-id", { supkeysId });
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all });
+    },
+  });
+}
+
 function buildParams(params: ListSuppliersParams) {
   const p: Record<string, string | number> = {};
   if (params.status) p.status = params.status;

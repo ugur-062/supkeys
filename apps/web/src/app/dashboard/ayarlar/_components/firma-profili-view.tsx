@@ -1,11 +1,46 @@
 "use client";
 
+import { useTenantPublicProfile } from "@/hooks/use-tenant-public-profile";
 import { useTenantUserMe } from "@/hooks/use-tenant-users";
 import { cn } from "@/lib/utils";
-import { ChevronDown, FileText, Loader2 } from "lucide-react";
+import { ChevronDown, Copy, FileText, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { BackToSettings } from "./back-to-settings";
 import { TenantPublicProfileCard } from "./tenant-public-profile-card";
+
+function SupkeysIdRow() {
+  const { data } = useTenantPublicProfile();
+  const display = data?.supkeysId ? `SK-${data.supkeysId}` : "—";
+  const copy = () => {
+    if (!data?.supkeysId) return;
+    navigator.clipboard
+      .writeText(display)
+      .then(() => toast.success("Supkeys ID kopyalandı"))
+      .catch(() => toast.error("Kopyalanamadı"));
+  };
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-zinc-950/5 bg-white p-4 text-sm">
+      <span className="font-semibold text-zinc-900">Supkeys ID'niz:</span>
+      <code className="rounded-md bg-zinc-100 px-2 py-0.5 font-mono font-semibold text-zinc-900">
+        {display}
+      </code>
+      {data?.supkeysId ? (
+        <button
+          type="button"
+          onClick={copy}
+          className="inline-flex items-center gap-1 text-xs font-semibold text-zinc-600 hover:text-zinc-900"
+        >
+          <Copy className="h-3.5 w-3.5" />
+          Kopyala
+        </button>
+      ) : null}
+      <span className="text-xs text-slate-400">
+        — tedarikçiler bu ID ile sizi ekleyebilir.
+      </span>
+    </div>
+  );
+}
 
 export function FirmaProfiliView() {
   const meQuery = useTenantUserMe();
@@ -28,6 +63,9 @@ export function FirmaProfiliView() {
       <h1 className="mt-4 text-2xl font-semibold text-brand-900">
         Firma Profili
       </h1>
+
+      {/* Faz 3 madde 6 — kalıcı Supkeys ID */}
+      <SupkeysIdRow />
 
       {/* Herkese açık profil editörü */}
       <div className="mt-6">

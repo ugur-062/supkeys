@@ -39,6 +39,65 @@ export class SupplierTendersService {
   ) {}
 
   // ============================================================
+  // Açık İhale — premium erişim yardımcıları
+  // ============================================================
+
+  private async isSupplierPremium(supplierId: string): Promise<boolean> {
+    const s = await this.prisma.supplier.findUnique({
+      where: { id: supplierId },
+      select: { membership: true },
+    });
+    return s?.membership === "PREMIUM";
+  }
+
+  /**
+   * PUBLIC ihalede premium tedarikçi, davet olmadan görüntüleyebilir.
+   * (Salt-okuma erişimi; teklif için ensureBidParticipation kullanılır.)
+   */
+  private async canViewWithoutInvitation(
+    supplierId: string,
+    tender: { visibility: string },
+  ): Promise<boolean> {
+    return (
+      tender.visibility === "PUBLIC" && (await this.isSupplierPremium(supplierId))
+    );
+  }
+
+  /**
+   * Teklif yazma erişimi: davet varsa OK; yoksa PUBLIC + OPEN_FOR_BIDS +
+   * premium ise daveti otomatik oluşturup katılımı kaydeder; aksi halde 403.
+   */
+  private async ensureBidParticipation(
+    tx: Prisma.TransactionClient,
+    supplierId: string,
+    tender: { id: string; visibility: string; status: string },
+  ): Promise<void> {
+    const invitation = await tx.tenderInvitation.findUnique({
+      where: { tenderId_supplierId: { tenderId: tender.id, supplierId } },
+      select: { id: true },
+    });
+    if (invitation) return;
+
+    const allowed =
+      tender.visibility === "PUBLIC" &&
+      tender.status === "OPEN_FOR_BIDS" &&
+      (await this.isSupplierPremium(supplierId));
+    if (!allowed) {
+      throw new ForbiddenException("Bu ihaleye davetli değilsiniz");
+    }
+
+    // Açık ihaleye premium katılımı — davet kaydı otomatik oluşur.
+    await tx.tenderInvitation.create({
+      data: {
+        tenderId: tender.id,
+        supplierId,
+        status: "ACCEPTED",
+        respondedAt: new Date(),
+      },
+    });
+  }
+
+  // ============================================================
   // FILTER OPTIONS (toolbar dropdown'ları için)
   // ============================================================
 
@@ -99,10 +158,24 @@ export class SupplierTendersService {
     else if (filter === SupplierTenderFilter.PAST) statuses = PAST_STATUSES;
     else statuses = VISIBLE_STATUSES;
 
+    // Açık İhale — premium tedarikçi davetlilere ek olarak açık (PUBLIC) +
+    // teklife açık ihaleleri de görür. Standart: yalnızca davetli.
+    const supplier = await this.prisma.supplier.findUnique({
+      where: { id: supplierId },
+      select: { membership: true },
+    });
+    const isPremium = supplier?.membership === "PREMIUM";
+
     const where: Prisma.TenderWhereInput = {
       status: { in: statuses },
-      // Sadece bu tedarikçinin TenderInvitation'a sahip olduğu kayıtlar
-      invitations: { some: { supplierId } },
+      ...(isPremium
+        ? {
+            OR: [
+              { invitations: { some: { supplierId } } },
+              { visibility: "PUBLIC", status: "OPEN_FOR_BIDS" },
+            ],
+          }
+        : { invitations: { some: { supplierId } } }),
     };
     if (query.search) {
       const term = query.search.trim();
@@ -149,6 +222,7 @@ export class SupplierTendersService {
           tenderNumber: true,
           title: true,
           type: true,
+          visibility: true,
           isLogistics: true,
           status: true,
           primaryCurrency: true,
@@ -297,9 +371,12 @@ export class SupplierTendersService {
       where: { tenderId_supplierId: { tenderId: tender.id, supplierId } },
       select: { status: true, invitedAt: true },
     });
-    if (!invitation) {
+    if (
+      !invitation &&
+      !(await this.canViewWithoutInvitation(supplierId, tender))
+    ) {
       // Davet edilmediyse 404 — varlığını sızdırmamak adına Forbidden yerine
-      // NotFound dönüyoruz
+      // NotFound dönüyoruz. (PUBLIC ihaleyi premium tedarikçi davetsiz görebilir.)
       throw new NotFoundException("İhale bulunamadı");
     }
 
@@ -401,6 +478,7 @@ export class SupplierTendersService {
       id: tender.id,
       tenderNumber: tender.tenderNumber,
       type: tender.type,
+      visibility: tender.visibility,
       isLogistics: tender.isLogistics,
       // Lojistik İhalesi — tedarikçi rota/kargo bilgisini görür (açıklayıcı, sealed-bid bozulmaz).
       logisticsDetails: tender.logisticsDetails,
@@ -562,16 +640,19 @@ export class SupplierTendersService {
   async getMyBid(supplierId: string, tenderId: string) {
     const tender = await this.prisma.tender.findFirst({
       where: { id: tenderId, status: { in: VISIBLE_STATUSES } },
-      select: { id: true },
+      select: { id: true, visibility: true },
     });
     if (!tender) throw new NotFoundException("İhale bulunamadı");
 
-    // Davet kontrolü — davetli değilse erişim yok
+    // Davet kontrolü — davetli değilse erişim yok (PUBLIC'te premium serbest).
     const invitation = await this.prisma.tenderInvitation.findUnique({
       where: { tenderId_supplierId: { tenderId, supplierId } },
       select: { id: true },
     });
-    if (!invitation) {
+    if (
+      !invitation &&
+      !(await this.canViewWithoutInvitation(supplierId, tender))
+    ) {
       throw new ForbiddenException("Bu ihaleye davetli değilsiniz");
     }
 
@@ -622,14 +703,9 @@ export class SupplierTendersService {
       });
       if (!tender) throw new NotFoundException("İhale bulunamadı");
 
-      // Davet kontrolü
-      const invitation = await tx.tenderInvitation.findUnique({
-        where: { tenderId_supplierId: { tenderId, supplierId } },
-        select: { id: true },
-      });
-      if (!invitation) {
-        throw new ForbiddenException("Bu ihaleye davetli değilsiniz");
-      }
+      // Davet kontrolü — PUBLIC ihalede premium tedarikçi davetsiz katılır
+      // (davet kaydı burada otomatik oluşur).
+      await this.ensureBidParticipation(tx, supplierId, tender);
 
       // Status + kapanış kontrolü
       if (tender.status !== "OPEN_FOR_BIDS") {
@@ -900,13 +976,7 @@ export class SupplierTendersService {
       });
       if (!tender) throw new NotFoundException("İhale bulunamadı");
 
-      const invitation = await tx.tenderInvitation.findUnique({
-        where: { tenderId_supplierId: { tenderId, supplierId } },
-        select: { id: true },
-      });
-      if (!invitation) {
-        throw new ForbiddenException("Bu ihaleye davetli değilsiniz");
-      }
+      await this.ensureBidParticipation(tx, supplierId, tender);
 
       if (tender.status !== "OPEN_FOR_BIDS") {
         throw new ConflictException("Bu ihale teklife açık değil");

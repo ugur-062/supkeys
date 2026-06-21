@@ -7,6 +7,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "crypto";
 import type { Prisma } from "@supkeys/db";
+import { generateShortCode } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { AuditService } from "../../audit/audit.service";
 import { EmailService } from "../../email/email.service";
@@ -168,6 +169,7 @@ export class AdminSupplierApplicationsService {
       result = await this.prisma.$transaction(async (tx) => {
       const supplier = await tx.supplier.create({
         data: {
+          supkeysId: generateShortCode(),
           companyName: app.companyName,
           companyType: app.companyType,
           taxNumber: app.taxNumber,

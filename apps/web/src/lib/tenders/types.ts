@@ -60,6 +60,9 @@ export interface TenderLogisticsDetails {
 
 export type TenderType = "RFQ" | "ENGLISH_AUCTION";
 
+/** Açık İhale — görünürlük. */
+export type TenderVisibility = "PRIVATE" | "PUBLIC";
+
 export type TenderStatus =
   | "DRAFT"
   | "IN_APPROVAL"
@@ -157,6 +160,7 @@ export interface TenderListItem {
   tenderNumber: string;
   title: string;
   type: TenderType;
+  visibility: TenderVisibility;
   isLogistics: boolean;
   status: TenderStatus;
   primaryCurrency: Currency;
@@ -220,6 +224,7 @@ export interface TenderDetail {
   id: string;
   tenderNumber: string;
   type: TenderType;
+  visibility: TenderVisibility;
   isLogistics: boolean;
   logisticsDetails: TenderLogisticsDetails | null;
   status: TenderStatus;
@@ -353,6 +358,7 @@ export interface SupplierTenderListItem {
   tenderNumber: string;
   title: string;
   type: TenderType;
+  visibility: TenderVisibility;
   isLogistics: boolean;
   status: TenderStatus;
   primaryCurrency: Currency;
@@ -398,6 +404,7 @@ export interface SupplierTenderDetail {
   id: string;
   tenderNumber: string;
   type: TenderType;
+  visibility: TenderVisibility;
   isLogistics: boolean;
   logisticsDetails: TenderLogisticsDetails | null;
   status: TenderStatus;

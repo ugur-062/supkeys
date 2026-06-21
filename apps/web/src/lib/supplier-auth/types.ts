@@ -18,6 +18,8 @@ export interface SupplierUserDto {
 
 export interface SupplierProfile {
   id: string;
+  /** Faz 3 madde 6 — kalıcı Supkeys ID (K7X9-3M2P); alıcılar bununla ekler. */
+  supkeysId: string | null;
   companyName: string;
   companyType: CompanyType;
   taxNumber: string;

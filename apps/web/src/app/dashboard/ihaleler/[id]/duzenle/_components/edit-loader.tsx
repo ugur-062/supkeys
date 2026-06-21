@@ -109,6 +109,7 @@ export function EditLoader({ id }: Props) {
     description: tender.description ?? "",
     keywords: tender.keywords ?? [],
     type: tender.type,
+    visibility: tender.visibility,
     isLogistics: tender.isLogistics,
     logistics: tender.logisticsDetails
       ? {

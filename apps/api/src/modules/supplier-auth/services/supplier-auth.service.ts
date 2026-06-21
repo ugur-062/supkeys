@@ -189,6 +189,7 @@ export class SupplierAuthService {
 
   private serializeSupplier(supplier: {
     id: string;
+    supkeysId: string | null;
     companyName: string;
     companyType: string;
     taxNumber: string;
@@ -205,6 +206,7 @@ export class SupplierAuthService {
   }) {
     return {
       id: supplier.id,
+      supkeysId: supplier.supkeysId,
       companyName: supplier.companyName,
       companyType: supplier.companyType,
       taxNumber: supplier.taxNumber,

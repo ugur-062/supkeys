@@ -1,7 +1,7 @@
 # Supkeys — Geliştirme Yol Haritası (33 madde)
 
 > Oluşturulma: 2026-06-17 · Kaynak: ürün sahibi backlog
-> Son denetim: 2026-06-21 · Durum: **Faz 1 + G5 (sipariş ekranı) tamamlandı**. Sıradaki: Faz 3.
+> Son denetim: 2026-06-21 · Durum: **Faz 1 + G5 + Faz 3 (16, 20) tamamlandı**. Faz 5 (Açık Eksiltme) planlardan çıkarıldı. Sıradaki: Faz 3 kalanları (33, 6 — soru bekliyor) / Faz 6.
 
 ## İlerleme (kodla denetlendi — 2026-06-21)
 
@@ -21,6 +21,10 @@
 | G5 | 15 (PDF indirme fix) | ✅ kod (2026-06-21) — zarif 503 + net hata mesajı. **Kök neden: dev'de Chromium sistem kütüphaneleri eksik (`libnspr4.so`); prod Docker'da çalışır.** |
 | G5 | 12/14 (fatura no — "Gönderildi"ye geçişte zorunlu) | ✅ (2026-06-21 · `invoiceNumber` kolonu + zorunlu DTO + modal input + timeline + PDF) |
 | G5 | 19/21 (sipariş Dosyalar: proforma/teknik/fatura/**Teslimat Evrakları**) | ✅ (2026-06-21) — kategori bazlı belge paneli; tedarikçi yükler, alıcı görür; statüye göre kademeli; COMPLETED'de teslimat evrakı boşsa uyarı |
+| 3 | 16 (direkt ödeme — nakit/çek handshake) | ✅ (2026-06-21) — OrderPayment modeli + state machine (Teslim Aldım → DELIVERED → tam ödeme onayında otomatik COMPLETED) + ödeme dekontu + popup |
+| 3 | 20 (Kayıtlı Bankalarım + tek yönetici) | ✅ — `supplier-banks` modülü + ayarlar/bankalar UI; sipariş onayında bankadan seçim |
+| 3 | 6 (Supkeys ID + Alıcı Havuzu) | ✅ (2026-06-21) — kalıcı supkeysId (alıcı+tedarikçi) + çift yönlü ekleme; Alıcı Havuzu (tedarikçi paneli) ad/ID arama + public profil |
+| 4/V2-7 | Açık İhale (PUBLIC görünürlük) + premium erişim | ✅ (2026-06-21) — Tender.visibility PRIVATE/PUBLIC; premium tedarikçi PUBLIC+OPEN ihaleleri davetsiz görür/teklif verir (ilk teklifte davet otomatik); standart 2 bağlantı limiti |
 
 ### G5 kilitli kararlar (2026-06-21 ürün sahibi cevapları)
 - **Fatura no:** Tedarikçi siparişi **"Gönderildi"ye geçirmek için fatura no girmek ZORUNDA** (kargo no değil).
@@ -28,7 +32,7 @@
 - **İmzalı irsaliye:** "Tamamlandı"yı **bloklamaz**; eksikse küçük uyarı gösterilir ("opsiyonel" yazısı yok).
 - **Belge kategori adı:** "İmzalı İrsaliye" değil → **"Teslimat Evrakları"** (2026-06-21).
 
-**Sonuç:** Faz 1 ✅. **G5 tamamlandı** (11, 12/14, 15, 19/21 ✅). Sıradaki = **Faz 3** (16 direkt ödeme + 20 banka/rol + 6 Supkeys ID), G6 ile birlikte.
+**Sonuç:** Faz 1 ✅ · G5 ✅ · **Faz 3 kodlanabilir kısmı ✅ (16 + 20)**. Faz 3 kalan: **33 (teminat mektubu)** ve **6 (Supkeys ID)** — ikisi de açık ürün sorusu bekliyor (bkz. Açık sorular 6 + 11). **Faz 5 (Açık Eksiltme) planlardan çıkarıldı (2026-06-21).** Kalan büyük fazlar: **Faz 6 (Uluslararası: 29, 30, 5)** ve **Faz 7 (Escrow)**.
 
 ## Alınan Kararlar (kilitli)
 
@@ -37,9 +41,14 @@
 | Güvenli ödeme (escrow, 31-32) | **Hem kart hem havale.** Kart = ödeme geçidi (Iyzico/Stripe), havale = admin onaylı manuel. **%3 komisyon.** |
 | Öncelik | **Faz sırasıyla** (küçük → büyük). |
 | Tedarikçi rolü (20) | **Tek "yönetici"** kişi. Sadece o, banka/hesap bilgilerini ekler/düzenler. Genel RBAC yok. |
-| Açık eksiltme (4+17) | Yapılacak — **Faz 5**. |
+| Açık eksiltme (4+17) | ~~Yapılacak — Faz 5~~ → **PLANLARDAN ÇIKARILDI (2026-06-21).** Zaten kurulu (V2-7): İngiliz Usulü tipi + ayarlar (görünürlük, min fiyat azaltma oranı, auto-extend), canlı kart, teklif oran-enforcement, scheduler. Ek genişletme yapılmayacak. |
 
 ## Açık Eksiltme nedir? (madde 4 + 17 birlikte)
+
+> ❌ **PLANLARDAN ÇIKARILDI (2026-06-21).** Bu özellik **zaten kurulu (V2-7)** —
+> İngiliz Usulü tipi + ayarlar (görünürlük, min fiyat azaltma oranı, auto-extend),
+> canlı kart, teklif oran-enforcement, scheduler mevcut. Ek genişletme yapılmayacak.
+> Bölüm tarihsel referans için bırakıldı.
 
 İhalede iki mod olacak; alıcı ihale açarken seçer:
 
@@ -73,7 +82,7 @@ Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İki
 | 7 | İhale şablonları (kaydet/yeniden kullan). | ✅ |
 | 9 | Zorunlu soru sormuyor → validasyon bug'ı. | ✅ (bug) |
 | 22 | İhale onayı kaldırılacak (ihaleler onaya düşmeyecek). | ✅ Sipariş onayları kalır. |
-| 4+17 | Açık eksiltme (yukarıda açıklandı). | Faz 5 |
+| 4+17 | Açık eksiltme (anonim yarış + % gösterge + otomatik uzatma). | ❌ Planlardan çıkarıldı (2026-06-21) — mevcut iskelet yeterli |
 
 ### C. Teklif (tedarikçi)
 | # | Anladığım | Durum |
@@ -148,7 +157,7 @@ Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İki
 | **2 — Sipariş, belge & onay netliği** | 12/14, 15, 19/21, 22, 23 | M |
 | **3 — Direkt ödeme + roller + kimlik** | 16, 33, 20 (tek yönetici + Kayıtlı Bankalarım), 6 (Supkeys ID) | M-L |
 | **4 — KYC + rapor + şablon/arama** | 27, 28, 7, 3 | M |
-| **5 — Açık eksiltme** | 4, 17 | L |
+| ~~**5 — Açık eksiltme**~~ | ~~4, 17~~ → ❌ **planlardan çıkarıldı (2026-06-21)** | — |
 | **6 — Uluslararası** | 29, 30, 5 | L |
 | **7 — Güvenli ödeme / Escrow + %3 komisyon** | 31, 32 (kart + havale, ödeme sağlayıcısı) | XL |
 | **UI (yan)** | 1 (font), 2 (dashboard fix) — netleşince araya | S-M |

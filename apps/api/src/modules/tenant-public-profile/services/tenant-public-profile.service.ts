@@ -18,6 +18,7 @@ import type { UpdateTenantPublicProfileDto } from "../dto/update-tenant-public-p
 const SELECT = {
   name: true,
   slug: true,
+  supkeysId: true,
   industry: true,
   city: true,
   publicEnabled: true,
@@ -44,6 +45,7 @@ export class TenantPublicProfileService {
   private async serialize(t: {
     name: string;
     slug: string;
+    supkeysId: string | null;
     industry: string | null;
     city: string | null;
     publicEnabled: boolean;

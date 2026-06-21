@@ -6,6 +6,7 @@ import {
   DELIVERY_TERM_LABELS,
   PAYMENT_TERM_LABELS,
   PAYMENT_TIMING_LABELS,
+  TENDER_VISIBILITY_LABELS,
 } from "@/lib/tenders/labels";
 import type {
   SupplierTenderDetail,
@@ -131,6 +132,17 @@ export function SupplierGeneralInfoTab({
           <Fact label="Para Birimi">
             <span className="inline-flex items-center rounded-md bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-800">
               {tender.primaryCurrency} {CURRENCY_SYMBOL[tender.primaryCurrency]}
+            </span>
+          </Fact>
+          <Fact label="Görünürlük">
+            <span
+              className={
+                tender.visibility === "PUBLIC"
+                  ? "inline-flex items-center rounded-md bg-zinc-900 px-2 py-0.5 font-semibold text-white"
+                  : "inline-flex items-center rounded-md bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-800"
+              }
+            >
+              {TENDER_VISIBILITY_LABELS[tender.visibility]}
             </span>
           </Fact>
         </dl>

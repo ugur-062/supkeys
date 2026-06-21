@@ -30,6 +30,7 @@ import { BlockedSuppliersTable } from "./blocked-suppliers-table";
 import { FiltersBar } from "./filters-bar";
 import { HeaderCard } from "./header-card";
 import { InvitationsTable } from "./invitations-table";
+import { ConnectByIdCard } from "./connect-by-id-card";
 import { InviteSupplierModal } from "./invite-supplier-modal";
 import { SupplierDetailDrawer } from "./supplier-detail-drawer";
 import { ConnectionRequestsTable } from "./connection-requests-table";
@@ -270,6 +271,8 @@ export function TedarikcilerView() {
           setInviteModalOpen(true);
         }}
       />
+
+      {canInvite ? <ConnectByIdCard /> : null}
 
       <TedarikcilerTabs
         value={tab}

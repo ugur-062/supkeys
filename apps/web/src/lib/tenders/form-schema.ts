@@ -11,6 +11,8 @@ const CURRENCY_VALUES = [
   "CNY",
 ] as const;
 const TYPE_VALUES = ["RFQ", "ENGLISH_AUCTION"] as const;
+// Açık İhale — görünürlük
+const VISIBILITY_VALUES = ["PRIVATE", "PUBLIC"] as const;
 const DELIVERY_TERM_VALUES = [
   "EXW",
   "FCA",
@@ -137,6 +139,8 @@ const baseTenderSchema = z.object({
     .array(z.string().min(1).max(50, "Maksimum 50 karakter"))
     .max(10, "En fazla 10 anahtar kelime"),
   type: z.enum(TYPE_VALUES),
+  // Açık İhale — PRIVATE (davetli) / PUBLIC (herkese açık).
+  visibility: z.enum(VISIBILITY_VALUES),
   // Lojistik İhalesi — RFQ üstüne lojistik katmanı.
   isLogistics: z.boolean(),
   logistics: logisticsSchema.optional(),
@@ -346,6 +350,7 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   description: "",
   keywords: [],
   type: "RFQ",
+  visibility: "PRIVATE",
   isLogistics: false,
   logistics: {
     transportMode: undefined,

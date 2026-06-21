@@ -4,6 +4,7 @@ import {
   HomeIcon,
   ShoppingBagIcon,
   UserCircleIcon,
+  UsersIcon,
 } from "@heroicons/react/20/solid";
 import type { ComponentType, SVGProps } from "react";
 
@@ -34,6 +35,11 @@ export const supplierNavConfig: SupplierNavItem[] = [
     href: "/supplier/siparisler",
   },
   {
+    icon: UsersIcon,
+    label: "Alıcı Havuzu",
+    href: "/supplier/alici-havuzu",
+  },
+  {
     icon: UserCircleIcon,
     label: "Profilim",
     href: "/supplier/profil",
@@ -49,6 +55,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   "/supplier/dashboard": "Ana Sayfa",
   "/supplier/ihaleler": "İhaleler",
   "/supplier/siparisler": "Siparişler",
+  "/supplier/alici-havuzu": "Alıcı Havuzu",
   "/supplier/mesajlar": "Mesajlar",
   "/supplier/profil": "Profilim",
   "/supplier/ayarlar": "Ayarlar",

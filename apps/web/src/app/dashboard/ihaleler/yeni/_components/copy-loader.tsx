@@ -27,6 +27,7 @@ export function CopyLoader({ sourceId }: { sourceId: string }) {
       description: t.description ?? "",
       keywords: t.keywords ?? [],
       type: t.type,
+      visibility: t.visibility,
       isLogistics: t.isLogistics,
       logistics: t.logisticsDetails
         ? {

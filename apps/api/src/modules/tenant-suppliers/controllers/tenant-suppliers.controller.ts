@@ -17,6 +17,7 @@ import { Roles } from "../../../common/decorators/roles.decorator";
 import { RolesGuard } from "../../../common/guards/roles.guard";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { BlockSupplierDto } from "../dto/block-supplier.dto";
+import { ConnectBySupkeysIdDto } from "../dto/connect-by-supkeys-id.dto";
 import { ListSuppliersDto } from "../dto/list-suppliers.dto";
 import { TenantSuppliersService } from "../services/tenant-suppliers.service";
 
@@ -36,6 +37,16 @@ export class TenantSuppliersController {
   @Get("stats")
   stats(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {
     return this.service.stats(user.tenantId);
+  }
+
+  // Faz 3 madde 6 — Supkeys ID ile tedarikçi ekle (direkt ACTIVE).
+  @Post("connect-by-supkeys-id")
+  @HttpCode(HttpStatus.OK)
+  connectBySupkeysId(
+    @Body() dto: ConnectBySupkeysIdDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<unknown> {
+    return this.service.connectBySupkeysId(user.tenantId, dto.supkeysId);
   }
 
   @Get(":id")

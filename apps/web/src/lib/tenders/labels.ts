@@ -149,6 +149,15 @@ export const PAYMENT_TIMING_LABELS: Record<PaymentTiming, string> = {
   AFTER_DELIVERY: "Teslim sonrası",
 };
 
+// Açık İhale — görünürlük
+export const TENDER_VISIBILITY_LABELS: Record<
+  "PRIVATE" | "PUBLIC",
+  string
+> = {
+  PRIVATE: "Davetli (Kapalı)",
+  PUBLIC: "Herkese Açık",
+};
+
 // Faz 3 madde 16 — Ödeme şekli
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   CASH: "Nakit",

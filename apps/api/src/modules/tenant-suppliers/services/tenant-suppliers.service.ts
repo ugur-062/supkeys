@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import type { Prisma } from "@supkeys/db";
+import { normalizeShortCode, validateShortCode } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { BlockSupplierDto } from "../dto/block-supplier.dto";
 import { ListSuppliersDto } from "../dto/list-suppliers.dto";
@@ -11,6 +13,60 @@ import { ListSuppliersDto } from "../dto/list-suppliers.dto";
 @Injectable()
 export class TenantSuppliersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Faz 3 madde 6 — Alıcı, tedarikçinin Supkeys ID'sini girerek doğrudan
+   * bağlantı kurar. Alıcı kendi havuzunu yönettiğinden ilişki direkt ACTIVE
+   * olur (tedarikçi sonradan bloklayabilir).
+   */
+  async connectBySupkeysId(tenantId: string, supkeysIdInput: string) {
+    const code = normalizeShortCode(
+      supkeysIdInput.trim().replace(/^SK-?/i, ""),
+    );
+    if (!validateShortCode(code)) {
+      throw new BadRequestException("Geçersiz Supkeys ID formatı");
+    }
+    const supplier = await this.prisma.supplier.findUnique({
+      where: { supkeysId: code },
+      select: { id: true, companyName: true },
+    });
+    if (!supplier) {
+      throw new NotFoundException("Bu Supkeys ID ile bir tedarikçi bulunamadı");
+    }
+
+    const existing = await this.prisma.supplierTenantRelation.findUnique({
+      where: { supplierId_tenantId: { supplierId: supplier.id, tenantId } },
+      select: { status: true },
+    });
+    if (existing) {
+      if (existing.status === "ACTIVE")
+        throw new ConflictException("Bu tedarikçiyle zaten bağlısınız");
+      if (existing.status === "PENDING_TENANT_APPROVAL")
+        throw new ConflictException(
+          "Bu tedarikçinin bağlantı isteği zaten bekliyor — Tedarikçiler sayfasından onaylayın",
+        );
+      if (existing.status === "BLOCKED")
+        throw new ConflictException(
+          "Bu tedarikçi engelli; önce engeli kaldırın",
+        );
+    }
+
+    const relation = await this.prisma.supplierTenantRelation.create({
+      data: {
+        supplierId: supplier.id,
+        tenantId,
+        status: "ACTIVE",
+        origin: "INVITE",
+      },
+    });
+
+    return {
+      relationId: relation.id,
+      supplierName: supplier.companyName,
+      status: "ACTIVE" as const,
+      message: `${supplier.companyName} tedarikçinizle bağlantı kuruldu.`,
+    };
+  }
 
   async list(tenantId: string, query: ListSuppliersDto) {
     const page = query.page ?? 1;

@@ -200,6 +200,7 @@ function buildPayload(data: TenderFormData) {
     title: data.title,
     description: sanitize(data.description),
     type: data.type,
+    visibility: data.visibility,
     isLogistics: data.isLogistics,
     logistics:
       data.isLogistics && data.logistics
