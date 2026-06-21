@@ -15,12 +15,15 @@ import { EmailModule } from "./modules/email/email.module";
 import { HealthModule } from "./modules/health/health.module";
 import { PublicInvitationsModule } from "./modules/public-invitations/public-invitations.module";
 import { PublicSupplierProfileModule } from "./modules/public-supplier-profile/public-supplier-profile.module";
+import { TenantPublicProfileModule } from "./modules/tenant-public-profile/tenant-public-profile.module";
 import { SupplierReviewsModule } from "./modules/supplier-reviews/supplier-reviews.module";
 import { RegistrationModule } from "./modules/registration/registration.module";
 import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module";
 import { SupplierAccountModule } from "./modules/supplier-account/supplier-account.module";
 import { SupplierPublicInvitationsModule } from "./modules/supplier-public-invitations/supplier-public-invitations.module";
 import { SupplierAuthModule } from "./modules/supplier-auth/supplier-auth.module";
+import { SupplierBanksModule } from "./modules/supplier-banks/supplier-banks.module";
+import { SupplierCertificatesModule } from "./modules/supplier-certificates/supplier-certificates.module";
 import { SupplierDashboardModule } from "./modules/supplier-dashboard/supplier-dashboard.module";
 import { SupplierOrdersModule } from "./modules/supplier-orders/supplier-orders.module";
 import { SupplierProfileModule } from "./modules/supplier-profile/supplier-profile.module";
@@ -100,12 +103,15 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     TenantTemplatesModule,
     SupplierDashboardModule,
     SupplierProfileModule,
+    SupplierBanksModule,
+    SupplierCertificatesModule,
     TenantUsersModule,
     TenantAddressesModule,
     TenantApprovalFlowsModule,
     TenantApprovalRequestsModule,
     PublicInvitationsModule,
     PublicSupplierProfileModule,
+    TenantPublicProfileModule,
     SupplierReviewsModule,
     TenderSchedulerModule,
     ResendWebhookModule,
