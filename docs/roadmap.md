@@ -26,6 +26,10 @@
 | 3 | 6 (Supkeys ID + Alıcı Havuzu) | ✅ (2026-06-21) — kalıcı supkeysId (alıcı+tedarikçi) + çift yönlü ekleme; Alıcı Havuzu (tedarikçi paneli) ad/ID arama + public profil |
 | 4/V2-7 | Açık İhale (PUBLIC görünürlük) + premium erişim | ✅ (2026-06-21) — Tender.visibility PRIVATE/PUBLIC; premium tedarikçi PUBLIC+OPEN ihaleleri davetsiz görür/teklif verir (ilk teklifte davet otomatik); standart 2 bağlantı limiti |
 | 3 | 33 (teminat mektubu) | ✅ (2026-06-21) — nakit (paymentTerm=CASH) ihalede kazanan tedarikçi siparişi ONAYLARKEN teminat mektubu yüklemek ZORUNDA (hard block); ORDER_GUARANTEE_LETTER scope; wizard uyarı + accept modal upload + belge panelinde kategori. **Faz 3 TAM bitti.** |
+| 4 | 27 (KYC ek belgeler) | ✅ — ticari sicil + imza sirküleri + banka onaylı IBAN (connect-kyc-uploads) |
+| 4 | 7 (ihale şablonları) | ✅ — kalem sorusu + tedarikçi şablonu + İhaleyi Kopyala |
+| 4 | 28 (tasarruf raporu) | ✅ (2026-06-21) — karar: **tasarruf = en yüksek teklif − kazanan toplam** (rekabet tasarrufu). Rapor + Excel + genel rapor satırı güncellendi. |
+| 4 | 3 (Proje Haber arama) | ⛔ BLOKLU — harici veri kaynağı; Proje Haber API/erişim bilgisi olmadan kurulamaz. **Faz 4 (3 hariç) bitti.** |
 
 ### G5 kilitli kararlar (2026-06-21 ürün sahibi cevapları)
 - **Fatura no:** Tedarikçi siparişi **"Gönderildi"ye geçirmek için fatura no girmek ZORUNDA** (kargo no değil).

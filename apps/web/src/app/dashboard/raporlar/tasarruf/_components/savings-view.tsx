@@ -204,8 +204,8 @@ function SavingsResults({
           value={fmtMoney(data.summary.grandHighest)}
         />
         <SummaryStat
-          label="En Düşük Teklif"
-          value={fmtMoney(data.summary.grandLowest)}
+          label="Kazanan Toplam"
+          value={fmtMoney(data.summary.grandActual)}
         />
         <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-4">
           <div className="flex items-center gap-2 text-xs font-medium text-brand-700">
@@ -317,7 +317,7 @@ function SavingsResults({
                 <TableHeader>Başlık</TableHeader>
                 <TableHeader>Para</TableHeader>
                 <TableHeader className="text-right">En Yüksek</TableHeader>
-                <TableHeader className="text-right">En Düşük</TableHeader>
+                <TableHeader className="text-right">Kazanan</TableHeader>
                 <TableHeader className="text-right">Tasarruf</TableHeader>
                 <TableHeader className="text-right">%</TableHeader>
                 <TableHeader>Kazanan Tedarikçi</TableHeader>
@@ -342,7 +342,7 @@ function SavingsResults({
                       {r.highestBid != null ? fmtMoney(r.highestBid) : "—"}
                     </TableCell>
                     <TableCell className="text-right">
-                      {r.lowestBid != null ? fmtMoney(r.lowestBid) : "—"}
+                      {r.winningTotal != null ? fmtMoney(r.winningTotal) : "—"}
                     </TableCell>
                     <TableCell className="text-right font-semibold text-success-700">
                       {r.savings !== null ? fmtMoney(r.savings) : "-"}

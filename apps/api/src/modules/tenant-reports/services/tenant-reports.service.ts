@@ -149,10 +149,25 @@ export class TenantReportsService {
         : null;
     const estimatedTotal =
       t.estimatedTotal != null ? Number(t.estimatedTotal) : null;
-    // Tasarruf = tahmini (hedef) toplam − kazanan toplam (her ikisi de varsa)
+    // Madde 28 — Tasarruf = en yüksek teklif − kazanan teklif (rekabet tasarrufu).
+    // En yüksek = gerçekten verilmiş tekliflerin (submitted/awarded/lost/rejected)
+    // en büyük tutarı. Tek teklif varsa highest=winning → tasarruf 0.
+    const realBidTotals = t.bids
+      .filter((b) =>
+        [
+          "SUBMITTED",
+          "AWARDED_FULL",
+          "AWARDED_PARTIAL",
+          "LOST",
+          "REJECTED",
+        ].includes(b.status),
+      )
+      .map((b) => Number(b.totalAmount));
+    const highestTotal =
+      realBidTotals.length > 0 ? Math.max(...realBidTotals) : null;
     const savings =
-      estimatedTotal != null && winningTotal != null
-        ? estimatedTotal - winningTotal
+      highestTotal != null && winningTotal != null
+        ? highestTotal - winningTotal
         : null;
     return {
       id: t.id,
@@ -171,6 +186,7 @@ export class TenantReportsService {
       submittedBidCount: submittedCount,
       responseRate,
       estimatedTotal,
+      highestTotal,
       winningTotal,
       winnerName,
       savings,
@@ -387,16 +403,19 @@ export class TenantReportsService {
         };
       });
 
-      // Madde 28 — Tasarruf = en yüksek teklif − en düşük teklif (ihale bazında,
-      // tüm gönderilmiş teklif toplamlarından). Tek teklifte tasarruf yok.
+      // Madde 28 — Tasarruf = en yüksek teklif − kazanan toplam (rekabet
+      // tasarrufu). Kazanan toplam = kazanılan kalemlerin actual'ı (actualTotal).
+      // En yüksek = gönderilmiş teklif toplamlarının en büyüğü. Tek teklifte
+      // (highest = kazanan) tasarruf ~0.
       const bidTotals = t.bids
         .map((b) => Number(b.totalAmount))
         .filter((n) => Number.isFinite(n));
       const highestBid = bidTotals.length > 0 ? Math.max(...bidTotals) : null;
       const lowestBid = bidTotals.length > 0 ? Math.min(...bidTotals) : null;
+      const winningTotal = actualTotal > 0 ? actualTotal : null;
       const savings =
-        bidTotals.length >= 2 && highestBid != null && lowestBid != null
-          ? highestBid - lowestBid
+        highestBid != null && winningTotal != null
+          ? highestBid - winningTotal
           : null;
       const savingsPct =
         savings != null && highestBid && highestBid > 0
@@ -411,9 +430,10 @@ export class TenantReportsService {
         bidCount: bidTotals.length,
         highestBid,
         lowestBid,
+        winningTotal,
         savings,
         savingsPct,
-        // Hedef-vs-kazanan detayı (bilgi amaçlı; başlık metrik artık en yüksek−en düşük)
+        // Hedef-vs-kazanan detayı (bilgi amaçlı)
         targetTotal,
         actualTotal,
         winners: Array.from(winners.values()),
@@ -424,7 +444,7 @@ export class TenantReportsService {
 
     const grandTarget = rows.reduce((s, r) => s + r.targetTotal, 0);
     const grandActual = rows.reduce((s, r) => s + r.actualTotal, 0);
-    // Madde 28 — toplam tasarruf = Σ (en yüksek − en düşük)
+    // Madde 28 — toplam tasarruf = Σ (en yüksek − kazanan)
     const grandHighest = rows.reduce((s, r) => s + (r.highestBid ?? 0), 0);
     const grandLowest = rows.reduce((s, r) => s + (r.lowestBid ?? 0), 0);
     const grandSavings = rows.reduce((s, r) => s + (r.savings ?? 0), 0);

@@ -62,10 +62,12 @@ export interface SavingsReportRow {
   tenderNumber: string;
   title: string;
   currency: string;
-  /** Madde 28 — teklif sayısı + en yüksek/en düşük teklif (tasarruf bunlardan). */
+  /** Madde 28 — teklif sayısı + en yüksek teklif; tasarruf = en yüksek − kazanan. */
   bidCount: number;
   highestBid: number | null;
   lowestBid: number | null;
+  /** Kazanan toplam (kazanılan kalemlerin actual'ı). */
+  winningTotal: number | null;
   savings: number | null;
   savingsPct: number | null;
   /** Hedef-vs-kazanan detayı (bilgi amaçlı). */
