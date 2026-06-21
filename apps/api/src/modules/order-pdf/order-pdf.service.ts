@@ -196,6 +196,7 @@ export class OrderPdfService {
 
       bidNotes: order.bid.notes ?? null,
       deliveryNote: order.deliveryNote ?? null,
+      invoiceNumber: order.invoiceNumber ?? null,
       expectedDeliveryDate: order.expectedDeliveryDate ?? null,
     };
 

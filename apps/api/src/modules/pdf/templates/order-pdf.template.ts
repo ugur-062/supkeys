@@ -51,6 +51,7 @@ export interface OrderPdfData {
   // Notlar
   bidNotes?: string | null;
   deliveryNote?: string | null;
+  invoiceNumber?: string | null;
   expectedDeliveryDate?: Date | null;
 }
 
@@ -102,6 +103,7 @@ export function generateOrderHtml(data: OrderPdfData): string {
     statusLabel,
     bidNotes,
     deliveryNote,
+    invoiceNumber,
     expectedDeliveryDate,
   } = data;
 
@@ -364,6 +366,11 @@ export function generateOrderHtml(data: OrderPdfData): string {
         ${
           expectedDeliveryDate
             ? `<div style="margin:4px 0;"><strong>Tahmini Teslim:</strong> ${fmtDate(expectedDeliveryDate)}</div>`
+            : ""
+        }
+        ${
+          invoiceNumber
+            ? `<div style="margin:4px 0;"><strong>Fatura No:</strong> ${escapeHtml(invoiceNumber)}</div>`
             : ""
         }
       </div>

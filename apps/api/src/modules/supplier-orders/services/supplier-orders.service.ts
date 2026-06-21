@@ -285,15 +285,6 @@ export class SupplierOrdersService {
       );
     }
 
-    let invoice: Date | null = null;
-    if (dto.invoiceDate) {
-      const parsed = new Date(dto.invoiceDate);
-      if (Number.isNaN(parsed.getTime())) {
-        throw new BadRequestException("Geçersiz fatura tarihi");
-      }
-      invoice = parsed;
-    }
-
     const updated = await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
         where: { id: orderId },
@@ -308,6 +299,14 @@ export class SupplierOrdersService {
         );
       }
 
+      // G6 madde 20 — banka kayıtlı bankalardan seçilir; hesabı ondan çöz.
+      const bank = await tx.supplierBank.findUnique({
+        where: { id: dto.bankId },
+      });
+      if (!bank || bank.supplierId !== supplierId) {
+        throw new BadRequestException("Geçersiz banka hesabı seçimi");
+      }
+
       return tx.order.update({
         where: { id: orderId },
         data: {
@@ -315,9 +314,8 @@ export class SupplierOrdersService {
           acceptedAt: new Date(),
           acceptedNote: dto.acceptedNote?.trim() || null,
           expectedDeliveryDate: expected,
-          bankAccountHolder: dto.bankAccountHolder?.trim() || null,
-          bankIban: dto.bankIban?.trim() || null,
-          invoiceDate: invoice,
+          bankAccountHolder: bank.accountHolder,
+          bankIban: bank.iban,
         },
         include: ORDER_DETAIL_SELECT,
       });
@@ -421,6 +419,7 @@ export class SupplierOrdersService {
           status: "IN_DELIVERY",
           deliveryStartedAt: new Date(),
           deliveryNote: dto.deliveryNote?.trim() || null,
+          invoiceNumber: dto.invoiceNumber.trim(),
         },
         include: ORDER_DETAIL_SELECT,
       });

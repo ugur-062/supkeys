@@ -1,5 +1,6 @@
 import {
   IsDateString,
+  IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
@@ -15,19 +16,9 @@ export class AcceptOrderDto {
   @MaxLength(2000)
   acceptedNote?: string;
 
-  // Banka bilgileri (alıcının ödeme yapacağı hesap)
-  @IsOptional()
+  // G6 madde 20 — alıcının ödeme yapacağı hesap, kayıtlı bankalardan seçilir.
+  // Serbest IBAN/hesap sahibi girişi kaldırıldı; hesap bankId'den çözülür.
   @IsString()
-  @MaxLength(120)
-  bankAccountHolder?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(64)
-  bankIban?: string;
-
-  // Fatura kesim tarihi
-  @IsOptional()
-  @IsDateString()
-  invoiceDate?: string;
+  @IsNotEmpty({ message: "Bir banka hesabı seçmelisiniz" })
+  bankId!: string;
 }

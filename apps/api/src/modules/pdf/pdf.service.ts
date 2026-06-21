@@ -3,6 +3,7 @@ import {
   Logger,
   OnModuleDestroy,
   OnModuleInit,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import puppeteer, { type Browser } from "puppeteer";
 
@@ -84,7 +85,22 @@ export class PdfService implements OnModuleInit, OnModuleDestroy {
     html: string,
     options?: { format?: "A4" | "Letter"; landscape?: boolean },
   ): Promise<Buffer> {
-    const browser = await this.ensureBrowser();
+    let browser: Browser;
+    try {
+      browser = await this.ensureBrowser();
+    } catch (err) {
+      // Chromium başlatılamadı (örn. eksik sistem kütüphanesi / dev ortamı).
+      // Ham 500 yerine net 503 dön → istemci anlamlı mesaj gösterir.
+      this.logger.error(
+        `PDF browser launch failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      throw new ServiceUnavailableException(
+        "PDF servisi şu an kullanılamıyor. Lütfen daha sonra tekrar deneyin.",
+      );
+    }
+
     const page = await browser.newPage();
     try {
       await page.setContent(html, {
@@ -100,6 +116,15 @@ export class PdfService implements OnModuleInit, OnModuleDestroy {
       });
 
       return Buffer.from(pdf);
+    } catch (err) {
+      this.logger.error(
+        `PDF render failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      throw new ServiceUnavailableException(
+        "PDF oluşturulamadı. Lütfen daha sonra tekrar deneyin.",
+      );
     } finally {
       await page.close();
     }
