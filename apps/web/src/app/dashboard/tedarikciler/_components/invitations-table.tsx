@@ -1,11 +1,25 @@
 "use client";
 
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from "@/components/catalyst/dropdown";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { EmptyState } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { INVITATION_STATUS_META } from "@/lib/tedarikciler/status";
 import type { InvitationItem } from "@/lib/tedarikciler/types";
 import { cn } from "@/lib/utils";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   format,
   formatDistanceToNow,
@@ -57,13 +71,13 @@ function formatExpiresAt(expiresAt: string, status: string) {
 
 function SkeletonRow({ cols }: { cols: number }) {
   return (
-    <tr className="border-t border-surface-border">
+    <TableRow>
       {Array.from({ length: cols }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
-          <div className="h-4 bg-slate-100 rounded animate-pulse" />
-        </td>
+        <TableCell key={i}>
+          <div className="h-4 bg-zinc-100 rounded animate-pulse" />
+        </TableCell>
       ))}
-    </tr>
+    </TableRow>
   );
 }
 
@@ -77,7 +91,7 @@ const COLS = 7;
 function OpenedBadge({ openedAt }: { openedAt: string | null }) {
   if (!openedAt) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-xs whitespace-nowrap">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-600 text-xs whitespace-nowrap">
         <Clock className="h-3 w-3" />
         Açılmadı
       </span>
@@ -89,7 +103,7 @@ function OpenedBadge({ openedAt }: { openedAt: string | null }) {
 
   if (minutesAgo >= 0 && minutesAgo < 5) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand-50 text-brand-700 text-xs whitespace-nowrap animate-pulse">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-900 text-white text-xs whitespace-nowrap animate-pulse">
         <Eye className="h-3 w-3" />
         Şu an inceliyor
       </span>
@@ -122,7 +136,7 @@ export function InvitationsTable({
   if (isError) {
     return (
       <div className="px-6 py-16 text-center space-y-3">
-        <p className="text-brand-900 font-medium">Veri alınamadı.</p>
+        <p className="text-zinc-900 font-medium">Veri alınamadı.</p>
         <Button variant="secondary" size="sm" onClick={onRetry}>
           Tekrar dene
         </Button>
@@ -133,32 +147,20 @@ export function InvitationsTable({
   const showEmpty = !isLoading && items.length === 0;
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-surface-muted text-left">
-          <tr>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              E-posta
-            </th>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              Yetkili
-            </th>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              Statü
-            </th>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              Gönderildi
-            </th>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              Geçerlilik
-            </th>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              Görüldü mü?
-            </th>
-            <th className="px-4 py-3" />
-          </tr>
-        </thead>
-        <tbody>
+    <div className="px-2 [--gutter:--spacing(4)]">
+      <Table dense>
+        <TableHead>
+          <TableRow>
+            <TableHeader>E-posta</TableHeader>
+            <TableHeader>Yetkili</TableHeader>
+            <TableHeader>Statü</TableHeader>
+            <TableHeader>Gönderildi</TableHeader>
+            <TableHeader>Geçerlilik</TableHeader>
+            <TableHeader>Görüldü mü?</TableHeader>
+            <TableHeader className="text-right" />
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {isLoading &&
             items.length === 0 &&
             Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
@@ -166,15 +168,15 @@ export function InvitationsTable({
             ))}
 
           {showEmpty && (
-            <tr>
-              <td colSpan={COLS}>
+            <TableRow>
+              <TableCell colSpan={COLS}>
                 <EmptyState
                   icon={Inbox}
                   title="Henüz davet göndermediniz"
                   description="“Yeni Tedarikçi Davet Et” ile başlayın."
                 />
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           )}
 
           {items.map((it) => {
@@ -183,19 +185,14 @@ export function InvitationsTable({
               it.status === "PENDING" &&
               new Date(it.expiresAt).getTime() < Date.now();
             return (
-              <tr
-                key={it.id}
-                className="border-t border-surface-border hover:bg-surface-muted/60 transition-colors"
-              >
-                <td className="px-4 py-3 font-medium text-brand-900 break-all">
+              <TableRow key={it.id}>
+                <TableCell className="font-medium text-zinc-900 break-all">
                   {it.email}
-                </td>
-                <td className="px-4 py-3 text-slate-600">
-                  {it.contactName || (
-                    <span className="text-slate-400">—</span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell className="text-zinc-600">
+                  {it.contactName || <span className="text-zinc-400">—</span>}
+                </TableCell>
+                <TableCell>
                   <span
                     className={cn(
                       "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap",
@@ -205,92 +202,76 @@ export function InvitationsTable({
                     {expired ? "Süresi Doldu" : meta.label}
                   </span>
                   {it.sentCount > 1 && (
-                    <span className="ml-2 text-xs text-slate-500">
+                    <span className="ml-2 text-xs text-zinc-500">
                       ({it.sentCount} kez)
                     </span>
                   )}
-                </td>
-                <td
-                  className="px-4 py-3 text-slate-500 whitespace-nowrap"
+                </TableCell>
+                <TableCell
+                  className="text-zinc-500 whitespace-nowrap"
                   title={format(new Date(it.lastSentAt), "dd MMM yyyy HH:mm", {
                     locale: tr,
                   })}
                 >
                   {formatRelative(it.lastSentAt)}
-                </td>
-                <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                </TableCell>
+                <TableCell className="text-zinc-500 whitespace-nowrap">
                   {formatExpiresAt(it.expiresAt, it.status)}
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell>
                   <OpenedBadge openedAt={it.openedAt} />
-                </td>
-                <td className="px-4 py-3 text-right">
+                </TableCell>
+                <TableCell className="text-right">
                   {canManage ? (
-                    <DropdownMenu.Root>
-                      <DropdownMenu.Trigger asChild>
-                        <button
-                          type="button"
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-surface-muted text-slate-500 hover:text-brand-700 transition-colors disabled:opacity-50"
-                          aria-label="Aksiyonlar"
-                          disabled={busyId === it.id}
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </button>
-                      </DropdownMenu.Trigger>
-                      <DropdownMenu.Portal>
-                        <DropdownMenu.Content
-                          align="end"
-                          sideOffset={4}
-                          className="z-50 min-w-[200px] rounded-lg border border-surface-border bg-white p-1 shadow-lg"
-                        >
-                          {it.status === "PENDING" && !expired && (
-                            <>
-                              <DropdownMenu.Item
-                                onSelect={() => onResend(it.id)}
-                                className="flex items-center px-2 py-1.5 text-sm rounded-md hover:bg-surface-muted cursor-pointer outline-none"
-                              >
-                                Yeniden Gönder
-                              </DropdownMenu.Item>
-                              <DropdownMenu.Item
-                                onSelect={() => onCancel(it.id)}
-                                className="flex items-center px-2 py-1.5 text-sm rounded-md hover:bg-danger-50 text-danger-600 cursor-pointer outline-none"
-                              >
+                    <Dropdown>
+                      <DropdownButton
+                        plain
+                        aria-label="Aksiyonlar"
+                        disabled={busyId === it.id}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </DropdownButton>
+                      <DropdownMenu anchor="bottom end">
+                        {it.status === "PENDING" && !expired && (
+                          <>
+                            <DropdownItem onClick={() => onResend(it.id)}>
+                              <DropdownLabel>Yeniden Gönder</DropdownLabel>
+                            </DropdownItem>
+                            <DropdownItem onClick={() => onCancel(it.id)}>
+                              <DropdownLabel className="text-danger-600">
                                 İptal Et
-                              </DropdownMenu.Item>
-                            </>
-                          )}
-                          {(it.status === "EXPIRED" || expired) && (
-                            <DropdownMenu.Item
-                              onSelect={() => onReinvite(it)}
-                              className="flex items-center px-2 py-1.5 text-sm rounded-md hover:bg-surface-muted cursor-pointer outline-none"
-                            >
-                              Yeniden Davet Et
-                            </DropdownMenu.Item>
-                          )}
-                          {it.status === "ACCEPTED" && (
-                            <div className="px-2 py-1.5 text-xs text-slate-500">
-                              {it.acceptedBySupplier
-                                ? `Kabul: ${it.acceptedBySupplier.companyName}`
-                                : "Kabul edildi"}
-                            </div>
-                          )}
-                          {it.status === "CANCELLED" && (
-                            <div className="px-2 py-1.5 text-xs text-slate-500">
-                              İptal edilmiş
-                            </div>
-                          )}
-                        </DropdownMenu.Content>
-                      </DropdownMenu.Portal>
-                    </DropdownMenu.Root>
+                              </DropdownLabel>
+                            </DropdownItem>
+                          </>
+                        )}
+                        {(it.status === "EXPIRED" || expired) && (
+                          <DropdownItem onClick={() => onReinvite(it)}>
+                            <DropdownLabel>Yeniden Davet Et</DropdownLabel>
+                          </DropdownItem>
+                        )}
+                        {it.status === "ACCEPTED" && (
+                          <div className="px-3.5 py-2 text-xs text-zinc-500 sm:px-3">
+                            {it.acceptedBySupplier
+                              ? `Kabul: ${it.acceptedBySupplier.companyName}`
+                              : "Kabul edildi"}
+                          </div>
+                        )}
+                        {it.status === "CANCELLED" && (
+                          <div className="px-3.5 py-2 text-xs text-zinc-500 sm:px-3">
+                            İptal edilmiş
+                          </div>
+                        )}
+                      </DropdownMenu>
+                    </Dropdown>
                   ) : (
-                    <span className="text-xs text-slate-400">—</span>
+                    <span className="text-xs text-zinc-400">—</span>
                   )}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             );
           })}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

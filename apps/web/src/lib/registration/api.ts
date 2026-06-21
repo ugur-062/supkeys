@@ -41,6 +41,10 @@ function buildPayload(values: FullRegistration) {
     taxNumber: values.taxNumber.trim(),
     taxOffice: values.taxOffice.trim(),
     taxCertUrl: values.taxCertUrl,
+    // G9 madde 27 — KYC belgeleri (varsa gönderilir; connect'te zorunlu)
+    ticariSicilUrl: values.ticariSicilUrl || undefined,
+    imzaSirkuleriUrl: values.imzaSirkuleriUrl || undefined,
+    bankaOnayliIbanUrl: values.bankaOnayliIbanUrl || undefined,
     website: values.website?.trim() || undefined,
     city: values.city.trim(),
     district: values.district.trim(),
@@ -91,9 +95,15 @@ export async function submitSupplierApplication(
   invitationToken: string | undefined,
   // V2-6 — Tedarikçi kategori seçimi (Family seviyesi). Backend zorunlu kabul eder.
   categoryIds: string[],
+  // "Tedarikçi Ol" — alıcı public profilinden başvuruda hedef firma slug'ı.
+  connectSlug?: string,
 ) {
   const url = "/registration/supplier/applications";
-  const params = invitationToken ? { invitation: invitationToken } : undefined;
+  const params = invitationToken
+    ? { invitation: invitationToken }
+    : connectSlug
+      ? { connect: connectSlug }
+      : undefined;
   const payload = { ...buildPayload(values), categoryIds };
   const { data } = await api.post<CreateApplicationResponse>(url, payload, {
     params,

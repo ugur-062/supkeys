@@ -102,7 +102,7 @@ const GROUPS: SettingsGroup[] = [
 
 const ACCENT_ICON_BG: Record<SettingsCard["accent"], string> = {
   brand: "bg-brand-50 text-brand-600 group-hover:bg-brand-100",
-  indigo: "bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100",
+  indigo: "bg-zinc-50 text-zinc-600 group-hover:bg-zinc-100",
   success: "bg-success-50 text-success-600 group-hover:bg-success-100",
   warning: "bg-warning-50 text-warning-600 group-hover:bg-warning-100",
   danger: "bg-danger-50 text-danger-600 group-hover:bg-danger-100",

@@ -8,8 +8,8 @@ export interface SupplierDashboardStats {
   bids: { active: number };
   wonTenders: number;
   orders: { pending: number };
-  revenue: { total: number };
-  last30Days: { bidsSubmitted: number };
+  revenue: { total: number; last30: number; prev30: number };
+  last30Days: { bidsSubmitted: number; prevBidsSubmitted: number };
   buyers: { active: number };
 }
 

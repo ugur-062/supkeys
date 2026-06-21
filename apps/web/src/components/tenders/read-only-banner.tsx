@@ -19,7 +19,7 @@ export function ReadOnlyBanner({ ownerName, context }: Props) {
       <div className="min-w-0 text-sm">
         <p className="font-semibold text-slate-700">
           Görüntüleme modu — bu {noun}{" "}
-          <span className="text-brand-700">{ownerName}</span> tarafından
+          <span className="text-zinc-700">{ownerName}</span> tarafından
           yürütülüyor.
         </p>
         <p className="mt-0.5 text-xs text-slate-500">

@@ -41,6 +41,9 @@ export const bidFormSchema = z
       errorMap: () => ({ message: "Para birimi seçmelisiniz" }),
     }),
     notes: z.string().max(2000).optional(),
+    // G4 — base'de opsiyonel (taslak serbest); zorunluluk "Gönder"de uygulanır.
+    deliveryDate: z.string().optional(), // ISO tarih "2026-07-15"
+    validityDays: z.number().int().min(1).max(365).nullable().optional(),
     items: z.array(bidFormItemSchema).min(1),
     attachments: z.array(bidFormAttachmentSchema).max(10).optional(),
   })

@@ -62,10 +62,15 @@ export interface SavingsReportRow {
   tenderNumber: string;
   title: string;
   currency: string;
-  targetTotal: number;
-  actualTotal: number;
+  /** Madde 28 — teklif sayısı + en yüksek/en düşük teklif (tasarruf bunlardan). */
+  bidCount: number;
+  highestBid: number | null;
+  lowestBid: number | null;
   savings: number | null;
   savingsPct: number | null;
+  /** Hedef-vs-kazanan detayı (bilgi amaçlı). */
+  targetTotal: number;
+  actualTotal: number;
   winners: Array<{ name: string; total: number }>;
   items: SavingsReportItem[];
   awardedAt: string;
@@ -79,6 +84,8 @@ export interface SavingsReportResult {
   rows: SavingsReportRow[];
   summary: {
     totalTenders: number;
+    grandHighest: number;
+    grandLowest: number;
     grandTarget: number;
     grandActual: number;
     grandSavings: number;

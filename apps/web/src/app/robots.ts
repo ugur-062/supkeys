@@ -5,7 +5,7 @@ import type { MetadataRoute } from "next";
  * V2-SEO — robots.txt — Next.js 15 MetadataRoute convention.
  *
  * Genel kural:
- *  - / (anasayfa), /t/* (public tedarikçi profili), /login (giriş) → indexlenir
+ *  - / (anasayfa), /<slug> (public tedarikçi profili), /login (giriş) → indexlenir
  *  - Tüm panel/auth callback/admin/api yolları → engellenir
  */
 export default function robots(): MetadataRoute.Robots {
@@ -14,7 +14,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: "*",
-        allow: ["/", "/t/", "/login"],
+        allow: ["/", "/login"],
         disallow: [
           "/dashboard/",
           "/supplier/",

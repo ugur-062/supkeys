@@ -1,8 +1,13 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import * as Dialog from "@radix-ui/react-dialog";
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogPanel,
+  DialogTitle,
+  Description as DialogDescription,
+} from "@headlessui/react";
 import { Download, FileWarning, X } from "lucide-react";
 import { useMemo } from "react";
 
@@ -12,6 +17,8 @@ interface TaxCertModalProps {
   companyName: string;
   open: boolean;
   onClose: () => void;
+  /** Belge etiketi (başlık + indirme dosya adı). Varsayılan: "Vergi Levhası". */
+  docLabel?: string;
 }
 
 interface ParsedCert {
@@ -35,14 +42,24 @@ function parseCert(value: string | null): ParsedCert {
   };
 }
 
-function suggestedFilename(companyName: string, mime: string | null): string {
-  const safe = companyName
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    || "vergi-levhasi";
+function slugify(value: string, fallback: string): string {
+  return (
+    value
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || fallback
+  );
+}
+
+function suggestedFilename(
+  companyName: string,
+  mime: string | null,
+  docLabel: string,
+): string {
+  const safe = slugify(companyName, "firma");
+  const docSlug = slugify(docLabel, "belge");
   const ext = mime === "application/pdf"
     ? "pdf"
     : mime === "image/jpeg"
@@ -50,7 +67,7 @@ function suggestedFilename(companyName: string, mime: string | null): string {
       : mime === "image/png"
         ? "png"
         : "bin";
-  return `${safe}-vergi-levhasi.${ext}`;
+  return `${safe}-${docSlug}.${ext}`;
 }
 
 export function TaxCertModal({
@@ -58,6 +75,7 @@ export function TaxCertModal({
   companyName,
   open,
   onClose,
+  docLabel = "Vergi Levhası",
 }: TaxCertModalProps) {
   // Büyük base64 stringi sadece modal açıkken parse et
   const cert = useMemo(
@@ -66,37 +84,36 @@ export function TaxCertModal({
   );
 
   return (
-    <Dialog.Root
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-slate-900/70 z-[60]" />
-        <Dialog.Content
-          className={cn(
-            "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[60]",
-            "w-full max-w-4xl bg-white rounded-2xl shadow-2xl outline-none flex flex-col",
-            "max-h-[90vh]",
-          )}
+    <Dialog open={open} onClose={onClose} className="relative z-50">
+      <DialogBackdrop
+        transition
+        className="fixed inset-0 bg-zinc-950/50 backdrop-blur-sm transition-opacity duration-200 data-closed:opacity-0"
+      />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <DialogPanel
+          transition
+          className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl outline-none ring-1 ring-zinc-950/10 transition duration-200 data-closed:scale-95 data-closed:opacity-0"
         >
           <header className="px-5 py-4 border-b border-admin-border flex items-start justify-between gap-3 shrink-0">
             <div className="min-w-0">
-              <Dialog.Title className="font-display font-bold text-lg text-admin-text truncate">
-                Vergi Levhası — {companyName}
-              </Dialog.Title>
+              <DialogTitle className="font-display font-bold text-lg text-admin-text truncate">
+                {docLabel} — {companyName}
+              </DialogTitle>
               {cert?.mimeType && (
-                <Dialog.Description className="text-xs text-admin-text-muted mt-0.5">
+                <DialogDescription className="text-xs text-admin-text-muted mt-0.5">
                   {cert.mimeType}
-                </Dialog.Description>
+                </DialogDescription>
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {taxCertUrl && cert?.isData && (
                 <a
                   href={taxCertUrl}
-                  download={suggestedFilename(companyName, cert.mimeType)}
+                  download={suggestedFilename(
+                    companyName,
+                    cert.mimeType,
+                    docLabel,
+                  )}
                   className="inline-flex"
                 >
                   <Button type="button" variant="secondary" size="sm">
@@ -105,29 +122,29 @@ export function TaxCertModal({
                   </Button>
                 </a>
               )}
-              <Dialog.Close asChild>
-                <button
-                  aria-label="Kapat"
-                  className="p-1.5 rounded-lg hover:bg-surface-muted text-admin-text-muted hover:text-admin-text transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </Dialog.Close>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Kapat"
+                className="p-1.5 rounded-lg hover:bg-surface-muted text-admin-text-muted hover:text-admin-text transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           </header>
 
-          <div className="flex-1 overflow-auto bg-slate-50">
+          <div className="flex-1 overflow-auto bg-zinc-50">
             {!taxCertUrl || !cert?.isData ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center text-admin-text-muted">
                 <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center mb-3">
                   <FileWarning className="w-6 h-6" />
                 </div>
-                <p className="text-sm">Vergi levhası görüntülenemiyor.</p>
+                <p className="text-sm">{docLabel} görüntülenemiyor.</p>
               </div>
             ) : cert.isPdf ? (
               <iframe
                 src={taxCertUrl}
-                title={`Vergi levhası — ${companyName}`}
+                title={`${docLabel} — ${companyName}`}
                 className="w-full h-[75vh] bg-white"
               />
             ) : cert.isImage ? (
@@ -135,7 +152,7 @@ export function TaxCertModal({
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={taxCertUrl}
-                  alt={`Vergi levhası — ${companyName}`}
+                  alt={`${docLabel} — ${companyName}`}
                   className="max-w-full max-h-[75vh] object-contain rounded shadow"
                 />
               </div>
@@ -146,7 +163,11 @@ export function TaxCertModal({
                 </p>
                 <a
                   href={taxCertUrl}
-                  download={suggestedFilename(companyName, cert.mimeType)}
+                  download={suggestedFilename(
+                    companyName,
+                    cert.mimeType,
+                    docLabel,
+                  )}
                 >
                   <Button type="button">
                     <Download className="w-4 h-4" />
@@ -156,8 +177,8 @@ export function TaxCertModal({
               </div>
             )}
           </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        </DialogPanel>
+      </div>
+    </Dialog>
   );
 }

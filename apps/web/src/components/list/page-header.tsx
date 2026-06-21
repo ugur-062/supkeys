@@ -1,5 +1,7 @@
 "use client";
 
+import { Heading } from "@/components/catalyst/heading";
+import { Text } from "@/components/catalyst/text";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
@@ -13,9 +15,8 @@ interface Props {
 }
 
 /**
- * Alıcı paneli sayfa başlığı standardı.
- * Başlık `text-2xl sm:text-3xl`, açıklama `text-sm text-slate-500`,
- * aksiyon slotu sağda. Tüm liste/sayfa başlıkları bunu kullanır.
+ * Sayfa başlığı standardı — Catalyst Heading + Text.
+ * Tüm liste/sayfa başlıkları bunu kullanır.
  */
 export function PageHeader({ title, description, action, className }: Props) {
   return (
@@ -25,13 +26,9 @@ export function PageHeader({ title, description, action, className }: Props) {
         className,
       )}
     >
-      <div className="min-w-0 space-y-1">
-        <h1 className="font-display text-2xl font-bold leading-tight text-brand-900 sm:text-3xl">
-          {title}
-        </h1>
-        {description ? (
-          <p className="text-sm text-slate-500">{description}</p>
-        ) : null}
+      <div className="min-w-0">
+        <Heading>{title}</Heading>
+        {description ? <Text className="mt-1">{description}</Text> : null}
       </div>
       {action ? <div className="flex-shrink-0">{action}</div> : null}
     </div>

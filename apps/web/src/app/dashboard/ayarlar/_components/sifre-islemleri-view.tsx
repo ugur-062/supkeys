@@ -118,7 +118,7 @@ export function SifreIslemleriView() {
             <Lock className="h-5 w-5 text-brand-600" />
           </div>
           <div>
-            <h1 className="font-display text-2xl font-bold text-brand-900">
+            <h1 className="text-2xl font-semibold text-brand-900">
               Şifre İşlemleri
             </h1>
             <p className="mt-1 text-sm text-slate-500">

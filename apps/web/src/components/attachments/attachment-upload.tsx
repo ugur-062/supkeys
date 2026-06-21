@@ -132,15 +132,15 @@ export function AttachmentUpload({
         onClick={() => fileInputRef.current?.click()}
         className={`border-2 border-dashed rounded-xl p-6 cursor-pointer transition-all ${
           isDragOver
-            ? "border-brand-500 bg-brand-50"
-            : "border-slate-300 hover:border-brand-300 bg-slate-50/50"
+            ? "border-zinc-500 bg-zinc-50"
+            : "border-slate-300 hover:border-zinc-300 bg-slate-50/50"
         }`}
       >
         <div className="flex flex-col items-center text-center">
           <Upload
-            className={`h-8 w-8 mb-2 ${isDragOver ? "text-brand-600" : "text-slate-400"}`}
+            className={`h-8 w-8 mb-2 ${isDragOver ? "text-zinc-600" : "text-slate-400"}`}
           />
-          <p className="text-sm font-semibold text-brand-900">
+          <p className="text-sm font-semibold text-zinc-900">
             Dosyayı sürükleyin veya tıklayarak seçin
           </p>
           <p className="text-xs text-slate-500 mt-1">{hint ?? DEFAULT_HINT}</p>
@@ -168,7 +168,7 @@ export function AttachmentUpload({
               className="flex items-center gap-3 p-2 bg-white border border-slate-200 rounded-lg"
             >
               {uf.status === "uploading" && (
-                <Loader2 className="h-4 w-4 text-brand-500 animate-spin flex-shrink-0" />
+                <Loader2 className="h-4 w-4 text-zinc-500 animate-spin flex-shrink-0" />
               )}
               {uf.status === "success" && (
                 <span className="text-success-600 text-sm font-bold flex-shrink-0">
@@ -182,13 +182,13 @@ export function AttachmentUpload({
               )}
 
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium truncate text-brand-900">
+                <p className="text-xs font-medium truncate text-zinc-900">
                   {uf.file.name}
                 </p>
                 {uf.status === "uploading" && (
                   <div className="mt-1 h-1 bg-slate-200 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-brand-500 transition-all"
+                      className="h-full bg-zinc-500 transition-all"
                       style={{ width: `${uf.progress}%` }}
                     />
                   </div>

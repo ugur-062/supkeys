@@ -1,20 +1,24 @@
+// Catalyst SidebarItem ikonları `fill-*` ile renklendiği için solid (20)
+// Heroicons kullanılır — tedarikçi paneliyle birebir aynı ikon stili.
 import {
-  BarChart3,
-  CheckSquare,
-  FileText,
-  FolderOpen,
-  LayoutDashboard,
-  type LucideIcon,
-  Package,
-  Plus,
-  Settings,
-  Users,
-} from "lucide-react";
+  ChartBarIcon,
+  ClipboardDocumentCheckIcon,
+  ClipboardDocumentListIcon,
+  Cog6ToothIcon,
+  FolderIcon,
+  HomeIcon,
+  PlusIcon,
+  ShoppingBagIcon,
+  UsersIcon,
+} from "@heroicons/react/20/solid";
+import type { ComponentType, SVGProps } from "react";
+
+type NavIcon = ComponentType<SVGProps<SVGSVGElement> & { "data-slot"?: string }>;
 
 export type NavItem =
   | {
       type: "link";
-      icon: LucideIcon;
+      icon: NavIcon;
       label: string;
       href: string;
       /** Sidebar'da kırmızı/mavi rakamlı badge — 0 ise gizlenir */
@@ -24,7 +28,7 @@ export type NavItem =
     }
   | {
       type: "cta";
-      icon: LucideIcon;
+      icon: NavIcon;
       label: string;
       href: string;
       /** V2-6.5 — RBAC permission */
@@ -42,27 +46,27 @@ export const navConfig: NavGroup[] = [
     items: [
       {
         type: "link",
-        icon: LayoutDashboard,
+        icon: HomeIcon,
         label: "Dashboard",
         href: "/dashboard",
       },
       {
         type: "link",
-        icon: FileText,
+        icon: ClipboardDocumentListIcon,
         label: "İhaleler",
         href: "/dashboard/ihaleler",
         permission: "tender:view",
       },
       {
         type: "cta",
-        icon: Plus,
+        icon: PlusIcon,
         label: "Yeni İhale Aç",
         href: "/dashboard/ihaleler/yeni",
         permission: "tender:create",
       },
       {
         type: "link",
-        icon: CheckSquare,
+        icon: ClipboardDocumentCheckIcon,
         label: "Onay Bekleyenler",
         href: "/dashboard/onay-bekleyenler",
         badge: 0,
@@ -70,7 +74,7 @@ export const navConfig: NavGroup[] = [
       },
       {
         type: "link",
-        icon: Package,
+        icon: ShoppingBagIcon,
         label: "Siparişler",
         href: "/dashboard/siparisler",
         permission: "order:view",
@@ -82,28 +86,28 @@ export const navConfig: NavGroup[] = [
     items: [
       {
         type: "link",
-        icon: Users,
+        icon: UsersIcon,
         label: "Tedarikçiler",
         href: "/dashboard/tedarikciler",
         permission: "settings:suppliers",
       },
       {
         type: "link",
-        icon: BarChart3,
+        icon: ChartBarIcon,
         label: "Raporlar",
         href: "/dashboard/raporlar",
         permission: "reports:view",
       },
       {
         type: "link",
-        icon: FolderOpen,
+        icon: FolderIcon,
         label: "Şablonlar",
         href: "/dashboard/sablonlar",
         permission: "templates:view",
       },
       {
         type: "link",
-        icon: Settings,
+        icon: Cog6ToothIcon,
         label: "Ayarlar",
         href: "/dashboard/ayarlar",
       },

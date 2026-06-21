@@ -6,8 +6,19 @@
 // templateId verilirse düzenle/görüntüle modu; seçili firmalar ön-yüklenir.
 // Sahibi değilse salt-okunur (backend zaten düzenlemeyi engeller).
 
+import { Checkbox } from "@/components/catalyst/checkbox";
+import { Radio, RadioGroup } from "@/components/catalyst/radio";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
+import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useSuppliers } from "@/hooks/use-tenant-suppliers";
@@ -19,7 +30,12 @@ import {
 } from "@/hooks/use-templates";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
-import * as Dialog from "@radix-ui/react-dialog";
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogPanel,
+  DialogTitle,
+} from "@headlessui/react";
 import { Building2, CheckCircle2, Lock, Users, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -197,45 +213,47 @@ export function SupplierTemplateCreateDialog({
   const loadingDetail = isEditMode && detail.isLoading;
 
   return (
-    <Dialog.Root open={open} onOpenChange={(o) => !o && handleClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-slate-900/60 z-[60]" />
-        <Dialog.Content
-          className={cn(
-            "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[60]",
-            "w-[calc(100vw-2rem)] max-w-4xl bg-white rounded-2xl shadow-2xl outline-none",
-            "max-h-[90vh] flex flex-col",
-          )}
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      className="relative z-[60]"
+    >
+      <DialogBackdrop
+        transition
+        className="fixed inset-0 bg-zinc-950/40 transition data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150"
+      />
+      <div className="fixed inset-0 flex w-screen items-center justify-center p-2 sm:p-4">
+        <DialogPanel
+          transition
+          className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-950/10 outline-none transition data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150 data-closed:data-enter:scale-95"
         >
-          <header className="px-5 py-4 border-b border-surface-border flex items-start justify-between gap-3">
+          <header className="px-5 py-4 border-b border-zinc-950/5 flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-brand-50 flex items-center justify-center shrink-0">
-                <Users className="w-5 h-5 text-brand-600" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-100">
+                <Users className="h-5 w-5 text-zinc-700" />
               </div>
-              <Dialog.Title className="font-display font-bold text-lg text-brand-900">
+              <DialogTitle className="font-semibold text-lg text-zinc-950">
                 {title}
-              </Dialog.Title>
+              </DialogTitle>
             </div>
-            <button
-              type="button"
+            <IconButton
+              aria-label="Kapat"
               onClick={handleClose}
               disabled={mutation.isPending}
-              aria-label="Kapat"
-              className="text-slate-400 hover:text-slate-600 disabled:opacity-40"
             >
               <X className="w-5 h-5" />
-            </button>
+            </IconButton>
           </header>
 
           <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
             {loadingDetail ? (
-              <p className="text-sm text-slate-500 text-center py-8">
+              <p className="text-sm text-zinc-500 text-center py-8">
                 Yükleniyor…
               </p>
             ) : (
               <>
                 {readOnly ? (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-surface-border text-sm text-slate-600">
+                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-50 ring-1 ring-zinc-950/10 text-sm text-zinc-600">
                     <Lock className="w-4 h-4 shrink-0" />
                     Bu şablonu yalnızca oluşturan kişi düzenleyebilir.
                     Görüntüleme modundasınız.
@@ -245,8 +263,8 @@ export function SupplierTemplateCreateDialog({
                 {/* STEP 1 — İsim + Erişim */}
                 <section>
                   <div className="flex items-center gap-2 mb-3">
-                    <CheckCircle2 className="w-5 h-5 text-brand-600" />
-                    <h3 className="font-semibold text-brand-900">
+                    <CheckCircle2 className="w-5 h-5 text-zinc-700" />
+                    <h3 className="font-semibold text-zinc-950">
                       Şablon adını belirleyiniz
                     </h3>
                   </div>
@@ -268,26 +286,20 @@ export function SupplierTemplateCreateDialog({
                     </div>
                     <Field>
                       <Label>Şablon Erişimi</Label>
-                      <div className="flex items-center gap-4 px-3 py-2.5 rounded-lg border border-surface-border bg-white text-sm">
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                          <input
-                            type="radio"
-                            checked={isPublic}
-                            onChange={() => setIsPublic(true)}
-                            disabled={readOnly}
-                          />
-                          Herkese Açık
-                        </label>
-                        <label className="flex items-center gap-1.5 cursor-pointer">
-                          <input
-                            type="radio"
-                            checked={!isPublic}
-                            onChange={() => setIsPublic(false)}
-                            disabled={readOnly}
-                          />
-                          Özel
-                        </label>
-                      </div>
+                      <RadioGroup
+                        value={isPublic ? "public" : "private"}
+                        onChange={(v) => setIsPublic(v === "public")}
+                        className="flex items-center gap-4 px-3 py-2.5 rounded-lg ring-1 ring-zinc-950/10 bg-white text-sm"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Radio value="public" disabled={readOnly} />
+                          <span>Herkese Açık</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Radio value="private" disabled={readOnly} />
+                          <span>Özel</span>
+                        </div>
+                      </RadioGroup>
                     </Field>
                   </div>
                 </section>
@@ -295,69 +307,56 @@ export function SupplierTemplateCreateDialog({
                 {/* Seçili firmalar */}
                 {selectedList.length > 0 ? (
                   <section>
-                    <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">
                       Seçili Firmalar ({selectedList.length})
                     </h4>
-                    <div className="overflow-x-auto border border-surface-border rounded-lg">
-                      <table className="w-full text-sm">
-                        <thead className="bg-slate-50 text-slate-700">
-                          <tr>
-                            <th className="px-3 py-2 text-left font-semibold w-12">
-                              No
-                            </th>
-                            <th className="px-3 py-2 text-left font-semibold">
-                              Firma Adı
-                            </th>
-                            <th className="px-3 py-2 text-left font-semibold">
-                              Vergi Numarası
-                            </th>
-                            <th className="px-3 py-2 text-left font-semibold">
-                              İl
-                            </th>
+                    <div className="rounded-lg ring-1 ring-zinc-950/10 px-3 [--gutter:--spacing(3)]">
+                      <Table dense>
+                        <TableHead>
+                          <TableRow>
+                            <TableHeader className="w-12">No</TableHeader>
+                            <TableHeader>Firma Adı</TableHeader>
+                            <TableHeader>Vergi Numarası</TableHeader>
+                            <TableHeader>İl</TableHeader>
                             {!readOnly ? (
-                              <th className="px-3 py-2 text-right font-semibold w-12">
-                                {" "}
-                              </th>
+                              <TableHeader className="w-12 text-right" />
                             ) : null}
-                          </tr>
-                        </thead>
-                        <tbody>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
                           {selectedList.map((s, idx) => (
-                            <tr
-                              key={s.id}
-                              className="border-t border-surface-border"
-                            >
-                              <td className="px-3 py-2 text-slate-500">
+                            <TableRow key={s.id}>
+                              <TableCell className="text-zinc-500">
                                 {idx + 1}
-                              </td>
-                              <td className="px-3 py-2 font-semibold text-brand-900">
+                              </TableCell>
+                              <TableCell className="font-semibold text-zinc-900">
                                 <div className="flex items-center gap-2">
-                                  <Building2 className="w-4 h-4 text-slate-400" />
+                                  <Building2 className="w-4 h-4 text-zinc-400" />
                                   {s.companyName}
                                 </div>
-                              </td>
-                              <td className="px-3 py-2 font-mono text-slate-600">
+                              </TableCell>
+                              <TableCell className="font-mono text-zinc-600">
                                 {s.taxNumber}
-                              </td>
-                              <td className="px-3 py-2 text-slate-600">
+                              </TableCell>
+                              <TableCell className="text-zinc-600">
                                 {s.city}
-                              </td>
+                              </TableCell>
                               {!readOnly ? (
-                                <td className="px-3 py-2 text-right">
-                                  <button
-                                    type="button"
+                                <TableCell className="text-right">
+                                  <IconButton
+                                    tone="danger"
                                     onClick={() => removeSelected(s.id)}
-                                    className="text-slate-400 hover:text-danger-600 p-1"
+                                    aria-label="Şablondan çıkar"
                                     title="Şablondan çıkar"
                                   >
                                     <X className="w-4 h-4" />
-                                  </button>
-                                </td>
+                                  </IconButton>
+                                </TableCell>
                               ) : null}
-                            </tr>
+                            </TableRow>
                           ))}
-                        </tbody>
-                      </table>
+                        </TableBody>
+                      </Table>
                     </div>
                   </section>
                 ) : null}
@@ -366,14 +365,14 @@ export function SupplierTemplateCreateDialog({
                 {!readOnly ? (
                   <section>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="w-6 h-6 rounded-full bg-brand-100 text-brand-700 text-xs font-bold flex items-center justify-center">
+                      <span className="w-6 h-6 rounded-full bg-zinc-900 text-white text-xs font-bold flex items-center justify-center">
                         2
                       </span>
-                      <h3 className="font-semibold text-brand-900">
+                      <h3 className="font-semibold text-zinc-950">
                         Tedarikçi firmalarını belirleyiniz
                       </h3>
                     </div>
-                    <p className="text-xs text-slate-500 ml-8 mb-3">
+                    <p className="text-xs text-zinc-500 ml-8 mb-3">
                       Eklemek istediğiniz firmaları seçerek şablonu
                       güncelleyiniz.
                     </p>
@@ -407,23 +406,18 @@ export function SupplierTemplateCreateDialog({
                     </div>
 
                     <div className="flex items-center justify-between flex-wrap gap-2 mt-3">
-                      <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                        <input
-                          type="checkbox"
+                      <div className="flex items-center gap-2 text-sm text-zinc-700">
+                        <Checkbox
                           checked={onlyApproved}
-                          onChange={(e) => setOnlyApproved(e.target.checked)}
+                          onChange={setOnlyApproved}
                         />
-                        Yalnızca onaylı tedarikçilerimi göster.
-                      </label>
+                        <span>Yalnızca onaylı tedarikçilerimi göster.</span>
+                      </div>
                       <div className="flex items-center gap-2">
                         <Button variant="ghost" size="sm" onClick={clearSearch}>
                           Tümünü Temizle
                         </Button>
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={handleSearch}
-                        >
+                        <Button variant="primary" size="sm" onClick={handleSearch}>
                           Firma Ara
                         </Button>
                       </div>
@@ -431,39 +425,36 @@ export function SupplierTemplateCreateDialog({
 
                     {searched ? (
                       <div className="mt-4">
-                        <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-2">
                           Tedarikçiler ({filteredSuppliers.length})
                         </h4>
                         {listQuery.isLoading ? (
-                          <p className="text-sm text-slate-500 text-center py-4">
+                          <p className="text-sm text-zinc-500 text-center py-4">
                             Yükleniyor…
                           </p>
                         ) : filteredSuppliers.length === 0 ? (
-                          <p className="text-sm text-slate-500 text-center py-4">
+                          <p className="text-sm text-zinc-500 text-center py-4">
                             Eşleşen tedarikçi bulunamadı.
                           </p>
                         ) : (
-                          <div className="overflow-x-auto border border-surface-border rounded-lg">
-                            <table className="w-full text-sm">
-                              <thead className="bg-slate-50 text-slate-700">
-                                <tr>
-                                  <th className="px-3 py-2 text-center font-semibold w-10">
-                                    <input
-                                      type="checkbox"
+                          <div className="rounded-lg ring-1 ring-zinc-950/10 px-3 [--gutter:--spacing(3)]">
+                            <Table dense>
+                              <TableHead>
+                                <TableRow>
+                                  <TableHeader className="w-10 text-center">
+                                    <Checkbox
                                       checked={
                                         filteredSuppliers.length > 0 &&
                                         filteredSuppliers.every((s) =>
                                           selectedIds.includes(s.supplier.id),
                                         )
                                       }
-                                      onChange={(e) => {
-                                        const checked = e.target.checked;
+                                      onChange={(checked) => {
                                         filteredSuppliers.forEach((s) =>
                                           toggleSupplier(
                                             {
                                               id: s.supplier.id,
-                                              companyName:
-                                                s.supplier.companyName,
+                                              companyName: s.supplier.companyName,
                                               taxNumber: s.supplier.taxNumber,
                                               city: s.supplier.city,
                                             },
@@ -472,41 +463,27 @@ export function SupplierTemplateCreateDialog({
                                         );
                                       }}
                                     />
-                                  </th>
-                                  <th className="px-3 py-2 text-left font-semibold w-12">
-                                    No
-                                  </th>
-                                  <th className="px-3 py-2 text-left font-semibold">
-                                    Tipi
-                                  </th>
-                                  <th className="px-3 py-2 text-left font-semibold">
-                                    Firma Adı
-                                  </th>
-                                  <th className="px-3 py-2 text-left font-semibold">
-                                    Vergi Numarası
-                                  </th>
-                                  <th className="px-3 py-2 text-left font-semibold">
-                                    Ülke / İl
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody>
+                                  </TableHeader>
+                                  <TableHeader className="w-12">No</TableHeader>
+                                  <TableHeader>Tipi</TableHeader>
+                                  <TableHeader>Firma Adı</TableHeader>
+                                  <TableHeader>Vergi Numarası</TableHeader>
+                                  <TableHeader>Ülke / İl</TableHeader>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
                                 {filteredSuppliers.map((s, idx) => {
                                   const id = s.supplier.id;
                                   const checked = selectedIds.includes(id);
                                   return (
-                                    <tr
+                                    <TableRow
                                       key={id}
-                                      className={cn(
-                                        "border-t border-surface-border hover:bg-slate-50/40",
-                                        checked && "bg-brand-50/40",
-                                      )}
+                                      className={cn(checked && "bg-zinc-50")}
                                     >
-                                      <td className="px-3 py-2 text-center">
-                                        <input
-                                          type="checkbox"
+                                      <TableCell className="text-center">
+                                        <Checkbox
                                           checked={checked}
-                                          onChange={(e) =>
+                                          onChange={(c) =>
                                             toggleSupplier(
                                               {
                                                 id,
@@ -515,50 +492,50 @@ export function SupplierTemplateCreateDialog({
                                                 taxNumber: s.supplier.taxNumber,
                                                 city: s.supplier.city,
                                               },
-                                              e.target.checked,
+                                              c,
                                             )
                                           }
                                         />
-                                      </td>
-                                      <td className="px-3 py-2 text-slate-500">
+                                      </TableCell>
+                                      <TableCell className="text-zinc-500">
                                         {idx + 1}
-                                      </td>
-                                      <td className="px-3 py-2">
+                                      </TableCell>
+                                      <TableCell>
                                         <span
                                           className={cn(
                                             "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase",
                                             s.supplier.membership === "PREMIUM"
-                                              ? "bg-yellow-50 text-yellow-700 border border-yellow-200"
-                                              : "bg-orange-50 text-orange-700 border border-orange-200",
+                                              ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                              : "bg-zinc-100 text-zinc-700 border border-zinc-200",
                                           )}
                                         >
                                           {s.supplier.membership === "PREMIUM"
                                             ? "Premium"
                                             : "Standart"}
                                         </span>
-                                      </td>
-                                      <td className="px-3 py-2 font-semibold text-brand-900">
+                                      </TableCell>
+                                      <TableCell className="font-semibold text-zinc-900">
                                         <div className="flex items-center gap-2">
-                                          <Building2 className="w-4 h-4 text-slate-400" />
+                                          <Building2 className="w-4 h-4 text-zinc-400" />
                                           {s.supplier.companyName}
                                         </div>
-                                      </td>
-                                      <td className="px-3 py-2 font-mono text-slate-600">
+                                      </TableCell>
+                                      <TableCell className="font-mono text-zinc-600">
                                         {s.supplier.taxNumber}
-                                      </td>
-                                      <td className="px-3 py-2">
+                                      </TableCell>
+                                      <TableCell>
                                         <div className="font-semibold">
                                           Türkiye
                                         </div>
-                                        <div className="text-xs text-slate-500">
+                                        <div className="text-xs text-zinc-500">
                                           {s.supplier.city}
                                         </div>
-                                      </td>
-                                    </tr>
+                                      </TableCell>
+                                    </TableRow>
                                   );
                                 })}
-                              </tbody>
-                            </table>
+                              </TableBody>
+                            </Table>
                           </div>
                         )}
                       </div>
@@ -569,8 +546,8 @@ export function SupplierTemplateCreateDialog({
             )}
           </div>
 
-          <footer className="px-5 py-4 border-t border-surface-border flex items-center justify-between gap-3">
-            <p className="text-xs text-slate-500">
+          <footer className="px-5 py-4 border-t border-zinc-950/5 flex items-center justify-between gap-3">
+            <p className="text-xs text-zinc-500">
               {selectedIds.length > 0
                 ? `${selectedIds.length} tedarikçi seçildi`
                 : "Şablona eklemek için tedarikçi seçin"}
@@ -597,8 +574,8 @@ export function SupplierTemplateCreateDialog({
               ) : null}
             </div>
           </footer>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        </DialogPanel>
+      </div>
+    </Dialog>
   );
 }

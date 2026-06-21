@@ -1,6 +1,7 @@
 "use client";
 
 import { SupkeysLogo } from "@/components/brand/logo";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -80,13 +81,9 @@ export function AcceptView({ token }: { token: string }) {
     }
     return (
       <CenteredCard>
-        <div className="flex items-start gap-3 rounded-xl bg-danger-50 border border-danger-200 p-4">
-          <AlertCircle className="h-5 w-5 text-danger-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-bold text-danger-800">Davet geçersiz</p>
-            <p className="text-danger-700 mt-1">{detail}</p>
-          </div>
-        </div>
+        <Alert variant="danger" title="Davet geçersiz">
+          {detail}
+        </Alert>
         <div className="flex gap-2 mt-4">
           <Link href="/supplier/login" className="flex-1">
             <Button variant="primary" className="w-full">
@@ -134,7 +131,7 @@ export function AcceptView({ token }: { token: string }) {
     <CenteredCard>
       <div className="text-center mb-6">
         <SupkeysLogo variant="full" size="md" className="mx-auto" />
-        <h1 className="font-display text-2xl font-bold text-brand-900 mt-4">
+        <h1 className="text-2xl font-semibold text-zinc-900 mt-4">
           Ekibe Katılın
         </h1>
         <p className="text-slate-600 text-sm mt-2">
@@ -225,7 +222,7 @@ export function AcceptView({ token }: { token: string }) {
         Zaten hesabınız var mı?{" "}
         <Link
           href="/supplier/login"
-          className="text-brand-600 hover:underline font-semibold"
+          className="text-zinc-600 hover:underline font-semibold"
         >
           Giriş yap
         </Link>

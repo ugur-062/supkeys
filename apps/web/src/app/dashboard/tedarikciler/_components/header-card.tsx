@@ -10,14 +10,14 @@ interface HeaderCardProps {
 
 export function HeaderCard({ onInviteClick, canInvite }: HeaderCardProps) {
   return (
-    <div className="bg-gradient-to-br from-brand-50 via-white to-indigo-50/40 border border-brand-100 rounded-2xl p-6">
+    <div className="bg-gradient-to-br from-brand-50 via-white to-zinc-50/40 border border-brand-100 rounded-2xl p-6">
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5">
         <div className="flex gap-4">
           <div className="h-12 w-12 rounded-xl bg-brand-100 flex items-center justify-center flex-shrink-0">
             <Users2 className="h-6 w-6 text-brand-600" />
           </div>
           <div>
-            <h2 className="font-display text-lg font-bold text-brand-900">
+            <h2 className="text-lg font-semibold text-brand-900">
               Tedarikçi Ağınızı Yönetin
             </h2>
             <ul className="text-sm text-slate-600 mt-2 space-y-1 list-disc list-inside marker:text-brand-300">

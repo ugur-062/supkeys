@@ -41,7 +41,7 @@ export function StepUserInfo({
   return (
     <div className="space-y-5">
       <div className="space-y-1">
-        <h2 className="text-2xl font-display font-bold text-brand-900">
+        <h2 className="text-2xl font-display font-bold text-zinc-900">
           Yetkili Kullanıcı
         </h2>
         <p className="text-sm text-slate-500">

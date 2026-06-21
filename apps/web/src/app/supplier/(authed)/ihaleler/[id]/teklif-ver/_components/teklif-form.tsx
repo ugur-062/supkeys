@@ -1,7 +1,10 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Dropzone } from "@/components/ui/dropzone";
 import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useUploadAttachment } from "@/hooks/use-attachments";
@@ -19,6 +22,7 @@ import { tr } from "date-fns/locale";
 import {
   AlertCircle,
   ArrowLeft,
+  CalendarClock,
   ChevronRight,
   FileText,
   Info,
@@ -92,13 +96,13 @@ function DeadlineMiniPanel({ closeAt }: { closeAt: string }) {
 
 function Section({ title, icon: Icon, hint, children }: SectionProps) {
   return (
-    <section className="bg-white border border-slate-200 rounded-2xl p-5 md:p-6">
+    <section className="bg-white ring-1 ring-zinc-950/5 rounded-2xl p-5 md:p-6">
       <div className="flex items-start gap-3 mb-4">
-        <div className="h-9 w-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
-          <Icon className="h-4 w-4 text-brand-700" />
+        <div className="h-9 w-9 rounded-lg bg-zinc-50 flex items-center justify-center flex-shrink-0">
+          <Icon className="h-4 w-4 text-zinc-700" />
         </div>
         <div>
-          <h3 className="font-display font-bold text-base text-brand-900">
+          <h3 className="font-semibold text-base text-zinc-900">
             {title}
           </h3>
           {hint ? (
@@ -180,6 +184,11 @@ export function TeklifForm({ tender, existingBid }: Props) {
       // tedarikçi seçim yapamaz.
       currency: tender.primaryCurrency,
       notes: draftBid?.notes ?? lazyPrefill?.notes ?? "",
+      // G4 — teslim tarihi (madde 8) + geçerlilik gün (madde 10)
+      deliveryDate: draftBid?.deliveryDate
+        ? draftBid.deliveryDate.slice(0, 10)
+        : "",
+      validityDays: draftBid?.validityDays ?? null,
       items: tender.items.map((ti) => {
         // V2-7+ — kalemin sorularına göre answers dizisini hazırla (mevcut
         // cevap varsa değerini taşı, yoksa boş).
@@ -238,7 +247,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
           <div className="w-12 h-12 mx-auto rounded-full bg-warning-50 flex items-center justify-center">
             <Lock className="w-6 h-6 text-warning-600" />
           </div>
-          <p className="font-display font-bold text-brand-900 text-lg">
+          <p className="font-semibold text-zinc-900 text-lg">
             Teklif zaten verildi
           </p>
           <p className="text-sm text-slate-600 max-w-md mx-auto">
@@ -269,7 +278,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
           <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center">
             <AlertCircle className="w-6 h-6 text-slate-500" />
           </div>
-          <p className="font-display font-bold text-brand-900 text-lg">
+          <p className="font-semibold text-zinc-900 text-lg">
             Teklif geri çekildi
           </p>
           <p className="text-sm text-slate-600 max-w-md mx-auto">
@@ -308,6 +317,8 @@ export function TeklifForm({ tender, existingBid }: Props) {
   const buildPayload = (values: BidFormValues) => ({
     currency: values.currency,
     notes: values.notes?.trim() ? values.notes.trim() : undefined,
+    deliveryDate: values.deliveryDate || undefined,
+    validityDays: values.validityDays ?? undefined,
     items: values.items.map((i) => ({
       tenderItemId: i.tenderItemId,
       unitPrice: i.unitPrice,
@@ -342,8 +353,50 @@ export function TeklifForm({ tender, existingBid }: Props) {
     },
   );
 
+  // G4 — yalnızca "Gönder"de uygulanan zorunluluklar (taslak serbest):
+  // teslim tarihi (8), geçerlilik (10), zorunlu kalem soruları (9).
+  const validateForSubmit = (values: BidFormValues): boolean => {
+    let ok = true;
+    if (!values.deliveryDate) {
+      form.setError("deliveryDate", {
+        type: "manual",
+        message: "Teslim tarihi zorunludur",
+      });
+      ok = false;
+    }
+    if (values.validityDays == null || values.validityDays < 1) {
+      form.setError("validityDays", {
+        type: "manual",
+        message: "Teklif geçerlilik süresi (gün) zorunludur",
+      });
+      ok = false;
+    }
+    const tiById = new Map(tender.items.map((ti) => [ti.id, ti] as const));
+    values.items.forEach((it, idx) => {
+      if (it.unitPrice == null) return; // sadece fiyat verilen kalemler
+      const questions = tiById.get(it.tenderItemId)?.questions ?? [];
+      questions.forEach((q, qi) => {
+        if (!q.required) return;
+        const ans = it.answers?.[qi]?.value ?? "";
+        if (!ans.trim()) {
+          form.setError(`items.${idx}.answers.${qi}.value`, {
+            type: "manual",
+            message: "Bu soru zorunludur",
+          });
+          ok = false;
+        }
+      });
+    });
+    return ok;
+  };
+
   const handleSubmit = form.handleSubmit(
     async (values) => {
+      if (!validateForSubmit(values)) {
+        setConfirmOpen(false);
+        toast.error("Göndermeden önce zorunlu alanları doldurun");
+        return;
+      }
       try {
         const saved = await saveMutation.mutateAsync(buildPayload(values));
         // Submit'ten önce staged dosyaları yükle — requireBidDocument check'i
@@ -376,24 +429,24 @@ export function TeklifForm({ tender, existingBid }: Props) {
         >
           <Link
             href="/supplier/ihaleler"
-            className="hover:text-brand-700 hover:underline"
+            className="hover:text-zinc-700 hover:underline"
           >
             İhaleler
           </Link>
           <ChevronRight className="w-3.5 h-3.5" />
           <Link
             href={`/supplier/ihaleler/${tender.id}`}
-            className="hover:text-brand-700 hover:underline font-mono"
+            className="hover:text-zinc-700 hover:underline font-mono"
           >
             {tender.tenderNumber}
           </Link>
           <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-brand-700 font-medium">Teklif Ver</span>
+          <span className="text-zinc-700 font-medium">Teklif Ver</span>
         </nav>
 
         <header className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="font-display font-bold text-2xl sm:text-3xl text-brand-900">
+            <h1 className="font-semibold text-2xl sm:text-3xl text-zinc-900">
               {isResubmissionAfterElimination
                 ? "Yeniden Teklif Ver"
                 : "Teklif Ver"}
@@ -407,36 +460,33 @@ export function TeklifForm({ tender, existingBid }: Props) {
 
         {/* LOST sonrası yeniden teklif uyarısı */}
         {isResubmissionAfterElimination && existingBid?.eliminationReason ? (
-          <div className="rounded-xl bg-warning-50 border border-warning-200 p-4 flex gap-3 items-start">
-            <AlertCircle className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1 text-sm space-y-1">
-              <p className="font-bold text-warning-900">
-                Önceki teklifiniz alıcı tarafından elendi.
-              </p>
-              <p className="text-warning-800">
-                <strong>Sebep:</strong> {existingBid.eliminationReason}
-              </p>
-              <p className="text-warning-700 text-xs mt-1">
-                Bu sebebi dikkate alarak yeni teklifinizi hazırlayabilirsiniz.
-              </p>
-            </div>
-          </div>
+          <Alert
+            variant="warning"
+            title="Önceki teklifiniz alıcı tarafından elendi."
+          >
+            <p>
+              <strong>Sebep:</strong> {existingBid.eliminationReason}
+            </p>
+            <p className="mt-1 text-xs">
+              Bu sebebi dikkate alarak yeni teklifinizi hazırlayabilirsiniz.
+            </p>
+          </Alert>
         ) : null}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-5">
             {/* Tender özeti */}
-            <section className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/60 via-white to-indigo-50/40 p-5">
+            <section className="rounded-2xl border border-zinc-100 bg-gradient-to-br from-zinc-50/60 via-white to-zinc-50/40 p-5">
               <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">
                 Alıcı Firma
               </p>
-              <p className="font-bold text-brand-900 mt-1">
+              <p className="font-bold text-zinc-900 mt-1">
                 {tender.tenant.name}
               </p>
               <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
                 <div>
                   <p className="text-slate-500">Kapanış</p>
-                  <p className="font-semibold text-brand-900 mt-0.5">
+                  <p className="font-semibold text-zinc-900 mt-0.5">
                     {format(
                       new Date(tender.bidsCloseAt),
                       "d MMM yyyy HH:mm",
@@ -446,7 +496,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
                 </div>
                 <div>
                   <p className="text-slate-500">Kalem</p>
-                  <p className="font-semibold text-brand-900 mt-0.5">
+                  <p className="font-semibold text-zinc-900 mt-0.5">
                     {tender.items.length} adet
                   </p>
                 </div>
@@ -459,7 +509,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
               hint="Bu ihalenin para birimi alıcı tarafından belirlendi; değiştirilemez."
             >
               <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-brand-100 text-brand-700 font-bold">
+                <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-zinc-100 text-zinc-700 font-bold">
                   {tender.primaryCurrency === "TRY"
                     ? "₺"
                     : tender.primaryCurrency === "USD"
@@ -467,7 +517,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
                       : "€"}
                 </span>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-brand-900">
+                  <p className="text-sm font-semibold text-zinc-900">
                     {tender.primaryCurrency}
                   </p>
                   <p className="text-xs text-slate-500">
@@ -483,13 +533,10 @@ export function TeklifForm({ tender, existingBid }: Props) {
               hint="Teklif vermek istemediğiniz kalemleri boş bırakabilirsiniz."
             >
               {tender.requireAllItems ? (
-                <div className="mb-4 rounded-lg bg-warning-50 border border-warning-200 p-3 text-xs text-warning-800 flex gap-2">
-                  <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <span>
-                    Bu ihalede <strong>tüm kalemlere</strong> teklif vermek
-                    zorunludur.
-                  </span>
-                </div>
+                <Alert variant="warning" className="mb-4">
+                  Bu ihalede <strong>tüm kalemlere</strong> teklif vermek
+                  zorunludur.
+                </Alert>
               ) : null}
 
               <BidItemsTable
@@ -505,9 +552,50 @@ export function TeklifForm({ tender, existingBid }: Props) {
             </Section>
 
             <Section
+              title="Teslim & Geçerlilik"
+              icon={CalendarClock}
+              hint="Teslim tarihi ve teklif geçerlilik süresi — göndermeden önce zorunlu."
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field error={form.formState.errors.deliveryDate?.message}>
+                  <Label htmlFor="bid-delivery" required>
+                    Teslim Tarihi
+                  </Label>
+                  <Input
+                    id="bid-delivery"
+                    type="date"
+                    min={new Date().toISOString().slice(0, 10)}
+                    hasError={!!form.formState.errors.deliveryDate}
+                    {...form.register("deliveryDate")}
+                  />
+                </Field>
+                <Field
+                  error={form.formState.errors.validityDays?.message}
+                  hint="Teklifiniz kaç gün geçerli?"
+                >
+                  <Label htmlFor="bid-validity" required>
+                    Geçerlilik Süresi (gün)
+                  </Label>
+                  <Input
+                    id="bid-validity"
+                    type="number"
+                    min={1}
+                    max={365}
+                    placeholder="örn. 30"
+                    hasError={!!form.formState.errors.validityDays}
+                    {...form.register("validityDays", {
+                      setValueAs: (v) =>
+                        v === "" || v == null ? null : Number(v),
+                    })}
+                  />
+                </Field>
+              </div>
+            </Section>
+
+            <Section
               title="Teklif Notu"
               icon={MessageSquare}
-              hint="Teslim süresi, garanti şartları, ödeme önerisi vb."
+              hint="Garanti şartları, ödeme önerisi vb."
             >
               <Field error={form.formState.errors.notes?.message}>
                 <Label htmlFor="bid-notes">Genel Açıklama</Label>
@@ -524,13 +612,10 @@ export function TeklifForm({ tender, existingBid }: Props) {
 
             <Section title="Teklif Dosyaları" icon={Paperclip}>
               {tender.requireBidDocument ? (
-                <div className="mb-3 rounded-lg bg-warning-50 border border-warning-200 p-3 text-xs text-warning-800 flex gap-2">
-                  <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <span>
-                    Bu ihalede <strong>en az 1 dosya</strong> yüklemek
-                    zorunludur (örn. teklif şartnamesi, fiyat listesi).
-                  </span>
-                </div>
+                <Alert variant="warning" className="mb-3">
+                  Bu ihalede <strong>en az 1 dosya</strong> yüklemek zorunludur
+                  (örn. teklif şartnamesi, fiyat listesi).
+                </Alert>
               ) : null}
 
               {draftBid?.id ? (
@@ -602,13 +687,10 @@ export function TeklifForm({ tender, existingBid }: Props) {
                 </Link>
               </div>
 
-              <div className="rounded-lg bg-warning-50 border border-warning-200 p-3 text-xs text-warning-800 flex gap-2">
-                <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <span>
-                  Teklifiniz <strong>kapalı zarf</strong> altındadır. Diğer
-                  tedarikçiler teklifinizi göremez.
-                </span>
-              </div>
+              <Alert variant="warning">
+                Teklifiniz <strong>kapalı zarf</strong> altındadır. Diğer
+                tedarikçiler teklifinizi göremez.
+              </Alert>
 
               {draftBid ? (
                 <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600 flex gap-2">
@@ -655,45 +737,26 @@ function StagedFileUpload({
 }) {
   return (
     <div className="space-y-3">
-      <label
-        className={cn(
-          "block border-2 border-dashed border-slate-300 rounded-lg p-5 text-center cursor-pointer transition",
-          "hover:border-brand-400 hover:bg-brand-50/30",
-          uploading && "opacity-50 cursor-wait",
-        )}
-      >
-        <input
-          type="file"
-          multiple
-          className="hidden"
-          disabled={uploading}
-          onChange={(e) => {
-            const picked = Array.from(e.target.files ?? []);
-            if (picked.length > 0) onAdd(picked);
-            // Reset value, böylece aynı dosyayı tekrar seçebilir
-            e.target.value = "";
-          }}
-        />
-        <Upload className="w-5 h-5 mx-auto text-slate-400" />
-        <p className="text-sm font-medium text-brand-900 mt-2">
-          Dosya seçmek için tıklayın
-        </p>
-        <p className="text-xs text-slate-500 mt-1">
-          PDF, Word, Excel, görsel — tek dosya max 50 MB. Dosyalar
-          taslak/teklif kaydedildiğinde yüklenir.
-        </p>
-      </label>
+      <Dropzone
+        multiple
+        disabled={uploading}
+        onFiles={(picked) => {
+          if (picked.length > 0) onAdd(picked);
+        }}
+        label="Dosya seç"
+        hint="PDF, Word, Excel, görsel — tek dosya max 50 MB. Dosyalar taslak/teklif kaydedildiğinde yüklenir."
+      />
 
       {files.length > 0 ? (
         <ul className="space-y-2">
           {files.map((f, i) => (
             <li
               key={`${f.name}-${i}`}
-              className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-lg"
+              className="flex items-center gap-3 p-3 bg-white ring-1 ring-zinc-950/5 rounded-lg"
             >
               <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-brand-900 truncate">
+                <p className="text-sm font-medium text-zinc-900 truncate">
                   {f.name}
                 </p>
                 <p className="text-xs text-slate-500">

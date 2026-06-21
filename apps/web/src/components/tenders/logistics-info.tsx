@@ -27,7 +27,7 @@ function Cell({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="space-y-0.5">
       <dt className="text-xs uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className="text-sm text-brand-900 break-words">{value}</dd>
+      <dd className="text-sm text-zinc-900 break-words">{value}</dd>
     </div>
   );
 }
@@ -67,7 +67,7 @@ export function LogisticsInfoCard({
         <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center">
           <Truck className="w-4 h-4 text-teal-700" />
         </div>
-        <h3 className="font-display font-bold text-base text-brand-900">
+        <h3 className="font-display font-bold text-base text-zinc-900">
           Lojistik Bilgileri
         </h3>
         <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-teal-100 px-2 py-0.5 text-xs font-semibold text-teal-700">
@@ -80,14 +80,14 @@ export function LogisticsInfoCard({
       <div className="flex items-center gap-3 rounded-xl bg-white border border-surface-border p-3">
         <div className="flex items-center gap-1.5 min-w-0">
           <MapPin className="w-4 h-4 text-teal-600 shrink-0" />
-          <span className="text-sm font-semibold text-brand-900 truncate">
+          <span className="text-sm font-semibold text-zinc-900 truncate">
             {origin}
           </span>
         </div>
         <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
         <div className="flex items-center gap-1.5 min-w-0">
-          <MapPin className="w-4 h-4 text-brand-600 shrink-0" />
-          <span className="text-sm font-semibold text-brand-900 truncate">
+          <MapPin className="w-4 h-4 text-zinc-600 shrink-0" />
+          <span className="text-sm font-semibold text-zinc-900 truncate">
             {destination}
           </span>
         </div>

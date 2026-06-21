@@ -27,7 +27,7 @@ const BID_STATUS_META: Record<
   },
   SUBMITTED: {
     label: "Gönderildi",
-    className: "bg-violet-50 text-violet-700 border-violet-200",
+    className: "bg-zinc-50 text-zinc-700 border-zinc-200",
   },
   AWARDED: {
     label: "Kazandın",
@@ -66,13 +66,13 @@ const ORDER_STATUS_META: Record<
   },
   ACCEPTED: {
     label: "Onaylandı",
-    className: "bg-blue-50 text-blue-700 border-blue-200",
-    dot: "bg-blue-500",
+    className: "bg-zinc-100 text-zinc-700 border-zinc-200",
+    dot: "bg-zinc-500",
   },
   IN_DELIVERY: {
     label: "Gönderildi",
-    className: "bg-indigo-50 text-indigo-700 border-indigo-200",
-    dot: "bg-indigo-500",
+    className: "bg-zinc-100 text-zinc-700 border-zinc-200",
+    dot: "bg-zinc-500",
   },
   COMPLETED: {
     label: "Tamamlandı",
@@ -92,8 +92,8 @@ const ORDER_STATUS_META: Record<
   // Legacy support — eski kayıtlar için fallback
   IN_PROGRESS: {
     label: "Üretimde",
-    className: "bg-indigo-50 text-indigo-700 border-indigo-200",
-    dot: "bg-indigo-500",
+    className: "bg-zinc-100 text-zinc-700 border-zinc-200",
+    dot: "bg-zinc-500",
   },
   DELIVERED: {
     label: "Tamamlandı",
@@ -204,20 +204,20 @@ export function deriveSupplierTenderState(
     if (bidStatus === "SUBMITTED") {
       return {
         label: "Teklif Gönderildi",
-        className: "bg-violet-50 text-violet-700 border-violet-200",
+        className: "bg-zinc-50 text-zinc-700 border-zinc-200",
         tone: "active",
       };
     }
     return {
       label: "Davet Edildi",
-      className: "bg-blue-50 text-blue-700 border-blue-200",
+      className: "bg-zinc-100 text-zinc-700 border-zinc-200",
       tone: "info",
     };
   }
   if (tenderStatus === "IN_AWARD" || tenderStatus === "IN_AWARD_APPROVAL") {
     return {
       label: "Değerlendiriliyor",
-      className: "bg-violet-50 text-violet-700 border-violet-200",
+      className: "bg-zinc-50 text-zinc-700 border-zinc-200",
       tone: "active",
     };
   }

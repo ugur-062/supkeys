@@ -1,6 +1,14 @@
 "use client";
 
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from "@/components/catalyst/dropdown";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import {
   useSupplierDetail,
   useUnblockSupplier,
@@ -11,8 +19,7 @@ import {
 } from "@/lib/tedarikciler/membership";
 import { RELATION_STATUS_META } from "@/lib/tedarikciler/status";
 import { cn } from "@/lib/utils";
-import * as Dialog from "@radix-ui/react-dialog";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
 import axios from "axios";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -128,29 +135,30 @@ export function SupplierDetailDrawer({
   const primaryUser = item?.supplier.users[0];
 
   return (
-    <Dialog.Root
+    <>
+    <Dialog
       open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
+      onClose={onClose}
+      className="relative z-50"
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-slate-900/50 z-40" />
-        <Dialog.Content
-          className={cn(
-            "fixed right-0 top-0 bottom-0 w-full md:max-w-2xl bg-surface-subtle z-50 shadow-xl",
-            "flex flex-col outline-none",
-          )}
+      <DialogBackdrop
+        transition
+        className="fixed inset-0 bg-zinc-950/40 transition data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150"
+      />
+      <div className="fixed inset-0 overflow-hidden">
+        <DialogPanel
+          transition
+          className="fixed right-0 top-0 bottom-0 w-full md:max-w-2xl bg-zinc-50 shadow-xl flex flex-col outline-none transition data-closed:translate-x-full data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in"
         >
-          <header className="px-5 py-4 border-b border-surface-border bg-white flex items-start justify-between gap-3 shrink-0">
+          <header className="px-5 py-4 border-b border-zinc-950/5 bg-white flex items-start justify-between gap-3 shrink-0">
             <div className="flex items-start gap-3 min-w-0">
-              <div className="h-12 w-12 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
-                <Building2 className="h-6 w-6 text-slate-400" />
+              <div className="h-12 w-12 rounded-xl bg-zinc-100 flex items-center justify-center flex-shrink-0">
+                <Building2 className="h-6 w-6 text-zinc-400" />
               </div>
               <div className="min-w-0">
-                <Dialog.Title className="font-display font-bold text-lg text-brand-900 truncate">
+                <DialogTitle className="font-semibold text-lg text-zinc-950 truncate">
                   {item?.supplier.companyName ?? "Tedarikçi Detayı"}
-                </Dialog.Title>
+                </DialogTitle>
                 {item && (
                   <p className="text-xs text-slate-500 mt-0.5 font-mono">
                     {item.supplier.taxNumber}
@@ -182,50 +190,35 @@ export function SupplierDetailDrawer({
 
             <div className="flex items-center gap-1.5 shrink-0">
               {item && canManage && (
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger asChild>
-                    <Button variant="secondary" size="sm">
-                      Tüm İşlemler
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Portal>
-                    <DropdownMenu.Content
-                      align="end"
-                      sideOffset={4}
-                      className="z-[60] min-w-[200px] rounded-lg border border-surface-border bg-white p-1 shadow-lg"
-                    >
-                      {item.relationStatus === "ACTIVE" && (
-                        <DropdownMenu.Item
-                          onSelect={() => setBlockOpen(true)}
-                          className="flex items-center px-2 py-1.5 text-sm rounded-md hover:bg-danger-50 text-danger-600 cursor-pointer outline-none"
-                        >
-                          <Ban className="h-4 w-4 mr-2" />
+                <Dropdown>
+                  <DropdownButton as={Button} variant="secondary" size="sm">
+                    Tüm İşlemler
+                    <ChevronDown className="h-4 w-4" />
+                  </DropdownButton>
+                  <DropdownMenu anchor="bottom end">
+                    {item.relationStatus === "ACTIVE" && (
+                      <DropdownItem onClick={() => setBlockOpen(true)}>
+                        <Ban data-slot="icon" />
+                        <DropdownLabel className="text-danger-600">
                           Engelle
-                        </DropdownMenu.Item>
-                      )}
-                      {item.relationStatus === "BLOCKED" && (
-                        <DropdownMenu.Item
-                          onSelect={handleUnblock}
-                          disabled={unblock.isPending}
-                          className="flex items-center px-2 py-1.5 text-sm rounded-md hover:bg-brand-50 text-brand-700 cursor-pointer outline-none"
-                        >
-                          <CheckCircle2 className="h-4 w-4 mr-2" />
-                          Engeli Kaldır
-                        </DropdownMenu.Item>
-                      )}
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Portal>
-                </DropdownMenu.Root>
+                        </DropdownLabel>
+                      </DropdownItem>
+                    )}
+                    {item.relationStatus === "BLOCKED" && (
+                      <DropdownItem
+                        onClick={handleUnblock}
+                        disabled={unblock.isPending}
+                      >
+                        <CheckCircle2 data-slot="icon" />
+                        <DropdownLabel>Engeli Kaldır</DropdownLabel>
+                      </DropdownItem>
+                    )}
+                  </DropdownMenu>
+                </Dropdown>
               )}
-              <Dialog.Close asChild>
-                <button
-                  aria-label="Kapat"
-                  className="p-1.5 rounded-lg hover:bg-surface-muted text-slate-400 hover:text-slate-600 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </Dialog.Close>
+              <IconButton aria-label="Kapat" onClick={onClose}>
+                <X className="w-4 h-4" />
+              </IconButton>
             </div>
           </header>
 
@@ -411,8 +404,9 @@ export function SupplierDetailDrawer({
               </>
             )}
           </div>
-        </Dialog.Content>
-      </Dialog.Portal>
+        </DialogPanel>
+      </div>
+    </Dialog>
 
       {item && canManage && (
         <BlockSupplierModal
@@ -426,6 +420,6 @@ export function SupplierDetailDrawer({
           }}
         />
       )}
-    </Dialog.Root>
+    </>
   );
 }

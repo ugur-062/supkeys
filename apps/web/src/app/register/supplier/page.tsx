@@ -1,3 +1,4 @@
+import { fetchPublicTenant } from "@/lib/public/fetch-tenant";
 import { SupplierRegisterForm } from "./_components/supplier-register-form";
 
 export const metadata = {
@@ -5,13 +6,17 @@ export const metadata = {
 };
 
 interface SupplierRegisterPageProps {
-  searchParams: Promise<{ invitation?: string }>;
+  searchParams: Promise<{ invitation?: string; connect?: string }>;
 }
 
 export default async function SupplierRegisterPage({
   searchParams,
 }: SupplierRegisterPageProps) {
-  const { invitation } = await searchParams;
+  const { invitation, connect } = await searchParams;
+
+  // "Tedarikçi Ol" — hedef alıcının adını göstermek için public profili çek.
+  const connectTenant =
+    connect && !invitation ? await fetchPublicTenant(connect) : null;
 
   return (
     <div className="space-y-5">
@@ -25,7 +30,11 @@ export default async function SupplierRegisterPage({
         </p>
       </div>
 
-      <SupplierRegisterForm invitationToken={invitation} />
+      <SupplierRegisterForm
+        invitationToken={invitation}
+        connectSlug={connectTenant ? connect : undefined}
+        connectTenantName={connectTenant?.name}
+      />
     </div>
   );
 }

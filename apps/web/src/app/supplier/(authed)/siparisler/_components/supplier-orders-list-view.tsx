@@ -1,5 +1,7 @@
 "use client";
 
+import { Input, InputGroup } from "@/components/catalyst/input";
+import { Select } from "@/components/catalyst/select";
 import { EmptyState, PageHeader, Pagination } from "@/components/list";
 import {
   CounterpartDropdown,
@@ -13,12 +15,12 @@ import {
 } from "@/hooks/use-supplier-orders";
 import type { OrderDateRange, OrderStatus } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
+import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
 import {
   CheckCircle2,
   Clock,
   Inbox,
   Package,
-  Search,
   ThumbsUp,
   Truck,
   XCircle,
@@ -183,14 +185,14 @@ export function SupplierOrdersListView() {
           label="Onaylandı"
           value={stats.data?.accepted ?? 0}
           icon={ThumbsUp}
-          accent="bg-blue-50 text-blue-600"
+          accent="bg-zinc-50 text-zinc-600"
           loading={stats.isLoading}
         />
         <MiniKpi
           label="Gönderildi"
           value={stats.data?.inDelivery ?? 0}
           icon={Truck}
-          accent="bg-indigo-50 text-indigo-600"
+          accent="bg-zinc-50 text-zinc-600"
           loading={stats.isLoading}
         />
         <MiniKpi
@@ -202,81 +204,87 @@ export function SupplierOrdersListView() {
         />
       </div>
 
-      {/* Toolbar — search + durum + tarih + alıcı + sıralama */}
+      {/* Toolbar — geniş arama üstte, filtreler altta */}
       <PanelCard padding="sm">
-        <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-3">
-          <div className="relative flex-1 min-w-0 md:max-w-md">
-            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
-              value={search}
-              onChange={(e) => updateUrl({ search: e.target.value })}
-              placeholder="Sipariş ara..."
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-            />
+        <div className="space-y-3">
+          {/* Üst satır: geniş arama + sıralama */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex-1">
+              <InputGroup>
+                <MagnifyingGlassIcon data-slot="icon" />
+                <Input
+                  value={search}
+                  onChange={(e) => updateUrl({ search: e.target.value })}
+                  placeholder="Sipariş ara..."
+                />
+              </InputGroup>
+            </div>
+            <Select
+              value={sort}
+              onChange={(e) => updateUrl({ sort: e.target.value })}
+              aria-label="Sıralama"
+              className="sm:w-44"
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </Select>
           </div>
 
-          <select
-            value={statusKey}
-            onChange={(e) => updateUrl({ status: e.target.value })}
-            aria-label="Sipariş durumu filtresi"
-            className="w-full md:w-auto md:min-w-[170px] px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white cursor-pointer"
-          >
-            {STATUS_FILTERS.map((f) => (
-              <option key={f.key} value={f.key}>
-                {f.label}
-              </option>
-            ))}
-          </select>
+          {/* Alt satır: filtreler + sonuç sayısı */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Select
+              value={statusKey}
+              onChange={(e) => updateUrl({ status: e.target.value })}
+              aria-label="Sipariş durumu filtresi"
+              className="w-full sm:w-auto sm:min-w-[160px]"
+            >
+              {STATUS_FILTERS.map((f) => (
+                <option key={f.key} value={f.key}>
+                  {f.label}
+                </option>
+              ))}
+            </Select>
 
-          <RangeDropdown
-            value={range}
-            onChange={(v) => updateUrl({ range: v })}
-          />
+            <RangeDropdown
+              value={range}
+              onChange={(v) => updateUrl({ range: v })}
+            />
 
-          <CounterpartDropdown
-            value={tenantIdFilter}
-            onChange={(v) => updateUrl({ tenantId: v })}
-            options={counterparts.data ?? []}
-            loading={counterparts.isLoading}
-            placeholder="Tüm Alıcılar"
-          />
+            <CounterpartDropdown
+              value={tenantIdFilter}
+              onChange={(v) => updateUrl({ tenantId: v })}
+              options={counterparts.data ?? []}
+              loading={counterparts.isLoading}
+              placeholder="Tüm Müşteriler"
+            />
 
-          <select
-            value={sort}
-            onChange={(e) => updateUrl({ sort: e.target.value })}
-            aria-label="Sıralama"
-            className="w-full md:w-auto md:min-w-[180px] px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white cursor-pointer"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-
-          <p className="text-xs text-slate-500 whitespace-nowrap md:ml-auto">
-            {list.isLoading
-              ? "Yükleniyor…"
-              : `${totalCount.toLocaleString("tr-TR")} sipariş${
-                  search ||
-                  statusKey !== "all" ||
-                  range !== "all" ||
-                  tenantIdFilter
-                    ? " (filtrelenmiş)"
-                    : ""
-                }`}
-          </p>
+            <p className="ml-auto whitespace-nowrap text-xs text-zinc-500">
+              {list.isLoading
+                ? "Yükleniyor…"
+                : `${totalCount.toLocaleString("tr-TR")} sipariş${
+                    search ||
+                    statusKey !== "all" ||
+                    range !== "all" ||
+                    tenantIdFilter
+                      ? " (filtrelenmiş)"
+                      : ""
+                  }`}
+            </p>
+          </div>
         </div>
       </PanelCard>
 
       {/* Sipariş grid */}
       {list.isError ? (
         <PanelCard className="text-center py-12">
-          <p className="text-brand-900 font-medium mb-2">Veri alınamadı</p>
+          <p className="text-zinc-900 font-medium mb-2">Veri alınamadı</p>
           <button
             type="button"
             onClick={() => list.refetch()}
-            className="text-sm text-brand-700 hover:underline"
+            className="text-sm text-zinc-700 hover:underline"
           >
             Tekrar dene
           </button>
@@ -334,7 +342,7 @@ function MiniKpi({
   loading: boolean;
 }) {
   return (
-    <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm p-3 flex items-center gap-3">
+    <div className="bg-white ring-1 ring-zinc-950/5 rounded-xl shadow-sm p-3 flex items-center gap-3">
       <div
         className={cn(
           "h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0",
@@ -347,7 +355,7 @@ function MiniKpi({
         <p className="text-[10px] text-slate-500 uppercase tracking-wide font-semibold">
           {label}
         </p>
-        <p className="text-xl font-bold text-brand-900 tabular-nums leading-tight">
+        <p className="text-xl font-bold text-zinc-900 tabular-nums leading-tight">
           {loading ? "…" : value}
         </p>
       </div>
@@ -361,7 +369,7 @@ function CardGridSkeleton() {
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}
-          className="bg-white border border-slate-200/80 rounded-2xl p-5 animate-pulse"
+          className="bg-white ring-1 ring-zinc-950/5 rounded-2xl p-5 animate-pulse"
         >
           <div className="h-3 bg-slate-200 rounded w-24 mb-2" />
           <div className="h-5 bg-slate-200 rounded w-full mb-3" />

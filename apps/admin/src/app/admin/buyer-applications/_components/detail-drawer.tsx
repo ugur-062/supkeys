@@ -4,8 +4,12 @@ import { ApplicationStatusBadge } from "@/components/ui/application-status-badge
 import { Button } from "@/components/ui/button";
 import { useBuyerApplicationDetail } from "@/hooks/use-buyer-applications";
 import { COMPANY_TYPE_LABEL } from "@/lib/applications/company-type";
-import { cn } from "@/lib/utils";
-import * as Dialog from "@radix-ui/react-dialog";
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogPanel,
+  DialogTitle,
+} from "@headlessui/react";
 import { format, formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -87,38 +91,36 @@ export function BuyerDetailDrawer({ id, onClose }: DetailDrawerProps) {
   };
 
   return (
-    <Dialog.Root
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-slate-900/50 z-40" />
-        <Dialog.Content
-          className={cn(
-            "fixed right-0 top-0 bottom-0 w-full md:max-w-2xl bg-admin-bg z-50 shadow-xl",
-            "flex flex-col outline-none",
-          )}
-        >
-          <header className="px-5 py-4 border-b border-admin-border bg-admin-surface flex items-center justify-between gap-3 shrink-0">
-            <div className="flex items-center gap-3 min-w-0">
-              <Dialog.Title className="font-display font-bold text-lg text-admin-text truncate">
-                Başvuru Detayı
-              </Dialog.Title>
-              {item && <ApplicationStatusBadge status={item.status} />}
-            </div>
-            <Dialog.Close asChild>
+    <>
+    <Dialog open={open} onClose={onClose} className="relative z-50">
+      <DialogBackdrop
+        transition
+        className="fixed inset-0 bg-zinc-950/30 backdrop-blur-sm transition-opacity duration-300 data-closed:opacity-0"
+      />
+      <div className="fixed inset-0 overflow-hidden">
+        <div className="absolute inset-y-0 right-0 flex max-w-full">
+          <DialogPanel
+            transition
+            className="flex w-screen md:max-w-2xl flex-col bg-admin-bg shadow-xl outline-none transition duration-300 ease-in-out data-closed:translate-x-full"
+          >
+            <header className="px-5 py-4 border-b border-admin-border bg-admin-surface flex items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <DialogTitle className="font-display font-bold text-lg text-admin-text truncate">
+                  Başvuru Detayı
+                </DialogTitle>
+                {item && <ApplicationStatusBadge status={item.status} />}
+              </div>
               <button
+                type="button"
+                onClick={onClose}
                 aria-label="Kapat"
                 className="p-1.5 rounded-lg hover:bg-surface-muted text-admin-text-muted hover:text-admin-text transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
-            </Dialog.Close>
-          </header>
+            </header>
 
-          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
             {detail.isLoading && (
               <div className="flex items-center justify-center py-16 text-admin-text-muted">
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -339,10 +341,10 @@ export function BuyerDetailDrawer({ id, onClose }: DetailDrawerProps) {
                 </section>
               </>
             )}
-          </div>
+            </div>
 
-          {/* Sticky bottom actions */}
-          {item && item.status === "PENDING_REVIEW" && (
+            {/* Sticky bottom actions */}
+            {item && item.status === "PENDING_REVIEW" && (
             <footer className="px-5 py-4 border-t border-admin-border bg-admin-surface flex items-center gap-3 shrink-0">
               <Button
                 type="button"
@@ -376,10 +378,12 @@ export function BuyerDetailDrawer({ id, onClose }: DetailDrawerProps) {
               </div>
             </footer>
           )}
-        </Dialog.Content>
-      </Dialog.Portal>
+          </DialogPanel>
+        </div>
+      </div>
+    </Dialog>
 
-      {item && (
+    {item && (
         <>
           <ApproveBuyerDialog
             applicationId={item.id}
@@ -410,6 +414,6 @@ export function BuyerDetailDrawer({ id, onClose }: DetailDrawerProps) {
           />
         </>
       )}
-    </Dialog.Root>
+    </>
   );
 }

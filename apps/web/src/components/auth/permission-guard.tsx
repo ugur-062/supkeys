@@ -35,7 +35,7 @@ export function PermissionGuard({
       <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
         <ShieldOff className="h-8 w-8 text-slate-400" />
       </div>
-      <h1 className="mb-2 font-display text-xl font-bold text-brand-900">
+      <h1 className="mb-2 font-display text-xl font-bold text-zinc-900">
         Erişim Yok
       </h1>
       <p className="mb-6 text-sm text-slate-600">
@@ -44,7 +44,7 @@ export function PermissionGuard({
       </p>
       <Link
         href="/dashboard"
-        className="inline-flex items-center rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600"
+        className="inline-flex items-center rounded-lg bg-zinc-500 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-600"
       >
         Dashboard'a Dön
       </Link>

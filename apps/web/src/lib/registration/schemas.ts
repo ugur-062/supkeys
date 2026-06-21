@@ -26,6 +26,11 @@ export const firmInfoSchema = z.object({
     .min(2, "Vergi dairesi gerekli")
     .max(50, "Vergi dairesi 50 karakteri aşamaz"),
   taxCertUrl: z.string().min(1, "Vergi levhası yüklemelisiniz"),
+  // G9 madde 27 — "Tedarikçi Ol" başvurusunda zorunlu (form tarafında
+  // koşullu kontrol; backend de zorunlu kılar). Normal başvuruda opsiyonel.
+  ticariSicilUrl: z.string().optional(),
+  imzaSirkuleriUrl: z.string().optional(),
+  bankaOnayliIbanUrl: z.string().optional(),
   website: z
     .string()
     .url("Geçerli bir URL giriniz (https://...)")

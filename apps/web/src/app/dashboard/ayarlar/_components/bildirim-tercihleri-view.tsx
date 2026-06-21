@@ -1,18 +1,16 @@
 "use client";
 
+import { Checkbox } from "@/components/catalyst/checkbox";
+import { Input, InputGroup } from "@/components/catalyst/input";
+import { Switch } from "@/components/catalyst/switch";
 import {
   useTenantUserMe,
   useUpdateNotificationPrefs,
 } from "@/hooks/use-tenant-users";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
-import {
-  Bell,
-  Check as CheckIcon,
-  Loader2,
-  Lock as LockIcon,
-  Search,
-} from "lucide-react";
+import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
+import { Bell, Check as CheckIcon, Loader2, Lock as LockIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -108,7 +106,7 @@ export function BildirimTercihleriView() {
 
   if (meQuery.isLoading || !meQuery.data) {
     return (
-      <div className="max-w-3xl mx-auto px-6 py-12 flex items-center justify-center text-slate-500">
+      <div className="max-w-3xl mx-auto px-6 py-12 flex items-center justify-center text-zinc-500">
         <Loader2 className="h-5 w-5 animate-spin mr-2" />
         Yükleniyor…
       </div>
@@ -121,12 +119,12 @@ export function BildirimTercihleriView() {
 
       <div className="mt-4">
         <div className="mb-1 flex items-center gap-3">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50">
-            <Bell className="h-5 w-5 text-brand-600" />
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-zinc-100">
+            <Bell className="h-5 w-5 text-zinc-600" />
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2">
-              <h1 className="font-display text-2xl font-bold text-brand-900">
+              <h1 className="text-2xl font-semibold text-zinc-900">
                 Bildirim Tercihleri
               </h1>
               {savedAt ? (
@@ -145,26 +143,27 @@ export function BildirimTercihleriView() {
 
       {/* Toolbar: search + bulk actions */}
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Bildirim ara…"
-            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-          />
+        <div className="flex-1 min-w-[200px]">
+          <InputGroup>
+            <MagnifyingGlassIcon data-slot="icon" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Bildirim ara…"
+            />
+          </InputGroup>
         </div>
         <button
           type="button"
           onClick={() => setAll(true)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-success-300 hover:text-success-700"
+          className="rounded-lg border border-zinc-950/10 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:border-success-300 hover:text-success-700"
         >
           Hepsini Aç
         </button>
         <button
           type="button"
           onClick={() => setAll(false)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:border-danger-300 hover:text-danger-700"
+          className="rounded-lg border border-zinc-950/10 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:border-danger-300 hover:text-danger-700"
         >
           Hepsini Kapat
         </button>
@@ -172,71 +171,65 @@ export function BildirimTercihleriView() {
 
       <div className="mt-4 space-y-4">
         {filteredGroups.length === 0 ? (
-          <p className="rounded-2xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+          <p className="rounded-2xl bg-white p-8 text-center text-sm text-zinc-500 ring-1 ring-zinc-950/5">
             "{search}" için sonuç bulunamadı.
           </p>
         ) : null}
         {filteredGroups.map((group) => {
           const allOn = group.items.every((it) => prefs[it.key] !== false);
-          const someOn = group.items.some((it) => prefs[it.key] !== false);
           const groupOn = group.locked ? true : allOn;
 
           return (
             <div
               key={group.key}
               className={cn(
-                "bg-white border border-slate-200 rounded-2xl overflow-hidden",
-                group.locked && "bg-slate-50/40",
+                "bg-white rounded-2xl overflow-hidden ring-1 ring-zinc-950/5",
+                group.locked && "bg-zinc-50/40",
               )}
             >
               <header className="p-4 flex items-center gap-3">
-                <Toggle
+                <Switch
                   checked={groupOn}
-                  indeterminate={!group.locked && !allOn && someOn}
                   disabled={group.locked}
                   onChange={() => toggleGroup(group, allOn)}
                 />
-                <p className="font-bold text-brand-900 flex-1 text-sm">
+                <p className="font-bold text-zinc-900 flex-1 text-sm">
                   {group.label}
                 </p>
                 {group.locked ? (
-                  <span className="inline-flex items-center gap-1 text-[11px] uppercase tracking-wide text-slate-500">
+                  <span className="inline-flex items-center gap-1 text-[11px] uppercase tracking-wide text-zinc-500">
                     <LockIcon className="h-3 w-3" /> Kilitli
                   </span>
                 ) : null}
               </header>
 
-              <div className="border-t border-slate-100 px-4 py-3 space-y-1">
+              <div className="border-t border-zinc-950/5 px-4 py-3 space-y-1">
                 {group.items.map((it) => {
                   const checked = group.locked
                     ? true
                     : prefs[it.key] !== false;
                   return (
-                    <label
+                    <div
                       key={it.key}
                       className={cn(
-                        "flex items-center gap-3 cursor-pointer rounded p-2 hover:bg-slate-50",
-                        group.locked && "cursor-not-allowed opacity-70",
+                        "flex items-center gap-3 rounded p-2 hover:bg-zinc-50",
+                        group.locked && "opacity-70",
                       )}
                     >
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={checked}
                         onChange={() => togglePref(it.key, !!group.locked)}
                         disabled={group.locked}
-                        className="h-4 w-4 rounded text-brand-600 focus:ring-brand-500"
                       />
                       <span
                         className={cn(
                           "text-sm",
-                          group.locked
-                            ? "text-slate-500"
-                            : "text-brand-900",
+                          group.locked ? "text-zinc-500" : "text-zinc-900",
                         )}
                       >
                         {it.label}
                       </span>
-                    </label>
+                    </div>
                   );
                 })}
               </div>
@@ -248,38 +241,3 @@ export function BildirimTercihleriView() {
   );
 }
 
-function Toggle({
-  checked,
-  indeterminate,
-  disabled,
-  onChange,
-}: {
-  checked: boolean;
-  indeterminate?: boolean;
-  disabled?: boolean;
-  onChange: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={onChange}
-      className={cn(
-        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-        "focus:outline-none focus:ring-2 focus:ring-brand-500/30",
-        checked ? "bg-brand-600" : "bg-slate-200",
-        indeterminate && "bg-brand-300",
-        disabled && "opacity-50 cursor-not-allowed",
-      )}
-    >
-      <span
-        className={cn(
-          "inline-block h-5 w-5 rounded-full bg-white shadow transition-transform",
-          checked ? "translate-x-5" : "translate-x-0.5",
-        )}
-      />
-    </button>
-  );
-}

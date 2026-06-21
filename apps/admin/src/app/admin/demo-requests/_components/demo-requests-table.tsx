@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { DemoRequest } from "@/lib/demo-requests/types";
@@ -27,18 +35,6 @@ function formatRelative(date: string) {
   }
 }
 
-function SkeletonRow() {
-  return (
-    <tr className="border-t border-admin-border">
-      {Array.from({ length: 7 }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
-          <div className="h-4 bg-slate-100 rounded animate-pulse" />
-        </td>
-      ))}
-    </tr>
-  );
-}
-
 export function DemoRequestsTable({
   items,
   isLoading,
@@ -50,8 +46,8 @@ export function DemoRequestsTable({
   if (isError) {
     return (
       <div className="px-6 py-16 text-center space-y-3">
-        <p className="text-admin-text font-medium">Veri alınamadı.</p>
-        <p className="text-sm text-admin-text-muted">
+        <p className="text-zinc-900 font-medium">Veri alınamadı.</p>
+        <p className="text-sm text-zinc-500">
           Bir hata oluştu, lütfen tekrar deneyin.
         </p>
         <Button variant="secondary" size="sm" onClick={onRetry}>
@@ -62,49 +58,43 @@ export function DemoRequestsTable({
   }
 
   const showEmpty = !isLoading && items.length === 0;
+  const showSkeleton = isLoading && items.length === 0;
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-surface-muted text-left">
-          <tr>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Firma
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              İlgili Kişi
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              E-posta
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Statü
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Atanmış
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Tarih
-            </th>
-            <th className="px-4 py-3" />
-          </tr>
-        </thead>
-        <tbody>
-          {isLoading &&
-            items.length === 0 &&
+    <div className="px-2 [--gutter:--spacing(4)]">
+      <Table dense>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Firma</TableHeader>
+            <TableHeader>İlgili Kişi</TableHeader>
+            <TableHeader>E-posta</TableHeader>
+            <TableHeader>Statü</TableHeader>
+            <TableHeader>Atanmış</TableHeader>
+            <TableHeader>Tarih</TableHeader>
+            <TableHeader className="text-right" />
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {showSkeleton &&
             Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
-              <SkeletonRow key={i} />
+              <TableRow key={i}>
+                {Array.from({ length: 7 }).map((_, j) => (
+                  <TableCell key={j}>
+                    <div className="h-4 bg-zinc-100 rounded animate-pulse" />
+                  </TableCell>
+                ))}
+              </TableRow>
             ))}
 
           {showEmpty && (
-            <tr>
-              <td colSpan={7} className="px-6 py-16 text-center">
-                <div className="flex flex-col items-center gap-3 text-admin-text-muted">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
+            <TableRow>
+              <TableCell colSpan={7} className="py-16 text-center">
+                <div className="flex flex-col items-center gap-3 text-zinc-500">
+                  <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center">
                     <Inbox className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="font-medium text-admin-text">
+                    <p className="font-medium text-zinc-900">
                       Henüz demo talebi yok
                     </p>
                     <p className="text-sm">
@@ -112,48 +102,46 @@ export function DemoRequestsTable({
                     </p>
                   </div>
                 </div>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           )}
 
           {items.map((item) => (
-            <tr
+            <TableRow
               key={item.id}
               onClick={() => onSelect(item.id)}
-              className="border-t border-admin-border hover:bg-surface-muted/60 cursor-pointer transition-colors"
+              className="cursor-pointer"
             >
-              <td className="px-4 py-3 font-medium text-admin-text">
+              <TableCell className="font-medium text-zinc-900">
                 {item.companyName}
-              </td>
-              <td className="px-4 py-3 text-admin-text">
+              </TableCell>
+              <TableCell className="text-zinc-700">
                 {item.contactName}
                 {item.jobTitle && (
-                  <div className="text-xs text-admin-text-muted">
-                    {item.jobTitle}
-                  </div>
+                  <div className="text-xs text-zinc-500">{item.jobTitle}</div>
                 )}
-              </td>
-              <td className="px-4 py-3 text-admin-text-muted">
+              </TableCell>
+              <TableCell className="text-zinc-500">
                 <a
                   href={`mailto:${item.email}`}
                   onClick={(e) => e.stopPropagation()}
-                  className="hover:text-brand-700 hover:underline"
+                  className="hover:text-zinc-900 hover:underline"
                 >
                   {item.email}
                 </a>
-              </td>
-              <td className="px-4 py-3">
+              </TableCell>
+              <TableCell>
                 <StatusBadge status={item.status} />
-              </td>
-              <td className="px-4 py-3 text-admin-text-muted">
+              </TableCell>
+              <TableCell className="text-zinc-500">
                 {item.assignedTo
                   ? `${item.assignedTo.firstName} ${item.assignedTo.lastName}`
                   : "—"}
-              </td>
-              <td className="px-4 py-3 text-admin-text-muted whitespace-nowrap">
+              </TableCell>
+              <TableCell className="text-zinc-500 whitespace-nowrap">
                 {formatRelative(item.createdAt)}
-              </td>
-              <td className="px-4 py-3 text-right">
+              </TableCell>
+              <TableCell className="text-right">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -165,11 +153,11 @@ export function DemoRequestsTable({
                   Detay
                   <ArrowRight className="w-4 h-4" />
                 </Button>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

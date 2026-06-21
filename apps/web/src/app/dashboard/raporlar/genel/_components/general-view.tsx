@@ -3,6 +3,16 @@
 // V2-7+ — Genel İhale Raporu UI.
 // Mod: SINGLE (tek tender) veya RANGE (tarih aralığı + filtreler).
 
+import { Radio, RadioGroup } from "@/components/catalyst/radio";
+import { Select } from "@/components/catalyst/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -133,18 +143,24 @@ export function GeneralReportView() {
           <p className="text-xs text-slate-500 font-medium mb-2">
             Raporlama Kriteri
           </p>
-          <div className="space-y-2">
-            <RadioRow
-              checked={mode === "SINGLE"}
-              onChange={() => setMode("SINGLE")}
-              label="Tek bir ihaleyi raporlayacağım"
-            />
-            <RadioRow
-              checked={mode === "RANGE"}
-              onChange={() => setMode("RANGE")}
-              label="Belirli tarih aralığındaki ihaleyi raporlayacağım"
-            />
-          </div>
+          <RadioGroup
+            value={mode ?? ""}
+            onChange={(v) => setMode(v as Mode)}
+            className="space-y-2"
+          >
+            <div className="flex items-center gap-2.5">
+              <Radio value="SINGLE" />
+              <span className="text-sm font-medium text-zinc-900">
+                Tek bir ihaleyi raporlayacağım
+              </span>
+            </div>
+            <div className="flex items-center gap-2.5">
+              <Radio value="RANGE" />
+              <span className="text-sm font-medium text-zinc-900">
+                Belirli tarih aralığındaki ihaleyi raporlayacağım
+              </span>
+            </div>
+          </RadioGroup>
         </div>
 
         {mode === "SINGLE" ? (
@@ -269,28 +285,6 @@ export function GeneralReportView() {
   );
 }
 
-function RadioRow({
-  checked,
-  onChange,
-  label,
-}: {
-  checked: boolean;
-  onChange: () => void;
-  label: string;
-}) {
-  return (
-    <label className="flex items-center gap-2.5 cursor-pointer">
-      <input
-        type="radio"
-        checked={checked}
-        onChange={onChange}
-        className="w-4 h-4"
-      />
-      <span className="text-sm font-medium text-brand-900">{label}</span>
-    </label>
-  );
-}
-
 function SelectInput({
   id,
   value,
@@ -303,18 +297,13 @@ function SelectInput({
   options: Array<{ value: string; label: string }>;
 }) {
   return (
-    <select
-      id={id}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
-    >
+    <Select id={id} value={value} onChange={(e) => onChange(e.target.value)}>
       {options.map((o) => (
         <option key={o.value} value={o.value}>
           {o.label}
         </option>
       ))}
-    </select>
+    </Select>
   );
 }
 
@@ -395,89 +384,87 @@ function GeneralResults({
             })}
           </span>
         </header>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm whitespace-nowrap">
-            <thead className="bg-brand-50 text-brand-900">
-              <tr>
-                <th className="px-3 py-2 text-left font-semibold">İhale No</th>
-                <th className="px-3 py-2 text-left font-semibold">Başlık</th>
-                <th className="px-3 py-2 text-left font-semibold">Statü</th>
-                <th className="px-3 py-2 text-center font-semibold">Tur</th>
-                <th className="px-3 py-2 text-center font-semibold">Davetli</th>
-                <th className="px-3 py-2 text-center font-semibold">Teklif</th>
-                <th className="px-3 py-2 text-center font-semibold">Yanıt %</th>
-                <th className="px-3 py-2 text-right font-semibold">Tahmini</th>
-                <th className="px-3 py-2 text-right font-semibold">
-                  Kazanan Tutar
-                </th>
-                <th className="px-3 py-2 text-left font-semibold">
-                  Kazanan Tedarikçi
-                </th>
-                <th className="px-3 py-2 text-right font-semibold">Tasarruf</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="px-3 [--gutter:--spacing(3)]">
+          <Table dense>
+            <TableHead>
+              <TableRow>
+                <TableHeader>İhale No</TableHeader>
+                <TableHeader>Başlık</TableHeader>
+                <TableHeader>Statü</TableHeader>
+                <TableHeader className="text-center">Tur</TableHeader>
+                <TableHeader className="text-center">Davetli</TableHeader>
+                <TableHeader className="text-center">Teklif</TableHeader>
+                <TableHeader className="text-center">Yanıt %</TableHeader>
+                <TableHeader className="text-right">Tahmini</TableHeader>
+                <TableHeader className="text-right">Kazanan Tutar</TableHeader>
+                <TableHeader>Kazanan Tedarikçi</TableHeader>
+                <TableHeader className="text-right">Tasarruf</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {data.tenders.length === 0 ? (
-                <tr>
-                  <td
+                <TableRow>
+                  <TableCell
                     colSpan={11}
-                    className="px-3 py-8 text-center text-slate-500"
+                    className="py-8 text-center text-zinc-500"
                   >
                     Sonuç bulunamadı
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
                 data.tenders.map((t) => (
-                  <tr key={t.id} className="border-t border-surface-border">
-                    <td className="px-3 py-2 font-mono text-brand-700 font-semibold">
+                  <TableRow key={t.id}>
+                    <TableCell className="font-mono text-zinc-900 font-semibold">
                       {t.tenderNumber}
-                    </td>
-                    <td className="px-3 py-2 max-w-[220px] truncate" title={t.title}>
+                    </TableCell>
+                    <TableCell className="max-w-[220px] truncate" title={t.title}>
                       {t.title}
-                    </td>
-                    <td className="px-3 py-2 text-slate-600">
+                    </TableCell>
+                    <TableCell className="text-zinc-600">
                       {tenderStatusLabel(t.status)}
-                    </td>
-                    <td className="px-3 py-2 text-center">#{t.roundNumber}</td>
-                    <td className="px-3 py-2 text-center">{t.invitedCount}</td>
-                    <td className="px-3 py-2 text-center">
+                    </TableCell>
+                    <TableCell className="text-center">
+                      #{t.roundNumber}
+                    </TableCell>
+                    <TableCell className="text-center">{t.invitedCount}</TableCell>
+                    <TableCell className="text-center">
                       {t.submittedBidCount}
-                    </td>
-                    <td className="px-3 py-2 text-center text-slate-600">
+                    </TableCell>
+                    <TableCell className="text-center text-zinc-600">
                       {t.responseRate !== null ? `%${t.responseRate}` : "-"}
-                    </td>
-                    <td className="px-3 py-2 text-right text-slate-600">
+                    </TableCell>
+                    <TableCell className="text-right text-zinc-600">
                       {t.estimatedTotal !== null
                         ? fmtMoney(t.estimatedTotal)
                         : "-"}
-                    </td>
-                    <td className="px-3 py-2 text-right">
+                    </TableCell>
+                    <TableCell className="text-right">
                       {t.winningTotal !== null
                         ? `${fmtMoney(t.winningTotal)} ${t.currency}`
                         : "-"}
-                    </td>
-                    <td
-                      className="px-3 py-2 max-w-[180px] truncate"
+                    </TableCell>
+                    <TableCell
+                      className="max-w-[180px] truncate"
                       title={t.winnerName ?? ""}
                     >
                       {t.winnerName ?? "-"}
-                    </td>
-                    <td
-                      className={`px-3 py-2 text-right font-medium ${
+                    </TableCell>
+                    <TableCell
+                      className={`text-right font-medium ${
                         t.savings !== null && t.savings >= 0
                           ? "text-success-700"
                           : t.savings !== null
                             ? "text-danger-600"
-                            : "text-slate-400"
+                            : "text-zinc-400"
                       }`}
                     >
                       {t.savings !== null ? fmtMoney(t.savings) : "-"}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </section>
     </div>

@@ -25,7 +25,7 @@ export function PeriodToggle({ value, onChange, className }: Props) {
       role="tablist"
       aria-label="Dönem"
       className={cn(
-        "inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs font-semibold",
+        "inline-flex rounded-lg bg-zinc-100 p-0.5 text-xs font-semibold ring-1 ring-zinc-950/5",
         className,
       )}
     >
@@ -41,8 +41,8 @@ export function PeriodToggle({ value, onChange, className }: Props) {
             className={cn(
               "rounded-md px-3 py-1.5 transition-colors",
               active
-                ? "bg-white text-brand-700 shadow-sm"
-                : "text-slate-500 hover:text-slate-700",
+                ? "bg-white text-zinc-950 shadow-sm"
+                : "text-zinc-500 hover:text-zinc-700",
             )}
           >
             {opt.label}

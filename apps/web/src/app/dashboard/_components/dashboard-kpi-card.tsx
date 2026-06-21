@@ -1,26 +1,19 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { AlertTriangle, ArrowUpRight } from "lucide-react";
+import { ArrowRightIcon } from "@heroicons/react/20/solid";
+import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 export type KpiAccent = "brand" | "warning" | "success" | "indigo" | "danger";
 
-const ACCENT_BAR: Record<KpiAccent, string> = {
-  brand: "bg-brand-500",
+/** Etiket başındaki küçük renkli nokta — yalnızca durum vurgusu olanlarda. */
+const ACCENT_DOT: Record<KpiAccent, string | null> = {
+  brand: null,
+  indigo: null,
   warning: "bg-warning-500",
   success: "bg-success-500",
-  indigo: "bg-indigo-500",
   danger: "bg-danger-500",
-};
-
-const ARROW_HOVER: Record<KpiAccent, string> = {
-  brand: "group-hover:bg-brand-50 group-hover:text-brand-700",
-  warning: "group-hover:bg-warning-50 group-hover:text-warning-700",
-  success: "group-hover:bg-success-50 group-hover:text-success-700",
-  indigo: "group-hover:bg-indigo-50 group-hover:text-indigo-700",
-  danger: "group-hover:bg-danger-50 group-hover:text-danger-700",
 };
 
 interface DashboardKpiCardProps {
@@ -37,9 +30,9 @@ interface DashboardKpiCardProps {
 }
 
 /**
- * V2-6 Dashboard — sol kenarda renkli accent çizgi, sağ üstte → ok ikonu,
- * büyük rakam, opsiyonel uyarı ikonlu hint. Hover translateY(-2px).
- * href varsa Link, yoksa div.
+ * Dashboard KPI kartı — tedarikçi panelindeki KpiCard ile birebir aynı:
+ * ring-1 ring-zinc-950/5, font-semibold zinc-950 rakam, sol şerit yok,
+ * etiket başında opsiyonel durum noktası + sağ üstte → ok ikonu (href varsa).
  */
 export function DashboardKpiCard({
   label,
@@ -50,40 +43,29 @@ export function DashboardKpiCard({
   accent = "brand",
   titleAfter,
 }: DashboardKpiCardProps) {
+  const dot = ACCENT_DOT[accent];
+
   const inner = (
     <>
-      {/* Sol accent şeridi */}
-      <span
-        aria-hidden
-        className={cn(
-          "absolute inset-y-3 left-0 w-1 rounded-r",
-          ACCENT_BAR[accent],
-        )}
-      />
-      <div className="flex items-start justify-between gap-3 pl-3">
-        <div className="min-w-0 flex-1">
-          <p className="flex items-center gap-1.5 text-sm font-medium text-slate-600">
-            <span className="truncate">{label}</span>
-            {titleAfter}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-start gap-2">
+          {dot ? (
+            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dot}`} />
+          ) : null}
+          <p className="text-sm font-bold text-zinc-800 leading-snug">
+            {label}
           </p>
-          <p className="mt-2 text-3xl font-bold tabular-nums text-brand-900">
-            {value}
-          </p>
+          {titleAfter}
         </div>
         {href ? (
-          <span
-            aria-hidden
-            className={cn(
-              "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400 transition-colors",
-              ARROW_HOVER[accent],
-            )}
-          >
-            <ArrowUpRight className="h-4 w-4" />
-          </span>
+          <ArrowRightIcon className="h-4 w-4 shrink-0 text-zinc-300 transition-colors group-hover:text-zinc-500" />
         ) : null}
       </div>
+      <p className="mt-3 text-3xl font-semibold tabular-nums text-zinc-950">
+        {value}
+      </p>
       {hint ? (
-        <p className="mt-3 flex items-start gap-1.5 pl-3 text-xs text-slate-500">
+        <p className="mt-1 flex items-start gap-1.5 text-xs text-zinc-500">
           <span className="flex-1 leading-snug">{hint}</span>
           {warning ? (
             <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-warning-500" />
@@ -93,17 +75,15 @@ export function DashboardKpiCard({
     </>
   );
 
-  const baseClass = cn(
-    "group relative flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-5 pl-4 shadow-sm",
-    "transition-[transform,box-shadow,border-color] duration-150",
-    href ? "hover:-translate-y-0.5 hover:shadow-md hover:border-slate-300" : "",
-  );
+  const base = `group block h-full rounded-xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 transition${
+    href ? " hover:shadow-md" : ""
+  }`;
 
   return href ? (
-    <Link href={href} className={baseClass}>
+    <Link href={href} className={base}>
       {inner}
     </Link>
   ) : (
-    <div className={baseClass}>{inner}</div>
+    <div className={base}>{inner}</div>
   );
 }

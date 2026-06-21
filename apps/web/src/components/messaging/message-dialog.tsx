@@ -1,13 +1,18 @@
 "use client";
 
 import { MessageThread } from "@/components/messaging/message-thread";
+import { IconButton } from "@/components/ui/icon-button";
 import type {
   MessageContext,
   MessageSenderType,
   MessageSurface,
 } from "@/lib/messages/types";
-import { cn } from "@/lib/utils";
-import * as Dialog from "@radix-ui/react-dialog";
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogPanel,
+  DialogTitle,
+} from "@headlessui/react";
 import { X } from "lucide-react";
 
 interface Props {
@@ -25,9 +30,9 @@ interface Props {
 }
 
 /**
- * V2-4.2 — Unified thread modal. Hangi context'ten açılırsa açılsın aynı
- * (tenant, supplier) thread'inin tüm geçmişini gösterir; gönderilen yeni
- * mesajlar defaultContext etiketiyle gider.
+ * V2-4.2 — Unified thread modal. Catalyst'in temeli olan Headless UI Dialog
+ * ile; tam-yükseklik sohbet paneli (form Dialog'unun gutter padding'i yerine
+ * bleed layout). Mobilde tam ekran, desktop'ta ortalı 2xl panel.
  */
 export function MessageDialog({
   open,
@@ -40,36 +45,29 @@ export function MessageDialog({
   contextNumber,
 }: Props) {
   return (
-    <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-slate-900/60 z-[60] data-[state=open]:animate-in data-[state=open]:fade-in-0" />
-        <Dialog.Content
-          className={cn(
-            "fixed z-[60] outline-none bg-white shadow-2xl",
-            "inset-x-0 bottom-0 top-0 sm:inset-auto",
-            "sm:left-1/2 sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2",
-            "sm:w-[calc(100vw-2rem)] sm:max-w-2xl sm:h-[80vh] sm:max-h-[700px]",
-            "sm:rounded-2xl",
-            "flex flex-col",
-          )}
+    <Dialog open={open} onClose={onClose} className="relative z-[60]">
+      <DialogBackdrop
+        transition
+        className="fixed inset-0 bg-zinc-950/25 transition data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in"
+      />
+      <div className="fixed inset-0 flex w-screen items-stretch justify-center sm:items-center sm:p-4">
+        <DialogPanel
+          transition
+          className="relative flex w-full flex-col bg-white shadow-2xl outline-none transition data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in sm:h-[80vh] sm:max-h-[700px] sm:w-[calc(100vw-2rem)] sm:max-w-2xl sm:rounded-2xl sm:ring-1 sm:ring-zinc-950/10 data-closed:sm:scale-95"
         >
-          <Dialog.Title className="sr-only">
-            {otherPartyName} ile mesajlaşma
-          </Dialog.Title>
-          <Dialog.Description className="sr-only">
-            {contextNumber}
-          </Dialog.Description>
+          <DialogTitle className="sr-only">
+            {otherPartyName} ile mesajlaşma — {contextNumber}
+          </DialogTitle>
 
-          <Dialog.Close asChild>
-            <button
-              aria-label="Kapat"
-              className="absolute top-2 right-2 z-10 p-1.5 rounded-lg bg-white/80 hover:bg-slate-100 text-slate-500 hover:text-slate-700 transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </Dialog.Close>
+          <IconButton
+            aria-label="Kapat"
+            onClick={onClose}
+            className="absolute top-2 right-2 z-10 bg-white/80"
+          >
+            <X className="h-4 w-4" />
+          </IconButton>
 
-          <div className="flex-1 min-h-0 flex flex-col">
+          <div className="flex min-h-0 flex-1 flex-col">
             <MessageThread
               surface={surface}
               otherPartyId={otherPartyId}
@@ -79,8 +77,8 @@ export function MessageDialog({
               className="h-full !h-full flex-1"
             />
           </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        </DialogPanel>
+      </div>
+    </Dialog>
   );
 }

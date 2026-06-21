@@ -90,6 +90,10 @@ export interface SupplierApplicationListItem extends ApplicationCommonFields {
 export interface SupplierApplicationDetail extends SupplierApplicationListItem {
   /** Sadece detail endpoint'inde döner (Bug #1 — list bandwidth fix) */
   taxCertUrl: string;
+  /** G9 madde 27 — "Tedarikçi Ol" (CONNECT_REQUEST) başvurusunda zorunlu KYC belgeleri */
+  ticariSicilUrl: string | null;
+  imzaSirkuleriUrl: string | null;
+  bankaOnayliIbanUrl: string | null;
   invitation: {
     id: string;
     email: string;

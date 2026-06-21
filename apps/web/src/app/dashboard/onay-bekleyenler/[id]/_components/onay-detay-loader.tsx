@@ -31,7 +31,7 @@ export function OnayDetayLoader({ id }: { id: string }) {
           <div className="h-14 w-14 mx-auto bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
             <ClipboardX className="h-7 w-7 text-slate-400" />
           </div>
-          <h2 className="text-lg font-display font-bold text-brand-900">
+          <h2 className="text-lg font-semibold text-brand-900">
             Onay süreci bulunamadı
           </h2>
           <p className="text-slate-500 mt-1 text-sm">

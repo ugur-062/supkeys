@@ -65,7 +65,7 @@ export function LogoImageSection({ logoImageUrl, initials }: Props) {
     >
       <div className="flex items-center gap-5 flex-wrap">
         {/* Önizleme — kare yuvarlatılmış (Hero'da bu görünür) */}
-        <div className="relative w-24 h-24 rounded-2xl overflow-hidden bg-gradient-to-br from-brand-100 to-brand-200 border-2 border-surface-border flex items-center justify-center">
+        <div className="relative w-24 h-24 rounded-2xl overflow-hidden bg-gradient-to-br from-zinc-100 to-zinc-200 border-2 border-surface-border flex items-center justify-center">
           {logoImageUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -87,7 +87,7 @@ export function LogoImageSection({ logoImageUrl, initials }: Props) {
               }}
             />
           ) : (
-            <span className="text-3xl font-bold font-display text-brand-700">
+            <span className="text-3xl font-bold font-display text-zinc-700">
               {initials}
             </span>
           )}
@@ -102,7 +102,7 @@ export function LogoImageSection({ logoImageUrl, initials }: Props) {
           <p className="text-sm text-slate-600">
             Hero'da firma adının yanında yuvarlatılmış kare olarak görünür.
             Logo yoksa firma adının baş harfleri (
-            <span className="font-semibold text-brand-700">{initials}</span>)
+            <span className="font-semibold text-zinc-700">{initials}</span>)
             gösterilir.
           </p>
           <div className="flex gap-2 flex-wrap">

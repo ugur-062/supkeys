@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@/lib/api";
+import { extractBlobErrorMessage } from "@/lib/tenders/error";
 import type {
   ListOrdersParams,
   OrderCounterpart,
@@ -105,13 +106,18 @@ function triggerBrowserDownload(blobData: BlobPart, filename: string): void {
 export function useDownloadTenantOrderPdf() {
   return useMutation({
     mutationFn: async (input: { id: string; orderNumber: string }) => {
-      const response = await api.get(`/tenants/me/orders/${input.id}/pdf`, {
-        responseType: "blob",
-      });
-      triggerBrowserDownload(
-        response.data as BlobPart,
-        `Siparis-${input.orderNumber}.pdf`,
-      );
+      try {
+        const response = await api.get(`/tenants/me/orders/${input.id}/pdf`, {
+          responseType: "blob",
+        });
+        triggerBrowserDownload(
+          response.data as BlobPart,
+          `Siparis-${input.orderNumber}.pdf`,
+        );
+      } catch (err) {
+        // Blob endpoint — hata gövdesi Blob olarak gelir; mesajı ayıkla.
+        throw new Error(await extractBlobErrorMessage(err, "PDF indirilemedi"));
+      }
     },
   });
 }

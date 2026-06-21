@@ -34,7 +34,7 @@ export function TeklifLoader({ id }: Props) {
           <div className="w-12 h-12 mx-auto rounded-full bg-danger-50 flex items-center justify-center">
             <AlertCircle className="w-6 h-6 text-danger-600" />
           </div>
-          <p className="font-medium text-brand-900">İhale bulunamadı</p>
+          <p className="font-medium text-zinc-900">İhale bulunamadı</p>
           <p className="text-sm text-slate-500">
             Bu ihaleye davet edilmemiş olabilirsiniz veya ihale yayından
             kaldırılmış olabilir.
@@ -60,7 +60,7 @@ export function TeklifLoader({ id }: Props) {
           <div className="w-12 h-12 mx-auto rounded-full bg-warning-50 flex items-center justify-center">
             <AlertCircle className="w-6 h-6 text-warning-600" />
           </div>
-          <p className="font-display font-bold text-brand-900">
+          <p className="font-semibold text-zinc-900">
             Bu ihaleye artık teklif verilemez
           </p>
           <p className="text-sm text-slate-500">
@@ -90,7 +90,7 @@ export function TeklifLoader({ id }: Props) {
           <div className="w-12 h-12 mx-auto rounded-full bg-warning-50 flex items-center justify-center">
             <AlertCircle className="w-6 h-6 text-warning-600" />
           </div>
-          <p className="font-display font-bold text-brand-900">
+          <p className="font-semibold text-zinc-900">
             Teklif kapanış tarihi geçmiş
           </p>
           <Link

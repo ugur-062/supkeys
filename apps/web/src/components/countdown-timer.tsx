@@ -74,7 +74,7 @@ export function CountdownTimer({
         ? "text-danger-600"
         : p.totalMs < 24 * 60 * 60 * 1000
           ? "text-warning-600"
-          : "text-brand-700";
+          : "text-zinc-700";
 
   return (
     <span className={cn("tabular-nums font-semibold", tone, className)}>

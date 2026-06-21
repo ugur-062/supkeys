@@ -31,8 +31,8 @@ export function ThreadListItem({ thread, onClick, isActive }: Props) {
       className={cn(
         "w-full text-left p-3 rounded-lg transition-colors border",
         isActive
-          ? "bg-brand-50 border-brand-300"
-          : "border-transparent hover:bg-slate-50 hover:border-slate-200",
+          ? "bg-zinc-50 border-zinc-300"
+          : "border-transparent hover:bg-zinc-50 hover:border-zinc-200",
       )}
     >
       <div className="flex items-start gap-3">
@@ -40,7 +40,7 @@ export function ThreadListItem({ thread, onClick, isActive }: Props) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1">
-            <p className="font-semibold text-sm text-brand-900 truncate">
+            <p className="font-semibold text-sm text-zinc-900 truncate">
               {thread.otherPartyName}
             </p>
             {thread.lastMessageAt ? (
@@ -48,8 +48,8 @@ export function ThreadListItem({ thread, onClick, isActive }: Props) {
                 className={cn(
                   "text-[10px] flex-shrink-0",
                   thread.unread
-                    ? "text-brand-700 font-semibold"
-                    : "text-slate-400",
+                    ? "text-zinc-700 font-semibold"
+                    : "text-zinc-400",
                 )}
               >
                 {formatTime(thread.lastMessageAt)}
@@ -62,8 +62,8 @@ export function ThreadListItem({ thread, onClick, isActive }: Props) {
               className={cn(
                 "text-xs truncate",
                 thread.unread
-                  ? "text-slate-900 font-medium"
-                  : "text-slate-500",
+                  ? "text-zinc-900 font-medium"
+                  : "text-zinc-500",
               )}
             >
               {thread.lastMessagePreview ?? "Henüz mesaj yok"}

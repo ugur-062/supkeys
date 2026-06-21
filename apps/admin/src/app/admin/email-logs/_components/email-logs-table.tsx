@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { Button } from "@/components/ui/button";
 import { EmailStatusBadge } from "@/components/ui/email-status-badge";
 import { getTemplateLabel } from "@/lib/email-logs/status";
@@ -28,18 +36,6 @@ function formatRelative(date: string) {
   }
 }
 
-function SkeletonRow() {
-  return (
-    <tr className="border-t border-admin-border">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
-          <div className="h-4 bg-slate-100 rounded animate-pulse" />
-        </td>
-      ))}
-    </tr>
-  );
-}
-
 export function EmailLogsTable({
   items,
   isLoading,
@@ -51,7 +47,7 @@ export function EmailLogsTable({
   if (isError) {
     return (
       <div className="px-6 py-16 text-center space-y-3">
-        <p className="text-admin-text font-medium">Veri alınamadı.</p>
+        <p className="text-zinc-900 font-medium">Veri alınamadı.</p>
         <Button variant="secondary" size="sm" onClick={onRetry}>
           Tekrar dene
         </Button>
@@ -60,79 +56,71 @@ export function EmailLogsTable({
   }
 
   const showEmpty = !isLoading && items.length === 0;
+  const showSkeleton = isLoading && items.length === 0;
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-surface-muted text-left">
-          <tr>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Tarih
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Şablon
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Alıcı
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Durum
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Provider
-            </th>
-            <th className="px-4 py-3" />
-          </tr>
-        </thead>
-        <tbody>
-          {isLoading &&
-            items.length === 0 &&
+    <div className="px-2 [--gutter:--spacing(4)]">
+      <Table dense>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Tarih</TableHeader>
+            <TableHeader>Şablon</TableHeader>
+            <TableHeader>Alıcı</TableHeader>
+            <TableHeader>Durum</TableHeader>
+            <TableHeader>Provider</TableHeader>
+            <TableHeader className="text-right" />
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {showSkeleton &&
             Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
-              <SkeletonRow key={i} />
+              <TableRow key={i}>
+                {Array.from({ length: 6 }).map((_, j) => (
+                  <TableCell key={j}>
+                    <div className="h-4 bg-zinc-100 rounded animate-pulse" />
+                  </TableCell>
+                ))}
+              </TableRow>
             ))}
 
           {showEmpty && (
-            <tr>
-              <td colSpan={6} className="px-6 py-16 text-center">
-                <div className="flex flex-col items-center gap-3 text-admin-text-muted">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
+            <TableRow>
+              <TableCell colSpan={6} className="py-16 text-center">
+                <div className="flex flex-col items-center gap-3 text-zinc-500">
+                  <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center">
                     <Mail className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="font-medium text-admin-text">
-                      E-posta logu yok
-                    </p>
+                    <p className="font-medium text-zinc-900">E-posta logu yok</p>
                     <p className="text-sm">
                       Filtreleri temizleyerek tekrar deneyebilirsin.
                     </p>
                   </div>
                 </div>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           )}
 
           {items.map((item) => (
-            <tr
+            <TableRow
               key={item.id}
               onClick={() => onSelect(item.id)}
-              className="border-t border-admin-border hover:bg-surface-muted/60 cursor-pointer transition-colors"
+              className="cursor-pointer"
             >
-              <td className="px-4 py-3 text-admin-text-muted whitespace-nowrap">
+              <TableCell className="text-zinc-500 whitespace-nowrap">
                 {formatRelative(item.queuedAt)}
-              </td>
-              <td className="px-4 py-3 text-admin-text">
+              </TableCell>
+              <TableCell className="text-zinc-700">
                 {getTemplateLabel(item.template)}
-              </td>
-              <td className="px-4 py-3 text-admin-text-muted">
-                {item.toEmail}
-              </td>
-              <td className="px-4 py-3">
+              </TableCell>
+              <TableCell className="text-zinc-500">{item.toEmail}</TableCell>
+              <TableCell>
                 <EmailStatusBadge status={item.status} />
-              </td>
-              <td className="px-4 py-3 text-admin-text-muted font-mono text-xs">
+              </TableCell>
+              <TableCell className="text-zinc-500 font-mono text-xs">
                 {item.provider}
-              </td>
-              <td className="px-4 py-3 text-right">
+              </TableCell>
+              <TableCell className="text-right">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -144,11 +132,11 @@ export function EmailLogsTable({
                   Detay
                   <ArrowRight className="w-4 h-4" />
                 </Button>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

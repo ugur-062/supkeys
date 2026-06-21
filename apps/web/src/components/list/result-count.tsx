@@ -17,7 +17,7 @@ export function ResultCount({
 }: Props) {
   return (
     <p className={cn("text-sm text-slate-500", className)}>
-      <strong className="text-brand-900 font-semibold">
+      <strong className="text-zinc-900 font-semibold">
         {total.toLocaleString("tr-TR")}
       </strong>{" "}
       {unit}

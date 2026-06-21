@@ -9,7 +9,13 @@ import { BidStatusBadge } from "@/components/tenders/status-badge";
 import { Button } from "@/components/ui/button";
 import { useSupplierTenderDetail } from "@/hooks/use-supplier-tenders";
 import { cn } from "@/lib/utils";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
+import {
+  Tab,
+  TabGroup,
+  TabList,
+  TabPanel,
+  TabPanels,
+} from "@headlessui/react";
 import {
   AlertCircle,
   ArrowLeft,
@@ -26,15 +32,15 @@ import { SupplierTenderHeaderCard } from "./header-card";
 import { MyBidTab } from "./my-bid-tab";
 
 const TRIGGER_CLASSES = cn(
-  "group inline-flex items-center px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-  "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50",
-  "data-[state=active]:border-brand-600 data-[state=active]:text-brand-700 data-[state=active]:bg-brand-50/30",
-  "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30 rounded-t-md",
+  "group inline-flex items-center px-1 py-3 mr-6 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+  "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700",
+  "data-selected:border-zinc-900 data-selected:text-zinc-950",
+  "focus:outline-none",
 );
 
 function TabBadge({ count }: { count: number }) {
   return (
-    <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-600 group-data-[state=active]:bg-brand-100 group-data-[state=active]:text-brand-700">
+    <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] bg-zinc-100 text-zinc-600 group-data-selected:bg-zinc-200 group-data-selected:text-zinc-800">
       {count}
     </span>
   );
@@ -61,7 +67,7 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
           <div className="w-12 h-12 mx-auto rounded-full bg-danger-50 flex items-center justify-center">
             <AlertCircle className="w-6 h-6 text-danger-600" />
           </div>
-          <p className="font-medium text-brand-900">İhale bulunamadı</p>
+          <p className="font-medium text-zinc-900">İhale bulunamadı</p>
           <p className="text-sm text-slate-500">
             Bu ihaleye davet edilmemiş olabilirsiniz veya ihale yayından
             kaldırılmış olabilir.
@@ -85,12 +91,12 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
       <nav className="flex items-center gap-1.5 text-sm text-slate-500">
         <Link
           href="/supplier/ihaleler"
-          className="hover:text-brand-700 hover:underline"
+          className="hover:text-zinc-700 hover:underline"
         >
           İhaleler
         </Link>
         <ChevronRight className="w-3.5 h-3.5" />
-        <span className="font-mono text-brand-700">{tender.tenderNumber}</span>
+        <span className="font-mono text-zinc-700">{tender.tenderNumber}</span>
       </nav>
 
       <SupplierTenderHeaderCard tender={tender} />
@@ -108,7 +114,7 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
           </p>
           <div className="flex items-center gap-2">
             <Building2 className="h-4 w-4 text-slate-400" />
-            <p className="font-semibold text-brand-900">{tender.tenant.name}</p>
+            <p className="font-semibold text-zinc-900">{tender.tenant.name}</p>
           </div>
         </div>
         <Button
@@ -121,56 +127,50 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
         </Button>
       </section>
 
-      <TabsPrimitive.Root
-        defaultValue={hasBid ? "my-bid" : "general"}
-        className="space-y-4"
-      >
-        <TabsPrimitive.List
-          className="border-b border-surface-border flex gap-1 overflow-x-auto"
+      {/*
+        ÖNEMLİ — KAPALI ZARF: "Davetli Tedarikçiler" ve "Teklifler" sekmeleri
+        tedarikçi tarafında YOK. Diğer tedarikçiler/teklifler asla erişilemez.
+      */}
+      <TabGroup defaultIndex={hasBid ? 0 : 1} className="space-y-4">
+        <TabList
+          className="border-b border-zinc-950/10 flex overflow-x-auto"
           aria-label="İhale detay sekmeleri"
         >
-          <TabsPrimitive.Trigger value="my-bid" className={TRIGGER_CLASSES}>
+          <Tab className={TRIGGER_CLASSES}>
             Teklifim
             {hasBid && tender.myBid ? (
               <span className="ml-2">
                 <BidStatusBadge status={tender.myBid.status} />
               </span>
             ) : null}
-          </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger value="general" className={TRIGGER_CLASSES}>
-            Genel Bilgi
-          </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger value="items" className={TRIGGER_CLASSES}>
+          </Tab>
+          <Tab className={TRIGGER_CLASSES}>Genel Bilgi</Tab>
+          <Tab className={TRIGGER_CLASSES}>
             Kalemler
             <TabBadge count={tender.items.length} />
-          </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger value="files" className={TRIGGER_CLASSES}>
-            Dosyalar
-          </TabsPrimitive.Trigger>
-          {/*
-            ÖNEMLİ — KAPALI ZARF:
-            "Davetli Tedarikçiler" ve "Teklifler" sekmeleri tedarikçi tarafında
-            YOK. Diğer tedarikçiler veya tekliflerine asla erişilemez.
-          */}
-        </TabsPrimitive.List>
+          </Tab>
+          <Tab className={TRIGGER_CLASSES}>Dosyalar</Tab>
+        </TabList>
 
-        <TabsPrimitive.Content value="my-bid" className="outline-none">
-          <MyBidTab tender={tender} />
-        </TabsPrimitive.Content>
-        <TabsPrimitive.Content value="general" className="outline-none">
-          <SupplierGeneralInfoTab tender={tender} />
-        </TabsPrimitive.Content>
-        <TabsPrimitive.Content value="items" className="outline-none">
-          <ItemsTab
-            items={tender.items}
-            currency={tender.primaryCurrency}
-            showTargetPrice
-          />
-        </TabsPrimitive.Content>
-        <TabsPrimitive.Content value="files" className="outline-none">
-          <FilesTab surface="supplier" tender={tender} />
-        </TabsPrimitive.Content>
-      </TabsPrimitive.Root>
+        <TabPanels>
+          <TabPanel className="outline-none">
+            <MyBidTab tender={tender} />
+          </TabPanel>
+          <TabPanel className="outline-none">
+            <SupplierGeneralInfoTab tender={tender} />
+          </TabPanel>
+          <TabPanel className="outline-none">
+            <ItemsTab
+              items={tender.items}
+              currency={tender.primaryCurrency}
+              showTargetPrice
+            />
+          </TabPanel>
+          <TabPanel className="outline-none">
+            <FilesTab surface="supplier" tender={tender} />
+          </TabPanel>
+        </TabPanels>
+      </TabGroup>
 
       <MessageDialog
         open={messageOpen}

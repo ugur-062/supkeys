@@ -58,7 +58,7 @@ export function CountdownFull({ deadline, className }: CountdownFullProps) {
       ? "text-danger-700"
       : p.totalMs < 24 * 60 * 60 * 1000
         ? "text-warning-700"
-        : "text-brand-700";
+        : "text-zinc-700";
 
   const segments: string[] = [];
   if (p.days > 0) segments.push(`${p.days} gün`);
@@ -112,20 +112,20 @@ export function TenderLiveStatusPill({
     },
     IN_AWARD: {
       label: "Kazandırma Aşamasında",
-      bg: "bg-purple-50 text-purple-700 border-purple-200",
-      dot: "bg-purple-500",
+      bg: "bg-zinc-50 text-zinc-700 border-zinc-200",
+      dot: "bg-zinc-500",
       pulse: false,
     },
     IN_AWARD_APPROVAL: {
       label: "Kazandırma Onay Bekliyor",
-      bg: "bg-purple-50 text-purple-700 border-purple-200",
-      dot: "bg-purple-500",
+      bg: "bg-zinc-50 text-zinc-700 border-zinc-200",
+      dot: "bg-zinc-500",
       pulse: true,
     },
     AWARDED: {
       label: "Sonuçlandı",
-      bg: "bg-brand-50 text-brand-700 border-brand-200",
-      dot: "bg-brand-500",
+      bg: "bg-zinc-50 text-zinc-700 border-zinc-200",
+      dot: "bg-zinc-500",
       pulse: false,
     },
     CLOSED_NO_AWARD: {

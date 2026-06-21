@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useTenantAddresses } from "@/hooks/use-tenant-addresses";
@@ -49,7 +57,7 @@ function Section({
   return (
     <section className="rounded-xl border border-slate-200 bg-white">
       <header className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-        <h3 className="font-display font-bold text-base text-brand-900">
+        <h3 className="font-semibold text-base text-brand-900">
           {title}
         </h3>
         <button
@@ -299,36 +307,36 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
 
       {/* Kalemler */}
       <Section title={`Kalemler (${data.items.length})`} onEdit={() => onEditStep(2)}>
-        <div className="overflow-x-auto -mx-5 px-5">
-          <table className="w-full text-sm">
-            <thead className="text-left text-xs text-slate-500 uppercase tracking-wide">
-              <tr>
-                <th className="py-2 pr-3 font-medium">#</th>
-                <th className="py-2 pr-3 font-medium">Kalem</th>
-                <th className="py-2 pr-3 font-medium text-right">Miktar</th>
-                <th className="py-2 pr-3 font-medium">Birim</th>
-                <th className="py-2 font-medium">Soru</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="[--gutter:--spacing(0)]">
+          <Table dense>
+            <TableHead>
+              <TableRow>
+                <TableHeader>#</TableHeader>
+                <TableHeader>Kalem</TableHeader>
+                <TableHeader className="text-right">Miktar</TableHeader>
+                <TableHeader>Birim</TableHeader>
+                <TableHeader>Soru</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {data.items.map((item, idx) => (
-                <tr key={idx} className="border-t border-slate-100">
-                  <td className="py-2 pr-3 text-slate-500">{idx + 1}</td>
-                  <td className="py-2 pr-3">
-                    <div className="font-medium text-brand-900">
+                <TableRow key={idx}>
+                  <TableCell className="text-zinc-500">{idx + 1}</TableCell>
+                  <TableCell>
+                    <div className="font-medium text-zinc-900">
                       {item.name || "—"}
                     </div>
                     {item.materialCode ? (
-                      <div className="text-xs text-slate-500 font-mono">
+                      <div className="text-xs text-zinc-500 font-mono">
                         {item.materialCode}
                       </div>
                     ) : null}
-                  </td>
-                  <td className="py-2 pr-3 text-right tabular-nums">
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
                     {item.quantity}
-                  </td>
-                  <td className="py-2 pr-3">{item.unit}</td>
-                  <td className="py-2 text-xs text-slate-500">
+                  </TableCell>
+                  <TableCell>{item.unit}</TableCell>
+                  <TableCell className="text-xs text-zinc-500">
                     {(item.questions && item.questions.length > 0) ||
                     item.customQuestion
                       ? `✓${
@@ -337,11 +345,11 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
                             : ""
                         }`
                       : "—"}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </Section>
 
@@ -350,7 +358,7 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
         <header className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Paperclip className="w-4 h-4 text-slate-500" />
-            <h3 className="font-display font-bold text-base text-brand-900">
+            <h3 className="font-semibold text-base text-brand-900">
               İhale Dökümanları ({stagedFiles.length})
             </h3>
           </div>

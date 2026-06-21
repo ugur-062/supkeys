@@ -3,9 +3,9 @@ import { cn } from "@/lib/utils";
 
 const palette: Record<Currency, string> = {
   TRY: "bg-success-50 text-success-600 border-success-200",
-  USD: "bg-blue-50 text-blue-700 border-blue-200",
-  EUR: "bg-violet-50 text-violet-700 border-violet-200",
-  GBP: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  USD: "bg-zinc-50 text-zinc-700 border-zinc-200",
+  EUR: "bg-zinc-50 text-zinc-700 border-zinc-200",
+  GBP: "bg-zinc-50 text-zinc-700 border-zinc-200",
   CHF: "bg-rose-50 text-rose-700 border-rose-200",
   JPY: "bg-amber-50 text-amber-700 border-amber-200",
   AED: "bg-emerald-50 text-emerald-700 border-emerald-200",

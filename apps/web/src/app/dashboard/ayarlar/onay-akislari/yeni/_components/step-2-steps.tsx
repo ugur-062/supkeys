@@ -77,30 +77,31 @@ export function Step2Steps({ draft, setDraft, users, onBack, onNext }: Props) {
   return (
     <div className="space-y-6">
       <section className="bg-white border border-slate-200 rounded-2xl p-6">
-        <h3 className="font-display font-bold text-base text-brand-900 mb-1">
+        <h3 className="font-semibold text-base text-brand-900 mb-1">
           Onay Adımları
         </h3>
         <p className="text-sm text-slate-600 mb-6">
-          Süreç başlatıcılarınızı ve sırayla işleyecek onay adımlarınızı
-          tanımlayın. Her adım için bütçe eşiği belirleyebilirsiniz.
+          Kazandırmayı kimlerin yaptığında onay gerekeceğini ve sırayla
+          onaylayacak kişileri tanımlayın. Her adım için bütçe eşiği
+          belirleyebilirsiniz.
         </p>
 
         <div className="bg-slate-50 rounded-xl p-6 overflow-x-auto">
           <div className="flex items-stretch gap-4 min-w-max pb-2">
-            {/* Süreç Başlatıcılar */}
+            {/* Kazandırmayı Yapan Kişiler */}
             <DiagramCard
-              borderClass="border-blue-300"
+              borderClass="border-zinc-300"
               corner={
-                <div className="absolute -top-2.5 left-3 bg-blue-500 text-white p-1 rounded">
+                <div className="absolute -top-2.5 left-3 bg-zinc-500 text-white p-1 rounded">
                   <Flag className="h-3.5 w-3.5 fill-current" />
                 </div>
               }
-              title={`Süreç Başlatıcılar (${initiatorUserList.length})`}
+              title={`Kazandırmayı Yapan Kişiler (${initiatorUserList.length})`}
             >
               <div className="space-y-1.5 min-h-[44px]">
                 {initiatorUserList.length === 0 ? (
                   <p className="text-xs text-slate-500 italic">
-                    Henüz başlatıcı yok
+                    Henüz kişi seçilmedi
                   </p>
                 ) : (
                   <>
@@ -222,7 +223,8 @@ export function Step2Steps({ draft, setDraft, users, onBack, onNext }: Props) {
 
         {!canContinue ? (
           <p className="text-xs text-slate-500 mt-3">
-            Devam etmek için en az 1 süreç başlatıcı ve 1 onay adımı eklemelisiniz.
+            Devam etmek için en az 1 kişi (kazandırmayı yapan) ve 1 onay adımı
+            eklemelisiniz.
           </p>
         ) : null}
       </section>

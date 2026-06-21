@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { BidStatusBadge } from "@/components/tenders/status-badge";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import type { Currency, MyBidDetail } from "@/lib/tenders/types";
@@ -37,7 +45,7 @@ export function BidSummaryCard({ bid }: Props) {
   const items = bid.items ?? [];
   const attachments = bid.attachments ?? [];
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-6">
+    <div className="bg-white ring-1 ring-zinc-950/5 rounded-2xl p-6 space-y-6">
       {/* Üst özet */}
       <div className="grid grid-cols-3 gap-4">
         <div>
@@ -52,13 +60,13 @@ export function BidSummaryCard({ bid }: Props) {
           <p className="text-xs text-slate-500 uppercase tracking-wide">
             Versiyon
           </p>
-          <p className="font-bold text-brand-900 mt-1">v{bid.version}</p>
+          <p className="font-bold text-zinc-900 mt-1">v{bid.version}</p>
         </div>
         <div>
           <p className="text-xs text-slate-500 uppercase tracking-wide">
             Toplam
           </p>
-          <p className="text-xl font-display font-bold text-brand-700 mt-1">
+          <p className="text-xl font-semibold text-zinc-700 mt-1">
             {formatMoney(bid.totalAmount, bid.currency)}
           </p>
         </div>
@@ -67,47 +75,59 @@ export function BidSummaryCard({ bid }: Props) {
       {/* Kalemler */}
       {items.length > 0 ? (
         <div>
-          <h4 className="text-xs font-bold text-brand-900 uppercase tracking-wide mb-3">
+          <h4 className="mb-3 text-xs font-bold uppercase tracking-wide text-zinc-900">
             Fiyatlandırılan Kalemler ({items.length})
           </h4>
-          <div className="space-y-2">
-            {items.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between gap-3 p-3 bg-slate-50 rounded-lg"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium text-brand-900 truncate">
-                    {item.tenderItem.name}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
+          <Table dense className="[--gutter:--spacing(3)]">
+            <TableHead>
+              <TableRow>
+                <TableHeader>Kalem</TableHeader>
+                <TableHeader className="hidden text-right sm:table-cell">
+                  Miktar × Birim Fiyat
+                </TableHeader>
+                <TableHeader className="text-right">Tutar</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {items.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">
+                    <div className="text-zinc-900">{item.tenderItem.name}</div>
+                    <div className="text-xs text-zinc-500 sm:hidden">
+                      {Number(item.tenderItem.quantity).toLocaleString("tr-TR")}{" "}
+                      {item.tenderItem.unit} ×{" "}
+                      {Number(item.unitPrice).toLocaleString("tr-TR")}{" "}
+                      {CURRENCY_SYMBOL[item.currency]}
+                    </div>
+                    {item.customAnswer ? (
+                      <div className="mt-0.5 text-xs italic text-zinc-600">
+                        <span className="font-semibold text-warning-700">
+                          Cevap:
+                        </span>{" "}
+                        {item.customAnswer}
+                      </div>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="hidden text-right tabular-nums text-zinc-500 sm:table-cell">
                     {Number(item.tenderItem.quantity).toLocaleString("tr-TR")}{" "}
                     {item.tenderItem.unit} ×{" "}
                     {Number(item.unitPrice).toLocaleString("tr-TR")}{" "}
                     {CURRENCY_SYMBOL[item.currency]}
-                  </p>
-                  {item.customAnswer ? (
-                    <p className="text-xs text-slate-600 mt-1 italic">
-                      <span className="font-semibold text-warning-700">
-                        Cevap:
-                      </span>{" "}
-                      {item.customAnswer}
-                    </p>
-                  ) : null}
-                </div>
-                <p className="font-bold text-brand-900 tabular-nums whitespace-nowrap">
-                  {formatMoney(item.totalPrice, item.currency)}
-                </p>
-              </div>
-            ))}
-          </div>
+                  </TableCell>
+                  <TableCell className="text-right font-bold tabular-nums text-zinc-900">
+                    {formatMoney(item.totalPrice, item.currency)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
       ) : null}
 
       {/* Notlar */}
       {bid.notes ? (
         <div>
-          <h4 className="text-xs font-bold text-brand-900 uppercase tracking-wide mb-2">
+          <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wide mb-2">
             Genel Not
           </h4>
           <p className="text-sm text-slate-700 whitespace-pre-wrap">
@@ -119,7 +139,7 @@ export function BidSummaryCard({ bid }: Props) {
       {/* Dosyalar */}
       {attachments.length > 0 ? (
         <div>
-          <h4 className="text-xs font-bold text-brand-900 uppercase tracking-wide mb-2">
+          <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wide mb-2">
             Dosyalar ({attachments.length})
           </h4>
           <ul className="space-y-2">
@@ -130,11 +150,11 @@ export function BidSummaryCard({ bid }: Props) {
                   download={att.fileName}
                   className="flex items-center gap-3 p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-4 h-4 text-brand-600" />
+                  <div className="w-9 h-9 rounded-lg bg-zinc-50 flex items-center justify-center flex-shrink-0">
+                    <FileText className="w-4 h-4 text-zinc-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-brand-900 truncate">
+                    <p className="text-sm font-medium text-zinc-900 truncate">
                       {att.fileName}
                     </p>
                     <p className="text-xs text-slate-500">

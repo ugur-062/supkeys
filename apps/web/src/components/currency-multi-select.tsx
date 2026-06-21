@@ -152,13 +152,13 @@ export function CurrencyMultiSelect({
             setOpen(true);
           }
         }}
-        className={`flex min-h-[52px] w-full cursor-pointer items-center gap-2 rounded-xl border-2 bg-white px-3 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/30 ${
+        className={`flex min-h-[52px] w-full cursor-pointer items-center gap-2 rounded-xl border-2 bg-white px-3 py-2 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-500/30 ${
           disabled ? "cursor-not-allowed opacity-60" : ""
         } ${
           error
             ? "border-rose-300"
             : open
-              ? "border-brand-500"
+              ? "border-zinc-500"
               : "border-slate-200 hover:border-slate-300"
         }`}
       >
@@ -175,7 +175,7 @@ export function CurrencyMultiSelect({
                   key={c}
                   className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-semibold ${
                     isPrimary
-                      ? "border-brand-500 bg-brand-50 text-brand-800"
+                      ? "border-zinc-500 bg-zinc-50 text-zinc-800"
                       : "border-slate-200 bg-white text-slate-700"
                   }`}
                   title={`${CURRENCY_NAMES[c]} ${
@@ -234,7 +234,7 @@ export function CurrencyMultiSelect({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Para birimi ara..."
-                className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+                className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
               />
             </div>
             {warningMsg ? (
@@ -266,7 +266,7 @@ export function CurrencyMultiSelect({
                       aria-selected={isSelected}
                       className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${
                         isSelected
-                          ? "bg-brand-50 hover:bg-brand-100"
+                          ? "bg-zinc-50 hover:bg-zinc-100"
                           : "hover:bg-slate-50"
                       }`}
                     >
@@ -278,7 +278,7 @@ export function CurrencyMultiSelect({
                         <div
                           className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 ${
                             isSelected
-                              ? "border-brand-500 bg-brand-500"
+                              ? "border-zinc-500 bg-zinc-500"
                               : "border-slate-300 bg-white"
                           }`}
                         >
@@ -294,7 +294,7 @@ export function CurrencyMultiSelect({
                           <span
                             className={`font-mono text-sm ${
                               isSelected
-                                ? "font-semibold text-brand-900"
+                                ? "font-semibold text-zinc-900"
                                 : "text-slate-700"
                             }`}
                           >
@@ -348,7 +348,7 @@ export function CurrencyMultiSelect({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded-md bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-600"
+              className="rounded-md bg-zinc-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-600"
             >
               Tamam
             </button>

@@ -17,11 +17,11 @@ export const DEMO_REQUEST_STATUS_META: Record<DemoRequestStatus, StatusMeta> = {
   },
   DEMO_SCHEDULED: {
     label: "Demo planlandı",
-    badgeClass: "bg-purple-50 text-purple-700 border-purple-200",
+    badgeClass: "bg-zinc-50 text-zinc-600 border-zinc-200",
   },
   DEMO_DONE: {
     label: "Demo yapıldı",
-    badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    badgeClass: "bg-zinc-900 text-white border-zinc-900",
   },
   WON: {
     label: "Kazanıldı",

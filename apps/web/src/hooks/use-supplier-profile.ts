@@ -145,6 +145,35 @@ export function useUpdateSupplierPublicProfile() {
   });
 }
 
+export interface SupplierImportResult extends SupplierPublicProfile {
+  imported: {
+    logo: boolean;
+    cover: boolean;
+    about: boolean;
+    services: boolean;
+    social: boolean;
+    gallery: number;
+  };
+}
+
+/** Web sitesinden logo/kapak/açıklama otomatik çek (PREMIUM). */
+export function useImportSupplierFromWebsite() {
+  const qc = useQueryClient();
+  return useMutation<SupplierImportResult, unknown, string>({
+    mutationFn: (website) =>
+      supplierApi
+        .post("/supplier-profile/me/public-profile/import-from-website", {
+          website,
+        })
+        .then((r) => r.data),
+    onSuccess: (data) => {
+      // Editör anında güncellensin (galeri + alanlar) + güncel veri çek.
+      qc.setQueryData(KEYS.myPublicProfile, data);
+      qc.invalidateQueries({ queryKey: KEYS.myPublicProfile });
+    },
+  });
+}
+
 /**
  * V2-PUBLIC-PROFILE — Cover image upload: presigned PUT → R2 → finalize.
  * Tek aksiyon: file ver, geri kalan handle edilir.

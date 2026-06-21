@@ -179,7 +179,7 @@ export function ApprovalFlowWizard(props: Props) {
         {isEdit ? "Akış Detayı" : "Onay Akışları"}
       </Link>
 
-      <h1 className="font-display text-2xl font-bold text-brand-900 mb-6">
+      <h1 className="text-2xl font-semibold text-brand-900 mb-6">
         {isEdit
           ? `Onay Akışını Düzenle · #${props.initial.flowNumber}`
           : "Onay Akışı Oluştur"}

@@ -1,14 +1,15 @@
 "use client";
 
+import { Avatar } from "@/components/catalyst/avatar";
+import { Input, InputGroup } from "@/components/catalyst/input";
 import { PageHeader } from "@/components/list";
-import { AvatarInitials } from "@/components/ui/avatar-initials";
-import { Input } from "@/components/ui/input";
 import { MessageThread } from "@/components/messaging/message-thread";
 import { useContacts } from "@/hooks/use-messages";
 import type { ContactSummary } from "@/lib/messages/types";
+import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
 import { format, isToday, isYesterday } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Loader2, MessageCircle, Search } from "lucide-react";
+import { Loader2, MessageCircle } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 
@@ -18,6 +19,17 @@ function relativeTime(value: string | null): string {
   if (isToday(d)) return format(d, "HH:mm", { locale: tr });
   if (isYesterday(d)) return "Dün";
   return format(d, "d MMM", { locale: tr });
+}
+
+function chatInitials(name: string): string {
+  return (
+    name
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase() || "?"
+  );
 }
 
 function MessagesPageInner() {
@@ -45,9 +57,7 @@ function MessagesPageInner() {
     if (!contacts) return [];
     const q = search.trim().toLowerCase();
     if (!q) return contacts;
-    return contacts.filter((c) =>
-      c.otherPartyName.toLowerCase().includes(q),
-    );
+    return contacts.filter((c) => c.otherPartyName.toLowerCase().includes(q));
   }, [contacts, search]);
 
   return (
@@ -57,34 +67,32 @@ function MessagesPageInner() {
         description="Bağlantılı tedarikçilerinizle doğrudan sohbet. Sipariş ve ihale içi konuşmalar ilgili detay sayfasından erişilir."
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:h-[calc(100vh-220px)] lg:min-h-[500px]">
-        <aside className="lg:col-span-4 bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col h-[60vh] lg:h-auto">
-          <div className="px-3 py-3 border-b border-slate-200 space-y-2">
-            <h3 className="font-bold text-brand-900 text-sm px-1">
-              Tedarikçiler
-            </h3>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+      {/* Birleşik inbox paneli — desktop'ta tek panel + iç ayraç, mobilde istiflenmiş */}
+      <div className="flex flex-col gap-4 lg:h-[calc(100vh-220px)] lg:min-h-[520px] lg:flex-row lg:gap-0 lg:overflow-hidden lg:rounded-2xl lg:bg-white lg:shadow-sm lg:ring-1 lg:ring-zinc-950/5">
+        {/* Sağ: kişi listesi (arama burada) */}
+        <aside className="flex h-[55vh] flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 lg:order-2 lg:h-auto lg:w-80 lg:shrink-0 lg:rounded-none lg:border-l lg:border-zinc-950/5 lg:shadow-none lg:ring-0">
+          <div className="space-y-2 border-b border-zinc-950/5 p-3">
+            <InputGroup>
+              <MagnifyingGlassIcon data-slot="icon" />
               <Input
                 type="search"
                 placeholder="Tedarikçi ara…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-8 text-sm h-9"
               />
-            </div>
-            <p className="text-[11px] text-slate-400 px-1">
+            </InputGroup>
+            <p className="px-1 text-[11px] text-zinc-400">
               {isLoading
                 ? "Yükleniyor…"
                 : `${filtered.length}${
                     search ? ` / ${contacts?.length ?? 0}` : ""
-                  } kişi`}
+                  } tedarikçi`}
             </p>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          <div className="flex-1 overflow-y-auto p-2">
             {isLoading ? (
-              <div className="flex items-center justify-center py-12 text-slate-400">
+              <div className="flex items-center justify-center py-12 text-zinc-400">
                 <Loader2 className="h-5 w-5 animate-spin" />
               </div>
             ) : !contacts || contacts.length === 0 ? (
@@ -98,22 +106,26 @@ function MessagesPageInner() {
                 hint="Arama terimini değiştirin."
               />
             ) : (
-              filtered.map((c) => (
-                <ContactRow
-                  key={c.otherPartyId}
-                  contact={c}
-                  isActive={selected?.otherPartyId === c.otherPartyId}
-                  onClick={() => setSelected(c)}
-                />
-              ))
+              <div className="space-y-0.5">
+                {filtered.map((c) => (
+                  <ContactRow
+                    key={c.otherPartyId}
+                    contact={c}
+                    isActive={selected?.otherPartyId === c.otherPartyId}
+                    onClick={() => setSelected(c)}
+                  />
+                ))}
+              </div>
             )}
           </div>
         </aside>
 
-        <main className="lg:col-span-8 min-h-0">
+        {/* Sol: sohbet */}
+        <main className="flex min-h-[440px] flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 lg:order-1 lg:min-h-0 lg:rounded-none lg:shadow-none lg:ring-0">
           {selected ? (
             <MessageThread
               key={selected.otherPartyId}
+              bare
               surface="tenant"
               otherPartyId={selected.otherPartyId}
               currentUserType="TENANT_USER"
@@ -121,12 +133,11 @@ function MessagesPageInner() {
                 otherPartyName: selected.otherPartyName,
                 contextNumber: "Tüm konuşma",
               }}
-              className="lg:h-full lg:!h-full"
             />
           ) : (
-            <div className="bg-white border border-slate-200 rounded-2xl flex items-center justify-center min-h-[400px] lg:h-full">
-              <div className="text-center text-slate-400 px-4">
-                <MessageCircle className="h-10 w-10 mx-auto mb-3" />
+            <div className="flex flex-1 items-center justify-center">
+              <div className="px-4 text-center text-zinc-400">
+                <MessageCircle className="mx-auto mb-3 h-10 w-10" />
                 <p className="text-sm">Soldan bir tedarikçi seçin</p>
               </div>
             </div>
@@ -142,7 +153,7 @@ export default function MessagesPage() {
     <Suspense
       fallback={
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
         </div>
       }
     >
@@ -154,11 +165,11 @@ export default function MessagesPage() {
 function EmptyState({ title, hint }: { title: string; hint: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-      <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-        <MessageCircle className="h-5 w-5 text-slate-400" />
+      <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center mb-3">
+        <MessageCircle className="h-5 w-5 text-zinc-400" />
       </div>
-      <p className="text-sm font-medium text-slate-600">{title}</p>
-      <p className="text-xs text-slate-400 mt-1">{hint}</p>
+      <p className="text-sm font-medium text-zinc-600">{title}</p>
+      <p className="text-xs text-zinc-400 mt-1">{hint}</p>
     </div>
   );
 }
@@ -176,20 +187,22 @@ function ContactRow({
     <button
       type="button"
       onClick={onClick}
-      className={`w-full text-left p-2.5 rounded-lg border transition-colors ${
-        isActive
-          ? "border-brand-500 bg-brand-50"
-          : "border-transparent hover:bg-slate-50"
+      className={`w-full rounded-lg p-2.5 text-left transition-colors ${
+        isActive ? "bg-zinc-100" : "hover:bg-zinc-50"
       }`}
     >
-      <div className="flex items-start gap-2.5">
-        <AvatarInitials name={contact.otherPartyName} size="md" />
+      <div className="flex items-start gap-3">
+        <Avatar
+          initials={chatInitials(contact.otherPartyName)}
+          className="size-10 bg-zinc-900 text-white"
+          alt={contact.otherPartyName}
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <p className="font-semibold text-sm text-brand-900 truncate">
+            <p className="font-semibold text-sm text-zinc-900 truncate">
               {contact.otherPartyName}
             </p>
-            <span className="text-[10px] text-slate-400 shrink-0">
+            <span className="text-[10px] text-zinc-400 shrink-0">
               {relativeTime(contact.lastMessageAt)}
             </span>
           </div>
@@ -197,8 +210,8 @@ function ContactRow({
             <p
               className={`text-xs truncate ${
                 contact.lastMessagePreview
-                  ? "text-slate-600"
-                  : "text-slate-400 italic"
+                  ? "text-zinc-600"
+                  : "text-zinc-400 italic"
               }`}
             >
               {contact.lastMessagePreview ?? "Henüz mesaj yok"}

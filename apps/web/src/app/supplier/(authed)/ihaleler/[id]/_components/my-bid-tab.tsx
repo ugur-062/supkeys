@@ -1,5 +1,7 @@
 "use client";
 
+import { Text } from "@/components/catalyst/text";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useMyBid, useWithdrawBid } from "@/hooks/use-supplier-bid";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -9,10 +11,7 @@ import { tr } from "date-fns/locale";
 import {
   AlertCircle,
   Ban,
-  CheckCircle2,
-  Clock,
   FileText,
-  Info,
   Loader2,
   Send,
   TrendingDown,
@@ -27,6 +26,57 @@ interface Props {
   tender: SupplierTenderDetail;
 }
 
+/** Boş/yükleniyor/hata gibi tek-mesaj merkezi durumlar. */
+function CenteredState({
+  icon: Icon,
+  title,
+  description,
+  children,
+  tone = "neutral",
+}: {
+  icon: typeof FileText;
+  title: string;
+  description?: string;
+  children?: React.ReactNode;
+  tone?: "neutral" | "danger";
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div
+        className={`flex h-12 w-12 items-center justify-center rounded-full ${
+          tone === "danger" ? "bg-danger-50" : "bg-zinc-100"
+        }`}
+      >
+        <Icon
+          className={`h-6 w-6 ${tone === "danger" ? "text-danger-600" : "text-zinc-500"}`}
+        />
+      </div>
+      <p className="mt-3 font-semibold text-zinc-950">{title}</p>
+      {description ? (
+        <Text className="mt-1 max-w-md">{description}</Text>
+      ) : null}
+      {children ? <div className="mt-4">{children}</div> : null}
+    </div>
+  );
+}
+
+/** Kazanma kutlama paneli. */
+function AwardPanel({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="rounded-xl bg-success-50 p-6 ring-1 ring-success-600/20">
+      <div className="flex items-start gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-success-100">
+          <Trophy className="h-6 w-6 text-success-600" />
+        </div>
+        <div className="flex-1 space-y-1">
+          <p className="text-lg font-bold text-success-900">{title}</p>
+          <p className="text-sm text-success-800">{description}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function MyBidTab({ tender }: Props) {
   const myBidQuery = useMyBid(tender.id);
   const withdrawMutation = useWithdrawBid(tender.id);
@@ -34,8 +84,8 @@ export function MyBidTab({ tender }: Props) {
 
   if (myBidQuery.isLoading) {
     return (
-      <div className="card p-12 flex items-center justify-center text-slate-500">
-        <Loader2 className="w-5 h-5 animate-spin" />
+      <div className="flex items-center justify-center py-16 text-zinc-500">
+        <Loader2 className="h-5 w-5 animate-spin" />
         <span className="ml-2 text-sm">Teklif yükleniyor…</span>
       </div>
     );
@@ -43,17 +93,15 @@ export function MyBidTab({ tender }: Props) {
 
   if (myBidQuery.isError) {
     return (
-      <div className="card p-12 text-center space-y-3">
-        <AlertCircle className="w-8 h-8 text-danger-600 mx-auto" />
-        <p className="font-medium text-brand-900">Teklif bilgisi alınamadı</p>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => myBidQuery.refetch()}
-        >
+      <CenteredState
+        icon={AlertCircle}
+        tone="danger"
+        title="Teklif bilgisi alınamadı"
+      >
+        <Button variant="secondary" onClick={() => myBidQuery.refetch()}>
           Tekrar dene
         </Button>
-      </div>
+      </CenteredState>
     );
   }
 
@@ -67,39 +115,26 @@ export function MyBidTab({ tender }: Props) {
   if (!bid) {
     if (!isOpen) {
       return (
-        <div className="card p-12 text-center space-y-3">
-          <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center">
-            <FileText className="w-6 h-6 text-slate-400" />
-          </div>
-          <p className="font-display font-bold text-brand-900">
-            Bu ihaleye teklif vermediniz
-          </p>
-          <p className="text-sm text-slate-500">
-            İhale teklif kabul aşaması bitti.
-          </p>
-        </div>
+        <CenteredState
+          icon={FileText}
+          title="Bu ihaleye teklif vermediniz"
+          description="İhale teklif kabul aşaması bitti."
+        />
       );
     }
     return (
-      <div className="card p-12 text-center space-y-3">
-        <div className="w-12 h-12 mx-auto rounded-full bg-brand-50 flex items-center justify-center">
-          <FileText className="w-6 h-6 text-brand-600" />
-        </div>
-        <p className="font-display font-bold text-brand-900">
-          Henüz teklif vermediniz
-        </p>
-        <p className="text-sm text-slate-500 max-w-md mx-auto">
-          Kapanış tarihinden önce teklif vererek bu ihalede yer alabilirsiniz.
-        </p>
-        <div className="pt-2">
-          <Link href={formHref}>
-            <Button variant="primary">
-              <Send className="w-4 h-4" />
-              Teklif Ver
-            </Button>
-          </Link>
-        </div>
-      </div>
+      <CenteredState
+        icon={FileText}
+        title="Henüz teklif vermediniz"
+        description="Kapanış tarihinden önce teklif vererek bu ihalede yer alabilirsiniz."
+      >
+        <Link href={formHref}>
+          <Button>
+            <Send className="h-4 w-4" />
+            Teklif Ver
+          </Button>
+        </Link>
+      </CenteredState>
     );
   }
 
@@ -122,57 +157,26 @@ export function MyBidTab({ tender }: Props) {
   const tenderAwarded = tender.status === "AWARDED";
 
   // ----- AWARDED durumları -----
-  if (bid.status === "AWARDED_FULL") {
+  if (bid.status === "AWARDED_FULL" || bid.status === "AWARDED_PARTIAL") {
+    const full = bid.status === "AWARDED_FULL";
     return (
-      <div className="space-y-4">
-        <div className="rounded-2xl bg-gradient-to-br from-success-50 via-emerald-50 to-success-50 border border-success-200 p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-success-100 flex items-center justify-center flex-shrink-0">
-              <Trophy className="w-6 h-6 text-success-600" />
-            </div>
-            <div className="flex-1 space-y-1">
-              <p className="font-display font-bold text-success-900 text-lg">
-                Tebrikler! Tüm kalemleri kazandınız.
-              </p>
-              <p className="text-sm text-success-800">
-                Sipariş oluşturuldu. Detaylar için sipariş sayfasına gidin.
-              </p>
-            </div>
-          </div>
-        </div>
+      <div className="space-y-5">
+        <AwardPanel
+          title={
+            full
+              ? "Tebrikler! Tüm kalemleri kazandınız."
+              : "Bazı kalemleri kazandınız."
+          }
+          description={
+            full
+              ? "Sipariş oluşturuldu. Detaylar için sipariş sayfasına gidin."
+              : "Kazandığınız kalemler için sipariş oluşturuldu."
+          }
+        />
         <BidSummaryCard bid={bid} />
         <Link href={`/supplier/siparisler?tenderId=${tender.id}`}>
-          <Button variant="primary" className="!bg-success-600 hover:!bg-success-700 focus:!ring-success-500">
-            <Trophy className="w-4 h-4" />
-            Siparişlerimi Görüntüle
-          </Button>
-        </Link>
-      </div>
-    );
-  }
-
-  if (bid.status === "AWARDED_PARTIAL") {
-    return (
-      <div className="space-y-4">
-        <div className="rounded-2xl bg-success-50 border border-success-200 p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-success-100 flex items-center justify-center flex-shrink-0">
-              <Trophy className="w-6 h-6 text-success-600" />
-            </div>
-            <div className="flex-1 space-y-1">
-              <p className="font-display font-bold text-success-900 text-lg">
-                Bazı kalemleri kazandınız.
-              </p>
-              <p className="text-sm text-success-800">
-                Kazandığınız kalemler için sipariş oluşturuldu.
-              </p>
-            </div>
-          </div>
-        </div>
-        <BidSummaryCard bid={bid} />
-        <Link href={`/supplier/siparisler?tenderId=${tender.id}`}>
-          <Button variant="primary" className="!bg-success-600 hover:!bg-success-700 focus:!ring-success-500">
-            <Trophy className="w-4 h-4" />
+          <Button>
+            <Trophy className="h-4 w-4" />
             Siparişlerimi Görüntüle
           </Button>
         </Link>
@@ -183,14 +187,11 @@ export function MyBidTab({ tender }: Props) {
   // LOST sonrası tender artık kapanmış (AWARDED veya CLOSED_NO_AWARD)
   if (bid.status === "LOST" && tenderAwarded) {
     return (
-      <div className="space-y-4">
-        <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 flex gap-3 items-start">
-          <Info className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 text-sm text-slate-700">
-            <strong>İhale sonuçlandı.</strong> Maalesef bu ihaleyi kazanamadınız.
-            Diğer ihalelerimizi takip etmeyi unutmayın.
-          </div>
-        </div>
+      <div className="space-y-5">
+        <Alert variant="info" title="İhale sonuçlandı.">
+          Maalesef bu ihaleyi kazanamadınız. Diğer ihalelerimizi takip etmeyi
+          unutmayın.
+        </Alert>
         <BidSummaryCard bid={bid} />
       </div>
     );
@@ -199,35 +200,29 @@ export function MyBidTab({ tender }: Props) {
   // LOST + ihale hâlâ açık → eleme akışı: yeniden teklif verilebilir
   if (bid.status === "LOST" && isOpen) {
     return (
-      <div className="space-y-4">
-        <div className="rounded-xl bg-warning-50 border border-warning-200 p-4 flex gap-3 items-start">
-          <AlertCircle className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 text-sm space-y-1.5">
-            <p className="font-bold text-warning-900">
-              Teklifiniz alıcı tarafından elendi.
+      <div className="space-y-5">
+        <Alert variant="warning" title="Teklifiniz alıcı tarafından elendi.">
+          {bid.eliminationReason ? (
+            <p>
+              <strong>Sebep:</strong> {bid.eliminationReason}
             </p>
-            {bid.eliminationReason ? (
-              <p className="text-warning-800">
-                <strong>Sebep:</strong> {bid.eliminationReason}
-              </p>
-            ) : null}
-          </div>
-        </div>
+          ) : null}
+        </Alert>
 
         <BidSummaryCard bid={bid} />
 
-        <div className="rounded-xl bg-brand-50 border border-brand-200 p-4">
-          <h4 className="font-bold text-brand-900 text-sm">
+        <div className="rounded-xl bg-zinc-50 p-4 ring-1 ring-zinc-950/5">
+          <p className="text-sm font-bold text-zinc-900">
             Yeniden Teklif Verebilirsiniz
-          </h4>
-          <p className="text-sm text-brand-700 mt-1">
+          </p>
+          <Text className="mt-1">
             Alıcının eleme sebebini dikkate alarak yeni bir teklif
             hazırlayabilirsiniz.
-          </p>
+          </Text>
           <div className="mt-3">
             <Link href={formHref}>
-              <Button variant="primary">
-                <Send className="w-4 h-4" />
+              <Button>
+                <Send className="h-4 w-4" />
                 Yeniden Teklif Ver
               </Button>
             </Link>
@@ -239,102 +234,85 @@ export function MyBidTab({ tender }: Props) {
 
   // ----- DRAFT, SUBMITTED, WITHDRAWN -----
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {bid.status === "SUBMITTED" && tenderClosed ? (
-        <div className="rounded-xl bg-purple-50 border border-purple-200 p-4 flex gap-3 items-start">
-          <Clock className="w-5 h-5 text-purple-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 text-sm text-purple-900">
-            <strong>İhale teklif kabul aşaması sona erdi.</strong> Alıcı
-            kazandırma kararını verdiğinde sonuç bildirimi alacaksınız.
-          </div>
-        </div>
+        <Alert variant="info" title="İhale teklif kabul aşaması sona erdi.">
+          Alıcı kazandırma kararını verdiğinde sonuç bildirimi alacaksınız.
+        </Alert>
       ) : null}
 
       {bid.status === "DRAFT" ? (
-        <div className="rounded-xl bg-warning-50 border border-warning-200 p-4 flex gap-3 items-start">
-          <Info className="w-5 h-5 text-warning-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 text-sm text-warning-900">
-            <strong>Taslak teklifiniz var.</strong> Henüz alıcıya gönderilmedi.
-            Kapanış tarihinden önce gönderin.
-          </div>
-        </div>
+        <Alert variant="warning">
+          <strong>Taslak teklifiniz var.</strong> Henüz alıcıya gönderilmedi.
+          Kapanış tarihinden önce gönderin.
+        </Alert>
       ) : null}
 
       {bid.status === "SUBMITTED" && bid.submittedAt ? (
-        <div className="rounded-xl bg-success-50 border border-success-200 p-4 flex gap-3 items-start">
-          <CheckCircle2 className="w-5 h-5 text-success-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 text-sm text-success-900">
-            <strong>Teklifiniz alındı.</strong> Versiyon: v{bid.version} ·
-            Verildi:{" "}
-            {format(new Date(bid.submittedAt), "d MMM yyyy, HH:mm", {
-              locale: tr,
-            })}
-          </div>
-        </div>
+        <Alert variant="success" title="Teklifiniz alındı.">
+          Versiyon: v{bid.version} · Verildi:{" "}
+          {format(new Date(bid.submittedAt), "d MMM yyyy, HH:mm", {
+            locale: tr,
+          })}
+        </Alert>
       ) : null}
 
       {bid.status === "WITHDRAWN" && bid.withdrawnAt ? (
-        <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 flex gap-3 items-start">
-          <Ban className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
-          <div className="flex-1 text-sm text-slate-700">
-            <strong>Teklif geri çekildi.</strong> Geri çekme:{" "}
-            {format(new Date(bid.withdrawnAt), "d MMM yyyy, HH:mm", {
-              locale: tr,
-            })}
-          </div>
-        </div>
+        <Alert variant="info" title="Teklif geri çekildi.">
+          Geri çekme:{" "}
+          {format(new Date(bid.withdrawnAt), "d MMM yyyy, HH:mm", {
+            locale: tr,
+          })}
+        </Alert>
       ) : null}
 
       <BidSummaryCard bid={bid} />
 
-      {/* SUBMITTED + ihale açık.
-          ENGLISH_AUCTION: fiyat düşürerek yeniden teklif verilebilir.
-          RFQ: revize yok, sadece geri çek + bilgilendirme. */}
+      {/* SUBMITTED + ihale açık. */}
       {bid.status === "SUBMITTED" && isOpen ? (
         <>
           {isAuction ? (
-            <div className="rounded-xl bg-brand-50 border border-brand-200 p-4">
-              <h4 className="font-bold text-brand-900 text-sm">
+            <div className="rounded-xl bg-zinc-50 p-4 ring-1 ring-zinc-950/5">
+              <p className="text-sm font-bold text-zinc-900">
                 Açık eksiltme — fiyatınızı düşürebilirsiniz
-              </h4>
-              <p className="text-sm text-brand-800 mt-1">
-                İhale açık olduğu sürece daha düşük bir teklif vererek
-                sıralamanızı iyileştirebilirsiniz. Yeni teklifiniz öncekinden
-                en az belirlenen azaltma kadar düşük olmalıdır.
               </p>
+              <Text className="mt-1">
+                İhale açık olduğu sürece daha düşük bir teklif vererek
+                sıralamanızı iyileştirebilirsiniz. Yeni teklifiniz öncekinden en
+                az belirlenen azaltma kadar düşük olmalıdır.
+              </Text>
             </div>
           ) : (
-            <div className="rounded-xl bg-warning-50 border border-warning-200 p-4">
-              <h4 className="font-bold text-warning-900 text-sm">
-                Teklifinizi mi değiştirmek istiyorsunuz?
-              </h4>
-              <p className="text-sm text-warning-800 mt-1">
+            <Alert
+              variant="warning"
+              title="Teklifinizi mi değiştirmek istiyorsunuz?"
+            >
+              <p>
                 Teklifinizi değiştirmek için alıcıyla iletişime geçin. Alıcı
                 teklifinizi elerse yeniden teklif verebilirsiniz.
               </p>
-              <p className="text-xs text-warning-700 mt-2">
+              <p className="mt-2 text-xs">
                 Acil durumlarda teklifinizi geri çekebilirsiniz; ancak bu
                 durumda yeniden teklif veremezsiniz.
               </p>
-            </div>
+            </Alert>
           )}
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center gap-2">
             {isAuction && !confirmingWithdraw ? (
               <Link href={formHref}>
-                <Button type="button" variant="primary">
-                  <TrendingDown className="w-4 h-4" />
+                <Button type="button">
+                  <TrendingDown className="h-4 w-4" />
                   Yeni Teklif Ver (Fiyat Düşür)
                 </Button>
               </Link>
             ) : null}
             {confirmingWithdraw ? (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-600">Emin misiniz?</span>
+                <span className="text-xs text-zinc-600">Emin misiniz?</span>
                 <Button
                   type="button"
                   variant="secondary"
-                  size="sm"
                   onClick={() => setConfirmingWithdraw(false)}
                   disabled={withdrawMutation.isPending}
                 >
@@ -342,13 +320,10 @@ export function MyBidTab({ tender }: Props) {
                 </Button>
                 <Button
                   type="button"
-                  variant="primary"
-                  size="sm"
                   onClick={handleWithdraw}
                   loading={withdrawMutation.isPending}
-                  className="!bg-danger-600 hover:!bg-danger-700 focus:!ring-danger-500"
                 >
-                  <Ban className="w-4 h-4" />
+                  <Ban className="h-4 w-4" />
                   Geri Çek
                 </Button>
               </div>
@@ -357,9 +332,8 @@ export function MyBidTab({ tender }: Props) {
                 type="button"
                 variant="secondary"
                 onClick={() => setConfirmingWithdraw(true)}
-                className="!text-danger-600 !border-danger-200 hover:!bg-danger-50"
               >
-                <Ban className="w-4 h-4" />
+                <Ban className="h-4 w-4" />
                 Teklifi Geri Çek
               </Button>
             )}
@@ -370,8 +344,8 @@ export function MyBidTab({ tender }: Props) {
       {/* DRAFT + açık ihale → "Devam Et" */}
       {bid.status === "DRAFT" && isOpen ? (
         <Link href={formHref}>
-          <Button variant="primary">
-            <Send className="w-4 h-4" />
+          <Button>
+            <Send className="h-4 w-4" />
             Devam Et
           </Button>
         </Link>

@@ -1,10 +1,10 @@
 "use client";
 
+import { Select } from "@/components/catalyst/select";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import {
   TURKEY_LOCATIONS,
   getDistrictsByCity,
@@ -74,19 +74,12 @@ export function AddressFields<T extends AddressFieldsValues>({
             control={control}
             name={"city" as Path<T>}
             render={({ field }) => (
-              <select
+              <Select
                 id="city"
                 value={(field.value as string) ?? ""}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
-                className={cn(
-                  "w-full px-3.5 py-2.5 rounded-lg border bg-white",
-                  "text-brand-900 text-sm",
-                  "focus:outline-none focus:ring-2 focus:ring-offset-0",
-                  cityError
-                    ? "border-danger-500 focus:ring-danger-500/30"
-                    : "border-surface-border focus:ring-brand-500/30 focus:border-brand-500",
-                )}
+                invalid={!!cityError}
               >
                 <option value="">Seçiniz</option>
                 {TURKEY_LOCATIONS.map((loc) => (
@@ -94,7 +87,7 @@ export function AddressFields<T extends AddressFieldsValues>({
                     {loc.il}
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
           />
         </Field>
@@ -107,21 +100,13 @@ export function AddressFields<T extends AddressFieldsValues>({
             control={control}
             name={"district" as Path<T>}
             render={({ field }) => (
-              <select
+              <Select
                 id="district"
                 value={(field.value as string) ?? ""}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
                 disabled={!cityName}
-                className={cn(
-                  "w-full px-3.5 py-2.5 rounded-lg border bg-white",
-                  "text-brand-900 text-sm",
-                  "focus:outline-none focus:ring-2 focus:ring-offset-0",
-                  "disabled:bg-surface-muted disabled:cursor-not-allowed",
-                  districtError
-                    ? "border-danger-500 focus:ring-danger-500/30"
-                    : "border-surface-border focus:ring-brand-500/30 focus:border-brand-500",
-                )}
+                invalid={!!districtError}
               >
                 <option value="">
                   {cityName ? "Seçiniz" : "Önce il seçin"}
@@ -131,7 +116,7 @@ export function AddressFields<T extends AddressFieldsValues>({
                     {d}
                   </option>
                 ))}
-              </select>
+              </Select>
             )}
           />
         </Field>

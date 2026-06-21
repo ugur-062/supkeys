@@ -8,6 +8,15 @@ import {
   SearchInput,
   SortDropdown,
 } from "@/components/list";
+import { Select } from "@/components/catalyst/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import {
   useAdminSuppliers,
@@ -33,12 +42,6 @@ const MEMBERSHIP_OPTIONS = [
   { value: "STANDARD", label: "Standard" },
   { value: "PREMIUM", label: "Premium" },
 ];
-
-const SELECT_CLASS = cn(
-  "px-3 py-2 text-sm rounded-lg appearance-none bg-white cursor-pointer",
-  "border border-surface-border text-admin-text",
-  "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-);
 
 interface SupplierFilters {
   search?: string;
@@ -87,21 +90,23 @@ function SuppliersView() {
               placeholder="Firma adı, VKN veya kullanıcı e-postası..."
               className="w-full md:w-96"
             />
-            <select
-              className={SELECT_CLASS}
+            <Select
+              aria-label="Üyelik filtresi"
               value={filters.membership ?? ""}
               onChange={(e) => setFilters({ membership: e.target.value })}
+              className="md:w-44"
             >
               {MEMBERSHIP_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
               ))}
-            </select>
+            </Select>
             <SortDropdown
               value={filters.sort ?? "createdAt:desc"}
               onChange={(v) => setFilters({ sort: v })}
               options={SORT_OPTIONS}
+              className="md:w-44"
             />
             <ResultCount
               total={total}
@@ -196,67 +201,50 @@ function SuppliersView() {
 
 function SuppliersTable({ items }: { items: AdminSupplierListItem[] }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-surface-subtle border-b border-surface-border">
-          <tr>
-            <th className="text-left px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              Tedarikçi
-            </th>
-            <th className="text-left px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              VKN
-            </th>
-            <th className="text-left px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              Üyelik
-            </th>
-            <th className="text-right px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              Alıcı
-            </th>
-            <th className="text-right px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              Teklif
-            </th>
-            <th className="text-right px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              Sipariş
-            </th>
-            <th className="text-left px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              Kayıt
-            </th>
-          </tr>
-        </thead>
-        <tbody>
+    <div className="px-2 [--gutter:--spacing(4)]">
+      <Table dense>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Tedarikçi</TableHeader>
+            <TableHeader>VKN</TableHeader>
+            <TableHeader>Üyelik</TableHeader>
+            <TableHeader className="text-right">Alıcı</TableHeader>
+            <TableHeader className="text-right">Teklif</TableHeader>
+            <TableHeader className="text-right">Sipariş</TableHeader>
+            <TableHeader>Kayıt</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {items.map((s) => (
-            <tr
-              key={s.id}
-              className="border-b border-surface-border last:border-0 hover:bg-surface-subtle transition-colors"
-            >
-              <td className="px-4 py-3">
+            <TableRow key={s.id}>
+              <TableCell>
                 <Link
                   href={`/admin/suppliers/${s.id}`}
                   className="flex items-center gap-2.5 group"
                 >
-                  <div className="h-9 w-9 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
-                    <Truck className="h-4 w-4 text-purple-600" />
+                  <div className="h-9 w-9 rounded-lg bg-zinc-100 flex items-center justify-center flex-shrink-0">
+                    <Truck className="h-4 w-4 text-zinc-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-admin-text group-hover:text-brand-700 truncate">
+                    <p className="font-semibold text-zinc-900 group-hover:text-zinc-600 truncate">
                       {s.companyName}
                     </p>
                     {s.city ? (
-                      <p className="text-xs text-admin-text-muted">{s.city}</p>
+                      <p className="text-xs text-zinc-500">{s.city}</p>
                     ) : null}
                   </div>
                 </Link>
-              </td>
-              <td className="px-4 py-3 font-mono text-xs text-admin-text-muted">
+              </TableCell>
+              <TableCell className="font-mono text-xs text-zinc-500">
                 {s.taxNumber}
-              </td>
-              <td className="px-4 py-3">
+              </TableCell>
+              <TableCell>
                 <span
                   className={cn(
                     "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border",
                     s.membership === "PREMIUM"
                       ? "bg-warning-50 text-warning-700 border-warning-200"
-                      : "bg-slate-50 text-slate-700 border-slate-200",
+                      : "bg-zinc-50 text-zinc-700 border-zinc-200",
                   )}
                 >
                   {s.membership}
@@ -266,23 +254,23 @@ function SuppliersTable({ items }: { items: AdminSupplierListItem[] }) {
                     Engelli
                   </span>
                 ) : null}
-              </td>
-              <td className="px-4 py-3 text-right text-sm font-medium">
+              </TableCell>
+              <TableCell className="text-right text-sm font-medium">
                 {s._count.tenantRelations}
-              </td>
-              <td className="px-4 py-3 text-right text-sm font-medium">
+              </TableCell>
+              <TableCell className="text-right text-sm font-medium">
                 {s._count.bids}
-              </td>
-              <td className="px-4 py-3 text-right text-sm font-medium">
+              </TableCell>
+              <TableCell className="text-right text-sm font-medium">
                 {s._count.orders}
-              </td>
-              <td className="px-4 py-3 text-xs text-admin-text-muted whitespace-nowrap">
+              </TableCell>
+              <TableCell className="text-xs text-zinc-500 whitespace-nowrap">
                 {format(new Date(s.createdAt), "d MMM yyyy", { locale: tr })}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

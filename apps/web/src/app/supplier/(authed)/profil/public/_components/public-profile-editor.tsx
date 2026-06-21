@@ -1,12 +1,15 @@
 "use client";
 
+import { Checkbox } from "@/components/catalyst/checkbox";
 import { PanelCard } from "@/components/supplier/panel-card";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  useImportSupplierFromWebsite,
   useSupplierPublicProfile,
   useUpdateSupplierPublicProfile,
 } from "@/hooks/use-supplier-profile";
@@ -25,6 +28,7 @@ import {
   Loader2,
   Plus,
   Shield,
+  Sparkles,
   X,
 } from "lucide-react";
 import Link from "next/link";
@@ -34,6 +38,7 @@ import { toast } from "sonner";
 export function PublicProfileEditor() {
   const { data, isLoading } = useSupplierPublicProfile();
   const update = useUpdateSupplierPublicProfile();
+  const importMutation = useImportSupplierFromWebsite();
 
   const [slug, setSlug] = useState("");
   const [publicEnabled, setPublicEnabled] = useState(true);
@@ -54,8 +59,10 @@ export function PublicProfileEditor() {
   // Backend'den veri gelince form state'i hidrate et
   useEffect(() => {
     if (!data) return;
-    setSlug(data.slug ?? "");
-    setPublicEnabled(data.publicEnabled);
+    // Slug otomatik: şirket adından üretilir, düzenlenemez.
+    setSlug(generateSlug(data.companyName).slice(0, 60));
+    // Premium profil her zaman yayında — kapatma yok.
+    setPublicEnabled(true);
     setAboutText(data.aboutText ?? "");
     setServices(data.services);
     setWebsite(data.website ?? "");
@@ -88,7 +95,7 @@ export function PublicProfileEditor() {
           <div className="w-12 h-12 mx-auto rounded-2xl bg-yellow-50 border border-yellow-200 flex items-center justify-center mb-3">
             <Award className="h-6 w-6 text-yellow-600" />
           </div>
-          <h2 className="font-display font-bold text-lg text-brand-900 mb-2">
+          <h2 className="font-semibold text-lg text-zinc-900 mb-2">
             PREMIUM gerekli
           </h2>
           <p className="text-sm text-slate-600 max-w-md mx-auto mb-4">
@@ -117,8 +124,10 @@ export function PublicProfileEditor() {
 
   const resetForm = () => {
     if (!data) return;
-    setSlug(data.slug ?? "");
-    setPublicEnabled(data.publicEnabled);
+    // Slug otomatik: şirket adından üretilir, düzenlenemez.
+    setSlug(generateSlug(data.companyName).slice(0, 60));
+    // Premium profil her zaman yayında — kapatma yok.
+    setPublicEnabled(true);
     setAboutText(data.aboutText ?? "");
     setServices(data.services);
     setWebsite(data.website ?? "");
@@ -173,13 +182,24 @@ export function PublicProfileEditor() {
       return;
     }
 
+    // Premium profilde web sitesi zorunlu — public profili onunla doldururuz.
+    const trimmedSite = website.trim();
+    if (!trimmedSite) {
+      toast.error("Web sitesi linki zorunludur");
+      return;
+    }
+    if (!/^https?:\/\//i.test(trimmedSite)) {
+      toast.error("Web sitesi https:// ile başlamalı");
+      return;
+    }
+
     // URL alanlarını backend gönderirken: boşsa "" olarak gönder (service null'a çevirir);
     // doluysa trim ve protocol kontrolü kullanıcıya net hata verir.
     // aboutText/services hep gönder (boş = silindi anlamı taşır).
     try {
       await update.mutateAsync({
         slug: slug.trim(),
-        publicEnabled,
+        publicEnabled: true,
         aboutText,
         services,
         website: website.trim(),
@@ -204,15 +224,71 @@ export function PublicProfileEditor() {
     }
   };
 
+  const handleImport = async () => {
+    const site = website.trim();
+    if (!/^https?:\/\//i.test(site)) {
+      toast.error("Önce geçerli bir web sitesi (https://...) girin");
+      return;
+    }
+    try {
+      const res = await importMutation.mutateAsync(site);
+      const got = [
+        res.imported.logo ? "logo" : null,
+        res.imported.cover ? "kapak" : null,
+        res.imported.about ? "açıklama" : null,
+        res.imported.services ? "hizmetler" : null,
+        res.imported.social ? "sosyal linkler" : null,
+        res.imported.gallery > 0 ? `${res.imported.gallery} galeri fotoğrafı` : null,
+      ].filter(Boolean);
+      toast.success(
+        got.length > 0
+          ? `✓ Web sitenizden entegre edildi: ${got.join(", ")}`
+          : "Web sitesinde uygun görsel/bilgi bulunamadı",
+      );
+    } catch (err) {
+      const msg =
+        axios.isAxiosError(err) &&
+        (err.response?.data as { message?: string } | undefined)?.message;
+      toast.error(msg || "Web sitesinden çekilemedi");
+    }
+  };
+
   return (
     <div className="space-y-5">
+      {/* Web sitesinden otomatik doldur */}
+      <div className="rounded-xl border border-zinc-100 bg-zinc-50/50 p-4">
+        <div className="flex items-start gap-3">
+          <Sparkles className="h-5 w-5 text-zinc-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-zinc-900">
+              Web sitenizden otomatik doldur
+            </p>
+            <p className="text-xs text-slate-600 mt-0.5">
+              Logo, kapak ve açıklamayı web sitenizden çekeriz. Aşağıdaki "Web
+              Sitesi" alanına adresinizi girip butona basın.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={handleImport}
+            loading={importMutation.isPending}
+            disabled={importMutation.isPending}
+            className="shrink-0"
+          >
+            <Sparkles className="h-4 w-4" />
+            Otomatik Doldur
+          </Button>
+        </div>
+      </div>
       {/* Hero — sade tek satır: avatar + identity + status + Profili Aç */}
-      <div className="bg-white rounded-xl border border-surface-border shadow-card p-4 md:p-5">
+      <div className="bg-white rounded-xl border border-surface-border shadow-sm p-4 md:p-5">
         <div className="flex items-center gap-4 flex-wrap">
           <div
             className={cn(
               "w-14 h-14 rounded-xl shrink-0",
-              "bg-gradient-to-br from-brand-100 to-brand-200 text-brand-700",
+              "bg-gradient-to-br from-zinc-100 to-zinc-200 text-zinc-700",
               "flex items-center justify-center text-lg font-bold font-display",
             )}
             aria-hidden
@@ -221,14 +297,14 @@ export function PublicProfileEditor() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h2 className="font-display font-bold text-base md:text-lg text-brand-900 truncate">
+              <h2 className="font-semibold text-base md:text-lg text-zinc-900 truncate">
                 {data.companyName}
               </h2>
               <StatusBadge slug={slug} publicEnabled={publicEnabled} />
             </div>
             {slug ? (
               <p className="font-mono text-xs md:text-sm text-slate-500 mt-0.5 break-all">
-                supkeys.com/t/{slug}
+                supkeys.com/{slug}
               </p>
             ) : (
               <p className="text-xs md:text-sm text-slate-500 mt-0.5">
@@ -238,7 +314,7 @@ export function PublicProfileEditor() {
           </div>
           {slug && publicEnabled && (
             <Link
-              href={`/t/${slug}`}
+              href={`/${slug}`}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -250,65 +326,6 @@ export function PublicProfileEditor() {
         </div>
       </div>
 
-      {/* Slug + publicEnabled */}
-      <PanelCard title="Temel Ayarlar" subtitle="URL slug ve görünürlük">
-        <div className="space-y-4">
-          <Field>
-            <Label htmlFor="slug">Slug (URL)</Label>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-slate-500 whitespace-nowrap font-mono">
-                supkeys.com/t/
-              </span>
-              <Input
-                id="slug"
-                value={slug}
-                onChange={(e) => {
-                  // generateSlug Türkçe karakterleri (ş→s, ı→i...) latinize
-                  // eder ve geçersiz karakterleri tireye çevirir. Backend
-                  // regex'iyle (/^[a-z0-9-]*$/) garantili uyumlu çıktı.
-                  const normalized = generateSlug(e.target.value).slice(0, 60);
-                  setSlug(normalized);
-                }}
-                placeholder="abc-tekstil"
-                pattern="[a-z0-9-]*"
-                maxLength={60}
-              />
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Sadece küçük harf, rakam ve tire. Boş bırakırsanız profil
-              yayından kalkar.
-            </p>
-          </Field>
-
-          <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-slate-50 border border-surface-border">
-            <div>
-              <p className="text-sm font-semibold text-brand-900">
-                Profil yayında
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Kapalıyken /t/{slug || "slug"} sayfası 404 döner
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setPublicEnabled((v) => !v)}
-              aria-pressed={publicEnabled}
-              aria-label="Profil yayında"
-              className={cn(
-                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                publicEnabled ? "bg-brand-600" : "bg-slate-300",
-              )}
-            >
-              <span
-                className={cn(
-                  "inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm",
-                  publicEnabled ? "translate-x-6" : "translate-x-1",
-                )}
-              />
-            </button>
-          </div>
-        </div>
-      </PanelCard>
 
       {/* Hakkımızda */}
       <PanelCard title="Hakkımızda" subtitle="Maks. 2000 karakter">
@@ -334,14 +351,14 @@ export function PublicProfileEditor() {
               services.map((s) => (
                 <span
                   key={s}
-                  className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full bg-brand-50 border border-brand-200 text-sm text-brand-700 font-medium"
+                  className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full bg-zinc-50 border border-zinc-200 text-sm text-zinc-700 font-medium"
                 >
                   {s}
                   <button
                     type="button"
                     onClick={() => removeService(s)}
                     aria-label={`${s} etiketini kaldır`}
-                    className="rounded-full hover:bg-brand-200 p-0.5"
+                    className="rounded-full hover:bg-zinc-200 p-0.5"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -486,7 +503,7 @@ export function PublicProfileEditor() {
       >
         <div className="space-y-4">
           <Field>
-            <Label htmlFor="website">
+            <Label htmlFor="website" required>
               <span className="inline-flex items-center gap-2">
                 <Globe className="h-4 w-4 text-slate-400" /> Web Sitesi
               </span>
@@ -497,7 +514,12 @@ export function PublicProfileEditor() {
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
               placeholder="https://www.firma.com"
+              hasError={!website.trim()}
             />
+            <p className="mt-1 text-xs text-zinc-500">
+              Zorunlu — herkese açık profilinizi bu adresten otomatik
+              doldurabilirsiniz.
+            </p>
           </Field>
           <Field>
             <Label htmlFor="linkedin">
@@ -543,7 +565,7 @@ export function PublicProfileEditor() {
       <GallerySection photos={data.photos} />
 
       {/* Submit */}
-      <div className="flex items-center justify-end gap-2 sticky bottom-4 z-10 bg-white/90 backdrop-blur p-3 rounded-xl border border-surface-border shadow-card">
+      <div className="flex items-center justify-end gap-2 sticky bottom-4 z-10 bg-white/90 backdrop-blur p-3 rounded-xl border border-surface-border shadow-sm">
         <Button variant="secondary" type="button" onClick={resetForm}>
           Sıfırla
         </Button>
@@ -677,17 +699,15 @@ function TrustVerificationSection({
             <p className="text-xs text-slate-500 mt-1.5">
               Kayıt sırasında verildi, buradan değiştirilemez.
             </p>
-            <label className="flex items-center gap-2 mt-3 text-sm text-brand-900 cursor-pointer">
-              <input
-                type="checkbox"
+            <div className="mt-3 flex items-center gap-2 text-sm text-zinc-900">
+              <Checkbox
                 checked={publicShowTaxInfo}
-                onChange={(e) => onPublicShowTaxInfoChange(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+                onChange={(checked) => onPublicShowTaxInfoChange(checked)}
               />
               <span>
                 Vergi numarası ve vergi dairesini herkese açık profilde göster
               </span>
-            </label>
+            </div>
           </div>
 
           {/* MERSİS no + opt-in toggle */}
@@ -710,24 +730,22 @@ function TrustVerificationSection({
                 Boş bırakırsan profilde gösterilmez.
               </p>
             </Field>
-            <label className="flex items-center gap-2 mt-3 text-sm text-brand-900 cursor-pointer">
-              <input
-                type="checkbox"
+            <div className="mt-3 flex items-center gap-2 text-sm text-zinc-900">
+              <Checkbox
                 checked={publicShowMersis}
-                onChange={(e) => onPublicShowMersisChange(e.target.checked)}
+                onChange={(checked) => onPublicShowMersisChange(checked)}
                 disabled={!mersisNo}
-                className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500 disabled:opacity-40"
               />
               <span>MERSİS numarasını herkese açık profilde göster</span>
-            </label>
+            </div>
           </div>
 
-          <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800 leading-relaxed">
-            <strong>Bilgi:</strong> &ldquo;Doğrulanmış İşletme&rdquo; rozeti
-            Supkeys onay sürecinden geçtiğin için profilinde otomatik görünür.
-            Buradaki seçimler sadece vergi numarası ve MERSİS bilgilerinin
-            herkese açık profilde gösterilip gösterilmeyeceğini belirler.
-          </div>
+          <Alert variant="success" title="Bilgi">
+            &ldquo;Doğrulanmış İşletme&rdquo; rozeti Supkeys onay sürecinden
+            geçtiğin için profilinde otomatik görünür. Buradaki seçimler sadece
+            vergi numarası ve MERSİS bilgilerinin herkese açık profilde
+            gösterilip gösterilmeyeceğini belirler.
+          </Alert>
         </div>
       )}
     </PanelCard>

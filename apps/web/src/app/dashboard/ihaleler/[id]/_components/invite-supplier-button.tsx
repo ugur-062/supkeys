@@ -1,8 +1,10 @@
 "use client";
 
+import { Checkbox } from "@/components/catalyst/checkbox";
 import { InvitationStatusBadge } from "@/components/tenders/status-badge";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
+import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -13,7 +15,7 @@ import { useSuppliers } from "@/hooks/use-tenant-suppliers";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import type { TenderInvitationDetail } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
-import * as Dialog from "@radix-ui/react-dialog";
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
 import { Building2, Info, Mail, Search, UserPlus, Users, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -120,40 +122,35 @@ export function InviteSupplierButton({
         Tedarikçi İşlemleri
       </Button>
 
-      <Dialog.Root open={open} onOpenChange={(o) => !o && handleClose()}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 bg-slate-900/60 z-[60]" />
-          <Dialog.Content
-            className={cn(
-              "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[60]",
-              "w-[calc(100vw-2rem)] max-w-5xl bg-white rounded-2xl shadow-2xl outline-none",
-              "h-[90vh] max-h-[calc(100vh-2rem)] flex flex-col",
-            )}
+      <Dialog open={open} onClose={handleClose} className="relative z-[60]">
+        <DialogBackdrop
+          transition
+          className="fixed inset-0 bg-zinc-950/40 transition data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150"
+        />
+        <div className="fixed inset-0 flex w-screen items-center justify-center p-2 sm:p-4">
+          <DialogPanel
+            transition
+            className="flex h-[90vh] max-h-[calc(100vh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-950/10 outline-none transition data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150 data-closed:data-enter:scale-95"
           >
-            <header className="px-5 py-4 border-b border-surface-border flex items-start justify-between gap-3">
+            <header className="px-5 py-4 border-b border-zinc-950/5 flex items-start justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-brand-50 flex items-center justify-center shrink-0">
-                  <Users className="w-5 h-5 text-brand-600" />
+                <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center shrink-0">
+                  <Users className="w-5 h-5 text-zinc-700" />
                 </div>
                 <div className="min-w-0">
-                  <Dialog.Title className="font-display font-bold text-lg text-brand-900">
+                  <DialogTitle className="font-semibold text-lg text-zinc-950">
                     Tedarikçi İşlemleri
-                  </Dialog.Title>
-                  <Dialog.Description className="text-sm text-slate-500">
+                  </DialogTitle>
+                  <p className="text-sm text-zinc-500">
                     {invitations.length > 0
                       ? `${invitations.length} davetli tedarikçi · yeni davet ekleyebilirsiniz`
                       : "Henüz davetli yok · aşağıdan ekleyebilirsiniz"}
-                  </Dialog.Description>
+                  </p>
                 </div>
               </div>
-              <Dialog.Close asChild>
-                <button
-                  aria-label="Kapat"
-                  className="p-1.5 rounded-lg hover:bg-surface-muted text-slate-400 hover:text-slate-600 transition-colors shrink-0"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </Dialog.Close>
+              <IconButton aria-label="Kapat" onClick={handleClose}>
+                <X className="w-4 h-4" />
+              </IconButton>
             </header>
 
             <div className="flex-1 overflow-y-auto">
@@ -249,36 +246,32 @@ export function InviteSupplierButton({
                         const id = s.supplier.id;
                         const checked = selectedIds.includes(id);
                         return (
-                          <label
+                          <div
                             key={id}
                             className={cn(
-                              "flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition-colors",
+                              "flex items-center gap-3 p-2.5 rounded-lg transition-colors ring-1",
                               checked
-                                ? "bg-brand-50 border border-brand-200"
-                                : "border border-transparent hover:bg-slate-50",
+                                ? "bg-zinc-50 ring-zinc-950/15"
+                                : "ring-transparent hover:bg-zinc-50",
                             )}
                           >
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={checked}
-                              onChange={(e) => {
+                              onChange={(c) => {
                                 setSelectedIds((prev) =>
-                                  e.target.checked
-                                    ? [...prev, id]
-                                    : prev.filter((x) => x !== id),
+                                  c ? [...prev, id] : prev.filter((x) => x !== id),
                                 );
                               }}
-                              className="w-4 h-4 shrink-0"
                             />
-                            <div className="h-8 w-8 rounded-full bg-brand-100 flex items-center justify-center shrink-0">
-                              <Building2 className="h-4 w-4 text-brand-600" />
+                            <div className="h-8 w-8 rounded-full bg-zinc-100 flex items-center justify-center shrink-0">
+                              <Building2 className="h-4 w-4 text-zinc-600" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-brand-900 truncate">
+                              <p className="text-sm font-semibold text-zinc-900 truncate">
                                 {s.supplier.companyName}
                               </p>
                               {s.supplier.city ? (
-                                <p className="text-[11px] text-slate-500 truncate">
+                                <p className="text-[11px] text-zinc-500 truncate">
                                   {s.supplier.city}
                                   {s.supplier.district
                                     ? ` · ${s.supplier.district}`
@@ -286,7 +279,7 @@ export function InviteSupplierButton({
                                 </p>
                               ) : null}
                             </div>
-                          </label>
+                          </div>
                         );
                       })}
                     </div>
@@ -393,9 +386,9 @@ export function InviteSupplierButton({
                 </Button>
               </div>
             </footer>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+          </DialogPanel>
+        </div>
+      </Dialog>
     </>
   );
 }

@@ -22,7 +22,7 @@ const ICON_ACCENT_CLASSES: Record<Accent, string> = {
   brand: "bg-brand-50 text-brand-500",
   success: "bg-success-50 text-success-500",
   warning: "bg-warning-50 text-warning-500",
-  indigo: "bg-indigo-50 text-indigo-500",
+  indigo: "bg-zinc-50 text-zinc-500",
   neutral: "bg-slate-100 text-slate-400",
 };
 
@@ -45,7 +45,7 @@ export function EmptyPanel({
       )}
     >
       <header className="mb-5">
-        <h2 className="font-display font-bold text-base text-brand-900">
+        <h2 className="font-semibold text-base text-brand-900">
           {heading}
         </h2>
         {subtitle && (
@@ -54,13 +54,14 @@ export function EmptyPanel({
       </header>
 
       <div className="flex-1 flex flex-col items-center justify-center text-center px-4 py-6">
+        {/* Net/kurumsal boş durum ikonu */}
         <div
           className={cn(
-            "w-16 h-16 rounded-full flex items-center justify-center mb-4",
+            "w-14 h-14 rounded-xl flex items-center justify-center mb-4 ring-1 ring-inset ring-black/[0.04]",
             ICON_ACCENT_CLASSES[iconAccent],
           )}
         >
-          <Icon className="w-7 h-7" strokeWidth={1.75} />
+          <Icon className="w-6 h-6" strokeWidth={1.75} />
         </div>
         <p className="font-semibold text-brand-900 text-base">{emptyTitle}</p>
         {emptyDescription && (

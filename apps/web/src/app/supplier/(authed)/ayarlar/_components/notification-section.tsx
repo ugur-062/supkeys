@@ -1,5 +1,7 @@
 "use client";
 
+import { Checkbox } from "@/components/catalyst/checkbox";
+import { Switch } from "@/components/catalyst/switch";
 import {
   useSupplierNotificationPrefs,
   useUpdateSupplierNotificationPrefs,
@@ -80,12 +82,12 @@ export function NotificationSection() {
   return (
     <section className="card p-6">
       <div className="mb-5 flex items-center gap-3">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50">
-          <Bell className="h-5 w-5 text-brand-600" />
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-zinc-50">
+          <Bell className="h-5 w-5 text-zinc-600" />
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h2 className="font-display font-bold text-lg text-brand-900">
+            <h2 className="font-semibold text-lg text-zinc-900">
               Bildirim Tercihleri
             </h2>
             {savedAt ? (
@@ -112,14 +114,14 @@ export function NotificationSection() {
             <button
               type="button"
               onClick={() => setAll(true)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-success-300 hover:text-success-700"
+              className="rounded-lg ring-1 ring-zinc-950/5 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-success-300 hover:text-success-700"
             >
               Hepsini Aç
             </button>
             <button
               type="button"
               onClick={() => setAll(false)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-danger-300 hover:text-danger-700"
+              className="rounded-lg ring-1 ring-zinc-950/5 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:border-danger-300 hover:text-danger-700"
             >
               Hepsini Kapat
             </button>
@@ -146,7 +148,7 @@ export function NotificationSection() {
                       disabled={group.locked}
                       onChange={() => toggleGroup(group, allOn)}
                     />
-                    <p className="font-bold text-brand-900 flex-1 text-sm">
+                    <p className="font-bold text-zinc-900 flex-1 text-sm">
                       {group.label}
                     </p>
                     {group.locked ? (
@@ -162,29 +164,27 @@ export function NotificationSection() {
                         ? true
                         : prefs[it.key] !== false;
                       return (
-                        <label
+                        <div
                           key={it.key}
                           className={cn(
-                            "flex items-center gap-3 cursor-pointer rounded p-2 hover:bg-slate-50",
-                            group.locked && "cursor-not-allowed opacity-70",
+                            "flex items-center gap-3 rounded p-2",
+                            group.locked && "opacity-70",
                           )}
                         >
-                          <input
-                            type="checkbox"
+                          <Checkbox
                             checked={checked}
                             onChange={() => togglePref(it.key, !!group.locked)}
                             disabled={group.locked}
-                            className="h-4 w-4 rounded text-brand-600 focus:ring-brand-500"
                           />
                           <span
                             className={cn(
                               "text-sm",
-                              group.locked ? "text-slate-500" : "text-brand-900",
+                              group.locked ? "text-zinc-500" : "text-zinc-900",
                             )}
                           >
                             {it.label}
                           </span>
-                        </label>
+                        </div>
                       );
                     })}
                   </div>
@@ -200,7 +200,6 @@ export function NotificationSection() {
 
 function Toggle({
   checked,
-  indeterminate,
   disabled,
   onChange,
 }: {
@@ -210,26 +209,6 @@ function Toggle({
   onChange: () => void;
 }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={onChange}
-      className={cn(
-        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-        "focus:outline-none focus:ring-2 focus:ring-brand-500/30",
-        checked ? "bg-brand-600" : "bg-slate-200",
-        indeterminate && "bg-brand-300",
-        disabled && "opacity-50 cursor-not-allowed",
-      )}
-    >
-      <span
-        className={cn(
-          "inline-block h-5 w-5 rounded-full bg-white shadow transition-transform",
-          checked ? "translate-x-5" : "translate-x-0.5",
-        )}
-      />
-    </button>
+    <Switch checked={checked} disabled={disabled} onChange={() => onChange()} />
   );
 }

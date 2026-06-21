@@ -8,6 +8,7 @@ import { useChangeSupplierPassword } from "@/hooks/use-supplier-account";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { IconButton } from "@/components/ui/icon-button";
 import { Check, Eye, EyeOff, Lock, ShieldCheck, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -62,7 +63,7 @@ function computeStrength(pw: string): { score: 0 | 1 | 2 | 3 | 4; label: string;
   const n = Math.min(4, score) as 0 | 1 | 2 | 3 | 4;
   if (n <= 1) return { score: n, label: "Zayıf", color: "bg-danger-500" };
   if (n === 2) return { score: n, label: "Orta", color: "bg-warning-500" };
-  if (n === 3) return { score: n, label: "İyi", color: "bg-brand-500" };
+  if (n === 3) return { score: n, label: "İyi", color: "bg-zinc-500" };
   return { score: n, label: "Güçlü", color: "bg-success-500" };
 }
 
@@ -108,11 +109,11 @@ export function PasswordSection() {
   return (
     <section className="card p-6">
       <div className="mb-5 flex items-center gap-3">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50">
-          <Lock className="h-5 w-5 text-brand-600" />
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-zinc-50">
+          <Lock className="h-5 w-5 text-zinc-600" />
         </div>
         <div>
-          <h2 className="font-display font-bold text-lg text-brand-900">
+          <h2 className="font-semibold text-lg text-zinc-900">
             Şifre Değiştir
           </h2>
           <p className="text-sm text-slate-500 mt-0.5">
@@ -246,15 +247,14 @@ function PasswordInput({
         className="pr-10"
         {...register}
       />
-      <button
-        type="button"
+      <IconButton
         onClick={onToggleShow}
         tabIndex={-1}
         aria-label={show ? "Şifreyi gizle" : "Şifreyi göster"}
-        className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+        className="absolute right-2 top-1/2 z-10 -translate-y-1/2"
       >
         {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-      </button>
+      </IconButton>
     </div>
   );
 }

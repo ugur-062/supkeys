@@ -1,6 +1,8 @@
 "use client";
 
+import { Checkbox } from "@/components/catalyst/checkbox";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import {
   useDeleteOrderReview,
   useOwnOrderReview,
@@ -98,7 +100,7 @@ function ExistingReviewView({
     <div className="space-y-3">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="font-display font-bold text-brand-900">
+          <h3 className="font-semibold text-brand-900">
             Değerlendirmeniz
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -164,7 +166,7 @@ function NewReviewForm({
     return (
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h3 className="font-display font-bold text-brand-900">
+          <h3 className="font-semibold text-brand-900">
             Tedarikçiyi Değerlendir
           </h3>
           <p className="text-sm text-slate-600 mt-1">
@@ -240,7 +242,7 @@ function ReviewForm({
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="font-display font-bold text-brand-900">
+        <h3 className="font-semibold text-brand-900">
           {initial.rating > 0 ? "Değerlendirmeyi Düzenle" : "Tedarikçiyi Değerlendir"}
         </h3>
         <p className="text-xs text-slate-500 mt-0.5">{supplierName}</p>
@@ -252,34 +254,29 @@ function ReviewForm({
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-sm font-medium text-brand-900" htmlFor="reviewText">
+        <label className="text-sm font-medium text-zinc-900" htmlFor="reviewText">
           Yorumunuz (opsiyonel)
         </label>
-        <textarea
+        <Textarea
           id="reviewText"
           rows={4}
           maxLength={2000}
           value={reviewText}
           onChange={(e) => setReviewText(e.target.value)}
           placeholder="Sipariş deneyiminizi anlatın. Kalite, iletişim, teslimat süresi..."
-          className="w-full px-3 py-2 text-sm rounded-lg border border-surface-border focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-y"
         />
-        <p className="text-xs text-slate-400 text-right">
+        <p className="text-xs text-zinc-400 text-right">
           {reviewText.length}/2000
         </p>
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-brand-900 cursor-pointer">
-        <input
-          type="checkbox"
+      <div className="flex items-center gap-2.5 text-sm text-zinc-900">
+        <Checkbox
           checked={isPublic}
-          onChange={(e) => setIsPublic(e.target.checked)}
-          className="h-4 w-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500"
+          onChange={(checked) => setIsPublic(checked)}
         />
-        <span>
-          Yorumum tedarikçinin herkese açık profilinde görünsün
-        </span>
-      </label>
+        <span>Yorumum tedarikçinin herkese açık profilinde görünsün</span>
+      </div>
       {!isPublic ? (
         <p className="text-xs text-slate-500 -mt-2">
           Kapalıyken yıldızınız ortalama hesabına katılır ama yorum metniniz

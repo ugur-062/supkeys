@@ -79,15 +79,15 @@ export function TenderMessagesButton({ tenderId, tenderNumber }: Props) {
                           supplierName: t.supplierName,
                         });
                       }}
-                      className="w-full text-left p-2 rounded-lg cursor-pointer outline-none focus:bg-brand-50 hover:bg-slate-50 transition-colors"
+                      className="w-full text-left p-2 rounded-lg cursor-pointer outline-none focus:bg-zinc-50 hover:bg-slate-50 transition-colors"
                     >
                       <div className="flex items-start gap-2.5">
-                        <div className="h-9 w-9 rounded-full bg-brand-100 flex items-center justify-center flex-shrink-0">
-                          <Building2 className="h-4 w-4 text-brand-600" />
+                        <div className="h-9 w-9 rounded-full bg-zinc-100 flex items-center justify-center flex-shrink-0">
+                          <Building2 className="h-4 w-4 text-zinc-600" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="font-semibold text-sm text-brand-900 truncate">
+                            <p className="font-semibold text-sm text-zinc-900 truncate">
                               {t.supplierName}
                             </p>
                             {t.unread ? (

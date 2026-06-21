@@ -1,10 +1,17 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/catalyst/badge";
+import { Button } from "@/components/catalyst/button";
+import {
+  DescriptionDetails,
+  DescriptionList,
+  DescriptionTerm,
+} from "@/components/catalyst/description-list";
+import { Field, FieldGroup, Fieldset, Label } from "@/components/catalyst/fieldset";
+import { Subheading } from "@/components/catalyst/heading";
+import { Input } from "@/components/catalyst/input";
+import { Text, TextLink } from "@/components/catalyst/text";
+import { Textarea } from "@/components/catalyst/textarea";
 import {
   useSupplierAuth,
   useUpdateCompanyInfo,
@@ -12,27 +19,9 @@ import {
 } from "@/hooks/use-supplier-auth";
 import { COMPANY_TYPE_LABEL } from "@/lib/supplier/membership";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { cn } from "@/lib/utils";
 import { Award, ExternalLink, Lock, Pencil, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-
-function InfoRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-0.5">
-      <dt className="text-xs uppercase tracking-wide text-slate-500">
-        {label}
-      </dt>
-      <dd className="text-sm text-brand-900 break-words">{children}</dd>
-    </div>
-  );
-}
 
 type DraftState = {
   industry: string;
@@ -101,231 +90,194 @@ export function CompanyInfoCard() {
   };
 
   return (
-    <section className="card p-6 space-y-6">
+    <section>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="font-display font-bold text-lg text-brand-900">
-            Firma Bilgileri
-          </h2>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <Subheading>Firma Bilgileri</Subheading>
+          <Text className="mt-1">
             İletişim ve adres bilgilerinizi güncelleyebilirsiniz.
-          </p>
+          </Text>
         </div>
         {!editing ? (
-          <Button variant="secondary" size="sm" onClick={startEdit}>
-            <Pencil className="h-4 w-4" />
+          <Button outline onClick={startEdit}>
+            <Pencil data-slot="icon" />
             Düzenle
           </Button>
         ) : null}
       </div>
 
       {/* Yasal kimlik — her zaman salt-okunur */}
-      <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <InfoRow label="Firma Adı">{supplier.companyName}</InfoRow>
-        <InfoRow label="Firma Tipi">
+      <DescriptionList className="mt-6">
+        <DescriptionTerm>Firma Adı</DescriptionTerm>
+        <DescriptionDetails>{supplier.companyName}</DescriptionDetails>
+        <DescriptionTerm>Firma Tipi</DescriptionTerm>
+        <DescriptionDetails>
           {COMPANY_TYPE_LABEL[supplier.companyType]}
-        </InfoRow>
-        <InfoRow label="Vergi Numarası">
-          <span className="font-mono">{supplier.taxNumber}</span>
-        </InfoRow>
-        <InfoRow label="Vergi Dairesi">{supplier.taxOffice}</InfoRow>
-      </dl>
+        </DescriptionDetails>
+        <DescriptionTerm>Vergi Numarası</DescriptionTerm>
+        <DescriptionDetails className="font-mono">
+          {supplier.taxNumber}
+        </DescriptionDetails>
+        <DescriptionTerm>Vergi Dairesi</DescriptionTerm>
+        <DescriptionDetails>{supplier.taxOffice}</DescriptionDetails>
+      </DescriptionList>
 
       {!editing ? (
-        <>
-          <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InfoRow label="Sektör">{supplier.industry || "—"}</InfoRow>
-            <InfoRow label="Web Sitesi">
-              {supplier.website ? (
-                <a
-                  href={supplier.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-brand-700 hover:underline"
-                >
-                  {supplier.website}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              ) : (
-                "—"
-              )}
-            </InfoRow>
-          </dl>
-
-          <div className="pt-5 border-t border-surface-border space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Adres
-            </h3>
-            <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InfoRow label="İl / İlçe">
-                {supplier.city} / {supplier.district}
-              </InfoRow>
-              {supplier.postalCode && (
-                <InfoRow label="Posta Kodu">
-                  <span className="font-mono">{supplier.postalCode}</span>
-                </InfoRow>
-              )}
-              <div className="md:col-span-2">
-                <InfoRow label="Açık Adres">
-                  <span className="whitespace-pre-wrap">
-                    {supplier.addressLine}
-                  </span>
-                </InfoRow>
-              </div>
-            </dl>
-          </div>
-        </>
+        <DescriptionList className="mt-2">
+          <DescriptionTerm>Sektör</DescriptionTerm>
+          <DescriptionDetails>{supplier.industry || "—"}</DescriptionDetails>
+          <DescriptionTerm>Web Sitesi</DescriptionTerm>
+          <DescriptionDetails>
+            {supplier.website ? (
+              <TextLink
+                href={supplier.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1"
+              >
+                {supplier.website}
+                <ExternalLink className="h-3 w-3" />
+              </TextLink>
+            ) : (
+              "—"
+            )}
+          </DescriptionDetails>
+          <DescriptionTerm>İl / İlçe</DescriptionTerm>
+          <DescriptionDetails>
+            {supplier.city} / {supplier.district}
+          </DescriptionDetails>
+          {supplier.postalCode ? (
+            <>
+              <DescriptionTerm>Posta Kodu</DescriptionTerm>
+              <DescriptionDetails className="font-mono">
+                {supplier.postalCode}
+              </DescriptionDetails>
+            </>
+          ) : null}
+          <DescriptionTerm>Açık Adres</DescriptionTerm>
+          <DescriptionDetails className="whitespace-pre-wrap">
+            {supplier.addressLine}
+          </DescriptionDetails>
+        </DescriptionList>
       ) : (
-        <div className="space-y-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field>
-              <Label htmlFor="ci-industry">Sektör</Label>
-              <Input
-                id="ci-industry"
-                value={draft.industry}
-                onChange={(e) => set({ industry: e.target.value })}
-                maxLength={100}
-                placeholder="Ör. Tekstil"
-              />
-            </Field>
-            <Field>
-              <Label htmlFor="ci-website">Web Sitesi</Label>
-              <Input
-                id="ci-website"
-                value={draft.website}
-                onChange={(e) => set({ website: e.target.value })}
-                maxLength={200}
-                placeholder="https://ornek.com"
-              />
-            </Field>
-          </div>
-
-          <div className="pt-2 space-y-3">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Adres
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Fieldset className="mt-6">
+          <FieldGroup>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
               <Field>
-                <Label htmlFor="ci-city" required>
-                  İl
-                </Label>
+                <Label>Sektör</Label>
                 <Input
-                  id="ci-city"
+                  value={draft.industry}
+                  onChange={(e) => set({ industry: e.target.value })}
+                  maxLength={100}
+                  placeholder="Ör. Tekstil"
+                />
+              </Field>
+              <Field>
+                <Label>Web Sitesi</Label>
+                <Input
+                  value={draft.website}
+                  onChange={(e) => set({ website: e.target.value })}
+                  maxLength={200}
+                  placeholder="https://ornek.com"
+                />
+              </Field>
+              <Field>
+                <Label>İl *</Label>
+                <Input
                   value={draft.city}
                   onChange={(e) => set({ city: e.target.value })}
                   maxLength={50}
                 />
               </Field>
               <Field>
-                <Label htmlFor="ci-district" required>
-                  İlçe
-                </Label>
+                <Label>İlçe *</Label>
                 <Input
-                  id="ci-district"
                   value={draft.district}
                   onChange={(e) => set({ district: e.target.value })}
                   maxLength={50}
                 />
               </Field>
               <Field>
-                <Label htmlFor="ci-postal">Posta Kodu</Label>
+                <Label>Posta Kodu</Label>
                 <Input
-                  id="ci-postal"
                   value={draft.postalCode}
                   onChange={(e) => set({ postalCode: e.target.value })}
                   maxLength={20}
                 />
               </Field>
-              <div className="md:col-span-2">
-                <Field>
-                  <Label htmlFor="ci-address" required>
-                    Açık Adres
-                  </Label>
-                  <Textarea
-                    id="ci-address"
-                    value={draft.addressLine}
-                    onChange={(e) => set({ addressLine: e.target.value })}
-                    maxLength={500}
-                    rows={3}
-                  />
-                </Field>
-              </div>
             </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2">
+            <Field>
+              <Label>Açık Adres *</Label>
+              <Textarea
+                value={draft.addressLine}
+                onChange={(e) => set({ addressLine: e.target.value })}
+                maxLength={500}
+                rows={3}
+              />
+            </Field>
+          </FieldGroup>
+          <div className="mt-6 flex items-center justify-end gap-2">
             <Button
-              variant="ghost"
-              size="sm"
+              plain
               onClick={() => setEditing(false)}
               disabled={updateMutation.isPending}
             >
               İptal
             </Button>
             <Button
-              variant="primary"
-              size="sm"
               onClick={handleSave}
               disabled={!canSave || updateMutation.isPending}
-              loading={updateMutation.isPending}
             >
               Kaydet
             </Button>
           </div>
-        </div>
+        </Fieldset>
       )}
 
-      <div className="pt-5 border-t border-surface-border space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Üyelik
-        </h3>
-        <span
-          className={cn(
-            "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide border",
-            isPremium
-              ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-              : "bg-slate-100 text-slate-600 border-slate-200",
-          )}
-        >
-          <Award className="h-3.5 w-3.5" />
-          {isPremium ? "Premium" : "Standart"} Üyelik
-        </span>
+      {/* Üyelik */}
+      <div className="mt-8">
+        <Subheading level={3}>Üyelik</Subheading>
+        <div className="mt-3">
+          <Badge color={isPremium ? "amber" : "zinc"}>
+            <Award className="h-3.5 w-3.5" />
+            {isPremium ? "Premium" : "Standart"} Üyelik
+          </Badge>
+        </div>
 
-        {!isPremium && (
-          <div className="rounded-xl border border-brand-100 bg-brand-50/60 p-4 space-y-3">
+        {!isPremium ? (
+          <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-100/60 p-4">
             <div className="flex items-start gap-2">
-              <Sparkles className="h-4 w-4 text-brand-600 shrink-0 mt-0.5" />
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
               <div>
-                <p className="font-semibold text-brand-900 text-sm">
+                <Text className="font-semibold text-zinc-950">
                   Premium üyelik avantajları
-                </p>
-                <ul className="text-xs text-slate-700 space-y-1 list-disc list-inside mt-2 marker:text-brand-300">
+                </Text>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-slate-700 marker:text-zinc-300">
                   <li>Tüm açık ihalelere teklif verebilme</li>
                   <li>Tedarikçi havuzunda öne çıkma</li>
                   <li>Detaylı performans raporları</li>
                 </ul>
+                <div className="mt-3">
+                  <Button outline disabled>
+                    Premium&apos;a Yükselt (Yakında)
+                  </Button>
+                </div>
               </div>
             </div>
-            <Button variant="secondary" size="sm" disabled>
-              Premium'a Yükselt (Yakında)
-            </Button>
           </div>
-        )}
+        ) : null}
       </div>
 
-      <p className="flex items-start gap-1.5 text-xs text-slate-500 pt-4 border-t border-surface-border">
-        <Lock className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+      <Text className="mt-6 flex items-start gap-1.5 text-xs">
+        <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
         <span>
           Ünvan, firma tipi ve vergi bilgilerini değiştirmek için{" "}
-          <a
-            href="mailto:support@supkeys.com"
-            className="text-brand-700 hover:underline"
-          >
+          <TextLink href="mailto:support@supkeys.com">
             support@supkeys.com
-          </a>{" "}
+          </TextLink>{" "}
           ile iletişime geçin.
         </span>
-      </p>
+      </Text>
     </section>
   );
 }

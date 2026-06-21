@@ -325,6 +325,7 @@ export interface SupplierTenderListItem {
   id: string;
   tenderNumber: string;
   title: string;
+  type: TenderType;
   isLogistics: boolean;
   status: TenderStatus;
   primaryCurrency: Currency;
@@ -520,6 +521,10 @@ export interface MyBidDetail {
   currency: Currency;
   totalAmount: string;
   notes: string | null;
+  /** G4 madde 8 — teslim tarihi (ISO). */
+  deliveryDate: string | null;
+  /** G4 madde 10 — teklif geçerlilik gün sayısı. */
+  validityDays: number | null;
   version: number;
   submittedAt: string | null;
   withdrawnAt: string | null;
@@ -684,6 +689,10 @@ export interface BidDetailExpanded {
   currency: Currency;
   totalAmount: string;
   notes: string | null;
+  /** G4 madde 8 — teslim tarihi (ISO). */
+  deliveryDate: string | null;
+  /** G4 madde 10 — teklif geçerlilik gün sayısı. */
+  validityDays: number | null;
   version: number;
   submittedAt: string | null;
   withdrawnAt: string | null;
@@ -902,7 +911,6 @@ export interface OrderDetail {
   acceptedNote: string | null;
   bankAccountHolder: string | null;
   bankIban: string | null;
-  invoiceDate: string | null;
   /** Tedarikçi red (PENDING → REJECTED) */
   rejectedAt: string | null;
   rejectReason: string | null;
@@ -914,6 +922,8 @@ export interface OrderDetail {
     lastName: string;
   } | null;
   deliveryNote: string | null;
+  /** G5 madde 12/14 — gönderimde girilen fatura no */
+  invoiceNumber: string | null;
   expectedDeliveryDate: string | null;
   completedAt: string | null;
   completedBy: {

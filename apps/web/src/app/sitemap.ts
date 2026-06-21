@@ -5,7 +5,7 @@ import type { MetadataRoute } from "next";
 /**
  * V2-SEO — Dynamic sitemap.xml — Next.js 15 MetadataRoute convention.
  *
- * Backend'ten tüm görünür tedarikçi slug'larını çekip her birine /t/{slug}
+ * Backend'ten tüm görünür tedarikçi slug'larını çekip her birine /{slug}
  * entry'si ekler. Statik route'lar (anasayfa, login) baş sıralarda.
  *
  * Cache: ISR 1 saat. Yeni PREMIUM tedarikçi eklendiğinde 1 saatte sitemap
@@ -53,7 +53,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   const supplierRoutes: MetadataRoute.Sitemap = entries.map((e) => ({
-    url: `${siteUrl}/t/${e.slug}`,
+    url: `${siteUrl}/${e.slug}`,
     lastModified: new Date(e.updatedAt),
     changeFrequency: "weekly",
     priority: 0.8,

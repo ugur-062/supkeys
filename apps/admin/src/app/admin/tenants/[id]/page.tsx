@@ -1,5 +1,7 @@
 "use client";
 
+import { Input } from "@/components/catalyst/input";
+import { Select } from "@/components/catalyst/select";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import {
@@ -259,9 +261,9 @@ interface MiniStatProps {
 }
 
 const ACCENT_CLASSES = {
-  brand: { bg: "bg-brand-50", icon: "text-brand-600" },
-  purple: { bg: "bg-purple-50", icon: "text-purple-600" },
-  indigo: { bg: "bg-indigo-50", icon: "text-indigo-600" },
+  brand: { bg: "bg-zinc-100", icon: "text-zinc-600" },
+  purple: { bg: "bg-zinc-100", icon: "text-zinc-600" },
+  indigo: { bg: "bg-zinc-100", icon: "text-zinc-600" },
   success: { bg: "bg-success-50", icon: "text-success-600" },
 };
 
@@ -519,13 +521,14 @@ function MembershipCard({
 
       {manualOpen ? (
         <div className="mt-3 flex items-center gap-2">
-          <input
-            type="date"
-            value={manualValue}
-            onChange={(e) => setManualValue(e.target.value)}
-            disabled={mutation.isPending}
-            className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-          />
+          <div className="w-44">
+            <Input
+              type="date"
+              value={manualValue}
+              onChange={(e) => setManualValue(e.target.value)}
+              disabled={mutation.isPending}
+            />
+          </div>
           <button
             type="button"
             onClick={saveManual}
@@ -653,15 +656,16 @@ function BuyerSeatCard({
           </p>
           {editing ? (
             <div className="mt-1 flex items-center gap-2">
-              <input
-                type="number"
-                min={0}
-                max={1000}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                disabled={mutation.isPending}
-                className="w-24 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100"
-              />
+              <div className="w-24">
+                <Input
+                  type="number"
+                  min={0}
+                  max={1000}
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  disabled={mutation.isPending}
+                />
+              </div>
               <button
                 type="button"
                 onClick={save}
@@ -937,20 +941,22 @@ function UserRow({
             {user.isActive ? "Aktif" : "Pasif"}
           </span>
 
-          <select
-            value={user.role}
-            onChange={(e) =>
-              changeRole(
-                e.target.value as "COMPANY_ADMIN" | "BUYER" | "APPROVER",
-              )
-            }
-            disabled={updateMutation.isPending}
-            className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-admin-text focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-100 disabled:opacity-50"
-          >
-            <option value="COMPANY_ADMIN">Yönetici</option>
-            <option value="BUYER">Satınalmacı</option>
-            <option value="APPROVER">Onaylayıcı</option>
-          </select>
+          <div className="w-36">
+            <Select
+              value={user.role}
+              onChange={(e) =>
+                changeRole(
+                  e.target.value as "COMPANY_ADMIN" | "BUYER" | "APPROVER",
+                )
+              }
+              disabled={updateMutation.isPending}
+              aria-label="Kullanıcı rolü"
+            >
+              <option value="COMPANY_ADMIN">Yönetici</option>
+              <option value="BUYER">Satınalmacı</option>
+              <option value="APPROVER">Onaylayıcı</option>
+            </Select>
+          </div>
 
           <button
             type="button"

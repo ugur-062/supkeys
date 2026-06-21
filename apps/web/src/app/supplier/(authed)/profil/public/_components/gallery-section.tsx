@@ -1,15 +1,14 @@
 "use client";
 
 import { PanelCard } from "@/components/supplier/panel-card";
-import { Button } from "@/components/ui/button";
+import { Dropzone } from "@/components/ui/dropzone";
 import {
   useRemoveProfilePhoto,
   useUploadProfilePhoto,
   type SupplierProfilePhoto,
 } from "@/hooks/use-supplier-profile";
 import axios from "axios";
-import { ImagePlus, Loader2, X } from "lucide-react";
-import { useRef } from "react";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 
 const MAX_PHOTOS = 12;
@@ -23,13 +22,12 @@ interface Props {
 export function GallerySection({ photos }: Props) {
   const upload = useUploadProfilePhoto();
   const remove = useRemoveProfilePhoto();
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const limitReached = photos.length >= MAX_PHOTOS;
 
-  const onFiles = async (files: FileList) => {
+  const onFiles = async (files: File[]) => {
     let added = 0;
-    for (const f of Array.from(files)) {
+    for (const f of files) {
       if (photos.length + added >= MAX_PHOTOS) {
         toast.error(`Galeri en fazla ${MAX_PHOTOS} fotoğraf içerebilir`);
         break;
@@ -56,7 +54,6 @@ export function GallerySection({ photos }: Props) {
       }
     }
     if (added > 0) toast.success(`${added} fotoğraf eklendi`);
-    if (inputRef.current) inputRef.current.value = "";
   };
 
   const onRemovePhoto = async (id: string) => {
@@ -74,57 +71,21 @@ export function GallerySection({ photos }: Props) {
     <PanelCard
       title="Galeri"
       subtitle={`${photos.length}/${MAX_PHOTOS} fotoğraf · JPEG / PNG / WebP, maks. 3MB`}
-      action={
-        <>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            multiple
-            onChange={(e) => {
-              if (e.target.files && e.target.files.length > 0) {
-                onFiles(e.target.files);
-              }
-            }}
-          />
-          <Button
-            type="button"
-            variant="primary"
-            size="sm"
-            onClick={() => inputRef.current?.click()}
-            disabled={limitReached || upload.isPending}
-          >
-            {upload.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <ImagePlus className="h-4 w-4" />
-            )}
-            Fotoğraf Ekle
-          </Button>
-        </>
-      }
     >
-      {photos.length === 0 ? (
-        <p className="text-sm text-slate-500 text-center py-6">
-          Henüz galeri fotoğrafı eklenmemiş.
-        </p>
-      ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      {photos.length > 0 ? (
+        <div className="mb-4 grid grid-cols-2 gap-3 md:grid-cols-3">
           {photos.map((p) => (
             <div
               key={p.id}
-              className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 group"
+              className="group relative aspect-square overflow-hidden rounded-xl bg-zinc-100"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={p.url}
                 alt={p.caption ?? "Galeri görseli"}
-                className="w-full h-full object-cover"
+                className="h-full w-full object-cover"
                 loading="lazy"
                 onError={(e) => {
-                  // R2 public erişim açık değilse görsel 404/timeout olur.
-                  // Broken image yerine bilgilendirici placeholder göster.
                   const img = e.currentTarget;
                   img.style.display = "none";
                   const parent = img.parentElement;
@@ -144,13 +105,29 @@ export function GallerySection({ photos }: Props) {
                 onClick={() => onRemovePhoto(p.id)}
                 aria-label="Fotoğrafı kaldır"
                 disabled={remove.isPending}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-black/80 transition-opacity disabled:opacity-50"
+                className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/80 disabled:opacity-50"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
           ))}
         </div>
+      ) : null}
+
+      {limitReached ? (
+        <p className="py-2 text-center text-sm text-zinc-500">
+          Galeri dolu ({MAX_PHOTOS}/{MAX_PHOTOS}). Yeni eklemek için önce
+          fotoğraf kaldırın.
+        </p>
+      ) : (
+        <Dropzone
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          disabled={upload.isPending}
+          onFiles={onFiles}
+          label={upload.isPending ? "Yükleniyor…" : "Fotoğraf ekle"}
+          hint="JPEG / PNG / WebP · maks. 3MB · birden fazla seçebilirsiniz"
+        />
       )}
     </PanelCard>
   );

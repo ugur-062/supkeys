@@ -31,12 +31,12 @@ export function OnboardingCard({
     <section
       className={cn(
         "rounded-2xl border border-brand-100 p-6 md:p-7 shadow-sm",
-        "bg-gradient-to-br from-brand-50 via-white to-indigo-50/40",
+        "bg-gradient-to-br from-brand-50 via-white to-zinc-50/40",
       )}
     >
       <div className="flex items-start justify-between gap-4 mb-5">
         <div>
-          <h2 className="font-display font-bold text-lg text-brand-900 flex items-center gap-2">
+          <h2 className="font-semibold text-lg text-brand-900 flex items-center gap-2">
             <Target className="h-5 w-5 text-brand-500" aria-hidden />
             {heading}
           </h2>

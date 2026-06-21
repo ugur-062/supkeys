@@ -2,9 +2,12 @@
 
 import { AttachmentList } from "@/components/attachments/attachment-list";
 import { AttachmentUpload } from "@/components/attachments/attachment-upload";
+import { Badge } from "@/components/catalyst/badge";
+import { Subheading } from "@/components/catalyst/heading";
+import { Text } from "@/components/catalyst/text";
+import { Alert } from "@/components/ui/alert";
 import { useAttachments } from "@/hooks/use-attachments";
 import type { AttachmentSurface } from "@/lib/attachments/types";
-import { Paperclip } from "lucide-react";
 
 interface Props {
   surface?: AttachmentSurface;
@@ -21,23 +24,16 @@ export function FilesTab({ surface = "tenant", tender }: Props) {
 
   return (
     <div className="space-y-5">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="font-bold text-brand-900 flex items-center gap-2">
-            <Paperclip className="h-4 w-4 text-slate-500" />
-            İhale Dökümanları
-            {items && items.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-600 font-normal">
-                {items.length}
-              </span>
-            )}
-          </h3>
-          <p className="text-sm text-slate-600 mt-1">
-            {isTenant
-              ? "Şartname, teknik özellikler, çizimler ve diğer ek dosyaları yükleyin. Davet edilen tedarikçiler bu dosyaları görür."
-              : "Alıcının ihale için paylaştığı dökümanlar."}
-          </p>
+      <header>
+        <div className="flex items-center gap-2">
+          <Subheading>İhale Dökümanları</Subheading>
+          {items && items.length > 0 ? <Badge>{items.length}</Badge> : null}
         </div>
+        <Text className="mt-1">
+          {isTenant
+            ? "Şartname, teknik özellikler, çizimler ve diğer ek dosyaları yükleyin. Davet edilen tedarikçiler bu dosyaları görür."
+            : "Alıcının ihale için paylaştığı dökümanlar."}
+        </Text>
       </header>
 
       {canEdit ? (
@@ -47,9 +43,9 @@ export function FilesTab({ surface = "tenant", tender }: Props) {
           scopeRefId={tender.id}
         />
       ) : isTenant ? (
-        <div className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+        <Alert variant="info">
           Yayınlanmış ihalelerde döküman ekleme veya silme yapılamaz.
-        </div>
+        </Alert>
       ) : null}
 
       <AttachmentList

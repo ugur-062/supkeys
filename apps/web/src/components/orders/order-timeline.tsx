@@ -59,26 +59,19 @@ function buildEvents(order: OrderDetail): TimelineEvent[] {
         ? `Tahmini teslim: ${fmtDate(order.expectedDeliveryDate)}`
         : null,
       extra:
-        bankBits.length > 0 || order.invoiceDate ? (
+        bankBits.length > 0 ? (
           <div className="mt-2 space-y-1 text-xs text-slate-600">
-            {bankBits.length > 0 ? (
-              <p className="flex items-start gap-1.5">
-                <Landmark className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-slate-400" />
-                <span>{bankBits.join(" · ")}</span>
-              </p>
-            ) : null}
-            {order.invoiceDate ? (
-              <p className="text-slate-500">
-                Fatura tarihi: {fmtDate(order.invoiceDate)}
-              </p>
-            ) : null}
+            <p className="flex items-start gap-1.5">
+              <Landmark className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-slate-400" />
+              <span>{bankBits.join(" · ")}</span>
+            </p>
           </div>
         ) : null,
       actor: "Tedarikçi",
       timestamp: order.acceptedAt,
-      iconBg: "bg-brand-50",
-      iconText: "text-brand-600",
-      borderClass: "border-brand-200",
+      iconBg: "bg-zinc-100",
+      iconText: "text-zinc-600",
+      borderClass: "border-zinc-200",
     });
   }
 
@@ -103,13 +96,21 @@ function buildEvents(order: OrderDetail): TimelineEvent[] {
       meta: order.expectedDeliveryDate
         ? `Tahmini teslim: ${fmtDate(order.expectedDeliveryDate)}`
         : null,
+      extra: order.invoiceNumber ? (
+        <p className="mt-2 text-xs text-slate-600">
+          Fatura no:{" "}
+          <span className="font-mono text-slate-800">
+            {order.invoiceNumber}
+          </span>
+        </p>
+      ) : null,
       actor: order.deliveryStartedBy
         ? `${order.deliveryStartedBy.firstName} ${order.deliveryStartedBy.lastName}`
         : "Tedarikçi",
       timestamp: order.deliveryStartedAt,
-      iconBg: "bg-indigo-50",
-      iconText: "text-indigo-600",
-      borderClass: "border-indigo-200",
+      iconBg: "bg-zinc-100",
+      iconText: "text-zinc-600",
+      borderClass: "border-zinc-200",
     });
   }
 
@@ -122,9 +123,9 @@ function buildEvents(order: OrderDetail): TimelineEvent[] {
         ? `${order.completedBy.firstName} ${order.completedBy.lastName}`
         : null,
       timestamp: order.completedAt,
-      iconBg: "bg-success-50",
-      iconText: "text-success-600",
-      borderClass: "border-success-200",
+      iconBg: "bg-success-600",
+      iconText: "text-white",
+      borderClass: "border-success-600",
     });
   }
 
@@ -150,7 +151,7 @@ export function OrderTimeline({ order }: { order: OrderDetail }) {
   const events = buildEvents(order);
 
   return (
-    <div className="bg-white border border-surface-border rounded-xl p-5">
+    <div className="bg-white ring-1 ring-zinc-950/5 rounded-xl p-5">
       <p className="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-4">
         Sipariş Geçmişi
       </p>
@@ -159,7 +160,7 @@ export function OrderTimeline({ order }: { order: OrderDetail }) {
           <li key={i} className="flex gap-3">
             <div
               className={cn(
-                "h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0 border",
+                "h-10 w-10 rounded-full flex items-center justify-center flex-shrink-0 border",
                 e.iconBg,
                 e.borderClass,
               )}
@@ -167,7 +168,7 @@ export function OrderTimeline({ order }: { order: OrderDetail }) {
               <e.Icon className={cn("h-5 w-5", e.iconText)} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-brand-900">{e.title}</p>
+              <p className="font-semibold text-zinc-950">{e.title}</p>
               {e.subtitle ? (
                 <p className="text-sm text-slate-700 mt-1 whitespace-pre-wrap">
                   {e.subtitle}

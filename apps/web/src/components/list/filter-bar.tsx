@@ -29,7 +29,7 @@ export function FilterBar({
           <button
             type="button"
             onClick={onClearAll}
-            className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-semibold"
+            className="inline-flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-700 font-semibold"
           >
             <X className="h-3 w-3" />
             Temizle

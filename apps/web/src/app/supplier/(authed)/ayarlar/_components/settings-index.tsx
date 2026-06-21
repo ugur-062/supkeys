@@ -7,6 +7,7 @@ import {
   Building2,
   ChevronRight,
   IdCard,
+  Landmark,
   Lock,
   type LucideIcon,
   Users2,
@@ -73,13 +74,20 @@ const GROUPS: SettingsGroup[] = [
         description: "Çalışan davet edin, ekip üyelerini yönetin",
         accent: "indigo",
       },
+      {
+        href: "/supplier/ayarlar/bankalar",
+        icon: Landmark,
+        title: "Kayıtlı Bankalarım",
+        description: "Sipariş onaylarında kullanılan banka hesapları",
+        accent: "success",
+      },
     ],
   },
 ];
 
 const ACCENT_ICON_BG: Record<SettingsCard["accent"], string> = {
-  brand: "bg-brand-50 text-brand-600 group-hover:bg-brand-100",
-  indigo: "bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100",
+  brand: "bg-zinc-50 text-zinc-600 group-hover:bg-zinc-100",
+  indigo: "bg-zinc-50 text-zinc-600 group-hover:bg-zinc-100",
   warning: "bg-warning-50 text-warning-600 group-hover:bg-warning-100",
   success: "bg-success-50 text-success-600 group-hover:bg-success-100",
 };
@@ -107,7 +115,7 @@ export function SettingsIndex() {
                   key={s.href}
                   href={s.href}
                   className={cn(
-                    "group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5",
+                    "group flex items-center gap-4 rounded-2xl ring-1 ring-zinc-950/5 bg-white p-5",
                     "transition-all duration-150 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md",
                   )}
                 >
@@ -120,12 +128,12 @@ export function SettingsIndex() {
                     <s.icon className="h-5 w-5" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="font-bold text-brand-900">{s.title}</p>
+                    <p className="font-bold text-zinc-900">{s.title}</p>
                     <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">
                       {s.description}
                     </p>
                   </div>
-                  <ChevronRight className="h-5 w-5 flex-shrink-0 text-slate-400 transition-all group-hover:translate-x-1 group-hover:text-brand-600" />
+                  <ChevronRight className="h-5 w-5 flex-shrink-0 text-slate-400 transition-all group-hover:translate-x-1 group-hover:text-zinc-600" />
                 </Link>
               ))}
             </div>

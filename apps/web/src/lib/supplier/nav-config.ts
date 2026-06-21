@@ -1,41 +1,45 @@
 import {
-  FileText,
-  LayoutDashboard,
-  type LucideIcon,
-  Package,
-  Settings,
-  User,
-} from "lucide-react";
+  ClipboardDocumentListIcon,
+  Cog6ToothIcon,
+  HomeIcon,
+  ShoppingBagIcon,
+  UserCircleIcon,
+} from "@heroicons/react/20/solid";
+import type { ComponentType, SVGProps } from "react";
+
+// Catalyst SidebarItem ikonları `fill-*` ile renklendiği için solid (20)
+// Heroicons kullanılır — Catalyst'in resmi ikon stili.
+type NavIcon = ComponentType<SVGProps<SVGSVGElement> & { "data-slot"?: string }>;
 
 export interface SupplierNavItem {
-  icon: LucideIcon;
+  icon: NavIcon;
   label: string;
   href: string;
 }
 
 export const supplierNavConfig: SupplierNavItem[] = [
   {
-    icon: LayoutDashboard,
+    icon: HomeIcon,
     label: "Ana Sayfa",
     href: "/supplier/dashboard",
   },
   {
-    icon: FileText,
+    icon: ClipboardDocumentListIcon,
     label: "İhaleler",
     href: "/supplier/ihaleler",
   },
   {
-    icon: Package,
+    icon: ShoppingBagIcon,
     label: "Siparişler",
     href: "/supplier/siparisler",
   },
   {
-    icon: User,
+    icon: UserCircleIcon,
     label: "Profilim",
     href: "/supplier/profil",
   },
   {
-    icon: Settings,
+    icon: Cog6ToothIcon,
     label: "Ayarlar",
     href: "/supplier/ayarlar",
   },

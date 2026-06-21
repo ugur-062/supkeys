@@ -137,7 +137,7 @@ export function ApprovalFlowDetailView({ flow }: { flow: ApprovalFlow }) {
                 {statusMeta.label}
               </span>
             </div>
-            <h1 className="font-display text-2xl font-bold text-brand-900 mt-1">
+            <h1 className="text-2xl font-semibold text-brand-900 mt-1">
               {flow.name}
             </h1>
             {flow.description ? (
@@ -193,10 +193,10 @@ export function ApprovalFlowDetailView({ flow }: { flow: ApprovalFlow }) {
         </div>
       </div>
 
-      {/* Süreç Başlatıcılar */}
+      {/* Kazandırmayı Yapan Kişiler */}
       <section className="bg-white border border-slate-200 rounded-2xl p-5 mb-4">
         <h3 className="font-bold text-brand-900 text-sm mb-3">
-          Süreç Başlatıcılar ({flow.initiators.length})
+          Kazandırmayı Yapan Kişiler ({flow.initiators.length})
         </h3>
         <div className="flex flex-wrap gap-2">
           {flow.initiators.length === 0 ? (
@@ -205,16 +205,16 @@ export function ApprovalFlowDetailView({ flow }: { flow: ApprovalFlow }) {
             flow.initiators.map((init) => (
               <span
                 key={init.id}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-sm"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-zinc-50 text-zinc-800 border border-zinc-200 text-sm"
               >
-                <span className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                <span className="h-6 w-6 rounded-full bg-zinc-100 flex items-center justify-center text-[10px] font-bold flex-shrink-0">
                   {(init.user.firstName?.[0] ?? "?").toUpperCase()}
                   {(init.user.lastName?.[0] ?? "").toUpperCase()}
                 </span>
                 <span className="font-semibold">
                   {init.user.firstName} {init.user.lastName}
                 </span>
-                <span className="text-[11px] text-blue-600">
+                <span className="text-[11px] text-zinc-600">
                   · {roleLabel(init.user.role)}
                 </span>
               </span>

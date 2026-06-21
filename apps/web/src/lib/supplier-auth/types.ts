@@ -11,6 +11,8 @@ export interface SupplierUserDto {
   firstName: string;
   lastName: string;
   phone: string | null;
+  /** G6 madde 20 — yönetici mi (banka + kullanıcı yönetimi yetkisi). */
+  isManager?: boolean;
   lastLoginAt: string | null;
 }
 

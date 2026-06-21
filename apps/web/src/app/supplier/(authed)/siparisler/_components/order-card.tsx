@@ -42,14 +42,14 @@ export function OrderCard({ order }: Props) {
       href={`/supplier/siparisler/${order.id}`}
       className="block group"
     >
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-brand-300 transition-all">
+      <div className="bg-white ring-1 ring-zinc-950/5 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-zinc-300 transition-all">
         {/* Header */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="min-w-0 flex-1">
             <p className="text-[11px] text-slate-500 font-mono">
               {order.orderNumber}
             </p>
-            <h3 className="font-semibold text-brand-900 line-clamp-2 mt-0.5 leading-snug">
+            <h3 className="font-semibold text-zinc-900 line-clamp-2 mt-0.5 leading-snug">
               {order.tender.title}
             </h3>
           </div>
@@ -92,7 +92,7 @@ export function OrderCard({ order }: Props) {
                       isDone && !isActive
                         ? "bg-emerald-500 text-white"
                         : isActive
-                          ? "bg-brand-500 text-white ring-4 ring-brand-100"
+                          ? "bg-zinc-500 text-white ring-4 ring-zinc-100"
                           : "bg-slate-100 text-slate-400",
                     )}
                     title={stage.label}

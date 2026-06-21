@@ -1,5 +1,8 @@
 "use client";
 
+import { Checkbox } from "@/components/catalyst/checkbox";
+import { Radio, RadioGroup } from "@/components/catalyst/radio";
+import { Select } from "@/components/catalyst/select";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { CurrencyMultiSelect } from "@/components/currency-multi-select";
 import { Button } from "@/components/ui/button";
@@ -29,8 +32,76 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
-import { useFormContext } from "react-hook-form";
+import {
+  Controller,
+  useFormContext,
+  type FieldPath,
+} from "react-hook-form";
 import { TenderDocStaging } from "./tender-doc-staging";
+
+/** RHF-bağlı Catalyst Checkbox kartı (step-1 ayar toggle'ları). */
+function FormCheckbox({
+  name,
+  children,
+  className,
+}: {
+  name: FieldPath<TenderFormData>;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const { control } = useFormContext<TenderFormData>();
+  return (
+    <div
+      className={cn(
+        "flex items-start gap-3 p-3 rounded-lg ring-1 ring-zinc-950/10 hover:bg-zinc-50",
+        className,
+      )}
+    >
+      <Controller
+        control={control}
+        name={name}
+        render={({ field }) => (
+          <Checkbox
+            checked={!!field.value}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            className="mt-0.5"
+          />
+        )}
+      />
+      <div className="text-sm font-semibold text-zinc-900">{children}</div>
+    </div>
+  );
+}
+
+/** RHF-bağlı Catalyst RadioGroup sarmalayıcı. İçindeki kartlar
+ * `has-data-checked:` ile seçili görünür. */
+function FormRadioGroup({
+  name,
+  className,
+  children,
+}: {
+  name: FieldPath<TenderFormData>;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const { control } = useFormContext<TenderFormData>();
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <RadioGroup
+          value={(field.value ?? "") as string}
+          onChange={field.onChange}
+          className={className}
+        >
+          {children}
+        </RadioGroup>
+      )}
+    />
+  );
+}
 
 const DELIVERY_TERMS: DeliveryTerm[] = [
   "EXW",
@@ -130,28 +201,21 @@ function VisibilityOption({
   title: string;
   desc: string;
 }) {
-  const { register } = useFormContext<TenderFormData>();
   return (
-    <label
+    <div
       className={cn(
-        "flex flex-col gap-2 p-3 rounded-lg border-2 cursor-pointer transition-colors",
-        "has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/40",
-        "border-slate-200 hover:bg-slate-50",
+        "flex flex-col gap-2 p-3 rounded-lg ring-1 transition-colors",
+        "ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50",
       )}
     >
       <div className="flex items-start gap-2">
-        <input
-          type="radio"
-          value={value}
-          className="mt-0.5"
-          {...register("bidVisibility")}
-        />
-        <p className="text-sm font-semibold text-brand-900 leading-tight">
+        <Radio value={value} className="mt-0.5" />
+        <p className="text-sm font-semibold text-zinc-900 leading-tight">
           {title}
         </p>
       </div>
-      <p className="text-xs text-slate-500 ml-5">{desc}</p>
-    </label>
+      <p className="text-xs text-zinc-500 ml-5">{desc}</p>
+    </div>
   );
 }
 
@@ -170,7 +234,7 @@ function SectionHeader({
         <Icon className="w-4 h-4 text-brand-700" />
       </div>
       <div>
-        <h3 className="font-display font-bold text-base text-brand-900">
+        <h3 className="font-semibold text-base text-brand-900">
           {title}
         </h3>
         {description ? (
@@ -222,22 +286,20 @@ function LogisticsSection() {
         {/* Taşıma modu */}
         <Field error={lerr?.transportMode?.message}>
           <Label required>Taşıma Modu</Label>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <FormRadioGroup
+            name="logistics.transportMode"
+            className="grid grid-cols-2 md:grid-cols-5 gap-2"
+          >
             {TRANSPORT_MODE_OPTIONS.map((o) => (
-              <label
+              <div
                 key={o.value}
-                className="flex items-center justify-center gap-2 p-2.5 rounded-lg border-2 cursor-pointer text-sm font-medium transition-colors has-[:checked]:border-teal-500 has-[:checked]:bg-teal-50/50 border-slate-200 hover:bg-slate-50"
+                className="flex items-center justify-center gap-2 p-2.5 rounded-lg ring-1 text-sm font-medium transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50"
               >
-                <input
-                  type="radio"
-                  value={o.value}
-                  className="sr-only"
-                  {...register("logistics.transportMode")}
-                />
+                <Radio value={o.value} />
                 {o.label}
-              </label>
+              </div>
             ))}
-          </div>
+          </FormRadioGroup>
         </Field>
 
         {/* Çıkış / Varış */}
@@ -405,16 +467,13 @@ function LogisticsSection() {
                 ["stackable", "İstiflenebilir"],
               ] as const
             ).map(([key, label]) => (
-              <label
+              <FormCheckbox
                 key={key}
-                className="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 cursor-pointer text-sm hover:bg-slate-50"
+                name={`logistics.${key}` as const}
+                className="!p-2.5 items-center"
               >
-                <input
-                  type="checkbox"
-                  {...register(`logistics.${key}` as const)}
-                />
-                {label}
-              </label>
+                <span className="font-normal">{label}</span>
+              </FormCheckbox>
             ))}
           </div>
         </Field>
@@ -541,43 +600,37 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
 
           <Field>
             <Label>İhale Tipi</Label>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <label className="flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/40 border-slate-200 hover:bg-slate-50">
-                <input
-                  type="radio"
-                  value="RFQ"
-                  className="mt-0.5"
-                  {...register("type")}
-                />
+            <FormRadioGroup
+              name="type"
+              className="grid grid-cols-1 md:grid-cols-2 gap-3"
+            >
+              <div className="flex items-start gap-3 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
+                <Radio value="RFQ" className="mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-brand-900">
+                  <p className="text-sm font-semibold text-zinc-900">
                     RFQ (Kapalı Teklif)
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-zinc-500">
                     Tedarikçiler birbirini görmez. Süre dolunca teklifler açılır.
                   </p>
                 </div>
-              </label>
-              <label className="flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/40 border-slate-200 hover:bg-slate-50">
-                <input
-                  type="radio"
-                  value="ENGLISH_AUCTION"
-                  className="mt-0.5"
-                  {...register("type")}
-                />
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
+                <Radio value="ENGLISH_AUCTION" className="mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-brand-900">
+                  <p className="text-sm font-semibold text-zinc-900">
                     İngiliz Usulü{" "}
                     <span className="ml-1 px-1.5 py-0.5 bg-success-100 text-success-700 text-[10px] rounded-md font-semibold uppercase">
                       Yeni
                     </span>
                   </p>
-                  <p className="text-xs text-slate-500">
-                    Açık eksiltme, canlı teklif yarışması. Tedarikçi sıralaması ve fiyat azaltma kuralları aktif.
+                  <p className="text-xs text-zinc-500">
+                    Açık eksiltme, canlı teklif yarışması. Tedarikçi sıralaması ve
+                    fiyat azaltma kuralları aktif.
                   </p>
                 </div>
-              </label>
-            </div>
+              </div>
+            </FormRadioGroup>
           </Field>
         </div>
       </section>
@@ -601,7 +654,10 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
             </p>
           </div>
           <Field error={errors.bidVisibility?.message as string | undefined}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+            <FormRadioGroup
+              name="bidVisibility"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3"
+            >
               <VisibilityOption
                 value="OWN_ONLY"
                 title="Sadece kendi teklifi"
@@ -627,7 +683,7 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
                 title="Tüm teklifler ve sıralama"
                 desc="Tedarikçi, ihaledeki tüm teklifleri ve sıralamaları görür."
               />
-            </div>
+            </FormRadioGroup>
           </Field>
         </section>
       ) : null}
@@ -645,8 +701,7 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
             <>
               <div className="rounded-xl border border-slate-200 p-4">
                 <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked
                     disabled
                     className="mt-0.5"
@@ -656,36 +711,31 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
                     <p className="text-sm font-semibold text-brand-900">
                       Tedarikçilerin kalem bazında verdiği teklif fiyatları sürekli azalsın.
                     </p>
-                    <div className="mt-3 ml-1 flex items-start gap-3">
-                      <input
-                        type="radio"
-                        value="OWN_LAST_BID"
-                        className="mt-0.5"
-                        {...register("priceDecrementBasis")}
-                      />
-                      <p className="text-sm font-semibold text-brand-900">
-                        Kendi son teklifini baz alsın.
-                        <span className="block text-xs font-normal text-slate-500">
-                          Her yeni teklif, tedarikçinin kendi önceki teklifinden
-                          en az azaltma kadar düşük olur.
-                        </span>
-                      </p>
-                    </div>
-                    <div className="mt-2 ml-1 flex items-start gap-3">
-                      <input
-                        type="radio"
-                        value="BEST_BID"
-                        className="mt-0.5"
-                        {...register("priceDecrementBasis")}
-                      />
-                      <p className="text-sm font-semibold text-brand-900">
-                        İhaledeki en iyi teklifi baz alsın.
-                        <span className="block text-xs font-normal text-slate-500">
-                          Yeni teklif vermek için mevcut en iyi teklifi en az
-                          azaltma kadar geçmek gerekir (klasik ters eksiltme).
-                        </span>
-                      </p>
-                    </div>
+                    <FormRadioGroup
+                      name="priceDecrementBasis"
+                      className="mt-3 ml-1 space-y-2"
+                    >
+                      <div className="flex items-start gap-3">
+                        <Radio value="OWN_LAST_BID" className="mt-0.5" />
+                        <p className="text-sm font-semibold text-zinc-900">
+                          Kendi son teklifini baz alsın.
+                          <span className="block text-xs font-normal text-zinc-500">
+                            Her yeni teklif, tedarikçinin kendi önceki
+                            teklifinden en az azaltma kadar düşük olur.
+                          </span>
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Radio value="BEST_BID" className="mt-0.5" />
+                        <p className="text-sm font-semibold text-zinc-900">
+                          İhaledeki en iyi teklifi baz alsın.
+                          <span className="block text-xs font-normal text-zinc-500">
+                            Yeni teklif vermek için mevcut en iyi teklifi en az
+                            azaltma kadar geçmek gerekir (klasik ters eksiltme).
+                          </span>
+                        </p>
+                      </div>
+                    </FormRadioGroup>
 
                     <div className="mt-4 ml-7">
                       <p className="text-xs font-semibold text-slate-700 mb-2">
@@ -702,15 +752,14 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
                           <Label htmlFor="priceDecrementType">
                             Fiyat Azaltma Tipi
                           </Label>
-                          <select
+                          <Select
                             id="priceDecrementType"
-                            className="w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-white text-sm"
                             {...register("priceDecrementType")}
                           >
                             <option value="">— Seçiniz —</option>
                             <option value="AMOUNT">Tutar</option>
                             <option value="PERCENT">Yüzde</option>
-                          </select>
+                          </Select>
                         </Field>
                         <Field
                           error={
@@ -750,36 +799,16 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
                 </div>
               </div>
 
-              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  {...register("requireAllItems")}
-                />
-                <p className="text-sm font-semibold text-brand-900">
-                  Tedarikçilerin tüm kalemlere teklif vermesi zorunludur.
-                </p>
-              </label>
-              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  {...register("requireBidDocument")}
-                />
-                <p className="text-sm font-semibold text-brand-900">
-                  Tedarikçilerin, teklif dosyası yüklemesi zorunludur.
-                </p>
-              </label>
-              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  {...register("sendClosingReminder")}
-                />
-                <p className="text-sm font-semibold text-brand-900">
-                  Tedarikçilere, ihale kapanışından önce hatırlatma e-postası gönderilsin.
-                </p>
-              </label>
+              <FormCheckbox name="requireAllItems">
+                Tedarikçilerin tüm kalemlere teklif vermesi zorunludur.
+              </FormCheckbox>
+              <FormCheckbox name="requireBidDocument">
+                Tedarikçilerin, teklif dosyası yüklemesi zorunludur.
+              </FormCheckbox>
+              <FormCheckbox name="sendClosingReminder">
+                Tedarikçilere, ihale kapanışından önce hatırlatma e-postası
+                gönderilsin.
+              </FormCheckbox>
               {sendClosingReminder ? (
                 <div className="ml-6 grid grid-cols-1 md:grid-cols-2 gap-3">
                   <Field
@@ -812,21 +841,13 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
               ) : null}
 
               {/* Auto-extend (son dakika teklif → süre uzatma) */}
-              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  {...register("autoExtendOnLateBid")}
-                />
-                <div>
-                  <p className="text-sm font-semibold text-brand-900">
-                    Son dakika gelen teklif kapanışı otomatik uzatsın.
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Kapanışa az süre kalmışken yeni teklif gelirse süre uzatılır (snipe koruma).
-                  </p>
-                </div>
-              </label>
+              <FormCheckbox name="autoExtendOnLateBid">
+                <p>Son dakika gelen teklif kapanışı otomatik uzatsın.</p>
+                <p className="text-xs font-normal text-zinc-500">
+                  Kapanışa az süre kalmışken yeni teklif gelirse süre uzatılır
+                  (snipe koruma).
+                </p>
+              </FormCheckbox>
               {autoExtendOnLateBid ? (
                 <div className="ml-6 grid grid-cols-1 md:grid-cols-2 gap-3">
                   <Field
@@ -887,53 +908,26 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
           ) : (
             // RFQ: mevcut kurallar
             <>
-              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  {...register("isSealedBid")}
-                />
-                <div>
-                  <p className="text-sm font-semibold text-brand-900">
-                    Kapalı Zarf (varsayılan)
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Tedarikçiler birbirinin tekliflerini görmez. Süre dolunca tüm
-                    teklifler size açılır.
-                  </p>
-                </div>
-              </label>
-              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  {...register("requireAllItems")}
-                />
-                <div>
-                  <p className="text-sm font-semibold text-brand-900">
-                    Tüm kalemlere teklif zorunlu
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Tedarikçi tek bir kaleme teklif veremez; tümüne fiyat girmek
-                    zorundadır.
-                  </p>
-                </div>
-              </label>
-              <label className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  {...register("requireBidDocument")}
-                />
-                <div>
-                  <p className="text-sm font-semibold text-brand-900">
-                    Teklif dosyası zorunlu
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Tedarikçi teklifi gönderirken en az 1 dosya yüklemelidir.
-                  </p>
-                </div>
-              </label>
+              <FormCheckbox name="isSealedBid">
+                <p>Kapalı Zarf (varsayılan)</p>
+                <p className="text-xs font-normal text-zinc-500">
+                  Tedarikçiler birbirinin tekliflerini görmez. Süre dolunca tüm
+                  teklifler size açılır.
+                </p>
+              </FormCheckbox>
+              <FormCheckbox name="requireAllItems">
+                <p>Tüm kalemlere teklif zorunlu</p>
+                <p className="text-xs font-normal text-zinc-500">
+                  Tedarikçi tek bir kaleme teklif veremez; tümüne fiyat girmek
+                  zorundadır.
+                </p>
+              </FormCheckbox>
+              <FormCheckbox name="requireBidDocument">
+                <p>Teklif dosyası zorunlu</p>
+                <p className="text-xs font-normal text-zinc-500">
+                  Tedarikçi teklifi gönderirken en az 1 dosya yüklemelidir.
+                </p>
+              </FormCheckbox>
             </>
           )}
         </div>
@@ -957,9 +951,8 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
                 <Label htmlFor="primaryCurrency" required>
                   İhale Para Birimi
                 </Label>
-                <select
+                <Select
                   id="primaryCurrency"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-white text-sm"
                   value={primaryCurrency}
                   onChange={(e) => {
                     const next = e.target.value as Currency;
@@ -977,15 +970,14 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
                   <option value="JPY">JPY</option>
                   <option value="AED">AED</option>
                   <option value="CNY">CNY</option>
-                </select>
+                </Select>
               </Field>
               <Field error={errors.decimalPlaces?.message as string | undefined}>
                 <Label htmlFor="decimalPlaces" required>
                   Ondalık Basamak İzni
                 </Label>
-                <select
+                <Select
                   id="decimalPlaces"
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-white text-sm"
                   {...register("decimalPlaces", {
                     setValueAs: (v) => Number(v),
                   })}
@@ -995,20 +987,19 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
                   <option value="2">2</option>
                   <option value="3">3</option>
                   <option value="4">4</option>
-                </select>
+                </Select>
               </Field>
               <Field>
                 <Label htmlFor="auctionExtraCurrencies">
                   Farklı Para Birimi
                 </Label>
-                <select
+                <Select
                   id="auctionExtraCurrencies"
                   disabled
-                  className="w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-slate-100 text-sm text-slate-400 cursor-not-allowed"
                   title="Açık eksiltme tek para biriminde yapılır"
                 >
                   <option>—</option>
-                </select>
+                </Select>
               </Field>
             </div>
           ) : (
@@ -1078,9 +1069,8 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
         <div className="space-y-4">
           <Field error={errors.deliveryTerm?.message}>
             <Label htmlFor="deliveryTerm">Teslim Şekli</Label>
-            <select
+            <Select
               id="deliveryTerm"
-              className="w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-white text-sm"
               {...register("deliveryTerm")}
             >
               <option value="">— Seçiniz —</option>
@@ -1089,7 +1079,7 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
                   {DELIVERY_TERM_LABELS[t]}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
 
           <AddressDropdownGroup />
@@ -1106,28 +1096,18 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
         <div className="space-y-4">
           <Field error={errors.paymentTerm?.message}>
             <Label required>Ödeme Tipi</Label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/40 border-slate-200 hover:bg-slate-50">
-                <input
-                  type="radio"
-                  value="CASH"
-                  {...register("paymentTerm")}
-                />
-                <span className="text-sm font-semibold text-brand-900">
-                  Peşin
-                </span>
-              </label>
-              <label className="flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-colors has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/40 border-slate-200 hover:bg-slate-50">
-                <input
-                  type="radio"
-                  value="DEFERRED"
-                  {...register("paymentTerm")}
-                />
-                <span className="text-sm font-semibold text-brand-900">
+            <FormRadioGroup name="paymentTerm" className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
+                <Radio value="CASH" />
+                <span className="text-sm font-semibold text-zinc-900">Peşin</span>
+              </div>
+              <div className="flex items-center gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
+                <Radio value="DEFERRED" />
+                <span className="text-sm font-semibold text-zinc-900">
                   Vadeli
                 </span>
-              </label>
-            </div>
+              </div>
+            </FormRadioGroup>
           </Field>
 
           {paymentTerm === "DEFERRED" ? (
@@ -1347,20 +1327,14 @@ function AddressDropdownGroup() {
         <Label htmlFor="billingAddressId">
           Fatura Adresi <span className="text-danger-500">*</span>
         </Label>
-        <select
+        <Select
           id="billingAddressId"
-          className={cn(
-            "w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm",
-            "text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-            errors.billingAddressId
-              ? "border-danger-500"
-              : "border-surface-border",
-          )}
+          invalid={!!errors.billingAddressId}
           {...register("billingAddressId")}
         >
           <option value="">— Fatura adresi seçin —</option>
           {billingAddresses.map((a) => renderOption(a, true))}
-        </select>
+        </Select>
         <SelectedAddressPreview
           addresses={billingAddresses}
           id={billingId}
@@ -1372,20 +1346,14 @@ function AddressDropdownGroup() {
         <Label htmlFor="deliveryAddressId">
           Teslimat Adresi <span className="text-danger-500">*</span>
         </Label>
-        <select
+        <Select
           id="deliveryAddressId"
-          className={cn(
-            "w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm",
-            "text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-            errors.deliveryAddressId
-              ? "border-danger-500"
-              : "border-surface-border",
-          )}
+          invalid={!!errors.deliveryAddressId}
           {...register("deliveryAddressId")}
         >
           <option value="">— Teslimat adresi seçin —</option>
           {deliveryAddresses.map((a) => renderOption(a, false))}
-        </select>
+        </Select>
         <SelectedAddressPreview
           addresses={deliveryAddresses}
           id={deliveryId}

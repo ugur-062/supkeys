@@ -36,7 +36,7 @@ export function TenderTypeSelection() {
           <ChevronRight className="w-3 h-3" />
           <span className="text-brand-700 font-medium">İhale Oluştur</span>
         </nav>
-        <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900 mt-3">
+        <h1 className="font-semibold text-2xl md:text-3xl text-brand-900 mt-3">
           İhale Oluştur
         </h1>
         <p className="text-slate-600 mt-1 text-sm">
@@ -63,7 +63,7 @@ export function TenderTypeSelection() {
               <FileText className="h-7 w-7 text-brand-600" />
             </div>
             <div>
-              <h3 className="text-xl font-display font-bold text-brand-900">
+              <h3 className="text-xl font-semibold text-brand-900">
                 RFQ (Teklif Talebi)
               </h3>
               <p className="text-sm text-slate-500 mt-1">
@@ -123,7 +123,7 @@ export function TenderTypeSelection() {
               <TrendingDown className="h-7 w-7 text-purple-600" />
             </div>
             <div>
-              <h3 className="text-xl font-display font-bold text-brand-900">
+              <h3 className="text-xl font-semibold text-brand-900">
                 İngiliz Usulü İhale
               </h3>
               <p className="text-sm text-slate-500 mt-1">Açık eksiltme</p>

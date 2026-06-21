@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { EmptyState } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import type { SupplierWithRelation } from "@/lib/tedarikciler/types";
@@ -34,13 +42,13 @@ function truncate(s: string, n: number) {
 
 function SkeletonRow({ cols }: { cols: number }) {
   return (
-    <tr className="border-t border-surface-border">
+    <TableRow>
       {Array.from({ length: cols }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
-          <div className="h-4 bg-slate-100 rounded animate-pulse" />
-        </td>
+        <TableCell key={i}>
+          <div className="h-4 bg-zinc-100 rounded animate-pulse" />
+        </TableCell>
       ))}
-    </tr>
+    </TableRow>
   );
 }
 
@@ -60,7 +68,7 @@ export function BlockedSuppliersTable({
   if (isError) {
     return (
       <div className="px-6 py-16 text-center space-y-3">
-        <p className="text-brand-900 font-medium">Veri alınamadı.</p>
+        <p className="text-zinc-900 font-medium">Veri alınamadı.</p>
         <Button variant="secondary" size="sm" onClick={onRetry}>
           Tekrar dene
         </Button>
@@ -71,26 +79,18 @@ export function BlockedSuppliersTable({
   const showEmpty = !isLoading && items.length === 0;
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-surface-muted text-left">
-          <tr>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              Firma
-            </th>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              Vergi No
-            </th>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              Engelleme Sebebi
-            </th>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              Engellenme Tarihi
-            </th>
-            <th className="px-4 py-3" />
-          </tr>
-        </thead>
-        <tbody>
+    <div className="px-2 [--gutter:--spacing(4)]">
+      <Table dense>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Firma</TableHeader>
+            <TableHeader>Vergi No</TableHeader>
+            <TableHeader>Engelleme Sebebi</TableHeader>
+            <TableHeader>Engellenme Tarihi</TableHeader>
+            <TableHeader className="text-right" />
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {isLoading &&
             items.length === 0 &&
             Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
@@ -98,43 +98,43 @@ export function BlockedSuppliersTable({
             ))}
 
           {showEmpty && (
-            <tr>
-              <td colSpan={COLS}>
+            <TableRow>
+              <TableCell colSpan={COLS}>
                 <EmptyState
                   icon={ShieldOff}
                   variant="no-results"
                   title="Engellenmiş tedarikçi yok"
                   description="Henüz hiçbir tedarikçiyi engellememişsiniz."
                 />
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           )}
 
           {items.map((row) => (
-            <tr
+            <TableRow
               key={row.relationId}
               onClick={() => onSelect(row.relationId)}
-              className="border-t border-surface-border hover:bg-surface-muted/60 cursor-pointer transition-colors"
+              className="cursor-pointer hover:bg-zinc-950/2.5"
             >
-              <td className="px-4 py-3 font-medium text-brand-900">
+              <TableCell className="font-medium text-zinc-900">
                 {row.supplier.companyName}
-              </td>
-              <td className="px-4 py-3 text-brand-900 font-mono text-xs">
+              </TableCell>
+              <TableCell className="text-zinc-900 font-mono text-xs">
                 {row.supplier.taxNumber}
-              </td>
-              <td className="px-4 py-3 text-slate-600">
+              </TableCell>
+              <TableCell className="text-zinc-600">
                 {row.blockedReason ? (
                   <span title={row.blockedReason}>
                     {truncate(row.blockedReason, 60)}
                   </span>
                 ) : (
-                  <span className="text-slate-400">—</span>
+                  <span className="text-zinc-400">—</span>
                 )}
-              </td>
-              <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+              </TableCell>
+              <TableCell className="text-zinc-500 whitespace-nowrap">
                 {formatDate(row.blockedAt)}
-              </td>
-              <td className="px-4 py-3 text-right">
+              </TableCell>
+              <TableCell className="text-right">
                 {canManage ? (
                   <Button
                     variant="secondary"
@@ -144,18 +144,17 @@ export function BlockedSuppliersTable({
                       e.stopPropagation();
                       onUnblock(row.relationId, row.supplier.companyName);
                     }}
-                    className="!text-brand-700 !border-brand-200 hover:!bg-brand-50"
                   >
                     Engeli Kaldır
                   </Button>
                 ) : (
-                  <span className="text-xs text-slate-400">—</span>
+                  <span className="text-xs text-zinc-400">—</span>
                 )}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

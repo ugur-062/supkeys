@@ -1,5 +1,14 @@
 "use client";
 
+import { Select } from "@/components/catalyst/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import {
   EmptyState as EmptyStateComponent,
   ListSkeleton,
@@ -44,7 +53,6 @@ const STATUS_OPTIONS: Array<{ value: ApprovalRequestStatus | ""; label: string }
 
 const TYPE_OPTIONS: Array<{ value: ApprovalFlowType | ""; label: string }> = [
   { value: "", label: "Tüm Türler" },
-  { value: "TENDER_PUBLISH", label: "İhale Onayı" },
   { value: "TENDER_AWARD", label: "Kazanan Onayı" },
 ];
 
@@ -52,12 +60,6 @@ function parseTab(value: string | null): TabKey {
   if (value && (VALID_TABS as string[]).includes(value)) return value as TabKey;
   return "pending";
 }
-
-const SELECT_CLASS = cn(
-  "w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm",
-  "text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-  "border-surface-border",
-);
 
 const PAGE_SIZE = 20;
 
@@ -134,7 +136,7 @@ export function OnayBekleyenlerView() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       <Link
         href="/dashboard"
-        className="text-sm text-slate-500 hover:text-brand-600 inline-flex items-center gap-1 mb-4"
+        className="text-sm text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1 mb-4"
       >
         <ChevronLeft className="h-4 w-4" />
         Ana Sayfa
@@ -143,26 +145,26 @@ export function OnayBekleyenlerView() {
       <PageHeader
         className="mb-6"
         title="Onay Süreçleri"
-        description="Onayda bekleyen süreçleriniz için işlem gerçekleştirebilir, geçmiş tüm onay süreçlerinizi görüntüleyebilirsiniz."
+        description="“Sıra Sizde” yalnızca şu an sizin onayınızı bekleyen süreçleri gösterir. “Tüm Süreçler” ise (başkalarının onayını bekleyenler dahil) firmanızdaki bütün onayları listeler."
       />
 
-      <div className="bg-white border border-surface-border rounded-2xl shadow-sm">
+      <div className="bg-white ring-1 ring-zinc-950/5 rounded-2xl shadow-sm">
         {/* Tab'lar */}
-        <div className="flex border-b border-surface-border px-4 sm:px-6">
+        <div className="flex border-b border-zinc-950/5 px-4 sm:px-6">
           <TabButton
             active={activeTab === "pending"}
             onClick={() => setTab("pending")}
           >
-            Onay Bekleyenler
+            Sıra Sizde
           </TabButton>
           <TabButton active={activeTab === "all"} onClick={() => setTab("all")}>
-            Tüm Onay Süreçleri
+            Tüm Süreçler
           </TabButton>
           <button
             type="button"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="ml-auto text-sm text-slate-500 hover:text-brand-600 inline-flex items-center gap-1.5 px-2"
+            className="ml-auto text-sm text-zinc-500 hover:text-zinc-900 inline-flex items-center gap-1.5 px-2"
             title="Yenile"
           >
             <RefreshCw
@@ -173,7 +175,7 @@ export function OnayBekleyenlerView() {
 
         {/* Filtreler — sadece "Tüm" tab'ında */}
         {activeTab === "all" ? (
-          <div className="px-4 sm:px-6 py-4 border-b border-surface-border bg-surface-subtle/40 space-y-3">
+          <div className="px-4 sm:px-6 py-4 border-b border-zinc-950/5 bg-zinc-50/40 space-y-3">
             <SearchInput
               value={search}
               onChange={setSearch}
@@ -182,48 +184,46 @@ export function OnayBekleyenlerView() {
             />
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <select
-                className={SELECT_CLASS}
+              <Select
                 value={statusFilter}
                 onChange={(e) =>
-                  setStatusFilter(
-                    e.target.value as ApprovalRequestStatus | "",
-                  )
+                  setStatusFilter(e.target.value as ApprovalRequestStatus | "")
                 }
+                aria-label="Statü filtresi"
               >
                 {STATUS_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
                 ))}
-              </select>
+              </Select>
 
-              <select
-                className={SELECT_CLASS}
+              <Select
                 value={initiatorFilter}
                 onChange={(e) => setInitiatorFilter(e.target.value)}
+                aria-label="Kişi filtresi"
               >
-                <option value="">Tüm Başlatanlar</option>
+                <option value="">Tüm Kişiler</option>
                 {users?.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.firstName} {u.lastName}
                   </option>
                 ))}
-              </select>
+              </Select>
 
-              <select
-                className={SELECT_CLASS}
+              <Select
                 value={typeFilter}
                 onChange={(e) =>
                   setTypeFilter(e.target.value as ApprovalFlowType | "")
                 }
+                aria-label="Tür filtresi"
               >
                 {TYPE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
 
             <div className="flex items-center justify-between">
@@ -236,7 +236,7 @@ export function OnayBekleyenlerView() {
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="text-xs text-brand-600 hover:underline font-semibold"
+                  className="text-xs text-zinc-900 hover:underline font-semibold"
                 >
                   Filtreleri Temizle ({activeFilterCount})
                 </button>
@@ -259,7 +259,7 @@ export function OnayBekleyenlerView() {
                 <button
                   type="button"
                   onClick={clearFilters}
-                  className="text-sm text-brand-600 hover:underline font-semibold"
+                  className="text-sm text-zinc-900 hover:underline font-semibold"
                 >
                   Filtreleri temizle
                 </button>
@@ -316,8 +316,8 @@ function TabButton({
       className={cn(
         "px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors",
         active
-          ? "border-brand-600 text-brand-700 bg-brand-50/30"
-          : "border-transparent text-slate-500 hover:text-brand-600 hover:bg-slate-50",
+          ? "border-zinc-900 text-zinc-900"
+          : "border-transparent text-zinc-500 hover:text-zinc-700",
       )}
     >
       {children}
@@ -333,33 +333,21 @@ function ApprovalRequestsTable({
   activeTab: TabKey;
 }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full">
-        <thead>
-          <tr className="text-xs uppercase tracking-wide text-slate-500 border-b border-surface-border">
-            <th className="text-left px-4 sm:px-6 py-3 font-medium">
-              Onay No
-            </th>
-            <th className="text-left px-4 sm:px-6 py-3 font-medium">
-              Onay Türü
-            </th>
-            <th className="text-left px-4 sm:px-6 py-3 font-medium">
-              İhale
-            </th>
-            <th className="text-left px-4 sm:px-6 py-3 font-medium">
-              Başlatan
-            </th>
-            <th className="text-left px-4 sm:px-6 py-3 font-medium">
-              {activeTab === "pending" ? "Adım" : "Statü"}
-            </th>
-            <th className="text-left px-4 sm:px-6 py-3 font-medium">Tutar</th>
-            <th className="text-left px-4 sm:px-6 py-3 font-medium">
-              Son İşlem
-            </th>
-            <th className="px-4 sm:px-6 py-3 w-12"></th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-surface-border">
+    <div className="px-2 sm:px-4 [--gutter:--spacing(4)]">
+      <Table dense>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Onay No</TableHeader>
+            <TableHeader>Onay Türü</TableHeader>
+            <TableHeader>İhale</TableHeader>
+            <TableHeader>İşlemi Yapan</TableHeader>
+            <TableHeader>{activeTab === "pending" ? "Adım" : "Statü"}</TableHeader>
+            <TableHeader>Tutar</TableHeader>
+            <TableHeader>Son İşlem</TableHeader>
+            <TableHeader className="w-12" />
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {requests.map((req) => (
             <ApprovalRequestRow
               key={req.id}
@@ -367,8 +355,8 @@ function ApprovalRequestsTable({
               activeTab={activeTab}
             />
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }
@@ -386,55 +374,65 @@ function ApprovalRequestRow({
   const decidedSteps = request.steps.filter(
     (s) => s.status === "APPROVED" || s.status === "REJECTED",
   ).length;
+  // Sıra kimde — şu an PENDING olan adımın onaylayanı (netlik: madde 23/24/25)
+  const currentStep = request.steps.find((s) => s.status === "PENDING");
 
   return (
-    <tr className="hover:bg-slate-50/60 transition-colors">
-      <td className="px-4 sm:px-6 py-4">
+    <TableRow>
+      <TableCell>
         <Link
           href={`/dashboard/onay-bekleyenler/${request.id}`}
-          className="font-mono text-sm font-semibold text-brand-700 hover:underline"
+          className="font-mono text-sm font-semibold text-zinc-900 hover:underline"
         >
           {request.approvalNumber}
         </Link>
-      </td>
-      <td className="px-4 sm:px-6 py-4">
+      </TableCell>
+      <TableCell>
         <ApprovalTypeBadge type={request.type} />
-      </td>
-      <td className="px-4 sm:px-6 py-4">
-        <p className="font-mono text-xs text-slate-500">
+      </TableCell>
+      <TableCell>
+        <p className="font-mono text-xs text-zinc-500">
           {request.tender.tenderNumber}
         </p>
-        <p className="text-sm text-brand-900 line-clamp-1 max-w-[260px]">
+        <p className="text-sm text-zinc-900 line-clamp-1 max-w-[260px]">
           {request.tender.title}
         </p>
-      </td>
-      <td className="px-4 sm:px-6 py-4 text-sm text-slate-700">
+      </TableCell>
+      <TableCell className="text-sm text-zinc-700">
         {request.initiatedBy.firstName} {request.initiatedBy.lastName}
-      </td>
-      <td className="px-4 sm:px-6 py-4">
+      </TableCell>
+      <TableCell>
         {activeTab === "pending" ? (
-          <span className="font-mono text-sm text-slate-700">
+          <span className="font-mono text-sm text-zinc-700">
             {decidedSteps}/{totalActiveSteps}
           </span>
         ) : (
-          <ApprovalStatusBadge status={request.status} />
+          <div className="space-y-0.5">
+            <ApprovalStatusBadge status={request.status} />
+            {request.status === "PENDING" && currentStep ? (
+              <p className="text-[11px] text-zinc-500 whitespace-nowrap">
+                Şu an: {currentStep.approver.firstName}{" "}
+                {currentStep.approver.lastName}
+              </p>
+            ) : null}
+          </div>
         )}
-      </td>
-      <td className="px-4 sm:px-6 py-4 text-sm font-medium text-brand-900 whitespace-nowrap">
+      </TableCell>
+      <TableCell className="text-sm font-medium text-zinc-900 whitespace-nowrap">
         {formatAmountTR(request.amount, request.currency)}
-      </td>
-      <td className="px-4 sm:px-6 py-4 text-sm text-slate-500 whitespace-nowrap">
+      </TableCell>
+      <TableCell className="text-sm text-zinc-500 whitespace-nowrap">
         {format(new Date(request.updatedAt), "dd MMM yyyy HH:mm", {
           locale: tr,
         })}
-      </td>
-      <td className="px-4 sm:px-6 py-4 text-right">
+      </TableCell>
+      <TableCell className="text-right">
         <Link href={`/dashboard/onay-bekleyenler/${request.id}`}>
           <Button variant="ghost" size="sm">
             Görüntüle →
           </Button>
         </Link>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }

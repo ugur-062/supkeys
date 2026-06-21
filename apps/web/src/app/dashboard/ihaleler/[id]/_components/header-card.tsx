@@ -19,7 +19,14 @@ import {
 import { extractErrorMessage } from "@/lib/tenders/error";
 import type { TenderDetail } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownDivider,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from "@/components/catalyst/dropdown";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -188,7 +195,7 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
         />
       ) : null}
 
-      <section className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/60 via-white to-indigo-50/40 p-6">
+      <section className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/60 via-white to-zinc-50/40 p-6">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5">
           <div className="flex-1 min-w-0 space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
@@ -198,12 +205,12 @@ export function TenderHeaderCard({ tender }: { tender: TenderDetail }) {
               <TenderTypeBadge type={tender.type} />
               <TenderLiveStatusPill status={tender.status} />
               {tender.roundNumber > 1 ? (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 text-xs font-bold">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-800 text-xs font-bold">
                   Tur #{tender.roundNumber}
                 </span>
               ) : null}
             </div>
-            <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900 leading-tight">
+            <h1 className="font-semibold text-2xl md:text-3xl text-brand-900 leading-tight">
               {tender.title}
             </h1>
             {tender.description ? (
@@ -575,86 +582,59 @@ function MoreActionsMenu({
   // "İhaleyi Kopyala" zaten her zaman var — menüyü gizleme.
 
   return (
-    <DropdownMenu.Root>
-      <DropdownMenu.Trigger className={MORE_TRIGGER_CLASSES} disabled={disabled}>
-        <MoreHorizontal className="w-4 h-4" />
+    <Dropdown>
+      <DropdownButton outline disabled={disabled}>
+        <MoreHorizontal data-slot="icon" />
         Diğer İşlemler
-        <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-      </DropdownMenu.Trigger>
-      <DropdownMenu.Portal>
-        <DropdownMenu.Content
-          align="end"
-          sideOffset={6}
-          className="w-64 bg-white rounded-xl border border-surface-border shadow-lg p-1.5 z-50"
-        >
-          {/* Ortak: Tüm statülerde */}
-          <DropdownMenu.Item
-            className={MORE_ITEM_CLASSES}
-            onSelect={onDetailClick}
-          >
-            <FileText className="w-4 h-4" />
-            İhale Detayını Gör
-          </DropdownMenu.Item>
-          <DropdownMenu.Item
-            className={MORE_ITEM_CLASSES}
-            onSelect={onRoundHistoryClick}
-          >
-            <History className="w-4 h-4" />
-            Teklif Tarihçesi
-          </DropdownMenu.Item>
-          <DropdownMenu.Item asChild className={MORE_ITEM_CLASSES}>
-            <Link href={`/dashboard/ihaleler/yeni?from=${tender.id}`}>
-              <Copy className="w-4 h-4" />
-              İhaleyi Kopyala
-            </Link>
-          </DropdownMenu.Item>
-          {canEdit && !isTerminal ? (
-            <DropdownMenu.Item
-              className={MORE_ITEM_CLASSES}
-              onSelect={onNotesClick}
-            >
-              <NotebookPen className="w-4 h-4" />
-              Not Al
-            </DropdownMenu.Item>
-          ) : null}
+        <ChevronDown data-slot="icon" />
+      </DropdownButton>
+      <DropdownMenu anchor="bottom end" className="min-w-64">
+        {/* Ortak: Tüm statülerde */}
+        <DropdownItem onClick={onDetailClick}>
+          <FileText data-slot="icon" />
+          <DropdownLabel>İhale Detayını Gör</DropdownLabel>
+        </DropdownItem>
+        <DropdownItem onClick={onRoundHistoryClick}>
+          <History data-slot="icon" />
+          <DropdownLabel>Teklif Tarihçesi</DropdownLabel>
+        </DropdownItem>
+        <DropdownItem href={`/dashboard/ihaleler/yeni?from=${tender.id}`}>
+          <Copy data-slot="icon" />
+          <DropdownLabel>İhaleyi Kopyala</DropdownLabel>
+        </DropdownItem>
+        {canEdit && !isTerminal ? (
+          <DropdownItem onClick={onNotesClick}>
+            <NotebookPen data-slot="icon" />
+            <DropdownLabel>Not Al</DropdownLabel>
+          </DropdownItem>
+        ) : null}
 
-          {/* Statüye özel aksiyonlar */}
-          {hasStatusSpecific ? (
-            <DropdownMenu.Separator className="h-px bg-surface-border my-1" />
-          ) : null}
-          {isOpen && canAward ? (
-            <DropdownMenu.Item
-              className={MORE_ITEM_WARNING}
-              onSelect={onCloseBiddingClick}
-            >
-              <Timer className="w-4 h-4" />
-              Erken Kapat & Kazandırmaya Geç
-            </DropdownMenu.Item>
-          ) : null}
-          {isAward && canCancel ? (
-            <DropdownMenu.Item
-              className={cn(
-                MORE_ITEM_CLASSES,
-                "!text-warning-700 data-[highlighted]:!bg-warning-50",
-              )}
-              onSelect={onCloseNoAwardClick}
-            >
-              <Ban className="w-4 h-4" />
+        {/* Statüye özel aksiyonlar */}
+        {hasStatusSpecific ? <DropdownDivider /> : null}
+        {isOpen && canAward ? (
+          <DropdownItem onClick={onCloseBiddingClick}>
+            <Timer data-slot="icon" />
+            <DropdownLabel>Erken Kapat & Kazandırmaya Geç</DropdownLabel>
+          </DropdownItem>
+        ) : null}
+        {isAward && canCancel ? (
+          <DropdownItem onClick={onCloseNoAwardClick}>
+            <Ban data-slot="icon" />
+            <DropdownLabel className="text-warning-700">
               Kazanan Yok Kapat
-            </DropdownMenu.Item>
-          ) : null}
-          {isOpen && canCancel ? (
-            <DropdownMenu.Item
-              className={MORE_ITEM_DANGER}
-              onSelect={onCancelClick}
-            >
-              <Ban className="w-4 h-4" />
+            </DropdownLabel>
+          </DropdownItem>
+        ) : null}
+        {isOpen && canCancel ? (
+          <DropdownItem onClick={onCancelClick}>
+            <Ban data-slot="icon" />
+            <DropdownLabel className="text-danger-700">
               İhaleyi İptal Et
-            </DropdownMenu.Item>
-          ) : null}
-        </DropdownMenu.Content>
-      </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+            </DropdownLabel>
+          </DropdownItem>
+        ) : null}
+      </DropdownMenu>
+    </Dropdown>
   );
 }
 

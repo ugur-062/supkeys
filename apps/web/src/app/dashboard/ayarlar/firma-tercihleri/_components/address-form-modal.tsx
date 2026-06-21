@@ -1,6 +1,16 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/catalyst/button";
+import { Checkbox } from "@/components/catalyst/checkbox";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/catalyst/dialog";
+import { Radio, RadioGroup } from "@/components/catalyst/radio";
+import { Select } from "@/components/catalyst/select";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,10 +29,9 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import { getCityNames, getDistrictsByCity } from "@supkeys/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as Dialog from "@radix-ui/react-dialog";
-import { MapPin, X } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -230,54 +239,31 @@ export function AddressFormModal(props: Props) {
   };
 
   return (
-    <Dialog.Root
+    <Dialog
       open={open}
-      onOpenChange={(o) => {
-        if (!o && !isPending) onClose();
+      onClose={() => {
+        if (!isPending) onClose();
       }}
+      size="2xl"
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-slate-900/60 z-[60]" />
-        <Dialog.Content
-          className={cn(
-            "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[60]",
-            "w-[calc(100vw-2rem)] max-w-2xl bg-white rounded-2xl shadow-2xl outline-none",
-            "max-h-[90vh] flex flex-col",
-          )}
-        >
-          <header className="px-5 py-4 border-b border-surface-border flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
-                <MapPin className="w-5 h-5 text-brand-600" />
-              </div>
-              <div>
-                <Dialog.Title className="font-display font-bold text-lg text-brand-900">
-                  {isEdit ? "Adresi Düzenle" : "Yeni Adres Ekle"}
-                </Dialog.Title>
-                <Dialog.Description className="text-sm text-slate-500 mt-0.5">
-                  {isEdit
-                    ? "Adres bilgilerini güncelleyin."
-                    : "İhalede kullanılacak adresi tanımlayın."}
-                </Dialog.Description>
-              </div>
-            </div>
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                aria-label="Kapat"
-                disabled={isPending}
-                className="p-1.5 rounded-lg hover:bg-surface-muted text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0 disabled:opacity-40"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </Dialog.Close>
-          </header>
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
+          <MapPin className="h-5 w-5 text-zinc-700" />
+        </div>
+        <div>
+          <DialogTitle>
+            {isEdit ? "Adresi Düzenle" : "Yeni Adres Ekle"}
+          </DialogTitle>
+          <DialogDescription>
+            {isEdit
+              ? "Adres bilgilerini güncelleyin."
+              : "İhalede kullanılacak adresi tanımlayın."}
+          </DialogDescription>
+        </div>
+      </div>
 
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="px-5 py-5 space-y-4 overflow-y-auto flex-1"
-            noValidate
-          >
+      <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
+        <DialogBody className="space-y-4">
             {/* Tip seçimi (create) veya read-only (edit) */}
             <Field>
               <Label>
@@ -294,34 +280,39 @@ export function AddressFormModal(props: Props) {
                   </span>
                 </p>
               ) : (
-                <div className="grid grid-cols-3 gap-2 mt-1">
-                  {TYPES.map((t) => {
-                    const meta = ADDRESS_TYPE_META[t];
-                    const checked = watchType === t;
-                    return (
-                      <label
-                        key={t}
-                        className={cn(
-                          "flex flex-col items-center gap-1 p-3 rounded-xl border-2 cursor-pointer transition text-sm",
-                          checked
-                            ? "border-brand-400 bg-brand-50/40 ring-2 ring-brand-100"
-                            : "border-slate-200 hover:border-brand-300 bg-white",
-                        )}
-                      >
-                        <input
-                          type="radio"
-                          value={t}
-                          {...form.register("type")}
-                          className="sr-only"
-                        />
-                        <span className="text-xl">{meta.emoji}</span>
-                        <span className="font-semibold text-brand-900">
-                          {meta.shortLabel}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
+                <Controller
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <RadioGroup
+                      value={field.value}
+                      onChange={field.onChange}
+                      className="grid grid-cols-3 gap-2 mt-1"
+                    >
+                      {TYPES.map((t) => {
+                        const meta = ADDRESS_TYPE_META[t];
+                        const checked = field.value === t;
+                        return (
+                          <div
+                            key={t}
+                            className={cn(
+                              "flex flex-col items-center gap-1 p-3 rounded-xl ring-1 transition text-sm",
+                              checked
+                                ? "ring-2 ring-zinc-900 bg-zinc-50"
+                                : "ring-zinc-950/10 bg-white",
+                            )}
+                          >
+                            <Radio value={t} />
+                            <span className="text-xl">{meta.emoji}</span>
+                            <span className="font-semibold text-zinc-900">
+                              {meta.shortLabel}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </RadioGroup>
+                  )}
+                />
               )}
             </Field>
 
@@ -354,15 +345,9 @@ export function AddressFormModal(props: Props) {
                 <Label htmlFor="addr-city">
                   İl <span className="text-danger-500">*</span>
                 </Label>
-                <select
+                <Select
                   id="addr-city"
-                  className={cn(
-                    "w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm",
-                    "text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-                    form.formState.errors.city
-                      ? "border-danger-500"
-                      : "border-surface-border",
-                  )}
+                  invalid={!!form.formState.errors.city}
                   {...form.register("city", {
                     onChange: () => form.setValue("district", ""),
                   })}
@@ -373,24 +358,17 @@ export function AddressFormModal(props: Props) {
                       {c}
                     </option>
                   ))}
-                </select>
+                </Select>
               </Field>
 
               <Field error={form.formState.errors.district?.message}>
                 <Label htmlFor="addr-district">
                   İlçe <span className="text-danger-500">*</span>
                 </Label>
-                <select
+                <Select
                   id="addr-district"
                   disabled={!watchCity}
-                  className={cn(
-                    "w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm",
-                    "text-brand-900 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-                    "disabled:bg-surface-muted disabled:cursor-not-allowed",
-                    form.formState.errors.district
-                      ? "border-danger-500"
-                      : "border-surface-border",
-                  )}
+                  invalid={!!form.formState.errors.district}
                   {...form.register("district")}
                 >
                   <option value="">
@@ -401,7 +379,7 @@ export function AddressFormModal(props: Props) {
                       {d}
                     </option>
                   ))}
-                </select>
+                </Select>
               </Field>
             </div>
 
@@ -496,11 +474,17 @@ export function AddressFormModal(props: Props) {
               </Field>
             </div>
 
-            <label className="flex items-center gap-3 p-3 rounded-lg border border-warning-200 bg-warning-50 cursor-pointer">
-              <input
-                type="checkbox"
-                className="h-4 w-4"
-                {...form.register("isDefault")}
+            <div className="flex items-center gap-3 p-3 rounded-lg border border-warning-200 bg-warning-50">
+              <Controller
+                control={form.control}
+                name="isDefault"
+                render={({ field }) => (
+                  <Checkbox
+                    checked={!!field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                  />
+                )}
               />
               <div>
                 <p className="font-semibold text-sm text-warning-900">
@@ -510,32 +494,18 @@ export function AddressFormModal(props: Props) {
                   İhale oluştururken bu adres otomatik seçili gelir.
                 </p>
               </div>
-            </label>
-          </form>
+            </div>
+        </DialogBody>
 
-          <footer className="px-5 py-4 border-t border-surface-border flex items-center gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onClose}
-              disabled={isPending}
-              className="flex-1"
-            >
-              Vazgeç
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={form.handleSubmit(onSubmit)}
-              loading={isPending}
-              disabled={isPending}
-              className="flex-1"
-            >
-              {isEdit ? "Kaydet" : "Adres Ekle"}
-            </Button>
-          </footer>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        <DialogActions>
+          <Button plain onClick={onClose} disabled={isPending}>
+            Vazgeç
+          </Button>
+          <Button type="submit" disabled={isPending}>
+            {isEdit ? "Kaydet" : "Adres Ekle"}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   );
 }

@@ -23,7 +23,8 @@ export interface FlowDraft {
 export const EMPTY_DRAFT: FlowDraft = {
   name: "",
   description: "",
-  type: "TENDER_PUBLISH",
+  // Madde 22 — onay artık yalnızca kazandırma (TENDER_AWARD) için.
+  type: "TENDER_AWARD",
   status: "DRAFT",
   initiatorUserIds: [],
   steps: [],

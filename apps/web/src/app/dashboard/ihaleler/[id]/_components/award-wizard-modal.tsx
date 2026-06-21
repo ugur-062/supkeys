@@ -1,6 +1,8 @@
 "use client";
 
+import { Radio, RadioGroup } from "@/components/catalyst/radio";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import {
   useAwardFull,
   useAwardItemByItem,
@@ -15,7 +17,7 @@ import type {
   TenderDetail,
 } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
-import * as Dialog from "@radix-ui/react-dialog";
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -85,41 +87,42 @@ export function AwardWizardModal({ open, onClose, tender }: Props) {
   };
 
   return (
-    <Dialog.Root open={open} onOpenChange={handleClose}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-slate-900/60 z-[60]" />
-        <Dialog.Content
-          className={cn(
-            "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[60]",
-            "w-[calc(100vw-2rem)] max-w-3xl bg-white rounded-2xl shadow-2xl outline-none",
-            "max-h-[90vh] flex flex-col",
-          )}
+    <Dialog
+      open={open}
+      onClose={() => handleClose(false)}
+      className="relative z-[60]"
+    >
+      <DialogBackdrop
+        transition
+        className="fixed inset-0 bg-zinc-950/40 transition data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150"
+      />
+      <div className="fixed inset-0 flex w-screen items-center justify-center p-2 sm:p-4">
+        <DialogPanel
+          transition
+          className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-950/10 outline-none transition data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150 data-closed:data-enter:scale-95"
         >
-          <header className="px-5 py-4 border-b border-surface-border flex items-start justify-between gap-3">
+          <header className="px-5 py-4 border-b border-zinc-950/5 flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
-                <Trophy className="w-5 h-5 text-purple-600" />
+              <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center flex-shrink-0">
+                <Trophy className="w-5 h-5 text-zinc-700" />
               </div>
               <div>
-                <Dialog.Title className="font-display font-bold text-lg text-brand-900">
+                <DialogTitle className="font-semibold text-lg text-zinc-950">
                   İhaleyi Kazandır
-                </Dialog.Title>
-                <Dialog.Description className="text-sm text-slate-500 mt-0.5">
-                  Kazanan tedarikçiyi seçin. Bu işlem tek seferliktir,
-                  sonradan değiştirilemez.
-                </Dialog.Description>
+                </DialogTitle>
+                <p className="text-sm text-zinc-500 mt-0.5">
+                  Kazanan tedarikçiyi seçin. Bu işlem tek seferliktir, sonradan
+                  değiştirilemez.
+                </p>
               </div>
             </div>
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                aria-label="Kapat"
-                disabled={isBusy}
-                className="p-1.5 rounded-lg hover:bg-surface-muted text-slate-400 hover:text-slate-600 transition-colors flex-shrink-0 disabled:opacity-40"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </Dialog.Close>
+            <IconButton
+              aria-label="Kapat"
+              onClick={() => handleClose(false)}
+              disabled={isBusy}
+            >
+              <X className="w-4 h-4" />
+            </IconButton>
           </header>
 
           <div className="px-5 py-5 flex-1 overflow-y-auto">
@@ -225,9 +228,9 @@ export function AwardWizardModal({ open, onClose, tender }: Props) {
               </Button>
             )}
           </footer>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        </DialogPanel>
+      </div>
+    </Dialog>
   );
 }
 
@@ -442,30 +445,27 @@ function ItemAwardStep({
                 Bu kaleme teklif veren tedarikçi yok.
               </p>
             ) : (
-              <div className="mt-3 space-y-1.5">
+              <RadioGroup
+                value={decisions[item.id] ?? ""}
+                onChange={(bidId) =>
+                  onDecide({ ...decisions, [item.id]: bidId })
+                }
+                className="mt-3 space-y-1.5"
+              >
                 {bidsForItem.map(({ bid, bi }, idx) => (
-                  <label
+                  <div
                     key={bid.id}
                     className={cn(
-                      "flex items-center gap-3 p-2.5 rounded-lg cursor-pointer transition border",
+                      "flex items-center gap-3 p-2.5 rounded-lg transition ring-1",
                       decisions[item.id] === bid.id
-                        ? "bg-brand-50 border-brand-300"
-                        : "border-transparent hover:bg-slate-50",
+                        ? "bg-zinc-50 ring-zinc-950/15"
+                        : "ring-transparent hover:bg-zinc-50",
                     )}
                   >
-                    <input
-                      type="radio"
-                      name={`item-${item.id}`}
-                      value={bid.id}
-                      checked={decisions[item.id] === bid.id}
-                      onChange={() =>
-                        onDecide({ ...decisions, [item.id]: bid.id })
-                      }
-                      className="h-4 w-4 text-brand-600"
-                    />
+                    <Radio value={bid.id} />
                     <div className="flex-1 flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <span className="font-semibold text-slate-900">
+                        <span className="font-semibold text-zinc-900">
                           {bid.supplier.companyName}
                         </span>
                         {idx === 0 ? (
@@ -478,9 +478,9 @@ function ItemAwardStep({
                         {formatMoney(bi.unitPrice ?? "0", bi.currency)}
                       </p>
                     </div>
-                  </label>
+                  </div>
                 ))}
-              </div>
+              </RadioGroup>
             )}
           </div>
         );

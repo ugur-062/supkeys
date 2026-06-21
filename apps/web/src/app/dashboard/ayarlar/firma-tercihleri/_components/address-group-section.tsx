@@ -1,5 +1,20 @@
 "use client";
 
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from "@/components/catalyst/dropdown";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { Button } from "@/components/ui/button";
 import {
   useDeleteAddress,
@@ -13,7 +28,6 @@ import {
 } from "@/lib/addresses/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   ChevronDown,
   ChevronUp,
@@ -88,27 +102,23 @@ export function AddressGroupSection({ type, addresses, onAddNew }: Props) {
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr className="text-xs uppercase text-slate-500 tracking-wide">
-                      <th className="text-left px-5 py-3 w-10">#</th>
-                      <th className="text-left px-5 py-3">Başlık</th>
-                      <th className="text-left px-5 py-3">İl / İlçe</th>
-                      <th className="text-left px-5 py-3">Durum</th>
-                      <th className="text-right px-5 py-3 w-12" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
+              <div className="px-2 [--gutter:--spacing(5)]">
+                <Table dense>
+                  <TableHead>
+                    <TableRow>
+                      <TableHeader className="w-10">#</TableHeader>
+                      <TableHeader>Başlık</TableHeader>
+                      <TableHeader>İl / İlçe</TableHeader>
+                      <TableHeader>Durum</TableHeader>
+                      <TableHeader className="w-12 text-right" />
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
                     {addresses.map((addr, idx) => (
-                      <AddressRow
-                        key={addr.id}
-                        address={addr}
-                        index={idx + 1}
-                      />
+                      <AddressRow key={addr.id} address={addr} index={idx + 1} />
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
               <div className="p-4 border-t border-slate-100">
                 <Button variant="secondary" size="sm" onClick={onAddNew}>
@@ -175,11 +185,11 @@ function AddressRow({
 
   return (
     <>
-      <tr className="hover:bg-slate-50/40 transition-colors">
-        <td className="px-5 py-4 text-slate-500 text-sm align-top">{index}</td>
-        <td className="px-5 py-4 align-top">
+      <TableRow>
+        <TableCell className="text-zinc-500 text-sm align-top">{index}</TableCell>
+        <TableCell className="align-top">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-semibold text-brand-900">{address.title}</p>
+            <p className="font-semibold text-zinc-900">{address.title}</p>
             {address.isDefault ? (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-warning-50 text-warning-700 border border-warning-200">
                 <Star className="h-3 w-3 fill-warning-500 text-warning-500" />
@@ -187,97 +197,61 @@ function AddressRow({
               </span>
             ) : null}
           </div>
-          <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
+          <p className="text-xs text-zinc-500 mt-0.5 line-clamp-1">
             {address.fullAddress}
           </p>
-        </td>
-        <td className="px-5 py-4 align-top text-sm text-slate-600">
+        </TableCell>
+        <TableCell className="align-top text-sm text-zinc-600">
           {address.city} / {address.district}
-        </td>
-        <td className="px-5 py-4 align-top">
+        </TableCell>
+        <TableCell className="align-top">
           {address.isActive ? (
             <span className="inline-flex items-center gap-1.5 text-success-700 text-sm font-semibold">
               <span className="h-1.5 w-1.5 rounded-full bg-success-500" />
               Aktif
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 text-slate-500 text-sm font-semibold">
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+            <span className="inline-flex items-center gap-1.5 text-zinc-500 text-sm font-semibold">
+              <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
               Pasif
             </span>
           )}
-        </td>
-        <td className="px-5 py-4 align-top text-right">
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger asChild>
-              <button
-                className="p-1.5 rounded-md hover:bg-slate-200 text-slate-500"
-                aria-label="Aksiyonlar"
-              >
-                <MoreVertical className="h-4 w-4" />
-              </button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.Content
-                align="end"
-                sideOffset={6}
-                className="z-50 min-w-[200px] rounded-xl bg-white p-1.5 shadow-xl border border-slate-200"
-              >
-                <DropdownMenu.Item
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    setEditOpen(true);
-                  }}
-                  className="px-3 py-2 text-sm rounded-lg cursor-pointer outline-none flex items-center gap-2 text-brand-900 hover:bg-brand-50 focus:bg-brand-50"
-                >
-                  <Pencil className="h-4 w-4" />
-                  Düzenle
-                </DropdownMenu.Item>
+        </TableCell>
+        <TableCell className="align-top text-right">
+          <Dropdown>
+            <DropdownButton plain aria-label="Aksiyonlar">
+              <MoreVertical className="h-4 w-4" />
+            </DropdownButton>
+            <DropdownMenu anchor="bottom end">
+              <DropdownItem onClick={() => setEditOpen(true)}>
+                <Pencil data-slot="icon" />
+                <DropdownLabel>Düzenle</DropdownLabel>
+              </DropdownItem>
 
-                {address.isActive && !address.isDefault ? (
-                  <DropdownMenu.Item
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      onSetDefault();
-                    }}
-                    className="px-3 py-2 text-sm rounded-lg cursor-pointer outline-none flex items-center gap-2 text-warning-700 hover:bg-warning-50 focus:bg-warning-50"
-                  >
-                    <Star className="h-4 w-4" />
+              {address.isActive && !address.isDefault ? (
+                <DropdownItem onClick={onSetDefault}>
+                  <Star data-slot="icon" />
+                  <DropdownLabel className="text-warning-700">
                     Default Yap
-                  </DropdownMenu.Item>
-                ) : null}
+                  </DropdownLabel>
+                </DropdownItem>
+              ) : null}
 
-                <DropdownMenu.Item
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    onToggleActive();
-                  }}
-                  className={cn(
-                    "px-3 py-2 text-sm rounded-lg cursor-pointer outline-none flex items-center gap-2",
-                    address.isActive
-                      ? "text-warning-700 hover:bg-warning-50 focus:bg-warning-50"
-                      : "text-success-700 hover:bg-success-50 focus:bg-success-50",
-                  )}
-                >
-                  <Power className="h-4 w-4" />
+              <DropdownItem onClick={onToggleActive}>
+                <Power data-slot="icon" />
+                <DropdownLabel>
                   {address.isActive ? "Pasif Yap" : "Aktifleştir"}
-                </DropdownMenu.Item>
+                </DropdownLabel>
+              </DropdownItem>
 
-                <DropdownMenu.Item
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    onDelete();
-                  }}
-                  className="px-3 py-2 text-sm rounded-lg cursor-pointer outline-none flex items-center gap-2 text-danger-700 hover:bg-danger-50 focus:bg-danger-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Sil
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Root>
-        </td>
-      </tr>
+              <DropdownItem onClick={onDelete}>
+                <Trash2 data-slot="icon" />
+                <DropdownLabel className="text-danger-700">Sil</DropdownLabel>
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+        </TableCell>
+      </TableRow>
 
       <AddressFormModal
         open={editOpen}

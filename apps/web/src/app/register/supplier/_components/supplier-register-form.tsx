@@ -1,6 +1,7 @@
 "use client";
 
 import { InvitationBanner } from "@/components/registration/invitation-banner";
+import { ConnectKycUploads } from "@/components/registration/connect-kyc-uploads";
 import { StepFirmInfo } from "@/components/registration/step-firm-info";
 import { StepSuccess } from "@/components/registration/step-success";
 import { StepUserInfo } from "@/components/registration/step-user-info";
@@ -20,7 +21,13 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { AlertTriangle, ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Handshake,
+  Loader2,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -37,10 +44,15 @@ const SUPPLIER_STEPS: readonly StepperItem[] = [
 
 interface SupplierRegisterFormProps {
   invitationToken?: string;
+  /** "Tedarikçi Ol" — alıcı public profilinden gelen başvuru hedefi. */
+  connectSlug?: string;
+  connectTenantName?: string;
 }
 
 export function SupplierRegisterForm({
   invitationToken,
+  connectSlug,
+  connectTenantName,
 }: SupplierRegisterFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -96,6 +108,9 @@ export function SupplierRegisterForm({
       taxNumber: "",
       taxOffice: "",
       taxCertUrl: "",
+      ticariSicilUrl: "",
+      imzaSirkuleriUrl: "",
+      bankaOnayliIbanUrl: "",
       website: "",
       city: "",
       district: "",
@@ -126,7 +141,12 @@ export function SupplierRegisterForm({
 
   const submitMutation = useMutation({
     mutationFn: (values: FullRegistration) =>
-      submitSupplierApplication(values, usedInviteToken, categoryIds),
+      submitSupplierApplication(
+        values,
+        usedInviteToken,
+        categoryIds,
+        usedInviteToken ? undefined : connectSlug,
+      ),
     onSuccess: (data, variables) => {
       setSubmittedEmail(variables.adminEmail);
       setStep(3);
@@ -151,6 +171,20 @@ export function SupplierRegisterForm({
       if (categoryIds.length === 0) {
         setCategoriesError("En az 1 faaliyet alanı seçmelisiniz");
         return;
+      }
+      // G9 madde 27 — "Tedarikçi Ol" başvurusunda 3 KYC belgesi zorunlu.
+      if (connectSlug) {
+        const v = form.getValues();
+        if (
+          !v.ticariSicilUrl ||
+          !v.imzaSirkuleriUrl ||
+          !v.bankaOnayliIbanUrl
+        ) {
+          toast.error(
+            "Ticari sicil gazetesi, imza sirküleri ve banka onaylı IBAN belgelerini yükleyin",
+          );
+          return;
+        }
       }
       setStep(2);
       return;
@@ -235,6 +269,23 @@ export function SupplierRegisterForm({
         />
       ) : null}
 
+      {/* "Tedarikçi Ol" — hedef alıcı bilgilendirme bandı */}
+      {connectSlug && !invitationToken ? (
+        <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-4 flex items-start gap-3">
+          <Handshake className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-semibold text-brand-900">
+              {connectTenantName ?? "Bir firmaya"} tedarikçi başvurusu
+            </p>
+            <p className="text-slate-600 mt-0.5">
+              Başvurunuz önce doğrulanır, ardından{" "}
+              <strong>{connectTenantName ?? "ilgili firma"}</strong> onayına
+              sunulur. Onaylanırsa bu firmanın tedarikçisi olursunuz.
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="card p-6 md:p-8">
         <form
           onSubmit={(e) => {
@@ -244,33 +295,49 @@ export function SupplierRegisterForm({
           noValidate
         >
           {step === 1 ? (
-            <StepFirmInfo
-              control={form.control}
-              register={form.register}
-              errors={form.formState.errors}
-              watch={form.watch}
-              setValue={form.setValue}
-              categoryIds={categoryIds}
-              onCategoryIdsChange={(ids) => {
-                setCategoryIds(ids);
-                if (categoriesError) setCategoriesError(undefined);
-              }}
-              categoriesError={categoriesError}
-            />
+            <div className="space-y-6">
+              <StepFirmInfo
+                control={form.control}
+                register={form.register}
+                errors={form.formState.errors}
+                watch={form.watch}
+                setValue={form.setValue}
+                categoryIds={categoryIds}
+                onCategoryIdsChange={(ids) => {
+                  setCategoryIds(ids);
+                  if (categoriesError) setCategoriesError(undefined);
+                }}
+                categoriesError={categoriesError}
+              />
+              {connectSlug ? (
+                <ConnectKycUploads
+                  control={form.control}
+                  setValue={form.setValue}
+                  tenantName={connectTenantName}
+                />
+              ) : null}
+            </div>
           ) : null}
           {step === 2 ? (
-            <StepUserInfo
-              control={form.control}
-              register={form.register}
-              errors={form.formState.errors}
-              watch={form.watch}
-              emailPrefilled={!!inviteData?.email}
-              emailPrefillNote={
-                inviteData?.email
-                  ? `Davet ${inviteData.email} adresine geldi — gerekirse değiştirebilirsiniz.`
-                  : undefined
-              }
-            />
+            <div className="space-y-4">
+              <div className="rounded-lg bg-brand-50/60 border border-brand-100 p-3 text-xs text-brand-800">
+                Bu e-posta firma <strong>yöneticisi</strong> olur. Ekip
+                üyelerini davet etme ve banka hesaplarını yönetme yetkisi bu
+                hesapta olur.
+              </div>
+              <StepUserInfo
+                control={form.control}
+                register={form.register}
+                errors={form.formState.errors}
+                watch={form.watch}
+                emailPrefilled={!!inviteData?.email}
+                emailPrefillNote={
+                  inviteData?.email
+                    ? `Davet ${inviteData.email} adresine geldi — gerekirse değiştirebilirsiniz.`
+                    : undefined
+                }
+              />
+            </div>
           ) : null}
           <div className="flex items-center justify-between mt-8 gap-3">
             {step > 1 ? (

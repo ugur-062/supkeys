@@ -29,6 +29,8 @@ interface Props {
   emptyIcon?: LucideIcon;
   /** Verilirse liste sabit yükseklikte kaydırılabilir olur (sayfayı aşağı uzatmaz). */
   maxHeightClass?: string;
+  /** Satır ikon rozetini gizle (ikonsuz, sade liste). */
+  hideIcon?: boolean;
 }
 
 export function ActivityFeed({
@@ -36,6 +38,7 @@ export function ActivityFeed({
   emptyMessage = "Henüz aktivite yok",
   emptyIcon: EmptyIcon = FileText,
   maxHeightClass,
+  hideIcon = false,
 }: Props) {
   if (rows.length === 0) {
     return (
@@ -61,16 +64,18 @@ export function ActivityFeed({
           href={row.href}
           className="flex items-start gap-3 p-3 rounded-lg hover:bg-slate-50 text-left transition group"
         >
-          <div
-            className={cn(
-              "h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0",
-              row.iconBgClass,
-            )}
-          >
-            <row.icon className={cn("h-5 w-5", row.iconClass)} />
-          </div>
+          {hideIcon ? null : (
+            <div
+              className={cn(
+                "h-10 w-10 rounded-xl flex items-center justify-center flex-shrink-0",
+                row.iconBgClass,
+              )}
+            >
+              <row.icon className={cn("h-5 w-5", row.iconClass)} />
+            </div>
+          )}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-brand-900 group-hover:text-brand-700 truncate">
+            <p className="text-sm font-medium text-zinc-900 group-hover:text-zinc-700 truncate">
               {row.label}
             </p>
             {row.sublabel ? (

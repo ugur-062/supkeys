@@ -22,7 +22,7 @@ const ACCENT_CLASSES: Record<NonNullable<KpiCardProps["accent"]>, string> = {
   success: "bg-success-50 text-success-600",
   warning: "bg-warning-50 text-warning-600",
   danger: "bg-danger-50 text-danger-600",
-  indigo: "bg-indigo-50 text-indigo-600",
+  indigo: "bg-zinc-50 text-zinc-600",
 };
 
 export function KpiCard({
@@ -69,9 +69,8 @@ export function KpiCard({
   return (
     <div
       className={cn(
-        "group bg-white rounded-2xl border border-slate-200/60 p-5 flex flex-col gap-4",
-        "shadow-sm transition-[transform,box-shadow] duration-150",
-        "hover:shadow-md hover:-translate-y-0.5",
+        "group bg-white rounded-xl border border-slate-200 p-5 flex flex-col gap-4",
+        "shadow-sm transition-shadow duration-150 hover:shadow-md",
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -90,7 +89,7 @@ export function KpiCard({
         <div className="text-sm text-slate-500">{label}</div>
         <div
           className={cn(
-            "font-display font-bold text-4xl leading-none tabular-nums",
+            "font-semibold text-4xl leading-none tabular-nums",
             isEmpty ? "text-slate-400" : "text-brand-900",
           )}
           style={{ fontFeatureSettings: '"tnum"' }}

@@ -51,19 +51,19 @@ const ACCENT_CLASSES: Record<
   { bg: string; icon: string; hover: string }
 > = {
   brand: {
-    bg: "bg-brand-50",
-    icon: "text-brand-600",
-    hover: "hover:border-brand-300",
+    bg: "bg-zinc-100",
+    icon: "text-zinc-600",
+    hover: "hover:border-zinc-300",
   },
   purple: {
-    bg: "bg-purple-50",
-    icon: "text-purple-600",
-    hover: "hover:border-purple-300",
+    bg: "bg-zinc-100",
+    icon: "text-zinc-600",
+    hover: "hover:border-zinc-300",
   },
   indigo: {
-    bg: "bg-indigo-50",
-    icon: "text-indigo-600",
-    hover: "hover:border-indigo-300",
+    bg: "bg-zinc-100",
+    icon: "text-zinc-600",
+    hover: "hover:border-zinc-300",
   },
   success: {
     bg: "bg-success-50",
@@ -335,7 +335,7 @@ function HealthRow({ overview }: { overview: OverviewStats }) {
             <p className="text-admin-text-muted">Teslim</p>
           </div>
           <div>
-            <p className="text-indigo-700 font-bold text-base">
+            <p className="text-zinc-900 font-bold text-base">
               {overview.emails.openedLast24h}
             </p>
             <p className="text-admin-text-muted">Açılan</p>
@@ -469,7 +469,7 @@ const TENDER_STATUS_META: Record<
   },
   IN_AWARD: {
     label: "Kazandırma",
-    cls: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    cls: "bg-zinc-100 text-zinc-700 border-zinc-200",
   },
   IN_AWARD_APPROVAL: {
     label: "Onayda",

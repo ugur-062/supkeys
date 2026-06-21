@@ -35,17 +35,17 @@ export function EmptyState({
       <div
         className={cn(
           "h-16 w-16 rounded-2xl flex items-center justify-center mb-4",
-          variant === "no-results" ? "bg-slate-100" : "bg-brand-50",
+          variant === "no-results" ? "bg-slate-100" : "bg-zinc-50",
         )}
       >
         <Icon
           className={cn(
             "h-8 w-8",
-            variant === "no-results" ? "text-slate-400" : "text-brand-500",
+            variant === "no-results" ? "text-slate-400" : "text-zinc-500",
           )}
         />
       </div>
-      <h3 className="text-lg font-display font-semibold text-brand-900 mb-2">
+      <h3 className="text-lg font-display font-semibold text-zinc-900 mb-2">
         {title}
       </h3>
       {description ? (

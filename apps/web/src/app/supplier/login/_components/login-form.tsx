@@ -99,7 +99,7 @@ export function SupplierLoginForm() {
           </Label>
           <Link
             href="/supplier/forgot-password"
-            className="text-xs text-brand-700 hover:text-brand-800 hover:underline"
+            className="text-xs text-zinc-700 hover:text-zinc-800 hover:underline"
           >
             Şifremi unuttum
           </Link>

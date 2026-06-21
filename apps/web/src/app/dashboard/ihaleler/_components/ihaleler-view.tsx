@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/catalyst/select";
 import {
   PageHeader,
   Pagination,
@@ -11,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/use-permissions";
 import {
   useTenderBuyers,
-  useTenderCategoryOptions,
   useTenderStats,
   useTenders,
 } from "@/hooks/use-tenant-tenders";
@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 import {
   Building2,
   CalendarRange,
-  FolderTree,
   Plus,
   User as UserIcon,
 } from "lucide-react";
@@ -104,7 +103,6 @@ export function IhalelerView() {
   const sort = searchParams.get("sort") ?? "createdAt:desc";
   const range = parseRange(searchParams.get("range"));
   const createdById = searchParams.get("createdById") ?? "";
-  const categoryId = searchParams.get("categoryId") ?? "";
   const page = parsePage(searchParams.get("page"));
   // V2-6.5 RBAC — "Yeni İhale Aç" tender:create permission'a göre (default'ta BUYER'da var).
   const { has } = usePermissions();
@@ -112,7 +110,6 @@ export function IhalelerView() {
 
   const stats = useTenderStats();
   const buyers = useTenderBuyers();
-  const categoryOptions = useTenderCategoryOptions();
 
   const statusFilter: TenderStatus | undefined =
     tab === "all" ? undefined : (tab as TenderStatus);
@@ -124,11 +121,10 @@ export function IhalelerView() {
       sort,
       range,
       createdById: createdById || undefined,
-      categoryId: categoryId || undefined,
       page,
       pageSize: PAGE_SIZE,
     }),
-    [statusFilter, search, sort, range, createdById, categoryId, page],
+    [statusFilter, search, sort, range, createdById, page],
   );
 
   const list = useTenders(queryParams);
@@ -140,7 +136,6 @@ export function IhalelerView() {
       sort?: string;
       range?: TenderDateRange;
       createdById?: string;
-      categoryId?: string;
       page?: number;
     }) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -155,7 +150,6 @@ export function IhalelerView() {
       if (next.sort !== undefined) setOrDelete("sort", next.sort, undefined);
       if (next.range !== undefined) setOrDelete("range", next.range, DEFAULT_RANGE);
       if (next.createdById !== undefined) setOrDelete("createdById", next.createdById, "");
-      if (next.categoryId !== undefined) setOrDelete("categoryId", next.categoryId, "");
       if (next.page !== undefined) {
         if (next.page <= 1) params.delete("page");
         else params.set("page", String(next.page));
@@ -172,8 +166,7 @@ export function IhalelerView() {
     Boolean(search) ||
     tab !== "all" ||
     range !== DEFAULT_RANGE ||
-    Boolean(createdById) ||
-    Boolean(categoryId);
+    Boolean(createdById);
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
@@ -203,98 +196,92 @@ export function IhalelerView() {
 
       <TenderStatsCards />
 
-      {/* Toolbar — arama + tarih + durum + satın almacı + sıralama + kategori */}
-      <div className="card p-3">
-        <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-3">
-          <SearchInput
-            value={search}
-            onChange={(v) => updateUrl({ search: v })}
-            placeholder="İhale adı veya numarası ara…"
-            className="flex-1 min-w-0 md:max-w-md"
-          />
-          <IconSelect
-            icon={CalendarRange}
-            value={range}
-            onChange={(v) => updateUrl({ range: v as TenderDateRange })}
-            options={RANGE_OPTIONS.map((o) => ({
-              value: o.value,
-              label: o.label,
-            }))}
-            ariaLabel="Tarih aralığı"
-          />
-          <IconSelect
-            icon={Building2}
-            value={tab}
-            onChange={(v) => updateUrl({ tab: v as TabKey })}
-            options={STATUS_OPTIONS.map((o) => ({
-              value: o.value,
-              label:
-                o.value === "all"
-                  ? `Tümü (${stats.data?.total ?? "—"})`
-                  : `${o.label}${getCountSuffix(o.value, stats.data)}`,
-            }))}
-            ariaLabel="Durum filtresi"
-          />
-          <IconSelect
-            icon={UserIcon}
-            value={createdById}
-            onChange={(v) => updateUrl({ createdById: v })}
-            options={[
-              { value: "", label: "Tüm Satın Almacılar" },
-              ...(buyers.data ?? []).map((b) => ({
-                value: b.id,
-                label: `${b.firstName} ${b.lastName} (${b.tenderCount})`,
-              })),
-            ]}
-            ariaLabel="Satın almacı filtresi"
-            loading={buyers.isLoading}
-          />
-          <SortDropdown
-            value={sort}
-            onChange={(v) => updateUrl({ sort: v })}
-            options={SORT_OPTIONS}
-          />
-          <IconSelect
-            icon={FolderTree}
-            value={categoryId}
-            onChange={(v) => updateUrl({ categoryId: v })}
-            options={[
-              { value: "", label: "Tüm Kategoriler" },
-              ...(categoryOptions.data ?? []).map((c) => ({
-                value: c.id,
-                label: `${c.breadcrumb} (${c.tenderCount})`,
-              })),
-            ]}
-            ariaLabel="Kategori filtresi"
-            loading={categoryOptions.isLoading}
-          />
-          <ResultCount
-            total={totalCount}
-            isFiltered={isFiltered}
-            unit="ihale"
-            className="md:ml-auto"
-          />
+      {/* Toolbar — geniş arama + sıralama üstte, filtreler altta (tedarikçi paneliyle aynı) */}
+      <div className="card p-4">
+        <div className="space-y-3">
+          {/* Üst satır: geniş arama + sıralama */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <SearchInput
+              value={search}
+              onChange={(v) => updateUrl({ search: v })}
+              placeholder="İhale adı veya numarası ara…"
+              className="flex-1"
+            />
+            <SortDropdown
+              value={sort}
+              onChange={(v) => updateUrl({ sort: v })}
+              options={SORT_OPTIONS}
+              className="sm:w-44"
+            />
+          </div>
+
+          {/* Alt satır: filtreler + sonuç sayısı */}
+          <div className="flex flex-wrap items-center gap-2">
+            <IconSelect
+              icon={CalendarRange}
+              value={range}
+              onChange={(v) => updateUrl({ range: v as TenderDateRange })}
+              options={RANGE_OPTIONS.map((o) => ({
+                value: o.value,
+                label: o.label,
+              }))}
+              ariaLabel="Tarih aralığı"
+            />
+            <IconSelect
+              icon={Building2}
+              value={tab}
+              onChange={(v) => updateUrl({ tab: v as TabKey })}
+              options={STATUS_OPTIONS.map((o) => ({
+                value: o.value,
+                label:
+                  o.value === "all"
+                    ? `Tümü (${stats.data?.total ?? "—"})`
+                    : `${o.label}${getCountSuffix(o.value, stats.data)}`,
+              }))}
+              ariaLabel="Durum filtresi"
+            />
+            <IconSelect
+              icon={UserIcon}
+              value={createdById}
+              onChange={(v) => updateUrl({ createdById: v })}
+              options={[
+                { value: "", label: "Tüm Satın Almacılar" },
+                ...(buyers.data ?? []).map((b) => ({
+                  value: b.id,
+                  label: `${b.firstName} ${b.lastName} (${b.tenderCount})`,
+                })),
+              ]}
+              ariaLabel="Satın almacı filtresi"
+              loading={buyers.isLoading}
+            />
+            <ResultCount
+              total={totalCount}
+              isFiltered={isFiltered}
+              unit="ihale"
+              className="ml-auto"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="card overflow-hidden">
-        <TendersTable
-          items={items}
-          isLoading={list.isLoading}
-          isError={list.isError}
-          pageSize={PAGE_SIZE}
-          onRetry={() => list.refetch()}
+      <TendersTable
+        items={items}
+        isLoading={list.isLoading}
+        isError={list.isError}
+        pageSize={PAGE_SIZE}
+        onRetry={() => list.refetch()}
+      />
+
+      {list.data && list.data.pagination.totalPages > 1 && (
+        <Pagination
+          variant="bare"
+          page={list.data.pagination.page}
+          totalPages={list.data.pagination.totalPages}
+          total={list.data.pagination.total}
+          pageSize={list.data.pagination.pageSize}
+          onPageChange={(p) => updateUrl({ page: p })}
         />
-        {list.data && list.data.pagination.totalPages > 1 && (
-          <Pagination
-            page={list.data.pagination.page}
-            totalPages={list.data.pagination.totalPages}
-            total={list.data.pagination.total}
-            pageSize={list.data.pagination.pageSize}
-            onPageChange={(p) => updateUrl({ page: p })}
-          />
-        )}
-      </div>
+      )}
     </div>
   );
 }
@@ -320,14 +307,13 @@ function getCountSuffix(
 }
 
 function IconSelect({
-  icon: Icon,
   value,
   onChange,
   options,
   ariaLabel,
   loading,
 }: {
-  icon: typeof CalendarRange;
+  icon?: typeof CalendarRange;
   value: string;
   onChange: (v: string) => void;
   options: Array<{ value: string; label: string }>;
@@ -335,26 +321,19 @@ function IconSelect({
   loading?: boolean;
 }) {
   return (
-    <div className="relative w-full md:w-auto">
-      <Icon className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label={ariaLabel}
-        disabled={loading}
-        className={cn(
-          "pl-9 pr-8 py-2 text-sm rounded-lg appearance-none bg-white cursor-pointer w-full md:w-auto md:min-w-[160px]",
-          "border border-surface-border text-brand-900",
-          "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-        )}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </div>
+    <Select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label={ariaLabel}
+      disabled={loading}
+      className="w-full md:w-auto md:min-w-[160px]"
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </Select>
   );
 }
 

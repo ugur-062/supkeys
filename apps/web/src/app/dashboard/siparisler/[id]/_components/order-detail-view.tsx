@@ -1,7 +1,14 @@
 "use client";
 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { MessageDialog } from "@/components/messaging/message-dialog";
-import { CancelOrderModal } from "@/components/orders/cancel-order-modal";
 import { CompleteOrderModal } from "@/components/orders/complete-order-modal";
 import { OrderTimeline } from "@/components/orders/order-timeline";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
@@ -10,7 +17,6 @@ import { Button } from "@/components/ui/button";
 import { ReviewCard } from "./review-card";
 import { useTenderOwnership } from "@/hooks/use-tender-ownership";
 import {
-  useCancelOrder,
   useCompleteOrder,
   useDownloadTenantOrderPdf,
   useOrderDetail,
@@ -22,7 +28,6 @@ import { tr } from "date-fns/locale";
 import {
   AlertCircle,
   ArrowLeft,
-  Ban,
   Building2,
   CheckCircle2,
   ChevronRight,
@@ -49,6 +54,7 @@ function getErrorMessage(err: unknown, fallback: string): string {
     if (Array.isArray(data?.message)) return data.message.join(", ");
     return data?.message ?? fallback;
   }
+  if (err instanceof Error && err.message) return err.message;
   return fallback;
 }
 
@@ -116,8 +122,7 @@ export function OrderDetailView({ id }: { id: string }) {
 
 function OrderDetailContent({ order }: { order: OrderDetail }) {
   const ownership = useTenderOwnership(order.tender.createdBy);
-  const hasBankInfo =
-    !!order.bankAccountHolder || !!order.bankIban || !!order.invoiceDate;
+  const hasBankInfo = !!order.bankAccountHolder || !!order.bankIban;
 
   return (
     <div className="max-w-7xl mx-auto space-y-5">
@@ -187,19 +192,12 @@ function OrderDetailContent({ order }: { order: OrderDetail }) {
 
 function TenantOrderActions({ order }: { order: OrderDetail }) {
   const [completeOpen, setCompleteOpen] = useState(false);
-  const [cancelOpen, setCancelOpen] = useState(false);
 
   const completeMutation = useCompleteOrder();
-  const cancelMutation = useCancelOrder();
 
-  const isCancellable =
-    order.status === "PENDING" ||
-    order.status === "ACCEPTED" ||
-    order.status === "IN_DELIVERY";
-
-  // PENDING'de alıcı sadece bekler + iptal edebilir;
-  // ACCEPTED'de tedarikçinin gönderim başlatması beklenir + iptal edilebilir;
-  // IN_DELIVERY'de "Teslim Aldım" + iptal;
+  // PENDING'de alıcı tedarikçinin onayını bekler;
+  // ACCEPTED'de tedarikçinin gönderim başlatması beklenir;
+  // IN_DELIVERY'de "Teslim Aldım";
   // COMPLETED / CANCELLED / REJECTED'da aksiyon yok (banner yeterli).
   if (
     order.status !== "PENDING" &&
@@ -229,7 +227,7 @@ function TenantOrderActions({ order }: { order: OrderDetail }) {
         ) : null}
         {order.status === "IN_DELIVERY" ? (
           <div className="flex items-center gap-2 text-sm text-slate-600 min-w-0">
-            <Clock className="h-4 w-4 text-indigo-500 flex-shrink-0" />
+            <Clock className="h-4 w-4 text-zinc-500 flex-shrink-0" />
             <span>
               Gönderildi — kalemler ulaştığında &quot;Teslim Aldım&quot;a basın.
             </span>
@@ -272,16 +270,6 @@ function TenantOrderActions({ order }: { order: OrderDetail }) {
               Teslim Aldım
             </Button>
           ) : null}
-          {isCancellable ? (
-            <Button
-              variant="ghost"
-              onClick={() => setCancelOpen(true)}
-              className="!text-danger-700 hover:!bg-danger-50"
-            >
-              <Ban className="w-4 h-4" />
-              Siparişi İptal Et
-            </Button>
-          ) : null}
         </div>
       </div>
 
@@ -300,26 +288,6 @@ function TenantOrderActions({ order }: { order: OrderDetail }) {
               },
               onError: (err) =>
                 toast.error(getErrorMessage(err, "Tamamlanamadı")),
-            },
-          )
-        }
-      />
-
-      <CancelOrderModal
-        open={cancelOpen}
-        onClose={() => setCancelOpen(false)}
-        loading={cancelMutation.isPending}
-        orderNumber={order.orderNumber}
-        onConfirm={(reason) =>
-          cancelMutation.mutate(
-            { id: order.id, reason },
-            {
-              onSuccess: () => {
-                toast.success("Sipariş iptal edildi");
-                setCancelOpen(false);
-              },
-              onError: (err) =>
-                toast.error(getErrorMessage(err, "İptal edilemedi")),
             },
           )
         }
@@ -357,7 +325,7 @@ function Header({ order }: { order: OrderDetail }) {
   const [messageOpen, setMessageOpen] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/60 via-white to-indigo-50/40 p-6">
+    <div className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/60 via-white to-zinc-50/40 p-6">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-start gap-3 min-w-0">
           <div className="w-12 h-12 rounded-xl bg-brand-100 flex items-center justify-center flex-shrink-0">
@@ -367,7 +335,7 @@ function Header({ order }: { order: OrderDetail }) {
             <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">
               {order.orderNumber}
             </p>
-            <h1 className="font-display font-bold text-2xl text-brand-900 mt-0.5">
+            <h1 className="font-semibold text-2xl text-brand-900 mt-0.5">
               {order.tender.title}
             </h1>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -504,7 +472,7 @@ function SupplierCard({ order }: { order: OrderDetail }) {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-5">
       <div className="flex items-start gap-3 mb-4">
-        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-500 to-indigo-500 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm shadow-sm">
+        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-500 to-zinc-500 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm shadow-sm">
           {initials || <Building2 className="w-5 h-5" />}
         </div>
         <div className="min-w-0">
@@ -676,16 +644,6 @@ function BankInvoiceCard({ order }: { order: OrderDetail }) {
           </p>
         </div>
       ) : null}
-      {order.invoiceDate ? (
-        <div>
-          <p className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
-            Fatura Kesim Tarihi
-          </p>
-          <p className="text-sm text-brand-900 font-medium mt-0.5">
-            {format(new Date(order.invoiceDate), "d MMMM yyyy", { locale: tr })}
-          </p>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -708,73 +666,56 @@ function TenderLink({ order }: { order: OrderDetail }) {
 
 function ItemsTable({ order }: { order: OrderDetail }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                Kalem
-              </th>
-              <th className="text-right px-4 py-3 font-semibold text-slate-700 w-32">
-                Miktar
-              </th>
-              <th className="text-right px-4 py-3 font-semibold text-slate-700 w-40">
-                Birim Fiyat
-              </th>
-              <th className="text-right px-4 py-3 font-semibold text-slate-700 w-44">
-                Toplam
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {order.bid.items.map((bi) => (
-              <tr
-                key={bi.id}
-                className="border-b border-slate-100 last:border-0"
-              >
-                <td className="px-4 py-3 align-top">
-                  <p className="font-medium text-slate-900">
-                    {bi.tenderItem.name}
+    <div className="bg-white ring-1 ring-zinc-950/5 rounded-xl px-3 [--gutter:--spacing(4)]">
+      <Table dense>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Kalem</TableHeader>
+            <TableHeader className="text-right">Miktar</TableHeader>
+            <TableHeader className="text-right">Birim Fiyat</TableHeader>
+            <TableHeader className="text-right">Toplam</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {order.bid.items.map((bi) => (
+            <TableRow key={bi.id}>
+              <TableCell className="align-top">
+                <p className="font-medium text-zinc-900">
+                  {bi.tenderItem.name}
+                </p>
+                {bi.tenderItem.materialCode ? (
+                  <p className="text-xs text-zinc-500 font-mono mt-1">
+                    {bi.tenderItem.materialCode}
                   </p>
-                  {bi.tenderItem.materialCode ? (
-                    <p className="text-xs text-slate-500 font-mono mt-1">
-                      {bi.tenderItem.materialCode}
-                    </p>
-                  ) : null}
-                </td>
-                <td className="px-4 py-3 text-right text-slate-600 align-top">
-                  {Number(bi.tenderItem.quantity).toLocaleString("tr-TR")}{" "}
-                  {bi.tenderItem.unit}
-                </td>
-                <td className="px-4 py-3 text-right tabular-nums align-top">
-                  {bi.unitPrice
-                    ? `${bi.currency} ${formatNumber(bi.unitPrice)}`
-                    : "—"}
-                </td>
-                <td className="px-4 py-3 text-right font-bold text-brand-900 tabular-nums align-top">
-                  {bi.totalPrice
-                    ? formatMoney(bi.totalPrice, bi.currency)
-                    : "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot className="bg-brand-50 border-t-2 border-brand-300">
-            <tr>
-              <td
-                colSpan={3}
-                className="px-4 py-3 text-right font-bold text-brand-900"
-              >
-                TOPLAM
-              </td>
-              <td className="px-4 py-3 text-right font-bold text-brand-900 text-lg tabular-nums">
-                {formatMoney(order.totalAmount, order.currency)}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+                ) : null}
+              </TableCell>
+              <TableCell className="text-right text-zinc-600 align-top">
+                {Number(bi.tenderItem.quantity).toLocaleString("tr-TR")}{" "}
+                {bi.tenderItem.unit}
+              </TableCell>
+              <TableCell className="text-right tabular-nums align-top">
+                {bi.unitPrice
+                  ? `${bi.currency} ${formatNumber(bi.unitPrice)}`
+                  : "—"}
+              </TableCell>
+              <TableCell className="text-right font-bold text-zinc-900 tabular-nums align-top">
+                {bi.totalPrice ? formatMoney(bi.totalPrice, bi.currency) : "—"}
+              </TableCell>
+            </TableRow>
+          ))}
+          <TableRow className="bg-zinc-50">
+            <TableCell
+              colSpan={3}
+              className="text-right font-bold text-zinc-900"
+            >
+              TOPLAM
+            </TableCell>
+            <TableCell className="text-right font-bold text-zinc-900 text-lg tabular-nums">
+              {formatMoney(order.totalAmount, order.currency)}
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
     </div>
   );
 }

@@ -48,8 +48,8 @@ export function MessageAttachment({ attachmentId, isMine, surface }: Props) {
     setFilename("Dosya");
   };
 
-  const textColor = isMine ? "text-white" : "text-brand-700";
-  const hoverBg = isMine ? "hover:bg-white/10" : "hover:bg-slate-50";
+  const textColor = isMine ? "text-white" : "text-zinc-700";
+  const hoverBg = isMine ? "hover:bg-white/10" : "hover:bg-zinc-50";
 
   return (
     <button

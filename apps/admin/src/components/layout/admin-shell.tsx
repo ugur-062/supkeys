@@ -1,32 +1,48 @@
 "use client";
 
 import { AdminLogo } from "@/components/brand/admin-logo";
-import { Button } from "@/components/ui/button";
+import { Avatar } from "@/components/catalyst/avatar";
+import { Badge } from "@/components/catalyst/badge";
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from "@/components/catalyst/dropdown";
+import { Navbar, NavbarSpacer } from "@/components/catalyst/navbar";
+import {
+  Sidebar,
+  SidebarBody,
+  SidebarFooter,
+  SidebarHeader,
+  SidebarHeading,
+  SidebarItem,
+  SidebarLabel,
+  SidebarSection,
+} from "@/components/catalyst/sidebar";
+import { SidebarLayout } from "@/components/catalyst/sidebar-layout";
 import { useAdminAuth, useAdminLogout } from "@/hooks/use-admin-auth";
 import { useBuyerApplicationStats } from "@/hooks/use-buyer-applications";
 import { useDemoRequestStats } from "@/hooks/use-demo-requests";
 import { useSupplierApplicationStats } from "@/hooks/use-supplier-applications";
-import { cn } from "@/lib/utils";
+import {
+  ArrowRightStartOnRectangleIcon,
+  ChevronUpIcon,
+} from "@heroicons/react/20/solid";
 import {
   Building2,
-  ClipboardList,
   LayoutDashboard,
-  LogOut,
   Mail,
   Settings,
   Truck,
   UserCog,
 } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-type BadgeKey =
-  | "demoRequestsNew"
-  | "buyerAppsReview"
-  | "supplierAppsReview";
+type BadgeKey = "demoRequestsNew" | "buyerAppsReview" | "supplierAppsReview";
 
 interface NavLeaf {
-  type?: "leaf";
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
@@ -36,29 +52,27 @@ interface NavLeaf {
   badgeKey?: BadgeKey;
 }
 
-interface NavGroup {
-  type: "group";
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  children: NavLeaf[];
+interface NavSection {
+  heading?: string;
+  items: NavLeaf[];
 }
 
-type NavItem = NavLeaf | NavGroup;
-
-const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+const NAV_SECTIONS: NavSection[] = [
   {
-    label: "Demo Talepleri",
-    href: "/admin/demo-requests",
-    icon: UserCog,
-    activeMatch: "/admin/demo-requests",
-    badgeKey: "demoRequestsNew",
+    items: [
+      { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+      {
+        label: "Demo Talepleri",
+        href: "/admin/demo-requests",
+        icon: UserCog,
+        activeMatch: "/admin/demo-requests",
+        badgeKey: "demoRequestsNew",
+      },
+    ],
   },
   {
-    type: "group",
-    label: "Başvurular",
-    icon: ClipboardList,
-    children: [
+    heading: "Başvurular",
+    items: [
       {
         label: "Alıcı Başvuruları",
         href: "/admin/buyer-applications",
@@ -76,80 +90,41 @@ const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    label: "E-posta Logları",
-    href: "/admin/email-logs",
-    icon: Mail,
-    activeMatch: "/admin/email-logs",
-  },
-  {
-    label: "Müşteri Firmaları",
-    href: "/admin/tenants",
-    icon: Building2,
-  },
-  {
-    label: "Tedarikçiler",
-    href: "/admin/suppliers",
-    icon: Truck,
-  },
-  {
-    label: "Ayarlar",
-    href: "/admin/settings",
-    icon: Settings,
-    disabled: true,
+    heading: "Yönetim",
+    items: [
+      {
+        label: "E-posta Logları",
+        href: "/admin/email-logs",
+        icon: Mail,
+        activeMatch: "/admin/email-logs",
+      },
+      {
+        label: "Müşteri Firmaları",
+        href: "/admin/tenants",
+        icon: Building2,
+        activeMatch: "/admin/tenants",
+      },
+      {
+        label: "Tedarikçiler",
+        href: "/admin/suppliers",
+        icon: Truck,
+        activeMatch: "/admin/suppliers",
+      },
+      {
+        label: "Ayarlar",
+        href: "/admin/settings",
+        icon: Settings,
+        disabled: true,
+      },
+    ],
   },
 ];
 
-function CountBadge({ count }: { count: number }) {
-  if (count <= 0) return null;
-  return (
-    <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-danger-500 text-white text-[11px] font-semibold">
-      {count}
-    </span>
-  );
+function initialsOf(first?: string | null, last?: string | null) {
+  return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
 }
 
-interface NavLeafProps {
-  item: NavLeaf;
-  pathname: string | null;
-  badgeCount: number;
-  /** Group altındaki child mı? — sol padding farklı */
-  nested?: boolean;
-}
-
-function NavLeafItem({ item, pathname, badgeCount, nested }: NavLeafProps) {
-  const Icon = item.icon;
-  const matchPath = item.activeMatch ?? item.href;
-  const active = !!pathname && pathname.startsWith(matchPath);
-
-  const baseClasses = cn(
-    "admin-sidebar-item",
-    active && "admin-sidebar-item-active",
-    item.disabled && "opacity-50 cursor-not-allowed",
-    nested && "pl-8",
-  );
-
-  if (item.disabled) {
-    return (
-      <span className={baseClasses} title="Yakında" aria-disabled>
-        <Icon className="w-4 h-4" />
-        <span className="flex-1">{item.label}</span>
-        <span className="text-[10px] text-admin-sidebar-muted uppercase tracking-wide">
-          Yakında
-        </span>
-      </span>
-    );
-  }
-
-  return (
-    <Link href={item.href} className={baseClasses}>
-      <Icon className="w-4 h-4" />
-      <span className="flex-1">{item.label}</span>
-      <CountBadge count={badgeCount} />
-    </Link>
-  );
-}
-
-export function AdminShell({ children }: { children: React.ReactNode }) {
+function AdminSidebar() {
   const { admin } = useAdminAuth();
   const logout = useAdminLogout();
   const pathname = usePathname();
@@ -158,10 +133,6 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   const buyerStats = useBuyerApplicationStats();
   const supplierStats = useSupplierApplicationStats();
 
-  const initials = admin
-    ? `${admin.firstName[0] ?? ""}${admin.lastName[0] ?? ""}`.toUpperCase()
-    : "??";
-
   const counts: Record<BadgeKey, number> = {
     demoRequestsNew: demoStats.data?.byStatus.NEW ?? 0,
     buyerAppsReview: buyerStats.data?.byStatus.PENDING_REVIEW ?? 0,
@@ -169,95 +140,105 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen flex bg-admin-bg">
-      <aside
-        className="w-60 shrink-0 bg-admin-sidebar text-admin-sidebar-text flex flex-col"
-        style={{ boxShadow: "var(--shadow-sidebar)" }}
-      >
-        <div className="px-5 py-5 border-b border-white/5">
-          <AdminLogo variant="light" size="md" badge priority />
-        </div>
+    <Sidebar>
+      <SidebarHeader>
+        <AdminLogo variant="dark" size="md" badge priority />
+      </SidebarHeader>
 
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
-          {NAV_ITEMS.map((item) => {
-            if (item.type === "group") {
+      <SidebarBody>
+        {NAV_SECTIONS.map((section, i) => (
+          <SidebarSection key={section.heading ?? `section-${i}`}>
+            {section.heading ? (
+              <SidebarHeading>{section.heading}</SidebarHeading>
+            ) : null}
+            {section.items.map((item) => {
               const Icon = item.icon;
-              const groupTotal = item.children.reduce(
-                (sum, c) => sum + (c.badgeKey ? counts[c.badgeKey] : 0),
-                0,
-              );
+              const matchPath = item.activeMatch ?? item.href;
+              const active = !!pathname && pathname.startsWith(matchPath);
+              const count = item.badgeKey ? counts[item.badgeKey] : 0;
+
+              if (item.disabled) {
+                return (
+                  <SidebarItem
+                    key={item.href}
+                    className="cursor-not-allowed opacity-50"
+                    aria-disabled
+                  >
+                    <Icon data-slot="icon" />
+                    <SidebarLabel>{item.label}</SidebarLabel>
+                    <Badge className="ml-auto" color="zinc">
+                      Yakında
+                    </Badge>
+                  </SidebarItem>
+                );
+              }
+
               return (
-                <div key={item.label} className="pt-2">
-                  <div className="flex items-center gap-3 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-admin-sidebar-muted">
-                    <Icon className="w-3.5 h-3.5" />
-                    <span className="flex-1">{item.label}</span>
-                    <CountBadge count={groupTotal} />
-                  </div>
-                  <div className="space-y-0.5 mt-1">
-                    {item.children.map((child) => (
-                      <NavLeafItem
-                        key={child.href}
-                        item={child}
-                        pathname={pathname}
-                        badgeCount={
-                          child.badgeKey ? counts[child.badgeKey] : 0
-                        }
-                        nested
-                      />
-                    ))}
-                  </div>
-                </div>
+                <SidebarItem key={item.href} href={item.href} current={active}>
+                  <Icon data-slot="icon" />
+                  <SidebarLabel>{item.label}</SidebarLabel>
+                  {count > 0 ? (
+                    <Badge className="ml-auto" color="red">
+                      {count}
+                    </Badge>
+                  ) : null}
+                </SidebarItem>
               );
-            }
+            })}
+          </SidebarSection>
+        ))}
+      </SidebarBody>
 
-            return (
-              <NavLeafItem
-                key={item.href}
-                item={item}
-                pathname={pathname}
-                badgeCount={item.badgeKey ? counts[item.badgeKey] : 0}
-              />
-            );
-          })}
-        </nav>
-
-        <div className="px-4 py-4 border-t border-white/5 text-xs text-admin-sidebar-muted">
-          © 2026 Supkeys
-          <div className="mt-1 font-mono text-[10px] opacity-70">
-            v0.0.1 — admin
-          </div>
-        </div>
-      </aside>
-
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-admin-surface border-b border-admin-border px-6 py-3 flex items-center justify-between">
-          <div className="text-sm text-admin-text-muted">
-            Platform yönetim paneli
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden md:flex flex-col items-end leading-tight">
-              <span className="text-sm font-medium text-admin-text">
-                {admin?.firstName} {admin?.lastName}
+      <SidebarFooter>
+        {admin ? (
+          <Dropdown>
+            <DropdownButton as={SidebarItem}>
+              <span className="flex min-w-0 items-center gap-3">
+                <Avatar
+                  square
+                  initials={initialsOf(admin.firstName, admin.lastName)}
+                  className="size-8 bg-zinc-900 text-white"
+                  alt=""
+                />
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-zinc-950">
+                    {admin.firstName} {admin.lastName}
+                  </span>
+                  <span className="block truncate text-xs text-zinc-500">
+                    {admin.role}
+                  </span>
+                </span>
               </span>
-              <span className="text-xs text-admin-text-muted">
-                {admin?.role}
-              </span>
-            </div>
-            <div
-              className="w-9 h-9 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-semibold text-sm"
-              aria-hidden
-            >
-              {initials || "?"}
-            </div>
-            <Button variant="secondary" size="sm" onClick={logout}>
-              <LogOut className="w-4 h-4" />
-              Çıkış
-            </Button>
-          </div>
-        </header>
+              <ChevronUpIcon data-slot="icon" />
+            </DropdownButton>
+            <DropdownMenu className="min-w-64" anchor="top start">
+              <DropdownItem onClick={() => logout()}>
+                <ArrowRightStartOnRectangleIcon data-slot="icon" />
+                <DropdownLabel>Çıkış</DropdownLabel>
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+        ) : null}
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
 
-        <main className="flex-1 px-6 py-8 overflow-auto">{children}</main>
-      </div>
-    </div>
+function AdminNavbar() {
+  return (
+    <Navbar>
+      <span className="truncate text-sm font-semibold text-zinc-950">
+        Supkeys Admin
+      </span>
+      <NavbarSpacer />
+    </Navbar>
+  );
+}
+
+export function AdminShell({ children }: { children: React.ReactNode }) {
+  return (
+    <SidebarLayout sidebar={<AdminSidebar />} navbar={<AdminNavbar />}>
+      {children}
+    </SidebarLayout>
   );
 }

@@ -46,11 +46,11 @@ export function SupplierForgotPasswordForm() {
     return (
       <div className="space-y-4 text-center py-4">
         <CheckCircle2 className="w-12 h-12 mx-auto text-emerald-500" />
-        <h2 className="font-display font-semibold text-lg text-brand-900">
+        <h2 className="font-display font-semibold text-lg text-zinc-900">
           E-posta gönderildi
         </h2>
         <p className="text-sm text-slate-600">
-          <span className="font-medium text-brand-900">{sentTo}</span> adresine
+          <span className="font-medium text-zinc-900">{sentTo}</span> adresine
           bir şifre sıfırlama bağlantısı gönderdik. Linkin geçerlilik süresi
           1 saat.
         </p>

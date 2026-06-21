@@ -1,6 +1,15 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/catalyst/button";
+import { Checkbox } from "@/components/catalyst/checkbox";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/catalyst/dialog";
+import { Radio, RadioGroup } from "@/components/catalyst/radio";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,8 +26,7 @@ import { USER_ROLE_LABELS } from "@/lib/users/labels";
 import type { TenantUserListItem } from "@/lib/users/types";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as Dialog from "@radix-ui/react-dialog";
-import { AlertCircle, AlertTriangle, Pencil, RotateCcw, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Pencil, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -147,51 +155,25 @@ export function EditUserModal({ user, onClose }: Props) {
   };
 
   return (
-    <Dialog.Root
+    <Dialog
       open={open}
-      onOpenChange={(o) => {
-        if (!o && !updateMutation.isPending) onClose();
+      onClose={() => {
+        if (!updateMutation.isPending) onClose();
       }}
+      size="2xl"
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-[60] bg-slate-900/60" />
-        <Dialog.Content
-          className={cn(
-            "fixed left-1/2 top-1/2 z-[60] -translate-x-1/2 -translate-y-1/2",
-            "flex max-h-[90vh] w-[calc(100vw-2rem)] max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl outline-none",
-          )}
-        >
-          <header className="flex items-start justify-between gap-3 border-b border-surface-border px-5 py-4">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50">
-                <Pencil className="h-5 w-5 text-brand-600" />
-              </div>
-              <div>
-                <Dialog.Title className="font-display text-lg font-bold text-brand-900">
-                  Kullanıcıyı Düzenle
-                </Dialog.Title>
-                <Dialog.Description className="mt-0.5 text-sm text-slate-500">
-                  {user.email}
-                </Dialog.Description>
-              </div>
-            </div>
-            <Dialog.Close asChild>
-              <button
-                type="button"
-                aria-label="Kapat"
-                disabled={updateMutation.isPending}
-                className="flex-shrink-0 rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-surface-muted hover:text-slate-600 disabled:opacity-40"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </Dialog.Close>
-          </header>
+      <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-zinc-100">
+            <Pencil className="h-5 w-5 text-zinc-700" />
+          </div>
+          <div>
+            <DialogTitle>Kullanıcıyı Düzenle</DialogTitle>
+            <DialogDescription>{user.email}</DialogDescription>
+          </div>
+        </div>
 
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="flex-1 space-y-5 overflow-y-auto px-5 py-5"
-            noValidate
-          >
+        <DialogBody className="space-y-5">
             <div className="grid grid-cols-2 gap-3">
               <Field error={form.formState.errors.firstName?.message}>
                 <Label htmlFor="edit-firstName">Ad</Label>
@@ -221,7 +203,11 @@ export function EditUserModal({ user, onClose }: Props) {
 
             <Field>
               <Label>Rol</Label>
-              <div className="mt-1 space-y-2">
+              <RadioGroup
+                value={role}
+                onChange={(v) => handleRoleChange(v as UserRole)}
+                className="mt-1 space-y-2"
+              >
                 {ROLES.map((r) => {
                   const meta = USER_ROLE_LABELS[r];
                   const isSelected = role === r;
@@ -233,7 +219,7 @@ export function EditUserModal({ user, onClose }: Props) {
                     buyerSeats.data !== undefined &&
                     buyerSeats.data.used >= buyerSeats.data.limit;
                   return (
-                    <label
+                    <div
                       key={r}
                       title={
                         seatsBlockBuyer
@@ -241,24 +227,21 @@ export function EditUserModal({ user, onClose }: Props) {
                           : undefined
                       }
                       className={cn(
-                        "flex gap-3 rounded-lg border p-2.5 text-sm transition",
+                        "flex gap-3 rounded-lg p-2.5 text-sm transition ring-1",
                         seatsBlockBuyer
-                          ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-60"
+                          ? "ring-zinc-950/10 bg-zinc-50 opacity-60"
                           : isSelected
-                            ? "cursor-pointer border-brand-400 bg-brand-50/40"
-                            : "cursor-pointer border-slate-200 bg-white hover:border-brand-300",
+                            ? "ring-2 ring-zinc-900 bg-zinc-50"
+                            : "ring-zinc-950/10 bg-white",
                       )}
                     >
-                      <input
-                        type="radio"
+                      <Radio
                         value={r}
-                        checked={isSelected}
                         disabled={seatsBlockBuyer}
-                        onChange={() => handleRoleChange(r)}
-                        className="mt-0.5 h-4 w-4 text-brand-600 disabled:cursor-not-allowed"
+                        className="mt-0.5"
                       />
                       <span>
-                        <span className="font-semibold text-brand-900">
+                        <span className="font-semibold text-zinc-900">
                           {meta.label}
                           {seatsBlockBuyer ? (
                             <span className="ml-1 text-[10px] font-semibold uppercase text-warning-700">
@@ -266,14 +249,14 @@ export function EditUserModal({ user, onClose }: Props) {
                             </span>
                           ) : null}
                         </span>
-                        <span className="mt-0.5 block text-xs text-slate-500">
+                        <span className="mt-0.5 block text-xs text-zinc-500">
                           {meta.description}
                         </span>
                       </span>
-                    </label>
+                    </div>
                   );
                 })}
-              </div>
+              </RadioGroup>
             </Field>
 
             {/* V2-6.5 — BUYER kontenjan göstergesi (sadece BUYER seçildiğinde) */}
@@ -348,7 +331,7 @@ export function EditUserModal({ user, onClose }: Props) {
                           item.key,
                         );
                         return (
-                          <label
+                          <div
                             key={item.key}
                             title={
                               forbidden
@@ -357,29 +340,26 @@ export function EditUserModal({ user, onClose }: Props) {
                             }
                             className={cn(
                               "flex items-start gap-2 rounded px-2 py-1.5",
-                              forbidden
-                                ? "cursor-not-allowed opacity-50"
-                                : "cursor-pointer hover:bg-white",
+                              forbidden ? "opacity-50" : "hover:bg-white",
                             )}
                           >
-                            <input
-                              type="checkbox"
+                            <Checkbox
                               checked={isChecked && !forbidden}
                               disabled={forbidden}
                               onChange={() => {
                                 if (forbidden) return;
                                 togglePerm(item.key);
                               }}
-                              className="mt-0.5 h-4 w-4 rounded text-brand-600 disabled:cursor-not-allowed"
+                              className="mt-0.5"
                             />
                             <span
                               className={cn(
                                 "text-sm",
                                 forbidden
-                                  ? "text-slate-400 line-through"
+                                  ? "text-zinc-400 line-through"
                                   : isChecked
-                                    ? "font-medium text-slate-900"
-                                    : "text-slate-600",
+                                    ? "font-medium text-zinc-900"
+                                    : "text-zinc-600",
                               )}
                             >
                               {item.label}
@@ -397,7 +377,7 @@ export function EditUserModal({ user, onClose }: Props) {
                                 </span>
                               ) : null}
                             </span>
-                          </label>
+                          </div>
                         );
                       })}
                     </div>
@@ -405,31 +385,20 @@ export function EditUserModal({ user, onClose }: Props) {
                 ))}
               </div>
             </div>
-          </form>
+        </DialogBody>
 
-          <footer className="flex items-center gap-2 border-t border-surface-border px-5 py-4">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onClose}
-              disabled={updateMutation.isPending}
-              className="flex-1"
-            >
-              Vazgeç
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={form.handleSubmit(onSubmit)}
-              loading={updateMutation.isPending}
-              disabled={updateMutation.isPending || buyerSeatsFullForPromotion}
-              className="flex-1"
-            >
-              Kaydet
-            </Button>
-          </footer>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+        <DialogActions>
+          <Button plain onClick={onClose} disabled={updateMutation.isPending}>
+            Vazgeç
+          </Button>
+          <Button
+            type="submit"
+            disabled={updateMutation.isPending || buyerSeatsFullForPromotion}
+          >
+            Kaydet
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   );
 }

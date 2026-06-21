@@ -1,14 +1,19 @@
 "use client";
 
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/catalyst/dialog";
+import { Radio, RadioGroup } from "@/components/catalyst/radio";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useUpdateDemoRequest } from "@/hooks/use-demo-requests";
 import type { DemoRequestStatus } from "@/lib/demo-requests/types";
-import { cn } from "@/lib/utils";
-import * as Dialog from "@radix-ui/react-dialog";
 import axios from "axios";
-import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -106,142 +111,91 @@ export function RejectDemoModal({
   };
 
   return (
-    <Dialog.Root
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-slate-900/60 z-[60]" />
-        <Dialog.Content
-          className={cn(
-            "fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[60]",
-            "w-full max-w-md bg-white rounded-2xl shadow-2xl outline-none",
-          )}
-        >
-          <header className="px-5 py-4 border-b border-admin-border flex items-start justify-between gap-3">
-            <div>
-              <Dialog.Title className="font-display font-bold text-lg text-admin-text">
-                Talebi Reddet
-              </Dialog.Title>
-              <Dialog.Description className="text-sm text-admin-text-muted mt-0.5">
-                <span className="font-medium text-admin-text">
-                  {companyName}
-                </span>{" "}
-                talebi reddediliyor
-              </Dialog.Description>
-            </div>
-            <Dialog.Close asChild>
-              <button
-                aria-label="Kapat"
-                className="p-1.5 rounded-lg hover:bg-surface-muted text-admin-text-muted hover:text-admin-text transition-colors shrink-0"
+    <Dialog open={open} onClose={onClose} size="md">
+      <DialogTitle>Talebi Reddet</DialogTitle>
+      <DialogDescription>
+        <span className="font-medium text-zinc-950">{companyName}</span> talebi
+        reddediliyor
+      </DialogDescription>
+      <form onSubmit={handleSubmit}>
+        <DialogBody className="space-y-4">
+          <RadioGroup
+            value={reason}
+            onChange={(v) => {
+              setReason(v as Reason);
+              setNoteError(null);
+            }}
+            className="space-y-2"
+            aria-label="Red sebebi"
+          >
+            {REASONS.map((r) => (
+              <label
+                key={r.value}
+                className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-950/10 p-3 transition-colors hover:bg-zinc-50 has-data-checked:border-zinc-950 has-data-checked:bg-zinc-50"
               >
-                <X className="w-4 h-4" />
-              </button>
-            </Dialog.Close>
-          </header>
-
-          <form onSubmit={handleSubmit} className="px-5 py-5 space-y-4">
-            <fieldset className="space-y-2">
-              <legend className="text-sm font-medium text-admin-text mb-1">
-                Red sebebi
-              </legend>
-              {REASONS.map((r) => {
-                const selected = reason === r.value;
-                return (
-                  <label
-                    key={r.value}
-                    className={cn(
-                      "flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors",
-                      selected
-                        ? "border-brand-500 bg-brand-50/40"
-                        : "border-admin-border hover:bg-surface-muted",
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name="reject-reason"
-                      value={r.value}
-                      checked={selected}
-                      onChange={() => {
-                        setReason(r.value);
-                        setNoteError(null);
-                      }}
-                      className="mt-0.5 w-4 h-4 text-brand-600 focus:ring-brand-500/30 border-slate-300"
-                    />
-                    <span className="text-sm">
-                      <span
-                        className={cn(
-                          "font-medium block",
-                          selected ? "text-brand-900" : "text-admin-text",
-                        )}
-                      >
-                        {r.label}
-                      </span>
-                      <span className="text-xs text-admin-text-muted mt-0.5 block">
-                        {r.hint}
-                      </span>
-                    </span>
-                  </label>
-                );
-              })}
-            </fieldset>
-
-            {reason === "other" && (
-              <div className="space-y-1">
-                <Label htmlFor="reject-note" required>
-                  Sebep
-                </Label>
-                <Textarea
-                  id="reject-note"
-                  value={note}
-                  onChange={(e) => {
-                    setNote(e.target.value.slice(0, NOTE_MAX));
-                    if (noteError) setNoteError(null);
-                  }}
-                  placeholder="Örn: Müşteri başka bir platform tercih etti"
-                  className="min-h-[90px]"
-                  hasError={!!noteError}
-                />
-                <div className="flex items-center justify-between text-xs">
-                  {noteError ? (
-                    <span className="text-danger-600">{noteError}</span>
-                  ) : (
-                    <span className="text-admin-text-muted">
-                      Kapanış kaydında saklanır.
-                    </span>
-                  )}
-                  <span className="text-admin-text-muted tabular-nums">
-                    {note.length} / {NOTE_MAX}
+                <Radio value={r.value} className="mt-0.5 shrink-0" />
+                <span className="text-sm">
+                  <span className="block font-medium text-zinc-900">
+                    {r.label}
                   </span>
-                </div>
-              </div>
-            )}
+                  <span className="mt-0.5 block text-xs text-zinc-500">
+                    {r.hint}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </RadioGroup>
 
-            <footer className="flex items-center gap-2 pt-2">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={onClose}
-                className="flex-1"
-                disabled={update.isPending}
-              >
-                İptal
-              </Button>
-              <Button
-                type="submit"
-                variant="danger"
-                loading={update.isPending}
-                disabled={update.isPending}
-                className="flex-1"
-              >
-                Reddet
-              </Button>
-            </footer>
-          </form>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+          {reason === "other" && (
+            <div className="space-y-1">
+              <Label htmlFor="reject-note" required>
+                Sebep
+              </Label>
+              <Textarea
+                id="reject-note"
+                value={note}
+                onChange={(e) => {
+                  setNote(e.target.value.slice(0, NOTE_MAX));
+                  if (noteError) setNoteError(null);
+                }}
+                placeholder="Örn: Müşteri başka bir platform tercih etti"
+                rows={4}
+                hasError={!!noteError}
+              />
+              <div className="flex items-center justify-between text-xs">
+                {noteError ? (
+                  <span className="text-danger-600">{noteError}</span>
+                ) : (
+                  <span className="text-zinc-500">
+                    Kapanış kaydında saklanır.
+                  </span>
+                )}
+                <span className="text-zinc-500 tabular-nums">
+                  {note.length} / {NOTE_MAX}
+                </span>
+              </div>
+            </div>
+          )}
+        </DialogBody>
+        <DialogActions>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+            disabled={update.isPending}
+          >
+            İptal
+          </Button>
+          <Button
+            type="submit"
+            variant="danger"
+            loading={update.isPending}
+            disabled={update.isPending}
+          >
+            Reddet
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   );
 }

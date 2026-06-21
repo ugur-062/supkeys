@@ -1,13 +1,27 @@
 "use client";
 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { AttachmentList } from "@/components/attachments/attachment-list";
 import { BidStatusBadge } from "@/components/tenders/status-badge";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/use-permissions";
 import { useBidDetail, useTenderDetail } from "@/hooks/use-tenant-tenders";
 import type { BidDetailExpanded, TenderDetail } from "@/lib/tenders/types";
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from "@/components/catalyst/dropdown";
 import { cn } from "@/lib/utils";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -255,7 +269,7 @@ function DetailHeader({
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-display font-bold text-brand-900">
+            <h1 className="text-2xl font-semibold text-brand-900">
               Teklif Bilgileri
             </h1>
             <BidStatusBadge status={bid.status} />
@@ -280,56 +294,41 @@ function DetailHeader({
         </div>
 
         {canEliminatePerm ? (
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger asChild>
-              <Button
-                variant="primary"
+          <Dropdown>
+            <DropdownButton
+              as={Button}
+              variant="primary"
+              disabled={!canEliminate}
+              title={
+                canEliminate
+                  ? undefined
+                  : bid.status === "LOST"
+                    ? "Bu teklif zaten elendi."
+                    : bid.status === "AWARDED_FULL" ||
+                        bid.status === "AWARDED_PARTIAL"
+                      ? "Bu teklif kazandırıldı."
+                      : !tenderActive
+                        ? "İhale durumu işlem yapmaya uygun değil."
+                        : "Bu teklif üzerinde yapılacak işlem yok."
+              }
+            >
+              Tüm İşlemler
+              <ChevronDown className="h-4 w-4 ml-1" />
+            </DropdownButton>
+            <DropdownMenu anchor="bottom end" className="min-w-[220px]">
+              <DropdownItem
                 disabled={!canEliminate}
-                title={
-                  canEliminate
-                    ? undefined
-                    : bid.status === "LOST"
-                      ? "Bu teklif zaten elendi."
-                      : bid.status === "AWARDED_FULL" ||
-                          bid.status === "AWARDED_PARTIAL"
-                        ? "Bu teklif kazandırıldı."
-                        : !tenderActive
-                          ? "İhale durumu işlem yapmaya uygun değil."
-                          : "Bu teklif üzerinde yapılacak işlem yok."
-                }
+                onClick={() => {
+                  if (canEliminate) setEliminateOpen(true);
+                }}
               >
-                Tüm İşlemler
-                <ChevronDown className="h-4 w-4 ml-1" />
-              </Button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.Content
-                align="end"
-                sideOffset={8}
-                className={cn(
-                  "min-w-[220px] rounded-xl bg-white p-1.5 shadow-xl border border-slate-200 z-[60]",
-                  "animate-in fade-in-0 zoom-in-95",
-                )}
-              >
-                <DropdownMenu.Item
-                  disabled={!canEliminate}
-                  onSelect={(e) => {
-                    e.preventDefault();
-                    if (canEliminate) setEliminateOpen(true);
-                  }}
-                  className={cn(
-                    "px-3 py-2 text-sm rounded-lg cursor-pointer outline-none flex items-center gap-2",
-                    canEliminate
-                      ? "text-danger-700 hover:bg-danger-50 focus:bg-danger-50"
-                      : "text-slate-400 cursor-not-allowed",
-                  )}
-                >
-                  <Ban className="h-4 w-4" />
+                <Ban data-slot="icon" />
+                <DropdownLabel className="text-danger-700">
                   Teklifi Ele
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Root>
+                </DropdownLabel>
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
         ) : null}
       </div>
 
@@ -464,6 +463,17 @@ function CompanyFields({ bid }: { bid: BidDetailExpanded }) {
             })}
           />
         ) : null}
+        {bid.deliveryDate ? (
+          <Field
+            label="Teslim Tarihi"
+            value={format(new Date(bid.deliveryDate), "d MMM yyyy", {
+              locale: tr,
+            })}
+          />
+        ) : null}
+        {bid.validityDays != null ? (
+          <Field label="Geçerlilik" value={`${bid.validityDays} gün`} />
+        ) : null}
       </dl>
     </div>
   );
@@ -496,35 +506,24 @@ function Field({
 
 function ItemsTable({ bid }: { bid: BidDetailExpanded }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="text-left px-4 py-3 font-semibold text-slate-700">
-                Kalem
-              </th>
-              <th className="text-right px-4 py-3 font-semibold text-slate-700 w-32">
-                Miktar
-              </th>
-              <th className="text-right px-4 py-3 font-semibold text-slate-700 w-32">
-                Hedef Fiyat
-              </th>
-              <th className="text-right px-4 py-3 font-semibold text-slate-700 w-40">
-                Birim Fiyat
-              </th>
-              <th className="text-right px-4 py-3 font-semibold text-slate-700 w-44">
-                Toplam
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {(bid.items ?? []).map((bi) => (
-              <tr key={bi.id} className="border-b border-slate-100 last:border-0">
-                <td className="px-4 py-4 align-top">
-                  <p className="font-medium text-slate-900">
-                    {bi.tenderItem.name}
-                  </p>
+    <div className="bg-white ring-1 ring-zinc-950/5 rounded-xl px-3 [--gutter:--spacing(4)]">
+      <Table dense>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Kalem</TableHeader>
+            <TableHeader className="text-right w-32">Miktar</TableHeader>
+            <TableHeader className="text-right w-32">Hedef Fiyat</TableHeader>
+            <TableHeader className="text-right w-40">Birim Fiyat</TableHeader>
+            <TableHeader className="text-right w-44">Toplam</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {(bid.items ?? []).map((bi) => (
+            <TableRow key={bi.id}>
+              <TableCell className="align-top">
+                <p className="font-medium text-zinc-900">
+                  {bi.tenderItem.name}
+                </p>
                   {bi.tenderItem.questions &&
                   bi.tenderItem.questions.length > 0 ? (
                     <div className="mt-2 bg-warning-50 border border-warning-200 rounded p-2 max-w-xl space-y-2">
@@ -565,42 +564,39 @@ function ItemsTable({ bid }: { bid: BidDetailExpanded }) {
                         {bi.customAnswer}
                       </p>
                     </div>
-                  ) : null}
-                </td>
-                <td className="px-4 py-4 text-right text-slate-600 align-top">
-                  {formatQty(bi.tenderItem.quantity)} {bi.tenderItem.unit}
-                </td>
-                <td className="px-4 py-4 text-right text-slate-500 align-top">
-                  —
-                </td>
-                <td className="px-4 py-4 text-right font-semibold tabular-nums align-top">
-                  {bi.unitPrice
-                    ? `${bi.currency} ${formatNumber(bi.unitPrice)}`
-                    : "—"}
-                </td>
-                <td className="px-4 py-4 text-right font-bold text-brand-900 tabular-nums align-top">
-                  {bi.totalPrice
-                    ? formatCurrency(bi.totalPrice, bi.currency)
-                    : "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot className="bg-brand-50 border-t-2 border-brand-300">
-            <tr>
-              <td
-                colSpan={4}
-                className="px-4 py-3 text-right font-bold text-brand-900"
-              >
-                TOPLAM
-              </td>
-              <td className="px-4 py-3 text-right font-bold text-brand-900 text-lg tabular-nums">
-                {formatCurrency(bid.totalAmount, bid.currency)}
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+                ) : null}
+              </TableCell>
+              <TableCell className="text-right text-zinc-600 align-top">
+                {formatQty(bi.tenderItem.quantity)} {bi.tenderItem.unit}
+              </TableCell>
+              <TableCell className="text-right text-zinc-500 align-top">
+                —
+              </TableCell>
+              <TableCell className="text-right font-semibold tabular-nums align-top">
+                {bi.unitPrice
+                  ? `${bi.currency} ${formatNumber(bi.unitPrice)}`
+                  : "—"}
+              </TableCell>
+              <TableCell className="text-right font-bold text-zinc-900 tabular-nums align-top">
+                {bi.totalPrice
+                  ? formatCurrency(bi.totalPrice, bi.currency)
+                  : "—"}
+              </TableCell>
+            </TableRow>
+          ))}
+          <TableRow className="bg-zinc-50">
+            <TableCell
+              colSpan={4}
+              className="text-right font-bold text-zinc-900"
+            >
+              TOPLAM
+            </TableCell>
+            <TableCell className="text-right font-bold text-zinc-900 text-lg tabular-nums">
+              {formatCurrency(bid.totalAmount, bid.currency)}
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
     </div>
   );
 }

@@ -58,7 +58,7 @@ export function CategorySelectorButton({
             className={`flex w-full items-center justify-between rounded-lg border-2 border-dashed px-4 py-3 transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               error
                 ? "border-rose-300 bg-rose-50 hover:bg-rose-100"
-                : "border-slate-300 bg-white hover:border-brand-400 hover:bg-brand-50/30"
+                : "border-slate-300 bg-white hover:border-zinc-400 hover:bg-zinc-50/30"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -74,7 +74,7 @@ export function CategorySelectorButton({
                 />
               </div>
               <div className="text-left">
-                <p className="text-sm font-semibold text-brand-900">
+                <p className="text-sm font-semibold text-zinc-900">
                   {placeholder ?? defaultPlaceholder}
                 </p>
                 <p className="mt-0.5 text-xs text-slate-500">
@@ -96,7 +96,7 @@ export function CategorySelectorButton({
                 return (
                   <div
                     key={id}
-                    className="inline-flex items-center gap-1.5 rounded-md border border-brand-200 bg-white px-2 py-1 text-xs font-semibold text-brand-700"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-700"
                     title={breadcrumb}
                   >
                     <Tag className="h-3 w-3" />
@@ -119,7 +119,7 @@ export function CategorySelectorButton({
               <button
                 type="button"
                 onClick={() => setIsOpen(true)}
-                className="flex items-center gap-1 text-sm font-semibold text-brand-600 hover:text-brand-700"
+                className="flex items-center gap-1 text-sm font-semibold text-zinc-600 hover:text-zinc-700"
               >
                 <Plus className="h-4 w-4" />
                 {mode === "single"

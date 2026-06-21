@@ -1,8 +1,16 @@
 "use client";
 
+import { Badge } from "@/components/catalyst/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import type { Currency, ItemQuestion } from "@/lib/tenders/types";
-import { cn } from "@/lib/utils";
 import { HelpCircle, Inbox } from "lucide-react";
 
 function fmtNumber(value: string | null | undefined, decimals = 2): string {
@@ -15,11 +23,6 @@ function fmtNumber(value: string | null | undefined, decimals = 2): string {
   });
 }
 
-/**
- * Alıcı + tedarikçi ortak kalem satırı şape. `targetUnitPrice` opsiyonel —
- * tedarikçi tarafında undefined gelir (KAPALI ZARF). Showcase prop'u ile
- * kolonun gösterilip gösterilmeyeceği kontrol edilir.
- */
 interface ItemRow {
   id: string;
   orderIndex: number;
@@ -44,12 +47,12 @@ interface Props {
 export function ItemsTab({ items, currency, showTargetPrice = false }: Props) {
   if (items.length === 0) {
     return (
-      <div className="card p-12 text-center">
-        <div className="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center">
-          <Inbox className="w-6 h-6 text-slate-400" />
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100">
+          <Inbox className="h-6 w-6 text-zinc-400" />
         </div>
-        <p className="mt-3 font-medium text-brand-900">Kalem yok</p>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="mt-3 font-semibold text-zinc-950">Kalem yok</p>
+        <p className="mt-1 text-sm text-zinc-500">
           Bu ihaleye henüz kalem eklenmemiş.
         </p>
       </div>
@@ -57,102 +60,73 @@ export function ItemsTab({ items, currency, showTargetPrice = false }: Props) {
   }
 
   return (
-    <div className="card overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-surface-muted text-left">
-            <tr>
-              <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide w-12">
-                #
-              </th>
-              <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-                Kalem
-              </th>
-              <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-                Miktar
-              </th>
-              <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-                Birim
-              </th>
-              <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-                Stok Kodu
-              </th>
-              {showTargetPrice ? (
-                <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-                  Hedef Fiyat
-                </th>
+    <Table dense className="[--gutter:--spacing(4)]">
+      <TableHead>
+        <TableRow>
+          <TableHeader className="w-10">#</TableHeader>
+          <TableHeader>Kalem</TableHeader>
+          <TableHeader className="text-right">Miktar</TableHeader>
+          <TableHeader className="hidden sm:table-cell">Birim</TableHeader>
+          <TableHeader className="hidden font-mono md:table-cell">
+            Stok Kodu
+          </TableHeader>
+          {showTargetPrice ? (
+            <TableHeader className="text-right">Hedef Fiyat</TableHeader>
+          ) : null}
+          <TableHeader>Soru</TableHeader>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {items.map((it) => (
+          <TableRow key={it.id}>
+            <TableCell className="tabular-nums text-zinc-400">
+              {it.orderIndex}
+            </TableCell>
+            <TableCell className="font-medium">
+              <div className="text-zinc-900">{it.name}</div>
+              {it.description ? (
+                <div
+                  className="mt-0.5 max-w-md truncate text-xs text-zinc-500"
+                  title={it.description}
+                >
+                  {it.description}
+                </div>
               ) : null}
-              <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-                Soru
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((it) => (
-              <tr
-                key={it.id}
-                className="border-t border-surface-border hover:bg-surface-muted/40"
-              >
-                <td className="px-4 py-3 text-slate-400 tabular-nums">
-                  {it.orderIndex}
-                </td>
-                <td className="px-4 py-3">
-                  <p className="font-medium text-brand-900">{it.name}</p>
-                  {it.description ? (
-                    <p
-                      className="text-xs text-slate-500 mt-0.5 max-w-md truncate"
-                      title={it.description}
-                    >
-                      {it.description}
-                    </p>
-                  ) : null}
-                </td>
-                <td className="px-4 py-3 text-brand-900 tabular-nums">
-                  {fmtNumber(it.quantity, 4)}
-                </td>
-                <td className="px-4 py-3 text-slate-600">{it.unit}</td>
-                <td className="px-4 py-3 text-slate-600 font-mono text-xs">
-                  {it.materialCode || "—"}
-                </td>
-                {showTargetPrice ? (
-                  <td className="px-4 py-3 text-slate-600 tabular-nums">
-                    {it.targetUnitPrice
-                      ? `${fmtNumber(it.targetUnitPrice)} ${CURRENCY_SYMBOL[currency]}`
-                      : "—"}
-                  </td>
-                ) : null}
-                <td className="px-4 py-3">
-                  {it.questions && it.questions.length > 0 ? (
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs",
-                        "bg-brand-50 text-brand-700 border border-brand-200",
-                      )}
-                      title={it.questions.map((q) => `• ${q.text}`).join("\n")}
-                    >
-                      <HelpCircle className="h-3 w-3" />
-                      {it.questions.length} soru
-                    </span>
-                  ) : it.customQuestion ? (
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs",
-                        "bg-brand-50 text-brand-700 border border-brand-200",
-                      )}
-                      title={it.customQuestion}
-                    >
-                      <HelpCircle className="h-3 w-3" />
-                      Var
-                    </span>
-                  ) : (
-                    <span className="text-slate-400 text-xs">—</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+            </TableCell>
+            <TableCell className="text-right tabular-nums text-zinc-900">
+              {fmtNumber(it.quantity, 4)}
+            </TableCell>
+            <TableCell className="hidden text-zinc-500 sm:table-cell">
+              {it.unit}
+            </TableCell>
+            <TableCell className="hidden font-mono text-xs text-zinc-500 md:table-cell">
+              {it.materialCode || "—"}
+            </TableCell>
+            {showTargetPrice ? (
+              <TableCell className="text-right tabular-nums text-zinc-500">
+                {it.targetUnitPrice
+                  ? `${fmtNumber(it.targetUnitPrice)} ${CURRENCY_SYMBOL[currency]}`
+                  : "—"}
+              </TableCell>
+            ) : null}
+            <TableCell>
+              {it.questions && it.questions.length > 0 ? (
+                <Badge title={it.questions.map((q) => `• ${q.text}`).join("\n")}>
+                  <HelpCircle className="h-3 w-3" />
+                  {it.questions.length} soru
+                </Badge>
+              ) : it.customQuestion ? (
+                <Badge title={it.customQuestion}>
+                  <HelpCircle className="h-3 w-3" />
+                  Var
+                </Badge>
+              ) : (
+                <span className="text-xs text-zinc-400">—</span>
+              )}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }

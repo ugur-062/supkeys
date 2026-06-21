@@ -1,22 +1,23 @@
 @import "tailwindcss";
 
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap");
-
 @theme {
-  /* Brand — Supkeys mavi */
-  --color-brand-50:  #EFF4FF;
-  --color-brand-100: #DCE6FF;
-  --color-brand-200: #BACDFF;
-  --color-brand-300: #8FAEFF;
-  --color-brand-400: #5C85FF;
-  --color-brand-500: #3B6BFF;
-  --color-brand-600: #1E5BFF;
-  --color-brand-700: #1648CC;
-  --color-brand-800: #163A99;
-  --color-brand-900: #0A2540;
-  --color-brand-950: #061730;
+  /* Brand — Catalyst monokrom (zinc). brand-* yalnızca tenant yüzeyinde kullanılır;
+     siyah/zinc'e map edildi → tüm mavi aksanlar tedarikçiyle aynı monokrom olur.
+     Üst tonlar (600+) primary/aktif/metin için zinc-900/950 (siyah). */
+  --color-brand-50:  #FAFAFA; /* zinc-50  */
+  --color-brand-100: #F4F4F5; /* zinc-100 */
+  --color-brand-200: #E4E4E7; /* zinc-200 */
+  --color-brand-300: #D4D4D8; /* zinc-300 */
+  --color-brand-400: #A1A1AA; /* zinc-400 */
+  --color-brand-500: #52525B; /* zinc-600 — focus ring / orta aksan */
+  --color-brand-600: #18181B; /* zinc-900 — primary / aktif → siyah */
+  --color-brand-700: #09090B; /* zinc-950 — hover (daha koyu) */
+  --color-brand-800: #09090B; /* zinc-950 — active */
+  --color-brand-900: #18181B; /* zinc-900 — başlık / metin (near-black) */
+  --color-brand-950: #09090B; /* zinc-950 */
 
-  /* Semantic */
+  /* Semantic — durum renkleri (yeşil/sarı/kırmızı). Marka monokrom olsa da
+     başarı/uyarı/hata okunabilirlik için renkli kalır. */
   --color-success-50:  #ECFDF5;
   --color-success-500: #10B981;
   --color-success-600: #059669;
@@ -27,23 +28,40 @@
   --color-danger-500:  #EF4444;
   --color-danger-600:  #DC2626;
 
-  /* Surface */
+  /* Surface — net/kurumsal (Linear/Stripe tarzı, nötr) */
   --color-surface-base:   #FFFFFF;
-  --color-surface-subtle: #F8FAFC;
-  --color-surface-muted:  #F1F5F9;
-  --color-surface-border: #E2E8F0;
+  --color-surface-subtle: #FAFAFA;
+  --color-surface-muted:  #F4F4F5;
+  --color-surface-border: #E4E4E7;
 
-  /* Fonts */
-  --font-sans:    "Inter", system-ui, sans-serif;
-  --font-display: "Plus Jakarta Sans", "Inter", sans-serif;
+  /* Nötr gri — slate'i temiz nötr (zinc) ölçeğe çevir (tüm text/bg/border-slate-*) */
+  --color-slate-50:  #FAFAFA;
+  --color-slate-100: #F4F4F5;
+  --color-slate-200: #E4E4E7;
+  --color-slate-300: #D4D4D8;
+  --color-slate-400: #A1A1AA;
+  --color-slate-500: #71717A;
+  --color-slate-600: #52525B;
+  --color-slate-700: #3F3F46;
+  --color-slate-800: #27272A;
+  --color-slate-900: #18181B;
+  --color-slate-950: #09090B;
 
-  /* Shadows */
-  --shadow-card:       0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-card-hover: 0 4px 12px rgba(15, 23, 42, 0.08);
+  /* Fonts — Catalyst ile birebir: variable Inter (next/font) + cv11 */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans--font-feature-settings: "cv11";
+  --font-display: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display--font-feature-settings: "cv11";
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
 
-  /* Radius */
-  --radius-xl:  0.875rem;
-  --radius-2xl: 1.125rem;
+  /* Shadows — nötr, ince, kurumsal */
+  --shadow-card:       0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, 0.08);
+
+  /* Radius — net/sıkı */
+  --radius-lg:  0.5rem;
+  --radius-xl:  0.75rem;
+  --radius-2xl: 1rem;
 }
 
 @layer base {
@@ -60,39 +78,56 @@
 
   body {
     background-color: var(--color-surface-subtle);
-    color: var(--color-brand-900);
+    color: var(--color-slate-900); /* zinc-900 — Catalyst nötr metin */
     font-family: var(--font-sans);
+    font-feature-settings: "cv11";
     -webkit-font-smoothing: antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Akıcı his — yalnızca güvenli özellikler (transform/all yok, Radix animasyonlarına dokunmaz) */
+  a,
+  button,
+  input,
+  textarea,
+  select,
+  [role="button"] {
+    transition:
+      color 0.15s ease,
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
-           bg-brand-600 text-white font-medium text-sm
-           hover:bg-brand-700 active:bg-brand-800
-           transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2
-           disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg select-none
+           bg-brand-600 text-white font-medium text-sm shadow-sm
+           hover:bg-brand-700 hover:shadow active:bg-brand-800 active:scale-[0.98]
+           transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
-           bg-white text-brand-700 font-medium text-sm border border-surface-border
-           hover:bg-brand-50 hover:border-brand-200
-           transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg select-none
+           bg-white text-brand-700 font-medium text-sm border border-surface-border shadow-sm
+           hover:bg-brand-50 hover:border-brand-200 active:scale-[0.98]
+           transition focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2;
   }
 
   .card {
-    @apply bg-white rounded-xl shadow-card border border-surface-border;
+    @apply bg-white rounded-xl shadow-sm ring-1 ring-zinc-950/5;
   }
 
   .input-base {
-    @apply w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-white
+    @apply w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-white shadow-sm
            text-brand-900 text-sm
            placeholder:text-slate-400
+           hover:border-slate-300
            focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500
-           transition-colors;
+           transition;
   }
 
   .label-base {

@@ -1,6 +1,8 @@
 "use client";
 
 import { Field } from "@/components/ui/field";
+import { Select } from "@/components/catalyst/select";
+import { IconButton } from "@/components/ui/icon-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -56,24 +58,24 @@ export function BidItemRow({ index, tenderItem, currency }: Props) {
       className={cn(
         "border rounded-xl p-4 bg-white transition-colors",
         hasOffer
-          ? "border-brand-200 ring-1 ring-brand-100"
+          ? "border-zinc-200 ring-1 ring-zinc-100"
           : "border-slate-200",
       )}
     >
       <div className="flex items-start gap-3">
-        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center text-xs font-semibold text-brand-700 mt-1">
+        <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-zinc-50 flex items-center justify-center text-xs font-semibold text-zinc-700 mt-1">
           {index + 1}
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-brand-900">{tenderItem.name}</p>
+          <p className="font-semibold text-zinc-900">{tenderItem.name}</p>
           {tenderItem.description ? (
             <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
               {tenderItem.description}
             </p>
           ) : null}
           <p className="text-xs text-slate-500 mt-1">
-            <strong className="text-brand-900">
+            <strong className="text-zinc-900">
               {Number(tenderItem.quantity).toLocaleString("tr-TR")}
             </strong>{" "}
             {tenderItem.unit}
@@ -84,7 +86,7 @@ export function BidItemRow({ index, tenderItem, currency }: Props) {
             ) : null}
           </p>
           {tenderItem.targetUnitPrice ? (
-            <p className="text-xs text-brand-700 mt-1.5 font-medium">
+            <p className="text-xs text-zinc-700 mt-1.5 font-medium">
               Hedef:{" "}
               <span className="tabular-nums">
                 {Number(tenderItem.targetUnitPrice).toLocaleString("tr-TR")}{" "}
@@ -124,27 +126,26 @@ export function BidItemRow({ index, tenderItem, currency }: Props) {
           <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">
             Toplam
           </p>
-          <p className="text-base font-bold text-brand-900 tabular-nums mt-1">
+          <p className="text-base font-bold text-zinc-900 tabular-nums mt-1">
             {hasOffer ? formatMoney(totalPrice, currency) : "—"}
           </p>
         </div>
 
         <div className="flex-shrink-0 w-9 flex justify-end pt-7">
           {hasOffer ? (
-            <button
-              type="button"
+            <IconButton
+              tone="danger"
               onClick={() =>
                 setValue(`items.${index}.unitPrice`, null, {
                   shouldDirty: true,
                   shouldValidate: true,
                 })
               }
-              className="text-slate-400 hover:text-danger-600 p-1.5 rounded-md hover:bg-danger-50 transition-colors"
               title="Bu kaleme teklif verme"
               aria-label="Bu kaleme teklif verme"
             >
               <X className="h-4 w-4" />
-            </button>
+            </IconButton>
           ) : null}
         </div>
       </div>
@@ -277,15 +278,11 @@ function AnswerInput({
   }
   if (answerType === "YES_NO") {
     return (
-      <select
-        id={id}
-        className="w-full px-3 py-2 rounded-lg border border-surface-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-        {...registerProps}
-      >
+      <Select id={id} {...registerProps}>
         <option value="">Seçin…</option>
         <option value="Evet">Evet</option>
         <option value="Hayır">Hayır</option>
-      </select>
+      </Select>
     );
   }
   return (

@@ -8,6 +8,14 @@ import {
   SearchInput,
   SortDropdown,
 } from "@/components/list";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import {
   useAdminTenants,
@@ -124,6 +132,7 @@ function TenantsView() {
               value={filters.sort ?? "createdAt:desc"}
               onChange={(v) => setFilters({ sort: v })}
               options={SORT_OPTIONS}
+              className="md:w-64"
             />
             <ResultCount
               total={total}
@@ -217,99 +226,80 @@ function TenantsView() {
 
 function TenantsTable({ items }: { items: AdminTenantListItem[] }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-surface-subtle border-b border-surface-border">
-          <tr>
-            <th className="text-left px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              Firma
-            </th>
-            <th className="text-left px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              VKN
-            </th>
-            <th className="text-left px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              Yetkili
-            </th>
-            <th className="text-right px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              Kullanıcı
-            </th>
-            <th className="text-right px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              İhale
-            </th>
-            <th className="text-right px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              Sipariş
-            </th>
-            <th className="text-left px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              Üyelik Bitişi
-            </th>
-            <th className="text-left px-4 py-3 font-semibold text-admin-text-muted text-xs uppercase tracking-wider">
-              Kayıt
-            </th>
-          </tr>
-        </thead>
-        <tbody>
+    <div className="px-2 [--gutter:--spacing(4)]">
+      <Table dense>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Firma</TableHeader>
+            <TableHeader>VKN</TableHeader>
+            <TableHeader>Yetkili</TableHeader>
+            <TableHeader className="text-right">Kullanıcı</TableHeader>
+            <TableHeader className="text-right">İhale</TableHeader>
+            <TableHeader className="text-right">Sipariş</TableHeader>
+            <TableHeader>Üyelik Bitişi</TableHeader>
+            <TableHeader>Kayıt</TableHeader>
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {items.map((t) => (
-            <tr
-              key={t.id}
-              className="border-b border-surface-border last:border-0 hover:bg-surface-subtle transition-colors"
-            >
-              <td className="px-4 py-3">
+            <TableRow key={t.id}>
+              <TableCell>
                 <Link
                   href={`/admin/tenants/${t.id}`}
                   className="flex items-center gap-2.5 group"
                 >
-                  <div className="h-9 w-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
-                    <Building2 className="h-4 w-4 text-brand-600" />
+                  <div className="h-9 w-9 rounded-lg bg-zinc-100 flex items-center justify-center flex-shrink-0">
+                    <Building2 className="h-4 w-4 text-zinc-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-admin-text group-hover:text-brand-700 truncate">
+                    <p className="font-semibold text-zinc-900 group-hover:text-zinc-600 truncate">
                       {t.name}
                     </p>
                     {t.city ? (
-                      <p className="text-xs text-admin-text-muted">{t.city}</p>
+                      <p className="text-xs text-zinc-500">{t.city}</p>
                     ) : null}
                   </div>
                 </Link>
-              </td>
-              <td className="px-4 py-3 font-mono text-xs text-admin-text-muted">
+              </TableCell>
+              <TableCell className="font-mono text-xs text-zinc-500">
                 {t.taxNumber ?? "—"}
-              </td>
-              <td className="px-4 py-3">
+              </TableCell>
+              <TableCell>
                 {t.users[0] ? (
                   <div>
-                    <p className="font-medium text-admin-text text-sm">
+                    <p className="font-medium text-zinc-900 text-sm">
                       {t.users[0].firstName} {t.users[0].lastName}
                     </p>
-                    <p className="text-xs text-admin-text-muted truncate max-w-[200px]">
+                    <p className="text-xs text-zinc-500 truncate max-w-[200px]">
                       {t.users[0].email}
                     </p>
                   </div>
                 ) : (
-                  <span className="text-admin-text-muted text-xs">—</span>
+                  <span className="text-zinc-500 text-xs">—</span>
                 )}
-              </td>
-              <td className="px-4 py-3 text-right">
+              </TableCell>
+              <TableCell className="text-right">
                 <span className="inline-flex items-center gap-1 text-sm">
-                  <Users className="h-3.5 w-3.5 text-slate-400" />
+                  <Users className="h-3.5 w-3.5 text-zinc-400" />
                   {t._count.users}
                 </span>
-              </td>
-              <td className="px-4 py-3 text-right text-sm font-medium">
+              </TableCell>
+              <TableCell className="text-right text-sm font-medium">
                 {t._count.tenders}
-              </td>
-              <td className="px-4 py-3 text-right text-sm font-medium">
+              </TableCell>
+              <TableCell className="text-right text-sm font-medium">
                 {t._count.orders}
-              </td>
-              <td className="px-4 py-3">
+              </TableCell>
+              <TableCell>
                 <MembershipCell endAt={t.membershipEndAt} />
-              </td>
-              <td className="px-4 py-3 text-xs text-admin-text-muted whitespace-nowrap">
+              </TableCell>
+              <TableCell className="text-xs text-zinc-500 whitespace-nowrap">
                 {format(new Date(t.createdAt), "d MMM yyyy", { locale: tr })}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

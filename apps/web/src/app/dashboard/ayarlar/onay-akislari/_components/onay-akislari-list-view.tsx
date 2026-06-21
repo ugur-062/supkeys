@@ -1,9 +1,25 @@
 "use client";
 
-import { EmptyState, ListSkeleton } from "@/components/list";
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from "@/components/catalyst/dropdown";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
+import { EmptyState, ListSkeleton, Pagination } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { usePermissions } from "@/hooks/use-permissions";
+import { usePagedList } from "@/lib/use-paged-list";
 import {
   useApprovalFlows,
   useChangeApprovalFlowStatus,
@@ -17,7 +33,6 @@ import {
 import type { ApprovalFlow } from "@/lib/approval-flows/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -80,6 +95,7 @@ export function OnayAkislariListView() {
       f.flowNumber.toString().includes(term)
     );
   });
+  const paged = usePagedList(filtered, 10);
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8">
@@ -91,7 +107,7 @@ export function OnayAkislariListView() {
             <Workflow className="h-5 w-5 text-brand-600" />
           </div>
           <div>
-            <h1 className="font-display text-2xl font-bold text-brand-900">
+            <h1 className="text-2xl font-semibold text-brand-900">
               Onay Akışları
             </h1>
             <p className="text-slate-500 text-sm mt-1 max-w-2xl">
@@ -145,26 +161,38 @@ export function OnayAkislariListView() {
             }
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr className="text-xs uppercase text-slate-500 tracking-wide">
-                  <th className="text-left px-5 py-3 w-20">No</th>
-                  <th className="text-left px-5 py-3">Akış Adı</th>
-                  <th className="text-left px-5 py-3">Tür</th>
-                  <th className="text-left px-5 py-3">Durum</th>
-                  <th className="text-left px-5 py-3">Adım</th>
-                  <th className="text-left px-5 py-3">Oluşturan</th>
-                  <th className="text-left px-5 py-3">Son Güncelleme</th>
-                  <th className="px-5 py-3 w-12" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filtered.map((flow) => (
+          <div className="px-2 [--gutter:--spacing(5)]">
+            <Table dense>
+              <TableHead>
+                <TableRow>
+                  <TableHeader className="w-20">No</TableHeader>
+                  <TableHeader>Akış Adı</TableHeader>
+                  <TableHeader>Tür</TableHeader>
+                  <TableHeader>Durum</TableHeader>
+                  <TableHeader>Adım</TableHeader>
+                  <TableHeader>Oluşturan</TableHeader>
+                  <TableHeader>Son Güncelleme</TableHeader>
+                  <TableHeader className="w-12" />
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {paged.pageItems.map((flow) => (
                   <FlowRow key={flow.id} flow={flow} />
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
+            {paged.showPagination ? (
+              <div className="px-4 pb-2">
+                <Pagination
+                  variant="bare"
+                  page={paged.page}
+                  totalPages={paged.totalPages}
+                  total={paged.total}
+                  pageSize={paged.pageSize}
+                  onPageChange={paged.setPage}
+                />
+              </div>
+            ) : null}
           </div>
         )}
       </div>
@@ -221,24 +249,24 @@ function FlowRow({ flow }: { flow: ApprovalFlow }) {
   };
 
   return (
-    <tr className="hover:bg-slate-50/40 transition-colors">
-      <td className="px-5 py-3 align-middle font-mono text-sm text-slate-600">
+    <TableRow>
+      <TableCell className="align-middle font-mono text-sm text-zinc-600">
         #{flow.flowNumber}
-      </td>
-      <td className="px-5 py-3 align-middle">
+      </TableCell>
+      <TableCell className="align-middle">
         <Link
           href={`/dashboard/ayarlar/onay-akislari/${flow.id}`}
-          className="font-semibold text-brand-700 hover:text-brand-800 hover:underline"
+          className="font-semibold text-zinc-900 hover:text-zinc-600 hover:underline"
         >
           {flow.name}
         </Link>
         {flow.description ? (
-          <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">
+          <p className="text-xs text-zinc-500 line-clamp-1 mt-0.5">
             {flow.description}
           </p>
         ) : null}
-      </td>
-      <td className="px-5 py-3 align-middle">
+      </TableCell>
+      <TableCell className="align-middle">
         <span
           className={cn(
             "inline-flex items-center px-2 py-0.5 rounded-md text-xs font-semibold border",
@@ -247,8 +275,8 @@ function FlowRow({ flow }: { flow: ApprovalFlow }) {
         >
           {typeMeta.label}
         </span>
-      </td>
-      <td className="px-5 py-3 align-middle">
+      </TableCell>
+      <TableCell className="align-middle">
         <span
           className={cn(
             "inline-flex items-center gap-1.5 text-xs font-semibold",
@@ -256,97 +284,55 @@ function FlowRow({ flow }: { flow: ApprovalFlow }) {
               ? "text-success-700"
               : flow.status === "DRAFT"
                 ? "text-warning-700"
-                : "text-slate-600",
+                : "text-zinc-600",
           )}
         >
-          <span
-            className={cn(
-              "h-1.5 w-1.5 rounded-full",
-              statusMeta.dotClass,
-            )}
-          />
+          <span className={cn("h-1.5 w-1.5 rounded-full", statusMeta.dotClass)} />
           {statusMeta.label}
         </span>
-      </td>
-      <td className="px-5 py-3 align-middle text-sm text-slate-600">
+      </TableCell>
+      <TableCell className="align-middle text-sm text-zinc-600">
         {flow.steps.length}
-      </td>
-      <td className="px-5 py-3 align-middle text-sm text-slate-600">
+      </TableCell>
+      <TableCell className="align-middle text-sm text-zinc-600">
         {flow.createdBy.firstName} {flow.createdBy.lastName}
-      </td>
-      <td className="px-5 py-3 align-middle text-xs text-slate-500">
+      </TableCell>
+      <TableCell className="align-middle text-xs text-zinc-500">
         {format(new Date(flow.updatedAt), "d MMM yyyy HH:mm", {
           locale: tr,
         })}
-      </td>
-      <td className="px-5 py-3 align-middle text-right">
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger asChild>
-            <button
-              className="p-1.5 rounded-md hover:bg-slate-200 text-slate-500"
-              aria-label="Aksiyonlar"
+      </TableCell>
+      <TableCell className="align-middle text-right">
+        <Dropdown>
+          <DropdownButton plain aria-label="Aksiyonlar">
+            <MoreVertical className="h-4 w-4" />
+          </DropdownButton>
+          <DropdownMenu anchor="bottom end">
+            <DropdownItem
+              onClick={() =>
+                router.push(`/dashboard/ayarlar/onay-akislari/${flow.id}`)
+              }
             >
-              <MoreVertical className="h-4 w-4" />
-            </button>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content
-              align="end"
-              sideOffset={6}
-              className="z-50 min-w-[200px] rounded-xl bg-white p-1.5 shadow-xl border border-slate-200"
-            >
-              <DropdownMenu.Item
-                onSelect={(e) => {
-                  e.preventDefault();
-                  router.push(`/dashboard/ayarlar/onay-akislari/${flow.id}`);
-                }}
-                className="px-3 py-2 text-sm rounded-lg cursor-pointer outline-none flex items-center gap-2 text-brand-900 hover:bg-brand-50 focus:bg-brand-50"
-              >
-                <Pencil className="h-4 w-4" />
-                Görüntüle / Düzenle
-              </DropdownMenu.Item>
-
-              <DropdownMenu.Item
-                onSelect={(e) => {
-                  e.preventDefault();
-                  onToggleStatus();
-                }}
-                className={cn(
-                  "px-3 py-2 text-sm rounded-lg cursor-pointer outline-none flex items-center gap-2",
-                  flow.status === "ACTIVE"
-                    ? "text-warning-700 hover:bg-warning-50 focus:bg-warning-50"
-                    : "text-success-700 hover:bg-success-50 focus:bg-success-50",
-                )}
-              >
-                <Power className="h-4 w-4" />
+              <Pencil data-slot="icon" />
+              <DropdownLabel>Görüntüle / Düzenle</DropdownLabel>
+            </DropdownItem>
+            <DropdownItem onClick={onToggleStatus}>
+              <Power data-slot="icon" />
+              <DropdownLabel>
                 {flow.status === "ACTIVE" ? "Pasif Yap" : "Aktif Et"}
-              </DropdownMenu.Item>
-
-              <DropdownMenu.Item
-                onSelect={(e) => {
-                  e.preventDefault();
-                  onDuplicate();
-                }}
-                className="px-3 py-2 text-sm rounded-lg cursor-pointer outline-none flex items-center gap-2 text-brand-900 hover:bg-brand-50 focus:bg-brand-50"
-              >
-                <Copy className="h-4 w-4" />
-                Kopyala
-              </DropdownMenu.Item>
-
-              <DropdownMenu.Item
-                onSelect={(e) => {
-                  e.preventDefault();
-                  onDelete();
-                }}
-                className="px-3 py-2 text-sm rounded-lg cursor-pointer outline-none flex items-center gap-2 text-danger-700 hover:bg-danger-50 focus:bg-danger-50"
-              >
-                <Trash2 className="h-4 w-4" />
-                Sil
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
-      </td>
-    </tr>
+              </DropdownLabel>
+            </DropdownItem>
+            <DropdownItem onClick={onDuplicate}>
+              <Copy data-slot="icon" />
+              <DropdownLabel>Kopyala</DropdownLabel>
+            </DropdownItem>
+            <DropdownItem onClick={onDelete}>
+              <Trash2 data-slot="icon" />
+              <DropdownLabel className="text-danger-700">Sil</DropdownLabel>
+            </DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
+      </TableCell>
+    </TableRow>
   );
 }

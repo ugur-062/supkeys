@@ -60,22 +60,22 @@ export function SupplierTenderHeaderCard({
   }
 
   return (
-    <section className="rounded-2xl border border-brand-100 bg-gradient-to-br from-brand-50/60 via-white to-indigo-50/40 p-6">
+    <section className="rounded-2xl border border-zinc-100 bg-gradient-to-br from-zinc-50/60 via-white to-zinc-50/40 p-6">
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5">
         <div className="flex-1 min-w-0 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <code className="text-sm text-brand-700 font-mono font-semibold">
+            <code className="text-sm text-zinc-700 font-mono font-semibold">
               {tender.tenderNumber}
             </code>
             <TenderTypeBadge type={tender.type} />
             <TenderLiveStatusPill status={tender.status} />
             {tender.roundNumber > 1 ? (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 text-xs font-bold">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-800 text-xs font-bold">
                 Tur #{tender.roundNumber}
               </span>
             ) : null}
           </div>
-          <h1 className="font-display font-bold text-2xl sm:text-3xl text-brand-900 leading-tight">
+          <h1 className="font-semibold text-2xl sm:text-3xl text-zinc-900 leading-tight">
             {tender.title}
           </h1>
           {tender.description ? (
@@ -103,7 +103,7 @@ export function SupplierTenderHeaderCard({
               {cta}
             </div>
           ) : tender.status === "IN_AWARD" ? (
-            <div className="bg-purple-50 border border-purple-200 rounded-lg px-4 py-2.5 text-sm text-purple-700 flex items-center gap-2">
+            <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-4 py-2.5 text-sm text-zinc-700 flex items-center gap-2">
               <Clock className="h-4 w-4 flex-shrink-0" />
               <span>İhale kapandı, sonuç bekleniyor</span>
             </div>

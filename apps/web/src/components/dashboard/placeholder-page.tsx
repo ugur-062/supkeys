@@ -76,7 +76,7 @@ export function PlaceholderPage({
           Yakında · {estimatedRelease}
         </div>
 
-        <h1 className="font-display font-bold text-3xl md:text-4xl text-brand-900">
+        <h1 className="font-semibold text-3xl md:text-4xl text-brand-900">
           {title}
         </h1>
         <p className="text-slate-600 mt-2 max-w-xl mx-auto">{subtitle}</p>

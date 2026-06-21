@@ -1,5 +1,6 @@
 "use client";
 
+import { Select } from "@/components/catalyst/select";
 import {
   EmptyState as EmptyStateComponent,
   ListSkeleton,
@@ -26,7 +27,7 @@ import type { OrderDateRange, OrderStatus } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { AlertCircle, Building2, Filter, Package, Plus } from "lucide-react";
+import { AlertCircle, Building2, Package, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo } from "react";
@@ -57,25 +58,18 @@ function StatusDropdown({
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="relative w-full md:w-auto">
-      <Filter className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label="Sipariş durumu filtresi"
-        className={cn(
-          "pl-9 pr-8 py-2 text-sm rounded-lg appearance-none bg-white cursor-pointer w-full md:min-w-[180px]",
-          "border border-surface-border text-brand-900",
-          "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-        )}
-      >
-        {TABS.map((t) => (
-          <option key={t.key} value={t.key}>
-            {t.label}
-          </option>
-        ))}
-      </select>
-    </div>
+    <Select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label="Sipariş durumu filtresi"
+      className="w-full md:w-auto md:min-w-[180px]"
+    >
+      {TABS.map((t) => (
+        <option key={t.key} value={t.key}>
+          {t.label}
+        </option>
+      ))}
+    </Select>
   );
 }
 
@@ -169,7 +163,7 @@ export function OrdersListView() {
       {
         label: "Gönderildi",
         value: s.inDelivery ?? 0,
-        color: "text-indigo-700",
+        color: "text-zinc-700",
       },
       {
         label: "Tamamlandı",
@@ -192,9 +186,9 @@ export function OrdersListView() {
           {kpi.map((it) => (
             <div
               key={it.label}
-              className="bg-white border border-slate-200 rounded-xl p-4"
+              className="bg-white ring-1 ring-zinc-950/5 shadow-sm rounded-xl p-4"
             >
-              <p className="text-[11px] text-slate-500 uppercase font-semibold tracking-wide">
+              <p className="text-[11px] text-zinc-500 uppercase font-semibold tracking-wide">
                 {it.label}
               </p>
               <p className={cn("text-2xl font-bold mt-1", it.color)}>
@@ -205,32 +199,43 @@ export function OrdersListView() {
         </div>
       ) : null}
 
-      {/* Filters toolbar */}
-      <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-3">
-        <SearchInput
-          value={searchUrl}
-          onChange={setSearch}
-          placeholder="Sipariş no, ihale veya tedarikçi…"
-          className="w-full md:w-72"
-        />
-        <StatusDropdown value={tab} onChange={setTab} />
-        <RangeDropdown value={rangeUrl} onChange={setRange} />
-        <CounterpartDropdown
-          value={supplierIdUrl}
-          onChange={setSupplierId}
-          options={counterparts.data ?? []}
-          loading={counterparts.isLoading}
-          placeholder="Tüm Tedarikçiler"
-        />
-        <SortDropdown value={sortUrl} onChange={setSort} options={SORT_OPTIONS} />
-        {list.data ? (
-          <ResultCount
-            total={list.data.pagination.total}
-            isFiltered={isFiltered}
-            unit="sipariş"
-            className="md:ml-auto"
-          />
-        ) : null}
+      {/* Toolbar — geniş arama + sıralama üstte, filtreler altta (tedarikçi paneliyle aynı) */}
+      <div className="card p-4">
+        <div className="space-y-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <SearchInput
+              value={searchUrl}
+              onChange={setSearch}
+              placeholder="Sipariş no, ihale veya tedarikçi…"
+              className="flex-1"
+            />
+            <SortDropdown
+              value={sortUrl}
+              onChange={setSort}
+              options={SORT_OPTIONS}
+              className="w-full sm:w-48"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusDropdown value={tab} onChange={setTab} />
+            <RangeDropdown value={rangeUrl} onChange={setRange} />
+            <CounterpartDropdown
+              value={supplierIdUrl}
+              onChange={setSupplierId}
+              options={counterparts.data ?? []}
+              loading={counterparts.isLoading}
+              placeholder="Tüm Tedarikçiler"
+            />
+            {list.data ? (
+              <ResultCount
+                total={list.data.pagination.total}
+                isFiltered={isFiltered}
+                unit="sipariş"
+                className="ml-auto"
+              />
+            ) : null}
+          </div>
+        </div>
       </div>
 
       {/* List */}

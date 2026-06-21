@@ -32,9 +32,16 @@ import { HeaderCard } from "./header-card";
 import { InvitationsTable } from "./invitations-table";
 import { InviteSupplierModal } from "./invite-supplier-modal";
 import { SupplierDetailDrawer } from "./supplier-detail-drawer";
+import { ConnectionRequestsTable } from "./connection-requests-table";
+import { useConnectionRequestsCount } from "@/hooks/use-connection-requests";
 import { TabsContent, TedarikcilerTabs, type TedarikciTab } from "./tabs";
 
-const VALID_TABS = new Set<string>(["approved", "invitations", "blocked"]);
+const VALID_TABS = new Set<string>([
+  "approved",
+  "requests",
+  "invitations",
+  "blocked",
+]);
 const VALID_INVITATION_STATUSES = new Set<string>(INVITATION_STATUS_ORDER);
 
 function parseTab(value: string | null): TedarikciTab {
@@ -88,6 +95,7 @@ export function TedarikcilerView() {
   const [busyRelationId, setBusyRelationId] = useState<string | null>(null);
 
   const stats = useSupplierStats();
+  const requestsCount = useConnectionRequestsCount();
 
   // Sekmeye göre liste sorgusu
   const approved = useSuppliers({
@@ -267,9 +275,14 @@ export function TedarikcilerView() {
         value={tab}
         onChange={handleTabChange}
         approvedCount={stats.data?.active ?? null}
+        requestsCount={requestsCount.data ?? null}
         invitationsCount={invitationCount}
         blockedCount={stats.data?.blocked ?? null}
       >
+        <TabsContent value="requests" className="space-y-4 outline-none">
+          <ConnectionRequestsTable />
+        </TabsContent>
+
         <TabsContent value="approved" className="space-y-4 outline-none">
           <FiltersBar
             search={search}

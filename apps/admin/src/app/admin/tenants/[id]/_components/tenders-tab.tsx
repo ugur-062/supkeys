@@ -22,7 +22,7 @@ const STATUS_COLORS: Record<string, string> = {
   DRAFT: "bg-slate-100 text-slate-700 border-slate-200",
   IN_APPROVAL: "bg-warning-50 text-warning-800 border-warning-200",
   OPEN_FOR_BIDS: "bg-brand-50 text-brand-700 border-brand-200",
-  IN_AWARD: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  IN_AWARD: "bg-zinc-100 text-zinc-700 border-zinc-200",
   IN_AWARD_APPROVAL: "bg-warning-50 text-warning-800 border-warning-200",
   AWARDED: "bg-success-50 text-success-700 border-success-200",
   CANCELLED: "bg-danger-50 text-danger-700 border-danger-200",

@@ -1,3 +1,4 @@
+import { Badge } from "@/components/catalyst/badge";
 import { CategoryBadge } from "@/components/categories/category-badge";
 import { LogisticsBadge } from "@/components/tenders/logistics-info";
 import { CurrencyBadge } from "@/components/currency-badge";
@@ -31,16 +32,16 @@ export function TenderCard({ tender }: { tender: SupplierTenderListItem }) {
 
   return (
     <Link href={`/supplier/ihaleler/${tender.id}`} className="block group">
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-brand-300 transition-all h-full flex flex-col">
+      <div className="bg-white ring-1 ring-zinc-950/5 rounded-2xl p-5 shadow-sm hover:shadow-md hover:border-zinc-300 transition-all h-full flex flex-col">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <p className="text-[11px] text-slate-500 font-mono">
                 {tender.tenderNumber}
               </p>
               {tender.isLogistics ? <LogisticsBadge /> : null}
             </div>
-            <h3 className="font-semibold text-brand-900 line-clamp-2 mt-0.5 leading-snug">
+            <h3 className="font-semibold text-zinc-950 line-clamp-2 mt-0.5 leading-snug">
               {tender.title}
             </h3>
           </div>
@@ -61,6 +62,11 @@ export function TenderCard({ tender }: { tender: SupplierTenderListItem }) {
 
         <div className="flex items-center flex-wrap gap-2 text-xs text-slate-500 mb-3">
           <CurrencyBadge currency={tender.primaryCurrency} />
+          <Badge color={tender.type === "ENGLISH_AUCTION" ? "purple" : "zinc"}>
+            {tender.type === "ENGLISH_AUCTION"
+              ? "İngiliz Usulü"
+              : "Teklif Toplama"}
+          </Badge>
           {tender.categories && tender.categories.length > 0 ? (
             <div className="flex flex-wrap items-center gap-1">
               {tender.categories.slice(0, 2).map((c) => (

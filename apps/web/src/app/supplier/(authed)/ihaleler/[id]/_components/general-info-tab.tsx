@@ -1,18 +1,27 @@
 "use client";
 
+import { Badge } from "@/components/catalyst/badge";
+import {
+  DescriptionDetails,
+  DescriptionList,
+  DescriptionTerm,
+} from "@/components/catalyst/description-list";
+import { Divider } from "@/components/catalyst/divider";
+import { Subheading } from "@/components/catalyst/heading";
+import { Text } from "@/components/catalyst/text";
+import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
 import {
   CURRENCY_SYMBOL,
   DELIVERY_TERM_LABELS,
   PAYMENT_TERM_LABELS,
 } from "@/lib/tenders/labels";
-import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
 import type {
   SupplierTenderDetail,
   TenderAddressSnapshot,
 } from "@/lib/tenders/types";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Check, X } from "lucide-react";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 function fmt(value: string | null | undefined) {
   if (!value) return "—";
@@ -23,32 +32,15 @@ function fmt(value: string | null | undefined) {
   }
 }
 
-function InfoRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-0.5">
-      <dt className="text-xs uppercase tracking-wide text-slate-500">
-        {label}
-      </dt>
-      <dd className="text-sm text-brand-900 break-words">{children}</dd>
-    </div>
-  );
-}
-
 function RuleItem({ active, label }: { active: boolean; label: string }) {
   return (
-    <li className="flex items-center gap-2 text-sm">
+    <li className="flex items-center gap-2.5 text-sm">
       {active ? (
-        <Check className="h-4 w-4 text-success-600" />
+        <CheckCircle2 className="h-4 w-4 shrink-0 text-success-600" />
       ) : (
-        <X className="h-4 w-4 text-slate-400" />
+        <XCircle className="h-4 w-4 shrink-0 text-zinc-300" />
       )}
-      <span className={active ? "text-brand-900" : "text-slate-500"}>
+      <span className={active ? "text-zinc-900" : "text-zinc-400"}>
         {label}
       </span>
     </li>
@@ -61,103 +53,103 @@ export function SupplierGeneralInfoTab({
   tender: SupplierTenderDetail;
 }) {
   return (
-    <div className="space-y-5">
+    <div>
       {tender.isLogistics && tender.logisticsDetails ? (
-        <LogisticsInfoCard details={tender.logisticsDetails} />
+        <div className="mb-8">
+          <LogisticsInfoCard details={tender.logisticsDetails} />
+        </div>
       ) : null}
-      <section className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div className="space-y-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Süreç
-          </h3>
-          <dl className="space-y-3">
-            {tender.categories && tender.categories.length > 0 ? (
-              <InfoRow
-                label={
-                  tender.categories.length > 1 ? "Kategoriler" : "Kategori"
-                }
-              >
-                <ul className="space-y-0.5">
-                  {tender.categories.map((c) => (
-                    <li key={c.id} className="text-brand-900 font-medium">
-                      {c.breadcrumb}
-                    </li>
-                  ))}
-                </ul>
-              </InfoRow>
-            ) : null}
-            <InfoRow label="Yayın Tarihi">{fmt(tender.publishedAt)}</InfoRow>
-            <InfoRow label="Teklif Açılış">{fmt(tender.bidsOpenAt)}</InfoRow>
-            <InfoRow label="Teklif Kapanış">{fmt(tender.bidsCloseAt)}</InfoRow>
-            <InfoRow label="Para Birimi">
-              <span className="font-semibold">
-                {tender.primaryCurrency}{" "}
-                {CURRENCY_SYMBOL[tender.primaryCurrency]}
-              </span>
-            </InfoRow>
-          </dl>
-        </div>
 
-        <div className="space-y-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Teslim & Ödeme
-          </h3>
-          <dl className="space-y-3">
-            <InfoRow label="Teslim Şekli">
-              {tender.deliveryTerm
-                ? DELIVERY_TERM_LABELS[tender.deliveryTerm]
-                : "—"}
-            </InfoRow>
-            <InfoRow label="Teslimat Adresi">
-              {tender.deliveryAddressSnapshot ? (
-                <AddressSnapshotDisplay
-                  snapshot={tender.deliveryAddressSnapshot}
-                />
-              ) : (
-                <span className="whitespace-pre-wrap">
-                  {tender.deliveryAddress || "—"}
-                </span>
-              )}
-            </InfoRow>
-            <InfoRow label="Ödeme">
-              {PAYMENT_TERM_LABELS[tender.paymentTerm]}
-              {tender.paymentTerm === "DEFERRED" && tender.paymentDays
-                ? ` — ${tender.paymentDays} gün`
-                : ""}
-            </InfoRow>
-          </dl>
-        </div>
-      </section>
+      {/* Süreç */}
+      <Subheading>Süreç</Subheading>
+      <DescriptionList className="mt-4">
+        {tender.categories && tender.categories.length > 0 ? (
+          <>
+            <DescriptionTerm>
+              {tender.categories.length > 1 ? "Kategoriler" : "Kategori"}
+            </DescriptionTerm>
+            <DescriptionDetails>
+              <ul className="space-y-0.5">
+                {tender.categories.map((c) => (
+                  <li key={c.id} className="font-medium text-zinc-900">
+                    {c.breadcrumb}
+                  </li>
+                ))}
+              </ul>
+            </DescriptionDetails>
+          </>
+        ) : null}
+        <DescriptionTerm>Yayın Tarihi</DescriptionTerm>
+        <DescriptionDetails>{fmt(tender.publishedAt)}</DescriptionDetails>
+        <DescriptionTerm>Teklif Açılış</DescriptionTerm>
+        <DescriptionDetails>{fmt(tender.bidsOpenAt)}</DescriptionDetails>
+        <DescriptionTerm>Teklif Kapanış</DescriptionTerm>
+        <DescriptionDetails>{fmt(tender.bidsCloseAt)}</DescriptionDetails>
+        <DescriptionTerm>Para Birimi</DescriptionTerm>
+        <DescriptionDetails>
+          <Badge>
+            {tender.primaryCurrency} {CURRENCY_SYMBOL[tender.primaryCurrency]}
+          </Badge>
+        </DescriptionDetails>
+      </DescriptionList>
 
-      <section className="card p-5 space-y-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          İhale Kuralları
-        </h3>
-        <ul className="space-y-2">
-          <RuleItem
-            active={tender.isSealedBid}
-            label="Kapalı zarf — diğer teklifleri göremezsiniz"
-          />
-          <RuleItem
-            active={tender.requireAllItems}
-            label="Tüm kalemlere teklif zorunlu"
-          />
-          <RuleItem
-            active={tender.requireBidDocument}
-            label="Teklif dosyası eki zorunlu"
-          />
-        </ul>
-      </section>
+      <Divider className="my-8" />
+
+      {/* Teslim & Ödeme */}
+      <Subheading>Teslim &amp; Ödeme</Subheading>
+      <DescriptionList className="mt-4">
+        <DescriptionTerm>Teslim Şekli</DescriptionTerm>
+        <DescriptionDetails>
+          {tender.deliveryTerm
+            ? DELIVERY_TERM_LABELS[tender.deliveryTerm]
+            : "—"}
+        </DescriptionDetails>
+        <DescriptionTerm>Teslimat Adresi</DescriptionTerm>
+        <DescriptionDetails>
+          {tender.deliveryAddressSnapshot ? (
+            <AddressSnapshotDisplay snapshot={tender.deliveryAddressSnapshot} />
+          ) : (
+            <span className="whitespace-pre-wrap">
+              {tender.deliveryAddress || "—"}
+            </span>
+          )}
+        </DescriptionDetails>
+        <DescriptionTerm>Ödeme</DescriptionTerm>
+        <DescriptionDetails>
+          {PAYMENT_TERM_LABELS[tender.paymentTerm]}
+          {tender.paymentTerm === "DEFERRED" && tender.paymentDays
+            ? ` — ${tender.paymentDays} gün`
+            : ""}
+        </DescriptionDetails>
+      </DescriptionList>
+
+      <Divider className="my-8" />
+
+      {/* İhale Kuralları */}
+      <Subheading>İhale Kuralları</Subheading>
+      <ul className="mt-4 space-y-2.5">
+        <RuleItem
+          active={tender.isSealedBid}
+          label="Kapalı zarf — diğer teklifleri göremezsiniz"
+        />
+        <RuleItem
+          active={tender.requireAllItems}
+          label="Tüm kalemlere teklif zorunlu"
+        />
+        <RuleItem
+          active={tender.requireBidDocument}
+          label="Teklif dosyası eki zorunlu"
+        />
+      </ul>
 
       {tender.termsAndConditions ? (
-        <section className="card p-5 space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Hüküm ve Koşullar
-          </h3>
-          <p className="text-sm text-brand-900 whitespace-pre-wrap leading-relaxed">
+        <>
+          <Divider className="my-8" />
+          <Subheading>Hüküm ve Koşullar</Subheading>
+          <Text className="mt-3 whitespace-pre-wrap leading-relaxed">
             {tender.termsAndConditions}
-          </p>
-        </section>
+          </Text>
+        </>
       ) : null}
     </div>
   );
@@ -165,8 +157,6 @@ export function SupplierGeneralInfoTab({
 
 /**
  * E.7.B — Tedarikçi tarafında teslimat adresi snapshot'ı.
- * Sadece title + fullAddress + city/district + iletişim (varsa).
- * VKN/Vergi Dairesi alıcı tarafıdır, gösterilmez.
  */
 function AddressSnapshotDisplay({
   snapshot,
@@ -174,17 +164,15 @@ function AddressSnapshotDisplay({
   snapshot: TenderAddressSnapshot;
 }) {
   return (
-    <div className="space-y-0.5 text-sm">
-      <p className="font-semibold text-brand-900">{snapshot.title}</p>
-      <p className="text-slate-700 whitespace-pre-line">
-        {snapshot.fullAddress}
-      </p>
-      <p className="text-slate-600">
+    <div className="space-y-0.5">
+      <p className="font-semibold text-zinc-900">{snapshot.title}</p>
+      <p className="whitespace-pre-line text-zinc-700">{snapshot.fullAddress}</p>
+      <p className="text-zinc-600">
         {snapshot.district} / {snapshot.city}
         {snapshot.postalCode ? ` · ${snapshot.postalCode}` : ""}
       </p>
       {snapshot.contactName ? (
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="mt-1 text-xs text-zinc-500">
           İletişim: {snapshot.contactName}
           {snapshot.contactPhone ? ` · ${snapshot.contactPhone}` : ""}
         </p>

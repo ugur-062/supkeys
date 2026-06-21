@@ -1,26 +1,21 @@
-import { cn } from "@/lib/utils";
-import { forwardRef, type InputHTMLAttributes } from "react";
+"use client";
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+import { Input as CatalystInput } from "@/components/catalyst/input";
+import { forwardRef, type ComponentPropsWithoutRef } from "react";
+
+interface InputProps extends ComponentPropsWithoutRef<typeof CatalystInput> {
   hasError?: boolean;
 }
 
+/**
+ * Admin Input — Catalyst Input'u sarar. `hasError` → data-invalid (kırmızı ring).
+ */
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, hasError, ...props }, ref) => {
+  ({ hasError, ...props }, ref) => {
     return (
-      <input
+      <CatalystInput
         ref={ref}
-        className={cn(
-          "w-full px-3.5 py-2.5 rounded-lg border bg-white",
-          "text-admin-text text-sm placeholder:text-slate-400",
-          "transition-colors",
-          "focus:outline-none focus:ring-2 focus:ring-offset-0",
-          hasError
-            ? "border-danger-500 focus:ring-danger-500/30 focus:border-danger-500"
-            : "border-admin-border-strong focus:ring-brand-500/30 focus:border-brand-500",
-          "disabled:bg-surface-muted disabled:cursor-not-allowed",
-          className,
-        )}
+        data-invalid={hasError ? true : undefined}
         {...props}
       />
     );

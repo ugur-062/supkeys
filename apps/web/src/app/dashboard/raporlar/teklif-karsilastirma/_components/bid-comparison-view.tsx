@@ -4,6 +4,7 @@
 // Form: İhale No (tender number veya UUID) + criteria + 3 checkbox.
 // Submit → web'de tablo render; ek olarak PDF/Excel indir.
 
+import { Checkbox } from "@/components/catalyst/checkbox";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -137,23 +138,22 @@ export function BidComparisonView() {
               {openCrit ? (
                 <div className="absolute z-10 mt-1 w-full bg-white rounded-lg border border-surface-border shadow-lg p-1.5">
                   {(["PRICE", "ANSWERS", "BOTH"] as const).map((c) => (
-                    <label
+                    <div
                       key={c}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-slate-50 cursor-pointer"
+                      className="flex items-center gap-2.5 px-2 py-1.5 rounded hover:bg-zinc-50"
                     >
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={criteria.includes(c)}
-                        onChange={(e) =>
+                        onChange={(checked) =>
                           setCriteria((prev) =>
-                            e.target.checked
+                            checked
                               ? Array.from(new Set([...prev, c]))
                               : prev.filter((x) => x !== c),
                           )
                         }
                       />
                       <span className="text-sm">{CRIT_LABEL[c]}</span>
-                    </label>
+                    </div>
                   ))}
                 </div>
               ) : null}
@@ -240,18 +240,17 @@ function CheckboxRow({
   hint?: string;
 }) {
   return (
-    <label className="flex items-start gap-2.5 cursor-pointer">
-      <input
-        type="checkbox"
+    <div className="flex items-start gap-2.5">
+      <Checkbox
         className="mt-0.5"
         checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
+        onChange={(v) => onChange(v)}
       />
       <div>
-        <p className="text-sm font-medium text-brand-900">{label}</p>
-        {hint ? <p className="text-xs text-slate-500 mt-0.5">{hint}</p> : null}
+        <p className="text-sm font-medium text-zinc-900">{label}</p>
+        {hint ? <p className="text-xs text-zinc-500 mt-0.5">{hint}</p> : null}
       </div>
-    </label>
+    </div>
   );
 }
 
@@ -290,7 +289,7 @@ function RoundTable({
           <code className="text-sm font-mono text-brand-700 font-semibold">
             {round.tenderNumber}
           </code>
-          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-indigo-100 text-indigo-800 text-xs font-bold">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-800 text-xs font-bold">
             Tur #{round.roundNumber}
           </span>
           <span className="text-sm text-slate-500">· {round.currency}</span>

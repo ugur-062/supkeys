@@ -3,6 +3,15 @@
 // V2-7+ — Tasarruf Raporu UI.
 // Tarih aralığı + opsiyonel para birimi; AWARDED ihalelerde hedef vs kazanan farkı.
 
+import { Select } from "@/components/catalyst/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -93,7 +102,7 @@ export function SavingsReportView() {
 
       <PageHeader
         title="Tasarruf Raporu"
-        description="Verilen tarih aralığında kazandırılmış ihalelerde hedef fiyat ile kazanan teklif arasındaki farkı (tasarruf) gösterir."
+        description="Verilen tarih aralığında kazandırılmış ihalelerde, gelen en yüksek teklif ile en düşük teklif arasındaki farkı (tasarruf) gösterir."
       />
 
       <section className="card p-5 space-y-4">
@@ -122,11 +131,10 @@ export function SavingsReportView() {
           </Field>
           <Field>
             <Label htmlFor="cur">İhale Para Birimi</Label>
-            <select
+            <Select
               id="cur"
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-lg border border-surface-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
             >
               <option value="">Hepsi</option>
               {CURRENCIES.map((c) => (
@@ -134,7 +142,7 @@ export function SavingsReportView() {
                   {c}
                 </option>
               ))}
-            </select>
+            </Select>
           </Field>
         </div>
 
@@ -192,12 +200,12 @@ function SavingsResults({
           value={String(data.summary.totalTenders)}
         />
         <SummaryStat
-          label="Hedef Toplam"
-          value={fmtMoney(data.summary.grandTarget)}
+          label="En Yüksek Teklif"
+          value={fmtMoney(data.summary.grandHighest)}
         />
         <SummaryStat
-          label="Kazanan Toplam"
-          value={fmtMoney(data.summary.grandActual)}
+          label="En Düşük Teklif"
+          value={fmtMoney(data.summary.grandLowest)}
         />
         <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-4">
           <div className="flex items-center gap-2 text-xs font-medium text-brand-700">
@@ -301,131 +309,120 @@ function SavingsResults({
             })}
           </span>
         </header>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-brand-50 text-brand-900">
-              <tr>
-                <th className="px-3 py-2 text-left font-semibold">İhale No</th>
-                <th className="px-3 py-2 text-left font-semibold">Başlık</th>
-                <th className="px-3 py-2 text-left font-semibold">Para</th>
-                <th className="px-3 py-2 text-right font-semibold">Hedef</th>
-                <th className="px-3 py-2 text-right font-semibold">Kazanan</th>
-                <th className="px-3 py-2 text-right font-semibold">Tasarruf</th>
-                <th className="px-3 py-2 text-right font-semibold">%</th>
-                <th className="px-3 py-2 text-left font-semibold">
-                  Kazanan Tedarikçi
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="px-3 [--gutter:--spacing(3)]">
+          <Table dense>
+            <TableHead>
+              <TableRow>
+                <TableHeader>İhale No</TableHeader>
+                <TableHeader>Başlık</TableHeader>
+                <TableHeader>Para</TableHeader>
+                <TableHeader className="text-right">En Yüksek</TableHeader>
+                <TableHeader className="text-right">En Düşük</TableHeader>
+                <TableHeader className="text-right">Tasarruf</TableHeader>
+                <TableHeader className="text-right">%</TableHeader>
+                <TableHeader>Kazanan Tedarikçi</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {data.rows.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-3 py-8 text-center text-slate-500">
+                <TableRow>
+                  <TableCell colSpan={8} className="py-8 text-center text-zinc-500">
                     Bu aralıkta AWARDED ihale bulunamadı.
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
                 data.rows.map((r) => (
-                  <tr key={r.id} className="border-t border-surface-border">
-                    <td className="px-3 py-2 font-mono text-brand-700 font-semibold">
+                  <TableRow key={r.id}>
+                    <TableCell className="font-mono text-zinc-900 font-semibold">
                       {r.tenderNumber}
-                    </td>
-                    <td className="px-3 py-2">{r.title}</td>
-                    <td className="px-3 py-2">{r.currency}</td>
-                    <td className="px-3 py-2 text-right">
-                      {fmtMoney(r.targetTotal)}
-                    </td>
-                    <td className="px-3 py-2 text-right">
-                      {fmtMoney(r.actualTotal)}
-                    </td>
-                    <td className="px-3 py-2 text-right font-semibold text-success-700">
+                    </TableCell>
+                    <TableCell>{r.title}</TableCell>
+                    <TableCell>{r.currency}</TableCell>
+                    <TableCell className="text-right">
+                      {r.highestBid != null ? fmtMoney(r.highestBid) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {r.lowestBid != null ? fmtMoney(r.lowestBid) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold text-success-700">
                       {r.savings !== null ? fmtMoney(r.savings) : "-"}
-                    </td>
-                    <td className="px-3 py-2 text-right">
+                    </TableCell>
+                    <TableCell className="text-right">
                       {r.savingsPct !== null
                         ? `${r.savingsPct.toFixed(2)}%`
                         : "-"}
-                    </td>
-                    <td className="px-3 py-2 text-slate-600">
+                    </TableCell>
+                    <TableCell className="text-zinc-600">
                       {r.winners.map((w) => w.name).join(", ") || "-"}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </section>
 
       {data.rows.some((r) => r.items.length > 0) ? (
         <section className="card overflow-hidden">
-          <header className="px-5 py-3 border-b border-surface-border bg-slate-50/60">
-            <h3 className="text-sm font-semibold text-brand-900">
+          <header className="px-5 py-3 border-b border-zinc-950/5 bg-zinc-50/60">
+            <h3 className="text-sm font-semibold text-zinc-950">
               Kalem Bazlı Tasarruf
             </h3>
           </header>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm whitespace-nowrap">
-              <thead className="bg-brand-50 text-brand-900">
-                <tr>
-                  <th className="px-3 py-2 text-left font-semibold">İhale No</th>
-                  <th className="px-3 py-2 text-left font-semibold">Kalem</th>
-                  <th className="px-3 py-2 text-center font-semibold">
-                    Kazanan Adet
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    Hedef Birim
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    Kazanan Birim
-                  </th>
-                  <th className="px-3 py-2 text-left font-semibold">Kazanan</th>
-                  <th className="px-3 py-2 text-right font-semibold">Tasarruf</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="px-3 [--gutter:--spacing(3)]">
+            <Table dense>
+              <TableHead>
+                <TableRow>
+                  <TableHeader>İhale No</TableHeader>
+                  <TableHeader>Kalem</TableHeader>
+                  <TableHeader className="text-center">Kazanan Adet</TableHeader>
+                  <TableHeader className="text-right">Hedef Birim</TableHeader>
+                  <TableHeader className="text-right">Kazanan Birim</TableHeader>
+                  <TableHeader>Kazanan</TableHeader>
+                  <TableHeader className="text-right">Tasarruf</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {data.rows.flatMap((r) =>
                   r.items.map((it, idx) => (
-                    <tr
-                      key={`${r.id}-${idx}`}
-                      className="border-t border-surface-border"
-                    >
-                      <td className="px-3 py-2 font-mono text-brand-700">
+                    <TableRow key={`${r.id}-${idx}`}>
+                      <TableCell className="font-mono text-zinc-700">
                         {r.tenderNumber}
-                      </td>
-                      <td className="px-3 py-2">{it.name}</td>
-                      <td className="px-3 py-2 text-center">
+                      </TableCell>
+                      <TableCell>{it.name}</TableCell>
+                      <TableCell className="text-center">
                         {it.awardedQuantity ?? "-"}
-                      </td>
-                      <td className="px-3 py-2 text-right">
+                      </TableCell>
+                      <TableCell className="text-right">
                         {it.targetUnitPrice !== null
                           ? fmtMoney(it.targetUnitPrice)
                           : "-"}
-                      </td>
-                      <td className="px-3 py-2 text-right">
+                      </TableCell>
+                      <TableCell className="text-right">
                         {it.winningUnitPrice !== null
                           ? fmtMoney(it.winningUnitPrice)
                           : "-"}
-                      </td>
-                      <td className="px-3 py-2 text-slate-600">
+                      </TableCell>
+                      <TableCell className="text-zinc-600">
                         {it.winnerName ?? "-"}
-                      </td>
-                      <td
-                        className={`px-3 py-2 text-right font-medium ${
+                      </TableCell>
+                      <TableCell
+                        className={`text-right font-medium ${
                           it.savings !== null && it.savings >= 0
                             ? "text-success-700"
                             : it.savings !== null
                               ? "text-danger-600"
-                              : "text-slate-400"
+                              : "text-zinc-400"
                         }`}
                       >
                         {it.savings !== null ? fmtMoney(it.savings) : "-"}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )),
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </section>
       ) : null}
@@ -435,9 +432,9 @@ function SavingsResults({
 
 function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-surface-border bg-white p-4">
-      <div className="text-xs font-medium text-slate-500">{label}</div>
-      <div className="mt-1 text-xl font-bold text-brand-900">{value}</div>
+    <div className="rounded-xl bg-white p-4 ring-1 ring-zinc-950/5">
+      <div className="text-xs font-medium text-zinc-500">{label}</div>
+      <div className="mt-1 text-xl font-semibold text-zinc-950">{value}</div>
     </div>
   );
 }

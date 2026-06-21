@@ -1,80 +1,142 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
-import { CheckCircle2, Send, XCircle } from "lucide-react";
+import { CheckCircle2, Handshake, Send, XCircle } from "lucide-react";
+import { createContext, useContext } from "react";
 
-export type TedarikciTab = "approved" | "invitations" | "blocked";
+export type TedarikciTab = "approved" | "requests" | "invitations" | "blocked";
+
+const TabsContext = createContext<TedarikciTab>("approved");
 
 interface TabsRootProps {
   value: TedarikciTab;
   onChange: (value: TedarikciTab) => void;
   approvedCount: number | null;
+  requestsCount: number | null;
   invitationsCount: number | null;
   blockedCount: number | null;
   children: React.ReactNode;
 }
 
-function CountBadge({ value }: { value: number | null }) {
+function CountBadge({
+  value,
+  active,
+}: {
+  value: number | null;
+  active: boolean;
+}) {
   if (value === null) {
     return (
-      <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-400">
+      <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] bg-zinc-100 text-zinc-400">
         —
       </span>
     );
   }
   return (
-    <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] bg-slate-100 text-slate-600 group-data-[state=active]:bg-brand-100 group-data-[state=active]:text-brand-700">
+    <span
+      className={cn(
+        "ml-2 px-2 py-0.5 rounded-full text-[11px]",
+        active ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600",
+      )}
+    >
       {value}
     </span>
   );
 }
 
-const TRIGGER_CLASSES = cn(
-  "group inline-flex items-center px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-  "border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50",
-  "data-[state=active]:border-brand-600 data-[state=active]:text-brand-700 data-[state=active]:bg-brand-50/30",
-  "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30 rounded-t-md",
-);
+function triggerClasses(active: boolean) {
+  return cn(
+    "group inline-flex items-center px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap focus:outline-none rounded-t-md",
+    active
+      ? "border-zinc-900 text-zinc-900"
+      : "border-transparent text-zinc-500 hover:text-zinc-700",
+  );
+}
 
 export function TedarikcilerTabs({
   value,
   onChange,
   approvedCount,
+  requestsCount,
   invitationsCount,
   blockedCount,
   children,
 }: TabsRootProps) {
-  return (
-    <TabsPrimitive.Root
-      value={value}
-      onValueChange={(v) => onChange(v as TedarikciTab)}
-      className="space-y-4"
-    >
-      <TabsPrimitive.List
-        className="border-b border-surface-border flex gap-1 overflow-x-auto"
-        aria-label="Tedarikçi yönetim sekmeleri"
-      >
-        <TabsPrimitive.Trigger value="approved" className={TRIGGER_CLASSES}>
-          <CheckCircle2 className="h-4 w-4 mr-2" />
-          Onaylı Tedarikçiler
-          <CountBadge value={approvedCount} />
-        </TabsPrimitive.Trigger>
-        <TabsPrimitive.Trigger value="invitations" className={TRIGGER_CLASSES}>
-          <Send className="h-4 w-4 mr-2" />
-          Çağrılan Tedarikçiler
-          <CountBadge value={invitationsCount} />
-        </TabsPrimitive.Trigger>
-        <TabsPrimitive.Trigger value="blocked" className={TRIGGER_CLASSES}>
-          <XCircle className="h-4 w-4 mr-2" />
-          Engellenenler
-          <CountBadge value={blockedCount} />
-        </TabsPrimitive.Trigger>
-      </TabsPrimitive.List>
+  const tabs: Array<{
+    key: TedarikciTab;
+    icon: typeof CheckCircle2;
+    label: string;
+    count: number | null;
+  }> = [
+    {
+      key: "approved",
+      icon: CheckCircle2,
+      label: "Onaylı Tedarikçiler",
+      count: approvedCount,
+    },
+    {
+      key: "requests",
+      icon: Handshake,
+      label: "Gelen İstekler",
+      count: requestsCount,
+    },
+    {
+      key: "invitations",
+      icon: Send,
+      label: "Çağrılan Tedarikçiler",
+      count: invitationsCount,
+    },
+    {
+      key: "blocked",
+      icon: XCircle,
+      label: "Engellenenler",
+      count: blockedCount,
+    },
+  ];
 
-      {children}
-    </TabsPrimitive.Root>
+  return (
+    <TabsContext.Provider value={value}>
+      <div className="space-y-4">
+        <div
+          role="tablist"
+          aria-label="Tedarikçi yönetim sekmeleri"
+          className="border-b border-zinc-950/5 flex gap-1 overflow-x-auto"
+        >
+          {tabs.map(({ key, icon: Icon, label, count }) => {
+            const active = value === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => onChange(key)}
+                className={triggerClasses(active)}
+              >
+                <Icon className="h-4 w-4 mr-2" />
+                {label}
+                <CountBadge value={count} active={active} />
+              </button>
+            );
+          })}
+        </div>
+
+        {children}
+      </div>
+    </TabsContext.Provider>
   );
 }
 
-export const TabsContent = TabsPrimitive.Content;
+export function TabsContent({
+  value,
+  className,
+  children,
+}: {
+  value: TedarikciTab;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const active = useContext(TabsContext);
+  if (active !== value) return null;
+  return <div className={className}>{children}</div>;
+}

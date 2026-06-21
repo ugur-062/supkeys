@@ -8,7 +8,13 @@ import {
 } from "@/hooks/use-tenant-tenders";
 import type { TenderDetail } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
+import {
+  TabGroup,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
+} from "@headlessui/react";
 import {
   AlertCircle,
   FileText,
@@ -30,9 +36,9 @@ import { TenderBasedRanking } from "./tender-based-ranking";
 
 const MAIN_TRIGGER = cn(
   "px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition whitespace-nowrap",
-  "data-[state=active]:border-brand-500 data-[state=active]:text-brand-700",
-  "data-[state=inactive]:border-transparent data-[state=inactive]:text-slate-500",
-  "hover:text-slate-700 focus:outline-none",
+  "border-transparent text-zinc-500",
+  "data-selected:border-zinc-900 data-selected:text-zinc-900",
+  "hover:text-zinc-700 focus:outline-none",
 );
 
 export function BidsTab({ tender }: { tender: TenderDetail }) {
@@ -101,33 +107,28 @@ export function BidsTab({ tender }: { tender: TenderDetail }) {
       <BidsSummary bidsData={bidsData} />
 
       {/* 2 Ana Tab */}
-      <TabsPrimitive.Root
-        value={view}
-        onValueChange={(v) => setView(v as typeof view)}
+      <TabGroup
+        selectedIndex={view === "item-based" ? 0 : 1}
+        onChange={(idx) => setView(idx === 0 ? "item-based" : "tender-based")}
       >
-        <TabsPrimitive.List
-          className="border-b border-slate-200 flex items-center gap-1"
+        <TabList
+          className="border-b border-zinc-950/5 flex items-center gap-1"
           aria-label="Teklif sıralama görünümü"
         >
-          <TabsPrimitive.Trigger value="item-based" className={MAIN_TRIGGER}>
-            Kalem Bazlı Sıralama
-          </TabsPrimitive.Trigger>
-          <TabsPrimitive.Trigger value="tender-based" className={MAIN_TRIGGER}>
-            İhale Bazlı Sıralama
-          </TabsPrimitive.Trigger>
-        </TabsPrimitive.List>
+          <Tab className={MAIN_TRIGGER}>Kalem Bazlı Sıralama</Tab>
+          <Tab className={MAIN_TRIGGER}>İhale Bazlı Sıralama</Tab>
+        </TabList>
 
-        <TabsPrimitive.Content value="item-based" className="mt-4 outline-none">
-          <ItemBasedRankingWrapper tender={tender} isLive={isLive} />
-        </TabsPrimitive.Content>
+        <TabPanels>
+          <TabPanel className="mt-4 outline-none">
+            <ItemBasedRankingWrapper tender={tender} isLive={isLive} />
+          </TabPanel>
 
-        <TabsPrimitive.Content
-          value="tender-based"
-          className="mt-4 outline-none"
-        >
-          <TenderBasedRanking tenderId={tender.id} bidsData={bidsData} />
-        </TabsPrimitive.Content>
-      </TabsPrimitive.Root>
+          <TabPanel className="mt-4 outline-none">
+            <TenderBasedRanking tenderId={tender.id} bidsData={bidsData} />
+          </TabPanel>
+        </TabPanels>
+      </TabGroup>
     </div>
   );
 }

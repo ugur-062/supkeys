@@ -1,16 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Check,
-  ChevronRight,
-  Loader2,
-  Plus,
-  Search,
-  Tag,
-  X as XIcon,
-} from "lucide-react";
+import { Input, InputGroup } from "@/components/catalyst/input";
+import { Button } from "@/components/ui/button";
 import { useRoots } from "@/hooks/use-categories";
+import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
+import { Check, ChevronRight, Loader2, Plus, Tag, X as XIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface Props {
   value: string[];
@@ -57,7 +52,7 @@ export function SegmentOnlyPicker({
           className={`flex w-full items-center justify-between rounded-lg border-2 border-dashed px-4 py-3 transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
             error
               ? "border-rose-300 bg-rose-50 hover:bg-rose-100"
-              : "border-slate-300 bg-white hover:border-brand-400 hover:bg-brand-50/30"
+              : "border-slate-300 bg-white hover:border-zinc-400 hover:bg-zinc-50/30"
           }`}
         >
           <div className="flex items-center gap-3">
@@ -73,7 +68,7 @@ export function SegmentOnlyPicker({
               />
             </div>
             <div className="text-left">
-              <p className="text-sm font-semibold text-brand-900">
+              <p className="text-sm font-semibold text-zinc-900">
                 {placeholder}
               </p>
               <p className="mt-0.5 text-xs text-slate-500">
@@ -89,12 +84,12 @@ export function SegmentOnlyPicker({
             {selectedSegments.map((seg) => (
               <span
                 key={seg.id}
-                className="inline-flex items-center gap-1.5 rounded-md border border-brand-200 bg-white px-2 py-1 text-xs font-semibold text-brand-700"
+                className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-zinc-700"
                 title={seg.nameTr}
               >
                 <Tag className="h-3 w-3" />
                 {seg.segmentLetter ? (
-                  <span className="font-mono text-brand-500">
+                  <span className="font-mono text-zinc-500">
                     {seg.segmentLetter}.
                   </span>
                 ) : null}
@@ -116,7 +111,7 @@ export function SegmentOnlyPicker({
             <button
               type="button"
               onClick={() => setOpen(true)}
-              className="flex items-center gap-1 text-sm font-semibold text-brand-600 hover:text-brand-700"
+              className="flex items-center gap-1 text-sm font-semibold text-zinc-600 hover:text-zinc-700"
             >
               <Plus className="h-4 w-4" />
               Kategori Ekle / Düzenle
@@ -243,7 +238,7 @@ function SegmentOnlyModal({
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <h2
             id="segment-only-modal-title"
-            className="text-lg font-bold text-brand-900"
+            className="text-lg font-bold text-zinc-900"
           >
             {title}
           </h2>
@@ -259,16 +254,15 @@ function SegmentOnlyModal({
 
         {/* Search + summary */}
         <div className="border-b border-slate-200 bg-slate-50 px-5 py-4">
-          <div className="relative">
-            <input
+          <InputGroup>
+            <MagnifyingGlassIcon data-slot="icon" />
+            <Input
               ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Kategori ara..."
-              className="w-full rounded-lg border border-slate-200 bg-white py-3 pl-4 pr-12 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
-            <Search className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-          </div>
+          </InputGroup>
           <p className="mt-2 text-xs text-slate-500">{description}</p>
           <div className="mt-3 flex items-center justify-between text-sm">
             <span className="text-slate-600">
@@ -278,7 +272,7 @@ function SegmentOnlyModal({
               <button
                 type="button"
                 onClick={() => setDraftIds([])}
-                className="text-sm font-semibold text-brand-600 hover:text-brand-700"
+                className="text-sm font-semibold text-zinc-600 hover:text-zinc-700"
               >
                 Tüm Seçimi Temizle
               </button>
@@ -314,14 +308,14 @@ function SegmentOnlyModal({
                       onClick={() => toggle(segment.id)}
                       className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors ${
                         isSelected
-                          ? "bg-brand-50 hover:bg-brand-100"
+                          ? "bg-zinc-50 hover:bg-zinc-100"
                           : "hover:bg-slate-50"
                       }`}
                     >
                       <div
                         className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 ${
                           isSelected
-                            ? "border-brand-500 bg-brand-500"
+                            ? "border-zinc-500 bg-zinc-500"
                             : "border-slate-300 bg-white"
                         }`}
                       >
@@ -333,7 +327,7 @@ function SegmentOnlyModal({
                         {segment.segmentLetter ? (
                           <span
                             className={`font-mono text-xs ${
-                              isSelected ? "text-brand-600" : "text-slate-400"
+                              isSelected ? "text-zinc-600" : "text-slate-400"
                             }`}
                           >
                             {segment.segmentLetter}.
@@ -342,7 +336,7 @@ function SegmentOnlyModal({
                         <span
                           className={`text-sm ${
                             isSelected
-                              ? "font-semibold text-brand-900"
+                              ? "font-semibold text-zinc-900"
                               : "text-slate-700"
                           }`}
                         >
@@ -359,21 +353,12 @@ function SegmentOnlyModal({
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
-          >
+          <Button variant="ghost" onClick={onClose}>
             Vazgeç
-          </button>
-          <button
-            type="button"
-            onClick={handleConfirm}
-            disabled={draftIds.length === 0}
-            className="rounded-lg bg-brand-500 px-5 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:bg-slate-300"
-          >
+          </Button>
+          <Button onClick={handleConfirm} disabled={draftIds.length === 0}>
             Onayla {draftIds.length > 0 ? `(${draftIds.length})` : ""}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -106,7 +106,7 @@ export function FileUpload({
             <FileText className="w-5 h-5 text-success-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-brand-900 truncate">
+            <p className="text-sm font-medium text-zinc-900 truncate">
               {fileName}
             </p>
             {fileSize ? (
@@ -137,8 +137,8 @@ export function FileUpload({
         className={cn(
           "border-2 border-dashed rounded-xl p-8 cursor-pointer transition-colors",
           "flex flex-col items-center justify-center text-center gap-2",
-          isDragActive && "bg-brand-50 border-brand-500",
-          !isDragActive && !showError && "border-slate-300 hover:border-brand-400 hover:bg-brand-50/40",
+          isDragActive && "bg-zinc-50 border-zinc-500",
+          !isDragActive && !showError && "border-slate-300 hover:border-zinc-400 hover:bg-zinc-50/40",
           showError && "border-danger-500 bg-danger-50/30",
         )}
       >
@@ -146,16 +146,16 @@ export function FileUpload({
         <div
           className={cn(
             "w-12 h-12 rounded-full flex items-center justify-center",
-            showError ? "bg-danger-50" : "bg-brand-50",
+            showError ? "bg-danger-50" : "bg-zinc-50",
           )}
         >
           {showError ? (
             <AlertCircle className="w-6 h-6 text-danger-600" />
           ) : (
-            <Upload className="w-6 h-6 text-brand-600" />
+            <Upload className="w-6 h-6 text-zinc-600" />
           )}
         </div>
-        <p className="text-sm font-medium text-brand-900">
+        <p className="text-sm font-medium text-zinc-900">
           {isDragActive
             ? "Dosyayı bırakın"
             : "Vergi levhanızı buraya sürükleyin veya seçin"}

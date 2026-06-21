@@ -1,8 +1,8 @@
 "use client";
 
+import { Select } from "@/components/catalyst/select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -58,14 +58,10 @@ export function FiltersBar<T extends string>({
       </div>
 
       {statusOptions && (
-        <select
+        <Select
           value={status}
           onChange={(e) => onStatusChange(e.target.value as T | "")}
-          className={cn(
-            "px-3.5 py-2.5 rounded-lg border bg-white text-brand-900 text-sm",
-            "border-surface-border focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-            "min-w-[180px]",
-          )}
+          className="md:min-w-[180px]"
         >
           <option value="">Tümü</option>
           {statusOptions.map((s) => (
@@ -73,7 +69,7 @@ export function FiltersBar<T extends string>({
               {s.label}
             </option>
           ))}
-        </select>
+        </Select>
       )}
 
       <Button

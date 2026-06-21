@@ -9,8 +9,12 @@ import {
 } from "@/hooks/use-demo-requests";
 import { DEMO_REQUEST_STATUS_META } from "@/lib/demo-requests/status";
 import type { DemoRequestStatus } from "@/lib/demo-requests/types";
-import { cn } from "@/lib/utils";
-import * as Dialog from "@radix-ui/react-dialog";
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogPanel,
+  DialogTitle,
+} from "@headlessui/react";
 import axios from "axios";
 import { format, formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -135,35 +139,33 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
   };
 
   return (
-    <Dialog.Root
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-slate-900/50 z-40" />
-        <Dialog.Content
-          className={cn(
-            "fixed right-0 top-0 bottom-0 w-full sm:w-[420px] bg-admin-bg z-50 shadow-xl",
-            "flex flex-col outline-none",
-          )}
-        >
-          <header className="px-5 py-4 border-b border-admin-border bg-admin-surface flex items-center justify-between">
-            <Dialog.Title className="font-display font-bold text-lg text-admin-text">
-              Talep Detayı
-            </Dialog.Title>
-            <Dialog.Close asChild>
+    <>
+    <Dialog open={open} onClose={onClose} className="relative z-50">
+      <DialogBackdrop
+        transition
+        className="fixed inset-0 bg-zinc-950/30 backdrop-blur-sm transition-opacity duration-300 data-closed:opacity-0"
+      />
+      <div className="fixed inset-0 overflow-hidden">
+        <div className="absolute inset-y-0 right-0 flex max-w-full">
+          <DialogPanel
+            transition
+            className="flex w-screen sm:w-[440px] flex-col bg-admin-bg shadow-xl outline-none transition duration-300 ease-in-out data-closed:translate-x-full"
+          >
+            <header className="px-5 py-4 border-b border-admin-border bg-admin-surface flex items-center justify-between">
+              <DialogTitle className="font-display font-bold text-lg text-admin-text">
+                Talep Detayı
+              </DialogTitle>
               <button
+                type="button"
+                onClick={onClose}
                 aria-label="Kapat"
                 className="p-1.5 rounded-lg hover:bg-surface-muted text-admin-text-muted hover:text-admin-text transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
-            </Dialog.Close>
-          </header>
+            </header>
 
-          <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
+            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-5">
             {detail.isLoading && (
               <div className="flex items-center justify-center py-16 text-admin-text-muted">
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
@@ -486,28 +488,30 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                 </section>
               </>
             )}
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
+            </div>
+          </DialogPanel>
+        </div>
+      </div>
+    </Dialog>
 
-      {item && (
-        <>
-          <SendInviteModal
-            demoId={item.id}
-            defaultEmail={item.inviteSentToEmail ?? item.email}
-            companyName={item.companyName}
-            isResend={!!item.inviteSentAt}
-            open={inviteModalOpen}
-            onClose={() => setInviteModalOpen(false)}
-          />
-          <RejectDemoModal
-            demoId={item.id}
-            companyName={item.companyName}
-            open={rejectModalOpen}
-            onClose={() => setRejectModalOpen(false)}
-          />
-        </>
-      )}
-    </Dialog.Root>
+    {item && (
+      <>
+        <SendInviteModal
+          demoId={item.id}
+          defaultEmail={item.inviteSentToEmail ?? item.email}
+          companyName={item.companyName}
+          isResend={!!item.inviteSentAt}
+          open={inviteModalOpen}
+          onClose={() => setInviteModalOpen(false)}
+        />
+        <RejectDemoModal
+          demoId={item.id}
+          companyName={item.companyName}
+          open={rejectModalOpen}
+          onClose={() => setRejectModalOpen(false)}
+        />
+      </>
+    )}
+    </>
   );
 }

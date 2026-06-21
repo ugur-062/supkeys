@@ -1,5 +1,7 @@
 "use client";
 
+import { Checkbox } from "@/components/catalyst/checkbox";
+import { Radio, RadioGroup } from "@/components/catalyst/radio";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -165,7 +167,7 @@ export function Step3Suppliers() {
                 <Users2 className="h-5 w-5 text-brand-600" />
               </div>
               <div>
-                <h2 className="font-display font-bold text-lg text-brand-900">
+                <h2 className="font-semibold text-lg text-brand-900">
                   Tedarikçi Daveti
                 </h2>
                 <p className="text-sm text-slate-500">
@@ -175,19 +177,15 @@ export function Step3Suppliers() {
             </div>
 
             {/* 1. Davet Yöntemi radio cards */}
-            <div className="space-y-3">
+            <RadioGroup
+              value="approved"
+              onChange={() => {}}
+              className="space-y-3"
+            >
               {/* "Tüm Supkeys" — disabled, V2 */}
-              <label
-                className="block bg-slate-50 border-2 border-slate-200 rounded-xl p-4 cursor-not-allowed opacity-60"
-                aria-disabled="true"
-              >
+              <div className="block bg-zinc-50 ring-1 ring-zinc-950/10 rounded-xl p-4 opacity-60">
                 <div className="flex gap-3 items-start">
-                  <input
-                    type="radio"
-                    name="inviteMethod"
-                    disabled
-                    className="mt-1"
-                  />
+                  <Radio value="all" disabled className="mt-1" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-slate-700">
@@ -209,18 +207,12 @@ export function Step3Suppliers() {
                     </ul>
                   </div>
                 </div>
-              </label>
+              </div>
 
               {/* "Sadece Onaylı Tedarikçilerim" — V1 default */}
-              <label className="block bg-white border-2 border-brand-400 rounded-xl p-4 cursor-pointer ring-2 ring-brand-100">
+              <div className="block bg-white rounded-xl p-4 ring-2 ring-zinc-900">
                 <div className="flex gap-3 items-start">
-                  <input
-                    type="radio"
-                    name="inviteMethod"
-                    checked
-                    readOnly
-                    className="mt-1"
-                  />
+                  <Radio value="approved" className="mt-1" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-brand-900">
@@ -239,8 +231,8 @@ export function Step3Suppliers() {
                     </ul>
                   </div>
                 </div>
-              </label>
-            </div>
+              </div>
+            </RadioGroup>
 
             {error ? (
               <p className="text-sm text-danger-600 flex items-center gap-1.5">
@@ -261,7 +253,7 @@ export function Step3Suppliers() {
             ) : allSuppliers.length === 0 ? (
               <div className="bg-warning-50 border border-warning-200 rounded-xl p-6 text-center">
                 <Users2 className="h-12 w-12 text-warning-500 mx-auto mb-3" />
-                <p className="font-display font-bold text-warning-900">
+                <p className="font-semibold text-warning-900">
                   Henüz onaylı tedarikçiniz yok
                 </p>
                 <p className="text-sm text-warning-700 mt-1">
@@ -413,20 +405,19 @@ export function Step3Suppliers() {
                     const checked = selected.has(s.supplier.id);
                     const primary = s.supplier.users[0];
                     return (
-                      <label
+                      <div
                         key={s.supplier.id}
                         className={cn(
-                          "flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all",
+                          "flex items-start gap-3 p-4 rounded-xl transition-all ring-1",
                           checked
-                            ? "bg-brand-50 border-brand-300 shadow-sm"
-                            : "bg-white border-slate-200 hover:border-brand-200 hover:bg-slate-50",
+                            ? "bg-zinc-50 ring-zinc-950/15 shadow-sm"
+                            : "bg-white ring-zinc-950/10 hover:bg-zinc-50",
                         )}
                       >
-                        <input
-                          type="checkbox"
+                        <Checkbox
                           checked={checked}
                           onChange={() => toggle(s.supplier.id)}
-                          className="mt-1 h-4 w-4 rounded text-brand-600"
+                          className="mt-1"
                         />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2 flex-wrap">
@@ -459,7 +450,7 @@ export function Step3Suppliers() {
                             </p>
                           ) : null}
                         </div>
-                      </label>
+                      </div>
                     );
                   })}
 
@@ -482,7 +473,7 @@ export function Step3Suppliers() {
               )}
             >
               <div className="flex items-center justify-between mb-2">
-                <p className="font-display font-bold text-brand-900 text-sm">
+                <p className="font-semibold text-brand-900 text-sm">
                   Seçilen Tedarikçiler ({selected.size})
                 </p>
                 {selected.size > 0 ? (
@@ -529,7 +520,7 @@ export function Step3Suppliers() {
             {pendingInvites.length > 0 ? (
               <div className="rounded-xl border-2 border-warning-200 bg-warning-50/40 p-4">
                 <div className="mb-2 flex items-center justify-between">
-                  <p className="font-display text-sm font-bold text-warning-900">
+                  <p className="text-sm font-semibold text-warning-900">
                     Davet Bekleyen Tedarikçiler ({pendingInvites.length})
                   </p>
                 </div>

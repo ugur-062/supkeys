@@ -22,6 +22,7 @@ export function AvatarInitials({ name, size = "md", className }: Props) {
         bgClass,
         textClass,
         "rounded-full flex items-center justify-center font-semibold flex-shrink-0 select-none",
+        "ring-2 ring-white shadow-sm",
         className,
       )}
       aria-label={name}

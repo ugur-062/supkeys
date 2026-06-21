@@ -28,7 +28,7 @@ export default function SablonlarPage() {
     <PermissionGuard permission="templates:view">
       <div className="max-w-4xl mx-auto space-y-6">
         <header>
-          <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900">
+          <h1 className="font-semibold text-2xl md:text-3xl text-brand-900">
             Şablonlar
           </h1>
           <p className="text-sm text-slate-600 mt-1">

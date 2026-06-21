@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { ApplicationStatusBadge } from "@/components/ui/application-status-badge";
 import { Button } from "@/components/ui/button";
 import { COMPANY_TYPE_SHORT_LABEL } from "@/lib/applications/company-type";
@@ -28,18 +36,6 @@ function formatRelative(date: string) {
   }
 }
 
-function SkeletonRow({ cols }: { cols: number }) {
-  return (
-    <tr className="border-t border-admin-border">
-      {Array.from({ length: cols }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
-          <div className="h-4 bg-slate-100 rounded animate-pulse" />
-        </td>
-      ))}
-    </tr>
-  );
-}
-
 const COLUMN_COUNT = 8;
 
 export function BuyerApplicationsTable({
@@ -53,8 +49,8 @@ export function BuyerApplicationsTable({
   if (isError) {
     return (
       <div className="px-6 py-16 text-center space-y-3">
-        <p className="text-admin-text font-medium">Veri alınamadı.</p>
-        <p className="text-sm text-admin-text-muted">
+        <p className="text-zinc-900 font-medium">Veri alınamadı.</p>
+        <p className="text-sm text-zinc-500">
           Bir hata oluştu, lütfen tekrar deneyin.
         </p>
         <Button variant="secondary" size="sm" onClick={onRetry}>
@@ -65,52 +61,44 @@ export function BuyerApplicationsTable({
   }
 
   const showEmpty = !isLoading && items.length === 0;
+  const showSkeleton = isLoading && items.length === 0;
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-surface-muted text-left">
-          <tr>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Firma
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Yetkili
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              E-posta
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Tip
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Vergi No
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Statü
-            </th>
-            <th className="px-4 py-3 font-medium text-admin-text-muted text-xs uppercase tracking-wide">
-              Tarih
-            </th>
-            <th className="px-4 py-3" />
-          </tr>
-        </thead>
-        <tbody>
-          {isLoading &&
-            items.length === 0 &&
+    <div className="px-2 [--gutter:--spacing(4)]">
+      <Table dense>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Firma</TableHeader>
+            <TableHeader>Yetkili</TableHeader>
+            <TableHeader>E-posta</TableHeader>
+            <TableHeader>Tip</TableHeader>
+            <TableHeader>Vergi No</TableHeader>
+            <TableHeader>Statü</TableHeader>
+            <TableHeader>Tarih</TableHeader>
+            <TableHeader className="text-right" />
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {showSkeleton &&
             Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
-              <SkeletonRow key={i} cols={COLUMN_COUNT} />
+              <TableRow key={i}>
+                {Array.from({ length: COLUMN_COUNT }).map((_, j) => (
+                  <TableCell key={j}>
+                    <div className="h-4 bg-zinc-100 rounded animate-pulse" />
+                  </TableCell>
+                ))}
+              </TableRow>
             ))}
 
           {showEmpty && (
-            <tr>
-              <td colSpan={COLUMN_COUNT} className="px-6 py-16 text-center">
-                <div className="flex flex-col items-center gap-3 text-admin-text-muted">
-                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
+            <TableRow>
+              <TableCell colSpan={COLUMN_COUNT} className="py-16 text-center">
+                <div className="flex flex-col items-center gap-3 text-zinc-500">
+                  <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center">
                     <Inbox className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="font-medium text-admin-text">
+                    <p className="font-medium text-zinc-900">
                       Henüz alıcı başvurusu yok
                     </p>
                     <p className="text-sm">
@@ -118,44 +106,44 @@ export function BuyerApplicationsTable({
                     </p>
                   </div>
                 </div>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           )}
 
           {items.map((item) => (
-            <tr
+            <TableRow
               key={item.id}
               onClick={() => onSelect(item.id)}
-              className="border-t border-admin-border hover:bg-surface-muted/60 cursor-pointer transition-colors"
+              className="cursor-pointer"
             >
-              <td className="px-4 py-3 font-medium text-admin-text">
+              <TableCell className="font-medium text-zinc-900">
                 {item.companyName}
-              </td>
-              <td className="px-4 py-3 text-admin-text">
+              </TableCell>
+              <TableCell className="text-zinc-700">
                 {item.adminFirstName} {item.adminLastName}
-              </td>
-              <td className="px-4 py-3 text-admin-text-muted">
+              </TableCell>
+              <TableCell className="text-zinc-500">
                 <a
                   href={`mailto:${item.adminEmail}`}
                   onClick={(e) => e.stopPropagation()}
-                  className="hover:text-brand-700 hover:underline"
+                  className="hover:text-zinc-900 hover:underline"
                 >
                   {item.adminEmail}
                 </a>
-              </td>
-              <td className="px-4 py-3 text-admin-text-muted whitespace-nowrap">
+              </TableCell>
+              <TableCell className="text-zinc-500 whitespace-nowrap">
                 {COMPANY_TYPE_SHORT_LABEL[item.companyType]}
-              </td>
-              <td className="px-4 py-3 text-admin-text font-mono text-xs">
+              </TableCell>
+              <TableCell className="text-zinc-700 font-mono text-xs">
                 {item.taxNumber}
-              </td>
-              <td className="px-4 py-3">
+              </TableCell>
+              <TableCell>
                 <ApplicationStatusBadge status={item.status} />
-              </td>
-              <td className="px-4 py-3 text-admin-text-muted whitespace-nowrap">
+              </TableCell>
+              <TableCell className="text-zinc-500 whitespace-nowrap">
                 {formatRelative(item.createdAt)}
-              </td>
-              <td className="px-4 py-3 text-right">
+              </TableCell>
+              <TableCell className="text-right">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -167,11 +155,11 @@ export function BuyerApplicationsTable({
                   Detay
                   <ArrowRight className="w-4 h-4" />
                 </Button>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

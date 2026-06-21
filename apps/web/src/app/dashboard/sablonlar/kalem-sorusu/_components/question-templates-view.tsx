@@ -2,8 +2,23 @@
 
 // V2-7+ — Kalem Sorusu Şablonları liste sayfası + yeni şablon modal'ı.
 
-import { EmptyState, ListSkeleton, PageHeader } from "@/components/list";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
+import {
+  EmptyState,
+  ListSkeleton,
+  PageHeader,
+  Pagination,
+} from "@/components/list";
+import { usePagedList } from "@/lib/use-paged-list";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import { usePermissions } from "@/hooks/use-permissions";
 import {
   useDeleteQuestionTemplate,
@@ -32,6 +47,7 @@ export function QuestionTemplatesView() {
   const deleteMutation = useDeleteQuestionTemplate();
   const [createOpen, setCreateOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const paged = usePagedList(list.data ?? [], 10);
 
   const handleDelete = async (id: string, name: string) => {
     if (
@@ -85,108 +101,101 @@ export function QuestionTemplatesView() {
                 description="Sık kullandığınız kalem sorularını kaydederek ihale hazırlığını hızlandırın."
               />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-slate-700">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-semibold w-12">
-                        No
-                      </th>
-                      <th className="px-3 py-2 text-left font-semibold">
-                        Şablon Adı
-                      </th>
-                      <th className="px-3 py-2 text-center font-semibold">
-                        Erişim
-                      </th>
-                      <th className="px-3 py-2 text-center font-semibold">
-                        Soru Sayısı
-                      </th>
-                      <th className="px-3 py-2 text-left font-semibold">
-                        Şablon Sahibi
-                      </th>
-                      <th className="px-3 py-2 text-left font-semibold">
-                        Son Güncelleme
-                      </th>
-                      {canEdit ? (
-                        <th className="px-3 py-2 text-right font-semibold w-12">
-                          {" "}
-                        </th>
-                      ) : null}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {list.data.map((t, idx) => (
-                      <tr
-                        key={t.id}
-                        className="border-t border-surface-border hover:bg-slate-50/40"
-                      >
-                        <td className="px-3 py-3 text-slate-500">{idx + 1}</td>
-                        <td className="px-3 py-3">
-                          <button
-                            type="button"
-                            onClick={() => setEditId(t.id)}
-                            className="font-semibold text-brand-700 hover:underline text-left"
+              <Table dense>
+                <TableHead>
+                  <TableRow>
+                    <TableHeader className="w-12">No</TableHeader>
+                    <TableHeader>Şablon Adı</TableHeader>
+                    <TableHeader className="text-center">Erişim</TableHeader>
+                    <TableHeader className="text-center">Soru Sayısı</TableHeader>
+                    <TableHeader>Şablon Sahibi</TableHeader>
+                    <TableHeader>Son Güncelleme</TableHeader>
+                    {canEdit ? (
+                      <TableHeader className="w-12 text-right" />
+                    ) : null}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {paged.pageItems.map((t, idx) => (
+                    <TableRow key={t.id}>
+                      <TableCell className="text-zinc-500">
+                        {(paged.page - 1) * paged.pageSize + idx + 1}
+                      </TableCell>
+                      <TableCell>
+                        <button
+                          type="button"
+                          onClick={() => setEditId(t.id)}
+                          className="font-semibold text-zinc-900 hover:underline text-left"
+                        >
+                          {t.name}
+                        </button>
+                        {t.autoApply ? (
+                          <span
+                            className="ml-2 text-[10px] uppercase font-bold text-success-700 bg-success-50 px-1.5 py-0.5 rounded"
+                            title="Yeni ihalelere otomatik eklenir"
                           >
-                            {t.name}
-                          </button>
-                          {t.autoApply ? (
-                            <span
-                              className="ml-2 text-[10px] uppercase font-bold text-success-700 bg-success-50 px-1.5 py-0.5 rounded"
-                              title="Yeni ihalelere otomatik eklenir"
-                            >
-                              Otomatik
-                            </span>
-                          ) : null}
-                        </td>
-                        <td className="px-3 py-3 text-center">
-                          {t.isPublic ? (
-                            <span
-                              className="inline-flex items-center text-slate-600"
-                              title="Herkese Açık"
-                            >
-                              <Users2 className="w-4 h-4" />
-                            </span>
-                          ) : (
-                            <span
-                              className="inline-flex items-center text-slate-600"
-                              title="Özel"
-                            >
-                              <Lock className="w-4 h-4" />
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-3 text-center">{t.itemCount}</td>
-                        <td className="px-3 py-3">
-                          {t.createdBy.firstName} {t.createdBy.lastName}
-                          {t.isOwnedByMe ? (
-                            <span className="text-slate-400"> (Siz)</span>
-                          ) : null}
-                        </td>
-                        <td className="px-3 py-3 text-slate-600">
-                          {format(new Date(t.updatedAt), "dd.MM.yyyy HH:mm", {
-                            locale: tr,
-                          })}
-                        </td>
-                        {canEdit ? (
-                          <td className="px-3 py-3 text-right">
-                            {t.isOwnedByMe ? (
-                              <button
-                                type="button"
-                                onClick={() => handleDelete(t.id, t.name)}
-                                className="text-slate-400 hover:text-danger-600 transition-colors p-1"
-                                title="Şablonu sil"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            ) : null}
-                          </td>
+                            Otomatik
+                          </span>
                         ) : null}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {t.isPublic ? (
+                          <span
+                            className="inline-flex items-center text-zinc-600"
+                            title="Herkese Açık"
+                          >
+                            <Users2 className="w-4 h-4" />
+                          </span>
+                        ) : (
+                          <span
+                            className="inline-flex items-center text-zinc-600"
+                            title="Özel"
+                          >
+                            <Lock className="w-4 h-4" />
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">{t.itemCount}</TableCell>
+                      <TableCell>
+                        {t.createdBy.firstName} {t.createdBy.lastName}
+                        {t.isOwnedByMe ? (
+                          <span className="text-zinc-400"> (Siz)</span>
+                        ) : null}
+                      </TableCell>
+                      <TableCell className="text-zinc-600">
+                        {format(new Date(t.updatedAt), "dd.MM.yyyy HH:mm", {
+                          locale: tr,
+                        })}
+                      </TableCell>
+                      {canEdit ? (
+                        <TableCell className="text-right">
+                          {t.isOwnedByMe ? (
+                            <IconButton
+                              tone="danger"
+                              onClick={() => handleDelete(t.id, t.name)}
+                              aria-label="Şablonu sil"
+                              title="Şablonu sil"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </IconButton>
+                          ) : null}
+                        </TableCell>
+                      ) : null}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             )}
+            {paged.showPagination ? (
+              <Pagination
+                variant="bare"
+                page={paged.page}
+                totalPages={paged.totalPages}
+                total={paged.total}
+                pageSize={paged.pageSize}
+                onPageChange={paged.setPage}
+              />
+            ) : null}
           </div>
         </section>
       </div>

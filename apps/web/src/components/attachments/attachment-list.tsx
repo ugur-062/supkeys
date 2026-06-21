@@ -1,6 +1,15 @@
 "use client";
 
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
+import { IconButton } from "@/components/ui/icon-button";
+import {
   useAttachments,
   useDeleteAttachment,
   useDownloadAttachment,
@@ -42,7 +51,7 @@ export function AttachmentList({
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 py-3 text-sm text-slate-500">
+      <div className="flex items-center gap-2 py-3 text-sm text-zinc-500">
         <Loader2 className="h-4 w-4 animate-spin" />
         Yükleniyor…
       </div>
@@ -51,23 +60,34 @@ export function AttachmentList({
 
   if (!data || data.length === 0) {
     return (
-      <div className="text-sm text-slate-500 py-4 text-center bg-slate-50/50 border border-slate-200 border-dashed rounded-lg">
+      <div className="rounded-lg border border-dashed border-zinc-950/10 bg-zinc-50/50 py-6 text-center text-sm text-zinc-500">
         {emptyText ?? "Henüz dosya yüklenmedi"}
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {data.map((att) => (
-        <AttachmentRow
-          key={att.id}
-          surface={surface}
-          attachment={att}
-          canDelete={canDelete}
-        />
-      ))}
-    </div>
+    <Table dense className="[--gutter:--spacing(3)]">
+      <TableHead>
+        <TableRow>
+          <TableHeader>Dosya</TableHeader>
+          <TableHeader className="hidden sm:table-cell">Boyut</TableHeader>
+          <TableHeader className="hidden md:table-cell">Yükleyen</TableHeader>
+          <TableHeader className="hidden sm:table-cell">Tarih</TableHeader>
+          <TableHeader className="text-right">İşlem</TableHeader>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {data.map((att) => (
+          <AttachmentRow
+            key={att.id}
+            surface={surface}
+            attachment={att}
+            canDelete={canDelete}
+          />
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -86,71 +106,70 @@ function AttachmentRow({
   const Icon = pickIcon(attachment.mimeType);
 
   return (
-    <div className="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-lg hover:border-brand-300 transition-colors">
-      <div className="h-10 w-10 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
-        <Icon className="h-5 w-5 text-slate-600" />
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-brand-900 truncate">
-          {attachment.originalFilename}
-        </p>
-        <p className="text-xs text-slate-500 truncate">
-          {formatFileSize(attachment.fileSize)}
-          {attachment.uploadedBy
-            ? ` · ${attachment.uploadedBy.firstName} ${attachment.uploadedBy.lastName}`
-            : ""}
-          {" · "}
-          {format(new Date(attachment.createdAt), "d MMM HH:mm", {
-            locale: tr,
-          })}
-        </p>
-      </div>
-
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <button
-          type="button"
-          onClick={() => downloadMutation.mutate(attachment)}
-          disabled={downloadMutation.isPending}
-          className="p-2 hover:bg-brand-50 rounded-lg text-brand-600 disabled:opacity-50"
-          title="İndir"
-          aria-label="İndir"
-        >
-          {downloadMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Download className="h-4 w-4" />
-          )}
-        </button>
-
-        {canDelete && (
-          <button
-            type="button"
-            onClick={() => {
-              if (
-                window.confirm(
-                  `"${attachment.originalFilename}" silinecek, emin misin?`,
-                )
-              ) {
-                deleteMutation.mutate(attachment.id, {
-                  onSuccess: () => toast.success("Dosya silindi"),
-                });
-              }
-            }}
-            disabled={deleteMutation.isPending}
-            className="p-2 hover:bg-danger-50 rounded-lg text-danger-600 disabled:opacity-50"
-            title="Sil"
-            aria-label="Sil"
+    <TableRow>
+      <TableCell className="font-medium">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
+            <Icon className="h-4 w-4 text-zinc-600" />
+          </div>
+          <span className="truncate text-zinc-900">
+            {attachment.originalFilename}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell className="hidden text-zinc-500 sm:table-cell">
+        {formatFileSize(attachment.fileSize)}
+      </TableCell>
+      <TableCell className="hidden text-zinc-500 md:table-cell">
+        {attachment.uploadedBy
+          ? `${attachment.uploadedBy.firstName} ${attachment.uploadedBy.lastName}`
+          : "—"}
+      </TableCell>
+      <TableCell className="hidden text-zinc-500 sm:table-cell">
+        {format(new Date(attachment.createdAt), "d MMM HH:mm", { locale: tr })}
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center justify-end gap-1">
+          <IconButton
+            onClick={() => downloadMutation.mutate(attachment)}
+            disabled={downloadMutation.isPending}
+            title="İndir"
+            aria-label="İndir"
           >
-            {deleteMutation.isPending ? (
+            {downloadMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Trash2 className="h-4 w-4" />
+              <Download className="h-4 w-4" />
             )}
-          </button>
-        )}
-      </div>
-    </div>
+          </IconButton>
+          {canDelete ? (
+            <IconButton
+              tone="danger"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `"${attachment.originalFilename}" silinecek, emin misin?`,
+                  )
+                ) {
+                  deleteMutation.mutate(attachment.id, {
+                    onSuccess: () => toast.success("Dosya silindi"),
+                  });
+                }
+              }}
+              disabled={deleteMutation.isPending}
+              title="Sil"
+              aria-label="Sil"
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </IconButton>
+          ) : null}
+        </div>
+      </TableCell>
+    </TableRow>
   );
 }
 

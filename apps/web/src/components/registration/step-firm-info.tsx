@@ -1,10 +1,11 @@
 "use client";
 
+import { Select } from "@/components/catalyst/select";
+
 import { SegmentOnlyPicker } from "@/components/categories/segment-only-picker";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
 import {
   COMPANY_TYPE_OPTIONS,
   type FullRegistration,
@@ -48,7 +49,7 @@ export function StepFirmInfo({
   return (
     <div className="space-y-5">
       <div className="space-y-1">
-        <h2 className="text-2xl font-display font-bold text-brand-900">
+        <h2 className="text-2xl font-display font-bold text-zinc-900">
           Firma Bilgileri
         </h2>
         <p className="text-sm text-slate-500">
@@ -77,19 +78,12 @@ export function StepFirmInfo({
           control={control}
           name="companyType"
           render={({ field }) => (
-            <select
+            <Select
               id="companyType"
               value={field.value ?? ""}
               onChange={field.onChange}
               onBlur={field.onBlur}
-              className={cn(
-                "w-full px-3.5 py-2.5 rounded-lg border bg-white text-sm",
-                "focus:outline-none focus:ring-2 focus:ring-offset-0",
-                errors.companyType
-                  ? "border-danger-500 focus:ring-danger-500/30"
-                  : "border-surface-border focus:ring-brand-500/30 focus:border-brand-500",
-                field.value ? "text-brand-900" : "text-slate-400",
-              )}
+              invalid={!!errors.companyType}
             >
               <option value="">Seçiniz</option>
               {COMPANY_TYPE_OPTIONS.map((opt) => (
@@ -97,7 +91,7 @@ export function StepFirmInfo({
                   {opt.label}
                 </option>
               ))}
-            </select>
+            </Select>
           )}
         />
       </Field>
@@ -203,7 +197,7 @@ export function StepFirmInfo({
       </Field>
 
       <div className="pt-2 border-t border-surface-border space-y-1">
-        <h3 className="text-sm font-semibold text-brand-900 uppercase tracking-wide">
+        <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wide">
           Firma Adresi
         </h3>
       </div>

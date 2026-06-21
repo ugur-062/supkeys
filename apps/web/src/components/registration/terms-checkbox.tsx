@@ -1,5 +1,6 @@
 "use client";
 
+import { Checkbox } from "@/components/catalyst/checkbox";
 import { Field } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 import {
@@ -27,28 +28,26 @@ export function TermsCheckbox<T extends { termsAccepted: boolean }>({
         control={control}
         name={"termsAccepted" as Path<T>}
         render={({ field }) => (
-          <label
+          <div
             className={cn(
-              "flex items-start gap-3 cursor-pointer p-3 rounded-lg border transition-colors",
+              "flex items-start gap-3 p-3 rounded-lg border transition-colors",
               error
                 ? "border-danger-500 bg-danger-50/30"
-                : "border-surface-border hover:bg-brand-50/40",
+                : "border-surface-border hover:bg-zinc-50/40",
             )}
           >
-            <input
-              type="checkbox"
+            <Checkbox
               checked={!!field.value}
-              onChange={(e) => field.onChange(e.target.checked)}
+              onChange={(checked) => field.onChange(checked)}
               onBlur={field.onBlur}
-              className="mt-0.5 w-4 h-4 rounded border-slate-300 text-brand-600 focus:ring-brand-500/30"
+              className="mt-0.5"
             />
             <span className="text-sm text-slate-700 leading-relaxed">
               <a
                 href="#kvkk"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-brand-600 hover:text-brand-700 underline-offset-4 hover:underline"
-                onClick={(e) => e.stopPropagation()}
+                className="text-zinc-600 hover:text-zinc-700 underline-offset-4 hover:underline"
               >
                 KVKK Aydınlatma Metni
               </a>
@@ -57,14 +56,13 @@ export function TermsCheckbox<T extends { termsAccepted: boolean }>({
                 href="#tos"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-brand-600 hover:text-brand-700 underline-offset-4 hover:underline"
-                onClick={(e) => e.stopPropagation()}
+                className="text-zinc-600 hover:text-zinc-700 underline-offset-4 hover:underline"
               >
                 Hizmet Şartları
               </a>
               {"'nı okudum, onaylıyorum."}
             </span>
-          </label>
+          </div>
         )}
       />
     </Field>

@@ -3,6 +3,8 @@
 // V2-7 — "Yeni Tur Oluştur" sayfası.
 // Görseldeki 3 ana kart: Yeni Tur Özellikleri / İhale Tipi / İhale Zaman Seçimi.
 
+import { Checkbox } from "@/components/catalyst/checkbox";
+import { Radio, RadioGroup } from "@/components/catalyst/radio";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -121,7 +123,7 @@ export function NewRoundView({ previousTenderId }: Props) {
       </nav>
 
       <header className="card p-5">
-        <h1 className="font-display font-bold text-2xl text-brand-900">
+        <h1 className="font-semibold text-2xl text-brand-900">
           Yeni Tur Oluştur
         </h1>
         <p className="text-sm text-slate-600 mt-1">
@@ -133,112 +135,97 @@ export function NewRoundView({ previousTenderId }: Props) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* CARD 1 — Yeni Tur Özellikleri */}
         <section className="card p-5 space-y-3">
-          <h2 className="font-display font-bold text-base text-brand-900">
+          <h2 className="font-semibold text-base text-brand-900">
             Yeni Tur Özellikleri<span className="text-danger-500">*</span>
           </h2>
-          <label className="flex items-start gap-3">
-            <input
-              type="checkbox"
+          <div className="flex items-start gap-3">
+            <Checkbox
               className="mt-0.5"
               checked={carryEnabled}
-              onChange={(e) => setCarryEnabled(e.target.checked)}
+              onChange={setCarryEnabled}
             />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-brand-900 flex items-center gap-1.5">
+              <p className="text-sm font-semibold text-zinc-900 flex items-center gap-1.5">
                 Tedarikçilerin son tekliflerini taşı
-                <Info className="w-3.5 h-3.5 text-slate-400" />
+                <Info className="w-3.5 h-3.5 text-zinc-400" />
               </p>
             </div>
-          </label>
+          </div>
           {carryEnabled ? (
-            <div className="ml-7 space-y-2">
-              <label
+            <RadioGroup
+              value={carryMode}
+              onChange={(v) => setCarryMode(v as typeof carryMode)}
+              className="ml-7 space-y-2"
+            >
+              <div
                 className={cn(
-                  "flex items-start gap-2 p-2 rounded-md border cursor-pointer transition-colors",
+                  "flex items-start gap-2 p-2 rounded-md ring-1 transition-colors",
                   carryMode === "AUTO"
-                    ? "border-brand-500 bg-brand-50/40"
-                    : "border-slate-200 hover:bg-slate-50",
+                    ? "ring-2 ring-zinc-900 bg-zinc-50"
+                    : "ring-zinc-950/10",
                 )}
               >
-                <input
-                  type="radio"
-                  name="carry-mode"
-                  value="AUTO"
-                  checked={carryMode === "AUTO"}
-                  onChange={() => setCarryMode("AUTO")}
-                  className="mt-0.5"
-                />
-                <span className="text-sm text-brand-900 flex items-center gap-1.5">
+                <Radio value="AUTO" className="mt-0.5" />
+                <span className="text-sm text-zinc-900 flex items-center gap-1.5">
                   Otomatik olarak taşınsın
                   <AlertTriangle className="w-3.5 h-3.5 text-warning-500" />
                 </span>
-              </label>
-              <label
+              </div>
+              <div
                 className={cn(
-                  "flex items-start gap-2 p-2 rounded-md border cursor-pointer transition-colors",
+                  "flex items-start gap-2 p-2 rounded-md ring-1 transition-colors",
                   carryMode === "LAZY"
-                    ? "border-brand-500 bg-brand-50/40"
-                    : "border-slate-200 hover:bg-slate-50",
+                    ? "ring-2 ring-zinc-900 bg-zinc-50"
+                    : "ring-zinc-950/10",
                 )}
               >
-                <input
-                  type="radio"
-                  name="carry-mode"
-                  value="LAZY"
-                  checked={carryMode === "LAZY"}
-                  onChange={() => setCarryMode("LAZY")}
-                  className="mt-0.5"
-                />
-                <span className="text-sm text-brand-900 flex items-center gap-1.5">
+                <Radio value="LAZY" className="mt-0.5" />
+                <span className="text-sm text-zinc-900 flex items-center gap-1.5">
                   Teklif verdiğinde taşınsın
-                  <Info className="w-3.5 h-3.5 text-slate-400" />
+                  <Info className="w-3.5 h-3.5 text-zinc-400" />
                 </span>
-              </label>
-            </div>
+              </div>
+            </RadioGroup>
           ) : null}
 
-          <label className="flex items-start gap-3">
-            <input
-              type="checkbox"
+          <div className="flex items-start gap-3">
+            <Checkbox
               className="mt-0.5"
               checked={eliminateNonBidders}
-              onChange={(e) => setEliminateNonBidders(e.target.checked)}
+              onChange={setEliminateNonBidders}
             />
-            <p className="text-sm font-semibold text-brand-900 flex items-center gap-1.5">
+            <p className="text-sm font-semibold text-zinc-900 flex items-center gap-1.5">
               Önceki turda teklif vermeyen tedarikçileri ele
-              <Info className="w-3.5 h-3.5 text-slate-400" />
+              <Info className="w-3.5 h-3.5 text-zinc-400" />
             </p>
-          </label>
+          </div>
         </section>
 
         {/* CARD 2 — İhale Tipi */}
         <section className="card p-5 space-y-3">
-          <h2 className="font-display font-bold text-base text-brand-900 flex items-center gap-2">
+          <h2 className="font-semibold text-base text-brand-900 flex items-center gap-2">
             <Gavel className="w-4 h-4 text-brand-600" />
             İhale Tipi<span className="text-danger-500">*</span>
           </h2>
-          <div className="space-y-2">
-            <label
+          <RadioGroup
+            value={type}
+            onChange={(v) => setType(v as typeof type)}
+            className="space-y-2"
+          >
+            <div
               className={cn(
-                "flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors",
+                "flex items-start gap-3 p-3 rounded-lg ring-1 transition-colors",
                 type === "ENGLISH_AUCTION"
-                  ? "border-brand-500 bg-brand-50/40"
-                  : "border-slate-200 hover:bg-slate-50",
+                  ? "ring-2 ring-zinc-900 bg-zinc-50"
+                  : "ring-zinc-950/10",
               )}
             >
-              <input
-                type="radio"
-                name="round-type"
-                value="ENGLISH_AUCTION"
-                checked={type === "ENGLISH_AUCTION"}
-                onChange={() => setType("ENGLISH_AUCTION")}
-                className="mt-0.5"
-              />
+              <Radio value="ENGLISH_AUCTION" className="mt-0.5" />
               <div>
-                <p className="text-sm font-semibold text-brand-900">
+                <p className="text-sm font-semibold text-zinc-900">
                   İngiliz Usulü
                 </p>
-                <ul className="text-xs text-slate-600 mt-1 space-y-0.5 list-disc list-inside">
+                <ul className="text-xs text-zinc-600 mt-1 space-y-0.5 list-disc list-inside">
                   <li>Bu süreç fiyat azaltmayı hedefler.</li>
                   <li>
                     Tedarikçilerin teklif ve sıralama görünürlüğüne karar
@@ -246,28 +233,21 @@ export function NewRoundView({ previousTenderId }: Props) {
                   </li>
                 </ul>
               </div>
-            </label>
-            <label
+            </div>
+            <div
               className={cn(
-                "flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors",
+                "flex items-start gap-3 p-3 rounded-lg ring-1 transition-colors",
                 type === "RFQ"
-                  ? "border-brand-500 bg-brand-50/40"
-                  : "border-slate-200 hover:bg-slate-50",
+                  ? "ring-2 ring-zinc-900 bg-zinc-50"
+                  : "ring-zinc-950/10",
               )}
             >
-              <input
-                type="radio"
-                name="round-type"
-                value="RFQ"
-                checked={type === "RFQ"}
-                onChange={() => setType("RFQ")}
-                className="mt-0.5"
-              />
+              <Radio value="RFQ" className="mt-0.5" />
               <div>
-                <p className="text-sm font-semibold text-brand-900">
+                <p className="text-sm font-semibold text-zinc-900">
                   RFQ (Teklif Talebi)
                 </p>
-                <ul className="text-xs text-slate-600 mt-1 space-y-0.5 list-disc list-inside">
+                <ul className="text-xs text-zinc-600 mt-1 space-y-0.5 list-disc list-inside">
                   <li>Bu süreç teklif toplamayı hedefler.</li>
                   <li>Tedarikçiler yalnızca kendi tekliflerini görüntüler.</li>
                   <li>
@@ -276,28 +256,27 @@ export function NewRoundView({ previousTenderId }: Props) {
                   </li>
                 </ul>
               </div>
-            </label>
-          </div>
+            </div>
+          </RadioGroup>
         </section>
       </div>
 
       {/* CARD 3 — İhale Zaman Seçimi */}
       <section className="card p-5 space-y-4">
-        <h2 className="font-display font-bold text-base text-brand-900 flex items-center gap-2">
+        <h2 className="font-semibold text-base text-brand-900 flex items-center gap-2">
           <Calendar className="w-4 h-4 text-brand-600" />
           İhale Zaman Seçimi
         </h2>
 
-        <label className="flex items-center gap-3">
-          <input
-            type="checkbox"
+        <div className="flex items-center gap-3">
+          <Checkbox
             checked={openImmediately}
-            onChange={(e) => setOpenImmediately(e.target.checked)}
+            onChange={setOpenImmediately}
           />
-          <p className="text-sm font-semibold text-brand-900">
+          <p className="text-sm font-semibold text-zinc-900">
             İhaleyi hemen aç.
           </p>
-        </label>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <Field>
@@ -334,34 +313,31 @@ export function NewRoundView({ previousTenderId }: Props) {
           </Field>
           <Field>
             <Label htmlFor="previewBeforeOpen">İhale Ön İzlenebilsin</Label>
-            <label className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg border border-surface-border bg-white text-sm">
-              <input
-                id="previewBeforeOpen"
-                type="checkbox"
+            <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-lg ring-1 ring-zinc-950/10 bg-white text-sm">
+              <Checkbox
                 checked={previewBeforeOpen}
-                onChange={(e) => setPreviewBeforeOpen(e.target.checked)}
+                onChange={setPreviewBeforeOpen}
               />
-              <span className="text-slate-700">
+              <span className="text-zinc-700">
                 Açılışa kadar tedarikçi görebilsin
               </span>
-            </label>
+            </div>
           </Field>
         </div>
 
         {type === "ENGLISH_AUCTION" ? (
-          <label className="flex items-start gap-3">
-            <input
-              type="checkbox"
+          <div className="flex items-start gap-3">
+            <Checkbox
               className="mt-0.5"
               checked={autoExtendOnLateBid}
-              onChange={(e) => setAutoExtendOnLateBid(e.target.checked)}
+              onChange={setAutoExtendOnLateBid}
             />
-            <p className="text-sm font-semibold text-brand-900 flex items-center gap-1.5">
+            <p className="text-sm font-semibold text-zinc-900 flex items-center gap-1.5">
               En iyi teklif geçildiğinde, ihalenin kapanış saati otomatik olarak
               uzasın.
-              <Info className="w-3.5 h-3.5 text-slate-400" />
+              <Info className="w-3.5 h-3.5 text-zinc-400" />
             </p>
-          </label>
+          </div>
         ) : null}
       </section>
 

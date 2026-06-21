@@ -16,7 +16,7 @@ export function StepSuccess({ email }: StepSuccessProps) {
       </div>
 
       <div className="space-y-2">
-        <h2 className="text-2xl font-display font-bold text-brand-900">
+        <h2 className="text-2xl font-display font-bold text-zinc-900">
           Başvurunuz alındı
         </h2>
         <p className="text-slate-600">
@@ -24,11 +24,11 @@ export function StepSuccess({ email }: StepSuccessProps) {
         </p>
       </div>
 
-      <div className="rounded-xl bg-brand-50 border-l-4 border-brand-600 p-4 text-left">
+      <div className="rounded-xl bg-zinc-50 border-l-4 border-zinc-600 p-4 text-left">
         <div className="flex items-start gap-3">
-          <Mail className="w-5 h-5 text-brand-600 flex-shrink-0 mt-0.5" />
+          <Mail className="w-5 h-5 text-zinc-600 flex-shrink-0 mt-0.5" />
           <div className="space-y-1.5 text-sm">
-            <p className="text-brand-900 font-medium">
+            <p className="text-zinc-900 font-medium">
               <span className="font-semibold">{email}</span> adresine doğrulama
               linki gönderdik.
             </p>

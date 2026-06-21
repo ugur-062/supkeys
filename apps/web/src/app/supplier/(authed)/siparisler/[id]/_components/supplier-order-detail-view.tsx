@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { AttachmentList } from "@/components/attachments/attachment-list";
 import { AttachmentUpload } from "@/components/attachments/attachment-upload";
 import { MessageDialog } from "@/components/messaging/message-dialog";
@@ -20,7 +28,13 @@ import {
 import { formatPrice } from "@/lib/format-currency";
 import type { Currency, OrderDetail } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
-import * as TabsPrimitive from "@radix-ui/react-tabs";
+import {
+  Tab,
+  TabGroup,
+  TabList,
+  TabPanel,
+  TabPanels,
+} from "@headlessui/react";
 import axios from "axios";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -65,8 +79,8 @@ function formatNumber(value: string | number | null): string {
 
 const TAB_TRIGGER_CLASSES = cn(
   "group inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-  "border-transparent text-slate-500 hover:text-slate-700",
-  "data-[state=active]:border-brand-600 data-[state=active]:text-brand-700",
+  "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700",
+  "data-selected:border-zinc-900 data-selected:text-zinc-950",
   "focus:outline-none",
 );
 
@@ -91,7 +105,7 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
           <div className="w-12 h-12 mx-auto rounded-full bg-danger-50 flex items-center justify-center">
             <AlertCircle className="w-6 h-6 text-danger-600" />
           </div>
-          <p className="font-medium text-brand-900">Sipariş bulunamadı</p>
+          <p className="font-medium text-zinc-900">Sipariş bulunamadı</p>
           <Link href="/supplier/siparisler">
             <Button variant="secondary" size="sm">
               <ArrowLeft className="w-4 h-4" />
@@ -112,19 +126,19 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
         <nav className="flex items-center gap-1.5 text-sm text-slate-500 mb-3">
           <Link
             href="/supplier/siparisler"
-            className="hover:text-brand-700 hover:underline"
+            className="hover:text-zinc-700 hover:underline"
           >
             Siparişler
           </Link>
           <ChevronRight className="w-3.5 h-3.5" />
-          <span className="text-brand-700 font-mono font-semibold">
+          <span className="text-zinc-700 font-mono font-semibold">
             {order.orderNumber}
           </span>
         </nav>
 
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="min-w-0 flex-1">
-            <h1 className="font-display font-bold text-2xl sm:text-3xl text-brand-900">
+            <h1 className="font-semibold text-2xl sm:text-3xl text-zinc-900">
               {order.tender.title}
             </h1>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
@@ -172,54 +186,55 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
 
         {/* Orta: Tabs (6 col) */}
         <main className="lg:col-span-6">
-          <TabsPrimitive.Root defaultValue="items" className="space-y-4">
-            <TabsPrimitive.List
-              className="border-b border-surface-border flex gap-1 overflow-x-auto"
+          <TabGroup defaultIndex={0} className="space-y-4">
+            <TabList
+              className="border-b border-zinc-950/10 flex overflow-x-auto"
               aria-label="Sipariş detay sekmeleri"
             >
-              <TabsPrimitive.Trigger value="items" className={TAB_TRIGGER_CLASSES}>
+              <Tab className={TAB_TRIGGER_CLASSES}>
                 <Package className="h-4 w-4" />
                 Kalemler
-              </TabsPrimitive.Trigger>
-              <TabsPrimitive.Trigger value="files" className={TAB_TRIGGER_CLASSES}>
+              </Tab>
+              <Tab className={TAB_TRIGGER_CLASSES}>
                 <Paperclip className="h-4 w-4" />
                 Dosyalar
-              </TabsPrimitive.Trigger>
-            </TabsPrimitive.List>
+              </Tab>
+            </TabList>
 
-            <TabsPrimitive.Content value="items" className="outline-none space-y-4">
-              <PanelCard title="Kazandığınız Kalemler" padding="none">
-                <ItemsTable order={order} />
-              </PanelCard>
-              {order.bid.notes ? (
-                <PanelCard title="Teklif Notunuz">
-                  <p className="text-sm text-slate-700 whitespace-pre-wrap">
-                    {order.bid.notes}
-                  </p>
+            <TabPanels>
+              <TabPanel className="outline-none space-y-4">
+                <PanelCard title="Kazandığınız Kalemler" padding="none">
+                  <ItemsTable order={order} />
                 </PanelCard>
-              ) : null}
-            </TabsPrimitive.Content>
+                {order.bid.notes ? (
+                  <PanelCard title="Teklif Notunuz">
+                    <p className="text-sm text-zinc-700 whitespace-pre-wrap">
+                      {order.bid.notes}
+                    </p>
+                  </PanelCard>
+                ) : null}
+              </TabPanel>
 
-            <TabsPrimitive.Content value="files" className="outline-none">
-              <PanelCard title="Sipariş Dosyaları">
-                <div className="space-y-3">
-                  <AttachmentUpload
-                    surface="supplier"
-                    scope="ORDER_INVOICE"
-                    scopeRefId={order.id}
-                  />
-                  <AttachmentList
-                    surface="supplier"
-                    scope="ORDER_INVOICE"
-                    scopeRefId={order.id}
-                    canDelete
-                    emptyText="Henüz dosya yüklenmedi"
-                  />
-                </div>
-              </PanelCard>
-            </TabsPrimitive.Content>
-
-          </TabsPrimitive.Root>
+              <TabPanel className="outline-none">
+                <PanelCard title="Sipariş Dosyaları">
+                  <div className="space-y-3">
+                    <AttachmentUpload
+                      surface="supplier"
+                      scope="ORDER_INVOICE"
+                      scopeRefId={order.id}
+                    />
+                    <AttachmentList
+                      surface="supplier"
+                      scope="ORDER_INVOICE"
+                      scopeRefId={order.id}
+                      canDelete
+                      emptyText="Henüz dosya yüklenmedi"
+                    />
+                  </div>
+                </PanelCard>
+              </TabPanel>
+            </TabPanels>
+          </TabGroup>
         </main>
 
         {/* Sağ: Action sidebar (3 col) */}
@@ -246,11 +261,11 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
             {order.tenant ? (
               <PanelCard title="Alıcı" padding="md">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
-                    <Building2 className="w-4 h-4 text-brand-600" />
+                  <div className="w-9 h-9 rounded-lg bg-zinc-50 flex items-center justify-center flex-shrink-0">
+                    <Building2 className="w-4 h-4 text-zinc-600" />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-semibold text-brand-900 text-sm truncate">
+                    <p className="font-semibold text-zinc-900 text-sm truncate">
                       {order.tenant.name}
                     </p>
                   </div>
@@ -262,12 +277,12 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
             <PanelCard title="Bağlı İhale" padding="md">
               <Link
                 href={`/supplier/ihaleler/${order.tender.id}`}
-                className="block text-sm hover:text-brand-700 transition-colors"
+                className="block text-sm hover:text-zinc-700 transition-colors"
               >
                 <p className="font-mono text-xs text-slate-500">
                   {order.tender.tenderNumber}
                 </p>
-                <p className="font-semibold text-brand-900 mt-0.5 truncate">
+                <p className="font-semibold text-zinc-900 mt-0.5 truncate">
                   {order.tender.title}
                 </p>
               </Link>
@@ -295,7 +310,10 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
                   { id: order.id, orderNumber: order.orderNumber },
                   {
                     onSuccess: () => toast.success("PDF indirildi"),
-                    onError: () => toast.error("PDF indirilemedi"),
+                    onError: (err) =>
+                      toast.error(
+                        err instanceof Error ? err.message : "PDF indirilemedi",
+                      ),
                   },
                 )
               }
@@ -324,17 +342,17 @@ function SupplierOrderActions({ order }: { order: OrderDetail }) {
   if (order.status === "PENDING") {
     return (
       <>
-        <PanelCard padding="md" className="border-brand-200 bg-brand-50/40">
+        <PanelCard padding="md" className="border-zinc-200 bg-zinc-50/40">
           <div className="flex items-start gap-2 mb-3">
-            <ThumbsUp className="h-4 w-4 text-brand-600 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-brand-900 leading-relaxed">
+            <ThumbsUp className="h-4 w-4 text-zinc-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-zinc-900 leading-relaxed">
               Siparişi inceleyin: onaylamak için tahmini teslim tarihi ve
               ödeme bilgilerinizi girin, veya gerekiyorsa reddedin.
             </p>
           </div>
           <Button
             variant="primary"
-            className="w-full !bg-brand-600 hover:!bg-brand-700 focus:!ring-brand-500 mb-2"
+            className="w-full !bg-zinc-600 hover:!bg-zinc-700 focus:!ring-zinc-500 mb-2"
             onClick={() => setAcceptOpen(true)}
           >
             <ThumbsUp className="w-4 h-4" />
@@ -396,16 +414,16 @@ function SupplierOrderActions({ order }: { order: OrderDetail }) {
   if (order.status === "ACCEPTED") {
     return (
       <>
-        <PanelCard padding="md" className="border-indigo-200 bg-indigo-50/40">
+        <PanelCard padding="md" className="border-zinc-200 bg-zinc-50/40">
           <div className="flex items-start gap-2 mb-3">
-            <Truck className="h-4 w-4 text-indigo-600 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-indigo-900 leading-relaxed">
+            <Truck className="h-4 w-4 text-zinc-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-zinc-900 leading-relaxed">
               Hazırlık tamamlandığında sipariş gönderildi olarak işaretleyin.
             </p>
           </div>
           <Button
             variant="primary"
-            className="w-full !bg-indigo-600 hover:!bg-indigo-700 focus:!ring-indigo-500"
+            className="w-full !bg-zinc-600 hover:!bg-zinc-700 focus:!ring-zinc-500"
             onClick={() => setDeliveryOpen(true)}
           >
             <Truck className="w-4 h-4" />
@@ -508,69 +526,55 @@ function SupplierOrderActions({ order }: { order: OrderDetail }) {
 
 function ItemsTable({ order }: { order: OrderDetail }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-slate-50 border-b border-slate-200">
-          <tr>
-            <th className="text-left px-4 py-3 font-semibold text-slate-700">
-              Kalem
-            </th>
-            <th className="text-right px-4 py-3 font-semibold text-slate-700 w-32">
-              Miktar
-            </th>
-            <th className="text-right px-4 py-3 font-semibold text-slate-700 w-40">
-              Birim Fiyat
-            </th>
-            <th className="text-right px-4 py-3 font-semibold text-slate-700 w-44">
-              Toplam
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {order.bid.items.map((bi) => (
-            <tr key={bi.id} className="border-b border-slate-100 last:border-0">
-              <td className="px-4 py-3 align-top">
-                <p className="font-medium text-slate-900">
-                  {bi.tenderItem.name}
-                </p>
-                {bi.tenderItem.materialCode ? (
-                  <p className="text-xs text-slate-500 font-mono mt-1">
-                    {bi.tenderItem.materialCode}
-                  </p>
-                ) : null}
-              </td>
-              <td className="px-4 py-3 text-right text-slate-600 align-top">
-                {Number(bi.tenderItem.quantity).toLocaleString("tr-TR")}{" "}
-                {bi.tenderItem.unit}
-              </td>
-              <td className="px-4 py-3 text-right tabular-nums align-top">
-                {bi.unitPrice
-                  ? `${bi.currency} ${formatNumber(bi.unitPrice)}`
-                  : "—"}
-              </td>
-              <td className="px-4 py-3 text-right font-bold text-brand-900 tabular-nums align-top">
-                {bi.totalPrice
-                  ? formatPrice(bi.totalPrice, bi.currency as Currency)
-                  : "—"}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot className="bg-success-50 border-t-2 border-success-300">
-          <tr>
-            <td
-              colSpan={3}
-              className="px-4 py-3 text-right font-bold text-success-900"
-            >
-              TOPLAM
-            </td>
-            <td className="px-4 py-3 text-right font-bold text-success-900 text-lg tabular-nums">
-              {formatPrice(order.totalAmount, order.currency as Currency)}
-            </td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+    <Table dense>
+      <TableHead>
+        <TableRow>
+          <TableHeader>Kalem</TableHeader>
+          <TableHeader className="text-right">Miktar</TableHeader>
+          <TableHeader className="text-right">Birim Fiyat</TableHeader>
+          <TableHeader className="text-right">Toplam</TableHeader>
+        </TableRow>
+      </TableHead>
+      <TableBody>
+        {order.bid.items.map((bi) => (
+          <TableRow key={bi.id}>
+            <TableCell className="align-top font-medium">
+              <div className="text-zinc-900">{bi.tenderItem.name}</div>
+              {bi.tenderItem.materialCode ? (
+                <div className="mt-1 font-mono text-xs text-zinc-500">
+                  {bi.tenderItem.materialCode}
+                </div>
+              ) : null}
+            </TableCell>
+            <TableCell className="align-top text-right text-zinc-500">
+              {Number(bi.tenderItem.quantity).toLocaleString("tr-TR")}{" "}
+              {bi.tenderItem.unit}
+            </TableCell>
+            <TableCell className="align-top text-right tabular-nums text-zinc-500">
+              {bi.unitPrice
+                ? `${bi.currency} ${formatNumber(bi.unitPrice)}`
+                : "—"}
+            </TableCell>
+            <TableCell className="align-top text-right font-bold tabular-nums text-zinc-900">
+              {bi.totalPrice
+                ? formatPrice(bi.totalPrice, bi.currency as Currency)
+                : "—"}
+            </TableCell>
+          </TableRow>
+        ))}
+        <TableRow className="bg-zinc-50">
+          <TableCell
+            colSpan={3}
+            className="text-right text-sm font-bold text-zinc-900"
+          >
+            TOPLAM
+          </TableCell>
+          <TableCell className="text-right text-base font-bold tabular-nums text-zinc-950">
+            {formatPrice(order.totalAmount, order.currency as Currency)}
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    </Table>
   );
 }
 

@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { EmptyState } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,13 +44,13 @@ function formatRelative(date: string) {
 
 function SkeletonRow() {
   return (
-    <tr className="border-t border-surface-border">
+    <TableRow>
       {Array.from({ length: 6 }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
-          <div className="h-4 bg-slate-100 rounded animate-pulse" />
-        </td>
+        <TableCell key={i}>
+          <div className="h-4 bg-zinc-100 rounded animate-pulse" />
+        </TableCell>
       ))}
-    </tr>
+    </TableRow>
   );
 }
 
@@ -59,7 +67,7 @@ export function ApprovedSuppliersTable({
   if (isError) {
     return (
       <div className="px-6 py-16 text-center space-y-3">
-        <p className="text-brand-900 font-medium">Veri alınamadı.</p>
+        <p className="text-zinc-900 font-medium">Veri alınamadı.</p>
         <Button variant="secondary" size="sm" onClick={onRetry}>
           Tekrar dene
         </Button>
@@ -70,29 +78,19 @@ export function ApprovedSuppliersTable({
   const showEmpty = !isLoading && items.length === 0;
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-surface-muted text-left">
-          <tr>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              Üyelik
-            </th>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              Firma
-            </th>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              Vergi No
-            </th>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              İletişim
-            </th>
-            <th className="px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">
-              İlişki Tarihi
-            </th>
-            <th className="px-4 py-3" />
-          </tr>
-        </thead>
-        <tbody>
+    <div className="px-2 [--gutter:--spacing(4)]">
+      <Table dense>
+        <TableHead>
+          <TableRow>
+            <TableHeader>Üyelik</TableHeader>
+            <TableHeader>Firma</TableHeader>
+            <TableHeader>Vergi No</TableHeader>
+            <TableHeader>İletişim</TableHeader>
+            <TableHeader>İlişki Tarihi</TableHeader>
+            <TableHeader className="text-right" />
+          </TableRow>
+        </TableHead>
+        <TableBody>
           {isLoading &&
             items.length === 0 &&
             Array.from({ length: Math.min(pageSize, 5) }).map((_, i) => (
@@ -100,8 +98,8 @@ export function ApprovedSuppliersTable({
             ))}
 
           {showEmpty && (
-            <tr>
-              <td colSpan={6}>
+            <TableRow>
+              <TableCell colSpan={6}>
                 <EmptyState
                   icon={Users2}
                   title="Henüz onaylı tedarikçiniz yok"
@@ -114,20 +112,20 @@ export function ApprovedSuppliersTable({
                     ) : null
                   }
                 />
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           )}
 
           {items.map((row) => {
             const meta = MEMBERSHIP_META[row.supplier.membership];
             const primary = row.supplier.users[0];
             return (
-              <tr
+              <TableRow
                 key={row.relationId}
                 onClick={() => onSelect(row.relationId)}
-                className="border-t border-surface-border hover:bg-surface-muted/60 cursor-pointer transition-colors"
+                className="cursor-pointer hover:bg-zinc-950/2.5"
               >
-                <td className="px-4 py-3">
+                <TableCell>
                   <span
                     className={cn(
                       "inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border",
@@ -136,17 +134,17 @@ export function ApprovedSuppliersTable({
                   >
                     {meta.label}
                   </span>
-                </td>
-                <td className="px-4 py-3 text-brand-900">
+                </TableCell>
+                <TableCell className="text-zinc-900">
                   <div className="font-medium">{row.supplier.companyName}</div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-zinc-500">
                     {COMPANY_TYPE_SHORT_LABEL[row.supplier.companyType]}
                   </div>
-                </td>
-                <td className="px-4 py-3 text-brand-900 font-mono text-xs">
+                </TableCell>
+                <TableCell className="text-zinc-900 font-mono text-xs">
                   {row.supplier.taxNumber}
-                </td>
-                <td className="px-4 py-3 text-slate-600">
+                </TableCell>
+                <TableCell className="text-zinc-600">
                   {primary ? (
                     <>
                       <div>
@@ -155,20 +153,20 @@ export function ApprovedSuppliersTable({
                       <a
                         href={`mailto:${primary.email}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="text-xs text-slate-500 hover:text-brand-700 hover:underline inline-flex items-center gap-1"
+                        className="text-xs text-zinc-500 hover:text-zinc-900 hover:underline inline-flex items-center gap-1"
                       >
                         <Mail className="w-3 h-3" />
                         {primary.email}
                       </a>
                     </>
                   ) : (
-                    <span className="text-slate-400">—</span>
+                    <span className="text-zinc-400">—</span>
                   )}
-                </td>
-                <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                </TableCell>
+                <TableCell className="text-zinc-500 whitespace-nowrap">
                   {formatRelative(row.relationCreatedAt)}
-                </td>
-                <td className="px-4 py-3 text-right">
+                </TableCell>
+                <TableCell className="text-right">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -180,12 +178,12 @@ export function ApprovedSuppliersTable({
                     Detay
                     <ArrowRight className="w-4 h-4" />
                   </Button>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             );
           })}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

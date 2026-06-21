@@ -58,7 +58,7 @@ export function StatsCards() {
         label="Demo Yapıldı"
         value={display(demoDone)}
         icon={Sparkles}
-        accent="bg-indigo-50 text-indigo-700"
+        accent="bg-zinc-100 text-zinc-700"
       />
       <KpiCard
         label="Kazanıldı"

@@ -91,8 +91,8 @@ function DetailContent() {
       </Link>
 
       <div className="flex items-start gap-4">
-        <div className="h-16 w-16 rounded-2xl bg-purple-50 flex items-center justify-center flex-shrink-0">
-          <Truck className="h-8 w-8 text-purple-600" />
+        <div className="h-16 w-16 rounded-2xl bg-zinc-100 flex items-center justify-center flex-shrink-0">
+          <Truck className="h-8 w-8 text-zinc-600" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -152,7 +152,7 @@ function DetailContent() {
       </div>
 
       {/* Win Rate */}
-      <div className="rounded-2xl p-6 text-white bg-gradient-to-r from-purple-500 to-indigo-600">
+      <div className="rounded-2xl p-6 text-white bg-zinc-900">
         <p className="text-xs uppercase opacity-85 font-semibold tracking-wide">
           Kazanma Oranı
         </p>
@@ -260,8 +260,8 @@ interface MiniStatProps {
 
 const ACCENT_CLASSES = {
   brand: { bg: "bg-brand-50", icon: "text-brand-600" },
-  purple: { bg: "bg-purple-50", icon: "text-purple-600" },
-  indigo: { bg: "bg-indigo-50", icon: "text-indigo-600" },
+  purple: { bg: "bg-zinc-100", icon: "text-zinc-600" },
+  indigo: { bg: "bg-zinc-100", icon: "text-zinc-600" },
   success: { bg: "bg-success-50", icon: "text-success-600" },
 };
 

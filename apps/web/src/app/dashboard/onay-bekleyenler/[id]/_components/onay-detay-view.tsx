@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -137,7 +145,7 @@ export function OnayDetayView({
                 Onay Süreci
               </p>
               <div className="flex items-center gap-3 mt-1 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-display font-bold text-brand-900">
+                <h1 className="text-xl sm:text-2xl font-semibold text-brand-900">
                   {request.approvalNumber}
                 </h1>
                 <ApprovalStatusBadge status={request.status} />
@@ -198,7 +206,7 @@ export function OnayDetayView({
               emphasized
             />
             <DetailField
-              label="Süreç Başlatan"
+              label="İşlemi Yapan"
               value={`${request.initiatedBy.firstName} ${request.initiatedBy.lastName}`}
             />
             <DetailField
@@ -244,50 +252,40 @@ export function OnayDetayView({
         {/* Onay Tarihçesi */}
         <section className="bg-white border border-surface-border rounded-2xl shadow-sm p-5 sm:p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-display font-bold text-lg text-brand-900">
+            <h2 className="font-semibold text-lg text-brand-900">
               Onay Tarihçesi
             </h2>
           </div>
 
-          <div className="overflow-x-auto -mx-5 sm:-mx-6">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-xs uppercase text-slate-500 tracking-wide border-y border-surface-border">
-                  <th className="text-left px-5 sm:px-6 py-3 w-20 font-medium">
-                    Adım
-                  </th>
-                  <th className="text-left px-5 sm:px-6 py-3 font-medium">
-                    Durum / Karar
-                  </th>
-                  <th className="text-left px-5 sm:px-6 py-3 font-medium">
-                    Tarih
-                  </th>
-                  <th className="text-left px-5 sm:px-6 py-3 font-medium">
-                    Not
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-border">
-                {/* Süreç başlatma satırı */}
-                <tr>
-                  <td className="px-5 sm:px-6 py-3.5 text-sm font-mono text-slate-500">
+          <div className="px-2 sm:px-4 [--gutter:--spacing(4)]">
+            <Table dense>
+              <TableHead>
+                <TableRow>
+                  <TableHeader className="w-20">Adım</TableHeader>
+                  <TableHeader>Durum / Karar</TableHeader>
+                  <TableHeader>Tarih</TableHeader>
+                  <TableHeader>Not</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {/* İşlem satırı */}
+                <TableRow>
+                  <TableCell className="text-sm font-mono text-zinc-500">
                     0/{totalActiveSteps}
-                  </td>
-                  <td className="px-5 sm:px-6 py-3.5">
-                    <strong className="text-brand-900">
+                  </TableCell>
+                  <TableCell>
+                    <strong className="text-zinc-900">
                       {request.initiatedBy.firstName}{" "}
                       {request.initiatedBy.lastName}
                     </strong>{" "}
-                    <span className="text-slate-600">süreci başlattı</span>
-                  </td>
-                  <td className="px-5 sm:px-6 py-3.5 text-slate-600 whitespace-nowrap">
-                    {format(
-                      new Date(request.startedAt),
-                      "dd.MM.yyyy HH:mm:ss",
-                      { locale: tr },
-                    )}
-                  </td>
-                  <td className="px-5 sm:px-6 py-3.5 text-slate-600">
+                    <span className="text-zinc-600">onaya gönderdi</span>
+                  </TableCell>
+                  <TableCell className="text-zinc-600 whitespace-nowrap">
+                    {format(new Date(request.startedAt), "dd.MM.yyyy HH:mm:ss", {
+                      locale: tr,
+                    })}
+                  </TableCell>
+                  <TableCell className="text-zinc-600">
                     {request.initiatorNote ? (
                       <p className="line-clamp-2 max-w-[280px]">
                         {request.initiatorNote}
@@ -295,8 +293,8 @@ export function OnayDetayView({
                     ) : (
                       "—"
                     )}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
 
                 {request.steps.map((step) => (
                   <StepRow
@@ -305,8 +303,8 @@ export function OnayDetayView({
                     totalActiveSteps={totalActiveSteps}
                   />
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </section>
 
@@ -317,7 +315,7 @@ export function OnayDetayView({
               <p className="text-xs uppercase tracking-wide text-slate-500 font-medium">
                 İhale
               </p>
-              <h3 className="font-display font-bold text-lg text-brand-900 mt-1">
+              <h3 className="font-semibold text-lg text-brand-900 mt-1">
                 {request.tender.title}
               </h3>
               <p className="text-sm text-slate-500 mt-0.5">
@@ -455,7 +453,7 @@ function DetailField({
       <dd
         className={cn(
           "mt-0.5 text-brand-900 truncate",
-          emphasized ? "text-base font-display font-bold" : "font-medium",
+          emphasized ? "text-base font-semibold" : "font-medium",
         )}
       >
         {value}
@@ -535,37 +533,37 @@ function StepRow({
   }
 
   return (
-    <tr className={cn(step.status === "SKIPPED" && "opacity-70")}>
-      <td className="px-5 sm:px-6 py-3.5 text-sm font-mono text-slate-500">
+    <TableRow className={cn(step.status === "SKIPPED" && "opacity-70")}>
+      <TableCell className="text-sm font-mono text-zinc-500">
         {stepNumber}
-      </td>
-      <td className={cn("px-5 sm:px-6 py-3.5 text-sm", textClass)}>
+      </TableCell>
+      <TableCell className={cn("text-sm", textClass)}>
         <div className="flex items-center gap-2">
           {icon}
           <div className="min-w-0">
             <p>{actionText}</p>
             {step.displayLabel ? (
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-zinc-500 mt-0.5">
                 {step.displayLabel}
               </p>
             ) : null}
           </div>
         </div>
-      </td>
-      <td className="px-5 sm:px-6 py-3.5 text-slate-600 whitespace-nowrap">
+      </TableCell>
+      <TableCell className="text-zinc-600 whitespace-nowrap">
         {step.decidedAt
           ? format(new Date(step.decidedAt), "dd.MM.yyyy HH:mm:ss", {
               locale: tr,
             })
           : "—"}
-      </td>
-      <td className="px-5 sm:px-6 py-3.5 text-slate-600">
+      </TableCell>
+      <TableCell className="text-zinc-600">
         {step.decisionNote ? (
           <p className="line-clamp-2 max-w-[280px]">{step.decisionNote}</p>
         ) : (
           "—"
         )}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }

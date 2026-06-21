@@ -1,6 +1,7 @@
 "use client";
 
 import { supplierApi } from "@/lib/supplier-auth/api";
+import { extractBlobErrorMessage } from "@/lib/tenders/error";
 import type {
   ListOrdersParams,
   OrderCounterpart,
@@ -95,21 +96,25 @@ export function useSupplierOrderDetail(id: string | null) {
 export function useDownloadSupplierOrderPdf() {
   return useMutation({
     mutationFn: async (input: { id: string; orderNumber: string }) => {
-      const response = await supplierApi.get(
-        `/supplier/orders/${input.id}/pdf`,
-        { responseType: "blob" },
-      );
-      const blob = new Blob([response.data as BlobPart], {
-        type: "application/pdf",
-      });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Siparis-${input.orderNumber}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      try {
+        const response = await supplierApi.get(
+          `/supplier/orders/${input.id}/pdf`,
+          { responseType: "blob" },
+        );
+        const blob = new Blob([response.data as BlobPart], {
+          type: "application/pdf",
+        });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Siparis-${input.orderNumber}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (err) {
+        throw new Error(await extractBlobErrorMessage(err, "PDF indirilemedi"));
+      }
     },
   });
 }
@@ -123,18 +128,15 @@ export function useAcceptOrder() {
       id: string;
       expectedDeliveryDate: string;
       acceptedNote?: string;
-      bankAccountHolder?: string;
-      bankIban?: string;
-      invoiceDate?: string;
+      // G6 madde 20 — kayıtlı bankadan seçim
+      bankId: string;
     }) => {
       const { data } = await supplierApi.post<OrderDetail>(
         `/supplier/orders/${input.id}/accept`,
         {
           expectedDeliveryDate: input.expectedDeliveryDate,
           acceptedNote: input.acceptedNote,
-          bankAccountHolder: input.bankAccountHolder,
-          bankIban: input.bankIban,
-          invoiceDate: input.invoiceDate,
+          bankId: input.bankId,
         },
       );
       return data;
@@ -170,10 +172,14 @@ export function useRejectOrder() {
 export function useStartDelivery() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; deliveryNote?: string }) => {
+    mutationFn: async (input: {
+      id: string;
+      invoiceNumber: string;
+      deliveryNote?: string;
+    }) => {
       const { data } = await supplierApi.post<OrderDetail>(
         `/supplier/orders/${input.id}/start-delivery`,
-        { deliveryNote: input.deliveryNote },
+        { invoiceNumber: input.invoiceNumber, deliveryNote: input.deliveryNote },
       );
       return data;
     },

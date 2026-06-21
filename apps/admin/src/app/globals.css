@@ -3,20 +3,35 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap");
 
 @theme {
-  /* Brand — Supkeys mavi (web ile aynı) */
-  --color-brand-50:  #EFF4FF;
-  --color-brand-100: #DCE6FF;
-  --color-brand-200: #BACDFF;
-  --color-brand-300: #8FAEFF;
-  --color-brand-400: #5C85FF;
-  --color-brand-500: #3B6BFF;
-  --color-brand-600: #1E5BFF;
-  --color-brand-700: #1648CC;
-  --color-brand-800: #163A99;
-  --color-brand-900: #0A2540;
-  --color-brand-950: #061730;
+  /* Brand — Catalyst monokrom (zinc). brand-* siyah/zinc'e map edildi →
+     tüm mavi aksanlar web/tedarikçi paneliyle birebir monokrom olur.
+     Üst tonlar (600+) primary/aktif/metin için zinc-900/950 (siyah). */
+  --color-brand-50:  #FAFAFA; /* zinc-50  */
+  --color-brand-100: #F4F4F5; /* zinc-100 */
+  --color-brand-200: #E4E4E7; /* zinc-200 */
+  --color-brand-300: #D4D4D8; /* zinc-300 */
+  --color-brand-400: #A1A1AA; /* zinc-400 */
+  --color-brand-500: #52525B; /* zinc-600 — focus ring / orta aksan */
+  --color-brand-600: #18181B; /* zinc-900 — primary / aktif → siyah */
+  --color-brand-700: #09090B; /* zinc-950 — hover (daha koyu) */
+  --color-brand-800: #09090B; /* zinc-950 — active */
+  --color-brand-900: #18181B; /* zinc-900 — başlık / metin (near-black) */
+  --color-brand-950: #09090B; /* zinc-950 */
 
-  /* Semantic */
+  /* Nötr gri — slate'i temiz nötr (zinc) ölçeğe çevir (tüm text/bg/border-slate-*) */
+  --color-slate-50:  #FAFAFA;
+  --color-slate-100: #F4F4F5;
+  --color-slate-200: #E4E4E7;
+  --color-slate-300: #D4D4D8;
+  --color-slate-400: #A1A1AA;
+  --color-slate-500: #71717A;
+  --color-slate-600: #52525B;
+  --color-slate-700: #3F3F46;
+  --color-slate-800: #27272A;
+  --color-slate-900: #18181B;
+  --color-slate-950: #09090B;
+
+  /* Semantic — durum renkleri (yeşil/sarı/kırmızı) okunabilirlik için korunur */
   --color-success-50:  #ECFDF5;
   --color-success-500: #10B981;
   --color-success-600: #059669;
@@ -28,37 +43,40 @@
   --color-danger-600:  #DC2626;
   --color-danger-700:  #B91C1C;
 
-  /* Admin tema — koyu sidebar / açık içerik */
-  --color-admin-bg:             #F8FAFC; /* slate-50 — content alanı */
+  /* Admin tema — Catalyst monokrom (açık yüzey + nötr zinc) */
+  --color-admin-bg:             #FAFAFA; /* zinc-50 — content alanı */
   --color-admin-surface:        #FFFFFF;
-  --color-admin-sidebar:        #0F172A; /* slate-900 */
-  --color-admin-sidebar-hover:  #1E293B; /* slate-800 */
-  --color-admin-sidebar-active: #1E40AF; /* brand-ish dark blue */
-  --color-admin-sidebar-text:   #E2E8F0; /* slate-200 */
-  --color-admin-sidebar-muted:  #94A3B8; /* slate-400 */
-  --color-admin-text:           #0F172A;
-  --color-admin-text-muted:     #64748B; /* slate-500 */
-  --color-admin-border:         #E2E8F0; /* slate-200 */
-  --color-admin-border-strong:  #CBD5E1; /* slate-300 */
+  --color-admin-sidebar:        #FAFAFA; /* açık sidebar (zinc-50) */
+  --color-admin-sidebar-hover:  #F4F4F5; /* zinc-100 */
+  --color-admin-sidebar-active: #18181B; /* zinc-900 — aktif → siyah */
+  --color-admin-sidebar-text:   #3F3F46; /* zinc-700 */
+  --color-admin-sidebar-muted:  #A1A1AA; /* zinc-400 */
+  --color-admin-text:           #18181B; /* zinc-900 */
+  --color-admin-text-muted:     #71717A; /* zinc-500 */
+  --color-admin-border:         #E4E4E7; /* zinc-200 */
+  --color-admin-border-strong:  #D4D4D8; /* zinc-300 */
 
   /* Surface (web ile uyum) */
   --color-surface-base:   #FFFFFF;
-  --color-surface-subtle: #F8FAFC;
-  --color-surface-muted:  #F1F5F9;
-  --color-surface-border: #E2E8F0;
+  --color-surface-subtle: #FAFAFA;
+  --color-surface-muted:  #F4F4F5;
+  --color-surface-border: #E4E4E7;
 
-  /* Fonts */
-  --font-sans:    "Inter", system-ui, sans-serif;
-  --font-display: "Plus Jakarta Sans", "Inter", sans-serif;
+  /* Fonts — Catalyst ile uyum: Inter + cv11 */
+  --font-sans:    "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans--font-feature-settings: "cv11";
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display--font-feature-settings: "cv11";
 
-  /* Shadows */
-  --shadow-card:       0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-card-hover: 0 4px 12px rgba(15, 23, 42, 0.08);
-  --shadow-sidebar:    2px 0 8px rgba(15, 23, 42, 0.08);
+  /* Shadows — nötr, ince, kurumsal */
+  --shadow-card:       0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-card-hover: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-sidebar:    2px 0 8px rgba(0, 0, 0, 0.06);
 
-  /* Radius */
-  --radius-xl:  0.875rem;
-  --radius-2xl: 1.125rem;
+  /* Radius — net/sıkı */
+  --radius-lg:  0.5rem;
+  --radius-xl:  0.75rem;
+  --radius-2xl: 1rem;
 }
 
 @layer base {
@@ -95,12 +113,12 @@
 
   .admin-sidebar-item {
     @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-           text-admin-sidebar-text/80 hover:text-white hover:bg-admin-sidebar-hover
+           text-admin-sidebar-text hover:text-zinc-950 hover:bg-admin-sidebar-hover
            transition-colors;
   }
 
   .admin-sidebar-item-active {
-    @apply bg-admin-sidebar-hover text-white;
+    @apply bg-zinc-100 text-zinc-950;
   }
 }
 

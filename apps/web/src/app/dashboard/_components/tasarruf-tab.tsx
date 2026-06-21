@@ -88,14 +88,14 @@ export function TasarrufTab({ data }: Props) {
         <PeriodToggle value={globalPeriod} onChange={setGlobalPeriod} />
         <button
           type="button"
-          className="text-xs font-semibold text-brand-600 hover:text-brand-700"
+          className="text-xs font-semibold text-zinc-700 hover:text-zinc-900"
         >
           Hesaplama Kriterlerini İncele
         </button>
       </div>
 
       {/* 3 metrik kartı */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <Metric
             label="Toplam Tasarrufum"
@@ -119,10 +119,10 @@ export function TasarrufTab({ data }: Props) {
       </section>
 
       {/* En Yüksek Tasarruflu 5 İhalem */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
         <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <h2 className="font-display text-base font-bold text-brand-900">
+            <h2 className="text-base font-semibold text-zinc-950">
               En Yüksek Tasarruflu 5 İhalem
             </h2>
             <InfoTooltip content={TOOLTIP_TOP5} />
@@ -147,13 +147,13 @@ export function TasarrufTab({ data }: Props) {
                 key={r.tenderNumber}
                 className="flex items-center gap-3 py-3"
               >
-                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-brand-50 text-xs font-bold text-brand-700">
+                <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-700">
                   {r.rank}
                 </span>
                 <span className="font-mono text-xs text-slate-500">
                   #{r.tenderNumber}
                 </span>
-                <span className="flex-1 truncate text-sm text-brand-900">
+                <span className="flex-1 truncate text-sm text-zinc-900">
                   {r.title}
                 </span>
                 <span className="font-mono text-sm font-semibold text-success-700">
@@ -253,9 +253,9 @@ function Metric({
   accent: "brand" | "success" | "indigo";
 }) {
   const accentColor: Record<typeof accent, string> = {
-    brand: "text-brand-900",
+    brand: "text-zinc-900",
     success: "text-success-700",
-    indigo: "text-indigo-700",
+    indigo: "text-zinc-700",
   };
   return (
     <div>
@@ -289,15 +289,15 @@ function BreakdownCard({
 }) {
   const fill =
     color === "brand"
-      ? "bg-brand-500"
-      : "bg-indigo-500";
+      ? "bg-zinc-900"
+      : "bg-zinc-500";
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
       <header className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <InfoTooltip content={tooltip} />
-          <h3 className="font-display text-sm font-bold text-brand-900">
+          <h3 className="text-sm font-semibold text-zinc-950">
             {title}
           </h3>
         </div>
@@ -313,7 +313,7 @@ function BreakdownCard({
                 <span className="truncate text-slate-700" title={r.label}>
                   {r.label}
                 </span>
-                <span className="font-mono font-semibold text-brand-900">
+                <span className="font-mono font-semibold text-zinc-900">
                   {hasData ? `${(r.percent as number).toFixed(2)}%` : "—"}
                 </span>
               </div>

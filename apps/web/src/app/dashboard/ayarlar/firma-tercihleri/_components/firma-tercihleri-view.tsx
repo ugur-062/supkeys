@@ -91,7 +91,7 @@ export function FirmaTercihleriView() {
             <MapPin className="h-5 w-5 text-brand-600" />
           </div>
           <div>
-            <h1 className="font-display text-2xl font-bold text-brand-900">
+            <h1 className="text-2xl font-semibold text-brand-900">
               Firma Tercihleri
             </h1>
             <p className="text-slate-500 text-sm mt-1">

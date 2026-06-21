@@ -1,15 +1,14 @@
 "use client";
 
+import { Select } from "@/components/catalyst/select";
+import { SearchInput } from "@/components/list";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DEMO_REQUEST_STATUS_META,
   DEMO_REQUEST_STATUS_ORDER,
 } from "@/lib/demo-requests/status";
 import type { DemoRequestStatus } from "@/lib/demo-requests/types";
-import { cn } from "@/lib/utils";
-import { Search, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 
 interface FiltersBarProps {
   search: string;
@@ -26,49 +25,24 @@ export function FiltersBar({
   onStatusChange,
   onClear,
 }: FiltersBarProps) {
-  const [searchInput, setSearchInput] = useState(search);
-
-  // External (URL) sync edildiğinde input'u güncelle
-  useEffect(() => {
-    setSearchInput(search);
-  }, [search]);
-
-  // Debounce search → URL
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (searchInput !== search) {
-        onSearchChange(searchInput);
-      }
-    }, 300);
-    return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchInput]);
-
   const hasFilters = !!search || !!status;
 
   return (
     <div className="admin-card p-3 flex flex-col md:flex-row md:items-center gap-3">
-      <div className="relative flex-1 min-w-0">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-        <Input
-          type="search"
-          placeholder="Firma, ad veya e-posta ara…"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          className="pl-9"
-        />
-      </div>
+      <SearchInput
+        value={search}
+        onChange={onSearchChange}
+        placeholder="Firma, ad veya e-posta ara…"
+        className="flex-1 min-w-0"
+      />
 
-      <select
+      <Select
         value={status}
         onChange={(e) =>
           onStatusChange(e.target.value as DemoRequestStatus | "")
         }
-        className={cn(
-          "px-3.5 py-2.5 rounded-lg border bg-white text-admin-text text-sm",
-          "border-admin-border-strong focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-          "min-w-[180px]",
-        )}
+        aria-label="Statü filtresi"
+        className="md:w-48"
       >
         <option value="">Tüm statüler</option>
         {DEMO_REQUEST_STATUS_ORDER.map((s) => (
@@ -76,7 +50,7 @@ export function FiltersBar({
             {DEMO_REQUEST_STATUS_META[s].label}
           </option>
         ))}
-      </select>
+      </Select>
 
       <Button
         type="button"

@@ -33,7 +33,7 @@ export function PanelCard({
   return (
     <div
       className={cn(
-        "bg-white border border-surface-border rounded-xl shadow-card",
+        "bg-white rounded-xl shadow-sm ring-1 ring-zinc-950/5",
         PADDING[padding],
         className,
       )}
@@ -42,12 +42,12 @@ export function PanelCard({
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="min-w-0">
             {title && (
-              <h3 className="font-display font-bold text-base text-brand-900">
+              <h3 className="text-base/7 font-semibold text-zinc-950">
                 {title}
               </h3>
             )}
             {subtitle && (
-              <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>
+              <p className="text-sm text-zinc-500 mt-0.5">{subtitle}</p>
             )}
           </div>
           {action ? <div className="flex-shrink-0">{action}</div> : null}

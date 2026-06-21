@@ -2,21 +2,10 @@
 
 import { useTenantUserMe } from "@/hooks/use-tenant-users";
 import { cn } from "@/lib/utils";
-import {
-  Ban,
-  Building2,
-  ChevronDown,
-  FileText,
-  Loader2,
-} from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ChevronDown, FileText, Loader2 } from "lucide-react";
+import { useState } from "react";
 import { BackToSettings } from "./back-to-settings";
-
-const COMPANY_TYPE_LABEL: Record<string, string> = {
-  JOINT_STOCK: "Anonim Şirket",
-  LIMITED: "Limited Şirket",
-  SOLE_PROPRIETOR: "Şahıs Şirketi",
-};
+import { TenantPublicProfileCard } from "./tenant-public-profile-card";
 
 export function FirmaProfiliView() {
   const meQuery = useTenantUserMe();
@@ -31,24 +20,21 @@ export function FirmaProfiliView() {
   }
 
   const tenant = meQuery.data.tenant;
-  const companyTypeLabel = tenant.companyType
-    ? COMPANY_TYPE_LABEL[tenant.companyType] ?? tenant.companyType
-    : "—";
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-8">
       <BackToSettings />
 
-      <h1 className="mt-4 font-display text-2xl font-bold text-brand-900">
+      <h1 className="mt-4 text-2xl font-semibold text-brand-900">
         Firma Profili
       </h1>
 
-      {/* Üst özet kart */}
-      <SummaryCard
-        name={tenant.name}
-        taxNumber={tenant.taxNumber}
-        companyTypeLabel={companyTypeLabel}
-      />
+      {/* Herkese açık profil editörü */}
+      <div className="mt-6">
+        <TenantPublicProfileCard
+          isAdmin={meQuery.data.role === "COMPANY_ADMIN"}
+        />
+      </div>
 
       {/* Akordiyonlar */}
       <div className="mt-6 space-y-3">
@@ -138,96 +124,6 @@ export function FirmaProfiliView() {
 // Subcomponents
 // ──────────────────────────────────────────────────────────
 
-interface SummaryCardProps {
-  name: string;
-  taxNumber: string | null;
-  companyTypeLabel: string;
-}
-
-function SummaryCard({ name, taxNumber, companyTypeLabel }: SummaryCardProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onClick = (e: MouseEvent) => {
-      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
-    };
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [menuOpen]);
-
-  return (
-    <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
-          <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-brand-50">
-            <Building2 className="h-7 w-7 text-brand-600" />
-          </div>
-          <div>
-            <p className="text-xl font-bold text-brand-900">{name}</p>
-            {taxNumber ? (
-              <p className="mt-0.5 font-mono text-xs text-slate-500">
-                {taxNumber}
-              </p>
-            ) : null}
-            <p className="mt-3 text-sm text-slate-700">
-              <span className="font-bold">Firma Tipi:</span>{" "}
-              <span>{companyTypeLabel}</span>
-            </p>
-          </div>
-        </div>
-
-        {/* Tüm İşlemler dropdown */}
-        <div className="relative" ref={menuRef}>
-          <button
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold transition-colors",
-              "bg-brand-500 text-white hover:bg-brand-600",
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/30",
-            )}
-          >
-            Tüm İşlemler
-            <ChevronDown
-              className={cn(
-                "h-4 w-4 transition-transform",
-                menuOpen ? "rotate-180" : "",
-              )}
-            />
-          </button>
-          {menuOpen ? (
-            <div
-              role="menu"
-              className="absolute right-0 z-10 mt-2 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg"
-            >
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => setMenuOpen(false)}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger-600 hover:bg-danger-50"
-              >
-                <Ban className="h-4 w-4" />
-                Engelle
-              </button>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 interface AccordionProps {
   title: string;
   defaultOpen?: boolean;
@@ -253,7 +149,7 @@ function Accordion({ title, defaultOpen = false, children }: AccordionProps) {
             open ? "rotate-0" : "-rotate-90",
           )}
         />
-        <h2 className="font-display text-base font-bold text-brand-900">
+        <h2 className="text-base font-semibold text-brand-900">
           {title}
         </h2>
       </button>

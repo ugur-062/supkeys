@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  DescriptionDetails,
+  DescriptionList,
+  DescriptionTerm,
+} from "@/components/catalyst/description-list";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -58,11 +63,11 @@ export function AccountInfoSection() {
     <section className="card p-6 space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-brand-50">
-            <UserRound className="h-5 w-5 text-brand-600" />
+          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-zinc-50">
+            <UserRound className="h-5 w-5 text-zinc-600" />
           </div>
           <div>
-            <h2 className="font-display font-bold text-lg text-brand-900">
+            <h2 className="font-semibold text-lg text-zinc-900">
               Hesap Bilgileri
             </h2>
             <p className="text-sm text-slate-500 mt-0.5">
@@ -79,34 +84,22 @@ export function AccountInfoSection() {
       </div>
 
       {!editing ? (
-        <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-0.5">
-            <dt className="text-xs uppercase tracking-wide text-slate-500">
-              Ad Soyad
-            </dt>
-            <dd className="text-sm text-brand-900">
-              {supplierUser.firstName} {supplierUser.lastName}
-            </dd>
-          </div>
-          <div className="space-y-0.5">
-            <dt className="text-xs uppercase tracking-wide text-slate-500">
-              Telefon
-            </dt>
-            <dd className="text-sm text-brand-900">
-              {supplierUser.phone || "—"}
-            </dd>
-          </div>
-          <div className="space-y-0.5 md:col-span-2">
-            <dt className="text-xs uppercase tracking-wide text-slate-500">
-              E-posta
-            </dt>
-            <dd className="flex items-center gap-1.5 text-sm text-brand-900">
-              <Mail className="h-3.5 w-3.5 text-slate-400" />
+        <DescriptionList>
+          <DescriptionTerm>Ad Soyad</DescriptionTerm>
+          <DescriptionDetails>
+            {supplierUser.firstName} {supplierUser.lastName}
+          </DescriptionDetails>
+          <DescriptionTerm>Telefon</DescriptionTerm>
+          <DescriptionDetails>{supplierUser.phone || "—"}</DescriptionDetails>
+          <DescriptionTerm>E-posta</DescriptionTerm>
+          <DescriptionDetails>
+            <span className="flex items-center gap-1.5">
+              <Mail className="h-3.5 w-3.5 text-zinc-400" />
               {supplierUser.email}
-              <span className="text-xs text-slate-400">(değiştirilemez)</span>
-            </dd>
-          </div>
-        </dl>
+              <span className="text-xs text-zinc-400">(değiştirilemez)</span>
+            </span>
+          </DescriptionDetails>
+        </DescriptionList>
       ) : (
         <div className="space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

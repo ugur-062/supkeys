@@ -1,15 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Check,
-  ChevronDown,
-  Loader2,
-  Search,
-  Tag,
-  X as XIcon,
-} from "lucide-react";
+import { Input, InputGroup } from "@/components/catalyst/input";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { useRoots } from "@/hooks/use-categories";
+import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
+import { Check, ChevronDown, Loader2, Tag, X as XIcon } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 interface Props {
   value: string[];
@@ -111,28 +108,28 @@ export function SegmentOnlySelector({
           error
             ? "border-rose-300"
             : open
-              ? "border-brand-500"
-              : "border-slate-200 hover:border-slate-300"
+              ? "border-zinc-500"
+              : "border-zinc-200 hover:border-zinc-300"
         }`}
       >
         <Tag
           className={`h-4 w-4 flex-shrink-0 ${
-            value.length > 0 ? "text-brand-600" : "text-slate-400"
+            value.length > 0 ? "text-zinc-600" : "text-zinc-400"
           }`}
         />
 
         <div className="flex flex-1 flex-wrap items-center gap-1.5">
           {selectedSegments.length === 0 ? (
-            <span className="text-sm text-slate-500">{placeholder}</span>
+            <span className="text-sm text-zinc-500">{placeholder}</span>
           ) : (
             selectedSegments.map((seg) => (
               <span
                 key={seg.id}
-                className="inline-flex items-center gap-1 rounded-md border border-brand-200 bg-brand-50 px-1.5 py-0.5 text-xs font-semibold text-brand-700"
+                className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-xs font-semibold text-zinc-700"
                 title={seg.nameTr}
               >
                 {seg.segmentLetter ? (
-                  <span className="font-mono text-brand-500">
+                  <span className="font-mono text-zinc-500">
                     {seg.segmentLetter}.
                   </span>
                 ) : null}
@@ -141,7 +138,7 @@ export function SegmentOnlySelector({
                   <button
                     type="button"
                     onClick={(e) => removeChip(seg.id, e)}
-                    className="ml-0.5 rounded p-0.5 hover:bg-brand-100 hover:text-rose-600"
+                    className="ml-0.5 rounded p-0.5 hover:bg-zinc-100 hover:text-rose-600"
                     aria-label={`${seg.nameTr} kaldır`}
                   >
                     <XIcon className="h-3 w-3" />
@@ -152,7 +149,7 @@ export function SegmentOnlySelector({
           )}
         </div>
 
-        <span className="flex flex-shrink-0 items-center gap-2 text-xs text-slate-500">
+        <span className="flex flex-shrink-0 items-center gap-2 text-xs text-zinc-500">
           <span>
             {value.length}/{maxSelection}
           </span>
@@ -169,23 +166,22 @@ export function SegmentOnlySelector({
 
       {/* Dropdown panel */}
       {open ? (
-        <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
+        <div className="absolute left-0 right-0 z-30 mt-2 overflow-hidden rounded-xl ring-1 ring-zinc-950/5 bg-white shadow-lg">
           {/* Search */}
-          <div className="border-b border-slate-100 bg-slate-50/60 p-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
+          <div className="border-b border-zinc-950/5 bg-zinc-50/60 p-2">
+            <InputGroup>
+              <MagnifyingGlassIcon data-slot="icon" />
+              <Input
                 ref={searchRef}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Kategori ara..."
-                className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
               />
-            </div>
+            </InputGroup>
             {warningMsg ? (
-              <div className="mt-2 rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-700">
-                ⚠️ {warningMsg}
-              </div>
+              <Alert variant="warning" className="mt-2 p-2 text-xs">
+                {warningMsg}
+              </Alert>
             ) : null}
           </div>
 
@@ -193,10 +189,10 @@ export function SegmentOnlySelector({
           <div className="max-h-72 overflow-y-auto">
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+                <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
               </div>
             ) : filteredSegments.length === 0 ? (
-              <div className="py-8 text-center text-sm text-slate-500">
+              <div className="py-8 text-center text-sm text-zinc-500">
                 Sonuç bulunamadı
               </div>
             ) : (
@@ -212,15 +208,15 @@ export function SegmentOnlySelector({
                         onClick={() => toggle(segment.id)}
                         className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors ${
                           isSelected
-                            ? "bg-brand-50 hover:bg-brand-100"
-                            : "hover:bg-slate-50"
+                            ? "bg-zinc-50 hover:bg-zinc-100"
+                            : "hover:bg-zinc-50"
                         }`}
                       >
                         <div
                           className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border-2 ${
                             isSelected
-                              ? "border-brand-500 bg-brand-500"
-                              : "border-slate-300 bg-white"
+                              ? "border-zinc-500 bg-zinc-500"
+                              : "border-zinc-300 bg-white"
                           }`}
                         >
                           {isSelected ? (
@@ -232,7 +228,7 @@ export function SegmentOnlySelector({
                           {segment.segmentLetter ? (
                             <span
                               className={`font-mono text-xs ${
-                                isSelected ? "text-brand-600" : "text-slate-400"
+                                isSelected ? "text-zinc-600" : "text-zinc-400"
                               }`}
                             >
                               {segment.segmentLetter}.
@@ -241,8 +237,8 @@ export function SegmentOnlySelector({
                           <span
                             className={`text-sm ${
                               isSelected
-                                ? "font-semibold text-brand-900"
-                                : "text-slate-700"
+                                ? "font-semibold text-zinc-900"
+                                : "text-zinc-700"
                             }`}
                           >
                             {segment.nameTr}
@@ -257,27 +253,19 @@ export function SegmentOnlySelector({
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/60 px-3 py-2 text-xs">
-            <span className="text-slate-600">
+          <div className="flex items-center justify-between border-t border-zinc-950/5 bg-zinc-50 px-3 py-2 text-xs">
+            <span className="text-zinc-600">
               {value.length}/{maxSelection} kategori seçildi
             </span>
             <div className="flex items-center gap-2">
               {value.length > 0 && !disabled ? (
-                <button
-                  type="button"
-                  onClick={() => onChange([])}
-                  className="font-semibold text-slate-500 hover:text-rose-600"
-                >
+                <Button variant="ghost" size="sm" onClick={() => onChange([])}>
                   Temizle
-                </button>
+                </Button>
               ) : null}
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-md bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-600"
-              >
+              <Button size="sm" onClick={() => setOpen(false)}>
                 Tamam
-              </button>
+              </Button>
             </div>
           </div>
         </div>

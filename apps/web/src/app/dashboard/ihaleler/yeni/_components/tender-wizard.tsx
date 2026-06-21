@@ -216,7 +216,7 @@ export function TenderWizard({ mode, initialData }: Props) {
     <FormProvider {...form}>
       <div className="max-w-5xl mx-auto space-y-6 pb-24">
         <header>
-          <h1 className="font-display font-bold text-2xl md:text-3xl text-brand-900">
+          <h1 className="font-semibold text-2xl md:text-3xl text-brand-900">
             {mode === "create" ? "Yeni İhale Aç" : "İhaleyi Düzenle"}
           </h1>
           <p className="text-slate-600 mt-1 text-sm">

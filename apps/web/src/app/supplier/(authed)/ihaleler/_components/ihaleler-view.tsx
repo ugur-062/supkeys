@@ -1,5 +1,7 @@
 "use client";
 
+import { Input, InputGroup } from "@/components/catalyst/input";
+import { Select } from "@/components/catalyst/select";
 import { EmptyState, PageHeader, Pagination } from "@/components/list";
 import { PanelCard } from "@/components/supplier/panel-card";
 import {
@@ -10,17 +12,14 @@ import {
 } from "@/hooks/use-supplier-tenders";
 import type { TenderDateRange } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
+import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
 import {
   Briefcase,
-  Building2,
-  CalendarRange,
   CheckCircle2,
   FileText,
-  FolderTree,
   Inbox,
   Mail,
   Package,
-  Search,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
@@ -159,124 +158,126 @@ export function SupplierIhalelerView() {
           label="Aktif Davet"
           value={stats.data?.activeInvitations ?? 0}
           icon={Mail}
-          accent="bg-blue-50 text-blue-600"
+          accent="bg-zinc-100 text-zinc-700"
           loading={stats.isLoading}
         />
         <MiniKpi
           label="Verilen Teklif"
           value={stats.data?.submittedBids ?? 0}
           icon={FileText}
-          accent="bg-violet-50 text-violet-600"
+          accent="bg-zinc-100 text-zinc-700"
           loading={stats.isLoading}
         />
         <MiniKpi
           label="Kazanılan"
           value={stats.data?.wonTenders ?? 0}
           icon={CheckCircle2}
-          accent="bg-emerald-50 text-emerald-600"
+          accent="bg-zinc-100 text-zinc-700"
           loading={stats.isLoading}
         />
         <MiniKpi
           label="Devam Eden Sipariş"
           value={stats.data?.ongoingOrders ?? 0}
           icon={Package}
-          accent="bg-amber-50 text-amber-600"
+          accent="bg-zinc-100 text-zinc-700"
           loading={stats.isLoading}
         />
       </div>
 
-      {/* Toolbar — arama + 5 dropdown yatay */}
+      {/* Toolbar — geniş arama üstte, filtreler altta */}
       <PanelCard padding="sm">
-        <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-3">
-          <div className="relative flex-1 min-w-0 md:max-w-md">
-            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
-              value={search}
-              onChange={(e) => updateUrl({ search: e.target.value })}
-              placeholder="İhale ara..."
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-            />
+        <div className="space-y-3">
+          {/* Üst satır: geniş arama + sıralama */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex-1">
+              <InputGroup>
+                <MagnifyingGlassIcon data-slot="icon" />
+                <Input
+                  value={search}
+                  onChange={(e) => updateUrl({ search: e.target.value })}
+                  placeholder="İhale ara..."
+                />
+              </InputGroup>
+            </div>
+            <Select
+              value={sort}
+              onChange={(e) => updateUrl({ sort: e.target.value })}
+              aria-label="Sıralama"
+              className="sm:w-44"
+            >
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </Select>
           </div>
 
-          <IconSelect
-            icon={Briefcase}
-            value={tab}
-            onChange={(v) => updateUrl({ tab: v as TabKey })}
-            options={STATUS_OPTIONS}
-            ariaLabel="Durum filtresi"
-          />
-          <IconSelect
-            icon={CalendarRange}
-            value={range}
-            onChange={(v) => updateUrl({ range: v as TenderDateRange })}
-            options={RANGE_OPTIONS}
-            ariaLabel="Tarih aralığı"
-          />
-          <IconSelect
-            icon={Building2}
-            value={tenantId}
-            onChange={(v) => updateUrl({ tenantId: v })}
-            options={[
-              { value: "", label: "Tüm Alıcılar" },
-              ...(tenants.data ?? []).map((t) => ({
-                value: t.id,
-                label: `${t.name} (${t.tenderCount})`,
-              })),
-            ]}
-            ariaLabel="Alıcı filtresi"
-            loading={tenants.isLoading}
-          />
-          <IconSelect
-            icon={FolderTree}
-            value={categoryId}
-            onChange={(v) => updateUrl({ categoryId: v })}
-            options={[
-              { value: "", label: "Tüm Kategoriler" },
-              ...(categoryOptions.data ?? []).map((c) => ({
-                value: c.id,
-                label: `${c.breadcrumb} (${c.tenderCount})`,
-              })),
-            ]}
-            ariaLabel="Kategori filtresi"
-            loading={categoryOptions.isLoading}
-          />
-          <select
-            value={sort}
-            onChange={(e) => updateUrl({ sort: e.target.value })}
-            aria-label="Sıralama"
-            className="w-full md:w-auto md:min-w-[160px] px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white cursor-pointer"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-
-          <p className="text-xs text-slate-500 whitespace-nowrap md:ml-auto">
-            {list.isLoading
-              ? "Yükleniyor…"
-              : `${totalCount.toLocaleString("tr-TR")} ihale${
-                  search ||
-                  tab !== "active" ||
-                  range !== "all" ||
-                  tenantId ||
-                  categoryId
-                    ? " (filtrelenmiş)"
-                    : ""
-                }`}
-          </p>
+          {/* Alt satır: filtreler + sonuç sayısı */}
+          <div className="flex flex-wrap items-center gap-2">
+            <IconSelect
+              value={tab}
+              onChange={(v) => updateUrl({ tab: v as TabKey })}
+              options={STATUS_OPTIONS}
+              ariaLabel="Durum filtresi"
+            />
+            <IconSelect
+              value={range}
+              onChange={(v) => updateUrl({ range: v as TenderDateRange })}
+              options={RANGE_OPTIONS}
+              ariaLabel="Tarih aralığı"
+            />
+            <IconSelect
+              value={tenantId}
+              onChange={(v) => updateUrl({ tenantId: v })}
+              options={[
+                { value: "", label: "Tüm Müşteriler" },
+                ...(tenants.data ?? []).map((t) => ({
+                  value: t.id,
+                  label: `${t.name} (${t.tenderCount})`,
+                })),
+              ]}
+              ariaLabel="Müşteri filtresi"
+              loading={tenants.isLoading}
+            />
+            <IconSelect
+              value={categoryId}
+              onChange={(v) => updateUrl({ categoryId: v })}
+              options={[
+                { value: "", label: "Tüm Kategoriler" },
+                ...(categoryOptions.data ?? []).map((c) => ({
+                  value: c.id,
+                  label: `${c.breadcrumb} (${c.tenderCount})`,
+                })),
+              ]}
+              ariaLabel="Kategori filtresi"
+              loading={categoryOptions.isLoading}
+            />
+            <p className="ml-auto whitespace-nowrap text-xs text-zinc-500">
+              {list.isLoading
+                ? "Yükleniyor…"
+                : `${totalCount.toLocaleString("tr-TR")} ihale${
+                    search ||
+                    tab !== "active" ||
+                    range !== "all" ||
+                    tenantId ||
+                    categoryId
+                      ? " (filtrelenmiş)"
+                      : ""
+                  }`}
+            </p>
+          </div>
         </div>
       </PanelCard>
 
       {/* Kart grid */}
       {list.isError ? (
         <PanelCard className="text-center py-12">
-          <p className="text-brand-900 font-medium mb-2">Veri alınamadı</p>
+          <p className="text-zinc-950 font-medium mb-2">Veri alınamadı</p>
           <button
             type="button"
             onClick={() => list.refetch()}
-            className="text-sm text-brand-700 hover:underline"
+            className="text-sm text-zinc-700 hover:underline"
           >
             Tekrar dene
           </button>
@@ -306,7 +307,7 @@ export function SupplierIhalelerView() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="flex flex-col gap-3">
             {items.map((t) => (
               <TenderCard key={t.id} tender={t} />
             ))}
@@ -329,14 +330,13 @@ export function SupplierIhalelerView() {
 }
 
 function IconSelect({
-  icon: Icon,
   value,
   onChange,
   options,
   ariaLabel,
   loading,
 }: {
-  icon: typeof Briefcase;
+  icon?: typeof Briefcase;
   value: string;
   onChange: (v: string) => void;
   options: Array<{ value: string; label: string }>;
@@ -344,26 +344,19 @@ function IconSelect({
   loading?: boolean;
 }) {
   return (
-    <div className="relative w-full md:w-auto">
-      <Icon className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        aria-label={ariaLabel}
-        disabled={loading}
-        className={cn(
-          "pl-9 pr-8 py-2 text-sm rounded-lg appearance-none bg-white cursor-pointer w-full md:w-auto md:min-w-[160px]",
-          "border border-slate-200 text-brand-900",
-          "focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500",
-        )}
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </div>
+    <Select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label={ariaLabel}
+      disabled={loading}
+      className="w-full md:w-auto md:min-w-[160px]"
+    >
+      {options.map((o) => (
+        <option key={o.value} value={o.value}>
+          {o.label}
+        </option>
+      ))}
+    </Select>
   );
 }
 
@@ -381,7 +374,7 @@ function MiniKpi({
   loading: boolean;
 }) {
   return (
-    <div className="bg-white border border-slate-200/80 rounded-xl shadow-sm p-3 flex items-center gap-3">
+    <div className="bg-white ring-1 ring-zinc-950/5 rounded-xl shadow-sm p-3 flex items-center gap-3">
       <div
         className={cn(
           "h-9 w-9 rounded-lg flex items-center justify-center flex-shrink-0",
@@ -394,7 +387,7 @@ function MiniKpi({
         <p className="text-[10px] text-slate-500 uppercase tracking-wide font-semibold">
           {label}
         </p>
-        <p className="text-xl font-bold text-brand-900 tabular-nums leading-tight">
+        <p className="text-xl font-bold text-zinc-950 tabular-nums leading-tight">
           {loading ? "…" : value}
         </p>
       </div>
@@ -404,11 +397,11 @@ function MiniKpi({
 
 function CardGridSkeleton() {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="flex flex-col gap-3">
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}
-          className="bg-white border border-slate-200/80 rounded-2xl p-5 animate-pulse"
+          className="bg-white ring-1 ring-zinc-950/5 rounded-2xl p-5 animate-pulse"
         >
           <div className="h-3 bg-slate-200 rounded w-24 mb-2" />
           <div className="h-5 bg-slate-200 rounded w-full mb-3" />

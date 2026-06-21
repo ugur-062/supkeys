@@ -16,7 +16,7 @@ export const EMAIL_STATUS_META: Record<EmailLogStatus, StatusMeta> = {
   },
   SENT: {
     label: "Gönderildi",
-    badgeClass: "bg-blue-50 text-blue-700 border-blue-200",
+    badgeClass: "bg-zinc-50 text-zinc-600 border-zinc-200",
   },
   // V2-1 — Resend webhook tracking
   DELIVERED: {
@@ -25,11 +25,11 @@ export const EMAIL_STATUS_META: Record<EmailLogStatus, StatusMeta> = {
   },
   OPENED: {
     label: "Açıldı",
-    badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200",
+    badgeClass: "bg-zinc-100 text-zinc-700 border-zinc-300",
   },
   CLICKED: {
     label: "Tıklandı",
-    badgeClass: "bg-purple-50 text-purple-700 border-purple-200",
+    badgeClass: "bg-zinc-900 text-white border-zinc-900",
   },
   BOUNCED: {
     label: "Geri Döndü",
@@ -63,9 +63,9 @@ export const EMAIL_EVENT_META: Record<
 > = {
   SENT: {
     label: "Gönderildi",
-    iconColor: "text-blue-600",
-    iconBg: "bg-blue-50",
-    iconBorder: "border-blue-200",
+    iconColor: "text-zinc-600",
+    iconBg: "bg-zinc-100",
+    iconBorder: "border-zinc-200",
   },
   DELIVERED: {
     label: "Teslim Edildi",
@@ -81,15 +81,15 @@ export const EMAIL_EVENT_META: Record<
   },
   OPENED: {
     label: "Açıldı",
-    iconColor: "text-indigo-600",
-    iconBg: "bg-indigo-50",
-    iconBorder: "border-indigo-200",
+    iconColor: "text-zinc-700",
+    iconBg: "bg-zinc-100",
+    iconBorder: "border-zinc-300",
   },
   CLICKED: {
     label: "Tıklandı",
-    iconColor: "text-purple-600",
-    iconBg: "bg-purple-50",
-    iconBorder: "border-purple-200",
+    iconColor: "text-zinc-900",
+    iconBg: "bg-zinc-100",
+    iconBorder: "border-zinc-400",
   },
   BOUNCED: {
     label: "Geri Döndü",

@@ -37,7 +37,7 @@ export function Step3Summary({
   return (
     <div className="space-y-6">
       <section className="bg-white border border-slate-200 rounded-2xl p-6">
-        <h3 className="font-display font-bold text-base text-brand-900 mb-4">
+        <h3 className="font-semibold text-base text-brand-900 mb-4">
           Onay Akışı Özeti
         </h3>
 
@@ -79,7 +79,7 @@ export function Step3Summary({
 
         <div className="border-t border-slate-200 pt-5">
           <h4 className="font-bold text-brand-900 text-sm mb-2">
-            Süreç Başlatıcılar ({initiators.length})
+            Kazandırmayı Yapan Kişiler ({initiators.length})
           </h4>
           <div className="flex flex-wrap gap-2">
             {initiators.length === 0 ? (
@@ -88,7 +88,7 @@ export function Step3Summary({
               initiators.map((u) => (
                 <span
                   key={u.id}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-xs font-semibold"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-50 text-zinc-700 border border-zinc-200 text-xs font-semibold"
                 >
                   {u.firstName} {u.lastName}
                 </span>

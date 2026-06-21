@@ -60,9 +60,9 @@ export function AuctionLiveCard({ tender }: Props) {
   };
 
   return (
-    <section className="card p-4 border-2 border-brand-200 bg-gradient-to-br from-brand-50/60 to-white">
+    <section className="card p-4 border-2 border-zinc-200 bg-gradient-to-br from-zinc-50/60 to-white">
       <div className="flex flex-wrap items-start gap-4">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-brand-100/70 text-brand-800 text-xs font-bold uppercase tracking-wide">
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-zinc-100/70 text-zinc-800 text-xs font-bold uppercase tracking-wide">
           <Gavel className="w-3.5 h-3.5" />
           İngiliz Usulü Açık Eksiltme
         </div>
@@ -79,7 +79,7 @@ export function AuctionLiveCard({ tender }: Props) {
             className={
               countdown.urgent
                 ? "font-mono font-bold text-danger-700"
-                : "font-mono font-semibold text-brand-900"
+                : "font-mono font-semibold text-zinc-900"
             }
           >
             {countdown.text}
@@ -89,12 +89,12 @@ export function AuctionLiveCard({ tender }: Props) {
 
       <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* My bid */}
-        <div className="rounded-lg border border-slate-200 bg-white p-3">
+        <div className="rounded-lg ring-1 ring-zinc-950/5 bg-white p-3">
           <p className="text-[11px] text-slate-500 uppercase font-semibold tracking-wide flex items-center gap-1.5">
             <Crown className="w-3 h-3 text-slate-400" />
             Senin Toplam Teklifin
           </p>
-          <p className="mt-1 font-mono font-bold text-brand-900">
+          <p className="mt-1 font-mono font-bold text-zinc-900">
             {tender.myBid
               ? `${formatPrice(Number(tender.myBid.totalAmount), decimals)} ${tender.primaryCurrency}`
               : "—"}
@@ -107,7 +107,7 @@ export function AuctionLiveCard({ tender }: Props) {
         </div>
 
         {/* Best price (görünürlüğe göre) */}
-        <div className="rounded-lg border border-slate-200 bg-white p-3">
+        <div className="rounded-lg ring-1 ring-zinc-950/5 bg-white p-3">
           <p className="text-[11px] text-slate-500 uppercase font-semibold tracking-wide flex items-center gap-1.5">
             <Trophy className="w-3 h-3 text-warning-500" />
             En İyi Teklif
@@ -120,12 +120,12 @@ export function AuctionLiveCard({ tender }: Props) {
         </div>
 
         {/* My rank (görünürlüğe göre) */}
-        <div className="rounded-lg border border-slate-200 bg-white p-3">
+        <div className="rounded-lg ring-1 ring-zinc-950/5 bg-white p-3">
           <p className="text-[11px] text-slate-500 uppercase font-semibold tracking-wide flex items-center gap-1.5">
-            <TrendingDown className="w-3 h-3 text-brand-500" />
+            <TrendingDown className="w-3 h-3 text-zinc-500" />
             Sıralaman
           </p>
-          <p className="mt-1 font-bold text-brand-900">
+          <p className="mt-1 font-bold text-zinc-900">
             {view?.myRank != null && view.participantCount != null
               ? `${view.myRank} / ${view.participantCount}`
               : "Gizli"}
@@ -133,12 +133,12 @@ export function AuctionLiveCard({ tender }: Props) {
         </div>
 
         {/* Decrement kuralı */}
-        <div className="rounded-lg border border-slate-200 bg-white p-3">
+        <div className="rounded-lg ring-1 ring-zinc-950/5 bg-white p-3">
           <p className="text-[11px] text-slate-500 uppercase font-semibold tracking-wide flex items-center gap-1.5">
             <Users className="w-3 h-3 text-slate-400" />
             Min. Azaltma
           </p>
-          <p className="mt-1 font-bold text-brand-900">
+          <p className="mt-1 font-bold text-zinc-900">
             {tender.priceDecrementType && tender.priceDecrementValue
               ? tender.priceDecrementType === "PERCENT"
                 ? `% ${Number(tender.priceDecrementValue)}`
@@ -175,7 +175,7 @@ export function AuctionLiveCard({ tender }: Props) {
                 key={b.rank}
                 className={
                   b.isMine
-                    ? "flex justify-between px-3 py-2 text-sm bg-brand-50/50 font-semibold"
+                    ? "flex justify-between px-3 py-2 text-sm bg-zinc-50/50 font-semibold"
                     : "flex justify-between px-3 py-2 text-sm"
                 }
               >
