@@ -95,10 +95,11 @@ const ORDER_STATUS_META: Record<
     className: "bg-zinc-100 text-zinc-700 border-zinc-200",
     dot: "bg-zinc-500",
   },
+  // Faz 3 madde 16 — teslim alındı, ödeme bekleniyor (AFTER_DELIVERY akışı).
   DELIVERED: {
-    label: "Tamamlandı",
-    className: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    dot: "bg-emerald-500",
+    label: "Ödeme Bekleniyor",
+    className: "bg-amber-50 text-amber-700 border-amber-200",
+    dot: "bg-amber-500",
   },
 };
 

@@ -19,9 +19,11 @@ import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import {
   AlertCircle,
   ArrowLeft,
+  Building2,
   CalendarClock,
   ChevronRight,
   FileText,
@@ -32,7 +34,6 @@ import {
   Paperclip,
   Save,
   Send,
-  Upload,
   Wallet,
   X,
 } from "lucide-react";
@@ -90,6 +91,30 @@ function DeadlineMiniPanel({ closeAt }: { closeAt: string }) {
             ? `${days} gün ${hours} saat kaldı`
             : `${hours} saat kaldı`}
       </p>
+    </div>
+  );
+}
+
+function SummaryFact({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Info;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-50">
+        <Icon className="h-4 w-4 text-zinc-600" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
+          {label}
+        </p>
+        <p className="truncate text-sm font-semibold text-zinc-900">{value}</p>
+      </div>
     </div>
   );
 }
@@ -475,57 +500,40 @@ export function TeklifForm({ tender, existingBid }: Props) {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-5">
-            {/* Tender özeti */}
-            <section className="rounded-2xl border border-zinc-100 bg-gradient-to-br from-zinc-50/60 via-white to-zinc-50/40 p-5">
-              <p className="text-xs text-slate-500 uppercase tracking-wide font-medium">
-                Alıcı Firma
-              </p>
-              <p className="font-bold text-zinc-900 mt-1">
-                {tender.tenant.name}
-              </p>
-              <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-                <div>
-                  <p className="text-slate-500">Kapanış</p>
-                  <p className="font-semibold text-zinc-900 mt-0.5">
-                    {format(
-                      new Date(tender.bidsCloseAt),
-                      "d MMM yyyy HH:mm",
-                      { locale: tr },
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-slate-500">Kalem</p>
-                  <p className="font-semibold text-zinc-900 mt-0.5">
-                    {tender.items.length} adet
-                  </p>
-                </div>
+            {/* İhale özeti — alıcı + kapanış + kalem + para birimi */}
+            <section className="rounded-2xl border border-zinc-950/5 bg-white p-4 sm:p-5">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+                <SummaryFact
+                  icon={Building2}
+                  label="Alıcı Firma"
+                  value={tender.tenant.name}
+                />
+                <SummaryFact
+                  icon={CalendarClock}
+                  label="Kapanış"
+                  value={format(new Date(tender.bidsCloseAt), "d MMM yyyy HH:mm", {
+                    locale: tr,
+                  })}
+                />
+                <SummaryFact
+                  icon={List}
+                  label="Kalem"
+                  value={`${tender.items.length} kalem`}
+                />
+                <SummaryFact
+                  icon={Wallet}
+                  label="Para Birimi"
+                  value={`${tender.primaryCurrency} ${CURRENCY_SYMBOL[tender.primaryCurrency]}`}
+                />
               </div>
+              <p className="mt-4 border-t border-zinc-100 pt-3 text-xs text-slate-500">
+                Para birimi alıcı tarafından belirlendi; tüm kalem fiyatları{" "}
+                <span className="font-medium text-zinc-700">
+                  {tender.primaryCurrency}
+                </span>{" "}
+                cinsinden girilir.
+              </p>
             </section>
-
-            <Section
-              title="Para Birimi"
-              icon={Wallet}
-              hint="Bu ihalenin para birimi alıcı tarafından belirlendi; değiştirilemez."
-            >
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <span className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-zinc-100 text-zinc-700 font-bold">
-                  {tender.primaryCurrency === "TRY"
-                    ? "₺"
-                    : tender.primaryCurrency === "USD"
-                      ? "$"
-                      : "€"}
-                </span>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-zinc-900">
-                    {tender.primaryCurrency}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Tüm kalem fiyatları {tender.primaryCurrency} cinsinden girilir.
-                  </p>
-                </div>
-              </div>
-            </Section>
 
             <Section
               title="Kalem Fiyatları"

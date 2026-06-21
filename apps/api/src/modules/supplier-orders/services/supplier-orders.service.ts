@@ -47,6 +47,7 @@ const ORDER_DETAIL_SELECT = {
       deliveryAddress: true,
       paymentTerm: true,
       paymentDays: true,
+      paymentTiming: true,
       items: {
         select: {
           id: true,
@@ -92,6 +93,8 @@ const ORDER_DETAIL_SELECT = {
   cancelledBy: {
     select: { id: true, firstName: true, lastName: true },
   },
+  // Faz 3 madde 16 — direkt ödeme kayıtları (alıcı/tedarikçi handshake).
+  payments: { orderBy: { createdAt: "asc" as const } },
 } as const;
 
 /**
@@ -198,24 +201,35 @@ export class SupplierOrdersService {
   }
 
   async stats(supplierId: string) {
-    const [total, pending, accepted, inDelivery, completed, rejected, cancelled] =
-      await Promise.all([
-        this.prisma.order.count({ where: { supplierId } }),
-        this.prisma.order.count({ where: { supplierId, status: "PENDING" } }),
-        this.prisma.order.count({ where: { supplierId, status: "ACCEPTED" } }),
-        this.prisma.order.count({
-          where: { supplierId, status: "IN_DELIVERY" },
-        }),
-        this.prisma.order.count({ where: { supplierId, status: "COMPLETED" } }),
-        this.prisma.order.count({ where: { supplierId, status: "REJECTED" } }),
-        this.prisma.order.count({ where: { supplierId, status: "CANCELLED" } }),
-      ]);
+    const [
+      total,
+      pending,
+      accepted,
+      inDelivery,
+      delivered,
+      completed,
+      rejected,
+      cancelled,
+    ] = await Promise.all([
+      this.prisma.order.count({ where: { supplierId } }),
+      this.prisma.order.count({ where: { supplierId, status: "PENDING" } }),
+      this.prisma.order.count({ where: { supplierId, status: "ACCEPTED" } }),
+      this.prisma.order.count({
+        where: { supplierId, status: "IN_DELIVERY" },
+      }),
+      // Faz 3 madde 16 — teslim alındı, ödeme bekleniyor (AFTER_DELIVERY).
+      this.prisma.order.count({ where: { supplierId, status: "DELIVERED" } }),
+      this.prisma.order.count({ where: { supplierId, status: "COMPLETED" } }),
+      this.prisma.order.count({ where: { supplierId, status: "REJECTED" } }),
+      this.prisma.order.count({ where: { supplierId, status: "CANCELLED" } }),
+    ]);
 
     return {
       total,
       pending,
       accepted,
       inDelivery,
+      delivered,
       completed,
       rejected,
       cancelled,

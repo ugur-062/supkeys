@@ -65,6 +65,7 @@ export function CopyLoader({ sourceId }: { sourceId: string }) {
       deliveryAddressId: t.deliveryAddressSnapshot?.id ?? "",
       paymentTerm: t.paymentTerm,
       paymentDays: t.paymentDays ?? undefined,
+      paymentTiming: t.paymentTiming,
       termsAndConditions: t.termsAndConditions ?? "",
       // Dahili not kopyalanmaz — kopya temiz başlasın
       internalNotes: "",

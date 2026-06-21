@@ -1,13 +1,5 @@
 "use client";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/catalyst/table";
 import { BidStatusBadge } from "@/components/tenders/status-badge";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import type { Currency, MyBidDetail } from "@/lib/tenders/types";
@@ -78,49 +70,37 @@ export function BidSummaryCard({ bid }: Props) {
           <h4 className="mb-3 text-xs font-bold uppercase tracking-wide text-zinc-900">
             Fiyatlandırılan Kalemler ({items.length})
           </h4>
-          <Table dense className="[--gutter:--spacing(3)]">
-            <TableHead>
-              <TableRow>
-                <TableHeader>Kalem</TableHeader>
-                <TableHeader className="hidden text-right sm:table-cell">
-                  Miktar × Birim Fiyat
-                </TableHeader>
-                <TableHeader className="text-right">Tutar</TableHeader>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">
-                    <div className="text-zinc-900">{item.tenderItem.name}</div>
-                    <div className="text-xs text-zinc-500 sm:hidden">
-                      {Number(item.tenderItem.quantity).toLocaleString("tr-TR")}{" "}
-                      {item.tenderItem.unit} ×{" "}
-                      {Number(item.unitPrice).toLocaleString("tr-TR")}{" "}
-                      {CURRENCY_SYMBOL[item.currency]}
-                    </div>
-                    {item.customAnswer ? (
-                      <div className="mt-0.5 text-xs italic text-zinc-600">
-                        <span className="font-semibold text-warning-700">
-                          Cevap:
-                        </span>{" "}
-                        {item.customAnswer}
-                      </div>
-                    ) : null}
-                  </TableCell>
-                  <TableCell className="hidden text-right tabular-nums text-zinc-500 sm:table-cell">
+          <ul className="divide-y divide-zinc-100 rounded-xl ring-1 ring-zinc-950/5">
+            {items.map((item) => (
+              <li
+                key={item.id}
+                className="flex items-start justify-between gap-4 p-3.5"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium text-zinc-900">
+                    {item.tenderItem.name}
+                  </p>
+                  <p className="mt-0.5 text-xs tabular-nums text-zinc-500">
                     {Number(item.tenderItem.quantity).toLocaleString("tr-TR")}{" "}
                     {item.tenderItem.unit} ×{" "}
                     {Number(item.unitPrice).toLocaleString("tr-TR")}{" "}
                     {CURRENCY_SYMBOL[item.currency]}
-                  </TableCell>
-                  <TableCell className="text-right font-bold tabular-nums text-zinc-900">
-                    {formatMoney(item.totalPrice, item.currency)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </p>
+                  {item.customAnswer ? (
+                    <p className="mt-1 text-xs italic text-zinc-600">
+                      <span className="font-semibold text-warning-700">
+                        Cevap:
+                      </span>{" "}
+                      {item.customAnswer}
+                    </p>
+                  ) : null}
+                </div>
+                <p className="shrink-0 font-bold tabular-nums text-zinc-900">
+                  {formatMoney(item.totalPrice, item.currency)}
+                </p>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
 

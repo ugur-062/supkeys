@@ -1,13 +1,5 @@
 "use client";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/catalyst/table";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -37,6 +29,7 @@ import {
   CircleSlash,
   Clock,
   ExternalLink,
+  Send,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -83,10 +76,6 @@ export function OnayDetayView({
     null,
   );
   const [cancelOpen, setCancelOpen] = useState(false);
-
-  const totalActiveSteps = request.steps.filter(
-    (s) => s.status !== "SKIPPED",
-  ).length;
 
   const handleDecision = (note: string) => {
     if (!decisionMode) return;
@@ -257,55 +246,35 @@ export function OnayDetayView({
             </h2>
           </div>
 
-          <div className="px-2 sm:px-4 [--gutter:--spacing(4)]">
-            <Table dense>
-              <TableHead>
-                <TableRow>
-                  <TableHeader className="w-20">Adım</TableHeader>
-                  <TableHeader>Durum / Karar</TableHeader>
-                  <TableHeader>Tarih</TableHeader>
-                  <TableHeader>Not</TableHeader>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {/* İşlem satırı */}
-                <TableRow>
-                  <TableCell className="text-sm font-mono text-zinc-500">
-                    0/{totalActiveSteps}
-                  </TableCell>
-                  <TableCell>
-                    <strong className="text-zinc-900">
-                      {request.initiatedBy.firstName}{" "}
-                      {request.initiatedBy.lastName}
-                    </strong>{" "}
-                    <span className="text-zinc-600">onaya gönderdi</span>
-                  </TableCell>
-                  <TableCell className="text-zinc-600 whitespace-nowrap">
-                    {format(new Date(request.startedAt), "dd.MM.yyyy HH:mm:ss", {
-                      locale: tr,
-                    })}
-                  </TableCell>
-                  <TableCell className="text-zinc-600">
-                    {request.initiatorNote ? (
-                      <p className="line-clamp-2 max-w-[280px]">
-                        {request.initiatorNote}
-                      </p>
-                    ) : (
-                      "—"
-                    )}
-                  </TableCell>
-                </TableRow>
+          <ol className="mt-1">
+            {/* İşlem (gönderim) düğümü */}
+            <HistoryNode
+              icon={<Send className="h-4 w-4" />}
+              iconWrap="bg-zinc-900 text-white"
+              title={
+                <>
+                  <strong className="text-zinc-900">
+                    {request.initiatedBy.firstName}{" "}
+                    {request.initiatedBy.lastName}
+                  </strong>{" "}
+                  <span className="text-zinc-600">onaya gönderdi</span>
+                </>
+              }
+              date={format(new Date(request.startedAt), "dd.MM.yyyy HH:mm", {
+                locale: tr,
+              })}
+              note={request.initiatorNote}
+              isLast={request.steps.length === 0}
+            />
 
-                {request.steps.map((step) => (
-                  <StepRow
-                    key={step.id}
-                    step={step}
-                    totalActiveSteps={totalActiveSteps}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+            {request.steps.map((step, i) => (
+              <StepNode
+                key={step.id}
+                step={step}
+                isLast={i === request.steps.length - 1}
+              />
+            ))}
+          </ol>
         </section>
 
         {/* İhale Özeti */}
@@ -462,108 +431,125 @@ function DetailField({
   );
 }
 
-function StepRow({
+function HistoryNode({
+  icon,
+  iconWrap,
+  title,
+  subLabel,
+  date,
+  note,
+  isLast,
+  muted,
+}: {
+  icon: React.ReactNode;
+  iconWrap: string;
+  title: React.ReactNode;
+  subLabel?: string | null;
+  date?: string | null;
+  note?: string | null;
+  isLast?: boolean;
+  muted?: boolean;
+}) {
+  return (
+    <li className={cn("relative flex gap-3 pb-5 last:pb-0", muted && "opacity-70")}>
+      {!isLast ? (
+        <span className="absolute bottom-0 left-[15px] top-9 w-px bg-zinc-200" />
+      ) : null}
+      <div
+        className={cn(
+          "relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full",
+          iconWrap,
+        )}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1 pt-1">
+        <p className="text-sm">{title}</p>
+        {subLabel ? (
+          <p className="mt-0.5 text-xs text-zinc-500">{subLabel}</p>
+        ) : null}
+        {note ? (
+          <p className="mt-1.5 whitespace-pre-wrap rounded-md border border-zinc-100 bg-zinc-50 p-2 text-xs text-zinc-700">
+            {note}
+          </p>
+        ) : null}
+        {date ? <p className="mt-1 text-xs text-zinc-400">{date}</p> : null}
+      </div>
+    </li>
+  );
+}
+
+function StepNode({
   step,
-  totalActiveSteps,
+  isLast,
 }: {
   step: ApprovalRequestStep;
-  totalActiveSteps: number;
+  isLast: boolean;
 }) {
-  const stepNumber =
-    step.status === "SKIPPED" ? "—" : `${step.orderIndex}/${totalActiveSteps}`;
-
+  const name = `${step.approver.firstName} ${step.approver.lastName}`;
   let icon: React.ReactNode;
-  let actionText: React.ReactNode;
-  let textClass = "text-slate-700";
+  let iconWrap = "bg-zinc-100 text-zinc-500";
+  let title: React.ReactNode;
 
   if (step.status === "APPROVED") {
-    icon = <CheckCircle2 className="w-4 h-4 text-success-600 shrink-0" />;
-    actionText = (
+    icon = <CheckCircle2 className="h-4 w-4" />;
+    iconWrap = "bg-success-100 text-success-600";
+    title = (
       <>
-        <strong className="text-brand-900">
-          {step.approver.firstName} {step.approver.lastName}
-        </strong>{" "}
+        <strong className="text-zinc-900">{name}</strong>{" "}
         <span className="text-success-700">onayladı</span>
       </>
     );
   } else if (step.status === "REJECTED") {
-    icon = <XCircle className="w-4 h-4 text-danger-600 shrink-0" />;
-    actionText = (
+    icon = <XCircle className="h-4 w-4" />;
+    iconWrap = "bg-danger-100 text-danger-600";
+    title = (
       <>
-        <strong className="text-brand-900">
-          {step.approver.firstName} {step.approver.lastName}
-        </strong>{" "}
+        <strong className="text-zinc-900">{name}</strong>{" "}
         <span className="text-danger-700">reddetti</span>
       </>
     );
-    textClass = "text-danger-700";
   } else if (step.status === "PENDING") {
-    icon = <Clock className="w-4 h-4 text-warning-600 shrink-0 animate-pulse" />;
-    actionText = (
+    icon = <Clock className="h-4 w-4" />;
+    iconWrap = "bg-warning-100 text-warning-600";
+    title = (
       <>
-        <strong className="text-brand-900">
-          {step.approver.firstName} {step.approver.lastName}
-        </strong>{" "}
+        <strong className="text-zinc-900">{name}</strong>{" "}
         <span className="text-warning-700">onayı bekleniyor</span>
       </>
     );
-    textClass = "text-warning-700";
   } else if (step.status === "WAITING") {
-    icon = <CircleDashed className="w-4 h-4 text-slate-400 shrink-0" />;
-    actionText = (
+    icon = <CircleDashed className="h-4 w-4" />;
+    title = (
       <>
-        <strong className="text-slate-700">
-          {step.approver.firstName} {step.approver.lastName}
-        </strong>{" "}
-        <span className="text-slate-500">sırada bekliyor</span>
+        <strong className="text-zinc-700">{name}</strong>{" "}
+        <span className="text-zinc-500">sırada bekliyor</span>
       </>
     );
-    textClass = "text-slate-500";
   } else {
-    icon = <CircleSlash className="w-4 h-4 text-slate-300 shrink-0" />;
-    actionText = (
-      <>
-        <span className="text-slate-500 italic">
-          {step.approver.firstName} {step.approver.lastName} — eşik
-          karşılanmadı, atlandı
-        </span>
-      </>
+    icon = <CircleSlash className="h-4 w-4" />;
+    iconWrap = "bg-zinc-50 text-zinc-300";
+    title = (
+      <span className="italic text-zinc-500">
+        {name} — eşik karşılanmadı, atlandı
+      </span>
     );
-    textClass = "text-slate-400 italic";
   }
 
   return (
-    <TableRow className={cn(step.status === "SKIPPED" && "opacity-70")}>
-      <TableCell className="text-sm font-mono text-zinc-500">
-        {stepNumber}
-      </TableCell>
-      <TableCell className={cn("text-sm", textClass)}>
-        <div className="flex items-center gap-2">
-          {icon}
-          <div className="min-w-0">
-            <p>{actionText}</p>
-            {step.displayLabel ? (
-              <p className="text-xs text-zinc-500 mt-0.5">
-                {step.displayLabel}
-              </p>
-            ) : null}
-          </div>
-        </div>
-      </TableCell>
-      <TableCell className="text-zinc-600 whitespace-nowrap">
-        {step.decidedAt
-          ? format(new Date(step.decidedAt), "dd.MM.yyyy HH:mm:ss", {
-              locale: tr,
-            })
-          : "—"}
-      </TableCell>
-      <TableCell className="text-zinc-600">
-        {step.decisionNote ? (
-          <p className="line-clamp-2 max-w-[280px]">{step.decisionNote}</p>
-        ) : (
-          "—"
-        )}
-      </TableCell>
-    </TableRow>
+    <HistoryNode
+      icon={icon}
+      iconWrap={iconWrap}
+      title={title}
+      subLabel={step.displayLabel}
+      date={
+        step.decidedAt
+          ? format(new Date(step.decidedAt), "dd.MM.yyyy HH:mm", { locale: tr })
+          : null
+      }
+      note={step.decisionNote}
+      isLast={isLast}
+      muted={step.status === "SKIPPED"}
+    />
   );
 }

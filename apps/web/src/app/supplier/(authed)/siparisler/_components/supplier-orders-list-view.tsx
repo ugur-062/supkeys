@@ -23,6 +23,7 @@ import {
   Package,
   ThumbsUp,
   Truck,
+  Wallet,
   XCircle,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -60,6 +61,12 @@ const STATUS_FILTERS: Array<{
     status: "IN_DELIVERY",
     label: "Gönderildi",
     icon: Truck,
+  },
+  {
+    key: "DELIVERED",
+    status: "DELIVERED",
+    label: "Ödeme Bekliyor",
+    icon: Wallet,
   },
   {
     key: "COMPLETED",

@@ -37,16 +37,17 @@ export const ORDER_STATUS_META: Record<OrderStatus, StatusMeta> = {
     pillClass: "bg-danger-50 text-danger-700 border border-danger-200",
     dotClass: "bg-danger-500",
   },
-  // Legacy statüler — yeni akışta üretilmiyor, eski kayıtlar için render fallback.
+  // Faz 3 madde 16 — teslim alındı, ödeme bekleniyor (AFTER_DELIVERY akışı).
+  DELIVERED: {
+    label: "Ödeme Bekleniyor",
+    pillClass: "bg-amber-50 text-amber-700 border border-amber-200",
+    dotClass: "bg-amber-500",
+  },
+  // Legacy statü — yeni akışta üretilmiyor, eski kayıtlar için render fallback.
   IN_PROGRESS: {
     label: "Üretimde",
     pillClass: "bg-indigo-50 text-indigo-700 border border-indigo-200",
     dotClass: "bg-indigo-500",
-  },
-  DELIVERED: {
-    label: "Teslim Edildi",
-    pillClass: "bg-success-50 text-success-700 border border-success-200",
-    dotClass: "bg-success-500",
   },
 };
 
@@ -62,6 +63,7 @@ export const V15_ORDER_STATUS_OPTIONS: Array<{
   { value: "PENDING", label: "Onay Bekliyor" },
   { value: "ACCEPTED", label: "Onaylandı" },
   { value: "IN_DELIVERY", label: "Gönderildi" },
+  { value: "DELIVERED", label: "Ödeme Bekleniyor" },
   { value: "COMPLETED", label: "Tamamlandı" },
   { value: "REJECTED", label: "Reddedildi" },
   { value: "CANCELLED", label: "İptal Edildi" },

@@ -25,6 +25,8 @@ const DELIVERY_TERM_VALUES = [
   "CIF",
 ] as const;
 const PAYMENT_TERM_VALUES = ["CASH", "DEFERRED"] as const;
+// Faz 3 madde 16 — ödeme zamanı
+const PAYMENT_TIMING_VALUES = ["BEFORE_DELIVERY", "AFTER_DELIVERY"] as const;
 
 // V2-7 — İngiliz Usulü açık eksiltme enum değerleri
 export const BID_VISIBILITY_VALUES = [
@@ -158,6 +160,7 @@ const baseTenderSchema = z.object({
     .min(1)
     .max(365)
     .optional(),
+  paymentTiming: z.enum(PAYMENT_TIMING_VALUES),
   termsAndConditions: z.string().max(10000).optional(),
   internalNotes: z.string().max(5000).optional(),
   bidsCloseAt: z.string().min(1, "Kapanış tarihi seçmelisin"),
@@ -375,6 +378,7 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   deliveryAddressId: "",
   paymentTerm: "CASH",
   paymentDays: undefined,
+  paymentTiming: "AFTER_DELIVERY",
   termsAndConditions: "",
   internalNotes: "",
   bidsCloseAt: "",

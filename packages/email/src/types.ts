@@ -536,6 +536,8 @@ export type OrderStatusChange =
   | "ACCEPTED"
   | "REJECTED"
   | "IN_DELIVERY"
+  // Faz 3 madde 16 — teslim alındı, ödeme bekleniyor (AFTER_DELIVERY)
+  | "DELIVERED"
   | "COMPLETED"
   | "CANCELLED";
 

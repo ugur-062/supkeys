@@ -18,10 +18,10 @@ datasource db {
 // ---------- TENANT TARAFI (müşteri firmalar) ----------
 
 model Tenant {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  isActive  Boolean  @default(true)
+  id       String  @id @default(cuid())
+  name     String
+  slug     String  @unique
+  isActive Boolean @default(true)
 
   // Firma profili (registration sırasında dolar)
   industry    String?
@@ -34,19 +34,19 @@ model Tenant {
 
   // Alıcı public profili — tedarikçilerin gördüğü herkese açık sayfa (/firma/[slug]).
   // publicEnabled=true ise profil + "Tedarikçi Ol" yayında; false ise 404.
-  publicEnabled Boolean  @default(false)
-  aboutText     String?
-  website       String?
-  logoUrl       String? // R2 key (logo)
-  coverImageUrl String? // R2 key (kapak görseli)
-  linkedinUrl   String?
-  instagramUrl  String?
+  publicEnabled  Boolean  @default(false)
+  aboutText      String?
+  website        String?
+  logoUrl        String? // R2 key (logo)
+  coverImageUrl  String? // R2 key (kapak görseli)
+  linkedinUrl    String?
+  instagramUrl   String?
   /// Kısa hizmet/uzmanlık etiketleri (örn. ["Tekstil", "Lojistik"]). Max 20.
-  services      String[] @default([])
+  services       String[] @default([])
   /// Firma kuruluş yılı (4 haneli).
-  foundedYear   Int?
+  foundedYear    Int?
   /// Çalışan sayısı bandı — serbest metin (örn. "50-100").
-  employeeCount String?
+  employeeCount  String?
   /// Sertifika/ödül etiketleri (örn. ["ISO 9001"]). Max 20.
   certifications String[] @default([])
 
@@ -62,46 +62,46 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users                User[]
-  buyerApplication     BuyerApplication?       @relation("BuyerAppTenant")
-  supplierInvitations  SupplierInvitation[]
-  supplierRelations    SupplierTenantRelation[]
-  invitedSupplierApps  SupplierApplication[]   @relation("SupplierAppInviter")
-  tenders              Tender[]
-  orders               Order[]
-  userInvitations      UserInvitation[]
-  addresses            TenantAddress[]
-  approvalFlows        ApprovalFlow[]
-  approvalRequests     ApprovalRequest[]
+  users               User[]
+  buyerApplication    BuyerApplication?        @relation("BuyerAppTenant")
+  supplierInvitations SupplierInvitation[]
+  supplierRelations   SupplierTenantRelation[]
+  invitedSupplierApps SupplierApplication[]    @relation("SupplierAppInviter")
+  tenders             Tender[]
+  orders              Order[]
+  userInvitations     UserInvitation[]
+  addresses           TenantAddress[]
+  approvalFlows       ApprovalFlow[]
+  approvalRequests    ApprovalRequest[]
   /// V2-REVIEWS — Bu alıcı firmanın yazdığı tedarikçi değerlendirmeleri.
-  supplierReviews      SupplierReview[]
-  attachments          Attachment[]
-  messageThreads       MessageThread[] @relation("TenantMessageThreads")
-  questionTemplates    QuestionTemplate[]
-  supplierTemplates    SupplierTemplate[]
+  supplierReviews     SupplierReview[]
+  attachments         Attachment[]
+  messageThreads      MessageThread[]          @relation("TenantMessageThreads")
+  questionTemplates   QuestionTemplate[]
+  supplierTemplates   SupplierTemplate[]
 
   @@map("tenants")
 }
 
 model TenantAddress {
-  id          String      @id @default(cuid())
-  tenantId    String
-  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  type        AddressType
-  title       String
+  type  AddressType
+  title String
 
   // Adres bilgileri
-  country     String      @default("Türkiye")
+  country     String  @default("Türkiye")
   state       String?
   city        String
   district    String
-  fullAddress String      @db.Text
+  fullAddress String  @db.Text
   postalCode  String?
 
   // Sadece FATURA için (yine de optional — backend zorunlu kılar)
-  taxOffice   String?
-  taxNumber   String?
+  taxOffice String?
+  taxNumber String?
 
   // İletişim (opsiyonel)
   contactName  String?
@@ -109,13 +109,13 @@ model TenantAddress {
   contactEmail String?
 
   // Status
-  isActive    Boolean     @default(true)
-  isDefault   Boolean     @default(false)
+  isActive  Boolean @default(true)
+  isDefault Boolean @default(false)
 
-  notes       String?     @db.Text
+  notes String? @db.Text
 
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId, type, isActive])
   @@index([tenantId, type, isDefault])
@@ -146,8 +146,8 @@ model User {
 
   // E.7.A — davetle eklenen kullanıcılar için
   invitedById String?
-  invitedBy   User?   @relation("UserInvitedBy", fields: [invitedById], references: [id])
-  invitees    User[]  @relation("UserInvitedBy")
+  invitedBy   User?     @relation("UserInvitedBy", fields: [invitedById], references: [id])
+  invitees    User[]    @relation("UserInvitedBy")
   invitedAt   DateTime?
 
   // E.7.A — kategori bazlı bildirim tercihleri (key: boolean)
@@ -170,19 +170,19 @@ model User {
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   sentSupplierInvitations SupplierInvitation[]
-  tendersCreated          Tender[]                  @relation("TendersCreated")
-  sentUserInvitations     UserInvitation[]          @relation("UserInvitationInviter")
+  tendersCreated          Tender[]             @relation("TendersCreated")
+  sentUserInvitations     UserInvitation[]     @relation("UserInvitationInviter")
 
   // E.7.C — onay akışı reverse relations
-  createdApprovalFlows ApprovalFlow[]            @relation("ApprovalFlowCreatedBy")
-  initiatorOfFlows     ApprovalFlowInitiator[]   @relation("ApprovalFlowInitiatorUser")
-  approverOfFlows      ApprovalFlowStep[]        @relation("ApprovalFlowStepApprover")
+  createdApprovalFlows ApprovalFlow[]          @relation("ApprovalFlowCreatedBy")
+  initiatorOfFlows     ApprovalFlowInitiator[] @relation("ApprovalFlowInitiatorUser")
+  approverOfFlows      ApprovalFlowStep[]      @relation("ApprovalFlowStepApprover")
 
   // E.7.D — onay request reverse relations
-  initiatedApprovalRequests ApprovalRequest[]      @relation("InitiatedApprovalRequests")
-  approverOfRequestSteps    ApprovalRequestStep[]  @relation("ApproverOfRequestSteps")
+  initiatedApprovalRequests ApprovalRequest[]     @relation("InitiatedApprovalRequests")
+  approverOfRequestSteps    ApprovalRequestStep[] @relation("ApproverOfRequestSteps")
   /// V2-REVIEWS — Bu kullanıcının yazdığı tedarikçi değerlendirmeleri.
-  supplierReviewsCreated    SupplierReview[]       @relation("SupplierReviewsCreated")
+  supplierReviewsCreated    SupplierReview[]      @relation("SupplierReviewsCreated")
 
   // V1.5 — sipariş workflow reverse relations
   ordersDeliveryStarted Order[] @relation("OrderDeliveryStarted")
@@ -190,10 +190,10 @@ model User {
   ordersCancelled       Order[] @relation("OrderCancelled")
 
   // V2-2 — R2 dosya yükleme
-  uploadedAttachments   Attachment[] @relation("UploadedAttachments")
+  uploadedAttachments Attachment[] @relation("UploadedAttachments")
 
   // V2-6.5 — Admin tarafından üretilen parola sıfırlama linkleri
-  passwordResetTokens   PasswordResetToken[]
+  passwordResetTokens PasswordResetToken[]
 
   // V2-7+ — Şablon sahipliği (createdBy)
   createdQuestionTemplates QuestionTemplate[] @relation("QuestionTemplateCreatedBy")
@@ -207,13 +207,13 @@ model User {
 // sıfırlama tokenleri. Token plain DB'de tutulmaz; sadece SHA-256
 // hash'i saklanır. Süresi 1 saat (TTL service'te enforce edilir).
 model PasswordResetToken {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash   String   @unique
-  expiresAt   DateTime
-  usedAt      DateTime?
-  createdAt   DateTime @default(now())
+  id               String    @id @default(cuid())
+  userId           String
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash        String    @unique
+  expiresAt        DateTime
+  usedAt           DateTime?
+  createdAt        DateTime  @default(now())
   createdByAdminId String?
 
   @@index([userId])
@@ -221,20 +221,20 @@ model PasswordResetToken {
 }
 
 model UserInvitation {
-  id          String                 @id @default(cuid())
+  id          String               @id @default(cuid())
   tenantId    String
-  tenant      Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   email       String
   role        UserRole
-  token       String                 @unique
+  token       String               @unique
   invitedById String
-  invitedBy   User                   @relation("UserInvitationInviter", fields: [invitedById], references: [id])
-  status      UserInvitationStatus   @default(PENDING)
+  invitedBy   User                 @relation("UserInvitationInviter", fields: [invitedById], references: [id])
+  status      UserInvitationStatus @default(PENDING)
   expiresAt   DateTime
   acceptedAt  DateTime?
   cancelledAt DateTime?
-  createdAt   DateTime               @default(now())
-  updatedAt   DateTime               @updatedAt
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
 
   @@index([tenantId, email, status])
   @@index([token])
@@ -257,18 +257,18 @@ enum UserRole {
 // ---------- PLATFORM TARAFI (Supkeys ekibi) ----------
 
 model PlatformAdmin {
-  id           String   @id @default(cuid())
-  email        String   @unique
+  id           String    @id @default(cuid())
+  email        String    @unique
   // Supabase Auth bridge — `auth.users.id` (UUID).
-  authId       String?  @unique
+  authId       String?   @unique
   passwordHash String?
   firstName    String
   lastName     String
   role         AdminRole @default(SUPPORT)
-  isActive     Boolean  @default(true)
+  isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   assignedDemoRequests         DemoRequest[]
   reviewedBuyerApplications    BuyerApplication[]    @relation("BuyerAppReviewer")
@@ -278,9 +278,9 @@ model PlatformAdmin {
 }
 
 enum AdminRole {
-  SUPER_ADMIN  // her şey
-  SALES        // demo, tenant
-  SUPPORT      // sadece okuma + tenant impersonate
+  SUPER_ADMIN // her şey
+  SALES // demo, tenant
+  SUPPORT // sadece okuma + tenant impersonate
 }
 
 // ---------- LEAD / DEMO TALEPLERİ ----------
@@ -354,15 +354,15 @@ model EmailLog {
   failedAt          DateTime?
 
   // V2-1 — Resend webhook delivery tracking
-  deliveredAt   DateTime?
-  openedAt      DateTime?     // ilk açılma
-  clickedAt     DateTime?     // ilk tıklama
-  bouncedAt     DateTime?
-  bounceType    String?       // "hard" | "soft" | "undetermined"
-  bounceReason  String?       @db.Text
-  complainedAt  DateTime?
+  deliveredAt  DateTime?
+  openedAt     DateTime? // ilk açılma
+  clickedAt    DateTime? // ilk tıklama
+  bouncedAt    DateTime?
+  bounceType   String? // "hard" | "soft" | "undetermined"
+  bounceReason String?   @db.Text
+  complainedAt DateTime?
 
-  events        EmailEvent[]
+  events EmailEvent[]
 
   contextType String?
   contextId   String?
@@ -390,24 +390,24 @@ enum EmailStatus {
 
 // V2-1 — Resend webhook event audit trail
 model EmailEvent {
-  id          String    @id @default(cuid())
-  emailLogId  String
-  emailLog    EmailLog  @relation(fields: [emailLogId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  emailLogId String
+  emailLog   EmailLog @relation(fields: [emailLogId], references: [id], onDelete: Cascade)
 
   /// Webhook idempotency key (svix-id header). Aynı event 2 kez işlenmesin.
-  eventId     String    @unique
-  eventType   EmailEventType
+  eventId    String         @unique
+  eventType  EmailEventType
   /// Resend payload'tan gelen orijinal timestamp.
-  occurredAt  DateTime
-  payload     Json
+  occurredAt DateTime
+  payload    Json
 
   /// CLICKED event için tıklanan link.
-  clickedUrl  String?   @db.Text
+  clickedUrl   String? @db.Text
   /// BOUNCED event için bounce detay.
-  bounceType  String?
-  bounceReason String?  @db.Text
+  bounceType   String?
+  bounceReason String? @db.Text
 
-  createdAt   DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   @@index([emailLogId, occurredAt])
   @@index([eventType])
@@ -430,51 +430,51 @@ enum EmailEventType {
 // ============================================================
 
 model BuyerApplication {
-  id              String              @id @default(cuid())
+  id String @id @default(cuid())
 
-  companyName     String
-  companyType     CompanyType
-  taxNumber       String
-  taxOffice       String
-  taxCertUrl      String
-  industry        String?
-  website         String?
+  companyName String
+  companyType CompanyType
+  taxNumber   String
+  taxOffice   String
+  taxCertUrl  String
+  industry    String?
+  website     String?
 
-  city            String
-  district        String
-  addressLine     String
-  postalCode      String?
+  city        String
+  district    String
+  addressLine String
+  postalCode  String?
 
-  adminFirstName  String
-  adminLastName   String
-  adminEmail      String
-  adminPhone      String?
+  adminFirstName String
+  adminLastName  String
+  adminEmail     String
+  adminPhone     String?
   // Supabase Auth geçişi sonrası kullanılmıyor — onay anında Supabase
   // sendPasswordResetEmail tetikleniyor, applicant şifresini sıfırlama
   // linkiyle kuruyor. V2'de DROP edilecek.
-  passwordHash    String?
+  passwordHash   String?
 
-  status          ApplicationStatus   @default(PENDING_EMAIL_VERIFICATION)
+  status ApplicationStatus @default(PENDING_EMAIL_VERIFICATION)
 
-  emailToken      String?             @unique
+  emailToken      String?   @unique
   emailTokenExp   DateTime?
   emailVerifiedAt DateTime?
 
   reviewedById    String?
-  reviewedBy      PlatformAdmin?      @relation("BuyerAppReviewer", fields: [reviewedById], references: [id])
+  reviewedBy      PlatformAdmin? @relation("BuyerAppReviewer", fields: [reviewedById], references: [id])
   reviewedAt      DateTime?
   rejectionReason String?
 
-  tenantId        String?             @unique
-  tenant          Tenant?             @relation("BuyerAppTenant", fields: [tenantId], references: [id])
+  tenantId String? @unique
+  tenant   Tenant? @relation("BuyerAppTenant", fields: [tenantId], references: [id])
 
   // Demo görüşmesi sonrası gönderilen davetle mi geldi?
-  fromDemoRequest DemoRequest?        @relation("DemoToBuyerApp")
+  fromDemoRequest DemoRequest? @relation("DemoToBuyerApp")
 
-  ipAddress       String?
-  userAgent       String?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([adminEmail, status])
   @@index([status])
@@ -484,42 +484,42 @@ model BuyerApplication {
 }
 
 model SupplierApplication {
-  id              String              @id @default(cuid())
+  id String @id @default(cuid())
 
-  companyName     String
-  companyType     CompanyType
-  taxNumber       String
-  taxOffice       String
-  taxCertUrl      String
+  companyName        String
+  companyType        CompanyType
+  taxNumber          String
+  taxOffice          String
+  taxCertUrl         String
   // G9 madde 27 — "Tedarikçi Ol" (CONNECT_REQUEST) başvurusunda zorunlu KYC
   // belgeleri. Admin KYC adımında incelenir. Normal başvuruda null kalır.
-  ticariSicilUrl      String?
-  imzaSirkuleriUrl    String?
-  bankaOnayliIbanUrl  String?
-  industry        String?
-  website         String?
+  ticariSicilUrl     String?
+  imzaSirkuleriUrl   String?
+  bankaOnayliIbanUrl String?
+  industry           String?
+  website            String?
 
-  city            String
-  district        String
-  addressLine     String
-  postalCode      String?
+  city        String
+  district    String
+  addressLine String
+  postalCode  String?
 
-  adminFirstName  String
-  adminLastName   String
-  adminEmail      String
-  adminPhone      String?
+  adminFirstName String
+  adminLastName  String
+  adminEmail     String
+  adminPhone     String?
   // Supabase Auth geçişi sonrası kullanılmıyor — bkz. BuyerApplication.passwordHash.
-  passwordHash    String?
+  passwordHash   String?
 
   // V2-6 — register sırasında seçilen kategori ID'leri (Family seviyesi).
   // Admin onayında Supplier oluşturulurken SupplierCategory junction'a aktarılır.
-  categoryIds     Json?
+  categoryIds Json?
 
-  status          ApplicationStatus   @default(PENDING_EMAIL_VERIFICATION)
+  status ApplicationStatus @default(PENDING_EMAIL_VERIFICATION)
   // Başvuru kaynağı — CONNECT_REQUEST ise admin onayında ilişki PENDING_TENANT_APPROVAL kurulur.
-  source          ApplicationSource   @default(SELF_REGISTER)
+  source ApplicationSource @default(SELF_REGISTER)
 
-  emailToken      String?             @unique
+  emailToken      String?   @unique
   emailTokenExp   DateTime?
   emailVerifiedAt DateTime?
 
@@ -529,17 +529,17 @@ model SupplierApplication {
   invitedByTenant   Tenant?             @relation("SupplierAppInviter", fields: [invitedByTenantId], references: [id])
 
   reviewedById    String?
-  reviewedBy      PlatformAdmin?      @relation("SupplierAppReviewer", fields: [reviewedById], references: [id])
+  reviewedBy      PlatformAdmin? @relation("SupplierAppReviewer", fields: [reviewedById], references: [id])
   reviewedAt      DateTime?
   rejectionReason String?
 
-  supplierId      String?             @unique
-  supplier        Supplier?           @relation("SupplierAppSupplier", fields: [supplierId], references: [id])
+  supplierId String?   @unique
+  supplier   Supplier? @relation("SupplierAppSupplier", fields: [supplierId], references: [id])
 
-  ipAddress       String?
-  userAgent       String?
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([adminEmail])
@@ -581,66 +581,66 @@ enum CompanyType {
 // ============================================================
 
 model Supplier {
-  id            String             @id @default(cuid())
-  companyName   String
-  companyType   CompanyType
-  taxNumber     String             @unique
-  taxOffice     String
-  taxCertUrl    String
-  industry      String?
-  website       String?
-  city          String
-  district      String
-  addressLine   String
-  postalCode    String?
-  membership    SupplierMembership @default(STANDARD)
-  isActive      Boolean            @default(true)
-  isBlocked     Boolean            @default(false)
+  id                String             @id @default(cuid())
+  companyName       String
+  companyType       CompanyType
+  taxNumber         String             @unique
+  taxOffice         String
+  taxCertUrl        String
+  industry          String?
+  website           String?
+  city              String
+  district          String
+  addressLine       String
+  postalCode        String?
+  membership        SupplierMembership @default(STANDARD)
+  isActive          Boolean            @default(true)
+  isBlocked         Boolean            @default(false)
   // "Tedarikçi Ol" (self-request) ile bir alıcıya bağlanınca dolar — kota: ömür boyu 1 kez.
   selfRequestUsedAt DateTime?
-  blockedReason String?
-  blockedAt     DateTime?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  blockedReason     String?
+  blockedAt         DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
   // ============================================================
   // V2-PUBLIC-PROFILE — PREMIUM tedarikçilerin herkese açık profili
   // ============================================================
   /// URL slug (örn. /t/abc-tekstil). Null ise public profil 404.
   /// PREMIUM upgrade akışında otomatik üretilir; editör'den değiştirilebilir.
-  slug          String?            @unique
+  slug              String?  @unique
   /// Opt-out: PREMIUM olur olmaz default açık. Editor'den kapatılabilir.
-  publicEnabled Boolean            @default(true)
-  coverImageUrl String?
+  publicEnabled     Boolean  @default(true)
+  coverImageUrl     String?
   /// Logo (profil resmi). Hero'da initials yerine gösterilir. R2 key.
-  logoImageUrl  String?
-  aboutText     String?
-  linkedinUrl   String?
-  instagramUrl  String?
+  logoImageUrl      String?
+  aboutText         String?
+  linkedinUrl       String?
+  instagramUrl      String?
   /// Kısa hizmet etiketleri (örn. ["Tekstil", "Hazır Giyim"]).
-  services      String[]           @default([])
+  services          String[] @default([])
   /// Firma kuruluş yılı (4 haneli, örn. 1995). Hero'da gösterilir.
-  foundedYear   Int?
+  foundedYear       Int?
   /// Çalışan sayısı bandı — serbest metin (örn. "50-100", "100+", "10'dan az").
-  employeeCount String?
+  employeeCount     String?
   /// Sertifika/ödül etiketleri (örn. ["ISO 9001", "OEKO-TEX"]).
-  certifications String[]          @default([])
+  certifications    String[] @default([])
   /// V2-TRUST — MERSİS numarası (10 haneli). Sadece kurumsal firmalar girer.
-  mersisNo       String?
+  mersisNo          String?
   /// V2-TRUST — Vergi no + vergi dairesi public profilde gözüksün mü.
   /// SOLE_PROPRIETOR (şahıs) için backend reddeder (TC kimlik = KVKK kişisel veri).
-  publicShowTaxInfo Boolean        @default(false)
+  publicShowTaxInfo Boolean  @default(false)
   /// V2-TRUST — MERSİS no public profilde gözüksün mü. SOLE_PROPRIETOR'da yok.
-  publicShowMersis  Boolean        @default(false)
+  publicShowMersis  Boolean  @default(false)
 
   users               SupplierUser[]
   tenantRelations     SupplierTenantRelation[]
-  application         SupplierApplication?      @relation("SupplierAppSupplier")
-  invitationsAccepted SupplierInvitation[]      @relation("AcceptedBySupplier")
+  application         SupplierApplication?     @relation("SupplierAppSupplier")
+  invitationsAccepted SupplierInvitation[]     @relation("AcceptedBySupplier")
   tenderInvitations   TenderInvitation[]
   bids                Bid[]
   orders              Order[]
-  messageThreads      MessageThread[] @relation("SupplierMessageThreads")
+  messageThreads      MessageThread[]          @relation("SupplierMessageThreads")
   categories          SupplierCategory[]
   // V2-7+ — Tedarikçi şablonu üyelikleri
   templateMemberships SupplierTemplateMember[]
@@ -667,10 +667,10 @@ model SupplierCertificate {
   supplierId String
   supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
-  name       String
-  fileUrl    String
+  name    String
+  fileUrl String
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([supplierId])
   @@map("supplier_certificates")
@@ -679,18 +679,18 @@ model SupplierCertificate {
 /// G6 madde 20 — Tedarikçinin kayıtlı banka hesapları. Sipariş onayında
 /// seçilir (otomatik doldurur). Yalnızca yönetici (isManager) düzenler.
 model SupplierBank {
-  id            String   @id @default(cuid())
-  supplierId    String
-  supplier      Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
   accountHolder String
   iban          String
   bankName      String?
   label         String?
-  isDefault     Boolean  @default(false)
+  isDefault     Boolean @default(false)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([supplierId])
   @@map("supplier_banks")
@@ -760,27 +760,27 @@ model SupplierReview {
 
 enum SupplierMembership {
   STANDARD // Davet ile veya self-register, ücretsiz (eski adı: BRONZE)
-  PREMIUM  // Havuza açık, ücretli (V2'de aktif olur, eski adı: SILVER)
+  PREMIUM // Havuza açık, ücretli (V2'de aktif olur, eski adı: SILVER)
 }
 
 model SupplierUser {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id                String    @id @default(cuid())
+  email             String    @unique
   // Supabase Auth bridge — `auth.users.id` (UUID).
-  authId       String?   @unique
-  passwordHash String?
-  firstName    String
-  lastName     String
-  phone        String?
-  isActive     Boolean   @default(true)
+  authId            String?   @unique
+  passwordHash      String?
+  firstName         String
+  lastName          String
+  phone             String?
+  isActive          Boolean   @default(true)
   // G6 madde 20 — firma yöneticisi. Kuran (ilk kayıt) = true. Yönetici ek
   // olarak kullanıcı yönetimi + banka hesaplarını kontrol eder.
-  isManager    Boolean   @default(false)
+  isManager         Boolean   @default(false)
   // Ayarlar — e-posta bildirim tercihleri (key: boolean). null = tüm varsayılan açık.
   notificationPrefs Json?
-  lastLoginAt  DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  lastLoginAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   supplierId String
   supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
@@ -831,30 +831,30 @@ enum RelationStatus {
 // ============================================================
 
 model SupplierInvitation {
-  id              String           @id @default(cuid())
+  id              String @id @default(cuid())
   tenantId        String
-  tenant          Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant          Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   invitedByUserId String
-  invitedByUser   User             @relation(fields: [invitedByUserId], references: [id])
+  invitedByUser   User   @relation(fields: [invitedByUserId], references: [id])
 
-  email           String
-  contactName     String?
-  message         String?
+  email       String
+  contactName String?
+  message     String?
 
-  tokenHash       String           @unique
-  expiresAt       DateTime
+  tokenHash String   @unique
+  expiresAt DateTime
 
-  status          InvitationStatus @default(PENDING)
-  acceptedAt      DateTime?
-  cancelledAt     DateTime?
+  status               InvitationStatus @default(PENDING)
+  acceptedAt           DateTime?
+  cancelledAt          DateTime?
   acceptedBySupplierId String?
-  acceptedBySupplier   Supplier?  @relation("AcceptedBySupplier", fields: [acceptedBySupplierId], references: [id])
+  acceptedBySupplier   Supplier?        @relation("AcceptedBySupplier", fields: [acceptedBySupplierId], references: [id])
 
   // V2-7 — Davet belirli bir ihaleye bağlıysa: kabul edilince (kayıtlı tedarikçi
   // direkt, yeni tedarikçi admin onayı sonrası) otomatik TenderInvitation oluşur.
   // Tender silinirse davet kalır ama bağ kopar (SetNull).
-  tenderId             String?
-  tender               Tender?    @relation(fields: [tenderId], references: [id], onDelete: SetNull)
+  tenderId String?
+  tender   Tender? @relation(fields: [tenderId], references: [id], onDelete: SetNull)
 
   sentCount  Int      @default(1)
   lastSentAt DateTime @default(now())
@@ -862,12 +862,12 @@ model SupplierInvitation {
   // Multi-tenant tedarikçi davet kabul akışı (D.2.B)
   // Davet oluşturulurken: e-posta zaten aktif bir SupplierUser'a aitse true.
   // Mevcut tedarikçi /supplier/profil üzerinden, yeni tedarikçi /register/supplier üzerinden kabul eder.
-  isExistingSupplier Boolean @default(false)
+  isExistingSupplier Boolean   @default(false)
   // Kullanıcının e-posta dışında manuel girebilmesi için kısa kod (Crockford Base32 4-4: K7X9-3M2P).
   // Legacy satırlarda NULL kalabilir; yeni davetlerde her zaman üretilir.
-  shortCode  String?  @unique
+  shortCode          String?   @unique
   // Davet linki ilk açıldığında set edilir; alıcı tarafa "açıldı/açılmadı" göstergesi için.
-  openedAt   DateTime?
+  openedAt           DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -894,19 +894,19 @@ enum InvitationStatus {
 // ============================================================
 
 enum TenderType {
-  RFQ                  // Request for Quotation (kapalı teklif)
-  ENGLISH_AUCTION      // İngiliz usulü açık eksiltme (V2)
+  RFQ // Request for Quotation (kapalı teklif)
+  ENGLISH_AUCTION // İngiliz usulü açık eksiltme (V2)
 }
 
 enum TenderStatus {
-  DRAFT                // Taslak (henüz yayınlanmadı)
-  IN_APPROVAL          // E.7.D — yayın için onay bekliyor
-  OPEN_FOR_BIDS        // Yayında, teklif alıyor
-  IN_AWARD             // Süre doldu, alıcı kazandırma yapıyor
-  IN_AWARD_APPROVAL    // E.7.D — kazandırma için onay bekliyor
-  AWARDED              // Kazandırıldı, sipariş oluştu
-  CANCELLED            // İptal edildi
-  CLOSED_NO_AWARD      // Süre doldu, kazandırma yapılmadı
+  DRAFT // Taslak (henüz yayınlanmadı)
+  IN_APPROVAL // E.7.D — yayın için onay bekliyor
+  OPEN_FOR_BIDS // Yayında, teklif alıyor
+  IN_AWARD // Süre doldu, alıcı kazandırma yapıyor
+  IN_AWARD_APPROVAL // E.7.D — kazandırma için onay bekliyor
+  AWARDED // Kazandırıldı, sipariş oluştu
+  CANCELLED // İptal edildi
+  CLOSED_NO_AWARD // Süre doldu, kazandırma yapılmadı
 }
 
 enum Currency {
@@ -935,8 +935,28 @@ enum DeliveryTerm {
 }
 
 enum PaymentTerm {
-  CASH                 // Peşin
-  DEFERRED             // Vadeli
+  CASH // Peşin
+  DEFERRED // Vadeli
+}
+
+// Faz 3 madde 16 — Direkt ödeme şekli (sipariş ödeme kaydı bazında).
+enum PaymentMethod {
+  CASH // Nakit
+  CHEQUE // Çek
+}
+
+// Faz 3 madde 16 — Ödemenin teslime göre zamanı (ihalede alıcı belirler).
+// Sipariş ekranında ödeme bölümünün ne zaman görüneceğini belirler.
+enum PaymentTiming {
+  BEFORE_DELIVERY // Teslim öncesi (tedarikçi onayından sonra "ödeme bekleniyor")
+  AFTER_DELIVERY // Teslim sonrası (sipariş tamamlanınca görünür)
+}
+
+// Faz 3 madde 16 — Sipariş ödeme kaydının durumu.
+enum OrderPaymentStatus {
+  AWAITING_CONFIRMATION // Alıcı ödediğini kaydetti, tedarikçi onayı bekleniyor
+  CONFIRMED // Tedarikçi ödemeyi/çeki aldığını onayladı
+  REJECTED // Tedarikçi almadığını bildirdi (sebep ile)
 }
 
 enum TenderInvitationStatus {
@@ -959,97 +979,115 @@ enum BidStatus {
 // V2-7 — İngiliz Usulü açık eksiltme: tedarikçiye gösterilecek bilgi seviyesi.
 // Hiçbir modda tedarikçi başka tedarikçinin İSMİNİ göremez; sadece agrega.
 enum BidVisibility {
-  OWN_ONLY            // Sadece kendi teklifini görür (sealed-bid gibi)
-  BEST_PRICE          // Sadece şu anki en iyi teklif tutarını görür
-  OWN_RANK            // Sadece kendi sıralamasını görür
-  BEST_AND_OWN_RANK   // En iyi teklif + kendi sıralaması
-  ALL                 // Tüm teklifler (anonim) + sıralama
+  OWN_ONLY // Sadece kendi teklifini görür (sealed-bid gibi)
+  BEST_PRICE // Sadece şu anki en iyi teklif tutarını görür
+  OWN_RANK // Sadece kendi sıralamasını görür
+  BEST_AND_OWN_RANK // En iyi teklif + kendi sıralaması
+  ALL // Tüm teklifler (anonim) + sıralama
 }
 
 // V2-7 — Açık eksiltmede minimum azaltma kuralının cinsi.
 enum DecrementType {
-  AMOUNT              // Sabit tutar (primaryCurrency cinsinden)
-  PERCENT             // Yüzde (önceki teklif × oran)
+  AMOUNT // Sabit tutar (primaryCurrency cinsinden)
+  PERCENT // Yüzde (önceki teklif × oran)
 }
 
 // V2-7 — Decrement'in baz alınacağı referans.
 // V2-7'de sadece OWN_LAST_BID aktif; BEST_BID enum'da hazır.
 enum DecrementBasis {
-  OWN_LAST_BID        // Tedarikçinin kendi son teklifi
-  BEST_BID            // İhaledeki en iyi teklif (V3)
+  OWN_LAST_BID // Tedarikçinin kendi son teklifi
+  BEST_BID // İhaledeki en iyi teklif (V3)
 }
 
 enum OrderStatus {
-  PENDING        // Sipariş açıldı, tedarikçi onayı bekleniyor
-  ACCEPTED       // Tedarikçi siparişi onayladı + bilgileri (teslim tarihi, banka, fatura) girdi
-  IN_DELIVERY    // Tedarikçi gönderim başlattı
-  COMPLETED      // Alıcı teslim aldı
-  REJECTED       // Tedarikçi siparişi reddetti (sebep ile)
-  CANCELLED      // Alıcı iptal etti (sebep ile)
-  IN_PROGRESS    // (legacy, kullanılmıyor — eski kayıtlar için)
-  DELIVERED      // (legacy, kullanılmıyor — eski kayıtlar için)
+  PENDING // Sipariş açıldı, tedarikçi onayı bekleniyor
+  ACCEPTED // Tedarikçi siparişi onayladı + bilgileri (teslim tarihi, banka, fatura) girdi
+  IN_DELIVERY // Tedarikçi gönderim başlattı
+  COMPLETED // Alıcı teslim aldı
+  REJECTED // Tedarikçi siparişi reddetti (sebep ile)
+  CANCELLED // Alıcı iptal etti (sebep ile)
+  IN_PROGRESS // (legacy, kullanılmıyor — eski kayıtlar için)
+  DELIVERED // (legacy, kullanılmıyor — eski kayıtlar için)
 }
 
 model Tender {
-  id                  String          @id @default(cuid())
+  id String @id @default(cuid())
 
-  tenantId            String
-  tenant              Tenant          @relation(fields: [tenantId], references: [id])
-  createdById         String
-  createdBy           User            @relation("TendersCreated", fields: [createdById], references: [id])
+  tenantId    String
+  tenant      Tenant @relation(fields: [tenantId], references: [id])
+  createdById String
+  createdBy   User   @relation("TendersCreated", fields: [createdById], references: [id])
 
-  tenderNumber        String          @unique
-  type                TenderType      @default(RFQ)
-  status              TenderStatus    @default(DRAFT)
+  tenderNumber String       @unique
+  type         TenderType   @default(RFQ)
+  status       TenderStatus @default(DRAFT)
 
-  title               String
-  description         String?
-  /** V2-7 — Tedarikçilere ihale listesinde arama/eşleştirme için anahtar kelimeler. 0-10 adet, her biri ≤50 karakter. */
-  keywords            String[]        @default([])
-  termsAndConditions  String?
-  internalNotes       String?
+  title              String
+  description        String?
+  /**
+   * V2-7 — Tedarikçilere ihale listesinde arama/eşleştirme için anahtar kelimeler. 0-10 adet, her biri ≤50 karakter.
+   */
+  keywords           String[] @default([])
+  termsAndConditions String?
+  internalNotes      String?
 
-  isSealedBid         Boolean         @default(true)
-  requireAllItems     Boolean         @default(false)
-  requireBidDocument  Boolean         @default(false)
+  isSealedBid        Boolean @default(true)
+  requireAllItems    Boolean @default(false)
+  requireBidDocument Boolean @default(false)
 
-  primaryCurrency     Currency        @default(TRY)
-  /** V2-6 — Kabul edilen para birimleri (1-8); primaryCurrency listenin başı (TRY equivalent base). */
-  allowedCurrencies   Currency[]      @default([])
+  primaryCurrency   Currency   @default(TRY)
+  /**
+   * V2-6 — Kabul edilen para birimleri (1-8); primaryCurrency listenin başı (TRY equivalent base).
+   */
+  allowedCurrencies Currency[] @default([])
 
   // V2-7 — İngiliz Usulü açık eksiltme ayarları.
   // type=RFQ ise bidVisibility=OWN_ONLY zorunlu, decrement alanları null.
   // type=ENGLISH_AUCTION ise bidVisibility + decrement zorunlu.
-  bidVisibility            BidVisibility   @default(OWN_ONLY)
-  priceDecrementType       DecrementType?
-  priceDecrementValue      Decimal?        @db.Decimal(15, 4)
-  priceDecrementBasis      DecrementBasis?
-  /** Fiyat gösteriminde kullanılacak ondalık basamak sayısı (0-4). */
-  decimalPlaces            Int             @default(2)
-  /** Kapanış öncesi tedarikçilere hatırlatma e-postası gönderilsin mi? */
-  sendClosingReminder      Boolean         @default(false)
-  /** Kapanışa X dk kala hatırlatma (sendClosingReminder=true iken). */
-  reminderMinutesBefore    Int             @default(60)
-  /** ENGLISH_AUCTION: son dakika gelen teklif ile bidsCloseAt otomatik uzatılır. */
-  autoExtendOnLateBid      Boolean         @default(true)
-  /** Son dakika eşiği (dk) — daha az süre kala teklif gelirse uzatılır. */
-  autoExtendThresholdMin   Int             @default(2)
-  /** Her uzatmada eklenecek dakika. */
-  autoExtendByMinutes      Int             @default(2)
-  /** Sistem tarafından gönderilen "kapanış hatırlatma" e-postasının zamanı (idempotency). */
-  closingReminderSentAt    DateTime?
+  bidVisibility          BidVisibility   @default(OWN_ONLY)
+  priceDecrementType     DecrementType?
+  priceDecrementValue    Decimal?        @db.Decimal(15, 4)
+  priceDecrementBasis    DecrementBasis?
+  /**
+   * Fiyat gösteriminde kullanılacak ondalık basamak sayısı (0-4).
+   */
+  decimalPlaces          Int             @default(2)
+  /**
+   * Kapanış öncesi tedarikçilere hatırlatma e-postası gönderilsin mi?
+   */
+  sendClosingReminder    Boolean         @default(false)
+  /**
+   * Kapanışa X dk kala hatırlatma (sendClosingReminder=true iken).
+   */
+  reminderMinutesBefore  Int             @default(60)
+  /**
+   * ENGLISH_AUCTION: son dakika gelen teklif ile bidsCloseAt otomatik uzatılır.
+   */
+  autoExtendOnLateBid    Boolean         @default(true)
+  /**
+   * Son dakika eşiği (dk) — daha az süre kala teklif gelirse uzatılır.
+   */
+  autoExtendThresholdMin Int             @default(2)
+  /**
+   * Her uzatmada eklenecek dakika.
+   */
+  autoExtendByMinutes    Int             @default(2)
+  /**
+   * Sistem tarafından gönderilen "kapanış hatırlatma" e-postasının zamanı (idempotency).
+   */
+  closingReminderSentAt  DateTime?
 
   // V2-7 — Yeni Tur (round) zinciri. Round #1 → previousTenderId=null, roundNumber=1.
   // Sonraki turlar previousTenderId=öncekinin id, roundNumber=öncekinin+1.
-  previousTenderId         String?
-  previousTender           Tender?         @relation("TenderRounds", fields: [previousTenderId], references: [id])
-  nextRounds               Tender[]        @relation("TenderRounds")
-  roundNumber              Int             @default(1)
+  previousTenderId String?
+  previousTender   Tender?  @relation("TenderRounds", fields: [previousTenderId], references: [id])
+  nextRounds       Tender[] @relation("TenderRounds")
+  roundNumber      Int      @default(1)
 
-  deliveryTerm        DeliveryTerm?
+  deliveryTerm            DeliveryTerm?
   // E.7.B'den önce: free-text. E.7.B sonrası: backward-compat fallback —
   // yeni tender'larda deliveryAddressSnapshot'tan formatlı string yazılır.
-  deliveryAddress     String?
+  deliveryAddress         String?
   // E.7.B — tender oluşturma anında TenantAddress'in JSON snapshot'ı.
   // Adres sonradan değişse/silinse bile tender bu kaydı korur.
   billingAddressSnapshot  Json?
@@ -1057,27 +1095,29 @@ model Tender {
 
   // Lojistik İhalesi — RFQ üstüne yapılandırılmış lojistik bilgi katmanı.
   // isLogistics=true ise logisticsDetails dolu olur (mod, çıkış/varış, kargo, vb.).
-  isLogistics         Boolean         @default(false)
-  logisticsDetails    Json?
+  isLogistics      Boolean @default(false)
+  logisticsDetails Json?
 
-  paymentTerm         PaymentTerm     @default(CASH)
-  paymentDays         Int?
+  paymentTerm   PaymentTerm   @default(CASH)
+  paymentDays   Int?
+  // Faz 3 madde 16 — Ödeme teslim öncesi mi sonrası mı? Sipariş ödeme akışını belirler.
+  paymentTiming PaymentTiming @default(AFTER_DELIVERY)
 
   // Tahmini toplam tutar (primaryCurrency'de) — tüm items targetUnitPrice
   // ve quantity'sinden hesaplanır. Bir item targetUnitPrice'ı yoksa null.
   // List filter (tutar aralığı) için denormalize, createDraft/updateDraft
   // sırasında güncellenir.
-  estimatedTotal      Decimal?        @db.Decimal(20, 4)
+  estimatedTotal Decimal? @db.Decimal(20, 4)
 
-  publishedAt         DateTime?
-  bidsOpenAt          DateTime?
-  bidsCloseAt         DateTime
-  awardedAt           DateTime?
-  cancelledAt         DateTime?
-  cancelReason        String?
+  publishedAt  DateTime?
+  bidsOpenAt   DateTime?
+  bidsCloseAt  DateTime
+  awardedAt    DateTime?
+  cancelledAt  DateTime?
+  cancelReason String?
 
   // V2-6 — Birden fazla UNSPSC kategorisi (Class veya Commodity). Junction tablo.
-  categories          TenderCategory[]
+  categories TenderCategory[]
 
   items               TenderItem[]
   invitations         TenderInvitation[]
@@ -1088,8 +1128,8 @@ model Tender {
   // V2-7 — E-posta ile (kayıtsız/bağlantısız) tedarikçiyi doğrudan bu ihaleye davet.
   supplierInvitations SupplierInvitation[]
 
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId, status])
   @@index([status, bidsCloseAt])
@@ -1097,49 +1137,49 @@ model Tender {
 }
 
 model TenderItem {
-  id                  String          @id @default(cuid())
-  tenderId            String
-  tender              Tender          @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  tenderId String
+  tender   Tender @relation(fields: [tenderId], references: [id], onDelete: Cascade)
 
-  orderIndex          Int
-  name                String
-  description         String?
+  orderIndex  Int
+  name        String
+  description String?
 
-  quantity            Decimal         @db.Decimal(15, 4)
-  unit                String
+  quantity Decimal @db.Decimal(15, 4)
+  unit     String
 
-  materialCode        String?
-  requiredByDate      DateTime?
-  targetUnitPrice     Decimal?        @db.Decimal(15, 4)
+  materialCode    String?
+  requiredByDate  DateTime?
+  targetUnitPrice Decimal?  @db.Decimal(15, 4)
 
   // V2-7+ — Kalem başına çoklu + tipli soru: [{ id, text, answerType, required }]
   // answerType: TEXT | NUMBER | YES_NO | DATE. Legacy tek soru `customQuestion`'da
   // kalır; okuma katmanı questions boşsa ona fallback yapar.
-  customQuestion      String?
-  questions           Json?
+  customQuestion String?
+  questions      Json?
 
-  bidItems            BidItem[]
+  bidItems BidItem[]
 
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenderId, orderIndex])
   @@map("tender_items")
 }
 
 model TenderInvitation {
-  id                  String                @id @default(cuid())
-  tenderId            String
-  tender              Tender                @relation(fields: [tenderId], references: [id], onDelete: Cascade)
-  supplierId          String
-  supplier            Supplier              @relation(fields: [supplierId], references: [id])
+  id         String   @id @default(cuid())
+  tenderId   String
+  tender     Tender   @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
 
-  status              TenderInvitationStatus @default(PENDING)
-  invitedAt           DateTime              @default(now())
-  respondedAt         DateTime?
+  status      TenderInvitationStatus @default(PENDING)
+  invitedAt   DateTime               @default(now())
+  respondedAt DateTime?
 
-  emailSentAt         DateTime?
-  emailOpenedAt       DateTime?
+  emailSentAt   DateTime?
+  emailOpenedAt DateTime?
 
   @@unique([tenderId, supplierId])
   @@index([supplierId, status])
@@ -1147,44 +1187,44 @@ model TenderInvitation {
 }
 
 model Bid {
-  id                  String          @id @default(cuid())
-  tenderId            String
-  tender              Tender          @relation(fields: [tenderId], references: [id], onDelete: Cascade)
-  supplierId          String
-  supplier            Supplier        @relation(fields: [supplierId], references: [id])
-  submittedById       String
-  submittedBy         SupplierUser    @relation(fields: [submittedById], references: [id])
+  id            String       @id @default(cuid())
+  tenderId      String
+  tender        Tender       @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  supplierId    String
+  supplier      Supplier     @relation(fields: [supplierId], references: [id])
+  submittedById String
+  submittedBy   SupplierUser @relation(fields: [submittedById], references: [id])
 
-  status              BidStatus       @default(DRAFT)
+  status BidStatus @default(DRAFT)
 
-  currency            Currency
-  totalAmount         Decimal         @db.Decimal(20, 4)
+  currency    Currency
+  totalAmount Decimal  @db.Decimal(20, 4)
 
-  notes               String?
+  notes        String?
   // G4 — teslim tarihi (madde 8) + teklif geçerlilik gün sayısı (madde 10).
   // Nullable: taslakta boş olabilir; gönderde zorunluluk serviste uygulanır.
-  deliveryDate        DateTime?
-  validityDays        Int?
-  version             Int             @default(1)
+  deliveryDate DateTime?
+  validityDays Int?
+  version      Int       @default(1)
 
-  submittedAt         DateTime?
-  withdrawnAt         DateTime?
+  submittedAt DateTime?
+  withdrawnAt DateTime?
 
   // Eleme alanları (E.5) — alıcı SUBMITTED bid'i LOST'a çevirdiğinde dolar.
-  eliminationReason   String?
-  eliminatedAt        DateTime?
+  eliminationReason String?
+  eliminatedAt      DateTime?
 
   // V2-3 — submit anındaki TCMB kuru snapshot'ı.
   // Shape: { rate: number, fetchedAt: ISO, source: "TCMB"|"MANUAL"|"FALLBACK", rateDate: ISO }
   // bid.currency=TRY ise null kalır (gerek yok).
   exchangeRateSnapshot Json?
 
-  items               BidItem[]
-  attachments         BidAttachment[]
-  orders              Order[]
+  items       BidItem[]
+  attachments BidAttachment[]
+  orders      Order[]
 
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([tenderId, supplierId])
   @@index([tenderId, status])
@@ -1192,124 +1232,170 @@ model Bid {
 }
 
 model BidItem {
-  id                  String          @id @default(cuid())
-  bidId               String
-  bid                 Bid             @relation(fields: [bidId], references: [id], onDelete: Cascade)
-  tenderItemId        String
-  tenderItem          TenderItem      @relation(fields: [tenderItemId], references: [id])
+  id           String     @id @default(cuid())
+  bidId        String
+  bid          Bid        @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  tenderItemId String
+  tenderItem   TenderItem @relation(fields: [tenderItemId], references: [id])
 
-  unitPrice           Decimal?        @db.Decimal(15, 4)
-  totalPrice          Decimal?        @db.Decimal(20, 4)
-  currency            Currency
+  unitPrice  Decimal? @db.Decimal(15, 4)
+  totalPrice Decimal? @db.Decimal(20, 4)
+  currency   Currency
 
   // V2-7+ — Kalemin çoklu sorularına cevaplar: [{ questionId, value }].
   // Legacy tek cevap `customAnswer`'da kalır (fallback).
-  customAnswer        String?
-  answers             Json?
+  customAnswer String?
+  answers      Json?
 
-  isWinner            Boolean         @default(false)
-  awardedQuantity     Decimal?        @db.Decimal(15, 4)
+  isWinner        Boolean  @default(false)
+  awardedQuantity Decimal? @db.Decimal(15, 4)
 
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([bidId, tenderItemId])
   @@map("bid_items")
 }
 
 model BidAttachment {
-  id                  String          @id @default(cuid())
-  bidId               String
-  bid                 Bid             @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  id    String @id @default(cuid())
+  bidId String
+  bid   Bid    @relation(fields: [bidId], references: [id], onDelete: Cascade)
 
-  fileName            String
-  fileSize            Int
-  mimeType            String
-  fileUrl             String
+  fileName String
+  fileSize Int
+  mimeType String
+  fileUrl  String
 
-  uploadedAt          DateTime        @default(now())
+  uploadedAt DateTime @default(now())
 
   @@map("bid_attachments")
 }
 
 model TenderAttachment {
-  id                  String          @id @default(cuid())
-  tenderId            String
-  tender              Tender          @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  tenderId String
+  tender   Tender @relation(fields: [tenderId], references: [id], onDelete: Cascade)
 
-  fileName            String
-  fileSize            Int
-  mimeType            String
-  fileUrl             String
+  fileName String
+  fileSize Int
+  mimeType String
+  fileUrl  String
 
-  uploadedAt          DateTime        @default(now())
+  uploadedAt DateTime @default(now())
 
   @@map("tender_attachments")
 }
 
 model Order {
-  id                  String          @id @default(cuid())
-  orderNumber         String          @unique
+  id          String @id @default(cuid())
+  orderNumber String @unique
 
-  tenderId            String
-  tender              Tender          @relation(fields: [tenderId], references: [id])
-  tenantId            String
-  tenant              Tenant          @relation(fields: [tenantId], references: [id])
-  supplierId          String
-  supplier            Supplier        @relation(fields: [supplierId], references: [id])
-  bidId               String
-  bid                 Bid             @relation(fields: [bidId], references: [id])
+  tenderId   String
+  tender     Tender   @relation(fields: [tenderId], references: [id])
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id])
+  bidId      String
+  bid        Bid      @relation(fields: [bidId], references: [id])
 
-  status              OrderStatus     @default(PENDING)
+  status OrderStatus @default(PENDING)
 
-  currency            Currency
-  totalAmount         Decimal         @db.Decimal(20, 4)
+  currency    Currency
+  totalAmount Decimal  @db.Decimal(20, 4)
 
-  expectedDeliveryAt  DateTime?       // (legacy, V1.5'ten önce kullanılan)
-  deliveredAt         DateTime?       // (legacy)
+  expectedDeliveryAt DateTime? // (legacy, V1.5'ten önce kullanılan)
+  deliveredAt        DateTime? // (legacy)
 
-  notes               String?
+  notes String?
 
   // Tedarikçi onay aşaması (PENDING → ACCEPTED). Onay anında tahmini teslim
   // tarihi, banka/fatura bilgileri ve isteğe bağlı not girer.
-  acceptedAt          DateTime?
-  acceptedNote        String?         @db.Text
-  bankAccountHolder   String?
-  bankIban            String?
+  acceptedAt        DateTime?
+  acceptedNote      String?   @db.Text
+  bankAccountHolder String?
+  bankIban          String?
 
   // Tedarikçi red aşaması (PENDING → REJECTED). Sebep zorunlu.
-  rejectedAt          DateTime?
-  rejectReason        String?         @db.Text
+  rejectedAt   DateTime?
+  rejectReason String?   @db.Text
 
   // Gönderim aşaması (ACCEPTED → IN_DELIVERY). expectedDeliveryDate ACCEPT
   // adımında girilir; bu blokta tedarikçinin gönderim notu + fatura no.
-  deliveryStartedAt   DateTime?
-  deliveryStartedById String?
-  deliveryStartedBy   User?           @relation("OrderDeliveryStarted", fields: [deliveryStartedById], references: [id])
-  deliveryNote        String?         @db.Text
+  deliveryStartedAt    DateTime?
+  deliveryStartedById  String?
+  deliveryStartedBy    User?     @relation("OrderDeliveryStarted", fields: [deliveryStartedById], references: [id])
+  deliveryNote         String?   @db.Text
   // G5 madde 12/14 — "Gönderildi"ye geçişte tedarikçi fatura no girer (zorunlu).
-  invoiceNumber       String?
+  invoiceNumber        String?
   expectedDeliveryDate DateTime?
 
-  completedAt         DateTime?
-  completedById       String?
-  completedBy         User?           @relation("OrderCompleted", fields: [completedById], references: [id])
-  completedNote       String?         @db.Text
+  completedAt   DateTime?
+  completedById String?
+  completedBy   User?     @relation("OrderCompleted", fields: [completedById], references: [id])
+  completedNote String?   @db.Text
 
-  cancelledAt         DateTime?
-  cancelledById       String?
-  cancelledBy         User?           @relation("OrderCancelled", fields: [cancelledById], references: [id])
-  cancelReason        String?         @db.Text
+  cancelledAt   DateTime?
+  cancelledById String?
+  cancelledBy   User?     @relation("OrderCancelled", fields: [cancelledById], references: [id])
+  cancelReason  String?   @db.Text
 
   // V2-REVIEWS — Sipariş tamamlanınca alıcı 1-5 yıldız + opsiyonel yorum bırakır.
-  review              SupplierReview?
+  review SupplierReview?
 
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  // Faz 3 madde 16 — Direkt ödeme kayıtları (çoklu/kısmi: nakit/çek).
+  payments OrderPayment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId, status])
   @@index([supplierId, status])
   @@map("orders")
+}
+
+// Faz 3 madde 16 — Direkt ödeme kaydı. Bir siparişte birden çok kayıt olabilir
+// (kısmi ödemeler, ayrı çekler). Alıcı kaydı oluşturur ("ödedim"), tedarikçi
+// onaylar ("aldım") veya reddeder ("almadım"). Aktör id'leri FK ilişkisi yerine
+// düz alan tutulur (audit-light; User/SupplierUser modellerini şişirmemek için).
+model OrderPayment {
+  id         String @id @default(cuid())
+  orderId    String
+  order      Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  tenantId   String
+  supplierId String
+
+  method   PaymentMethod
+  amount   Decimal       @db.Decimal(20, 4)
+  currency Currency
+
+  // Çek detayları (method = CHEQUE iken doldurulur).
+  chequeNo      String?
+  chequeBank    String?
+  chequeDueDate DateTime?
+
+  note String? @db.Text
+
+  status OrderPaymentStatus @default(AWAITING_CONFIRMATION)
+
+  // Alıcı "ödedim" olarak kaydetti.
+  markedPaidAt       DateTime @default(now())
+  markedPaidByUserId String?
+
+  // Tedarikçi onayı / reddi.
+  confirmedAt               DateTime?
+  confirmedBySupplierUserId String?
+  rejectedAt                DateTime?
+  rejectReason              String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([tenantId])
+  @@index([supplierId])
+  @@map("order_payments")
 }
 
 // ============================================================
@@ -1317,25 +1403,25 @@ model Order {
 // ============================================================
 
 model ApprovalFlow {
-  id           String              @id @default(cuid())
-  tenantId     String
-  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  flowNumber   Int                 // tenant-wide counter, 10001+
-  name         String
-  description  String?
-  type         ApprovalFlowType
-  status       ApprovalFlowStatus  @default(DRAFT)
+  flowNumber  Int // tenant-wide counter, 10001+
+  name        String
+  description String?
+  type        ApprovalFlowType
+  status      ApprovalFlowStatus @default(DRAFT)
 
-  createdById  String
-  createdBy    User                @relation("ApprovalFlowCreatedBy", fields: [createdById], references: [id])
+  createdById String
+  createdBy   User   @relation("ApprovalFlowCreatedBy", fields: [createdById], references: [id])
 
-  initiators   ApprovalFlowInitiator[]
-  steps        ApprovalFlowStep[]
-  requests     ApprovalRequest[]
+  initiators ApprovalFlowInitiator[]
+  steps      ApprovalFlowStep[]
+  requests   ApprovalRequest[]
 
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([tenantId, flowNumber])
   @@index([tenantId, type, status])
@@ -1344,13 +1430,13 @@ model ApprovalFlow {
 }
 
 model ApprovalFlowInitiator {
-  id        String       @id @default(cuid())
-  flowId    String
-  flow      ApprovalFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User         @relation("ApprovalFlowInitiatorUser", fields: [userId], references: [id], onDelete: Cascade)
+  id     String       @id @default(cuid())
+  flowId String
+  flow   ApprovalFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  userId String
+  user   User         @relation("ApprovalFlowInitiatorUser", fields: [userId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime     @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([flowId, userId])
   @@index([userId])
@@ -1358,24 +1444,24 @@ model ApprovalFlowInitiator {
 }
 
 model ApprovalFlowStep {
-  id                 String       @id @default(cuid())
-  flowId             String
-  flow               ApprovalFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  id     String       @id @default(cuid())
+  flowId String
+  flow   ApprovalFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
 
-  orderIndex         Int          // 1, 2, 3 — sıralı onay
-  approverUserId     String
-  approver           User         @relation("ApprovalFlowStepApprover", fields: [approverUserId], references: [id], onDelete: Cascade)
+  orderIndex     Int // 1, 2, 3 — sıralı onay
+  approverUserId String
+  approver       User   @relation("ApprovalFlowStepApprover", fields: [approverUserId], references: [id], onDelete: Cascade)
 
   // Bütçe eşiği — null = her zaman aktif; değer = X ve üstü tutarlarda devreye girer
-  conditionMinAmount Decimal?     @db.Decimal(20, 2)
-  conditionCurrency  String?      @default("TRY")
+  conditionMinAmount Decimal? @db.Decimal(20, 2)
+  conditionCurrency  String?  @default("TRY")
 
   // Diagram'da gösterilecek soft etiket (örn "Satınalma Müdürü")
-  displayLabel       String?
+  displayLabel String?
 
-  requestSteps       ApprovalRequestStep[]
+  requestSteps ApprovalRequestStep[]
 
-  createdAt          DateTime     @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([flowId, orderIndex])
   @@index([approverUserId])
@@ -1398,40 +1484,40 @@ enum ApprovalFlowStatus {
 // ============================================================
 
 model ApprovalRequest {
-  id              String   @id @default(cuid())
-  approvalNumber  String   @unique // APR-YYYY-NNNN
+  id             String @id @default(cuid())
+  approvalNumber String @unique // APR-YYYY-NNNN
 
-  tenantId        String
-  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  flowId          String
-  flow            ApprovalFlow @relation(fields: [flowId], references: [id])
+  flowId String
+  flow   ApprovalFlow @relation(fields: [flowId], references: [id])
 
   // Polymorphic — V1'de sadece tender. V2'de orderId/purchaseRequestId gelecek.
-  type            ApprovalFlowType
-  tenderId        String
-  tender          Tender   @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  type     ApprovalFlowType
+  tenderId String
+  tender   Tender           @relation(fields: [tenderId], references: [id], onDelete: Cascade)
 
-  status          ApprovalRequestStatus @default(PENDING)
+  status ApprovalRequestStatus @default(PENDING)
 
   // Match anında hesaplanan bütçe (snapshot — rule değişse bile request bağımsız)
-  amount          Decimal  @db.Decimal(20, 2)
-  currency        String   @default("TRY")
+  amount   Decimal @db.Decimal(20, 2)
+  currency String  @default("TRY")
 
-  initiatedById   String
-  initiatedBy     User     @relation("InitiatedApprovalRequests", fields: [initiatedById], references: [id])
-  initiatorNote   String?
+  initiatedById String
+  initiatedBy   User    @relation("InitiatedApprovalRequests", fields: [initiatedById], references: [id])
+  initiatorNote String?
 
-  steps           ApprovalRequestStep[]
+  steps ApprovalRequestStep[]
 
-  startedAt       DateTime @default(now())
-  completedAt     DateTime?
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
 
   // V1.5 Oturum 2 — onay reminder cron idempotency
-  lastReminderAt  DateTime?
+  lastReminderAt DateTime?
 
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId, status, type])
   @@index([tenantId, status])
@@ -1448,27 +1534,27 @@ enum ApprovalRequestStatus {
 }
 
 model ApprovalRequestStep {
-  id              String   @id @default(cuid())
-  requestId       String
-  request         ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  id        String          @id @default(cuid())
+  requestId String
+  request   ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
-  flowStepId      String
-  flowStep        ApprovalFlowStep @relation(fields: [flowStepId], references: [id])
+  flowStepId String
+  flowStep   ApprovalFlowStep @relation(fields: [flowStepId], references: [id])
 
-  approverUserId  String
-  approver        User     @relation("ApproverOfRequestSteps", fields: [approverUserId], references: [id])
+  approverUserId String
+  approver       User   @relation("ApproverOfRequestSteps", fields: [approverUserId], references: [id])
 
-  status          ApprovalStepStatus @default(WAITING)
-  orderIndex      Int
+  status     ApprovalStepStatus @default(WAITING)
+  orderIndex Int
 
   // Snapshot (rule değişebilir, request bağımsız)
-  conditionMinAmount  Decimal? @db.Decimal(20, 2)
-  displayLabel    String?
+  conditionMinAmount Decimal? @db.Decimal(20, 2)
+  displayLabel       String?
 
-  decidedAt       DateTime?
-  decisionNote    String?
+  decidedAt    DateTime?
+  decisionNote String?
 
-  createdAt       DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([approverUserId, status])
   @@index([requestId, orderIndex])
@@ -1490,32 +1576,32 @@ enum ApprovalStepStatus {
 // uploadlar buraya yazılır, FE/BE yeni model üzerinden çalışır.)
 
 model Attachment {
-  id                       String           @id @default(cuid())
+  id String @id @default(cuid())
 
   // Sahibi her zaman bir tenant. BID_RESPONSE'da tedarikçi yükler ama scope
   // hedefi (tender'ın) tenant'ı; ORDER_INVOICE'da order tenantı.
-  tenantId                 String
-  tenant                   Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   // Yükleyen — tenant veya supplier kullanıcısı (sadece biri set olur).
   uploadedByUserId         String?
-  uploadedByUser           User?            @relation("UploadedAttachments", fields: [uploadedByUserId], references: [id])
+  uploadedByUser           User?         @relation("UploadedAttachments", fields: [uploadedByUserId], references: [id])
   uploadedBySupplierUserId String?
-  uploadedBySupplierUser   SupplierUser?    @relation("UploadedAttachmentsSupplier", fields: [uploadedBySupplierUserId], references: [id])
+  uploadedBySupplierUser   SupplierUser? @relation("UploadedAttachmentsSupplier", fields: [uploadedBySupplierUserId], references: [id])
 
-  scope                    AttachmentScope
-  scopeRefId               String           // tender.id | bid.id | order.id
+  scope      AttachmentScope
+  scopeRefId String // tender.id | bid.id | order.id
 
   // R2 storage key — `{env}/{tenantId}/{attachmentId}-{sanitizedFilename}`
-  key                      String           @unique
-  originalFilename         String
-  mimeType                 String
-  fileSize                 Int              // bytes
+  key              String @unique
+  originalFilename String
+  mimeType         String
+  fileSize         Int // bytes
 
-  status                   AttachmentStatus @default(PENDING)
+  status AttachmentStatus @default(PENDING)
 
-  createdAt                DateTime         @default(now())
-  finalizedAt              DateTime?
+  createdAt   DateTime  @default(now())
+  finalizedAt DateTime?
 
   @@index([tenantId, scope, scopeRefId])
   @@index([tenantId, status])
@@ -1528,16 +1614,17 @@ enum AttachmentScope {
   TENDER_DOC
   BID_RESPONSE
   ORDER_INVOICE
-  MESSAGE_ATTACHMENT  // V2-4 — mesaj eki (scopeRefId = order veya tender id)
+  MESSAGE_ATTACHMENT // V2-4 — mesaj eki (scopeRefId = order veya tender id)
   // G5 madde 19/21 — sipariş belge kategorileri (scopeRefId = order id).
-  ORDER_PROFORMA      // proforma (baştan)
-  ORDER_TECHNICAL     // teknik doküman (baştan)
-  ORDER_DELIVERY      // Teslimat Evrakları (gönderim sonrası, alıcı imzalı)
+  ORDER_PROFORMA // proforma (baştan)
+  ORDER_TECHNICAL // teknik doküman (baştan)
+  ORDER_DELIVERY // Teslimat Evrakları (gönderim sonrası, alıcı imzalı)
+  ORDER_PAYMENT_PROOF // Faz 3 madde 16 — ödeme dekontu (alıcı yükler, ikisi de görür)
 }
 
 enum AttachmentStatus {
-  PENDING   // Presigned URL üretildi, R2'ye henüz yüklenmedi
-  UPLOADED  // R2'de mevcut, kullanılabilir
+  PENDING // Presigned URL üretildi, R2'ye henüz yüklenmedi
+  UPLOADED // R2'de mevcut, kullanılabilir
 }
 
 // ---------- V2-3: ÇOKLU PARA BİRİMİ + TCMB KUR CACHE ----------
@@ -1550,8 +1637,8 @@ model ExchangeRate {
   id        String   @id @default(cuid())
   currency  Currency
   rate      Decimal  @db.Decimal(15, 6) // 1 {currency} = X TRY
-  rateDate  DateTime @db.Date           // TCMB tarihi (gün-bazlı)
-  source    String   @default("TCMB")   // TCMB | MANUAL | FALLBACK
+  rateDate  DateTime @db.Date // TCMB tarihi (gün-bazlı)
+  source    String   @default("TCMB") // TCMB | MANUAL | FALLBACK
   fetchedAt DateTime @default(now())
 
   @@unique([currency, rateDate])
@@ -1568,22 +1655,22 @@ model ExchangeRate {
 /// V2-4.2 — Unified thread per (tenant, supplier). Tender/order/direct
 /// ayrımı artık thread seviyesinde değil, mesaj seviyesindeki context tag'inde.
 model MessageThread {
-  id           String          @id @default(cuid())
+  id String @id @default(cuid())
 
-  tenantId     String
-  tenant       Tenant           @relation("TenantMessageThreads", fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  tenant   Tenant @relation("TenantMessageThreads", fields: [tenantId], references: [id], onDelete: Cascade)
 
-  supplierId   String
-  supplier     Supplier         @relation("SupplierMessageThreads", fields: [supplierId], references: [id], onDelete: Cascade)
+  supplierId String
+  supplier   Supplier @relation("SupplierMessageThreads", fields: [supplierId], references: [id], onDelete: Cascade)
 
-  messages     Message[]
+  messages Message[]
 
   lastMessageAt      DateTime?
-  lastMessagePreview String?    @db.VarChar(200)
+  lastMessagePreview String?   @db.VarChar(200)
   tenantLastReadAt   DateTime?
   supplierLastReadAt DateTime?
 
-  createdAt    DateTime         @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([tenantId, supplierId])
   @@index([tenantId, lastMessageAt])
@@ -1592,26 +1679,28 @@ model MessageThread {
 }
 
 model Message {
-  id                   String              @id @default(cuid())
-  threadId             String
-  thread               MessageThread       @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  id       String        @id @default(cuid())
+  threadId String
+  thread   MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
 
   /// V2-4.2 — Her mesaj bir context taşır. NULL = legacy / tarif edilmeyen.
   /// DIRECT için contextRefId = null. TENDER: tenderId. ORDER: orderId.
-  context              MessageContext?
-  contextRefId         String?
+  context      MessageContext?
+  contextRefId String?
 
   senderType           MessageSenderType
-  senderUserId         String?             // User.id (TENANT_USER ise)
-  senderSupplierUserId String?             // SupplierUser.id (SUPPLIER_USER ise)
+  senderUserId         String? // User.id (TENANT_USER ise)
+  senderSupplierUserId String? // SupplierUser.id (SUPPLIER_USER ise)
 
-  content              String              @db.Text
-  /** R2 Attachment.id'lerinin array'i (MESSAGE_ATTACHMENT scope'lu). */
-  attachmentIds        Json                @default("[]")
+  content       String @db.Text
+  /**
+   * R2 Attachment.id'lerinin array'i (MESSAGE_ATTACHMENT scope'lu).
+   */
+  attachmentIds Json   @default("[]")
 
-  emailNotifiedAt      DateTime?
+  emailNotifiedAt DateTime?
 
-  sentAt               DateTime            @default(now())
+  sentAt DateTime @default(now())
 
   @@index([threadId, sentAt])
   @@index([emailNotifiedAt, sentAt])
@@ -1645,27 +1734,33 @@ enum MessageSenderType {
 // Level 1+2 sadece UI accordion grup başlığıdır — seçilemez.
 
 model Category {
-  id              String              @id @default(cuid())
-  /** UNSPSC 8-haneli kod (10000000=segment, 10100000=family, 10101500=class, 10101501=commodity) */
-  code            String              @unique
-  nameTr          String
-  /** 1=Segment, 2=Family, 3=Class, 4=Commodity */
-  level           Int
+  id     String @id @default(cuid())
+  /**
+   * UNSPSC 8-haneli kod (10000000=segment, 10100000=family, 10101500=class, 10101501=commodity)
+   */
+  code   String @unique
+  nameTr String
+  /**
+   * 1=Segment, 2=Family, 3=Class, 4=Commodity
+   */
+  level  Int
 
-  parentId        String?
-  parent          Category?           @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
-  children        Category[]          @relation("CategoryHierarchy")
+  parentId String?
+  parent   Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children Category[] @relation("CategoryHierarchy")
 
-  /** Sadece level 1: PratisPro tarzı harf prefix (A, B, C...) */
-  segmentLetter   String?
-  sortOrder       Int                 @default(0)
-  isActive        Boolean             @default(true)
+  /**
+   * Sadece level 1: PratisPro tarzı harf prefix (A, B, C...)
+   */
+  segmentLetter String?
+  sortOrder     Int     @default(0)
+  isActive      Boolean @default(true)
 
   supplierCategories SupplierCategory[]
   tenderCategories   TenderCategory[]
 
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([parentId, sortOrder])
   @@index([level, sortOrder])
@@ -1674,12 +1769,12 @@ model Category {
 }
 
 model SupplierCategory {
-  id          String   @id @default(cuid())
-  supplierId  String
-  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
 
   @@unique([supplierId, categoryId])
   @@index([categoryId])
@@ -1687,12 +1782,12 @@ model SupplierCategory {
 }
 
 model TenderCategory {
-  id          String   @id @default(cuid())
+  id         String   @id @default(cuid())
   tenderId   String
   tender     Tender   @relation(fields: [tenderId], references: [id], onDelete: Cascade)
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
 
   @@unique([tenderId, categoryId])
   @@index([categoryId])
@@ -1707,24 +1802,24 @@ model TenderCategory {
 // ============================================================
 
 model QuestionTemplate {
-  id          String   @id @default(cuid())
-  tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  name        String
+  name      String
   // Herkese Açık (true) — tenant içindeki tüm BUYER/ADMIN kullanır;
   // Özel (false) — sadece createdBy görür.
-  isPublic    Boolean  @default(true)
+  isPublic  Boolean @default(true)
   // "Bu şablondaki soruların tamamı ihalelere otomatik olarak eklensin"
-  autoApply   Boolean  @default(false)
+  autoApply Boolean @default(false)
 
   createdById String
-  createdBy   User     @relation("QuestionTemplateCreatedBy", fields: [createdById], references: [id])
+  createdBy   User   @relation("QuestionTemplateCreatedBy", fields: [createdById], references: [id])
 
-  items       QuestionTemplateItem[]
+  items QuestionTemplateItem[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId])
   @@index([createdById])
@@ -1732,18 +1827,18 @@ model QuestionTemplate {
 }
 
 model QuestionTemplateItem {
-  id         String   @id @default(cuid())
+  id         String           @id @default(cuid())
   templateId String
   template   QuestionTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
 
   text       String
   // Cevaplama Zorunluluğu: REQUIRED / OPTIONAL
-  required   Boolean  @default(false)
+  required   Boolean            @default(false)
   // Cevap Türü: TEXT, NUMBER, YES_NO, DATE
   answerType QuestionAnswerType
-  orderIndex Int      @default(0)
+  orderIndex Int                @default(0)
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([templateId])
   @@map("question_template_items")
@@ -1757,20 +1852,20 @@ enum QuestionAnswerType {
 }
 
 model SupplierTemplate {
-  id          String   @id @default(cuid())
-  tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  name        String
-  isPublic    Boolean  @default(true)
+  name     String
+  isPublic Boolean @default(true)
 
   createdById String
-  createdBy   User     @relation("SupplierTemplateCreatedBy", fields: [createdById], references: [id])
+  createdBy   User   @relation("SupplierTemplateCreatedBy", fields: [createdById], references: [id])
 
-  members     SupplierTemplateMember[]
+  members SupplierTemplateMember[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId])
   @@index([createdById])
@@ -1783,7 +1878,7 @@ model SupplierTemplateMember {
   supplierId String
   supplier   Supplier         @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
-  createdAt  DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@id([templateId, supplierId])
   @@index([supplierId])
@@ -1796,10 +1891,10 @@ model SupplierTemplateMember {
 model AuditLog {
   id         String   @id @default(cuid())
   tenantId   String?
-  actorType  String   // "tenant" | "admin" | "supplier" | "system"
+  actorType  String // "tenant" | "admin" | "supplier" | "system"
   actorId    String?
   actorEmail String?
-  action     String   // "auth.login", "auth.login_failed", "tender.awarded", ...
+  action     String // "auth.login", "auth.login_failed", "tender.awarded", ...
   entityType String?
   entityId   String?
   metadata   Json?

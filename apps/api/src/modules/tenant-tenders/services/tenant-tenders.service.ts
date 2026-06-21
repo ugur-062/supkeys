@@ -785,6 +785,7 @@ export class TenantTendersService {
           paymentTerm: dto.paymentTerm,
           paymentDays:
             dto.paymentTerm === "DEFERRED" ? (dto.paymentDays ?? null) : null,
+          paymentTiming: dto.paymentTiming ?? "AFTER_DELIVERY",
           bidsCloseAt: new Date(dto.bidsCloseAt),
           bidsOpenAt: dto.bidsOpenAt ? new Date(dto.bidsOpenAt) : null,
           estimatedTotal,
@@ -962,6 +963,7 @@ export class TenantTendersService {
           paymentTerm: dto.paymentTerm,
           paymentDays:
             dto.paymentTerm === "DEFERRED" ? (dto.paymentDays ?? null) : null,
+          paymentTiming: dto.paymentTiming ?? "AFTER_DELIVERY",
           bidsCloseAt: new Date(dto.bidsCloseAt),
           bidsOpenAt: dto.bidsOpenAt ? new Date(dto.bidsOpenAt) : null,
           estimatedTotal: computeEstimatedTotal(dto.items),
@@ -1378,6 +1380,7 @@ export class TenantTendersService {
           deliveryAddress: previous.deliveryAddress,
           paymentTerm: previous.paymentTerm,
           paymentDays: previous.paymentDays,
+          paymentTiming: previous.paymentTiming,
           estimatedTotal: previous.estimatedTotal,
           previousTenderId: previous.id,
           roundNumber: newRoundNumber,

@@ -66,6 +66,18 @@ const STATUS_CONTENT: Record<OrderStatusChange, StatusContent> = {
     bodyForBuyer:
       "Tedarikçi siparişin teslimatını başlattı. Teslimat süreci ilerledikçe size bildirilecek.",
   },
+  DELIVERED: {
+    emoji: "📦",
+    bg: "#fffbeb",
+    border: "#fde68a",
+    textColor: "#78350f",
+    headingForSupplier: "Sipariş teslim alındı — ödeme bekleniyor",
+    headingForBuyer: "Siparişi teslim aldınız — ödeme adımı",
+    bodyForSupplier:
+      "Alıcı siparişi teslim aldı. Alıcı ödemeyi gönderdiğinde size iletilecek; ödemeyi aldığınızda panelden onaylayın, sipariş otomatik tamamlanır.",
+    bodyForBuyer:
+      "Siparişi teslim aldığınızı onayladınız. Ödeme bilgilerini panelden girip dekontunuzu ekleyebilirsiniz.",
+  },
   COMPLETED: {
     emoji: "✅",
     bg: "#ecfdf5",
@@ -180,9 +192,11 @@ export function makeOrderStatusChangedSubject(
         ? "Sipariş reddedildi"
         : newStatus === "IN_DELIVERY"
           ? "Sipariş teslimat sürecinde"
-          : newStatus === "COMPLETED"
-            ? "Sipariş tamamlandı"
-            : "Sipariş iptal edildi";
+          : newStatus === "DELIVERED"
+            ? "Sipariş teslim alındı — ödeme bekleniyor"
+            : newStatus === "COMPLETED"
+              ? "Sipariş tamamlandı"
+              : "Sipariş iptal edildi";
   return `${c.emoji} ${verb}: ${tenderTitle}`;
 }
 

@@ -13,6 +13,7 @@ import { PermissionsModule } from "./modules/auth/permissions/permissions.module
 import { DemoRequestsModule } from "./modules/demo-requests/demo-requests.module";
 import { EmailModule } from "./modules/email/email.module";
 import { HealthModule } from "./modules/health/health.module";
+import { OrderPaymentsModule } from "./modules/order-payments/order-payments.module";
 import { PublicInvitationsModule } from "./modules/public-invitations/public-invitations.module";
 import { PublicSupplierProfileModule } from "./modules/public-supplier-profile/public-supplier-profile.module";
 import { TenantPublicProfileModule } from "./modules/tenant-public-profile/tenant-public-profile.module";
@@ -98,6 +99,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     SupplierTendersModule,
     TenantOrdersModule,
     SupplierOrdersModule,
+    OrderPaymentsModule,
     TenantDashboardModule,
     TenantReportsModule,
     TenantTemplatesModule,

@@ -37,6 +37,7 @@ const TABS: Array<{ key: string; label: string; status?: OrderStatus }> = [
   { key: "pending", label: "Onay Bekliyor", status: "PENDING" },
   { key: "accepted", label: "Onaylandı", status: "ACCEPTED" },
   { key: "in_delivery", label: "Gönderildi", status: "IN_DELIVERY" },
+  { key: "delivered", label: "Ödeme Bekliyor", status: "DELIVERED" },
   { key: "completed", label: "Tamamlandı", status: "COMPLETED" },
   { key: "rejected", label: "Reddedildi", status: "REJECTED" },
   { key: "cancelled", label: "İptal Edildi", status: "CANCELLED" },
@@ -164,6 +165,11 @@ export function OrdersListView() {
         label: "Gönderildi",
         value: s.inDelivery ?? 0,
         color: "text-zinc-700",
+      },
+      {
+        label: "Ödeme Bekliyor",
+        value: s.delivered ?? 0,
+        color: "text-amber-700",
       },
       {
         label: "Tamamlandı",

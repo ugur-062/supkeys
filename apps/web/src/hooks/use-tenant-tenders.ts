@@ -240,6 +240,7 @@ function buildPayload(data: TenderFormData) {
     paymentTerm: data.paymentTerm,
     paymentDays:
       data.paymentTerm === "DEFERRED" ? data.paymentDays : undefined,
+    paymentTiming: data.paymentTiming,
     termsAndConditions: sanitize(data.termsAndConditions),
     internalNotes: sanitize(data.internalNotes),
     bidsCloseAt: new Date(data.bidsCloseAt).toISOString(),

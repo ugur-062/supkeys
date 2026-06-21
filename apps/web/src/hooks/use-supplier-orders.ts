@@ -190,4 +190,43 @@ export function useStartDelivery() {
   });
 }
 
+// Faz 3 madde 16 — Direkt ödeme (tedarikçi tarafı: onayla/reddet)
+
+/** Tedarikçi ödemeyi/çeki aldığını onaylar. */
+export function useConfirmOrderPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { orderId: string; paymentId: string }) => {
+      const { data } = await supplierApi.post<OrderDetail>(
+        `/supplier/orders/${input.orderId}/payments/${input.paymentId}/confirm`,
+      );
+      return data;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(vars.orderId) });
+    },
+  });
+}
+
+/** Tedarikçi ödemeyi almadığını bildirir (sebep zorunlu). */
+export function useRejectOrderPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      orderId: string;
+      paymentId: string;
+      reason: string;
+    }) => {
+      const { data } = await supplierApi.post<OrderDetail>(
+        `/supplier/orders/${input.orderId}/payments/${input.paymentId}/reject`,
+        { reason: input.reason },
+      );
+      return data;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(vars.orderId) });
+    },
+  });
+}
+
 export const supplierOrdersQueryKeys = KEYS;

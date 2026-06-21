@@ -17,8 +17,10 @@ import {
 } from "@headlessui/react";
 import {
   AlertCircle,
+  BarChart3,
   FileText,
   Info,
+  Layers,
   Loader2,
   Trophy,
   XCircle,
@@ -35,10 +37,10 @@ import { ItemBasedRanking } from "./item-based-ranking";
 import { TenderBasedRanking } from "./tender-based-ranking";
 
 const MAIN_TRIGGER = cn(
-  "px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition whitespace-nowrap",
-  "border-transparent text-zinc-500",
-  "data-selected:border-zinc-900 data-selected:text-zinc-900",
-  "hover:text-zinc-700 focus:outline-none",
+  "group inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+  "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700",
+  "data-selected:border-zinc-900 data-selected:text-zinc-950",
+  "focus:outline-none",
 );
 
 export function BidsTab({ tender }: { tender: TenderDetail }) {
@@ -115,8 +117,14 @@ export function BidsTab({ tender }: { tender: TenderDetail }) {
           className="border-b border-zinc-950/5 flex items-center gap-1"
           aria-label="Teklif sıralama görünümü"
         >
-          <Tab className={MAIN_TRIGGER}>Kalem Bazlı Sıralama</Tab>
-          <Tab className={MAIN_TRIGGER}>İhale Bazlı Sıralama</Tab>
+          <Tab className={MAIN_TRIGGER}>
+            <Layers className="h-4 w-4" />
+            Kalem Bazlı Sıralama
+          </Tab>
+          <Tab className={MAIN_TRIGGER}>
+            <BarChart3 className="h-4 w-4" />
+            İhale Bazlı Sıralama
+          </Tab>
         </TabList>
 
         <TabPanels>
@@ -341,7 +349,7 @@ function BidsSummary({
       {items.map((it) => (
         <div
           key={it.label}
-          className="bg-white border border-slate-200 rounded-xl p-4"
+          className="rounded-2xl border border-zinc-950/5 bg-white p-4"
         >
           <p className="text-[11px] text-slate-500 uppercase font-semibold tracking-wide">
             {it.label}

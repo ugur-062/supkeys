@@ -30,11 +30,15 @@ import {
   ChevronDown,
   Copy,
   ExternalLink,
+  Handshake,
   Loader2,
   Mail,
+  MapPin,
   Phone,
   Sparkles,
+  UserRound,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -73,10 +77,23 @@ function InfoRow({
 }) {
   return (
     <div className="space-y-0.5">
-      <dt className="text-xs uppercase tracking-wide text-slate-500">
+      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </dt>
-      <dd className="text-sm text-brand-900 break-words">{children}</dd>
+      <dd className="text-sm font-medium text-zinc-900 break-words">
+        {children}
+      </dd>
+    </div>
+  );
+}
+
+function SectionHead({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100">
+        <Icon className="h-4 w-4 text-zinc-700" />
+      </div>
+      <h3 className="font-semibold text-zinc-900">{title}</h3>
     </div>
   );
 }
@@ -258,9 +275,7 @@ export function SupplierDetailDrawer({
                 )}
 
                 <section className="card p-5 space-y-4">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Firma Bilgileri
-                  </h3>
+                  <SectionHead icon={Building2} title="Firma Bilgileri" />
                   <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <InfoRow label="Firma Tipi">
                       {COMPANY_TYPE_LABEL[item.supplier.companyType]}
@@ -295,9 +310,7 @@ export function SupplierDetailDrawer({
                 </section>
 
                 <section className="card p-5 space-y-4">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Adres
-                  </h3>
+                  <SectionHead icon={MapPin} title="Adres" />
                   <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <InfoRow label="İl / İlçe">
                       {item.supplier.city} / {item.supplier.district}
@@ -320,9 +333,7 @@ export function SupplierDetailDrawer({
                 </section>
 
                 <section className="card p-5 space-y-4">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    İletişim
-                  </h3>
+                  <SectionHead icon={UserRound} title="İletişim" />
                   {primaryUser ? (
                     <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <InfoRow label="Yetkili">
@@ -373,9 +384,7 @@ export function SupplierDetailDrawer({
                 </section>
 
                 <section className="card p-5 space-y-4">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    İlişki
-                  </h3>
+                  <SectionHead icon={Handshake} title="İlişki" />
                   <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <InfoRow label="Bağlantı Tarihi">
                       {formatFull(item.relationCreatedAt)}

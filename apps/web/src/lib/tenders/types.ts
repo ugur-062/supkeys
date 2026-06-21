@@ -95,6 +95,32 @@ export type DeliveryTerm =
 
 export type PaymentTerm = "CASH" | "DEFERRED";
 
+// Faz 3 madde 16 — Direkt ödeme
+export type PaymentTiming = "BEFORE_DELIVERY" | "AFTER_DELIVERY";
+export type PaymentMethod = "CASH" | "CHEQUE";
+export type OrderPaymentStatus =
+  | "AWAITING_CONFIRMATION"
+  | "CONFIRMED"
+  | "REJECTED";
+
+export interface OrderPayment {
+  id: string;
+  orderId: string;
+  method: PaymentMethod;
+  amount: string;
+  currency: Currency;
+  chequeNo: string | null;
+  chequeBank: string | null;
+  chequeDueDate: string | null;
+  note: string | null;
+  status: OrderPaymentStatus;
+  markedPaidAt: string;
+  confirmedAt: string | null;
+  rejectedAt: string | null;
+  rejectReason: string | null;
+  createdAt: string;
+}
+
 export type TenderInvitationStatus =
   | "PENDING"
   | "ACCEPTED"
@@ -217,6 +243,7 @@ export interface TenderDetail {
   deliveryAddressSnapshot: TenderAddressSnapshot | null;
   paymentTerm: PaymentTerm;
   paymentDays: number | null;
+  paymentTiming: PaymentTiming;
   publishedAt: string | null;
   bidsOpenAt: string | null;
   bidsCloseAt: string;
@@ -390,6 +417,7 @@ export interface SupplierTenderDetail {
   deliveryAddressSnapshot: TenderAddressSnapshot | null;
   paymentTerm: PaymentTerm;
   paymentDays: number | null;
+  paymentTiming: PaymentTiming;
   publishedAt: string | null;
   bidsOpenAt: string | null;
   bidsCloseAt: string;
@@ -874,6 +902,7 @@ export interface OrderDetail {
     deliveryAddress: string | null;
     paymentTerm: PaymentTerm;
     paymentDays: number | null;
+    paymentTiming: PaymentTiming;
     /** Creator gate — UI'da action butonlarını gizlemek için kullanılır. */
     createdBy: {
       id: string;
@@ -939,6 +968,8 @@ export interface OrderDetail {
     lastName: string;
   } | null;
   cancelReason: string | null;
+  /** Faz 3 madde 16 — direkt ödeme kayıtları (alıcı/tedarikçi handshake). */
+  payments: OrderPayment[];
 }
 
 /** Sipariş listesi tarih aralığı — tender pattern'iyle aynı. */

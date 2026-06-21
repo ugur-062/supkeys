@@ -2,7 +2,10 @@ import type {
   BidStatus,
   Currency,
   DeliveryTerm,
+  OrderPaymentStatus,
+  PaymentMethod,
   PaymentTerm,
+  PaymentTiming,
   TenderInvitationStatus,
   TenderStatus,
   TenderType,
@@ -138,6 +141,24 @@ export const DELIVERY_TERM_LABELS: Record<DeliveryTerm, string> = {
 export const PAYMENT_TERM_LABELS: Record<PaymentTerm, string> = {
   CASH: "Peşin",
   DEFERRED: "Vadeli",
+};
+
+// Faz 3 madde 16 — Ödeme zamanı
+export const PAYMENT_TIMING_LABELS: Record<PaymentTiming, string> = {
+  BEFORE_DELIVERY: "Teslim öncesi",
+  AFTER_DELIVERY: "Teslim sonrası",
+};
+
+// Faz 3 madde 16 — Ödeme şekli
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  CASH: "Nakit",
+  CHEQUE: "Çek",
+};
+
+export const ORDER_PAYMENT_STATUS_LABELS: Record<OrderPaymentStatus, string> = {
+  AWAITING_CONFIRMATION: "Onay bekliyor",
+  CONFIRMED: "Onaylandı",
+  REJECTED: "Reddedildi",
 };
 
 // Lojistik İhalesi — taşıma modu etiketleri

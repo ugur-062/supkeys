@@ -150,6 +150,7 @@ export function EditLoader({ id }: Props) {
     deliveryAddressId: tender.deliveryAddressSnapshot?.id ?? "",
     paymentTerm: tender.paymentTerm,
     paymentDays: tender.paymentDays ?? undefined,
+    paymentTiming: tender.paymentTiming,
     termsAndConditions: tender.termsAndConditions ?? "",
     internalNotes: tender.internalNotes ?? "",
     bidsCloseAt: toDatetimeLocal(tender.bidsCloseAt),

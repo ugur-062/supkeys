@@ -14,6 +14,8 @@ export type AttachmentScope =
   | "ORDER_PROFORMA"
   | "ORDER_TECHNICAL"
   | "ORDER_DELIVERY"
+  // Faz 3 madde 16 — ödeme dekontu (alıcı yükler, ikisi de görür)
+  | "ORDER_PAYMENT_PROOF"
   | "MESSAGE_ATTACHMENT";
 
 export interface AttachmentItem {

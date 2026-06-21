@@ -21,6 +21,11 @@ interface Props {
   onConfirm: (note: string) => void;
   loading: boolean;
   orderNumber: string;
+  /**
+   * Faz 3 madde 16 — teslim sonrası ödemeli ihalede "Teslim Aldım" siparişi
+   * tamamlamaz; ödeme adımına geçirir. Metin buna göre değişir.
+   */
+  afterDeliveryPayment?: boolean;
 }
 
 const NOTE_MAX = 500;
@@ -31,6 +36,7 @@ export function CompleteOrderModal({
   onConfirm,
   loading,
   orderNumber,
+  afterDeliveryPayment = false,
 }: Props) {
   const [note, setNote] = useState("");
 
@@ -41,7 +47,11 @@ export function CompleteOrderModal({
   return (
     <Dialog open={open} onClose={onClose} size="md">
       <DialogTitle>Teslim Aldım</DialogTitle>
-      <DialogDescription>{orderNumber} tamamlanıyor</DialogDescription>
+      <DialogDescription>
+        {afterDeliveryPayment
+          ? `${orderNumber} teslim alındı olarak işaretleniyor`
+          : `${orderNumber} tamamlanıyor`}
+      </DialogDescription>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -50,8 +60,9 @@ export function CompleteOrderModal({
       >
         <DialogBody className="space-y-4">
           <Alert variant="success">
-            Bu siparişi teslim aldığınızı onaylıyorsunuz. Sipariş tamamlanmış
-            olarak işaretlenecek ve tedarikçiye e-posta gönderilecek.
+            {afterDeliveryPayment
+              ? "Bu siparişi teslim aldığınızı onaylıyorsunuz. Ardından ödeme adımı açılır; ödemenizi kaydedip tedarikçi onayladığında sipariş otomatik tamamlanır."
+              : "Bu siparişi teslim aldığınızı onaylıyorsunuz. Sipariş tamamlanmış olarak işaretlenecek ve tedarikçiye e-posta gönderilecek."}
           </Alert>
 
           <Field>

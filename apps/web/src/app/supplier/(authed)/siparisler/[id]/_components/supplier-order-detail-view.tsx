@@ -1,17 +1,10 @@
 "use client";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/catalyst/table";
 import { MessageDialog } from "@/components/messaging/message-dialog";
 import { AcceptOrderModal } from "@/components/orders/accept-order-modal";
 import { OrderDocuments } from "@/components/orders/order-documents";
-import { OrderTimeline } from "@/components/orders/order-timeline";
+import { OrderPaymentsDialog } from "@/components/orders/order-payments-dialog";
+import { OrderTimelineHorizontal } from "@/components/orders/order-timeline";
 import { RejectOrderModal } from "@/components/orders/reject-order-modal";
 import { StartDeliveryModal } from "@/components/orders/start-delivery-modal";
 import { PanelCard } from "@/components/supplier/panel-card";
@@ -53,6 +46,7 @@ import {
   Paperclip,
   ThumbsUp,
   Truck,
+  Wallet,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -87,6 +81,7 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
   const query = useSupplierOrderDetail(id);
   const downloadPdf = useDownloadSupplierOrderPdf();
   const [messageOpen, setMessageOpen] = useState(false);
+  const [paymentsOpen, setPaymentsOpen] = useState(false);
 
   if (query.isLoading && !query.data) {
     return (
@@ -172,19 +167,20 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
         contextNumber={`Sipariş ${order.orderNumber}`}
       />
 
-      {/* 3-kolon ana grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Sol: Vertical timeline (3 col) */}
-        <aside className="lg:col-span-3">
-          <div className="lg:sticky lg:top-4">
-            <PanelCard title="Sipariş Akışı" subtitle="Süreç takibi">
-              <OrderTimeline order={order} />
-            </PanelCard>
-          </div>
-        </aside>
+      <OrderPaymentsDialog
+        open={paymentsOpen}
+        onClose={() => setPaymentsOpen(false)}
+        surface="supplier"
+        order={order}
+      />
 
-        {/* Orta: Tabs (6 col) */}
-        <main className="lg:col-span-6">
+      {/* Sipariş akışı — yatay, tam genişlik, en üstte */}
+      <OrderTimelineHorizontal order={order} />
+
+      {/* Ana grid: geniş sekme alanı + dar aksiyon kolonu */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Geniş: sekmeler */}
+        <main className="lg:col-span-2">
           <TabGroup defaultIndex={0} className="space-y-4">
             <TabList
               className="border-b border-zinc-950/10 flex overflow-x-auto"
@@ -200,9 +196,9 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
               </Tab>
             </TabList>
 
-            <TabPanels>
+            <TabPanels className="min-h-[460px]">
               <TabPanel className="outline-none space-y-4">
-                <PanelCard title="Kazandığınız Kalemler" padding="none">
+                <PanelCard title="Kazandığınız Kalemler">
                   <ItemsTable order={order} />
                 </PanelCard>
                 {order.bid.notes ? (
@@ -223,15 +219,37 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
                   />
                 </PanelCard>
               </TabPanel>
+
             </TabPanels>
           </TabGroup>
         </main>
 
-        {/* Sağ: Action sidebar (3 col) */}
-        <aside className="lg:col-span-3">
+        {/* Dar: aksiyon kolonu */}
+        <aside className="lg:col-span-1">
           <div className="lg:sticky lg:top-4 space-y-4">
             {/* Aksiyon banner */}
             <SupplierOrderActions order={order} />
+
+            {/* Faz 3 madde 16 — ödeme onayı (aksiyon alanında buton + popup) */}
+            {(order.payments?.length ?? 0) > 0
+              ? (() => {
+                  const pending = (order.payments ?? []).filter(
+                    (p) => p.status === "AWAITING_CONFIRMATION",
+                  ).length;
+                  return (
+                    <Button
+                      variant={pending > 0 ? "primary" : "secondary"}
+                      className="w-full"
+                      onClick={() => setPaymentsOpen(true)}
+                    >
+                      <Wallet className="w-4 h-4" />
+                      {pending > 0
+                        ? `Ödemeyi Onayla (${pending})`
+                        : "Ödemeler"}
+                    </Button>
+                  );
+                })()
+              : null}
 
             {/* Tutar özeti */}
             <PanelCard title="Tutar" padding="md">
@@ -458,6 +476,21 @@ function SupplierOrderActions({ order }: { order: OrderDetail }) {
     );
   }
 
+  if (order.status === "DELIVERED") {
+    return (
+      <PanelCard padding="md" className="border-amber-200 bg-amber-50/40">
+        <div className="flex items-start gap-2">
+          <Wallet className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-900 leading-relaxed">
+            Alıcı siparişi teslim aldı. Ödemeyi aldığınızda{" "}
+            <strong>Ödeme</strong> sekmesinden onaylayın; sipariş otomatik
+            tamamlanır.
+          </p>
+        </div>
+      </PanelCard>
+    );
+  }
+
   if (order.status === "COMPLETED") {
     return (
       <PanelCard padding="md" className="border-emerald-200 bg-emerald-50/40">
@@ -515,56 +548,61 @@ function SupplierOrderActions({ order }: { order: OrderDetail }) {
 }
 
 function ItemsTable({ order }: { order: OrderDetail }) {
+  const currency = order.currency as Currency;
   return (
-    <Table dense>
-      <TableHead>
-        <TableRow>
-          <TableHeader>Kalem</TableHeader>
-          <TableHeader className="text-right">Miktar</TableHeader>
-          <TableHeader className="text-right">Birim Fiyat</TableHeader>
-          <TableHeader className="text-right">Toplam</TableHeader>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {order.bid.items.map((bi) => (
-          <TableRow key={bi.id}>
-            <TableCell className="align-top font-medium">
-              <div className="text-zinc-900">{bi.tenderItem.name}</div>
-              {bi.tenderItem.materialCode ? (
-                <div className="mt-1 font-mono text-xs text-zinc-500">
-                  {bi.tenderItem.materialCode}
-                </div>
-              ) : null}
-            </TableCell>
-            <TableCell className="align-top text-right text-zinc-500">
-              {Number(bi.tenderItem.quantity).toLocaleString("tr-TR")}{" "}
-              {bi.tenderItem.unit}
-            </TableCell>
-            <TableCell className="align-top text-right tabular-nums text-zinc-500">
-              {bi.unitPrice
-                ? `${bi.currency} ${formatNumber(bi.unitPrice)}`
-                : "—"}
-            </TableCell>
-            <TableCell className="align-top text-right font-bold tabular-nums text-zinc-900">
-              {bi.totalPrice
-                ? formatPrice(bi.totalPrice, bi.currency as Currency)
-                : "—"}
-            </TableCell>
-          </TableRow>
-        ))}
-        <TableRow className="bg-zinc-50">
-          <TableCell
-            colSpan={3}
-            className="text-right text-sm font-bold text-zinc-900"
-          >
-            TOPLAM
-          </TableCell>
-          <TableCell className="text-right text-base font-bold tabular-nums text-zinc-950">
-            {formatPrice(order.totalAmount, order.currency as Currency)}
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>
+    <div className="space-y-2.5">
+      {order.bid.items.map((bi, idx) => (
+        <div
+          key={bi.id}
+          className="rounded-xl border border-zinc-950/5 bg-white p-4 transition-colors hover:border-zinc-950/15"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-xs font-bold text-zinc-600">
+                {idx + 1}
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold leading-tight text-zinc-900">
+                  {bi.tenderItem.name}
+                </p>
+                {bi.tenderItem.materialCode ? (
+                  <p className="mt-0.5 font-mono text-xs text-zinc-500">
+                    {bi.tenderItem.materialCode}
+                  </p>
+                ) : null}
+                {bi.tenderItem.description ? (
+                  <p className="mt-1 line-clamp-2 text-xs text-zinc-500">
+                    {bi.tenderItem.description}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-base font-bold tabular-nums text-zinc-950">
+                {bi.totalPrice
+                  ? formatPrice(bi.totalPrice, bi.currency as Currency)
+                  : "—"}
+              </p>
+              <p className="mt-0.5 text-xs tabular-nums text-zinc-500">
+                {Number(bi.tenderItem.quantity).toLocaleString("tr-TR")}{" "}
+                {bi.tenderItem.unit}
+                {bi.unitPrice
+                  ? ` × ${bi.currency} ${formatNumber(bi.unitPrice)}`
+                  : ""}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* Toplam */}
+      <div className="flex items-center justify-between rounded-xl bg-zinc-900 px-4 py-3 text-white">
+        <span className="text-sm font-semibold">Toplam Tutar</span>
+        <span className="text-lg font-bold tabular-nums">
+          {formatPrice(order.totalAmount, currency)}
+        </span>
+      </div>
+    </div>
   );
 }
 

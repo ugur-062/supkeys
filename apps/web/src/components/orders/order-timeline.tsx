@@ -147,6 +147,65 @@ function buildEvents(order: OrderDetail): TimelineEvent[] {
   return events;
 }
 
+/**
+ * Yatay sipariş akışı — sipariş detayı altında tam genişlikte kullanılır.
+ * Aynı olay verisini (buildEvents) yatay bir stepper olarak gösterir; her
+ * ulaşılan adım kendi ikonu + tarih + (varsa) not/meta ile bir düğüm olur.
+ */
+export function OrderTimelineHorizontal({ order }: { order: OrderDetail }) {
+  const events = buildEvents(order);
+
+  return (
+    <div className="bg-white ring-1 ring-zinc-950/5 rounded-2xl p-6">
+      <p className="text-[11px] uppercase tracking-wider text-slate-500 font-bold mb-5">
+        Sipariş Akışı
+      </p>
+      <ol className="flex gap-2 overflow-x-auto pb-2">
+        {events.map((e, i) => (
+          <li key={i} className="flex-1 min-w-[170px]">
+            {/* İkon + bağlayıcı çizgi */}
+            <div className="flex items-center">
+              <div
+                className={cn(
+                  "h-11 w-11 rounded-full flex items-center justify-center flex-shrink-0 border-2",
+                  e.iconBg,
+                  e.borderClass,
+                )}
+              >
+                <e.Icon className={cn("h-5 w-5", e.iconText)} />
+              </div>
+              {i < events.length - 1 ? (
+                <div className="h-0.5 flex-1 bg-slate-200 mx-2" />
+              ) : null}
+            </div>
+            {/* İçerik */}
+            <div className="mt-3 pr-3">
+              <p className="font-semibold text-sm text-zinc-950 leading-tight">
+                {e.title}
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                {format(new Date(e.timestamp), "d MMM yyyy HH:mm", {
+                  locale: tr,
+                })}
+                {e.actor ? ` · ${e.actor}` : ""}
+              </p>
+              {e.subtitle ? (
+                <p className="text-xs text-slate-600 mt-1.5 whitespace-pre-wrap line-clamp-3">
+                  {e.subtitle}
+                </p>
+              ) : null}
+              {e.meta ? (
+                <p className="text-xs text-slate-500 mt-1">{e.meta}</p>
+              ) : null}
+              {e.extra ? e.extra : null}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 export function OrderTimeline({ order }: { order: OrderDetail }) {
   const events = buildEvents(order);
 

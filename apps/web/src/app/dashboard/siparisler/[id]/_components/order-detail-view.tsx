@@ -1,17 +1,11 @@
 "use client";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/catalyst/table";
 import { MessageDialog } from "@/components/messaging/message-dialog";
 import { CompleteOrderModal } from "@/components/orders/complete-order-modal";
 import { OrderDocuments } from "@/components/orders/order-documents";
+import { OrderPaymentsDialog } from "@/components/orders/order-payments-dialog";
 import { OrderTimeline } from "@/components/orders/order-timeline";
+import { computePaymentTotals, isPaymentOpen } from "@/lib/orders/payments";
 import { OrderStatusBadge } from "@/components/orders/status-badge";
 import { ReadOnlyBanner } from "@/components/tenders/read-only-banner";
 import { Button } from "@/components/ui/button";
@@ -41,6 +35,7 @@ import {
   MessageCircle,
   Package,
   Phone,
+  Wallet,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -203,17 +198,27 @@ function OrderDetailContent({ order }: { order: OrderDetail }) {
 
 function TenantOrderActions({ order }: { order: OrderDetail }) {
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [paymentsOpen, setPaymentsOpen] = useState(false);
 
   const completeMutation = useCompleteOrder();
+
+  // Faz 3 madde 16 — ödeme aksiyonu (Teslim Aldım ile aynı yerde buton + popup)
+  const payments = order.payments ?? [];
+  const paymentOpen = isPaymentOpen(order.tender.paymentTiming, order.status);
+  const totals = computePaymentTotals(payments, order.totalAmount);
+  const canRecord = paymentOpen && totals.remaining > 0;
+  const showPaymentsButton = payments.length > 0 || paymentOpen;
 
   // PENDING'de alıcı tedarikçinin onayını bekler;
   // ACCEPTED'de tedarikçinin gönderim başlatması beklenir;
   // IN_DELIVERY'de "Teslim Aldım";
+  // DELIVERED'da ödeme adımı (aşağıdaki Direkt Ödeme bölümünden);
   // COMPLETED / CANCELLED / REJECTED'da aksiyon yok (banner yeterli).
   if (
     order.status !== "PENDING" &&
     order.status !== "ACCEPTED" &&
     order.status !== "IN_DELIVERY" &&
+    order.status !== "DELIVERED" &&
     order.status !== "COMPLETED" &&
     order.status !== "REJECTED" &&
     order.status !== "CANCELLED"
@@ -244,6 +249,15 @@ function TenantOrderActions({ order }: { order: OrderDetail }) {
             </span>
           </div>
         ) : null}
+        {order.status === "DELIVERED" ? (
+          <div className="flex items-start gap-2 text-sm text-amber-700 min-w-0">
+            <Wallet className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <span>
+              Teslim aldınız. <strong>Ödeme Kaydet</strong> ile ödemenizi girin;
+              tedarikçi onayladığında sipariş tamamlanacak.
+            </span>
+          </div>
+        ) : null}
         {order.status === "COMPLETED" ? (
           <div className="flex items-center gap-2 text-sm text-success-700 min-w-0">
             <CheckCircle2 className="h-4 w-4 text-success-600 flex-shrink-0" />
@@ -271,6 +285,15 @@ function TenantOrderActions({ order }: { order: OrderDetail }) {
         ) : null}
 
         <div className="flex items-center gap-2">
+          {showPaymentsButton ? (
+            <Button
+              variant={canRecord ? "primary" : "secondary"}
+              onClick={() => setPaymentsOpen(true)}
+            >
+              <Wallet className="w-4 h-4" />
+              {canRecord ? "Ödeme Kaydet" : "Ödemeler"}
+            </Button>
+          ) : null}
           {order.status === "IN_DELIVERY" ? (
             <Button
               variant="primary"
@@ -284,21 +307,34 @@ function TenantOrderActions({ order }: { order: OrderDetail }) {
         </div>
       </div>
 
+      <OrderPaymentsDialog
+        open={paymentsOpen}
+        onClose={() => setPaymentsOpen(false)}
+        surface="tenant"
+        order={order}
+        canAct
+      />
+
       <CompleteOrderModal
         open={completeOpen}
         onClose={() => setCompleteOpen(false)}
         loading={completeMutation.isPending}
         orderNumber={order.orderNumber}
+        afterDeliveryPayment={order.tender.paymentTiming === "AFTER_DELIVERY"}
         onConfirm={(note) =>
           completeMutation.mutate(
             { id: order.id, completedNote: note || undefined },
             {
-              onSuccess: () => {
-                toast.success("Sipariş tamamlandı");
+              onSuccess: (data) => {
+                toast.success(
+                  data.status === "DELIVERED"
+                    ? "Teslim alındı — ödeme adımına geçebilirsiniz"
+                    : "Sipariş tamamlandı",
+                );
                 setCompleteOpen(false);
               },
               onError: (err) =>
-                toast.error(getErrorMessage(err, "Tamamlanamadı")),
+                toast.error(getErrorMessage(err, "İşlem başarısız")),
             },
           )
         }
@@ -540,24 +576,30 @@ function SupplierCard({ order }: { order: OrderDetail }) {
 
 function OrderProgressBar({ order }: { order: OrderDetail }) {
   const status = order.status;
-  // Index: 0=Oluşturuldu, 1=Onaylandı, 2=Gönderildi, 3=Tamamlandı
-  const map: Record<string, number> = {
-    PENDING: 0,
-    ACCEPTED: 1,
-    IN_DELIVERY: 2,
-    IN_PROGRESS: 2,
-    DELIVERED: 3,
-    COMPLETED: 3,
-  };
+  // Faz 3 madde 16 — teslim sonrası ödemeli ihalede araya "Teslim Alındı"
+  // (ödeme bekleniyor) adımı girer.
+  const afterDelivery = order.tender.paymentTiming === "AFTER_DELIVERY";
+
+  const map: Record<string, number> = afterDelivery
+    ? { PENDING: 0, ACCEPTED: 1, IN_DELIVERY: 2, DELIVERED: 3, COMPLETED: 4 }
+    : { PENDING: 0, ACCEPTED: 1, IN_DELIVERY: 2, IN_PROGRESS: 2, COMPLETED: 3 };
   const isTerminated = status === "REJECTED" || status === "CANCELLED";
   const activeIdx = isTerminated ? -1 : (map[status] ?? 0);
 
-  const stages = [
-    { key: "created", label: "Oluşturuldu" },
-    { key: "accepted", label: "Onaylandı" },
-    { key: "delivery", label: "Gönderildi" },
-    { key: "completed", label: "Tamamlandı" },
-  ];
+  const stages = afterDelivery
+    ? [
+        { key: "created", label: "Oluşturuldu" },
+        { key: "accepted", label: "Onaylandı" },
+        { key: "delivery", label: "Gönderildi" },
+        { key: "received", label: "Teslim Alındı" },
+        { key: "completed", label: "Tamamlandı" },
+      ]
+    : [
+        { key: "created", label: "Oluşturuldu" },
+        { key: "accepted", label: "Onaylandı" },
+        { key: "delivery", label: "Gönderildi" },
+        { key: "completed", label: "Tamamlandı" },
+      ];
 
   if (isTerminated) {
     const isRejected = status === "REJECTED";
@@ -677,56 +719,56 @@ function TenderLink({ order }: { order: OrderDetail }) {
 
 function ItemsTable({ order }: { order: OrderDetail }) {
   return (
-    <div className="bg-white ring-1 ring-zinc-950/5 rounded-xl px-3 [--gutter:--spacing(4)]">
-      <Table dense>
-        <TableHead>
-          <TableRow>
-            <TableHeader>Kalem</TableHeader>
-            <TableHeader className="text-right">Miktar</TableHeader>
-            <TableHeader className="text-right">Birim Fiyat</TableHeader>
-            <TableHeader className="text-right">Toplam</TableHeader>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {order.bid.items.map((bi) => (
-            <TableRow key={bi.id}>
-              <TableCell className="align-top">
-                <p className="font-medium text-zinc-900">
+    <div className="space-y-2.5">
+      {order.bid.items.map((bi, idx) => (
+        <div
+          key={bi.id}
+          className="rounded-xl border border-zinc-950/5 bg-white p-4 transition-colors hover:border-zinc-950/15"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-xs font-bold text-zinc-600">
+                {idx + 1}
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold leading-tight text-zinc-900">
                   {bi.tenderItem.name}
                 </p>
                 {bi.tenderItem.materialCode ? (
-                  <p className="text-xs text-zinc-500 font-mono mt-1">
+                  <p className="mt-0.5 font-mono text-xs text-zinc-500">
                     {bi.tenderItem.materialCode}
                   </p>
                 ) : null}
-              </TableCell>
-              <TableCell className="text-right text-zinc-600 align-top">
+                {bi.tenderItem.description ? (
+                  <p className="mt-1 line-clamp-2 text-xs text-zinc-500">
+                    {bi.tenderItem.description}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-base font-bold tabular-nums text-zinc-950">
+                {bi.totalPrice ? formatMoney(bi.totalPrice, bi.currency) : "—"}
+              </p>
+              <p className="mt-0.5 text-xs tabular-nums text-zinc-500">
                 {Number(bi.tenderItem.quantity).toLocaleString("tr-TR")}{" "}
                 {bi.tenderItem.unit}
-              </TableCell>
-              <TableCell className="text-right tabular-nums align-top">
                 {bi.unitPrice
-                  ? `${bi.currency} ${formatNumber(bi.unitPrice)}`
-                  : "—"}
-              </TableCell>
-              <TableCell className="text-right font-bold text-zinc-900 tabular-nums align-top">
-                {bi.totalPrice ? formatMoney(bi.totalPrice, bi.currency) : "—"}
-              </TableCell>
-            </TableRow>
-          ))}
-          <TableRow className="bg-zinc-50">
-            <TableCell
-              colSpan={3}
-              className="text-right font-bold text-zinc-900"
-            >
-              TOPLAM
-            </TableCell>
-            <TableCell className="text-right font-bold text-zinc-900 text-lg tabular-nums">
-              {formatMoney(order.totalAmount, order.currency)}
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+                  ? ` × ${bi.currency} ${formatNumber(bi.unitPrice)}`
+                  : ""}
+              </p>
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* Toplam */}
+      <div className="flex items-center justify-between rounded-xl bg-zinc-900 px-4 py-3 text-white">
+        <span className="text-sm font-semibold">Toplam Tutar</span>
+        <span className="text-lg font-bold tabular-nums">
+          {formatMoney(order.totalAmount, order.currency)}
+        </span>
+      </div>
     </div>
   );
 }

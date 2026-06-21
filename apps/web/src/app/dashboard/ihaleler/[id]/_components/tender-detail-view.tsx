@@ -3,10 +3,75 @@
 import { TenderMessagesButton } from "@/components/messaging/tender-messages-button";
 import { Button } from "@/components/ui/button";
 import { useTenderDetail } from "@/hooks/use-tenant-tenders";
-import { AlertCircle, ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
+import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
+import { cn } from "@/lib/utils";
+import {
+  Tab,
+  TabGroup,
+  TabList,
+  TabPanel,
+  TabPanels,
+} from "@headlessui/react";
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
+import {
+  AlertCircle,
+  ArrowLeft,
+  CalendarClock,
+  ChevronRight,
+  Gavel,
+  Info,
+  Layers,
+  Loader2,
+  Paperclip,
+  Users,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 import { BidsTab } from "./bids-tab";
+import { FilesTab } from "./files-tab";
+import { GeneralInfoTab } from "./general-info-tab";
 import { TenderHeaderCard } from "./header-card";
+import { ItemsTab } from "./items-tab";
+
+const TRIGGER_CLASSES = cn(
+  "group inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+  "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700",
+  "data-selected:border-zinc-900 data-selected:text-zinc-950",
+  "focus:outline-none",
+);
+
+function TabBadge({ count }: { count: number }) {
+  return (
+    <span className="ml-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-600 group-data-selected:bg-zinc-900 group-data-selected:text-white">
+      {count}
+    </span>
+  );
+}
+
+function MetaItem({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Layers;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2.5 min-w-0">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-50">
+        <Icon className="h-4 w-4 text-zinc-600" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
+          {label}
+        </p>
+        <p className="truncate text-sm font-semibold text-zinc-900">{value}</p>
+      </div>
+    </div>
+  );
+}
 
 export function TenderDetailView({ id }: { id: string }) {
   const detail = useTenderDetail(id);
@@ -63,17 +128,90 @@ export function TenderDetailView({ id }: { id: string }) {
 
       <TenderHeaderCard tender={tender} />
 
-      {/* Detay sayfası = sadece Teklifler tablosu. Genel/Kalemler/Davetli/
-          Dosyalar "Diğer İşlemler → İhale Detayını Gör" pop-up'ında. */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-end">
+      {/* Meta bar — tedarikçi ihale detayıyla aynı standart */}
+      <section className="rounded-2xl border border-zinc-950/5 bg-white p-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <MetaItem
+              icon={Layers}
+              label="Kalem"
+              value={`${tender.items.length} kalem`}
+            />
+            <MetaItem
+              icon={Wallet}
+              label="Para Birimi"
+              value={`${tender.primaryCurrency} ${CURRENCY_SYMBOL[tender.primaryCurrency]}`}
+            />
+            <MetaItem
+              icon={CalendarClock}
+              label="Kapanış"
+              value={format(new Date(tender.bidsCloseAt), "d MMM yyyy HH:mm", {
+                locale: tr,
+              })}
+            />
+            <MetaItem
+              icon={Users}
+              label="Davetli"
+              value={`${tender.bidStats.invitedCount} tedarikçi`}
+            />
+            <MetaItem
+              icon={Gavel}
+              label="Teklif"
+              value={`${tender.bidStats.submitted}`}
+            />
+          </div>
           <TenderMessagesButton
             tenderId={tender.id}
             tenderNumber={tender.tenderNumber}
           />
         </div>
-        <BidsTab tender={tender} />
-      </div>
+      </section>
+
+      {/* Detay sayfaya gömülü — varsayılan sekme Teklifler. Genel Bilgi /
+          Kalemler / Dosyalar artık aynı sayfada (modal kaldırıldı). */}
+      <TabGroup defaultIndex={0} className="space-y-5">
+        <TabList
+          className="border-b border-zinc-950/10 flex overflow-x-auto"
+          aria-label="İhale detay sekmeleri"
+        >
+          <Tab className={TRIGGER_CLASSES}>
+            <Gavel className="h-4 w-4" />
+            Teklifler
+          </Tab>
+          <Tab className={TRIGGER_CLASSES}>
+            <Info className="h-4 w-4" />
+            Genel Bilgi
+          </Tab>
+          <Tab className={TRIGGER_CLASSES}>
+            <Layers className="h-4 w-4" />
+            Kalemler
+            <TabBadge count={tender.items.length} />
+          </Tab>
+          <Tab className={TRIGGER_CLASSES}>
+            <Paperclip className="h-4 w-4" />
+            Dosyalar
+          </Tab>
+        </TabList>
+
+        <TabPanels>
+          <TabPanel className="outline-none">
+            <BidsTab tender={tender} />
+          </TabPanel>
+          <TabPanel className="outline-none">
+            <GeneralInfoTab tender={tender} />
+          </TabPanel>
+          <TabPanel className="outline-none">
+            <ItemsTab
+              items={tender.items}
+              currency={tender.primaryCurrency}
+              showTargetPrice
+            />
+          </TabPanel>
+          <TabPanel className="outline-none">
+            <FilesTab tender={tender} />
+          </TabPanel>
+        </TabPanels>
+      </TabGroup>
     </div>
   );
 }

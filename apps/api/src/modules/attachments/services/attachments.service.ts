@@ -339,6 +339,17 @@ export class AttachmentsService {
       if (order.supplierId !== actor.supplierId) throw new ForbiddenException();
       return order.tenantId;
     }
+    // Faz 3 madde 16 — ödeme dekontu yalnızca alıcı (buyer) tarafından yüklenir.
+    if (scope === "ORDER_PAYMENT_PROOF") {
+      if (actor.kind !== "tenant") {
+        throw new ForbiddenException(
+          "Ödeme dekontunu yalnızca alıcı yükleyebilir",
+        );
+      }
+      const order = await this.requireOrder(scopeRefId);
+      if (order.tenantId !== actor.tenantId) throw new ForbiddenException();
+      return order.tenantId;
+    }
     if (scope === "MESSAGE_ATTACHMENT") {
       // V2-4 — scopeRefId polymorphic: önce order, sonra tender lookup.
       // Yetki: order için her iki taraf, tender için tenant veya invited supplier.
@@ -399,7 +410,8 @@ export class AttachmentsService {
       scope === "ORDER_INVOICE" ||
       scope === "ORDER_PROFORMA" ||
       scope === "ORDER_TECHNICAL" ||
-      scope === "ORDER_DELIVERY"
+      scope === "ORDER_DELIVERY" ||
+      scope === "ORDER_PAYMENT_PROOF"
     ) {
       const order = await this.prisma.order.findUnique({
         where: { id: scopeRefId },

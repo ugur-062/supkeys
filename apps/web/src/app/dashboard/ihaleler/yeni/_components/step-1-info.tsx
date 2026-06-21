@@ -1132,6 +1132,31 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
               />
             </Field>
           ) : null}
+
+          {/* Faz 3 madde 16 — Ödeme zamanı: sipariş ödeme akışını belirler. */}
+          <Field
+            error={errors.paymentTiming?.message}
+            hint="Teslim öncesi seçilirse tedarikçi onayından sonra, teslim sonrası seçilirse sipariş tamamlanınca ödeme kaydı girilebilir."
+          >
+            <Label required>Ödeme Zamanı</Label>
+            <FormRadioGroup
+              name="paymentTiming"
+              className="grid grid-cols-2 gap-3"
+            >
+              <div className="flex items-center gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
+                <Radio value="BEFORE_DELIVERY" />
+                <span className="text-sm font-semibold text-zinc-900">
+                  Teslim öncesi
+                </span>
+              </div>
+              <div className="flex items-center gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
+                <Radio value="AFTER_DELIVERY" />
+                <span className="text-sm font-semibold text-zinc-900">
+                  Teslim sonrası
+                </span>
+              </div>
+            </FormRadioGroup>
+          </Field>
         </div>
       </section>
 

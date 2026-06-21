@@ -1,14 +1,6 @@
 "use client";
 
 import { Badge } from "@/components/catalyst/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/catalyst/table";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import type { Currency, ItemQuestion } from "@/lib/tenders/types";
 import { HelpCircle, Inbox } from "lucide-react";
@@ -40,7 +32,7 @@ interface ItemRow {
 interface Props {
   items: ItemRow[];
   currency: Currency;
-  /** Alıcı tarafı `true` geçer; tedarikçi tarafında kolon hiç görünmez. */
+  /** Alıcı tarafı `true` geçer; tedarikçi tarafında hedef fiyat hiç görünmez. */
   showTargetPrice?: boolean;
 }
 
@@ -60,73 +52,65 @@ export function ItemsTab({ items, currency, showTargetPrice = false }: Props) {
   }
 
   return (
-    <Table dense className="[--gutter:--spacing(4)]">
-      <TableHead>
-        <TableRow>
-          <TableHeader className="w-10">#</TableHeader>
-          <TableHeader>Kalem</TableHeader>
-          <TableHeader className="text-right">Miktar</TableHeader>
-          <TableHeader className="hidden sm:table-cell">Birim</TableHeader>
-          <TableHeader className="hidden font-mono md:table-cell">
-            Stok Kodu
-          </TableHeader>
-          {showTargetPrice ? (
-            <TableHeader className="text-right">Hedef Fiyat</TableHeader>
-          ) : null}
-          <TableHeader>Soru</TableHeader>
-        </TableRow>
-      </TableHead>
-      <TableBody>
-        {items.map((it) => (
-          <TableRow key={it.id}>
-            <TableCell className="tabular-nums text-zinc-400">
-              {it.orderIndex}
-            </TableCell>
-            <TableCell className="font-medium">
-              <div className="text-zinc-900">{it.name}</div>
-              {it.description ? (
-                <div
-                  className="mt-0.5 max-w-md truncate text-xs text-zinc-500"
-                  title={it.description}
-                >
-                  {it.description}
+    <div className="space-y-2.5">
+      {items.map((it) => {
+        const questions =
+          it.questions && it.questions.length > 0
+            ? it.questions.map((q) => q.text)
+            : it.customQuestion
+              ? [it.customQuestion]
+              : [];
+        return (
+          <div
+            key={it.id}
+            className="rounded-xl border border-zinc-950/5 bg-white p-4 transition-colors hover:border-zinc-950/15"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-xs font-bold text-zinc-600">
+                  {it.orderIndex}
                 </div>
-              ) : null}
-            </TableCell>
-            <TableCell className="text-right tabular-nums text-zinc-900">
-              {fmtNumber(it.quantity, 4)}
-            </TableCell>
-            <TableCell className="hidden text-zinc-500 sm:table-cell">
-              {it.unit}
-            </TableCell>
-            <TableCell className="hidden font-mono text-xs text-zinc-500 md:table-cell">
-              {it.materialCode || "—"}
-            </TableCell>
-            {showTargetPrice ? (
-              <TableCell className="text-right tabular-nums text-zinc-500">
-                {it.targetUnitPrice
-                  ? `${fmtNumber(it.targetUnitPrice)} ${CURRENCY_SYMBOL[currency]}`
-                  : "—"}
-              </TableCell>
-            ) : null}
-            <TableCell>
-              {it.questions && it.questions.length > 0 ? (
-                <Badge title={it.questions.map((q) => `• ${q.text}`).join("\n")}>
-                  <HelpCircle className="h-3 w-3" />
-                  {it.questions.length} soru
-                </Badge>
-              ) : it.customQuestion ? (
-                <Badge title={it.customQuestion}>
-                  <HelpCircle className="h-3 w-3" />
-                  Var
-                </Badge>
-              ) : (
-                <span className="text-xs text-zinc-400">—</span>
-              )}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+                <div className="min-w-0">
+                  <p className="font-semibold leading-tight text-zinc-900">
+                    {it.name}
+                  </p>
+                  {it.materialCode ? (
+                    <p className="mt-0.5 font-mono text-xs text-zinc-500">
+                      {it.materialCode}
+                    </p>
+                  ) : null}
+                  {it.description ? (
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {it.description}
+                    </p>
+                  ) : null}
+                  {questions.length > 0 ? (
+                    <span className="mt-2 inline-flex">
+                      <Badge title={questions.map((q) => `• ${q}`).join("\n")}>
+                        <HelpCircle className="h-3 w-3" />
+                        {questions.length} soru
+                      </Badge>
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="font-bold tabular-nums text-zinc-900">
+                  {fmtNumber(it.quantity, 4)}{" "}
+                  <span className="font-normal text-zinc-500">{it.unit}</span>
+                </p>
+                {showTargetPrice ? (
+                  <p className="mt-0.5 text-xs tabular-nums text-zinc-500">
+                    {it.targetUnitPrice
+                      ? `Hedef: ${fmtNumber(it.targetUnitPrice)} ${CURRENCY_SYMBOL[currency]}`
+                      : "Hedef yok"}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

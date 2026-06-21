@@ -7,7 +7,9 @@ import type {
   OrderCounterpart,
   OrderDetail,
   OrderListResponse,
+  OrderPayment,
   OrderStats,
+  PaymentMethod,
 } from "@/lib/tenders/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -154,6 +156,52 @@ export function useCancelOrder() {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: KEYS.all });
       qc.invalidateQueries({ queryKey: KEYS.detail(vars.id) });
+    },
+  });
+}
+
+// Faz 3 madde 16 — Direkt ödeme (alıcı tarafı)
+
+export interface CreateOrderPaymentInput {
+  method: PaymentMethod;
+  amount: number;
+  currency: string;
+  chequeNo?: string;
+  chequeBank?: string;
+  chequeDueDate?: string;
+  note?: string;
+}
+
+/** Alıcı bir ödeme kaydı oluşturur ("ödedim"). */
+export function useCreateOrderPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { orderId: string } & CreateOrderPaymentInput) => {
+      const { orderId, ...body } = input;
+      const { data } = await api.post<OrderPayment>(
+        `/tenants/me/orders/${orderId}/payments`,
+        body,
+      );
+      return data;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(vars.orderId) });
+    },
+  });
+}
+
+/** Alıcı henüz onaylanmamış (AWAITING) ödeme kaydını siler. */
+export function useDeleteOrderPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { orderId: string; paymentId: string }) => {
+      const { data } = await api.delete<{ success: boolean }>(
+        `/tenants/me/orders/${input.orderId}/payments/${input.paymentId}`,
+      );
+      return data;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: KEYS.detail(vars.orderId) });
     },
   });
 }

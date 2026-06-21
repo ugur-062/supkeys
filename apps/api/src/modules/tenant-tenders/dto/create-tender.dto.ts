@@ -54,6 +54,12 @@ export enum PaymentTermDto {
   DEFERRED = "DEFERRED",
 }
 
+// Faz 3 madde 16 — Ödemenin teslime göre zamanı.
+export enum PaymentTimingDto {
+  BEFORE_DELIVERY = "BEFORE_DELIVERY",
+  AFTER_DELIVERY = "AFTER_DELIVERY",
+}
+
 // V2-7 — İngiliz Usulü açık eksiltme enum'ları.
 export enum BidVisibilityDto {
   OWN_ONLY = "OWN_ONLY",
@@ -258,6 +264,11 @@ export class CreateTenderDto {
   @Min(1)
   @Max(365)
   paymentDays?: number;
+
+  // Faz 3 madde 16 — Ödeme teslim öncesi mi sonrası mı (varsayılan: sonrası).
+  @IsOptional()
+  @IsEnum(PaymentTimingDto)
+  paymentTiming?: PaymentTimingDto;
 
   // Hüküm-koşul, notlar
   @IsOptional()

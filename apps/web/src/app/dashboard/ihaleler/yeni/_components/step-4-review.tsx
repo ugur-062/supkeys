@@ -18,6 +18,7 @@ import {
   CURRENCY_SYMBOL,
   DELIVERY_TERM_LABELS,
   PAYMENT_TERM_LABELS,
+  PAYMENT_TIMING_LABELS,
 } from "@/lib/tenders/labels";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -298,6 +299,7 @@ export function Step4Review({ onEditStep, stagedFiles }: Props) {
               {data.paymentTerm === "DEFERRED" && data.paymentDays
                 ? ` (${data.paymentDays} gün)`
                 : ""}
+              {` · ${PAYMENT_TIMING_LABELS[data.paymentTiming]}`}
             </>
           }
         />

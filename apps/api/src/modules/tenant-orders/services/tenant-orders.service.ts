@@ -68,6 +68,7 @@ const ORDER_DETAIL_SELECT = {
       deliveryAddress: true,
       paymentTerm: true,
       paymentDays: true,
+      paymentTiming: true,
       // Creator gate — UI'da action butonlarını yalnızca ihale sahibine veya
       // COMPANY_ADMIN'e göstermek için kullanılır.
       createdBy: {
@@ -125,6 +126,8 @@ const ORDER_DETAIL_SELECT = {
   cancelledBy: {
     select: { id: true, firstName: true, lastName: true },
   },
+  // Faz 3 madde 16 — direkt ödeme kayıtları (alıcı/tedarikçi handshake).
+  payments: { orderBy: { createdAt: "asc" as const } },
 } as const;
 
 @Injectable()
@@ -225,24 +228,35 @@ export class TenantOrdersService {
   }
 
   async stats(tenantId: string) {
-    const [total, pending, accepted, inDelivery, completed, rejected, cancelled] =
-      await Promise.all([
-        this.prisma.order.count({ where: { tenantId } }),
-        this.prisma.order.count({ where: { tenantId, status: "PENDING" } }),
-        this.prisma.order.count({ where: { tenantId, status: "ACCEPTED" } }),
-        this.prisma.order.count({
-          where: { tenantId, status: "IN_DELIVERY" },
-        }),
-        this.prisma.order.count({ where: { tenantId, status: "COMPLETED" } }),
-        this.prisma.order.count({ where: { tenantId, status: "REJECTED" } }),
-        this.prisma.order.count({ where: { tenantId, status: "CANCELLED" } }),
-      ]);
+    const [
+      total,
+      pending,
+      accepted,
+      inDelivery,
+      delivered,
+      completed,
+      rejected,
+      cancelled,
+    ] = await Promise.all([
+      this.prisma.order.count({ where: { tenantId } }),
+      this.prisma.order.count({ where: { tenantId, status: "PENDING" } }),
+      this.prisma.order.count({ where: { tenantId, status: "ACCEPTED" } }),
+      this.prisma.order.count({
+        where: { tenantId, status: "IN_DELIVERY" },
+      }),
+      // Faz 3 madde 16 — teslim alındı, ödeme bekleniyor (AFTER_DELIVERY).
+      this.prisma.order.count({ where: { tenantId, status: "DELIVERED" } }),
+      this.prisma.order.count({ where: { tenantId, status: "COMPLETED" } }),
+      this.prisma.order.count({ where: { tenantId, status: "REJECTED" } }),
+      this.prisma.order.count({ where: { tenantId, status: "CANCELLED" } }),
+    ]);
 
     return {
       total,
       pending,
       accepted,
       inDelivery,
+      delivered,
       completed,
       rejected,
       cancelled,
@@ -293,7 +307,13 @@ export class TenantOrdersService {
   // ============================================================
 
   /**
-   * Alıcı IN_DELIVERY → COMPLETED. Tedarikçiye `order_status_changed` e-posta.
+   * Alıcı "Teslim Aldım" — IN_DELIVERY'den sonraki durum ödeme zamanına bağlı:
+   *  - AFTER_DELIVERY: DELIVERED (teslim alındı, ödeme bekleniyor). Sipariş,
+   *    tedarikçi ödemeyi onaylayınca otomatik COMPLETED olur (bkz.
+   *    OrderPaymentsService.confirm).
+   *  - BEFORE_DELIVERY: ödeme zaten teslim öncesi yapıldığından doğrudan
+   *    COMPLETED.
+   * Tedarikçiye `order_status_changed` e-posta.
    */
   async completeOrder(
     tenantId: string,
@@ -309,7 +329,7 @@ export class TenantOrdersService {
           id: true,
           tenantId: true,
           status: true,
-          tender: { select: { createdById: true } },
+          tender: { select: { createdById: true, paymentTiming: true } },
         },
       });
       if (!order) throw new NotFoundException("Sipariş bulunamadı");
@@ -321,8 +341,25 @@ export class TenantOrdersService {
       );
       if (order.status !== "IN_DELIVERY") {
         throw new ConflictException(
-          `Sadece IN_DELIVERY durumundaki siparişler tamamlanabilir. Mevcut durum: ${order.status}`,
+          `Sadece IN_DELIVERY durumundaki siparişler teslim alınabilir. Mevcut durum: ${order.status}`,
         );
+      }
+
+      const note = dto.completedNote?.trim() || null;
+
+      if (order.tender.paymentTiming === "AFTER_DELIVERY") {
+        // Teslim alındı — ödeme adımı bekleniyor. completedById/completedNote
+        // teslim alanı + notunu taşır; completedAt nihai tamamlamada set edilir.
+        return tx.order.update({
+          where: { id: orderId },
+          data: {
+            status: "DELIVERED",
+            deliveredAt: new Date(),
+            completedById: userId,
+            completedNote: note,
+          },
+          include: ORDER_DETAIL_SELECT,
+        });
       }
 
       return tx.order.update({
@@ -331,16 +368,17 @@ export class TenantOrdersService {
           status: "COMPLETED",
           completedAt: new Date(),
           completedById: userId,
-          completedNote: dto.completedNote?.trim() || null,
+          completedNote: note,
         },
         include: ORDER_DETAIL_SELECT,
       });
     });
 
+    const newStatus = updated.status as "DELIVERED" | "COMPLETED";
     setImmediate(() =>
-      this.dispatchStatusEmailToSupplier(updated, "COMPLETED").catch((err) =>
+      this.dispatchStatusEmailToSupplier(updated, newStatus).catch((err) =>
         this.logger.error(
-          `order_status_changed (COMPLETED) dispatch failed for ${updated.orderNumber}: ${
+          `order_status_changed (${newStatus}) dispatch failed for ${updated.orderNumber}: ${
             err instanceof Error ? err.message : String(err)
           }`,
         ),
@@ -430,7 +468,7 @@ export class TenantOrdersService {
 
   private async dispatchStatusEmailToSupplier(
     order: Prisma.OrderGetPayload<{ include: typeof ORDER_DETAIL_SELECT }>,
-    newStatus: "COMPLETED" | "CANCELLED",
+    newStatus: "DELIVERED" | "COMPLETED" | "CANCELLED",
   ): Promise<void> {
     const supplierUser = order.supplier.users[0];
     if (!supplierUser) {
@@ -441,12 +479,12 @@ export class TenantOrdersService {
     }
 
     const note =
-      newStatus === "COMPLETED" ? order.completedNote : order.cancelReason;
+      newStatus === "CANCELLED" ? order.cancelReason : order.completedNote;
 
-    // Eski statü: COMPLETED'a daima IN_DELIVERY'den; CANCELLED'a
+    // Eski statü: DELIVERED/COMPLETED'a daima IN_DELIVERY'den; CANCELLED'a
     // önce gönderildiyse IN_DELIVERY, onaylandıysa ACCEPTED, aksi PENDING.
     const previous: "PENDING" | "ACCEPTED" | "IN_DELIVERY" =
-      newStatus === "COMPLETED"
+      newStatus !== "CANCELLED"
         ? "IN_DELIVERY"
         : order.deliveryStartedAt
           ? "IN_DELIVERY"

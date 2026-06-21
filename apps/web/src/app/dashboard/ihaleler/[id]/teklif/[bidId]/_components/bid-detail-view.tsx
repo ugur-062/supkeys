@@ -1,13 +1,5 @@
 "use client";
 
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/catalyst/table";
 import { AttachmentList } from "@/components/attachments/attachment-list";
 import { BidStatusBadge } from "@/components/tenders/status-badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +13,6 @@ import {
   DropdownLabel,
   DropdownMenu,
 } from "@/components/catalyst/dropdown";
-import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -37,7 +28,6 @@ import {
   Loader2,
   Package,
   Trophy,
-  Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -343,77 +333,95 @@ function DetailHeader({
   );
 }
 
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+}: {
+  icon: typeof Package;
+  label: string;
+  value: React.ReactNode;
+  sub?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-zinc-950/5 bg-white p-5">
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
+          <Icon className="h-5 w-5 text-zinc-700" />
+        </div>
+        <div className="min-w-0">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            {label}
+          </p>
+          <p className="mt-0.5 text-2xl font-bold tabular-nums text-zinc-950">
+            {value}
+          </p>
+        </div>
+      </div>
+      {sub ? <div className="mt-2">{sub}</div> : null}
+    </div>
+  );
+}
+
 function KpiCards({ bid }: { bid: BidDetailExpanded }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      {/* KPI 1: Son Teklif */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5">
-        <p className="text-sm font-semibold text-success-700 mb-3">
-          v{bid.version} / {bid.version} Son Teklif
-        </p>
-        <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
-            <Wallet className="h-6 w-6 text-purple-600" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-2xl font-bold text-brand-900 tabular-nums truncate">
-              {formatCurrency(bid.totalAmount, bid.currency)}
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      {/* Toplam teklif — siyah vurgu blok */}
+      <div className="overflow-hidden rounded-2xl ring-1 ring-zinc-950/5">
+        <div className="bg-zinc-900 p-5 text-white">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+            Toplam Teklif
+          </p>
+          <p className="mt-1.5 truncate text-2xl font-bold tabular-nums">
+            {formatCurrency(bid.totalAmount, bid.currency)}
+          </p>
+          {bid.currency !== "TRY" && bid.exchangeRateSnapshot ? (
+            <p className="mt-1 text-[11px] tabular-nums text-zinc-400">
+              ≈{" "}
+              {formatCurrency(
+                Number(bid.totalAmount) * bid.exchangeRateSnapshot.rate,
+                "TRY",
+              )}{" "}
+              <span className="text-zinc-500">
+                (kur: {bid.exchangeRateSnapshot.rate.toFixed(4)} ·{" "}
+                {bid.exchangeRateSnapshot.rateDate} TCMB)
+              </span>
             </p>
-            {bid.currency !== "TRY" && bid.exchangeRateSnapshot ? (
-              <p className="text-[11px] text-slate-500 mt-1 tabular-nums">
-                ≈ {formatCurrency(
-                  Number(bid.totalAmount) * bid.exchangeRateSnapshot.rate,
-                  "TRY",
-                )}{" "}
-                <span className="text-slate-400">
-                  (kur: {bid.exchangeRateSnapshot.rate.toFixed(4)} ·{" "}
-                  {bid.exchangeRateSnapshot.rateDate} TCMB)
-                </span>
-              </p>
-            ) : bid.isDifferentCurrency ? (
-              <p className="text-[11px] text-slate-500 mt-1">
-                Bu tedarikçi teklifini {bid.currency} olarak vermiştir.
-              </p>
-            ) : null}
-          </div>
+          ) : bid.isDifferentCurrency ? (
+            <p className="mt-1 text-[11px] text-zinc-400">
+              Teklif {bid.currency} para biriminde verilmiştir.
+            </p>
+          ) : null}
         </div>
       </div>
 
-      {/* KPI 2: Kalem Sayısı */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5">
-        <p className="text-sm font-semibold text-slate-700 mb-3">
-          Teklif Verilen Kalem Sayısı
-        </p>
-        <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
-            <Package className="h-6 w-6 text-purple-600" />
-          </div>
-          <p className="text-2xl font-bold text-brand-900">
-            {bid.itemsBidCount}{" "}
+      <StatCard
+        icon={Package}
+        label="Teklif Verilen Kalem"
+        value={
+          <>
+            {bid.itemsBidCount}
             <span className="text-base font-normal text-slate-500">
+              {" "}
               / {bid.totalItems}
             </span>
-          </p>
-        </div>
-      </div>
-
-      {/* KPI 3: Sıralama */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5">
-        <p className="text-sm font-semibold text-slate-700 mb-3">
-          Tedarikçinin Teklif Sıralaması
-        </p>
-        <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
-            <Trophy className="h-6 w-6 text-purple-600" />
-          </div>
-          <p className="text-2xl font-bold text-brand-900">
-            {bid.rank ?? "—"}{" "}
+          </>
+        }
+      />
+      <StatCard
+        icon={Trophy}
+        label="Sıralama"
+        value={
+          <>
+            {bid.rank ?? "—"}
             <span className="text-base font-normal text-slate-500">
+              {" "}
               / {bid.totalBids}
             </span>
-          </p>
-        </div>
-      </div>
+          </>
+        }
+      />
     </div>
   );
 }
@@ -505,98 +513,67 @@ function Field({
 }
 
 function ItemsTable({ bid }: { bid: BidDetailExpanded }) {
+  const items = bid.items ?? [];
   return (
-    <div className="bg-white ring-1 ring-zinc-950/5 rounded-xl px-3 [--gutter:--spacing(4)]">
-      <Table dense>
-        <TableHead>
-          <TableRow>
-            <TableHeader>Kalem</TableHeader>
-            <TableHeader className="text-right w-32">Miktar</TableHeader>
-            <TableHeader className="text-right w-32">Hedef Fiyat</TableHeader>
-            <TableHeader className="text-right w-40">Birim Fiyat</TableHeader>
-            <TableHeader className="text-right w-44">Toplam</TableHeader>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {(bid.items ?? []).map((bi) => (
-            <TableRow key={bi.id}>
-              <TableCell className="align-top">
-                <p className="font-medium text-zinc-900">
+    <div className="space-y-2.5">
+      {items.map((bi) => {
+        const qa: Array<{ q: string; a: string }> =
+          bi.tenderItem.questions && bi.tenderItem.questions.length > 0
+            ? bi.tenderItem.questions.map((q) => ({
+                q: q.text,
+                a:
+                  bi.answers?.find((a) => a.questionId === q.id)?.value || "—",
+              }))
+            : bi.tenderItem.customQuestion && bi.customAnswer
+              ? [{ q: bi.tenderItem.customQuestion, a: bi.customAnswer }]
+              : [];
+        return (
+          <div
+            key={bi.id}
+            className="rounded-xl border border-zinc-950/5 bg-white p-4"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="font-semibold text-zinc-900">
                   {bi.tenderItem.name}
                 </p>
-                  {bi.tenderItem.questions &&
-                  bi.tenderItem.questions.length > 0 ? (
-                    <div className="mt-2 bg-warning-50 border border-warning-200 rounded p-2 max-w-xl space-y-2">
-                      {bi.tenderItem.questions.map((q) => {
-                        const ans = bi.answers?.find(
-                          (a) => a.questionId === q.id,
-                        )?.value;
-                        return (
-                          <div key={q.id}>
-                            <p className="text-[10px] font-semibold text-warning-800 uppercase tracking-wide">
-                              Soru
-                            </p>
-                            <p className="text-xs text-slate-700 mt-0.5">
-                              {q.text}
-                            </p>
-                            <p className="text-[10px] font-semibold text-warning-800 uppercase tracking-wide mt-1">
-                              Cevap
-                            </p>
-                            <p className="text-xs text-slate-700 mt-0.5 whitespace-pre-wrap">
-                              {ans || "—"}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : bi.tenderItem.customQuestion && bi.customAnswer ? (
-                    <div className="mt-2 bg-warning-50 border border-warning-200 rounded p-2 max-w-xl">
-                      <p className="text-[10px] font-semibold text-warning-800 uppercase tracking-wide">
-                        Soru
-                      </p>
-                      <p className="text-xs text-slate-700 mt-0.5">
-                        {bi.tenderItem.customQuestion}
-                      </p>
-                      <p className="text-[10px] font-semibold text-warning-800 uppercase tracking-wide mt-2">
-                        Cevap
-                      </p>
-                      <p className="text-xs text-slate-700 mt-0.5 whitespace-pre-wrap">
-                        {bi.customAnswer}
-                      </p>
-                    </div>
-                ) : null}
-              </TableCell>
-              <TableCell className="text-right text-zinc-600 align-top">
-                {formatQty(bi.tenderItem.quantity)} {bi.tenderItem.unit}
-              </TableCell>
-              <TableCell className="text-right text-zinc-500 align-top">
-                —
-              </TableCell>
-              <TableCell className="text-right font-semibold tabular-nums align-top">
-                {bi.unitPrice
-                  ? `${bi.currency} ${formatNumber(bi.unitPrice)}`
-                  : "—"}
-              </TableCell>
-              <TableCell className="text-right font-bold text-zinc-900 tabular-nums align-top">
-                {bi.totalPrice
-                  ? formatCurrency(bi.totalPrice, bi.currency)
-                  : "—"}
-              </TableCell>
-            </TableRow>
-          ))}
-          <TableRow className="bg-zinc-50">
-            <TableCell
-              colSpan={4}
-              className="text-right font-bold text-zinc-900"
-            >
-              TOPLAM
-            </TableCell>
-            <TableCell className="text-right font-bold text-zinc-900 text-lg tabular-nums">
-              {formatCurrency(bid.totalAmount, bid.currency)}
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+                <p className="mt-0.5 text-xs tabular-nums text-zinc-500">
+                  {formatQty(bi.tenderItem.quantity)} {bi.tenderItem.unit}
+                  {bi.unitPrice
+                    ? ` × ${bi.currency} ${formatNumber(bi.unitPrice)}`
+                    : ""}
+                </p>
+              </div>
+              <p className="shrink-0 text-base font-bold tabular-nums text-zinc-950">
+                {bi.totalPrice ? formatCurrency(bi.totalPrice, bi.currency) : "—"}
+              </p>
+            </div>
+
+            {qa.length > 0 ? (
+              <div className="mt-3 space-y-2 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3">
+                {qa.map((item, i) => (
+                  <div key={i} className="text-xs">
+                    <p className="font-semibold text-zinc-500">Soru</p>
+                    <p className="mt-0.5 text-zinc-700">{item.q}</p>
+                    <p className="mt-1 font-semibold text-zinc-500">Cevap</p>
+                    <p className="mt-0.5 whitespace-pre-wrap text-zinc-800">
+                      {item.a}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+
+      {/* Toplam */}
+      <div className="flex items-center justify-between rounded-xl bg-zinc-900 px-4 py-3 text-white">
+        <span className="text-sm font-semibold">Toplam Teklif</span>
+        <span className="text-lg font-bold tabular-nums">
+          {formatCurrency(bid.totalAmount, bid.currency)}
+        </span>
+      </div>
     </div>
   );
 }

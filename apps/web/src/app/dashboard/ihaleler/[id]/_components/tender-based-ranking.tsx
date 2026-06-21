@@ -44,14 +44,16 @@ export function TenderBasedRanking({
         <SubTabButton
           active={subTab === "complete"}
           onClick={() => setSubTab("complete")}
+          count={bidsData.summary.complete}
         >
-          Tamamına Teklif Verenler ({bidsData.summary.complete})
+          Tamamına Teklif Verenler
         </SubTabButton>
         <SubTabButton
           active={subTab === "incomplete"}
           onClick={() => setSubTab("incomplete")}
+          count={bidsData.summary.incomplete}
         >
-          Eksik Teklif Verenler ({bidsData.summary.incomplete})
+          Eksik Teklif Verenler
         </SubTabButton>
       </div>
 
@@ -73,10 +75,12 @@ export function TenderBasedRanking({
 function SubTabButton({
   active,
   onClick,
+  count,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  count: number;
   children: React.ReactNode;
 }) {
   return (
@@ -84,13 +88,21 @@ function SubTabButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition whitespace-nowrap",
+        "inline-flex items-center gap-1.5 border-b-2 -mb-px px-4 py-2.5 text-sm font-medium transition-colors whitespace-nowrap focus:outline-none",
         active
-          ? "border-zinc-900 text-zinc-900"
-          : "border-transparent text-zinc-500 hover:text-zinc-700",
+          ? "border-zinc-900 text-zinc-950"
+          : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700",
       )}
     >
       {children}
+      <span
+        className={cn(
+          "rounded-full px-2 py-0.5 text-[11px]",
+          active ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600",
+        )}
+      >
+        {count}
+      </span>
     </button>
   );
 }
@@ -176,7 +188,14 @@ function BidsTable({
                 </TableCell>
                 <TableCell className="text-center">
                   {bid.rank ? (
-                    <div className="inline-flex items-center justify-center h-7 w-7 rounded-full bg-zinc-100 text-zinc-900 font-bold text-sm">
+                    <div
+                      className={cn(
+                        "inline-flex h-7 w-7 items-center justify-center rounded-full text-sm font-bold",
+                        isBest
+                          ? "bg-zinc-900 text-white"
+                          : "bg-zinc-100 text-zinc-900",
+                      )}
+                    >
                       {bid.rank}
                     </div>
                   ) : (
