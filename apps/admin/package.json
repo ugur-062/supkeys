@@ -10,8 +10,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.10",
+    "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^3.10.0",
-    "@radix-ui/react-dialog": "^1.1.15",
     "@supkeys/shared": "workspace:*",
     "@tanstack/react-query": "^5.62.11",
     "axios": "^1.7.9",
@@ -19,6 +20,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.468.0",
+    "motion": "^12.40.0",
     "next": "15.5.18",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

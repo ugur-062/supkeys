@@ -39,3 +39,9 @@ apps/api/test/helpers/*.js.map
 # Playwright test artifacts
 apps/web/test-results/
 apps/web/playwright-report/
+
+# Claude Code yerel oturum/memory verisi
+.claude/
+
+# packages/db geçici debug scriptleri (chk.mjs, rel.mjs vb.)
+packages/db/*.mjs

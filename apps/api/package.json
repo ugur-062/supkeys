@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.2",
     "@aws-sdk/client-s3": "^3.1045.0",
     "@aws-sdk/s3-request-presigner": "^3.1045.0",
     "@nestjs/axios": "^4.0.1",
@@ -43,8 +44,6 @@
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
-    "eslint": "^9.17.0",
-    "typescript-eslint": "^8.59.0",
     "@nestjs/schematics": "^10.2.3",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.2",
@@ -52,10 +51,12 @@
     "@types/xml2js": "^0.4.14",
     "concurrently": "^9.1.2",
     "dotenv": "^17.4.2",
+    "eslint": "^9.17.0",
     "nodemon": "^3.1.9",
     "ts-loader": "^9.5.1",
     "tsconfig-paths": "^4.2.0",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.59.0"
   }
 }
