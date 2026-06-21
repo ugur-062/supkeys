@@ -3,10 +3,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 /**
- * Public tedarikçi profil sayfası layout'u.
+ * Public alıcı (firma) profil sayfası layout'u — tedarikçi profiliyle aynı çerçeve.
  * Auth yok, sidebar yok — sade marka header + footer.
  */
-export default function PublicSupplierLayout({
+export default function PublicTenantLayout({
   children,
 }: {
   children: ReactNode;
@@ -23,10 +23,10 @@ export default function PublicSupplierLayout({
             <SupkeysLogo variant="full" size="lg" priority />
           </Link>
           <Link
-            href="/login"
+            href="/supplier/login"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-surface-border bg-white text-sm font-semibold text-brand-700 hover:bg-brand-50 hover:border-brand-300 transition-colors"
           >
-            Giriş Yap
+            Tedarikçi Girişi
           </Link>
         </div>
       </header>
@@ -37,7 +37,7 @@ export default function PublicSupplierLayout({
             <SupkeysLogo variant="full" size="sm" />
             <span>© 2026</span>
           </div>
-          <span>Tedarikçi profil özelliği PREMIUM üyelere özeldir</span>
+          <span>Supkeys ile güçlendirilmiştir</span>
         </div>
       </footer>
     </div>

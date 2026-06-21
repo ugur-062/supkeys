@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return { title: "Profil bulunamadı — Supkeys" };
   }
   const siteUrl = resolveSiteUrl();
-  const canonicalPath = `/t/${profile.slug}`;
+  const canonicalPath = `/${profile.slug}`;
   const description = (
     profile.aboutText ??
     `${profile.companyName}${
@@ -52,7 +52,7 @@ export default async function PublicSupplierProfilePage({ params }: Props) {
   if (!profile) notFound();
 
   // JSON-LD — Organization + AggregateRating + Review (Google zengin sonuç)
-  const canonicalUrl = `${resolveSiteUrl()}/t/${profile.slug}`;
+  const canonicalUrl = `${resolveSiteUrl()}/${profile.slug}`;
   const jsonLd = buildOrganizationJsonLd(profile, canonicalUrl);
 
   return (

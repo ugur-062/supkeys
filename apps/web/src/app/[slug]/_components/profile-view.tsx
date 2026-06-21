@@ -1,3 +1,11 @@
+import { Badge as CatalystBadge } from "@/components/catalyst/badge";
+import { Button } from "@/components/catalyst/button";
+import {
+  DescriptionDetails,
+  DescriptionList,
+  DescriptionTerm,
+} from "@/components/catalyst/description-list";
+import { Subheading } from "@/components/catalyst/heading";
 import type {
   PublicSupplierProfile,
   PublicSupplierReview,
@@ -68,7 +76,7 @@ export function PublicSupplierProfileView({ profile }: Props) {
           className={cn(
             "h-56 md:h-80 w-full relative",
             !profile.coverImageUrl &&
-              "bg-gradient-to-br from-brand-600 via-brand-700 to-brand-900",
+              "bg-gradient-to-br from-zinc-600 via-zinc-700 to-zinc-900",
           )}
           style={
             profile.coverImageUrl
@@ -100,7 +108,7 @@ export function PublicSupplierProfileView({ profile }: Props) {
 
         {/* Profil header kartı — cover'a binmiş, asıl identity bloğu */}
         <div className="max-w-5xl mx-auto px-4 md:px-6">
-          <div className="bg-white rounded-2xl shadow-lg border border-surface-border -mt-16 md:-mt-20 relative">
+          <div className="bg-white rounded-2xl shadow-sm ring-1 ring-zinc-950/5 -mt-16 md:-mt-20 relative">
             <div className="p-5 md:p-7 grid grid-cols-1 lg:grid-cols-[auto,1fr,auto] gap-5 lg:gap-7 items-start">
               {/* Avatar — logo yüklenmişse onu göster, yoksa initials */}
               <div className="-mt-14 md:-mt-16 shrink-0">
@@ -109,7 +117,7 @@ export function PublicSupplierProfileView({ profile }: Props) {
                     "w-24 h-24 md:w-28 md:h-28 rounded-2xl overflow-hidden",
                     "ring-4 ring-white shadow-lg",
                     !profile.logoImageUrl &&
-                      "bg-gradient-to-br from-brand-100 to-brand-200 text-brand-700 flex items-center justify-center text-3xl md:text-4xl font-bold font-display",
+                      "bg-gradient-to-br from-zinc-100 to-zinc-200 text-zinc-700 flex items-center justify-center text-3xl md:text-4xl font-bold font-display",
                   )}
                 >
                   {profile.logoImageUrl ? (
@@ -127,11 +135,11 @@ export function PublicSupplierProfileView({ profile }: Props) {
               {/* Identity bloğu */}
               <div className="min-w-0 space-y-3">
                 <div>
-                  <h1 className="font-display font-bold text-3xl md:text-4xl text-brand-900 leading-tight tracking-tight">
+                  <h1 className="font-display font-bold text-3xl md:text-4xl text-zinc-900 leading-tight tracking-tight">
                     {profile.companyName}
                   </h1>
                   {profile.industry && (
-                    <p className="text-sm md:text-base text-slate-600 font-medium mt-1">
+                    <p className="text-sm md:text-base text-zinc-600 font-medium mt-1">
                       {profile.industry}
                     </p>
                   )}
@@ -156,9 +164,9 @@ export function PublicSupplierProfileView({ profile }: Props) {
                     <Badge icon={Users}>{profile.employeeCount} çalışan</Badge>
                   )}
                   {memberSince && (
-                    <span className="text-slate-500 inline-flex items-center gap-1.5">
+                    <span className="text-zinc-500 inline-flex items-center gap-1.5">
                       <Sparkles
-                        className="h-3.5 w-3.5 text-brand-400"
+                        className="h-3.5 w-3.5 text-zinc-400"
                         aria-hidden
                       />
                       Üye: {memberSince}
@@ -178,31 +186,28 @@ export function PublicSupplierProfileView({ profile }: Props) {
               <div className="flex flex-col gap-3 lg:items-end lg:min-w-[200px]">
                 {hasRating && <HeroRatingWidget rating={profile.rating} />}
 
-                {/* Sosyal/CTA — desktop'ta sağda */}
-                <div className="hidden lg:flex items-center gap-2">
-                  <SocialIcons profile={profile} />
-                </div>
+                {/* Sosyal ikonlar + Web Sitesi — yan yana */}
+                <div className="flex items-center gap-2 flex-wrap lg:justify-end">
+                  <div className="hidden lg:flex items-center gap-2">
+                    <SocialIcons profile={profile} />
+                  </div>
 
-                {profile.website && (
-                  <a
-                    href={profile.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={cn(
-                      "inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg",
-                      "bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold",
-                      "transition-colors w-full lg:w-auto",
-                    )}
-                  >
-                    <Globe className="h-4 w-4" />
-                    Web Sitesi
-                  </a>
-                )}
+                  {profile.website && (
+                    <Button
+                      href={profile.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Globe data-slot="icon" />
+                      Web Sitesi
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Hızlı stats şeridi — kartın alt kenarı */}
-            <div className="grid grid-cols-2 border-t border-surface-border divide-x divide-surface-border">
+            <div className="grid grid-cols-2 border-t border-zinc-950/5 divide-x divide-zinc-950/5">
               <Stat
                 label="Değerlendirme"
                 value={
@@ -237,7 +242,7 @@ export function PublicSupplierProfileView({ profile }: Props) {
         {/* Hakkımızda */}
         {profile.aboutText && (
           <Section icon={Info} title="Hakkımızda">
-            <p className="text-[15px] text-slate-700 leading-relaxed whitespace-pre-line">
+            <p className="text-[15px] text-zinc-700 leading-relaxed whitespace-pre-line">
               {profile.aboutText}
             </p>
           </Section>
@@ -248,12 +253,7 @@ export function PublicSupplierProfileView({ profile }: Props) {
           <Section icon={Sparkles} title="Hizmetler">
             <div className="flex flex-wrap gap-2">
               {profile.services.map((s) => (
-                <span
-                  key={s}
-                  className="inline-flex items-center px-3 py-1.5 rounded-full bg-brand-50 border border-brand-100 text-sm text-brand-700 font-medium"
-                >
-                  {s}
-                </span>
+                <CatalystBadge key={s}>{s}</CatalystBadge>
               ))}
             </div>
           </Section>
@@ -264,13 +264,30 @@ export function PublicSupplierProfileView({ profile }: Props) {
           <Section icon={ShieldCheck} title="Sertifikalar ve Ödüller">
             <div className="flex flex-wrap gap-2">
               {profile.certifications.map((c) => (
-                <span
-                  key={c}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200 text-sm text-emerald-700 font-medium"
-                >
+                <CatalystBadge key={c} color="lime">
                   <Award className="h-3.5 w-3.5" />
                   {c}
-                </span>
+                </CatalystBadge>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {/* G9 madde 26 — Yüklenen belge/sertifika dosyaları (indirilebilir) */}
+        {profile.certificates.length > 0 && (
+          <Section icon={FileText} title="Belgeler">
+            <div className="flex flex-wrap gap-2">
+              {profile.certificates.map((c) => (
+                <a
+                  key={c.id}
+                  href={c.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-zinc-950/5 bg-white text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors"
+                >
+                  <FileText className="h-4 w-4 text-zinc-400" />
+                  {c.name}
+                </a>
               ))}
             </div>
           </Section>
@@ -279,46 +296,38 @@ export function PublicSupplierProfileView({ profile }: Props) {
         {/* Tescil Bilgileri — vergi no / vergi dairesi / MERSİS (opt-in) */}
         {(profile.taxNumber || profile.mersisNo) && (
           <Section icon={FileText} title="Tescil Bilgileri">
-            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {profile.taxNumber && (
-                <div>
-                  <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
-                    Vergi Numarası
-                  </dt>
-                  <dd className="font-mono text-base text-brand-900 mt-1">
+            <DescriptionList>
+              {profile.taxNumber ? (
+                <>
+                  <DescriptionTerm>Vergi Numarası</DescriptionTerm>
+                  <DescriptionDetails className="font-mono">
                     {profile.taxNumber}
-                  </dd>
-                </div>
-              )}
-              {profile.taxOffice && (
-                <div>
-                  <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
-                    Vergi Dairesi
-                  </dt>
-                  <dd className="text-base text-brand-900 mt-1">
-                    {profile.taxOffice}
-                  </dd>
-                </div>
-              )}
-              {profile.mersisNo && (
-                <div>
-                  <dt className="text-[11px] uppercase tracking-wider text-slate-500 font-semibold">
-                    MERSİS Numarası
-                  </dt>
-                  <dd className="font-mono text-base text-brand-900 mt-1">
+                  </DescriptionDetails>
+                </>
+              ) : null}
+              {profile.taxOffice ? (
+                <>
+                  <DescriptionTerm>Vergi Dairesi</DescriptionTerm>
+                  <DescriptionDetails>{profile.taxOffice}</DescriptionDetails>
+                </>
+              ) : null}
+              {profile.mersisNo ? (
+                <>
+                  <DescriptionTerm>MERSİS Numarası</DescriptionTerm>
+                  <DescriptionDetails className="font-mono">
                     {profile.mersisNo}
-                  </dd>
-                </div>
-              )}
-            </dl>
-            <p className="text-xs text-slate-500 mt-4 leading-relaxed">
+                  </DescriptionDetails>
+                </>
+              ) : null}
+            </DescriptionList>
+            <p className="text-xs text-zinc-500 mt-4 leading-relaxed">
               Bu bilgiler firma tarafından açık paylaşıma onaylanmıştır.
               Doğrulama için{" "}
               <a
                 href="https://uyg.gib.gov.tr/Iste/SicilSorgu"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-brand-700 hover:underline"
+                className="text-zinc-700 hover:underline"
               >
                 GİB Sicil Sorgu
               </a>{" "}
@@ -327,7 +336,7 @@ export function PublicSupplierProfileView({ profile }: Props) {
                 href="https://mersis.gtb.gov.tr/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-brand-700 hover:underline"
+                className="text-zinc-700 hover:underline"
               >
                 MERSİS
               </a>{" "}
@@ -341,12 +350,9 @@ export function PublicSupplierProfileView({ profile }: Props) {
           <Section icon={Tag} title="Kategoriler">
             <div className="flex flex-wrap gap-2">
               {profile.categories.map((c) => (
-                <span
-                  key={c.id}
-                  className="inline-flex items-center px-3 py-1.5 rounded-full bg-slate-100 border border-slate-200 text-sm text-slate-700"
-                >
+                <CatalystBadge key={c.id} color="zinc">
                   {c.nameTr}
-                </span>
+                </CatalystBadge>
               ))}
             </div>
           </Section>
@@ -373,7 +379,7 @@ export function PublicSupplierProfileView({ profile }: Props) {
               {profile.photos.map((p) => (
                 <figure
                   key={p.id}
-                  className="group aspect-square rounded-xl overflow-hidden bg-slate-100 relative"
+                  className="group aspect-square rounded-xl overflow-hidden bg-zinc-100 relative"
                 >
                   <FallbackImage
                     src={p.url}
@@ -415,8 +421,8 @@ export function PublicSupplierProfileView({ profile }: Props) {
                 label="Instagram"
               />
             )}
-            <li className="inline-flex items-center gap-2.5 text-slate-700">
-              <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-slate-500">
+            <li className="inline-flex items-center gap-2.5 text-zinc-700">
+              <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-100 text-zinc-500">
                 <MapPin className="h-4 w-4" />
               </span>
               {profile.city} / {profile.district}
@@ -445,14 +451,14 @@ function Section({
   return (
     <section
       id={id}
-      className="bg-white rounded-2xl shadow-card border border-surface-border p-5 md:p-6"
+      className="bg-white rounded-2xl shadow-sm ring-1 ring-zinc-950/5 p-5 md:p-6"
     >
-      <h2 className="font-display font-bold text-lg text-brand-900 mb-4 inline-flex items-center gap-2">
-        <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-brand-50 text-brand-600">
+      <div className="mb-4 flex items-center gap-2">
+        <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600">
           <Icon className="h-4 w-4" />
         </span>
-        {title}
-      </h2>
+        <Subheading>{title}</Subheading>
+      </div>
       {children}
     </section>
   );
@@ -469,55 +475,37 @@ function Badge({
   children: React.ReactNode;
 }) {
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 text-slate-700 font-medium">
-      <Icon className="h-3.5 w-3.5 text-slate-500" />
+    <CatalystBadge>
+      <Icon className="h-3.5 w-3.5" />
       {children}
-    </span>
+    </CatalystBadge>
   );
 }
 
 function PremiumBadge() {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-bold",
-        "bg-gradient-to-r from-amber-50 to-yellow-50",
-        "border border-amber-200 text-amber-700",
-        "shadow-sm",
-      )}
-    >
+    <CatalystBadge color="amber">
       <Award className="h-3.5 w-3.5" />
       PREMIUM
-    </span>
+    </CatalystBadge>
   );
 }
 
 function VerifiedBadge() {
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md font-bold",
-        "bg-gradient-to-r from-blue-50 to-sky-50",
-        "border border-blue-200 text-blue-700",
-        "shadow-sm",
-      )}
-      title="Supkeys onay sürecinden geçen aktif PREMIUM tedarikçi"
-    >
+    <CatalystBadge title="Supkeys onay sürecinden geçen aktif PREMIUM tedarikçi">
       <BadgeCheck className="h-3.5 w-3.5" />
       Doğrulanmış İşletme
-    </span>
+    </CatalystBadge>
   );
 }
 
 function SoleProprietorBadge() {
   return (
-    <span
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200 text-slate-600 font-medium"
-      title="Şahıs işletmesi — KVKK gereği vergi/MERSİS bilgisi paylaşılmaz"
-    >
+    <CatalystBadge title="Şahıs işletmesi — KVKK gereği vergi/MERSİS bilgisi paylaşılmaz">
       <Building2 className="h-3.5 w-3.5" />
       Şahıs İşletmesi
-    </span>
+    </CatalystBadge>
   );
 }
 
@@ -575,8 +563,8 @@ function SocialIcons({ profile }: { profile: PublicSupplierProfile }) {
           title={label}
           className={cn(
             "inline-flex items-center justify-center w-9 h-9 rounded-lg",
-            "bg-slate-100 hover:bg-brand-50 text-slate-600 hover:text-brand-700",
-            "border border-surface-border transition-colors",
+            "bg-zinc-100 hover:bg-zinc-50 text-zinc-600 hover:text-zinc-700",
+            "border border-zinc-950/5 transition-colors",
           )}
         >
           <Icon className="h-4 w-4" />
@@ -597,13 +585,13 @@ function Stat({
 }) {
   return (
     <div className="px-4 py-3 text-center">
-      <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">
+      <div className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">
         {label}
       </div>
-      <div className="font-display font-bold text-xl text-brand-900 mt-0.5 tabular-nums">
+      <div className="font-display font-bold text-xl text-zinc-900 mt-0.5 tabular-nums">
         {value}
       </div>
-      {hint && <div className="text-[11px] text-slate-500 mt-0.5">{hint}</div>}
+      {hint && <div className="text-[11px] text-zinc-500 mt-0.5">{hint}</div>}
     </div>
   );
 }
@@ -623,9 +611,9 @@ function ContactLink({
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-2.5 text-brand-700 hover:underline group"
+        className="inline-flex items-center gap-2.5 text-zinc-700 hover:underline group"
       >
-        <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-brand-50 text-brand-600 group-hover:bg-brand-100">
+        <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-zinc-50 text-zinc-600 group-hover:bg-zinc-100">
           <Icon className="h-4 w-4" />
         </span>
         {label}
@@ -648,8 +636,8 @@ function RatingSummary({
   return (
     <div className="grid grid-cols-1 md:grid-cols-[auto,1fr] gap-6 md:gap-8 items-center">
       {/* Sol — büyük ortalama */}
-      <div className="text-center md:text-left md:border-r md:border-surface-border md:pr-8">
-        <p className="font-display font-bold text-4xl md:text-5xl text-brand-900 leading-none">
+      <div className="text-center md:text-left md:border-r md:border-zinc-950/5 md:pr-8">
+        <p className="font-display font-bold text-4xl md:text-5xl text-zinc-900 leading-none">
           {avg.toFixed(1)}
         </p>
         <div className="mt-2 inline-flex items-center gap-0.5">
@@ -661,12 +649,12 @@ function RatingSummary({
                   ? "h-4 w-4 fill-yellow-400 text-yellow-500"
                   : avg >= n - 0.5
                     ? "h-4 w-4 fill-yellow-400/50 text-yellow-500"
-                    : "h-4 w-4 text-slate-300"
+                    : "h-4 w-4 text-zinc-300"
               }
             />
           ))}
         </div>
-        <p className="text-xs text-slate-500 mt-2">{total} değerlendirme</p>
+        <p className="text-xs text-zinc-500 mt-2">{total} değerlendirme</p>
       </div>
 
       {/* Sağ — 5→1 dağılım barı */}
@@ -677,13 +665,13 @@ function RatingSummary({
           return (
             <div
               key={star}
-              className="flex items-center gap-3 text-xs text-slate-600"
+              className="flex items-center gap-3 text-xs text-zinc-600"
             >
               <span className="inline-flex items-center gap-0.5 w-6 tabular-nums">
                 {star}
                 <Star className="h-3 w-3 fill-yellow-400 text-yellow-500" />
               </span>
-              <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+              <div className="flex-1 h-2 bg-zinc-100 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-yellow-400 rounded-full"
                   style={{ width: `${pct}%` }}
@@ -711,17 +699,17 @@ function ReviewItem({ review }: { review: PublicSupplierReview }) {
     }
   })();
   return (
-    <li className="border-t border-surface-border pt-5 first:border-t-0 first:pt-0">
+    <li className="border-t border-zinc-950/5 pt-5 first:border-t-0 first:pt-0">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-slate-100 to-slate-200 text-slate-700 flex items-center justify-center font-semibold text-sm">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-zinc-100 to-zinc-200 text-zinc-700 flex items-center justify-center font-semibold text-sm">
             {initials(review.reviewerName)}
           </div>
           <div>
-            <p className="font-semibold text-brand-900 text-sm">
+            <p className="font-semibold text-zinc-900 text-sm">
               {review.reviewerName}
             </p>
-            {date && <p className="text-xs text-slate-500">{date}</p>}
+            {date && <p className="text-xs text-zinc-500">{date}</p>}
           </div>
         </div>
         <div className="inline-flex items-center gap-0.5">
@@ -731,14 +719,14 @@ function ReviewItem({ review }: { review: PublicSupplierReview }) {
               className={
                 review.rating >= n
                   ? "h-3.5 w-3.5 fill-yellow-400 text-yellow-500"
-                  : "h-3.5 w-3.5 text-slate-300"
+                  : "h-3.5 w-3.5 text-zinc-300"
               }
             />
           ))}
         </div>
       </div>
       {review.reviewText && (
-        <p className="text-sm text-slate-700 mt-3 whitespace-pre-line leading-relaxed">
+        <p className="text-sm text-zinc-700 mt-3 whitespace-pre-line leading-relaxed">
           {review.reviewText}
         </p>
       )}
