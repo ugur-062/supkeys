@@ -11,7 +11,7 @@ const CURRENCIES = ["TRY", "USD", "EUR", "GBP"] as const;
 
 /**
  * Tasarruf Raporu DTO — verilen tarih aralığında AWARDED ihalelerde
- * hedef fiyat ile kazanan teklif arasındaki tasarrufu hesaplar.
+ * en yüksek teklif ile en düşük teklif arasındaki tasarrufu hesaplar (madde 28).
  * Opsiyonel currency filter.
  */
 export class SavingsReportDto {

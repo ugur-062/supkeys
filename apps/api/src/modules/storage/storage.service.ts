@@ -123,6 +123,22 @@ export class StorageService implements OnModuleInit {
     return getSignedUrl(this.client, command, { expiresIn: PUT_TTL_SECONDS });
   }
 
+  /** Sunucu tarafı upload — buffer'ı doğrudan R2'ya yazar (web sitesi import vb.). */
+  async putObject(
+    key: string,
+    body: Buffer,
+    contentType: string,
+  ): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+      }),
+    );
+  }
+
   async generatePresignedGet(
     key: string,
     originalFilename?: string,
@@ -184,6 +200,27 @@ export class StorageService implements OnModuleInit {
   ): string {
     const sanitized = this.sanitizeFilename(originalFilename);
     return `${this.envPrefix}/supplier-profile/${supplierId}/${kind}-${id}-${sanitized}`;
+  }
+
+  /** G9 madde 26 — tedarikçi sertifika/belge dosyaları için R2 key. */
+  buildSupplierCertificateKey(
+    supplierId: string,
+    id: string,
+    originalFilename: string,
+  ): string {
+    const sanitized = this.sanitizeFilename(originalFilename);
+    return `${this.envPrefix}/supplier-certificates/${supplierId}/${id}-${sanitized}`;
+  }
+
+  /** Alıcı (tenant) public profil görselleri (logo/cover) için R2 key. */
+  buildTenantProfileKey(
+    tenantId: string,
+    kind: "cover" | "logo",
+    id: string,
+    originalFilename: string,
+  ): string {
+    const sanitized = this.sanitizeFilename(originalFilename);
+    return `${this.envPrefix}/tenant-profile/${tenantId}/${kind}-${id}-${sanitized}`;
   }
 
   /**

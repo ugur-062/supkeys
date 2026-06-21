@@ -287,7 +287,9 @@ export class TenantReportsService {
           },
         },
         bids: {
-          where: { status: { in: ["AWARDED_FULL", "AWARDED_PARTIAL"] } },
+          // Madde 28 — en yüksek/en düşük için TÜM gönderilmiş teklifler
+          // (elenen/kaybeden dahil; geri çekilenler hariç).
+          where: { submittedAt: { not: null }, status: { not: "WITHDRAWN" } },
           include: {
             supplier: { select: { id: true, companyName: true } },
             items: {
@@ -385,19 +387,35 @@ export class TenantReportsService {
         };
       });
 
-      const savings = targetTotal > 0 ? targetTotal - actualTotal : null;
+      // Madde 28 — Tasarruf = en yüksek teklif − en düşük teklif (ihale bazında,
+      // tüm gönderilmiş teklif toplamlarından). Tek teklifte tasarruf yok.
+      const bidTotals = t.bids
+        .map((b) => Number(b.totalAmount))
+        .filter((n) => Number.isFinite(n));
+      const highestBid = bidTotals.length > 0 ? Math.max(...bidTotals) : null;
+      const lowestBid = bidTotals.length > 0 ? Math.min(...bidTotals) : null;
+      const savings =
+        bidTotals.length >= 2 && highestBid != null && lowestBid != null
+          ? highestBid - lowestBid
+          : null;
       const savingsPct =
-        targetTotal > 0 ? ((targetTotal - actualTotal) / targetTotal) * 100 : null;
+        savings != null && highestBid && highestBid > 0
+          ? (savings / highestBid) * 100
+          : null;
 
       return {
         id: t.id,
         tenderNumber: t.tenderNumber,
         title: t.title,
         currency: t.primaryCurrency,
-        targetTotal,
-        actualTotal,
+        bidCount: bidTotals.length,
+        highestBid,
+        lowestBid,
         savings,
         savingsPct,
+        // Hedef-vs-kazanan detayı (bilgi amaçlı; başlık metrik artık en yüksek−en düşük)
+        targetTotal,
+        actualTotal,
         winners: Array.from(winners.values()),
         items,
         awardedAt: t.bidsCloseAt.toISOString(),
@@ -406,6 +424,10 @@ export class TenantReportsService {
 
     const grandTarget = rows.reduce((s, r) => s + r.targetTotal, 0);
     const grandActual = rows.reduce((s, r) => s + r.actualTotal, 0);
+    // Madde 28 — toplam tasarruf = Σ (en yüksek − en düşük)
+    const grandHighest = rows.reduce((s, r) => s + (r.highestBid ?? 0), 0);
+    const grandLowest = rows.reduce((s, r) => s + (r.lowestBid ?? 0), 0);
+    const grandSavings = rows.reduce((s, r) => s + (r.savings ?? 0), 0);
 
     // En iyi / en kötü tasarruflu ihale (yüzdeye göre)
     const withPct = rows.filter((r) => r.savingsPct != null);
@@ -436,11 +458,13 @@ export class TenantReportsService {
       rows,
       summary: {
         totalTenders: rows.length,
+        grandHighest,
+        grandLowest,
         grandTarget,
         grandActual,
-        grandSavings: grandTarget > 0 ? grandTarget - grandActual : 0,
+        grandSavings,
         grandSavingsPct:
-          grandTarget > 0 ? ((grandTarget - grandActual) / grandTarget) * 100 : 0,
+          grandHighest > 0 ? (grandSavings / grandHighest) * 100 : 0,
         avgSavingsPct:
           withPct.length > 0
             ? withPct.reduce((s, r) => s + r.savingsPct!, 0) / withPct.length

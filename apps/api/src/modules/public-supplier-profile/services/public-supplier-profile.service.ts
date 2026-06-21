@@ -28,6 +28,8 @@ export interface PublicSupplierProfileResponse {
   services: string[];
   categories: { id: string; nameTr: string }[];
   photos: { id: string; url: string; caption: string | null }[];
+  /** G9 madde 26 — sertifika/belgeler (ad + dosya linki). */
+  certificates: { id: string; name: string; url: string }[];
   /** "X yıldır Supkeys üyesi" gibi etiket için. */
   memberSinceIso: string;
   /** V2-PUBLIC-PROFILE-DETAILS — Detaylı alanlar. */
@@ -85,6 +87,11 @@ export class PublicSupplierProfileService {
           orderBy: { orderIndex: "asc" },
           select: { id: true, url: true, caption: true },
         },
+        // G9 madde 26 — sertifikalar public profilde görünür
+        certificates: {
+          orderBy: { createdAt: "desc" },
+          select: { id: true, name: true, fileUrl: true },
+        },
       },
     });
 
@@ -103,6 +110,7 @@ export class PublicSupplierProfileService {
       coverImageUrl,
       logoImageUrl,
       photoUrls,
+      certUrls,
       aggregate,
       distribution,
       reviewsRaw,
@@ -111,6 +119,11 @@ export class PublicSupplierProfileService {
       this.storage.resolveImageUrl(supplier.logoImageUrl),
       Promise.all(
         supplier.photos.map((p) => this.storage.resolveImageUrl(p.url)),
+      ),
+      Promise.all(
+        supplier.certificates.map((c) =>
+          this.storage.resolveImageUrl(c.fileUrl),
+        ),
       ),
         this.prisma.supplierReview.aggregate({
           where: { supplierId: supplier.id },
@@ -169,6 +182,11 @@ export class PublicSupplierProfileService {
         id: p.id,
         url: photoUrls[i] ?? "",
         caption: p.caption,
+      })),
+      certificates: supplier.certificates.map((c, i) => ({
+        id: c.id,
+        name: c.name,
+        url: certUrls[i] ?? "",
       })),
       memberSinceIso: supplier.createdAt.toISOString(),
       foundedYear: supplier.foundedYear,

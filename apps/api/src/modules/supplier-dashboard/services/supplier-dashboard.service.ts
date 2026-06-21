@@ -62,6 +62,7 @@ export class SupplierDashboardService {
 
   async getStats(supplierId: string) {
     const last30 = new Date(Date.now() - 30 * MS_PER_DAY);
+    const last60 = new Date(Date.now() - 60 * MS_PER_DAY);
 
     const [
       activeInvitations,
@@ -71,6 +72,10 @@ export class SupplierDashboardService {
       totalRevenueAgg,
       bidsLast30,
       activeBuyers,
+      // Trend (geçen aya göre) — son 30 gün vs önceki 30 gün
+      revenueLast30Agg,
+      revenuePrev30Agg,
+      bidsPrev30,
     ] = await Promise.all([
       this.prisma.tenderInvitation.count({
         where: {
@@ -104,6 +109,17 @@ export class SupplierDashboardService {
       this.prisma.supplierTenantRelation.count({
         where: { supplierId, status: "ACTIVE" },
       }),
+      this.prisma.order.aggregate({
+        where: { supplierId, createdAt: { gte: last30 } },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.order.aggregate({
+        where: { supplierId, createdAt: { gte: last60, lt: last30 } },
+        _sum: { totalAmount: true },
+      }),
+      this.prisma.bid.count({
+        where: { supplierId, submittedAt: { gte: last60, lt: last30 } },
+      }),
     ]);
 
     // Deterministic shape — count'lar nullable değil ama defensive ?? 0;
@@ -113,8 +129,15 @@ export class SupplierDashboardService {
       bids: { active: activeBids ?? 0 },
       wonTenders: wonTenders ?? 0,
       orders: { pending: pendingOrders ?? 0 },
-      revenue: { total: Number(totalRevenueAgg?._sum?.totalAmount ?? 0) },
-      last30Days: { bidsSubmitted: bidsLast30 ?? 0 },
+      revenue: {
+        total: Number(totalRevenueAgg?._sum?.totalAmount ?? 0),
+        last30: Number(revenueLast30Agg?._sum?.totalAmount ?? 0),
+        prev30: Number(revenuePrev30Agg?._sum?.totalAmount ?? 0),
+      },
+      last30Days: {
+        bidsSubmitted: bidsLast30 ?? 0,
+        prevBidsSubmitted: bidsPrev30 ?? 0,
+      },
       buyers: { active: activeBuyers ?? 0 },
     };
   }
