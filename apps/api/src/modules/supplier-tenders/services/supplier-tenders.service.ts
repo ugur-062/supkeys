@@ -148,6 +148,7 @@ export class SupplierTendersService {
           id: true,
           tenderNumber: true,
           title: true,
+          type: true,
           isLogistics: true,
           status: true,
           primaryCurrency: true,
@@ -201,6 +202,7 @@ export class SupplierTendersService {
         id: t.id,
         tenderNumber: t.tenderNumber,
         title: t.title,
+        type: t.type,
         isLogistics: t.isLogistics,
         status: t.status,
         primaryCurrency: t.primaryCurrency,
@@ -313,6 +315,8 @@ export class SupplierTendersService {
         version: true,
         submittedAt: true,
         notes: true,
+        deliveryDate: true,
+        validityDays: true,
       },
     });
 
@@ -797,12 +801,18 @@ export class SupplierTendersService {
           currency: bidCurrency,
           totalAmount,
           notes: dto.notes?.trim() || null,
+          // G4 — teslim tarihi (madde 8) + geçerlilik gün (madde 10). Save'de
+          // opsiyonel saklanır; zorunluluk submitBid'de uygulanır.
+          deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : null,
+          validityDays: dto.validityDays ?? null,
           version: 1,
         },
         update: {
           currency: bidCurrency,
           totalAmount,
           notes: dto.notes?.trim() || null,
+          deliveryDate: dto.deliveryDate ? new Date(dto.deliveryDate) : null,
+          validityDays: dto.validityDays ?? null,
           submittedById: supplierUserId,
         },
       });
@@ -936,6 +946,17 @@ export class SupplierTendersService {
       if (bid.items.length === 0) {
         throw new BadRequestException(
           "Teklif vermek için en az 1 kaleme fiyat girilmelidir",
+        );
+      }
+
+      // G4 madde 8 — teslim tarihi zorunlu (gönderde).
+      if (!bid.deliveryDate) {
+        throw new BadRequestException("Teslim tarihi zorunludur");
+      }
+      // G4 madde 10 — teklif geçerlilik süresi zorunlu (gönderde).
+      if (bid.validityDays == null || bid.validityDays < 1) {
+        throw new BadRequestException(
+          "Teklif geçerlilik süresi (gün) zorunludur",
         );
       }
 

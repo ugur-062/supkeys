@@ -1072,54 +1072,11 @@ export class TenantTendersService {
         "Kapanış tarihi geçmişte, yayınlamadan önce güncelleyin",
       );
 
-    // 2) Bütçe — Σ targetUnitPrice × quantity (boş kalemler 0 sayılır)
-    const estimatedAmount = tender.items.reduce((sum, it) => {
-      const target = it.targetUnitPrice ? Number(it.targetUnitPrice) : 0;
-      const qty = it.quantity ? Number(it.quantity) : 0;
-      return sum + target * qty;
-    }, 0);
+    // Madde 22 — İhale yayınlama onayı kaldırıldı. İhaleler onaya düşmeden
+    // doğrudan yayınlanır. Onay artık yalnızca kazandırmada (TENDER_AWARD)
+    // gereklidir.
 
-    // 3) Onay kuralı eşleşmesi (sadece amount > 0 ise dene)
-    const approvalRequest = await this.prisma.$transaction(async (tx) => {
-      if (estimatedAmount <= 0) return null;
-      return this.approvalRequests.findMatchAndCreate(tx, {
-        tenantId,
-        tenderId,
-        type: "TENDER_PUBLISH",
-        amount: estimatedAmount,
-        currency: tender.primaryCurrency || "TRY",
-        initiatedById: userId,
-      });
-    });
-
-    // 4a) Onay var → IN_APPROVAL'a al + ilk approver'a e-posta
-    if (approvalRequest) {
-      await this.prisma.tender.update({
-        where: { id: tenderId },
-        data: { status: "IN_APPROVAL" },
-      });
-
-      // ApprovalRequest oluşturulduktan sonra ilk PENDING adımı için e-posta
-      this.approvalRequests
-        .sendApprovalRequiredEmailForRequest(approvalRequest.id)
-        .catch((err) =>
-          this.logger.error(
-            `Initial approval_required dispatch failed for ${approvalRequest.id}: ${
-              err instanceof Error ? err.message : String(err)
-            }`,
-          ),
-        );
-
-      return {
-        id: tender.id,
-        tenderNumber: tender.tenderNumber,
-        status: "IN_APPROVAL" as const,
-        approvalRequestId: approvalRequest.id,
-        approvalNumber: approvalRequest.approvalNumber,
-      };
-    }
-
-    // 4b) Onay yok → direkt yayınla
+    // Direkt yayınla
     const published = await this.prisma.tender.update({
       where: { id: tenderId },
       data: {

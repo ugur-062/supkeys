@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsDateString,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -96,6 +97,18 @@ export class CreateOrUpdateBidDto {
   @IsString()
   @MaxLength(2000)
   notes?: string;
+
+  // G4 madde 8 — teslim tarihi (ISO). Save'de opsiyonel; gönderde zorunlu.
+  @IsOptional()
+  @IsDateString()
+  deliveryDate?: string;
+
+  // G4 madde 10 — teklif geçerlilik gün sayısı. Save'de opsiyonel; gönderde zorunlu.
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  validityDays?: number;
 
   @IsArray()
   @ArrayMinSize(1)
