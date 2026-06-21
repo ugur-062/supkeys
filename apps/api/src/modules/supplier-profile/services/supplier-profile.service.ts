@@ -7,6 +7,12 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import type { Prisma } from "@supkeys/db";
+import {
+  downloadImageBuffer,
+  extForContentType,
+  fetchSiteMeta,
+} from "../../../common/website-import";
+import { generateCompanyAbout } from "../../../common/ai-about";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import {
   buildBreadcrumb,
@@ -335,6 +341,149 @@ export class SupplierProfileService {
     });
 
     return this.getPublicProfile(supplierUserId);
+  }
+
+  // ===== Web sitesinden otomatik doldurma (OG meta + favicon) =====
+
+  /**
+   * Web sitesinin OG meta + favicon'undan logo/kapak/açıklama çekip public
+   * profile uygular. Görseller R2'ya kopyalanır. PREMIUM gerekir.
+   */
+  async importFromWebsite(supplierUserId: string, website: string) {
+    const supplier = await this.getPremiumSupplier(supplierUserId);
+    const meta = await fetchSiteMeta(website);
+    const supplierRow = await this.prisma.supplier.findUnique({
+      where: { id: supplier.id },
+      select: { companyName: true },
+    });
+
+    const imported = {
+      logo: false,
+      cover: false,
+      about: false,
+      services: false,
+      social: false,
+      gallery: 0,
+    };
+    const data: Prisma.SupplierUpdateInput = {};
+    let coverSrc: string | null = null;
+    let logoSrc: string | null = null;
+
+    if (meta.ogImage) {
+      const key = await this.downloadSupplierImage(supplier.id, "cover", meta.ogImage);
+      if (key) {
+        data.coverImageUrl = key;
+        coverSrc = meta.ogImage;
+        imported.cover = true;
+      }
+    }
+    if (meta.logo) {
+      const key = await this.downloadSupplierImage(supplier.id, "logo", meta.logo);
+      if (key) {
+        data.logoImageUrl = key;
+        logoSrc = meta.logo;
+        imported.logo = true;
+      }
+    }
+    // Açık "Otomatik Doldur" — varsa üzerine yazılır (kullanıcı sonra düzenler).
+    // Önce AI ile site içeriğinden profesyonel metin üret; olmazsa og:description.
+    const aiAbout = await generateCompanyAbout({
+      companyName: supplierRow?.companyName ?? "",
+      siteText: meta.text,
+    });
+    const about = aiAbout ?? meta.description;
+    if (about) {
+      data.aboutText = about.slice(0, 2000);
+      imported.about = true;
+    }
+    if (meta.linkedin) {
+      data.linkedinUrl = meta.linkedin.slice(0, 300);
+      imported.social = true;
+    }
+    if (meta.instagram) {
+      data.instagramUrl = meta.instagram.slice(0, 300);
+      imported.social = true;
+    }
+
+    // Hizmetler — tedarikçinin seçtiği kategorilerden doldur.
+    const cats = await this.prisma.supplierCategory.findMany({
+      where: { supplierId: supplier.id },
+      select: { category: { select: { nameTr: true } } },
+    });
+    const services = Array.from(
+      new Set(cats.map((c) => c.category.nameTr).filter(Boolean)),
+    ).slice(0, 20);
+    if (services.length > 0) {
+      data.services = services;
+      imported.services = true;
+    }
+
+    if (Object.keys(data).length > 0) {
+      await this.prisma.supplier.update({ where: { id: supplier.id }, data });
+    }
+
+    // Galeri — sitedeki görselleri indir (cover/logo hariç), 12 limitine kadar.
+    imported.gallery = await this.importGallery(supplier.id, meta.images, [
+      coverSrc,
+      logoSrc,
+    ]);
+
+    const profile = await this.getPublicProfile(supplierUserId);
+    return { ...profile, imported };
+  }
+
+  private async downloadSupplierImage(
+    supplierId: string,
+    kind: "logo" | "cover" | "photo",
+    imageUrl: string,
+  ): Promise<string | null> {
+    const img = await downloadImageBuffer(imageUrl);
+    if (!img) return null;
+    const key = this.storage.buildSupplierProfileKey(
+      supplierId,
+      kind,
+      randomUUID(),
+      `import.${extForContentType(img.contentType)}`,
+    );
+    await this.storage.putObject(key, img.buffer, img.contentType);
+    return key;
+  }
+
+  /** Sitedeki görselleri galeriye ekle. En fazla 8 yeni, 12 toplam; küçük/ikon görseller elenir. */
+  private async importGallery(
+    supplierId: string,
+    imageUrls: string[],
+    exclude: (string | null)[],
+  ): Promise<number> {
+    const existing = await this.prisma.supplierPhoto.count({
+      where: { supplierId },
+    });
+    let slots = Math.min(12 - existing, 8);
+    if (slots <= 0) return 0;
+    const excludeSet = new Set(exclude.filter((u): u is string => !!u));
+    let added = 0;
+    let tried = 0;
+    for (const url of imageUrls) {
+      if (slots <= 0 || tried >= 25) break;
+      if (excludeSet.has(url)) continue;
+      tried++;
+      const img = await downloadImageBuffer(url);
+      // 15KB altı görselleri (ikon/dekoratif) atla.
+      if (!img || img.buffer.byteLength < 15_000) continue;
+      const key = this.storage.buildSupplierProfileKey(
+        supplierId,
+        "photo",
+        randomUUID(),
+        `import.${extForContentType(img.contentType)}`,
+      );
+      await this.storage.putObject(key, img.buffer, img.contentType);
+      await this.prisma.supplierPhoto.create({
+        data: { supplierId, url: key, orderIndex: existing + added },
+      });
+      added++;
+      slots--;
+    }
+    return added;
   }
 
   // ============================================================

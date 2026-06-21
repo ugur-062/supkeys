@@ -18,6 +18,7 @@ import {
   FinalizeCoverDto,
   RequestProfileUploadDto,
 } from "../dto/request-profile-upload.dto";
+import { ImportWebsiteDto } from "../dto/import-website.dto";
 import { UpdateCompanyInfoDto } from "../dto/update-company-info.dto";
 import { UpdatePublicProfileDto } from "../dto/update-public-profile.dto";
 import { UpdateSupplierCategoriesDto } from "../dto/update-supplier-categories.dto";
@@ -54,6 +55,14 @@ export class SupplierProfileController {
   @Get("me/public-profile")
   getPublicProfile(@CurrentSupplierUser() user: AuthenticatedSupplierUser) {
     return this.service.getPublicProfile(user.supplierUserId);
+  }
+
+  @Post("me/public-profile/import-from-website")
+  importFromWebsite(
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+    @Body() dto: ImportWebsiteDto,
+  ) {
+    return this.service.importFromWebsite(user.supplierUserId, dto.website);
   }
 
   @Patch("me/public-profile")
