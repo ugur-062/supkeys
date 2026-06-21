@@ -25,6 +25,7 @@
 | 3 | 20 (Kayıtlı Bankalarım + tek yönetici) | ✅ — `supplier-banks` modülü + ayarlar/bankalar UI; sipariş onayında bankadan seçim |
 | 3 | 6 (Supkeys ID + Alıcı Havuzu) | ✅ (2026-06-21) — kalıcı supkeysId (alıcı+tedarikçi) + çift yönlü ekleme; Alıcı Havuzu (tedarikçi paneli) ad/ID arama + public profil |
 | 4/V2-7 | Açık İhale (PUBLIC görünürlük) + premium erişim | ✅ (2026-06-21) — Tender.visibility PRIVATE/PUBLIC; premium tedarikçi PUBLIC+OPEN ihaleleri davetsiz görür/teklif verir (ilk teklifte davet otomatik); standart 2 bağlantı limiti |
+| 3 | 33 (teminat mektubu) | ✅ (2026-06-21) — nakit (paymentTerm=CASH) ihalede kazanan tedarikçi siparişi ONAYLARKEN teminat mektubu yüklemek ZORUNDA (hard block); ORDER_GUARANTEE_LETTER scope; wizard uyarı + accept modal upload + belge panelinde kategori. **Faz 3 TAM bitti.** |
 
 ### G5 kilitli kararlar (2026-06-21 ürün sahibi cevapları)
 - **Fatura no:** Tedarikçi siparişi **"Gönderildi"ye geçirmek için fatura no girmek ZORUNDA** (kargo no değil).

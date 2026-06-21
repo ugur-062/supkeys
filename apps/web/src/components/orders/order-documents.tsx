@@ -23,10 +23,17 @@ interface Props {
   surface: AttachmentSurface;
   orderId: string;
   status: OrderStatus;
+  /** Madde 33 — nakit ödemeli sipariş; Teminat Mektubu kategorisini gösterir. */
+  cashPayment?: boolean;
 }
 
-export function OrderDocuments({ surface, orderId, status }: Props) {
-  const categories = visibleOrderDocCategories(status);
+export function OrderDocuments({
+  surface,
+  orderId,
+  status,
+  cashPayment,
+}: Props) {
+  const categories = visibleOrderDocCategories(status, { cashPayment });
   const canUpload = surface === "supplier" && canUploadOrderDocs(status);
 
   if (categories.length === 0) {

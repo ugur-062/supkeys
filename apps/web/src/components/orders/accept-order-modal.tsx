@@ -8,12 +8,15 @@ import {
   DialogTitle,
 } from "@/components/catalyst/dialog";
 import { Select } from "@/components/catalyst/select";
+import { AttachmentList } from "@/components/attachments/attachment-list";
+import { AttachmentUpload } from "@/components/attachments/attachment-upload";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useAttachments } from "@/hooks/use-attachments";
 import { useSupplierBanks } from "@/hooks/use-supplier-banks";
 import { ThumbsUp } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -31,6 +34,9 @@ interface Props {
   onConfirm: (input: AcceptInput) => void;
   loading: boolean;
   orderNumber: string;
+  /** Madde 33 — nakit ödemeli sipariş: onaydan önce teminat mektubu zorunlu. */
+  orderId: string;
+  cashPayment?: boolean;
 }
 
 const NOTE_MAX = 2000;
@@ -41,8 +47,18 @@ export function AcceptOrderModal({
   onConfirm,
   loading,
   orderNumber,
+  orderId,
+  cashPayment = false,
 }: Props) {
   const { data: banks } = useSupplierBanks();
+  const { data: guaranteeFiles } = useAttachments(
+    "supplier",
+    "ORDER_GUARANTEE_LETTER",
+    orderId,
+    open && cashPayment,
+  );
+  const guaranteeMissing =
+    cashPayment && (guaranteeFiles?.length ?? 0) === 0;
   const [expectedDate, setExpectedDate] = useState("");
   const [note, setNote] = useState("");
   const [bankId, setBankId] = useState("");
@@ -72,7 +88,7 @@ export function AcceptOrderModal({
         onSubmit={(e) => {
           e.preventDefault();
           setTouched(true);
-          if (expectedMissing || bankMissing) return;
+          if (expectedMissing || bankMissing || guaranteeMissing) return;
           onConfirm({
             expectedDeliveryDate: expectedDate,
             acceptedNote: note.trim() || undefined,
@@ -162,6 +178,41 @@ export function AcceptOrderModal({
               </Alert>
             )}
           </Field>
+
+          {/* Madde 33 — nakit ödemeli siparişte teminat mektubu zorunlu */}
+          {cashPayment ? (
+            <Field
+              error={
+                touched && guaranteeMissing
+                  ? "Onaylamak için teminat mektubu yükleyin"
+                  : undefined
+              }
+            >
+              <Label className="mb-1.5">
+                Teminat Mektubu <span className="text-danger-600">*</span>
+              </Label>
+              <Alert variant="warning" className="mb-3">
+                Bu sipariş <strong>nakit ödemeli</strong>. Onaylamadan önce banka
+                teminat mektubunuzu yükleyin; alıcı teslimat garantisi olarak
+                görür.
+              </Alert>
+              <AttachmentList
+                surface="supplier"
+                scope="ORDER_GUARANTEE_LETTER"
+                scopeRefId={orderId}
+                canDelete
+                emptyText="Henüz teminat mektubu yüklenmedi"
+              />
+              <div className="mt-2">
+                <AttachmentUpload
+                  surface="supplier"
+                  scope="ORDER_GUARANTEE_LETTER"
+                  scopeRefId={orderId}
+                  hint="Banka teminat mektubu — PDF, görsel, max 50 MB"
+                />
+              </div>
+            </Field>
+          ) : null}
         </DialogBody>
         <DialogActions>
           <Button
@@ -175,7 +226,7 @@ export function AcceptOrderModal({
           <Button
             type="submit"
             loading={loading}
-            disabled={loading || !hasBanks}
+            disabled={loading || !hasBanks || guaranteeMissing}
           >
             <ThumbsUp className="h-4 w-4" />
             Onayla

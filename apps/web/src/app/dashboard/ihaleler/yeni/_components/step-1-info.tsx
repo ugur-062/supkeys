@@ -1145,6 +1145,18 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
             </FormRadioGroup>
           </Field>
 
+          {/* Madde 33 — peşin/nakit ödemede teminat mektubu uyarısı */}
+          {paymentTerm === "CASH" ? (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+              <p className="text-xs text-amber-800">
+                Peşin (nakit) ödemede, <strong>kazanan tedarikçi</strong>{" "}
+                siparişi onaylamadan önce <strong>teminat mektubu</strong>{" "}
+                yüklemek zorundadır (teslimat garantisi).
+              </p>
+            </div>
+          ) : null}
+
           {paymentTerm === "DEFERRED" ? (
             <Field
               error={errors.paymentDays?.message}

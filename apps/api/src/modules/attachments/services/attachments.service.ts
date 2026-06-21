@@ -328,7 +328,8 @@ export class AttachmentsService {
     if (
       scope === "ORDER_PROFORMA" ||
       scope === "ORDER_TECHNICAL" ||
-      scope === "ORDER_DELIVERY"
+      scope === "ORDER_DELIVERY" ||
+      scope === "ORDER_GUARANTEE_LETTER"
     ) {
       if (actor.kind !== "supplier") {
         throw new ForbiddenException(
@@ -411,7 +412,8 @@ export class AttachmentsService {
       scope === "ORDER_PROFORMA" ||
       scope === "ORDER_TECHNICAL" ||
       scope === "ORDER_DELIVERY" ||
-      scope === "ORDER_PAYMENT_PROOF"
+      scope === "ORDER_PAYMENT_PROOF" ||
+      scope === "ORDER_GUARANTEE_LETTER"
     ) {
       const order = await this.prisma.order.findUnique({
         where: { id: scopeRefId },

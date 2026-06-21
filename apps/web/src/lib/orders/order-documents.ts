@@ -11,7 +11,8 @@ export type OrderDocScope =
   | "ORDER_PROFORMA"
   | "ORDER_TECHNICAL"
   | "ORDER_INVOICE"
-  | "ORDER_DELIVERY";
+  | "ORDER_DELIVERY"
+  | "ORDER_GUARANTEE_LETTER";
 
 export interface OrderDocCategory {
   scope: Extract<AttachmentScope, OrderDocScope>;
@@ -20,6 +21,8 @@ export interface OrderDocCategory {
   hint: string;
   /** Bu kategorinin görüneceği sipariş statüleri. */
   statuses: OrderStatus[];
+  /** Madde 33 — yalnızca nakit ödemeli siparişlerde görünür. */
+  cashOnly?: boolean;
 }
 
 // "baştan" görünenler — terminal statülerde de mevcut belgeler görünsün diye
@@ -64,13 +67,26 @@ export const ORDER_DOC_CATEGORIES: OrderDocCategory[] = [
     hint: "Alıcı imzalı irsaliye/teslim belgesi — PDF, görsel (max 50 MB)",
     statuses: ["IN_DELIVERY", "COMPLETED", "DELIVERED"],
   },
+  {
+    // Madde 33 — nakit ödemeli siparişte tedarikçi onaydan önce yükler.
+    scope: "ORDER_GUARANTEE_LETTER",
+    label: "Teminat Mektubu",
+    emptyText: "Teminat mektubu yüklenmedi",
+    hint: "Banka teminat mektubu — PDF, görsel (max 50 MB). Nakit ödemeli siparişte onaydan önce zorunlu.",
+    statuses: ALL_STATUSES,
+    cashOnly: true,
+  },
 ];
 
 /** Verilen sipariş statüsünde görünmesi gereken belge kategorileri. */
 export function visibleOrderDocCategories(
   status: OrderStatus,
+  opts?: { cashPayment?: boolean },
 ): OrderDocCategory[] {
-  return ORDER_DOC_CATEGORIES.filter((c) => c.statuses.includes(status));
+  return ORDER_DOC_CATEGORIES.filter(
+    (c) =>
+      c.statuses.includes(status) && (!c.cashOnly || opts?.cashPayment === true),
+  );
 }
 
 /** Tedarikçi belge yükleyebilir mi? (Terminal statülerde salt-okunur.) */

@@ -216,6 +216,7 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
                     surface="supplier"
                     orderId={order.id}
                     status={order.status}
+                    cashPayment={order.tender.paymentTerm === "CASH"}
                   />
                 </PanelCard>
               </TabPanel>
@@ -381,6 +382,8 @@ function SupplierOrderActions({ order }: { order: OrderDetail }) {
           onClose={() => setAcceptOpen(false)}
           loading={acceptOrder.isPending}
           orderNumber={order.orderNumber}
+          orderId={order.id}
+          cashPayment={order.tender.paymentTerm === "CASH"}
           onConfirm={(input) =>
             acceptOrder.mutate(
               { id: order.id, ...input },

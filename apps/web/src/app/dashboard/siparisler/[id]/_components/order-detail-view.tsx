@@ -165,6 +165,7 @@ function OrderDetailContent({ order }: { order: OrderDetail }) {
                 surface="tenant"
                 orderId={order.id}
                 status={order.status}
+                cashPayment={order.tender.paymentTerm === "CASH"}
               />
             </div>
           </Section>

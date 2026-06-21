@@ -302,7 +302,12 @@ export class SupplierOrdersService {
     const updated = await this.prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
         where: { id: orderId },
-        select: { id: true, supplierId: true, status: true },
+        select: {
+          id: true,
+          supplierId: true,
+          status: true,
+          tender: { select: { paymentTerm: true } },
+        },
       });
       if (!order) throw new NotFoundException("Sipariş bulunamadı");
       if (order.supplierId !== supplierId)
@@ -311,6 +316,22 @@ export class SupplierOrdersService {
         throw new ConflictException(
           `Sadece bekleyen siparişler onaylanabilir. Mevcut durum: ${order.status}`,
         );
+      }
+
+      // Madde 33 — nakit ödemeli siparişte onaydan önce teminat mektubu zorunlu.
+      if (order.tender.paymentTerm === "CASH") {
+        const guarantee = await tx.attachment.count({
+          where: {
+            scope: "ORDER_GUARANTEE_LETTER",
+            scopeRefId: orderId,
+            status: "UPLOADED",
+          },
+        });
+        if (guarantee === 0) {
+          throw new BadRequestException(
+            "Nakit ödemeli siparişte siparişi onaylamadan önce teminat mektubu yüklemelisiniz.",
+          );
+        }
       }
 
       // G6 madde 20 — banka kayıtlı bankalardan seçilir; hesabı ondan çöz.

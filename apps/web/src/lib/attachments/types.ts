@@ -16,6 +16,8 @@ export type AttachmentScope =
   | "ORDER_DELIVERY"
   // Faz 3 madde 16 — ödeme dekontu (alıcı yükler, ikisi de görür)
   | "ORDER_PAYMENT_PROOF"
+  // Madde 33 — teminat mektubu (nakit ödemede tedarikçi yükler, ikisi de görür)
+  | "ORDER_GUARANTEE_LETTER"
   | "MESSAGE_ATTACHMENT";
 
 export interface AttachmentItem {
