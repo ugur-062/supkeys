@@ -32,6 +32,24 @@ model Tenant {
   taxNumber   String? @unique
   taxOffice   String?
 
+  // Alıcı public profili — tedarikçilerin gördüğü herkese açık sayfa (/firma/[slug]).
+  // publicEnabled=true ise profil + "Tedarikçi Ol" yayında; false ise 404.
+  publicEnabled Boolean  @default(false)
+  aboutText     String?
+  website       String?
+  logoUrl       String? // R2 key (logo)
+  coverImageUrl String? // R2 key (kapak görseli)
+  linkedinUrl   String?
+  instagramUrl  String?
+  /// Kısa hizmet/uzmanlık etiketleri (örn. ["Tekstil", "Lojistik"]). Max 20.
+  services      String[] @default([])
+  /// Firma kuruluş yılı (4 haneli).
+  foundedYear   Int?
+  /// Çalışan sayısı bandı — serbest metin (örn. "50-100").
+  employeeCount String?
+  /// Sertifika/ödül etiketleri (örn. ["ISO 9001"]). Max 20.
+  certifications String[] @default([])
+
   // V2-6.5 — Tenant başına BUYER (Satın Almacı) kontenjanı. Super-admin
   // yönetir. APPROVER ve COMPANY_ADMIN sayılmaz; sadece role = BUYER sayılır.
   buyerSeatLimit Int @default(2)
@@ -473,6 +491,11 @@ model SupplierApplication {
   taxNumber       String
   taxOffice       String
   taxCertUrl      String
+  // G9 madde 27 — "Tedarikçi Ol" (CONNECT_REQUEST) başvurusunda zorunlu KYC
+  // belgeleri. Admin KYC adımında incelenir. Normal başvuruda null kalır.
+  ticariSicilUrl      String?
+  imzaSirkuleriUrl    String?
+  bankaOnayliIbanUrl  String?
   industry        String?
   website         String?
 
@@ -493,6 +516,8 @@ model SupplierApplication {
   categoryIds     Json?
 
   status          ApplicationStatus   @default(PENDING_EMAIL_VERIFICATION)
+  // Başvuru kaynağı — CONNECT_REQUEST ise admin onayında ilişki PENDING_TENANT_APPROVAL kurulur.
+  source          ApplicationSource   @default(SELF_REGISTER)
 
   emailToken      String?             @unique
   emailTokenExp   DateTime?
@@ -530,6 +555,21 @@ enum ApplicationStatus {
   REJECTED
 }
 
+/// Başvurunun kaynağı. CONNECT_REQUEST = alıcı public profilinden "Tedarikçi Ol".
+enum ApplicationSource {
+  SELF_REGISTER
+  TENANT_INVITE
+  CONNECT_REQUEST
+}
+
+/// Alıcı-tedarikçi ilişkisinin nasıl kurulduğu.
+/// CONNECT_REQUEST = tedarikçi kendi isteğiyle başvurdu (alıcı onayı bekler).
+enum RelationOrigin {
+  ADMIN
+  INVITE
+  CONNECT_REQUEST
+}
+
 enum CompanyType {
   JOINT_STOCK
   LIMITED
@@ -556,6 +596,8 @@ model Supplier {
   membership    SupplierMembership @default(STANDARD)
   isActive      Boolean            @default(true)
   isBlocked     Boolean            @default(false)
+  // "Tedarikçi Ol" (self-request) ile bir alıcıya bağlanınca dolar — kota: ömür boyu 1 kez.
+  selfRequestUsedAt DateTime?
   blockedReason String?
   blockedAt     DateTime?
   createdAt     DateTime           @default(now())
@@ -608,10 +650,50 @@ model Supplier {
   reviews             SupplierReview[]
   // Ekip — firma kullanıcı davetleri
   userInvitations     SupplierUserInvitation[]
+  // G6 madde 20 — kayıtlı banka hesapları
+  banks               SupplierBank[]
+  // G9 madde 26 — sertifika/belgeler (ISO vb.), public profilde görünür
+  certificates        SupplierCertificate[]
 
   @@index([taxNumber])
   @@index([membership])
   @@map("suppliers")
+}
+
+/// G9 madde 26 — Tedarikçi sertifika/belgeleri (ISO vb.). Tedarikçi serbestçe
+/// yükler; herkese açık profilde görünür.
+model SupplierCertificate {
+  id         String   @id @default(cuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  name       String
+  fileUrl    String
+
+  createdAt  DateTime @default(now())
+
+  @@index([supplierId])
+  @@map("supplier_certificates")
+}
+
+/// G6 madde 20 — Tedarikçinin kayıtlı banka hesapları. Sipariş onayında
+/// seçilir (otomatik doldurur). Yalnızca yönetici (isManager) düzenler.
+model SupplierBank {
+  id            String   @id @default(cuid())
+  supplierId    String
+  supplier      Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  accountHolder String
+  iban          String
+  bankName      String?
+  label         String?
+  isDefault     Boolean  @default(false)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([supplierId])
+  @@map("supplier_banks")
 }
 
 /// Ekip — tedarikçi firmasına yeni çalışan davet (rolsüz, herkes eşit).
@@ -691,6 +773,9 @@ model SupplierUser {
   lastName     String
   phone        String?
   isActive     Boolean   @default(true)
+  // G6 madde 20 — firma yöneticisi. Kuran (ilk kayıt) = true. Yönetici ek
+  // olarak kullanıcı yönetimi + banka hesaplarını kontrol eder.
+  isManager    Boolean   @default(false)
   // Ayarlar — e-posta bildirim tercihleri (key: boolean). null = tüm varsayılan açık.
   notificationPrefs Json?
   lastLoginAt  DateTime?
@@ -719,11 +804,17 @@ model SupplierTenantRelation {
   tenantId      String
   tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   status        RelationStatus @default(ACTIVE)
+  // İlişkinin kaynağı — CONNECT_REQUEST + PENDING_TENANT_APPROVAL = alıcı onayı bekleyen "Tedarikçi Ol" isteği.
+  origin        RelationOrigin @default(INVITE)
+  requestedAt   DateTime?
+  decidedAt     DateTime?
+  decidedById   String?
   blockedAt     DateTime?
   blockedReason String?
   createdAt     DateTime       @default(now())
 
   @@unique([supplierId, tenantId])
+  @@index([tenantId, status, origin])
   @@index([tenantId])
   @@index([supplierId])
   @@map("supplier_tenant_relations")
@@ -1070,6 +1161,10 @@ model Bid {
   totalAmount         Decimal         @db.Decimal(20, 4)
 
   notes               String?
+  // G4 — teslim tarihi (madde 8) + teklif geçerlilik gün sayısı (madde 10).
+  // Nullable: taslakta boş olabilir; gönderde zorunluluk serviste uygulanır.
+  deliveryDate        DateTime?
+  validityDays        Int?
   version             Int             @default(1)
 
   submittedAt         DateTime?
@@ -1181,18 +1276,19 @@ model Order {
   acceptedNote        String?         @db.Text
   bankAccountHolder   String?
   bankIban            String?
-  invoiceDate         DateTime?
 
   // Tedarikçi red aşaması (PENDING → REJECTED). Sebep zorunlu.
   rejectedAt          DateTime?
   rejectReason        String?         @db.Text
 
   // Gönderim aşaması (ACCEPTED → IN_DELIVERY). expectedDeliveryDate ACCEPT
-  // adımında girilir; bu blokta tedarikçinin gönderim notu kalır.
+  // adımında girilir; bu blokta tedarikçinin gönderim notu + fatura no.
   deliveryStartedAt   DateTime?
   deliveryStartedById String?
   deliveryStartedBy   User?           @relation("OrderDeliveryStarted", fields: [deliveryStartedById], references: [id])
   deliveryNote        String?         @db.Text
+  // G5 madde 12/14 — "Gönderildi"ye geçişte tedarikçi fatura no girer (zorunlu).
+  invoiceNumber       String?
   expectedDeliveryDate DateTime?
 
   completedAt         DateTime?
@@ -1433,6 +1529,10 @@ enum AttachmentScope {
   BID_RESPONSE
   ORDER_INVOICE
   MESSAGE_ATTACHMENT  // V2-4 — mesaj eki (scopeRefId = order veya tender id)
+  // G5 madde 19/21 — sipariş belge kategorileri (scopeRefId = order id).
+  ORDER_PROFORMA      // proforma (baştan)
+  ORDER_TECHNICAL     // teknik doküman (baştan)
+  ORDER_DELIVERY      // Teslimat Evrakları (gönderim sonrası, alıcı imzalı)
 }
 
 enum AttachmentStatus {
