@@ -28,8 +28,15 @@ export class SupplierRegistrationController {
     @Query("invitation") invitationToken: string | undefined,
     @Ip() ip: string,
     @Headers("user-agent") userAgent?: string,
+    @Query("connect") connectTenantSlug?: string,
   ) {
-    return this.service.create(dto, invitationToken, ip, userAgent);
+    return this.service.create(
+      dto,
+      invitationToken,
+      ip,
+      userAgent,
+      connectTenantSlug,
+    );
   }
 
   @Get("applications/:id/status")

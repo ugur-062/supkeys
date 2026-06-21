@@ -2,7 +2,9 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsOptional,
   IsString,
+  MaxLength,
 } from "class-validator";
 import { CreateBuyerApplicationDto } from "./create-buyer-application.dto";
 
@@ -14,4 +16,21 @@ export class CreateSupplierApplicationDto extends CreateBuyerApplicationDto {
   @ArrayMaxSize(20, { message: "En fazla 20 kategori seçebilirsiniz" })
   @IsString({ each: true, message: "Kategori ID'si geçerli bir metin olmalı" })
   categoryIds!: string[];
+
+  // G9 madde 27 — KYC belgeleri (base64, taxCertUrl gibi). "Tedarikçi Ol"
+  // (CONNECT_REQUEST) başvurusunda zorunlu; serviste kontrol edilir.
+  @IsOptional()
+  @IsString()
+  @MaxLength(20_000_000)
+  ticariSicilUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20_000_000)
+  imzaSirkuleriUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20_000_000)
+  bankaOnayliIbanUrl?: string;
 }

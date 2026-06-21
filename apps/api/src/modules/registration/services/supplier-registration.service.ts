@@ -34,9 +34,11 @@ export class SupplierRegistrationService {
     invitationToken: string | undefined,
     ipAddress?: string,
     userAgent?: string,
+    connectTenantSlug?: string,
   ) {
     const adminEmail = dto.adminEmail.toLowerCase().trim();
     const taxNumber = dto.taxNumber.trim();
+    const isConnect = !!connectTenantSlug && !invitationToken;
 
     // 0) Kategori ID'lerini doğrula — tedarikçi SADECE ana başlık (Segment level 1)
     await this.categoryService.validateIds(dto.categoryIds, { exactLevel: 1 });
@@ -65,15 +67,40 @@ export class SupplierRegistrationService {
     });
     if (existingSupplier) {
       throw new ConflictException(
-        "Bu vergi numarası zaten bir tedarikçiye kayıtlı",
+        isConnect
+          ? "Bu vergi numarası zaten kayıtlı bir tedarikçiye ait. Bu firmaya katılmak için davet/referans kodu kullanın."
+          : "Bu vergi numarası zaten bir tedarikçiye kayıtlı",
       );
     }
 
-    // 4) Davet token doğrulama
+    // 4) Davet token / connect (Tedarikçi Ol) doğrulama
     let invitationId: string | undefined;
     let invitedByTenantId: string | undefined;
+    let source: "SELF_REGISTER" | "TENANT_INVITE" | "CONNECT_REQUEST" =
+      "SELF_REGISTER";
 
-    if (invitationToken) {
+    if (isConnect) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { slug: connectTenantSlug },
+        select: { id: true, publicEnabled: true, isActive: true },
+      });
+      if (!tenant || !tenant.publicEnabled || !tenant.isActive) {
+        throw new NotFoundException("Firma bulunamadı veya başvuruya kapalı");
+      }
+      invitedByTenantId = tenant.id;
+      source = "CONNECT_REQUEST";
+      // G9 madde 27 — "Tedarikçi Ol" başvurusunda KYC belgeleri zorunlu.
+      if (
+        !dto.ticariSicilUrl?.trim() ||
+        !dto.imzaSirkuleriUrl?.trim() ||
+        !dto.bankaOnayliIbanUrl?.trim()
+      ) {
+        throw new BadRequestException(
+          "Bu başvuruda ticari sicil gazetesi, imza sirküleri ve banka onaylı IBAN belgeleri zorunludur",
+        );
+      }
+    } else if (invitationToken) {
+      source = "TENANT_INVITE";
       const tokenHash = hashToken(invitationToken);
       const invitation = await this.prisma.supplierInvitation.findUnique({
         where: { tokenHash },
@@ -114,6 +141,9 @@ export class SupplierRegistrationService {
         taxNumber,
         taxOffice: dto.taxOffice.trim(),
         taxCertUrl: dto.taxCertUrl.trim(),
+        ticariSicilUrl: dto.ticariSicilUrl?.trim() || null,
+        imzaSirkuleriUrl: dto.imzaSirkuleriUrl?.trim() || null,
+        bankaOnayliIbanUrl: dto.bankaOnayliIbanUrl?.trim() || null,
         industry: dto.industry?.trim(),
         website: dto.website?.trim(),
         city: dto.city.trim(),
@@ -128,6 +158,7 @@ export class SupplierRegistrationService {
         emailToken,
         emailTokenExp,
         status: "PENDING_EMAIL_VERIFICATION",
+        source,
         invitationId,
         invitedByTenantId,
         ipAddress,

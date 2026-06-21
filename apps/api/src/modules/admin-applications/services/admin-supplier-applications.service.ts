@@ -192,6 +192,8 @@ export class AdminSupplierApplicationsService {
           lastName: app.adminLastName,
           phone: app.adminPhone,
           supplierId: supplier.id,
+          // G6 madde 20 — firmayı kuran kişi yöneticidir.
+          isManager: true,
         },
       });
 
@@ -210,8 +212,12 @@ export class AdminSupplierApplicationsService {
         });
       }
 
-      // Davetli ise tenant ile ilişkilendir
+      // Tenant ile ilişkilendir.
+      // - Davet (TENANT_INVITE): alıcı zaten istemiş → direkt ACTIVE.
+      // - "Tedarikçi Ol" (CONNECT_REQUEST): KYC geçti ama alıcı henüz onaylamadı
+      //   → PENDING_TENANT_APPROVAL (alıcı "Gelen İstekler"de onaylar — Faz 3).
       if (app.invitedByTenantId) {
+        const isConnectRequest = app.source === "CONNECT_REQUEST";
         await tx.supplierTenantRelation.upsert({
           where: {
             supplierId_tenantId: {
@@ -222,9 +228,12 @@ export class AdminSupplierApplicationsService {
           create: {
             supplierId: supplier.id,
             tenantId: app.invitedByTenantId,
-            status: "ACTIVE",
+            status: isConnectRequest ? "PENDING_TENANT_APPROVAL" : "ACTIVE",
+            origin: isConnectRequest ? "CONNECT_REQUEST" : "INVITE",
+            requestedAt: isConnectRequest ? app.createdAt : null,
           },
-          update: { status: "ACTIVE" },
+          // Connect-request mevcut ilişkiye dokunmaz; davet ise ACTIVE'e çeker.
+          update: isConnectRequest ? {} : { status: "ACTIVE", origin: "INVITE" },
         });
       }
 
