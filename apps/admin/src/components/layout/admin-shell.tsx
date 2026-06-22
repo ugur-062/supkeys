@@ -35,6 +35,7 @@ import {
   LayoutDashboard,
   Mail,
   Settings,
+  ShieldCheck,
   Truck,
   UserCog,
 } from "lucide-react";
@@ -109,6 +110,12 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/suppliers",
         icon: Truck,
         activeMatch: "/admin/suppliers",
+      },
+      {
+        label: "Firma Doğrulamaları",
+        href: "/admin/company-verifications",
+        icon: ShieldCheck,
+        activeMatch: "/admin/company-verifications",
       },
       {
         label: "Ayarlar",

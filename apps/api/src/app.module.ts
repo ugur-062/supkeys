@@ -51,6 +51,7 @@ import { TenantSuppliersModule } from "./modules/tenant-suppliers/tenant-supplie
 import { TenantTendersModule } from "./modules/tenant-tenders/tenant-tenders.module";
 import { TenantTemplatesModule } from "./modules/tenant-templates/tenant-templates.module";
 import { TenantOnboardingModule } from "./modules/tenant-onboarding/tenant-onboarding.module";
+import { AdminCompanyVerificationsModule } from "./modules/admin-company-verifications/admin-company-verifications.module";
 import { TenantUsersModule } from "./modules/tenant-users/tenant-users.module";
 import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-scheduler.module";
 
@@ -105,6 +106,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     TenantReportsModule,
     TenantTemplatesModule,
     TenantOnboardingModule,
+    AdminCompanyVerificationsModule,
     SupplierDashboardModule,
     SupplierProfileModule,
     SupplierBanksModule,
