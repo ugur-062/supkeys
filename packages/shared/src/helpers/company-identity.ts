@@ -1,0 +1,96 @@
+/**
+ * Madde 29 — Firma kimlik/doğrulama alanları için ortak validasyon yardımcıları.
+ *
+ * Backend (class-validator custom / servis) ve frontend (zod refine) aynı
+ * mantığı paylaşsın diye saf fonksiyonlar. Hepsi `boolean` döner; mesajlar
+ * çağıran tarafta üretilir ("Bu değer geçersiz." / "Bu önemli firma bilgisini
+ * doldurun.").
+ */
+
+/** Sadece rakam içeren n-haneli kontrolü. */
+function isDigits(value: string, length: number): boolean {
+  return new RegExp(`^[0-9]{${length}}$`).test(value);
+}
+
+/** VKN — Vergi Kimlik No: tüzel kişi, 10 hane rakam. */
+export function isValidVkn(value: string): boolean {
+  return isDigits(value.trim(), 10);
+}
+
+/**
+ * TCKN — T.C. Kimlik No: 11 hane + standart kontrol algoritması.
+ * - İlk hane 0 olamaz.
+ * - 10. hane = ((1,3,5,7,9. hanelerin toplamı)×7 − (2,4,6,8. toplamı)) mod 10.
+ * - 11. hane = (ilk 10 hanenin toplamı) mod 10.
+ */
+export function isValidTckn(value: string): boolean {
+  const v = value.trim();
+  if (!isDigits(v, 11)) return false;
+  const d = v.split("").map(Number);
+  if (d[0] === 0) return false;
+  const oddSum = d[0] + d[2] + d[4] + d[6] + d[8];
+  const evenSum = d[1] + d[3] + d[5] + d[7];
+  const tenth = (oddSum * 7 - evenSum) % 10;
+  if (((tenth + 10) % 10) !== d[9]) return false;
+  const sumFirstTen = d.slice(0, 10).reduce((s, n) => s + n, 0);
+  return sumFirstTen % 10 === d[10];
+}
+
+/**
+ * Vergi Kimlik No / TC — firma türüne göre.
+ * - SOLE_PROPRIETOR (şahıs) → 11 hane TCKN.
+ * - Tüzel (A.Ş./Ltd.) → 10 hane VKN.
+ */
+export function isValidTaxId(
+  value: string,
+  isSoleProprietor: boolean,
+): boolean {
+  return isSoleProprietor ? isValidTckn(value) : isValidVkn(value);
+}
+
+/** MERSİS — boş VEYA tam 16 hane. */
+export function isValidMersis(value: string | null | undefined): boolean {
+  const v = (value ?? "").trim();
+  if (v === "") return true;
+  return isDigits(v, 16);
+}
+
+/** Boşlukları temizleyip büyük harfe çevirir (IBAN normalizasyonu). */
+export function normalizeIban(value: string): string {
+  return value.replace(/\s+/g, "").toUpperCase();
+}
+
+/**
+ * IBAN — Türkiye: "TR" + 24 rakam = 26 karakter + ISO 13616 mod-97 kontrolü.
+ */
+export function isValidIbanTr(value: string): boolean {
+  const v = normalizeIban(value);
+  if (!/^TR[0-9]{24}$/.test(v)) return false;
+  // mod-97: ilk 4 karakteri sona taşı, harfleri sayıya çevir (A=10..Z=35), %97==1
+  const rearranged = v.slice(4) + v.slice(0, 4);
+  const numeric = rearranged.replace(/[A-Z]/g, (c) =>
+    String(c.charCodeAt(0) - 55),
+  );
+  let remainder = 0;
+  for (const ch of numeric) {
+    remainder = (remainder * 10 + (ch.charCodeAt(0) - 48)) % 97;
+  }
+  return remainder === 1;
+}
+
+/** KEP / e-posta — basit e-posta format kontrolü. */
+export function isValidEmailLike(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+/** Faaliyet sektörü seçimi — min 1, max 3 (ilk = ana sektör). */
+export const SECTOR_MIN = 1;
+export const SECTOR_MAX = 3;
+export function isValidSectorSelection(ids: string[]): boolean {
+  const unique = new Set(ids);
+  return (
+    ids.length >= SECTOR_MIN &&
+    ids.length <= SECTOR_MAX &&
+    unique.size === ids.length
+  );
+}

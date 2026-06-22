@@ -37,6 +37,39 @@ model Tenant {
   taxNumber   String? @unique
   taxOffice   String?
 
+  // ============================================================
+  // Madde 29 — 3 aşamalı kayıt/onboarding/doğrulama (alıcı tarafı).
+  // FAZ 2 (onboarding wizard) + FAZ 3 (panel-içi doğrulama) ortak alanları.
+  // ============================================================
+  // FAZ 2 — firma kimliği
+  companyType  CompanyType?
+  legalName    String? // yasal firma ünvanı (name = ticari ad)
+  neighborhood String? // mahalle
+  billingTitle String? // fatura ünvanı
+  billingEmail String?
+  // FAZ 2 — yetkili kişi (ad/soyad FAZ 1'den User'da)
+  authorizedTckn  String? // 11 hane
+  authorizedTitle String? // ünvan/rol (Yönetici, Müdür vb.)
+  // FAZ 3 — kurumsal kimlik (panel içinde sonradan doldurulur)
+  mersisNo               String? // boş veya 16 hane
+  tradeRegistryNo        String?
+  kepAddress             String?
+  iban                   String? // TR, 26 hane
+  ibanHolder             String?
+  billingPhone           String?
+  billingPhoneVerifiedAt DateTime?
+  // FAZ 3 — 6 zorunlu doğrulama belgesi (R2 key)
+  docTaxPlateUrl          String? // Vergi Levhası
+  docTradeRegistryUrl     String? // Ticaret Sicil Gazetesi
+  docSignatureCircularUrl String? // İmza Sirküleri
+  docActivityCertUrl      String? // Faaliyet Belgesi
+  docIdFrontUrl           String? // Yetkili Kimlik — Ön
+  docIdBackUrl            String? // Yetkili Kimlik — Arka
+  // Durum
+  onboardingCompletedAt     DateTime?
+  companyVerificationStatus CompanyVerificationStatus @default(UNVERIFIED)
+  companyVerifiedAt         DateTime?
+
   // Alıcı public profili — tedarikçilerin gördüğü herkese açık sayfa (/firma/[slug]).
   // publicEnabled=true ise profil + "Tedarikçi Ol" yayında; false ise 404.
   publicEnabled  Boolean  @default(false)
@@ -148,6 +181,11 @@ model User {
   role         UserRole  @default(BUYER)
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+
+  // Madde 29 — FAZ 3: e-posta tabanlı 2 adımlı doğrulama. İhale kapısının
+  // ikinci gereksinimi. (OTP challenge'ı login akışında transient üretilir.)
+  twoFactorEnabled   Boolean   @default(false)
+  twoFactorEnabledAt DateTime?
 
   // E.7.A — davetle eklenen kullanıcılar için
   invitedById String?
@@ -581,6 +619,15 @@ enum CompanyType {
   SOLE_PROPRIETOR
 }
 
+// Madde 29 — FAZ 3 panel-içi şirket doğrulaması (6 belge + KYC onayı).
+// Hem Tenant (alıcı) hem Supplier (tedarikçi) için aynı durum makinesi.
+enum CompanyVerificationStatus {
+  UNVERIFIED // belge yok / eksik
+  PENDING // 6/6 belge yüklendi, admin onayı bekliyor
+  VERIFIED // onaylandı — ihale/premium kapısı açık
+  REJECTED // reddedildi (eksik/hatalı belge)
+}
+
 // ============================================================
 // SUPPLIER (gerçek tedarikçi entitysi)
 // ============================================================
@@ -601,6 +648,38 @@ model Supplier {
   district          String
   addressLine       String
   postalCode        String?
+
+  // ============================================================
+  // Madde 29 — 3 aşamalı kayıt/onboarding/doğrulama (tedarikçi tarafı).
+  // FAZ 2 + FAZ 3 ortak alanları. (mersisNo aşağıda V2-TRUST bloğunda mevcut.)
+  // ============================================================
+  // FAZ 2 — firma kimliği
+  legalName    String? // yasal firma ünvanı (companyName = ticari ad)
+  neighborhood String? // mahalle
+  billingTitle String? // fatura ünvanı
+  billingEmail String?
+  // FAZ 2 — yetkili kişi
+  authorizedTckn  String?
+  authorizedTitle String?
+  // FAZ 3 — kurumsal kimlik
+  tradeRegistryNo        String?
+  kepAddress             String?
+  iban                   String?
+  ibanHolder             String?
+  billingPhone           String?
+  billingPhoneVerifiedAt DateTime?
+  // FAZ 3 — 6 zorunlu doğrulama belgesi (R2 key)
+  docTaxPlateUrl          String?
+  docTradeRegistryUrl     String?
+  docSignatureCircularUrl String?
+  docActivityCertUrl      String?
+  docIdFrontUrl           String?
+  docIdBackUrl            String?
+  // Durum
+  onboardingCompletedAt     DateTime?
+  companyVerificationStatus CompanyVerificationStatus @default(UNVERIFIED)
+  companyVerifiedAt         DateTime?
+
   membership        SupplierMembership @default(STANDARD)
   isActive          Boolean            @default(true)
   isBlocked         Boolean            @default(false)
@@ -784,6 +863,9 @@ model SupplierUser {
   // G6 madde 20 — firma yöneticisi. Kuran (ilk kayıt) = true. Yönetici ek
   // olarak kullanıcı yönetimi + banka hesaplarını kontrol eder.
   isManager         Boolean   @default(false)
+  // Madde 29 — FAZ 3: e-posta tabanlı 2 adımlı doğrulama.
+  twoFactorEnabled   Boolean   @default(false)
+  twoFactorEnabledAt DateTime?
   // Ayarlar — e-posta bildirim tercihleri (key: boolean). null = tüm varsayılan açık.
   notificationPrefs Json?
   lastLoginAt       DateTime?
