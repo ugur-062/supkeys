@@ -14,14 +14,22 @@ export function RequireSupplierAuth({
 }) {
   const token = useSupplierAuthStore((s) => s.token);
   const isHydrated = useSupplierAuthStore((s) => s.isHydrated);
+  const supplier = useSupplierAuthStore((s) => s.supplier);
+
+  // Madde 29 — FAZ 2: onboarding tamamlanmadıysa panele girilemez.
+  const onboardingPending =
+    !!supplier && supplier.onboardingCompletedAt == null;
 
   useEffect(() => {
-    if (isHydrated && !token && typeof window !== "undefined") {
+    if (!isHydrated || typeof window === "undefined") return;
+    if (!token) {
       window.location.href = "/supplier/login";
+    } else if (onboardingPending) {
+      window.location.href = "/supplier/onboarding";
     }
-  }, [isHydrated, token]);
+  }, [isHydrated, token, onboardingPending]);
 
-  if (!isHydrated || !token) {
+  if (!isHydrated || !token || onboardingPending) {
     return null;
   }
 

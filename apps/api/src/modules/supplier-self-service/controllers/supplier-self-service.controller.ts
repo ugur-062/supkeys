@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
@@ -18,12 +19,23 @@ import {
   ConnectBySupkeysIdDto,
   ConnectToBuyerDto,
 } from "../dto/connect-buyer.dto";
+import { CompleteOnboardingDto } from "../dto/complete-onboarding.dto";
 import { SupplierSelfServiceService } from "../services/supplier-self-service.service";
 
 @Controller("supplier-self-service")
 @UseGuards(SupplierJwtAuthGuard)
 export class SupplierSelfServiceController {
   constructor(private readonly service: SupplierSelfServiceService) {}
+
+  // Madde 29 — FAZ 2 onboarding tamamlama.
+  @Put("onboarding")
+  @HttpCode(HttpStatus.OK)
+  completeOnboarding(
+    @Body() dto: CompleteOnboardingDto,
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+  ) {
+    return this.service.completeOnboarding(user.supplierId, dto);
+  }
 
   @Post("accept-invitation")
   @HttpCode(HttpStatus.OK)

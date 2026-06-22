@@ -203,6 +203,14 @@ export class SupplierAuthService {
     membership: string;
     isActive: boolean;
     isBlocked: boolean;
+    legalName: string | null;
+    neighborhood: string | null;
+    billingTitle: string | null;
+    billingEmail: string | null;
+    authorizedTckn: string | null;
+    authorizedTitle: string | null;
+    onboardingCompletedAt: Date | null;
+    companyVerificationStatus: string;
   }) {
     return {
       id: supplier.id,
@@ -220,6 +228,18 @@ export class SupplierAuthService {
       membership: supplier.membership,
       isActive: supplier.isActive,
       isBlocked: supplier.isBlocked,
+      // Madde 29 — FAZ 2 alanları (onboarding wizard prefill).
+      legalName: supplier.legalName,
+      neighborhood: supplier.neighborhood,
+      billingTitle: supplier.billingTitle,
+      billingEmail: supplier.billingEmail,
+      authorizedTckn: supplier.authorizedTckn,
+      authorizedTitle: supplier.authorizedTitle,
+      // Madde 29 — onboarding/doğrulama durumu (panel gate + FAZ 3).
+      onboardingCompletedAt: supplier.onboardingCompletedAt
+        ? supplier.onboardingCompletedAt.toISOString()
+        : null,
+      companyVerificationStatus: supplier.companyVerificationStatus,
     };
   }
 }

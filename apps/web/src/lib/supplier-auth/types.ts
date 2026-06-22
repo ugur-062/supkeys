@@ -33,6 +33,20 @@ export interface SupplierProfile {
   membership: SupplierMembership;
   isActive: boolean;
   isBlocked: boolean;
+  // Madde 29 — FAZ 2 alanları (onboarding prefill).
+  legalName: string | null;
+  neighborhood: string | null;
+  billingTitle: string | null;
+  billingEmail: string | null;
+  authorizedTckn: string | null;
+  authorizedTitle: string | null;
+  // Madde 29 — onboarding/doğrulama durumu.
+  onboardingCompletedAt: string | null;
+  companyVerificationStatus:
+    | "UNVERIFIED"
+    | "PENDING"
+    | "VERIFIED"
+    | "REJECTED";
 }
 
 export interface SupplierTenantRelation {

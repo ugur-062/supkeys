@@ -9,11 +9,17 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { Prisma } from "@supkeys/db";
-import { normalizeShortCode, validateShortCode } from "@supkeys/shared";
+import {
+  isValidTaxId,
+  isValidTckn,
+  normalizeShortCode,
+  validateShortCode,
+} from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailService } from "../../email/email.service";
 import { hashToken } from "../../registration/helpers/token.helper";
 import { AcceptInvitationDto } from "../dto/accept-invitation.dto";
+import { CompleteOnboardingDto } from "../dto/complete-onboarding.dto";
 
 @Injectable()
 export class SupplierSelfServiceService {
@@ -24,6 +30,74 @@ export class SupplierSelfServiceService {
     private readonly emailService: EmailService,
     private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Madde 29 — FAZ 2 onboarding'i tamamla. Firma kimliği + yetkili + faaliyet
+   * sektörü (UNSPSC segment, 1-3) kaydeder, `onboardingCompletedAt` set eder.
+   * Panel gate'i bu tarih dolunca açılır.
+   */
+  async completeOnboarding(supplierId: string, dto: CompleteOnboardingDto) {
+    const isSole = dto.companyType === "SOLE_PROPRIETOR";
+
+    // Anlamsal validasyon (shared validator'lar).
+    if (!isValidTaxId(dto.taxNumber, isSole)) {
+      throw new BadRequestException(
+        isSole
+          ? "Şahıs firması için 11 haneli geçerli TCKN giriniz"
+          : "Tüzel kişi için 10 haneli geçerli vergi numarası giriniz",
+      );
+    }
+    if (!isValidTckn(dto.authorizedTckn)) {
+      throw new BadRequestException("Yetkili T.C. Kimlik No geçersiz");
+    }
+
+    // Faaliyet sektörü = UNSPSC segment (level 1), 1-3 adet, benzersiz.
+    const categoryIds = Array.from(new Set(dto.categoryIds));
+    if (categoryIds.length < 1 || categoryIds.length > 3) {
+      throw new BadRequestException("1-3 arası faaliyet sektörü seçmelisiniz");
+    }
+    const segments = await this.prisma.category.findMany({
+      where: { id: { in: categoryIds }, level: 1 },
+      select: { id: true, nameTr: true },
+    });
+    if (segments.length !== categoryIds.length) {
+      throw new BadRequestException("Geçersiz faaliyet sektörü seçimi");
+    }
+    // İlk seçilen = ana faaliyet sektörü → industry alanına yaz.
+    const mainSector =
+      segments.find((s) => s.id === categoryIds[0])?.nameTr ?? null;
+
+    await this.prisma.$transaction([
+      this.prisma.supplier.update({
+        where: { id: supplierId },
+        data: {
+          legalName: dto.legalName.trim(),
+          companyType: dto.companyType,
+          taxNumber: dto.taxNumber.trim(),
+          taxOffice: dto.taxOffice.trim(),
+          city: dto.city.trim(),
+          district: dto.district.trim(),
+          neighborhood: dto.neighborhood.trim(),
+          postalCode: dto.postalCode.trim(),
+          addressLine: dto.addressLine.trim(),
+          billingTitle: dto.billingTitle?.trim() || null,
+          billingEmail: dto.billingEmail?.trim() || null,
+          authorizedTckn: dto.authorizedTckn.trim(),
+          authorizedTitle: dto.authorizedTitle.trim(),
+          industry: mainSector,
+          onboardingCompletedAt: new Date(),
+        },
+      }),
+      // Kategoriler — replace-all (sıra junction'da tutulmaz; ana sektör industry'de).
+      this.prisma.supplierCategory.deleteMany({ where: { supplierId } }),
+      this.prisma.supplierCategory.createMany({
+        data: categoryIds.map((categoryId) => ({ supplierId, categoryId })),
+        skipDuplicates: true,
+      }),
+    ]);
+
+    return { ok: true };
+  }
 
   /**
    * Mevcut tedarikçi: aldığı davetin token'ını ya da kısa kodunu girerek
