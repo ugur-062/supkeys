@@ -22,11 +22,55 @@ import {
 import { CompleteOnboardingDto } from "../dto/complete-onboarding.dto";
 import { UpdateCorporateIdentityDto } from "../dto/update-corporate-identity.dto";
 import { SupplierSelfServiceService } from "../services/supplier-self-service.service";
+import { CompanyDocsService } from "../../company-docs/company-docs.service";
+import {
+  CompanyDocUploadUrlDto,
+  SaveCompanyDocDto,
+} from "../../company-docs/dto/company-docs.dto";
 
 @Controller("supplier-self-service")
 @UseGuards(SupplierJwtAuthGuard)
 export class SupplierSelfServiceController {
-  constructor(private readonly service: SupplierSelfServiceService) {}
+  constructor(
+    private readonly service: SupplierSelfServiceService,
+    private readonly companyDocs: CompanyDocsService,
+  ) {}
+
+  // Madde 29 — FAZ 3.2 doğrulama belgeleri.
+  @Get("company-docs")
+  getCompanyDocs(@CurrentSupplierUser() user: AuthenticatedSupplierUser) {
+    return this.companyDocs.getStatus({
+      type: "supplier",
+      id: user.supplierId,
+    });
+  }
+
+  @Post("company-docs/upload-url")
+  @HttpCode(HttpStatus.OK)
+  companyDocUploadUrl(
+    @Body() dto: CompanyDocUploadUrlDto,
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+  ) {
+    return this.companyDocs.createUploadUrl(
+      { type: "supplier", id: user.supplierId },
+      dto.docType,
+      dto.filename,
+      dto.mimeType,
+    );
+  }
+
+  @Put("company-docs")
+  @HttpCode(HttpStatus.OK)
+  saveCompanyDoc(
+    @Body() dto: SaveCompanyDocDto,
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+  ) {
+    return this.companyDocs.saveDoc(
+      { type: "supplier", id: user.supplierId },
+      dto.docType,
+      dto.key,
+    );
+  }
 
   // Madde 29 — FAZ 2 onboarding tamamlama.
   @Put("onboarding")

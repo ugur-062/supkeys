@@ -1,6 +1,7 @@
 "use client";
 
 import { PageHeader } from "@/components/list";
+import { CompanyDocsSection } from "@/components/onboarding/company-docs-section";
 import {
   CorporateIdentityForm,
   type CorporateIdentityValues,
@@ -71,6 +72,7 @@ export default function SupplierCorporateIdentityPage() {
         saving={update.isPending}
         onSave={onSave}
       />
+      <CompanyDocsSection surface="supplier" />
     </div>
   );
 }
