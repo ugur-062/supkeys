@@ -13,6 +13,8 @@ export interface SupplierUserDto {
   phone: string | null;
   /** G6 madde 20 — yönetici mi (banka + kullanıcı yönetimi yetkisi). */
   isManager?: boolean;
+  /** Madde 29 — e-posta 2FA aktif mi. */
+  twoFactorEnabled?: boolean;
   lastLoginAt: string | null;
 }
 
@@ -72,6 +74,23 @@ export interface SupplierLoginResponse {
   token: string;
   supplierUser: SupplierUserDto;
   supplier: SupplierProfile;
+}
+
+/** Madde 29 — 2FA açık kullanıcıda login OTP challenge döner. */
+export interface TwoFactorChallengeResponse {
+  twoFactorRequired: true;
+  challengeId: string;
+  expiresAt: string;
+}
+
+export type SupplierLoginResult =
+  | SupplierLoginResponse
+  | TwoFactorChallengeResponse;
+
+export function isTwoFactorChallenge(
+  r: SupplierLoginResult,
+): r is TwoFactorChallengeResponse {
+  return "twoFactorRequired" in r && r.twoFactorRequired === true;
 }
 
 export interface SupplierMeResponse {

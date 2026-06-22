@@ -4,6 +4,7 @@ import { supplierApi } from "@/lib/supplier-auth/api";
 import { useSupplierAuthStore } from "@/lib/supplier-auth/store";
 import type {
   SupplierLoginResponse,
+  SupplierLoginResult,
   SupplierMeResponse,
   SupplierProfile,
 } from "@/lib/supplier-auth/types";
@@ -27,24 +28,38 @@ export function useSupplierAuth() {
   };
 }
 
+/**
+ * Login — 2FA açıksa { twoFactorRequired } döner (setAuth YAPILMAZ); form
+ * OTP adımına geçer. 2FA kapalıysa form setAuth çağırır.
+ */
 export function useSupplierLogin() {
-  const setAuth = useSupplierAuthStore((s) => s.setAuth);
   return useMutation({
     mutationFn: async (input: { email: string; password: string }) => {
-      const { data } = await supplierApi.post<SupplierLoginResponse>(
+      const { data } = await supplierApi.post<SupplierLoginResult>(
         "/supplier-auth/login",
         input,
       );
       return data;
     },
-    onSuccess: (data) => {
-      setAuth({
-        token: data.token,
-        supplierUser: data.supplierUser,
-        supplier: data.supplier,
-      });
+  });
+}
+
+/** Madde 29 — login OTP doğrula → token. */
+export function useSupplierVerifyOtp() {
+  return useMutation({
+    mutationFn: async (input: { challengeId: string; code: string }) => {
+      const { data } = await supplierApi.post<SupplierLoginResponse>(
+        "/supplier-auth/verify-otp",
+        input,
+      );
+      return data;
     },
   });
+}
+
+/** Store'a auth yaz (login/OTP başarısında form çağırır). */
+export function useSetSupplierAuth() {
+  return useSupplierAuthStore((s) => s.setAuth);
 }
 
 export function useSupplierMe(enabled = true) {
@@ -86,6 +101,40 @@ export function useUpdateCompanyInfo() {
     },
     onSuccess: (supplier) => {
       setSupplier(supplier);
+    },
+  });
+}
+
+// Madde 29 — panel-içi 2FA aç/kapat.
+export function useSupplierEnable2faStart() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await supplierApi.post<{
+        challengeId: string;
+        expiresAt: string;
+      }>("/supplier-auth/2fa/enable/start");
+      return data;
+    },
+  });
+}
+
+export function useSupplierEnable2faVerify() {
+  return useMutation({
+    mutationFn: async (input: { challengeId: string; code: string }) => {
+      const { data } = await supplierApi.post(
+        "/supplier-auth/2fa/enable/verify",
+        input,
+      );
+      return data;
+    },
+  });
+}
+
+export function useSupplierDisable2fa() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await supplierApi.post("/supplier-auth/2fa/disable");
+      return data;
     },
   });
 }

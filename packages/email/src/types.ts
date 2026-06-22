@@ -28,7 +28,8 @@ export type EmailTemplate =
   | "approval_reminder"
   | "order_status_changed"
   | "message_notification"
-  | "admin_password_reset";
+  | "admin_password_reset"
+  | "two_factor_otp";
 
 export type EmailProviderName = "resend";
 
@@ -490,7 +491,16 @@ export type EmailTemplateData =
   | { template: "approval_reminder"; data: ApprovalReminderData }
   | { template: "order_status_changed"; data: OrderStatusChangedData }
   | { template: "message_notification"; data: MessageNotificationData }
-  | { template: "admin_password_reset"; data: AdminPasswordResetData };
+  | { template: "admin_password_reset"; data: AdminPasswordResetData }
+  | { template: "two_factor_otp"; data: TwoFactorOtpData };
+
+export interface TwoFactorOtpData {
+  firstName: string;
+  otpCode: string;
+  expiresInMinutes: number;
+  /** "giriş" | "etkinleştirme" — e-posta metnindeki amaç ifadesi. */
+  purposeLabel: string;
+}
 
 /**
  * V2-6.5 — Super-admin destek operasyonu sonucu kullanıcıya gönderilen

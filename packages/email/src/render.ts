@@ -141,6 +141,11 @@ import {
   makeOrderStatusChangedSubject,
   renderOrderStatusChangedText,
 } from "./templates/order-status-changed";
+import {
+  makeTwoFactorOtpSubject,
+  renderTwoFactorOtpText,
+  TwoFactorOtpEmail,
+} from "./templates/two-factor-otp";
 import type { EmailTemplateData, RenderedEmail } from "./types";
 
 export async function renderEmail(
@@ -509,6 +514,17 @@ export async function renderEmail(
         ),
         html,
         text: renderMessageNotificationText(spec.data),
+      };
+    }
+
+    case "two_factor_otp": {
+      const html = await render(
+        React.createElement(TwoFactorOtpEmail, spec.data),
+      );
+      return {
+        subject: makeTwoFactorOtpSubject(),
+        html,
+        text: renderTwoFactorOtpText(spec.data),
       };
     }
 

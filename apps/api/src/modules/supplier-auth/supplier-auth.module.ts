@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { SupabaseAuthModule } from "../supabase-auth/supabase-auth.module";
+import { TwoFactorModule } from "../two-factor/two-factor.module";
 import { SupplierAuthController } from "./controllers/supplier-auth.controller";
 import { SupplierAuthService } from "./services/supplier-auth.service";
 import { SupplierJwtStrategy } from "./strategies/supplier-jwt.strategy";
@@ -11,6 +12,7 @@ import { SupplierJwtStrategy } from "./strategies/supplier-jwt.strategy";
   imports: [
     PassportModule,
     SupabaseAuthModule,
+    TwoFactorModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

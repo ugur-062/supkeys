@@ -2009,3 +2009,21 @@ model AuditLog {
   @@index([actorId])
   @@map("audit_logs")
 }
+
+// Madde 29 — FAZ 3.3: e-posta 2FA OTP challenge (transient).
+// userId VEYA supplierUserId dolu (biri). purpose: LOGIN | ENABLE.
+model TwoFactorChallenge {
+  id             String    @id @default(cuid())
+  userId         String?
+  supplierUserId String?
+  purpose        String
+  codeHash       String
+  expiresAt      DateTime
+  attempts       Int       @default(0)
+  consumedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([userId])
+  @@index([supplierUserId])
+  @@map("two_factor_challenges")
+}

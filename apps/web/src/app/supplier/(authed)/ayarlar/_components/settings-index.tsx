@@ -10,6 +10,7 @@ import {
   Landmark,
   Lock,
   type LucideIcon,
+  ShieldCheck,
   Users2,
 } from "lucide-react";
 import Link from "next/link";
@@ -53,6 +54,13 @@ const GROUPS: SettingsGroup[] = [
         title: "Bildirim Tercihleri",
         description: "E-posta bildirimlerinizi yönetin",
         accent: "warning",
+      },
+      {
+        href: "/supplier/ayarlar/2fa-islemleri",
+        icon: ShieldCheck,
+        title: "2 Adımlı Doğrulama",
+        description: "E-posta tabanlı ek giriş güvenliği",
+        accent: "success",
       },
     ],
   },
