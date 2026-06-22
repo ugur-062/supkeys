@@ -59,6 +59,13 @@ const GROUPS: SettingsGroup[] = [
         description: "E-posta bildirimlerinizi yönetin",
         accent: "warning",
       },
+      {
+        href: "/dashboard/ayarlar/2fa-islemleri",
+        icon: Shield,
+        title: "2 Adımlı Doğrulama",
+        description: "E-posta tabanlı ek giriş güvenliği",
+        accent: "success",
+      },
     ],
   },
   {

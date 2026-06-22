@@ -9,6 +9,8 @@ export interface AuthUser {
   role: UserRole;
   /** V2-6.5 — RBAC efektif permission listesi (role default + override). */
   permissions: string[];
+  /** Madde 29 — e-posta 2FA aktif mi (kullanıcı seviyesi). */
+  twoFactorEnabled?: boolean;
   tenant: {
     id: string;
     name: string;
@@ -50,4 +52,19 @@ export interface AuthUser {
 export interface AuthResponse {
   token: string;
   user: AuthUser;
+}
+
+/** Madde 29 — 2FA açık kullanıcıda login OTP challenge döner. */
+export interface TwoFactorChallengeResponse {
+  twoFactorRequired: true;
+  challengeId: string;
+  expiresAt: string;
+}
+
+export type LoginResult = AuthResponse | TwoFactorChallengeResponse;
+
+export function isTwoFactorChallenge(
+  r: LoginResult,
+): r is TwoFactorChallengeResponse {
+  return "twoFactorRequired" in r && r.twoFactorRequired === true;
 }

@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { SupabaseAuthModule } from "../supabase-auth/supabase-auth.module";
+import { TwoFactorModule } from "../two-factor/two-factor.module";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { JwtStrategy } from "./strategies/jwt.strategy";
@@ -11,6 +12,7 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
   imports: [
     PassportModule.register({ defaultStrategy: "jwt" }),
     SupabaseAuthModule,
+    TwoFactorModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

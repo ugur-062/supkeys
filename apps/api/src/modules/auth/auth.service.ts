@@ -1,11 +1,12 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
-import type { UserRole } from "@supkeys/db";
+import type { Prisma, UserRole } from "@supkeys/db";
 import type { AuthenticatedUser } from "../../common/decorators/current-user.decorator";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
+import { TwoFactorService } from "../two-factor/two-factor.service";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { LoginDto } from "./dto/login.dto";
 import { resolveUserPermissions } from "./permissions/permissions.utils";
@@ -21,6 +22,7 @@ export class AuthService {
     private readonly supabaseAuth: SupabaseAuthService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
+    private readonly twoFactor: TwoFactorService,
   ) {}
 
   /**
@@ -91,6 +93,53 @@ export class AuthService {
       );
     }
 
+    // Madde 29 — FAZ 3.3: 2FA açıksa token verme, OTP iste.
+    if (user.twoFactorEnabled) {
+      const { challengeId, expiresAt } = await this.twoFactor.issueChallenge(
+        {
+          kind: "user",
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+        },
+        "LOGIN",
+      );
+      return { twoFactorRequired: true as const, challengeId, expiresAt };
+    }
+
+    return this.buildLoginResponse(user, ctx);
+  }
+
+  /** Madde 29 — login OTP doğrula → token. */
+  async verifyLoginOtp(
+    challengeId: string,
+    code: string,
+    ctx?: { ip?: string; userAgent?: string },
+  ) {
+    this.twoFactor.assertCodeFormat(code);
+    const { id } = await this.twoFactor.verifyChallenge(challengeId, code, {
+      kind: "user",
+      purpose: "LOGIN",
+    });
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: { tenant: true },
+    });
+    if (
+      !user ||
+      !user.isActive ||
+      user.deletedAt !== null ||
+      !user.tenant.isActive
+    ) {
+      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+    }
+    return this.buildLoginResponse(user, ctx);
+  }
+
+  private async buildLoginResponse(
+    user: Prisma.UserGetPayload<{ include: { tenant: true } }>,
+    ctx?: { ip?: string; userAgent?: string },
+  ) {
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
@@ -114,6 +163,42 @@ export class AuthService {
     };
   }
 
+  // ---- Madde 29 — 2FA aç/kapat (panel-içi) ----
+
+  async startEnableTwoFactor(userId: string) {
+    const u = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true },
+    });
+    if (!u) throw new UnauthorizedException();
+    return this.twoFactor.issueChallenge(
+      { kind: "user", id: userId, email: u.email, firstName: u.firstName },
+      "ENABLE",
+    );
+  }
+
+  async verifyEnableTwoFactor(userId: string, challengeId: string, code: string) {
+    this.twoFactor.assertCodeFormat(code);
+    const { id } = await this.twoFactor.verifyChallenge(challengeId, code, {
+      kind: "user",
+      purpose: "ENABLE",
+    });
+    if (id !== userId) throw new UnauthorizedException();
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorEnabled: true, twoFactorEnabledAt: new Date() },
+    });
+    return { ok: true };
+  }
+
+  async disableTwoFactor(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorEnabled: false, twoFactorEnabledAt: null },
+    });
+    return { ok: true };
+  }
+
   /**
    * /auth/me — JwtAuthGuard `validate()` zaten user+tenant satırını yükledi
    * (permissionsOverride + membershipEndAt dahil). İkinci bir DB round-trip'i
@@ -121,11 +206,15 @@ export class AuthService {
    * her sorgu ~215ms; bu çağrı her sayfa yüklemesinde tetiklenir.)
    */
   async buildMe(user: AuthenticatedUser) {
-    // Madde 29 — onboarding/doğrulama alanları için tenant'ı tam çek (guard
-    // yalnızca id/name/slug/membershipEndAt yüklüyor). /me seyrek + 60sn cache.
-    const tenant = await this.prisma.tenant.findUnique({
-      where: { id: user.tenant.id },
-    });
+    // Madde 29 — onboarding/doğrulama + 2FA alanları için tenant + user'ı çek
+    // (guard yalnızca temel alanları yüklüyor). /me seyrek + 60sn cache.
+    const [tenant, row] = await Promise.all([
+      this.prisma.tenant.findUnique({ where: { id: user.tenant.id } }),
+      this.prisma.user.findUnique({
+        where: { id: user.id },
+        select: { twoFactorEnabled: true },
+      }),
+    ]);
     if (!tenant) throw new UnauthorizedException();
     return this.toPublicUser(
       {
@@ -135,6 +224,7 @@ export class AuthService {
         lastName: user.lastName,
         role: user.role,
         permissionsOverride: user.permissionsOverride,
+        twoFactorEnabled: row?.twoFactorEnabled ?? false,
       },
       tenant,
     );
@@ -164,6 +254,7 @@ export class AuthService {
       lastName: string;
       role: string;
       permissionsOverride: unknown;
+      twoFactorEnabled?: boolean;
     },
     tenant: {
       id: string;
@@ -209,6 +300,8 @@ export class AuthService {
         user.role as UserRole,
         user.permissionsOverride,
       ),
+      // Madde 29 — e-posta 2FA aktif mi (kullanıcı seviyesi).
+      twoFactorEnabled: user.twoFactorEnabled ?? false,
       tenant: {
         id: tenant.id,
         name: tenant.name,

@@ -2,7 +2,11 @@
 
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth/store";
-import type { AuthResponse, AuthUser } from "@/lib/auth/types";
+import type {
+  AuthResponse,
+  AuthUser,
+  LoginResult,
+} from "@/lib/auth/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export function useAuth() {
@@ -16,16 +20,60 @@ export function useAuth() {
   };
 }
 
+/**
+ * Login — 2FA açıksa { twoFactorRequired } döner (setAuth YAPILMAZ); form OTP
+ * adımına geçer. 2FA kapalıysa form setAuth çağırır.
+ */
 export function useLogin() {
-  const setAuth = useAuthStore((s) => s.setAuth);
-
   return useMutation({
     mutationFn: async (input: { email: string; password: string }) => {
-      const { data } = await api.post<AuthResponse>("/auth/login", input);
+      const { data } = await api.post<LoginResult>("/auth/login", input);
       return data;
     },
-    onSuccess: (data) => {
-      setAuth(data.token, data.user);
+  });
+}
+
+/** Madde 29 — login OTP doğrula → token. */
+export function useVerifyOtp() {
+  return useMutation({
+    mutationFn: async (input: { challengeId: string; code: string }) => {
+      const { data } = await api.post<AuthResponse>("/auth/verify-otp", input);
+      return data;
+    },
+  });
+}
+
+export function useSetAuth() {
+  return useAuthStore((s) => s.setAuth);
+}
+
+// Madde 29 — panel-içi 2FA aç/kapat.
+export function useEnable2faStart() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post<{
+        challengeId: string;
+        expiresAt: string;
+      }>("/auth/2fa/enable/start");
+      return data;
+    },
+  });
+}
+
+export function useEnable2faVerify() {
+  return useMutation({
+    mutationFn: async (input: { challengeId: string; code: string }) => {
+      const { data } = await api.post("/auth/2fa/enable/verify", input);
+      return data;
+    },
+  });
+}
+
+export function useDisable2fa() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post("/auth/2fa/disable");
+      return data;
     },
   });
 }

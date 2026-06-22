@@ -4,7 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useLogin } from "@/hooks/use-auth";
+import { useLogin, useSetAuth, useVerifyOtp } from "@/hooks/use-auth";
+import {
+  isTwoFactorChallenge,
+  type AuthResponse,
+} from "@/lib/auth/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import { Eye, EyeOff } from "lucide-react";
@@ -26,6 +30,10 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
   const login = useLogin();
+  const verifyOtp = useVerifyOtp();
+  const setAuth = useSetAuth();
+  const [challengeId, setChallengeId] = useState<string | null>(null);
+  const [code, setCode] = useState("");
 
   const {
     register,
@@ -35,24 +43,94 @@ export function LoginForm() {
     resolver: zodResolver(loginSchema),
   });
 
+  const onAxiosError = (err: unknown, fallback: string) => {
+    if (axios.isAxiosError(err)) {
+      toast.error(
+        (err.response?.data as { message?: string } | undefined)?.message ??
+          fallback,
+      );
+    } else {
+      toast.error("Bir sorun oluştu");
+    }
+  };
+
+  const finishLogin = (data: AuthResponse) => {
+    setAuth(data.token, data.user);
+    toast.success(`Hoş geldin, ${data.user.firstName}!`);
+    router.push("/dashboard");
+  };
+
   const onSubmit = (values: LoginValues) => {
     login.mutate(values, {
       onSuccess: (data) => {
-        toast.success(`Hoş geldin, ${data.user.firstName}!`);
-        router.push("/dashboard");
-      },
-      onError: (err) => {
-        if (axios.isAxiosError(err)) {
-          const msg =
-            (err.response?.data as { message?: string } | undefined)?.message ??
-            "Giriş başarısız";
-          toast.error(msg);
+        if (isTwoFactorChallenge(data)) {
+          setChallengeId(data.challengeId);
+          toast.info("E-postanıza gönderilen 6 haneli kodu girin");
         } else {
-          toast.error("Bir sorun oluştu");
+          finishLogin(data);
         }
       },
+      onError: (err) => onAxiosError(err, "Giriş başarısız"),
     });
   };
+
+  const onVerifyOtp = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!challengeId || code.trim().length !== 6) return;
+    verifyOtp.mutate(
+      { challengeId, code: code.trim() },
+      {
+        onSuccess: finishLogin,
+        onError: (err) => onAxiosError(err, "Kod doğrulanamadı"),
+      },
+    );
+  };
+
+  if (challengeId) {
+    return (
+      <form onSubmit={onVerifyOtp} className="card space-y-5 p-6 md:p-8" noValidate>
+        <p className="text-sm text-slate-600">
+          Hesabınız 2 adımlı doğrulama ile korunuyor. E-postanıza gönderilen 6
+          haneli kodu girin.
+        </p>
+        <Field>
+          <Label htmlFor="otp" required>
+            Doğrulama Kodu
+          </Label>
+          <Input
+            id="otp"
+            inputMode="numeric"
+            maxLength={6}
+            autoFocus
+            placeholder="000000"
+            value={code}
+            onChange={(e) =>
+              setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))
+            }
+          />
+        </Field>
+        <Button
+          type="submit"
+          loading={verifyOtp.isPending}
+          disabled={verifyOtp.isPending || code.length !== 6}
+          fullWidth
+          size="lg"
+        >
+          Doğrula ve Giriş Yap
+        </Button>
+        <button
+          type="button"
+          onClick={() => {
+            setChallengeId(null);
+            setCode("");
+          }}
+          className="w-full text-center text-xs text-slate-500 hover:text-slate-800"
+        >
+          ← Geri dön
+        </button>
+      </form>
+    );
+  }
 
   return (
     <form

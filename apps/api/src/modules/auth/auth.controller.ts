@@ -17,6 +17,7 @@ import {
 import { AuthService } from "./auth.service";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
 import { LoginDto } from "./dto/login.dto";
+import { VerifyOtpDto } from "./dto/two-factor.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 
 @Controller("auth")
@@ -43,10 +44,53 @@ export class AuthController {
     return this.authService.forgotPassword(dto);
   }
 
+  // Madde 29 — FAZ 3.3: login OTP doğrula (2FA açık kullanıcılar).
+  @Post("verify-otp")
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  verifyOtp(
+    @Body() dto: VerifyOtpDto,
+    @Ip() ip: string,
+    @Headers("user-agent") userAgent: string,
+  ) {
+    return this.authService.verifyLoginOtp(dto.challengeId, dto.code, {
+      ip,
+      userAgent,
+    });
+  }
+
   @Get("me")
   @UseGuards(JwtAuthGuard)
   me(@CurrentUser() user: AuthenticatedUser) {
-    // V2-7 perf — guard zaten user+tenant'ı yükledi; ikinci DB sorgusu yok.
     return this.authService.buildMe(user);
+  }
+
+  // Madde 29 — 2FA aç/kapat (panel-içi).
+  @Post("2fa/enable/start")
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  enableStart(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.startEnableTwoFactor(user.id);
+  }
+
+  @Post("2fa/enable/verify")
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  enableVerify(
+    @Body() dto: VerifyOtpDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.authService.verifyEnableTwoFactor(
+      user.id,
+      dto.challengeId,
+      dto.code,
+    );
+  }
+
+  @Post("2fa/disable")
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  disable(@CurrentUser() user: AuthenticatedUser) {
+    return this.authService.disableTwoFactor(user.id);
   }
 }
