@@ -4,6 +4,7 @@ import {
   HomeIcon,
   ShieldCheckIcon,
   ShoppingBagIcon,
+  SparklesIcon,
   UserCircleIcon,
   UsersIcon,
 } from "@heroicons/react/20/solid";
@@ -39,6 +40,11 @@ export const supplierNavConfig: SupplierNavItem[] = [
     icon: UsersIcon,
     label: "Alıcı Havuzu",
     href: "/supplier/alici-havuzu",
+  },
+  {
+    icon: SparklesIcon,
+    label: "Premium",
+    href: "/supplier/premium",
   },
   {
     icon: ShieldCheckIcon,
