@@ -27,6 +27,8 @@ import {
   CompanyDocUploadUrlDto,
   SaveCompanyDocDto,
 } from "../../company-docs/dto/company-docs.dto";
+import { PaymentsService } from "../../payments/payments.service";
+import { TestConfirmPaymentDto } from "../dto/test-confirm-payment.dto";
 
 @Controller("supplier-self-service")
 @UseGuards(SupplierJwtAuthGuard)
@@ -34,7 +36,28 @@ export class SupplierSelfServiceController {
   constructor(
     private readonly service: SupplierSelfServiceService,
     private readonly companyDocs: CompanyDocsService,
+    private readonly payments: PaymentsService,
   ) {}
+
+  // Faz 7 — Premium ödeme başlat (doğrulama + 2FA şart).
+  @Post("premium/checkout")
+  @HttpCode(HttpStatus.OK)
+  premiumCheckout(@CurrentSupplierUser() user: AuthenticatedSupplierUser) {
+    return this.payments.createPremiumCheckout(
+      user.supplierId,
+      user.supplierUserId,
+    );
+  }
+
+  // Faz 7 — Test sağlayıcı ödeme onayı (yalnızca test modu).
+  @Post("premium/test-confirm")
+  @HttpCode(HttpStatus.OK)
+  premiumTestConfirm(
+    @Body() dto: TestConfirmPaymentDto,
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+  ) {
+    return this.payments.confirmTestPayment(user.supplierId, dto.paymentId);
+  }
 
   // Madde 29 — FAZ 3.2 doğrulama belgeleri.
   @Get("company-docs")
