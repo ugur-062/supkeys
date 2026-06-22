@@ -1,4 +1,5 @@
 import { PermissionGuard } from "@/components/auth/permission-guard";
+import { VerificationGate } from "@/components/onboarding/verification-gate";
 import { Suspense } from "react";
 import { YeniIhaleRouter } from "./_components/yeni-router";
 
@@ -10,7 +11,9 @@ export default function YeniIhalePage() {
   return (
     <PermissionGuard permission="tender:create">
       <Suspense fallback={null}>
-        <YeniIhaleRouter />
+        <VerificationGate>
+          <YeniIhaleRouter />
+        </VerificationGate>
       </Suspense>
     </PermissionGuard>
   );

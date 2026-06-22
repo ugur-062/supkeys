@@ -709,11 +709,37 @@ export class TenantTendersService {
   // WRITE — createDraft / updateDraft / publish / cancel / delete
   // ============================================================
 
+  /**
+   * Madde 29 — FAZ 3.0 doğrulama kapısı. Şirket belgeleri VERIFIED + kullanıcı
+   * 2FA aktif değilse ihale oluşturulamaz (frontend ayrıca gate ekranı gösterir).
+   */
+  private async assertVerifiedForTender(tenantId: string, userId: string) {
+    const [tenant, user] = await Promise.all([
+      this.prisma.tenant.findUnique({
+        where: { id: tenantId },
+        select: { companyVerificationStatus: true },
+      }),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { twoFactorEnabled: true },
+      }),
+    ]);
+    const verified = tenant?.companyVerificationStatus === "VERIFIED";
+    const twoFa = user?.twoFactorEnabled === true;
+    if (!verified || !twoFa) {
+      throw new ForbiddenException(
+        "İhale oluşturmak için şirket doğrulamanızı tamamlayın ve 2 adımlı doğrulamayı etkinleştirin.",
+      );
+    }
+  }
+
   async createDraft(
     tenantId: string,
     userId: string,
     dto: CreateTenderDto,
   ) {
+    // Madde 29 — FAZ 3.0: ihale oluşturmak için şirket doğrulaması + 2FA şart.
+    await this.assertVerifiedForTender(tenantId, userId);
     this.validateBusinessRules(dto);
 
     // V2-6 — kategoriler (Class veya Commodity) zorunlu; dedup + validate
