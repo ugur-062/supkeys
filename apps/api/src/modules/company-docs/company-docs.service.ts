@@ -69,7 +69,13 @@ export class CompanyDocsService {
     await this.updateOwner(owner, { [field]: key });
 
     const status = await this.getStatus(owner);
-    if (status.allUploaded && status.companyVerificationStatus === "UNVERIFIED") {
+    // 6/6 yüklüyse ve henüz onaylanmamışsa (ilk yükleme VEYA reddedildikten
+    // sonra düzeltme) → tekrar admin kuyruğuna (PENDING). VERIFIED'e dokunma.
+    if (
+      status.allUploaded &&
+      (status.companyVerificationStatus === "UNVERIFIED" ||
+        status.companyVerificationStatus === "REJECTED")
+    ) {
       await this.updateOwner(owner, { companyVerificationStatus: "PENDING" });
       status.companyVerificationStatus = "PENDING";
     }
