@@ -28,19 +28,22 @@ export function AuthHydrationBoundary({ children }: { children: React.ReactNode 
  * Token yoksa /login'e yönlendirir.
  */
 export function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { token, isHydrated } = useAuthStore();
+  const { token, isHydrated, user } = useAuthStore();
+
+  // Madde 29 — FAZ 2: onboarding tamamlanmadıysa panele girilemez.
+  const onboardingPending =
+    !!user && user.tenant.onboardingCompletedAt == null;
 
   useEffect(() => {
-    if (isHydrated && !token) {
+    if (!isHydrated || typeof window === "undefined") return;
+    if (!token) {
       window.location.href = "/login";
+    } else if (onboardingPending) {
+      window.location.href = "/onboarding";
     }
-  }, [isHydrated, token]);
+  }, [isHydrated, token, onboardingPending]);
 
-  if (!isHydrated) {
-    return null;
-  }
-
-  if (!token) {
+  if (!isHydrated || !token || onboardingPending) {
     return null;
   }
 

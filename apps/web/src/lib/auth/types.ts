@@ -1,4 +1,5 @@
 export type UserRole = "COMPANY_ADMIN" | "BUYER" | "APPROVER";
+export type CompanyType = "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR";
 
 export interface AuthUser {
   id: string;
@@ -14,6 +15,28 @@ export interface AuthUser {
     slug: string;
     /** V2-6.5 — Üyelik bitiş tarihi (ISO 8601). null = sınırsız. */
     membershipEndAt: string | null;
+    // Madde 29 — FAZ 2 prefill + onboarding/doğrulama durumu
+    companyType: CompanyType | null;
+    legalName: string | null;
+    taxNumber: string | null;
+    taxOffice: string | null;
+    industry: string | null;
+    city: string | null;
+    district: string | null;
+    neighborhood: string | null;
+    postalCode: string | null;
+    addressLine: string | null;
+    billingTitle: string | null;
+    billingEmail: string | null;
+    authorizedTckn: string | null;
+    authorizedTitle: string | null;
+    sectorCategoryIds: string[];
+    onboardingCompletedAt: string | null;
+    companyVerificationStatus:
+      | "UNVERIFIED"
+      | "PENDING"
+      | "VERIFIED"
+      | "REJECTED";
   };
 }
 

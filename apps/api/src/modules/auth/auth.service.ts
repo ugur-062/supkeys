@@ -120,7 +120,13 @@ export class AuthService {
    * yapmadan request.user'dan publicUser inşa edilir. (Perf: uzak Supabase'de
    * her sorgu ~215ms; bu çağrı her sayfa yüklemesinde tetiklenir.)
    */
-  buildMe(user: AuthenticatedUser) {
+  async buildMe(user: AuthenticatedUser) {
+    // Madde 29 — onboarding/doğrulama alanları için tenant'ı tam çek (guard
+    // yalnızca id/name/slug/membershipEndAt yüklüyor). /me seyrek + 60sn cache.
+    const tenant = await this.prisma.tenant.findUnique({
+      where: { id: user.tenant.id },
+    });
+    if (!tenant) throw new UnauthorizedException();
     return this.toPublicUser(
       {
         id: user.id,
@@ -130,12 +136,7 @@ export class AuthService {
         role: user.role,
         permissionsOverride: user.permissionsOverride,
       },
-      {
-        id: user.tenant.id,
-        name: user.tenant.name,
-        slug: user.tenant.slug,
-        membershipEndAt: user.tenant.membershipEndAt,
-      },
+      tenant,
     );
   }
 
@@ -169,6 +170,25 @@ export class AuthService {
       name: string;
       slug: string;
       membershipEndAt: Date | null;
+      // Madde 29 — onboarding/doğrulama alanları (opsiyonel; login full tenant
+      // gönderir, eski çağrılarda undefined olabilir).
+      companyType?: string | null;
+      legalName?: string | null;
+      taxNumber?: string | null;
+      taxOffice?: string | null;
+      industry?: string | null;
+      city?: string | null;
+      district?: string | null;
+      neighborhood?: string | null;
+      postalCode?: string | null;
+      addressLine?: string | null;
+      billingTitle?: string | null;
+      billingEmail?: string | null;
+      authorizedTckn?: string | null;
+      authorizedTitle?: string | null;
+      sectorCategoryIds?: string[];
+      onboardingCompletedAt?: Date | null;
+      companyVerificationStatus?: string;
     },
   ) {
     return {
@@ -190,6 +210,27 @@ export class AuthService {
         membershipEndAt: tenant.membershipEndAt
           ? tenant.membershipEndAt.toISOString()
           : null,
+        // Madde 29 — FAZ 2 prefill + onboarding/doğrulama durumu
+        companyType: tenant.companyType ?? null,
+        legalName: tenant.legalName ?? null,
+        taxNumber: tenant.taxNumber ?? null,
+        taxOffice: tenant.taxOffice ?? null,
+        industry: tenant.industry ?? null,
+        city: tenant.city ?? null,
+        district: tenant.district ?? null,
+        neighborhood: tenant.neighborhood ?? null,
+        postalCode: tenant.postalCode ?? null,
+        addressLine: tenant.addressLine ?? null,
+        billingTitle: tenant.billingTitle ?? null,
+        billingEmail: tenant.billingEmail ?? null,
+        authorizedTckn: tenant.authorizedTckn ?? null,
+        authorizedTitle: tenant.authorizedTitle ?? null,
+        sectorCategoryIds: tenant.sectorCategoryIds ?? [],
+        onboardingCompletedAt: tenant.onboardingCompletedAt
+          ? tenant.onboardingCompletedAt.toISOString()
+          : null,
+        companyVerificationStatus:
+          tenant.companyVerificationStatus ?? "UNVERIFIED",
       },
     };
   }
