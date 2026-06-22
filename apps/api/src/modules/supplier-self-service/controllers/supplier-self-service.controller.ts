@@ -20,6 +20,7 @@ import {
   ConnectToBuyerDto,
 } from "../dto/connect-buyer.dto";
 import { CompleteOnboardingDto } from "../dto/complete-onboarding.dto";
+import { UpdateCorporateIdentityDto } from "../dto/update-corporate-identity.dto";
 import { SupplierSelfServiceService } from "../services/supplier-self-service.service";
 
 @Controller("supplier-self-service")
@@ -35,6 +36,16 @@ export class SupplierSelfServiceController {
     @CurrentSupplierUser() user: AuthenticatedSupplierUser,
   ) {
     return this.service.completeOnboarding(user.supplierId, dto);
+  }
+
+  // Madde 29 — FAZ 3.1 kurumsal kimlik güncelleme.
+  @Put("corporate-identity")
+  @HttpCode(HttpStatus.OK)
+  updateCorporateIdentity(
+    @Body() dto: UpdateCorporateIdentityDto,
+    @CurrentSupplierUser() user: AuthenticatedSupplierUser,
+  ) {
+    return this.service.updateCorporateIdentity(user.supplierId, dto);
   }
 
   @Post("accept-invitation")

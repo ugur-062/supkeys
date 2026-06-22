@@ -40,6 +40,14 @@ export interface SupplierProfile {
   billingEmail: string | null;
   authorizedTckn: string | null;
   authorizedTitle: string | null;
+  // Madde 29 — FAZ 3 kurumsal kimlik (panel-içi editlenebilir).
+  mersisNo: string | null;
+  tradeRegistryNo: string | null;
+  kepAddress: string | null;
+  iban: string | null;
+  ibanHolder: string | null;
+  billingPhone: string | null;
+  billingPhoneVerifiedAt: string | null;
   // Madde 29 — onboarding/doğrulama durumu.
   onboardingCompletedAt: string | null;
   companyVerificationStatus:

@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { isValidTaxId, isValidTckn } from "@supkeys/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { buildCorporateIdentityData } from "../../common/helpers/corporate-identity.helper";
 import { CompleteTenantOnboardingDto } from "./dto/complete-tenant-onboarding.dto";
+import { UpdateTenantCorporateIdentityDto } from "./dto/update-corporate-identity.dto";
 
 @Injectable()
 export class TenantOnboardingService {
@@ -61,6 +63,16 @@ export class TenantOnboardingService {
       },
     });
 
+    return { ok: true };
+  }
+
+  /** Madde 29 — FAZ 3.1 kurumsal kimlik güncelle (alıcı). */
+  async updateCorporateIdentity(
+    tenantId: string,
+    dto: UpdateTenantCorporateIdentityDto,
+  ) {
+    const data = buildCorporateIdentityData(dto);
+    await this.prisma.tenant.update({ where: { id: tenantId }, data });
     return { ok: true };
   }
 }

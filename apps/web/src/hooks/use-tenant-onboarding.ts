@@ -26,3 +26,19 @@ export function useCompleteTenantOnboarding() {
       api.put("/tenant-onboarding", dto).then((r) => r.data),
   });
 }
+
+/** Madde 29 — FAZ 3.1 kurumsal kimlik (panel-içi editlenebilir alanlar). */
+export interface TenantCorporateIdentityPayload {
+  mersisNo?: string;
+  tradeRegistryNo?: string;
+  kepAddress?: string;
+  iban?: string;
+  ibanHolder?: string;
+}
+
+export function useUpdateTenantCorporateIdentity() {
+  return useMutation({
+    mutationFn: (dto: TenantCorporateIdentityPayload) =>
+      api.put("/tenant-onboarding/corporate-identity", dto).then((r) => r.data),
+  });
+}

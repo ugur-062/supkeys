@@ -30,6 +30,13 @@ export interface AuthUser {
     billingEmail: string | null;
     authorizedTckn: string | null;
     authorizedTitle: string | null;
+    mersisNo: string | null;
+    tradeRegistryNo: string | null;
+    kepAddress: string | null;
+    iban: string | null;
+    ibanHolder: string | null;
+    billingPhone: string | null;
+    billingPhoneVerifiedAt: string | null;
     sectorCategoryIds: string[];
     onboardingCompletedAt: string | null;
     companyVerificationStatus:

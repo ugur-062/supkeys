@@ -2,6 +2,7 @@ import {
   ClipboardDocumentListIcon,
   Cog6ToothIcon,
   HomeIcon,
+  ShieldCheckIcon,
   ShoppingBagIcon,
   UserCircleIcon,
   UsersIcon,
@@ -38,6 +39,11 @@ export const supplierNavConfig: SupplierNavItem[] = [
     icon: UsersIcon,
     label: "Alıcı Havuzu",
     href: "/supplier/alici-havuzu",
+  },
+  {
+    icon: ShieldCheckIcon,
+    label: "Kurumsal Kimlik",
+    href: "/supplier/kurumsal-kimlik",
   },
   {
     icon: UserCircleIcon,

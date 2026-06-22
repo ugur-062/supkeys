@@ -8,6 +8,7 @@ import {
   FolderIcon,
   HomeIcon,
   PlusIcon,
+  ShieldCheckIcon,
   ShoppingBagIcon,
   UsersIcon,
 } from "@heroicons/react/20/solid";
@@ -107,6 +108,12 @@ export const navConfig: NavGroup[] = [
       },
       {
         type: "link",
+        icon: ShieldCheckIcon,
+        label: "Kurumsal Kimlik",
+        href: "/dashboard/kurumsal-kimlik",
+      },
+      {
+        type: "link",
         icon: Cog6ToothIcon,
         label: "Ayarlar",
         href: "/dashboard/ayarlar",
@@ -130,6 +137,7 @@ export function getBreadcrumbs(pathname: string): string[] {
     "/dashboard/tedarikciler": "Tedarikçiler",
     "/dashboard/raporlar": "Raporlar",
     "/dashboard/sablonlar": "Şablonlar",
+    "/dashboard/kurumsal-kimlik": "Kurumsal Kimlik",
     "/dashboard/ayarlar": "Ayarlar",
   };
 

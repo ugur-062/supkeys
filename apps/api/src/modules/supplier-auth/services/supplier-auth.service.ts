@@ -209,6 +209,13 @@ export class SupplierAuthService {
     billingEmail: string | null;
     authorizedTckn: string | null;
     authorizedTitle: string | null;
+    mersisNo: string | null;
+    tradeRegistryNo: string | null;
+    kepAddress: string | null;
+    iban: string | null;
+    ibanHolder: string | null;
+    billingPhone: string | null;
+    billingPhoneVerifiedAt: Date | null;
     onboardingCompletedAt: Date | null;
     companyVerificationStatus: string;
   }) {
@@ -235,6 +242,16 @@ export class SupplierAuthService {
       billingEmail: supplier.billingEmail,
       authorizedTckn: supplier.authorizedTckn,
       authorizedTitle: supplier.authorizedTitle,
+      // Madde 29 — FAZ 3 kurumsal kimlik (panel-içi editlenebilir).
+      mersisNo: supplier.mersisNo,
+      tradeRegistryNo: supplier.tradeRegistryNo,
+      kepAddress: supplier.kepAddress,
+      iban: supplier.iban,
+      ibanHolder: supplier.ibanHolder,
+      billingPhone: supplier.billingPhone,
+      billingPhoneVerifiedAt: supplier.billingPhoneVerifiedAt
+        ? supplier.billingPhoneVerifiedAt.toISOString()
+        : null,
       // Madde 29 — onboarding/doğrulama durumu (panel gate + FAZ 3).
       onboardingCompletedAt: supplier.onboardingCompletedAt
         ? supplier.onboardingCompletedAt.toISOString()

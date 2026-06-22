@@ -16,10 +16,12 @@ import {
   validateShortCode,
 } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { buildCorporateIdentityData } from "../../../common/helpers/corporate-identity.helper";
 import { EmailService } from "../../email/email.service";
 import { hashToken } from "../../registration/helpers/token.helper";
 import { AcceptInvitationDto } from "../dto/accept-invitation.dto";
 import { CompleteOnboardingDto } from "../dto/complete-onboarding.dto";
+import { UpdateCorporateIdentityDto } from "../dto/update-corporate-identity.dto";
 
 @Injectable()
 export class SupplierSelfServiceService {
@@ -96,6 +98,19 @@ export class SupplierSelfServiceService {
       }),
     ]);
 
+    return { ok: true };
+  }
+
+  /**
+   * Madde 29 — FAZ 3.1 kurumsal kimlik güncelle (MERSİS, ticaret sicil, KEP,
+   * IBAN, IBAN sahibi). Boş string → null. Format kontrolleri shared validator.
+   */
+  async updateCorporateIdentity(
+    supplierId: string,
+    dto: UpdateCorporateIdentityDto,
+  ) {
+    const data = buildCorporateIdentityData(dto);
+    await this.prisma.supplier.update({ where: { id: supplierId }, data });
     return { ok: true };
   }
 

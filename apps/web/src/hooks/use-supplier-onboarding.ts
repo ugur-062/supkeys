@@ -28,3 +28,21 @@ export function useCompleteSupplierOnboarding() {
         .then((r) => r.data),
   });
 }
+
+/** Madde 29 — FAZ 3.1 kurumsal kimlik (panel-içi editlenebilir alanlar). */
+export interface CorporateIdentityPayload {
+  mersisNo?: string;
+  tradeRegistryNo?: string;
+  kepAddress?: string;
+  iban?: string;
+  ibanHolder?: string;
+}
+
+export function useUpdateSupplierCorporateIdentity() {
+  return useMutation({
+    mutationFn: (dto: CorporateIdentityPayload) =>
+      supplierApi
+        .put("/supplier-self-service/corporate-identity", dto)
+        .then((r) => r.data),
+  });
+}

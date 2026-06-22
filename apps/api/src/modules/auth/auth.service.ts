@@ -186,6 +186,13 @@ export class AuthService {
       billingEmail?: string | null;
       authorizedTckn?: string | null;
       authorizedTitle?: string | null;
+      mersisNo?: string | null;
+      tradeRegistryNo?: string | null;
+      kepAddress?: string | null;
+      iban?: string | null;
+      ibanHolder?: string | null;
+      billingPhone?: string | null;
+      billingPhoneVerifiedAt?: Date | null;
       sectorCategoryIds?: string[];
       onboardingCompletedAt?: Date | null;
       companyVerificationStatus?: string;
@@ -225,6 +232,16 @@ export class AuthService {
         billingEmail: tenant.billingEmail ?? null,
         authorizedTckn: tenant.authorizedTckn ?? null,
         authorizedTitle: tenant.authorizedTitle ?? null,
+        // Madde 29 — FAZ 3 kurumsal kimlik
+        mersisNo: tenant.mersisNo ?? null,
+        tradeRegistryNo: tenant.tradeRegistryNo ?? null,
+        kepAddress: tenant.kepAddress ?? null,
+        iban: tenant.iban ?? null,
+        ibanHolder: tenant.ibanHolder ?? null,
+        billingPhone: tenant.billingPhone ?? null,
+        billingPhoneVerifiedAt: tenant.billingPhoneVerifiedAt
+          ? tenant.billingPhoneVerifiedAt.toISOString()
+          : null,
         sectorCategoryIds: tenant.sectorCategoryIds ?? [],
         onboardingCompletedAt: tenant.onboardingCompletedAt
           ? tenant.onboardingCompletedAt.toISOString()
