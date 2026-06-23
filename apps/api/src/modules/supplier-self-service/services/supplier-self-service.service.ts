@@ -238,9 +238,6 @@ export class SupplierSelfServiceService {
 
   // ---------- Faz 3 madde 6 — Supkeys ID + Alıcı Havuzu ----------
 
-  /** Standart tedarikçinin bağlanabileceği en fazla alıcı sayısı. */
-  private static readonly STANDARD_CONNECTION_LIMIT = 2;
-
   /** Supplier → alıcıya bağlantı isteği (tedarikçi havuzu / Supkeys ID). */
   async requestConnectToBuyer(
     supplierId: string,
@@ -268,24 +265,18 @@ export class SupplierSelfServiceService {
         throw new ConflictException("Bu alıcı tarafından engellenmişsiniz");
     }
 
-    // Standart üyelik — en fazla 2 aktif/bekleyen bağlantı. Premium sınırsız
-    // (premium ayrıca açık ihalelere zaten davetsiz teklif verebilir).
+    // Self-bağlantı (CONNECT_REQUEST) yalnızca PREMIUM tedarikçilere özeldir.
+    // Premium biterse bu bağlantılar etkisizleşir (alıcı listesinden düşer),
+    // tekrar premium olunca otomatik geri gelir. Standart tedarikçi self-bağlanamaz;
+    // alıcının kendisini referans (Supkeys) kodu/davetle eklemesini bekler.
     const supplier = await this.prisma.supplier.findUnique({
       where: { id: supplierId },
       select: { membership: true },
     });
     if (supplier?.membership !== "PREMIUM") {
-      const count = await this.prisma.supplierTenantRelation.count({
-        where: {
-          supplierId,
-          status: { in: ["ACTIVE", "PENDING_TENANT_APPROVAL"] },
-        },
-      });
-      if (count >= SupplierSelfServiceService.STANDARD_CONNECTION_LIMIT) {
-        throw new ForbiddenException(
-          `Standart üyelikte en fazla ${SupplierSelfServiceService.STANDARD_CONNECTION_LIMIT} alıcıyla bağlanabilirsiniz. Sınırsız bağlantı ve tüm açık ihalelere teklif için premium'a geçin.`,
-        );
-      }
+      throw new ForbiddenException(
+        "Alıcıya bağlantı isteği göndermek premium üyeliğe özeldir. Premium'a geçin ya da alıcının sizi Supkeys ID'nizle eklemesini isteyin.",
+      );
     }
 
     const relation = await this.prisma.supplierTenantRelation.create({

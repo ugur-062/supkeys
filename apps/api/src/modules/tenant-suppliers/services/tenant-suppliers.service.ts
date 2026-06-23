@@ -84,6 +84,13 @@ export class TenantSuppliersService {
         ],
       };
     }
+    // Self-bağlantı (CONNECT_REQUEST) yalnızca tedarikçi PREMIUM iken etkin
+    // sayılır; premium biterse alıcının listesinden düşer, tekrar premium
+    // olunca otomatik geri gelir. INVITE/ADMIN (alıcı eklemesi) her zaman kalıcı.
+    where.OR = [
+      { origin: { not: "CONNECT_REQUEST" } },
+      { supplier: { membership: "PREMIUM" } },
+    ];
 
     const [items, total] = await Promise.all([
       this.prisma.supplierTenantRelation.findMany({

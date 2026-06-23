@@ -1930,6 +1930,12 @@ export class TenantTendersService {
         tenantId,
         supplierId: { in: supplierIds },
         status: "ACTIVE",
+        // Self-bağlantı (CONNECT_REQUEST) yalnızca tedarikçi PREMIUM iken etkin;
+        // premium biten tedarikçi davet edilemez.
+        OR: [
+          { origin: { not: "CONNECT_REQUEST" } },
+          { supplier: { membership: "PREMIUM" } },
+        ],
       },
       select: { supplierId: true },
     });

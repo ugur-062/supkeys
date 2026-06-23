@@ -48,25 +48,32 @@ export function BuyerPoolView() {
         title="Alıcı Havuzu"
         description={
           isPremium
-            ? "Tüm alıcıları keşfedin; herkese açık ihalelerine davet beklemeden teklif verebilirsiniz."
-            : "Alıcıları keşfedin ve bağlanın. Standart üyelikte en fazla 2 alıcıyla bağlanabilirsiniz."
+            ? "Alıcıları keşfedin ve bağlantı isteği gönderin; bağlandığınız alıcıların davetli ihalelerinde listesine girersiniz."
+            : "Alıcıları keşfedin. Bağlantı isteği göndermek premium üyeliğe özeldir."
         }
       />
 
       {isPremium ? (
-        <PanelCard className="border-zinc-200 bg-zinc-50/40">
-          <div className="flex items-start gap-2 text-sm text-zinc-700">
+        <ConnectByIdCard ownSupkeysId={supplier?.supkeysId ?? null} />
+      ) : (
+        <PanelCard className="border-amber-200 bg-amber-50/50">
+          <div className="flex items-start gap-2 text-sm text-amber-900">
             <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
             <span>
-              Premium üyesiniz — alıcıların <strong>herkese açık</strong>{" "}
-              ihalelerine bağlantı kurmadan teklif verebilirsiniz. Davetli
-              (kapalı) ihaleler için yine de bağlantı kurabilirsiniz.
+              Alıcıya bağlantı isteği göndermek <strong>premium</strong>'a
+              özeldir. Standart üyelikte alıcıların sizi{" "}
+              <strong>Supkeys ID'nizle</strong> eklemesini bekleyebilir veya{" "}
+              <Link
+                href="/supplier/premium"
+                className="font-semibold underline"
+              >
+                premium'a geçebilirsiniz
+              </Link>
+              .
             </span>
           </div>
           <OwnIdRow ownSupkeysId={supplier?.supkeysId ?? null} />
         </PanelCard>
-      ) : (
-        <ConnectByIdCard ownSupkeysId={supplier?.supkeysId ?? null} />
       )}
 
       <BuyerPool isPremium={isPremium} />
@@ -236,7 +243,7 @@ function BuyerCard({
         <span className="shrink-0 rounded-md bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-700">
           Engelli
         </span>
-      ) : isPremium ? null : (
+      ) : isPremium ? (
         <Button
           variant="secondary"
           size="sm"
@@ -246,7 +253,7 @@ function BuyerCard({
         >
           Bağlan
         </Button>
-      )}
+      ) : null}
     </div>
   );
 }
