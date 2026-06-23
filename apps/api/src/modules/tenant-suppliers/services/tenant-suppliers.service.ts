@@ -137,7 +137,7 @@ export class TenantSuppliersService {
    */
   async pool(
     tenantId: string,
-    opts: { search?: string; categoryId?: string },
+    opts: { search?: string; sector?: string },
   ) {
     const relations = await this.prisma.supplierTenantRelation.findMany({
       where: { tenantId },
@@ -164,8 +164,8 @@ export class TenantSuppliersService {
         ],
       });
     }
-    if (opts.categoryId) {
-      and.push({ categories: { some: { categoryId: opts.categoryId } } });
+    if (opts.sector) {
+      and.push({ sectors: { has: opts.sector } });
     }
 
     const suppliers = await this.prisma.supplier.findMany({
@@ -180,15 +180,12 @@ export class TenantSuppliersService {
         industry: true,
         website: true,
         services: true,
+        sectors: true,
         logoImageUrl: true,
         slug: true,
         publicEnabled: true,
         supkeysId: true,
         membership: true,
-        categories: {
-          select: { category: { select: { nameTr: true } } },
-          take: 6,
-        },
       },
     });
 
@@ -205,7 +202,7 @@ export class TenantSuppliersService {
       publicEnabled: s.publicEnabled,
       supkeysId: s.supkeysId,
       membership: s.membership,
-      categories: s.categories.map((c) => c.category.nameTr),
+      sectors: s.sectors,
       relationStatus: relMap.get(s.id) ?? null,
     }));
   }

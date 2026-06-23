@@ -10,12 +10,12 @@ import {
 } from "@/components/catalyst/dialog";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
-import { useRoots } from "@/hooks/use-categories";
 import {
   useConnectSupplierBySupkeysId,
   useSupplierPool,
   type SupplierPoolItem,
 } from "@/hooks/use-tenant-suppliers";
+import { SUPPLIER_SECTORS } from "@supkeys/shared";
 import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
 import axios from "axios";
 import { Building2, Loader2, Sparkles } from "lucide-react";
@@ -33,10 +33,9 @@ function errMsg(err: unknown, fallback: string): string {
 
 export function SupplierPoolView() {
   const [search, setSearch] = useState("");
-  const [categoryId, setCategoryId] = useState("");
+  const [sector, setSector] = useState("");
   const [detail, setDetail] = useState<SupplierPoolItem | null>(null);
-  const { data: segments } = useRoots();
-  const pool = useSupplierPool(search, categoryId);
+  const pool = useSupplierPool(search, sector);
 
   const openSupplier = (s: SupplierPoolItem) => {
     if (s.membership === "PREMIUM" && s.publicEnabled && s.slug) {
@@ -65,14 +64,11 @@ export function SupplierPoolView() {
           </InputGroup>
         </div>
         <div className="sm:w-64">
-          <Select
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-          >
-            <option value="">Tüm kategoriler</option>
-            {(segments ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nameTr}
+          <Select value={sector} onChange={(e) => setSector(e.target.value)}>
+            <option value="">Tüm sektörler</option>
+            {SUPPLIER_SECTORS.map((s) => (
+              <option key={s} value={s}>
+                {s}
               </option>
             ))}
           </Select>
@@ -85,7 +81,7 @@ export function SupplierPoolView() {
         </div>
       ) : !pool.data || pool.data.length === 0 ? (
         <div className="rounded-xl border border-zinc-950/10 bg-white py-10 text-center text-sm text-zinc-500">
-          {search || categoryId
+          {search || sector
             ? "Eşleşen tedarikçi bulunamadı."
             : "Havuzda görüntülenecek tedarikçi yok."}
         </div>
@@ -150,9 +146,9 @@ function SupplierCard({
           {meta ? (
             <p className="truncate text-xs text-zinc-500">{meta}</p>
           ) : null}
-          {s.categories.length > 0 ? (
+          {s.sectors.length > 0 ? (
             <div className="mt-1.5 flex flex-wrap gap-1">
-              {s.categories.slice(0, 3).map((c) => (
+              {s.sectors.slice(0, 3).map((c) => (
                 <span
                   key={c}
                   className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-600"
@@ -222,13 +218,13 @@ function StandardDetailDialog({
             </div>
           ))}
         </dl>
-        {s.categories.length > 0 ? (
+        {s.sectors.length > 0 ? (
           <div className="mt-4">
             <p className="mb-1.5 text-xs font-medium text-zinc-500">
               Faaliyet alanları
             </p>
             <div className="flex flex-wrap gap-1.5">
-              {s.categories.map((c) => (
+              {s.sectors.map((c) => (
                 <span
                   key={c}
                   className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700"

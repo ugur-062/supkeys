@@ -44,9 +44,9 @@ export class TenantSuppliersController {
   pool(
     @CurrentUser() user: AuthenticatedUser,
     @Query("search") search?: string,
-    @Query("categoryId") categoryId?: string,
+    @Query("sector") sector?: string,
   ): Promise<unknown> {
-    return this.service.pool(user.tenantId, { search, categoryId });
+    return this.service.pool(user.tenantId, { search, sector });
   }
 
   // Faz 3 madde 6 — Supkeys ID ile tedarikçi ekle (direkt ACTIVE).

@@ -36,7 +36,7 @@ export interface SupplierPoolItem {
   publicEnabled: boolean;
   supkeysId: string | null;
   membership: "STANDARD" | "PREMIUM";
-  categories: string[];
+  sectors: string[];
   relationStatus:
     | "ACTIVE"
     | "PENDING_TENANT_APPROVAL"
@@ -44,16 +44,16 @@ export interface SupplierPoolItem {
     | null;
 }
 
-export function useSupplierPool(search: string, categoryId: string) {
+export function useSupplierPool(search: string, sector: string) {
   return useQuery<SupplierPoolItem[]>({
-    queryKey: [...KEYS.all, "pool", search, categoryId],
+    queryKey: [...KEYS.all, "pool", search, sector],
     queryFn: async () => {
       const { data } = await api.get<SupplierPoolItem[]>(
         "/tenants/me/suppliers/pool",
         {
           params: {
             ...(search ? { search } : {}),
-            ...(categoryId ? { categoryId } : {}),
+            ...(sector ? { sector } : {}),
           },
         },
       );

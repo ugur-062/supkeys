@@ -79,7 +79,11 @@ export class SupplierSelfServiceController {
     @Body() dto: CompleteOnboardingDto,
     @CurrentSupplierUser() user: AuthenticatedSupplierUser,
   ) {
-    return this.service.completeOnboarding(user.supplierId, dto);
+    return this.service.completeOnboarding(
+      user.supplierId,
+      user.supplierUserId,
+      dto,
+    );
   }
 
   // Madde 29 — FAZ 3.1 kurumsal kimlik güncelleme.

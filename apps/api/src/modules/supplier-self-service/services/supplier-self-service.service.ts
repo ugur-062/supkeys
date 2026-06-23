@@ -10,6 +10,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import type { Prisma } from "@supkeys/db";
 import {
+  isValidSupplierSector,
   isValidTaxId,
   isValidTckn,
   normalizeShortCode,
@@ -34,14 +35,17 @@ export class SupplierSelfServiceService {
   ) {}
 
   /**
-   * Madde 29 — FAZ 2 onboarding'i tamamla. Firma kimliği + yetkili + faaliyet
-   * sektörü (UNSPSC segment, 1-3) kaydeder, `onboardingCompletedAt` set eder.
-   * Panel gate'i bu tarih dolunca açılır.
+   * Madde 29 — FAZ 2 onboarding'i tamamla. Firma kimliği + yetkili (rol→isManager)
+   * + kürasyonlu faaliyet sektörleri (1-3) + teslimat adresi kaydeder,
+   * `onboardingCompletedAt` set eder. Panel gate'i bu tarih dolunca açılır.
    */
-  async completeOnboarding(supplierId: string, dto: CompleteOnboardingDto) {
+  async completeOnboarding(
+    supplierId: string,
+    supplierUserId: string,
+    dto: CompleteOnboardingDto,
+  ) {
     const isSole = dto.companyType === "SOLE_PROPRIETOR";
 
-    // Anlamsal validasyon (shared validator'lar).
     if (!isValidTaxId(dto.taxNumber, isSole)) {
       throw new BadRequestException(
         isSole
@@ -53,21 +57,40 @@ export class SupplierSelfServiceService {
       throw new BadRequestException("Yetkili T.C. Kimlik No geçersiz");
     }
 
-    // Faaliyet sektörü = UNSPSC segment (level 1), 1-3 adet, benzersiz.
-    const categoryIds = Array.from(new Set(dto.categoryIds));
-    if (categoryIds.length < 1 || categoryIds.length > 3) {
+    // Faaliyet sektörü — kürasyonlu liste, 1-3 adet, benzersiz.
+    const sectors = Array.from(new Set(dto.sectors.map((s) => s.trim())));
+    if (sectors.length < 1 || sectors.length > 3) {
       throw new BadRequestException("1-3 arası faaliyet sektörü seçmelisiniz");
     }
-    const segments = await this.prisma.category.findMany({
-      where: { id: { in: categoryIds }, level: 1 },
-      select: { id: true, nameTr: true },
-    });
-    if (segments.length !== categoryIds.length) {
+    if (!sectors.every((s) => isValidSupplierSector(s))) {
       throw new BadRequestException("Geçersiz faaliyet sektörü seçimi");
     }
-    // İlk seçilen = ana faaliyet sektörü → industry alanına yaz.
-    const mainSector =
-      segments.find((s) => s.id === categoryIds[0])?.nameTr ?? null;
+    const mainSector = sectors[0];
+
+    // Teslimat adresi — "fatura adresimle aynı" ise fatura adresinden kopyala.
+    const delivery = dto.deliveryUseBilling
+      ? {
+          deliveryCity: dto.city.trim(),
+          deliveryDistrict: dto.district.trim(),
+          deliveryNeighborhood: dto.neighborhood.trim(),
+          deliveryPostalCode: dto.postalCode.trim(),
+          deliveryAddressLine: dto.addressLine.trim(),
+        }
+      : {
+          deliveryCity: dto.deliveryCity?.trim() || null,
+          deliveryDistrict: dto.deliveryDistrict?.trim() || null,
+          deliveryNeighborhood: dto.deliveryNeighborhood?.trim() || null,
+          deliveryPostalCode: dto.deliveryPostalCode?.trim() || null,
+          deliveryAddressLine: dto.deliveryAddressLine?.trim() || null,
+        };
+    if (
+      !dto.deliveryUseBilling &&
+      (!delivery.deliveryCity || !delivery.deliveryAddressLine)
+    ) {
+      throw new BadRequestException("Teslimat adresi eksik");
+    }
+
+    const isManager = dto.role === "MANAGER";
 
     await this.prisma.$transaction([
       this.prisma.supplier.update({
@@ -85,16 +108,17 @@ export class SupplierSelfServiceService {
           billingTitle: dto.billingTitle?.trim() || null,
           billingEmail: dto.billingEmail?.trim() || null,
           authorizedTckn: dto.authorizedTckn.trim(),
-          authorizedTitle: dto.authorizedTitle.trim(),
+          authorizedTitle: isManager ? "Yönetici" : "Satın Almacı",
+          sectors,
           industry: mainSector,
+          ...delivery,
           onboardingCompletedAt: new Date(),
         },
       }),
-      // Kategoriler — replace-all (sıra junction'da tutulmaz; ana sektör industry'de).
-      this.prisma.supplierCategory.deleteMany({ where: { supplierId } }),
-      this.prisma.supplierCategory.createMany({
-        data: categoryIds.map((categoryId) => ({ supplierId, categoryId })),
-        skipDuplicates: true,
+      // Yetkilinin rolü → isManager.
+      this.prisma.supplierUser.update({
+        where: { id: supplierUserId },
+        data: { isManager },
       }),
     ]);
 

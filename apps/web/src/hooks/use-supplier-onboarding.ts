@@ -14,10 +14,18 @@ export interface SupplierOnboardingPayload {
   addressLine: string;
   billingTitle?: string;
   billingEmail?: string;
+  // Teslimat adresi ("fatura adresimle aynı" tiki).
+  deliveryUseBilling: boolean;
+  deliveryCity?: string;
+  deliveryDistrict?: string;
+  deliveryNeighborhood?: string;
+  deliveryPostalCode?: string;
+  deliveryAddressLine?: string;
   authorizedTckn: string;
-  authorizedTitle: string;
-  /** UNSPSC segment ID'leri (1-3, ilk = ana sektör). */
-  categoryIds: string[];
+  /** Yetkilinin rolü → isManager. */
+  role: "MANAGER" | "PURCHASER";
+  /** Kürasyonlu sektör adları (1-3, ilk = ana). */
+  sectors: string[];
 }
 
 export function useCompleteSupplierOnboarding() {

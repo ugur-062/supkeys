@@ -302,6 +302,7 @@ export class SupplierAuthService {
     billingEmail: string | null;
     authorizedTckn: string | null;
     authorizedTitle: string | null;
+    sectors: string[];
     mersisNo: string | null;
     tradeRegistryNo: string | null;
     kepAddress: string | null;
@@ -335,6 +336,7 @@ export class SupplierAuthService {
       billingEmail: supplier.billingEmail,
       authorizedTckn: supplier.authorizedTckn,
       authorizedTitle: supplier.authorizedTitle,
+      sectors: supplier.sectors,
       // Madde 29 — FAZ 3 kurumsal kimlik (panel-içi editlenebilir).
       mersisNo: supplier.mersisNo,
       tradeRegistryNo: supplier.tradeRegistryNo,

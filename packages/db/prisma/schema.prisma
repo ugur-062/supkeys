@@ -664,6 +664,16 @@ model Supplier {
   // FAZ 2 — yetkili kişi
   authorizedTckn  String?
   authorizedTitle String?
+  // FAZ 2 — faaliyet sektörleri (kürasyonlu liste, 1-3, ilk=ana). UNSPSC'den
+  // bağımsız string'ler (bkz. SUPPLIER_SECTORS).
+  sectors         String[] @default([])
+  // FAZ 2 — teslimat adresi (fatura adresinden farklıysa). "Fatura adresimi
+  // teslimat adresi yap" tiki ile fatura adresinden kopyalanabilir.
+  deliveryCity         String?
+  deliveryDistrict     String?
+  deliveryNeighborhood String?
+  deliveryAddressLine  String?
+  deliveryPostalCode   String?
   // FAZ 3 — kurumsal kimlik
   tradeRegistryNo        String?
   kepAddress             String?

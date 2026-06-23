@@ -2,6 +2,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsOptional,
@@ -10,6 +11,12 @@ import {
   MaxLength,
 } from "class-validator";
 import { CompanyTypeDto } from "../../registration/dto/create-buyer-application.dto";
+
+/** Tedarikçi yetkilisinin rolü → SupplierUser.isManager. */
+export enum SupplierRoleDto {
+  MANAGER = "MANAGER", // Yönetici (isManager = true)
+  PURCHASER = "PURCHASER", // Satın Almacı (isManager = false)
+}
 
 /**
  * Madde 29 — FAZ 2 onboarding wizard verisi (tedarikçi).
@@ -64,19 +71,47 @@ export class CompleteOnboardingDto {
   @MaxLength(200)
   billingEmail?: string;
 
-  // Adım 2 — Yetkili Kişi
+  // Adım 1 — Teslimat Adresi ("fatura adresimle aynı" tiki ile kopyalanır)
+  @IsBoolean()
+  deliveryUseBilling!: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  deliveryCity?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  deliveryDistrict?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  deliveryNeighborhood?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  deliveryPostalCode?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  deliveryAddressLine?: string;
+
+  // Adım 2 — Yetkili Kişi (rol → isManager)
   @IsString()
   @Length(11, 11, { message: "T.C. Kimlik No 11 haneli olmalıdır" })
   authorizedTckn!: string;
 
-  @IsString()
-  @Length(2, 100)
-  authorizedTitle!: string;
+  @IsEnum(SupplierRoleDto, { message: "Geçerli bir rol seçiniz" })
+  role!: SupplierRoleDto;
 
-  // Adım 2 — Faaliyet Sektörü (UNSPSC segment, 1-3, ilk = ana)
+  // Adım 2 — Faaliyet Sektörü (kürasyonlu liste, 1-3, ilk = ana)
   @IsArray()
   @ArrayMinSize(1, { message: "En az 1 faaliyet sektörü seçmelisiniz" })
   @ArrayMaxSize(3, { message: "En fazla 3 faaliyet sektörü seçebilirsiniz" })
   @IsString({ each: true })
-  categoryIds!: string[];
+  sectors!: string[];
 }

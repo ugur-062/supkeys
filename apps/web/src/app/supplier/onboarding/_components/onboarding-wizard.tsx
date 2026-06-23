@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRoots } from "@/hooks/use-categories";
 import {
   useCompleteSupplierOnboarding,
   type SupplierOnboardingPayload,
@@ -16,21 +15,23 @@ import type {
   SupplierUserDto,
 } from "@/lib/supplier-auth/types";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { isValidTaxId, isValidTckn } from "@supkeys/shared";
-import { Check, Loader2 } from "lucide-react";
-import { useState } from "react";
+import {
+  getDistrictsByCity,
+  isValidTaxId,
+  isValidTckn,
+  SUPPLIER_SECTORS,
+  TURKEY_LOCATIONS,
+} from "@supkeys/shared";
+import { Check } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
-const TITLE_OPTIONS = [
-  "Yönetici",
-  "Genel Müdür",
-  "Müdür",
-  "Firma Sahibi",
-  "Yetkili",
-  "Diğer",
-];
+const ROLE_LABEL: Record<"MANAGER" | "PURCHASER", string> = {
+  MANAGER: "Yönetici",
+  PURCHASER: "Satın Almacı",
+};
 
 const schema = z
   .object({
@@ -49,9 +50,15 @@ const schema = z
       .email("Geçerli bir e-posta giriniz")
       .optional()
       .or(z.literal("")),
+    deliveryUseBilling: z.boolean(),
+    deliveryCity: z.string().optional(),
+    deliveryDistrict: z.string().optional(),
+    deliveryNeighborhood: z.string().optional(),
+    deliveryPostalCode: z.string().optional(),
+    deliveryAddressLine: z.string().optional(),
     authorizedTckn: z.string().min(11, "T.C. Kimlik No 11 haneli olmalı"),
-    authorizedTitle: z.string().min(2, "Ünvan/rol seçin"),
-    categoryIds: z
+    role: z.enum(["MANAGER", "PURCHASER"]),
+    sectors: z
       .array(z.string())
       .min(1, "En az 1 faaliyet sektörü seçin")
       .max(3, "En fazla 3 faaliyet sektörü"),
@@ -74,6 +81,26 @@ const schema = z
         message: "Geçerli bir T.C. Kimlik No giriniz",
       });
     }
+    if (!v.deliveryUseBilling) {
+      if (!v.deliveryCity)
+        ctx.addIssue({
+          path: ["deliveryCity"],
+          code: z.ZodIssueCode.custom,
+          message: "Teslimat ili seçin",
+        });
+      if (!v.deliveryDistrict)
+        ctx.addIssue({
+          path: ["deliveryDistrict"],
+          code: z.ZodIssueCode.custom,
+          message: "Teslimat ilçesi seçin",
+        });
+      if (!v.deliveryAddressLine || v.deliveryAddressLine.trim().length < 5)
+        ctx.addIssue({
+          path: ["deliveryAddressLine"],
+          code: z.ZodIssueCode.custom,
+          message: "Teslimat açık adresi zorunlu",
+        });
+    }
   });
 
 type FormValues = z.infer<typeof schema>;
@@ -90,8 +117,11 @@ const STEP_FIELDS: Record<number, (keyof FormValues)[]> = {
     "postalCode",
     "addressLine",
     "billingEmail",
+    "deliveryCity",
+    "deliveryDistrict",
+    "deliveryAddressLine",
   ],
-  2: ["authorizedTckn", "authorizedTitle", "categoryIds"],
+  2: ["authorizedTckn", "role", "sectors"],
 };
 
 export function OnboardingWizard({
@@ -106,7 +136,6 @@ export function OnboardingWizard({
   const [step, setStep] = useState(1);
   const [declared, setDeclared] = useState(false);
   const complete = useCompleteSupplierOnboarding();
-  const { data: segments, isLoading: segmentsLoading } = useRoots();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -123,9 +152,15 @@ export function OnboardingWizard({
       addressLine: supplier.addressLine ?? "",
       billingTitle: supplier.billingTitle ?? "",
       billingEmail: supplier.billingEmail ?? "",
+      deliveryUseBilling: true,
+      deliveryCity: "",
+      deliveryDistrict: "",
+      deliveryNeighborhood: "",
+      deliveryPostalCode: "",
+      deliveryAddressLine: "",
       authorizedTckn: supplier.authorizedTckn ?? "",
-      authorizedTitle: supplier.authorizedTitle ?? "",
-      categoryIds: [],
+      role: "MANAGER",
+      sectors: supplier.sectors ?? [],
     },
   });
 
@@ -138,6 +173,13 @@ export function OnboardingWizard({
     getValues,
     formState: { errors },
   } = form;
+
+  const useBilling = watch("deliveryUseBilling");
+  const deliveryCity = watch("deliveryCity");
+  const deliveryDistricts = useMemo(
+    () => (deliveryCity ? getDistrictsByCity(deliveryCity) : []),
+    [deliveryCity],
+  );
 
   const next = async () => {
     const ok = await trigger(STEP_FIELDS[step]);
@@ -167,9 +209,15 @@ export function OnboardingWizard({
       addressLine: v.addressLine,
       billingTitle: v.billingTitle?.trim() || undefined,
       billingEmail: v.billingEmail?.trim() || undefined,
+      deliveryUseBilling: v.deliveryUseBilling,
+      deliveryCity: v.deliveryCity?.trim() || undefined,
+      deliveryDistrict: v.deliveryDistrict?.trim() || undefined,
+      deliveryNeighborhood: v.deliveryNeighborhood?.trim() || undefined,
+      deliveryPostalCode: v.deliveryPostalCode?.trim() || undefined,
+      deliveryAddressLine: v.deliveryAddressLine?.trim() || undefined,
       authorizedTckn: v.authorizedTckn,
-      authorizedTitle: v.authorizedTitle,
-      categoryIds: v.categoryIds,
+      role: v.role,
+      sectors: v.sectors,
     };
     complete.mutate(payload, {
       onSuccess: async () => {
@@ -245,10 +293,7 @@ export function OnboardingWizard({
                 />
                 <Field error={errors.neighborhood?.message}>
                   <Label required>Mahalle</Label>
-                  <Input
-                    {...register("neighborhood")}
-                    placeholder="Mahalle"
-                  />
+                  <Input {...register("neighborhood")} placeholder="Mahalle" />
                 </Field>
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <Field hint="Opsiyonel">
@@ -269,6 +314,96 @@ export function OnboardingWizard({
                 </div>
               </div>
             </div>
+
+            {/* Teslimat adresi */}
+            <div className="border-t border-zinc-100 pt-5">
+              <p className="mb-3 text-sm font-semibold text-zinc-900">
+                Teslimat Adresi
+              </p>
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={useBilling}
+                  onChange={(e) =>
+                    setValue("deliveryUseBilling", e.target.checked, {
+                      shouldValidate: true,
+                    })
+                  }
+                />
+                Fatura adresimi teslimat adresi olarak kullan
+              </label>
+
+              {!useBilling ? (
+                <div className="mt-4 space-y-5">
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <Field error={errors.deliveryCity?.message}>
+                      <Label required>İl</Label>
+                      <Controller
+                        control={control}
+                        name="deliveryCity"
+                        render={({ field }) => (
+                          <Select
+                            value={field.value ?? ""}
+                            onChange={(e) => {
+                              field.onChange(e.target.value);
+                              setValue("deliveryDistrict", "");
+                            }}
+                          >
+                            <option value="">Seçiniz</option>
+                            {TURKEY_LOCATIONS.map((loc) => (
+                              <option key={loc.il} value={loc.il}>
+                                {loc.il}
+                              </option>
+                            ))}
+                          </Select>
+                        )}
+                      />
+                    </Field>
+                    <Field error={errors.deliveryDistrict?.message}>
+                      <Label required>İlçe</Label>
+                      <Controller
+                        control={control}
+                        name="deliveryDistrict"
+                        render={({ field }) => (
+                          <Select
+                            value={field.value ?? ""}
+                            onChange={field.onChange}
+                            disabled={!deliveryCity}
+                          >
+                            <option value="">
+                              {deliveryCity ? "Seçiniz" : "Önce il seçin"}
+                            </option>
+                            {deliveryDistricts.map((d) => (
+                              <option key={d} value={d}>
+                                {d}
+                              </option>
+                            ))}
+                          </Select>
+                        )}
+                      />
+                    </Field>
+                  </div>
+                  <Field error={errors.deliveryAddressLine?.message}>
+                    <Label required>Açık Adres</Label>
+                    <Input
+                      {...register("deliveryAddressLine")}
+                      placeholder="Mah., Cad./Sk., No, Daire"
+                    />
+                  </Field>
+                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                    <Field>
+                      <Label>Mahalle</Label>
+                      <Input {...register("deliveryNeighborhood")} />
+                    </Field>
+                    <Field hint="Opsiyonel">
+                      <Label>Posta Kodu</Label>
+                      <Input {...register("deliveryPostalCode")} maxLength={5} />
+                    </Field>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
@@ -276,7 +411,7 @@ export function OnboardingWizard({
           <div className="space-y-5">
             <SectionTitle
               title="Kişisel Bilgiler"
-              desc="Yetkili kişi T.C. kimlik numarası, ünvan ve faaliyet sektörü."
+              desc="Yetkili kişi T.C. kimlik numarası, rolü ve faaliyet sektörü."
             />
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
               <Field hint="Kayıt sırasında alındı">
@@ -301,26 +436,22 @@ export function OnboardingWizard({
                   placeholder="11 haneli TCKN"
                 />
               </Field>
-              <Field error={errors.authorizedTitle?.message}>
-                <Label required>Ünvan / Rol</Label>
+              <Field error={errors.role?.message} hint="Paneldeki yetkinizi belirler">
+                <Label required>Rol</Label>
                 <Controller
                   control={control}
-                  name="authorizedTitle"
+                  name="role"
                   render={({ field }) => (
                     <Select {...field}>
-                      <option value="">Görevinizi seçin</option>
-                      {TITLE_OPTIONS.map((t) => (
-                        <option key={t} value={t}>
-                          {t}
-                        </option>
-                      ))}
+                      <option value="MANAGER">Yönetici</option>
+                      <option value="PURCHASER">Satın Almacı</option>
                     </Select>
                   )}
                 />
               </Field>
             </div>
 
-            <Field error={errors.categoryIds?.message}>
+            <Field error={errors.sectors?.message}>
               <Label required>Faaliyet Sektörü</Label>
               <p className="mb-2 text-xs text-zinc-500">
                 En az 1, en fazla 3 sektör. İlk seçtiğiniz ana faaliyet
@@ -328,17 +459,9 @@ export function OnboardingWizard({
               </p>
               <Controller
                 control={control}
-                name="categoryIds"
+                name="sectors"
                 render={({ field }) => (
-                  <SectorChips
-                    loading={segmentsLoading}
-                    options={(segments ?? []).map((s) => ({
-                      id: s.id,
-                      name: s.nameTr,
-                    }))}
-                    value={field.value}
-                    onChange={field.onChange}
-                  />
+                  <SectorChips value={field.value} onChange={field.onChange} />
                 )}
               />
             </Field>
@@ -351,7 +474,7 @@ export function OnboardingWizard({
               title="Özet & Beyan"
               desc="Bilgilerinizi kontrol edin ve beyanı onaylayın."
             />
-            <SummaryList values={getValues()} segments={segments ?? []} />
+            <SummaryList values={getValues()} />
             <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-950/10 bg-zinc-50 p-3">
               <input
                 type="checkbox"
@@ -407,11 +530,9 @@ function Stepper({ step }: { step: number }) {
           <li key={label} className="flex flex-1 items-center gap-2">
             <span
               className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
-                active
+                active || done
                   ? "bg-zinc-900 text-white"
-                  : done
-                    ? "bg-zinc-900 text-white"
-                    : "bg-zinc-100 text-zinc-500"
+                  : "bg-zinc-100 text-zinc-500"
               }`}
             >
               {done ? <Check className="h-4 w-4" /> : n}
@@ -443,28 +564,17 @@ function SectionTitle({ title, desc }: { title: string; desc: string }) {
 }
 
 function SectorChips({
-  loading,
-  options,
   value,
   onChange,
 }: {
-  loading: boolean;
-  options: { id: string; name: string }[];
   value: string[];
-  onChange: (ids: string[]) => void;
+  onChange: (v: string[]) => void;
 }) {
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 py-3 text-sm text-zinc-500">
-        <Loader2 className="h-4 w-4 animate-spin" /> Sektörler yükleniyor…
-      </div>
-    );
-  }
-  const toggle = (id: string) => {
-    if (value.includes(id)) {
-      onChange(value.filter((v) => v !== id));
+  const toggle = (s: string) => {
+    if (value.includes(s)) {
+      onChange(value.filter((v) => v !== s));
     } else if (value.length < 3) {
-      onChange([...value, id]);
+      onChange([...value, s]);
     } else {
       toast.error("En fazla 3 sektör seçebilirsiniz");
     }
@@ -475,14 +585,14 @@ function SectorChips({
         {value.length}/3 seçildi
       </div>
       <div className="flex flex-wrap gap-2">
-        {options.map((o) => {
-          const idx = value.indexOf(o.id);
+        {SUPPLIER_SECTORS.map((s) => {
+          const idx = value.indexOf(s);
           const selected = idx >= 0;
           return (
             <button
-              key={o.id}
+              key={s}
               type="button"
-              onClick={() => toggle(o.id)}
+              onClick={() => toggle(s)}
               className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                 selected
                   ? "bg-zinc-900 text-white"
@@ -494,7 +604,7 @@ function SectorChips({
                   {idx === 0 ? "Ana" : idx + 1}
                 </span>
               ) : null}
-              {o.name}
+              {s}
             </button>
           );
         })}
@@ -503,32 +613,26 @@ function SectorChips({
   );
 }
 
-function SummaryList({
-  values,
-  segments,
-}: {
-  values: FormValues;
-  segments: { id: string; nameTr: string }[];
-}) {
+function SummaryList({ values }: { values: FormValues }) {
   const typeLabel =
     values.companyType === "JOINT_STOCK"
       ? "Anonim Şirket"
       : values.companyType === "SOLE_PROPRIETOR"
         ? "Şahıs Şirketi"
         : "Limited Şirket";
-  const sectorNames = values.categoryIds
-    .map((id) => segments.find((s) => s.id === id)?.nameTr)
-    .filter(Boolean)
-    .join(", ");
+  const deliveryText = values.deliveryUseBilling
+    ? "Fatura adresiyle aynı"
+    : `${values.deliveryNeighborhood ?? ""} ${values.deliveryDistrict ?? ""}/${values.deliveryCity ?? ""}`.trim();
   const rows: [string, string][] = [
     ["Firma Ünvanı", values.legalName],
     ["Firma Türü", typeLabel],
     ["Vergi/TC No", values.taxNumber],
     ["Vergi Dairesi", values.taxOffice],
-    ["Adres", `${values.neighborhood}, ${values.district}/${values.city}`],
+    ["Fatura Adresi", `${values.neighborhood}, ${values.district}/${values.city}`],
+    ["Teslimat Adresi", deliveryText],
     ["Yetkili TCKN", values.authorizedTckn],
-    ["Ünvan/Rol", values.authorizedTitle],
-    ["Faaliyet Sektörü", sectorNames || "—"],
+    ["Rol", ROLE_LABEL[values.role]],
+    ["Faaliyet Sektörü", values.sectors.join(", ") || "—"],
   ];
   return (
     <dl className="divide-y divide-zinc-100 rounded-lg border border-zinc-950/10">
