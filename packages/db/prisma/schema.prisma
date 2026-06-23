@@ -2010,41 +2010,6 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-// Faz 7 — Ödeme kaydı (sağlayıcı-agnostik). Şimdilik PREMIUM_SUPPLIER;
-// ileride ORDER_ESCROW eklenecek. provider: "test" | "iyzico".
-enum PaymentPurpose {
-  PREMIUM_SUPPLIER
-  ORDER_ESCROW
-}
-
-enum PaymentStatus {
-  PENDING
-  PAID
-  FAILED
-  CANCELLED
-}
-
-model Payment {
-  id          String         @id @default(cuid())
-  purpose     PaymentPurpose
-  status      PaymentStatus  @default(PENDING)
-  supplierId  String?
-  tenantId    String?
-  amount      Decimal        @db.Decimal(12, 2)
-  currency    String         @default("TRY")
-  provider    String
-  providerRef String?
-  // Premium: bu ödemenin kapsadığı dönem sonu (yenileme/abonelik için).
-  periodEnd   DateTime?
-  paidAt      DateTime?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-
-  @@index([supplierId])
-  @@index([tenantId])
-  @@map("payments")
-}
-
 // Madde 29 — FAZ 3.3: e-posta 2FA OTP challenge (transient).
 // userId VEYA supplierUserId dolu (biri). purpose: LOGIN | ENABLE.
 model TwoFactorChallenge {

@@ -2,7 +2,6 @@
 
 import { PageHeader } from "@/components/list";
 import { useSupplierMe } from "@/hooks/use-supplier-auth";
-import { usePremiumCheckout } from "@/hooks/use-supplier-premium";
 import {
   Check,
   ChevronRight,
@@ -11,7 +10,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { toast } from "sonner";
 
 const BENEFITS = [
   "Tüm herkese açık ihalelere davet beklemeden teklif",
@@ -22,15 +20,6 @@ const BENEFITS = [
 
 export default function SupplierPremiumPage() {
   const me = useSupplierMe();
-  const checkout = usePremiumCheckout();
-
-  const onCheckout = () =>
-    checkout.mutate(undefined, {
-      onSuccess: (d) => {
-        window.location.href = d.redirectUrl;
-      },
-      onError: () => toast.error("Ödeme başlatılamadı, tekrar deneyin"),
-    });
 
   if (me.isLoading || !me.data) {
     return (
@@ -97,21 +86,9 @@ export default function SupplierPremiumPage() {
             Doğrulamanız tamamlandı
           </p>
           <p className="mt-1 text-sm text-zinc-500">
-            Premium'a geçmek için son adım ödeme.
+            Doğrulamanız tamamlandı. Premium'a geçiş için ödeme adımı yakında
+            eklenecek.
           </p>
-          <button
-            type="button"
-            onClick={onCheckout}
-            disabled={checkout.isPending}
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
-          >
-            {checkout.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-            Premium'a Geç
-          </button>
         </div>
       ) : (
         // Doğrulama kapısı — alıcının ihale kapısıyla aynı gereksinimler.
