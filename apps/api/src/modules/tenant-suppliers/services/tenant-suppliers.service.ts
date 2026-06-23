@@ -130,6 +130,86 @@ export class TenantSuppliersService {
     };
   }
 
+  /**
+   * Tedarikçi Havuzu (alıcı keşif). Görünenler: TÜM premium tedarikçiler +
+   * bu alıcının kendi ACTIVE bağlı (standart dahil) tedarikçileri.
+   * Arama: firma adı / Supkeys ID. Filtre: UNSPSC kategori.
+   */
+  async pool(
+    tenantId: string,
+    opts: { search?: string; categoryId?: string },
+  ) {
+    const relations = await this.prisma.supplierTenantRelation.findMany({
+      where: { tenantId },
+      select: { supplierId: true, status: true },
+    });
+    const relMap = new Map(relations.map((r) => [r.supplierId, r.status]));
+    const connectedActiveIds = relations
+      .filter((r) => r.status === "ACTIVE")
+      .map((r) => r.supplierId);
+
+    const and: Prisma.SupplierWhereInput[] = [
+      { isActive: true, isBlocked: false },
+      // PREMIUM herkese görünür + bu alıcının bağlı (standart dahil) olanları.
+      { OR: [{ membership: "PREMIUM" }, { id: { in: connectedActiveIds } }] },
+    ];
+
+    const term = opts.search?.trim();
+    if (term) {
+      const idTerm = normalizeShortCode(term.replace(/^SK-?/i, ""));
+      and.push({
+        OR: [
+          { companyName: { contains: term, mode: "insensitive" } },
+          { supkeysId: { equals: idTerm } },
+        ],
+      });
+    }
+    if (opts.categoryId) {
+      and.push({ categories: { some: { categoryId: opts.categoryId } } });
+    }
+
+    const suppliers = await this.prisma.supplier.findMany({
+      where: { AND: and },
+      take: 100,
+      orderBy: [{ membership: "asc" }, { companyName: "asc" }],
+      select: {
+        id: true,
+        companyName: true,
+        city: true,
+        district: true,
+        industry: true,
+        website: true,
+        services: true,
+        logoImageUrl: true,
+        slug: true,
+        publicEnabled: true,
+        supkeysId: true,
+        membership: true,
+        categories: {
+          select: { category: { select: { nameTr: true } } },
+          take: 6,
+        },
+      },
+    });
+
+    return suppliers.map((s) => ({
+      id: s.id,
+      companyName: s.companyName,
+      city: s.city,
+      district: s.district,
+      industry: s.industry,
+      website: s.website,
+      services: s.services,
+      logoUrl: s.logoImageUrl,
+      slug: s.slug,
+      publicEnabled: s.publicEnabled,
+      supkeysId: s.supkeysId,
+      membership: s.membership,
+      categories: s.categories.map((c) => c.category.nameTr),
+      relationStatus: relMap.get(s.id) ?? null,
+    }));
+  }
+
   async findOne(tenantId: string, relationId: string) {
     const relation = await this.prisma.supplierTenantRelation.findFirst({
       where: { id: relationId, tenantId },

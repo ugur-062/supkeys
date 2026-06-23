@@ -22,6 +22,8 @@ import type {
   InvitationStatus,
 } from "@/lib/tedarikciler/types";
 import axios from "axios";
+import { Store } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -259,10 +261,19 @@ export function TedarikcilerView() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Tedarikçi Yönetimi"
-        description="Onaylı tedarikçileriniz, gönderdiğiniz davetler ve engelli kayıtlar tek yerden."
-      />
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <PageHeader
+          title="Tedarikçilerim"
+          description="Onaylı tedarikçileriniz, gönderdiğiniz davetler ve engelli kayıtlar tek yerden."
+        />
+        <Link
+          href="/dashboard/tedarikciler/havuz"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-950/10 bg-white px-3 py-2 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+        >
+          <Store className="h-4 w-4" />
+          Tedarikçi Havuzu
+        </Link>
+      </div>
 
       <HeaderCard
         canInvite={canInvite}

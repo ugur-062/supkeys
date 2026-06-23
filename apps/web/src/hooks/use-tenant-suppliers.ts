@@ -22,6 +22,46 @@ const KEYS = {
   stats: () => [...KEYS.all, "stats"] as const,
 };
 
+/** Tedarikçi Havuzu — premium tedarikçiler + alıcının bağlı tedarikçileri. */
+export interface SupplierPoolItem {
+  id: string;
+  companyName: string;
+  city: string | null;
+  district: string | null;
+  industry: string | null;
+  website: string | null;
+  services: string[];
+  logoUrl: string | null;
+  slug: string | null;
+  publicEnabled: boolean;
+  supkeysId: string | null;
+  membership: "STANDARD" | "PREMIUM";
+  categories: string[];
+  relationStatus:
+    | "ACTIVE"
+    | "PENDING_TENANT_APPROVAL"
+    | "BLOCKED"
+    | null;
+}
+
+export function useSupplierPool(search: string, categoryId: string) {
+  return useQuery<SupplierPoolItem[]>({
+    queryKey: [...KEYS.all, "pool", search, categoryId],
+    queryFn: async () => {
+      const { data } = await api.get<SupplierPoolItem[]>(
+        "/tenants/me/suppliers/pool",
+        {
+          params: {
+            ...(search ? { search } : {}),
+            ...(categoryId ? { categoryId } : {}),
+          },
+        },
+      );
+      return data;
+    },
+  });
+}
+
 /** Faz 3 madde 6 — alıcı, Supkeys ID ile tedarikçi ekler (direkt ACTIVE). */
 export function useConnectSupplierBySupkeysId() {
   const qc = useQueryClient();
