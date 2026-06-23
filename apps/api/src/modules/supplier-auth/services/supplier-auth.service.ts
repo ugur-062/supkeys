@@ -75,6 +75,13 @@ export class SupplierAuthService {
       auditFail("user_inactive");
       throw new ForbiddenException("Kullanıcı hesabı aktif değil");
     }
+    // Madde 29 — e-posta doğrulanmadan giriş yok (signup → kod doğrulama).
+    if (!user.emailVerifiedAt) {
+      auditFail("email_unverified");
+      throw new ForbiddenException(
+        "Giriş yapmadan önce e-posta adresinizi doğrulayın.",
+      );
+    }
 
     // Madde 29 — FAZ 3.3: 2FA açıksa token verme, OTP iste.
     if (user.twoFactorEnabled) {
@@ -285,7 +292,7 @@ export class SupplierAuthService {
     supkeysId: string | null;
     companyName: string;
     companyType: string;
-    taxNumber: string;
+    taxNumber: string | null;
     taxOffice: string;
     industry: string | null;
     website: string | null;

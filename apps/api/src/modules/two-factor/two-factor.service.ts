@@ -12,7 +12,7 @@ const CODE_TTL_MIN = 10;
 const MAX_ATTEMPTS = 5;
 
 export type TwoFactorKind = "user" | "supplier";
-export type TwoFactorPurpose = "LOGIN" | "ENABLE";
+export type TwoFactorPurpose = "LOGIN" | "ENABLE" | "EMAIL_VERIFY";
 
 export interface TwoFactorTarget {
   kind: TwoFactorKind;
@@ -69,7 +69,12 @@ export class TwoFactorService {
             firstName: target.firstName,
             otpCode: code,
             expiresInMinutes: CODE_TTL_MIN,
-            purposeLabel: purpose === "LOGIN" ? "giriş" : "etkinleştirme",
+            purposeLabel:
+              purpose === "LOGIN"
+                ? "giriş"
+                : purpose === "EMAIL_VERIFY"
+                  ? "e-posta doğrulama"
+                  : "etkinleştirme",
           },
         },
       });

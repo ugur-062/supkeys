@@ -24,7 +24,7 @@ export interface SupplierProfile {
   supkeysId: string | null;
   companyName: string;
   companyType: CompanyType;
-  taxNumber: string;
+  taxNumber: string | null;
   taxOffice: string;
   industry: string | null;
   website: string | null;

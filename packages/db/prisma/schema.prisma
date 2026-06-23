@@ -642,9 +642,13 @@ model Supplier {
   supkeysId         String?            @unique
   companyName       String
   companyType       CompanyType
-  taxNumber         String             @unique
+  // Madde 29 — hesap, şirket bilgisinden önce (signup) oluşur; taxNumber
+  // onboarding'de doldurulur. unique + nullable (signup'ta boş; diğer zorunlu
+  // string alanlar signup'ta "" placeholder, onboarding doldurur).
+  taxNumber         String?            @unique
   taxOffice         String
-  taxCertUrl        String
+  // Vergi levhası kayıttan çıktı → FAZ 3 (docTaxPlateUrl). Legacy alan nullable.
+  taxCertUrl        String?
   industry          String?
   website           String?
   city              String
@@ -873,6 +877,9 @@ model SupplierUser {
   lastName          String
   phone             String?
   isActive          Boolean   @default(true)
+  // Madde 29 — signup sonrası e-posta KOD doğrulaması; doğrulanana kadar login
+  // engellenir. Mevcut kullanıcılar migration'da backfill edilir.
+  emailVerifiedAt   DateTime?
   // G6 madde 20 — firma yöneticisi. Kuran (ilk kayıt) = true. Yönetici ek
   // olarak kullanıcı yönetimi + banka hesaplarını kontrol eder.
   isManager         Boolean   @default(false)

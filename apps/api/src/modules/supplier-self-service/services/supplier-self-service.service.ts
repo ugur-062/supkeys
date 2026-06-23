@@ -96,6 +96,8 @@ export class SupplierSelfServiceService {
       this.prisma.supplier.update({
         where: { id: supplierId },
         data: {
+          // Signup'taki placeholder companyName'i gerçek ünvanla değiştir.
+          companyName: dto.legalName.trim(),
           legalName: dto.legalName.trim(),
           companyType: dto.companyType,
           taxNumber: dto.taxNumber.trim(),
@@ -522,7 +524,7 @@ export class SupplierSelfServiceService {
               adminFirstName: admin.firstName,
               tenantName: tenant.name,
               supplierCompanyName: supplier.companyName,
-              supplierTaxNumber: supplier.taxNumber,
+              supplierTaxNumber: supplier.taxNumber ?? "",
               supplierCity: supplier.city,
               supplierIndustry: supplier.industry ?? null,
               supplierContactEmail: supplierUser.email,
