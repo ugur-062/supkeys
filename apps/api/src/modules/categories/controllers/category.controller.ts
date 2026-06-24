@@ -23,6 +23,13 @@ export class CategoryController {
     return this.service.getAllActive();
   }
 
+  /** Bir parent'ın direkt çocukları — L4 commodity lazy-load. */
+  @Get("children")
+  @Header("Cache-Control", "public, max-age=60")
+  children(@Query("parentId") parentId?: string): Promise<unknown> {
+    return this.service.childrenOf(parentId ?? "");
+  }
+
   @Get("search-tree")
   @Header("Cache-Control", "no-cache")
   searchTree(@Query("q") query?: string): Promise<unknown> {

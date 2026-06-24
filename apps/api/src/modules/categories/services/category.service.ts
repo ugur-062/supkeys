@@ -110,9 +110,15 @@ export class CategoryService {
    * tamamını çekmesi için. parentId üzerinden client-side traverse yapılır;
    * eski lazy /children endpoint çağrılarına gerek yok.
    */
+  /**
+   * Payload optimizasyonu — yalnızca L1-L3 (Segment/Family/Class) döner.
+   * L4 commodity'ler (toplam yığının ~%80'i) class açılınca `/children` ile
+   * lazy çekilir. Her düğüme `childCount` eklenir (L4 sayısı dahil) → frontend
+   * commodity'leri yüklemeden "expand var mı" gösterebilir.
+   */
   async getAllActive() {
-    return this.prisma.category.findMany({
-      where: { isActive: true },
+    const cats = await this.prisma.category.findMany({
+      where: { isActive: true, level: { lte: 3 } },
       orderBy: [{ level: "asc" }, { sortOrder: "asc" }],
       select: {
         id: true,
@@ -124,6 +130,40 @@ export class CategoryService {
         sortOrder: true,
       },
     });
+    return this.attachChildCount(cats);
+  }
+
+  /** Bir parent'ın direkt çocukları (L4 commodity lazy-load için). */
+  async childrenOf(parentId: string) {
+    if (!parentId) return [];
+    const cats = await this.prisma.category.findMany({
+      where: { isActive: true, parentId },
+      orderBy: [{ sortOrder: "asc" }],
+      select: {
+        id: true,
+        code: true,
+        nameTr: true,
+        level: true,
+        parentId: true,
+        segmentLetter: true,
+        sortOrder: true,
+      },
+    });
+    return this.attachChildCount(cats);
+  }
+
+  /** Verilen düğümlere `childCount` (aktif direkt çocuk sayısı) ekler. */
+  private async attachChildCount<T extends { id: string }>(
+    cats: T[],
+  ): Promise<(T & { childCount: number })[]> {
+    if (cats.length === 0) return [];
+    const counts = await this.prisma.category.groupBy({
+      by: ["parentId"],
+      where: { isActive: true, parentId: { in: cats.map((c) => c.id) } },
+      _count: { _all: true },
+    });
+    const m = new Map(counts.map((c) => [c.parentId, c._count._all]));
+    return cats.map((c) => ({ ...c, childCount: m.get(c.id) ?? 0 }));
   }
 
   /**

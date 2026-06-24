@@ -21,6 +21,8 @@ export interface CategoryNode {
   parentId?: string | null;
   segmentLetter?: string | null;
   sortOrder: number;
+  /** Backend'den gelen direkt çocuk sayısı (L4 dahil; expand göstergesi). */
+  childCount?: number;
   /** Lazy-load için child sayısı (varsa expand butonu). */
   _count?: { children: number };
 }
@@ -55,66 +57,62 @@ export function useCategoryTree() {
   });
 }
 
-/**
- * V2-6.5 — Çocuk sayım map'i (parentId → child count). Bir kere
- * hesaplanır, useRoots ve useChildren _count.children'ı buradan okur.
- * Backend /categories/all _count döndürmüyor; in-memory hesaplama
- * kullanıcı için "alt kategori var mı" göstergesini doğru yapar
- * (chevron, folder ikonu, tek-child auto-expand).
- */
-function useChildCountMap(tree: CategoryNode[] | undefined) {
-  return useMemo(() => {
-    if (!tree) return null;
-    const map = new Map<string, number>();
-    for (const c of tree) {
-      if (c.parentId) {
-        map.set(c.parentId, (map.get(c.parentId) ?? 0) + 1);
-      }
-    }
-    return map;
-  }, [tree]);
-}
+const withCount = (c: CategoryNode): CategoryNode => ({
+  ...c,
+  _count: { children: c.childCount ?? 0 },
+});
 
 /**
  * Level 1 (Segment) listesi — modal ilk açılışta. category-tree
- * cache'inden filtre, ek network çağrısı yok.
+ * cache'inden filtre, ek network çağrısı yok. childCount backend'den gelir.
  */
 export function useRoots() {
   const { data: tree, isLoading } = useCategoryTree();
-  const childCountMap = useChildCountMap(tree);
-  const data = useMemo(() => {
-    if (!tree || !childCountMap) return undefined;
-    return tree
-      .filter((c) => c.level === 1)
-      .map((c) => ({
-        ...c,
-        _count: { children: childCountMap.get(c.id) ?? 0 },
-      }));
-  }, [tree, childCountMap]);
+  const data = useMemo(
+    () => tree?.filter((c) => c.level === 1).map(withCount),
+    [tree],
+  );
   return { data, isLoading };
 }
 
 /**
- * Bir parent'ın direkt çocukları — category-tree cache'inden filtre,
- * ek network çağrısı yok. Eskiden her parentId için ayrı /children
- * fetch idi → birden çok segment açılınca patlama yaşanıyordu.
- *
- * _count.children in-memory hesaplanır — ClassRow/FamilyList'in
- * "expand var mı / klasör ikon göster" mantığı buna bağlı.
+ * Bir parent'ın direkt çocukları.
+ * - Parent Segment/Family (L1/L2) → çocukları (L2/L3) /all cache'inde, in-memory.
+ * - Parent Class (L3) → çocukları L4 commodity, payload optimizasyonu gereği
+ *   cache'te DEĞİL → `/children` ile lazy çekilir (class açılınca tek istek).
  */
 export function useChildren(parentId: string | null | undefined) {
   const { data: tree, isLoading } = useCategoryTree();
-  const childCountMap = useChildCountMap(tree);
-  const data = useMemo(() => {
-    if (!tree || !parentId || !childCountMap) return undefined;
-    return tree
-      .filter((c) => c.parentId === parentId)
-      .map((c) => ({
-        ...c,
-        _count: { children: childCountMap.get(c.id) ?? 0 },
-      }));
-  }, [tree, parentId, childCountMap]);
-  return { data, isLoading };
+  const parent = useMemo(
+    () => (tree && parentId ? tree.find((c) => c.id === parentId) : undefined),
+    [tree, parentId],
+  );
+  const isClass = parent?.level === 3;
+
+  // L1/L2 parent → in-memory
+  const memoryChildren = useMemo(() => {
+    if (!tree || !parentId || isClass) return undefined;
+    return tree.filter((c) => c.parentId === parentId).map(withCount);
+  }, [tree, parentId, isClass]);
+
+  // L3 (class) parent → L4 commodity lazy
+  const lazy = useQuery<CategoryNode[]>({
+    queryKey: ["category-children", parentId],
+    queryFn: () =>
+      api
+        .get("/categories/children", { params: { parentId } })
+        .then((r) => r.data),
+    enabled: !!parentId && isClass,
+    staleTime: FIVE_MIN_MS,
+    gcTime: HOUR_MS,
+  });
+  const lazyChildren = useMemo(
+    () => lazy.data?.map(withCount),
+    [lazy.data],
+  );
+
+  if (isClass) return { data: lazyChildren, isLoading: lazy.isLoading };
+  return { data: memoryChildren, isLoading };
 }
 
 export interface SearchTreeCommodity {
