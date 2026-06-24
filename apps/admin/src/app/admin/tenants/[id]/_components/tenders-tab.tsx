@@ -1,11 +1,17 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { useAdminTenantTenders } from "@/hooks/use-admin-tenants";
+import {
+  TENDER_CANCELLABLE,
+  useAdminCancelTender,
+} from "@/hooks/use-admin-interventions";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { FileText } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "Taslak",
@@ -32,6 +38,25 @@ const STATUS_COLORS: Record<string, string> = {
 export function TendersTab({ tenantId }: { tenantId: string }) {
   const [page, setPage] = useState(1);
   const query = useAdminTenantTenders(tenantId, { page });
+  const cancel = useAdminCancelTender(tenantId);
+
+  const onCancel = (tenderId: string) => {
+    const reason = window.prompt(
+      "İhaleyi iptal etme sebebi (en az 10 karakter):",
+    );
+    if (!reason || reason.trim().length < 10) {
+      if (reason !== null) toast.error("Sebep en az 10 karakter olmalı");
+      return;
+    }
+    cancel.mutate(
+      { tenderId, reason: reason.trim() },
+      {
+        onSuccess: () => toast.success("İhale iptal edildi"),
+        onError: (e: unknown) =>
+          toast.error(e instanceof Error ? e.message : "İptal edilemedi"),
+      },
+    );
+  };
 
   if (query.isLoading) {
     return (
@@ -92,17 +117,30 @@ export function TendersTab({ tenantId }: { tenantId: string }) {
                 {t._count.bids} teklif · {t.primaryCurrency}
               </p>
             </div>
-            <div className="text-right text-xs text-admin-text-muted flex-shrink-0">
-              <p>
-                Açılış:{" "}
-                {format(new Date(t.createdAt), "d MMM yyyy", { locale: tr })}
-              </p>
-              <p>
-                Kapanış:{" "}
-                {format(new Date(t.bidsCloseAt), "d MMM yyyy HH:mm", {
-                  locale: tr,
-                })}
-              </p>
+            <div className="flex flex-col items-end gap-2 flex-shrink-0">
+              <div className="text-right text-xs text-admin-text-muted">
+                <p>
+                  Açılış:{" "}
+                  {format(new Date(t.createdAt), "d MMM yyyy", { locale: tr })}
+                </p>
+                <p>
+                  Kapanış:{" "}
+                  {format(new Date(t.bidsCloseAt), "d MMM yyyy HH:mm", {
+                    locale: tr,
+                  })}
+                </p>
+              </div>
+              {TENDER_CANCELLABLE.includes(t.status) ? (
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  disabled={cancel.isPending}
+                  onClick={() => onCancel(t.id)}
+                >
+                  İptal Et
+                </Button>
+              ) : null}
             </div>
           </div>
         ))}

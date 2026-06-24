@@ -33,6 +33,7 @@ import { SupplierTendersModule } from "./modules/supplier-tenders/supplier-tende
 import { TenantAddressesModule } from "./modules/tenant-addresses/tenant-addresses.module";
 import { AdminAuditModule } from "./modules/admin-audit/admin-audit.module";
 import { AdminConnectionsModule } from "./modules/admin-connections/admin-connections.module";
+import { AdminInterventionsModule } from "./modules/admin-interventions/admin-interventions.module";
 import { AdminStatsModule } from "./modules/admin-stats/admin-stats.module";
 import { AdminSuppliersModule } from "./modules/admin-suppliers/admin-suppliers.module";
 import { AdminTenantsModule } from "./modules/admin-tenants/admin-tenants.module";
@@ -99,6 +100,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     AdminSuppliersModule,
     AdminAuditModule,
     AdminConnectionsModule,
+    AdminInterventionsModule,
     TenantSuppliersModule,
     SupplierSelfServiceModule,
     TenantTendersModule,

@@ -1,11 +1,17 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { useAdminTenantOrders } from "@/hooks/use-admin-tenants";
+import {
+  ORDER_CANCELLABLE,
+  useAdminCancelOrder,
+} from "@/hooks/use-admin-interventions";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { Package } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: "Bekliyor",
@@ -38,6 +44,25 @@ function formatAmount(amount: string | number, currency: string) {
 export function OrdersTab({ tenantId }: { tenantId: string }) {
   const [page, setPage] = useState(1);
   const query = useAdminTenantOrders(tenantId, { page });
+  const cancel = useAdminCancelOrder(tenantId);
+
+  const onCancel = (orderId: string) => {
+    const reason = window.prompt(
+      "Siparişi iptal etme sebebi (en az 10 karakter):",
+    );
+    if (!reason || reason.trim().length < 10) {
+      if (reason !== null) toast.error("Sebep en az 10 karakter olmalı");
+      return;
+    }
+    cancel.mutate(
+      { orderId, reason: reason.trim() },
+      {
+        onSuccess: () => toast.success("Sipariş iptal edildi"),
+        onError: (e: unknown) =>
+          toast.error(e instanceof Error ? e.message : "İptal edilemedi"),
+      },
+    );
+  };
 
   if (query.isLoading) {
     return (
@@ -97,13 +122,26 @@ export function OrdersTab({ tenantId }: { tenantId: string }) {
                 {o.tender.tenderNumber}
               </p>
             </div>
-            <div className="text-right text-xs text-admin-text-muted flex-shrink-0">
-              <p className="font-bold text-admin-text">
-                {formatAmount(o.totalAmount, o.currency)}
-              </p>
-              <p>
-                {format(new Date(o.createdAt), "d MMM yyyy", { locale: tr })}
-              </p>
+            <div className="flex flex-col items-end gap-2 flex-shrink-0">
+              <div className="text-right text-xs text-admin-text-muted">
+                <p className="font-bold text-admin-text">
+                  {formatAmount(o.totalAmount, o.currency)}
+                </p>
+                <p>
+                  {format(new Date(o.createdAt), "d MMM yyyy", { locale: tr })}
+                </p>
+              </div>
+              {ORDER_CANCELLABLE.includes(o.status) ? (
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  disabled={cancel.isPending}
+                  onClick={() => onCancel(o.id)}
+                >
+                  İptal Et
+                </Button>
+              ) : null}
             </div>
           </div>
         ))}
