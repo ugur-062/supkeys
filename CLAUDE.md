@@ -132,7 +132,7 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 > **Sürüm/faz ayrımı YOK.** V1.5/V2/V2.7/V3 gibi kademeler kaldırıldı — her şey tek backlog, sıraya göre yapılır. Aşağıdaki gruplar yalnızca konuya göredir, öncelik/erteleme değil.
 
 **Ürün özellikleri**
-- Yurtdışı şirket kaydı (TR dışı firmalar: ülke seçimi + ülkeye göre vergi no/format esnetme + state/province adres modeli + i18n). Şu an kayıt TR'ye varsayılı.
+- **Yurtdışı şirket kaydı — ÇEKİRDEK BİTTİ (Faz 1-3):** ülke seçimi (COUNTRIES, 98 ülke) + ülke-farkında vergi/adres doğrulama (TR strict VKN/TCKN, yabancı gevşek) + onboarding UI (alıcı+tedarikçi). Şema: Tenant/Supplier.country+stateRegion. KALAN: (a) i18n — UI hâlâ Türkçe (next-intl greenfield, ayrı büyük iş); (b) VIES — AB VAT ücretsiz oto-doğrulama; (c) yabancı belge/KYB kontrolü = mevcut admin onayı + belge (ödeme sağlayıcısı KYB yapmaz çünkü sanal POS düşünülüyor).
 - STANDARD → PREMIUM upgrade akışı + ödeme (Iyzico/Stripe) + escrow
 - Açık ihale (PUBLIC) + tedarikçi başvuru sistemi
 - Kazandırma geri alma (un-award) — SONRAYA bırakıldı (canlı siparişlere dokunan riskli iş). NOT: eleme geri almaya gerek yok — elenen tedarikçi zaten baştan yeniden teklif verebiliyor (mevcut davranış kabul edildi).
