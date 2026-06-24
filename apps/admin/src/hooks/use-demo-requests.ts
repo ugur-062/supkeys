@@ -108,4 +108,21 @@ export function useSendDemoInvite(id: string) {
   });
 }
 
+export function useRevokeDemoInvite(id: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await api.post<{ success: boolean }>(
+        `/admin/demo-requests/${id}/revoke-invite`,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: KEYS.detail(id) });
+      queryClient.invalidateQueries({ queryKey: [...KEYS.all, "list"] });
+    },
+  });
+}
+
 export const demoRequestQueryKeys = KEYS;

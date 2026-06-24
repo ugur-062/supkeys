@@ -361,6 +361,34 @@ export class DemoRequestsService {
     };
   }
 
+  /** Davet linkini iptal et (token geçersizleşir; henüz kullanılmadıysa). */
+  async revokeInvite(id: string) {
+    const demo = await this.prisma.demoRequest.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        inviteToken: true,
+        inviteUsedAt: true,
+        linkedApplicationId: true,
+      },
+    });
+    if (!demo) throw new NotFoundException("Demo talebi bulunamadı");
+    if (demo.linkedApplicationId || demo.inviteUsedAt) {
+      throw new ConflictException(
+        "Davet zaten kullanılmış, iptal edilemez",
+      );
+    }
+    if (!demo.inviteToken) {
+      throw new BadRequestException("Aktif bir davet bulunmuyor");
+    }
+    await this.prisma.demoRequest.update({
+      where: { id },
+      data: { inviteToken: null, inviteTokenExpAt: null },
+    });
+    this.logger.log(`Demo invite revoked: ${id}`);
+    return { success: true };
+  }
+
   private async dispatchInviteEmail(input: {
     demoId: string;
     contactName: string;

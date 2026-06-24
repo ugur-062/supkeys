@@ -46,4 +46,10 @@ export class AdminDemoRequestsController {
   sendInvite(@Param("id") id: string, @Body() dto: SendInviteDto) {
     return this.service.sendInvite(id, dto);
   }
+
+  @Post(":id/revoke-invite")
+  @HttpCode(HttpStatus.OK)
+  revokeInvite(@Param("id") id: string) {
+    return this.service.revokeInvite(id);
+  }
 }

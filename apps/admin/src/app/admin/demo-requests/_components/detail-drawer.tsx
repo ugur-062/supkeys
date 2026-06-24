@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   useDemoRequestDetail,
+  useRevokeDemoInvite,
   useUpdateDemoRequest,
 } from "@/hooks/use-demo-requests";
 import { DEMO_REQUEST_STATUS_META } from "@/lib/demo-requests/status";
@@ -23,6 +24,7 @@ import {
   Loader2,
   Mail,
   Phone,
+  Link2Off,
   RotateCcw,
   Send,
   X,
@@ -82,6 +84,7 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
   const open = !!id;
   const detail = useDemoRequestDetail(id);
   const update = useUpdateDemoRequest(id ?? "");
+  const revokeInvite = useRevokeDemoInvite(id ?? "");
 
   const [notesDraft, setNotesDraft] = useState("");
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -319,16 +322,48 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                               </div>
                             </div>
                           </div>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => setInviteModalOpen(true)}
-                            fullWidth
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            Yeniden Gönder
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => setInviteModalOpen(true)}
+                              fullWidth
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              Yeniden Gönder
+                            </Button>
+                            {item.inviteTokenExpAt &&
+                            new Date(item.inviteTokenExpAt) > new Date() ? (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                disabled={revokeInvite.isPending}
+                                onClick={() =>
+                                  revokeInvite.mutate(undefined, {
+                                    onSuccess: () =>
+                                      toast.success("Davet linki iptal edildi"),
+                                    onError: (e: unknown) =>
+                                      toast.error(
+                                        e instanceof Error
+                                          ? e.message
+                                          : "İptal edilemedi",
+                                      ),
+                                  })
+                                }
+                                fullWidth
+                                className="!text-danger-600 !border-danger-200 hover:!bg-danger-50"
+                              >
+                                <Link2Off className="w-3.5 h-3.5" />
+                                Linki İptal Et
+                              </Button>
+                            ) : (
+                              <div className="flex-1 flex items-center justify-center text-xs text-admin-text-muted">
+                                Link pasif
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
 
