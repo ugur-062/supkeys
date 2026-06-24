@@ -73,9 +73,28 @@ export class UpdateSupplierDto {
   postalCode?: string | null;
 }
 
-/** Admin tedarikçi kullanıcı yönetimi (aktif/pasif). */
+/** Admin tedarikçi kullanıcı yönetimi (aktif/pasif + profil + yönetici). */
 export class AdminUpdateSupplierUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isManager?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  lastName?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(0, 30)
+  phone?: string;
 }

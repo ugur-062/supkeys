@@ -96,6 +96,7 @@ export interface AdminTenantDetail {
     firstName: string;
     lastName: string;
     email: string;
+    phone: string | null;
     role: string;
     isActive: boolean;
     emailVerifiedAt: string | null;
@@ -185,6 +186,25 @@ export interface UpdateAdminTenantPayload {
 export interface UpdateTenantUserPayload {
   role?: "COMPANY_ADMIN" | "BUYER" | "APPROVER";
   isActive?: boolean;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+}
+
+export function useResendTenantInvitation(tenantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (invitationId: string) => {
+      const { data } = await api.post(
+        `/admin/tenants/${tenantId}/invitations/${invitationId}/resend`,
+      );
+      return data;
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "tenants", "detail", tenantId],
+      }),
+  });
 }
 
 export function useUpdateTenantUser(tenantId: string) {

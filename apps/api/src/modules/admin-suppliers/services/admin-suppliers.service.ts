@@ -239,8 +239,11 @@ export class AdminSuppliersService {
       throw new NotFoundException("Kullanıcı bulunamadı");
     }
 
-    // Son aktif yöneticiyi pasifleştiremez.
-    if (target.isManager && dto.isActive === false) {
+    // Son aktif yöneticiyi pasifleştiremez veya yöneticilikten indiremez.
+    const losesManager =
+      (target.isManager && dto.isActive === false) ||
+      (target.isManager && dto.isManager === false);
+    if (losesManager) {
       const otherManagers = await this.prisma.supplierUser.count({
         where: {
           supplierId,
@@ -254,28 +257,33 @@ export class AdminSuppliersService {
       }
     }
 
-    if (dto.isActive === undefined) return { id: userId, updated: false };
+    const data: Prisma.SupplierUserUpdateInput = {};
+    if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.isManager !== undefined) data.isManager = dto.isManager;
+    if (dto.firstName !== undefined) data.firstName = dto.firstName.trim();
+    if (dto.lastName !== undefined) data.lastName = dto.lastName.trim();
+    if (dto.phone !== undefined) data.phone = dto.phone.trim() || null;
+    if (Object.keys(data).length === 0) return { id: userId, updated: false };
 
     const updated = await this.prisma.supplierUser.update({
       where: { id: userId },
-      data: { isActive: dto.isActive },
+      data,
       select: {
         id: true,
         email: true,
         firstName: true,
         lastName: true,
         isActive: true,
+        isManager: true,
       },
     });
     this.logger.log(
-      `Admin ${adminId} updated supplier user ${userId} (${supplierId}): isActive=${dto.isActive}`,
+      `Admin ${adminId} updated supplier user ${userId} (${supplierId}): ${JSON.stringify(Object.keys(data))}`,
     );
-    this.auditAction(
-      adminId,
-      dto.isActive ? "supplier.user_activated" : "supplier.user_deactivated",
-      supplierId,
-      { supplierUserId: userId },
-    );
+    this.auditAction(adminId, "supplier.user_updated", supplierId, {
+      supplierUserId: userId,
+      fields: Object.keys(data),
+    });
     return updated;
   }
 

@@ -72,10 +72,21 @@ function DetailContent() {
 
   const toggleUser = (userId: string, isActive: boolean) =>
     userMutation.mutate(
-      { userId, isActive },
+      { userId, payload: { isActive } },
       {
         onSuccess: () =>
           toast.success(isActive ? "Kullanıcı aktifleştirildi" : "Kullanıcı pasifleştirildi"),
+        onError: (e: unknown) =>
+          toast.error(e instanceof Error ? e.message : "Güncelleme hatası"),
+      },
+    );
+
+  const toggleManager = (userId: string, makeManager: boolean) =>
+    userMutation.mutate(
+      { userId, payload: { isManager: makeManager } },
+      {
+        onSuccess: () =>
+          toast.success(makeManager ? "Yönetici yapıldı" : "Yöneticilikten çıkarıldı"),
         onError: (e: unknown) =>
           toast.error(e instanceof Error ? e.message : "Güncelleme hatası"),
       },
@@ -314,6 +325,16 @@ function DetailContent() {
                   onChangeEmail={(email) =>
                     recovery.changeEmail.mutateAsync({ userId: u.id, email })
                   }
+                  profile={{
+                    firstName: u.firstName,
+                    lastName: u.lastName,
+                    phone: u.phone ?? "",
+                  }}
+                  onSaveProfile={(f) =>
+                    userMutation.mutateAsync({ userId: u.id, payload: f })
+                  }
+                  isManager={u.isManager}
+                  onToggleManager={() => toggleManager(u.id, !u.isManager)}
                 />
               </div>
             </div>

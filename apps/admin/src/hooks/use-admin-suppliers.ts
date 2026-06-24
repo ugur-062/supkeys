@@ -153,13 +153,24 @@ export function useUpdateAdminSupplier(id: string) {
   });
 }
 
+export interface SupplierUserPayload {
+  isActive?: boolean;
+  isManager?: boolean;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+}
+
 export function useUpdateSupplierUser(supplierId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { userId: string; isActive: boolean }) => {
+    mutationFn: async (input: {
+      userId: string;
+      payload: SupplierUserPayload;
+    }) => {
       const { data } = await api.patch(
         `/admin/suppliers/${supplierId}/users/${input.userId}`,
-        { isActive: input.isActive },
+        input.payload,
       );
       return data;
     },

@@ -94,6 +94,7 @@ export class AdminTenantsService {
             firstName: true,
             lastName: true,
             email: true,
+            phone: true,
             role: true,
             isActive: true,
             emailVerifiedAt: true,

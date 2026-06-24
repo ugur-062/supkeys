@@ -106,6 +106,9 @@ export class AdminTenantUsersService {
     const data: Prisma.UserUpdateInput = {};
     if (dto.role !== undefined) data.role = dto.role;
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
+    if (dto.firstName !== undefined) data.firstName = dto.firstName.trim();
+    if (dto.lastName !== undefined) data.lastName = dto.lastName.trim();
+    if (dto.phone !== undefined) data.phone = dto.phone.trim() || null;
 
     if (Object.keys(data).length === 0) {
       return { id: userId, updated: false };
@@ -230,7 +233,40 @@ export class AdminTenantUsersService {
     this.logger.log(
       `Admin ${adminId} cancelled invitation ${invitationId} (${tenantId})`,
     );
+    this.auditUser(adminId, "tenant.invitation_cancelled", tenantId, invitationId);
     return { success: true };
+  }
+
+  /** Bekleyen kullanıcı davetini yeniden gönder (admin destek). */
+  async resendInvitation(
+    tenantId: string,
+    invitationId: string,
+    adminId: string,
+  ) {
+    const inv = await this.prisma.userInvitation.findUnique({
+      where: { id: invitationId },
+      select: { id: true, tenantId: true, status: true },
+    });
+    if (!inv || inv.tenantId !== tenantId) {
+      throw new NotFoundException("Davet bulunamadı");
+    }
+    if (inv.status !== "PENDING") {
+      throw new ConflictException("Sadece bekleyen davetler yeniden gönderilebilir");
+    }
+    const result = await this.tenantUsers.resendInvitation(
+      tenantId,
+      invitationId,
+    );
+    this.auditUser(
+      adminId,
+      "tenant.invitation_resent",
+      tenantId,
+      invitationId,
+    );
+    this.logger.log(
+      `Admin ${adminId} resent invitation ${invitationId} (${tenantId})`,
+    );
+    return result;
   }
 
   // ----- Parola sıfırlama linki üret + e-posta -----

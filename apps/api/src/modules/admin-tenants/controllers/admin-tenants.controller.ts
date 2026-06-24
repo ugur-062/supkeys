@@ -159,4 +159,17 @@ export class AdminTenantsController {
       req.user?.sub ?? "",
     );
   }
+
+  @Post(":tenantId/invitations/:invitationId/resend")
+  resendInvitation(
+    @Param("tenantId") tenantId: string,
+    @Param("invitationId") invitationId: string,
+    @Req() req: AdminAuthRequest,
+  ): Promise<unknown> {
+    return this.users.resendInvitation(
+      tenantId,
+      invitationId,
+      req.user?.sub ?? "",
+    );
+  }
 }

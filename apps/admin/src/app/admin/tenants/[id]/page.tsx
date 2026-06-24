@@ -1010,6 +1010,14 @@ function UserRow({
             onChangeEmail={(email) =>
               recovery.changeEmail.mutateAsync({ userId: user.id, email })
             }
+            profile={{
+              firstName: user.firstName,
+              lastName: user.lastName,
+              phone: user.phone ?? "",
+            }}
+            onSaveProfile={(f) =>
+              updateMutation.mutateAsync({ userId: user.id, payload: f })
+            }
           />
         </div>
       </div>

@@ -1,4 +1,11 @@
-import { IsBoolean, IsEnum, IsOptional } from "class-validator";
+import {
+  IsBoolean,
+  IsEnum,
+  IsOptional,
+  IsString,
+  Length,
+  MaxLength,
+} from "class-validator";
 
 export class AdminUpdateTenantUserDto {
   @IsOptional()
@@ -10,4 +17,19 @@ export class AdminUpdateTenantUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 100)
+  lastName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  phone?: string;
 }
