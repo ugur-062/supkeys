@@ -1,9 +1,11 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import {
   useAdminSupplierDetail,
+  useUpdateSupplierUser,
   type AdminSupplierDetail,
 } from "@/hooks/use-admin-suppliers";
 import { cn } from "@/lib/utils";
@@ -20,6 +22,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { toast } from "sonner";
+import { SupplierManagementCard } from "./_components/supplier-management-card";
 
 const BID_STATUS_LABELS: Record<string, string> = {
   DRAFT: "Taslak",
@@ -45,6 +49,18 @@ function DetailContent() {
   const params = useParams<{ id: string }>();
   const id = typeof params.id === "string" ? params.id : null;
   const query = useAdminSupplierDetail(id);
+  const userMutation = useUpdateSupplierUser(id ?? "");
+
+  const toggleUser = (userId: string, isActive: boolean) =>
+    userMutation.mutate(
+      { userId, isActive },
+      {
+        onSuccess: () =>
+          toast.success(isActive ? "Kullanıcı aktifleştirildi" : "Kullanıcı pasifleştirildi"),
+        onError: (e: unknown) =>
+          toast.error(e instanceof Error ? e.message : "Güncelleme hatası"),
+      },
+    );
 
   if (query.isLoading || !query.data) {
     return (
@@ -122,6 +138,9 @@ function DetailContent() {
           </p>
         </div>
       </div>
+
+      {/* Yönetim — üyelik, engel, düzenle */}
+      <SupplierManagementCard supplier={s} />
 
       {/* Mini KPI'lar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -219,29 +238,40 @@ function DetailContent() {
                   {u.phone ? ` · ${u.phone}` : ""}
                 </p>
               </div>
-              <div className="text-right flex-shrink-0">
-                <span
-                  className={cn(
-                    "inline-flex px-2 py-0.5 rounded-md text-xs font-semibold",
-                    u.isActive
-                      ? "bg-success-50 text-success-700 border border-success-200"
-                      : "bg-slate-100 text-slate-600 border border-slate-200",
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="text-right">
+                  <span
+                    className={cn(
+                      "inline-flex px-2 py-0.5 rounded-md text-xs font-semibold",
+                      u.isActive
+                        ? "bg-success-50 text-success-700 border border-success-200"
+                        : "bg-slate-100 text-slate-600 border border-slate-200",
+                    )}
+                  >
+                    {u.isActive ? "Aktif" : "Pasif"}
+                  </span>
+                  {u.lastLoginAt ? (
+                    <p className="text-xs text-admin-text-muted mt-1">
+                      Son giriş:{" "}
+                      {format(new Date(u.lastLoginAt), "d MMM HH:mm", {
+                        locale: tr,
+                      })}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-admin-text-muted mt-1">
+                      Hiç giriş yok
+                    </p>
                   )}
+                </div>
+                <Button
+                  type="button"
+                  variant={u.isActive ? "ghost" : "secondary"}
+                  size="sm"
+                  onClick={() => toggleUser(u.id, !u.isActive)}
+                  disabled={userMutation.isPending}
                 >
-                  {u.isActive ? "Aktif" : "Pasif"}
-                </span>
-                {u.lastLoginAt ? (
-                  <p className="text-xs text-admin-text-muted mt-1">
-                    Son giriş:{" "}
-                    {format(new Date(u.lastLoginAt), "d MMM HH:mm", {
-                      locale: tr,
-                    })}
-                  </p>
-                ) : (
-                  <p className="text-xs text-admin-text-muted mt-1">
-                    Hiç giriş yok
-                  </p>
-                )}
+                  {u.isActive ? "Pasifleştir" : "Aktifleştir"}
+                </Button>
               </div>
             </div>
           ))}

@@ -1,7 +1,7 @@
 "use client";
 
 import { api } from "@/lib/api";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface AdminSupplierListItem {
   id: string;
@@ -114,5 +114,56 @@ export function useAdminSupplierDetail(id: string | null | undefined) {
     },
     enabled: Boolean(id),
     staleTime: 30_000,
+  });
+}
+
+export interface UpdateSupplierPayload {
+  membership?: "STANDARD" | "PREMIUM";
+  isActive?: boolean;
+  blockedReason?: string;
+  companyName?: string;
+  taxNumber?: string | null;
+  taxOffice?: string;
+  industry?: string | null;
+  website?: string | null;
+  city?: string;
+  district?: string;
+  addressLine?: string;
+  postalCode?: string | null;
+}
+
+export function useUpdateAdminSupplier(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: UpdateSupplierPayload) => {
+      const { data } = await api.patch(`/admin/suppliers/${id}`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "suppliers", "detail", id],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "suppliers", "list"],
+      });
+    },
+  });
+}
+
+export function useUpdateSupplierUser(supplierId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { userId: string; isActive: boolean }) => {
+      const { data } = await api.patch(
+        `/admin/suppliers/${supplierId}/users/${input.userId}`,
+        { isActive: input.isActive },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "suppliers", "detail", supplierId],
+      });
+    },
   });
 }
