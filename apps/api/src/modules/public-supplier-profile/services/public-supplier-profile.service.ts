@@ -17,7 +17,7 @@ export interface PublicSupplierProfileResponse {
   companyType: string;
   industry: string | null;
   city: string;
-  district: string;
+  district: string | null;
   website: string | null;
   linkedinUrl: string | null;
   instagramUrl: string | null;

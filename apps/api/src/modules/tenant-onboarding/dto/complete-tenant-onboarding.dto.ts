@@ -23,29 +23,50 @@ export class CompleteTenantOnboardingDto {
   @IsEnum(CompanyTypeDto)
   companyType!: CompanyTypeDto;
 
+  // Ülke — ISO 3166-1 alpha-2 (TR varsayılan). Doğruluk + vergi-no kuralı
+  // serviste ülke-farkında kontrol edilir.
+  @IsOptional()
   @IsString()
-  @Length(10, 11)
+  @Length(2, 2)
+  country?: string;
+
+  // Vergi/sicil no — gevşek uzunluk (TR strict kontrolü serviste).
+  @IsString()
+  @Length(4, 30)
   taxNumber!: string;
 
+  // Vergi dairesi — TR'ye özgü; yabancıda boş olabilir.
+  @IsOptional()
   @IsString()
-  @Length(2, 50)
-  taxOffice!: string;
+  @MaxLength(50)
+  taxOffice?: string;
 
   @IsString()
-  @Length(2, 50)
+  @Length(2, 80)
   city!: string;
 
+  // İlçe — TR'ye özgü (yabancıda eyalet/bölge kullanılır).
+  @IsOptional()
   @IsString()
-  @Length(2, 50)
-  district!: string;
+  @MaxLength(80)
+  district?: string;
 
+  // Eyalet/bölge — yabancı firmalarda (TR'de boş).
+  @IsOptional()
   @IsString()
-  @Length(2, 100)
-  neighborhood!: string;
+  @MaxLength(80)
+  stateRegion?: string;
 
+  // Mahalle — TR'ye özgü; yabancıda boş olabilir.
+  @IsOptional()
   @IsString()
-  @Length(2, 20)
-  postalCode!: string;
+  @MaxLength(100)
+  neighborhood?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  postalCode?: string;
 
   @IsString()
   @Length(5, 500)
@@ -61,9 +82,11 @@ export class CompleteTenantOnboardingDto {
   @MaxLength(200)
   billingEmail?: string;
 
+  // Yetkili kimlik no — TR'de 11 hane TCKN (serviste strict); yabancıda boş/gevşek.
+  @IsOptional()
   @IsString()
-  @Length(11, 11, { message: "T.C. Kimlik No 11 haneli olmalıdır" })
-  authorizedTckn!: string;
+  @MaxLength(40)
+  authorizedTckn?: string;
 
   @IsString()
   @Length(2, 100)

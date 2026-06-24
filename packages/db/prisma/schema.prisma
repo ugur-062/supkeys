@@ -30,10 +30,15 @@ model Tenant {
 
   // Firma profili (registration sırasında dolar)
   industry    String?
+  // Ülke — ISO 3166-1 alpha-2 (TR varsayılan). TR=strict VKN/TCKN + il/ilçe;
+  // diğer ülkeler=gevşek vergi no + serbest adres (state/province).
+  country     String  @default("TR")
   city        String?
   district    String?
   addressLine String?
   postalCode  String?
+  // Yabancı firmalarda eyalet/bölge (TR'de boş; il/ilçe kullanılır).
+  stateRegion String?
   taxNumber   String? @unique
   taxOffice   String?
 
@@ -661,15 +666,21 @@ model Supplier {
   // onboarding'de doldurulur. unique + nullable (signup'ta boş; diğer zorunlu
   // string alanlar signup'ta "" placeholder, onboarding doldurur).
   taxNumber         String?            @unique
-  taxOffice         String
+  // Vergi dairesi — TR'ye özgü; yabancı firmada boş (nullable).
+  taxOffice         String?
   // Vergi levhası kayıttan çıktı → FAZ 3 (docTaxPlateUrl). Legacy alan nullable.
   taxCertUrl        String?
   industry          String?
   website           String?
+  // Ülke — ISO 3166-1 alpha-2 (TR varsayılan). TR dışı = yabancı firma.
+  country           String  @default("TR")
   city              String
-  district          String
+  // İlçe — TR'ye özgü; yabancıda boş (eyalet/bölge kullanılır).
+  district          String?
   addressLine       String
   postalCode        String?
+  // Yabancı firmalarda eyalet/bölge (TR'de boş).
+  stateRegion       String?
 
   // ============================================================
   // Madde 29 — 3 aşamalı kayıt/onboarding/doğrulama (tedarikçi tarafı).

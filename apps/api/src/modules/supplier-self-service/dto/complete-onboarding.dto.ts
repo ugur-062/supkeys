@@ -32,30 +32,46 @@ export class CompleteOnboardingDto {
   @IsEnum(CompanyTypeDto)
   companyType!: CompanyTypeDto;
 
+  // Ülke — ISO 3166-1 alpha-2 (TR varsayılan); vergi-no kuralı serviste.
+  @IsOptional()
   @IsString()
-  @Length(10, 11)
-  taxNumber!: string;
+  @Length(2, 2)
+  country?: string;
 
   @IsString()
-  @Length(2, 50)
-  taxOffice!: string;
+  @Length(4, 30)
+  taxNumber!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  taxOffice?: string;
 
   // Adım 1 — Fatura Adresi
   @IsString()
-  @Length(2, 50)
+  @Length(2, 80)
   city!: string;
 
+  @IsOptional()
   @IsString()
-  @Length(2, 50)
-  district!: string;
+  @MaxLength(80)
+  district?: string;
 
+  // Eyalet/bölge — yabancı firmalarda (TR'de boş).
+  @IsOptional()
   @IsString()
-  @Length(2, 100)
-  neighborhood!: string;
+  @MaxLength(80)
+  stateRegion?: string;
 
+  @IsOptional()
   @IsString()
-  @Length(2, 20)
-  postalCode!: string;
+  @MaxLength(100)
+  neighborhood?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  postalCode?: string;
 
   @IsString()
   @Length(5, 500)
@@ -100,10 +116,12 @@ export class CompleteOnboardingDto {
   @MaxLength(500)
   deliveryAddressLine?: string;
 
-  // Adım 2 — Yetkili Kişi (rol → isManager)
+  // Adım 2 — Yetkili Kişi (rol → isManager). TR'de 11 hane TCKN (serviste
+  // strict); yabancıda boş/gevşek.
+  @IsOptional()
   @IsString()
-  @Length(11, 11, { message: "T.C. Kimlik No 11 haneli olmalıdır" })
-  authorizedTckn!: string;
+  @MaxLength(40)
+  authorizedTckn?: string;
 
   @IsEnum(SupplierRoleDto, { message: "Geçerli bir rol seçiniz" })
   role!: SupplierRoleDto;

@@ -242,7 +242,7 @@ export class OrderPdfService {
   private formatSupplierAddress(supplier: {
     addressLine: string;
     city: string;
-    district: string;
+    district: string | null;
     postalCode: string | null;
   }): string {
     const parts: string[] = [supplier.addressLine];

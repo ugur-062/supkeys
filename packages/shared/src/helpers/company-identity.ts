@@ -48,6 +48,30 @@ export function isValidTaxId(
   return isSoleProprietor ? isValidTckn(value) : isValidVkn(value);
 }
 
+/**
+ * Yabancı (TR dışı) firma vergi/sicil no — gevşek format. Her ülkenin VAT/EIN/
+ * şirket numarası farklı olduğu için checksum yapılmaz; sadece makul biçim:
+ * 3-30 karakter, alfanümerik + yaygın ayraçlar. Asıl doğrulama belge + admin
+ * onayı (+ ileride VIES gibi resmi servisler) ile yapılır.
+ */
+export function isValidForeignTaxId(value: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9.\- /]{2,29}$/.test(value.trim());
+}
+
+/**
+ * Ülke-farkında vergi/sicil no doğrulaması.
+ * - TR → strict VKN(10)/TCKN(11) (firma türüne göre).
+ * - Diğer → gevşek yabancı format.
+ */
+export function isValidTaxIdForCountry(
+  value: string,
+  country: string,
+  isSoleProprietor: boolean,
+): boolean {
+  if ((country || "TR") === "TR") return isValidTaxId(value, isSoleProprietor);
+  return isValidForeignTaxId(value);
+}
+
 /** MERSİS — boş VEYA tam 16 hane. */
 export function isValidMersis(value: string | null | undefined): boolean {
   const v = (value ?? "").trim();

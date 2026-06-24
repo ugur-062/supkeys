@@ -300,11 +300,11 @@ export class SupplierAuthService {
     companyName: string;
     companyType: string;
     taxNumber: string | null;
-    taxOffice: string;
+    taxOffice: string | null;
     industry: string | null;
     website: string | null;
     city: string;
-    district: string;
+    district: string | null;
     addressLine: string;
     postalCode: string | null;
     membership: string;

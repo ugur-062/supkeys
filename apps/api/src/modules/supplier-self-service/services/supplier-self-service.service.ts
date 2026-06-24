@@ -10,7 +10,8 @@ import {
 import { ConfigService } from "@nestjs/config";
 import type { Prisma } from "@supkeys/db";
 import {
-  isValidTaxId,
+  isValidCountryCode,
+  isValidTaxIdForCountry,
   isValidTckn,
   normalizeShortCode,
   validateShortCode,
@@ -44,17 +45,32 @@ export class SupplierSelfServiceService {
     supplierUserId: string,
     dto: CompleteOnboardingDto,
   ) {
+    const country = (dto.country || "TR").toUpperCase();
+    if (!isValidCountryCode(country)) {
+      throw new BadRequestException("Geçersiz ülke seçimi");
+    }
+    const isTR = country === "TR";
     const isSole = dto.companyType === "SOLE_PROPRIETOR";
 
-    if (!isValidTaxId(dto.taxNumber, isSole)) {
+    if (!isValidTaxIdForCountry(dto.taxNumber, country, isSole)) {
       throw new BadRequestException(
-        isSole
-          ? "Şahıs firması için 11 haneli geçerli TCKN giriniz"
-          : "Tüzel kişi için 10 haneli geçerli vergi numarası giriniz",
+        isTR
+          ? isSole
+            ? "Şahıs firması için 11 haneli geçerli TCKN giriniz"
+            : "Tüzel kişi için 10 haneli geçerli vergi numarası giriniz"
+          : "Geçerli bir vergi/sicil numarası giriniz",
       );
     }
-    if (!isValidTckn(dto.authorizedTckn)) {
-      throw new BadRequestException("Yetkili T.C. Kimlik No geçersiz");
+    if (isTR) {
+      if (!dto.authorizedTckn || !isValidTckn(dto.authorizedTckn)) {
+        throw new BadRequestException("Yetkili T.C. Kimlik No geçersiz");
+      }
+      if (!dto.taxOffice?.trim()) {
+        throw new BadRequestException("Vergi dairesi zorunlu");
+      }
+      if (!dto.district?.trim()) {
+        throw new BadRequestException("İlçe zorunlu");
+      }
     }
 
     // Faaliyet kategorileri — UNSPSC: 1-3 ANA (segment) + sınırsız ALT.
@@ -69,9 +85,9 @@ export class SupplierSelfServiceService {
     const delivery = dto.deliveryUseBilling
       ? {
           deliveryCity: dto.city.trim(),
-          deliveryDistrict: dto.district.trim(),
-          deliveryNeighborhood: dto.neighborhood.trim(),
-          deliveryPostalCode: dto.postalCode.trim(),
+          deliveryDistrict: dto.district?.trim() || null,
+          deliveryNeighborhood: dto.neighborhood?.trim() || null,
+          deliveryPostalCode: dto.postalCode?.trim() || null,
           deliveryAddressLine: dto.addressLine.trim(),
         }
       : {
@@ -98,16 +114,18 @@ export class SupplierSelfServiceService {
           companyName: dto.legalName.trim(),
           legalName: dto.legalName.trim(),
           companyType: dto.companyType,
+          country,
           taxNumber: dto.taxNumber.trim(),
-          taxOffice: dto.taxOffice.trim(),
+          taxOffice: dto.taxOffice?.trim() || null,
           city: dto.city.trim(),
-          district: dto.district.trim(),
-          neighborhood: dto.neighborhood.trim(),
-          postalCode: dto.postalCode.trim(),
+          district: dto.district?.trim() || null,
+          stateRegion: dto.stateRegion?.trim() || null,
+          neighborhood: dto.neighborhood?.trim() || null,
+          postalCode: dto.postalCode?.trim() || null,
           addressLine: dto.addressLine.trim(),
           billingTitle: dto.billingTitle?.trim() || null,
           billingEmail: dto.billingEmail?.trim() || null,
-          authorizedTckn: dto.authorizedTckn.trim(),
+          authorizedTckn: dto.authorizedTckn?.trim() || null,
           authorizedTitle: isManager ? "Yönetici" : "Satın Almacı",
           sectors: [],
           sectorCategoryIds: mainIds,
