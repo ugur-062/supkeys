@@ -134,7 +134,6 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 **Ürün özellikleri**
 - Yurtdışı şirket kaydı (TR dışı firmalar: ülke seçimi + ülkeye göre vergi no/format esnetme + state/province adres modeli + i18n). Şu an kayıt TR'ye varsayılı.
 - STANDARD → PREMIUM upgrade akışı + ödeme (Iyzico/Stripe) + escrow
-- Kayıt UX 6 haneli kod
 - Açık ihale (PUBLIC) + tedarikçi başvuru sistemi
 - Kazandırma geri alma (un-award) — SONRAYA bırakıldı (canlı siparişlere dokunan riskli iş). NOT: eleme geri almaya gerek yok — elenen tedarikçi zaten baştan yeniden teklif verebiliyor (mevcut davranış kabul edildi).
 - Hatırlatma e-postası özel süre
@@ -148,9 +147,7 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 
 **Teknik borç / temizlik**
 - **Test paketi refactor:** 534 testin bcrypt mock'ları `SupabaseAuthService` bridge'i ile uyumsuz; login/register/password test'leri Supabase auth.users mock'larıyla yeniden yazılmalı + smoke E2E paketi güncellenmeli.
-- **Apply form `password` alanı temizliği:** Buyer/Supplier başvurusunda kullanıcı şifre giriyor ama backend hash'i discard ediyor (Supabase reset-link akışı). DTO + form'dan `password` kaldırılmalı.
-- **Supplier profil kategori kartı** yeni modele (`sectorCategoryIds` + `subCategoryIds`) taşınmalı — şu an eski `SupplierCategory` junction'ı (segment-only) düzenliyor, onboarding modeliyle uyumsuz.
-- `Supplier.sectors` (kürasyonlu) deprecated kolon kaldırılmalı; `seed-custom-categories` (KOBİ) scripti eskidi.
+- `Supplier.sectors` (kürasyonlu) deprecated kolon kaldırılmalı (migration).
 - `@supkeys/email` değişince `pnpm --filter @supkeys/email build` şart — CI'da otomatikleşmeli.
 
 **AI katmanı**
