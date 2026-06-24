@@ -10,6 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import * as crypto from "crypto";
 import { Prisma, type UserRole } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { AuditService } from "../../audit/audit.service";
 import { EmailService } from "../../email/email.service";
 import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import { TenantUsersService } from "../../tenant-users/services/tenant-users.service";
@@ -27,7 +28,26 @@ export class AdminTenantUsersService {
     private readonly config: ConfigService,
     private readonly tenantUsers: TenantUsersService,
     private readonly supabaseAuth: SupabaseAuthService,
+    private readonly audit: AuditService,
   ) {}
+
+  private auditUser(
+    adminId: string,
+    action: string,
+    tenantId: string,
+    userId: string,
+    metadata?: Record<string, unknown>,
+  ) {
+    void this.audit.log({
+      action,
+      actorType: "admin",
+      actorId: adminId || null,
+      tenantId,
+      entityType: "user",
+      entityId: userId,
+      metadata,
+    });
+  }
 
   // ----- PATCH user (isActive + role) -----
 
@@ -106,6 +126,11 @@ export class AdminTenantUsersService {
     this.logger.log(
       `Admin ${adminId} updated tenant user ${userId} (${tenantId}): ${JSON.stringify(data)}`,
     );
+    this.auditUser(adminId, "tenant.user_updated", tenantId, userId, {
+      fields: Object.keys(data),
+      role: dto.role,
+      isActive: dto.isActive,
+    });
     return updated;
   }
 
@@ -126,6 +151,7 @@ export class AdminTenantUsersService {
       data: { emailVerifiedAt: new Date() },
     });
     this.logger.log(`Admin ${adminId} force-verified user ${userId}`);
+    this.auditUser(adminId, "tenant.user_email_verified", tenantId, userId);
     return { success: true };
   }
 
@@ -143,6 +169,7 @@ export class AdminTenantUsersService {
       data: { twoFactorEnabled: false, twoFactorEnabledAt: null },
     });
     this.logger.log(`Admin ${adminId} reset 2FA for user ${userId}`);
+    this.auditUser(adminId, "tenant.user_2fa_reset", tenantId, userId);
     return { success: true };
   }
 
@@ -177,6 +204,9 @@ export class AdminTenantUsersService {
     this.logger.log(
       `Admin ${adminId} changed email for user ${userId} → ${email}`,
     );
+    this.auditUser(adminId, "tenant.user_email_changed", tenantId, userId, {
+      newEmail: email,
+    });
     return { success: true, email };
   }
 
@@ -276,6 +306,7 @@ export class AdminTenantUsersService {
     this.logger.log(
       `Admin ${adminId} issued password reset for user ${userId} (${target.email})`,
     );
+    this.auditUser(adminId, "tenant.user_password_reset", tenantId, userId);
 
     return {
       success: true,

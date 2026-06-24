@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { AuditService } from "../../audit/audit.service";
 import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import { ListAdminSuppliersDto } from "../dto/list-suppliers.dto";
 import {
@@ -31,7 +32,24 @@ export class AdminSuppliersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabaseAuth: SupabaseAuthService,
+    private readonly audit: AuditService,
   ) {}
+
+  private auditAction(
+    adminId: string,
+    action: string,
+    entityId: string,
+    metadata?: Record<string, unknown>,
+  ) {
+    void this.audit.log({
+      action,
+      actorType: "admin",
+      actorId: adminId || null,
+      entityType: "supplier",
+      entityId,
+      metadata,
+    });
+  }
 
   // ----- PATCH supplier (üyelik + blok + metadata) -----
 
@@ -92,6 +110,19 @@ export class AdminSuppliersService {
           Object.keys(data),
         )}`,
       );
+      const action =
+        dto.isActive === false
+          ? "supplier.blocked"
+          : dto.isActive === true
+            ? "supplier.unblocked"
+            : dto.membership !== undefined
+              ? "supplier.membership_changed"
+              : "supplier.updated";
+      this.auditAction(adminId, action, id, {
+        fields: Object.keys(data),
+        membership: dto.membership,
+        blockedReason: dto.blockedReason,
+      });
       return updated;
     } catch (err) {
       if (
@@ -153,6 +184,12 @@ export class AdminSuppliersService {
     this.logger.log(
       `Admin ${adminId} updated supplier user ${userId} (${supplierId}): isActive=${dto.isActive}`,
     );
+    this.auditAction(
+      adminId,
+      dto.isActive ? "supplier.user_activated" : "supplier.user_deactivated",
+      supplierId,
+      { supplierUserId: userId },
+    );
     return updated;
   }
 
@@ -184,6 +221,9 @@ export class AdminSuppliersService {
       data: { emailVerifiedAt: new Date() },
     });
     this.logger.log(`Admin ${adminId} force-verified supplier user ${userId}`);
+    this.auditAction(adminId, "supplier.user_email_verified", supplierId, {
+      supplierUserId: userId,
+    });
     return { success: true };
   }
 
@@ -195,6 +235,9 @@ export class AdminSuppliersService {
       data: { twoFactorEnabled: false, twoFactorEnabledAt: null },
     });
     this.logger.log(`Admin ${adminId} reset 2FA for supplier user ${userId}`);
+    this.auditAction(adminId, "supplier.user_2fa_reset", supplierId, {
+      supplierUserId: userId,
+    });
     return { success: true };
   }
 
@@ -225,6 +268,10 @@ export class AdminSuppliersService {
     this.logger.log(
       `Admin ${adminId} changed email for supplier user ${userId} → ${email}`,
     );
+    this.auditAction(adminId, "supplier.user_email_changed", supplierId, {
+      supplierUserId: userId,
+      newEmail: email,
+    });
     return { success: true, email };
   }
 

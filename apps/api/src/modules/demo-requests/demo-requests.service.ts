@@ -10,6 +10,7 @@ import type { Prisma } from "@supkeys/db";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
 import { EmailService } from "../email/email.service";
 import {
   generateRegistrationToken,
@@ -30,6 +31,7 @@ export class DemoRequestsService {
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     private readonly config: ConfigService,
+    private readonly audit: AuditService,
   ) {}
 
   // ---------- PUBLIC ----------
@@ -352,6 +354,14 @@ export class DemoRequestsService {
       );
     });
 
+    void this.audit.log({
+      action: "demo.invite_sent",
+      actorType: "admin",
+      entityType: "demo_request",
+      entityId: id,
+      metadata: { toEmail: targetEmail, count: updated.inviteSentCount },
+    });
+
     return {
       sentAt: updated.inviteSentAt,
       sentToEmail: updated.inviteSentToEmail,
@@ -386,6 +396,12 @@ export class DemoRequestsService {
       data: { inviteToken: null, inviteTokenExpAt: null },
     });
     this.logger.log(`Demo invite revoked: ${id}`);
+    void this.audit.log({
+      action: "demo.invite_revoked",
+      actorType: "admin",
+      entityType: "demo_request",
+      entityId: id,
+    });
     return { success: true };
   }
 

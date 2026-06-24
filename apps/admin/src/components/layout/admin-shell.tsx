@@ -34,6 +34,7 @@ import {
   Building2,
   LayoutDashboard,
   Mail,
+  ScrollText,
   Settings,
   ShieldCheck,
   Truck,
@@ -116,6 +117,12 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/company-verifications",
         icon: ShieldCheck,
         activeMatch: "/admin/company-verifications",
+      },
+      {
+        label: "Denetim Kaydı",
+        href: "/admin/audit-logs",
+        icon: ScrollText,
+        activeMatch: "/admin/audit-logs",
       },
       {
         label: "Ayarlar",
