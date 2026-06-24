@@ -33,6 +33,7 @@ import {
 import {
   Building2,
   LayoutDashboard,
+  Link2,
   Mail,
   ScrollText,
   Settings,
@@ -111,6 +112,12 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/suppliers",
         icon: Truck,
         activeMatch: "/admin/suppliers",
+      },
+      {
+        label: "Bağlantılar",
+        href: "/admin/connections",
+        icon: Link2,
+        activeMatch: "/admin/connections",
       },
       {
         label: "Firma Doğrulamaları",
