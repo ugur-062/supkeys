@@ -136,7 +136,6 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 - STANDARD → PREMIUM upgrade akışı + ödeme (Iyzico/Stripe) + escrow
 - Açık ihale (PUBLIC) + tedarikçi başvuru sistemi
 - Kazandırma geri alma (un-award) — SONRAYA bırakıldı (canlı siparişlere dokunan riskli iş). NOT: eleme geri almaya gerek yok — elenen tedarikçi zaten baştan yeniden teklif verebiliyor (mevcut davranış kabul edildi).
-- Hatırlatma e-postası özel süre
 - WebSocket real-time bildirim
 - Admin ek kontroller: impersonate (güvenlik değerlendirilecek), iade/refund, doğrudan kullanıcı ekleme, CSV export, dahili not, global arama
 
