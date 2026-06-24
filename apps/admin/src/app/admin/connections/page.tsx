@@ -1,8 +1,6 @@
 "use client";
 
 import { Badge } from "@/components/catalyst/badge";
-import { Input } from "@/components/catalyst/input";
-import { Select } from "@/components/catalyst/select";
 import {
   Table,
   TableBody,
@@ -12,6 +10,12 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
+import {
+  FilterSelect,
+  PageHeader,
+  Pagination,
+  SearchInput,
+} from "@/components/list";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +26,6 @@ import {
 } from "@/hooks/use-admin-connections";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Link2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -89,47 +92,35 @@ function ConnectionsView() {
 
   return (
     <div className="space-y-6 max-w-[1200px]">
-      <div className="flex items-start gap-3">
-        <div className="h-11 w-11 rounded-xl bg-zinc-100 flex items-center justify-center">
-          <Link2 className="h-5 w-5 text-zinc-600" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-display font-bold text-admin-text">
-            Bağlantılar
-          </h1>
-          <p className="text-sm text-admin-text-muted">
-            Tedarikçi ↔ alıcı bağlantıları — onayla, engelle, kaldır.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Bağlantılar"
+        description="Tedarikçi ↔ alıcı bağlantıları — onayla, engelle, kaldır."
+      />
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="w-48">
-          <Select
-            value={status}
-            onChange={(e) => {
-              setStatus(e.target.value);
-              setPage(1);
-            }}
-            aria-label="Durum"
-          >
-            <option value="">Tüm durumlar</option>
-            <option value="ACTIVE">Aktif</option>
-            <option value="PENDING_TENANT_APPROVAL">Onay bekliyor</option>
-            <option value="BLOCKED">Engelli</option>
-          </Select>
-        </div>
-        <div className="w-64">
-          <Input
-            type="search"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            placeholder="Tedarikçi / alıcı adı ara..."
-          />
-        </div>
+        <FilterSelect
+          ariaLabel="Durum"
+          value={status}
+          active={!!status}
+          onChange={(v) => {
+            setStatus(v);
+            setPage(1);
+          }}
+          options={[
+            { value: "", label: "Tüm durumlar" },
+            { value: "ACTIVE", label: "Aktif" },
+            { value: "PENDING_TENANT_APPROVAL", label: "Onay bekliyor" },
+            { value: "BLOCKED", label: "Engelli" },
+          ]}
+        />
+        <SearchInput
+          value={search}
+          onChange={(v) => {
+            setSearch(v);
+            setPage(1);
+          }}
+          placeholder="Tedarikçi / alıcı adı ara..."
+        />
       </div>
 
       <div className="admin-card overflow-hidden">
@@ -230,33 +221,15 @@ function ConnectionsView() {
         </Table>
       </div>
 
-      {pagination && pagination.totalPages > 1 ? (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-admin-text-muted">
-            {pagination.total} bağlantı · Sayfa {pagination.page}/
-            {pagination.totalPages}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Önceki
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={page >= pagination.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Sonraki
-            </Button>
-          </div>
-        </div>
+      {pagination ? (
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          total={pagination.total}
+          pageSize={pagination.pageSize}
+          onPageChange={setPage}
+          variant="bare"
+        />
       ) : null}
     </div>
   );

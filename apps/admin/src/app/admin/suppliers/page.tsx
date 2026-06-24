@@ -4,6 +4,7 @@ import { AdminShell } from "@/components/layout/admin-shell";
 import {
   EmptyState,
   ListSkeleton,
+  PageHeader,
   ResultCount,
   SearchInput,
   SortDropdown,
@@ -72,14 +73,10 @@ function SuppliersView() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <div>
-        <h1 className="font-display font-bold text-2xl md:text-3xl text-admin-text">
-          Tedarikçiler
-        </h1>
-        <p className="text-sm text-admin-text-muted mt-1">
-          Sistemdeki tüm tedarikçi firmalar.
-        </p>
-      </div>
+      <PageHeader
+        title="Tedarikçiler"
+        description="Sistemdeki tüm tedarikçi firmalar."
+      />
 
       <div className="admin-card">
         <div className="p-4 border-b border-surface-border space-y-3">

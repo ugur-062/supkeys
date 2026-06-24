@@ -4,6 +4,7 @@ import { AdminShell } from "@/components/layout/admin-shell";
 import {
   EmptyState,
   ListSkeleton,
+  PageHeader,
   ResultCount,
   SearchInput,
   SortDropdown,
@@ -110,14 +111,10 @@ function TenantsView() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <div>
-        <h1 className="font-display font-bold text-2xl md:text-3xl text-admin-text">
-          Müşteri Firmaları
-        </h1>
-        <p className="text-sm text-admin-text-muted mt-1">
-          Sisteme kayıtlı tüm tenant'lar.
-        </p>
-      </div>
+      <PageHeader
+        title="Müşteri Firmaları"
+        description="Sisteme kayıtlı tüm tenant'lar."
+      />
 
       <div className="admin-card">
         <div className="p-4 border-b border-surface-border space-y-3">

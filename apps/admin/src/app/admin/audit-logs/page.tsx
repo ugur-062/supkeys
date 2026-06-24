@@ -1,8 +1,6 @@
 "use client";
 
 import { Badge } from "@/components/catalyst/badge";
-import { Input } from "@/components/catalyst/input";
-import { Select } from "@/components/catalyst/select";
 import {
   Table,
   TableBody,
@@ -12,12 +10,16 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
+import {
+  FilterSelect,
+  PageHeader,
+  Pagination,
+  SearchInput,
+} from "@/components/list";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
-import { Button } from "@/components/ui/button";
 import { useAuditLogs, type AuditLogItem } from "@/hooks/use-audit-logs";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { ScrollText } from "lucide-react";
 import { useState } from "react";
 
 const ACTION_LABELS: Record<string, string> = {
@@ -67,49 +69,37 @@ function AuditView() {
 
   return (
     <div className="space-y-6 max-w-[1200px]">
-      <div className="flex items-start gap-3">
-        <div className="h-11 w-11 rounded-xl bg-zinc-100 flex items-center justify-center">
-          <ScrollText className="h-5 w-5 text-zinc-600" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-display font-bold text-admin-text">
-            Denetim Kaydı
-          </h1>
-          <p className="text-sm text-admin-text-muted">
-            Sistemdeki tüm hesap ve destek işlemleri (kim, ne, ne zaman).
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Denetim Kaydı"
+        description="Sistemdeki tüm hesap ve destek işlemleri (kim, ne, ne zaman)."
+      />
 
       {/* Filtreler */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="w-44">
-          <Select
-            value={actorType}
-            onChange={(e) => {
-              setActorType(e.target.value);
-              setPage(1);
-            }}
-            aria-label="Aktör tipi"
-          >
-            <option value="">Tüm aktörler</option>
-            <option value="admin">Admin</option>
-            <option value="tenant">Alıcı</option>
-            <option value="supplier">Tedarikçi</option>
-            <option value="system">Sistem</option>
-          </Select>
-        </div>
-        <div className="w-64">
-          <Input
-            type="search"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-            }}
-            placeholder="E-posta, eylem, varlık ID ara..."
-          />
-        </div>
+        <FilterSelect
+          ariaLabel="Aktör tipi"
+          value={actorType}
+          active={!!actorType}
+          onChange={(v) => {
+            setActorType(v);
+            setPage(1);
+          }}
+          options={[
+            { value: "", label: "Tüm aktörler" },
+            { value: "admin", label: "Admin" },
+            { value: "tenant", label: "Alıcı" },
+            { value: "supplier", label: "Tedarikçi" },
+            { value: "system", label: "Sistem" },
+          ]}
+        />
+        <SearchInput
+          value={search}
+          onChange={(v) => {
+            setSearch(v);
+            setPage(1);
+          }}
+          placeholder="E-posta, eylem, varlık ID ara..."
+        />
       </div>
 
       {/* Tablo */}
@@ -139,33 +129,15 @@ function AuditView() {
       </div>
 
       {/* Sayfalama */}
-      {pagination && pagination.totalPages > 1 ? (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-admin-text-muted">
-            {pagination.total} kayıt · Sayfa {pagination.page}/
-            {pagination.totalPages}
-          </span>
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Önceki
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={page >= pagination.totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Sonraki
-            </Button>
-          </div>
-        </div>
+      {pagination ? (
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          total={pagination.total}
+          pageSize={pagination.pageSize}
+          onPageChange={setPage}
+          variant="bare"
+        />
       ) : null}
     </div>
   );

@@ -1,13 +1,11 @@
 "use client";
 
-import { Input } from "@/components/catalyst/input";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { PageHeader, Pagination, SearchInput } from "@/components/list";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
-import { Button } from "@/components/ui/button";
 import { useAdminThreads } from "@/hooks/use-admin-messages";
 import { formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
-import { MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -20,31 +18,19 @@ function MessagesView() {
 
   return (
     <div className="space-y-6 max-w-[1000px]">
-      <div className="flex items-start gap-3">
-        <div className="h-11 w-11 rounded-xl bg-zinc-100 flex items-center justify-center">
-          <MessageSquare className="h-5 w-5 text-zinc-600" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-display font-bold text-admin-text">
-            Mesajlar
-          </h1>
-          <p className="text-sm text-admin-text-muted">
-            Alıcı ↔ tedarikçi konuşmaları (salt-okunur, uyuşmazlık çözümü için).
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Mesajlar"
+        description="Alıcı ↔ tedarikçi konuşmaları (salt-okunur, uyuşmazlık çözümü için)."
+      />
 
-      <div className="w-64">
-        <Input
-          type="search"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Alıcı / tedarikçi ara..."
-        />
-      </div>
+      <SearchInput
+        value={search}
+        onChange={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
+        placeholder="Alıcı / tedarikçi ara..."
+      />
 
       <div className="admin-card divide-y divide-surface-border">
         {items.length === 0 ? (
@@ -87,20 +73,15 @@ function MessagesView() {
         )}
       </div>
 
-      {pagination && pagination.totalPages > 1 ? (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-admin-text-muted">
-            {pagination.total} konuşma · Sayfa {pagination.page}/{pagination.totalPages}
-          </span>
-          <div className="flex gap-2">
-            <Button type="button" variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-              Önceki
-            </Button>
-            <Button type="button" variant="secondary" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>
-              Sonraki
-            </Button>
-          </div>
-        </div>
+      {pagination ? (
+        <Pagination
+          page={pagination.page}
+          totalPages={pagination.totalPages}
+          total={pagination.total}
+          pageSize={pagination.pageSize}
+          onPageChange={setPage}
+          variant="bare"
+        />
       ) : null}
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { AdminShell } from "@/components/layout/admin-shell";
+import { PageHeader } from "@/components/list";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import {
   useAdminOverview,
@@ -79,23 +80,19 @@ function DashboardContent() {
 
   return (
     <div className="space-y-6 max-w-[1400px]">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className="font-display font-bold text-2xl md:text-3xl text-admin-text">
-            Sistem Geneli
-          </h1>
-          <p className="text-sm text-admin-text-muted mt-1">
-            Supkeys ekosistem sağlığı ve son aktiviteler.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 text-xs text-admin-text-muted">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success-500 opacity-60" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-success-500" />
-          </span>
-          Canlı (60sn yenileme)
-        </div>
-      </div>
+      <PageHeader
+        title="Sistem Geneli"
+        description="Supkeys ekosistem sağlığı ve son aktiviteler."
+        action={
+          <div className="flex items-center gap-2 text-xs text-admin-text-muted">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success-500 opacity-60" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-success-500" />
+            </span>
+            Canlı (60sn yenileme)
+          </div>
+        }
+      />
 
       {/* KPI Grid */}
       {overviewQ.isLoading || !overviewQ.data ? (
