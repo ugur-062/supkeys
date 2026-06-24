@@ -11,6 +11,17 @@ export interface SupplierCategoryItem {
   breadcrumb: string;
 }
 
+/** Ana (segment, ≤3) + alt (sınırsız) kategoriler — onboarding'le aynı model. */
+export interface SupplierCategories {
+  main: SupplierCategoryItem[];
+  sub: SupplierCategoryItem[];
+}
+
+export interface UpdateSupplierCategoriesPayload {
+  mainCategoryIds: string[];
+  subCategoryIds: string[];
+}
+
 const KEYS = {
   myCategories: ["supplier-profile", "categories"] as const,
   myPublicProfile: ["supplier-profile", "public-profile"] as const,
@@ -88,7 +99,7 @@ async function uploadToR2(uploadUrl: string, file: File): Promise<void> {
  * Profil sayfasında listele/düzenle akışı için kullanılır.
  */
 export function useSupplierCategories() {
-  return useQuery<SupplierCategoryItem[]>({
+  return useQuery<SupplierCategories>({
     queryKey: KEYS.myCategories,
     queryFn: () =>
       supplierApi.get("/supplier-profile/me/categories").then((r) => r.data),
@@ -99,9 +110,9 @@ export function useSupplierCategories() {
 export function useUpdateSupplierCategories() {
   const qc = useQueryClient();
   return useMutation<
-    SupplierCategoryItem[],
+    SupplierCategories,
     unknown,
-    { categoryIds: string[] }
+    UpdateSupplierCategoriesPayload
   >({
     mutationFn: (dto) =>
       supplierApi

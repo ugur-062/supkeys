@@ -122,6 +122,16 @@ export class SupplierSelfServiceService {
         where: { id: supplierUserId },
         data: { isManager },
       }),
+      // SupplierCategory junction'ı denormalize mirror olarak senkron tut
+      // (/me, public profil, bağlantı serileştirmeleri junction'dan okur).
+      this.prisma.supplierCategory.deleteMany({ where: { supplierId } }),
+      this.prisma.supplierCategory.createMany({
+        data: [...mainIds, ...subIds].map((categoryId) => ({
+          supplierId,
+          categoryId,
+        })),
+        skipDuplicates: true,
+      }),
     ]);
 
     return { ok: true };

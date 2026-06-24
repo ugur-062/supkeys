@@ -39,7 +39,11 @@ export class SupplierProfileController {
     @CurrentSupplierUser() user: AuthenticatedSupplierUser,
     @Body() dto: UpdateSupplierCategoriesDto,
   ) {
-    return this.service.updateCategories(user.supplierUserId, dto.categoryIds);
+    return this.service.updateCategories(
+      user.supplierUserId,
+      dto.mainCategoryIds,
+      dto.subCategoryIds ?? [],
+    );
   }
 
   // Çekirdek firma bilgisi (iletişim/adres) self-servis düzenleme

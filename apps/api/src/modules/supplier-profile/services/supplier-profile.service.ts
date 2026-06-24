@@ -14,6 +14,7 @@ import {
 } from "../../../common/website-import";
 import { generateCompanyAbout } from "../../../common/ai-about";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
 import {
   buildBreadcrumb,
   CategoryService,
@@ -49,6 +50,10 @@ export class SupplierProfileService {
     private readonly storage: StorageService,
   ) {}
 
+  /**
+   * Faaliyet kategorileri — ana (segment, ≤3) + alt (sınırsız). Onboarding'le
+   * aynı model: kaynak `Supplier.sectorCategoryIds` + `subCategoryIds` array'leri.
+   */
   async getCategories(supplierUserId: string) {
     const user = await this.prisma.supplierUser.findUnique({
       where: { id: supplierUserId },
@@ -56,39 +61,60 @@ export class SupplierProfileService {
     });
     if (!user) throw new NotFoundException("Tedarikçi kullanıcı bulunamadı");
 
-    const rows = await this.prisma.supplierCategory.findMany({
-      where: { supplierId: user.supplierId },
-      include: {
-        category: { include: CATEGORY_PARENT_CHAIN_INCLUDE },
-      },
+    const supplier = await this.prisma.supplier.findUnique({
+      where: { id: user.supplierId },
+      select: { sectorCategoryIds: true, subCategoryIds: true },
     });
+    if (!supplier) throw new NotFoundException("Tedarikçi bulunamadı");
 
-    return rows.map((sc) => ({
-      id: sc.category.id,
-      code: sc.category.code,
-      nameTr: sc.category.nameTr,
-      level: sc.category.level,
-      breadcrumb: buildBreadcrumb(sc.category),
-    }));
+    const resolved = await this.categoryService.getByIds([
+      ...supplier.sectorCategoryIds,
+      ...supplier.subCategoryIds,
+    ]);
+    const byId = new Map(resolved.map((c) => [c.id, c]));
+    const main = supplier.sectorCategoryIds
+      .map((id) => byId.get(id))
+      .filter((c): c is NonNullable<typeof c> => !!c);
+    const sub = supplier.subCategoryIds
+      .map((id) => byId.get(id))
+      .filter((c): c is NonNullable<typeof c> => !!c);
+    return { main, sub };
   }
 
-  async updateCategories(supplierUserId: string, categoryIds: string[]) {
+  async updateCategories(
+    supplierUserId: string,
+    mainCategoryIds: string[],
+    subCategoryIds: string[],
+  ) {
     const user = await this.prisma.supplierUser.findUnique({
       where: { id: supplierUserId },
       select: { supplierId: true },
     });
     if (!user) throw new NotFoundException("Tedarikçi kullanıcı bulunamadı");
 
-    // Tedarikçi SADECE ana başlık (Segment level 1) seçer — wrong-level / missing → 400/404.
-    await this.categoryService.validateIds(categoryIds, { exactLevel: 1 });
+    const { mainIds, subIds, mainNames } = await validateCategorySelection(
+      this.prisma,
+      mainCategoryIds,
+      subCategoryIds ?? [],
+    );
+    const allIds = [...mainIds, ...subIds];
 
-    // Replace-all: tek transactionda eski satırları temizle + yenilerini yaz.
     await this.prisma.$transaction([
+      this.prisma.supplier.update({
+        where: { id: user.supplierId },
+        data: {
+          sectorCategoryIds: mainIds,
+          subCategoryIds: subIds,
+          industry: mainNames[0] ?? null,
+        },
+      }),
+      // SupplierCategory junction'ı denormalize mirror olarak senkron tut —
+      // /me, public profil ve bağlantı serileştirmeleri hâlâ junction'dan okur.
       this.prisma.supplierCategory.deleteMany({
         where: { supplierId: user.supplierId },
       }),
       this.prisma.supplierCategory.createMany({
-        data: categoryIds.map((categoryId) => ({
+        data: allIds.map((categoryId) => ({
           supplierId: user.supplierId,
           categoryId,
         })),

@@ -2,16 +2,20 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsOptional,
   IsString,
 } from "class-validator";
 
+/** Tedarikçi faaliyet kategorileri — ana (segment, ≤3) + alt (sınırsız). */
 export class UpdateSupplierCategoriesDto {
-  // V2-6 — Tedarikçinin kategori listesi (Family seviyesi). Replace-all semantik:
-  // mevcut SupplierCategory satırları silinir, gönderilen listeye göre yeniden
-  // yazılır. Tek transaction içinde.
   @IsArray()
-  @ArrayMinSize(1, { message: "En az 1 kategori seçmelisiniz" })
-  @ArrayMaxSize(20, { message: "En fazla 20 kategori seçebilirsiniz" })
+  @ArrayMinSize(1, { message: "En az 1 ana kategori seçmelisiniz" })
+  @ArrayMaxSize(3, { message: "En fazla 3 ana kategori seçebilirsiniz" })
   @IsString({ each: true })
-  categoryIds!: string[];
+  mainCategoryIds!: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  subCategoryIds?: string[];
 }

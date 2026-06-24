@@ -205,12 +205,28 @@ export class AdminSupplierApplicationsService {
         ? (app.categoryIds as string[]).filter((id) => typeof id === "string")
         : [];
       if (categoryIds.length > 0) {
+        // Junction (denormalize mirror) + yeni model array'leri (kaynak).
         await tx.supplierCategory.createMany({
           data: categoryIds.map((categoryId) => ({
             supplierId: supplier.id,
             categoryId,
           })),
           skipDuplicates: true,
+        });
+        // Level'a göre ana (segment, ≤3) + alt böl; ana boşsa ilk 3'ü ana say.
+        const cats = await tx.category.findMany({
+          where: { id: { in: categoryIds } },
+          select: { id: true, level: true },
+        });
+        const levelById = new Map(cats.map((c) => [c.id, c.level]));
+        let mainIds = categoryIds
+          .filter((id) => levelById.get(id) === 1)
+          .slice(0, 3);
+        const subIds = categoryIds.filter((id) => (levelById.get(id) ?? 1) > 1);
+        if (mainIds.length === 0) mainIds = categoryIds.slice(0, 3);
+        await tx.supplier.update({
+          where: { id: supplier.id },
+          data: { sectorCategoryIds: mainIds, subCategoryIds: subIds },
         });
       }
 

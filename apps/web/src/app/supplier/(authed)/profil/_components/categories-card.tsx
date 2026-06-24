@@ -1,7 +1,8 @@
 "use client";
 
 import { CategoryBadge } from "@/components/categories/category-badge";
-import { SegmentOnlySelector } from "@/components/categories/segment-only-selector";
+import { CategorySelectorButton } from "@/components/categories/category-selector-button";
+import { SegmentOnlyPicker } from "@/components/categories/segment-only-picker";
 import { Button } from "@/components/catalyst/button";
 import { Subheading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
@@ -11,21 +12,20 @@ import {
 } from "@/hooks/use-supplier-profile";
 import axios from "axios";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
+/**
+ * Tedarik kategorileri — ana (segment, ≤3) + alt (sınırsız). Onboarding'le aynı
+ * model; ihale eşleştirme/öneri sistemini besler.
+ */
 export function CategoriesCard() {
-  const { data: categories, isLoading } = useSupplierCategories();
-  const updateMutation = useUpdateSupplierCategories();
+  const { data, isLoading } = useSupplierCategories();
+  const update = useUpdateSupplierCategories();
 
   const [editing, setEditing] = useState(false);
-  const [draftIds, setDraftIds] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (categories) {
-      setDraftIds(categories.map((c) => c.id));
-    }
-  }, [categories]);
+  const [mainDraft, setMainDraft] = useState<string[]>([]);
+  const [subDraft, setSubDraft] = useState<string[]>([]);
 
   if (isLoading) {
     return (
@@ -35,7 +35,34 @@ export function CategoriesCard() {
     );
   }
 
-  const list = categories ?? [];
+  const main = data?.main ?? [];
+  const sub = data?.sub ?? [];
+
+  const startEdit = () => {
+    setMainDraft(main.map((c) => c.id));
+    setSubDraft(sub.map((c) => c.id));
+    setEditing(true);
+  };
+
+  const save = async () => {
+    if (mainDraft.length < 1 || mainDraft.length > 3) {
+      toast.error("1-3 arası ana kategori seçmelisiniz");
+      return;
+    }
+    try {
+      await update.mutateAsync({
+        mainCategoryIds: mainDraft,
+        subCategoryIds: subDraft,
+      });
+      toast.success("Kategorileriniz güncellendi");
+      setEditing(false);
+    } catch (err) {
+      const msg =
+        axios.isAxiosError(err) &&
+        (err.response?.data as { message?: string } | undefined)?.message;
+      toast.error(msg || "Güncelleme başarısız");
+    }
+  };
 
   return (
     <section>
@@ -43,19 +70,13 @@ export function CategoriesCard() {
         <div>
           <Subheading>Tedarik Kategorileriniz</Subheading>
           <Text className="mt-1">
-            {list.length > 0
-              ? `${list.length} kategori seçili`
+            {main.length > 0
+              ? `${main.length} ana${sub.length ? ` · ${sub.length} alt` : ""} kategori seçili`
               : "Henüz kategori seçmediniz"}
           </Text>
         </div>
         {!editing ? (
-          <Button
-            outline
-            onClick={() => {
-              setDraftIds(list.map((c) => c.id));
-              setEditing(true);
-            }}
-          >
+          <Button outline onClick={startEdit}>
             Düzenle
           </Button>
         ) : null}
@@ -63,65 +84,89 @@ export function CategoriesCard() {
 
       <div className="mt-6">
         {!editing ? (
-          list.length === 0 ? (
+          main.length === 0 && sub.length === 0 ? (
             <Text>
-              İhalelerle daha iyi eşleşmeniz için kategori seçimi yapmanızı
-              öneririz.
+              İhalelerle daha iyi eşleşmeniz için faaliyet kategorilerinizi seçin.
             </Text>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              {list.map((c) => (
-                <CategoryBadge
-                  key={c.id}
-                  category={{
-                    nameTr: c.nameTr,
-                    breadcrumb: c.breadcrumb,
-                    segmentLetter: c.breadcrumb.split(".")[0]?.trim() || null,
-                  }}
-                />
-              ))}
+            <div className="space-y-3">
+              {main.length > 0 ? (
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold text-zinc-500">
+                    Ana Kategoriler
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {main.map((c) => (
+                      <CategoryBadge
+                        key={c.id}
+                        category={{ nameTr: c.nameTr, breadcrumb: c.breadcrumb }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {sub.length > 0 ? (
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold text-zinc-500">
+                    Alt Kategoriler
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {sub.map((c) => (
+                      <CategoryBadge
+                        key={c.id}
+                        category={{ nameTr: c.nameTr, breadcrumb: c.breadcrumb }}
+                        size="sm"
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : null}
             </div>
           )
         ) : (
-          <div className="space-y-4">
-            <SegmentOnlySelector
-              value={draftIds}
-              onChange={setDraftIds}
-              maxSelection={10}
-            />
+          <div className="space-y-5">
+            <div>
+              <p className="mb-1 text-sm font-medium text-zinc-700">
+                Ana Kategoriler
+              </p>
+              <p className="mb-2 text-xs text-zinc-500">
+                En fazla 3 ana faaliyet alanınız (segment). İlki ana kategoridir.
+              </p>
+              <SegmentOnlyPicker
+                value={mainDraft}
+                onChange={setMainDraft}
+                maxSelection={3}
+                placeholder="Ana kategori seç (en fazla 3)"
+              />
+            </div>
+            <div>
+              <p className="mb-1 text-sm font-medium text-zinc-700">
+                Alt Kategoriler
+              </p>
+              <p className="mb-2 text-xs text-zinc-500">
+                Teklif almak istediğiniz ürün/hizmet kategorileri (sınırsız).
+              </p>
+              <CategorySelectorButton
+                value={subDraft}
+                onChange={setSubDraft}
+                mode="multi"
+                maxSelection={999}
+                placeholder="Alt kategori ekle"
+                modalTitle="Alt Kategoriler"
+                modalDescription="Ürün/hizmet kategorilerinizi seçin (sınırsız)."
+              />
+            </div>
 
             <div className="flex justify-end gap-2">
               <Button
                 plain
-                onClick={() => {
-                  setEditing(false);
-                  setDraftIds(list.map((c) => c.id));
-                }}
-                disabled={updateMutation.isPending}
+                onClick={() => setEditing(false)}
+                disabled={update.isPending}
               >
                 İptal
               </Button>
-              <Button
-                onClick={async () => {
-                  if (draftIds.length === 0) {
-                    toast.error("En az 1 kategori seçmelisiniz");
-                    return;
-                  }
-                  try {
-                    await updateMutation.mutateAsync({ categoryIds: draftIds });
-                    toast.success("Kategorileriniz güncellendi");
-                    setEditing(false);
-                  } catch (err) {
-                    const msg =
-                      axios.isAxiosError(err) &&
-                      (err.response?.data as { message?: string } | undefined)
-                        ?.message;
-                    toast.error(msg || "Güncelleme başarısız");
-                  }
-                }}
-                disabled={updateMutation.isPending || draftIds.length === 0}
-              >
-                Kaydet
+              <Button onClick={save} disabled={update.isPending}>
+                {update.isPending ? "Kaydediliyor…" : "Kaydet"}
               </Button>
             </div>
           </div>
