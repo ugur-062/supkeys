@@ -35,6 +35,7 @@ import {
   LayoutDashboard,
   Link2,
   Mail,
+  MessageSquare,
   ScrollText,
   Settings,
   ShieldCheck,
@@ -124,6 +125,12 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/company-verifications",
         icon: ShieldCheck,
         activeMatch: "/admin/company-verifications",
+      },
+      {
+        label: "Mesajlar",
+        href: "/admin/messages",
+        icon: MessageSquare,
+        activeMatch: "/admin/messages",
       },
       {
         label: "Denetim Kaydı",
