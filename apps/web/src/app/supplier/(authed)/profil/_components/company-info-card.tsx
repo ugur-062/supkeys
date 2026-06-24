@@ -54,7 +54,7 @@ export function CompanyInfoCard() {
       industry: supplier.industry ?? "",
       website: supplier.website ?? "",
       city: supplier.city,
-      district: supplier.district,
+      district: supplier.district ?? "",
       addressLine: supplier.addressLine,
       postalCode: supplier.postalCode ?? "",
     });

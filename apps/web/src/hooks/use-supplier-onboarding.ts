@@ -5,12 +5,15 @@ import { useMutation } from "@tanstack/react-query";
 export interface SupplierOnboardingPayload {
   legalName: string;
   companyType: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR";
+  /** ISO 3166-1 alpha-2 (TR varsayılan). */
+  country: string;
   taxNumber: string;
-  taxOffice: string;
+  taxOffice?: string;
   city: string;
-  district: string;
-  neighborhood: string;
-  postalCode: string;
+  district?: string;
+  stateRegion?: string;
+  neighborhood?: string;
+  postalCode?: string;
   addressLine: string;
   billingTitle?: string;
   billingEmail?: string;
@@ -21,7 +24,7 @@ export interface SupplierOnboardingPayload {
   deliveryNeighborhood?: string;
   deliveryPostalCode?: string;
   deliveryAddressLine?: string;
-  authorizedTckn: string;
+  authorizedTckn?: string;
   /** Yetkilinin rolü → isManager. */
   role: "MANAGER" | "PURCHASER";
   /** UNSPSC ana kategoriler (segment, ≤3) + alt kategoriler (sınırsız). */

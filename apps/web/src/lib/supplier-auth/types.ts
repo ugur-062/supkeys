@@ -25,11 +25,13 @@ export interface SupplierProfile {
   companyName: string;
   companyType: CompanyType;
   taxNumber: string | null;
-  taxOffice: string;
+  taxOffice: string | null;
   industry: string | null;
   website: string | null;
+  country: string;
   city: string;
-  district: string;
+  district: string | null;
+  stateRegion: string | null;
   addressLine: string;
   postalCode: string | null;
   membership: SupplierMembership;

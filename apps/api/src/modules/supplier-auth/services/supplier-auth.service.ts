@@ -303,8 +303,10 @@ export class SupplierAuthService {
     taxOffice: string | null;
     industry: string | null;
     website: string | null;
+    country: string;
     city: string;
     district: string | null;
+    stateRegion: string | null;
     addressLine: string;
     postalCode: string | null;
     membership: string;
@@ -338,8 +340,10 @@ export class SupplierAuthService {
       taxOffice: supplier.taxOffice,
       industry: supplier.industry,
       website: supplier.website,
+      country: supplier.country,
       city: supplier.city,
       district: supplier.district,
+      stateRegion: supplier.stateRegion,
       addressLine: supplier.addressLine,
       postalCode: supplier.postalCode,
       membership: supplier.membership,
