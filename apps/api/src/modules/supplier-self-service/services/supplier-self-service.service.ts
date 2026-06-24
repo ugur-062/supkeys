@@ -10,7 +10,6 @@ import {
 import { ConfigService } from "@nestjs/config";
 import type { Prisma } from "@supkeys/db";
 import {
-  isValidSupplierSector,
   isValidTaxId,
   isValidTckn,
   normalizeShortCode,
@@ -18,6 +17,7 @@ import {
 } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { buildCorporateIdentityData } from "../../../common/helpers/corporate-identity.helper";
+import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
 import { EmailService } from "../../email/email.service";
 import { hashToken } from "../../registration/helpers/token.helper";
 import { AcceptInvitationDto } from "../dto/accept-invitation.dto";
@@ -57,15 +57,13 @@ export class SupplierSelfServiceService {
       throw new BadRequestException("Yetkili T.C. Kimlik No geçersiz");
     }
 
-    // Faaliyet sektörü — kürasyonlu liste, 1-3 adet, benzersiz.
-    const sectors = Array.from(new Set(dto.sectors.map((s) => s.trim())));
-    if (sectors.length < 1 || sectors.length > 3) {
-      throw new BadRequestException("1-3 arası faaliyet sektörü seçmelisiniz");
-    }
-    if (!sectors.every((s) => isValidSupplierSector(s))) {
-      throw new BadRequestException("Geçersiz faaliyet sektörü seçimi");
-    }
-    const mainSector = sectors[0];
+    // Faaliyet kategorileri — UNSPSC: 1-3 ANA (segment) + sınırsız ALT.
+    const { mainIds, subIds, mainNames } = await validateCategorySelection(
+      this.prisma,
+      dto.mainCategoryIds,
+      dto.subCategoryIds ?? [],
+    );
+    const mainSector = mainNames[0];
 
     // Teslimat adresi — "fatura adresimle aynı" ise fatura adresinden kopyala.
     const delivery = dto.deliveryUseBilling
@@ -111,7 +109,9 @@ export class SupplierSelfServiceService {
           billingEmail: dto.billingEmail?.trim() || null,
           authorizedTckn: dto.authorizedTckn.trim(),
           authorizedTitle: isManager ? "Yönetici" : "Satın Almacı",
-          sectors,
+          sectors: [],
+          sectorCategoryIds: mainIds,
+          subCategoryIds: subIds,
           industry: mainSector,
           ...delivery,
           onboardingCompletedAt: new Date(),

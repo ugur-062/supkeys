@@ -50,9 +50,11 @@ model Tenant {
   // FAZ 2 — yetkili kişi (ad/soyad FAZ 1'den User'da)
   authorizedTckn  String? // 11 hane
   authorizedTitle String? // ünvan/rol (Yönetici, Müdür vb.)
-  // FAZ 2 — faaliyet sektörü (UNSPSC segment ID'leri, 1-3, ilk=ana).
-  // Tedarikçideki SupplierCategory junction'ın alıcı muadili (junction yok).
+  // FAZ 2 — faaliyet sektörü. sectorCategoryIds = ANA kategoriler (UNSPSC
+  // segment ID'leri, en fazla 3). subCategoryIds = ALT kategoriler (family/
+  // class/commodity, sınırsız). Tender eşleştirme/sıralaması ikisini kullanır.
   sectorCategoryIds String[] @default([])
+  subCategoryIds    String[] @default([])
   // FAZ 3 — kurumsal kimlik (panel içinde sonradan doldurulur)
   mersisNo               String? // boş veya 16 hane
   tradeRegistryNo        String?
@@ -675,9 +677,12 @@ model Supplier {
   // FAZ 2 — yetkili kişi
   authorizedTckn  String?
   authorizedTitle String?
-  // FAZ 2 — faaliyet sektörleri (kürasyonlu liste, 1-3, ilk=ana). UNSPSC'den
-  // bağımsız string'ler (bkz. SUPPLIER_SECTORS).
-  sectors         String[] @default([])
+  // FAZ 2 — faaliyet sektörleri. sectors (kürasyonlu) DEPRECATED — UNSPSC'ye
+  // geçildi. sectorCategoryIds = ANA kategoriler (UNSPSC segment, en fazla 3),
+  // subCategoryIds = ALT kategoriler (sınırsız). Tender eşleştirme bunları kullanır.
+  sectors           String[] @default([])
+  sectorCategoryIds String[] @default([])
+  subCategoryIds    String[] @default([])
   // FAZ 2 — teslimat adresi (fatura adresinden farklıysa). "Fatura adresimi
   // teslimat adresi yap" tiki ile fatura adresinden kopyalanabilir.
   deliveryCity         String?

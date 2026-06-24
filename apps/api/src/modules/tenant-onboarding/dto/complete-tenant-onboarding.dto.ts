@@ -69,9 +69,15 @@ export class CompleteTenantOnboardingDto {
   @Length(2, 100)
   authorizedTitle!: string;
 
+  // UNSPSC kategoriler. 1-3 ANA (segment) + sınırsız ALT.
   @IsArray()
-  @ArrayMinSize(1, { message: "En az 1 faaliyet sektörü seçmelisiniz" })
-  @ArrayMaxSize(3, { message: "En fazla 3 faaliyet sektörü seçebilirsiniz" })
+  @ArrayMinSize(1, { message: "En az 1 ana kategori seçmelisiniz" })
+  @ArrayMaxSize(3, { message: "En fazla 3 ana kategori seçebilirsiniz" })
   @IsString({ each: true })
-  categoryIds!: string[];
+  mainCategoryIds!: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  subCategoryIds?: string[];
 }

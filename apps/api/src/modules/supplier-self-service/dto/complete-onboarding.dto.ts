@@ -108,10 +108,15 @@ export class CompleteOnboardingDto {
   @IsEnum(SupplierRoleDto, { message: "Geçerli bir rol seçiniz" })
   role!: SupplierRoleDto;
 
-  // Adım 2 — Faaliyet Sektörü (kürasyonlu liste, 1-3, ilk = ana)
+  // Adım 2 — Faaliyet kategorileri (UNSPSC). 1-3 ANA (segment) + sınırsız ALT.
   @IsArray()
-  @ArrayMinSize(1, { message: "En az 1 faaliyet sektörü seçmelisiniz" })
-  @ArrayMaxSize(3, { message: "En fazla 3 faaliyet sektörü seçebilirsiniz" })
+  @ArrayMinSize(1, { message: "En az 1 ana kategori seçmelisiniz" })
+  @ArrayMaxSize(3, { message: "En fazla 3 ana kategori seçebilirsiniz" })
   @IsString({ each: true })
-  sectors!: string[];
+  mainCategoryIds!: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  subCategoryIds?: string[];
 }

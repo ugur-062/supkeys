@@ -24,8 +24,9 @@ export interface SupplierOnboardingPayload {
   authorizedTckn: string;
   /** Yetkilinin rolü → isManager. */
   role: "MANAGER" | "PURCHASER";
-  /** Kürasyonlu sektör adları (1-3, ilk = ana). */
-  sectors: string[];
+  /** UNSPSC ana kategoriler (segment, ≤3) + alt kategoriler (sınırsız). */
+  mainCategoryIds: string[];
+  subCategoryIds: string[];
 }
 
 export function useCompleteSupplierOnboarding() {

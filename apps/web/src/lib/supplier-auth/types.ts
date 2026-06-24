@@ -42,8 +42,10 @@ export interface SupplierProfile {
   billingEmail: string | null;
   authorizedTckn: string | null;
   authorizedTitle: string | null;
-  // FAZ 2 — kürasyonlu faaliyet sektörleri (1-3, ilk = ana).
+  // FAZ 2 — UNSPSC kategoriler: ana (segment, ≤3) + alt (sınırsız).
   sectors: string[];
+  sectorCategoryIds: string[];
+  subCategoryIds: string[];
   // Madde 29 — FAZ 3 kurumsal kimlik (panel-içi editlenebilir).
   mersisNo: string | null;
   tradeRegistryNo: string | null;

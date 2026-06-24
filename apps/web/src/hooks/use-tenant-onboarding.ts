@@ -16,8 +16,9 @@ export interface TenantOnboardingPayload {
   billingEmail?: string;
   authorizedTckn: string;
   authorizedTitle: string;
-  /** UNSPSC segment ID'leri (1-3, ilk = ana sektör). */
-  categoryIds: string[];
+  /** UNSPSC ana kategoriler (segment, ≤3) + alt kategoriler (sınırsız). */
+  mainCategoryIds: string[];
+  subCategoryIds: string[];
 }
 
 export function useCompleteTenantOnboarding() {

@@ -293,6 +293,7 @@ export class AuthService {
       billingPhone?: string | null;
       billingPhoneVerifiedAt?: Date | null;
       sectorCategoryIds?: string[];
+      subCategoryIds?: string[];
       onboardingCompletedAt?: Date | null;
       companyVerificationStatus?: string;
     },
@@ -344,6 +345,7 @@ export class AuthService {
           ? tenant.billingPhoneVerifiedAt.toISOString()
           : null,
         sectorCategoryIds: tenant.sectorCategoryIds ?? [],
+        subCategoryIds: tenant.subCategoryIds ?? [],
         onboardingCompletedAt: tenant.onboardingCompletedAt
           ? tenant.onboardingCompletedAt.toISOString()
           : null,

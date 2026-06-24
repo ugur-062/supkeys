@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { isValidTaxId, isValidTckn } from "@supkeys/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { buildCorporateIdentityData } from "../../common/helpers/corporate-identity.helper";
+import { validateCategorySelection } from "../../common/helpers/category-selection.helper";
 import { CompleteTenantOnboardingDto } from "./dto/complete-tenant-onboarding.dto";
 import { UpdateTenantCorporateIdentityDto } from "./dto/update-corporate-identity.dto";
 
@@ -27,19 +28,13 @@ export class TenantOnboardingService {
       throw new BadRequestException("Yetkili T.C. Kimlik No geçersiz");
     }
 
-    const categoryIds = Array.from(new Set(dto.categoryIds));
-    if (categoryIds.length < 1 || categoryIds.length > 3) {
-      throw new BadRequestException("1-3 arası faaliyet sektörü seçmelisiniz");
-    }
-    const segments = await this.prisma.category.findMany({
-      where: { id: { in: categoryIds }, level: 1 },
-      select: { id: true, nameTr: true },
-    });
-    if (segments.length !== categoryIds.length) {
-      throw new BadRequestException("Geçersiz faaliyet sektörü seçimi");
-    }
-    const mainSector =
-      segments.find((s) => s.id === categoryIds[0])?.nameTr ?? null;
+    // UNSPSC: 1-3 ANA (segment) + sınırsız ALT.
+    const { mainIds, subIds, mainNames } = await validateCategorySelection(
+      this.prisma,
+      dto.mainCategoryIds,
+      dto.subCategoryIds ?? [],
+    );
+    const mainSector = mainNames[0] ?? null;
 
     await this.prisma.tenant.update({
       where: { id: tenantId },
@@ -57,7 +52,8 @@ export class TenantOnboardingService {
         billingEmail: dto.billingEmail?.trim() || null,
         authorizedTckn: dto.authorizedTckn.trim(),
         authorizedTitle: dto.authorizedTitle.trim(),
-        sectorCategoryIds: categoryIds,
+        sectorCategoryIds: mainIds,
+        subCategoryIds: subIds,
         industry: mainSector,
         onboardingCompletedAt: new Date(),
       },

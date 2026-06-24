@@ -40,6 +40,7 @@ export interface AuthUser {
     billingPhone: string | null;
     billingPhoneVerifiedAt: string | null;
     sectorCategoryIds: string[];
+    subCategoryIds: string[];
     onboardingCompletedAt: string | null;
     companyVerificationStatus:
       | "UNVERIFIED"

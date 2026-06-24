@@ -19,9 +19,10 @@ import {
   getDistrictsByCity,
   isValidTaxId,
   isValidTckn,
-  SUPPLIER_SECTORS,
   TURKEY_LOCATIONS,
 } from "@supkeys/shared";
+import { CategorySelectorButton } from "@/components/categories/category-selector-button";
+import { SegmentOnlyPicker } from "@/components/categories/segment-only-picker";
 import { Check } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -58,10 +59,11 @@ const schema = z
     deliveryAddressLine: z.string().optional(),
     authorizedTckn: z.string().min(11, "T.C. Kimlik No 11 haneli olmalı"),
     role: z.enum(["MANAGER", "PURCHASER"]),
-    sectors: z
+    mainCategoryIds: z
       .array(z.string())
-      .min(1, "En az 1 faaliyet sektörü seçin")
-      .max(3, "En fazla 3 faaliyet sektörü"),
+      .min(1, "En az 1 ana kategori seçin")
+      .max(3, "En fazla 3 ana kategori"),
+    subCategoryIds: z.array(z.string()).default([]),
   })
   .superRefine((v, ctx) => {
     const isSole = v.companyType === "SOLE_PROPRIETOR";
@@ -121,7 +123,7 @@ const STEP_FIELDS: Record<number, (keyof FormValues)[]> = {
     "deliveryDistrict",
     "deliveryAddressLine",
   ],
-  2: ["authorizedTckn", "role", "sectors"],
+  2: ["authorizedTckn", "role", "mainCategoryIds"],
 };
 
 export function OnboardingWizard({
@@ -160,7 +162,8 @@ export function OnboardingWizard({
       deliveryAddressLine: "",
       authorizedTckn: supplier.authorizedTckn ?? "",
       role: "MANAGER",
-      sectors: supplier.sectors ?? [],
+      mainCategoryIds: supplier.sectorCategoryIds ?? [],
+      subCategoryIds: supplier.subCategoryIds ?? [],
     },
   });
 
@@ -217,7 +220,8 @@ export function OnboardingWizard({
       deliveryAddressLine: v.deliveryAddressLine?.trim() || undefined,
       authorizedTckn: v.authorizedTckn,
       role: v.role,
-      sectors: v.sectors,
+      mainCategoryIds: v.mainCategoryIds,
+      subCategoryIds: v.subCategoryIds,
     };
     complete.mutate(payload, {
       onSuccess: async () => {
@@ -451,17 +455,44 @@ export function OnboardingWizard({
               </Field>
             </div>
 
-            <Field error={errors.sectors?.message}>
-              <Label required>Faaliyet Sektörü</Label>
+            <Field error={errors.mainCategoryIds?.message}>
+              <Label required>Ana Kategoriler</Label>
               <p className="mb-2 text-xs text-zinc-500">
-                En az 1, en fazla 3 sektör. İlk seçtiğiniz ana faaliyet
-                sektörünüzdür.
+                En fazla 3 ana faaliyet alanınız (segment). İlki ana kategoridir.
               </p>
               <Controller
                 control={control}
-                name="sectors"
+                name="mainCategoryIds"
                 render={({ field }) => (
-                  <SectorChips value={field.value} onChange={field.onChange} />
+                  <SegmentOnlyPicker
+                    value={field.value}
+                    onChange={field.onChange}
+                    maxSelection={3}
+                    placeholder="Ana kategori seç (en fazla 3)"
+                  />
+                )}
+              />
+            </Field>
+
+            <Field>
+              <Label>Alt Kategoriler</Label>
+              <p className="mb-2 text-xs text-zinc-500">
+                Teklif almak istediğiniz ürün/hizmet kategorileri (sınırsız).
+                İhaleler bu önceliğe göre sıralanır.
+              </p>
+              <Controller
+                control={control}
+                name="subCategoryIds"
+                render={({ field }) => (
+                  <CategorySelectorButton
+                    value={field.value}
+                    onChange={field.onChange}
+                    mode="multi"
+                    maxSelection={999}
+                    placeholder="Alt kategori ekle"
+                    modalTitle="Alt Kategoriler"
+                    modalDescription="Ürün/hizmet kategorilerinizi seçin (sınırsız)."
+                  />
                 )}
               />
             </Field>
@@ -563,56 +594,6 @@ function SectionTitle({ title, desc }: { title: string; desc: string }) {
   );
 }
 
-function SectorChips({
-  value,
-  onChange,
-}: {
-  value: string[];
-  onChange: (v: string[]) => void;
-}) {
-  const toggle = (s: string) => {
-    if (value.includes(s)) {
-      onChange(value.filter((v) => v !== s));
-    } else if (value.length < 3) {
-      onChange([...value, s]);
-    } else {
-      toast.error("En fazla 3 sektör seçebilirsiniz");
-    }
-  };
-  return (
-    <div>
-      <div className="mb-2 text-xs font-medium text-zinc-500">
-        {value.length}/3 seçildi
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {SUPPLIER_SECTORS.map((s) => {
-          const idx = value.indexOf(s);
-          const selected = idx >= 0;
-          return (
-            <button
-              key={s}
-              type="button"
-              onClick={() => toggle(s)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                selected
-                  ? "bg-zinc-900 text-white"
-                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
-              }`}
-            >
-              {selected ? (
-                <span className="text-[10px] uppercase tracking-wide">
-                  {idx === 0 ? "Ana" : idx + 1}
-                </span>
-              ) : null}
-              {s}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function SummaryList({ values }: { values: FormValues }) {
   const typeLabel =
     values.companyType === "JOINT_STOCK"
@@ -632,7 +613,10 @@ function SummaryList({ values }: { values: FormValues }) {
     ["Teslimat Adresi", deliveryText],
     ["Yetkili TCKN", values.authorizedTckn],
     ["Rol", ROLE_LABEL[values.role]],
-    ["Faaliyet Sektörü", values.sectors.join(", ") || "—"],
+    [
+      "Kategoriler",
+      `${values.mainCategoryIds.length} ana${values.subCategoryIds.length ? ` · ${values.subCategoryIds.length} alt` : ""}`,
+    ],
   ];
   return (
     <dl className="divide-y divide-zinc-100 rounded-lg border border-zinc-950/10">

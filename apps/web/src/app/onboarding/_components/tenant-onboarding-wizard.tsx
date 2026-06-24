@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRoots } from "@/hooks/use-categories";
+import { CategorySelectorButton } from "@/components/categories/category-selector-button";
+import { SegmentOnlyPicker } from "@/components/categories/segment-only-picker";
 import {
   useCompleteTenantOnboarding,
   type TenantOnboardingPayload,
@@ -48,10 +49,11 @@ const schema = z
       .or(z.literal("")),
     authorizedTckn: z.string().min(11, "T.C. Kimlik No 11 haneli olmalı"),
     authorizedTitle: z.string().min(2, "Ünvan/rol seçin"),
-    categoryIds: z
+    mainCategoryIds: z
       .array(z.string())
-      .min(1, "En az 1 faaliyet sektörü seçin")
-      .max(3, "En fazla 3 faaliyet sektörü"),
+      .min(1, "En az 1 ana kategori seçin")
+      .max(3, "En fazla 3 ana kategori"),
+    subCategoryIds: z.array(z.string()).default([]),
   })
   .superRefine((v, ctx) => {
     const isSole = v.companyType === "SOLE_PROPRIETOR";
@@ -88,7 +90,7 @@ const STEP_FIELDS: Record<number, (keyof FormValues)[]> = {
     "addressLine",
     "billingEmail",
   ],
-  2: ["authorizedTckn", "authorizedTitle", "categoryIds"],
+  2: ["authorizedTckn", "authorizedTitle", "mainCategoryIds"],
 };
 
 export function TenantOnboardingWizard({
@@ -103,7 +105,6 @@ export function TenantOnboardingWizard({
   const [step, setStep] = useState(1);
   const [declared, setDeclared] = useState(false);
   const complete = useCompleteTenantOnboarding();
-  const { data: segments, isLoading: segmentsLoading } = useRoots();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -122,7 +123,8 @@ export function TenantOnboardingWizard({
       billingEmail: tenant.billingEmail ?? "",
       authorizedTckn: tenant.authorizedTckn ?? "",
       authorizedTitle: tenant.authorizedTitle ?? "",
-      categoryIds: tenant.sectorCategoryIds ?? [],
+      mainCategoryIds: tenant.sectorCategoryIds ?? [],
+      subCategoryIds: tenant.subCategoryIds ?? [],
     },
   });
 
@@ -166,7 +168,8 @@ export function TenantOnboardingWizard({
       billingEmail: v.billingEmail?.trim() || undefined,
       authorizedTckn: v.authorizedTckn,
       authorizedTitle: v.authorizedTitle,
-      categoryIds: v.categoryIds,
+      mainCategoryIds: v.mainCategoryIds,
+      subCategoryIds: v.subCategoryIds,
     };
     complete.mutate(payload, {
       onSuccess: async () => {
@@ -314,24 +317,42 @@ export function TenantOnboardingWizard({
               </Field>
             </div>
 
-            <Field error={errors.categoryIds?.message}>
-              <Label required>Faaliyet Sektörü</Label>
+            <Field error={errors.mainCategoryIds?.message}>
+              <Label required>Ana Kategoriler</Label>
               <p className="mb-2 text-xs text-zinc-500">
-                En az 1, en fazla 3 sektör. İlk seçtiğiniz ana faaliyet
-                sektörünüzdür.
+                En fazla 3 ana faaliyet alanınız (segment). İlki ana kategoridir.
               </p>
               <Controller
                 control={control}
-                name="categoryIds"
+                name="mainCategoryIds"
                 render={({ field }) => (
-                  <SectorChips
-                    loading={segmentsLoading}
-                    options={(segments ?? []).map((s) => ({
-                      id: s.id,
-                      name: s.nameTr,
-                    }))}
+                  <SegmentOnlyPicker
                     value={field.value}
                     onChange={field.onChange}
+                    maxSelection={3}
+                    placeholder="Ana kategori seç (en fazla 3)"
+                  />
+                )}
+              />
+            </Field>
+
+            <Field>
+              <Label>Alt Kategoriler</Label>
+              <p className="mb-2 text-xs text-zinc-500">
+                Satın aldığınız ürün/hizmet kategorileri (sınırsız).
+              </p>
+              <Controller
+                control={control}
+                name="subCategoryIds"
+                render={({ field }) => (
+                  <CategorySelectorButton
+                    value={field.value}
+                    onChange={field.onChange}
+                    mode="multi"
+                    maxSelection={999}
+                    placeholder="Alt kategori ekle"
+                    modalTitle="Alt Kategoriler"
+                    modalDescription="Ürün/hizmet kategorilerinizi seçin (sınırsız)."
                   />
                 )}
               />
@@ -345,7 +366,7 @@ export function TenantOnboardingWizard({
               title="Özet & Beyan"
               desc="Bilgilerinizi kontrol edin ve beyanı onaylayın."
             />
-            <SummaryList values={getValues()} segments={segments ?? []} />
+            <SummaryList values={getValues()} />
             <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-950/10 bg-zinc-50 p-3">
               <input
                 type="checkbox"
@@ -434,84 +455,13 @@ function SectionTitle({ title, desc }: { title: string; desc: string }) {
   );
 }
 
-function SectorChips({
-  loading,
-  options,
-  value,
-  onChange,
-}: {
-  loading: boolean;
-  options: { id: string; name: string }[];
-  value: string[];
-  onChange: (ids: string[]) => void;
-}) {
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 py-3 text-sm text-zinc-500">
-        <Loader2 className="h-4 w-4 animate-spin" /> Sektörler yükleniyor…
-      </div>
-    );
-  }
-  const toggle = (id: string) => {
-    if (value.includes(id)) {
-      onChange(value.filter((v) => v !== id));
-    } else if (value.length < 3) {
-      onChange([...value, id]);
-    } else {
-      toast.error("En fazla 3 sektör seçebilirsiniz");
-    }
-  };
-  return (
-    <div>
-      <div className="mb-2 text-xs font-medium text-zinc-500">
-        {value.length}/3 seçildi
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {options.map((o) => {
-          const idx = value.indexOf(o.id);
-          const selected = idx >= 0;
-          return (
-            <button
-              key={o.id}
-              type="button"
-              onClick={() => toggle(o.id)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
-                selected
-                  ? "bg-zinc-900 text-white"
-                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
-              }`}
-            >
-              {selected ? (
-                <span className="text-[10px] uppercase tracking-wide">
-                  {idx === 0 ? "Ana" : idx + 1}
-                </span>
-              ) : null}
-              {o.name}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function SummaryList({
-  values,
-  segments,
-}: {
-  values: FormValues;
-  segments: { id: string; nameTr: string }[];
-}) {
+function SummaryList({ values }: { values: FormValues }) {
   const typeLabel =
     values.companyType === "JOINT_STOCK"
       ? "Anonim Şirket"
       : values.companyType === "SOLE_PROPRIETOR"
         ? "Şahıs Şirketi"
         : "Limited Şirket";
-  const sectorNames = values.categoryIds
-    .map((id) => segments.find((s) => s.id === id)?.nameTr)
-    .filter(Boolean)
-    .join(", ");
   const rows: [string, string][] = [
     ["Firma Ünvanı", values.legalName],
     ["Firma Türü", typeLabel],
@@ -520,7 +470,10 @@ function SummaryList({
     ["Adres", `${values.neighborhood}, ${values.district}/${values.city}`],
     ["Yetkili TCKN", values.authorizedTckn],
     ["Ünvan/Rol", values.authorizedTitle],
-    ["Faaliyet Sektörü", sectorNames || "—"],
+    [
+      "Kategoriler",
+      `${values.mainCategoryIds.length} ana${values.subCategoryIds.length ? ` · ${values.subCategoryIds.length} alt` : ""}`,
+    ],
   ];
   return (
     <dl className="divide-y divide-zinc-100 rounded-lg border border-zinc-950/10">
