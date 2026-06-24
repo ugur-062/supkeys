@@ -1,374 +1,280 @@
 "use client";
 
-import { InvitationBanner } from "@/components/registration/invitation-banner";
-import { ConnectKycUploads } from "@/components/registration/connect-kyc-uploads";
-import { StepFirmInfo } from "@/components/registration/step-firm-info";
-import { StepSuccess } from "@/components/registration/step-success";
-import { StepUserInfo } from "@/components/registration/step-user-info";
-import { Stepper, type StepperItem } from "@/components/registration/stepper";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
-  fetchSupplierInvitationInfo,
-  submitSupplierApplication,
-  type SupplierInvitationInfo,
+  resendSupplierCode,
+  supplierSignup,
+  verifySupplierEmail,
 } from "@/lib/registration/api";
-import {
-  FIRM_FIELDS,
-  USER_FIELDS,
-  fullRegistrationSchema,
-  type FullRegistration,
-} from "@/lib/registration/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import axios from "axios";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
-  Handshake,
-  Loader2,
-} from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, Mail } from "lucide-react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 
-type StepNo = 1 | 2 | 3;
-
-const SUPPLIER_STEPS: readonly StepperItem[] = [
-  { id: 1, label: "Firma Bilgileri" },
-  { id: 2, label: "Yetkili" },
-  { id: 3, label: "Tamamlandı" },
-];
-
-interface SupplierRegisterFormProps {
+interface Props {
   invitationToken?: string;
-  /** "Tedarikçi Ol" — alıcı public profilinden gelen başvuru hedefi. */
   connectSlug?: string;
   connectTenantName?: string;
 }
 
-export function SupplierRegisterForm({
-  invitationToken,
-  connectSlug,
-  connectTenantName,
-}: SupplierRegisterFormProps) {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [step, setStep] = useState<StepNo>(1);
-  const [submittedEmail, setSubmittedEmail] = useState<string>("");
-  const [categoryIds, setCategoryIds] = useState<string[]>([]);
-  const [categoriesError, setCategoriesError] = useState<string | undefined>();
-  const [usedInviteToken, setUsedInviteToken] = useState<string | undefined>(
-    invitationToken,
-  );
+const PASSWORD_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/;
 
-  const inviteQuery = useQuery({
-    queryKey: ["supplier-invitation-info", invitationToken],
-    queryFn: () => fetchSupplierInvitationInfo(invitationToken!),
-    enabled: !!invitationToken,
-    retry: false,
+const schema = z.object({
+  firstName: z.string().min(2, "Ad zorunlu"),
+  lastName: z.string().min(2, "Soyad zorunlu"),
+  email: z.string().email("Geçerli bir kurumsal e-posta giriniz"),
+  phone: z.string().optional(),
+  password: z
+    .string()
+    .min(8, "Şifre en az 8 karakter olmalı")
+    .regex(PASSWORD_RE, "En az 1 büyük, 1 küçük harf ve 1 rakam içermeli"),
+  acceptTerms: z.literal(true, {
+    errorMap: () => ({ message: "Devam etmek için onaylayın" }),
+  }),
+});
+
+type FormValues = z.infer<typeof schema>;
+
+function errMsg(err: unknown, fallback: string): string {
+  if (axios.isAxiosError(err)) {
+    const d = err.response?.data as { message?: string | string[] } | undefined;
+    if (Array.isArray(d?.message)) return d.message.join(", ");
+    return d?.message ?? fallback;
+  }
+  return fallback;
+}
+
+export function SupplierRegisterForm(props: Props) {
+  const [showPassword, setShowPassword] = useState(false);
+  const [stage, setStage] = useState<"account" | "verify" | "done">("account");
+  const [challengeId, setChallengeId] = useState("");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+
+  const signup = useMutation({ mutationFn: supplierSignup });
+  const verify = useMutation({
+    mutationFn: (c: string) => verifySupplierEmail(challengeId, c),
+  });
+  const resend = useMutation({
+    mutationFn: () => resendSupplierCode(challengeId),
   });
 
-  useEffect(() => {
-    if (!invitationToken || !inviteQuery.isError) return;
-    const status = axios.isAxiosError(inviteQuery.error)
-      ? inviteQuery.error.response?.status
-      : undefined;
-    if (status === 404 || status === 410) {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("invitation");
-      router.replace(
-        `/register/supplier${params.toString() ? `?${params}` : ""}`,
-      );
-      setUsedInviteToken(undefined);
-    }
-  }, [
-    invitationToken,
-    inviteQuery.isError,
-    inviteQuery.error,
-    router,
-    searchParams,
-  ]);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
-  const inviteData: SupplierInvitationInfo | undefined = inviteQuery.data;
-  const inviteError = inviteQuery.error;
-  const inviteStatusCode =
-    inviteError && axios.isAxiosError(inviteError)
-      ? inviteError.response?.status
-      : undefined;
-
-  const form = useForm<FullRegistration>({
-    resolver: zodResolver(fullRegistrationSchema),
-    mode: "onBlur",
-    defaultValues: {
-      companyName: "",
-      companyType: undefined as unknown as FullRegistration["companyType"],
-      taxNumber: "",
-      taxOffice: "",
-      taxCertUrl: "",
-      ticariSicilUrl: "",
-      imzaSirkuleriUrl: "",
-      bankaOnayliIbanUrl: "",
-      website: "",
-      city: "",
-      district: "",
-      addressLine: "",
-      postalCode: "",
-      adminFirstName: "",
-      adminLastName: "",
-      adminEmail: "",
-      adminPhone: "",
-      password: "",
-      passwordConfirm: "",
-      termsAccepted: false as unknown as true,
-    },
-  });
-
-  useEffect(() => {
-    if (inviteData?.email) {
-      form.setValue("adminEmail", inviteData.email);
-    }
-    if (inviteData?.contactName) {
-      const parts = inviteData.contactName.trim().split(/\s+/);
-      const first = parts[0] ?? "";
-      const last = parts.slice(1).join(" ");
-      if (first) form.setValue("adminFirstName", first);
-      if (last) form.setValue("adminLastName", last);
-    }
-  }, [inviteData?.email, inviteData?.contactName, form]);
-
-  const submitMutation = useMutation({
-    mutationFn: (values: FullRegistration) =>
-      submitSupplierApplication(
-        values,
-        usedInviteToken,
-        categoryIds,
-        usedInviteToken ? undefined : connectSlug,
-      ),
-    onSuccess: (data, variables) => {
-      setSubmittedEmail(variables.adminEmail);
-      setStep(3);
-      toast.success(data.message ?? "Başvurunuz alındı");
-    },
-    onError: (err) => {
-      const msg =
-        axios.isAxiosError(err) &&
-        (err.response?.data as { message?: string | string[] } | undefined)
-          ?.message;
-      const text = Array.isArray(msg) ? msg.join(", ") : msg;
-      toast.error(text || "Başvuru gönderilemedi, lütfen tekrar deneyin.");
-    },
-  });
-
-  const handleNext = async () => {
-    if (step === 1) {
-      const ok = await form.trigger(
-        FIRM_FIELDS as unknown as readonly (keyof FullRegistration)[],
-      );
-      if (!ok) return;
-      if (categoryIds.length === 0) {
-        setCategoriesError("En az 1 faaliyet alanı seçmelisiniz");
-        return;
-      }
-      // G9 madde 27 — "Tedarikçi Ol" başvurusunda 3 KYC belgesi zorunlu.
-      if (connectSlug) {
-        const v = form.getValues();
-        if (
-          !v.ticariSicilUrl ||
-          !v.imzaSirkuleriUrl ||
-          !v.bankaOnayliIbanUrl
-        ) {
-          toast.error(
-            "Ticari sicil gazetesi, imza sirküleri ve banka onaylı IBAN belgelerini yükleyin",
-          );
-          return;
-        }
-      }
-      setStep(2);
-      return;
-    }
-    if (step === 2) {
-      const ok = await form.trigger(
-        USER_FIELDS as unknown as readonly (keyof FullRegistration)[],
-      );
-      if (!ok) return;
-      submitMutation.mutate(form.getValues());
-    }
+  const onSubmit = (v: FormValues) => {
+    signup.mutate(
+      {
+        firstName: v.firstName,
+        lastName: v.lastName,
+        email: v.email,
+        phone: v.phone?.trim() || undefined,
+        password: v.password,
+      },
+      {
+        onSuccess: (d) => {
+          setChallengeId(d.challengeId);
+          setEmail(d.email);
+          setStage("verify");
+          toast.success("E-postanıza 6 haneli doğrulama kodu gönderildi");
+        },
+        onError: (e) => toast.error(errMsg(e, "Kayıt başarısız")),
+      },
+    );
   };
 
-  if (inviteStatusCode === 409) {
+  const onVerify = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (code.length !== 6) return;
+    verify.mutate(code, {
+      onSuccess: () => setStage("done"),
+      onError: (err) => toast.error(errMsg(err, "Kod doğrulanamadı")),
+    });
+  };
+
+  if (stage === "done") {
     return (
-      <div className="card p-8 text-center space-y-4">
-        <div className="w-14 h-14 rounded-full bg-brand-50 flex items-center justify-center mx-auto">
-          <AlertTriangle className="w-7 h-7 text-brand-600" />
-        </div>
-        <div className="space-y-2">
-          <h2 className="text-xl font-display font-bold text-brand-900">
-            Bu davet zaten kullanılmış
-          </h2>
-          <p className="text-slate-600 text-sm">
-            Bu tedarikçi davet bağlantısıyla daha önce bir kayıt oluşturulmuş.
-            Hesabınız varsa giriş yapabilirsiniz.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-3 justify-center pt-2">
-          <Link href="/login">
-            <Button>Giriş Yap</Button>
-          </Link>
-          <Link href="/">
-            <Button variant="secondary">Anasayfa</Button>
-          </Link>
-        </div>
+      <div className="card space-y-4 p-6 text-center md:p-8">
+        <CheckCircle2 className="mx-auto h-12 w-12 text-success-600" />
+        <h2 className="text-lg font-bold text-zinc-900">
+          Hesabınız oluşturuldu
+        </h2>
+        <p className="text-sm text-slate-600">
+          E-postanız doğrulandı. Giriş yapıp firma bilgilerinizi tamamlayın.
+        </p>
+        <Button
+          onClick={() => (window.location.href = "/supplier/login")}
+          fullWidth
+          size="lg"
+        >
+          Giriş Yap
+        </Button>
       </div>
     );
   }
 
-  if (step === 3) {
+  if (stage === "verify") {
     return (
-      <div className="card p-6 md:p-8">
-        <StepSuccess email={submittedEmail} />
-      </div>
+      <form onSubmit={onVerify} className="card space-y-5 p-6 md:p-8" noValidate>
+        <div className="text-center">
+          <Mail className="mx-auto mb-2 h-10 w-10 text-brand-600" />
+          <p className="text-sm text-slate-600">
+            <strong>{email}</strong> adresine gönderilen 6 haneli kodu girin.
+          </p>
+        </div>
+        <Field>
+          <Label htmlFor="code" required>
+            Doğrulama Kodu
+          </Label>
+          <Input
+            id="code"
+            inputMode="numeric"
+            maxLength={6}
+            autoFocus
+            placeholder="000000"
+            value={code}
+            onChange={(e) =>
+              setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))
+            }
+          />
+        </Field>
+        <Button
+          type="submit"
+          loading={verify.isPending}
+          disabled={verify.isPending || code.length !== 6}
+          fullWidth
+          size="lg"
+        >
+          Doğrula
+        </Button>
+        <button
+          type="button"
+          onClick={() =>
+            resend.mutate(undefined, {
+              onSuccess: () => toast.success("Kod yeniden gönderildi"),
+              onError: () => toast.error("Kod gönderilemedi"),
+            })
+          }
+          disabled={resend.isPending}
+          className="w-full text-center text-xs text-slate-500 hover:text-slate-800"
+        >
+          Kodu yeniden gönder
+        </button>
+      </form>
     );
   }
 
   return (
-    <div className="space-y-5">
-      <Stepper current={step} steps={SUPPLIER_STEPS} />
-
-      {inviteStatusCode === 410 ? (
-        <div className="rounded-xl border border-danger-500 bg-danger-50/50 p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-danger-600 flex-shrink-0 mt-0.5" />
-          <div className="text-sm text-slate-700">
-            <p className="font-semibold text-danger-700">
-              Davet süresi dolmuş
-            </p>
-            <p>
-              Yeni bir davet için sizi davet eden firma ile iletişime geçin.
-              Şimdilik normal kayıt akışıyla devam edebilirsiniz.
-            </p>
-          </div>
+    <form
+      onSubmit={handleSubmit(onSubmit)}
+      className="card space-y-5 p-6 md:p-8"
+      noValidate
+    >
+      {props.connectTenantName ? (
+        <div className="rounded-lg border border-brand-100 bg-brand-50/60 p-3 text-xs text-brand-800">
+          <strong>{props.connectTenantName}</strong> firmasının daveti ile kayıt
+          oluyorsunuz.
         </div>
       ) : null}
 
-      {invitationToken && inviteQuery.isLoading ? (
-        <div className="rounded-xl border border-surface-border bg-white p-5 flex items-center gap-3 text-sm text-slate-500">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Davet bilgileri yükleniyor…
-        </div>
-      ) : null}
-
-      {inviteData && !inviteQuery.isLoading ? (
-        <InvitationBanner
-          type="supplier"
-          expiresAt={inviteData.expiresAt}
-          tenantName={inviteData.tenantName}
-          email={inviteData.email}
-          message={inviteData.message}
-        />
-      ) : null}
-
-      {/* "Tedarikçi Ol" — hedef alıcı bilgilendirme bandı */}
-      {connectSlug && !invitationToken ? (
-        <div className="rounded-xl border border-brand-200 bg-brand-50/60 p-4 flex items-start gap-3">
-          <Handshake className="w-5 h-5 text-brand-600 shrink-0 mt-0.5" />
-          <div className="text-sm">
-            <p className="font-semibold text-brand-900">
-              {connectTenantName ?? "Bir firmaya"} tedarikçi başvurusu
-            </p>
-            <p className="text-slate-600 mt-0.5">
-              Başvurunuz önce doğrulanır, ardından{" "}
-              <strong>{connectTenantName ?? "ilgili firma"}</strong> onayına
-              sunulur. Onaylanırsa bu firmanın tedarikçisi olursunuz.
-            </p>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="card p-6 md:p-8">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleNext();
-          }}
-          noValidate
-        >
-          {step === 1 ? (
-            <div className="space-y-6">
-              <StepFirmInfo
-                control={form.control}
-                register={form.register}
-                errors={form.formState.errors}
-                watch={form.watch}
-                setValue={form.setValue}
-                categoryIds={categoryIds}
-                onCategoryIdsChange={(ids) => {
-                  setCategoryIds(ids);
-                  if (categoriesError) setCategoriesError(undefined);
-                }}
-                categoriesError={categoriesError}
-              />
-              {connectSlug ? (
-                <ConnectKycUploads
-                  control={form.control}
-                  setValue={form.setValue}
-                  tenantName={connectTenantName}
-                />
-              ) : null}
-            </div>
-          ) : null}
-          {step === 2 ? (
-            <div className="space-y-4">
-              <div className="rounded-lg bg-brand-50/60 border border-brand-100 p-3 text-xs text-brand-800">
-                Bu e-posta firma <strong>yöneticisi</strong> olur. Ekip
-                üyelerini davet etme ve banka hesaplarını yönetme yetkisi bu
-                hesapta olur.
-              </div>
-              <StepUserInfo
-                control={form.control}
-                register={form.register}
-                errors={form.formState.errors}
-                watch={form.watch}
-                emailPrefilled={!!inviteData?.email}
-                emailPrefillNote={
-                  inviteData?.email
-                    ? `Davet ${inviteData.email} adresine geldi — gerekirse değiştirebilirsiniz.`
-                    : undefined
-                }
-              />
-            </div>
-          ) : null}
-          <div className="flex items-center justify-between mt-8 gap-3">
-            {step > 1 ? (
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setStep((step - 1) as StepNo)}
-                disabled={submitMutation.isPending}
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Geri
-              </Button>
-            ) : (
-              <span />
-            )}
-
-            <Button type="submit" loading={submitMutation.isPending}>
-              {step < 2 ? (
-                <>
-                  İleri
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              ) : submitMutation.isPending ? (
-                "Gönderiliyor..."
-              ) : (
-                "Başvuruyu Tamamla"
-              )}
-            </Button>
-          </div>
-        </form>
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+        <Field error={errors.firstName?.message}>
+          <Label htmlFor="firstName" required>
+            Ad
+          </Label>
+          <Input id="firstName" autoFocus {...register("firstName")} />
+        </Field>
+        <Field error={errors.lastName?.message}>
+          <Label htmlFor="lastName" required>
+            Soyad
+          </Label>
+          <Input id="lastName" {...register("lastName")} />
+        </Field>
       </div>
-    </div>
+
+      <Field error={errors.email?.message}>
+        <Label htmlFor="email" required>
+          Kurumsal E-posta
+        </Label>
+        <Input
+          id="email"
+          type="email"
+          placeholder="ad@firma.com"
+          autoComplete="email"
+          {...register("email")}
+        />
+      </Field>
+
+      <Field error={errors.phone?.message} hint="Opsiyonel">
+        <Label htmlFor="phone">Telefon</Label>
+        <Input id="phone" placeholder="05xx xxx xx xx" {...register("phone")} />
+      </Field>
+
+      <Field error={errors.password?.message}>
+        <Label htmlFor="password" required>
+          Şifre
+        </Label>
+        <div className="relative">
+          <Input
+            id="password"
+            type={showPassword ? "text" : "password"}
+            placeholder="••••••••"
+            autoComplete="new-password"
+            className="pr-10"
+            {...register("password")}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            tabIndex={-1}
+          >
+            {showPassword ? (
+              <EyeOff className="h-4 w-4" />
+            ) : (
+              <Eye className="h-4 w-4" />
+            )}
+          </button>
+        </div>
+      </Field>
+
+      <Field error={errors.acceptTerms?.message}>
+        <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4"
+            {...register("acceptTerms")}
+          />
+          <span>
+            KVKK Aydınlatma Metni ve kullanım şartlarını okudum, kabul ediyorum.
+          </span>
+        </label>
+      </Field>
+
+      <Button type="submit" loading={signup.isPending} fullWidth size="lg">
+        Hesap Oluştur
+      </Button>
+
+      <p className="text-center text-sm text-slate-600">
+        Zaten hesabınız var mı?{" "}
+        <Link
+          href="/supplier/login"
+          className="font-medium text-brand-700 hover:underline"
+        >
+          Giriş yap
+        </Link>
+      </p>
+    </form>
   );
 }

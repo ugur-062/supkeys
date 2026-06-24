@@ -118,3 +118,37 @@ export async function verifyEmail(token: string, type: RegistrationKind) {
   );
   return data;
 }
+
+// Madde 29 — tedarikçi signup (önce hesap) + e-posta kod doğrulama.
+export interface SupplierSignupInput {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  password: string;
+}
+
+export async function supplierSignup(input: SupplierSignupInput) {
+  const { data } = await api.post<{
+    challengeId: string;
+    expiresAt: string;
+    email: string;
+  }>("/registration/supplier/signup", input);
+  return data;
+}
+
+export async function verifySupplierEmail(challengeId: string, code: string) {
+  const { data } = await api.post<{ ok: true }>(
+    "/registration/supplier/verify-email",
+    { challengeId, code },
+  );
+  return data;
+}
+
+export async function resendSupplierCode(challengeId: string) {
+  const { data } = await api.post<{ challengeId: string; expiresAt: string }>(
+    "/registration/supplier/resend-code",
+    { challengeId },
+  );
+  return data;
+}
