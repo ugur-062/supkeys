@@ -84,6 +84,8 @@ export type Currency =
   | "CNY";
 
 export type DeliveryTerm =
+  | "DOMESTIC_DELIVERED"
+  | "DOMESTIC_PICKUP"
   | "EXW"
   | "FCA"
   | "CPT"
@@ -224,6 +226,7 @@ export interface TenderDetail {
   id: string;
   tenderNumber: string;
   type: TenderType;
+  isInternational: boolean;
   visibility: TenderVisibility;
   isLogistics: boolean;
   logisticsDetails: TenderLogisticsDetails | null;
@@ -409,6 +412,7 @@ export interface SupplierTenderDetail {
   id: string;
   tenderNumber: string;
   type: TenderType;
+  isInternational: boolean;
   visibility: TenderVisibility;
   isLogistics: boolean;
   logisticsDetails: TenderLogisticsDetails | null;

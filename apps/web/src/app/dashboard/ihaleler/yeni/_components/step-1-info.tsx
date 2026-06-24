@@ -103,7 +103,13 @@ function FormRadioGroup({
   );
 }
 
-const DELIVERY_TERMS: DeliveryTerm[] = [
+// Yurtiçi (sade) — isInternational=false ihalelerde gösterilir.
+const DOMESTIC_DELIVERY_TERMS: DeliveryTerm[] = [
+  "DOMESTIC_DELIVERED",
+  "DOMESTIC_PICKUP",
+];
+// Uluslararası Incoterms — isInternational=true ihalelerde.
+const INTERNATIONAL_DELIVERY_TERMS: DeliveryTerm[] = [
   "EXW",
   "FCA",
   "CPT",
@@ -509,6 +515,10 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
   const sendClosingReminder = watch("sendClosingReminder");
   const autoExtendOnLateBid = watch("autoExtendOnLateBid");
   const isAuction = tenderType === "ENGLISH_AUCTION";
+  const isInternational = watch("isInternational");
+  const deliveryTermOptions = isInternational
+    ? INTERNATIONAL_DELIVERY_TERMS
+    : DOMESTIC_DELIVERY_TERMS;
 
   // V2-7 — Açık eksiltme seçilince tek para birimi zorunlu + decrement default'ları.
   useEffect(() => {
@@ -1137,14 +1147,18 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
           description="Teslim şekli ve adresi (Incoterms 2020)"
         />
         <div className="space-y-4">
-          <Field error={errors.deliveryTerm?.message}>
+          <Field
+            error={errors.deliveryTerm?.message}
+            hint={
+              isInternational
+                ? "Uluslararası — Incoterms"
+                : "Yurtiçi teslim şekli"
+            }
+          >
             <Label htmlFor="deliveryTerm">Teslim Şekli</Label>
-            <Select
-              id="deliveryTerm"
-              {...register("deliveryTerm")}
-            >
+            <Select id="deliveryTerm" {...register("deliveryTerm")}>
               <option value="">— Seçiniz —</option>
-              {DELIVERY_TERMS.map((t) => (
+              {deliveryTermOptions.map((t) => (
                 <option key={t} value={t}>
                   {DELIVERY_TERM_LABELS[t]}
                 </option>

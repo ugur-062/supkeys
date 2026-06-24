@@ -2,17 +2,19 @@
 
 import { useSearchParams } from "next/navigation";
 import { CopyLoader } from "./copy-loader";
+import { TenderScopeSelection } from "./tender-scope-selection";
 import { TenderTypeSelection } from "./tender-type-selection";
 import { TenderWizard } from "./tender-wizard";
 
 /**
- * /dashboard/ihaleler/yeni → tip seçim landing
- * /dashboard/ihaleler/yeni?type=rfq → wizard, RFQ
- * /dashboard/ihaleler/yeni?type=auction → wizard, İngiliz Usulü (V2-7)
- * /dashboard/ihaleler/yeni?from=<id> → kopya akışı (V2-7+)
+ * /dashboard/ihaleler/yeni → kapsam (yurtiçi/uluslararası) seçimi
+ * /dashboard/ihaleler/yeni?scope=domestic|international → tip seçimi
+ * /dashboard/ihaleler/yeni?scope=...&type=rfq|auction → wizard
+ * /dashboard/ihaleler/yeni?from=<id> → kopya akışı
  */
 export function YeniIhaleRouter() {
   const searchParams = useSearchParams();
+  const scope = searchParams.get("scope");
   const type = searchParams.get("type");
   const from = searchParams.get("from");
 
@@ -20,9 +22,15 @@ export function YeniIhaleRouter() {
     return <CopyLoader sourceId={from} />;
   }
 
-  if (type === "rfq" || type === "auction") {
+  const hasScope = scope === "domestic" || scope === "international";
+
+  if (hasScope && (type === "rfq" || type === "auction")) {
     return <TenderWizard mode="create" />;
   }
 
-  return <TenderTypeSelection />;
+  if (hasScope) {
+    return <TenderTypeSelection />;
+  }
+
+  return <TenderScopeSelection />;
 }

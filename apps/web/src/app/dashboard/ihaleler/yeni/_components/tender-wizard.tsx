@@ -49,14 +49,18 @@ export function TenderWizard({ mode, initialData }: Props) {
     useState(false);
   const [itemsMissingTarget, setItemsMissingTarget] = useState(0);
 
-  // V2-7 — Landing'den ?type=auction ile gelmişse İngiliz Usulü ön-seçili
+  // Landing'den gelen ?type ve ?scope ön-seçimleri.
   const defaults = useMemo<TenderFormData>(() => {
     if (initialData) return initialData;
     const urlType = searchParams.get("type");
-    if (urlType === "auction") {
-      return { ...DEFAULT_FORM_VALUES, type: "ENGLISH_AUCTION" };
-    }
-    return DEFAULT_FORM_VALUES;
+    const isInternational = searchParams.get("scope") === "international";
+    return {
+      ...DEFAULT_FORM_VALUES,
+      ...(urlType === "auction" ? { type: "ENGLISH_AUCTION" as const } : {}),
+      isInternational,
+      // Scope'a göre teslim şekli varsayılanı.
+      deliveryTerm: isInternational ? undefined : "DOMESTIC_DELIVERED",
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData]);
 

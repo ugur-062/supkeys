@@ -10,10 +10,16 @@ import {
   TrendingDown,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export function TenderTypeSelection() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const scope = searchParams.get("scope") === "international"
+    ? "international"
+    : "domestic";
+  const goType = (type: "rfq" | "auction") =>
+    router.push(`/dashboard/ihaleler/yeni?scope=${scope}&type=${type}`);
 
   return (
     <div className="max-w-5xl mx-auto pb-24">
@@ -49,7 +55,7 @@ export function TenderTypeSelection() {
         {/* RFQ — aktif */}
         <button
           type="button"
-          onClick={() => router.push("/dashboard/ihaleler/yeni?type=rfq")}
+          onClick={() => goType("rfq")}
           className="group relative bg-white border-2 border-slate-200 hover:border-brand-400 rounded-2xl p-6 text-left transition-all hover:shadow-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-brand-500/40 focus:ring-offset-2"
         >
           {/* Sol mavi şerit (PratisPro tarzı) */}
@@ -110,7 +116,7 @@ export function TenderTypeSelection() {
         {/* İngiliz Usulü — V2-7 aktif */}
         <button
           type="button"
-          onClick={() => router.push("/dashboard/ihaleler/yeni?type=auction")}
+          onClick={() => goType("auction")}
           className="group relative bg-white border-2 border-slate-200 hover:border-purple-400 rounded-2xl p-6 text-left transition-all hover:shadow-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-purple-500/40 focus:ring-offset-2"
         >
           <span

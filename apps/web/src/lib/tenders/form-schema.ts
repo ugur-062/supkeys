@@ -14,6 +14,8 @@ const TYPE_VALUES = ["RFQ", "ENGLISH_AUCTION"] as const;
 // Açık İhale — görünürlük
 const VISIBILITY_VALUES = ["PRIVATE", "PUBLIC"] as const;
 const DELIVERY_TERM_VALUES = [
+  "DOMESTIC_DELIVERED",
+  "DOMESTIC_PICKUP",
   "EXW",
   "FCA",
   "CPT",
@@ -139,6 +141,8 @@ const baseTenderSchema = z.object({
     .array(z.string().min(1).max(50, "Maksimum 50 karakter"))
     .max(10, "En fazla 10 anahtar kelime"),
   type: z.enum(TYPE_VALUES),
+  // Yurtiçi (false) / Uluslararası (true) — kapsam seçiminden gelir.
+  isInternational: z.boolean(),
   // Açık İhale — PRIVATE (davetli) / PUBLIC (herkese açık).
   visibility: z.enum(VISIBILITY_VALUES),
   // Lojistik İhalesi — RFQ üstüne lojistik katmanı.
@@ -350,6 +354,7 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   description: "",
   keywords: [],
   type: "RFQ",
+  isInternational: false,
   visibility: "PRIVATE",
   isLogistics: false,
   logistics: {
