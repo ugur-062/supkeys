@@ -164,8 +164,9 @@ export class TenantSuppliersService {
         ],
       });
     }
+    // Sektör filtresi — UNSPSC ana kategori (segment id).
     if (opts.sector) {
-      and.push({ sectors: { has: opts.sector } });
+      and.push({ sectorCategoryIds: { has: opts.sector } });
     }
 
     const suppliers = await this.prisma.supplier.findMany({
@@ -180,7 +181,7 @@ export class TenantSuppliersService {
         industry: true,
         website: true,
         services: true,
-        sectors: true,
+        sectorCategoryIds: true,
         logoImageUrl: true,
         slug: true,
         publicEnabled: true,
@@ -188,6 +189,19 @@ export class TenantSuppliersService {
         membership: true,
       },
     });
+
+    // Ana kategori id'lerini görüntü için isme çevir.
+    const allCatIds = Array.from(
+      new Set(suppliers.flatMap((s) => s.sectorCategoryIds)),
+    );
+    const nameMap = new Map<string, string>();
+    if (allCatIds.length > 0) {
+      const cats = await this.prisma.category.findMany({
+        where: { id: { in: allCatIds } },
+        select: { id: true, nameTr: true },
+      });
+      for (const c of cats) nameMap.set(c.id, c.nameTr);
+    }
 
     return suppliers.map((s) => ({
       id: s.id,
@@ -202,7 +216,9 @@ export class TenantSuppliersService {
       publicEnabled: s.publicEnabled,
       supkeysId: s.supkeysId,
       membership: s.membership,
-      sectors: s.sectors,
+      sectors: s.sectorCategoryIds
+        .map((id) => nameMap.get(id))
+        .filter((n): n is string => !!n),
       relationStatus: relMap.get(s.id) ?? null,
     }));
   }

@@ -15,7 +15,7 @@ import {
   useSupplierPool,
   type SupplierPoolItem,
 } from "@/hooks/use-tenant-suppliers";
-import { SUPPLIER_SECTORS } from "@supkeys/shared";
+import { useRoots } from "@/hooks/use-categories";
 import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
 import axios from "axios";
 import { Building2, Loader2, Sparkles } from "lucide-react";
@@ -35,6 +35,7 @@ export function SupplierPoolView() {
   const [search, setSearch] = useState("");
   const [sector, setSector] = useState("");
   const [detail, setDetail] = useState<SupplierPoolItem | null>(null);
+  const { data: segments } = useRoots();
   const pool = useSupplierPool(search, sector);
 
   const openSupplier = (s: SupplierPoolItem) => {
@@ -65,10 +66,10 @@ export function SupplierPoolView() {
         </div>
         <div className="sm:w-64">
           <Select value={sector} onChange={(e) => setSector(e.target.value)}>
-            <option value="">Tüm sektörler</option>
-            {SUPPLIER_SECTORS.map((s) => (
-              <option key={s} value={s}>
-                {s}
+            <option value="">Tüm kategoriler</option>
+            {(segments ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nameTr}
               </option>
             ))}
           </Select>
