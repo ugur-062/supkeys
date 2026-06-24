@@ -16,10 +16,11 @@ import {
   TENDER_CANCELLABLE,
   useAdminCancelTender,
   useAdminTenderDetail,
+  type AdminAttachment,
 } from "@/hooks/use-admin-interventions";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Paperclip } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
@@ -208,6 +209,39 @@ function TenderDetail() {
         )}
       </Section>
 
+      {/* Dosyalar — ihale + teklif belgeleri (uyuşmazlık) */}
+      {t.attachments.length > 0 ||
+      t.bids.some((b) => b.attachments.length > 0) ? (
+        <Section title="Dosyalar">
+          {t.attachments.length > 0 ? (
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-admin-text-muted mb-1">
+                İhale belgeleri
+              </p>
+              <div className="space-y-1">
+                {t.attachments.map((a) => (
+                  <AttachmentLink key={a.id} att={a} />
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {t.bids
+            .filter((b) => b.attachments.length > 0)
+            .map((b) => (
+              <div key={b.id} className="mb-3">
+                <p className="text-xs font-semibold text-admin-text-muted mb-1">
+                  Teklif belgesi — {b.supplier.companyName}
+                </p>
+                <div className="space-y-1">
+                  {b.attachments.map((a) => (
+                    <AttachmentLink key={a.id} att={a} />
+                  ))}
+                </div>
+              </div>
+            ))}
+        </Section>
+      ) : null}
+
       {/* Siparişler */}
       {t.orders.length > 0 ? (
         <Section title={`Siparişler (${t.orders.length})`}>
@@ -228,6 +262,29 @@ function TenderDetail() {
         </Section>
       ) : null}
     </div>
+  );
+}
+
+function fmtSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+export function AttachmentLink({ att }: { att: AdminAttachment }) {
+  return (
+    <a
+      href={att.url}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center gap-2 text-sm text-brand-600 hover:underline"
+    >
+      <Paperclip className="h-3.5 w-3.5 flex-shrink-0" />
+      <span className="truncate">{att.filename}</span>
+      <span className="text-xs text-admin-text-muted flex-shrink-0">
+        ({fmtSize(att.fileSize)})
+      </span>
+    </a>
   );
 }
 

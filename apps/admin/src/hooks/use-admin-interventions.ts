@@ -3,6 +3,16 @@
 import { api } from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+export interface AdminAttachment {
+  id: string;
+  filename: string;
+  mimeType: string;
+  fileSize: number;
+  scope: string;
+  uploadedAt: string;
+  url: string;
+}
+
 export interface AdminTenderDetail {
   id: string;
   tenderNumber: string;
@@ -40,6 +50,7 @@ export interface AdminTenderDetail {
     respondedAt: string | null;
     supplier: { id: string; companyName: string };
   }>;
+  attachments: AdminAttachment[];
   bids: Array<{
     id: string;
     status: string;
@@ -49,6 +60,7 @@ export interface AdminTenderDetail {
     submittedAt: string | null;
     eliminationReason: string | null;
     supplier: { id: string; companyName: string };
+    attachments: AdminAttachment[];
   }>;
   orders: Array<{
     id: string;
@@ -76,6 +88,7 @@ export interface AdminOrderDetail {
   supplier: { id: string; companyName: string };
   tender: { id: string; tenderNumber: string; title: string };
   bid: { id: string; totalAmount: string; currency: string; version: number } | null;
+  attachments: AdminAttachment[];
   payments: Array<{
     id: string;
     method: string;

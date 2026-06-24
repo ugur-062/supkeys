@@ -7,6 +7,7 @@ import {
 import { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import { StorageService } from "../storage/storage.service";
 
 // Kazandırma geri alma YOK (V1 kararı): AWARDED tender / terminal sipariş
 // iptal edilemez. Admin yalnızca finalize-öncesi durumları iptal eder.
@@ -20,7 +21,49 @@ export class AdminInterventionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly storage: StorageService,
   ) {}
+
+  /** Verilen scopeRefId'lere ait ekleri presigned indirme URL'siyle döndürür. */
+  private async resolveAttachments(
+    refIds: string[],
+  ): Promise<Map<string, unknown[]>> {
+    const map = new Map<string, unknown[]>();
+    if (refIds.length === 0) return map;
+    const rows = await this.prisma.attachment.findMany({
+      where: { scopeRefId: { in: refIds }, finalizedAt: { not: null } },
+      orderBy: { createdAt: "asc" },
+      select: {
+        id: true,
+        originalFilename: true,
+        mimeType: true,
+        fileSize: true,
+        scope: true,
+        scopeRefId: true,
+        key: true,
+        createdAt: true,
+      },
+    });
+    for (const r of rows) {
+      const url = await this.storage.generatePresignedGet(
+        r.key,
+        r.originalFilename,
+      );
+      const att = {
+        id: r.id,
+        filename: r.originalFilename,
+        mimeType: r.mimeType,
+        fileSize: r.fileSize,
+        scope: r.scope,
+        uploadedAt: r.createdAt,
+        url,
+      };
+      const arr = map.get(r.scopeRefId) ?? [];
+      arr.push(att);
+      map.set(r.scopeRefId, arr);
+    }
+    return map;
+  }
 
   /** Admin superuser ihale detayı — TAM görünürlük (tüm teklif + davet). */
   async getTenderDetail(id: string): Promise<unknown> {
@@ -104,7 +147,14 @@ export class AdminInterventionsService {
       },
     });
     if (!t) throw new NotFoundException("İhale bulunamadı");
-    return { ...t, categories: t.categories.map((c) => c.category) };
+    const bidIds = t.bids.map((b) => b.id);
+    const attMap = await this.resolveAttachments([id, ...bidIds]);
+    return {
+      ...t,
+      categories: t.categories.map((c) => c.category),
+      attachments: attMap.get(id) ?? [],
+      bids: t.bids.map((b) => ({ ...b, attachments: attMap.get(b.id) ?? [] })),
+    };
   }
 
   /** Admin superuser sipariş detayı. */
@@ -155,7 +205,8 @@ export class AdminInterventionsService {
       },
     });
     if (!o) throw new NotFoundException("Sipariş bulunamadı");
-    return o;
+    const attMap = await this.resolveAttachments([id]);
+    return { ...o, attachments: attMap.get(id) ?? [] };
   }
 
   /** Admin sipariş durumu override (takılı sipariş / uyuşmazlık). */

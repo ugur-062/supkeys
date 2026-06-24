@@ -14,7 +14,7 @@ import {
 } from "@/hooks/use-admin-interventions";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Paperclip } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -166,6 +166,30 @@ function OrderDetail() {
 
       {/* Ödemeler */}
       <PaymentsCard orderId={o.id} payments={o.payments} />
+
+      {/* Dosyalar */}
+      {o.attachments.length > 0 ? (
+        <div className="admin-card p-5">
+          <p className="text-xs uppercase tracking-wide text-admin-text-muted font-semibold mb-2">
+            Dosyalar ({o.attachments.length})
+          </p>
+          <div className="space-y-1">
+            {o.attachments.map((a) => (
+              <a
+                key={a.id}
+                href={a.url}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2 text-sm text-brand-600 hover:underline"
+              >
+                <Paperclip className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate">{a.filename}</span>
+                <span className="text-xs text-admin-text-muted">{a.scope}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {o.notes ? (
         <div className="admin-card p-5">
