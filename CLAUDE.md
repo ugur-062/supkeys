@@ -135,13 +135,12 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 - Yurtdışı şirket kaydı (TR dışı firmalar: ülke seçimi + ülkeye göre vergi no/format esnetme + state/province adres modeli + i18n). Şu an kayıt TR'ye varsayılı.
 - STANDARD → PREMIUM upgrade akışı + ödeme (Iyzico/Stripe) + escrow
 - Sipariş üzerinde mesajlaşma
-- Sipariş listesi gelişmiş filtreleme/arama
-- Self-service "şifremi unuttum" (password reset) + SMS doğrulama
+- SMS doğrulama
 - Multi-language (EN)
 - Kayıt UX 6 haneli kod
 - Excel kalem import
 - Açık ihale (PUBLIC) + tedarikçi başvuru sistemi
-- Eleme/Kazandırma geri alma
+- Kazandırma geri alma (un-award) — SONRAYA bırakıldı (canlı siparişlere dokunan riskli iş). NOT: eleme geri almaya gerek yok — elenen tedarikçi zaten baştan yeniden teklif verebiliyor (mevcut davranış kabul edildi).
 - Hatırlatma e-postası özel süre
 - WebSocket real-time bildirim
 - Admin ek kontroller: impersonate (güvenlik değerlendirilecek), iade/refund, doğrudan kullanıcı ekleme, CSV export, dahili not, global arama
