@@ -9,6 +9,8 @@ import type {
   QuestionTemplateListItem,
   SupplierTemplateDetail,
   SupplierTemplateListItem,
+  TenderTemplateDetail,
+  TenderTemplateListItem,
 } from "@/lib/templates/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -17,6 +19,8 @@ const KEYS = {
   question: (id: string) => ["templates", "question", id] as const,
   suppliers: ["templates", "suppliers"] as const,
   supplier: (id: string) => ["templates", "supplier", id] as const,
+  tenders: ["templates", "tenders"] as const,
+  tender: (id: string) => ["templates", "tender", id] as const,
 };
 
 // ----------------- KALEM SORUSU -----------------
@@ -187,5 +191,62 @@ export function useDeleteSupplierTemplate() {
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.suppliers }),
+  });
+}
+
+// ----------------- İHALE ŞABLONU (madde 34) -----------------
+
+export function useTenderTemplates() {
+  return useQuery({
+    queryKey: KEYS.tenders,
+    queryFn: async () => {
+      const { data } = await api.get<TenderTemplateListItem[]>(
+        "/tenants/me/templates/tenders",
+      );
+      return data;
+    },
+  });
+}
+
+export function useTenderTemplate(id: string | null) {
+  return useQuery({
+    queryKey: id ? KEYS.tender(id) : ["templates", "tender", "noop"],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await api.get<TenderTemplateDetail>(
+        `/tenants/me/templates/tenders/${id}`,
+      );
+      return data;
+    },
+  });
+}
+
+export function useCreateTenderTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      name: string;
+      data: Record<string, unknown>;
+    }) => {
+      const { data } = await api.post<{ id: string; name: string }>(
+        "/tenants/me/templates/tenders",
+        input,
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.tenders }),
+  });
+}
+
+export function useDeleteTenderTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.delete<{ id: string }>(
+        `/tenants/me/templates/tenders/${id}`,
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: KEYS.tenders }),
   });
 }

@@ -25,8 +25,10 @@ import {
   CreateSupplierTemplateDto,
   UpdateSupplierTemplateDto,
 } from "../dto/supplier-template.dto";
+import { CreateTenderTemplateDto } from "../dto/tender-template.dto";
 import { QuestionTemplatesService } from "../services/question-templates.service";
 import { SupplierTemplatesService } from "../services/supplier-templates.service";
+import { TenderTemplatesService } from "../services/tender-templates.service";
 
 @Controller("tenants/me/templates")
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -34,6 +36,7 @@ export class TenantTemplatesController {
   constructor(
     private readonly questions: QuestionTemplatesService,
     private readonly suppliers: SupplierTemplatesService,
+    private readonly tenders: TenderTemplatesService,
   ) {}
 
   // -------------------- KALEM SORUSU ŞABLONLARI --------------------
@@ -124,5 +127,40 @@ export class TenantTemplatesController {
     @Param("id") id: string,
   ): Promise<unknown> {
     return this.suppliers.delete(user.tenantId, user.id, id);
+  }
+
+  // -------------------- İHALE ŞABLONLARI (madde 34) --------------------
+
+  @Get("tenders")
+  @RequirePermissions("templates:view")
+  listTenders(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {
+    return this.tenders.list(user.tenantId, user.id);
+  }
+
+  @Get("tenders/:id")
+  @RequirePermissions("templates:view")
+  getTender(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ): Promise<unknown> {
+    return this.tenders.findOne(user.tenantId, user.id, id);
+  }
+
+  @Post("tenders")
+  @RequirePermissions("templates:edit")
+  createTender(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CreateTenderTemplateDto,
+  ): Promise<unknown> {
+    return this.tenders.create(user.tenantId, user.id, dto);
+  }
+
+  @Delete("tenders/:id")
+  @RequirePermissions("templates:edit")
+  deleteTender(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param("id") id: string,
+  ): Promise<unknown> {
+    return this.tenders.delete(user.tenantId, user.id, id);
   }
 }

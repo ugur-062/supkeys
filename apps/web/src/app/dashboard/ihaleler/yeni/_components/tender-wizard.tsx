@@ -13,15 +13,17 @@ import {
   tenderFormSchema,
   type TenderFormData,
 } from "@/lib/tenders/form-schema";
+import { useCreateTenderTemplate } from "@/hooks/use-templates";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, ArrowRight, Save, Send } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookmarkPlus, Save, Send } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { MissingTargetWarningDialog } from "./missing-target-warning-dialog";
 import { PublishConfirmDialog } from "./publish-confirm-dialog";
+import { SaveTemplateDialog } from "./save-template-dialog";
 import { Step1Info } from "./step-1-info";
 import { Step2Items } from "./step-2-items";
 import { Step3Suppliers } from "./step-3-suppliers";
@@ -82,6 +84,31 @@ export function TenderWizard({ mode, initialData }: Props) {
   const updateMutation = useUpdateTender(initialData?.id ?? "");
   const publishMutation = usePublishTender();
   const uploadMutation = useUploadAttachment("tenant");
+
+  // Madde 34 — Şablon olarak kaydet.
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const createTemplate = useCreateTenderTemplate();
+
+  const handleSaveAsTemplate = async (name: string) => {
+    const values = form.getValues();
+    // Instance'a özgü alanlar şablona girmez.
+    const {
+      bidsCloseAt: _c,
+      bidsOpenAt: _o,
+      invitedSupplierIds: _s,
+      ...templateData
+    } = values;
+    try {
+      await createTemplate.mutateAsync({
+        name,
+        data: templateData as Record<string, unknown>,
+      });
+      toast.success(`"${name}" şablonu kaydedildi`);
+      setTemplateOpen(false);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Şablon kaydedilemedi"));
+    }
+  };
 
   const isSubmitting =
     createMutation.isPending ||
@@ -279,6 +306,16 @@ export function TenderWizard({ mode, initialData }: Props) {
             <div className="flex items-center gap-2">
               <Button
                 type="button"
+                variant="ghost"
+                onClick={() => setTemplateOpen(true)}
+                disabled={isSubmitting}
+                title="Bu ihaleyi tekrar kullanmak için şablonla"
+              >
+                <BookmarkPlus className="w-4 h-4" />
+                Şablon Kaydet
+              </Button>
+              <Button
+                type="button"
                 variant="secondary"
                 onClick={handleSaveDraft}
                 loading={
@@ -309,6 +346,14 @@ export function TenderWizard({ mode, initialData }: Props) {
           )}
         </div>
       </div>
+
+      <SaveTemplateDialog
+        open={templateOpen}
+        onClose={() => setTemplateOpen(false)}
+        onSave={handleSaveAsTemplate}
+        isSaving={createTemplate.isPending}
+        defaultName={form.getValues("title") ?? ""}
+      />
 
       <PublishConfirmDialog
         open={publishOpen}

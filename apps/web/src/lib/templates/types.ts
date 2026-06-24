@@ -62,3 +62,24 @@ export interface SupplierTemplateDetail {
   createdAt: string;
   updatedAt: string;
 }
+
+// ----------------- İHALE ŞABLONU (madde 34) -----------------
+
+export interface TenderTemplateListItem {
+  id: string;
+  name: string;
+  isOwnedByMe: boolean;
+  createdBy: { id: string; firstName: string; lastName: string };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TenderTemplateDetail {
+  id: string;
+  name: string;
+  /** Wizard form verisinin JSON blob'u (TenderFormData şekli). */
+  data: Record<string, unknown>;
+  createdBy: { id: string; firstName: string; lastName: string };
+  createdAt: string;
+  updatedAt: string;
+}

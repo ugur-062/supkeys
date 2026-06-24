@@ -1,5 +1,5 @@
 import { PermissionGuard } from "@/components/auth/permission-guard";
-import { ArrowRight, ListChecks, Users } from "lucide-react";
+import { ArrowRight, FileStack, ListChecks, Users } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = {
@@ -7,6 +7,13 @@ export const metadata = {
 };
 
 const TEMPLATES = [
+  {
+    href: "/dashboard/sablonlar/ihale",
+    label: "İhale Şablonları",
+    description:
+      "Tekrarlayan alımlarınızı (kalemler + ayarlar dahil) şablonlayın, yeni ihaleyi tek tıkla şablondan başlatın.",
+    icon: FileStack,
+  },
   {
     href: "/dashboard/sablonlar/kalem-sorusu",
     label: "Kalem Sorusu Şablonları",

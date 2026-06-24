@@ -127,6 +127,7 @@ model Tenant {
   messageThreads      MessageThread[]          @relation("TenantMessageThreads")
   questionTemplates   QuestionTemplate[]
   supplierTemplates   SupplierTemplate[]
+  tenderTemplates     TenderTemplate[]
 
   @@map("tenants")
 }
@@ -254,6 +255,7 @@ model User {
   // V2-7+ — Şablon sahipliği (createdBy)
   createdQuestionTemplates QuestionTemplate[] @relation("QuestionTemplateCreatedBy")
   createdSupplierTemplates SupplierTemplate[] @relation("SupplierTemplateCreatedBy")
+  createdTenderTemplates   TenderTemplate[]   @relation("TenderTemplateCreatedBy")
 
   @@index([tenantId])
   @@map("users")
@@ -2042,6 +2044,29 @@ model SupplierTemplateMember {
   @@id([templateId, supplierId])
   @@index([supplierId])
   @@map("supplier_template_members")
+}
+
+// Madde 34 — İhale şablonu. Tekrarlayan alımlar için isimli, kayıtlı ihale
+// taslağı. `data` = wizard form verisi (kalemler + sorular + kategoriler + tür +
+// scope + teslim/ödeme/para + ayarlar). Kapanış tarihi + davetli tedarikçiler +
+// adresler şablona girmez (her ihalede ayrı).
+model TenderTemplate {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name String
+  data Json
+
+  createdById String
+  createdBy   User   @relation("TenderTemplateCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([createdById])
+  @@map("tender_templates")
 }
 
 // V2-7+ — Güvenlik denetim izi (OWASP A09). Append-only: servis katmanı
