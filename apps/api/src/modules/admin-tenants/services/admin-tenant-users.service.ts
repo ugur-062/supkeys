@@ -328,7 +328,10 @@ export class AdminTenantUsersService {
 
     const record = await this.prisma.passwordResetToken.findUnique({
       where: { tokenHash },
-      include: { user: { select: { id: true, isActive: true, authId: true } } },
+      include: {
+        user: { select: { id: true, isActive: true, authId: true } },
+        supplierUser: { select: { id: true, isActive: true, authId: true } },
+      },
     });
     if (!record) {
       throw new ForbiddenException("Geçersiz veya kullanılmış bağlantı");
@@ -339,10 +342,15 @@ export class AdminTenantUsersService {
     if (record.expiresAt.getTime() < Date.now()) {
       throw new ForbiddenException("Bağlantının süresi dolmuş");
     }
-    if (!record.user.isActive) {
+    // Hedef alıcı (User) veya tedarikçi (SupplierUser) kullanıcısı olabilir.
+    const target = record.user ?? record.supplierUser;
+    if (!target) {
+      throw new ForbiddenException("Geçersiz bağlantı");
+    }
+    if (!target.isActive) {
       throw new ForbiddenException("Hesap pasif");
     }
-    if (!record.user.authId) {
+    if (!target.authId) {
       throw new ForbiddenException(
         "Bu hesap Supabase Auth'a bağlı değil — destek ekibiyle iletişime geçin",
       );
@@ -351,7 +359,7 @@ export class AdminTenantUsersService {
     // Supabase Auth source-of-truth: şifreyi auth.users üzerinde güncelle,
     // token'ı kullanıldı olarak işaretle. updatePassword $transaction dışı
     // olsa da idempotent — DB tx fail olsa bile yeniden çalıştırılabilir.
-    await this.supabaseAuth.updatePassword(record.user.authId, newPassword);
+    await this.supabaseAuth.updatePassword(target.authId, newPassword);
     await this.prisma.passwordResetToken.update({
       where: { id: record.id },
       data: { usedAt: new Date() },

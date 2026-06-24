@@ -57,6 +57,15 @@ export class AdminSuppliersController {
     return this.service.updateUser(id, userId, dto, req.user?.sub ?? "");
   }
 
+  @Post(":id/users/:userId/password-reset")
+  issuePasswordReset(
+    @Param("id") id: string,
+    @Param("userId") userId: string,
+    @Req() req: AdminAuthRequest,
+  ): Promise<unknown> {
+    return this.service.issuePasswordReset(id, userId, req.user?.sub ?? "");
+  }
+
   @Post(":id/users/:userId/verify-email")
   forceVerifyEmail(
     @Param("id") id: string,

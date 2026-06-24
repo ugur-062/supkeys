@@ -6,6 +6,7 @@ import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import { UserRecoveryActions } from "@/components/user-recovery-actions";
 import {
   useAdminSupplierDetail,
+  useIssueSupplierPasswordReset,
   useSupplierUserRecovery,
   useUpdateSupplierUser,
   type AdminSupplierDetail,
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 import { SupplierManagementCard } from "./_components/supplier-management-card";
 
@@ -53,6 +55,20 @@ function DetailContent() {
   const query = useAdminSupplierDetail(id);
   const userMutation = useUpdateSupplierUser(id ?? "");
   const recovery = useSupplierUserRecovery(id ?? "");
+  const pwReset = useIssueSupplierPasswordReset(id ?? "");
+  const [resetInfo, setResetInfo] = useState<{ userId: string; url: string } | null>(
+    null,
+  );
+
+  const issueReset = (userId: string) =>
+    pwReset.mutate(userId, {
+      onSuccess: (d) => {
+        toast.success("Parola sıfırlama linki e-postayla gönderildi");
+        setResetInfo({ userId, url: d.resetUrl });
+      },
+      onError: (e: unknown) =>
+        toast.error(e instanceof Error ? e.message : "Hata"),
+    });
 
   const toggleUser = (userId: string, isActive: boolean) =>
     userMutation.mutate(
@@ -234,10 +250,8 @@ function DetailContent() {
         </div>
         <div className="divide-y divide-surface-border">
           {s.users.map((u) => (
-            <div
-              key={u.id}
-              className="px-5 py-3 flex items-center justify-between gap-3"
-            >
+            <div key={u.id} className="px-5 py-3">
+            <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="font-semibold text-admin-text truncate">
                   {u.firstName} {u.lastName}
@@ -281,6 +295,15 @@ function DetailContent() {
                 >
                   {u.isActive ? "Pasifleştir" : "Aktifleştir"}
                 </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => issueReset(u.id)}
+                  disabled={pwReset.isPending || !u.isActive}
+                >
+                  Parola Sıfırla
+                </Button>
                 <UserRecoveryActions
                   email={u.email}
                   emailVerified={!!u.emailVerifiedAt}
@@ -293,6 +316,34 @@ function DetailContent() {
                   }
                 />
               </div>
+            </div>
+            {resetInfo?.userId === u.id ? (
+              <div className="mt-3 rounded-lg border border-warning-200 bg-warning-50 p-3 text-xs">
+                <p className="font-semibold text-warning-800">
+                  Sıfırlama linki üretildi (60 dk, tek kullanımlık)
+                </p>
+                <p className="mt-1 text-warning-700">
+                  E-posta gönderildi. Müşteri bulamazsa linki manuel iletebilirsin:
+                </p>
+                <div className="mt-2 flex items-center gap-2">
+                  <code className="flex-1 truncate rounded bg-white px-2 py-1 font-mono text-[11px] text-admin-text">
+                    {resetInfo.url}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigator.clipboard
+                        .writeText(resetInfo.url)
+                        .then(() => toast.success("Link kopyalandı"))
+                        .catch(() => toast.error("Kopyalanamadı"))
+                    }
+                    className="rounded-lg border border-warning-300 bg-white px-2 py-1 font-semibold text-warning-800 hover:bg-warning-100"
+                  >
+                    Kopyala
+                  </button>
+                </div>
+              </div>
+            ) : null}
             </div>
           ))}
         </div>

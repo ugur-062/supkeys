@@ -256,16 +256,20 @@ model User {
 // sıfırlama tokenleri. Token plain DB'de tutulmaz; sadece SHA-256
 // hash'i saklanır. Süresi 1 saat (TTL service'te enforce edilir).
 model PasswordResetToken {
-  id               String    @id @default(cuid())
-  userId           String
-  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash        String    @unique
+  id               String        @id @default(cuid())
+  // Alıcı (User) VEYA tedarikçi (SupplierUser) kullanıcısı — biri dolu.
+  userId           String?
+  user             User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supplierUserId   String?
+  supplierUser     SupplierUser? @relation(fields: [supplierUserId], references: [id], onDelete: Cascade)
+  tokenHash        String        @unique
   expiresAt        DateTime
   usedAt           DateTime?
-  createdAt        DateTime  @default(now())
+  createdAt        DateTime      @default(now())
   createdByAdminId String?
 
   @@index([userId])
+  @@index([supplierUserId])
   @@map("password_reset_tokens")
 }
 
@@ -905,6 +909,8 @@ model SupplierUser {
 
   // Ekip — bu kullanıcının gönderdiği davetler
   sentInvitations SupplierUserInvitation[] @relation("SupplierUserInvitationInviter")
+
+  passwordResetTokens PasswordResetToken[]
 
   @@index([supplierId])
   @@map("supplier_users")

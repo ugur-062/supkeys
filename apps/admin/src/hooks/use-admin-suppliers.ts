@@ -171,6 +171,20 @@ export function useUpdateSupplierUser(supplierId: string) {
   });
 }
 
+export function useIssueSupplierPasswordReset(supplierId: string) {
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const { data } = await api.post<{
+        success: boolean;
+        email: string;
+        expiresAt: string;
+        resetUrl: string;
+      }>(`/admin/suppliers/${supplierId}/users/${userId}/password-reset`);
+      return data;
+    },
+  });
+}
+
 export function useSupplierUserRecovery(supplierId: string) {
   const queryClient = useQueryClient();
   const invalidate = () =>

@@ -5,10 +5,15 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import * as crypto from "crypto";
 import { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { AuditService } from "../../audit/audit.service";
+import { EmailService } from "../../email/email.service";
 import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
+
+const PASSWORD_RESET_TTL_MINUTES = 60;
 import { ListAdminSuppliersDto } from "../dto/list-suppliers.dto";
 import {
   AdminUpdateSupplierUserDto,
@@ -33,7 +38,88 @@ export class AdminSuppliersService {
     private readonly prisma: PrismaService,
     private readonly supabaseAuth: SupabaseAuthService,
     private readonly audit: AuditService,
+    private readonly emailService: EmailService,
+    private readonly config: ConfigService,
   ) {}
+
+  /** Parola sıfırlama linki üret + e-posta (alıcı tarafıyla aynı akış). */
+  async issuePasswordReset(supplierId: string, userId: string, adminId: string) {
+    const target = await this.prisma.supplierUser.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        supplierId: true,
+        email: true,
+        firstName: true,
+        isActive: true,
+        supplier: { select: { isActive: true } },
+      },
+    });
+    if (!target || target.supplierId !== supplierId) {
+      throw new NotFoundException("Kullanıcı bulunamadı");
+    }
+    if (!target.isActive || !target.supplier.isActive) {
+      throw new BadRequestException(
+        "Pasif kullanıcı veya engelli tedarikçi için parola sıfırlanamaz",
+      );
+    }
+
+    await this.prisma.passwordResetToken.deleteMany({
+      where: { supplierUserId: userId, usedAt: null },
+    });
+
+    const plainToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(plainToken)
+      .digest("hex");
+    const expiresAt = new Date(
+      Date.now() + PASSWORD_RESET_TTL_MINUTES * 60 * 1000,
+    );
+
+    await this.prisma.passwordResetToken.create({
+      data: {
+        supplierUserId: userId,
+        tokenHash,
+        expiresAt,
+        createdByAdminId: adminId || null,
+      },
+    });
+
+    const baseUrl =
+      this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+    const resetUrl = `${baseUrl}/reset-password?token=${plainToken}`;
+
+    try {
+      await this.emailService.send({
+        to: { email: target.email, name: target.firstName },
+        templateData: {
+          template: "admin_password_reset",
+          data: {
+            firstName: target.firstName,
+            email: target.email,
+            resetUrl,
+            expiresInMinutes: PASSWORD_RESET_TTL_MINUTES,
+          },
+        },
+      });
+    } catch (err) {
+      this.logger.error(
+        `Supplier password reset email failed for ${userId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+
+    this.auditAction(adminId, "supplier.user_password_reset", supplierId, {
+      supplierUserId: userId,
+    });
+    this.logger.log(
+      `Admin ${adminId} issued password reset for supplier user ${userId}`,
+    );
+
+    return { success: true, email: target.email, expiresAt, resetUrl };
+  }
 
   private auditAction(
     adminId: string,
