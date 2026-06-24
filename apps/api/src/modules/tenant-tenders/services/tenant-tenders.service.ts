@@ -805,6 +805,7 @@ export class TenantTendersService {
           autoExtendByMinutes: auctionFields.autoExtendByMinutes,
           primaryCurrency: dto.primaryCurrency,
           allowedCurrencies: dto.allowedCurrencies,
+          isInternational: dto.isInternational ?? false,
           deliveryTerm: dto.deliveryTerm ?? null,
           // Snapshot pattern — JSON kayıt + geriye uyumlu text fallback
           billingAddressSnapshot: billingSnapshot as unknown as Prisma.InputJsonValue,
@@ -984,6 +985,7 @@ export class TenantTendersService {
           closingReminderSentAt: null,
           primaryCurrency: dto.primaryCurrency,
           allowedCurrencies: dto.allowedCurrencies,
+          isInternational: dto.isInternational ?? false,
           deliveryTerm: dto.deliveryTerm ?? null,
           billingAddressSnapshot:
             billingSnapshot as unknown as Prisma.InputJsonValue,

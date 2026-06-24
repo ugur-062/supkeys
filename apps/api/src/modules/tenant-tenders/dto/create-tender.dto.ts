@@ -42,6 +42,8 @@ export enum CurrencyDto {
 }
 
 export enum DeliveryTermDto {
+  DOMESTIC_DELIVERED = "DOMESTIC_DELIVERED",
+  DOMESTIC_PICKUP = "DOMESTIC_PICKUP",
   EXW = "EXW",
   FCA = "FCA",
   CPT = "CPT",
@@ -241,6 +243,11 @@ export class CreateTenderDto {
 
   @IsEnum(CurrencyDto)
   primaryCurrency!: CurrencyDto;
+
+  // Yurtiçi (false) / Uluslararası (true) ihale — görünürlük + teslim + belge.
+  @IsOptional()
+  @IsBoolean()
+  isInternational?: boolean;
 
   // Teslimat
   @IsOptional()

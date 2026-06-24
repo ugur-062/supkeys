@@ -1067,6 +1067,10 @@ enum Currency {
 }
 
 enum DeliveryTerm {
+  // Yurtiçi (sade) — isInternational=false ihalelerde gösterilir.
+  DOMESTIC_DELIVERED // Nakliye dahil (satıcı teslim eder)
+  DOMESTIC_PICKUP // Fabrika/Depo teslim (alıcı alır)
+  // Uluslararası Incoterms — isInternational=true ihalelerde gösterilir.
   EXW
   FCA
   CPT
@@ -1233,6 +1237,10 @@ model Tender {
   nextRounds       Tender[] @relation("TenderRounds")
   roundNumber      Int      @default(1)
 
+  // Yurtiçi (false) / Uluslararası (true). Uluslararası ihaleyi alıcının
+  // ülkesinden FARKLI ülkedeki tedarikçiler görür (sınır-ötesi); yurtiçini
+  // aynı ülkedekiler. Teslim şekli + para + belge bu seçime göre değişir.
+  isInternational         Boolean      @default(false)
   deliveryTerm            DeliveryTerm?
   // E.7.B'den önce: free-text. E.7.B sonrası: backward-compat fallback —
   // yeni tender'larda deliveryAddressSnapshot'tan formatlı string yazılır.

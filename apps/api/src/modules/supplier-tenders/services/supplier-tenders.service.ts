@@ -201,11 +201,13 @@ export class SupplierTendersService {
       where: { id: supplierId },
       select: {
         membership: true,
+        country: true,
         sectorCategoryIds: true,
         subCategoryIds: true,
       },
     });
     const isPremium = supplier?.membership === "PREMIUM";
+    const supplierCountry = supplier?.country ?? "TR";
 
     // Kategori eşleştirme — tedarikçinin ana (segment) + alt kategorileri.
     // Kategori id = 8-haneli UNSPSC kodu → segment/family/class kod ön ekiyle.
@@ -231,11 +233,24 @@ export class SupplierTendersService {
       return score;
     };
 
+    // Sınır-ötesi görünürlük: PUBLIC keşifte yurtiçi ihaleyi aynı ülkedeki,
+    // uluslararası ihaleyi FARKLI ülkedeki tedarikçi görür. Davetli tedarikçi
+    // scope'tan bağımsız her zaman görür (alıcı bilerek davet etti).
+    const scopeMatch: Prisma.TenderWhereInput = {
+      OR: [
+        { isInternational: false, tenant: { country: supplierCountry } },
+        { isInternational: true, tenant: { country: { not: supplierCountry } } },
+      ],
+    };
     const where: Prisma.TenderWhereInput = {
       status: { in: statuses },
       OR: [
         { invitations: { some: { supplierId } } },
-        { visibility: "PUBLIC", status: "OPEN_FOR_BIDS" },
+        {
+          visibility: "PUBLIC",
+          status: "OPEN_FOR_BIDS",
+          ...scopeMatch,
+        },
       ],
     };
     if (query.search) {
@@ -410,7 +425,7 @@ export class SupplierTendersService {
         status: { in: VISIBLE_STATUSES },
       },
       include: {
-        tenant: { select: { id: true, name: true } },
+        tenant: { select: { id: true, name: true, country: true } },
         // Hedef birim fiyat alıcı tarafından konulur; tedarikçinin
         // bunu görmesi ürün gereği (rehber fiyat). Açıkça seçilir.
         items: {
@@ -471,6 +486,20 @@ export class SupplierTendersService {
       // Özel ihale + davetsiz → 404 (varlığını sızdırmamak adına Forbidden
       // yerine NotFound). PUBLIC ihaleler davetsiz de görüntülenebilir.
       throw new NotFoundException("İhale bulunamadı");
+    }
+    // Sınır-ötesi scope: davetsiz erişimde ülke uyuşmazsa 404. Davetli her
+    // zaman görür (alıcı bilerek davet etti).
+    if (!invitation) {
+      const sup = await this.prisma.supplier.findUnique({
+        where: { id: supplierId },
+        select: { country: true },
+      });
+      const supplierCountry = sup?.country ?? "TR";
+      const buyerCountry = tender.tenant.country;
+      const scopeOk = tender.isInternational
+        ? buyerCountry !== supplierCountry
+        : buyerCountry === supplierCountry;
+      if (!scopeOk) throw new NotFoundException("İhale bulunamadı");
     }
     // Kilitli teaser: STANDARD tedarikçi, davetsiz, PUBLIC ihale → alıcı kimliği
     // + ekler maskelenir, teklif pasif (premium'a teşvik).
