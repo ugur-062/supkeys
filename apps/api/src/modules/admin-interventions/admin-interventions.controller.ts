@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -11,6 +12,10 @@ import type { Request } from "express";
 import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
 import { AdminInterventionsService } from "./admin-interventions.service";
 import { AdminCancelDto } from "./dto/cancel.dto";
+import {
+  AdminSetOrderStatusDto,
+  AdminSetPaymentStatusDto,
+} from "./dto/order-status.dto";
 
 interface AdminAuthRequest extends Request {
   user?: { sub: string; type: string };
@@ -47,5 +52,35 @@ export class AdminInterventionsController {
     @Req() req: AdminAuthRequest,
   ): Promise<unknown> {
     return this.service.cancelOrder(id, dto.reason, req.user?.sub ?? "");
+  }
+
+  @Patch("orders/:id/status")
+  setOrderStatus(
+    @Param("id") id: string,
+    @Body() dto: AdminSetOrderStatusDto,
+    @Req() req: AdminAuthRequest,
+  ): Promise<unknown> {
+    return this.service.setOrderStatus(
+      id,
+      dto.status,
+      dto.reason,
+      req.user?.sub ?? "",
+    );
+  }
+
+  @Patch("orders/:id/payments/:paymentId")
+  setPaymentStatus(
+    @Param("id") id: string,
+    @Param("paymentId") paymentId: string,
+    @Body() dto: AdminSetPaymentStatusDto,
+    @Req() req: AdminAuthRequest,
+  ): Promise<unknown> {
+    return this.service.setPaymentStatus(
+      id,
+      paymentId,
+      dto.status,
+      dto.reason,
+      req.user?.sub ?? "",
+    );
   }
 }

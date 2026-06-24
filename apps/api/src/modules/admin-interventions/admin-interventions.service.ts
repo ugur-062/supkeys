@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 
@@ -133,11 +134,114 @@ export class AdminInterventionsService {
             version: true,
           },
         },
-        _count: { select: { payments: true } },
+        payments: {
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            method: true,
+            amount: true,
+            currency: true,
+            status: true,
+            note: true,
+            chequeNo: true,
+            chequeBank: true,
+            chequeDueDate: true,
+            markedPaidAt: true,
+            confirmedAt: true,
+            rejectedAt: true,
+            rejectReason: true,
+          },
+        },
       },
     });
     if (!o) throw new NotFoundException("Sipariş bulunamadı");
     return o;
+  }
+
+  /** Admin sipariş durumu override (takılı sipariş / uyuşmazlık). */
+  async setOrderStatus(
+    orderId: string,
+    status: string,
+    reason: string | undefined,
+    adminId: string,
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, status: true, tenantId: true },
+    });
+    if (!order) throw new NotFoundException("Sipariş bulunamadı");
+
+    const data: Prisma.OrderUpdateInput = { status: status as never };
+    if (status === "CANCELLED") {
+      data.cancelledAt = new Date();
+      data.cancelReason = reason?.trim() || null;
+    } else if (status === "COMPLETED") {
+      data.completedAt = new Date();
+    } else if (status === "ACCEPTED") {
+      data.acceptedAt = new Date();
+    }
+    const updated = await this.prisma.order.update({
+      where: { id: orderId },
+      data,
+      select: { id: true, status: true },
+    });
+    void this.audit.log({
+      action: "order.admin_status_changed",
+      actorType: "admin",
+      actorId: adminId || null,
+      tenantId: order.tenantId,
+      entityType: "order",
+      entityId: orderId,
+      metadata: { from: order.status, to: status, reason },
+    });
+    this.logger.log(
+      `Admin ${adminId} set order ${orderId} status ${order.status} → ${status}`,
+    );
+    return updated;
+  }
+
+  /** Admin ödeme durumu override (uyuşmazlık çözümü). */
+  async setPaymentStatus(
+    orderId: string,
+    paymentId: string,
+    status: "CONFIRMED" | "REJECTED",
+    reason: string | undefined,
+    adminId: string,
+  ) {
+    const p = await this.prisma.orderPayment.findUnique({
+      where: { id: paymentId },
+      select: { id: true, orderId: true, tenantId: true },
+    });
+    if (!p || p.orderId !== orderId) {
+      throw new NotFoundException("Ödeme kaydı bulunamadı");
+    }
+    const data: Prisma.OrderPaymentUpdateInput =
+      status === "CONFIRMED"
+        ? { status: "CONFIRMED", confirmedAt: new Date(), rejectedAt: null, rejectReason: null }
+        : {
+            status: "REJECTED",
+            rejectedAt: new Date(),
+            rejectReason: reason?.trim() || null,
+            confirmedAt: null,
+          };
+    const updated = await this.prisma.orderPayment.update({
+      where: { id: paymentId },
+      data,
+      select: { id: true, status: true },
+    });
+    void this.audit.log({
+      action: "order.admin_payment_changed",
+      actorType: "admin",
+      actorId: adminId || null,
+      tenantId: p.tenantId,
+      entityType: "order_payment",
+      entityId: paymentId,
+      metadata: { orderId, to: status, reason },
+    });
+    this.logger.log(
+      `Admin ${adminId} set payment ${paymentId} → ${status}`,
+    );
+    return updated;
   }
 
   async cancelTender(tenderId: string, reason: string, adminId: string) {

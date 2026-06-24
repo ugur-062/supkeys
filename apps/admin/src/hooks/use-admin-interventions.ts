@@ -76,8 +76,31 @@ export interface AdminOrderDetail {
   supplier: { id: string; companyName: string };
   tender: { id: string; tenderNumber: string; title: string };
   bid: { id: string; totalAmount: string; currency: string; version: number } | null;
-  _count: { payments: number };
+  payments: Array<{
+    id: string;
+    method: string;
+    amount: string;
+    currency: string;
+    status: "AWAITING_CONFIRMATION" | "CONFIRMED" | "REJECTED";
+    note: string | null;
+    chequeNo: string | null;
+    chequeBank: string | null;
+    chequeDueDate: string | null;
+    markedPaidAt: string;
+    confirmedAt: string | null;
+    rejectedAt: string | null;
+    rejectReason: string | null;
+  }>;
 }
+
+export const ORDER_STATUS_OPTIONS = [
+  "PENDING",
+  "ACCEPTED",
+  "IN_DELIVERY",
+  "COMPLETED",
+  "REJECTED",
+  "CANCELLED",
+];
 
 export function useAdminTenderDetail(id: string | null | undefined) {
   return useQuery({
@@ -129,6 +152,41 @@ export function useAdminCancelTender(tenantId: string) {
     onSuccess: () =>
       queryClient.invalidateQueries({
         queryKey: ["admin", "tenants", "detail", tenantId],
+      }),
+  });
+}
+
+export function useAdminSetOrderStatus(orderId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { status: string; reason?: string }) => {
+      const { data } = await api.patch(`/admin/orders/${orderId}/status`, input);
+      return data;
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "order-detail", orderId],
+      }),
+  });
+}
+
+export function useAdminSetPaymentStatus(orderId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      paymentId: string;
+      status: "CONFIRMED" | "REJECTED";
+      reason?: string;
+    }) => {
+      const { data } = await api.patch(
+        `/admin/orders/${orderId}/payments/${input.paymentId}`,
+        { status: input.status, reason: input.reason },
+      );
+      return data;
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "order-detail", orderId],
       }),
   });
 }
