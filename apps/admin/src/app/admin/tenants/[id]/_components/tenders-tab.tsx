@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useAdminTenantTenders } from "@/hooks/use-admin-tenants";
 import {
@@ -108,9 +109,12 @@ export function TendersTab({ tenantId }: { tenantId: string }) {
                   {STATUS_LABELS[t.status] ?? t.status}
                 </span>
               </div>
-              <p className="mt-1 font-semibold text-admin-text truncate">
+              <Link
+                href={`/admin/tenders/${t.id}`}
+                className="mt-1 block font-semibold text-admin-text truncate hover:text-brand-600 hover:underline"
+              >
                 {t.title}
-              </p>
+              </Link>
               <p className="mt-0.5 text-xs text-admin-text-muted">
                 {t.createdBy.firstName} {t.createdBy.lastName} ·{" "}
                 {t._count.items} kalem · {t._count.invitations} davet ·{" "}

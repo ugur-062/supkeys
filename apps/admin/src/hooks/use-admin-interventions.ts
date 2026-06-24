@@ -1,7 +1,107 @@
 "use client";
 
 import { api } from "@/lib/api";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+export interface AdminTenderDetail {
+  id: string;
+  tenderNumber: string;
+  title: string;
+  description: string | null;
+  type: string;
+  visibility: string;
+  status: string;
+  primaryCurrency: string;
+  bidsOpenAt: string | null;
+  bidsCloseAt: string;
+  publishedAt: string | null;
+  awardedAt: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  createdAt: string;
+  paymentTerm: string;
+  paymentDays: number | null;
+  deliveryTerm: string | null;
+  termsAndConditions: string | null;
+  tenant: { id: string; name: string };
+  createdBy: { firstName: string; lastName: string; email: string };
+  categories: Array<{ id: string; code: string; nameTr: string; level: number }>;
+  items: Array<{
+    id: string;
+    name: string;
+    description: string | null;
+    quantity: string | number;
+    unit: string;
+    targetUnitPrice: string | null;
+  }>;
+  invitations: Array<{
+    status: string;
+    invitedAt: string;
+    respondedAt: string | null;
+    supplier: { id: string; companyName: string };
+  }>;
+  bids: Array<{
+    id: string;
+    status: string;
+    totalAmount: string;
+    currency: string;
+    version: number;
+    submittedAt: string | null;
+    eliminationReason: string | null;
+    supplier: { id: string; companyName: string };
+  }>;
+  orders: Array<{
+    id: string;
+    orderNumber: string;
+    status: string;
+    totalAmount: string;
+    currency: string;
+    supplier: { companyName: string };
+  }>;
+}
+
+export interface AdminOrderDetail {
+  id: string;
+  orderNumber: string;
+  status: string;
+  totalAmount: string;
+  currency: string;
+  notes: string | null;
+  createdAt: string;
+  acceptedAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  tenant: { id: string; name: string };
+  supplier: { id: string; companyName: string };
+  tender: { id: string; tenderNumber: string; title: string };
+  bid: { id: string; totalAmount: string; currency: string; version: number } | null;
+  _count: { payments: number };
+}
+
+export function useAdminTenderDetail(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ["admin", "tender-detail", id ?? ""],
+    queryFn: async () => {
+      const { data } = await api.get<AdminTenderDetail>(`/admin/tenders/${id}`);
+      return data;
+    },
+    enabled: Boolean(id),
+    staleTime: 20_000,
+  });
+}
+
+export function useAdminOrderDetail(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ["admin", "order-detail", id ?? ""],
+    queryFn: async () => {
+      const { data } = await api.get<AdminOrderDetail>(`/admin/orders/${id}`);
+      return data;
+    },
+    enabled: Boolean(id),
+    staleTime: 20_000,
+  });
+}
 
 export const TENDER_CANCELLABLE = [
   "DRAFT",

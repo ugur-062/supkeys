@@ -21,6 +21,125 @@ export class AdminInterventionsService {
     private readonly audit: AuditService,
   ) {}
 
+  /** Admin superuser ihale detayı — TAM görünürlük (tüm teklif + davet). */
+  async getTenderDetail(id: string): Promise<unknown> {
+    const t = await this.prisma.tender.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        tenderNumber: true,
+        title: true,
+        description: true,
+        type: true,
+        visibility: true,
+        status: true,
+        primaryCurrency: true,
+        allowedCurrencies: true,
+        bidsOpenAt: true,
+        bidsCloseAt: true,
+        publishedAt: true,
+        awardedAt: true,
+        cancelledAt: true,
+        cancelReason: true,
+        createdAt: true,
+        paymentTerm: true,
+        paymentDays: true,
+        deliveryTerm: true,
+        termsAndConditions: true,
+        tenant: { select: { id: true, name: true } },
+        createdBy: {
+          select: { firstName: true, lastName: true, email: true },
+        },
+        categories: {
+          select: {
+            category: {
+              select: { id: true, code: true, nameTr: true, level: true },
+            },
+          },
+        },
+        items: {
+          orderBy: { orderIndex: "asc" },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            quantity: true,
+            unit: true,
+            targetUnitPrice: true,
+          },
+        },
+        invitations: {
+          orderBy: { invitedAt: "asc" },
+          select: {
+            status: true,
+            invitedAt: true,
+            respondedAt: true,
+            supplier: { select: { id: true, companyName: true } },
+          },
+        },
+        bids: {
+          orderBy: { totalAmount: "asc" },
+          select: {
+            id: true,
+            status: true,
+            totalAmount: true,
+            currency: true,
+            version: true,
+            submittedAt: true,
+            eliminationReason: true,
+            supplier: { select: { id: true, companyName: true } },
+          },
+        },
+        orders: {
+          select: {
+            id: true,
+            orderNumber: true,
+            status: true,
+            totalAmount: true,
+            currency: true,
+            supplier: { select: { companyName: true } },
+          },
+        },
+      },
+    });
+    if (!t) throw new NotFoundException("İhale bulunamadı");
+    return { ...t, categories: t.categories.map((c) => c.category) };
+  }
+
+  /** Admin superuser sipariş detayı. */
+  async getOrderDetail(id: string): Promise<unknown> {
+    const o = await this.prisma.order.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        orderNumber: true,
+        status: true,
+        totalAmount: true,
+        currency: true,
+        notes: true,
+        createdAt: true,
+        acceptedAt: true,
+        completedAt: true,
+        cancelledAt: true,
+        cancelReason: true,
+        tenant: { select: { id: true, name: true } },
+        supplier: { select: { id: true, companyName: true } },
+        tender: { select: { id: true, tenderNumber: true, title: true } },
+        bid: {
+          select: {
+            id: true,
+            totalAmount: true,
+            currency: true,
+            version: true,
+          },
+        },
+        _count: { select: { payments: true } },
+      },
+    });
+    if (!o) throw new NotFoundException("Sipariş bulunamadı");
+    return o;
+  }
+
   async cancelTender(tenderId: string, reason: string, adminId: string) {
     const tender = await this.prisma.tender.findUnique({
       where: { id: tenderId },

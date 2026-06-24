@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   Post,
   Req,
@@ -19,6 +20,16 @@ interface AdminAuthRequest extends Request {
 @UseGuards(AdminJwtAuthGuard)
 export class AdminInterventionsController {
   constructor(private readonly service: AdminInterventionsService) {}
+
+  @Get("tenders/:id")
+  getTender(@Param("id") id: string): Promise<unknown> {
+    return this.service.getTenderDetail(id);
+  }
+
+  @Get("orders/:id")
+  getOrder(@Param("id") id: string): Promise<unknown> {
+    return this.service.getOrderDetail(id);
+  }
 
   @Post("tenders/:id/cancel")
   cancelTender(

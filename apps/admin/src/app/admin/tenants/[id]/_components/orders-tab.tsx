@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useAdminTenantOrders } from "@/hooks/use-admin-tenants";
 import {
@@ -102,9 +103,12 @@ export function OrdersTab({ tenantId }: { tenantId: string }) {
           >
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-mono text-xs text-admin-text-muted">
+                <Link
+                  href={`/admin/orders/${o.id}`}
+                  className="font-mono text-xs text-admin-text-muted hover:text-brand-600 hover:underline"
+                >
                   {o.orderNumber}
-                </p>
+                </Link>
                 <span
                   className={cn(
                     "inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold",
