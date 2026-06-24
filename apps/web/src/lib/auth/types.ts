@@ -23,8 +23,10 @@ export interface AuthUser {
     taxNumber: string | null;
     taxOffice: string | null;
     industry: string | null;
+    country: string;
     city: string | null;
     district: string | null;
+    stateRegion: string | null;
     neighborhood: string | null;
     postalCode: string | null;
     addressLine: string | null;

@@ -272,8 +272,10 @@ export class AuthService {
       taxNumber?: string | null;
       taxOffice?: string | null;
       industry?: string | null;
+      country?: string | null;
       city?: string | null;
       district?: string | null;
+      stateRegion?: string | null;
       neighborhood?: string | null;
       postalCode?: string | null;
       addressLine?: string | null;
@@ -321,8 +323,10 @@ export class AuthService {
         taxNumber: tenant.taxNumber ?? null,
         taxOffice: tenant.taxOffice ?? null,
         industry: tenant.industry ?? null,
+        country: tenant.country ?? "TR",
         city: tenant.city ?? null,
         district: tenant.district ?? null,
+        stateRegion: tenant.stateRegion ?? null,
         neighborhood: tenant.neighborhood ?? null,
         postalCode: tenant.postalCode ?? null,
         addressLine: tenant.addressLine ?? null,

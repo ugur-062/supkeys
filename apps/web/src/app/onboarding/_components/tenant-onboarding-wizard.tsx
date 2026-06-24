@@ -14,7 +14,12 @@ import {
 } from "@/hooks/use-tenant-onboarding";
 import type { AuthUser } from "@/lib/auth/types";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { isValidTaxId, isValidTckn } from "@supkeys/shared";
+import {
+  COUNTRIES,
+  countryName,
+  isValidTaxIdForCountry,
+  isValidTckn,
+} from "@supkeys/shared";
 import { Check, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -34,12 +39,14 @@ const schema = z
   .object({
     legalName: z.string().min(2, "Yasal firma ünvanı zorunlu"),
     companyType: z.enum(["JOINT_STOCK", "LIMITED", "SOLE_PROPRIETOR"]),
-    taxNumber: z.string().min(10, "Vergi/TC numarası zorunlu"),
-    taxOffice: z.string().min(2, "Vergi dairesi zorunlu"),
-    city: z.string().min(1, "İl seçin"),
-    district: z.string().min(1, "İlçe seçin"),
-    neighborhood: z.string().min(2, "Mahalle zorunlu"),
-    postalCode: z.string().min(2, "Posta kodu zorunlu"),
+    country: z.string().min(2).default("TR"),
+    taxNumber: z.string().min(4, "Vergi/sicil numarası zorunlu"),
+    taxOffice: z.string().optional().default(""),
+    city: z.string().min(1, "Şehir zorunlu"),
+    district: z.string().optional().default(""),
+    stateRegion: z.string().optional().default(""),
+    neighborhood: z.string().optional().default(""),
+    postalCode: z.string().optional().default(""),
     addressLine: z.string().min(5, "Açık adres zorunlu"),
     billingTitle: z.string().optional(),
     billingEmail: z
@@ -47,7 +54,7 @@ const schema = z
       .email("Geçerli bir e-posta giriniz")
       .optional()
       .or(z.literal("")),
-    authorizedTckn: z.string().min(11, "T.C. Kimlik No 11 haneli olmalı"),
+    authorizedTckn: z.string().optional().default(""),
     authorizedTitle: z.string().min(2, "Ünvan/rol seçin"),
     mainCategoryIds: z
       .array(z.string())
@@ -56,22 +63,41 @@ const schema = z
     subCategoryIds: z.array(z.string()).default([]),
   })
   .superRefine((v, ctx) => {
+    const isTR = (v.country || "TR") === "TR";
     const isSole = v.companyType === "SOLE_PROPRIETOR";
-    if (!isValidTaxId(v.taxNumber, isSole)) {
+    if (!isValidTaxIdForCountry(v.taxNumber, v.country || "TR", isSole)) {
       ctx.addIssue({
         path: ["taxNumber"],
         code: z.ZodIssueCode.custom,
-        message: isSole
-          ? "11 haneli geçerli TCKN giriniz"
-          : "10 haneli geçerli vergi numarası giriniz",
+        message: isTR
+          ? isSole
+            ? "11 haneli geçerli TCKN giriniz"
+            : "10 haneli geçerli vergi numarası giriniz"
+          : "Geçerli bir vergi/sicil numarası giriniz",
       });
     }
-    if (!isValidTckn(v.authorizedTckn)) {
-      ctx.addIssue({
-        path: ["authorizedTckn"],
-        code: z.ZodIssueCode.custom,
-        message: "Geçerli bir T.C. Kimlik No giriniz",
-      });
+    if (isTR) {
+      if (!isValidTckn(v.authorizedTckn)) {
+        ctx.addIssue({
+          path: ["authorizedTckn"],
+          code: z.ZodIssueCode.custom,
+          message: "Geçerli bir T.C. Kimlik No giriniz",
+        });
+      }
+      if (!v.taxOffice || v.taxOffice.trim().length < 2) {
+        ctx.addIssue({
+          path: ["taxOffice"],
+          code: z.ZodIssueCode.custom,
+          message: "Vergi dairesi zorunlu",
+        });
+      }
+      if (!v.district || v.district.trim().length < 1) {
+        ctx.addIssue({
+          path: ["district"],
+          code: z.ZodIssueCode.custom,
+          message: "İlçe seçin",
+        });
+      }
     }
   });
 
@@ -81,10 +107,12 @@ const STEP_FIELDS: Record<number, (keyof FormValues)[]> = {
   1: [
     "legalName",
     "companyType",
+    "country",
     "taxNumber",
     "taxOffice",
     "city",
     "district",
+    "stateRegion",
     "neighborhood",
     "postalCode",
     "addressLine",
@@ -112,10 +140,12 @@ export function TenantOnboardingWizard({
     defaultValues: {
       legalName: tenant.legalName ?? tenant.name ?? "",
       companyType: tenant.companyType ?? "LIMITED",
+      country: tenant.country ?? "TR",
       taxNumber: tenant.taxNumber ?? "",
       taxOffice: tenant.taxOffice ?? "",
       city: tenant.city ?? "",
       district: tenant.district ?? "",
+      stateRegion: tenant.stateRegion ?? "",
       neighborhood: tenant.neighborhood ?? "",
       postalCode: tenant.postalCode ?? "",
       addressLine: tenant.addressLine ?? "",
@@ -157,16 +187,18 @@ export function TenantOnboardingWizard({
     const payload: TenantOnboardingPayload = {
       legalName: v.legalName,
       companyType: v.companyType,
+      country: v.country || "TR",
       taxNumber: v.taxNumber,
-      taxOffice: v.taxOffice,
+      taxOffice: v.taxOffice?.trim() || undefined,
       city: v.city,
-      district: v.district,
-      neighborhood: v.neighborhood,
-      postalCode: v.postalCode,
+      district: v.district?.trim() || undefined,
+      stateRegion: v.stateRegion?.trim() || undefined,
+      neighborhood: v.neighborhood?.trim() || undefined,
+      postalCode: v.postalCode?.trim() || undefined,
       addressLine: v.addressLine,
       billingTitle: v.billingTitle?.trim() || undefined,
       billingEmail: v.billingEmail?.trim() || undefined,
-      authorizedTckn: v.authorizedTckn,
+      authorizedTckn: v.authorizedTckn?.trim() || undefined,
       authorizedTitle: v.authorizedTitle,
       mainCategoryIds: v.mainCategoryIds,
       subCategoryIds: v.subCategoryIds,
@@ -180,6 +212,8 @@ export function TenantOnboardingWizard({
     });
   };
 
+  const isTR = (watch("country") || "TR") === "TR";
+
   return (
     <div className="mx-auto w-full max-w-2xl">
       <Stepper step={step} />
@@ -191,10 +225,31 @@ export function TenantOnboardingWizard({
               title="Şirket Bilgileri"
               desc="Yasal firma unvanı, firma türü, vergi bilgileri ve adresler."
             />
-            <Field error={errors.legalName?.message}>
-              <Label required>Firma Ünvanı</Label>
-              <Input {...register("legalName")} placeholder="Yasal firma unvanı" />
-            </Field>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+              <Field error={errors.legalName?.message}>
+                <Label required>Firma Ünvanı</Label>
+                <Input
+                  {...register("legalName")}
+                  placeholder="Yasal firma unvanı"
+                />
+              </Field>
+              <Field error={errors.country?.message}>
+                <Label required>Ülke</Label>
+                <Controller
+                  control={control}
+                  name="country"
+                  render={({ field }) => (
+                    <Select {...field}>
+                      {COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                />
+              </Field>
+            </div>
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
               <Field error={errors.companyType?.message}>
                 <Label required>Firma Türü</Label>
@@ -203,9 +258,15 @@ export function TenantOnboardingWizard({
                   name="companyType"
                   render={({ field }) => (
                     <Select {...field}>
-                      <option value="LIMITED">Limited Şirket</option>
-                      <option value="JOINT_STOCK">Anonim Şirket (A.Ş.)</option>
-                      <option value="SOLE_PROPRIETOR">Şahıs Şirketi</option>
+                      <option value="LIMITED">
+                        {isTR ? "Limited Şirket" : "Limited / LLC"}
+                      </option>
+                      <option value="JOINT_STOCK">
+                        {isTR ? "Anonim Şirket (A.Ş.)" : "Anonim / Corporation"}
+                      </option>
+                      <option value="SOLE_PROPRIETOR">
+                        {isTR ? "Şahıs Şirketi" : "Şahıs / Sole Proprietor"}
+                      </option>
                     </Select>
                   )}
                 />
@@ -213,24 +274,30 @@ export function TenantOnboardingWizard({
               <Field
                 error={errors.taxNumber?.message}
                 hint={
-                  watch("companyType") === "SOLE_PROPRIETOR"
-                    ? "Şahıs → 11 haneli TCKN"
-                    : "Tüzel kişi → 10 haneli VKN"
+                  !isTR
+                    ? "VAT / sicil no"
+                    : watch("companyType") === "SOLE_PROPRIETOR"
+                      ? "Şahıs → 11 haneli TCKN"
+                      : "Tüzel kişi → 10 haneli VKN"
                 }
               >
-                <Label required>Vergi Kimlik No / TC</Label>
+                <Label required>
+                  {isTR ? "Vergi Kimlik No / TC" : "Vergi / Sicil No"}
+                </Label>
                 <Input
                   {...register("taxNumber")}
-                  inputMode="numeric"
-                  maxLength={11}
-                  placeholder="VKN/TCKN"
+                  inputMode={isTR ? "numeric" : "text"}
+                  maxLength={isTR ? 11 : 30}
+                  placeholder={isTR ? "VKN/TCKN" : "VAT / Tax ID"}
                 />
               </Field>
             </div>
-            <Field error={errors.taxOffice?.message}>
-              <Label required>Vergi Dairesi</Label>
-              <Input {...register("taxOffice")} placeholder="Vergi dairesi" />
-            </Field>
+            {isTR ? (
+              <Field error={errors.taxOffice?.message}>
+                <Label required>Vergi Dairesi</Label>
+                <Input {...register("taxOffice")} placeholder="Vergi dairesi" />
+              </Field>
+            ) : null}
 
             <div className="border-t border-zinc-100 pt-5">
               <p className="mb-3 text-sm font-semibold text-zinc-900">
@@ -243,10 +310,12 @@ export function TenantOnboardingWizard({
                   watch={watch}
                   setValue={setValue}
                 />
-                <Field error={errors.neighborhood?.message}>
-                  <Label required>Mahalle</Label>
-                  <Input {...register("neighborhood")} placeholder="Mahalle" />
-                </Field>
+                {isTR ? (
+                  <Field error={errors.neighborhood?.message}>
+                    <Label required>Mahalle</Label>
+                    <Input {...register("neighborhood")} placeholder="Mahalle" />
+                  </Field>
+                ) : null}
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                   <Field hint="Opsiyonel">
                     <Label>Fatura Ünvanı</Label>
@@ -288,14 +357,16 @@ export function TenantOnboardingWizard({
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
               <Field
                 error={errors.authorizedTckn?.message}
-                hint="Fatura/ödeme akışlarında kullanılır"
+                hint={isTR ? "Fatura/ödeme akışlarında kullanılır" : "Opsiyonel"}
               >
-                <Label required>Yetkili T.C. Kimlik No</Label>
+                <Label required={isTR}>
+                  {isTR ? "Yetkili T.C. Kimlik No" : "Yetkili Kimlik No"}
+                </Label>
                 <Input
                   {...register("authorizedTckn")}
-                  inputMode="numeric"
-                  maxLength={11}
-                  placeholder="11 haneli TCKN"
+                  inputMode={isTR ? "numeric" : "text"}
+                  maxLength={isTR ? 11 : 40}
+                  placeholder={isTR ? "11 haneli TCKN" : "Passport / ID (ops.)"}
                 />
               </Field>
               <Field error={errors.authorizedTitle?.message}>
@@ -462,13 +533,25 @@ function SummaryList({ values }: { values: FormValues }) {
       : values.companyType === "SOLE_PROPRIETOR"
         ? "Şahıs Şirketi"
         : "Limited Şirket";
+  const isTR = (values.country || "TR") === "TR";
+  const addressParts = [
+    values.neighborhood,
+    values.district || values.stateRegion,
+    values.city,
+    isTR ? null : countryName(values.country || "TR"),
+  ].filter((p): p is string => !!p && p.trim().length > 0);
   const rows: [string, string][] = [
     ["Firma Ünvanı", values.legalName],
+    ["Ülke", countryName(values.country || "TR")],
     ["Firma Türü", typeLabel],
-    ["Vergi/TC No", values.taxNumber],
-    ["Vergi Dairesi", values.taxOffice],
-    ["Adres", `${values.neighborhood}, ${values.district}/${values.city}`],
-    ["Yetkili TCKN", values.authorizedTckn],
+    ["Vergi/Sicil No", values.taxNumber],
+    ...((isTR && values.taxOffice
+      ? [["Vergi Dairesi", values.taxOffice]]
+      : []) as [string, string][]),
+    ["Adres", addressParts.join(", ") || "—"],
+    ...((values.authorizedTckn
+      ? [["Yetkili Kimlik", values.authorizedTckn]]
+      : []) as [string, string][]),
     ["Ünvan/Rol", values.authorizedTitle],
     [
       "Kategoriler",

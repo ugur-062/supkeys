@@ -5,16 +5,19 @@ import { useMutation } from "@tanstack/react-query";
 export interface TenantOnboardingPayload {
   legalName: string;
   companyType: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR";
+  /** ISO 3166-1 alpha-2 (TR varsayılan). */
+  country: string;
   taxNumber: string;
-  taxOffice: string;
+  taxOffice?: string;
   city: string;
-  district: string;
-  neighborhood: string;
-  postalCode: string;
+  district?: string;
+  stateRegion?: string;
+  neighborhood?: string;
+  postalCode?: string;
   addressLine: string;
   billingTitle?: string;
   billingEmail?: string;
-  authorizedTckn: string;
+  authorizedTckn?: string;
   authorizedTitle: string;
   /** UNSPSC ana kategoriler (segment, ≤3) + alt kategoriler (sınırsız). */
   mainCategoryIds: string[];
