@@ -258,6 +258,8 @@ export interface AuctionClosingReminderData {
   /** ISO tarih (UTC) */
   closesAt: string;
   tenderUrl: string;
+  /** Açık eksiltme mi (true) yoksa RFQ/teklif toplama mı (false). Vars. true. */
+  isAuction?: boolean;
 }
 
 /**

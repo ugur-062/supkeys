@@ -61,18 +61,24 @@ export function makeAuctionClosingReminderSubject(
 export function AuctionClosingReminderEmail(
   props: AuctionClosingReminderData,
 ) {
+  const isAuction = props.isAuction !== false;
+  const noun = isAuction ? "açık eksiltme" : "ihale";
   return (
     <Layout
-      preview={`${props.tenderTitle} açık eksiltmesi yakında kapanıyor — son teklifinizi gözden geçirin.`}
+      preview={`${props.tenderTitle} ${noun}si yakında kapanıyor — teklifinizi gözden geçirin.`}
     >
-      <Heading>Açık eksiltme yakında kapanıyor ⏰</Heading>
+      <Heading>
+        {isAuction ? "Açık eksiltme" : "İhale"} yakında kapanıyor ⏰
+      </Heading>
 
       <Text style={paragraph}>Merhaba {props.supplierUserName},</Text>
 
       <Text style={paragraph}>
         <strong style={{ color: COLORS.brand900 }}>{props.tenantName}</strong>{" "}
-        firmasının düzenlediği açık eksiltmenin kapanışına yaklaştık. Son
-        teklifinizi gözden geçirmek için zamanınız var.
+        firmasının {noun}sinin kapanışına yaklaştık.{" "}
+        {isAuction
+          ? "Son teklifinizi gözden geçirmek için zamanınız var."
+          : "Henüz teklif vermediyseniz son teklifinizi göndermek için zamanınız var."}
       </Text>
 
       <Section style={summaryBox}>
@@ -82,12 +88,16 @@ export function AuctionClosingReminderEmail(
       </Section>
 
       <Text style={paragraph}>
-        Eksiltme kapandıktan sonra teklif kabul edilmez. Daha iyi bir teklif
-        verebilecekseniz şimdi son şansınız.
+        Kapanıştan sonra teklif kabul edilmez.{" "}
+        {isAuction
+          ? "Daha iyi bir teklif verebilecekseniz şimdi son şansınız."
+          : "Teklif vermek istiyorsanız şimdi son şansınız."}
       </Text>
 
       <Section style={ctaWrap}>
-        <Button href={props.tenderUrl}>Eksiltmeye Git</Button>
+        <Button href={props.tenderUrl}>
+          {isAuction ? "Eksiltmeye Git" : "İhaleye Git"}
+        </Button>
       </Section>
     </Layout>
   );
@@ -96,18 +106,20 @@ export function AuctionClosingReminderEmail(
 export function renderAuctionClosingReminderText(
   props: AuctionClosingReminderData,
 ): string {
+  const isAuction = props.isAuction !== false;
+  const noun = isAuction ? "Açık eksiltme" : "İhale";
   return [
-    `Açık eksiltme yakında kapanıyor: ${props.tenderTitle}`,
+    `${noun} yakında kapanıyor: ${props.tenderTitle}`,
     "",
     `Merhaba ${props.supplierUserName},`,
     "",
-    `${props.tenantName} firmasının açık eksiltmesinin kapanışına yaklaşık ${props.minutesLeft} dakika kaldı.`,
+    `${props.tenantName} firmasının ${noun.toLowerCase()}sinin kapanışına yaklaşık ${props.minutesLeft} dakika kaldı.`,
     "",
     `İhale No : ${props.tenderNumber}`,
     `Başlık   : ${props.tenderTitle}`,
     `Kapanış  : ${props.closesAt}`,
     "",
-    `Eksiltmeye git: ${props.tenderUrl}`,
+    `${isAuction ? "Eksiltmeye" : "İhaleye"} git: ${props.tenderUrl}`,
     "",
     "© 2026 Supkeys",
   ].join("\n");

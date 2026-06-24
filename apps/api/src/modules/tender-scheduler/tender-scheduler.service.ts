@@ -113,10 +113,11 @@ export class TenderSchedulerService {
   }
 
   /**
-   * V2-7 — İngiliz Usulü açık eksiltme: kapanışa X dk kala tedarikçilere
-   * hatırlatma e-postası gönderir. Her dakika tarar, idempotent
-   * (closingReminderSentAt set edilen tender bir daha gönderilmez).
-   * RFQ tender'ları bu sorguda yer almaz (type filtresi).
+   * Kapanışa X dk kala davetli tedarikçilere hatırlatma e-postası gönderir.
+   * RFQ (teklif toplama) + İngiliz Usulü her ikisinde de çalışır. Her dakika
+   * tarar, idempotent (closingReminderSentAt set edilen tender tekrar gönderilmez).
+   * RFQ'da zaten teklif vermiş tedarikçiye hatırlatma gitmez; açık eksiltmede
+   * herkese gider (sürekli iyileştirme mümkün).
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async sendClosingReminders() {
@@ -124,7 +125,6 @@ export class TenderSchedulerService {
     const candidates = await this.prisma.tender.findMany({
       where: {
         status: "OPEN_FOR_BIDS",
-        type: "ENGLISH_AUCTION",
         sendClosingReminder: true,
         closingReminderSentAt: null,
         bidsCloseAt: { gt: now },
@@ -133,9 +133,15 @@ export class TenderSchedulerService {
         id: true,
         tenderNumber: true,
         title: true,
+        type: true,
         bidsCloseAt: true,
         reminderMinutesBefore: true,
         tenant: { select: { name: true } },
+        // RFQ'da zaten teklif vermiş tedarikçileri elemek için.
+        bids: {
+          where: { status: "SUBMITTED" },
+          select: { supplierId: true },
+        },
         invitations: {
           where: { status: { in: ["PENDING", "ACCEPTED"] } },
           select: {
@@ -176,10 +182,18 @@ export class TenderSchedulerService {
         });
         if (claim.count === 0) continue;
 
+        const isAuction = tender.type === "ENGLISH_AUCTION";
+        // RFQ'da zaten teklif vermiş tedarikçilere hatırlatma gönderme.
+        const alreadyBid = new Set(tender.bids.map((b) => b.supplierId));
+        const kind = isAuction ? "açık eksiltme" : "ihale";
+
         const tasks: Promise<unknown>[] = [];
+        let sent = 0;
         for (const inv of tender.invitations) {
+          if (!isAuction && alreadyBid.has(inv.supplier.id)) continue;
           const primary = inv.supplier.users[0];
           if (!primary) continue;
+          sent++;
           tasks.push(
             this.emailService.send({
               to: {
@@ -196,16 +210,17 @@ export class TenderSchedulerService {
                   minutesLeft: Math.max(1, Math.round(msLeft / 60_000)),
                   closesAt: tender.bidsCloseAt.toISOString(),
                   tenderUrl: `${webUrl}/supplier/ihaleler/${tender.id}`,
+                  isAuction,
                 },
               },
               context: { type: "auction_closing_reminder", id: inv.id },
-              subject: `⏰ Açık eksiltme yakında kapanıyor: ${tender.title} — Supkeys`,
+              subject: `⏰ ${kind === "ihale" ? "İhale" : "Açık eksiltme"} yakında kapanıyor: ${tender.title} — Supkeys`,
             }),
           );
         }
         await Promise.allSettled(tasks);
         this.logger.log(
-          `Sent closing reminder for ${tender.tenderNumber} to ${tender.invitations.length} supplier(s)`,
+          `Sent closing reminder for ${tender.tenderNumber} to ${sent} supplier(s)`,
         );
       } catch (err) {
         this.logger.error(

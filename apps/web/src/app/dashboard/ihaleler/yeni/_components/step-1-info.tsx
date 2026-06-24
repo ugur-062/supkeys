@@ -963,6 +963,41 @@ export function Step1Info({ stagedFiles, setStagedFiles }: Step1Props) {
                   Tedarikçi teklifi gönderirken en az 1 dosya yüklemelidir.
                 </p>
               </FormCheckbox>
+              <FormCheckbox name="sendClosingReminder">
+                <p>Kapanış hatırlatma e-postası</p>
+                <p className="text-xs font-normal text-zinc-500">
+                  Kapanıştan önce, henüz teklif vermemiş davetli tedarikçilere
+                  hatırlatma gönderilir.
+                </p>
+              </FormCheckbox>
+              {sendClosingReminder ? (
+                <div className="ml-6 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Field
+                    error={
+                      errors.reminderMinutesBefore?.message as
+                        | string
+                        | undefined
+                    }
+                    hint="5-720 dk arası"
+                  >
+                    <Label htmlFor="reminderMinutesBefore">
+                      Kapanışa kaç dk kala?
+                    </Label>
+                    <Input
+                      id="reminderMinutesBefore"
+                      type="number"
+                      min={5}
+                      max={720}
+                      placeholder="60"
+                      hasError={!!errors.reminderMinutesBefore}
+                      {...register("reminderMinutesBefore", {
+                        setValueAs: (v) =>
+                          v === "" || v === undefined ? undefined : Number(v),
+                      })}
+                    />
+                  </Field>
+                </div>
+              ) : null}
             </>
           )}
         </div>
