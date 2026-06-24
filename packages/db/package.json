@@ -12,6 +12,7 @@
     "seed": "tsx prisma/seed.ts",
     "create-test-user": "tsx prisma/scripts/create-test-user.ts",
     "cleanup-pending-relations": "tsx prisma/scripts/cleanup-pending-relations.ts",
+    "reset-accounts": "tsx prisma/scripts/reset-accounts.ts",
     "backfill-supkeys-id": "tsx prisma/scripts/backfill-supkeys-id.ts",
     "v15-cleanup": "tsx prisma/scripts/v15-cleanup.ts",
     "seed-categories": "tsx prisma/scripts/seed-categories.ts",
