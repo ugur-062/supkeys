@@ -1,7 +1,5 @@
 import { api } from "@/lib/api";
 
-export type RegistrationKind = "buyer" | "supplier";
-
 export interface BuyerInvitationInfo {
   companyName: string | null;
   contactName: string | null;
