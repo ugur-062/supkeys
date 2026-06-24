@@ -1,7 +1,13 @@
 # Supkeys — Geliştirme Yol Haritası (33 madde)
 
 > Oluşturulma: 2026-06-17 · Kaynak: ürün sahibi backlog
-> Son denetim: 2026-06-21 · Durum: **Faz 1 + G5 + Faz 3 (16, 20) tamamlandı**. Faz 5 (Açık Eksiltme) planlardan çıkarıldı. Sıradaki: Faz 3 kalanları (33, 6 — soru bekliyor) / Faz 6.
+> Son denetim: 2026-06-21 · Durum: 33 maddenin çoğu ✅ (aşağıdaki tablo).
+>
+> ⚠️ **2026-06-24 — Faz/sürüm ayrımı KALDIRILDI.** Artık V1.5/V2/V2.7/V3 ya da
+> "Faz 1…7 sırasıyla" diye kademe/erteleme yok — kalan her şey **tek backlog**,
+> sıraya göre yapılır. Aşağıdaki "Faz" / "Grup" başlıkları yalnızca **konu/çalışma
+> alanı** referansı olarak (aynı koda iki kez girmemek için) bırakıldı, öncelik
+> kademesi değil. Güncel düz backlog için: `CLAUDE.md → Bekleyen / Yapılacaklar`.
 
 ## İlerleme (kodla denetlendi — 2026-06-21)
 
@@ -24,7 +30,7 @@
 | 3 | 16 (direkt ödeme — nakit/çek handshake) | ✅ (2026-06-21) — OrderPayment modeli + state machine (Teslim Aldım → DELIVERED → tam ödeme onayında otomatik COMPLETED) + ödeme dekontu + popup |
 | 3 | 20 (Kayıtlı Bankalarım + tek yönetici) | ✅ — `supplier-banks` modülü + ayarlar/bankalar UI; sipariş onayında bankadan seçim |
 | 3 | 6 (Supkeys ID + Alıcı Havuzu) | ✅ (2026-06-21) — kalıcı supkeysId (alıcı+tedarikçi) + çift yönlü ekleme; Alıcı Havuzu (tedarikçi paneli) ad/ID arama + public profil |
-| 4/V2-7 | Açık İhale (PUBLIC görünürlük) + premium erişim | ✅ (2026-06-21) — Tender.visibility PRIVATE/PUBLIC; premium tedarikçi PUBLIC+OPEN ihaleleri davetsiz görür/teklif verir (ilk teklifte davet otomatik); standart 2 bağlantı limiti |
+| 4 | Açık İhale (PUBLIC görünürlük) + premium erişim | ✅ (2026-06-21) — Tender.visibility PRIVATE/PUBLIC; premium tedarikçi PUBLIC+OPEN ihaleleri davetsiz görür/teklif verir (ilk teklifte davet otomatik); standart 2 bağlantı limiti |
 | 3 | 33 (teminat mektubu) | ✅ (2026-06-21) — nakit (paymentTerm=CASH) ihalede kazanan tedarikçi siparişi ONAYLARKEN teminat mektubu yüklemek ZORUNDA (hard block); ORDER_GUARANTEE_LETTER scope; wizard uyarı + accept modal upload + belge panelinde kategori. **Faz 3 TAM bitti.** |
 | 4 | 27 (KYC ek belgeler) | ✅ — ticari sicil + imza sirküleri + banka onaylı IBAN (connect-kyc-uploads) |
 | 4 | 7 (ihale şablonları) | ✅ — kalem sorusu + tedarikçi şablonu + İhaleyi Kopyala |
@@ -44,13 +50,13 @@
 | Konu | Karar |
 |---|---|
 | Güvenli ödeme (escrow, 31-32) | **Hem kart hem havale.** Kart = ödeme geçidi (Iyzico/Stripe), havale = admin onaylı manuel. **%3 komisyon.** |
-| Öncelik | **Faz sırasıyla** (küçük → büyük). |
+| Öncelik | ~~Faz sırasıyla~~ → **Kademe yok (2026-06-24).** Kalan her şey tek backlog, sıraya göre yapılır. |
 | Tedarikçi rolü (20) | **Tek "yönetici"** kişi. Sadece o, banka/hesap bilgilerini ekler/düzenler. Genel RBAC yok. |
-| Açık eksiltme (4+17) | ~~Yapılacak — Faz 5~~ → **PLANLARDAN ÇIKARILDI (2026-06-21).** Zaten kurulu (V2-7): İngiliz Usulü tipi + ayarlar (görünürlük, min fiyat azaltma oranı, auto-extend), canlı kart, teklif oran-enforcement, scheduler. Ek genişletme yapılmayacak. |
+| Açık eksiltme (4+17) | ~~Yapılacak~~ → **PLANLARDAN ÇIKARILDI (2026-06-21).** Zaten kurulu: İngiliz Usulü tipi + ayarlar (görünürlük, min fiyat azaltma oranı, auto-extend), canlı kart, teklif oran-enforcement, scheduler. Ek genişletme yapılmayacak. |
 
 ## Açık Eksiltme nedir? (madde 4 + 17 birlikte)
 
-> ❌ **PLANLARDAN ÇIKARILDI (2026-06-21).** Bu özellik **zaten kurulu (V2-7)** —
+> ❌ **PLANLARDAN ÇIKARILDI (2026-06-21).** Bu özellik **zaten kurulu** —
 > İngiliz Usulü tipi + ayarlar (görünürlük, min fiyat azaltma oranı, auto-extend),
 > canlı kart, teklif oran-enforcement, scheduler mevcut. Ek genişletme yapılmayacak.
 > Bölüm tarihsel referans için bırakıldı.
@@ -154,9 +160,12 @@ Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İki
 
 ---
 
-## Fazlar (öncelik sırasıyla)
+## Çalışma alanları (öncelik kademesi DEĞİL — yalnızca konu referansı)
 
-| Faz | İçerik | Boyut |
+> Bu tablo eski "faz sırası"ndan kalma; artık kademe/erteleme yok. Boyut tahmini
+> ve içerik gruplaması olarak bırakıldı.
+
+| Alan | İçerik | Boyut |
 |---|---|---|
 | **1 — Hızlı düzeltmeler** | 8, 9, 10, 11, 13, 18, 24, 25, 26 | S |
 | **2 — Sipariş, belge & onay netliği** | 12/14, 15, 19/21, 22, 23 | M |

@@ -4,7 +4,7 @@
 **Supkeys**, AI destekli e-procurement & e-ihale SaaS platformu. PratisPro/SAP Ariba tarzı B2B; alıcılar için RFQ/teklif toplama/açık eksiltme/kazandırma/sipariş, tedarikçiler için davet kabul/teklif verme. V1 hedefi: 3 ay içinde RFQ flow'u tamamlanmış, üretime hazır iskelet.
 
 ## Marka
-Mavi & beyaz · Inter (UI) + Plus Jakarta Sans (display) · "S" mavi kutu + lacivert/mavi dual-tone · AI agent katmanı V3'te aktif olacak.
+Mavi & beyaz · Inter (UI) + Plus Jakarta Sans (display) · "S" mavi kutu + lacivert/mavi dual-tone · AI agent katmanı ileride aktif olacak.
 
 ## Tech Stack
 - Monorepo: pnpm 10 + Turborepo
@@ -56,10 +56,10 @@ Yan servis yok — Supabase Postgres, Supabase Auth, Cloudflare R2, Resend hepsi
 4. **Tedarikçi self-register VAR** (admin onayıyla); zaten kayıtlı tedarikçinin yeni alıcı daveti kabulü → direkt `ACTIVE`.
 5. **Kapalı zarf:** Tedarikçiler birbirinin tekliflerini ASLA göremez. Alıcı her zaman görür. `/supplier/tenders/:id` response'ı `invitations`/`bids`/`bidStats` field'ları içermez; sadece `myInvitation` + `myBid`.
 6. **SUBMITTED bid editlenmez** (alıcıyla iletişim mesajı + Geri Çek). Alıcı eleme yaparsa LOST → tedarikçi yeniden teklif verebilir (version++).
-7. **Kazandırma kalıcı:** Toplu (tek tedarikçi, tüm kalemler) veya Kalem Bazlı (her kalem ayrı tedarikçi). Finalize edilince Tender → AWARDED + Order'lar (`ORD-YYYY-NNNN`). V1'de geri alma YOK.
-8. **V1 sadece RFQ:** İngiliz Usulü açık eksiltme V2'de.
-9. **Body parser 25MB:** Vergi levhası + tender/bid attachment base64 (V2'de R2 presigned URL).
-10. **Audit log append-only**, AI agent event-bus altyapısı V3'te (Kafka/RabbitMQ).
+7. **Kazandırma kalıcı:** Toplu (tek tedarikçi, tüm kalemler) veya Kalem Bazlı (her kalem ayrı tedarikçi). Finalize edilince Tender → AWARDED + Order'lar (`ORD-YYYY-NNNN`). Şu an geri alma YOK (bekleyen).
+8. **Ana akış RFQ:** İngiliz Usulü açık eksiltme tipi kurulu ama ikincil/ayrı akış.
+9. **Body parser 25MB:** Vergi levhası + tender/bid attachment base64; R2 presigned URL altyapısı mevcut, tamamen taşınabilir.
+10. **Audit log append-only**, AI agent event-bus altyapısı ileride (Kafka/RabbitMQ).
 
 ## Konvansiyonlar
 - Form validation: react-hook-form + zod (frontend), class-validator (backend DTO)
@@ -87,12 +87,12 @@ JWT payload `type` field'ıyla doğrulanır. Tenant token → admin/supplier end
 
 ## Test & Kalite Durumu
 
-- **Test sayısı:** 534 test, 25 suite — Supabase Auth geçişi (2026-05-19/20) sonrası bcrypt mock'ları kırık. Login/register/password servisleri `SupabaseAuthService` bridge'i bekliyor, mock güncellenmedi. **Smoke test manuel doğrulandı** (admin/tenant/supplier login → JWT alındı, generic 401 davranışı korundu). V2.7'de test paketi refactor edilmeli.
+- **Test sayısı:** 534 test, 25 suite — Supabase Auth geçişi (2026-05-19/20) sonrası bcrypt mock'ları kırık. Login/register/password servisleri `SupabaseAuthService` bridge'i bekliyor, mock güncellenmedi. **Smoke test manuel doğrulandı** (admin/tenant/supplier login → JWT alındı, generic 401 davranışı korundu). Test paketi refactor edilmeli (bekleyen iş).
 - **Coverage (geçiş öncesi):** Kritik dosyalarda %85-100 (auth, permissions, controllers)
 - **Test DB:** İzole `supkeys_test`
 - **Komutlar:**
   ```bash
-  pnpm test              # tüm testler (şu an kırık — V2.7'de fix edilecek)
+  pnpm test              # tüm testler (şu an kırık — refactor bekliyor)
   pnpm test:cov          # +coverage rapor
   npx jest e2e.spec      # sadece E2E (13 suite, ~3 dk)
   ```
@@ -127,40 +127,41 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 
 ---
 
-## Bekleyen
+## Bekleyen / Yapılacaklar
 
-### V1.5 (kısa vadeli)
-- Hosting / production setup (Coolify + Hetzner, Docker image with Chromium pre-installed for PDF)
+> **Sürüm/faz ayrımı YOK.** V1.5/V2/V2.7/V3 gibi kademeler kaldırıldı — her şey tek backlog, sıraya göre yapılır. Aşağıdaki gruplar yalnızca konuya göredir, öncelik/erteleme değil.
+
+**Ürün özellikleri**
+- Yurtdışı şirket kaydı (TR dışı firmalar: ülke seçimi + ülkeye göre vergi no/format esnetme + state/province adres modeli + i18n). Şu an kayıt TR'ye varsayılı.
+- STANDARD → PREMIUM upgrade akışı + ödeme (Iyzico/Stripe) + escrow
 - Sipariş üzerinde mesajlaşma
 - Sipariş listesi gelişmiş filtreleme/arama
-- Admin dashboard KPI'ları (demo + buyer + supplier stats agregasyonu)
-
-### V2 (orta vadeli)
-- Resend domain doğrulaması + webhook tracking
-- STANDARD → PREMIUM upgrade akışı + ödeme (Iyzico/Stripe)
-- Tedarikçi havuzu sayfası
-- Profil düzenleme + logo upload
-- **Alıcı (tenant) firma profili:** Alıcı tarafında firma profili sayfası (tedarikçideki profil/logo akışına benzer). `/dashboard` içinde firma bilgisi + logo + tanıtım. (İstendi 2026-06-15.)
-- **Yurtdışı şirket kaydı:** Yabancı (TR dışı) firmaların kayıt olabilmesi. Şu an kayıt TR'ye varsayılı (10-11 haneli VKN/TC, il/ilçe TR locations, vergi dairesi). Ülke seçimi + ülkeye göre vergi no/format esnetme + adres modeli (state/province) + i18n gerekir. (İstendi 2026-06-15.)
-- SMS doğrulama, password reset
+- Self-service "şifremi unuttum" (password reset) + SMS doğrulama
 - Multi-language (EN)
 - Kayıt UX 6 haneli kod
-- İngiliz Usulü açık eksiltme
 - Excel kalem import
-- Açık ihale (PUBLIC visibility) + tedarikçi başvuru sistemi (V2-7)
-- Kategoriye göre e-mail bildirim (V2-7)
-- **Test paketi refactor (V2-7):** 534 testin bcrypt mock'ları `SupabaseAuthService` bridge'i ile uyumsuz. Login/register/password mgmt test'leri Supabase auth.users mock'larıyla yeniden yazılmalı. Smoke-test E2E paketi de güncellenecek.
-- **Apply form `password` alanı temizliği (V2-7):** Buyer/Supplier başvurusunda kullanıcı şifre giriyor ama backend hash'i discard ediyor (Supabase reset-link akışı). DTO + frontend form'dan `password` field'ı kaldırılabilir; aksi halde wonky UX (kullanıcı yazıyor ama kullanılmıyor).
+- Açık ihale (PUBLIC) + tedarikçi başvuru sistemi
 - Eleme/Kazandırma geri alma
 - Hatırlatma e-postası özel süre
 - WebSocket real-time bildirim
+- Admin ek kontroller: impersonate (güvenlik değerlendirilecek), iade/refund, doğrudan kullanıcı ekleme, CSV export, dahili not, global arama
 
-### V3 (uzun vadeli)
+**Altyapı / production**
+- Hosting / production setup (Coolify + Hetzner, Chromium pre-installed Docker image — PDF)
+- Resend domain doğrulaması + webhook tracking
+- Structured logger (Pino + redact), Sentry, alert webhook, audit_logs populate, CSP (helmet), httpOnly cookie auth
+
+**Teknik borç / temizlik**
+- **Test paketi refactor:** 534 testin bcrypt mock'ları `SupabaseAuthService` bridge'i ile uyumsuz; login/register/password test'leri Supabase auth.users mock'larıyla yeniden yazılmalı + smoke E2E paketi güncellenmeli.
+- **Apply form `password` alanı temizliği:** Buyer/Supplier başvurusunda kullanıcı şifre giriyor ama backend hash'i discard ediyor (Supabase reset-link akışı). DTO + form'dan `password` kaldırılmalı.
+- **Supplier profil kategori kartı** yeni modele (`sectorCategoryIds` + `subCategoryIds`) taşınmalı — şu an eski `SupplierCategory` junction'ı (segment-only) düzenliyor, onboarding modeliyle uyumsuz.
+- `Supplier.sectors` (kürasyonlu) deprecated kolon kaldırılmalı; `seed-custom-categories` (KOBİ) scripti eskidi.
+- `@supkeys/email` değişince `pnpm --filter @supkeys/email build` şart — CI'da otomatikleşmeli.
+
+**AI katmanı**
 - AI agent layer (event-bus, MCP entegrasyonu, action endpoint'leri `/api/agents/v1/...`)
-- "Tercihlerimi Getir" preset
-- "Önceki İhalelerden Ekle" template
-- Akıllı şartname motoru
-- Manipülasyon tespiti
+- "Tercihlerimi Getir" preset, "Önceki İhalelerden Ekle" template
+- Akıllı şartname motoru, manipülasyon tespiti
 
 ---
 
