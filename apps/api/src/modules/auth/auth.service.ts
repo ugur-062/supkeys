@@ -93,6 +93,14 @@ export class AuthService {
       );
     }
 
+    // Madde 29 — e-posta doğrulanmadan giriş yok (davet → kod doğrulama).
+    if (!user.emailVerifiedAt) {
+      auditFail("email_unverified");
+      throw new UnauthorizedException(
+        "Giriş yapmadan önce e-posta adresinizi doğrulayın.",
+      );
+    }
+
     // Madde 29 — FAZ 3.3: 2FA açıksa token verme, OTP iste.
     if (user.twoFactorEnabled) {
       const { challengeId, expiresAt } = await this.twoFactor.issueChallenge(

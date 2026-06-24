@@ -184,6 +184,9 @@ model User {
   role         UserRole  @default(BUYER)
   isActive     Boolean   @default(true)
   lastLoginAt  DateTime?
+  // Madde 29 — signup sonrası e-posta KOD doğrulaması (alıcı, davetle).
+  // Doğrulanana kadar login engellenir. Mevcut kullanıcılar backfill edilir.
+  emailVerifiedAt DateTime?
 
   // Madde 29 — FAZ 3: e-posta tabanlı 2 adımlı doğrulama. İhale kapısının
   // ikinci gereksinimi. (OTP challenge'ı login akışında transient üretilir.)

@@ -152,3 +152,37 @@ export async function resendSupplierCode(challengeId: string) {
   );
   return data;
 }
+
+// Madde 29 — alıcı signup (admin davet linki ile) + e-posta kod doğrulama.
+export interface BuyerSignupInput {
+  invitationToken: string;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  password: string;
+}
+
+export async function buyerSignup(input: BuyerSignupInput) {
+  const { data } = await api.post<{
+    challengeId: string;
+    expiresAt: string;
+    email: string;
+  }>("/registration/buyer/signup", input);
+  return data;
+}
+
+export async function verifyBuyerEmail(challengeId: string, code: string) {
+  const { data } = await api.post<{ ok: true }>(
+    "/registration/buyer/verify-email",
+    { challengeId, code },
+  );
+  return data;
+}
+
+export async function resendBuyerCode(challengeId: string) {
+  const { data } = await api.post<{ challengeId: string; expiresAt: string }>(
+    "/registration/buyer/resend-code",
+    { challengeId },
+  );
+  return data;
+}
