@@ -7,6 +7,7 @@ import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import { UserRecoveryActions } from "@/components/user-recovery-actions";
 import {
   useAdminTenantDetail,
+  useDeleteTenantUser,
   useIssuePasswordReset,
   useTenantUserRecovery,
   useUpdateAdminTenant,
@@ -849,6 +850,7 @@ function UserRow({
   const updateMutation = useUpdateTenantUser(tenantId);
   const resetMutation = useIssuePasswordReset(tenantId);
   const recovery = useTenantUserRecovery(tenantId);
+  const deleteUser = useDeleteTenantUser(tenantId);
   const [showReset, setShowReset] = useState<string | null>(null);
 
   const recoveryToast = {
@@ -1017,6 +1019,13 @@ function UserRow({
             }}
             onSaveProfile={(f) =>
               updateMutation.mutateAsync({ userId: user.id, payload: f })
+            }
+            onDelete={() =>
+              deleteUser.mutate(user.id, {
+                onSuccess: () => toast.success("Kullanıcı silindi (KVKK)"),
+                onError: (err: unknown) =>
+                  toast.error(err instanceof Error ? err.message : "Silinemedi"),
+              })
             }
           />
         </div>

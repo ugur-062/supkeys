@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -92,5 +93,14 @@ export class AdminSuppliersController {
     @Req() req: AdminAuthRequest,
   ): Promise<unknown> {
     return this.service.changeEmail(id, userId, dto.email, req.user?.sub ?? "");
+  }
+
+  @Delete(":id/users/:userId")
+  deleteUser(
+    @Param("id") id: string,
+    @Param("userId") userId: string,
+    @Req() req: AdminAuthRequest,
+  ): Promise<unknown> {
+    return this.service.deleteUser(id, userId, req.user?.sub ?? "");
   }
 }

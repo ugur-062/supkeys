@@ -147,6 +147,15 @@ export class AdminTenantsController {
     );
   }
 
+  @Delete(":tenantId/users/:userId")
+  deleteUser(
+    @Param("tenantId") tenantId: string,
+    @Param("userId") userId: string,
+    @Req() req: AdminAuthRequest,
+  ): Promise<unknown> {
+    return this.users.deleteUser(tenantId, userId, req.user?.sub ?? "");
+  }
+
   @Delete(":tenantId/invitations/:invitationId")
   cancelInvitation(
     @Param("tenantId") tenantId: string,

@@ -23,6 +23,7 @@ import {
   Pencil,
   ShieldCheck,
   ShieldOff,
+  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -47,6 +48,8 @@ interface Props {
   // Tedarikçi yönetici terfi/indirme (opsiyonel).
   isManager?: boolean;
   onToggleManager?: () => void;
+  // KVKK silme (opsiyonel).
+  onDelete?: () => void;
 }
 
 /**
@@ -65,10 +68,12 @@ export function UserRecoveryActions({
   onSaveProfile,
   isManager,
   onToggleManager,
+  onDelete,
 }: Props) {
   const [emailModalOpen, setEmailModalOpen] = useState(false);
   const [newEmail, setNewEmail] = useState(email);
   const [saving, setSaving] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [pForm, setPForm] = useState<ProfileFields>(
     profile ?? { firstName: "", lastName: "", phone: "" },
@@ -161,6 +166,14 @@ export function UserRecoveryActions({
             <AtSign data-slot="icon" />
             <DropdownLabel>E-posta değiştir</DropdownLabel>
           </DropdownItem>
+          {onDelete ? (
+            <DropdownItem onClick={() => setDeleteOpen(true)}>
+              <Trash2 data-slot="icon" />
+              <DropdownLabel className="text-danger-600">
+                Sil (KVKK)
+              </DropdownLabel>
+            </DropdownItem>
+          ) : null}
         </DropdownMenu>
       </Dropdown>
 
@@ -231,6 +244,34 @@ export function UserRecoveryActions({
           </Button>
           <Button type="button" onClick={submitProfile} disabled={saving}>
             {saving ? "Kaydediliyor..." : "Kaydet"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)}>
+        <DialogTitle>Kullanıcıyı sil (KVKK)</DialogTitle>
+        <DialogDescription>
+          <strong>{email}</strong> kullanıcısının kişisel verileri kalıcı olarak
+          anonimleştirilir, giriş erişimi kaldırılır. Bu işlem geri alınamaz.
+          İhale/sipariş kayıtları korunur.
+        </DialogDescription>
+        <DialogActions>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setDeleteOpen(false)}
+          >
+            Vazgeç
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => {
+              onDelete?.();
+              setDeleteOpen(false);
+            }}
+          >
+            Kalıcı Sil
           </Button>
         </DialogActions>
       </Dialog>

@@ -287,6 +287,58 @@ export class AdminSuppliersService {
     return updated;
   }
 
+  // ----- KVKK silme -----
+
+  /** Admin KVKK silme — tedarikçi kullanıcısını anonimleştir + auth sil. */
+  async deleteUser(supplierId: string, userId: string, adminId: string) {
+    const target = await this.prisma.supplierUser.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        supplierId: true,
+        isManager: true,
+        authId: true,
+        email: true,
+      },
+    });
+    if (!target || target.supplierId !== supplierId) {
+      throw new NotFoundException("Kullanıcı bulunamadı");
+    }
+    if (target.isManager) {
+      const others = await this.prisma.supplierUser.count({
+        where: {
+          supplierId,
+          isManager: true,
+          isActive: true,
+          id: { not: userId },
+        },
+      });
+      if (others === 0) {
+        throw new ConflictException("En az bir aktif yönetici olmak zorunda");
+      }
+    }
+    if (target.authId) {
+      await this.supabaseAuth.deleteUser(target.authId).catch(() => undefined);
+    }
+    await this.prisma.supplierUser.update({
+      where: { id: userId },
+      data: {
+        isActive: false,
+        authId: null,
+        email: `deleted-${userId}@supkeys.local`,
+        firstName: "Silinmiş",
+        lastName: "Kullanıcı",
+        phone: null,
+      },
+    });
+    this.auditAction(adminId, "supplier.user_deleted", supplierId, {
+      supplierUserId: userId,
+      previousEmail: target.email,
+    });
+    this.logger.log(`Admin ${adminId} KVKK-deleted supplier user ${userId}`);
+    return { success: true };
+  }
+
   // ----- Hesap kurtarma (admin destek) -----
 
   private async findSupplierUser(supplierId: string, userId: string) {

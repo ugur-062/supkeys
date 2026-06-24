@@ -182,6 +182,22 @@ export function useUpdateSupplierUser(supplierId: string) {
   });
 }
 
+export function useDeleteSupplierUser(supplierId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const { data } = await api.delete(
+        `/admin/suppliers/${supplierId}/users/${userId}`,
+      );
+      return data;
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "suppliers", "detail", supplierId],
+      }),
+  });
+}
+
 export function useIssueSupplierPasswordReset(supplierId: string) {
   return useMutation({
     mutationFn: async (userId: string) => {

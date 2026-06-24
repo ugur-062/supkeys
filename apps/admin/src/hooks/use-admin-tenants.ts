@@ -191,6 +191,22 @@ export interface UpdateTenantUserPayload {
   phone?: string;
 }
 
+export function useDeleteTenantUser(tenantId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const { data } = await api.delete(
+        `/admin/tenants/${tenantId}/users/${userId}`,
+      );
+      return data;
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ["admin", "tenants", "detail", tenantId],
+      }),
+  });
+}
+
 export function useResendTenantInvitation(tenantId: string) {
   const queryClient = useQueryClient();
   return useMutation({

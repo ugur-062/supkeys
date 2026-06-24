@@ -137,6 +137,57 @@ export class AdminTenantUsersService {
     return updated;
   }
 
+  // ----- KVKK silme (anonimleştir + auth sil) -----
+
+  /**
+   * Admin KVKK silme talebi — kullanıcıyı anonimleştirir (deletedAt, e-posta +
+   * isim maskeleme), Supabase auth kaydını siler. Tender/Order referansları
+   * korunur. Son aktif COMPANY_ADMIN silinemez.
+   */
+  async deleteUser(tenantId: string, userId: string, adminId: string) {
+    const target = await this.prisma.user.findFirst({
+      where: { id: userId, tenantId, deletedAt: null },
+      select: { id: true, role: true, authId: true, email: true },
+    });
+    if (!target) throw new NotFoundException("Kullanıcı bulunamadı");
+
+    if (target.role === "COMPANY_ADMIN") {
+      const others = await this.prisma.user.count({
+        where: {
+          tenantId,
+          role: "COMPANY_ADMIN",
+          isActive: true,
+          deletedAt: null,
+          id: { not: userId },
+        },
+      });
+      if (others === 0) {
+        throw new ConflictException("En az bir aktif Yönetici olmak zorunda");
+      }
+    }
+
+    if (target.authId) {
+      await this.supabaseAuth.deleteUser(target.authId).catch(() => undefined);
+    }
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        deletedAt: new Date(),
+        isActive: false,
+        authId: null,
+        email: `deleted-${userId}@supkeys.local`,
+        firstName: "Silinmiş",
+        lastName: "Kullanıcı",
+        phone: null,
+      },
+    });
+    this.auditUser(adminId, "tenant.user_deleted", tenantId, userId, {
+      previousEmail: target.email,
+    });
+    this.logger.log(`Admin ${adminId} KVKK-deleted user ${userId} (${tenantId})`);
+    return { success: true };
+  }
+
   // ----- Hesap kurtarma (admin destek) -----
 
   /** E-postayı zorla doğrula (kullanıcı kodu alamıyorsa). */

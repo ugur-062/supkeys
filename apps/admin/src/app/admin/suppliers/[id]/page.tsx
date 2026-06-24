@@ -6,6 +6,7 @@ import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import { UserRecoveryActions } from "@/components/user-recovery-actions";
 import {
   useAdminSupplierDetail,
+  useDeleteSupplierUser,
   useIssueSupplierPasswordReset,
   useSupplierUserRecovery,
   useUpdateSupplierUser,
@@ -56,6 +57,7 @@ function DetailContent() {
   const userMutation = useUpdateSupplierUser(id ?? "");
   const recovery = useSupplierUserRecovery(id ?? "");
   const pwReset = useIssueSupplierPasswordReset(id ?? "");
+  const deleteUser = useDeleteSupplierUser(id ?? "");
   const [resetInfo, setResetInfo] = useState<{ userId: string; url: string } | null>(
     null,
   );
@@ -335,6 +337,13 @@ function DetailContent() {
                   }
                   isManager={u.isManager}
                   onToggleManager={() => toggleManager(u.id, !u.isManager)}
+                  onDelete={() =>
+                    deleteUser.mutate(u.id, {
+                      onSuccess: () => toast.success("Kullanıcı silindi (KVKK)"),
+                      onError: (e: unknown) =>
+                        toast.error(e instanceof Error ? e.message : "Silinemedi"),
+                    })
+                  }
                 />
               </div>
             </div>
