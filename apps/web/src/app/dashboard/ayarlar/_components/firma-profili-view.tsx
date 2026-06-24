@@ -8,6 +8,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { BackToSettings } from "./back-to-settings";
 import { TenantPublicProfileCard } from "./tenant-public-profile-card";
+import { TenantCategoriesCard } from "./tenant-categories-card";
 
 function SupkeysIdRow() {
   const { data } = useTenantPublicProfile();
@@ -82,8 +83,10 @@ export function FirmaProfiliView() {
           </p>
         </Accordion>
 
-        <Accordion title="Kategori Bilgileri" defaultOpen>
-          <NestedCategoryAccordion />
+        <Accordion title="Faaliyet Kategorileri" defaultOpen>
+          <TenantCategoriesCard
+            canEdit={meQuery.data.role === "COMPANY_ADMIN"}
+          />
         </Accordion>
 
         <Accordion title="Vergi Bilgileri" defaultOpen>
@@ -198,37 +201,6 @@ function Accordion({ title, defaultOpen = false, children }: AccordionProps) {
   );
 }
 
-function NestedCategoryAccordion() {
-  const [open, setOpen] = useState(true);
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-slate-50"
-      >
-        <ChevronDown
-          className={cn(
-            "h-4 w-4 flex-shrink-0 text-slate-400 transition-transform duration-200",
-            open ? "rotate-0" : "-rotate-90",
-          )}
-        />
-        <span className="flex-1 text-sm font-medium text-slate-700">
-          A. Ham Maddeler, Kimyasallar, Kağıt, Yakıt
-        </span>
-        <span className="text-xs text-slate-400">
-          (1 ana kategori seçili)
-        </span>
-      </button>
-      {open ? (
-        <p className="ml-6 mt-2 text-xs text-slate-500">
-          Alt kategori seçimi V2-7'de aktif olacak.
-        </p>
-      ) : null}
-    </div>
-  );
-}
 
 interface InfoPairProps {
   label: string;

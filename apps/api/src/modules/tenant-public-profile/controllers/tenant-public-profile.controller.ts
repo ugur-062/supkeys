@@ -19,6 +19,7 @@ import {
   FinalizeTenantImageDto,
   RequestTenantUploadDto,
 } from "../dto/tenant-upload.dto";
+import { UpdateTenantCategoriesDto } from "../dto/update-tenant-categories.dto";
 import { UpdateTenantPublicProfileDto } from "../dto/update-tenant-public-profile.dto";
 import { TenantPublicProfileService } from "../services/tenant-public-profile.service";
 
@@ -43,6 +44,22 @@ export class TenantPublicProfileController {
     @Body() dto: UpdateTenantPublicProfileDto,
   ) {
     return this.service.updateMine(user.tenantId, dto);
+  }
+
+  // ===== Faaliyet kategorileri (ana ≤3 + alt sınırsız) =====
+  @Get("categories")
+  getCategories(@CurrentUser() user: AuthenticatedUser) {
+    return this.service.getMyCategories(user.tenantId);
+  }
+
+  @Patch("categories")
+  @UseGuards(RolesGuard)
+  @Roles("COMPANY_ADMIN")
+  updateCategories(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: UpdateTenantCategoriesDto,
+  ) {
+    return this.service.updateMyCategories(user.tenantId, dto);
   }
 
   @Post("import-from-website")

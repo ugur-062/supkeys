@@ -5,13 +5,16 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
 import {
   downloadImageBuffer,
   extForContentType,
   fetchSiteMeta,
 } from "../../../common/website-import";
 import { generateCompanyAbout } from "../../../common/ai-about";
+import { CategoryService } from "../../categories/services/category.service";
 import { StorageService } from "../../storage/storage.service";
+import type { UpdateTenantCategoriesDto } from "../dto/update-tenant-categories.dto";
 import type { FinalizeTenantImageDto, RequestTenantUploadDto } from "../dto/tenant-upload.dto";
 import type { UpdateTenantPublicProfileDto } from "../dto/update-tenant-public-profile.dto";
 
@@ -39,7 +42,52 @@ export class TenantPublicProfileService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly categories: CategoryService,
   ) {}
+
+  /**
+   * Alıcının faaliyet kategorileri — ana (segment, ≤3) + alt (sınırsız),
+   * isim/breadcrumb ile çözümlenmiş. Firma profili kategori kartı için.
+   */
+  async getMyCategories(tenantId: string) {
+    const t = await this.prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { sectorCategoryIds: true, subCategoryIds: true },
+    });
+    if (!t) throw new NotFoundException("Firma bulunamadı");
+
+    const resolved = await this.categories.getByIds([
+      ...t.sectorCategoryIds,
+      ...t.subCategoryIds,
+    ]);
+    const byId = new Map(resolved.map((c) => [c.id, c]));
+    // Seçim sırasını koru (ilk ana = "ana kategori").
+    const main = t.sectorCategoryIds
+      .map((id) => byId.get(id))
+      .filter((c): c is NonNullable<typeof c> => !!c);
+    const sub = t.subCategoryIds
+      .map((id) => byId.get(id))
+      .filter((c): c is NonNullable<typeof c> => !!c);
+    return { main, sub };
+  }
+
+  /** Alıcının kategorilerini güncelle (ana ≤3 + alt sınırsız). */
+  async updateMyCategories(tenantId: string, dto: UpdateTenantCategoriesDto) {
+    const { mainIds, subIds, mainNames } = await validateCategorySelection(
+      this.prisma,
+      dto.mainCategoryIds,
+      dto.subCategoryIds ?? [],
+    );
+    await this.prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        sectorCategoryIds: mainIds,
+        subCategoryIds: subIds,
+        industry: mainNames[0] ?? null,
+      },
+    });
+    return this.getMyCategories(tenantId);
+  }
 
   /** Logo + cover key'lerini görüntülenebilir URL'e çevirir. */
   private async serialize(t: {
