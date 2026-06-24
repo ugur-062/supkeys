@@ -1,10 +1,12 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import { EmailStatusBadge } from "@/components/ui/email-status-badge";
-import { useEmailLogDetail } from "@/hooks/use-email-logs";
+import { useEmailLogDetail, useResendEmail } from "@/hooks/use-email-logs";
 import { EMAIL_EVENT_META, getTemplateLabel } from "@/lib/email-logs/status";
 import type { EmailEvent } from "@/lib/email-logs/types";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogBackdrop,
@@ -56,6 +58,16 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
   const open = !!id;
   const detail = useEmailLogDetail(id);
   const item = detail.data;
+  const resend = useResendEmail();
+
+  const onResend = () => {
+    if (!id) return;
+    resend.mutate(id, {
+      onSuccess: () => toast.success("E-posta yeniden gönderildi"),
+      onError: (e: unknown) =>
+        toast.error(e instanceof Error ? e.message : "Gönderilemedi"),
+    });
+  };
 
   return (
     <Dialog open={open} onClose={onClose} className="relative z-50">
@@ -111,6 +123,15 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                     </div>
                     <EmailStatusBadge status={item.status} />
                   </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={onResend}
+                    disabled={resend.isPending}
+                  >
+                    {resend.isPending ? "Gönderiliyor..." : "Yeniden Gönder"}
+                  </Button>
 
                   <dl className="space-y-1.5 text-sm pt-1">
                     <div className="flex justify-between gap-4">

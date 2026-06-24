@@ -6,7 +6,7 @@ import type {
   EmailLogList,
   ListEmailLogsParams,
 } from "@/lib/email-logs/types";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 const KEYS = {
   all: ["admin", "email-logs"] as const,
@@ -49,5 +49,18 @@ export function useEmailLogDetail(id: string | null) {
       return data;
     },
     enabled: !!id,
+  });
+}
+
+export function useResendEmail() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await api.post<{ success: boolean; emailLogId: string }>(
+        `/admin/email-logs/${id}/resend`,
+      );
+      return data;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: KEYS.all }),
   });
 }

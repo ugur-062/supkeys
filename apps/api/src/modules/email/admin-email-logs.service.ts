@@ -1,11 +1,57 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@supkeys/db";
+import type { EmailTemplateData } from "@supkeys/email";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
+import { EmailService } from "./email.service";
 import { ListEmailLogsDto } from "./dto/list-email-logs.dto";
 
 @Injectable()
 export class AdminEmailLogsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly emailService: EmailService,
+    private readonly audit: AuditService,
+  ) {}
+
+  /** Başarısız/teslim olmamış bir e-postayı aynı içerikle yeniden gönder. */
+  async resend(id: string, adminId: string) {
+    const log = await this.prisma.emailLog.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        template: true,
+        toEmail: true,
+        toName: true,
+        subject: true,
+        payload: true,
+      },
+    });
+    if (!log) throw new NotFoundException("E-posta kaydı bulunamadı");
+
+    const result = await this.emailService.send({
+      to: { email: log.toEmail, name: log.toName ?? undefined },
+      subject: log.subject,
+      templateData: {
+        template: log.template,
+        data: log.payload ?? {},
+      } as unknown as EmailTemplateData,
+    });
+
+    void this.audit.log({
+      action: "email.resent",
+      actorType: "admin",
+      actorId: adminId || null,
+      entityType: "email_log",
+      entityId: id,
+      metadata: {
+        template: log.template,
+        toEmail: log.toEmail,
+        newLogId: result.emailLogId,
+      },
+    });
+    return { success: true, emailLogId: result.emailLogId };
+  }
 
   async list(query: ListEmailLogsDto) {
     const page = query.page ?? 1;
