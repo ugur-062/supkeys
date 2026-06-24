@@ -134,7 +134,6 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 **Ürün özellikleri**
 - Yurtdışı şirket kaydı (TR dışı firmalar: ülke seçimi + ülkeye göre vergi no/format esnetme + state/province adres modeli + i18n). Şu an kayıt TR'ye varsayılı.
 - STANDARD → PREMIUM upgrade akışı + ödeme (Iyzico/Stripe) + escrow
-- Sipariş üzerinde mesajlaşma
 - Kayıt UX 6 haneli kod
 - Açık ihale (PUBLIC) + tedarikçi başvuru sistemi
 - Kazandırma geri alma (un-award) — SONRAYA bırakıldı (canlı siparişlere dokunan riskli iş). NOT: eleme geri almaya gerek yok — elenen tedarikçi zaten baştan yeniden teklif verebiliyor (mevcut davranış kabul edildi).
