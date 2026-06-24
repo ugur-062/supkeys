@@ -14,6 +14,7 @@ import { generateOrderNumber, generateTenderNumber } from "@supkeys/shared";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { assertCanActOnTender } from "../../../common/rbac/tender-owner.guard";
+import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-category-match.helper";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { AuditService } from "../../audit/audit.service";
 import {
@@ -1178,18 +1179,8 @@ export class TenantTendersService {
       .filter((c) => /^\d{8}$/.test(c));
     if (tenderCatIds.length === 0) return;
 
-    const segmentIds = Array.from(
-      new Set(tenderCatIds.map((c) => c.slice(0, 2) + "000000")),
-    );
-    const subCandidates = Array.from(
-      new Set(
-        tenderCatIds.flatMap((c) => [
-          c,
-          c.slice(0, 6) + "00",
-          c.slice(0, 4) + "0000",
-        ]),
-      ),
-    );
+    const { segmentIds, subCandidates } =
+      deriveCategoryMatchCandidates(tenderCatIds);
 
     const suppliers = await this.prisma.supplier.findMany({
       where: {

@@ -7,6 +7,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { deriveCategoryMatchCandidates } from "../../common/helpers/tender-category-match.helper";
 import { EmailService } from "../email/email.service";
 
 interface ExpiredTenderPayload {
@@ -134,10 +135,13 @@ export class TenderSchedulerService {
         tenderNumber: true,
         title: true,
         type: true,
+        visibility: true,
         bidsCloseAt: true,
         reminderMinutesBefore: true,
         tenant: { select: { name: true } },
-        // RFQ'da zaten teklif vermiş tedarikçileri elemek için.
+        // PUBLIC ihalede kategori-eşleşen tedarikçileri bulmak için.
+        categories: { select: { categoryId: true } },
+        // Zaten teklif vermiş tedarikçileri elemek için.
         bids: {
           where: { status: "SUBMITTED" },
           select: { supplierId: true },
@@ -183,27 +187,71 @@ export class TenderSchedulerService {
         if (claim.count === 0) continue;
 
         const isAuction = tender.type === "ENGLISH_AUCTION";
-        // RFQ'da zaten teklif vermiş tedarikçilere hatırlatma gönderme.
+        // Zaten teklif vermiş tedarikçilere hatırlatma gönderme (açık eksiltme
+        // hariç — orada sürekli iyileştirme mümkün).
         const alreadyBid = new Set(tender.bids.map((b) => b.supplierId));
-        const kind = isAuction ? "açık eksiltme" : "ihale";
 
-        const tasks: Promise<unknown>[] = [];
-        let sent = 0;
+        // supplierId → primary user. Davetli (teklif vermemiş) ile başla.
+        const recipients = new Map<
+          string,
+          { email: string; firstName: string; lastName: string }
+        >();
         for (const inv of tender.invitations) {
           if (!isAuction && alreadyBid.has(inv.supplier.id)) continue;
-          const primary = inv.supplier.users[0];
-          if (!primary) continue;
-          sent++;
+          const p = inv.supplier.users[0];
+          if (p) recipients.set(inv.supplier.id, p);
+        }
+
+        // PUBLIC ihale: davetlilere ek olarak İLGİLİ KATEGORİDEKİ (teklif
+        // vermemiş) tedarikçilere de hatırlat — herkese değil, sadece eşleşen.
+        if (tender.visibility === "PUBLIC") {
+          const { segmentIds, subCandidates } = deriveCategoryMatchCandidates(
+            tender.categories.map((c) => c.categoryId),
+          );
+          if (segmentIds.length > 0 || subCandidates.length > 0) {
+            const matched = await this.prisma.supplier.findMany({
+              where: {
+                isActive: true,
+                isBlocked: false,
+                ...(alreadyBid.size > 0
+                  ? { id: { notIn: [...alreadyBid] } }
+                  : {}),
+                OR: [
+                  { sectorCategoryIds: { hasSome: segmentIds } },
+                  { subCategoryIds: { hasSome: subCandidates } },
+                ],
+              },
+              take: 300,
+              select: {
+                id: true,
+                users: {
+                  where: { isActive: true },
+                  orderBy: { createdAt: "asc" },
+                  take: 1,
+                  select: { email: true, firstName: true, lastName: true },
+                },
+              },
+            });
+            for (const s of matched) {
+              if (recipients.has(s.id)) continue;
+              const p = s.users[0];
+              if (p) recipients.set(s.id, p);
+            }
+          }
+        }
+
+        const tasks: Promise<unknown>[] = [];
+        for (const [supplierId, p] of recipients) {
           tasks.push(
             this.emailService.send({
               to: {
-                email: primary.email,
-                name: `${primary.firstName} ${primary.lastName}`,
+                email: p.email,
+                name: `${p.firstName} ${p.lastName}`,
               },
               templateData: {
                 template: "auction_closing_reminder",
                 data: {
-                  supplierUserName: `${primary.firstName} ${primary.lastName}`,
+                  supplierUserName: `${p.firstName} ${p.lastName}`,
                   tenantName: tender.tenant.name,
                   tenderNumber: tender.tenderNumber,
                   tenderTitle: tender.title,
@@ -213,11 +261,15 @@ export class TenderSchedulerService {
                   isAuction,
                 },
               },
-              context: { type: "auction_closing_reminder", id: inv.id },
-              subject: `⏰ ${kind === "ihale" ? "İhale" : "Açık eksiltme"} yakında kapanıyor: ${tender.title} — Supkeys`,
+              context: {
+                type: "auction_closing_reminder",
+                id: `${tender.id}:${supplierId}`,
+              },
+              subject: `⏰ ${isAuction ? "Açık eksiltme" : "İhale"} yakında kapanıyor: ${tender.title} — Supkeys`,
             }),
           );
         }
+        const sent = recipients.size;
         await Promise.allSettled(tasks);
         this.logger.log(
           `Sent closing reminder for ${tender.tenderNumber} to ${sent} supplier(s)`,
