@@ -117,6 +117,11 @@ import {
   renderAdminPasswordResetText,
 } from "./templates/admin-password-reset";
 import {
+  makePasswordResetSubject,
+  PasswordResetEmail,
+  renderPasswordResetText,
+} from "./templates/password-reset";
+import {
   ApprovalRequiredEmail,
   makeApprovalRequiredSubject,
   renderApprovalRequiredText,
@@ -454,6 +459,16 @@ export async function renderEmail(
         subject: makeAdminPasswordResetSubject(),
         html,
         text: renderAdminPasswordResetText(spec.data),
+      };
+    }
+    case "password_reset": {
+      const html = await render(
+        React.createElement(PasswordResetEmail, spec.data),
+      );
+      return {
+        subject: makePasswordResetSubject(),
+        html,
+        text: renderPasswordResetText(spec.data),
       };
     }
 

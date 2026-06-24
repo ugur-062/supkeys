@@ -5,6 +5,7 @@ import type { Prisma, UserRole } from "@supkeys/db";
 import type { AuthenticatedUser } from "../../common/decorators/current-user.decorator";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import { PasswordResetService } from "../password-reset/password-reset.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { TwoFactorService } from "../two-factor/two-factor.service";
 import { ForgotPasswordDto } from "./dto/forgot-password.dto";
@@ -23,21 +24,16 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly audit: AuditService,
     private readonly twoFactor: TwoFactorService,
+    private readonly passwordReset: PasswordResetService,
   ) {}
 
   /**
-   * Şifre sıfırlama linki Supabase üzerinden gönderilir. Kullanıcının
-   * tenant/supplier/admin olması fark etmez — Supabase auth.users e-posta
-   * üzerinden bulur. Var/yok ayrımı user'a sızdırılmaz (her zaman success
-   * döner; SupabaseAuthService sessizce logger.warn yapar).
+   * Alıcı (tenant) self-service "şifremi unuttum". Bizim token sistemiyle
+   * (admin reset ile aynı: /reset-password?token= + /auth/password-reset/confirm)
+   * tenant kullanıcısına e-posta gönderir. Var/yok ayrımı sızdırılmaz.
    */
   async forgotPassword(dto: ForgotPasswordDto): Promise<{ success: true }> {
-    const webUrl = this.config.get<string>("WEB_URL", "http://localhost:3000");
-    await this.supabaseAuth.sendPasswordResetEmail(
-      dto.email.toLowerCase().trim(),
-      `${webUrl.replace(/\/$/, "")}/auth/reset-callback`,
-    );
-    return { success: true };
+    return this.passwordReset.requestForTenant(dto.email);
   }
 
   async login(dto: LoginDto, ctx?: { ip?: string; userAgent?: string }) {

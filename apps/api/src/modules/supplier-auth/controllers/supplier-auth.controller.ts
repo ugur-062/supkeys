@@ -14,6 +14,7 @@ import {
   CurrentSupplierUser,
   type AuthenticatedSupplierUser,
 } from "../decorators/current-supplier-user.decorator";
+import { SupplierForgotPasswordDto } from "../dto/supplier-forgot-password.dto";
 import { SupplierLoginDto } from "../dto/supplier-login.dto";
 import { SupplierVerifyOtpDto } from "../dto/two-factor.dto";
 import { SupplierJwtAuthGuard } from "../guards/supplier-jwt-auth.guard";
@@ -33,6 +34,14 @@ export class SupplierAuthController {
     @Headers("user-agent") userAgent: string,
   ) {
     return this.service.login(dto, { ip, userAgent });
+  }
+
+  // Self-service "şifremi unuttum" — tedarikçi kullanıcısı için.
+  @Post("forgot-password")
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  forgotPassword(@Body() dto: SupplierForgotPasswordDto) {
+    return this.service.forgotPassword(dto.email);
   }
 
   // Madde 29 — FAZ 3.3: login OTP doğrula (2FA açık kullanıcılar).

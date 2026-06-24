@@ -30,6 +30,7 @@ export type EmailTemplate =
   | "order_status_changed"
   | "message_notification"
   | "admin_password_reset"
+  | "password_reset"
   | "two_factor_otp";
 
 export type EmailProviderName = "resend";
@@ -518,6 +519,7 @@ export type EmailTemplateData =
   | { template: "order_status_changed"; data: OrderStatusChangedData }
   | { template: "message_notification"; data: MessageNotificationData }
   | { template: "admin_password_reset"; data: AdminPasswordResetData }
+  | { template: "password_reset"; data: PasswordResetData }
   | { template: "two_factor_otp"; data: TwoFactorOtpData };
 
 export interface TwoFactorOtpData {
@@ -537,6 +539,17 @@ export interface AdminPasswordResetData {
   email: string;
   resetUrl: string;
   /** Token TTL — şablonda "60 dakika" gibi gösterilir. */
+  expiresInMinutes: number;
+}
+
+/**
+ * Self-service "şifremi unuttum" — kullanıcının kendi talebiyle giden tek
+ * kullanımlık parola sıfırlama linki (admin değil; copy "siz talep ettiniz").
+ */
+export interface PasswordResetData {
+  firstName: string;
+  email: string;
+  resetUrl: string;
   expiresInMinutes: number;
 }
 

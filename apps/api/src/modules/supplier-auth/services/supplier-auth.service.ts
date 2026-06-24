@@ -8,6 +8,7 @@ import type { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { AuditService } from "../../audit/audit.service";
 import { buildBreadcrumb } from "../../categories/services/category.service";
+import { PasswordResetService } from "../../password-reset/password-reset.service";
 import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import { TwoFactorService } from "../../two-factor/two-factor.service";
 import { SupplierLoginDto } from "../dto/supplier-login.dto";
@@ -21,7 +22,13 @@ export class SupplierAuthService {
     private readonly supabaseAuth: SupabaseAuthService,
     private readonly audit: AuditService,
     private readonly twoFactor: TwoFactorService,
+    private readonly passwordReset: PasswordResetService,
   ) {}
+
+  /** Self-service "şifremi unuttum" — tedarikçi (bizim token sistemi). */
+  forgotPassword(email: string): Promise<{ success: true }> {
+    return this.passwordReset.requestForSupplier(email);
+  }
 
   async login(
     dto: SupplierLoginDto,

@@ -31,9 +31,9 @@ export function SupplierForgotPasswordForm() {
   const onSubmit = async (values: Values) => {
     setSubmitting(true);
     try {
-      // Tek backend endpoint — Supabase auth.users tenant/supplier ayrımı
-      // yapmadan email üzerinden bulur ve reset linki gönderir.
-      await api.post("/auth/forgot-password", { email: values.email });
+      // Tedarikçi domain endpoint'i — SupplierUser'ı email ile bulup bizim
+      // token sistemiyle reset linki gönderir. Var/yok ayrımı sızdırılmaz.
+      await api.post("/supplier-auth/forgot-password", { email: values.email });
       setSentTo(values.email);
     } catch {
       toast.error("Bir sorun oluştu, lütfen tekrar deneyin");
