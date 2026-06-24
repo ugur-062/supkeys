@@ -166,6 +166,7 @@ function OrderDetailContent({ order }: { order: OrderDetail }) {
                 orderId={order.id}
                 status={order.status}
                 cashPayment={order.tender.paymentTerm === "CASH"}
+                isInternational={order.tender.isInternational}
               />
             </div>
           </Section>

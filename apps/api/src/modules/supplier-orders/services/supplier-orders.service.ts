@@ -43,6 +43,7 @@ const ORDER_DETAIL_SELECT = {
       title: true,
       status: true,
       primaryCurrency: true,
+      isInternational: true,
       deliveryTerm: true,
       deliveryAddress: true,
       paymentTerm: true,

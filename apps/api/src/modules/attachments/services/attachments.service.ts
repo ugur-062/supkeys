@@ -329,6 +329,7 @@ export class AttachmentsService {
       scope === "ORDER_PROFORMA" ||
       scope === "ORDER_TECHNICAL" ||
       scope === "ORDER_DELIVERY" ||
+      scope === "ORDER_BILL_OF_LADING" ||
       scope === "ORDER_GUARANTEE_LETTER"
     ) {
       if (actor.kind !== "supplier") {
@@ -412,6 +413,7 @@ export class AttachmentsService {
       scope === "ORDER_PROFORMA" ||
       scope === "ORDER_TECHNICAL" ||
       scope === "ORDER_DELIVERY" ||
+      scope === "ORDER_BILL_OF_LADING" ||
       scope === "ORDER_PAYMENT_PROOF" ||
       scope === "ORDER_GUARANTEE_LETTER"
     ) {

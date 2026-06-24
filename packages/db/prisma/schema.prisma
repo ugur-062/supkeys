@@ -1775,7 +1775,8 @@ enum AttachmentScope {
   // G5 madde 19/21 — sipariş belge kategorileri (scopeRefId = order id).
   ORDER_PROFORMA // proforma (baştan)
   ORDER_TECHNICAL // teknik doküman (baştan)
-  ORDER_DELIVERY // Teslimat Evrakları (gönderim sonrası, alıcı imzalı)
+  ORDER_DELIVERY // Teslimat Evrakları (yurtiçi — gönderim sonrası, alıcı imzalı irsaliye)
+  ORDER_BILL_OF_LADING // Konşimento (uluslararası siparişte irsaliye yerine)
   ORDER_PAYMENT_PROOF // Faz 3 madde 16 — ödeme dekontu (alıcı yükler, ikisi de görür)
   ORDER_GUARANTEE_LETTER // Madde 33 — teminat mektubu (nakit ödemede tedarikçi yükler, ikisi de görür)
 }

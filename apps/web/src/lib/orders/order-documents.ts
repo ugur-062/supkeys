@@ -12,6 +12,7 @@ export type OrderDocScope =
   | "ORDER_TECHNICAL"
   | "ORDER_INVOICE"
   | "ORDER_DELIVERY"
+  | "ORDER_BILL_OF_LADING"
   | "ORDER_GUARANTEE_LETTER";
 
 export interface OrderDocCategory {
@@ -23,6 +24,10 @@ export interface OrderDocCategory {
   statuses: OrderStatus[];
   /** Madde 33 — yalnızca nakit ödemeli siparişlerde görünür. */
   cashOnly?: boolean;
+  /** Yalnızca yurtiçi siparişte (örn. irsaliye). */
+  domesticOnly?: boolean;
+  /** Yalnızca uluslararası siparişte (örn. konşimento). */
+  intlOnly?: boolean;
 }
 
 // "baştan" görünenler — terminal statülerde de mevcut belgeler görünsün diye
@@ -61,11 +66,22 @@ export const ORDER_DOC_CATEGORIES: OrderDocCategory[] = [
     statuses: ["ACCEPTED", "IN_DELIVERY", "COMPLETED", "DELIVERED"],
   },
   {
+    // Yurtiçi — irsaliye/teslim belgesi.
     scope: "ORDER_DELIVERY",
     label: "Teslimat Evrakları",
     emptyText: "Teslimat evrakı yüklenmedi",
     hint: "Alıcı imzalı irsaliye/teslim belgesi — PDF, görsel (max 50 MB)",
     statuses: ["IN_DELIVERY", "COMPLETED", "DELIVERED"],
+    domesticOnly: true,
+  },
+  {
+    // Uluslararası — irsaliye yerine konşimento (bill of lading).
+    scope: "ORDER_BILL_OF_LADING",
+    label: "Konşimento",
+    emptyText: "Konşimento yüklenmedi",
+    hint: "Konşimento (bill of lading) — PDF, görsel (max 50 MB)",
+    statuses: ["IN_DELIVERY", "COMPLETED", "DELIVERED"],
+    intlOnly: true,
   },
   {
     // Madde 33 — nakit ödemeli siparişte tedarikçi onaydan önce yükler.
@@ -81,11 +97,16 @@ export const ORDER_DOC_CATEGORIES: OrderDocCategory[] = [
 /** Verilen sipariş statüsünde görünmesi gereken belge kategorileri. */
 export function visibleOrderDocCategories(
   status: OrderStatus,
-  opts?: { cashPayment?: boolean },
+  opts?: { cashPayment?: boolean; isInternational?: boolean },
 ): OrderDocCategory[] {
+  const intl = opts?.isInternational === true;
   return ORDER_DOC_CATEGORIES.filter(
     (c) =>
-      c.statuses.includes(status) && (!c.cashOnly || opts?.cashPayment === true),
+      c.statuses.includes(status) &&
+      (!c.cashOnly || opts?.cashPayment === true) &&
+      // Yurtiçi (irsaliye) ↔ uluslararası (konşimento) ayrımı.
+      !(c.domesticOnly && intl) &&
+      !(c.intlOnly && !intl),
   );
 }
 

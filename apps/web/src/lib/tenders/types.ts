@@ -916,6 +916,7 @@ export interface OrderDetail {
     tenderNumber: string;
     title: string;
     status: TenderStatus;
+    isInternational: boolean;
     primaryCurrency: Currency;
   allowedCurrencies: Currency[];
     deliveryTerm: DeliveryTerm | null;

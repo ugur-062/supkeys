@@ -217,6 +217,7 @@ export function SupplierOrderDetailView({ id }: { id: string }) {
                     orderId={order.id}
                     status={order.status}
                     cashPayment={order.tender.paymentTerm === "CASH"}
+                    isInternational={order.tender.isInternational}
                   />
                 </PanelCard>
               </TabPanel>

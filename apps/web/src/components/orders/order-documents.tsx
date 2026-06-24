@@ -25,6 +25,8 @@ interface Props {
   status: OrderStatus;
   /** Madde 33 — nakit ödemeli sipariş; Teminat Mektubu kategorisini gösterir. */
   cashPayment?: boolean;
+  /** Uluslararası sipariş → irsaliye yerine konşimento kategorisi gösterilir. */
+  isInternational?: boolean;
 }
 
 export function OrderDocuments({
@@ -32,8 +34,12 @@ export function OrderDocuments({
   orderId,
   status,
   cashPayment,
+  isInternational,
 }: Props) {
-  const categories = visibleOrderDocCategories(status, { cashPayment });
+  const categories = visibleOrderDocCategories(status, {
+    cashPayment,
+    isInternational,
+  });
   const canUpload = surface === "supplier" && canUploadOrderDocs(status);
 
   if (categories.length === 0) {
@@ -94,11 +100,14 @@ function OrderDocCategoryBlock({
         emptyText={category.emptyText}
       />
 
-      {category.scope === "ORDER_DELIVERY" ? (
+      {category.scope === "ORDER_DELIVERY" ||
+      category.scope === "ORDER_BILL_OF_LADING" ? (
         <DeliveryDocsWarning
           surface={surface}
           orderId={orderId}
           status={status}
+          scope={category.scope}
+          label={category.label}
         />
       ) : null}
     </div>
@@ -106,19 +115,23 @@ function OrderDocCategoryBlock({
 }
 
 /**
- * Sipariş tamamlandığında imzalı teslimat evrakı eksikse küçük uyarı.
- * (Tamamlanmayı bloklamaz — sadece bilgilendirir.)
+ * Sipariş tamamlandığında teslim belgesi (yurtiçi: irsaliye / uluslararası:
+ * konşimento) eksikse küçük uyarı. (Tamamlanmayı bloklamaz — bilgilendirir.)
  */
 function DeliveryDocsWarning({
   surface,
   orderId,
   status,
+  scope,
+  label,
 }: {
   surface: AttachmentSurface;
   orderId: string;
   status: OrderStatus;
+  scope: "ORDER_DELIVERY" | "ORDER_BILL_OF_LADING";
+  label: string;
 }) {
-  const { data, isLoading } = useAttachments(surface, "ORDER_DELIVERY", orderId);
+  const { data, isLoading } = useAttachments(surface, scope, orderId);
   const isCompleted = status === "COMPLETED" || status === "DELIVERED";
 
   if (!isCompleted || isLoading) return null;
@@ -127,7 +140,7 @@ function DeliveryDocsWarning({
   return (
     <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
       <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-      <span>İmzalı teslimat evrakı henüz yüklenmedi.</span>
+      <span>{label} henüz yüklenmedi.</span>
     </div>
   );
 }

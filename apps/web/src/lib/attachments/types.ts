@@ -14,6 +14,8 @@ export type AttachmentScope =
   | "ORDER_PROFORMA"
   | "ORDER_TECHNICAL"
   | "ORDER_DELIVERY"
+  // Konşimento — uluslararası siparişte irsaliye yerine
+  | "ORDER_BILL_OF_LADING"
   // Faz 3 madde 16 — ödeme dekontu (alıcı yükler, ikisi de görür)
   | "ORDER_PAYMENT_PROOF"
   // Madde 33 — teminat mektubu (nakit ödemede tedarikçi yükler, ikisi de görür)
