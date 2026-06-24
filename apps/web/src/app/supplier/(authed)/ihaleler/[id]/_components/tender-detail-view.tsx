@@ -28,9 +28,11 @@ import {
   Info,
   Layers,
   Loader2,
+  Lock,
   MessageCircle,
   Paperclip,
   ReceiptText,
+  Sparkles,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -134,9 +136,36 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
 
       <SupplierTenderHeaderCard tender={tender} />
 
-      {/* V2-7 — İngiliz Usulü canlı eksiltme kartı (sadece açık eksiltmede) */}
-      {tender.type === "ENGLISH_AUCTION" ? (
+      {/* V2-7 — İngiliz Usulü canlı eksiltme kartı (sadece açık eksiltmede;
+          kilitli teaser'da gösterilmez — teklif/eksiltme premium gerektirir) */}
+      {tender.type === "ENGLISH_AUCTION" && !tender.locked ? (
         <AuctionLiveCard tender={tender} />
+      ) : null}
+
+      {/* Kilitli teaser — premium'a teşvik bandı */}
+      {tender.locked ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <Lock className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <div>
+                <p className="font-semibold text-amber-900">
+                  Bu herkese açık ihale önizleme modunda
+                </p>
+                <p className="text-sm text-amber-800">
+                  Alıcı firma gizli. Teklif vermek ve alıcıyı görmek için Premium
+                  üyeliğe geçin.
+                </p>
+              </div>
+            </div>
+            <Link href="/supplier/premium" className="inline-block">
+              <Button size="sm">
+                <Sparkles className="w-4 h-4" />
+                Premium'a Geç
+              </Button>
+            </Link>
+          </div>
+        </section>
       ) : null}
 
       {/* Meta bar — alıcı + temel bilgiler + mesaj (kapalı zarf: sadece firma adı) */}
@@ -146,7 +175,7 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
             <MetaItem
               icon={Building2}
               label="Alıcı Firma"
-              value={tender.tenant.name}
+              value={tender.tenant?.name ?? "Gizli Alıcı"}
             />
             <MetaItem
               icon={Layers}
@@ -166,14 +195,17 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
               })}
             />
           </div>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setMessageOpen(true)}
-          >
-            <MessageCircle className="w-4 h-4" />
-            Alıcıya Mesaj
-          </Button>
+          {/* Kilitli teaser'da alıcı gizli → mesaj yok */}
+          {!tender.locked ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setMessageOpen(true)}
+            >
+              <MessageCircle className="w-4 h-4" />
+              Alıcıya Mesaj
+            </Button>
+          ) : null}
         </div>
       </section>
 
@@ -213,7 +245,29 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
 
         <TabPanels>
           <TabPanel className="outline-none">
-            <MyBidTab tender={tender} />
+            {tender.locked ? (
+              <div className="rounded-2xl border border-zinc-950/5 bg-white p-8 text-center">
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
+                  <Lock className="h-6 w-6 text-amber-600" />
+                </div>
+                <p className="font-semibold text-zinc-900">
+                  Teklif vermek için Premium gerekli
+                </p>
+                <p className="mx-auto mt-1 max-w-md text-sm text-zinc-500">
+                  Bu herkese açık ihaleye teklif verebilmek için Premium üyeliğe
+                  geçin. Premium ile davet beklemeden tüm açık ihalelere teklif
+                  verebilirsiniz.
+                </p>
+                <Link href="/supplier/premium" className="mt-4 inline-block">
+                  <Button>
+                    <Sparkles className="w-4 h-4" />
+                    Premium'a Geç
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <MyBidTab tender={tender} />
+            )}
           </TabPanel>
           <TabPanel className="outline-none">
             <ItemsTab
@@ -231,16 +285,19 @@ export function SupplierTenderDetailView({ id }: { id: string }) {
         </TabPanels>
       </TabGroup>
 
-      <MessageDialog
-        open={messageOpen}
-        onClose={() => setMessageOpen(false)}
-        surface="supplier"
-        otherPartyId={tender.tenant.id}
-        defaultContext={{ context: "TENDER", contextRefId: tender.id }}
-        currentUserType="SUPPLIER_USER"
-        otherPartyName={tender.tenant.name}
-        contextNumber={`İhale ${tender.tenderNumber}`}
-      />
+      {/* Kilitli teaser'da alıcı gizli olduğundan mesaj diyalogu render edilmez. */}
+      {!tender.locked && tender.tenant ? (
+        <MessageDialog
+          open={messageOpen}
+          onClose={() => setMessageOpen(false)}
+          surface="supplier"
+          otherPartyId={tender.tenant.id}
+          defaultContext={{ context: "TENDER", contextRefId: tender.id }}
+          currentUserType="SUPPLIER_USER"
+          otherPartyName={tender.tenant.name}
+          contextNumber={`İhale ${tender.tenderNumber}`}
+        />
+      ) : null}
     </div>
   );
 }

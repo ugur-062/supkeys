@@ -194,8 +194,9 @@ export class SupplierTendersService {
     else if (filter === SupplierTenderFilter.PAST) statuses = PAST_STATUSES;
     else statuses = VISIBLE_STATUSES;
 
-    // Açık İhale — premium tedarikçi davetlilere ek olarak açık (PUBLIC) +
-    // teklife açık ihaleleri de görür. Standart: yalnızca davetli.
+    // Açık İhale — herkes davetlilere ek olarak açık (PUBLIC) + teklife açık
+    // ihaleleri de listede görür. Premium teklif verebilir; STANDARD için bu
+    // ihaleler "kilitli teaser" olarak döner (alıcı adı maskeli, teklif pasif).
     const supplier = await this.prisma.supplier.findUnique({
       where: { id: supplierId },
       select: { membership: true },
@@ -204,14 +205,10 @@ export class SupplierTendersService {
 
     const where: Prisma.TenderWhereInput = {
       status: { in: statuses },
-      ...(isPremium
-        ? {
-            OR: [
-              { invitations: { some: { supplierId } } },
-              { visibility: "PUBLIC", status: "OPEN_FOR_BIDS" },
-            ],
-          }
-        : { invitations: { some: { supplierId } } }),
+      OR: [
+        { invitations: { some: { supplierId } } },
+        { visibility: "PUBLIC", status: "OPEN_FOR_BIDS" },
+      ],
     };
     if (query.search) {
       const term = query.search.trim();
@@ -308,7 +305,12 @@ export class SupplierTendersService {
     ]);
 
     return {
-      items: items.map((t) => ({
+      items: items.map((t) => {
+        // Kilitli teaser: STANDARD tedarikçi, davetsiz, PUBLIC ihale →
+        // alıcı adı maskelenir, teklif pasif (premium'a teşvik).
+        const invited = t.invitations.length > 0;
+        const locked = !isPremium && !invited && t.visibility === "PUBLIC";
+        return {
         id: t.id,
         tenderNumber: t.tenderNumber,
         title: t.title,
@@ -319,7 +321,8 @@ export class SupplierTendersService {
         allowedCurrencies: t.allowedCurrencies,
         bidsCloseAt: t.bidsCloseAt,
         publishedAt: t.publishedAt,
-        tenant: t.tenant,
+        locked,
+        tenant: locked ? null : t.tenant,
         categories: t.categories.map((tc) => ({
           id: tc.category.id,
           code: tc.category.code,
@@ -331,7 +334,8 @@ export class SupplierTendersService {
         invitationStatus: t.invitations[0]?.status ?? null,
         myBidStatus: t.bids[0]?.status ?? null,
         myBidVersion: t.bids[0]?.version ?? null,
-      })),
+        };
+      }),
       pagination: {
         page,
         pageSize,
@@ -407,14 +411,17 @@ export class SupplierTendersService {
       where: { tenderId_supplierId: { tenderId: tender.id, supplierId } },
       select: { status: true, invitedAt: true },
     });
-    if (
-      !invitation &&
-      !(await this.canViewWithoutInvitation(supplierId, tender))
-    ) {
-      // Davet edilmediyse 404 — varlığını sızdırmamak adına Forbidden yerine
-      // NotFound dönüyoruz. (PUBLIC ihaleyi premium tedarikçi davetsiz görebilir.)
+    if (!invitation && tender.visibility !== "PUBLIC") {
+      // Özel ihale + davetsiz → 404 (varlığını sızdırmamak adına Forbidden
+      // yerine NotFound). PUBLIC ihaleler davetsiz de görüntülenebilir.
       throw new NotFoundException("İhale bulunamadı");
     }
+    // Kilitli teaser: STANDARD tedarikçi, davetsiz, PUBLIC ihale → alıcı kimliği
+    // + ekler maskelenir, teklif pasif (premium'a teşvik).
+    const locked =
+      !invitation &&
+      tender.visibility === "PUBLIC" &&
+      !(await this.isSupplierPremium(supplierId));
 
     // KAPALI ZARF: bu tedarikçinin kendi teklifi (varsa) gösterilebilir;
     // başka tedarikçilerin davet veya tekliflerini ASLA döndürmüyoruz
@@ -548,7 +555,10 @@ export class SupplierTendersService {
       autoExtendOnLateBid: tender.autoExtendOnLateBid,
       autoExtendThresholdMin: tender.autoExtendThresholdMin,
       autoExtendByMinutes: tender.autoExtendByMinutes,
-      tenant: tender.tenant,
+      locked,
+      // Kilitliyse alıcı kimliği maskelenir; ekler de gizlenir (antetli kâğıt
+      // vb. ile firma adı sızabilir).
+      tenant: locked ? null : tender.tenant,
       categories: tender.categories.map((tc) => ({
         id: tc.category.id,
         code: tc.category.code,
@@ -557,7 +567,7 @@ export class SupplierTendersService {
         breadcrumb: buildBreadcrumb(tc.category),
       })),
       items: tender.items,
-      attachments: tender.attachments,
+      attachments: locked ? [] : tender.attachments,
       myInvitation: invitation,
       myBid,
       auctionView,

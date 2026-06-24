@@ -506,7 +506,7 @@ export function TeklifForm({ tender, existingBid }: Props) {
                 <SummaryFact
                   icon={Building2}
                   label="Alıcı Firma"
-                  value={tender.tenant.name}
+                  value={tender.tenant?.name ?? "Gizli Alıcı"}
                 />
                 <SummaryFact
                   icon={CalendarClock}

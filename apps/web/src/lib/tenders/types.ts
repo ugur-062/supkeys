@@ -365,7 +365,10 @@ export interface SupplierTenderListItem {
   allowedCurrencies: Currency[];
   bidsCloseAt: string;
   publishedAt: string | null;
-  tenant: { name: string };
+  /** Kilitli teaser (STANDARD + davetsiz + PUBLIC): alıcı maskeli, teklif pasif. */
+  locked: boolean;
+  /** Kilitliyse null (alıcı kimliği maskeli). */
+  tenant: { name: string } | null;
   /** V2-6 — Birden fazla kategori. V1 backward-compat: legacy ihalelerde boş array. */
   categories: TenderCategoryRef[];
   itemCount: number;
@@ -430,7 +433,10 @@ export interface SupplierTenderDetail {
   bidsCloseAt: string;
   awardedAt: string | null;
   cancelledAt: string | null;
-  tenant: { id: string; name: string };
+  /** Kilitli teaser (STANDARD + davetsiz + PUBLIC): alıcı maskeli, teklif pasif. */
+  locked: boolean;
+  /** Kilitliyse null (alıcı kimliği maskeli). */
+  tenant: { id: string; name: string } | null;
   items: SupplierTenderItem[];
   attachments: TenderAttachment[];
   // Açık (PUBLIC) ihaleyi davetsiz gören premium tedarikçide null olabilir.

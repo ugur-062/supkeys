@@ -7,7 +7,7 @@ import type { SupplierTenderListItem } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Building2, Calendar, FileText } from "lucide-react";
+import { Building2, Calendar, FileText, Lock } from "lucide-react";
 import Link from "next/link";
 
 function daysUntil(iso: string): number {
@@ -57,7 +57,15 @@ export function TenderCard({ tender }: { tender: SupplierTenderListItem }) {
 
         <div className="flex items-center gap-2 text-sm text-slate-600 mb-3 min-w-0">
           <Building2 className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
-          <span className="truncate">{tender.tenant.name}</span>
+          <span className={cn("truncate", tender.locked && "italic text-slate-400")}>
+            {tender.tenant?.name ?? "Gizli Alıcı"}
+          </span>
+          {tender.locked ? (
+            <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 whitespace-nowrap">
+              <Lock className="h-2.5 w-2.5" />
+              Premium
+            </span>
+          ) : null}
         </div>
 
         <div className="flex items-center flex-wrap gap-2 text-xs text-slate-500 mb-3">

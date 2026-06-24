@@ -26,7 +26,8 @@ export function SupplierTenderHeaderCard({
   const myBid = tender.myBid;
 
   let cta: React.ReactNode = null;
-  if (isOpen) {
+  // Kilitli teaser'da teklif CTA gösterilmez (premium teşvik bandı + sekme var).
+  if (isOpen && !tender.locked) {
     if (!myBid) {
       cta = (
         <Link href={formHref}>
