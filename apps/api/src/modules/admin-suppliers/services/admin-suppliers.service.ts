@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -6,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import { ListAdminSuppliersDto } from "../dto/list-suppliers.dto";
 import {
   AdminUpdateSupplierUserDto,
@@ -26,7 +28,10 @@ function parseSupplierSort(
 export class AdminSuppliersService {
   private readonly logger = new Logger(AdminSuppliersService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly supabaseAuth: SupabaseAuthService,
+  ) {}
 
   // ----- PATCH supplier (üyelik + blok + metadata) -----
 
@@ -151,6 +156,78 @@ export class AdminSuppliersService {
     return updated;
   }
 
+  // ----- Hesap kurtarma (admin destek) -----
+
+  private async findSupplierUser(supplierId: string, userId: string) {
+    const u = await this.prisma.supplierUser.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        supplierId: true,
+        email: true,
+        authId: true,
+        emailVerifiedAt: true,
+      },
+    });
+    if (!u || u.supplierId !== supplierId) {
+      throw new NotFoundException("Kullanıcı bulunamadı");
+    }
+    return u;
+  }
+
+  /** E-postayı zorla doğrula. */
+  async forceVerifyEmail(supplierId: string, userId: string, adminId: string) {
+    const u = await this.findSupplierUser(supplierId, userId);
+    if (u.emailVerifiedAt) return { success: true, alreadyVerified: true };
+    await this.prisma.supplierUser.update({
+      where: { id: userId },
+      data: { emailVerifiedAt: new Date() },
+    });
+    this.logger.log(`Admin ${adminId} force-verified supplier user ${userId}`);
+    return { success: true };
+  }
+
+  /** 2FA'yı sıfırla/kapat. */
+  async reset2FA(supplierId: string, userId: string, adminId: string) {
+    await this.findSupplierUser(supplierId, userId);
+    await this.prisma.supplierUser.update({
+      where: { id: userId },
+      data: { twoFactorEnabled: false, twoFactorEnabledAt: null },
+    });
+    this.logger.log(`Admin ${adminId} reset 2FA for supplier user ${userId}`);
+    return { success: true };
+  }
+
+  /** E-posta adresini değiştir (Supabase Auth + domain). */
+  async changeEmail(
+    supplierId: string,
+    userId: string,
+    newEmailRaw: string,
+    adminId: string,
+  ) {
+    const email = newEmailRaw.toLowerCase().trim();
+    const u = await this.findSupplierUser(supplierId, userId);
+    if (u.email === email) return { success: true, updated: false };
+    const existing = await this.prisma.supplierUser.findUnique({
+      where: { email },
+    });
+    if (existing) throw new ConflictException("Bu e-posta zaten kullanımda");
+    if (!u.authId) {
+      throw new BadRequestException(
+        "Bu hesap Supabase Auth'a bağlı değil — destek ekibiyle iletişime geçin",
+      );
+    }
+    await this.supabaseAuth.updateEmail(u.authId, email);
+    await this.prisma.supplierUser.update({
+      where: { id: userId },
+      data: { email, emailVerifiedAt: new Date() },
+    });
+    this.logger.log(
+      `Admin ${adminId} changed email for supplier user ${userId} → ${email}`,
+    );
+    return { success: true, email };
+  }
+
   async list(query: ListAdminSuppliersDto) {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 20;
@@ -226,6 +303,9 @@ export class AdminSuppliersService {
             email: true,
             phone: true,
             isActive: true,
+            isManager: true,
+            emailVerifiedAt: true,
+            twoFactorEnabled: true,
             lastLoginAt: true,
             createdAt: true,
           },

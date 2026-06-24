@@ -13,6 +13,7 @@ import {
 import type { Request } from "express";
 import { AdminJwtAuthGuard } from "../../admin-auth/guards/admin-jwt-auth.guard";
 import { AdminUpdateTenantUserDto } from "../dto/admin-update-tenant-user.dto";
+import { AdminChangeEmailDto } from "../dto/change-email.dto";
 import { ListAdminTenantsDto } from "../dto/list-tenants.dto";
 import { UpdateTenantDto } from "../dto/update-tenant.dto";
 import { AdminTenantUsersService } from "../services/admin-tenant-users.service";
@@ -109,6 +110,39 @@ export class AdminTenantsController {
     return this.users.issuePasswordReset(
       tenantId,
       userId,
+      req.user?.sub ?? "",
+    );
+  }
+
+  @Post(":tenantId/users/:userId/verify-email")
+  forceVerifyEmail(
+    @Param("tenantId") tenantId: string,
+    @Param("userId") userId: string,
+    @Req() req: AdminAuthRequest,
+  ): Promise<unknown> {
+    return this.users.forceVerifyEmail(tenantId, userId, req.user?.sub ?? "");
+  }
+
+  @Post(":tenantId/users/:userId/reset-2fa")
+  reset2fa(
+    @Param("tenantId") tenantId: string,
+    @Param("userId") userId: string,
+    @Req() req: AdminAuthRequest,
+  ): Promise<unknown> {
+    return this.users.reset2FA(tenantId, userId, req.user?.sub ?? "");
+  }
+
+  @Patch(":tenantId/users/:userId/email")
+  changeEmail(
+    @Param("tenantId") tenantId: string,
+    @Param("userId") userId: string,
+    @Body() dto: AdminChangeEmailDto,
+    @Req() req: AdminAuthRequest,
+  ): Promise<unknown> {
+    return this.users.changeEmail(
+      tenantId,
+      userId,
+      dto.email,
       req.user?.sub ?? "",
     );
   }

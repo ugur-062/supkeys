@@ -4,9 +4,11 @@ import { Input } from "@/components/catalyst/input";
 import { Select } from "@/components/catalyst/select";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
+import { UserRecoveryActions } from "@/components/user-recovery-actions";
 import {
   useAdminTenantDetail,
   useIssuePasswordReset,
+  useTenantUserRecovery,
   useUpdateAdminTenant,
   useUpdateTenantUser,
   type AdminTenantDetail,
@@ -846,7 +848,14 @@ function UserRow({
 }) {
   const updateMutation = useUpdateTenantUser(tenantId);
   const resetMutation = useIssuePasswordReset(tenantId);
+  const recovery = useTenantUserRecovery(tenantId);
   const [showReset, setShowReset] = useState<string | null>(null);
+
+  const recoveryToast = {
+    onSuccess: () => toast.success("İşlem tamamlandı"),
+    onError: (err: unknown) =>
+      toast.error(err instanceof Error ? err.message : "İşlem başarısız"),
+  };
 
   const toggleActive = () => {
     const next = !user.isActive;
@@ -990,6 +999,18 @@ function UserRow({
             <KeyRound className="h-3.5 w-3.5" />
             Parola Sıfırla
           </button>
+
+          <UserRecoveryActions
+            email={user.email}
+            emailVerified={!!user.emailVerifiedAt}
+            twoFaEnabled={user.twoFactorEnabled}
+            pending={recovery.verifyEmail.isPending || recovery.reset2fa.isPending}
+            onVerifyEmail={() => recovery.verifyEmail.mutate(user.id, recoveryToast)}
+            onReset2fa={() => recovery.reset2fa.mutate(user.id, recoveryToast)}
+            onChangeEmail={(email) =>
+              recovery.changeEmail.mutateAsync({ userId: user.id, email })
+            }
+          />
         </div>
       </div>
 

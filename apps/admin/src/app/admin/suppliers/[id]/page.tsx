@@ -3,8 +3,10 @@
 import { Button } from "@/components/ui/button";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
+import { UserRecoveryActions } from "@/components/user-recovery-actions";
 import {
   useAdminSupplierDetail,
+  useSupplierUserRecovery,
   useUpdateSupplierUser,
   type AdminSupplierDetail,
 } from "@/hooks/use-admin-suppliers";
@@ -50,6 +52,7 @@ function DetailContent() {
   const id = typeof params.id === "string" ? params.id : null;
   const query = useAdminSupplierDetail(id);
   const userMutation = useUpdateSupplierUser(id ?? "");
+  const recovery = useSupplierUserRecovery(id ?? "");
 
   const toggleUser = (userId: string, isActive: boolean) =>
     userMutation.mutate(
@@ -61,6 +64,12 @@ function DetailContent() {
           toast.error(e instanceof Error ? e.message : "Güncelleme hatası"),
       },
     );
+
+  const recoveryToast = {
+    onSuccess: () => toast.success("İşlem tamamlandı"),
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "İşlem başarısız"),
+  };
 
   if (query.isLoading || !query.data) {
     return (
@@ -272,6 +281,17 @@ function DetailContent() {
                 >
                   {u.isActive ? "Pasifleştir" : "Aktifleştir"}
                 </Button>
+                <UserRecoveryActions
+                  email={u.email}
+                  emailVerified={!!u.emailVerifiedAt}
+                  twoFaEnabled={u.twoFactorEnabled}
+                  pending={recovery.verifyEmail.isPending || recovery.reset2fa.isPending}
+                  onVerifyEmail={() => recovery.verifyEmail.mutate(u.id, recoveryToast)}
+                  onReset2fa={() => recovery.reset2fa.mutate(u.id, recoveryToast)}
+                  onChangeEmail={(email) =>
+                    recovery.changeEmail.mutateAsync({ userId: u.id, email })
+                  }
+                />
               </div>
             </div>
           ))}

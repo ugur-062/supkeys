@@ -4,12 +4,14 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
 import type { Request } from "express";
 import { AdminJwtAuthGuard } from "../../admin-auth/guards/admin-jwt-auth.guard";
+import { AdminChangeEmailDto } from "../dto/change-email.dto";
 import { ListAdminSuppliersDto } from "../dto/list-suppliers.dto";
 import {
   AdminUpdateSupplierUserDto,
@@ -53,5 +55,33 @@ export class AdminSuppliersController {
     @Req() req: AdminAuthRequest,
   ): Promise<unknown> {
     return this.service.updateUser(id, userId, dto, req.user?.sub ?? "");
+  }
+
+  @Post(":id/users/:userId/verify-email")
+  forceVerifyEmail(
+    @Param("id") id: string,
+    @Param("userId") userId: string,
+    @Req() req: AdminAuthRequest,
+  ): Promise<unknown> {
+    return this.service.forceVerifyEmail(id, userId, req.user?.sub ?? "");
+  }
+
+  @Post(":id/users/:userId/reset-2fa")
+  reset2fa(
+    @Param("id") id: string,
+    @Param("userId") userId: string,
+    @Req() req: AdminAuthRequest,
+  ): Promise<unknown> {
+    return this.service.reset2FA(id, userId, req.user?.sub ?? "");
+  }
+
+  @Patch(":id/users/:userId/email")
+  changeEmail(
+    @Param("id") id: string,
+    @Param("userId") userId: string,
+    @Body() dto: AdminChangeEmailDto,
+    @Req() req: AdminAuthRequest,
+  ): Promise<unknown> {
+    return this.service.changeEmail(id, userId, dto.email, req.user?.sub ?? "");
   }
 }

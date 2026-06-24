@@ -56,6 +56,9 @@ export interface AdminSupplierDetail
     email: string;
     phone: string | null;
     isActive: boolean;
+    isManager: boolean;
+    emailVerifiedAt: string | null;
+    twoFactorEnabled: boolean;
     lastLoginAt: string | null;
     createdAt: string;
   }>;
@@ -166,4 +169,42 @@ export function useUpdateSupplierUser(supplierId: string) {
       });
     },
   });
+}
+
+export function useSupplierUserRecovery(supplierId: string) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: ["admin", "suppliers", "detail", supplierId],
+    });
+  return {
+    verifyEmail: useMutation({
+      mutationFn: async (userId: string) =>
+        (
+          await api.post(
+            `/admin/suppliers/${supplierId}/users/${userId}/verify-email`,
+          )
+        ).data,
+      onSuccess: invalidate,
+    }),
+    reset2fa: useMutation({
+      mutationFn: async (userId: string) =>
+        (
+          await api.post(
+            `/admin/suppliers/${supplierId}/users/${userId}/reset-2fa`,
+          )
+        ).data,
+      onSuccess: invalidate,
+    }),
+    changeEmail: useMutation({
+      mutationFn: async (input: { userId: string; email: string }) =>
+        (
+          await api.patch(
+            `/admin/suppliers/${supplierId}/users/${input.userId}/email`,
+            { email: input.email },
+          )
+        ).data,
+      onSuccess: invalidate,
+    }),
+  };
 }

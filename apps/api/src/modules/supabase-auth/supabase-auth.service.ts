@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -145,6 +146,26 @@ export class SupabaseAuthService {
     if (error) {
       this.logger.error(`updatePassword failed for ${authId}: ${error.message}`);
       throw new ServiceUnavailableException("Şifre değiştirilemedi");
+    }
+  }
+
+  /**
+   * Admin destek — kullanıcının auth e-postasını değiştirir. `email_confirm`
+   * true: yeni adres doğrulanmış sayılır (admin güveniyle). Çakışma (başka
+   * auth kullanıcısında kayıtlı) durumunda hata fırlatır.
+   */
+  async updateEmail(authId: string, newEmail: string): Promise<void> {
+    const { error } = await this.admin.auth.admin.updateUserById(authId, {
+      email: newEmail,
+      email_confirm: true,
+    });
+    if (error) {
+      this.logger.error(`updateEmail failed for ${authId}: ${error.message}`);
+      // Supabase çakışmada "already been registered" benzeri döner.
+      if (/registered|exists|taken/i.test(error.message)) {
+        throw new ConflictException("Bu e-posta başka bir hesapta kayıtlı");
+      }
+      throw new ServiceUnavailableException("E-posta değiştirilemedi");
     }
   }
 

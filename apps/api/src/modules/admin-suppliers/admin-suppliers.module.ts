@@ -1,10 +1,11 @@
 import { Module } from "@nestjs/common";
 import { AdminAuthModule } from "../admin-auth/admin-auth.module";
+import { SupabaseAuthModule } from "../supabase-auth/supabase-auth.module";
 import { AdminSuppliersController } from "./controllers/admin-suppliers.controller";
 import { AdminSuppliersService } from "./services/admin-suppliers.service";
 
 @Module({
-  imports: [AdminAuthModule],
+  imports: [AdminAuthModule, SupabaseAuthModule],
   controllers: [AdminSuppliersController],
   providers: [AdminSuppliersService],
 })

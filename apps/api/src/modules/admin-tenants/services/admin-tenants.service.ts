@@ -96,6 +96,8 @@ export class AdminTenantsService {
             email: true,
             role: true,
             isActive: true,
+            emailVerifiedAt: true,
+            twoFactorEnabled: true,
             lastLoginAt: true,
             createdAt: true,
           },

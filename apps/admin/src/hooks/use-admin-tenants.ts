@@ -98,6 +98,8 @@ export interface AdminTenantDetail {
     email: string;
     role: string;
     isActive: boolean;
+    emailVerifiedAt: string | null;
+    twoFactorEnabled: boolean;
     lastLoginAt: string | null;
     createdAt: string;
   }>;
@@ -218,6 +220,38 @@ export function useIssuePasswordReset(tenantId: string) {
       return data;
     },
   });
+}
+
+export function useTenantUserRecovery(tenantId: string) {
+  const queryClient = useQueryClient();
+  const invalidate = () =>
+    queryClient.invalidateQueries({
+      queryKey: ["admin", "tenants", "detail", tenantId],
+    });
+  return {
+    verifyEmail: useMutation({
+      mutationFn: async (userId: string) =>
+        (await api.post(`/admin/tenants/${tenantId}/users/${userId}/verify-email`))
+          .data,
+      onSuccess: invalidate,
+    }),
+    reset2fa: useMutation({
+      mutationFn: async (userId: string) =>
+        (await api.post(`/admin/tenants/${tenantId}/users/${userId}/reset-2fa`))
+          .data,
+      onSuccess: invalidate,
+    }),
+    changeEmail: useMutation({
+      mutationFn: async (input: { userId: string; email: string }) =>
+        (
+          await api.patch(
+            `/admin/tenants/${tenantId}/users/${input.userId}/email`,
+            { email: input.email },
+          )
+        ).data,
+      onSuccess: invalidate,
+    }),
+  };
 }
 
 export function useCancelTenantInvitation(tenantId: string) {

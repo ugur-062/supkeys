@@ -109,6 +109,77 @@ export class AdminTenantUsersService {
     return updated;
   }
 
+  // ----- Hesap kurtarma (admin destek) -----
+
+  /** E-postayı zorla doğrula (kullanıcı kodu alamıyorsa). */
+  async forceVerifyEmail(tenantId: string, userId: string, adminId: string) {
+    const target = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, tenantId: true, emailVerifiedAt: true },
+    });
+    if (!target || target.tenantId !== tenantId) {
+      throw new NotFoundException("Kullanıcı bulunamadı");
+    }
+    if (target.emailVerifiedAt) return { success: true, alreadyVerified: true };
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { emailVerifiedAt: new Date() },
+    });
+    this.logger.log(`Admin ${adminId} force-verified user ${userId}`);
+    return { success: true };
+  }
+
+  /** 2FA'yı sıfırla/kapat (kullanıcı 2FA'ya kilitlendiyse). */
+  async reset2FA(tenantId: string, userId: string, adminId: string) {
+    const target = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, tenantId: true },
+    });
+    if (!target || target.tenantId !== tenantId) {
+      throw new NotFoundException("Kullanıcı bulunamadı");
+    }
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorEnabled: false, twoFactorEnabledAt: null },
+    });
+    this.logger.log(`Admin ${adminId} reset 2FA for user ${userId}`);
+    return { success: true };
+  }
+
+  /** E-posta adresini değiştir (Supabase Auth + domain, doğrulanmış sayılır). */
+  async changeEmail(
+    tenantId: string,
+    userId: string,
+    newEmailRaw: string,
+    adminId: string,
+  ) {
+    const email = newEmailRaw.toLowerCase().trim();
+    const target = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, tenantId: true, email: true, authId: true },
+    });
+    if (!target || target.tenantId !== tenantId) {
+      throw new NotFoundException("Kullanıcı bulunamadı");
+    }
+    if (target.email === email) return { success: true, updated: false };
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) throw new ConflictException("Bu e-posta zaten kullanımda");
+    if (!target.authId) {
+      throw new BadRequestException(
+        "Bu hesap Supabase Auth'a bağlı değil — destek ekibiyle iletişime geçin",
+      );
+    }
+    await this.supabaseAuth.updateEmail(target.authId, email);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { email, emailVerifiedAt: new Date() },
+    });
+    this.logger.log(
+      `Admin ${adminId} changed email for user ${userId} → ${email}`,
+    );
+    return { success: true, email };
+  }
+
   // ----- Davet iptal (admin override) -----
 
   async cancelInvitation(tenantId: string, invitationId: string, adminId: string) {
