@@ -511,6 +511,9 @@ model BuyerApplication {
 
   status ApplicationStatus @default(PENDING_EMAIL_VERIFICATION)
 
+  // DEPRECATED — eski link-tabanlı e-posta doğrulama kaldırıldı (2026-06-24).
+  // Canlı kayıt 6-haneli kod (TwoFactorChallenge) kullanır. Kolonlar inert;
+  // ileride bir migration ile drop edilebilir.
   emailToken      String?   @unique
   emailTokenExp   DateTime?
   emailVerifiedAt DateTime?
@@ -574,6 +577,9 @@ model SupplierApplication {
   // Başvuru kaynağı — CONNECT_REQUEST ise admin onayında ilişki PENDING_TENANT_APPROVAL kurulur.
   source ApplicationSource @default(SELF_REGISTER)
 
+  // DEPRECATED — eski link-tabanlı e-posta doğrulama kaldırıldı (2026-06-24).
+  // Canlı kayıt 6-haneli kod (TwoFactorChallenge) kullanır. Kolonlar inert;
+  // ileride bir migration ile drop edilebilir.
   emailToken      String?   @unique
   emailTokenExp   DateTime?
   emailVerifiedAt DateTime?

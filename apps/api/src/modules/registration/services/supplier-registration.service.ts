@@ -1,209 +1,22 @@
 import {
-  BadRequestException,
   ConflictException,
   GoneException,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { CategoryService } from "../../categories/services/category.service";
-import { EmailService } from "../../email/email.service";
-import { CreateSupplierApplicationDto } from "../dto/create-supplier-application.dto";
-import {
-  generateRegistrationToken,
-  hashToken,
-} from "../helpers/token.helper";
-const EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
-const ACTIVE_STATUSES = ["PENDING_EMAIL_VERIFICATION", "PENDING_REVIEW"] as const;
+import { hashToken } from "../helpers/token.helper";
 
+/**
+ * Tedarikçi kayıt — davet bilgisi. (Eski link-tabanlı başvuru akışı kaldırıldı;
+ * canlı kayıt artık 6-haneli kod signup'ı kullanıyor — bkz. supplier-signup.service.)
+ */
 @Injectable()
 export class SupplierRegistrationService {
   private readonly logger = new Logger(SupplierRegistrationService.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly emailService: EmailService,
-    private readonly config: ConfigService,
-    private readonly categoryService: CategoryService,
-  ) {}
-
-  async create(
-    dto: CreateSupplierApplicationDto,
-    invitationToken: string | undefined,
-    ipAddress?: string,
-    userAgent?: string,
-    connectTenantSlug?: string,
-  ) {
-    const adminEmail = dto.adminEmail.toLowerCase().trim();
-    const taxNumber = dto.taxNumber.trim();
-    const isConnect = !!connectTenantSlug && !invitationToken;
-
-    // 0) Kategori ID'lerini doğrula — tedarikçi SADECE ana başlık (Segment level 1)
-    await this.categoryService.validateIds(dto.categoryIds, { exactLevel: 1 });
-
-    // 1) E-posta zaten aktif bir SupplierUser'a mı bağlı?
-    const existingUser = await this.prisma.supplierUser.findUnique({
-      where: { email: adminEmail },
-    });
-    if (existingUser) {
-      throw new ConflictException("Bu e-posta zaten bir tedarikçide kayıtlı");
-    }
-
-    // 2) Bekleyen başvuru?
-    const activeApp = await this.prisma.supplierApplication.findFirst({
-      where: { adminEmail, status: { in: [...ACTIVE_STATUSES] } },
-    });
-    if (activeApp) {
-      throw new ConflictException(
-        "Bu e-posta için bir başvurunuz zaten inceleniyor",
-      );
-    }
-
-    // 3) Vergi no APPROVED supplier'da mı?
-    const existingSupplier = await this.prisma.supplier.findUnique({
-      where: { taxNumber },
-    });
-    if (existingSupplier) {
-      throw new ConflictException(
-        isConnect
-          ? "Bu vergi numarası zaten kayıtlı bir tedarikçiye ait. Bu firmaya katılmak için davet/referans kodu kullanın."
-          : "Bu vergi numarası zaten bir tedarikçiye kayıtlı",
-      );
-    }
-
-    // 4) Davet token / connect (Tedarikçi Ol) doğrulama
-    let invitationId: string | undefined;
-    let invitedByTenantId: string | undefined;
-    let source: "SELF_REGISTER" | "TENANT_INVITE" | "CONNECT_REQUEST" =
-      "SELF_REGISTER";
-
-    if (isConnect) {
-      const tenant = await this.prisma.tenant.findUnique({
-        where: { slug: connectTenantSlug },
-        select: { id: true, publicEnabled: true, isActive: true },
-      });
-      if (!tenant || !tenant.publicEnabled || !tenant.isActive) {
-        throw new NotFoundException("Firma bulunamadı veya başvuruya kapalı");
-      }
-      invitedByTenantId = tenant.id;
-      source = "CONNECT_REQUEST";
-      // G9 madde 27 — "Tedarikçi Ol" başvurusunda KYC belgeleri zorunlu.
-      if (
-        !dto.ticariSicilUrl?.trim() ||
-        !dto.imzaSirkuleriUrl?.trim() ||
-        !dto.bankaOnayliIbanUrl?.trim()
-      ) {
-        throw new BadRequestException(
-          "Bu başvuruda ticari sicil gazetesi, imza sirküleri ve banka onaylı IBAN belgeleri zorunludur",
-        );
-      }
-    } else if (invitationToken) {
-      source = "TENANT_INVITE";
-      const tokenHash = hashToken(invitationToken);
-      const invitation = await this.prisma.supplierInvitation.findUnique({
-        where: { tokenHash },
-        select: {
-          id: true,
-          tenantId: true,
-          status: true,
-          expiresAt: true,
-          email: true,
-        },
-      });
-
-      if (!invitation) {
-        throw new NotFoundException("Davet bağlantısı geçersiz");
-      }
-      if (invitation.status !== "PENDING") {
-        throw new BadRequestException(
-          "Davet bağlantısı kullanılamaz (iptal edilmiş veya kabul edilmiş)",
-        );
-      }
-      if (invitation.expiresAt < new Date()) {
-        throw new GoneException("Davet bağlantısının süresi dolmuş");
-      }
-
-      invitationId = invitation.id;
-      invitedByTenantId = invitation.tenantId;
-    }
-
-    // Supabase Auth geçişi sonrası başvuru sırasında girilen şifre
-    // saklanmıyor — admin onayında reset-link tetikleniyor.
-    const emailToken = generateRegistrationToken();
-    const emailTokenExp = new Date(Date.now() + EMAIL_TOKEN_TTL_MS);
-
-    const created = await this.prisma.supplierApplication.create({
-      data: {
-        companyName: dto.companyName.trim(),
-        companyType: dto.companyType,
-        taxNumber,
-        taxOffice: dto.taxOffice.trim(),
-        taxCertUrl: dto.taxCertUrl.trim(),
-        ticariSicilUrl: dto.ticariSicilUrl?.trim() || null,
-        imzaSirkuleriUrl: dto.imzaSirkuleriUrl?.trim() || null,
-        bankaOnayliIbanUrl: dto.bankaOnayliIbanUrl?.trim() || null,
-        industry: dto.industry?.trim(),
-        website: dto.website?.trim(),
-        city: dto.city.trim(),
-        district: dto.district.trim(),
-        addressLine: dto.addressLine.trim(),
-        postalCode: dto.postalCode?.trim(),
-        adminFirstName: dto.adminFirstName.trim(),
-        adminLastName: dto.adminLastName.trim(),
-        adminEmail,
-        adminPhone: dto.adminPhone?.trim(),
-        categoryIds: dto.categoryIds,
-        emailToken,
-        emailTokenExp,
-        status: "PENDING_EMAIL_VERIFICATION",
-        source,
-        invitationId,
-        invitedByTenantId,
-        ipAddress,
-        userAgent,
-      },
-      select: {
-        id: true,
-        adminFirstName: true,
-        adminEmail: true,
-        companyName: true,
-        emailTokenExp: true,
-      },
-    });
-
-    this.dispatchVerificationEmail(
-      { ...created, emailTokenExp },
-      emailToken,
-    ).catch((err) => {
-      this.logger.error(
-        `Supplier verification email enqueue failed for ${created.id}: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-    });
-
-    return {
-      id: created.id,
-      message:
-        "Başvurunuz alındı. E-postanıza gönderdiğimiz doğrulama bağlantısına 24 saat içinde tıklayın.",
-      expiresAt: emailTokenExp,
-    };
-  }
-
-  async getStatus(id: string) {
-    const app = await this.prisma.supplierApplication.findUnique({
-      where: { id },
-      select: {
-        status: true,
-        reviewedAt: true,
-        rejectionReason: true,
-      },
-    });
-    if (!app) throw new NotFoundException("Başvuru bulunamadı");
-    return app;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Public: davet token'ından tedarikçiye davet eden tenant + kişi bilgisini
@@ -262,34 +75,5 @@ export class SupplierRegistrationService {
       expiresAt: invitation.expiresAt,
       isExistingSupplier: invitation.isExistingSupplier,
     };
-  }
-
-  private async dispatchVerificationEmail(
-    app: {
-      id: string;
-      adminFirstName: string;
-      adminEmail: string;
-      companyName: string;
-      emailTokenExp: Date;
-    },
-    token: string,
-  ) {
-    const webUrl = this.config.get<string>("WEB_URL", "http://localhost:3000");
-    const verifyUrl = `${webUrl.replace(/\/$/, "")}/register/verify-email?token=${token}&type=supplier`;
-
-    await this.emailService.send({
-      to: { email: app.adminEmail, name: app.adminFirstName },
-      templateData: {
-        template: "supplier_email_verification",
-        data: {
-          firstName: app.adminFirstName,
-          companyName: app.companyName,
-          verifyUrl,
-          expiresAt: app.emailTokenExp.toISOString(),
-        },
-      },
-      context: { type: "supplier_application", id: app.id },
-      subject: "Tedarikçi başvurunuz için e-posta doğrulama — Supkeys",
-    });
   }
 }

@@ -2,8 +2,6 @@ export type EmailTemplate =
   | "demo_request_received"
   | "demo_request_admin_alert"
   | "demo_to_register_invitation"
-  | "buyer_email_verification"
-  | "supplier_email_verification"
   | "buyer_application_admin_alert"
   | "supplier_application_admin_alert"
   | "buyer_application_approved"
@@ -69,14 +67,6 @@ export interface DemoRequestAdminAlertData {
 // ============================================================
 
 export type ApplicantType = "buyer" | "supplier";
-
-export interface EmailVerificationData {
-  firstName: string;
-  companyName: string;
-  verifyUrl: string;
-  /** ISO datetime — son geçerlilik */
-  expiresAt: string;
-}
 
 export interface ApplicationAdminAlertData {
   applicationId: string;
@@ -464,8 +454,6 @@ export type EmailTemplateData =
       template: "demo_to_register_invitation";
       data: DemoToRegisterInvitationData;
     }
-  | { template: "buyer_email_verification"; data: EmailVerificationData }
-  | { template: "supplier_email_verification"; data: EmailVerificationData }
   | {
       template: "buyer_application_admin_alert";
       data: ApplicationAdminAlertData;

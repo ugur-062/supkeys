@@ -15,7 +15,6 @@ export type {
   EmailRecipient,
   EmailTemplate,
   EmailTemplateData,
-  EmailVerificationData,
   RenderedEmail,
   SendEmailInput,
   SendEmailResult,

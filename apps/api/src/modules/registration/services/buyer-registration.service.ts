@@ -2,182 +2,18 @@ import {
   ConflictException,
   GoneException,
   Injectable,
-  Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../../common/prisma/prisma.service";
-import { EmailService } from "../../email/email.service";
-import { CreateBuyerApplicationDto } from "../dto/create-buyer-application.dto";
-import { generateRegistrationToken, hashToken } from "../helpers/token.helper";
+import { hashToken } from "../helpers/token.helper";
 
-const EMAIL_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 saat
-const ACTIVE_STATUSES = ["PENDING_EMAIL_VERIFICATION", "PENDING_REVIEW"] as const;
-
+/**
+ * Alıcı kayıt — davet bilgisi. (Eski link-tabanlı başvuru akışı kaldırıldı;
+ * canlı kayıt artık 6-haneli kod signup'ı kullanıyor — bkz. buyer-signup.service.)
+ */
 @Injectable()
 export class BuyerRegistrationService {
-  private readonly logger = new Logger(BuyerRegistrationService.name);
-
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly emailService: EmailService,
-    private readonly config: ConfigService,
-  ) {}
-
-  async create(
-    dto: CreateBuyerApplicationDto,
-    invitationToken?: string,
-    ipAddress?: string,
-    userAgent?: string,
-  ) {
-    const adminEmail = dto.adminEmail.toLowerCase().trim();
-    const taxNumber = dto.taxNumber.trim();
-
-    // 0) Davet token (varsa) doğrula — invitation, demo→register akışından gelir
-    let demoInviteId: string | undefined;
-    if (invitationToken) {
-      const tokenHash = hashToken(invitationToken);
-      const demo = await this.prisma.demoRequest.findUnique({
-        where: { inviteToken: tokenHash },
-        select: {
-          id: true,
-          inviteTokenExpAt: true,
-          inviteUsedAt: true,
-          linkedApplicationId: true,
-        },
-      });
-
-      if (!demo) throw new NotFoundException("Davet bulunamadı");
-      if (demo.linkedApplicationId) {
-        throw new ConflictException(
-          "Bu davet zaten kullanılmış, kayıt tamamlanmış",
-        );
-      }
-      if (demo.inviteUsedAt) {
-        throw new ConflictException("Bu davet zaten kullanılmış");
-      }
-      if (demo.inviteTokenExpAt && demo.inviteTokenExpAt < new Date()) {
-        throw new GoneException("Davet süresi dolmuş");
-      }
-
-      demoInviteId = demo.id;
-    }
-
-    // 1) E-posta zaten aktif tenant'a bağlı mı?
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: adminEmail },
-    });
-    if (existingUser) {
-      throw new ConflictException("Bu e-posta zaten kayıtlı");
-    }
-
-    // 2) Bekleyen bir başvuru var mı?
-    const activeApp = await this.prisma.buyerApplication.findFirst({
-      where: {
-        adminEmail,
-        status: { in: [...ACTIVE_STATUSES] },
-      },
-    });
-    if (activeApp) {
-      throw new ConflictException(
-        "Bu e-posta için bir başvurunuz zaten inceleniyor",
-      );
-    }
-
-    // 3) Vergi numarası APPROVED bir tenant'ta mı?
-    const existingTenant = await this.prisma.tenant.findUnique({
-      where: { taxNumber },
-    });
-    if (existingTenant) {
-      throw new ConflictException(
-        "Bu vergi numarası zaten bir firmaya kayıtlı",
-      );
-    }
-
-    // Supabase Auth geçişi sonrası başvuru sırasında girilen şifre
-    // saklanmıyor — admin onayında Supabase reset-link tetikleniyor,
-    // applicant şifresini orada belirliyor.
-    const emailToken = generateRegistrationToken();
-    const emailTokenExp = new Date(Date.now() + EMAIL_TOKEN_TTL_MS);
-
-    const created = await this.prisma.$transaction(async (tx) => {
-      const app = await tx.buyerApplication.create({
-        data: {
-          companyName: dto.companyName.trim(),
-          companyType: dto.companyType,
-          taxNumber,
-          taxOffice: dto.taxOffice.trim(),
-          taxCertUrl: dto.taxCertUrl.trim(),
-          industry: dto.industry?.trim(),
-          website: dto.website?.trim(),
-          city: dto.city.trim(),
-          district: dto.district.trim(),
-          addressLine: dto.addressLine.trim(),
-          postalCode: dto.postalCode?.trim(),
-          adminFirstName: dto.adminFirstName.trim(),
-          adminLastName: dto.adminLastName.trim(),
-          adminEmail,
-          adminPhone: dto.adminPhone?.trim(),
-          emailToken,
-          emailTokenExp,
-          status: "PENDING_EMAIL_VERIFICATION",
-          ipAddress,
-          userAgent,
-        },
-        select: {
-          id: true,
-          adminFirstName: true,
-          adminEmail: true,
-          companyName: true,
-        },
-      });
-
-      // Davet ile geldiyse: DemoRequest'e bağla + invite kullanıldı işaretle
-      if (demoInviteId) {
-        await tx.demoRequest.update({
-          where: { id: demoInviteId },
-          data: {
-            linkedApplicationId: app.id,
-            inviteUsedAt: new Date(),
-          },
-        });
-      }
-
-      return app;
-    });
-
-    this.dispatchVerificationEmail(
-      { ...created, emailTokenExp },
-      emailToken,
-    ).catch((err) => {
-      this.logger.error(
-        `Buyer verification email enqueue failed for ${created.id}: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-    });
-
-    return {
-      id: created.id,
-      message:
-        "Başvurunuz alındı. E-postanıza gönderdiğimiz doğrulama bağlantısına 24 saat içinde tıklayın.",
-      expiresAt: emailTokenExp,
-      fromDemoInvite: !!demoInviteId,
-    };
-  }
-
-  async getStatus(id: string) {
-    const app = await this.prisma.buyerApplication.findUnique({
-      where: { id },
-      select: {
-        status: true,
-        reviewedAt: true,
-        rejectionReason: true,
-      },
-    });
-    if (!app) throw new NotFoundException("Başvuru bulunamadı");
-    return app;
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Public: davet token'ından firma bilgilerini döner — /register/buyer sayfası
@@ -219,34 +55,5 @@ export class BuyerRegistrationService {
       message: demo.inviteSentMessage,
       expiresAt: demo.inviteTokenExpAt,
     };
-  }
-
-  private async dispatchVerificationEmail(
-    app: {
-      id: string;
-      adminFirstName: string;
-      adminEmail: string;
-      companyName: string;
-      emailTokenExp: Date;
-    },
-    token: string,
-  ) {
-    const webUrl = this.config.get<string>("WEB_URL", "http://localhost:3000");
-    const verifyUrl = `${webUrl.replace(/\/$/, "")}/register/verify-email?token=${token}&type=buyer`;
-
-    await this.emailService.send({
-      to: { email: app.adminEmail, name: app.adminFirstName },
-      templateData: {
-        template: "buyer_email_verification",
-        data: {
-          firstName: app.adminFirstName,
-          companyName: app.companyName,
-          verifyUrl,
-          expiresAt: app.emailTokenExp.toISOString(),
-        },
-      },
-      context: { type: "buyer_application", id: app.id },
-      subject: "E-posta adresinizi doğrulayın — Supkeys",
-    });
   }
 }

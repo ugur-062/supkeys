@@ -31,12 +31,6 @@ import {
   renderDemoToRegisterInvitationText,
 } from "./templates/demo-to-register-invitation";
 import {
-  BUYER_EMAIL_VERIFICATION_SUBJECT,
-  EmailVerificationEmail,
-  renderEmailVerificationText,
-  SUPPLIER_EMAIL_VERIFICATION_SUBJECT,
-} from "./templates/email-verification";
-import {
   SUPPLIER_APPLICATION_APPROVED_SUBJECT,
   SupplierApplicationApprovedEmail,
   renderSupplierApplicationApprovedText,
@@ -192,30 +186,6 @@ export async function renderEmail(
         subject: DEMO_TO_REGISTER_INVITATION_SUBJECT,
         html,
         text: renderDemoToRegisterInvitationText(spec.data),
-      };
-    }
-
-    case "buyer_email_verification": {
-      const props = { ...spec.data, applicantType: "buyer" as const };
-      const html = await render(
-        React.createElement(EmailVerificationEmail, props),
-      );
-      return {
-        subject: BUYER_EMAIL_VERIFICATION_SUBJECT,
-        html,
-        text: renderEmailVerificationText(props),
-      };
-    }
-
-    case "supplier_email_verification": {
-      const props = { ...spec.data, applicantType: "supplier" as const };
-      const html = await render(
-        React.createElement(EmailVerificationEmail, props),
-      );
-      return {
-        subject: SUPPLIER_EMAIL_VERIFICATION_SUBJECT,
-        html,
-        text: renderEmailVerificationText(props),
       };
     }
 

@@ -9,7 +9,7 @@ import {
   Length,
   MaxLength,
 } from "class-validator";
-import { CompanyTypeDto } from "../../registration/dto/create-buyer-application.dto";
+import { CompanyTypeDto } from "../../registration/dto/company-type.dto";
 
 /**
  * Madde 29 — FAZ 2 onboarding verisi (alıcı/tenant). Tedarikçi muadiliyle

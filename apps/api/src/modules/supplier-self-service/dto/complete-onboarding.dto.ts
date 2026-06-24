@@ -10,7 +10,7 @@ import {
   Length,
   MaxLength,
 } from "class-validator";
-import { CompanyTypeDto } from "../../registration/dto/create-buyer-application.dto";
+import { CompanyTypeDto } from "../../registration/dto/company-type.dto";
 
 /** Tedarikçi yetkilisinin rolü → SupplierUser.isManager. */
 export enum SupplierRoleDto {
