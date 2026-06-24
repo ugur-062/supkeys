@@ -13,6 +13,7 @@ export type EmailTemplate =
   | "supplier_relation_established_buyer"
   | "supplier_relation_established_supplier"
   | "tender_invitation"
+  | "tender_category_match"
   | "tender_closed_supplier"
   | "tender_closed_buyer"
   | "auction_closing_reminder"
@@ -210,6 +211,30 @@ export interface TenderInvitationEmailData {
   /** Kalem sayısı */
   itemCount: number;
   /** Kapanış tarihinin insan-okur biçimi (örn. "12 Mayıs 2026, 17:00") */
+  bidsCloseAtFormatted: string;
+}
+
+/**
+ * Kategori-eşleşme önerisi — yayınlanan PUBLIC ihale, tedarikçinin faaliyet
+ * kategorileriyle eşleşince giden proaktif bildirim ("sana uygun yeni ihale").
+ * Davet DEĞİL; keşif/öneri amaçlı.
+ */
+export interface TenderCategoryMatchEmailData {
+  /** Tedarikçi yetkilisinin adı (full name) */
+  supplierUserName: string;
+  /** İhaleyi açan alıcı tenant adı */
+  tenantName: string;
+  /** Otomatik üretilmiş ihale numarası */
+  tenderNumber: string;
+  /** İhale başlığı */
+  tenderTitle: string;
+  /** Tedarikçi panelinde detaya götüren mutlak URL */
+  tenderUrl: string;
+  /** Eşleşen kategori adları (Türkçe, en fazla birkaç tane gösterilir) */
+  matchedCategoryNames: string[];
+  /** Kalem sayısı */
+  itemCount: number;
+  /** Kapanış tarihinin insan-okur biçimi */
   bidsCloseAtFormatted: string;
 }
 
@@ -467,6 +492,7 @@ export type EmailTemplateData =
       data: SupplierRelationEstablishedSupplierData;
     }
   | { template: "tender_invitation"; data: TenderInvitationEmailData }
+  | { template: "tender_category_match"; data: TenderCategoryMatchEmailData }
   | { template: "tender_closed_supplier"; data: TenderClosedSupplierData }
   | { template: "tender_closed_buyer"; data: TenderClosedBuyerData }
   | {

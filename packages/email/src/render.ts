@@ -97,6 +97,11 @@ import {
   TenderClosingTimeChangedEmail,
 } from "./templates/tender-closing-time-changed";
 import {
+  makeTenderCategoryMatchSubject,
+  renderTenderCategoryMatchText,
+  TenderCategoryMatchEmail,
+} from "./templates/tender-category-match";
+import {
   makeTenderInvitationSubject,
   renderTenderInvitationText,
   TenderInvitationEmail,
@@ -323,6 +328,16 @@ export async function renderEmail(
         subject: makeTenderInvitationSubject(spec.data.tenderTitle),
         html,
         text: renderTenderInvitationText(spec.data),
+      };
+    }
+    case "tender_category_match": {
+      const html = await render(
+        React.createElement(TenderCategoryMatchEmail, spec.data),
+      );
+      return {
+        subject: makeTenderCategoryMatchSubject(spec.data.tenderTitle),
+        html,
+        text: renderTenderCategoryMatchText(spec.data),
       };
     }
 

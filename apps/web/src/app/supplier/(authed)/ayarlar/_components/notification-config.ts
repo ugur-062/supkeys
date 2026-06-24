@@ -17,6 +17,10 @@ export const NOTIFICATION_GROUPS: NotificationGroupDef[] = [
     label: "İhale bildirimleri",
     items: [
       { key: "ihale_davet", label: "Yeni ihale daveti" },
+      {
+        key: "ihale_kategori_oneri",
+        label: "Kategorime uygun yeni ihale (öneri)",
+      },
       { key: "ihale_guncellendi", label: "Davetli olduğum ihale güncellendi" },
       { key: "ihale_uzatildi", label: "İhale süresi uzatıldı" },
       { key: "ihale_iptal", label: "İhale iptal edildi" },

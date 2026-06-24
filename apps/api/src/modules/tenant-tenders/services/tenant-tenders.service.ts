@@ -1131,11 +1131,168 @@ export class TenantTendersService {
       );
     });
 
+    // Öneri sistemi — yalnızca HERKESE AÇIK ihalelerde, davetli OLMAYAN ama
+    // kategorisi eşleşen tedarikçilere proaktif bildirim (keşif). Özel ihalede
+    // sızdırma olmaması için PUBLIC dışında çalışmaz.
+    if (tender.visibility === "PUBLIC") {
+      this.notifyCategoryMatchSuppliers(
+        tenderId,
+        tender.tenant.name,
+        published,
+        tender.invitations.map((i) => i.supplier.id),
+      ).catch((err) => {
+        this.logger.error(
+          `Tender ${published.tenderNumber} kategori-eşleşme bildirimi hatası: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      });
+    }
+
     return {
       id: published.id,
       tenderNumber: published.tenderNumber,
       status: "OPEN_FOR_BIDS" as const,
     };
+  }
+
+  /**
+   * Öneri sistemi — yayınlanan PUBLIC ihalenin kategorileriyle eşleşen,
+   * davetli OLMAYAN aktif tedarikçilere "kategorine uygun yeni ihale" e-postası
+   * gönderir. Eşleşme: ihale kategorisinin segmenti tedarikçinin ana
+   * kategorilerinde VEYA kategori/class/family alt kategorilerinde. Tedarikçi
+   * notificationPrefs["tender_category_matches"] === false ile kapatabilir.
+   */
+  private async notifyCategoryMatchSuppliers(
+    tenderId: string,
+    tenantName: string,
+    published: { tenderNumber: string; title: string; bidsCloseAt: Date },
+    invitedSupplierIds: string[],
+  ): Promise<void> {
+    const cats = await this.prisma.tenderCategory.findMany({
+      where: { tenderId },
+      select: { categoryId: true },
+    });
+    const tenderCatIds = cats
+      .map((c) => c.categoryId)
+      .filter((c) => /^\d{8}$/.test(c));
+    if (tenderCatIds.length === 0) return;
+
+    const segmentIds = Array.from(
+      new Set(tenderCatIds.map((c) => c.slice(0, 2) + "000000")),
+    );
+    const subCandidates = Array.from(
+      new Set(
+        tenderCatIds.flatMap((c) => [
+          c,
+          c.slice(0, 6) + "00",
+          c.slice(0, 4) + "0000",
+        ]),
+      ),
+    );
+
+    const suppliers = await this.prisma.supplier.findMany({
+      where: {
+        isActive: true,
+        isBlocked: false,
+        id: invitedSupplierIds.length
+          ? { notIn: invitedSupplierIds }
+          : undefined,
+        OR: [
+          { sectorCategoryIds: { hasSome: segmentIds } },
+          { subCategoryIds: { hasSome: subCandidates } },
+        ],
+      },
+      take: 200,
+      select: {
+        id: true,
+        sectorCategoryIds: true,
+        subCategoryIds: true,
+        users: {
+          where: { isActive: true },
+          orderBy: { createdAt: "asc" },
+          take: 1,
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+            notificationPrefs: true,
+          },
+        },
+      },
+    });
+    if (suppliers.length === 0) return;
+
+    const nameRows = await this.prisma.category.findMany({
+      where: { id: { in: tenderCatIds } },
+      select: { id: true, nameTr: true },
+    });
+    const catName = new Map(nameRows.map((r) => [r.id, r.nameTr]));
+
+    const webUrl = (
+      this.config.get<string>("WEB_URL") ?? "http://localhost:3000"
+    ).replace(/\/$/, "");
+    const itemCount = await this.prisma.tenderItem.count({
+      where: { tenderId },
+    });
+    const bidsCloseAtFormatted = format(
+      published.bidsCloseAt,
+      "d MMMM yyyy, HH:mm",
+      { locale: tr },
+    );
+
+    await Promise.allSettled(
+      suppliers.map(async (s) => {
+        const user = s.users[0];
+        if (!user) return;
+        const prefs = (user.notificationPrefs ?? {}) as Record<string, unknown>;
+        if (prefs["ihale_kategori_oneri"] === false) return;
+
+        const mains = new Set(s.sectorCategoryIds);
+        const subs = new Set(s.subCategoryIds);
+        const matchedCategoryNames = tenderCatIds
+          .filter((c) => {
+            const seg = c.slice(0, 2) + "000000";
+            return (
+              subs.has(c) ||
+              subs.has(c.slice(0, 6) + "00") ||
+              subs.has(c.slice(0, 4) + "0000") ||
+              mains.has(seg)
+            );
+          })
+          .map((c) => catName.get(c))
+          .filter((n): n is string => !!n);
+
+        try {
+          await this.emailService.send({
+            to: {
+              email: user.email,
+              name: `${user.firstName} ${user.lastName}`,
+            },
+            templateData: {
+              template: "tender_category_match",
+              data: {
+                supplierUserName: `${user.firstName} ${user.lastName}`,
+                tenantName,
+                tenderNumber: published.tenderNumber,
+                tenderTitle: published.title,
+                tenderUrl: `${webUrl}/supplier/ihaleler/${tenderId}`,
+                matchedCategoryNames,
+                itemCount,
+                bidsCloseAtFormatted,
+              },
+            },
+            context: { type: "tender_category_match", id: tenderId },
+          });
+        } catch (err) {
+          this.logger.error(
+            `Kategori-eşleşme bildirimi tedarikçi ${s.id} gönderilemedi: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        }
+      }),
+    );
   }
 
   // ============================================================
