@@ -375,6 +375,8 @@ export interface SupplierTenderListItem {
   invitationStatus: TenderInvitationStatus | null;
   myBidStatus: BidStatus | null;
   myBidVersion: number | null;
+  /** Kategori eşleşme skoru (>0 = tedarikçinin kategorisiyle örtüşüyor). */
+  matchScore: number;
 }
 
 export interface SupplierTenderListResponse {

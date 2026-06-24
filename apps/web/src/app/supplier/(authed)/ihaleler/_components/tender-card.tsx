@@ -78,6 +78,9 @@ export function TenderCard({ tender }: { tender: SupplierTenderListItem }) {
           {tender.visibility === "PUBLIC" ? (
             <Badge color="green">Herkese Açık</Badge>
           ) : null}
+          {tender.matchScore > 0 ? (
+            <Badge color="blue">Kategorine Uygun</Badge>
+          ) : null}
           {tender.categories && tender.categories.length > 0 ? (
             <div className="flex flex-wrap items-center gap-1">
               {tender.categories.slice(0, 2).map((c) => (

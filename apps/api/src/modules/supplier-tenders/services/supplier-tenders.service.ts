@@ -199,9 +199,37 @@ export class SupplierTendersService {
     // ihaleler "kilitli teaser" olarak döner (alıcı adı maskeli, teklif pasif).
     const supplier = await this.prisma.supplier.findUnique({
       where: { id: supplierId },
-      select: { membership: true },
+      select: {
+        membership: true,
+        sectorCategoryIds: true,
+        subCategoryIds: true,
+      },
     });
     const isPremium = supplier?.membership === "PREMIUM";
+
+    // Kategori eşleştirme — tedarikçinin ana (segment) + alt kategorileri.
+    // Kategori id = 8-haneli UNSPSC kodu → segment/family/class kod ön ekiyle.
+    const mainSegments = new Set(supplier?.sectorCategoryIds ?? []);
+    const subCats = new Set(supplier?.subCategoryIds ?? []);
+    const hasCategoryPrefs = mainSegments.size > 0 || subCats.size > 0;
+    const scoreTender = (
+      cats: Array<{ category: { code: string } }>,
+    ): number => {
+      let score = 0;
+      for (const tc of cats) {
+        const code = tc.category.code;
+        if (!/^\d{8}$/.test(code)) continue;
+        const seg = code.slice(0, 2) + "000000";
+        const fam = code.slice(0, 4) + "0000";
+        const cls = code.slice(0, 6) + "00";
+        if (subCats.has(code) || subCats.has(cls) || subCats.has(fam)) {
+          score += 2; // alt kategori tam isabet
+        } else if (mainSegments.has(seg)) {
+          score += 1; // ana segment isabeti
+        }
+      }
+      return score;
+    };
 
     const where: Prisma.TenderWhereInput = {
       status: { in: statuses },
@@ -244,41 +272,33 @@ export class SupplierTendersService {
       return [{ bidsCloseAt: "asc" }, { createdAt: "desc" }];
     })();
 
-    const [items, total] = await Promise.all([
-      this.prisma.tender.findMany({
-        where,
-        skip,
-        take: pageSize,
-        orderBy,
-        select: {
-          id: true,
-          tenderNumber: true,
-          title: true,
-          type: true,
-          visibility: true,
-          isLogistics: true,
-          status: true,
-          primaryCurrency: true,
-          allowedCurrencies: true,
-          bidsCloseAt: true,
-          publishedAt: true,
-          tenant: { select: { name: true } },
-          categories: {
+    const tenderSelect = {
+      id: true,
+      tenderNumber: true,
+      title: true,
+      type: true,
+      visibility: true,
+      isLogistics: true,
+      status: true,
+      primaryCurrency: true,
+      allowedCurrencies: true,
+      bidsCloseAt: true,
+      publishedAt: true,
+      tenant: { select: { name: true } },
+      categories: {
+        include: {
+          category: {
             include: {
-              category: {
+              parent: {
                 include: {
                   parent: {
                     include: {
                       parent: {
-                        include: {
-                          parent: {
-                            select: {
-                              id: true,
-                              nameTr: true,
-                              segmentLetter: true,
-                              level: true,
-                            },
-                          },
+                        select: {
+                          id: true,
+                          nameTr: true,
+                          segmentLetter: true,
+                          level: true,
                         },
                       },
                     },
@@ -286,23 +306,57 @@ export class SupplierTendersService {
                 },
               },
             },
-            orderBy: { createdAt: "asc" },
-          },
-          _count: { select: { items: true } },
-          invitations: {
-            where: { supplierId },
-            select: { status: true },
-            take: 1,
-          },
-          bids: {
-            where: { supplierId },
-            select: { status: true, version: true },
-            take: 1,
           },
         },
+        orderBy: { createdAt: "asc" },
+      },
+      _count: { select: { items: true } },
+      invitations: {
+        where: { supplierId },
+        select: { status: true },
+        take: 1,
+      },
+      bids: {
+        where: { supplierId },
+        select: { status: true, version: true },
+        take: 1,
+      },
+    } satisfies Prisma.TenderSelect;
+
+    // Varsayılan sıralama + kategori tercihi varsa → KATEGORİ EŞLEŞMESİ önce.
+    // Eşleşmeyi DB orderBy ile yapamadığımız için sınırlı bir havuz çekip
+    // (RANK_CAP) bellekte skorlayıp sayfalıyoruz; toplam yine count'tan.
+    const usesRelevance = !query.sort && hasCategoryPrefs;
+    const RANK_CAP = 500;
+    const fetchSkip = usesRelevance ? 0 : skip;
+    const fetchTake = usesRelevance ? RANK_CAP : pageSize;
+    const fetchOrderBy: Prisma.TenderOrderByWithRelationInput[] = usesRelevance
+      ? [{ bidsCloseAt: "asc" }, { createdAt: "desc" }]
+      : orderBy;
+
+    const [pool, total] = await Promise.all([
+      this.prisma.tender.findMany({
+        where,
+        skip: fetchSkip,
+        take: fetchTake,
+        orderBy: fetchOrderBy,
+        select: tenderSelect,
       }),
       this.prisma.tender.count({ where }),
     ]);
+
+    let items = pool;
+    if (usesRelevance) {
+      items = [...pool]
+        .sort((a, b) => {
+          const d = scoreTender(b.categories) - scoreTender(a.categories);
+          if (d !== 0) return d;
+          return (
+            new Date(a.bidsCloseAt).getTime() - new Date(b.bidsCloseAt).getTime()
+          );
+        })
+        .slice(skip, skip + pageSize);
+    }
 
     return {
       items: items.map((t) => {
@@ -334,6 +388,8 @@ export class SupplierTendersService {
         invitationStatus: t.invitations[0]?.status ?? null,
         myBidStatus: t.bids[0]?.status ?? null,
         myBidVersion: t.bids[0]?.version ?? null,
+        // Kategori eşleşme skoru (>0 = senin kategorin) — UI rozeti için.
+        matchScore: hasCategoryPrefs ? scoreTender(t.categories) : 0,
         };
       }),
       pagination: {
