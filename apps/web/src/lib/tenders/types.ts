@@ -433,10 +433,11 @@ export interface SupplierTenderDetail {
   tenant: { id: string; name: string };
   items: SupplierTenderItem[];
   attachments: TenderAttachment[];
+  // Açık (PUBLIC) ihaleyi davetsiz gören premium tedarikçide null olabilir.
   myInvitation: {
     status: TenderInvitationStatus;
     invitedAt: string;
-  };
+  } | null;
   myBid: {
     id: string;
     status: BidStatus;

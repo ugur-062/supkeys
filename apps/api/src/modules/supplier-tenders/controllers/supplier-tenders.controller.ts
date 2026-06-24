@@ -104,7 +104,7 @@ export class SupplierTendersController {
     @Param("id") id: string,
     @CurrentSupplierUser() user: AuthenticatedSupplierUser,
   ): Promise<unknown> {
-    return this.service.submitBid(user.supplierId, id);
+    return this.service.submitBid(user.supplierId, user.supplierUserId, id);
   }
 
   @Post(":id/bid/withdraw")

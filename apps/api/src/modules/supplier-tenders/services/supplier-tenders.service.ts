@@ -70,12 +70,16 @@ export class SupplierTendersService {
   private async ensureBidParticipation(
     tx: Prisma.TransactionClient,
     supplierId: string,
+    supplierUserId: string,
     tender: { id: string; visibility: string; status: string },
   ): Promise<void> {
     const invitation = await tx.tenderInvitation.findUnique({
       where: { tenderId_supplierId: { tenderId: tender.id, supplierId } },
       select: { id: true },
     });
+    // Madde 29 — alıcı davetiyle gelen tedarikçi FAZ 3 doğrulaması olmadan
+    // teklif verebilir. Doğrulama kapısı yalnızca açık (PUBLIC) ihaleye
+    // davetsiz (premium) katılımda devreye girer.
     if (invitation) return;
 
     const allowed =
@@ -86,6 +90,9 @@ export class SupplierTendersService {
       throw new ForbiddenException("Bu ihaleye davetli değilsiniz");
     }
 
+    // Açık ihale (premium, davetsiz) → FAZ 3 doğrulaması + 2FA şart.
+    await this.assertVerifiedForSupplier(tx, supplierId, supplierUserId);
+
     // Açık ihaleye premium katılımı — davet kaydı otomatik oluşur.
     await tx.tenderInvitation.create({
       data: {
@@ -95,6 +102,35 @@ export class SupplierTendersService {
         respondedAt: new Date(),
       },
     });
+  }
+
+  /**
+   * Madde 29 — FAZ 3.0 doğrulama kapısı (tedarikçi, açık ihale). Şirket
+   * belgeleri VERIFIED + kullanıcı 2FA aktif değilse açık (PUBLIC) ihaleye
+   * teklif verilemez. Alıcı davetiyle gelen tedarikçiler bu kapıdan muaftır.
+   */
+  private async assertVerifiedForSupplier(
+    tx: Prisma.TransactionClient,
+    supplierId: string,
+    supplierUserId: string,
+  ): Promise<void> {
+    const [supplier, user] = await Promise.all([
+      tx.supplier.findUnique({
+        where: { id: supplierId },
+        select: { companyVerificationStatus: true },
+      }),
+      tx.supplierUser.findUnique({
+        where: { id: supplierUserId },
+        select: { twoFactorEnabled: true },
+      }),
+    ]);
+    const verified = supplier?.companyVerificationStatus === "VERIFIED";
+    const twoFa = user?.twoFactorEnabled === true;
+    if (!verified || !twoFa) {
+      throw new ForbiddenException(
+        "Herkese açık ihalelere teklif vermek için şirket doğrulamanızı tamamlayın ve 2 adımlı doğrulamayı etkinleştirin.",
+      );
+    }
   }
 
   // ============================================================
@@ -704,8 +740,8 @@ export class SupplierTendersService {
       if (!tender) throw new NotFoundException("İhale bulunamadı");
 
       // Davet kontrolü — PUBLIC ihalede premium tedarikçi davetsiz katılır
-      // (davet kaydı burada otomatik oluşur).
-      await this.ensureBidParticipation(tx, supplierId, tender);
+      // (davet kaydı burada otomatik oluşur; davetsiz katılım FAZ 3 ister).
+      await this.ensureBidParticipation(tx, supplierId, supplierUserId, tender);
 
       // Status + kapanış kontrolü
       if (tender.status !== "OPEN_FOR_BIDS") {
@@ -968,7 +1004,7 @@ export class SupplierTendersService {
    * SUBMITTED → SUBMITTED ARTIK YASAK (E.5 refactor — revize kaldırıldı).
    * Submit öncesi requireAllItems / requireBidDocument validasyonları.
    */
-  async submitBid(supplierId: string, tenderId: string) {
+  async submitBid(supplierId: string, supplierUserId: string, tenderId: string) {
     return this.prisma.$transaction(async (tx) => {
       const tender = await tx.tender.findUnique({
         where: { id: tenderId },
@@ -976,7 +1012,7 @@ export class SupplierTendersService {
       });
       if (!tender) throw new NotFoundException("İhale bulunamadı");
 
-      await this.ensureBidParticipation(tx, supplierId, tender);
+      await this.ensureBidParticipation(tx, supplierId, supplierUserId, tender);
 
       if (tender.status !== "OPEN_FOR_BIDS") {
         throw new ConflictException("Bu ihale teklife açık değil");

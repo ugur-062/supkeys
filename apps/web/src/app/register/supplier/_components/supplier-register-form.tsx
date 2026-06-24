@@ -81,6 +81,10 @@ export function SupplierRegisterForm(props: Props) {
         email: v.email,
         phone: v.phone?.trim() || undefined,
         password: v.password,
+        // Madde 29 — davet/connect linki ile gelindiyse alıcı bağlantısı
+        // signup'ta otomatik kurulsun.
+        invitationToken: props.invitationToken,
+        connectSlug: props.connectSlug,
       },
       {
         onSuccess: (d) => {

@@ -1,12 +1,33 @@
-import { ConflictException, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  GoneException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { generateShortCode } from "@supkeys/shared";
+import type { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import { TwoFactorService } from "../../two-factor/two-factor.service";
+import { hashToken } from "../helpers/token.helper";
 import {
   SupplierSignupDto,
   VerifySupplierEmailDto,
 } from "../dto/supplier-signup.dto";
+
+/**
+ * Signup sırasında kurulacak alıcı bağlantısı. `invite` → alıcı davet linki
+ * (ACTIVE); `connect` → "Tedarikçi Ol" başvurusu (alıcı onayı bekler).
+ */
+type ResolvedLink =
+  | {
+      kind: "invite";
+      tenantId: string;
+      invitationId: string;
+      tenderId: string | null;
+    }
+  | { kind: "connect"; tenantId: string };
 
 /**
  * Madde 29 — Tedarikçi signup (önce hesap). Hesap anında oluşur (admin ön-onayı
@@ -34,6 +55,10 @@ export class SupplierSignupService {
       );
     }
 
+    // Davet/connect linkini hesap oluşturmadan ÖNCE doğrula — geçersiz linkte
+    // boş hesap (Supabase + domain) kalmasın.
+    const link = await this.resolveLink(dto);
+
     // Supabase auth kullanıcısı (parola doğrulama kaynağı).
     const { authId } = await this.supabaseAuth.createUser(email, dto.password, {
       kind: "supplier",
@@ -57,7 +82,7 @@ export class SupplierSignupService {
           },
           select: { id: true },
         });
-        return tx.supplierUser.create({
+        const supplierUser = await tx.supplierUser.create({
           data: {
             email,
             authId,
@@ -70,6 +95,9 @@ export class SupplierSignupService {
           },
           select: { id: true, firstName: true },
         });
+        // Madde 29 — davet linkiyle gelindiyse alıcı bağlantısını burada kur.
+        if (link) await this.linkToTenant(tx, supplier.id, link);
+        return supplierUser;
       });
     } catch (err) {
       // Domain kaydı başarısızsa Supabase kullanıcısını geri al.
@@ -82,6 +110,118 @@ export class SupplierSignupService {
       "EMAIL_VERIFY",
     );
     return { challengeId, expiresAt, email };
+  }
+
+  /**
+   * Davet token'ı / connect slug'ını doğrula (hesap oluşturmadan önce). Yoksa
+   * null döner (klasik self-register). Geçersiz/süresi dolmuş linkte hata atar.
+   */
+  private async resolveLink(dto: SupplierSignupDto): Promise<ResolvedLink | null> {
+    if (dto.invitationToken) {
+      const tokenHash = hashToken(dto.invitationToken);
+      const invitation = await this.prisma.supplierInvitation.findUnique({
+        where: { tokenHash },
+        select: {
+          id: true,
+          tenantId: true,
+          status: true,
+          expiresAt: true,
+          tenderId: true,
+        },
+      });
+      if (!invitation) {
+        throw new NotFoundException("Davet bağlantısı geçersiz");
+      }
+      if (invitation.status !== "PENDING") {
+        throw new BadRequestException(
+          "Davet bağlantısı kullanılamaz (iptal edilmiş veya kabul edilmiş)",
+        );
+      }
+      if (invitation.expiresAt < new Date()) {
+        throw new GoneException("Davet bağlantısının süresi dolmuş");
+      }
+      return {
+        kind: "invite",
+        tenantId: invitation.tenantId,
+        invitationId: invitation.id,
+        tenderId: invitation.tenderId,
+      };
+    }
+
+    if (dto.connectSlug) {
+      const tenant = await this.prisma.tenant.findUnique({
+        where: { slug: dto.connectSlug },
+        select: { id: true, publicEnabled: true, isActive: true },
+      });
+      if (!tenant || !tenant.publicEnabled || !tenant.isActive) {
+        throw new NotFoundException("Firma bulunamadı veya başvuruya kapalı");
+      }
+      return { kind: "connect", tenantId: tenant.id };
+    }
+
+    return null;
+  }
+
+  /**
+   * Tedarikçi ↔ alıcı bağlantısını kur. Davet (INVITE) → direkt ACTIVE; connect
+   * ("Tedarikçi Ol") → PENDING_TENANT_APPROVAL (alıcı "Gelen İstekler"de onaylar).
+   * Davet bir ihaleye bağlıysa (tenderId) tedarikçiyi o ihaleye de davetli yapar.
+   */
+  private async linkToTenant(
+    tx: Prisma.TransactionClient,
+    supplierId: string,
+    link: ResolvedLink,
+  ): Promise<void> {
+    const isConnect = link.kind === "connect";
+    await tx.supplierTenantRelation.upsert({
+      where: { supplierId_tenantId: { supplierId, tenantId: link.tenantId } },
+      create: {
+        supplierId,
+        tenantId: link.tenantId,
+        status: isConnect ? "PENDING_TENANT_APPROVAL" : "ACTIVE",
+        origin: isConnect ? "CONNECT_REQUEST" : "INVITE",
+        requestedAt: isConnect ? new Date() : null,
+      },
+      // Connect-request mevcut ilişkiye dokunmaz; davet ise ACTIVE'e çeker.
+      update: isConnect ? {} : { status: "ACTIVE", origin: "INVITE" },
+    });
+
+    if (link.kind !== "invite") return;
+
+    // Davet kaydını ACCEPTED işaretle.
+    await tx.supplierInvitation.update({
+      where: { id: link.invitationId },
+      data: {
+        status: "ACCEPTED",
+        acceptedAt: new Date(),
+        acceptedBySupplierId: supplierId,
+      },
+    });
+
+    // V2-7 — davet bir ihaleye bağlıysa tedarikçiyi o ihaleye davetli yap
+    // (ihale hâlâ DRAFT/OPEN_FOR_BIDS ise; kapanmışsa atla).
+    if (link.tenderId) {
+      const tender = await tx.tender.findUnique({
+        where: { id: link.tenderId },
+        select: { status: true },
+      });
+      if (
+        tender &&
+        (tender.status === "OPEN_FOR_BIDS" || tender.status === "DRAFT")
+      ) {
+        await tx.tenderInvitation.upsert({
+          where: {
+            tenderId_supplierId: { tenderId: link.tenderId, supplierId },
+          },
+          create: {
+            tenderId: link.tenderId,
+            supplierId,
+            status: "PENDING",
+          },
+          update: {},
+        });
+      }
+    }
   }
 
   /** 6 haneli kodu doğrula → e-posta doğrulandı (login açılır). */

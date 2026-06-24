@@ -1,6 +1,7 @@
 "use client";
 
 import { AuctionLiveCard } from "@/app/supplier/(authed)/ihaleler/[id]/_components/auction-live-card";
+import { SupplierVerificationGate } from "@/components/onboarding/supplier-verification-gate";
 import { Button } from "@/components/ui/button";
 import { useMyBid } from "@/hooks/use-supplier-bid";
 import { useSupplierTenderDetail } from "@/hooks/use-supplier-tenders";
@@ -107,12 +108,19 @@ export function TeklifLoader({ id }: Props) {
     );
   }
 
+  // Madde 29 — açık (PUBLIC) ihaleye davetsiz teklif FAZ 3 doğrulaması ister;
+  // alıcı davetiyle gelinen ihalede (myInvitation var) kapı atlanır.
+  const needsVerification =
+    tender.visibility === "PUBLIC" && !tender.myInvitation;
+
   return (
-    <div className="space-y-4">
-      {tender.type === "ENGLISH_AUCTION" ? (
-        <AuctionLiveCard tender={tender} />
-      ) : null}
-      <TeklifForm tender={tender} existingBid={myBidQuery.data ?? null} />
-    </div>
+    <SupplierVerificationGate enforce={needsVerification}>
+      <div className="space-y-4">
+        {tender.type === "ENGLISH_AUCTION" ? (
+          <AuctionLiveCard tender={tender} />
+        ) : null}
+        <TeklifForm tender={tender} existingBid={myBidQuery.data ?? null} />
+      </div>
+    </SupplierVerificationGate>
   );
 }

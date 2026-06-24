@@ -1,17 +1,28 @@
 "use client";
 
-import { useMe } from "@/hooks/use-auth";
+import { useSupplierMe } from "@/hooks/use-supplier-auth";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { VerificationGateView } from "./verification-gate-view";
 
 /**
- * Madde 29 — FAZ 3.0 doğrulama kapısı (alıcı). İhale oluşturmak için şirket
- * belgeleri VERIFIED + 2FA aktif olmalı. Değilse wizard yerine kapı gösterilir.
+ * Madde 29 — FAZ 3.0 doğrulama kapısı (tedarikçi). Şirket belgeleri VERIFIED +
+ * 2FA aktif olmalı. Kapı YALNIZCA açık (PUBLIC) ihaleye davetsiz teklifte
+ * zorunludur; `enforce=false` ise (alıcı davetiyle gelinen ihale) atlanır.
  */
-export function VerificationGate({ children }: { children: React.ReactNode }) {
-  const me = useMe();
+export function SupplierVerificationGate({
+  enforce,
+  children,
+}: {
+  enforce: boolean;
+  children: React.ReactNode;
+}) {
+  const me = useSupplierMe();
   const router = useRouter();
+
+  if (!enforce) {
+    return <>{children}</>;
+  }
 
   if (me.isLoading || !me.data) {
     return (
@@ -21,9 +32,9 @@ export function VerificationGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const docsStatus = me.data.tenant.companyVerificationStatus;
+  const docsStatus = me.data.supplier.companyVerificationStatus;
   const docsVerified = docsStatus === "VERIFIED";
-  const twoFa = me.data.twoFactorEnabled === true;
+  const twoFa = me.data.supplierUser.twoFactorEnabled === true;
 
   if (docsVerified && twoFa) {
     return <>{children}</>;
@@ -39,23 +50,23 @@ export function VerificationGate({ children }: { children: React.ReactNode }) {
 
   return (
     <VerificationGateView
-      title="İhale oluşturmak için doğrulama gerekli"
-      description={`İhale yayınlamadan önce hesabınızın doğrulama adımlarını tamamlamanız gerekir. ${missing} gereksinim eksik.`}
+      title="Açık ihaleye teklif vermek için doğrulama gerekli"
+      description={`Herkese açık ihalelere teklif verebilmek için hesabınızın doğrulama adımlarını tamamlamanız gerekir. ${missing} gereksinim eksik.`}
       requirements={[
         {
           done: docsVerified,
           title: "Şirket belgelerini doğrula",
           hint: docsVerified ? "Doğrulandı" : docsHint,
-          href: "/dashboard/kurumsal-kimlik",
+          href: "/supplier/kurumsal-kimlik",
         },
         {
           done: twoFa,
           title: "2 adımlı doğrulamayı etkinleştir",
           hint: twoFa ? "Aktif" : "E-posta tabanlı 2FA'yı açın",
-          href: "/dashboard/ayarlar/2fa-islemleri",
+          href: "/supplier/ayarlar/2fa-islemleri",
         },
       ]}
-      onBack={() => router.push("/dashboard")}
+      onBack={() => router.push("/supplier/ihaleler")}
     />
   );
 }

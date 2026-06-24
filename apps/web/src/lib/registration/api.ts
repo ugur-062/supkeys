@@ -126,6 +126,10 @@ export interface SupplierSignupInput {
   email: string;
   phone?: string;
   password: string;
+  // Alıcı davet linki (?invitation=) → otomatik ACTIVE bağlantı.
+  invitationToken?: string;
+  // "Tedarikçi Ol" public profil (?connect=slug) → PENDING_TENANT_APPROVAL.
+  connectSlug?: string;
 }
 
 export async function supplierSignup(input: SupplierSignupInput) {
