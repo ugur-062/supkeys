@@ -30,8 +30,8 @@ export function MarketingHeader() {
         aria-label="Global"
         className={`mx-auto flex items-center justify-between text-white transition-all duration-300 ease-out ${
           scrolled
-            ? "mt-3 max-w-3xl rounded-full border border-white/10 bg-[#0A0A0A]/80 px-5 py-2 shadow-2xl backdrop-blur-md"
-            : "mt-4 max-w-6xl rounded-2xl border border-white/10 bg-[#0A0A0A]/90 px-6 py-3 backdrop-blur"
+            ? "mt-3 max-w-3xl rounded-full border border-zinc-800 bg-[#0A0A0A] px-5 py-2 shadow-2xl"
+            : "mt-4 max-w-6xl rounded-2xl border border-zinc-800 bg-[#0A0A0A] px-6 py-3 shadow-lg"
         }`}
       >
         <div className="flex lg:flex-1">
