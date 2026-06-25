@@ -8,7 +8,8 @@ export default function IhalelerimPage() {
       type="ALIM"
       title="İhalelerim"
       createLabel="Yeni İhale"
-      emptyHint="Henüz ihalen yok. Yeni İhale ile bir alım ihalesi (RFQ / İngiliz Usulü) aç; satıcılar teklif versin."
+      createHref="/company/satinalma/ihalelerim/yeni"
+      emptyHint="Henüz ihalen yok. Yeni İhale ile çok kalemli bir alım ihalesi (RFQ / İngiliz Usulü) aç; tedarikçileri davet et, teklif topla."
     />
   );
 }

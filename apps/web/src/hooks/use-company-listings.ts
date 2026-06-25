@@ -43,6 +43,16 @@ export interface BrowseListing {
   canBid: boolean;
 }
 
+export type CurrencyCode = "TRY" | "USD" | "EUR" | "GBP" | "CHF" | "JPY";
+
+export interface ListingItemInput {
+  name: string;
+  description?: string;
+  quantity: number;
+  unit: string;
+  targetPrice?: number;
+}
+
 export interface CreateListingInput {
   type: ListingType;
   isInternational: boolean;
@@ -53,6 +63,16 @@ export interface CreateListingInput {
   title: string;
   description?: string;
   closesAt?: string;
+  // İhale (ALIM) zenginleştirme
+  items?: ListingItemInput[];
+  invitations?: string[]; // davet edilen supkeysId'ler
+  keywords?: string[];
+  terms?: string;
+  internalNotes?: string;
+  requireAllItems?: boolean;
+  requireBidDocument?: boolean;
+  primaryCurrency?: CurrencyCode;
+  allowedCurrencies?: CurrencyCode[];
 }
 
 export function useMyListings() {

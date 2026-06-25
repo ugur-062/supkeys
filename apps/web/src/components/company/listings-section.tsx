@@ -31,11 +31,15 @@ export function MyListings({
   title,
   createLabel,
   emptyHint,
+  createHref,
 }: {
   type: ListingType;
   title: string;
   createLabel: string;
   emptyHint: string;
+  /** Verilirse "oluştur" butonu bu sayfaya yönlendirir (çok-adımlı wizard);
+   *  yoksa basit dialog açılır. */
+  createHref?: string;
 }) {
   const [open, setOpen] = useState(false);
   const mine = useMyListings();
@@ -45,10 +49,17 @@ export function MyListings({
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex items-center justify-between gap-4">
         <Heading>{title}</Heading>
-        <Button onClick={() => setOpen(true)}>
-          <PlusIcon data-slot="icon" />
-          {createLabel}
-        </Button>
+        {createHref ? (
+          <Button href={createHref}>
+            <PlusIcon data-slot="icon" />
+            {createLabel}
+          </Button>
+        ) : (
+          <Button onClick={() => setOpen(true)}>
+            <PlusIcon data-slot="icon" />
+            {createLabel}
+          </Button>
+        )}
       </div>
 
       {mine.isLoading ? (
