@@ -106,6 +106,77 @@ export class CompanyConnectionsService {
     }));
   }
 
+  /**
+   * Keşfet — bağlanılacak firmaları kategori-eşleşmesine göre sıralı listeler.
+   * Sadece PAKET keşfedebilir; yalnızca PAKET (görünür) firmalar çıkar.
+   * Skor: (ben alırım ∩ o satar) + (ben satarım ∩ o alır). Bağlı/davetli hariç.
+   */
+  async discover(user: AuthenticatedCompanyUser) {
+    if (user.tier !== "PAKET") {
+      return { locked: true as const, companies: [] };
+    }
+    const me = await this.prisma.company.findUnique({
+      where: { id: user.companyId },
+      select: { buyerCategoryIds: true, sellerCategoryIds: true },
+    });
+    const myBuyer = new Set(me?.buyerCategoryIds ?? []);
+    const mySeller = new Set(me?.sellerCategoryIds ?? []);
+
+    // Mevcut bağlantı/davet olan firmaları çıkar.
+    const conns = await this.prisma.companyConnection.findMany({
+      where: {
+        OR: [
+          { inviterCompanyId: user.companyId },
+          { inviteeCompanyId: user.companyId },
+        ],
+      },
+      select: { inviterCompanyId: true, inviteeCompanyId: true },
+    });
+    const exclude = new Set<string>([user.companyId]);
+    for (const c of conns) {
+      exclude.add(c.inviterCompanyId);
+      exclude.add(c.inviteeCompanyId);
+    }
+
+    const companies = await this.prisma.company.findMany({
+      where: {
+        tier: "PAKET",
+        isActive: true,
+        isBlocked: false,
+        id: { notIn: [...exclude] },
+      },
+      select: {
+        id: true,
+        name: true,
+        supkeysId: true,
+        industry: true,
+        buyerCategoryIds: true,
+        sellerCategoryIds: true,
+      },
+      take: 100,
+    });
+
+    const scored = companies
+      .map((c) => {
+        const sellsWhatIBuy = c.sellerCategoryIds.filter((x) =>
+          myBuyer.has(x),
+        ).length;
+        const buysWhatISell = c.buyerCategoryIds.filter((x) =>
+          mySeller.has(x),
+        ).length;
+        return {
+          id: c.id,
+          name: c.name,
+          supkeysId: c.supkeysId,
+          industry: c.industry,
+          matchScore: sellsWhatIBuy + buysWhatISell,
+        };
+      })
+      .sort((a, b) => b.matchScore - a.matchScore);
+
+    return { locked: false as const, companies: scored };
+  }
+
   /** Gelen daveti kabul et. */
   async accept(user: AuthenticatedCompanyUser, connectionId: string) {
     const conn = await this.requireIncoming(user.companyId, connectionId);

@@ -31,6 +31,11 @@ export class CompanyConnectionsController {
     return this.service.listIncoming(user.companyId);
   }
 
+  @Get("discover")
+  discover(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.discover(user);
+  }
+
   @Post("invite")
   @RequireCompanyPermission("connections:manage")
   invite(

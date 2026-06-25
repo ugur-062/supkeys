@@ -48,6 +48,27 @@ export function useIncomingInvites() {
   });
 }
 
+export interface DiscoverCompany {
+  id: string;
+  name: string;
+  supkeysId: string | null;
+  industry: string | null;
+  matchScore: number;
+}
+
+export function useDiscover() {
+  return useQuery({
+    queryKey: ["company-connections", "discover"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<{
+        locked: boolean;
+        companies: DiscoverCompany[];
+      }>("/company/connections/discover");
+      return data;
+    },
+  });
+}
+
 export function useInviteConnection() {
   const qc = useQueryClient();
   return useMutation({
