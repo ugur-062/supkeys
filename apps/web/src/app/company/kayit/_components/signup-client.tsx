@@ -1,7 +1,7 @@
 "use client";
 
 import { AuthBackdrop } from "@/components/marketing/auth-backdrop";
-import { MarketingHeader } from "@/components/marketing/marketing-header";
+import { AuthHeader } from "@/components/marketing/auth-header";
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
@@ -63,7 +63,7 @@ export function CompanySignupClient() {
 
   return (
     <main className="flex min-h-screen flex-col bg-zinc-50">
-      <MarketingHeader />
+      <AuthHeader />
 
       <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 sm:py-16">
         <AuthBackdrop />

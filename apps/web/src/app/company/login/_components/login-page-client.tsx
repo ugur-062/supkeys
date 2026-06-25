@@ -1,7 +1,7 @@
 "use client";
 
 import { AuthBackdrop } from "@/components/marketing/auth-backdrop";
-import { MarketingHeader } from "@/components/marketing/marketing-header";
+import { AuthHeader } from "@/components/marketing/auth-header";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -30,7 +30,7 @@ export function CompanyLoginClient() {
 
   return (
     <main className="flex min-h-screen flex-col bg-zinc-50">
-      <MarketingHeader />
+      <AuthHeader />
 
       {/* Gövde — modern arka plan + temiz beyaz kart */}
       <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 sm:py-16">

@@ -4,7 +4,7 @@ import { RothernLogo } from "@/components/brand/logo";
 import { Dialog, DialogPanel } from "@headlessui/react";
 import { Bars3Icon, XMarkIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const navigation = [
   { name: "Özellikler", href: "/#ozellikler" },
@@ -15,17 +15,29 @@ const navigation = [
 
 export function MarketingHeader() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-zinc-800 bg-[#0A0A0A]">
+    <header className="fixed inset-x-0 top-0 z-50 px-4">
       <nav
         aria-label="Global"
-        className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 lg:px-8"
+        className={`mx-auto flex items-center justify-between text-white transition-all duration-300 ease-out ${
+          scrolled
+            ? "mt-3 max-w-3xl rounded-full border border-white/10 bg-[#0A0A0A]/80 px-5 py-2 shadow-2xl backdrop-blur-md"
+            : "mt-4 max-w-6xl rounded-2xl border border-white/10 bg-[#0A0A0A]/90 px-6 py-3 backdrop-blur"
+        }`}
       >
         <div className="flex lg:flex-1">
           <Link href="/" className="-m-1.5 p-1.5">
             <span className="sr-only">Rothern</span>
-            <RothernLogo variant="full" size="md" priority />
+            <RothernLogo variant="full" size={scrolled ? "sm" : "md"} priority />
           </Link>
         </div>
         <div className="flex lg:hidden">
@@ -38,7 +50,7 @@ export function MarketingHeader() {
             <Bars3Icon aria-hidden="true" className="size-6" />
           </button>
         </div>
-        <div className="hidden lg:flex lg:gap-x-10">
+        <div className="hidden lg:flex lg:gap-x-8">
           {navigation.map((item) => (
             <a
               key={item.name}
@@ -49,7 +61,7 @@ export function MarketingHeader() {
             </a>
           ))}
         </div>
-        <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:gap-x-4">
+        <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:gap-x-3">
           <Link
             href="/company/login"
             className="text-sm/6 font-semibold text-white transition hover:text-zinc-300"
@@ -58,7 +70,7 @@ export function MarketingHeader() {
           </Link>
           <Link
             href="/company/kayit"
-            className="rounded-lg bg-white px-3.5 py-2 text-sm font-semibold text-zinc-950 shadow-sm transition hover:bg-zinc-200"
+            className="rounded-full bg-white px-3.5 py-1.5 text-sm font-semibold text-zinc-950 shadow-sm transition hover:bg-zinc-200"
           >
             Kaydol
           </Link>

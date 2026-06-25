@@ -283,23 +283,6 @@ function CountUp({
   );
 }
 
-const sectors = [
-  "Metal & Çelik",
-  "İnşaat",
-  "Gıda",
-  "Tekstil",
-  "Otomotiv",
-  "Kimya",
-  "Elektronik",
-  "Lojistik",
-  "Tarım",
-  "Enerji",
-  "Makine",
-  "Ambalaj",
-  "Mobilya",
-  "Medikal",
-];
-
 const reachCountries = [
   "TR",
   "DE",
@@ -314,23 +297,6 @@ const reachCountries = [
   "JP",
   "IN",
 ];
-
-function SectorMarquee() {
-  return (
-    <div className="relative flex overflow-hidden border-y border-zinc-200 bg-white py-6 [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
-      <div className="rt-marquee flex w-max items-center gap-3 pr-3 hover:[animation-play-state:paused]">
-        {[...sectors, ...sectors].map((s, i) => (
-          <span
-            key={`${s}-${i}`}
-            className="rounded-full border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm font-medium whitespace-nowrap text-zinc-600"
-          >
-            {s}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function Reveal({
   children,
@@ -805,9 +771,6 @@ export default function HomePage() {
           <AppPreview />
         </div>
       </section>
-
-      {/* Sektör marquee — pazar genişliği */}
-      <SectorMarquee />
 
       {/* Pazar & erişim */}
       <section className="relative isolate overflow-hidden bg-[#0A0A0A] py-24 sm:py-32">
