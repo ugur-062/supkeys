@@ -11,21 +11,24 @@ interface RothernLogoProps {
   priority?: boolean;
 }
 
+// Oran wordmark PNG'ye göre (774:226 ≈ 3.42), ikon 1:1.
 const SIZES: Record<
   LogoSize,
   { full: { w: number; h: number }; icon: { w: number; h: number } }
 > = {
-  sm: { full: { w: 96, h: 24 }, icon: { w: 24, h: 24 } },
-  md: { full: { w: 128, h: 32 }, icon: { w: 32, h: 32 } },
-  lg: { full: { w: 160, h: 40 }, icon: { w: 40, h: 40 } },
-  xl: { full: { w: 200, h: 50 }, icon: { w: 64, h: 64 } },
+  sm: { full: { w: 120, h: 35 }, icon: { w: 32, h: 32 } },
+  md: { full: { w: 158, h: 46 }, icon: { w: 40, h: 40 } },
+  lg: { full: { w: 205, h: 60 }, icon: { w: 52, h: 52 } },
+  xl: { full: { w: 274, h: 80 }, icon: { w: 80, h: 80 } },
 };
 
+// Asıl logo = "on-dark" koyu kilit (beyaz yazı, kendi koyu zemini). Her yerde
+// bu kullanılır — kullanıcının açık/koyu mod tercihinden BAĞIMSIZ.
 const SOURCES: Record<LogoVariant, string> = {
-  full: "/rothern-logo-on-light.png",
+  full: "/rothern-logo-on-dark.png",
   icon: "/rothern-icon.svg",
   "full-white": "/rothern-logo-on-dark.png",
-  "icon-white": "/rothern-icon-white-256.png",
+  "icon-white": "/rothern-icon-white.svg",
 };
 
 export function RothernLogo({
@@ -44,6 +47,7 @@ export function RothernLogo({
       width={dimensions.w}
       height={dimensions.h}
       priority={priority}
+      unoptimized
       className={cn("object-contain", className)}
     />
   );
