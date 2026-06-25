@@ -23,9 +23,6 @@ import {
 } from "@/components/catalyst/sidebar";
 import { SidebarLayout } from "@/components/catalyst/sidebar-layout";
 import { useAdminAuth, useAdminLogout } from "@/hooks/use-admin-auth";
-import { useBuyerApplicationStats } from "@/hooks/use-buyer-applications";
-import { useDemoRequestStats } from "@/hooks/use-demo-requests";
-import { useSupplierApplicationStats } from "@/hooks/use-supplier-applications";
 import {
   ArrowRightStartOnRectangleIcon,
   ChevronUpIcon,
@@ -45,8 +42,6 @@ import {
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 
-type BadgeKey = "demoRequestsNew" | "buyerAppsReview" | "supplierAppsReview";
-
 interface NavLeaf {
   label: string;
   href: string;
@@ -54,7 +49,6 @@ interface NavLeaf {
   disabled?: boolean;
   /** Pathname'in match olacağı prefix; verilmezse exact href */
   activeMatch?: string;
-  badgeKey?: BadgeKey;
 }
 
 interface NavSection {
@@ -119,16 +113,6 @@ function AdminSidebar() {
   const logout = useAdminLogout();
   const pathname = usePathname();
 
-  const demoStats = useDemoRequestStats();
-  const buyerStats = useBuyerApplicationStats();
-  const supplierStats = useSupplierApplicationStats();
-
-  const counts: Record<BadgeKey, number> = {
-    demoRequestsNew: demoStats.data?.byStatus.NEW ?? 0,
-    buyerAppsReview: buyerStats.data?.byStatus.PENDING_REVIEW ?? 0,
-    supplierAppsReview: supplierStats.data?.byStatus.PENDING_REVIEW ?? 0,
-  };
-
   return (
     <Sidebar>
       <SidebarHeader>
@@ -145,7 +129,6 @@ function AdminSidebar() {
               const Icon = item.icon;
               const matchPath = item.activeMatch ?? item.href;
               const active = !!pathname && pathname.startsWith(matchPath);
-              const count = item.badgeKey ? counts[item.badgeKey] : 0;
 
               if (item.disabled) {
                 return (
@@ -167,11 +150,6 @@ function AdminSidebar() {
                 <SidebarItem key={item.href} href={item.href} current={active}>
                   <Icon data-slot="icon" />
                   <SidebarLabel>{item.label}</SidebarLabel>
-                  {count > 0 ? (
-                    <Badge className="ml-auto" color="red">
-                      {count}
-                    </Badge>
-                  ) : null}
                 </SidebarItem>
               );
             })}
