@@ -2,7 +2,12 @@ import { Injectable, Logger } from "@nestjs/common";
 import type { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 
-export type AuditActorType = "tenant" | "admin" | "supplier" | "system";
+export type AuditActorType =
+  | "tenant"
+  | "admin"
+  | "supplier"
+  | "company"
+  | "system";
 
 export interface AuditEntry {
   /** Nokta-ayraçlı eylem: "auth.login", "tender.awarded", "user.deactivated" */
