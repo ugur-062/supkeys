@@ -172,9 +172,28 @@
 
 ---
 
-## 14. Açık/ileride netleşecek detaylar
+## 14. Moderasyon & Güven (backlog — sonra yapılacak)
+
+### 14.1 Şikayet / talep sistemi
+- Bir firma, başka bir firma hakkında **şikayet/talep** oluşturabilir (sebep + açıklama, opsiyonel ek/kanıt).
+- Şikayetler **platform admin'e düşer** (admin panelinde liste + inceleme).
+- **Eşik:** bir firma hakkında **çok şikayet** birikirse → hesap **askıya alınır** (eşik aşılınca admin'e uyarı + admin kararı veya oto-askı).
+- Model taslağı: `CompanyComplaint { reporterCompanyId, targetCompanyId, reason, description, status (OPEN/REVIEWING/RESOLVED/DISMISSED), createdAt, resolvedById }`.
+- Askı durumu: `Company.suspendedAt` (+ sebep) — askıdaki firma giriş yapamaz / işlem yapamaz; admin kaldırabilir.
+
+### 14.2 Şirket engelleme (company block)
+- Firma A, firma B'yi **engelleyebilir.**
+- Engellenince **B, A'yı HİÇBİR ŞEKİLDE bulamaz:** arama/keşfet/havuz/public profil — hepsinde A, B'ye görünmez. Etkileşim (ilan daveti, teklif, bağlantı) engellenir. (Karşılıklı görünmezlik.)
+- **Engelleyen (A) isterse engeli kaldırır.**
+- Model taslağı: `CompanyBlock { blockerCompanyId, blockedCompanyId, createdAt }` + `@@unique([blockerCompanyId, blockedCompanyId])`.
+- Uygulama: tüm keşif/arama/listeleme/davet sorgularına **"engelli ilişki hariç"** filtresi (tier görünürlük filtresinin üstüne). Mevcut bağlantı varsa engelle birlikte pasifleşir.
+
+---
+
+## 15. Açık/ileride netleşecek detaylar
 
 - Onaylayıcı rolünün satış tarafında da olup olmayacağı (örn. satış kazandırma onayı).
 - CompanyConnection'ın tam alan seti (kim daveti başlattı, blok, vb.).
 - Abonelik ödeme entegrasyonu (escrow yok ama abonelik tahsilatı için yine bir sağlayıcı gerekebilir — Iyzico/Stripe **sadece abonelik** için, escrow değil).
 - Mevcut demo verisinin migration'da nasıl ele alınacağı.
+- Şikayet eşiği kaç olmalı + oto-askı mı admin-kararı mı (14.1).
