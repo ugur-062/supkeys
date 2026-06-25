@@ -97,13 +97,36 @@ export function useBrowseListings() {
   });
 }
 
+export interface ListingItemRow {
+  id: string;
+  lineNo: number;
+  name: string;
+  description: string | null;
+  quantity: string;
+  unit: string;
+  targetPrice: string | null;
+}
+
+export interface ListingBidItemRow {
+  itemId: string;
+  unitPrice: string;
+}
+
 export interface ListingBidRow {
   id: string;
   bidderName: string;
   amount: string;
+  currency?: string;
   note: string | null;
   isBuyNow: boolean;
   status: string;
+  createdAt: string;
+  items?: ListingBidItemRow[];
+}
+
+export interface ListingInvitationRow {
+  companyName: string;
+  supkeysId: string | null;
   createdAt: string;
 }
 
@@ -123,12 +146,27 @@ export interface ListingDetail {
   createdAt: string;
   owner: { name: string } | null;
   isOwner: boolean;
+  // ihale zenginleştirme
+  keywords?: string[];
+  terms?: string | null;
+  requireAllItems?: boolean;
+  requireBidDocument?: boolean;
+  primaryCurrency?: string;
+  allowedCurrencies?: string[];
+  items?: ListingItemRow[];
   // sahip:
   bids?: ListingBidRow[];
+  internalNotes?: string | null;
+  invitations?: ListingInvitationRow[];
   // sahip değil:
   masked?: boolean;
   canBid?: boolean;
-  myBid?: { amount: string; note: string | null; status: string } | null;
+  myBid?: {
+    amount: string;
+    note: string | null;
+    status: string;
+    items?: ListingBidItemRow[];
+  } | null;
   // İngiliz Usulü (açık eksiltme):
   english?: {
     isEnglishAuction: true;

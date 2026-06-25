@@ -149,6 +149,110 @@ export default function ListingDetailPage() {
         ) : null}
       </div>
 
+      {/* Kalemler */}
+      {l.items && l.items.length > 0 ? (
+        <section className="space-y-2">
+          <Subheading>Kalemler ({l.items.length})</Subheading>
+          <div className="overflow-hidden rounded-xl border border-zinc-950/10">
+            <table className="w-full text-sm">
+              <thead className="bg-zinc-50 text-xs text-zinc-500">
+                <tr>
+                  <th className="px-3 py-2 text-left font-medium">#</th>
+                  <th className="px-3 py-2 text-left font-medium">Kalem</th>
+                  <th className="px-3 py-2 text-right font-medium">Miktar</th>
+                  <th className="px-3 py-2 text-right font-medium">
+                    Hedef Fiyat
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {l.items.map((it) => (
+                  <tr key={it.id}>
+                    <td className="px-3 py-2 text-zinc-400">{it.lineNo}</td>
+                    <td className="px-3 py-2">
+                      <div className="font-medium text-zinc-900">{it.name}</div>
+                      {it.description ? (
+                        <div className="text-xs text-zinc-500">
+                          {it.description}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2 text-right text-zinc-700">
+                      {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
+                    </td>
+                    <td className="px-3 py-2 text-right text-zinc-700">
+                      {it.targetPrice
+                        ? `${Number(it.targetPrice).toLocaleString("tr-TR")} ₺`
+                        : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
+      {/* İhale bilgileri */}
+      {isAlim &&
+      (l.keywords?.length || l.terms || l.requireAllItems || l.closesAt) ? (
+        <section className="space-y-2 rounded-xl border border-zinc-950/10 bg-zinc-50/50 p-4">
+          {l.keywords && l.keywords.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {l.keywords.map((k) => (
+                <Badge key={k} color="zinc">
+                  {k}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
+            {l.primaryCurrency ? (
+              <span>
+                Para birimi:{" "}
+                <strong className="text-zinc-700">
+                  {l.allowedCurrencies?.length
+                    ? l.allowedCurrencies.join(", ")
+                    : l.primaryCurrency}
+                </strong>
+              </span>
+            ) : null}
+            {l.requireAllItems ? <span>· Tüm kalemlere teklif zorunlu</span> : null}
+            {l.requireBidDocument ? <span>· Belge zorunlu</span> : null}
+            {l.closesAt ? (
+              <span>
+                · Kapanış: {new Date(l.closesAt).toLocaleString("tr-TR")}
+              </span>
+            ) : null}
+          </div>
+          {l.terms ? (
+            <Text className="whitespace-pre-wrap text-xs text-zinc-600">
+              {l.terms}
+            </Text>
+          ) : null}
+        </section>
+      ) : null}
+
+      {/* Davetli tedarikçiler (sahip) */}
+      {l.isOwner && l.invitations && l.invitations.length > 0 ? (
+        <section className="space-y-2">
+          <Subheading>Davetli Tedarikçiler ({l.invitations.length})</Subheading>
+          <div className="flex flex-wrap gap-2">
+            {l.invitations.map((iv) => (
+              <span
+                key={iv.supkeysId ?? iv.companyName}
+                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm"
+              >
+                {iv.companyName}{" "}
+                <span className="font-mono text-xs text-zinc-400">
+                  {iv.supkeysId}
+                </span>
+              </span>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       {/* SAHİP: gelen teklifler */}
       {l.isOwner ? (
         <section className="space-y-3">

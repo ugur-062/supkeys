@@ -238,40 +238,86 @@ export class CompanyListingsService {
     const connected = connectedIds.includes(listing.companyId);
     const isPremium = user.tier === "PAKET";
 
+    // Kalemler (herkese görünür — teklif vermek için gerekli).
+    const items = await this.prisma.listingItem.findMany({
+      where: { listingId: id },
+      orderBy: { lineNo: "asc" },
+    });
+    const itemsOut = items.map((it) => ({
+      id: it.id,
+      lineNo: it.lineNo,
+      name: it.name,
+      description: it.description,
+      quantity: it.quantity.toString(),
+      unit: it.unit,
+      targetPrice: it.targetPrice?.toString() ?? null,
+    }));
+
     if (isOwner) {
       const bids = await this.prisma.listingBid.findMany({
         where: { listingId: id, status: { in: ["SUBMITTED", "WON", "LOST"] } },
-        include: { bidderCompany: { select: { name: true } } },
+        include: {
+          bidderCompany: { select: { name: true } },
+          items: true,
+        },
       });
       bids.sort((a, b) =>
         listing.type === "ALIM"
           ? Number(a.amount) - Number(b.amount) // ALIM: düşük iyi
           : Number(b.amount) - Number(a.amount), // SATIS: yüksek iyi
       );
+      const invitations = await this.prisma.listingInvitation.findMany({
+        where: { listingId: id },
+        include: {
+          invitedCompany: { select: { name: true, supkeysId: true } },
+        },
+        orderBy: { createdAt: "asc" },
+      });
       return {
         ...this.detail(listing, false),
         isOwner: true,
         english,
+        internalNotes: listing.internalNotes,
+        items: itemsOut,
+        invitations: invitations.map((iv) => ({
+          companyName: iv.invitedCompany.name,
+          supkeysId: iv.invitedCompany.supkeysId,
+          createdAt: iv.createdAt,
+        })),
         bids: bids.map((b) => ({
           id: b.id,
           bidderName: b.bidderCompany.name,
           amount: b.amount.toString(),
+          currency: b.currency,
           note: b.note,
           isBuyNow: b.isBuyNow,
           status: b.status,
           createdAt: b.createdAt,
+          items: b.items.map((bi) => ({
+            itemId: bi.itemId,
+            unitPrice: bi.unitPrice.toString(),
+          })),
         })),
       };
     }
 
+    const isInvited =
+      listing.visibility === "PRIVATE"
+        ? (await this.prisma.listingInvitation.count({
+            where: { listingId: id, invitedCompanyId: user.companyId },
+          })) > 0
+        : false;
     const visible =
       listing.visibility === "PUBLIC" ||
-      (listing.visibility === "CONNECTIONS" && connected);
+      (listing.visibility === "CONNECTIONS" && connected) ||
+      (listing.visibility === "PRIVATE" && isInvited);
     if (!visible) throw new NotFoundException("İlan bulunamadı");
 
     const masked = listing.visibility === "PUBLIC" && !connected && !isPremium;
     const canBid =
-      connected || (listing.visibility === "PUBLIC" && isPremium);
+      (listing.visibility === "PRIVATE" && isInvited) ||
+      (listing.visibility === "CONNECTIONS" && connected) ||
+      (listing.visibility === "PUBLIC" && (connected || isPremium));
     const myBid = await this.prisma.listingBid.findUnique({
       where: {
         listingId_bidderCompanyId: {
@@ -279,6 +325,7 @@ export class CompanyListingsService {
           bidderCompanyId: user.companyId,
         },
       },
+      include: { items: true },
     });
     return {
       ...this.detail(listing, masked),
@@ -286,8 +333,17 @@ export class CompanyListingsService {
       masked,
       canBid,
       english,
+      items: masked ? [] : itemsOut,
       myBid: myBid
-        ? { amount: myBid.amount.toString(), note: myBid.note, status: myBid.status }
+        ? {
+            amount: myBid.amount.toString(),
+            note: myBid.note,
+            status: myBid.status,
+            items: myBid.items.map((bi) => ({
+              itemId: bi.itemId,
+              unitPrice: bi.unitPrice.toString(),
+            })),
+          }
         : null,
     };
   }
@@ -586,6 +642,12 @@ export class CompanyListingsService {
       closesAt: Date | null;
       createdAt: Date;
       company: { name: string };
+      keywords: string[];
+      terms: string | null;
+      requireAllItems: boolean;
+      requireBidDocument: boolean;
+      primaryCurrency: Currency;
+      allowedCurrencies: Currency[];
     },
     masked: boolean,
   ) {
@@ -604,6 +666,12 @@ export class CompanyListingsService {
       closesAt: l.closesAt,
       createdAt: l.createdAt,
       owner: masked ? null : { name: l.company.name },
+      keywords: l.keywords,
+      terms: masked ? null : l.terms,
+      requireAllItems: l.requireAllItems,
+      requireBidDocument: l.requireBidDocument,
+      primaryCurrency: l.primaryCurrency,
+      allowedCurrencies: l.allowedCurrencies,
     };
   }
 
