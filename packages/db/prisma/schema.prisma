@@ -2337,6 +2337,11 @@ enum ListingVisibility {
   PRIVATE // sadece açıkça davet edilenler (ileride)
 }
 
+enum ListingFormat {
+  RFQ // kapalı zarf teklif toplama (ALIM)
+  ENGLISH_AUCTION // İngiliz usulü açık eksiltme (ALIM)
+}
+
 // Birleşik sistem — İlan (eski Tender'ın Company-native, sade karşılığı).
 // Kalemler/teklif/sipariş sonraki chunk'larda eklenecek.
 model Listing {
@@ -2348,9 +2353,16 @@ model Listing {
   companyId   String // açan firma
   company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   type        ListingType
+  // Yurtiçi (false) / Uluslararası (true).
+  isInternational Boolean @default(false)
+  // ALIM için format (RFQ/İngiliz Usulü). SATIS'ta null (her zaman forward).
+  format      ListingFormat?
   visibility  ListingVisibility @default(CONNECTIONS)
   title       String
   description String?
+  // SATIS için: taban (min) fiyat + hemen-al fiyatı.
+  minPrice    Decimal?      @db.Decimal(18, 2)
+  buyNowPrice Decimal?      @db.Decimal(18, 2)
   status      ListingStatus @default(OPEN)
   closesAt    DateTime?
   createdById String // CompanyUser id (açan kişi)

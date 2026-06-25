@@ -4,6 +4,7 @@ import { companyApi } from "@/lib/company-auth/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export type ListingType = "ALIM" | "SATIS";
+export type ListingFormat = "RFQ" | "ENGLISH_AUCTION";
 export type ListingVisibility = "PUBLIC" | "CONNECTIONS" | "PRIVATE";
 export type ListingStatus =
   | "DRAFT"
@@ -16,6 +17,10 @@ export interface Listing {
   id: string;
   number: string | null;
   type: ListingType;
+  isInternational: boolean;
+  format: ListingFormat | null;
+  minPrice: string | null;
+  buyNowPrice: string | null;
   visibility: ListingVisibility;
   title: string;
   description: string | null;
@@ -40,6 +45,10 @@ export interface BrowseListing {
 
 export interface CreateListingInput {
   type: ListingType;
+  isInternational: boolean;
+  format?: ListingFormat; // ALIM
+  minPrice?: number; // SATIS
+  buyNowPrice?: number; // SATIS
   visibility: ListingVisibility;
   title: string;
   description?: string;
@@ -81,6 +90,10 @@ export interface ListingDetail {
   id: string;
   number: string | null;
   type: ListingType;
+  isInternational: boolean;
+  format: ListingFormat | null;
+  minPrice: string | null;
+  buyNowPrice: string | null;
   visibility: ListingVisibility;
   title: string;
   description: string | null;

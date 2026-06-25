@@ -81,10 +81,18 @@ export default function ListingDetailPage() {
 
       {/* Başlık */}
       <div className="space-y-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge color={isAlim ? "blue" : "emerald"}>
             {isAlim ? "🔵 Alım" : "🟢 Satış"}
           </Badge>
+          <Badge color="zinc">
+            {l.isInternational ? "🌍 Uluslararası" : "🇹🇷 Yurtiçi"}
+          </Badge>
+          {isAlim && l.format ? (
+            <Badge color="purple">
+              {l.format === "RFQ" ? "RFQ" : "İngiliz Usulü"}
+            </Badge>
+          ) : null}
           <Badge color="zinc">{l.status === "OPEN" ? "Açık" : l.status}</Badge>
           <span className="font-mono text-xs text-zinc-500">{l.number}</span>
         </div>
@@ -92,6 +100,14 @@ export default function ListingDetailPage() {
         <Text className="text-sm">
           {l.owner ? l.owner.name : "🔒 Gizli firma"} · {directionHint}
         </Text>
+        {!isAlim && l.minPrice ? (
+          <Text className="text-sm text-zinc-600">
+            Taban: <strong>{Number(l.minPrice).toLocaleString("tr-TR")} ₺</strong>
+            {l.buyNowPrice
+              ? ` · Hemen-Al: ${Number(l.buyNowPrice).toLocaleString("tr-TR")} ₺`
+              : ""}
+          </Text>
+        ) : null}
         {l.description ? (
           <Text className="whitespace-pre-wrap text-sm text-zinc-600">
             {l.description}

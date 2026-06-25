@@ -4,7 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { CompanyRole, ListingType, type ListingVisibility } from "@supkeys/db";
+import {
+  CompanyRole,
+  ListingType,
+  type ListingFormat,
+  type ListingVisibility,
+} from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { CreateListingDto } from "../dto/create-listing.dto";
@@ -31,12 +36,42 @@ export class CompanyListingsService {
       );
     }
 
+    // Tipe göre format / fiyat doğrulama.
+    let format: ListingFormat | null = null;
+    let minPrice: number | null = null;
+    let buyNowPrice: number | null = null;
+
+    if (type === "ALIM") {
+      if (!dto.format) {
+        throw new BadRequestException("Alım ilanı için format seçin (RFQ / İngiliz Usulü)");
+      }
+      format = dto.format as ListingFormat;
+    } else {
+      // SATIS: taban fiyat zorunlu, hemen-al opsiyonel (≥ taban).
+      if (!dto.minPrice || dto.minPrice <= 0) {
+        throw new BadRequestException("Satış ilanı için taban fiyat girin");
+      }
+      minPrice = dto.minPrice;
+      if (dto.buyNowPrice != null) {
+        if (dto.buyNowPrice < dto.minPrice) {
+          throw new BadRequestException(
+            "Hemen-al fiyatı taban fiyattan düşük olamaz",
+          );
+        }
+        buyNowPrice = dto.buyNowPrice;
+      }
+    }
+
     const number = await this.nextListingNumber();
     const listing = await this.prisma.listing.create({
       data: {
         number,
         companyId: user.companyId,
         type,
+        isInternational: dto.isInternational ?? false,
+        format,
+        minPrice,
+        buyNowPrice,
         visibility: (dto.visibility as ListingVisibility) ?? "CONNECTIONS",
         title: dto.title.trim(),
         description: dto.description?.trim() || null,
@@ -328,6 +363,10 @@ export class CompanyListingsService {
       id: string;
       number: string | null;
       type: ListingType;
+      isInternational: boolean;
+      format: ListingFormat | null;
+      minPrice: { toString(): string } | null;
+      buyNowPrice: { toString(): string } | null;
       visibility: ListingVisibility;
       title: string;
       description: string | null;
@@ -342,6 +381,10 @@ export class CompanyListingsService {
       id: l.id,
       number: l.number,
       type: l.type,
+      isInternational: l.isInternational,
+      format: l.format,
+      minPrice: l.minPrice?.toString() ?? null,
+      buyNowPrice: l.buyNowPrice?.toString() ?? null,
       visibility: l.visibility,
       title: l.title,
       description: masked ? null : l.description,
@@ -375,6 +418,10 @@ export class CompanyListingsService {
     id: string;
     number: string | null;
     type: ListingType;
+    isInternational: boolean;
+    format: ListingFormat | null;
+    minPrice: { toString(): string } | null;
+    buyNowPrice: { toString(): string } | null;
     visibility: ListingVisibility;
     title: string;
     description: string | null;
@@ -386,6 +433,10 @@ export class CompanyListingsService {
       id: l.id,
       number: l.number,
       type: l.type,
+      isInternational: l.isInternational,
+      format: l.format,
+      minPrice: l.minPrice?.toString() ?? null,
+      buyNowPrice: l.buyNowPrice?.toString() ?? null,
       visibility: l.visibility,
       title: l.title,
       description: l.description,
