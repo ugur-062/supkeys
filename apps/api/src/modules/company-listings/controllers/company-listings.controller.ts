@@ -4,6 +4,7 @@ import {
   type AuthenticatedCompanyUser,
 } from "../../company-auth/decorators/current-company-user.decorator";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
+import { AwardListingDto } from "../dto/award-listing.dto";
 import { CreateListingDto } from "../dto/create-listing.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
 import { CompanyListingsService } from "../services/company-listings.service";
@@ -46,5 +47,14 @@ export class CompanyListingsController {
     @Body() dto: PlaceBidDto,
   ) {
     return this.service.placeBid(user, id, dto);
+  }
+
+  @Post(":id/award")
+  award(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: AwardListingDto,
+  ) {
+    return this.service.award(user, id, dto.bidId);
   }
 }

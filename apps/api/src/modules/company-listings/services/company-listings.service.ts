@@ -245,6 +245,84 @@ export class CompanyListingsService {
     return { id: bid.id, amount: bid.amount.toString(), status: bid.status };
   }
 
+  /**
+   * Kazandır — ilan sahibi bir teklifi seçer → Sipariş oluşur (satıcı→alıcı
+   * normalleşir), ilan AWARDED, kazanan WON, diğerleri LOST.
+   * ALIM ilanı: satıcı=kazanan teklifçi, alıcı=ilan sahibi.
+   * SATIS ilanı: satıcı=ilan sahibi, alıcı=kazanan teklifçi.
+   */
+  async award(user: AuthenticatedCompanyUser, listingId: string, bidId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true, type: true, status: true },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (listing.companyId !== user.companyId) {
+      throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
+    }
+    if (listing.status !== "OPEN") {
+      throw new BadRequestException("İlan zaten kapalı veya kazandırılmış");
+    }
+    const neededRole =
+      listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
+    if (!user.roles.includes(neededRole)) {
+      throw new ForbiddenException("Kazandırma için yetkiniz yok");
+    }
+
+    const bid = await this.prisma.listingBid.findUnique({
+      where: { id: bidId },
+      select: {
+        id: true,
+        listingId: true,
+        bidderCompanyId: true,
+        amount: true,
+        status: true,
+      },
+    });
+    if (!bid || bid.listingId !== listingId || bid.status !== "SUBMITTED") {
+      throw new BadRequestException("Geçersiz teklif");
+    }
+
+    const sellerCompanyId =
+      listing.type === "ALIM" ? bid.bidderCompanyId : listing.companyId;
+    const buyerCompanyId =
+      listing.type === "ALIM" ? listing.companyId : bid.bidderCompanyId;
+
+    const number = await this.nextOrderNumber();
+    const order = await this.prisma.$transaction(async (tx) => {
+      await tx.listing.update({
+        where: { id: listingId },
+        data: { status: "AWARDED" },
+      });
+      await tx.listingBid.update({
+        where: { id: bidId },
+        data: { status: "WON" },
+      });
+      await tx.listingBid.updateMany({
+        where: { listingId, id: { not: bidId }, status: "SUBMITTED" },
+        data: { status: "LOST" },
+      });
+      return tx.companyOrder.create({
+        data: {
+          number,
+          listingId,
+          sellerCompanyId,
+          buyerCompanyId,
+          amount: bid.amount,
+          status: "CREATED",
+        },
+      });
+    });
+    return { orderId: order.id, number: order.number };
+  }
+
+  private async nextOrderNumber(): Promise<string> {
+    const rows = await this.prisma.$queryRaw<Array<{ n: bigint }>>`
+      SELECT nextval('order_number_seq') AS n
+    `;
+    return `ROT-ORD-${String(rows[0].n).padStart(6, "0")}`;
+  }
+
   private detail(
     l: {
       id: string;

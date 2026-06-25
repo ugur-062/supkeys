@@ -124,6 +124,23 @@ export function usePlaceBid(id: string) {
   });
 }
 
+export function useAwardListing(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (bidId: string) => {
+      const { data } = await companyApi.post<{ orderId: string; number: string }>(
+        `/company/listings/${id}/award`,
+        { bidId },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+      qc.invalidateQueries({ queryKey: ["company-orders"] });
+    },
+  });
+}
+
 export function useCreateListing() {
   const qc = useQueryClient();
   return useMutation({

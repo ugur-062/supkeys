@@ -7,7 +7,11 @@ import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
-import { useListingDetail, usePlaceBid } from "@/hooks/use-company-listings";
+import {
+  useAwardListing,
+  useListingDetail,
+  usePlaceBid,
+} from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
@@ -20,8 +24,19 @@ export default function ListingDetailPage() {
   const id = params.id;
   const { data: l, isLoading } = useListingDetail(id);
   const placeBid = usePlaceBid(id);
+  const award = useAwardListing(id);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+
+  const handleAward = async (bidId: string, bidderName: string) => {
+    if (!confirm(`"${bidderName}" kazandırılsın mı? Sipariş oluşacak.`)) return;
+    try {
+      const res = await award.mutateAsync(bidId);
+      toast.success(`Kazandırıldı — sipariş ${res.number} oluştu`);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Kazandırılamadı"));
+    }
+  };
 
   if (isLoading) {
     return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
@@ -100,18 +115,36 @@ export default function ListingDetailPage() {
                   className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3"
                 >
                   <div className="flex items-center gap-3">
-                    {i === 0 ? <Badge color="green">En iyi</Badge> : null}
+                    {i === 0 && l.status === "OPEN" ? (
+                      <Badge color="green">En iyi</Badge>
+                    ) : null}
+                    {b.status === "WON" ? (
+                      <Badge color="green">Kazandı</Badge>
+                    ) : null}
+                    {b.status === "LOST" ? (
+                      <Badge color="zinc">Elendi</Badge>
+                    ) : null}
                     <span className="text-sm font-medium text-zinc-900">
                       {b.bidderName}
                     </span>
                   </div>
-                  <span className="font-mono text-sm font-semibold text-zinc-900">
-                    {Number(b.amount).toLocaleString("tr-TR")} ₺
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-sm font-semibold text-zinc-900">
+                      {Number(b.amount).toLocaleString("tr-TR")} ₺
+                    </span>
+                    {l.status === "OPEN" ? (
+                      <Button
+                        onClick={() => handleAward(b.id, b.bidderName)}
+                        disabled={award.isPending}
+                      >
+                        Kazandır
+                      </Button>
+                    ) : null}
+                  </div>
                 </div>
               ))}
               <Text className="text-xs text-zinc-400">
-                Kazandırma (sipariş oluşturma) sonraki adımda eklenecek.
+                Kazandırınca sipariş oluşur (Siparişler'de görünür).
               </Text>
             </div>
           )}

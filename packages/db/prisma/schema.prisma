@@ -2211,6 +2211,8 @@ model Company {
   bidsPlaced           ListingBid[]        @relation("BidderCompany")
   connectionsInitiated CompanyConnection[] @relation("ConnInviter")
   connectionsReceived  CompanyConnection[] @relation("ConnInvitee")
+  ordersAsSeller       CompanyOrder[]      @relation("OrderSeller")
+  ordersAsBuyer        CompanyOrder[]      @relation("OrderBuyer")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2262,6 +2264,38 @@ enum ListingBidStatus {
   WITHDRAWN
   WON
   LOST
+}
+
+enum CompanyOrderStatus {
+  CREATED // kazandırıldı, yeni sipariş
+  IN_DELIVERY // kargoda
+  DELIVERED // teslim alındı
+  COMPLETED // tamamlandı (ödeme + teslim)
+  CANCELLED
+}
+
+// Birleşik sistem — sipariş. İlan kazandırılınca oluşur ve HER ZAMAN
+// satıcı→alıcı'ya normalleşir: ALIM ilanı → satıcı=kazanan teklifçi;
+// SATIS ilanı → satıcı=ilanı açan. Böylece kargo/ödeme akışı tek yön.
+model CompanyOrder {
+  id              String   @id @default(cuid())
+  number          String?  @unique // ROT-ORD-NNNNNN (global sequence)
+  listingId       String?  @unique
+  listing         Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+  sellerCompanyId String
+  seller          Company  @relation("OrderSeller", fields: [sellerCompanyId], references: [id], onDelete: Cascade)
+  buyerCompanyId  String
+  buyer           Company  @relation("OrderBuyer", fields: [buyerCompanyId], references: [id], onDelete: Cascade)
+
+  amount Decimal            @db.Decimal(18, 2)
+  status CompanyOrderStatus @default(CREATED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sellerCompanyId])
+  @@index([buyerCompanyId])
+  @@map("company_orders")
 }
 
 // Birleşik sistem — bir firmanın bir ilana teklifi. Bir firma bir ilana TEK
@@ -2321,7 +2355,8 @@ model Listing {
   closesAt    DateTime?
   createdById String // CompanyUser id (açan kişi)
 
-  bids ListingBid[]
+  bids  ListingBid[]
+  order CompanyOrder?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
