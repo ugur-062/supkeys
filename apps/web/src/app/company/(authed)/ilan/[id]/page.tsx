@@ -33,6 +33,7 @@ export default function ListingDetailPage() {
   const withdrawBid = useWithdrawBid(id);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
 
   const handleCancel = async () => {
     if (!confirm("İlan iptal edilsin mi? Bu işlem geri alınamaz.")) return;
@@ -88,14 +89,35 @@ export default function ListingDetailPage() {
     ? "Alım ilanı — en düşük teklif kazanır."
     : "Satış ilanı — en yüksek teklif kazanır.";
 
+  const hasItems = (l?.items?.length ?? 0) > 0;
+  const itemTotal = (l?.items ?? []).reduce((sum, it) => {
+    const up = Number(itemPrices[it.id]);
+    return sum + (up > 0 ? up * Number(it.quantity) : 0);
+  }, 0);
+
   const handleBid = async () => {
-    const val = Number(amount);
-    if (!val || val <= 0) {
-      toast.error("Geçerli bir tutar girin");
-      return;
-    }
     try {
-      await placeBid.mutateAsync({ amount: val, note: note.trim() || undefined });
+      if (hasItems) {
+        const items = (l?.items ?? [])
+          .map((it) => ({ itemId: it.id, unitPrice: Number(itemPrices[it.id]) }))
+          .filter((bi) => bi.unitPrice > 0);
+        if (items.length === 0) {
+          toast.error("En az bir kaleme birim fiyat girin");
+          return;
+        }
+        if (l?.requireAllItems && items.length < (l?.items?.length ?? 0)) {
+          toast.error("Bu ihalede tüm kalemlere fiyat girmelisin");
+          return;
+        }
+        await placeBid.mutateAsync({ items, note: note.trim() || undefined });
+      } else {
+        const val = Number(amount);
+        if (!val || val <= 0) {
+          toast.error("Geçerli bir tutar girin");
+          return;
+        }
+        await placeBid.mutateAsync({ amount: val, note: note.trim() || undefined });
+      }
       toast.success("Teklifin kaydedildi");
       setNote("");
     } catch (err) {
@@ -377,17 +399,99 @@ export default function ListingDetailPage() {
                   ) : null}
                 </div>
               ) : null}
-              <Field>
-                <Label>Tutar (₺)</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder={l.myBid ? l.myBid.amount : "Ör. 50000"}
-                />
-              </Field>
+              {hasItems ? (
+                <div className="space-y-2">
+                  <Label>Kalem teklifleri (birim fiyat)</Label>
+                  <div className="overflow-hidden rounded-lg border border-zinc-200">
+                    <table className="w-full text-sm">
+                      <thead className="bg-zinc-50 text-xs text-zinc-500">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-medium">
+                            Kalem
+                          </th>
+                          <th className="px-3 py-2 text-right font-medium">
+                            Miktar
+                          </th>
+                          <th className="px-3 py-2 text-right font-medium">
+                            Birim Fiyat
+                          </th>
+                          <th className="px-3 py-2 text-right font-medium">
+                            Tutar
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-zinc-100">
+                        {(l.items ?? []).map((it) => {
+                          const up = Number(itemPrices[it.id]);
+                          const line = up > 0 ? up * Number(it.quantity) : 0;
+                          return (
+                            <tr key={it.id}>
+                              <td className="px-3 py-2 text-zinc-900">
+                                {it.name}
+                              </td>
+                              <td className="px-3 py-2 text-right text-zinc-500">
+                                {Number(it.quantity).toLocaleString("tr-TR")}{" "}
+                                {it.unit}
+                              </td>
+                              <td className="px-3 py-2 text-right">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step="0.01"
+                                  className="w-24 rounded-md border border-zinc-300 px-2 py-1 text-right text-sm"
+                                  value={itemPrices[it.id] ?? ""}
+                                  onChange={(e) =>
+                                    setItemPrices((p) => ({
+                                      ...p,
+                                      [it.id]: e.target.value,
+                                    }))
+                                  }
+                                  placeholder="0"
+                                />
+                              </td>
+                              <td className="px-3 py-2 text-right font-mono text-zinc-700">
+                                {line > 0
+                                  ? `${line.toLocaleString("tr-TR")} ₺`
+                                  : "—"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot className="bg-zinc-50">
+                        <tr>
+                          <td
+                            colSpan={3}
+                            className="px-3 py-2 text-right text-xs font-semibold text-zinc-500"
+                          >
+                            Toplam
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono font-bold text-zinc-900">
+                            {itemTotal.toLocaleString("tr-TR")} ₺
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                  {l.requireAllItems ? (
+                    <Text className="text-xs text-amber-600">
+                      Bu ihalede tüm kalemlere fiyat girmen gerekiyor.
+                    </Text>
+                  ) : null}
+                </div>
+              ) : (
+                <Field>
+                  <Label>Tutar (₺)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder={l.myBid ? l.myBid.amount : "Ör. 50000"}
+                  />
+                </Field>
+              )}
               <Field>
                 <Label>Not (opsiyonel)</Label>
                 <Textarea

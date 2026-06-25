@@ -359,6 +359,7 @@ export class CompanyListingsService {
         format: true,
         visibility: true,
         status: true,
+        requireAllItems: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -372,16 +373,27 @@ export class CompanyListingsService {
     const connectedIds = await this.connectedCompanyIds(user.companyId);
     const connected = connectedIds.includes(listing.companyId);
     const isPremium = user.tier === "PAKET";
+    const isInvited =
+      listing.visibility === "PRIVATE"
+        ? (await this.prisma.listingInvitation.count({
+            where: { listingId: id, invitedCompanyId: user.companyId },
+          })) > 0
+        : false;
     const visible =
       listing.visibility === "PUBLIC" ||
-      (listing.visibility === "CONNECTIONS" && connected);
+      (listing.visibility === "CONNECTIONS" && connected) ||
+      (listing.visibility === "PRIVATE" && isInvited);
     if (!visible) throw new NotFoundException("İlan bulunamadı");
 
     const canBid =
-      connected || (listing.visibility === "PUBLIC" && isPremium);
+      (listing.visibility === "PRIVATE" && isInvited) ||
+      (listing.visibility === "CONNECTIONS" && connected) ||
+      (listing.visibility === "PUBLIC" && (connected || isPremium));
     if (!canBid) {
       throw new ForbiddenException(
-        "Bu ilana teklif vermek için premium üyelik gerekir",
+        listing.visibility === "PRIVATE"
+          ? "Bu özel ihaleye yalnızca davetli firmalar teklif verebilir"
+          : "Bu ilana teklif vermek için premium üyelik gerekir",
       );
     }
 
@@ -396,6 +408,52 @@ export class CompanyListingsService {
       );
     }
 
+    // Kalem-bazlı vs tek-tutar teklif. İhalede kalem varsa kalem teklifi zorunlu;
+    // toplam = Σ(birim fiyat × kalem miktarı).
+    const listingItems = await this.prisma.listingItem.findMany({
+      where: { listingId: id },
+      select: { id: true, quantity: true },
+    });
+
+    let amount: number;
+    let bidItemsData: { itemId: string; unitPrice: number }[] = [];
+
+    if (listingItems.length > 0) {
+      if (!dto.items || dto.items.length === 0) {
+        throw new BadRequestException(
+          "Bu ihale kalem-bazlı; en az bir kaleme birim fiyat girin",
+        );
+      }
+      const qtyById = new Map(
+        listingItems.map((i) => [i.id, Number(i.quantity)]),
+      );
+      const provided = dto.items.filter((bi) => qtyById.has(bi.itemId));
+      if (provided.length === 0) {
+        throw new BadRequestException("Geçerli kalem teklifi yok");
+      }
+      if (
+        listing.requireAllItems &&
+        provided.length < listingItems.length
+      ) {
+        throw new BadRequestException(
+          "Bu ihalede tüm kalemlere teklif vermelisiniz",
+        );
+      }
+      amount = provided.reduce(
+        (sum, bi) => sum + bi.unitPrice * (qtyById.get(bi.itemId) ?? 0),
+        0,
+      );
+      bidItemsData = provided.map((bi) => ({
+        itemId: bi.itemId,
+        unitPrice: bi.unitPrice,
+      }));
+    } else {
+      if (dto.amount == null || dto.amount <= 0) {
+        throw new BadRequestException("Geçerli bir tutar girin");
+      }
+      amount = dto.amount;
+    }
+
     // İngiliz Usulü (açık eksiltme): yeni teklif mevcut en düşüğün ALTINDA olmalı.
     if (listing.format === "ENGLISH_AUCTION") {
       const agg = await this.prisma.listingBid.aggregate({
@@ -403,33 +461,47 @@ export class CompanyListingsService {
         _min: { amount: true },
       });
       const min = agg._min.amount;
-      if (min !== null && Number(dto.amount) >= Number(min)) {
+      if (min !== null && amount >= Number(min)) {
         throw new BadRequestException(
           `İngiliz usulü: teklifin mevcut en düşük ${Number(min).toLocaleString("tr-TR")} ₺'nin altında olmalı`,
         );
       }
     }
 
-    const bid = await this.prisma.listingBid.upsert({
-      where: {
-        listingId_bidderCompanyId: {
+    const bid = await this.prisma.$transaction(async (tx) => {
+      const b = await tx.listingBid.upsert({
+        where: {
+          listingId_bidderCompanyId: {
+            listingId: id,
+            bidderCompanyId: user.companyId,
+          },
+        },
+        create: {
           listingId: id,
           bidderCompanyId: user.companyId,
+          amount,
+          note: dto.note?.trim() || null,
+          createdById: user.userId,
+          status: "SUBMITTED",
         },
-      },
-      create: {
-        listingId: id,
-        bidderCompanyId: user.companyId,
-        amount: dto.amount,
-        note: dto.note?.trim() || null,
-        createdById: user.userId,
-        status: "SUBMITTED",
-      },
-      update: {
-        amount: dto.amount,
-        note: dto.note?.trim() || null,
-        status: "SUBMITTED",
-      },
+        update: {
+          amount,
+          note: dto.note?.trim() || null,
+          status: "SUBMITTED",
+        },
+      });
+      if (listingItems.length > 0) {
+        // Kalem tekliflerini yenile (eskileri sil → yeniden yaz).
+        await tx.listingBidItem.deleteMany({ where: { bidId: b.id } });
+        await tx.listingBidItem.createMany({
+          data: bidItemsData.map((bi) => ({
+            bidId: b.id,
+            itemId: bi.itemId,
+            unitPrice: bi.unitPrice,
+          })),
+        });
+      }
+      return b;
     });
     return { id: bid.id, amount: bid.amount.toString(), status: bid.status };
   }

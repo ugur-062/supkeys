@@ -195,7 +195,11 @@ export function useListingDetail(id: string) {
 export function usePlaceBid(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { amount: number; note?: string }) => {
+    mutationFn: async (input: {
+      amount?: number;
+      items?: { itemId: string; unitPrice: number }[];
+      note?: string;
+    }) => {
       const { data } = await companyApi.post(
         `/company/listings/${id}/bids`,
         input,
