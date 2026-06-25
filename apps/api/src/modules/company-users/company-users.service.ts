@@ -4,9 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import * as crypto from "node:crypto";
 import { CompanyRole } from "@supkeys/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
+import { PasswordResetService } from "../password-reset/password-reset.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import {
   InviteCompanyUserDto,
@@ -18,6 +20,7 @@ export class CompanyUsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly supabaseAuth: SupabaseAuthService,
+    private readonly passwordReset: PasswordResetService,
   ) {}
 
   async list(companyId: string) {
@@ -51,7 +54,12 @@ export class CompanyUsersService {
     });
     if (existing) throw new ConflictException("Bu e-posta zaten kayıtlı");
 
-    const { authId } = await this.supabaseAuth.createUser(email, dto.password, {
+    // Parola verilmezse e-posta daveti: rastgele parola + sıfırlama linki maili.
+    const sendInvite = !dto.password;
+    const password =
+      dto.password ?? crypto.randomBytes(24).toString("base64url");
+
+    const { authId } = await this.supabaseAuth.createUser(email, password, {
       type: "company",
     });
     try {
@@ -64,9 +72,15 @@ export class CompanyUsersService {
           roles: dto.roles as CompanyRole[],
           companyId: actor.companyId,
           emailVerifiedAt: new Date(),
+          invitedById: actor.userId,
+          invitedAt: new Date(),
         },
       });
-      return { id: u.id, email: u.email };
+      if (sendInvite) {
+        // Davet maili — kullanıcı linkten kendi parolasını belirler.
+        await this.passwordReset.requestForCompany(email);
+      }
+      return { id: u.id, email: u.email, invited: sendInvite };
     } catch (e) {
       await this.supabaseAuth.deleteUser(authId);
       throw e;

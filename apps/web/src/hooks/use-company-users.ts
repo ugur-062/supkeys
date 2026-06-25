@@ -18,7 +18,7 @@ export interface InviteUserInput {
   email: string;
   firstName: string;
   lastName: string;
-  password: string;
+  password?: string;
   roles: CompanyRole[];
 }
 

@@ -3,6 +3,7 @@ import {
   IsArray,
   IsEmail,
   IsEnum,
+  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -30,12 +31,14 @@ export class InviteCompanyUserDto {
   @MaxLength(80)
   lastName!: string;
 
+  // Boş bırakılırsa kullanıcıya e-posta daveti (parola belirleme linki) gider.
+  @IsOptional()
   @IsString()
   @MinLength(8, { message: "Parola en az 8 karakter" })
   @MaxLength(72)
   @Matches(/[a-zA-Z]/, { message: "En az bir harf" })
   @Matches(/[0-9]/, { message: "En az bir rakam" })
-  password!: string;
+  password?: string;
 
   @IsArray()
   @ArrayMinSize(1, { message: "En az bir rol seçin" })

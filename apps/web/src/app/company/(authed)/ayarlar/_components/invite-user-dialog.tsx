@@ -35,6 +35,7 @@ export function InviteUserDialog({
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
+  const [byEmail, setByEmail] = useState(true);
   const [roles, setRoles] = useState<CompanyRole[]>(["SATIN_ALMACI"]);
 
   const toggle = (r: CompanyRole) =>
@@ -46,7 +47,7 @@ export function InviteUserDialog({
     email.includes("@") &&
     firstName.trim().length >= 2 &&
     lastName.trim().length >= 2 &&
-    password.length >= 8 &&
+    (byEmail || password.length >= 8) &&
     roles.length > 0;
 
   const reset = () => {
@@ -54,6 +55,7 @@ export function InviteUserDialog({
     setFirstName("");
     setLastName("");
     setPassword("");
+    setByEmail(true);
     setRoles(["SATIN_ALMACI"]);
   };
 
@@ -64,10 +66,12 @@ export function InviteUserDialog({
         email: email.trim(),
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        password,
+        password: byEmail ? undefined : password,
         roles,
       });
-      toast.success("Kullanıcı eklendi");
+      toast.success(
+        byEmail ? "Davet e-postası gönderildi" : "Kullanıcı eklendi",
+      );
       reset();
       onClose();
     } catch (err) {
@@ -79,8 +83,7 @@ export function InviteUserDialog({
     <Dialog open={open} onClose={() => !invite.isPending && onClose()} size="md">
       <DialogTitle>Kullanıcı Ekle</DialogTitle>
       <DialogDescription>
-        Ekip üyesi ekleyin ve rollerini atayın. (Parolayı şimdilik siz
-        belirleyip paylaşırsınız — e-posta daveti sonra eklenecek.)
+        Ekip üyesi ekleyin ve rollerini atayın.
       </DialogDescription>
       <DialogBody className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
@@ -101,15 +104,50 @@ export function InviteUserDialog({
             onChange={(e) => setEmail(e.target.value)}
           />
         </Field>
-        <Field>
-          <Label>Geçici parola (en az 8)</Label>
-          <Input
-            type="text"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Harf + rakam içermeli"
-          />
-        </Field>
+        <div>
+          <Label>Parola yöntemi</Label>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setByEmail(true)}
+              className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                byEmail
+                  ? "border-blue-500 bg-blue-50 text-blue-800"
+                  : "border-zinc-200 text-zinc-500 hover:border-zinc-300"
+              }`}
+            >
+              <div className="font-semibold">E-posta daveti</div>
+              <div className="mt-0.5 text-[11px] opacity-80">
+                Kullanıcı parolasını kendi belirler
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setByEmail(false)}
+              className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                !byEmail
+                  ? "border-blue-500 bg-blue-50 text-blue-800"
+                  : "border-zinc-200 text-zinc-500 hover:border-zinc-300"
+              }`}
+            >
+              <div className="font-semibold">Parolayı ben belirle</div>
+              <div className="mt-0.5 text-[11px] opacity-80">
+                Geçici parola gir, paylaş
+              </div>
+            </button>
+          </div>
+        </div>
+        {!byEmail ? (
+          <Field>
+            <Label>Geçici parola (en az 8)</Label>
+            <Input
+              type="text"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Harf + rakam içermeli"
+            />
+          </Field>
+        ) : null}
         <div>
           <Label>Roller</Label>
           <div className="mt-2 flex flex-wrap gap-2">
