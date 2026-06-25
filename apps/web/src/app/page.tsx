@@ -403,6 +403,71 @@ function BidsPreview() {
   );
 }
 
+function SaleListingPreview() {
+  const offers = [
+    { n: "Alıcı X", a: "62.000 ₺" },
+    { n: "Alıcı Y", a: "71.500 ₺" },
+    { n: "Alıcı Z", a: "80.000 ₺" },
+  ];
+  const [active, setActive] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setActive((a) => (a + 1) % offers.length), 1400);
+    return () => clearInterval(id);
+  }, [offers.length]);
+  return (
+    <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="font-mono text-[11px] font-medium text-zinc-400">
+            SATIŞ · ROT-000142
+          </div>
+          <div className="text-sm font-semibold text-zinc-900">
+            Fazla bakır · 5 ton
+          </div>
+        </div>
+        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+          Açık
+        </span>
+      </div>
+      <div className="mt-3 flex gap-2">
+        <div className="flex-1 rounded-lg bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
+          <div className="text-[10px] text-zinc-400">Taban</div>
+          <div className="text-sm font-semibold text-zinc-900">50.000 ₺</div>
+        </div>
+        <div className="flex-1 rounded-lg bg-emerald-50 px-3 py-2 ring-1 ring-emerald-200">
+          <div className="text-[10px] text-emerald-600">Hemen-Al</div>
+          <div className="text-sm font-semibold text-emerald-800">80.000 ₺</div>
+        </div>
+      </div>
+      <div className="mt-4 text-[11px] font-medium text-zinc-500">
+        Sana gelen teklifler
+      </div>
+      <div className="mt-1.5 space-y-1.5">
+        {offers.map((o, i) => (
+          <div
+            key={o.n}
+            className={`flex items-center justify-between rounded-lg border px-3 py-2 transition-all duration-500 ${
+              i === active
+                ? "-translate-y-0.5 border-emerald-300 bg-emerald-50 shadow-sm"
+                : "border-zinc-200"
+            }`}
+          >
+            <span className="text-xs font-medium text-zinc-700">{o.n}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-zinc-900">{o.a}</span>
+              {i === active ? (
+                <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                  Kazandır
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function OrderTimelinePreview() {
   const tl = [
     { t: "Sipariş oluştu", state: "done" },
@@ -846,107 +911,66 @@ export default function HomePage() {
           </p>
 
           <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-16 lg:grid-cols-6">
-            {/* 1 — Hem al, hem sat (span-3) */}
-            <div className="flex flex-col justify-between rounded-3xl bg-gradient-to-br from-zinc-50 to-white p-8 ring-1 ring-zinc-200 lg:col-span-3">
-              <div className="flex flex-col items-center justify-center gap-3 py-6 sm:flex-row">
-                <span className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-700">
-                  🔵 Alım
-                </span>
-                <TwoWayArrows />
-                <span className="rounded-2xl bg-zinc-950 px-5 py-3 text-sm font-bold text-white shadow-lg">
-                  Tek Hesap
-                </span>
-                <TwoWayArrows />
-                <span className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-700">
-                  🟢 Satım
-                </span>
+            {/* 1 — Tedarikçiysen sat (span-3) */}
+            <div className="flex flex-col justify-between overflow-hidden rounded-3xl bg-zinc-50 ring-1 ring-zinc-200 lg:col-span-3">
+              <div className="p-6 pb-0">
+                <SaleListingPreview />
               </div>
-              <div>
-                <h3 className="text-xl font-semibold text-zinc-950">
-                  Hem al, hem sat
-                </h3>
-                <p className="mt-2 text-sm/6 text-zinc-600">
-                  Rol bazlı yetki (Satın Almacı / Satışçı) panelini
-                  kendiliğinden düzenler — tek hesap, iki yön.
-                </p>
-              </div>
-            </div>
-
-            {/* 2 — Tedarikçiysen sat (span-3) — VURGU */}
-            <div className="flex flex-col justify-between rounded-3xl bg-white p-8 ring-1 ring-zinc-200 lg:col-span-3">
-              <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-zinc-500">
-                    Satış ilanı
-                  </span>
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                    Açık
-                  </span>
-                </div>
-                <div className="mt-1 text-sm font-semibold text-zinc-900">
-                  Fazla bakır · 5 ton
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <div className="flex-1 rounded-lg bg-white px-3 py-2 ring-1 ring-zinc-200">
-                    <div className="text-[10px] text-zinc-400">Taban fiyat</div>
-                    <div className="text-sm font-semibold text-zinc-900">
-                      50.000 ₺
-                    </div>
-                  </div>
-                  <div className="flex-1 rounded-lg bg-emerald-50 px-3 py-2 ring-1 ring-emerald-200">
-                    <div className="text-[10px] text-emerald-600">Hemen-Al</div>
-                    <div className="text-sm font-semibold text-emerald-800">
-                      80.000 ₺
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-zinc-950">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-zinc-950">
                   Tedarikçiysen, sat
                 </h3>
-                <p className="mt-2 text-sm/6 text-zinc-600">
+                <p className="mt-1.5 text-sm/6 text-zinc-600">
                   Satış ilanı aç — taban fiyat + hemen-al. Alıcılar sana teklif
-                  versin, en iyisini sen seç.
+                  versin; en iyisini sen seç, kazandır.
                 </p>
               </div>
             </div>
-
-            {/* 3 — Kapalı zarf (span-2) */}
-            <div className="flex flex-col rounded-3xl bg-white p-8 ring-1 ring-zinc-200 lg:col-span-2">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
-                  <span className="text-xs text-zinc-400">Firma A</span>
-                  <span className="flex items-center gap-1 text-xs text-zinc-300">
-                    <LockClosedIcon className="size-3.5" /> ••• ₺
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-                  <span className="text-xs font-medium text-emerald-800">
-                    Firma B
-                  </span>
-                  <span className="text-xs font-semibold text-emerald-900">
-                    11.900 ₺
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
-                  <span className="text-xs text-zinc-400">Firma C</span>
-                  <span className="flex items-center gap-1 text-xs text-zinc-300">
-                    <LockClosedIcon className="size-3.5" /> ••• ₺
-                  </span>
-                </div>
+            {/* 2 — Kapalı zarf (span-3) */}
+            <div className="flex flex-col justify-between overflow-hidden rounded-3xl bg-zinc-50 ring-1 ring-zinc-200 lg:col-span-3">
+              <div className="p-6 pb-0">
+                <BidsPreview />
               </div>
-              <h3 className="mt-6 text-xl font-semibold text-zinc-950">
-                Kapalı zarf teklif
-              </h3>
-              <p className="mt-2 flex-1 text-sm/6 text-zinc-600">
-                Tedarikçiler birbirini görmez; sen hepsini görür, en iyisini
-                kazandırırsın.
-              </p>
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-zinc-950">
+                  Kapalı zarf teklif
+                </h3>
+                <p className="mt-1.5 text-sm/6 text-zinc-600">
+                  Tedarikçiler birbirini görmez; sen hepsini görür, en iyisini
+                  kazandırırsın — şeffaf ve denetlenebilir.
+                </p>
+              </div>
             </div>
-
-            {/* 4 — Yurtiçi & uluslararası (span-2) */}
-            <div className="flex flex-col overflow-hidden rounded-3xl bg-white p-8 ring-1 ring-zinc-200 lg:col-span-2">
+            {/* 3 — İlan oluştur (span-2) */}
+            <div className="flex flex-col justify-between overflow-hidden rounded-3xl bg-zinc-50 ring-1 ring-zinc-200 lg:col-span-2">
+              <div className="p-6 pb-0">
+                <ListingWizardPreview />
+              </div>
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-zinc-950">
+                  İlanı saniyede aç
+                </h3>
+                <p className="mt-1.5 text-sm/6 text-zinc-600">
+                  Kapsam, tür ve format adım adım — yanlış kurulum imkânsız.
+                </p>
+              </div>
+            </div>
+            {/* 4 — Sipariş & belge (span-2) */}
+            <div className="flex flex-col justify-between overflow-hidden rounded-3xl bg-zinc-50 ring-1 ring-zinc-200 lg:col-span-2">
+              <div className="p-6 pb-0">
+                <OrderTimelinePreview />
+              </div>
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-zinc-950">
+                  Sipariş'ten dekonta
+                </h3>
+                <p className="mt-1.5 text-sm/6 text-zinc-600">
+                  Kargo, teslim ve ödeme; irsaliye ile dekont tek panelde.
+                </p>
+              </div>
+            </div>
+            {/* 5 — Yurtiçi & uluslararası (span-2) */}
+            <div className="flex flex-col overflow-hidden rounded-3xl bg-zinc-50 p-8 ring-1 ring-zinc-200 lg:col-span-2">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-5xl font-bold tracking-tight text-zinc-950">
                   <CountUp value={98} />
@@ -958,36 +982,20 @@ export default function HomePage() {
                   {[...reachCountries, ...reachCountries].map((c, i) => (
                     <span
                       key={`${c}-${i}`}
-                      className="rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-semibold whitespace-nowrap text-zinc-600"
+                      className="rounded-lg bg-white px-2.5 py-1 text-xs font-semibold whitespace-nowrap text-zinc-600 ring-1 ring-zinc-200"
                     >
                       {c}
                     </span>
                   ))}
                 </div>
               </div>
-              <h3 className="mt-6 text-xl font-semibold text-zinc-950">
+              <h3 className="mt-6 text-lg font-semibold text-zinc-950">
                 Yurtiçi & uluslararası
               </h3>
-              <p className="mt-2 flex-1 text-sm/6 text-zinc-600">
+              <p className="mt-1.5 flex-1 text-sm/6 text-zinc-600">
                 Kategori eşleşmeli firma keşfi; sınır ötesi firmalarla güvenle
                 ticaret.
               </p>
-            </div>
-
-            {/* 5 — Uçtan uca akış (span-2) */}
-            <div className="flex flex-col justify-between rounded-3xl bg-zinc-50 p-8 ring-1 ring-zinc-200 lg:col-span-2">
-              <div className="py-2">
-                <FlowDiagram />
-              </div>
-              <div>
-                <h3 className="mt-4 text-xl font-semibold text-zinc-950">
-                  Uçtan uca akış
-                </h3>
-                <p className="mt-2 text-sm/6 text-zinc-600">
-                  İlandan dekonta kadar tüm süreç tek panelde; belge ve takip
-                  dahil.
-                </p>
-              </div>
             </div>
           </div>
         </div>
