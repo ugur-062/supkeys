@@ -6,6 +6,10 @@ import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
+  useFileComplaint,
+  useMyComplaints,
+} from "@/hooks/use-company-complaints";
+import {
   useBlockCompany,
   useBlocks,
   useConnections,
@@ -27,8 +31,30 @@ export default function BaglantilarPage() {
   const blocks = useBlocks();
   const blockCompany = useBlockCompany();
   const unblockCompany = useUnblockCompany();
+  const myComplaints = useMyComplaints();
+  const fileComplaint = useFileComplaint();
   const [code, setCode] = useState("");
   const [blockCode, setBlockCode] = useState("");
+  const [cmpCode, setCmpCode] = useState("");
+  const [cmpReason, setCmpReason] = useState("");
+  const [cmpDetail, setCmpDetail] = useState("");
+
+  const handleComplaint = async () => {
+    if (cmpCode.trim().length < 4 || cmpReason.trim().length < 3) return;
+    try {
+      await fileComplaint.mutateAsync({
+        supkeysId: cmpCode.trim(),
+        reason: cmpReason.trim(),
+        detail: cmpDetail.trim() || undefined,
+      });
+      toast.success("Şikayet gönderildi — admin inceleyecek");
+      setCmpCode("");
+      setCmpReason("");
+      setCmpDetail("");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Şikayet gönderilemedi"));
+    }
+  };
 
   const handleBlock = async () => {
     if (blockCode.trim().length < 4) return;
@@ -224,6 +250,79 @@ export default function BaglantilarPage() {
                 >
                   Engeli Kaldır
                 </Button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      {/* Şikayet */}
+      <section className="space-y-3 border-t border-zinc-100 pt-6">
+        <Subheading>Şikayet</Subheading>
+        <Text className="text-sm">
+          Bir firmayı kurallara aykırı davranış için şikayet et. Şikayetler
+          admin tarafından incelenir; çok şikayet alan firma askıya alınabilir.
+        </Text>
+        <div className="space-y-2">
+          <Input
+            value={cmpCode}
+            onChange={(e) => setCmpCode(e.target.value)}
+            placeholder="Firma kodu (XXXX-XXXX)"
+            className="max-w-xs font-mono"
+          />
+          <Input
+            value={cmpReason}
+            onChange={(e) => setCmpReason(e.target.value)}
+            placeholder="Konu (örn. Teslimat yapmadı)"
+            className="max-w-md"
+          />
+          <Input
+            value={cmpDetail}
+            onChange={(e) => setCmpDetail(e.target.value)}
+            placeholder="Açıklama (opsiyonel)"
+            className="max-w-md"
+          />
+          <Button
+            outline
+            onClick={handleComplaint}
+            disabled={
+              fileComplaint.isPending ||
+              cmpCode.trim().length < 4 ||
+              cmpReason.trim().length < 3
+            }
+          >
+            Şikayet Gönder
+          </Button>
+        </div>
+
+        {myComplaints.data && myComplaints.data.length > 0 ? (
+          <div className="space-y-2 pt-2">
+            {myComplaints.data.map((c) => (
+              <div
+                key={c.id}
+                className="flex items-center justify-between gap-4 rounded-lg border border-zinc-200 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-medium text-zinc-900">
+                    {c.against.name}
+                  </div>
+                  <div className="text-xs text-zinc-500">{c.reason}</div>
+                </div>
+                <span
+                  className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                    c.status === "OPEN"
+                      ? "bg-amber-100 text-amber-700"
+                      : c.status === "RESOLVED"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-zinc-100 text-zinc-600"
+                  }`}
+                >
+                  {c.status === "OPEN"
+                    ? "İnceleniyor"
+                    : c.status === "RESOLVED"
+                      ? "Çözüldü"
+                      : "Reddedildi"}
+                </span>
               </div>
             ))}
           </div>

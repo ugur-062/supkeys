@@ -32,6 +32,7 @@ import {
 } from "@heroicons/react/20/solid";
 import {
   Building2,
+  Flag,
   LayoutDashboard,
   Link2,
   Mail,
@@ -71,6 +72,23 @@ const NAV_SECTIONS: NavSection[] = [
         icon: UserCog,
         activeMatch: "/admin/demo-requests",
         badgeKey: "demoRequestsNew",
+      },
+    ],
+  },
+  {
+    heading: "Birleşik Sistem",
+    items: [
+      {
+        label: "Firmalar",
+        href: "/admin/firmalar",
+        icon: Building2,
+        activeMatch: "/admin/firmalar",
+      },
+      {
+        label: "Şikayetler",
+        href: "/admin/sikayetler",
+        icon: Flag,
+        activeMatch: "/admin/sikayetler",
       },
     ],
   },
