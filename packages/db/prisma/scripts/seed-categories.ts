@@ -44,7 +44,7 @@ async function main() {
     const [code, levelStr, parentCode, segmentLetter, nameTr] =
       line.split("\t");
     const level = Number(levelStr);
-    if (!/^\d{8}$/.test(code) || level < 1 || level > 4 || !nameTr) {
+    if (!code || !/^\d{8}$/.test(code) || level < 1 || level > 4 || !nameTr) {
       console.warn(`⚠️  Atlanan satır: ${line.slice(0, 40)}`);
       continue;
     }
@@ -80,10 +80,8 @@ async function main() {
   console.log(`   Class:     ${byLevel[3]}`);
   console.log(`   Commodity: ${byLevel[4]}\n`);
 
-  // 1. Eski veriyi temizle (junction'lar cascade ile gider; yine de açıkça sil)
-  console.log("🧹 Mevcut kategori + junction'lar temizleniyor...");
-  await prisma.tenderCategory.deleteMany({});
-  await prisma.supplierCategory.deleteMany({});
+  // 1. Eski veriyi temizle
+  console.log("🧹 Mevcut kategoriler temizleniyor...");
   await prisma.category.deleteMany({});
 
   // 2. Seviye sırayla yaz (parent her zaman daha düşük seviyede → önce var olur).

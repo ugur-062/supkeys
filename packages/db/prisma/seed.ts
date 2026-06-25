@@ -1,18 +1,12 @@
-import { PrismaClient } from "@prisma/client";
+import { type CompanyRole, type CompanyTier, PrismaClient } from "@prisma/client";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { seedTenders } from "./seed/tenders";
 
 const prisma = new PrismaClient();
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Supabase Auth bridge
-//
-// Seed Supabase Auth source-of-truth'a göre çalışır: domain user yaratmadan
-// önce `auth.users`'a kayıt atılır, dönen UUID `authId` kolonuna yazılır.
-// `passwordHash` kolonu legacy — yeni seed'de boş bırakılıyor.
-//
-// İdempotent: aynı e-posta ile çağrılırsa mevcut auth user'ı bulup şifresini
-// senkronlar (seed `.env`'deki INITIAL_*_PASSWORD değişirse yansır).
+// Supabase Auth bridge — domain kullanıcı yaratmadan önce auth.users'a kayıt,
+// dönen UUID authId'ye yazılır. İdempotent: aynı e-posta → mevcut auth user'ı
+// bulup şifresini senkronlar.
 // ──────────────────────────────────────────────────────────────────────────────
 
 function buildSupabaseAdmin(): SupabaseClient {
@@ -55,7 +49,6 @@ async function ensureAuthUser(
 ): Promise<string> {
   const existing = await findAuthUserByEmail(email);
   if (existing) {
-    // Şifreyi senkronla (seed env değişmiş olabilir) ama log'a yazma.
     const { error } = await supabaseAdmin.auth.admin.updateUserById(existing, {
       password,
     });
@@ -78,30 +71,69 @@ async function ensureAuthUser(
   return data.user.id;
 }
 
+// supkeysId kodu — @supkeys/shared SHORT_CODE alfabesi (karışık karakter yok).
+const CODE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+function genCode(): string {
+  const pick = () =>
+    Array.from(
+      { length: 4 },
+      () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)],
+    ).join("");
+  return `${pick()}-${pick()}`;
+}
+
+const ALL_ROLES: CompanyRole[] = [
+  "YONETICI",
+  "SATIN_ALMACI",
+  "SATISCI",
+  "ONAYLAYICI",
+];
+
 // ──────────────────────────────────────────────────────────────────────────────
 
 async function main() {
-  console.log("🌱 Seeding (Supabase Auth bridge)…");
-
-  const tenant = await prisma.tenant.upsert({
-    where: { slug: "demo" },
-    update: {},
-    create: { name: "Demo Şirket", slug: "demo" },
-  });
-  console.log("✅ Tenant:", tenant.slug);
+  console.log("🌱 Seeding (birleşik Company sistemi)…");
 
   await ensureSuperAdmin();
-  await ensureDemoCompanyAdmin(tenant.id);
-  await ensureDemoSupplierRelation(tenant.id);
-  await ensureDemoAddresses(tenant.id);
 
-  await seedTenders(prisma);
+  const c1 = await ensureCompany("firma@demo.com", "Demo Firma A.Ş.", "PAKET");
+  const c2 = await ensureCompany("firma2@demo.com", "İkinci Firma Ltd", "PAKET");
+  await ensureCompany("firma3@demo.com", "Üçüncü Firma", "PAKET");
+
+  // firma@demo ↔ firma2 ACTIVE bağlantı (ilan/teklif testleri için).
+  const exists = await prisma.companyConnection.findFirst({
+    where: {
+      OR: [
+        { inviterCompanyId: c1, inviteeCompanyId: c2 },
+        { inviterCompanyId: c2, inviteeCompanyId: c1 },
+      ],
+    },
+  });
+  if (!exists) {
+    const owner1 = await prisma.companyUser.findFirst({
+      where: { companyId: c1 },
+      select: { id: true },
+    });
+    await prisma.companyConnection.create({
+      data: {
+        inviterCompanyId: c1,
+        inviteeCompanyId: c2,
+        status: "ACTIVE",
+        origin: "ADMIN",
+        invitedById: owner1!.id,
+        decidedAt: new Date(),
+      },
+    });
+    console.log("✅ firma@demo ↔ firma2 ACTIVE bağlantı");
+  }
+
+  console.log("🌱 Seed tamam.");
 }
 
 async function ensureSuperAdmin() {
   const email = process.env.INITIAL_ADMIN_EMAIL?.toLowerCase();
   const password = process.env.INITIAL_ADMIN_PASSWORD;
-  const firstName = process.env.INITIAL_ADMIN_FIRST_NAME ?? "Supkeys";
+  const firstName = process.env.INITIAL_ADMIN_FIRST_NAME ?? "Rothern";
   const lastName = process.env.INITIAL_ADMIN_LAST_NAME ?? "Admin";
 
   if (!email || !password) {
@@ -111,34 +143,19 @@ async function ensureSuperAdmin() {
     return;
   }
 
-  // Security audit O-1 — Production'da placeholder/zayıf parola ile admin
-  // create etmek kritik risk.
-  const WEAK_PLACEHOLDERS = ["changeme", "change_me", "admin", "password"];
-  if (
-    process.env.NODE_ENV === "production" &&
-    WEAK_PLACEHOLDERS.includes(password.toLowerCase())
-  ) {
-    throw new Error(
-      `🚨 Üretim ortamında INITIAL_ADMIN_PASSWORD placeholder değer olamaz ("${password}"). .env'de güçlü bir parola koy.`,
-    );
-  }
-
   const authId = await ensureAuthUser(email, password, {
     role: "platform_admin",
   });
 
   const existing = await prisma.platformAdmin.findUnique({ where: { email } });
   if (existing) {
-    // Mevcut kayıt için authId boşsa bağla; varsa olduğu gibi bırak.
     if (!existing.authId) {
       await prisma.platformAdmin.update({
         where: { id: existing.id },
         data: { authId, passwordHash: null },
       });
-      console.log("🔗 Super Admin auth.users'a bağlandı:", existing.email);
-    } else {
-      console.log("ℹ️  Super admin zaten var:", existing.email);
     }
+    console.log("ℹ️  Super admin hazır:", existing.email);
     return;
   }
 
@@ -155,188 +172,48 @@ async function ensureSuperAdmin() {
   console.log("✅ Super Admin oluşturuldu:", admin.email);
 }
 
-async function ensureDemoCompanyAdmin(tenantId: string) {
-  const email = "ugur@demo.com";
-  const password = "demo12345";
+async function ensureCompany(
+  email: string,
+  name: string,
+  tier: CompanyTier,
+): Promise<string> {
+  const password = "Demo1234!";
+  const authId = await ensureAuthUser(email, password, { role: "company_user" });
 
-  const authId = await ensureAuthUser(email, password, {
-    role: "tenant_user",
-    tenant_slug: "demo",
+  const existingUser = await prisma.companyUser.findUnique({
+    where: { email },
+    select: { companyId: true },
   });
-
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    if (!existing.authId) {
-      await prisma.user.update({
-        where: { id: existing.id },
-        data: { authId, passwordHash: null },
-      });
-      console.log("🔗 Demo tenant kullanıcısı auth.users'a bağlandı:", email);
-    } else {
-      console.log("ℹ️  Demo tenant kullanıcısı zaten var:", email);
-    }
-    return;
+  if (existingUser) {
+    console.log("ℹ️  Firma kullanıcısı zaten var:", email);
+    return existingUser.companyId;
   }
 
-  await prisma.user.create({
+  let code = genCode();
+  while ((await prisma.company.count({ where: { supkeysId: code } })) > 0) {
+    code = genCode();
+  }
+
+  const company = await prisma.company.create({
+    data: { name, supkeysId: code, tier, country: "TR" },
+  });
+  const user = await prisma.companyUser.create({
     data: {
       email,
       authId,
-      passwordHash: null,
-      firstName: "Uğur",
+      firstName: name.split(" ")[0] ?? name,
       lastName: "Demo",
-      role: "COMPANY_ADMIN",
-      tenantId,
+      roles: ALL_ROLES,
+      companyId: company.id,
+      emailVerifiedAt: new Date(),
     },
   });
-  console.log("✅ Demo tenant kullanıcısı oluşturuldu:", email);
-}
-
-// CLAUDE.md test hesapları tablosu ile senkron.
-const SUPPLIER_EMAIL = "demo-supplier@firma.com";
-const SUPPLIER_PASSWORD = "Test1234";
-
-async function ensureDemoSupplierRelation(tenantId: string) {
-  const existingRelation = await prisma.supplierTenantRelation.findFirst({
-    where: { tenantId, status: "ACTIVE" },
+  await prisma.company.update({
+    where: { id: company.id },
+    data: { ownerUserId: user.id },
   });
-
-  // Supabase auth user her durumda hazırlanır (şifre senkronu).
-  const authId = await ensureAuthUser(SUPPLIER_EMAIL, SUPPLIER_PASSWORD, {
-    role: "supplier_user",
-  });
-
-  if (existingRelation) {
-    // Mevcut SupplierUser kaydı varsa authId'yi bağla.
-    const supplierUser = await prisma.supplierUser.findUnique({
-      where: { email: SUPPLIER_EMAIL },
-    });
-    if (supplierUser && !supplierUser.authId) {
-      await prisma.supplierUser.update({
-        where: { id: supplierUser.id },
-        data: { authId, passwordHash: null },
-      });
-      console.log("🔗 Tedarikçi kullanıcı auth.users'a bağlandı:", SUPPLIER_EMAIL);
-    } else {
-      console.log("ℹ️  Demo tenant'a bağlı ACTIVE tedarikçi zaten var");
-    }
-    return;
-  }
-
-  const taxNumber = "1112223334";
-  const existingSupplier = await prisma.supplier.findUnique({
-    where: { taxNumber },
-  });
-  let supplierId: string;
-  if (existingSupplier) {
-    supplierId = existingSupplier.id;
-    const supplierUser = await prisma.supplierUser.findUnique({
-      where: { email: SUPPLIER_EMAIL },
-    });
-    if (supplierUser && !supplierUser.authId) {
-      await prisma.supplierUser.update({
-        where: { id: supplierUser.id },
-        data: { authId, passwordHash: null },
-      });
-    }
-  } else {
-    const supplier = await prisma.supplier.create({
-      data: {
-        companyName: "Demo Tedarikçi A.Ş.",
-        companyType: "JOINT_STOCK",
-        taxNumber,
-        taxOffice: "Beşiktaş",
-        taxCertUrl: "data:application/pdf;base64,JVBERi0xLjQK",
-        city: "İstanbul",
-        district: "Beşiktaş",
-        addressLine: "Test Mah. No:1",
-        membership: "STANDARD",
-        users: {
-          create: {
-            email: SUPPLIER_EMAIL,
-            authId,
-            passwordHash: null,
-            firstName: "Demo",
-            lastName: "Tedarikçi",
-            phone: null,
-          },
-        },
-      },
-    });
-    supplierId = supplier.id;
-    console.log(
-      `✅ Örnek tedarikçi oluşturuldu: ${SUPPLIER_EMAIL} (şifre: ${SUPPLIER_PASSWORD})`,
-    );
-  }
-
-  await prisma.supplierTenantRelation.upsert({
-    where: { supplierId_tenantId: { supplierId, tenantId } },
-    update: {},
-    create: { supplierId, tenantId, status: "ACTIVE" },
-  });
-  console.log("✅ Demo tenant ↔ örnek tedarikçi ACTIVE ilişki kuruldu");
-}
-
-async function ensureDemoAddresses(tenantId: string) {
-  const existing = await prisma.tenantAddress.count({ where: { tenantId } });
-  if (existing > 0) {
-    console.log(`ℹ️  Demo tenant'ta ${existing} adres zaten var, seed atlandı`);
-    return;
-  }
-
-  await prisma.tenantAddress.createMany({
-    data: [
-      {
-        tenantId,
-        type: "FATURA",
-        title: "Genel Merkez (Fatura)",
-        country: "Türkiye",
-        city: "İstanbul",
-        district: "Ataşehir",
-        fullAddress:
-          "Barbaros Mah. Begonya Sok. No:1 K:5 D:12 Ataşehir/İstanbul",
-        postalCode: "34746",
-        taxOffice: "Ataşehir V.D.",
-        taxNumber: "1234567890",
-        contactName: "Muhasebe",
-        contactPhone: "+90 216 555 00 11",
-        contactEmail: "muhasebe@demo.com",
-        isActive: true,
-        isDefault: true,
-      },
-      {
-        tenantId,
-        type: "TESLIMAT",
-        title: "Genel Merkez (Teslimat)",
-        country: "Türkiye",
-        city: "İstanbul",
-        district: "Ataşehir",
-        fullAddress:
-          "Barbaros Mah. Begonya Sok. No:1 Lojistik Girişi Ataşehir/İstanbul",
-        postalCode: "34746",
-        contactName: "Lojistik",
-        contactPhone: "+90 216 555 00 22",
-        isActive: true,
-        isDefault: true,
-      },
-      {
-        tenantId,
-        type: "ILETISIM",
-        title: "Genel İletişim",
-        country: "Türkiye",
-        city: "İstanbul",
-        district: "Ataşehir",
-        fullAddress:
-          "Barbaros Mah. Begonya Sok. No:1 Resepsiyon Ataşehir/İstanbul",
-        contactName: "Resepsiyon",
-        contactPhone: "+90 216 555 00 00",
-        contactEmail: "info@demo.com",
-        isActive: true,
-        isDefault: true,
-      },
-    ],
-  });
-  console.log("✅ Demo tenant'a 3 adres eklendi (FATURA/TESLIMAT/ILETISIM)");
+  console.log(`✅ Firma: ${name} (${email}) [${code}] ${tier}`);
+  return company.id;
 }
 
 main()
