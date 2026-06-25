@@ -1,12 +1,11 @@
 "use client";
 
 import { Badge } from "@/components/catalyst/badge";
+import { Button } from "@/components/catalyst/button";
 import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
-import { useMyListings } from "@/hooks/use-company-listings";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
+import { useInbox } from "@/hooks/use-company-inbox";
 import Link from "next/link";
 
 const ROLE_LABEL: Record<string, string> = {
@@ -18,8 +17,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 export default function IslerimPage() {
   const { user, company } = useCompanyAuth();
-  const { data: listings } = useMyListings();
-  const recent = (listings ?? []).slice(0, 5);
+  const { data: items, isLoading } = useInbox();
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
@@ -27,7 +25,7 @@ export default function IslerimPage() {
         <Heading>İşlerim</Heading>
         <Text className="mt-1">
           Hoş geldin{user ? `, ${user.firstName}` : ""}. Dikkat bekleyen tüm
-          işlerin burada toplanacak — alım ve satım, tek akışta.
+          işlerin burada — alım ve satım, tek akışta.
         </Text>
       </div>
 
@@ -46,7 +44,6 @@ export default function IslerimPage() {
             {company?.tier === "PAKET" ? "Tek Paket" : "Standart"}
           </Badge>
         </div>
-
         {user ? (
           <div className="mt-4 flex flex-wrap gap-2">
             {user.roles.map((r) => (
@@ -59,49 +56,34 @@ export default function IslerimPage() {
         ) : null}
       </section>
 
-      {/* Son ilanlar */}
+      {/* Aksiyon akışı */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Subheading>Son ilanların</Subheading>
-          <Link
-            href="/company/ilanlar"
-            className="text-sm text-blue-600 hover:underline"
-          >
-            Tümü →
-          </Link>
-        </div>
-
-        {recent.length === 0 ? (
+        <Subheading>Dikkat bekleyenler</Subheading>
+        {isLoading ? (
+          <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+        ) : !items || items.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-10 text-center">
             <Text className="text-sm text-zinc-500">
-              Henüz işin yok.{" "}
-              <Link href="/company/ilanlar" className="text-blue-600 hover:underline">
-                İlanlar
-              </Link>{" "}
-              sayfasından bir <span className="text-blue-600">🔵 alım</span> veya{" "}
-              <span className="text-emerald-600">🟢 satış</span> ilanı aç.
+              Şu an bekleyen işin yok. 🎉 İlan açabilir, firmalarla bağlanabilir
+              veya gelen teklifleri bekleyebilirsin.
             </Text>
           </div>
         ) : (
           <div className="space-y-2">
-            {recent.map((l) => (
+            {items.map((it, i) => (
               <div
-                key={l.id}
-                className="flex items-center gap-3 rounded-lg border border-zinc-950/10 bg-white px-4 py-3"
+                key={`${it.kind}-${i}`}
+                className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3"
               >
-                <Badge color={l.type === "ALIM" ? "blue" : "emerald"}>
-                  {l.type === "ALIM" ? "🔵 Alım" : "🟢 Satış"}
-                </Badge>
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-semibold text-zinc-900">
-                    {l.title}
-                  </div>
-                  <div className="text-xs text-zinc-500">
-                    {format(new Date(l.createdAt), "dd MMM yyyy HH:mm", {
-                      locale: tr,
-                    })}
-                  </div>
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="text-lg">{it.emoji}</span>
+                  <span className="truncate text-sm font-medium text-zinc-900">
+                    {it.title}
+                  </span>
                 </div>
+                <Link href={it.href}>
+                  <Button outline>{it.actionLabel}</Button>
+                </Link>
               </div>
             ))}
           </div>

@@ -11,6 +11,7 @@ import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CompanyAuthModule } from "./modules/company-auth/company-auth.module";
 import { CompanyConnectionsModule } from "./modules/company-connections/company-connections.module";
+import { CompanyInboxModule } from "./modules/company-inbox/company-inbox.module";
 import { CompanyListingsModule } from "./modules/company-listings/company-listings.module";
 import { CompanyOrdersModule } from "./modules/company-orders/company-orders.module";
 import { PermissionsModule } from "./modules/auth/permissions/permissions.module";
@@ -94,6 +95,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     AdminAuthModule,
     CompanyAuthModule,
     CompanyConnectionsModule,
+    CompanyInboxModule,
     CompanyListingsModule,
     CompanyOrdersModule,
     SupabaseAuthModule,
