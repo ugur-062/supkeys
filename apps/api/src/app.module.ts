@@ -11,6 +11,7 @@ import { AdminCompaniesModule } from "./modules/admin-companies/admin-companies.
 import { AuditModule } from "./modules/audit/audit.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { CompanyAuthModule } from "./modules/company-auth/company-auth.module";
+import { CompanyBidDocumentsModule } from "./modules/company-bid-documents/company-bid-documents.module";
 import { CompanyBlocksModule } from "./modules/company-blocks/company-blocks.module";
 import { CompanyComplaintsModule } from "./modules/company-complaints/company-complaints.module";
 import { CompanyConnectionsModule } from "./modules/company-connections/company-connections.module";
@@ -65,6 +66,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     AdminCompaniesModule,
     // Birleşik firma sistemi
     CompanyAuthModule,
+    CompanyBidDocumentsModule,
     CompanyUsersModule,
     CompanyProfileModule,
     CompanyConnectionsModule,

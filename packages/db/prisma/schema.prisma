@@ -490,7 +490,8 @@ model ListingBid {
   status      ListingBidStatus @default(SUBMITTED)
   createdById String // CompanyUser (teklifi veren kişi)
 
-  items ListingBidItem[]
+  items     ListingBidItem[]
+  documents ListingBidDocument[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -499,6 +500,21 @@ model ListingBid {
   @@index([listingId])
   @@index([bidderCompanyId])
   @@map("listing_bids")
+}
+
+// Teklif belgesi — tedarikçinin teklifine eklediği dosya (R2 key).
+model ListingBidDocument {
+  id                  String     @id @default(cuid())
+  bidId               String
+  bid                 ListingBid @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  key                 String // R2 object key
+  fileName            String
+  mimeType            String
+  uploadedByCompanyId String
+  createdAt           DateTime   @default(now())
+
+  @@index([bidId])
+  @@map("listing_bid_documents")
 }
 
 enum ListingStatus {

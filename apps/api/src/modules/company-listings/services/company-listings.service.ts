@@ -583,7 +583,13 @@ export class CompanyListingsService {
   async award(user: AuthenticatedCompanyUser, listingId: string, bidId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, type: true, status: true },
+      select: {
+        id: true,
+        companyId: true,
+        type: true,
+        status: true,
+        requireBidDocument: true,
+      },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     if (listing.companyId !== user.companyId) {
@@ -611,6 +617,17 @@ export class CompanyListingsService {
     });
     if (!bid || bid.listingId !== listingId || bid.status !== "SUBMITTED") {
       throw new BadRequestException("Geçersiz teklif");
+    }
+
+    if (listing.requireBidDocument) {
+      const docCount = await this.prisma.listingBidDocument.count({
+        where: { bidId },
+      });
+      if (docCount === 0) {
+        throw new BadRequestException(
+          "Bu ihale teklif belgesi zorunlu kılıyor; kazanan teklifin belgesi yok",
+        );
+      }
     }
 
     // Sipariş kalemleri snapshot (ilanda kalem varsa, kazanan teklifin fiyatları).

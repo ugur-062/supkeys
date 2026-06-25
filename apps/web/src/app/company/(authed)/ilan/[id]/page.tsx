@@ -17,6 +17,11 @@ import {
   usePlaceBid,
   useWithdrawBid,
 } from "@/hooks/use-company-listings";
+import {
+  useBidDocuments,
+  useDeleteBidDoc,
+  useUploadBidDoc,
+} from "@/hooks/use-bid-documents";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
@@ -37,6 +42,9 @@ export default function ListingDetailPage() {
   const eliminate = useEliminateBid(id);
   const awardByItem = useAwardByItem(id);
   const categories = useCategoriesByIds(l?.categoryIds ?? []);
+  const bidDocs = useBidDocuments(id);
+  const uploadBidDoc = useUploadBidDoc(id);
+  const deleteBidDoc = useDeleteBidDoc(id);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
@@ -184,6 +192,20 @@ export default function ListingDetailPage() {
       setNote("");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Teklif verilemedi"));
+    }
+  };
+
+  const handleUploadBidDoc = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      await uploadBidDoc.mutateAsync(file);
+      toast.success("Belge yüklendi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Belge yüklenemedi"));
     }
   };
 
@@ -518,6 +540,23 @@ export default function ListingDetailPage() {
                     <span className="text-sm font-medium text-zinc-900">
                       {b.bidderName}
                     </span>
+                    {(bidDocs.data ?? [])
+                      .filter((d) => d.bidId === b.id)
+                      .map((d) => (
+                        <a
+                          key={d.id}
+                          href={d.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={d.fileName}
+                          className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-blue-600 hover:underline"
+                        >
+                          📎{" "}
+                          {d.fileName.length > 18
+                            ? `${d.fileName.slice(0, 16)}…`
+                            : d.fileName}
+                        </a>
+                      ))}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-sm font-semibold text-zinc-900">
@@ -723,6 +762,61 @@ export default function ListingDetailPage() {
                   ? "Açık eksiltme: teklifin güncel en düşüğün altında olmalı; tutarlar herkese açık."
                   : "Kapalı zarf: diğer tekliflerin tutarını göremezsin."}
               </Text>
+
+              {l.myBid ? (
+                <div className="space-y-2 border-t border-zinc-100 pt-3">
+                  <div className="flex items-center justify-between">
+                    <Label>
+                      Teklif Belgeleri
+                      {l.requireBidDocument ? " (zorunlu)" : ""}
+                    </Label>
+                    <label className="cursor-pointer text-xs font-medium text-blue-600 hover:underline">
+                      {uploadBidDoc.isPending ? "Yükleniyor…" : "+ Belge Ekle"}
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
+                        onChange={handleUploadBidDoc}
+                        disabled={uploadBidDoc.isPending}
+                      />
+                    </label>
+                  </div>
+                  {(bidDocs.data ?? []).filter((d) => d.mine).length === 0 ? (
+                    <Text className="text-xs text-zinc-400">
+                      {l.requireBidDocument
+                        ? "Bu ihale belge zorunlu — kazanabilmek için en az bir dosya ekle."
+                        : "Henüz belge eklemedin."}
+                    </Text>
+                  ) : (
+                    <div className="space-y-1">
+                      {(bidDocs.data ?? [])
+                        .filter((d) => d.mine)
+                        .map((d) => (
+                          <div
+                            key={d.id}
+                            className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2.5 py-1.5 text-xs"
+                          >
+                            <a
+                              href={d.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="truncate text-blue-600 hover:underline"
+                            >
+                              {d.fileName}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => deleteBidDoc.mutate(d.id)}
+                              className="shrink-0 text-zinc-400 hover:text-red-600"
+                            >
+                              Sil
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </div>
           ) : (
             <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
