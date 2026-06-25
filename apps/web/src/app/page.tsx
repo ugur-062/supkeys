@@ -203,32 +203,6 @@ function AppPreview() {
   );
 }
 
-function FloatingCard({
-  className,
-  dot,
-  title,
-  sub,
-  float = "rt-float",
-}: {
-  className: string;
-  dot?: string;
-  title: string;
-  sub?: string;
-  float?: string;
-}) {
-  return (
-    <div
-      className={`absolute z-10 hidden w-max max-w-[13rem] rounded-xl border border-zinc-950/5 bg-white/90 px-4 py-3 shadow-xl ring-1 ring-zinc-950/5 backdrop-blur xl:block ${float} ${className}`}
-    >
-      <div className="flex items-center gap-2">
-        {dot ? <span className={`size-2 shrink-0 rounded-full ${dot}`} /> : null}
-        <span className="text-sm font-semibold text-zinc-900">{title}</span>
-      </div>
-      {sub ? <div className="mt-0.5 text-xs text-zinc-500">{sub}</div> : null}
-    </div>
-  );
-}
-
 function TwoWayArrows() {
   return (
     <div className="flex shrink-0 rotate-90 flex-col items-center justify-center gap-0.5 py-1 sm:rotate-0 sm:px-1 sm:py-0">
@@ -664,93 +638,45 @@ export default function HomePage() {
     <div className="bg-white">
       <MarketingHeader />
 
-      {/* Hero */}
-      <section className="relative isolate overflow-hidden px-6 pb-20 lg:px-8">
-        {/* grid arka plan */}
+      {/* Hero — split + çerçeveli ekran */}
+      <section className="relative isolate overflow-hidden bg-white">
         <svg
           aria-hidden="true"
-          className="absolute inset-0 -z-10 size-full stroke-zinc-200 [mask-image:radial-gradient(64rem_48rem_at_50%_-4rem,white,transparent)]"
+          className="absolute inset-0 -z-10 size-full stroke-zinc-200 [mask-image:radial-gradient(100%_100%_at_top_right,white,transparent)]"
         >
           <defs>
             <pattern
               id="hero-grid"
-              width={48}
-              height={48}
+              width={200}
+              height={200}
               x="50%"
               y={-1}
               patternUnits="userSpaceOnUse"
             >
-              <path d="M.5 48V.5H48" fill="none" />
+              <path d="M.5 200V.5H200" fill="none" />
             </pattern>
           </defs>
-          <rect
-            width="100%"
-            height="100%"
-            strokeWidth={0}
-            fill="url(#hero-grid)"
-          />
+          <rect width="100%" height="100%" strokeWidth={0} fill="url(#hero-grid)" />
         </svg>
-        {/* yumuşak gradient */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80"
-        >
-          <div
-            style={{
-              clipPath:
-                "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)",
-            }}
-            className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36rem] -translate-x-1/2 rotate-30 bg-gradient-to-tr from-zinc-300 to-zinc-500 opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72rem]"
-          />
-        </div>
-
-        {/* uçuşan sistem kartları — sağı/solu doldurur */}
-        <FloatingCard
-          className="top-[22%] left-[2%] xl:left-[6%]"
-          float="rt-float"
-          dot="bg-blue-500"
-          title="Çelik alımı"
-          sub="3 yeni teklif geldi"
-        />
-        <FloatingCard
-          className="top-[40%] left-[4%] xl:left-[9%]"
-          float="rt-float-slow"
-          title="🌍 98 ülke"
-          sub="Sınır ötesi alım & satım"
-        />
-        <FloatingCard
-          className="top-[26%] right-[2%] xl:right-[6%]"
-          float="rt-float-slow"
-          dot="bg-emerald-500"
-          title="Sipariş kargolandı"
-          sub="ROT-ORD-000128"
-        />
-        <FloatingCard
-          className="top-[60%] right-[4%] xl:right-[9%]"
-          float="rt-float"
-          title="Yeni bağlantı"
-          sub="Üçüncü Firma · kabul edildi"
-        />
-
-        <div className="mx-auto max-w-3xl pt-24 pb-16 sm:pt-32 lg:pt-36">
-          <div className="mb-8 flex justify-center">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-sm/6 font-medium text-zinc-700 ring-1 ring-zinc-950/10 backdrop-blur">
+        <div className="mx-auto max-w-7xl px-6 pt-32 pb-24 sm:pb-32 lg:flex lg:gap-x-10 lg:px-8 lg:py-40 lg:pt-44">
+          <div className="mx-auto max-w-2xl lg:mx-0 lg:shrink-0 lg:pt-6">
+            <div className="inline-flex items-center gap-2 rounded-full bg-zinc-100 px-3 py-1 text-sm/6 font-medium text-zinc-700 ring-1 ring-zinc-950/10">
               <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
               Yurtiçi & uluslararası · AI destekli B2B ticaret
             </div>
-          </div>
-          <div className="text-center">
-            <h1 className="text-5xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-7xl">
+            <h1 className="mt-8 text-5xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-7xl">
               Hem al, hem sat —{" "}
               <span className="text-zinc-500">tek platformda.</span>
             </h1>
-            <p className="mx-auto mt-8 max-w-2xl text-lg font-medium text-pretty text-zinc-600 sm:text-xl/8">
-              Alım ilanı aç, kapalı zarf teklif topla; ya da fazlanı sat.
-              Yurtiçinde veya 98 ülkede firmalarla bağlan, ihaleyi yönet,
-              siparişi belgesine kadar takip et. Şeffaf, denetlenebilir, AI
-              destekli.
+            <p className="mt-8 text-lg font-medium text-pretty text-zinc-600 sm:text-xl/8">
+              Alıcıysan kapalı zarf teklif topla;{" "}
+              <strong className="font-semibold text-zinc-900">
+                tedarikçiysen ürününü sat
+              </strong>
+              , alıcılar sana gelsin. Bağlan, ihaleyi yönet, siparişi belgesine
+              kadar takip et.
             </p>
-            <div className="mt-10 flex items-center justify-center gap-x-4">
+            <div className="mt-10 flex items-center gap-x-4">
               <Link
                 href="/company/kayit"
                 className="rounded-lg bg-zinc-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800"
@@ -765,10 +691,11 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
-        </div>
-        {/* Ürün önizleme (canlı) */}
-        <div className="relative mx-auto max-w-5xl">
-          <AppPreview />
+          <div className="mx-auto mt-16 flex max-w-2xl sm:mt-20 lg:mt-0 lg:mr-0 lg:ml-10 lg:max-w-none lg:flex-none xl:ml-16">
+            <div className="w-[40rem] max-w-none flex-none">
+              <AppPreview />
+            </div>
+          </div>
         </div>
       </section>
 
@@ -797,25 +724,28 @@ export default function HomePage() {
           aria-hidden="true"
           className="rt-float-slow absolute top-1/2 left-1/2 -z-10 size-[44rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-tr from-emerald-500/10 via-white/5 to-transparent blur-3xl"
         />
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-sm font-medium text-zinc-300 ring-1 ring-white/10">
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+        <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl lg:mx-0 lg:max-w-xl">
+            <h2 className="text-base/8 font-semibold text-emerald-400">
               Pazar & erişim
-            </span>
-            <h2 className="mt-5 text-4xl font-semibold tracking-tight text-balance text-white sm:text-5xl">
-              Daha geniş pazara, daha fazla müşteriye
             </h2>
-            <p className="mt-6 text-lg/8 text-zinc-400">
-              İlanın kategori eşleşmesiyle doğru alıcı ya da satıcıya ulaşır —
-              yurtiçinde ve 98 ülkede. Ağını büyüt, yeni müşterilerle tek
-              panelde buluş; komisyon yok, sınır yok.
+            <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-white sm:text-5xl">
+              Daha geniş pazara, daha fazla müşteriye
+            </p>
+            <p className="mt-6 text-lg/8 text-zinc-300">
+              İlanın kategori eşleşmesiyle doğru alıcı ya da satıcıya ulaşır.
+              Ağını büyüt, yeni müşterilerle tek panelde buluş; komisyon yok,
+              sınır yok.
             </p>
           </div>
-          <Reveal className="mx-auto mt-16 grid max-w-5xl grid-cols-2 gap-8 lg:grid-cols-4">
+          <Reveal className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-x-8 gap-y-10 sm:mt-20 sm:grid-cols-2 sm:gap-y-14 lg:mx-0 lg:max-w-none lg:grid-cols-4">
             {stats.map((s) => (
-              <div key={s.l} className="text-center">
-                <div className="text-4xl font-bold tracking-tight text-white tabular-nums sm:text-5xl">
+              <div
+                key={s.l}
+                className="flex flex-col gap-y-3 border-l border-white/15 pl-6"
+              >
+                <div className="text-sm/6 text-zinc-400">{s.l}</div>
+                <div className="order-first text-3xl font-bold tracking-tight text-white tabular-nums sm:text-4xl">
                   {"text" in s ? (
                     s.text
                   ) : (
@@ -826,31 +756,26 @@ export default function HomePage() {
                     />
                   )}
                 </div>
-                <div className="mt-2 text-sm text-zinc-400">{s.l}</div>
               </div>
             ))}
           </Reveal>
         </div>
       </section>
 
-      {/* Özellikler */}
+      {/* Özellikler — 2 sıra bento (2.sırada 3 sütun) */}
       <section id="ozellikler" className="py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
-              Tek hesap, iki yön, tam kontrol
-            </h2>
-            <p className="mt-6 text-lg/8 text-zinc-600">
-              Alıcı ve tedarikçi ayrı hesaplar değil. Rothern&apos;de bir firma
-              hem alır hem satar; yetki, görünürlük ve akış otomatik yönetilir.
-            </p>
-          </div>
+        <div className="mx-auto max-w-2xl px-6 lg:max-w-7xl lg:px-8">
+          <h2 className="text-base/7 font-semibold text-zinc-500">
+            Eksiksiz ticaret
+          </h2>
+          <p className="mt-2 max-w-2xl text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
+            Almaktan satmaya, ihaleden dekonta
+          </p>
 
-          {/* Bento grid — görsel hücreler */}
-          <div className="mx-auto mt-16 grid max-w-6xl grid-cols-1 gap-4 sm:mt-20 lg:grid-cols-3">
-            {/* Hem al, hem sat — büyük koyu hücre + iki-yön akışı */}
-            <div className="relative flex flex-col justify-between overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-50 to-white p-8 ring-1 ring-zinc-200 lg:col-span-2">
-              <div className="flex flex-col items-center justify-center gap-3 py-8 sm:flex-row">
+          <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-16 lg:grid-cols-6">
+            {/* 1 — Hem al, hem sat (span-3) */}
+            <div className="flex flex-col justify-between rounded-3xl bg-gradient-to-br from-zinc-50 to-white p-8 ring-1 ring-zinc-200 lg:col-span-3">
+              <div className="flex flex-col items-center justify-center gap-3 py-6 sm:flex-row">
                 <span className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-700">
                   🔵 Alım
                 </span>
@@ -865,17 +790,57 @@ export default function HomePage() {
               </div>
               <div>
                 <h3 className="text-xl font-semibold text-zinc-950">
-                  Hem al, hem sat — tek hesap
+                  Hem al, hem sat
                 </h3>
                 <p className="mt-2 text-sm/6 text-zinc-600">
-                  Alıcı ve tedarikçi ayrı hesaplar değil. Rol bazlı yetki
-                  (Satın Almacı / Satışçı) panelini kendiliğinden düzenler.
+                  Rol bazlı yetki (Satın Almacı / Satışçı) panelini
+                  kendiliğinden düzenler — tek hesap, iki yön.
                 </p>
               </div>
             </div>
 
-            {/* Kapalı zarf — gizli teklif görseli */}
-            <div className="flex flex-col rounded-3xl bg-white p-8 ring-1 ring-zinc-200">
+            {/* 2 — Tedarikçiysen sat (span-3) — VURGU */}
+            <div className="flex flex-col justify-between rounded-3xl bg-white p-8 ring-1 ring-zinc-200 lg:col-span-3">
+              <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-zinc-500">
+                    Satış ilanı
+                  </span>
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                    Açık
+                  </span>
+                </div>
+                <div className="mt-1 text-sm font-semibold text-zinc-900">
+                  Fazla bakır · 5 ton
+                </div>
+                <div className="mt-3 flex gap-2">
+                  <div className="flex-1 rounded-lg bg-white px-3 py-2 ring-1 ring-zinc-200">
+                    <div className="text-[10px] text-zinc-400">Taban fiyat</div>
+                    <div className="text-sm font-semibold text-zinc-900">
+                      50.000 ₺
+                    </div>
+                  </div>
+                  <div className="flex-1 rounded-lg bg-emerald-50 px-3 py-2 ring-1 ring-emerald-200">
+                    <div className="text-[10px] text-emerald-600">Hemen-Al</div>
+                    <div className="text-sm font-semibold text-emerald-800">
+                      80.000 ₺
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold text-zinc-950">
+                  Tedarikçiysen, sat
+                </h3>
+                <p className="mt-2 text-sm/6 text-zinc-600">
+                  Satış ilanı aç — taban fiyat + hemen-al. Alıcılar sana teklif
+                  versin, en iyisini sen seç.
+                </p>
+              </div>
+            </div>
+
+            {/* 3 — Kapalı zarf (span-2) */}
+            <div className="flex flex-col rounded-3xl bg-white p-8 ring-1 ring-zinc-200 lg:col-span-2">
               <div className="space-y-2">
                 <div className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
                   <span className="text-xs text-zinc-400">Firma A</span>
@@ -907,8 +872,8 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Yurtiçi & uluslararası — 98 ülke görseli (sayaç + ülke marquee) */}
-            <div className="flex flex-col overflow-hidden rounded-3xl bg-white p-8 ring-1 ring-zinc-200">
+            {/* 4 — Yurtiçi & uluslararası (span-2) */}
+            <div className="flex flex-col overflow-hidden rounded-3xl bg-white p-8 ring-1 ring-zinc-200 lg:col-span-2">
               <div className="flex items-baseline gap-1.5">
                 <span className="text-5xl font-bold tracking-tight text-zinc-950">
                   <CountUp value={98} />
@@ -931,18 +896,18 @@ export default function HomePage() {
                 Yurtiçi & uluslararası
               </h3>
               <p className="mt-2 flex-1 text-sm/6 text-zinc-600">
-                Kategori eşleşmeli firma keşfi; yurtiçi ya da sınır ötesi
-                firmalarla güvenle ticaret.
+                Kategori eşleşmeli firma keşfi; sınır ötesi firmalarla güvenle
+                ticaret.
               </p>
             </div>
 
-            {/* Uçtan uca akış — adım zinciri görseli */}
+            {/* 5 — Uçtan uca akış (span-2) */}
             <div className="flex flex-col justify-between rounded-3xl bg-zinc-50 p-8 ring-1 ring-zinc-200 lg:col-span-2">
-              <div className="py-4">
+              <div className="py-2">
                 <FlowDiagram />
               </div>
               <div>
-                <h3 className="text-xl font-semibold text-zinc-950">
+                <h3 className="mt-4 text-xl font-semibold text-zinc-950">
                   Uçtan uca akış
                 </h3>
                 <p className="mt-2 text-sm/6 text-zinc-600">
