@@ -1,10 +1,83 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import type { CompanyOrderStatus } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 
 @Injectable()
 export class CompanyOrdersService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /** Satıcı kargoya verir: CREATED → IN_DELIVERY. */
+  ship(user: AuthenticatedCompanyUser, id: string) {
+    return this.transition(user, id, {
+      side: "seller",
+      from: "CREATED",
+      to: "IN_DELIVERY",
+    });
+  }
+
+  /** Alıcı teslim alır: IN_DELIVERY → DELIVERED. */
+  receive(user: AuthenticatedCompanyUser, id: string) {
+    return this.transition(user, id, {
+      side: "buyer",
+      from: "IN_DELIVERY",
+      to: "DELIVERED",
+    });
+  }
+
+  /** Alıcı ödemeyi onaylar/tamamlar: DELIVERED → COMPLETED. */
+  complete(user: AuthenticatedCompanyUser, id: string) {
+    return this.transition(user, id, {
+      side: "buyer",
+      from: "DELIVERED",
+      to: "COMPLETED",
+    });
+  }
+
+  private async transition(
+    user: AuthenticatedCompanyUser,
+    id: string,
+    rule: {
+      side: "seller" | "buyer";
+      from: CompanyOrderStatus;
+      to: CompanyOrderStatus;
+    },
+  ) {
+    const order = await this.prisma.companyOrder.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        status: true,
+        sellerCompanyId: true,
+        buyerCompanyId: true,
+      },
+    });
+    if (
+      !order ||
+      (order.sellerCompanyId !== user.companyId &&
+        order.buyerCompanyId !== user.companyId)
+    ) {
+      throw new NotFoundException("Sipariş bulunamadı");
+    }
+    const isSeller = order.sellerCompanyId === user.companyId;
+    const allowed = rule.side === "seller" ? isSeller : !isSeller;
+    if (!allowed) {
+      throw new ForbiddenException("Bu işlemi yapamazsınız");
+    }
+    if (order.status !== rule.from) {
+      throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
+    }
+    await this.prisma.companyOrder.update({
+      where: { id },
+      data: { status: rule.to },
+    });
+    return { ok: true, status: rule.to };
+  }
 
   /** Firmanın siparişleri — hem satıcı hem alıcı olduğu, role etiketli. */
   async list(companyId: string) {

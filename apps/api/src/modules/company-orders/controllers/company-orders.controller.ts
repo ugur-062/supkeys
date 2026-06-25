@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from "@nestjs/common";
+import { Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -22,5 +22,29 @@ export class CompanyOrdersController {
     @Param("id") id: string,
   ) {
     return this.service.getOne(user, id);
+  }
+
+  @Post(":id/ship")
+  ship(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.ship(user, id);
+  }
+
+  @Post(":id/receive")
+  receive(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.receive(user, id);
+  }
+
+  @Post(":id/complete")
+  complete(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.complete(user, id);
   }
 }

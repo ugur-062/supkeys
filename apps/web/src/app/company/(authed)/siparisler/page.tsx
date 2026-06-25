@@ -6,6 +6,7 @@ import { Text } from "@/components/catalyst/text";
 import { useOrders, type CompanyOrder } from "@/hooks/use-company-orders";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import Link from "next/link";
 
 const STATUS_LABEL: Record<CompanyOrder["status"], string> = {
   CREATED: "Yeni",
@@ -36,9 +37,10 @@ export default function SiparislerPage() {
       ) : (
         <div className="space-y-2">
           {data.map((o) => (
-            <div
+            <Link
               key={o.id}
-              className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3"
+              href={`/company/siparisler/${o.id}`}
+              className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3 hover:bg-zinc-50 transition"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <Badge color={o.role === "seller" ? "emerald" : "blue"}>
@@ -63,7 +65,7 @@ export default function SiparislerPage() {
                 </span>
                 <Badge color="zinc">{STATUS_LABEL[o.status]}</Badge>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}
