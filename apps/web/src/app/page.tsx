@@ -810,29 +810,25 @@ export default function HomePage() {
           {/* Bento grid — görsel hücreler */}
           <div className="mx-auto mt-16 grid max-w-6xl grid-cols-1 gap-4 sm:mt-20 lg:grid-cols-3">
             {/* Hem al, hem sat — büyük koyu hücre + iki-yön akışı */}
-            <div className="relative flex flex-col justify-between overflow-hidden rounded-3xl bg-[#0A0A0A] p-8 lg:col-span-2">
-              <div
-                aria-hidden="true"
-                className="absolute -top-24 -right-24 size-72 rounded-full bg-white/5 blur-3xl"
-              />
-              <div className="flex flex-col items-center justify-center gap-3 py-6 sm:flex-row">
-                <span className="rounded-2xl border border-blue-400/30 bg-blue-500/10 px-5 py-3 text-sm font-semibold text-blue-300">
+            <div className="relative flex flex-col justify-between overflow-hidden rounded-3xl bg-gradient-to-br from-zinc-50 to-white p-8 ring-1 ring-zinc-200 lg:col-span-2">
+              <div className="flex flex-col items-center justify-center gap-3 py-8 sm:flex-row">
+                <span className="rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-700">
                   🔵 Alım
                 </span>
                 <TwoWayArrows />
-                <span className="rounded-2xl bg-white px-5 py-3 text-sm font-bold text-zinc-950 shadow-lg">
+                <span className="rounded-2xl bg-zinc-950 px-5 py-3 text-sm font-bold text-white shadow-lg">
                   Tek Hesap
                 </span>
                 <TwoWayArrows />
-                <span className="rounded-2xl border border-emerald-400/30 bg-emerald-500/10 px-5 py-3 text-sm font-semibold text-emerald-300">
+                <span className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3 text-sm font-semibold text-emerald-700">
                   🟢 Satım
                 </span>
               </div>
               <div>
-                <h3 className="text-xl font-semibold text-white">
+                <h3 className="text-xl font-semibold text-zinc-950">
                   Hem al, hem sat — tek hesap
                 </h3>
-                <p className="mt-2 text-sm/6 text-zinc-400">
+                <p className="mt-2 text-sm/6 text-zinc-600">
                   Alıcı ve tedarikçi ayrı hesaplar değil. Rol bazlı yetki
                   (Satın Almacı / Satışçı) panelini kendiliğinden düzenler.
                 </p>
