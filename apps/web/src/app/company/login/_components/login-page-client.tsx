@@ -1,7 +1,6 @@
 "use client";
 
-import { AuthBackdrop } from "@/components/marketing/auth-backdrop";
-import { AuthHeader } from "@/components/marketing/auth-header";
+import { AuthShell } from "@/components/marketing/auth-shell";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -29,35 +28,22 @@ export function CompanyLoginClient() {
   }, [isHydrated, token, router, nextPath]);
 
   return (
-    <main className="flex min-h-screen flex-col bg-zinc-50">
-      <AuthHeader />
-
-      {/* Gövde — modern arka plan + temiz beyaz kart */}
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 sm:py-16">
-        <AuthBackdrop />
-        <div className="relative w-full max-w-md">
-          <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-zinc-950/5">
-            <div className="mb-6 space-y-1 text-center">
-              <h1 className="text-2xl font-semibold text-zinc-900">Giriş</h1>
-              <p className="text-sm text-slate-500">
-                Firma hesabınızla giriş yapın
-              </p>
-            </div>
-
-            <CompanyLoginForm nextPath={nextPath} />
-          </div>
-
-          <div className="mt-6 text-center text-sm text-slate-600">
-            Hesabınız yok mu?{" "}
-            <Link
-              href="/company/kayit"
-              className="font-semibold text-zinc-900 hover:underline"
-            >
-              Firma olarak kayıt ol
-            </Link>
-          </div>
-        </div>
-      </div>
-    </main>
+    <AuthShell
+      title="Giriş"
+      subtitle="Firma hesabınızla giriş yapın"
+      footer={
+        <>
+          Hesabınız yok mu?{" "}
+          <Link
+            href="/company/kayit"
+            className="font-semibold text-zinc-900 hover:underline"
+          >
+            Firma olarak kayıt ol
+          </Link>
+        </>
+      }
+    >
+      <CompanyLoginForm nextPath={nextPath} />
+    </AuthShell>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
-import { AuthBackdrop } from "@/components/marketing/auth-backdrop";
-import { AuthHeader } from "@/components/marketing/auth-header";
+import { AuthShell } from "@/components/marketing/auth-shell";
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
@@ -69,21 +68,22 @@ export function CompanySignupClient() {
   });
 
   return (
-    <main className="flex min-h-screen flex-col bg-zinc-50">
-      <AuthHeader />
-
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 sm:py-16">
-        <AuthBackdrop />
-        <div className="relative w-full max-w-md">
-          <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-zinc-950/5">
-          <div className="mb-6 text-center space-y-1">
-            <h1 className="text-2xl font-semibold text-zinc-900">Kaydol</h1>
-            <p className="text-sm text-slate-500">
-              Firma hesabı oluştur — hem al, hem sat
-            </p>
-          </div>
-
-          <form onSubmit={onSubmit} className="space-y-4">
+    <AuthShell
+      title="Kaydol"
+      subtitle="Firma hesabı oluştur — hem al, hem sat"
+      footer={
+        <>
+          Zaten hesabın var mı?{" "}
+          <Link
+            href="/company/login"
+            className="font-semibold text-zinc-900 hover:underline"
+          >
+            Giriş yap
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={onSubmit} className="space-y-4">
             <Field>
               <Label>Firma adı</Label>
               <Input invalid={!!errors.companyName} {...register("companyName")} />
@@ -163,20 +163,7 @@ export function CompanySignupClient() {
             >
               {signup.isPending ? "Oluşturuluyor…" : "Hesap Oluştur"}
             </Button>
-          </form>
-        </div>
-
-          <div className="mt-6 text-center text-sm text-slate-600">
-            Zaten hesabın var mı?{" "}
-            <Link
-              href="/company/login"
-              className="font-semibold text-zinc-900 hover:underline"
-            >
-              Giriş yap
-            </Link>
-          </div>
-        </div>
-      </div>
-    </main>
+      </form>
+    </AuthShell>
   );
 }
