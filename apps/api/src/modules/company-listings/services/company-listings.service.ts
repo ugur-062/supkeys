@@ -162,6 +162,48 @@ export class CompanyListingsService {
   }
 
   /**
+   * Firmanın başka firmaların ilanlarına verdiği TÜM teklifler — Tekliflerim
+   * ekranı. İlan özeti (başlık/no/tür/durum/kapanış) ile birlikte döner.
+   */
+  async listMyBids(companyId: string) {
+    const bids = await this.prisma.listingBid.findMany({
+      where: { bidderCompanyId: companyId },
+      include: {
+        listing: {
+          select: {
+            id: true,
+            number: true,
+            title: true,
+            type: true,
+            status: true,
+            closesAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+
+    return bids.map((b) => ({
+      id: b.id,
+      amount: b.amount.toString(),
+      currency: b.currency,
+      status: b.status,
+      round: b.round,
+      isBuyNow: b.isBuyNow,
+      createdAt: b.createdAt,
+      listing: {
+        id: b.listing.id,
+        number: b.listing.number,
+        title: b.listing.title,
+        type: b.listing.type,
+        status: b.listing.status,
+        closesAt: b.listing.closesAt,
+      },
+    }));
+  }
+
+  /**
    * Bana açık ilanlar (başka firmaların): PUBLIC + bağlantılı firmaların
    * CONNECTIONS ilanları. PUBLIC ilanı bağlı olmayan STANDART MASKELİ görür
    * (firma gizli, teklif veremez); premium tam görür.

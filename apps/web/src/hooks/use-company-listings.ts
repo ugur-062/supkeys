@@ -86,6 +86,37 @@ export function useMyListings() {
   });
 }
 
+export interface MyBid {
+  id: string;
+  amount: string;
+  currency: CurrencyCode;
+  status: "SUBMITTED" | "WITHDRAWN" | "WON" | "LOST";
+  round: number;
+  isBuyNow: boolean;
+  createdAt: string;
+  listing: {
+    id: string;
+    number: string | null;
+    title: string;
+    type: ListingType;
+    status: ListingStatus;
+    closesAt: string | null;
+  };
+}
+
+/** Firmanın verdiği tüm teklifler — Tekliflerim ekranı. */
+export function useMyBids() {
+  return useQuery({
+    queryKey: ["company-my-bids"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<MyBid[]>(
+        "/company/listings/my-bids",
+      );
+      return data;
+    },
+  });
+}
+
 export function useBrowseListings() {
   return useQuery({
     queryKey: ["company-listings", "browse"],

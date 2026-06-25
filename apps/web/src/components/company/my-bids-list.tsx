@@ -11,30 +11,32 @@ import {
   SearchInput,
   SortDropdown,
 } from "@/components/list";
-import { useOrders, type CompanyOrder } from "@/hooks/use-company-orders";
+import { CountdownFull } from "@/components/tenders/countdown-full";
+import { useMyBids, type MyBid } from "@/hooks/use-company-listings";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { CircleSlash, PackageOpen } from "lucide-react";
+import { CircleSlash, Gavel } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
 const PAGE_SIZE = 10;
 
-const STATUS_LABEL: Record<CompanyOrder["status"], string> = {
-  CREATED: "Yeni",
-  IN_DELIVERY: "Kargoda",
-  DELIVERED: "Teslim edildi",
-  COMPLETED: "Tamamlandı",
-  CANCELLED: "İptal",
+const STATUS: Record<
+  MyBid["status"],
+  { label: string; color: "amber" | "green" | "zinc" | "red" }
+> = {
+  SUBMITTED: { label: "Değerlendirmede", color: "amber" },
+  WON: { label: "Kazandı", color: "green" },
+  LOST: { label: "Elendi", color: "zinc" },
+  WITHDRAWN: { label: "Geri çekildi", color: "red" },
 };
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "Tüm durumlar" },
-  { value: "CREATED", label: "Yeni" },
-  { value: "IN_DELIVERY", label: "Kargoda" },
-  { value: "DELIVERED", label: "Teslim edildi" },
-  { value: "COMPLETED", label: "Tamamlandı" },
-  { value: "CANCELLED", label: "İptal" },
+  { value: "SUBMITTED", label: "Değerlendirmede" },
+  { value: "WON", label: "Kazandı" },
+  { value: "LOST", label: "Elendi" },
+  { value: "WITHDRAWN", label: "Geri çekildi" },
 ];
 
 const SORT_OPTIONS = [
@@ -43,34 +45,30 @@ const SORT_OPTIONS = [
   { value: "amount", label: "Tutar (yüksek→düşük)" },
 ];
 
-function matchesSearch(o: CompanyOrder, q: string) {
+function matchesSearch(b: MyBid, q: string) {
   if (!q) return true;
   const needle = q.toLocaleLowerCase("tr");
   return (
-    (o.listingTitle ?? "").toLocaleLowerCase("tr").includes(needle) ||
-    (o.number ?? "").toLocaleLowerCase("tr").includes(needle) ||
-    o.counterparty.toLocaleLowerCase("tr").includes(needle)
+    b.listing.title.toLocaleLowerCase("tr").includes(needle) ||
+    (b.listing.number ?? "").toLocaleLowerCase("tr").includes(needle)
   );
 }
 
-export function OrdersList({ role }: { role: "buyer" | "seller" }) {
+/** Firmanın açık ihalelere verdiği tüm teklifler — profesyonel liste. */
+export function MyBidsList() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useOrders();
-  const isSeller = role === "seller";
+  const { data, isLoading } = useMyBids();
 
-  const all = useMemo(
-    () => (data ?? []).filter((o) => o.role === role),
-    [data, role],
-  );
+  const all = data ?? [];
 
   const filtered = useMemo(() => {
     const rows = all.filter(
-      (o) =>
-        matchesSearch(o, search) && (status === "all" || o.status === status),
+      (b) =>
+        matchesSearch(b, search) && (status === "all" || b.status === status),
     );
     const out = [...rows];
     if (sort === "oldest") {
@@ -98,13 +96,12 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
     };
   }
 
-  const emptyHint = isSeller
-    ? "Henüz satış siparişin yok. Bir satış ilanın veya ihale teklifin kazandığında burada görünür."
-    : "Henüz alım siparişin yok. Bir ihaleni kazandırdığında veya satın aldığında burada görünür.";
-
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <PageHeader title="Siparişlerim" />
+      <PageHeader
+        title="Tekliflerim"
+        description="Açık ihalelere verdiğin tüm teklifler ve sonuçları."
+      />
 
       {all.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -112,7 +109,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             <SearchInput
               value={search}
               onChange={resetToFirstPage(setSearch)}
-              placeholder="Sipariş ara…"
+              placeholder="İhale ara…"
               className="w-full sm:w-64"
             />
             <FilterSelect
@@ -128,11 +125,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
               options={SORT_OPTIONS}
             />
           </div>
-          <ResultCount
-            total={filtered.length}
-            isFiltered={isFiltered}
-            unit="sipariş"
-          />
+          <ResultCount total={filtered.length} isFiltered={isFiltered} unit="teklif" />
         </div>
       ) : null}
 
@@ -141,47 +134,57 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
           <ListSkeleton rows={5} />
         ) : filtered.length === 0 ? (
           <EmptyState
-            icon={isFiltered ? CircleSlash : PackageOpen}
+            icon={isFiltered ? CircleSlash : Gavel}
             variant={isFiltered ? "no-results" : "no-data"}
-            title={isFiltered ? "Eşleşen sipariş yok" : "Henüz sipariş yok"}
-            description={isFiltered ? "Filtreleri değiştirip tekrar dene." : emptyHint}
+            title={isFiltered ? "Eşleşen teklif yok" : "Henüz teklif vermedin"}
+            description={
+              isFiltered
+                ? "Filtreleri değiştirip tekrar dene."
+                : "Açık ihaleler ekranından bir ihaleye teklif verdiğinde burada görünür."
+            }
           />
         ) : (
           <>
             <div className="divide-y divide-zinc-950/5">
-              {pageRows.map((o) => (
-                <Link
-                  key={o.id}
-                  href={`/company/siparis/${o.id}`}
-                  className="flex items-center justify-between gap-4 px-4 py-3 transition hover:bg-zinc-50"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <Badge color={isSeller ? "emerald" : "blue"}>
-                      {isSeller ? "🟢 Gönderiyorsun" : "🔵 Alıyorsun"}
-                    </Badge>
+              {pageRows.map((b) => {
+                const st = STATUS[b.status];
+                return (
+                  <Link
+                    key={b.id}
+                    href={`/company/ilan/${b.listing.id}`}
+                    className="flex items-center justify-between gap-4 px-4 py-3 transition hover:bg-zinc-50"
+                  >
                     <div className="min-w-0">
                       <div className="truncate text-sm font-semibold text-zinc-900">
-                        {o.listingTitle ?? "—"}
+                        {b.listing.title}
                       </div>
                       <div className="text-xs text-zinc-500">
-                        <span className="font-mono">{o.number}</span>
+                        <span className="font-mono">{b.listing.number ?? "—"}</span>
                         {" · "}
-                        {isSeller ? "Alıcı" : "Satıcı"}: {o.counterparty}
-                        {" · "}
-                        {format(new Date(o.createdAt), "dd MMM yyyy", {
+                        {format(new Date(b.createdAt), "dd MMM yyyy", {
                           locale: tr,
                         })}
+                        {b.isBuyNow ? " · Hemen-Al" : ""}
+                        {b.listing.status === "OPEN" && b.listing.closesAt ? (
+                          <>
+                            {" · "}
+                            <CountdownFull
+                              deadline={b.listing.closesAt}
+                              endedLabel="Kapandı"
+                            />
+                          </>
+                        ) : null}
                       </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm font-semibold text-zinc-900">
-                      {Number(o.amount).toLocaleString("tr-TR")} ₺
-                    </span>
-                    <Badge color="zinc">{STATUS_LABEL[o.status]}</Badge>
-                  </div>
-                </Link>
-              ))}
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-sm font-semibold text-zinc-900">
+                        {Number(b.amount).toLocaleString("tr-TR")} {b.currency}
+                      </span>
+                      <Badge color={st.color}>{st.label}</Badge>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
             {totalPages > 1 ? (
               <Pagination

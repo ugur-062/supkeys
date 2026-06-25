@@ -25,6 +25,12 @@ export class CompanyListingsController {
     return this.service.browse(user);
   }
 
+  /** Firmanın başka ilanlara verdiği tüm teklifler (Tekliflerim ekranı). */
+  @Get("my-bids")
+  listMyBids(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.listMyBids(user.companyId);
+  }
+
   @Get(":id")
   getOne(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
