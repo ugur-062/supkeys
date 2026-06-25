@@ -76,7 +76,7 @@ export function CompanySignupClient() {
           Zaten hesabın var mı?{" "}
           <Link
             href="/company/login"
-            className="font-semibold text-white hover:underline"
+            className="font-semibold text-zinc-900 hover:underline"
           >
             Giriş yap
           </Link>

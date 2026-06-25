@@ -1,5 +1,5 @@
-import { RothernLogo } from "@/components/brand/logo";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -16,10 +16,10 @@ function Mini({
 }) {
   return (
     <div
-      className={`absolute hidden max-w-[12rem] items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 shadow-xl backdrop-blur lg:flex ${float} ${className}`}
+      className={`absolute hidden max-w-[12rem] items-center gap-2 rounded-xl border border-zinc-950/5 bg-white px-3.5 py-2.5 shadow-lg ring-1 ring-zinc-950/5 lg:flex ${float} ${className}`}
     >
       {dot ? <span className={`size-2 shrink-0 rounded-full ${dot}`} /> : null}
-      <span className="truncate text-sm font-medium text-white">{text}</span>
+      <span className="truncate text-sm font-medium text-zinc-800">{text}</span>
     </div>
   );
 }
@@ -34,10 +34,10 @@ const cards = [
 ];
 
 const pulses = [
-  "top-[26%] left-[24%] bg-emerald-400",
-  "top-[70%] left-[30%] bg-blue-400",
-  "top-[20%] right-[26%] bg-blue-400",
-  "top-[66%] right-[22%] bg-emerald-400",
+  "top-[26%] left-[24%] bg-emerald-500",
+  "top-[70%] left-[30%] bg-blue-500",
+  "top-[20%] right-[26%] bg-blue-500",
+  "top-[66%] right-[22%] bg-emerald-500",
 ];
 
 export function AuthShell({
@@ -52,11 +52,11 @@ export function AuthShell({
   footer: ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-zinc-900 via-[#0b0b0f] to-zinc-900 px-4 py-10">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-50 px-4 py-10">
       {/* grid deseni */}
       <svg
         aria-hidden="true"
-        className="absolute inset-0 -z-10 size-full stroke-white/[0.06]"
+        className="absolute inset-0 -z-10 size-full stroke-zinc-200 [mask-image:radial-gradient(75%_70%_at_50%_40%,white,transparent)]"
       >
         <defs>
           <pattern
@@ -71,18 +71,18 @@ export function AuthShell({
         </defs>
         <rect width="100%" height="100%" strokeWidth={0} fill="url(#auth-grid)" />
       </svg>
-      {/* ışık havuzları */}
+      {/* yumuşak renkli gradient'ler */}
       <div
         aria-hidden="true"
-        className="rt-float-slow absolute top-1/2 left-1/2 -z-10 size-[48rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/12 blur-[130px]"
+        className="rt-float-slow absolute -top-24 left-1/4 -z-10 size-[34rem] rounded-full bg-emerald-400/15 blur-[120px]"
       />
       <div
         aria-hidden="true"
-        className="rt-float absolute top-1/3 left-1/3 -z-10 size-[34rem] rounded-full bg-blue-500/12 blur-[110px]"
+        className="rt-float absolute top-1/3 right-1/4 -z-10 size-[30rem] rounded-full bg-blue-400/15 blur-[110px]"
       />
       <div
         aria-hidden="true"
-        className="rt-float-slow absolute right-1/4 bottom-1/4 -z-10 size-[30rem] rounded-full bg-violet-500/8 blur-[100px]"
+        className="rt-float-slow absolute bottom-0 left-1/3 -z-10 size-[28rem] rounded-full bg-violet-400/10 blur-[100px]"
       />
 
       {/* nabız noktaları */}
@@ -104,18 +104,26 @@ export function AuthShell({
         <div className="mb-7 flex flex-col items-center gap-4">
           <Link href="/" className="-m-1.5 p-1.5">
             <span className="sr-only">Rothern</span>
-            <RothernLogo variant="full-white" size="lg" priority />
+            <Image
+              src="/rothern-logo-trans.png"
+              alt="Rothern"
+              width={205}
+              height={60}
+              priority
+              unoptimized
+              className="h-[52px] w-auto"
+            />
           </Link>
           <Link
             href="/"
-            className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 transition hover:text-zinc-300"
+            className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 transition hover:text-zinc-900"
           >
             <ArrowLeftIcon className="size-3.5" />
             Anasayfaya dön
           </Link>
         </div>
 
-        <div className="rounded-3xl bg-white p-8 shadow-2xl ring-1 ring-white/10">
+        <div className="rounded-3xl bg-white p-8 shadow-xl ring-1 ring-zinc-950/5">
           <div className="mb-6 space-y-1 text-center">
             <h1 className="text-2xl font-semibold text-zinc-900">{title}</h1>
             <p className="text-sm text-slate-500">{subtitle}</p>
@@ -123,7 +131,7 @@ export function AuthShell({
           {children}
         </div>
 
-        <div className="mt-6 text-center text-sm text-zinc-400">{footer}</div>
+        <div className="mt-6 text-center text-sm text-zinc-500">{footer}</div>
       </div>
     </div>
   );

@@ -36,7 +36,7 @@ export function CompanyLoginClient() {
           Hesabınız yok mu?{" "}
           <Link
             href="/company/kayit"
-            className="font-semibold text-white hover:underline"
+            className="font-semibold text-zinc-900 hover:underline"
           >
             Firma olarak kayıt ol
           </Link>
