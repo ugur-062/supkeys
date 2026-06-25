@@ -566,6 +566,80 @@ function ConnectionsPreview() {
   );
 }
 
+function PublicProfilePreview() {
+  const tenders = [
+    { t: "Uluslararası çelik alımı", b: "RFQ", c: "bg-blue-50 text-blue-700" },
+    { t: "Fazla bakır satışı", b: "Satış", c: "bg-emerald-50 text-emerald-700" },
+    { t: "Hurda eksiltmesi", b: "İngiliz Usulü", c: "bg-amber-50 text-amber-700" },
+  ];
+  return (
+    <div className="overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-950/10">
+      <div className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50 px-4 py-3">
+        <span className="size-3 rounded-full bg-red-400" />
+        <span className="size-3 rounded-full bg-amber-400" />
+        <span className="size-3 rounded-full bg-emerald-400" />
+        <div className="ml-3 hidden h-5 max-w-xs flex-1 rounded bg-zinc-200/70 sm:block" />
+      </div>
+      <div className="h-20 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-700" />
+      <div className="px-6 pb-6">
+        <div className="-mt-8 flex items-end gap-4">
+          <div className="flex size-16 items-center justify-center rounded-2xl bg-zinc-950 text-xl font-bold text-white ring-4 ring-white">
+            DÇ
+          </div>
+          <div className="pb-1">
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold text-zinc-900">
+                Demo Çelik A.Ş.
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                <CheckIcon className="size-3" />
+                Doğrulanmış
+              </span>
+            </div>
+            <div className="text-sm text-zinc-500">
+              Metal & Çelik · İstanbul, Türkiye
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {["Çelik", "Bakır", "Alüminyum", "İthalat"].map((t) => (
+            <span
+              key={t}
+              className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+        <p className="mt-4 text-sm/6 text-zinc-600">
+          20 yıllık tedarik tecrübesiyle yurtiçi ve uluslararası metal
+          ticareti. Açık ihalelerimize teklif verin.
+        </p>
+        <div className="mt-5 text-[11px] font-medium text-zinc-500">
+          Açık ihaleleri
+        </div>
+        <div className="mt-1.5 space-y-1.5">
+          {tenders.map((x) => (
+            <div
+              key={x.t}
+              className="flex items-center justify-between rounded-lg border border-zinc-200 px-3 py-2"
+            >
+              <span className="truncate text-xs font-medium text-zinc-800">
+                {x.t}
+              </span>
+              <span
+                className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${x.c}`}
+              >
+                {x.b}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SignupPreview() {
   const roles = [
     { n: "Yönetici", on: true },
@@ -750,9 +824,23 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-        {/* Ürün önizleme (canlı) */}
-        <div className="relative mx-auto max-w-5xl">
-          <AppPreview />
+      </section>
+
+      {/* Büyük çerçeveli ekran — canlı sistem */}
+      <section className="overflow-hidden bg-white pb-24 sm:pb-32">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <p className="max-w-2xl text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
+            İşlerim — dikkat bekleyen her şey tek akışta
+          </p>
+          <Reveal className="relative mt-12 sm:mt-16">
+            <div
+              aria-hidden="true"
+              className="absolute -inset-2 rounded-[1.75rem] bg-zinc-50 ring-1 ring-zinc-950/5 sm:-inset-4 sm:rounded-[2rem]"
+            />
+            <div className="relative">
+              <AppPreview />
+            </div>
+          </Reveal>
         </div>
       </section>
 
@@ -992,6 +1080,71 @@ export default function HomePage() {
                 />
                 <ConnectionsPreview />
               </div>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* Herkese açık profil + ihale türleri */}
+      <section className="py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+            <div>
+              <h2 className="text-base/7 font-semibold text-zinc-500">
+                Vitrin & ihale
+              </h2>
+              <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
+                Herkese açık profilin, senin kuralların
+              </p>
+              <p className="mt-6 text-lg/8 text-zinc-600">
+                Premium üyelikte firman herkese açık bir vitrine kavuşur —
+                doğrulanmış rozet, sektörler ve açık ihalelerin. İstediğin
+                ihale türünü seç:
+              </p>
+              <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {[
+                  {
+                    b: "RFQ",
+                    t: "Kapalı zarf teklif",
+                    d: "Teklifleri topla, en iyisini kazandır.",
+                  },
+                  {
+                    b: "İngiliz Usulü",
+                    t: "Açık eksiltme",
+                    d: "Fiyat canlı iner; en uygun kazanır.",
+                  },
+                  {
+                    b: "Alım",
+                    t: "Alım ilanı",
+                    d: "Tedarik için ilan aç, teklif al.",
+                  },
+                  {
+                    b: "Satış",
+                    t: "Satış ilanı",
+                    d: "Fazlanı ya da ürününü sat.",
+                  },
+                ].map((x) => (
+                  <div
+                    key={x.t}
+                    className="rounded-2xl border border-zinc-200 bg-white p-4 transition hover:-translate-y-1 hover:shadow-md"
+                  >
+                    <span className="inline-block rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600">
+                      {x.b}
+                    </span>
+                    <div className="mt-2 text-sm font-semibold text-zinc-950">
+                      {x.t}
+                    </div>
+                    <p className="mt-0.5 text-xs/5 text-zinc-500">{x.d}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <Reveal className="relative">
+              <div
+                aria-hidden="true"
+                className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-tr from-zinc-100 to-white"
+              />
+              <PublicProfilePreview />
             </Reveal>
           </div>
         </div>

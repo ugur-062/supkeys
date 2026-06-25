@@ -83,7 +83,7 @@ export function CompanySignupClient() {
         </>
       }
     >
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} className="space-y-3">
             <Field>
               <Label>Firma adı</Label>
               <Input invalid={!!errors.companyName} {...register("companyName")} />

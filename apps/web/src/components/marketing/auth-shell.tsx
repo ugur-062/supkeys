@@ -1,4 +1,3 @@
-import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -52,7 +51,7 @@ export function AuthShell({
   footer: ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-50 px-4 py-10">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-zinc-50 px-4 py-6">
       {/* grid deseni */}
       <svg
         aria-hidden="true"
@@ -101,7 +100,7 @@ export function AuthShell({
 
       {/* ortadaki kart */}
       <div className="relative w-full max-w-md">
-        <div className="mb-7 flex flex-col items-center gap-4">
+        <div className="mb-5 flex justify-center">
           <Link href="/" className="-m-1.5 p-1.5">
             <span className="sr-only">Rothern</span>
             <Image
@@ -111,20 +110,13 @@ export function AuthShell({
               height={60}
               priority
               unoptimized
-              className="h-[52px] w-auto"
+              className="h-[46px] w-auto"
             />
-          </Link>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1 text-xs font-medium text-zinc-500 transition hover:text-zinc-900"
-          >
-            <ArrowLeftIcon className="size-3.5" />
-            Anasayfaya dön
           </Link>
         </div>
 
-        <div className="rounded-3xl bg-white p-8 shadow-xl ring-1 ring-zinc-950/5">
-          <div className="mb-6 space-y-1 text-center">
+        <div className="rounded-3xl bg-white p-7 shadow-xl ring-1 ring-zinc-950/5">
+          <div className="mb-5 space-y-1 text-center">
             <h1 className="text-2xl font-semibold text-zinc-900">{title}</h1>
             <p className="text-sm text-slate-500">{subtitle}</p>
           </div>
