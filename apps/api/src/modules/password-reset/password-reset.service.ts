@@ -1,15 +1,13 @@
 import * as crypto from "node:crypto";
-import { Injectable, Logger } from "@nestjs/common";
+import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { EmailService } from "../email/email.service";
+import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 
 const PASSWORD_RESET_TTL_MINUTES = 60;
 
-type ResetOwner =
-  | { userId: string }
-  | { supplierUserId: string }
-  | { companyUserId: string };
+type ResetOwner = { companyUserId: string };
 
 /**
  * Self-service "şifremi unuttum" — kullanıcının kendi talebiyle token üretip
@@ -27,29 +25,49 @@ export class PasswordResetService {
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
+    private readonly supabaseAuth: SupabaseAuthService,
   ) {}
 
-  async requestForTenant(rawEmail: string): Promise<{ success: true }> {
-    const email = rawEmail.trim().toLowerCase();
-    const user = await this.prisma.user.findFirst({
-      where: { email, isActive: true },
-      select: { id: true, email: true, firstName: true, authId: true },
-    });
-    if (user?.authId) {
-      await this.issue({ userId: user.id }, user.email, user.firstName ?? "");
-    }
-    return { success: true };
-  }
+  /**
+   * Public confirm — /reset-password sayfasından gelen token + yeni parola.
+   * Supabase Auth source-of-truth: parolayı auth.users üzerinde günceller.
+   */
+  async confirmPasswordReset(plainToken: string, newPassword: string) {
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(plainToken)
+      .digest("hex");
 
-  async requestForSupplier(rawEmail: string): Promise<{ success: true }> {
-    const email = rawEmail.trim().toLowerCase();
-    const su = await this.prisma.supplierUser.findFirst({
-      where: { email, isActive: true },
-      select: { id: true, email: true, firstName: true, authId: true },
+    const record = await this.prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: {
+        companyUser: { select: { id: true, isActive: true, authId: true } },
+      },
     });
-    if (su?.authId) {
-      await this.issue({ supplierUserId: su.id }, su.email, su.firstName ?? "");
+    if (!record) {
+      throw new ForbiddenException("Geçersiz veya kullanılmış bağlantı");
     }
+    if (record.usedAt) {
+      throw new ForbiddenException("Bu bağlantı zaten kullanılmış");
+    }
+    if (record.expiresAt.getTime() < Date.now()) {
+      throw new ForbiddenException("Bağlantının süresi dolmuş");
+    }
+    const target = record.companyUser;
+    if (!target || !target.isActive) {
+      throw new ForbiddenException("Hesap geçersiz veya pasif");
+    }
+    if (!target.authId) {
+      throw new ForbiddenException(
+        "Bu hesap Supabase Auth'a bağlı değil — destek ekibiyle iletişime geçin",
+      );
+    }
+
+    await this.supabaseAuth.updatePassword(target.authId, newPassword);
+    await this.prisma.passwordResetToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    });
     return { success: true };
   }
 
