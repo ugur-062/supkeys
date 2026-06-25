@@ -1,4 +1,7 @@
+import { Type } from "class-transformer";
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsEnum,
   IsISO8601,
@@ -8,6 +11,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from "class-validator";
 
 export enum ListingTypeDto {
@@ -24,6 +28,41 @@ export enum ListingVisibilityDto {
 export enum ListingFormatDto {
   RFQ = "RFQ",
   ENGLISH_AUCTION = "ENGLISH_AUCTION",
+}
+
+export enum CurrencyDto {
+  TRY = "TRY",
+  USD = "USD",
+  EUR = "EUR",
+  GBP = "GBP",
+  CHF = "CHF",
+  JPY = "JPY",
+}
+
+export class ListingItemDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  description?: string;
+
+  @IsNumber({ maxDecimalPlaces: 3 })
+  @Min(0.001)
+  quantity!: number;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(20)
+  unit!: string;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  targetPrice?: number;
 }
 
 export class CreateListingDto {
@@ -67,4 +106,54 @@ export class CreateListingDto {
   @IsOptional()
   @IsISO8601({}, { message: "Geçersiz tarih" })
   closesAt?: string;
+
+  // ── İhale (ALIM) zenginleştirme ──────────────────────────────────────────
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ListingItemDto)
+  @ArrayMaxSize(200)
+  items?: ListingItemDto[];
+
+  /** Davet edilecek bağlı tedarikçilerin supkeysId'leri. */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(200)
+  invitations?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(50, { each: true })
+  @ArrayMaxSize(10)
+  keywords?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  terms?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(5000)
+  internalNotes?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  requireAllItems?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  requireBidDocument?: boolean;
+
+  @IsOptional()
+  @IsEnum(CurrencyDto)
+  primaryCurrency?: CurrencyDto;
+
+  @IsOptional()
+  @IsArray()
+  @IsEnum(CurrencyDto, { each: true })
+  @ArrayMaxSize(8)
+  allowedCurrencies?: CurrencyDto[];
 }

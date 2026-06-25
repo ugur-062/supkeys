@@ -314,6 +314,7 @@ model Company {
   blockedByOthers      CompanyBlock[]      @relation("BlockedBy")
   complaintsMade       CompanyComplaint[]  @relation("ComplaintBy")
   complaintsReceived   CompanyComplaint[]  @relation("ComplaintAgainst")
+  listingInvitations   ListingInvitation[] @relation("ListingInvitee")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -462,12 +463,16 @@ model ListingBid {
   bidderCompanyId String
   bidderCompany   Company @relation("BidderCompany", fields: [bidderCompanyId], references: [id], onDelete: Cascade)
 
+  // Toplam tutar (tek-tutar teklif VEYA kalem teklifleri toplamı).
   amount      Decimal          @db.Decimal(18, 2)
+  currency    Currency         @default(TRY)
   note        String?
   // Hemen-Al ile verilen teklif (tavan fiyattan). Yine de sahip onaylar.
   isBuyNow    Boolean          @default(false)
   status      ListingBidStatus @default(SUBMITTED)
   createdById String // CompanyUser (teklifi veren kişi)
+
+  items ListingBidItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -520,8 +525,19 @@ model Listing {
   closesAt    DateTime?
   createdById String // CompanyUser id (açan kişi)
 
-  bids  ListingBid[]
-  order CompanyOrder?
+  // İhale (ALIM) zenginleştirme — eski alıcı paneli kuralları.
+  keywords           String[]   @default([]) // 0-10 arama/eşleştirme etiketi
+  terms              String? // şartlar ve koşullar
+  internalNotes      String? // yalnızca açan firma görür
+  requireAllItems    Boolean    @default(false) // tüm kalemlere teklif zorunlu mu
+  requireBidDocument Boolean    @default(false) // teklifte belge zorunlu mu
+  primaryCurrency    Currency   @default(TRY)
+  allowedCurrencies  Currency[] @default([])
+
+  bids        ListingBid[]
+  order       CompanyOrder?
+  items       ListingItem[]
+  invitations ListingInvitation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -529,6 +545,56 @@ model Listing {
   @@index([companyId])
   @@index([status])
   @@map("listings")
+}
+
+// İhale kalemi — bir ilanda birden çok satır (eski TenderItem).
+model ListingItem {
+  id          String  @id @default(cuid())
+  listingId   String
+  listing     Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  lineNo      Int // sıra (1..n)
+  name        String
+  description String?
+  quantity    Decimal @db.Decimal(18, 3)
+  unit        String // adet, kg, m, paket…
+  targetPrice Decimal? @db.Decimal(18, 2) // hedef birim fiyat (opsiyonel)
+
+  bidItems ListingBidItem[]
+
+  createdAt DateTime @default(now())
+
+  @@index([listingId])
+  @@map("listing_items")
+}
+
+// İhale daveti — belirli bağlı tedarikçiyi ihaleye davet (eski TenderInvitation).
+model ListingInvitation {
+  id               String  @id @default(cuid())
+  listingId        String
+  listing          Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  invitedCompanyId String
+  invitedCompany   Company @relation("ListingInvitee", fields: [invitedCompanyId], references: [id], onDelete: Cascade)
+  invitedById      String // CompanyUser (daveti gönderen)
+  createdAt        DateTime @default(now())
+
+  @@unique([listingId, invitedCompanyId])
+  @@index([invitedCompanyId])
+  @@map("listing_invitations")
+}
+
+// Kalem-bazlı teklif satırı — bir teklifin her kaleme verdiği birim fiyat.
+model ListingBidItem {
+  id        String      @id @default(cuid())
+  bidId     String
+  bid       ListingBid  @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  itemId    String
+  item      ListingItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  unitPrice Decimal     @db.Decimal(18, 2)
+  note      String?
+
+  @@unique([bidId, itemId])
+  @@index([bidId])
+  @@map("listing_bid_items")
 }
 
 model CompanyUser {

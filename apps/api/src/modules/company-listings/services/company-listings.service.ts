@@ -6,10 +6,12 @@ import {
 } from "@nestjs/common";
 import {
   CompanyRole,
+  type Currency,
   ListingType,
   type ListingFormat,
   type ListingVisibility,
 } from "@supkeys/db";
+import { normalizeShortCode, validateShortCode } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -67,22 +69,72 @@ export class CompanyListingsService {
     }
 
     const number = await this.nextListingNumber();
-    const listing = await this.prisma.listing.create({
-      data: {
-        number,
-        companyId: user.companyId,
-        type,
-        isInternational: dto.isInternational ?? false,
-        format,
-        minPrice,
-        buyNowPrice,
-        visibility: (dto.visibility as ListingVisibility) ?? "CONNECTIONS",
-        title: dto.title.trim(),
-        description: dto.description?.trim() || null,
-        closesAt: dto.closesAt ? new Date(dto.closesAt) : null,
-        createdById: user.userId,
-        status: "OPEN",
-      },
+
+    // Davet edilecek firmaları çöz: supkeysId → companyId, bağlı olmalı.
+    let inviteCompanyIds: string[] = [];
+    if (dto.invitations?.length) {
+      const connectedIds = await this.connectedCompanyIds(user.companyId);
+      const codes = dto.invitations
+        .map((c) => normalizeShortCode(c))
+        .filter((c) => validateShortCode(c));
+      const targets = await this.prisma.company.findMany({
+        where: { supkeysId: { in: codes } },
+        select: { id: true },
+      });
+      inviteCompanyIds = targets
+        .map((t) => t.id)
+        .filter((id) => id !== user.companyId && connectedIds.includes(id));
+    }
+
+    const listing = await this.prisma.$transaction(async (tx) => {
+      const l = await tx.listing.create({
+        data: {
+          number,
+          companyId: user.companyId,
+          type,
+          isInternational: dto.isInternational ?? false,
+          format,
+          minPrice,
+          buyNowPrice,
+          visibility: (dto.visibility as ListingVisibility) ?? "CONNECTIONS",
+          title: dto.title.trim(),
+          description: dto.description?.trim() || null,
+          closesAt: dto.closesAt ? new Date(dto.closesAt) : null,
+          createdById: user.userId,
+          status: "OPEN",
+          keywords: dto.keywords ?? [],
+          terms: dto.terms?.trim() || null,
+          internalNotes: dto.internalNotes?.trim() || null,
+          requireAllItems: dto.requireAllItems ?? false,
+          requireBidDocument: dto.requireBidDocument ?? false,
+          primaryCurrency: (dto.primaryCurrency as Currency) ?? "TRY",
+          allowedCurrencies: (dto.allowedCurrencies as Currency[]) ?? [],
+        },
+      });
+      if (dto.items?.length) {
+        await tx.listingItem.createMany({
+          data: dto.items.map((it, i) => ({
+            listingId: l.id,
+            lineNo: i + 1,
+            name: it.name.trim(),
+            description: it.description?.trim() || null,
+            quantity: it.quantity,
+            unit: it.unit.trim(),
+            targetPrice: it.targetPrice ?? null,
+          })),
+        });
+      }
+      if (inviteCompanyIds.length) {
+        await tx.listingInvitation.createMany({
+          data: inviteCompanyIds.map((cid) => ({
+            listingId: l.id,
+            invitedCompanyId: cid,
+            invitedById: user.userId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+      return l;
     });
     return this.serialize(listing);
   }
