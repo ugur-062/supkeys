@@ -20,8 +20,6 @@ import {
   LockClosedIcon,
   MinusSmallIcon,
   PlusSmallIcon,
-  TrophyIcon,
-  UserPlusIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { CheckIcon } from "@heroicons/react/20/solid";
@@ -70,10 +68,10 @@ const stats = [
 ];
 
 const steps = [
-  { n: "01", t: "Kaydol", d: "Firma hesabını oluştur, ekibini davet et, rolleri ata.", icon: UserPlusIcon },
-  { n: "02", t: "İlanını aç", d: "Alım ya da satış ilanı; kapsam, format ve fiyatı belirle.", icon: DocumentPlusIcon },
-  { n: "03", t: "Teklif topla", d: "Bağlantıların ve keşfettiğin firmalar kapalı zarf teklif verir.", icon: InboxArrowDownIcon },
-  { n: "04", t: "Kazandır & yönet", d: "En iyisini seç, sipariş oluşsun; kargo/teslim/dekont akışını takip et.", icon: TrophyIcon },
+  { n: "01", t: "Kaydol", d: "Firma hesabını oluştur, ekibini davet et, rolleri ata.", Mock: SignupPreview },
+  { n: "02", t: "İlanını aç", d: "Alım ya da satış ilanı; kapsam, format ve fiyatı belirle.", Mock: ListingWizardPreview },
+  { n: "03", t: "Teklif topla", d: "Bağlantıların ve keşfettiğin firmalar kapalı zarf teklif verir.", Mock: BidsPreview },
+  { n: "04", t: "Kazandır & yönet", d: "En iyisini seç, sipariş oluşsun; kargo/teslim/dekont akışını takip et.", Mock: OrderTimelinePreview },
 ];
 
 const standartFeatures = [
@@ -470,41 +468,125 @@ function OrderTimelinePreview() {
   );
 }
 
-const spotlights = [
-  {
-    eyebrow: "İlan oluştur",
-    title: "Saniyeler içinde, doğru formatta",
-    desc: "Kapsam, tür ve format adım adım sorulur; alımda RFQ ya da İngiliz usulü, satışta taban + hemen-al fiyatı. Yanlış kurulum imkânsız.",
-    points: [
-      "Yurtiçi & uluslararası kapsam",
-      "Alım: RFQ veya açık eksiltme",
-      "Satış: taban fiyat + hemen-al",
-    ],
-    Mock: ListingWizardPreview,
-  },
-  {
-    eyebrow: "Kapalı zarf",
-    title: "Adil rekabet, tam şeffaflık",
-    desc: "Tedarikçiler birbirini görmez; sen tüm teklifleri görür, en iyisini tek tıkla kazandırırsın. Elenen tedarikçi yeniden teklif verebilir.",
-    points: [
-      "Teklifler gizli ve sıralı",
-      "Toplu ya da kalem bazlı kazandırma",
-      "Denetlenebilir, kalıcı geçmiş",
-    ],
-    Mock: BidsPreview,
-  },
-  {
-    eyebrow: "Sipariş & belge",
-    title: "Kazandırmadan dekonta",
-    desc: "Kazandırma anında sipariş oluşur (satıcı→alıcı). Kargo, teslim ve ödeme adımlarını takip et; teslim belgesi ile dekontu panele yükle.",
-    points: [
-      "Otomatik satıcı→alıcı sipariş",
-      "Kargo / teslim / ödeme durumları",
-      "İrsaliye, konşimento & dekont",
-    ],
-    Mock: OrderTimelinePreview,
-  },
-];
+function SignupPreview() {
+  const roles = [
+    { n: "Yönetici", on: true },
+    { n: "Satın Almacı", on: true },
+    { n: "Satışçı", on: true },
+    { n: "Onaylayıcı", on: false },
+  ];
+  return (
+    <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
+      <div className="text-sm font-semibold text-zinc-900">Firma Hesabı</div>
+      <div className="mt-0.5 text-xs text-zinc-500">
+        Hem al, hem sat — tek hesap
+      </div>
+      <div className="mt-4 space-y-3">
+        <div>
+          <div className="text-xs font-medium text-zinc-500">Firma adı</div>
+          <div className="mt-1 flex h-9 items-center rounded-lg bg-zinc-100 px-3 text-sm text-zinc-700">
+            Demo Çelik A.Ş.
+          </div>
+        </div>
+        <div>
+          <div className="text-xs font-medium text-zinc-500">E-posta</div>
+          <div className="mt-1 flex h-9 items-center rounded-lg bg-zinc-100 px-3 text-sm text-zinc-700">
+            info@democelik.com
+          </div>
+        </div>
+        <div>
+          <div className="text-xs font-medium text-zinc-500">Roller</div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {roles.map((r) => (
+              <span
+                key={r.n}
+                className={`rounded-md border px-2 py-0.5 text-xs ${
+                  r.on
+                    ? "border-blue-500 bg-blue-50 text-blue-700"
+                    : "border-zinc-200 text-zinc-400"
+                }`}
+              >
+                {r.n}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="mt-5 w-full rounded-lg bg-zinc-950 py-2 text-center text-sm font-semibold text-white">
+        Kaydol
+      </div>
+    </div>
+  );
+}
+
+function StepsShowcase() {
+  const [active, setActive] = useState(0);
+  useEffect(() => {
+    const id = setInterval(
+      () => setActive((a) => (a + 1) % steps.length),
+      3200,
+    );
+    return () => clearInterval(id);
+  }, []);
+  const Active = steps[active].Mock;
+
+  return (
+    <div className="mx-auto mt-16 grid max-w-6xl items-center gap-10 sm:mt-20 lg:grid-cols-2 lg:gap-16">
+      {/* adım listesi */}
+      <div className="space-y-3">
+        {steps.map((s, i) => (
+          <button
+            key={s.n}
+            type="button"
+            onClick={() => setActive(i)}
+            className={`block w-full rounded-2xl border p-5 text-left transition ${
+              i === active
+                ? "border-zinc-900 bg-white shadow-md"
+                : "border-zinc-200 bg-white/50 hover:border-zinc-300"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span
+                className={`flex size-9 shrink-0 items-center justify-center rounded-lg font-mono text-sm font-bold transition ${
+                  i === active
+                    ? "bg-zinc-950 text-white"
+                    : "bg-zinc-200 text-zinc-500"
+                }`}
+              >
+                {s.n}
+              </span>
+              <span className="text-base font-semibold text-zinc-950">
+                {s.t}
+              </span>
+            </div>
+            <div
+              className={`grid transition-all duration-300 ${
+                i === active
+                  ? "mt-2 grid-rows-[1fr] opacity-100"
+                  : "grid-rows-[0fr] opacity-0"
+              }`}
+            >
+              <p className="overflow-hidden pl-12 text-sm/6 text-zinc-600">
+                {s.d}
+              </p>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {/* uygulama ekranı (adıma göre değişir) */}
+      <div className="relative">
+        <div
+          aria-hidden="true"
+          className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-tr from-zinc-100 to-white"
+        />
+        <div key={active} className="rt-fade-in">
+          <Active />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -816,49 +898,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Görsel spotlight'lar */}
-      <section className="py-24 sm:py-32">
-        <div className="mx-auto max-w-7xl space-y-24 px-6 sm:space-y-32 lg:px-8">
-          {spotlights.map((s, i) => {
-            const Mock = s.Mock;
-            return (
-              <div
-                key={s.eyebrow}
-                className="grid items-center gap-12 lg:grid-cols-2"
-              >
-                <div className={i % 2 === 1 ? "lg:order-last" : ""}>
-                  <h3 className="text-sm font-semibold text-zinc-500">
-                    {s.eyebrow}
-                  </h3>
-                  <p className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
-                    {s.title}
-                  </p>
-                  <p className="mt-4 text-lg/8 text-zinc-600">{s.desc}</p>
-                  <ul role="list" className="mt-6 space-y-3">
-                    {s.points.map((p) => (
-                      <li key={p} className="flex gap-x-3 text-zinc-700">
-                        <CheckIcon
-                          aria-hidden="true"
-                          className="h-6 w-5 flex-none text-zinc-900"
-                        />
-                        <span className="text-base">{p}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="relative">
-                  <div
-                    aria-hidden="true"
-                    className="absolute -inset-4 -z-10 rounded-[2rem] bg-gradient-to-tr from-zinc-100 to-white"
-                  />
-                  <Mock />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
       {/* Nasıl çalışır */}
       <section
         id="nasil"
@@ -873,35 +912,7 @@ export default function HomePage() {
               Kayıttan kazandırmaya, oradan siparişe — her şey tek panelde.
             </p>
           </div>
-          <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-y-6 sm:mt-20 sm:grid-cols-2 sm:gap-6 lg:max-w-none lg:grid-cols-4 lg:gap-x-5">
-            {steps.map((s, i) => {
-              const Icon = s.icon;
-              return (
-                <div key={s.n} className="relative">
-                  {i < steps.length - 1 ? (
-                    <ArrowLongRightIcon
-                      aria-hidden="true"
-                      className="rt-nudge-r absolute top-9 -right-3.5 z-10 hidden size-8 text-zinc-300 lg:block"
-                    />
-                  ) : null}
-                  <div className="h-full rounded-2xl border border-zinc-200 bg-white p-6 transition hover:-translate-y-1 hover:border-zinc-300 hover:shadow-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex size-12 items-center justify-center rounded-xl bg-zinc-950">
-                        <Icon aria-hidden="true" className="size-6 text-white" />
-                      </div>
-                      <span className="font-mono text-3xl font-bold text-zinc-200">
-                        {s.n}
-                      </span>
-                    </div>
-                    <div className="mt-4 text-lg font-semibold text-zinc-950">
-                      {s.t}
-                    </div>
-                    <p className="mt-1.5 text-sm/6 text-zinc-600">{s.d}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <StepsShowcase />
         </div>
       </section>
 

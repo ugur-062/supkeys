@@ -176,3 +176,13 @@
 @media (prefers-reduced-motion: reduce) {
   .rt-nudge-r, .rt-nudge-l { animation: none; }
 }
+
+/* Anasayfa — adım showcase geçiş animasyonu */
+@keyframes rt-fade-in {
+  0% { opacity: 0; transform: translateY(10px) scale(0.99); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.rt-fade-in { animation: rt-fade-in 0.45s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .rt-fade-in { animation: none; }
+}
