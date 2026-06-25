@@ -182,6 +182,7 @@ export class CompanyListingsService {
           bidderName: b.bidderCompany.name,
           amount: b.amount.toString(),
           note: b.note,
+          isBuyNow: b.isBuyNow,
           status: b.status,
           createdAt: b.createdAt,
         })),
@@ -278,6 +279,73 @@ export class CompanyListingsService {
       },
     });
     return { id: bid.id, amount: bid.amount.toString(), status: bid.status };
+  }
+
+  /**
+   * Hemen-Al — SATIS ilanında tavan (buyNow) fiyattan teklif oluşturur.
+   * DİREKT SİPARİŞ DEĞİL: sahip yine onaylar (kazandırır). isBuyNow=true bayraklı.
+   */
+  async buyNow(user: AuthenticatedCompanyUser, listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        id: true,
+        companyId: true,
+        type: true,
+        visibility: true,
+        status: true,
+        buyNowPrice: true,
+      },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (listing.type !== "SATIS" || !listing.buyNowPrice) {
+      throw new BadRequestException("Bu ilanda hemen-al seçeneği yok");
+    }
+    if (listing.companyId === user.companyId) {
+      throw new BadRequestException("Kendi ilanınız");
+    }
+    if (listing.status !== "OPEN") {
+      throw new BadRequestException("İlan teklife kapalı");
+    }
+
+    const connectedIds = await this.connectedCompanyIds(user.companyId);
+    const connected = connectedIds.includes(listing.companyId);
+    const isPremium = user.tier === "PAKET";
+    const visible =
+      listing.visibility === "PUBLIC" ||
+      (listing.visibility === "CONNECTIONS" && connected);
+    if (!visible) throw new NotFoundException("İlan bulunamadı");
+    const canBid =
+      connected || (listing.visibility === "PUBLIC" && isPremium);
+    if (!canBid) {
+      throw new ForbiddenException("Bu ilana teklif için premium gerekir");
+    }
+    if (!user.roles.includes(CompanyRole.SATIN_ALMACI)) {
+      throw new ForbiddenException("Hemen-Al için Satın Almacı rolü gerekir");
+    }
+
+    const bid = await this.prisma.listingBid.upsert({
+      where: {
+        listingId_bidderCompanyId: {
+          listingId,
+          bidderCompanyId: user.companyId,
+        },
+      },
+      create: {
+        listingId,
+        bidderCompanyId: user.companyId,
+        amount: listing.buyNowPrice,
+        isBuyNow: true,
+        createdById: user.userId,
+        status: "SUBMITTED",
+      },
+      update: {
+        amount: listing.buyNowPrice,
+        isBuyNow: true,
+        status: "SUBMITTED",
+      },
+    });
+    return { id: bid.id, amount: bid.amount.toString(), isBuyNow: true };
   }
 
   /**

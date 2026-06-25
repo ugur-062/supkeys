@@ -82,6 +82,7 @@ export interface ListingBidRow {
   bidderName: string;
   amount: string;
   note: string | null;
+  isBuyNow: boolean;
   status: string;
   createdAt: string;
 }
@@ -130,6 +131,18 @@ export function usePlaceBid(id: string) {
         `/company/listings/${id}/bids`,
         input,
       );
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] }),
+  });
+}
+
+export function useBuyNow(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post(`/company/listings/${id}/buy-now`);
       return data;
     },
     onSuccess: () =>

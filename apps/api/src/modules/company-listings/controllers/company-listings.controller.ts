@@ -49,6 +49,14 @@ export class CompanyListingsController {
     return this.service.placeBid(user, id, dto);
   }
 
+  @Post(":id/buy-now")
+  buyNow(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.buyNow(user, id);
+  }
+
   @Post(":id/award")
   award(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,

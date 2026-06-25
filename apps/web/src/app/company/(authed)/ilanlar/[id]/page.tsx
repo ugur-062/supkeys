@@ -9,6 +9,7 @@ import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
 import {
   useAwardListing,
+  useBuyNow,
   useListingDetail,
   usePlaceBid,
 } from "@/hooks/use-company-listings";
@@ -25,8 +26,18 @@ export default function ListingDetailPage() {
   const { data: l, isLoading } = useListingDetail(id);
   const placeBid = usePlaceBid(id);
   const award = useAwardListing(id);
+  const buyNow = useBuyNow(id);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+
+  const handleBuyNow = async () => {
+    try {
+      await buyNow.mutateAsync();
+      toast.success("Hemen-Al teklifin gönderildi — satıcı onayı bekleniyor");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Hemen-Al başarısız"));
+    }
+  };
 
   const handleAward = async (bidId: string, bidderName: string) => {
     if (!confirm(`"${bidderName}" kazandırılsın mı? Sipariş oluşacak.`)) return;
@@ -140,6 +151,9 @@ export default function ListingDetailPage() {
                     {b.status === "LOST" ? (
                       <Badge color="zinc">Elendi</Badge>
                     ) : null}
+                    {b.isBuyNow ? (
+                      <Badge color="emerald">Hemen-Al</Badge>
+                    ) : null}
                     <span className="text-sm font-medium text-zinc-900">
                       {b.bidderName}
                     </span>
@@ -171,6 +185,21 @@ export default function ListingDetailPage() {
           <Subheading>Teklif Ver</Subheading>
           {l.canBid ? (
             <div className="space-y-4 rounded-xl border border-zinc-950/10 bg-white p-5">
+              {!isAlim && l.buyNowPrice ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+                  <div>
+                    <div className="text-sm font-semibold text-emerald-900">
+                      Hemen Al — {Number(l.buyNowPrice).toLocaleString("tr-TR")} ₺
+                    </div>
+                    <div className="text-xs text-emerald-700">
+                      Tavan fiyattan teklif ver. Satıcı yine de onaylar.
+                    </div>
+                  </div>
+                  <Button onClick={handleBuyNow} disabled={buyNow.isPending}>
+                    Hemen Al
+                  </Button>
+                </div>
+              ) : null}
               {l.myBid ? (
                 <Text className="text-sm">
                   Mevcut teklifin:{" "}

@@ -2311,6 +2311,8 @@ model ListingBid {
 
   amount      Decimal          @db.Decimal(18, 2)
   note        String?
+  // Hemen-Al ile verilen teklif (tavan fiyattan). Yine de sahip onaylar.
+  isBuyNow    Boolean          @default(false)
   status      ListingBidStatus @default(SUBMITTED)
   createdById String // CompanyUser (teklifi veren kişi)
 
