@@ -102,6 +102,7 @@ export class CompanyListingsService {
           closesAt: dto.closesAt ? new Date(dto.closesAt) : null,
           createdById: user.userId,
           status: "OPEN",
+          categoryIds: dto.categoryIds ?? [],
           keywords: dto.keywords ?? [],
           terms: dto.terms?.trim() || null,
           internalNotes: dto.internalNotes?.trim() || null,
@@ -748,6 +749,7 @@ export class CompanyListingsService {
       closesAt: Date | null;
       createdAt: Date;
       company: { name: string };
+      categoryIds: string[];
       keywords: string[];
       terms: string | null;
       requireAllItems: boolean;
@@ -772,6 +774,7 @@ export class CompanyListingsService {
       closesAt: l.closesAt,
       createdAt: l.createdAt,
       owner: masked ? null : { name: l.company.name },
+      categoryIds: l.categoryIds,
       keywords: l.keywords,
       terms: masked ? null : l.terms,
       requireAllItems: l.requireAllItems,

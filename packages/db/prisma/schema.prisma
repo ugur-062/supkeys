@@ -526,6 +526,7 @@ model Listing {
   createdById String // CompanyUser id (açan kişi)
 
   // İhale (ALIM) zenginleştirme — eski alıcı paneli kuralları.
+  categoryIds        String[]   @default([]) // UNGM UNSPSC TR kategori kodları
   keywords           String[]   @default([]) // 0-10 arama/eşleştirme etiketi
   terms              String? // şartlar ve koşullar
   internalNotes      String? // yalnızca açan firma görür

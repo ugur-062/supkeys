@@ -16,6 +16,7 @@ import {
   usePlaceBid,
   useWithdrawBid,
 } from "@/hooks/use-company-listings";
+import { useCategoriesByIds } from "@/hooks/use-categories";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
@@ -33,6 +34,7 @@ export default function ListingDetailPage() {
   const cancelListing = useCancelListing(id);
   const withdrawBid = useWithdrawBid(id);
   const eliminate = useEliminateBid(id);
+  const categories = useCategoriesByIds(l?.categoryIds ?? []);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
@@ -229,8 +231,21 @@ export default function ListingDetailPage() {
 
       {/* İhale bilgileri */}
       {isAlim &&
-      (l.keywords?.length || l.terms || l.requireAllItems || l.closesAt) ? (
+      (l.categoryIds?.length ||
+        l.keywords?.length ||
+        l.terms ||
+        l.requireAllItems ||
+        l.closesAt) ? (
         <section className="space-y-2 rounded-xl border border-zinc-950/10 bg-zinc-50/50 p-4">
+          {categories.data && categories.data.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {categories.data.map((c) => (
+                <Badge key={c.id} color="blue">
+                  {c.nameTr}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
           {l.keywords && l.keywords.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {l.keywords.map((k) => (

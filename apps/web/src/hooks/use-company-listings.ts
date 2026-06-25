@@ -66,6 +66,7 @@ export interface CreateListingInput {
   // İhale (ALIM) zenginleştirme
   items?: ListingItemInput[];
   invitations?: string[]; // davet edilen supkeysId'ler
+  categoryIds?: string[]; // UNGM UNSPSC TR kategori kodları
   keywords?: string[];
   terms?: string;
   internalNotes?: string;
@@ -147,6 +148,7 @@ export interface ListingDetail {
   owner: { name: string } | null;
   isOwner: boolean;
   // ihale zenginleştirme
+  categoryIds?: string[];
   keywords?: string[];
   terms?: string | null;
   requireAllItems?: boolean;

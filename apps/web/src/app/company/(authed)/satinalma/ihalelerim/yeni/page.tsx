@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/catalyst/button";
+import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { Checkbox } from "@/components/catalyst/checkbox";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Heading, Subheading } from "@/components/catalyst/heading";
@@ -39,6 +40,7 @@ export default function YeniIhalePage() {
   const [closesAt, setClosesAt] = useState("");
   const [primaryCurrency, setPrimaryCurrency] = useState<CurrencyCode>("TRY");
   const [extraCurrencies, setExtraCurrencies] = useState<CurrencyCode[]>([]);
+  const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [keywords, setKeywords] = useState("");
   const [terms, setTerms] = useState("");
   const [internalNotes, setInternalNotes] = useState("");
@@ -105,6 +107,7 @@ export default function YeniIhalePage() {
               : undefined,
         })),
         invitations: invited.length ? invited : undefined,
+        categoryIds: categoryIds.length ? categoryIds : undefined,
         keywords: kw.length ? kw : undefined,
         terms: terms.trim() || undefined,
         internalNotes: internalNotes.trim() || undefined,
@@ -258,6 +261,16 @@ export default function YeniIhalePage() {
                     {c}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div>
+              <Label>Kategori (UNSPSC)</Label>
+              <div className="mt-1">
+                <CategorySelectorButton
+                  value={categoryIds}
+                  onChange={setCategoryIds}
+                />
               </div>
             </div>
 

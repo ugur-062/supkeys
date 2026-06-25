@@ -1,0 +1,1 @@
+ALTER TABLE "listings" ADD COLUMN "categoryIds" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

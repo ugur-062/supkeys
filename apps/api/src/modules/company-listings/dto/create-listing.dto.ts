@@ -122,6 +122,13 @@ export class CreateListingDto {
   @ArrayMaxSize(200)
   invitations?: string[];
 
+  /** UNGM UNSPSC TR kategori kodları. */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(20)
+  categoryIds?: string[];
+
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
