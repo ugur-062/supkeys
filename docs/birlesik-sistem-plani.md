@@ -63,20 +63,32 @@
 
 ## 5. Üyelik (pasif/aktif) + görünürlük
 
-| Yetenek | Standart (bedava, referansla gelen) | Tek Paket (paralı) |
+| Yetenek | Standart (bedava) | Tek Paket (paralı) |
 |---|---|---|
-| Bağlantılı firmanın ilanına teklif (🔵alış + 🟢satış) | ✅ | ✅ |
+| **Herkese açık (PUBLIC) ilanları GÖR** | ✅ ama **MASKELİ** (kim açtı + iletişim gizli) | ✅ tam (kim açtı + iletişim görünür) |
+| **Herkese açık ilana teklif ver** | 🔒 (premium gerekir) | ✅ |
+| **Bağlantılı firmanın ilanını gör + teklif** (🔵alış + 🟢satış) | ✅ | ✅ |
 | Kazandığı siparişi yürüt (kargola/öde) | ✅ | ✅ |
 | Firma profili + kullanıcı/rol yönetimi | ✅ | ✅ |
-| Bağlantı isteği gönder/al | ✅ | ✅ |
+| Bağlantı isteği gönder / al / kabul | ✅ | ✅ |
 | **Kendi ilanını aç (alım/satış)** | 🔒 | ✅ |
 | **Keşfet / firma-ilan arama** | 🔒 | ✅ |
 | **Diğerlerine görünür / havuzda çıkma** | 🔒 görünmez | ✅ |
 | **Herkese açık profil** (`/firma/[slug]`) | 🔒 yok | ✅ |
 | Kullanıcı/rol sayısı | sınırsız | sınırsız |
 
-- **Standart = kapalı balon:** yalnızca kendisini davet eden firmalarla var olur. Aramaz, aranmaz, profili yok. Yön kısıtı değil **çevre kısıtı** (bağlantı içinde hem alır hem satar).
-- Public ilanlar standarda **"kilitli teaser"** olarak görünebilir (firma maskeli → upgrade CTA).
+**İlan görünürlük seviyeleri (alış + satış için aynı):**
+- **PUBLIC (herkese açık):** herkes görür — ama **Standart MASKELİ** görür (kim açtı + iletişim gizli, "kilitli teaser" + upgrade CTA). Teklif vermek için premium.
+- **BAĞLANTILARA açık:** yalnızca açan firmanın **bağlantılı** firmaları görür.
+- **ÖZEL/davetli:** sadece açıkça davet edilenler.
+
+**Bağlantı kuralı:** İki firma **karşılıklı davet + kabul** edince **bağlanır.** Bağlanınca birbirinin "bağlantılara açık" ilanlarını görür + teklif verebilir (alış+satış).
+
+**⚠️ Premium düşüş kuralı (eski sistemdeki gibi — alış+satış için korunacak):** Bir firma **PAKET→STANDARD** düşerse:
+- **Referans-kodlu / davet-kabul** bağlantıları **KALICI** (etkilenmez, görmeye devam eder).
+- **Premium kaynaklı** (keşif/havuz üzerinden kurulan) bağlantıları **PASİFE** alınır → o firma onları **göremez**. Tekrar premium olunca geri gelir.
+- (Eski: `SupplierTenantRelation` INVITE/ADMIN kalıcı ↔ CONNECT_REQUEST premium-gated. → `CompanyConnection.origin`: REFERENCE/INVITE=kalıcı, PREMIUM=premium-gated.)
+
 - Mevcut **PREMIUM-only public profil** + **STANDARD davetli-görünürlük** mantığının firma seviyesine taşınması — sıfırdan değil.
 
 ---
