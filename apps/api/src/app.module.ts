@@ -10,6 +10,7 @@ import { AdminAuthModule } from "./modules/admin-auth/admin-auth.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CompanyAuthModule } from "./modules/company-auth/company-auth.module";
+import { CompanyListingsModule } from "./modules/company-listings/company-listings.module";
 import { PermissionsModule } from "./modules/auth/permissions/permissions.module";
 import { DemoRequestsModule } from "./modules/demo-requests/demo-requests.module";
 import { EmailModule } from "./modules/email/email.module";
@@ -90,6 +91,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     PermissionsModule,
     AdminAuthModule,
     CompanyAuthModule,
+    CompanyListingsModule,
     SupabaseAuthModule,
     SupplierAuthModule,
     SupplierAccountModule,

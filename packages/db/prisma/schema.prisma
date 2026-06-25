@@ -2206,12 +2206,47 @@ model Company {
   // Sahiplik — tekil firma sahibi (CompanyUser.id). Sahip ⊇ Yönetici.
   ownerUserId String?
 
-  users CompanyUser[]
+  users    CompanyUser[]
+  listings Listing[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("companies")
+}
+
+enum ListingType {
+  ALIM // alım ilanı (reverse — fiyat iner, en ucuz kazanır)
+  SATIS // satış ilanı (forward — fiyat çıkar, en yüksek kazanır)
+}
+
+enum ListingStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  AWARDED
+  CANCELLED
+}
+
+// Birleşik sistem — İlan (eski Tender'ın Company-native, sade karşılığı).
+// Kalemler/teklif/sipariş sonraki chunk'larda eklenecek.
+model Listing {
+  id          String        @id @default(cuid())
+  companyId   String // açan firma
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type        ListingType
+  title       String
+  description String?
+  status      ListingStatus @default(OPEN)
+  closesAt    DateTime?
+  createdById String // CompanyUser id (açan kişi)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+  @@map("listings")
 }
 
 model CompanyUser {
