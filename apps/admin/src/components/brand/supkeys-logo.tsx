@@ -27,7 +27,7 @@ const SIZES: Record<
 const SOURCES: Record<LogoVariant, string> = {
   full: "/rothern-logo-on-dark.png",
   icon: "/rothern-icon.svg",
-  "full-white": "/rothern-logo-on-dark.png",
+  "full-white": "/rothern-logo-trans-white.png",
   "icon-white": "/rothern-icon-white.svg",
 };
 

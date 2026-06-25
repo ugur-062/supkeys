@@ -27,7 +27,8 @@ const SIZES: Record<
 const SOURCES: Record<LogoVariant, string> = {
   full: "/rothern-logo-on-dark.png",
   icon: "/rothern-icon.svg",
-  "full-white": "/rothern-logo-on-dark.png",
+  // Şeffaf beyaz wordmark — plaka yok, değişken koyu zeminlerde kare yapmaz.
+  "full-white": "/rothern-logo-trans-white.png",
   "icon-white": "/rothern-icon-white.svg",
 };
 
