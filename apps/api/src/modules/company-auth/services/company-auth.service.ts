@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { CompanyRole, type Company, type CompanyUser } from "@supkeys/db";
+import { generateShortCode } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { AuditService } from "../../audit/audit.service";
 import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
@@ -44,6 +45,8 @@ export class CompanyAuthService {
       type: "company",
     });
 
+    const supkeysId = await this.generateUniqueSupkeysId();
+
     // 2) Company + ilk CompanyUser (owner). Prisma hatasında auth.users temizle.
     let result: { company: Company; user: CompanyUser };
     try {
@@ -52,6 +55,7 @@ export class CompanyAuthService {
           data: {
             name: dto.companyName.trim(),
             tier: "STANDARD",
+            supkeysId,
           },
         });
         const user = await tx.companyUser.create({
@@ -220,6 +224,18 @@ export class CompanyAuthService {
       twoFactorEnabled: user.twoFactorEnabled,
       lastLoginAt: user.lastLoginAt,
     };
+  }
+
+  /** Çakışmasız supkeysId üretir (XXXX-XXXX). Bağlantı davetinde kullanılır. */
+  private async generateUniqueSupkeysId(): Promise<string> {
+    for (let i = 0; i < 10; i++) {
+      const code = generateShortCode();
+      const exists = await this.prisma.company.count({
+        where: { supkeysId: code },
+      });
+      if (exists === 0) return code;
+    }
+    throw new Error("supkeysId üretilemedi (çakışma)");
   }
 
   private serializeCompany(company: Company) {

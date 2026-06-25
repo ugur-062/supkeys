@@ -2206,13 +2206,49 @@ model Company {
   // Sahiplik — tekil firma sahibi (CompanyUser.id). Sahip ⊇ Yönetici.
   ownerUserId String?
 
-  users    CompanyUser[]
-  listings Listing[]
+  users                CompanyUser[]
+  listings             Listing[]
+  connectionsInitiated CompanyConnection[] @relation("ConnInviter")
+  connectionsReceived  CompanyConnection[] @relation("ConnInvitee")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("companies")
+}
+
+enum ConnectionStatus {
+  PENDING // davet gönderildi, kabul bekliyor
+  ACTIVE // kabul edildi, bağlı
+}
+
+enum ConnectionOrigin {
+  INVITE // davet-kabul / referans kodu — premium düşüşünde KALICI
+  PREMIUM // premium keşif üzerinden — premium düşüşünde PASİFE alınır
+  ADMIN // platform bağladı
+}
+
+// Birleşik sistem — firma↔firma bağlantı. Bir firma davet atar (inviter),
+// diğeri kabul eder (invitee). Bağlanınca birbirinin "bağlantılara açık"
+// ilanlarını görür (alış+satış). origin=INVITE kalıcı; PREMIUM premium-gated.
+model CompanyConnection {
+  id               String  @id @default(cuid())
+  inviterCompanyId String
+  inviter          Company @relation("ConnInviter", fields: [inviterCompanyId], references: [id], onDelete: Cascade)
+  inviteeCompanyId String
+  invitee          Company @relation("ConnInvitee", fields: [inviteeCompanyId], references: [id], onDelete: Cascade)
+
+  status      ConnectionStatus @default(PENDING)
+  origin      ConnectionOrigin @default(INVITE)
+  invitedById String // CompanyUser (daveti atan kişi)
+  decidedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([inviterCompanyId, inviteeCompanyId])
+  @@index([inviteeCompanyId])
+  @@map("company_connections")
 }
 
 enum ListingType {

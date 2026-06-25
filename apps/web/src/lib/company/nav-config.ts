@@ -2,6 +2,7 @@ import {
   ClipboardDocumentListIcon,
   Cog6ToothIcon,
   HomeIcon,
+  LinkIcon,
   MagnifyingGlassIcon,
   ShoppingBagIcon,
   TagIcon,
@@ -24,6 +25,7 @@ export const companyNavConfig: CompanyNavItem[] = [
   { icon: ClipboardDocumentListIcon, label: "İlanlar", href: "/company/ilanlar" },
   { icon: TagIcon, label: "Teklifler", href: "/company/teklifler" },
   { icon: ShoppingBagIcon, label: "Siparişler", href: "/company/siparisler" },
+  { icon: LinkIcon, label: "Bağlantılar", href: "/company/baglantilar" },
   {
     icon: MagnifyingGlassIcon,
     label: "Keşfet",
@@ -38,6 +40,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   "/company/ilanlar": "İlanlar",
   "/company/teklifler": "Teklifler",
   "/company/siparisler": "Siparişler",
+  "/company/baglantilar": "Bağlantılar",
   "/company/kesfet": "Keşfet",
   "/company/ayarlar": "Ayarlar",
 };

@@ -1,0 +1,84 @@
+"use client";
+
+import { companyApi } from "@/lib/company-auth/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+export type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
+
+export interface ConnectionCompany {
+  id: string;
+  name: string;
+  supkeysId: string | null;
+}
+
+export interface Connection {
+  connectionId: string;
+  origin: ConnectionOrigin;
+  company: ConnectionCompany;
+  decidedAt: string | null;
+}
+
+export interface IncomingInvite {
+  connectionId: string;
+  company: ConnectionCompany;
+  createdAt: string;
+}
+
+export function useConnections() {
+  return useQuery({
+    queryKey: ["company-connections", "active"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<Connection[]>(
+        "/company/connections",
+      );
+      return data;
+    },
+  });
+}
+
+export function useIncomingInvites() {
+  return useQuery({
+    queryKey: ["company-connections", "incoming"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<IncomingInvite[]>(
+        "/company/connections/incoming",
+      );
+      return data;
+    },
+  });
+}
+
+export function useInviteConnection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (supkeysId: string) => {
+      const { data } = await companyApi.post<{ targetName: string }>(
+        "/company/connections/invite",
+        { supkeysId },
+      );
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["company-connections"] }),
+  });
+}
+
+export function useRespondInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      connectionId,
+      action,
+    }: {
+      connectionId: string;
+      action: "accept" | "reject";
+    }) => {
+      const { data } = await companyApi.post(
+        `/company/connections/${connectionId}/${action}`,
+      );
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["company-connections"] }),
+  });
+}

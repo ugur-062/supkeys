@@ -12,8 +12,19 @@
 
 import { CompanyRole, PrismaClient } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
+import { generateShortCode } from "@supkeys/shared";
 
 const prisma = new PrismaClient();
+
+async function uniqueSupkeysId(): Promise<string> {
+  for (let i = 0; i < 10; i++) {
+    const code = generateShortCode();
+    if ((await prisma.company.count({ where: { supkeysId: code } })) === 0) {
+      return code;
+    }
+  }
+  throw new Error("supkeysId üretilemedi");
+}
 
 function buildSupabase() {
   const url = process.env.SUPABASE_URL;
@@ -81,10 +92,22 @@ async function main() {
     include: { company: true },
   });
   if (existingUser) {
-    console.log(`  🔁 Zaten var: company=${existingUser.companyId}`);
+    // supkeysId yoksa backfill et (bağlantı daveti için gerekli).
+    const co = existingUser.company;
+    if (!co.supkeysId) {
+      const code = await uniqueSupkeysId();
+      await prisma.company.update({
+        where: { id: co.id },
+        data: { supkeysId: code },
+      });
+      console.log(`  🔧 supkeysId backfill: ${code}`);
+    }
+    console.log(
+      `  🔁 Zaten var: company=${existingUser.companyId} (supkeysId=${co.supkeysId ?? "yeni atandı"})`,
+    );
   } else {
     const company = await prisma.company.create({
-      data: { name: companyName, tier: "STANDARD" },
+      data: { name: companyName, tier: "STANDARD", supkeysId: await uniqueSupkeysId() },
     });
     const user = await prisma.companyUser.create({
       data: {
