@@ -424,6 +424,53 @@ export class CompanyListingsService {
     return { orderId: order.id, number: order.number };
   }
 
+  /** İlan sahibi açık ilanı iptal eder (kazandırmadan kapatır). */
+  async cancel(user: AuthenticatedCompanyUser, listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true, status: true },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (listing.companyId !== user.companyId) {
+      throw new ForbiddenException("Sadece ilan sahibi iptal edebilir");
+    }
+    if (listing.status !== "OPEN") {
+      throw new BadRequestException("Sadece açık ilan iptal edilebilir");
+    }
+    await this.prisma.$transaction([
+      this.prisma.listing.update({
+        where: { id: listingId },
+        data: { status: "CANCELLED" },
+      }),
+      this.prisma.listingBid.updateMany({
+        where: { listingId, status: "SUBMITTED" },
+        data: { status: "LOST" },
+      }),
+    ]);
+    return { ok: true };
+  }
+
+  /** Teklif veren kendi teklifini geri çeker. */
+  async withdrawBid(user: AuthenticatedCompanyUser, listingId: string) {
+    const bid = await this.prisma.listingBid.findUnique({
+      where: {
+        listingId_bidderCompanyId: {
+          listingId,
+          bidderCompanyId: user.companyId,
+        },
+      },
+      select: { id: true, status: true },
+    });
+    if (!bid || bid.status !== "SUBMITTED") {
+      throw new BadRequestException("Geri çekilebilir teklif yok");
+    }
+    await this.prisma.listingBid.update({
+      where: { id: bid.id },
+      data: { status: "WITHDRAWN" },
+    });
+    return { ok: true };
+  }
+
   private async nextOrderNumber(): Promise<string> {
     const rows = await this.prisma.$queryRaw<Array<{ n: bigint }>>`
       SELECT nextval('order_number_seq') AS n

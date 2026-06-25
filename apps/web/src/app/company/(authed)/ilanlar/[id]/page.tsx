@@ -10,8 +10,10 @@ import { Textarea } from "@/components/catalyst/textarea";
 import {
   useAwardListing,
   useBuyNow,
+  useCancelListing,
   useListingDetail,
   usePlaceBid,
+  useWithdrawBid,
 } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
@@ -27,8 +29,29 @@ export default function ListingDetailPage() {
   const placeBid = usePlaceBid(id);
   const award = useAwardListing(id);
   const buyNow = useBuyNow(id);
+  const cancelListing = useCancelListing(id);
+  const withdrawBid = useWithdrawBid(id);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+
+  const handleCancel = async () => {
+    if (!confirm("İlan iptal edilsin mi? Bu işlem geri alınamaz.")) return;
+    try {
+      await cancelListing.mutateAsync();
+      toast.success("İlan iptal edildi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "İptal edilemedi"));
+    }
+  };
+
+  const handleWithdraw = async () => {
+    try {
+      await withdrawBid.mutateAsync();
+      toast.success("Teklifin geri çekildi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Geri çekilemedi"));
+    }
+  };
 
   const handleBuyNow = async () => {
     try {
@@ -129,7 +152,18 @@ export default function ListingDetailPage() {
       {/* SAHİP: gelen teklifler */}
       {l.isOwner ? (
         <section className="space-y-3">
-          <Subheading>Gelen Teklifler ({l.bids?.length ?? 0})</Subheading>
+          <div className="flex items-center justify-between">
+            <Subheading>Gelen Teklifler ({l.bids?.length ?? 0})</Subheading>
+            {l.status === "OPEN" ? (
+              <Button
+                plain
+                onClick={handleCancel}
+                disabled={cancelListing.isPending}
+              >
+                İlanı İptal Et
+              </Button>
+            ) : null}
+          </div>
           {!l.bids || l.bids.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-8 text-center">
               <Text className="text-sm text-zinc-500">Henüz teklif yok.</Text>
@@ -201,13 +235,23 @@ export default function ListingDetailPage() {
                 </div>
               ) : null}
               {l.myBid ? (
-                <Text className="text-sm">
-                  Mevcut teklifin:{" "}
-                  <strong>
-                    {Number(l.myBid.amount).toLocaleString("tr-TR")} ₺
-                  </strong>{" "}
-                  — güncelleyebilirsin.
-                </Text>
+                <div className="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2">
+                  <Text className="text-sm">
+                    Mevcut teklifin:{" "}
+                    <strong>
+                      {Number(l.myBid.amount).toLocaleString("tr-TR")} ₺
+                    </strong>
+                  </Text>
+                  {l.myBid.status === "SUBMITTED" ? (
+                    <Button
+                      plain
+                      onClick={handleWithdraw}
+                      disabled={withdrawBid.isPending}
+                    >
+                      Geri Çek
+                    </Button>
+                  ) : null}
+                </div>
               ) : null}
               <Field>
                 <Label>Tutar (₺)</Label>

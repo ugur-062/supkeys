@@ -65,4 +65,20 @@ export class CompanyListingsController {
   ) {
     return this.service.award(user, id, dto.bidId);
   }
+
+  @Post(":id/cancel")
+  cancel(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.cancel(user, id);
+  }
+
+  @Post(":id/withdraw-bid")
+  withdrawBid(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.withdrawBid(user, id);
+  }
 }

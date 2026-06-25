@@ -150,6 +150,32 @@ export function useBuyNow(id: string) {
   });
 }
 
+export function useCancelListing(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post(`/company/listings/${id}/cancel`);
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["company-listings"] }),
+  });
+}
+
+export function useWithdrawBid(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post(
+        `/company/listings/${id}/withdraw-bid`,
+      );
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] }),
+  });
+}
+
 export function useAwardListing(id: string) {
   const qc = useQueryClient();
   return useMutation({
