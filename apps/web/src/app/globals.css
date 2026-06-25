@@ -186,3 +186,13 @@
 @media (prefers-reduced-motion: reduce) {
   .rt-fade-in { animation: none; }
 }
+
+/* Anasayfa — sonsuz kayan şerit (sektör marquee) */
+@keyframes rt-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.rt-marquee { animation: rt-marquee 40s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .rt-marquee { animation: none; }
+}

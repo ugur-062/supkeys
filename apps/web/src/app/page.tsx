@@ -21,10 +21,10 @@ const navigation = [
 ];
 
 const stats = [
-  { prefix: "", value: 98, suffix: " ülke", l: "Yurtiçi & uluslararası al-sat" },
-  { prefix: "%", value: 100, suffix: "", l: "Kapalı zarf — teklifler gizli" },
-  { prefix: "", value: 0, suffix: " ₺", l: "Koltuk ücreti, sınırsız rol" },
-  { text: "Tek panel", l: "İlandan dekonta tüm akış" },
+  { prefix: "", value: 13305, suffix: "", l: "Kategoride hassas eşleşme (UNSPSC)" },
+  { prefix: "", value: 98, suffix: " ülke", l: "Yurtiçi + uluslararası erişim" },
+  { prefix: "%", value: 0, suffix: "", l: "Komisyon — maliyetsiz ulaş" },
+  { text: "Binlerce", l: "Firmayla tek panelde buluş" },
 ];
 
 const steps = [
@@ -279,9 +279,43 @@ function CountUp({
   return (
     <span ref={ref}>
       {prefix}
-      {n}
+      {n.toLocaleString("tr-TR")}
       {suffix}
     </span>
+  );
+}
+
+const sectors = [
+  "Metal & Çelik",
+  "İnşaat",
+  "Gıda",
+  "Tekstil",
+  "Otomotiv",
+  "Kimya",
+  "Elektronik",
+  "Lojistik",
+  "Tarım",
+  "Enerji",
+  "Makine",
+  "Ambalaj",
+  "Mobilya",
+  "Medikal",
+];
+
+function SectorMarquee() {
+  return (
+    <div className="relative flex overflow-hidden border-y border-zinc-200 bg-white py-6 [mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)]">
+      <div className="rt-marquee flex w-max items-center gap-3 pr-3 hover:[animation-play-state:paused]">
+        {[...sectors, ...sectors].map((s, i) => (
+          <span
+            key={`${s}-${i}`}
+            className="rounded-full border border-zinc-200 bg-zinc-50 px-4 py-2 text-sm font-medium whitespace-nowrap text-zinc-600"
+          >
+            {s}
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -764,25 +798,44 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* İstatistik şeridi */}
-      <section className="border-y border-zinc-800 bg-[#0A0A0A]">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 py-14 lg:grid-cols-4 lg:px-8">
-          {stats.map((s) => (
-            <div key={s.l} className="text-center">
-              <div className="text-3xl font-semibold tracking-tight text-white tabular-nums sm:text-4xl">
-                {"text" in s ? (
-                  s.text
-                ) : (
-                  <CountUp
-                    value={s.value}
-                    prefix={s.prefix}
-                    suffix={s.suffix}
-                  />
-                )}
+      {/* Sektör marquee — pazar genişliği */}
+      <SectorMarquee />
+
+      {/* Pazar & erişim */}
+      <section className="bg-[#0A0A0A] py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center">
+            <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-sm font-medium text-zinc-300 ring-1 ring-white/10">
+              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+              Pazar & erişim
+            </span>
+            <h2 className="mt-5 text-4xl font-semibold tracking-tight text-balance text-white sm:text-5xl">
+              Daha geniş pazara, daha fazla müşteriye
+            </h2>
+            <p className="mt-6 text-lg/8 text-zinc-400">
+              İlanın kategori eşleşmesiyle doğru alıcı ya da satıcıya ulaşır —
+              yurtiçinde ve 98 ülkede. Ağını büyüt, yeni müşterilerle tek
+              panelde buluş; komisyon yok, sınır yok.
+            </p>
+          </div>
+          <div className="mx-auto mt-16 grid max-w-5xl grid-cols-2 gap-8 lg:grid-cols-4">
+            {stats.map((s) => (
+              <div key={s.l} className="text-center">
+                <div className="text-4xl font-bold tracking-tight text-white tabular-nums sm:text-5xl">
+                  {"text" in s ? (
+                    s.text
+                  ) : (
+                    <CountUp
+                      value={s.value}
+                      prefix={s.prefix}
+                      suffix={s.suffix}
+                    />
+                  )}
+                </div>
+                <div className="mt-2 text-sm text-zinc-400">{s.l}</div>
               </div>
-              <div className="mt-2 text-sm text-zinc-400">{s.l}</div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
