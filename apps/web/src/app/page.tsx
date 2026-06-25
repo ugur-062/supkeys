@@ -582,23 +582,21 @@ function PublicProfilePreview() {
       </div>
       <div className="h-20 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-700" />
       <div className="px-6 pb-6">
-        <div className="-mt-8 flex items-end gap-4">
+        <div className="-mt-8">
           <div className="flex size-16 items-center justify-center rounded-2xl bg-zinc-950 text-xl font-bold text-white ring-4 ring-white">
             DÇ
           </div>
-          <div className="pb-1">
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-zinc-900">
-                Demo Çelik A.Ş.
-              </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                <CheckIcon className="size-3" />
-                Doğrulanmış
-              </span>
-            </div>
-            <div className="text-sm text-zinc-500">
-              Metal & Çelik · İstanbul, Türkiye
-            </div>
+          <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="text-lg font-bold text-zinc-900">
+              Demo Çelik A.Ş.
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+              <CheckIcon className="size-3" />
+              Doğrulanmış
+            </span>
+          </div>
+          <div className="mt-0.5 text-sm text-zinc-500">
+            Metal & Çelik · İstanbul, Türkiye
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-1.5">
@@ -824,23 +822,9 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-      </section>
-
-      {/* Büyük çerçeveli ekran — canlı sistem */}
-      <section className="overflow-hidden bg-white pb-24 sm:pb-32">
-        <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <p className="max-w-2xl text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
-            İşlerim — dikkat bekleyen her şey tek akışta
-          </p>
-          <Reveal className="relative mt-12 sm:mt-16">
-            <div
-              aria-hidden="true"
-              className="absolute -inset-2 rounded-[1.75rem] bg-zinc-50 ring-1 ring-zinc-950/5 sm:-inset-4 sm:rounded-[2rem]"
-            />
-            <div className="relative">
-              <AppPreview />
-            </div>
-          </Reveal>
+        {/* Ürün önizleme (canlı) */}
+        <div className="relative mx-auto max-w-5xl">
+          <AppPreview />
         </div>
       </section>
 
@@ -1085,59 +1069,35 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Herkese açık profil + ihale türleri */}
+      {/* Herkese açık profil */}
       <section className="py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div>
-              <h2 className="text-base/7 font-semibold text-zinc-500">
-                Vitrin & ihale
-              </h2>
+              <h2 className="text-base/7 font-semibold text-zinc-500">Vitrin</h2>
               <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
-                Herkese açık profilin, senin kuralların
+                Herkese açık profilin, dijital vitrinin
               </p>
               <p className="mt-6 text-lg/8 text-zinc-600">
-                Premium üyelikte firman herkese açık bir vitrine kavuşur —
-                doğrulanmış rozet, sektörler ve açık ihalelerin. İstediğin
-                ihale türünü seç:
+                Premium üyelikte firman herkese açık bir profile kavuşur:
+                doğrulanmış rozet, sektörlerin, hakkında metnin ve açık
+                ihalelerin. Alıcılar seni bulur, ihalelerine teklif verir.
               </p>
-              <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <ul className="mt-6 space-y-3">
                 {[
-                  {
-                    b: "RFQ",
-                    t: "Kapalı zarf teklif",
-                    d: "Teklifleri topla, en iyisini kazandır.",
-                  },
-                  {
-                    b: "İngiliz Usulü",
-                    t: "Açık eksiltme",
-                    d: "Fiyat canlı iner; en uygun kazanır.",
-                  },
-                  {
-                    b: "Alım",
-                    t: "Alım ilanı",
-                    d: "Tedarik için ilan aç, teklif al.",
-                  },
-                  {
-                    b: "Satış",
-                    t: "Satış ilanı",
-                    d: "Fazlanı ya da ürününü sat.",
-                  },
-                ].map((x) => (
-                  <div
-                    key={x.t}
-                    className="rounded-2xl border border-zinc-200 bg-white p-4 transition hover:-translate-y-1 hover:shadow-md"
-                  >
-                    <span className="inline-block rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-semibold text-zinc-600">
-                      {x.b}
-                    </span>
-                    <div className="mt-2 text-sm font-semibold text-zinc-950">
-                      {x.t}
-                    </div>
-                    <p className="mt-0.5 text-xs/5 text-zinc-500">{x.d}</p>
-                  </div>
+                  "Doğrulanmış firma rozeti",
+                  "Sektör & konum etiketleri",
+                  "Açık ihalelerin tek sayfada",
+                ].map((b) => (
+                  <li key={b} className="flex gap-x-3 text-zinc-700">
+                    <CheckIcon
+                      aria-hidden="true"
+                      className="h-6 w-5 flex-none text-zinc-900"
+                    />
+                    <span className="text-base">{b}</span>
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
             <Reveal className="relative">
               <div
@@ -1146,6 +1106,67 @@ export default function HomePage() {
               />
               <PublicProfilePreview />
             </Reveal>
+          </div>
+        </div>
+      </section>
+
+      {/* İhale türleri — ayrı section */}
+      <section className="border-y border-zinc-200 bg-zinc-50 py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-base/7 font-semibold text-zinc-500">
+              İhale türleri
+            </h2>
+            <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
+              Her ihtiyaca uygun format
+            </p>
+            <p className="mt-6 text-lg/8 text-zinc-600">
+              Alımda RFQ ya da İngiliz Usulü; satışta taban + hemen-al. Doğru
+              formatı seç, gerisini panel yönetsin.
+            </p>
+          </div>
+          <div className="mx-auto mt-16 grid max-w-5xl grid-cols-1 gap-6 sm:mt-20 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              {
+                tag: "Alım · RFQ",
+                tagCls: "bg-blue-50 text-blue-700",
+                t: "Kapalı zarf",
+                d: "Tedarikçiler birbirini görmeden teklif verir; en iyisini kazandırırsın.",
+              },
+              {
+                tag: "Alım · Eksiltme",
+                tagCls: "bg-amber-50 text-amber-700",
+                t: "İngiliz Usulü",
+                d: "Fiyat canlı düşer; en uygun teklif öne çıkar.",
+              },
+              {
+                tag: "Satış",
+                tagCls: "bg-emerald-50 text-emerald-700",
+                t: "Satış ilanı",
+                d: "Fazlanı ya da ürününü sat; taban fiyatını belirle.",
+              },
+              {
+                tag: "Satış · Hızlı",
+                tagCls: "bg-zinc-100 text-zinc-700",
+                t: "Hemen-Al",
+                d: "Tavan fiyattan al; sahip onayıyla anında bağlanır.",
+              },
+            ].map((x) => (
+              <div
+                key={x.t}
+                className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg"
+              >
+                <span
+                  className={`inline-flex w-fit rounded-lg px-2.5 py-1 text-xs font-semibold ${x.tagCls}`}
+                >
+                  {x.tag}
+                </span>
+                <h3 className="mt-4 text-lg font-semibold text-zinc-950">
+                  {x.t}
+                </h3>
+                <p className="mt-1.5 flex-1 text-sm/6 text-zinc-600">{x.d}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
