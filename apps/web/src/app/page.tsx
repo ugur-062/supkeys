@@ -8,28 +8,18 @@ import {
   DisclosurePanel,
 } from "@headlessui/react";
 import {
-  ArrowLongLeftIcon,
-  ArrowLongRightIcon,
-  LockClosedIcon,
   MinusSmallIcon,
   PlusSmallIcon,
 } from "@heroicons/react/24/outline";
 import { CheckIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const stats = [
   { prefix: "", value: 13305, suffix: "", l: "Kategoride hassas eşleşme (UNSPSC)" },
   { prefix: "", value: 98, suffix: " ülke", l: "Yurtiçi + uluslararası erişim" },
   { prefix: "%", value: 0, suffix: "", l: "Komisyon — maliyetsiz ulaş" },
   { text: "∞", l: "Firmayla tek panelde buluş" },
-];
-
-const steps = [
-  { n: "01", t: "Kaydol", d: "Firma hesabını oluştur, ekibini davet et, rolleri ata.", Mock: SignupPreview },
-  { n: "02", t: "İlanını aç", d: "Alım ya da satış ilanı; kapsam, format ve fiyatı belirle.", Mock: ListingWizardPreview },
-  { n: "03", t: "Teklif topla", d: "Bağlantıların ve keşfettiğin firmalar kapalı zarf teklif verir.", Mock: BidsPreview },
-  { n: "04", t: "Kazandır & yönet", d: "En iyisini seç, sipariş oluşsun; kargo/teslim/dekont akışını takip et.", Mock: OrderTimelinePreview },
 ];
 
 const standartFeatures = [
@@ -203,15 +193,6 @@ function AppPreview() {
   );
 }
 
-function TwoWayArrows() {
-  return (
-    <div className="flex shrink-0 rotate-90 flex-col items-center justify-center gap-0.5 py-1 sm:rotate-0 sm:px-1 sm:py-0">
-      <ArrowLongRightIcon className="rt-nudge-r size-6 text-zinc-400" />
-      <ArrowLongLeftIcon className="rt-nudge-l size-6 text-zinc-400" />
-    </div>
-  );
-}
-
 function CountUp({
   value,
   prefix = "",
@@ -256,21 +237,6 @@ function CountUp({
     </span>
   );
 }
-
-const reachCountries = [
-  "TR",
-  "DE",
-  "US",
-  "NL",
-  "CN",
-  "AE",
-  "GB",
-  "FR",
-  "IT",
-  "ES",
-  "JP",
-  "IN",
-];
 
 function Reveal({
   children,
@@ -647,130 +613,6 @@ function SignupPreview() {
       <div className="mt-5 w-full rounded-lg bg-zinc-950 py-2 text-center text-sm font-semibold text-white">
         Kaydol
       </div>
-    </div>
-  );
-}
-
-function StepsShowcase() {
-  const [active, setActive] = useState(0);
-  useEffect(() => {
-    const id = setInterval(
-      () => setActive((a) => (a + 1) % steps.length),
-      3200,
-    );
-    return () => clearInterval(id);
-  }, []);
-  const Active = steps[active].Mock;
-
-  return (
-    <div className="mx-auto mt-16 grid max-w-6xl items-center gap-10 sm:mt-20 lg:grid-cols-2 lg:gap-16">
-      {/* adım listesi */}
-      <div className="space-y-3">
-        {steps.map((s, i) => (
-          <button
-            key={s.n}
-            type="button"
-            onClick={() => setActive(i)}
-            className={`block w-full rounded-2xl border p-5 text-left transition ${
-              i === active
-                ? "border-zinc-900 bg-white shadow-md"
-                : "border-zinc-200 bg-white/50 hover:border-zinc-300"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <span
-                className={`flex size-9 shrink-0 items-center justify-center rounded-lg font-mono text-sm font-bold transition ${
-                  i === active
-                    ? "bg-zinc-950 text-white"
-                    : "bg-zinc-200 text-zinc-500"
-                }`}
-              >
-                {s.n}
-              </span>
-              <span className="text-base font-semibold text-zinc-950">
-                {s.t}
-              </span>
-            </div>
-            <div
-              className={`grid transition-all duration-300 ${
-                i === active
-                  ? "mt-2 grid-rows-[1fr] opacity-100"
-                  : "grid-rows-[0fr] opacity-0"
-              }`}
-            >
-              <p className="overflow-hidden pl-12 text-sm/6 text-zinc-600">
-                {s.d}
-              </p>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {/* uygulama ekranı (adıma göre değişir) */}
-      <div className="relative">
-        <div
-          aria-hidden="true"
-          className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-tr from-zinc-100 to-white"
-        />
-        <div key={active} className="rt-fade-in">
-          <Active />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const flowSteps = [
-  "İlan",
-  "Teklif",
-  "Kazandırma",
-  "Sipariş",
-  "Kargo",
-  "Dekont",
-];
-
-function FlowDiagram() {
-  const [active, setActive] = useState(0);
-  useEffect(() => {
-    const id = setInterval(
-      () => setActive((a) => (a + 1) % flowSteps.length),
-      1100,
-    );
-    return () => clearInterval(id);
-  }, []);
-  return (
-    <div className="flex items-start">
-      {flowSteps.map((s, i) => (
-        <Fragment key={s}>
-          <div className="flex shrink-0 flex-col items-center gap-2">
-            <div
-              className={`flex size-9 items-center justify-center rounded-full text-xs font-bold transition-all duration-500 ${
-                i <= active
-                  ? "scale-110 bg-zinc-950 text-white shadow"
-                  : "bg-white text-zinc-400 ring-1 ring-zinc-200"
-              }`}
-            >
-              {i + 1}
-            </div>
-            <span
-              className={`text-center text-[11px] font-medium transition sm:text-xs ${
-                i <= active ? "text-zinc-900" : "text-zinc-400"
-              }`}
-            >
-              {s}
-            </span>
-          </div>
-          {i < flowSteps.length - 1 ? (
-            <div className="mt-4 h-0.5 flex-1 overflow-hidden rounded-full bg-zinc-200">
-              <div
-                className={`h-full rounded-full bg-zinc-950 transition-all duration-500 ${
-                  i < active ? "w-full" : "w-0"
-                }`}
-              />
-            </div>
-          ) : null}
-        </Fragment>
-      ))}
     </div>
   );
 }
