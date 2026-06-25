@@ -319,6 +319,49 @@ function SectorMarquee() {
   );
 }
 
+function Reveal({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      setShown(true);
+      return;
+    }
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setShown(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.12 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      className={`transition-all duration-700 ease-out ${
+        shown ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0"
+      } ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 function ListingWizardPreview() {
   return (
     <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
@@ -818,7 +861,7 @@ export default function HomePage() {
               panelde buluş; komisyon yok, sınır yok.
             </p>
           </div>
-          <div className="mx-auto mt-16 grid max-w-5xl grid-cols-2 gap-8 lg:grid-cols-4">
+          <Reveal className="mx-auto mt-16 grid max-w-5xl grid-cols-2 gap-8 lg:grid-cols-4">
             {stats.map((s) => (
               <div key={s.l} className="text-center">
                 <div className="text-4xl font-bold tracking-tight text-white tabular-nums sm:text-5xl">
@@ -835,7 +878,7 @@ export default function HomePage() {
                 <div className="mt-2 text-sm text-zinc-400">{s.l}</div>
               </div>
             ))}
-          </div>
+          </Reveal>
         </div>
       </section>
 
@@ -991,7 +1034,9 @@ export default function HomePage() {
               Kayıttan kazandırmaya, oradan siparişe — her şey tek panelde.
             </p>
           </div>
-          <StepsShowcase />
+          <Reveal>
+            <StepsShowcase />
+          </Reveal>
         </div>
       </section>
 
