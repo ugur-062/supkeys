@@ -1,4 +1,3 @@
-import { AuthHydrationBoundary } from "@/components/providers/auth-hydration";
 import { QueryProvider } from "@/components/providers/query-provider";
 import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
@@ -53,7 +52,7 @@ export default function RootLayout({
     <html lang="tr" className={`${inter.variable} ${geistMono.variable}`}>
       <body className="antialiased">
         <QueryProvider>
-          <AuthHydrationBoundary>{children}</AuthHydrationBoundary>
+          {children}
           <Toaster
             position="top-right"
             richColors

@@ -1,24 +1,15 @@
 import axios, { type AxiosError } from "axios";
 import { toast } from "sonner";
-import { useAuthStore } from "./auth/store";
 import { resolveApiBaseUrl } from "./resolve-api-url";
 
+// Genel (auth'suz) axios instance — public uçlar (ör. /reset-password confirm).
+// Authentication gerektiren paneller kendi instance'larını kullanır
+// (company-auth/api).
 export const api = axios.create({
   baseURL: resolveApiBaseUrl(),
   headers: {
     "Content-Type": "application/json",
   },
-});
-
-// Her isteğe Bearer token ekle
-api.interceptors.request.use((config) => {
-  if (typeof window !== "undefined") {
-    const token = useAuthStore.getState().token;
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-  }
-  return config;
 });
 
 interface ApiErrorPayload {
@@ -56,19 +47,8 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const data = error.response?.data;
 
-    // 401 — token expire
+    // 401 — public instance; sessizce reddet (panel kendi 401 redirect'ini yapar).
     if (status === 401) {
-      const { token, clear } = useAuthStore.getState();
-      if (token) {
-        clear();
-        const publicPaths = ["/login", "/register", "/", "/demo-talep"];
-        const onPublic = publicPaths.some(
-          (p) => window.location.pathname === p,
-        );
-        if (!onPublic) {
-          window.location.href = "/login";
-        }
-      }
       return Promise.reject(error);
     }
 
