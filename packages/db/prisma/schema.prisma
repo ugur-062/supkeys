@@ -2218,11 +2218,41 @@ model Company {
   ordersAsBuyer        CompanyOrder[]      @relation("OrderBuyer")
   blocksMade           CompanyBlock[]      @relation("BlockMade")
   blockedByOthers      CompanyBlock[]      @relation("BlockedBy")
+  complaintsMade       CompanyComplaint[]  @relation("ComplaintBy")
+  complaintsReceived   CompanyComplaint[]  @relation("ComplaintAgainst")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("companies")
+}
+
+enum ComplaintStatus {
+  OPEN // yeni — admin incelemesi bekliyor
+  RESOLVED // çözüldü, aksiyon alındı (örn. askı)
+  DISMISSED // geçersiz/reddedildi
+}
+
+// Birleşik sistem — firma→firma şikayet (moderasyon §14). Admin inceler;
+// çok şikayet alan firma askıya alınabilir (Company.isBlocked).
+model CompanyComplaint {
+  id                   String          @id @default(cuid())
+  complainantCompanyId String
+  complainant          Company         @relation("ComplaintBy", fields: [complainantCompanyId], references: [id], onDelete: Cascade)
+  againstCompanyId     String
+  against              Company         @relation("ComplaintAgainst", fields: [againstCompanyId], references: [id], onDelete: Cascade)
+  reason               String // başlık/kategori
+  detail               String?
+  status               ComplaintStatus @default(OPEN)
+  adminNote            String?
+  createdById          String // CompanyUser
+  resolvedAt           DateTime?
+  resolvedByAdminId    String?
+  createdAt            DateTime        @default(now())
+
+  @@index([againstCompanyId])
+  @@index([status])
+  @@map("company_complaints")
 }
 
 enum ConnectionStatus {
