@@ -523,6 +523,83 @@ function OrderTimelinePreview() {
   );
 }
 
+function DiscoverPreview() {
+  const firms = [
+    { n: "Üçüncü Firma", s: "Çelik · İstanbul", m: 3 },
+    { n: "Anadolu Metal", s: "Bakır · Bursa", m: 2 },
+    { n: "Global Tedarik", s: "Lojistik · İzmir", m: 1 },
+  ];
+  return (
+    <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
+      <div className="text-sm font-semibold text-zinc-900">Keşfet</div>
+      <div className="mt-0.5 text-xs text-zinc-400">
+        Kategori eşleşmeli firmalar
+      </div>
+      <div className="mt-4 space-y-2">
+        {firms.map((f) => (
+          <div
+            key={f.n}
+            className="flex items-center justify-between rounded-lg border border-zinc-200 px-3 py-2.5"
+          >
+            <div className="min-w-0">
+              <div className="truncate text-xs font-semibold text-zinc-800">
+                {f.n}
+              </div>
+              <div className="text-[10px] text-zinc-400">{f.s}</div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                {f.m} eşleşme
+              </span>
+              <span className="rounded-md bg-zinc-900 px-2 py-1 text-[10px] font-medium text-white">
+                Bağlan
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ConnectionsPreview() {
+  return (
+    <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
+      <div className="text-sm font-semibold text-zinc-900">Bağlantılar</div>
+      <div className="mt-4">
+        <div className="flex items-center gap-1.5 text-[11px] font-medium text-zinc-500">
+          <span className="size-1.5 animate-pulse rounded-full bg-blue-500" />
+          Gelen davet
+        </div>
+        <div className="mt-1.5 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
+          <span className="text-xs font-medium text-zinc-800">
+            Mavi Lojistik A.Ş.
+          </span>
+          <span className="rounded-md bg-zinc-900 px-2 py-1 text-[10px] font-medium text-white">
+            Kabul Et
+          </span>
+        </div>
+      </div>
+      <div className="mt-3">
+        <div className="text-[11px] font-medium text-zinc-500">
+          Bağlı firmalar
+        </div>
+        <div className="mt-1.5 space-y-1.5">
+          {["Üçüncü Firma", "Anadolu Metal"].map((n) => (
+            <div
+              key={n}
+              className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2"
+            >
+              <span className="size-2 rounded-full bg-emerald-500" />
+              <span className="text-xs font-medium text-zinc-700">{n}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SignupPreview() {
   const roles = [
     { n: "Yönetici", on: true },
@@ -969,55 +1046,112 @@ export default function HomePage() {
                 </p>
               </div>
             </div>
-            {/* 5 — Yurtiçi & uluslararası (span-2) */}
-            <div className="flex flex-col overflow-hidden rounded-3xl bg-zinc-50 p-8 ring-1 ring-zinc-200 lg:col-span-2">
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-5xl font-bold tracking-tight text-zinc-950">
-                  <CountUp value={98} />
-                </span>
-                <span className="text-lg font-medium text-zinc-400">ülke</span>
+            {/* 5 — Keşfet / yurtiçi & uluslararası (span-2) */}
+            <div className="flex flex-col justify-between overflow-hidden rounded-3xl bg-zinc-50 ring-1 ring-zinc-200 lg:col-span-2">
+              <div className="p-6 pb-0">
+                <DiscoverPreview />
               </div>
-              <div className="relative mt-4 flex overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
-                <div className="rt-marquee flex w-max gap-2">
-                  {[...reachCountries, ...reachCountries].map((c, i) => (
-                    <span
-                      key={`${c}-${i}`}
-                      className="rounded-lg bg-white px-2.5 py-1 text-xs font-semibold whitespace-nowrap text-zinc-600 ring-1 ring-zinc-200"
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-zinc-950">
+                  Keşfet & bağlan
+                </h3>
+                <p className="mt-1.5 text-sm/6 text-zinc-600">
+                  Kategori eşleşmeli firma keşfi — yurtiçi ya da 98 ülkede.
+                </p>
               </div>
-              <h3 className="mt-6 text-lg font-semibold text-zinc-950">
-                Yurtiçi & uluslararası
-              </h3>
-              <p className="mt-1.5 flex-1 text-sm/6 text-zinc-600">
-                Kategori eşleşmeli firma keşfi; sınır ötesi firmalarla güvenle
-                ticaret.
-              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Nasıl çalışır */}
+      {/* Tek panelde her şey — ekip & ağ */}
       <section
         id="nasil"
         className="border-y border-zinc-200 bg-zinc-50 py-24 sm:py-32"
       >
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
-              Dört adımda ticaret
+          <div className="mx-auto max-w-2xl lg:mx-0">
+            <h2 className="text-base/7 font-semibold text-zinc-500">
+              Tek panelde her şey
             </h2>
-            <p className="mt-6 text-lg/8 text-zinc-600">
-              Kayıttan kazandırmaya, oradan siparişe — her şey tek panelde.
+            <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
+              Ticaretin ötesinde, tam kontrol
             </p>
           </div>
-          <Reveal>
-            <StepsShowcase />
-          </Reveal>
+
+          <div className="mt-16 space-y-20 sm:mt-20 sm:space-y-28">
+            {/* Ekip & roller */}
+            <Reveal className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+              <div>
+                <h3 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
+                  Ekibini davet et, rolleri ata
+                </h3>
+                <p className="mt-4 text-lg/8 text-zinc-600">
+                  Yönetici, Satın Almacı, Satışçı, Onaylayıcı — sınırsız
+                  kullanıcı, koltuk ücreti yok. İş çıkışında erişim tek tıkla
+                  kapanır.
+                </p>
+                <ul className="mt-6 space-y-3">
+                  {[
+                    "Rol bazlı yetki ve görünürlük",
+                    "Sınırsız kullanıcı & rol",
+                    "Güvenli hesap kapatma (iş çıkışı)",
+                  ].map((b) => (
+                    <li key={b} className="flex gap-x-3 text-zinc-700">
+                      <CheckIcon
+                        aria-hidden="true"
+                        className="h-6 w-5 flex-none text-zinc-900"
+                      />
+                      <span className="text-base">{b}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="relative">
+                <div
+                  aria-hidden="true"
+                  className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-tr from-zinc-100 to-white"
+                />
+                <SignupPreview />
+              </div>
+            </Reveal>
+
+            {/* Bağlantı ağı */}
+            <Reveal className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+              <div className="lg:order-last">
+                <h3 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
+                  Ağını yönet, güvenle bağlan
+                </h3>
+                <p className="mt-4 text-lg/8 text-zinc-600">
+                  Davet gönder ya da kabul et, bağlantı ağını büyüt. Bağlandığın
+                  firmalarla çevre-içi ticaret yap; istemediğin firmayı
+                  engelle.
+                </p>
+                <ul className="mt-6 space-y-3">
+                  {[
+                    "Davet → kabul ile bağlantı",
+                    "Çevre-içi kapalı ilan paylaşımı",
+                    "Şikayet & engelleme ile güven",
+                  ].map((b) => (
+                    <li key={b} className="flex gap-x-3 text-zinc-700">
+                      <CheckIcon
+                        aria-hidden="true"
+                        className="h-6 w-5 flex-none text-zinc-900"
+                      />
+                      <span className="text-base">{b}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="relative">
+                <div
+                  aria-hidden="true"
+                  className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-tr from-zinc-100 to-white"
+                />
+                <ConnectionsPreview />
+              </div>
+            </Reveal>
+          </div>
         </div>
       </section>
 
