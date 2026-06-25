@@ -57,7 +57,7 @@ const footerStyle = {
 };
 
 const WEB_URL = (process.env.WEB_URL ?? "http://localhost:3000").replace(/\/$/, "");
-const LOGO_URL = `${WEB_URL}/supkeys-logo-full.png`;
+const LOGO_URL = `${WEB_URL}/rothern-logo-on-light.png`;
 
 export function Layout({ preview, children }: LayoutProps) {
   return (
