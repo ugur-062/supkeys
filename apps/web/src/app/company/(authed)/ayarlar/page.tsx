@@ -21,6 +21,7 @@ import {
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { CompanyUsersSection } from "./_components/company-users-section";
 
 export default function AyarlarPage() {
   const { user } = useCompanyAuth();
@@ -212,6 +213,9 @@ export default function AyarlarPage() {
           ) : null}
         </div>
       </section>
+
+      {/* Kullanıcılar & Roller */}
+      <CompanyUsersSection canManage={canEdit} meId={user?.id} />
     </div>
   );
 }

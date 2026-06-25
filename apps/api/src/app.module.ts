@@ -15,6 +15,7 @@ import { CompanyInboxModule } from "./modules/company-inbox/company-inbox.module
 import { CompanyListingsModule } from "./modules/company-listings/company-listings.module";
 import { CompanyOrdersModule } from "./modules/company-orders/company-orders.module";
 import { CompanyProfileModule } from "./modules/company-profile/company-profile.module";
+import { CompanyUsersModule } from "./modules/company-users/company-users.module";
 import { PermissionsModule } from "./modules/auth/permissions/permissions.module";
 import { DemoRequestsModule } from "./modules/demo-requests/demo-requests.module";
 import { EmailModule } from "./modules/email/email.module";
@@ -100,6 +101,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     CompanyListingsModule,
     CompanyOrdersModule,
     CompanyProfileModule,
+    CompanyUsersModule,
     SupabaseAuthModule,
     SupplierAuthModule,
     SupplierAccountModule,
