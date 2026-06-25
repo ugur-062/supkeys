@@ -11,7 +11,7 @@ import {
   MinusSmallIcon,
   PlusSmallIcon,
 } from "@heroicons/react/24/outline";
-import { CheckIcon } from "@heroicons/react/20/solid";
+import { ArrowTrendingDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -1125,48 +1125,124 @@ export default function HomePage() {
               formatı seç, gerisini panel yönetsin.
             </p>
           </div>
-          <div className="mx-auto mt-16 grid max-w-5xl grid-cols-1 gap-6 sm:mt-20 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              {
-                tag: "Alım · RFQ",
-                tagCls: "bg-blue-50 text-blue-700",
-                t: "Kapalı zarf",
-                d: "Tedarikçiler birbirini görmeden teklif verir; en iyisini kazandırırsın.",
-              },
-              {
-                tag: "Alım · Eksiltme",
-                tagCls: "bg-amber-50 text-amber-700",
-                t: "İngiliz Usulü",
-                d: "Fiyat canlı düşer; en uygun teklif öne çıkar.",
-              },
-              {
-                tag: "Satış",
-                tagCls: "bg-emerald-50 text-emerald-700",
-                t: "Satış ilanı",
-                d: "Fazlanı ya da ürününü sat; taban fiyatını belirle.",
-              },
-              {
-                tag: "Satış · Hızlı",
-                tagCls: "bg-zinc-100 text-zinc-700",
-                t: "Hemen-Al",
-                d: "Tavan fiyattan al; sahip onayıyla anında bağlanır.",
-              },
-            ].map((x) => (
-              <div
-                key={x.t}
-                className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg"
-              >
-                <span
-                  className={`inline-flex w-fit rounded-lg px-2.5 py-1 text-xs font-semibold ${x.tagCls}`}
-                >
-                  {x.tag}
-                </span>
-                <h3 className="mt-4 text-lg font-semibold text-zinc-950">
-                  {x.t}
-                </h3>
-                <p className="mt-1.5 flex-1 text-sm/6 text-zinc-600">{x.d}</p>
+          <div className="mx-auto mt-16 grid max-w-5xl grid-cols-1 gap-6 sm:mt-20 sm:grid-cols-2">
+            {/* RFQ — kapalı zarf */}
+            <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
+              <div className="space-y-1.5 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
+                <div className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
+                  <span className="text-[11px] text-zinc-400">Firma A</span>
+                  <span className="text-[11px] text-zinc-300">••• ₺</span>
+                </div>
+                <div className="flex items-center justify-between rounded-md bg-emerald-50 px-2.5 py-1.5 ring-1 ring-emerald-200">
+                  <span className="text-[11px] font-medium text-emerald-800">
+                    Firma B
+                  </span>
+                  <span className="text-[11px] font-semibold text-emerald-900">
+                    11.900 ₺
+                  </span>
+                </div>
+                <div className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
+                  <span className="text-[11px] text-zinc-400">Firma C</span>
+                  <span className="text-[11px] text-zinc-300">••• ₺</span>
+                </div>
               </div>
-            ))}
+              <span className="mt-5 inline-flex w-fit rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                Alım · RFQ
+              </span>
+              <h3 className="mt-3 text-lg font-semibold text-zinc-950">
+                Kapalı zarf
+              </h3>
+              <p className="mt-1.5 text-sm/6 text-zinc-600">
+                Tedarikçiler birbirini görmeden teklif verir; en iyisini
+                kazandırırsın.
+              </p>
+            </div>
+
+            {/* İngiliz Usulü — eksiltme */}
+            <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
+              <div className="rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
+                <div className="flex h-16 items-end gap-1.5">
+                  <div className="flex-1 rounded-t bg-amber-400/80" style={{ height: "100%" }} />
+                  <div className="flex-1 rounded-t bg-amber-400/70" style={{ height: "74%" }} />
+                  <div className="flex-1 rounded-t bg-amber-400/60" style={{ height: "54%" }} />
+                  <div className="flex-1 rounded-t bg-amber-500" style={{ height: "38%" }} />
+                </div>
+                <div className="mt-2 flex items-center justify-between">
+                  <span className="text-[11px] text-zinc-500">Güncel teklif</span>
+                  <span className="inline-flex items-center gap-0.5 text-xs font-bold text-amber-700">
+                    12.000 ₺
+                    <ArrowTrendingDownIcon className="size-3.5" />
+                  </span>
+                </div>
+              </div>
+              <span className="mt-5 inline-flex w-fit rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                Alım · Eksiltme
+              </span>
+              <h3 className="mt-3 text-lg font-semibold text-zinc-950">
+                İngiliz Usulü
+              </h3>
+              <p className="mt-1.5 text-sm/6 text-zinc-600">
+                Fiyat canlı düşer; en uygun teklif öne çıkar.
+              </p>
+            </div>
+
+            {/* Satış ilanı */}
+            <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
+              <div className="flex gap-2 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
+                <div className="flex-1 rounded-lg bg-white px-3 py-2 ring-1 ring-zinc-100">
+                  <div className="text-[10px] text-zinc-400">Taban fiyat</div>
+                  <div className="text-sm font-semibold text-zinc-900">
+                    50.000 ₺
+                  </div>
+                </div>
+                <div className="flex-1 rounded-lg bg-emerald-50 px-3 py-2 ring-1 ring-emerald-200">
+                  <div className="text-[10px] text-emerald-600">Hemen-Al</div>
+                  <div className="text-sm font-semibold text-emerald-800">
+                    80.000 ₺
+                  </div>
+                </div>
+              </div>
+              <span className="mt-5 inline-flex w-fit rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                Satış
+              </span>
+              <h3 className="mt-3 text-lg font-semibold text-zinc-950">
+                Satış ilanı
+              </h3>
+              <p className="mt-1.5 text-sm/6 text-zinc-600">
+                Fazlanı ya da ürününü sat; taban fiyatını belirle.
+              </p>
+            </div>
+
+            {/* Hemen-Al */}
+            <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
+              <div className="rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] text-zinc-400">
+                      Hemen-Al fiyatı
+                    </div>
+                    <div className="text-base font-bold text-zinc-900">
+                      80.000 ₺
+                    </div>
+                  </div>
+                  <span className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white">
+                    Hemen Al
+                  </span>
+                </div>
+                <div className="mt-2 text-[11px] text-zinc-400">
+                  Satıcı onayıyla anında sipariş
+                </div>
+              </div>
+              <span className="mt-5 inline-flex w-fit rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-700">
+                Satış · Hızlı
+              </span>
+              <h3 className="mt-3 text-lg font-semibold text-zinc-950">
+                Hemen-Al
+              </h3>
+              <p className="mt-1.5 text-sm/6 text-zinc-600">
+                Tavan fiyattan al; sahip onayıyla anında bağlanır.
+              </p>
+            </div>
           </div>
         </div>
       </section>
