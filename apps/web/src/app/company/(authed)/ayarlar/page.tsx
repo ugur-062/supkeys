@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/catalyst/badge";
+import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { Button } from "@/components/catalyst/button";
 import {
   DescriptionDetails,
@@ -40,6 +41,8 @@ export default function AyarlarPage() {
     postalCode: "",
     aboutText: "",
     publicEnabled: false,
+    buyerCategoryIds: [] as string[],
+    sellerCategoryIds: [] as string[],
   });
 
   useEffect(() => {
@@ -55,6 +58,8 @@ export default function AyarlarPage() {
         postalCode: profile.postalCode ?? "",
         aboutText: profile.aboutText ?? "",
         publicEnabled: profile.publicEnabled,
+        buyerCategoryIds: profile.buyerCategoryIds ?? [],
+        sellerCategoryIds: profile.sellerCategoryIds ?? [],
       });
     }
   }, [profile]);
@@ -194,6 +199,40 @@ export default function AyarlarPage() {
               onChange={(e) => set({ aboutText: e.target.value })}
             />
           </Field>
+
+          {/* Ne alırım / ne satarım */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <Label>🔵 Ne alırım (alım kategorileri)</Label>
+              {canEdit ? (
+                <div className="mt-2">
+                  <CategorySelectorButton
+                    value={form.buyerCategoryIds}
+                    onChange={(ids) => set({ buyerCategoryIds: ids })}
+                  />
+                </div>
+              ) : (
+                <Text className="mt-1 text-sm text-zinc-500">
+                  {form.buyerCategoryIds.length} kategori
+                </Text>
+              )}
+            </div>
+            <div>
+              <Label>🟢 Ne satarım (satış kategorileri)</Label>
+              {canEdit ? (
+                <div className="mt-2">
+                  <CategorySelectorButton
+                    value={form.sellerCategoryIds}
+                    onChange={(ids) => set({ sellerCategoryIds: ids })}
+                  />
+                </div>
+              ) : (
+                <Text className="mt-1 text-sm text-zinc-500">
+                  {form.sellerCategoryIds.length} kategori
+                </Text>
+              )}
+            </div>
+          </div>
 
           <Field className="flex items-center justify-between">
             <Label>Herkese açık profil</Label>

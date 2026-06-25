@@ -16,6 +16,8 @@ export interface CompanyProfile {
   postalCode: string | null;
   aboutText: string | null;
   publicEnabled: boolean;
+  buyerCategoryIds: string[];
+  sellerCategoryIds: string[];
   taxNumber: string | null;
   supkeysId: string | null;
   tier: "STANDARD" | "PAKET";
@@ -35,6 +37,8 @@ export type CompanyProfileUpdate = Partial<
     | "postalCode"
     | "aboutText"
     | "publicEnabled"
+    | "buyerCategoryIds"
+    | "sellerCategoryIds"
   >
 >;
 

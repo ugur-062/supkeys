@@ -1,4 +1,6 @@
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsOptional,
   IsString,
@@ -55,4 +57,18 @@ export class UpdateCompanyProfileDto {
   @IsOptional()
   @IsBoolean()
   publicEnabled?: boolean;
+
+  // Ne ALIRIM (UNSPSC kategori id'leri).
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  buyerCategoryIds?: string[];
+
+  // Ne SATARIM.
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  sellerCategoryIds?: string[];
 }

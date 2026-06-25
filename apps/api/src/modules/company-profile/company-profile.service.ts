@@ -15,6 +15,8 @@ const SELECT = {
   postalCode: true,
   aboutText: true,
   publicEnabled: true,
+  buyerCategoryIds: true,
+  sellerCategoryIds: true,
   taxNumber: true,
   supkeysId: true,
   tier: true,
@@ -50,6 +52,10 @@ export class CompanyProfileService {
     if (dto.aboutText !== undefined)
       data.aboutText = dto.aboutText.trim() || null;
     if (dto.publicEnabled !== undefined) data.publicEnabled = dto.publicEnabled;
+    if (dto.buyerCategoryIds !== undefined)
+      data.buyerCategoryIds = dto.buyerCategoryIds;
+    if (dto.sellerCategoryIds !== undefined)
+      data.sellerCategoryIds = dto.sellerCategoryIds;
 
     const c = await this.prisma.company.update({
       where: { id: companyId },
