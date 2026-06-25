@@ -66,13 +66,6 @@ const NAV_SECTIONS: NavSection[] = [
   {
     items: [
       { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-      {
-        label: "Demo Talepleri",
-        href: "/admin/demo-requests",
-        icon: UserCog,
-        activeMatch: "/admin/demo-requests",
-        badgeKey: "demoRequestsNew",
-      },
     ],
   },
   {
@@ -93,25 +86,6 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    heading: "Başvurular",
-    items: [
-      {
-        label: "Alıcı Başvuruları",
-        href: "/admin/buyer-applications",
-        icon: Building2,
-        activeMatch: "/admin/buyer-applications",
-        badgeKey: "buyerAppsReview",
-      },
-      {
-        label: "Tedarikçi Başvuruları",
-        href: "/admin/supplier-applications",
-        icon: Truck,
-        activeMatch: "/admin/supplier-applications",
-        badgeKey: "supplierAppsReview",
-      },
-    ],
-  },
-  {
     heading: "Yönetim",
     items: [
       {
@@ -119,36 +93,6 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/email-logs",
         icon: Mail,
         activeMatch: "/admin/email-logs",
-      },
-      {
-        label: "Müşteri Firmaları",
-        href: "/admin/tenants",
-        icon: Building2,
-        activeMatch: "/admin/tenants",
-      },
-      {
-        label: "Tedarikçiler",
-        href: "/admin/suppliers",
-        icon: Truck,
-        activeMatch: "/admin/suppliers",
-      },
-      {
-        label: "Bağlantılar",
-        href: "/admin/connections",
-        icon: Link2,
-        activeMatch: "/admin/connections",
-      },
-      {
-        label: "Firma Doğrulamaları",
-        href: "/admin/company-verifications",
-        icon: ShieldCheck,
-        activeMatch: "/admin/company-verifications",
-      },
-      {
-        label: "Mesajlar",
-        href: "/admin/messages",
-        icon: MessageSquare,
-        activeMatch: "/admin/messages",
       },
       {
         label: "Denetim Kaydı",
