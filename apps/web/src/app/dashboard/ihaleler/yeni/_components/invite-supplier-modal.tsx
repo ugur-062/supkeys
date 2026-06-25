@@ -119,7 +119,7 @@ export function InviteSupplierFromTenderModal({
           <div>
             <DialogTitle>Yeni Tedarikçi Davet Et</DialogTitle>
             <DialogDescription>
-              Henüz Supkeys'te olmayan bir tedarikçiyi sisteme davet edin.
+              Henüz Rothern'te olmayan bir tedarikçiyi sisteme davet edin.
             </DialogDescription>
           </div>
         </div>

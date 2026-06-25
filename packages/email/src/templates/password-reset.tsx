@@ -40,7 +40,7 @@ const warningBox = {
 };
 
 export function makePasswordResetSubject(): string {
-  return "🔑 Parola sıfırlama bağlantınız — Supkeys";
+  return "🔑 Parola sıfırlama bağlantınız — Rothern";
 }
 
 export function PasswordResetEmail(props: PasswordResetData) {
@@ -51,7 +51,7 @@ export function PasswordResetEmail(props: PasswordResetData) {
       <Text style={paragraph}>Merhaba {props.firstName},</Text>
 
       <Text style={paragraph}>
-        Supkeys hesabınız için bir parola sıfırlama talebinde bulundunuz. Yeni
+        Rothern hesabınız için bir parola sıfırlama talebinde bulundunuz. Yeni
         parolanızı belirlemek için aşağıdaki butona tıklayın.
       </Text>
 
@@ -79,7 +79,7 @@ export function PasswordResetEmail(props: PasswordResetData) {
 
 export function renderPasswordResetText(props: PasswordResetData): string {
   return [
-    "Supkeys parola sıfırlama",
+    "Rothern parola sıfırlama",
     "",
     `Merhaba ${props.firstName},`,
     "",
@@ -91,6 +91,6 @@ export function renderPasswordResetText(props: PasswordResetData): string {
     "",
     "Bu talebi siz yapmadıysanız bu e-postayı yok sayabilirsiniz.",
     "",
-    "— Supkeys",
+    "— Rothern",
   ].join("\n");
 }

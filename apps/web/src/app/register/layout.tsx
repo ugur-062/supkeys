@@ -1,8 +1,8 @@
-import { SupkeysLogo } from "@/components/brand/logo";
+import { RothernLogo } from "@/components/brand/logo";
 import Link from "next/link";
 
 export const metadata = {
-  title: "Kayıt Ol — Supkeys",
+  title: "Kayıt Ol — Rothern",
 };
 
 export default function RegisterLayout({
@@ -15,7 +15,7 @@ export default function RegisterLayout({
       <header className="px-4 md:px-8 py-5 border-b border-surface-border bg-white">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/">
-            <SupkeysLogo variant="full" size="md" priority />
+            <RothernLogo variant="full" size="md" priority />
           </Link>
           <p className="text-sm text-slate-600">
             Zaten hesabın var mı?{" "}
@@ -35,7 +35,7 @@ export default function RegisterLayout({
 
       <footer className="px-4 md:px-8 py-5 border-t border-surface-border bg-white">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
-          <span>© 2026 Supkeys</span>
+          <span>© 2026 Rothern</span>
           <div className="flex items-center gap-4">
             <Link href="#kvkk" className="hover:text-brand-700 hover:underline">
               KVKK

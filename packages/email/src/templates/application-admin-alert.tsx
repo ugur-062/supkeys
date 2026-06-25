@@ -145,7 +145,7 @@ export function renderApplicationAdminAlertText(
     `İncele: ${props.reviewUrl}`,
     `Başvuru ID: ${props.applicationId}`,
     "",
-    "© 2026 Supkeys",
+    "© 2026 Rothern",
   );
   return lines.join("\n");
 }

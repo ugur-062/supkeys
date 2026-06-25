@@ -1,9 +1,9 @@
-import { SupkeysLogo } from "@/components/brand/logo";
+import { RothernLogo } from "@/components/brand/logo";
 import Link from "next/link";
 import { SupplierForgotPasswordForm } from "./_components/forgot-password-form";
 
 export const metadata = {
-  title: "Şifremi Unuttum — Supkeys Tedarikçi",
+  title: "Şifremi Unuttum — Rothern Tedarikçi",
 };
 
 export default function SupplierForgotPasswordPage() {
@@ -12,7 +12,7 @@ export default function SupplierForgotPasswordPage() {
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
           <Link href="/">
-            <SupkeysLogo variant="full" size="lg" priority />
+            <RothernLogo variant="full" size="lg" priority />
           </Link>
         </div>
 

@@ -30,7 +30,7 @@ export interface PublicSupplierProfile {
   photos: { id: string; url: string; caption: string | null }[];
   /** G9 madde 26 — yüklenen sertifika/belge dosyaları (indirilebilir). */
   certificates: { id: string; name: string; url: string }[];
-  /** ISO date — "X yıldır Supkeys üyesi" hesabı için. */
+  /** ISO date — "X yıldır Rothern üyesi" hesabı için. */
   memberSinceIso: string;
   /** V2-PUBLIC-PROFILE-DETAILS — Detaylı alanlar. */
   foundedYear: number | null;

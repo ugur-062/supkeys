@@ -154,7 +154,7 @@ export function InviteSupplierModal({
             <Info className="h-4 w-4 flex-shrink-0 mt-0.5 text-zinc-500" />
             <p className="leading-relaxed">
               Davet linkleri <strong>7 gün</strong> geçerli olur. Tedarikçi
-              kayıt formunu doldurduktan sonra Supkeys ekibi başvuruyu inceler ve
+              kayıt formunu doldurduktan sonra Rothern ekibi başvuruyu inceler ve
               onaylarsa hesabı aktif edilir.
             </p>
           </div>

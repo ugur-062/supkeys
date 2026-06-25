@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { TedarikcilerView } from "./_components/tedarikciler-view";
 
 export const metadata = {
-  title: "Tedarikçiler — Supkeys",
+  title: "Tedarikçiler — Rothern",
 };
 
 export default function TedarikcilerPage() {

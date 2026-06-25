@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: {
-    default: "Tedarikçi Paneli — Supkeys",
-    template: "%s — Supkeys Tedarikçi",
+    default: "Tedarikçi Paneli — Rothern",
+    template: "%s — Rothern Tedarikçi",
   },
   robots: { index: false, follow: false },
 };

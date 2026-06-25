@@ -13,6 +13,7 @@ export type ListingStatus =
 
 export interface Listing {
   id: string;
+  number: string | null;
   type: ListingType;
   title: string;
   description: string | null;

@@ -1,4 +1,4 @@
-import { SupkeysLogo } from "@/components/brand/logo";
+import { RothernLogo } from "@/components/brand/logo";
 import Link from "next/link";
 
 export default function HomePage() {
@@ -6,7 +6,7 @@ export default function HomePage() {
     <main className="min-h-screen flex flex-col">
       <header className="px-8 py-6 border-b border-surface-border bg-white">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <SupkeysLogo variant="full" size="md" priority />
+          <RothernLogo variant="full" size="md" priority />
           <nav className="flex items-center gap-3">
             <Link href="/login" className="btn-secondary">
               Giriş Yap
@@ -63,7 +63,7 @@ export default function HomePage() {
 
       <footer className="px-8 py-6 border-t border-surface-border bg-white">
         <div className="max-w-7xl mx-auto flex items-center justify-between text-sm text-slate-500">
-          <span>© 2026 Supkeys</span>
+          <span>© 2026 Rothern</span>
           <span>v0.0.1 — geliştirme</span>
         </div>
       </footer>

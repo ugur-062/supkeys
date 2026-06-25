@@ -40,18 +40,18 @@ const warningBox = {
 };
 
 export function makeAdminPasswordResetSubject(): string {
-  return "🔑 Parola sıfırlama bağlantısı — Supkeys";
+  return "🔑 Parola sıfırlama bağlantısı — Rothern";
 }
 
 export function AdminPasswordResetEmail(props: AdminPasswordResetData) {
   return (
-    <Layout preview="Supkeys hesabınız için parola sıfırlama bağlantısı.">
+    <Layout preview="Rothern hesabınız için parola sıfırlama bağlantısı.">
       <Heading>Parolanızı sıfırlayın 🔑</Heading>
 
       <Text style={paragraph}>Merhaba {props.firstName},</Text>
 
       <Text style={paragraph}>
-        Supkeys destek ekibi, hesabınız için bir parola sıfırlama bağlantısı
+        Rothern destek ekibi, hesabınız için bir parola sıfırlama bağlantısı
         oluşturdu. Yeni parolanızı belirlemek için aşağıdaki butona tıklayın.
       </Text>
 
@@ -81,7 +81,7 @@ export function renderAdminPasswordResetText(
   props: AdminPasswordResetData,
 ): string {
   return [
-    "Supkeys parola sıfırlama",
+    "Rothern parola sıfırlama",
     "",
     `Merhaba ${props.firstName},`,
     "",
@@ -91,6 +91,6 @@ export function renderAdminPasswordResetText(
     "",
     `Parolayı sıfırlamak için: ${props.resetUrl}`,
     "",
-    "— Supkeys Destek",
+    "— Rothern Destek",
   ].join("\n");
 }

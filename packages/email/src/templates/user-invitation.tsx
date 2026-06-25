@@ -40,7 +40,7 @@ const aboutBox = {
 };
 
 export function makeUserInvitationSubject(tenantName: string): string {
-  return `👥 ${tenantName} ekibine davet edildiniz — Supkeys`;
+  return `👥 ${tenantName} ekibine davet edildiniz — Rothern`;
 }
 
 export function UserInvitationEmail(props: UserInvitationData) {
@@ -54,7 +54,7 @@ export function UserInvitationEmail(props: UserInvitationData) {
 
       <Text style={paragraph}>
         <strong style={{ color: COLORS.brand900 }}>{props.inviterName}</strong>
-        , sizi <strong>{props.tenantName}</strong> firmasının Supkeys hesabına{" "}
+        , sizi <strong>{props.tenantName}</strong> firmasının Rothern hesabına{" "}
         <strong>{props.roleLabel}</strong> rolüyle davet etti.
       </Text>
 
@@ -93,12 +93,12 @@ export function renderUserInvitationText(props: UserInvitationData): string {
   return [
     `${props.tenantName} ekibine davet edildiniz`,
     "",
-    `${props.inviterName} sizi ${props.tenantName} firmasının Supkeys hesabına ${props.roleLabel} rolüyle davet etti.`,
+    `${props.inviterName} sizi ${props.tenantName} firmasının Rothern hesabına ${props.roleLabel} rolüyle davet etti.`,
     "",
     `Davet ${props.expiresInDays} gün içinde geçerlidir.`,
     "",
     `Daveti kabul etmek için: ${props.acceptUrl}`,
     "",
-    "— Supkeys",
+    "— Rothern",
   ].join("\n");
 }

@@ -38,8 +38,8 @@ export function MembershipBanner() {
       )}
       <p className="font-semibold">
         {expired
-          ? "Üyelik süreniz sona erdi. Sistemi kullanmaya devam edebilmek için Supkeys ekibiyle iletişime geçin."
-          : `Üyelik süreniz ${daysLeft} gün içinde sona eriyor. Yenileme için Supkeys ekibiyle iletişime geçin.`}
+          ? "Üyelik süreniz sona erdi. Sistemi kullanmaya devam edebilmek için Rothern ekibiyle iletişime geçin."
+          : `Üyelik süreniz ${daysLeft} gün içinde sona eriyor. Yenileme için Rothern ekibiyle iletişime geçin.`}
       </p>
     </div>
   );

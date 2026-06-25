@@ -11,7 +11,7 @@ import {
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import {
-  useConnectSupplierBySupkeysId,
+  useConnectSupplierByRothernId,
   useSupplierPool,
   type SupplierPoolItem,
 } from "@/hooks/use-tenant-suppliers";
@@ -60,7 +60,7 @@ export function SupplierPoolView() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tedarikçi ara — firma adı veya Supkeys ID…"
+              placeholder="Tedarikçi ara — firma adı veya Rothern ID…"
             />
           </InputGroup>
         </div>
@@ -111,7 +111,7 @@ function SupplierCard({
   s: SupplierPoolItem;
   onOpen: () => void;
 }) {
-  const connect = useConnectSupplierBySupkeysId();
+  const connect = useConnectSupplierByRothernId();
   const meta = [s.city, s.industry].filter(Boolean).join(" · ");
 
   const add = (e: React.MouseEvent) => {
@@ -202,7 +202,7 @@ function StandardDetailDialog({
     ["Şehir / İlçe", [s.city, s.district].filter(Boolean).join(" / ") || null],
     ["Sektör", s.industry],
     ["Web sitesi", s.website],
-    ["Supkeys ID", s.supkeysId ? `SK-${s.supkeysId}` : null],
+    ["Rothern ID", s.supkeysId ? `SK-${s.supkeysId}` : null],
   ];
   return (
     <Dialog open onClose={onClose} size="lg">

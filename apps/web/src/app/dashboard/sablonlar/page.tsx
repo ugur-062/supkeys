@@ -3,7 +3,7 @@ import { ArrowRight, FileStack, ListChecks, Users } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = {
-  title: "Şablonlar — Supkeys",
+  title: "Şablonlar — Rothern",
 };
 
 const TEMPLATES = [

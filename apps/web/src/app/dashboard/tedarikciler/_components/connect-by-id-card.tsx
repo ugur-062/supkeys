@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useConnectSupplierBySupkeysId } from "@/hooks/use-tenant-suppliers";
+import { useConnectSupplierByRothernId } from "@/hooks/use-tenant-suppliers";
 import axios from "axios";
 import { Link2 } from "lucide-react";
 import { useState } from "react";
@@ -17,10 +17,10 @@ function errMsg(err: unknown, fallback: string): string {
   return fallback;
 }
 
-/** Faz 3 madde 6 — alıcı, tedarikçinin Supkeys ID'sini girip doğrudan ekler. */
+/** Faz 3 madde 6 — alıcı, tedarikçinin Rothern ID'sini girip doğrudan ekler. */
 export function ConnectByIdCard() {
   const [value, setValue] = useState("");
-  const connect = useConnectSupplierBySupkeysId();
+  const connect = useConnectSupplierByRothernId();
 
   const submit = () => {
     const v = value.trim();
@@ -43,7 +43,7 @@ export function ConnectByIdCard() {
           </div>
           <div>
             <p className="text-sm font-semibold text-zinc-900">
-              Supkeys ID ile ekle
+              Rothern ID ile ekle
             </p>
             <p className="text-xs text-slate-500">
               Tedarikçinin ID'siyle anında bağlan

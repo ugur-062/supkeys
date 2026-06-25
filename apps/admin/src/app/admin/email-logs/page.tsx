@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { EmailLogsView } from "./_components/email-logs-view";
 
 export const metadata = {
-  title: "E-posta Logları — Supkeys Admin",
+  title: "E-posta Logları — Rothern Admin",
   robots: { index: false, follow: false },
 };
 

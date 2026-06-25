@@ -6,7 +6,7 @@ import { PanelCard } from "@/components/supplier/panel-card";
 import { Button } from "@/components/ui/button";
 import {
   useBuyerPool,
-  useConnectBuyerBySupkeysId,
+  useConnectBuyerByRothernId,
   useConnectToBuyer,
   type BuyerPoolItem,
 } from "@/hooks/use-buyer-pool";
@@ -54,7 +54,7 @@ export function BuyerPoolView() {
       />
 
       {isPremium ? (
-        <ConnectByIdCard ownSupkeysId={supplier?.supkeysId ?? null} />
+        <ConnectByIdCard ownRothernId={supplier?.supkeysId ?? null} />
       ) : (
         <PanelCard className="border-amber-200 bg-amber-50/50">
           <div className="flex items-start gap-2 text-sm text-amber-900">
@@ -62,7 +62,7 @@ export function BuyerPoolView() {
             <span>
               Alıcıya bağlantı isteği göndermek <strong>premium</strong>'a
               özeldir. Standart üyelikte alıcıların sizi{" "}
-              <strong>Supkeys ID'nizle</strong> eklemesini bekleyebilir veya{" "}
+              <strong>Rothern ID'nizle</strong> eklemesini bekleyebilir veya{" "}
               <Link
                 href="/supplier/premium"
                 className="font-semibold underline"
@@ -72,7 +72,7 @@ export function BuyerPoolView() {
               .
             </span>
           </div>
-          <OwnIdRow ownSupkeysId={supplier?.supkeysId ?? null} />
+          <OwnIdRow ownRothernId={supplier?.supkeysId ?? null} />
         </PanelCard>
       )}
 
@@ -81,21 +81,21 @@ export function BuyerPoolView() {
   );
 }
 
-function OwnIdRow({ ownSupkeysId }: { ownSupkeysId: string | null }) {
+function OwnIdRow({ ownRothernId }: { ownRothernId: string | null }) {
   const copy = () => {
-    if (!ownSupkeysId) return;
+    if (!ownRothernId) return;
     navigator.clipboard
-      .writeText(displayId(ownSupkeysId))
-      .then(() => toast.success("Supkeys ID kopyalandı"))
+      .writeText(displayId(ownRothernId))
+      .then(() => toast.success("Rothern ID kopyalandı"))
       .catch(() => toast.error("Kopyalanamadı"));
   };
   return (
     <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3 text-sm">
-      <span className="text-slate-500">Sizin Supkeys ID'niz:</span>
+      <span className="text-slate-500">Sizin Rothern ID'niz:</span>
       <code className="rounded-md bg-zinc-100 px-2 py-0.5 font-mono font-semibold text-zinc-900">
-        {displayId(ownSupkeysId)}
+        {displayId(ownRothernId)}
       </code>
-      {ownSupkeysId ? (
+      {ownRothernId ? (
         <button
           type="button"
           onClick={copy}
@@ -112,9 +112,9 @@ function OwnIdRow({ ownSupkeysId }: { ownSupkeysId: string | null }) {
   );
 }
 
-function ConnectByIdCard({ ownSupkeysId }: { ownSupkeysId: string | null }) {
+function ConnectByIdCard({ ownRothernId }: { ownRothernId: string | null }) {
   const [value, setValue] = useState("");
-  const connect = useConnectBuyerBySupkeysId();
+  const connect = useConnectBuyerByRothernId();
 
   const submit = () => {
     const v = value.trim();
@@ -129,7 +129,7 @@ function ConnectByIdCard({ ownSupkeysId }: { ownSupkeysId: string | null }) {
   };
 
   return (
-    <PanelCard title="Supkeys ID ile Alıcı Ekle">
+    <PanelCard title="Rothern ID ile Alıcı Ekle">
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="flex-1">
           <InputGroup>
@@ -138,7 +138,7 @@ function ConnectByIdCard({ ownSupkeysId }: { ownSupkeysId: string | null }) {
               value={value}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submit()}
-              placeholder="Alıcının Supkeys ID'si (örn. SK-K7X9-3M2P)"
+              placeholder="Alıcının Rothern ID'si (örn. SK-K7X9-3M2P)"
             />
           </InputGroup>
         </div>
@@ -150,7 +150,7 @@ function ConnectByIdCard({ ownSupkeysId }: { ownSupkeysId: string | null }) {
           Bağlantı İste
         </Button>
       </div>
-      <OwnIdRow ownSupkeysId={ownSupkeysId} />
+      <OwnIdRow ownRothernId={ownRothernId} />
     </PanelCard>
   );
 }
@@ -166,7 +166,7 @@ function BuyerPool({ isPremium }: { isPremium: boolean }) {
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Alıcı ara — firma adı, şehir, sektör veya Supkeys ID…"
+          placeholder="Alıcı ara — firma adı, şehir, sektör veya Rothern ID…"
         />
       </InputGroup>
 

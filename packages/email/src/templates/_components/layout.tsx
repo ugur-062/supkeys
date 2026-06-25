@@ -69,7 +69,7 @@ export function Layout({ preview, children }: LayoutProps) {
           <Section style={headerSection}>
             <Img
               src={LOGO_URL}
-              alt="Supkeys"
+              alt="Rothern"
               width="160"
               height="40"
               style={logoStyle}
@@ -86,7 +86,7 @@ export function Layout({ preview, children }: LayoutProps) {
               }}
             />
             <Text style={footerStyle}>
-              © 2026 Supkeys
+              © 2026 Rothern
               <br />
               Bu e-postayı supkeys.com platformundan aldınız.
             </Text>

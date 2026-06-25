@@ -36,7 +36,7 @@ const ctaWrap = {
 };
 
 export const BUYER_APPLICATION_APPROVED_SUBJECT =
-  "🎉 Hesabınız aktif — Supkeys";
+  "🎉 Hesabınız aktif — Rothern";
 
 export function BuyerApplicationApprovedEmail(
   props: BuyerApplicationApprovedData,
@@ -46,7 +46,7 @@ export function BuyerApplicationApprovedEmail(
       <Heading>Hoş geldin {props.firstName}! 🎉</Heading>
 
       <Text style={paragraph}>
-        <strong>{props.companyName}</strong> hesabınız onaylandı. Artık Supkeys
+        <strong>{props.companyName}</strong> hesabınız onaylandı. Artık Rothern
         platformunda tedarikçilerinizle e-ihale ve teklif süreçlerini
         yönetebilirsiniz.
       </Text>
@@ -79,7 +79,7 @@ export function BuyerApplicationApprovedEmail(
       <Text
         style={{ ...paragraph, marginTop: "24px", color: COLORS.brand900, fontWeight: 600 }}
       >
-        — Supkeys ekibi
+        — Rothern ekibi
       </Text>
     </Layout>
   );
@@ -100,7 +100,7 @@ export function renderBuyerApplicationApprovedText(
     "2. Talebini yayınlayarak ilk ihaleni aç.",
     "3. Ekibine satın alma ve onay rolünde kullanıcılar davet et.",
     "",
-    "— Supkeys ekibi",
-    "© 2026 Supkeys",
+    "— Rothern ekibi",
+    "© 2026 Rothern",
   ].join("\n");
 }

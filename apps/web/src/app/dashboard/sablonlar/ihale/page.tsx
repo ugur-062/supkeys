@@ -2,7 +2,7 @@ import { PermissionGuard } from "@/components/auth/permission-guard";
 import { TenderTemplatesView } from "./_components/tender-templates-view";
 
 export const metadata = {
-  title: "İhale Şablonları — Supkeys",
+  title: "İhale Şablonları — Rothern",
 };
 
 export default function TenderTemplatesPage() {

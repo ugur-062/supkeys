@@ -1,6 +1,6 @@
 "use client";
 
-import { SupkeysLogo } from "@/components/brand/logo";
+import { RothernLogo } from "@/components/brand/logo";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -130,12 +130,12 @@ export function AcceptView({ token }: { token: string }) {
   return (
     <CenteredCard>
       <div className="text-center mb-6">
-        <SupkeysLogo variant="full" size="md" className="mx-auto" />
+        <RothernLogo variant="full" size="md" className="mx-auto" />
         <h1 className="text-2xl font-semibold text-zinc-900 mt-4">
           Ekibe Katılın
         </h1>
         <p className="text-slate-600 text-sm mt-2">
-          <strong>{invitation.companyName}</strong> firmasının Supkeys ekibine
+          <strong>{invitation.companyName}</strong> firmasının Rothern ekibine
           davet edildiniz. Bilgilerinizi doldurarak katılın.
         </p>
       </div>

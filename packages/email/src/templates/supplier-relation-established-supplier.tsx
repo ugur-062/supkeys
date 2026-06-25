@@ -46,7 +46,7 @@ const ctaWrap = {
 export function makeSupplierRelationEstablishedSupplierSubject(
   tenantName: string,
 ): string {
-  return `✓ ${tenantName} ile bağlantınız aktif — Supkeys`;
+  return `✓ ${tenantName} ile bağlantınız aktif — Rothern`;
 }
 
 export function SupplierRelationEstablishedSupplierEmail(
@@ -101,6 +101,6 @@ export function renderSupplierRelationEstablishedSupplierText(
     "",
     `Profilime git: ${props.profileUrl}`,
     "",
-    "© 2026 Supkeys",
+    "© 2026 Rothern",
   ].join("\n");
 }

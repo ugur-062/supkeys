@@ -6,10 +6,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Supkeys Admin",
-    template: "%s · Supkeys Admin",
+    default: "Rothern Admin",
+    template: "%s · Rothern Admin",
   },
-  description: "Supkeys platform yönetim paneli",
+  description: "Rothern platform yönetim paneli",
   robots: {
     index: false,
     follow: false,

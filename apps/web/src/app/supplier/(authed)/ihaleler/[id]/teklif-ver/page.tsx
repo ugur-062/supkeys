@@ -1,7 +1,7 @@
 import { TeklifLoader } from "./_components/teklif-loader";
 
 export const metadata = {
-  title: "Teklif Ver — Supkeys",
+  title: "Teklif Ver — Rothern",
 };
 
 interface Props {

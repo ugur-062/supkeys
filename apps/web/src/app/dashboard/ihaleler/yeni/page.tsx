@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { YeniIhaleRouter } from "./_components/yeni-router";
 
 export const metadata = {
-  title: "Yeni İhale — Supkeys",
+  title: "Yeni İhale — Rothern",
 };
 
 export default function YeniIhalePage() {

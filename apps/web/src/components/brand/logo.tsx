@@ -4,7 +4,7 @@ import Image from "next/image";
 export type LogoVariant = "full" | "icon" | "full-white" | "icon-white";
 export type LogoSize = "sm" | "md" | "lg" | "xl";
 
-interface SupkeysLogoProps {
+interface RothernLogoProps {
   variant?: LogoVariant;
   size?: LogoSize;
   className?: string;
@@ -28,19 +28,19 @@ const SOURCES: Record<LogoVariant, string> = {
   "icon-white": "/supkeys-icon-white.png",
 };
 
-export function SupkeysLogo({
+export function RothernLogo({
   variant = "full",
   size = "md",
   className,
   priority = false,
-}: SupkeysLogoProps) {
+}: RothernLogoProps) {
   const isIcon = variant === "icon" || variant === "icon-white";
   const dimensions = isIcon ? SIZES[size].icon : SIZES[size].full;
 
   return (
     <Image
       src={SOURCES[variant]}
-      alt="Supkeys"
+      alt="Rothern"
       width={dimensions.w}
       height={dimensions.h}
       priority={priority}

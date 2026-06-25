@@ -1,6 +1,6 @@
 "use client";
 
-import { SupkeysLogo } from "@/components/brand/logo";
+import { RothernLogo } from "@/components/brand/logo";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -32,7 +32,7 @@ export function CompanyLoginClient() {
       <div className="w-full max-w-md">
         <div className="flex justify-center mb-8">
           <Link href="/">
-            <SupkeysLogo variant="full" size="lg" priority />
+            <RothernLogo variant="full" size="lg" priority />
           </Link>
         </div>
 

@@ -59,23 +59,23 @@ const linkBox = {
 };
 
 export const DEMO_TO_REGISTER_INVITATION_SUBJECT =
-  "Supkeys'e davet edildiniz — hesap oluşturun";
+  "Rothern'e davet edildiniz — hesap oluşturun";
 
 export function DemoToRegisterInvitationEmail(
   props: DemoToRegisterInvitationData,
 ) {
   return (
     <Layout
-      preview={`${props.companyName} için Supkeys hesabı oluşturma daveti.`}
+      preview={`${props.companyName} için Rothern hesabı oluşturma daveti.`}
     >
-      <Heading>Supkeys&apos;e davet edildiniz 🎉</Heading>
+      <Heading>Rothern&apos;e davet edildiniz 🎉</Heading>
 
       <Text style={paragraph}>Merhaba {props.contactName},</Text>
 
       <Text style={paragraph}>
-        Supkeys ekibi ile yaptığınız görüşme için teşekkür ederiz.{" "}
+        Rothern ekibi ile yaptığınız görüşme için teşekkür ederiz.{" "}
         <strong style={{ color: COLORS.brand900 }}>{props.companyName}</strong>{" "}
-        firması için Supkeys hesabınızı oluşturmaya davet ediyoruz.
+        firması için Rothern hesabınızı oluşturmaya davet ediyoruz.
       </Text>
 
       {props.message && (
@@ -115,7 +115,7 @@ export function DemoToRegisterInvitationEmail(
           fontWeight: 600,
         }}
       >
-        — Supkeys ekibi
+        — Rothern ekibi
       </Text>
     </Layout>
   );
@@ -127,8 +127,8 @@ export function renderDemoToRegisterInvitationText(
   const lines = [
     `Merhaba ${props.contactName},`,
     "",
-    "Supkeys ekibi ile yaptığınız görüşme için teşekkür ederiz.",
-    `${props.companyName} firması için Supkeys hesabınızı oluşturmaya davet ediyoruz.`,
+    "Rothern ekibi ile yaptığınız görüşme için teşekkür ederiz.",
+    `${props.companyName} firması için Rothern hesabınızı oluşturmaya davet ediyoruz.`,
   ];
   if (props.message) {
     lines.push("", `Mesaj: "${props.message}"`);
@@ -142,8 +142,8 @@ export function renderDemoToRegisterInvitationText(
     "",
     "Sorularınız için: support@supkeys.com",
     "",
-    "— Supkeys ekibi",
-    "© 2026 Supkeys",
+    "— Rothern ekibi",
+    "© 2026 Rothern",
   );
   return lines.join("\n");
 }

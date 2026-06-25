@@ -1,7 +1,7 @@
 import { ResetCallbackForm } from "./reset-callback-form";
 
 export const metadata = {
-  title: "Yeni Şifre Belirle — Supkeys",
+  title: "Yeni Şifre Belirle — Rothern",
 };
 
 /**

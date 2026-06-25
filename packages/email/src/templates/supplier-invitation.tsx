@@ -131,9 +131,9 @@ export function makeSupplierInvitationSubject(
   isExistingSupplier?: boolean,
 ): string {
   if (isExistingSupplier) {
-    return `${tenantName} sizinle yeni bir bağlantı kurmak istiyor — Supkeys`;
+    return `${tenantName} sizinle yeni bir bağlantı kurmak istiyor — Rothern`;
   }
-  return `${tenantName} sizi tedarikçi olarak davet etti — Supkeys`;
+  return `${tenantName} sizi tedarikçi olarak davet etti — Rothern`;
 }
 
 export function SupplierInvitationEmail(props: SupplierInvitationData) {
@@ -165,7 +165,7 @@ function ExistingSupplierBranch(props: SupplierInvitationData) {
         {props.tender
           ? "sizi aşağıdaki ihaleye davet etti"
           : "sizi tedarikçi olarak ağına eklemek istiyor"}
-        . Supkeys&apos;te zaten kayıtlı olduğunuz için yeniden form doldurmanıza
+        . Rothern&apos;te zaten kayıtlı olduğunuz için yeniden form doldurmanıza
         gerek yok — hesabınıza giriş yapıp daveti kabul edebilirsiniz.
       </Text>
 
@@ -242,8 +242,8 @@ function NewSupplierBranch(props: SupplierInvitationData) {
         </strong>{" "}
         firmasından <strong>{props.inviterUserName}</strong>,{" "}
         {props.tender
-          ? "sizi aşağıdaki ihaleye davet etti. Teklif verebilmek için Supkeys'e ücretsiz kayıt olun."
-          : "sizi Supkeys platformunda tedarikçi olarak kayıt olmaya davet etti."}
+          ? "sizi aşağıdaki ihaleye davet etti. Teklif verebilmek için Rothern'e ücretsiz kayıt olun."
+          : "sizi Rothern platformunda tedarikçi olarak kayıt olmaya davet etti."}
       </Text>
 
       {props.tender ? <TenderSummary tender={props.tender} /> : null}
@@ -265,7 +265,7 @@ function NewSupplierBranch(props: SupplierInvitationData) {
       </Section>
 
       <Section style={aboutBox}>
-        <strong style={{ color: COLORS.slate700 }}>Supkeys nedir?</strong>{" "}
+        <strong style={{ color: COLORS.slate700 }}>Rothern nedir?</strong>{" "}
         Türkiye&apos;nin AI destekli e-satın alma ve e-ihale platformu.
         Tedarikçi yönetimi, RFQ ve açık eksiltme süreçlerini tek panelden
         yürütür. Kayıt ücretsiz; davet edildiğiniz ihalelere teklif verirsiniz.
@@ -303,7 +303,7 @@ function renderExistingSupplierText(props: SupplierInvitationData): string {
   }
   lines.push(
     "",
-    "Supkeys hesabınızla giriş yapıp daveti kabul edebilirsiniz:",
+    "Rothern hesabınızla giriş yapıp daveti kabul edebilirsiniz:",
     props.acceptUrl,
   );
   if (props.shortCode) {
@@ -326,7 +326,7 @@ function renderExistingSupplierText(props: SupplierInvitationData): string {
     "Bu davet 7 gün içinde geçerlidir.",
     "",
     "Yardım: support@supkeys.com",
-    "© 2026 Supkeys",
+    "© 2026 Rothern",
   );
   return lines.join("\n");
 }
@@ -339,8 +339,8 @@ function renderNewSupplierText(props: SupplierInvitationData): string {
     "",
     `${props.inviterTenantName} firmasından ${props.inviterUserName},`,
     props.tender
-      ? "sizi aşağıdaki ihaleye davet etti. Teklif vermek için Supkeys'e ücretsiz kayıt olun."
-      : "sizi Supkeys platformunda tedarikçi olarak kayıt olmaya davet etti.",
+      ? "sizi aşağıdaki ihaleye davet etti. Teklif vermek için Rothern'e ücretsiz kayıt olun."
+      : "sizi Rothern platformunda tedarikçi olarak kayıt olmaya davet etti.",
   ];
   if (props.tender) {
     lines.push(
@@ -358,11 +358,11 @@ function renderNewSupplierText(props: SupplierInvitationData): string {
     "",
     "Bu davet bağlantısı 7 gün içinde geçerlidir.",
     "",
-    "Supkeys nedir?",
+    "Rothern nedir?",
     "Türkiye'nin AI destekli e-satın alma ve e-ihale platformu.",
     "Kayıt ücretsiz; davet edildiğiniz ihalelere teklif verirsiniz.",
     "",
-    "© 2026 Supkeys",
+    "© 2026 Rothern",
   );
   return lines.join("\n");
 }

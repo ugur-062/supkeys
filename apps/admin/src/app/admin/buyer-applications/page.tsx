@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { BuyerApplicationsView } from "./_components/buyer-applications-view";
 
 export const metadata = {
-  title: "Alıcı Başvuruları — Supkeys Admin",
+  title: "Alıcı Başvuruları — Rothern Admin",
   robots: { index: false, follow: false },
 };
 

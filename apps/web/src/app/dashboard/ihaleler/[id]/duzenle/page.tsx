@@ -2,7 +2,7 @@ import { PermissionGuard } from "@/components/auth/permission-guard";
 import { EditLoader } from "./_components/edit-loader";
 
 export const metadata = {
-  title: "İhaleyi Düzenle — Supkeys",
+  title: "İhaleyi Düzenle — Rothern",
 };
 
 interface Props {

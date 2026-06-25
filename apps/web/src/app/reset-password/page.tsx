@@ -1,10 +1,10 @@
-import { SupkeysLogo } from "@/components/brand/logo";
+import { RothernLogo } from "@/components/brand/logo";
 import Link from "next/link";
 import { Suspense } from "react";
 import { ResetPasswordForm } from "./reset-password-form";
 
 export const metadata = {
-  title: "Parola Sıfırla — Supkeys",
+  title: "Parola Sıfırla — Rothern",
 };
 
 export default function ResetPasswordPage() {
@@ -13,7 +13,7 @@ export default function ResetPasswordPage() {
       <header className="px-8 py-6 border-b border-surface-border bg-white">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/">
-            <SupkeysLogo variant="full" size="md" priority />
+            <RothernLogo variant="full" size="md" priority />
           </Link>
           <Link
             href="/login"

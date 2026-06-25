@@ -62,8 +62,8 @@ export function useSupplierPool(search: string, sector: string) {
   });
 }
 
-/** Faz 3 madde 6 — alıcı, Supkeys ID ile tedarikçi ekler (direkt ACTIVE). */
-export function useConnectSupplierBySupkeysId() {
+/** Faz 3 madde 6 — alıcı, Rothern ID ile tedarikçi ekler (direkt ACTIVE). */
+export function useConnectSupplierByRothernId() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (supkeysId: string) => {

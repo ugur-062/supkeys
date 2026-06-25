@@ -19,8 +19,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Supkeys — AI Destekli E-Satın Alma Platformu",
-    template: "%s · Supkeys",
+    default: "Rothern — AI Destekli E-Satın Alma Platformu",
+    template: "%s · Rothern",
   },
   description:
     "Tedarikçi yönetimi, RFQ, açık eksiltme — tek platformda. Tasarrufunuzu artırın, satın alma sürecinizi otomatikleştirin.",
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   openGraph: {
-    title: "Supkeys",
+    title: "Rothern",
     description: "AI Destekli E-Satın Alma Platformu",
     images: ["/supkeys-logo-full.png"],
     locale: "tr_TR",

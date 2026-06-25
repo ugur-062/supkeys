@@ -32,7 +32,7 @@ const ctaWrap = {
 };
 
 export const SUPPLIER_APPLICATION_APPROVED_SUBJECT =
-  "🎉 Tedarikçi hesabınız aktif — Supkeys";
+  "🎉 Tedarikçi hesabınız aktif — Rothern";
 
 export function SupplierApplicationApprovedEmail(
   props: SupplierApplicationApprovedData,
@@ -76,7 +76,7 @@ export function SupplierApplicationApprovedEmail(
           fontWeight: 600,
         }}
       >
-        — Supkeys ekibi
+        — Rothern ekibi
       </Text>
     </Layout>
   );
@@ -102,8 +102,8 @@ export function renderSupplierApplicationApprovedText(
     "Standart üyelik ile davet edildiğiniz ihalelere teklif verebilirsiniz.",
     "İleride Premium üyeliğe yükselterek tüm açık ihalelere görünür olabilirsiniz.",
     "",
-    "— Supkeys ekibi",
-    "© 2026 Supkeys",
+    "— Rothern ekibi",
+    "© 2026 Rothern",
   );
   return lines.join("\n");
 }

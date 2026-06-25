@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { IhalelerView } from "./_components/ihaleler-view";
 
 export const metadata = {
-  title: "İhaleler — Supkeys",
+  title: "İhaleler — Rothern",
 };
 
 export default function IhalelerPage() {

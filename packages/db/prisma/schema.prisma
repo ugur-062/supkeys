@@ -2268,6 +2268,10 @@ enum ListingStatus {
 // Kalemler/teklif/sipariş sonraki chunk'larda eklenecek.
 model Listing {
   id          String        @id @default(cuid())
+  // SİSTEM GENELİNDE benzersiz ilan numarası (ROT-NNNNNN). Global Postgres
+  // sequence'tan üretilir → A ve B firmasının ilanı asla aynı numarayı almaz.
+  // Sıra büyüdükçe hane sayısı kendiliğinden artar (çok-haneli destek).
+  number      String?       @unique
   companyId   String // açan firma
   company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   type        ListingType

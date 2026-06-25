@@ -111,7 +111,7 @@ export function AdminLoginForm() {
       </div>
 
       <p className="text-xs text-admin-text-muted text-center pt-2 border-t border-admin-border">
-        Bu sayfa yalnızca Supkeys platform ekibi içindir.
+        Bu sayfa yalnızca Rothern platform ekibi içindir.
       </p>
     </form>
   );

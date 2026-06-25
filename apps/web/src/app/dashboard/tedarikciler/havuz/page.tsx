@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { SupplierPoolView } from "./_components/supplier-pool-view";
 
 export const metadata = {
-  title: "Tedarikçi Havuzu — Supkeys",
+  title: "Tedarikçi Havuzu — Rothern",
 };
 
 export default function TedarikciHavuzuPage() {

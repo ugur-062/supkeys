@@ -20,7 +20,7 @@ export default function PublicProfileEditPage() {
       </Link>
       <PageHeader
         title="Herkese Açık Profil"
-        description="Google'da ve Supkeys profilinizde görünecek bilgileri düzenleyin."
+        description="Google'da ve Rothern profilinizde görünecek bilgileri düzenleyin."
       />
       <PublicProfileEditor />
     </div>

@@ -108,6 +108,6 @@ export function renderMessageNotificationText(
     "",
     `Mesajı görüntüle: ${props.ctaUrl}`,
     "",
-    "© 2026 Supkeys",
+    "© 2026 Rothern",
   ].join("\n");
 }

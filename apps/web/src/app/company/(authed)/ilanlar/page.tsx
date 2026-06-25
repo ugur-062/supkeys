@@ -59,6 +59,8 @@ export default function IlanlarPage() {
                     {l.title}
                   </div>
                   <div className="text-xs text-zinc-500">
+                    <span className="font-mono">{l.number ?? "—"}</span>
+                    {" · "}
                     {format(new Date(l.createdAt), "dd MMM yyyy HH:mm", {
                       locale: tr,
                     })}

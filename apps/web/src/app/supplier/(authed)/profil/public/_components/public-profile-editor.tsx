@@ -675,7 +675,7 @@ function TrustVerificationSection({
               Şahıs işletmelerinde vergi numarası kişinin TC kimlik
               numarasıdır. Kişisel veri olduğu için herkese açık profilde
               paylaşılması KVKK'ya aykırıdır. Bu nedenle vergi numarası ve
-              MERSİS alanları otomatik kapalıdır. Supkeys onay sürecinden
+              MERSİS alanları otomatik kapalıdır. Rothern onay sürecinden
               geçtiğin için profilinde otomatik &ldquo;Doğrulanmış
               İşletme&rdquo; rozetin görünür; ayrıca &ldquo;Şahıs
               İşletmesi&rdquo; rozeti de eklenir.
@@ -741,7 +741,7 @@ function TrustVerificationSection({
           </div>
 
           <Alert variant="success" title="Bilgi">
-            &ldquo;Doğrulanmış İşletme&rdquo; rozeti Supkeys onay sürecinden
+            &ldquo;Doğrulanmış İşletme&rdquo; rozeti Rothern onay sürecinden
             geçtiğin için profilinde otomatik görünür. Buradaki seçimler sadece
             vergi numarası ve MERSİS bilgilerinin herkese açık profilde
             gösterilip gösterilmeyeceğini belirler.

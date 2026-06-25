@@ -10,19 +10,19 @@ import { BackToSettings } from "./back-to-settings";
 import { TenantPublicProfileCard } from "./tenant-public-profile-card";
 import { TenantCategoriesCard } from "./tenant-categories-card";
 
-function SupkeysIdRow() {
+function RothernIdRow() {
   const { data } = useTenantPublicProfile();
   const display = data?.supkeysId ? `SK-${data.supkeysId}` : "—";
   const copy = () => {
     if (!data?.supkeysId) return;
     navigator.clipboard
       .writeText(display)
-      .then(() => toast.success("Supkeys ID kopyalandı"))
+      .then(() => toast.success("Rothern ID kopyalandı"))
       .catch(() => toast.error("Kopyalanamadı"));
   };
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-zinc-950/5 bg-white p-4 text-sm">
-      <span className="font-semibold text-zinc-900">Supkeys ID'niz:</span>
+      <span className="font-semibold text-zinc-900">Rothern ID'niz:</span>
       <code className="rounded-md bg-zinc-100 px-2 py-0.5 font-mono font-semibold text-zinc-900">
         {display}
       </code>
@@ -65,8 +65,8 @@ export function FirmaProfiliView() {
         Firma Profili
       </h1>
 
-      {/* Faz 3 madde 6 — kalıcı Supkeys ID */}
-      <SupkeysIdRow />
+      {/* Faz 3 madde 6 — kalıcı Rothern ID */}
+      <RothernIdRow />
 
       {/* Herkese açık profil editörü */}
       <div className="mt-6">
@@ -148,7 +148,7 @@ export function FirmaProfiliView() {
 
       {/* Destek notu */}
       <div className="mt-8 rounded-xl border border-slate-200 bg-slate-50/40 p-4 text-xs text-slate-500">
-        Firma bilgilerinizi değiştirmek için Supkeys destek ekibi ile iletişime
+        Firma bilgilerinizi değiştirmek için Rothern destek ekibi ile iletişime
         geçebilirsiniz:{" "}
         <a
           href="mailto:destek@supkeys.com"

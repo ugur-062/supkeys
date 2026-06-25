@@ -1,9 +1,9 @@
-import { SupkeysLogo } from "@/components/brand/logo";
+import { RothernLogo } from "@/components/brand/logo";
 import Link from "next/link";
 import { LoginForm } from "./login-form";
 
 export const metadata = {
-  title: "Giriş Yap — Supkeys",
+  title: "Giriş Yap — Rothern",
 };
 
 export default function LoginPage() {
@@ -12,7 +12,7 @@ export default function LoginPage() {
       <header className="px-8 py-6 border-b border-surface-border bg-white">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/">
-            <SupkeysLogo variant="full" size="md" priority />
+            <RothernLogo variant="full" size="md" priority />
           </Link>
           <Link href="/" className="text-sm text-slate-600 hover:text-brand-700">
             ← Ana Sayfa
@@ -27,14 +27,14 @@ export default function LoginPage() {
               Tekrar hoş geldin
             </h1>
             <p className="text-slate-600">
-              Supkeys hesabına giriş yap.
+              Rothern hesabına giriş yap.
             </p>
           </div>
 
           <LoginForm />
 
           <p className="text-center text-xs text-slate-500 mt-6">
-            Henüz Supkeys kullanmıyor musun?{" "}
+            Henüz Rothern kullanmıyor musun?{" "}
             <Link href="/demo-talep" className="text-brand-700 hover:underline">
               Demo talep et
             </Link>
@@ -44,7 +44,7 @@ export default function LoginPage() {
 
       <footer className="px-8 py-6 border-t border-surface-border bg-white">
         <div className="max-w-7xl mx-auto text-sm text-slate-500 text-center">
-          © 2026 Supkeys
+          © 2026 Rothern
         </div>
       </footer>
     </main>

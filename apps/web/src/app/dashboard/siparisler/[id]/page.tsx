@@ -1,7 +1,7 @@
 import { OrderDetailView } from "./_components/order-detail-view";
 
 export const metadata = {
-  title: "Sipariş Detayı — Supkeys",
+  title: "Sipariş Detayı — Rothern",
 };
 
 export default async function OrderDetailPage({

@@ -2,7 +2,7 @@ import { AdminLogo } from "@/components/brand/admin-logo";
 import { AdminLoginForm } from "./login-form";
 
 export const metadata = {
-  title: "Admin Giriş — Supkeys",
+  title: "Admin Giriş — Rothern",
   robots: { index: false, follow: false },
 };
 
@@ -20,7 +20,7 @@ export default function AdminLoginPage() {
               Platform Admin Girişi
             </h1>
             <p className="text-admin-text-muted text-sm">
-              Supkeys yönetim paneline erişmek için giriş yapın.
+              Rothern yönetim paneline erişmek için giriş yapın.
             </p>
           </div>
 
@@ -30,7 +30,7 @@ export default function AdminLoginPage() {
 
       <footer className="px-8 py-6 border-t border-admin-border bg-admin-surface">
         <div className="max-w-7xl mx-auto text-sm text-admin-text-muted text-center">
-          © 2026 Supkeys
+          © 2026 Rothern
         </div>
       </footer>
     </main>

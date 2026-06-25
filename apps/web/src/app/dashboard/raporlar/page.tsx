@@ -4,7 +4,7 @@ import { ArrowRight, FileText, GitCompare, TrendingUp } from "lucide-react";
 import Link from "next/link";
 
 export const metadata = {
-  title: "Raporlar — Supkeys",
+  title: "Raporlar — Rothern",
 };
 
 const REPORTS = [

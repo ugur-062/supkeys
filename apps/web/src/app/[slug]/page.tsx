@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const profile = await fetchPublicSupplierProfile(slug);
   if (!profile) {
-    return { title: "Profil bulunamadı — Supkeys" };
+    return { title: "Profil bulunamadı — Rothern" };
   }
   const siteUrl = resolveSiteUrl();
   const canonicalPath = `/${profile.slug}`;
@@ -25,14 +25,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   ).slice(0, 160);
   return {
     metadataBase: new URL(siteUrl),
-    title: `${profile.companyName} — Supkeys`,
+    title: `${profile.companyName} — Rothern`,
     description,
     alternates: { canonical: canonicalPath },
     openGraph: {
       title: profile.companyName,
       description,
       url: canonicalPath,
-      siteName: "Supkeys",
+      siteName: "Rothern",
       images: profile.coverImageUrl ? [{ url: profile.coverImageUrl }] : [],
       type: "profile",
       locale: "tr_TR",

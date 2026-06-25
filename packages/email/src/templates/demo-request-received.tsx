@@ -43,7 +43,7 @@ const summaryLabel = {
   fontWeight: 500,
 };
 
-export const DEMO_REQUEST_RECEIVED_SUBJECT = "Talebiniz alındı — Supkeys";
+export const DEMO_REQUEST_RECEIVED_SUBJECT = "Talebiniz alındı — Rothern";
 
 export function DemoRequestReceivedEmail(props: DemoRequestReceivedData) {
   const { contactName, companyName, email, phone, message } = props;
@@ -60,7 +60,7 @@ export function DemoRequestReceivedEmail(props: DemoRequestReceivedData) {
       <Heading level={2}>Demo görüşmesinde:</Heading>
       <ul style={listStyle}>
         <li>Firma süreçlerinizi birlikte inceleyeceğiz</li>
-        <li>Supkeys&apos;in canlı demosunu göstereceğiz</li>
+        <li>Rothern&apos;in canlı demosunu göstereceğiz</li>
         <li>Tüm sorularınızı yanıtlayacağız</li>
       </ul>
 
@@ -100,7 +100,7 @@ export function DemoRequestReceivedEmail(props: DemoRequestReceivedData) {
           fontWeight: 600,
         }}
       >
-        — Supkeys ekibi
+        — Rothern ekibi
       </Text>
     </Layout>
   );
@@ -116,7 +116,7 @@ export function renderDemoRequestReceivedText(
     "",
     "Demo görüşmesinde:",
     "- Firma süreçlerinizi birlikte inceleyeceğiz",
-    "- Supkeys'in canlı demosunu göstereceğiz",
+    "- Rothern'in canlı demosunu göstereceğiz",
     "- Tüm sorularınızı yanıtlayacağız",
     "",
     "Talep özetiniz:",
@@ -131,9 +131,9 @@ export function renderDemoRequestReceivedText(
     "",
     "Sorularınız için bu e-postayı yanıtlayabilirsiniz.",
     "",
-    "— Supkeys ekibi",
+    "— Rothern ekibi",
     "",
-    "© 2026 Supkeys",
+    "© 2026 Rothern",
   );
   return lines.join("\n");
 }

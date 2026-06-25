@@ -137,7 +137,7 @@ export function renderTenderCategoryMatchText(
     "",
     "Bu bildirimleri Ayarlar → Bildirimler'den kapatabilirsiniz.",
     "",
-    "© 2026 Supkeys",
+    "© 2026 Rothern",
   );
   return lines.join("\n");
 }

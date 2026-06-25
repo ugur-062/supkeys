@@ -127,7 +127,7 @@ export function renderDemoRequestAdminAlertText(
     `Admin panel: ${props.adminPanelUrl.replace(/\/$/, "")}/admin/demo-requests`,
     `Talep ID: ${props.demoRequestId}`,
     "",
-    "© 2026 Supkeys",
+    "© 2026 Rothern",
   );
   return lines.join("\n");
 }

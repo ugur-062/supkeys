@@ -25,8 +25,10 @@ export class CompanyListingsService {
       );
     }
 
+    const number = await this.nextListingNumber();
     const listing = await this.prisma.listing.create({
       data: {
+        number,
         companyId: user.companyId,
         type,
         title: dto.title.trim(),
@@ -37,6 +39,17 @@ export class CompanyListingsService {
       },
     });
     return this.serialize(listing);
+  }
+
+  /**
+   * Sistem-genelinde benzersiz ilan numarası — global Postgres sequence'tan
+   * atomik (race-safe). ROT-NNNNNN; sıra büyüdükçe hane artar.
+   */
+  private async nextListingNumber(): Promise<string> {
+    const rows = await this.prisma.$queryRaw<Array<{ n: bigint }>>`
+      SELECT nextval('listing_number_seq') AS n
+    `;
+    return `ROT-${String(rows[0].n).padStart(6, "0")}`;
   }
 
   /** Firmanın kendi ilanları (açtıkları). */
@@ -51,6 +64,7 @@ export class CompanyListingsService {
 
   private serialize(l: {
     id: string;
+    number: string | null;
     type: ListingType;
     title: string;
     description: string | null;
@@ -60,6 +74,7 @@ export class CompanyListingsService {
   }) {
     return {
       id: l.id,
+      number: l.number,
       type: l.type,
       title: l.title,
       description: l.description,

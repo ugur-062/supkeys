@@ -30,7 +30,7 @@ export function PublicProfileCard() {
           <div className="min-w-0 flex-1">
             <Subheading>Herkese Açık Profil — PREMIUM</Subheading>
             <Text className="mt-1">
-              Google&apos;da görünür olun, Supkeys profilinizle yeni alıcılarla
+              Google&apos;da görünür olun, Rothern profilinizle yeni alıcılarla
               bağlantı kurun. PREMIUM üyeliğe yükseltin.
             </Text>
             <div className="mt-3">

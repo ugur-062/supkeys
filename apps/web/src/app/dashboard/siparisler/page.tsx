@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { OrdersListView } from "./_components/orders-list-view";
 
 export const metadata = {
-  title: "Siparişler — Supkeys",
+  title: "Siparişler — Rothern",
 };
 
 export default function SiparislerPage() {

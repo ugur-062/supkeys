@@ -1,9 +1,9 @@
-import { SupkeysLogo } from "@/components/brand/logo";
+import { RothernLogo } from "@/components/brand/logo";
 import Link from "next/link";
 import { ForgotPasswordForm } from "./forgot-password-form";
 
 export const metadata = {
-  title: "Şifremi Unuttum — Supkeys",
+  title: "Şifremi Unuttum — Rothern",
 };
 
 export default function ForgotPasswordPage() {
@@ -12,7 +12,7 @@ export default function ForgotPasswordPage() {
       <header className="px-8 py-6 border-b border-surface-border bg-white">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/">
-            <SupkeysLogo variant="full" size="md" priority />
+            <RothernLogo variant="full" size="md" priority />
           </Link>
           <Link href="/login" className="text-sm text-slate-600 hover:text-brand-700">
             ← Giriş
@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
 
       <footer className="px-8 py-6 border-t border-surface-border bg-white">
         <div className="max-w-7xl mx-auto text-sm text-slate-500 text-center">
-          © 2026 Supkeys
+          © 2026 Rothern
         </div>
       </footer>
     </main>

@@ -66,8 +66,8 @@ export function useConnectToBuyer() {
   });
 }
 
-/** Supkeys ID ile alıcıya bağlantı isteği. */
-export function useConnectBuyerBySupkeysId() {
+/** Rothern ID ile alıcıya bağlantı isteği. */
+export function useConnectBuyerByRothernId() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (supkeysId: string) => {

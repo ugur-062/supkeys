@@ -2,7 +2,7 @@ import { fetchPublicTenant } from "@/lib/public/fetch-tenant";
 import { SupplierRegisterForm } from "./_components/supplier-register-form";
 
 export const metadata = {
-  title: "Tedarikçi Olarak Kayıt Ol — Supkeys",
+  title: "Tedarikçi Olarak Kayıt Ol — Rothern",
 };
 
 interface SupplierRegisterPageProps {
@@ -25,7 +25,7 @@ export default async function SupplierRegisterPage({
           Tedarikçi olarak kayıt ol
         </h1>
         <p className="text-slate-600 text-sm">
-          Supkeys'i kullanan firmaların ihalelerine katılın, fırsatları
+          Rothern'i kullanan firmaların ihalelerine katılın, fırsatları
           kaçırmayın.
         </p>
       </div>

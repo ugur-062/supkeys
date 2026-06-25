@@ -1,6 +1,6 @@
 "use client";
 
-import { SupkeysLogo } from "@/components/brand/logo";
+import { RothernLogo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -137,7 +137,7 @@ export function AcceptInviteView({ token }: { token: string }) {
   return (
     <CenteredCard>
       <div className="text-center mb-6">
-        <SupkeysLogo variant="full" size="md" className="mx-auto" />
+        <RothernLogo variant="full" size="md" className="mx-auto" />
         <h1 className="font-display text-2xl font-bold text-brand-900 mt-4">
           Davete Katılın
         </h1>

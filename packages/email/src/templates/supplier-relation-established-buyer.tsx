@@ -112,7 +112,7 @@ export function SupplierRelationEstablishedBuyerEmail(
       </Section>
 
       <Text style={{ ...paragraph, fontSize: "12px", color: COLORS.slate500 }}>
-        Bu bağlantıyı kurmadıysanız veya iptal etmek istiyorsanız, Supkeys
+        Bu bağlantıyı kurmadıysanız veya iptal etmek istiyorsanız, Rothern
         panelinden tedarikçiyi engelleyebilirsiniz.
       </Text>
     </Layout>
@@ -141,7 +141,7 @@ export function renderSupplierRelationEstablishedBuyerText(
     "",
     "Bu bağlantıyı kurmadıysanız tedarikçiyi engelleyebilirsiniz.",
     "",
-    "© 2026 Supkeys",
+    "© 2026 Rothern",
   );
   return lines.join("\n");
 }

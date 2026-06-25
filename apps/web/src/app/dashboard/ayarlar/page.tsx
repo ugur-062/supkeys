@@ -1,7 +1,7 @@
 import { AyarlarIndex } from "./_components/ayarlar-index";
 
 export const metadata = {
-  title: "Ayarlar — Supkeys",
+  title: "Ayarlar — Rothern",
 };
 
 export default function AyarlarPage() {

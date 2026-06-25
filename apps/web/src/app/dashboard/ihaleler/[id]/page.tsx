@@ -3,7 +3,7 @@ import { Loader2 } from "lucide-react";
 import { TenderDetailView } from "./_components/tender-detail-view";
 
 export const metadata = {
-  title: "İhale Detayı — Supkeys",
+  title: "İhale Detayı — Rothern",
 };
 
 interface Props {

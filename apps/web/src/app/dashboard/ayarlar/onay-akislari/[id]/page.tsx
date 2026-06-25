@@ -1,7 +1,7 @@
 import { ApprovalFlowDetailLoader } from "./_components/approval-flow-detail-loader";
 
 export const metadata = {
-  title: "Onay Akışı Detayı — Supkeys",
+  title: "Onay Akışı Detayı — Rothern",
 };
 
 export default async function ApprovalFlowDetailPage({

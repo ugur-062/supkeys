@@ -1,10 +1,10 @@
-import { SupkeysLogo } from "@/components/brand/logo";
+import { RothernLogo } from "@/components/brand/logo";
 import Link from "next/link";
 import { DemoForm } from "./demo-form";
 
 export const metadata = {
-  title: "Demo Talep — Supkeys",
-  description: "Supkeys'i ücretsiz keşfetmek için demo talep edin.",
+  title: "Demo Talep — Rothern",
+  description: "Rothern'i ücretsiz keşfetmek için demo talep edin.",
 };
 
 export default function DemoTalepPage() {
@@ -13,7 +13,7 @@ export default function DemoTalepPage() {
       <header className="px-8 py-6 border-b border-surface-border bg-white">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link href="/">
-            <SupkeysLogo variant="full" size="md" priority />
+            <RothernLogo variant="full" size="md" priority />
           </Link>
           <Link href="/" className="text-sm text-slate-600 hover:text-brand-700">
             ← Ana Sayfa
@@ -29,7 +29,7 @@ export default function DemoTalepPage() {
               30 dakikalık birebir demo
             </div>
             <h1 className="font-display font-bold text-3xl md:text-4xl text-brand-900 leading-tight">
-              Supkeys'i ekibinize uyarlayalım
+              Rothern'i ekibinize uyarlayalım
             </h1>
             <p className="text-slate-600 max-w-xl mx-auto">
               Formu doldurun, satış ekibimiz 1 iş günü içinde dönüş yapsın. Tedarikçi
@@ -43,7 +43,7 @@ export default function DemoTalepPage() {
 
       <footer className="px-8 py-6 border-t border-surface-border bg-white">
         <div className="max-w-7xl mx-auto text-sm text-slate-500 text-center">
-          © 2026 Supkeys
+          © 2026 Rothern
         </div>
       </footer>
     </main>

@@ -67,7 +67,7 @@ export default function DashboardPage() {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <h1 className="mb-1.5 text-2xl font-semibold leading-tight tracking-tight text-zinc-950 sm:text-3xl">
-            Hoş geldin, {user?.firstName ?? "Supkeys kullanıcısı"}
+            Hoş geldin, {user?.firstName ?? "Rothern kullanıcısı"}
           </h1>
           <p className="text-[15px] text-zinc-500">
             {user?.tenant.name

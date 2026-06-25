@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { DemoRequestsView } from "./_components/demo-requests-view";
 
 export const metadata = {
-  title: "Demo Talepleri — Supkeys Admin",
+  title: "Demo Talepleri — Rothern Admin",
   robots: { index: false, follow: false },
 };
 

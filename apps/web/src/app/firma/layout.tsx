@@ -1,4 +1,4 @@
-import { SupkeysLogo } from "@/components/brand/logo";
+import { RothernLogo } from "@/components/brand/logo";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -17,10 +17,10 @@ export default function PublicTenantLayout({
         <div className="max-w-5xl mx-auto px-4 md:px-6 h-20 flex items-center justify-between gap-4">
           <Link
             href="/"
-            aria-label="Supkeys"
+            aria-label="Rothern"
             className="inline-flex items-center hover:opacity-80 transition-opacity"
           >
-            <SupkeysLogo variant="full" size="lg" priority />
+            <RothernLogo variant="full" size="lg" priority />
           </Link>
           <Link
             href="/supplier/login"
@@ -34,10 +34,10 @@ export default function PublicTenantLayout({
       <footer className="bg-white border-t border-surface-border py-8 mt-12">
         <div className="max-w-5xl mx-auto px-4 md:px-6 flex flex-col md:flex-row items-center justify-between gap-3 text-xs text-slate-500">
           <div className="flex items-center gap-3">
-            <SupkeysLogo variant="full" size="sm" />
+            <RothernLogo variant="full" size="sm" />
             <span>© 2026</span>
           </div>
-          <span>Supkeys ile güçlendirilmiştir</span>
+          <span>Rothern ile güçlendirilmiştir</span>
         </div>
       </footer>
     </div>

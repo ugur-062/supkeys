@@ -160,6 +160,6 @@ export function renderApprovalReminderText(
     "",
     "Bu hatırlatma 3 gün içinde cevap verilmediği için otomatik gönderildi.",
     "",
-    "© 2026 Supkeys",
+    "© 2026 Rothern",
   ].join("\n");
 }

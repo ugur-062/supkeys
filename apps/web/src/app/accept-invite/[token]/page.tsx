@@ -1,7 +1,7 @@
 import { AcceptInviteView } from "./_components/accept-invite-view";
 
 export const metadata = {
-  title: "Daveti Kabul Et — Supkeys",
+  title: "Daveti Kabul Et — Rothern",
   robots: { index: false, follow: false },
 };
 

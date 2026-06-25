@@ -1,7 +1,7 @@
 import { BidDetailView } from "./_components/bid-detail-view";
 
 export const metadata = {
-  title: "Teklif Detayı — Supkeys",
+  title: "Teklif Detayı — Rothern",
 };
 
 interface Props {

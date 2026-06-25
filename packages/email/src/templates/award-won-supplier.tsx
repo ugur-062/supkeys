@@ -135,6 +135,6 @@ export function renderAwardWonSupplierText(
     "",
     `Siparişi görüntüle: ${props.orderUrl}`,
     "",
-    "© 2026 Supkeys",
+    "© 2026 Rothern",
   ].join("\n");
 }

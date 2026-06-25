@@ -82,7 +82,7 @@ function DashboardContent() {
     <div className="space-y-6 max-w-[1400px]">
       <PageHeader
         title="Sistem Geneli"
-        description="Supkeys ekosistem sağlığı ve son aktiviteler."
+        description="Rothern ekosistem sağlığı ve son aktiviteler."
         action={
           <div className="flex items-center gap-2 text-xs text-admin-text-muted">
             <span className="relative flex h-2 w-2">

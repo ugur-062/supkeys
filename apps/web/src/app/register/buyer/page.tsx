@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { BuyerRegisterForm } from "./_components/buyer-register-form";
 
 export const metadata = {
-  title: "Alıcı Olarak Kayıt Ol — Supkeys",
+  title: "Alıcı Olarak Kayıt Ol — Rothern",
 };
 
 interface BuyerRegisterPageProps {

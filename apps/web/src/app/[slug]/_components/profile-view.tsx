@@ -493,7 +493,7 @@ function PremiumBadge() {
 
 function VerifiedBadge() {
   return (
-    <CatalystBadge title="Supkeys onay sürecinden geçen aktif PREMIUM tedarikçi">
+    <CatalystBadge title="Rothern onay sürecinden geçen aktif PREMIUM tedarikçi">
       <BadgeCheck className="h-3.5 w-3.5" />
       Doğrulanmış İşletme
     </CatalystBadge>

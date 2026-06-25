@@ -256,7 +256,7 @@ function AdminNavbar() {
   return (
     <Navbar>
       <span className="truncate text-sm font-semibold text-zinc-950">
-        Supkeys Admin
+        Rothern Admin
       </span>
       <NavbarSpacer />
     </Navbar>

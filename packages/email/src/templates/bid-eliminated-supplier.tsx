@@ -112,6 +112,6 @@ export function renderBidEliminatedSupplierText(
       ? `Yeniden teklif verebilirsiniz: ${props.submitNewBidUrl}`
       : `İhale teklif kabul süresi sona erdi: ${props.tenderUrl}`,
     "",
-    "© 2026 Supkeys",
+    "© 2026 Rothern",
   ].join("\n");
 }

@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import { OnayDetayLoader } from "./_components/onay-detay-loader";
 
 export const metadata = {
-  title: "Onay Süreci — Supkeys",
+  title: "Onay Süreci — Rothern",
 };
 
 export default async function OnayDetayPage({

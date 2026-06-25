@@ -1,7 +1,7 @@
 import { AcceptView } from "./_components/accept-view";
 
 export const metadata = {
-  title: "Ekip Davetini Kabul Et — Supkeys",
+  title: "Ekip Davetini Kabul Et — Rothern",
   robots: { index: false, follow: false },
 };
 

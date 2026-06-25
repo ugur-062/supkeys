@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 export interface TenantPublicProfile {
   name: string;
   slug: string;
-  /** Faz 3 madde 6 — kalıcı Supkeys ID; tedarikçiler bununla alıcıyı ekler. */
+  /** Faz 3 madde 6 — kalıcı Rothern ID; tedarikçiler bununla alıcıyı ekler. */
   supkeysId: string | null;
   industry: string | null;
   city: string | null;

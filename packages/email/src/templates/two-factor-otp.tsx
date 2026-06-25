@@ -43,12 +43,12 @@ const warningBox = {
 };
 
 export function makeTwoFactorOtpSubject(): string {
-  return "🔐 Doğrulama kodunuz — Supkeys";
+  return "🔐 Doğrulama kodunuz — Rothern";
 }
 
 export function TwoFactorOtpEmail(props: TwoFactorOtpData) {
   return (
-    <Layout preview="Supkeys doğrulama kodunuz.">
+    <Layout preview="Rothern doğrulama kodunuz.">
       <Heading>Doğrulama kodunuz 🔐</Heading>
 
       <Text style={paragraph}>Merhaba {props.firstName},</Text>
@@ -77,7 +77,7 @@ export function TwoFactorOtpEmail(props: TwoFactorOtpData) {
 
 export function renderTwoFactorOtpText(props: TwoFactorOtpData): string {
   return [
-    "Supkeys doğrulama kodu",
+    "Rothern doğrulama kodu",
     "",
     `Merhaba ${props.firstName},`,
     "",
@@ -87,6 +87,6 @@ export function renderTwoFactorOtpText(props: TwoFactorOtpData): string {
     "",
     "Bu işlemi siz başlatmadıysanız e-postayı yok sayın.",
     "",
-    "— Supkeys",
+    "— Rothern",
   ].join("\n");
 }

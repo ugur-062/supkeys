@@ -95,6 +95,6 @@ export function renderAwardLostSupplierText(
     "",
     `İhaleyi görüntüle: ${props.tenderUrl}`,
     "",
-    "© 2026 Supkeys",
+    "© 2026 Rothern",
   ].join("\n");
 }

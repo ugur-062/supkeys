@@ -182,14 +182,14 @@ export function Step3Suppliers() {
               onChange={() => {}}
               className="space-y-3"
             >
-              {/* "Tüm Supkeys" — disabled, V2 */}
+              {/* "Tüm Rothern" — disabled, V2 */}
               <div className="block bg-zinc-50 ring-1 ring-zinc-950/10 rounded-xl p-4 opacity-60">
                 <div className="flex gap-3 items-start">
                   <Radio value="all" disabled className="mt-1" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-slate-700">
-                        Tüm Supkeys Tedarikçileri Teklif Verebilsin
+                        Tüm Rothern Tedarikçileri Teklif Verebilsin
                       </p>
                       <span className="px-2 py-0.5 bg-warning-100 text-warning-700 text-[10px] rounded-md font-bold uppercase tracking-wide">
                         Yakında
@@ -201,7 +201,7 @@ export function Step3Suppliers() {
                         teklif verebilir
                       </li>
                       <li>
-                        Supkeys uygun tedarikçilere otomatik davet gönderir
+                        Rothern uygun tedarikçilere otomatik davet gönderir
                       </li>
                       <li>Engellediğiniz tedarikçiler hariç tutulur</li>
                     </ul>

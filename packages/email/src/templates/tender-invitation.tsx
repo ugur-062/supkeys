@@ -123,7 +123,7 @@ export function renderTenderInvitationText(
     "",
     "Tedarikçi hesabınızla giriş yaparak teklif gönderebilirsiniz.",
     "",
-    "© 2026 Supkeys",
+    "© 2026 Rothern",
   ];
   return lines.join("\n");
 }

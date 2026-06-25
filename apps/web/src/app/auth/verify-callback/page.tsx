@@ -1,7 +1,7 @@
 import { VerifyCallbackForm } from "./verify-callback-form";
 
 export const metadata = {
-  title: "E-posta Doğrulama — Supkeys",
+  title: "E-posta Doğrulama — Rothern",
 };
 
 /**

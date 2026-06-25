@@ -2,7 +2,7 @@ import { PermissionGuard } from "@/components/auth/permission-guard";
 import { QuestionTemplatesView } from "./_components/question-templates-view";
 
 export const metadata = {
-  title: "Kalem Sorusu Şablonları — Supkeys",
+  title: "Kalem Sorusu Şablonları — Rothern",
 };
 
 export default function QuestionTemplatesPage() {

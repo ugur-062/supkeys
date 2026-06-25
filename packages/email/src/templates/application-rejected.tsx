@@ -27,7 +27,7 @@ const reasonBox = {
 };
 
 export const APPLICATION_REJECTED_SUBJECT =
-  "Başvurunuz hakkında — Supkeys";
+  "Başvurunuz hakkında — Rothern";
 
 export function ApplicationRejectedEmail(props: ApplicationRejectedData) {
   const role = props.applicantType === "supplier" ? "tedarikçi" : "alıcı";
@@ -67,7 +67,7 @@ export function ApplicationRejectedEmail(props: ApplicationRejectedData) {
           fontWeight: 600,
         }}
       >
-        — Supkeys ekibi
+        — Rothern ekibi
       </Text>
     </Layout>
   );
@@ -91,7 +91,7 @@ export function renderApplicationRejectedText(
     "",
     `Sorularınız için: ${props.supportEmail}`,
     "",
-    "— Supkeys ekibi",
-    "© 2026 Supkeys",
+    "— Rothern ekibi",
+    "© 2026 Rothern",
   ].join("\n");
 }

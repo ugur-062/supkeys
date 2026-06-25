@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { SupkeysLogo, type LogoSize, type LogoVariant } from "./supkeys-logo";
+import { RothernLogo, type LogoSize, type LogoVariant } from "./supkeys-logo";
 
 interface AdminLogoProps {
   className?: string;
@@ -35,7 +35,7 @@ export function AdminLogo({
 
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
-      <SupkeysLogo variant={logoVariant} size={size} priority={priority} />
+      <RothernLogo variant={logoVariant} size={size} priority={priority} />
       {badge && !iconOnly && (
         <span className="ml-1 admin-pill-danger">Admin</span>
       )}

@@ -11,7 +11,7 @@ interface Props {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const profile = await fetchPublicTenant(slug);
-  if (!profile) return { title: "Profil bulunamadı — Supkeys" };
+  if (!profile) return { title: "Profil bulunamadı — Rothern" };
 
   const siteUrl = resolveSiteUrl();
   const description = (
@@ -23,14 +23,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   return {
     metadataBase: new URL(siteUrl),
-    title: `${profile.name} — Supkeys`,
+    title: `${profile.name} — Rothern`,
     description,
     alternates: { canonical: `/firma/${profile.slug}` },
     openGraph: {
       title: profile.name,
       description,
       url: `/firma/${profile.slug}`,
-      siteName: "Supkeys",
+      siteName: "Rothern",
       type: "profile",
       locale: "tr_TR",
     },

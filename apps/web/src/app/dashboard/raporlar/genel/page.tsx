@@ -2,7 +2,7 @@ import { PermissionGuard } from "@/components/auth/permission-guard";
 import { GeneralReportView } from "./_components/general-view";
 
 export const metadata = {
-  title: "Genel İhale Raporu — Supkeys",
+  title: "Genel İhale Raporu — Rothern",
 };
 
 export default function GeneralReportPage() {
