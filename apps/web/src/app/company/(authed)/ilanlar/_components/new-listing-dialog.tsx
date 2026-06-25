@@ -13,6 +13,7 @@ import { Textarea } from "@/components/catalyst/textarea";
 import {
   useCreateListing,
   type ListingType,
+  type ListingVisibility,
 } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useState } from "react";
@@ -27,6 +28,7 @@ export function NewListingDialog({
 }) {
   const create = useCreateListing();
   const [type, setType] = useState<ListingType>("ALIM");
+  const [visibility, setVisibility] = useState<ListingVisibility>("CONNECTIONS");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
@@ -34,6 +36,7 @@ export function NewListingDialog({
 
   const reset = () => {
     setType("ALIM");
+    setVisibility("CONNECTIONS");
     setTitle("");
     setDescription("");
   };
@@ -43,6 +46,7 @@ export function NewListingDialog({
     try {
       await create.mutateAsync({
         type,
+        visibility,
         title: title.trim(),
         description: description.trim() || undefined,
       });
@@ -111,6 +115,45 @@ export function NewListingDialog({
             placeholder="Detaylar, şartlar…"
           />
         </Field>
+
+        {/* Görünürlük */}
+        <div>
+          <Label>Kimler görsün?</Label>
+          <div className="mt-2 grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setVisibility("CONNECTIONS")}
+              className={`rounded-xl border-2 p-3 text-left transition ${
+                visibility === "CONNECTIONS"
+                  ? "border-zinc-800 bg-zinc-50"
+                  : "border-zinc-200 hover:border-zinc-300"
+              }`}
+            >
+              <div className="text-sm font-semibold text-zinc-900">
+                Bağlantılarım
+              </div>
+              <div className="mt-1 text-xs text-zinc-500">
+                Sadece bağlı olduğun firmalar görür.
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setVisibility("PUBLIC")}
+              className={`rounded-xl border-2 p-3 text-left transition ${
+                visibility === "PUBLIC"
+                  ? "border-zinc-800 bg-zinc-50"
+                  : "border-zinc-200 hover:border-zinc-300"
+              }`}
+            >
+              <div className="text-sm font-semibold text-zinc-900">
+                Herkese açık
+              </div>
+              <div className="mt-1 text-xs text-zinc-500">
+                Herkes görür; standart üyeler firma adını göremez.
+              </div>
+            </button>
+          </div>
+        </div>
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose} disabled={create.isPending}>

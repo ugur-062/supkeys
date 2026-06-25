@@ -12,9 +12,19 @@ export enum ListingTypeDto {
   SATIS = "SATIS",
 }
 
+export enum ListingVisibilityDto {
+  PUBLIC = "PUBLIC",
+  CONNECTIONS = "CONNECTIONS",
+  PRIVATE = "PRIVATE",
+}
+
 export class CreateListingDto {
   @IsEnum(ListingTypeDto, { message: "Geçersiz ilan tipi" })
   type!: ListingTypeDto;
+
+  @IsOptional()
+  @IsEnum(ListingVisibilityDto, { message: "Geçersiz görünürlük" })
+  visibility?: ListingVisibilityDto;
 
   @IsString()
   @MinLength(3, { message: "Başlık en az 3 karakter olmalı" })

@@ -2264,6 +2264,12 @@ enum ListingStatus {
   CANCELLED
 }
 
+enum ListingVisibility {
+  PUBLIC // herkese açık — standart MASKELİ görür, premium tam
+  CONNECTIONS // sadece bağlantılı firmalar
+  PRIVATE // sadece açıkça davet edilenler (ileride)
+}
+
 // Birleşik sistem — İlan (eski Tender'ın Company-native, sade karşılığı).
 // Kalemler/teklif/sipariş sonraki chunk'larda eklenecek.
 model Listing {
@@ -2275,6 +2281,7 @@ model Listing {
   companyId   String // açan firma
   company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   type        ListingType
+  visibility  ListingVisibility @default(CONNECTIONS)
   title       String
   description String?
   status      ListingStatus @default(OPEN)

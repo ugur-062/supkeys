@@ -17,6 +17,11 @@ export class CompanyListingsController {
     return this.service.listMine(user.companyId);
   }
 
+  @Get("browse")
+  browse(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.browse(user);
+  }
+
   @Post()
   create(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
