@@ -2213,6 +2213,8 @@ model Company {
   connectionsReceived  CompanyConnection[] @relation("ConnInvitee")
   ordersAsSeller       CompanyOrder[]      @relation("OrderSeller")
   ordersAsBuyer        CompanyOrder[]      @relation("OrderBuyer")
+  blocksMade           CompanyBlock[]      @relation("BlockMade")
+  blockedByOthers      CompanyBlock[]      @relation("BlockedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2252,6 +2254,22 @@ model CompanyConnection {
   @@unique([inviterCompanyId, inviteeCompanyId])
   @@index([inviteeCompanyId])
   @@map("company_connections")
+}
+
+// Birleşik sistem — firma engelleme. A, B'yi engellerse karşılıklı görünmezlik:
+// keşif/browse/davet'te ikisi birbirini bulamaz. Engelleyen kaldırabilir.
+model CompanyBlock {
+  id               String  @id @default(cuid())
+  blockerCompanyId String
+  blocker          Company @relation("BlockMade", fields: [blockerCompanyId], references: [id], onDelete: Cascade)
+  blockedCompanyId String
+  blocked          Company @relation("BlockedBy", fields: [blockedCompanyId], references: [id], onDelete: Cascade)
+  reason           String?
+  createdAt        DateTime @default(now())
+
+  @@unique([blockerCompanyId, blockedCompanyId])
+  @@index([blockedCompanyId])
+  @@map("company_blocks")
 }
 
 enum ListingType {

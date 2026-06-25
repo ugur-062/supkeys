@@ -11,13 +11,17 @@ import {
   type ListingVisibility,
 } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { CreateListingDto } from "../dto/create-listing.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
 
 @Injectable()
 export class CompanyListingsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly blocks: CompanyBlocksService,
+  ) {}
 
   /**
    * İlan oluştur. Rol-korumalı: ALIM → SATIN_ALMACI, SATIS → SATISCI.
@@ -111,12 +115,13 @@ export class CompanyListingsService {
    */
   async browse(user: AuthenticatedCompanyUser) {
     const connectedIds = await this.connectedCompanyIds(user.companyId);
+    const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     const isPremium = user.tier === "PAKET";
 
     const rows = await this.prisma.listing.findMany({
       where: {
         status: "OPEN",
-        companyId: { not: user.companyId },
+        companyId: { notIn: [user.companyId, ...blockedIds] },
         OR: [
           { visibility: "PUBLIC" },
           { visibility: "CONNECTIONS", companyId: { in: connectedIds } },

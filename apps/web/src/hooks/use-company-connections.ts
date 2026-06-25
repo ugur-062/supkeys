@@ -84,6 +84,51 @@ export function useInviteConnection() {
   });
 }
 
+export interface BlockedCompany {
+  company: ConnectionCompany;
+  createdAt: string;
+}
+
+export function useBlocks() {
+  return useQuery({
+    queryKey: ["company-blocks"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<BlockedCompany[]>(
+        "/company/blocks",
+      );
+      return data;
+    },
+  });
+}
+
+export function useBlockCompany() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (supkeysId: string) => {
+      const { data } = await companyApi.post<{ name: string }>(
+        "/company/blocks",
+        { supkeysId },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-blocks"] });
+      qc.invalidateQueries({ queryKey: ["company-connections"] });
+    },
+  });
+}
+
+export function useUnblockCompany() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (companyId: string) => {
+      const { data } = await companyApi.delete(`/company/blocks/${companyId}`);
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-blocks"] }),
+  });
+}
+
 export function useRespondInvite() {
   const qc = useQueryClient();
   return useMutation({

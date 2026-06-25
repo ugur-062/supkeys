@@ -6,11 +6,15 @@ import {
 } from "@nestjs/common";
 import { normalizeShortCode, validateShortCode } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 
 @Injectable()
 export class CompanyConnectionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly blocks: CompanyBlocksService,
+  ) {}
 
   /** supkeysId ile hedef firmaya bağlantı daveti gönder. */
   async invite(user: AuthenticatedCompanyUser, supkeysIdRaw: string) {
@@ -28,6 +32,12 @@ export class CompanyConnectionsService {
     }
     if (target.id === user.companyId) {
       throw new BadRequestException("Kendinize davet gönderemezsiniz");
+    }
+
+    // Engel varsa (iki yön) firma "yok" gibi davranır.
+    const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
+    if (blockedIds.includes(target.id)) {
+      throw new NotFoundException("Bu koda sahip firma bulunamadı");
     }
 
     // Her iki yönde mevcut bağlantı/davet var mı?
@@ -136,6 +146,10 @@ export class CompanyConnectionsService {
     for (const c of conns) {
       exclude.add(c.inviterCompanyId);
       exclude.add(c.inviteeCompanyId);
+    }
+    // Engellenenler (iki yön) keşifte görünmez.
+    for (const id of await this.blocks.blockedCompanyIds(user.companyId)) {
+      exclude.add(id);
     }
 
     const companies = await this.prisma.company.findMany({

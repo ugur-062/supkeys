@@ -6,10 +6,13 @@ import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
+  useBlockCompany,
+  useBlocks,
   useConnections,
   useIncomingInvites,
   useInviteConnection,
   useRespondInvite,
+  useUnblockCompany,
 } from "@/hooks/use-company-connections";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useState } from "react";
@@ -21,7 +24,31 @@ export default function BaglantilarPage() {
   const incoming = useIncomingInvites();
   const invite = useInviteConnection();
   const respond = useRespondInvite();
+  const blocks = useBlocks();
+  const blockCompany = useBlockCompany();
+  const unblockCompany = useUnblockCompany();
   const [code, setCode] = useState("");
+  const [blockCode, setBlockCode] = useState("");
+
+  const handleBlock = async () => {
+    if (blockCode.trim().length < 4) return;
+    try {
+      const res = await blockCompany.mutateAsync(blockCode.trim());
+      toast.success(`"${res.name}" engellendi`);
+      setBlockCode("");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Engellenemedi"));
+    }
+  };
+
+  const handleUnblock = async (companyId: string) => {
+    try {
+      await unblockCompany.mutateAsync(companyId);
+      toast.success("Engel kaldırıldı");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "İşlem başarısız"));
+    }
+  };
 
   const handleInvite = async () => {
     if (code.trim().length < 4) return;
@@ -150,6 +177,57 @@ export default function BaglantilarPage() {
             ))}
           </div>
         )}
+      </section>
+
+      {/* Engelleme */}
+      <section className="space-y-3 border-t border-zinc-100 pt-6">
+        <Subheading>Engelleme</Subheading>
+        <Text className="text-sm">
+          Engellediğin firma seni hiçbir aramada/keşfette bulamaz; sen de onu
+          göremezsin. İstediğinde kaldırabilirsin.
+        </Text>
+        <div className="flex gap-2">
+          <Input
+            value={blockCode}
+            onChange={(e) => setBlockCode(e.target.value)}
+            placeholder="Firma kodu (XXXX-XXXX)"
+            className="max-w-xs font-mono"
+          />
+          <Button
+            outline
+            onClick={handleBlock}
+            disabled={blockCompany.isPending}
+          >
+            Engelle
+          </Button>
+        </div>
+
+        {blocks.data && blocks.data.length > 0 ? (
+          <div className="space-y-2 pt-2">
+            {blocks.data.map((b) => (
+              <div
+                key={b.company.id}
+                className="flex items-center justify-between gap-4 rounded-lg border border-red-100 bg-red-50/50 px-4 py-3"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold text-zinc-900">
+                    {b.company.name}
+                  </div>
+                  <div className="font-mono text-xs text-zinc-500">
+                    {b.company.supkeysId}
+                  </div>
+                </div>
+                <Button
+                  plain
+                  onClick={() => handleUnblock(b.company.id)}
+                  disabled={unblockCompany.isPending}
+                >
+                  Engeli Kaldır
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : null}
       </section>
     </div>
   );

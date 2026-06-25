@@ -10,6 +10,7 @@ import { AdminAuthModule } from "./modules/admin-auth/admin-auth.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { CompanyAuthModule } from "./modules/company-auth/company-auth.module";
+import { CompanyBlocksModule } from "./modules/company-blocks/company-blocks.module";
 import { CompanyConnectionsModule } from "./modules/company-connections/company-connections.module";
 import { CompanyInboxModule } from "./modules/company-inbox/company-inbox.module";
 import { CompanyListingsModule } from "./modules/company-listings/company-listings.module";
@@ -96,6 +97,7 @@ import { TenderSchedulerModule } from "./modules/tender-scheduler/tender-schedul
     PermissionsModule,
     AdminAuthModule,
     CompanyAuthModule,
+    CompanyBlocksModule,
     CompanyConnectionsModule,
     CompanyInboxModule,
     CompanyListingsModule,
