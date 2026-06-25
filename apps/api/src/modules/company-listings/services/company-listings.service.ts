@@ -219,7 +219,12 @@ export class CompanyListingsService {
 
     // İngiliz Usulü açık eksiltme: güncel en düşük teklif herkese görünür.
     let english:
-      | { isEnglishAuction: true; currentBest: string | null; bidCount: number }
+      | {
+          isEnglishAuction: true;
+          currentBest: string | null;
+          bidCount: number;
+          currentRound: number;
+        }
       | null = null;
     if (listing.format === "ENGLISH_AUCTION") {
       const agg = await this.prisma.listingBid.aggregate({
@@ -231,6 +236,7 @@ export class CompanyListingsService {
         isEnglishAuction: true,
         currentBest: agg._min.amount ? agg._min.amount.toString() : null,
         bidCount: agg._count,
+        currentRound: listing.currentRound,
       };
     }
 
@@ -293,6 +299,7 @@ export class CompanyListingsService {
           note: b.note,
           isBuyNow: b.isBuyNow,
           status: b.status,
+          round: b.round,
           createdAt: b.createdAt,
           items: b.items.map((bi) => ({
             itemId: bi.itemId,
@@ -361,6 +368,7 @@ export class CompanyListingsService {
         visibility: true,
         status: true,
         requireAllItems: true,
+        currentRound: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -484,11 +492,13 @@ export class CompanyListingsService {
           note: dto.note?.trim() || null,
           createdById: user.userId,
           status: "SUBMITTED",
+          round: listing.currentRound,
         },
         update: {
           amount,
           note: dto.note?.trim() || null,
           status: "SUBMITTED",
+          round: listing.currentRound,
         },
       });
       if (listingItems.length > 0) {
@@ -827,6 +837,33 @@ export class CompanyListingsService {
       return orders;
     });
     return { orders: created, count: created.length };
+  }
+
+  /**
+   * Yeni tur — İngiliz Usulü eksiltmede ilan sahibi turu ilerletir. Tedarikçiler
+   * yeni turda daha düşük teklif verir; teklifler turla damgalanır.
+   */
+  async startNewRound(user: AuthenticatedCompanyUser, listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true, format: true, status: true },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (listing.companyId !== user.companyId) {
+      throw new ForbiddenException("Sadece ilan sahibi yeni tur başlatabilir");
+    }
+    if (listing.format !== "ENGLISH_AUCTION") {
+      throw new BadRequestException("Yeni tur yalnızca İngiliz Usulü eksiltmede");
+    }
+    if (listing.status !== "OPEN") {
+      throw new BadRequestException("İlan teklife kapalı");
+    }
+    const updated = await this.prisma.listing.update({
+      where: { id: listingId },
+      data: { currentRound: { increment: 1 } },
+      select: { currentRound: true },
+    });
+    return { currentRound: updated.currentRound };
   }
 
   /**

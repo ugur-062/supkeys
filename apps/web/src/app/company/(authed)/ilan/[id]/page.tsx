@@ -15,6 +15,7 @@ import {
   useEliminateBid,
   useListingDetail,
   usePlaceBid,
+  useStartNewRound,
   useWithdrawBid,
 } from "@/hooks/use-company-listings";
 import {
@@ -41,6 +42,7 @@ export default function ListingDetailPage() {
   const withdrawBid = useWithdrawBid(id);
   const eliminate = useEliminateBid(id);
   const awardByItem = useAwardByItem(id);
+  const newRound = useStartNewRound(id);
   const categories = useCategoriesByIds(l?.categoryIds ?? []);
   const bidDocs = useBidDocuments(id);
   const uploadBidDoc = useUploadBidDoc(id);
@@ -96,6 +98,17 @@ export default function ListingDetailPage() {
       toast.success("Teklif elendi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Elenemedi"));
+    }
+  };
+
+  const handleNewRound = async () => {
+    if (!confirm("Yeni tur başlatılsın mı? Tedarikçiler daha düşük teklif verir."))
+      return;
+    try {
+      const res = await newRound.mutateAsync();
+      toast.success(`Tur ${res.currentRound} başladı`);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Yeni tur başlatılamadı"));
     }
   };
 
@@ -375,17 +388,33 @@ export default function ListingDetailPage() {
       {/* SAHİP: gelen teklifler */}
       {l.isOwner ? (
         <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Subheading>Gelen Teklifler ({l.bids?.length ?? 0})</Subheading>
-            {l.status === "OPEN" ? (
-              <Button
-                plain
-                onClick={handleCancel}
-                disabled={cancelListing.isPending}
-              >
-                İlanı İptal Et
-              </Button>
-            ) : null}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Subheading>Gelen Teklifler ({l.bids?.length ?? 0})</Subheading>
+              {l.english?.isEnglishAuction ? (
+                <Badge color="amber">Tur {l.english.currentRound}</Badge>
+              ) : null}
+            </div>
+            <div className="flex items-center gap-2">
+              {l.status === "OPEN" && l.english?.isEnglishAuction ? (
+                <Button
+                  outline
+                  onClick={handleNewRound}
+                  disabled={newRound.isPending}
+                >
+                  Yeni Tur Başlat
+                </Button>
+              ) : null}
+              {l.status === "OPEN" ? (
+                <Button
+                  plain
+                  onClick={handleCancel}
+                  disabled={cancelListing.isPending}
+                >
+                  İlanı İptal Et
+                </Button>
+              ) : null}
+            </div>
           </div>
           {/* Kalem-bazlı karşılaştırma — her kalemde en düşük yeşil */}
           {l.items &&
@@ -540,6 +569,9 @@ export default function ListingDetailPage() {
                     <span className="text-sm font-medium text-zinc-900">
                       {b.bidderName}
                     </span>
+                    {l.english?.isEnglishAuction && b.round ? (
+                      <Badge color="zinc">Tur {b.round}</Badge>
+                    ) : null}
                     {(bidDocs.data ?? [])
                       .filter((d) => d.bidId === b.id)
                       .map((d) => (
@@ -598,7 +630,8 @@ export default function ListingDetailPage() {
                 <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
                   <div>
                     <div className="text-xs font-medium text-amber-700">
-                      Açık eksiltme · güncel en düşük
+                      Açık eksiltme · Tur {l.english.currentRound} · güncel en
+                      düşük
                     </div>
                     <div className="text-lg font-bold text-amber-900">
                       {l.english.currentBest

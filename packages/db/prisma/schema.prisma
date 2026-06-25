@@ -488,6 +488,7 @@ model ListingBid {
   // Hemen-Al ile verilen teklif (tavan fiyattan). Yine de sahip onaylar.
   isBuyNow    Boolean          @default(false)
   status      ListingBidStatus @default(SUBMITTED)
+  round       Int              @default(1) // hangi turda verildi/güncellendi
   createdById String // CompanyUser (teklifi veren kişi)
 
   items     ListingBidItem[]
@@ -558,6 +559,8 @@ model Listing {
   status      ListingStatus @default(OPEN)
   closesAt    DateTime?
   createdById String // CompanyUser id (açan kişi)
+  // İngiliz Usulü çok-turlu eksiltme — alıcı tur tur ilerletir (eski yeni-tur).
+  currentRound Int @default(1)
 
   // İhale (ALIM) zenginleştirme — eski alıcı paneli kuralları.
   categoryIds        String[]   @default([]) // UNGM UNSPSC TR kategori kodları

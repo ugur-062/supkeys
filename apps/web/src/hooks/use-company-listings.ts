@@ -121,6 +121,7 @@ export interface ListingBidRow {
   note: string | null;
   isBuyNow: boolean;
   status: string;
+  round?: number;
   createdAt: string;
   items?: ListingBidItemRow[];
 }
@@ -174,6 +175,7 @@ export interface ListingDetail {
     isEnglishAuction: true;
     currentBest: string | null;
     bidCount: number;
+    currentRound: number;
   } | null;
 }
 
@@ -264,6 +266,20 @@ export function useAwardByItem(id: string) {
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["company-listings"] }),
+  });
+}
+
+export function useStartNewRound(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post<{ currentRound: number }>(
+        `/company/listings/${id}/new-round`,
+      );
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] }),
   });
 }
 

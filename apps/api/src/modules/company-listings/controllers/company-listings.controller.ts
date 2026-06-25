@@ -76,6 +76,14 @@ export class CompanyListingsController {
     return this.service.awardByItem(user, id, dto.itemAwards);
   }
 
+  @Post(":id/new-round")
+  newRound(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.startNewRound(user, id);
+  }
+
   @Post(":id/bids/:bidId/eliminate")
   eliminate(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
