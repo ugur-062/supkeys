@@ -12,6 +12,7 @@ import {
 import { PlusIcon } from "@heroicons/react/20/solid";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
+import Link from "next/link";
 import { useState } from "react";
 import { NewListingDialog } from "./_components/new-listing-dialog";
 
@@ -84,9 +85,10 @@ export default function IlanlarPage() {
         ) : (
           <div className="space-y-2">
             {mine.data.map((l) => (
-              <div
+              <Link
                 key={l.id}
-                className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3"
+                href={`/company/ilanlar/${l.id}`}
+                className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3 hover:bg-zinc-50 transition"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <TypeBadge type={l.type} />
@@ -106,7 +108,7 @@ export default function IlanlarPage() {
                   </div>
                 </div>
                 <Badge color="zinc">{STATUS_LABEL[l.status]}</Badge>
-              </div>
+              </Link>
             ))}
           </div>
         )
@@ -122,9 +124,10 @@ export default function IlanlarPage() {
       ) : (
         <div className="space-y-2">
           {browse.data.map((l) => (
-            <div
+            <Link
               key={l.id}
-              className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3"
+              href={`/company/ilanlar/${l.id}`}
+              className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3 hover:bg-zinc-50 transition"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <TypeBadge type={l.type} />
@@ -148,7 +151,7 @@ export default function IlanlarPage() {
               ) : (
                 <Badge color="amber">Premium gerekir</Badge>
               )}
-            </div>
+            </Link>
           ))}
         </div>
       )}

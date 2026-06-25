@@ -2208,6 +2208,7 @@ model Company {
 
   users                CompanyUser[]
   listings             Listing[]
+  bidsPlaced           ListingBid[]        @relation("BidderCompany")
   connectionsInitiated CompanyConnection[] @relation("ConnInviter")
   connectionsReceived  CompanyConnection[] @relation("ConnInvitee")
 
@@ -2256,6 +2257,38 @@ enum ListingType {
   SATIS // satış ilanı (forward — fiyat çıkar, en yüksek kazanır)
 }
 
+enum ListingBidStatus {
+  SUBMITTED
+  WITHDRAWN
+  WON
+  LOST
+}
+
+// Birleşik sistem — bir firmanın bir ilana teklifi. Bir firma bir ilana TEK
+// teklif verir (güncellenebilir). Yön ilan tipine göre: ALIM→düşük iyi,
+// SATIS→yüksek iyi. Kapalı zarf: teklif verenler birbirini görmez; ilan
+// sahibi hepsini görür.
+model ListingBid {
+  id              String  @id @default(cuid())
+  listingId       String
+  listing         Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  bidderCompanyId String
+  bidderCompany   Company @relation("BidderCompany", fields: [bidderCompanyId], references: [id], onDelete: Cascade)
+
+  amount      Decimal          @db.Decimal(18, 2)
+  note        String?
+  status      ListingBidStatus @default(SUBMITTED)
+  createdById String // CompanyUser (teklifi veren kişi)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([listingId, bidderCompanyId])
+  @@index([listingId])
+  @@index([bidderCompanyId])
+  @@map("listing_bids")
+}
+
 enum ListingStatus {
   DRAFT
   OPEN
@@ -2287,6 +2320,8 @@ model Listing {
   status      ListingStatus @default(OPEN)
   closesAt    DateTime?
   createdById String // CompanyUser id (açan kişi)
+
+  bids ListingBid[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

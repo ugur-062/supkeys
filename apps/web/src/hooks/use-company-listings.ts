@@ -68,6 +68,62 @@ export function useBrowseListings() {
   });
 }
 
+export interface ListingBidRow {
+  id: string;
+  bidderName: string;
+  amount: string;
+  note: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export interface ListingDetail {
+  id: string;
+  number: string | null;
+  type: ListingType;
+  visibility: ListingVisibility;
+  title: string;
+  description: string | null;
+  status: ListingStatus;
+  closesAt: string | null;
+  createdAt: string;
+  owner: { name: string } | null;
+  isOwner: boolean;
+  // sahip:
+  bids?: ListingBidRow[];
+  // sahip değil:
+  masked?: boolean;
+  canBid?: boolean;
+  myBid?: { amount: string; note: string | null; status: string } | null;
+}
+
+export function useListingDetail(id: string) {
+  return useQuery({
+    queryKey: ["company-listings", "detail", id],
+    queryFn: async () => {
+      const { data } = await companyApi.get<ListingDetail>(
+        `/company/listings/${id}`,
+      );
+      return data;
+    },
+  });
+}
+
+export function usePlaceBid(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { amount: number; note?: string }) => {
+      const { data } = await companyApi.post(
+        `/company/listings/${id}/bids`,
+        input,
+      );
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] }),
+  });
+}
+
 export function useCreateListing() {
   const qc = useQueryClient();
   return useMutation({
