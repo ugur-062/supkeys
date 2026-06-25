@@ -66,6 +66,15 @@ export class CompanyListingsController {
     return this.service.award(user, id, dto.bidId);
   }
 
+  @Post(":id/bids/:bidId/eliminate")
+  eliminate(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Param("bidId") bidId: string,
+  ) {
+    return this.service.eliminate(user, id, bidId);
+  }
+
   @Post(":id/cancel")
   cancel(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,

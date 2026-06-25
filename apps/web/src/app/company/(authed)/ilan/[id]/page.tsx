@@ -11,6 +11,7 @@ import {
   useAwardListing,
   useBuyNow,
   useCancelListing,
+  useEliminateBid,
   useListingDetail,
   usePlaceBid,
   useWithdrawBid,
@@ -31,6 +32,7 @@ export default function ListingDetailPage() {
   const buyNow = useBuyNow(id);
   const cancelListing = useCancelListing(id);
   const withdrawBid = useWithdrawBid(id);
+  const eliminate = useEliminateBid(id);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
@@ -70,6 +72,16 @@ export default function ListingDetailPage() {
       toast.success(`Kazandırıldı — sipariş ${res.number} oluştu`);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Kazandırılamadı"));
+    }
+  };
+
+  const handleEliminate = async (bidId: string, bidderName: string) => {
+    if (!confirm(`"${bidderName}" elensin mi? Yeniden teklif verebilir.`)) return;
+    try {
+      await eliminate.mutateAsync(bidId);
+      toast.success("Teklif elendi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Elenemedi"));
     }
   };
 
@@ -290,6 +302,70 @@ export default function ListingDetailPage() {
               </Button>
             ) : null}
           </div>
+          {/* Kalem-bazlı karşılaştırma — her kalemde en düşük yeşil */}
+          {l.items &&
+          l.items.length > 0 &&
+          l.bids &&
+          l.bids.some((b) => b.items && b.items.length > 0) ? (
+            <div className="space-y-2">
+              <Subheading>Kalem Karşılaştırma</Subheading>
+              <div className="overflow-x-auto rounded-xl border border-zinc-950/10">
+                <table className="min-w-full text-sm">
+                  <thead className="bg-zinc-50 text-xs text-zinc-500">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">Kalem</th>
+                      {l.bids.map((b) => (
+                        <th
+                          key={b.id}
+                          className="px-3 py-2 text-right font-medium whitespace-nowrap"
+                        >
+                          {b.bidderName}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-100">
+                    {l.items.map((it) => {
+                      const prices = (l.bids ?? []).map((b) => {
+                        const bi = b.items?.find((x) => x.itemId === it.id);
+                        return bi ? Number(bi.unitPrice) : null;
+                      });
+                      const valid = prices.filter(
+                        (p): p is number => p != null && p > 0,
+                      );
+                      const min = valid.length ? Math.min(...valid) : null;
+                      return (
+                        <tr key={it.id}>
+                          <td className="px-3 py-2 text-zinc-900 whitespace-nowrap">
+                            {it.name}{" "}
+                            <span className="text-xs text-zinc-400">
+                              ({Number(it.quantity).toLocaleString("tr-TR")}{" "}
+                              {it.unit})
+                            </span>
+                          </td>
+                          {prices.map((p, bi) => (
+                            <td
+                              key={bi}
+                              className={`px-3 py-2 text-right font-mono whitespace-nowrap ${
+                                p != null && p === min
+                                  ? "bg-emerald-50 font-semibold text-emerald-700"
+                                  : "text-zinc-600"
+                              }`}
+                            >
+                              {p != null
+                                ? `${p.toLocaleString("tr-TR")} ₺`
+                                : "—"}
+                            </td>
+                          ))}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
+
           {!l.bids || l.bids.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-8 text-center">
               <Text className="text-sm text-zinc-500">Henüz teklif yok.</Text>
@@ -322,13 +398,22 @@ export default function ListingDetailPage() {
                     <span className="font-mono text-sm font-semibold text-zinc-900">
                       {Number(b.amount).toLocaleString("tr-TR")} ₺
                     </span>
-                    {l.status === "OPEN" ? (
-                      <Button
-                        onClick={() => handleAward(b.id, b.bidderName)}
-                        disabled={award.isPending}
-                      >
-                        Kazandır
-                      </Button>
+                    {l.status === "OPEN" && b.status === "SUBMITTED" ? (
+                      <>
+                        <Button
+                          plain
+                          onClick={() => handleEliminate(b.id, b.bidderName)}
+                          disabled={eliminate.isPending}
+                        >
+                          Ele
+                        </Button>
+                        <Button
+                          onClick={() => handleAward(b.id, b.bidderName)}
+                          disabled={award.isPending}
+                        >
+                          Kazandır
+                        </Button>
+                      </>
                     ) : null}
                   </div>
                 </div>

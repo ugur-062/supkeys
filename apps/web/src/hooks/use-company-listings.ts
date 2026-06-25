@@ -249,6 +249,20 @@ export function useWithdrawBid(id: string) {
   });
 }
 
+export function useEliminateBid(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (bidId: string) => {
+      const { data } = await companyApi.post(
+        `/company/listings/${id}/bids/${bidId}/eliminate`,
+      );
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] }),
+  });
+}
+
 export function useAwardListing(id: string) {
   const qc = useQueryClient();
   return useMutation({

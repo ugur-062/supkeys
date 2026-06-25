@@ -644,6 +644,40 @@ export class CompanyListingsService {
     return { orderId: order.id, number: order.number };
   }
 
+  /**
+   * Eleme — ilan sahibi tek bir SUBMITTED teklifi LOST yapar (kazandırmadan).
+   * Elenen tedarikçi yeniden teklif verebilir (placeBid SUBMITTED'a döndürür).
+   */
+  async eliminate(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    bidId: string,
+  ) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true, status: true },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (listing.companyId !== user.companyId) {
+      throw new ForbiddenException("Sadece ilan sahibi eleme yapabilir");
+    }
+    if (listing.status !== "OPEN") {
+      throw new BadRequestException("İlan teklife kapalı");
+    }
+    const bid = await this.prisma.listingBid.findUnique({
+      where: { id: bidId },
+      select: { id: true, listingId: true, status: true },
+    });
+    if (!bid || bid.listingId !== listingId || bid.status !== "SUBMITTED") {
+      throw new BadRequestException("Geçersiz teklif");
+    }
+    await this.prisma.listingBid.update({
+      where: { id: bidId },
+      data: { status: "LOST" },
+    });
+    return { ok: true };
+  }
+
   /** İlan sahibi açık ilanı iptal eder (kazandırmadan kapatır). */
   async cancel(user: AuthenticatedCompanyUser, listingId: string) {
     const listing = await this.prisma.listing.findUnique({
