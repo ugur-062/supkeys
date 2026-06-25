@@ -9,18 +9,24 @@ import {
   DisclosurePanel,
 } from "@headlessui/react";
 import {
+  ArrowLongLeftIcon,
+  ArrowLongRightIcon,
   ArrowsRightLeftIcon,
   Bars3Icon,
   ClipboardDocumentCheckIcon,
+  DocumentPlusIcon,
   GlobeAltIcon,
+  InboxArrowDownIcon,
   LockClosedIcon,
   MinusSmallIcon,
   PlusSmallIcon,
+  TrophyIcon,
+  UserPlusIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { CheckIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const navigation = [
   { name: "Özellikler", href: "#ozellikler" },
@@ -43,9 +49,9 @@ const features = [
     icon: LockClosedIcon,
   },
   {
-    name: "Bağlan & keşfet",
+    name: "Yurtiçi & uluslararası",
     description:
-      "Kategori eşleşmeli firma keşfi, bağlantı ağı, davet. Ağındaki firmalarla güvenle ticaret yap.",
+      "Kategori eşleşmeli firma keşfi, bağlantı ağı, davet. 98 ülkede; yurtiçi ya da sınır ötesi firmalarla güvenle ticaret yap.",
     icon: GlobeAltIcon,
   },
   {
@@ -57,17 +63,17 @@ const features = [
 ];
 
 const stats = [
-  { v: "2 yön", l: "Tek hesapla hem al hem sat" },
+  { v: "98 ülke", l: "Yurtiçi & uluslararası al-sat" },
   { v: "%100", l: "Kapalı zarf — teklifler gizli" },
   { v: "0 ₺", l: "Koltuk ücreti, sınırsız rol" },
   { v: "Tek panel", l: "İlandan dekonta tüm akış" },
 ];
 
 const steps = [
-  { n: "01", t: "Kaydol", d: "Firma hesabını oluştur, ekibini davet et, rolleri ata." },
-  { n: "02", t: "İlanını aç", d: "Alım ya da satış ilanı; kapsam, format ve fiyatı belirle." },
-  { n: "03", t: "Teklif topla", d: "Bağlantıların ve keşfettiğin firmalar kapalı zarf teklif verir." },
-  { n: "04", t: "Kazandır & yönet", d: "En iyisini seç, sipariş oluşsun; kargo/teslim/dekont akışını takip et." },
+  { n: "01", t: "Kaydol", d: "Firma hesabını oluştur, ekibini davet et, rolleri ata.", icon: UserPlusIcon },
+  { n: "02", t: "İlanını aç", d: "Alım ya da satış ilanı; kapsam, format ve fiyatı belirle.", icon: DocumentPlusIcon },
+  { n: "03", t: "Teklif topla", d: "Bağlantıların ve keşfettiğin firmalar kapalı zarf teklif verir.", icon: InboxArrowDownIcon },
+  { n: "04", t: "Kazandır & yönet", d: "En iyisini seç, sipariş oluşsun; kargo/teslim/dekont akışını takip et.", icon: TrophyIcon },
 ];
 
 const standartFeatures = [
@@ -158,6 +164,15 @@ const previewRows = [
 const previewNav = ["İşlerim", "İlanlar", "Teklifler", "Siparişler", "Bağlantılar", "Keşfet"];
 
 function AppPreview() {
+  const [active, setActive] = useState(0);
+  useEffect(() => {
+    const id = setInterval(
+      () => setActive((a) => (a + 1) % previewRows.length),
+      1900,
+    );
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div className="rounded-2xl bg-zinc-950 p-2 shadow-2xl ring-1 ring-zinc-950/10">
       <div className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-200">
@@ -187,21 +202,39 @@ function AppPreview() {
           </div>
           {/* ana içerik */}
           <div className="flex-1 bg-zinc-50/60 p-5 sm:p-6">
-            <div className="text-base font-semibold text-zinc-900">İşlerim</div>
+            <div className="flex items-center gap-2">
+              <div className="text-base font-semibold text-zinc-900">
+                İşlerim
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+                canlı
+              </span>
+            </div>
             <p className="mt-0.5 text-xs text-zinc-500">
               Dikkat bekleyen işler — alım ve satım, tek akışta
             </p>
             <div className="mt-4 space-y-2">
-              {previewRows.map((r) => (
+              {previewRows.map((r, i) => (
                 <div
                   key={r.t}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-zinc-950/5 bg-white px-3 py-2.5 shadow-sm"
+                  className={`flex items-center justify-between gap-3 rounded-lg border bg-white px-3 py-2.5 transition-all duration-500 ${
+                    i === active
+                      ? "-translate-y-0.5 border-zinc-300 shadow-md ring-1 ring-zinc-900/10"
+                      : "border-zinc-950/5 shadow-sm"
+                  }`}
                 >
                   <div className="flex min-w-0 items-center gap-2.5">
                     <span className={`size-2 shrink-0 rounded-full ${r.dot}`} />
                     <span className="truncate text-sm text-zinc-800">{r.t}</span>
                   </div>
-                  <span className="shrink-0 rounded-md bg-zinc-900 px-2.5 py-1 text-xs font-medium text-white">
+                  <span
+                    className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                      i === active
+                        ? "bg-zinc-900 text-white"
+                        : "bg-zinc-100 text-zinc-500"
+                    }`}
+                  >
                     {r.a}
                   </span>
                 </div>
@@ -213,6 +246,220 @@ function AppPreview() {
     </div>
   );
 }
+
+function FloatingCard({
+  className,
+  dot,
+  title,
+  sub,
+  float = "rt-float",
+}: {
+  className: string;
+  dot?: string;
+  title: string;
+  sub?: string;
+  float?: string;
+}) {
+  return (
+    <div
+      className={`absolute z-10 hidden w-max max-w-[13rem] rounded-xl border border-zinc-950/5 bg-white/90 px-4 py-3 shadow-xl ring-1 ring-zinc-950/5 backdrop-blur xl:block ${float} ${className}`}
+    >
+      <div className="flex items-center gap-2">
+        {dot ? <span className={`size-2 shrink-0 rounded-full ${dot}`} /> : null}
+        <span className="text-sm font-semibold text-zinc-900">{title}</span>
+      </div>
+      {sub ? <div className="mt-0.5 text-xs text-zinc-500">{sub}</div> : null}
+    </div>
+  );
+}
+
+function TwoWayArrows() {
+  return (
+    <div className="flex shrink-0 rotate-90 flex-col items-center justify-center gap-0.5 py-1 sm:rotate-0 sm:px-1 sm:py-0">
+      <ArrowLongRightIcon className="rt-nudge-r size-6 text-zinc-400" />
+      <ArrowLongLeftIcon className="rt-nudge-l size-6 text-zinc-400" />
+    </div>
+  );
+}
+
+function ListingWizardPreview() {
+  return (
+    <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
+      <div className="text-sm font-semibold text-zinc-900">Yeni İlan</div>
+      <div className="mt-0.5 text-xs text-zinc-500">
+        Kapsam → Tür → Format → Detay
+      </div>
+      <div className="mt-4 space-y-4">
+        <div>
+          <div className="text-xs font-medium text-zinc-500">Kapsam</div>
+          <div className="mt-1.5 grid grid-cols-2 gap-2">
+            <div className="rounded-lg border-2 border-zinc-900 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-900">
+              Yurtiçi
+            </div>
+            <div className="rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-400">
+              Uluslararası
+            </div>
+          </div>
+        </div>
+        <div>
+          <div className="text-xs font-medium text-zinc-500">Tür</div>
+          <div className="mt-1.5 grid grid-cols-2 gap-2">
+            <div className="flex items-center gap-2 rounded-lg border-2 border-blue-500 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700">
+              <span className="size-2 rounded-full bg-blue-500" />
+              Alım
+            </div>
+            <div className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-400">
+              <span className="size-2 rounded-full bg-emerald-500" />
+              Satış
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="mt-5 w-full rounded-lg bg-zinc-950 py-2 text-center text-sm font-semibold text-white">
+        Devam
+      </div>
+    </div>
+  );
+}
+
+function BidsPreview() {
+  const bids = [
+    { n: "Firma B", a: "11.900 ₺", best: true },
+    { n: "Firma A", a: "12.500 ₺", best: false },
+    { n: "Firma C", a: "13.200 ₺", best: false },
+  ];
+  return (
+    <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-semibold text-zinc-900">Gelen Teklifler</div>
+        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">
+          Kapalı zarf
+        </span>
+      </div>
+      <div className="mt-4 space-y-2">
+        {bids.map((b) => (
+          <div
+            key={b.n}
+            className={`flex items-center justify-between rounded-lg border px-3 py-2.5 ${
+              b.best ? "border-emerald-300 bg-emerald-50" : "border-zinc-200"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {b.best ? (
+                <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                  EN İYİ
+                </span>
+              ) : null}
+              <span className="text-sm font-medium text-zinc-800">{b.n}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-zinc-900">{b.a}</span>
+              {b.best ? (
+                <span className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white">
+                  Kazandır
+                </span>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-xs text-zinc-400">
+        Tedarikçiler birbirinin teklifini görmez.
+      </p>
+    </div>
+  );
+}
+
+function OrderTimelinePreview() {
+  const tl = [
+    { t: "Sipariş oluştu", state: "done" },
+    { t: "Kargoya verildi", state: "done" },
+    { t: "Teslim alındı", state: "active" },
+    { t: "Tamamlandı", state: "todo" },
+  ];
+  return (
+    <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
+      <div className="flex items-center justify-between">
+        <div className="font-mono text-sm font-semibold text-zinc-900">
+          ROT-ORD-000128
+        </div>
+        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+          Teslimde
+        </span>
+      </div>
+      <ol className="mt-5 space-y-4">
+        {tl.map((s, i) => (
+          <li key={s.t} className="flex items-center gap-3">
+            <span
+              className={`flex size-6 items-center justify-center rounded-full text-xs font-semibold ${
+                s.state === "done"
+                  ? "bg-emerald-600 text-white"
+                  : s.state === "active"
+                    ? "bg-zinc-900 text-white"
+                    : "bg-zinc-100 text-zinc-400"
+              }`}
+            >
+              {s.state === "done" ? "✓" : i + 1}
+            </span>
+            <span
+              className={`text-sm ${
+                s.state === "todo"
+                  ? "text-zinc-400"
+                  : "font-medium text-zinc-900"
+              }`}
+            >
+              {s.t}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <div className="mt-5 flex gap-2">
+        <span className="rounded-md bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600">
+          Teslim belgesi
+        </span>
+        <span className="rounded-md bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600">
+          Dekont
+        </span>
+      </div>
+    </div>
+  );
+}
+
+const spotlights = [
+  {
+    eyebrow: "İlan oluştur",
+    title: "Saniyeler içinde, doğru formatta",
+    desc: "Kapsam, tür ve format adım adım sorulur; alımda RFQ ya da İngiliz usulü, satışta taban + hemen-al fiyatı. Yanlış kurulum imkânsız.",
+    points: [
+      "Yurtiçi & uluslararası kapsam",
+      "Alım: RFQ veya açık eksiltme",
+      "Satış: taban fiyat + hemen-al",
+    ],
+    Mock: ListingWizardPreview,
+  },
+  {
+    eyebrow: "Kapalı zarf",
+    title: "Adil rekabet, tam şeffaflık",
+    desc: "Tedarikçiler birbirini görmez; sen tüm teklifleri görür, en iyisini tek tıkla kazandırırsın. Elenen tedarikçi yeniden teklif verebilir.",
+    points: [
+      "Teklifler gizli ve sıralı",
+      "Toplu ya da kalem bazlı kazandırma",
+      "Denetlenebilir, kalıcı geçmiş",
+    ],
+    Mock: BidsPreview,
+  },
+  {
+    eyebrow: "Sipariş & belge",
+    title: "Kazandırmadan dekonta",
+    desc: "Kazandırma anında sipariş oluşur (satıcı→alıcı). Kargo, teslim ve ödeme adımlarını takip et; teslim belgesi ile dekontu panele yükle.",
+    points: [
+      "Otomatik satıcı→alıcı sipariş",
+      "Kargo / teslim / ödeme durumları",
+      "İrsaliye, konşimento & dekont",
+    ],
+    Mock: OrderTimelinePreview,
+  },
+];
 
 export default function HomePage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -323,7 +570,32 @@ export default function HomePage() {
       </header>
 
       {/* Hero */}
-      <section className="relative isolate overflow-hidden px-6 lg:px-8">
+      <section className="relative isolate overflow-hidden px-6 pb-20 lg:px-8">
+        {/* grid arka plan */}
+        <svg
+          aria-hidden="true"
+          className="absolute inset-0 -z-10 size-full stroke-zinc-200 [mask-image:radial-gradient(64rem_48rem_at_50%_-4rem,white,transparent)]"
+        >
+          <defs>
+            <pattern
+              id="hero-grid"
+              width={48}
+              height={48}
+              x="50%"
+              y={-1}
+              patternUnits="userSpaceOnUse"
+            >
+              <path d="M.5 48V.5H48" fill="none" />
+            </pattern>
+          </defs>
+          <rect
+            width="100%"
+            height="100%"
+            strokeWidth={0}
+            fill="url(#hero-grid)"
+          />
+        </svg>
+        {/* yumuşak gradient */}
         <div
           aria-hidden="true"
           className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80"
@@ -336,11 +608,40 @@ export default function HomePage() {
             className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36rem] -translate-x-1/2 rotate-30 bg-gradient-to-tr from-zinc-300 to-zinc-500 opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72rem]"
           />
         </div>
-        <div className="mx-auto max-w-3xl pt-24 pb-16 sm:pt-32 lg:pt-40">
+
+        {/* uçuşan sistem kartları — sağı/solu doldurur */}
+        <FloatingCard
+          className="top-[22%] left-[2%] xl:left-[6%]"
+          float="rt-float"
+          dot="bg-blue-500"
+          title="Çelik alımı"
+          sub="3 yeni teklif geldi"
+        />
+        <FloatingCard
+          className="top-[40%] left-[4%] xl:left-[9%]"
+          float="rt-float-slow"
+          title="🌍 98 ülke"
+          sub="Sınır ötesi alım & satım"
+        />
+        <FloatingCard
+          className="top-[26%] right-[2%] xl:right-[6%]"
+          float="rt-float-slow"
+          dot="bg-emerald-500"
+          title="Sipariş kargolandı"
+          sub="ROT-ORD-000128"
+        />
+        <FloatingCard
+          className="top-[60%] right-[4%] xl:right-[9%]"
+          float="rt-float"
+          title="Yeni bağlantı"
+          sub="Üçüncü Firma · kabul edildi"
+        />
+
+        <div className="mx-auto max-w-3xl pt-24 pb-16 sm:pt-32 lg:pt-36">
           <div className="mb-8 flex justify-center">
-            <div className="inline-flex items-center gap-2 rounded-full bg-zinc-100 px-3 py-1 text-sm/6 font-medium text-zinc-700 ring-1 ring-zinc-950/10">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-sm/6 font-medium text-zinc-700 ring-1 ring-zinc-950/10 backdrop-blur">
               <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-              AI destekli B2B ticaret platformu
+              Yurtiçi & uluslararası · AI destekli B2B ticaret
             </div>
           </div>
           <div className="text-center">
@@ -350,8 +651,9 @@ export default function HomePage() {
             </h1>
             <p className="mx-auto mt-8 max-w-2xl text-lg font-medium text-pretty text-zinc-600 sm:text-xl/8">
               Alım ilanı aç, kapalı zarf teklif topla; ya da fazlanı sat.
-              Firmalarla bağlan, ihaleyi yönet, siparişi belgesine kadar takip
-              et. Şeffaf, denetlenebilir, AI destekli.
+              Yurtiçinde veya 98 ülkede firmalarla bağlan, ihaleyi yönet,
+              siparişi belgesine kadar takip et. Şeffaf, denetlenebilir, AI
+              destekli.
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-4">
               <Link
@@ -369,8 +671,8 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-        {/* Ürün önizleme */}
-        <div className="mx-auto max-w-5xl pb-20">
+        {/* Ürün önizleme (canlı) */}
+        <div className="relative mx-auto max-w-5xl">
           <AppPreview />
         </div>
       </section>
@@ -392,7 +694,7 @@ export default function HomePage() {
       {/* Özellikler */}
       <section id="ozellikler" className="py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl lg:mx-0">
+          <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
               Tek hesap, iki yön, tam kontrol
             </h2>
@@ -401,7 +703,41 @@ export default function HomePage() {
               hem alır hem satar; yetki, görünürlük ve akış otomatik yönetilir.
             </p>
           </div>
-          <div className="mx-auto mt-16 max-w-2xl sm:mt-20 lg:max-w-none">
+
+          {/* İki yön diyagramı — animasyonlu oklar */}
+          <div className="mx-auto mt-14 flex max-w-3xl flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-1">
+            <div className="flex-1 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-center transition hover:-translate-y-1 hover:shadow-md">
+              <div className="mx-auto flex size-11 items-center justify-center rounded-xl bg-blue-600">
+                <InboxArrowDownIcon className="size-6 text-white" />
+              </div>
+              <div className="mt-3 text-base font-semibold text-blue-900">
+                Alım
+              </div>
+              <div className="text-xs text-blue-700/80">Satın Almacı rolü</div>
+            </div>
+            <TwoWayArrows />
+            <div className="flex-1 rounded-2xl bg-[#0A0A0A] p-5 text-center shadow-xl">
+              <div className="mx-auto flex size-11 items-center justify-center rounded-xl bg-white/10">
+                <ArrowsRightLeftIcon className="size-6 text-white" />
+              </div>
+              <div className="mt-3 text-base font-semibold text-white">
+                Tek Firma Hesabı
+              </div>
+              <div className="text-xs text-zinc-400">Tek panel · tüm yetki</div>
+            </div>
+            <TwoWayArrows />
+            <div className="flex-1 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center transition hover:-translate-y-1 hover:shadow-md">
+              <div className="mx-auto flex size-11 items-center justify-center rounded-xl bg-emerald-600">
+                <DocumentPlusIcon className="size-6 text-white" />
+              </div>
+              <div className="mt-3 text-base font-semibold text-emerald-900">
+                Satım
+              </div>
+              <div className="text-xs text-emerald-700/80">Satışçı rolü</div>
+            </div>
+          </div>
+
+          <div className="mx-auto mt-20 max-w-2xl sm:mt-24 lg:max-w-none">
             <dl className="grid max-w-xl grid-cols-1 gap-8 lg:max-w-none lg:grid-cols-2">
               {features.map((feature) => (
                 <div
@@ -427,6 +763,49 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Görsel spotlight'lar */}
+      <section className="py-24 sm:py-32">
+        <div className="mx-auto max-w-7xl space-y-24 px-6 sm:space-y-32 lg:px-8">
+          {spotlights.map((s, i) => {
+            const Mock = s.Mock;
+            return (
+              <div
+                key={s.eyebrow}
+                className="grid items-center gap-12 lg:grid-cols-2"
+              >
+                <div className={i % 2 === 1 ? "lg:order-last" : ""}>
+                  <h3 className="text-sm font-semibold text-zinc-500">
+                    {s.eyebrow}
+                  </h3>
+                  <p className="mt-2 text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
+                    {s.title}
+                  </p>
+                  <p className="mt-4 text-lg/8 text-zinc-600">{s.desc}</p>
+                  <ul role="list" className="mt-6 space-y-3">
+                    {s.points.map((p) => (
+                      <li key={p} className="flex gap-x-3 text-zinc-700">
+                        <CheckIcon
+                          aria-hidden="true"
+                          className="h-6 w-5 flex-none text-zinc-900"
+                        />
+                        <span className="text-base">{p}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="relative">
+                  <div
+                    aria-hidden="true"
+                    className="absolute -inset-4 -z-10 rounded-[2rem] bg-gradient-to-tr from-zinc-100 to-white"
+                  />
+                  <Mock />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Nasıl çalışır */}
       <section
         id="nasil"
@@ -441,21 +820,34 @@ export default function HomePage() {
               Kayıttan kazandırmaya, oradan siparişe — her şey tek panelde.
             </p>
           </div>
-          <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-8 sm:mt-20 sm:grid-cols-2 lg:max-w-none lg:grid-cols-4">
-            {steps.map((s) => (
-              <div
-                key={s.n}
-                className="rounded-2xl bg-white p-6 ring-1 ring-zinc-950/5 transition hover:-translate-y-1 hover:shadow-lg"
-              >
-                <div className="font-mono text-sm font-semibold text-zinc-400">
-                  {s.n}
+          <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-y-6 sm:mt-20 sm:grid-cols-2 sm:gap-6 lg:max-w-none lg:grid-cols-4 lg:gap-x-5">
+            {steps.map((s, i) => {
+              const Icon = s.icon;
+              return (
+                <div key={s.n} className="relative">
+                  {i < steps.length - 1 ? (
+                    <ArrowLongRightIcon
+                      aria-hidden="true"
+                      className="rt-nudge-r absolute top-9 -right-3.5 z-10 hidden size-8 text-zinc-300 lg:block"
+                    />
+                  ) : null}
+                  <div className="h-full rounded-2xl border border-zinc-200 bg-white p-6 transition hover:-translate-y-1 hover:border-zinc-300 hover:shadow-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex size-12 items-center justify-center rounded-xl bg-zinc-950">
+                        <Icon aria-hidden="true" className="size-6 text-white" />
+                      </div>
+                      <span className="font-mono text-3xl font-bold text-zinc-200">
+                        {s.n}
+                      </span>
+                    </div>
+                    <div className="mt-4 text-lg font-semibold text-zinc-950">
+                      {s.t}
+                    </div>
+                    <p className="mt-1.5 text-sm/6 text-zinc-600">{s.d}</p>
+                  </div>
                 </div>
-                <div className="mt-3 text-lg font-semibold text-zinc-950">
-                  {s.t}
-                </div>
-                <p className="mt-2 text-sm/6 text-zinc-600">{s.d}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>

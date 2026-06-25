@@ -146,3 +146,33 @@
     font-size: 16px;
   }
 }
+
+/* Anasayfa — hafif hareket (float) ve giriş animasyonları */
+@keyframes rt-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-12px); }
+}
+@keyframes rt-float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.rt-float { animation: rt-float 6s ease-in-out infinite; }
+.rt-float-slow { animation: rt-float-slow 8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .rt-float, .rt-float-slow { animation: none; }
+}
+
+/* Anasayfa — ok nudge animasyonları (akış hissi) */
+@keyframes rt-nudge-r {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(5px); }
+}
+@keyframes rt-nudge-l {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-5px); }
+}
+.rt-nudge-r { animation: rt-nudge-r 1.4s ease-in-out infinite; }
+.rt-nudge-l { animation: rt-nudge-l 1.4s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .rt-nudge-r, .rt-nudge-l { animation: none; }
+}
