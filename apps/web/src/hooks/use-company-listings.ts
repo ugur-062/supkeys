@@ -109,6 +109,12 @@ export interface ListingDetail {
   masked?: boolean;
   canBid?: boolean;
   myBid?: { amount: string; note: string | null; status: string } | null;
+  // İngiliz Usulü (açık eksiltme):
+  english?: {
+    isEnglishAuction: true;
+    currentBest: string | null;
+    bidCount: number;
+  } | null;
 }
 
 export function useListingDetail(id: string) {
@@ -119,6 +125,11 @@ export function useListingDetail(id: string) {
         `/company/listings/${id}`,
       );
       return data;
+    },
+    // Açık eksiltme açıkken canlı güncelleme için poll.
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      return d?.english?.isEnglishAuction && d.status === "OPEN" ? 4000 : false;
     },
   });
 }

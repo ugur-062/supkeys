@@ -219,6 +219,26 @@ export default function ListingDetailPage() {
           <Subheading>Teklif Ver</Subheading>
           {l.canBid ? (
             <div className="space-y-4 rounded-xl border border-zinc-950/10 bg-white p-5">
+              {l.english?.isEnglishAuction ? (
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                  <div>
+                    <div className="text-xs font-medium text-amber-700">
+                      Açık eksiltme · güncel en düşük
+                    </div>
+                    <div className="text-lg font-bold text-amber-900">
+                      {l.english.currentBest
+                        ? `${Number(l.english.currentBest).toLocaleString("tr-TR")} ₺`
+                        : "Henüz teklif yok"}
+                    </div>
+                  </div>
+                  <div className="text-right text-xs text-amber-700">
+                    {l.english.bidCount} teklif
+                    {l.english.currentBest ? (
+                      <div className="mt-0.5">altında teklif ver</div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
               {!isAlim && l.buyNowPrice ? (
                 <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
                   <div>
@@ -281,7 +301,9 @@ export default function ListingDetailPage() {
                     : "Teklif Ver"}
               </Button>
               <Text className="text-xs text-zinc-400">
-                Kapalı zarf: diğer tekliflerin tutarını göremezsin.
+                {l.english?.isEnglishAuction
+                  ? "Açık eksiltme: teklifin güncel en düşüğün altında olmalı; tutarlar herkese açık."
+                  : "Kapalı zarf: diğer tekliflerin tutarını göremezsin."}
               </Text>
             </div>
           ) : (

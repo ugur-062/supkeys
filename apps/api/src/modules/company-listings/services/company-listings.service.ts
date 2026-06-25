@@ -164,6 +164,23 @@ export class CompanyListingsService {
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
 
+    // İngiliz Usulü açık eksiltme: güncel en düşük teklif herkese görünür.
+    let english:
+      | { isEnglishAuction: true; currentBest: string | null; bidCount: number }
+      | null = null;
+    if (listing.format === "ENGLISH_AUCTION") {
+      const agg = await this.prisma.listingBid.aggregate({
+        where: { listingId: id, status: "SUBMITTED" },
+        _min: { amount: true },
+        _count: true,
+      });
+      english = {
+        isEnglishAuction: true,
+        currentBest: agg._min.amount ? agg._min.amount.toString() : null,
+        bidCount: agg._count,
+      };
+    }
+
     const isOwner = listing.companyId === user.companyId;
     const connectedIds = await this.connectedCompanyIds(user.companyId);
     const connected = connectedIds.includes(listing.companyId);
@@ -182,6 +199,7 @@ export class CompanyListingsService {
       return {
         ...this.detail(listing, false),
         isOwner: true,
+        english,
         bids: bids.map((b) => ({
           id: b.id,
           bidderName: b.bidderCompany.name,
@@ -215,6 +233,7 @@ export class CompanyListingsService {
       isOwner: false,
       masked,
       canBid,
+      english,
       myBid: myBid
         ? { amount: myBid.amount.toString(), note: myBid.note, status: myBid.status }
         : null,
@@ -225,7 +244,14 @@ export class CompanyListingsService {
   async placeBid(user: AuthenticatedCompanyUser, id: string, dto: PlaceBidDto) {
     const listing = await this.prisma.listing.findUnique({
       where: { id },
-      select: { id: true, companyId: true, type: true, visibility: true, status: true },
+      select: {
+        id: true,
+        companyId: true,
+        type: true,
+        format: true,
+        visibility: true,
+        status: true,
+      },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     if (listing.companyId === user.companyId) {
@@ -260,6 +286,20 @@ export class CompanyListingsService {
           ? "Alım ilanına teklif (satış) için Satışçı rolü gerekir"
           : "Satış ilanına teklif (alım) için Satın Almacı rolü gerekir",
       );
+    }
+
+    // İngiliz Usulü (açık eksiltme): yeni teklif mevcut en düşüğün ALTINDA olmalı.
+    if (listing.format === "ENGLISH_AUCTION") {
+      const agg = await this.prisma.listingBid.aggregate({
+        where: { listingId: id, status: "SUBMITTED" },
+        _min: { amount: true },
+      });
+      const min = agg._min.amount;
+      if (min !== null && Number(dto.amount) >= Number(min)) {
+        throw new BadRequestException(
+          `İngiliz usulü: teklifin mevcut en düşük ${Number(min).toLocaleString("tr-TR")} ₺'nin altında olmalı`,
+        );
+      }
     }
 
     const bid = await this.prisma.listingBid.upsert({
