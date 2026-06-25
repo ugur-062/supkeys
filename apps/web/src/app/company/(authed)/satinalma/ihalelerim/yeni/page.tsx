@@ -14,6 +14,10 @@ import {
   type ListingItemInput,
 } from "@/hooks/use-company-listings";
 import { useConnections } from "@/hooks/use-company-connections";
+import {
+  useListingTemplates,
+  useSaveTemplate,
+} from "@/hooks/use-listing-templates";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { PlusIcon, TrashIcon } from "@heroicons/react/20/solid";
 import { useRouter } from "next/navigation";
@@ -27,6 +31,8 @@ export default function YeniIhalePage() {
   const router = useRouter();
   const create = useCreateListing();
   const connections = useConnections();
+  const templates = useListingTemplates();
+  const saveTemplate = useSaveTemplate();
   const [step, setStep] = useState(0);
 
   // Adım 1
@@ -77,6 +83,74 @@ export default function YeniIhalePage() {
       cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c],
     );
 
+  const buildPayload = (): Record<string, unknown> => ({
+    title,
+    description,
+    format,
+    isInternational,
+    visibility,
+    closesAt,
+    primaryCurrency,
+    extraCurrencies,
+    keywords,
+    terms,
+    internalNotes,
+    requireAllItems,
+    requireBidDocument,
+    categoryIds,
+    items,
+  });
+
+  const applyPayload = (p: Record<string, unknown>) => {
+    if (typeof p.title === "string") setTitle(p.title);
+    if (typeof p.description === "string") setDescription(p.description);
+    if (p.format === "RFQ" || p.format === "ENGLISH_AUCTION") setFormat(p.format);
+    if (typeof p.isInternational === "boolean")
+      setIsInternational(p.isInternational);
+    if (
+      p.visibility === "CONNECTIONS" ||
+      p.visibility === "PUBLIC" ||
+      p.visibility === "PRIVATE"
+    )
+      setVisibility(p.visibility);
+    if (typeof p.closesAt === "string") setClosesAt(p.closesAt);
+    if (typeof p.primaryCurrency === "string")
+      setPrimaryCurrency(p.primaryCurrency as CurrencyCode);
+    if (Array.isArray(p.extraCurrencies))
+      setExtraCurrencies(p.extraCurrencies as CurrencyCode[]);
+    if (typeof p.keywords === "string") setKeywords(p.keywords);
+    if (typeof p.terms === "string") setTerms(p.terms);
+    if (typeof p.internalNotes === "string") setInternalNotes(p.internalNotes);
+    if (typeof p.requireAllItems === "boolean")
+      setRequireAllItems(p.requireAllItems);
+    if (typeof p.requireBidDocument === "boolean")
+      setRequireBidDocument(p.requireBidDocument);
+    if (Array.isArray(p.categoryIds)) setCategoryIds(p.categoryIds as string[]);
+    if (Array.isArray(p.items)) setItems(p.items as ListingItemInput[]);
+  };
+
+  const handleSaveTemplate = async () => {
+    const name = window.prompt("Şablon adı:");
+    if (!name || name.trim().length < 2) return;
+    try {
+      await saveTemplate.mutateAsync({
+        name: name.trim(),
+        payload: buildPayload(),
+      });
+      toast.success("Şablon kaydedildi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Şablon kaydedilemedi"));
+    }
+  };
+
+  const loadTemplate = (id: string) => {
+    const t = templates.data?.find((x) => x.id === id);
+    if (t) {
+      applyPayload(t.payload);
+      toast.success(`"${t.name}" yüklendi`);
+    }
+  };
+
   const publish = async () => {
     if (!canPublish) return;
     try {
@@ -125,7 +199,35 @@ export default function YeniIhalePage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <Heading>Yeni İhale</Heading>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Heading>Yeni İhale</Heading>
+        <div className="flex items-center gap-2">
+          {templates.data && templates.data.length > 0 ? (
+            <select
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) loadTemplate(e.target.value);
+                e.target.value = "";
+              }}
+              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm"
+            >
+              <option value="">Şablondan başla…</option>
+              {templates.data.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <Button
+            plain
+            onClick={handleSaveTemplate}
+            disabled={saveTemplate.isPending || title.trim().length < 3}
+          >
+            Şablon Kaydet
+          </Button>
+        </div>
+      </div>
 
       {/* Stepper */}
       <ol className="flex items-center gap-2">

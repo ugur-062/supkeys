@@ -315,6 +315,7 @@ model Company {
   complaintsMade       CompanyComplaint[]  @relation("ComplaintBy")
   complaintsReceived   CompanyComplaint[]  @relation("ComplaintAgainst")
   listingInvitations   ListingInvitation[] @relation("ListingInvitee")
+  listingTemplates     ListingTemplate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -563,6 +564,20 @@ model Listing {
   @@index([companyId])
   @@index([status])
   @@map("listings")
+}
+
+// İhale şablonu — wizard yapılandırmasını kaydet/kopyala (eski TenderTemplate).
+model ListingTemplate {
+  id          String   @id @default(cuid())
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  payload     Json // wizard config snapshot (başlık/format/kalemler/keywords/…)
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@index([companyId])
+  @@map("listing_templates")
 }
 
 // İhale kalemi — bir ilanda birden çok satır (eski TenderItem).
