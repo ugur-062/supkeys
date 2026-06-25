@@ -6,6 +6,7 @@ import { Input } from "@/components/catalyst/input";
 import { useCompanyLogin, useSetCompanyAuth } from "@/hooks/use-company-auth";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -71,6 +72,15 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
           </p>
         ) : null}
       </Field>
+
+      <div className="-mt-1 text-right">
+        <Link
+          href="/company/sifremi-unuttum"
+          className="text-xs font-medium text-zinc-500 hover:text-zinc-900"
+        >
+          Şifremi unuttum?
+        </Link>
+      </div>
 
       {formError ? (
         <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

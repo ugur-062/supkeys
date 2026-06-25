@@ -418,6 +418,7 @@ export class AdminTenantUsersService {
       include: {
         user: { select: { id: true, isActive: true, authId: true } },
         supplierUser: { select: { id: true, isActive: true, authId: true } },
+        companyUser: { select: { id: true, isActive: true, authId: true } },
       },
     });
     if (!record) {
@@ -429,8 +430,8 @@ export class AdminTenantUsersService {
     if (record.expiresAt.getTime() < Date.now()) {
       throw new ForbiddenException("Bağlantının süresi dolmuş");
     }
-    // Hedef alıcı (User) veya tedarikçi (SupplierUser) kullanıcısı olabilir.
-    const target = record.user ?? record.supplierUser;
+    // Hedef alıcı (User), tedarikçi (SupplierUser) veya firma (CompanyUser) olabilir.
+    const target = record.user ?? record.supplierUser ?? record.companyUser;
     if (!target) {
       throw new ForbiddenException("Geçersiz bağlantı");
     }

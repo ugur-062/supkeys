@@ -6,7 +6,10 @@ import { EmailService } from "../email/email.service";
 
 const PASSWORD_RESET_TTL_MINUTES = 60;
 
-type ResetOwner = { userId: string } | { supplierUserId: string };
+type ResetOwner =
+  | { userId: string }
+  | { supplierUserId: string }
+  | { companyUserId: string };
 
 /**
  * Self-service "şifremi unuttum" — kullanıcının kendi talebiyle token üretip
@@ -46,6 +49,18 @@ export class PasswordResetService {
     });
     if (su?.authId) {
       await this.issue({ supplierUserId: su.id }, su.email, su.firstName ?? "");
+    }
+    return { success: true };
+  }
+
+  async requestForCompany(rawEmail: string): Promise<{ success: true }> {
+    const email = rawEmail.trim().toLowerCase();
+    const cu = await this.prisma.companyUser.findFirst({
+      where: { email, isActive: true, deletedAt: null },
+      select: { id: true, email: true, firstName: true, authId: true },
+    });
+    if (cu?.authId) {
+      await this.issue({ companyUserId: cu.id }, cu.email, cu.firstName ?? "");
     }
     return { success: true };
   }

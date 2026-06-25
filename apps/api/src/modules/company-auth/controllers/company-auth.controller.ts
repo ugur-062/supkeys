@@ -18,10 +18,22 @@ import { CompanyLoginDto } from "../dto/company-login.dto";
 import { CompanySignupDto } from "../dto/company-signup.dto";
 import { CompanyJwtAuthGuard } from "../guards/company-jwt-auth.guard";
 import { CompanyAuthService } from "../services/company-auth.service";
+import { PasswordResetService } from "../../password-reset/password-reset.service";
+import { CompanyForgotPasswordDto } from "../dto/company-forgot-password.dto";
 
 @Controller("company-auth")
 export class CompanyAuthController {
-  constructor(private readonly service: CompanyAuthService) {}
+  constructor(
+    private readonly service: CompanyAuthService,
+    private readonly passwordReset: PasswordResetService,
+  ) {}
+
+  @Post("forgot-password")
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  forgotPassword(@Body() dto: CompanyForgotPasswordDto) {
+    return this.passwordReset.requestForCompany(dto.email);
+  }
 
   @Post("signup")
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
