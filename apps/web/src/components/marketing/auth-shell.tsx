@@ -38,11 +38,11 @@ export function AuthShell({
   footer: ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0A0A0A] px-4 py-10">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-b from-zinc-900 via-[#0b0b0f] to-zinc-900 px-4 py-10">
       {/* grid deseni */}
       <svg
         aria-hidden="true"
-        className="absolute inset-0 -z-10 size-full stroke-white/5 [mask-image:radial-gradient(60%_55%_at_50%_45%,white,transparent)]"
+        className="absolute inset-0 -z-10 size-full stroke-white/[0.06] [mask-image:radial-gradient(65%_60%_at_50%_45%,white,transparent)]"
       >
         <defs>
           <pattern
@@ -57,14 +57,14 @@ export function AuthShell({
         </defs>
         <rect width="100%" height="100%" strokeWidth={0} fill="url(#auth-grid)" />
       </svg>
-      {/* yüzen glow'lar */}
+      {/* merkez ışık havuzu — kart ışığın içinden çıkar */}
       <div
         aria-hidden="true"
-        className="rt-float-slow absolute -top-32 left-1/2 -z-10 size-[40rem] -translate-x-1/2 rounded-full bg-gradient-to-tr from-emerald-500/15 via-white/5 to-transparent blur-3xl"
+        className="rt-float-slow absolute top-1/2 left-1/2 -z-10 size-[46rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/12 blur-[130px]"
       />
       <div
         aria-hidden="true"
-        className="rt-float absolute -bottom-40 left-1/3 -z-10 size-[34rem] rounded-full bg-gradient-to-tr from-blue-500/10 to-transparent blur-3xl"
+        className="rt-float absolute top-1/2 left-1/2 -z-10 size-[32rem] -translate-x-1/2 -translate-y-1/3 rounded-full bg-blue-500/10 blur-[110px]"
       />
 
       {/* uçuşan mini kartlar (geniş ekran) */}
