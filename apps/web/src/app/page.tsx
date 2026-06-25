@@ -1,20 +1,12 @@
 "use client";
 
 import { RothernLogo } from "@/components/brand/logo";
-import {
-  Dialog,
-  DialogPanel,
-  Disclosure,
-  DisclosureButton,
-  DisclosurePanel,
-} from "@headlessui/react";
+import { Dialog, DialogPanel } from "@headlessui/react";
 import {
   ArrowLongLeftIcon,
   ArrowLongRightIcon,
   Bars3Icon,
   LockClosedIcon,
-  MinusSmallIcon,
-  PlusSmallIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { CheckIcon } from "@heroicons/react/20/solid";
@@ -1032,74 +1024,38 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* SSS — offset (sol tanıtım + sağ accordion) */}
-      <section
-        id="sss"
-        className="border-t border-zinc-200 bg-zinc-50 py-24 sm:py-32"
-      >
+      {/* SSS — ortalı başlık + çok kolonlu Q&A kartları */}
+      <section id="sss" className="border-t border-zinc-200 bg-white py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="lg:grid lg:grid-cols-12 lg:gap-12">
-            <div className="lg:col-span-5">
-              <h2 className="text-3xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-4xl">
-                Sıkça sorulan sorular
-              </h2>
-              <p className="mt-4 text-base/7 text-zinc-600">
-                Aradığın yanıtı bulamadın mı?{" "}
-                <a
-                  href="mailto:destek@rothern.com"
-                  className="font-semibold text-zinc-950 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-950"
+          <div className="mx-auto max-w-2xl text-center">
+            <h2 className="text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
+              Sıkça sorulan sorular
+            </h2>
+            <p className="mt-6 text-base/7 text-zinc-600">
+              Aradığın yanıtı bulamadın mı?{" "}
+              <a
+                href="mailto:destek@rothern.com"
+                className="font-semibold text-zinc-950 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-950"
+              >
+                bize e-posta gönder
+              </a>
+              , en kısa sürede dönelim.
+            </p>
+          </div>
+          <div className="mx-auto mt-16 max-w-5xl sm:mt-20">
+            <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {faqs.map((faq) => (
+                <div
+                  key={faq.q}
+                  className="rounded-2xl bg-zinc-50 p-6 ring-1 ring-zinc-200/70 transition hover:-translate-y-1 hover:shadow-md"
                 >
-                  bize yaz
-                </a>
-                , hızlıca yardımcı olalım.
-              </p>
-              <div className="mt-8 hidden rounded-2xl bg-white p-6 ring-1 ring-zinc-200 lg:block">
-                <div className="text-sm font-semibold text-zinc-950">
-                  Hâlâ kararsız mısın?
+                  <dt className="text-base font-semibold text-zinc-950">
+                    {faq.q}
+                  </dt>
+                  <dd className="mt-2 text-sm/7 text-zinc-600">{faq.a}</dd>
                 </div>
-                <p className="mt-1 text-sm/6 text-zinc-600">
-                  Ücretsiz kaydol, hiçbir taahhüt olmadan keşfet.
-                </p>
-                <Link
-                  href="/company/kayit"
-                  className="mt-4 inline-block rounded-lg bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
-                >
-                  Ücretsiz Kaydol
-                </Link>
-              </div>
-            </div>
-            <div className="mt-10 lg:col-span-7 lg:mt-0">
-              <dl className="divide-y divide-zinc-900/10">
-                {faqs.map((faq) => (
-                  <Disclosure
-                    key={faq.q}
-                    as="div"
-                    className="py-6 first:pt-0 last:pb-0"
-                  >
-                    <dt>
-                      <DisclosureButton className="group flex w-full items-start justify-between rounded-xl text-left text-zinc-950 transition">
-                        <span className="text-base/7 font-semibold group-hover:text-zinc-600">
-                          {faq.q}
-                        </span>
-                        <span className="ml-6 flex h-7 items-center">
-                          <PlusSmallIcon
-                            aria-hidden="true"
-                            className="size-6 transition group-data-open:hidden"
-                          />
-                          <MinusSmallIcon
-                            aria-hidden="true"
-                            className="size-6 group-not-data-open:hidden"
-                          />
-                        </span>
-                      </DisclosureButton>
-                    </dt>
-                    <DisclosurePanel as="dd" className="mt-2 pr-12">
-                      <p className="text-base/7 text-zinc-600">{faq.a}</p>
-                    </DisclosurePanel>
-                  </Disclosure>
-                ))}
-              </dl>
-            </div>
+              ))}
+            </dl>
           </div>
         </div>
       </section>
