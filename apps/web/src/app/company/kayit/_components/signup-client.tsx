@@ -18,17 +18,23 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-const schema = z.object({
-  companyName: z.string().min(2, "Firma adı en az 2 karakter"),
-  firstName: z.string().min(2, "Ad en az 2 karakter"),
-  lastName: z.string().min(2, "Soyad en az 2 karakter"),
-  email: z.string().email("Geçerli bir e-posta giriniz"),
-  password: z
-    .string()
-    .min(8, "Parola en az 8 karakter")
-    .regex(/[a-zA-Z]/, "En az bir harf")
-    .regex(/[0-9]/, "En az bir rakam"),
-});
+const schema = z
+  .object({
+    companyName: z.string().min(2, "Firma adı en az 2 karakter"),
+    firstName: z.string().min(2, "Ad en az 2 karakter"),
+    lastName: z.string().min(2, "Soyad en az 2 karakter"),
+    email: z.string().email("Geçerli bir e-posta giriniz"),
+    password: z
+      .string()
+      .min(8, "Parola en az 8 karakter")
+      .regex(/[a-zA-Z]/, "En az bir harf")
+      .regex(/[0-9]/, "En az bir rakam"),
+    passwordConfirm: z.string().min(1, "Parolayı tekrar girin"),
+  })
+  .refine((d) => d.password === d.passwordConfirm, {
+    message: "Parolalar eşleşmiyor",
+    path: ["passwordConfirm"],
+  });
 
 type FormData = z.infer<typeof schema>;
 
@@ -53,7 +59,8 @@ export function CompanySignupClient() {
   const onSubmit = handleSubmit(async (data) => {
     setFormError(null);
     try {
-      const res = await signup.mutateAsync(data);
+      const { passwordConfirm: _ignored, ...payload } = data;
+      const res = await signup.mutateAsync(payload);
       setAuth({ token: res.token, user: res.user, company: res.company });
       router.replace("/company");
     } catch (err) {
@@ -124,6 +131,21 @@ export function CompanySignupClient() {
               {errors.password ? (
                 <p className="mt-1 text-xs text-red-600">
                   {errors.password.message}
+                </p>
+              ) : null}
+            </Field>
+
+            <Field>
+              <Label>Parola (tekrar)</Label>
+              <Input
+                type="password"
+                autoComplete="new-password"
+                invalid={!!errors.passwordConfirm}
+                {...register("passwordConfirm")}
+              />
+              {errors.passwordConfirm ? (
+                <p className="mt-1 text-xs text-red-600">
+                  {errors.passwordConfirm.message}
                 </p>
               ) : null}
             </Field>
