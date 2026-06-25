@@ -82,7 +82,7 @@
 - **BAĞLANTILARA açık:** yalnızca açan firmanın **bağlantılı** firmaları görür.
 - **ÖZEL/davetli:** sadece açıkça davet edilenler.
 
-**Bağlantı kuralı:** İki firma **karşılıklı davet + kabul** edince **bağlanır.** Bağlanınca birbirinin "bağlantılara açık" ilanlarını görür + teklif verebilir (alış+satış).
+**Bağlantı kuralı:** **Bir firma davet atar, diğeri kabul eder** → bağlanır (tek yönlü davet → kabul; karşılıklı davet değil). Bağlanınca birbirinin "bağlantılara açık" ilanlarını görür + teklif verebilir (alış+satış).
 
 **⚠️ Premium düşüş kuralı (eski sistemdeki gibi — alış+satış için korunacak):** Bir firma **PAKET→STANDARD** düşerse:
 - **Referans-kodlu / davet-kabul** bağlantıları **KALICI** (etkilenmez, görmeye devam eder).
