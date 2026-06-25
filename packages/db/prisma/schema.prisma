@@ -2109,3 +2109,138 @@ model TwoFactorChallenge {
   @@index([supplierUserId])
   @@map("two_factor_challenges")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BİRLEŞİK SİSTEM (Faz 1) — Tek Company hesabı. Eski Tenant + Supplier birleşir.
+// docs/birlesik-sistem-plani.md. Bu tablolar ADDITIVE: henüz hiçbir şey referans
+// vermez, eski Tenant/Supplier çalışmaya devam eder (köprü geçiş).
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum CompanyRole {
+  YONETICI // hesap yönetimi: kullanıcı/rol, ayarlar, bağlantılar
+  SATIN_ALMACI // alım operasyonu (🔵)
+  SATISCI // satış operasyonu (🟢)
+  ONAYLAYICI // onay zinciri
+}
+
+enum CompanyTier {
+  STANDARD // bedava — pasif: sadece bağlantılı firmaların ilanına teklif; görünmez
+  PAKET // paralı — aktif: ilan aç + keşfet + public + görünür
+}
+
+model Company {
+  id        String  @id @default(cuid())
+  supkeysId String? @unique
+  slug      String? @unique // public profil URL'i (sadece PAKET)
+
+  // Kimlik
+  name        String // ticari ad
+  legalName   String?
+  companyType CompanyType?
+  taxNumber   String?      @unique
+  taxOffice   String?
+  country     String       @default("TR")
+  stateRegion String?
+
+  // Adres (inline; ileride Address[] defteriyle zenginleşir)
+  city         String?
+  district     String?
+  neighborhood String?
+  addressLine  String?
+  postalCode   String?
+
+  // İletişim / fatura / kurumsal
+  industry               String?
+  website                String?
+  billingTitle           String?
+  billingEmail           String?
+  billingPhone           String?
+  billingPhoneVerifiedAt DateTime?
+  authorizedTckn         String?
+  authorizedTitle        String?
+  mersisNo               String?
+  tradeRegistryNo        String?
+  kepAddress             String?
+  iban                   String?
+  ibanHolder             String?
+
+  // Kategoriler — AYRI: ne alırım vs ne satarım
+  buyerCategoryIds     String[] @default([])
+  buyerSubCategoryIds  String[] @default([])
+  sellerCategoryIds    String[] @default([])
+  sellerSubCategoryIds String[] @default([])
+
+  // Üyelik (koltuk yok; sınırsız kullanıcı)
+  tier            CompanyTier @default(STANDARD)
+  membershipEndAt DateTime?
+
+  // KYC / doğrulama
+  companyVerificationStatus CompanyVerificationStatus @default(UNVERIFIED)
+  companyVerifiedAt         DateTime?
+  docTaxPlateUrl            String?
+  docTradeRegistryUrl       String?
+  docSignatureCircularUrl   String?
+  docActivityCertUrl        String?
+  docIdFrontUrl             String?
+  docIdBackUrl              String?
+  onboardingCompletedAt     DateTime?
+
+  // Public profil (sadece PAKET görünür)
+  publicEnabled  Boolean  @default(false)
+  aboutText      String?
+  logoUrl        String?
+  coverImageUrl  String?
+  linkedinUrl    String?
+  instagramUrl   String?
+  services       String[] @default([])
+  foundedYear    Int?
+  employeeCount  String?
+  certifications String[] @default([])
+
+  // Durum
+  isActive      Boolean   @default(true)
+  isBlocked     Boolean   @default(false)
+  blockedReason String?
+  blockedAt     DateTime?
+
+  // Sahiplik — tekil firma sahibi (CompanyUser.id). Sahip ⊇ Yönetici.
+  ownerUserId String?
+
+  users CompanyUser[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("companies")
+}
+
+model CompanyUser {
+  id        String  @id @default(cuid())
+  email     String  @unique
+  authId    String? @unique // Supabase auth bridge
+  firstName String
+  lastName  String
+  phone     String?
+
+  roles CompanyRole[] @default([])
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  isActive           Boolean   @default(true)
+  emailVerifiedAt    DateTime?
+  twoFactorEnabled   Boolean   @default(false)
+  twoFactorEnabledAt DateTime?
+  permissionsOverride Json? // { added?: string[], removed?: string[] }
+  notificationPrefs   Json?
+  invitedById         String?
+  invitedAt           DateTime?
+  lastLoginAt         DateTime?
+  deletedAt           DateTime? // iş çıkışı — soft delete (geçmiş korunur, KVKK)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("company_users")
+}
