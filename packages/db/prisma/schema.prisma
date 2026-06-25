@@ -436,7 +436,8 @@ model CompanyOrderDocument {
 model CompanyOrder {
   id              String   @id @default(cuid())
   number          String?  @unique // ROT-ORD-NNNNNN (global sequence)
-  listingId       String?  @unique
+  // Bir ilandan kalem-bazlı kazandırmada birden çok sipariş çıkabilir → unique DEĞİL.
+  listingId       String?
   listing         Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
   sellerCompanyId String
   seller          Company  @relation("OrderSeller", fields: [sellerCompanyId], references: [id], onDelete: Cascade)
@@ -447,13 +448,29 @@ model CompanyOrder {
   status CompanyOrderStatus @default(CREATED)
 
   documents CompanyOrderDocument[]
+  items     CompanyOrderItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([sellerCompanyId])
   @@index([buyerCompanyId])
+  @@index([listingId])
   @@map("company_orders")
+}
+
+// Sipariş kalemi — kazandırma anındaki snapshot (ad/miktar/birim fiyat).
+model CompanyOrderItem {
+  id        String       @id @default(cuid())
+  orderId   String
+  order     CompanyOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  name      String
+  quantity  Decimal      @db.Decimal(18, 3)
+  unit      String
+  unitPrice Decimal      @db.Decimal(18, 2)
+
+  @@index([orderId])
+  @@map("company_order_items")
 }
 
 model ListingBid {
@@ -536,7 +553,7 @@ model Listing {
   allowedCurrencies  Currency[] @default([])
 
   bids        ListingBid[]
-  order       CompanyOrder?
+  orders      CompanyOrder[]
   items       ListingItem[]
   invitations ListingInvitation[]
 

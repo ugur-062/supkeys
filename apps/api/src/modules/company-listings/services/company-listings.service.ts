@@ -606,11 +606,31 @@ export class CompanyListingsService {
         bidderCompanyId: true,
         amount: true,
         status: true,
+        items: { select: { itemId: true, unitPrice: true } },
       },
     });
     if (!bid || bid.listingId !== listingId || bid.status !== "SUBMITTED") {
       throw new BadRequestException("Geçersiz teklif");
     }
+
+    // Sipariş kalemleri snapshot (ilanda kalem varsa, kazanan teklifin fiyatları).
+    const listingItems = await this.prisma.listingItem.findMany({
+      where: { listingId },
+      select: { id: true, name: true, quantity: true, unit: true },
+    });
+    const orderItems = listingItems
+      .map((li) => {
+        const bi = bid.items.find((x) => x.itemId === li.id);
+        return bi
+          ? {
+              name: li.name,
+              quantity: li.quantity,
+              unit: li.unit,
+              unitPrice: bi.unitPrice,
+            }
+          : null;
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
 
     const sellerCompanyId =
       listing.type === "ALIM" ? bid.bidderCompanyId : listing.companyId;
@@ -631,7 +651,7 @@ export class CompanyListingsService {
         where: { listingId, id: { not: bidId }, status: "SUBMITTED" },
         data: { status: "LOST" },
       });
-      return tx.companyOrder.create({
+      const o = await tx.companyOrder.create({
         data: {
           number,
           listingId,
@@ -641,8 +661,155 @@ export class CompanyListingsService {
           status: "CREATED",
         },
       });
+      if (orderItems.length > 0) {
+        await tx.companyOrderItem.createMany({
+          data: orderItems.map((it) => ({ orderId: o.id, ...it })),
+        });
+      }
+      return o;
     });
     return { orderId: order.id, number: order.number };
+  }
+
+  /**
+   * Kalem-bazlı kazandırma — her kalem ayrı teklife verilir; kazanan tedarikçi
+   * başına bir sipariş oluşur. Yalnızca ALIM + kalemli ihale.
+   */
+  async awardByItem(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    itemAwards: { itemId: string; bidId: string }[],
+  ) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true, type: true, status: true },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (listing.companyId !== user.companyId) {
+      throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
+    }
+    if (listing.status !== "OPEN") {
+      throw new BadRequestException("İlan zaten kapalı veya kazandırılmış");
+    }
+    if (listing.type !== "ALIM") {
+      throw new BadRequestException(
+        "Kalem-bazlı kazandırma yalnızca alım ihalelerinde",
+      );
+    }
+    if (!user.roles.includes(CompanyRole.SATIN_ALMACI)) {
+      throw new ForbiddenException("Kazandırma için yetkiniz yok");
+    }
+
+    const items = await this.prisma.listingItem.findMany({
+      where: { listingId },
+      select: { id: true, name: true, quantity: true, unit: true },
+    });
+    if (items.length === 0) {
+      throw new BadRequestException("Bu ihalede kalem yok");
+    }
+    const itemMap = new Map(items.map((i) => [i.id, i]));
+    const awardedItemIds = new Set(itemAwards.map((a) => a.itemId));
+    if (items.some((it) => !awardedItemIds.has(it.id))) {
+      throw new BadRequestException("Her kalem için kazanan teklif seçin");
+    }
+
+    const bidIds = [...new Set(itemAwards.map((a) => a.bidId))];
+    const bids = await this.prisma.listingBid.findMany({
+      where: { id: { in: bidIds }, listingId, status: "SUBMITTED" },
+      select: {
+        id: true,
+        bidderCompanyId: true,
+        items: { select: { itemId: true, unitPrice: true } },
+      },
+    });
+    const bidMap = new Map(bids.map((b) => [b.id, b]));
+
+    // Kazanan firma başına grupla (firma → sipariş kalemleri + tutar + bidId'ler).
+    const groups = new Map<
+      string,
+      {
+        orderItems: {
+          name: string;
+          quantity: (typeof items)[number]["quantity"];
+          unit: string;
+          unitPrice: (typeof bids)[number]["items"][number]["unitPrice"];
+        }[];
+        amount: number;
+        bidIds: Set<string>;
+      }
+    >();
+    for (const a of itemAwards) {
+      const bid = bidMap.get(a.bidId);
+      const li = itemMap.get(a.itemId);
+      if (!bid || !li) throw new BadRequestException("Geçersiz kalem/teklif");
+      const bi = bid.items.find((x) => x.itemId === a.itemId);
+      if (!bi) {
+        throw new BadRequestException(
+          `Seçilen teklifin "${li.name}" kalemi için fiyatı yok`,
+        );
+      }
+      let g = groups.get(bid.bidderCompanyId);
+      if (!g) {
+        g = { orderItems: [], amount: 0, bidIds: new Set() };
+        groups.set(bid.bidderCompanyId, g);
+      }
+      g.bidIds.add(bid.id);
+      g.orderItems.push({
+        name: li.name,
+        quantity: li.quantity,
+        unit: li.unit,
+        unitPrice: bi.unitPrice,
+      });
+      g.amount += Number(bi.unitPrice) * Number(li.quantity);
+    }
+
+    // Sipariş numaralarını tx öncesi üret (sequence non-transactional).
+    const groupArr = [...groups.entries()];
+    const numbers: string[] = [];
+    for (let i = 0; i < groupArr.length; i++) {
+      numbers.push(await this.nextOrderNumber());
+    }
+    const winningBidIds = [...new Set(itemAwards.map((a) => a.bidId))];
+
+    const created = await this.prisma.$transaction(async (tx) => {
+      await tx.listing.update({
+        where: { id: listingId },
+        data: { status: "AWARDED" },
+      });
+      await tx.listingBid.updateMany({
+        where: { listingId, id: { in: winningBidIds }, status: "SUBMITTED" },
+        data: { status: "WON" },
+      });
+      await tx.listingBid.updateMany({
+        where: { listingId, id: { notIn: winningBidIds }, status: "SUBMITTED" },
+        data: { status: "LOST" },
+      });
+      const orders: { id: string; number: string | null }[] = [];
+      for (let i = 0; i < groupArr.length; i++) {
+        const [sellerCompanyId, g] = groupArr[i]!;
+        const o = await tx.companyOrder.create({
+          data: {
+            number: numbers[i],
+            listingId,
+            sellerCompanyId,
+            buyerCompanyId: listing.companyId,
+            amount: g.amount,
+            status: "CREATED",
+            items: {
+              create: g.orderItems.map((it) => ({
+                name: it.name,
+                quantity: it.quantity,
+                unit: it.unit,
+                unitPrice: it.unitPrice,
+              })),
+            },
+          },
+        });
+        orders.push({ id: o.id, number: o.number });
+      }
+      return orders;
+    });
+    return { orders: created, count: created.length };
   }
 
   /**

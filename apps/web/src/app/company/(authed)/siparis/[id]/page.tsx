@@ -76,6 +76,41 @@ export default function OrderDetailPage() {
         </Text>
       </div>
 
+      {/* Sipariş kalemleri */}
+      {o.items && o.items.length > 0 ? (
+        <div className="overflow-hidden rounded-xl border border-zinc-950/10">
+          <table className="w-full text-sm">
+            <thead className="bg-zinc-50 text-xs text-zinc-500">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium">Kalem</th>
+                <th className="px-3 py-2 text-right font-medium">Miktar</th>
+                <th className="px-3 py-2 text-right font-medium">Birim Fiyat</th>
+                <th className="px-3 py-2 text-right font-medium">Tutar</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {o.items.map((it) => (
+                <tr key={it.id}>
+                  <td className="px-3 py-2 text-zinc-900">{it.name}</td>
+                  <td className="px-3 py-2 text-right text-zinc-600">
+                    {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono text-zinc-600">
+                    {Number(it.unitPrice).toLocaleString("tr-TR")} ₺
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono text-zinc-900">
+                    {(
+                      Number(it.unitPrice) * Number(it.quantity)
+                    ).toLocaleString("tr-TR")}{" "}
+                    ₺
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
       {/* Timeline */}
       {o.status === "CANCELLED" ? (
         <Badge color="red">İptal edildi</Badge>

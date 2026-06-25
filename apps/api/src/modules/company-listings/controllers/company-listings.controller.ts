@@ -4,6 +4,7 @@ import {
   type AuthenticatedCompanyUser,
 } from "../../company-auth/decorators/current-company-user.decorator";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
+import { AwardByItemDto } from "../dto/award-by-item.dto";
 import { AwardListingDto } from "../dto/award-listing.dto";
 import { CreateListingDto } from "../dto/create-listing.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
@@ -64,6 +65,15 @@ export class CompanyListingsController {
     @Body() dto: AwardListingDto,
   ) {
     return this.service.award(user, id, dto.bidId);
+  }
+
+  @Post(":id/award-by-item")
+  awardByItem(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: AwardByItemDto,
+  ) {
+    return this.service.awardByItem(user, id, dto.itemAwards);
   }
 
   @Post(":id/bids/:bidId/eliminate")

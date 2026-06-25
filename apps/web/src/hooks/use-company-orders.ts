@@ -3,6 +3,14 @@
 import { companyApi } from "@/lib/company-auth/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+export interface CompanyOrderItemRow {
+  id: string;
+  name: string;
+  quantity: string;
+  unit: string;
+  unitPrice: string;
+}
+
 export interface CompanyOrder {
   id: string;
   number: string | null;
@@ -13,6 +21,7 @@ export interface CompanyOrder {
   listingTitle: string | null;
   listingNumber: string | null;
   createdAt: string;
+  items?: CompanyOrderItemRow[];
 }
 
 export function useOrders() {

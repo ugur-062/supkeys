@@ -103,6 +103,7 @@ export class CompanyOrdersService {
         seller: { select: { name: true } },
         buyer: { select: { name: true } },
         listing: { select: { title: true, type: true, number: true } },
+        items: true,
       },
     });
     if (
@@ -112,7 +113,16 @@ export class CompanyOrdersService {
     ) {
       throw new NotFoundException("Sipariş bulunamadı");
     }
-    return this.serialize(o, user.companyId);
+    return {
+      ...this.serialize(o, user.companyId),
+      items: o.items.map((it) => ({
+        id: it.id,
+        name: it.name,
+        quantity: it.quantity.toString(),
+        unit: it.unit,
+        unitPrice: it.unitPrice.toString(),
+      })),
+    };
   }
 
   private serialize(

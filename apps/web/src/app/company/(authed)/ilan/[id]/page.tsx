@@ -8,6 +8,7 @@ import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
 import {
+  useAwardByItem,
   useAwardListing,
   useBuyNow,
   useCancelListing,
@@ -34,10 +35,13 @@ export default function ListingDetailPage() {
   const cancelListing = useCancelListing(id);
   const withdrawBid = useWithdrawBid(id);
   const eliminate = useEliminateBid(id);
+  const awardByItem = useAwardByItem(id);
   const categories = useCategoriesByIds(l?.categoryIds ?? []);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
+  const [itemAwardMode, setItemAwardMode] = useState(false);
+  const [itemWinners, setItemWinners] = useState<Record<string, string>>({});
 
   const handleCancel = async () => {
     if (!confirm("İlan iptal edilsin mi? Bu işlem geri alınamaz.")) return;
@@ -84,6 +88,50 @@ export default function ListingDetailPage() {
       toast.success("Teklif elendi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Elenemedi"));
+    }
+  };
+
+  // Kalem-bazlı: bir kalem için fiyat veren teklifler (artan sıralı).
+  const bidsForItem = (itemId: string) =>
+    (l?.bids ?? [])
+      .filter((b) => b.status === "SUBMITTED")
+      .map((b) => ({
+        bidId: b.id,
+        bidderName: b.bidderName,
+        price: Number(b.items?.find((x) => x.itemId === itemId)?.unitPrice ?? 0),
+      }))
+      .filter((o) => o.price > 0)
+      .sort((a, b) => a.price - b.price);
+
+  const startItemAward = () => {
+    const winners: Record<string, string> = {};
+    for (const it of l?.items ?? []) {
+      const opts = bidsForItem(it.id);
+      if (opts[0]) winners[it.id] = opts[0].bidId;
+    }
+    setItemWinners(winners);
+    setItemAwardMode(true);
+  };
+
+  const handleAwardByItem = async () => {
+    const items = l?.items ?? [];
+    const itemAwards = items
+      .map((it) => ({ itemId: it.id, bidId: itemWinners[it.id] ?? "" }))
+      .filter((a) => a.bidId);
+    if (itemAwards.length < items.length) {
+      toast.error("Her kalem için kazanan teklif seçin");
+      return;
+    }
+    if (
+      !confirm("Kalem-bazlı kazandırılsın mı? Kazanan firma başına sipariş oluşur.")
+    )
+      return;
+    try {
+      const res = await awardByItem.mutateAsync(itemAwards);
+      toast.success(`Kazandırıldı — ${res.count} sipariş oluştu`);
+      setItemAwardMode(false);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Kazandırılamadı"));
     }
   };
 
@@ -379,6 +427,68 @@ export default function ListingDetailPage() {
                 </table>
               </div>
             </div>
+          ) : null}
+
+          {/* Kalem-bazlı kazandırma */}
+          {l.status === "OPEN" &&
+          l.items &&
+          l.items.length > 0 &&
+          l.bids &&
+          l.bids.some((b) => b.items && b.items.length > 0) ? (
+            itemAwardMode ? (
+              <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/40 p-4">
+                <Subheading>Kalem-bazlı Kazandırma</Subheading>
+                <Text className="text-xs text-zinc-500">
+                  Her kalem için kazanan teklifi seç. Kazanan firma başına ayrı
+                  sipariş oluşur.
+                </Text>
+                <div className="space-y-2">
+                  {l.items.map((it) => {
+                    const opts = bidsForItem(it.id);
+                    return (
+                      <div
+                        key={it.id}
+                        className="flex items-center justify-between gap-3"
+                      >
+                        <span className="text-sm text-zinc-900">{it.name}</span>
+                        <select
+                          value={itemWinners[it.id] ?? ""}
+                          onChange={(e) =>
+                            setItemWinners((w) => ({
+                              ...w,
+                              [it.id]: e.target.value,
+                            }))
+                          }
+                          className="rounded-md border border-zinc-300 px-2 py-1 text-sm"
+                        >
+                          <option value="">— seç —</option>
+                          {opts.map((o) => (
+                            <option key={o.bidId} value={o.bidId}>
+                              {o.bidderName} · {o.price.toLocaleString("tr-TR")} ₺
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button plain onClick={() => setItemAwardMode(false)}>
+                    Vazgeç
+                  </Button>
+                  <Button
+                    onClick={handleAwardByItem}
+                    disabled={awardByItem.isPending}
+                  >
+                    Onayla & Kazandır
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button outline onClick={startItemAward}>
+                Kalem-bazlı Kazandır
+              </Button>
+            )
           ) : null}
 
           {!l.bids || l.bids.length === 0 ? (
