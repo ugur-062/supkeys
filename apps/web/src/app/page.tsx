@@ -1,30 +1,28 @@
 "use client";
 
 import { RothernLogo } from "@/components/brand/logo";
-import { Dialog, DialogPanel } from "@headlessui/react";
+import { MarketingHeader } from "@/components/marketing/marketing-header";
+import {
+  Disclosure,
+  DisclosureButton,
+  DisclosurePanel,
+} from "@headlessui/react";
 import {
   ArrowLongLeftIcon,
   ArrowLongRightIcon,
-  Bars3Icon,
   LockClosedIcon,
-  XMarkIcon,
+  MinusSmallIcon,
+  PlusSmallIcon,
 } from "@heroicons/react/24/outline";
 import { CheckIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-
-const navigation = [
-  { name: "Özellikler", href: "#ozellikler" },
-  { name: "Nasıl Çalışır", href: "#nasil" },
-  { name: "Üyelik", href: "#uyelik" },
-  { name: "SSS", href: "#sss" },
-];
+import { Fragment, useEffect, useRef, useState } from "react";
 
 const stats = [
   { prefix: "", value: 13305, suffix: "", l: "Kategoride hassas eşleşme (UNSPSC)" },
   { prefix: "", value: 98, suffix: " ülke", l: "Yurtiçi + uluslararası erişim" },
   { prefix: "%", value: 0, suffix: "", l: "Komisyon — maliyetsiz ulaş" },
-  { text: "Binlerce", l: "Firmayla tek panelde buluş" },
+  { text: "∞", l: "Firmayla tek panelde buluş" },
 ];
 
 const steps = [
@@ -300,6 +298,21 @@ const sectors = [
   "Ambalaj",
   "Mobilya",
   "Medikal",
+];
+
+const reachCountries = [
+  "TR",
+  "DE",
+  "US",
+  "NL",
+  "CN",
+  "AE",
+  "GB",
+  "FR",
+  "IT",
+  "ES",
+  "JP",
+  "IN",
 ];
 
 function SectorMarquee() {
@@ -625,113 +638,65 @@ function StepsShowcase() {
   );
 }
 
-export default function HomePage() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+const flowSteps = [
+  "İlan",
+  "Teklif",
+  "Kazandırma",
+  "Sipariş",
+  "Kargo",
+  "Dekont",
+];
 
+function FlowDiagram() {
+  const [active, setActive] = useState(0);
+  useEffect(() => {
+    const id = setInterval(
+      () => setActive((a) => (a + 1) % flowSteps.length),
+      1100,
+    );
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div className="flex items-start">
+      {flowSteps.map((s, i) => (
+        <Fragment key={s}>
+          <div className="flex shrink-0 flex-col items-center gap-2">
+            <div
+              className={`flex size-9 items-center justify-center rounded-full text-xs font-bold transition-all duration-500 ${
+                i <= active
+                  ? "scale-110 bg-zinc-950 text-white shadow"
+                  : "bg-white text-zinc-400 ring-1 ring-zinc-200"
+              }`}
+            >
+              {i + 1}
+            </div>
+            <span
+              className={`text-center text-[11px] font-medium transition sm:text-xs ${
+                i <= active ? "text-zinc-900" : "text-zinc-400"
+              }`}
+            >
+              {s}
+            </span>
+          </div>
+          {i < flowSteps.length - 1 ? (
+            <div className="mt-4 h-0.5 flex-1 overflow-hidden rounded-full bg-zinc-200">
+              <div
+                className={`h-full rounded-full bg-zinc-950 transition-all duration-500 ${
+                  i < active ? "w-full" : "w-0"
+                }`}
+              />
+            </div>
+          ) : null}
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+export default function HomePage() {
   return (
     <div className="bg-white">
-      {/* Header — koyu */}
-      <header className="sticky top-0 z-50 border-b border-zinc-800 bg-[#0A0A0A]">
-        <nav
-          aria-label="Global"
-          className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 lg:px-8"
-        >
-          <div className="flex lg:flex-1">
-            <Link href="/" className="-m-1.5 p-1.5">
-              <span className="sr-only">Rothern</span>
-              <RothernLogo variant="full" size="md" priority />
-            </Link>
-          </div>
-          <div className="flex lg:hidden">
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(true)}
-              className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-zinc-300"
-            >
-              <span className="sr-only">Menüyü aç</span>
-              <Bars3Icon aria-hidden="true" className="size-6" />
-            </button>
-          </div>
-          <div className="hidden lg:flex lg:gap-x-10">
-            {navigation.map((item) => (
-              <a
-                key={item.name}
-                href={item.href}
-                className="text-sm/6 font-medium text-zinc-300 transition hover:text-white"
-              >
-                {item.name}
-              </a>
-            ))}
-          </div>
-          <div className="hidden lg:flex lg:flex-1 lg:items-center lg:justify-end lg:gap-x-4">
-            <Link
-              href="/company/login"
-              className="text-sm/6 font-semibold text-white transition hover:text-zinc-300"
-            >
-              Giriş Yap
-            </Link>
-            <Link
-              href="/company/kayit"
-              className="rounded-lg bg-white px-3.5 py-2 text-sm font-semibold text-zinc-950 shadow-sm transition hover:bg-zinc-200"
-            >
-              Kaydol
-            </Link>
-          </div>
-        </nav>
-
-        <Dialog
-          open={mobileMenuOpen}
-          onClose={setMobileMenuOpen}
-          className="lg:hidden"
-        >
-          <div className="fixed inset-0 z-50" />
-          <DialogPanel className="fixed inset-y-0 right-0 z-50 w-full overflow-y-auto bg-[#0A0A0A] p-6 sm:max-w-sm sm:ring-1 sm:ring-white/10">
-            <div className="flex items-center justify-between">
-              <Link href="/" className="-m-1.5 p-1.5">
-                <RothernLogo variant="full" size="sm" />
-              </Link>
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(false)}
-                className="-m-2.5 rounded-md p-2.5 text-zinc-300"
-              >
-                <span className="sr-only">Menüyü kapat</span>
-                <XMarkIcon aria-hidden="true" className="size-6" />
-              </button>
-            </div>
-            <div className="mt-6 flow-root">
-              <div className="-my-6 divide-y divide-white/10">
-                <div className="space-y-2 py-6">
-                  {navigation.map((item) => (
-                    <a
-                      key={item.name}
-                      href={item.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="-mx-3 block rounded-lg px-3 py-2 text-base/7 font-semibold text-white hover:bg-white/5"
-                    >
-                      {item.name}
-                    </a>
-                  ))}
-                </div>
-                <div className="space-y-2 py-6">
-                  <Link
-                    href="/company/login"
-                    className="-mx-3 block rounded-lg px-3 py-2.5 text-base/7 font-semibold text-white hover:bg-white/5"
-                  >
-                    Giriş Yap
-                  </Link>
-                  <Link
-                    href="/company/kayit"
-                    className="-mx-3 block rounded-lg bg-white px-3 py-2.5 text-center text-base/7 font-semibold text-zinc-950"
-                  >
-                    Kaydol
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </DialogPanel>
-        </Dialog>
-      </header>
+      <MarketingHeader />
 
       {/* Hero */}
       <section className="relative isolate overflow-hidden px-6 pb-20 lg:px-8">
@@ -845,7 +810,30 @@ export default function HomePage() {
       <SectorMarquee />
 
       {/* Pazar & erişim */}
-      <section className="bg-[#0A0A0A] py-24 sm:py-32">
+      <section className="relative isolate overflow-hidden bg-[#0A0A0A] py-24 sm:py-32">
+        {/* grid deseni */}
+        <svg
+          aria-hidden="true"
+          className="absolute inset-0 -z-10 size-full stroke-white/5 [mask-image:radial-gradient(48rem_32rem_at_50%_30%,white,transparent)]"
+        >
+          <defs>
+            <pattern
+              id="reach-grid"
+              width={56}
+              height={56}
+              x="50%"
+              patternUnits="userSpaceOnUse"
+            >
+              <path d="M.5 56V.5H56" fill="none" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" strokeWidth={0} fill="url(#reach-grid)" />
+        </svg>
+        {/* yumuşak yüzen glow */}
+        <div
+          aria-hidden="true"
+          className="rt-float-slow absolute top-1/2 left-1/2 -z-10 size-[44rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-tr from-emerald-500/10 via-white/5 to-transparent blur-3xl"
+        />
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <span className="inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1 text-sm font-medium text-zinc-300 ring-1 ring-white/10">
@@ -956,22 +944,20 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Yurtiçi & uluslararası — 98 ülke görseli */}
-            <div className="flex flex-col rounded-3xl bg-white p-8 ring-1 ring-zinc-200">
-              <div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-5xl font-bold tracking-tight text-zinc-950">
-                    98
-                  </span>
-                  <span className="text-lg font-medium text-zinc-400">
-                    ülke
-                  </span>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {["TR", "DE", "US", "NL", "CN", "AE"].map((c) => (
+            {/* Yurtiçi & uluslararası — 98 ülke görseli (sayaç + ülke marquee) */}
+            <div className="flex flex-col overflow-hidden rounded-3xl bg-white p-8 ring-1 ring-zinc-200">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-5xl font-bold tracking-tight text-zinc-950">
+                  <CountUp value={98} />
+                </span>
+                <span className="text-lg font-medium text-zinc-400">ülke</span>
+              </div>
+              <div className="relative mt-4 flex overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
+                <div className="rt-marquee flex w-max gap-2">
+                  {[...reachCountries, ...reachCountries].map((c, i) => (
                     <span
-                      key={c}
-                      className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600"
+                      key={`${c}-${i}`}
+                      className="rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-semibold whitespace-nowrap text-zinc-600"
                     >
                       {c}
                     </span>
@@ -989,22 +975,8 @@ export default function HomePage() {
 
             {/* Uçtan uca akış — adım zinciri görseli */}
             <div className="flex flex-col justify-between rounded-3xl bg-zinc-50 p-8 ring-1 ring-zinc-200 lg:col-span-2">
-              <div className="flex flex-wrap items-center gap-y-3 py-4">
-                {["İlan", "Teklif", "Kazandırma", "Sipariş", "Kargo", "Dekont"].map(
-                  (c, i, arr) => (
-                    <div key={c} className="flex items-center">
-                      <span className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-zinc-800 shadow-sm ring-1 ring-zinc-200">
-                        {c}
-                      </span>
-                      {i < arr.length - 1 ? (
-                        <ArrowLongRightIcon
-                          aria-hidden="true"
-                          className="rt-nudge-r mx-1 size-5 shrink-0 text-zinc-300"
-                        />
-                      ) : null}
-                    </div>
-                  ),
-                )}
+              <div className="py-4">
+                <FlowDiagram />
               </div>
               <div>
                 <h3 className="text-xl font-semibold text-zinc-950">
@@ -1140,21 +1112,34 @@ export default function HomePage() {
               , en kısa sürede dönelim.
             </p>
           </div>
-          <div className="mx-auto mt-16 max-w-5xl sm:mt-20">
-            <dl className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <Reveal className="mx-auto mt-12 max-w-3xl overflow-hidden rounded-3xl bg-white ring-1 ring-zinc-200 sm:mt-16">
+            <dl className="divide-y divide-zinc-100">
               {faqs.map((faq) => (
-                <div
-                  key={faq.q}
-                  className="rounded-2xl bg-zinc-50 p-6 ring-1 ring-zinc-200/70 transition hover:-translate-y-1 hover:shadow-md"
-                >
-                  <dt className="text-base font-semibold text-zinc-950">
-                    {faq.q}
+                <Disclosure key={faq.q} as="div" className="p-6 sm:px-8">
+                  <dt>
+                    <DisclosureButton className="group flex w-full items-start justify-between text-left text-zinc-950">
+                      <span className="text-base font-semibold transition group-hover:text-zinc-600">
+                        {faq.q}
+                      </span>
+                      <span className="ml-6 flex h-7 items-center text-zinc-400 transition group-hover:text-zinc-950">
+                        <PlusSmallIcon
+                          aria-hidden="true"
+                          className="size-6 group-data-open:hidden"
+                        />
+                        <MinusSmallIcon
+                          aria-hidden="true"
+                          className="size-6 group-not-data-open:hidden"
+                        />
+                      </span>
+                    </DisclosureButton>
                   </dt>
-                  <dd className="mt-2 text-sm/7 text-zinc-600">{faq.a}</dd>
-                </div>
+                  <DisclosurePanel as="dd" className="mt-3 pr-10">
+                    <p className="text-sm/7 text-zinc-600">{faq.a}</p>
+                  </DisclosurePanel>
+                </Disclosure>
               ))}
             </dl>
-          </div>
+          </Reveal>
         </div>
       </section>
 

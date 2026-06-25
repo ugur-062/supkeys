@@ -1,6 +1,7 @@
 "use client";
 
-import { RothernLogo } from "@/components/brand/logo";
+import { AuthBackdrop } from "@/components/marketing/auth-backdrop";
+import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
@@ -62,15 +63,11 @@ export function CompanySignupClient() {
 
   return (
     <main className="flex min-h-screen flex-col bg-zinc-50">
-      {/* Üst koyu header — logo ortalı */}
-      <header className="flex justify-center border-b border-zinc-800 bg-[#0A0A0A] py-5">
-        <Link href="/">
-          <RothernLogo variant="full" size="lg" priority />
-        </Link>
-      </header>
+      <MarketingHeader />
 
-      <div className="flex flex-1 items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md">
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 sm:py-16">
+        <AuthBackdrop />
+        <div className="relative w-full max-w-md">
           <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-zinc-950/5">
           <div className="mb-6 text-center space-y-1">
             <h1 className="text-2xl font-semibold text-zinc-900">Kaydol</h1>

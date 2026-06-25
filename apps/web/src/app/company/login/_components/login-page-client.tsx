@@ -1,6 +1,7 @@
 "use client";
 
-import { RothernLogo } from "@/components/brand/logo";
+import { AuthBackdrop } from "@/components/marketing/auth-backdrop";
+import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -29,16 +30,12 @@ export function CompanyLoginClient() {
 
   return (
     <main className="flex min-h-screen flex-col bg-zinc-50">
-      {/* Üst koyu header — logo ortalı */}
-      <header className="flex justify-center border-b border-zinc-800 bg-[#0A0A0A] py-5">
-        <Link href="/">
-          <RothernLogo variant="full" size="lg" priority />
-        </Link>
-      </header>
+      <MarketingHeader />
 
-      {/* Gövde — temiz beyaz kart */}
-      <div className="flex flex-1 items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md">
+      {/* Gövde — modern arka plan + temiz beyaz kart */}
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-12 sm:py-16">
+        <AuthBackdrop />
+        <div className="relative w-full max-w-md">
           <div className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-zinc-950/5">
             <div className="mb-6 space-y-1 text-center">
               <h1 className="text-2xl font-semibold text-zinc-900">Giriş</h1>
