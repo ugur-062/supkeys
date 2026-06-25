@@ -26,7 +26,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { CheckIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const navigation = [
   { name: "Özellikler", href: "#ozellikler" },
@@ -63,10 +63,10 @@ const features = [
 ];
 
 const stats = [
-  { v: "98 ülke", l: "Yurtiçi & uluslararası al-sat" },
-  { v: "%100", l: "Kapalı zarf — teklifler gizli" },
-  { v: "0 ₺", l: "Koltuk ücreti, sınırsız rol" },
-  { v: "Tek panel", l: "İlandan dekonta tüm akış" },
+  { prefix: "", value: 98, suffix: " ülke", l: "Yurtiçi & uluslararası al-sat" },
+  { prefix: "%", value: 100, suffix: "", l: "Kapalı zarf — teklifler gizli" },
+  { prefix: "", value: 0, suffix: " ₺", l: "Koltuk ücreti, sınırsız rol" },
+  { text: "Tek panel", l: "İlandan dekonta tüm akış" },
 ];
 
 const steps = [
@@ -279,6 +279,51 @@ function TwoWayArrows() {
       <ArrowLongRightIcon className="rt-nudge-r size-6 text-zinc-400" />
       <ArrowLongLeftIcon className="rt-nudge-l size-6 text-zinc-400" />
     </div>
+  );
+}
+
+function CountUp({
+  value,
+  prefix = "",
+  suffix = "",
+  duration = 1500,
+}: {
+  value: number;
+  prefix?: string;
+  suffix?: string;
+  duration?: number;
+}) {
+  const [n, setN] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const started = useRef(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !started.current) {
+          started.current = true;
+          const start = performance.now();
+          const tick = (now: number) => {
+            const p = Math.min((now - start) / duration, 1);
+            const eased = 1 - Math.pow(1 - p, 3);
+            setN(Math.round(eased * value));
+            if (p < 1) requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
+        }
+      },
+      { threshold: 0.4 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [value, duration]);
+  return (
+    <span ref={ref}>
+      {prefix}
+      {n}
+      {suffix}
+    </span>
   );
 }
 
@@ -682,8 +727,16 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-8 px-6 py-14 lg:grid-cols-4 lg:px-8">
           {stats.map((s) => (
             <div key={s.l} className="text-center">
-              <div className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
-                {s.v}
+              <div className="text-3xl font-semibold tracking-tight text-white tabular-nums sm:text-4xl">
+                {"text" in s ? (
+                  s.text
+                ) : (
+                  <CountUp
+                    value={s.value}
+                    prefix={s.prefix}
+                    suffix={s.suffix}
+                  />
+                )}
               </div>
               <div className="mt-2 text-sm text-zinc-400">{s.l}</div>
             </div>
@@ -865,63 +918,68 @@ export default function HomePage() {
             Tek Paket&apos;e yükselt.
           </p>
         </div>
-        <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-center gap-y-6 px-6 sm:mt-20 sm:gap-y-0 lg:max-w-4xl lg:grid-cols-2 lg:px-8">
+        <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-stretch gap-8 px-6 sm:mt-20 lg:max-w-4xl lg:grid-cols-2 lg:px-8">
           {/* Standart */}
-          <div className="rounded-3xl bg-white p-8 ring-1 ring-zinc-950/10 sm:p-10 lg:rounded-r-none">
+          <div className="flex flex-col rounded-3xl bg-white p-8 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-xl sm:p-10">
             <h3 className="text-base/7 font-semibold text-zinc-700">Standart</h3>
             <p className="mt-4 flex items-baseline gap-x-2">
-              <span className="text-5xl font-semibold tracking-tight text-zinc-950">
+              <span className="text-4xl font-semibold tracking-tight text-zinc-950">
                 Ücretsiz
               </span>
+              <span className="text-sm text-zinc-500">sonsuza dek</span>
             </p>
-            <p className="mt-6 text-base/7 text-zinc-600">
+            <p className="mt-4 text-base/7 text-zinc-600">
               Ağına bağlan, çevren içinde al-sat.
             </p>
-            <ul role="list" className="mt-8 space-y-3 text-sm/6 text-zinc-600 sm:mt-10">
+            <ul role="list" className="mt-8 flex-1 space-y-3 text-sm/6 text-zinc-600">
               {standartFeatures.map((f) => (
                 <li key={f} className="flex gap-x-3">
                   <CheckIcon
                     aria-hidden="true"
                     className="h-6 w-5 flex-none text-zinc-900"
                   />
-                  {f}
+                  <span>{f}</span>
                 </li>
               ))}
             </ul>
             <Link
               href="/company/kayit"
-              className="mt-8 block rounded-lg px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 ring-1 ring-inset ring-zinc-300 transition hover:ring-zinc-400 sm:mt-10"
+              className="mt-8 block rounded-lg px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 ring-1 ring-inset ring-zinc-300 transition hover:bg-zinc-50 hover:ring-zinc-400"
             >
               Ücretsiz Başla
             </Link>
           </div>
-          {/* Tek Paket — vurgulu koyu */}
-          <div className="relative rounded-3xl bg-[#0A0A0A] p-8 shadow-2xl sm:p-10">
+          {/* Tek Paket — vurgulu */}
+          <div className="relative flex flex-col rounded-3xl bg-[#0A0A0A] p-8 shadow-2xl ring-1 ring-zinc-950 transition hover:-translate-y-1 sm:p-10">
+            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-950 shadow">
+              Önerilen
+            </div>
             <h3 className="text-base/7 font-semibold text-zinc-300">
               Tek Paket
             </h3>
             <p className="mt-4 flex items-baseline gap-x-2">
-              <span className="text-5xl font-semibold tracking-tight text-white">
+              <span className="text-4xl font-semibold tracking-tight text-white">
                 Premium
               </span>
+              <span className="text-sm text-zinc-400">tam erişim</span>
             </p>
-            <p className="mt-6 text-base/7 text-zinc-300">
-              Tam erişim — aç, keşfet, teklif ver.
+            <p className="mt-4 text-base/7 text-zinc-300">
+              Aç, keşfet, teklif ver — sınır yok.
             </p>
-            <ul role="list" className="mt-8 space-y-3 text-sm/6 text-zinc-300 sm:mt-10">
+            <ul role="list" className="mt-8 flex-1 space-y-3 text-sm/6 text-zinc-200">
               {premiumFeatures.map((f) => (
                 <li key={f} className="flex gap-x-3">
                   <CheckIcon
                     aria-hidden="true"
-                    className="h-6 w-5 flex-none text-white"
+                    className="h-6 w-5 flex-none text-emerald-400"
                   />
-                  {f}
+                  <span>{f}</span>
                 </li>
               ))}
             </ul>
             <Link
               href="/company/kayit"
-              className="mt-8 block rounded-lg bg-white px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200 sm:mt-10"
+              className="mt-8 block rounded-lg bg-white px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 transition hover:bg-zinc-200"
             >
               Kaydol
             </Link>
