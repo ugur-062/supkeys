@@ -22,10 +22,10 @@ const SIZES: Record<
 };
 
 const SOURCES: Record<LogoVariant, string> = {
-  full: "/supkeys-logo-full.png",
-  icon: "/supkeys-icon-256.png",
-  "full-white": "/supkeys-logo-full-white.png",
-  "icon-white": "/supkeys-icon-white.png",
+  full: "/rothern-logo-on-light.png",
+  icon: "/rothern-icon.svg",
+  "full-white": "/rothern-logo-on-dark.png",
+  "icon-white": "/rothern-icon-white-256.png",
 };
 
 export function RothernLogo({
