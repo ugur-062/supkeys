@@ -633,50 +633,124 @@ function FlowDiagram() {
   );
 }
 
+function FloatingCard({
+  className,
+  dot,
+  title,
+  sub,
+  float = "rt-float",
+}: {
+  className: string;
+  dot?: string;
+  title: string;
+  sub?: string;
+  float?: string;
+}) {
+  return (
+    <div
+      className={`absolute z-10 hidden w-max max-w-[13rem] rounded-xl border border-zinc-950/5 bg-white/90 px-4 py-3 shadow-xl ring-1 ring-zinc-950/5 backdrop-blur xl:block ${float} ${className}`}
+    >
+      <div className="flex items-center gap-2">
+        {dot ? <span className={`size-2 shrink-0 rounded-full ${dot}`} /> : null}
+        <span className="text-sm font-semibold text-zinc-900">{title}</span>
+      </div>
+      {sub ? <div className="mt-0.5 text-xs text-zinc-500">{sub}</div> : null}
+    </div>
+  );
+}
+
 export default function HomePage() {
   return (
     <div className="bg-white">
       <MarketingHeader />
 
-      {/* Hero — split + çerçeveli ekran */}
-      <section className="relative isolate overflow-hidden bg-white">
+      {/* Hero */}
+      <section className="relative isolate overflow-hidden px-6 pb-20 lg:px-8">
+        {/* grid arka plan */}
         <svg
           aria-hidden="true"
-          className="absolute inset-0 -z-10 size-full stroke-zinc-200 [mask-image:radial-gradient(100%_100%_at_top_right,white,transparent)]"
+          className="absolute inset-0 -z-10 size-full stroke-zinc-200 [mask-image:radial-gradient(64rem_48rem_at_50%_-4rem,white,transparent)]"
         >
           <defs>
             <pattern
               id="hero-grid"
-              width={200}
-              height={200}
+              width={48}
+              height={48}
               x="50%"
               y={-1}
               patternUnits="userSpaceOnUse"
             >
-              <path d="M.5 200V.5H200" fill="none" />
+              <path d="M.5 48V.5H48" fill="none" />
             </pattern>
           </defs>
-          <rect width="100%" height="100%" strokeWidth={0} fill="url(#hero-grid)" />
+          <rect
+            width="100%"
+            height="100%"
+            strokeWidth={0}
+            fill="url(#hero-grid)"
+          />
         </svg>
-        <div className="mx-auto max-w-7xl px-6 pt-32 pb-24 sm:pb-32 lg:flex lg:gap-x-10 lg:px-8 lg:py-40 lg:pt-44">
-          <div className="mx-auto max-w-2xl lg:mx-0 lg:shrink-0 lg:pt-6">
-            <div className="inline-flex items-center gap-2 rounded-full bg-zinc-100 px-3 py-1 text-sm/6 font-medium text-zinc-700 ring-1 ring-zinc-950/10">
+        {/* yumuşak gradient */}
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80"
+        >
+          <div
+            style={{
+              clipPath:
+                "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)",
+            }}
+            className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36rem] -translate-x-1/2 rotate-30 bg-gradient-to-tr from-zinc-300 to-zinc-500 opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72rem]"
+          />
+        </div>
+
+        {/* uçuşan sistem kartları — sağı/solu doldurur */}
+        <FloatingCard
+          className="top-[22%] left-[2%] xl:left-[6%]"
+          float="rt-float"
+          dot="bg-blue-500"
+          title="Çelik alımı"
+          sub="3 yeni teklif geldi"
+        />
+        <FloatingCard
+          className="top-[40%] left-[4%] xl:left-[9%]"
+          float="rt-float-slow"
+          title="🌍 98 ülke"
+          sub="Sınır ötesi alım & satım"
+        />
+        <FloatingCard
+          className="top-[26%] right-[2%] xl:right-[6%]"
+          float="rt-float-slow"
+          dot="bg-emerald-500"
+          title="Sipariş kargolandı"
+          sub="ROT-ORD-000128"
+        />
+        <FloatingCard
+          className="top-[60%] right-[4%] xl:right-[9%]"
+          float="rt-float"
+          title="Yeni bağlantı"
+          sub="Üçüncü Firma · kabul edildi"
+        />
+
+        <div className="mx-auto max-w-3xl pt-24 pb-16 sm:pt-32 lg:pt-36">
+          <div className="mb-8 flex justify-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-sm/6 font-medium text-zinc-700 ring-1 ring-zinc-950/10 backdrop-blur">
               <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
               Yurtiçi & uluslararası · AI destekli B2B ticaret
             </div>
-            <h1 className="mt-8 text-5xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-7xl">
+          </div>
+          <div className="text-center">
+            <h1 className="text-5xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-7xl">
               Hem al, hem sat —{" "}
               <span className="text-zinc-500">tek platformda.</span>
             </h1>
-            <p className="mt-8 text-lg font-medium text-pretty text-zinc-600 sm:text-xl/8">
-              Alıcıysan kapalı zarf teklif topla;{" "}
-              <strong className="font-semibold text-zinc-900">
-                tedarikçiysen ürününü sat
-              </strong>
-              , alıcılar sana gelsin. Bağlan, ihaleyi yönet, siparişi belgesine
-              kadar takip et.
+            <p className="mx-auto mt-8 max-w-2xl text-lg font-medium text-pretty text-zinc-600 sm:text-xl/8">
+              Alım ilanı aç, kapalı zarf teklif topla; ya da fazlanı sat.
+              Yurtiçinde veya 98 ülkede firmalarla bağlan, ihaleyi yönet,
+              siparişi belgesine kadar takip et. Şeffaf, denetlenebilir, AI
+              destekli.
             </p>
-            <div className="mt-10 flex items-center gap-x-4">
+            <div className="mt-10 flex items-center justify-center gap-x-4">
               <Link
                 href="/company/kayit"
                 className="rounded-lg bg-zinc-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800"
@@ -691,11 +765,10 @@ export default function HomePage() {
               </Link>
             </div>
           </div>
-          <div className="mx-auto mt-16 flex max-w-2xl sm:mt-20 lg:mt-0 lg:mr-0 lg:ml-10 lg:max-w-none lg:flex-none xl:ml-16">
-            <div className="w-[40rem] max-w-none flex-none">
-              <AppPreview />
-            </div>
-          </div>
+        </div>
+        {/* Ürün önizleme (canlı) */}
+        <div className="relative mx-auto max-w-5xl">
+          <AppPreview />
         </div>
       </section>
 
