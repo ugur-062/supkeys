@@ -2292,6 +2292,27 @@ enum CompanyOrderStatus {
   CANCELLED
 }
 
+enum CompanyDocType {
+  DELIVERY // teslim belgesi — yurtiçi irsaliye / uluslararası konşimento (satıcı yükler)
+  PAYMENT // ödeme dekontu (alıcı yükler)
+}
+
+// Sipariş belgesi — R2'da saklanan dosya metası.
+model CompanyOrderDocument {
+  id                  String         @id @default(cuid())
+  orderId             String
+  order               CompanyOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type                CompanyDocType
+  key                 String // R2 object key
+  fileName            String
+  mimeType            String
+  uploadedByCompanyId String
+  createdAt           DateTime       @default(now())
+
+  @@index([orderId])
+  @@map("company_order_documents")
+}
+
 // Birleşik sistem — sipariş. İlan kazandırılınca oluşur ve HER ZAMAN
 // satıcı→alıcı'ya normalleşir: ALIM ilanı → satıcı=kazanan teklifçi;
 // SATIS ilanı → satıcı=ilanı açan. Böylece kargo/ödeme akışı tek yön.
@@ -2307,6 +2328,8 @@ model CompanyOrder {
 
   amount Decimal            @db.Decimal(18, 2)
   status CompanyOrderStatus @default(CREATED)
+
+  documents CompanyOrderDocument[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

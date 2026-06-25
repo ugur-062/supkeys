@@ -6,6 +6,7 @@ import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { useOrder, useOrderAction } from "@/hooks/use-company-orders";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { OrderDocumentsSection } from "./_components/order-documents-section";
 import { ArrowLeftIcon, CheckCircleIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -133,6 +134,8 @@ export default function OrderDetailPage() {
           </Text>
         )}
       </section>
+
+      <OrderDocumentsSection orderId={id} role={o.role} />
     </div>
   );
 }
