@@ -16,35 +16,36 @@ const STATUS_LABEL: Record<CompanyOrder["status"], string> = {
   CANCELLED: "İptal",
 };
 
-export default function SiparislerPage() {
+export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   const { data, isLoading } = useOrders();
+  const rows = (data ?? []).filter((o) => o.role === role);
+  const isSeller = role === "seller";
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <Heading>Siparişler</Heading>
+      <Heading>Siparişlerim</Heading>
 
       {isLoading ? (
         <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
-      ) : !data || data.length === 0 ? (
+      ) : rows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-10 text-center">
           <Text className="text-sm text-zinc-500">
-            Henüz siparişin yok. Bir ilan kazandırıldığında burada{" "}
-            <span className="text-emerald-600">🟢 gönderdiğin</span> /{" "}
-            <span className="text-blue-600">🔵 aldığın</span> sipariş olarak
-            görünür.
+            {isSeller
+              ? "Henüz satış siparişin yok. Bir satış ilanın veya ihale teklifin kazandığında burada görünür."
+              : "Henüz alım siparişin yok. Bir ihaleni kazandırdığında veya satın aldığında burada görünür."}
           </Text>
         </div>
       ) : (
         <div className="space-y-2">
-          {data.map((o) => (
+          {rows.map((o) => (
             <Link
               key={o.id}
-              href={`/company/siparisler/${o.id}`}
-              className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3 hover:bg-zinc-50 transition"
+              href={`/company/siparis/${o.id}`}
+              className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3 transition hover:bg-zinc-50"
             >
               <div className="flex min-w-0 items-center gap-3">
-                <Badge color={o.role === "seller" ? "emerald" : "blue"}>
-                  {o.role === "seller" ? "🟢 Gönderiyorsun" : "🔵 Alıyorsun"}
+                <Badge color={isSeller ? "emerald" : "blue"}>
+                  {isSeller ? "🟢 Gönderiyorsun" : "🔵 Alıyorsun"}
                 </Badge>
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold text-zinc-900">
@@ -53,9 +54,11 @@ export default function SiparislerPage() {
                   <div className="text-xs text-zinc-500">
                     <span className="font-mono">{o.number}</span>
                     {" · "}
-                    {o.role === "seller" ? "Alıcı" : "Satıcı"}: {o.counterparty}
+                    {isSeller ? "Alıcı" : "Satıcı"}: {o.counterparty}
                     {" · "}
-                    {format(new Date(o.createdAt), "dd MMM yyyy", { locale: tr })}
+                    {format(new Date(o.createdAt), "dd MMM yyyy", {
+                      locale: tr,
+                    })}
                   </div>
                 </div>
               </div>

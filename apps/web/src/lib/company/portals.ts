@@ -1,0 +1,138 @@
+import type { CompanyRole } from "@/lib/company-auth/types";
+import {
+  BuildingStorefrontIcon,
+  ClipboardDocumentListIcon,
+  HomeIcon,
+  InboxArrowDownIcon,
+  MagnifyingGlassIcon,
+  ShoppingBagIcon,
+  ShoppingCartIcon,
+  TagIcon,
+  UsersIcon,
+} from "@heroicons/react/20/solid";
+import type { ComponentType, SVGProps } from "react";
+
+type NavIcon = ComponentType<SVGProps<SVGSVGElement> & { "data-slot"?: string }>;
+
+export type PortalKey = "satinalma" | "satis";
+
+export interface PortalNavItem {
+  icon: NavIcon;
+  label: string;
+  href: string;
+  /** Yalnızca PAKET üyelikte aktif (STANDARD'da kilitli teaser). */
+  paidOnly?: boolean;
+}
+
+export interface PortalDef {
+  key: PortalKey;
+  label: string;
+  /** Bu portala erişim veren operasyon rolü. */
+  role: CompanyRole;
+  basePath: string;
+  accent: "blue" | "emerald";
+  nav: PortalNavItem[];
+}
+
+export const PORTALS: Record<PortalKey, PortalDef> = {
+  satinalma: {
+    key: "satinalma",
+    label: "Satınalma",
+    role: "SATIN_ALMACI",
+    basePath: "/company/satinalma",
+    accent: "blue",
+    nav: [
+      { icon: HomeIcon, label: "Panel", href: "/company/satinalma" },
+      {
+        icon: ClipboardDocumentListIcon,
+        label: "İhalelerim",
+        href: "/company/satinalma/ihalelerim",
+      },
+      {
+        icon: ShoppingCartIcon,
+        label: "Satın Al",
+        href: "/company/satinalma/satin-al",
+        paidOnly: true,
+      },
+      {
+        icon: ShoppingBagIcon,
+        label: "Siparişlerim",
+        href: "/company/satinalma/siparisler",
+      },
+      {
+        icon: UsersIcon,
+        label: "Tedarikçilerim",
+        href: "/company/satinalma/tedarikcilerim",
+      },
+    ],
+  },
+  satis: {
+    key: "satis",
+    label: "Satış",
+    role: "SATISCI",
+    basePath: "/company/satis",
+    accent: "emerald",
+    nav: [
+      { icon: HomeIcon, label: "Panel", href: "/company/satis" },
+      {
+        icon: TagIcon,
+        label: "Satış İlanlarım",
+        href: "/company/satis/ilanlarim",
+      },
+      {
+        icon: InboxArrowDownIcon,
+        label: "Açık İhaleler",
+        href: "/company/satis/acik-ihaleler",
+      },
+      {
+        icon: ClipboardDocumentListIcon,
+        label: "Tekliflerim",
+        href: "/company/satis/tekliflerim",
+      },
+      {
+        icon: ShoppingBagIcon,
+        label: "Siparişlerim",
+        href: "/company/satis/siparisler",
+      },
+      {
+        icon: BuildingStorefrontIcon,
+        label: "Müşterilerim",
+        href: "/company/satis/musterilerim",
+      },
+    ],
+  },
+};
+
+export const PORTAL_ORDER: PortalKey[] = ["satinalma", "satis"];
+
+/** URL'den aktif portalı türetir (kaynak: pathname). */
+export function activePortalFromPath(pathname: string | null): PortalKey | null {
+  if (!pathname) return null;
+  if (pathname.startsWith("/company/satinalma")) return "satinalma";
+  if (pathname.startsWith("/company/satis")) return "satis";
+  return null;
+}
+
+/**
+ * Kullanıcının rollerine göre erişebildiği portallar. YONETICI ikisini de görür;
+ * SATIN_ALMACI → satınalma, SATISCI → satış. Bir kişi YÖNETİCİ olmadan iki role
+ * birden sahip olabilir (ikisi de açılır).
+ */
+export function accessiblePortals(roles: CompanyRole[]): PortalKey[] {
+  const isManager = roles.includes("YONETICI");
+  const out: PortalKey[] = [];
+  if (isManager || roles.includes("SATIN_ALMACI")) out.push("satinalma");
+  if (isManager || roles.includes("SATISCI")) out.push("satis");
+  return out;
+}
+
+export function isPortalItemActive(
+  href: string,
+  pathname: string | null,
+): boolean {
+  if (!pathname) return false;
+  const base =
+    href === "/company/satinalma" || href === "/company/satis";
+  if (base) return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}

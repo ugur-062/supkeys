@@ -22,7 +22,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export default function BaglantilarPage() {
+export function ConnectionsView() {
   const { company } = useCompanyAuth();
   const connections = useConnections();
   const incoming = useIncomingInvites();

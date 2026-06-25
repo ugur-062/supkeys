@@ -55,7 +55,7 @@ export default function OrderDetailPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <Link
-        href="/company/siparisler"
+        href="/company"
         className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
       >
         <ArrowLeftIcon className="h-4 w-4" />

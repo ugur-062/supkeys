@@ -57,13 +57,16 @@ function Choice({
 export function NewListingDialog({
   open,
   onClose,
+  fixedType,
 }: {
   open: boolean;
   onClose: () => void;
+  /** Portal bağlamında tür sabit (ihalelerim → ALIM, satış ilanlarım → SATIS). */
+  fixedType?: ListingType;
 }) {
   const create = useCreateListing();
   const [isInternational, setIsInternational] = useState(false);
-  const [type, setType] = useState<ListingType>("ALIM");
+  const [type, setType] = useState<ListingType>(fixedType ?? "ALIM");
   const [format, setFormat] = useState<ListingFormat>("RFQ");
   const [minPrice, setMinPrice] = useState("");
   const [buyNowPrice, setBuyNowPrice] = useState("");
@@ -77,7 +80,7 @@ export function NewListingDialog({
 
   const reset = () => {
     setIsInternational(false);
-    setType("ALIM");
+    setType(fixedType ?? "ALIM");
     setFormat("RFQ");
     setMinPrice("");
     setBuyNowPrice("");
@@ -133,26 +136,28 @@ export function NewListingDialog({
           </div>
         </div>
 
-        {/* 2. Tür */}
-        <div>
-          <Label>2 · Tür</Label>
-          <div className="mt-2 grid grid-cols-2 gap-3">
-            <Choice
-              active={type === "ALIM"}
-              onClick={() => setType("ALIM")}
-              title="🔵 Alım"
-              desc="Almak istiyorum — satıcılar teklif verir"
-              color="blue"
-            />
-            <Choice
-              active={type === "SATIS"}
-              onClick={() => setType("SATIS")}
-              title="🟢 Satış"
-              desc="Satmak istiyorum — alıcılar teklif verir"
-              color="emerald"
-            />
+        {/* 2. Tür — portal bağlamında sabitse gizle */}
+        {fixedType ? null : (
+          <div>
+            <Label>2 · Tür</Label>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              <Choice
+                active={type === "ALIM"}
+                onClick={() => setType("ALIM")}
+                title="🔵 Alım"
+                desc="Almak istiyorum — satıcılar teklif verir"
+                color="blue"
+              />
+              <Choice
+                active={type === "SATIS"}
+                onClick={() => setType("SATIS")}
+                title="🟢 Satış"
+                desc="Satmak istiyorum — alıcılar teklif verir"
+                color="emerald"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* 3a. Alış → format */}
         {type === "ALIM" ? (

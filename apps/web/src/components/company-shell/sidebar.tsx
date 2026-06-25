@@ -21,9 +21,14 @@ import {
 } from "@/components/catalyst/sidebar";
 import { useCompanyAuth, useCompanyLogout } from "@/hooks/use-company-auth";
 import {
-  companyNavConfig,
-  isCompanyItemActive,
-} from "@/lib/company/nav-config";
+  PORTALS,
+  PORTAL_ORDER,
+  accessiblePortals,
+  activePortalFromPath,
+  isPortalItemActive,
+  type PortalKey,
+} from "@/lib/company/portals";
+import { usePortalStore } from "@/lib/company/portal-store";
 import {
   ArrowRightStartOnRectangleIcon,
   ChevronUpIcon,
@@ -50,7 +55,14 @@ export function CompanySidebar() {
   const pathname = usePathname();
   const { company, user } = useCompanyAuth();
   const logout = useCompanyLogout();
+  const setLastPortal = usePortalStore((s) => s.setLastPortal);
   const isPaid = company?.tier === "PAKET";
+
+  const roles = user?.roles ?? [];
+  const available = accessiblePortals(roles);
+  const active: PortalKey =
+    activePortalFromPath(pathname) ?? available[0] ?? "satinalma";
+  const portal = PORTALS[active];
 
   return (
     <Sidebar>
@@ -71,18 +83,50 @@ export function CompanySidebar() {
             </Badge>
           </div>
         </div>
+
+        {/* Portal switcher — yalnızca erişilebilir portallar */}
+        {available.length > 1 ? (
+          <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1">
+            {PORTAL_ORDER.filter((p) => available.includes(p)).map((p) => {
+              const def = PORTALS[p];
+              const on = p === active;
+              return (
+                <a
+                  key={p}
+                  href={def.basePath}
+                  onClick={() => setLastPortal(p)}
+                  className={`rounded-md px-2 py-1.5 text-center text-xs font-semibold transition ${
+                    on
+                      ? p === "satinalma"
+                        ? "bg-white text-blue-700 shadow-sm"
+                        : "bg-white text-emerald-700 shadow-sm"
+                      : "text-zinc-500 hover:text-zinc-800"
+                  }`}
+                >
+                  {def.label}
+                </a>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-3">
+            <Badge color={portal.accent === "blue" ? "blue" : "emerald"}>
+              {portal.label} Portalı
+            </Badge>
+          </div>
+        )}
       </SidebarHeader>
 
       <SidebarBody>
         <SidebarSection>
-          {companyNavConfig.map((item) => {
+          {portal.nav.map((item) => {
             const Icon = item.icon;
             const locked = item.paidOnly && !isPaid;
             return (
               <SidebarItem
                 key={item.href}
                 href={item.href}
-                current={isCompanyItemActive(item.href, pathname)}
+                current={isPortalItemActive(item.href, pathname)}
               >
                 <Icon data-slot="icon" />
                 <SidebarLabel>{item.label}</SidebarLabel>
