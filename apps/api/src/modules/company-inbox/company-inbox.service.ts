@@ -33,7 +33,7 @@ export class CompanyInboxService {
         emoji: "🔗",
         title: `${inv.inviter.name} bağlantı daveti gönderdi`,
         actionLabel: "Görüntüle",
-        href: "/company/baglantilar",
+        href: "/company/satinalma/tedarikcilerim",
       });
     }
 
@@ -60,7 +60,7 @@ export class CompanyInboxService {
           emoji: l.type === "ALIM" ? "🔵" : "🟢",
           title: `"${l.title}" ilanına ${c} teklif geldi`,
           actionLabel: "İncele & Kazandır",
-          href: `/company/ilanlar/${l.id}`,
+          href: `/company/ilan/${l.id}`,
         });
       }
     }
@@ -69,20 +69,34 @@ export class CompanyInboxService {
     const orders = await this.prisma.companyOrder.findMany({
       where: {
         OR: [{ sellerCompanyId: companyId }, { buyerCompanyId: companyId }],
-        status: { in: ["CREATED", "IN_DELIVERY", "DELIVERED"] },
+        status: {
+          in: ["PENDING", "ACCEPTED", "CREATED", "IN_DELIVERY", "DELIVERED"],
+        },
       },
       include: { listing: { select: { title: true } } },
     });
     for (const o of orders) {
       const isSeller = o.sellerCompanyId === companyId;
       const name = o.listing?.title ?? "Sipariş";
-      if (isSeller && o.status === "CREATED") {
+      const href = `/company/siparis/${o.id}`;
+      if (isSeller && o.status === "PENDING") {
+        items.push({
+          kind: "order_ship",
+          emoji: "🟢",
+          title: `"${name}" siparişini onayla`,
+          actionLabel: "Onayla / Reddet",
+          href,
+        });
+      } else if (
+        isSeller &&
+        (o.status === "ACCEPTED" || o.status === "CREATED")
+      ) {
         items.push({
           kind: "order_ship",
           emoji: "🟢",
           title: `"${name}" siparişini kargola`,
           actionLabel: "Gönder",
-          href: `/company/siparisler/${o.id}`,
+          href,
         });
       } else if (!isSeller && o.status === "IN_DELIVERY") {
         items.push({
@@ -90,7 +104,7 @@ export class CompanyInboxService {
           emoji: "🔵",
           title: `"${name}" siparişini teslim al`,
           actionLabel: "Teslim Al",
-          href: `/company/siparisler/${o.id}`,
+          href,
         });
       } else if (!isSeller && o.status === "DELIVERED") {
         items.push({
@@ -98,7 +112,7 @@ export class CompanyInboxService {
           emoji: "🔵",
           title: `"${name}" ödemesini tamamla`,
           actionLabel: "Tamamla",
-          href: `/company/siparisler/${o.id}`,
+          href,
         });
       }
     }

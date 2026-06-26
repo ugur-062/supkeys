@@ -4,6 +4,7 @@ import { Badge } from "@/components/catalyst/badge";
 import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { useInbox } from "@/hooks/use-company-inbox";
 import { useOrders } from "@/hooks/use-company-orders";
 import {
   useBrowseListings,
@@ -66,6 +67,8 @@ export function PortalDashboard({ portal }: { portal: PortalKey }) {
   const my = useMyListings();
   const browse = useBrowseListings();
   const orders = useOrders();
+  const inbox = useInbox();
+  const pending = inbox.data ?? [];
 
   const mine = (my.data ?? []).filter((l) => l.type === cfg.myType);
   const openCount = mine.filter((l) => l.status === "OPEN").length;
@@ -114,6 +117,33 @@ export function PortalDashboard({ portal }: { portal: PortalKey }) {
           href={`${def.basePath}/siparisler`}
         />
       </div>
+
+      {/* Bekleyen İşler */}
+      {pending.length > 0 ? (
+        <div className="rounded-xl border border-zinc-950/10 bg-white">
+          <div className="flex items-center justify-between border-b border-zinc-950/5 px-5 py-3">
+            <Subheading>Bekleyen İşler</Subheading>
+            <Badge color="amber">{pending.length}</Badge>
+          </div>
+          <div className="divide-y divide-zinc-950/5">
+            {pending.slice(0, 6).map((item, i) => (
+              <Link
+                key={`${item.href}-${i}`}
+                href={item.href}
+                className="flex items-center gap-3 px-5 py-3 transition hover:bg-zinc-50"
+              >
+                <span className="text-lg">{item.emoji}</span>
+                <span className="min-w-0 flex-1 truncate text-sm text-zinc-800">
+                  {item.title}
+                </span>
+                <span className="shrink-0 text-xs font-semibold text-zinc-500">
+                  {item.actionLabel} →
+                </span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap gap-3">
         <Link

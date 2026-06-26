@@ -38,6 +38,16 @@ export function ConnectionsView() {
   const [cmpCode, setCmpCode] = useState("");
   const [cmpReason, setCmpReason] = useState("");
   const [cmpDetail, setCmpDetail] = useState("");
+  const [connSearch, setConnSearch] = useState("");
+
+  const filteredConnections = (connections.data ?? []).filter((c) => {
+    const q = connSearch.trim().toLocaleLowerCase("tr");
+    if (!q) return true;
+    return (
+      c.company.name.toLocaleLowerCase("tr").includes(q) ||
+      (c.company.supkeysId ?? "").toLocaleLowerCase("tr").includes(q)
+    );
+  });
 
   const handleComplaint = async () => {
     if (cmpCode.trim().length < 4 || cmpReason.trim().length < 3) return;
@@ -175,7 +185,17 @@ export function ConnectionsView() {
 
       {/* Aktif bağlantılar */}
       <section className="space-y-3">
-        <Subheading>Bağlantıların</Subheading>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Subheading>Bağlantıların</Subheading>
+          {connections.data && connections.data.length > 0 ? (
+            <Input
+              value={connSearch}
+              onChange={(e) => setConnSearch(e.target.value)}
+              placeholder="Bağlantı ara…"
+              className="max-w-xs"
+            />
+          ) : null}
+        </div>
         {connections.isLoading ? (
           <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
         ) : !connections.data || connections.data.length === 0 ? (
@@ -184,9 +204,15 @@ export function ConnectionsView() {
               Henüz bağlantın yok. Yukarıdan bir firma kodu ile davet gönder.
             </Text>
           </div>
+        ) : filteredConnections.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-8 text-center">
+            <Text className="text-sm text-zinc-500">
+              "{connSearch}" ile eşleşen bağlantı yok.
+            </Text>
+          </div>
         ) : (
           <div className="space-y-2">
-            {connections.data.map((c) => (
+            {filteredConnections.map((c) => (
               <div
                 key={c.connectionId}
                 className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3"
