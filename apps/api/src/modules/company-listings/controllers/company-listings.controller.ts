@@ -120,4 +120,40 @@ export class CompanyListingsController {
   ) {
     return this.service.withdrawBid(user, id);
   }
+
+  // ── Sahip karar aksiyonları (üç-nokta menü) ──
+
+  @Post(":id/close-early")
+  closeEarly(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.closeBiddingEarly(user, id);
+  }
+
+  @Post(":id/change-closing")
+  changeClosing(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() body: { closesAt: string },
+  ) {
+    return this.service.changeClosingTime(user, id, body.closesAt);
+  }
+
+  @Post(":id/internal-notes")
+  internalNotes(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() body: { notes: string },
+  ) {
+    return this.service.updateInternalNotes(user, id, body.notes ?? "");
+  }
+
+  @Post(":id/close-no-award")
+  closeNoAward(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.closeNoAward(user, id);
+  }
 }

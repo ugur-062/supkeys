@@ -4,6 +4,7 @@ import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { CountdownFull } from "@/components/tenders/countdown-full";
 import { GeneralInfoTab } from "@/components/tenders/general-info-tab";
+import { TenderActionsMenu } from "@/components/tenders/tender-actions-menu";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
@@ -899,7 +900,15 @@ export default function ListingDetailPage() {
       <div className="mx-auto max-w-5xl space-y-5">
         {breadcrumb}
         <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
-          {header}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">{header}</div>
+            <TenderActionsMenu
+              id={l.id}
+              status={l.status}
+              closesAt={l.closesAt}
+              internalNotes={l.internalNotes ?? null}
+            />
+          </div>
         </div>
 
         {/* Meta bar */}

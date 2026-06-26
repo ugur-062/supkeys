@@ -1084,6 +1084,96 @@ export class CompanyListingsService {
     return { ok: true };
   }
 
+  /** Sahip ihaleyi belirtilen kapanışından önce erken kapatır (OPEN → CLOSED). */
+  async closeBiddingEarly(user: AuthenticatedCompanyUser, listingId: string) {
+    const listing = await this.ownerOpenListing(user, listingId);
+    await this.prisma.listing.update({
+      where: { id: listing.id },
+      data: { status: "CLOSED", closesAt: new Date() },
+    });
+    return { ok: true, status: "CLOSED" };
+  }
+
+  /** Sahip kapanış zamanını değiştirir (ileri/geri). OPEN ilanlarda. */
+  async changeClosingTime(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    closesAt: string,
+  ) {
+    const listing = await this.ownerOpenListing(user, listingId);
+    const date = new Date(closesAt);
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException("Geçersiz tarih");
+    }
+    await this.prisma.listing.update({
+      where: { id: listing.id },
+      data: { closesAt: date },
+    });
+    return { ok: true };
+  }
+
+  /** Sahip şirket-içi notları günceller. */
+  async updateInternalNotes(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    notes: string,
+  ) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true },
+    });
+    if (!listing || listing.companyId !== user.companyId) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
+    await this.prisma.listing.update({
+      where: { id: listing.id },
+      data: { internalNotes: notes.trim() || null },
+    });
+    return { ok: true };
+  }
+
+  /** Sahip ihaleyi kazanan olmadan kapatır (CANCELLED). */
+  async closeNoAward(user: AuthenticatedCompanyUser, listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true, status: true },
+    });
+    if (!listing || listing.companyId !== user.companyId) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
+    if (listing.status !== "OPEN" && listing.status !== "CLOSED") {
+      throw new BadRequestException("Bu ilan kapatılamaz");
+    }
+    await this.prisma.$transaction([
+      this.prisma.listing.update({
+        where: { id: listing.id },
+        data: { status: "CANCELLED" },
+      }),
+      this.prisma.listingBid.updateMany({
+        where: { listingId, status: "SUBMITTED" },
+        data: { status: "LOST" },
+      }),
+    ]);
+    return { ok: true };
+  }
+
+  private async ownerOpenListing(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+  ) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true, status: true },
+    });
+    if (!listing || listing.companyId !== user.companyId) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
+    if (listing.status !== "OPEN") {
+      throw new BadRequestException("Sadece açık ilanda yapılabilir");
+    }
+    return listing;
+  }
+
   /** Teklif veren kendi teklifini geri çeker. */
   async withdrawBid(user: AuthenticatedCompanyUser, listingId: string) {
     const bid = await this.prisma.listingBid.findUnique({

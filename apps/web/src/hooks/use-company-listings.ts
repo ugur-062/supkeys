@@ -329,6 +329,64 @@ export function useCancelListing(id: string) {
   });
 }
 
+/** Sahip: ihaleyi erken kapat (OPEN → CLOSED). */
+export function useCloseEarly(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post(
+        `/company/listings/${id}/close-early`,
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-listings"] }),
+  });
+}
+
+/** Sahip: kapanış zamanını değiştir. */
+export function useChangeClosing(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (closesAt: string) => {
+      const { data } = await companyApi.post(
+        `/company/listings/${id}/change-closing`,
+        { closesAt },
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-listings"] }),
+  });
+}
+
+/** Sahip: şirket-içi notları güncelle. */
+export function useUpdateInternalNotes(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (notes: string) => {
+      const { data } = await companyApi.post(
+        `/company/listings/${id}/internal-notes`,
+        { notes },
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-listings"] }),
+  });
+}
+
+/** Sahip: kazanan olmadan kapat (CANCELLED). */
+export function useCloseNoAward(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post(
+        `/company/listings/${id}/close-no-award`,
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-listings"] }),
+  });
+}
+
 export function useWithdrawBid(id: string) {
   const qc = useQueryClient();
   return useMutation({
