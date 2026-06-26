@@ -633,6 +633,59 @@ enum ListingFormat {
   ENGLISH_AUCTION // İngiliz usulü açık eksiltme (ALIM)
 }
 
+// Teslim şekli (Incoterms + yurtiçi).
+enum ListingDeliveryTerm {
+  DOMESTIC_DELIVERED // yurtiçi adrese teslim
+  DOMESTIC_PICKUP // yurtiçi yerinden teslim
+  EXW
+  FCA
+  CPT
+  CIP
+  DAP
+  DPU
+  DDP
+  FAS
+  FOB
+  CFR
+  CIF
+}
+
+enum ListingPaymentTerm {
+  CASH // peşin
+  DEFERRED // vadeli
+}
+
+enum ListingPaymentTiming {
+  BEFORE_DELIVERY
+  AFTER_DELIVERY
+}
+
+// İngiliz Usulü — teklif görünürlüğü.
+enum ListingBidVisibility {
+  OWN_ONLY
+  BEST_PRICE
+  OWN_RANK
+  BEST_AND_OWN_RANK
+  ALL
+}
+
+enum ListingDecrementType {
+  AMOUNT
+  PERCENT
+}
+
+enum ListingDecrementBasis {
+  OWN_LAST_BID
+  BEST_BID
+}
+
+enum ListingQuestionAnswerType {
+  TEXT
+  NUMBER
+  YES_NO
+  DATE
+}
+
 model Listing {
   id          String        @id @default(cuid())
   // SİSTEM GENELİNDE benzersiz ilan numarası (ROT-NNNNNN). Global Postgres
@@ -667,6 +720,28 @@ model Listing {
   requireBidDocument Boolean    @default(false) // teklifte belge zorunlu mu
   primaryCurrency    Currency   @default(TRY)
   allowedCurrencies  Currency[] @default([])
+
+  // Wizard zenginleştirme (eski tender wizard birebir) — hepsi opsiyonel/default.
+  isSealedBid   Boolean              @default(true) // kapalı zarf
+  isLogistics   Boolean              @default(false) // lojistik ihalesi katmanı
+  logistics     Json? // taşıma modu/adres/kargo/ağırlık vb. (LogisticsFormData)
+  deliveryTerm  ListingDeliveryTerm?
+  paymentTerm   ListingPaymentTerm   @default(CASH)
+  paymentDays   Int?
+  paymentTiming ListingPaymentTiming @default(AFTER_DELIVERY)
+  bidsOpenAt    DateTime?
+
+  // İngiliz Usulü açık eksiltme ayarları.
+  bidVisibility          ListingBidVisibility  @default(OWN_ONLY)
+  priceDecrementType     ListingDecrementType?
+  priceDecrementValue    Decimal?              @db.Decimal(18, 4)
+  priceDecrementBasis    ListingDecrementBasis?
+  decimalPlaces          Int                   @default(2)
+  sendClosingReminder    Boolean               @default(false)
+  reminderMinutesBefore  Int?
+  autoExtendOnLateBid    Boolean               @default(false)
+  autoExtendThresholdMin Int?
+  autoExtendByMinutes    Int?
 
   bids        ListingBid[]
   orders      CompanyOrder[]
@@ -706,13 +781,31 @@ model ListingItem {
   quantity    Decimal @db.Decimal(18, 3)
   unit        String // adet, kg, m, paket…
   targetPrice Decimal? @db.Decimal(18, 2) // hedef birim fiyat (opsiyonel)
+  materialCode   String? // malzeme/stok kodu
+  requiredByDate DateTime? // istenen teslim tarihi
 
-  bidItems ListingBidItem[]
+  bidItems  ListingBidItem[]
+  questions ListingItemQuestion[]
 
   createdAt DateTime @default(now())
 
   @@index([listingId])
   @@map("listing_items")
+}
+
+// Kalem başına tipli soru (eski item-question modal) — tedarikçi teklif verirken cevaplar.
+model ListingItemQuestion {
+  id         String                    @id @default(cuid())
+  itemId     String
+  item       ListingItem               @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  text       String
+  answerType ListingQuestionAnswerType @default(TEXT)
+  required   Boolean                   @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([itemId])
+  @@map("listing_item_questions")
 }
 
 // İhale daveti — belirli bağlı tedarikçiyi ihaleye davet (eski TenderInvitation).
