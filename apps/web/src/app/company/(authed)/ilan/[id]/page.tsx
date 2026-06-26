@@ -719,34 +719,32 @@ export default function ListingDetailPage() {
               <div className="text-sm font-medium text-zinc-900">
                 Kalem teklifleri (birim fiyat)
               </div>
-              <div className="overflow-hidden rounded-lg border border-zinc-200">
-                <table className="w-full text-sm">
-                  <thead className="bg-zinc-50 text-xs text-zinc-500">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium">Kalem</th>
-                      <th className="px-3 py-2 text-right font-medium">Miktar</th>
-                      <th className="px-3 py-2 text-right font-medium">
-                        Birim Fiyat
-                      </th>
-                      <th className="px-3 py-2 text-right font-medium">Tutar</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100">
+              <div className="rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
+                <Table dense>
+                  <TableHead>
+                    <TableRow>
+                      <TableHeader>Kalem</TableHeader>
+                      <TableHeader className="text-right">Miktar</TableHeader>
+                      <TableHeader className="text-right">Birim Fiyat</TableHeader>
+                      <TableHeader className="text-right">Tutar</TableHeader>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
                     {(l.items ?? []).map((it) => {
                       const up = Number(itemPrices[it.id]);
                       const line = up > 0 ? up * Number(it.quantity) : 0;
                       return (
-                        <tr key={it.id}>
-                          <td className="px-3 py-2 text-zinc-900">{it.name}</td>
-                          <td className="px-3 py-2 text-right text-zinc-500">
+                        <TableRow key={it.id}>
+                          <TableCell className="text-zinc-900">{it.name}</TableCell>
+                          <TableCell className="text-right tabular-nums text-zinc-500">
                             {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
-                          </td>
-                          <td className="px-3 py-2 text-right">
+                          </TableCell>
+                          <TableCell className="text-right">
                             <input
                               type="number"
                               min={0}
                               step="0.01"
-                              className="w-24 rounded-md border border-zinc-300 px-2 py-1 text-right text-sm"
+                              className="w-24 rounded-md border border-surface-border px-2 py-1 text-right text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                               value={itemPrices[it.id] ?? ""}
                               onChange={(e) =>
                                 setItemPrices((p) => ({
@@ -756,28 +754,25 @@ export default function ListingDetailPage() {
                               }
                               placeholder="0"
                             />
-                          </td>
-                          <td className="px-3 py-2 text-right font-mono text-zinc-700">
+                          </TableCell>
+                          <TableCell className="text-right font-mono tabular-nums text-zinc-700">
                             {line > 0 ? `${line.toLocaleString("tr-TR")} ₺` : "—"}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                       );
                     })}
-                  </tbody>
-                  <tfoot className="bg-zinc-50">
-                    <tr>
-                      <td
-                        colSpan={3}
-                        className="px-3 py-2 text-right text-xs font-semibold text-zinc-500"
-                      >
+                    <TableRow>
+                      <TableCell className="text-right text-xs font-semibold text-zinc-500">
                         Toplam
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono font-bold text-zinc-900">
+                      </TableCell>
+                      <TableCell />
+                      <TableCell />
+                      <TableCell className="text-right font-mono font-bold tabular-nums text-zinc-900">
                         {itemTotal.toLocaleString("tr-TR")} ₺
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </div>
               {l.requireAllItems ? (
                 <Text className="text-xs text-amber-600">
