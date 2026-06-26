@@ -1135,6 +1135,25 @@ export class CompanyListingsService {
       requireBidDocument: boolean;
       primaryCurrency: Currency;
       allowedCurrencies: Currency[];
+      // Wizard zenginleştirme
+      bidsOpenAt: Date | null;
+      isSealedBid: boolean;
+      isLogistics: boolean;
+      logistics: unknown;
+      deliveryTerm: string | null;
+      paymentTerm: string;
+      paymentDays: number | null;
+      paymentTiming: string;
+      bidVisibility: string;
+      priceDecrementType: string | null;
+      priceDecrementValue: { toString(): string } | null;
+      priceDecrementBasis: string | null;
+      decimalPlaces: number;
+      sendClosingReminder: boolean;
+      reminderMinutesBefore: number | null;
+      autoExtendOnLateBid: boolean;
+      autoExtendThresholdMin: number | null;
+      autoExtendByMinutes: number | null;
     },
     masked: boolean,
   ) {
@@ -1160,6 +1179,25 @@ export class CompanyListingsService {
       requireBidDocument: l.requireBidDocument,
       primaryCurrency: l.primaryCurrency,
       allowedCurrencies: l.allowedCurrencies,
+      // Wizard zenginleştirme (Genel Bilgi sekmesi)
+      bidsOpenAt: l.bidsOpenAt,
+      isSealedBid: l.isSealedBid,
+      isLogistics: l.isLogistics,
+      logistics: masked ? null : (l.logistics ?? null),
+      deliveryTerm: l.deliveryTerm,
+      paymentTerm: l.paymentTerm,
+      paymentDays: l.paymentDays,
+      paymentTiming: l.paymentTiming,
+      bidVisibility: l.bidVisibility,
+      priceDecrementType: l.priceDecrementType,
+      priceDecrementValue: l.priceDecrementValue?.toString() ?? null,
+      priceDecrementBasis: l.priceDecrementBasis,
+      decimalPlaces: l.decimalPlaces,
+      sendClosingReminder: l.sendClosingReminder,
+      reminderMinutesBefore: l.reminderMinutesBefore,
+      autoExtendOnLateBid: l.autoExtendOnLateBid,
+      autoExtendThresholdMin: l.autoExtendThresholdMin,
+      autoExtendByMinutes: l.autoExtendByMinutes,
     };
   }
 

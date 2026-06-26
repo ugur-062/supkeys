@@ -3,6 +3,7 @@
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { CountdownFull } from "@/components/tenders/countdown-full";
+import { GeneralInfoTab } from "@/components/tenders/general-info-tab";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
@@ -960,7 +961,7 @@ export default function ListingDetailPage() {
           <TabPanels>
             <TabPanel className="outline-none">{ownerBidsSection}</TabPanel>
             <TabPanel className="space-y-5 outline-none">
-              {infoSection}
+              <GeneralInfoTab l={l} />
               {invitationsSection}
             </TabPanel>
             <TabPanel className="outline-none">{itemsSection}</TabPanel>

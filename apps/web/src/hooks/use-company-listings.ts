@@ -227,6 +227,25 @@ export interface ListingDetail {
   requireBidDocument?: boolean;
   primaryCurrency?: string;
   allowedCurrencies?: string[];
+  // Wizard zenginleştirme (Genel Bilgi sekmesi)
+  bidsOpenAt?: string | null;
+  isSealedBid?: boolean;
+  isLogistics?: boolean;
+  logistics?: Record<string, unknown> | null;
+  deliveryTerm?: string | null;
+  paymentTerm?: string;
+  paymentDays?: number | null;
+  paymentTiming?: string;
+  bidVisibility?: string;
+  priceDecrementType?: string | null;
+  priceDecrementValue?: string | null;
+  priceDecrementBasis?: string | null;
+  decimalPlaces?: number;
+  sendClosingReminder?: boolean;
+  reminderMinutesBefore?: number | null;
+  autoExtendOnLateBid?: boolean;
+  autoExtendThresholdMin?: number | null;
+  autoExtendByMinutes?: number | null;
   items?: ListingItemRow[];
   // sahip:
   bids?: ListingBidRow[];

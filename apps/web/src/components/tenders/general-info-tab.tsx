@@ -1,0 +1,255 @@
+"use client";
+
+import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
+import { useCategoriesByIds } from "@/hooks/use-categories";
+import type { ListingDetail } from "@/hooks/use-company-listings";
+import {
+  CURRENCY_SYMBOL,
+  DELIVERY_TERM_LABELS,
+  PAYMENT_TERM_LABELS,
+  PAYMENT_TIMING_LABELS,
+} from "@/lib/tenders/labels";
+import type {
+  Currency,
+  DeliveryTerm,
+  PaymentTerm,
+  PaymentTiming,
+  TenderLogisticsDetails,
+} from "@/lib/tenders/types";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
+import {
+  FileText,
+  Gavel,
+  Lock,
+  ShieldCheck,
+  Truck,
+  Workflow,
+  type LucideIcon,
+} from "lucide-react";
+
+function fmt(v: string | null | undefined): string {
+  if (!v) return "—";
+  try {
+    return format(new Date(v), "d MMM yyyy HH:mm", { locale: tr });
+  } catch {
+    return "—";
+  }
+}
+
+const VISIBILITY_LABELS: Record<string, string> = {
+  PUBLIC: "Herkese Açık",
+  CONNECTIONS: "Bağlantılar",
+  PRIVATE: "Davetli (Kapalı)",
+};
+
+const BID_VISIBILITY_LABELS: Record<string, string> = {
+  OWN_ONLY: "Sadece kendi teklifi",
+  BEST_PRICE: "Sadece en iyi teklif",
+  OWN_RANK: "Sadece kendi sıralaması",
+  BEST_AND_OWN_RANK: "En iyi teklif + kendi sıralaması",
+  ALL: "Tüm teklifler ve sıralama",
+};
+
+function Section({
+  title,
+  icon: Icon,
+  children,
+}: {
+  title: string;
+  icon: LucideIcon;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-2xl border border-zinc-950/5 bg-white p-5 md:p-6">
+      <div className="mb-5 flex items-center gap-2.5">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100">
+          <Icon className="h-4 w-4 text-zinc-700" />
+        </div>
+        <h3 className="font-semibold text-zinc-900">{title}</h3>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Fact({
+  label,
+  children,
+  full,
+}: {
+  label: string;
+  children: React.ReactNode;
+  full?: boolean;
+}) {
+  return (
+    <div className={full ? "sm:col-span-2 lg:col-span-3" : undefined}>
+      <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </dt>
+      <dd className="mt-1 break-words text-sm font-medium text-zinc-900">
+        {children}
+      </dd>
+    </div>
+  );
+}
+
+function RuleChip({ active, label }: { active: boolean; label: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium",
+        active
+          ? "bg-zinc-900 text-white"
+          : "bg-zinc-100 text-zinc-400 line-through decoration-zinc-300",
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
+export function GeneralInfoTab({ l }: { l: ListingDetail }) {
+  const categories = useCategoriesByIds(l.categoryIds ?? []);
+  const cur = (l.primaryCurrency as Currency) ?? "TRY";
+
+  return (
+    <div className="space-y-5">
+      {l.isLogistics && l.logistics ? (
+        <LogisticsInfoCard
+          details={l.logistics as unknown as TenderLogisticsDetails}
+        />
+      ) : null}
+
+      {/* Süreç */}
+      <Section title="Süreç" icon={Workflow}>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+          <Fact label="Sahibi">{l.owner?.name ?? "—"}</Fact>
+          {categories.data && categories.data.length > 0 ? (
+            <Fact
+              label={categories.data.length > 1 ? "Kategoriler" : "Kategori"}
+              full
+            >
+              <ul className="space-y-0.5">
+                {categories.data.map((c) => (
+                  <li key={c.id} className="font-medium text-zinc-900">
+                    {c.nameTr}
+                  </li>
+                ))}
+              </ul>
+            </Fact>
+          ) : null}
+          <Fact label="Oluşturulma">{fmt(l.createdAt)}</Fact>
+          <Fact label="Teklif Açılış">{fmt(l.bidsOpenAt)}</Fact>
+          <Fact label="Teklif Kapanış">{fmt(l.closesAt)}</Fact>
+          <Fact label="Para Birimi">
+            <span className="inline-flex items-center rounded-md bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-800">
+              {cur} {CURRENCY_SYMBOL[cur]}
+            </span>
+          </Fact>
+          <Fact label="Görünürlük">
+            <span className="inline-flex items-center rounded-md bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-800">
+              {VISIBILITY_LABELS[l.visibility] ?? l.visibility}
+            </span>
+          </Fact>
+        </dl>
+      </Section>
+
+      {/* Teslim & Ödeme */}
+      <Section title="Teslim & Ödeme" icon={Truck}>
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+          <Fact label="Teslim Şekli">
+            {l.deliveryTerm
+              ? DELIVERY_TERM_LABELS[l.deliveryTerm as DeliveryTerm]
+              : "—"}
+          </Fact>
+          <Fact label="Ödeme">
+            {l.paymentTerm
+              ? PAYMENT_TERM_LABELS[l.paymentTerm as PaymentTerm]
+              : "—"}
+            {l.paymentTerm === "DEFERRED" && l.paymentDays
+              ? ` — ${l.paymentDays} gün`
+              : ""}
+            {l.paymentTiming
+              ? ` · ${PAYMENT_TIMING_LABELS[l.paymentTiming as PaymentTiming]}`
+              : ""}
+          </Fact>
+        </dl>
+      </Section>
+
+      {/* Kurallar */}
+      <Section title="İhale Kuralları" icon={ShieldCheck}>
+        <div className="flex flex-wrap gap-2">
+          <RuleChip
+            active={!!l.isSealedBid}
+            label="Kapalı zarf (tedarikçiler arası gizlilik)"
+          />
+          <RuleChip
+            active={!!l.requireAllItems}
+            label="Tüm kalemlere teklif zorunlu"
+          />
+          <RuleChip
+            active={!!l.requireBidDocument}
+            label="Teklif dosyası eki zorunlu"
+          />
+        </div>
+      </Section>
+
+      {/* Açık Eksiltme Ayarları */}
+      {l.format === "ENGLISH_AUCTION" ? (
+        <Section title="Açık Eksiltme Ayarları" icon={Gavel}>
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
+            <Fact label="Tedarikçi Görünürlüğü">
+              {l.bidVisibility
+                ? (BID_VISIBILITY_LABELS[l.bidVisibility] ?? "—")
+                : "—"}
+            </Fact>
+            <Fact label="Min. Fiyat Azaltma">
+              {l.priceDecrementType && l.priceDecrementValue
+                ? l.priceDecrementType === "PERCENT"
+                  ? `%${Number(l.priceDecrementValue)}`
+                  : `${Number(l.priceDecrementValue)} ${cur}`
+                : "—"}
+            </Fact>
+            <Fact label="Ondalık Basamak">
+              {String(l.decimalPlaces ?? 2)}
+            </Fact>
+            <Fact label="Otomatik Süre Uzatma" full>
+              {l.autoExtendOnLateBid
+                ? `Son ${l.autoExtendThresholdMin} dk içinde teklif → ${l.autoExtendByMinutes} dk uzar`
+                : "Kapalı"}
+            </Fact>
+          </dl>
+        </Section>
+      ) : null}
+
+      {/* Hüküm ve Koşullar */}
+      {l.terms ? (
+        <Section title="Hüküm ve Koşullar" icon={FileText}>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
+            {l.terms}
+          </p>
+        </Section>
+      ) : null}
+
+      {/* İhale Notları (şirket içi) */}
+      {l.internalNotes ? (
+        <section className="rounded-2xl border border-zinc-950/5 bg-zinc-50/50 p-5 md:p-6">
+          <div className="mb-4 flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-200/70">
+              <Lock className="h-4 w-4 text-zinc-700" />
+            </div>
+            <h3 className="font-semibold text-zinc-900">İhale Notları</h3>
+            <span className="inline-flex items-center gap-1 rounded-md bg-zinc-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-700">
+              Şirket içi
+            </span>
+          </div>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
+            {l.internalNotes}
+          </p>
+        </section>
+      ) : null}
+    </div>
+  );
+}
