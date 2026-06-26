@@ -1,0 +1,221 @@
+"use client";
+
+import { Badge } from "@/components/catalyst/badge";
+import { Button } from "@/components/catalyst/button";
+import { Heading, Subheading } from "@/components/catalyst/heading";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
+import { Text } from "@/components/catalyst/text";
+import { useBidDocuments } from "@/hooks/use-bid-documents";
+import {
+  useAwardListing,
+  useEliminateBid,
+  useListingDetail,
+} from "@/hooks/use-company-listings";
+import { extractErrorMessage } from "@/lib/tenders/error";
+import { ArrowLeftIcon } from "@heroicons/react/20/solid";
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { toast } from "sonner";
+
+export default function BidDetailPage() {
+  const params = useParams<{ id: string; bidId: string }>();
+  const { id, bidId } = params;
+  const { data: l, isLoading } = useListingDetail(id);
+  const award = useAwardListing(id);
+  const eliminate = useEliminateBid(id);
+  const bidDocs = useBidDocuments(id);
+
+  if (isLoading)
+    return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
+  if (!l)
+    return <Text className="text-sm text-zinc-500">İlan bulunamadı.</Text>;
+
+  const bid = (l.bids ?? []).find((b) => b.id === bidId);
+  if (!bid)
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        <Link
+          href={`/company/ilan/${id}`}
+          className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
+        >
+          <ArrowLeftIcon className="h-4 w-4" />
+          İhale
+        </Link>
+        <Text className="text-sm text-zinc-500">Teklif bulunamadı.</Text>
+      </div>
+    );
+
+  const items = l.items ?? [];
+  const canDecide = l.status === "OPEN" || l.status === "CLOSED";
+  const docs = (bidDocs.data ?? []).filter((d) => d.bidId === bid.id);
+
+  const priceFor = (itemId: string) =>
+    bid.items?.find((x) => x.itemId === itemId)?.unitPrice;
+
+  const handleAward = async () => {
+    if (!confirm(`"${bid.bidderName}" kazandırılsın mı? Sipariş oluşacak.`))
+      return;
+    try {
+      const res = await award.mutateAsync(bid.id);
+      toast.success(`Kazandırıldı — sipariş ${res.number} oluştu`);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Kazandırılamadı"));
+    }
+  };
+
+  const handleEliminate = async () => {
+    if (!confirm(`"${bid.bidderName}" elensin mi? Yeniden teklif verebilir.`))
+      return;
+    try {
+      await eliminate.mutateAsync(bid.id);
+      toast.success("Teklif elendi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Elenemedi"));
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-3xl space-y-6">
+      <Link
+        href={`/company/ilan/${id}`}
+        className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
+      >
+        <ArrowLeftIcon className="h-4 w-4" />
+        {l.title}
+      </Link>
+
+      {/* Başlık kartı */}
+      <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              {bid.status === "WON" ? (
+                <Badge color="green">Kazandı</Badge>
+              ) : bid.status === "LOST" ? (
+                <Badge color="zinc">Elendi</Badge>
+              ) : (
+                <Badge color="blue">Değerlendirmede</Badge>
+              )}
+              {bid.isBuyNow ? <Badge color="emerald">Hemen-Al</Badge> : null}
+              {bid.round ? <Badge color="zinc">Tur {bid.round}</Badge> : null}
+            </div>
+            <Heading>{bid.bidderName}</Heading>
+            <Text className="text-sm text-zinc-500">
+              {format(new Date(bid.createdAt), "d MMM yyyy HH:mm", {
+                locale: tr,
+              })}
+            </Text>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold tabular-nums text-zinc-950">
+              {Number(bid.amount).toLocaleString("tr-TR")} ₺
+            </div>
+            {bid.bidderCompanyId ? (
+              <Link
+                href={`/company/satinalma/mesajlar?with=${bid.bidderCompanyId}`}
+                className="text-xs font-semibold text-blue-600 hover:underline"
+              >
+                Mesaj Gönder
+              </Link>
+            ) : null}
+          </div>
+        </div>
+
+        {canDecide && bid.status === "SUBMITTED" ? (
+          <div className="mt-4 flex justify-end gap-2 border-t border-zinc-100 pt-4">
+            <Button plain onClick={handleEliminate} disabled={eliminate.isPending}>
+              Ele
+            </Button>
+            <Button onClick={handleAward} disabled={award.isPending}>
+              Kazandır
+            </Button>
+          </div>
+        ) : null}
+      </div>
+
+      {/* Kalem kırılımı */}
+      {items.length > 0 && bid.items && bid.items.length > 0 ? (
+        <section className="space-y-2">
+          <Subheading>Kalem Teklifleri</Subheading>
+          <div className="rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
+            <Table dense>
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Kalem</TableHeader>
+                  <TableHeader className="text-right">Miktar</TableHeader>
+                  <TableHeader className="text-right">Birim Fiyat</TableHeader>
+                  <TableHeader className="text-right">Tutar</TableHeader>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {items.map((it) => {
+                  const up = priceFor(it.id);
+                  const line = up ? Number(up) * Number(it.quantity) : null;
+                  return (
+                    <TableRow key={it.id}>
+                      <TableCell className="text-zinc-900">{it.name}</TableCell>
+                      <TableCell className="text-right tabular-nums text-zinc-600">
+                        {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums text-zinc-700">
+                        {up ? `${Number(up).toLocaleString("tr-TR")} ₺` : "—"}
+                      </TableCell>
+                      <TableCell className="text-right font-mono tabular-nums text-zinc-900">
+                        {line != null
+                          ? `${line.toLocaleString("tr-TR")} ₺`
+                          : "—"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
+      ) : null}
+
+      {/* Not */}
+      {bid.note ? (
+        <section className="space-y-2">
+          <Subheading>Teklif Notu</Subheading>
+          <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
+            <Text className="whitespace-pre-wrap text-sm text-zinc-700">
+              {bid.note}
+            </Text>
+          </div>
+        </section>
+      ) : null}
+
+      {/* Belgeler */}
+      <section className="space-y-2">
+        <Subheading>Teklif Belgeleri ({docs.length})</Subheading>
+        {docs.length === 0 ? (
+          <Text className="text-sm text-zinc-500">Belge eklenmemiş.</Text>
+        ) : (
+          <div className="space-y-1">
+            {docs.map((d) => (
+              <a
+                key={d.id}
+                href={d.url}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-blue-600 hover:bg-zinc-50"
+              >
+                📎 {d.fileName}
+              </a>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}

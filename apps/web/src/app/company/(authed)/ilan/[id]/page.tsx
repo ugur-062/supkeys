@@ -576,9 +576,12 @@ export default function ListingDetailPage() {
                 {b.status === "WON" ? <Badge color="green">Kazandı</Badge> : null}
                 {b.status === "LOST" ? <Badge color="zinc">Elendi</Badge> : null}
                 {b.isBuyNow ? <Badge color="emerald">Hemen-Al</Badge> : null}
-                <span className="text-sm font-medium text-zinc-900">
+                <Link
+                  href={`/company/ilan/${l.id}/teklif/${b.id}`}
+                  className="text-sm font-medium text-zinc-900 hover:text-blue-600 hover:underline"
+                >
                   {b.bidderName}
-                </span>
+                </Link>
                 {l.english?.isEnglishAuction && b.round ? (
                   <Badge color="zinc">Tur {b.round}</Badge>
                 ) : null}
