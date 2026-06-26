@@ -4,7 +4,14 @@ import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
-import { useOrder, useOrderAction } from "@/hooks/use-company-orders";
+import { OrderPaymentsCard } from "@/components/orders/order-payments-card";
+import {
+  useAcceptOrder,
+  useOrder,
+  useOrderAction,
+  useRejectOrder,
+  type CompanyOrderStatus,
+} from "@/hooks/use-company-orders";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { OrderDocumentsSection } from "./_components/order-documents-section";
 import { ArrowLeftIcon, CheckCircleIcon } from "@heroicons/react/20/solid";
@@ -13,40 +20,68 @@ import { useParams } from "next/navigation";
 import { toast } from "sonner";
 
 const STEPS = [
-  { key: "CREATED", label: "Oluştu" },
+  { key: "PENDING", label: "Onay" },
+  { key: "ACCEPTED", label: "Onaylandı" },
   { key: "IN_DELIVERY", label: "Kargoda" },
   { key: "DELIVERED", label: "Teslim alındı" },
   { key: "COMPLETED", label: "Tamamlandı" },
 ] as const;
+
+// Legacy CREATED siparişler ACCEPTED hizasında gösterilir.
+function stepIndexFor(status: CompanyOrderStatus): number {
+  if (status === "CREATED") return 1;
+  return STEPS.findIndex((s) => s.key === status);
+}
 
 export default function OrderDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const { data: o, isLoading } = useOrder(id);
   const action = useOrderAction(id);
+  const accept = useAcceptOrder(id);
+  const reject = useRejectOrder(id);
 
-  if (isLoading) return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
+  if (isLoading)
+    return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
   if (!o)
-    return (
-      <Text className="text-sm text-zinc-500">Sipariş bulunamadı.</Text>
-    );
+    return <Text className="text-sm text-zinc-500">Sipariş bulunamadı.</Text>;
 
-  const stepIndex = STEPS.findIndex((s) => s.key === o.status);
   const isSeller = o.role === "seller";
+  const stepIndex = stepIndexFor(o.status);
+  const terminal = o.status === "REJECTED" || o.status === "CANCELLED";
 
   const next =
-    isSeller && o.status === "CREATED"
+    isSeller && (o.status === "ACCEPTED" || o.status === "CREATED")
       ? { label: "Kargoya Ver", act: "ship" as const }
       : !isSeller && o.status === "IN_DELIVERY"
         ? { label: "Teslim Aldım", act: "receive" as const }
         : !isSeller && o.status === "DELIVERED"
-          ? { label: "Ödemeyi Tamamla", act: "complete" as const }
+          ? { label: "Siparişi Tamamla", act: "complete" as const }
           : null;
 
   const handle = async (act: "ship" | "receive" | "complete") => {
     try {
       await action.mutateAsync(act);
       toast.success("Sipariş güncellendi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "İşlem başarısız"));
+    }
+  };
+
+  const handleAccept = async () => {
+    try {
+      await accept.mutateAsync();
+      toast.success("Sipariş onaylandı");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "İşlem başarısız"));
+    }
+  };
+
+  const handleReject = async () => {
+    const reason = window.prompt("Ret gerekçesi (opsiyonel):") ?? undefined;
+    try {
+      await reject.mutateAsync(reason || undefined);
+      toast.success("Sipariş reddedildi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "İşlem başarısız"));
     }
@@ -77,7 +112,7 @@ export default function OrderDetailPage() {
       </div>
 
       {/* Sipariş kalemleri */}
-      {o.items && o.items.length > 0 ? (
+      {o.items.length > 0 ? (
         <div className="overflow-hidden rounded-xl border border-zinc-950/10">
           <table className="w-full text-sm">
             <thead className="bg-zinc-50 text-xs text-zinc-500">
@@ -112,8 +147,10 @@ export default function OrderDetailPage() {
       ) : null}
 
       {/* Timeline */}
-      {o.status === "CANCELLED" ? (
-        <Badge color="red">İptal edildi</Badge>
+      {terminal ? (
+        <Badge color="red">
+          {o.status === "REJECTED" ? "Satıcı reddetti" : "İptal edildi"}
+        </Badge>
       ) : (
         <div className="flex items-center gap-2">
           {STEPS.map((s, i) => (
@@ -146,10 +183,26 @@ export default function OrderDetailPage() {
 
       {/* Aksiyon */}
       <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
-        {o.status === "COMPLETED" ? (
-          <Text className="text-sm text-emerald-700">
-            ✓ Sipariş tamamlandı.
+        {o.status === "PENDING" && isSeller ? (
+          <div className="flex items-center justify-between gap-4">
+            <Text className="text-sm text-zinc-600">
+              Bu siparişi onayla ya da reddet.
+            </Text>
+            <div className="flex gap-2">
+              <Button plain onClick={handleReject} disabled={reject.isPending}>
+                Reddet
+              </Button>
+              <Button onClick={handleAccept} disabled={accept.isPending}>
+                Kabul Et
+              </Button>
+            </div>
+          </div>
+        ) : o.status === "PENDING" && !isSeller ? (
+          <Text className="text-sm text-zinc-500">
+            Satıcının siparişi onaylaması bekleniyor…
           </Text>
+        ) : o.status === "COMPLETED" ? (
+          <Text className="text-sm text-emerald-700">✓ Sipariş tamamlandı.</Text>
         ) : next ? (
           <div className="flex items-center justify-between gap-4">
             <Text className="text-sm text-zinc-600">
@@ -157,7 +210,7 @@ export default function OrderDetailPage() {
                 ? "Malı kargoya verdiğinde işaretle."
                 : next.act === "receive"
                   ? "Malı teslim aldığında işaretle."
-                  : "Ödemeyi yaptığında siparişi tamamla."}
+                  : "Teslim + ödeme tamamlandığında siparişi kapat."}
             </Text>
             <Button onClick={() => handle(next.act)} disabled={action.isPending}>
               {next.label}
@@ -169,6 +222,9 @@ export default function OrderDetailPage() {
           </Text>
         )}
       </section>
+
+      {/* Ödeme */}
+      <OrderPaymentsCard order={o} />
 
       <OrderDocumentsSection orderId={id} role={o.role} />
     </div>

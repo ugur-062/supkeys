@@ -21,19 +21,24 @@ import { useMemo, useState } from "react";
 const PAGE_SIZE = 10;
 
 const STATUS_LABEL: Record<CompanyOrder["status"], string> = {
+  PENDING: "Onay bekliyor",
+  ACCEPTED: "Onaylandı",
   CREATED: "Yeni",
   IN_DELIVERY: "Kargoda",
   DELIVERED: "Teslim edildi",
   COMPLETED: "Tamamlandı",
+  REJECTED: "Reddedildi",
   CANCELLED: "İptal",
 };
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "Tüm durumlar" },
-  { value: "CREATED", label: "Yeni" },
+  { value: "PENDING", label: "Onay bekliyor" },
+  { value: "ACCEPTED", label: "Onaylandı" },
   { value: "IN_DELIVERY", label: "Kargoda" },
   { value: "DELIVERED", label: "Teslim edildi" },
   { value: "COMPLETED", label: "Tamamlandı" },
+  { value: "REJECTED", label: "Reddedildi" },
   { value: "CANCELLED", label: "İptal" },
 ];
 
