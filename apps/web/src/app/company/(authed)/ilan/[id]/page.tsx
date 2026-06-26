@@ -5,6 +5,7 @@ import { Button } from "@/components/catalyst/button";
 import { CountdownFull } from "@/components/tenders/countdown-full";
 import { FilesTab } from "@/components/tenders/files-tab";
 import { GeneralInfoTab } from "@/components/tenders/general-info-tab";
+import { RoundHistoryDialog } from "@/components/tenders/round-history-dialog";
 import { TenderActionsMenu } from "@/components/tenders/tender-actions-menu";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Heading, Subheading } from "@/components/catalyst/heading";
@@ -114,6 +115,7 @@ export default function ListingDetailPage() {
   const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
   const [itemAwardMode, setItemAwardMode] = useState(false);
   const [itemWinners, setItemWinners] = useState<Record<string, string>>({});
+  const [roundHistoryOpen, setRoundHistoryOpen] = useState(false);
 
   const handleCancel = async () => {
     if (!confirm("İlan iptal edilsin mi? Bu işlem geri alınamaz.")) return;
@@ -434,6 +436,11 @@ export default function ListingDetailPage() {
           ) : null}
         </div>
         <div className="flex items-center gap-2">
+          {l.english?.isEnglishAuction ? (
+            <Button plain onClick={() => setRoundHistoryOpen(true)}>
+              Tur Geçmişi
+            </Button>
+          ) : null}
           {l.status === "OPEN" && l.english?.isEnglishAuction ? (
             <Button outline onClick={handleNewRound} disabled={newRound.isPending}>
               Yeni Tur Başlat
@@ -640,6 +647,11 @@ export default function ListingDetailPage() {
           </Text>
         </div>
       )}
+      <RoundHistoryDialog
+        id={l.id}
+        open={roundHistoryOpen}
+        onClose={() => setRoundHistoryOpen(false)}
+      />
     </section>
   );
 

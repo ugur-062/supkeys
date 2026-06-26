@@ -330,6 +330,25 @@ export function useCancelListing(id: string) {
   });
 }
 
+export interface RoundHistoryEntry {
+  round: number;
+  bids: Array<{ bidderName: string; amount: string }>;
+}
+
+/** İngiliz Usulü tur geçmişi (sahip). */
+export function useRoundHistory(id: string, enabled: boolean) {
+  return useQuery<RoundHistoryEntry[]>({
+    queryKey: ["listing-rounds", id],
+    queryFn: async () => {
+      const { data } = await companyApi.get<RoundHistoryEntry[]>(
+        `/company/listings/${id}/rounds`,
+      );
+      return data;
+    },
+    enabled,
+  });
+}
+
 /** Sahip: ihaleyi erken kapat (OPEN → CLOSED). */
 export function useCloseEarly(id: string) {
   const qc = useQueryClient();

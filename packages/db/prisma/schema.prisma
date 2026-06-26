@@ -615,6 +615,20 @@ model ListingBidDocument {
   @@map("listing_bid_documents")
 }
 
+// İngiliz Usulü tur geçmişi — yeni tur başlarken o anki tekliflerin snapshot'ı.
+model ListingRoundSnapshot {
+  id         String   @id @default(cuid())
+  listingId  String
+  listing    Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  round      Int
+  bidderName String
+  amount     Decimal  @db.Decimal(18, 2)
+  createdAt  DateTime @default(now())
+
+  @@index([listingId])
+  @@map("listing_round_snapshots")
+}
+
 // İhale dosyası — sahip yükler (şartname/teknik resim); görünür firmalar indirir.
 model ListingDocument {
   id                  String   @id @default(cuid())
@@ -764,6 +778,7 @@ model Listing {
   items       ListingItem[]
   invitations ListingInvitation[]
   documents   ListingDocument[]
+  roundSnapshots ListingRoundSnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

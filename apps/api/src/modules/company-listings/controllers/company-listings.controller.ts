@@ -156,4 +156,12 @@ export class CompanyListingsController {
   ) {
     return this.service.closeNoAward(user, id);
   }
+
+  @Get(":id/rounds")
+  rounds(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.roundHistory(user, id);
+  }
 }

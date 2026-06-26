@@ -1005,7 +1005,13 @@ export class CompanyListingsService {
   async startNewRound(user: AuthenticatedCompanyUser, listingId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, format: true, status: true },
+      select: {
+        id: true,
+        companyId: true,
+        format: true,
+        status: true,
+        currentRound: true,
+      },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     if (listing.companyId !== user.companyId) {
@@ -1017,12 +1023,54 @@ export class CompanyListingsService {
     if (listing.status !== "OPEN") {
       throw new BadRequestException("İlan teklife kapalı");
     }
-    const updated = await this.prisma.listing.update({
-      where: { id: listingId },
-      data: { currentRound: { increment: 1 } },
-      select: { currentRound: true },
+    // Yeni tura geçmeden önce mevcut turun tekliflerini snapshot'la.
+    const bids = await this.prisma.listingBid.findMany({
+      where: { listingId, status: "SUBMITTED" },
+      include: { bidderCompany: { select: { name: true } } },
+    });
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (bids.length > 0) {
+        await tx.listingRoundSnapshot.createMany({
+          data: bids.map((b) => ({
+            listingId,
+            round: listing.currentRound,
+            bidderName: b.bidderCompany.name,
+            amount: b.amount,
+          })),
+        });
+      }
+      return tx.listing.update({
+        where: { id: listingId },
+        data: { currentRound: { increment: 1 } },
+        select: { currentRound: true },
+      });
     });
     return { currentRound: updated.currentRound };
+  }
+
+  /** İngiliz Usulü tur geçmişi — sahip görür. Tur → teklifler (artan). */
+  async roundHistory(user: AuthenticatedCompanyUser, listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true },
+    });
+    if (!listing || listing.companyId !== user.companyId) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
+    const snaps = await this.prisma.listingRoundSnapshot.findMany({
+      where: { listingId },
+      orderBy: [{ round: "desc" }, { amount: "asc" }],
+    });
+    const byRound = new Map<
+      number,
+      Array<{ bidderName: string; amount: string }>
+    >();
+    for (const s of snaps) {
+      const arr = byRound.get(s.round) ?? [];
+      arr.push({ bidderName: s.bidderName, amount: s.amount.toString() });
+      byRound.set(s.round, arr);
+    }
+    return [...byRound.entries()].map(([round, bids]) => ({ round, bids }));
   }
 
   /**
