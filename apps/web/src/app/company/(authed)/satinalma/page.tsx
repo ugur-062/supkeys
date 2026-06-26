@@ -1,6 +1,7 @@
 "use client";
 
 import { SatinalmaIhaleTab } from "@/components/dashboard/satinalma-ihale-tab";
+import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useSatinalmaDashboard } from "@/hooks/use-company-dashboard";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,10 @@ export default function SatinalmaDashboardPage() {
               </>
             ) : null}
           </p>
+        </div>
+        {/* TCMB döviz kurları */}
+        <div className="w-full md:w-auto md:max-w-md md:flex-shrink-0">
+          <TcmbRatesWidget />
         </div>
       </header>
 

@@ -368,6 +368,20 @@ model Message {
   @@map("messages")
 }
 
+// V2-3 — TCMB günlük gösterge kurları (cron ile fetch + upsert).
+model ExchangeRate {
+  id        String   @id @default(cuid())
+  currency  Currency
+  rate      Decimal  @db.Decimal(15, 6) // 1 {currency} = X TRY
+  rateDate  DateTime @db.Date // TCMB tarihi (gün-bazlı)
+  source    String   @default("TCMB") // TCMB | MANUAL | FALLBACK
+  fetchedAt DateTime @default(now())
+
+  @@unique([currency, rateDate])
+  @@index([rateDate])
+  @@map("exchange_rates")
+}
+
 enum ComplaintStatus {
   OPEN // yeni — admin incelemesi bekliyor
   RESOLVED // çözüldü, aksiyon alındı (örn. askı)
