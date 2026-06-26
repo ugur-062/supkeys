@@ -10,6 +10,14 @@ import {
   ListingType,
   type ListingFormat,
   type ListingVisibility,
+  type ListingDeliveryTerm,
+  type ListingPaymentTerm,
+  type ListingPaymentTiming,
+  type ListingBidVisibility,
+  type ListingDecrementType,
+  type ListingDecrementBasis,
+  type ListingQuestionAnswerType,
+  Prisma,
 } from "@supkeys/db";
 import { normalizeShortCode, validateShortCode } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -110,20 +118,63 @@ export class CompanyListingsService {
           requireBidDocument: dto.requireBidDocument ?? false,
           primaryCurrency: (dto.primaryCurrency as Currency) ?? "TRY",
           allowedCurrencies: (dto.allowedCurrencies as Currency[]) ?? [],
+          // ── Wizard zenginleştirme ──
+          bidsOpenAt: dto.bidsOpenAt ? new Date(dto.bidsOpenAt) : null,
+          isSealedBid: dto.isSealedBid ?? true,
+          isLogistics: dto.isLogistics ?? false,
+          logistics: dto.logistics
+            ? (dto.logistics as unknown as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
+          deliveryTerm: (dto.deliveryTerm as ListingDeliveryTerm) ?? null,
+          paymentTerm: (dto.paymentTerm as ListingPaymentTerm) ?? "CASH",
+          paymentDays: dto.paymentDays ?? null,
+          paymentTiming:
+            (dto.paymentTiming as ListingPaymentTiming) ?? "AFTER_DELIVERY",
+          bidVisibility:
+            (dto.bidVisibility as ListingBidVisibility) ?? "OWN_ONLY",
+          priceDecrementType:
+            (dto.priceDecrementType as ListingDecrementType) ?? null,
+          priceDecrementValue: dto.priceDecrementValue ?? null,
+          priceDecrementBasis:
+            (dto.priceDecrementBasis as ListingDecrementBasis) ?? null,
+          decimalPlaces: dto.decimalPlaces ?? 2,
+          sendClosingReminder: dto.sendClosingReminder ?? false,
+          reminderMinutesBefore: dto.reminderMinutesBefore ?? null,
+          autoExtendOnLateBid: dto.autoExtendOnLateBid ?? false,
+          autoExtendThresholdMin: dto.autoExtendThresholdMin ?? null,
+          autoExtendByMinutes: dto.autoExtendByMinutes ?? null,
         },
       });
       if (dto.items?.length) {
-        await tx.listingItem.createMany({
-          data: dto.items.map((it, i) => ({
-            listingId: l.id,
-            lineNo: i + 1,
-            name: it.name.trim(),
-            description: it.description?.trim() || null,
-            quantity: it.quantity,
-            unit: it.unit.trim(),
-            targetPrice: it.targetPrice ?? null,
-          })),
-        });
+        // Kalemleri tek tek oluştur (soru ekleyebilmek için id gerekiyor).
+        for (let i = 0; i < dto.items.length; i++) {
+          const it = dto.items[i]!;
+          const item = await tx.listingItem.create({
+            data: {
+              listingId: l.id,
+              lineNo: i + 1,
+              name: it.name.trim(),
+              description: it.description?.trim() || null,
+              quantity: it.quantity,
+              unit: it.unit.trim(),
+              targetPrice: it.targetPrice ?? null,
+              materialCode: it.materialCode?.trim() || null,
+              requiredByDate: it.requiredByDate
+                ? new Date(it.requiredByDate)
+                : null,
+            },
+          });
+          if (it.questions?.length) {
+            await tx.listingItemQuestion.createMany({
+              data: it.questions.map((q) => ({
+                itemId: item.id,
+                text: q.text.trim(),
+                answerType: q.answerType as ListingQuestionAnswerType,
+                required: q.required ?? false,
+              })),
+            });
+          }
+        }
       }
       if (inviteCompanyIds.length) {
         await tx.listingInvitation.createMany({

@@ -5,9 +5,11 @@ import {
   IsBoolean,
   IsEnum,
   IsISO8601,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -37,6 +39,73 @@ export enum CurrencyDto {
   GBP = "GBP",
   CHF = "CHF",
   JPY = "JPY",
+  AED = "AED",
+  CNY = "CNY",
+}
+
+export enum DeliveryTermDto {
+  DOMESTIC_DELIVERED = "DOMESTIC_DELIVERED",
+  DOMESTIC_PICKUP = "DOMESTIC_PICKUP",
+  EXW = "EXW",
+  FCA = "FCA",
+  CPT = "CPT",
+  CIP = "CIP",
+  DAP = "DAP",
+  DPU = "DPU",
+  DDP = "DDP",
+  FAS = "FAS",
+  FOB = "FOB",
+  CFR = "CFR",
+  CIF = "CIF",
+}
+
+export enum PaymentTermDto {
+  CASH = "CASH",
+  DEFERRED = "DEFERRED",
+}
+
+export enum PaymentTimingDto {
+  BEFORE_DELIVERY = "BEFORE_DELIVERY",
+  AFTER_DELIVERY = "AFTER_DELIVERY",
+}
+
+export enum BidVisibilityDto {
+  OWN_ONLY = "OWN_ONLY",
+  BEST_PRICE = "BEST_PRICE",
+  OWN_RANK = "OWN_RANK",
+  BEST_AND_OWN_RANK = "BEST_AND_OWN_RANK",
+  ALL = "ALL",
+}
+
+export enum DecrementTypeDto {
+  AMOUNT = "AMOUNT",
+  PERCENT = "PERCENT",
+}
+
+export enum DecrementBasisDto {
+  OWN_LAST_BID = "OWN_LAST_BID",
+  BEST_BID = "BEST_BID",
+}
+
+export enum AnswerTypeDto {
+  TEXT = "TEXT",
+  NUMBER = "NUMBER",
+  YES_NO = "YES_NO",
+  DATE = "DATE",
+}
+
+export class ItemQuestionDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(500)
+  text!: string;
+
+  @IsEnum(AnswerTypeDto)
+  answerType!: AnswerTypeDto;
+
+  @IsOptional()
+  @IsBoolean()
+  required?: boolean;
 }
 
 export class ListingItemDto {
@@ -47,7 +116,7 @@ export class ListingItemDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(1000)
+  @MaxLength(2000)
   description?: string;
 
   @IsNumber({ maxDecimalPlaces: 3 })
@@ -63,6 +132,92 @@ export class ListingItemDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
   targetPrice?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  materialCode?: string;
+
+  @IsOptional()
+  @IsISO8601()
+  requiredByDate?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ItemQuestionDto)
+  @ArrayMaxSize(20)
+  questions?: ItemQuestionDto[];
+}
+
+/** Lojistik ihalesi alanları — serbest yapılı; JSON olarak saklanır. */
+export class LogisticsDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  transportMode?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  originCity?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  originAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  destinationCity?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  destinationAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  cargoType?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  weightKg?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  volumeM3?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  packageCount?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  vehicleType?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  hazardous?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  refrigerated?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  fragile?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notes?: string;
 }
 
 export class CreateListingDto {
@@ -73,12 +228,10 @@ export class CreateListingDto {
   @IsBoolean()
   isInternational?: boolean;
 
-  // ALIM için: RFQ / İngiliz Usulü.
   @IsOptional()
   @IsEnum(ListingFormatDto, { message: "Geçersiz format" })
   format?: ListingFormatDto;
 
-  // SATIS için: taban + hemen-al.
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
@@ -107,7 +260,11 @@ export class CreateListingDto {
   @IsISO8601({}, { message: "Geçersiz tarih" })
   closesAt?: string;
 
-  // ── İhale (ALIM) zenginleştirme ──────────────────────────────────────────
+  @IsOptional()
+  @IsISO8601({}, { message: "Geçersiz tarih" })
+  bidsOpenAt?: string;
+
+  // ── Kalemler / davet / kategori ──
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
@@ -115,14 +272,12 @@ export class CreateListingDto {
   @ArrayMaxSize(200)
   items?: ListingItemDto[];
 
-  /** Davet edilecek bağlı tedarikçilerin supkeysId'leri. */
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
   @ArrayMaxSize(200)
   invitations?: string[];
 
-  /** UNGM UNSPSC TR kategori kodları. */
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
@@ -138,7 +293,7 @@ export class CreateListingDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(5000)
+  @MaxLength(10000)
   terms?: string;
 
   @IsOptional()
@@ -155,6 +310,10 @@ export class CreateListingDto {
   requireBidDocument?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isSealedBid?: boolean;
+
+  @IsOptional()
   @IsEnum(CurrencyDto)
   primaryCurrency?: CurrencyDto;
 
@@ -163,4 +322,83 @@ export class CreateListingDto {
   @IsEnum(CurrencyDto, { each: true })
   @ArrayMaxSize(8)
   allowedCurrencies?: CurrencyDto[];
+
+  // ── Teslim / ödeme ──
+  @IsOptional()
+  @IsEnum(DeliveryTermDto)
+  deliveryTerm?: DeliveryTermDto;
+
+  @IsOptional()
+  @IsEnum(PaymentTermDto)
+  paymentTerm?: PaymentTermDto;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  paymentDays?: number;
+
+  @IsOptional()
+  @IsEnum(PaymentTimingDto)
+  paymentTiming?: PaymentTimingDto;
+
+  // ── Lojistik ──
+  @IsOptional()
+  @IsBoolean()
+  isLogistics?: boolean;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LogisticsDto)
+  logistics?: LogisticsDto;
+
+  // ── İngiliz Usulü açık eksiltme ──
+  @IsOptional()
+  @IsEnum(BidVisibilityDto)
+  bidVisibility?: BidVisibilityDto;
+
+  @IsOptional()
+  @IsEnum(DecrementTypeDto)
+  priceDecrementType?: DecrementTypeDto;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 4 })
+  @Min(0)
+  priceDecrementValue?: number;
+
+  @IsOptional()
+  @IsEnum(DecrementBasisDto)
+  priceDecrementBasis?: DecrementBasisDto;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(4)
+  decimalPlaces?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  sendClosingReminder?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(720)
+  reminderMinutesBefore?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  autoExtendOnLateBid?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(30)
+  autoExtendThresholdMin?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(30)
+  autoExtendByMinutes?: number;
 }
