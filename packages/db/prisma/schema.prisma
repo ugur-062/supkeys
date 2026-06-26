@@ -452,11 +452,25 @@ enum ListingBidStatus {
 }
 
 enum CompanyOrderStatus {
-  CREATED // kazandırıldı, yeni sipariş
+  PENDING // kazandırıldı, satıcı onayı bekliyor
+  ACCEPTED // satıcı siparişi onayladı
+  CREATED // (legacy) eski kayıtlar — yeni akışta PENDING ile başlar
   IN_DELIVERY // kargoda
   DELIVERED // teslim alındı
   COMPLETED // tamamlandı (ödeme + teslim)
+  REJECTED // satıcı siparişi reddetti
   CANCELLED
+}
+
+enum CompanyOrderPaymentTiming {
+  BEFORE_DELIVERY // ödeme teslimattan önce (satıcı onayından sonra açılır)
+  AFTER_DELIVERY // ödeme teslimattan sonra (alıcı teslim aldıktan sonra açılır)
+}
+
+enum CompanyOrderPaymentStatus {
+  AWAITING_CONFIRMATION // alıcı kaydetti, satıcı onayı bekliyor
+  CONFIRMED // satıcı ödemeyi onayladı
+  REJECTED // satıcı ödemeyi reddetti
 }
 
 enum CompanyDocType {
@@ -490,11 +504,14 @@ model CompanyOrder {
   buyerCompanyId  String
   buyer           Company  @relation("OrderBuyer", fields: [buyerCompanyId], references: [id], onDelete: Cascade)
 
-  amount Decimal            @db.Decimal(18, 2)
-  status CompanyOrderStatus @default(CREATED)
+  amount        Decimal                   @db.Decimal(18, 2)
+  status        CompanyOrderStatus        @default(PENDING)
+  paymentTiming CompanyOrderPaymentTiming @default(AFTER_DELIVERY)
+  rejectedReason String?
 
   documents CompanyOrderDocument[]
   items     CompanyOrderItem[]
+  payments  CompanyOrderPayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -503,6 +520,26 @@ model CompanyOrder {
   @@index([buyerCompanyId])
   @@index([listingId])
   @@map("company_orders")
+}
+
+// Ödeme kaydı — alıcı kaydeder (manuel: havale/EFT vb.), satıcı onaylar/reddeder.
+// Kısmi ödemeler mümkün; toplamlar (onaylı/bekleyen/kalan) UI'da hesaplanır.
+model CompanyOrderPayment {
+  id          String       @id @default(cuid())
+  orderId     String
+  order       CompanyOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount      Decimal      @db.Decimal(18, 2)
+  method      String? // "Havale/EFT", "Nakit" vb. — serbest metin
+  note        String?
+  status      CompanyOrderPaymentStatus @default(AWAITING_CONFIRMATION)
+  rejectReason String?
+  recordedByCompanyId String // ödemeyi kaydeden firma (alıcı)
+  recordedByUserId    String?
+  confirmedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([orderId])
+  @@map("company_order_payments")
 }
 
 // Sipariş kalemi — kazandırma anındaki snapshot (ad/miktar/birim fiyat).
