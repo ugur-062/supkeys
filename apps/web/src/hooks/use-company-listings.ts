@@ -159,6 +159,13 @@ export function useBrowseListings() {
   });
 }
 
+export interface ListingItemQuestionRow {
+  id: string;
+  text: string;
+  answerType: "TEXT" | "NUMBER" | "YES_NO" | "DATE";
+  required: boolean;
+}
+
 export interface ListingItemRow {
   id: string;
   lineNo: number;
@@ -167,6 +174,9 @@ export interface ListingItemRow {
   quantity: string;
   unit: string;
   targetPrice: string | null;
+  materialCode?: string | null;
+  requiredByDate?: string | null;
+  questions?: ListingItemQuestionRow[];
 }
 
 export interface ListingBidItemRow {

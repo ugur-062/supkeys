@@ -398,6 +398,7 @@ export class CompanyListingsService {
     const items = await this.prisma.listingItem.findMany({
       where: { listingId: id },
       orderBy: { lineNo: "asc" },
+      include: { questions: true },
     });
     const itemsOut = items.map((it) => ({
       id: it.id,
@@ -407,6 +408,14 @@ export class CompanyListingsService {
       quantity: it.quantity.toString(),
       unit: it.unit,
       targetPrice: it.targetPrice?.toString() ?? null,
+      materialCode: it.materialCode,
+      requiredByDate: it.requiredByDate ? it.requiredByDate.toISOString() : null,
+      questions: it.questions.map((q) => ({
+        id: q.id,
+        text: q.text,
+        answerType: q.answerType,
+        required: q.required,
+      })),
     }));
 
     if (isOwner) {
