@@ -62,3 +62,26 @@ export type OrderPaymentStatus =
   | "AWAITING_CONFIRMATION"
   | "CONFIRMED"
   | "REJECTED";
+
+/** Lojistik ihalesi görüntüleme detayları (LogisticsInfoCard). */
+export interface TenderLogisticsDetails {
+  transportMode?: string | null;
+  originCity?: string | null;
+  originDistrict?: string | null;
+  originAddress?: string | null;
+  destinationCity?: string | null;
+  destinationDistrict?: string | null;
+  destinationAddress?: string | null;
+  cargoType?: string | null;
+  weightKg?: number | null;
+  volumeM3?: number | null;
+  packageCount?: number | null;
+  vehicleType?: string | null;
+  loadingDate?: string | null;
+  deliveryDate?: string | null;
+  hazardous?: boolean | null;
+  refrigerated?: boolean | null;
+  fragile?: boolean | null;
+  stackable?: boolean | null;
+  notes?: string | null;
+}

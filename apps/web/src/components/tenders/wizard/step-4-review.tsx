@@ -1,14 +1,18 @@
 "use client";
 
+import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
 import { useConnections } from "@/hooks/use-company-connections";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import {
   CURRENCY_SYMBOL,
   DELIVERY_TERM_LABELS,
   PAYMENT_TERM_LABELS,
-  TRANSPORT_MODE_LABELS,
 } from "@/lib/tenders/labels";
-import type { Currency, DeliveryTerm } from "@/lib/tenders/types";
+import type {
+  Currency,
+  DeliveryTerm,
+  TenderLogisticsDetails,
+} from "@/lib/tenders/types";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { Pencil } from "lucide-react";
@@ -83,21 +87,10 @@ export function Step4Review({ onEditStep }: Props) {
         {d.bidsOpenAt ? <Row label="Açılış" value={fmtDate(d.bidsOpenAt)} /> : null}
       </Section>
 
-      {d.isLogistics ? (
-        <Section title="Lojistik" onEdit={() => onEditStep(1)}>
-          <Row
-            label="Taşıma Modu"
-            value={
-              d.logistics?.transportMode
-                ? (TRANSPORT_MODE_LABELS[d.logistics.transportMode] ??
-                  d.logistics.transportMode)
-                : "—"
-            }
-          />
-          <Row label="Çıkış" value={d.logistics?.originCity || "—"} />
-          <Row label="Varış" value={d.logistics?.destinationCity || "—"} />
-          <Row label="Kargo Cinsi" value={d.logistics?.cargoType || "—"} />
-        </Section>
+      {d.isLogistics && d.logistics ? (
+        <LogisticsInfoCard
+          details={d.logistics as TenderLogisticsDetails}
+        />
       ) : null}
 
       <Section title={`Kalemler (${d.items?.length ?? 0})`} onEdit={() => onEditStep(2)}>

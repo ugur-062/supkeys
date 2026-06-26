@@ -8,6 +8,10 @@ import {
   type CurrencyCode,
 } from "@/hooks/use-company-listings";
 import {
+  useListingTemplates,
+  useSaveTemplate,
+} from "@/hooks/use-listing-templates";
+import {
   DEFAULT_FORM_VALUES,
   STEP_FIELDS,
   tenderFormSchema,
@@ -22,6 +26,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { MissingTargetWarningDialog } from "./missing-target-warning-dialog";
 import { PublishConfirmDialog } from "./publish-confirm-dialog";
+import { SaveTemplateDialog } from "./save-template-dialog";
 import { Step1Info } from "./step-1-info";
 import { Step2Items } from "./step-2-items";
 import { Step3Suppliers } from "./step-3-suppliers";
@@ -97,6 +102,7 @@ export function TenderWizard() {
   const [publishOpen, setPublishOpen] = useState(false);
   const [missingOpen, setMissingOpen] = useState(false);
   const [missingCount, setMissingCount] = useState(0);
+  const [templateOpen, setTemplateOpen] = useState(false);
 
   const form = useForm<TenderFormData>({
     resolver: zodResolver(tenderFormSchema),
@@ -105,6 +111,30 @@ export function TenderWizard() {
   });
 
   const create = useCreateListing();
+  const templates = useListingTemplates();
+  const saveTemplate = useSaveTemplate();
+
+  const loadTemplate = (id: string) => {
+    if (!id) return;
+    const tpl = (templates.data ?? []).find((t) => t.id === id);
+    if (!tpl) return;
+    form.reset({
+      ...DEFAULT_FORM_VALUES,
+      ...(tpl.payload as Partial<TenderFormData>),
+    });
+    setStep(0);
+    toast.success(`"${tpl.name}" şablonu yüklendi`);
+  };
+
+  const handleSaveTemplate = async (name: string) => {
+    try {
+      await saveTemplate.mutateAsync({ name, payload: form.getValues() });
+      toast.success(`"${name}" şablonu kaydedildi`);
+      setTemplateOpen(false);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Şablon kaydedilemedi"));
+    }
+  };
 
   const goNext = async () => {
     const stepNo = (step + 1) as 1 | 2 | 3;
@@ -154,6 +184,28 @@ export function TenderWizard() {
   return (
     <FormProvider {...form}>
       <div className="mx-auto max-w-4xl space-y-8 pb-10">
+        {/* Şablon: yükle / kaydet */}
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-end gap-2">
+          {templates.data && templates.data.length > 0 ? (
+            <select
+              defaultValue=""
+              onChange={(e) => loadTemplate(e.target.value)}
+              className="rounded-lg border border-surface-border bg-white px-3 py-1.5 text-sm shadow-sm focus:outline-none"
+              aria-label="Şablondan yükle"
+            >
+              <option value="">Şablondan Yükle…</option>
+              {templates.data.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <Button variant="secondary" onClick={() => setTemplateOpen(true)}>
+            Şablon Olarak Kaydet
+          </Button>
+        </div>
+
         <div className="mx-auto max-w-3xl">
           <WizardStepper steps={STEPS} current={step} onStepClick={setStep} />
         </div>
@@ -211,6 +263,13 @@ export function TenderWizard() {
         onConfirm={doPublish}
         invitedCount={form.getValues("invitedSupplierIds")?.length ?? 0}
         isSubmitting={create.isPending}
+      />
+      <SaveTemplateDialog
+        open={templateOpen}
+        onClose={() => setTemplateOpen(false)}
+        onSave={handleSaveTemplate}
+        isSaving={saveTemplate.isPending}
+        defaultName={form.getValues("title") || ""}
       />
     </FormProvider>
   );
