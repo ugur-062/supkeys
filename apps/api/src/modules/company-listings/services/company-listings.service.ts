@@ -764,8 +764,8 @@ export class CompanyListingsService {
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
     }
-    if (listing.status !== "OPEN") {
-      throw new BadRequestException("İlan zaten kapalı veya kazandırılmış");
+    if (listing.status !== "OPEN" && listing.status !== "CLOSED") {
+      throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
     }
     const neededRole =
       listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
@@ -874,8 +874,8 @@ export class CompanyListingsService {
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
     }
-    if (listing.status !== "OPEN") {
-      throw new BadRequestException("İlan zaten kapalı veya kazandırılmış");
+    if (listing.status !== "OPEN" && listing.status !== "CLOSED") {
+      throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
     }
     if (listing.type !== "ALIM") {
       throw new BadRequestException(

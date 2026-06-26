@@ -3,6 +3,7 @@
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { CountdownFull } from "@/components/tenders/countdown-full";
+import { FilesTab } from "@/components/tenders/files-tab";
 import { GeneralInfoTab } from "@/components/tenders/general-info-tab";
 import { TenderActionsMenu } from "@/components/tenders/tender-actions-menu";
 import { Field, Label } from "@/components/catalyst/fieldset";
@@ -31,7 +32,15 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
-import { CalendarClock, Gavel, Info, Layers, Users, Wallet } from "lucide-react";
+import {
+  CalendarClock,
+  Gavel,
+  Info,
+  Layers,
+  Paperclip,
+  Users,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -213,6 +222,8 @@ export default function ListingDetailPage() {
   }
 
   const isAlim = l.type === "ALIM";
+  // Erken kapatınca (CLOSED) da kazandırma/eleme açık kalır.
+  const canDecide = l.status === "OPEN" || l.status === "CLOSED";
   const directionHint = isAlim
     ? "Alım ilanı — en düşük teklif kazanır."
     : "Satış ilanı — en yüksek teklif kazanır.";
@@ -487,7 +498,7 @@ export default function ListingDetailPage() {
         </div>
       ) : null}
 
-      {l.status === "OPEN" &&
+      {canDecide &&
       l.items &&
       l.items.length > 0 &&
       l.bids &&
@@ -554,7 +565,7 @@ export default function ListingDetailPage() {
               className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3"
             >
               <div className="flex items-center gap-3">
-                {i === 0 && l.status === "OPEN" ? (
+                {i === 0 && canDecide ? (
                   <Badge color="green">En iyi</Badge>
                 ) : null}
                 {b.status === "WON" ? <Badge color="green">Kazandı</Badge> : null}
@@ -596,7 +607,7 @@ export default function ListingDetailPage() {
                     Mesaj
                   </Link>
                 ) : null}
-                {l.status === "OPEN" && b.status === "SUBMITTED" ? (
+                {canDecide && b.status === "SUBMITTED" ? (
                   <>
                     <Button
                       plain
@@ -973,6 +984,10 @@ export default function ListingDetailPage() {
               Kalemler
               <TabBadge count={l.items?.length ?? 0} />
             </Tab>
+            <Tab className={TRIGGER_CLASSES}>
+              <Paperclip className="h-4 w-4" />
+              Dosyalar
+            </Tab>
           </TabList>
 
           <TabPanels>
@@ -982,6 +997,9 @@ export default function ListingDetailPage() {
               {invitationsSection}
             </TabPanel>
             <TabPanel className="outline-none">{itemsSection}</TabPanel>
+            <TabPanel className="outline-none">
+              <FilesTab listingId={l.id} isOwner={!!l.isOwner} />
+            </TabPanel>
           </TabPanels>
         </TabGroup>
       </div>

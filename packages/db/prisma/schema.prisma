@@ -615,6 +615,21 @@ model ListingBidDocument {
   @@map("listing_bid_documents")
 }
 
+// İhale dosyası — sahip yükler (şartname/teknik resim); görünür firmalar indirir.
+model ListingDocument {
+  id                  String   @id @default(cuid())
+  listingId           String
+  listing             Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  key                 String // R2 object key
+  fileName            String
+  mimeType            String
+  uploadedByCompanyId String
+  createdAt           DateTime @default(now())
+
+  @@index([listingId])
+  @@map("listing_documents")
+}
+
 enum ListingStatus {
   DRAFT
   OPEN
@@ -748,6 +763,7 @@ model Listing {
   orders      CompanyOrder[]
   items       ListingItem[]
   invitations ListingInvitation[]
+  documents   ListingDocument[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
