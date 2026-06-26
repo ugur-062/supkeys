@@ -9,6 +9,14 @@ import { TenderActionsMenu } from "@/components/tenders/tender-actions-menu";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
 import {
@@ -284,21 +292,21 @@ export default function ListingDetailPage() {
     l.items && l.items.length > 0 ? (
       <section className="space-y-2">
         <Subheading>Kalemler ({l.items.length})</Subheading>
-        <div className="overflow-hidden rounded-xl border border-zinc-950/10">
-          <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-xs text-zinc-500">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium">#</th>
-                <th className="px-3 py-2 text-left font-medium">Kalem</th>
-                <th className="px-3 py-2 text-right font-medium">Miktar</th>
-                <th className="px-3 py-2 text-right font-medium">Hedef Fiyat</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
+        <div className="rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
+          <Table dense>
+            <TableHead>
+              <TableRow>
+                <TableHeader>#</TableHeader>
+                <TableHeader>Kalem</TableHeader>
+                <TableHeader className="text-right">Miktar</TableHeader>
+                <TableHeader className="text-right">Hedef Fiyat</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {l.items.map((it) => (
-                <tr key={it.id}>
-                  <td className="px-3 py-2 text-zinc-400">{it.lineNo}</td>
-                  <td className="px-3 py-2">
+                <TableRow key={it.id}>
+                  <TableCell className="text-zinc-400">{it.lineNo}</TableCell>
+                  <TableCell>
                     <div className="font-medium text-zinc-900">{it.name}</div>
                     {it.materialCode ? (
                       <div className="font-mono text-xs text-zinc-400">
@@ -318,19 +326,19 @@ export default function ListingDetailPage() {
                         </Badge>
                       </div>
                     ) : null}
-                  </td>
-                  <td className="px-3 py-2 text-right text-zinc-700">
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-zinc-700">
                     {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
-                  </td>
-                  <td className="px-3 py-2 text-right text-zinc-700">
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-zinc-700">
                     {it.targetPrice
                       ? `${Number(it.targetPrice).toLocaleString("tr-TR")} ₺`
                       : "—"}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </section>
     ) : null;
@@ -444,22 +452,19 @@ export default function ListingDetailPage() {
       l.bids.some((b) => b.items && b.items.length > 0) ? (
         <div className="space-y-2">
           <Subheading>Kalem Karşılaştırma</Subheading>
-          <div className="overflow-x-auto rounded-xl border border-zinc-950/10">
-            <table className="min-w-full text-sm">
-              <thead className="bg-zinc-50 text-xs text-zinc-500">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium">Kalem</th>
+          <div className="overflow-x-auto rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
+            <Table dense>
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Kalem</TableHeader>
                   {l.bids.map((b) => (
-                    <th
-                      key={b.id}
-                      className="whitespace-nowrap px-3 py-2 text-right font-medium"
-                    >
+                    <TableHeader key={b.id} className="text-right">
                       {b.bidderName}
-                    </th>
+                    </TableHeader>
                   ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100">
+                </TableRow>
+              </TableHead>
+              <TableBody>
                 {l.items.map((it) => {
                   const prices = (l.bids ?? []).map((b) => {
                     const bi = b.items?.find((x) => x.itemId === it.id);
@@ -470,30 +475,30 @@ export default function ListingDetailPage() {
                   );
                   const min = valid.length ? Math.min(...valid) : null;
                   return (
-                    <tr key={it.id}>
-                      <td className="whitespace-nowrap px-3 py-2 text-zinc-900">
+                    <TableRow key={it.id}>
+                      <TableCell className="whitespace-nowrap text-zinc-900">
                         {it.name}{" "}
                         <span className="text-xs text-zinc-400">
                           ({Number(it.quantity).toLocaleString("tr-TR")} {it.unit})
                         </span>
-                      </td>
+                      </TableCell>
                       {prices.map((p, bi) => (
-                        <td
+                        <TableCell
                           key={bi}
-                          className={`whitespace-nowrap px-3 py-2 text-right font-mono ${
+                          className={`whitespace-nowrap text-right font-mono tabular-nums ${
                             p != null && p === min
-                              ? "bg-emerald-50 font-semibold text-emerald-700"
+                              ? "font-semibold text-emerald-700"
                               : "text-zinc-600"
                           }`}
                         >
                           {p != null ? `${p.toLocaleString("tr-TR")} ₺` : "—"}
-                        </td>
+                        </TableCell>
                       ))}
-                    </tr>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       ) : null}
