@@ -319,6 +319,7 @@ model Company {
   threadsAsBuyer       MessageThread[]     @relation("ThreadBuyer")
   threadsAsSeller      MessageThread[]     @relation("ThreadSeller")
   messagesSent         Message[]           @relation("MessageSender")
+  questionTemplates    ListingQuestionTemplate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -806,6 +807,20 @@ model ListingItemQuestion {
 
   @@index([itemId])
   @@map("listing_item_questions")
+}
+
+// Kayıtlı soru şablonu — firma kalem sorularını tekrar kullanmak için saklar.
+model ListingQuestionTemplate {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  items     Json // [{ text, answerType, required }]
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@map("listing_question_templates")
 }
 
 // İhale daveti — belirli bağlı tedarikçiyi ihaleye davet (eski TenderInvitation).

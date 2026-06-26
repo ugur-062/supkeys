@@ -16,12 +16,14 @@ import { Label } from "@/components/ui/label";
 import {
   useQuestionTemplate,
   useQuestionTemplates,
+  useSaveQuestionTemplate,
 } from "@/hooks/use-templates";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import { cn } from "@/lib/utils";
-import { ChevronDown, HelpCircle, Info, LayoutTemplate, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, HelpCircle, Info, LayoutTemplate, Plus, Save, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Controller, useFieldArray, useFormContext } from "react-hook-form";
+import { toast } from "sonner";
 
 interface Props {
   open: boolean;
@@ -45,12 +47,37 @@ function newId(): string {
 }
 
 export function ItemQuestionModal({ open, onClose, index }: Props) {
-  const { control, register } = useFormContext<TenderFormData>();
+  const { control, register, getValues } = useFormContext<TenderFormData>();
   const { fields, append, remove } = useFieldArray({
     control,
     name: `items.${index}.questions`,
     keyName: "_rfkey",
   });
+  const saveTpl = useSaveQuestionTemplate();
+
+  const saveAsTemplate = async () => {
+    const qs = getValues(`items.${index}.questions`) ?? [];
+    const valid = qs.filter((q) => q.text.trim());
+    if (valid.length === 0) {
+      toast.error("Önce en az bir soru ekle");
+      return;
+    }
+    const name = window.prompt("Şablon adı:");
+    if (!name?.trim()) return;
+    try {
+      await saveTpl.mutateAsync({
+        name: name.trim(),
+        items: valid.map((q) => ({
+          text: q.text.trim(),
+          answerType: q.answerType,
+          required: q.required,
+        })),
+      });
+      toast.success("Soru şablonu kaydedildi");
+    } catch {
+      toast.error("Şablon kaydedilemedi");
+    }
+  };
 
   // Şablon picker
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -272,6 +299,14 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
       </DialogBody>
 
       <DialogActions>
+        <Button
+          plain
+          onClick={saveAsTemplate}
+          disabled={saveTpl.isPending}
+        >
+          <Save data-slot="icon" />
+          Şablon Olarak Kaydet
+        </Button>
         <Button onClick={onClose}>Tamam</Button>
       </DialogActions>
     </Dialog>
