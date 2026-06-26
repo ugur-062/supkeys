@@ -45,12 +45,21 @@ export interface BrowseListing {
 
 export type CurrencyCode = "TRY" | "USD" | "EUR" | "GBP" | "CHF" | "JPY";
 
+export interface ItemQuestionInput {
+  text: string;
+  answerType: "TEXT" | "NUMBER" | "YES_NO" | "DATE";
+  required?: boolean;
+}
+
 export interface ListingItemInput {
   name: string;
   description?: string;
   quantity: number;
   unit: string;
   targetPrice?: number;
+  materialCode?: string;
+  requiredByDate?: string;
+  questions?: ItemQuestionInput[];
 }
 
 export interface CreateListingInput {
@@ -63,6 +72,7 @@ export interface CreateListingInput {
   title: string;
   description?: string;
   closesAt?: string;
+  bidsOpenAt?: string;
   // İhale (ALIM) zenginleştirme
   items?: ListingItemInput[];
   invitations?: string[]; // davet edilen supkeysId'ler
@@ -72,8 +82,28 @@ export interface CreateListingInput {
   internalNotes?: string;
   requireAllItems?: boolean;
   requireBidDocument?: boolean;
+  isSealedBid?: boolean;
   primaryCurrency?: CurrencyCode;
   allowedCurrencies?: CurrencyCode[];
+  // Teslim / ödeme
+  deliveryTerm?: string;
+  paymentTerm?: "CASH" | "DEFERRED";
+  paymentDays?: number;
+  paymentTiming?: "BEFORE_DELIVERY" | "AFTER_DELIVERY";
+  // Lojistik
+  isLogistics?: boolean;
+  logistics?: Record<string, unknown>;
+  // İngiliz Usulü açık eksiltme
+  bidVisibility?: string;
+  priceDecrementType?: "AMOUNT" | "PERCENT";
+  priceDecrementValue?: number;
+  priceDecrementBasis?: "OWN_LAST_BID" | "BEST_BID";
+  decimalPlaces?: number;
+  sendClosingReminder?: boolean;
+  reminderMinutesBefore?: number;
+  autoExtendOnLateBid?: boolean;
+  autoExtendThresholdMin?: number;
+  autoExtendByMinutes?: number;
 }
 
 export function useMyListings() {
