@@ -10,6 +10,7 @@ import {
 import { format, isToday } from "date-fns";
 import { tr } from "date-fns/locale";
 import { MessageSquare, Search } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 interface Contact {
@@ -33,7 +34,10 @@ const PORTAL_LABEL: Record<MessagePortal, string> = {
 export function CompanyInboxView({ portal }: { portal: MessagePortal }) {
   const connections = useConnections();
   const threads = useThreads(portal);
-  const [selected, setSelected] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const [selected, setSelected] = useState<string | null>(
+    searchParams.get("with"),
+  );
   const [search, setSearch] = useState("");
 
   const contacts = useMemo<Contact[]>(() => {

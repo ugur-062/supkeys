@@ -588,6 +588,14 @@ export default function ListingDetailPage() {
                 <span className="font-mono text-sm font-semibold text-zinc-900">
                   {Number(b.amount).toLocaleString("tr-TR")} ₺
                 </span>
+                {b.bidderCompanyId ? (
+                  <Link
+                    href={`/company/satinalma/mesajlar?with=${b.bidderCompanyId}`}
+                    className="text-xs font-semibold text-blue-600 hover:underline"
+                  >
+                    Mesaj
+                  </Link>
+                ) : null}
                 {l.status === "OPEN" && b.status === "SUBMITTED" ? (
                   <>
                     <Button

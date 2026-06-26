@@ -452,6 +452,7 @@ export class CompanyListingsService {
         bids: bids.map((b) => ({
           id: b.id,
           bidderName: b.bidderCompany.name,
+          bidderCompanyId: b.bidderCompanyId,
           amount: b.amount.toString(),
           currency: b.currency,
           note: b.note,

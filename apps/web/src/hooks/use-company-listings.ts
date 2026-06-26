@@ -187,6 +187,7 @@ export interface ListingBidItemRow {
 export interface ListingBidRow {
   id: string;
   bidderName: string;
+  bidderCompanyId?: string;
   amount: string;
   currency?: string;
   note: string | null;
