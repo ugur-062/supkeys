@@ -1,5 +1,7 @@
 "use client";
 
+import type { TasarrufTabData } from "@/components/dashboard/tasarruf-tab";
+import type { TedarikciTabData } from "@/components/dashboard/tedarikci-tab";
 import { companyApi } from "@/lib/company-auth/api";
 import { useQuery } from "@tanstack/react-query";
 
@@ -39,6 +41,32 @@ export function useSatinalmaDashboard() {
       return data;
     },
     staleTime: 60_000,
+  });
+}
+
+export function useSatinalmaTasarruf() {
+  return useQuery<TasarrufTabData>({
+    queryKey: ["company-dashboard", "satinalma", "tasarruf"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<TasarrufTabData>(
+        "/company/dashboard/satinalma/tasarruf",
+      );
+      return data;
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useSatinalmaTedarikci() {
+  return useQuery<TedarikciTabData>({
+    queryKey: ["company-dashboard", "satinalma", "tedarikci"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<TedarikciTabData>(
+        "/company/dashboard/satinalma/tedarikci",
+      );
+      return data;
+    },
+    staleTime: 5 * 60_000,
   });
 }
 

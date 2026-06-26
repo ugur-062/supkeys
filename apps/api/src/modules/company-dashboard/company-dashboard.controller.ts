@@ -20,4 +20,14 @@ export class CompanyDashboardController {
   satis(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.satis(user);
   }
+
+  @Get("satinalma/tasarruf")
+  satinalmaTasarruf(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.satinalmaTasarruf(user);
+  }
+
+  @Get("satinalma/tedarikci")
+  satinalmaTedarikci(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.satinalmaTedarikci(user);
+  }
 }

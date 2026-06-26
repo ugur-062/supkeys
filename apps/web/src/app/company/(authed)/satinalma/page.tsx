@@ -1,9 +1,15 @@
 "use client";
 
 import { SatinalmaIhaleTab } from "@/components/dashboard/satinalma-ihale-tab";
+import { TasarrufTab } from "@/components/dashboard/tasarruf-tab";
+import { TedarikciTab } from "@/components/dashboard/tedarikci-tab";
 import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
-import { useSatinalmaDashboard } from "@/hooks/use-company-dashboard";
+import {
+  useSatinalmaDashboard,
+  useSatinalmaTasarruf,
+  useSatinalmaTedarikci,
+} from "@/hooks/use-company-dashboard";
 import { cn } from "@/lib/utils";
 import {
   Tab,
@@ -33,6 +39,8 @@ const TRIGGER_CLASSES = cn(
 export default function SatinalmaDashboardPage() {
   const { user, company } = useCompanyAuth();
   const ihale = useSatinalmaDashboard();
+  const tasarruf = useSatinalmaTasarruf();
+  const tedarikci = useSatinalmaTedarikci();
 
   const [todayLabel, setTodayLabel] = useState("");
   useEffect(() => {
@@ -85,10 +93,22 @@ export default function SatinalmaDashboardPage() {
             )}
           </TabPanel>
           <TabPanel className="outline-none">
-            <TabPlaceholder title="Tasarruf" />
+            {tasarruf.data ? (
+              <TasarrufTab data={tasarruf.data} />
+            ) : (
+              <TabLoading
+                message={tasarruf.isError ? "Veri alınamadı" : undefined}
+              />
+            )}
           </TabPanel>
           <TabPanel className="outline-none">
-            <TabPlaceholder title="Tedarikçi" />
+            {tedarikci.data ? (
+              <TedarikciTab data={tedarikci.data} />
+            ) : (
+              <TabLoading
+                message={tedarikci.isError ? "Veri alınamadı" : undefined}
+              />
+            )}
           </TabPanel>
         </TabPanels>
       </TabGroup>
@@ -111,11 +131,3 @@ function TabLoading({ message }: { message?: string }) {
   );
 }
 
-function TabPlaceholder({ title }: { title: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-white py-20 text-center text-sm text-zinc-500 shadow-sm ring-1 ring-zinc-950/5">
-      <p className="font-medium text-zinc-700">{title} analizi</p>
-      <p>Bu bölüm hazırlanıyor.</p>
-    </div>
-  );
-}
