@@ -16,6 +16,7 @@ import { CompanyBlocksModule } from "./modules/company-blocks/company-blocks.mod
 import { CompanyComplaintsModule } from "./modules/company-complaints/company-complaints.module";
 import { CompanyConnectionsModule } from "./modules/company-connections/company-connections.module";
 import { CompanyInboxModule } from "./modules/company-inbox/company-inbox.module";
+import { CompanyMessagesModule } from "./modules/company-messages/company-messages.module";
 import { CompanyListingTemplatesModule } from "./modules/company-listing-templates/company-listing-templates.module";
 import { CompanyListingsModule } from "./modules/company-listings/company-listings.module";
 import { CompanyOrdersModule } from "./modules/company-orders/company-orders.module";
@@ -76,6 +77,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     CompanyListingTemplatesModule,
     CompanyOrdersModule,
     CompanyInboxModule,
+    CompanyMessagesModule,
   ],
   providers: [
     // Global guard: @SkipThrottle ile özel endpoint'lerde bypass edilebilir.

@@ -316,11 +316,56 @@ model Company {
   complaintsReceived   CompanyComplaint[]  @relation("ComplaintAgainst")
   listingInvitations   ListingInvitation[] @relation("ListingInvitee")
   listingTemplates     ListingTemplate[]
+  threadsAsBuyer       MessageThread[]     @relation("ThreadBuyer")
+  threadsAsSeller      MessageThread[]     @relation("ThreadSeller")
+  messagesSent         Message[]           @relation("MessageSender")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("companies")
+}
+
+/**
+ * 1-1 mesajlaşma thread'i — her zaman bir ALICI ve bir SATICI firma arasında.
+ * Bağımsız-per-portal: bir firma için buyer olduğu thread'ler Satınalma
+ * inbox'ına, seller olduğu thread'ler Satış inbox'ına düşer. A→B (alış) ile
+ * B→A (satış) ayrı thread'lerdir; bu yüzden iki portal birbirinden bağımsız.
+ */
+model MessageThread {
+  id              String  @id @default(cuid())
+  buyerCompanyId  String
+  buyerCompany    Company @relation("ThreadBuyer", fields: [buyerCompanyId], references: [id], onDelete: Cascade)
+  sellerCompanyId String
+  sellerCompany   Company @relation("ThreadSeller", fields: [sellerCompanyId], references: [id], onDelete: Cascade)
+
+  lastMessageAt DateTime?
+  messages      Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([buyerCompanyId, sellerCompanyId])
+  @@index([buyerCompanyId])
+  @@index([sellerCompanyId])
+  @@map("message_threads")
+}
+
+model Message {
+  id              String        @id @default(cuid())
+  threadId        String
+  thread          MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderCompanyId String
+  senderCompany   Company       @relation("MessageSender", fields: [senderCompanyId], references: [id], onDelete: Cascade)
+  senderUserId    String? // CompanyUser.id — mesajı yazan kişi
+  senderName      String // gönderim anındaki ad (denormalize, geçmiş korunur)
+  body            String
+  readAt          DateTime? // karşı taraf okuduğunda set edilir
+
+  createdAt DateTime @default(now())
+
+  @@index([threadId])
+  @@map("messages")
 }
 
 enum ComplaintStatus {
