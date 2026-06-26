@@ -204,6 +204,62 @@ export class CompanyListingsService {
   }
 
   /**
+   * İhalelerim listesi (ALIM) — zengin: açan kişi + davetli/teklif sayısı +
+   * kategoriler. Eski tenders-table'ın ihtiyaç duyduğu alanlar. Filtre/sıralama
+   * frontend'de (client-side) yapılır.
+   */
+  async listTenders(companyId: string) {
+    const rows = await this.prisma.listing.findMany({
+      where: { companyId, type: "ALIM" },
+      select: {
+        id: true,
+        number: true,
+        title: true,
+        type: true,
+        format: true,
+        status: true,
+        categoryIds: true,
+        createdById: true,
+        createdAt: true,
+        closesAt: true,
+        _count: { select: { invitations: true, bids: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 500,
+    });
+
+    const userIds = [...new Set(rows.map((r) => r.createdById))];
+    const users = await this.prisma.companyUser.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    const umap = new Map(users.map((u) => [u.id, u]));
+
+    return rows.map((r) => {
+      const u = umap.get(r.createdById);
+      return {
+        id: r.id,
+        tenderNumber: r.number ?? "—",
+        title: r.title,
+        type: r.type,
+        format: r.format,
+        status: r.status,
+        categoryIds: r.categoryIds,
+        createdById: r.createdById,
+        createdBy: {
+          firstName: u?.firstName ?? "—",
+          lastName: u?.lastName ?? "",
+        },
+        invitationCount: r._count.invitations,
+        bidCount: r._count.bids,
+        publishedAt: r.createdAt,
+        bidsCloseAt: r.closesAt,
+        createdAt: r.createdAt,
+      };
+    });
+  }
+
+  /**
    * Bana açık ilanlar (başka firmaların): PUBLIC + bağlantılı firmaların
    * CONNECTIONS ilanları. PUBLIC ilanı bağlı olmayan STANDART MASKELİ görür
    * (firma gizli, teklif veremez); premium tam görür.

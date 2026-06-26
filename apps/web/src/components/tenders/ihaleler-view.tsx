@@ -1,0 +1,238 @@
+"use client";
+
+import {
+  FilterSelect,
+  PageHeader,
+  Pagination,
+  ResultCount,
+  SearchInput,
+} from "@/components/list";
+import { TendersTable } from "@/components/tenders/tenders-table";
+import { Button } from "@/components/ui/button";
+import {
+  useTenders,
+  type TenderListItem,
+} from "@/hooks/use-company-tenders";
+import { ArrowUpDown, Building2, CalendarRange, Plus, User as UserIcon } from "lucide-react";
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+const SORT_OPTIONS = [
+  { value: "createdAt:desc", label: "En Yeni" },
+  { value: "createdAt:asc", label: "En Eski" },
+  { value: "bidsCloseAt:asc", label: "Yakın Biten" },
+  { value: "bidsCloseAt:desc", label: "Uzak Biten" },
+];
+
+type RangeKey = "7d" | "30d" | "3m" | "6m" | "12m" | "all";
+const RANGE_OPTIONS: { value: RangeKey; label: string }[] = [
+  { value: "7d", label: "Son 7 Gün" },
+  { value: "30d", label: "Son 30 Gün" },
+  { value: "3m", label: "Son 3 Ay" },
+  { value: "6m", label: "Son 6 Ay" },
+  { value: "12m", label: "Son 1 Yıl" },
+  { value: "all", label: "Tümü" },
+];
+const DEFAULT_RANGE: RangeKey = "3m";
+const RANGE_DAYS: Record<RangeKey, number | null> = {
+  "7d": 7,
+  "30d": 30,
+  "3m": 90,
+  "6m": 180,
+  "12m": 365,
+  all: null,
+};
+
+type TabKey = "all" | "DRAFT" | "OPEN" | "CLOSED" | "AWARDED" | "CANCELLED";
+const STATUS_OPTIONS: { value: TabKey; label: string }[] = [
+  { value: "all", label: "Tüm Durumlar" },
+  { value: "DRAFT", label: "Taslak" },
+  { value: "OPEN", label: "Yayında" },
+  { value: "CLOSED", label: "Teklife Kapalı" },
+  { value: "AWARDED", label: "Tamamlandı" },
+  { value: "CANCELLED", label: "İptal/Kapalı" },
+];
+
+const PAGE_SIZE = 20;
+
+export function IhalelerView() {
+  const list = useTenders();
+  const all = useMemo(() => list.data ?? [], [list.data]);
+
+  const [tab, setTab] = useState<TabKey>("all");
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState("createdAt:desc");
+  const [range, setRange] = useState<RangeKey>(DEFAULT_RANGE);
+  const [createdById, setCreatedById] = useState("");
+  const [page, setPage] = useState(1);
+
+  // Durum sayaçları
+  const stats = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const t of all) c[t.status] = (c[t.status] ?? 0) + 1;
+    return c;
+  }, [all]);
+
+  // Satın almacılar (açan kişiler)
+  const buyers = useMemo(() => {
+    const m = new Map<
+      string,
+      { id: string; firstName: string; lastName: string; count: number }
+    >();
+    for (const t of all) {
+      const e = m.get(t.createdById) ?? {
+        id: t.createdById,
+        firstName: t.createdBy.firstName,
+        lastName: t.createdBy.lastName,
+        count: 0,
+      };
+      e.count += 1;
+      m.set(t.createdById, e);
+    }
+    return [...m.values()].sort((a, b) => b.count - a.count);
+  }, [all]);
+
+  const filtered = useMemo(() => {
+    const days = RANGE_DAYS[range];
+    const minDate = days ? Date.now() - days * 86_400_000 : null;
+    const q = search.trim().toLocaleLowerCase("tr");
+    const rows = all.filter((t) => {
+      if (tab !== "all" && t.status !== tab) return false;
+      if (createdById && t.createdById !== createdById) return false;
+      if (minDate && new Date(t.createdAt).getTime() < minDate) return false;
+      if (
+        q &&
+        !t.title.toLocaleLowerCase("tr").includes(q) &&
+        !t.tenderNumber.toLocaleLowerCase("tr").includes(q)
+      )
+        return false;
+      return true;
+    });
+    const [field, dir] = sort.split(":") as [keyof TenderListItem, string];
+    const sorted = [...rows].sort((a, b) => {
+      const av = String(a[field] ?? "");
+      const bv = String(b[field] ?? "");
+      return dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+    });
+    return sorted;
+  }, [all, tab, createdById, range, search, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = filtered.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
+  const isFiltered =
+    Boolean(search) ||
+    tab !== "all" ||
+    range !== DEFAULT_RANGE ||
+    Boolean(createdById);
+
+  const reset = <T,>(setter: (v: T) => void) => (v: T) => {
+    setPage(1);
+    setter(v);
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto space-y-6">
+      <PageHeader
+        title="İhaleler"
+        description="Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın."
+        action={
+          <Link href="/company/satinalma/ihalelerim/yeni">
+            <Button variant="primary">
+              <Plus className="h-4 w-4" />
+              Yeni İhale Aç
+            </Button>
+          </Link>
+        }
+      />
+
+      {/* Arama + filtreler */}
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <SearchInput
+            value={search}
+            onChange={reset(setSearch)}
+            placeholder="İhale adı veya numarası ara…"
+            className="flex-1"
+          />
+          <FilterSelect
+            icon={ArrowUpDown}
+            value={sort}
+            onChange={reset(setSort)}
+            options={SORT_OPTIONS}
+            ariaLabel="Sıralama"
+            active={sort !== "createdAt:desc"}
+            className="sm:min-w-[150px]"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterSelect
+            icon={Building2}
+            value={tab}
+            onChange={(v) => reset(setTab)(v as TabKey)}
+            options={STATUS_OPTIONS.map((o) => ({
+              value: o.value,
+              label:
+                o.value === "all"
+                  ? `Tümü (${all.length})`
+                  : `${o.label}${stats[o.value] ? ` (${stats[o.value]})` : ""}`,
+            }))}
+            ariaLabel="Durum filtresi"
+            active={tab !== "all"}
+          />
+          <FilterSelect
+            icon={CalendarRange}
+            value={range}
+            onChange={(v) => reset(setRange)(v as RangeKey)}
+            options={RANGE_OPTIONS}
+            ariaLabel="Tarih aralığı"
+            active={range !== DEFAULT_RANGE}
+          />
+          <FilterSelect
+            icon={UserIcon}
+            value={createdById}
+            onChange={reset(setCreatedById)}
+            options={[
+              { value: "", label: "Tüm Satın Almacılar" },
+              ...buyers.map((b) => ({
+                value: b.id,
+                label: `${b.firstName} ${b.lastName} (${b.count})`,
+              })),
+            ]}
+            ariaLabel="Satın almacı filtresi"
+            active={!!createdById}
+          />
+          <ResultCount
+            total={filtered.length}
+            isFiltered={isFiltered}
+            unit="ihale"
+            className="ml-auto"
+          />
+        </div>
+      </div>
+
+      <TendersTable
+        items={pageRows}
+        isLoading={list.isLoading}
+        isError={list.isError}
+        pageSize={PAGE_SIZE}
+        onRetry={() => list.refetch()}
+      />
+
+      {totalPages > 1 ? (
+        <Pagination
+          variant="bare"
+          page={safePage}
+          totalPages={totalPages}
+          total={filtered.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
+      ) : null}
+    </div>
+  );
+}

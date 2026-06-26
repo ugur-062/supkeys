@@ -31,6 +31,12 @@ export class CompanyListingsController {
     return this.service.listMyBids(user.companyId);
   }
 
+  /** İhalelerim listesi (ALIM) — zengin. */
+  @Get("tenders")
+  listTenders(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.listTenders(user.companyId);
+  }
+
   @Get(":id")
   getOne(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
