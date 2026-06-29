@@ -359,7 +359,7 @@ export function TenderWizard({
         {/* İçerik */}
         <div className="min-w-0 pt-2">
           {step === 0 ? <Step0TypeScope /> : null}
-          {step === 1 ? <Step1Info /> : null}
+          {step === 1 ? <Step1Info listingId={listingId} /> : null}
           {step === 2 ? <Step2Items /> : null}
           {step === 3 ? <Step3Suppliers /> : null}
           {step === 4 ? <Step4Review onEditStep={(s) => setStep(s)} /> : null}

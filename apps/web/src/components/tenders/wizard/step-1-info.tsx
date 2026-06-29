@@ -4,6 +4,7 @@ import { Checkbox } from "@/components/catalyst/checkbox";
 import { Radio, RadioGroup } from "@/components/catalyst/radio";
 import { Select } from "@/components/catalyst/select";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
+import { FilesTab } from "@/components/tenders/files-tab";
 import { CurrencyMultiSelect } from "@/components/currency-multi-select";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -494,7 +495,7 @@ function LogisticsSection() {
   );
 }
 
-export function Step1Info() {
+export function Step1Info({ listingId }: { listingId?: string }) {
   const {
     register,
     formState: { errors },
@@ -1305,6 +1306,21 @@ export function Step1Info() {
         </div>
       </section>
 
+      {/* İhale Dökümanları (şartname, teknik resim vb.) */}
+      <section>
+        {listingId ? (
+          <FilesTab listingId={listingId} isOwner canEdit />
+        ) : (
+          <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+            <Clock className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
+            <p>
+              İhale dökümanlarını (şartname, teknik resim vb.) ilanı
+              oluşturduktan sonra <strong>Düzenle</strong> ekranından
+              ekleyebilirsiniz.
+            </p>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
