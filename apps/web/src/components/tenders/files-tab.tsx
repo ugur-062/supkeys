@@ -48,6 +48,16 @@ export function FilesTab({
     }
   };
 
+  const handleDelete = async (docId: string) => {
+    if (!confirm("Dosya silinsin mi?")) return;
+    try {
+      await del.mutateAsync(docId);
+      toast.success("Dosya silindi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Silinemedi"));
+    }
+  };
+
   const rows = docs.data ?? [];
 
   return (
@@ -120,7 +130,7 @@ export function FilesTab({
                   {isOwner && canEdit && d.mine ? (
                     <button
                       type="button"
-                      onClick={() => del.mutate(d.id)}
+                      onClick={() => handleDelete(d.id)}
                       className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-red-600"
                     >
                       <Trash2 className="h-3.5 w-3.5" />

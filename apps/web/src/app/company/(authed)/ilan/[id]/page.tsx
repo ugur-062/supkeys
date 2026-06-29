@@ -37,6 +37,7 @@ import {
 } from "@/hooks/use-bid-documents";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
@@ -262,12 +263,17 @@ export default function ListingDetailPage() {
         };
       })
       .filter((a) => a.bidId);
-    if (itemAwards.length < items.length) {
-      toast.error("Her kalem için kazanan teklif seçin");
+    if (itemAwards.length === 0) {
+      toast.error("En az bir kalem için kazanan seçin");
       return;
     }
+    const skipped = items.length - itemAwards.length;
     if (
-      !confirm("Kalem-bazlı kazandırılsın mı? Kazanan firma başına sipariş oluşur.")
+      !confirm(
+        skipped > 0
+          ? `${itemAwards.length} kalem kazandırılacak, ${skipped} kalem (seçilmeyen/teklifsiz) atlanacak. Devam?`
+          : "Kalem-bazlı kazandırılsın mı? Kazanan firma başına sipariş oluşur.",
+      )
     )
       return;
     try {
@@ -295,6 +301,10 @@ export default function ListingDetailPage() {
   }
 
   const isAlim = l.type === "ALIM";
+  // İhalenin para birimi sembolü (kalem/matris değerleri bununla gösterilir).
+  const sym =
+    CURRENCY_SYMBOL[(l.primaryCurrency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
+    "₺";
   // Erken kapatınca (CLOSED) da kazandırma/eleme açık kalır.
   const canDecide = l.status === "OPEN" || l.status === "CLOSED";
   // Teklif verme / güncelleme / belge ekleme yalnızca ilan AÇIK iken.
@@ -367,6 +377,16 @@ export default function ListingDetailPage() {
     }
   };
 
+  const handleDeleteBidDoc = async (docId: string) => {
+    if (!confirm("Belge silinsin mi?")) return;
+    try {
+      await deleteBidDoc.mutateAsync(docId);
+      toast.success("Belge silindi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Silinemedi"));
+    }
+  };
+
   // ───────────────────────── Bölümler (sekmelere yerleşir) ─────────────────
 
   const itemsSection =
@@ -413,7 +433,7 @@ export default function ListingDetailPage() {
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-zinc-700">
                     {it.targetPrice
-                      ? `${Number(it.targetPrice).toLocaleString("tr-TR")} ₺`
+                      ? `${Number(it.targetPrice).toLocaleString("tr-TR")} ${sym}`
                       : "—"}
                   </TableCell>
                 </TableRow>
@@ -517,6 +537,18 @@ export default function ListingDetailPage() {
         bidItemCount,
   ).length;
   const incompleteCount = Math.max(0, submittedCount - completeCount);
+  // Gerçek en iyi (uygun) teklif: yalnız SUBMITTED arasında ALIM→en düşük,
+  // SATIS→en yüksek. "En iyi" rozeti filtre/sıraya değil buna bağlanır.
+  const bestBidId = (() => {
+    const subs = allBids.filter((b) => b.status === "SUBMITTED");
+    if (subs.length === 0) return null;
+    const sorted = [...subs].sort((a, b) =>
+      isAlim
+        ? Number(a.amount) - Number(b.amount)
+        : Number(b.amount) - Number(a.amount),
+    );
+    return sorted[0]?.id ?? null;
+  })();
 
   const ownerBidsSection = (
     <section className="space-y-3">
@@ -616,7 +648,7 @@ export default function ListingDetailPage() {
                               : "text-zinc-600"
                           }`}
                         >
-                          {p != null ? `${p.toLocaleString("tr-TR")} ₺` : "—"}
+                          {p != null ? `${p.toLocaleString("tr-TR")} ${sym}` : "—"}
                         </TableCell>
                       ))}
                     </TableRow>
@@ -677,7 +709,8 @@ export default function ListingDetailPage() {
                         <option value="">— seç —</option>
                         {opts.map((o) => (
                           <option key={o.bidId} value={o.bidId}>
-                            {o.bidderName} · {o.price.toLocaleString("tr-TR")} ₺
+                            {o.bidderName} · {o.price.toLocaleString("tr-TR")}{" "}
+                            {sym}
                           </option>
                         ))}
                       </select>
@@ -741,13 +774,13 @@ export default function ListingDetailPage() {
               if (bidView === "incomplete") return !covered;
               return true;
             })
-            .map((b, i) => (
+            .map((b) => (
             <div
               key={b.id}
               className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3"
             >
               <div className="flex items-center gap-3">
-                {i === 0 && canDecide ? (
+                {b.id === bestBidId && canDecide ? (
                   <Badge color="green">En iyi</Badge>
                 ) : null}
                 {b.status === "WON" ? <Badge color="green">Kazandı</Badge> : null}
@@ -967,7 +1000,9 @@ export default function ListingDetailPage() {
                             />
                           </TableCell>
                           <TableCell className="text-right font-mono tabular-nums text-zinc-700">
-                            {line > 0 ? `${line.toLocaleString("tr-TR")} ₺` : "—"}
+                            {line > 0
+                              ? `${line.toLocaleString("tr-TR")} ${sym}`
+                              : "—"}
                           </TableCell>
                         </TableRow>
                       );
@@ -979,7 +1014,7 @@ export default function ListingDetailPage() {
                       <TableCell />
                       <TableCell />
                       <TableCell className="text-right font-mono font-bold tabular-nums text-zinc-900">
-                        {itemTotal.toLocaleString("tr-TR")} ₺
+                        {itemTotal.toLocaleString("tr-TR")} {sym}
                       </TableCell>
                     </TableRow>
                   </TableBody>
@@ -1124,7 +1159,7 @@ export default function ListingDetailPage() {
                         {biddingOpen ? (
                           <button
                             type="button"
-                            onClick={() => deleteBidDoc.mutate(d.id)}
+                            onClick={() => handleDeleteBidDoc(d.id)}
                             className="shrink-0 text-zinc-400 hover:text-red-600"
                           >
                             Sil
