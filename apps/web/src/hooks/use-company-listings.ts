@@ -303,6 +303,7 @@ export interface ListingDetail {
 export function useListingDetail(id: string) {
   return useQuery({
     queryKey: ["company-listings", "detail", id],
+    enabled: !!id,
     queryFn: async () => {
       const { data } = await companyApi.get<ListingDetail>(
         `/company/listings/${id}`,

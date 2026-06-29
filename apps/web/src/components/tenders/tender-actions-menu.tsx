@@ -277,6 +277,11 @@ export function TenderActionsMenu({
             <DropdownItem onClick={() => setNotesOpen(true)}>
               <DropdownLabel>İç Notlar</DropdownLabel>
             </DropdownItem>
+            <DropdownItem
+              href={`/company/satinalma/ihalelerim/yeni?from=${id}`}
+            >
+              <DropdownLabel>İhaleyi Kopyala</DropdownLabel>
+            </DropdownItem>
             {isAuction ? (
               <DropdownItem onClick={() => setHistoryOpen(true)}>
                 <DropdownLabel>Tur Geçmişi</DropdownLabel>
