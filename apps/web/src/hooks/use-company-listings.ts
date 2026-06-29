@@ -472,38 +472,28 @@ export function useAwardByItem(id: string) {
   });
 }
 
-export function useStartNewRound(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async () => {
-      const { data } = await companyApi.post<{ currentRound: number }>(
-        `/company/listings/${id}/new-round`,
-      );
-      return data;
-    },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] }),
-  });
-}
-
-export interface ConvertToAuctionInput {
-  priceDecrementType: "AMOUNT" | "PERCENT";
-  priceDecrementValue: number;
-  priceDecrementBasis: "OWN_LAST_BID" | "BEST_BID";
-  bidVisibility: "OWN_ONLY" | "BEST_PRICE" | "OWN_RANK" | "BEST_AND_OWN_RANK" | "ALL";
+export interface NextRoundInput {
+  type: "RFQ" | "ENGLISH_AUCTION";
+  carryBids: "AUTO" | "LAZY" | "NONE";
+  eliminateNonBidders?: boolean;
+  closesAt: string;
+  bidsOpenAt?: string;
+  priceDecrementType?: "AMOUNT" | "PERCENT";
+  priceDecrementValue?: number;
+  priceDecrementBasis?: "OWN_LAST_BID" | "BEST_BID";
+  bidVisibility?: "OWN_ONLY" | "BEST_PRICE" | "OWN_RANK" | "BEST_AND_OWN_RANK" | "ALL";
   autoExtendOnLateBid?: boolean;
   autoExtendThresholdMin?: number;
   autoExtendByMinutes?: number;
-  closesAt: string;
 }
 
-/** RFQ → İngiliz Usulü dönüşümü (in-place). */
-export function useConvertToAuction(id: string) {
+/** Yeni Tur Oluştur — tek akış (yeni tur + RFQ↔İngiliz dönüşümü). */
+export function useCreateNextRound(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: ConvertToAuctionInput) => {
+    mutationFn: async (input: NextRoundInput) => {
       const { data } = await companyApi.post(
-        `/company/listings/${id}/convert-to-auction`,
+        `/company/listings/${id}/new-round`,
         input,
       );
       return data;

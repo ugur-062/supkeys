@@ -30,8 +30,8 @@ import { ConfigService } from "@nestjs/config";
 import { ExchangeRateService } from "../../currency/services/exchange-rate.service";
 import { EmailService } from "../../email/email.service";
 import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-category-match.helper";
-import { ConvertToAuctionDto } from "../dto/convert-to-auction.dto";
 import { CreateListingDto } from "../dto/create-listing.dto";
+import { NextRoundDto } from "../dto/next-round.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
 
 @Injectable()
@@ -2019,66 +2019,16 @@ export class CompanyListingsService {
   }
 
   /**
-   * Yeni tur — İngiliz Usulü eksiltmede ilan sahibi turu ilerletir. Tedarikçiler
-   * yeni turda daha düşük teklif verir; teklifler turla damgalanır.
+   * Yeni Tur Oluştur — tek akış (eski sistemle birebir). Aynı ilan üzerinde
+   * in-place ilerler: mevcut turu snapshot'lar, tipi (RFQ/İngiliz) ve
+   * parametreleri uygular (tip değişimi = RFQ↔İngiliz "aktarma"), teklifleri
+   * taşıma moduna göre düzenler (AUTO/LAZY→taslak taşı, NONE→sıfırla), opsiyonel
+   * teklif-vermeyeni eler, yeni açılış/kapanışla yeniden açar.
    */
-  async startNewRound(user: AuthenticatedCompanyUser, listingId: string) {
-    const listing = await this.prisma.listing.findUnique({
-      where: { id: listingId },
-      select: {
-        id: true,
-        companyId: true,
-        format: true,
-        status: true,
-        currentRound: true,
-      },
-    });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
-    if (listing.companyId !== user.companyId) {
-      throw new ForbiddenException("Sadece ilan sahibi yeni tur başlatabilir");
-    }
-    if (listing.format !== "ENGLISH_AUCTION") {
-      throw new BadRequestException("Yeni tur yalnızca İngiliz Usulü eksiltmede");
-    }
-    if (listing.status !== "OPEN") {
-      throw new BadRequestException("İlan teklife kapalı");
-    }
-    // Yeni tura geçmeden önce mevcut turun tekliflerini snapshot'la.
-    const bids = await this.prisma.listingBid.findMany({
-      where: { listingId, status: "SUBMITTED" },
-      include: { bidderCompany: { select: { name: true } } },
-    });
-    const updated = await this.prisma.$transaction(async (tx) => {
-      if (bids.length > 0) {
-        await tx.listingRoundSnapshot.createMany({
-          data: bids.map((b) => ({
-            listingId,
-            round: listing.currentRound,
-            bidderName: b.bidderCompany.name,
-            amount: b.amount,
-          })),
-        });
-      }
-      return tx.listing.update({
-        where: { id: listingId },
-        data: { currentRound: { increment: 1 } },
-        select: { currentRound: true },
-      });
-    });
-    return { currentRound: updated.currentRound };
-  }
-
-  /**
-   * RFQ → İngiliz Usulü dönüşümü (in-place). Erken kapatılmış veya açık bir
-   * RFQ'yu açık eksiltmeye çevirir: format + azaltma/auto-extend/görünürlük
-   * parametrelerini set eder, mevcut turun tekliflerini snapshot'lar, turu
-   * ilerletir, yeni kapanışla yeniden açar. Mevcut SUBMITTED teklifler
-   * başlangıç değeri olarak taşınır (tedarikçiler bunları düşürür).
-   */
-  async convertToAuction(
+  async createNextRound(
     user: AuthenticatedCompanyUser,
     listingId: string,
-    dto: ConvertToAuctionDto,
+    dto: NextRoundDto,
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
@@ -2086,39 +2036,51 @@ export class CompanyListingsService {
         id: true,
         companyId: true,
         type: true,
-        format: true,
         status: true,
         currentRound: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     if (listing.companyId !== user.companyId) {
-      throw new ForbiddenException("Sadece ilan sahibi dönüştürebilir");
+      throw new ForbiddenException("Sadece ilan sahibi yeni tur açabilir");
     }
     if (listing.type !== "ALIM") {
-      throw new BadRequestException("Yalnızca alım ilanı açık eksiltmeye çevrilebilir");
+      throw new BadRequestException("Yeni tur yalnızca alım ilanında açılabilir");
     }
-    if (listing.format === "ENGLISH_AUCTION") {
-      throw new BadRequestException("İlan zaten İngiliz Usulü");
-    }
-    if (listing.status !== "OPEN" && listing.status !== "CLOSED") {
+    if (!["OPEN", "CLOSED", "CLOSED_NO_AWARD"].includes(listing.status)) {
       throw new BadRequestException(
-        "Yalnızca açık veya teklife kapanmış ilan dönüştürülebilir",
+        "Yeni tur yalnızca açık veya kapanmış ilanda açılabilir",
       );
+    }
+    const isAuction = dto.type === "ENGLISH_AUCTION";
+    if (isAuction && !((dto.priceDecrementValue ?? 0) > 0)) {
+      throw new BadRequestException(
+        "Açık eksiltme için fiyat azaltma değeri zorunlu",
+      );
+    }
+    if (
+      isAuction &&
+      dto.priceDecrementType === "PERCENT" &&
+      (dto.priceDecrementValue ?? 0) >= 100
+    ) {
+      throw new BadRequestException("Yüzde azaltma 100'den küçük olmalı");
     }
     const closesAt = new Date(dto.closesAt);
     if (Number.isNaN(closesAt.getTime()) || closesAt.getTime() <= Date.now()) {
       throw new BadRequestException("Kapanış tarihi gelecekte olmalı");
     }
-    if (dto.priceDecrementType === "PERCENT" && dto.priceDecrementValue >= 100) {
-      throw new BadRequestException("Yüzde azaltma 100'den küçük olmalı");
+    const bidsOpenAt = dto.bidsOpenAt ? new Date(dto.bidsOpenAt) : null;
+    if (bidsOpenAt && bidsOpenAt.getTime() >= closesAt.getTime()) {
+      throw new BadRequestException("Açılış tarihi kapanıştan önce olmalı");
     }
 
-    // Mevcut turun tekliflerini snapshot'la (geçmiş için).
+    // Mevcut turun SUBMITTED tekliflerini snapshot'la (geçmiş).
     const bids = await this.prisma.listingBid.findMany({
       where: { listingId, status: "SUBMITTED" },
       include: { bidderCompany: { select: { name: true } } },
     });
+    const bidderCompanyIds = [...new Set(bids.map((b) => b.bidderCompanyId))];
+
     await this.prisma.$transaction(async (tx) => {
       if (bids.length > 0) {
         await tx.listingRoundSnapshot.createMany({
@@ -2130,29 +2092,55 @@ export class CompanyListingsService {
           })),
         });
       }
+      // Teklif taşıma: AUTO/LAZY → taslağa çek (taşınır, yeniden gönderilir);
+      // NONE → LOST (sıfırdan).
+      if (dto.carryBids === "AUTO" || dto.carryBids === "LAZY") {
+        await tx.listingBid.updateMany({
+          where: { listingId, status: "SUBMITTED" },
+          data: { status: "DRAFT" },
+        });
+      } else {
+        await tx.listingBid.updateMany({
+          where: { listingId, status: "SUBMITTED" },
+          data: { status: "LOST" },
+        });
+      }
+      // Teklif vermeyeni ele: yalnızca önceki turda teklif verenlerin daveti kalır.
+      if (dto.eliminateNonBidders && bidderCompanyIds.length > 0) {
+        await tx.listingInvitation.deleteMany({
+          where: { listingId, invitedCompanyId: { notIn: bidderCompanyIds } },
+        });
+      }
       await tx.listing.update({
         where: { id: listingId },
         data: {
-          format: "ENGLISH_AUCTION",
+          format: dto.type as ListingFormat,
           status: "OPEN",
           closesAt,
+          bidsOpenAt,
+          publishedAt: new Date(),
           closingReminderSentAt: null,
           currentRound: { increment: 1 },
-          isSealedBid: true,
-          bidVisibility: dto.bidVisibility as ListingBidVisibility,
-          priceDecrementType: dto.priceDecrementType,
-          priceDecrementValue: dto.priceDecrementValue,
-          priceDecrementBasis: dto.priceDecrementBasis,
-          autoExtendOnLateBid: dto.autoExtendOnLateBid ?? true,
-          autoExtendThresholdMin: dto.autoExtendThresholdMin ?? 2,
-          autoExtendByMinutes: dto.autoExtendByMinutes ?? 2,
+          isSealedBid: isAuction,
+          bidVisibility: isAuction
+            ? (dto.bidVisibility as ListingBidVisibility)
+            : "OWN_ONLY",
+          priceDecrementType: isAuction ? dto.priceDecrementType : null,
+          priceDecrementValue: isAuction ? dto.priceDecrementValue : null,
+          priceDecrementBasis: isAuction ? dto.priceDecrementBasis : null,
+          autoExtendOnLateBid: isAuction ? (dto.autoExtendOnLateBid ?? true) : false,
+          autoExtendThresholdMin: isAuction
+            ? (dto.autoExtendThresholdMin ?? 2)
+            : null,
+          autoExtendByMinutes: isAuction
+            ? (dto.autoExtendByMinutes ?? 2)
+            : null,
         },
       });
     });
 
-    // Davetlilere "açık eksiltmeye geçti" bildirimi.
     void this.notifyListingInvitees(listingId, "reminder");
-    return { ok: true };
+    return { ok: true, round: listing.currentRound + 1 };
   }
 
   /**

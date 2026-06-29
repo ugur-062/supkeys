@@ -19,13 +19,15 @@ import {
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { Textarea } from "@/components/catalyst/textarea";
+import { RoundHistoryDialog } from "@/components/tenders/round-history-dialog";
 import { useConnections } from "@/hooks/use-company-connections";
 import {
   useAddInvitations,
+  useCancelListing,
   useChangeClosing,
   useCloseEarly,
   useCloseNoAward,
-  useConvertToAuction,
+  useCreateNextRound,
   useDeleteListing,
   useUpdateInternalNotes,
 } from "@/hooks/use-company-listings";
@@ -69,14 +71,15 @@ export function TenderActionsMenu({
   const updateNotes = useUpdateInternalNotes(id);
   const closeNoAward = useCloseNoAward(id);
   const deleteListing = useDeleteListing();
-  const convert = useConvertToAuction(id);
+  const nextRound = useCreateNextRound(id);
+  const cancelListing = useCancelListing(id);
   const addInvitations = useAddInvitations(id);
   const connections = useConnections();
 
   const isDraft = status === "DRAFT";
-  // RFQ + (açık veya teklife kapanmış) → İngiliz Usulü'ne çevrilebilir.
-  const canConvert =
-    format !== "ENGLISH_AUCTION" && (status === "OPEN" || status === "CLOSED");
+  const isAuction = format === "ENGLISH_AUCTION";
+  // Yeni tur (+ RFQ↔İngiliz dönüşümü) yalnızca kapanmış ilanda.
+  const canNewRound = status === "CLOSED" || status === "CLOSED_NO_AWARD";
   const canInvite = status === "DRAFT" || status === "OPEN";
 
   const handleDeleteDraft = async () => {
@@ -92,12 +95,19 @@ export function TenderActionsMenu({
 
   const [closingOpen, setClosingOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
-  const [convertOpen, setConvertOpen] = useState(false);
+  const [nextRoundOpen, setNextRoundOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [newClosing, setNewClosing] = useState(toLocalInput(closesAt));
   const [notes, setNotes] = useState(internalNotes ?? "");
 
-  // İngiliz'e aktar form durumu
+  // Yeni Tur Oluştur form durumu
+  const [nrType, setNrType] = useState<"RFQ" | "ENGLISH_AUCTION">(
+    "ENGLISH_AUCTION",
+  );
+  const [nrCarry, setNrCarry] = useState<"AUTO" | "LAZY" | "NONE">("AUTO");
+  const [nrEliminate, setNrEliminate] = useState(false);
+  const [nrClosing, setNrClosing] = useState("");
   const [decType, setDecType] = useState<"AMOUNT" | "PERCENT">("AMOUNT");
   const [decValue, setDecValue] = useState("");
   const [decBasis, setDecBasis] = useState<"OWN_LAST_BID" | "BEST_BID">(
@@ -107,7 +117,6 @@ export function TenderActionsMenu({
     "OWN_ONLY" | "BEST_PRICE" | "OWN_RANK" | "BEST_AND_OWN_RANK" | "ALL"
   >("OWN_RANK");
   const [autoExtend, setAutoExtend] = useState(true);
-  const [convClosing, setConvClosing] = useState("");
 
   // Davet ekleme form durumu
   const [inviteSel, setInviteSel] = useState<Set<string>>(new Set());
@@ -124,29 +133,47 @@ export function TenderActionsMenu({
 
   const isOpen = status === "OPEN";
 
-  const handleConvert = async () => {
-    const v = Number(decValue.replace(",", "."));
-    if (!(v > 0)) {
-      toast.error("Geçerli bir azaltma değeri gir");
-      return;
-    }
-    if (!convClosing) {
+  const handleNextRound = async () => {
+    if (!nrClosing) {
       toast.error("Kapanış tarihi seç");
       return;
     }
+    const isAuc = nrType === "ENGLISH_AUCTION";
+    const v = Number(decValue.replace(",", "."));
+    if (isAuc && !(v > 0)) {
+      toast.error("Açık eksiltme için azaltma değeri gir");
+      return;
+    }
     try {
-      await convert.mutateAsync({
-        priceDecrementType: decType,
-        priceDecrementValue: v,
-        priceDecrementBasis: decBasis,
-        bidVisibility: vis,
-        autoExtendOnLateBid: autoExtend,
-        closesAt: new Date(convClosing).toISOString(),
+      await nextRound.mutateAsync({
+        type: nrType,
+        carryBids: nrCarry,
+        eliminateNonBidders: nrEliminate,
+        closesAt: new Date(nrClosing).toISOString(),
+        ...(isAuc
+          ? {
+              priceDecrementType: decType,
+              priceDecrementValue: v,
+              priceDecrementBasis: decBasis,
+              bidVisibility: vis,
+              autoExtendOnLateBid: autoExtend,
+            }
+          : {}),
       });
-      toast.success("İhale İngiliz Usulü açık eksiltmeye dönüştürüldü");
-      setConvertOpen(false);
+      toast.success("Yeni tur açıldı");
+      setNextRoundOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Dönüştürülemedi"));
+      toast.error(extractErrorMessage(err, "Yeni tur açılamadı"));
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!confirm("İhale iptal edilsin mi? Bu işlem geri alınamaz.")) return;
+    try {
+      await cancelListing.mutateAsync();
+      toast.success("İhale iptal edildi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "İptal edilemedi"));
     }
   };
 
@@ -237,9 +264,14 @@ export function TenderActionsMenu({
               <DropdownLabel>Tedarikçi Davet Et</DropdownLabel>
             </DropdownItem>
           ) : null}
-          {canConvert ? (
-            <DropdownItem onClick={() => setConvertOpen(true)}>
-              <DropdownLabel>İngiliz Usulü&apos;ne Aktar</DropdownLabel>
+          {isAuction ? (
+            <DropdownItem onClick={() => setHistoryOpen(true)}>
+              <DropdownLabel>Tur Geçmişi</DropdownLabel>
+            </DropdownItem>
+          ) : null}
+          {canNewRound ? (
+            <DropdownItem onClick={() => setNextRoundOpen(true)}>
+              <DropdownLabel>Yeni Tur Oluştur</DropdownLabel>
             </DropdownItem>
           ) : null}
           {isOpen ? (
@@ -254,6 +286,11 @@ export function TenderActionsMenu({
               <DropdownItem onClick={handleCloseNoAward}>
                 <DropdownLabel className="text-red-600">
                   Kazanan Olmadan Kapat
+                </DropdownLabel>
+              </DropdownItem>
+              <DropdownItem onClick={handleCancel}>
+                <DropdownLabel className="text-red-600">
+                  İhaleyi İptal Et
                 </DropdownLabel>
               </DropdownItem>
             </>
@@ -322,14 +359,67 @@ export function TenderActionsMenu({
         </DialogActions>
       </Dialog>
 
-      {/* İngiliz Usulü'ne Aktar */}
-      <Dialog open={convertOpen} onClose={() => setConvertOpen(false)} size="xl">
-        <DialogTitle>İngiliz Usulü&apos;ne Aktar</DialogTitle>
+      {/* Yeni Tur Oluştur (tip seçimi = RFQ↔İngiliz dönüşümü) */}
+      <Dialog
+        open={nextRoundOpen}
+        onClose={() => setNextRoundOpen(false)}
+        size="xl"
+      >
+        <DialogTitle>Yeni Tur Oluştur</DialogTitle>
         <DialogDescription>
-          Bu ihaleyi açık eksiltmeye çevirir. Mevcut teklifler başlangıç değeri
-          olur; tedarikçiler fiyatlarını düşürerek yarışır.
+          Aynı kalem ve davetlilerle yeni bir tur açar. Tip olarak İngiliz
+          Usulü seçersen ihale açık eksiltmeye dönüşür.
         </DialogDescription>
         <DialogBody className="space-y-4">
+          <Field>
+            <Label>İhale Tipi</Label>
+            <select
+              value={nrType}
+              onChange={(e) =>
+                setNrType(e.target.value as "RFQ" | "ENGLISH_AUCTION")
+              }
+              className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
+            >
+              <option value="ENGLISH_AUCTION">İngiliz Usulü (Açık Eksiltme)</option>
+              <option value="RFQ">RFQ (Teklif Toplama)</option>
+            </select>
+          </Field>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field>
+              <Label>Önceki Teklifler</Label>
+              <select
+                value={nrCarry}
+                onChange={(e) =>
+                  setNrCarry(e.target.value as "AUTO" | "LAZY" | "NONE")
+                }
+                className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
+              >
+                <option value="AUTO">Otomatik taşınsın (taslak)</option>
+                <option value="LAZY">Teklif verince taşınsın</option>
+                <option value="NONE">Taşınmasın (sıfırdan)</option>
+              </select>
+            </Field>
+            <Field>
+              <Label>Yeni Kapanış</Label>
+              <Input
+                type="datetime-local"
+                value={nrClosing}
+                onChange={(e) => setNrClosing(e.target.value)}
+              />
+            </Field>
+          </div>
+          <label className="flex items-center gap-2 text-sm text-zinc-700">
+            <input
+              type="checkbox"
+              checked={nrEliminate}
+              onChange={(e) => setNrEliminate(e.target.checked)}
+              className="h-4 w-4 rounded border-zinc-300"
+            />
+            Önceki turda teklif vermeyen tedarikçileri ele
+          </label>
+
+          {nrType === "ENGLISH_AUCTION" ? (
+            <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field>
               <Label>Fiyat Azaltma Tipi</Label>
@@ -391,14 +481,6 @@ export function TenderActionsMenu({
               <option value="ALL">Tüm teklifler ve sıralama (anonim)</option>
             </select>
           </Field>
-          <Field>
-            <Label>Yeni Kapanış</Label>
-            <Input
-              type="datetime-local"
-              value={convClosing}
-              onChange={(e) => setConvClosing(e.target.value)}
-            />
-          </Field>
           <label className="flex items-center gap-2 text-sm text-zinc-700">
             <input
               type="checkbox"
@@ -408,16 +490,25 @@ export function TenderActionsMenu({
             />
             Son dakika gelen teklif kapanışı otomatik uzatsın (snipe koruma)
           </label>
+            </>
+          ) : null}
         </DialogBody>
         <DialogActions>
-          <Button plain onClick={() => setConvertOpen(false)}>
+          <Button plain onClick={() => setNextRoundOpen(false)}>
             Vazgeç
           </Button>
-          <Button onClick={handleConvert} disabled={convert.isPending}>
-            Açık Eksiltmeye Aktar
+          <Button onClick={handleNextRound} disabled={nextRound.isPending}>
+            Yeni Tur Oluştur
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Tur geçmişi */}
+      <RoundHistoryDialog
+        id={id}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+      />
 
       {/* Tedarikçi davet ekle */}
       <Dialog open={inviteOpen} onClose={() => setInviteOpen(false)} size="lg">

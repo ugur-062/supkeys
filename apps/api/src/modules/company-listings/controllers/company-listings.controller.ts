@@ -16,8 +16,8 @@ import {
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { AwardByItemDto } from "../dto/award-by-item.dto";
 import { AwardListingDto } from "../dto/award-listing.dto";
-import { ConvertToAuctionDto } from "../dto/convert-to-auction.dto";
 import { CreateListingDto } from "../dto/create-listing.dto";
+import { NextRoundDto } from "../dto/next-round.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
 import { CompanyListingsService } from "../services/company-listings.service";
 
@@ -135,17 +135,9 @@ export class CompanyListingsController {
   newRound(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
+    @Body() dto: NextRoundDto,
   ) {
-    return this.service.startNewRound(user, id);
-  }
-
-  @Post(":id/convert-to-auction")
-  convertToAuction(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Param("id") id: string,
-    @Body() dto: ConvertToAuctionDto,
-  ) {
-    return this.service.convertToAuction(user, id, dto);
+    return this.service.createNextRound(user, id, dto);
   }
 
   @Post(":id/invitations")

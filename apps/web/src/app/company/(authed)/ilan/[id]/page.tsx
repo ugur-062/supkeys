@@ -5,7 +5,6 @@ import { Button } from "@/components/catalyst/button";
 import { CountdownFull } from "@/components/tenders/countdown-full";
 import { FilesTab } from "@/components/tenders/files-tab";
 import { GeneralInfoTab } from "@/components/tenders/general-info-tab";
-import { RoundHistoryDialog } from "@/components/tenders/round-history-dialog";
 import { TenderActionsMenu } from "@/components/tenders/tender-actions-menu";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Heading, Subheading } from "@/components/catalyst/heading";
@@ -24,12 +23,10 @@ import {
   useAwardByItem,
   useAwardListing,
   useBuyNow,
-  useCancelListing,
   useEliminateBid,
   useListingDetail,
   usePlaceBid,
   usePublishListing,
-  useStartNewRound,
   useWithdrawBid,
 } from "@/hooks/use-company-listings";
 import { useCancelApproval } from "@/hooks/use-company-approvals";
@@ -130,11 +127,9 @@ export default function ListingDetailPage() {
   const placeBid = usePlaceBid(id);
   const award = useAwardListing(id);
   const buyNow = useBuyNow(id);
-  const cancelListing = useCancelListing(id);
   const withdrawBid = useWithdrawBid(id);
   const eliminate = useEliminateBid(id);
   const awardByItem = useAwardByItem(id);
-  const newRound = useStartNewRound(id);
   const publish = usePublishListing(id);
   const cancelApproval = useCancelApproval();
   const categories = useCategoriesByIds(l?.categoryIds ?? []);
@@ -150,7 +145,6 @@ export default function ListingDetailPage() {
   const [itemAwardMode, setItemAwardMode] = useState(false);
   const [itemWinners, setItemWinners] = useState<Record<string, string>>({});
   const [itemQty, setItemQty] = useState<Record<string, string>>({});
-  const [roundHistoryOpen, setRoundHistoryOpen] = useState(false);
 
   // Teklif formu varsayılanları (mevcut teklif / ilan para birimi).
   useEffect(() => {
@@ -164,15 +158,6 @@ export default function ListingDetailPage() {
     }
   }, [l]);
 
-  const handleCancel = async () => {
-    if (!confirm("İlan iptal edilsin mi? Bu işlem geri alınamaz.")) return;
-    try {
-      await cancelListing.mutateAsync();
-      toast.success("İlan iptal edildi");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "İptal edilemedi"));
-    }
-  };
 
   const handleWithdraw = async () => {
     try {
@@ -237,17 +222,6 @@ export default function ListingDetailPage() {
       toast.success("İhale yayınlandı");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Yayınlanamadı"));
-    }
-  };
-
-  const handleNewRound = async () => {
-    if (!confirm("Yeni tur başlatılsın mı? Tedarikçiler daha düşük teklif verir."))
-      return;
-    try {
-      const res = await newRound.mutateAsync();
-      toast.success(`Tur ${res.currentRound} başladı`);
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "Yeni tur başlatılamadı"));
     }
   };
 
@@ -537,23 +511,6 @@ export default function ListingDetailPage() {
             <Badge color="amber">Tur {l.english.currentRound}</Badge>
           ) : null}
         </div>
-        <div className="flex items-center gap-2">
-          {l.english?.isEnglishAuction ? (
-            <Button plain onClick={() => setRoundHistoryOpen(true)}>
-              Tur Geçmişi
-            </Button>
-          ) : null}
-          {l.status === "OPEN" && l.english?.isEnglishAuction ? (
-            <Button outline onClick={handleNewRound} disabled={newRound.isPending}>
-              Yeni Tur Başlat
-            </Button>
-          ) : null}
-          {l.status === "OPEN" ? (
-            <Button plain onClick={handleCancel} disabled={cancelListing.isPending}>
-              İlanı İptal Et
-            </Button>
-          ) : null}
-        </div>
       </div>
       {l.items &&
       l.items.length > 0 &&
@@ -768,11 +725,6 @@ export default function ListingDetailPage() {
           </Text>
         </div>
       )}
-      <RoundHistoryDialog
-        id={l.id}
-        open={roundHistoryOpen}
-        onClose={() => setRoundHistoryOpen(false)}
-      />
     </section>
   );
 
