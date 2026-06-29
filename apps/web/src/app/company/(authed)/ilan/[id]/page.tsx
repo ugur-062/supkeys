@@ -502,6 +502,19 @@ export default function ListingDetailPage() {
       </section>
     ) : null;
 
+  // Teklif istatistikleri (eski sistemdeki KPI'lar).
+  const bidItemCount = l.items?.length ?? 0;
+  const allBids = l.bids ?? [];
+  const invitedCount = l.invitations?.length ?? 0;
+  const submittedCount = allBids.length;
+  const completeCount = allBids.filter(
+    (b) =>
+      bidItemCount > 0 &&
+      (b.items?.filter((x) => Number(x.unitPrice) > 0).length ?? 0) >=
+        bidItemCount,
+  ).length;
+  const incompleteCount = Math.max(0, submittedCount - completeCount);
+
   const ownerBidsSection = (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -512,6 +525,49 @@ export default function ListingDetailPage() {
           ) : null}
         </div>
       </div>
+
+      {/* Durum bandı (eski sistemle aynı) */}
+      {l.status === "OPEN" ? (
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+          Yayında — yeni teklifler geldikçe sayfa otomatik güncellenir.
+        </div>
+      ) : l.status === "IN_AWARD" || l.status === "CLOSED" ? (
+        <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-2.5 text-sm text-purple-800">
+          Kazandırma aşaması — {submittedCount} teklif değerlendirilmeyi bekliyor.
+        </div>
+      ) : l.status === "AWARDED" ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">
+          İhale kazandırıldı — siparişler oluşturuldu (Siparişler'de görünür).
+        </div>
+      ) : l.status === "CLOSED_NO_AWARD" ? (
+        <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-700">
+          Kazanan olmadan kapatıldı.
+          {l.cancelReason ? ` Sebep: ${l.cancelReason}` : ""}
+        </div>
+      ) : null}
+
+      {/* KPI kartları */}
+      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {[
+          { label: "Davet Edilen", value: invitedCount },
+          { label: "Teklif Veren", value: submittedCount },
+          { label: "Tamamına", value: completeCount },
+          { label: "Eksik Veren", value: incompleteCount },
+        ].map((k) => (
+          <div
+            key={k.label}
+            className="rounded-xl border border-zinc-950/5 bg-white p-3"
+          >
+            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              {k.label}
+            </dt>
+            <dd className="mt-0.5 text-lg font-bold text-zinc-900">
+              {k.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
       {l.items &&
       l.items.length > 0 &&
       l.bids &&
@@ -670,6 +726,9 @@ export default function ListingDetailPage() {
                 {l.english?.isEnglishAuction && b.round ? (
                   <Badge color="zinc">Tur {b.round}</Badge>
                 ) : null}
+                {b.version && b.version > 1 ? (
+                  <Badge color="zinc">v{b.version}</Badge>
+                ) : null}
                 {(bidDocs.data ?? [])
                   .filter((d) => d.bidId === b.id)
                   .map((d) => (
@@ -690,7 +749,16 @@ export default function ListingDetailPage() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="font-mono text-sm font-semibold text-zinc-900">
-                  {Number(b.amount).toLocaleString("tr-TR")} ₺
+                  {Number(b.amount).toLocaleString("tr-TR")}{" "}
+                  {b.currency && b.currency !== "TRY" ? b.currency : "₺"}
+                  {b.currency && b.currency !== "TRY" && b.amountTry ? (
+                    <span className="ml-1 text-xs font-normal text-zinc-400">
+                      ≈ {Number(b.amountTry).toLocaleString("tr-TR")} ₺
+                      {b.exchangeRateSnapshot
+                        ? ` (kur: ${b.exchangeRateSnapshot})`
+                        : ""}
+                    </span>
+                  ) : null}
                 </span>
                 {b.bidderCompanyId ? (
                   <Link
@@ -1083,6 +1151,18 @@ export default function ListingDetailPage() {
         ) : null}
       </div>
 
+      {/* Anahtar kelimeler */}
+      {l.keywords && l.keywords.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-zinc-400">Anahtar Kelimeler:</span>
+          {l.keywords.map((kw) => (
+            <Badge key={kw} color="zinc">
+              {kw}
+            </Badge>
+          ))}
+        </div>
+      ) : null}
+
       {/* Sahip + yön ipucu */}
       <Text className="text-sm">
         <span className="inline-flex items-center gap-1.5 font-medium text-zinc-700">
@@ -1160,6 +1240,29 @@ export default function ListingDetailPage() {
             />
           </div>
         </div>
+
+        {/* Onay bekliyor bandı */}
+        {l.status === "IN_APPROVAL" || l.status === "IN_AWARD_APPROVAL" ? (
+          <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>
+              {l.status === "IN_APPROVAL"
+                ? "Onay bekliyor — yayın askıda. Onaylandığında ihale otomatik yayınlanır."
+                : "Kazandırma onayı bekliyor. Onaylandığında kazandırma tamamlanır."}
+            </p>
+          </div>
+        ) : null}
+
+        {/* İptal sebebi bandı */}
+        {(l.status === "CANCELLED" || l.status === "CLOSED_NO_AWARD") &&
+        l.cancelReason ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            <span className="font-semibold">
+              {l.status === "CANCELLED" ? "İptal sebebi" : "Kapatma sebebi"}:
+            </span>{" "}
+            {l.cancelReason}
+          </div>
+        ) : null}
 
         {/* Meta bar — bölünmüş istatistik şeridi */}
         <section>

@@ -168,9 +168,16 @@ export function TenderActionsMenu({
   };
 
   const handleCancel = async () => {
-    if (!confirm("İhale iptal edilsin mi? Bu işlem geri alınamaz.")) return;
+    const reason = window
+      .prompt("İptal gerekçesi (zorunlu, en az 10 karakter):")
+      ?.trim();
+    if (!reason) return;
+    if (reason.length < 10) {
+      toast.error("Gerekçe en az 10 karakter olmalı");
+      return;
+    }
     try {
-      await cancelListing.mutateAsync();
+      await cancelListing.mutateAsync(reason);
       toast.success("İhale iptal edildi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "İptal edilemedi"));
@@ -207,10 +214,10 @@ export function TenderActionsMenu({
   };
 
   const handleCloseNoAward = async () => {
-    if (!confirm("İhale kazanan olmadan kapatılsın mı? Bu işlem geri alınamaz."))
-      return;
+    const reason = window.prompt("Kapatma gerekçesi (opsiyonel):")?.trim();
+    if (reason === undefined) return; // iptal
     try {
-      await closeNoAward.mutateAsync();
+      await closeNoAward.mutateAsync(reason || undefined);
       toast.success("İhale kazanan olmadan kapatıldı");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Kapatılamadı"));

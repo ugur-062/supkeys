@@ -163,8 +163,9 @@ export class CompanyListingsController {
   cancel(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
+    @Body() body: { reason?: string },
   ) {
-    return this.service.cancel(user, id);
+    return this.service.cancel(user, id, body?.reason);
   }
 
   @Post(":id/withdraw-bid")
@@ -207,8 +208,9 @@ export class CompanyListingsController {
   closeNoAward(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
+    @Body() body: { reason?: string },
   ) {
-    return this.service.closeNoAward(user, id);
+    return this.service.closeNoAward(user, id, body?.reason);
   }
 
   @Get(":id/rounds")

@@ -1091,6 +1091,14 @@ export class CompanyListingsService {
           bidderCompanyId: b.bidderCompanyId,
           amount: b.amount.toString(),
           currency: b.currency,
+          version: b.version,
+          // TRY dışı tekliflerde TCMB kuru + TRY karşılığı (kur gösterimi).
+          exchangeRateSnapshot: b.exchangeRateSnapshot
+            ? b.exchangeRateSnapshot.toString()
+            : null,
+          amountTry: b.exchangeRateSnapshot
+            ? (Number(b.amount) * Number(b.exchangeRateSnapshot)).toFixed(2)
+            : null,
           note: b.note,
           isBuyNow: b.isBuyNow,
           status: b.status,
@@ -2337,7 +2345,11 @@ export class CompanyListingsService {
   }
 
   /** İlan sahibi açık ilanı iptal eder (kazandırmadan kapatır). */
-  async cancel(user: AuthenticatedCompanyUser, listingId: string) {
+  async cancel(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    reason?: string,
+  ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: { id: true, companyId: true, status: true },
@@ -2352,7 +2364,7 @@ export class CompanyListingsService {
     await this.prisma.$transaction([
       this.prisma.listing.update({
         where: { id: listingId },
-        data: { status: "CANCELLED" },
+        data: { status: "CANCELLED", cancelReason: reason?.trim() || null },
       }),
       this.prisma.listingBid.updateMany({
         where: { listingId, status: "SUBMITTED" },
@@ -2411,8 +2423,12 @@ export class CompanyListingsService {
     return { ok: true };
   }
 
-  /** Sahip ihaleyi kazanan olmadan kapatır (CANCELLED). */
-  async closeNoAward(user: AuthenticatedCompanyUser, listingId: string) {
+  /** Sahip ihaleyi kazanan olmadan kapatır (CLOSED_NO_AWARD). */
+  async closeNoAward(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    reason?: string,
+  ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: { id: true, companyId: true, status: true },
@@ -2426,7 +2442,7 @@ export class CompanyListingsService {
     await this.prisma.$transaction([
       this.prisma.listing.update({
         where: { id: listing.id },
-        data: { status: "CANCELLED" },
+        data: { status: "CLOSED_NO_AWARD", cancelReason: reason?.trim() || null },
       }),
       this.prisma.listingBid.updateMany({
         where: { listingId, status: "SUBMITTED" },
@@ -2496,6 +2512,7 @@ export class CompanyListingsService {
       description: string | null;
       status: string;
       closesAt: Date | null;
+      cancelReason: string | null;
       createdAt: Date;
       company: { name: string };
       categoryIds: string[];
@@ -2541,6 +2558,7 @@ export class CompanyListingsService {
       description: masked ? null : l.description,
       status: l.status,
       closesAt: l.closesAt,
+      cancelReason: l.cancelReason,
       createdAt: l.createdAt,
       owner: masked ? null : { name: l.company.name },
       categoryIds: l.categoryIds,

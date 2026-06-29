@@ -199,6 +199,9 @@ export interface ListingBidRow {
   bidderCompanyId?: string;
   amount: string;
   currency?: string;
+  version?: number;
+  exchangeRateSnapshot?: string | null;
+  amountTry?: string | null;
   note: string | null;
   isBuyNow: boolean;
   status: string;
@@ -227,6 +230,7 @@ export interface ListingDetail {
   description: string | null;
   status: ListingStatus;
   closesAt: string | null;
+  cancelReason?: string | null;
   createdAt: string;
   owner: { name: string } | null;
   isOwner: boolean;
@@ -351,8 +355,10 @@ export function useBuyNow(id: string) {
 export function useCancelListing(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      const { data } = await companyApi.post(`/company/listings/${id}/cancel`);
+    mutationFn: async (reason?: string) => {
+      const { data } = await companyApi.post(`/company/listings/${id}/cancel`, {
+        reason,
+      });
       return data;
     },
     onSuccess: () =>
@@ -423,13 +429,14 @@ export function useUpdateInternalNotes(id: string) {
   });
 }
 
-/** Sahip: kazanan olmadan kapat (CANCELLED). */
+/** Sahip: kazanan olmadan kapat (CLOSED_NO_AWARD). */
 export function useCloseNoAward(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (reason?: string) => {
       const { data } = await companyApi.post(
         `/company/listings/${id}/close-no-award`,
+        { reason },
       );
       return data;
     },

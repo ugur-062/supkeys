@@ -837,6 +837,7 @@ model Listing {
   buyNowPrice           Decimal?          @db.Decimal(18, 2)
   status                ListingStatus     @default(OPEN)
   closesAt              DateTime?
+  cancelReason          String? // iptal/kazansız-kapatma gerekçesi
   createdById           String // CompanyUser id (açan kişi)
   // Yaşam döngüsü damgaları (eski Tender ile paralel).
   publishedAt           DateTime? // OPEN'a geçiş anı
