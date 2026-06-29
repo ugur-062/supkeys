@@ -1146,15 +1146,18 @@ export default function ListingDetailPage() {
                   Onayı İptal Et
                 </Button>
               ) : null}
-              <TenderActionsMenu
-                id={l.id}
-                status={l.status}
-                format={l.format}
-                closesAt={l.closesAt}
-                internalNotes={l.internalNotes ?? null}
-                canEdit={l.canEdit}
-              />
             </div>
+          </div>
+          {/* İşlemler — görünür buton çubuğu (kutu içinde) */}
+          <div className="mt-4 border-t border-zinc-950/5 pt-4">
+            <TenderActionsMenu
+              id={l.id}
+              status={l.status}
+              format={l.format}
+              closesAt={l.closesAt}
+              internalNotes={l.internalNotes ?? null}
+              canEdit={l.canEdit}
+            />
           </div>
         </div>
 

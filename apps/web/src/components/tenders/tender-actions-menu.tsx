@@ -8,14 +8,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/catalyst/dialog";
-import {
-  Dropdown,
-  DropdownButton,
-  DropdownDivider,
-  DropdownItem,
-  DropdownLabel,
-  DropdownMenu,
-} from "@/components/catalyst/dropdown";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { Textarea } from "@/components/catalyst/textarea";
@@ -32,7 +24,6 @@ import {
   useUpdateInternalNotes,
 } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { EllipsisVerticalIcon } from "@heroicons/react/16/solid";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -243,70 +234,53 @@ export function TenderActionsMenu({
 
   return (
     <>
-      <Dropdown>
-        <DropdownButton outline aria-label="İhale işlemleri">
-          <EllipsisVerticalIcon />
-        </DropdownButton>
-        <DropdownMenu anchor="bottom end">
-          {canEdit ? (
-            <>
-              <DropdownItem href={`/company/satinalma/ihalelerim/${id}/duzenle`}>
-                <DropdownLabel>İhaleyi Düzenle</DropdownLabel>
-              </DropdownItem>
-              <DropdownDivider />
-            </>
-          ) : null}
-          <DropdownItem onClick={() => setNotesOpen(true)}>
-            <DropdownLabel>İç Notlar</DropdownLabel>
-          </DropdownItem>
-          {canInvite ? (
-            <DropdownItem onClick={() => setInviteOpen(true)}>
-              <DropdownLabel>Tedarikçi Davet Et</DropdownLabel>
-            </DropdownItem>
-          ) : null}
-          {isAuction ? (
-            <DropdownItem onClick={() => setHistoryOpen(true)}>
-              <DropdownLabel>Tur Geçmişi</DropdownLabel>
-            </DropdownItem>
-          ) : null}
-          {canNewRound ? (
-            <DropdownItem onClick={() => setNextRoundOpen(true)}>
-              <DropdownLabel>Yeni Tur Oluştur</DropdownLabel>
-            </DropdownItem>
-          ) : null}
-          {isOpen ? (
-            <>
-              <DropdownItem onClick={() => setClosingOpen(true)}>
-                <DropdownLabel>Kapanış Zamanını Değiştir</DropdownLabel>
-              </DropdownItem>
-              <DropdownItem onClick={handleCloseEarly}>
-                <DropdownLabel>İhaleyi Erken Kapat</DropdownLabel>
-              </DropdownItem>
-              <DropdownDivider />
-              <DropdownItem onClick={handleCloseNoAward}>
-                <DropdownLabel className="text-red-600">
-                  Kazanan Olmadan Kapat
-                </DropdownLabel>
-              </DropdownItem>
-              <DropdownItem onClick={handleCancel}>
-                <DropdownLabel className="text-red-600">
-                  İhaleyi İptal Et
-                </DropdownLabel>
-              </DropdownItem>
-            </>
-          ) : null}
-          {isDraft ? (
-            <>
-              <DropdownDivider />
-              <DropdownItem onClick={handleDeleteDraft}>
-                <DropdownLabel className="text-red-600">
-                  Taslağı Sil
-                </DropdownLabel>
-              </DropdownItem>
-            </>
-          ) : null}
-        </DropdownMenu>
-      </Dropdown>
+      {/* Görünür aksiyon çubuğu (eski sistem gibi — başlık kutusunda) */}
+      <div className="flex flex-wrap gap-2">
+        {canEdit ? (
+          <Button outline href={`/company/satinalma/ihalelerim/${id}/duzenle`}>
+            İhaleyi Düzenle
+          </Button>
+        ) : null}
+        <Button outline onClick={() => setNotesOpen(true)}>
+          İç Notlar
+        </Button>
+        {canInvite ? (
+          <Button outline onClick={() => setInviteOpen(true)}>
+            Tedarikçi Davet Et
+          </Button>
+        ) : null}
+        {isAuction ? (
+          <Button outline onClick={() => setHistoryOpen(true)}>
+            Tur Geçmişi
+          </Button>
+        ) : null}
+        {canNewRound ? (
+          <Button outline onClick={() => setNextRoundOpen(true)}>
+            Yeni Tur Oluştur
+          </Button>
+        ) : null}
+        {isOpen ? (
+          <>
+            <Button outline onClick={() => setClosingOpen(true)}>
+              Kapanış Zamanını Değiştir
+            </Button>
+            <Button outline onClick={handleCloseEarly}>
+              İhaleyi Erken Kapat
+            </Button>
+            <Button outline onClick={handleCloseNoAward}>
+              <span className="text-red-600">Kazanan Olmadan Kapat</span>
+            </Button>
+            <Button outline onClick={handleCancel}>
+              <span className="text-red-600">İhaleyi İptal Et</span>
+            </Button>
+          </>
+        ) : null}
+        {isDraft ? (
+          <Button outline onClick={handleDeleteDraft}>
+            <span className="text-red-600">Taslağı Sil</span>
+          </Button>
+        ) : null}
+      </div>
 
       {/* Kapanış zamanını değiştir */}
       <Dialog open={closingOpen} onClose={() => setClosingOpen(false)}>
