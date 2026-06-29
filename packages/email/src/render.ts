@@ -5,6 +5,16 @@ import {
   PasswordResetEmail,
   renderPasswordResetText,
 } from "./templates/password-reset";
+import {
+  makeReferralInviteSubject,
+  ReferralInviteEmail,
+  renderReferralInviteText,
+} from "./templates/referral-invite";
+import {
+  makeNotificationSubject,
+  NotificationEmail,
+  renderNotificationText,
+} from "./templates/notification";
 import type { EmailTemplateData, RenderedEmail } from "./types";
 
 export async function renderEmail(
@@ -21,9 +31,31 @@ export async function renderEmail(
         text: renderPasswordResetText(spec.data),
       };
     }
+    case "referral_invite": {
+      const html = await render(
+        React.createElement(ReferralInviteEmail, spec.data),
+      );
+      return {
+        subject: makeReferralInviteSubject(spec.data),
+        html,
+        text: renderReferralInviteText(spec.data),
+      };
+    }
+    case "notification": {
+      const html = await render(
+        React.createElement(NotificationEmail, spec.data),
+      );
+      return {
+        subject: makeNotificationSubject(spec.data),
+        html,
+        text: renderNotificationText(spec.data),
+      };
+    }
     default: {
-      const _exhaustive: never = spec.template;
-      throw new Error(`Unknown email template: ${String(_exhaustive)}`);
+      const _exhaustive: never = spec;
+      throw new Error(
+        `Unknown email template: ${String((_exhaustive as { template?: string }).template)}`,
+      );
     }
   }
 }

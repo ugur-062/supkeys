@@ -227,7 +227,7 @@ enum CompanyTier {
 
 model Company {
   id        String  @id @default(cuid())
-  supkeysId String? @unique
+  supkeysId String? @unique // genel kimlik (Rothern ID) — keşfet/istek için
   slug      String? @unique // public profil URL'i (sadece PAKET)
 
   // Kimlik
@@ -283,16 +283,18 @@ model Company {
   onboardingCompletedAt     DateTime?
 
   // Public profil (sadece PAKET görünür)
-  publicEnabled  Boolean  @default(false)
-  aboutText      String?
-  logoUrl        String?
-  coverImageUrl  String?
-  linkedinUrl    String?
-  instagramUrl   String?
-  services       String[] @default([])
-  foundedYear    Int?
-  employeeCount  String?
-  certifications String[] @default([])
+  publicEnabled     Boolean  @default(false)
+  aboutText         String?
+  logoUrl           String?
+  coverImageUrl     String?
+  linkedinUrl       String?
+  instagramUrl      String?
+  services          String[] @default([])
+  photos            String[] @default([]) // herkese açık profil galeri görselleri
+  certificateImages String[] @default([]) // sertifika belge/görselleri
+  foundedYear       Int?
+  employeeCount     String?
+  certifications    String[] @default([])
 
   // Durum
   isActive      Boolean   @default(true)
@@ -305,21 +307,27 @@ model Company {
 
   users                CompanyUser[]
   listings             Listing[]
-  bidsPlaced           ListingBid[]        @relation("BidderCompany")
-  connectionsInitiated CompanyConnection[] @relation("ConnInviter")
-  connectionsReceived  CompanyConnection[] @relation("ConnInvitee")
-  ordersAsSeller       CompanyOrder[]      @relation("OrderSeller")
-  ordersAsBuyer        CompanyOrder[]      @relation("OrderBuyer")
-  blocksMade           CompanyBlock[]      @relation("BlockMade")
-  blockedByOthers      CompanyBlock[]      @relation("BlockedBy")
-  complaintsMade       CompanyComplaint[]  @relation("ComplaintBy")
-  complaintsReceived   CompanyComplaint[]  @relation("ComplaintAgainst")
-  listingInvitations   ListingInvitation[] @relation("ListingInvitee")
+  bidsPlaced           ListingBid[]              @relation("BidderCompany")
+  connectionsInitiated CompanyConnection[]       @relation("ConnInviter")
+  connectionsReceived  CompanyConnection[]       @relation("ConnInvitee")
+  referralInvitesSent  CompanyReferralInvite[]   @relation("ReferralInviter")
+  ordersAsSeller       CompanyOrder[]            @relation("OrderSeller")
+  ordersAsBuyer        CompanyOrder[]            @relation("OrderBuyer")
+  blocksMade           CompanyBlock[]            @relation("BlockMade")
+  blockedByOthers      CompanyBlock[]            @relation("BlockedBy")
+  complaintsMade       CompanyComplaint[]        @relation("ComplaintBy")
+  complaintsReceived   CompanyComplaint[]        @relation("ComplaintAgainst")
+  listingInvitations   ListingInvitation[]       @relation("ListingInvitee")
   listingTemplates     ListingTemplate[]
-  threadsAsBuyer       MessageThread[]     @relation("ThreadBuyer")
-  threadsAsSeller      MessageThread[]     @relation("ThreadSeller")
-  messagesSent         Message[]           @relation("MessageSender")
+  threadsAsBuyer       MessageThread[]           @relation("ThreadBuyer")
+  threadsAsSeller      MessageThread[]           @relation("ThreadSeller")
+  messagesSent         Message[]                 @relation("MessageSender")
   questionTemplates    ListingQuestionTemplate[]
+  approvalFlows        ApprovalFlow[]
+  approvalRequests     ApprovalRequest[]
+  addresses            CompanyAddress[]
+  reviewsGiven         CompanyReview[]    @relation("ReviewsGiven")
+  reviewsReceived      CompanyReview[]    @relation("ReviewsReceived")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -440,12 +448,42 @@ model CompanyConnection {
   @@map("company_connections")
 }
 
-model CompanyBlock {
+enum ReferralInviteStatus {
+  PENDING // davet gönderildi, hedef henüz kayıt olmadı
+  ACCEPTED // hedef kayıt oldu → INVITE bağlantısı kuruldu
+}
+
+/**
+ * Kayıtlı OLMAYAN firmayı e-posta + referans ile davet. Hedef bu e-posta ile
+ * kayıt olunca otomatik INVITE (kalıcı) bağlantı kurulur. Kayıtlı firmalar
+ * doğrudan connect-by-referral / Rothern ID ile bağlanır (bu model değil).
+ */
+model CompanyReferralInvite {
   id               String  @id @default(cuid())
+  inviterCompanyId String
+  inviter          Company @relation("ReferralInviter", fields: [inviterCompanyId], references: [id], onDelete: Cascade)
+  email            String
+  invitedById      String // daveti atan CompanyUser
+  token            String  @unique @default(cuid())
+
+  status            ReferralInviteStatus @default(PENDING)
+  acceptedCompanyId String?
+  acceptedAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([inviterCompanyId, email])
+  @@index([email])
+  @@map("company_referral_invites")
+}
+
+model CompanyBlock {
+  id               String   @id @default(cuid())
   blockerCompanyId String
-  blocker          Company @relation("BlockMade", fields: [blockerCompanyId], references: [id], onDelete: Cascade)
+  blocker          Company  @relation("BlockMade", fields: [blockerCompanyId], references: [id], onDelete: Cascade)
   blockedCompanyId String
-  blocked          Company @relation("BlockedBy", fields: [blockedCompanyId], references: [id], onDelete: Cascade)
+  blocked          Company  @relation("BlockedBy", fields: [blockedCompanyId], references: [id], onDelete: Cascade)
   reason           String?
   createdAt        DateTime @default(now())
 
@@ -460,9 +498,11 @@ enum ListingType {
 }
 
 enum ListingBidStatus {
+  DRAFT // taslak teklif — henüz gönderilmedi
   SUBMITTED
   WITHDRAWN
   WON
+  AWARDED_PARTIAL // kalem-bazlı kazandırmada kısmen kazandı
   LOST
 }
 
@@ -519,14 +559,16 @@ model CompanyOrder {
   buyerCompanyId  String
   buyer           Company  @relation("OrderBuyer", fields: [buyerCompanyId], references: [id], onDelete: Cascade)
 
-  amount        Decimal                   @db.Decimal(18, 2)
-  status        CompanyOrderStatus        @default(PENDING)
-  paymentTiming CompanyOrderPaymentTiming @default(AFTER_DELIVERY)
+  amount         Decimal                   @db.Decimal(18, 2)
+  status         CompanyOrderStatus        @default(PENDING)
+  paymentTiming  CompanyOrderPaymentTiming @default(AFTER_DELIVERY)
   rejectedReason String?
+  cancelReason   String?
 
   documents CompanyOrderDocument[]
   items     CompanyOrderItem[]
   payments  CompanyOrderPayment[]
+  review    CompanyReview?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -537,21 +579,43 @@ model CompanyOrder {
   @@map("company_orders")
 }
 
+// Sipariş sonrası değerlendirme — alıcı, karşı tarafı (genelde satıcı) puanlar.
+model CompanyReview {
+  id                String       @id @default(cuid())
+  orderId           String       @unique
+  order             CompanyOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reviewerCompanyId String
+  reviewer          Company      @relation("ReviewsGiven", fields: [reviewerCompanyId], references: [id], onDelete: Cascade)
+  targetCompanyId   String
+  target            Company      @relation("ReviewsReceived", fields: [targetCompanyId], references: [id], onDelete: Cascade)
+  rating            Int // 1-5 (servis doğrular)
+  comment           String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([targetCompanyId])
+  @@map("company_reviews")
+}
+
 // Ödeme kaydı — alıcı kaydeder (manuel: havale/EFT vb.), satıcı onaylar/reddeder.
 // Kısmi ödemeler mümkün; toplamlar (onaylı/bekleyen/kalan) UI'da hesaplanır.
 model CompanyOrderPayment {
-  id          String       @id @default(cuid())
-  orderId     String
-  order       CompanyOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  amount      Decimal      @db.Decimal(18, 2)
-  method      String? // "Havale/EFT", "Nakit" vb. — serbest metin
-  note        String?
-  status      CompanyOrderPaymentStatus @default(AWAITING_CONFIRMATION)
-  rejectReason String?
+  id                  String                    @id @default(cuid())
+  orderId             String
+  order               CompanyOrder              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount              Decimal                   @db.Decimal(18, 2)
+  method              String? // "Havale/EFT", "Nakit", "Çek" vb. — serbest metin
+  note                String?
+  status              CompanyOrderPaymentStatus @default(AWAITING_CONFIRMATION)
+  rejectReason        String?
   recordedByCompanyId String // ödemeyi kaydeden firma (alıcı)
   recordedByUserId    String?
-  confirmedAt DateTime?
-  createdAt   DateTime @default(now())
+  confirmedAt         DateTime?
+  createdAt           DateTime                  @default(now())
+  // Çek ödemesi detayları (method "Çek" ise doldurulur)
+  chequeNo            String?
+  chequeBank          String?
+  chequeDueDate       DateTime?
 
   @@index([orderId])
   @@map("company_order_payments")
@@ -587,6 +651,15 @@ model ListingBid {
   status      ListingBidStatus @default(SUBMITTED)
   round       Int              @default(1) // hangi turda verildi/güncellendi
   createdById String // CompanyUser (teklifi veren kişi)
+
+  // Zenginleştirme (eski Bid ile paralel).
+  version              Int       @default(1) // taslak güncellemede artar
+  submittedAt          DateTime? // SUBMITTED'a geçiş anı
+  deliveryDate         DateTime? // teklif edilen teslim tarihi (gönderimde zorunlu)
+  validityDays         Int? // teklif geçerlilik süresi (gönderimde zorunlu)
+  exchangeRateSnapshot Decimal?  @db.Decimal(18, 6) // TRY dışı teklifte TCMB kuru
+  eliminationReason    String? // alıcı eleme sebebi
+  eliminatedAt         DateTime?
 
   items     ListingBidItem[]
   documents ListingBidDocument[]
@@ -645,11 +718,15 @@ model ListingDocument {
 }
 
 enum ListingStatus {
-  DRAFT
-  OPEN
-  CLOSED
-  AWARDED
-  CANCELLED
+  DRAFT // taslak — düzenlenebilir, yayınlanmadı
+  IN_APPROVAL // yayın onayı bekliyor (onay akışı varsa)
+  OPEN // açık — teklif alınıyor
+  CLOSED // teklife kapalı (erken kapatma / süre doldu)
+  IN_AWARD // kapandı, alıcı kazandırma kararı veriyor
+  IN_AWARD_APPROVAL // kazandırma onayı bekliyor (onay akışı varsa)
+  AWARDED // kazandırıldı, sipariş(ler) oluştu
+  CLOSED_NO_AWARD // kazanan olmadan kapatıldı
+  CANCELLED // iptal
 }
 
 enum ListingVisibility {
@@ -717,29 +794,36 @@ enum ListingQuestionAnswerType {
 }
 
 model Listing {
-  id          String        @id @default(cuid())
+  id                    String            @id @default(cuid())
   // SİSTEM GENELİNDE benzersiz ilan numarası (ROT-NNNNNN). Global Postgres
   // sequence'tan üretilir → A ve B firmasının ilanı asla aynı numarayı almaz.
   // Sıra büyüdükçe hane sayısı kendiliğinden artar (çok-haneli destek).
-  number      String?       @unique
-  companyId   String // açan firma
-  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  type        ListingType
+  number                String?           @unique
+  companyId             String // açan firma
+  company               Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type                  ListingType
   // Yurtiçi (false) / Uluslararası (true).
-  isInternational Boolean @default(false)
+  isInternational       Boolean           @default(false)
+  // Sınır ötesi hedef ülkeler (ISO kodları). Boş + isInternational=true =
+  // tüm yabancı ülkeler; dolu = yalnızca listelenen ülkeler görür.
+  targetCountries       String[]          @default([])
   // ALIM için format (RFQ/İngiliz Usulü). SATIS'ta null (her zaman forward).
-  format      ListingFormat?
-  visibility  ListingVisibility @default(CONNECTIONS)
-  title       String
-  description String?
+  format                ListingFormat?
+  visibility            ListingVisibility @default(CONNECTIONS)
+  title                 String
+  description           String?
   // SATIS için: taban (min) fiyat + hemen-al fiyatı.
-  minPrice    Decimal?      @db.Decimal(18, 2)
-  buyNowPrice Decimal?      @db.Decimal(18, 2)
-  status      ListingStatus @default(OPEN)
-  closesAt    DateTime?
-  createdById String // CompanyUser id (açan kişi)
+  minPrice              Decimal?          @db.Decimal(18, 2)
+  buyNowPrice           Decimal?          @db.Decimal(18, 2)
+  status                ListingStatus     @default(OPEN)
+  closesAt              DateTime?
+  createdById           String // CompanyUser id (açan kişi)
+  // Yaşam döngüsü damgaları (eski Tender ile paralel).
+  publishedAt           DateTime? // OPEN'a geçiş anı
+  awardedAt             DateTime? // AWARDED anı
+  closingReminderSentAt DateTime? // kapanış hatırlatma idempotency
   // İngiliz Usulü çok-turlu eksiltme — alıcı tur tur ilerletir (eski yeni-tur).
-  currentRound Int @default(1)
+  currentRound          Int               @default(1)
 
   // İhale (ALIM) zenginleştirme — eski alıcı paneli kuralları.
   categoryIds        String[]   @default([]) // UNGM UNSPSC TR kategori kodları
@@ -762,23 +846,24 @@ model Listing {
   bidsOpenAt    DateTime?
 
   // İngiliz Usulü açık eksiltme ayarları.
-  bidVisibility          ListingBidVisibility  @default(OWN_ONLY)
+  bidVisibility          ListingBidVisibility   @default(OWN_ONLY)
   priceDecrementType     ListingDecrementType?
-  priceDecrementValue    Decimal?              @db.Decimal(18, 4)
+  priceDecrementValue    Decimal?               @db.Decimal(18, 4)
   priceDecrementBasis    ListingDecrementBasis?
-  decimalPlaces          Int                   @default(2)
-  sendClosingReminder    Boolean               @default(false)
+  decimalPlaces          Int                    @default(2)
+  sendClosingReminder    Boolean                @default(false)
   reminderMinutesBefore  Int?
-  autoExtendOnLateBid    Boolean               @default(false)
+  autoExtendOnLateBid    Boolean                @default(false)
   autoExtendThresholdMin Int?
   autoExtendByMinutes    Int?
 
-  bids        ListingBid[]
-  orders      CompanyOrder[]
-  items       ListingItem[]
-  invitations ListingInvitation[]
-  documents   ListingDocument[]
-  roundSnapshots ListingRoundSnapshot[]
+  bids             ListingBid[]
+  orders           CompanyOrder[]
+  items            ListingItem[]
+  invitations      ListingInvitation[]
+  documents        ListingDocument[]
+  roundSnapshots   ListingRoundSnapshot[]
+  approvalRequests ApprovalRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -804,17 +889,18 @@ model ListingTemplate {
 
 // İhale kalemi — bir ilanda birden çok satır (eski TenderItem).
 model ListingItem {
-  id          String  @id @default(cuid())
-  listingId   String
-  listing     Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  lineNo      Int // sıra (1..n)
-  name        String
-  description String?
-  quantity    Decimal @db.Decimal(18, 3)
-  unit        String // adet, kg, m, paket…
-  targetPrice Decimal? @db.Decimal(18, 2) // hedef birim fiyat (opsiyonel)
-  materialCode   String? // malzeme/stok kodu
-  requiredByDate DateTime? // istenen teslim tarihi
+  id              String    @id @default(cuid())
+  listingId       String
+  listing         Listing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  lineNo          Int // sıra (1..n)
+  name            String
+  description     String?
+  quantity        Decimal   @db.Decimal(18, 3)
+  unit            String // adet, kg, m, paket…
+  targetPrice     Decimal?  @db.Decimal(18, 2) // hedef birim fiyat (opsiyonel)
+  materialCode    String? // malzeme/stok kodu
+  requiredByDate  DateTime? // istenen teslim tarihi
+  awardedQuantity Decimal?  @db.Decimal(18, 3) // kısmi kazandırmada verilen miktar
 
   bidItems  ListingBidItem[]
   questions ListingItemQuestion[]
@@ -856,11 +942,11 @@ model ListingQuestionTemplate {
 
 // İhale daveti — belirli bağlı tedarikçiyi ihaleye davet (eski TenderInvitation).
 model ListingInvitation {
-  id               String  @id @default(cuid())
+  id               String   @id @default(cuid())
   listingId        String
-  listing          Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing          Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
   invitedCompanyId String
-  invitedCompany   Company @relation("ListingInvitee", fields: [invitedCompanyId], references: [id], onDelete: Cascade)
+  invitedCompany   Company  @relation("ListingInvitee", fields: [invitedCompanyId], references: [id], onDelete: Cascade)
   invitedById      String // CompanyUser (daveti gönderen)
   createdAt        DateTime @default(now())
 
@@ -897,10 +983,11 @@ model CompanyUser {
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  isActive           Boolean   @default(true)
-  emailVerifiedAt    DateTime?
-  twoFactorEnabled   Boolean   @default(false)
-  twoFactorEnabledAt DateTime?
+  isActive            Boolean   @default(true)
+  emailVerifiedAt     DateTime?
+  twoFactorEnabled    Boolean   @default(false)
+  twoFactorEnabledAt  DateTime?
+  twoFactorSecret     String? // TOTP secret (base32) — 2FA açıkken dolu
   permissionsOverride Json? // { added?: string[], removed?: string[] }
   notificationPrefs   Json?
   invitedById         String?
@@ -915,4 +1002,151 @@ model CompanyUser {
 
   @@index([companyId])
   @@map("company_users")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Onay akışı (eski tenant-approval sisteminin birleşik Company karşılığı).
+// Firma, ilan YAYIN ve KAZANDIRMA için çok-adımlı sıralı onay zinciri tanımlar.
+// ─────────────────────────────────────────────────────────────────────────
+
+enum ApprovalType {
+  LISTING_PUBLISH // ilan yayını onayı
+  LISTING_AWARD // kazandırma onayı
+}
+
+enum ApprovalFlowStatus {
+  DRAFT // taslak — devrede değil
+  ACTIVE // devrede
+  PASSIVE // pasife alındı
+}
+
+enum ApprovalRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ApprovalStepStatus {
+  WAITING // sırası gelmedi
+  PENDING // sırası geldi, onaycı bekleniyor
+  APPROVED
+  REJECTED
+  SKIPPED // bütçe eşiği altı — atlandı
+}
+
+// Firma genelinde tanımlı onay kuralı (ALIM + SATIS).
+model ApprovalFlow {
+  id             String             @id @default(cuid())
+  companyId      String
+  company        Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name           String
+  type           ApprovalType
+  status         ApprovalFlowStatus @default(DRAFT)
+  // Sadece bu ilan tipine uygulanır (null = her ikisi).
+  listingType    ListingType?
+  // Bu akışı başlatabilen roller (boşsa kısıt yok).
+  initiatorRoles CompanyRole[]      @default([])
+  steps          ApprovalFlowStep[]
+  createdById    String
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([companyId, type, status])
+  @@map("approval_flows")
+}
+
+// Akıştaki sıralı bir onay adımı.
+model ApprovalFlowStep {
+  id                 String       @id @default(cuid())
+  flowId             String
+  flow               ApprovalFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  order              Int // 1..n
+  approverUserId     String // onaylayacak CompanyUser id
+  // Bu eşik ALTINDAysa adım atlanır (SKIPPED). null = her zaman gerekli.
+  conditionMinAmount Decimal?     @db.Decimal(18, 2)
+  createdAt          DateTime     @default(now())
+
+  @@unique([flowId, order])
+  @@index([flowId])
+  @@map("approval_flow_steps")
+}
+
+// Çalışma anı onay isteği (ilan yayın/kazandırma anında oluşur).
+model ApprovalRequest {
+  id          String                @id @default(cuid())
+  companyId   String
+  company     Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  listingId   String
+  listing     Listing               @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  type        ApprovalType
+  status      ApprovalRequestStatus @default(PENDING)
+  amount      Decimal               @db.Decimal(18, 2) // snapshot (kural sonradan değişse de bağımsız)
+  currency    Currency              @default(TRY)
+  // Onaylanınca tetiklenecek işlemin verisi (örn. kazandırma seçimleri).
+  payload     Json?
+  steps       ApprovalRequestStep[]
+  createdById String
+  decidedAt   DateTime?
+  // Bekleyen onay hatırlatması — günde-bir-kez dedup için son gönderim damgası.
+  lastReminderAt DateTime?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@index([companyId, status, type])
+  @@index([listingId])
+  @@map("approval_requests")
+}
+
+// İstek başına sıralı onay adımı.
+model ApprovalRequestStep {
+  id             String             @id @default(cuid())
+  requestId      String
+  request        ApprovalRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  order          Int
+  approverUserId String
+  status         ApprovalStepStatus @default(WAITING)
+  note           String?
+  decidedAt      DateTime?
+  createdAt      DateTime           @default(now())
+
+  @@unique([requestId, order])
+  @@index([approverUserId, status])
+  @@map("approval_request_steps")
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Adres defteri (eski firma-tercihleri) — FATURA / TESLIMAT adresleri.
+// İhale wizard'ında fatura/teslimat adresi seçimine bağlanabilir.
+// ─────────────────────────────────────────────────────────────────────────
+
+enum CompanyAddressType {
+  FATURA
+  ILETISIM
+  TESLIMAT
+}
+
+model CompanyAddress {
+  id          String             @id @default(cuid())
+  companyId   String
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type        CompanyAddressType
+  title       String // "Merkez", "Depo", "Şube" vb.
+  contactName String?
+  phone       String?
+  country     String             @default("TR")
+  city        String?
+  district    String?
+  addressLine String
+  postalCode  String?
+  // FATURA adresi için vergi bilgisi (opsiyonel).
+  taxOffice   String?
+  taxNumber   String?
+  isDefault   Boolean            @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, type])
+  @@map("company_addresses")
 }

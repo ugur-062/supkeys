@@ -9,6 +9,7 @@ export type {
   EmailTemplate,
   EmailTemplateData,
   PasswordResetData,
+  ReferralInviteData,
   RenderedEmail,
   SendEmailInput,
   SendEmailResult,

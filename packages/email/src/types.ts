@@ -1,4 +1,7 @@
-export type EmailTemplate = "password_reset";
+export type EmailTemplate =
+  | "password_reset"
+  | "referral_invite"
+  | "notification";
 
 export type EmailProviderName = "resend";
 
@@ -18,10 +21,49 @@ export interface PasswordResetData {
   expiresInMinutes: number;
 }
 
-export type EmailTemplateData = {
-  template: "password_reset";
-  data: PasswordResetData;
-};
+/**
+ * Kayıtlı olmayan firmayı bağlantı için davet — kaydolunca otomatik INVITE
+ * bağlantısı kurulur.
+ */
+export interface ReferralInviteData {
+  inviterName: string;
+  email: string;
+  registerUrl: string;
+}
+
+/**
+ * Genel işlemsel bildirim — ihale daveti, kapanış hatırlatma, kategori
+ * eşleşmesi, teklif eleme, kazandırma, onay isteği vb. hepsi bunu kullanır.
+ * İçerik çağrı tarafında kurulur (başlık + paragraflar + bilgi satırları + CTA).
+ */
+export interface NotificationInfoRow {
+  label: string;
+  value: string;
+}
+export interface NotificationData {
+  subject: string;
+  preview?: string;
+  heading: string;
+  paragraphs: string[];
+  infoRows?: NotificationInfoRow[];
+  ctaLabel?: string;
+  ctaUrl?: string;
+  footerNote?: string;
+}
+
+export type EmailTemplateData =
+  | {
+      template: "password_reset";
+      data: PasswordResetData;
+    }
+  | {
+      template: "referral_invite";
+      data: ReferralInviteData;
+    }
+  | {
+      template: "notification";
+      data: NotificationData;
+    };
 
 export interface RenderedEmail {
   subject: string;
