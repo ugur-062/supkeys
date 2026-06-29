@@ -377,8 +377,9 @@ export class CompanyListingsService {
           type,
           isInternational: dto.isInternational ?? false,
           // Hedef ülkeler yalnızca uluslararası ilanda anlamlı; aksi halde boş.
+          // Firmanın kendi ülkesi hedefe eklenmez (yurtiçi kapsam zaten görür).
           targetCountries: dto.isInternational
-            ? (dto.targetCountries ?? [])
+            ? (dto.targetCountries ?? []).filter((c) => c !== user.country)
             : [],
           format,
           minPrice,
@@ -561,8 +562,9 @@ export class CompanyListingsService {
         data: {
           isInternational: dto.isInternational ?? false,
           // Hedef ülkeler yalnızca uluslararası ilanda anlamlı; aksi halde boş.
+          // Firmanın kendi ülkesi hedefe eklenmez (yurtiçi kapsam zaten görür).
           targetCountries: dto.isInternational
-            ? (dto.targetCountries ?? [])
+            ? (dto.targetCountries ?? []).filter((c) => c !== user.country)
             : [],
           format,
           minPrice,

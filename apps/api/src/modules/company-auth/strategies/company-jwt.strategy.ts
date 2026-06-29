@@ -22,6 +22,7 @@ export interface AuthenticatedCompanyUser {
   lastName: string;
   roles: CompanyRole[];
   tier: CompanyTier;
+  country: string;
   isOwner: boolean;
   permissionsOverride: CompanyPermissionOverride | null;
 }
@@ -70,6 +71,7 @@ export class CompanyJwtStrategy extends PassportStrategy(
       lastName: user.lastName,
       roles: user.roles,
       tier: user.company.tier,
+      country: user.company.country,
       isOwner: user.company.ownerUserId === user.id,
       permissionsOverride:
         (user.permissionsOverride as CompanyPermissionOverride | null) ?? null,

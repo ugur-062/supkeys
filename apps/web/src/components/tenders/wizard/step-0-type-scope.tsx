@@ -1,5 +1,6 @@
 "use client";
 
+import { useCompanyAuth } from "@/hooks/use-company-auth";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import { cn } from "@/lib/utils";
 import { Radio, RadioGroup } from "@headlessui/react";
@@ -8,24 +9,31 @@ import { Check, FileText, Gavel, Globe, Info, MapPin, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 
-/** Sınır ötesi hedef ülke seçici (çoklu). Boş = tüm yabancı ülkeler. */
+/** Sınır ötesi hedef ülke seçici (çoklu). Boş = tüm yabancı ülkeler.
+ *  Firmanın kendi ülkesi seçilemez (yurtiçi tedarikçiler zaten görür). */
 function TargetCountryPicker({
   value,
   onChange,
+  excludeCode,
 }: {
   value: string[];
   onChange: (next: string[]) => void;
+  excludeCode?: string;
 }) {
   const [query, setQuery] = useState("");
+  const selectable = useMemo(
+    () => COUNTRIES.filter((c) => c.code !== excludeCode),
+    [excludeCode],
+  );
   const filtered = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr");
-    return COUNTRIES.filter(
+    return selectable.filter(
       (c) =>
         !q ||
         c.name.toLocaleLowerCase("tr").includes(q) ||
         c.code.toLowerCase().includes(q),
     );
-  }, [query]);
+  }, [query, selectable]);
   const toggle = (code: string) =>
     onChange(
       value.includes(code)
@@ -178,6 +186,7 @@ function StepGroup({
 export function Step0TypeScope() {
   const { control, watch } = useFormContext<TenderFormData>();
   const isInternational = watch("isInternational");
+  const { company } = useCompanyAuth();
 
   return (
     <div className="space-y-12">
@@ -248,6 +257,7 @@ export function Step0TypeScope() {
             <TargetCountryPicker
               value={field.value ?? []}
               onChange={field.onChange}
+              excludeCode={company?.country}
             />
           )}
         />
