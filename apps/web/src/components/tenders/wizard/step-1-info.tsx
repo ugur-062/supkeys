@@ -5,6 +5,7 @@ import { Radio, RadioGroup } from "@/components/catalyst/radio";
 import { Select } from "@/components/catalyst/select";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { FilesTab } from "@/components/tenders/files-tab";
+import { useAddresses } from "@/hooks/use-company-addresses";
 import { CurrencyMultiSelect } from "@/components/currency-multi-select";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
@@ -513,6 +514,11 @@ export function Step1Info({ listingId }: { listingId?: string }) {
   const autoExtendOnLateBid = watch("autoExtendOnLateBid");
   const isAuction = tenderType === "ENGLISH_AUCTION";
   const isInternational = watch("isInternational");
+  const { data: addresses } = useAddresses();
+  const deliveryAddrs = (addresses ?? []).filter(
+    (a) => a.type === "TESLIMAT" || a.type === "ILETISIM",
+  );
+  const billingAddrs = (addresses ?? []).filter((a) => a.type === "FATURA");
   const deliveryTerm = watch("deliveryTerm");
   const deliveryTermOptions = isInternational
     ? INTERNATIONAL_DELIVERY_TERMS
@@ -1138,6 +1144,37 @@ export function Step1Info({ listingId }: { listingId?: string }) {
             </Select>
           </Field>
 
+          <Field
+            hint={
+              deliveryAddrs.length === 0
+                ? "Adres defterinizde teslimat adresi yok — Ayarlar → Adresler'den ekleyin."
+                : "Davet edilen tedarikçiler bu adresi görür."
+            }
+          >
+            <Label htmlFor="deliveryAddressId">Teslimat Adresi</Label>
+            <Select id="deliveryAddressId" {...register("deliveryAddressId")}>
+              <option value="">— Seçiniz (opsiyonel) —</option>
+              {deliveryAddrs.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.title}
+                  {a.city ? ` — ${a.city}` : ""}
+                </option>
+              ))}
+            </Select>
+          </Field>
+
+          <Field hint="Yalnızca sizin gördüğünüz fatura adresi (opsiyonel).">
+            <Label htmlFor="billingAddressId">Fatura Adresi</Label>
+            <Select id="billingAddressId" {...register("billingAddressId")}>
+              <option value="">— Seçiniz (opsiyonel) —</option>
+              {billingAddrs.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.title}
+                  {a.city ? ` — ${a.city}` : ""}
+                </option>
+              ))}
+            </Select>
+          </Field>
         </div>
       </section>
 

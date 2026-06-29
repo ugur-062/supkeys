@@ -193,6 +193,26 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
               ? ` · ${PAYMENT_TIMING_LABELS[l.paymentTiming as PaymentTiming]}`
               : ""}
           </Fact>
+          {l.deliveryAddress ? (
+            <Fact label="Teslimat Adresi" full>
+              <span className="font-medium">{l.deliveryAddress.title}</span> —{" "}
+              {l.deliveryAddress.addressLine}
+              {l.deliveryAddress.district
+                ? `, ${l.deliveryAddress.district}`
+                : ""}
+              {l.deliveryAddress.city ? `, ${l.deliveryAddress.city}` : ""}
+            </Fact>
+          ) : null}
+          {l.billingAddress ? (
+            <Fact label="Fatura Adresi" full>
+              <span className="font-medium">{l.billingAddress.title}</span> —{" "}
+              {l.billingAddress.addressLine}
+              {l.billingAddress.city ? `, ${l.billingAddress.city}` : ""}
+              {l.billingAddress.taxNumber
+                ? ` · VKN: ${l.billingAddress.taxNumber}`
+                : ""}
+            </Fact>
+          ) : null}
         </dl>
       </Section>
 

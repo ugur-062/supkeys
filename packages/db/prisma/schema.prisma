@@ -838,6 +838,9 @@ model Listing {
   status                ListingStatus     @default(OPEN)
   closesAt              DateTime?
   cancelReason          String? // iptal/kazansız-kapatma gerekçesi
+  // Teslimat/fatura adresi — CompanyAddress id (firma adres defterinden seçilir).
+  deliveryAddressId     String?
+  billingAddressId      String?
   createdById           String // CompanyUser id (açan kişi)
   // Yaşam döngüsü damgaları (eski Tender ile paralel).
   publishedAt           DateTime? // OPEN'a geçiş anı

@@ -71,6 +71,8 @@ export interface CreateListingInput {
   asDraft?: boolean; // true → taslak kaydet, yayınlama
   isInternational: boolean;
   targetCountries?: string[]; // sınır ötesi hedef ülkeler (boş = tümü)
+  deliveryAddressId?: string;
+  billingAddressId?: string;
   format?: ListingFormat; // ALIM
   minPrice?: number; // SATIS
   buyNowPrice?: number; // SATIS
@@ -216,6 +218,19 @@ export interface ListingInvitationRow {
   createdAt: string;
 }
 
+export interface ListingAddress {
+  title: string;
+  addressLine: string;
+  district: string | null;
+  city: string | null;
+  postalCode: string | null;
+  country: string;
+  contactName: string | null;
+  phone: string | null;
+  taxOffice: string | null;
+  taxNumber: string | null;
+}
+
 export interface ListingDetail {
   id: string;
   number: string | null;
@@ -231,6 +246,10 @@ export interface ListingDetail {
   status: ListingStatus;
   closesAt: string | null;
   cancelReason?: string | null;
+  deliveryAddressId?: string | null;
+  billingAddressId?: string | null;
+  deliveryAddress?: ListingAddress | null;
+  billingAddress?: ListingAddress | null;
   createdAt: string;
   owner: { name: string } | null;
   isOwner: boolean;

@@ -382,6 +382,8 @@ export class CompanyListingsService {
           targetCountries: dto.isInternational
             ? (dto.targetCountries ?? []).filter((c) => c !== user.country)
             : [],
+          deliveryAddressId: dto.deliveryAddressId ?? null,
+          billingAddressId: dto.billingAddressId ?? null,
           format,
           minPrice,
           buyNowPrice,
@@ -567,6 +569,8 @@ export class CompanyListingsService {
           targetCountries: dto.isInternational
             ? (dto.targetCountries ?? []).filter((c) => c !== user.country)
             : [],
+          deliveryAddressId: dto.deliveryAddressId ?? null,
+          billingAddressId: dto.billingAddressId ?? null,
           format,
           minPrice,
           buyNowPrice,
@@ -986,6 +990,37 @@ export class CompanyListingsService {
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
 
+    // Teslimat/fatura adresleri (adres defterinden seçilmişse çöz).
+    const addrIds = [listing.deliveryAddressId, listing.billingAddressId].filter(
+      (x): x is string => !!x,
+    );
+    const addrRows = addrIds.length
+      ? await this.prisma.companyAddress.findMany({
+          where: { id: { in: addrIds } },
+        })
+      : [];
+    const serializeAddr = (a: (typeof addrRows)[number] | undefined) =>
+      a
+        ? {
+            title: a.title,
+            addressLine: a.addressLine,
+            district: a.district,
+            city: a.city,
+            postalCode: a.postalCode,
+            country: a.country,
+            contactName: a.contactName,
+            phone: a.phone,
+            taxOffice: a.taxOffice,
+            taxNumber: a.taxNumber,
+          }
+        : null;
+    const deliveryAddress = serializeAddr(
+      addrRows.find((a) => a.id === listing.deliveryAddressId),
+    );
+    const billingAddress = serializeAddr(
+      addrRows.find((a) => a.id === listing.billingAddressId),
+    );
+
     // İngiliz Usulü açık eksiltme: güncel en düşük teklif herkese görünür.
     let english:
       | {
@@ -1079,6 +1114,10 @@ export class CompanyListingsService {
         pendingApprovalId,
         english,
         internalNotes: listing.internalNotes,
+        deliveryAddressId: listing.deliveryAddressId,
+        billingAddressId: listing.billingAddressId,
+        deliveryAddress,
+        billingAddress,
         items: itemsOut,
         invitations: invitations.map((iv) => ({
           companyName: iv.invitedCompany.name,
@@ -1182,6 +1221,8 @@ export class CompanyListingsService {
       canBid,
       english: englishForBidder,
       auctionView,
+      // Teslimat adresi davetli tedarikçiye de görünür (fatura adresi sahibe özel).
+      deliveryAddress: masked ? null : deliveryAddress,
       items: masked ? [] : itemsOut,
       myBid: myBid
         ? {

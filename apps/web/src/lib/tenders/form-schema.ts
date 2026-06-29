@@ -127,6 +127,9 @@ const baseTenderSchema = z.object({
   isInternational: z.boolean(),
   // Sınır ötesi hedef ülkeler (ISO kodları). Boş = tüm yabancı ülkeler.
   targetCountries: z.array(z.string()),
+  // Teslimat / fatura adresi (CompanyAddress id) — opsiyonel.
+  deliveryAddressId: z.string().optional(),
+  billingAddressId: z.string().optional(),
   visibility: z.enum(VISIBILITY_VALUES),
   isLogistics: z.boolean(),
   logistics: logisticsSchema.optional(),
@@ -280,6 +283,8 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   type: "RFQ",
   isInternational: false,
   targetCountries: [],
+  deliveryAddressId: undefined,
+  billingAddressId: undefined,
   visibility: "PRIVATE",
   isLogistics: false,
   logistics: {

@@ -122,6 +122,8 @@ function mapToInput(d: TenderFormData): CreateListingInput {
     format: d.type, // RFQ / ENGLISH_AUCTION
     isInternational: d.isInternational,
     targetCountries: d.isInternational ? d.targetCountries : [],
+    deliveryAddressId: d.deliveryAddressId || undefined,
+    billingAddressId: d.billingAddressId || undefined,
     visibility: d.visibility === "PUBLIC" ? "PUBLIC" : "PRIVATE",
     title: d.title.trim(),
     description: d.description?.trim() || undefined,

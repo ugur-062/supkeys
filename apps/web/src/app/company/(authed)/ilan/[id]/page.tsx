@@ -145,6 +145,9 @@ export default function ListingDetailPage() {
   const [itemAwardMode, setItemAwardMode] = useState(false);
   const [itemWinners, setItemWinners] = useState<Record<string, string>>({});
   const [itemQty, setItemQty] = useState<Record<string, string>>({});
+  const [bidView, setBidView] = useState<"all" | "complete" | "incomplete">(
+    "all",
+  );
 
   // Teklif formu varsayılanları (mevcut teklif / ilan para birimi).
   useEffect(() => {
@@ -705,7 +708,40 @@ export default function ListingDetailPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {l.bids.map((b, i) => (
+          {/* İhale bazlı sıralama — Tümü / Tamamına / Eksik */}
+          <div className="flex items-center gap-1 text-xs">
+            {(
+              [
+                ["all", `Tümü (${submittedCount})`],
+                ["complete", `Tamamına (${completeCount})`],
+                ["incomplete", `Eksik (${incompleteCount})`],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setBidView(key)}
+                className={`rounded-full px-3 py-1 font-medium ${
+                  bidView === key
+                    ? "bg-zinc-900 text-white"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {l.bids
+            .filter((b) => {
+              const covered =
+                bidItemCount > 0 &&
+                (b.items?.filter((x) => Number(x.unitPrice) > 0).length ?? 0) >=
+                  bidItemCount;
+              if (bidView === "complete") return covered;
+              if (bidView === "incomplete") return !covered;
+              return true;
+            })
+            .map((b, i) => (
             <div
               key={b.id}
               className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3"

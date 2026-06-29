@@ -240,6 +240,15 @@ export class CreateListingDto {
   @ArrayMaxSize(200)
   targetCountries?: string[];
 
+  // Teslimat / fatura adresi (CompanyAddress id).
+  @IsOptional()
+  @IsString()
+  deliveryAddressId?: string;
+
+  @IsOptional()
+  @IsString()
+  billingAddressId?: string;
+
   @IsOptional()
   @IsEnum(ListingFormatDto, { message: "Geçersiz format" })
   format?: ListingFormatDto;

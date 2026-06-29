@@ -44,6 +44,8 @@ export function mapDetailToForm(
     type: (l.format as TenderFormData["type"]) ?? "RFQ",
     isInternational: l.isInternational,
     targetCountries: l.targetCountries ?? [],
+    deliveryAddressId: l.deliveryAddressId ?? undefined,
+    billingAddressId: l.billingAddressId ?? undefined,
     visibility: l.visibility === "PUBLIC" ? "PUBLIC" : "PRIVATE",
     isLogistics: l.isLogistics ?? false,
     logistics: {
