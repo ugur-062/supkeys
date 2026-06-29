@@ -4,6 +4,7 @@ import { PassportStrategy } from "@nestjs/passport";
 import type { CompanyRole, CompanyTier } from "@supkeys/db";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import type { CompanyPermissionOverride } from "../permissions/company-permissions.constants";
 
 export interface CompanyJwtPayload {
   sub: string;
@@ -22,6 +23,7 @@ export interface AuthenticatedCompanyUser {
   roles: CompanyRole[];
   tier: CompanyTier;
   isOwner: boolean;
+  permissionsOverride: CompanyPermissionOverride | null;
 }
 
 @Injectable()
@@ -69,6 +71,8 @@ export class CompanyJwtStrategy extends PassportStrategy(
       roles: user.roles,
       tier: user.company.tier,
       isOwner: user.company.ownerUserId === user.id,
+      permissionsOverride:
+        (user.permissionsOverride as CompanyPermissionOverride | null) ?? null,
     };
   }
 }

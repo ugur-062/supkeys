@@ -64,6 +64,7 @@ export class AdminCompaniesService {
         country: true,
         city: true,
         tier: true,
+        membershipEndAt: true,
         industry: true,
         website: true,
         companyVerificationStatus: true,
@@ -104,6 +105,20 @@ export class AdminCompaniesService {
       },
     });
     return { ok: true };
+  }
+
+  /** PAKET ver / al. PAKET → membershipEndAt = now + months (varsayılan 12). */
+  async setTier(id: string, tier: "STANDARD" | "PAKET", months?: number) {
+    await this.requireCompany(id);
+    const membershipEndAt =
+      tier === "PAKET"
+        ? new Date(Date.now() + (months ?? 12) * 30 * 24 * 60 * 60 * 1000)
+        : null;
+    await this.prisma.company.update({
+      where: { id },
+      data: { tier, membershipEndAt },
+    });
+    return { ok: true, tier, membershipEndAt };
   }
 
   async suspend(id: string, reason: string) {

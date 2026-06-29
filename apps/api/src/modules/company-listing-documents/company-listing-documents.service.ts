@@ -40,6 +40,22 @@ export class CompanyListingDocumentsService {
     return listing;
   }
 
+  /**
+   * Belge değişikliği kilidi — ihale belgeleri ilanın içeriğidir; ilk SUBMITTED
+   * teklif geldikten sonra eklenemez/silinemez (eski sistem edit kuralıyla
+   * tutarlı). İndirme/listeleme her zaman serbest.
+   */
+  private async assertEditable(listingId: string) {
+    const submitted = await this.prisma.listingBid.count({
+      where: { listingId, status: "SUBMITTED" },
+    });
+    if (submitted > 0) {
+      throw new BadRequestException(
+        "Bu ihaleye teklif verilmiş; belgeler değiştirilemez",
+      );
+    }
+  }
+
   async requestUploadUrl(
     user: AuthenticatedCompanyUser,
     listingId: string,
@@ -49,6 +65,7 @@ export class CompanyListingDocumentsService {
       throw new BadRequestException("Sadece PDF, görsel veya Excel yüklenebilir");
     }
     await this.requireOwner(user, listingId);
+    await this.assertEditable(listingId);
     const safe = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
     const key = `listing-docs/${listingId}/${crypto.randomUUID()}-${safe}`;
     const url = await this.storage.generatePresignedPut(key, input.mimeType);
@@ -61,6 +78,7 @@ export class CompanyListingDocumentsService {
     input: { key: string; fileName: string; mimeType: string },
   ) {
     await this.requireOwner(user, listingId);
+    await this.assertEditable(listingId);
     const doc = await this.prisma.listingDocument.create({
       data: {
         listingId,
@@ -102,6 +120,7 @@ export class CompanyListingDocumentsService {
     docId: string,
   ) {
     await this.requireOwner(user, listingId);
+    await this.assertEditable(listingId);
     const doc = await this.prisma.listingDocument.findUnique({
       where: { id: docId },
     });

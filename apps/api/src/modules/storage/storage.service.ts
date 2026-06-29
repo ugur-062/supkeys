@@ -215,7 +215,7 @@ export class StorageService implements OnModuleInit {
   /** Alıcı (tenant) public profil görselleri (logo/cover) için R2 key. */
   buildTenantProfileKey(
     tenantId: string,
-    kind: "cover" | "logo",
+    kind: "cover" | "logo" | "gallery",
     id: string,
     originalFilename: string,
   ): string {

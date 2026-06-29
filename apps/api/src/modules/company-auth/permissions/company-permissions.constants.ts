@@ -21,6 +21,7 @@ export const COMPANY_ROLE_PERMISSIONS: Record<CompanyRole, readonly string[]> = 
     "users:manage", // kullanıcı + rol atama/çıkarma
     "connections:manage", // bağlantılar (davet/kabul)
     "templates:manage",
+    "approvals:manage", // onay akışı oluştur/düzenle
   ],
   SATIN_ALMACI: [
     "buy:listing:create", // alım ilanı aç (tier=PAKET gerekir)
@@ -49,6 +50,50 @@ export const OWNER_ONLY_PERMISSIONS = [
   "ownership:transfer",
 ] as const;
 
+/** Kişi-bazlı izin override (firma sahibi rol-varsayılanını artırır/azaltır). */
+export interface CompanyPermissionOverride {
+  added?: string[]; // rol-varsayılanı üstüne EKLENEN izinler
+  removed?: string[]; // rol-varsayılanından ÇIKARILAN izinler
+}
+
+/**
+ * Atanabilir izin kataloğu — Ayarlar UI'ı grup grup gösterir; override
+ * doğrulaması yalnızca bu anahtarlarla yapılır. OWNER_ONLY hariç (sahibe özel).
+ */
+export const COMPANY_PERMISSION_CATALOG: {
+  key: string;
+  label: string;
+  group: string;
+}[] = [
+  { key: "company:manage", label: "Firma profili & ayarları", group: "Yönetim" },
+  { key: "users:manage", label: "Kullanıcı & rol yönetimi", group: "Yönetim" },
+  { key: "connections:manage", label: "Bağlantı yönetimi", group: "Yönetim" },
+  { key: "templates:manage", label: "Şablon yönetimi", group: "Yönetim" },
+  { key: "buy:listing:create", label: "Alım ilanı açma", group: "Satınalma" },
+  { key: "buy:listing:manage", label: "Alım ilanı yönetimi", group: "Satınalma" },
+  {
+    key: "buy:bid:review",
+    label: "Gelen teklifleri görme/karşılaştırma",
+    group: "Satınalma",
+  },
+  { key: "buy:award", label: "Kazandırma (alım)", group: "Satınalma" },
+  { key: "buy:order:manage", label: "Alım siparişi yönetimi", group: "Satınalma" },
+  { key: "sell:bid:submit", label: "Teklif verme", group: "Satış" },
+  { key: "sell:listing:create", label: "Satış ilanı açma", group: "Satış" },
+  { key: "sell:listing:manage", label: "Satış ilanı yönetimi", group: "Satış" },
+  { key: "sell:award", label: "Kazandırma (satış)", group: "Satış" },
+  { key: "sell:order:manage", label: "Satış siparişi yönetimi", group: "Satış" },
+  { key: "approval:act", label: "Onay zincirinde onayla/reddet", group: "Onay" },
+  {
+    key: "approvals:manage",
+    label: "Onay akışı oluşturma/yönetimi",
+    group: "Onay",
+  },
+];
+
+export const ALL_COMPANY_PERMISSIONS: readonly string[] =
+  COMPANY_PERMISSION_CATALOG.map((p) => p.key);
+
 /** Verilen rollerin birleşik izin kümesi. */
 export function permissionsForRoles(roles: CompanyRole[]): Set<string> {
   const set = new Set<string>();
@@ -60,14 +105,20 @@ export function permissionsForRoles(roles: CompanyRole[]): Set<string> {
   return set;
 }
 
-/** Kullanıcının (rolleri + sahiplik) verilen izne sahip olup olmadığı. */
+/**
+ * Kullanıcının (rolleri + sahiplik + override) verilen izne sahip olup
+ * olmadığı. Sıra: owner-only > açık çıkarma > açık ekleme > rol-varsayılanı.
+ */
 export function hasCompanyPermission(
   roles: CompanyRole[],
   isOwner: boolean,
   permission: string,
+  override?: CompanyPermissionOverride | null,
 ): boolean {
   if (isOwner && (OWNER_ONLY_PERMISSIONS as readonly string[]).includes(permission)) {
     return true;
   }
+  if (override?.removed?.includes(permission)) return false;
+  if (override?.added?.includes(permission)) return true;
   return permissionsForRoles(roles).has(permission);
 }

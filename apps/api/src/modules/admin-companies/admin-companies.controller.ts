@@ -10,9 +10,12 @@ import {
 import {
   IsBoolean,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
 } from "class-validator";
 import {
   CurrentAdmin,
@@ -26,6 +29,17 @@ class SuspendDto {
   @IsString()
   @MaxLength(500)
   reason?: string;
+}
+
+class SetTierDto {
+  @IsIn(["STANDARD", "PAKET"])
+  tier!: "STANDARD" | "PAKET";
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(60)
+  months?: number;
 }
 
 class ResolveComplaintDto {
@@ -84,6 +98,11 @@ export class AdminCompaniesController {
   @Post("companies/:id/unsuspend")
   unsuspend(@Param("id") id: string) {
     return this.service.unsuspend(id);
+  }
+
+  @Post("companies/:id/tier")
+  setTier(@Param("id") id: string, @Body() dto: SetTierDto) {
+    return this.service.setTier(id, dto.tier, dto.months);
   }
 
   @Get("complaints")

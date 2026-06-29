@@ -2,26 +2,102 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import type {
   CompanyOrderPaymentTiming,
   CompanyOrderStatus,
 } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
+import { EmailService } from "../../email/email.service";
 
 @Injectable()
 export class CompanyOrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(CompanyOrdersService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly email: EmailService,
+    private readonly config: ConfigService,
+  ) {}
+
+  private webUrl(): string {
+    return this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+  }
+
+  private async companyRecipient(
+    companyId: string,
+  ): Promise<{ email: string; name: string } | null> {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { name: true, billingEmail: true },
+    });
+    if (!company) return null;
+    if (company.billingEmail) {
+      return { email: company.billingEmail, name: company.name };
+    }
+    const user = await this.prisma.companyUser.findFirst({
+      where: { companyId, isActive: true, deletedAt: null },
+      orderBy: { createdAt: "asc" },
+      select: { email: true, firstName: true, lastName: true },
+    });
+    if (!user) return null;
+    return { email: user.email, name: `${user.firstName} ${user.lastName}` };
+  }
+
+  /** Sipariş durumu değişince karşı tarafa bildirim (fire-and-forget). */
+  private async notifyOrderParty(
+    orderId: string,
+    recipientCompanyId: string,
+    subject: string,
+    heading: string,
+    paragraph: string,
+  ): Promise<void> {
+    const to = await this.companyRecipient(recipientCompanyId);
+    if (!to) return;
+    void this.email
+      .send({
+        to: { email: to.email, name: to.name },
+        templateData: {
+          template: "notification",
+          data: {
+            subject,
+            heading,
+            paragraphs: ["Merhaba,", paragraph],
+            ctaLabel: "Siparişi Gör",
+            ctaUrl: `${this.webUrl()}/company/siparis/${orderId}`,
+          },
+        },
+        subject,
+        context: { type: "order_status_changed", id: orderId },
+      })
+      .catch((err) =>
+        this.logger.error(
+          `Sipariş bildirimi gönderilemedi (${to.email}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+  }
 
   /** Satıcı siparişi onaylar: PENDING → ACCEPTED. */
-  accept(user: AuthenticatedCompanyUser, id: string) {
-    return this.transition(user, id, {
+  async accept(user: AuthenticatedCompanyUser, id: string) {
+    const res = await this.transition(user, id, {
       side: "seller",
       from: "PENDING",
       to: "ACCEPTED",
     });
+    await this.notifyOrderParty(
+      id,
+      res.order.buyerCompanyId,
+      "Siparişiniz onaylandı",
+      "Sipariş onaylandı",
+      `${this.orderLabel(res.order.number)} siparişiniz satıcı tarafından onaylandı ve hazırlanıyor.`,
+    );
+    return { ok: res.ok, status: res.status };
   }
 
   /** Satıcı siparişi reddeder: PENDING → REJECTED (+ gerekçe). */
@@ -37,34 +113,96 @@ export class CompanyOrdersService {
         data: { rejectedReason: reason },
       });
     }
-    return res;
+    await this.notifyOrderParty(
+      id,
+      res.order.buyerCompanyId,
+      "Siparişiniz reddedildi",
+      "Sipariş reddedildi",
+      `${this.orderLabel(res.order.number)} siparişiniz satıcı tarafından reddedildi.${
+        reason ? ` Gerekçe: ${reason}` : ""
+      }`,
+    );
+    return { ok: res.ok, status: res.status };
   }
 
   /** Satıcı kargoya verir: ACCEPTED (veya legacy CREATED) → IN_DELIVERY. */
-  ship(user: AuthenticatedCompanyUser, id: string) {
-    return this.transition(user, id, {
+  async ship(user: AuthenticatedCompanyUser, id: string) {
+    const res = await this.transition(user, id, {
       side: "seller",
       from: ["ACCEPTED", "CREATED"],
       to: "IN_DELIVERY",
     });
+    await this.notifyOrderParty(
+      id,
+      res.order.buyerCompanyId,
+      "Siparişiniz kargoya verildi",
+      "Sipariş yolda",
+      `${this.orderLabel(res.order.number)} siparişiniz kargoya verildi.`,
+    );
+    return { ok: res.ok, status: res.status };
   }
 
   /** Alıcı teslim alır: IN_DELIVERY → DELIVERED. */
-  receive(user: AuthenticatedCompanyUser, id: string) {
-    return this.transition(user, id, {
+  async receive(user: AuthenticatedCompanyUser, id: string) {
+    const res = await this.transition(user, id, {
       side: "buyer",
       from: "IN_DELIVERY",
       to: "DELIVERED",
     });
+    await this.notifyOrderParty(
+      id,
+      res.order.sellerCompanyId,
+      "Sipariş teslim alındı",
+      "Teslim alındı",
+      `${this.orderLabel(res.order.number)} siparişi alıcı tarafından teslim alındı.`,
+    );
+    return { ok: res.ok, status: res.status };
   }
 
   /** Alıcı ödemeyi onaylar/tamamlar: DELIVERED → COMPLETED. */
-  complete(user: AuthenticatedCompanyUser, id: string) {
-    return this.transition(user, id, {
+  async complete(user: AuthenticatedCompanyUser, id: string) {
+    const res = await this.transition(user, id, {
       side: "buyer",
       from: "DELIVERED",
       to: "COMPLETED",
     });
+    await this.notifyOrderParty(
+      id,
+      res.order.sellerCompanyId,
+      "Sipariş tamamlandı",
+      "Sipariş tamamlandı",
+      `${this.orderLabel(res.order.number)} siparişi tamamlandı.`,
+    );
+    return { ok: res.ok, status: res.status };
+  }
+
+  /** Alıcı siparişi iptal eder (teslimat öncesi): PENDING/ACCEPTED → CANCELLED. */
+  async cancel(user: AuthenticatedCompanyUser, id: string, reason?: string) {
+    const res = await this.transition(user, id, {
+      side: "buyer",
+      from: ["PENDING", "ACCEPTED", "CREATED"],
+      to: "CANCELLED",
+    });
+    if (reason) {
+      await this.prisma.companyOrder.update({
+        where: { id },
+        data: { cancelReason: reason },
+      });
+    }
+    await this.notifyOrderParty(
+      id,
+      res.order.sellerCompanyId,
+      "Sipariş iptal edildi",
+      "Sipariş iptal edildi",
+      `${this.orderLabel(res.order.number)} siparişi alıcı tarafından iptal edildi.${
+        reason ? ` Gerekçe: ${reason}` : ""
+      }`,
+    );
+    return { ok: res.ok, status: res.status };
+  }
+
+  private orderLabel(number: string | null): string {
+    return number ? `${number} numaralı` : "İlgili";
   }
 
   private async transition(
@@ -90,7 +228,7 @@ export class CompanyOrdersService {
       where: { id },
       data: { status: rule.to },
     });
-    return { ok: true, status: rule.to };
+    return { ok: true, status: rule.to, order };
   }
 
   private async loadParticipant(user: AuthenticatedCompanyUser, id: string) {
@@ -98,6 +236,7 @@ export class CompanyOrdersService {
       where: { id },
       select: {
         id: true,
+        number: true,
         status: true,
         paymentTiming: true,
         sellerCompanyId: true,
@@ -126,21 +265,29 @@ export class CompanyOrdersService {
     status: CompanyOrderStatus,
   ): boolean {
     if (timing === "BEFORE_DELIVERY") {
+      // Satıcı onayından sonra, teslim alınmadan önce ödenir.
       return (
         status === "ACCEPTED" ||
         status === "IN_DELIVERY" ||
-        status === "DELIVERED" ||
         status === "COMPLETED"
       );
     }
-    return status === "DELIVERED" || status === "COMPLETED";
+    // AFTER_DELIVERY: yalnızca teslim alındıktan sonra (COMPLETED'da kapanır).
+    return status === "DELIVERED";
   }
 
   /** Alıcı ödeme kaydı oluşturur (AWAITING_CONFIRMATION). */
   async recordPayment(
     user: AuthenticatedCompanyUser,
     id: string,
-    input: { amount: number; method?: string; note?: string },
+    input: {
+      amount: number;
+      method?: string;
+      note?: string;
+      chequeNo?: string;
+      chequeBank?: string;
+      chequeDueDate?: string;
+    },
   ) {
     const order = await this.loadParticipant(user, id);
     if (order.buyerCompanyId !== user.companyId) {
@@ -154,6 +301,29 @@ export class CompanyOrdersService {
     if (!(input.amount > 0)) {
       throw new BadRequestException("Tutar 0'dan büyük olmalı");
     }
+    // Kalan tutar koruması — AWAITING + CONFIRMED toplamı sipariş tutarını aşamaz.
+    const [orderAmt, existing] = await Promise.all([
+      this.prisma.companyOrder.findUnique({
+        where: { id },
+        select: { amount: true },
+      }),
+      this.prisma.companyOrderPayment.findMany({
+        where: {
+          orderId: id,
+          status: { in: ["AWAITING_CONFIRMATION", "CONFIRMED"] },
+        },
+        select: { amount: true },
+      }),
+    ]);
+    const cap = orderAmt ? Number(orderAmt.amount) : 0;
+    const recorded = existing.reduce((s, p) => s + Number(p.amount), 0);
+    if (recorded + input.amount > cap + 0.01) {
+      const remaining = Math.max(0, cap - recorded);
+      throw new BadRequestException(
+        `Kalan ödeme ${remaining.toLocaleString("tr-TR")} ₺ — bu tutarı aşan ödeme kaydedilemez`,
+      );
+    }
+    const isCheque = input.method?.trim() === "Çek";
     const payment = await this.prisma.companyOrderPayment.create({
       data: {
         orderId: id,
@@ -162,8 +332,21 @@ export class CompanyOrdersService {
         note: input.note?.trim() || null,
         recordedByCompanyId: user.companyId,
         recordedByUserId: user.userId,
+        chequeNo: isCheque ? input.chequeNo?.trim() || null : null,
+        chequeBank: isCheque ? input.chequeBank?.trim() || null : null,
+        chequeDueDate:
+          isCheque && input.chequeDueDate
+            ? new Date(input.chequeDueDate)
+            : null,
       },
     });
+    await this.notifyOrderParty(
+      id,
+      order.sellerCompanyId,
+      "Yeni ödeme kaydı — onayınız bekleniyor",
+      "Ödeme kaydedildi",
+      `${this.orderLabel(order.number)} sipariş için ${input.amount.toLocaleString("tr-TR")} ₺ tutarında ödeme kaydedildi. Onaylamanız bekleniyor.`,
+    );
     return this.serializePayment(payment);
   }
 
@@ -214,6 +397,51 @@ export class CompanyOrdersService {
         rejectReason: decision === "REJECTED" ? reason?.trim() || null : null,
       },
     });
+
+    // Ödeme kararı bildirimi alıcıya.
+    await this.notifyOrderParty(
+      id,
+      order.buyerCompanyId,
+      decision === "CONFIRMED" ? "Ödemeniz onaylandı" : "Ödemeniz reddedildi",
+      decision === "CONFIRMED" ? "Ödeme onaylandı" : "Ödeme reddedildi",
+      decision === "CONFIRMED"
+        ? `${this.orderLabel(order.number)} sipariş için ödemeniz satıcı tarafından onaylandı.`
+        : `${this.orderLabel(order.number)} sipariş için ödemeniz reddedildi.${
+            reason ? ` Gerekçe: ${reason}` : ""
+          }`,
+    );
+
+    // Otomatik tamamlama (eski sistemle aynı): sipariş teslim alındı (DELIVERED)
+    // ve onaylı ödemeler toplamı sipariş tutarına ulaştıysa → COMPLETED.
+    if (decision === "CONFIRMED" && order.status === "DELIVERED") {
+      const [orderAmt, agg] = await Promise.all([
+        this.prisma.companyOrder.findUnique({
+          where: { id },
+          select: { amount: true },
+        }),
+        this.prisma.companyOrderPayment.aggregate({
+          where: { orderId: id, status: "CONFIRMED" },
+          _sum: { amount: true },
+        }),
+      ]);
+      const total = orderAmt ? Number(orderAmt.amount) : 0;
+      const confirmedSum = agg._sum.amount ? Number(agg._sum.amount) : 0;
+      if (total > 0 && confirmedSum + 0.01 >= total) {
+        await this.prisma.companyOrder.update({
+          where: { id },
+          data: { status: "COMPLETED" },
+        });
+        // Tam ödeme ile otomatik tamamlandı → her iki tarafa bilgi.
+        await this.notifyOrderParty(
+          id,
+          order.buyerCompanyId,
+          "Sipariş tamamlandı",
+          "Sipariş tamamlandı",
+          `${this.orderLabel(order.number)} sipariş tam ödeme ile tamamlandı.`,
+        );
+      }
+    }
+
     return this.serializePayment(updated);
   }
 
@@ -227,6 +455,9 @@ export class CompanyOrdersService {
     recordedByCompanyId: string;
     confirmedAt: Date | null;
     createdAt: Date;
+    chequeNo?: string | null;
+    chequeBank?: string | null;
+    chequeDueDate?: Date | null;
   }) {
     return {
       id: p.id,
@@ -238,6 +469,9 @@ export class CompanyOrdersService {
       recordedByCompanyId: p.recordedByCompanyId,
       confirmedAt: p.confirmedAt,
       createdAt: p.createdAt,
+      chequeNo: p.chequeNo ?? null,
+      chequeBank: p.chequeBank ?? null,
+      chequeDueDate: p.chequeDueDate ?? null,
     };
   }
 

@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -21,8 +31,12 @@ export class CompanyListingsController {
   }
 
   @Get("browse")
-  browse(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    return this.service.browse(user);
+  browse(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query("scope") scope?: string,
+  ) {
+    const s = scope === "international" ? "international" : "domestic";
+    return this.service.browse(user, s);
   }
 
   /** Firmanın başka ilanlara verdiği tüm teklifler (Tekliflerim ekranı). */
@@ -51,6 +65,34 @@ export class CompanyListingsController {
     @Body() dto: CreateListingDto,
   ) {
     return this.service.create(user, dto);
+  }
+
+  /** İlanı düzenle — sahip, açık ve teklif gelmemişken. Tür değişmez. */
+  @Patch(":id")
+  update(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: CreateListingDto,
+  ) {
+    return this.service.updateListing(user, id, dto);
+  }
+
+  /** Taslağı yayınla (DRAFT → OPEN; onay akışı varsa IN_APPROVAL). */
+  @Post(":id/publish")
+  publish(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.publishListing(user, id);
+  }
+
+  /** Taslak ilanı sil. */
+  @Delete(":id")
+  remove(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.deleteListing(user, id);
   }
 
   @Post(":id/bids")
@@ -101,8 +143,9 @@ export class CompanyListingsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
     @Param("bidId") bidId: string,
+    @Body() body: { reason?: string },
   ) {
-    return this.service.eliminate(user, id, bidId);
+    return this.service.eliminate(user, id, bidId, body?.reason);
   }
 
   @Post(":id/cancel")

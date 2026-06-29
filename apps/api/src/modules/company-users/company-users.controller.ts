@@ -15,9 +15,16 @@ import {
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
+import {
+  COMPANY_PERMISSION_CATALOG,
+  COMPANY_ROLE_PERMISSIONS,
+} from "../company-auth/permissions/company-permissions.constants";
 import { CompanyUsersService } from "./company-users.service";
 import {
   InviteCompanyUserDto,
+  SetUserActiveDto,
+  UpdateUserDto,
+  UpdateUserPermissionsDto,
   UpdateUserRolesDto,
 } from "./dto/company-user.dto";
 
@@ -29,6 +36,15 @@ export class CompanyUsersController {
   @Get()
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.list(user.companyId);
+  }
+
+  /** Atanabilir izin kataloğu + rol-varsayılan izinleri (Ayarlar izin editörü). */
+  @Get("permission-catalog")
+  permissionCatalog() {
+    return {
+      catalog: COMPANY_PERMISSION_CATALOG,
+      roleDefaults: COMPANY_ROLE_PERMISSIONS,
+    };
   }
 
   @Post()
@@ -48,6 +64,37 @@ export class CompanyUsersController {
     @Body() dto: UpdateUserRolesDto,
   ) {
     return this.service.updateRoles(user, id, dto);
+  }
+
+  @Patch(":id")
+  @RequireCompanyPermission("users:manage")
+  updateUser(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: UpdateUserDto,
+  ) {
+    return this.service.updateUser(user, id, dto);
+  }
+
+  @Patch(":id/active")
+  @RequireCompanyPermission("users:manage")
+  setActive(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: SetUserActiveDto,
+  ) {
+    return this.service.setActive(user, id, dto.active);
+  }
+
+  /** Kişi-bazlı izin override — yalnızca firma sahibi (servis içinde doğrulanır). */
+  @Patch(":id/permissions")
+  @RequireCompanyPermission("users:manage")
+  updatePermissions(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: UpdateUserPermissionsDto,
+  ) {
+    return this.service.updatePermissions(user, id, dto);
   }
 
   @Delete(":id")

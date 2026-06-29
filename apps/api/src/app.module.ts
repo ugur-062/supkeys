@@ -21,10 +21,16 @@ import { CurrencyModule } from "./modules/currency/currency.module";
 import { CompanyInboxModule } from "./modules/company-inbox/company-inbox.module";
 import { CompanyMessagesModule } from "./modules/company-messages/company-messages.module";
 import { CompanyQuestionTemplatesModule } from "./modules/company-question-templates/company-question-templates.module";
+import { CompanyAddressesModule } from "./modules/company-addresses/company-addresses.module";
+import { CompanyApprovalsModule } from "./modules/company-approvals/company-approvals.module";
+import { CompanyDocsModule } from "./modules/company-docs/company-docs.module";
+import { CompanyReportsModule } from "./modules/company-reports/company-reports.module";
+import { CompanyReviewsModule } from "./modules/company-reviews/company-reviews.module";
 import { CompanyListingTemplatesModule } from "./modules/company-listing-templates/company-listing-templates.module";
 import { CompanyListingsModule } from "./modules/company-listings/company-listings.module";
 import { CompanyOrdersModule } from "./modules/company-orders/company-orders.module";
 import { CompanyProfileModule } from "./modules/company-profile/company-profile.module";
+import { PublicProfileModule } from "./modules/public-profile/public-profile.module";
 import { CompanyUsersModule } from "./modules/company-users/company-users.module";
 import { EmailModule } from "./modules/email/email.module";
 import { HealthModule } from "./modules/health/health.module";
@@ -79,6 +85,11 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     CompanyBlocksModule,
     CompanyComplaintsModule,
     CompanyListingsModule,
+    CompanyApprovalsModule,
+    CompanyAddressesModule,
+    CompanyReportsModule,
+    CompanyReviewsModule,
+    CompanyDocsModule,
     CompanyListingTemplatesModule,
     CompanyOrdersModule,
     CompanyInboxModule,
@@ -86,6 +97,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     CompanyDashboardModule,
     CurrencyModule,
     CompanyQuestionTemplatesModule,
+    PublicProfileModule,
   ],
   providers: [
     // Global guard: @SkipThrottle ile özel endpoint'lerde bypass edilebilir.

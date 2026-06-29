@@ -29,7 +29,14 @@ export class CompanyPermissionsGuard implements CanActivate {
     const user = req.user as AuthenticatedCompanyUser | undefined;
     if (!user) throw new ForbiddenException("Yetkisiz");
 
-    if (!hasCompanyPermission(user.roles, user.isOwner, required)) {
+    if (
+      !hasCompanyPermission(
+        user.roles,
+        user.isOwner,
+        required,
+        user.permissionsOverride,
+      )
+    ) {
       throw new ForbiddenException("Bu işlem için yetkiniz yok");
     }
     return true;

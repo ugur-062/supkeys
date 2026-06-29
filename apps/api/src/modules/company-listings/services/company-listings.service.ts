@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import {
@@ -19,26 +20,300 @@ import {
   type ListingQuestionAnswerType,
   Prisma,
 } from "@supkeys/db";
+import { OnEvent } from "@nestjs/event-emitter";
 import { normalizeShortCode, validateShortCode } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
+import { ConfigService } from "@nestjs/config";
+import { ExchangeRateService } from "../../currency/services/exchange-rate.service";
+import { EmailService } from "../../email/email.service";
+import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-category-match.helper";
 import { CreateListingDto } from "../dto/create-listing.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
 
 @Injectable()
 export class CompanyListingsService {
+  private readonly logger = new Logger(CompanyListingsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly blocks: CompanyBlocksService,
+    private readonly approvals: CompanyApprovalsService,
+    private readonly exchangeRates: ExchangeRateService,
+    private readonly email: EmailService,
+    private readonly config: ConfigService,
   ) {}
 
+  private webUrl(): string {
+    return this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+  }
+
+  /** Firmanın bildirim alıcısı — fatura e-postası veya ilk aktif kullanıcı. */
+  private async companyRecipient(
+    companyId: string,
+  ): Promise<{ email: string; name: string } | null> {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { name: true, billingEmail: true },
+    });
+    if (!company) return null;
+    if (company.billingEmail) {
+      return { email: company.billingEmail, name: company.name };
+    }
+    const user = await this.prisma.companyUser.findFirst({
+      where: { companyId, isActive: true, deletedAt: null },
+      orderBy: { createdAt: "asc" },
+      select: { email: true, firstName: true, lastName: true },
+    });
+    if (!user) return null;
+    return { email: user.email, name: `${user.firstName} ${user.lastName}` };
+  }
+
+  /** Bildirim e-postası gönder (fire-and-forget). */
+  private notify(
+    to: { email: string; name: string },
+    data: {
+      subject: string;
+      heading: string;
+      paragraphs: string[];
+      infoRows?: { label: string; value: string }[];
+      ctaLabel?: string;
+      ctaUrl?: string;
+      footerNote?: string;
+    },
+    context?: { type: string; id: string },
+  ): void {
+    void this.email
+      .send({
+        to: { email: to.email, name: to.name },
+        templateData: { template: "notification", data },
+        subject: data.subject,
+        context,
+      })
+      .catch((err) =>
+        this.logger.error(
+          `Bildirim e-postası gönderilemedi (${to.email}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+  }
+
   /**
-   * İlan oluştur. Rol-korumalı: ALIM → SATIN_ALMACI, SATIS → SATISCI.
-   * TODO(tier): ilan açmak PAKET üyelik gerektirecek (upgrade akışı gelince).
+   * İlan teklife kapandığında (süre dolumu veya erken kapatma) bildirim:
+   * davetlilere "ihale kapandı", sahibe "kazandırma kararı zamanı".
+   */
+  async notifyListingClosed(listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, title: true, number: true, companyId: true },
+    });
+    if (!listing) return;
+    const label = `"${listing.title}" (${listing.number ?? "—"})`;
+
+    // Davetlilere kapanış bildirimi.
+    const invs = await this.prisma.listingInvitation.findMany({
+      where: { listingId },
+      select: { invitedCompanyId: true },
+    });
+    const bidUrl = `${this.webUrl()}/company/ilan/${listingId}`;
+    for (const iv of invs) {
+      const r = await this.companyRecipient(iv.invitedCompanyId);
+      if (!r) continue;
+      this.notify(
+        r,
+        {
+          subject: "İhale teklife kapandı",
+          heading: "İhale kapandı",
+          paragraphs: [
+            "Merhaba,",
+            `${label} ihalesi teklife kapandı. Sonuç açıklandığında bilgilendirileceksiniz.`,
+          ],
+          ctaLabel: "İhaleyi Gör",
+          ctaUrl: bidUrl,
+        },
+        { type: "listing_closed", id: listingId },
+      );
+    }
+
+    // Sahibe "karar zamanı" bildirimi.
+    const owner = await this.companyRecipient(listing.companyId);
+    if (owner) {
+      this.notify(
+        owner,
+        {
+          subject: "İhaleniz kapandı — kazandırma kararı bekleniyor",
+          heading: "Kazandırma kararı zamanı",
+          paragraphs: [
+            "Merhaba,",
+            `${label} ihaleniz teklife kapandı. Teklifleri inceleyip kazandırma kararınızı verebilirsiniz.`,
+          ],
+          ctaLabel: "Teklifleri İncele",
+          ctaUrl: `${this.webUrl()}/company/satinalma/ihalelerim/${listingId}`,
+        },
+        { type: "listing_closed_owner", id: listingId },
+      );
+    }
+  }
+
+  /**
+   * PUBLIC + ALIM ilan yayına çıkınca, ilan kategorileriyle eşleşen
+   * (sellerCategoryIds/sellerSubCategoryIds) PAKET + SATISCI firmaları bulur.
+   * E-posta gönderimi Faz 8 ile bağlanacak; şimdilik aday listesi + log.
+   */
+  async notifyCategoryMatchedSellers(listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        id: true,
+        companyId: true,
+        type: true,
+        visibility: true,
+        categoryIds: true,
+        number: true,
+        isInternational: true,
+        targetCountries: true,
+        company: { select: { country: true } },
+      },
+    });
+    if (
+      !listing ||
+      listing.type !== "ALIM" ||
+      listing.visibility !== "PUBLIC" ||
+      listing.categoryIds.length === 0
+    ) {
+      return [];
+    }
+    // Ülke kapsamı: yurtiçi ilan → yalnızca sahip ülkesi; uluslararası →
+    // hedef ülkeler (boşsa tümü) + sahip ülkesi.
+    const ownerCountry = listing.company.country;
+    const countryWhere = !listing.isInternational
+      ? { country: ownerCountry }
+      : listing.targetCountries.length === 0
+        ? {}
+        : { country: { in: [ownerCountry, ...listing.targetCountries] } };
+    const { segmentIds, subCandidates } = deriveCategoryMatchCandidates(
+      listing.categoryIds,
+    );
+    if (segmentIds.length === 0 && subCandidates.length === 0) return [];
+
+    const blocked = await this.blocks.blockedCompanyIds(listing.companyId);
+    const candidates = await this.prisma.company.findMany({
+      where: {
+        id: { notIn: [listing.companyId, ...blocked] },
+        tier: "PAKET",
+        isActive: true,
+        ...countryWhere,
+        users: {
+          some: { roles: { has: "SATISCI" }, deletedAt: null, isActive: true },
+        },
+        OR: [
+          { sellerCategoryIds: { hasSome: segmentIds } },
+          { sellerSubCategoryIds: { hasSome: subCandidates } },
+        ],
+      },
+      select: { id: true, name: true, billingEmail: true },
+      take: 300, // flood-guard
+    });
+    if (candidates.length === 0) return [];
+
+    const title = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { title: true },
+    });
+    const url = `${this.webUrl()}/company/satis/acik-ihaleler`;
+    for (const c of candidates) {
+      if (!c.billingEmail) continue;
+      this.notify(
+        { email: c.billingEmail, name: c.name },
+        {
+          subject: "Size uygun yeni bir ihale yayınlandı",
+          heading: "Kategorinize uygun yeni ihale",
+          paragraphs: [
+            "Merhaba,",
+            `Sattığınız kategorilerle eşleşen yeni bir ihale yayınlandı: "${title?.title ?? "İhale"}" (${listing.number ?? "—"}). İncelemek ve teklif vermek için Rothern'e giriş yapın.`,
+          ],
+          ctaLabel: "Açık İhaleleri Gör",
+          ctaUrl: url,
+          footerNote:
+            "Bu bildirimi kategori tercihlerinize göre alıyorsunuz.",
+        },
+        { type: "listing_category_match", id: listingId },
+      );
+    }
+    this.logger.log(
+      `Kategori eşleşmesi (${listing.number}): ${candidates.length} tedarikçiye bildirim`,
+    );
+    return candidates;
+  }
+
+  /** Davetli firmalara ihale daveti / kapanış hatırlatması e-postası. */
+  async notifyListingInvitees(
+    listingId: string,
+    mode: "invitation" | "reminder",
+  ) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, title: true, number: true },
+    });
+    if (!listing) return;
+    const invs = await this.prisma.listingInvitation.findMany({
+      where: { listingId },
+      select: { invitedCompanyId: true },
+    });
+    const url = `${this.webUrl()}/company/ilan/${listingId}`;
+    for (const iv of invs) {
+      const r = await this.companyRecipient(iv.invitedCompanyId);
+      if (!r) continue;
+      if (mode === "invitation") {
+        this.notify(
+          r,
+          {
+            subject: "Bir ihaleye davet edildiniz",
+            heading: "İhale daveti",
+            paragraphs: [
+              "Merhaba,",
+              `"${listing.title}" (${listing.number ?? "—"}) ihalesine davet edildiniz. Detayları görmek ve teklif vermek için giriş yapın.`,
+            ],
+            ctaLabel: "İhaleyi Gör",
+            ctaUrl: url,
+          },
+          { type: "listing_invitation", id: listingId },
+        );
+      } else {
+        this.notify(
+          r,
+          {
+            subject: "İhale kapanışı yaklaşıyor",
+            heading: "Kapanış hatırlatması",
+            paragraphs: [
+              "Merhaba,",
+              `"${listing.title}" (${listing.number ?? "—"}) ihalesinin kapanışı yaklaşıyor. Teklif vermek için son şansınız.`,
+            ],
+            ctaLabel: "Teklif Ver",
+            ctaUrl: url,
+          },
+          { type: "listing_reminder", id: listingId },
+        );
+      }
+    }
+  }
+
+  /**
+   * İlan oluştur. PAKET üyelik gerektirir (STANDARD yalnızca teklif verir,
+   * ilan/ihale açamaz). Rol-korumalı: ALIM → SATIN_ALMACI, SATIS → SATISCI.
    */
   async create(user: AuthenticatedCompanyUser, dto: CreateListingDto) {
     const type = dto.type as ListingType;
+
+    if (user.tier !== "PAKET") {
+      throw new ForbiddenException(
+        "İlan/ihale açmak için premium (PAKET) üyelik gerekir. Standart üyeler yalnızca teklif verebilir.",
+      );
+    }
+
     const neededRole =
       type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
 
@@ -101,6 +376,10 @@ export class CompanyListingsService {
           companyId: user.companyId,
           type,
           isInternational: dto.isInternational ?? false,
+          // Hedef ülkeler yalnızca uluslararası ilanda anlamlı; aksi halde boş.
+          targetCountries: dto.isInternational
+            ? (dto.targetCountries ?? [])
+            : [],
           format,
           minPrice,
           buyNowPrice,
@@ -109,7 +388,8 @@ export class CompanyListingsService {
           description: dto.description?.trim() || null,
           closesAt: dto.closesAt ? new Date(dto.closesAt) : null,
           createdById: user.userId,
-          status: "OPEN",
+          status: dto.asDraft ? "DRAFT" : "OPEN",
+          publishedAt: dto.asDraft ? null : new Date(),
           categoryIds: dto.categoryIds ?? [],
           keywords: dto.keywords ?? [],
           terms: dto.terms?.trim() || null,
@@ -188,7 +468,295 @@ export class CompanyListingsService {
       }
       return l;
     });
+    // Doğrudan yayınlandıysa: davetlilere davet + PUBLIC+ALIM'da kategori haberi.
+    if (!dto.asDraft) {
+      void this.notifyListingInvitees(listing.id, "invitation");
+      void this.notifyCategoryMatchedSellers(listing.id);
+    }
     return this.serialize(listing);
+  }
+
+  /**
+   * İlanı düzenle (eski sistemdeki updateDraft kuralı): yalnızca SAHİP,
+   * ilan AÇIK ve henüz SUBMITTED teklif gelmemişken. İlk teklif gelince
+   * kilitlenir. Tür değiştirilemez (mevcut tür korunur). Kalemler ve davetler
+   * tamamen yeniden yazılır (sil-ve-oluştur).
+   */
+  async updateListing(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    dto: CreateListingDto,
+  ) {
+    const existing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true, status: true, type: true },
+    });
+    if (!existing || existing.companyId !== user.companyId) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
+    // Düzenlenebilirlik kilidi — eski sistem birebir. DRAFT her zaman serbest;
+    // OPEN ise yalnızca henüz SUBMITTED teklif yokken.
+    if (existing.status !== "OPEN" && existing.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Sadece taslak veya henüz teklif gelmemiş ihaleler düzenlenebilir",
+      );
+    }
+    if (existing.status === "OPEN") {
+      const submittedCount = await this.prisma.listingBid.count({
+        where: { listingId, status: "SUBMITTED" },
+      });
+      if (submittedCount > 0) {
+        throw new BadRequestException(
+          "Bu ihaleye teklif verilmiş; düzenleme yapılamaz",
+        );
+      }
+    }
+
+    // Tür değişmez — mevcut türe göre format/fiyat doğrula (create ile aynı).
+    const type = existing.type;
+    let format: ListingFormat | null = null;
+    let minPrice: number | null = null;
+    let buyNowPrice: number | null = null;
+    if (type === "ALIM") {
+      if (!dto.format) {
+        throw new BadRequestException(
+          "Alım ilanı için format seçin (RFQ / İngiliz Usulü)",
+        );
+      }
+      format = dto.format as ListingFormat;
+    } else {
+      if (!dto.minPrice || dto.minPrice <= 0) {
+        throw new BadRequestException("Satış ilanı için taban fiyat girin");
+      }
+      minPrice = dto.minPrice;
+      if (dto.buyNowPrice != null) {
+        if (dto.buyNowPrice < dto.minPrice) {
+          throw new BadRequestException(
+            "Hemen-al fiyatı taban fiyattan düşük olamaz",
+          );
+        }
+        buyNowPrice = dto.buyNowPrice;
+      }
+    }
+
+    // Davet edilecek firmaları çöz (create ile aynı kural).
+    let inviteCompanyIds: string[] = [];
+    if (dto.invitations?.length) {
+      const connectedIds = await this.connectedCompanyIds(user.companyId);
+      const codes = dto.invitations
+        .map((c) => normalizeShortCode(c))
+        .filter((c) => validateShortCode(c));
+      const targets = await this.prisma.company.findMany({
+        where: { supkeysId: { in: codes } },
+        select: { id: true },
+      });
+      inviteCompanyIds = targets
+        .map((t) => t.id)
+        .filter((id) => id !== user.companyId && connectedIds.includes(id));
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const l = await tx.listing.update({
+        where: { id: listingId },
+        data: {
+          isInternational: dto.isInternational ?? false,
+          // Hedef ülkeler yalnızca uluslararası ilanda anlamlı; aksi halde boş.
+          targetCountries: dto.isInternational
+            ? (dto.targetCountries ?? [])
+            : [],
+          format,
+          minPrice,
+          buyNowPrice,
+          visibility: (dto.visibility as ListingVisibility) ?? "CONNECTIONS",
+          title: dto.title.trim(),
+          description: dto.description?.trim() || null,
+          closesAt: dto.closesAt ? new Date(dto.closesAt) : null,
+          categoryIds: dto.categoryIds ?? [],
+          keywords: dto.keywords ?? [],
+          terms: dto.terms?.trim() || null,
+          internalNotes: dto.internalNotes?.trim() || null,
+          requireAllItems: dto.requireAllItems ?? false,
+          requireBidDocument: dto.requireBidDocument ?? false,
+          primaryCurrency: (dto.primaryCurrency as Currency) ?? "TRY",
+          allowedCurrencies: (dto.allowedCurrencies as Currency[]) ?? [],
+          bidsOpenAt: dto.bidsOpenAt ? new Date(dto.bidsOpenAt) : null,
+          isSealedBid: dto.isSealedBid ?? true,
+          isLogistics: dto.isLogistics ?? false,
+          logistics: dto.logistics
+            ? (dto.logistics as unknown as Prisma.InputJsonValue)
+            : Prisma.JsonNull,
+          deliveryTerm: (dto.deliveryTerm as ListingDeliveryTerm) ?? null,
+          paymentTerm: (dto.paymentTerm as ListingPaymentTerm) ?? "CASH",
+          paymentDays: dto.paymentDays ?? null,
+          paymentTiming:
+            (dto.paymentTiming as ListingPaymentTiming) ?? "AFTER_DELIVERY",
+          bidVisibility:
+            (dto.bidVisibility as ListingBidVisibility) ?? "OWN_ONLY",
+          priceDecrementType:
+            (dto.priceDecrementType as ListingDecrementType) ?? null,
+          priceDecrementValue: dto.priceDecrementValue ?? null,
+          priceDecrementBasis:
+            (dto.priceDecrementBasis as ListingDecrementBasis) ?? null,
+          decimalPlaces: dto.decimalPlaces ?? 2,
+          sendClosingReminder: dto.sendClosingReminder ?? false,
+          reminderMinutesBefore: dto.reminderMinutesBefore ?? null,
+          autoExtendOnLateBid: dto.autoExtendOnLateBid ?? false,
+          autoExtendThresholdMin: dto.autoExtendThresholdMin ?? null,
+          autoExtendByMinutes: dto.autoExtendByMinutes ?? null,
+        },
+      });
+
+      // Kalemleri tamamen yeniden yaz. ListingBidItem/ListingItemQuestion
+      // FK'leri Cascade → eski (geri-çekilmiş) teklif kalemleri de temizlenir.
+      await tx.listingItem.deleteMany({ where: { listingId } });
+      if (dto.items?.length) {
+        for (let i = 0; i < dto.items.length; i++) {
+          const it = dto.items[i]!;
+          const item = await tx.listingItem.create({
+            data: {
+              listingId,
+              lineNo: i + 1,
+              name: it.name.trim(),
+              description: it.description?.trim() || null,
+              quantity: it.quantity,
+              unit: it.unit.trim(),
+              targetPrice: it.targetPrice ?? null,
+              materialCode: it.materialCode?.trim() || null,
+              requiredByDate: it.requiredByDate
+                ? new Date(it.requiredByDate)
+                : null,
+            },
+          });
+          if (it.questions?.length) {
+            await tx.listingItemQuestion.createMany({
+              data: it.questions.map((q) => ({
+                itemId: item.id,
+                text: q.text.trim(),
+                answerType: q.answerType as ListingQuestionAnswerType,
+                required: q.required ?? false,
+              })),
+            });
+          }
+        }
+      }
+
+      // Davetleri yeniden yaz.
+      await tx.listingInvitation.deleteMany({ where: { listingId } });
+      if (inviteCompanyIds.length) {
+        await tx.listingInvitation.createMany({
+          data: inviteCompanyIds.map((cid) => ({
+            listingId,
+            invitedCompanyId: cid,
+            invitedById: user.userId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+      return l;
+    });
+    return this.serialize(updated);
+  }
+
+  /** Taslak ilanı sil — yalnızca SAHİP + DRAFT (yayınlanmış silinemez). */
+  async deleteListing(user: AuthenticatedCompanyUser, listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true, status: true },
+    });
+    if (!listing || listing.companyId !== user.companyId) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
+    if (listing.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Yalnızca taslak ilan silinebilir; yayınlanmış ilan iptal edilir",
+      );
+    }
+    await this.prisma.listing.delete({ where: { id: listingId } });
+    return { ok: true };
+  }
+
+  /**
+   * Taslağı yayınla. Yalnızca SAHİP + DRAFT. Eşleşen aktif bir LISTING_PUBLISH
+   * onay akışı varsa IN_APPROVAL'a geçer (onay sonrası event ile OPEN olur);
+   * yoksa doğrudan OPEN.
+   */
+  async publishListing(user: AuthenticatedCompanyUser, listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        id: true,
+        companyId: true,
+        status: true,
+        type: true,
+        minPrice: true,
+        primaryCurrency: true,
+      },
+    });
+    if (!listing || listing.companyId !== user.companyId) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
+    if (listing.status !== "DRAFT") {
+      throw new BadRequestException("Yalnızca taslak ilan yayınlanabilir");
+    }
+
+    const amount = await this.estimateListingAmount(listing);
+    const res = await this.approvals.requestApproval(user, {
+      listingId,
+      type: "LISTING_PUBLISH",
+      listingType: listing.type,
+      amount,
+      currency: listing.primaryCurrency,
+    });
+    const updated = await this.prisma.listing.update({
+      where: { id: listingId },
+      data: res.approved
+        ? { status: "OPEN", publishedAt: new Date() }
+        : { status: "IN_APPROVAL" },
+    });
+    if (res.approved) {
+      void this.notifyListingInvitees(listingId, "invitation");
+      void this.notifyCategoryMatchedSellers(listingId);
+    }
+    return this.serialize(updated);
+  }
+
+  /** Onay isteği için tahmini bütçe — ALIM: hedef fiyatlar toplamı; SATIS: taban. */
+  private async estimateListingAmount(listing: {
+    id: string;
+    type: ListingType;
+    minPrice: { toString(): string } | null;
+  }): Promise<number> {
+    if (listing.type === "SATIS") {
+      return listing.minPrice ? Number(listing.minPrice) : 0;
+    }
+    const items = await this.prisma.listingItem.findMany({
+      where: { listingId: listing.id },
+      select: { quantity: true, targetPrice: true },
+    });
+    return items.reduce((sum, it) => {
+      const up = it.targetPrice ? Number(it.targetPrice) : 0;
+      return sum + up * Number(it.quantity);
+    }, 0);
+  }
+
+  /** Yayın onayı onaylandı → ilanı OPEN yap. */
+  @OnEvent("listing.publish.approved")
+  async onPublishApproved(payload: { listingId: string }) {
+    await this.prisma.listing.update({
+      where: { id: payload.listingId },
+      data: { status: "OPEN", publishedAt: new Date() },
+    });
+    void this.notifyListingInvitees(payload.listingId, "invitation");
+    void this.notifyCategoryMatchedSellers(payload.listingId);
+  }
+
+  /** Yayın onayı reddedildi → ilan taslağa geri döner. */
+  @OnEvent("listing.publish.rejected")
+  async onPublishRejected(payload: { listingId: string }) {
+    await this.prisma.listing.update({
+      where: { id: payload.listingId },
+      data: { status: "DRAFT" },
+    });
   }
 
   /**
@@ -269,6 +837,7 @@ export class CompanyListingsService {
         type: true,
         format: true,
         status: true,
+        isInternational: true,
         categoryIds: true,
         createdById: true,
         createdAt: true,
@@ -295,6 +864,7 @@ export class CompanyListingsService {
         type: r.type,
         format: r.format,
         status: r.status,
+        isInternational: r.isInternational,
         categoryIds: r.categoryIds,
         createdById: r.createdById,
         createdBy: {
@@ -315,19 +885,65 @@ export class CompanyListingsService {
    * CONNECTIONS ilanları. PUBLIC ilanı bağlı olmayan STANDART MASKELİ görür
    * (firma gizli, teklif veremez); premium tam görür.
    */
-  async browse(user: AuthenticatedCompanyUser) {
+  async browse(
+    user: AuthenticatedCompanyUser,
+    scope: "domestic" | "international" = "domestic",
+  ) {
     const connectedIds = await this.connectedCompanyIds(user.companyId);
     const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     const isPremium = user.tier === "PAKET";
+
+    // İzleyenin ülkesi (Company.country, default "TR"). Sınıriçi/sınırötesi
+    // ayrımı buna göre yapılır.
+    const me = await this.prisma.company.findUnique({
+      where: { id: user.companyId },
+      select: { country: true },
+    });
+    const myCountry = me?.country ?? "TR";
+
+    // Yurtiçi: ilan sahibi aynı ülkede (o ülkenin tüm açık ilanları).
+    // Uluslararası: ilan sahibi BAŞKA ülkede VE ilan sınır ötesine açılmış
+    // (isInternational) — başka ülkenin yurtiçine-özel ilanı sızmaz.
+    const scopeWhere =
+      scope === "international"
+        ? {
+            isInternational: true,
+            company: { country: { not: myCountry } },
+            // Hedef ülke filtresi: liste boş = tüm ülkeler; dolu = ülkem dahil mi?
+            AND: [
+              {
+                OR: [
+                  { targetCountries: { isEmpty: true } },
+                  { targetCountries: { has: myCountry } },
+                ],
+              },
+            ],
+          }
+        : { company: { country: myCountry } };
+
+    // STANDARD (premium değil) public ilanları GÖREMEZ — yalnızca bağlantılı
+    // (referans) firmalarının açık ilanlarını görür. PAKET hepsini görür.
+    const visibilityOr = isPremium
+      ? [
+          { visibility: "PUBLIC" as const },
+          {
+            visibility: "CONNECTIONS" as const,
+            companyId: { in: connectedIds },
+          },
+        ]
+      : [
+          {
+            visibility: "CONNECTIONS" as const,
+            companyId: { in: connectedIds },
+          },
+        ];
 
     const rows = await this.prisma.listing.findMany({
       where: {
         status: "OPEN",
         companyId: { notIn: [user.companyId, ...blockedIds] },
-        OR: [
-          { visibility: "PUBLIC" },
-          { visibility: "CONNECTIONS", companyId: { in: connectedIds } },
-        ],
+        ...scopeWhere,
+        OR: visibilityOr,
       },
       include: { company: { select: { name: true } } },
       orderBy: { createdAt: "desc" },
@@ -362,7 +978,7 @@ export class CompanyListingsService {
   async getOne(user: AuthenticatedCompanyUser, id: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id },
-      include: { company: { select: { name: true } } },
+      include: { company: { select: { name: true, country: true } } },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
 
@@ -438,9 +1054,25 @@ export class CompanyListingsService {
         },
         orderBy: { createdAt: "asc" },
       });
+      const submittedCount = bids.filter(
+        (b) => b.status === "SUBMITTED",
+      ).length;
+      const pendingApprovalId =
+        listing.status === "IN_APPROVAL" ||
+        listing.status === "IN_AWARD_APPROVAL"
+          ? await this.approvals.pendingForListing(user.companyId, id)
+          : null;
       return {
         ...this.detail(listing, false),
         isOwner: true,
+        // Düzenlenebilir: TASLAK her zaman, AÇIK ise teklif gelmemişken.
+        canEdit:
+          listing.status === "DRAFT" ||
+          (listing.status === "OPEN" && submittedCount === 0),
+        // Yayınlanabilir: yalnızca taslakken.
+        canPublish: listing.status === "DRAFT",
+        // Bekleyen onay isteği (iptal için).
+        pendingApprovalId,
         english,
         internalNotes: listing.internalNotes,
         items: itemsOut,
@@ -480,6 +1112,23 @@ export class CompanyListingsService {
       (listing.visibility === "PRIVATE" && isInvited);
     if (!visible) throw new NotFoundException("İlan bulunamadı");
 
+    // Sınır ötesi erişim: farklı ülkedeki firma yalnızca ilan uluslararası VE
+    // hedef ülkeler boş ya da kendi ülkesini içeriyorsa görebilir.
+    if (!isOwner) {
+      const me = await this.prisma.company.findUnique({
+        where: { id: user.companyId },
+        select: { country: true },
+      });
+      const myCountry = me?.country ?? "TR";
+      if (myCountry !== listing.company.country) {
+        const targeted =
+          listing.isInternational &&
+          (listing.targetCountries.length === 0 ||
+            listing.targetCountries.includes(myCountry));
+        if (!targeted) throw new NotFoundException("İlan bulunamadı");
+      }
+    }
+
     const masked = listing.visibility === "PUBLIC" && !connected && !isPremium;
     const canBid =
       (listing.visibility === "PRIVATE" && isInvited) ||
@@ -494,24 +1143,105 @@ export class CompanyListingsService {
       },
       include: { items: true },
     });
+    // Açık eksiltme görünürlüğü (bidVisibility) — kapalı zarf korunur, sadece
+    // ayara göre en iyi fiyat / kendi sıra / tüm sıralar açılır.
+    const auctionView =
+      listing.format === "ENGLISH_AUCTION"
+        ? await this.computeAuctionView(
+            id,
+            user.companyId,
+            listing.bidVisibility,
+          )
+        : null;
+    // Bidder'a dönen `english` bloğu görünürlükle sınırlanır.
+    const englishForBidder = english
+      ? {
+          ...english,
+          currentBest: auctionView?.bestTotal ?? null,
+          bidCount: auctionView?.participantCount ?? 0,
+        }
+      : null;
     return {
       ...this.detail(listing, masked),
       isOwner: false,
       masked,
       canBid,
-      english,
+      english: englishForBidder,
+      auctionView,
       items: masked ? [] : itemsOut,
       myBid: myBid
         ? {
             amount: myBid.amount.toString(),
             note: myBid.note,
             status: myBid.status,
+            deliveryDate: myBid.deliveryDate
+              ? myBid.deliveryDate.toISOString()
+              : null,
+            validityDays: myBid.validityDays,
+            currency: myBid.currency,
             items: myBid.items.map((bi) => ({
               itemId: bi.itemId,
               unitPrice: bi.unitPrice.toString(),
             })),
           }
         : null,
+    };
+  }
+
+  /**
+   * Açık eksiltme görünürlük hesabı (eski computeAuctionView ile aynı mantık).
+   * OWN_ONLY → null (hiçbir rakip bilgisi). Aksi halde bidVisibility'ye göre
+   * en iyi fiyat / kendi sıra / katılımcı sayısı / tüm sıralar döner.
+   * Kapalı zarf korunur: teklif sahibi kimlikleri ALL modunda bile gizli.
+   */
+  private async computeAuctionView(
+    listingId: string,
+    companyId: string,
+    visibility: ListingBidVisibility,
+  ): Promise<{
+    bestTotal: string | null;
+    myRank: number | null;
+    participantCount: number | null;
+    allBids: { rank: number; total: string; isMine: boolean }[] | null;
+  } | null> {
+    if (visibility === "OWN_ONLY") return null;
+
+    const bids = await this.prisma.listingBid.findMany({
+      where: { listingId, status: "SUBMITTED" },
+      select: { bidderCompanyId: true, amount: true },
+      orderBy: { amount: "asc" }, // açık eksiltme = ters ihale, düşük en iyi
+    });
+    const wantsBest =
+      visibility === "BEST_PRICE" ||
+      visibility === "BEST_AND_OWN_RANK" ||
+      visibility === "ALL";
+    const wantsRank =
+      visibility === "OWN_RANK" ||
+      visibility === "BEST_AND_OWN_RANK" ||
+      visibility === "ALL";
+
+    if (bids.length === 0) {
+      return {
+        bestTotal: null,
+        myRank: null,
+        participantCount: wantsBest || wantsRank ? 0 : null,
+        allBids: visibility === "ALL" ? [] : null,
+      };
+    }
+
+    const myIdx = bids.findIndex((b) => b.bidderCompanyId === companyId);
+    return {
+      bestTotal: wantsBest ? bids[0]!.amount.toString() : null,
+      myRank: wantsRank && myIdx >= 0 ? myIdx + 1 : null,
+      participantCount: wantsBest || wantsRank ? bids.length : null,
+      allBids:
+        visibility === "ALL"
+          ? bids.map((b, i) => ({
+              rank: i + 1,
+              total: b.amount.toString(),
+              isMine: b.bidderCompanyId === companyId,
+            }))
+          : null,
     };
   }
 
@@ -528,6 +1258,15 @@ export class CompanyListingsService {
         status: true,
         requireAllItems: true,
         currentRound: true,
+        primaryCurrency: true,
+        allowedCurrencies: true,
+        closesAt: true,
+        priceDecrementType: true,
+        priceDecrementValue: true,
+        priceDecrementBasis: true,
+        autoExtendOnLateBid: true,
+        autoExtendThresholdMin: true,
+        autoExtendByMinutes: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -536,6 +1275,22 @@ export class CompanyListingsService {
     }
     if (listing.status !== "OPEN") {
       throw new BadRequestException("İlan teklife kapalı");
+    }
+
+    const isDraft = dto.asDraft === true;
+    // Para birimi: ilan izin veriyorsa seçilebilir; varsayılan ilanın birimi.
+    const currency = (dto.currency as Currency) ?? listing.primaryCurrency;
+    if (
+      listing.allowedCurrencies.length > 0 &&
+      !listing.allowedCurrencies.includes(currency)
+    ) {
+      throw new BadRequestException("Bu ilan için geçersiz para birimi");
+    }
+    // Gönderimde teslim tarihi + geçerlilik zorunlu (taslakta opsiyonel).
+    if (!isDraft && (!dto.deliveryDate || !dto.validityDays)) {
+      throw new BadRequestException(
+        "Teklif göndermek için teslim tarihi ve geçerlilik süresi zorunlu",
+      );
     }
 
     const connectedIds = await this.connectedCompanyIds(user.companyId);
@@ -622,19 +1377,67 @@ export class CompanyListingsService {
       amount = dto.amount;
     }
 
-    // İngiliz Usulü (açık eksiltme): yeni teklif mevcut en düşüğün ALTINDA olmalı.
-    if (listing.format === "ENGLISH_AUCTION") {
-      const agg = await this.prisma.listingBid.aggregate({
-        where: { listingId: id, status: "SUBMITTED" },
-        _min: { amount: true },
-      });
-      const min = agg._min.amount;
-      if (min !== null && amount >= Number(min)) {
-        throw new BadRequestException(
-          `İngiliz usulü: teklifin mevcut en düşük ${Number(min).toLocaleString("tr-TR")} ₺'nin altında olmalı`,
-        );
+    // İngiliz Usulü (açık eksiltme): GÖNDERİLEN teklif, düşürme kuralına göre
+    // referansın (en düşük teklif veya kendi son teklifi) yeterince ALTINDA
+    // olmalı. Taslakta serbest.
+    if (!isDraft && listing.format === "ENGLISH_AUCTION") {
+      const [bestAgg, own] = await Promise.all([
+        this.prisma.listingBid.aggregate({
+          where: {
+            listingId: id,
+            status: "SUBMITTED",
+            bidderCompanyId: { not: user.companyId },
+          },
+          _min: { amount: true },
+        }),
+        this.prisma.listingBid.findUnique({
+          where: {
+            listingId_bidderCompanyId: {
+              listingId: id,
+              bidderCompanyId: user.companyId,
+            },
+          },
+          select: { amount: true, status: true },
+        }),
+      ]);
+      const best = bestAgg._min.amount != null ? Number(bestAgg._min.amount) : null;
+      const ownLast =
+        own && own.status === "SUBMITTED" ? Number(own.amount) : null;
+      const ref =
+        listing.priceDecrementBasis === "OWN_LAST_BID" ? ownLast ?? best : best;
+      if (ref != null) {
+        const dv =
+          listing.priceDecrementValue != null
+            ? Number(listing.priceDecrementValue)
+            : 0;
+        const step =
+          dv > 0
+            ? listing.priceDecrementType === "PERCENT"
+              ? (ref * dv) / 100
+              : dv
+            : 0;
+        const maxAllowed = ref - step;
+        if (amount > maxAllowed + 0.0001) {
+          throw new BadRequestException(
+            step > 0
+              ? `İngiliz usulü: teklifiniz en fazla ${maxAllowed.toLocaleString("tr-TR")} ₺ olabilir (referansı en az ${step.toLocaleString("tr-TR")} azaltmalısınız)`
+              : `İngiliz usulü: teklifiniz ${ref.toLocaleString("tr-TR")} ₺'nin altında olmalı`,
+          );
+        }
       }
     }
+
+    // TRY dışı teklifte güncel TCMB kuru anlık snapshot'lanır (karşılaştırma için).
+    let exchangeRateSnapshot: number | null = null;
+    if (currency !== "TRY") {
+      exchangeRateSnapshot = await this.exchangeRates
+        .getCurrentRate(currency)
+        .catch(() => null);
+    }
+
+    const status = isDraft ? "DRAFT" : "SUBMITTED";
+    const deliveryDate = dto.deliveryDate ? new Date(dto.deliveryDate) : null;
+    const validityDays = dto.validityDays ?? null;
 
     const bid = await this.prisma.$transaction(async (tx) => {
       const b = await tx.listingBid.upsert({
@@ -648,15 +1451,26 @@ export class CompanyListingsService {
           listingId: id,
           bidderCompanyId: user.companyId,
           amount,
+          currency,
+          exchangeRateSnapshot,
+          deliveryDate,
+          validityDays,
           note: dto.note?.trim() || null,
           createdById: user.userId,
-          status: "SUBMITTED",
+          status,
+          submittedAt: isDraft ? null : new Date(),
           round: listing.currentRound,
         },
         update: {
           amount,
+          currency,
+          exchangeRateSnapshot,
+          deliveryDate,
+          validityDays,
           note: dto.note?.trim() || null,
-          status: "SUBMITTED",
+          status,
+          version: { increment: 1 },
+          ...(isDraft ? {} : { submittedAt: new Date() }),
           round: listing.currentRound,
         },
       });
@@ -673,6 +1487,32 @@ export class CompanyListingsService {
       }
       return b;
     });
+
+    // Auto-extend: açık eksiltmede son dakikada gelen teklif kapanışı uzatır.
+    if (
+      !isDraft &&
+      listing.format === "ENGLISH_AUCTION" &&
+      listing.autoExtendOnLateBid &&
+      listing.closesAt &&
+      listing.autoExtendThresholdMin &&
+      listing.autoExtendByMinutes
+    ) {
+      const msLeft = listing.closesAt.getTime() - Date.now();
+      const thresholdMs = listing.autoExtendThresholdMin * 60_000;
+      if (msLeft > 0 && msLeft <= thresholdMs) {
+        await this.prisma.listing.update({
+          where: { id },
+          data: {
+            closesAt: new Date(
+              listing.closesAt.getTime() +
+                listing.autoExtendByMinutes * 60_000,
+            ),
+            closingReminderSentAt: null, // hatırlatma yeniden gönderilebilsin
+          },
+        });
+      }
+    }
+
     return { id: bid.id, amount: bid.amount.toString(), status: bid.status };
   }
 
@@ -758,6 +1598,7 @@ export class CompanyListingsService {
         type: true,
         status: true,
         requireBidDocument: true,
+        primaryCurrency: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -799,7 +1640,43 @@ export class CompanyListingsService {
       }
     }
 
-    // Sipariş kalemleri snapshot (ilanda kalem varsa, kazanan teklifin fiyatları).
+    // Onay akışı varsa kazandırmayı askıya al (IN_AWARD_APPROVAL); yoksa uygula.
+    const res = await this.approvals.requestApproval(user, {
+      listingId,
+      type: "LISTING_AWARD",
+      listingType: listing.type,
+      amount: Number(bid.amount),
+      currency: listing.primaryCurrency,
+      payload: { kind: "full", bidId },
+    });
+    if (!res.approved) {
+      await this.prisma.listing.update({
+        where: { id: listingId },
+        data: { status: "IN_AWARD_APPROVAL" },
+      });
+      return { pendingApproval: true as const };
+    }
+    return this.runFullAward(listingId, bidId);
+  }
+
+  /** Tam kazandırmayı uygula — sipariş oluştur, WON/LOST, AWARDED. */
+  private async runFullAward(listingId: string, bidId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true, type: true },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    const bid = await this.prisma.listingBid.findUnique({
+      where: { id: bidId },
+      select: {
+        id: true,
+        bidderCompanyId: true,
+        amount: true,
+        items: { select: { itemId: true, unitPrice: true } },
+      },
+    });
+    if (!bid) throw new BadRequestException("Geçersiz teklif");
+
     const listingItems = await this.prisma.listingItem.findMany({
       where: { listingId },
       select: { id: true, name: true, quantity: true, unit: true },
@@ -827,7 +1704,7 @@ export class CompanyListingsService {
     const order = await this.prisma.$transaction(async (tx) => {
       await tx.listing.update({
         where: { id: listingId },
-        data: { status: "AWARDED" },
+        data: { status: "AWARDED", awardedAt: new Date() },
       });
       await tx.listingBid.update({
         where: { id: bidId },
@@ -844,7 +1721,7 @@ export class CompanyListingsService {
           sellerCompanyId,
           buyerCompanyId,
           amount: bid.amount,
-          status: "CREATED",
+          status: "PENDING", // satıcı onayı bekler (accept/reject)
         },
       });
       if (orderItems.length > 0) {
@@ -854,6 +1731,24 @@ export class CompanyListingsService {
       }
       return o;
     });
+
+    const recipient = await this.companyRecipient(bid.bidderCompanyId);
+    if (recipient) {
+      this.notify(
+        recipient,
+        {
+          subject: "Tebrikler — teklifiniz kazandı",
+          heading: "Teklifiniz kazandı 🎉",
+          paragraphs: [
+            "Merhaba,",
+            `Bir ihalede teklifiniz kazandı ve ${order.number} numaralı sipariş oluştu. Sipariş detaylarını ve sonraki adımları Rothern'den takip edebilirsiniz.`,
+          ],
+          ctaLabel: "Siparişi Gör",
+          ctaUrl: `${this.webUrl()}/company/siparis/${order.id}`,
+        },
+        { type: "bid_awarded", id: order.id },
+      );
+    }
     return { orderId: order.id, number: order.number };
   }
 
@@ -864,11 +1759,17 @@ export class CompanyListingsService {
   async awardByItem(
     user: AuthenticatedCompanyUser,
     listingId: string,
-    itemAwards: { itemId: string; bidId: string }[],
+    itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, type: true, status: true },
+      select: {
+        id: true,
+        companyId: true,
+        type: true,
+        status: true,
+        primaryCurrency: true,
+      },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     if (listing.companyId !== user.companyId) {
@@ -886,6 +1787,34 @@ export class CompanyListingsService {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
     }
 
+    const total = await this.itemAwardTotal(listingId, itemAwards);
+
+    const res = await this.approvals.requestApproval(user, {
+      listingId,
+      type: "LISTING_AWARD",
+      listingType: listing.type,
+      amount: total,
+      currency: listing.primaryCurrency,
+      payload: { kind: "by-item", itemAwards },
+    });
+    if (!res.approved) {
+      await this.prisma.listing.update({
+        where: { id: listingId },
+        data: { status: "IN_AWARD_APPROVAL" },
+      });
+      return { pendingApproval: true as const };
+    }
+    return this.runItemAward(listingId, itemAwards);
+  }
+
+  /**
+   * Kalem-bazlı kazandırma planını kur (kazanan firma → sipariş kalemleri +
+   * tutar). Kısmi miktar (awardedQuantity) desteklenir.
+   */
+  private async buildItemGroups(
+    listingId: string,
+    itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
+  ) {
     const items = await this.prisma.listingItem.findMany({
       where: { listingId },
       select: { id: true, name: true, quantity: true, unit: true },
@@ -898,7 +1827,6 @@ export class CompanyListingsService {
     if (items.some((it) => !awardedItemIds.has(it.id))) {
       throw new BadRequestException("Her kalem için kazanan teklif seçin");
     }
-
     const bidIds = [...new Set(itemAwards.map((a) => a.bidId))];
     const bids = await this.prisma.listingBid.findMany({
       where: { id: { in: bidIds }, listingId, status: "SUBMITTED" },
@@ -910,20 +1838,20 @@ export class CompanyListingsService {
     });
     const bidMap = new Map(bids.map((b) => [b.id, b]));
 
-    // Kazanan firma başına grupla (firma → sipariş kalemleri + tutar + bidId'ler).
     const groups = new Map<
       string,
       {
         orderItems: {
           name: string;
-          quantity: (typeof items)[number]["quantity"];
+          quantity: number;
           unit: string;
-          unitPrice: (typeof bids)[number]["items"][number]["unitPrice"];
+          unitPrice: number;
         }[];
         amount: number;
         bidIds: Set<string>;
       }
     >();
+    const itemQty = new Map<string, number>(); // kalem → verilen miktar (kısmi)
     for (const a of itemAwards) {
       const bid = bidMap.get(a.bidId);
       const li = itemMap.get(a.itemId);
@@ -934,6 +1862,12 @@ export class CompanyListingsService {
           `Seçilen teklifin "${li.name}" kalemi için fiyatı yok`,
         );
       }
+      const fullQty = Number(li.quantity);
+      const qty =
+        a.awardedQuantity != null && a.awardedQuantity > 0
+          ? Math.min(a.awardedQuantity, fullQty)
+          : fullQty;
+      itemQty.set(a.itemId, qty);
       let g = groups.get(bid.bidderCompanyId);
       if (!g) {
         g = { orderItems: [], amount: 0, bidIds: new Set() };
@@ -942,14 +1876,37 @@ export class CompanyListingsService {
       g.bidIds.add(bid.id);
       g.orderItems.push({
         name: li.name,
-        quantity: li.quantity,
+        quantity: qty,
         unit: li.unit,
-        unitPrice: bi.unitPrice,
+        unitPrice: Number(bi.unitPrice),
       });
-      g.amount += Number(bi.unitPrice) * Number(li.quantity);
+      g.amount += Number(bi.unitPrice) * qty;
     }
+    return { groups, itemQty };
+  }
 
-    // Sipariş numaralarını tx öncesi üret (sequence non-transactional).
+  private async itemAwardTotal(
+    listingId: string,
+    itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
+  ): Promise<number> {
+    const { groups } = await this.buildItemGroups(listingId, itemAwards);
+    return [...groups.values()].reduce((s, g) => s + g.amount, 0);
+  }
+
+  /** Kalem-bazlı kazandırmayı uygula — kazanan firma başına sipariş. */
+  private async runItemAward(
+    listingId: string,
+    itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
+  ) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    const { groups, itemQty } = await this.buildItemGroups(
+      listingId,
+      itemAwards,
+    );
     const groupArr = [...groups.entries()];
     const numbers: string[] = [];
     for (let i = 0; i < groupArr.length; i++) {
@@ -960,7 +1917,7 @@ export class CompanyListingsService {
     const created = await this.prisma.$transaction(async (tx) => {
       await tx.listing.update({
         where: { id: listingId },
-        data: { status: "AWARDED" },
+        data: { status: "AWARDED", awardedAt: new Date() },
       });
       await tx.listingBid.updateMany({
         where: { listingId, id: { in: winningBidIds }, status: "SUBMITTED" },
@@ -970,6 +1927,12 @@ export class CompanyListingsService {
         where: { listingId, id: { notIn: winningBidIds }, status: "SUBMITTED" },
         data: { status: "LOST" },
       });
+      for (const [itemId, qty] of itemQty) {
+        await tx.listingItem.update({
+          where: { id: itemId },
+          data: { awardedQuantity: qty },
+        });
+      }
       const orders: { id: string; number: string | null }[] = [];
       for (let i = 0; i < groupArr.length; i++) {
         const [sellerCompanyId, g] = groupArr[i]!;
@@ -980,7 +1943,7 @@ export class CompanyListingsService {
             sellerCompanyId,
             buyerCompanyId: listing.companyId,
             amount: g.amount,
-            status: "CREATED",
+            status: "PENDING", // satıcı onayı bekler (accept/reject)
             items: {
               create: g.orderItems.map((it) => ({
                 name: it.name,
@@ -995,7 +1958,61 @@ export class CompanyListingsService {
       }
       return orders;
     });
+
+    // Kazanan her firmaya bildirim.
+    for (let i = 0; i < groupArr.length; i++) {
+      const [sellerCompanyId] = groupArr[i]!;
+      const o = created[i];
+      const recipient = await this.companyRecipient(sellerCompanyId);
+      if (recipient && o) {
+        this.notify(
+          recipient,
+          {
+            subject: "Tebrikler — teklifiniz kazandı",
+            heading: "Teklifiniz kazandı 🎉",
+            paragraphs: [
+              "Merhaba,",
+              `Bir ihalede teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
+            ],
+            ctaLabel: "Siparişi Gör",
+            ctaUrl: `${this.webUrl()}/company/siparis/${o.id}`,
+          },
+          { type: "bid_awarded", id: o.id },
+        );
+      }
+    }
     return { orders: created, count: created.length };
+  }
+
+  /** Kazandırma onayı onaylandı → saklanan plana göre uygula. */
+  @OnEvent("listing.award.approved")
+  async onAwardApproved(payload: { listingId: string; payload: unknown }) {
+    const p = payload.payload as
+      | { kind: "full"; bidId: string }
+      | {
+          kind: "by-item";
+          itemAwards: {
+            itemId: string;
+            bidId: string;
+            awardedQuantity?: number;
+          }[];
+        }
+      | null;
+    if (!p) return;
+    if (p.kind === "full") {
+      await this.runFullAward(payload.listingId, p.bidId);
+    } else if (p.kind === "by-item") {
+      await this.runItemAward(payload.listingId, p.itemAwards);
+    }
+  }
+
+  /** Kazandırma onayı reddedildi → ilan teklife kapalı (CLOSED) durumuna döner. */
+  @OnEvent("listing.award.rejected")
+  async onAwardRejected(payload: { listingId: string }) {
+    await this.prisma.listing.update({
+      where: { id: payload.listingId },
+      data: { status: "CLOSED" },
+    });
   }
 
   /**
@@ -1081,6 +2098,7 @@ export class CompanyListingsService {
     user: AuthenticatedCompanyUser,
     listingId: string,
     bidId: string,
+    reason?: string,
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
@@ -1095,15 +2113,49 @@ export class CompanyListingsService {
     }
     const bid = await this.prisma.listingBid.findUnique({
       where: { id: bidId },
-      select: { id: true, listingId: true, status: true },
+      select: {
+        id: true,
+        listingId: true,
+        status: true,
+        bidderCompanyId: true,
+      },
     });
     if (!bid || bid.listingId !== listingId || bid.status !== "SUBMITTED") {
       throw new BadRequestException("Geçersiz teklif");
     }
     await this.prisma.listingBid.update({
       where: { id: bidId },
-      data: { status: "LOST" },
+      data: {
+        status: "LOST",
+        eliminationReason: reason?.trim() || null,
+        eliminatedAt: new Date(),
+      },
     });
+
+    // Tedarikçiye eleme bildirimi (gerekçe paylaşılmaz — eski sistem davranışı).
+    const [recipient, info] = await Promise.all([
+      this.companyRecipient(bid.bidderCompanyId),
+      this.prisma.listing.findUnique({
+        where: { id: listingId },
+        select: { title: true, number: true },
+      }),
+    ]);
+    if (recipient) {
+      this.notify(
+        recipient,
+        {
+          subject: "Teklifiniz hakkında güncelleme",
+          heading: "Teklifiniz değerlendirme dışı kaldı",
+          paragraphs: [
+            "Merhaba,",
+            `"${info?.title ?? "İhale"}" (${info?.number ?? "—"}) ihalesinde teklifiniz bu turda elendi. Dilerseniz güncelleyip yeniden teklif verebilirsiniz.`,
+          ],
+          ctaLabel: "İhaleyi Gör",
+          ctaUrl: `${this.webUrl()}/company/ilan/${listingId}`,
+        },
+        { type: "bid_eliminated", id: bidId },
+      );
+    }
     return { ok: true };
   }
 
@@ -1140,6 +2192,7 @@ export class CompanyListingsService {
       where: { id: listing.id },
       data: { status: "CLOSED", closesAt: new Date() },
     });
+    void this.notifyListingClosed(listing.id);
     return { ok: true, status: "CLOSED" };
   }
 
@@ -1257,6 +2310,7 @@ export class CompanyListingsService {
       number: string | null;
       type: ListingType;
       isInternational: boolean;
+      targetCountries: string[];
       format: ListingFormat | null;
       minPrice: { toString(): string } | null;
       buyNowPrice: { toString(): string } | null;
@@ -1301,6 +2355,7 @@ export class CompanyListingsService {
       number: l.number,
       type: l.type,
       isInternational: l.isInternational,
+      targetCountries: l.targetCountries,
       format: l.format,
       minPrice: l.minPrice?.toString() ?? null,
       buyNowPrice: l.buyNowPrice?.toString() ?? null,
@@ -1340,10 +2395,12 @@ export class CompanyListingsService {
     };
   }
 
-  /** Aktif bağlantılı firma id'leri (her iki yön). */
+  /**
+   * Aktif bağlantılı firma id'leri (her iki yön).
+   * PREMIUM-origin bağlantı yalnızca İKİ taraf da PAKET iken sayılır
+   * (premium bitince pasif). INVITE/ADMIN her zaman geçerli.
+   */
   private async connectedCompanyIds(companyId: string): Promise<string[]> {
-    // TODO(premium-düşüş): premium-origin bağlantılar standart düşünce
-    // filtrelenecek (şimdilik tüm ACTIVE).
     const rows = await this.prisma.companyConnection.findMany({
       where: {
         status: "ACTIVE",
@@ -1352,11 +2409,24 @@ export class CompanyListingsService {
           { inviteeCompanyId: companyId },
         ],
       },
-      select: { inviterCompanyId: true, inviteeCompanyId: true },
+      select: {
+        inviterCompanyId: true,
+        inviteeCompanyId: true,
+        origin: true,
+        inviter: { select: { tier: true } },
+      },
     });
-    return rows.map((r) =>
-      r.inviterCompanyId === companyId ? r.inviteeCompanyId : r.inviterCompanyId,
-    );
+    return rows
+      .filter(
+        // PREMIUM bağlantı, onu kuran (daima PAKET olan) davet eden taraf PAKET
+        // kaldığı sürece geçerli. Tedarikçi STANDARD olabilir.
+        (r) => r.origin !== "PREMIUM" || r.inviter.tier === "PAKET",
+      )
+      .map((r) =>
+        r.inviterCompanyId === companyId
+          ? r.inviteeCompanyId
+          : r.inviterCompanyId,
+      );
   }
 
   private serialize(l: {

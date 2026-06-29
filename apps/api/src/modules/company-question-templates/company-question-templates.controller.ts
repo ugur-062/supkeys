@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -38,5 +39,13 @@ export class CompanyQuestionTemplatesController {
     @Body() dto: SaveQuestionTemplateDto,
   ) {
     return this.service.save(user.companyId, dto);
+  }
+
+  @Delete(":id")
+  remove(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.remove(user.companyId, id);
   }
 }

@@ -5,6 +5,7 @@ import { PassportModule } from "@nestjs/passport";
 import { PasswordResetModule } from "../password-reset/password-reset.module";
 import { SupabaseAuthModule } from "../supabase-auth/supabase-auth.module";
 import { CompanyAuthController } from "./controllers/company-auth.controller";
+import { MembershipScheduler } from "./schedulers/membership.scheduler";
 import { CompanyAuthService } from "./services/company-auth.service";
 import { CompanyJwtStrategy } from "./strategies/company-jwt.strategy";
 
@@ -25,7 +26,7 @@ import { CompanyJwtStrategy } from "./strategies/company-jwt.strategy";
     }),
   ],
   controllers: [CompanyAuthController],
-  providers: [CompanyAuthService, CompanyJwtStrategy],
+  providers: [CompanyAuthService, CompanyJwtStrategy, MembershipScheduler],
   exports: [CompanyAuthService],
 })
 export class CompanyAuthModule {}

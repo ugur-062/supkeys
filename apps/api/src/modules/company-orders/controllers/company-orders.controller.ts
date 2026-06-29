@@ -5,8 +5,9 @@ import {
 } from "../../company-auth/decorators/current-company-user.decorator";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import {
+  OrderReasonDto,
   RecordPaymentDto,
-  RejectReasonDto,
+  RejectPaymentReasonDto,
 } from "../dto/order-payment.dto";
 import { CompanyOrdersService } from "../services/company-orders.service";
 
@@ -42,7 +43,7 @@ export class CompanyOrdersController {
   reject(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
-    @Body() dto: RejectReasonDto,
+    @Body() dto: OrderReasonDto,
   ) {
     return this.service.reject(user, id, dto.reason);
   }
@@ -73,6 +74,15 @@ export class CompanyOrdersController {
     return this.service.complete(user, id);
   }
 
+  @Post(":id/cancel")
+  cancel(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: OrderReasonDto,
+  ) {
+    return this.service.cancel(user, id, dto.reason);
+  }
+
   // ---- Ödeme kayıtları ----
 
   @Post(":id/payments")
@@ -98,7 +108,7 @@ export class CompanyOrdersController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
     @Param("paymentId") paymentId: string,
-    @Body() dto: RejectReasonDto,
+    @Body() dto: RejectPaymentReasonDto,
   ) {
     return this.service.rejectPayment(user, id, paymentId, dto.reason);
   }

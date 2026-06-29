@@ -1,6 +1,7 @@
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEmail,
   IsEnum,
   IsOptional,
@@ -51,4 +52,48 @@ export class UpdateUserRolesDto {
   @ArrayMinSize(1, { message: "En az bir rol seçin" })
   @IsEnum(CompanyRoleDto, { each: true, message: "Geçersiz rol" })
   roles!: CompanyRoleDto[];
+}
+
+export class UpdateUserDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(80)
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(80)
+  lastName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  phone?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1, { message: "En az bir rol seçin" })
+  @IsEnum(CompanyRoleDto, { each: true, message: "Geçersiz rol" })
+  roles?: CompanyRoleDto[];
+}
+
+export class SetUserActiveDto {
+  @IsBoolean()
+  active!: boolean;
+}
+
+export class UpdateUserPermissionsDto {
+  // Rol-varsayılanı üstüne EKLENEN izin anahtarları.
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(60, { each: true })
+  added!: string[];
+
+  // Rol-varsayılanından ÇIKARILAN izin anahtarları.
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(60, { each: true })
+  removed!: string[];
 }

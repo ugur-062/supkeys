@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Ip,
+  Patch,
   Post,
   UseGuards,
 } from "@nestjs/common";
@@ -14,6 +15,12 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../decorators/current-company-user.decorator";
+import {
+  ChangePasswordDto,
+  TwoFactorCodeDto,
+  UpdateMeDto,
+  UpdateNotificationPrefsDto,
+} from "../dto/account.dto";
 import { CompanyLoginDto } from "../dto/company-login.dto";
 import { CompanySignupDto } from "../dto/company-signup.dto";
 import { CompanyJwtAuthGuard } from "../guards/company-jwt-auth.guard";
@@ -61,5 +68,64 @@ export class CompanyAuthController {
   @UseGuards(CompanyJwtAuthGuard)
   me(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.getMe(user.userId);
+  }
+
+  @Patch("me")
+  @UseGuards(CompanyJwtAuthGuard)
+  updateMe(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: UpdateMeDto,
+  ) {
+    return this.service.updateMe(user.userId, dto);
+  }
+
+  @Patch("me/notifications")
+  @UseGuards(CompanyJwtAuthGuard)
+  updateNotifications(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: UpdateNotificationPrefsDto,
+  ) {
+    return this.service.updateNotificationPrefs(user.userId, dto.prefs);
+  }
+
+  @Post("change-password")
+  @UseGuards(CompanyJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  changePassword(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.service.changePassword(
+      user.userId,
+      dto.currentPassword,
+      dto.newPassword,
+    );
+  }
+
+  @Post("2fa/setup")
+  @UseGuards(CompanyJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  setup2fa(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.setupTwoFactor(user.userId);
+  }
+
+  @Post("2fa/enable")
+  @UseGuards(CompanyJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  enable2fa(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: TwoFactorCodeDto,
+  ) {
+    return this.service.enableTwoFactor(user.userId, dto.code);
+  }
+
+  @Post("2fa/disable")
+  @UseGuards(CompanyJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  disable2fa(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: TwoFactorCodeDto,
+  ) {
+    return this.service.disableTwoFactor(user.userId, dto.code);
   }
 }

@@ -224,9 +224,21 @@ export class CreateListingDto {
   @IsEnum(ListingTypeDto, { message: "Geçersiz ilan tipi" })
   type!: ListingTypeDto;
 
+  // true → taslak olarak kaydet (yayınlama); false/undefined → yayınla.
+  @IsOptional()
+  @IsBoolean()
+  asDraft?: boolean;
+
   @IsOptional()
   @IsBoolean()
   isInternational?: boolean;
+
+  // Sınır ötesi hedef ülkeler (ISO kodları). Boş = tüm yabancı ülkeler.
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(200)
+  targetCountries?: string[];
 
   @IsOptional()
   @IsEnum(ListingFormatDto, { message: "Geçersiz format" })

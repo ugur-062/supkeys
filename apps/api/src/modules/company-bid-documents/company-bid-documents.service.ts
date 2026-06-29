@@ -25,6 +25,20 @@ export class CompanyBidDocumentsService {
     private readonly storage: StorageService,
   ) {}
 
+  /** İlan teklife açık (OPEN) değilse belge değişikliği yapılamaz. */
+  private async assertListingOpen(listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { status: true },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (listing.status !== "OPEN") {
+      throw new BadRequestException(
+        "İhale teklife kapalı — belge eklenemez/silinemez",
+      );
+    }
+  }
+
   /** Teklif sahibinin bu ilandaki teklifini bulur (yoksa hata). */
   private async requireOwnBid(
     user: AuthenticatedCompanyUser,
@@ -53,6 +67,7 @@ export class CompanyBidDocumentsService {
     if (!ALLOWED_MIME.includes(input.mimeType)) {
       throw new BadRequestException("Sadece PDF, görsel veya Excel yüklenebilir");
     }
+    await this.assertListingOpen(listingId);
     await this.requireOwnBid(user, listingId);
     const safe = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
     const key = `listing-bids/${listingId}/${user.companyId}/${crypto.randomUUID()}-${safe}`;
@@ -65,6 +80,7 @@ export class CompanyBidDocumentsService {
     listingId: string,
     input: { key: string; fileName: string; mimeType: string },
   ) {
+    await this.assertListingOpen(listingId);
     const bid = await this.requireOwnBid(user, listingId);
     const doc = await this.prisma.listingBidDocument.create({
       data: {
@@ -123,6 +139,7 @@ export class CompanyBidDocumentsService {
     if (doc.uploadedByCompanyId !== user.companyId) {
       throw new ForbiddenException("Bu belgeyi silemezsiniz");
     }
+    await this.assertListingOpen(listingId);
     await this.storage.deleteObject(doc.key).catch(() => undefined);
     await this.prisma.listingBidDocument.delete({ where: { id: docId } });
     return { ok: true };

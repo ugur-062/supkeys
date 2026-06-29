@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Patch, Post, UseGuards } from "@nestjs/common";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -6,6 +6,10 @@ import {
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
+import {
+  ProfileImageCommitDto,
+  ProfileImageUploadDto,
+} from "./dto/profile-image.dto";
 import { UpdateCompanyProfileDto } from "./dto/update-company-profile.dto";
 import { CompanyProfileService } from "./company-profile.service";
 
@@ -26,5 +30,25 @@ export class CompanyProfileController {
     @Body() dto: UpdateCompanyProfileDto,
   ) {
     return this.service.update(user.companyId, dto);
+  }
+
+  @Post("image/upload-url")
+  @RequireCompanyPermission("company:manage")
+  imageUploadUrl(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: ProfileImageUploadDto,
+  ) {
+    return this.service.requestImageUploadUrl(
+      user.companyId,
+      dto.kind,
+      dto.fileName,
+      dto.mimeType,
+    );
+  }
+
+  @Post("image/commit")
+  @RequireCompanyPermission("company:manage")
+  imageCommit(@Body() dto: ProfileImageCommitDto) {
+    return this.service.resolveUploadedImage(dto.key);
   }
 }

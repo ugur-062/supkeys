@@ -68,4 +68,16 @@ export class CompanyQuestionTemplatesService {
     });
     return { id: row.id, name: row.name };
   }
+
+  async remove(companyId: string, id: string) {
+    const row = await this.prisma.listingQuestionTemplate.findUnique({
+      where: { id },
+      select: { id: true, companyId: true },
+    });
+    if (!row || row.companyId !== companyId) {
+      throw new NotFoundException("Şablon bulunamadı");
+    }
+    await this.prisma.listingQuestionTemplate.delete({ where: { id } });
+    return { ok: true };
+  }
 }

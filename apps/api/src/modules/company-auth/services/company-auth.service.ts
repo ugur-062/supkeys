@@ -1,10 +1,14 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { authenticator } from "otplib";
+import * as QRCode from "qrcode";
 import { CompanyRole, type Company, type CompanyUser } from "@supkeys/db";
 import { generateShortCode } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -18,6 +22,8 @@ type Ctx = { ip?: string; userAgent?: string };
 
 @Injectable()
 export class CompanyAuthService {
+  private readonly logger = new Logger(CompanyAuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
@@ -99,7 +105,59 @@ export class CompanyAuthService {
       userAgent: ctx?.userAgent,
     });
 
+    // Bu e-postaya gönderilmiş bekleyen referans davetleri → otomatik INVITE
+    // (kalıcı) bağlantı. Signup'ı bozmaması için hatayı yutar.
+    await this.acceptReferralInvites(email, result.company.id).catch((err) =>
+      this.logger.error(
+        `Referans daveti bağlama hatası (${email}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
+
     return this.buildLoginResponse(result.user, result.company);
+  }
+
+  /**
+   * Yeni kayıt olan firmaya gönderilmiş bekleyen e-posta davetlerini işler:
+   * her biri için davet eden firma ile ACTIVE INVITE bağlantı kurar (kalıcı).
+   */
+  private async acceptReferralInvites(
+    email: string,
+    newCompanyId: string,
+  ): Promise<void> {
+    const invites = await this.prisma.companyReferralInvite.findMany({
+      where: { email, status: "PENDING" },
+      select: { id: true, inviterCompanyId: true, invitedById: true },
+    });
+    for (const inv of invites) {
+      if (inv.inviterCompanyId === newCompanyId) continue;
+      await this.prisma.companyConnection.upsert({
+        where: {
+          inviterCompanyId_inviteeCompanyId: {
+            inviterCompanyId: inv.inviterCompanyId,
+            inviteeCompanyId: newCompanyId,
+          },
+        },
+        create: {
+          inviterCompanyId: inv.inviterCompanyId,
+          inviteeCompanyId: newCompanyId,
+          invitedById: inv.invitedById,
+          status: "ACTIVE",
+          origin: "INVITE",
+          decidedAt: new Date(),
+        },
+        update: {},
+      });
+      await this.prisma.companyReferralInvite.update({
+        where: { id: inv.id },
+        data: {
+          status: "ACCEPTED",
+          acceptedCompanyId: newCompanyId,
+          acceptedAt: new Date(),
+        },
+      });
+    }
   }
 
   // ============================================================
@@ -153,7 +211,90 @@ export class CompanyAuthService {
       );
     }
 
+    // 2FA açıksa: kod yoksa "gerekli" yanıtı, varsa doğrula.
+    if (user.twoFactorEnabled) {
+      if (!dto.code) {
+        return { twoFactorRequired: true as const };
+      }
+      const ok = user.twoFactorSecret
+        ? authenticator.verify({
+            token: dto.code.trim(),
+            secret: user.twoFactorSecret,
+          })
+        : false;
+      if (!ok) {
+        auditFail("bad_2fa");
+        throw new UnauthorizedException("Doğrulama kodu hatalı");
+      }
+    }
+
     return this.buildLoginResponse(user, user.company, ctx);
+  }
+
+  // ============================================================
+  // 2FA (TOTP) — eski ayarlar
+  // ============================================================
+
+  /** 2FA kurulumunu başlat — secret üret, QR + otpauth döndür (henüz aktif değil). */
+  async setupTwoFactor(userId: string) {
+    const user = await this.prisma.companyUser.findUnique({
+      where: { id: userId },
+      select: { email: true, twoFactorEnabled: true },
+    });
+    if (!user) throw new UnauthorizedException();
+    if (user.twoFactorEnabled) {
+      throw new BadRequestException("İki adımlı doğrulama zaten açık");
+    }
+    const secret = authenticator.generateSecret();
+    await this.prisma.companyUser.update({
+      where: { id: userId },
+      data: { twoFactorSecret: secret },
+    });
+    const otpauthUrl = authenticator.keyuri(user.email, "Rothern", secret);
+    const qrDataUrl = await QRCode.toDataURL(otpauthUrl);
+    return { otpauthUrl, qrDataUrl, secret };
+  }
+
+  /** Kurulum kodunu doğrulayıp 2FA'yı aç. */
+  async enableTwoFactor(userId: string, code: string) {
+    const user = await this.prisma.companyUser.findUnique({
+      where: { id: userId },
+      select: { twoFactorSecret: true },
+    });
+    if (!user?.twoFactorSecret) {
+      throw new BadRequestException("Önce 2FA kurulumunu başlatın");
+    }
+    if (!authenticator.verify({ token: code.trim(), secret: user.twoFactorSecret })) {
+      throw new BadRequestException("Doğrulama kodu hatalı");
+    }
+    await this.prisma.companyUser.update({
+      where: { id: userId },
+      data: { twoFactorEnabled: true, twoFactorEnabledAt: new Date() },
+    });
+    return { ok: true };
+  }
+
+  /** Kod doğrulayıp 2FA'yı kapat. */
+  async disableTwoFactor(userId: string, code: string) {
+    const user = await this.prisma.companyUser.findUnique({
+      where: { id: userId },
+      select: { twoFactorSecret: true, twoFactorEnabled: true },
+    });
+    if (!user?.twoFactorEnabled || !user.twoFactorSecret) {
+      throw new BadRequestException("İki adımlı doğrulama zaten kapalı");
+    }
+    if (!authenticator.verify({ token: code.trim(), secret: user.twoFactorSecret })) {
+      throw new BadRequestException("Doğrulama kodu hatalı");
+    }
+    await this.prisma.companyUser.update({
+      where: { id: userId },
+      data: {
+        twoFactorEnabled: false,
+        twoFactorEnabledAt: null,
+        twoFactorSecret: null,
+      },
+    });
+    return { ok: true };
   }
 
   // ============================================================
@@ -169,6 +310,62 @@ export class CompanyAuthService {
       user: this.serializeUser(user, user.company.ownerUserId === user.id),
       company: this.serializeCompany(user.company),
     };
+  }
+
+  // ============================================================
+  // HESAP AYARLARI (eski ayarlar — kişisel)
+  // ============================================================
+
+  /** Kendi profilini güncelle (ad/soyad/telefon). */
+  async updateMe(
+    userId: string,
+    dto: { firstName?: string; lastName?: string; phone?: string },
+  ) {
+    await this.prisma.companyUser.update({
+      where: { id: userId },
+      data: {
+        ...(dto.firstName !== undefined
+          ? { firstName: dto.firstName.trim() }
+          : {}),
+        ...(dto.lastName !== undefined
+          ? { lastName: dto.lastName.trim() }
+          : {}),
+        ...(dto.phone !== undefined ? { phone: dto.phone.trim() || null } : {}),
+      },
+    });
+    return this.getMe(userId);
+  }
+
+  /** Mevcut parolayı doğrulayıp yenisini ata (Supabase). */
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const user = await this.prisma.companyUser.findUnique({
+      where: { id: userId },
+      select: { email: true, authId: true },
+    });
+    if (!user || !user.authId) throw new UnauthorizedException();
+    try {
+      await this.supabaseAuth.verifyPassword(user.email, currentPassword);
+    } catch {
+      throw new ForbiddenException("Mevcut parola hatalı");
+    }
+    await this.supabaseAuth.updatePassword(user.authId, newPassword);
+    return { ok: true };
+  }
+
+  /** Bildirim tercihlerini güncelle (serbest Json). */
+  async updateNotificationPrefs(
+    userId: string,
+    prefs: Record<string, boolean>,
+  ) {
+    await this.prisma.companyUser.update({
+      where: { id: userId },
+      data: { notificationPrefs: prefs },
+    });
+    return this.getMe(userId);
   }
 
   // ============================================================
@@ -222,6 +419,8 @@ export class CompanyAuthService {
       roles: user.roles,
       isOwner,
       twoFactorEnabled: user.twoFactorEnabled,
+      notificationPrefs:
+        (user.notificationPrefs as Record<string, boolean> | null) ?? null,
       lastLoginAt: user.lastLoginAt,
     };
   }
