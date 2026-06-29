@@ -1265,6 +1265,22 @@ export function Step1Info({ listingId }: { listingId?: string }) {
         </div>
       </section>
 
+      {/* SECTION: İhale Dökümanları (Hüküm/Notlar'ın hemen altında) */}
+      <section>
+        {listingId ? (
+          <FilesTab listingId={listingId} isOwner canEdit />
+        ) : (
+          <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+            <FileText className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
+            <p>
+              İhale dökümanlarını (şartname, teknik resim vb.) ilanı
+              oluşturduktan sonra <strong>Düzenle</strong> ekranından
+              ekleyebilirsiniz.
+            </p>
+          </div>
+        )}
+      </section>
+
       {/* SECTION: Zaman */}
       <section>
         <SectionHeader
@@ -1304,22 +1320,6 @@ export function Step1Info({ listingId }: { listingId?: string }) {
             aşamasına geçer.
           </p>
         </div>
-      </section>
-
-      {/* İhale Dökümanları (şartname, teknik resim vb.) */}
-      <section>
-        {listingId ? (
-          <FilesTab listingId={listingId} isOwner canEdit />
-        ) : (
-          <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-            <Clock className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
-            <p>
-              İhale dökümanlarını (şartname, teknik resim vb.) ilanı
-              oluşturduktan sonra <strong>Düzenle</strong> ekranından
-              ekleyebilirsiniz.
-            </p>
-          </div>
-        )}
       </section>
     </div>
   );
