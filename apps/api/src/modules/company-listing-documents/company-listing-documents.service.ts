@@ -25,6 +25,58 @@ export class CompanyListingDocumentsService {
     private readonly storage: StorageService,
   ) {}
 
+  /** İlanı görme yetkisi (getOne ile aynı kural). Yetkisizse 404. */
+  private async assertCanView(
+    user: AuthenticatedCompanyUser,
+    listing: {
+      id: string;
+      companyId: string;
+      visibility: string;
+      isInternational: boolean;
+      targetCountries: string[];
+      company: { country: string };
+    },
+  ) {
+    if (listing.companyId === user.companyId) return; // sahip
+
+    const [connectedCount, invitedCount] = await Promise.all([
+      this.prisma.companyConnection.count({
+        where: {
+          status: "ACTIVE",
+          OR: [
+            { inviterCompanyId: user.companyId, inviteeCompanyId: listing.companyId },
+            { inviterCompanyId: listing.companyId, inviteeCompanyId: user.companyId },
+          ],
+        },
+      }),
+      this.prisma.listingInvitation.count({
+        where: { listingId: listing.id, invitedCompanyId: user.companyId },
+      }),
+    ]);
+    const connected = connectedCount > 0;
+
+    let allowed: boolean;
+    if (listing.visibility === "PUBLIC") {
+      allowed = connected || user.tier === "PAKET";
+    } else if (listing.visibility === "CONNECTIONS") {
+      allowed = connected;
+    } else {
+      allowed = invitedCount > 0; // PRIVATE → davetli
+    }
+
+    // Ülke kapsamı (uluslararası → hedef ülke; yurtiçi → aynı ülke).
+    if (allowed) {
+      const myCountry = user.country;
+      allowed = listing.isInternational
+        ? myCountry !== listing.company.country &&
+          (listing.targetCountries.length === 0 ||
+            listing.targetCountries.includes(myCountry))
+        : myCountry === listing.company.country;
+    }
+
+    if (!allowed) throw new NotFoundException("İlan bulunamadı");
+  }
+
   private async requireOwner(
     user: AuthenticatedCompanyUser,
     listingId: string,
@@ -104,13 +156,25 @@ export class CompanyListingDocumentsService {
     return { id: doc.id };
   }
 
-  /** İlanı görebilen herkes (sahip + davetli/bağlı) dosyaları indirebilir. */
+  /**
+   * İlanı GÖREBİLEN firmalar dosyaları indirebilir: sahip + (PUBLIC & premium/
+   * bağlı) + (CONNECTIONS & bağlı) + (PRIVATE & davetli) + ülke kapsamı.
+   * Yoksa 404 (gizli şartname/çizim sızıntısını önler).
+   */
   async list(user: AuthenticatedCompanyUser, listingId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true },
+      select: {
+        id: true,
+        companyId: true,
+        visibility: true,
+        isInternational: true,
+        targetCountries: true,
+        company: { select: { country: true } },
+      },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
+    await this.assertCanView(user, listing);
     const docs = await this.prisma.listingDocument.findMany({
       where: { listingId },
       orderBy: { createdAt: "desc" },

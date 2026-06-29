@@ -15,6 +15,7 @@ import {
   type ListingPaymentTerm,
   type ListingPaymentTiming,
   type ListingBidVisibility,
+  type ListingBidStatus,
   type ListingDecrementType,
   type ListingDecrementBasis,
   type ListingQuestionAnswerType,
@@ -996,7 +997,8 @@ export class CompanyListingsService {
     );
     const addrRows = addrIds.length
       ? await this.prisma.companyAddress.findMany({
-          where: { id: { in: addrIds } },
+          // Yalnızca ilan sahibinin adresleri — başka firmanın PII'si sızmaz.
+          where: { id: { in: addrIds }, companyId: listing.companyId },
         })
       : [];
     const serializeAddr = (a: (typeof addrRows)[number] | undefined) =>
@@ -1168,11 +1170,12 @@ export class CompanyListingsService {
     //    izleyenin ülkesini içeren firmalar görür (yurtiçi tedarikçi GÖRMEZ).
     //  - Yurtiçi ilan: SADECE aynı ülkedeki firmalar görür.
     if (!isOwner) {
-      const me = await this.prisma.company.findUnique({
-        where: { id: user.companyId },
-        select: { country: true },
-      });
-      const myCountry = me?.country ?? "TR";
+      // Engelli firma ilanı göremez.
+      const blockedIds = await this.blocks.blockedCompanyIds(listing.companyId);
+      if (blockedIds.includes(user.companyId)) {
+        throw new NotFoundException("İlan bulunamadı");
+      }
+      const myCountry = user.country;
       const ownerCountry = listing.company.country;
       const allowed = listing.isInternational
         ? myCountry !== ownerCountry &&
@@ -1316,6 +1319,7 @@ export class CompanyListingsService {
         primaryCurrency: true,
         allowedCurrencies: true,
         closesAt: true,
+        bidsOpenAt: true,
         priceDecrementType: true,
         priceDecrementValue: true,
         priceDecrementBasis: true,
@@ -1330,6 +1334,17 @@ export class CompanyListingsService {
     }
     if (listing.status !== "OPEN") {
       throw new BadRequestException("İlan teklife kapalı");
+    }
+    // Açılış saati gelmemişse teklif alınmaz (mühürlü açılış embargosu).
+    if (listing.bidsOpenAt && Date.now() < listing.bidsOpenAt.getTime()) {
+      throw new BadRequestException(
+        "Teklif verme henüz başlamadı (açılış saatini bekleyin)",
+      );
+    }
+    // Engellenen firma teklif veremez (iki yön de).
+    const blockedIds = await this.blocks.blockedCompanyIds(listing.companyId);
+    if (blockedIds.includes(user.companyId)) {
+      throw new NotFoundException("İlan bulunamadı");
     }
 
     const isDraft = dto.asDraft === true;
@@ -1597,6 +1612,10 @@ export class CompanyListingsService {
     if (listing.status !== "OPEN") {
       throw new BadRequestException("İlan teklife kapalı");
     }
+    const blockedIds = await this.blocks.blockedCompanyIds(listing.companyId);
+    if (blockedIds.includes(user.companyId)) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
 
     const connectedIds = await this.connectedCompanyIds(user.companyId);
     const connected = connectedIds.includes(listing.companyId);
@@ -1824,6 +1843,7 @@ export class CompanyListingsService {
         type: true,
         status: true,
         primaryCurrency: true,
+        requireBidDocument: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -1840,6 +1860,22 @@ export class CompanyListingsService {
     }
     if (!user.roles.includes(CompanyRole.SATIN_ALMACI)) {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
+    }
+
+    // Belge zorunluysa her kazanan teklifin en az 1 belgesi olmalı (tam-kazandırma
+    // ile aynı kural — item-award baypasını kapatır).
+    if (listing.requireBidDocument) {
+      const winningBidIds = [...new Set(itemAwards.map((a) => a.bidId))];
+      for (const bidId of winningBidIds) {
+        const docCount = await this.prisma.listingBidDocument.count({
+          where: { bidId },
+        });
+        if (docCount === 0) {
+          throw new BadRequestException(
+            "Belge zorunlu — kazanan teklifin yüklü belgesi yok",
+          );
+        }
+      }
     }
 
     const total = await this.itemAwardTotal(listingId, itemAwards);
@@ -1878,9 +1914,10 @@ export class CompanyListingsService {
       throw new BadRequestException("Bu ihalede kalem yok");
     }
     const itemMap = new Map(items.map((i) => [i.id, i]));
-    const awardedItemIds = new Set(itemAwards.map((a) => a.itemId));
-    if (items.some((it) => !awardedItemIds.has(it.id))) {
-      throw new BadRequestException("Her kalem için kazanan teklif seçin");
+    // Kısmi kapsam: yalnızca kazanan seçilen kalemler kazandırılır; teklif
+    // almamış/seçilmemiş kalemler atlanır (eski sistemle aynı). En az 1 gerekir.
+    if (itemAwards.length === 0) {
+      throw new BadRequestException("En az bir kalem için kazanan seçin");
     }
     const bidIds = [...new Set(itemAwards.map((a) => a.bidId))];
     const bids = await this.prisma.listingBid.findMany({
@@ -2126,12 +2163,22 @@ export class CompanyListingsService {
       throw new BadRequestException("Açılış tarihi kapanıştan önce olmalı");
     }
 
-    // Mevcut turun SUBMITTED tekliflerini snapshot'la (geçmiş).
+    // Mevcut turun teklifleri (gönderilmiş + elenmiş/kazansız). CLOSED_NO_AWARD'da
+    // teklifler LOST olduğundan da taşınabilsin diye LOST dahil.
     const bids = await this.prisma.listingBid.findMany({
-      where: { listingId, status: "SUBMITTED" },
+      where: {
+        listingId,
+        round: listing.currentRound,
+        status: { in: ["SUBMITTED", "LOST"] as ListingBidStatus[] },
+      },
       include: { bidderCompany: { select: { name: true } } },
     });
     const bidderCompanyIds = [...new Set(bids.map((b) => b.bidderCompanyId))];
+    const priorWhere = {
+      listingId,
+      round: listing.currentRound,
+      status: { in: ["SUBMITTED", "LOST"] as ListingBidStatus[] },
+    };
 
     await this.prisma.$transaction(async (tx) => {
       if (bids.length > 0) {
@@ -2144,16 +2191,21 @@ export class CompanyListingsService {
           })),
         });
       }
-      // Teklif taşıma: AUTO/LAZY → taslağa çek (taşınır, yeniden gönderilir);
-      // NONE → LOST (sıfırdan).
-      if (dto.carryBids === "AUTO" || dto.carryBids === "LAZY") {
+      // Teklif taşıma: AUTO → canlı taşı (SUBMITTED kalır, owner hemen görür);
+      // LAZY → taslağa çek (tedarikçi yeniden gönderir); NONE → LOST (sıfırdan).
+      if (dto.carryBids === "AUTO") {
         await tx.listingBid.updateMany({
-          where: { listingId, status: "SUBMITTED" },
+          where: priorWhere,
+          data: { status: "SUBMITTED" },
+        });
+      } else if (dto.carryBids === "LAZY") {
+        await tx.listingBid.updateMany({
+          where: priorWhere,
           data: { status: "DRAFT" },
         });
       } else {
         await tx.listingBid.updateMany({
-          where: { listingId, status: "SUBMITTED" },
+          where: priorWhere,
           data: { status: "LOST" },
         });
       }
@@ -2334,8 +2386,9 @@ export class CompanyListingsService {
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi eleme yapabilir");
     }
-    if (listing.status !== "OPEN") {
-      throw new BadRequestException("İlan teklife kapalı");
+    // Karar aşaması: açık VEYA kapanmış ilanda eleme yapılabilir (award ile aynı).
+    if (listing.status !== "OPEN" && listing.status !== "CLOSED") {
+      throw new BadRequestException("Bu durumda eleme yapılamaz");
     }
     const bid = await this.prisma.listingBid.findUnique({
       where: { id: bidId },
