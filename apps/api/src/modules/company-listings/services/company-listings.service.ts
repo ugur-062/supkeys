@@ -188,13 +188,13 @@ export class CompanyListingsService {
       return [];
     }
     // Ülke kapsamı: yurtiçi ilan → yalnızca sahip ülkesi; uluslararası →
-    // hedef ülkeler (boşsa tümü) + sahip ülkesi.
+    // YALNIZCA yabancı hedef ülkeler (sahip ülkesi HARİÇ — yurtiçi görmez).
     const ownerCountry = listing.company.country;
     const countryWhere = !listing.isInternational
       ? { country: ownerCountry }
       : listing.targetCountries.length === 0
-        ? {}
-        : { country: { in: [ownerCountry, ...listing.targetCountries] } };
+        ? { country: { not: ownerCountry } }
+        : { country: { in: listing.targetCountries } };
     const { segmentIds, subCandidates } = deriveCategoryMatchCandidates(
       listing.categoryIds,
     );
@@ -904,9 +904,10 @@ export class CompanyListingsService {
     });
     const myCountry = me?.country ?? "TR";
 
-    // Yurtiçi: ilan sahibi aynı ülkede (o ülkenin tüm açık ilanları).
-    // Uluslararası: ilan sahibi BAŞKA ülkede VE ilan sınır ötesine açılmış
-    // (isInternational) — başka ülkenin yurtiçine-özel ilanı sızmaz.
+    // Yurtiçi: SADECE yurtiçi ilanlar (isInternational=false) + aynı ülke.
+    // Uluslararası: ilan sınır ötesine açılmış (isInternational=true), sahibi
+    // BAŞKA ülkede VE hedef ülke listesi beni kapsıyor. Uluslararası ilan
+    // yurtiçi kapsamda GÖRÜNMEZ (adı üstünde — yurtiçi tedarikçi görmez).
     const scopeWhere =
       scope === "international"
         ? {
@@ -922,7 +923,7 @@ export class CompanyListingsService {
               },
             ],
           }
-        : { company: { country: myCountry } };
+        : { isInternational: false, company: { country: myCountry } };
 
     // STANDARD (premium değil) public ilanları GÖREMEZ — yalnızca bağlantılı
     // (referans) firmalarının açık ilanlarını görür. PAKET hepsini görür.
@@ -1115,21 +1116,23 @@ export class CompanyListingsService {
       (listing.visibility === "PRIVATE" && isInvited);
     if (!visible) throw new NotFoundException("İlan bulunamadı");
 
-    // Sınır ötesi erişim: farklı ülkedeki firma yalnızca ilan uluslararası VE
-    // hedef ülkeler boş ya da kendi ülkesini içeriyorsa görebilir.
+    // Ülke kapsamı (sahip hariç):
+    //  - Uluslararası ilan: SADECE farklı ülkedeki + hedef ülkeler boş ya da
+    //    izleyenin ülkesini içeren firmalar görür (yurtiçi tedarikçi GÖRMEZ).
+    //  - Yurtiçi ilan: SADECE aynı ülkedeki firmalar görür.
     if (!isOwner) {
       const me = await this.prisma.company.findUnique({
         where: { id: user.companyId },
         select: { country: true },
       });
       const myCountry = me?.country ?? "TR";
-      if (myCountry !== listing.company.country) {
-        const targeted =
-          listing.isInternational &&
+      const ownerCountry = listing.company.country;
+      const allowed = listing.isInternational
+        ? myCountry !== ownerCountry &&
           (listing.targetCountries.length === 0 ||
-            listing.targetCountries.includes(myCountry));
-        if (!targeted) throw new NotFoundException("İlan bulunamadı");
-      }
+            listing.targetCountries.includes(myCountry))
+        : myCountry === ownerCountry;
+      if (!allowed) throw new NotFoundException("İlan bulunamadı");
     }
 
     const masked = listing.visibility === "PUBLIC" && !connected && !isPremium;

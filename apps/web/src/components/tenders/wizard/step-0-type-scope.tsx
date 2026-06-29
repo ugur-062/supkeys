@@ -57,8 +57,8 @@ function TargetCountryPicker({
       </div>
       <p className="mt-1 text-sm text-zinc-500">
         İhalenin açılacağı ülkeleri seçin. Boş bırakırsanız{" "}
-        <strong>tüm ülkelerdeki</strong> tedarikçilere açılır. Yurtiçi
-        tedarikçiler her durumda görür.
+        <strong>tüm yabancı ülkelerdeki</strong> tedarikçilere açılır.
+        Uluslararası ihale olduğu için <strong>yurtiçi tedarikçiler görmez</strong>.
       </p>
 
       {value.length > 0 ? (
