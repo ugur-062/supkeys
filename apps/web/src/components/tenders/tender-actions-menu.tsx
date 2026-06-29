@@ -20,6 +20,7 @@ import { Field, Label } from "@/components/catalyst/fieldset";
 import { EllipsisVerticalIcon } from "@heroicons/react/16/solid";
 import { Input } from "@/components/catalyst/input";
 import { Textarea } from "@/components/catalyst/textarea";
+import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { RoundHistoryDialog } from "@/components/tenders/round-history-dialog";
 import { useConnections } from "@/hooks/use-company-connections";
 import {
@@ -98,6 +99,8 @@ export function TenderActionsMenu({
   const [nextRoundOpen, setNextRoundOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [closeNoAwardOpen, setCloseNoAwardOpen] = useState(false);
   const [newClosing, setNewClosing] = useState(toLocalInput(closesAt));
   const [notes, setNotes] = useState(internalNotes ?? "");
 
@@ -167,18 +170,11 @@ export function TenderActionsMenu({
     }
   };
 
-  const handleCancel = async () => {
-    const reason = window
-      .prompt("İptal gerekçesi (zorunlu, en az 10 karakter):")
-      ?.trim();
-    if (!reason) return;
-    if (reason.length < 10) {
-      toast.error("Gerekçe en az 10 karakter olmalı");
-      return;
-    }
+  const handleCancel = async (reason: string) => {
     try {
       await cancelListing.mutateAsync(reason);
       toast.success("İhale iptal edildi");
+      setCancelOpen(false);
     } catch (err) {
       toast.error(extractErrorMessage(err, "İptal edilemedi"));
     }
@@ -213,12 +209,11 @@ export function TenderActionsMenu({
     }
   };
 
-  const handleCloseNoAward = async () => {
-    const reason = window.prompt("Kapatma gerekçesi (opsiyonel):")?.trim();
-    if (reason === undefined) return; // iptal
+  const handleCloseNoAward = async (reason: string) => {
     try {
       await closeNoAward.mutateAsync(reason || undefined);
       toast.success("İhale kazanan olmadan kapatıldı");
+      setCloseNoAwardOpen(false);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Kapatılamadı"));
     }
@@ -298,12 +293,12 @@ export function TenderActionsMenu({
                   <DropdownLabel>İhaleyi Erken Kapat</DropdownLabel>
                 </DropdownItem>
                 <DropdownDivider />
-                <DropdownItem onClick={handleCloseNoAward}>
+                <DropdownItem onClick={() => setCloseNoAwardOpen(true)}>
                   <DropdownLabel className="text-red-600">
                     Kazanan Olmadan Kapat
                   </DropdownLabel>
                 </DropdownItem>
-                <DropdownItem onClick={handleCancel}>
+                <DropdownItem onClick={() => setCancelOpen(true)}>
                   <DropdownLabel className="text-red-600">
                     İhaleyi İptal Et
                   </DropdownLabel>
@@ -524,6 +519,29 @@ export function TenderActionsMenu({
         id={id}
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
+      />
+
+      {/* İptal / kazansız-kapat gerekçe diyalogları (prompt yerine) */}
+      <ReasonDialog
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        onSubmit={handleCancel}
+        title="İhaleyi İptal Et"
+        description="İptal gerekçesi davetli tedarikçilere iletilir. Bu işlem geri alınamaz."
+        confirmLabel="İhaleyi İptal Et"
+        minLength={10}
+        pending={cancelListing.isPending}
+        destructive
+      />
+      <ReasonDialog
+        open={closeNoAwardOpen}
+        onClose={() => setCloseNoAwardOpen(false)}
+        onSubmit={handleCloseNoAward}
+        title="Kazanan Olmadan Kapat"
+        description="İhale kazandırılmadan kapatılır. Gerekçe opsiyonel."
+        confirmLabel="Kapat"
+        pending={closeNoAward.isPending}
+        destructive
       />
 
       {/* Tedarikçi davet ekle */}
