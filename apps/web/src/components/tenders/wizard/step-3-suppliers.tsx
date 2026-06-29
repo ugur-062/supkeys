@@ -192,12 +192,15 @@ export function Step3Suppliers() {
   const templates = useSupplierTemplates();
   const deleteTemplate = useDeleteSupplierTemplate();
   const visibility = useWatch({ control, name: "visibility" });
+  const isPublic = visibility === "PUBLIC";
   const [search, setSearch] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [tplOpen, setTplOpen] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [pendingInvites, setPendingInvites] = useState<string[]>([]);
+  // PUBLIC'te bağlı-firma seçim listesi varsayılan gizli (opsiyonel ek davet).
+  const [showConnections, setShowConnections] = useState(false);
 
   const applyTemplate = async (id: string) => {
     setApplyingId(id);
@@ -277,6 +280,9 @@ export function Step3Suppliers() {
           .map((c) => c.company)
           .filter((c) => c.supkeysId && selected.has(c.supkeysId));
 
+        // PUBLIC'te bağlı-firma listesi varsayılan gizli; PRIVATE'te hep açık.
+        const connListVisible = !isPublic || showConnections;
+
         return (
           <div className="space-y-6">
             {/* Başlık */}
@@ -289,7 +295,9 @@ export function Step3Suppliers() {
                   Tedarikçi Daveti
                 </h2>
                 <p className="text-sm text-zinc-500">
-                  Bu ihaleye kimler teklif verebilir?
+                  {isPublic
+                    ? "Opsiyonel — belirli bir firmayı ayrıca davet edebilirsin."
+                    : "Bu ihaleye kimler teklif verebilir?"}
                 </p>
               </div>
             </div>
@@ -307,9 +315,10 @@ export function Step3Suppliers() {
               <p className="text-sm text-zinc-600">
                 {visibility === "PUBLIC" ? (
                   <>
-                    Bu ihale <strong>Herkese Açık</strong>: davetlilere ek olarak
-                    kategorinize uygun premium tedarikçiler de teklif verebilir.
-                    Görünürlüğü Adım 2'den değiştirebilirsin.
+                    Bu ihale <strong>Herkese Açık</strong>: kategorinize uygun
+                    premium tedarikçiler davet beklemeden görüp teklif verebilir.
+                    Bu adım <strong>opsiyonel</strong> — yalnızca belirli bir
+                    firmayı e-posta ile ayrıca davet etmek istersen kullan.
                   </>
                 ) : (
                   <>
@@ -323,41 +332,53 @@ export function Step3Suppliers() {
 
             {/* Arama + Tümünü Seç + Yeni Davet */}
             <div className="flex flex-wrap items-center gap-2 md:flex-nowrap">
-              <div className="relative min-w-[200px] flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Firma adı, VKN veya e-posta ara…"
-                  className="w-full rounded-lg border border-surface-border bg-white py-2.5 pl-10 pr-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                />
-              </div>
-              <Button
-                outline
-                onClick={selectAllVisible}
-                disabled={companies.length === 0 || allVisibleSelected}
-              >
-                <CheckSquare data-slot="icon" />
-                Tümünü Seç ({companies.length})
-              </Button>
-              <Button outline onClick={() => setTplOpen((o) => !o)}>
-                <LayoutTemplate data-slot="icon" />
-                Şablondan Yükle
-              </Button>
-              <Button
-                outline
-                onClick={() => setSaveOpen(true)}
-                disabled={selected.size === 0}
-              >
-                <Save data-slot="icon" />
-                Şablon Kaydet
-              </Button>
+              {connListVisible ? (
+                <>
+                  <div className="relative min-w-[200px] flex-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Firma adı, VKN veya e-posta ara…"
+                      className="w-full rounded-lg border border-surface-border bg-white py-2.5 pl-10 pr-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                    />
+                  </div>
+                  <Button
+                    outline
+                    onClick={selectAllVisible}
+                    disabled={companies.length === 0 || allVisibleSelected}
+                  >
+                    <CheckSquare data-slot="icon" />
+                    Tümünü Seç ({companies.length})
+                  </Button>
+                  <Button outline onClick={() => setTplOpen((o) => !o)}>
+                    <LayoutTemplate data-slot="icon" />
+                    Şablondan Yükle
+                  </Button>
+                  <Button
+                    outline
+                    onClick={() => setSaveOpen(true)}
+                    disabled={selected.size === 0}
+                  >
+                    <Save data-slot="icon" />
+                    Şablon Kaydet
+                  </Button>
+                </>
+              ) : null}
               <Button onClick={() => setInviteOpen(true)}>
                 <UserPlus2 data-slot="icon" />
                 Yeni Tedarikçi Davet Et
               </Button>
+              {isPublic && !showConnections ? (
+                <Button outline onClick={() => setShowConnections(true)}>
+                  Bağlı firmalardan da davet et
+                </Button>
+              ) : null}
             </div>
 
+            {/* Bağlı-firma seçimi (PUBLIC'te gizlenebilir) */}
+            {connListVisible ? (
+            <>
             {/* Tedarikçi şablonları paneli */}
             {tplOpen ? (
               <div className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
@@ -576,6 +597,8 @@ export function Step3Suppliers() {
                 </div>
               )}
             </div>
+            </>
+            ) : null}
 
             {/* Davet bekleyenler (bu oturumda) */}
             {pendingInvites.length > 0 ? (
