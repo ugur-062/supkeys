@@ -8,7 +8,16 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/catalyst/dialog";
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownDivider,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from "@/components/catalyst/dropdown";
 import { Field, Label } from "@/components/catalyst/fieldset";
+import { EllipsisVerticalIcon } from "@heroicons/react/16/solid";
 import { Input } from "@/components/catalyst/input";
 import { Textarea } from "@/components/catalyst/textarea";
 import { RoundHistoryDialog } from "@/components/tenders/round-history-dialog";
@@ -234,52 +243,73 @@ export function TenderActionsMenu({
 
   return (
     <>
-      {/* Görünür aksiyon çubuğu (eski sistem gibi — başlık kutusunda) */}
-      <div className="flex flex-wrap gap-2">
+      {/* Karma: önemli aksiyonlar görünür buton, kalanı ⋮ menüsünde (eski sistem) */}
+      <div className="flex flex-wrap items-center gap-2">
         {canEdit ? (
           <Button outline href={`/company/satinalma/ihalelerim/${id}/duzenle`}>
             İhaleyi Düzenle
           </Button>
         ) : null}
-        <Button outline onClick={() => setNotesOpen(true)}>
-          İç Notlar
-        </Button>
+        {isOpen ? (
+          <Button outline onClick={() => setClosingOpen(true)}>
+            Kapanış Zamanını Değiştir
+          </Button>
+        ) : null}
         {canInvite ? (
           <Button outline onClick={() => setInviteOpen(true)}>
             Tedarikçi Davet Et
           </Button>
         ) : null}
-        {isAuction ? (
-          <Button outline onClick={() => setHistoryOpen(true)}>
-            Tur Geçmişi
-          </Button>
-        ) : null}
-        {canNewRound ? (
-          <Button outline onClick={() => setNextRoundOpen(true)}>
-            Yeni Tur Oluştur
-          </Button>
-        ) : null}
-        {isOpen ? (
-          <>
-            <Button outline onClick={() => setClosingOpen(true)}>
-              Kapanış Zamanını Değiştir
-            </Button>
-            <Button outline onClick={handleCloseEarly}>
-              İhaleyi Erken Kapat
-            </Button>
-            <Button outline onClick={handleCloseNoAward}>
-              <span className="text-red-600">Kazanan Olmadan Kapat</span>
-            </Button>
-            <Button outline onClick={handleCancel}>
-              <span className="text-red-600">İhaleyi İptal Et</span>
-            </Button>
-          </>
-        ) : null}
-        {isDraft ? (
-          <Button outline onClick={handleDeleteDraft}>
-            <span className="text-red-600">Taslağı Sil</span>
-          </Button>
-        ) : null}
+
+        <Dropdown>
+          <DropdownButton outline aria-label="Diğer işlemler">
+            Diğer İşlemler
+            <EllipsisVerticalIcon />
+          </DropdownButton>
+          <DropdownMenu anchor="bottom end">
+            <DropdownItem onClick={() => setNotesOpen(true)}>
+              <DropdownLabel>İç Notlar</DropdownLabel>
+            </DropdownItem>
+            {isAuction ? (
+              <DropdownItem onClick={() => setHistoryOpen(true)}>
+                <DropdownLabel>Tur Geçmişi</DropdownLabel>
+              </DropdownItem>
+            ) : null}
+            {canNewRound ? (
+              <DropdownItem onClick={() => setNextRoundOpen(true)}>
+                <DropdownLabel>Yeni Tur Oluştur</DropdownLabel>
+              </DropdownItem>
+            ) : null}
+            {isOpen ? (
+              <>
+                <DropdownItem onClick={handleCloseEarly}>
+                  <DropdownLabel>İhaleyi Erken Kapat</DropdownLabel>
+                </DropdownItem>
+                <DropdownDivider />
+                <DropdownItem onClick={handleCloseNoAward}>
+                  <DropdownLabel className="text-red-600">
+                    Kazanan Olmadan Kapat
+                  </DropdownLabel>
+                </DropdownItem>
+                <DropdownItem onClick={handleCancel}>
+                  <DropdownLabel className="text-red-600">
+                    İhaleyi İptal Et
+                  </DropdownLabel>
+                </DropdownItem>
+              </>
+            ) : null}
+            {isDraft ? (
+              <>
+                <DropdownDivider />
+                <DropdownItem onClick={handleDeleteDraft}>
+                  <DropdownLabel className="text-red-600">
+                    Taslağı Sil
+                  </DropdownLabel>
+                </DropdownItem>
+              </>
+            ) : null}
+          </DropdownMenu>
+        </Dropdown>
       </div>
 
       {/* Kapanış zamanını değiştir */}
