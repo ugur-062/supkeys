@@ -19,22 +19,26 @@ import {
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { Textarea } from "@/components/catalyst/textarea";
+import { useConnections } from "@/hooks/use-company-connections";
 import {
+  useAddInvitations,
   useChangeClosing,
   useCloseEarly,
   useCloseNoAward,
+  useConvertToAuction,
   useDeleteListing,
   useUpdateInternalNotes,
 } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { EllipsisVerticalIcon } from "@heroicons/react/16/solid";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 interface Props {
   id: string;
   status: string;
+  format: string | null;
   closesAt: string | null;
   internalNotes: string | null;
   canEdit?: boolean;
@@ -54,6 +58,7 @@ function toLocalInput(iso: string | null): string {
 export function TenderActionsMenu({
   id,
   status,
+  format,
   closesAt,
   internalNotes,
   canEdit,
@@ -64,8 +69,15 @@ export function TenderActionsMenu({
   const updateNotes = useUpdateInternalNotes(id);
   const closeNoAward = useCloseNoAward(id);
   const deleteListing = useDeleteListing();
+  const convert = useConvertToAuction(id);
+  const addInvitations = useAddInvitations(id);
+  const connections = useConnections();
 
   const isDraft = status === "DRAFT";
+  // RFQ + (açık veya teklife kapanmış) → İngiliz Usulü'ne çevrilebilir.
+  const canConvert =
+    format !== "ENGLISH_AUCTION" && (status === "OPEN" || status === "CLOSED");
+  const canInvite = status === "DRAFT" || status === "OPEN";
 
   const handleDeleteDraft = async () => {
     if (!confirm("Taslak ilan kalıcı olarak silinsin mi?")) return;
@@ -80,10 +92,81 @@ export function TenderActionsMenu({
 
   const [closingOpen, setClosingOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [newClosing, setNewClosing] = useState(toLocalInput(closesAt));
   const [notes, setNotes] = useState(internalNotes ?? "");
 
+  // İngiliz'e aktar form durumu
+  const [decType, setDecType] = useState<"AMOUNT" | "PERCENT">("AMOUNT");
+  const [decValue, setDecValue] = useState("");
+  const [decBasis, setDecBasis] = useState<"OWN_LAST_BID" | "BEST_BID">(
+    "OWN_LAST_BID",
+  );
+  const [vis, setVis] = useState<
+    "OWN_ONLY" | "BEST_PRICE" | "OWN_RANK" | "BEST_AND_OWN_RANK" | "ALL"
+  >("OWN_RANK");
+  const [autoExtend, setAutoExtend] = useState(true);
+  const [convClosing, setConvClosing] = useState("");
+
+  // Davet ekleme form durumu
+  const [inviteSel, setInviteSel] = useState<Set<string>>(new Set());
+  const [inviteSearch, setInviteSearch] = useState("");
+  const inviteCompanies = useMemo(() => {
+    const rows = (connections.data ?? [])
+      .map((c) => c.company)
+      .filter((c) => c.supkeysId);
+    const q = inviteSearch.trim().toLocaleLowerCase("tr");
+    return q
+      ? rows.filter((c) => c.name.toLocaleLowerCase("tr").includes(q))
+      : rows;
+  }, [connections.data, inviteSearch]);
+
   const isOpen = status === "OPEN";
+
+  const handleConvert = async () => {
+    const v = Number(decValue.replace(",", "."));
+    if (!(v > 0)) {
+      toast.error("Geçerli bir azaltma değeri gir");
+      return;
+    }
+    if (!convClosing) {
+      toast.error("Kapanış tarihi seç");
+      return;
+    }
+    try {
+      await convert.mutateAsync({
+        priceDecrementType: decType,
+        priceDecrementValue: v,
+        priceDecrementBasis: decBasis,
+        bidVisibility: vis,
+        autoExtendOnLateBid: autoExtend,
+        closesAt: new Date(convClosing).toISOString(),
+      });
+      toast.success("İhale İngiliz Usulü açık eksiltmeye dönüştürüldü");
+      setConvertOpen(false);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Dönüştürülemedi"));
+    }
+  };
+
+  const handleAddInvitations = async () => {
+    const ids = [...inviteSel];
+    if (ids.length === 0) {
+      toast.error("En az bir firma seç");
+      return;
+    }
+    try {
+      const res = await addInvitations.mutateAsync(ids);
+      toast.success(
+        `${res.added} firma davet edildi${res.skipped ? ` · ${res.skipped} zaten davetli` : ""}`,
+      );
+      setInviteSel(new Set());
+      setInviteOpen(false);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Davet eklenemedi"));
+    }
+  };
 
   const handleCloseEarly = async () => {
     if (!confirm("İhale şimdi kapatılsın mı? Teklif alımı durur, kazandırma aşamasına geçer."))
@@ -149,6 +232,16 @@ export function TenderActionsMenu({
           <DropdownItem onClick={() => setNotesOpen(true)}>
             <DropdownLabel>İç Notlar</DropdownLabel>
           </DropdownItem>
+          {canInvite ? (
+            <DropdownItem onClick={() => setInviteOpen(true)}>
+              <DropdownLabel>Tedarikçi Davet Et</DropdownLabel>
+            </DropdownItem>
+          ) : null}
+          {canConvert ? (
+            <DropdownItem onClick={() => setConvertOpen(true)}>
+              <DropdownLabel>İngiliz Usulü&apos;ne Aktar</DropdownLabel>
+            </DropdownItem>
+          ) : null}
           {isOpen ? (
             <>
               <DropdownItem onClick={() => setClosingOpen(true)}>
@@ -225,6 +318,165 @@ export function TenderActionsMenu({
           </Button>
           <Button onClick={handleSaveNotes} disabled={updateNotes.isPending}>
             Kaydet
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* İngiliz Usulü'ne Aktar */}
+      <Dialog open={convertOpen} onClose={() => setConvertOpen(false)} size="xl">
+        <DialogTitle>İngiliz Usulü&apos;ne Aktar</DialogTitle>
+        <DialogDescription>
+          Bu ihaleyi açık eksiltmeye çevirir. Mevcut teklifler başlangıç değeri
+          olur; tedarikçiler fiyatlarını düşürerek yarışır.
+        </DialogDescription>
+        <DialogBody className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field>
+              <Label>Fiyat Azaltma Tipi</Label>
+              <select
+                value={decType}
+                onChange={(e) =>
+                  setDecType(e.target.value as "AMOUNT" | "PERCENT")
+                }
+                className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
+              >
+                <option value="AMOUNT">Tutar</option>
+                <option value="PERCENT">Yüzde</option>
+              </select>
+            </Field>
+            <Field>
+              <Label>Azaltma Değeri {decType === "PERCENT" ? "(%)" : "(₺)"}</Label>
+              <Input
+                type="number"
+                min={0}
+                step="0.01"
+                value={decValue}
+                onChange={(e) => setDecValue(e.target.value)}
+                placeholder="0"
+              />
+            </Field>
+          </div>
+          <Field>
+            <Label>Azaltma Bazı</Label>
+            <select
+              value={decBasis}
+              onChange={(e) =>
+                setDecBasis(e.target.value as "OWN_LAST_BID" | "BEST_BID")
+              }
+              className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
+            >
+              <option value="OWN_LAST_BID">
+                Kendi son teklifini baz alsın
+              </option>
+              <option value="BEST_BID">
+                İhaledeki en iyi teklifi baz alsın (klasik ters eksiltme)
+              </option>
+            </select>
+          </Field>
+          <Field>
+            <Label>Görünürlük</Label>
+            <select
+              value={vis}
+              onChange={(e) =>
+                setVis(e.target.value as typeof vis)
+              }
+              className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
+            >
+              <option value="OWN_ONLY">Sadece kendi teklifi</option>
+              <option value="BEST_PRICE">Sadece en iyi teklif</option>
+              <option value="OWN_RANK">Sadece kendi sıralaması</option>
+              <option value="BEST_AND_OWN_RANK">
+                En iyi teklif ve kendi sıralaması
+              </option>
+              <option value="ALL">Tüm teklifler ve sıralama (anonim)</option>
+            </select>
+          </Field>
+          <Field>
+            <Label>Yeni Kapanış</Label>
+            <Input
+              type="datetime-local"
+              value={convClosing}
+              onChange={(e) => setConvClosing(e.target.value)}
+            />
+          </Field>
+          <label className="flex items-center gap-2 text-sm text-zinc-700">
+            <input
+              type="checkbox"
+              checked={autoExtend}
+              onChange={(e) => setAutoExtend(e.target.checked)}
+              className="h-4 w-4 rounded border-zinc-300"
+            />
+            Son dakika gelen teklif kapanışı otomatik uzatsın (snipe koruma)
+          </label>
+        </DialogBody>
+        <DialogActions>
+          <Button plain onClick={() => setConvertOpen(false)}>
+            Vazgeç
+          </Button>
+          <Button onClick={handleConvert} disabled={convert.isPending}>
+            Açık Eksiltmeye Aktar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Tedarikçi davet ekle */}
+      <Dialog open={inviteOpen} onClose={() => setInviteOpen(false)} size="lg">
+        <DialogTitle>Tedarikçi Davet Et</DialogTitle>
+        <DialogDescription>
+          Bağlı firmalarından bu ihaleye davet etmek istediklerini seç.
+        </DialogDescription>
+        <DialogBody className="space-y-3">
+          <Input
+            value={inviteSearch}
+            onChange={(e) => setInviteSearch(e.target.value)}
+            placeholder="Firma ara…"
+          />
+          <div className="max-h-72 overflow-y-auto rounded-lg border border-zinc-200">
+            {inviteCompanies.length === 0 ? (
+              <p className="p-4 text-center text-sm text-zinc-500">
+                {connections.isLoading ? "Yükleniyor…" : "Bağlı firma yok."}
+              </p>
+            ) : (
+              inviteCompanies.map((c) => {
+                const code = c.supkeysId!;
+                const checked = inviteSel.has(code);
+                return (
+                  <label
+                    key={c.id}
+                    className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-zinc-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() =>
+                        setInviteSel((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(code)) next.delete(code);
+                          else next.add(code);
+                          return next;
+                        })
+                      }
+                      className="h-4 w-4 rounded border-zinc-300"
+                    />
+                    <span className="font-medium text-zinc-900">{c.name}</span>
+                    <span className="ml-auto font-mono text-xs text-zinc-400">
+                      {code}
+                    </span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+        </DialogBody>
+        <DialogActions>
+          <Button plain onClick={() => setInviteOpen(false)}>
+            Vazgeç
+          </Button>
+          <Button
+            onClick={handleAddInvitations}
+            disabled={addInvitations.isPending || inviteSel.size === 0}
+          >
+            Davet Et ({inviteSel.size})
           </Button>
         </DialogActions>
       </Dialog>

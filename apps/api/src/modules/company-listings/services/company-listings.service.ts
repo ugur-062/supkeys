@@ -30,6 +30,7 @@ import { ConfigService } from "@nestjs/config";
 import { ExchangeRateService } from "../../currency/services/exchange-rate.service";
 import { EmailService } from "../../email/email.service";
 import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-category-match.helper";
+import { ConvertToAuctionDto } from "../dto/convert-to-auction.dto";
 import { CreateListingDto } from "../dto/create-listing.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
 
@@ -2065,6 +2066,189 @@ export class CompanyListingsService {
       });
     });
     return { currentRound: updated.currentRound };
+  }
+
+  /**
+   * RFQ → İngiliz Usulü dönüşümü (in-place). Erken kapatılmış veya açık bir
+   * RFQ'yu açık eksiltmeye çevirir: format + azaltma/auto-extend/görünürlük
+   * parametrelerini set eder, mevcut turun tekliflerini snapshot'lar, turu
+   * ilerletir, yeni kapanışla yeniden açar. Mevcut SUBMITTED teklifler
+   * başlangıç değeri olarak taşınır (tedarikçiler bunları düşürür).
+   */
+  async convertToAuction(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    dto: ConvertToAuctionDto,
+  ) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        id: true,
+        companyId: true,
+        type: true,
+        format: true,
+        status: true,
+        currentRound: true,
+      },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (listing.companyId !== user.companyId) {
+      throw new ForbiddenException("Sadece ilan sahibi dönüştürebilir");
+    }
+    if (listing.type !== "ALIM") {
+      throw new BadRequestException("Yalnızca alım ilanı açık eksiltmeye çevrilebilir");
+    }
+    if (listing.format === "ENGLISH_AUCTION") {
+      throw new BadRequestException("İlan zaten İngiliz Usulü");
+    }
+    if (listing.status !== "OPEN" && listing.status !== "CLOSED") {
+      throw new BadRequestException(
+        "Yalnızca açık veya teklife kapanmış ilan dönüştürülebilir",
+      );
+    }
+    const closesAt = new Date(dto.closesAt);
+    if (Number.isNaN(closesAt.getTime()) || closesAt.getTime() <= Date.now()) {
+      throw new BadRequestException("Kapanış tarihi gelecekte olmalı");
+    }
+    if (dto.priceDecrementType === "PERCENT" && dto.priceDecrementValue >= 100) {
+      throw new BadRequestException("Yüzde azaltma 100'den küçük olmalı");
+    }
+
+    // Mevcut turun tekliflerini snapshot'la (geçmiş için).
+    const bids = await this.prisma.listingBid.findMany({
+      where: { listingId, status: "SUBMITTED" },
+      include: { bidderCompany: { select: { name: true } } },
+    });
+    await this.prisma.$transaction(async (tx) => {
+      if (bids.length > 0) {
+        await tx.listingRoundSnapshot.createMany({
+          data: bids.map((b) => ({
+            listingId,
+            round: listing.currentRound,
+            bidderName: b.bidderCompany.name,
+            amount: b.amount,
+          })),
+        });
+      }
+      await tx.listing.update({
+        where: { id: listingId },
+        data: {
+          format: "ENGLISH_AUCTION",
+          status: "OPEN",
+          closesAt,
+          closingReminderSentAt: null,
+          currentRound: { increment: 1 },
+          isSealedBid: true,
+          bidVisibility: dto.bidVisibility as ListingBidVisibility,
+          priceDecrementType: dto.priceDecrementType,
+          priceDecrementValue: dto.priceDecrementValue,
+          priceDecrementBasis: dto.priceDecrementBasis,
+          autoExtendOnLateBid: dto.autoExtendOnLateBid ?? true,
+          autoExtendThresholdMin: dto.autoExtendThresholdMin ?? 2,
+          autoExtendByMinutes: dto.autoExtendByMinutes ?? 2,
+        },
+      });
+    });
+
+    // Davetlilere "açık eksiltmeye geçti" bildirimi.
+    void this.notifyListingInvitees(listingId, "reminder");
+    return { ok: true };
+  }
+
+  /**
+   * Yayın sonrası tedarikçi daveti — DRAFT/OPEN ilana bağlı firma ekler.
+   * İngiliz Usulü + OPEN + kapanışa <2 dk kala eklenemez (eski sistemle aynı).
+   * OPEN ilanda yeni davetlilere anında davet e-postası gider.
+   */
+  async addInvitations(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    supkeysIds: string[],
+  ) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        id: true,
+        companyId: true,
+        status: true,
+        format: true,
+        closesAt: true,
+      },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (listing.companyId !== user.companyId) {
+      throw new ForbiddenException("Sadece ilan sahibi davet ekleyebilir");
+    }
+    if (listing.status !== "DRAFT" && listing.status !== "OPEN") {
+      throw new BadRequestException("Bu ilana artık davet eklenemez");
+    }
+    if (
+      listing.format === "ENGLISH_AUCTION" &&
+      listing.status === "OPEN" &&
+      listing.closesAt &&
+      listing.closesAt.getTime() - Date.now() < 2 * 60_000
+    ) {
+      throw new BadRequestException(
+        "Kapanışa 2 dakikadan az kala İngiliz Usulü ihaleye tedarikçi eklenemez",
+      );
+    }
+
+    const connectedIds = await this.connectedCompanyIds(user.companyId);
+    const codes = (supkeysIds ?? [])
+      .map((c) => normalizeShortCode(c))
+      .filter((c) => validateShortCode(c));
+    const targets = await this.prisma.company.findMany({
+      where: { supkeysId: { in: codes } },
+      select: { id: true },
+    });
+    const wanted = targets
+      .map((t) => t.id)
+      .filter((id) => id !== user.companyId && connectedIds.includes(id));
+
+    const existing = await this.prisma.listingInvitation.findMany({
+      where: { listingId, invitedCompanyId: { in: wanted } },
+      select: { invitedCompanyId: true },
+    });
+    const already = new Set(existing.map((e) => e.invitedCompanyId));
+    const toAdd = wanted.filter((id) => !already.has(id));
+
+    if (toAdd.length > 0) {
+      await this.prisma.listingInvitation.createMany({
+        data: toAdd.map((cid) => ({
+          listingId,
+          invitedCompanyId: cid,
+          invitedById: user.userId,
+        })),
+        skipDuplicates: true,
+      });
+      // OPEN ilanda yeni davetlilere anında davet e-postası.
+      if (listing.status === "OPEN") {
+        const title = await this.prisma.listing.findUnique({
+          where: { id: listingId },
+          select: { title: true, number: true },
+        });
+        const url = `${this.webUrl()}/company/ilan/${listingId}`;
+        for (const cid of toAdd) {
+          const r = await this.companyRecipient(cid);
+          if (!r) continue;
+          this.notify(
+            r,
+            {
+              subject: "Bir ihaleye davet edildiniz",
+              heading: "İhale daveti",
+              paragraphs: [
+                "Merhaba,",
+                `"${title?.title ?? "İhale"}" (${title?.number ?? "—"}) ihalesine davet edildiniz. Detayları görmek ve teklif vermek için giriş yapın.`,
+              ],
+              ctaLabel: "İhaleyi Gör",
+              ctaUrl: url,
+            },
+            { type: "listing_invitation", id: listingId },
+          );
+        }
+      }
+    }
+    return { added: toAdd.length, skipped: wanted.length - toAdd.length };
   }
 
   /** İngiliz Usulü tur geçmişi — sahip görür. Tur → teklifler (artan). */

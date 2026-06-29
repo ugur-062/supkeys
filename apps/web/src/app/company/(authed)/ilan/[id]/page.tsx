@@ -1197,6 +1197,7 @@ export default function ListingDetailPage() {
               <TenderActionsMenu
                 id={l.id}
                 status={l.status}
+                format={l.format}
                 closesAt={l.closesAt}
                 internalNotes={l.internalNotes ?? null}
                 canEdit={l.canEdit}

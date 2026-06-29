@@ -486,6 +486,49 @@ export function useStartNewRound(id: string) {
   });
 }
 
+export interface ConvertToAuctionInput {
+  priceDecrementType: "AMOUNT" | "PERCENT";
+  priceDecrementValue: number;
+  priceDecrementBasis: "OWN_LAST_BID" | "BEST_BID";
+  bidVisibility: "OWN_ONLY" | "BEST_PRICE" | "OWN_RANK" | "BEST_AND_OWN_RANK" | "ALL";
+  autoExtendOnLateBid?: boolean;
+  autoExtendThresholdMin?: number;
+  autoExtendByMinutes?: number;
+  closesAt: string;
+}
+
+/** RFQ → İngiliz Usulü dönüşümü (in-place). */
+export function useConvertToAuction(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: ConvertToAuctionInput) => {
+      const { data } = await companyApi.post(
+        `/company/listings/${id}/convert-to-auction`,
+        input,
+      );
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] }),
+  });
+}
+
+/** Yayın sonrası tedarikçi daveti ekleme. */
+export function useAddInvitations(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (supkeysIds: string[]) => {
+      const { data } = await companyApi.post<{ added: number; skipped: number }>(
+        `/company/listings/${id}/invitations`,
+        { supkeysIds },
+      );
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] }),
+  });
+}
+
 export function useEliminateBid(id: string) {
   const qc = useQueryClient();
   return useMutation({
