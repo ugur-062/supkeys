@@ -73,6 +73,44 @@ export class CompanyListingsService {
     return { email: user.email, name: `${user.firstName} ${user.lastName}` };
   }
 
+  /**
+   * Çok sayıda firmanın bildirim alıcısını TEK seferde çözer (N+1 yerine 2 sorgu):
+   * billingEmail olanlar doğrudan; olmayanlar için tek toplu kullanıcı sorgusu.
+   */
+  private async companyRecipients(
+    companyIds: string[],
+  ): Promise<Map<string, { email: string; name: string }>> {
+    const ids = [...new Set(companyIds)];
+    const out = new Map<string, { email: string; name: string }>();
+    if (ids.length === 0) return out;
+    const companies = await this.prisma.company.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true, billingEmail: true },
+    });
+    const needUser: string[] = [];
+    const nameById = new Map<string, string>();
+    for (const c of companies) {
+      nameById.set(c.id, c.name);
+      if (c.billingEmail) out.set(c.id, { email: c.billingEmail, name: c.name });
+      else needUser.push(c.id);
+    }
+    if (needUser.length > 0) {
+      const users = await this.prisma.companyUser.findMany({
+        where: { companyId: { in: needUser }, isActive: true, deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: { companyId: true, email: true, firstName: true, lastName: true },
+      });
+      for (const u of users) {
+        if (out.has(u.companyId)) continue; // ilk aktif kullanıcı
+        out.set(u.companyId, {
+          email: u.email,
+          name: `${u.firstName} ${u.lastName}`,
+        });
+      }
+    }
+    return out;
+  }
+
   /** Bildirim e-postası gönder (fire-and-forget). */
   private notify(
     to: { email: string; name: string },
@@ -121,8 +159,11 @@ export class CompanyListingsService {
       select: { invitedCompanyId: true },
     });
     const bidUrl = `${this.webUrl()}/company/ilan/${listingId}`;
+    const closeRecipients = await this.companyRecipients(
+      invs.map((iv) => iv.invitedCompanyId),
+    );
     for (const iv of invs) {
-      const r = await this.companyRecipient(iv.invitedCompanyId);
+      const r = closeRecipients.get(iv.invitedCompanyId);
       if (!r) continue;
       this.notify(
         r,
@@ -175,6 +216,7 @@ export class CompanyListingsService {
         visibility: true,
         categoryIds: true,
         number: true,
+        title: true,
         isInternational: true,
         targetCountries: true,
         company: { select: { country: true } },
@@ -221,10 +263,6 @@ export class CompanyListingsService {
     });
     if (candidates.length === 0) return [];
 
-    const title = await this.prisma.listing.findUnique({
-      where: { id: listingId },
-      select: { title: true },
-    });
     const url = `${this.webUrl()}/company/satis/acik-ihaleler`;
     for (const c of candidates) {
       if (!c.billingEmail) continue;
@@ -235,7 +273,7 @@ export class CompanyListingsService {
           heading: "Kategorinize uygun yeni ihale",
           paragraphs: [
             "Merhaba,",
-            `Sattığınız kategorilerle eşleşen yeni bir ihale yayınlandı: "${title?.title ?? "İhale"}" (${listing.number ?? "—"}). İncelemek ve teklif vermek için Rothern'e giriş yapın.`,
+            `Sattığınız kategorilerle eşleşen yeni bir ihale yayınlandı: "${listing.title ?? "İhale"}" (${listing.number ?? "—"}). İncelemek ve teklif vermek için Rothern'e giriş yapın.`,
           ],
           ctaLabel: "Açık İhaleleri Gör",
           ctaUrl: url,
@@ -266,8 +304,11 @@ export class CompanyListingsService {
       select: { invitedCompanyId: true },
     });
     const url = `${this.webUrl()}/company/ilan/${listingId}`;
+    const recipients = await this.companyRecipients(
+      invs.map((iv) => iv.invitedCompanyId),
+    );
     for (const iv of invs) {
-      const r = await this.companyRecipient(iv.invitedCompanyId);
+      const r = recipients.get(iv.invitedCompanyId);
       if (!r) continue;
       if (mode === "invitation") {
         this.notify(
@@ -1047,7 +1088,10 @@ export class CompanyListingsService {
     }
 
     const isOwner = listing.companyId === user.companyId;
-    const connectedIds = await this.connectedCompanyIds(user.companyId);
+    // Sahip bağlantı/blok bilgisine ihtiyaç duymaz → sahipte sorgu atlanır.
+    const connectedIds = isOwner
+      ? []
+      : await this.connectedCompanyIds(user.companyId);
     const connected = connectedIds.includes(listing.companyId);
     const isPremium = user.tier === "PAKET";
 
@@ -2320,8 +2364,9 @@ export class CompanyListingsService {
           select: { title: true, number: true },
         });
         const url = `${this.webUrl()}/company/ilan/${listingId}`;
+        const addRecipients = await this.companyRecipients(toAdd);
         for (const cid of toAdd) {
-          const r = await this.companyRecipient(cid);
+          const r = addRecipients.get(cid);
           if (!r) continue;
           this.notify(
             r,

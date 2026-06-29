@@ -333,6 +333,7 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([tier, isActive, country])
   @@map("companies")
 }
 
@@ -690,6 +691,7 @@ model ListingBid {
   @@unique([listingId, bidderCompanyId])
   @@index([listingId])
   @@index([bidderCompanyId])
+  @@index([listingId, status])
   @@map("listing_bids")
 }
 
@@ -894,6 +896,7 @@ model Listing {
 
   @@index([companyId])
   @@index([status])
+  @@index([companyId, type])
   @@map("listings")
 }
 
