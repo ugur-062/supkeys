@@ -48,11 +48,11 @@ const STATUS_META: Record<
     pill: "bg-zinc-100 text-zinc-700 border-zinc-200",
   },
   IN_DELIVERY: {
-    label: "Kargoda",
+    label: "Gönderildi",
     pill: "bg-indigo-50 text-indigo-700 border-indigo-200",
   },
   DELIVERED: {
-    label: "Teslim Alındı",
+    label: "Ödeme Bekleniyor",
     pill: "bg-amber-50 text-amber-700 border-amber-200",
   },
   COMPLETED: {
@@ -84,7 +84,13 @@ function OrderStatusBadge({ status }: { status: CompanyOrderStatus }) {
 }
 
 // 5 aşamalı akış: Onay → Onaylandı → Kargoda → Teslim alındı → Tamamlandı.
-const STAGES = ["Onay", "Onaylandı", "Kargoda", "Teslim alındı", "Tamamlandı"];
+const STAGES = [
+  "Onay",
+  "Onaylandı",
+  "Gönderildi",
+  "Teslim Alındı",
+  "Tamamlandı",
+];
 
 function getStageState(status: CompanyOrderStatus): {
   active: number;
@@ -116,8 +122,8 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: "all", label: "Tümü" },
   { value: "PENDING", label: "Onay Bekliyor" },
   { value: "ACCEPTED", label: "Onaylandı" },
-  { value: "IN_DELIVERY", label: "Kargoda" },
-  { value: "DELIVERED", label: "Teslim Alındı" },
+  { value: "IN_DELIVERY", label: "Gönderildi" },
+  { value: "DELIVERED", label: "Ödeme Bekleniyor" },
   { value: "COMPLETED", label: "Tamamlandı" },
   { value: "REJECTED", label: "Reddedildi" },
   { value: "CANCELLED", label: "İptal Edildi" },

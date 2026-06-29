@@ -6,12 +6,18 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import type {
-  CompanyOrderPaymentTiming,
-  CompanyOrderStatus,
+import {
+  Prisma,
+  type CompanyOrderPaymentTiming,
+  type CompanyOrderStatus,
 } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
+import type {
+  AcceptOrderDto,
+  OrderNoteDto,
+  ShipOrderDto,
+} from "../dto/order-action.dto";
 import { EmailService } from "../../email/email.service";
 
 @Injectable()
@@ -83,12 +89,19 @@ export class CompanyOrdersService {
       );
   }
 
-  /** Satıcı siparişi onaylar: PENDING → ACCEPTED. */
-  async accept(user: AuthenticatedCompanyUser, id: string) {
+  /** Satıcı siparişi onaylar: PENDING → ACCEPTED (+ teslim tarihi/banka/not). */
+  async accept(user: AuthenticatedCompanyUser, id: string, input: AcceptOrderDto) {
     const res = await this.transition(user, id, {
       side: "seller",
       from: "PENDING",
       to: "ACCEPTED",
+      data: {
+        acceptedAt: new Date(),
+        acceptedNote: input.acceptedNote?.trim() || null,
+        bankAccountHolder: input.bankAccountHolder?.trim() || null,
+        bankIban: input.bankIban?.trim() || null,
+        expectedDeliveryDate: new Date(input.expectedDeliveryDate),
+      },
     });
     await this.notifyOrderParty(
       id,
@@ -107,12 +120,10 @@ export class CompanyOrdersService {
       from: "PENDING",
       to: "REJECTED",
     });
-    if (reason) {
-      await this.prisma.companyOrder.update({
-        where: { id },
-        data: { rejectedReason: reason },
-      });
-    }
+    await this.prisma.companyOrder.update({
+      where: { id },
+      data: { rejectedReason: reason?.trim() || null, rejectedAt: new Date() },
+    });
     await this.notifyOrderParty(
       id,
       res.order.buyerCompanyId,
@@ -125,46 +136,67 @@ export class CompanyOrdersService {
     return { ok: res.ok, status: res.status };
   }
 
-  /** Satıcı kargoya verir: ACCEPTED (veya legacy CREATED) → IN_DELIVERY. */
-  async ship(user: AuthenticatedCompanyUser, id: string) {
+  /** Satıcı kargoya verir: ACCEPTED → IN_DELIVERY (+ fatura no zorunlu). */
+  async ship(user: AuthenticatedCompanyUser, id: string, input: ShipOrderDto) {
     const res = await this.transition(user, id, {
       side: "seller",
       from: ["ACCEPTED", "CREATED"],
       to: "IN_DELIVERY",
+      data: {
+        invoiceNumber: input.invoiceNumber.trim(),
+        deliveryNote: input.deliveryNote?.trim() || null,
+        deliveryStartedAt: new Date(),
+      },
     });
     await this.notifyOrderParty(
       id,
       res.order.buyerCompanyId,
       "Siparişiniz kargoya verildi",
       "Sipariş yolda",
-      `${this.orderLabel(res.order.number)} siparişiniz kargoya verildi.`,
+      `${this.orderLabel(res.order.number)} siparişiniz kargoya verildi (Fatura no: ${input.invoiceNumber.trim()}).`,
     );
     return { ok: res.ok, status: res.status };
   }
 
-  /** Alıcı teslim alır: IN_DELIVERY → DELIVERED. */
-  async receive(user: AuthenticatedCompanyUser, id: string) {
+  /**
+   * Alıcı teslim alır. AFTER_DELIVERY → DELIVERED (ödeme adımı açılır);
+   * BEFORE_DELIVERY → doğrudan COMPLETED (ödeme zaten alınmış). Eski "Teslim
+   * Aldım" davranışıyla aynı.
+   */
+  async receive(user: AuthenticatedCompanyUser, id: string, input: OrderNoteDto) {
+    const order = await this.loadParticipant(user, id);
+    const toCompleted = order.paymentTiming === "BEFORE_DELIVERY";
     const res = await this.transition(user, id, {
       side: "buyer",
       from: "IN_DELIVERY",
-      to: "DELIVERED",
+      to: toCompleted ? "COMPLETED" : "DELIVERED",
+      data: toCompleted
+        ? {
+            deliveredAt: new Date(),
+            completedAt: new Date(),
+            completedNote: input.note?.trim() || null,
+          }
+        : { deliveredAt: new Date(), completedNote: input.note?.trim() || null },
     });
     await this.notifyOrderParty(
       id,
       res.order.sellerCompanyId,
-      "Sipariş teslim alındı",
-      "Teslim alındı",
-      `${this.orderLabel(res.order.number)} siparişi alıcı tarafından teslim alındı.`,
+      toCompleted ? "Sipariş tamamlandı" : "Sipariş teslim alındı",
+      toCompleted ? "Sipariş tamamlandı" : "Teslim alındı",
+      `${this.orderLabel(res.order.number)} siparişi alıcı tarafından teslim alındı${
+        toCompleted ? " ve tamamlandı" : ""
+      }.`,
     );
     return { ok: res.ok, status: res.status };
   }
 
-  /** Alıcı ödemeyi onaylar/tamamlar: DELIVERED → COMPLETED. */
-  async complete(user: AuthenticatedCompanyUser, id: string) {
+  /** Alıcı siparişi tamamlar: DELIVERED → COMPLETED (+ not). */
+  async complete(user: AuthenticatedCompanyUser, id: string, input: OrderNoteDto) {
     const res = await this.transition(user, id, {
       side: "buyer",
       from: "DELIVERED",
       to: "COMPLETED",
+      data: { completedAt: new Date(), completedNote: input.note?.trim() || null },
     });
     await this.notifyOrderParty(
       id,
@@ -182,13 +214,8 @@ export class CompanyOrdersService {
       side: "buyer",
       from: ["PENDING", "ACCEPTED", "CREATED"],
       to: "CANCELLED",
+      data: { cancelReason: reason?.trim() || null, cancelledAt: new Date() },
     });
-    if (reason) {
-      await this.prisma.companyOrder.update({
-        where: { id },
-        data: { cancelReason: reason },
-      });
-    }
     await this.notifyOrderParty(
       id,
       res.order.sellerCompanyId,
@@ -212,6 +239,7 @@ export class CompanyOrdersService {
       side: "seller" | "buyer";
       from: CompanyOrderStatus | CompanyOrderStatus[];
       to: CompanyOrderStatus;
+      data?: Prisma.CompanyOrderUpdateInput;
     },
   ) {
     const order = await this.loadParticipant(user, id);
@@ -226,7 +254,7 @@ export class CompanyOrdersService {
     }
     await this.prisma.companyOrder.update({
       where: { id },
-      data: { status: rule.to },
+      data: { status: rule.to, ...rule.data },
     });
     return { ok: true, status: rule.to, order };
   }
@@ -530,6 +558,22 @@ export class CompanyOrdersService {
         pending: pending.toFixed(2),
         remaining: remaining.toFixed(2),
       },
+      // Adım verileri + timeline (eski sistemle birebir).
+      acceptedAt: o.acceptedAt,
+      acceptedNote: o.acceptedNote,
+      bankAccountHolder: o.bankAccountHolder,
+      bankIban: o.bankIban,
+      expectedDeliveryDate: o.expectedDeliveryDate,
+      invoiceNumber: o.invoiceNumber,
+      deliveryStartedAt: o.deliveryStartedAt,
+      deliveryNote: o.deliveryNote,
+      deliveredAt: o.deliveredAt,
+      completedAt: o.completedAt,
+      completedNote: o.completedNote,
+      rejectedAt: o.rejectedAt,
+      rejectedReason: o.rejectedReason,
+      cancelledAt: o.cancelledAt,
+      cancelReason: o.cancelReason,
       payments: o.payments.map((p) => this.serializePayment(p)),
       items: o.items.map((it) => ({
         id: it.id,

@@ -5,6 +5,11 @@ import {
 } from "../../company-auth/decorators/current-company-user.decorator";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import {
+  AcceptOrderDto,
+  OrderNoteDto,
+  ShipOrderDto,
+} from "../dto/order-action.dto";
+import {
   OrderReasonDto,
   RecordPaymentDto,
   RejectPaymentReasonDto,
@@ -35,8 +40,9 @@ export class CompanyOrdersController {
   accept(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
+    @Body() dto: AcceptOrderDto,
   ) {
-    return this.service.accept(user, id);
+    return this.service.accept(user, id, dto);
   }
 
   @Post(":id/reject")
@@ -54,24 +60,27 @@ export class CompanyOrdersController {
   ship(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
+    @Body() dto: ShipOrderDto,
   ) {
-    return this.service.ship(user, id);
+    return this.service.ship(user, id, dto);
   }
 
   @Post(":id/receive")
   receive(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
+    @Body() dto: OrderNoteDto,
   ) {
-    return this.service.receive(user, id);
+    return this.service.receive(user, id, dto);
   }
 
   @Post(":id/complete")
   complete(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
+    @Body() dto: OrderNoteDto,
   ) {
-    return this.service.complete(user, id);
+    return this.service.complete(user, id, dto);
   }
 
   @Post(":id/cancel")

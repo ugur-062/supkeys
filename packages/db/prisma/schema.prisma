@@ -565,6 +565,25 @@ model CompanyOrder {
   rejectedReason String?
   cancelReason   String?
 
+  // ── Adım verileri (eski sistemle birebir) ──
+  // KABUL (PENDING→ACCEPTED): satıcı tahmini teslim + banka + not girer.
+  acceptedAt           DateTime?
+  acceptedNote         String?
+  bankAccountHolder    String?
+  bankIban             String?
+  expectedDeliveryDate DateTime?
+  // GÖNDER (ACCEPTED→IN_DELIVERY): satıcı fatura no (zorunlu) + gönderim notu.
+  invoiceNumber        String?
+  deliveryStartedAt    DateTime?
+  deliveryNote         String?
+  // TESLİM / TAMAMLA: alıcı teslim alır, tamamlar.
+  deliveredAt          DateTime?
+  completedAt          DateTime?
+  completedNote        String?
+  // Timeline için sonlandırma damgaları (sebepler ayrı alanlarda).
+  rejectedAt           DateTime?
+  cancelledAt          DateTime?
+
   documents CompanyOrderDocument[]
   items     CompanyOrderItem[]
   payments  CompanyOrderPayment[]

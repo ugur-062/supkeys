@@ -62,6 +62,29 @@ export interface CompanyOrderDetail extends CompanyOrder {
   paymentTotals: { confirmed: string; pending: string; remaining: string };
   payments: OrderPayment[];
   items: CompanyOrderItemRow[];
+  // Adım verileri + timeline (eski sistemle birebir)
+  acceptedAt: string | null;
+  acceptedNote: string | null;
+  bankAccountHolder: string | null;
+  bankIban: string | null;
+  expectedDeliveryDate: string | null;
+  invoiceNumber: string | null;
+  deliveryStartedAt: string | null;
+  deliveryNote: string | null;
+  deliveredAt: string | null;
+  completedAt: string | null;
+  completedNote: string | null;
+  rejectedAt: string | null;
+  rejectedReason: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+}
+
+export interface AcceptOrderInput {
+  expectedDeliveryDate: string;
+  acceptedNote?: string;
+  bankAccountHolder?: string;
+  bankIban?: string;
 }
 
 export function useOrders() {
@@ -86,24 +109,57 @@ export function useOrder(id: string) {
   });
 }
 
-/** Teslimat akışı: ship | receive | complete. */
-export function useOrderAction(id: string) {
+/** Satıcı: kargoya ver (fatura no zorunlu + gönderim notu). */
+export function useShipOrder(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (action: "ship" | "receive" | "complete") => {
-      const { data } = await companyApi.post(`/company/orders/${id}/${action}`);
+    mutationFn: async (input: { invoiceNumber: string; deliveryNote?: string }) => {
+      const { data } = await companyApi.post(`/company/orders/${id}/ship`, input);
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
   });
 }
 
-/** Satıcı: sipariş kabul. */
+/** Alıcı: teslim al (opsiyonel not). */
+export function useReceiveOrder(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input?: { note?: string }) => {
+      const { data } = await companyApi.post(
+        `/company/orders/${id}/receive`,
+        input ?? {},
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+  });
+}
+
+/** Alıcı: siparişi tamamla (opsiyonel not). */
+export function useCompleteOrder(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input?: { note?: string }) => {
+      const { data } = await companyApi.post(
+        `/company/orders/${id}/complete`,
+        input ?? {},
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+  });
+}
+
+/** Satıcı: sipariş kabul (teslim tarihi + banka + not). */
 export function useAcceptOrder(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      const { data } = await companyApi.post(`/company/orders/${id}/accept`);
+    mutationFn: async (input: AcceptOrderInput) => {
+      const { data } = await companyApi.post(
+        `/company/orders/${id}/accept`,
+        input,
+      );
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),

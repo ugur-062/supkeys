@@ -16,26 +16,42 @@ import { OrderPaymentsCard } from "@/components/orders/order-payments-card";
 import {
   useAcceptOrder,
   useCancelOrder,
+  useCompleteOrder,
   useOrder,
-  useOrderAction,
+  useReceiveOrder,
   useRejectOrder,
+  useShipOrder,
   type CompanyOrderStatus,
 } from "@/hooks/use-company-orders";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { OrderDocumentsSection } from "./_components/order-documents-section";
+import {
+  AcceptOrderModal,
+  NoteModal,
+  ReasonModal,
+  ShipOrderModal,
+} from "./_components/order-action-modals";
 import { OrderReviewCard } from "./_components/order-review-card";
+import { OrderTimeline } from "./_components/order-timeline";
 import { ArrowLeftIcon, CheckCircleIcon } from "@heroicons/react/20/solid";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Building2, CalendarClock, Layers, Wallet } from "lucide-react";
+import {
+  Banknote,
+  Building2,
+  CalendarClock,
+  Layers,
+  Wallet,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 
 const STEPS = [
   { key: "PENDING", label: "Onay" },
   { key: "ACCEPTED", label: "Onaylandı" },
-  { key: "IN_DELIVERY", label: "Kargoda" },
+  { key: "IN_DELIVERY", label: "Gönderildi" },
   { key: "DELIVERED", label: "Teslim alındı" },
   { key: "COMPLETED", label: "Tamamlandı" },
 ] as const;
@@ -47,8 +63,8 @@ const STATUS_META: Record<
   PENDING: { label: "Onay bekliyor", color: "amber" },
   ACCEPTED: { label: "Onaylandı", color: "blue" },
   CREATED: { label: "Yeni", color: "zinc" },
-  IN_DELIVERY: { label: "Kargoda", color: "indigo" },
-  DELIVERED: { label: "Teslim edildi", color: "cyan" },
+  IN_DELIVERY: { label: "Gönderildi", color: "indigo" },
+  DELIVERED: { label: "Ödeme bekleniyor", color: "cyan" },
   COMPLETED: { label: "Tamamlandı", color: "green" },
   REJECTED: { label: "Reddedildi", color: "red" },
   CANCELLED: { label: "İptal", color: "zinc" },
@@ -88,10 +104,15 @@ export default function OrderDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const { data: o, isLoading } = useOrder(id);
-  const action = useOrderAction(id);
+  const ship = useShipOrder(id);
+  const receive = useReceiveOrder(id);
+  const complete = useCompleteOrder(id);
   const accept = useAcceptOrder(id);
   const reject = useRejectOrder(id);
   const cancel = useCancelOrder(id);
+  const [modal, setModal] = useState<
+    "accept" | "reject" | "cancel" | "ship" | "receive" | "complete" | null
+  >(null);
 
   if (isLoading)
     return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
@@ -109,66 +130,39 @@ export default function OrderDetailPage() {
     ? "/company/satis/siparisler"
     : "/company/satinalma/siparisler";
 
+  // Sonraki ana aksiyon (modal açar).
   const next =
     isSeller && (o.status === "ACCEPTED" || o.status === "CREATED")
-      ? { label: "Kargoya Ver", act: "ship" as const }
+      ? { label: "Kargoya Ver", modal: "ship" as const }
       : !isSeller && o.status === "IN_DELIVERY"
-        ? { label: "Teslim Aldım", act: "receive" as const }
+        ? { label: "Teslim Aldım", modal: "receive" as const }
         : !isSeller && o.status === "DELIVERED"
-          ? { label: "Siparişi Tamamla", act: "complete" as const }
+          ? { label: "Siparişi Tamamla", modal: "complete" as const }
           : null;
 
-  const handle = async (act: "ship" | "receive" | "complete") => {
+  const close = () => setModal(null);
+  const run = async (p: Promise<unknown>, ok: string, fallback: string) => {
     try {
-      await action.mutateAsync(act);
-      toast.success("Sipariş güncellendi");
+      await p;
+      toast.success(ok);
+      close();
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İşlem başarısız"));
+      toast.error(extractErrorMessage(err, fallback));
     }
   };
 
-  const handleAccept = async () => {
-    try {
-      await accept.mutateAsync();
-      toast.success("Sipariş onaylandı");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "İşlem başarısız"));
-    }
-  };
-
-  const handleReject = async () => {
-    const reason = window
-      .prompt("Ret gerekçesi (zorunlu, en az 10 karakter):")
-      ?.trim();
-    if (!reason) return;
-    if (reason.length < 10) {
-      toast.error("Gerekçe en az 10 karakter olmalı");
-      return;
-    }
-    try {
-      await reject.mutateAsync(reason);
-      toast.success("Sipariş reddedildi");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "İşlem başarısız"));
-    }
-  };
-
-  const handleCancel = async () => {
-    const reason = window
-      .prompt("İptal gerekçesi (zorunlu, en az 10 karakter):")
-      ?.trim();
-    if (!reason) return;
-    if (reason.length < 10) {
-      toast.error("Gerekçe en az 10 karakter olmalı");
-      return;
-    }
-    try {
-      await cancel.mutateAsync(reason);
-      toast.success("Sipariş iptal edildi");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "İptal edilemedi"));
-    }
-  };
+  const doAccept = (input: Parameters<typeof accept.mutateAsync>[0]) =>
+    run(accept.mutateAsync(input), "Sipariş onaylandı", "İşlem başarısız");
+  const doShip = (input: Parameters<typeof ship.mutateAsync>[0]) =>
+    run(ship.mutateAsync(input), "Sipariş kargoya verildi", "İşlem başarısız");
+  const doReceive = (note?: string) =>
+    run(receive.mutateAsync({ note }), "Teslim alındı", "İşlem başarısız");
+  const doComplete = (note?: string) =>
+    run(complete.mutateAsync({ note }), "Sipariş tamamlandı", "İşlem başarısız");
+  const doReject = (reason: string) =>
+    run(reject.mutateAsync(reason), "Sipariş reddedildi", "İşlem başarısız");
+  const doCancel = (reason: string) =>
+    run(cancel.mutateAsync(reason), "Sipariş iptal edildi", "İptal edilemedi");
 
   const handlePrint = () => {
     if (!o) return;
@@ -218,7 +212,11 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
           (o.status === "PENDING" ||
             o.status === "ACCEPTED" ||
             o.status === "CREATED") ? (
-            <Button plain onClick={handleCancel} disabled={cancel.isPending}>
+            <Button
+              plain
+              onClick={() => setModal("cancel")}
+              disabled={cancel.isPending}
+            >
               Siparişi İptal Et
             </Button>
           ) : null}
@@ -346,6 +344,43 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
         </section>
       ) : null}
 
+      {/* Banka & Fatura */}
+      {o.bankAccountHolder || o.bankIban || o.invoiceNumber ? (
+        <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Banknote className="h-4 w-4 text-zinc-500" />
+            <h3 className="text-sm font-semibold text-zinc-900">
+              Ödeme &amp; Fatura
+            </h3>
+          </div>
+          <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+            {o.bankAccountHolder ? (
+              <div>
+                <dt className="text-xs text-zinc-500">Hesap Sahibi</dt>
+                <dd className="font-medium text-zinc-900">
+                  {o.bankAccountHolder}
+                </dd>
+              </div>
+            ) : null}
+            {o.bankIban ? (
+              <div>
+                <dt className="text-xs text-zinc-500">IBAN</dt>
+                <dd className="font-mono text-zinc-900">{o.bankIban}</dd>
+              </div>
+            ) : null}
+            {o.invoiceNumber ? (
+              <div>
+                <dt className="text-xs text-zinc-500">Fatura No</dt>
+                <dd className="font-medium text-zinc-900">{o.invoiceNumber}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </section>
+      ) : null}
+
+      {/* Sipariş geçmişi */}
+      <OrderTimeline order={o} />
+
       {/* Aksiyon */}
       <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
         {o.status === "PENDING" && isSeller ? (
@@ -354,10 +389,14 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
               Bu siparişi onayla ya da reddet.
             </Text>
             <div className="flex gap-2">
-              <Button plain onClick={handleReject} disabled={reject.isPending}>
+              <Button
+                plain
+                onClick={() => setModal("reject")}
+                disabled={reject.isPending}
+              >
                 Reddet
               </Button>
-              <Button onClick={handleAccept} disabled={accept.isPending}>
+              <Button onClick={() => setModal("accept")} disabled={accept.isPending}>
                 Kabul Et
               </Button>
             </div>
@@ -371,13 +410,16 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
         ) : next ? (
           <div className="flex flex-wrap items-center justify-between gap-4">
             <Text className="text-sm text-zinc-600">
-              {next.act === "ship"
-                ? "Malı kargoya verdiğinde işaretle."
-                : next.act === "receive"
+              {next.modal === "ship"
+                ? "Malı kargoya verdiğinde fatura no ile işaretle."
+                : next.modal === "receive"
                   ? "Malı teslim aldığında işaretle."
                   : "Teslim + ödeme tamamlandığında siparişi kapat."}
             </Text>
-            <Button onClick={() => handle(next.act)} disabled={action.isPending}>
+            <Button
+              onClick={() => setModal(next.modal)}
+              disabled={ship.isPending || receive.isPending || complete.isPending}
+            >
               {next.label}
             </Button>
           </div>
@@ -397,6 +439,58 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
       {!isSeller && o.status === "COMPLETED" ? (
         <OrderReviewCard orderId={id} targetName={o.counterparty} />
       ) : null}
+
+      {/* Modallar */}
+      <AcceptOrderModal
+        open={modal === "accept"}
+        onClose={close}
+        onSubmit={doAccept}
+        pending={accept.isPending}
+      />
+      <ShipOrderModal
+        open={modal === "ship"}
+        onClose={close}
+        onSubmit={doShip}
+        pending={ship.isPending}
+      />
+      <NoteModal
+        open={modal === "receive"}
+        onClose={close}
+        onSubmit={doReceive}
+        pending={receive.isPending}
+        title="Teslim Aldım"
+        description={`${o.number ?? "Sipariş"} teslim alındı olarak işaretleniyor.`}
+        confirmLabel="Teslim Aldım"
+      />
+      <NoteModal
+        open={modal === "complete"}
+        onClose={close}
+        onSubmit={doComplete}
+        pending={complete.isPending}
+        title="Siparişi Tamamla"
+        description={`${o.number ?? "Sipariş"} tamamlanıyor.`}
+        confirmLabel="Tamamla"
+      />
+      <ReasonModal
+        open={modal === "reject"}
+        onClose={close}
+        onSubmit={doReject}
+        pending={reject.isPending}
+        title="Siparişi Reddet"
+        description="Red gerekçesi alıcıya iletilir."
+        confirmLabel="Siparişi Reddet"
+        minLength={10}
+      />
+      <ReasonModal
+        open={modal === "cancel"}
+        onClose={close}
+        onSubmit={doCancel}
+        pending={cancel.isPending}
+        title="Siparişi İptal Et"
+        description="İptal gerekçesi satıcıya iletilir."
+        confirmLabel="Siparişi İptal Et"
+        minLength={10}
+      />
     </div>
   );
 }
