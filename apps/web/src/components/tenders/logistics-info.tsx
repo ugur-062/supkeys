@@ -3,10 +3,9 @@
 // Lojistik İhalesi — taşıma bilgisi görüntüleme bloğu.
 // Alıcı + tedarikçi ihale detayı ve wizard özetinde kullanılır.
 
+import { formatDate } from "@/lib/tenders/date";
 import { TRANSPORT_MODE_LABELS } from "@/lib/tenders/labels";
 import type { TenderLogisticsDetails } from "@/lib/tenders/types";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import {
   ArrowRight,
   MapPin,
@@ -15,12 +14,7 @@ import {
 } from "lucide-react";
 
 function fmtDate(iso: string | null | undefined): string | null {
-  if (!iso) return null;
-  try {
-    return format(new Date(iso), "dd.MM.yyyy", { locale: tr });
-  } catch {
-    return null;
-  }
+  return iso ? formatDate(iso) : null;
 }
 
 function Cell({ label, value }: { label: string; value: React.ReactNode }) {

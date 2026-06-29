@@ -17,9 +17,8 @@ import type {
   PaymentTiming,
   TenderLogisticsDetails,
 } from "@/lib/tenders/types";
+import { formatDateTime } from "@/lib/tenders/date";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import {
   FileText,
   Gavel,
@@ -30,14 +29,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-function fmt(v: string | null | undefined): string {
-  if (!v) return "—";
-  try {
-    return format(new Date(v), "d MMM yyyy HH:mm", { locale: tr });
-  } catch {
-    return "—";
-  }
-}
+const fmt = formatDateTime;
 
 const VISIBILITY_LABELS: Record<string, string> = {
   PUBLIC: "Herkese Açık",

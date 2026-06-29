@@ -21,6 +21,7 @@ import {
   useSupplierTemplates,
 } from "@/hooks/use-supplier-templates";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
+import { useConfirm } from "@/components/providers/confirm-dialog";
 import { cn } from "@/lib/utils";
 import {
   Building2,
@@ -188,6 +189,7 @@ function SaveTemplateModal({
  */
 export function Step3Suppliers() {
   const { control, getValues, setValue } = useFormContext<TenderFormData>();
+  const confirm = useConfirm();
   const connections = useConnections();
   const templates = useSupplierTemplates();
   const deleteTemplate = useDeleteSupplierTemplate();
@@ -424,8 +426,15 @@ export function Step3Suppliers() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            if (confirm(`"${t.name}" şablonu silinsin mi?`))
+                          onClick={async () => {
+                            if (
+                              await confirm({
+                                title: "Şablonu sil",
+                                description: `"${t.name}" şablonu silinsin mi?`,
+                                confirmLabel: "Sil",
+                                destructive: true,
+                              })
+                            )
                               deleteTemplate.mutate(t.id);
                           }}
                           aria-label="Sil"

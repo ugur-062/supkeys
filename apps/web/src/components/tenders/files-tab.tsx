@@ -10,14 +10,14 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { Text } from "@/components/catalyst/text";
+import { useConfirm } from "@/components/providers/confirm-dialog";
 import {
   useDeleteListingDoc,
   useListingDocuments,
   useUploadListingDoc,
 } from "@/hooks/use-listing-documents";
+import { formatDate } from "@/lib/tenders/date";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import { FileText, Paperclip, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -32,6 +32,7 @@ export function FilesTab({
   // değiştirilebilir; kapandıktan sonra salt-okunur.
   canEdit?: boolean;
 }) {
+  const confirm = useConfirm();
   const docs = useListingDocuments(listingId);
   const upload = useUploadListingDoc(listingId);
   const del = useDeleteListingDoc(listingId);
@@ -49,7 +50,15 @@ export function FilesTab({
   };
 
   const handleDelete = async (docId: string) => {
-    if (!confirm("Dosya silinsin mi?")) return;
+    if (
+      !(await confirm({
+        title: "Dosyayı sil",
+        description: "Dosya silinsin mi?",
+        confirmLabel: "Sil",
+        destructive: true,
+      }))
+    )
+      return;
     try {
       await del.mutateAsync(docId);
       toast.success("Dosya silindi");
@@ -90,6 +99,13 @@ export function FilesTab({
 
       {docs.isLoading ? (
         <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+      ) : docs.isError ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+          <Text className="text-sm text-red-600">Dosyalar yüklenemedi.</Text>
+          <Button outline onClick={() => docs.refetch()}>
+            Tekrar dene
+          </Button>
+        </div>
       ) : rows.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100">
@@ -124,7 +140,7 @@ export function FilesTab({
                   </a>
                 </TableCell>
                 <TableCell className="text-zinc-500">
-                  {format(new Date(d.createdAt), "d MMM yyyy", { locale: tr })}
+                  {formatDate(d.createdAt)}
                 </TableCell>
                 <TableCell className="text-right">
                   {isOwner && canEdit && d.mine ? (

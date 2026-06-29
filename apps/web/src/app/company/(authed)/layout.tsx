@@ -2,6 +2,7 @@
 
 import { CompanyShell } from "@/components/company-shell/shell";
 import { RequireCompanyAuth } from "@/components/providers/company-auth-hydration";
+import { ConfirmProvider } from "@/components/providers/confirm-dialog";
 
 export default function CompanyAuthedLayout({
   children,
@@ -10,7 +11,9 @@ export default function CompanyAuthedLayout({
 }) {
   return (
     <RequireCompanyAuth>
-      <CompanyShell>{children}</CompanyShell>
+      <ConfirmProvider>
+        <CompanyShell>{children}</CompanyShell>
+      </ConfirmProvider>
     </RequireCompanyAuth>
   );
 }

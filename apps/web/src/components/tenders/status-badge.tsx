@@ -12,42 +12,58 @@ export type ListingStatus =
   | "CANCELLED";
 export type ListingFormat = "RFQ" | "ENGLISH_AUCTION";
 
+/**
+ * İlan durum etiketleri — TEK kaynak. Tüm görünümler (badge, detay, filtre)
+ * etiket metnini buradan alır; renk/stil her görünümün kendi sorumluluğunda.
+ */
+export const LISTING_STATUS_LABELS: Record<ListingStatus, string> = {
+  DRAFT: "Taslak",
+  IN_APPROVAL: "Onayda",
+  OPEN: "Yayında",
+  CLOSED: "Teklife Kapalı",
+  IN_AWARD: "Kazandırmada",
+  IN_AWARD_APPROVAL: "Kazandırma Onayı",
+  AWARDED: "Tamamlandı",
+  CLOSED_NO_AWARD: "Kazansız Kapandı",
+  CANCELLED: "İptal/Kapalı",
+};
+
 const STATUS_META: Record<ListingStatus, { label: string; className: string }> =
   {
     DRAFT: {
-      label: "Taslak",
+      label: LISTING_STATUS_LABELS.DRAFT,
       className: "bg-slate-100 text-slate-600 border-slate-200",
     },
     IN_APPROVAL: {
-      label: "Onayda",
+      label: LISTING_STATUS_LABELS.IN_APPROVAL,
       className: "bg-amber-50 text-amber-700 border-amber-200",
     },
     OPEN: {
-      label: "Yayında",
+      label: LISTING_STATUS_LABELS.OPEN,
       className: "bg-success-50 text-success-600 border-success-500/30",
     },
     CLOSED: {
-      label: "Teklife Kapalı",
+      label: LISTING_STATUS_LABELS.CLOSED,
       className: "bg-warning-50 text-warning-600 border-warning-500/30",
     },
     IN_AWARD: {
-      label: "Kazandırmada",
+      label: LISTING_STATUS_LABELS.IN_AWARD,
       className: "bg-blue-50 text-blue-700 border-blue-200",
     },
     IN_AWARD_APPROVAL: {
-      label: "Kazandırma Onayı",
+      label: LISTING_STATUS_LABELS.IN_AWARD_APPROVAL,
       className: "bg-amber-50 text-amber-700 border-amber-200",
     },
     AWARDED: {
-      label: "Tamamlandı",
+      label: LISTING_STATUS_LABELS.AWARDED,
       className: "bg-zinc-100 text-zinc-700 border-zinc-200",
     },
     CLOSED_NO_AWARD: {
-      label: "Kazansız Kapandı",
+      label: LISTING_STATUS_LABELS.CLOSED_NO_AWARD,
       className: "bg-zinc-100 text-zinc-600 border-zinc-200",
     },
     CANCELLED: {
-      label: "İptal/Kapalı",
+      label: LISTING_STATUS_LABELS.CANCELLED,
       className: "bg-danger-50 text-danger-600 border-danger-500/30",
     },
   };

@@ -7,6 +7,7 @@ import {
   ResultCount,
   SearchInput,
 } from "@/components/list";
+import { LISTING_STATUS_LABELS } from "@/components/tenders/status-badge";
 import { TendersTable } from "@/components/tenders/tenders-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,15 +57,15 @@ type TabKey =
   | "CANCELLED";
 const STATUS_OPTIONS: { value: TabKey; label: string }[] = [
   { value: "all", label: "Tüm Durumlar" },
-  { value: "DRAFT", label: "Taslak" },
-  { value: "IN_APPROVAL", label: "Onayda" },
-  { value: "OPEN", label: "Yayında" },
-  { value: "CLOSED", label: "Teklife Kapalı" },
-  { value: "IN_AWARD", label: "Kazandırmada" },
-  { value: "IN_AWARD_APPROVAL", label: "Kazandırma Onayı" },
-  { value: "AWARDED", label: "Tamamlandı" },
-  { value: "CLOSED_NO_AWARD", label: "Kazansız Kapandı" },
-  { value: "CANCELLED", label: "İptal/Kapalı" },
+  { value: "DRAFT", label: LISTING_STATUS_LABELS.DRAFT },
+  { value: "IN_APPROVAL", label: LISTING_STATUS_LABELS.IN_APPROVAL },
+  { value: "OPEN", label: LISTING_STATUS_LABELS.OPEN },
+  { value: "CLOSED", label: LISTING_STATUS_LABELS.CLOSED },
+  { value: "IN_AWARD", label: LISTING_STATUS_LABELS.IN_AWARD },
+  { value: "IN_AWARD_APPROVAL", label: LISTING_STATUS_LABELS.IN_AWARD_APPROVAL },
+  { value: "AWARDED", label: LISTING_STATUS_LABELS.AWARDED },
+  { value: "CLOSED_NO_AWARD", label: LISTING_STATUS_LABELS.CLOSED_NO_AWARD },
+  { value: "CANCELLED", label: LISTING_STATUS_LABELS.CANCELLED },
 ];
 
 const PAGE_SIZE = 20;

@@ -5,6 +5,8 @@ import { Button } from "@/components/catalyst/button";
 import { CountdownFull } from "@/components/tenders/countdown-full";
 import { FilesTab } from "@/components/tenders/files-tab";
 import { GeneralInfoTab } from "@/components/tenders/general-info-tab";
+import { ReasonDialog } from "@/components/tenders/reason-dialog";
+import { LISTING_STATUS_LABELS } from "@/components/tenders/status-badge";
 import { TenderActionsMenu } from "@/components/tenders/tender-actions-menu";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Heading, Subheading } from "@/components/catalyst/heading";
@@ -29,6 +31,7 @@ import {
   usePublishListing,
   useWithdrawBid,
 } from "@/hooks/use-company-listings";
+import { useConfirm } from "@/components/providers/confirm-dialog";
 import { useCancelApproval } from "@/hooks/use-company-approvals";
 import {
   useBidDocuments,
@@ -37,6 +40,7 @@ import {
 } from "@/hooks/use-bid-documents";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
@@ -107,15 +111,21 @@ const LISTING_STATUS_META: Record<
   string,
   { label: string; color: React.ComponentProps<typeof Badge>["color"] }
 > = {
-  DRAFT: { label: "Taslak", color: "zinc" },
-  IN_APPROVAL: { label: "Onayda", color: "amber" },
-  OPEN: { label: "Yayında", color: "green" },
-  CLOSED: { label: "Teklife Kapalı", color: "amber" },
-  IN_AWARD: { label: "Kazandırmada", color: "blue" },
-  IN_AWARD_APPROVAL: { label: "Kazandırma Onayı", color: "amber" },
-  AWARDED: { label: "Tamamlandı", color: "blue" },
-  CLOSED_NO_AWARD: { label: "Kazansız Kapandı", color: "zinc" },
-  CANCELLED: { label: "İptal", color: "red" },
+  DRAFT: { label: LISTING_STATUS_LABELS.DRAFT, color: "zinc" },
+  IN_APPROVAL: { label: LISTING_STATUS_LABELS.IN_APPROVAL, color: "amber" },
+  OPEN: { label: LISTING_STATUS_LABELS.OPEN, color: "green" },
+  CLOSED: { label: LISTING_STATUS_LABELS.CLOSED, color: "amber" },
+  IN_AWARD: { label: LISTING_STATUS_LABELS.IN_AWARD, color: "blue" },
+  IN_AWARD_APPROVAL: {
+    label: LISTING_STATUS_LABELS.IN_AWARD_APPROVAL,
+    color: "amber",
+  },
+  AWARDED: { label: LISTING_STATUS_LABELS.AWARDED, color: "blue" },
+  CLOSED_NO_AWARD: {
+    label: LISTING_STATUS_LABELS.CLOSED_NO_AWARD,
+    color: "zinc",
+  },
+  CANCELLED: { label: LISTING_STATUS_LABELS.CANCELLED, color: "red" },
 };
 
 export default function ListingDetailPage() {
@@ -124,7 +134,8 @@ export default function ListingDetailPage() {
   const searchParams = useSearchParams();
   const fromHref = searchParams.get("from");
   const fromLabel = searchParams.get("fromLabel");
-  const { data: l, isLoading } = useListingDetail(id);
+  const { data: l, isLoading, isError, refetch } = useListingDetail(id);
+  const confirm = useConfirm();
   const placeBid = usePlaceBid(id);
   const award = useAwardListing(id);
   const buyNow = useBuyNow(id);
@@ -149,6 +160,10 @@ export default function ListingDetailPage() {
   const [bidView, setBidView] = useState<"all" | "complete" | "incomplete">(
     "all",
   );
+  const [eliminateTarget, setEliminateTarget] = useState<{
+    bidId: string;
+    bidderName: string;
+  } | null>(null);
 
   // Teklif formu varsayılanları (mevcut teklif / ilan para birimi).
   useEffect(() => {
@@ -182,7 +197,14 @@ export default function ListingDetailPage() {
   };
 
   const handleAward = async (bidId: string, bidderName: string) => {
-    if (!confirm(`"${bidderName}" kazandırılsın mı? Sipariş oluşacak.`)) return;
+    if (
+      !(await confirm({
+        title: "Kazandır",
+        description: `"${bidderName}" kazandırılsın mı? Sipariş oluşacak.`,
+        confirmLabel: "Kazandır",
+      }))
+    )
+      return;
     try {
       const res = await award.mutateAsync(bidId);
       toast.success(
@@ -195,12 +217,15 @@ export default function ListingDetailPage() {
     }
   };
 
-  const handleEliminate = async (bidId: string, bidderName: string) => {
-    if (!confirm(`"${bidderName}" elensin mi? Yeniden teklif verebilir.`)) return;
-    const reason = window.prompt("Eleme gerekçesi (opsiyonel):") ?? "";
+  const submitEliminate = async (reason: string) => {
+    if (!eliminateTarget) return;
     try {
-      await eliminate.mutateAsync({ bidId, reason: reason.trim() || undefined });
+      await eliminate.mutateAsync({
+        bidId: eliminateTarget.bidId,
+        reason: reason.trim() || undefined,
+      });
       toast.success("Teklif elendi");
+      setEliminateTarget(null);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Elenemedi"));
     }
@@ -208,7 +233,14 @@ export default function ListingDetailPage() {
 
   const handleCancelApproval = async () => {
     if (!l?.pendingApprovalId) return;
-    if (!confirm("Onay isteği iptal edilsin mi? İlan eski durumuna döner."))
+    if (
+      !(await confirm({
+        title: "Onay isteğini iptal et",
+        description: "Onay isteği iptal edilsin mi? İlan eski durumuna döner.",
+        confirmLabel: "İptal et",
+        destructive: true,
+      }))
+    )
       return;
     try {
       await cancelApproval.mutateAsync(l.pendingApprovalId);
@@ -219,7 +251,14 @@ export default function ListingDetailPage() {
   };
 
   const handlePublish = async () => {
-    if (!confirm("İhale yayınlansın mı? Yayınlandıktan sonra tedarikçiler görebilir."))
+    if (
+      !(await confirm({
+        title: "İhaleyi yayınla",
+        description:
+          "İhale yayınlansın mı? Yayınlandıktan sonra tedarikçiler görebilir.",
+        confirmLabel: "Yayınla",
+      }))
+    )
       return;
     try {
       await publish.mutateAsync();
@@ -269,11 +308,14 @@ export default function ListingDetailPage() {
     }
     const skipped = items.length - itemAwards.length;
     if (
-      !confirm(
-        skipped > 0
-          ? `${itemAwards.length} kalem kazandırılacak, ${skipped} kalem (seçilmeyen/teklifsiz) atlanacak. Devam?`
-          : "Kalem-bazlı kazandırılsın mı? Kazanan firma başına sipariş oluşur.",
-      )
+      !(await confirm({
+        title: "Kalem-bazlı kazandır",
+        description:
+          skipped > 0
+            ? `${itemAwards.length} kalem kazandırılacak, ${skipped} kalem (seçilmeyen/teklifsiz) atlanacak. Devam?`
+            : "Kalem-bazlı kazandırılsın mı? Kazanan firma başına sipariş oluşur.",
+        confirmLabel: "Kazandır",
+      }))
     )
       return;
     try {
@@ -290,7 +332,23 @@ export default function ListingDetailPage() {
   };
 
   if (isLoading) {
-    return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
+    return (
+      <div className="mx-auto max-w-5xl space-y-4">
+        <div className="h-8 w-1/3 animate-pulse rounded bg-zinc-100" />
+        <div className="h-32 animate-pulse rounded-2xl bg-zinc-100" />
+        <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
+      </div>
+    );
+  }
+  if (isError) {
+    return (
+      <div className="mx-auto max-w-3xl rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+        <Text className="text-sm text-red-700">İlan yüklenemedi.</Text>
+        <Button outline className="mt-3" onClick={() => refetch()}>
+          Tekrar dene
+        </Button>
+      </div>
+    );
   }
   if (!l) {
     return (
@@ -378,7 +436,15 @@ export default function ListingDetailPage() {
   };
 
   const handleDeleteBidDoc = async (docId: string) => {
-    if (!confirm("Belge silinsin mi?")) return;
+    if (
+      !(await confirm({
+        title: "Belgeyi sil",
+        description: "Belge silinsin mi?",
+        confirmLabel: "Sil",
+        destructive: true,
+      }))
+    )
+      return;
     try {
       await deleteBidDoc.mutateAsync(docId);
       toast.success("Belge silindi");
@@ -492,7 +558,7 @@ export default function ListingDetailPage() {
                   <CountdownFull deadline={l.closesAt} endedLabel="Kapandı" />
                 </>
               ) : (
-                <>Kapanış: {new Date(l.closesAt).toLocaleString("tr-TR")}</>
+                <>Kapanış: {formatDateTime(l.closesAt)}</>
               )}
             </span>
           ) : null}
@@ -537,6 +603,14 @@ export default function ListingDetailPage() {
         bidItemCount,
   ).length;
   const incompleteCount = Math.max(0, submittedCount - completeCount);
+  // Kalem karşılaştırma için fiyat haritası (bidId → itemId → fiyat). Hücre
+  // başına .find yerine tek seferde kurup O(1) erişim (matris perf).
+  const priceMap = new Map<string, Map<string, number>>();
+  for (const b of allBids) {
+    const inner = new Map<string, number>();
+    for (const bi of b.items ?? []) inner.set(bi.itemId, Number(bi.unitPrice));
+    priceMap.set(b.id, inner);
+  }
   // Gerçek en iyi (uygun) teklif: yalnız SUBMITTED arasında ALIM→en düşük,
   // SATIS→en yüksek. "En iyi" rozeti filtre/sıraya değil buna bağlanır.
   const bestBidId = (() => {
@@ -624,8 +698,8 @@ export default function ListingDetailPage() {
               <TableBody>
                 {l.items.map((it) => {
                   const prices = (l.bids ?? []).map((b) => {
-                    const bi = b.items?.find((x) => x.itemId === it.id);
-                    return bi ? Number(bi.unitPrice) : null;
+                    const v = priceMap.get(b.id)?.get(it.id);
+                    return v != null ? v : null;
                   });
                   const valid = prices.filter(
                     (p): p is number => p != null && p > 0,
@@ -841,7 +915,12 @@ export default function ListingDetailPage() {
                   <>
                     <Button
                       plain
-                      onClick={() => handleEliminate(b.id, b.bidderName)}
+                      onClick={() =>
+                        setEliminateTarget({
+                          bidId: b.id,
+                          bidderName: b.bidderName,
+                        })
+                      }
                       disabled={eliminate.isPending}
                     >
                       Ele
@@ -1355,10 +1434,10 @@ export default function ListingDetailPage() {
                 l.closesAt ? (
                   <>
                     <span className="block leading-tight">
-                      {new Date(l.closesAt).toLocaleDateString("tr-TR")}
+                      {formatDate(l.closesAt)}
                     </span>
                     <span className="block text-xs font-medium leading-tight text-zinc-500">
-                      {new Date(l.closesAt).toLocaleTimeString("tr-TR")}
+                      {formatTime(l.closesAt)}
                     </span>
                   </>
                 ) : (
@@ -1421,6 +1500,21 @@ export default function ListingDetailPage() {
             </TabPanel>
           </TabPanels>
         </TabGroup>
+
+        <ReasonDialog
+          open={!!eliminateTarget}
+          onClose={() => setEliminateTarget(null)}
+          onSubmit={submitEliminate}
+          title="Teklifi ele"
+          description={
+            eliminateTarget
+              ? `"${eliminateTarget.bidderName}" elensin mi? Yeniden teklif verebilir.`
+              : undefined
+          }
+          confirmLabel="Ele"
+          destructive
+          pending={eliminate.isPending}
+        />
       </div>
     );
   }

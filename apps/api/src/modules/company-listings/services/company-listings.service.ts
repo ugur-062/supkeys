@@ -1139,33 +1139,37 @@ export class CompanyListingsService {
     }));
 
     if (isOwner) {
-      const bids = await this.prisma.listingBid.findMany({
-        where: { listingId: id, status: { in: ["SUBMITTED", "WON", "LOST"] } },
-        include: {
-          bidderCompany: { select: { name: true } },
-          items: true,
-        },
-      });
+      // Bağımsız sorgular paralel (sahip detayı 4sn'de bir poll'lanabilir).
+      const needsApproval =
+        listing.status === "IN_APPROVAL" ||
+        listing.status === "IN_AWARD_APPROVAL";
+      const [bids, invitations, pendingApprovalId] = await Promise.all([
+        this.prisma.listingBid.findMany({
+          where: { listingId: id, status: { in: ["SUBMITTED", "WON", "LOST"] } },
+          include: {
+            bidderCompany: { select: { name: true } },
+            items: true,
+          },
+        }),
+        this.prisma.listingInvitation.findMany({
+          where: { listingId: id },
+          include: {
+            invitedCompany: { select: { name: true, supkeysId: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        }),
+        needsApproval
+          ? this.approvals.pendingForListing(user.companyId, id)
+          : Promise.resolve(null),
+      ]);
       bids.sort((a, b) =>
         listing.type === "ALIM"
           ? Number(a.amount) - Number(b.amount) // ALIM: düşük iyi
           : Number(b.amount) - Number(a.amount), // SATIS: yüksek iyi
       );
-      const invitations = await this.prisma.listingInvitation.findMany({
-        where: { listingId: id },
-        include: {
-          invitedCompany: { select: { name: true, supkeysId: true } },
-        },
-        orderBy: { createdAt: "asc" },
-      });
       const submittedCount = bids.filter(
         (b) => b.status === "SUBMITTED",
       ).length;
-      const pendingApprovalId =
-        listing.status === "IN_APPROVAL" ||
-        listing.status === "IN_AWARD_APPROVAL"
-          ? await this.approvals.pendingForListing(user.companyId, id)
-          : null;
       return {
         ...this.detail(listing, false),
         isOwner: true,

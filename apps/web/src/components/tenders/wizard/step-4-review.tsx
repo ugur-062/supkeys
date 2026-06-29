@@ -14,8 +14,7 @@ import type {
   DeliveryTerm,
   TenderLogisticsDetails,
 } from "@/lib/tenders/types";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
+import { formatDateTime } from "@/lib/tenders/date";
 import { Pencil } from "lucide-react";
 import { useFormContext } from "react-hook-form";
 
@@ -23,14 +22,7 @@ interface Props {
   onEditStep: (step: 1 | 2 | 3) => void;
 }
 
-function fmtDate(v: string | undefined) {
-  if (!v) return "—";
-  try {
-    return format(new Date(v), "d MMM yyyy HH:mm", { locale: tr });
-  } catch {
-    return v;
-  }
-}
+const fmtDate = formatDateTime;
 
 /** Adım 4 — Özet & Yayınla. Tüm form özeti, bölüm-bölüm düzenle linkli. */
 export function Step4Review({ onEditStep }: Props) {

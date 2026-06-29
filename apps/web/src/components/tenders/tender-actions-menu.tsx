@@ -20,6 +20,7 @@ import { Field, Label } from "@/components/catalyst/fieldset";
 import { EllipsisVerticalIcon } from "@heroicons/react/16/solid";
 import { Input } from "@/components/catalyst/input";
 import { Textarea } from "@/components/catalyst/textarea";
+import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { RoundHistoryDialog } from "@/components/tenders/round-history-dialog";
 import { useConnections } from "@/hooks/use-company-connections";
@@ -67,6 +68,7 @@ export function TenderActionsMenu({
   canEdit,
 }: Props) {
   const router = useRouter();
+  const confirm = useConfirm();
   const closeEarly = useCloseEarly(id);
   const changeClosing = useChangeClosing(id);
   const updateNotes = useUpdateInternalNotes(id);
@@ -84,7 +86,15 @@ export function TenderActionsMenu({
   const canInvite = status === "DRAFT" || status === "OPEN";
 
   const handleDeleteDraft = async () => {
-    if (!confirm("Taslak ilan kalıcı olarak silinsin mi?")) return;
+    if (
+      !(await confirm({
+        title: "Taslağı sil",
+        description: "Taslak ilan kalıcı olarak silinsin mi?",
+        confirmLabel: "Sil",
+        destructive: true,
+      }))
+    )
+      return;
     try {
       await deleteListing.mutateAsync(id);
       toast.success("Taslak silindi");
@@ -199,7 +209,14 @@ export function TenderActionsMenu({
   };
 
   const handleCloseEarly = async () => {
-    if (!confirm("İhale şimdi kapatılsın mı? Teklif alımı durur, kazandırma aşamasına geçer."))
+    if (
+      !(await confirm({
+        title: "İhaleyi erken kapat",
+        description:
+          "İhale şimdi kapatılsın mı? Teklif alımı durur, kazandırma aşamasına geçer.",
+        confirmLabel: "Kapat",
+      }))
+    )
       return;
     try {
       await closeEarly.mutateAsync();

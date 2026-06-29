@@ -12,30 +12,43 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { Text } from "@/components/catalyst/text";
+import { useConfirm } from "@/components/providers/confirm-dialog";
+import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { useBidDocuments } from "@/hooks/use-bid-documents";
 import {
   useAwardListing,
   useEliminateBid,
   useListingDetail,
 } from "@/hooks/use-company-listings";
+import { formatDateTime } from "@/lib/tenders/date";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export default function BidDetailPage() {
   const params = useParams<{ id: string; bidId: string }>();
   const { id, bidId } = params;
-  const { data: l, isLoading } = useListingDetail(id);
+  const { data: l, isLoading, isError, refetch } = useListingDetail(id);
+  const confirm = useConfirm();
   const award = useAwardListing(id);
   const eliminate = useEliminateBid(id);
   const bidDocs = useBidDocuments(id);
+  const [eliminateOpen, setEliminateOpen] = useState(false);
 
   if (isLoading)
     return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
+  if (isError)
+    return (
+      <div className="mx-auto max-w-3xl rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+        <Text className="text-sm text-red-700">Teklif yüklenemedi.</Text>
+        <Button outline className="mt-3" onClick={() => refetch()}>
+          Tekrar dene
+        </Button>
+      </div>
+    );
   if (!l)
     return <Text className="text-sm text-zinc-500">İlan bulunamadı.</Text>;
 
@@ -62,7 +75,13 @@ export default function BidDetailPage() {
     bid.items?.find((x) => x.itemId === itemId)?.unitPrice;
 
   const handleAward = async () => {
-    if (!confirm(`"${bid.bidderName}" kazandırılsın mı? Sipariş oluşacak.`))
+    if (
+      !(await confirm({
+        title: "Kazandır",
+        description: `"${bid.bidderName}" kazandırılsın mı? Sipariş oluşacak.`,
+        confirmLabel: "Kazandır",
+      }))
+    )
       return;
     try {
       const res = await award.mutateAsync(bid.id);
@@ -72,13 +91,14 @@ export default function BidDetailPage() {
     }
   };
 
-  const handleEliminate = async () => {
-    if (!confirm(`"${bid.bidderName}" elensin mi? Yeniden teklif verebilir.`))
-      return;
-    const reason = window.prompt("Eleme gerekçesi (opsiyonel):") ?? "";
+  const submitEliminate = async (reason: string) => {
     try {
-      await eliminate.mutateAsync({ bidId: bid.id, reason: reason.trim() || undefined });
+      await eliminate.mutateAsync({
+        bidId: bid.id,
+        reason: reason.trim() || undefined,
+      });
       toast.success("Teklif elendi");
+      setEliminateOpen(false);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Elenemedi"));
     }
@@ -111,9 +131,7 @@ export default function BidDetailPage() {
             </div>
             <Heading>{bid.bidderName}</Heading>
             <Text className="text-sm text-zinc-500">
-              {format(new Date(bid.createdAt), "d MMM yyyy HH:mm", {
-                locale: tr,
-              })}
+              {formatDateTime(bid.createdAt)}
             </Text>
           </div>
           <div className="text-right">
@@ -133,7 +151,11 @@ export default function BidDetailPage() {
 
         {canDecide && bid.status === "SUBMITTED" ? (
           <div className="mt-4 flex justify-end gap-2 border-t border-zinc-100 pt-4">
-            <Button plain onClick={handleEliminate} disabled={eliminate.isPending}>
+            <Button
+              plain
+              onClick={() => setEliminateOpen(true)}
+              disabled={eliminate.isPending}
+            >
               Ele
             </Button>
             <Button onClick={handleAward} disabled={award.isPending}>
@@ -217,6 +239,17 @@ export default function BidDetailPage() {
           </div>
         )}
       </section>
+
+      <ReasonDialog
+        open={eliminateOpen}
+        onClose={() => setEliminateOpen(false)}
+        onSubmit={submitEliminate}
+        title="Teklifi ele"
+        description={`"${bid.bidderName}" elensin mi? Yeniden teklif verebilir.`}
+        confirmLabel="Ele"
+        destructive
+        pending={eliminate.isPending}
+      />
     </div>
   );
 }

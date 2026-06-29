@@ -36,6 +36,15 @@ export function RoundHistoryDialog({
       <DialogBody className="space-y-5">
         {history.isLoading ? (
           <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+        ) : history.isError ? (
+          <div className="flex flex-col items-center gap-3 py-4">
+            <Text className="text-sm text-red-600">
+              Tur geçmişi yüklenemedi.
+            </Text>
+            <Button outline onClick={() => history.refetch()}>
+              Tekrar dene
+            </Button>
+          </div>
         ) : rounds.length === 0 ? (
           <Text className="text-sm text-zinc-500">
             Henüz tamamlanmış tur yok. Yeni tur başlattığında önceki turun

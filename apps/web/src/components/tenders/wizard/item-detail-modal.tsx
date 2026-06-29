@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import { FileText } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useFormContext } from "react-hook-form";
 
 interface Props {
@@ -25,13 +26,43 @@ interface Props {
 export function ItemDetailModal({ open, onClose, index }: Props) {
   const {
     register,
+    getValues,
+    setValue,
     formState: { errors },
   } = useFormContext<TenderFormData>();
 
   const itemErrors = errors.items?.[index];
 
+  // Modal açıldığında düzenlenebilir alanların anlık görüntüsünü al; "Vazgeç"
+  // bu değerlere geri döner (alanlar doğrudan RHF'ye bağlı olduğundan).
+  const snapshot = useRef<{
+    description?: string;
+    requiredByDate?: string;
+    targetUnitPrice?: number;
+  } | null>(null);
+
+  useEffect(() => {
+    if (open) {
+      snapshot.current = {
+        description: getValues(`items.${index}.description`),
+        requiredByDate: getValues(`items.${index}.requiredByDate`),
+        targetUnitPrice: getValues(`items.${index}.targetUnitPrice`),
+      };
+    }
+  }, [open, index, getValues]);
+
+  const handleCancel = () => {
+    const s = snapshot.current;
+    if (s) {
+      setValue(`items.${index}.description`, s.description ?? "");
+      setValue(`items.${index}.requiredByDate`, s.requiredByDate ?? "");
+      setValue(`items.${index}.targetUnitPrice`, s.targetUnitPrice);
+    }
+    onClose();
+  };
+
   return (
-    <Dialog open={open} onClose={onClose} size="lg">
+    <Dialog open={open} onClose={handleCancel} size="lg">
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
           <FileText className="h-5 w-5 text-zinc-700" />
@@ -98,7 +129,7 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
       </DialogBody>
 
       <DialogActions>
-        <Button plain onClick={onClose}>
+        <Button plain onClick={handleCancel}>
           Vazgeç
         </Button>
         <Button onClick={onClose}>Kaydet</Button>

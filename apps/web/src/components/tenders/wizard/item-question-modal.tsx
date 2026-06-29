@@ -21,7 +21,7 @@ import {
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import { cn } from "@/lib/utils";
 import { ChevronDown, HelpCircle, Info, LayoutTemplate, Plus, Save, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useFieldArray, useFormContext } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -48,25 +48,50 @@ function newId(): string {
 
 export function ItemQuestionModal({ open, onClose, index }: Props) {
   const { control, register, getValues } = useFormContext<TenderFormData>();
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control,
     name: `items.${index}.questions`,
     keyName: "_rfkey",
   });
   const saveTpl = useSaveQuestionTemplate();
 
-  const saveAsTemplate = async () => {
+  // Açılışta soru dizisinin anlık görüntüsü — "Vazgeç" buna geri döner.
+  const snapshot = useRef<TenderFormData["items"][number]["questions"]>([]);
+  useEffect(() => {
+    if (open) {
+      snapshot.current = (getValues(`items.${index}.questions`) ?? []).map(
+        (q) => ({ ...q }),
+      );
+    }
+  }, [open, index, getValues]);
+
+  const handleCancel = () => {
+    replace(snapshot.current ?? []);
+    onClose();
+  };
+
+  const [nameOpen, setNameOpen] = useState(false);
+  const [tplName, setTplName] = useState("");
+
+  const openSaveDialog = () => {
     const qs = getValues(`items.${index}.questions`) ?? [];
     const valid = qs.filter((q) => q.text.trim());
     if (valid.length === 0) {
       toast.error("Önce en az bir soru ekle");
       return;
     }
-    const name = window.prompt("Şablon adı:");
-    if (!name?.trim()) return;
+    setTplName("");
+    setNameOpen(true);
+  };
+
+  const saveAsTemplate = async () => {
+    const name = tplName.trim();
+    if (!name) return;
+    const qs = getValues(`items.${index}.questions`) ?? [];
+    const valid = qs.filter((q) => q.text.trim());
     try {
       await saveTpl.mutateAsync({
-        name: name.trim(),
+        name,
         items: valid.map((q) => ({
           text: q.text.trim(),
           answerType: q.answerType,
@@ -74,6 +99,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
         })),
       });
       toast.success("Soru şablonu kaydedildi");
+      setNameOpen(false);
     } catch {
       toast.error("Şablon kaydedilemedi");
     }
@@ -105,7 +131,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} size="2xl">
+    <Dialog open={open} onClose={handleCancel} size="2xl">
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
           <HelpCircle className="h-5 w-5 text-zinc-700" />
@@ -301,14 +327,45 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
       <DialogActions>
         <Button
           plain
-          onClick={saveAsTemplate}
+          onClick={openSaveDialog}
           disabled={saveTpl.isPending}
         >
           <Save data-slot="icon" />
           Şablon Olarak Kaydet
         </Button>
+        <Button plain onClick={handleCancel}>
+          Vazgeç
+        </Button>
         <Button onClick={onClose}>Tamam</Button>
       </DialogActions>
+
+      {/* Şablon adı diyaloğu (window.prompt yerine) */}
+      <Dialog open={nameOpen} onClose={() => setNameOpen(false)} size="sm">
+        <DialogTitle>Şablon Adı</DialogTitle>
+        <DialogBody>
+          <Input
+            autoFocus
+            maxLength={120}
+            placeholder="Örn. Standart teknik sorular"
+            value={tplName}
+            onChange={(e) => setTplName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && tplName.trim()) saveAsTemplate();
+            }}
+          />
+        </DialogBody>
+        <DialogActions>
+          <Button plain onClick={() => setNameOpen(false)}>
+            Vazgeç
+          </Button>
+          <Button
+            onClick={saveAsTemplate}
+            disabled={!tplName.trim() || saveTpl.isPending}
+          >
+            Kaydet
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   );
 }

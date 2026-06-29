@@ -16,8 +16,7 @@ import {
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { Button } from "@/components/ui/button";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
+import { formatDate } from "@/lib/tenders/date";
 import { Inbox, Mail, MessageSquare } from "lucide-react";
 import Link from "next/link";
 
@@ -27,15 +26,6 @@ interface TendersTableProps {
   isError: boolean;
   pageSize: number;
   onRetry: () => void;
-}
-
-function formatDate(value: string | null) {
-  if (!value) return "—";
-  try {
-    return format(new Date(value), "d MMM yyyy", { locale: tr });
-  } catch {
-    return "—";
-  }
 }
 
 function fullName(t: TenderListItem) {
