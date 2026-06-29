@@ -24,9 +24,13 @@ import { toast } from "sonner";
 export function FilesTab({
   listingId,
   isOwner,
+  canEdit = false,
 }: {
   listingId: string;
   isOwner: boolean;
+  // İhale belgeleri yalnızca ilan düzenlenebilirken (TASLAK / teklifsiz AÇIK)
+  // değiştirilebilir; kapandıktan sonra salt-okunur.
+  canEdit?: boolean;
 }) {
   const docs = useListingDocuments(listingId);
   const upload = useUploadListingDoc(listingId);
@@ -55,7 +59,7 @@ export function FilesTab({
           </div>
           <h3 className="font-semibold text-zinc-900">İhale Dosyaları</h3>
         </div>
-        {isOwner ? (
+        {isOwner && canEdit ? (
           <Button as="label" outline>
             <Paperclip data-slot="icon" />
             {upload.isPending ? "Yükleniyor…" : "Dosya Ekle"}
@@ -67,6 +71,10 @@ export function FilesTab({
               disabled={upload.isPending}
             />
           </Button>
+        ) : isOwner ? (
+          <Text className="text-xs text-zinc-400">
+            İhale kapandı — belgeler salt-okunur
+          </Text>
         ) : null}
       </div>
 
@@ -109,7 +117,7 @@ export function FilesTab({
                   {format(new Date(d.createdAt), "d MMM yyyy", { locale: tr })}
                 </TableCell>
                 <TableCell className="text-right">
-                  {isOwner && d.mine ? (
+                  {isOwner && canEdit && d.mine ? (
                     <button
                       type="button"
                       onClick={() => del.mutate(d.id)}

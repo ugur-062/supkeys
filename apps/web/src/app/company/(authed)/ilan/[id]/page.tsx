@@ -1283,7 +1283,11 @@ export default function ListingDetailPage() {
             </TabPanel>
             <TabPanel className="outline-none">{itemsSection}</TabPanel>
             <TabPanel className="outline-none">
-              <FilesTab listingId={l.id} isOwner={!!l.isOwner} />
+              <FilesTab
+                listingId={l.id}
+                isOwner={!!l.isOwner}
+                canEdit={!!l.canEdit}
+              />
             </TabPanel>
           </TabPanels>
         </TabGroup>

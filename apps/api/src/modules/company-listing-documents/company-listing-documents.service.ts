@@ -41,11 +41,24 @@ export class CompanyListingDocumentsService {
   }
 
   /**
-   * Belge değişikliği kilidi — ihale belgeleri ilanın içeriğidir; ilk SUBMITTED
-   * teklif geldikten sonra eklenemez/silinemez (eski sistem edit kuralıyla
-   * tutarlı). İndirme/listeleme her zaman serbest.
+   * Belge değişikliği kilidi — ihale belgeleri ilanın içeriğidir; ilan
+   * düzenlenebilir durumdayken (TASLAK her zaman, AÇIK ise henüz SUBMITTED
+   * teklif yokken) eklenebilir/silinebilir. İlan teklife kapandıktan
+   * (CLOSED/IN_AWARD/AWARDED…) sonra dondurulur. Listeleme/indirme serbest.
+   * (İlan `canEdit` kuralıyla birebir aynı.)
    */
   private async assertEditable(listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { status: true },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (listing.status === "DRAFT") return; // taslak her zaman düzenlenebilir
+    if (listing.status !== "OPEN") {
+      throw new BadRequestException(
+        "İhale teklife kapalı; belgeler değiştirilemez",
+      );
+    }
     const submitted = await this.prisma.listingBid.count({
       where: { listingId, status: "SUBMITTED" },
     });
