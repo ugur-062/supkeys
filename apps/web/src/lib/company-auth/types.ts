@@ -23,6 +23,7 @@ export interface CompanyUserDto {
   roles: CompanyRole[];
   isOwner: boolean;
   twoFactorEnabled: boolean;
+  notificationPrefs: Record<string, boolean> | null;
   lastLoginAt: string | null;
 }
 

@@ -75,8 +75,9 @@ export default function BidDetailPage() {
   const handleEliminate = async () => {
     if (!confirm(`"${bid.bidderName}" elensin mi? Yeniden teklif verebilir.`))
       return;
+    const reason = window.prompt("Eleme gerekçesi (opsiyonel):") ?? "";
     try {
-      await eliminate.mutateAsync(bid.id);
+      await eliminate.mutateAsync({ bidId: bid.id, reason: reason.trim() || undefined });
       toast.success("Teklif elendi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Elenemedi"));

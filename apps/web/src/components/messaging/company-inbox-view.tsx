@@ -71,16 +71,16 @@ export function CompanyInboxView({ portal }: { portal: MessagePortal }) {
   const selectedContact = contacts.find((c) => c.id === selected) ?? null;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="space-y-5">
       <PageHeader
         title="Mesajlar"
         description={`${PORTAL_LABEL[portal]} konuşmaların — bu portala özel.`}
       />
 
-      <div className="grid h-[calc(100vh-220px)] min-h-[460px] grid-cols-1 overflow-hidden rounded-2xl ring-1 ring-zinc-950/10 sm:grid-cols-[300px_1fr]">
-        {/* Sol: kontak listesi */}
+      <div className="grid h-[calc(100vh-13rem)] min-h-[480px] grid-cols-1 overflow-hidden border-t border-zinc-950/10 sm:grid-cols-[minmax(0,1fr)_340px] lg:grid-cols-[minmax(0,1fr)_380px]">
+        {/* Sağ: kontak listesi (şirket arama) */}
         <div
-          className={`flex flex-col border-zinc-950/10 bg-white sm:border-r ${
+          className={`flex flex-col border-zinc-950/10 bg-white sm:order-2 sm:border-l ${
             selected ? "hidden sm:flex" : "flex"
           }`}
         >
@@ -111,8 +111,10 @@ export function CompanyInboxView({ portal }: { portal: MessagePortal }) {
                   key={c.id}
                   type="button"
                   onClick={() => setSelected(c.id)}
-                  className={`flex w-full items-center gap-3 border-b border-zinc-950/5 px-3 py-3 text-left transition hover:bg-zinc-50 ${
-                    selected === c.id ? "bg-zinc-50" : ""
+                  className={`flex w-full items-center gap-3 border-l-2 border-b border-zinc-950/5 px-3 py-3 text-left transition hover:bg-zinc-50 ${
+                    selected === c.id
+                      ? "border-l-brand-600 bg-brand-50/60"
+                      : "border-l-transparent"
                   }`}
                 >
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-semibold text-white">
@@ -148,8 +150,10 @@ export function CompanyInboxView({ portal }: { portal: MessagePortal }) {
           </div>
         </div>
 
-        {/* Sağ: aktif sohbet */}
-        <div className={`min-h-0 ${selected ? "flex" : "hidden sm:flex"} flex-col`}>
+        {/* Sol: aktif sohbet */}
+        <div
+          className={`min-h-0 sm:order-1 ${selected ? "flex" : "hidden sm:flex"} flex-col`}
+        >
           {selectedContact ? (
             <>
               <button
@@ -175,7 +179,7 @@ export function CompanyInboxView({ portal }: { portal: MessagePortal }) {
                 Bir kişi seç
               </p>
               <p className="mt-1 text-xs text-zinc-400">
-                Soldan bir firma seçerek sohbete başla.
+                Sağdan bir firma seçerek sohbete başla.
               </p>
             </div>
           )}

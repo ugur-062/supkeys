@@ -512,9 +512,19 @@ export function Step1Info() {
   const autoExtendOnLateBid = watch("autoExtendOnLateBid");
   const isAuction = tenderType === "ENGLISH_AUCTION";
   const isInternational = watch("isInternational");
+  const deliveryTerm = watch("deliveryTerm");
   const deliveryTermOptions = isInternational
     ? INTERNATIONAL_DELIVERY_TERMS
     : DOMESTIC_DELIVERY_TERMS;
+
+  // Kapsam (yurtiçi/uluslararası) değişince, seçili teslim şekli yeni kapsama
+  // uygun değilse temizle — yurtiçide kalan bir Incoterm (ya da tersi) kalmasın.
+  useEffect(() => {
+    if (deliveryTerm && !deliveryTermOptions.includes(deliveryTerm)) {
+      setValue("deliveryTerm", undefined, { shouldValidate: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInternational]);
 
   // V2-7 — Açık eksiltme seçilince tek para birimi zorunlu + decrement default'ları.
   useEffect(() => {
@@ -548,29 +558,6 @@ export function Step1Info() {
 
   return (
     <div className="space-y-8">
-      {/* V2-6 — SECTION: Kategori (en üstte, en kritik seçim) */}
-      <section>
-        <SectionHeader
-          icon={Tag}
-          title="Kategoriler"
-          description="İhalenizin konusu olan ürün/hizmet kategorilerini seçin. Birden fazla kategori seçebilirsiniz (en fazla 10). Doğru kategori seçimi, raporlama ve tedarikçi eşleştirmesi için kritik."
-        />
-        <Field error={errors.categoryIds?.message as string | undefined}>
-          <Label required>Kategoriler</Label>
-          <CategorySelectorButton
-            value={categoryIds}
-            onChange={(ids) =>
-              setValue("categoryIds", ids, { shouldValidate: true })
-            }
-            mode="multi"
-            maxSelection={10}
-            placeholder="İhale kategorilerini seçin"
-            modalTitle="İhale Kategorileri Seç"
-            error={errors.categoryIds?.message as string | undefined}
-          />
-        </Field>
-      </section>
-
       {/* SECTION: Genel Bilgiler */}
       <section>
         <SectionHeader
@@ -603,41 +590,6 @@ export function Step1Info() {
           </Field>
 
           <KeywordsInput />
-
-          <Field>
-            <Label>İhale Tipi</Label>
-            <FormRadioGroup
-              name="type"
-              className="grid grid-cols-1 md:grid-cols-2 gap-3"
-            >
-              <div className="flex items-start gap-3 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
-                <Radio value="RFQ" className="mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-zinc-900">
-                    RFQ (Kapalı Teklif)
-                  </p>
-                  <p className="text-xs text-zinc-500">
-                    Tedarikçiler birbirini görmez. Süre dolunca teklifler açılır.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
-                <Radio value="ENGLISH_AUCTION" className="mt-0.5" />
-                <div>
-                  <p className="text-sm font-semibold text-zinc-900">
-                    İngiliz Usulü{" "}
-                    <span className="ml-1 px-1.5 py-0.5 bg-success-100 text-success-700 text-[10px] rounded-md font-semibold uppercase">
-                      Yeni
-                    </span>
-                  </p>
-                  <p className="text-xs text-zinc-500">
-                    Açık eksiltme, canlı teklif yarışması. Tedarikçi sıralaması ve
-                    fiyat azaltma kuralları aktif.
-                  </p>
-                </div>
-              </div>
-            </FormRadioGroup>
-          </Field>
 
           {/* Açık İhale — görünürlük */}
           <Field
@@ -674,6 +626,29 @@ export function Step1Info() {
             </FormRadioGroup>
           </Field>
         </div>
+      </section>
+
+      {/* V2-6 — SECTION: Kategoriler */}
+      <section>
+        <SectionHeader
+          icon={Tag}
+          title="Kategoriler"
+          description="İhalenizin konusu olan ürün/hizmet kategorilerini seçin. Birden fazla kategori seçebilirsiniz (en fazla 10). Doğru kategori seçimi, raporlama ve tedarikçi eşleştirmesi için kritik."
+        />
+        <Field error={errors.categoryIds?.message as string | undefined}>
+          <Label required>Kategoriler</Label>
+          <CategorySelectorButton
+            value={categoryIds}
+            onChange={(ids) =>
+              setValue("categoryIds", ids, { shouldValidate: true })
+            }
+            mode="multi"
+            maxSelection={10}
+            placeholder="İhale kategorilerini seçin"
+            modalTitle="İhale Kategorileri Seç"
+            error={errors.categoryIds?.message as string | undefined}
+          />
+        </Field>
       </section>
 
       {/* Lojistik — seçilen kategori Nakliye/Depolama segmentindeyse açılır */}

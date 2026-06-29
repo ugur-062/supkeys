@@ -12,7 +12,11 @@ import {
   SortDropdown,
 } from "@/components/list";
 import { CountdownFull } from "@/components/tenders/countdown-full";
-import { useMyBids, type MyBid } from "@/hooks/use-company-listings";
+import {
+  useMyBids,
+  type ListingType,
+  type MyBid,
+} from "@/hooks/use-company-listings";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { CircleSlash, Gavel } from "lucide-react";
@@ -54,8 +58,12 @@ function matchesSearch(b: MyBid, q: string) {
   );
 }
 
-/** Firmanın açık ihalelere verdiği tüm teklifler — profesyonel liste. */
-export function MyBidsList() {
+/**
+ * Firmanın verdiği teklifler. `listingType` ile portala göre süzülür:
+ * - SATIS → satıcıların ilanlarına verilen (Satın Al) teklifler (satınalma paneli)
+ * - ALIM  → açık ihalelere verilen teklifler (satış paneli)
+ */
+export function MyBidsList({ listingType }: { listingType: ListingType }) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [sort, setSort] = useState("newest");
@@ -63,7 +71,18 @@ export function MyBidsList() {
 
   const { data, isLoading } = useMyBids();
 
-  const all = data ?? [];
+  const isPurchase = listingType === "SATIS";
+  const description = isPurchase
+    ? "Satıcıların ilanlarına verdiğin teklifler ve sonuçları."
+    : "Açık ihalelere verdiğin tüm teklifler ve sonuçları.";
+  const emptyHint = isPurchase
+    ? "Satın Al ekranından bir ilana teklif verdiğinde burada görünür."
+    : "Açık ihaleler ekranından bir ihaleye teklif verdiğinde burada görünür.";
+
+  const all = useMemo(
+    () => (data ?? []).filter((b) => b.listing.type === listingType),
+    [data, listingType],
+  );
 
   const filtered = useMemo(() => {
     const rows = all.filter(
@@ -98,10 +117,7 @@ export function MyBidsList() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <PageHeader
-        title="Tekliflerim"
-        description="Açık ihalelere verdiğin tüm teklifler ve sonuçları."
-      />
+      <PageHeader title="Tekliflerim" description={description} />
 
       {all.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -109,7 +125,7 @@ export function MyBidsList() {
             <SearchInput
               value={search}
               onChange={resetToFirstPage(setSearch)}
-              placeholder="İhale ara…"
+              placeholder={isPurchase ? "İlan ara…" : "İhale ara…"}
               className="w-full sm:w-64"
             />
             <FilterSelect
@@ -138,9 +154,7 @@ export function MyBidsList() {
             variant={isFiltered ? "no-results" : "no-data"}
             title={isFiltered ? "Eşleşen teklif yok" : "Henüz teklif vermedin"}
             description={
-              isFiltered
-                ? "Filtreleri değiştirip tekrar dene."
-                : "Açık ihaleler ekranından bir ihaleye teklif verdiğinde burada görünür."
+              isFiltered ? "Filtreleri değiştirip tekrar dene." : emptyHint
             }
           />
         ) : (

@@ -27,10 +27,18 @@ export function useHasRole(role: string): boolean {
   return !!user?.roles.includes(role as never);
 }
 
+export type CompanyLoginResult =
+  | CompanyLoginResponse
+  | { twoFactorRequired: true };
+
 export function useCompanyLogin() {
   return useMutation({
-    mutationFn: async (input: { email: string; password: string }) => {
-      const { data } = await companyApi.post<CompanyLoginResponse>(
+    mutationFn: async (input: {
+      email: string;
+      password: string;
+      code?: string;
+    }) => {
+      const { data } = await companyApi.post<CompanyLoginResult>(
         "/company-auth/login",
         input,
       );

@@ -24,6 +24,8 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
   const login = useCompanyLogin();
   const setAuth = useSetCompanyAuth();
   const [formError, setFormError] = useState<string | null>(null);
+  const [twoFactor, setTwoFactor] = useState(false);
+  const [code, setCode] = useState("");
 
   const {
     register,
@@ -34,7 +36,14 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
   const onSubmit = handleSubmit(async (data) => {
     setFormError(null);
     try {
-      const res = await login.mutateAsync(data);
+      const res = await login.mutateAsync({
+        ...data,
+        code: twoFactor ? code.trim() : undefined,
+      });
+      if ("twoFactorRequired" in res) {
+        setTwoFactor(true);
+        return;
+      }
       setAuth({ token: res.token, user: res.user, company: res.company });
       router.replace(nextPath);
     } catch (err) {
@@ -72,6 +81,23 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
           </p>
         ) : null}
       </Field>
+
+      {twoFactor ? (
+        <Field>
+          <Label>Doğrulama kodu</Label>
+          <Input
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            autoFocus
+            placeholder="Authenticator 6 haneli kod"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-zinc-500">
+            Hesabınızda iki adımlı doğrulama açık — uygulamanızdaki kodu girin.
+          </p>
+        </Field>
+      ) : null}
 
       <div className="-mt-1 text-right">
         <Link

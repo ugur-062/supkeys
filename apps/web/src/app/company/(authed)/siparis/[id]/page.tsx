@@ -3,10 +3,19 @@
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Heading } from "@/components/catalyst/heading";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { Text } from "@/components/catalyst/text";
 import { OrderPaymentsCard } from "@/components/orders/order-payments-card";
 import {
   useAcceptOrder,
+  useCancelOrder,
   useOrder,
   useOrderAction,
   useRejectOrder,
@@ -14,7 +23,11 @@ import {
 } from "@/hooks/use-company-orders";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { OrderDocumentsSection } from "./_components/order-documents-section";
+import { OrderReviewCard } from "./_components/order-review-card";
 import { ArrowLeftIcon, CheckCircleIcon } from "@heroicons/react/20/solid";
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
+import { Building2, CalendarClock, Layers, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
@@ -27,10 +40,48 @@ const STEPS = [
   { key: "COMPLETED", label: "Tamamlandı" },
 ] as const;
 
+const STATUS_META: Record<
+  CompanyOrderStatus,
+  { label: string; color: React.ComponentProps<typeof Badge>["color"] }
+> = {
+  PENDING: { label: "Onay bekliyor", color: "amber" },
+  ACCEPTED: { label: "Onaylandı", color: "blue" },
+  CREATED: { label: "Yeni", color: "zinc" },
+  IN_DELIVERY: { label: "Kargoda", color: "indigo" },
+  DELIVERED: { label: "Teslim edildi", color: "cyan" },
+  COMPLETED: { label: "Tamamlandı", color: "green" },
+  REJECTED: { label: "Reddedildi", color: "red" },
+  CANCELLED: { label: "İptal", color: "zinc" },
+};
+
 // Legacy CREATED siparişler ACCEPTED hizasında gösterilir.
 function stepIndexFor(status: CompanyOrderStatus): number {
   if (status === "CREATED") return 1;
   return STEPS.findIndex((s) => s.key === status);
+}
+
+function MetaItem({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: typeof Building2;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2.5 bg-white p-4">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-50">
+        <Icon className="h-4 w-4 text-zinc-600" />
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          {label}
+        </p>
+        <p className="truncate text-sm font-semibold text-zinc-900">{value}</p>
+      </div>
+    </div>
+  );
 }
 
 export default function OrderDetailPage() {
@@ -40,6 +91,7 @@ export default function OrderDetailPage() {
   const action = useOrderAction(id);
   const accept = useAcceptOrder(id);
   const reject = useRejectOrder(id);
+  const cancel = useCancelOrder(id);
 
   if (isLoading)
     return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
@@ -49,6 +101,13 @@ export default function OrderDetailPage() {
   const isSeller = o.role === "seller";
   const stepIndex = stepIndexFor(o.status);
   const terminal = o.status === "REJECTED" || o.status === "CANCELLED";
+  const statusMeta = STATUS_META[o.status] ?? {
+    label: o.status,
+    color: "zinc" as const,
+  };
+  const ordersHref = isSeller
+    ? "/company/satis/siparisler"
+    : "/company/satinalma/siparisler";
 
   const next =
     isSeller && (o.status === "ACCEPTED" || o.status === "CREATED")
@@ -78,113 +137,219 @@ export default function OrderDetailPage() {
   };
 
   const handleReject = async () => {
-    const reason = window.prompt("Ret gerekçesi (opsiyonel):") ?? undefined;
+    const reason = window
+      .prompt("Ret gerekçesi (zorunlu, en az 10 karakter):")
+      ?.trim();
+    if (!reason) return;
+    if (reason.length < 10) {
+      toast.error("Gerekçe en az 10 karakter olmalı");
+      return;
+    }
     try {
-      await reject.mutateAsync(reason || undefined);
+      await reject.mutateAsync(reason);
       toast.success("Sipariş reddedildi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "İşlem başarısız"));
     }
   };
 
-  return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <Link
-        href="/company"
-        className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
-      >
-        <ArrowLeftIcon className="h-4 w-4" />
-        Siparişler
-      </Link>
+  const handleCancel = async () => {
+    const reason = window
+      .prompt("İptal gerekçesi (zorunlu, en az 10 karakter):")
+      ?.trim();
+    if (!reason) return;
+    if (reason.length < 10) {
+      toast.error("Gerekçe en az 10 karakter olmalı");
+      return;
+    }
+    try {
+      await cancel.mutateAsync(reason);
+      toast.success("Sipariş iptal edildi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "İptal edilemedi"));
+    }
+  };
 
-      <div className="space-y-1">
+  const handlePrint = () => {
+    if (!o) return;
+    const w = window.open("", "_blank", "width=800,height=900");
+    if (!w) return;
+    const rows = (o.items ?? [])
+      .map((it) => {
+        const line = Number(it.quantity) * Number(it.unitPrice);
+        return `<tr><td>${it.name}</td><td style="text-align:right">${Number(it.quantity).toLocaleString("tr-TR")} ${it.unit}</td><td style="text-align:right">${Number(it.unitPrice).toLocaleString("tr-TR")} ₺</td><td style="text-align:right">${line.toLocaleString("tr-TR")} ₺</td></tr>`;
+      })
+      .join("");
+    w.document.write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>${o.number ?? "Sipariş"}</title>
+<style>body{font-family:system-ui,Arial,sans-serif;color:#18181b;padding:32px;max-width:720px;margin:auto}
+h1{font-size:20px;margin:0 0 4px}.muted{color:#71717a;font-size:13px}
+table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
+th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#71717a;font-size:11px;text-transform:uppercase}
+.tot{text-align:right;font-size:16px;font-weight:700;margin-top:12px}
+.meta{margin-top:8px;font-size:13px;line-height:1.7}</style></head>
+<body>
+<h1>Sipariş ${o.number ?? ""}</h1>
+<div class="muted">Rothern · ${new Date(o.createdAt).toLocaleString("tr-TR")}</div>
+<div class="meta">
+<strong>${isSeller ? "Alıcı" : "Satıcı"}:</strong> ${o.counterparty}<br>
+<strong>İhale:</strong> ${o.listingTitle ?? "—"} (${o.listingNumber ?? "—"})<br>
+<strong>Durum:</strong> ${statusMeta.label}
+</div>
+<table><thead><tr><th>Kalem</th><th style="text-align:right">Miktar</th><th style="text-align:right">Birim</th><th style="text-align:right">Tutar</th></tr></thead>
+<tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:#a1a1aa">Kalem yok</td></tr>'}</tbody></table>
+<div class="tot">Toplam: ${Number(o.amount).toLocaleString("tr-TR")} ₺</div>
+<script>window.onload=function(){window.print()}</script>
+</body></html>`);
+    w.document.close();
+  };
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <Link
+          href={ordersHref}
+          className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
+        >
+          <ArrowLeftIcon className="h-4 w-4" />
+          Siparişler
+        </Link>
         <div className="flex items-center gap-2">
-          <Badge color={isSeller ? "emerald" : "blue"}>
-            {isSeller ? "🟢 Satıcısın" : "🔵 Alıcısın"}
-          </Badge>
-          <span className="font-mono text-xs text-zinc-500">{o.number}</span>
+          {!isSeller &&
+          (o.status === "PENDING" ||
+            o.status === "ACCEPTED" ||
+            o.status === "CREATED") ? (
+            <Button plain onClick={handleCancel} disabled={cancel.isPending}>
+              Siparişi İptal Et
+            </Button>
+          ) : null}
+          <Button outline onClick={handlePrint}>
+            Yazdır / PDF
+          </Button>
+        </div>
+      </div>
+
+      {/* Başlık */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          {o.number ? (
+            <span className="font-mono text-xs font-medium tracking-wide text-zinc-400">
+              {o.number}
+            </span>
+          ) : null}
+          <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
         </div>
         <Heading>{o.listingTitle ?? "Sipariş"}</Heading>
-        <Text className="text-sm">
-          {isSeller ? "Alıcı" : "Satıcı"}: <strong>{o.counterparty}</strong> ·{" "}
-          {Number(o.amount).toLocaleString("tr-TR")} ₺
-        </Text>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge color={isSeller ? "emerald" : "blue"}>
+            {isSeller ? "Satış siparişi" : "Alış siparişi"}
+          </Badge>
+        </div>
       </div>
+
+      {/* Meta şeridi */}
+      <section>
+        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-zinc-950/5 bg-zinc-950/[0.06] lg:grid-cols-4">
+          <MetaItem
+            icon={Building2}
+            label={isSeller ? "Alıcı" : "Satıcı"}
+            value={o.counterparty}
+          />
+          <MetaItem
+            icon={Wallet}
+            label="Tutar"
+            value={`${Number(o.amount).toLocaleString("tr-TR")} ₺`}
+          />
+          <MetaItem
+            icon={Layers}
+            label="Kalem"
+            value={`${o.items.length} kalem`}
+          />
+          <MetaItem
+            icon={CalendarClock}
+            label="Tarih"
+            value={format(new Date(o.createdAt), "d MMM yyyy", { locale: tr })}
+          />
+        </dl>
+      </section>
+
+      {/* Durum akışı */}
+      <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+        {terminal ? (
+          <Badge color="red">
+            {o.status === "REJECTED" ? "Satıcı reddetti" : "İptal edildi"}
+          </Badge>
+        ) : (
+          <div className="flex items-center gap-2">
+            {STEPS.map((s, i) => (
+              <div key={s.key} className="flex flex-1 items-center gap-2">
+                <div className="flex flex-col items-center gap-1">
+                  <CheckCircleIcon
+                    className={`h-6 w-6 ${
+                      i <= stepIndex ? "text-emerald-500" : "text-zinc-300"
+                    }`}
+                  />
+                  <span
+                    className={`text-center text-xs ${
+                      i <= stepIndex ? "text-zinc-900" : "text-zinc-400"
+                    }`}
+                  >
+                    {s.label}
+                  </span>
+                </div>
+                {i < STEPS.length - 1 ? (
+                  <div
+                    className={`mb-5 h-0.5 flex-1 ${
+                      i < stepIndex ? "bg-emerald-400" : "bg-zinc-200"
+                    }`}
+                  />
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Sipariş kalemleri */}
       {o.items.length > 0 ? (
-        <div className="overflow-hidden rounded-xl border border-zinc-950/10">
-          <table className="w-full text-sm">
-            <thead className="bg-zinc-50 text-xs text-zinc-500">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium">Kalem</th>
-                <th className="px-3 py-2 text-right font-medium">Miktar</th>
-                <th className="px-3 py-2 text-right font-medium">Birim Fiyat</th>
-                <th className="px-3 py-2 text-right font-medium">Tutar</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
+        <section>
+          <Table dense>
+            <TableHead>
+              <TableRow>
+                <TableHeader>Kalem</TableHeader>
+                <TableHeader className="text-right">Miktar</TableHeader>
+                <TableHeader className="text-right">Birim Fiyat</TableHeader>
+                <TableHeader className="text-right">Tutar</TableHeader>
+              </TableRow>
+            </TableHead>
+            <TableBody>
               {o.items.map((it) => (
-                <tr key={it.id}>
-                  <td className="px-3 py-2 text-zinc-900">{it.name}</td>
-                  <td className="px-3 py-2 text-right text-zinc-600">
+                <TableRow key={it.id}>
+                  <TableCell className="font-medium text-zinc-900">
+                    {it.name}
+                  </TableCell>
+                  <TableCell className="text-right text-zinc-600">
                     {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono text-zinc-600">
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-zinc-600">
                     {Number(it.unitPrice).toLocaleString("tr-TR")} ₺
-                  </td>
-                  <td className="px-3 py-2 text-right font-mono text-zinc-900">
+                  </TableCell>
+                  <TableCell className="text-right font-mono font-semibold text-zinc-900">
                     {(
                       Number(it.unitPrice) * Number(it.quantity)
                     ).toLocaleString("tr-TR")}{" "}
                     ₺
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </TableBody>
+          </Table>
+        </section>
       ) : null}
 
-      {/* Timeline */}
-      {terminal ? (
-        <Badge color="red">
-          {o.status === "REJECTED" ? "Satıcı reddetti" : "İptal edildi"}
-        </Badge>
-      ) : (
-        <div className="flex items-center gap-2">
-          {STEPS.map((s, i) => (
-            <div key={s.key} className="flex flex-1 items-center gap-2">
-              <div className="flex flex-col items-center gap-1">
-                <CheckCircleIcon
-                  className={`h-6 w-6 ${
-                    i <= stepIndex ? "text-emerald-500" : "text-zinc-300"
-                  }`}
-                />
-                <span
-                  className={`text-xs ${
-                    i <= stepIndex ? "text-zinc-900" : "text-zinc-400"
-                  }`}
-                >
-                  {s.label}
-                </span>
-              </div>
-              {i < STEPS.length - 1 ? (
-                <div
-                  className={`h-0.5 flex-1 ${
-                    i < stepIndex ? "bg-emerald-400" : "bg-zinc-200"
-                  }`}
-                />
-              ) : null}
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Aksiyon */}
-      <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
+      <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
         {o.status === "PENDING" && isSeller ? (
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <Text className="text-sm text-zinc-600">
               Bu siparişi onayla ya da reddet.
             </Text>
@@ -204,7 +369,7 @@ export default function OrderDetailPage() {
         ) : o.status === "COMPLETED" ? (
           <Text className="text-sm text-emerald-700">✓ Sipariş tamamlandı.</Text>
         ) : next ? (
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
             <Text className="text-sm text-zinc-600">
               {next.act === "ship"
                 ? "Malı kargoya verdiğinde işaretle."
@@ -227,6 +392,11 @@ export default function OrderDetailPage() {
       <OrderPaymentsCard order={o} />
 
       <OrderDocumentsSection orderId={id} role={o.role} />
+
+      {/* Değerlendirme — alıcı, tamamlanmış siparişte satıcıyı puanlar */}
+      {!isSeller && o.status === "COMPLETED" ? (
+        <OrderReviewCard orderId={id} targetName={o.counterparty} />
+      ) : null}
     </div>
   );
 }

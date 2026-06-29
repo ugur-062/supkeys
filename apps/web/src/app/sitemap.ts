@@ -14,15 +14,15 @@ import type { MetadataRoute } from "next";
 export const revalidate = 3600;
 
 interface SitemapEntry {
-  slug: string;
+  slug: string | null;
   updatedAt: string;
 }
 
-async function fetchSupplierSlugs(): Promise<SitemapEntry[]> {
+async function fetchCompanySlugs(): Promise<SitemapEntry[]> {
   const apiBase = resolveApiBaseUrl();
   if (!apiBase) return [];
   try {
-    const res = await fetch(`${apiBase}/public/suppliers`, {
+    const res = await fetch(`${apiBase}/public/companies/sitemap`, {
       next: { revalidate: 3600 },
     });
     if (!res.ok) return [];
@@ -35,7 +35,7 @@ async function fetchSupplierSlugs(): Promise<SitemapEntry[]> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = resolveSiteUrl();
-  const entries = await fetchSupplierSlugs();
+  const entries = await fetchCompanySlugs();
 
   const staticRoutes: MetadataRoute.Sitemap = [
     {
@@ -44,20 +44,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 1.0,
     },
-    {
-      url: `${siteUrl}/login`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.3,
-    },
   ];
 
-  const supplierRoutes: MetadataRoute.Sitemap = entries.map((e) => ({
-    url: `${siteUrl}/${e.slug}`,
-    lastModified: new Date(e.updatedAt),
-    changeFrequency: "weekly",
-    priority: 0.8,
-  }));
+  const companyRoutes: MetadataRoute.Sitemap = entries
+    .filter((e): e is { slug: string; updatedAt: string } => !!e.slug)
+    .map((e) => ({
+      url: `${siteUrl}/firma/${e.slug}`,
+      lastModified: new Date(e.updatedAt),
+      changeFrequency: "weekly",
+      priority: 0.8,
+    }));
 
-  return [...staticRoutes, ...supplierRoutes];
+  return [...staticRoutes, ...companyRoutes];
 }

@@ -24,6 +24,56 @@ export interface IncomingInvite {
   createdAt: string;
 }
 
+export interface ConnectionSelf {
+  rothernId: string | null;
+}
+
+export function useConnectionSelf() {
+  return useQuery({
+    queryKey: ["company-connections", "self"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<ConnectionSelf>(
+        "/company/connections/self",
+      );
+      return data;
+    },
+  });
+}
+
+export interface ReferralInviteRow {
+  id: string;
+  email: string;
+  createdAt: string;
+}
+
+export function useReferralInvites() {
+  return useQuery({
+    queryKey: ["company-connections", "referral-invites"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<ReferralInviteRow[]>(
+        "/company/connections/referral-invites",
+      );
+      return data;
+    },
+  });
+}
+
+export function useInviteByEmail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (email: string) => {
+      const { data } = await companyApi.post<{
+        kind: "request" | "invited";
+        targetName?: string;
+        email?: string;
+      }>("/company/connections/invite-by-email", { email });
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["company-connections"] }),
+  });
+}
+
 export function useConnections() {
   return useQuery({
     queryKey: ["company-connections", "active"],
@@ -126,6 +176,22 @@ export function useUnblockCompany() {
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["company-blocks"] }),
+  });
+}
+
+export function useDisconnect() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (connectionId: string) => {
+      const { data } = await companyApi.post(
+        `/company/connections/${connectionId}/disconnect`,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-connections"] });
+      qc.invalidateQueries({ queryKey: ["company-directory"] });
+    },
   });
 }
 

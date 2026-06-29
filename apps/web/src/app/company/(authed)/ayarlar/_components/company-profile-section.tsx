@@ -1,0 +1,259 @@
+"use client";
+
+import { Badge } from "@/components/catalyst/badge";
+import { Button } from "@/components/catalyst/button";
+import {
+  DescriptionDetails,
+  DescriptionList,
+  DescriptionTerm,
+} from "@/components/catalyst/description-list";
+import { Field, Label } from "@/components/catalyst/fieldset";
+import { Subheading } from "@/components/catalyst/heading";
+import { Input } from "@/components/catalyst/input";
+import { Text } from "@/components/catalyst/text";
+import { Textarea } from "@/components/catalyst/textarea";
+import { CategorySelectorButton } from "@/components/categories/category-selector-button";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import {
+  useCompanyProfile,
+  useUpdateCompanyProfile,
+} from "@/hooks/use-company-profile";
+import { extractErrorMessage } from "@/lib/tenders/error";
+import { UserRound } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+export function CompanyProfileSection() {
+  const { user } = useCompanyAuth();
+  const { data: profile, isLoading } = useCompanyProfile();
+  const update = useUpdateCompanyProfile();
+  const canEdit = !!user?.roles.includes("YONETICI");
+
+  const [form, setForm] = useState({
+    name: "",
+    legalName: "",
+    industry: "",
+    website: "",
+    city: "",
+    district: "",
+    addressLine: "",
+    postalCode: "",
+    buyerCategoryIds: [] as string[],
+    sellerCategoryIds: [] as string[],
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setForm({
+        name: profile.name ?? "",
+        legalName: profile.legalName ?? "",
+        industry: profile.industry ?? "",
+        website: profile.website ?? "",
+        city: profile.city ?? "",
+        district: profile.district ?? "",
+        addressLine: profile.addressLine ?? "",
+        postalCode: profile.postalCode ?? "",
+        buyerCategoryIds: profile.buyerCategoryIds ?? [],
+        sellerCategoryIds: profile.sellerCategoryIds ?? [],
+      });
+    }
+  }, [profile]);
+
+  const set = (patch: Partial<typeof form>) =>
+    setForm((f) => ({ ...f, ...patch }));
+
+  const handleSave = async () => {
+    try {
+      await update.mutateAsync(form);
+      toast.success("Firma bilgileri güncellendi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Güncellenemedi"));
+    }
+  };
+
+  if (isLoading || !profile) {
+    return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Salt-okunur kimlik */}
+      <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
+        <Subheading>Kimlik</Subheading>
+        <DescriptionList className="mt-3">
+          <DescriptionTerm>Firma Kodu</DescriptionTerm>
+          <DescriptionDetails className="font-mono">
+            {profile.supkeysId ?? "—"}
+          </DescriptionDetails>
+          <DescriptionTerm>Vergi No</DescriptionTerm>
+          <DescriptionDetails className="font-mono">
+            {profile.taxNumber ?? "—"}
+          </DescriptionDetails>
+          <DescriptionTerm>Üyelik</DescriptionTerm>
+          <DescriptionDetails>
+            <Badge color={profile.tier === "PAKET" ? "amber" : "zinc"}>
+              {profile.tier === "PAKET" ? "Tek Paket" : "Standart"}
+            </Badge>
+          </DescriptionDetails>
+          <DescriptionTerm>Doğrulama</DescriptionTerm>
+          <DescriptionDetails>
+            {profile.companyVerificationStatus === "VERIFIED"
+              ? "Doğrulanmış"
+              : "Bekliyor"}
+          </DescriptionDetails>
+        </DescriptionList>
+      </section>
+
+      {/* Düzenlenebilir firma bilgileri */}
+      <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
+        <div className="flex items-center justify-between">
+          <Subheading>Firma Bilgileri</Subheading>
+          {!canEdit ? (
+            <Text className="text-xs text-zinc-400">
+              Düzenleme için Yönetici rolü gerekir
+            </Text>
+          ) : null}
+        </div>
+
+        <div className="mt-4 space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field>
+              <Label>Firma adı</Label>
+              <Input
+                value={form.name}
+                disabled={!canEdit}
+                onChange={(e) => set({ name: e.target.value })}
+              />
+            </Field>
+            <Field>
+              <Label>Yasal ünvan</Label>
+              <Input
+                value={form.legalName}
+                disabled={!canEdit}
+                onChange={(e) => set({ legalName: e.target.value })}
+              />
+            </Field>
+            <Field>
+              <Label>Sektör</Label>
+              <Input
+                value={form.industry}
+                disabled={!canEdit}
+                onChange={(e) => set({ industry: e.target.value })}
+              />
+            </Field>
+            <Field>
+              <Label>Web sitesi</Label>
+              <Input
+                value={form.website}
+                disabled={!canEdit}
+                onChange={(e) => set({ website: e.target.value })}
+              />
+            </Field>
+            <Field>
+              <Label>İl / Şehir</Label>
+              <Input
+                value={form.city}
+                disabled={!canEdit}
+                onChange={(e) => set({ city: e.target.value })}
+              />
+            </Field>
+            <Field>
+              <Label>İlçe</Label>
+              <Input
+                value={form.district}
+                disabled={!canEdit}
+                onChange={(e) => set({ district: e.target.value })}
+              />
+            </Field>
+            <Field>
+              <Label>Posta kodu</Label>
+              <Input
+                value={form.postalCode}
+                disabled={!canEdit}
+                onChange={(e) => set({ postalCode: e.target.value })}
+              />
+            </Field>
+          </div>
+          <Field>
+            <Label>Açık adres</Label>
+            <Textarea
+              rows={2}
+              value={form.addressLine}
+              disabled={!canEdit}
+              onChange={(e) => set({ addressLine: e.target.value })}
+            />
+          </Field>
+
+          {/* Ne alırım / ne satarım */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <span className="block text-sm font-medium text-zinc-950">
+                🔵 Ne alırım (alım kategorileri)
+              </span>
+              {canEdit ? (
+                <div className="mt-2">
+                  <CategorySelectorButton
+                    value={form.buyerCategoryIds}
+                    onChange={(ids) => set({ buyerCategoryIds: ids })}
+                  />
+                </div>
+              ) : (
+                <Text className="mt-1 text-sm text-zinc-500">
+                  {form.buyerCategoryIds.length} kategori
+                </Text>
+              )}
+            </div>
+            <div>
+              <span className="block text-sm font-medium text-zinc-950">
+                🟢 Ne satarım (satış kategorileri)
+              </span>
+              {canEdit ? (
+                <div className="mt-2">
+                  <CategorySelectorButton
+                    value={form.sellerCategoryIds}
+                    onChange={(ids) => set({ sellerCategoryIds: ids })}
+                  />
+                </div>
+              ) : (
+                <Text className="mt-1 text-sm text-zinc-500">
+                  {form.sellerCategoryIds.length} kategori
+                </Text>
+              )}
+            </div>
+          </div>
+
+          {canEdit ? (
+            <div className="flex justify-end">
+              <Button onClick={handleSave} disabled={update.isPending}>
+                {update.isPending ? "Kaydediliyor…" : "Kaydet"}
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      {/* Herkese açık profil → Profilim */}
+      <Link
+        href="/company/satinalma/profilim"
+        className="flex items-center justify-between gap-4 rounded-xl border border-zinc-950/10 bg-white p-5 transition hover:bg-zinc-50"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-zinc-100">
+            <UserRound className="h-5 w-5 text-zinc-600" />
+          </div>
+          <div>
+            <Subheading>Herkese Açık Profil</Subheading>
+            <Text className="text-sm text-zinc-500">
+              Logo, kapak, hakkında, hizmetler ve galeri — Profilim
+              sayfasından düzenlenir.
+            </Text>
+          </div>
+        </div>
+        <span className="shrink-0 text-sm font-medium text-zinc-700">
+          Düzenle →
+        </span>
+      </Link>
+    </div>
+  );
+}

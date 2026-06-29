@@ -19,6 +19,7 @@ import {
   SidebarLabel,
   SidebarSection,
 } from "@/components/catalyst/sidebar";
+import { usePendingApprovalCount } from "@/hooks/use-company-approvals";
 import { useCompanyAuth, useCompanyLogout } from "@/hooks/use-company-auth";
 import {
   PORTALS,
@@ -34,6 +35,7 @@ import {
   ChevronUpIcon,
   Cog6ToothIcon,
   LockClosedIcon,
+  ShieldCheckIcon,
 } from "@heroicons/react/20/solid";
 import { usePathname } from "next/navigation";
 
@@ -59,9 +61,11 @@ export function CompanySidebar() {
   const isPaid = company?.tier === "PAKET";
 
   const roles = user?.roles ?? [];
-  const available = accessiblePortals(roles);
+  const isApprover = roles.includes("ONAYLAYICI");
+  const { data: pendingCount } = usePendingApprovalCount(isApprover);
+  const available = accessiblePortals(roles, company?.tier);
   const active: PortalKey =
-    activePortalFromPath(pathname) ?? available[0] ?? "satinalma";
+    activePortalFromPath(pathname) ?? available[0] ?? "satis";
   const portal = PORTALS[active];
 
   return (
@@ -135,6 +139,22 @@ export function CompanySidebar() {
             );
           })}
         </SidebarSection>
+
+        {/* Onaylar — portaldan bağımsız, yalnızca onaylayıcılarda */}
+        {isApprover ? (
+          <SidebarSection>
+            <SidebarItem
+              href="/company/onaylar"
+              current={isPortalItemActive("/company/onaylar", pathname)}
+            >
+              <ShieldCheckIcon data-slot="icon" />
+              <SidebarLabel>Onaylar</SidebarLabel>
+              {pendingCount && pendingCount > 0 ? (
+                <Badge color="amber">{pendingCount}</Badge>
+              ) : null}
+            </SidebarItem>
+          </SidebarSection>
+        ) : null}
       </SidebarBody>
 
       <SidebarFooter>

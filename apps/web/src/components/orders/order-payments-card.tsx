@@ -35,6 +35,10 @@ function fmt(n: string | number) {
   return Number(n).toLocaleString("tr-TR", { minimumFractionDigits: 2 });
 }
 
+/** Ödeme yöntemleri — "Çek" seçilince çek alanları açılır (backend ile aynı). */
+const CHEQUE_METHOD = "Çek";
+const PAYMENT_METHODS = ["Havale/EFT", "Nakit", "Çek", "Kredi Kartı"];
+
 /**
  * Sipariş ödeme kartı — eski order-payments-card'ın görseli, yeni manuel
  * ödeme-kaydı modeline bağlı. Alıcı kaydeder, satıcı onaylar/reddeder; kısmi
@@ -50,8 +54,22 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("");
   const [note, setNote] = useState("");
+  const [chequeNo, setChequeNo] = useState("");
+  const [chequeBank, setChequeBank] = useState("");
+  const [chequeDueDate, setChequeDueDate] = useState("");
 
+  const isCheque = method === CHEQUE_METHOD;
   const t = order.paymentTotals;
+
+  const resetForm = () => {
+    setOpen(false);
+    setAmount("");
+    setMethod("");
+    setNote("");
+    setChequeNo("");
+    setChequeBank("");
+    setChequeDueDate("");
+  };
 
   const submit = async () => {
     const value = Number(amount.replace(",", "."));
@@ -59,17 +77,21 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
       toast.error("Geçerli bir tutar gir");
       return;
     }
+    if (isCheque && (!chequeNo.trim() || !chequeDueDate)) {
+      toast.error("Çek için çek numarası ve vade tarihi zorunlu");
+      return;
+    }
     try {
       await record.mutateAsync({
         amount: value,
         method: method.trim() || undefined,
         note: note.trim() || undefined,
+        chequeNo: isCheque ? chequeNo.trim() : undefined,
+        chequeBank: isCheque ? chequeBank.trim() || undefined : undefined,
+        chequeDueDate: isCheque ? chequeDueDate : undefined,
       });
       toast.success("Ödeme kaydedildi — satıcı onayı bekleniyor");
-      setOpen(false);
-      setAmount("");
-      setMethod("");
-      setNote("");
+      resetForm();
     } catch (err) {
       toast.error(extractErrorMessage(err, "Ödeme kaydedilemedi"));
     }
@@ -79,8 +101,13 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
     paymentId: string,
     decision: "confirm" | "reject",
   ) => {
+    let reason: string | undefined;
+    if (decision === "reject") {
+      reason = window.prompt("Red sebebi (zorunlu):")?.trim() || undefined;
+      if (!reason) return;
+    }
     try {
-      await decide.mutateAsync({ paymentId, decision });
+      await decide.mutateAsync({ paymentId, decision, reason });
       toast.success(decision === "confirm" ? "Ödeme onaylandı" : "Ödeme reddedildi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "İşlem başarısız"));
@@ -130,14 +157,57 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
               <span className="mb-1 block text-xs font-medium text-zinc-600">
                 Yöntem (opsiyonel)
               </span>
-              <input
+              <select
                 value={method}
                 onChange={(e) => setMethod(e.target.value)}
-                placeholder="Havale/EFT"
                 className="w-full rounded-lg border border-surface-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-              />
+              >
+                <option value="">Seçiniz…</option>
+                {PAYMENT_METHODS.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
             </label>
           </div>
+          {isCheque ? (
+            <div className="grid grid-cols-1 gap-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3 sm:grid-cols-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-zinc-600">
+                  Çek No
+                </span>
+                <input
+                  value={chequeNo}
+                  onChange={(e) => setChequeNo(e.target.value)}
+                  placeholder="Çek numarası"
+                  className="w-full rounded-lg border border-surface-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-zinc-600">
+                  Banka (opsiyonel)
+                </span>
+                <input
+                  value={chequeBank}
+                  onChange={(e) => setChequeBank(e.target.value)}
+                  placeholder="Banka adı"
+                  className="w-full rounded-lg border border-surface-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-zinc-600">
+                  Vade Tarihi
+                </span>
+                <input
+                  type="date"
+                  value={chequeDueDate}
+                  onChange={(e) => setChequeDueDate(e.target.value)}
+                  className="w-full rounded-lg border border-surface-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                />
+              </label>
+            </div>
+          ) : null}
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-zinc-600">
               Not (opsiyonel)
@@ -152,7 +222,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
           <div className="flex justify-end gap-2">
             <button
               type="button"
-              onClick={() => setOpen(false)}
+              onClick={resetForm}
               className="rounded-lg px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100"
             >
               Vazgeç
@@ -199,6 +269,15 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                       ? ` · ${p.rejectReason}`
                       : ""}
                   </div>
+                  {p.chequeNo ? (
+                    <div className="mt-0.5 text-xs text-amber-700">
+                      Çek No: {p.chequeNo}
+                      {p.chequeBank ? ` · ${p.chequeBank}` : ""}
+                      {p.chequeDueDate
+                        ? ` · Vade: ${format(new Date(p.chequeDueDate), "dd MMM yyyy", { locale: tr })}`
+                        : ""}
+                    </div>
+                  ) : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <span

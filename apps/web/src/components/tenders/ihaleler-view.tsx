@@ -13,7 +13,7 @@ import {
   useTenders,
   type TenderListItem,
 } from "@/hooks/use-company-tenders";
-import { ArrowUpDown, Building2, CalendarRange, Plus, User as UserIcon } from "lucide-react";
+import { ArrowUpDown, Building2, CalendarRange, Globe, Plus, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -43,13 +43,27 @@ const RANGE_DAYS: Record<RangeKey, number | null> = {
   all: null,
 };
 
-type TabKey = "all" | "DRAFT" | "OPEN" | "CLOSED" | "AWARDED" | "CANCELLED";
+type TabKey =
+  | "all"
+  | "DRAFT"
+  | "IN_APPROVAL"
+  | "OPEN"
+  | "CLOSED"
+  | "IN_AWARD"
+  | "IN_AWARD_APPROVAL"
+  | "AWARDED"
+  | "CLOSED_NO_AWARD"
+  | "CANCELLED";
 const STATUS_OPTIONS: { value: TabKey; label: string }[] = [
   { value: "all", label: "Tüm Durumlar" },
   { value: "DRAFT", label: "Taslak" },
+  { value: "IN_APPROVAL", label: "Onayda" },
   { value: "OPEN", label: "Yayında" },
   { value: "CLOSED", label: "Teklife Kapalı" },
+  { value: "IN_AWARD", label: "Kazandırmada" },
+  { value: "IN_AWARD_APPROVAL", label: "Kazandırma Onayı" },
   { value: "AWARDED", label: "Tamamlandı" },
+  { value: "CLOSED_NO_AWARD", label: "Kazansız Kapandı" },
   { value: "CANCELLED", label: "İptal/Kapalı" },
 ];
 
@@ -64,6 +78,7 @@ export function IhalelerView() {
   const [sort, setSort] = useState("createdAt:desc");
   const [range, setRange] = useState<RangeKey>(DEFAULT_RANGE);
   const [createdById, setCreatedById] = useState("");
+  const [scope, setScope] = useState<"all" | "dom" | "intl">("all");
   const [page, setPage] = useState(1);
 
   // Durum sayaçları
@@ -99,6 +114,8 @@ export function IhalelerView() {
     const rows = all.filter((t) => {
       if (tab !== "all" && t.status !== tab) return false;
       if (createdById && t.createdById !== createdById) return false;
+      if (scope !== "all" && t.isInternational !== (scope === "intl"))
+        return false;
       if (minDate && new Date(t.createdAt).getTime() < minDate) return false;
       if (
         q &&
@@ -115,7 +132,7 @@ export function IhalelerView() {
       return dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
     });
     return sorted;
-  }, [all, tab, createdById, range, search, sort]);
+  }, [all, tab, createdById, scope, range, search, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -127,6 +144,7 @@ export function IhalelerView() {
     Boolean(search) ||
     tab !== "all" ||
     range !== DEFAULT_RANGE ||
+    scope !== "all" ||
     Boolean(createdById);
 
   const reset = <T,>(setter: (v: T) => void) => (v: T) => {
@@ -183,6 +201,18 @@ export function IhalelerView() {
             }))}
             ariaLabel="Durum filtresi"
             active={tab !== "all"}
+          />
+          <FilterSelect
+            icon={Globe}
+            value={scope}
+            onChange={(v) => reset(setScope)(v as "all" | "dom" | "intl")}
+            options={[
+              { value: "all", label: "Tüm Kapsamlar" },
+              { value: "dom", label: "Yurtiçi" },
+              { value: "intl", label: "Yurtdışı" },
+            ]}
+            ariaLabel="Kapsam filtresi"
+            active={scope !== "all"}
           />
           <FilterSelect
             icon={CalendarRange}

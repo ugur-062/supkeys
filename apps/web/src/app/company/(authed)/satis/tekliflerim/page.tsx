@@ -3,5 +3,5 @@
 import { MyBidsList } from "@/components/company/my-bids-list";
 
 export default function TekliflerimPage() {
-  return <MyBidsList />;
+  return <MyBidsList listingType="ALIM" />;
 }

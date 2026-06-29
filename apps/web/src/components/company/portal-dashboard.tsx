@@ -32,7 +32,7 @@ const CFG: Record<PortalKey, DashCfg> = {
     myType: "ALIM",
     browseType: "SATIS",
     orderRole: "buyer",
-    greeting: "Satınalma panosu — alımlarını yönet.",
+    greeting: "Satınalma paneli — alımlarını yönet.",
     primary: { label: "Yeni İhale", href: "/company/satinalma/ihalelerim" },
     secondary: { label: "Satın Al", href: "/company/satinalma/satin-al" },
     kpi: {
@@ -47,7 +47,7 @@ const CFG: Record<PortalKey, DashCfg> = {
     myType: "SATIS",
     browseType: "ALIM",
     orderRole: "seller",
-    greeting: "Satış panosu — satışlarını yönet.",
+    greeting: "Satış paneli — satışlarını yönet.",
     primary: { label: "Yeni Satış İlanı", href: "/company/satis/ilanlarim" },
     secondary: { label: "Açık İhaleler", href: "/company/satis/acik-ihaleler" },
     kpi: {

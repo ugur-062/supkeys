@@ -17,11 +17,11 @@ export function PortalGuard({
   portal: PortalKey;
   children: React.ReactNode;
 }) {
-  const { user } = useCompanyAuth();
+  const { user, company } = useCompanyAuth();
   const router = useRouter();
   const setLastPortal = usePortalStore((s) => s.setLastPortal);
 
-  const available = user ? accessiblePortals(user.roles) : [];
+  const available = user ? accessiblePortals(user.roles, company?.tier) : [];
   const allowed = available.includes(portal);
 
   useEffect(() => {

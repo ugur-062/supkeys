@@ -7,19 +7,19 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 export default function CompanyHome() {
-  const { user } = useCompanyAuth();
+  const { user, company } = useCompanyAuth();
   const router = useRouter();
   const lastPortal = usePortalStore((s) => s.lastPortal);
 
   useEffect(() => {
     if (!user) return;
-    const available = accessiblePortals(user.roles);
+    const available = accessiblePortals(user.roles, company?.tier);
     const target =
       lastPortal && available.includes(lastPortal)
         ? lastPortal
         : (available[0] ?? null);
     router.replace(target ? `/company/${target}` : "/company/ayarlar");
-  }, [user, lastPortal, router]);
+  }, [user, company?.tier, lastPortal, router]);
 
   return <div className="p-8 text-sm text-zinc-400">Yönlendiriliyor…</div>;
 }

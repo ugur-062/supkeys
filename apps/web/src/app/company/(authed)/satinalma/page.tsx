@@ -37,7 +37,7 @@ const TRIGGER_CLASSES = cn(
 );
 
 export default function SatinalmaDashboardPage() {
-  const { user, company } = useCompanyAuth();
+  const { company } = useCompanyAuth();
   const ihale = useSatinalmaDashboard();
   const tasarruf = useSatinalmaTasarruf();
   const tedarikci = useSatinalmaTedarikci();
@@ -52,12 +52,10 @@ export default function SatinalmaDashboardPage() {
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <h1 className="mb-1.5 text-2xl font-semibold leading-tight tracking-tight text-zinc-950 sm:text-3xl">
-            Hoş geldin, {user?.firstName ?? "Supkeys kullanıcısı"}
+            Satınalma paneli
           </h1>
           <p className="text-[15px] text-zinc-500">
-            {company?.name
-              ? `${company.name} · Satınalma panosu`
-              : "Satınalma panosu"}
+            {company?.name ?? "Supkeys"}
             {todayLabel ? (
               <>
                 <span className="mx-2 text-zinc-300">·</span>

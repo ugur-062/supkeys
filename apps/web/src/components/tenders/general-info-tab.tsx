@@ -3,6 +3,7 @@
 import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import type { ListingDetail } from "@/hooks/use-company-listings";
+import { countryName } from "@supkeys/shared";
 import {
   CURRENCY_SYMBOL,
   DELIVERY_TERM_LABELS,
@@ -153,6 +154,18 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
               {VISIBILITY_LABELS[l.visibility] ?? l.visibility}
             </span>
           </Fact>
+          <Fact label="Kapsam">
+            {l.isInternational ? "Uluslararası" : "Yurtiçi"}
+          </Fact>
+          {l.isInternational ? (
+            <Fact label="Hedef Ülkeler" full>
+              {(l.targetCountries ?? []).length === 0
+                ? "Tüm ülkeler"
+                : (l.targetCountries ?? [])
+                    .map((c) => countryName(c))
+                    .join(", ")}
+            </Fact>
+          ) : null}
         </dl>
       </Section>
 

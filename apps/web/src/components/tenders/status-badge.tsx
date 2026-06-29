@@ -2,9 +2,13 @@ import { cn } from "@/lib/utils";
 
 export type ListingStatus =
   | "DRAFT"
+  | "IN_APPROVAL"
   | "OPEN"
   | "CLOSED"
+  | "IN_AWARD"
+  | "IN_AWARD_APPROVAL"
   | "AWARDED"
+  | "CLOSED_NO_AWARD"
   | "CANCELLED";
 export type ListingFormat = "RFQ" | "ENGLISH_AUCTION";
 
@@ -14,6 +18,10 @@ const STATUS_META: Record<ListingStatus, { label: string; className: string }> =
       label: "Taslak",
       className: "bg-slate-100 text-slate-600 border-slate-200",
     },
+    IN_APPROVAL: {
+      label: "Onayda",
+      className: "bg-amber-50 text-amber-700 border-amber-200",
+    },
     OPEN: {
       label: "Yayında",
       className: "bg-success-50 text-success-600 border-success-500/30",
@@ -22,9 +30,21 @@ const STATUS_META: Record<ListingStatus, { label: string; className: string }> =
       label: "Teklife Kapalı",
       className: "bg-warning-50 text-warning-600 border-warning-500/30",
     },
+    IN_AWARD: {
+      label: "Kazandırmada",
+      className: "bg-blue-50 text-blue-700 border-blue-200",
+    },
+    IN_AWARD_APPROVAL: {
+      label: "Kazandırma Onayı",
+      className: "bg-amber-50 text-amber-700 border-amber-200",
+    },
     AWARDED: {
       label: "Tamamlandı",
       className: "bg-zinc-100 text-zinc-700 border-zinc-200",
+    },
+    CLOSED_NO_AWARD: {
+      label: "Kazansız Kapandı",
+      className: "bg-zinc-100 text-zinc-600 border-zinc-200",
     },
     CANCELLED: {
       label: "İptal/Kapalı",

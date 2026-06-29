@@ -38,6 +38,9 @@ export interface OrderPayment {
   recordedByCompanyId: string;
   confirmedAt: string | null;
   createdAt: string;
+  chequeNo: string | null;
+  chequeBank: string | null;
+  chequeDueDate: string | null;
 }
 
 export interface CompanyOrder {
@@ -121,6 +124,51 @@ export function useRejectOrder(id: string) {
   });
 }
 
+/** Alıcı: sipariş iptal (teslimat öncesi, gerekçeli). */
+export function useCancelOrder(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (reason?: string) => {
+      const { data } = await companyApi.post(`/company/orders/${id}/cancel`, {
+        reason,
+      });
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+  });
+}
+
+/** Sipariş değerlendirmem (varsa). */
+export function useOrderReview(orderId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["company-orders", "review", orderId],
+    enabled,
+    queryFn: async () => {
+      const { data } = await companyApi.get<{
+        rating: number;
+        comment: string | null;
+      } | null>(`/company/reviews/order/${orderId}`);
+      return data;
+    },
+  });
+}
+
+/** Tedarikçiyi değerlendir (1-5 + yorum). */
+export function useUpsertReview(orderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { rating: number; comment?: string }) => {
+      const { data } = await companyApi.post("/company/reviews", {
+        orderId,
+        ...input,
+      });
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["company-orders", "review", orderId] }),
+  });
+}
+
 /** Alıcı: ödeme kaydı oluştur. */
 export function useRecordPayment(id: string) {
   const qc = useQueryClient();
@@ -129,6 +177,9 @@ export function useRecordPayment(id: string) {
       amount: number;
       method?: string;
       note?: string;
+      chequeNo?: string;
+      chequeBank?: string;
+      chequeDueDate?: string;
     }) => {
       const { data } = await companyApi.post(
         `/company/orders/${id}/payments`,

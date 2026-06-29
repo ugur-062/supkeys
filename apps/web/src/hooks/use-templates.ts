@@ -69,3 +69,17 @@ export function useSaveQuestionTemplate() {
       qc.invalidateQueries({ queryKey: ["question-templates"] }),
   });
 }
+
+export function useDeleteQuestionTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await companyApi.delete(
+        `/company/question-templates/${id}`,
+      );
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["question-templates"] }),
+  });
+}

@@ -28,9 +28,11 @@ import {
   useEliminateBid,
   useListingDetail,
   usePlaceBid,
+  usePublishListing,
   useStartNewRound,
   useWithdrawBid,
 } from "@/hooks/use-company-listings";
+import { useCancelApproval } from "@/hooks/use-company-approvals";
 import {
   useBidDocuments,
   useDeleteBidDoc,
@@ -42,17 +44,21 @@ import { cn } from "@/lib/utils";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import {
+  Building2,
   CalendarClock,
   Gavel,
+  Globe,
   Info,
   Layers,
+  Lock,
+  MapPin,
   Paperclip,
   Users,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 const TRIGGER_CLASSES = cn(
@@ -74,13 +80,17 @@ function MetaItem({
   icon: Icon,
   label,
   value,
+  className,
 }: {
   icon: typeof Layers;
   label: string;
   value: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2.5">
+    <div
+      className={cn("flex min-w-0 items-center gap-2.5 bg-white p-4", className)}
+    >
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-50">
         <Icon className="h-4 w-4 text-zinc-600" />
       </div>
@@ -94,9 +104,28 @@ function MetaItem({
   );
 }
 
+/** İlan durumu → Türkçe etiket + Catalyst rozet rengi. Ham enum kullanıcıya gösterilmez. */
+const LISTING_STATUS_META: Record<
+  string,
+  { label: string; color: React.ComponentProps<typeof Badge>["color"] }
+> = {
+  DRAFT: { label: "Taslak", color: "zinc" },
+  IN_APPROVAL: { label: "Onayda", color: "amber" },
+  OPEN: { label: "Yayında", color: "green" },
+  CLOSED: { label: "Teklife Kapalı", color: "amber" },
+  IN_AWARD: { label: "Kazandırmada", color: "blue" },
+  IN_AWARD_APPROVAL: { label: "Kazandırma Onayı", color: "amber" },
+  AWARDED: { label: "Tamamlandı", color: "blue" },
+  CLOSED_NO_AWARD: { label: "Kazansız Kapandı", color: "zinc" },
+  CANCELLED: { label: "İptal", color: "red" },
+};
+
 export default function ListingDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
+  const searchParams = useSearchParams();
+  const fromHref = searchParams.get("from");
+  const fromLabel = searchParams.get("fromLabel");
   const { data: l, isLoading } = useListingDetail(id);
   const placeBid = usePlaceBid(id);
   const award = useAwardListing(id);
@@ -106,6 +135,8 @@ export default function ListingDetailPage() {
   const eliminate = useEliminateBid(id);
   const awardByItem = useAwardByItem(id);
   const newRound = useStartNewRound(id);
+  const publish = usePublishListing(id);
+  const cancelApproval = useCancelApproval();
   const categories = useCategoriesByIds(l?.categoryIds ?? []);
   const bidDocs = useBidDocuments(id);
   const uploadBidDoc = useUploadBidDoc(id);
@@ -113,9 +144,25 @@ export default function ListingDetailPage() {
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
+  const [bidDelivery, setBidDelivery] = useState("");
+  const [bidValidity, setBidValidity] = useState("");
+  const [bidCurrency, setBidCurrency] = useState("");
   const [itemAwardMode, setItemAwardMode] = useState(false);
   const [itemWinners, setItemWinners] = useState<Record<string, string>>({});
+  const [itemQty, setItemQty] = useState<Record<string, string>>({});
   const [roundHistoryOpen, setRoundHistoryOpen] = useState(false);
+
+  // Teklif formu varsayılanları (mevcut teklif / ilan para birimi).
+  useEffect(() => {
+    if (!l) return;
+    setBidCurrency((c) => c || l.myBid?.currency || l.primaryCurrency || "TRY");
+    if (l.myBid?.deliveryDate) {
+      setBidDelivery((d) => d || l.myBid!.deliveryDate!.slice(0, 10));
+    }
+    if (l.myBid?.validityDays != null) {
+      setBidValidity((v) => v || String(l.myBid!.validityDays));
+    }
+  }, [l]);
 
   const handleCancel = async () => {
     if (!confirm("İlan iptal edilsin mi? Bu işlem geri alınamaz.")) return;
@@ -149,7 +196,11 @@ export default function ListingDetailPage() {
     if (!confirm(`"${bidderName}" kazandırılsın mı? Sipariş oluşacak.`)) return;
     try {
       const res = await award.mutateAsync(bidId);
-      toast.success(`Kazandırıldı — sipariş ${res.number} oluştu`);
+      toast.success(
+        res.pendingApproval
+          ? "Kazandırma onaya gönderildi"
+          : `Kazandırıldı — sipariş ${res.number} oluştu`,
+      );
     } catch (err) {
       toast.error(extractErrorMessage(err, "Kazandırılamadı"));
     }
@@ -157,11 +208,35 @@ export default function ListingDetailPage() {
 
   const handleEliminate = async (bidId: string, bidderName: string) => {
     if (!confirm(`"${bidderName}" elensin mi? Yeniden teklif verebilir.`)) return;
+    const reason = window.prompt("Eleme gerekçesi (opsiyonel):") ?? "";
     try {
-      await eliminate.mutateAsync(bidId);
+      await eliminate.mutateAsync({ bidId, reason: reason.trim() || undefined });
       toast.success("Teklif elendi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Elenemedi"));
+    }
+  };
+
+  const handleCancelApproval = async () => {
+    if (!l?.pendingApprovalId) return;
+    if (!confirm("Onay isteği iptal edilsin mi? İlan eski durumuna döner."))
+      return;
+    try {
+      await cancelApproval.mutateAsync(l.pendingApprovalId);
+      toast.success("Onay isteği iptal edildi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "İptal edilemedi"));
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!confirm("İhale yayınlansın mı? Yayınlandıktan sonra tedarikçiler görebilir."))
+      return;
+    try {
+      await publish.mutateAsync();
+      toast.success("İhale yayınlandı");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Yayınlanamadı"));
     }
   };
 
@@ -201,7 +276,14 @@ export default function ListingDetailPage() {
   const handleAwardByItem = async () => {
     const items = l?.items ?? [];
     const itemAwards = items
-      .map((it) => ({ itemId: it.id, bidId: itemWinners[it.id] ?? "" }))
+      .map((it) => {
+        const q = Number(itemQty[it.id]);
+        return {
+          itemId: it.id,
+          bidId: itemWinners[it.id] ?? "",
+          awardedQuantity: q > 0 ? q : undefined,
+        };
+      })
       .filter((a) => a.bidId);
     if (itemAwards.length < items.length) {
       toast.error("Her kalem için kazanan teklif seçin");
@@ -213,7 +295,11 @@ export default function ListingDetailPage() {
       return;
     try {
       const res = await awardByItem.mutateAsync(itemAwards);
-      toast.success(`Kazandırıldı — ${res.count} sipariş oluştu`);
+      toast.success(
+        res.pendingApproval
+          ? "Kazandırma onaya gönderildi"
+          : `Kazandırıldı — ${res.count} sipariş oluştu`,
+      );
       setItemAwardMode(false);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Kazandırılamadı"));
@@ -234,6 +320,8 @@ export default function ListingDetailPage() {
   const isAlim = l.type === "ALIM";
   // Erken kapatınca (CLOSED) da kazandırma/eleme açık kalır.
   const canDecide = l.status === "OPEN" || l.status === "CLOSED";
+  // Teklif verme / güncelleme / belge ekleme yalnızca ilan AÇIK iken.
+  const biddingOpen = l.status === "OPEN";
   const directionHint = isAlim
     ? "Alım ilanı — en düşük teklif kazanır."
     : "Satış ilanı — en yüksek teklif kazanır.";
@@ -244,7 +332,21 @@ export default function ListingDetailPage() {
     return sum + (up > 0 ? up * Number(it.quantity) : 0);
   }, 0);
 
-  const handleBid = async () => {
+  const handleBid = async (asDraft: boolean) => {
+    // Gönderirken (taslak değil) teslim tarihi + geçerlilik zorunlu.
+    if (!asDraft && (!bidDelivery || !bidValidity)) {
+      toast.error("Teslim tarihi ve geçerlilik süresi zorunlu");
+      return;
+    }
+    const common = {
+      note: note.trim() || undefined,
+      asDraft,
+      deliveryDate: bidDelivery
+        ? new Date(bidDelivery).toISOString()
+        : undefined,
+      validityDays: bidValidity ? Number(bidValidity) : undefined,
+      currency: bidCurrency || undefined,
+    };
     try {
       if (hasItems) {
         const items = (l?.items ?? [])
@@ -258,16 +360,16 @@ export default function ListingDetailPage() {
           toast.error("Bu ihalede tüm kalemlere fiyat girmelisin");
           return;
         }
-        await placeBid.mutateAsync({ items, note: note.trim() || undefined });
+        await placeBid.mutateAsync({ items, ...common });
       } else {
         const val = Number(amount);
         if (!val || val <= 0) {
           toast.error("Geçerli bir tutar girin");
           return;
         }
-        await placeBid.mutateAsync({ amount: val, note: note.trim() || undefined });
+        await placeBid.mutateAsync({ amount: val, ...common });
       }
-      toast.success("Teklifin kaydedildi");
+      toast.success(asDraft ? "Taslak kaydedildi" : "Teklifin gönderildi");
       setNote("");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Teklif verilemedi"));
@@ -530,21 +632,40 @@ export default function ListingDetailPage() {
                     key={it.id}
                     className="flex items-center justify-between gap-3"
                   >
-                    <span className="text-sm text-zinc-900">{it.name}</span>
-                    <select
-                      value={itemWinners[it.id] ?? ""}
-                      onChange={(e) =>
-                        setItemWinners((w) => ({ ...w, [it.id]: e.target.value }))
-                      }
-                      className="rounded-md border border-zinc-300 px-2 py-1 text-sm"
-                    >
-                      <option value="">— seç —</option>
-                      {opts.map((o) => (
-                        <option key={o.bidId} value={o.bidId}>
-                          {o.bidderName} · {o.price.toLocaleString("tr-TR")} ₺
-                        </option>
-                      ))}
-                    </select>
+                    <span className="text-sm text-zinc-900">
+                      {it.name}
+                      <span className="ml-1 text-xs text-zinc-400">
+                        ({Number(it.quantity).toLocaleString("tr-TR")} {it.unit})
+                      </span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.001"
+                        placeholder="Miktar"
+                        title="Kısmi miktar (boş = tam)"
+                        value={itemQty[it.id] ?? ""}
+                        onChange={(e) =>
+                          setItemQty((q) => ({ ...q, [it.id]: e.target.value }))
+                        }
+                        className="w-24 rounded-md border border-zinc-300 px-2 py-1 text-right text-sm"
+                      />
+                      <select
+                        value={itemWinners[it.id] ?? ""}
+                        onChange={(e) =>
+                          setItemWinners((w) => ({ ...w, [it.id]: e.target.value }))
+                        }
+                        className="rounded-md border border-zinc-300 px-2 py-1 text-sm"
+                      >
+                        <option value="">— seç —</option>
+                        {opts.map((o) => (
+                          <option key={o.bidId} value={o.bidId}>
+                            {o.bidderName} · {o.price.toLocaleString("tr-TR")} ₺
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 );
               })}
@@ -673,14 +794,46 @@ export default function ListingDetailPage() {
                 </div>
               </div>
               <div className="text-right text-xs text-amber-700">
-                {l.english.bidCount} teklif
+                {l.auctionView?.myRank != null &&
+                l.auctionView.participantCount != null ? (
+                  <div className="font-semibold">
+                    Sıranız: {l.auctionView.myRank}/
+                    {l.auctionView.participantCount}
+                  </div>
+                ) : (
+                  <>{l.english.bidCount} teklif</>
+                )}
                 {l.english.currentBest ? (
                   <div className="mt-0.5">altında teklif ver</div>
                 ) : null}
               </div>
             </div>
           ) : null}
-          {!isAlim && l.buyNowPrice ? (
+          {l.auctionView?.allBids && l.auctionView.allBids.length > 0 ? (
+            <div className="rounded-lg border border-zinc-200">
+              <div className="border-b border-zinc-100 px-4 py-2 text-xs font-medium text-zinc-500">
+                Tüm teklifler (anonim)
+              </div>
+              <ul className="divide-y divide-zinc-100">
+                {l.auctionView.allBids.map((b) => (
+                  <li
+                    key={b.rank}
+                    className={`flex items-center justify-between px-4 py-2 text-sm ${
+                      b.isMine ? "bg-amber-50 font-semibold" : ""
+                    }`}
+                  >
+                    <span className="text-zinc-500">
+                      {b.rank}. {b.isMine ? "(Sizin)" : ""}
+                    </span>
+                    <span className="text-zinc-900">
+                      {Number(b.total).toLocaleString("tr-TR")} ₺
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {biddingOpen && !isAlim && l.buyNowPrice ? (
             <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
               <div>
                 <div className="text-sm font-semibold text-emerald-900">
@@ -703,7 +856,7 @@ export default function ListingDetailPage() {
                   {Number(l.myBid.amount).toLocaleString("tr-TR")} ₺
                 </strong>
               </Text>
-              {l.myBid.status === "SUBMITTED" ? (
+              {biddingOpen && l.myBid.status === "SUBMITTED" ? (
                 <Button
                   plain
                   onClick={handleWithdraw}
@@ -714,6 +867,8 @@ export default function ListingDetailPage() {
               ) : null}
             </div>
           ) : null}
+          {biddingOpen ? (
+          <>
           {hasItems ? (
             <div className="space-y-2">
               <div className="text-sm font-medium text-zinc-900">
@@ -793,6 +948,43 @@ export default function ListingDetailPage() {
               />
             </Field>
           )}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Field>
+              <Label>Teslim tarihi</Label>
+              <Input
+                type="date"
+                value={bidDelivery}
+                onChange={(e) => setBidDelivery(e.target.value)}
+              />
+            </Field>
+            <Field>
+              <Label>Geçerlilik (gün)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={365}
+                value={bidValidity}
+                onChange={(e) => setBidValidity(e.target.value)}
+                placeholder="Ör. 30"
+              />
+            </Field>
+            {(l.allowedCurrencies?.length ?? 0) > 1 ? (
+              <Field>
+                <Label>Para birimi</Label>
+                <select
+                  value={bidCurrency}
+                  onChange={(e) => setBidCurrency(e.target.value)}
+                  className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                >
+                  {(l.allowedCurrencies ?? []).map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            ) : null}
+          </div>
           <Field>
             <Label>Not (opsiyonel)</Label>
             <Textarea
@@ -802,13 +994,28 @@ export default function ListingDetailPage() {
               maxLength={1000}
             />
           </Field>
-          <Button onClick={handleBid} disabled={placeBid.isPending}>
-            {placeBid.isPending
-              ? "Gönderiliyor…"
-              : l.myBid
-                ? "Teklifimi Güncelle"
-                : "Teklif Ver"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              outline
+              onClick={() => handleBid(true)}
+              disabled={placeBid.isPending}
+            >
+              Taslak Kaydet
+            </Button>
+            <Button onClick={() => handleBid(false)} disabled={placeBid.isPending}>
+              {placeBid.isPending
+                ? "Gönderiliyor…"
+                : l.myBid && l.myBid.status !== "DRAFT"
+                  ? "Teklifimi Güncelle"
+                  : "Teklif Gönder"}
+            </Button>
+          </div>
+          </>
+          ) : (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              İhale teklife kapandı — teklif ve belgeler artık güncellenemez.
+            </div>
+          )}
           <Text className="text-xs text-zinc-400">
             {l.english?.isEnglishAuction
               ? "Açık eksiltme: teklifin güncel en düşüğün altında olmalı; tutarlar herkese açık."
@@ -822,16 +1029,18 @@ export default function ListingDetailPage() {
                   Teklif Belgeleri
                   {l.requireBidDocument ? " (zorunlu)" : ""}
                 </div>
-                <label className="cursor-pointer text-xs font-medium text-blue-600 hover:underline">
-                  {uploadBidDoc.isPending ? "Yükleniyor…" : "+ Belge Ekle"}
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
-                    onChange={handleUploadBidDoc}
-                    disabled={uploadBidDoc.isPending}
-                  />
-                </label>
+                {biddingOpen ? (
+                  <label className="cursor-pointer text-xs font-medium text-blue-600 hover:underline">
+                    {uploadBidDoc.isPending ? "Yükleniyor…" : "+ Belge Ekle"}
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
+                      onChange={handleUploadBidDoc}
+                      disabled={uploadBidDoc.isPending}
+                    />
+                  </label>
+                ) : null}
               </div>
               {(bidDocs.data ?? []).filter((d) => d.mine).length === 0 ? (
                 <Text className="text-xs text-zinc-400">
@@ -856,13 +1065,15 @@ export default function ListingDetailPage() {
                         >
                           {d.fileName}
                         </a>
-                        <button
-                          type="button"
-                          onClick={() => deleteBidDoc.mutate(d.id)}
-                          className="shrink-0 text-zinc-400 hover:text-red-600"
-                        >
-                          Sil
-                        </button>
+                        {biddingOpen ? (
+                          <button
+                            type="button"
+                            onClick={() => deleteBidDoc.mutate(d.id)}
+                            className="shrink-0 text-zinc-400 hover:text-red-600"
+                          >
+                            Sil
+                          </button>
+                        ) : null}
                       </div>
                     ))}
                 </div>
@@ -881,27 +1092,59 @@ export default function ListingDetailPage() {
     </section>
   );
 
+  const statusMeta = LISTING_STATUS_META[l.status] ?? {
+    label: l.status,
+    color: "zinc" as const,
+  };
+
   const header = (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {/* Üst satır: numara (eyebrow) + durum */}
       <div className="flex flex-wrap items-center gap-2">
+        {l.number ? (
+          <span className="font-mono text-xs font-medium tracking-wide text-zinc-400">
+            {l.number}
+          </span>
+        ) : null}
+        <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
+      </div>
+
+      <Heading>{l.title}</Heading>
+
+      {/* Tanım rozetleri — emojisiz, anlamsal renkler */}
+      <div className="flex flex-wrap items-center gap-1.5">
         <Badge color={isAlim ? "blue" : "emerald"}>
-          {isAlim ? "🔵 Alım" : "🟢 Satış"}
+          {isAlim ? "Alım" : "Satış"}
         </Badge>
         <Badge color="zinc">
-          {l.isInternational ? "🌍 Uluslararası" : "🇹🇷 Yurtiçi"}
+          {l.isInternational ? (
+            <Globe className="size-3.5" />
+          ) : (
+            <MapPin className="size-3.5" />
+          )}
+          {l.isInternational ? "Uluslararası" : "Yurtiçi"}
         </Badge>
         {isAlim && l.format ? (
           <Badge color="purple">
             {l.format === "RFQ" ? "RFQ" : "İngiliz Usulü"}
           </Badge>
         ) : null}
-        <Badge color="zinc">{l.status === "OPEN" ? "Açık" : l.status}</Badge>
-        <span className="font-mono text-xs text-zinc-500">{l.number}</span>
       </div>
-      <Heading>{l.title}</Heading>
+
+      {/* Sahip + yön ipucu */}
       <Text className="text-sm">
-        {l.owner ? l.owner.name : "🔒 Gizli firma"} · {directionHint}
+        <span className="inline-flex items-center gap-1.5 font-medium text-zinc-700">
+          {l.owner ? (
+            <Building2 className="size-4 text-zinc-400" />
+          ) : (
+            <Lock className="size-4 text-zinc-400" />
+          )}
+          {l.owner ? l.owner.name : "Gizli firma"}
+        </span>
+        <span className="mx-2 text-zinc-300">·</span>
+        {directionHint}
       </Text>
+
       {!isAlim && l.minPrice ? (
         <Text className="text-sm text-zinc-600">
           Taban: <strong>{Number(l.minPrice).toLocaleString("tr-TR")} ₺</strong>
@@ -920,11 +1163,11 @@ export default function ListingDetailPage() {
 
   const breadcrumb = (
     <Link
-      href="/company"
+      href={fromHref ?? "/company"}
       className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
     >
       <ArrowLeftIcon className="h-4 w-4" />
-      İlanlar
+      {fromHref ? (fromLabel ?? "Firma profili") : "İlanlar"}
     </Link>
   );
 
@@ -936,18 +1179,35 @@ export default function ListingDetailPage() {
         <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0 flex-1">{header}</div>
-            <TenderActionsMenu
-              id={l.id}
-              status={l.status}
-              closesAt={l.closesAt}
-              internalNotes={l.internalNotes ?? null}
-            />
+            <div className="flex shrink-0 items-center gap-2">
+              {l.canPublish ? (
+                <Button onClick={handlePublish} disabled={publish.isPending}>
+                  Yayınla
+                </Button>
+              ) : null}
+              {l.pendingApprovalId ? (
+                <Button
+                  outline
+                  onClick={handleCancelApproval}
+                  disabled={cancelApproval.isPending}
+                >
+                  Onayı İptal Et
+                </Button>
+              ) : null}
+              <TenderActionsMenu
+                id={l.id}
+                status={l.status}
+                closesAt={l.closesAt}
+                internalNotes={l.internalNotes ?? null}
+                canEdit={l.canEdit}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Meta bar */}
-        <section className="rounded-2xl border border-zinc-950/5 bg-white p-4">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+        {/* Meta bar — bölünmüş istatistik şeridi */}
+        <section>
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-zinc-950/5 bg-zinc-950/[0.06] lg:grid-cols-5">
             <MetaItem
               icon={Layers}
               label="Kalem"
@@ -962,9 +1222,18 @@ export default function ListingDetailPage() {
               icon={CalendarClock}
               label="Kapanış"
               value={
-                l.closesAt
-                  ? new Date(l.closesAt).toLocaleString("tr-TR")
-                  : "—"
+                l.closesAt ? (
+                  <>
+                    <span className="block leading-tight">
+                      {new Date(l.closesAt).toLocaleDateString("tr-TR")}
+                    </span>
+                    <span className="block text-xs font-medium leading-tight text-zinc-500">
+                      {new Date(l.closesAt).toLocaleTimeString("tr-TR")}
+                    </span>
+                  </>
+                ) : (
+                  "—"
+                )
               }
             />
             <MetaItem
@@ -976,13 +1245,14 @@ export default function ListingDetailPage() {
               icon={Gavel}
               label="Teklif"
               value={`${l.bids?.length ?? 0}`}
+              className="col-span-2 lg:col-span-1"
             />
-          </div>
+          </dl>
         </section>
 
         <TabGroup defaultIndex={0} className="space-y-5">
           <TabList
-            className="flex overflow-x-auto border-b border-zinc-950/10"
+            className="flex flex-wrap border-b border-zinc-950/10"
             aria-label="İhale detay sekmeleri"
           >
             <Tab className={TRIGGER_CLASSES}>

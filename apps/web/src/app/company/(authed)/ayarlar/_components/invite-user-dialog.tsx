@@ -38,10 +38,14 @@ export function InviteUserDialog({
   const [byEmail, setByEmail] = useState(true);
   const [roles, setRoles] = useState<CompanyRole[]>(["SATIN_ALMACI"]);
 
+  // Kural: tek rol; istisna Satın Almacı + Satışçı birlikte.
   const toggle = (r: CompanyRole) =>
-    setRoles((cur) =>
-      cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r],
-    );
+    setRoles((cur) => {
+      if (cur.includes(r)) return cur.filter((x) => x !== r);
+      if (r === "YONETICI" || r === "ONAYLAYICI") return [r];
+      const ops = cur.filter((x) => x === "SATIN_ALMACI" || x === "SATISCI");
+      return [...ops, r];
+    });
 
   const canSave =
     email.includes("@") &&
@@ -105,7 +109,7 @@ export function InviteUserDialog({
           />
         </Field>
         <div>
-          <Label>Parola yöntemi</Label>
+          <div className="text-sm font-medium text-zinc-900">Parola yöntemi</div>
           <div className="mt-2 grid grid-cols-2 gap-2">
             <button
               type="button"
@@ -149,7 +153,7 @@ export function InviteUserDialog({
           </Field>
         ) : null}
         <div>
-          <Label>Roller</Label>
+          <div className="text-sm font-medium text-zinc-900">Roller</div>
           <div className="mt-2 flex flex-wrap gap-2">
             {ROLES.map((r) => {
               const on = roles.includes(r.key);

@@ -23,10 +23,12 @@ import {
   useChangeClosing,
   useCloseEarly,
   useCloseNoAward,
+  useDeleteListing,
   useUpdateInternalNotes,
 } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { EllipsisVerticalIcon } from "@heroicons/react/16/solid";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -35,6 +37,7 @@ interface Props {
   status: string;
   closesAt: string | null;
   internalNotes: string | null;
+  canEdit?: boolean;
 }
 
 function toLocalInput(iso: string | null): string {
@@ -48,11 +51,32 @@ function toLocalInput(iso: string | null): string {
 }
 
 /** Alıcının ihale karar menüsü (üç-nokta) — eski header-card aksiyonları. */
-export function TenderActionsMenu({ id, status, closesAt, internalNotes }: Props) {
+export function TenderActionsMenu({
+  id,
+  status,
+  closesAt,
+  internalNotes,
+  canEdit,
+}: Props) {
+  const router = useRouter();
   const closeEarly = useCloseEarly(id);
   const changeClosing = useChangeClosing(id);
   const updateNotes = useUpdateInternalNotes(id);
   const closeNoAward = useCloseNoAward(id);
+  const deleteListing = useDeleteListing();
+
+  const isDraft = status === "DRAFT";
+
+  const handleDeleteDraft = async () => {
+    if (!confirm("Taslak ilan kalıcı olarak silinsin mi?")) return;
+    try {
+      await deleteListing.mutateAsync(id);
+      toast.success("Taslak silindi");
+      router.push("/company/satinalma/ihalelerim");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Silinemedi"));
+    }
+  };
 
   const [closingOpen, setClosingOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -114,6 +138,14 @@ export function TenderActionsMenu({ id, status, closesAt, internalNotes }: Props
           <EllipsisVerticalIcon />
         </DropdownButton>
         <DropdownMenu anchor="bottom end">
+          {canEdit ? (
+            <>
+              <DropdownItem href={`/company/satinalma/ihalelerim/${id}/duzenle`}>
+                <DropdownLabel>İhaleyi Düzenle</DropdownLabel>
+              </DropdownItem>
+              <DropdownDivider />
+            </>
+          ) : null}
           <DropdownItem onClick={() => setNotesOpen(true)}>
             <DropdownLabel>İç Notlar</DropdownLabel>
           </DropdownItem>
@@ -129,6 +161,16 @@ export function TenderActionsMenu({ id, status, closesAt, internalNotes }: Props
               <DropdownItem onClick={handleCloseNoAward}>
                 <DropdownLabel className="text-red-600">
                   Kazanan Olmadan Kapat
+                </DropdownLabel>
+              </DropdownItem>
+            </>
+          ) : null}
+          {isDraft ? (
+            <>
+              <DropdownDivider />
+              <DropdownItem onClick={handleDeleteDraft}>
+                <DropdownLabel className="text-red-600">
+                  Taslağı Sil
                 </DropdownLabel>
               </DropdownItem>
             </>

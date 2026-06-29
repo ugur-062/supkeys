@@ -8,9 +8,13 @@ export type ListingFormat = "RFQ" | "ENGLISH_AUCTION";
 export type ListingVisibility = "PUBLIC" | "CONNECTIONS" | "PRIVATE";
 export type ListingStatus =
   | "DRAFT"
+  | "IN_APPROVAL"
   | "OPEN"
   | "CLOSED"
+  | "IN_AWARD"
+  | "IN_AWARD_APPROVAL"
   | "AWARDED"
+  | "CLOSED_NO_AWARD"
   | "CANCELLED";
 
 export interface Listing {
@@ -64,7 +68,9 @@ export interface ListingItemInput {
 
 export interface CreateListingInput {
   type: ListingType;
+  asDraft?: boolean; // true → taslak kaydet, yayınlama
   isInternational: boolean;
+  targetCountries?: string[]; // sınır ötesi hedef ülkeler (boş = tümü)
   format?: ListingFormat; // ALIM
   minPrice?: number; // SATIS
   buyNowPrice?: number; // SATIS
@@ -147,12 +153,15 @@ export function useMyBids() {
   });
 }
 
-export function useBrowseListings() {
+export type BrowseScope = "domestic" | "international";
+
+export function useBrowseListings(scope: BrowseScope = "domestic") {
   return useQuery({
-    queryKey: ["company-listings", "browse"],
+    queryKey: ["company-listings", "browse", scope],
     queryFn: async () => {
       const { data } = await companyApi.get<BrowseListing[]>(
         "/company/listings/browse",
+        { params: { scope } },
       );
       return data;
     },
@@ -209,6 +218,7 @@ export interface ListingDetail {
   number: string | null;
   type: ListingType;
   isInternational: boolean;
+  targetCountries: string[];
   format: ListingFormat | null;
   minPrice: string | null;
   buyNowPrice: string | null;
@@ -220,6 +230,12 @@ export interface ListingDetail {
   createdAt: string;
   owner: { name: string } | null;
   isOwner: boolean;
+  // Sahip + (TASLAK | AÇIK & teklifsiz) → düzenlenebilir.
+  canEdit?: boolean;
+  // Sahip + TASLAK → yayınlanabilir.
+  canPublish?: boolean;
+  // Bekleyen onay isteği id'si (IN_APPROVAL / IN_AWARD_APPROVAL'da).
+  pendingApprovalId?: string | null;
   // ihale zenginleştirme
   categoryIds?: string[];
   keywords?: string[];
@@ -259,6 +275,9 @@ export interface ListingDetail {
     amount: string;
     note: string | null;
     status: string;
+    deliveryDate?: string | null;
+    validityDays?: number | null;
+    currency?: string | null;
     items?: ListingBidItemRow[];
   } | null;
   // İngiliz Usulü (açık eksiltme):
@@ -267,6 +286,13 @@ export interface ListingDetail {
     currentBest: string | null;
     bidCount: number;
     currentRound: number;
+  } | null;
+  // Açık eksiltme görünürlüğü (bidVisibility'ye göre, kapalı zarf korunur):
+  auctionView?: {
+    bestTotal: string | null;
+    myRank: number | null;
+    participantCount: number | null;
+    allBids: { rank: number; total: string; isMine: boolean }[] | null;
   } | null;
 }
 
@@ -294,6 +320,10 @@ export function usePlaceBid(id: string) {
       amount?: number;
       items?: { itemId: string; unitPrice: number }[];
       note?: string;
+      asDraft?: boolean;
+      deliveryDate?: string;
+      validityDays?: number;
+      currency?: string;
     }) => {
       const { data } = await companyApi.post(
         `/company/listings/${id}/bids`,
@@ -425,11 +455,16 @@ export function useAwardByItem(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (
-      itemAwards: { itemId: string; bidId: string }[],
+      itemAwards: {
+        itemId: string;
+        bidId: string;
+        awardedQuantity?: number;
+      }[],
     ) => {
       const { data } = await companyApi.post<{
-        orders: { id: string; number: string | null }[];
-        count: number;
+        orders?: { id: string; number: string | null }[];
+        count?: number;
+        pendingApproval?: boolean;
       }>(`/company/listings/${id}/award-by-item`, { itemAwards });
       return data;
     },
@@ -454,9 +489,10 @@ export function useStartNewRound(id: string) {
 export function useEliminateBid(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (bidId: string) => {
+    mutationFn: async ({ bidId, reason }: { bidId: string; reason?: string }) => {
       const { data } = await companyApi.post(
         `/company/listings/${id}/bids/${bidId}/eliminate`,
+        { reason },
       );
       return data;
     },
@@ -469,10 +505,11 @@ export function useAwardListing(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (bidId: string) => {
-      const { data } = await companyApi.post<{ orderId: string; number: string }>(
-        `/company/listings/${id}/award`,
-        { bidId },
-      );
+      const { data } = await companyApi.post<{
+        orderId?: string;
+        number?: string;
+        pendingApproval?: boolean;
+      }>(`/company/listings/${id}/award`, { bidId });
       return data;
     },
     onSuccess: () => {
@@ -494,5 +531,56 @@ export function useCreateListing() {
     },
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["company-listings", "mine"] }),
+  });
+}
+
+/** Taslağı yayınla (DRAFT → OPEN). */
+export function usePublishListing(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post<Listing>(
+        `/company/listings/${id}/publish`,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "mine"] });
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+      qc.invalidateQueries({ queryKey: ["company-tenders"] });
+    },
+  });
+}
+
+/** Taslak ilanı sil. */
+export function useDeleteListing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await companyApi.delete(`/company/listings/${id}`);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings"] });
+      qc.invalidateQueries({ queryKey: ["company-tenders"] });
+    },
+  });
+}
+
+/** İlanı güncelle (sahip, açık + teklif gelmemişken). */
+export function useUpdateListing(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateListingInput) => {
+      const { data } = await companyApi.patch<Listing>(
+        `/company/listings/${id}`,
+        input,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "mine"] });
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+    },
   });
 }

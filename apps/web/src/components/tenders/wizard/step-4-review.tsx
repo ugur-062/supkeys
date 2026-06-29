@@ -3,6 +3,7 @@
 import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
 import { useConnections } from "@/hooks/use-company-connections";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
+import { countryName } from "@supkeys/shared";
 import {
   CURRENCY_SYMBOL,
   DELIVERY_TERM_LABELS,
@@ -56,6 +57,18 @@ export function Step4Review({ onEditStep }: Props) {
           value={d.type === "ENGLISH_AUCTION" ? "İngiliz Usulü Açık Eksiltme" : "RFQ (Teklif Toplama)"}
         />
         <Row label="Kapsam" value={d.isInternational ? "Uluslararası" : "Yurtiçi"} />
+        {d.isInternational ? (
+          <Row
+            label="Hedef Ülkeler"
+            value={
+              (d.targetCountries ?? []).length === 0
+                ? "Tüm ülkeler"
+                : (d.targetCountries ?? [])
+                    .map((c) => countryName(c))
+                    .join(", ")
+            }
+          />
+        ) : null}
         <Row label="Görünürlük" value={d.visibility === "PUBLIC" ? "Herkese Açık" : "Davetli"} />
         {d.description ? <Row label="Açıklama" value={d.description} /> : null}
         {d.keywords?.length ? (

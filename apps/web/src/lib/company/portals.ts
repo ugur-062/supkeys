@@ -1,11 +1,13 @@
 import type { CompanyRole } from "@/lib/company-auth/types";
 import {
   BuildingStorefrontIcon,
+  ChartBarIcon,
   ChatBubbleLeftRightIcon,
   ClipboardDocumentListIcon,
+  DocumentDuplicateIcon,
   HomeIcon,
+  IdentificationIcon,
   InboxArrowDownIcon,
-  MagnifyingGlassIcon,
   ShoppingBagIcon,
   ShoppingCartIcon,
   TagIcon,
@@ -56,14 +58,36 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         paidOnly: true,
       },
       {
+        icon: TagIcon,
+        label: "Tekliflerim",
+        href: "/company/satinalma/tekliflerim",
+      },
+      {
         icon: ShoppingBagIcon,
         label: "Siparişlerim",
         href: "/company/satinalma/siparisler",
       },
       {
+        icon: ChartBarIcon,
+        label: "Raporlar",
+        href: "/company/satinalma/raporlar",
+        paidOnly: true,
+      },
+      {
+        icon: DocumentDuplicateIcon,
+        label: "Şablonlar",
+        href: "/company/satinalma/sablonlar",
+        paidOnly: true,
+      },
+      {
         icon: UsersIcon,
-        label: "Tedarikçilerim",
+        label: "Bağlantılar",
         href: "/company/satinalma/tedarikcilerim",
+      },
+      {
+        icon: IdentificationIcon,
+        label: "Profilim",
+        href: "/company/satinalma/profilim",
       },
       {
         icon: ChatBubbleLeftRightIcon,
@@ -102,8 +126,13 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       },
       {
         icon: BuildingStorefrontIcon,
-        label: "Müşterilerim",
+        label: "Bağlantılar",
         href: "/company/satis/musterilerim",
+      },
+      {
+        icon: IdentificationIcon,
+        label: "Profilim",
+        href: "/company/satis/profilim",
       },
       {
         icon: ChatBubbleLeftRightIcon,
@@ -129,10 +158,18 @@ export function activePortalFromPath(pathname: string | null): PortalKey | null 
  * SATIN_ALMACI → satınalma, SATISCI → satış. Bir kişi YÖNETİCİ olmadan iki role
  * birden sahip olabilir (ikisi de açılır).
  */
-export function accessiblePortals(roles: CompanyRole[]): PortalKey[] {
+/**
+ * Erişilebilir portallar. Satınalma (alıcı/ihale açma) = **premium (PAKET)**;
+ * STANDARD firma yalnızca satış (teklif) tarafına erişir.
+ */
+export function accessiblePortals(
+  roles: CompanyRole[],
+  tier?: "STANDARD" | "PAKET",
+): PortalKey[] {
   const isManager = roles.includes("YONETICI");
   const out: PortalKey[] = [];
-  if (isManager || roles.includes("SATIN_ALMACI")) out.push("satinalma");
+  if ((isManager || roles.includes("SATIN_ALMACI")) && tier === "PAKET")
+    out.push("satinalma");
   if (isManager || roles.includes("SATISCI")) out.push("satis");
   return out;
 }

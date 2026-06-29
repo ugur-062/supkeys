@@ -14,6 +14,7 @@ export interface TenderListItem {
   type: "ALIM" | "SATIS";
   format: ListingFormat | null;
   status: ListingStatus;
+  isInternational: boolean;
   categoryIds: string[];
   createdById: string;
   createdBy: { firstName: string; lastName: string };

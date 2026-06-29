@@ -125,6 +125,8 @@ const baseTenderSchema = z.object({
     .max(10, "En fazla 10 anahtar kelime"),
   type: z.enum(TYPE_VALUES),
   isInternational: z.boolean(),
+  // Sınır ötesi hedef ülkeler (ISO kodları). Boş = tüm yabancı ülkeler.
+  targetCountries: z.array(z.string()),
   visibility: z.enum(VISIBILITY_VALUES),
   isLogistics: z.boolean(),
   logistics: logisticsSchema.optional(),
@@ -232,13 +234,15 @@ export const tenderFormSchema = baseTenderSchema
 
 export type TenderFormData = z.infer<typeof tenderFormSchema>;
 
-export const STEP_FIELDS: Record<1 | 2 | 3, (keyof TenderFormData)[]> = {
-  1: [
+export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
+  // Faz 1 — yalnızca tür + kapsam
+  1: ["type", "isInternational", "targetCountries"],
+  // Faz 2 — genel bilgi, kategori, kurallar, teslimat, ödeme, zamanlama
+  2: [
     "categoryIds",
     "title",
     "description",
     "keywords",
-    "type",
     "isLogistics",
     "logistics",
     "isSealedBid",
@@ -264,8 +268,8 @@ export const STEP_FIELDS: Record<1 | 2 | 3, (keyof TenderFormData)[]> = {
     "autoExtendThresholdMin",
     "autoExtendByMinutes",
   ],
-  2: ["items"],
-  3: ["invitedSupplierIds"],
+  3: ["items"],
+  4: ["invitedSupplierIds"],
 };
 
 export const DEFAULT_FORM_VALUES: TenderFormData = {
@@ -275,6 +279,7 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   keywords: [],
   type: "RFQ",
   isInternational: false,
+  targetCountries: [],
   visibility: "PRIVATE",
   isLogistics: false,
   logistics: {

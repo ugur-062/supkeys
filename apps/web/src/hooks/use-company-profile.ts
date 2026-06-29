@@ -16,10 +16,21 @@ export interface CompanyProfile {
   postalCode: string | null;
   aboutText: string | null;
   publicEnabled: boolean;
+  logoUrl: string | null;
+  coverImageUrl: string | null;
+  linkedinUrl: string | null;
+  instagramUrl: string | null;
+  employeeCount: string | null;
+  foundedYear: number | null;
+  services: string[];
+  certifications: string[];
+  photos: string[];
+  certificateImages: string[];
   buyerCategoryIds: string[];
   sellerCategoryIds: string[];
   taxNumber: string | null;
   supkeysId: string | null;
+  slug: string | null;
   tier: "STANDARD" | "PAKET";
   companyVerificationStatus: string;
 }
@@ -37,10 +48,52 @@ export type CompanyProfileUpdate = Partial<
     | "postalCode"
     | "aboutText"
     | "publicEnabled"
+    | "logoUrl"
+    | "coverImageUrl"
+    | "linkedinUrl"
+    | "instagramUrl"
+    | "employeeCount"
+    | "foundedYear"
+    | "services"
+    | "certifications"
+    | "photos"
+    | "certificateImages"
     | "buyerCategoryIds"
     | "sellerCategoryIds"
   >
 >;
+
+/**
+ * Logo/kapak yükleme — presigned PUT ile doğrudan R2'ye. URL döner; çağıran
+ * onu forma koyar, Kaydet'te kalıcılaşır (DB'ye burada yazılmaz).
+ */
+export function useUploadProfileImage() {
+  return useMutation({
+    mutationFn: async ({
+      file,
+      kind,
+    }: {
+      file: File;
+      kind: "logo" | "cover" | "gallery";
+    }): Promise<string> => {
+      const { data } = await companyApi.post<{ url: string; key: string }>(
+        "/company/profile/image/upload-url",
+        { kind, fileName: file.name, mimeType: file.type },
+      );
+      const put = await fetch(data.url, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+      if (!put.ok) throw new Error("Dosya yüklenemedi (R2)");
+      const { data: res } = await companyApi.post<{ url: string }>(
+        "/company/profile/image/commit",
+        { kind, key: data.key },
+      );
+      return res.url;
+    },
+  });
+}
 
 export function useCompanyProfile() {
   return useQuery({
