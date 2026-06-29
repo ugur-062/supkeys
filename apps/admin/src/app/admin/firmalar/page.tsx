@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import {
   useAdminCompanies,
   useCompanyAction,
+  useSetCompanyTier,
   type AdminCompanyRow,
 } from "@/hooks/use-admin-companies";
 import { format } from "date-fns";
@@ -41,7 +42,26 @@ function FirmalarView() {
     q: q.trim() || undefined,
   });
   const act = useCompanyAction();
+  const tierAct = useSetCompanyTier();
   const items = query.data ?? [];
+
+  const setTier = (id: string, tier: "STANDARD" | "PAKET") => {
+    let months: number | undefined;
+    if (tier === "PAKET") {
+      const m = window.prompt("Kaç ay premium verilsin?", "12");
+      if (m === null) return;
+      months = Number(m) || 12;
+    }
+    tierAct.mutate(
+      { id, tier, months },
+      {
+        onSuccess: () =>
+          toast.success(tier === "PAKET" ? "PAKET verildi" : "Standart'a alındı"),
+        onError: (e: unknown) =>
+          toast.error(e instanceof Error ? e.message : "Hata"),
+      },
+    );
+  };
 
   const run = (
     id: string,
@@ -152,6 +172,27 @@ function FirmalarView() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-2">
+                        {c.tier === "PAKET" ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            disabled={tierAct.isPending}
+                            onClick={() => setTier(c.id, "STANDARD")}
+                          >
+                            PAKET Al
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            disabled={tierAct.isPending}
+                            onClick={() => setTier(c.id, "PAKET")}
+                          >
+                            PAKET Ver
+                          </Button>
+                        )}
                         {c.verification !== "VERIFIED" ? (
                           <Button
                             type="button"

@@ -54,6 +54,24 @@ export function useCompanyAction() {
   });
 }
 
+export function useSetCompanyTier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      tier,
+      months,
+    }: {
+      id: string;
+      tier: "STANDARD" | "PAKET";
+      months?: number;
+    }) => {
+      await api.post(`/admin/companies/${id}/tier`, { tier, months });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-companies"] }),
+  });
+}
+
 export interface AdminComplaint {
   id: string;
   complainant: { name: string; supkeysId: string | null };
