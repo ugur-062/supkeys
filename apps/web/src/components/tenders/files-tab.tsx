@@ -73,7 +73,7 @@ export function FilesTab({
           </Button>
         ) : isOwner ? (
           <Text className="text-xs text-zinc-400">
-            İhale kapandı — belgeler salt-okunur
+            Dosyalar Düzenle ekranından yönetilir
           </Text>
         ) : null}
       </div>
@@ -86,7 +86,7 @@ export function FilesTab({
             <FileText className="h-6 w-6 text-zinc-400" />
           </div>
           <p className="mt-3 text-sm text-zinc-500">
-            {isOwner
+            {isOwner && canEdit
               ? "Henüz dosya eklenmemiş. Şartname, teknik resim vb. ekleyebilirsin."
               : "Bu ihaleye dosya eklenmemiş."}
           </p>

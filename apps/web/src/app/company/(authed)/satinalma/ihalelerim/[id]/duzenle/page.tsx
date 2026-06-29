@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/catalyst/button";
 import { Text } from "@/components/catalyst/text";
+import { FilesTab } from "@/components/tenders/files-tab";
 import { TenderWizard } from "@/components/tenders/wizard/tender-wizard";
 import { useListingDetail, type ListingDetail } from "@/hooks/use-company-listings";
 import {
@@ -147,11 +148,17 @@ export default function EditTenderPage() {
   }
 
   return (
-    <TenderWizard
-      mode="edit"
-      listingId={id}
-      initialValues={mapDetailToForm(l)}
-    />
+    <div className="space-y-6">
+      <TenderWizard
+        mode="edit"
+        listingId={id}
+        initialValues={mapDetailToForm(l)}
+      />
+      {/* İhale dosyaları — burada yönetilir (detay sayfası salt-okunur). */}
+      <div className="mx-auto max-w-3xl">
+        <FilesTab listingId={id} isOwner canEdit />
+      </div>
+    </div>
   );
 }
 

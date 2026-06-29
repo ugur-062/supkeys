@@ -1242,7 +1242,7 @@ export default function ListingDetailPage() {
               <FilesTab
                 listingId={l.id}
                 isOwner={!!l.isOwner}
-                canEdit={!!l.canEdit}
+                canEdit={false}
               />
             </TabPanel>
           </TabPanels>
