@@ -345,11 +345,33 @@ export class CompanyListingsService {
   }
 
   /**
+   * Yayınlanan (taslak olmayan) ilanda kapanış geleceğe; açılış varsa kapanıştan
+   * önce olmalı. Taslakta tarih serbest.
+   */
+  private validateListingDates(dto: CreateListingDto) {
+    if (dto.asDraft) return;
+    if (!dto.closesAt) {
+      throw new BadRequestException("Kapanış tarihi zorunlu");
+    }
+    const close = new Date(dto.closesAt);
+    if (Number.isNaN(close.getTime()) || close.getTime() <= Date.now()) {
+      throw new BadRequestException("Kapanış tarihi gelecekte olmalı");
+    }
+    if (dto.bidsOpenAt) {
+      const open = new Date(dto.bidsOpenAt);
+      if (!Number.isNaN(open.getTime()) && open.getTime() >= close.getTime()) {
+        throw new BadRequestException("Açılış tarihi kapanıştan önce olmalı");
+      }
+    }
+  }
+
+  /**
    * İlan oluştur. PAKET üyelik gerektirir (STANDARD yalnızca teklif verir,
    * ilan/ihale açamaz). Rol-korumalı: ALIM → SATIN_ALMACI, SATIS → SATISCI.
    */
   async create(user: AuthenticatedCompanyUser, dto: CreateListingDto) {
     const type = dto.type as ListingType;
+    this.validateListingDates(dto);
 
     if (user.tier !== "PAKET") {
       throw new ForbiddenException(
@@ -557,6 +579,7 @@ export class CompanyListingsService {
         );
       }
     }
+    this.validateListingDates(dto);
 
     // Tür değişmez — mevcut türe göre format/fiyat doğrula (create ile aynı).
     const type = existing.type;
@@ -938,17 +961,13 @@ export class CompanyListingsService {
     user: AuthenticatedCompanyUser,
     scope: "domestic" | "international" = "domestic",
   ) {
-    const connectedIds = await this.connectedCompanyIds(user.companyId);
-    const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
+    // Bağımsız sorgular paralel; izleyenin ülkesi token'dan (ekstra sorgu yok).
+    const [connectedIds, blockedIds] = await Promise.all([
+      this.connectedCompanyIds(user.companyId),
+      this.blocks.blockedCompanyIds(user.companyId),
+    ]);
     const isPremium = user.tier === "PAKET";
-
-    // İzleyenin ülkesi (Company.country, default "TR"). Sınıriçi/sınırötesi
-    // ayrımı buna göre yapılır.
-    const me = await this.prisma.company.findUnique({
-      where: { id: user.companyId },
-      select: { country: true },
-    });
-    const myCountry = me?.country ?? "TR";
+    const myCountry = user.country;
 
     // Yurtiçi: SADECE yurtiçi ilanlar (isInternational=false) + aynı ülke.
     // Uluslararası: ilan sınır ötesine açılmış (isInternational=true), sahibi
@@ -2044,10 +2063,7 @@ export class CompanyListingsService {
       itemAwards,
     );
     const groupArr = [...groups.entries()];
-    const numbers: string[] = [];
-    for (let i = 0; i < groupArr.length; i++) {
-      numbers.push(await this.nextOrderNumber());
-    }
+    const numbers = await this.nextOrderNumbers(groupArr.length);
     const winningBidIds = [...new Set(itemAwards.map((a) => a.bidId))];
 
     const created = await this.prisma.$transaction(async (tx) => {
@@ -2634,6 +2650,16 @@ export class CompanyListingsService {
       SELECT nextval('order_number_seq') AS n
     `;
     return `ROT-ORD-${String(rows[0].n).padStart(6, "0")}`;
+  }
+
+  /** N sıra numarasını tek sorguda al (kalem-bazlı kazandırmada seri sorgu yerine). */
+  private async nextOrderNumbers(count: number): Promise<string[]> {
+    if (count <= 0) return [];
+    const rows = await this.prisma.$queryRaw<Array<{ n: bigint }>>`
+      SELECT nextval('order_number_seq') AS n
+      FROM generate_series(1, ${count})
+    `;
+    return rows.map((r) => `ROT-ORD-${String(r.n).padStart(6, "0")}`);
   }
 
   private detail(

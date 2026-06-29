@@ -514,6 +514,10 @@ export function Step1Info({ listingId }: { listingId?: string }) {
   const autoExtendOnLateBid = watch("autoExtendOnLateBid");
   const isAuction = tenderType === "ENGLISH_AUCTION";
   const isInternational = watch("isInternational");
+  // datetime-local "min" — geçmiş tarih seçimini anında engeller (yerel saat).
+  const minDateTime = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
   const { data: addresses } = useAddresses();
   const deliveryAddrs = (addresses ?? []).filter(
     (a) => a.type === "TESLIMAT" || a.type === "ILETISIM",
@@ -1334,6 +1338,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
             <Input
               id="bidsOpenAt"
               type="datetime-local"
+              min={minDateTime}
               hasError={!!errors.bidsOpenAt}
               {...register("bidsOpenAt")}
             />
@@ -1345,6 +1350,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
             <Input
               id="bidsCloseAt"
               type="datetime-local"
+              min={minDateTime}
               hasError={!!errors.bidsCloseAt}
               {...register("bidsCloseAt")}
             />

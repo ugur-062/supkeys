@@ -18,6 +18,12 @@ import { AwardByItemDto } from "../dto/award-by-item.dto";
 import { AwardListingDto } from "../dto/award-listing.dto";
 import { CreateListingDto } from "../dto/create-listing.dto";
 import { NextRoundDto } from "../dto/next-round.dto";
+import {
+  AddInvitationsDto,
+  ChangeClosingDto,
+  InternalNotesDto,
+  ListingReasonDto,
+} from "../dto/owner-action.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
 import { CompanyListingsService } from "../services/company-listings.service";
 
@@ -144,9 +150,9 @@ export class CompanyListingsController {
   addInvitations(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
-    @Body() body: { supkeysIds: string[] },
+    @Body() dto: AddInvitationsDto,
   ) {
-    return this.service.addInvitations(user, id, body?.supkeysIds ?? []);
+    return this.service.addInvitations(user, id, dto.supkeysIds ?? []);
   }
 
   @Post(":id/bids/:bidId/eliminate")
@@ -154,18 +160,18 @@ export class CompanyListingsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
     @Param("bidId") bidId: string,
-    @Body() body: { reason?: string },
+    @Body() dto: ListingReasonDto,
   ) {
-    return this.service.eliminate(user, id, bidId, body?.reason);
+    return this.service.eliminate(user, id, bidId, dto.reason);
   }
 
   @Post(":id/cancel")
   cancel(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
-    @Body() body: { reason?: string },
+    @Body() dto: ListingReasonDto,
   ) {
-    return this.service.cancel(user, id, body?.reason);
+    return this.service.cancel(user, id, dto.reason);
   }
 
   @Post(":id/withdraw-bid")
@@ -190,27 +196,27 @@ export class CompanyListingsController {
   changeClosing(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
-    @Body() body: { closesAt: string },
+    @Body() dto: ChangeClosingDto,
   ) {
-    return this.service.changeClosingTime(user, id, body.closesAt);
+    return this.service.changeClosingTime(user, id, dto.closesAt);
   }
 
   @Post(":id/internal-notes")
   internalNotes(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
-    @Body() body: { notes: string },
+    @Body() dto: InternalNotesDto,
   ) {
-    return this.service.updateInternalNotes(user, id, body.notes ?? "");
+    return this.service.updateInternalNotes(user, id, dto.notes ?? "");
   }
 
   @Post(":id/close-no-award")
   closeNoAward(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
-    @Body() body: { reason?: string },
+    @Body() dto: ListingReasonDto,
   ) {
-    return this.service.closeNoAward(user, id, body?.reason);
+    return this.service.closeNoAward(user, id, dto.reason);
   }
 
   @Get(":id/rounds")
