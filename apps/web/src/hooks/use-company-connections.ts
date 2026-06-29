@@ -9,6 +9,14 @@ export interface ConnectionCompany {
   id: string;
   name: string;
   supkeysId: string | null;
+  // İhale daveti adımı için zengin kart alanları (yalnızca bağlantı listesinde dolu).
+  tier?: "STANDARD" | "PAKET";
+  taxNumber?: string | null;
+  city?: string | null;
+  country?: string | null;
+  industry?: string | null;
+  contactName?: string | null;
+  contactEmail?: string | null;
 }
 
 export interface Connection {

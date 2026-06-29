@@ -15,6 +15,24 @@ import { EmailService } from "../../email/email.service";
 
 type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
 
+/** Bağlantı kartı için firma alanları (ihale daveti adımı + bağlantılar). */
+const COMPANY_CARD_SELECT = {
+  id: true,
+  name: true,
+  supkeysId: true,
+  tier: true,
+  taxNumber: true,
+  city: true,
+  country: true,
+  industry: true,
+  users: {
+    where: { isActive: true, deletedAt: null },
+    take: 1,
+    orderBy: { createdAt: "asc" as const },
+    select: { firstName: true, lastName: true, email: true },
+  },
+} as const;
+
 @Injectable()
 export class CompanyConnectionsService {
   private readonly logger = new Logger(CompanyConnectionsService.name);
@@ -213,8 +231,8 @@ export class CompanyConnectionsService {
         ],
       },
       include: {
-        inviter: { select: { id: true, name: true, supkeysId: true, tier: true } },
-        invitee: { select: { id: true, name: true, supkeysId: true, tier: true } },
+        inviter: { select: COMPANY_CARD_SELECT },
+        invitee: { select: COMPANY_CARD_SELECT },
       },
       orderBy: { decidedAt: "desc" },
     });
@@ -226,6 +244,7 @@ export class CompanyConnectionsService {
       )
       .map((r) => {
         const other = r.inviterCompanyId === companyId ? r.invitee : r.inviter;
+        const contact = other.users[0] ?? null;
         return {
           connectionId: r.id,
           origin: r.origin,
@@ -233,6 +252,15 @@ export class CompanyConnectionsService {
             id: other.id,
             name: other.name,
             supkeysId: other.supkeysId,
+            tier: other.tier,
+            taxNumber: other.taxNumber,
+            city: other.city,
+            country: other.country,
+            industry: other.industry,
+            contactName: contact
+              ? `${contact.firstName} ${contact.lastName}`.trim()
+              : null,
+            contactEmail: contact?.email ?? null,
           },
           decidedAt: r.decidedAt,
         };
