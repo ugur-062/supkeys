@@ -14,6 +14,12 @@ import {
   useConnections,
   useInviteByEmail,
 } from "@/hooks/use-company-connections";
+import {
+  fetchSupplierTemplate,
+  useCreateSupplierTemplate,
+  useDeleteSupplierTemplate,
+  useSupplierTemplates,
+} from "@/hooks/use-supplier-templates";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import { cn } from "@/lib/utils";
 import {
@@ -21,7 +27,10 @@ import {
   Check,
   CheckSquare,
   Info,
+  LayoutTemplate,
+  Save,
   Search,
+  Trash2,
   UserPlus2,
   Users2,
   X,
@@ -100,18 +109,129 @@ function InviteByEmailModal({
   );
 }
 
+/** Seçili firmaları tedarikçi şablonu olarak kaydet. */
+function SaveTemplateModal({
+  open,
+  onClose,
+  memberCompanyIds,
+}: {
+  open: boolean;
+  onClose: () => void;
+  memberCompanyIds: string[];
+}) {
+  const [name, setName] = useState("");
+  const [isPublic, setIsPublic] = useState(true);
+  const create = useCreateSupplierTemplate();
+
+  const submit = async () => {
+    if (name.trim().length < 2) return;
+    try {
+      await create.mutateAsync({
+        name: name.trim(),
+        isPublic,
+        memberCompanyIds,
+      });
+      toast.success("Tedarikçi şablonu kaydedildi");
+      setName("");
+      onClose();
+    } catch {
+      toast.error("Şablon kaydedilemedi");
+    }
+  };
+
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle>Şablon Olarak Kaydet</DialogTitle>
+      <DialogDescription>
+        Seçili {memberCompanyIds.length} firmayı bir grup şablonu olarak
+        kaydet; sonraki ihalelerde tek tıkla davet et.
+      </DialogDescription>
+      <DialogBody className="space-y-3">
+        <Field>
+          <Label>Şablon Adı</Label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Örn. Ambalaj tedarikçileri"
+            autoFocus
+          />
+        </Field>
+        <label className="flex items-center gap-2 text-sm text-zinc-700">
+          <input
+            type="checkbox"
+            checked={isPublic}
+            onChange={(e) => setIsPublic(e.target.checked)}
+            className="h-4 w-4 rounded border-zinc-300"
+          />
+          Firmadaki herkes bu şablonu kullanabilsin
+        </label>
+      </DialogBody>
+      <DialogActions>
+        <Button plain onClick={onClose}>
+          Vazgeç
+        </Button>
+        <Button
+          onClick={submit}
+          disabled={create.isPending || name.trim().length < 2}
+        >
+          Kaydet
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
 /**
  * Adım 4 (sihirbazda) — Davet edilecek firmalar. Eski tedarikçi-daveti
  * adımının özellikleri: zengin firma kartı, tümünü seç, seçim özeti + temizle,
  * yeni firma davet modalı, bilgi notu. Veri kaynağı: bağlantılı firmalar.
  */
 export function Step3Suppliers() {
-  const { control } = useFormContext<TenderFormData>();
+  const { control, getValues, setValue } = useFormContext<TenderFormData>();
   const connections = useConnections();
+  const templates = useSupplierTemplates();
+  const deleteTemplate = useDeleteSupplierTemplate();
   const visibility = useWatch({ control, name: "visibility" });
   const [search, setSearch] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [tplOpen, setTplOpen] = useState(false);
+  const [applyingId, setApplyingId] = useState<string | null>(null);
   const [pendingInvites, setPendingInvites] = useState<string[]>([]);
+
+  const applyTemplate = async (id: string) => {
+    setApplyingId(id);
+    try {
+      const tpl = await fetchSupplierTemplate(id);
+      const connectedSupkeys = new Set(
+        (connections.data ?? [])
+          .map((c) => c.company.supkeysId)
+          .filter(Boolean) as string[],
+      );
+      const current = new Set<string>(getValues("invitedSupplierIds") ?? []);
+      let added = 0;
+      let skipped = 0;
+      for (const m of tpl.members) {
+        if (!m.supkeysId || !connectedSupkeys.has(m.supkeysId)) {
+          skipped++;
+          continue;
+        }
+        if (!current.has(m.supkeysId)) {
+          current.add(m.supkeysId);
+          added++;
+        }
+      }
+      setValue("invitedSupplierIds", [...current], { shouldDirty: true });
+      toast.success(
+        `${added} firma eklendi${skipped > 0 ? ` · ${skipped} bağlantında yok, atlandı` : ""}`,
+      );
+      setTplOpen(false);
+    } catch {
+      toast.error("Şablon uygulanamadı");
+    } finally {
+      setApplyingId(null);
+    }
+  };
 
   const companies = useMemo(() => {
     const rows = (connections.data ?? [])
@@ -220,11 +340,84 @@ export function Step3Suppliers() {
                 <CheckSquare data-slot="icon" />
                 Tümünü Seç ({companies.length})
               </Button>
+              <Button outline onClick={() => setTplOpen((o) => !o)}>
+                <LayoutTemplate data-slot="icon" />
+                Şablondan Yükle
+              </Button>
+              <Button
+                outline
+                onClick={() => setSaveOpen(true)}
+                disabled={selected.size === 0}
+              >
+                <Save data-slot="icon" />
+                Şablon Kaydet
+              </Button>
               <Button onClick={() => setInviteOpen(true)}>
                 <UserPlus2 data-slot="icon" />
                 Yeni Tedarikçi Davet Et
               </Button>
             </div>
+
+            {/* Tedarikçi şablonları paneli */}
+            {tplOpen ? (
+              <div className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    Tedarikçi Şablonları
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setTplOpen(false)}
+                    aria-label="Kapat"
+                    className="text-zinc-400 hover:text-zinc-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                {templates.isLoading ? (
+                  <p className="text-xs text-zinc-500">Yükleniyor…</p>
+                ) : (templates.data?.length ?? 0) === 0 ? (
+                  <p className="text-xs text-zinc-500">
+                    Kayıtlı şablonun yok. Firma seçip &ldquo;Şablon
+                    Kaydet&rdquo; ile oluşturabilirsin.
+                  </p>
+                ) : (
+                  <ul className="max-h-52 space-y-1 overflow-y-auto pr-1">
+                    {templates.data?.map((t) => (
+                      <li
+                        key={t.id}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-zinc-200 px-3 py-2"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => applyTemplate(t.id)}
+                          disabled={applyingId !== null}
+                          className="flex-1 truncate text-left text-sm font-medium text-zinc-900 hover:text-zinc-600 disabled:opacity-50"
+                        >
+                          {t.name}
+                          <span className="ml-2 text-xs text-zinc-400">
+                            {applyingId === t.id
+                              ? "Ekleniyor…"
+                              : `${t.memberCount} firma`}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm(`"${t.name}" şablonu silinsin mi?`))
+                              deleteTemplate.mutate(t.id);
+                          }}
+                          aria-label="Sil"
+                          className="shrink-0 text-zinc-400 hover:text-red-600"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
 
             {/* Liste */}
             {connections.isLoading ? (
@@ -426,6 +619,11 @@ export function Step3Suppliers() {
                   prev.includes(email) ? prev : [...prev, email],
                 )
               }
+            />
+            <SaveTemplateModal
+              open={saveOpen}
+              onClose={() => setSaveOpen(false)}
+              memberCompanyIds={selectedCompanies.map((c) => c.id)}
             />
           </div>
         );

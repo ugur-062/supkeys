@@ -319,6 +319,7 @@ model Company {
   complaintsReceived   CompanyComplaint[]        @relation("ComplaintAgainst")
   listingInvitations   ListingInvitation[]       @relation("ListingInvitee")
   listingTemplates     ListingTemplate[]
+  supplierTemplates    SupplierTemplate[]
   threadsAsBuyer       MessageThread[]           @relation("ThreadBuyer")
   threadsAsSeller      MessageThread[]           @relation("ThreadSeller")
   messagesSent         Message[]                 @relation("MessageSender")
@@ -904,6 +905,23 @@ model ListingTemplate {
 
   @@index([companyId])
   @@map("listing_templates")
+}
+
+// Tedarikçi şablonu — sık birlikte davet edilen bağlı firma grubu (ihale
+// sihirbazında tek tıkla davet). Üyeler bağlı firma id'leri (denormalize).
+model SupplierTemplate {
+  id               String   @id @default(cuid())
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name             String
+  isPublic         Boolean  @default(true) // firmadaki herkes görebilir
+  createdById      String
+  memberCompanyIds String[] @default([]) // bağlı firma id'leri
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("supplier_templates")
 }
 
 // İhale kalemi — bir ilanda birden çok satır (eski TenderItem).
