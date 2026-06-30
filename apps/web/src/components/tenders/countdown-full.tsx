@@ -52,7 +52,10 @@ export function CountdownFull({
 
   if (p.totalMs <= 0) {
     return (
-      <span className={cn("font-semibold text-danger-600", className)}>
+      <span
+        role="status"
+        className={cn("font-semibold text-danger-600", className)}
+      >
         {endedLabel}
       </span>
     );
@@ -72,7 +75,13 @@ export function CountdownFull({
   if (p.days === 0) segments.push(`${p.seconds} saniye`);
 
   return (
-    <span className={cn("font-semibold tabular-nums", tone, className)}>
+    // role="timer" + aria-live kapalı: ekran okuyucu her saniye spam'lemez,
+    // odaklanınca/gezinince güncel kalan süreyi okur.
+    <span
+      role="timer"
+      aria-label={`Kalan süre: ${segments.join(" ")}`}
+      className={cn("font-semibold tabular-nums", tone, className)}
+    >
       {segments.join(" ")}
     </span>
   );

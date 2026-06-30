@@ -79,6 +79,7 @@ export function TableHeader({ className, ...props }: React.ComponentPropsWithout
 
   return (
     <th
+      scope="col"
       {...props}
       className={clsx(
         className,

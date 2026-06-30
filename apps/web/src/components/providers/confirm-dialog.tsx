@@ -4,10 +4,9 @@ import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
   DialogActions,
-  DialogBody,
+  DialogDescription,
   DialogTitle,
 } from "@/components/catalyst/dialog";
-import { Text } from "@/components/catalyst/text";
 import { createContext, useCallback, useContext, useRef, useState } from "react";
 
 type ConfirmOptions = {
@@ -51,9 +50,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       <Dialog open={open} onClose={() => settle(false)}>
         <DialogTitle>{opts?.title}</DialogTitle>
         {opts?.description ? (
-          <DialogBody>
-            <Text className="text-sm text-zinc-600">{opts.description}</Text>
-          </DialogBody>
+          <DialogDescription>{opts.description}</DialogDescription>
         ) : null}
         <DialogActions>
           <Button plain onClick={() => settle(false)}>

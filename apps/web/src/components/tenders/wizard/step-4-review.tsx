@@ -110,7 +110,7 @@ export function Step4Review({ onEditStep }: Props) {
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {(d.items ?? []).map((it, i) => (
-                <tr key={i}>
+                <tr key={it.materialCode || `${it.name}-${i}`}>
                   <td className="px-3 py-2 text-zinc-900">{it.name || "—"}</td>
                   <td className="px-3 py-2 text-right text-zinc-600">
                     {it.quantity} {it.unit}
@@ -134,9 +134,9 @@ export function Step4Review({ onEditStep }: Props) {
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
-            {invited.map((name, i) => (
+            {invited.map((name) => (
               <span
-                key={i}
+                key={name}
                 className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700"
               >
                 {name}

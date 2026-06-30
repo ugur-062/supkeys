@@ -70,6 +70,15 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
     onClose();
   };
 
+  // "Tamam" — boş metinli soruları at (aksi halde kalem rozeti "Sorular (1)"
+  // gösterir ama publish'te min(1) doğrulaması patlar).
+  const handleDone = () => {
+    const qs = getValues(`items.${index}.questions`) ?? [];
+    const filled = qs.filter((q) => q.text.trim());
+    if (filled.length !== qs.length) replace(filled);
+    onClose();
+  };
+
   const [nameOpen, setNameOpen] = useState(false);
   const [tplName, setTplName] = useState("");
 
@@ -337,7 +346,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
         <Button plain onClick={handleCancel}>
           Vazgeç
         </Button>
-        <Button onClick={onClose}>Tamam</Button>
+        <Button onClick={handleDone}>Tamam</Button>
       </DialogActions>
 
       {/* Şablon adı diyaloğu (window.prompt yerine) */}

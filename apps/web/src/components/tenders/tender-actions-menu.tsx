@@ -36,7 +36,7 @@ import {
 } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 interface Props {
@@ -113,6 +113,16 @@ export function TenderActionsMenu({
   const [closeNoAwardOpen, setCloseNoAwardOpen] = useState(false);
   const [newClosing, setNewClosing] = useState(toLocalInput(closesAt));
   const [notes, setNotes] = useState(internalNotes ?? "");
+
+  // Diyaloglar açılırken en güncel prop'tan tohumla (detay 4 sn'de bir
+  // poll'lanıp closesAt/internalNotes değişebildiğinden tek-seferlik
+  // useState init bayatlardı).
+  useEffect(() => {
+    if (closingOpen) setNewClosing(toLocalInput(closesAt));
+  }, [closingOpen, closesAt]);
+  useEffect(() => {
+    if (notesOpen) setNotes(internalNotes ?? "");
+  }, [notesOpen, internalNotes]);
 
   // Yeni Tur Oluştur form durumu
   const [nrType, setNrType] = useState<"RFQ" | "ENGLISH_AUCTION">(

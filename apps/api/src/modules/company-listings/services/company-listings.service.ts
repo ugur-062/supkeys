@@ -1518,6 +1518,11 @@ export class CompanyListingsService {
       if (provided.length === 0) {
         throw new BadRequestException("Geçerli kalem teklifi yok");
       }
+      // Aynı kalem iki kez gönderilirse toplam yanlış hesaplanır (DB unique
+      // ihlali öncesi) — baştan reddet (F6).
+      if (new Set(provided.map((bi) => bi.itemId)).size !== provided.length) {
+        throw new BadRequestException("Aynı kalem birden fazla kez girilemez");
+      }
       if (
         listing.requireAllItems &&
         provided.length < listingItems.length
@@ -1530,6 +1535,11 @@ export class CompanyListingsService {
         (sum, bi) => sum + bi.unitPrice * (qtyById.get(bi.itemId) ?? 0),
         0,
       );
+      // Gönderilen (taslak olmayan) teklif sıfır toplam olamaz; tüm birim
+      // fiyatlar 0 ise "kazanan sıfır teklif" oluşmasın (F6).
+      if (!isDraft && amount <= 0) {
+        throw new BadRequestException("Teklif toplamı sıfırdan büyük olmalı");
+      }
       bidItemsData = provided.map((bi) => ({
         itemId: bi.itemId,
         unitPrice: bi.unitPrice,
@@ -2057,6 +2067,15 @@ export class CompanyListingsService {
     // almamış/seçilmemiş kalemler atlanır (eski sistemle aynı). En az 1 gerekir.
     if (itemAwards.length === 0) {
       throw new BadRequestException("En az bir kalem için kazanan seçin");
+    }
+    // Bir kalem yalnızca tek kazanana verilebilir. Aynı itemId iki kez gelirse
+    // awardedQuantity sessizce ezilirdi (F8) — baştan reddet.
+    if (
+      new Set(itemAwards.map((a) => a.itemId)).size !== itemAwards.length
+    ) {
+      throw new BadRequestException(
+        "Bir kalem birden fazla kazanana verilemez",
+      );
     }
     const bidIds = [...new Set(itemAwards.map((a) => a.bidId))];
     const bids = await this.prisma.listingBid.findMany({

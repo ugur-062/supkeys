@@ -127,9 +127,28 @@ export function IhalelerView() {
       return true;
     });
     const [field, dir] = sort.split(":") as [keyof TenderListItem, string];
+    const DATE_FIELDS = new Set<keyof TenderListItem>([
+      "createdAt",
+      "bidsCloseAt",
+      "publishedAt",
+    ]);
     const sorted = [...rows].sort((a, b) => {
-      const av = String(a[field] ?? "");
-      const bv = String(b[field] ?? "");
+      const ra = a[field];
+      const rb = b[field];
+      // Boş/null değerler yöne bakılmaksızın her zaman sona (ör. "Yakın Biten"
+      // sıralamasında bidsCloseAt'i olmayan taslaklar en üste çıkmasın).
+      const aEmpty = ra == null || ra === "";
+      const bEmpty = rb == null || rb === "";
+      if (aEmpty && bEmpty) return 0;
+      if (aEmpty) return 1;
+      if (bEmpty) return -1;
+      if (DATE_FIELDS.has(field)) {
+        const at = new Date(ra as string).getTime();
+        const bt = new Date(rb as string).getTime();
+        return dir === "asc" ? at - bt : bt - at;
+      }
+      const av = String(ra);
+      const bv = String(rb);
       return dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
     });
     return sorted;

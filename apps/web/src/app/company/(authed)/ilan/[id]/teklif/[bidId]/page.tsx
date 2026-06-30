@@ -237,7 +237,7 @@ export default function BidDetailPage() {
                 rel="noreferrer"
                 className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-blue-600 hover:bg-zinc-50"
               >
-                📎 {d.fileName}
+                <span aria-hidden="true">📎</span> {d.fileName}
               </a>
             ))}
           </div>

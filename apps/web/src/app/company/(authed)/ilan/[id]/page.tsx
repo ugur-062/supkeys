@@ -923,7 +923,7 @@ export default function ListingDetailPage() {
                       title={d.fileName}
                       className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-blue-600 hover:underline"
                     >
-                      📎{" "}
+                      <span aria-hidden="true">📎</span>{" "}
                       {d.fileName.length > 18
                         ? `${d.fileName.slice(0, 16)}…`
                         : d.fileName}

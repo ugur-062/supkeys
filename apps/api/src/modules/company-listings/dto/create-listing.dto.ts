@@ -9,6 +9,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Length,
   Max,
   MaxLength,
   Min,
@@ -233,10 +234,11 @@ export class CreateListingDto {
   @IsBoolean()
   isInternational?: boolean;
 
-  // Sınır ötesi hedef ülkeler (ISO kodları). Boş = tüm yabancı ülkeler.
+  // Sınır ötesi hedef ülkeler (ISO 3166-1 alpha-2). Boş = tüm yabancı ülkeler.
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  @Length(2, 2, { each: true })
   @ArrayMaxSize(200)
   targetCountries?: string[];
 
