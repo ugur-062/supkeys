@@ -805,10 +805,13 @@ export class CompanyListingsService {
       where: { listingId: listing.id },
       select: { quantity: true, targetPrice: true },
     });
-    return items.reduce((sum, it) => {
-      const up = it.targetPrice ? Number(it.targetPrice) : 0;
-      return sum + up * Number(it.quantity);
-    }, 0);
+    // Decimal aritmetiği (kayan nokta birikimli hata olmadan).
+    const total = items.reduce(
+      (sum, it) =>
+        sum.plus(new Prisma.Decimal(it.targetPrice ?? 0).mul(it.quantity)),
+      new Prisma.Decimal(0),
+    );
+    return total.toNumber();
   }
 
   /** Yayın onayı onaylandı → ilanı OPEN yap. */
@@ -1215,7 +1218,9 @@ export class CompanyListingsService {
             ? b.exchangeRateSnapshot.toString()
             : null,
           amountTry: b.exchangeRateSnapshot
-            ? (Number(b.amount) * Number(b.exchangeRateSnapshot)).toFixed(2)
+            ? new Prisma.Decimal(b.amount)
+                .mul(b.exchangeRateSnapshot)
+                .toFixed(2)
             : null,
           note: b.note,
           isBuyNow: b.isBuyNow,
@@ -1502,7 +1507,8 @@ export class CompanyListingsService {
       select: { id: true, quantity: true },
     });
 
-    let amount: number;
+    // Para tutarları Decimal ile hesaplanır (kayan nokta birikimi yok — F7).
+    let amount: Prisma.Decimal;
     let bidItemsData: { itemId: string; unitPrice: number }[] = [];
 
     if (listingItems.length > 0) {
@@ -1512,7 +1518,7 @@ export class CompanyListingsService {
         );
       }
       const qtyById = new Map(
-        listingItems.map((i) => [i.id, Number(i.quantity)]),
+        listingItems.map((i) => [i.id, i.quantity] as const),
       );
       const provided = dto.items.filter((bi) => qtyById.has(bi.itemId));
       if (provided.length === 0) {
@@ -1532,12 +1538,17 @@ export class CompanyListingsService {
         );
       }
       amount = provided.reduce(
-        (sum, bi) => sum + bi.unitPrice * (qtyById.get(bi.itemId) ?? 0),
-        0,
+        (sum, bi) =>
+          sum.plus(
+            new Prisma.Decimal(bi.unitPrice).mul(
+              qtyById.get(bi.itemId) ?? 0,
+            ),
+          ),
+        new Prisma.Decimal(0),
       );
       // Gönderilen (taslak olmayan) teklif sıfır toplam olamaz; tüm birim
       // fiyatlar 0 ise "kazanan sıfır teklif" oluşmasın (F6).
-      if (!isDraft && amount <= 0) {
+      if (!isDraft && amount.lte(0)) {
         throw new BadRequestException("Teklif toplamı sıfırdan büyük olmalı");
       }
       bidItemsData = provided.map((bi) => ({
@@ -1548,7 +1559,7 @@ export class CompanyListingsService {
       if (dto.amount == null || dto.amount <= 0) {
         throw new BadRequestException("Geçerli bir tutar girin");
       }
-      amount = dto.amount;
+      amount = new Prisma.Decimal(dto.amount);
     }
 
     // İngiliz Usulü (açık eksiltme): GÖNDERİLEN teklif, düşürme kuralına göre
@@ -1574,28 +1585,30 @@ export class CompanyListingsService {
           select: { amount: true, status: true },
         }),
       ]);
-      const best = bestAgg._min.amount != null ? Number(bestAgg._min.amount) : null;
-      const ownLast =
-        own && own.status === "SUBMITTED" ? Number(own.amount) : null;
+      const best: Prisma.Decimal | null = bestAgg._min.amount ?? null;
+      const ownLast: Prisma.Decimal | null =
+        own && own.status === "SUBMITTED" ? own.amount : null;
       const ref =
         listing.priceDecrementBasis === "OWN_LAST_BID" ? ownLast ?? best : best;
       if (ref != null) {
         const dv =
           listing.priceDecrementValue != null
-            ? Number(listing.priceDecrementValue)
-            : 0;
-        const step =
-          dv > 0
-            ? listing.priceDecrementType === "PERCENT"
-              ? (ref * dv) / 100
-              : dv
-            : 0;
-        const maxAllowed = ref - step;
-        if (amount > maxAllowed + 0.0001) {
+            ? new Prisma.Decimal(listing.priceDecrementValue)
+            : new Prisma.Decimal(0);
+        const step = dv.gt(0)
+          ? listing.priceDecrementType === "PERCENT"
+            ? ref.mul(dv).div(100)
+            : dv
+          : new Prisma.Decimal(0);
+        const maxAllowed = ref.minus(step);
+        // Decimal kesin aritmetik — epsilon toleransına gerek yok.
+        if (amount.gt(maxAllowed)) {
+          const fmt = (d: Prisma.Decimal) =>
+            d.toNumber().toLocaleString("tr-TR");
           throw new BadRequestException(
-            step > 0
-              ? `İngiliz usulü: teklifiniz en fazla ${maxAllowed.toLocaleString("tr-TR")} ₺ olabilir (referansı en az ${step.toLocaleString("tr-TR")} azaltmalısınız)`
-              : `İngiliz usulü: teklifiniz ${ref.toLocaleString("tr-TR")} ₺'nin altında olmalı`,
+            step.gt(0)
+              ? `İngiliz usulü: teklifiniz en fazla ${fmt(maxAllowed)} ₺ olabilir (referansı en az ${fmt(step)} azaltmalısınız)`
+              : `İngiliz usulü: teklifiniz ${fmt(ref)} ₺'nin altında olmalı`,
           );
         }
       }
@@ -2097,7 +2110,7 @@ export class CompanyListingsService {
           unit: string;
           unitPrice: number;
         }[];
-        amount: number;
+        amount: Prisma.Decimal; // sipariş tutarı — Decimal (F7)
         bidIds: Set<string>;
       }
     >();
@@ -2120,7 +2133,7 @@ export class CompanyListingsService {
       itemQty.set(a.itemId, qty);
       let g = groups.get(bid.bidderCompanyId);
       if (!g) {
-        g = { orderItems: [], amount: 0, bidIds: new Set() };
+        g = { orderItems: [], amount: new Prisma.Decimal(0), bidIds: new Set() };
         groups.set(bid.bidderCompanyId, g);
       }
       g.bidIds.add(bid.id);
@@ -2130,7 +2143,7 @@ export class CompanyListingsService {
         unit: li.unit,
         unitPrice: Number(bi.unitPrice),
       });
-      g.amount += Number(bi.unitPrice) * qty;
+      g.amount = g.amount.plus(new Prisma.Decimal(bi.unitPrice).mul(qty));
     }
     return { groups, itemQty };
   }
@@ -2140,7 +2153,9 @@ export class CompanyListingsService {
     itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
   ): Promise<number> {
     const { groups } = await this.buildItemGroups(listingId, itemAwards);
-    return [...groups.values()].reduce((s, g) => s + g.amount, 0);
+    return [...groups.values()]
+      .reduce((s, g) => s.plus(g.amount), new Prisma.Decimal(0))
+      .toNumber();
   }
 
   /** Kalem-bazlı kazandırmayı uygula — kazanan firma başına sipariş. */
