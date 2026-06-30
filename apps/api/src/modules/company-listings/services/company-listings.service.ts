@@ -1966,7 +1966,9 @@ export class CompanyListingsService {
         });
       }
       return o;
-    });
+      // Sipariş oluşturma birden çok yazma içerir; yüksek DB gecikmesinde
+      // varsayılan 5sn interactive-transaction limiti aşılabilir.
+    }, { timeout: 20000 });
 
     const recipient = await this.companyRecipient(bid.bidderCompanyId);
     if (recipient) {
@@ -2226,7 +2228,9 @@ export class CompanyListingsService {
         orders.push({ id: o.id, number: o.number });
       }
       return orders;
-    });
+      // Satıcı başına sipariş + kalemler → çok sayıda yazma; gecikmede 5sn
+      // varsayılanı yetmeyebilir.
+    }, { timeout: 20000 });
 
     // Kazanan her firmaya bildirim — alıcıları tek seferde topla (N+1 yerine).
     const recipients = await this.companyRecipients(

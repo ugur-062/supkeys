@@ -173,11 +173,13 @@ export async function connect(
   prisma: PrismaClient,
   aId: string,
   bId: string,
+  invitedById: string,
 ) {
   return prisma.companyConnection.create({
     data: {
       inviterCompanyId: aId,
       inviteeCompanyId: bId,
+      invitedById,
       status: "ACTIVE",
     } as Prisma.CompanyConnectionUncheckedCreateInput,
   });
