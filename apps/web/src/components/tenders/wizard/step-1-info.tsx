@@ -215,7 +215,7 @@ function VisibilityOption({
       )}
     >
       <div className="flex items-start gap-2">
-        <Radio value={value} className="mt-0.5" />
+        <Radio value={value} aria-label={title} className="mt-0.5" />
         <p className="text-sm font-semibold text-zinc-900 leading-tight">
           {title}
         </p>
@@ -299,7 +299,7 @@ function LogisticsSection() {
                 key={o.value}
                 className="flex items-center justify-center gap-2 p-2.5 rounded-lg ring-1 text-sm font-medium transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50"
               >
-                <Radio value={o.value} />
+                <Radio value={o.value} aria-label={o.label} />
                 {o.label}
               </div>
             ))}
@@ -612,7 +612,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
               className="grid grid-cols-1 md:grid-cols-2 gap-3"
             >
               <div className="flex items-start gap-3 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
-                <Radio value="PRIVATE" className="mt-0.5" />
+                <Radio value="PRIVATE" aria-label="Davetli (Kapalı)" className="mt-0.5" />
                 <div>
                   <p className="text-sm font-semibold text-zinc-900">
                     Davetli (Kapalı)
@@ -623,7 +623,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
-                <Radio value="PUBLIC" className="mt-0.5" />
+                <Radio value="PUBLIC" aria-label="Herkese Açık" className="mt-0.5" />
                 <div>
                   <p className="text-sm font-semibold text-zinc-900">
                     Herkese Açık
@@ -743,7 +743,11 @@ export function Step1Info({ listingId }: { listingId?: string }) {
                       className="mt-3 ml-1 space-y-2"
                     >
                       <div className="flex items-start gap-3">
-                        <Radio value="OWN_LAST_BID" className="mt-0.5" />
+                        <Radio
+                          value="OWN_LAST_BID"
+                          aria-label="Kendi son teklifini baz alsın"
+                          className="mt-0.5"
+                        />
                         <p className="text-sm font-semibold text-zinc-900">
                           Kendi son teklifini baz alsın.
                           <span className="block text-xs font-normal text-zinc-500">
@@ -753,7 +757,11 @@ export function Step1Info({ listingId }: { listingId?: string }) {
                         </p>
                       </div>
                       <div className="flex items-start gap-3">
-                        <Radio value="BEST_BID" className="mt-0.5" />
+                        <Radio
+                          value="BEST_BID"
+                          aria-label="İhaledeki en iyi teklifi baz alsın"
+                          className="mt-0.5"
+                        />
                         <p className="text-sm font-semibold text-zinc-900">
                           İhaledeki en iyi teklifi baz alsın.
                           <span className="block text-xs font-normal text-zinc-500">
@@ -1194,11 +1202,11 @@ export function Step1Info({ listingId }: { listingId?: string }) {
             <Label required>Ödeme Tipi</Label>
             <FormRadioGroup name="paymentTerm" className="grid grid-cols-2 gap-3">
               <div className="flex items-center gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
-                <Radio value="CASH" />
+                <Radio value="CASH" aria-label="Peşin" />
                 <span className="text-sm font-semibold text-zinc-900">Peşin</span>
               </div>
               <div className="flex items-center gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
-                <Radio value="DEFERRED" />
+                <Radio value="DEFERRED" aria-label="Vadeli" />
                 <span className="text-sm font-semibold text-zinc-900">
                   Vadeli
                 </span>
@@ -1252,13 +1260,13 @@ export function Step1Info({ listingId }: { listingId?: string }) {
               className="grid grid-cols-2 gap-3"
             >
               <div className="flex items-center gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
-                <Radio value="BEFORE_DELIVERY" />
+                <Radio value="BEFORE_DELIVERY" aria-label="Teslim öncesi" />
                 <span className="text-sm font-semibold text-zinc-900">
                   Teslim öncesi
                 </span>
               </div>
               <div className="flex items-center gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
-                <Radio value="AFTER_DELIVERY" />
+                <Radio value="AFTER_DELIVERY" aria-label="Teslim sonrası" />
                 <span className="text-sm font-semibold text-zinc-900">
                   Teslim sonrası
                 </span>

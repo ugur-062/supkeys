@@ -2,6 +2,11 @@
 
 Browser-based UI tests for the supkeys web app.
 
+> **Durum:** Eski tenant/supplier sistemine ait `auction.spec.ts` kaldırıldı
+> (sistem söküldü). Şu an aktif e2e spec'i YOK. Birleşik Company sistemi
+> (`/company/satinalma` + `/company/satis`) için yeni spec'ler yazılmalı.
+> Aşağıdaki Playwright kurulumu hazır; spec eklenince çalışır.
+
 ## Prerequisites
 
 Linux sistemde Chromium'un ihtiyaç duyduğu kütüphaneler kurulmalı:
@@ -36,12 +41,10 @@ pnpm e2e:headed   # browser görünür modda
 
 ## Test fixture'ları
 
-Test başlatılmadan önce DB'de bu user'lar mevcut olmalı:
+Yeni spec'ler için dev hesapları (birleşik Company sistemi):
 
-- `buyer@demo.com` / `Buyer1234` (BUYER role, tender oluşturabilir)
-- `auction-a@test.local` / `Auction1234` (supplier — auction test scripti'nden
-  gelir; yoksa `apps/api/test/integration/auction.test.ts` çalıştırılınca
-  oluşur)
+- `firma@demo.com` / `Demo1234!` (PAKET, tüm roller — ihale açabilir)
+- `firma2@demo.com` / `Demo1234!` (TR, firma@demo'ya bağlı — teklif verebilir)
 
 ## CI
 

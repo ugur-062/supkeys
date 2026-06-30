@@ -402,6 +402,7 @@ export function TenderActionsMenu({
           <Field>
             <Label>İhale Tipi</Label>
             <select
+              aria-label="İhale Tipi"
               value={nrType}
               onChange={(e) =>
                 setNrType(e.target.value as "RFQ" | "ENGLISH_AUCTION")
@@ -416,6 +417,7 @@ export function TenderActionsMenu({
             <Field>
               <Label>Önceki Teklifler</Label>
               <select
+                aria-label="Önceki Teklifler"
                 value={nrCarry}
                 onChange={(e) =>
                   setNrCarry(e.target.value as "AUTO" | "LAZY" | "NONE")
@@ -452,6 +454,7 @@ export function TenderActionsMenu({
             <Field>
               <Label>Fiyat Azaltma Tipi</Label>
               <select
+                aria-label="Fiyat Azaltma Tipi"
                 value={decType}
                 onChange={(e) =>
                   setDecType(e.target.value as "AMOUNT" | "PERCENT")
@@ -477,6 +480,7 @@ export function TenderActionsMenu({
           <Field>
             <Label>Azaltma Bazı</Label>
             <select
+              aria-label="Azaltma Bazı"
               value={decBasis}
               onChange={(e) =>
                 setDecBasis(e.target.value as "OWN_LAST_BID" | "BEST_BID")
@@ -494,6 +498,7 @@ export function TenderActionsMenu({
           <Field>
             <Label>Görünürlük</Label>
             <select
+              aria-label="Teklif Görünürlüğü"
               value={vis}
               onChange={(e) =>
                 setVis(e.target.value as typeof vis)

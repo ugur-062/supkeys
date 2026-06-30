@@ -72,7 +72,7 @@ function DesktopTable({ items }: { items: TenderListItem[] }) {
               title={t.title}
             >
               <TableCell>
-                <div className="font-mono text-[11px] font-semibold text-zinc-400">
+                <div className="font-mono text-[11px] font-semibold text-zinc-500">
                   {t.tenderNumber}
                 </div>
                 <div className="mt-0.5 max-w-[22rem] truncate font-medium text-zinc-950">
@@ -178,7 +178,7 @@ function MobileCard({ t }: { t: TenderListItem }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-mono text-[11px] font-semibold text-zinc-400">
+          <div className="font-mono text-[11px] font-semibold text-zinc-500">
             {t.tenderNumber}
           </div>
           <h3 className="mt-0.5 line-clamp-2 font-semibold leading-snug text-zinc-950">

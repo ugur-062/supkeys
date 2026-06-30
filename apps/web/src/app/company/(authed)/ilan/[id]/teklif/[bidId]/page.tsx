@@ -85,7 +85,11 @@ export default function BidDetailPage() {
       return;
     try {
       const res = await award.mutateAsync(bid.id);
-      toast.success(`Kazandırıldı — sipariş ${res.number} oluştu`);
+      toast.success(
+        res.pendingApproval
+          ? "Kazandırma onaya gönderildi"
+          : `Kazandırıldı — sipariş ${res.number} oluştu`,
+      );
     } catch (err) {
       toast.error(extractErrorMessage(err, "Kazandırılamadı"));
     }

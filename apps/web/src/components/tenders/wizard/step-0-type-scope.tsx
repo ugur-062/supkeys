@@ -72,9 +72,10 @@ function TargetCountryPicker({
               <button
                 type="button"
                 onClick={() => toggle(code)}
+                aria-label={`${nameOf(code)} ülkesini kaldır`}
                 className="text-brand-400 hover:text-brand-700"
               >
-                <X className="h-3 w-3" />
+                <X className="h-3 w-3" aria-hidden="true" />
               </button>
             </span>
           ))}

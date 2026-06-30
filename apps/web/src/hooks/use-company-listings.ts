@@ -1,7 +1,28 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
+
+/**
+ * İlan değişince etkilenen TÜM görünümleri tazele. "company-listings" öneki
+ * mine/detail/browse'ı kapsar ama İhalelerim ayrı bir kök ("company-tenders")
+ * kullandığından onu da açıkça geçersiz kılmak gerekir (aksi halde liste
+ * staleTime=60sn boyunca eski kalır).
+ */
+function invalidateListingCaches(
+  qc: QueryClient,
+  opts?: { orders?: boolean; myBids?: boolean },
+) {
+  qc.invalidateQueries({ queryKey: ["company-listings"] });
+  qc.invalidateQueries({ queryKey: ["company-tenders"] });
+  if (opts?.orders) qc.invalidateQueries({ queryKey: ["company-orders"] });
+  if (opts?.myBids) qc.invalidateQueries({ queryKey: ["company-my-bids"] });
+}
 
 export type ListingType = "ALIM" | "SATIS";
 export type ListingFormat = "RFQ" | "ENGLISH_AUCTION";
@@ -47,7 +68,17 @@ export interface BrowseListing {
   canBid: boolean;
 }
 
-export type CurrencyCode = "TRY" | "USD" | "EUR" | "GBP" | "CHF" | "JPY";
+// Backend Prisma `Currency` enum'u ile birebir (8 birim) — eksik tutmak
+// AED/CNY tekliflerini `as` cast'leriyle maskeleyip sessiz hataya yol açıyordu.
+export type CurrencyCode =
+  | "TRY"
+  | "USD"
+  | "EUR"
+  | "GBP"
+  | "CHF"
+  | "JPY"
+  | "AED"
+  | "CNY";
 
 export interface ItemQuestionInput {
   text: string;
@@ -355,8 +386,10 @@ export function usePlaceBid(id: string) {
       );
       return data;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+      invalidateListingCaches(qc, { myBids: true });
+    },
   });
 }
 
@@ -367,8 +400,10 @@ export function useBuyNow(id: string) {
       const { data } = await companyApi.post(`/company/listings/${id}/buy-now`);
       return data;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+      invalidateListingCaches(qc, { myBids: true });
+    },
   });
 }
 
@@ -381,8 +416,7 @@ export function useCancelListing(id: string) {
       });
       return data;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-listings"] }),
+    onSuccess: () => invalidateListingCaches(qc),
   });
 }
 
@@ -415,7 +449,7 @@ export function useCloseEarly(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-listings"] }),
+    onSuccess: () => invalidateListingCaches(qc),
   });
 }
 
@@ -430,7 +464,7 @@ export function useChangeClosing(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-listings"] }),
+    onSuccess: () => invalidateListingCaches(qc),
   });
 }
 
@@ -460,7 +494,7 @@ export function useCloseNoAward(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-listings"] }),
+    onSuccess: () => invalidateListingCaches(qc),
   });
 }
 
@@ -473,8 +507,10 @@ export function useWithdrawBid(id: string) {
       );
       return data;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+      invalidateListingCaches(qc, { myBids: true });
+    },
   });
 }
 
@@ -495,7 +531,10 @@ export function useAwardByItem(id: string) {
       }>(`/company/listings/${id}/award-by-item`, { itemAwards });
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-listings"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+      invalidateListingCaches(qc, { orders: true });
+    },
   });
 }
 
@@ -525,8 +564,10 @@ export function useCreateNextRound(id: string) {
       );
       return data;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+      invalidateListingCaches(qc);
+    },
   });
 }
 
@@ -541,8 +582,10 @@ export function useAddInvitations(id: string) {
       );
       return data;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+      invalidateListingCaches(qc);
+    },
   });
 }
 
@@ -556,8 +599,10 @@ export function useEliminateBid(id: string) {
       );
       return data;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+      invalidateListingCaches(qc);
+    },
   });
 }
 
@@ -574,7 +619,7 @@ export function useAwardListing(id: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
-      qc.invalidateQueries({ queryKey: ["company-orders"] });
+      invalidateListingCaches(qc, { orders: true });
     },
   });
 }
@@ -589,8 +634,7 @@ export function useCreateListing() {
       );
       return data;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-listings", "mine"] }),
+    onSuccess: () => invalidateListingCaches(qc),
   });
 }
 
@@ -605,9 +649,8 @@ export function usePublishListing(id: string) {
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["company-listings", "mine"] });
       qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
-      qc.invalidateQueries({ queryKey: ["company-tenders"] });
+      invalidateListingCaches(qc);
     },
   });
 }
@@ -620,10 +663,7 @@ export function useDeleteListing() {
       const { data } = await companyApi.delete(`/company/listings/${id}`);
       return data;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["company-listings"] });
-      qc.invalidateQueries({ queryKey: ["company-tenders"] });
-    },
+    onSuccess: () => invalidateListingCaches(qc),
   });
 }
 
@@ -639,8 +679,8 @@ export function useUpdateListing(id: string) {
       return data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["company-listings", "mine"] });
       qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+      invalidateListingCaches(qc);
     },
   });
 }

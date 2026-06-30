@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import * as crypto from "node:crypto";
@@ -20,6 +21,8 @@ const ALLOWED_MIME = [
 
 @Injectable()
 export class CompanyListingDocumentsService {
+  private readonly logger = new Logger(CompanyListingDocumentsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
@@ -144,6 +147,16 @@ export class CompanyListingDocumentsService {
   ) {
     await this.requireOwner(user, listingId);
     await this.assertEditable(listingId);
+    // Anahtar yalnızca bu ilanın presigned-PUT öneki altında olabilir; aksi
+    // halde istemci keyfi bir bucket nesnesini kaydedip indirilebilir kılabilir
+    // (F4). Mime de burada yeniden doğrulanır (requestUploadUrl ile aynı set).
+    const prefix = `listing-docs/${listingId}/`;
+    if (!input.key.startsWith(prefix) || input.key.length > 300) {
+      throw new BadRequestException("Geçersiz dosya anahtarı");
+    }
+    if (!ALLOWED_MIME.includes(input.mimeType)) {
+      throw new BadRequestException("Sadece PDF, görsel veya Excel yüklenebilir");
+    }
     const doc = await this.prisma.listingDocument.create({
       data: {
         listingId,
@@ -204,7 +217,15 @@ export class CompanyListingDocumentsService {
     if (!doc || doc.listingId !== listingId) {
       throw new NotFoundException("Belge bulunamadı");
     }
-    await this.storage.deleteObject(doc.key).catch(() => undefined);
+    // Best-effort R2 silme; başarısız olursa DB satırı yine silinir ama
+    // sahipsiz nesne izlenebilsin diye logla (sessiz yutma yok).
+    await this.storage.deleteObject(doc.key).catch((err) => {
+      this.logger.warn(
+        `R2 nesnesi silinemedi (key=${doc.key}); sahipsiz kalabilir: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    });
     await this.prisma.listingDocument.delete({ where: { id: docId } });
     return { ok: true };
   }

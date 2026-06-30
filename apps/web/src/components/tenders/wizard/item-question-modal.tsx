@@ -304,6 +304,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                     render={({ field }) => (
                       <div className="flex items-center gap-1.5 text-sm text-zinc-700">
                         <Checkbox
+                          aria-label="Zorunlu soru"
                           checked={!!field.value}
                           onChange={field.onChange}
                           onBlur={field.onBlur}

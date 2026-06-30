@@ -268,17 +268,25 @@ export default function ListingDetailPage() {
     }
   };
 
-  // Kalem-bazlı: bir kalem için fiyat veren teklifler (artan sıralı).
+  // Kalem-bazlı: bir kalem için fiyat veren teklifler (TRY normalize, artan).
+  // Karşılaştırma TRY üzerinden; gösterim her teklifin kendi birimiyle.
   const bidsForItem = (itemId: string) =>
     (l?.bids ?? [])
       .filter((b) => b.status === "SUBMITTED")
-      .map((b) => ({
-        bidId: b.id,
-        bidderName: b.bidderName,
-        price: Number(b.items?.find((x) => x.itemId === itemId)?.unitPrice ?? 0),
-      }))
+      .map((b) => {
+        const unit = Number(
+          b.items?.find((x) => x.itemId === itemId)?.unitPrice ?? 0,
+        );
+        return {
+          bidId: b.id,
+          bidderName: b.bidderName,
+          price: unit,
+          currency: b.currency,
+          priceTry: unit * bidRate(b),
+        };
+      })
       .filter((o) => o.price > 0)
-      .sort((a, b) => a.price - b.price);
+      .sort((a, b) => a.priceTry - b.priceTry);
 
   const startItemAward = () => {
     const winners: Record<string, string> = {};
@@ -363,6 +371,15 @@ export default function ListingDetailPage() {
   const sym =
     CURRENCY_SYMBOL[(l.primaryCurrency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
     "₺";
+  const symFor = (cur?: string | null) =>
+    CURRENCY_SYMBOL[(cur as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ?? sym;
+  // Çok para birimli karşılaştırma TRY üzerinden yapılır. TRY teklifte tutar
+  // zaten TRY; yabancı teklifte kur snapshot'ından TRY karşılığı kullanılır.
+  // Gösterim ise her teklifin KENDİ para birimiyle yapılır.
+  const bidRate = (b: { currency?: string; exchangeRateSnapshot?: string | null }) =>
+    b.currency && b.currency !== "TRY" ? Number(b.exchangeRateSnapshot ?? 0) : 1;
+  const amountTryOf = (b: { amount: string; amountTry?: string | null }) =>
+    b.amountTry != null ? Number(b.amountTry) : Number(b.amount);
   // Erken kapatınca (CLOSED) da kazandırma/eleme açık kalır.
   const canDecide = l.status === "OPEN" || l.status === "CLOSED";
   // Teklif verme / güncelleme / belge ekleme yalnızca ilan AÇIK iken.
@@ -476,7 +493,7 @@ export default function ListingDetailPage() {
                   <TableCell>
                     <div className="font-medium text-zinc-900">{it.name}</div>
                     {it.materialCode ? (
-                      <div className="font-mono text-xs text-zinc-400">
+                      <div className="font-mono text-xs text-zinc-500">
                         {it.materialCode}
                       </div>
                     ) : null}
@@ -582,7 +599,7 @@ export default function ListingDetailPage() {
               className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm"
             >
               {iv.companyName}{" "}
-              <span className="font-mono text-xs text-zinc-400">
+              <span className="font-mono text-xs text-zinc-500">
                 {iv.supkeysId}
               </span>
             </span>
@@ -603,23 +620,36 @@ export default function ListingDetailPage() {
         bidItemCount,
   ).length;
   const incompleteCount = Math.max(0, submittedCount - completeCount);
-  // Kalem karşılaştırma için fiyat haritası (bidId → itemId → fiyat). Hücre
+  // Kalem karşılaştırma için fiyat haritaları (bidId → itemId → fiyat). Hücre
   // başına .find yerine tek seferde kurup O(1) erişim (matris perf).
+  //  - priceMap: teklifin KENDİ birimindeki birim fiyat (gösterim).
+  //  - priceTryMap: TRY karşılığı (satır içi min karşılaştırması — çok birim).
   const priceMap = new Map<string, Map<string, number>>();
+  const priceTryMap = new Map<string, Map<string, number>>();
+  const bidCurrencyById = new Map<string, string | undefined>();
   for (const b of allBids) {
+    const rate = bidRate(b);
     const inner = new Map<string, number>();
-    for (const bi of b.items ?? []) inner.set(bi.itemId, Number(bi.unitPrice));
+    const innerTry = new Map<string, number>();
+    for (const bi of b.items ?? []) {
+      const unit = Number(bi.unitPrice);
+      inner.set(bi.itemId, unit);
+      innerTry.set(bi.itemId, unit * rate);
+    }
     priceMap.set(b.id, inner);
+    priceTryMap.set(b.id, innerTry);
+    bidCurrencyById.set(b.id, b.currency);
   }
   // Gerçek en iyi (uygun) teklif: yalnız SUBMITTED arasında ALIM→en düşük,
-  // SATIS→en yüksek. "En iyi" rozeti filtre/sıraya değil buna bağlanır.
+  // SATIS→en yüksek; karşılaştırma TRY karşılığı üzerinden (çok para birimi).
+  // "En iyi" rozeti filtre/sıraya değil buna bağlanır.
   const bestBidId = (() => {
     const subs = allBids.filter((b) => b.status === "SUBMITTED");
     if (subs.length === 0) return null;
     const sorted = [...subs].sort((a, b) =>
       isAlim
-        ? Number(a.amount) - Number(b.amount)
-        : Number(b.amount) - Number(a.amount),
+        ? amountTryOf(a) - amountTryOf(b)
+        : amountTryOf(b) - amountTryOf(a),
     );
     return sorted[0]?.id ?? null;
   })();
@@ -697,14 +727,20 @@ export default function ListingDetailPage() {
               </TableHead>
               <TableBody>
                 {l.items.map((it) => {
-                  const prices = (l.bids ?? []).map((b) => {
+                  const cells = (l.bids ?? []).map((b) => {
                     const v = priceMap.get(b.id)?.get(it.id);
-                    return v != null ? v : null;
+                    const vTry = priceTryMap.get(b.id)?.get(it.id);
+                    return {
+                      price: v != null ? v : null,
+                      priceTry: vTry != null ? vTry : null,
+                      currency: bidCurrencyById.get(b.id),
+                    };
                   });
-                  const valid = prices.filter(
-                    (p): p is number => p != null && p > 0,
-                  );
-                  const min = valid.length ? Math.min(...valid) : null;
+                  // En düşük TRY karşılığı vurgulanır (birimler arası adil).
+                  const validTry = cells
+                    .map((c) => c.priceTry)
+                    .filter((p): p is number => p != null && p > 0);
+                  const minTry = validTry.length ? Math.min(...validTry) : null;
                   return (
                     <TableRow key={it.id}>
                       <TableCell className="whitespace-nowrap text-zinc-900">
@@ -713,16 +749,18 @@ export default function ListingDetailPage() {
                           ({Number(it.quantity).toLocaleString("tr-TR")} {it.unit})
                         </span>
                       </TableCell>
-                      {prices.map((p, bi) => (
+                      {cells.map((c, bi) => (
                         <TableCell
                           key={bi}
                           className={`whitespace-nowrap text-right font-mono tabular-nums ${
-                            p != null && p === min
+                            c.priceTry != null && c.priceTry === minTry
                               ? "font-semibold text-emerald-700"
                               : "text-zinc-600"
                           }`}
                         >
-                          {p != null ? `${p.toLocaleString("tr-TR")} ${sym}` : "—"}
+                          {c.price != null
+                            ? `${c.price.toLocaleString("tr-TR")} ${symFor(c.currency)}`
+                            : "—"}
                         </TableCell>
                       ))}
                     </TableRow>
@@ -766,6 +804,7 @@ export default function ListingDetailPage() {
                         min={0}
                         step="0.001"
                         placeholder="Miktar"
+                        aria-label={`${it.name} için kazandırılacak miktar (boş = tam)`}
                         title="Kısmi miktar (boş = tam)"
                         value={itemQty[it.id] ?? ""}
                         onChange={(e) =>
@@ -775,6 +814,7 @@ export default function ListingDetailPage() {
                       />
                       <select
                         value={itemWinners[it.id] ?? ""}
+                        aria-label={`${it.name} için kazanan teklif`}
                         onChange={(e) =>
                           setItemWinners((w) => ({ ...w, [it.id]: e.target.value }))
                         }
@@ -784,7 +824,7 @@ export default function ListingDetailPage() {
                         {opts.map((o) => (
                           <option key={o.bidId} value={o.bidId}>
                             {o.bidderName} · {o.price.toLocaleString("tr-TR")}{" "}
-                            {sym}
+                            {symFor(o.currency)}
                           </option>
                         ))}
                       </select>
@@ -851,9 +891,9 @@ export default function ListingDetailPage() {
             .map((b) => (
             <div
               key={b.id}
-              className="flex items-center justify-between gap-4 rounded-lg border border-zinc-950/10 bg-white px-4 py-3"
+              className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-zinc-950/10 bg-white px-4 py-3"
             >
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                 {b.id === bestBidId && canDecide ? (
                   <Badge color="green">En iyi</Badge>
                 ) : null}
@@ -890,7 +930,7 @@ export default function ListingDetailPage() {
                     </a>
                   ))}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex shrink-0 items-center gap-3">
                 <span className="font-mono text-sm font-semibold text-zinc-900">
                   {Number(b.amount).toLocaleString("tr-TR")}{" "}
                   {b.currency && b.currency !== "TRY" ? b.currency : "₺"}
@@ -1067,6 +1107,7 @@ export default function ListingDetailPage() {
                               type="number"
                               min={0}
                               step="0.01"
+                              aria-label={`${it.name} birim fiyat`}
                               className="w-24 rounded-md border border-surface-border px-2 py-1 text-right text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                               value={itemPrices[it.id] ?? ""}
                               onChange={(e) =>
@@ -1143,6 +1184,7 @@ export default function ListingDetailPage() {
                 <Label>Para birimi</Label>
                 <select
                   value={bidCurrency}
+                  aria-label="Para birimi"
                   onChange={(e) => setBidCurrency(e.target.value)}
                   className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                 >

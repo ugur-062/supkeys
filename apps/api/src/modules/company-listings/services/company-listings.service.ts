@@ -1051,16 +1051,40 @@ export class CompanyListingsService {
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
 
-    // Teslimat/fatura adresleri (adres defterinden seçilmişse çöz).
+    const isOwner = listing.companyId === user.companyId;
+
+    // Birbirinden bağımsız okumalar tek turda (sahip detayı 4 sn'de bir
+    // poll'lanabildiğinden seri tur sayısı önemli — P1 perf).
     const addrIds = [listing.deliveryAddressId, listing.billingAddressId].filter(
       (x): x is string => !!x,
     );
-    const addrRows = addrIds.length
-      ? await this.prisma.companyAddress.findMany({
-          // Yalnızca ilan sahibinin adresleri — başka firmanın PII'si sızmaz.
-          where: { id: { in: addrIds }, companyId: listing.companyId },
-        })
-      : [];
+    const [addrRows, englishAgg, items, connectedIds] = await Promise.all([
+      addrIds.length
+        ? this.prisma.companyAddress.findMany({
+            // Yalnızca ilan sahibinin adresleri — başka firmanın PII'si sızmaz.
+            where: { id: { in: addrIds }, companyId: listing.companyId },
+          })
+        : Promise.resolve([] as Awaited<
+            ReturnType<typeof this.prisma.companyAddress.findMany>
+          >),
+      listing.format === "ENGLISH_AUCTION"
+        ? this.prisma.listingBid.aggregate({
+            where: { listingId: id, status: "SUBMITTED" },
+            _min: { amount: true },
+            _count: true,
+          })
+        : Promise.resolve(null),
+      this.prisma.listingItem.findMany({
+        where: { listingId: id },
+        orderBy: { lineNo: "asc" },
+        include: { questions: true },
+      }),
+      // Sahip bağlantı bilgisine ihtiyaç duymaz → sahipte sorgu atlanır.
+      isOwner
+        ? Promise.resolve([] as string[])
+        : this.connectedCompanyIds(user.companyId),
+    ]);
+
     const serializeAddr = (a: (typeof addrRows)[number] | undefined) =>
       a
         ? {
@@ -1084,42 +1108,28 @@ export class CompanyListingsService {
     );
 
     // İngiliz Usulü açık eksiltme: güncel en düşük teklif herkese görünür.
-    let english:
+    const english:
       | {
           isEnglishAuction: true;
           currentBest: string | null;
           bidCount: number;
           currentRound: number;
         }
-      | null = null;
-    if (listing.format === "ENGLISH_AUCTION") {
-      const agg = await this.prisma.listingBid.aggregate({
-        where: { listingId: id, status: "SUBMITTED" },
-        _min: { amount: true },
-        _count: true,
-      });
-      english = {
-        isEnglishAuction: true,
-        currentBest: agg._min.amount ? agg._min.amount.toString() : null,
-        bidCount: agg._count,
-        currentRound: listing.currentRound,
-      };
-    }
+      | null = englishAgg
+      ? {
+          isEnglishAuction: true,
+          currentBest: englishAgg._min.amount
+            ? englishAgg._min.amount.toString()
+            : null,
+          bidCount: englishAgg._count,
+          currentRound: listing.currentRound,
+        }
+      : null;
 
-    const isOwner = listing.companyId === user.companyId;
-    // Sahip bağlantı/blok bilgisine ihtiyaç duymaz → sahipte sorgu atlanır.
-    const connectedIds = isOwner
-      ? []
-      : await this.connectedCompanyIds(user.companyId);
     const connected = connectedIds.includes(listing.companyId);
     const isPremium = user.tier === "PAKET";
 
     // Kalemler (herkese görünür — teklif vermek için gerekli).
-    const items = await this.prisma.listingItem.findMany({
-      where: { listingId: id },
-      orderBy: { lineNo: "asc" },
-      include: { questions: true },
-    });
     const itemsOut = items.map((it) => ({
       id: it.id,
       lineNo: it.lineNo,
@@ -1220,36 +1230,53 @@ export class CompanyListingsService {
       };
     }
 
-    const isInvited =
+    // Bağımsız non-owner okumaları tek turda (görünürlük/blok kapısı sonuçlar
+    // gelince değerlendirilir; over-fetch ucuz, seri tur sayısı düşer — P1).
+    const [invitedCount, blockedIds, myBid, auctionView] = await Promise.all([
       listing.visibility === "PRIVATE"
-        ? (await this.prisma.listingInvitation.count({
+        ? this.prisma.listingInvitation.count({
             where: { listingId: id, invitedCompanyId: user.companyId },
-          })) > 0
-        : false;
+          })
+        : Promise.resolve(0),
+      this.blocks.blockedCompanyIds(listing.companyId),
+      this.prisma.listingBid.findUnique({
+        where: {
+          listingId_bidderCompanyId: {
+            listingId: id,
+            bidderCompanyId: user.companyId,
+          },
+        },
+        include: { items: true },
+      }),
+      // Açık eksiltme görünürlüğü (bidVisibility) — kapalı zarf korunur, sadece
+      // ayara göre en iyi fiyat / kendi sıra / tüm sıralar açılır.
+      listing.format === "ENGLISH_AUCTION"
+        ? this.computeAuctionView(id, user.companyId, listing.bidVisibility)
+        : Promise.resolve(null),
+    ]);
+
+    const isInvited = invitedCount > 0;
     const visible =
       listing.visibility === "PUBLIC" ||
       (listing.visibility === "CONNECTIONS" && connected) ||
       (listing.visibility === "PRIVATE" && isInvited);
     if (!visible) throw new NotFoundException("İlan bulunamadı");
 
-    // Ülke kapsamı (sahip hariç):
-    //  - Uluslararası ilan: SADECE farklı ülkedeki + hedef ülkeler boş ya da
-    //    izleyenin ülkesini içeren firmalar görür (yurtiçi tedarikçi GÖRMEZ).
-    //  - Yurtiçi ilan: SADECE aynı ülkedeki firmalar görür.
-    if (!isOwner) {
-      // Engelli firma ilanı göremez.
-      const blockedIds = await this.blocks.blockedCompanyIds(listing.companyId);
-      if (blockedIds.includes(user.companyId)) {
-        throw new NotFoundException("İlan bulunamadı");
-      }
-      const myCountry = user.country;
-      const ownerCountry = listing.company.country;
-      const allowed = listing.isInternational
-        ? myCountry !== ownerCountry &&
-          (listing.targetCountries.length === 0 ||
-            listing.targetCountries.includes(myCountry))
-        : myCountry === ownerCountry;
-      if (!allowed) throw new NotFoundException("İlan bulunamadı");
+    // Engelli firma ilanı göremez.
+    if (blockedIds.includes(user.companyId)) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
+    // Ülke kapsamı: uluslararası ilan yurtiçi tedarikçiye, yurtiçi ilan yabancıya
+    // görünmez (getOne ile aynı kural).
+    if (
+      !this.isCountryEligible(
+        user.country,
+        listing.company.country,
+        listing.isInternational,
+        listing.targetCountries,
+      )
+    ) {
+      throw new NotFoundException("İlan bulunamadı");
     }
 
     const masked = listing.visibility === "PUBLIC" && !connected && !isPremium;
@@ -1257,25 +1284,6 @@ export class CompanyListingsService {
       (listing.visibility === "PRIVATE" && isInvited) ||
       (listing.visibility === "CONNECTIONS" && connected) ||
       (listing.visibility === "PUBLIC" && (connected || isPremium));
-    const myBid = await this.prisma.listingBid.findUnique({
-      where: {
-        listingId_bidderCompanyId: {
-          listingId: id,
-          bidderCompanyId: user.companyId,
-        },
-      },
-      include: { items: true },
-    });
-    // Açık eksiltme görünürlüğü (bidVisibility) — kapalı zarf korunur, sadece
-    // ayara göre en iyi fiyat / kendi sıra / tüm sıralar açılır.
-    const auctionView =
-      listing.format === "ENGLISH_AUCTION"
-        ? await this.computeAuctionView(
-            id,
-            user.companyId,
-            listing.bidVisibility,
-          )
-        : null;
     // Bidder'a dönen `english` bloğu görünürlükle sınırlanır.
     const englishForBidder = english
       ? {
@@ -1387,12 +1395,15 @@ export class CompanyListingsService {
         allowedCurrencies: true,
         closesAt: true,
         bidsOpenAt: true,
+        isInternational: true,
+        targetCountries: true,
         priceDecrementType: true,
         priceDecrementValue: true,
         priceDecrementBasis: true,
         autoExtendOnLateBid: true,
         autoExtendThresholdMin: true,
         autoExtendByMinutes: true,
+        company: { select: { country: true } },
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -1407,6 +1418,22 @@ export class CompanyListingsService {
       throw new BadRequestException(
         "Teklif verme henüz başlamadı (açılış saatini bekleyin)",
       );
+    }
+    // Kapanış zamanı geçmişse teklif alınmaz (cron'u beklemeden — geç teklif
+    // bütünlüğü). Scheduler ilanı ~1 dk içinde CLOSED'a çeker.
+    if (listing.closesAt && Date.now() > listing.closesAt.getTime()) {
+      throw new BadRequestException("Teklif süresi doldu");
+    }
+    // Ülke kapsamı: okuma (getOne) ile aynı kural teklif vermede de geçerli.
+    if (
+      !this.isCountryEligible(
+        user.country,
+        listing.company.country,
+        listing.isInternational,
+        listing.targetCountries,
+      )
+    ) {
+      throw new NotFoundException("İlan bulunamadı");
     }
     // Engellenen firma teklif veremez (iki yön de).
     const blockedIds = await this.blocks.blockedCompanyIds(listing.companyId);
@@ -1569,7 +1596,16 @@ export class CompanyListingsService {
     if (currency !== "TRY") {
       exchangeRateSnapshot = await this.exchangeRates
         .getCurrentRate(currency)
-        .catch(() => null);
+        .catch((err) => {
+          // Kur alınamazsa teklif yine kabul edilir ama TRY karşılığı boş kalır;
+          // sessiz kalmasın diye logla (gözlemlenebilirlik).
+          this.logger.warn(
+            `TCMB kuru alınamadı (${currency}); teklif TRY karşılığı olmadan kaydedilecek: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+          return null;
+        });
     }
 
     const status = isDraft ? "DRAFT" : "SUBMITTED";
@@ -1667,6 +1703,11 @@ export class CompanyListingsService {
         visibility: true,
         status: true,
         buyNowPrice: true,
+        closesAt: true,
+        bidsOpenAt: true,
+        isInternational: true,
+        targetCountries: true,
+        company: { select: { country: true } },
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -1679,6 +1720,24 @@ export class CompanyListingsService {
     if (listing.status !== "OPEN") {
       throw new BadRequestException("İlan teklife kapalı");
     }
+    if (listing.bidsOpenAt && Date.now() < listing.bidsOpenAt.getTime()) {
+      throw new BadRequestException(
+        "Teklif verme henüz başlamadı (açılış saatini bekleyin)",
+      );
+    }
+    if (listing.closesAt && Date.now() > listing.closesAt.getTime()) {
+      throw new BadRequestException("Teklif süresi doldu");
+    }
+    if (
+      !this.isCountryEligible(
+        user.country,
+        listing.company.country,
+        listing.isInternational,
+        listing.targetCountries,
+      )
+    ) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
     const blockedIds = await this.blocks.blockedCompanyIds(listing.companyId);
     if (blockedIds.includes(user.companyId)) {
       throw new NotFoundException("İlan bulunamadı");
@@ -1689,7 +1748,11 @@ export class CompanyListingsService {
     const isPremium = user.tier === "PAKET";
     const visible =
       listing.visibility === "PUBLIC" ||
-      (listing.visibility === "CONNECTIONS" && connected);
+      (listing.visibility === "CONNECTIONS" && connected) ||
+      (listing.visibility === "PRIVATE" &&
+        (await this.prisma.listingInvitation.count({
+          where: { listingId, invitedCompanyId: user.companyId },
+        })) > 0);
     if (!visible) throw new NotFoundException("İlan bulunamadı");
     const canBid =
       connected || (listing.visibility === "PUBLIC" && isPremium);
@@ -1843,10 +1906,19 @@ export class CompanyListingsService {
 
     const number = await this.nextOrderNumber();
     const order = await this.prisma.$transaction(async (tx) => {
-      await tx.listing.update({
-        where: { id: listingId },
+      // Atomik durum geçişi: yalnızca OPEN|CLOSED iken AWARDED'a geç. Eşzamanlı
+      // ikinci kazandırma (ya da tekrar gönderilen onay-event'i) burada count=0
+      // alır ve iptal edilir — çift sipariş oluşmaz (F1/F5).
+      const transition = await tx.listing.updateMany({
+        where: {
+          id: listingId,
+          status: { in: ["OPEN", "CLOSED", "IN_AWARD_APPROVAL"] },
+        },
         data: { status: "AWARDED", awardedAt: new Date() },
       });
+      if (transition.count !== 1) {
+        throw new BadRequestException("İlan zaten kazandırılmış");
+      }
       await tx.listingBid.update({
         where: { id: bidId },
         data: { status: "WON" },
@@ -2071,10 +2143,17 @@ export class CompanyListingsService {
     const winningBidIds = [...new Set(itemAwards.map((a) => a.bidId))];
 
     const created = await this.prisma.$transaction(async (tx) => {
-      await tx.listing.update({
-        where: { id: listingId },
+      // Atomik durum geçişi (çift kazandırma koruması — F1/F5).
+      const transition = await tx.listing.updateMany({
+        where: {
+          id: listingId,
+          status: { in: ["OPEN", "CLOSED", "IN_AWARD_APPROVAL"] },
+        },
         data: { status: "AWARDED", awardedAt: new Date() },
       });
+      if (transition.count !== 1) {
+        throw new BadRequestException("İlan zaten kazandırılmış");
+      }
       await tx.listingBid.updateMany({
         where: { listingId, id: { in: winningBidIds }, status: "SUBMITTED" },
         data: { status: "WON" },
@@ -2115,11 +2194,14 @@ export class CompanyListingsService {
       return orders;
     });
 
-    // Kazanan her firmaya bildirim.
+    // Kazanan her firmaya bildirim — alıcıları tek seferde topla (N+1 yerine).
+    const recipients = await this.companyRecipients(
+      groupArr.map(([sellerCompanyId]) => sellerCompanyId),
+    );
     for (let i = 0; i < groupArr.length; i++) {
       const [sellerCompanyId] = groupArr[i]!;
       const o = created[i];
-      const recipient = await this.companyRecipient(sellerCompanyId);
+      const recipient = recipients.get(sellerCompanyId);
       if (recipient && o) {
         this.notify(
           recipient,
@@ -2764,6 +2846,24 @@ export class CompanyListingsService {
    * PREMIUM-origin bağlantı yalnızca İKİ taraf da PAKET iken sayılır
    * (premium bitince pasif). INVITE/ADMIN her zaman geçerli.
    */
+  /**
+   * Ülke kapsamı uygunluğu (getOne ile aynı kural — tek kaynak). Uluslararası
+   * ilan: farklı ülke + (hedef ülkeler boş ya da izleyeni içeriyor). Yurtiçi
+   * ilan: aynı ülke. Sahip her zaman uygun (çağıran ayrıca kontrol eder).
+   */
+  private isCountryEligible(
+    viewerCountry: string,
+    ownerCountry: string,
+    isInternational: boolean,
+    targetCountries: string[],
+  ): boolean {
+    return isInternational
+      ? viewerCountry !== ownerCountry &&
+          (targetCountries.length === 0 ||
+            targetCountries.includes(viewerCountry))
+      : viewerCountry === ownerCountry;
+  }
+
   private async connectedCompanyIds(companyId: string): Promise<string[]> {
     const rows = await this.prisma.companyConnection.findMany({
       where: {
