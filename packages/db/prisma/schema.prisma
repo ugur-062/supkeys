@@ -27,6 +27,24 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+/**
+ * E-posta doğrulama kodu (6 hane) — kayıt sonrası e-posta sahipliğini kanıtlar.
+ * Kod hash'lenmiş saklanır, tek kullanımlık, süreli. Resend ile gönderilir.
+ */
+model EmailVerificationCode {
+  id            String      @id @default(cuid())
+  companyUserId String
+  companyUser   CompanyUser @relation(fields: [companyUserId], references: [id], onDelete: Cascade)
+  codeHash      String
+  expiresAt     DateTime
+  usedAt        DateTime?
+  attempts      Int         @default(0)
+  createdAt     DateTime    @default(now())
+
+  @@index([companyUserId])
+  @@map("email_verification_codes")
+}
+
 model PlatformAdmin {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -1039,7 +1057,15 @@ model CompanyUser {
   lastLoginAt         DateTime?
   deletedAt           DateTime? // iş çıkışı — soft delete (geçmiş korunur, KVKK)
 
-  passwordResetTokens PasswordResetToken[]
+  // Kayıt sözleşme/rıza kayıtları (KVKK denetim izi).
+  termsAcceptedAt          DateTime? // kullanıcı sözleşmesi
+  mediationAcceptedAt      DateTime? // platform aracılık ve kullanım sözleşmesi
+  kvkkAcceptedAt           DateTime? // KVKK aydınlatma bilgilendirmesi
+  marketingConsent         Boolean   @default(false) // pazarlama/analitik (ticari ileti)
+  profileImprovementConsent Boolean  @default(false) // profil/hizmet iyileştirme
+
+  passwordResetTokens   PasswordResetToken[]
+  emailVerificationCodes EmailVerificationCode[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
