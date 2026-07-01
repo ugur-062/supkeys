@@ -88,6 +88,21 @@ export function useSetCompanyAuth() {
   return useCompanyAuthStore((s) => s.setAuth);
 }
 
+/** Faz 2 — firma doğrulama sihirbazını tamamla. */
+export function useCompleteOnboarding() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: Record<string, unknown>) => {
+      const { data } = await companyApi.post<{ ok: true }>(
+        "/company-auth/onboarding",
+        input,
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-auth", "me"] }),
+  });
+}
+
 export function useCompanyMe(enabled = true) {
   const token = useCompanyAuthStore((s) => s.token);
   const setMe = useCompanyAuthStore((s) => s.setMe);
