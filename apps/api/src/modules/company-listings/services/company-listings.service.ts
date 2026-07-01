@@ -235,11 +235,16 @@ export class CompanyListingsService {
   }
 
   /**
-   * PUBLIC + ALIM ilan yayına çıkınca, ilan kategorileriyle eşleşen
-   * (sellerCategoryIds/sellerSubCategoryIds) PAKET + SATISCI firmaları bulur.
-   * E-posta gönderimi Faz 8 ile bağlanacak; şimdilik aday listesi + log.
+   * PUBLIC ilan yayına çıkınca kategori eşleşen firmalara bildirim + e-posta
+   * gönderir. İKİ YÖN:
+   *  - ALIM ilanı → SATICI'ları uyarır (sellerCategoryIds/sellerSubCategoryIds,
+   *    PAKET + aktif SATISCI). CTA: Satış portalı açık ihaleler.
+   *  - SATIS ilanı → ALICI'ları uyarır (buyerCategoryIds/buyerSubCategoryIds,
+   *    PAKET + aktif SATIN_ALMACI). CTA: Satınalma portalı satış ilanları.
+   * Alıcılar `companyRecipients` ile çözülür → billingEmail yoksa firmanın ilk
+   * aktif kullanıcısına düşer (hiçbir eşleşen firma sessizce atlanmaz).
    */
-  async notifyCategoryMatchedSellers(listingId: string) {
+  async notifyCategoryMatchedCompanies(listingId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -257,7 +262,6 @@ export class CompanyListingsService {
     });
     if (
       !listing ||
-      listing.type !== "ALIM" ||
       listing.visibility !== "PUBLIC" ||
       listing.categoryIds.length === 0
     ) {
@@ -276,6 +280,19 @@ export class CompanyListingsService {
     );
     if (segmentIds.length === 0 && subCandidates.length === 0) return [];
 
+    // Yön'e göre eşleşme alanları + hedef rol + kullanıcı-yüzü metin/CTA.
+    const isBuyDemand = listing.type === "ALIM";
+    const matchRole = isBuyDemand ? "SATISCI" : "SATIN_ALMACI";
+    const catOr = isBuyDemand
+      ? [
+          { sellerCategoryIds: { hasSome: segmentIds } },
+          { sellerSubCategoryIds: { hasSome: subCandidates } },
+        ]
+      : [
+          { buyerCategoryIds: { hasSome: segmentIds } },
+          { buyerSubCategoryIds: { hasSome: subCandidates } },
+        ];
+
     const blocked = await this.blocks.blockedCompanyIds(listing.companyId);
     const candidates = await this.prisma.company.findMany({
       where: {
@@ -284,40 +301,48 @@ export class CompanyListingsService {
         isActive: true,
         ...countryWhere,
         users: {
-          some: { roles: { has: "SATISCI" }, deletedAt: null, isActive: true },
+          some: { roles: { has: matchRole }, deletedAt: null, isActive: true },
         },
-        OR: [
-          { sellerCategoryIds: { hasSome: segmentIds } },
-          { sellerSubCategoryIds: { hasSome: subCandidates } },
-        ],
+        OR: catOr,
       },
-      select: { id: true, name: true, billingEmail: true },
+      select: { id: true },
       take: 300, // flood-guard
     });
     if (candidates.length === 0) return [];
 
-    const url = `${this.webUrl()}/company/satis/acik-ihaleler`;
+    // billingEmail yoksa ilk aktif kullanıcıya düş (kapsama boşluğu kapandı).
+    const recipients = await this.companyRecipients(candidates.map((c) => c.id));
+    const url = `${this.webUrl()}${
+      isBuyDemand ? "/company/satis/acik-ihaleler" : "/company/satinalma/satin-al"
+    }`;
+    const label = isBuyDemand ? "ihale" : "satış ilanı";
+    const verb = isBuyDemand ? "Sattığınız" : "Aldığınız";
+    const action = isBuyDemand ? "teklif vermek" : "satın almak";
+    let sent = 0;
     for (const c of candidates) {
-      if (!c.billingEmail) continue;
+      const to = recipients.get(c.id);
+      if (!to) continue;
       this.notify(
-        { email: c.billingEmail, name: c.name },
+        to,
         {
-          subject: "Size uygun yeni bir ihale yayınlandı",
-          heading: "Kategorinize uygun yeni ihale",
+          subject: `Size uygun yeni bir ${label} yayınlandı`,
+          heading: `Kategorinize uygun yeni ${label}`,
           paragraphs: [
             "Merhaba,",
-            `Sattığınız kategorilerle eşleşen yeni bir ihale yayınlandı: "${listing.title ?? "İhale"}" (${listing.number ?? "—"}). İncelemek ve teklif vermek için Rothern'e giriş yapın.`,
+            `${verb} kategorilerle eşleşen yeni bir ${label} yayınlandı: "${listing.title ?? "İlan"}" (${listing.number ?? "—"}). İncelemek ve ${action} için Rothern'e giriş yapın.`,
           ],
-          ctaLabel: "Açık İhaleleri Gör",
+          ctaLabel: isBuyDemand ? "Açık İhaleleri Gör" : "Satış İlanlarını Gör",
           ctaUrl: url,
-          footerNote:
-            "Bu bildirimi kategori tercihlerinize göre alıyorsunuz.",
+          footerNote: "Bu bildirimi kategori tercihlerinize göre alıyorsunuz.",
         },
         { type: "listing_category_match", id: listingId },
       );
+      sent++;
     }
     this.logger.log(
-      `Kategori eşleşmesi (${listing.number}): ${candidates.length} tedarikçiye bildirim`,
+      `Kategori eşleşmesi (${listing.number}): ${sent} firmaya bildirim (${
+        isBuyDemand ? "satıcı" : "alıcı"
+      })`,
     );
     return candidates;
   }
@@ -581,7 +606,7 @@ export class CompanyListingsService {
     // Doğrudan yayınlandıysa: davetlilere davet + PUBLIC+ALIM'da kategori haberi.
     if (!dto.asDraft) {
       void this.notifyListingInvitees(listing.id, "invitation");
-      void this.notifyCategoryMatchedSellers(listing.id);
+      void this.notifyCategoryMatchedCompanies(listing.id);
     }
     return this.serialize(listing);
   }
@@ -829,7 +854,7 @@ export class CompanyListingsService {
     });
     if (res.approved) {
       void this.notifyListingInvitees(listingId, "invitation");
-      void this.notifyCategoryMatchedSellers(listingId);
+      void this.notifyCategoryMatchedCompanies(listingId);
     }
     return this.serialize(updated);
   }
@@ -864,7 +889,7 @@ export class CompanyListingsService {
       data: { status: "OPEN", publishedAt: new Date() },
     });
     void this.notifyListingInvitees(payload.listingId, "invitation");
-    void this.notifyCategoryMatchedSellers(payload.listingId);
+    void this.notifyCategoryMatchedCompanies(payload.listingId);
   }
 
   /** Yayın onayı reddedildi → ilan taslağa geri döner. */
