@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { generateSlug } from "@supkeys/shared";
+import { generateSlug, isValidIbanTr, normalizeIban } from "@supkeys/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
 import { UpdateCompanyProfileDto } from "./dto/update-company-profile.dto";
@@ -37,10 +37,22 @@ const SELECT = {
   buyerCategoryIds: true,
   sellerCategoryIds: true,
   taxNumber: true,
+  taxOffice: true,
+  companyType: true,
+  authorizedTckn: true,
+  authorizedTitle: true,
+  mersisNo: true,
+  tradeRegistryNo: true,
+  kepAddress: true,
+  iban: true,
+  ibanHolder: true,
+  billingPhone: true,
+  billingPhoneVerifiedAt: true,
   supkeysId: true,
   slug: true,
   tier: true,
   companyVerificationStatus: true,
+  onboardingCompletedAt: true,
 } as const;
 
 @Injectable()
@@ -132,6 +144,32 @@ export class CompanyProfileService {
       data.buyerCategoryIds = dto.buyerCategoryIds;
     if (dto.sellerCategoryIds !== undefined)
       data.sellerCategoryIds = dto.sellerCategoryIds;
+
+    // Kurumsal kimlik — düzenlenebilir kalemler (Faz 4).
+    if (dto.mersisNo !== undefined) data.mersisNo = dto.mersisNo.trim() || null;
+    if (dto.tradeRegistryNo !== undefined)
+      data.tradeRegistryNo = dto.tradeRegistryNo.trim() || null;
+    if (dto.ibanHolder !== undefined)
+      data.ibanHolder = dto.ibanHolder.trim() || null;
+    if (dto.kepAddress !== undefined) {
+      const kep = dto.kepAddress.trim();
+      if (kep && !/^[^@\s]+@[^@\s]+\.kep\.tr$/i.test(kep)) {
+        throw new BadRequestException("Geçerli bir KEP adresi giriniz");
+      }
+      data.kepAddress = kep || null;
+    }
+    if (dto.iban !== undefined) {
+      const raw = dto.iban.trim();
+      if (raw) {
+        const iban = normalizeIban(raw);
+        if (!isValidIbanTr(iban)) {
+          throw new BadRequestException("Bu değer geçersiz");
+        }
+        data.iban = iban;
+      } else {
+        data.iban = null;
+      }
+    }
 
     // Public profil açıksa ve henüz slug yoksa SEO-dostu benzersiz slug üret.
     const current = await this.prisma.company.findUnique({

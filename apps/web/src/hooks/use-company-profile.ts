@@ -29,10 +29,22 @@ export interface CompanyProfile {
   buyerCategoryIds: string[];
   sellerCategoryIds: string[];
   taxNumber: string | null;
+  taxOffice: string | null;
+  companyType: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR" | null;
+  authorizedTckn: string | null;
+  authorizedTitle: string | null;
+  mersisNo: string | null;
+  tradeRegistryNo: string | null;
+  kepAddress: string | null;
+  iban: string | null;
+  ibanHolder: string | null;
+  billingPhone: string | null;
+  billingPhoneVerifiedAt: string | null;
   supkeysId: string | null;
   slug: string | null;
   tier: "STANDARD" | "PAKET";
   companyVerificationStatus: string;
+  onboardingCompletedAt: string | null;
 }
 
 export type CompanyProfileUpdate = Partial<
@@ -60,6 +72,11 @@ export type CompanyProfileUpdate = Partial<
     | "certificateImages"
     | "buyerCategoryIds"
     | "sellerCategoryIds"
+    | "mersisNo"
+    | "tradeRegistryNo"
+    | "kepAddress"
+    | "iban"
+    | "ibanHolder"
   >
 >;
 

@@ -6,6 +6,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  Matches,
   Max,
   MaxLength,
   Min,
@@ -92,6 +93,33 @@ export class UpdateCompanyProfileDto {
   @Min(1800)
   @Max(2100)
   foundedYear?: number;
+
+  // Kurumsal kimlik — düzenlenebilir kalemler (Faz 4). IBAN/KEP geçerliliği
+  // serviste doğrulanır (boş string = temizle).
+  @IsOptional()
+  @IsString()
+  @Matches(/^$|^\d{16}$/, { message: "MERSİS No 16 haneli olmalı" })
+  mersisNo?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  tradeRegistryNo?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  kepAddress?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(34)
+  iban?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  ibanHolder?: string;
 
   @IsOptional()
   @IsArray()

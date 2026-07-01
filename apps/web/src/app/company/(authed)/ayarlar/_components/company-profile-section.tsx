@@ -39,6 +39,11 @@ export function CompanyProfileSection() {
     district: "",
     addressLine: "",
     postalCode: "",
+    mersisNo: "",
+    tradeRegistryNo: "",
+    kepAddress: "",
+    iban: "",
+    ibanHolder: "",
     buyerCategoryIds: [] as string[],
     sellerCategoryIds: [] as string[],
   });
@@ -54,11 +59,20 @@ export function CompanyProfileSection() {
         district: profile.district ?? "",
         addressLine: profile.addressLine ?? "",
         postalCode: profile.postalCode ?? "",
+        mersisNo: profile.mersisNo ?? "",
+        tradeRegistryNo: profile.tradeRegistryNo ?? "",
+        kepAddress: profile.kepAddress ?? "",
+        iban: profile.iban ?? "",
+        ibanHolder: profile.ibanHolder ?? "",
         buyerCategoryIds: profile.buyerCategoryIds ?? [],
         sellerCategoryIds: profile.sellerCategoryIds ?? [],
       });
     }
   }, [profile]);
+
+  // TR IBAN basit UI geçerlilik ipucu (backend kesin doğrular).
+  const ibanClean = form.iban.replace(/\s/g, "").toUpperCase();
+  const ibanInvalid = ibanClean.length > 0 && !/^TR\d{24}$/.test(ibanClean);
 
   const set = (patch: Partial<typeof form>) =>
     setForm((f) => ({ ...f, ...patch }));
@@ -86,9 +100,31 @@ export function CompanyProfileSection() {
           <DescriptionDetails className="font-mono">
             {profile.supkeysId ?? "—"}
           </DescriptionDetails>
+          <DescriptionTerm>Yasal Ünvan</DescriptionTerm>
+          <DescriptionDetails>{profile.legalName ?? "—"}</DescriptionDetails>
+          <DescriptionTerm>Firma Türü</DescriptionTerm>
+          <DescriptionDetails>
+            {profile.companyType === "JOINT_STOCK"
+              ? "Anonim Şirket"
+              : profile.companyType === "LIMITED"
+                ? "Limited Şirket"
+                : profile.companyType === "SOLE_PROPRIETOR"
+                  ? "Şahıs Firması"
+                  : "—"}
+          </DescriptionDetails>
           <DescriptionTerm>Vergi No</DescriptionTerm>
           <DescriptionDetails className="font-mono">
             {profile.taxNumber ?? "—"}
+          </DescriptionDetails>
+          <DescriptionTerm>Vergi Dairesi</DescriptionTerm>
+          <DescriptionDetails>{profile.taxOffice ?? "—"}</DescriptionDetails>
+          <DescriptionTerm>Yetkili TC</DescriptionTerm>
+          <DescriptionDetails className="font-mono">
+            {profile.authorizedTckn ?? "—"}
+          </DescriptionDetails>
+          <DescriptionTerm>Yetkili Ünvanı</DescriptionTerm>
+          <DescriptionDetails>
+            {profile.authorizedTitle ?? "—"}
           </DescriptionDetails>
           <DescriptionTerm>Üyelik</DescriptionTerm>
           <DescriptionDetails>
@@ -103,6 +139,63 @@ export function CompanyProfileSection() {
               : "Bekliyor"}
           </DescriptionDetails>
         </DescriptionList>
+      </section>
+
+      {/* Düzenlenebilir kurumsal kimlik kalemleri (MERSİS/KEP/IBAN) */}
+      <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
+        <Subheading>Kurumsal Kimlik</Subheading>
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field>
+            <Label>MERSİS No</Label>
+            <Input
+              value={form.mersisNo}
+              maxLength={16}
+              disabled={!canEdit}
+              placeholder="16 haneli"
+              onChange={(e) =>
+                set({ mersisNo: e.target.value.replace(/\D/g, "") })
+              }
+            />
+          </Field>
+          <Field>
+            <Label>Ticaret Sicil No</Label>
+            <Input
+              value={form.tradeRegistryNo}
+              disabled={!canEdit}
+              onChange={(e) => set({ tradeRegistryNo: e.target.value })}
+            />
+          </Field>
+          <Field>
+            <Label>KEP Adresi</Label>
+            <Input
+              value={form.kepAddress}
+              disabled={!canEdit}
+              placeholder="ornek@hs01.kep.tr"
+              onChange={(e) => set({ kepAddress: e.target.value })}
+            />
+          </Field>
+          <Field>
+            <Label>IBAN</Label>
+            <Input
+              value={form.iban}
+              disabled={!canEdit}
+              invalid={ibanInvalid}
+              placeholder="TR.."
+              onChange={(e) => set({ iban: e.target.value })}
+            />
+            {ibanInvalid ? (
+              <p className="mt-1 text-xs text-red-600">Bu değer geçersiz</p>
+            ) : null}
+          </Field>
+          <Field>
+            <Label>IBAN Sahibi</Label>
+            <Input
+              value={form.ibanHolder}
+              disabled={!canEdit}
+              onChange={(e) => set({ ibanHolder: e.target.value })}
+            />
+          </Field>
+        </div>
       </section>
 
       {/* Düzenlenebilir firma bilgileri */}
