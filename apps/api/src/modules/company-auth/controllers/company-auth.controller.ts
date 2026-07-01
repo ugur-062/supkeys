@@ -27,6 +27,7 @@ import {
   ResendEmailCodeDto,
   VerifyEmailDto,
 } from "../dto/company-signup.dto";
+import { CompleteOnboardingDto } from "../dto/onboarding.dto";
 import { CompanyJwtAuthGuard } from "../guards/company-jwt-auth.guard";
 import { CompanyAuthService } from "../services/company-auth.service";
 import { PasswordResetService } from "../../password-reset/password-reset.service";
@@ -86,6 +87,16 @@ export class CompanyAuthController {
   @UseGuards(CompanyJwtAuthGuard)
   me(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.getMe(user.userId);
+  }
+
+  @Post("onboarding")
+  @UseGuards(CompanyJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  completeOnboarding(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: CompleteOnboardingDto,
+  ) {
+    return this.service.completeOnboarding(user.userId, user.companyId, dto);
   }
 
   @Patch("me")

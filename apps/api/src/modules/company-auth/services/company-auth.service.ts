@@ -11,14 +11,28 @@ import { authenticator } from "otplib";
 import * as crypto from "node:crypto";
 import * as QRCode from "qrcode";
 import { CompanyRole, type Company, type CompanyUser } from "@supkeys/db";
-import { generateShortCode } from "@supkeys/shared";
+import {
+  generateShortCode,
+  isValidCountryCode,
+  isValidTaxIdForCountry,
+  isValidTckn,
+} from "@supkeys/shared";
+import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { AuditService } from "../../audit/audit.service";
 import { EmailService } from "../../email/email.service";
 import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import { CompanyLoginDto } from "../dto/company-login.dto";
 import { CompanySignupDto } from "../dto/company-signup.dto";
+import { CompleteOnboardingDto } from "../dto/onboarding.dto";
 import type { CompanyJwtPayload } from "../strategies/company-jwt.strategy";
+
+const ROLE_LABELS: Record<CompanyRole, string> = {
+  [CompanyRole.YONETICI]: "Yönetici",
+  [CompanyRole.SATIN_ALMACI]: "Satın Almacı",
+  [CompanyRole.SATISCI]: "Satışçı",
+  [CompanyRole.ONAYLAYICI]: "Onaylayıcı",
+};
 
 type Ctx = { ip?: string; userAgent?: string };
 
@@ -235,6 +249,121 @@ export class CompanyAuthService {
       await this.issueEmailCode(user.id, normalized, user.firstName);
     }
     return { success: true as const };
+  }
+
+  // ============================================================
+  // ONBOARDING — Firma Doğrulama sihirbazı (Faz 2)
+  // ============================================================
+  async completeOnboarding(
+    userId: string,
+    companyId: string,
+    dto: CompleteOnboardingDto,
+  ) {
+    const country = (dto.country || "TR").toUpperCase();
+    if (!isValidCountryCode(country)) {
+      throw new BadRequestException("Geçersiz ülke seçimi");
+    }
+    const isSole = dto.companyType === "SOLE_PROPRIETOR";
+    if (!isValidTaxIdForCountry(dto.taxNumber, country, isSole)) {
+      throw new BadRequestException(
+        country === "TR"
+          ? isSole
+            ? "Şahıs firması için 11 haneli geçerli TCKN giriniz"
+            : "Tüzel kişi için 10 haneli geçerli vergi numarası giriniz"
+          : "Geçerli bir vergi/sicil numarası giriniz",
+      );
+    }
+    if (country === "TR") {
+      if (!dto.authorizedTckn || !isValidTckn(dto.authorizedTckn)) {
+        throw new BadRequestException("Yetkili T.C. Kimlik No geçersiz");
+      }
+      if (!dto.taxOffice?.trim()) {
+        throw new BadRequestException("Vergi dairesi zorunlu");
+      }
+      if (!dto.district?.trim()) {
+        throw new BadRequestException("İlçe zorunlu");
+      }
+    }
+
+    const { mainIds, subIds } = await validateCategorySelection(
+      this.prisma,
+      dto.mainCategoryIds,
+      dto.subCategoryIds ?? [],
+    );
+
+    // Sahip her zaman YÖNETİCİ + seçilen rol.
+    const roles = Array.from(
+      new Set<CompanyRole>([CompanyRole.YONETICI, dto.role]),
+    );
+    const deliverySame = dto.deliverySameAsBilling !== false;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.company.update({
+        where: { id: companyId },
+        data: {
+          name: dto.legalName.trim(),
+          legalName: dto.legalName.trim(),
+          companyType: dto.companyType,
+          country,
+          taxNumber: dto.taxNumber.trim(),
+          taxOffice: dto.taxOffice?.trim() || null,
+          city: dto.city.trim(),
+          district: dto.district?.trim() || null,
+          neighborhood: dto.neighborhood?.trim() || null,
+          postalCode: dto.postalCode?.trim() || null,
+          addressLine: dto.addressLine.trim(),
+          authorizedTckn: dto.authorizedTckn?.trim() || null,
+          authorizedTitle: ROLE_LABELS[dto.role],
+          buyerCategoryIds: mainIds,
+          sellerCategoryIds: mainIds,
+          buyerSubCategoryIds: subIds,
+          sellerSubCategoryIds: subIds,
+          onboardingCompletedAt: new Date(),
+        },
+      });
+      await tx.companyUser.update({
+        where: { id: userId },
+        data: { roles },
+      });
+      // Eski onboarding adres kayıtlarını temizle (idempotent tekrar).
+      await tx.companyAddress.deleteMany({ where: { companyId } });
+      await tx.companyAddress.create({
+        data: {
+          companyId,
+          type: "FATURA",
+          title: "Merkez",
+          country,
+          city: dto.city.trim(),
+          district: dto.district?.trim() || null,
+          postalCode: dto.postalCode?.trim() || null,
+          addressLine: dto.addressLine.trim(),
+          taxOffice: dto.taxOffice?.trim() || null,
+          taxNumber: dto.taxNumber.trim(),
+          isDefault: true,
+        },
+      });
+      await tx.companyAddress.create({
+        data: {
+          companyId,
+          type: "TESLIMAT",
+          title: deliverySame ? "Teslimat (fatura ile aynı)" : "Teslimat",
+          country,
+          city: (deliverySame ? dto.city : dto.deliveryCity ?? dto.city).trim(),
+          district:
+            (deliverySame ? dto.district : dto.deliveryDistrict)?.trim() || null,
+          postalCode:
+            (deliverySame ? dto.postalCode : dto.deliveryPostalCode)?.trim() ||
+            null,
+          addressLine: (deliverySame
+            ? dto.addressLine
+            : dto.deliveryAddressLine ?? dto.addressLine
+          ).trim(),
+          isDefault: true,
+        },
+      });
+    });
+
+    return { ok: true as const };
   }
 
   /**
