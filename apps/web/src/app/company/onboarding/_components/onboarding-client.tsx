@@ -9,6 +9,7 @@ import { useRoots } from "@/hooks/use-categories";
 import {
   useCompanyMe,
   useCompleteOnboarding,
+  useViesCheck,
 } from "@/hooks/use-company-auth";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -29,12 +30,19 @@ const ROLES = [
   { value: "ONAYLAYICI", label: "Onaylayıcı" },
 ];
 const STEPS = ["Şirket Bilgileri", "Kişisel Bilgiler", "Özet & Beyan"];
+// AB VAT (VIES) kapsamındaki ülkeler.
+const EU_VAT = new Set([
+  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
+  "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK",
+  "SI", "ES", "SE",
+]);
 
 export function OnboardingClient() {
   const token = useCompanyAuthStore((s) => s.token);
   const isHydrated = useCompanyAuthStore((s) => s.isHydrated);
   const me = useCompanyMe(!!token);
   const complete = useCompleteOnboarding();
+  const vies = useViesCheck();
   const roots = useRoots();
 
   const [step, setStep] = useState(0);
@@ -96,6 +104,24 @@ export function OnboardingClient() {
       if (s.mainCategoryIds.length >= 3) return s;
       return { ...s, mainCategoryIds: [...s.mainCategoryIds, id] };
     });
+
+  const isEuVat = !isTR && EU_VAT.has(f.country);
+  const checkVies = async () => {
+    const r = await vies.mutateAsync({
+      countryCode: f.country,
+      vatNumber: f.taxNumber,
+    });
+    if (r.unavailable) {
+      toast.error("VIES servisine şu an ulaşılamıyor, sonra deneyin");
+      return;
+    }
+    if (r.valid) {
+      toast.success("VAT numarası doğrulandı (VIES)");
+      if (r.name && !f.legalName.trim()) set("legalName")(r.name);
+    } else {
+      toast.error("VAT numarası VIES'te geçerli değil");
+    }
+  };
 
   const submit = async () => {
     setError(null);
@@ -207,6 +233,16 @@ export function OnboardingClient() {
                     )
                   }
                 />
+                {isEuVat ? (
+                  <button
+                    type="button"
+                    disabled={f.taxNumber.trim().length < 4 || vies.isPending}
+                    onClick={checkVies}
+                    className="mt-1 text-xs font-semibold text-blue-600 hover:underline disabled:opacity-50"
+                  >
+                    {vies.isPending ? "Doğrulanıyor…" : "VIES ile doğrula (AB VAT)"}
+                  </button>
+                ) : null}
               </Field>
             </div>
             {isTR ? (

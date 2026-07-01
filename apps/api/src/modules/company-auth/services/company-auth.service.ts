@@ -481,6 +481,36 @@ export class CompanyAuthService {
   }
 
   // ============================================================
+  // VIES — AB VAT numarası ücretsiz oto-doğrulama (Faz 5)
+  // ============================================================
+  async viesCheck(countryCode: string, vatNumber: string) {
+    const cc = countryCode.toUpperCase().trim();
+    const num = vatNumber.replace(/[^A-Za-z0-9]/g, "");
+    const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${cc}/vat/${num}`;
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      if (!res.ok) return { valid: false, unavailable: true as const };
+      const data = (await res.json()) as {
+        valid?: boolean;
+        name?: string;
+        address?: string;
+      };
+      return {
+        valid: !!data.valid,
+        name: data.name?.trim() || null,
+        address: data.address?.trim() || null,
+      };
+    } catch (err) {
+      this.logger.warn(
+        `VIES sorgusu başarısız (${cc}${num}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return { valid: false, unavailable: true as const };
+    }
+  }
+
+  // ============================================================
   // PREMIUM'A GEÇ (Faz 3) — doğrulama tamamsa tier=PAKET
   // ============================================================
   async upgradeToPremium(userId: string, companyId: string) {

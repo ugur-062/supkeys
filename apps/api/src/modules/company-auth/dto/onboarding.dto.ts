@@ -133,3 +133,14 @@ export class CompleteOnboardingDto {
   @Equals(true, { message: "Beyanı onaylamalısınız" })
   declarationAccepted!: boolean;
 }
+
+/** VIES (AB VAT) doğrulama isteği. */
+export class ViesCheckDto {
+  @IsString()
+  @Length(2, 2)
+  countryCode!: string;
+
+  @IsString()
+  @Length(4, 20)
+  vatNumber!: string;
+}

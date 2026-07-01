@@ -27,7 +27,7 @@ import {
   ResendEmailCodeDto,
   VerifyEmailDto,
 } from "../dto/company-signup.dto";
-import { CompleteOnboardingDto } from "../dto/onboarding.dto";
+import { CompleteOnboardingDto, ViesCheckDto } from "../dto/onboarding.dto";
 import { CompanyJwtAuthGuard } from "../guards/company-jwt-auth.guard";
 import { CompanyAuthService } from "../services/company-auth.service";
 import { PasswordResetService } from "../../password-reset/password-reset.service";
@@ -104,6 +104,14 @@ export class CompanyAuthController {
   @HttpCode(HttpStatus.OK)
   upgradePremium(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.upgradeToPremium(user.userId, user.companyId);
+  }
+
+  @Post("vies-check")
+  @UseGuards(CompanyJwtAuthGuard)
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  viesCheck(@Body() dto: ViesCheckDto) {
+    return this.service.viesCheck(dto.countryCode, dto.vatNumber);
   }
 
   @Patch("me")

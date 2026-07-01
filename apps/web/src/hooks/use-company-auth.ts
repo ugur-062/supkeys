@@ -88,6 +88,21 @@ export function useSetCompanyAuth() {
   return useCompanyAuthStore((s) => s.setAuth);
 }
 
+/** Faz 5 — AB VAT numarası VIES ile doğrula. */
+export function useViesCheck() {
+  return useMutation({
+    mutationFn: async (input: { countryCode: string; vatNumber: string }) => {
+      const { data } = await companyApi.post<{
+        valid: boolean;
+        name: string | null;
+        address: string | null;
+        unavailable?: boolean;
+      }>("/company-auth/vies-check", input);
+      return data;
+    },
+  });
+}
+
 /** Faz 3 — doğrulama tamamsa premium'a (PAKET) geç. */
 export function useUpgradePremium() {
   const qc = useQueryClient();

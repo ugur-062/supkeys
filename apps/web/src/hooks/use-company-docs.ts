@@ -11,14 +11,38 @@ export type DocKind =
   | "idFront"
   | "idBack";
 
-export const DOC_LABELS: { key: DocKind; label: string }[] = [
-  { key: "taxPlate", label: "Vergi Levhası" },
-  { key: "tradeRegistry", label: "Ticaret Sicil Gazetesi" },
-  { key: "signatureCircular", label: "İmza Sirküleri" },
-  { key: "activityCert", label: "Faaliyet Belgesi" },
-  { key: "idFront", label: "Yetkili Kimlik (Ön)" },
-  { key: "idBack", label: "Yetkili Kimlik (Arka)" },
-];
+// TR belge etiketleri.
+const DOC_LABELS_TR: Record<DocKind, string> = {
+  taxPlate: "Vergi Levhası",
+  tradeRegistry: "Ticaret Sicil Gazetesi",
+  signatureCircular: "İmza Sirküleri",
+  activityCert: "Faaliyet Belgesi",
+  idFront: "Yetkili Kimlik (Ön)",
+  idBack: "Yetkili Kimlik (Arka)",
+};
+// Yabancı belge etiketleri (aynı alanlar, farklı anlam).
+const DOC_LABELS_FOREIGN: Record<DocKind, string> = {
+  tradeRegistry: "Certificate of Incorporation",
+  taxPlate: "Tax / VAT Certificate",
+  idFront: "Authorized Signatory ID",
+  signatureCircular: "İmza Sirküleri",
+  activityCert: "Faaliyet Belgesi",
+  idBack: "Yetkili Kimlik (Arka)",
+};
+
+/** Ülke + zorunlu kind listesine göre etiketli belge listesi. */
+export function docLabels(
+  country: string | null | undefined,
+  required: DocKind[],
+): { key: DocKind; label: string }[] {
+  const map = (country ?? "TR").toUpperCase() === "TR" ? DOC_LABELS_TR : DOC_LABELS_FOREIGN;
+  return required.map((k) => ({ key: k, label: map[k] }));
+}
+
+// Geriye dönük uyumluluk (TR tam liste).
+export const DOC_LABELS: { key: DocKind; label: string }[] = (
+  ["taxPlate", "tradeRegistry", "signatureCircular", "activityCert", "idFront", "idBack"] as DocKind[]
+).map((k) => ({ key: k, label: DOC_LABELS_TR[k] }));
 
 export type VerificationStatus =
   | "UNVERIFIED"
@@ -29,6 +53,7 @@ export type VerificationStatus =
 export interface CompanyDocs {
   status: VerificationStatus;
   verifiedAt: string | null;
+  country: string | null;
   docs: Record<DocKind, string | null>;
   required: DocKind[];
 }

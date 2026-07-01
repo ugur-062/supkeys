@@ -19,6 +19,14 @@ export const DOC_FIELDS = {
 type DocKind = keyof typeof DOC_FIELDS;
 const KINDS = Object.keys(DOC_FIELDS) as DocKind[];
 
+// Ülkeye göre ZORUNLU belge seti. TR: 6 KYC. Yabancı: daha az/farklı belge
+// (Certificate of Incorporation + Tax/VAT Certificate + Yetkili Kimlik) →
+// admin manuel KYB onayı. (Alanlar aynı; anlam/etiket ülkeye göre.)
+const FOREIGN_REQUIRED: DocKind[] = ["tradeRegistry", "taxPlate", "idFront"];
+function requiredKinds(country: string | null | undefined): DocKind[] {
+  return (country ?? "TR").toUpperCase() === "TR" ? KINDS : FOREIGN_REQUIRED;
+}
+
 const ALLOWED_MIME = [
   "application/pdf",
   "image/png",
@@ -43,6 +51,7 @@ export class CompanyDocsService {
         docActivityCertUrl: true,
         docIdFrontUrl: true,
         docIdBackUrl: true,
+        country: true,
         companyVerificationStatus: true,
         companyVerifiedAt: true,
       },
@@ -54,8 +63,9 @@ export class CompanyDocsService {
     return {
       status: c.companyVerificationStatus,
       verifiedAt: c.companyVerifiedAt,
+      country: c.country,
       docs,
-      required: KINDS,
+      required: requiredKinds(c.country),
     };
   }
 
@@ -87,8 +97,8 @@ export class CompanyDocsService {
 
   /** Tüm belgeler yüklüyse doğrulamaya gönder (PENDING). */
   async submit(companyId: string) {
-    const { docs, status } = await this.get(companyId);
-    const missing = KINDS.filter((k) => !docs[k]);
+    const { docs, status, required } = await this.get(companyId);
+    const missing = required.filter((k) => !docs[k]);
     if (missing.length > 0) {
       throw new BadRequestException(
         `Eksik belge var (${missing.length}); tüm belgeleri yükleyin`,

@@ -4,7 +4,7 @@ import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Text } from "@/components/catalyst/text";
 import {
-  DOC_LABELS,
+  docLabels,
   useCompanyDocs,
   useSubmitDocs,
   useUploadDoc,
@@ -56,8 +56,8 @@ export default function DogrulamaPage() {
     }
   };
 
-  const allUploaded =
-    data && DOC_LABELS.every((d) => data.docs[d.key]);
+  const labels = data ? docLabels(data.country, data.required) : [];
+  const allUploaded = data && labels.every((d) => data.docs[d.key]);
 
   return (
     <SettingsShell
@@ -77,7 +77,7 @@ export default function DogrulamaPage() {
 
           <div className="overflow-hidden rounded-xl border border-zinc-950/10 bg-white">
             <ul className="divide-y divide-zinc-100">
-              {DOC_LABELS.map((d) => {
+              {labels.map((d) => {
                 const url = data.docs[d.key];
                 const isBusy = busyKind === d.key;
                 return (
