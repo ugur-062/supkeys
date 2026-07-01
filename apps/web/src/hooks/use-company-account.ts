@@ -3,13 +3,27 @@
 import { companyApi } from "@/lib/company-auth/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-/** Bildirim tercihi anahtarları — UI'da toggle olarak gösterilir. */
+/**
+ * Kapatılabilir bildirim tercihleri (backend NOTIFICATION_PREF_KEYS ile birebir).
+ * UI'da toggle olarak gösterilir; varsayılan tümü açık.
+ */
 export const NOTIFICATION_PREFS: { key: string; label: string }[] = [
   { key: "invitation", label: "İhale daveti aldığımda" },
+  { key: "reminder", label: "Davetli olduğum ihalenin kapanışı yaklaştığında" },
   { key: "bidElimination", label: "Teklifim elendiğinde" },
-  { key: "award", label: "Kazandırma / sipariş oluştuğunda" },
-  { key: "orderUpdate", label: "Sipariş durumu değiştiğinde" },
+  { key: "listingClosed", label: "Katıldığım ihale kapandığında" },
+  { key: "categoryMatch", label: "Kategorime uygun yeni ihale açıldığında" },
   { key: "approvalPending", label: "Onayım beklendiğinde" },
+];
+
+/**
+ * Transactional bildirimler — kapatılamaz, her zaman gönderilir. UI'da bilgi
+ * olarak gösterilir (toggle'sız).
+ */
+export const TRANSACTIONAL_NOTIFICATIONS: string[] = [
+  "Teklifim kazandığında / sipariş oluştuğunda",
+  "Siparişimin durumu değiştiğinde",
+  "Şifre sıfırlama ve hesap/davet e-postaları",
 ];
 
 export function useUpdateMe() {

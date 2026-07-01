@@ -31,9 +31,17 @@ import { ConfigService } from "@nestjs/config";
 import { ExchangeRateService } from "../../currency/services/exchange-rate.service";
 import { EmailService } from "../../email/email.service";
 import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-category-match.helper";
+import { isNotificationEnabled } from "../../../common/notifications/notification-prefs";
 import { CreateListingDto } from "../dto/create-listing.dto";
 import { NextRoundDto } from "../dto/next-round.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
+
+/** Bildirim alıcısı — e-posta/isim + (varsa) kullanıcı bildirim tercihleri. */
+type Recipient = {
+  email: string;
+  name: string;
+  prefs?: Record<string, boolean> | null;
+};
 
 /**
  * Kapanış hatırlatması artık her ilanda otomatik — kullanıcıya sorulmaz.
@@ -59,24 +67,32 @@ export class CompanyListingsService {
   }
 
   /** Firmanın bildirim alıcısı — fatura e-postası veya ilk aktif kullanıcı. */
-  private async companyRecipient(
-    companyId: string,
-  ): Promise<{ email: string; name: string } | null> {
+  private async companyRecipient(companyId: string): Promise<Recipient | null> {
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
       select: { name: true, billingEmail: true },
     });
     if (!company) return null;
     if (company.billingEmail) {
-      return { email: company.billingEmail, name: company.name };
+      // Firma-seviyesi fatura adresi → kullanıcı tercihi yok (tümü gider).
+      return { email: company.billingEmail, name: company.name, prefs: null };
     }
     const user = await this.prisma.companyUser.findFirst({
       where: { companyId, isActive: true, deletedAt: null },
       orderBy: { createdAt: "asc" },
-      select: { email: true, firstName: true, lastName: true },
+      select: {
+        email: true,
+        firstName: true,
+        lastName: true,
+        notificationPrefs: true,
+      },
     });
     if (!user) return null;
-    return { email: user.email, name: `${user.firstName} ${user.lastName}` };
+    return {
+      email: user.email,
+      name: `${user.firstName} ${user.lastName}`,
+      prefs: user.notificationPrefs as Record<string, boolean> | null,
+    };
   }
 
   /**
@@ -85,9 +101,9 @@ export class CompanyListingsService {
    */
   private async companyRecipients(
     companyIds: string[],
-  ): Promise<Map<string, { email: string; name: string }>> {
+  ): Promise<Map<string, Recipient>> {
     const ids = [...new Set(companyIds)];
-    const out = new Map<string, { email: string; name: string }>();
+    const out = new Map<string, Recipient>();
     if (ids.length === 0) return out;
     const companies = await this.prisma.company.findMany({
       where: { id: { in: ids } },
@@ -97,19 +113,27 @@ export class CompanyListingsService {
     const nameById = new Map<string, string>();
     for (const c of companies) {
       nameById.set(c.id, c.name);
-      if (c.billingEmail) out.set(c.id, { email: c.billingEmail, name: c.name });
+      if (c.billingEmail)
+        out.set(c.id, { email: c.billingEmail, name: c.name, prefs: null });
       else needUser.push(c.id);
     }
     if (needUser.length > 0) {
       const users = await this.prisma.companyUser.findMany({
         where: { companyId: { in: needUser }, isActive: true, deletedAt: null },
         orderBy: { createdAt: "asc" },
-        select: { companyId: true, email: true, firstName: true, lastName: true },
+        select: {
+          companyId: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          notificationPrefs: true,
+        },
       });
       for (const u of users) {
         if (out.has(u.companyId)) continue; // ilk aktif kullanıcı
         out.set(u.companyId, {
           email: u.email,
+          prefs: u.notificationPrefs as Record<string, boolean> | null,
           name: `${u.firstName} ${u.lastName}`,
         });
       }
@@ -119,7 +143,7 @@ export class CompanyListingsService {
 
   /** Bildirim e-postası gönder (fire-and-forget). */
   private notify(
-    to: { email: string; name: string },
+    to: Recipient,
     data: {
       subject: string;
       heading: string;
@@ -131,6 +155,9 @@ export class CompanyListingsService {
     },
     context?: { type: string; id: string },
   ): void {
+    // Alıcının bildirim tercihi bu tipi kapatmışsa gönderme (transactional
+    // tipler her zaman gider). billingEmail alıcılarında tercih yok → gider.
+    if (context && !isNotificationEnabled(to.prefs, context.type)) return;
     void this.email
       .send({
         to: { email: to.email, name: to.name },

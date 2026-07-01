@@ -8,6 +8,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { CompanyRole, Prisma } from "@supkeys/db";
+import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { EmailService } from "../email/email.service";
@@ -57,9 +58,9 @@ export class CompanyApprovalsService {
       }),
     ]);
     if (!approver) return;
-    // Kullanıcı bu bildirimi kapattıysa gönderme (Faz 3.5 tercihleri).
+    // Kullanıcı bu bildirimi kapattıysa gönderme (tek kaynak tercih helper'ı).
     const prefs = approver.notificationPrefs as Record<string, boolean> | null;
-    if (prefs?.approvalPending === false) return;
+    if (!isNotificationEnabled(prefs, "approval_pending")) return;
     const webUrl =
       this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
     void this.email

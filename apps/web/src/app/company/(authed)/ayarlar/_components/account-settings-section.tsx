@@ -9,6 +9,7 @@ import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
   NOTIFICATION_PREFS,
+  TRANSACTIONAL_NOTIFICATIONS,
   useChangePassword,
   useUpdateMe,
   useUpdateNotificationPrefs,
@@ -430,6 +431,23 @@ export function NotificationPrefsSection() {
             </button>
           );
         })}
+      </div>
+
+      <div className="mt-5 rounded-xl border border-zinc-100 bg-zinc-50/60 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          Her zaman gönderilir
+        </p>
+        <p className="mt-1 text-xs text-zinc-500">
+          Aşağıdaki bildirimler işlem güvenliği/kritikliği nedeniyle kapatılamaz:
+        </p>
+        <ul className="mt-2 space-y-1">
+          {TRANSACTIONAL_NOTIFICATIONS.map((t) => (
+            <li key={t} className="flex items-center gap-2 text-sm text-zinc-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
+              {t}
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div className="mt-4 flex justify-end">
