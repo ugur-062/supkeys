@@ -355,7 +355,14 @@ export function OnboardingClient() {
               </Field>
             </div>
             <div>
-              <Label id="sector-label">Faaliyet Sektörü * (1-3 seçin)</Label>
+              {/* Grup etiketi — tek input'a bağlı değil, bu yüzden Headless
+                  <Label> (Field gerektirir) yerine düz element. */}
+              <p
+                id="sector-label"
+                className="text-base/6 text-zinc-950 select-none sm:text-sm/6"
+              >
+                Faaliyet Sektörü * (1-3 seçin)
+              </p>
               {roots.isLoading ? (
                 <p className="mt-2 text-xs text-zinc-400">Sektörler yükleniyor…</p>
               ) : roots.isError ? (

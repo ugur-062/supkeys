@@ -1,0 +1,73 @@
+// @vitest-environment jsdom
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const h = vi.hoisted(() => ({
+  meData: undefined as unknown,
+  upgradeAsync: vi.fn(),
+  toast: { success: vi.fn(), error: vi.fn() },
+}));
+
+vi.mock("sonner", () => ({ toast: h.toast }));
+vi.mock("@/hooks/use-company-auth", () => ({
+  useCompanyMe: () => ({ data: h.meData }),
+  useUpgradePremium: () => ({ mutateAsync: h.upgradeAsync, isPending: false }),
+}));
+
+import { PremiumGate } from "../premium-gate";
+
+function setMe(
+  status: string,
+  twoFactorEnabled: boolean,
+) {
+  h.meData = {
+    company: { companyVerificationStatus: status },
+    user: { twoFactorEnabled },
+  };
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("PremiumGate", () => {
+  it("doğrulama eksikken 'Premium'a Geç' devre dışı + 'Aç' linkleri var", () => {
+    setMe("UNVERIFIED", false);
+    render(<PremiumGate />);
+    expect(
+      screen.getByRole("button", { name: "Premium'a Geç" }),
+    ).toBeDisabled();
+    expect(screen.getAllByRole("link", { name: "Aç" })).toHaveLength(2);
+  });
+
+  it("belgeler PENDING → inceleme ipucu gösterir", () => {
+    setMe("PENDING", false);
+    render(<PremiumGate />);
+    expect(screen.getByText(/inceleniyor/i)).toBeInTheDocument();
+  });
+
+  it("VERIFIED + 2FA → buton aktif; tıklayınca upgrade + başarı toast", async () => {
+    const user = userEvent.setup();
+    setMe("VERIFIED", true);
+    h.upgradeAsync.mockResolvedValue({ ok: true, tier: "PAKET" });
+    render(<PremiumGate />);
+
+    const btn = screen.getByRole("button", { name: "Premium'a Geç" });
+    expect(btn).toBeEnabled();
+    await user.click(btn);
+
+    expect(h.upgradeAsync).toHaveBeenCalledTimes(1);
+    expect(h.toast.success).toHaveBeenCalled();
+  });
+
+  it("upgrade hatası → error toast (çift toast yok, interceptor skip'te)", async () => {
+    const user = userEvent.setup();
+    setMe("VERIFIED", true);
+    h.upgradeAsync.mockRejectedValue(new Error("fail"));
+    render(<PremiumGate />);
+
+    await user.click(screen.getByRole("button", { name: "Premium'a Geç" }));
+    expect(h.toast.error).toHaveBeenCalledTimes(1);
+  });
+});
