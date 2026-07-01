@@ -50,9 +50,34 @@ export function useCompanyLogin() {
 export function useCompanySignup() {
   return useMutation({
     mutationFn: async (input: CompanySignupInput) => {
+      const { data } = await companyApi.post<{
+        email: string;
+        verificationRequired: true;
+      }>("/company-auth/signup", input);
+      return data;
+    },
+  });
+}
+
+/** 6 haneli kodu doğrula → oturum (token) döner. */
+export function useVerifyEmail() {
+  return useMutation({
+    mutationFn: async (input: { email: string; code: string }) => {
       const { data } = await companyApi.post<CompanyLoginResponse>(
-        "/company-auth/signup",
+        "/company-auth/verify-email",
         input,
+      );
+      return data;
+    },
+  });
+}
+
+export function useResendEmailCode() {
+  return useMutation({
+    mutationFn: async (email: string) => {
+      const { data } = await companyApi.post<{ success: true }>(
+        "/company-auth/resend-email-code",
+        { email },
       );
       return data;
     },

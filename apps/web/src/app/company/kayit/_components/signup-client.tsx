@@ -2,168 +2,306 @@
 
 import { AuthShell } from "@/components/marketing/auth-shell";
 import { Button } from "@/components/catalyst/button";
+import { Checkbox } from "@/components/catalyst/checkbox";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import {
   useCompanySignup,
+  useResendEmailCode,
   useSetCompanyAuth,
+  useVerifyEmail,
 } from "@/hooks/use-company-auth";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { Check, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 
-const schema = z
-  .object({
-    companyName: z.string().min(2, "Firma adı en az 2 karakter"),
-    firstName: z.string().min(2, "Ad en az 2 karakter"),
-    lastName: z.string().min(2, "Soyad en az 2 karakter"),
-    email: z.string().email("Geçerli bir e-posta giriniz"),
-    password: z
-      .string()
-      .min(8, "Parola en az 8 karakter")
-      .regex(/[a-zA-Z]/, "En az bir harf")
-      .regex(/[0-9]/, "En az bir rakam"),
-    passwordConfirm: z.string().min(1, "Parolayı tekrar girin"),
-  })
-  .refine((d) => d.password === d.passwordConfirm, {
-    message: "Parolalar eşleşmiyor",
-    path: ["passwordConfirm"],
-  });
+// +90 5XX XXX XX XX maskesi
+function formatPhone(raw: string): string {
+  const d = raw.replace(/\D/g, "").replace(/^90/, "").slice(0, 10);
+  const p = [d.slice(0, 3), d.slice(3, 6), d.slice(6, 8), d.slice(8, 10)].filter(
+    Boolean,
+  );
+  return d ? `+90 ${p.join(" ")}`.trim() : "";
+}
 
-type FormData = z.infer<typeof schema>;
+const PW_RULES = [
+  { key: "len", label: "En az 10 karakter", test: (p: string) => p.length >= 10 },
+  { key: "lower", label: "Küçük harf", test: (p: string) => /[a-z]/.test(p) },
+  { key: "upper", label: "Büyük harf", test: (p: string) => /[A-Z]/.test(p) },
+  { key: "digit", label: "Rakam", test: (p: string) => /[0-9]/.test(p) },
+  { key: "special", label: "Özel karakter", test: (p: string) => /[^a-zA-Z0-9]/.test(p) },
+];
+const STRENGTH = ["Çok Zayıf", "Zayıf", "Orta", "İyi", "Güçlü", "Çok Güçlü"];
 
 export function CompanySignupClient() {
   const token = useCompanyAuthStore((s) => s.token);
   const isHydrated = useCompanyAuthStore((s) => s.isHydrated);
   const router = useRouter();
   const signup = useCompanySignup();
+  const verify = useVerifyEmail();
+  const resend = useResendEmailCode();
   const setAuth = useSetCompanyAuth();
-  const [formError, setFormError] = useState<string | null>(null);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormData>({ resolver: zodResolver(schema) });
+  const [form, setForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    phone: "",
+    password: "",
+    passwordConfirm: "",
+  });
+  const [consents, setConsents] = useState({
+    terms: false,
+    mediation: false,
+    kvkk: false,
+    marketing: false,
+    profile: false,
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState<"form" | "verify">("form");
+  const [code, setCode] = useState("");
 
   useEffect(() => {
     if (isHydrated && token) router.replace("/company");
   }, [isHydrated, token, router]);
 
-  const onSubmit = handleSubmit(async (data) => {
-    setFormError(null);
+  const set = (k: keyof typeof form) => (v: string) =>
+    setForm((f) => ({ ...f, [k]: v }));
+
+  const pwScore = useMemo(
+    () => PW_RULES.filter((r) => r.test(form.password)).length,
+    [form.password],
+  );
+  const pwOk = pwScore === PW_RULES.length;
+  const confirmOk =
+    form.passwordConfirm.length > 0 && form.password === form.passwordConfirm;
+  const allConsents = consents.terms && consents.mediation && consents.kvkk;
+  const formValid =
+    form.firstName.trim().length >= 2 &&
+    form.lastName.trim().length >= 2 &&
+    /\S+@\S+\.\S+/.test(form.email) &&
+    form.phone.replace(/\D/g, "").length >= 12 && // 90 + 10 hane
+    pwOk &&
+    confirmOk &&
+    allConsents;
+
+  const submitForm = async () => {
+    setError(null);
     try {
-      const { passwordConfirm: _ignored, ...payload } = data;
-      const res = await signup.mutateAsync(payload);
+      await signup.mutateAsync({
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        email: form.email.trim(),
+        phone: form.phone,
+        password: form.password,
+        termsAccepted: consents.terms,
+        mediationAccepted: consents.mediation,
+        kvkkAccepted: consents.kvkk,
+        marketingConsent: consents.marketing,
+        profileImprovementConsent: consents.profile,
+      });
+      setStep("verify");
+      toast.success("Doğrulama kodu e-postanıza gönderildi");
+    } catch (err) {
+      setError(extractErrorMessage(err, "Kayıt başarısız"));
+    }
+  };
+
+  const submitCode = async () => {
+    setError(null);
+    try {
+      const res = await verify.mutateAsync({ email: form.email.trim(), code });
       setAuth({ token: res.token, user: res.user, company: res.company });
       router.replace("/company");
     } catch (err) {
-      setFormError(extractErrorMessage(err, "Kayıt başarısız"));
+      setError(extractErrorMessage(err, "Kod doğrulanamadı"));
     }
-  });
+  };
+
+  if (step === "verify") {
+    return (
+      <AuthShell
+        title="E-postanı doğrula"
+        subtitle={`${form.email} adresine gönderilen 6 haneli kodu girin`}
+        footer={null}
+      >
+        <div className="space-y-4">
+          <Field>
+            <Label>Doğrulama kodu</Label>
+            <Input
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              maxLength={6}
+              placeholder="000000"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            />
+          </Field>
+          {error ? (
+            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          ) : null}
+          <Button
+            className="w-full"
+            disabled={code.length !== 6 || verify.isPending}
+            onClick={submitCode}
+          >
+            {verify.isPending ? "Doğrulanıyor…" : "Doğrula ve Giriş Yap"}
+          </Button>
+          <button
+            type="button"
+            disabled={resend.isPending}
+            onClick={async () => {
+              await resend.mutateAsync(form.email.trim());
+              toast.success("Yeni kod gönderildi");
+            }}
+            className="w-full text-center text-sm text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
+          >
+            Kod gelmedi mi? Yeniden gönder
+          </button>
+        </div>
+      </AuthShell>
+    );
+  }
 
   return (
     <AuthShell
-      title="Kaydol"
-      subtitle="Firma hesabı oluştur — hem al, hem sat"
+      title="Hesabını aç"
+      subtitle="İlk ihaleni 10 dakikada başlat. Kredi kartı gerekmez."
       footer={
         <>
           Zaten hesabın var mı?{" "}
-          <Link
-            href="/company/login"
-            className="font-semibold text-zinc-900 hover:underline"
-          >
+          <Link href="/company/login" className="font-semibold text-zinc-900 hover:underline">
             Giriş yap
           </Link>
         </>
       }
     >
-      <form onSubmit={onSubmit} className="space-y-3">
-            <Field>
-              <Label>Firma adı</Label>
-              <Input invalid={!!errors.companyName} {...register("companyName")} />
-              {errors.companyName ? (
-                <p className="mt-1 text-xs text-red-600">
-                  {errors.companyName.message}
-                </p>
-              ) : null}
-            </Field>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (formValid) void submitForm();
+        }}
+        className="space-y-3"
+      >
+        <div className="grid grid-cols-2 gap-3">
+          <Field>
+            <Label>Ad</Label>
+            <Input value={form.firstName} onChange={(e) => set("firstName")(e.target.value)} />
+          </Field>
+          <Field>
+            <Label>Soyad</Label>
+            <Input value={form.lastName} onChange={(e) => set("lastName")(e.target.value)} />
+          </Field>
+        </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Field>
-                <Label>Ad</Label>
-                <Input invalid={!!errors.firstName} {...register("firstName")} />
-              </Field>
-              <Field>
-                <Label>Soyad</Label>
-                <Input invalid={!!errors.lastName} {...register("lastName")} />
-              </Field>
-            </div>
+        <Field>
+          <Label>Kurumsal e-posta</Label>
+          <Input type="email" autoComplete="email" value={form.email} onChange={(e) => set("email")(e.target.value)} />
+        </Field>
 
-            <Field>
-              <Label>E-posta</Label>
-              <Input
-                type="email"
-                autoComplete="email"
-                invalid={!!errors.email}
-                {...register("email")}
-              />
-              {errors.email ? (
-                <p className="mt-1 text-xs text-red-600">
-                  {errors.email.message}
-                </p>
-              ) : null}
-            </Field>
+        <Field>
+          <Label>Telefon</Label>
+          <Input
+            type="tel"
+            autoComplete="tel"
+            placeholder="+90 5XX XXX XX XX"
+            value={form.phone}
+            onChange={(e) => set("phone")(formatPhone(e.target.value))}
+          />
+        </Field>
 
-            <Field>
-              <Label>Parola</Label>
-              <Input
-                type="password"
-                autoComplete="new-password"
-                invalid={!!errors.password}
-                {...register("password")}
-              />
-              {errors.password ? (
-                <p className="mt-1 text-xs text-red-600">
-                  {errors.password.message}
-                </p>
-              ) : null}
-            </Field>
-
-            <Field>
-              <Label>Parola (tekrar)</Label>
-              <Input
-                type="password"
-                autoComplete="new-password"
-                invalid={!!errors.passwordConfirm}
-                {...register("passwordConfirm")}
-              />
-              {errors.passwordConfirm ? (
-                <p className="mt-1 text-xs text-red-600">
-                  {errors.passwordConfirm.message}
-                </p>
-              ) : null}
-            </Field>
-
-            {formError ? (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {formError}
+        <Field>
+          <Label>Şifre</Label>
+          <Input type="password" autoComplete="new-password" value={form.password} onChange={(e) => set("password")(e.target.value)} />
+        </Field>
+        {form.password ? (
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100">
+                <div
+                  className={`h-full transition-all ${
+                    pwScore <= 2 ? "bg-red-500" : pwScore <= 4 ? "bg-amber-500" : "bg-emerald-500"
+                  }`}
+                  style={{ width: `${(pwScore / PW_RULES.length) * 100}%` }}
+                />
               </div>
-            ) : null}
+              <span className="text-xs font-medium text-zinc-600">{STRENGTH[pwScore]}</span>
+            </div>
+            <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+              {PW_RULES.map((r) => {
+                const ok = r.test(form.password);
+                return (
+                  <li key={r.key} className={`flex items-center gap-1 text-[11px] ${ok ? "text-emerald-600" : "text-zinc-400"}`}>
+                    {ok ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                    {r.label}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={signup.isPending}
-            >
-              {signup.isPending ? "Oluşturuluyor…" : "Hesap Oluştur"}
-            </Button>
+        <Field>
+          <Label>Şifre (tekrar)</Label>
+          <Input type="password" autoComplete="new-password" value={form.passwordConfirm} onChange={(e) => set("passwordConfirm")(e.target.value)} />
+          {form.passwordConfirm && !confirmOk ? (
+            <p className="mt-1 text-xs text-red-600">Parolalar eşleşmiyor</p>
+          ) : null}
+        </Field>
+
+        <div className="space-y-2 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3">
+          <CheckRow checked={consents.terms} onChange={(v) => setConsents((c) => ({ ...c, terms: v }))}>
+            <Link href="/sozlesmeler/kullanici" target="_blank" className="underline">Kullanıcı sözleşmesini</Link> okudum ve kabul ediyorum
+          </CheckRow>
+          <CheckRow checked={consents.mediation} onChange={(v) => setConsents((c) => ({ ...c, mediation: v }))}>
+            <Link href="/sozlesmeler/aracilik" target="_blank" className="underline">Platform aracılık ve kullanım sözleşmesini</Link> kabul ediyorum
+          </CheckRow>
+          <CheckRow checked={consents.kvkk} onChange={(v) => setConsents((c) => ({ ...c, kvkk: v }))}>
+            <Link href="/sozlesmeler/kvkk" target="_blank" className="underline">KVKK Aydınlatma Metni</Link> bilgilendirmesini okudum (yurt dışı sağlayıcılar: Supabase/Vercel/Resend)
+          </CheckRow>
+          <div className="border-t border-zinc-200/70 pt-2">
+            <CheckRow checked={consents.profile} onChange={(v) => setConsents((c) => ({ ...c, profile: v }))}>
+              <span className="text-zinc-500">Profil ve hizmet iyileştirme (opsiyonel)</span>
+            </CheckRow>
+            <CheckRow checked={consents.marketing} onChange={(v) => setConsents((c) => ({ ...c, marketing: v }))}>
+              <span className="text-zinc-500">Pazarlama ve analitik / ticari ileti (opsiyonel)</span>
+            </CheckRow>
+          </div>
+        </div>
+
+        {error ? (
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </div>
+        ) : null}
+
+        <Button type="submit" className="w-full" disabled={!formValid || signup.isPending}>
+          {signup.isPending ? "Oluşturuluyor…" : "Hesap Oluştur"}
+        </Button>
       </form>
     </AuthShell>
+  );
+}
+
+function CheckRow({
+  checked,
+  onChange,
+  children,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2 text-xs text-zinc-700">
+      <Checkbox checked={checked} onChange={onChange} className="mt-0.5" />
+      <span>{children}</span>
+    </label>
   );
 }

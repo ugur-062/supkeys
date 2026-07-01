@@ -53,10 +53,14 @@ export interface CompanyMeResponse {
 }
 
 export interface CompanySignupInput {
-  companyName: string;
   firstName: string;
   lastName: string;
   email: string;
+  phone: string;
   password: string;
-  phone?: string;
+  termsAccepted: boolean;
+  mediationAccepted: boolean;
+  kvkkAccepted: boolean;
+  marketingConsent?: boolean;
+  profileImprovementConsent?: boolean;
 }

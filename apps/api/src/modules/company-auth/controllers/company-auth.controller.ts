@@ -22,7 +22,11 @@ import {
   UpdateNotificationPrefsDto,
 } from "../dto/account.dto";
 import { CompanyLoginDto } from "../dto/company-login.dto";
-import { CompanySignupDto } from "../dto/company-signup.dto";
+import {
+  CompanySignupDto,
+  ResendEmailCodeDto,
+  VerifyEmailDto,
+} from "../dto/company-signup.dto";
 import { CompanyJwtAuthGuard } from "../guards/company-jwt-auth.guard";
 import { CompanyAuthService } from "../services/company-auth.service";
 import { PasswordResetService } from "../../password-reset/password-reset.service";
@@ -51,6 +55,20 @@ export class CompanyAuthController {
     @Headers("user-agent") userAgent: string,
   ) {
     return this.service.signup(dto, { ip, userAgent });
+  }
+
+  @Post("verify-email")
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.service.verifyEmail(dto.email, dto.code);
+  }
+
+  @Post("resend-email-code")
+  @Throttle({ auth: { limit: 3, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  resendEmailCode(@Body() dto: ResendEmailCodeDto) {
+    return this.service.resendEmailCode(dto.email);
   }
 
   @Post("login")

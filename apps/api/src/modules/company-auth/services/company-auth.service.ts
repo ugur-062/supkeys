@@ -8,17 +8,22 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { authenticator } from "otplib";
+import * as crypto from "node:crypto";
 import * as QRCode from "qrcode";
 import { CompanyRole, type Company, type CompanyUser } from "@supkeys/db";
 import { generateShortCode } from "@supkeys/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { AuditService } from "../../audit/audit.service";
+import { EmailService } from "../../email/email.service";
 import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import { CompanyLoginDto } from "../dto/company-login.dto";
 import { CompanySignupDto } from "../dto/company-signup.dto";
 import type { CompanyJwtPayload } from "../strategies/company-jwt.strategy";
 
 type Ctx = { ip?: string; userAgent?: string };
+
+const EMAIL_CODE_TTL_MIN = 15;
+const EMAIL_CODE_MAX_ATTEMPTS = 5;
 
 @Injectable()
 export class CompanyAuthService {
@@ -29,6 +34,7 @@ export class CompanyAuthService {
     private readonly jwt: JwtService,
     private readonly supabaseAuth: SupabaseAuthService,
     private readonly audit: AuditService,
+    private readonly email: EmailService,
   ) {}
 
   // ============================================================
@@ -46,20 +52,23 @@ export class CompanyAuthService {
       throw new ConflictException("Bu e-posta ile zaten bir hesap var");
     }
 
-    // 1) Supabase auth.users oluştur (email_confirm: true)
+    // 1) Supabase auth.users oluştur
     const { authId } = await this.supabaseAuth.createUser(email, dto.password, {
       type: "company",
     });
 
     const supkeysId = await this.generateUniqueSupkeysId();
+    const now = new Date();
 
     // 2) Company + ilk CompanyUser (owner). Prisma hatasında auth.users temizle.
+    //    Firma adı signup'ta sorulmaz → geçici ad; onboarding'de legalName ile
+    //    güncellenir. E-posta doğrulanmadan (emailVerifiedAt=null) login engelli.
     let result: { company: Company; user: CompanyUser };
     try {
       result = await this.prisma.$transaction(async (tx) => {
         const company = await tx.company.create({
           data: {
-            name: dto.companyName.trim(),
+            name: `${dto.firstName.trim()} ${dto.lastName.trim()} Firması`,
             tier: "STANDARD",
             supkeysId,
           },
@@ -70,17 +79,20 @@ export class CompanyAuthService {
             authId,
             firstName: dto.firstName.trim(),
             lastName: dto.lastName.trim(),
-            phone: dto.phone?.trim() || null,
-            // İlk kullanıcı = sahip → yönetici + her iki operasyon rolü.
+            phone: dto.phone.trim(),
             roles: [
               CompanyRole.YONETICI,
               CompanyRole.SATIN_ALMACI,
               CompanyRole.SATISCI,
             ],
             companyId: company.id,
-            // Supabase email_confirm:true → doğrulanmış kabul. (6-haneli kod
-            // akışı sonraki chunk.)
-            emailVerifiedAt: new Date(),
+            emailVerifiedAt: null, // 6-haneli kod ile doğrulanacak
+            // Zorunlu sözleşme + opsiyonel rıza denetim izi.
+            termsAcceptedAt: now,
+            mediationAcceptedAt: now,
+            kvkkAcceptedAt: now,
+            marketingConsent: dto.marketingConsent ?? false,
+            profileImprovementConsent: dto.profileImprovementConsent ?? false,
           },
         });
         const updatedCompany = await tx.company.update({
@@ -105,8 +117,6 @@ export class CompanyAuthService {
       userAgent: ctx?.userAgent,
     });
 
-    // Bu e-postaya gönderilmiş bekleyen referans davetleri → otomatik INVITE
-    // (kalıcı) bağlantı. Signup'ı bozmaması için hatayı yutar.
     await this.acceptReferralInvites(email, result.company.id).catch((err) =>
       this.logger.error(
         `Referans daveti bağlama hatası (${email}): ${
@@ -115,7 +125,116 @@ export class CompanyAuthService {
       ),
     );
 
-    return this.buildLoginResponse(result.user, result.company);
+    // 3) 6-haneli doğrulama kodu üret + e-posta gönder. Token DÖNMEZ — kullanıcı
+    //    önce kodu doğrulamalı (verifyEmail token verir).
+    await this.issueEmailCode(result.user.id, email, result.user.firstName);
+    return { email, verificationRequired: true as const };
+  }
+
+  // ============================================================
+  // E-POSTA DOĞRULAMA — 6 haneli kod (Resend ile gönderilir)
+  // ============================================================
+
+  private hashCode(code: string): string {
+    return crypto.createHash("sha256").update(code).digest("hex");
+  }
+
+  /** Yeni kod üret, eski kodları geçersiz kıl, e-posta gönder. */
+  private async issueEmailCode(userId: string, email: string, firstName: string) {
+    const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
+    await this.prisma.emailVerificationCode.updateMany({
+      where: { companyUserId: userId, usedAt: null },
+      data: { usedAt: new Date() }, // eskileri kapat
+    });
+    await this.prisma.emailVerificationCode.create({
+      data: {
+        companyUserId: userId,
+        codeHash: this.hashCode(code),
+        expiresAt: new Date(Date.now() + EMAIL_CODE_TTL_MIN * 60_000),
+      },
+    });
+    void this.email
+      .send({
+        to: { email, name: firstName },
+        subject: "E-posta doğrulama kodunuz",
+        templateData: {
+          template: "notification",
+          data: {
+            subject: "E-posta doğrulama kodunuz",
+            heading: "E-posta adresinizi doğrulayın",
+            paragraphs: [
+              "Merhaba,",
+              `Rothern hesabınızı etkinleştirmek için doğrulama kodunuz: ${code}`,
+              `Kod ${EMAIL_CODE_TTL_MIN} dakika geçerlidir.`,
+            ],
+          },
+        },
+        context: { type: "email_verify", id: userId },
+      })
+      .catch((err) =>
+        this.logger.error(
+          `Doğrulama kodu e-postası gönderilemedi (${email}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+  }
+
+  /** Kodu doğrula → emailVerifiedAt set + otomatik login (token). */
+  async verifyEmail(email: string, code: string) {
+    const normalized = email.toLowerCase().trim();
+    const user = await this.prisma.companyUser.findUnique({
+      where: { email: normalized },
+      include: { company: true },
+    });
+    if (!user) throw new BadRequestException("Kod geçersiz veya süresi dolmuş");
+    if (user.emailVerifiedAt) {
+      return this.buildLoginResponse(user, user.company);
+    }
+    const record = await this.prisma.emailVerificationCode.findFirst({
+      where: { companyUserId: user.id, usedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!record || record.expiresAt < new Date()) {
+      throw new BadRequestException("Kod geçersiz veya süresi dolmuş");
+    }
+    if (record.attempts >= EMAIL_CODE_MAX_ATTEMPTS) {
+      throw new BadRequestException(
+        "Çok fazla hatalı deneme — yeni kod isteyin",
+      );
+    }
+    if (record.codeHash !== this.hashCode(code)) {
+      await this.prisma.emailVerificationCode.update({
+        where: { id: record.id },
+        data: { attempts: { increment: 1 } },
+      });
+      throw new BadRequestException("Kod geçersiz veya süresi dolmuş");
+    }
+    const [, updatedUser] = await this.prisma.$transaction([
+      this.prisma.emailVerificationCode.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      }),
+      this.prisma.companyUser.update({
+        where: { id: user.id },
+        data: { emailVerifiedAt: new Date() },
+        include: { company: true },
+      }),
+    ]);
+    return this.buildLoginResponse(updatedUser, updatedUser.company);
+  }
+
+  /** Kodu yeniden gönder (enumeration'a karşı her zaman genel yanıt). */
+  async resendEmailCode(email: string) {
+    const normalized = email.toLowerCase().trim();
+    const user = await this.prisma.companyUser.findUnique({
+      where: { email: normalized },
+      select: { id: true, firstName: true, emailVerifiedAt: true },
+    });
+    if (user && !user.emailVerifiedAt) {
+      await this.issueEmailCode(user.id, normalized, user.firstName);
+    }
+    return { success: true as const };
   }
 
   /**
