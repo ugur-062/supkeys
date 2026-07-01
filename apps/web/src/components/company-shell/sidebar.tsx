@@ -21,6 +21,7 @@ import {
 } from "@/components/catalyst/sidebar";
 import { usePendingApprovalCount } from "@/hooks/use-company-approvals";
 import { useCompanyAuth, useCompanyLogout } from "@/hooks/use-company-auth";
+import { useUnreadCount } from "@/hooks/use-notifications";
 import {
   PORTALS,
   PORTAL_ORDER,
@@ -32,6 +33,7 @@ import {
 import { usePortalStore } from "@/lib/company/portal-store";
 import {
   ArrowRightStartOnRectangleIcon,
+  BellIcon,
   ChevronUpIcon,
   Cog6ToothIcon,
   LockClosedIcon,
@@ -63,6 +65,7 @@ export function CompanySidebar() {
   const roles = user?.roles ?? [];
   const isApprover = roles.includes("ONAYLAYICI");
   const { data: pendingCount } = usePendingApprovalCount(isApprover);
+  const { data: unreadCount } = useUnreadCount();
   const available = accessiblePortals(roles, company?.tier);
   const active: PortalKey =
     activePortalFromPath(pathname) ?? available[0] ?? "satis";
@@ -138,6 +141,20 @@ export function CompanySidebar() {
               </SidebarItem>
             );
           })}
+        </SidebarSection>
+
+        {/* Bildirimler — portaldan bağımsız, okunmamış rozetli */}
+        <SidebarSection>
+          <SidebarItem
+            href="/company/bildirimler"
+            current={isPortalItemActive("/company/bildirimler", pathname)}
+          >
+            <BellIcon data-slot="icon" />
+            <SidebarLabel>Bildirimler</SidebarLabel>
+            {unreadCount && unreadCount > 0 ? (
+              <Badge color="red">{unreadCount > 9 ? "9+" : unreadCount}</Badge>
+            ) : null}
+          </SidebarItem>
         </SidebarSection>
 
         {/* Onaylar — portaldan bağımsız, yalnızca onaylayıcılarda */}

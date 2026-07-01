@@ -35,6 +35,7 @@ import { PublicProfileModule } from "./modules/public-profile/public-profile.mod
 import { CompanyUsersModule } from "./modules/company-users/company-users.module";
 import { EmailModule } from "./modules/email/email.module";
 import { HealthModule } from "./modules/health/health.module";
+import { NotificationModule } from "./modules/notifications/notification.module";
 import { PasswordResetModule } from "./modules/password-reset/password-reset.module";
 import { ResendWebhookModule } from "./modules/resend-webhook/resend-webhook.module";
 import { StorageModule } from "./modules/storage/storage.module";
@@ -86,6 +87,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     CompanyBlocksModule,
     CompanyComplaintsModule,
     CompanyListingsModule,
+    NotificationModule,
     CompanyApprovalsModule,
     CompanyAddressesModule,
     CompanyReportsModule,

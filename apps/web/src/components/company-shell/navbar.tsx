@@ -7,6 +7,7 @@ import {
 } from "@/components/catalyst/navbar";
 import { getCompanyBreadcrumb } from "@/lib/company/nav-config";
 import { usePathname } from "next/navigation";
+import { NotificationBell } from "./notification-bell";
 
 export function CompanyNavbar() {
   const pathname = usePathname();
@@ -18,7 +19,9 @@ export function CompanyNavbar() {
         {breadcrumb}
       </span>
       <NavbarSpacer />
-      <NavbarSection />
+      <NavbarSection>
+        <NotificationBell />
+      </NavbarSection>
     </Navbar>
   );
 }

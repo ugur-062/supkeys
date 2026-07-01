@@ -12,6 +12,7 @@ import { isNotificationEnabled } from "../../common/notifications/notification-p
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { EmailService } from "../email/email.service";
+import { NotificationService } from "../notifications/notification.service";
 import {
   CreateApprovalFlowDto,
   DecideApprovalDto,
@@ -34,6 +35,7 @@ export class CompanyApprovalsService {
     private readonly events: EventEmitter2,
     private readonly email: EmailService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationService,
   ) {}
 
   /** Sırası gelen onaycıya "onayınız bekleniyor" bildirimi (fire-and-forget). */
@@ -63,6 +65,15 @@ export class CompanyApprovalsService {
     if (!isNotificationEnabled(prefs, "approval_pending")) return;
     const webUrl =
       this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+    // In-app kanal — onaycı kullanıcısına.
+    await this.notifications.pushToUser(approverUserId, {
+      type: "approval_pending",
+      title: "Onayınız bekleniyor",
+      body: `"${listing?.title ?? "İhale"}" (${listing?.number ?? "—"}) için onay sırası sizde. Lütfen Onaylar sayfasından inceleyip karar verin.`,
+      ctaLabel: "Onaylar Sayfası",
+      ctaUrl: `${webUrl}/company/onaylar`,
+      listingId,
+    });
     void this.email
       .send({
         to: {

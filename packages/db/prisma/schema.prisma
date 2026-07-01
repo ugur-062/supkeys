@@ -1066,12 +1066,40 @@ model CompanyUser {
 
   passwordResetTokens   PasswordResetToken[]
   emailVerificationCodes EmailVerificationCode[]
+  notifications         Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([companyId])
   @@map("company_users")
+}
+
+/**
+ * Uygulama-içi bildirim (e-postaya ek). KULLANICI bazında — her aktif kullanıcı
+ * kendi zilini/okundu durumunu görür. Bir firmaya bildirim = firmanın aktif
+ * kullanıcılarına fan-out (tercihine göre filtrelenir). type, notification-prefs
+ * anahtarına eşlenir (kapatılabilir olanlar pref'e saygı duyar).
+ */
+model Notification {
+  id            String   @id @default(cuid())
+  companyUserId String
+  companyUser   CompanyUser @relation(fields: [companyUserId], references: [id], onDelete: Cascade)
+  companyId     String // denormalize — firma kapsamı/temizlik için
+
+  type     String // ör. listing_category_match, listing_invitation, bid_awarded
+  title    String
+  body     String
+  ctaUrl   String?
+  ctaLabel String?
+  listingId String? // bağlam referansı (opsiyonel)
+
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([companyUserId, readAt])
+  @@index([companyUserId, createdAt])
+  @@map("notifications")
 }
 
 // ─────────────────────────────────────────────────────────────────────────

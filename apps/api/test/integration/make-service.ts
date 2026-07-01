@@ -1,4 +1,5 @@
 import { CompanyListingsService } from "../../src/modules/company-listings/services/company-listings.service";
+import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { prisma } from "./test-db";
 
 /**
@@ -22,6 +23,8 @@ export function makeService() {
   const config = {
     get: jest.fn().mockReturnValue("http://localhost:3000"),
   };
+  // Gerçek NotificationService (test şeması Prisma) — in-app kayıtlar test edilebilsin.
+  const notifications = new NotificationService(prisma as never);
 
   const service = new CompanyListingsService(
     prisma as never,
@@ -30,7 +33,8 @@ export function makeService() {
     exchangeRates as never,
     email as never,
     config as never,
+    notifications,
   );
 
-  return { service, blocks, approvals, exchangeRates, email, config };
+  return { service, blocks, approvals, exchangeRates, email, config, notifications };
 }

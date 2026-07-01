@@ -3,6 +3,8 @@ import { PORTALS } from "./portals";
 const EXTRA: Record<string, string> = {
   "/company/ayarlar": "Ayarlar",
   "/company/profil": "Profil",
+  "/company/bildirimler": "Bildirimler",
+  "/company/onaylar": "Onaylar",
 };
 
 /** Navbar breadcrumb etiketi — portal nav tanımlarından + birkaç sabit yoldan. */

@@ -30,7 +30,13 @@ export class ListingScheduler {
     this.logger.log(`${due.length} ilan süre dolduğu için CLOSED'a alındı`);
     // Kapanış bildirimleri (davetliler + sahip) — fire-and-forget.
     for (const l of due) {
-      void this.listings.notifyListingClosed(l.id);
+      void this.listings.notifyListingClosed(l.id).catch((err) =>
+        this.logger.error(
+          `Kapanış bildirimi gönderilemedi (${l.id}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
     }
   }
 

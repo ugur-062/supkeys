@@ -30,6 +30,7 @@ import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/com
 import { ConfigService } from "@nestjs/config";
 import { ExchangeRateService } from "../../currency/services/exchange-rate.service";
 import { EmailService } from "../../email/email.service";
+import { NotificationService } from "../../notifications/notification.service";
 import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-category-match.helper";
 import { isNotificationEnabled } from "../../../common/notifications/notification-prefs";
 import { CreateListingDto } from "../dto/create-listing.dto";
@@ -60,6 +61,7 @@ export class CompanyListingsService {
     private readonly exchangeRates: ExchangeRateService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationService,
   ) {}
 
   private webUrl(): string {
@@ -213,9 +215,22 @@ export class CompanyListingsService {
         { type: "listing_closed", id: listingId },
       );
     }
+    // In-app: davetlilere kapanış.
+    await this.notifications.pushToCompanies(
+      invs.map((iv) => iv.invitedCompanyId),
+      {
+        type: "listing_closed",
+        title: "İhale kapandı",
+        body: `${label} ihalesi teklife kapandı. Sonuç açıklandığında bilgilendirileceksiniz.`,
+        ctaLabel: "İhaleyi Gör",
+        ctaUrl: bidUrl,
+        listingId,
+      },
+    );
 
     // Sahibe "karar zamanı" bildirimi.
     const owner = await this.companyRecipient(listing.companyId);
+    const ownerUrl = `${this.webUrl()}/company/satinalma/ihalelerim/${listingId}`;
     if (owner) {
       this.notify(
         owner,
@@ -227,11 +242,20 @@ export class CompanyListingsService {
             `${label} ihaleniz teklife kapandı. Teklifleri inceleyip kazandırma kararınızı verebilirsiniz.`,
           ],
           ctaLabel: "Teklifleri İncele",
-          ctaUrl: `${this.webUrl()}/company/satinalma/ihalelerim/${listingId}`,
+          ctaUrl: ownerUrl,
         },
         { type: "listing_closed_owner", id: listingId },
       );
     }
+    // In-app: sahibe karar zamanı.
+    await this.notifications.pushToCompany(listing.companyId, {
+      type: "listing_closed_owner",
+      title: "Kazandırma kararı zamanı",
+      body: `${label} ihaleniz teklife kapandı. Teklifleri inceleyip kazandırma kararınızı verebilirsiniz.`,
+      ctaLabel: "Teklifleri İncele",
+      ctaUrl: ownerUrl,
+      listingId,
+    });
   }
 
   /**
@@ -339,6 +363,18 @@ export class CompanyListingsService {
       );
       sent++;
     }
+    // In-app kanal (e-postaya paralel) — eşleşen firmaların aktif kullanıcılarına.
+    await this.notifications.pushToCompanies(
+      candidates.map((c) => c.id),
+      {
+        type: "listing_category_match",
+        title: `Kategorinize uygun yeni ${label}`,
+        body: `${verb} kategorilerle eşleşen yeni bir ${label}: "${listing.title ?? "İlan"}" (${listing.number ?? "—"}).`,
+        ctaUrl: url,
+        ctaLabel: isBuyDemand ? "Açık İhaleleri Gör" : "Satış İlanlarını Gör",
+        listingId: listing.id,
+      },
+    );
     this.logger.log(
       `Kategori eşleşmesi (${listing.number}): ${sent} firmaya bildirim (${
         isBuyDemand ? "satıcı" : "alıcı"
@@ -409,6 +445,27 @@ export class CompanyListingsService {
         );
       }
     }
+    // In-app kanal — davet/hatırlatma hedeflerine.
+    await this.notifications.pushToCompanies(
+      targets,
+      mode === "invitation"
+        ? {
+            type: "listing_invitation",
+            title: "İhale daveti",
+            body: `"${listing.title}" (${listing.number ?? "—"}) ihalesine davet edildiniz.`,
+            ctaLabel: "İhaleyi Gör",
+            ctaUrl: url,
+            listingId,
+          }
+        : {
+            type: "listing_reminder",
+            title: "Kapanış hatırlatması",
+            body: `"${listing.title}" (${listing.number ?? "—"}) ihalesinin kapanışı yaklaşıyor. Teklif vermek için son şansınız.`,
+            ctaLabel: "Teklif Ver",
+            ctaUrl: url,
+            listingId,
+          },
+    );
   }
 
   /**
@@ -2054,6 +2111,13 @@ export class CompanyListingsService {
         { type: "bid_awarded", id: order.id },
       );
     }
+    await this.notifications.pushToCompany(bid.bidderCompanyId, {
+      type: "bid_awarded",
+      title: "Teklifiniz kazandı 🎉",
+      body: `Bir ihalede teklifiniz kazandı ve ${order.number} numaralı sipariş oluştu.`,
+      ctaLabel: "Siparişi Gör",
+      ctaUrl: `${this.webUrl()}/company/siparis/${order.id}`,
+    });
     return { orderId: order.id, number: order.number };
   }
 
@@ -2323,6 +2387,16 @@ export class CompanyListingsService {
           { type: "bid_awarded", id: o.id },
         );
       }
+      // In-app: kazanan satıcıya sipariş bildirimi.
+      if (o) {
+        await this.notifications.pushToCompany(sellerCompanyId, {
+          type: "bid_awarded",
+          title: "Teklifiniz kazandı 🎉",
+          body: `Bir ihalede teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
+          ctaLabel: "Siparişi Gör",
+          ctaUrl: `${this.webUrl()}/company/siparis/${o.id}`,
+        });
+      }
     }
     return { orders: created, count: created.length };
   }
@@ -2590,6 +2664,14 @@ export class CompanyListingsService {
             { type: "listing_invitation", id: listingId },
           );
         }
+        await this.notifications.pushToCompanies(toAdd, {
+          type: "listing_invitation",
+          title: "İhale daveti",
+          body: `"${title?.title ?? "İhale"}" (${title?.number ?? "—"}) ihalesine davet edildiniz.`,
+          ctaLabel: "İhaleyi Gör",
+          ctaUrl: url,
+          listingId,
+        });
       }
     }
     return { added: toAdd.length, skipped: wanted.length - toAdd.length };
@@ -2687,6 +2769,14 @@ export class CompanyListingsService {
         { type: "bid_eliminated", id: bidId },
       );
     }
+    await this.notifications.pushToCompany(bid.bidderCompanyId, {
+      type: "bid_eliminated",
+      title: "Teklifiniz değerlendirme dışı kaldı",
+      body: `"${info?.title ?? "İhale"}" (${info?.number ?? "—"}) ihalesinde teklifiniz bu turda elendi. Dilerseniz güncelleyip yeniden teklif verebilirsiniz.`,
+      ctaLabel: "İhaleyi Gör",
+      ctaUrl: `${this.webUrl()}/company/ilan/${listingId}`,
+      listingId,
+    });
     return { ok: true };
   }
 
@@ -2727,7 +2817,13 @@ export class CompanyListingsService {
       where: { id: listing.id },
       data: { status: "CLOSED", closesAt: new Date() },
     });
-    void this.notifyListingClosed(listing.id);
+    void this.notifyListingClosed(listing.id).catch((err) =>
+      this.logger.error(
+        `Kapanış bildirimi gönderilemedi (${listing.id}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
     return { ok: true, status: "CLOSED" };
   }
 

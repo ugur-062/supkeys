@@ -19,6 +19,7 @@ import type {
   ShipOrderDto,
 } from "../dto/order-action.dto";
 import { EmailService } from "../../email/email.service";
+import { NotificationService } from "../../notifications/notification.service";
 
 @Injectable()
 export class CompanyOrdersService {
@@ -28,6 +29,7 @@ export class CompanyOrdersService {
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationService,
   ) {}
 
   private webUrl(): string {
@@ -62,6 +64,15 @@ export class CompanyOrdersService {
     heading: string,
     paragraph: string,
   ): Promise<void> {
+    const ctaUrl = `${this.webUrl()}/company/siparis/${orderId}`;
+    // In-app kanal (order_status_changed transactional → her zaman gider).
+    await this.notifications.pushToCompany(recipientCompanyId, {
+      type: "order_status_changed",
+      title: heading,
+      body: paragraph,
+      ctaLabel: "Siparişi Gör",
+      ctaUrl,
+    });
     const to = await this.companyRecipient(recipientCompanyId);
     if (!to) return;
     void this.email
@@ -74,7 +85,7 @@ export class CompanyOrdersService {
             heading,
             paragraphs: ["Merhaba,", paragraph],
             ctaLabel: "Siparişi Gör",
-            ctaUrl: `${this.webUrl()}/company/siparis/${orderId}`,
+            ctaUrl,
           },
         },
         subject,
