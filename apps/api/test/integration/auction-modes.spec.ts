@@ -8,6 +8,7 @@ import {
   invite,
   makeBid,
   makeCompanyWithUser,
+  makeItem,
   makeListing,
 } from "./factories";
 import { makeService } from "./make-service";
@@ -191,6 +192,36 @@ describe("createNextRound — teklif taşıma modları", () => {
     });
     expect(remaining).toHaveLength(1);
     expect(remaining[0].invitedCompanyId).toBe(bidder.company.id);
+  });
+});
+
+describe("kapanış hatırlatması — teklif vermemişlere", () => {
+  it("reminder yalnızca teklif VERMEMİŞ davetlilere e-posta atar", async () => {
+    const { service, email } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const bidder = await makeCompanyWithUser(prisma, { country: "TR" });
+    const idle = await makeCompanyWithUser(prisma, { country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      closesAt: FUTURE,
+    });
+    const item = await makeItem(prisma, listing.id);
+    await invite(prisma, listing.id, bidder.company.id, owner.user.id);
+    await invite(prisma, listing.id, idle.company.id, owner.user.id);
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: 100,
+      items: [{ itemId: item.id, unitPrice: 100 }],
+    });
+
+    await service.notifyListingInvitees(listing.id, "reminder");
+    // idle (teklif vermemiş) alır; bidder almaz → tek e-posta.
+    expect(email.send).toHaveBeenCalledTimes(1);
   });
 });
 

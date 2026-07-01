@@ -399,15 +399,7 @@ export class CreateListingDto {
   @Max(4)
   decimalPlaces?: number;
 
-  @IsOptional()
-  @IsBoolean()
-  sendClosingReminder?: boolean;
-
-  @IsOptional()
-  @IsInt()
-  @Min(5)
-  @Max(720)
-  reminderMinutesBefore?: number;
+  // Kapanış hatırlatması artık her ilanda otomatik — client kontrol etmez.
 
   @IsOptional()
   @IsBoolean()

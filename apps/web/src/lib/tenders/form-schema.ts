@@ -168,13 +168,6 @@ const baseTenderSchema = z.object({
     .int()
     .min(0)
     .max(4),
-  sendClosingReminder: z.boolean(),
-  reminderMinutesBefore: z
-    .number({ invalid_type_error: "Geçersiz değer" })
-    .int()
-    .min(5)
-    .max(720)
-    .optional(),
   autoExtendOnLateBid: z.boolean(),
   autoExtendThresholdMin: z
     .number({ invalid_type_error: "Geçersiz değer" })
@@ -265,8 +258,6 @@ export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
     "priceDecrementValue",
     "priceDecrementBasis",
     "decimalPlaces",
-    "sendClosingReminder",
-    "reminderMinutesBefore",
     "autoExtendOnLateBid",
     "autoExtendThresholdMin",
     "autoExtendByMinutes",
@@ -326,8 +317,6 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   priceDecrementValue: undefined,
   priceDecrementBasis: undefined,
   decimalPlaces: 2,
-  sendClosingReminder: false,
-  reminderMinutesBefore: 60,
   autoExtendOnLateBid: true,
   autoExtendThresholdMin: 2,
   autoExtendByMinutes: 2,

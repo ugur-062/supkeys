@@ -35,6 +35,12 @@ import { CreateListingDto } from "../dto/create-listing.dto";
 import { NextRoundDto } from "../dto/next-round.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
 
+/**
+ * Kapanış hatırlatması artık her ilanda otomatik — kullanıcıya sorulmaz.
+ * Kapanışa bu kadar dk kala, teklif vermemiş davetlilere e-posta gider.
+ */
+const CLOSING_REMINDER_MINUTES = 60;
+
 @Injectable()
 export class CompanyListingsService {
   private readonly logger = new Logger(CompanyListingsService.name);
@@ -303,12 +309,21 @@ export class CompanyListingsService {
       where: { listingId },
       select: { invitedCompanyId: true },
     });
+    // Hatırlatma yalnızca HENÜZ TEKLİF VERMEMİŞ davetlilere gider (davet ise
+    // herkese). Teklif vermiş firmaları çıkar.
+    let targets = invs.map((iv) => iv.invitedCompanyId);
+    if (mode === "reminder") {
+      const bidders = await this.prisma.listingBid.findMany({
+        where: { listingId, status: "SUBMITTED" },
+        select: { bidderCompanyId: true },
+      });
+      const bidderSet = new Set(bidders.map((b) => b.bidderCompanyId));
+      targets = targets.filter((id) => !bidderSet.has(id));
+    }
     const url = `${this.webUrl()}/company/ilan/${listingId}`;
-    const recipients = await this.companyRecipients(
-      invs.map((iv) => iv.invitedCompanyId),
-    );
-    for (const iv of invs) {
-      const r = recipients.get(iv.invitedCompanyId);
+    const recipients = await this.companyRecipients(targets);
+    for (const invitedCompanyId of targets) {
+      const r = recipients.get(invitedCompanyId);
       if (!r) continue;
       if (mode === "invitation") {
         this.notify(
@@ -486,8 +501,8 @@ export class CompanyListingsService {
           priceDecrementBasis:
             (dto.priceDecrementBasis as ListingDecrementBasis) ?? null,
           decimalPlaces: dto.decimalPlaces ?? 2,
-          sendClosingReminder: dto.sendClosingReminder ?? false,
-          reminderMinutesBefore: dto.reminderMinutesBefore ?? null,
+          sendClosingReminder: true,
+          reminderMinutesBefore: CLOSING_REMINDER_MINUTES,
           autoExtendOnLateBid: dto.autoExtendOnLateBid ?? false,
           autoExtendThresholdMin: dto.autoExtendThresholdMin ?? null,
           autoExtendByMinutes: dto.autoExtendByMinutes ?? null,
@@ -670,8 +685,8 @@ export class CompanyListingsService {
           priceDecrementBasis:
             (dto.priceDecrementBasis as ListingDecrementBasis) ?? null,
           decimalPlaces: dto.decimalPlaces ?? 2,
-          sendClosingReminder: dto.sendClosingReminder ?? false,
-          reminderMinutesBefore: dto.reminderMinutesBefore ?? null,
+          sendClosingReminder: true,
+          reminderMinutesBefore: CLOSING_REMINDER_MINUTES,
           autoExtendOnLateBid: dto.autoExtendOnLateBid ?? false,
           autoExtendThresholdMin: dto.autoExtendThresholdMin ?? null,
           autoExtendByMinutes: dto.autoExtendByMinutes ?? null,

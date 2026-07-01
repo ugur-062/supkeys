@@ -510,7 +510,6 @@ export function Step1Info({ listingId }: { listingId?: string }) {
   const tenderType = watch("type");
   const isLogistics = watch("isLogistics");
   const decrementType = watch("priceDecrementType");
-  const sendClosingReminder = watch("sendClosingReminder");
   const autoExtendOnLateBid = watch("autoExtendOnLateBid");
   const isAuction = tenderType === "ENGLISH_AUCTION";
   const isInternational = watch("isInternational");
@@ -840,40 +839,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
               <FormCheckbox name="requireBidDocument">
                 Tedarikçilerin, teklif dosyası yüklemesi zorunludur.
               </FormCheckbox>
-              <FormCheckbox name="sendClosingReminder">
-                Tedarikçilere, ihale kapanışından önce hatırlatma e-postası
-                gönderilsin.
-              </FormCheckbox>
-              {sendClosingReminder ? (
-                <div className="ml-6 grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <Field
-                    error={
-                      errors.reminderMinutesBefore?.message as
-                        | string
-                        | undefined
-                    }
-                    hint="5-720 dk arası"
-                  >
-                    <Label htmlFor="reminderMinutesBefore">
-                      Kapanışa kaç dk kala?
-                    </Label>
-                    <Input
-                      id="reminderMinutesBefore"
-                      type="number"
-                      min={5}
-                      max={720}
-                      placeholder="60"
-                      hasError={!!errors.reminderMinutesBefore}
-                      {...register("reminderMinutesBefore", {
-                        setValueAs: (v) =>
-                          v === "" || v === undefined
-                            ? undefined
-                            : Number(v),
-                      })}
-                    />
-                  </Field>
-                </div>
-              ) : null}
+              {/* Kapanış hatırlatması artık otomatik — kullanıcıya sorulmaz. */}
 
               {/* Auto-extend (son dakika teklif → süre uzatma) */}
               <FormCheckbox name="autoExtendOnLateBid">
@@ -963,41 +929,8 @@ export function Step1Info({ listingId }: { listingId?: string }) {
                   Tedarikçi teklifi gönderirken en az 1 dosya yüklemelidir.
                 </p>
               </FormCheckbox>
-              <FormCheckbox name="sendClosingReminder">
-                <p>Kapanış hatırlatma e-postası</p>
-                <p className="text-xs font-normal text-zinc-500">
-                  Kapanıştan önce, henüz teklif vermemiş davetli tedarikçilere
-                  hatırlatma gönderilir.
-                </p>
-              </FormCheckbox>
-              {sendClosingReminder ? (
-                <div className="ml-6 grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <Field
-                    error={
-                      errors.reminderMinutesBefore?.message as
-                        | string
-                        | undefined
-                    }
-                    hint="5-720 dk arası"
-                  >
-                    <Label htmlFor="reminderMinutesBefore">
-                      Kapanışa kaç dk kala?
-                    </Label>
-                    <Input
-                      id="reminderMinutesBefore"
-                      type="number"
-                      min={5}
-                      max={720}
-                      placeholder="60"
-                      hasError={!!errors.reminderMinutesBefore}
-                      {...register("reminderMinutesBefore", {
-                        setValueAs: (v) =>
-                          v === "" || v === undefined ? undefined : Number(v),
-                      })}
-                    />
-                  </Field>
-                </div>
-              ) : null}
+              {/* Kapanış hatırlatması artık otomatik: kapanıştan önce, henüz
+                  teklif vermemiş davetlilere gönderilir (kullanıcıya sorulmaz). */}
             </>
           )}
         </div>

@@ -79,8 +79,6 @@ export function mapDetailToForm(
       (l.priceDecrementBasis as TenderFormData["priceDecrementBasis"]) ??
       undefined,
     decimalPlaces: l.decimalPlaces ?? 2,
-    sendClosingReminder: l.sendClosingReminder ?? false,
-    reminderMinutesBefore: l.reminderMinutesBefore ?? undefined,
     autoExtendOnLateBid: l.autoExtendOnLateBid ?? false,
     autoExtendThresholdMin: l.autoExtendThresholdMin ?? undefined,
     autoExtendByMinutes: l.autoExtendByMinutes ?? undefined,

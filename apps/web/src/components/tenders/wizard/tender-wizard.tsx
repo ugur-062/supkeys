@@ -166,8 +166,6 @@ function mapToInput(d: TenderFormData): CreateListingInput {
     priceDecrementValue: d.priceDecrementValue,
     priceDecrementBasis: d.priceDecrementBasis,
     decimalPlaces: d.decimalPlaces,
-    sendClosingReminder: d.sendClosingReminder,
-    reminderMinutesBefore: d.reminderMinutesBefore,
     autoExtendOnLateBid: d.autoExtendOnLateBid,
     autoExtendThresholdMin: d.autoExtendThresholdMin,
     autoExtendByMinutes: d.autoExtendByMinutes,

@@ -137,9 +137,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
           <Fact label="Teklif Açılış">{fmt(l.bidsOpenAt)}</Fact>
           <Fact label="Teklif Kapanış">{fmt(l.closesAt)}</Fact>
           <Fact label="Kapanış Hatırlatması">
-            {l.sendClosingReminder && l.reminderMinutesBefore
-              ? `Kapanışa ${l.reminderMinutesBefore} dk kala`
-              : "Kapalı"}
+            Kapanışa 60 dk kala (otomatik) — teklif vermemiş davetlilere
           </Fact>
           <Fact label="Para Birimi">
             <span className="inline-flex items-center rounded-md bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-800">
