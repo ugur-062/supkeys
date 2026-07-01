@@ -87,6 +87,11 @@ export class CompanyDocsService {
 
   async commit(companyId: string, kind: string, key: string) {
     if (!(kind in DOC_FIELDS)) throw new BadRequestException("Geçersiz belge türü");
+    // GÜVENLİK: key yalnız BU firmanın klasörüne işaret edebilir; aksi halde
+    // başka firmanın/rastgele bir nesnenin URL'i kaydedilebilirdi.
+    if (!key.startsWith(`company-docs/${companyId}/`)) {
+      throw new BadRequestException("Geçersiz dosya anahtarı");
+    }
     const url = this.storage.getPublicUrl(key) ?? key;
     await this.prisma.company.update({
       where: { id: companyId },

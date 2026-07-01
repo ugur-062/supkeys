@@ -107,19 +107,23 @@ export function OnboardingClient() {
 
   const isEuVat = !isTR && EU_VAT.has(f.country);
   const checkVies = async () => {
-    const r = await vies.mutateAsync({
-      countryCode: f.country,
-      vatNumber: f.taxNumber,
-    });
-    if (r.unavailable) {
-      toast.error("VIES servisine şu an ulaşılamıyor, sonra deneyin");
-      return;
-    }
-    if (r.valid) {
-      toast.success("VAT numarası doğrulandı (VIES)");
-      if (r.name && !f.legalName.trim()) set("legalName")(r.name);
-    } else {
-      toast.error("VAT numarası VIES'te geçerli değil");
+    try {
+      const r = await vies.mutateAsync({
+        countryCode: f.country,
+        vatNumber: f.taxNumber,
+      });
+      if (r.unavailable) {
+        toast.error("VIES servisine şu an ulaşılamıyor, sonra deneyin");
+        return;
+      }
+      if (r.valid) {
+        toast.success("VAT numarası doğrulandı (VIES)");
+        if (r.name && !f.legalName.trim()) set("legalName")(r.name);
+      } else {
+        toast.error("VAT numarası VIES'te geçerli değil");
+      }
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "VIES doğrulaması başarısız"));
     }
   };
 
@@ -172,7 +176,11 @@ export function OnboardingClient() {
       {/* Adım göstergesi */}
       <ol className="mt-6 flex items-center gap-2">
         {STEPS.map((s, i) => (
-          <li key={s} className="flex flex-1 items-center gap-2">
+          <li
+            key={s}
+            aria-current={i === step ? "step" : undefined}
+            className="flex flex-1 items-center gap-2"
+          >
             <span
               className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${
                 i < step
@@ -203,18 +211,25 @@ export function OnboardingClient() {
               <Label>Ülke *</Label>
               <Select
                 value={f.country}
-                onChange={(e) => {
-                  set("country")(e.target.value);
-                  set("city")("");
-                  set("district")("");
-                }}
+                onChange={(e) =>
+                  // Ülke değişince ülkeye-özel alanları temizle (TR il/ilçe/vergi
+                  // dairesi ↔ yabancı şehir/eyalet karışmasın).
+                  setF((s) => ({
+                    ...s,
+                    country: e.target.value,
+                    city: "",
+                    district: "",
+                    taxOffice: "",
+                    stateRegion: "",
+                  }))
+                }
               >
                 {COUNTRIES.map((c) => (
                   <option key={c.code} value={c.code}>{c.name}</option>
                 ))}
               </Select>
             </Field>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field>
                 <Label>Firma Türü *</Label>
                 <Select value={f.companyType} onChange={(e) => set("companyType")(e.target.value)}>
@@ -252,7 +267,7 @@ export function OnboardingClient() {
               </Field>
             ) : null}
             {isTR ? (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field>
                   <Label>İl *</Label>
                   <Select value={f.city} onChange={(e) => { set("city")(e.target.value); set("district")(""); }}>
@@ -273,7 +288,7 @@ export function OnboardingClient() {
                 </Field>
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field>
                   <Label>Şehir *</Label>
                   <Input value={f.city} onChange={(e) => set("city")(e.target.value)} />
@@ -284,7 +299,7 @@ export function OnboardingClient() {
                 </Field>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field>
                 <Label>Mahalle</Label>
                 <Input value={f.neighborhood} onChange={(e) => set("neighborhood")(e.target.value)} />
@@ -299,7 +314,7 @@ export function OnboardingClient() {
               <Input value={f.addressLine} onChange={(e) => set("addressLine")(e.target.value)} />
             </Field>
             <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700">
-              <Checkbox checked={f.deliverySameAsBilling} onChange={(v) => set("deliverySameAsBilling")(v)} />
+              <Checkbox aria-label="Fatura adresini teslimat adresi olarak kullan" checked={f.deliverySameAsBilling} onChange={(v) => set("deliverySameAsBilling")(v)} />
               Fatura adresini teslimat adresi olarak kullan
             </label>
           </div>
@@ -307,7 +322,7 @@ export function OnboardingClient() {
 
         {step === 1 ? (
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field>
                 <Label>Ad</Label>
                 <Input value={user?.firstName ?? ""} readOnly disabled />
@@ -317,7 +332,7 @@ export function OnboardingClient() {
                 <Input value={user?.lastName ?? ""} readOnly disabled />
               </Field>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field>
                 <Label>{isTR ? "T.C. Kimlik No *" : "Yetkili Kimlik No"}</Label>
                 <Input
@@ -340,26 +355,50 @@ export function OnboardingClient() {
               </Field>
             </div>
             <div>
-              <Label>Faaliyet Sektörü * (1-3 seçin)</Label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {(roots.data ?? []).map((c) => {
-                  const on = f.mainCategoryIds.includes(c.id);
-                  return (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => toggleCat(c.id)}
-                      className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-                        on
-                          ? "border-zinc-900 bg-zinc-900 text-white"
-                          : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
-                      }`}
-                    >
-                      {c.nameTr}
-                    </button>
-                  );
-                })}
-              </div>
+              <Label id="sector-label">Faaliyet Sektörü * (1-3 seçin)</Label>
+              {roots.isLoading ? (
+                <p className="mt-2 text-xs text-zinc-400">Sektörler yükleniyor…</p>
+              ) : roots.isError ? (
+                <p className="mt-2 text-xs text-red-600">
+                  Sektörler yüklenemedi.{" "}
+                  <button
+                    type="button"
+                    onClick={() => roots.refetch()}
+                    className="font-semibold underline"
+                  >
+                    Tekrar dene
+                  </button>
+                </p>
+              ) : (roots.data ?? []).length === 0 ? (
+                <p className="mt-2 text-xs text-zinc-400">
+                  Sektör listesi bulunamadı.
+                </p>
+              ) : (
+                <div
+                  role="group"
+                  aria-labelledby="sector-label"
+                  className="mt-2 flex flex-wrap gap-2"
+                >
+                  {(roots.data ?? []).map((c) => {
+                    const on = f.mainCategoryIds.includes(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => toggleCat(c.id)}
+                        className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                          on
+                            ? "border-zinc-900 bg-zinc-900 text-white"
+                            : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
+                        }`}
+                      >
+                        {c.nameTr}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <p className="mt-1 text-xs text-zinc-400">{f.mainCategoryIds.length}/3 seçildi</p>
             </div>
           </div>
@@ -367,7 +406,7 @@ export function OnboardingClient() {
 
         {step === 2 ? (
           <div className="space-y-3">
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
               <Summary label="Firma Ünvanı" value={f.legalName} />
               <Summary label="Firma Türü" value={COMPANY_TYPES.find((t) => t.value === f.companyType)?.label} />
               <Summary label="Vergi No / TCKN" value={f.taxNumber} />
@@ -393,7 +432,7 @@ export function OnboardingClient() {
               />
             </dl>
             <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3 text-sm text-zinc-700">
-              <Checkbox checked={f.declarationAccepted} onChange={(v) => set("declarationAccepted")(v)} className="mt-0.5" />
+              <Checkbox aria-label="Verdiğim bilgilerin doğru ve güncel olduğunu beyan ederim" checked={f.declarationAccepted} onChange={(v) => set("declarationAccepted")(v)} className="mt-0.5" />
               Verdiğim bilgilerin doğru ve güncel olduğunu beyan ederim.
             </label>
           </div>

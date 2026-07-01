@@ -67,12 +67,12 @@ const withCount = (c: CategoryNode): CategoryNode => ({
  * cache'inden filtre, ek network çağrısı yok. childCount backend'den gelir.
  */
 export function useRoots() {
-  const { data: tree, isLoading } = useCategoryTree();
+  const { data: tree, isLoading, isError, refetch } = useCategoryTree();
   const data = useMemo(
     () => tree?.filter((c) => c.level === 1).map(withCount),
     [tree],
   );
-  return { data, isLoading };
+  return { data, isLoading, isError, refetch };
 }
 
 /**

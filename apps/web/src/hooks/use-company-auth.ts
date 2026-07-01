@@ -8,6 +8,7 @@ import type {
   CompanySignupInput,
 } from "@/lib/company-auth/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 
 export function useCompanyAuth() {
   const token = useCompanyAuthStore((s) => s.token);
@@ -59,11 +60,18 @@ export function useCompanySignup() {
   });
 }
 
-/** 6 haneli kodu doğrula → oturum (token) döner. */
+/**
+ * 6 haneli kodu doğrula. İlk doğrulamada oturum (token) döner; e-posta zaten
+ * doğrulanmışsa güvenlik gereği token YOK → `{ alreadyVerified: true }`.
+ */
+export type VerifyEmailResult =
+  | CompanyLoginResponse
+  | { alreadyVerified: true };
+
 export function useVerifyEmail() {
   return useMutation({
     mutationFn: async (input: { email: string; code: string }) => {
-      const { data } = await companyApi.post<CompanyLoginResponse>(
+      const { data } = await companyApi.post<VerifyEmailResult>(
         "/company-auth/verify-email",
         input,
       );
@@ -135,18 +143,23 @@ export function useCompleteOnboarding() {
 export function useCompanyMe(enabled = true) {
   const token = useCompanyAuthStore((s) => s.token);
   const setMe = useCompanyAuthStore((s) => s.setMe);
-  return useQuery({
+  const query = useQuery({
     queryKey: ["company-auth", "me"],
     queryFn: async () => {
       const { data } = await companyApi.get<CompanyMeResponse>(
         "/company-auth/me",
       );
-      setMe(data);
       return data;
     },
     enabled: !!token && enabled,
     staleTime: 60 * 1000,
   });
+  // Store senkronu render sonrası yan-etkiyle (queryFn içinde değil — StrictMode
+  // çift-fetch veya cache okumasında setMe atlanmasını önler).
+  useEffect(() => {
+    if (query.data) setMe(query.data);
+  }, [query.data, setMe]);
+  return query;
 }
 
 export function useCompanyLogout() {

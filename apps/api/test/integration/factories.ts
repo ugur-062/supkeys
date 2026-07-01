@@ -72,6 +72,12 @@ export async function makeCompanyWithUser(
     CompanyRole.YONETICI,
   ];
   const user = await makeUser(prisma, company.id, roles);
+  // Gerçek signup akışı gibi: oluşturan kullanıcı firmanın SAHİBİdir.
+  await prisma.company.update({
+    where: { id: company.id },
+    data: { ownerUserId: user.id },
+  });
+  company.ownerUserId = user.id;
   const auth: AuthenticatedCompanyUser = {
     userId: user.id,
     companyId: company.id,

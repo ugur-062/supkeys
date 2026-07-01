@@ -202,8 +202,11 @@ export class CompanyAuthService {
       include: { company: true },
     });
     if (!user) throw new BadRequestException("Kod geçersiz veya süresi dolmuş");
+    // GÜVENLİK: bu uç KİMLİK DOĞRULAMASIZ. Zaten doğrulanmış e-postada kod
+    // kontrolü olmadan token DÖNDÜRÜLEMEZ (hesap ele geçirme). Sadece bilgi ver;
+    // oturum için normal login kullanılır.
     if (user.emailVerifiedAt) {
-      return this.buildLoginResponse(user, user.company);
+      return { alreadyVerified: true as const };
     }
     const record = await this.prisma.emailVerificationCode.findFirst({
       where: { companyUserId: user.id, usedAt: null },
@@ -259,6 +262,21 @@ export class CompanyAuthService {
     companyId: string,
     dto: CompleteOnboardingDto,
   ) {
+    // GÜVENLİK: yalnız firma SAHİBİ onboarding yapabilir (rol ataması +
+    // kurumsal alanları belirler → yetki yükseltme/veri ezme önlenir). Ayrıca
+    // tek seferliktir (tekrar çağrı adresleri silip rolleri yeniden yazardı).
+    const existing = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { ownerUserId: true, onboardingCompletedAt: true },
+    });
+    if (!existing) throw new UnauthorizedException();
+    if (existing.ownerUserId !== userId) {
+      throw new ForbiddenException("Yalnızca firma sahibi doğrulama yapabilir");
+    }
+    if (existing.onboardingCompletedAt) {
+      throw new BadRequestException("Firma doğrulaması zaten tamamlanmış");
+    }
+
     const country = (dto.country || "TR").toUpperCase();
     if (!isValidCountryCode(country)) {
       throw new BadRequestException("Geçersiz ülke seçimi");
@@ -484,9 +502,11 @@ export class CompanyAuthService {
   // VIES — AB VAT numarası ücretsiz oto-doğrulama (Faz 5)
   // ============================================================
   async viesCheck(countryCode: string, vatNumber: string) {
-    const cc = countryCode.toUpperCase().trim();
+    const cc = countryCode.toUpperCase().trim().replace(/[^A-Z]/g, "");
     const num = vatNumber.replace(/[^A-Za-z0-9]/g, "");
-    const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${cc}/vat/${num}`;
+    const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${encodeURIComponent(
+      cc,
+    )}/vat/${encodeURIComponent(num)}`;
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) return { valid: false, unavailable: true as const };
@@ -517,7 +537,11 @@ export class CompanyAuthService {
     const [company, user] = await Promise.all([
       this.prisma.company.findUnique({
         where: { id: companyId },
-        select: { tier: true, companyVerificationStatus: true },
+        select: {
+          tier: true,
+          companyVerificationStatus: true,
+          ownerUserId: true,
+        },
       }),
       this.prisma.companyUser.findUnique({
         where: { id: userId },
@@ -525,6 +549,11 @@ export class CompanyAuthService {
       }),
     ]);
     if (!company || !user) throw new UnauthorizedException();
+    // GÜVENLİK: faturalandırma/paket işlemi yalnız firma sahibinde (billing:manage
+    // OWNER_ONLY). Sahip olmayan doğrulanmış kullanıcı tier'ı yükseltemez.
+    if (company.ownerUserId !== userId) {
+      throw new ForbiddenException("Yalnızca firma sahibi paket yükseltebilir");
+    }
     if (company.tier === "PAKET") return { ok: true as const, tier: "PAKET" };
     if (company.companyVerificationStatus !== "VERIFIED") {
       throw new BadRequestException(

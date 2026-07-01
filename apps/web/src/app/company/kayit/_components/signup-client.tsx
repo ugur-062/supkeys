@@ -21,8 +21,10 @@ import { toast } from "sonner";
 
 // TR: +90 5XX XXX XX XX otomatik maske. Uluslararası (+XX, +90 dışı): olduğu
 // gibi bırakılır (yabancı firma kullanıcıları).
-function formatPhone(raw: string): string {
-  const s = raw.replace(/[^\d+\s()]/g, "");
+export function formatPhone(raw: string): string {
+  let s = raw.replace(/[^\d+\s()]/g, "");
+  // Uluslararası "00" öneki → "+" (ör. 0049… → +49…)
+  if (s.startsWith("00")) s = `+${s.slice(2)}`;
   if (s.startsWith("+") && !s.startsWith("+90")) return s.slice(0, 20);
   const d = s.replace(/\D/g, "").replace(/^90/, "").replace(/^0/, "").slice(0, 10);
   const p = [d.slice(0, 3), d.slice(3, 6), d.slice(6, 8), d.slice(8, 10)].filter(
@@ -67,10 +69,17 @@ export function CompanySignupClient() {
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState<"form" | "verify">("form");
   const [code, setCode] = useState("");
+  const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
     if (isHydrated && token) router.replace("/company");
   }, [isHydrated, token, router]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   const set = (k: keyof typeof form) => (v: string) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -108,6 +117,7 @@ export function CompanySignupClient() {
         profileImprovementConsent: consents.profile,
       });
       setStep("verify");
+      setCooldown(60);
       toast.success("Doğrulama kodu e-postanıza gönderildi");
     } catch (err) {
       setError(extractErrorMessage(err, "Kayıt başarısız"));
@@ -118,10 +128,28 @@ export function CompanySignupClient() {
     setError(null);
     try {
       const res = await verify.mutateAsync({ email: form.email.trim(), code });
+      // Güvenlik: e-posta zaten doğrulanmışsa token DÖNMEZ → normal girişe yönlendir.
+      if ("alreadyVerified" in res) {
+        toast.info("E-postanız zaten doğrulanmış. Lütfen giriş yapın.");
+        router.replace("/company/login");
+        return;
+      }
       setAuth({ token: res.token, user: res.user, company: res.company });
       router.replace("/company");
     } catch (err) {
       setError(extractErrorMessage(err, "Kod doğrulanamadı"));
+    }
+  };
+
+  const handleResend = async () => {
+    if (cooldown > 0 || resend.isPending) return;
+    setError(null);
+    try {
+      await resend.mutateAsync(form.email.trim());
+      setCooldown(60);
+      toast.success("Yeni kod gönderildi");
+    } catch (err) {
+      setError(extractErrorMessage(err, "Kod gönderilemedi"));
     }
   };
 
@@ -158,14 +186,26 @@ export function CompanySignupClient() {
           </Button>
           <button
             type="button"
-            disabled={resend.isPending}
-            onClick={async () => {
-              await resend.mutateAsync(form.email.trim());
-              toast.success("Yeni kod gönderildi");
-            }}
+            disabled={resend.isPending || cooldown > 0}
+            onClick={handleResend}
             className="w-full text-center text-sm text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
           >
-            Kod gelmedi mi? Yeniden gönder
+            {cooldown > 0
+              ? `Yeniden gönder (${cooldown}sn)`
+              : resend.isPending
+                ? "Gönderiliyor…"
+                : "Kod gelmedi mi? Yeniden gönder"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setStep("form");
+              setCode("");
+              setError(null);
+            }}
+            className="w-full text-center text-xs text-zinc-400 hover:text-zinc-600"
+          >
+            ← E-posta adresini değiştir
           </button>
         </div>
       </AuthShell>
@@ -259,20 +299,20 @@ export function CompanySignupClient() {
         </Field>
 
         <div className="space-y-2 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3">
-          <CheckRow checked={consents.terms} onChange={(v) => setConsents((c) => ({ ...c, terms: v }))}>
+          <CheckRow checked={consents.terms} ariaLabel="Kullanıcı sözleşmesini kabul ediyorum" onChange={(v) => setConsents((c) => ({ ...c, terms: v }))}>
             <Link href="/sozlesmeler/kullanici" target="_blank" className="underline">Kullanıcı sözleşmesini</Link> okudum ve kabul ediyorum
           </CheckRow>
-          <CheckRow checked={consents.mediation} onChange={(v) => setConsents((c) => ({ ...c, mediation: v }))}>
+          <CheckRow checked={consents.mediation} ariaLabel="Platform aracılık ve kullanım sözleşmesini kabul ediyorum" onChange={(v) => setConsents((c) => ({ ...c, mediation: v }))}>
             <Link href="/sozlesmeler/aracilik" target="_blank" className="underline">Platform aracılık ve kullanım sözleşmesini</Link> kabul ediyorum
           </CheckRow>
-          <CheckRow checked={consents.kvkk} onChange={(v) => setConsents((c) => ({ ...c, kvkk: v }))}>
+          <CheckRow checked={consents.kvkk} ariaLabel="KVKK Aydınlatma Metni bilgilendirmesini okudum" onChange={(v) => setConsents((c) => ({ ...c, kvkk: v }))}>
             <Link href="/sozlesmeler/kvkk" target="_blank" className="underline">KVKK Aydınlatma Metni</Link> bilgilendirmesini okudum (yurt dışı sağlayıcılar: Supabase/Vercel/Resend)
           </CheckRow>
           <div className="border-t border-zinc-200/70 pt-2">
-            <CheckRow checked={consents.profile} onChange={(v) => setConsents((c) => ({ ...c, profile: v }))}>
+            <CheckRow checked={consents.profile} ariaLabel="Profil ve hizmet iyileştirme (opsiyonel)" onChange={(v) => setConsents((c) => ({ ...c, profile: v }))}>
               <span className="text-zinc-500">Profil ve hizmet iyileştirme (opsiyonel)</span>
             </CheckRow>
-            <CheckRow checked={consents.marketing} onChange={(v) => setConsents((c) => ({ ...c, marketing: v }))}>
+            <CheckRow checked={consents.marketing} ariaLabel="Pazarlama ve analitik / ticari ileti (opsiyonel)" onChange={(v) => setConsents((c) => ({ ...c, marketing: v }))}>
               <span className="text-zinc-500">Pazarlama ve analitik / ticari ileti (opsiyonel)</span>
             </CheckRow>
           </div>
@@ -295,15 +335,24 @@ export function CompanySignupClient() {
 function CheckRow({
   checked,
   onChange,
+  ariaLabel,
   children,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
+  ariaLabel: string;
   children: React.ReactNode;
 }) {
+  // Headless UI Checkbox <input> render etmez → native <label> ilişkisi kurmaz.
+  // Ekran okuyucular için açık aria-label şart.
   return (
     <label className="flex cursor-pointer items-start gap-2 text-xs text-zinc-700">
-      <Checkbox checked={checked} onChange={onChange} className="mt-0.5" />
+      <Checkbox
+        checked={checked}
+        onChange={onChange}
+        aria-label={ariaLabel}
+        className="mt-0.5"
+      />
       <span>{children}</span>
     </label>
   );

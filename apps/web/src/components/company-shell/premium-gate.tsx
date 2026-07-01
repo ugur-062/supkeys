@@ -25,7 +25,7 @@ export function PremiumGate() {
       ? "Belgeleriniz inceleniyor (1-2 iş günü)"
       : me.data?.company.companyVerificationStatus === "REJECTED"
         ? "Reddedildi — belgeleri güncelleyin"
-        : "6 zorunlu belgeyi yükleyip doğrulamaya gönderin";
+        : "Zorunlu belgeleri yükleyip doğrulamaya gönderin";
 
   const doUpgrade = async () => {
     try {
@@ -41,7 +41,7 @@ export function PremiumGate() {
       <div className="rounded-2xl border border-zinc-950/5 bg-white p-6 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
-            <Lock className="h-5 w-5 text-blue-600" />
+            <Lock className="h-5 w-5 text-blue-600" aria-hidden="true" />
           </div>
           <div>
             <h1 className="text-lg font-bold text-zinc-900">
@@ -106,7 +106,11 @@ function Requirement({
             done ? "bg-emerald-500 text-white" : "bg-zinc-100 text-zinc-400"
           }`}
         >
-          {done ? <Check className="h-4 w-4" /> : <Lock className="h-3 w-3" />}
+          {done ? (
+            <Check className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <Lock className="h-3 w-3" aria-hidden="true" />
+          )}
         </span>
         <div>
           <p className="text-sm font-medium text-zinc-900">{title}</p>

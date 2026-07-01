@@ -4,7 +4,7 @@
  */
 import { CompanyRole, Prisma } from "@supkeys/db";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser } from "./factories";
+import { makeCompanyWithUser, makeUser } from "./factories";
 import { makeAuthService } from "./make-auth-service";
 
 // Geçerli TCKN (test): 10000000146. Şahıs firmasında vergi no = TCKN.
@@ -144,6 +144,46 @@ describe("completeOnboarding", () => {
       ),
     ).rejects.toThrow();
   });
+
+  it("GÜVENLİK: sahip olmayan kullanıcı onboarding yapamaz (rol yükseltme engeli)", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    // Aynı firmada ikinci (sahip olmayan) kullanıcı.
+    const other = await makeUser(prisma, owner.company.id, [
+      CompanyRole.SATISCI,
+    ]);
+    await expect(
+      service.completeOnboarding(
+        other.id,
+        owner.company.id,
+        dto(cat.id) as never,
+      ),
+    ).rejects.toThrow(/sahibi/i);
+    // Firma dokunulmamış olmalı.
+    const c = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(c.onboardingCompletedAt).toBeNull();
+  });
+
+  it("GÜVENLİK: onboarding tekrar çağrılamaz (idempotent — adres ezme engeli)", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    await service.completeOnboarding(
+      owner.user.id,
+      owner.company.id,
+      dto(cat.id) as never,
+    );
+    await expect(
+      service.completeOnboarding(
+        owner.user.id,
+        owner.company.id,
+        dto(cat.id) as never,
+      ),
+    ).rejects.toThrow(/zaten tamamlan/i);
+  });
 });
 
 describe("upgradeToPremium (Faz 3 kapısı)", () => {
@@ -171,6 +211,33 @@ describe("upgradeToPremium (Faz 3 kapısı)", () => {
     await expect(
       service.upgradeToPremium(owner.user.id, owner.company.id),
     ).rejects.toThrow(/2FA|iki adım/i);
+  });
+
+  it("GÜVENLİK: sahip olmayan kullanıcı paket yükseltemez", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "STANDARD",
+    });
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { companyVerificationStatus: "VERIFIED" },
+    });
+    // Sahip olmayan, hatta 2FA'lı kullanıcı bile yükseltemez.
+    const other = await makeUser(prisma, owner.company.id, [
+      CompanyRole.YONETICI,
+    ]);
+    await prisma.companyUser.update({
+      where: { id: other.id },
+      data: { twoFactorEnabled: true },
+    });
+    await expect(
+      service.upgradeToPremium(other.id, owner.company.id),
+    ).rejects.toThrow(/sahibi/i);
+    const c = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(c.tier).toBe("STANDARD");
   });
 
   it("VERIFIED + 2FA → tier PAKET", async () => {

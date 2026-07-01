@@ -15,8 +15,9 @@ import axios from "axios";
 import { Lock, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 
 const schema = z.object({
@@ -39,6 +40,13 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
   const [needsVerify, setNeedsVerify] = useState(false);
   const [verifyEmail, setVerifyEmail] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
+  const [cooldown, setCooldown] = useState(0);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
 
   const {
     register,
@@ -74,7 +82,12 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         setVerifyEmail(data.email.trim());
         setNeedsVerify(true);
         setFormError(null);
-        await resend.mutateAsync(data.email.trim()).catch(() => undefined);
+        try {
+          await resend.mutateAsync(data.email.trim());
+          setCooldown(60);
+        } catch {
+          // Kod gönderimi başarısızsa kullanıcı butonla yeniden deneyebilir.
+        }
         return;
       }
       setFormError(extractErrorMessage(err, "Giriş başarısız"));
@@ -85,10 +98,29 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
     setFormError(null);
     try {
       const res = await verify.mutateAsync({ email: verifyEmail, code: verifyCode });
+      // Güvenlik: zaten doğrulanmışsa token dönmez → giriş formuna geri dön.
+      if ("alreadyVerified" in res) {
+        toast.info("E-postanız zaten doğrulanmış. Lütfen tekrar giriş yapın.");
+        setNeedsVerify(false);
+        setVerifyCode("");
+        return;
+      }
       setAuth({ token: res.token, user: res.user, company: res.company });
       router.replace(nextPath);
     } catch (err) {
       setFormError(extractErrorMessage(err, "Kod doğrulanamadı"));
+    }
+  };
+
+  const handleResend = async () => {
+    if (cooldown > 0 || resend.isPending) return;
+    setFormError(null);
+    try {
+      await resend.mutateAsync(verifyEmail);
+      setCooldown(60);
+      toast.success("Yeni kod gönderildi");
+    } catch (err) {
+      setFormError(extractErrorMessage(err, "Kod gönderilemedi"));
     }
   };
 
@@ -123,11 +155,15 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         </Button>
         <button
           type="button"
-          disabled={resend.isPending}
-          onClick={() => resend.mutateAsync(verifyEmail).catch(() => undefined)}
+          disabled={resend.isPending || cooldown > 0}
+          onClick={handleResend}
           className="w-full text-center text-sm text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
         >
-          Kodu yeniden gönder
+          {cooldown > 0
+            ? `Yeniden gönder (${cooldown}sn)`
+            : resend.isPending
+              ? "Gönderiliyor…"
+              : "Kodu yeniden gönder"}
         </button>
       </div>
     );

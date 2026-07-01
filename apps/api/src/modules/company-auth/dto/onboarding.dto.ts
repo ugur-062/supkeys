@@ -8,6 +8,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  Matches,
   MaxLength,
 } from "class-validator";
 import { CompanyRole } from "@supkeys/db";
@@ -106,10 +107,11 @@ export class CompleteOnboardingDto {
   deliveryAddressLine?: string;
 
   // ── Adım 2: Kişisel ──
-  // Yetkili T.C. (TR'de zorunlu — serviste kontrol).
+  // Yetkili kimlik no. TR'de 11-hane TCKN geçerliliği SERVİSTE zorlanır; yabancı
+  // kimlik farklı uzunlukta olabilir → DTO gevşek (@MaxLength).
   @IsOptional()
   @IsString()
-  @Length(11, 11)
+  @MaxLength(30)
   authorizedTckn?: string;
 
   // Ünvan/Rol — bizim CompanyRole enum'umuz.
@@ -138,6 +140,7 @@ export class CompleteOnboardingDto {
 export class ViesCheckDto {
   @IsString()
   @Length(2, 2)
+  @Matches(/^[A-Za-z]{2}$/, { message: "Geçersiz ülke kodu" })
   countryCode!: string;
 
   @IsString()

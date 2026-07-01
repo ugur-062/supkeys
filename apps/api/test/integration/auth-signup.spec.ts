@@ -86,6 +86,25 @@ describe("verifyEmail", () => {
     expect(user.emailVerifiedAt).not.toBeNull();
   });
 
+  it("GÜVENLİK: zaten doğrulanmış e-postada token DÖNMEZ (hesap ele geçirme engeli)", async () => {
+    const { service, email } = makeAuthService();
+    const dto = validSignup();
+    await service.signup(dto as never);
+    const code = extractCode(email);
+    // İlk doğrulama token verir.
+    const first = (await service.verifyEmail(dto.email, code)) as {
+      token?: string;
+    };
+    expect(first.token).toBeTruthy();
+    // Aynı uçtan ikinci çağrı (kimlik doğrulamasız) → token YOK, sadece bilgi.
+    const second = (await service.verifyEmail(dto.email, "000000")) as {
+      token?: string;
+      alreadyVerified?: boolean;
+    };
+    expect(second.token).toBeUndefined();
+    expect(second.alreadyVerified).toBe(true);
+  });
+
   it("çok fazla hatalı deneme → kilit", async () => {
     const { service, email } = makeAuthService();
     const dto = validSignup();

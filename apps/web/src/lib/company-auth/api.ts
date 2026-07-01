@@ -63,7 +63,11 @@ companyApi.interceptors.response.use(
     // Auth formları (giriş/kayıt/doğrulama) hatayı kendi inline kutularında
     // gösterir → interceptor toast atmasın (çift gösterimi önle).
     const reqUrl = error.config?.url ?? "";
-    if (/\/company-auth\/(login|signup|verify-email|resend-email-code)/.test(reqUrl)) {
+    if (
+      /\/company-auth\/(login|signup|verify-email|resend-email-code|onboarding|upgrade-premium|vies-check)/.test(
+        reqUrl,
+      )
+    ) {
       return Promise.reject(error);
     }
 

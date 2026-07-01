@@ -11,6 +11,7 @@ function docsService() {
   const storage = {
     generatePresignedPut: jest.fn(),
     generatePresignedGet: jest.fn().mockResolvedValue("https://r2/get"),
+    getPublicUrl: jest.fn((k: string) => `https://r2/${k}`),
     deleteObject: jest.fn(),
   };
   return new CompanyDocsService(prisma as never, storage as never);
@@ -61,6 +62,22 @@ describe("ülke-farkında belge seti", () => {
     });
     await expect(svc.submit(co.id)).rejects.toThrow(/eksik|belge/i);
   });
+
+  it("GÜVENLİK: başka firmanın/rastgele key'i commit edilemez", async () => {
+    const svc = docsService();
+    const co = await makeCompany(prisma, { country: "TR" });
+    // Başka firmanın klasörüne işaret eden key reddedilir.
+    await expect(
+      svc.commit(co.id, "taxPlate", `company-docs/BASKA-FIRMA/x.pdf`),
+    ).rejects.toThrow(/anahtar|geçersiz/i);
+    // Doğru prefix'li key kabul edilir.
+    const ok = await svc.commit(
+      co.id,
+      "taxPlate",
+      `company-docs/${co.id}/x.pdf`,
+    );
+    expect(ok.url).toContain(`company-docs/${co.id}/`);
+  });
 });
 
 describe("VIES — AB VAT oto-doğrulama", () => {
@@ -88,6 +105,24 @@ describe("VIES — AB VAT oto-doğrulama", () => {
     }) as never;
     const r = await service.viesCheck("DE", "000");
     expect(r.valid).toBe(false);
+  });
+
+  it("GÜVENLİK: countryCode/vatNumber URL'e enjekte edilemez (path sanitize)", async () => {
+    const { service } = makeAuthService();
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ valid: false }),
+    });
+    global.fetch = fetchMock as never;
+    // Kötü niyetli girdi: path traversal + query enjeksiyonu denemesi.
+    await service.viesCheck("DE/../..", "81 12/34?x=1");
+    const calledUrl = String(fetchMock.mock.calls[0][0]);
+    // Ülke kodu sadece harfe indirgenir; segment sınırı (/) enjekte edilemez.
+    expect(calledUrl).toContain("/ms/DE/vat/");
+    expect(calledUrl).not.toContain("..");
+    expect(calledUrl).not.toContain("?x=1");
+    // VAT alfanümerik dışını atar → "811234x1"
+    expect(calledUrl.endsWith("/vat/811234x1")).toBe(true);
   });
 
   it("servis hatası → unavailable (patlamaz)", async () => {
