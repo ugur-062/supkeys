@@ -19,13 +19,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-// +90 5XX XXX XX XX maskesi
+// TR: +90 5XX XXX XX XX otomatik maske. Uluslararası (+XX, +90 dışı): olduğu
+// gibi bırakılır (yabancı firma kullanıcıları).
 function formatPhone(raw: string): string {
-  const d = raw.replace(/\D/g, "").replace(/^90/, "").slice(0, 10);
+  const s = raw.replace(/[^\d+\s()]/g, "");
+  if (s.startsWith("+") && !s.startsWith("+90")) return s.slice(0, 20);
+  const d = s.replace(/\D/g, "").replace(/^90/, "").replace(/^0/, "").slice(0, 10);
   const p = [d.slice(0, 3), d.slice(3, 6), d.slice(6, 8), d.slice(8, 10)].filter(
     Boolean,
   );
-  return d ? `+90 ${p.join(" ")}`.trim() : "";
+  return d ? `+90 ${p.join(" ")}`.trim() : s;
 }
 
 const PW_RULES = [
@@ -84,7 +87,7 @@ export function CompanySignupClient() {
     form.firstName.trim().length >= 2 &&
     form.lastName.trim().length >= 2 &&
     /\S+@\S+\.\S+/.test(form.email) &&
-    form.phone.replace(/\D/g, "").length >= 12 && // 90 + 10 hane
+    form.phone.replace(/\D/g, "").length >= 10 && // TR (90+10) veya uluslararası
     pwOk &&
     confirmOk &&
     allConsents;
@@ -210,7 +213,7 @@ export function CompanySignupClient() {
           <Input
             type="tel"
             autoComplete="tel"
-            placeholder="+90 5XX XXX XX XX"
+            placeholder="+90 5XX XXX XX XX (uluslararası: +ülke kodu)"
             value={form.phone}
             onChange={(e) => set("phone")(formatPhone(e.target.value))}
           />

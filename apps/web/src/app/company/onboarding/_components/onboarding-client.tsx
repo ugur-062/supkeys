@@ -12,7 +12,7 @@ import {
 } from "@/hooks/use-company-auth";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { TURKEY_LOCATIONS } from "@supkeys/shared";
+import { COUNTRIES, TURKEY_LOCATIONS } from "@supkeys/shared";
 import { Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -40,12 +40,14 @@ export function OnboardingClient() {
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [f, setF] = useState({
+    country: "TR",
     legalName: "",
     companyType: "LIMITED",
     taxNumber: "",
     taxOffice: "",
     city: "",
     district: "",
+    stateRegion: "",
     neighborhood: "",
     postalCode: "",
     addressLine: "",
@@ -55,6 +57,7 @@ export function OnboardingClient() {
     mainCategoryIds: [] as string[],
     declarationAccepted: false,
   });
+  const isTR = f.country === "TR";
   const set = (k: keyof typeof f) => (v: unknown) => setF((s) => ({ ...s, [k]: v }));
 
   useEffect(() => {
@@ -77,11 +80,11 @@ export function OnboardingClient() {
   const step1Valid =
     f.legalName.trim().length >= 2 &&
     f.taxNumber.trim().length >= 4 &&
-    !!f.city &&
-    !!f.district &&
+    f.city.trim().length >= 2 &&
+    (isTR ? !!f.district : true) &&
     f.addressLine.trim().length >= 5;
   const step2Valid =
-    f.authorizedTckn.trim().length === 11 &&
+    (isTR ? f.authorizedTckn.trim().length === 11 : true) &&
     f.mainCategoryIds.length >= 1 &&
     f.mainCategoryIds.length <= 3;
 
@@ -100,16 +103,17 @@ export function OnboardingClient() {
       await complete.mutateAsync({
         legalName: f.legalName.trim(),
         companyType: f.companyType,
-        country: "TR",
+        country: f.country,
         taxNumber: f.taxNumber.trim(),
         taxOffice: f.taxOffice.trim() || undefined,
-        city: f.city,
-        district: f.district,
+        city: f.city.trim(),
+        district: f.district.trim() || undefined,
+        stateRegion: f.stateRegion.trim() || undefined,
         neighborhood: f.neighborhood.trim() || undefined,
         postalCode: f.postalCode.trim() || undefined,
         addressLine: f.addressLine.trim(),
         deliverySameAsBilling: f.deliverySameAsBilling,
-        authorizedTckn: f.authorizedTckn.trim(),
+        authorizedTckn: f.authorizedTckn.trim() || undefined,
         role: f.role,
         mainCategoryIds: f.mainCategoryIds,
         declarationAccepted: f.declarationAccepted,
@@ -169,6 +173,21 @@ export function OnboardingClient() {
               <Label>Firma Ünvanı *</Label>
               <Input value={f.legalName} onChange={(e) => set("legalName")(e.target.value)} />
             </Field>
+            <Field>
+              <Label>Ülke *</Label>
+              <Select
+                value={f.country}
+                onChange={(e) => {
+                  set("country")(e.target.value);
+                  set("city")("");
+                  set("district")("");
+                }}
+              >
+                {COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code}>{c.name}</option>
+                ))}
+              </Select>
+            </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field>
                 <Label>Firma Türü *</Label>
@@ -179,34 +198,56 @@ export function OnboardingClient() {
                 </Select>
               </Field>
               <Field>
-                <Label>Vergi No / TCKN *</Label>
-                <Input value={f.taxNumber} onChange={(e) => set("taxNumber")(e.target.value.replace(/\D/g, ""))} />
+                <Label>{isTR ? "Vergi No / TCKN *" : "Vergi / Sicil No *"}</Label>
+                <Input
+                  value={f.taxNumber}
+                  onChange={(e) =>
+                    set("taxNumber")(
+                      isTR ? e.target.value.replace(/\D/g, "") : e.target.value,
+                    )
+                  }
+                />
               </Field>
             </div>
-            <Field>
-              <Label>Vergi Dairesi *</Label>
-              <Input value={f.taxOffice} onChange={(e) => set("taxOffice")(e.target.value)} />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
+            {isTR ? (
               <Field>
-                <Label>İl *</Label>
-                <Select value={f.city} onChange={(e) => { set("city")(e.target.value); set("district")(""); }}>
-                  <option value="">Seçin…</option>
-                  {TURKEY_LOCATIONS.map((l) => (
-                    <option key={l.il} value={l.il}>{l.il}</option>
-                  ))}
-                </Select>
+                <Label>Vergi Dairesi *</Label>
+                <Input value={f.taxOffice} onChange={(e) => set("taxOffice")(e.target.value)} />
               </Field>
-              <Field>
-                <Label>İlçe *</Label>
-                <Select value={f.district} disabled={!f.city} onChange={(e) => set("district")(e.target.value)}>
-                  <option value="">Seçin…</option>
-                  {ilceler.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </Select>
-              </Field>
-            </div>
+            ) : null}
+            {isTR ? (
+              <div className="grid grid-cols-2 gap-3">
+                <Field>
+                  <Label>İl *</Label>
+                  <Select value={f.city} onChange={(e) => { set("city")(e.target.value); set("district")(""); }}>
+                    <option value="">Seçin…</option>
+                    {TURKEY_LOCATIONS.map((l) => (
+                      <option key={l.il} value={l.il}>{l.il}</option>
+                    ))}
+                  </Select>
+                </Field>
+                <Field>
+                  <Label>İlçe *</Label>
+                  <Select value={f.district} disabled={!f.city} onChange={(e) => set("district")(e.target.value)}>
+                    <option value="">Seçin…</option>
+                    {ilceler.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </Select>
+                </Field>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <Field>
+                  <Label>Şehir *</Label>
+                  <Input value={f.city} onChange={(e) => set("city")(e.target.value)} />
+                </Field>
+                <Field>
+                  <Label>Eyalet / Bölge</Label>
+                  <Input value={f.stateRegion} onChange={(e) => set("stateRegion")(e.target.value)} />
+                </Field>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <Field>
                 <Label>Mahalle</Label>
@@ -242,8 +283,16 @@ export function OnboardingClient() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <Field>
-                <Label>T.C. Kimlik No *</Label>
-                <Input value={f.authorizedTckn} maxLength={11} onChange={(e) => set("authorizedTckn")(e.target.value.replace(/\D/g, ""))} />
+                <Label>{isTR ? "T.C. Kimlik No *" : "Yetkili Kimlik No"}</Label>
+                <Input
+                  value={f.authorizedTckn}
+                  maxLength={isTR ? 11 : 30}
+                  onChange={(e) =>
+                    set("authorizedTckn")(
+                      isTR ? e.target.value.replace(/\D/g, "") : e.target.value,
+                    )
+                  }
+                />
               </Field>
               <Field>
                 <Label>Ünvan / Rol *</Label>
@@ -287,7 +336,16 @@ export function OnboardingClient() {
               <Summary label="Firma Türü" value={COMPANY_TYPES.find((t) => t.value === f.companyType)?.label} />
               <Summary label="Vergi No / TCKN" value={f.taxNumber} />
               <Summary label="Vergi Dairesi" value={f.taxOffice} />
-              <Summary label="Adres" value={`${f.addressLine}, ${f.district}/${f.city}`} />
+              <Summary
+                label="Adres"
+                value={`${f.addressLine}, ${[f.district, f.stateRegion, f.city]
+                  .filter(Boolean)
+                  .join(" / ")}`}
+              />
+              <Summary
+                label="Ülke"
+                value={COUNTRIES.find((c) => c.code === f.country)?.name}
+              />
               <Summary label="Yetkili" value={`${user?.firstName} ${user?.lastName}`} />
               <Summary label="Rol" value={ROLES.find((r) => r.value === f.role)?.label} />
               <Summary

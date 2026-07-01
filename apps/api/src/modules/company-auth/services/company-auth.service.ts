@@ -309,6 +309,7 @@ export class CompanyAuthService {
           taxOffice: dto.taxOffice?.trim() || null,
           city: dto.city.trim(),
           district: dto.district?.trim() || null,
+          stateRegion: dto.stateRegion?.trim() || null,
           neighborhood: dto.neighborhood?.trim() || null,
           postalCode: dto.postalCode?.trim() || null,
           addressLine: dto.addressLine.trim(),

@@ -109,6 +109,30 @@ describe("completeOnboarding", () => {
     ).rejects.toThrow(/T\.C\.|TCKN|Kimlik/i);
   });
 
+  it("yabancı firma (DE): TCKN/vergi dairesi/ilçe zorunlu değil, stateRegion kaydedilir", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    await service.completeOnboarding(owner.user.id, owner.company.id, {
+      ...dto(cat.id),
+      country: "DE",
+      companyType: "LIMITED",
+      taxNumber: "DE811234567",
+      taxOffice: undefined,
+      district: undefined,
+      stateRegion: "Bayern",
+      city: "Munich",
+      authorizedTckn: undefined,
+    } as never);
+    const c = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(c.country).toBe("DE");
+    expect(c.stateRegion).toBe("Bayern");
+    expect(c.onboardingCompletedAt).not.toBeNull();
+    expect(c.authorizedTckn).toBeNull();
+  });
+
   it("kategori seçilmezse reddedilir", async () => {
     const { service } = makeAuthService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });

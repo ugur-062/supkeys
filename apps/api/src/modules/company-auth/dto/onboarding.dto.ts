@@ -55,6 +55,12 @@ export class CompleteOnboardingDto {
   @MaxLength(80)
   district?: string;
 
+  // Yabancı adreslerde eyalet/bölge (US state, DE Bundesland vb.).
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  stateRegion?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(100)
