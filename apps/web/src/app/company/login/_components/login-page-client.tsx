@@ -9,8 +9,11 @@ import { CompanyLoginForm } from "./login-form";
 
 function safeNextPath(value: string | null): string {
   if (!value) return "/company";
-  if (!value.startsWith("/company")) return "/company";
-  if (value.startsWith("//")) return "/company";
+  // Yol sınırında eşleşme: /companyfoo gibi lookalike'lar reddedilir.
+  if (value !== "/company" && !value.startsWith("/company/")) return "/company";
+  if (value.includes("//") || value.includes("\\") || value.includes("://")) {
+    return "/company";
+  }
   return value;
 }
 

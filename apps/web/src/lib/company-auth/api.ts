@@ -60,6 +60,13 @@ companyApi.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // Auth formları (giriş/kayıt/doğrulama) hatayı kendi inline kutularında
+    // gösterir → interceptor toast atmasın (çift gösterimi önle).
+    const reqUrl = error.config?.url ?? "";
+    if (/\/company-auth\/(login|signup|verify-email|resend-email-code)/.test(reqUrl)) {
+      return Promise.reject(error);
+    }
+
     if (status === 403) {
       toast.error(pickMessage(data, "Bu işlem için yetkiniz yok"));
       return Promise.reject(error);
