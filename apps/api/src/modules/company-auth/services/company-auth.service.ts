@@ -480,6 +480,41 @@ export class CompanyAuthService {
   }
 
   // ============================================================
+  // PREMIUM'A GEÇ (Faz 3) — doğrulama tamamsa tier=PAKET
+  // ============================================================
+  async upgradeToPremium(userId: string, companyId: string) {
+    const [company, user] = await Promise.all([
+      this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: { tier: true, companyVerificationStatus: true },
+      }),
+      this.prisma.companyUser.findUnique({
+        where: { id: userId },
+        select: { twoFactorEnabled: true },
+      }),
+    ]);
+    if (!company || !user) throw new UnauthorizedException();
+    if (company.tier === "PAKET") return { ok: true as const, tier: "PAKET" };
+    if (company.companyVerificationStatus !== "VERIFIED") {
+      throw new BadRequestException(
+        "Önce şirket belgelerinizi doğrulatmalısınız",
+      );
+    }
+    if (!user.twoFactorEnabled) {
+      throw new BadRequestException(
+        "Önce iki adımlı doğrulamayı (2FA) etkinleştirmelisiniz",
+      );
+    }
+    // TODO(ödeme): premium ücretlendirme burada devreye girecek. Şimdilik
+    // doğrulama tamamlandıysa ücretsiz PAKET'e geçilir (açık seam).
+    await this.prisma.company.update({
+      where: { id: companyId },
+      data: { tier: "PAKET" },
+    });
+    return { ok: true as const, tier: "PAKET" };
+  }
+
+  // ============================================================
   // 2FA (TOTP) — eski ayarlar
   // ============================================================
 

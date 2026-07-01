@@ -1,5 +1,6 @@
 "use client";
 
+import { PremiumGate } from "@/components/company-shell/premium-gate";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { usePortalStore } from "@/lib/company/portal-store";
 import { accessiblePortals, type PortalKey } from "@/lib/company/portals";
@@ -23,20 +24,29 @@ export function PortalGuard({
 
   const available = user ? accessiblePortals(user.roles, company?.tier) : [];
   const allowed = available.includes(portal);
+  // Satınalma'ya rolü uygun (YÖNETİCİ/Satın Almacı) ama STANDARD → premium
+  // doğrulama kapısı göster (yönlendirme yerine). Rolü yoksa yönlendir.
+  const hasPurchasingRole =
+    !!user &&
+    (user.roles.includes("YONETICI") || user.roles.includes("SATIN_ALMACI"));
+  const premiumLocked =
+    portal === "satinalma" &&
+    !allowed &&
+    hasPurchasingRole &&
+    company?.tier !== "PAKET";
 
   useEffect(() => {
     if (!user) return;
-    if (!allowed) {
-      router.replace(available[0] ? `/company/${available[0]}` : "/company/ayarlar");
-    } else {
+    if (allowed) {
       setLastPortal(portal);
+    } else if (!premiumLocked) {
+      router.replace(available[0] ? `/company/${available[0]}` : "/company/ayarlar");
     }
-  }, [user, allowed, available, portal, router, setLastPortal]);
+  }, [user, allowed, premiumLocked, available, portal, router, setLastPortal]);
 
+  if (user && premiumLocked) return <PremiumGate />;
   if (user && !allowed) {
-    return (
-      <div className="p-8 text-sm text-zinc-400">Yönlendiriliyor…</div>
-    );
+    return <div className="p-8 text-sm text-zinc-400">Yönlendiriliyor…</div>;
   }
   return <>{children}</>;
 }

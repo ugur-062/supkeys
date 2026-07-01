@@ -99,6 +99,13 @@ export class CompanyAuthController {
     return this.service.completeOnboarding(user.userId, user.companyId, dto);
   }
 
+  @Post("upgrade-premium")
+  @UseGuards(CompanyJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  upgradePremium(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.upgradeToPremium(user.userId, user.companyId);
+  }
+
   @Patch("me")
   @UseGuards(CompanyJwtAuthGuard)
   updateMe(

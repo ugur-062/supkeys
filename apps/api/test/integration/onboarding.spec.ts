@@ -121,3 +121,53 @@ describe("completeOnboarding", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("upgradeToPremium (Faz 3 kapısı)", () => {
+  it("doğrulanmamış firma reddedilir", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "STANDARD",
+    });
+    await expect(
+      service.upgradeToPremium(owner.user.id, owner.company.id),
+    ).rejects.toThrow(/belge|doğrula/i);
+  });
+
+  it("VERIFIED ama 2FA yoksa reddedilir", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "STANDARD",
+    });
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { companyVerificationStatus: "VERIFIED" },
+    });
+    await expect(
+      service.upgradeToPremium(owner.user.id, owner.company.id),
+    ).rejects.toThrow(/2FA|iki adım/i);
+  });
+
+  it("VERIFIED + 2FA → tier PAKET", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "STANDARD",
+    });
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { companyVerificationStatus: "VERIFIED" },
+    });
+    await prisma.companyUser.update({
+      where: { id: owner.user.id },
+      data: { twoFactorEnabled: true },
+    });
+    const res = await service.upgradeToPremium(owner.user.id, owner.company.id);
+    expect(res.tier).toBe("PAKET");
+    const c = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(c.tier).toBe("PAKET");
+  });
+});
