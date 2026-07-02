@@ -1098,6 +1098,7 @@ export class CompanyListingsService {
             type: true,
             status: true,
             closesAt: true,
+            company: { select: { name: true } },
           },
         },
       },
@@ -1111,6 +1112,7 @@ export class CompanyListingsService {
       currency: b.currency,
       status: b.status,
       round: b.round,
+      version: b.version,
       isBuyNow: b.isBuyNow,
       createdAt: b.createdAt,
       listing: {
@@ -1120,6 +1122,7 @@ export class CompanyListingsService {
         type: b.listing.type,
         status: b.listing.status,
         closesAt: b.listing.closesAt,
+        ownerName: b.listing.company.name,
       },
     }));
   }

@@ -161,6 +161,7 @@ export interface MyBid {
   currency: CurrencyCode;
   status: "SUBMITTED" | "WITHDRAWN" | "WON" | "LOST";
   round: number;
+  version: number;
   isBuyNow: boolean;
   createdAt: string;
   listing: {
@@ -170,6 +171,8 @@ export interface MyBid {
     type: ListingType;
     status: ListingStatus;
     closesAt: string | null;
+    /** İlan sahibi (ALIM'da alıcı, SATIS'ta satıcı) firma adı. */
+    ownerName: string;
   };
 }
 
