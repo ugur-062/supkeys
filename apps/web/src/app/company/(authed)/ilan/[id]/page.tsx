@@ -1339,7 +1339,7 @@ export default function ListingDetailPage() {
 
         <TabGroup>
           <TabList
-            className="flex gap-1 overflow-x-auto border-b border-zinc-950/10"
+            className="flex flex-wrap gap-1 border-b border-zinc-950/10"
             aria-label="İhale bölümleri"
           >
             <Tab className={TRIGGER_CLASSES}>
