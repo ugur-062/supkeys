@@ -82,7 +82,7 @@ export function mapDetailToForm(
       (l.priceDecrementBasis as TenderFormData["priceDecrementBasis"]) ??
       undefined,
     decimalPlaces: l.decimalPlaces ?? 2,
-    autoExtendOnLateBid: l.autoExtendOnLateBid ?? false,
+    autoExtendOnLateBid: l.autoExtendOnLateBid ?? true,
     autoExtendThresholdMin: l.autoExtendThresholdMin ?? undefined,
     autoExtendByMinutes: l.autoExtendByMinutes ?? undefined,
     items:

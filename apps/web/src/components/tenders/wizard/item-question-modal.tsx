@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, HelpCircle, Info, LayoutTemplate, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Controller, useFieldArray, useFormContext } from "react-hook-form";
+import { extractErrorMessage } from "@/lib/tenders/error";
 import { toast } from "sonner";
 
 interface Props {
@@ -109,8 +110,8 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
       });
       toast.success("Soru şablonu kaydedildi");
       setNameOpen(false);
-    } catch {
-      toast.error("Şablon kaydedilemedi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Şablon kaydedilemedi"));
     }
   };
 

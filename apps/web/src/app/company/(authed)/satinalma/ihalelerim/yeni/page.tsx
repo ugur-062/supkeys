@@ -16,7 +16,9 @@ export default function YeniIhalePage() {
     return <Text className="text-sm text-zinc-500">Kopyalanıyor…</Text>;
   }
 
-  if (fromId && source) {
+  // Kopya yalnız KENDİ ALIM ihalenden: ?from paramına güvenilmez —
+  // başka firmanın ilanı (iç notlar dahil) forma taşınmaz, yön karışmaz.
+  if (fromId && source && source.isOwner && source.type === "ALIM") {
     return (
       <TenderWizard initialValues={mapDetailToForm(source, { forCopy: true })} />
     );

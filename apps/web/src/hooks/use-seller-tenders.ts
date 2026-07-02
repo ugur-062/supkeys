@@ -39,7 +39,8 @@ export function useSellerTenders(type: "ALIM" | "SATIS" = "ALIM") {
       );
       return data;
     },
-    staleTime: 30_000,
-    refetchInterval: 30_000, // eski panel 30sn poll paritesi
+    staleTime: 10_000,
+    refetchInterval: 15_000, // canlı liste — teklif durumu/kapanış tazelensin
+    refetchOnWindowFocus: true,
   });
 }

@@ -35,5 +35,9 @@ export function useTenders(type: "ALIM" | "SATIS" = "ALIM") {
       );
       return data;
     },
+    // Gelen yeni teklif/davet sayaçları yenilemeden görünsün.
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+    staleTime: 10_000,
   });
 }

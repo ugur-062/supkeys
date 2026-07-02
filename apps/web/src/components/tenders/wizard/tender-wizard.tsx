@@ -24,7 +24,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, ArrowRight, Check, Send } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { MissingTargetWarningDialog } from "./missing-target-warning-dialog";
@@ -198,8 +198,6 @@ export function TenderWizard({
 } = {}) {
   const router = useRouter();
   const isEdit = mode === "edit";
-  const isSatis =
-    (initialValues?.listingType ?? listingType) === "SATIS";
   const [step, setStep] = useState(0);
   const [publishOpen, setPublishOpen] = useState(false);
   const [missingOpen, setMissingOpen] = useState(false);
@@ -211,6 +209,14 @@ export function TenderWizard({
     defaultValues: initialValues ?? { ...DEFAULT_FORM_VALUES, listingType },
     mode: "onTouched",
   });
+  // Yön form değerinden CANLI türetilir — şablon yüklemesi listingType'ı
+  // değiştirebilir; başlık/adım/çıkış rotası statik prop'a bağlanamaz.
+  const isSatis = form.watch("listingType") === "SATIS";
+  // Adım değişiminde başlığa odak — klavye/ekran okuyucu yeni adımı duysun.
+  const headingRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [step]);
 
   const create = useCreateListing();
   const update = useUpdateListing(listingId ?? "");
@@ -222,9 +228,18 @@ export function TenderWizard({
     if (!id) return;
     const tpl = (templates.data ?? []).find((t) => t.id === id);
     if (!tpl) return;
+    // Tarih/davetliler şablonda saklanmaz; yön mevcut sihirbazın yönünde kalır.
+    const {
+      bidsCloseAt: _c,
+      bidsOpenAt: _o,
+      invitedSupplierIds: _i,
+      listingType: _t,
+      ...payload
+    } = tpl.payload as Partial<TenderFormData>;
     form.reset({
       ...DEFAULT_FORM_VALUES,
-      ...(tpl.payload as Partial<TenderFormData>),
+      ...payload,
+      listingType: form.getValues("listingType"),
     });
     setStep(0);
     toast.success(`"${tpl.name}" şablonu yüklendi`);
@@ -232,7 +247,15 @@ export function TenderWizard({
 
   const handleSaveTemplate = async (name: string) => {
     try {
-      await saveTemplate.mutateAsync({ name, payload: form.getValues() });
+      // Dialog metniyle tutarlı: kapanış/açılış tarihi ve davetliler her
+      // ihalede yeniden seçilir — şablona YAZILMAZ.
+      const {
+        bidsCloseAt: _c,
+        bidsOpenAt: _o,
+        invitedSupplierIds: _i,
+        ...payload
+      } = form.getValues();
+      await saveTemplate.mutateAsync({ name, payload });
       toast.success(`"${name}" şablonu kaydedildi`);
       setTemplateOpen(false);
     } catch (err) {
@@ -366,7 +389,7 @@ export function TenderWizard({
         </div>
 
         {/* Başlık */}
-        <div>
+        <div ref={headingRef} tabIndex={-1} className="outline-none">
           <Heading>
             {isEdit
               ? isSatis
@@ -447,6 +470,7 @@ export function TenderWizard({
         onConfirm={doSubmit}
         invitedCount={form.getValues("invitedSupplierIds")?.length ?? 0}
         isSubmitting={submitting}
+        isSatis={isSatis}
       />
       <SaveTemplateDialog
         open={templateOpen}

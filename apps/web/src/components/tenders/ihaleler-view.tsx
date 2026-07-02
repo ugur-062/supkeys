@@ -88,12 +88,31 @@ export function IhalelerView({
   const [scope, setScope] = useState<"all" | "dom" | "intl">("all");
   const [page, setPage] = useState(1);
 
-  // Durum sayaçları
+  // Durum sayaçları — durum DIŞINDAKİ aktif filtrelerle tutarlı (facet):
+  // "Tümü (N)" etiketi görünen listeyle aynı evreni saysın.
+  const facetRows = useMemo(() => {
+    const days = RANGE_DAYS[range];
+    const minDate = days ? Date.now() - days * 86_400_000 : null;
+    const q = search.trim().toLocaleLowerCase("tr");
+    return all.filter((t) => {
+      if (createdById && t.createdById !== createdById) return false;
+      if (scope !== "all" && t.isInternational !== (scope === "intl"))
+        return false;
+      if (minDate && new Date(t.createdAt).getTime() < minDate) return false;
+      if (
+        q &&
+        !t.title.toLocaleLowerCase("tr").includes(q) &&
+        !t.tenderNumber.toLocaleLowerCase("tr").includes(q)
+      )
+        return false;
+      return true;
+    });
+  }, [all, createdById, scope, range, search]);
   const stats = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const t of all) c[t.status] = (c[t.status] ?? 0) + 1;
+    for (const t of facetRows) c[t.status] = (c[t.status] ?? 0) + 1;
     return c;
-  }, [all]);
+  }, [facetRows]);
 
   // Açan kişiler (ALIM'da satın almacılar, SATIS'ta satışçılar)
   const buyers = useMemo(() => {
@@ -232,7 +251,7 @@ export function IhalelerView({
               value: o.value,
               label:
                 o.value === "all"
-                  ? `Tümü (${all.length})`
+                  ? `Tümü (${facetRows.length})`
                   : `${o.label}${stats[o.value] ? ` (${stats[o.value]})` : ""}`,
             }))}
             ariaLabel="Durum filtresi"

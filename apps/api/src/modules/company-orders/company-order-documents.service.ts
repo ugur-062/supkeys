@@ -53,6 +53,16 @@ export class CompanyOrderDocumentsService {
     },
   ) {
     await this.assertCanUpload(user, orderId, input.type);
+    // F4 anti-tamper (diğer belge modülleriyle aynı): istemci yalnızca BU
+    // sipariş+tip için üretilmiş key'i kaydedebilir — rastgele bucket nesnesi
+    // kayıt edilip presigned GET ile indirilebilir hâle getirilemez.
+    const expectedPrefix = `company-orders/${orderId}/${input.type.toLowerCase()}/`;
+    if (!input.key.startsWith(expectedPrefix)) {
+      throw new BadRequestException("Geçersiz dosya anahtarı");
+    }
+    if (!ALLOWED_MIME.includes(input.mimeType)) {
+      throw new BadRequestException("Sadece PDF veya görsel yüklenebilir");
+    }
     const doc = await this.prisma.companyOrderDocument.create({
       data: {
         orderId,

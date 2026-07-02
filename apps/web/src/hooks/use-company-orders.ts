@@ -109,8 +109,13 @@ export function useOrders() {
       const { data } = await companyApi.get<CompanyOrder[]>("/company/orders");
       return data;
     },
+    // Karşı tarafın adımları (onay/kargo/ödeme) yenilemeden görünsün.
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 }
+
+const ORDER_TERMINAL = new Set(["COMPLETED", "REJECTED", "CANCELLED"]);
 
 export function useOrder(id: string) {
   return useQuery({
@@ -121,6 +126,14 @@ export function useOrder(id: string) {
       );
       return data;
     },
+    // Aktif siparişte karşı tarafın adımı (onay/kargo/ödeme kararı)
+    // yenilemeden görünsün; kapanmış sipariş poll'lanmaz.
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      if (!d || ORDER_TERMINAL.has(d.status)) return false;
+      return 10_000;
+    },
+    refetchOnWindowFocus: true,
   });
 }
 

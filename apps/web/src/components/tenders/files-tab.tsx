@@ -41,6 +41,11 @@ export function FilesTab({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    // 50MB ön-kontrolü — R2 PUT'ta patlamadan anlaşılır mesaj.
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error(`"${file.name}" 50MB sınırını aşıyor`);
+      return;
+    }
     try {
       await upload.mutateAsync(file);
       toast.success("Dosya yüklendi");

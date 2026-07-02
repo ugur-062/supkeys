@@ -217,7 +217,7 @@ export function SellerTendersView({
   const [buyer, setBuyer] = useState("all");
   const [page, setPage] = useState(1);
 
-  const all = tenders.data ?? [];
+  const all = useMemo(() => tenders.data ?? [], [tenders.data]);
 
   // Müşteri + kategori seçenekleri veriden türetilir (sayaçlı).
   const buyerOptions = useMemo(() => {
@@ -232,7 +232,7 @@ export function SellerTendersView({
         .sort((a, b) => b[1] - a[1])
         .map(([name, n]) => ({ value: name, label: `${name} (${n})` })),
     ];
-  }, [all]);
+  }, [all, isSatis]);
 
 
   const filtered = useMemo(() => {
@@ -252,8 +252,7 @@ export function SellerTendersView({
       }
       return true;
     });
-    const time = (iso: string | null) =>
-      iso ? new Date(iso).getTime() : Number.MAX_SAFE_INTEGER;
+    const time = (iso: string | null) => (iso ? new Date(iso).getTime() : null);
     rows.sort((a, b) => {
       // Kategori eşleşenler her sıralamada üstte (özellikle maskeli önizlemede
       // standart üyeye "senin kategorinde ihale var" sinyali).
@@ -262,8 +261,13 @@ export function SellerTendersView({
         return (
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
-      if (sort === "closing-desc") return time(b.closesAt) - time(a.closesAt);
-      return time(a.closesAt) - time(b.closesAt);
+      // Kapanışı olmayanlar yönden bağımsız SONA (desc'te başa sıçramasın).
+      const ta = time(a.closesAt);
+      const tb = time(b.closesAt);
+      if (ta === null && tb === null) return 0;
+      if (ta === null) return 1;
+      if (tb === null) return -1;
+      return sort === "closing-desc" ? tb - ta : ta - tb;
     });
     return rows;
   }, [all, tab, sort, range, buyer, search]);
@@ -351,12 +355,23 @@ export function SellerTendersView({
       {tenders.isLoading ? (
         <ListSkeleton rows={5} />
       ) : tenders.isError ? (
-        <EmptyState
-          icon={ClipboardList}
-          title="İhaleler yüklenemedi"
-          description="Bir hata oluştu — lütfen sayfayı yenileyin."
-          variant="no-results"
-        />
+        <div className="space-y-3">
+          <EmptyState
+            icon={ClipboardList}
+            title="İhaleler yüklenemedi"
+            description="Bir hata oluştu — tekrar deneyin."
+            variant="no-results"
+          />
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => tenders.refetch()}
+              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Tekrar dene
+            </button>
+          </div>
+        </div>
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={ClipboardList}

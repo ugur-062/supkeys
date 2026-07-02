@@ -692,7 +692,10 @@ export function Step1Info({ listingId }: { listingId?: string }) {
                 min={0}
                 step="0.01"
                 hasError={!!errors.minPrice}
-                {...register("minPrice", { valueAsNumber: true })}
+                {...register("minPrice", {
+                  setValueAs: (v) =>
+                    v === "" || v == null ? undefined : Number(v),
+                })}
               />
             </Field>
             <Field

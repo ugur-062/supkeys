@@ -127,7 +127,8 @@ describe("TeklifVerPage — form", () => {
     expect(screen.getByText("Fiyatlandırılan kalem 1/1")).toBeInTheDocument();
 
     // Teslim tarihi + geçerlilik dolu değil / soru cevapsız → buton disabled.
-    const submitBtn = screen.getByRole("button", { name: "Teklif Gönder" });
+    // Masaüstü + mobil yapışkan çubukta iki eş isimli buton var — ilki (masaüstü).
+    const submitBtn = screen.getAllByRole("button", { name: "Teklif Gönder" })[0]!;
     expect(submitBtn).toBeDisabled();
     expect(
       screen.getByText(/zorunlu soru cevaplanmadı/),
@@ -177,7 +178,9 @@ describe("TeklifVerPage — form", () => {
       new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10),
     );
 
-    await user.click(screen.getByRole("button", { name: "Teklif Gönder" }));
+    await user.click(
+      screen.getAllByRole("button", { name: "Teklif Gönder" })[0]!,
+    );
     // Onay dialog'u açılır → onayla. ("Toplam Teklif" sidebar'da da olduğundan
     // dialog varlığını onay butonuyla doğruluyoruz.)
     const confirmBtn = await screen.findByRole("button", {

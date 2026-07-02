@@ -16,6 +16,8 @@ interface Props {
   onConfirm: () => void;
   invitedCount: number;
   isSubmitting: boolean;
+  /** SATIS'ta davet edilen taraf ALICI'dır. */
+  isSatis?: boolean;
 }
 
 export function PublishConfirmDialog({
@@ -24,7 +26,11 @@ export function PublishConfirmDialog({
   onConfirm,
   invitedCount,
   isSubmitting,
+  isSatis = false,
 }: Props) {
+  const rolDat = isSatis ? "Alıcılara" : "Tedarikçilere";
+  const rolSingleDat = isSatis ? "alıcıya" : "tedarikçiye";
+  const rolSingle = isSatis ? "alıcı" : "tedarikçi";
   return (
     <Dialog
       open={open}
@@ -39,20 +45,18 @@ export function PublishConfirmDialog({
         </div>
         <div>
           <DialogTitle>İhaleyi Yayınla</DialogTitle>
-          <DialogDescription>
-            Tedarikçilere davet gönderilecek
-          </DialogDescription>
+          <DialogDescription>{rolDat} davet gönderilecek</DialogDescription>
         </div>
       </div>
 
       <DialogBody className="space-y-3 text-sm text-zinc-700">
         <p>
-          <strong className="text-zinc-900">{invitedCount}</strong> tedarikçiye
-          davet e-postası gönderilecek.
+          <strong className="text-zinc-900">{invitedCount}</strong>{" "}
+          {rolSingleDat} davet e-postası gönderilecek.
         </p>
         <p className="p-3 rounded-lg bg-warning-50 border border-warning-200 text-xs text-warning-800">
           İlk teklif geldikten sonra kalemler değiştirilemez. Yayın sonrası
-          yeni tedarikçi davet edilebilir; kapanıştan önce iptal mümkündür.
+          yeni {rolSingle} davet edilebilir; kapanıştan önce iptal mümkündür.
         </p>
         <p className="text-xs text-zinc-500">Devam edilsin mi?</p>
       </DialogBody>

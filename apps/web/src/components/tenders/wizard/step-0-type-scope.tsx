@@ -89,6 +89,7 @@ function TargetCountryPicker({
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Ülke ara…"
+        aria-label="Hedef ülke ara"
         className="mt-3 w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
       />
       <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-zinc-100">

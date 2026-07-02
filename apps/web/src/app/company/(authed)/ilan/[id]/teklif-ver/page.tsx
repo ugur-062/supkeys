@@ -138,6 +138,18 @@ export default function TeklifVerPage() {
   // Henüz teklif kaydı yokken seçilen dosyalar — kayıt sonrası yüklenir.
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
 
+  // İlan değişirse (client-side geçiş) önceki formun state'i taşınmasın.
+  useEffect(() => {
+    setSeeded(false);
+    setItemState({});
+    setSingleAmount("");
+    setDeliveryDate("");
+    setValidityDays("30");
+    setCurrency("");
+    setNote("");
+    setStagedFiles([]);
+  }, [id]);
+
   // Mevcut tekliften tohumla (taslak devam / eleme sonrası / eksiltme yeni tur).
   useEffect(() => {
     if (!l || seeded) return;
@@ -323,17 +335,22 @@ export default function TeklifVerPage() {
   const uploadStaged = async (): Promise<{ ok: boolean }> => {
     if (stagedFiles.length === 0) return { ok: true };
     const failed: File[] = [];
+    let lastError: unknown = null;
     for (const f of stagedFiles) {
       try {
         await uploadDoc.mutateAsync(f);
-      } catch {
+      } catch (err) {
+        lastError = err;
         failed.push(f);
       }
     }
     setStagedFiles(failed);
     if (failed.length > 0) {
       toast.error(
-        `${failed.length} dosya yüklenemedi — listede kaldı, tekrar deneyin`,
+        `${failed.length} dosya yüklenemedi (${extractErrorMessage(
+          lastError,
+          "bilinmeyen hata",
+        )}) — listede kaldı, tekrar deneyin`,
       );
       return { ok: false };
     }
@@ -370,9 +387,14 @@ export default function TeklifVerPage() {
     try {
       await placeBid.mutateAsync(buildPayload(true));
       const up = await uploadStaged();
-      toast.success("Taslak kaydedildi");
-      if (up.ok) router.push(detailHref);
-      // Yükleme başarısızsa sayfada kal — dosyalar staged listede duruyor.
+      if (up.ok) {
+        toast.success("Taslak kaydedildi");
+        router.push(detailHref);
+      } else {
+        // Yükleme başarısız: taslak kaydedildi ama dosyalar bekliyor —
+        // çelişkili success yerine tek net mesaj (hata toast'ı uploadStaged attı).
+        toast.info("Taslak kaydedildi — yüklenemeyen dosyalar listede bekliyor");
+      }
     } catch (err) {
       toast.error(extractErrorMessage(err, "Taslak kaydedilemedi"));
     }
@@ -451,6 +473,9 @@ export default function TeklifVerPage() {
               Taban fiyat: {money(Number(l.minPrice), l.primaryCurrency ?? "TRY")}
             </span>{" "}
             — altındaki teklifler kabul edilmez.
+            {effectiveCurrency !== (l.primaryCurrency ?? "TRY")
+              ? " Farklı para birimi seçtiniz — taban kıyası sunucuda yapılır."
+              : ""}
             {l.buyNowPrice
               ? ` Hemen-Al: ${money(Number(l.buyNowPrice), l.primaryCurrency ?? "TRY")} (bu fiyata ulaşan teklif yerine ihale detayındaki Hemen Al kullanılır).`
               : ""}{" "}
@@ -568,6 +593,7 @@ export default function TeklifVerPage() {
                                   type="number"
                                   min={0}
                                   step="0.01"
+                                  aria-label={`${it.name} birim fiyat`}
                                   value={st?.price ?? ""}
                                   onChange={(e) =>
                                     setItem(it.id, { price: e.target.value })
@@ -603,6 +629,7 @@ export default function TeklifVerPage() {
                             <Label>Kalem Teslim Tarihi (opsiyonel)</Label>
                             <Input
                               type="date"
+                              aria-label={`${it.name} teslim tarihi`}
                               min={new Date().toISOString().slice(0, 10)}
                               value={st?.deliveryDate ?? ""}
                               onChange={(e) =>
@@ -736,7 +763,15 @@ export default function TeklifVerPage() {
                   </a>
                   <button
                     type="button"
-                    onClick={() => deleteDoc.mutate(d.id)}
+                    onClick={async () => {
+                        if (!confirm(`"${d.fileName}" silinsin mi?`)) return;
+                        try {
+                          await deleteDoc.mutateAsync(d.id);
+                          toast.success("Belge silindi");
+                        } catch (err) {
+                          toast.error(extractErrorMessage(err, "Belge silinemedi"));
+                        }
+                      }}
                     disabled={deleteDoc.isPending}
                     className="shrink-0 text-zinc-400 hover:text-red-600"
                   >
@@ -847,6 +882,27 @@ export default function TeklifVerPage() {
           </div>
         </div>
       </div>
+
+      {/* Mobil yapışkan CTA — toplam + gönder (masaüstünde sağ kolon var) */}
+      <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
+        <div>
+          <p className="text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">
+            Toplam Teklif
+          </p>
+          <p className="text-base font-bold text-zinc-950 tabular-nums">
+            {money(total, effectiveCurrency)}
+          </p>
+        </div>
+        <Button
+          color="emerald"
+          disabled={problems.length > 0 || placeBid.isPending}
+          onClick={() => setConfirmOpen(true)}
+        >
+          Teklif Gönder
+        </Button>
+      </div>
+      {/* Yapışkan çubuk içeriği örtmesin */}
+      <div className="h-16 lg:hidden" />
 
       {/* Gönderim onayı */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>

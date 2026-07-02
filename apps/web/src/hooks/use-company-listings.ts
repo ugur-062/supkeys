@@ -186,6 +186,10 @@ export function useMyBids() {
       );
       return data;
     },
+    // Eleme/kazanma gibi durum değişiklikleri yenilemeden görünsün.
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+    staleTime: 10_000,
   });
 }
 
@@ -374,11 +378,15 @@ export function useListingDetail(id: string) {
       );
       return data;
     },
-    // Açık eksiltme açıkken canlı güncelleme için poll.
+    // Canlı güncelleme: açık artırma/eksiltmede 4sn; diğer AÇIK ilanlarda
+    // 10sn (yeni teklif/eleme/durum değişikliği yenilemeden görünsün).
+    // Kapanmış ilan poll'lanmaz.
     refetchInterval: (query) => {
       const d = query.state.data;
-      return d?.english?.isEnglishAuction && d.status === "OPEN" ? 4000 : false;
+      if (!d || d.status !== "OPEN") return false;
+      return d.english?.isEnglishAuction ? 4000 : 10_000;
     },
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -498,7 +506,7 @@ export function useUpdateInternalNotes(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-listings"] }),
+    onSuccess: () => invalidateListingCaches(qc),
   });
 }
 

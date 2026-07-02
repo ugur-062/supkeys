@@ -11,7 +11,7 @@ import {
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { BookmarkPlus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Props {
   open: boolean;
@@ -33,6 +33,10 @@ export function SaveTemplateDialog({
   defaultName,
 }: Props) {
   const [name, setName] = useState(defaultName ?? "");
+  // Dialog hep mount olduğundan ilk-state bayatlar: açılışta güncel başlıkla doldur.
+  useEffect(() => {
+    if (open) setName(defaultName ?? "");
+  }, [open, defaultName]);
   const trimmed = name.trim();
   const canSave = trimmed.length >= 2;
 

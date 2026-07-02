@@ -39,6 +39,7 @@ import {
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Controller, useFormContext, useWatch } from "react-hook-form";
+import { extractErrorMessage } from "@/lib/tenders/error";
 import { toast } from "sonner";
 
 const TIER_LABEL = { STANDARD: "Standart", PAKET: "Premium" } as const;
@@ -73,8 +74,8 @@ function InviteByEmailModal({
       onInvited(v);
       setEmail("");
       onClose();
-    } catch {
-      toast.error("Davet gönderilemedi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Davet gönderilemedi"));
     }
   };
 
@@ -135,8 +136,8 @@ function SaveTemplateModal({
       toast.success("Tedarikçi şablonu kaydedildi");
       setName("");
       onClose();
-    } catch {
-      toast.error("Şablon kaydedilemedi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Şablon kaydedilemedi"));
     }
   };
 
@@ -235,8 +236,8 @@ export function Step3Suppliers() {
         `${added} firma eklendi${skipped > 0 ? ` · ${skipped} bağlantında yok, atlandı` : ""}`,
       );
       setTplOpen(false);
-    } catch {
-      toast.error("Şablon uygulanamadı");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Şablon uygulanamadı"));
     } finally {
       setApplyingId(null);
     }
@@ -346,6 +347,7 @@ export function Step3Suppliers() {
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder="Firma adı, VKN veya e-posta ara…"
+                      aria-label="Davet edilecek firma ara"
                       className="w-full rounded-lg border border-surface-border bg-white py-2.5 pl-10 pr-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                     />
                   </div>
@@ -590,7 +592,7 @@ export function Step3Suppliers() {
               </div>
               {selectedCompanies.length === 0 ? (
                 <p className="text-sm italic text-zinc-500">
-                  Henüz tedarikçi seçmedin
+                  Henüz {roleWord} seçmedin
                 </p>
               ) : (
                 <div className="flex flex-wrap gap-2">

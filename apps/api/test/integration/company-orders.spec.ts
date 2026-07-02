@@ -5,6 +5,7 @@
  * - detayda karşı taraf kurumsal özeti (şehir/sektör/e-posta/telefon)
  * - SATIS kalem-bazlı kazandırma: satıcı=ilan sahibi, alıcı=teklifçi
  */
+import { CompanyOrderDocumentsService } from "../../src/modules/company-orders/company-order-documents.service";
 import { CompanyOrdersService } from "../../src/modules/company-orders/services/company-orders.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { prisma, truncateAll } from "./test-db";
@@ -247,5 +248,57 @@ describe("kargo kapısı — satıcı, bekleyen ödemeyi sonuçlandırmadan karg
       invoiceNumber: "FTR-1",
     } as never);
     expect(res.status).toBe("IN_DELIVERY");
+  });
+});
+
+describe("sipariş belgesi register — anahtar/MIME doğrulaması (F4)", () => {
+  it("yabancı key prefix'i ve izinsiz MIME reddedilir; doğru key kaydedilir", async () => {
+    const storage = {
+      generatePresignedPut: jest.fn().mockResolvedValue("https://r2/put"),
+      generatePresignedGet: jest.fn().mockResolvedValue("https://r2/get"),
+    };
+    const docs = new CompanyOrderDocumentsService(
+      prisma as never,
+      storage as never,
+    );
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const order = await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: seller.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 1000,
+        status: "ACCEPTED",
+      },
+    });
+
+    // Başka nesnenin key'i kayıt edilemez (indirilebilir hâle getirilemez).
+    await expect(
+      docs.register(seller.auth, order.id, {
+        type: "DELIVERY" as never,
+        key: "company-docs/baska-firma/kimlik-on.png",
+        fileName: "kimlik.png",
+        mimeType: "image/png",
+      }),
+    ).rejects.toThrow(/Geçersiz dosya anahtarı/);
+
+    // İzinli MIME dışı reddedilir (upload-url'deki kontrol register'da da).
+    await expect(
+      docs.register(seller.auth, order.id, {
+        type: "DELIVERY" as never,
+        key: `company-orders/${order.id}/delivery/x-irsaliye.exe`,
+        fileName: "irsaliye.exe",
+        mimeType: "application/x-msdownload",
+      }),
+    ).rejects.toThrow(/PDF veya görsel/);
+
+    // Doğru prefix + izinli MIME kaydedilir.
+    const ok = await docs.register(seller.auth, order.id, {
+      type: "DELIVERY" as never,
+      key: `company-orders/${order.id}/delivery/u-irsaliye.pdf`,
+      fileName: "irsaliye.pdf",
+      mimeType: "application/pdf",
+    });
+    expect(ok.id).toBeTruthy();
   });
 });

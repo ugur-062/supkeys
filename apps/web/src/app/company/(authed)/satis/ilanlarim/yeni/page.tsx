@@ -18,7 +18,8 @@ export default function YeniSatisIhalesiPage() {
   if (fromId && isLoading) {
     return <Text className="text-sm text-zinc-500">Kopyalanıyor…</Text>;
   }
-  if (fromId && source) {
+  // Kopya yalnız KENDİ SATIS ihalenden (?from paramına güvenilmez).
+  if (fromId && source && source.isOwner && source.type === "SATIS") {
     return (
       <TenderWizard
         listingType="SATIS"

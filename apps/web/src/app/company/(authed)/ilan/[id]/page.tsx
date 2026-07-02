@@ -126,7 +126,12 @@ export default function ListingDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const searchParams = useSearchParams();
-  const fromHref = searchParams.get("from");
+  // Yalnız iç /company yolları — open redirect / javascript: şeması engellenir.
+  const rawFrom = searchParams.get("from");
+  const fromHref =
+    rawFrom && rawFrom.startsWith("/company") && !rawFrom.startsWith("//")
+      ? rawFrom
+      : null;
   const fromLabel = searchParams.get("fromLabel");
   const { data: l, isLoading, isError, refetch } = useListingDetail(id);
   const confirm = useConfirm();
