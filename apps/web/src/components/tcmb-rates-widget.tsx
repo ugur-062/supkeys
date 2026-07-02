@@ -94,12 +94,23 @@ export function TcmbRatesWidget() {
           </h3>
           <p className="text-[10px] text-success-700 mt-0.5">
             Günlük gösterge kuru · TCMB
-            {dataUpdatedAt > 0 ? (
+            {/* Kur GÜNLÜK — fetch saati değil kurun ait olduğu TARİH gösterilir
+                (hafta sonu = son iş günü kuru). */}
+            {data?.rateDate ? (
               <>
                 {" · "}
-                {new Date(dataUpdatedAt).toLocaleTimeString("tr-TR", {
-                  hour: "2-digit",
-                  minute: "2-digit",
+                {new Date(`${data.rateDate}T00:00:00`).toLocaleDateString(
+                  "tr-TR",
+                  { day: "numeric", month: "long", year: "numeric" },
+                )}
+              </>
+            ) : dataUpdatedAt > 0 ? (
+              <>
+                {" · "}
+                {new Date(dataUpdatedAt).toLocaleDateString("tr-TR", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
                 })}
               </>
             ) : null}

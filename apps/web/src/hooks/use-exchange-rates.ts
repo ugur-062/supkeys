@@ -7,6 +7,8 @@ export type ExchangeRates = Record<string, number>;
 
 interface ExchangeRatesResponse {
   rates: ExchangeRates;
+  /** Kurun ait olduğu gün (YYYY-MM-DD) — TCMB günlük gösterge. */
+  rateDate?: string | null;
   timestamp: string;
 }
 

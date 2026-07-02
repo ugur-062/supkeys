@@ -85,6 +85,16 @@ export class ExchangeRateService {
     return result;
   }
 
+  /** Yayındaki en güncel kur GÜNÜ (TCMB günlük gösterge) — widget başlığında
+   *  fetch saati değil bu tarih gösterilir. Kayıt yoksa null. */
+  async latestRateDate(): Promise<string | null> {
+    const row = await this.prisma.exchangeRate.findFirst({
+      orderBy: { rateDate: "desc" },
+      select: { rateDate: true },
+    });
+    return row ? row.rateDate.toISOString().slice(0, 10) : null;
+  }
+
   /**
    * Bid submit anında çağrılır. TRY için snapshot null döner — caller
    * direkt kullanmaz.

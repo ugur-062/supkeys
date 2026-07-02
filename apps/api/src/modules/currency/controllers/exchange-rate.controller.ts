@@ -11,9 +11,14 @@ export class ExchangeRateController {
 
   @Get("current")
   async getCurrent() {
-    const rates = await this.service.getCurrentRates();
+    const [rates, rateDate] = await Promise.all([
+      this.service.getCurrentRates(),
+      this.service.latestRateDate(),
+    ]);
     return {
       rates,
+      // Kurun ait olduğu GÜN (TCMB günlük gösterge; hafta sonu = son iş günü).
+      rateDate,
       timestamp: new Date().toISOString(),
     };
   }
