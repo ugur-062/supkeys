@@ -155,14 +155,14 @@ describe("MyBidStatusPanel — durum makinesi", () => {
     expect(screen.getByText(/yeniden verebilirsiniz/)).toBeInTheDocument();
   });
 
-  it("SUBMITTED + açık → 'Teklifiniz alındı' + versiyon", () => {
+  it("SUBMITTED + açık → 'Teklifiniz alındı' (versiyon v1 gösterilmez)", () => {
     render(
       <MyBidStatusPanel
         l={detail({
           myBid: {
             amount: "1000",
             status: "SUBMITTED",
-            version: 2,
+            version: 1,
             note: null,
             submittedAt: new Date().toISOString(),
           },
@@ -170,7 +170,9 @@ describe("MyBidStatusPanel — durum makinesi", () => {
       />,
     );
     expect(screen.getByText("Teklifiniz alındı.")).toBeInTheDocument();
-    expect(screen.getByText(/Versiyon v2/)).toBeInTheDocument();
+    expect(screen.getByText(/Verildi/)).toBeInTheDocument();
+    // v1 gürültüsü kaldırıldı — versiyon yazısı hiçbir yerde yok.
+    expect(screen.queryByText(/Versiyon/)).not.toBeInTheDocument();
   });
 
   it("DRAFT → taslak uyarısı; teklifsiz kapanmış → bilgi", () => {
@@ -208,7 +210,8 @@ describe("BidSummaryCard", () => {
       />,
     );
     expect(screen.getByText("Gönderildi")).toBeInTheDocument();
-    expect(screen.getByText("v1")).toBeInTheDocument();
+    // v1 gizli (yalnız v2+ gösterilir).
+    expect(screen.queryByText("v1")).not.toBeInTheDocument();
     // "1.500 ₺" hem Toplam'da hem kalem satır toplamında (10×150) geçer.
     expect(screen.getAllByText("1.500 ₺")).toHaveLength(2);
     expect(screen.getByText(/Çelik Boru/)).toBeInTheDocument();

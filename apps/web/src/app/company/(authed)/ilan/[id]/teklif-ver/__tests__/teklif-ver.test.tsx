@@ -25,6 +25,11 @@ vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
     usePlaceBid: () => ({ mutateAsync: h.mutateAsync, isPending: false }),
   };
 });
+vi.mock("@/hooks/use-bid-documents", () => ({
+  useBidDocuments: () => ({ data: [] }),
+  useUploadBidDoc: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteBidDoc: () => ({ mutate: vi.fn(), isPending: false }),
+}));
 
 import TeklifVerPage from "../page";
 

@@ -35,11 +35,7 @@ import {
 } from "@/hooks/use-company-listings";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { useCancelApproval } from "@/hooks/use-company-approvals";
-import {
-  useBidDocuments,
-  useDeleteBidDoc,
-  useUploadBidDoc,
-} from "@/hooks/use-bid-documents";
+import { useBidDocuments } from "@/hooks/use-bid-documents";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
@@ -148,8 +144,6 @@ export default function ListingDetailPage() {
   const cancelApproval = useCancelApproval();
   const categories = useCategoriesByIds(l?.categoryIds ?? []);
   const bidDocs = useBidDocuments(id);
-  const uploadBidDoc = useUploadBidDoc(id);
-  const deleteBidDoc = useDeleteBidDoc(id);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
@@ -437,38 +431,6 @@ export default function ListingDetailPage() {
       setNote("");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Teklif verilemedi"));
-    }
-  };
-
-  const handleUploadBidDoc = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    try {
-      await uploadBidDoc.mutateAsync(file);
-      toast.success("Belge yüklendi");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "Belge yüklenemedi"));
-    }
-  };
-
-  const handleDeleteBidDoc = async (docId: string) => {
-    if (
-      !(await confirm({
-        title: "Belgeyi sil",
-        description: "Belge silinsin mi?",
-        confirmLabel: "Sil",
-        destructive: true,
-      }))
-    )
-      return;
-    try {
-      await deleteBidDoc.mutateAsync(docId);
-      toast.success("Belge silindi");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "Silinemedi"));
     }
   };
 
@@ -986,65 +948,30 @@ export default function ListingDetailPage() {
     </section>
   );
 
-  // Teklif belgeleri — hem SATIS tek-akış formunda hem ALIM Teklifim sekmesinde.
-  const bidDocsSection = l.myBid ? (
-    <div className="space-y-2 border-t border-zinc-100 pt-3">
-      <div className="flex items-center justify-between">
+  // Teklif belgeleri — SALT-OKUNUR liste. Belge ekleme/silme teklif formunda
+  // (/teklif-ver) yapılır; gönderilmiş teklife sonradan belge eklenmez.
+  const myDocs = (bidDocs.data ?? []).filter((d) => d.mine);
+  const bidDocsSection =
+    l.myBid && myDocs.length > 0 ? (
+      <div className="space-y-2 border-t border-zinc-100 pt-3">
         <div className="text-sm font-medium text-zinc-900">
-          Teklif Belgeleri
-          {l.requireBidDocument ? " (zorunlu)" : ""}
+          Teklif Belgeleri ({myDocs.length})
         </div>
-        {biddingOpen ? (
-          <label className="cursor-pointer text-xs font-medium text-blue-600 hover:underline">
-            {uploadBidDoc.isPending ? "Yükleniyor…" : "+ Belge Ekle"}
-            <input
-              type="file"
-              className="hidden"
-              accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
-              onChange={handleUploadBidDoc}
-              disabled={uploadBidDoc.isPending}
-            />
-          </label>
-        ) : null}
-      </div>
-      {(bidDocs.data ?? []).filter((d) => d.mine).length === 0 ? (
-        <Text className="text-xs text-zinc-400">
-          {l.requireBidDocument
-            ? "Bu ihale belge zorunlu — kazanabilmek için en az bir dosya ekle."
-            : "Henüz belge eklemedin."}
-        </Text>
-      ) : (
         <div className="space-y-1">
-          {(bidDocs.data ?? [])
-            .filter((d) => d.mine)
-            .map((d) => (
-              <div
-                key={d.id}
-                className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2.5 py-1.5 text-xs"
-              >
-                <a
-                  href={d.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="truncate text-blue-600 hover:underline"
-                >
-                  {d.fileName}
-                </a>
-                {biddingOpen ? (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteBidDoc(d.id)}
-                    className="shrink-0 text-zinc-400 hover:text-red-600"
-                  >
-                    Sil
-                  </button>
-                ) : null}
-              </div>
-            ))}
+          {myDocs.map((d) => (
+            <a
+              key={d.id}
+              href={d.url}
+              target="_blank"
+              rel="noreferrer"
+              className="block truncate rounded-md bg-zinc-50 px-2.5 py-1.5 text-xs text-blue-600 hover:underline"
+            >
+              {d.fileName}
+            </a>
+          ))}
         </div>
-      )}
-    </div>
-  ) : null;
+      </div>
+    ) : null;
 
   const bidFormSection = (
     <section className="space-y-3">

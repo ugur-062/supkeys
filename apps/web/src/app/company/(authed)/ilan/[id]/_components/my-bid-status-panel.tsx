@@ -81,14 +81,19 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
             <Badge color={badge.color}>{badge.label}</Badge>
           </div>
         </div>
-        <div>
-          <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
-            Versiyon
-          </p>
-          <p className="mt-1 font-mono text-sm font-semibold text-zinc-900">
-            v{bid.version ?? 1}
-          </p>
-        </div>
+        {/* Versiyon yalnız güncellenmiş tekliflerde anlamlı (v1 gürültü). */}
+        {(bid.version ?? 1) > 1 ? (
+          <div>
+            <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+              Versiyon
+            </p>
+            <p className="mt-1 font-mono text-sm font-semibold text-zinc-900">
+              v{bid.version}
+            </p>
+          </div>
+        ) : (
+          <div />
+        )}
         <div>
           <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
             Toplam
@@ -224,10 +229,9 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
   } else if (bid.status === "SUBMITTED") {
     alerts.push(
       <StatusAlert key="ok" tone="success" title="Teklifiniz alındı.">
-        <p>
-          Versiyon v{bid.version ?? 1}
-          {bid.submittedAt ? ` · Verildi ${formatDateTime(bid.submittedAt)}` : ""}
-        </p>
+        {bid.submittedAt ? (
+          <p>Verildi {formatDateTime(bid.submittedAt)}</p>
+        ) : null}
       </StatusAlert>,
     );
   }

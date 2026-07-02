@@ -15,6 +15,11 @@ import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
 import {
+  useBidDocuments,
+  useDeleteBidDoc,
+  useUploadBidDoc,
+} from "@/hooks/use-bid-documents";
+import {
   useListingDetail,
   usePlaceBid,
   type ListingDetail,
@@ -111,6 +116,9 @@ export default function TeklifVerPage() {
   const router = useRouter();
   const detail = useListingDetail(id);
   const placeBid = usePlaceBid(id);
+  const bidDocs = useBidDocuments(id);
+  const uploadDoc = useUploadBidDoc(id);
+  const deleteDoc = useDeleteBidDoc(id);
 
   const l = detail.data;
   const detailHref = `/company/ilan/${id}`;
@@ -124,6 +132,8 @@ export default function TeklifVerPage() {
   const [note, setNote] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [seeded, setSeeded] = useState(false);
+  // Henüz teklif kaydı yokken seçilen dosyalar — kayıt sonrası yüklenir.
+  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
 
   // Mevcut tekliften tohumla (taslak devam / eleme sonrası / eksiltme yeni tur).
   useEffect(() => {
@@ -158,6 +168,7 @@ export default function TeklifVerPage() {
 
   const items = l?.items ?? [];
   const hasItems = items.length > 0;
+  const myDocs = (bidDocs.data ?? []).filter((d) => d.mine);
   const effectiveCurrency =
     currency || l?.primaryCurrency || "TRY";
 
@@ -279,7 +290,27 @@ export default function TeklifVerPage() {
     if (!deliveryDate) problems.push("Teslim tarihi zorunlu.");
     if (!validityDays || Number(validityDays) < 1)
       problems.push("Geçerlilik süresi zorunlu.");
+    if (l.requireBidDocument && myDocs.length + stagedFiles.length === 0)
+      problems.push("Bu ihalede teklif dosyası zorunlu.");
     return problems;
+  };
+
+  /** Seçilen dosyaları teklif kaydı sonrası yükler (kısmi hatada uyarır). */
+  const uploadStaged = async () => {
+    if (stagedFiles.length === 0) return;
+    let failed = 0;
+    for (const f of stagedFiles) {
+      try {
+        await uploadDoc.mutateAsync(f);
+      } catch {
+        failed++;
+      }
+    }
+    setStagedFiles([]);
+    if (failed > 0)
+      toast.error(
+        `${failed} dosya yüklenemedi — Teklifim sekmesinden kontrol edin`,
+      );
   };
 
   const buildPayload = (asDraft: boolean) => ({
@@ -311,6 +342,7 @@ export default function TeklifVerPage() {
   const saveDraft = async () => {
     try {
       await placeBid.mutateAsync(buildPayload(true));
+      await uploadStaged();
       toast.success("Taslak kaydedildi");
       router.push(detailHref);
     } catch (err) {
@@ -322,6 +354,7 @@ export default function TeklifVerPage() {
     setConfirmOpen(false);
     try {
       await placeBid.mutateAsync(buildPayload(false));
+      await uploadStaged();
       toast.success("Teklifiniz gönderildi");
       router.push(detailHref);
     } catch (err) {
@@ -623,11 +656,76 @@ export default function TeklifVerPage() {
             </div>
           </section>
 
-          {/* Belgeler notu */}
-          <section className="rounded-xl border border-zinc-100 bg-zinc-50/60 p-4 text-xs text-zinc-500">
-            Teklif dosyaları{l.requireBidDocument ? " (bu ihalede zorunlu)" : ""}{" "}
-            — teklif kaydedildikten sonra ihale detayındaki{" "}
-            <strong>Teklifim</strong> sekmesinden eklenir.
+          {/* Teklif dosyaları — formda seçilir, teklif kaydıyla birlikte yüklenir */}
+          <section className="space-y-3">
+            <Subheading>
+              Teklif Dosyaları{l.requireBidDocument ? " (zorunlu)" : ""}
+            </Subheading>
+            <div className="space-y-2 rounded-xl border border-zinc-950/10 bg-white p-4">
+              {l.requireBidDocument ? (
+                <p className="text-xs text-amber-700">
+                  Bu ihalede teklif dosyası zorunlu — en az bir dosya ekleyin.
+                </p>
+              ) : null}
+              {myDocs.map((d) => (
+                <div
+                  key={d.id}
+                  className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2.5 py-1.5 text-xs"
+                >
+                  <a
+                    href={d.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="truncate text-blue-600 hover:underline"
+                  >
+                    {d.fileName}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => deleteDoc.mutate(d.id)}
+                    disabled={deleteDoc.isPending}
+                    className="shrink-0 text-zinc-400 hover:text-red-600"
+                  >
+                    Sil
+                  </button>
+                </div>
+              ))}
+              {stagedFiles.map((f, i) => (
+                <div
+                  key={`${f.name}-${i}`}
+                  className="flex items-center justify-between gap-2 rounded-md bg-blue-50/50 px-2.5 py-1.5 text-xs"
+                >
+                  <span className="truncate text-zinc-700">
+                    {f.name}{" "}
+                    <span className="text-zinc-400">(kayıtla yüklenecek)</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setStagedFiles((s) => s.filter((_, j) => j !== i))
+                    }
+                    className="shrink-0 text-zinc-400 hover:text-red-600"
+                  >
+                    Kaldır
+                  </button>
+                </div>
+              ))}
+              <label className="inline-block cursor-pointer text-xs font-medium text-blue-600 hover:underline">
+                + Dosya Seç
+                <input
+                  type="file"
+                  className="hidden"
+                  multiple
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files ?? []);
+                    e.target.value = "";
+                    if (files.length)
+                      setStagedFiles((s) => [...s, ...files].slice(0, 10));
+                  }}
+                />
+              </label>
+            </div>
           </section>
         </div>
 
