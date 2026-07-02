@@ -78,3 +78,37 @@ describe("buyNow", () => {
     );
   });
 });
+
+describe("buyNow — mükerrer/kural korumaları + detaylar", () => {
+  it("gönderilmiş Hemen-Al tekrarlanamaz; detaylar (not/teslim) bid'e yazılır", async () => {
+    const { service, buyer, listing } = await satisListing();
+    const delivery = new Date(Date.now() + 7 * 86_400_000).toISOString();
+    const res = (await service.buyNow(buyer.auth, listing.id, {
+      note: "Depodan kendim alırım",
+      deliveryDate: delivery,
+    })) as { id: string };
+    const bid = await prisma.listingBid.findUniqueOrThrow({
+      where: { id: res.id },
+    });
+    expect(bid.note).toBe("Depodan kendim alırım");
+    expect(bid.deliveryDate?.toISOString()).toBe(delivery);
+
+    // İkinci tıklama: reddedilir (çift gönderim yok, versiyon artmaz).
+    await expect(service.buyNow(buyer.auth, listing.id)).rejects.toThrow(
+      /zaten gönderildi/,
+    );
+    const after = await prisma.listingBid.findUniqueOrThrow({
+      where: { id: res.id },
+    });
+    expect(after.version).toBe(bid.version);
+  });
+
+  it("geri çekilen teklif Hemen-Al ile diriltilemez", async () => {
+    const { service, buyer, listing } = await satisListing();
+    await service.buyNow(buyer.auth, listing.id);
+    await service.withdrawBid(buyer.auth, listing.id);
+    await expect(service.buyNow(buyer.auth, listing.id)).rejects.toThrow(
+      /yeniden verilemez/,
+    );
+  });
+});

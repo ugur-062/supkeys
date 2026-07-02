@@ -1782,6 +1782,7 @@ export class CompanyListingsService {
             amount: myBid.amount.toString(),
             note: myBid.note,
             status: myBid.status,
+            isBuyNow: myBid.isBuyNow,
             version: myBid.version,
             submittedAt: myBid.submittedAt
               ? myBid.submittedAt.toISOString()
@@ -2391,7 +2392,11 @@ export class CompanyListingsService {
    * Hemen-Al — SATIS ilanında tavan (buyNow) fiyattan teklif oluşturur.
    * DİREKT SİPARİŞ DEĞİL: sahip yine onaylar (kazandırır). isBuyNow=true bayraklı.
    */
-  async buyNow(user: AuthenticatedCompanyUser, listingId: string) {
+  async buyNow(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    input?: { note?: string; deliveryDate?: string; validityDays?: number },
+  ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -2468,6 +2473,29 @@ export class CompanyListingsService {
       throw new BadRequestException("Teklif süresi doldu");
     }
 
+    // Mükerrer/kural koruması: gönderilmiş Hemen-Al tekrarlanamaz; geri
+    // çekilen teklif Hemen-Al ile de diriltilemez (placeBid ile aynı kural).
+    const existing = await this.prisma.listingBid.findUnique({
+      where: {
+        listingId_bidderCompanyId: {
+          listingId,
+          bidderCompanyId: user.companyId,
+        },
+      },
+      select: { status: true, isBuyNow: true },
+    });
+    if (existing?.status === "WITHDRAWN") {
+      throw new BadRequestException("Geri çekilen teklif yeniden verilemez");
+    }
+    if (existing?.status === "SUBMITTED" && existing.isBuyNow) {
+      throw new BadRequestException(
+        "Hemen-Al teklifiniz zaten gönderildi — satıcı onayı bekleniyor",
+      );
+    }
+
+    const deliveryDate = input?.deliveryDate
+      ? new Date(input.deliveryDate)
+      : null;
     const bid = await this.prisma.listingBid.upsert({
       where: {
         listingId_bidderCompanyId: {
@@ -2483,6 +2511,9 @@ export class CompanyListingsService {
         createdById: user.userId,
         status: "SUBMITTED",
         submittedAt: new Date(),
+        note: input?.note?.trim() || null,
+        deliveryDate,
+        validityDays: input?.validityDays ?? null,
       },
       update: {
         // Eski taslak/teklifin kalıntıları (yabancı currency, bayat submittedAt)
@@ -2493,6 +2524,9 @@ export class CompanyListingsService {
         currency: listing.primaryCurrency,
         submittedAt: new Date(),
         version: { increment: 1 },
+        note: input?.note?.trim() || null,
+        deliveryDate,
+        validityDays: input?.validityDays ?? null,
       },
     });
     this.realtime?.pingListing(listingId, [listing.companyId]);

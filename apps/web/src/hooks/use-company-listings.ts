@@ -341,6 +341,7 @@ export interface ListingDetail {
     amount: string;
     note: string | null;
     status: string;
+    isBuyNow?: boolean;
     version?: number;
     submittedAt?: string | null;
     eliminationReason?: string | null;
@@ -427,8 +428,15 @@ export function usePlaceBid(id: string) {
 export function useBuyNow(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      const { data } = await companyApi.post(`/company/listings/${id}/buy-now`);
+    mutationFn: async (input?: {
+      note?: string;
+      deliveryDate?: string;
+      validityDays?: number;
+    }) => {
+      const { data } = await companyApi.post(
+        `/company/listings/${id}/buy-now`,
+        input ?? {},
+      );
       return data;
     },
     onSuccess: () => {

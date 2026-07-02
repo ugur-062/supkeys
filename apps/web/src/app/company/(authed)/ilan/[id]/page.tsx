@@ -10,7 +10,16 @@ import { GeneralInfoTab } from "@/components/tenders/general-info-tab";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { LISTING_STATUS_LABELS } from "@/components/tenders/status-badge";
 import { TenderActionsMenu } from "@/components/tenders/tender-actions-menu";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogTitle,
+} from "@/components/catalyst/dialog";
+import { Field, Label } from "@/components/catalyst/fieldset";
 import { Heading, Subheading } from "@/components/catalyst/heading";
+import { Input } from "@/components/catalyst/input";
+import { Textarea } from "@/components/catalyst/textarea";
 import {
   Table,
   TableBody,
@@ -158,6 +167,10 @@ export default function ListingDetailPage() {
     bidId: string;
     bidderName: string;
   } | null>(null);
+  // Hemen-Al onay dialogu — detaylar (teslim/not) girilip onaylanır.
+  const [buyNowOpen, setBuyNowOpen] = useState(false);
+  const [buyNowDelivery, setBuyNowDelivery] = useState("");
+  const [buyNowNote, setBuyNowNote] = useState("");
 
   // WS: bu ilanın odasına abone ol — teklif/durum değişimi anında düşer.
   useEffect(() => subscribeRealtime("listing", id), [id]);
@@ -174,8 +187,16 @@ export default function ListingDetailPage() {
 
   const handleBuyNow = async () => {
     try {
-      await buyNow.mutateAsync();
+      await buyNow.mutateAsync({
+        deliveryDate: buyNowDelivery
+          ? new Date(buyNowDelivery).toISOString()
+          : undefined,
+        note: buyNowNote.trim() || undefined,
+      });
       toast.success("Hemen-Al teklifin gönderildi — satıcı onayı bekleniyor");
+      setBuyNowOpen(false);
+      setBuyNowDelivery("");
+      setBuyNowNote("");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Hemen-Al başarısız"));
     }
@@ -931,22 +952,34 @@ export default function ListingDetailPage() {
         </div>
       ) : (
         <div className="space-y-4 rounded-xl border border-zinc-950/10 bg-white p-5">
-          {/* SATIS + hemen-al: tavan fiyattan anında teklif (satıcı onaylar). */}
+          {/* SATIS + hemen-al: tavan fiyattan teklif (onay dialogu ile;
+              gönderilmiş Hemen-Al varken tekrar basılamaz). */}
           {!isAlim && biddingOpen && l.buyNowPrice ? (
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
-              <div>
-                <div className="text-sm font-semibold text-emerald-900">
-                  Hemen Al — {Number(l.buyNowPrice).toLocaleString("tr-TR")}{" "}
-                  {sym}
-                </div>
-                <div className="text-xs text-emerald-700">
-                  Tavan fiyattan teklif ver. Satıcı yine de onaylar.
-                </div>
+            l.myBid?.status === "SUBMITTED" && l.myBid.isBuyNow ? (
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                ✓ Hemen-Al teklifin gönderildi (
+                {Number(l.buyNowPrice).toLocaleString("tr-TR")} {sym}) — satıcı
+                onayı bekleniyor.
               </div>
-              <Button onClick={handleBuyNow} disabled={buyNow.isPending}>
-                Hemen Al
-              </Button>
-            </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <div>
+                  <div className="text-sm font-semibold text-emerald-900">
+                    Hemen Al — {Number(l.buyNowPrice).toLocaleString("tr-TR")}{" "}
+                    {sym}
+                  </div>
+                  <div className="text-xs text-emerald-700">
+                    Tavan fiyattan teklif ver. Satıcı yine de onaylar.
+                  </div>
+                </div>
+                <Button
+                  onClick={() => setBuyNowOpen(true)}
+                  disabled={buyNow.isPending}
+                >
+                  Hemen Al
+                </Button>
+              </div>
+            )
           ) : null}
           {bidCta ? (
             <div className="flex items-center justify-between gap-3">
@@ -1397,6 +1430,66 @@ export default function ListingDetailPage() {
             </TabPanel>
           </TabPanels>
         </TabGroup>
+
+        {/* Hemen-Al onayı — fiyat + opsiyonel teslim/not; yanlışlıkla tek
+            tıkla teklif gitmesin. */}
+        <Dialog open={buyNowOpen} onClose={() => setBuyNowOpen(false)}>
+          <DialogTitle>Hemen Al</DialogTitle>
+          <DialogBody className="space-y-4">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+              <p className="text-xs font-semibold text-emerald-700">
+                Hemen-Al Fiyatı
+              </p>
+              <p className="mt-1 text-2xl font-bold text-emerald-800 tabular-nums">
+                {Number(l.buyNowPrice ?? 0).toLocaleString("tr-TR")} {sym}
+              </p>
+            </div>
+            {l.myBid && l.myBid.status === "SUBMITTED" ? (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Mevcut teklifin (
+                {Number(l.myBid.amount).toLocaleString("tr-TR")}{" "}
+                {!l.myBid.currency || l.myBid.currency === "TRY"
+                  ? "₺"
+                  : l.myBid.currency}
+                ) Hemen-Al fiyatıyla DEĞİŞTİRİLECEK.
+              </p>
+            ) : null}
+            <Field>
+              <Label>İstenen Teslim Tarihi (opsiyonel)</Label>
+              <Input
+                type="date"
+                min={new Date().toISOString().slice(0, 10)}
+                value={buyNowDelivery}
+                onChange={(e) => setBuyNowDelivery(e.target.value)}
+              />
+            </Field>
+            <Field>
+              <Label>Satıcıya Not (opsiyonel)</Label>
+              <Textarea
+                rows={2}
+                maxLength={1000}
+                value={buyNowNote}
+                onChange={(e) => setBuyNowNote(e.target.value)}
+              />
+            </Field>
+            <Text className="text-xs text-zinc-500">
+              Onayladığında bu fiyattan teklifin GÖNDERİLİR; satıcı kazandırınca
+              sipariş oluşur.
+            </Text>
+          </DialogBody>
+          <DialogActions>
+            <Button plain onClick={() => setBuyNowOpen(false)}>
+              Vazgeç
+            </Button>
+            <Button
+              color="emerald"
+              onClick={handleBuyNow}
+              disabled={buyNow.isPending}
+            >
+              {buyNow.isPending ? "Gönderiliyor…" : "Hemen Al — Onayla"}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </div>
     );
   }

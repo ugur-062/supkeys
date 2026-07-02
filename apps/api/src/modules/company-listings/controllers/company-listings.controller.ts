@@ -134,8 +134,10 @@ export class CompanyListingsController {
   buyNow(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
+    @Body()
+    body?: { note?: string; deliveryDate?: string; validityDays?: number },
   ) {
-    return this.service.buyNow(user, id);
+    return this.service.buyNow(user, id, body);
   }
 
   @Post(":id/award")
