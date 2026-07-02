@@ -64,8 +64,13 @@ export function FilterSelect({
           Icon ? "pl-9" : "pl-3",
         )}
       >
-        {options.map((o) => (
-          <option key={o.value} value={o.value} className="bg-white text-zinc-900">
+        {options.map((o, i) => (
+          <option
+            // value boş/yinelenen gelse bile (bozuk veri) key benzersiz kalsın.
+            key={`${o.value ?? ""}-${i}`}
+            value={o.value}
+            className="bg-white text-zinc-900"
+          >
             {o.label}
           </option>
         ))}

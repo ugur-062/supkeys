@@ -225,7 +225,8 @@ export function SellerTendersView({
     // Aynı adlı iki firma karışmasın diye ID bazlı gruplanır.
     const counts = new Map<string, { name: string; n: number }>();
     for (const t of all) {
-      if (!t.owner) continue;
+      // Eski cache satırlarında owner.id olmayabilir — key çakışması üretme.
+      if (!t.owner?.id) continue;
       const e = counts.get(t.owner.id) ?? { name: t.owner.name, n: 0 };
       e.n += 1;
       counts.set(t.owner.id, e);
