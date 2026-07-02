@@ -26,6 +26,8 @@ interface TendersTableProps {
   isError: boolean;
   pageSize: number;
   onRetry: () => void;
+  /** Boş durumda referans verilen buton adı (SATIS'ta farklı). */
+  emptyCtaLabel?: string;
 }
 
 function fullName(t: TenderListItem) {
@@ -250,6 +252,7 @@ export function TendersTable({
   isError,
   pageSize,
   onRetry,
+  emptyCtaLabel = "Yeni İhale Aç",
 }: TendersTableProps) {
   if (isError) {
     return (
@@ -284,7 +287,7 @@ export function TendersTable({
           <div>
             <p className="font-medium text-zinc-900">Henüz ihale yok</p>
             <p className="text-sm">
-              İlk ihalenizi açmak için &ldquo;Yeni İhale Aç&rdquo; butonunu
+              İlk ihalenizi açmak için &ldquo;{emptyCtaLabel}&rdquo; butonunu
               kullanın.
             </p>
           </div>

@@ -290,6 +290,7 @@ export function IhalelerView({
         isError={list.isError}
         pageSize={PAGE_SIZE}
         onRetry={() => list.refetch()}
+        emptyCtaLabel={isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
       />
 
       {totalPages > 1 ? (

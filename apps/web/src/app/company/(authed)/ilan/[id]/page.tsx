@@ -1074,13 +1074,22 @@ export default function ListingDetailPage() {
     </div>
   );
 
+  // Varsayılan geri hedefi bağlama göre: sahip kendi listesine, teklifçi
+  // ilanı gördüğü listeye döner (?from= her zaman öncelikli).
+  const defaultBack = l.isOwner
+    ? isAlim
+      ? { href: "/company/satinalma/ihalelerim", label: "İhalelerim" }
+      : { href: "/company/satis/ilanlarim", label: "Satış İlanlarım" }
+    : isAlim
+      ? { href: "/company/satis/acik-ihaleler", label: "Açık İhaleler" }
+      : { href: "/company/satinalma/satin-al", label: "Satın Al" };
   const breadcrumb = (
     <Link
-      href={fromHref ?? "/company"}
+      href={fromHref ?? defaultBack.href}
       className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
     >
       <ArrowLeftIcon className="h-4 w-4" />
-      {fromHref ? (fromLabel ?? "Firma profili") : "İlanlar"}
+      {fromHref ? (fromLabel ?? "Firma profili") : defaultBack.label}
     </Link>
   );
 
