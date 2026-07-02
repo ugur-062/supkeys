@@ -30,6 +30,7 @@ async function sellerAndBuyer() {
 
 const satisDto = (over: Record<string, unknown> = {}) => ({
   type: "SATIS",
+  format: "RFQ",
   isInternational: false,
   visibility: "CONNECTIONS",
   title: "Hurda bakır satışı",
@@ -65,16 +66,19 @@ describe("SATIS ihale oluşturma (sihirbaz backend'i)", () => {
     expect(db.type).toBe("SATIS");
     expect(Number(db.minPrice)).toBe(1000);
     expect(Number(db.buyNowPrice)).toBe(5000);
-    expect(db.format).toBeNull(); // satışta İngiliz usulü yok
+    expect(db.format).toBe("RFQ");
     expect(db.items).toHaveLength(1);
     expect(db.invitations).toHaveLength(1);
   });
 
-  it("taban fiyatsız veya hemen-al < taban reddedilir", async () => {
+  it("taban fiyatsız, formatsız veya hemen-al < taban reddedilir", async () => {
     const { service, seller } = await sellerAndBuyer();
     await expect(
       service.create(seller.auth, satisDto({ minPrice: undefined }) as never),
     ).rejects.toThrow(/taban fiyat/i);
+    await expect(
+      service.create(seller.auth, satisDto({ format: undefined }) as never),
+    ).rejects.toThrow(/format seçin/i);
     await expect(
       service.create(
         seller.auth,

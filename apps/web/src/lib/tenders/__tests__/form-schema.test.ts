@@ -121,4 +121,41 @@ describe("tenderFormSchema — SATIS (satış ihalesi)", () => {
       tenderFormSchema.safeParse(validForm({ listingType: "ALIM" })).success,
     ).toBe(true);
   });
+
+  it("SATIS + İngiliz usulü (açık artırma): artış adımı zorunlu", () => {
+    const noStep = tenderFormSchema.safeParse(
+      validForm({
+        listingType: "SATIS",
+        minPrice: 1000,
+        type: "ENGLISH_AUCTION",
+        priceDecrementValue: undefined,
+      }),
+    );
+    expect(noStep.success).toBe(false);
+    expect(
+      noStep.success
+        ? ""
+        : noStep.error.issues.map((i) => i.path.join(".")).join(","),
+    ).toContain("priceDecrementValue");
+
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({
+          listingType: "SATIS",
+          minPrice: 1000,
+          type: "ENGLISH_AUCTION",
+          priceDecrementType: "AMOUNT",
+          priceDecrementValue: 100,
+        }),
+      ).success,
+    ).toBe(true);
+  });
+
+  it("SATIS + RFQ: artış adımı gerektirmez", () => {
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({ listingType: "SATIS", minPrice: 1000, type: "RFQ" }),
+      ).success,
+    ).toBe(true);
+  });
 });

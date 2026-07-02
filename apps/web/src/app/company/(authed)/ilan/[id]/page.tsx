@@ -10,9 +10,7 @@ import { GeneralInfoTab } from "@/components/tenders/general-info-tab";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { LISTING_STATUS_LABELS } from "@/components/tenders/status-badge";
 import { TenderActionsMenu } from "@/components/tenders/tender-actions-menu";
-import { Field, Label } from "@/components/catalyst/fieldset";
 import { Heading, Subheading } from "@/components/catalyst/heading";
-import { Input } from "@/components/catalyst/input";
 import {
   Table,
   TableBody,
@@ -22,14 +20,12 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { Text } from "@/components/catalyst/text";
-import { Textarea } from "@/components/catalyst/textarea";
 import {
   useAwardByItem,
   useAwardListing,
   useBuyNow,
   useEliminateBid,
   useListingDetail,
-  usePlaceBid,
   usePublishListing,
   useWithdrawBid,
 } from "@/hooks/use-company-listings";
@@ -58,7 +54,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 const TRIGGER_CLASSES = cn(
@@ -134,7 +130,6 @@ export default function ListingDetailPage() {
   const fromLabel = searchParams.get("fromLabel");
   const { data: l, isLoading, isError, refetch } = useListingDetail(id);
   const confirm = useConfirm();
-  const placeBid = usePlaceBid(id);
   const award = useAwardListing(id);
   const buyNow = useBuyNow(id);
   const withdrawBid = useWithdrawBid(id);
@@ -144,12 +139,6 @@ export default function ListingDetailPage() {
   const cancelApproval = useCancelApproval();
   const categories = useCategoriesByIds(l?.categoryIds ?? []);
   const bidDocs = useBidDocuments(id);
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
-  const [itemPrices, setItemPrices] = useState<Record<string, string>>({});
-  const [bidDelivery, setBidDelivery] = useState("");
-  const [bidValidity, setBidValidity] = useState("");
-  const [bidCurrency, setBidCurrency] = useState("");
   const [itemAwardMode, setItemAwardMode] = useState(false);
   const [itemWinners, setItemWinners] = useState<Record<string, string>>({});
   const [itemQty, setItemQty] = useState<Record<string, string>>({});
@@ -160,18 +149,6 @@ export default function ListingDetailPage() {
     bidId: string;
     bidderName: string;
   } | null>(null);
-
-  // Teklif formu varsayılanları (mevcut teklif / ilan para birimi).
-  useEffect(() => {
-    if (!l) return;
-    setBidCurrency((c) => c || l.myBid?.currency || l.primaryCurrency || "TRY");
-    if (l.myBid?.deliveryDate) {
-      setBidDelivery((d) => d || l.myBid!.deliveryDate!.slice(0, 10));
-    }
-    if (l.myBid?.validityDays != null) {
-      setBidValidity((v) => v || String(l.myBid!.validityDays));
-    }
-  }, [l]);
 
 
   const handleWithdraw = async () => {
@@ -250,8 +227,9 @@ export default function ListingDetailPage() {
     if (
       !(await confirm({
         title: "İhaleyi yayınla",
-        description:
-          "İhale yayınlansın mı? Yayınlandıktan sonra tedarikçiler görebilir.",
+        description: `İhale yayınlansın mı? Yayınlandıktan sonra ${
+          l?.type === "SATIS" ? "alıcılar" : "tedarikçiler"
+        } görebilir.`,
         confirmLabel: "Yayınla",
       }))
     )
@@ -264,7 +242,8 @@ export default function ListingDetailPage() {
     }
   };
 
-  // Kalem-bazlı: bir kalem için fiyat veren teklifler (TRY normalize, artan).
+  // Kalem-bazlı: bir kalem için fiyat veren teklifler (TRY normalize; ALIM'da
+  // artan — en düşük önde/ön-seçili, SATIS'ta azalan — en yüksek önde).
   // Karşılaştırma TRY üzerinden; gösterim her teklifin kendi birimiyle.
   const bidsForItem = (itemId: string) =>
     (l?.bids ?? [])
@@ -284,10 +263,11 @@ export default function ListingDetailPage() {
       })
       .filter((o) => o.price > 0)
       // Kur'suz (null) satırlar kıyaslanamaz → listenin SONUNA (ön-seçilmez).
-      .sort(
-        (a, b) =>
-          (a.priceTry ?? Number.MAX_SAFE_INTEGER) -
-          (b.priceTry ?? Number.MAX_SAFE_INTEGER),
+      .sort((a, b) =>
+        l?.type === "SATIS"
+          ? (b.priceTry ?? -1) - (a.priceTry ?? -1)
+          : (a.priceTry ?? Number.MAX_SAFE_INTEGER) -
+            (b.priceTry ?? Number.MAX_SAFE_INTEGER),
       );
 
   const startItemAward = () => {
@@ -409,56 +389,6 @@ export default function ListingDetailPage() {
     ? "Alım ilanı — en düşük teklif kazanır."
     : "Satış ilanı — en yüksek teklif kazanır.";
 
-  const hasItems = (l?.items?.length ?? 0) > 0;
-  const itemTotal = (l?.items ?? []).reduce((sum, it) => {
-    const up = Number(itemPrices[it.id]);
-    return sum + (up > 0 ? up * Number(it.quantity) : 0);
-  }, 0);
-
-  const handleBid = async (asDraft: boolean) => {
-    // Gönderirken (taslak değil) teslim tarihi + geçerlilik zorunlu.
-    if (!asDraft && (!bidDelivery || !bidValidity)) {
-      toast.error("Teslim tarihi ve geçerlilik süresi zorunlu");
-      return;
-    }
-    const common = {
-      note: note.trim() || undefined,
-      asDraft,
-      deliveryDate: bidDelivery
-        ? new Date(bidDelivery).toISOString()
-        : undefined,
-      validityDays: bidValidity ? Number(bidValidity) : undefined,
-      currency: bidCurrency || undefined,
-    };
-    try {
-      if (hasItems) {
-        const items = (l?.items ?? [])
-          .map((it) => ({ itemId: it.id, unitPrice: Number(itemPrices[it.id]) }))
-          .filter((bi) => bi.unitPrice > 0);
-        if (items.length === 0) {
-          toast.error("En az bir kaleme birim fiyat girin");
-          return;
-        }
-        if (l?.requireAllItems && items.length < (l?.items?.length ?? 0)) {
-          toast.error("Bu ihalede tüm kalemlere fiyat girmelisin");
-          return;
-        }
-        await placeBid.mutateAsync({ items, ...common });
-      } else {
-        const val = Number(amount);
-        if (!val || val <= 0) {
-          toast.error("Geçerli bir tutar girin");
-          return;
-        }
-        await placeBid.mutateAsync({ amount: val, ...common });
-      }
-      toast.success(asDraft ? "Taslak kaydedildi" : "Teklifin gönderildi");
-      setNote("");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "Teklif verilemedi"));
-    }
-  };
-
   // ───────────────────────── Bölümler (sekmelere yerleşir) ─────────────────
 
   const itemsSection =
@@ -516,71 +446,12 @@ export default function ListingDetailPage() {
       </section>
     ) : null;
 
-  const infoSection =
-    isAlim &&
-    (l.categoryIds?.length ||
-      l.keywords?.length ||
-      l.terms ||
-      l.requireAllItems ||
-      l.closesAt) ? (
-      <section className="space-y-2 rounded-xl border border-zinc-950/10 bg-zinc-50/50 p-4">
-        {categories.data && categories.data.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {categories.data.map((c) => (
-              <Badge key={c.id} color="blue">
-                {c.nameTr}
-              </Badge>
-            ))}
-          </div>
-        ) : null}
-        {l.keywords && l.keywords.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {l.keywords.map((k) => (
-              <Badge key={k} color="zinc">
-                {k}
-              </Badge>
-            ))}
-          </div>
-        ) : null}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-zinc-500">
-          {l.primaryCurrency ? (
-            <span>
-              Para birimi:{" "}
-              <strong className="text-zinc-700">
-                {l.allowedCurrencies?.length
-                  ? l.allowedCurrencies.join(", ")
-                  : l.primaryCurrency}
-              </strong>
-            </span>
-          ) : null}
-          {l.requireAllItems ? <span>· Tüm kalemlere teklif zorunlu</span> : null}
-          {l.requireBidDocument ? <span>· Belge zorunlu</span> : null}
-          {l.closesAt ? (
-            <span className="inline-flex items-center gap-1">
-              ·{" "}
-              {l.status === "OPEN" ? (
-                <>
-                  Kapanışa{" "}
-                  <CountdownFull deadline={l.closesAt} endedLabel="Kapandı" />
-                </>
-              ) : (
-                <>Kapanış: {formatDateTime(l.closesAt)}</>
-              )}
-            </span>
-          ) : null}
-        </div>
-        {l.terms ? (
-          <Text className="whitespace-pre-wrap text-xs text-zinc-600">
-            {l.terms}
-          </Text>
-        ) : null}
-      </section>
-    ) : null;
-
   const invitationsSection =
     l.isOwner && l.invitations && l.invitations.length > 0 ? (
       <section className="space-y-2">
-        <Subheading>Davetli Tedarikçiler ({l.invitations.length})</Subheading>
+        <Subheading>
+          Davetli {isAlim ? "Tedarikçiler" : "Alıcılar"} ({l.invitations.length})
+        </Subheading>
         <div className="flex flex-wrap gap-2">
           {l.invitations.map((iv) => (
             <span
@@ -730,11 +601,16 @@ export default function ListingDetailPage() {
                       currency: bidCurrencyById.get(b.id),
                     };
                   });
-                  // En düşük TRY karşılığı vurgulanır (birimler arası adil).
+                  // En iyi TRY karşılığı vurgulanır (birimler arası adil):
+                  // ALIM'da en düşük, SATIS'ta en yüksek.
                   const validTry = cells
                     .map((c) => c.priceTry)
                     .filter((p): p is number => p != null && p > 0);
-                  const minTry = validTry.length ? Math.min(...validTry) : null;
+                  const minTry = validTry.length
+                    ? isAlim
+                      ? Math.min(...validTry)
+                      : Math.max(...validTry)
+                    : null;
                   return (
                     <TableRow key={it.id}>
                       <TableCell className="whitespace-nowrap text-zinc-900">
@@ -940,7 +816,7 @@ export default function ListingDetailPage() {
                 </span>
                 {b.bidderCompanyId ? (
                   <Link
-                    href={`/company/satinalma/mesajlar?with=${b.bidderCompanyId}`}
+                    href={`/company/${isAlim ? "satinalma" : "satis"}/mesajlar?with=${b.bidderCompanyId}`}
                     className="text-xs font-semibold text-blue-600 hover:underline"
                   >
                     Mesaj
@@ -1004,222 +880,6 @@ export default function ListingDetailPage() {
       </div>
     ) : null;
 
-  const bidFormSection = (
-    <section className="space-y-3">
-      <Subheading>Teklif Ver</Subheading>
-      {l.canBid ? (
-        <div className="space-y-4 rounded-xl border border-zinc-950/10 bg-white p-5">
-          {/* Açık eksiltme canlı kutusu AuctionLiveCard'a taşındı (sekmeli
-              satıcı görünümünün üstünde) — burada tekrarlanmaz. */}
-          {biddingOpen && !isAlim && l.buyNowPrice ? (
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
-              <div>
-                <div className="text-sm font-semibold text-emerald-900">
-                  Hemen Al — {Number(l.buyNowPrice).toLocaleString("tr-TR")} ₺
-                </div>
-                <div className="text-xs text-emerald-700">
-                  Tavan fiyattan teklif ver. Satıcı yine de onaylar.
-                </div>
-              </div>
-              <Button onClick={handleBuyNow} disabled={buyNow.isPending}>
-                Hemen Al
-              </Button>
-            </div>
-          ) : null}
-          {l.myBid ? (
-            <div className="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2">
-              <Text className="text-sm">
-                Mevcut teklifin:{" "}
-                <strong>
-                  {Number(l.myBid.amount).toLocaleString("tr-TR")}{" "}
-                  {!l.myBid.currency || l.myBid.currency === "TRY"
-                    ? "₺"
-                    : l.myBid.currency}
-                </strong>
-              </Text>
-              {biddingOpen && l.myBid.status === "SUBMITTED" ? (
-                <Button
-                  plain
-                  onClick={handleWithdraw}
-                  disabled={withdrawBid.isPending}
-                >
-                  Geri Çek
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
-          {biddingOpen ? (
-          <>
-          {hasItems ? (
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-zinc-900">
-                Kalem teklifleri (birim fiyat)
-              </div>
-              <div className="rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
-                <Table dense>
-                  <TableHead>
-                    <TableRow>
-                      <TableHeader>Kalem</TableHeader>
-                      <TableHeader className="text-right">Miktar</TableHeader>
-                      <TableHeader className="text-right">Birim Fiyat</TableHeader>
-                      <TableHeader className="text-right">Tutar</TableHeader>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {(l.items ?? []).map((it) => {
-                      const up = Number(itemPrices[it.id]);
-                      const line = up > 0 ? up * Number(it.quantity) : 0;
-                      return (
-                        <TableRow key={it.id}>
-                          <TableCell className="text-zinc-900">{it.name}</TableCell>
-                          <TableCell className="text-right tabular-nums text-zinc-500">
-                            {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <input
-                              type="number"
-                              min={0}
-                              step="0.01"
-                              aria-label={`${it.name} birim fiyat`}
-                              className="w-24 rounded-md border border-surface-border px-2 py-1 text-right text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                              value={itemPrices[it.id] ?? ""}
-                              onChange={(e) =>
-                                setItemPrices((p) => ({
-                                  ...p,
-                                  [it.id]: e.target.value,
-                                }))
-                              }
-                              placeholder="0"
-                            />
-                          </TableCell>
-                          <TableCell className="text-right font-mono tabular-nums text-zinc-700">
-                            {line > 0
-                              ? `${line.toLocaleString("tr-TR")} ${sym}`
-                              : "—"}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    <TableRow>
-                      <TableCell className="text-right text-xs font-semibold text-zinc-500">
-                        Toplam
-                      </TableCell>
-                      <TableCell />
-                      <TableCell />
-                      <TableCell className="text-right font-mono font-bold tabular-nums text-zinc-900">
-                        {itemTotal.toLocaleString("tr-TR")} {sym}
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-              {l.requireAllItems ? (
-                <Text className="text-xs text-amber-600">
-                  Bu ihalede tüm kalemlere fiyat girmen gerekiyor.
-                </Text>
-              ) : null}
-            </div>
-          ) : (
-            <Field>
-              <Label>Tutar (₺)</Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder={l.myBid ? l.myBid.amount : "Ör. 50000"}
-              />
-            </Field>
-          )}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Field>
-              <Label>Teslim tarihi</Label>
-              <Input
-                type="date"
-                value={bidDelivery}
-                onChange={(e) => setBidDelivery(e.target.value)}
-              />
-            </Field>
-            <Field>
-              <Label>Geçerlilik (gün)</Label>
-              <Input
-                type="number"
-                min={1}
-                max={365}
-                value={bidValidity}
-                onChange={(e) => setBidValidity(e.target.value)}
-                placeholder="Ör. 30"
-              />
-            </Field>
-            {(l.allowedCurrencies?.length ?? 0) > 1 ? (
-              <Field>
-                <Label>Para birimi</Label>
-                <select
-                  value={bidCurrency}
-                  aria-label="Para birimi"
-                  onChange={(e) => setBidCurrency(e.target.value)}
-                  className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                >
-                  {(l.allowedCurrencies ?? []).map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            ) : null}
-          </div>
-          <Field>
-            <Label>Not (opsiyonel)</Label>
-            <Textarea
-              rows={2}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              maxLength={1000}
-            />
-          </Field>
-          <div className="flex items-center gap-2">
-            <Button
-              outline
-              onClick={() => handleBid(true)}
-              disabled={placeBid.isPending}
-            >
-              Taslak Kaydet
-            </Button>
-            <Button onClick={() => handleBid(false)} disabled={placeBid.isPending}>
-              {placeBid.isPending
-                ? "Gönderiliyor…"
-                : l.myBid && l.myBid.status !== "DRAFT"
-                  ? "Teklifimi Güncelle"
-                  : "Teklif Gönder"}
-            </Button>
-          </div>
-          </>
-          ) : (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              İhale teklife kapandı — teklif ve belgeler artık güncellenemez.
-            </div>
-          )}
-          <Text className="text-xs text-zinc-400">
-            {l.english?.isEnglishAuction
-              ? "Açık eksiltme: teklifin güncel en düşüğün altında olmalı; tutarlar herkese açık."
-              : "Kapalı zarf: diğer tekliflerin tutarını göremezsin."}
-          </Text>
-
-          {bidDocsSection}
-        </div>
-      ) : (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
-          <Text className="text-sm text-amber-800">
-            Bu ilana teklif vermek için <strong>premium üyelik</strong> gerekir
-            (veya ilanı açan firmayla bağlantı kur).
-          </Text>
-        </div>
-      )}
-    </section>
-  );
-
   // ALIM Teklifim sekmesi aksiyonları — form ayrı sayfada (/teklif-ver),
   // burada duruma göre CTA + geri çekme + belgeler (eski panel paritesi).
   const bidHref = `/company/ilan/${l.id}/teklif-ver`;
@@ -1233,7 +893,12 @@ export default function ListingDetailPage() {
     if (st === "LOST")
       return { label: "Yeniden Teklif Ver", href: bidHref };
     if (st === "SUBMITTED" && l.english?.isEnglishAuction)
-      return { label: "Yeni Teklif Ver (Fiyat Düşür)", href: bidHref };
+      return {
+        label: isAlim
+          ? "Yeni Teklif Ver (Fiyat Düşür)"
+          : "Yeni Teklif Ver (Fiyat Artır)",
+        href: bidHref,
+      };
     return null; // SUBMITTED RFQ (değişiklik yok) / WITHDRAWN
   })();
 
@@ -1251,11 +916,30 @@ export default function ListingDetailPage() {
         </div>
       ) : (
         <div className="space-y-4 rounded-xl border border-zinc-950/10 bg-white p-5">
+          {/* SATIS + hemen-al: tavan fiyattan anında teklif (satıcı onaylar). */}
+          {!isAlim && biddingOpen && l.buyNowPrice ? (
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <div>
+                <div className="text-sm font-semibold text-emerald-900">
+                  Hemen Al — {Number(l.buyNowPrice).toLocaleString("tr-TR")}{" "}
+                  {sym}
+                </div>
+                <div className="text-xs text-emerald-700">
+                  Tavan fiyattan teklif ver. Satıcı yine de onaylar.
+                </div>
+              </div>
+              <Button onClick={handleBuyNow} disabled={buyNow.isPending}>
+                Hemen Al
+              </Button>
+            </div>
+          ) : null}
           {bidCta ? (
             <div className="flex items-center justify-between gap-3">
               <Text className="text-sm text-zinc-600">
                 {l.myBid?.status === "SUBMITTED"
-                  ? "Açık eksiltme — fiyatını düşürerek yeni teklif verebilirsin."
+                  ? isAlim
+                    ? "Açık eksiltme — fiyatını düşürerek yeni teklif verebilirsin."
+                    : "Açık artırma — fiyatını artırarak yeni teklif verebilirsin."
                   : l.myBid?.status === "LOST"
                     ? "İhale hâlâ açık — güncellenmiş teklifle yeniden katıl."
                     : l.myBid?.status === "DRAFT"
@@ -1269,8 +953,9 @@ export default function ListingDetailPage() {
           biddingOpen &&
           !l.english?.isEnglishAuction ? (
             <Text className="text-xs text-zinc-500">
-              Gönderilmiş teklif düzenlenemez — değişiklik için alıcıyla
-              iletişime geç ya da teklifini geri çek.
+              Gönderilmiş teklif düzenlenemez — değişiklik için{" "}
+              {isAlim ? "alıcıyla" : "satıcıyla"} iletişime geç ya da teklifini
+              geri çek.
             </Text>
           ) : null}
           {l.myBid && biddingOpen && l.myBid.status === "SUBMITTED" ? (
@@ -1295,7 +980,9 @@ export default function ListingDetailPage() {
           ) : null}
           <Text className="text-xs text-zinc-400">
             {l.english?.isEnglishAuction
-              ? "Açık eksiltme: teklifin güncel en düşüğün altında olmalı."
+              ? isAlim
+                ? "Açık eksiltme: teklifin güncel en düşüğün altında olmalı."
+                : "Açık artırma: teklifin güncel en yükseğin üzerinde olmalı."
               : "Kapalı zarf: diğer tekliflerin tutarını göremezsin."}
           </Text>
           {bidDocsSection}
@@ -1395,8 +1082,8 @@ export default function ListingDetailPage() {
     </Link>
   );
 
-  // ───────────── SAHİP + ALIM: eski sekmeli ihale detayı ─────────────
-  if (l.isOwner && isAlim) {
+  // ───────────── SAHİP: sekmeli ihale detayı (ALIM + SATIS) ─────────────
+  if (l.isOwner) {
     return (
       <div className="mx-auto max-w-5xl space-y-5">
         {breadcrumb}
@@ -1429,6 +1116,7 @@ export default function ListingDetailPage() {
               closesAt={l.closesAt}
               internalNotes={l.internalNotes ?? null}
               canEdit={l.canEdit}
+              listingType={isAlim ? "ALIM" : "SATIS"}
             />
           </div>
         </div>
@@ -1490,7 +1178,7 @@ export default function ListingDetailPage() {
             <MetaItem
               icon={Users}
               label="Davetli"
-              value={`${l.invitations?.length ?? 0} tedarikçi`}
+              value={`${l.invitations?.length ?? 0} ${isAlim ? "tedarikçi" : "alıcı"}`}
             />
             <MetaItem
               icon={Gavel}
@@ -1550,7 +1238,7 @@ export default function ListingDetailPage() {
           title="Teklifi ele"
           description={
             eliminateTarget
-              ? `"${eliminateTarget.bidderName}" elensin mi? Yeniden teklif verebilir. Yazdığınız gerekçe tedarikçiye GÖSTERİLİR.`
+              ? `"${eliminateTarget.bidderName}" elensin mi? Yeniden teklif verebilir. Yazdığınız gerekçe ${isAlim ? "tedarikçiye" : "alıcıya"} GÖSTERİLİR.`
               : undefined
           }
           confirmLabel="Ele"
@@ -1561,11 +1249,12 @@ export default function ListingDetailPage() {
     );
   }
 
-  // ───────────── SAHİP DEĞİL + ALIM: sekmeli satıcı görünümü ─────────────
-  // Eski tedarikçi paneli paritesi: başlık kartı (geri sayım) + canlı eksiltme
-  // kartı + meta şeridi + Teklifim/Kalemler/Genel Bilgi/Dosyalar sekmeleri.
+  // ───────────── SAHİP DEĞİL: sekmeli teklifçi görünümü (ALIM + SATIS) ─────
+  // Eski tedarikçi paneli paritesi: başlık kartı (geri sayım) + canlı
+  // eksiltme/artırma kartı + meta şeridi + Teklifim/Kalemler/Genel
+  // Bilgi/Dosyalar sekmeleri. ALIM'da teklifçi satıcıdır, SATIS'ta alıcıdır.
   // Kapalı zarf: davetliler/teklifler sekmesi YOK — yalnızca kendi teklifi.
-  if (!l.isOwner && isAlim) {
+  {
     return (
       <div className="mx-auto max-w-5xl space-y-5">
         {breadcrumb}
@@ -1598,8 +1287,8 @@ export default function ListingDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             <p className="flex items-start gap-2">
               <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              Bu herkese açık ihale önizleme modunda — alıcı firma ve kalemler
-              gizli. Teklif vermek için premium üyelik gerekir.
+              Bu herkese açık ihale önizleme modunda — {isAlim ? "alıcı" : "satıcı"}{" "}
+              firma ve kalemler gizli. Teklif vermek için premium üyelik gerekir.
             </p>
             <Button href="/company/premium" className="shrink-0">
               Premium&apos;a Geç
@@ -1616,7 +1305,7 @@ export default function ListingDetailPage() {
           <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-zinc-950/5 bg-zinc-950/[0.06] lg:grid-cols-4">
             <MetaItem
               icon={Building2}
-              label="Alıcı Firma"
+              label={isAlim ? "Alıcı Firma" : "Satıcı Firma"}
               value={l.owner?.name ?? "Gizli firma"}
             />
             <MetaItem
@@ -1687,16 +1376,4 @@ export default function ListingDetailPage() {
       </div>
     );
   }
-
-  // ───────────── SAHİP DEĞİL veya SATIŞ: tek-akış ─────────────
-  return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      {breadcrumb}
-      {header}
-      {itemsSection}
-      {infoSection}
-      {invitationsSection}
-      {l.isOwner ? ownerBidsSection : bidFormSection}
-    </div>
-  );
 }

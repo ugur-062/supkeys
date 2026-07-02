@@ -127,6 +127,7 @@ const INTERNATIONAL_DELIVERY_TERMS: DeliveryTerm[] = [
 function KeywordsInput() {
   const { setValue, watch, formState: { errors } } = useFormContext<TenderFormData>();
   const keywords = watch("keywords") ?? [];
+  const Rol = watch("listingType") === "SATIS" ? "Alıcı" : "Tedarikçi";
 
   const addKeyword = (raw: string) => {
     const trimmed = raw.trim().slice(0, 50);
@@ -147,7 +148,7 @@ function KeywordsInput() {
   return (
     <Field
       error={errors.keywords?.message as string | undefined}
-      hint="Tedarikçi havuzunda arama eşleşmesi için. Enter veya virgülle ayırın, en fazla 10."
+      hint={`${Rol} havuzunda arama eşleşmesi için. Enter veya virgülle ayırın, en fazla 10.`}
     >
       <Label htmlFor="keywords-input">Anahtar Kelimeler</Label>
       <div className="flex flex-wrap items-center gap-1.5 p-2 rounded-lg border border-surface-border bg-white min-h-[42px] focus-within:ring-2 focus-within:ring-brand-500/30 focus-within:border-brand-500">
@@ -513,6 +514,16 @@ export function Step1Info({ listingId }: { listingId?: string }) {
   const autoExtendOnLateBid = watch("autoExtendOnLateBid");
   const isAuction = tenderType === "ENGLISH_AUCTION";
   const isSatis = watch("listingType") === "SATIS";
+  // SATIS'ta karşı taraf ALICI'dır; İngiliz usulünde fiyat YÜKSELİR (artırma).
+  const rol = isSatis ? "alıcı" : "tedarikçi";
+  const rolPl = isSatis ? "alıcılar" : "tedarikçiler";
+  const rolDat = isSatis ? "alıcıya" : "tedarikçiye";
+  const Rol = isSatis ? "Alıcı" : "Tedarikçi";
+  const RolDat = isSatis ? "Alıcıya" : "Tedarikçiye";
+  const RolPl = isSatis ? "Alıcılar" : "Tedarikçiler";
+  const RolPlDat = isSatis ? "Alıcılara" : "Tedarikçilere";
+  const RolPlGen = isSatis ? "Alıcıların" : "Tedarikçilerin";
+  const auctionName = isSatis ? "artırma" : "eksiltme";
   const isInternational = watch("isInternational");
   // datetime-local "min" — geçmiş tarih seçimini anında engeller (yerel saat).
   const minDateTime = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
@@ -604,7 +615,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
 
           {/* Açık İhale — görünürlük */}
           <Field
-            hint="Herkese açık ihaleye premium tedarikçiler davet beklemeden teklif verebilir; davetli ihale yalnızca davet ettiklerinize gider."
+            hint={`Herkese açık ihaleye premium ${rolPl} davet beklemeden teklif verebilir; davetli ihale yalnızca davet ettiklerinize gider.`}
           >
             <Label>İhale Görünürlüğü</Label>
             <FormRadioGroup
@@ -618,7 +629,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
                     Davetli (Kapalı)
                   </p>
                   <p className="text-xs text-zinc-500">
-                    Sadece davet ettiğiniz tedarikçiler görür ve teklif verir.
+                    Sadece davet ettiğiniz {rolPl} görür ve teklif verir.
                   </p>
                 </div>
               </div>
@@ -629,7 +640,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
                     Herkese Açık
                   </p>
                   <p className="text-xs text-zinc-500">
-                    Davetlilere ek olarak premium tedarikçiler de teklif
+                    Davetlilere ek olarak premium {rolPl} de teklif
                     verebilir. (Kapalı zarf gizliliği korunur.)
                   </p>
                 </div>
@@ -644,7 +655,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
         <SectionHeader
           icon={Tag}
           title="Kategoriler"
-          description="İhalenizin konusu olan ürün/hizmet kategorilerini seçin. Birden fazla kategori seçebilirsiniz (en fazla 10). Doğru kategori seçimi, raporlama ve tedarikçi eşleştirmesi için kritik."
+          description={`İhalenizin konusu olan ürün/hizmet kategorilerini seçin. Birden fazla kategori seçebilirsiniz (en fazla 10). Doğru kategori seçimi, raporlama ve ${rol} eşleştirmesi için kritik.`}
         />
         <Field error={errors.categoryIds?.message as string | undefined}>
           <Label required>Kategoriler</Label>
@@ -716,13 +727,13 @@ export function Step1Info({ listingId }: { listingId?: string }) {
           <SectionHeader
             icon={Eye}
             title="Teklif ve Sıralama Görünürlüğü"
-            description="Tedarikçilerin canlı eksiltmede ne göreceğini belirleyin."
+            description={`${RolPlGen} canlı ${auctionName}da ne göreceğini belirleyin.`}
           />
           <div className="rounded-xl border border-brand-100 bg-brand-50/30 p-4 mb-4 flex items-start gap-2">
             <Info className="w-4 h-4 text-brand-600 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-slate-700">
-              Yapacağınız seçimlerin hiçbirinde tedarikçiler birbirlerinin
-              ismini göremez.
+              Yapacağınız seçimlerin hiçbirinde {rolPl} birbirlerinin ismini
+              göremez.
             </p>
           </div>
           <Field error={errors.bidVisibility?.message as string | undefined}>
@@ -733,27 +744,27 @@ export function Step1Info({ listingId }: { listingId?: string }) {
               <VisibilityOption
                 value="OWN_ONLY"
                 title="Sadece kendi teklifi"
-                desc="Tedarikçi, ihaledeki hiçbir teklifi ve sıralamayı göremez."
+                desc={`${Rol}, ihaledeki hiçbir teklifi ve sıralamayı göremez.`}
               />
               <VisibilityOption
                 value="BEST_PRICE"
                 title="Sadece en iyi teklif"
-                desc="Tedarikçi, ihaledeki en iyi teklifi görür."
+                desc={`${Rol}, ihaledeki en iyi teklifi görür.`}
               />
               <VisibilityOption
                 value="OWN_RANK"
                 title="Sadece kendi sıralaması"
-                desc="Tedarikçi, sadece kendi sıralamasını görür."
+                desc={`${Rol}, sadece kendi sıralamasını görür.`}
               />
               <VisibilityOption
                 value="BEST_AND_OWN_RANK"
                 title="En iyi teklif ve kendi sıralaması"
-                desc="Tedarikçi, ihaledeki en iyi teklifi ve kendi sıralamasını görür."
+                desc={`${Rol}, ihaledeki en iyi teklifi ve kendi sıralamasını görür.`}
               />
               <VisibilityOption
                 value="ALL"
                 title="Tüm teklifler ve sıralama"
-                desc="Tedarikçi, ihaledeki tüm teklifleri ve sıralamaları görür."
+                desc={`${Rol}, ihaledeki tüm teklifleri ve sıralamaları görür.`}
               />
             </FormRadioGroup>
           </Field>
@@ -765,7 +776,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
         <SectionHeader
           icon={Gavel}
           title="İhale Kuralları"
-          description="Tedarikçilerin teklif verme şeklini belirleyin."
+          description={`${RolPlGen} teklif verme şeklini belirleyin.`}
         />
         <div className="space-y-3">
           {isAuction ? (
@@ -777,11 +788,17 @@ export function Step1Info({ listingId }: { listingId?: string }) {
                     checked
                     disabled
                     className="mt-0.5"
-                    aria-label="Fiyatlar sürekli azalır (sabit kural)"
+                    aria-label={
+                      isSatis
+                        ? "Fiyatlar sürekli artar (sabit kural)"
+                        : "Fiyatlar sürekli azalır (sabit kural)"
+                    }
                   />
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-brand-900">
-                      Tedarikçilerin kalem bazında verdiği teklif fiyatları sürekli azalsın.
+                      {isSatis
+                        ? "Alıcıların verdiği teklif fiyatları sürekli artsın."
+                        : "Tedarikçilerin kalem bazında verdiği teklif fiyatları sürekli azalsın."}
                     </p>
                     <FormRadioGroup
                       name="priceDecrementBasis"
@@ -796,8 +813,9 @@ export function Step1Info({ listingId }: { listingId?: string }) {
                         <p className="text-sm font-semibold text-zinc-900">
                           Kendi son teklifini baz alsın.
                           <span className="block text-xs font-normal text-zinc-500">
-                            Her yeni teklif, tedarikçinin kendi önceki
-                            teklifinden en az azaltma kadar düşük olur.
+                            {isSatis
+                              ? "Her yeni teklif, alıcının kendi önceki teklifinden en az artış kadar yüksek olur."
+                              : "Her yeni teklif, tedarikçinin kendi önceki teklifinden en az azaltma kadar düşük olur."}
                           </span>
                         </p>
                       </div>
@@ -810,8 +828,9 @@ export function Step1Info({ listingId }: { listingId?: string }) {
                         <p className="text-sm font-semibold text-zinc-900">
                           İhaledeki en iyi teklifi baz alsın.
                           <span className="block text-xs font-normal text-zinc-500">
-                            Yeni teklif vermek için mevcut en iyi teklifi en az
-                            azaltma kadar geçmek gerekir (klasik ters eksiltme).
+                            {isSatis
+                              ? "Yeni teklif vermek için mevcut en yüksek teklifi en az artış kadar geçmek gerekir (klasik açık artırma)."
+                              : "Yeni teklif vermek için mevcut en iyi teklifi en az azaltma kadar geçmek gerekir (klasik ters eksiltme)."}
                           </span>
                         </p>
                       </div>
@@ -819,7 +838,9 @@ export function Step1Info({ listingId }: { listingId?: string }) {
 
                     <div className="mt-4 ml-7">
                       <p className="text-xs font-semibold text-slate-700 mb-2">
-                        Fiyat Azaltma Seçenekleri
+                        {isSatis
+                          ? "Fiyat Artış Seçenekleri"
+                          : "Fiyat Azaltma Seçenekleri"}
                       </p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <Field
@@ -830,7 +851,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
                           }
                         >
                           <Label htmlFor="priceDecrementType">
-                            Fiyat Azaltma Tipi
+                            {isSatis ? "Fiyat Artış Tipi" : "Fiyat Azaltma Tipi"}
                           </Label>
                           <Select
                             id="priceDecrementType"
@@ -849,7 +870,9 @@ export function Step1Info({ listingId }: { listingId?: string }) {
                           }
                         >
                           <Label htmlFor="priceDecrementValue">
-                            Fiyat Azaltma Değeri
+                            {isSatis
+                              ? "Fiyat Artış Değeri"
+                              : "Fiyat Azaltma Değeri"}
                           </Label>
                           <div className="relative">
                             <Input
@@ -880,10 +903,10 @@ export function Step1Info({ listingId }: { listingId?: string }) {
               </div>
 
               <FormCheckbox name="requireAllItems">
-                Tedarikçilerin tüm kalemlere teklif vermesi zorunludur.
+                {`${RolPlGen} tüm kalemlere teklif vermesi zorunludur.`}
               </FormCheckbox>
               <FormCheckbox name="requireBidDocument">
-                Tedarikçilerin, teklif dosyası yüklemesi zorunludur.
+                {`${RolPlGen}, teklif dosyası yüklemesi zorunludur.`}
               </FormCheckbox>
               {/* Kapanış hatırlatması artık otomatik — kullanıcıya sorulmaz. */}
 
@@ -958,21 +981,21 @@ export function Step1Info({ listingId }: { listingId?: string }) {
               <FormCheckbox name="isSealedBid">
                 <p>Kapalı Zarf (varsayılan)</p>
                 <p className="text-xs font-normal text-zinc-500">
-                  Tedarikçiler birbirinin tekliflerini görmez. Süre dolunca tüm
+                  {RolPl} birbirinin tekliflerini görmez. Süre dolunca tüm
                   teklifler size açılır.
                 </p>
               </FormCheckbox>
               <FormCheckbox name="requireAllItems">
                 <p>Tüm kalemlere teklif zorunlu</p>
                 <p className="text-xs font-normal text-zinc-500">
-                  Tedarikçi tek bir kaleme teklif veremez; tümüne fiyat girmek
+                  {Rol} tek bir kaleme teklif veremez; tümüne fiyat girmek
                   zorundadır.
                 </p>
               </FormCheckbox>
               <FormCheckbox name="requireBidDocument">
                 <p>Teklif dosyası zorunlu</p>
                 <p className="text-xs font-normal text-zinc-500">
-                  Tedarikçi teklifi gönderirken en az 1 dosya yüklemelidir.
+                  {Rol} teklifi gönderirken en az 1 dosya yüklemelidir.
                 </p>
               </FormCheckbox>
               {/* Kapanış hatırlatması artık otomatik: kapanıştan önce, henüz
@@ -989,8 +1012,8 @@ export function Step1Info({ listingId }: { listingId?: string }) {
           title={isAuction ? "İhale Para Ayarları" : "Para Birimleri"}
           description={
             isAuction
-              ? "Açık eksiltme tek para biriminde yapılır. Ondalık basamak fiyat gösteriminde kullanılır."
-              : "Tedarikçilerin hangi para birimlerinde teklif verebileceğini belirle. Birden fazla seçebilirsin; ★ ana para birimi TRY equivalent karşılaştırmasının bazıdır."
+              ? `Açık ${auctionName} tek para biriminde yapılır. Ondalık basamak fiyat gösteriminde kullanılır.`
+              : `${RolPlGen} hangi para birimlerinde teklif verebileceğini belirle. Birden fazla seçebilirsin; ★ ana para birimi TRY equivalent karşılaştırmasının bazıdır.`
           }
         />
         <div className="space-y-4">
@@ -1093,7 +1116,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
                     </p>
                     <p className="text-success-800/80">
                       Ana para birimi olarak {primaryCurrency} seçildi. Diğer
-                      birimlerdeki teklifler tedarikçinin gönderim tarihindeki
+                      birimlerdeki teklifler {rol === "alıcı" ? "alıcının" : "tedarikçinin"} gönderim tarihindeki
                       TCMB kuruyla TRY'ye çevrilerek karşılaştırılır.
                     </p>
                   </div>
@@ -1139,7 +1162,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
             hint={
               deliveryAddrs.length === 0
                 ? "Adres defterinizde teslimat adresi yok — Ayarlar → Adresler'den ekleyin."
-                : "Davet edilen tedarikçiler bu adresi görür."
+                : `Davet edilen ${rolPl} bu adresi görür.`
             }
           >
             <Label htmlFor="deliveryAddressId">Teslimat Adresi</Label>
@@ -1198,7 +1221,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
             <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
               <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
               <p className="text-xs text-amber-800">
-                Peşin (nakit) ödemede, <strong>kazanan tedarikçi</strong>{" "}
+                Peşin (nakit) ödemede, <strong>kazanan {rol}</strong>{" "}
                 siparişi onaylamadan önce <strong>teminat mektubu</strong>{" "}
                 yüklemek zorundadır (teslimat garantisi).
               </p>
@@ -1231,7 +1254,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
           {/* Faz 3 madde 16 — Ödeme zamanı: sipariş ödeme akışını belirler. */}
           <Field
             error={errors.paymentTiming?.message}
-            hint="Teslim öncesi seçilirse tedarikçi onayından sonra, teslim sonrası seçilirse sipariş tamamlanınca ödeme kaydı girilebilir."
+            hint={`Teslim öncesi seçilirse ${rol} onayından sonra, teslim sonrası seçilirse sipariş tamamlanınca ödeme kaydı girilebilir.`}
           >
             <Label required>Ödeme Zamanı</Label>
             <FormRadioGroup
@@ -1260,12 +1283,12 @@ export function Step1Info({ listingId }: { listingId?: string }) {
         <SectionHeader
           icon={FileText}
           title="Hüküm, Koşullar & Notlar"
-          description="Tedarikçiye iletilecek ek bilgiler."
+          description={`${RolDat} iletilecek ek bilgiler.`}
         />
         <div className="space-y-4">
           <Field
             error={errors.termsAndConditions?.message}
-            hint="Tedarikçilere açık metin olarak gösterilir."
+            hint={`${RolPlDat} açık metin olarak gösterilir.`}
           >
             <Label htmlFor="termsAndConditions">Hüküm ve Koşullar</Label>
             <Textarea
@@ -1279,7 +1302,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
 
           <Field
             error={errors.internalNotes?.message}
-            hint="Sadece kendi ekibiniz görür, tedarikçiye iletilmez."
+            hint={`Sadece kendi ekibiniz görür, ${rolDat} iletilmez.`}
           >
             <Label htmlFor="internalNotes">Dahili Notlar (özel)</Label>
             <Textarea
@@ -1314,7 +1337,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
         <SectionHeader
           icon={Calendar}
           title="Açılış / Kapanış"
-          description="Tedarikçiler ne zamandan ne zamana kadar teklif verebilecek?"
+          description={`${RolPl} ne zamandan ne zamana kadar teklif verebilecek?`}
         />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field

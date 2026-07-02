@@ -159,6 +159,12 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
 export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
   const bid = l.myBid;
   const open = l.status === "OPEN";
+  // Kazanınca oluşan sipariş, teklifçinin kendi portalında listelenir:
+  // ALIM ihalesinde teklifçi SATICI, SATIS ihalesinde ALICI'dır.
+  const ordersHref =
+    l.type === "SATIS"
+      ? "/company/satinalma/siparisler"
+      : "/company/satis/siparisler";
 
   if (!bid) {
     return open ? null : (
@@ -185,7 +191,7 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
         <p className="flex items-center gap-1.5">
           <Trophy className="h-4 w-4" aria-hidden="true" />
           Sipariş oluşturuldu —{" "}
-          <Link href="/company/satis/siparisler" className="font-semibold underline">
+          <Link href={ordersHref} className="font-semibold underline">
             Siparişlerimi Görüntüle
           </Link>
         </p>
@@ -194,7 +200,7 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
   } else if (bid.status === "AWARDED_PARTIAL") {
     alerts.push(
       <StatusAlert key="part" tone="success" title="Bazı kalemleri kazandınız">
-        <Link href="/company/satis/siparisler" className="font-semibold underline">
+        <Link href={ordersHref} className="font-semibold underline">
           Siparişlerimi Görüntüle
         </Link>
       </StatusAlert>,

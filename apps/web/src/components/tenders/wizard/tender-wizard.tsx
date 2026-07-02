@@ -39,7 +39,7 @@ import { Step4Review } from "./step-4-review";
 function stepMeta(isSatis: boolean) {
   return [
     isSatis
-      ? { title: "Kapsam", desc: "Satış ihalesinin kapsamı" }
+      ? { title: "Tür & Kapsam", desc: "Satış ihalesi türü ve kapsamı" }
       : { title: "Tür & Kapsam", desc: "İhale türü ve kapsamı" },
     { title: "Genel Bilgi", desc: "Kategori, kurallar, teslimat, ödeme" },
     { title: "Kalemler", desc: "Ürün / hizmet kalemleri" },
@@ -128,8 +128,8 @@ function mapToInput(d: TenderFormData): CreateListingInput {
   const isSatis = d.listingType === "SATIS";
   return {
     type: d.listingType,
-    // Format yalnız ALIM'da anlamlı; SATIS = taban + hemen-al'lı teklif toplama.
-    format: isSatis ? undefined : d.type,
+    // Format iki yönde de var: ALIM'da RFQ/eksiltme, SATIS'ta RFQ/açık artırma.
+    format: d.type,
     minPrice: isSatis ? d.minPrice : undefined,
     buyNowPrice: isSatis ? d.buyNowPrice : undefined,
     isInternational: d.isInternational,

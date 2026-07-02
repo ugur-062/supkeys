@@ -152,6 +152,23 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
           <Fact label="Kapsam">
             {l.isInternational ? "Uluslararası" : "Yurtiçi"}
           </Fact>
+          <Fact label="Format">
+            {l.format === "ENGLISH_AUCTION"
+              ? l.type === "SATIS"
+                ? "İngiliz Usulü (Açık Artırma)"
+                : "İngiliz Usulü (Açık Eksiltme)"
+              : "RFQ (Kapalı Teklif)"}
+          </Fact>
+          {l.type === "SATIS" && l.minPrice ? (
+            <Fact label="Taban Fiyat">
+              {Number(l.minPrice).toLocaleString("tr-TR")} {CURRENCY_SYMBOL[cur]}
+            </Fact>
+          ) : null}
+          {l.type === "SATIS" && l.buyNowPrice ? (
+            <Fact label="Hemen-Al Fiyatı">
+              {Number(l.buyNowPrice).toLocaleString("tr-TR")} {CURRENCY_SYMBOL[cur]}
+            </Fact>
+          ) : null}
           {l.isInternational ? (
             <Fact label="Hedef Ülkeler" full>
               {(l.targetCountries ?? []).length === 0
@@ -211,7 +228,11 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
         <div className="flex flex-wrap gap-2">
           <RuleChip
             active={!!l.isSealedBid}
-            label="Kapalı zarf (tedarikçiler arası gizlilik)"
+            label={
+              l.type === "SATIS"
+                ? "Kapalı zarf (alıcılar arası gizlilik)"
+                : "Kapalı zarf (tedarikçiler arası gizlilik)"
+            }
           />
           <RuleChip
             active={!!l.requireAllItems}
@@ -224,16 +245,23 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
         </div>
       </Section>
 
-      {/* Açık Eksiltme Ayarları */}
+      {/* Açık Eksiltme/Artırma Ayarları */}
       {l.format === "ENGLISH_AUCTION" ? (
-        <Section title="Açık Eksiltme Ayarları" icon={Gavel}>
+        <Section
+          title={
+            l.type === "SATIS"
+              ? "Açık Artırma Ayarları"
+              : "Açık Eksiltme Ayarları"
+          }
+          icon={Gavel}
+        >
           <dl className="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
-            <Fact label="Tedarikçi Görünürlüğü">
+            <Fact label={l.type === "SATIS" ? "Alıcı Görünürlüğü" : "Tedarikçi Görünürlüğü"}>
               {l.bidVisibility
                 ? (BID_VISIBILITY_LABELS[l.bidVisibility] ?? "—")
                 : "—"}
             </Fact>
-            <Fact label="Min. Fiyat Azaltma">
+            <Fact label={l.type === "SATIS" ? "Min. Fiyat Artışı" : "Min. Fiyat Azaltma"}>
               {l.priceDecrementType && l.priceDecrementValue
                 ? l.priceDecrementType === "PERCENT"
                   ? `%${Number(l.priceDecrementValue)}`

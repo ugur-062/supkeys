@@ -72,6 +72,10 @@ export function AuctionLiveCard({ l }: { l: ListingDetail }) {
 
   if (!l.english?.isEnglishAuction) return null;
 
+  // Yön ilan tipine bağlı: ALIM = ters eksiltme (düşük kazanır), SATIS =
+  // açık artırma (yüksek kazanır).
+  const isSatis = l.type === "SATIS";
+
   const closesMs = l.closesAt ? new Date(l.closesAt).getTime() - now : null;
   const urgent = closesMs !== null && closesMs > 0 && closesMs < 5 * 60_000;
   const view = l.auctionView;
@@ -94,7 +98,7 @@ export function AuctionLiveCard({ l }: { l: ListingDetail }) {
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
           <Gavel className="h-3.5 w-3.5" aria-hidden="true" />
-          İngiliz Usulü Açık Eksiltme · Tur {l.english.currentRound}
+          {isSatis ? "İngiliz Usulü Açık Artırma" : "İngiliz Usulü Açık Eksiltme"} · Tur {l.english.currentRound}
         </span>
         {closesMs !== null ? (
           <span
@@ -133,7 +137,7 @@ export function AuctionLiveCard({ l }: { l: ListingDetail }) {
           }
         />
         <Tile
-          label="Min. Azaltma"
+          label={isSatis ? "Min. Artış" : "Min. Azaltma"}
           value={decrement}
           sub={
             l.priceDecrementBasis === "OWN_LAST_BID"
@@ -174,7 +178,7 @@ export function AuctionLiveCard({ l }: { l: ListingDetail }) {
                 )}
               >
                 <span className="text-zinc-500">
-                  #{b.rank} {b.isMine ? "(Sen)" : "Tedarikçi"}
+                  #{b.rank} {b.isMine ? "(Sen)" : isSatis ? "Alıcı" : "Tedarikçi"}
                 </span>
                 <span className="text-zinc-900 tabular-nums">
                   {money(b.total)}

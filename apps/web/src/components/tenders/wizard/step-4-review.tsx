@@ -48,7 +48,9 @@ export function Step4Review({ onEditStep }: Props) {
           label="Tip"
           value={
             d.listingType === "SATIS"
-              ? "Satış İhalesi (en yüksek teklif kazanır)"
+              ? d.type === "ENGLISH_AUCTION"
+                ? "Satış İhalesi — İngiliz Usulü Açık Artırma (en yüksek kazanır)"
+                : "Satış İhalesi — RFQ Teklif Toplama (en yüksek kazanır)"
               : d.type === "ENGLISH_AUCTION"
                 ? "İngiliz Usulü Açık Eksiltme"
                 : "RFQ (Teklif Toplama)"

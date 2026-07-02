@@ -507,23 +507,32 @@ export class CompanyListingsService {
     opts: { format: ListingFormat | null; inviteCount: number },
   ) {
     const isAuction = opts.format === "ENGLISH_AUCTION";
+    const isSatis = dto.type === "SATIS";
     if (isAuction) {
       if (!((dto.priceDecrementValue ?? 0) > 0)) {
         throw new BadRequestException(
-          "Açık eksiltme için fiyat azaltma değeri zorunlu",
+          isSatis
+            ? "Açık artırma için fiyat artış adımı zorunlu"
+            : "Açık eksiltme için fiyat azaltma değeri zorunlu",
         );
       }
       if (
         dto.priceDecrementType === "PERCENT" &&
         (dto.priceDecrementValue ?? 0) >= 100
       ) {
-        throw new BadRequestException("Yüzde azaltma 100'den küçük olmalı");
+        throw new BadRequestException(
+          isSatis
+            ? "Yüzde artış 100'den küçük olmalı"
+            : "Yüzde azaltma 100'den küçük olmalı",
+        );
       }
-      // Çoklu para birimi eksiltme kıyasını bozar (100 USD vs 200 TRY) —
-      // açık eksiltme tek birimle yürür.
+      // Çoklu para birimi adım kıyasını bozar (100 USD vs 200 TRY) —
+      // açık artırma/eksiltme tek birimle yürür.
       if ((dto.allowedCurrencies?.length ?? 0) > 1) {
         throw new BadRequestException(
-          "Açık eksiltmede tek para birimi kullanılabilir",
+          isSatis
+            ? "Açık artırmada tek para birimi kullanılabilir"
+            : "Açık eksiltmede tek para birimi kullanılabilir",
         );
       }
     }
@@ -589,17 +598,21 @@ export class CompanyListingsService {
       );
     }
 
-    // Tipe göre format / fiyat doğrulama.
+    // Tipe göre format / fiyat doğrulama. Format her iki yönde de zorunlu:
+    // ALIM'da İngiliz usulü DÜŞEN eksiltme, SATIS'ta YÜKSELEN artırma.
     let format: ListingFormat | null = null;
     let minPrice: number | null = null;
     let buyNowPrice: number | null = null;
 
-    if (type === "ALIM") {
-      if (!dto.format) {
-        throw new BadRequestException("Alım ilanı için format seçin (RFQ / İngiliz Usulü)");
-      }
-      format = dto.format as ListingFormat;
-    } else {
+    if (!dto.format) {
+      throw new BadRequestException(
+        type === "ALIM"
+          ? "Alım ilanı için format seçin (RFQ / İngiliz Usulü)"
+          : "Satış ilanı için format seçin (Teklif Toplama / Açık Artırma)",
+      );
+    }
+    format = dto.format as ListingFormat;
+    if (type === "SATIS") {
       // SATIS: taban fiyat zorunlu, hemen-al opsiyonel (≥ taban).
       if (!dto.minPrice || dto.minPrice <= 0) {
         throw new BadRequestException("Satış ilanı için taban fiyat girin");
@@ -794,14 +807,15 @@ export class CompanyListingsService {
     let format: ListingFormat | null = null;
     let minPrice: number | null = null;
     let buyNowPrice: number | null = null;
-    if (type === "ALIM") {
-      if (!dto.format) {
-        throw new BadRequestException(
-          "Alım ilanı için format seçin (RFQ / İngiliz Usulü)",
-        );
-      }
-      format = dto.format as ListingFormat;
-    } else {
+    if (!dto.format) {
+      throw new BadRequestException(
+        type === "ALIM"
+          ? "Alım ilanı için format seçin (RFQ / İngiliz Usulü)"
+          : "Satış ilanı için format seçin (Teklif Toplama / Açık Artırma)",
+      );
+    }
+    format = dto.format as ListingFormat;
+    if (type === "SATIS") {
       if (!dto.minPrice || dto.minPrice <= 0) {
         throw new BadRequestException("Satış ilanı için taban fiyat girin");
       }
@@ -1470,6 +1484,7 @@ export class CompanyListingsService {
         ? this.prisma.listingBid.aggregate({
             where: { listingId: id, status: "SUBMITTED" },
             _min: { amount: true },
+            _max: { amount: true },
             _count: true,
           })
         : Promise.resolve(null),
@@ -1506,7 +1521,12 @@ export class CompanyListingsService {
       addrRows.find((a) => a.id === listing.billingAddressId),
     );
 
-    // İngiliz Usulü açık eksiltme: güncel en düşük teklif herkese görünür.
+    // İngiliz Usulü: güncel EN İYİ teklif herkese görünür — ALIM'da en düşük
+    // (ters eksiltme), SATIS'ta en yüksek (açık artırma).
+    const englishBest =
+      listing.type === "SATIS"
+        ? englishAgg?._max.amount
+        : englishAgg?._min.amount;
     const english:
       | {
           isEnglishAuction: true;
@@ -1517,9 +1537,7 @@ export class CompanyListingsService {
       | null = englishAgg
       ? {
           isEnglishAuction: true,
-          currentBest: englishAgg._min.amount
-            ? englishAgg._min.amount.toString()
-            : null,
+          currentBest: englishBest ? englishBest.toString() : null,
           bidCount: englishAgg._count,
           currentRound: listing.currentRound,
         }
@@ -1660,7 +1678,12 @@ export class CompanyListingsService {
       // Açık eksiltme görünürlüğü (bidVisibility) — kapalı zarf korunur, sadece
       // ayara göre en iyi fiyat / kendi sıra / tüm sıralar açılır.
       listing.format === "ENGLISH_AUCTION"
-        ? this.computeAuctionView(id, user.companyId, listing.bidVisibility)
+        ? this.computeAuctionView(
+            id,
+            user.companyId,
+            listing.bidVisibility,
+            listing.type,
+          )
         : Promise.resolve(null),
     ]);
 
@@ -1772,6 +1795,7 @@ export class CompanyListingsService {
     listingId: string,
     companyId: string,
     visibility: ListingBidVisibility,
+    listingType: ListingType,
   ): Promise<{
     bestTotal: string | null;
     myRank: number | null;
@@ -1783,7 +1807,8 @@ export class CompanyListingsService {
     const bids = await this.prisma.listingBid.findMany({
       where: { listingId, status: "SUBMITTED" },
       select: { bidderCompanyId: true, amount: true },
-      orderBy: { amount: "asc" }, // açık eksiltme = ters ihale, düşük en iyi
+      // ALIM = ters eksiltme (düşük en iyi), SATIS = açık artırma (yüksek en iyi).
+      orderBy: { amount: listingType === "SATIS" ? "desc" : "asc" },
     });
     const wantsBest =
       visibility === "BEST_PRICE" ||
@@ -1833,6 +1858,7 @@ export class CompanyListingsService {
         requireAllItems: true,
         requireBidDocument: true,
         minPrice: true,
+        buyNowPrice: true,
         currentRound: true,
         primaryCurrency: true,
         allowedCurrencies: true,
@@ -2117,23 +2143,38 @@ export class CompanyListingsService {
 
     // SATIS: taban fiyatın ALTINDA gönderilmiş teklif kabul edilmez
     // (taslakta serbest — kullanıcı formda düzeltir).
+    const curSym =
+      listing.primaryCurrency === "TRY" ? "₺" : listing.primaryCurrency;
     if (
       !isDraft &&
       listing.type === "SATIS" &&
       listing.minPrice != null &&
       amount.lt(listing.minPrice)
     ) {
-      const cur =
-        listing.primaryCurrency === "TRY" ? "₺" : listing.primaryCurrency;
       throw new BadRequestException(
-        `Teklif taban fiyatın (${Number(listing.minPrice).toLocaleString("tr-TR")} ${cur}) altında olamaz`,
+        `Teklif taban fiyatın (${Number(listing.minPrice).toLocaleString("tr-TR")} ${curSym}) altında olamaz`,
+      );
+    }
+    // SATIS + hemen-al: hemen-al fiyatı tavandır — ona eşit/üzeri teklif
+    // yerine Hemen Al kullanılır (anında o fiyattan teklif oluşturur).
+    if (
+      !isDraft &&
+      listing.type === "SATIS" &&
+      listing.buyNowPrice != null &&
+      amount.gte(listing.buyNowPrice)
+    ) {
+      throw new BadRequestException(
+        `Teklifiniz Hemen-Al fiyatına (${Number(listing.buyNowPrice).toLocaleString("tr-TR")} ${curSym}) ulaştı — bu fiyattan almak için Hemen Al'ı kullanın`,
       );
     }
 
-    // İngiliz Usulü (açık eksiltme): GÖNDERİLEN teklif, düşürme kuralına göre
-    // referansın (en düşük teklif veya kendi son teklifi) yeterince ALTINDA
-    // olmalı. Taslakta serbest.
+    // İngiliz Usulü: GÖNDERİLEN teklif, adım kuralına göre referanstan
+    // (en iyi teklif veya kendi son teklifi) yeterince İYİ olmalı.
+    // Yön ilan tipine bağlı: ALIM = ters eksiltme (fiyat DÜŞER, en düşük
+    // kazanır), SATIS = açık artırma (fiyat YÜKSELİR, en yüksek kazanır).
+    // Taslakta serbest.
     if (!isDraft && listing.format === "ENGLISH_AUCTION") {
+      const isAscending = listing.type === "SATIS";
       const [bestAgg, own] = await Promise.all([
         this.prisma.listingBid.aggregate({
           where: {
@@ -2142,6 +2183,7 @@ export class CompanyListingsService {
             bidderCompanyId: { not: user.companyId },
           },
           _min: { amount: true },
+          _max: { amount: true },
         }),
         this.prisma.listingBid.findUnique({
           where: {
@@ -2153,18 +2195,25 @@ export class CompanyListingsService {
           select: { amount: true, status: true },
         }),
       ]);
-      const best: Prisma.Decimal | null = bestAgg._min.amount ?? null;
+      const best: Prisma.Decimal | null =
+        (isAscending ? bestAgg._max.amount : bestAgg._min.amount) ?? null;
       const ownLast: Prisma.Decimal | null =
         own && own.status === "SUBMITTED" ? own.amount : null;
-      const cur = listing.primaryCurrency === "TRY" ? "₺" : listing.primaryCurrency;
       const fmt = (d: Prisma.Decimal) => d.toNumber().toLocaleString("tr-TR");
-      // MONOTONLUK: ters eksiltmede kendi fiyatın ASLA yükselemez — basis
-      // BEST_BID olsa bile. (Lider, rakip referansına sığınıp 800→950'ye
-      // çıkamaz; rakipsizken de serbest yükseltme olmaz.)
-      if (ownLast != null && amount.gte(ownLast)) {
-        throw new BadRequestException(
-          `İngiliz usulü: yeni teklifiniz önceki teklifinizin (${fmt(ownLast)} ${cur}) altında olmalı`,
-        );
+      // MONOTONLUK: kendi fiyatın yön aleyhine ASLA değişemez — basis
+      // BEST_BID olsa bile. (ALIM'da lider rakip referansına sığınıp
+      // 800→950'ye çıkamaz; SATIS'ta 950→800'e inemez.)
+      if (ownLast != null) {
+        if (!isAscending && amount.gte(ownLast)) {
+          throw new BadRequestException(
+            `İngiliz usulü: yeni teklifiniz önceki teklifinizin (${fmt(ownLast)} ${curSym}) altında olmalı`,
+          );
+        }
+        if (isAscending && amount.lte(ownLast)) {
+          throw new BadRequestException(
+            `Açık artırma: yeni teklifiniz önceki teklifinizin (${fmt(ownLast)} ${curSym}) üzerinde olmalı`,
+          );
+        }
       }
       const ref =
         listing.priceDecrementBasis === "OWN_LAST_BID" ? ownLast ?? best : best;
@@ -2178,14 +2227,25 @@ export class CompanyListingsService {
             ? ref.mul(dv).div(100)
             : dv
           : new Prisma.Decimal(0);
-        const maxAllowed = ref.minus(step);
         // Decimal kesin aritmetik — epsilon toleransına gerek yok.
-        if (amount.gt(maxAllowed)) {
-          throw new BadRequestException(
-            step.gt(0)
-              ? `İngiliz usulü: teklifiniz en fazla ${fmt(maxAllowed)} ${cur} olabilir (referansı en az ${fmt(step)} azaltmalısınız)`
-              : `İngiliz usulü: teklifiniz ${fmt(ref)} ${cur}'nin altında olmalı`,
-          );
+        if (!isAscending) {
+          const maxAllowed = ref.minus(step);
+          if (amount.gt(maxAllowed)) {
+            throw new BadRequestException(
+              step.gt(0)
+                ? `İngiliz usulü: teklifiniz en fazla ${fmt(maxAllowed)} ${curSym} olabilir (referansı en az ${fmt(step)} azaltmalısınız)`
+                : `İngiliz usulü: teklifiniz ${fmt(ref)} ${curSym}'nin altında olmalı`,
+            );
+          }
+        } else {
+          const minAllowed = ref.plus(step);
+          if (amount.lt(minAllowed)) {
+            throw new BadRequestException(
+              step.gt(0)
+                ? `Açık artırma: teklifiniz en az ${fmt(minAllowed)} ${curSym} olmalı (referansı en az ${fmt(step)} artırmalısınız)`
+                : `Açık artırma: teklifiniz ${fmt(ref)} ${curSym}'nin üzerinde olmalı`,
+            );
+          }
         }
       }
     }
@@ -2970,9 +3030,6 @@ export class CompanyListingsService {
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi yeni tur açabilir");
     }
-    if (listing.type !== "ALIM") {
-      throw new BadRequestException("Yeni tur yalnızca alım ilanında açılabilir");
-    }
     if (!["OPEN", "CLOSED", "CLOSED_NO_AWARD"].includes(listing.status)) {
       throw new BadRequestException(
         "Yeni tur yalnızca açık veya kapanmış ilanda açılabilir",
@@ -2981,7 +3038,9 @@ export class CompanyListingsService {
     const isAuction = dto.type === "ENGLISH_AUCTION";
     if (isAuction && !((dto.priceDecrementValue ?? 0) > 0)) {
       throw new BadRequestException(
-        "Açık eksiltme için fiyat azaltma değeri zorunlu",
+        listing.type === "SATIS"
+          ? "Açık artırma için fiyat artış adımı zorunlu"
+          : "Açık eksiltme için fiyat azaltma değeri zorunlu",
       );
     }
     if (

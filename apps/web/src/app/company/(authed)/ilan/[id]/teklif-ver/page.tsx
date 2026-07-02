@@ -30,7 +30,7 @@ import { formatDateTime } from "@/lib/tenders/date";
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
-import { AlertTriangle, Lock, X } from "lucide-react";
+import { AlertTriangle, Info, Lock, X } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -122,6 +122,9 @@ export default function TeklifVerPage() {
 
   const l = detail.data;
   const detailHref = `/company/ilan/${id}`;
+  // SATIS ihalede teklifçi ALICI'dır; ilan sahibi satıcıdır ve en yüksek
+  // teklif kazanır (taban fiyat altı kabul edilmez).
+  const isSatis = l?.type === "SATIS";
 
   // ── Form durumu ──
   const [itemState, setItemState] = useState<Record<string, ItemState>>({});
@@ -239,7 +242,7 @@ export default function TeklifVerPage() {
   ) {
     return (
       <Blocked
-        title={`Teklif zaten verildi (v${l.myBid.version ?? 1}) — değişiklik için alıcıyla iletişime geçin`}
+        title={`Teklif zaten verildi (v${l.myBid.version ?? 1}) — değişiklik için ${isSatis ? "satıcıyla" : "alıcıyla"} iletişime geçin`}
         detailHref={detailHref}
       />
     );
@@ -249,7 +252,9 @@ export default function TeklifVerPage() {
   const isAuctionRebid =
     l.myBid?.status === "SUBMITTED" && !!l.english?.isEnglishAuction;
   const pageTitle = isAuctionRebid
-    ? "Yeni Teklif Ver (Fiyat Düşür)"
+    ? isSatis
+      ? "Yeni Teklif Ver (Fiyat Artır)"
+      : "Yeni Teklif Ver (Fiyat Düşür)"
     : isRebidAfterLoss
       ? "Yeniden Teklif Ver"
       : "Teklif Ver";
@@ -297,6 +302,17 @@ export default function TeklifVerPage() {
       problems.push("Geçerlilik süresi zorunlu.");
     if (l.requireBidDocument && myDocs.length + stagedFiles.length === 0)
       problems.push("Bu ihalede teklif dosyası zorunlu.");
+    // SATIS: taban/hemen-al kıyası yalnız ilanın kendi para biriminde anlamlı.
+    if (isSatis && effectiveCurrency === (l.primaryCurrency ?? "TRY")) {
+      if (l.minPrice && total > 0 && total < Number(l.minPrice))
+        problems.push(
+          `Toplam teklif taban fiyatın (${money(Number(l.minPrice), effectiveCurrency)}) altında olamaz.`,
+        );
+      if (l.buyNowPrice && total >= Number(l.buyNowPrice))
+        problems.push(
+          `Teklif Hemen-Al fiyatına (${money(Number(l.buyNowPrice), effectiveCurrency)}) ulaştı — ihale detayından Hemen Al kullanın.`,
+        );
+    }
     return problems;
   };
 
@@ -427,6 +443,22 @@ export default function TeklifVerPage() {
         </div>
       ) : null}
 
+      {isSatis && l.minPrice ? (
+        <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <p>
+            <span className="font-semibold">
+              Taban fiyat: {money(Number(l.minPrice), l.primaryCurrency ?? "TRY")}
+            </span>{" "}
+            — altındaki teklifler kabul edilmez.
+            {l.buyNowPrice
+              ? ` Hemen-Al: ${money(Number(l.buyNowPrice), l.primaryCurrency ?? "TRY")} (bu fiyata ulaşan teklif yerine ihale detayındaki Hemen Al kullanılır).`
+              : ""}{" "}
+            En yüksek teklif kazanır.
+          </p>
+        </div>
+      ) : null}
+
       {l.english?.isEnglishAuction ? <AuctionLiveCard l={l} /> : null}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -436,7 +468,7 @@ export default function TeklifVerPage() {
           <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
             <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               <div>
-                <dt className="text-xs text-zinc-500">Alıcı</dt>
+                <dt className="text-xs text-zinc-500">{isSatis ? "Satıcı" : "Alıcı"}</dt>
                 <dd className="truncate font-medium text-zinc-900">
                   {l.owner?.name ?? "Gizli firma"}
                 </dd>
@@ -460,7 +492,7 @@ export default function TeklifVerPage() {
             </dl>
             {(l.allowedCurrencies?.length ?? 0) <= 1 ? (
               <Text className="mt-2 text-xs text-zinc-400">
-                Para birimi alıcı tarafından belirlendi.
+                Para birimi {isSatis ? "satıcı" : "alıcı"} tarafından belirlendi.
               </Text>
             ) : null}
           </section>
@@ -673,7 +705,7 @@ export default function TeklifVerPage() {
                 maxLength={1000}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Alıcıya iletmek istediğin not (opsiyonel)"
+                placeholder={`${isSatis ? "Satıcıya" : "Alıcıya"} iletmek istediğin not (opsiyonel)`}
               />
             </div>
           </section>
@@ -808,8 +840,8 @@ export default function TeklifVerPage() {
 
             <p className="text-center text-[11px] text-zinc-400">
               {l.english?.isEnglishAuction
-                ? "Açık eksiltme: tutarlar rakiplere ayara göre görünür."
-                : "Kapalı zarf: teklifin diğer tedarikçilere gösterilmez."}
+                ? `Açık ${isSatis ? "artırma" : "eksiltme"}: tutarlar rakiplere ayara göre görünür.`
+                : `Kapalı zarf: teklifin diğer ${isSatis ? "alıcılara" : "tedarikçilere"} gösterilmez.`}
             </p>
           </div>
         </div>
@@ -829,7 +861,7 @@ export default function TeklifVerPage() {
           </div>
           <Text className="mt-3 text-sm text-zinc-500">
             Gönderilen teklif düzenlenemez; yalnızca geri çekilebilir veya
-            (elenirse / açık eksiltmede) yeni versiyonla güncellenir.
+            (elenirse / açık eksiltme-artırmada) yeni versiyonla güncellenir.
           </Text>
         </DialogBody>
         <DialogActions>

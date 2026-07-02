@@ -187,14 +187,14 @@ function StepGroup({
 export function Step0TypeScope() {
   const { control, watch } = useFormContext<TenderFormData>();
   const isInternational = watch("isInternational");
-  // SATIS: format seçimi yok (İngiliz usulü satışta desteklenmez) —
-  // taban + hemen-al fiyatlı teklif toplama; yalnız kapsam seçilir.
+  // SATIS: aynı iki format, satış yönüne uyarlanır — RFQ = kapalı zarf teklif
+  // toplama (en yüksek kazanır), İngiliz usulü = canlı AÇIK ARTIRMA (fiyat
+  // yükselir). Taban + hemen-al fiyatlar adım 1'de.
   const isSatis = watch("listingType") === "SATIS";
   const { company } = useCompanyAuth();
 
   return (
     <div className="space-y-12">
-      {isSatis ? null : (
       <Controller
         control={control}
         name="type"
@@ -211,20 +211,27 @@ export function Step0TypeScope() {
                 value="RFQ"
                 icon={FileText}
                 title="RFQ (Kapalı Teklif)"
-                desc="Tedarikçiler birbirini görmez. Süre dolunca teklifler açılır."
+                desc={
+                  isSatis
+                    ? "Alıcılar birbirini görmez. Süre dolunca teklifler açılır; en yüksek teklif kazanır."
+                    : "Tedarikçiler birbirini görmez. Süre dolunca teklifler açılır."
+                }
               />
               <TileOption
                 value="ENGLISH_AUCTION"
                 icon={Gavel}
-                title="İngiliz Usulü"
+                title={isSatis ? "İngiliz Usulü Açık Artırma" : "İngiliz Usulü"}
                 badge="Yeni"
-                desc="Canlı açık eksiltme; tedarikçi sıralaması ve fiyat azaltma kuralları aktif."
+                desc={
+                  isSatis
+                    ? "Canlı açık artırma; alıcı sıralaması ve fiyat artış kuralları aktif — fiyat yükselir."
+                    : "Canlı açık eksiltme; tedarikçi sıralaması ve fiyat azaltma kuralları aktif."
+                }
               />
             </StepGroup>
           </RadioGroup>
         )}
       />
-      )}
 
       <Controller
         control={control}

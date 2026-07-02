@@ -46,6 +46,8 @@ interface Props {
   closesAt: string | null;
   internalNotes: string | null;
   canEdit?: boolean;
+  /** SATIS: rotalar satış portalına, metinler alıcı/artırma yönüne uyarlanır. */
+  listingType?: "ALIM" | "SATIS";
 }
 
 function toLocalInput(iso: string | null): string {
@@ -66,7 +68,9 @@ export function TenderActionsMenu({
   closesAt,
   internalNotes,
   canEdit,
+  listingType = "ALIM",
 }: Props) {
+  const isSatis = listingType === "SATIS";
   const router = useRouter();
   const confirm = useConfirm();
   const closeEarly = useCloseEarly(id);
@@ -98,7 +102,7 @@ export function TenderActionsMenu({
     try {
       await deleteListing.mutateAsync(id);
       toast.success("Taslak silindi");
-      router.push("/company/satinalma/ihalelerim");
+      router.push(isSatis ? "/company/satis/ilanlarim" : "/company/satinalma/ihalelerim");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Silinemedi"));
     }
@@ -164,7 +168,7 @@ export function TenderActionsMenu({
     const isAuc = nrType === "ENGLISH_AUCTION";
     const v = Number(decValue.replace(",", "."));
     if (isAuc && !(v > 0)) {
-      toast.error("Açık eksiltme için azaltma değeri gir");
+      toast.error(isSatis ? "Açık artırma için artış değeri gir" : "Açık eksiltme için azaltma değeri gir");
       return;
     }
     try {
@@ -275,7 +279,7 @@ export function TenderActionsMenu({
       {/* Karma: önemli aksiyonlar görünür buton, kalanı ⋮ menüsünde (eski sistem) */}
       <div className="flex flex-wrap items-center gap-2">
         {canEdit ? (
-          <Button outline href={`/company/satinalma/ihalelerim/${id}/duzenle`}>
+          <Button outline href={isSatis ? `/company/satis/ilanlarim/${id}/duzenle` : `/company/satinalma/ihalelerim/${id}/duzenle`}>
             İhaleyi Düzenle
           </Button>
         ) : null}
@@ -286,7 +290,7 @@ export function TenderActionsMenu({
         ) : null}
         {canInvite ? (
           <Button outline onClick={() => setInviteOpen(true)}>
-            Tedarikçi Davet Et
+            {isSatis ? "Alıcı Davet Et" : "Tedarikçi Davet Et"}
           </Button>
         ) : null}
 
@@ -300,7 +304,7 @@ export function TenderActionsMenu({
               <DropdownLabel>İç Notlar</DropdownLabel>
             </DropdownItem>
             <DropdownItem
-              href={`/company/satinalma/ihalelerim/yeni?from=${id}`}
+              href={isSatis ? `/company/satis/ilanlarim/yeni?from=${id}` : `/company/satinalma/ihalelerim/yeni?from=${id}`}
             >
               <DropdownLabel>İhaleyi Kopyala</DropdownLabel>
             </DropdownItem>
@@ -376,7 +380,7 @@ export function TenderActionsMenu({
       <Dialog open={notesOpen} onClose={() => setNotesOpen(false)}>
         <DialogTitle>İhale Notları (şirket içi)</DialogTitle>
         <DialogDescription>
-          Bu notları sadece firmandaki kullanıcılar görür; tedarikçiler görmez.
+          Bu notları sadece firmandaki kullanıcılar görür; {isSatis ? "alıcılar" : "tedarikçiler"} görmez.
         </DialogDescription>
         <DialogBody>
           <Textarea
@@ -406,7 +410,7 @@ export function TenderActionsMenu({
         <DialogTitle>Yeni Tur Oluştur</DialogTitle>
         <DialogDescription>
           Aynı kalem ve davetlilerle yeni bir tur açar. Tip olarak İngiliz
-          Usulü seçersen ihale açık eksiltmeye dönüşür.
+          Usulü seçersen ihale {isSatis ? "açık artırmaya" : "açık eksiltmeye"} dönüşür.
         </DialogDescription>
         <DialogBody className="space-y-4">
           <Field>
@@ -419,7 +423,7 @@ export function TenderActionsMenu({
               }
               className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
             >
-              <option value="ENGLISH_AUCTION">İngiliz Usulü (Açık Eksiltme)</option>
+              <option value="ENGLISH_AUCTION">{isSatis ? "İngiliz Usulü (Açık Artırma)" : "İngiliz Usulü (Açık Eksiltme)"}</option>
               <option value="RFQ">RFQ (Teklif Toplama)</option>
             </select>
           </Field>
@@ -455,16 +459,16 @@ export function TenderActionsMenu({
               onChange={(e) => setNrEliminate(e.target.checked)}
               className="h-4 w-4 rounded border-zinc-300"
             />
-            Önceki turda teklif vermeyen tedarikçileri ele
+            Önceki turda teklif vermeyen {isSatis ? "alıcıları" : "tedarikçileri"} ele
           </label>
 
           {nrType === "ENGLISH_AUCTION" ? (
             <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field>
-              <Label>Fiyat Azaltma Tipi</Label>
+              <Label>{isSatis ? "Fiyat Artış Tipi" : "Fiyat Azaltma Tipi"}</Label>
               <select
-                aria-label="Fiyat Azaltma Tipi"
+                aria-label={isSatis ? "Fiyat Artış Tipi" : "Fiyat Azaltma Tipi"}
                 value={decType}
                 onChange={(e) =>
                   setDecType(e.target.value as "AMOUNT" | "PERCENT")
@@ -476,7 +480,7 @@ export function TenderActionsMenu({
               </select>
             </Field>
             <Field>
-              <Label>Azaltma Değeri {decType === "PERCENT" ? "(%)" : "(₺)"}</Label>
+              <Label>{isSatis ? "Artış Değeri" : "Azaltma Değeri"} {decType === "PERCENT" ? "(%)" : "(₺)"}</Label>
               <Input
                 type="number"
                 min={0}
@@ -488,9 +492,9 @@ export function TenderActionsMenu({
             </Field>
           </div>
           <Field>
-            <Label>Azaltma Bazı</Label>
+            <Label>{isSatis ? "Artış Bazı" : "Azaltma Bazı"}</Label>
             <select
-              aria-label="Azaltma Bazı"
+              aria-label={isSatis ? "Artış Bazı" : "Azaltma Bazı"}
               value={decBasis}
               onChange={(e) =>
                 setDecBasis(e.target.value as "OWN_LAST_BID" | "BEST_BID")
@@ -501,7 +505,7 @@ export function TenderActionsMenu({
                 Kendi son teklifini baz alsın
               </option>
               <option value="BEST_BID">
-                İhaledeki en iyi teklifi baz alsın (klasik ters eksiltme)
+                İhaledeki en iyi teklifi baz alsın {isSatis ? "(klasik açık artırma)" : "(klasik ters eksiltme)"}
               </option>
             </select>
           </Field>
@@ -559,7 +563,7 @@ export function TenderActionsMenu({
         onClose={() => setCancelOpen(false)}
         onSubmit={handleCancel}
         title="İhaleyi İptal Et"
-        description="İptal gerekçesi davetli tedarikçilere iletilir. Bu işlem geri alınamaz."
+        description={`İptal gerekçesi davetli ${isSatis ? "alıcılara" : "tedarikçilere"} iletilir. Bu işlem geri alınamaz.`}
         confirmLabel="İhaleyi İptal Et"
         minLength={10}
         pending={cancelListing.isPending}
@@ -578,7 +582,7 @@ export function TenderActionsMenu({
 
       {/* Tedarikçi davet ekle */}
       <Dialog open={inviteOpen} onClose={() => setInviteOpen(false)} size="lg">
-        <DialogTitle>Tedarikçi Davet Et</DialogTitle>
+        <DialogTitle>{isSatis ? "Alıcı Davet Et" : "Tedarikçi Davet Et"}</DialogTitle>
         <DialogDescription>
           Bağlı firmalarından bu ihaleye davet etmek istediklerini seç.
         </DialogDescription>
