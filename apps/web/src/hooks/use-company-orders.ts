@@ -98,8 +98,8 @@ export interface CompanyOrderDetail extends CompanyOrder {
 export interface AcceptOrderInput {
   expectedDeliveryDate: string;
   acceptedNote?: string;
-  bankAccountHolder?: string;
-  bankIban?: string;
+  /** Ayarlar → Banka Hesapları'ndan seçilen hesap (IBAN elle girilmez). */
+  bankAccountId?: string;
 }
 
 export function useOrders() {

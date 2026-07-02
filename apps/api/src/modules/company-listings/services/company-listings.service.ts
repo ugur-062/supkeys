@@ -1287,21 +1287,26 @@ export class CompanyListingsService {
    * bağımsız listeye girer — browse()'daki "davetli PRIVATE görünmez" boşluğunu
    * kapatır.
    */
-  async sellerTenders(user: AuthenticatedCompanyUser) {
+  async sellerTenders(user: AuthenticatedCompanyUser, type: ListingType = "ALIM") {
     const companyId = user.companyId;
     const [connectedIds, blockedIds, myCompany] = await Promise.all([
       this.connectedCompanyIds(companyId),
       this.blocks.blockedCompanyIds(companyId),
       this.prisma.company.findUnique({
         where: { id: companyId },
-        select: { sellerCategoryIds: true, sellerSubCategoryIds: true },
+        select: {
+          sellerCategoryIds: true,
+          sellerSubCategoryIds: true,
+          buyerCategoryIds: true,
+          buyerSubCategoryIds: true,
+        },
       }),
     ]);
     const isPremium = user.tier === "PAKET";
     const myCountry = user.country;
 
     const baseWhere = {
-      type: "ALIM" as const,
+      type,
       companyId: { notIn: [companyId, ...blockedIds] },
     };
     const invitedClause = {
@@ -1344,6 +1349,8 @@ export class CompanyListingsService {
       closesAt: true,
       createdAt: true,
       companyId: true,
+      minPrice: true,
+      buyNowPrice: true,
       company: { select: { name: true } },
       _count: { select: { items: true } },
     };
@@ -1404,10 +1411,20 @@ export class CompanyListingsService {
     const invitedSet = new Set(myInvites.map((iv) => iv.listingId));
     const catName = new Map(categories.map((c) => [c.code, c.nameTr] as const));
 
-    // Kategori eşleşmesi: ilan kodları → segment/alt adayları, benim satıcı
-    // kategorilerimle kesişiyor mu (bildirim eşleştiricisiyle aynı mantık).
-    const mySegs = new Set(myCompany?.sellerCategoryIds ?? []);
-    const mySubs = new Set(myCompany?.sellerSubCategoryIds ?? []);
+    // Kategori eşleşmesi: ilan kodları → segment/alt adayları, benim İLGİLİ
+    // yön kategorilerimle kesişiyor mu (bildirim eşleştiricisiyle aynı mantık):
+    // ALIM ilanına teklif veren SATICI → satış kategorileri; SATIS ilanına
+    // teklif veren ALICI → alım kategorileri.
+    const mySegs = new Set(
+      (type === "ALIM"
+        ? myCompany?.sellerCategoryIds
+        : myCompany?.buyerCategoryIds) ?? [],
+    );
+    const mySubs = new Set(
+      (type === "ALIM"
+        ? myCompany?.sellerSubCategoryIds
+        : myCompany?.buyerSubCategoryIds) ?? [],
+    );
     const matchesMyCategories = (codes: string[]): boolean => {
       if (mySegs.size === 0 && mySubs.size === 0) return false;
       const { segmentIds, subCandidates } = deriveCategoryMatchCandidates(codes);
@@ -1443,6 +1460,9 @@ export class CompanyListingsService {
         invited,
         myBidStatus: bid?.status ?? null,
         myBidVersion: bid?.version ?? null,
+        // SATIS: taban + hemen-al (maskelide fiyat sızdırılmaz).
+        minPrice: masked ? null : (l.minPrice?.toString() ?? null),
+        buyNowPrice: masked ? null : (l.buyNowPrice?.toString() ?? null),
         categoryMatch: matchesMyCategories(l.categoryIds),
         categories: l.categoryIds
           .slice(0, 2)

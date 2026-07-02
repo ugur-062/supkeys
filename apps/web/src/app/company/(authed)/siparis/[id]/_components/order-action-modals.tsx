@@ -10,6 +10,9 @@ import {
 } from "@/components/catalyst/dialog";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
+import { Select } from "@/components/catalyst/select";
+import { useBankAccounts } from "@/hooks/use-company-bank-accounts";
+import Link from "next/link";
 import { Textarea } from "@/components/catalyst/textarea";
 import { useState } from "react";
 
@@ -26,15 +29,18 @@ export function AcceptOrderModal({
   onSubmit: (input: {
     expectedDeliveryDate: string;
     acceptedNote?: string;
-    bankAccountHolder?: string;
-    bankIban?: string;
+    bankAccountId?: string;
   }) => void;
   pending: boolean;
 }) {
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
-  const [holder, setHolder] = useState("");
-  const [iban, setIban] = useState("");
+  // Banka bilgisi elle girilmez — Ayarlar → Banka Hesapları'ndan seçilir.
+  const accounts = useBankAccounts();
+  const [accountId, setAccountId] = useState("");
+  const defaultId =
+    accounts.data?.find((a) => a.isDefault)?.id ?? accounts.data?.[0]?.id ?? "";
+  const effectiveAccountId = accountId || defaultId;
   const today = new Date().toISOString().slice(0, 10);
 
   const submit = () => {
@@ -42,8 +48,7 @@ export function AcceptOrderModal({
     onSubmit({
       expectedDeliveryDate: date,
       acceptedNote: note.trim() || undefined,
-      bankAccountHolder: holder.trim() || undefined,
-      bankIban: iban.trim() || undefined,
+      bankAccountId: effectiveAccountId || undefined,
     });
   };
 
@@ -63,24 +68,41 @@ export function AcceptOrderModal({
             onChange={(e) => setDate(e.target.value)}
           />
         </Field>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field>
-            <Label>Banka Hesap Sahibi</Label>
-            <Input
-              value={holder}
-              onChange={(e) => setHolder(e.target.value)}
-              placeholder="Firma / kişi adı"
-            />
-          </Field>
-          <Field>
-            <Label>IBAN</Label>
-            <Input
-              value={iban}
-              onChange={(e) => setIban(e.target.value)}
-              placeholder="TR.."
-            />
-          </Field>
-        </div>
+        <Field>
+          <Label>Ödeme Hesabı</Label>
+          {accounts.data && accounts.data.length > 0 ? (
+            <>
+              <Select
+                value={effectiveAccountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                aria-label="Ödeme hesabı"
+              >
+                <option value="">— Hesap bildirme —</option>
+                {accounts.data.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.title} · {a.iban.slice(0, 6)}…{a.iban.slice(-4)}
+                    {a.isDefault ? " (varsayılan)" : ""}
+                  </option>
+                ))}
+              </Select>
+              <p className="mt-1 text-xs text-zinc-500">
+                Alıcının ödeme yapacağı hesap — siparişe işlenir.
+              </p>
+            </>
+          ) : (
+            <p className="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Kayıtlı banka hesabınız yok.{" "}
+              <Link
+                href="/company/ayarlar/banka-hesaplari"
+                className="font-semibold underline"
+                target="_blank"
+              >
+                Ayarlar → Banka Hesapları
+              </Link>
+              &apos;ndan ekleyin; hesap bildirmeden de onaylayabilirsiniz.
+            </p>
+          )}
+        </Field>
         <Field>
           <Label>Onay Notu (opsiyonel)</Label>
           <Textarea

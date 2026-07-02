@@ -8,8 +8,8 @@ import {
 
 /**
  * Sipariş akış adımı DTO'ları (eski sistemle birebir).
- * Kabul: tahmini teslim tarihi zorunlu; banka/not opsiyonel.
- * Gönder: fatura no zorunlu.
+ * Kabul: tahmini teslim tarihi zorunlu; banka hesabı KAYITLI hesaplardan
+ * seçilir (Ayarlar → Banka Hesapları) — elle IBAN girilmez. Gönder: fatura no.
  */
 export class AcceptOrderDto {
   @IsDateString({}, { message: "Geçerli bir teslim tarihi girin" })
@@ -20,15 +20,11 @@ export class AcceptOrderDto {
   @MaxLength(2000)
   acceptedNote?: string;
 
+  /** Ayarlar → Banka Hesapları'ndan seçilen hesabın id'si (opsiyonel). */
   @IsOptional()
   @IsString()
-  @MaxLength(160)
-  bankAccountHolder?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(40)
-  bankIban?: string;
+  @MaxLength(60)
+  bankAccountId?: string;
 }
 
 export class ShipOrderDto {

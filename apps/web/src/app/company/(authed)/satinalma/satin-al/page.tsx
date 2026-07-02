@@ -1,13 +1,9 @@
 "use client";
 
-import { BrowseListings } from "@/components/company/listings-section";
+import { SellerTendersView } from "@/components/company/seller-tenders-view";
 
+/** Satın Al — Açık İhaleler paritesi (SATIS yönü): teklif verilecek satış
+ *  ihaleleri, arama/filtre/sıralama + teklif-durumu rozetli kartlar. */
 export default function SatinAlPage() {
-  return (
-    <BrowseListings
-      type="SATIS"
-      title="Satın Al"
-      emptyHint="Şu an satın alınabilir satış ilanı yok. Firmalarla bağlan ya da herkese açık satış ilanları geldikçe burada görünür."
-    />
-  );
+  return <SellerTendersView listingType="SATIS" />;
 }

@@ -1,0 +1,173 @@
+/**
+ * Banka hesabı defteri (Ayarlar → Banka Hesapları) — CRUD + tek varsayılan +
+ * IBAN doğrulama + firma izolasyonu (IDOR) + sipariş kabulünde hesap seçimi
+ * (IBAN elle girilmez, kayıtlı hesaptan SNAPSHOT yazılır).
+ */
+import { CompanyBankAccountsService } from "../../src/modules/company-bank-accounts/company-bank-accounts.service";
+import { CompanyOrdersService } from "../../src/modules/company-orders/services/company-orders.service";
+import { NotificationService } from "../../src/modules/notifications/notification.service";
+import { prisma, truncateAll } from "./test-db";
+import { makeCompanyWithUser } from "./factories";
+
+const VALID_TR_IBAN = "TR330006100519786457841326";
+
+function makeBankService() {
+  return new CompanyBankAccountsService(prisma as never);
+}
+
+function makeOrdersService() {
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "test" }) };
+  const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+  const notifications = new NotificationService(prisma as never);
+  return new CompanyOrdersService(
+    prisma as never,
+    email as never,
+    config as never,
+    notifications,
+  );
+}
+
+afterAll(async () => {
+  await truncateAll();
+  await prisma.$disconnect();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
+
+describe("banka hesabı defteri — CRUD", () => {
+  it("ekle/güncelle/sil; varsayılan tekildir", async () => {
+    const svc = makeBankService();
+    const c = await makeCompanyWithUser(prisma, { country: "TR" });
+
+    const a1 = await svc.create(c.auth, {
+      title: "TL Vadesiz",
+      accountHolder: "Firma A.Ş.",
+      iban: VALID_TR_IBAN,
+      isDefault: true,
+    });
+    const a2 = await svc.create(c.auth, {
+      title: "USD Hesabı",
+      accountHolder: "Firma A.Ş.",
+      iban: "DE89370400440532013000",
+      bankName: "Deutsche Bank",
+      isDefault: true, // yeni varsayılan → eskisinin bayrağı düşer
+    });
+    const list = await svc.list(c.company.id);
+    expect(list).toHaveLength(2);
+    expect(list.find((x) => x.id === a1.id)!.isDefault).toBe(false);
+    expect(list.find((x) => x.id === a2.id)!.isDefault).toBe(true);
+
+    await svc.update(c.auth, a1.id, {
+      title: "TL Vadesiz — İş Bankası",
+      accountHolder: "Firma A.Ş.",
+      iban: VALID_TR_IBAN,
+    });
+    await svc.remove(c.auth, a2.id);
+    const after = await svc.list(c.company.id);
+    expect(after).toHaveLength(1);
+    expect(after[0]!.title).toBe("TL Vadesiz — İş Bankası");
+  });
+
+  it("geçersiz TR IBAN reddedilir; başka firmanın hesabı 404 (IDOR)", async () => {
+    const svc = makeBankService();
+    const a = await makeCompanyWithUser(prisma, { country: "TR" });
+    const b = await makeCompanyWithUser(prisma, { country: "TR" });
+
+    await expect(
+      svc.create(a.auth, {
+        title: "Bozuk",
+        accountHolder: "X",
+        iban: "TR1234567890",
+      }),
+    ).rejects.toThrow(/TR IBAN/);
+
+    const acct = await svc.create(a.auth, {
+      title: "TL",
+      accountHolder: "A",
+      iban: VALID_TR_IBAN,
+    });
+    await expect(
+      svc.update(b.auth, acct.id, {
+        title: "Ele geçirilmiş",
+        accountHolder: "B",
+        iban: VALID_TR_IBAN,
+      }),
+    ).rejects.toThrow(/bulunamadı/);
+    await expect(svc.remove(b.auth, acct.id)).rejects.toThrow(/bulunamadı/);
+  });
+});
+
+describe("sipariş kabulünde banka hesabı seçimi", () => {
+  async function pendingOrder() {
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const order = await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: seller.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 1000,
+        status: "PENDING",
+      },
+    });
+    return { seller, buyer, order };
+  }
+
+  it("kayıtlı hesap seçilir → siparişe SNAPSHOT işlenir", async () => {
+    const bank = makeBankService();
+    const orders = makeOrdersService();
+    const { seller, order } = await pendingOrder();
+    const acct = await bank.create(seller.auth, {
+      title: "TL Vadesiz",
+      accountHolder: "Satıcı A.Ş.",
+      iban: VALID_TR_IBAN,
+      isDefault: true,
+    });
+
+    await orders.accept(seller.auth, order.id, {
+      expectedDeliveryDate: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      bankAccountId: acct.id,
+    } as never);
+
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("ACCEPTED");
+    expect(db.bankIban).toBe(VALID_TR_IBAN);
+    expect(db.bankAccountHolder).toBe("Satıcı A.Ş.");
+
+    // Hesap silinse de sipariş kaydı değişmez (snapshot).
+    await bank.remove(seller.auth, acct.id);
+    const still = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(still.bankIban).toBe(VALID_TR_IBAN);
+  });
+
+  it("başka firmanın hesabıyla kabul reddedilir; hesapsız kabul serbest", async () => {
+    const bank = makeBankService();
+    const orders = makeOrdersService();
+    const { seller, buyer, order } = await pendingOrder();
+    // Alıcının (başka firmanın) hesabı — satıcı bunu kullanamaz.
+    const foreign = await bank.create(buyer.auth, {
+      title: "Alıcının hesabı",
+      accountHolder: "Alıcı A.Ş.",
+      iban: VALID_TR_IBAN,
+    });
+
+    await expect(
+      orders.accept(seller.auth, order.id, {
+        expectedDeliveryDate: new Date(
+          Date.now() + 7 * 86_400_000,
+        ).toISOString(),
+        bankAccountId: foreign.id,
+      } as never),
+    ).rejects.toThrow(/Geçersiz banka hesabı/);
+
+    // Hesap bildirmeden kabul mümkün (ödeme hesabı opsiyonel).
+    const res = await orders.accept(seller.auth, order.id, {
+      expectedDeliveryDate: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+    } as never);
+    expect(res.status).toBe("ACCEPTED");
+  });
+});

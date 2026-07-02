@@ -49,6 +49,8 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
     categoryMatch: false,
     categories: [{ code: "10000000", name: "Canlı Hayvanlar" }],
     extraCategoryCount: 0,
+    minPrice: null,
+    buyNowPrice: null,
     ...over,
   };
 }

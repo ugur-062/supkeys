@@ -345,6 +345,7 @@ model Company {
   approvalFlows        ApprovalFlow[]
   approvalRequests     ApprovalRequest[]
   addresses            CompanyAddress[]
+  bankAccounts         CompanyBankAccount[]
   reviewsGiven         CompanyReview[]    @relation("ReviewsGiven")
   reviewsReceived      CompanyReview[]    @relation("ReviewsReceived")
 
@@ -1246,6 +1247,25 @@ enum CompanyAddressType {
   FATURA
   ILETISIM
   TESLIMAT
+}
+
+// Banka hesabı defteri — sipariş kabulünde IBAN elle yazılmaz, buradan seçilir
+// (adres defteri deseni). Tek varsayılan hesap.
+model CompanyBankAccount {
+  id            String  @id @default(cuid())
+  companyId     String
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title         String // "TL Vadesiz — İş Bankası" vb.
+  accountHolder String
+  iban          String
+  bankName      String?
+  isDefault     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("company_bank_accounts")
 }
 
 model CompanyAddress {

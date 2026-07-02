@@ -64,10 +64,17 @@ export class CompanyListingsController {
     );
   }
 
-  /** Satıcı İhaleler listesi — açık + geçmiş, teklif/davet/kategori zengin. */
+  /** Teklifçi liste — açık + geçmiş, teklif/davet/kategori zengin.
+   *  type=ALIM: satıcının Açık İhaleler'i; type=SATIS: alıcının Satın Al'ı. */
   @Get("seller-tenders")
-  sellerTenders(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    return this.service.sellerTenders(user);
+  sellerTenders(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query("type") type?: string,
+  ) {
+    return this.service.sellerTenders(
+      user,
+      type === "SATIS" ? "SATIS" : "ALIM",
+    );
   }
 
   @Get(":id")

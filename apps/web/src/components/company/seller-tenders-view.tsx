@@ -52,18 +52,29 @@ function isPast(status: string): boolean {
   return status !== "OPEN";
 }
 
-/** Eski tedarikçi TenderCard'ının zinc/Catalyst portu. */
-export function SellerTenderCard({ tender }: { tender: SellerTenderRow }) {
+/** Eski tedarikçi TenderCard'ının zinc/Catalyst portu (iki yön). */
+export function SellerTenderCard({
+  tender,
+  listingType = "ALIM",
+}: {
+  tender: SellerTenderRow;
+  listingType?: "ALIM" | "SATIS";
+}) {
+  const isSatis = listingType === "SATIS";
   const state = deriveSellerTenderState(
     tender.status,
     tender.myBidStatus,
     tender.invited,
   );
   const urgency = closingUrgency(tender.status, tender.closesAt);
+  const fromHref = isSatis
+    ? "/company/satinalma/satin-al"
+    : "/company/satis/acik-ihaleler";
+  const fromLabel = isSatis ? "Satın Al" : "Açık İhaleler";
 
   return (
     <Link
-      href={`/company/ilan/${tender.id}?from=${encodeURIComponent("/company/satis/acik-ihaleler")}&fromLabel=${encodeURIComponent("Açık İhaleler")}`}
+      href={`/company/ilan/${tender.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`}
       className="group block"
     >
       <div className="flex h-full flex-col rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-sm transition-all hover:border-zinc-300 hover:shadow-md">
@@ -112,10 +123,22 @@ export function SellerTenderCard({ tender }: { tender: SellerTenderRow }) {
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
           <Badge color="zinc">{tender.currency}</Badge>
           {tender.format === "ENGLISH_AUCTION" ? (
-            <Badge color="purple">İngiliz Usulü</Badge>
+            <Badge color="purple">
+              {isSatis ? "Açık Artırma" : "İngiliz Usulü"}
+            </Badge>
           ) : (
             <Badge color="zinc">Teklif Toplama</Badge>
           )}
+          {isSatis && tender.minPrice ? (
+            <Badge color="emerald">
+              Taban {Number(tender.minPrice).toLocaleString("tr-TR")}
+            </Badge>
+          ) : null}
+          {isSatis && tender.buyNowPrice ? (
+            <Badge color="amber">
+              Hemen-Al {Number(tender.buyNowPrice).toLocaleString("tr-TR")}
+            </Badge>
+          ) : null}
           {tender.visibility === "PUBLIC" ? (
             <Badge color="green">Herkese Açık</Badge>
           ) : null}
@@ -175,8 +198,14 @@ export function SellerTenderCard({ tender }: { tender: SellerTenderRow }) {
  * (Aktif/Geçmiş/Tümü) + sıralama + tarih aralığı + müşteri + kategori filtresi,
  * zengin kartlar (durum rozeti, aciliyet, kategori eşleşme, teklif versiyonu).
  */
-export function SellerTendersView() {
-  const tenders = useSellerTenders();
+export function SellerTendersView({
+  listingType = "ALIM",
+}: {
+  /** SATIS: alıcının "Satın Al" listesi — satış ilanlarına teklif verilir. */
+  listingType?: "ALIM" | "SATIS";
+} = {}) {
+  const isSatis = listingType === "SATIS";
+  const tenders = useSellerTenders(listingType);
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("active");
   const [sort, setSort] = useState("closing-asc");
@@ -195,7 +224,7 @@ export function SellerTendersView() {
       counts.set(t.owner.name, (counts.get(t.owner.name) ?? 0) + 1);
     }
     return [
-      { value: "all", label: "Tüm Müşteriler" },
+      { value: "all", label: isSatis ? "Tüm Satıcılar" : "Tüm Müşteriler" },
       ...[...counts.entries()]
         .sort((a, b) => b[1] - a[1])
         .map(([name, n]) => ({ value: name, label: `${name} (${n})` })),
@@ -273,8 +302,12 @@ export function SellerTendersView() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
-        title="İhaleler"
-        description="Bağlı olduğun alıcı firmaların ve herkese açık ihalelerin listesi — teklif ver, sonuçları takip et."
+        title={isSatis ? "Satın Al" : "İhaleler"}
+        description={
+          isSatis
+            ? "Bağlı olduğun satıcıların ve herkese açık satış ihalelerinin listesi — teklif ver ya da Hemen Al, sonuçları takip et."
+            : "Bağlı olduğun alıcı firmaların ve herkese açık ihalelerin listesi — teklif ver, sonuçları takip et."
+        }
       />
 
       <div className="flex flex-wrap items-center gap-2">
@@ -309,7 +342,7 @@ export function SellerTendersView() {
           value={buyer}
           onChange={withReset(setBuyer)}
           options={buyerOptions}
-          ariaLabel="Müşteri"
+          ariaLabel={isSatis ? "Satıcı" : "Müşteri"}
           active={buyer !== "all"}
         />
         <FilterSelect
@@ -340,7 +373,9 @@ export function SellerTendersView() {
           description={
             isFiltered
               ? "Filtrelerinizi değiştirerek tekrar deneyin."
-              : "Alıcılarla bağlantı kurduğunda veya kategorine uygun herkese açık ihale yayınlandığında burada görünür."
+              : isSatis
+                ? "Satıcılarla bağlantı kurduğunda veya alım kategorine uygun herkese açık satış ihalesi yayınlandığında burada görünür."
+                : "Alıcılarla bağlantı kurduğunda veya kategorine uygun herkese açık ihale yayınlandığında burada görünür."
           }
           variant={isFiltered ? "no-results" : "no-data"}
         />
@@ -348,7 +383,7 @@ export function SellerTendersView() {
         <>
           <div className="flex flex-col gap-3">
             {pageRows.map((t) => (
-              <SellerTenderCard key={t.id} tender={t} />
+              <SellerTenderCard key={t.id} tender={t} listingType={listingType} />
             ))}
           </div>
           {totalPages > 1 ? (

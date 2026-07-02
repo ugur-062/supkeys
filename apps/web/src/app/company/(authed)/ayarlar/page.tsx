@@ -4,19 +4,7 @@ import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
-import {
-  BadgeCheck,
-  Bell,
-  Building2,
-  ChevronRight,
-  IdCard,
-  Lock,
-  type LucideIcon,
-  MapPin,
-  Shield,
-  UserPlus2,
-  Workflow,
-} from "lucide-react";
+import { BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, UserPlus2, Workflow, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 interface SettingsCard {
@@ -80,6 +68,13 @@ const GROUPS: SettingsGroup[] = [
         icon: MapPin,
         title: "Adres Yönetimi",
         description: "Fatura ve teslimat adresleri",
+        managerOnly: true,
+      },
+      {
+        href: "/company/ayarlar/banka-hesaplari",
+        icon: Landmark,
+        title: "Banka Hesapları",
+        description: "Sipariş onayında seçilen ödeme hesapları",
         managerOnly: true,
       },
       {

@@ -25,14 +25,17 @@ export interface SellerTenderRow {
   categoryMatch: boolean;
   categories: { code: string; name: string }[];
   extraCategoryCount: number;
+  /** SATIS ilanlarında taban + hemen-al (maskelide null). */
+  minPrice: string | null;
+  buyNowPrice: string | null;
 }
 
-export function useSellerTenders() {
+export function useSellerTenders(type: "ALIM" | "SATIS" = "ALIM") {
   return useQuery<SellerTenderRow[]>({
-    queryKey: ["company-listings", "seller-tenders"],
+    queryKey: ["company-listings", "seller-tenders", type],
     queryFn: async () => {
       const { data } = await companyApi.get<SellerTenderRow[]>(
-        "/company/listings/seller-tenders",
+        `/company/listings/seller-tenders?type=${type}`,
       );
       return data;
     },

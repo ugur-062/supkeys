@@ -239,4 +239,47 @@ describe("sellerTenders", () => {
     expect(rows.find((r) => r.id === own.id)).toBeUndefined();
     expect(rows.find((r) => r.id === satis.id)).toBeUndefined();
   });
+
+  it("SATIS yönü (Satın Al): alıcı satış ilanlarını görür — taban/hemen-al + ALIM kategori eşleşmesi", async () => {
+    const { service } = makeService();
+    const sellerCo = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyerCo = await makeCompanyWithUser(prisma, { country: "TR" });
+    await connect(prisma, sellerCo.company.id, buyerCo.company.id, sellerCo.user.id);
+    // Alıcının ALIM kategorisi — SATIS yönünde eşleşme buna bakar.
+    await prisma.company.update({
+      where: { id: buyerCo.company.id },
+      data: { buyerCategoryIds: ["10000000"] },
+    });
+
+    const satis = await makeListing(prisma, {
+      companyId: sellerCo.company.id,
+      createdById: sellerCo.user.id,
+      type: "SATIS",
+      visibility: "CONNECTIONS",
+      categoryIds: ["10101500"], // → segment 10000000
+      minPrice: "1000",
+      buyNowPrice: "5000",
+      closesAt: new Date(Date.now() + 3 * 86_400_000),
+    });
+    const alim = await makeListing(prisma, {
+      companyId: sellerCo.company.id,
+      createdById: sellerCo.user.id,
+      type: "ALIM",
+      visibility: "CONNECTIONS",
+    });
+
+    const rows = (await service.sellerTenders(buyerCo.auth, "SATIS")) as {
+      id: string;
+      categoryMatch: boolean;
+      minPrice: string | null;
+      buyNowPrice: string | null;
+    }[];
+    const row = rows.find((r) => r.id === satis.id);
+    expect(row).toBeDefined();
+    expect(row!.categoryMatch).toBe(true);
+    expect(Number(row!.minPrice)).toBe(1000);
+    expect(Number(row!.buyNowPrice)).toBe(5000);
+    // ALIM ilanı SATIS yönünde listelenmez.
+    expect(rows.find((r) => r.id === alim.id)).toBeUndefined();
+  });
 });

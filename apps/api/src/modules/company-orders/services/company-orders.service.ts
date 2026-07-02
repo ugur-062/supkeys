@@ -100,8 +100,24 @@ export class CompanyOrdersService {
       );
   }
 
-  /** Satıcı siparişi onaylar: PENDING → ACCEPTED (+ teslim tarihi/banka/not). */
+  /** Satıcı siparişi onaylar: PENDING → ACCEPTED (+ teslim tarihi/banka/not).
+   *  Banka bilgisi elle girilmez — KAYITLI hesaptan (id) seçilir, firmaya
+   *  aitliği doğrulanır ve siparişe SNAPSHOT yazılır (hesap sonradan silinse
+   *  de sipariş kaydı değişmez). */
   async accept(user: AuthenticatedCompanyUser, id: string, input: AcceptOrderDto) {
+    let bankAccountHolder: string | null = null;
+    let bankIban: string | null = null;
+    if (input.bankAccountId) {
+      const acct = await this.prisma.companyBankAccount.findUnique({
+        where: { id: input.bankAccountId },
+        select: { companyId: true, accountHolder: true, iban: true },
+      });
+      if (!acct || acct.companyId !== user.companyId) {
+        throw new BadRequestException("Geçersiz banka hesabı seçimi");
+      }
+      bankAccountHolder = acct.accountHolder;
+      bankIban = acct.iban;
+    }
     const res = await this.transition(user, id, {
       side: "seller",
       from: "PENDING",
@@ -109,8 +125,8 @@ export class CompanyOrdersService {
       data: {
         acceptedAt: new Date(),
         acceptedNote: input.acceptedNote?.trim() || null,
-        bankAccountHolder: input.bankAccountHolder?.trim() || null,
-        bankIban: input.bankIban?.trim() || null,
+        bankAccountHolder,
+        bankIban,
         expectedDeliveryDate: new Date(input.expectedDeliveryDate),
       },
     });
