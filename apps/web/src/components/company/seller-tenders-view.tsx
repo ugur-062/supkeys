@@ -238,6 +238,9 @@ export function SellerTendersView() {
     const time = (iso: string | null) =>
       iso ? new Date(iso).getTime() : Number.MAX_SAFE_INTEGER;
     rows.sort((a, b) => {
+      // Kategori eşleşenler her sıralamada üstte (özellikle maskeli önizlemede
+      // standart üyeye "senin kategorinde ihale var" sinyali).
+      if (a.categoryMatch !== b.categoryMatch) return a.categoryMatch ? -1 : 1;
       if (sort === "newest")
         return (
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()

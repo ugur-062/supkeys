@@ -1210,14 +1210,13 @@ export class CompanyListingsService {
         ],
       },
     ];
-    const visibilityOr = isPremium
-      ? [
-          { visibility: "PUBLIC" as const },
-          { visibility: "CONNECTIONS" as const, companyId: { in: connectedIds } },
-        ]
-      : [
-          { visibility: "CONNECTIONS" as const, companyId: { in: connectedIds } },
-        ];
+    // PUBLIC ilanlar STANDARD üyeye de listelenir (MASKELİ önizleme — premium
+    // başvurusuna yönlendirme için); teklif/detay hakları masked/canBid ile
+    // sınırlanır. CONNECTIONS yalnız bağlantılılara.
+    const visibilityOr = [
+      { visibility: "PUBLIC" as const },
+      { visibility: "CONNECTIONS" as const, companyId: { in: connectedIds } },
+    ];
 
     const select = {
       id: true,

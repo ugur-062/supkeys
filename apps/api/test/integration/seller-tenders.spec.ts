@@ -125,7 +125,7 @@ describe("sellerTenders", () => {
     expect(rows.find((r) => r.id === noMatch.id)?.categoryMatch).toBe(false);
   });
 
-  it("STANDARD firma PUBLIC ilanı davetsizce göremez; PAKET görür (mevcut kural)", async () => {
+  it("STANDARD firma PUBLIC ilanı MASKELİ görür (premium başvuru yönlendirmesi); PAKET tam görür", async () => {
     const { service } = makeService();
     const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
     const standard = await makeCompanyWithUser(prisma, {
@@ -140,12 +140,18 @@ describe("sellerTenders", () => {
       visibility: "PUBLIC",
     });
 
+    // Standard: listede VAR ama maskeli — alıcı adı gizli, teklif kapalı.
     const stdRows = await service.sellerTenders(standard.auth);
-    expect(stdRows.find((r) => r.id === l.id)).toBeUndefined();
+    const stdRow = stdRows.find((r) => r.id === l.id);
+    expect(stdRow).toBeDefined();
+    expect(stdRow!.masked).toBe(true);
+    expect(stdRow!.canBid).toBe(false);
+    expect(stdRow!.owner).toBeNull();
 
     const preRows = await service.sellerTenders(premium.auth);
     const row = preRows.find((r) => r.id === l.id);
     expect(row).toBeDefined();
+    expect(row!.masked).toBe(false);
     expect(row!.canBid).toBe(true);
     expect(row!.owner?.name).toBeTruthy();
   });

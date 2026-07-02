@@ -1279,11 +1279,14 @@ export default function ListingDetailPage() {
   const sellerBidSection = (
     <section className="space-y-3">
       {!l.canBid ? (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-5">
           <Text className="text-sm text-amber-800">
             Bu ilana teklif vermek için <strong>premium üyelik</strong> gerekir
             (veya ilanı açan firmayla bağlantı kur).
           </Text>
+          <Button href="/company/premium" className="shrink-0">
+            Premium&apos;a Geç
+          </Button>
         </div>
       ) : (
         <div className="space-y-4 rounded-xl border border-zinc-950/10 bg-white p-5">
@@ -1627,14 +1630,17 @@ export default function ListingDetailPage() {
           </div>
         </div>
 
-        {/* Maskeli önizleme (premium olmayan) uyarısı */}
+        {/* Maskeli önizleme (premium olmayan) uyarısı → premium başvurusu */}
         {l.masked ? (
-          <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <p>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p className="flex items-start gap-2">
+              <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               Bu herkese açık ihale önizleme modunda — alıcı firma ve kalemler
               gizli. Teklif vermek için premium üyelik gerekir.
             </p>
+            <Button href="/company/premium" className="shrink-0">
+              Premium&apos;a Geç
+            </Button>
           </div>
         ) : null}
 

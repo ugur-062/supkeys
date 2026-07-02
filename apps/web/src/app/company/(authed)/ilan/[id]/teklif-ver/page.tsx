@@ -202,9 +202,12 @@ export default function TeklifVerPage() {
           Bu herkese açık ihaleye teklif vermek için firmanızı doğrulayıp
           premium&apos;a geçin veya ilan sahibiyle bağlantı kurun.
         </Text>
-        <Button href={detailHref} className="mt-5" outline>
-          İhale Detayına Dön
-        </Button>
+        <div className="mt-5 flex items-center justify-center gap-3">
+          <Button href="/company/premium">Premium&apos;a Geç</Button>
+          <Button href={detailHref} outline>
+            İhale Detayına Dön
+          </Button>
+        </div>
       </div>
     );
   }

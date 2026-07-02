@@ -128,6 +128,26 @@ describe("SellerTendersView", () => {
     expect(screen.getByText("Çelik Boru Alımı")).toBeInTheDocument();
   });
 
+  it("kategori eşleşen ilanlar her sıralamada üstte", () => {
+    h.rows = [
+      row({
+        title: "Eşleşmeyen",
+        closesAt: new Date(Date.now() + 1 * 86_400_000).toISOString(),
+      }),
+      row({
+        title: "Eşleşen",
+        categoryMatch: true,
+        closesAt: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      }),
+    ];
+    render(<SellerTendersView />);
+    // Varsayılan sıralama "yakın biten" — ama eşleşen (30 gün) yine üstte.
+    const titles = screen
+      .getAllByRole("heading", { level: 3 })
+      .map((el) => el.textContent);
+    expect(titles).toEqual(["Eşleşen", "Eşleşmeyen"]);
+  });
+
   it("boş durum + hata durumu", () => {
     h.rows = [];
     const { unmount } = render(<SellerTendersView />);
