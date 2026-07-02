@@ -325,10 +325,16 @@ export interface ListingDetail {
   // sahip değil:
   masked?: boolean;
   canBid?: boolean;
+  invited?: boolean;
   myBid?: {
     amount: string;
     note: string | null;
     status: string;
+    version?: number;
+    submittedAt?: string | null;
+    eliminationReason?: string | null;
+    eliminatedAt?: string | null;
+    updatedAt?: string;
     deliveryDate?: string | null;
     validityDays?: number | null;
     currency?: string | null;

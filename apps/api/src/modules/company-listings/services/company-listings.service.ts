@@ -1536,11 +1536,11 @@ export class CompanyListingsService {
     // Bağımsız non-owner okumaları tek turda (görünürlük/blok kapısı sonuçlar
     // gelince değerlendirilir; over-fetch ucuz, seri tur sayısı düşer — P1).
     const [invitedCount, blockedIds, myBid, auctionView] = await Promise.all([
-      listing.visibility === "PRIVATE"
-        ? this.prisma.listingInvitation.count({
-            where: { listingId: id, invitedCompanyId: user.companyId },
-          })
-        : Promise.resolve(0),
+      // Davet durumu her görünürlükte döner (satıcı "Davet Edildi" rozeti);
+      // PRIVATE erişim kontrolü de aynı sayıyı kullanır.
+      this.prisma.listingInvitation.count({
+        where: { listingId: id, invitedCompanyId: user.companyId },
+      }),
       this.blocks.blockedCompanyIds(listing.companyId),
       this.prisma.listingBid.findUnique({
         where: {
@@ -1582,9 +1582,15 @@ export class CompanyListingsService {
       throw new NotFoundException("İlan bulunamadı");
     }
 
-    const masked = listing.visibility === "PUBLIC" && !connected && !isPremium;
+    // Davetli firma her görünürlükte maskesiz görür ve teklif verebilir
+    // (alıcı onu açıkça seçti) — sellerTenders ile aynı kural.
+    const masked =
+      listing.visibility === "PUBLIC" &&
+      !connected &&
+      !isPremium &&
+      !isInvited;
     const canBid =
-      (listing.visibility === "PRIVATE" && isInvited) ||
+      isInvited ||
       (listing.visibility === "CONNECTIONS" && connected) ||
       (listing.visibility === "PUBLIC" && (connected || isPremium));
     // Bidder'a dönen `english` bloğu görünürlükle sınırlanır.
@@ -1600,6 +1606,7 @@ export class CompanyListingsService {
       isOwner: false,
       masked,
       canBid,
+      invited: isInvited,
       english: englishForBidder,
       auctionView,
       // Teslimat adresi davetli tedarikçiye de görünür (fatura adresi sahibe özel).
@@ -1610,6 +1617,15 @@ export class CompanyListingsService {
             amount: myBid.amount.toString(),
             note: myBid.note,
             status: myBid.status,
+            version: myBid.version,
+            submittedAt: myBid.submittedAt
+              ? myBid.submittedAt.toISOString()
+              : null,
+            eliminationReason: myBid.eliminationReason,
+            eliminatedAt: myBid.eliminatedAt
+              ? myBid.eliminatedAt.toISOString()
+              : null,
+            updatedAt: myBid.updatedAt.toISOString(),
             deliveryDate: myBid.deliveryDate
               ? myBid.deliveryDate.toISOString()
               : null,

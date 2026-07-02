@@ -150,6 +150,66 @@ describe("sellerTenders", () => {
     expect(row!.owner?.name).toBeTruthy();
   });
 
+  it("getOne: davetli firma PUBLIC ilanı maskesiz görür + teklif verebilir + invited döner", async () => {
+    const { service } = makeService();
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const standard = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "STANDARD",
+    });
+    const l = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      type: "ALIM",
+      visibility: "PUBLIC",
+    });
+    await invite(prisma, l.id, standard.company.id, buyer.user.id);
+
+    const detail = (await service.getOne(standard.auth, l.id)) as {
+      masked: boolean;
+      canBid: boolean;
+      invited: boolean;
+    };
+    expect(detail.invited).toBe(true);
+    expect(detail.masked).toBe(false); // davet maskeyi kaldırır
+    expect(detail.canBid).toBe(true); // davetli her görünürlükte teklif verir
+  });
+
+  it("getOne: myBid version/submittedAt/eliminationReason döner", async () => {
+    const { service } = makeService();
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    await connect(prisma, buyer.company.id, seller.company.id, buyer.user.id);
+    const l = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      type: "ALIM",
+      visibility: "CONNECTIONS",
+    });
+    const bid = await makeBid(prisma, {
+      listingId: l.id,
+      bidderCompanyId: seller.company.id,
+      createdById: seller.user.id,
+      amount: 750,
+      status: "LOST",
+    });
+    await prisma.listingBid.update({
+      where: { id: bid.id },
+      data: { version: 3, eliminationReason: "Fiyat yüksek" },
+    });
+
+    const detail = (await service.getOne(seller.auth, l.id)) as {
+      myBid: {
+        version: number;
+        submittedAt: string | null;
+        eliminationReason: string | null;
+      } | null;
+    };
+    expect(detail.myBid?.version).toBe(3);
+    expect(detail.myBid?.eliminationReason).toBe("Fiyat yüksek");
+    expect(detail.myBid?.submittedAt).toBeTruthy();
+  });
+
   it("kendi ilanı ve SATIS ilanları listede yer almaz", async () => {
     const { service } = makeService();
     const seller = await makeCompanyWithUser(prisma, { country: "TR" });

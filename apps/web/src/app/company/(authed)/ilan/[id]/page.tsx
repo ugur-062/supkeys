@@ -1,5 +1,7 @@
 "use client";
 
+import { AuctionLiveCard } from "./_components/auction-live-card";
+import { MyBidStatusPanel } from "./_components/my-bid-status-panel";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { CountdownFull } from "@/components/tenders/countdown-full";
@@ -989,58 +991,8 @@ export default function ListingDetailPage() {
       <Subheading>Teklif Ver</Subheading>
       {l.canBid ? (
         <div className="space-y-4 rounded-xl border border-zinc-950/10 bg-white p-5">
-          {l.english?.isEnglishAuction ? (
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-              <div>
-                <div className="text-xs font-medium text-amber-700">
-                  Açık eksiltme · Tur {l.english.currentRound} · güncel en düşük
-                </div>
-                <div className="text-lg font-bold text-amber-900">
-                  {l.english.currentBest
-                    ? `${Number(l.english.currentBest).toLocaleString("tr-TR")} ₺`
-                    : "Henüz teklif yok"}
-                </div>
-              </div>
-              <div className="text-right text-xs text-amber-700">
-                {l.auctionView?.myRank != null &&
-                l.auctionView.participantCount != null ? (
-                  <div className="font-semibold">
-                    Sıranız: {l.auctionView.myRank}/
-                    {l.auctionView.participantCount}
-                  </div>
-                ) : (
-                  <>{l.english.bidCount} teklif</>
-                )}
-                {l.english.currentBest ? (
-                  <div className="mt-0.5">altında teklif ver</div>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-          {l.auctionView?.allBids && l.auctionView.allBids.length > 0 ? (
-            <div className="rounded-lg border border-zinc-200">
-              <div className="border-b border-zinc-100 px-4 py-2 text-xs font-medium text-zinc-500">
-                Tüm teklifler (anonim)
-              </div>
-              <ul className="divide-y divide-zinc-100">
-                {l.auctionView.allBids.map((b) => (
-                  <li
-                    key={b.rank}
-                    className={`flex items-center justify-between px-4 py-2 text-sm ${
-                      b.isMine ? "bg-amber-50 font-semibold" : ""
-                    }`}
-                  >
-                    <span className="text-zinc-500">
-                      {b.rank}. {b.isMine ? "(Sizin)" : ""}
-                    </span>
-                    <span className="text-zinc-900">
-                      {Number(b.total).toLocaleString("tr-TR")} ₺
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          {/* Açık eksiltme canlı kutusu AuctionLiveCard'a taşındı (sekmeli
+              satıcı görünümünün üstünde) — burada tekrarlanmaz. */}
           {biddingOpen && !isAlim && l.buyNowPrice ? (
             <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
               <div>
@@ -1557,6 +1509,121 @@ export default function ListingDetailPage() {
           destructive
           pending={eliminate.isPending}
         />
+      </div>
+    );
+  }
+
+  // ───────────── SAHİP DEĞİL + ALIM: sekmeli satıcı görünümü ─────────────
+  // Eski tedarikçi paneli paritesi: başlık kartı (geri sayım) + canlı eksiltme
+  // kartı + meta şeridi + Teklifim/Kalemler/Genel Bilgi/Dosyalar sekmeleri.
+  // Kapalı zarf: davetliler/teklifler sekmesi YOK — yalnızca kendi teklifi.
+  if (!l.isOwner && isAlim) {
+    return (
+      <div className="mx-auto max-w-5xl space-y-5">
+        {breadcrumb}
+
+        <div className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-0 flex-1">{header}</div>
+            {biddingOpen && l.closesAt ? (
+              <div className="shrink-0 rounded-xl border border-zinc-100 bg-zinc-50/60 px-4 py-3 text-right">
+                <p className="text-[11px] font-semibold tracking-wide text-zinc-400 uppercase">
+                  Kapanmasına
+                </p>
+                <CountdownFull deadline={l.closesAt} />
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  {formatDateTime(l.closesAt)}
+                </p>
+              </div>
+            ) : l.status === "CLOSED" ||
+              l.status === "IN_AWARD" ||
+              l.status === "IN_AWARD_APPROVAL" ? (
+              <span className="inline-flex shrink-0 items-center rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-600">
+                İhale kapandı, sonuç bekleniyor
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Maskeli önizleme (premium olmayan) uyarısı */}
+        {l.masked ? (
+          <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <p>
+              Bu herkese açık ihale önizleme modunda — alıcı firma ve kalemler
+              gizli. Teklif vermek için premium üyelik gerekir.
+            </p>
+          </div>
+        ) : null}
+
+        {l.english?.isEnglishAuction && !l.masked ? (
+          <AuctionLiveCard l={l} />
+        ) : null}
+
+        {/* Meta şeridi */}
+        <section>
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-zinc-950/5 bg-zinc-950/[0.06] lg:grid-cols-4">
+            <MetaItem
+              icon={Building2}
+              label="Alıcı Firma"
+              value={l.owner?.name ?? "Gizli firma"}
+            />
+            <MetaItem
+              icon={Layers}
+              label="Kalem"
+              value={`${l.items?.length ?? 0} kalem`}
+            />
+            <MetaItem
+              icon={Wallet}
+              label="Para Birimi"
+              value={l.primaryCurrency ?? "TRY"}
+            />
+            <MetaItem
+              icon={CalendarClock}
+              label="Kapanış"
+              value={l.closesAt ? formatDateTime(l.closesAt) : "—"}
+            />
+          </dl>
+        </section>
+
+        <TabGroup>
+          <TabList
+            className="flex gap-1 overflow-x-auto border-b border-zinc-950/10"
+            aria-label="İhale bölümleri"
+          >
+            <Tab className={TRIGGER_CLASSES}>
+              <Gavel className="h-4 w-4" aria-hidden="true" />
+              Teklifim
+            </Tab>
+            <Tab className={TRIGGER_CLASSES}>
+              <Layers className="h-4 w-4" aria-hidden="true" />
+              Kalemler
+              <TabBadge count={l.items?.length ?? 0} />
+            </Tab>
+            <Tab className={TRIGGER_CLASSES}>
+              <Info className="h-4 w-4" aria-hidden="true" />
+              Genel Bilgi
+            </Tab>
+            <Tab className={TRIGGER_CLASSES}>
+              <Paperclip className="h-4 w-4" aria-hidden="true" />
+              Dosyalar
+            </Tab>
+          </TabList>
+
+          <TabPanels className="pt-5">
+            <TabPanel className="space-y-5 outline-none">
+              <MyBidStatusPanel l={l} />
+              {bidFormSection}
+            </TabPanel>
+            <TabPanel className="outline-none">{itemsSection}</TabPanel>
+            <TabPanel className="outline-none">
+              <GeneralInfoTab l={l} />
+            </TabPanel>
+            <TabPanel className="outline-none">
+              <FilesTab listingId={l.id} isOwner={false} canEdit={false} />
+            </TabPanel>
+          </TabPanels>
+        </TabGroup>
       </div>
     );
   }
