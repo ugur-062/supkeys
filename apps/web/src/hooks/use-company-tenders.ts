@@ -25,13 +25,13 @@ export interface TenderListItem {
   createdAt: string;
 }
 
-/** İhalelerim (ALIM) — zengin liste; filtre/sıralama frontend'de. */
-export function useTenders() {
+/** İhalelerim/İlanlarım — zengin liste; filtre/sıralama frontend'de. */
+export function useTenders(type: "ALIM" | "SATIS" = "ALIM") {
   return useQuery<TenderListItem[]>({
-    queryKey: ["company-tenders"],
+    queryKey: ["company-tenders", type],
     queryFn: async () => {
       const { data } = await companyApi.get<TenderListItem[]>(
-        "/company/listings/tenders",
+        `/company/listings/tenders?type=${type}`,
       );
       return data;
     },

@@ -1162,10 +1162,14 @@ export function Step1Info({ listingId }: { listingId?: string }) {
             hint={
               deliveryAddrs.length === 0
                 ? "Adres defterinizde teslimat adresi yok — Ayarlar → Adresler'den ekleyin."
-                : `Davet edilen ${rolPl} bu adresi görür.`
+                : isSatis
+                  ? "Malın bulunduğu / yükleneceği adres — davetli alıcılar görür."
+                  : `Davet edilen ${rolPl} bu adresi görür.`
             }
           >
-            <Label htmlFor="deliveryAddressId">Teslimat Adresi</Label>
+            <Label htmlFor="deliveryAddressId">
+              {isSatis ? "Teslim / Yükleme Noktası" : "Teslimat Adresi"}
+            </Label>
             <Select id="deliveryAddressId" {...register("deliveryAddressId")}>
               <option value="">— Seçiniz (opsiyonel) —</option>
               {deliveryAddrs.map((a) => (
@@ -1177,18 +1181,22 @@ export function Step1Info({ listingId }: { listingId?: string }) {
             </Select>
           </Field>
 
-          <Field hint="Yalnızca sizin gördüğünüz fatura adresi (opsiyonel).">
-            <Label htmlFor="billingAddressId">Fatura Adresi</Label>
-            <Select id="billingAddressId" {...register("billingAddressId")}>
-              <option value="">— Seçiniz (opsiyonel) —</option>
-              {billingAddrs.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.title}
-                  {a.city ? ` — ${a.city}` : ""}
-                </option>
-              ))}
-            </Select>
-          </Field>
+          {/* SATIS'ta fatura adresi anlamsız: faturayı SİZ kesersiniz, size
+              kesilecek fatura yok — alan yalnız ALIM'da. */}
+          {isSatis ? null : (
+            <Field hint="Yalnızca sizin gördüğünüz fatura adresi (opsiyonel).">
+              <Label htmlFor="billingAddressId">Fatura Adresi</Label>
+              <Select id="billingAddressId" {...register("billingAddressId")}>
+                <option value="">— Seçiniz (opsiyonel) —</option>
+                {billingAddrs.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.title}
+                    {a.city ? ` — ${a.city}` : ""}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
         </div>
       </section>
 
@@ -1197,7 +1205,11 @@ export function Step1Info({ listingId }: { listingId?: string }) {
         <SectionHeader
           icon={Wallet}
           title="Ödeme Koşulları"
-          description="Faturanın nasıl ödeneceğini belirtin."
+          description={
+            isSatis
+              ? "Alıcının faturayı nasıl ödeyeceğini belirtin."
+              : "Faturanın nasıl ödeneceğini belirtin."
+          }
         />
         <div className="space-y-4">
           <Field error={errors.paymentTerm?.message}>
@@ -1221,9 +1233,19 @@ export function Step1Info({ listingId }: { listingId?: string }) {
             <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
               <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
               <p className="text-xs text-amber-800">
-                Peşin (nakit) ödemede, <strong>kazanan {rol}</strong>{" "}
-                siparişi onaylamadan önce <strong>teminat mektubu</strong>{" "}
-                yüklemek zorundadır (teslimat garantisi).
+                {isSatis ? (
+                  <>
+                    Peşin (nakit) satışta parayı önden alan taraf sizsiniz —
+                    siparişi onaylarken <strong>teminat mektubu</strong>{" "}
+                    yüklemeniz gerekir (teslimat garantisi).
+                  </>
+                ) : (
+                  <>
+                    Peşin (nakit) ödemede, <strong>kazanan tedarikçi</strong>{" "}
+                    siparişi onaylamadan önce <strong>teminat mektubu</strong>{" "}
+                    yüklemek zorundadır (teslimat garantisi).
+                  </>
+                )}
               </p>
             </div>
           ) : null}
@@ -1231,7 +1253,11 @@ export function Step1Info({ listingId }: { listingId?: string }) {
           {paymentTerm === "DEFERRED" ? (
             <Field
               error={errors.paymentDays?.message}
-              hint="Faturayı kaç gün vadede ödeyeceksiniz?"
+              hint={
+                isSatis
+                  ? "Alıcı faturayı kaç gün vadede ödeyecek?"
+                  : "Faturayı kaç gün vadede ödeyeceksiniz?"
+              }
             >
               <Label htmlFor="paymentDays" required>
                 Vade Gün Sayısı
@@ -1254,7 +1280,11 @@ export function Step1Info({ listingId }: { listingId?: string }) {
           {/* Faz 3 madde 16 — Ödeme zamanı: sipariş ödeme akışını belirler. */}
           <Field
             error={errors.paymentTiming?.message}
-            hint={`Teslim öncesi seçilirse ${rol} onayından sonra, teslim sonrası seçilirse sipariş tamamlanınca ödeme kaydı girilebilir.`}
+            hint={
+              isSatis
+                ? "Teslim öncesi seçilirse siparişi siz onayladıktan sonra, teslim sonrası seçilirse sipariş tamamlanınca alıcı ödeme kaydı girer."
+                : "Teslim öncesi seçilirse tedarikçi onayından sonra, teslim sonrası seçilirse sipariş tamamlanınca ödeme kaydı girilebilir."
+            }
           >
             <Label required>Ödeme Zamanı</Label>
             <FormRadioGroup

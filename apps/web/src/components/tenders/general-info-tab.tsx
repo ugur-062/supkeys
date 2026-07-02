@@ -201,7 +201,12 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
               : ""}
           </Fact>
           {l.deliveryAddress ? (
-            <Fact label="Teslimat Adresi" full>
+            <Fact
+              label={
+                l.type === "SATIS" ? "Teslim / Yükleme Noktası" : "Teslimat Adresi"
+              }
+              full
+            >
               <span className="font-medium">{l.deliveryAddress.title}</span> —{" "}
               {l.deliveryAddress.addressLine}
               {l.deliveryAddress.district

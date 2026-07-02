@@ -133,7 +133,9 @@ export function Step4Review({ onEditStep }: Props) {
               <tr>
                 <th className="px-3 py-2 text-left font-medium">Kalem</th>
                 <th className="px-3 py-2 text-right font-medium">Miktar</th>
-                <th className="px-3 py-2 text-right font-medium">Hedef Fiyat</th>
+                <th className="px-3 py-2 text-right font-medium">
+                  {d.listingType === "SATIS" ? "İstenen Fiyat" : "Hedef Fiyat"}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">

@@ -80,7 +80,7 @@ function DesktopTable({ items }: { items: TenderListItem[] }) {
                 </div>
               </TableCell>
               <TableCell>
-                <TenderTypeBadge format={t.format} />
+                <TenderTypeBadge format={t.format} listingType={t.type} />
               </TableCell>
               <TableCell>
                 <TenderStatusBadge status={t.status} />
@@ -194,7 +194,7 @@ function MobileCard({ t }: { t: TenderListItem }) {
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-zinc-500">
-        <TenderTypeBadge format={t.format} />
+        <TenderTypeBadge format={t.format} listingType={t.type} />
         <span className="inline-flex items-center gap-1">
           <Mail className="h-3.5 w-3.5 text-zinc-400" />
           {t.invitationCount} davetli

@@ -104,11 +104,18 @@ export function TenderStatusBadge({
 export function TenderTypeBadge({
   format,
   className,
+  listingType,
 }: {
   format: ListingFormat | null;
   className?: string;
+  /** SATIS'ta İngiliz usulü AÇIK ARTIRMA'dır (fiyat yükselir). */
+  listingType?: "ALIM" | "SATIS";
 }) {
   const meta = FORMAT_META[format ?? "RFQ"];
+  const label =
+    listingType === "SATIS" && format === "ENGLISH_AUCTION"
+      ? "Açık Artırma"
+      : meta.label;
   return (
     <span
       className={cn(
@@ -117,7 +124,7 @@ export function TenderTypeBadge({
         className,
       )}
     >
-      {meta.label}
+      {label}
     </span>
   );
 }

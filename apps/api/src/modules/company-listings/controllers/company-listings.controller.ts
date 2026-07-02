@@ -52,10 +52,16 @@ export class CompanyListingsController {
     return this.service.listMyBids(user.companyId);
   }
 
-  /** İhalelerim listesi (ALIM) — zengin. */
+  /** İhalelerim/İlanlarım listesi — zengin (type: ALIM varsayılan, SATIS). */
   @Get("tenders")
-  listTenders(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    return this.service.listTenders(user.companyId);
+  listTenders(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query("type") type?: string,
+  ) {
+    return this.service.listTenders(
+      user.companyId,
+      type === "SATIS" ? "SATIS" : "ALIM",
+    );
   }
 
   /** Satıcı İhaleler listesi — açık + geçmiş, teklif/davet/kategori zengin. */

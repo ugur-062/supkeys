@@ -46,7 +46,7 @@ describe("çok-kiracılı scope", () => {
     expect(mine).toHaveLength(2);
   });
 
-  it("listTenders yalnızca kendi ALIM ilanları", async () => {
+  it("listTenders tipe göre ayrışır: varsayılan ALIM, SATIS istenince satış ilanları", async () => {
     const { service } = makeService();
     const a = await makeCompanyWithUser(prisma, { country: "TR" });
     await makeListing(prisma, {
@@ -61,6 +61,10 @@ describe("çok-kiracılı scope", () => {
     });
     const tenders = await service.listTenders(a.company.id);
     expect(tenders).toHaveLength(1);
+    expect(tenders[0]!.type).toBe("ALIM");
+    const satis = await service.listTenders(a.company.id, "SATIS");
+    expect(satis).toHaveLength(1);
+    expect(satis[0]!.type).toBe("SATIS");
   });
 
   it("listMyBids yalnızca firmanın verdiği teklifler", async () => {

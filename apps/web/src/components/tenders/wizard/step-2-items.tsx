@@ -53,7 +53,7 @@ export function Step2Items() {
         <p>
           Kalemleri tek tek ekleyin. Excel toplu yükleme V2&apos;de gelecek.
           Her kalem için &ldquo;Detay Ekle&rdquo; (açıklama / tarih / hedef
-          fiyat) ve &ldquo;Soru Ekle&rdquo; (tedarikçinin cevaplaması zorunlu
+          fiyat) ve &ldquo;Soru Ekle&rdquo; (teklif verenin cevaplaması zorunlu
           teknik soru) butonlarını kullanabilirsiniz.
         </p>
       </div>

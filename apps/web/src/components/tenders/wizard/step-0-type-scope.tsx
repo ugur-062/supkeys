@@ -15,10 +15,13 @@ function TargetCountryPicker({
   value,
   onChange,
   excludeCode,
+  rolPl = "tedarikçiler",
 }: {
   value: string[];
   onChange: (next: string[]) => void;
   excludeCode?: string;
+  /** Karşı taraf çoğul adı — ALIM'da tedarikçiler, SATIS'ta alıcılar. */
+  rolPl?: string;
 }) {
   const [query, setQuery] = useState("");
   const selectable = useMemo(
@@ -57,8 +60,8 @@ function TargetCountryPicker({
       </div>
       <p className="mt-1 text-sm text-zinc-500">
         İhalenin açılacağı ülkeleri seçin. Boş bırakırsanız{" "}
-        <strong>tüm yabancı ülkelerdeki</strong> tedarikçilere açılır.
-        Uluslararası ihale olduğu için <strong>yurtiçi tedarikçiler görmez</strong>.
+        <strong>tüm yabancı ülkelerdeki</strong> {rolPl === "alıcılar" ? "alıcılara" : "tedarikçilere"} açılır.
+        Uluslararası ihale olduğu için <strong>yurtiçi {rolPl} görmez</strong>.
       </p>
 
       {value.length > 0 ? (
@@ -249,13 +252,21 @@ export function Step0TypeScope() {
                 value="dom"
                 icon={MapPin}
                 title="Yurtiçi"
-                desc="Yurtiçi tedarik. Yurtiçi teslim şekilleri (fabrika/depo teslim, adrese teslim)."
+                desc={
+                  isSatis
+                    ? "Yurtiçi satış. Yurtiçi teslim şekilleri (depodan teslim, adrese teslim)."
+                    : "Yurtiçi tedarik. Yurtiçi teslim şekilleri (fabrika/depo teslim, adrese teslim)."
+                }
               />
               <TileOption
                 value="intl"
                 icon={Globe}
                 title="Uluslararası"
-                desc="Sınır ötesi tedarik. Incoterms 2020 teslim şekilleri (FOB, CIF, DDP…)."
+                desc={
+                  isSatis
+                    ? "Sınır ötesi satış. Incoterms 2020 teslim şekilleri (FOB, CIF, DDP…)."
+                    : "Sınır ötesi tedarik. Incoterms 2020 teslim şekilleri (FOB, CIF, DDP…)."
+                }
               />
             </StepGroup>
           </RadioGroup>
@@ -271,6 +282,7 @@ export function Step0TypeScope() {
               value={field.value ?? []}
               onChange={field.onChange}
               excludeCode={company?.country}
+              rolPl={isSatis ? "alıcılar" : "tedarikçiler"}
             />
           )}
         />

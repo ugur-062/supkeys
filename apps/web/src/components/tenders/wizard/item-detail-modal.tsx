@@ -28,8 +28,10 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
     register,
     getValues,
     setValue,
+    watch,
     formState: { errors },
   } = useFormContext<TenderFormData>();
+  const isSatis = watch("listingType") === "SATIS";
 
   const itemErrors = errors.items?.[index];
 
@@ -70,7 +72,9 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
         <div className="min-w-0">
           <DialogTitle>Kalem {index + 1} Detayları</DialogTitle>
           <DialogDescription>
-            Tedarikçilere göstereceğiniz ek bilgiler ve dahili notlar.
+            {isSatis
+              ? "Alıcılara göstereceğiniz ek bilgiler ve dahili notlar."
+              : "Tedarikçilere göstereceğiniz ek bilgiler ve dahili notlar."}
           </DialogDescription>
         </div>
       </div>
@@ -78,7 +82,7 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
       <DialogBody className="space-y-4">
         <Field
           error={itemErrors?.description?.message}
-          hint="Tedarikçiye gösterilir."
+          hint={isSatis ? "Alıcıya gösterilir." : "Tedarikçiye gösterilir."}
         >
           <Label htmlFor={`detail-description-${index}`}>
             Açıklama / Spesifikasyon
@@ -96,10 +100,10 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Field
             error={itemErrors?.requiredByDate?.message}
-            hint="Tedarikçiye gösterilir."
+            hint={isSatis ? "Alıcıya gösterilir." : "Tedarikçiye gösterilir."}
           >
             <Label htmlFor={`detail-requiredByDate-${index}`}>
-              Gereksinim Tarihi
+              {isSatis ? "En Geç Teslim Tarihi" : "Gereksinim Tarihi"}
             </Label>
             <Input
               id={`detail-requiredByDate-${index}`}
@@ -110,7 +114,7 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
           </Field>
           <Field error={itemErrors?.targetUnitPrice?.message}>
             <Label htmlFor={`detail-targetUnitPrice-${index}`}>
-              Hedef Birim Fiyat
+              {isSatis ? "İstenen Birim Fiyat" : "Hedef Birim Fiyat"}
             </Label>
             <Input
               id={`detail-targetUnitPrice-${index}`}

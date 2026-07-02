@@ -2,7 +2,6 @@
 
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
-import { NewListingDialog } from "@/components/company/new-listing-dialog";
 import {
   EmptyState,
   FilterSelect,
@@ -24,10 +23,9 @@ import {
 } from "@/hooks/use-company-listings";
 import { cn } from "@/lib/utils";
 import { Globe, MapPin } from "lucide-react";
-import { PlusIcon } from "@heroicons/react/20/solid";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { CircleSlash, Inbox, Lock, Package } from "lucide-react";
+import { CircleSlash, Inbox, Lock } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -84,160 +82,6 @@ function sortListings<T extends { title: string; createdAt: string }>(
   return out;
 }
 
-/** Kendi ilanlarım (portal türüne göre filtreli) + oluştur. */
-export function MyListings({
-  type,
-  title,
-  createLabel,
-  emptyHint,
-  createHref,
-}: {
-  type: ListingType;
-  title: string;
-  createLabel: string;
-  emptyHint: string;
-  /** Verilirse "oluştur" butonu bu sayfaya yönlendirir (çok-adımlı wizard);
-   *  yoksa basit dialog açılır. */
-  createHref?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
-  const [sort, setSort] = useState("newest");
-  const [page, setPage] = useState(1);
-
-  const mine = useMyListings();
-
-  const all = useMemo(
-    () => (mine.data ?? []).filter((l) => l.type === type),
-    [mine.data, type],
-  );
-
-  const filtered = useMemo(() => {
-    const rows = all.filter(
-      (l) =>
-        matchesSearch(l, search) && (status === "all" || l.status === status),
-    );
-    return sortListings(rows, sort);
-  }, [all, search, status, sort]);
-
-  const isFiltered = search !== "" || status !== "all";
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageRows = filtered.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE,
-  );
-
-  const createButton = createHref ? (
-    <Button href={createHref}>
-      <PlusIcon data-slot="icon" />
-      {createLabel}
-    </Button>
-  ) : (
-    <Button onClick={() => setOpen(true)}>
-      <PlusIcon data-slot="icon" />
-      {createLabel}
-    </Button>
-  );
-
-  // Sayfa/filtre değişince geçersiz sayfada kalmayı önle
-  function resetToFirstPage<T>(setter: (v: T) => void) {
-    return (v: T) => {
-      setPage(1);
-      setter(v);
-    };
-  }
-
-  return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <PageHeader title={title} action={createButton} />
-
-      {all.length > 0 ? (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <SearchInput
-              value={search}
-              onChange={resetToFirstPage(setSearch)}
-              placeholder="İlan ara…"
-              className="w-full sm:w-64"
-            />
-            <FilterSelect
-              value={status}
-              onChange={resetToFirstPage(setStatus)}
-              options={STATUS_FILTER_OPTIONS}
-              ariaLabel="Duruma göre filtrele"
-              active={status !== "all"}
-            />
-            <SortDropdown
-              value={sort}
-              onChange={resetToFirstPage(setSort)}
-              options={SORT_OPTIONS}
-            />
-          </div>
-          <ResultCount total={filtered.length} isFiltered={isFiltered} unit="ilan" />
-        </div>
-      ) : null}
-
-      <div className="overflow-hidden rounded-xl border border-zinc-950/10 bg-white">
-        {mine.isLoading ? (
-          <ListSkeleton rows={5} />
-        ) : filtered.length === 0 ? (
-          <EmptyState
-            icon={isFiltered ? CircleSlash : Package}
-            variant={isFiltered ? "no-results" : "no-data"}
-            title={isFiltered ? "Eşleşen ilan yok" : "Henüz ilan yok"}
-            description={isFiltered ? "Filtreleri değiştirip tekrar dene." : emptyHint}
-            action={isFiltered ? undefined : createButton}
-          />
-        ) : (
-          <>
-            <div className="divide-y divide-zinc-950/5">
-              {pageRows.map((l) => (
-                <Link
-                  key={l.id}
-                  href={`/company/ilan/${l.id}`}
-                  className="flex items-center justify-between gap-4 px-4 py-3 transition hover:bg-zinc-50"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-zinc-900">
-                      {l.title}
-                    </div>
-                    <div className="text-xs text-zinc-500">
-                      <span className="font-mono">{l.number ?? "—"}</span>
-                      {" · "}
-                      {l.visibility === "PUBLIC" ? "herkese açık" : "bağlantılar"}
-                      {" · "}
-                      {format(new Date(l.createdAt), "dd MMM yyyy", { locale: tr })}
-                    </div>
-                  </div>
-                  <Badge color="zinc">{STATUS_LABEL[l.status]}</Badge>
-                </Link>
-              ))}
-            </div>
-            {totalPages > 1 ? (
-              <Pagination
-                page={safePage}
-                totalPages={totalPages}
-                total={filtered.length}
-                pageSize={PAGE_SIZE}
-                onPageChange={setPage}
-              />
-            ) : null}
-          </>
-        )}
-      </div>
-
-      <NewListingDialog
-        open={open}
-        onClose={() => setOpen(false)}
-        fixedType={type}
-      />
-    </div>
-  );
-}
-
-/** Yurtiçi / Yurtdışı kapsam seçici (segmented). */
 function ScopeToggle({
   value,
   onChange,

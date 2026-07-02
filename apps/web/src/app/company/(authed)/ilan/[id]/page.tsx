@@ -402,7 +402,9 @@ export default function ListingDetailPage() {
                 <TableHeader>#</TableHeader>
                 <TableHeader>Kalem</TableHeader>
                 <TableHeader className="text-right">Miktar</TableHeader>
-                <TableHeader className="text-right">Hedef Fiyat</TableHeader>
+                <TableHeader className="text-right">
+                  {isAlim ? "Hedef Fiyat" : "İstenen Fiyat"}
+                </TableHeader>
               </TableRow>
             </TableHead>
             <TableBody>

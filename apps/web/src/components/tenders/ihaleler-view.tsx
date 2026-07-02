@@ -70,8 +70,14 @@ const STATUS_OPTIONS: { value: TabKey; label: string }[] = [
 
 const PAGE_SIZE = 20;
 
-export function IhalelerView() {
-  const list = useTenders();
+export function IhalelerView({
+  listingType = "ALIM",
+}: {
+  /** SATIS: Satış İlanlarım — aynı zengin liste, satış rotaları/etiketleri. */
+  listingType?: "ALIM" | "SATIS";
+} = {}) {
+  const isSatis = listingType === "SATIS";
+  const list = useTenders(listingType);
   const all = useMemo(() => list.data ?? [], [list.data]);
 
   const [tab, setTab] = useState<TabKey>("all");
@@ -89,7 +95,7 @@ export function IhalelerView() {
     return c;
   }, [all]);
 
-  // Satın almacılar (açan kişiler)
+  // Açan kişiler (ALIM'da satın almacılar, SATIS'ta satışçılar)
   const buyers = useMemo(() => {
     const m = new Map<
       string,
@@ -175,13 +181,23 @@ export function IhalelerView() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <PageHeader
-        title="İhaleler"
-        description="Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın."
+        title={isSatis ? "Satış İlanlarım" : "İhaleler"}
+        description={
+          isSatis
+            ? "Satış ihalelerinizi yönetin — açın, alıcı davet edin, en yüksek teklife kazandırın."
+            : "Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın."
+        }
         action={
-          <Link href="/company/satinalma/ihalelerim/yeni">
+          <Link
+            href={
+              isSatis
+                ? "/company/satis/ilanlarim/yeni"
+                : "/company/satinalma/ihalelerim/yeni"
+            }
+          >
             <Button variant="primary">
               <Plus className="h-4 w-4" />
-              Yeni İhale Aç
+              {isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
             </Button>
           </Link>
         }
@@ -247,13 +263,16 @@ export function IhalelerView() {
             value={createdById}
             onChange={reset(setCreatedById)}
             options={[
-              { value: "", label: "Tüm Satın Almacılar" },
+              {
+                value: "",
+                label: isSatis ? "Tüm Satışçılar" : "Tüm Satın Almacılar",
+              },
               ...buyers.map((b) => ({
                 value: b.id,
                 label: `${b.firstName} ${b.lastName} (${b.count})`,
               })),
             ]}
-            ariaLabel="Satın almacı filtresi"
+            ariaLabel={isSatis ? "Satışçı filtresi" : "Satın almacı filtresi"}
             active={!!createdById}
           />
           <ResultCount

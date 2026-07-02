@@ -1129,9 +1129,9 @@ export class CompanyListingsService {
    * kategoriler. Eski tenders-table'ın ihtiyaç duyduğu alanlar. Filtre/sıralama
    * frontend'de (client-side) yapılır.
    */
-  async listTenders(companyId: string) {
+  async listTenders(companyId: string, type: ListingType = "ALIM") {
     const rows = await this.prisma.listing.findMany({
-      where: { companyId, type: "ALIM" },
+      where: { companyId, type },
       select: {
         id: true,
         number: true,

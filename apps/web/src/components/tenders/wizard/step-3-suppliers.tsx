@@ -479,7 +479,11 @@ export function Step3Suppliers() {
                     {`Yeni ${RoleWord} Davet Et`}
                   </Button>
                   <Link
-                    href="/company/satinalma/tedarikcilerim"
+                    href={
+                      isSatis
+                        ? "/company/satis/musterilerim"
+                        : "/company/satinalma/tedarikcilerim"
+                    }
                     className="text-sm font-semibold text-zinc-900 hover:text-zinc-600"
                   >
                     Bağlantılar →

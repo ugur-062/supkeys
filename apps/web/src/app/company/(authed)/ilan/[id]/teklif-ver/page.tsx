@@ -546,7 +546,7 @@ export default function TeklifVerPage() {
                             {Number(it.quantity)} {it.unit}
                             {it.materialCode ? ` · ${it.materialCode}` : ""}
                             {it.targetPrice
-                              ? ` · Hedef: ${money(Number(it.targetPrice), effectiveCurrency)}`
+                              ? ` · ${isSatis ? "İstenen" : "Hedef"}: ${money(Number(it.targetPrice), effectiveCurrency)}`
                               : ""}
                           </p>
                         </div>
