@@ -165,7 +165,7 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
                 return (
                   <Link
                     key={b.id}
-                    href={`/company/ilan/${b.listing.id}`}
+                    href={`/company/ilan/${b.listing.id}?from=${encodeURIComponent("/company/satis/tekliflerim")}&fromLabel=Tekliflerim`}
                     className="flex items-center justify-between gap-4 px-4 py-3 transition hover:bg-zinc-50"
                   >
                     <div className="min-w-0">

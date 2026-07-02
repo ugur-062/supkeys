@@ -62,7 +62,10 @@ export function SellerTenderCard({ tender }: { tender: SellerTenderRow }) {
   const urgency = closingUrgency(tender.status, tender.closesAt);
 
   return (
-    <Link href={`/company/ilan/${tender.id}`} className="group block">
+    <Link
+      href={`/company/ilan/${tender.id}?from=${encodeURIComponent("/company/satis/acik-ihaleler")}&fromLabel=${encodeURIComponent("Açık İhaleler")}`}
+      className="group block"
+    >
       <div className="flex h-full flex-col rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-sm transition-all hover:border-zinc-300 hover:shadow-md">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">

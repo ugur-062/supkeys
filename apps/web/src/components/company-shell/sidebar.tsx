@@ -67,8 +67,15 @@ export function CompanySidebar() {
   const { data: pendingCount } = usePendingApprovalCount(isApprover);
   const { data: unreadCount } = useUnreadCount();
   const available = accessiblePortals(roles, company?.tier);
+  const lastPortal = usePortalStore((s) => s.lastPortal);
+  // Portal-nötr rotalarda (/company/ilan, /company/siparis, /company/bildirimler…)
+  // SON ziyaret edilen portalda kal — Satış'tan açılan ihale detayı sidebar'ı
+  // Satınalma'ya kaydırmasın (iki portal ayrıdır).
   const active: PortalKey =
-    activePortalFromPath(pathname) ?? available[0] ?? "satis";
+    activePortalFromPath(pathname) ??
+    (lastPortal && available.includes(lastPortal) ? lastPortal : null) ??
+    available[0] ??
+    "satis";
   const portal = PORTALS[active];
 
   return (
