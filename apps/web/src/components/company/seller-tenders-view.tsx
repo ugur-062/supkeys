@@ -7,6 +7,7 @@ import {
   ListSkeleton,
   PageHeader,
   Pagination,
+  ResultCount,
   SearchInput,
 } from "@/components/list";
 import { useSellerTenders, type SellerTenderRow } from "@/hooks/use-seller-tenders";
@@ -18,10 +19,13 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
+  ArrowUpDown,
   Building2,
   Calendar,
+  CalendarRange,
   ClipboardList,
   FileText,
+  ListFilter,
   Lock,
 } from "lucide-react";
 import Link from "next/link";
@@ -211,7 +215,6 @@ export function SellerTendersView({
   const [sort, setSort] = useState("closing-asc");
   const [range, setRange] = useState("all");
   const [buyer, setBuyer] = useState("all");
-  const [category, setCategory] = useState("all");
   const [page, setPage] = useState(1);
 
   const all = tenders.data ?? [];
@@ -231,22 +234,6 @@ export function SellerTendersView({
     ];
   }, [all]);
 
-  const categoryOptions = useMemo(() => {
-    const counts = new Map<string, { name: string; n: number }>();
-    for (const t of all) {
-      for (const c of t.categories) {
-        const e = counts.get(c.code) ?? { name: c.name, n: 0 };
-        e.n += 1;
-        counts.set(c.code, e);
-      }
-    }
-    return [
-      { value: "all", label: "Tüm Kategoriler" },
-      ...[...counts.entries()]
-        .sort((a, b) => b[1].n - a[1].n)
-        .map(([code, e]) => ({ value: code, label: `${e.name} (${e.n})` })),
-    ];
-  }, [all]);
 
   const filtered = useMemo(() => {
     const now = Date.now();
@@ -257,8 +244,6 @@ export function SellerTendersView({
       if (rangeMs !== null && now - new Date(t.createdAt).getTime() > rangeMs)
         return false;
       if (buyer !== "all" && t.owner?.name !== buyer) return false;
-      if (category !== "all" && !t.categories.some((c) => c.code === category))
-        return false;
       if (search) {
         const q = search.toLocaleLowerCase("tr-TR");
         const hay = `${t.title} ${t.number ?? ""} ${t.owner?.name ?? ""}`
@@ -281,7 +266,7 @@ export function SellerTendersView({
       return time(a.closesAt) - time(b.closesAt);
     });
     return rows;
-  }, [all, tab, sort, range, buyer, category, search]);
+  }, [all, tab, sort, range, buyer, search]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -289,8 +274,7 @@ export function SellerTendersView({
     (safePage - 1) * PAGE_SIZE,
     safePage * PAGE_SIZE,
   );
-  const isFiltered =
-    search !== "" || buyer !== "all" || category !== "all" || range !== "all";
+  const isFiltered = search !== "" || buyer !== "all" || range !== "all";
 
   function withReset<T>(setter: (v: T) => void) {
     return (v: T) => {
@@ -310,51 +294,58 @@ export function SellerTendersView({
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2">
-        <SearchInput
-          value={search}
-          onChange={withReset(setSearch)}
-          placeholder="İhale ara…"
-          className="w-full sm:w-64"
-        />
-        <FilterSelect
-          value={tab}
-          onChange={withReset(setTab)}
-          options={TAB_OPTIONS}
-          ariaLabel="Durum"
-          active={tab !== "active"}
-        />
-        <FilterSelect
-          value={sort}
-          onChange={withReset(setSort)}
-          options={SORT_OPTIONS}
-          ariaLabel="Sıralama"
-          active={sort !== "closing-asc"}
-        />
-        <FilterSelect
-          value={range}
-          onChange={withReset(setRange)}
-          options={RANGE_OPTIONS}
-          ariaLabel="Tarih aralığı"
-          active={range !== "all"}
-        />
-        <FilterSelect
-          value={buyer}
-          onChange={withReset(setBuyer)}
-          options={buyerOptions}
-          ariaLabel={isSatis ? "Satıcı" : "Müşteri"}
-          active={buyer !== "all"}
-        />
-        <FilterSelect
-          value={category}
-          onChange={withReset(setCategory)}
-          options={categoryOptions}
-          ariaLabel="Kategori"
-          active={category !== "all"}
-        />
-        <span className="ml-auto text-xs text-zinc-400">
-          {filtered.length} ihale{isFiltered ? " (filtrelenmiş)" : ""}
-        </span>
+      {/* Arama + filtreler — İhalelerim düzeni: üstte tam-genişlik arama +
+          sıralama, altta filtre pill'leri + sonuç sayacı. */}
+      <div className="space-y-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <SearchInput
+            value={search}
+            onChange={withReset(setSearch)}
+            placeholder="İhale adı, numarası veya firma ara…"
+            className="flex-1"
+          />
+          <FilterSelect
+            icon={ArrowUpDown}
+            value={sort}
+            onChange={withReset(setSort)}
+            options={SORT_OPTIONS}
+            ariaLabel="Sıralama"
+            active={sort !== "closing-asc"}
+            className="sm:min-w-[160px]"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterSelect
+            icon={ListFilter}
+            value={tab}
+            onChange={withReset(setTab)}
+            options={TAB_OPTIONS}
+            ariaLabel="Durum"
+            active={tab !== "active"}
+          />
+          <FilterSelect
+            icon={CalendarRange}
+            value={range}
+            onChange={withReset(setRange)}
+            options={RANGE_OPTIONS}
+            ariaLabel="Tarih aralığı"
+            active={range !== "all"}
+          />
+          <FilterSelect
+            icon={Building2}
+            value={buyer}
+            onChange={withReset(setBuyer)}
+            options={buyerOptions}
+            ariaLabel={isSatis ? "Satıcı" : "Müşteri"}
+            active={buyer !== "all"}
+          />
+          <ResultCount
+            total={filtered.length}
+            isFiltered={isFiltered}
+            unit="ihale"
+            className="ml-auto"
+          />
+        </div>
       </div>
 
       {tenders.isLoading ? (

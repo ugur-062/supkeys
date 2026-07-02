@@ -124,7 +124,7 @@ describe("SellerTendersView", () => {
     h.rows = [row({ title: "Çelik Boru Alımı" }), row({ title: "Kablo Alımı" })];
     render(<SellerTendersView />);
 
-    await user.type(screen.getByPlaceholderText("İhale ara…"), "çelik");
+    await user.type(screen.getByPlaceholderText("İhale adı, numarası veya firma ara…"), "çelik");
     // SearchInput debounce'lı (300ms) → filtrenin uygulanmasını bekle.
     await waitForElementToBeRemoved(() => screen.queryByText("Kablo Alımı"));
     expect(screen.getByText("Çelik Boru Alımı")).toBeInTheDocument();
