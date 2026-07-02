@@ -187,10 +187,14 @@ function StepGroup({
 export function Step0TypeScope() {
   const { control, watch } = useFormContext<TenderFormData>();
   const isInternational = watch("isInternational");
+  // SATIS: format seçimi yok (İngiliz usulü satışta desteklenmez) —
+  // taban + hemen-al fiyatlı teklif toplama; yalnız kapsam seçilir.
+  const isSatis = watch("listingType") === "SATIS";
   const { company } = useCompanyAuth();
 
   return (
     <div className="space-y-12">
+      {isSatis ? null : (
       <Controller
         control={control}
         name="type"
@@ -220,6 +224,7 @@ export function Step0TypeScope() {
           </RadioGroup>
         )}
       />
+      )}
 
       <Controller
         control={control}

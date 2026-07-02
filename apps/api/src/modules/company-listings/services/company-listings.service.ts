@@ -1832,6 +1832,7 @@ export class CompanyListingsService {
         status: true,
         requireAllItems: true,
         requireBidDocument: true,
+        minPrice: true,
         currentRound: true,
         primaryCurrency: true,
         allowedCurrencies: true,
@@ -2112,6 +2113,21 @@ export class CompanyListingsService {
         throw new BadRequestException("Geçerli bir tutar girin");
       }
       amount = new Prisma.Decimal(dto.amount);
+    }
+
+    // SATIS: taban fiyatın ALTINDA gönderilmiş teklif kabul edilmez
+    // (taslakta serbest — kullanıcı formda düzeltir).
+    if (
+      !isDraft &&
+      listing.type === "SATIS" &&
+      listing.minPrice != null &&
+      amount.lt(listing.minPrice)
+    ) {
+      const cur =
+        listing.primaryCurrency === "TRY" ? "₺" : listing.primaryCurrency;
+      throw new BadRequestException(
+        `Teklif taban fiyatın (${Number(listing.minPrice).toLocaleString("tr-TR")} ${cur}) altında olamaz`,
+      );
     }
 
     // İngiliz Usulü (açık eksiltme): GÖNDERİLEN teklif, düşürme kuralına göre

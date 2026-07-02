@@ -36,28 +36,36 @@ import { Step2Items } from "./step-2-items";
 import { Step3Suppliers } from "./step-3-suppliers";
 import { Step4Review } from "./step-4-review";
 
-const STEP_META = [
-  { title: "Tür & Kapsam", desc: "İhale türü ve kapsamı" },
-  { title: "Genel Bilgi", desc: "Kategori, kurallar, teslimat, ödeme" },
-  { title: "Kalemler", desc: "Ürün / hizmet kalemleri" },
-  { title: "Tedarikçiler", desc: "Davet edilecekler" },
-  { title: "Özet & Yayınla", desc: "Kontrol et ve yayınla" },
-];
-const LAST_STEP = STEP_META.length - 1; // 4
+function stepMeta(isSatis: boolean) {
+  return [
+    isSatis
+      ? { title: "Kapsam", desc: "Satış ihalesinin kapsamı" }
+      : { title: "Tür & Kapsam", desc: "İhale türü ve kapsamı" },
+    { title: "Genel Bilgi", desc: "Kategori, kurallar, teslimat, ödeme" },
+    { title: "Kalemler", desc: "Ürün / hizmet kalemleri" },
+    isSatis
+      ? { title: "Alıcılar", desc: "Davet edilecekler" }
+      : { title: "Tedarikçiler", desc: "Davet edilecekler" },
+    { title: "Özet & Yayınla", desc: "Kontrol et ve yayınla" },
+  ];
+}
+const LAST_STEP = 4;
 
 /** Üst adım göstergesi — numara + başlık + açıklama. Mobilde dikey, masaüstünde
  *  5 sütun. Tamamlanan adıma tıklayıp geri dönülebilir. */
 function WizardSteps({
   current,
   onStepClick,
+  meta,
 }: {
   current: number;
   onStepClick: (i: number) => void;
+  meta: { title: string; desc: string }[];
 }) {
   return (
     <nav aria-label="İhale adımları">
       <ol className="grid grid-cols-1 divide-y divide-zinc-950/10 overflow-hidden rounded-xl border border-zinc-950/10 sm:grid-cols-5 sm:divide-x sm:divide-y-0">
-        {STEP_META.map((s, idx) => {
+        {meta.map((s, idx) => {
           const isDone = current > idx;
           const isActive = current === idx;
           const clickable = isDone;
@@ -117,9 +125,13 @@ function toIso(v: string | undefined): string | undefined {
 
 /** Form → backend (CreateListingInput) eşlemesi. */
 function mapToInput(d: TenderFormData): CreateListingInput {
+  const isSatis = d.listingType === "SATIS";
   return {
-    type: "ALIM",
-    format: d.type, // RFQ / ENGLISH_AUCTION
+    type: d.listingType,
+    // Format yalnız ALIM'da anlamlı; SATIS = taban + hemen-al'lı teklif toplama.
+    format: isSatis ? undefined : d.type,
+    minPrice: isSatis ? d.minPrice : undefined,
+    buyNowPrice: isSatis ? d.buyNowPrice : undefined,
     isInternational: d.isInternational,
     targetCountries: d.isInternational ? d.targetCountries : [],
     deliveryAddressId: d.deliveryAddressId || undefined,
@@ -176,13 +188,18 @@ export function TenderWizard({
   mode = "create",
   listingId,
   initialValues,
+  listingType = "ALIM",
 }: {
   mode?: "create" | "edit";
   listingId?: string;
   initialValues?: TenderFormData;
+  /** SATIS: satış ihalesi — format adımı yok, taban/hemen-al fiyat var. */
+  listingType?: "ALIM" | "SATIS";
 } = {}) {
   const router = useRouter();
   const isEdit = mode === "edit";
+  const isSatis =
+    (initialValues?.listingType ?? listingType) === "SATIS";
   const [step, setStep] = useState(0);
   const [publishOpen, setPublishOpen] = useState(false);
   const [missingOpen, setMissingOpen] = useState(false);
@@ -191,7 +208,7 @@ export function TenderWizard({
 
   const form = useForm<TenderFormData>({
     resolver: zodResolver(tenderFormSchema),
-    defaultValues: initialValues ?? DEFAULT_FORM_VALUES,
+    defaultValues: initialValues ?? { ...DEFAULT_FORM_VALUES, listingType },
     mode: "onTouched",
   });
 
@@ -244,7 +261,10 @@ export function TenderWizard({
   const goBackOrExit = () => {
     if (step > 0) goPrev();
     else if (isEdit && listingId) router.push(`/company/ilan/${listingId}`);
-    else router.push("/company/satinalma/ihalelerim");
+    else
+      router.push(
+        isSatis ? "/company/satis/ilanlarim" : "/company/satinalma/ihalelerim",
+      );
   };
 
   // Yayınla'ya basınca: hedef fiyatsız kalem uyarısı → publish-confirm.
@@ -255,7 +275,9 @@ export function TenderWizard({
       return;
     }
     const items = form.getValues("items");
-    const missing = items.filter((i) => i.targetUnitPrice == null).length;
+    const missing = isSatis
+      ? 0
+      : items.filter((i) => i.targetUnitPrice == null).length;
     if (missing > 0) {
       setMissingCount(missing);
       setMissingOpen(true);
@@ -319,7 +341,7 @@ export function TenderWizard({
             className="inline-flex items-center gap-1 text-sm font-medium text-zinc-600 hover:text-zinc-900"
           >
             <ArrowLeft className="h-4 w-4" />
-            {step > 0 ? "Geri" : "İhaleler"}
+            {step > 0 ? "Geri" : isSatis ? "Satış İlanlarım" : "İhaleler"}
           </button>
           <div className="flex flex-wrap items-center gap-2">
             {templates.data && templates.data.length > 0 ? (
@@ -345,7 +367,15 @@ export function TenderWizard({
 
         {/* Başlık */}
         <div>
-          <Heading>{isEdit ? "İhaleyi Düzenle" : "Yeni İhale"}</Heading>
+          <Heading>
+            {isEdit
+              ? isSatis
+                ? "Satış İhalesini Düzenle"
+                : "İhaleyi Düzenle"
+              : isSatis
+                ? "Yeni Satış İhalesi"
+                : "Yeni İhale"}
+          </Heading>
           <Text className="mt-1 text-sm text-zinc-500">
             {isEdit
               ? "Değişiklikleri yapıp kaydedin. Teklif geldikten sonra düzenlenemez."
@@ -354,7 +384,7 @@ export function TenderWizard({
         </div>
 
         {/* Üstte adım göstergesi */}
-        <WizardSteps current={step} onStepClick={setStep} />
+        <WizardSteps current={step} onStepClick={setStep} meta={stepMeta(isSatis)} />
 
         {/* İçerik */}
         <div className="min-w-0 pt-2">

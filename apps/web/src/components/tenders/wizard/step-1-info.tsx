@@ -512,6 +512,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
   const decrementType = watch("priceDecrementType");
   const autoExtendOnLateBid = watch("autoExtendOnLateBid");
   const isAuction = tenderType === "ENGLISH_AUCTION";
+  const isSatis = watch("listingType") === "SATIS";
   const isInternational = watch("isInternational");
   // datetime-local "min" — geçmiş tarih seçimini anında engeller (yerel saat).
   const minDateTime = new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
@@ -660,6 +661,51 @@ export function Step1Info({ listingId }: { listingId?: string }) {
           />
         </Field>
       </section>
+
+      {/* SATIS — Satış Fiyatları: taban (zorunlu) + hemen-al (opsiyonel ≥ taban) */}
+      {isSatis ? (
+        <section>
+          <SectionHeader
+            icon={Wallet}
+            title="Satış Fiyatları"
+            description="Taban fiyatın altındaki teklifler kabul edilmez. Hemen-al fiyatı verirseniz alıcı bu fiyattan anında teklif oluşturabilir (onayınızla sipariş olur)."
+          />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field error={errors.minPrice?.message as string | undefined}>
+              <Label required htmlFor="satis-min-price">
+                Taban Fiyat ({primaryCurrency})
+              </Label>
+              <Input
+                id="satis-min-price"
+                type="number"
+                min={0}
+                step="0.01"
+                hasError={!!errors.minPrice}
+                {...register("minPrice", { valueAsNumber: true })}
+              />
+            </Field>
+            <Field
+              error={errors.buyNowPrice?.message as string | undefined}
+              hint="Boş bırakılabilir — verilirse taban fiyattan düşük olamaz."
+            >
+              <Label htmlFor="satis-buynow-price">
+                Hemen-Al Fiyatı ({primaryCurrency})
+              </Label>
+              <Input
+                id="satis-buynow-price"
+                type="number"
+                min={0}
+                step="0.01"
+                hasError={!!errors.buyNowPrice}
+                {...register("buyNowPrice", {
+                  setValueAs: (v) =>
+                    v === "" || v == null ? undefined : Number(v),
+                })}
+              />
+            </Field>
+          </div>
+        </section>
+      ) : null}
 
       {/* Lojistik — seçilen kategori Nakliye/Depolama segmentindeyse açılır */}
       {isLogistics ? <LogisticsSection /> : null}

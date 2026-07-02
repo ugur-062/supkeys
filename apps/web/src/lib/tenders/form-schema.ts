@@ -110,6 +110,18 @@ export const tenderItemSchema = z.object({
 });
 
 const baseTenderSchema = z.object({
+  // İlan yönü: ALIM (ihale, teklif toplar) / SATIS (satış ihalesi — taban +
+  // hemen-al fiyatlı, en yüksek teklif kazanır; İngiliz usulü YOK).
+  listingType: z.enum(["ALIM", "SATIS"]),
+  // Satış ihalesi fiyatları (yalnız SATIS)
+  minPrice: z
+    .number({ invalid_type_error: "Geçersiz fiyat" })
+    .min(0.01, "Taban fiyat 0'dan büyük olmalı")
+    .optional(),
+  buyNowPrice: z
+    .number({ invalid_type_error: "Geçersiz fiyat" })
+    .min(0.01)
+    .optional(),
   // Adım 1
   categoryIds: z
     .array(z.string().min(1))
@@ -233,6 +245,20 @@ export const tenderFormSchema = baseTenderSchema
       path: ["priceDecrementValue"],
     },
   )
+  .refine(
+    (d) => d.listingType !== "SATIS" || (d.minPrice ?? 0) > 0,
+    { message: "Satış ihalesi için taban fiyat zorunlu", path: ["minPrice"] },
+  )
+  .refine(
+    (d) =>
+      d.listingType !== "SATIS" ||
+      d.buyNowPrice == null ||
+      d.buyNowPrice >= (d.minPrice ?? 0),
+    {
+      message: "Hemen-al fiyatı taban fiyattan düşük olamaz",
+      path: ["buyNowPrice"],
+    },
+  )
   .refine((d) => !d.isLogistics || !!d.logistics?.originCity?.trim(), {
     message: "Çıkış ili zorunlu",
     path: ["logistics", "originCity"],
@@ -271,6 +297,8 @@ export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
     "internalNotes",
     "bidsCloseAt",
     "bidsOpenAt",
+    "minPrice",
+    "buyNowPrice",
     "bidVisibility",
     "priceDecrementType",
     "priceDecrementValue",
@@ -285,6 +313,9 @@ export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
 };
 
 export const DEFAULT_FORM_VALUES: TenderFormData = {
+  listingType: "ALIM",
+  minPrice: undefined,
+  buyNowPrice: undefined,
   categoryIds: [],
   title: "",
   description: "",

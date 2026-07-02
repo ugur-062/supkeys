@@ -80,7 +80,7 @@ function InviteByEmailModal({
 
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Yeni Tedarikçi Davet Et</DialogTitle>
+      <DialogTitle>Yeni Firma Davet Et</DialogTitle>
       <DialogDescription>
         Firmanın e-posta adresini girin; Rothern'e davet / bağlantı isteği
         gönderilir. Kabul edince bağlantılarınıza eklenir ve ihaleye davet
@@ -195,6 +195,10 @@ export function Step3Suppliers() {
   const deleteTemplate = useDeleteSupplierTemplate();
   const visibility = useWatch({ control, name: "visibility" });
   const isPublic = visibility === "PUBLIC";
+  // SATIS ihalede davet edilenler ALICI firmalardır (satın almacılar teklif verir).
+  const isSatis = useWatch({ control, name: "listingType" }) === "SATIS";
+  const roleWord = isSatis ? "alıcı" : "tedarikçi";
+  const RoleWord = isSatis ? "Alıcı" : "Tedarikçi";
   const [search, setSearch] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -294,7 +298,7 @@ export function Step3Suppliers() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-zinc-950">
-                  Tedarikçi Daveti
+                  {RoleWord} Daveti
                 </h2>
                 <p className="text-sm text-zinc-500">
                   {isPublic
@@ -318,7 +322,7 @@ export function Step3Suppliers() {
                 {visibility === "PUBLIC" ? (
                   <>
                     Bu ihale <strong>Herkese Açık</strong>: kategorinize uygun
-                    premium tedarikçiler davet beklemeden görüp teklif verebilir.
+                    premium {roleWord === "alıcı" ? "alıcılar" : "tedarikçiler"} davet beklemeden görüp teklif verebilir.
                     Bu adım <strong>opsiyonel</strong> — yalnızca belirli bir
                     firmayı e-posta ile ayrıca davet etmek istersen kullan.
                   </>
@@ -369,7 +373,7 @@ export function Step3Suppliers() {
               ) : null}
               <Button onClick={() => setInviteOpen(true)}>
                 <UserPlus2 data-slot="icon" />
-                Yeni Tedarikçi Davet Et
+                {`Yeni ${RoleWord} Davet Et`}
               </Button>
               {isPublic && !showConnections ? (
                 <Button outline onClick={() => setShowConnections(true)}>
@@ -472,7 +476,7 @@ export function Step3Suppliers() {
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   <Button onClick={() => setInviteOpen(true)}>
                     <UserPlus2 data-slot="icon" />
-                    Yeni Tedarikçi Davet Et
+                    {`Yeni ${RoleWord} Davet Et`}
                   </Button>
                   <Link
                     href="/company/satinalma/tedarikcilerim"
@@ -568,7 +572,7 @@ export function Step3Suppliers() {
             >
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm font-semibold text-zinc-900">
-                  Seçilen Tedarikçiler ({selected.size})
+                  Seçilen {RoleWord === "Alıcı" ? "Alıcılar" : "Tedarikçiler"} ({selected.size})
                 </p>
                 {selected.size > 0 ? (
                   <button

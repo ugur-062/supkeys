@@ -37,6 +37,9 @@ export function mapDetailToForm(
   const primary = (l.primaryCurrency as Currency) ?? "TRY";
   return {
     ...DEFAULT_FORM_VALUES,
+    listingType: (l.type as TenderFormData["listingType"]) ?? "ALIM",
+    minPrice: l.minPrice != null ? Number(l.minPrice) : undefined,
+    buyNowPrice: l.buyNowPrice != null ? Number(l.buyNowPrice) : undefined,
     categoryIds: l.categoryIds ?? [],
     title: forCopy ? `${l.title} (kopya)` : l.title,
     description: l.description ?? "",

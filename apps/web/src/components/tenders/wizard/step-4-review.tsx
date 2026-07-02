@@ -46,8 +46,34 @@ export function Step4Review({ onEditStep }: Props) {
         <Row label="İhale Adı" value={d.title || "—"} />
         <Row
           label="Tip"
-          value={d.type === "ENGLISH_AUCTION" ? "İngiliz Usulü Açık Eksiltme" : "RFQ (Teklif Toplama)"}
+          value={
+            d.listingType === "SATIS"
+              ? "Satış İhalesi (en yüksek teklif kazanır)"
+              : d.type === "ENGLISH_AUCTION"
+                ? "İngiliz Usulü Açık Eksiltme"
+                : "RFQ (Teklif Toplama)"
+          }
         />
+        {d.listingType === "SATIS" ? (
+          <>
+            <Row
+              label="Taban Fiyat"
+              value={
+                d.minPrice != null
+                  ? `${d.minPrice.toLocaleString("tr-TR")} ${sym}`
+                  : "—"
+              }
+            />
+            <Row
+              label="Hemen-Al Fiyatı"
+              value={
+                d.buyNowPrice != null
+                  ? `${d.buyNowPrice.toLocaleString("tr-TR")} ${sym}`
+                  : "Yok"
+              }
+            />
+          </>
+        ) : null}
         <Row label="Kapsam" value={d.isInternational ? "Uluslararası" : "Yurtiçi"} />
         {d.isInternational ? (
           <Row

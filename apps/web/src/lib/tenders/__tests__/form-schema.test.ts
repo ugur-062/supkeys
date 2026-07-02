@@ -84,3 +84,41 @@ describe("tenderFormSchema", () => {
     expect(res.success).toBe(false);
   });
 });
+
+describe("tenderFormSchema — SATIS (satış ihalesi)", () => {
+  it("SATIS: taban fiyat zorunlu; verilince geçer", () => {
+    const noMin = tenderFormSchema.safeParse(
+      validForm({ listingType: "SATIS" }),
+    );
+    expect(noMin.success).toBe(false);
+    expect(
+      noMin.success
+        ? ""
+        : noMin.error.issues.map((i) => i.path.join(".")).join(","),
+    ).toContain("minPrice");
+
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({ listingType: "SATIS", minPrice: 1000 }),
+      ).success,
+    ).toBe(true);
+  });
+
+  it("SATIS: hemen-al taban fiyattan düşük olamaz", () => {
+    const bad = tenderFormSchema.safeParse(
+      validForm({ listingType: "SATIS", minPrice: 1000, buyNowPrice: 500 }),
+    );
+    expect(bad.success).toBe(false);
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({ listingType: "SATIS", minPrice: 1000, buyNowPrice: 1500 }),
+      ).success,
+    ).toBe(true);
+  });
+
+  it("ALIM'da taban fiyat kuralları uygulanmaz", () => {
+    expect(
+      tenderFormSchema.safeParse(validForm({ listingType: "ALIM" })).success,
+    ).toBe(true);
+  });
+});
