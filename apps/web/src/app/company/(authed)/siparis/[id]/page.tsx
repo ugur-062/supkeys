@@ -24,6 +24,7 @@ import {
   type CompanyOrderStatus,
 } from "@/hooks/use-company-orders";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { OrderDocumentsSection } from "./_components/order-documents-section";
 import {
   AcceptOrderModal,
@@ -40,6 +41,7 @@ import {
   Banknote,
   Building2,
   CalendarClock,
+  Gavel,
   Layers,
   Wallet,
 } from "lucide-react";
@@ -120,6 +122,9 @@ export default function OrderDetailPage() {
     return <Text className="text-sm text-zinc-500">Sipariş bulunamadı.</Text>;
 
   const isSeller = o.role === "seller";
+  const curSym =
+    CURRENCY_SYMBOL[(o.currency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
+    "₺";
   const stepIndex = stepIndexFor(o.status);
   const terminal = o.status === "REJECTED" || o.status === "CANCELLED";
   const statusMeta = STATUS_META[o.status] ?? {
@@ -171,7 +176,7 @@ export default function OrderDetailPage() {
     const rows = (o.items ?? [])
       .map((it) => {
         const line = Number(it.quantity) * Number(it.unitPrice);
-        return `<tr><td>${it.name}</td><td style="text-align:right">${Number(it.quantity).toLocaleString("tr-TR")} ${it.unit}</td><td style="text-align:right">${Number(it.unitPrice).toLocaleString("tr-TR")} ₺</td><td style="text-align:right">${line.toLocaleString("tr-TR")} ₺</td></tr>`;
+        return `<tr><td>${it.name}</td><td style="text-align:right">${Number(it.quantity).toLocaleString("tr-TR")} ${it.unit}</td><td style="text-align:right">${Number(it.unitPrice).toLocaleString("tr-TR")} ${curSym}</td><td style="text-align:right">${line.toLocaleString("tr-TR")} ${curSym}</td></tr>`;
       })
       .join("");
     w.document.write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>${o.number ?? "Sipariş"}</title>
@@ -191,7 +196,7 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
 </div>
 <table><thead><tr><th>Kalem</th><th style="text-align:right">Miktar</th><th style="text-align:right">Birim</th><th style="text-align:right">Tutar</th></tr></thead>
 <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:#a1a1aa">Kalem yok</td></tr>'}</tbody></table>
-<div class="tot">Toplam: ${Number(o.amount).toLocaleString("tr-TR")} ₺</div>
+<div class="tot">Toplam: ${Number(o.amount).toLocaleString("tr-TR")} ${curSym}</div>
 <script>window.onload=function(){window.print()}</script>
 </body></html>`);
     w.document.close();
@@ -255,7 +260,7 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
           <MetaItem
             icon={Wallet}
             label="Tutar"
-            value={`${Number(o.amount).toLocaleString("tr-TR")} ₺`}
+            value={`${Number(o.amount).toLocaleString("tr-TR")} ${curSym}`}
           />
           <MetaItem
             icon={Layers}
@@ -269,6 +274,98 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
           />
         </dl>
       </section>
+
+      {/* Bağlı ihale + karşı taraf (eski panel paritesi) */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Gavel className="h-4 w-4 text-zinc-500" />
+            <h3 className="text-sm font-semibold text-zinc-900">Bağlı İhale</h3>
+          </div>
+          {o.listingId ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-zinc-900">
+                  {o.listingTitle ?? "—"}
+                </p>
+                <p className="mt-0.5 font-mono text-xs text-zinc-500">
+                  {o.listingNumber ?? "—"}
+                  {o.listingType ? (
+                    <span className="ml-2 font-sans">
+                      {o.listingType === "ALIM" ? "Alım ihalesi" : "Satış ihalesi"}
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+              <Button outline href={`/company/ilan/${o.listingId}`}>
+                İhaleye Git
+              </Button>
+            </div>
+          ) : (
+            <Text className="text-sm text-zinc-500">
+              Bağlı ihale kaydı yok (silinmiş olabilir).
+            </Text>
+          )}
+        </section>
+
+        <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-zinc-500" />
+              <h3 className="text-sm font-semibold text-zinc-900">
+                {isSeller ? "Alıcı Firma" : "Satıcı Firma"}
+              </h3>
+            </div>
+            <Button
+              outline
+              href={`/company/${isSeller ? "satis" : "satinalma"}/mesajlar?with=${o.counterpartyCompanyId}`}
+            >
+              Mesaj Gönder
+            </Button>
+          </div>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            <div className="col-span-2">
+              <dt className="text-xs text-zinc-500">Firma</dt>
+              <dd className="font-medium text-zinc-900">
+                {o.counterparty}
+                {o.counterpartyProfile.supkeysId ? (
+                  <span className="ml-2 font-mono text-xs text-zinc-400">
+                    {o.counterpartyProfile.supkeysId}
+                  </span>
+                ) : null}
+              </dd>
+            </div>
+            {o.counterpartyProfile.city ? (
+              <div>
+                <dt className="text-xs text-zinc-500">Şehir</dt>
+                <dd className="text-zinc-900">{o.counterpartyProfile.city}</dd>
+              </div>
+            ) : null}
+            {o.counterpartyProfile.industry ? (
+              <div>
+                <dt className="text-xs text-zinc-500">Sektör</dt>
+                <dd className="text-zinc-900">
+                  {o.counterpartyProfile.industry}
+                </dd>
+              </div>
+            ) : null}
+            {o.counterpartyProfile.email ? (
+              <div>
+                <dt className="text-xs text-zinc-500">E-posta</dt>
+                <dd className="truncate text-zinc-900">
+                  {o.counterpartyProfile.email}
+                </dd>
+              </div>
+            ) : null}
+            {o.counterpartyProfile.phone ? (
+              <div>
+                <dt className="text-xs text-zinc-500">Telefon</dt>
+                <dd className="text-zinc-900">{o.counterpartyProfile.phone}</dd>
+              </div>
+            ) : null}
+          </dl>
+        </section>
+      </div>
 
       {/* Durum akışı */}
       <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
@@ -329,13 +426,13 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
                     {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
                   </TableCell>
                   <TableCell className="text-right font-mono text-zinc-600">
-                    {Number(it.unitPrice).toLocaleString("tr-TR")} ₺
+                    {Number(it.unitPrice).toLocaleString("tr-TR")} {curSym}
                   </TableCell>
                   <TableCell className="text-right font-mono font-semibold text-zinc-900">
                     {(
                       Number(it.unitPrice) * Number(it.quantity)
                     ).toLocaleString("tr-TR")}{" "}
-                    ₺
+                    {curSym}
                   </TableCell>
                 </TableRow>
               ))}

@@ -13,6 +13,7 @@ import {
   type CompanyOrder,
   type CompanyOrderStatus,
 } from "@/hooks/use-company-orders";
+import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -154,6 +155,12 @@ function matchesSearch(o: CompanyOrder, q: string) {
   );
 }
 
+function sym(currency: string | undefined): string {
+  return (
+    CURRENCY_SYMBOL[(currency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ?? "₺"
+  );
+}
+
 function OrderCard({ o }: { o: CompanyOrder }) {
   const { active, lastDone, isTerminated } = getStageState(o.status);
 
@@ -182,7 +189,7 @@ function OrderCard({ o }: { o: CompanyOrder }) {
           <span className="truncate font-medium">{o.counterparty}</span>
         </div>
         <p className="whitespace-nowrap font-mono text-base font-bold tabular-nums text-success-700">
-          {Number(o.amount).toLocaleString("tr-TR")} ₺
+          {Number(o.amount).toLocaleString("tr-TR")} {sym(o.currency)}
         </p>
       </div>
 
@@ -323,6 +330,29 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
       setter(v);
     };
 
+  // KPI şeridi (eski panel paritesi). Tutar toplamı para birimine göre gruplu.
+  const kpis = useMemo(() => {
+    const active = all.filter((o) =>
+      ["PENDING", "ACCEPTED", "CREATED", "IN_DELIVERY"].includes(o.status),
+    ).length;
+    const awaitingPayment = counts["DELIVERED"] ?? 0;
+    const completed = counts["COMPLETED"] ?? 0;
+    const sums = new Map<string, number>();
+    for (const o of all) {
+      if (o.status === "REJECTED" || o.status === "CANCELLED") continue;
+      const cur = o.currency ?? "TRY";
+      sums.set(cur, (sums.get(cur) ?? 0) + Number(o.amount));
+    }
+    const totalLabel =
+      sums.size === 0
+        ? `0 ${sym("TRY")}`
+        : [...sums.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .map(([c, v]) => `${v.toLocaleString("tr-TR")} ${sym(c)}`)
+            .join(" · ");
+    return { active, awaitingPayment, completed, totalLabel };
+  }, [all, counts]);
+
   const emptyHint = isSeller
     ? "Henüz satış siparişin yok. Bir satış ilanın veya ihale teklifin kazandığında burada görünür."
     : "Henüz alım siparişin yok. Bir ihaleni kazandırdığında veya satın aldığında burada görünür.";
@@ -330,9 +360,53 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
-        title="Siparişler"
-        description="İhalelerinizden ve satışlarınızdan çıkan siparişler buradan takip edilir."
+        title="Siparişlerim"
+        description={
+          isSeller
+            ? "Satış siparişlerin — kazandığın ihalelerden ve satışlarından. Onayla, kargoya ver, ödemeyi takip et."
+            : "Alım siparişlerin — kazandırdığın ihalelerden ve satın almalarından. Teslim al, ödemeyi kaydet, tamamla."
+        }
       />
+
+      {/* KPI şeridi — tıklayınca ilgili durum filtresi uygulanır */}
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-zinc-950/5 bg-zinc-950/[0.06] sm:grid-cols-3 lg:grid-cols-5">
+        {(
+          [
+            { label: "Toplam Sipariş", value: String(all.length), filter: "all" },
+            { label: "Aktif", value: String(kpis.active), filter: null },
+            {
+              label: "Ödeme Bekleyen",
+              value: String(kpis.awaitingPayment),
+              filter: "DELIVERED",
+            },
+            {
+              label: "Tamamlanan",
+              value: String(kpis.completed),
+              filter: "COMPLETED",
+            },
+            { label: "Toplam Tutar", value: kpis.totalLabel, filter: null },
+          ] as const
+        ).map((k) => (
+          <button
+            key={k.label}
+            type="button"
+            disabled={!k.filter}
+            onClick={() => k.filter && reset(setStatus)(k.filter)}
+            className={cn(
+              "bg-white p-4 text-left",
+              k.filter && "cursor-pointer transition-colors hover:bg-zinc-50",
+              k.filter && status === k.filter && "bg-brand-50/60",
+            )}
+          >
+            <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              {k.label}
+            </dt>
+            <dd className="mt-0.5 truncate text-lg font-bold tabular-nums text-zinc-900">
+              {k.value}
+            </dd>
+          </button>
+        ))}
+      </dl>
 
       {/* Arama + filtreler — kutusuz, pill-tarzı */}
       <div className="space-y-3">

@@ -2557,6 +2557,7 @@ export class CompanyListingsService {
         status: true,
         bidderCompanyId: true,
         amount: true,
+        currency: true,
         items: { select: { itemId: true, unitPrice: true } },
       },
     });
@@ -2622,6 +2623,7 @@ export class CompanyListingsService {
           sellerCompanyId,
           buyerCompanyId,
           amount: bid.amount,
+          currency: bid.currency, // sipariş tutarı teklifin biriminde
           status: "PENDING", // satıcı onayı bekler (accept/reject)
         },
       });
@@ -2689,12 +2691,11 @@ export class CompanyListingsService {
     if (listing.status !== "OPEN" && listing.status !== "CLOSED") {
       throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
     }
-    if (listing.type !== "ALIM") {
-      throw new BadRequestException(
-        "Kalem-bazlı kazandırma yalnızca alım ihalelerinde",
-      );
-    }
-    if (!user.roles.includes(CompanyRole.SATIN_ALMACI)) {
+    // Kalem-bazlı kazandırma her iki yönde: ALIM'da kalemler farklı satıcılara,
+    // SATIS'ta farklı alıcılara verilebilir (rol, tam kazandırmayla aynı).
+    const neededRole =
+      listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
+    if (!user.roles.includes(neededRole)) {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
     }
 
@@ -2770,6 +2771,7 @@ export class CompanyListingsService {
       select: {
         id: true,
         bidderCompanyId: true,
+        currency: true,
         items: { select: { itemId: true, unitPrice: true } },
       },
     });
@@ -2785,6 +2787,7 @@ export class CompanyListingsService {
           unitPrice: number;
         }[];
         amount: Prisma.Decimal; // sipariş tutarı — Decimal (F7)
+        currency: string; // teklifçinin birimi (firma başına tek teklif)
         bidIds: Set<string>;
       }
     >();
@@ -2807,7 +2810,12 @@ export class CompanyListingsService {
       itemQty.set(a.itemId, qty);
       let g = groups.get(bid.bidderCompanyId);
       if (!g) {
-        g = { orderItems: [], amount: new Prisma.Decimal(0), bidIds: new Set() };
+        g = {
+          orderItems: [],
+          amount: new Prisma.Decimal(0),
+          currency: bid.currency,
+          bidIds: new Set(),
+        };
         groups.set(bid.bidderCompanyId, g);
       }
       g.bidIds.add(bid.id);
@@ -2839,7 +2847,7 @@ export class CompanyListingsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true },
+      select: { id: true, companyId: true, type: true },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     const { groups, itemQty } = await this.buildItemGroups(
@@ -2909,14 +2917,18 @@ export class CompanyListingsService {
       }
       const orders: { id: string; number: string | null }[] = [];
       for (let i = 0; i < groupArr.length; i++) {
-        const [sellerCompanyId, g] = groupArr[i]!;
+        const [bidderCompanyId, g] = groupArr[i]!;
         const o = await tx.companyOrder.create({
           data: {
             number: numbers[i],
             listingId,
-            sellerCompanyId,
-            buyerCompanyId: listing.companyId,
+            // ALIM: kazanan teklifçi SATICI, ilan sahibi ALICI — SATIS'ta ters.
+            sellerCompanyId:
+              listing.type === "ALIM" ? bidderCompanyId : listing.companyId,
+            buyerCompanyId:
+              listing.type === "ALIM" ? listing.companyId : bidderCompanyId,
             amount: g.amount,
+            currency: g.currency, // sipariş tutarı teklifin biriminde
             status: "PENDING", // satıcı onayı bekler (accept/reject)
             items: {
               create: g.orderItems.map((it) => ({
@@ -2935,14 +2947,14 @@ export class CompanyListingsService {
       // varsayılanı yetmeyebilir.
     }, { timeout: 20000 });
 
-    // Kazanan her firmaya bildirim — alıcıları tek seferde topla (N+1 yerine).
+    // Kazanan her firmaya (teklifçi) bildirim — tek seferde topla (N+1 yerine).
     const recipients = await this.companyRecipients(
-      groupArr.map(([sellerCompanyId]) => sellerCompanyId),
+      groupArr.map(([bidderCompanyId]) => bidderCompanyId),
     );
     for (let i = 0; i < groupArr.length; i++) {
-      const [sellerCompanyId] = groupArr[i]!;
+      const [bidderCompanyId] = groupArr[i]!;
       const o = created[i];
-      const recipient = recipients.get(sellerCompanyId);
+      const recipient = recipients.get(bidderCompanyId);
       if (recipient && o) {
         this.notify(
           recipient,
@@ -2959,9 +2971,9 @@ export class CompanyListingsService {
           { type: "bid_awarded", id: o.id },
         );
       }
-      // In-app: kazanan satıcıya sipariş bildirimi.
+      // In-app: kazanan teklifçiye sipariş bildirimi.
       if (o) {
-        await this.notifications.pushToCompany(sellerCompanyId, {
+        await this.notifications.pushToCompany(bidderCompanyId, {
           type: "bid_awarded",
           title: "Teklifiniz kazandı 🎉",
           body: `Bir ihalede teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,

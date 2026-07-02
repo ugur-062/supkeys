@@ -47,16 +47,31 @@ export interface CompanyOrder {
   id: string;
   number: string | null;
   amount: string;
+  /** Tutarın para birimi — kazanan teklifin birimi (legacy → TRY). */
+  currency: string;
   status: CompanyOrderStatus;
   role: "seller" | "buyer";
   counterparty: string;
+  counterpartyCompanyId: string;
+  listingId: string | null;
   listingTitle: string | null;
+  listingType: "ALIM" | "SATIS" | null;
   listingNumber: string | null;
   createdAt: string;
   items?: CompanyOrderItemRow[];
 }
 
+/** Karşı tarafın kurumsal özeti (sipariş detayında gösterilir). */
+export interface CounterpartyProfile {
+  city: string | null;
+  industry: string | null;
+  email: string | null;
+  phone: string | null;
+  supkeysId: string | null;
+}
+
 export interface CompanyOrderDetail extends CompanyOrder {
+  counterpartyProfile: CounterpartyProfile;
   paymentTiming: PaymentTiming;
   paymentOpen: boolean;
   paymentTotals: { confirmed: string; pending: string; remaining: string };

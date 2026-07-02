@@ -7,6 +7,7 @@ import {
   type OrderPayment,
 } from "@/hooks/use-company-orders";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { Check, Plus, X } from "lucide-react";
@@ -45,6 +46,9 @@ const PAYMENT_METHODS = ["Havale/EFT", "Nakit", "Çek", "Kredi Kartı"];
  * ödeme + onaylı/bekleyen/kalan toplamları.
  */
 export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
+  const curSym =
+    CURRENCY_SYMBOL[(order.currency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
+    "₺";
   const isBuyer = order.role === "buyer";
   const isSeller = order.role === "seller";
   const record = useRecordPayment(order.id);
@@ -132,9 +136,9 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
 
       {/* Toplamlar */}
       <div className="grid grid-cols-3 divide-x divide-zinc-950/5 border-b border-zinc-950/5">
-        <Totals label="Onaylanan" value={t.confirmed} tone="text-success-600" />
-        <Totals label="Bekleyen" value={t.pending} tone="text-warning-600" />
-        <Totals label="Kalan" value={t.remaining} tone="text-zinc-900" />
+        <Totals label="Onaylanan" value={t.confirmed} tone="text-success-600" curSym={curSym} />
+        <Totals label="Bekleyen" value={t.pending} tone="text-warning-600" curSym={curSym} />
+        <Totals label="Kalan" value={t.remaining} tone="text-zinc-900" curSym={curSym} />
       </div>
 
       {/* Kayıt formu (alıcı) */}
@@ -143,7 +147,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-zinc-600">
-                Tutar (₺)
+                Tutar ({curSym})
               </span>
               <input
                 value={amount}
@@ -259,7 +263,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
               >
                 <div className="min-w-0">
                   <div className="font-mono text-sm font-semibold text-zinc-900">
-                    {fmt(p.amount)} ₺
+                    {fmt(p.amount)} {curSym}
                   </div>
                   <div className="text-xs text-zinc-500">
                     {p.method ? `${p.method} · ` : ""}
@@ -321,10 +325,12 @@ function Totals({
   label,
   value,
   tone,
+  curSym,
 }: {
   label: string;
   value: string;
   tone: string;
+  curSym: string;
 }) {
   return (
     <div className="px-4 py-3 text-center">
@@ -332,7 +338,7 @@ function Totals({
         {label}
       </div>
       <div className={`mt-0.5 font-mono text-sm font-semibold ${tone}`}>
-        {fmt(value)} ₺
+        {fmt(value)} {curSym}
       </div>
     </div>
   );

@@ -531,12 +531,23 @@ export class CompanyOrdersService {
     return rows.map((o) => this.serialize(o, companyId));
   }
 
+  // Karşı taraf özeti — yalnız KURUMSAL iletişim alanları (kişi PII'si değil);
+  // sipariş ilişkisindeki taraflar zaten sözleşme muhatabıdır.
+  private static readonly COUNTERPARTY_SELECT = {
+    name: true,
+    city: true,
+    industry: true,
+    billingEmail: true,
+    billingPhone: true,
+    supkeysId: true,
+  } as const;
+
   async getOne(user: AuthenticatedCompanyUser, id: string) {
     const o = await this.prisma.companyOrder.findUnique({
       where: { id },
       include: {
-        seller: { select: { name: true } },
-        buyer: { select: { name: true } },
+        seller: { select: CompanyOrdersService.COUNTERPARTY_SELECT },
+        buyer: { select: CompanyOrdersService.COUNTERPARTY_SELECT },
         listing: { select: { title: true, type: true, number: true } },
         items: true,
         payments: { orderBy: { createdAt: "desc" } },
@@ -549,6 +560,7 @@ export class CompanyOrdersService {
     ) {
       throw new NotFoundException("Sipariş bulunamadı");
     }
+    const other = o.sellerCompanyId === user.companyId ? o.buyer : o.seller;
 
     let confirmed = 0;
     let pending = 0;
@@ -562,6 +574,13 @@ export class CompanyOrdersService {
 
     return {
       ...this.serialize(o, user.companyId),
+      counterpartyProfile: {
+        city: other.city,
+        industry: other.industry,
+        email: other.billingEmail,
+        phone: other.billingPhone,
+        supkeysId: other.supkeysId,
+      },
       paymentTiming: o.paymentTiming,
       paymentOpen: this.isPaymentOpen(o.paymentTiming, o.status),
       paymentTotals: {
@@ -601,11 +620,14 @@ export class CompanyOrdersService {
       id: string;
       number: string | null;
       amount: { toString(): string };
+      currency: string;
       status: string;
       sellerCompanyId: string;
+      buyerCompanyId: string;
+      listingId: string | null;
       seller: { name: string };
       buyer: { name: string };
-      listing: { title: string; number: string | null } | null;
+      listing: { title: string; type: string; number: string | null } | null;
       createdAt: Date;
     },
     companyId: string,
@@ -615,10 +637,15 @@ export class CompanyOrdersService {
       id: o.id,
       number: o.number,
       amount: o.amount.toString(),
+      // Kazandırma anında teklifin biriminden yazılır (legacy backfill → TRY).
+      currency: o.currency,
       status: o.status,
       role: iAmSeller ? ("seller" as const) : ("buyer" as const),
       counterparty: iAmSeller ? o.buyer.name : o.seller.name,
+      counterpartyCompanyId: iAmSeller ? o.buyerCompanyId : o.sellerCompanyId,
+      listingId: o.listingId,
       listingTitle: o.listing?.title ?? null,
+      listingType: o.listing?.type ?? null,
       listingNumber: o.listing?.number ?? null,
       createdAt: o.createdAt,
     };
