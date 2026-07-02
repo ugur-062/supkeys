@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from "@nestjs/common";
+import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -19,6 +19,19 @@ export class CompanyDashboardController {
   @Get("satis")
   satis(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.satis(user);
+  }
+
+  @Get("satis/stats")
+  satisStats(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.satisStats(user);
+  }
+
+  @Get("satis/aktivite")
+  satisAktivite(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query("limit") limit?: string,
+  ) {
+    return this.service.satisAktivite(user, Number(limit) || 8);
   }
 
   @Get("satinalma/tasarruf")

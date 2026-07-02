@@ -1,7 +1,7 @@
 "use client";
 
-import { PortalDashboard } from "@/components/company/portal-dashboard";
+import { SatisDashboardView } from "@/components/dashboard/satis-dashboard-view";
 
 export default function SatisDashboard() {
-  return <PortalDashboard portal="satis" />;
+  return <SatisDashboardView />;
 }

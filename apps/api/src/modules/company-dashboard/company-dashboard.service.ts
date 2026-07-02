@@ -137,6 +137,206 @@ export class CompanyDashboardService {
   }
 
   /**
+   * Satış panosu — genel bakış KPI'ları (eski tedarikçi paneli paritesi).
+   * Aktif davet / aktif teklif / kazanım / bekleyen sipariş + gelir ve
+   * 30-günlük teklif trendi + bağlı müşteri sayısı.
+   */
+  async satisStats(user: AuthenticatedCompanyUser) {
+    const companyId = user.companyId;
+    const now = new Date();
+    const d30 = new Date(now.getTime() - 30 * 86_400_000);
+    const d60 = new Date(now.getTime() - 60 * 86_400_000);
+
+    const [
+      activeInvitations,
+      activeBids,
+      wonTenders,
+      pendingOrders,
+      revenueOrders,
+      bids30,
+      bidsPrev30,
+      buyersActive,
+    ] = await Promise.all([
+      // Henüz teklif verilmemiş açık ALIM davetleri.
+      this.prisma.listingInvitation.count({
+        where: {
+          invitedCompanyId: companyId,
+          listing: {
+            status: "OPEN",
+            type: "ALIM",
+            bids: {
+              none: {
+                bidderCompanyId: companyId,
+                status: { in: ["DRAFT", "SUBMITTED"] },
+              },
+            },
+          },
+        },
+      }),
+      // Verilmiş + değerlendirilen teklifler.
+      this.prisma.listingBid.count({
+        where: {
+          bidderCompanyId: companyId,
+          status: "SUBMITTED",
+          listing: { status: { in: ["OPEN", "CLOSED", "IN_AWARD_APPROVAL"] } },
+        },
+      }),
+      this.prisma.listingBid.count({
+        where: {
+          bidderCompanyId: companyId,
+          status: { in: ["WON", "AWARDED_PARTIAL"] },
+        },
+      }),
+      // Teslimat başlatılmamış satıcı siparişleri.
+      this.prisma.companyOrder.count({
+        where: {
+          sellerCompanyId: companyId,
+          status: { in: ["PENDING", "ACCEPTED", "CREATED"] },
+        },
+      }),
+      // Gelir: red/iptal dışındaki satıcı siparişleri (TRY-eşdeğer).
+      this.prisma.companyOrder.findMany({
+        where: {
+          sellerCompanyId: companyId,
+          status: { notIn: ["REJECTED", "CANCELLED"] },
+        },
+        select: {
+          amount: true,
+          createdAt: true,
+          listing: { select: { primaryCurrency: true } },
+        },
+      }),
+      this.prisma.listingBid.count({
+        where: { bidderCompanyId: companyId, submittedAt: { gte: d30 } },
+      }),
+      this.prisma.listingBid.count({
+        where: {
+          bidderCompanyId: companyId,
+          submittedAt: { gte: d60, lt: d30 },
+        },
+      }),
+      this.prisma.companyConnection.count({
+        where: {
+          status: "ACTIVE",
+          OR: [{ inviterCompanyId: companyId }, { inviteeCompanyId: companyId }],
+        },
+      }),
+    ]);
+
+    // Sipariş tutarlarını TRY-eşdeğere çevir (sipariş tarihi kuru, cache'li).
+    const rateCache = new Map<string, number>();
+    const getRate = async (c: Currency, d: Date): Promise<number> => {
+      if (c === "TRY") return 1;
+      const k = `${c}|${d.toISOString().slice(0, 10)}`;
+      const cached = rateCache.get(k);
+      if (cached !== undefined) return cached;
+      const r = await this.exchangeRate.getRateOnDate(c, d);
+      rateCache.set(k, r);
+      return r;
+    };
+    let revenueTotal = 0;
+    let revenueLast30 = 0;
+    let revenuePrev30 = 0;
+    for (const o of revenueOrders) {
+      const cur = o.listing?.primaryCurrency ?? "TRY";
+      const rate = await getRate(cur, o.createdAt);
+      const v = Number(o.amount) * rate;
+      revenueTotal += v;
+      if (o.createdAt >= d30) revenueLast30 += v;
+      else if (o.createdAt >= d60) revenuePrev30 += v;
+    }
+
+    return {
+      invitations: { active: activeInvitations },
+      bids: { active: activeBids },
+      wonTenders,
+      orders: { pending: pendingOrders },
+      revenue: {
+        total: revenueTotal,
+        last30: revenueLast30,
+        prev30: revenuePrev30,
+      },
+      last30Days: { bidsSubmitted: bids30, prevBidsSubmitted: bidsPrev30 },
+      buyers: { active: buyersActive },
+    };
+  }
+
+  /**
+   * Satış panosu — son aktiviteler (davet + teklif + sipariş birleşik akışı).
+   */
+  async satisAktivite(user: AuthenticatedCompanyUser, limit = 8) {
+    const companyId = user.companyId;
+    const take = Math.min(Math.max(limit, 1), 20);
+
+    const [invitations, bids, orders] = await Promise.all([
+      this.prisma.listingInvitation.findMany({
+        where: { invitedCompanyId: companyId },
+        orderBy: { createdAt: "desc" },
+        take,
+        select: {
+          createdAt: true,
+          listing: { select: { id: true, number: true, title: true } },
+        },
+      }),
+      this.prisma.listingBid.findMany({
+        where: { bidderCompanyId: companyId },
+        orderBy: { createdAt: "desc" },
+        take,
+        select: {
+          createdAt: true,
+          submittedAt: true,
+          version: true,
+          listing: { select: { id: true, number: true, title: true } },
+        },
+      }),
+      this.prisma.companyOrder.findMany({
+        where: { sellerCompanyId: companyId },
+        orderBy: { createdAt: "desc" },
+        take,
+        select: {
+          id: true,
+          number: true,
+          createdAt: true,
+          listing: { select: { title: true } },
+        },
+      }),
+    ]);
+
+    type ActivityRow = {
+      type: "invitation" | "bid" | "order";
+      title: string;
+      subtitle: string;
+      at: Date;
+      href: string;
+    };
+    const rows: ActivityRow[] = [
+      ...invitations.map((iv): ActivityRow => ({
+        type: "invitation",
+        title: iv.listing.title,
+        subtitle: `İhale daveti · ${iv.listing.number ?? "—"}`,
+        at: iv.createdAt,
+        href: `/company/ilan/${iv.listing.id}`,
+      })),
+      ...bids.map((b): ActivityRow => ({
+        type: "bid",
+        title: b.listing.title,
+        subtitle: `Teklif · ${b.listing.number ?? "—"} · v${b.version}`,
+        at: b.submittedAt ?? b.createdAt,
+        href: `/company/ilan/${b.listing.id}`,
+      })),
+      ...orders.map((o): ActivityRow => ({
+        type: "order",
+        title: o.listing?.title ?? "Sipariş",
+        subtitle: `Sipariş · ${o.number ?? "—"}`,
+        at: o.createdAt,
+        href: `/company/siparis/${o.id}`,
+      })),
+    ];
+    rows.sort((a, b) => b.at.getTime() - a.at.getTime());
+    return rows.slice(0, take);
+  }
+
+  /**
    * Satınalma → Tasarruf sekmesi. Kazandırılan ALIM ilanlarında, kazanan (WON)
    * tekliflerin kalemlerinde (hedef birim fiyat − kazanan birim fiyat) × miktar.
    * Multi-currency: her ilan awardedAt (≈updatedAt) tarihindeki TCMB kuruyla

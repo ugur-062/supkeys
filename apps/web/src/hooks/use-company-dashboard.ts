@@ -82,3 +82,49 @@ export function useSatisDashboard() {
     staleTime: 60_000,
   });
 }
+
+// ── Satış panosu — eski tedarikçi paneli paritesi (stats + aktivite) ──
+
+export interface SatisStats {
+  invitations: { active: number };
+  bids: { active: number };
+  wonTenders: number;
+  orders: { pending: number };
+  revenue: { total: number; last30: number; prev30: number };
+  last30Days: { bidsSubmitted: number; prevBidsSubmitted: number };
+  buyers: { active: number };
+}
+
+export interface SatisActivityRow {
+  type: "invitation" | "bid" | "order";
+  title: string;
+  subtitle: string;
+  at: string;
+  href: string;
+}
+
+export function useSatisStats() {
+  return useQuery<SatisStats>({
+    queryKey: ["company-dashboard", "satis", "stats"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<SatisStats>(
+        "/company/dashboard/satis/stats",
+      );
+      return data;
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useSatisActivity(limit = 8) {
+  return useQuery<SatisActivityRow[]>({
+    queryKey: ["company-dashboard", "satis", "aktivite", limit],
+    queryFn: async () => {
+      const { data } = await companyApi.get<SatisActivityRow[]>(
+        `/company/dashboard/satis/aktivite?limit=${limit}`,
+      );
+      return data;
+    },
+    staleTime: 30_000,
+  });
+}
