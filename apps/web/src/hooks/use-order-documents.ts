@@ -39,7 +39,7 @@ export function useUploadOrderDoc(orderId: string) {
       // 1. presigned PUT url
       const { data } = await companyApi.post<{ url: string; key: string }>(
         `/company/orders/${orderId}/documents/upload-url`,
-        { fileName: file.name, mimeType: file.type, type },
+        { fileName: file.name, mimeType: file.type, type, fileSize: file.size },
       );
       // 2. R2'ya doğrudan yükle
       const put = await fetch(data.url, {

@@ -256,6 +256,8 @@ describe("sipariş belgesi register — anahtar/MIME doğrulaması (F4)", () => 
     const storage = {
       generatePresignedPut: jest.fn().mockResolvedValue("https://r2/put"),
       generatePresignedGet: jest.fn().mockResolvedValue("https://r2/get"),
+      checkExists: jest.fn().mockResolvedValue({ exists: true, size: 2048 }),
+      deleteObject: jest.fn().mockResolvedValue(undefined),
     };
     const docs = new CompanyOrderDocumentsService(
       prisma as never,

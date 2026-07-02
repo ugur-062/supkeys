@@ -32,6 +32,10 @@ function DocGroup({
 
   const onPick = async (file: File | undefined) => {
     if (!file) return;
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error(`"${file.name}" 50MB sınırını aşıyor`);
+      return;
+    }
     try {
       await upload.mutateAsync({ file, type });
       toast.success("Belge yüklendi");

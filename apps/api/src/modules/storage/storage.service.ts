@@ -238,6 +238,29 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
+   * DB'de saklanan bir belge değeri (key veya legacy tam public URL) için kısa
+   * ömürlü presigned GET üretir. KYC gibi HASSAS belgeler kalıcı public URL
+   * yerine bununla sunulur. Legacy tam URL ise key'i domain'den sonra çıkarır.
+   * Boş/çözülemezse null.
+   */
+  async presignStoredObject(
+    value: string | null | undefined,
+    originalFilename?: string,
+  ): Promise<string | null> {
+    if (!value) return null;
+    let key = value;
+    const schemeIdx = value.indexOf("://");
+    if (schemeIdx !== -1) {
+      const afterScheme = value.slice(schemeIdx + 3);
+      const slash = afterScheme.indexOf("/");
+      if (slash === -1) return null; // domain-only, key çıkarılamaz
+      key = decodeURIComponent(afterScheme.slice(slash + 1).split("?")[0]!);
+    }
+    if (!key) return null;
+    return this.generatePresignedGet(key, originalFilename);
+  }
+
+  /**
    * Public URL varsa onu; yoksa presigned GET (1 saat TTL). Public profil
    * cover/galeri render'ında kullanılır.
    */

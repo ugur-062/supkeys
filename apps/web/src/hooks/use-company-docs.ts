@@ -79,6 +79,7 @@ export function useUploadDoc() {
         kind,
         fileName: file.name,
         mimeType: file.type,
+        fileSize: file.size,
       });
       const put = await fetch(presigned.url, {
         method: "PUT",

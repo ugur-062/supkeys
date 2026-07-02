@@ -9,6 +9,11 @@ import * as crypto from "node:crypto";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { StorageService } from "../storage/storage.service";
+import {
+  assertReportedSize,
+  assertSafeFileName,
+  assertUploadedObjectValid,
+} from "../../common/helpers/upload-validation";
 
 const ALLOWED_MIME = [
   "application/pdf",
@@ -127,11 +132,13 @@ export class CompanyListingDocumentsService {
   async requestUploadUrl(
     user: AuthenticatedCompanyUser,
     listingId: string,
-    input: { fileName: string; mimeType: string },
+    input: { fileName: string; mimeType: string; fileSize?: number },
   ) {
     if (!ALLOWED_MIME.includes(input.mimeType)) {
       throw new BadRequestException("Sadece PDF, görsel veya Excel yüklenebilir");
     }
+    assertSafeFileName(input.fileName);
+    assertReportedSize(input.fileSize);
     await this.requireOwner(user, listingId);
     await this.assertEditable(listingId);
     const safe = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
@@ -157,6 +164,8 @@ export class CompanyListingDocumentsService {
     if (!ALLOWED_MIME.includes(input.mimeType)) {
       throw new BadRequestException("Sadece PDF, görsel veya Excel yüklenebilir");
     }
+    assertSafeFileName(input.fileName);
+    await assertUploadedObjectValid(this.storage, input.key);
     const doc = await this.prisma.listingDocument.create({
       data: {
         listingId,

@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { CompanyVerificationStatus, ComplaintStatus } from "@supkeys/db";
+import { StorageService } from "../storage/storage.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
 
 @Injectable()
 export class AdminCompaniesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly storage: StorageService,
+  ) {}
 
   async list(query: { status?: string; blocked?: string; q?: string }) {
     const where: Record<string, unknown> = {};
@@ -88,7 +92,32 @@ export class AdminCompaniesService {
     const openComplaints = await this.prisma.companyComplaint.count({
       where: { againstCompanyId: id, status: "OPEN" },
     });
-    return { ...c, openComplaints };
+    // Hassas KYC belgeleri kalıcı public URL değil, kısa ömürlü presigned GET.
+    const [
+      docTaxPlateUrl,
+      docTradeRegistryUrl,
+      docSignatureCircularUrl,
+      docActivityCertUrl,
+      docIdFrontUrl,
+      docIdBackUrl,
+    ] = await Promise.all([
+      this.storage.presignStoredObject(c.docTaxPlateUrl),
+      this.storage.presignStoredObject(c.docTradeRegistryUrl),
+      this.storage.presignStoredObject(c.docSignatureCircularUrl),
+      this.storage.presignStoredObject(c.docActivityCertUrl),
+      this.storage.presignStoredObject(c.docIdFrontUrl),
+      this.storage.presignStoredObject(c.docIdBackUrl),
+    ]);
+    return {
+      ...c,
+      docTaxPlateUrl,
+      docTradeRegistryUrl,
+      docSignatureCircularUrl,
+      docActivityCertUrl,
+      docIdFrontUrl,
+      docIdBackUrl,
+      openComplaints,
+    };
   }
 
   async setVerification(

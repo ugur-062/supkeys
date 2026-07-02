@@ -1,4 +1,11 @@
-import { IsEnum, IsString, MaxLength, MinLength } from "class-validator";
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from "class-validator";
 
 export enum CompanyDocTypeDto {
   DELIVERY = "DELIVERY",
@@ -17,6 +24,10 @@ export class UploadUrlDto {
 
   @IsEnum(CompanyDocTypeDto)
   type!: CompanyDocTypeDto;
+
+  @IsOptional()
+  @IsInt()
+  fileSize?: number;
 }
 
 export class RegisterDocDto {

@@ -36,6 +36,10 @@ export default function DogrulamaPage() {
 
   const handleFile = async (kind: DocKind, file: File | undefined) => {
     if (!file) return;
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error(`"${file.name}" 50MB sınırını aşıyor`);
+      return;
+    }
     setBusyKind(kind);
     try {
       await upload.mutateAsync({ kind, file });

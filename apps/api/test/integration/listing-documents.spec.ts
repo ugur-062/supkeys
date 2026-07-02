@@ -274,3 +274,59 @@ describe("remove", () => {
     ).toBe(0);
   });
 });
+
+describe("yükleme doğrulaması (boyut/uzantı/hayalet)", () => {
+  it("çalıştırılabilir uzantı upload-url'de reddedilir", async () => {
+    const { service } = makeDocsService();
+    const { owner, listing } = await ownerListing();
+    await expect(
+      service.requestUploadUrl(owner.auth, listing.id, {
+        fileName: "virus.exe",
+        mimeType: "application/pdf",
+      }),
+    ).rejects.toThrow(/yüklenemez/);
+  });
+
+  it("50MB üstü bildirilen boyut reddedilir", async () => {
+    const { service } = makeDocsService();
+    const { owner, listing } = await ownerListing();
+    await expect(
+      service.requestUploadUrl(owner.auth, listing.id, {
+        fileName: "buyuk.pdf",
+        mimeType: "application/pdf",
+        fileSize: 60 * 1024 * 1024,
+      }),
+    ).rejects.toThrow(/boyut/i);
+  });
+
+  it("R2'da olmayan nesne register'da reddedilir (hayalet kayıt)", async () => {
+    const { service, storage } = makeDocsService();
+    storage.checkExists.mockResolvedValueOnce({ exists: false });
+    const { owner, listing } = await ownerListing();
+    await expect(
+      service.register(owner.auth, listing.id, {
+        key: `listing-docs/${listing.id}/x-dosya.pdf`,
+        fileName: "dosya.pdf",
+        mimeType: "application/pdf",
+      }),
+    ).rejects.toThrow(/yüklenmemiş/);
+  });
+
+  it("boyutu limiti aşan yüklenmiş nesne register'da reddedilir + temizlenir", async () => {
+    const { service, storage } = makeDocsService();
+    storage.checkExists.mockResolvedValueOnce({
+      exists: true,
+      size: 60 * 1024 * 1024,
+    });
+    const { owner, listing } = await ownerListing();
+    const key = `listing-docs/${listing.id}/x-dosya.pdf`;
+    await expect(
+      service.register(owner.auth, listing.id, {
+        key,
+        fileName: "dosya.pdf",
+        mimeType: "application/pdf",
+      }),
+    ).rejects.toThrow(/boyut/i);
+    expect(storage.deleteObject).toHaveBeenCalledWith(key);
+  });
+});

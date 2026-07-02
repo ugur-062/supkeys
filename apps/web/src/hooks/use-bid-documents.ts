@@ -32,7 +32,7 @@ export function useUploadBidDoc(listingId: string) {
     mutationFn: async (file: File) => {
       const { data } = await companyApi.post<{ url: string; key: string }>(
         `/company/listings/${listingId}/bid-documents/upload-url`,
-        { fileName: file.name, mimeType: file.type },
+        { fileName: file.name, mimeType: file.type, fileSize: file.size },
       );
       const put = await fetch(data.url, {
         method: "PUT",

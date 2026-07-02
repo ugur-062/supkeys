@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
-import { IsString } from "class-validator";
+import { IsInt, IsOptional, IsString } from "class-validator";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -13,6 +13,7 @@ class UploadUrlDto {
   @IsString() kind!: string;
   @IsString() fileName!: string;
   @IsString() mimeType!: string;
+  @IsOptional() @IsInt() fileSize?: number;
 }
 class CommitDto {
   @IsString() kind!: string;
@@ -40,6 +41,7 @@ export class CompanyDocsController {
       dto.kind,
       dto.fileName,
       dto.mimeType,
+      dto.fileSize,
     );
   }
 

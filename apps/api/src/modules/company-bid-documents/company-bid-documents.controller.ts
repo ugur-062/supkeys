@@ -7,7 +7,7 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
-import { IsString, MaxLength, MinLength } from "class-validator";
+import { IsInt, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -24,6 +24,10 @@ class UploadUrlDto {
   @IsString()
   @MaxLength(120)
   mimeType!: string;
+
+  @IsOptional()
+  @IsInt()
+  fileSize?: number;
 }
 
 class RegisterDto {

@@ -8,6 +8,11 @@ import { CompanyDocType } from "@supkeys/db";
 import * as crypto from "crypto";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
+import {
+  assertReportedSize,
+  assertSafeFileName,
+  assertUploadedObjectValid,
+} from "../../common/helpers/upload-validation";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 
 const ALLOWED_MIME = [
@@ -28,11 +33,18 @@ export class CompanyOrderDocumentsService {
   async requestUploadUrl(
     user: AuthenticatedCompanyUser,
     orderId: string,
-    input: { fileName: string; mimeType: string; type: CompanyDocType },
+    input: {
+      fileName: string;
+      mimeType: string;
+      type: CompanyDocType;
+      fileSize?: number;
+    },
   ) {
     if (!ALLOWED_MIME.includes(input.mimeType)) {
       throw new BadRequestException("Sadece PDF veya görsel yüklenebilir");
     }
+    assertSafeFileName(input.fileName);
+    assertReportedSize(input.fileSize);
     await this.assertCanUpload(user, orderId, input.type);
 
     const safe = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
@@ -63,6 +75,8 @@ export class CompanyOrderDocumentsService {
     if (!ALLOWED_MIME.includes(input.mimeType)) {
       throw new BadRequestException("Sadece PDF veya görsel yüklenebilir");
     }
+    assertSafeFileName(input.fileName);
+    await assertUploadedObjectValid(this.storage, input.key);
     const doc = await this.prisma.companyOrderDocument.create({
       data: {
         orderId,

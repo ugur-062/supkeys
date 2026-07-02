@@ -31,7 +31,7 @@ export class CompanyListingDocumentsController {
   uploadUrl(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
-    @Body() body: { fileName: string; mimeType: string },
+    @Body() body: { fileName: string; mimeType: string; fileSize?: number },
   ) {
     return this.service.requestUploadUrl(user, id, body);
   }

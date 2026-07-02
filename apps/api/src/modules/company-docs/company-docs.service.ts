@@ -6,6 +6,11 @@ import {
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
+import {
+  assertReportedSize,
+  assertSafeFileName,
+  assertUploadedObjectValid,
+} from "../../common/helpers/upload-validation";
 
 /** Belge türü → Company alanı. (6 KYC belgesi.) */
 export const DOC_FIELDS = {
@@ -57,9 +62,15 @@ export class CompanyDocsService {
       },
     });
     if (!c) throw new NotFoundException("Firma bulunamadı");
-    const docs = Object.fromEntries(
-      KINDS.map((k) => [k, c[DOC_FIELDS[k]] ?? null]),
-    ) as Record<DocKind, string | null>;
+    // Hassas KYC belgeleri: kalıcı public URL yerine kısa ömürlü presigned GET
+    // (bucket public olsa bile yetkisiz erişim engellenir).
+    const entries = await Promise.all(
+      KINDS.map(
+        async (k) =>
+          [k, await this.storage.presignStoredObject(c[DOC_FIELDS[k]])] as const,
+      ),
+    );
+    const docs = Object.fromEntries(entries) as Record<DocKind, string | null>;
     return {
       status: c.companyVerificationStatus,
       verifiedAt: c.companyVerifiedAt,
@@ -74,11 +85,14 @@ export class CompanyDocsService {
     kind: string,
     fileName: string,
     mimeType: string,
+    fileSize?: number,
   ) {
     if (!(kind in DOC_FIELDS)) throw new BadRequestException("Geçersiz belge türü");
     if (!ALLOWED_MIME.includes(mimeType)) {
       throw new BadRequestException("Sadece PDF veya görsel yüklenebilir");
     }
+    assertSafeFileName(fileName);
+    assertReportedSize(fileSize);
     const safe = fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
     const key = `company-docs/${companyId}/${kind}-${randomUUID()}-${safe}`;
     const url = await this.storage.generatePresignedPut(key, mimeType);
@@ -92,12 +106,13 @@ export class CompanyDocsService {
     if (!key.startsWith(`company-docs/${companyId}/`)) {
       throw new BadRequestException("Geçersiz dosya anahtarı");
     }
-    const url = this.storage.getPublicUrl(key) ?? key;
+    await assertUploadedObjectValid(this.storage, key);
+    // KEY saklanır (public URL değil); okurken presigned GET üretilir.
     await this.prisma.company.update({
       where: { id: companyId },
-      data: { [DOC_FIELDS[kind as DocKind]]: url },
+      data: { [DOC_FIELDS[kind as DocKind]]: key },
     });
-    return { url };
+    return { ok: true };
   }
 
   /** Tüm belgeler yüklüyse doğrulamaya gönder (PENDING). */
