@@ -786,8 +786,8 @@ export default function TeklifVerPage() {
         {/* Sağ — yapışkan toplam */}
         <div className="lg:sticky lg:top-6 lg:self-start">
           <div className="space-y-3">
-            <div className="rounded-2xl bg-zinc-900 p-5 text-white">
-              <p className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
+            <div className="rounded-2xl bg-emerald-700 p-5 text-white">
+              <p className="text-xs font-semibold tracking-wide text-emerald-200 uppercase">
                 Toplam Teklif
               </p>
               <p className="mt-1 text-2xl font-bold tabular-nums">
@@ -795,10 +795,10 @@ export default function TeklifVerPage() {
               </p>
               {hasItems ? (
                 <>
-                  <p className="mt-3 text-xs text-zinc-400">
+                  <p className="mt-3 text-xs text-emerald-200">
                     Fiyatlandırılan kalem {pricedItems.length}/{items.length}
                   </p>
-                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-700">
+                  <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-emerald-900/60">
                     <div
                       className="h-full bg-white transition-all"
                       style={{ width: `${filledRatio}%` }}
@@ -809,6 +809,7 @@ export default function TeklifVerPage() {
             </div>
 
             <Button
+              color="emerald"
               className="w-full"
               disabled={problems.length > 0 || placeBid.isPending}
               onClick={() => setConfirmOpen(true)}
@@ -853,9 +854,9 @@ export default function TeklifVerPage() {
           {isAuctionRebid || isRebidAfterLoss ? "Teklifi Revize Et" : "Teklif Gönder"}
         </DialogTitle>
         <DialogBody>
-          <div className="rounded-xl bg-zinc-50 p-4 text-center">
-            <p className="text-xs text-zinc-500">Toplam Teklif</p>
-            <p className="mt-1 text-2xl font-bold text-zinc-950 tabular-nums">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+            <p className="text-xs font-semibold text-emerald-700">Toplam Teklif</p>
+            <p className="mt-1 text-2xl font-bold text-emerald-800 tabular-nums">
               {money(total, effectiveCurrency)}
             </p>
           </div>
@@ -868,7 +869,7 @@ export default function TeklifVerPage() {
           <Button plain onClick={() => setConfirmOpen(false)}>
             Vazgeç
           </Button>
-          <Button onClick={submit} disabled={placeBid.isPending}>
+          <Button color="emerald" onClick={submit} disabled={placeBid.isPending}>
             {placeBid.isPending ? "Gönderiliyor…" : "Teklifi Gönder"}
           </Button>
         </DialogActions>
