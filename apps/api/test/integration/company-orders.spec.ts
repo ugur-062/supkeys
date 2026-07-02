@@ -216,3 +216,36 @@ describe("tamamlama kapısı — satıcı onayı bekleyen ödeme", () => {
     expect(res.status).toBe("COMPLETED");
   });
 });
+
+describe("kargo kapısı — satıcı, bekleyen ödemeyi sonuçlandırmadan kargolayamaz", () => {
+  it("bekleyen ödeme varken ship reddedilir; satıcı onaylayınca kargolanır", async () => {
+    const { orders } = makeOrdersService();
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    // Teslim öncesi ödemeli sipariş — ACCEPTED'da ödeme kaydı girilebilir.
+    const order = await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: seller.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 1000,
+        status: "ACCEPTED",
+        paymentTiming: "BEFORE_DELIVERY",
+        acceptedAt: new Date(),
+      },
+    });
+    const payment = (await orders.recordPayment(buyer.auth, order.id, {
+      amount: 500,
+      method: "EFT",
+    } as never)) as { id: string };
+
+    await expect(
+      orders.ship(seller.auth, order.id, { invoiceNumber: "FTR-1" } as never),
+    ).rejects.toThrow(/onay bekleyen ödeme/);
+
+    await orders.confirmPayment(seller.auth, order.id, payment.id);
+    const res = await orders.ship(seller.auth, order.id, {
+      invoiceNumber: "FTR-1",
+    } as never);
+    expect(res.status).toBe("IN_DELIVERY");
+  });
+});

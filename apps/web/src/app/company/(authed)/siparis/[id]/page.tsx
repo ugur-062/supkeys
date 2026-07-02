@@ -140,7 +140,9 @@ export default function OrderDetailPage() {
   const paymentAwaitingConfirmation = Number(o.paymentTotals?.pending ?? 0) > 0;
   // Sonraki ana aksiyon (modal açar).
   const next =
-    isSeller && (o.status === "ACCEPTED" || o.status === "CREATED")
+    isSeller &&
+    (o.status === "ACCEPTED" || o.status === "CREATED") &&
+    !paymentAwaitingConfirmation
       ? { label: "Kargoya Ver", modal: "ship" as const }
       : !isSeller && o.status === "IN_DELIVERY"
         ? { label: "Teslim Aldım", modal: "receive" as const }
@@ -529,6 +531,11 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
           <Text className="text-sm text-amber-700">
             Ödeme kaydınız satıcının onayını bekliyor — satıcı onayladıktan
             sonra siparişi tamamlayabilirsiniz.
+          </Text>
+        ) : isSeller && !terminal && paymentAwaitingConfirmation ? (
+          <Text className="text-sm text-amber-700">
+            Alıcı ödeme bildirdi — aşağıdaki Ödemeler bölümünden onaylayın
+            veya reddedin. Onay bekleyen ödeme varken sonraki adıma geçilmez.
           </Text>
         ) : (
           <Text className="text-sm text-zinc-500">
