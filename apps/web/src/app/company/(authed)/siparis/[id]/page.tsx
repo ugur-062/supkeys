@@ -135,13 +135,16 @@ export default function OrderDetailPage() {
     ? "/company/satis/siparisler"
     : "/company/satinalma/siparisler";
 
+  // Satıcının onaylamadığı ödeme kaydı varken sipariş TAMAMLANAMAZ
+  // (server-side de reddeder) — buton yerine bekleme mesajı gösterilir.
+  const paymentAwaitingConfirmation = Number(o.paymentTotals?.pending ?? 0) > 0;
   // Sonraki ana aksiyon (modal açar).
   const next =
     isSeller && (o.status === "ACCEPTED" || o.status === "CREATED")
       ? { label: "Kargoya Ver", modal: "ship" as const }
       : !isSeller && o.status === "IN_DELIVERY"
         ? { label: "Teslim Aldım", modal: "receive" as const }
-        : !isSeller && o.status === "DELIVERED"
+        : !isSeller && o.status === "DELIVERED" && !paymentAwaitingConfirmation
           ? { label: "Siparişi Tamamla", modal: "complete" as const }
           : null;
 
@@ -520,6 +523,13 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
               {next.label}
             </Button>
           </div>
+        ) : !isSeller &&
+          o.status === "DELIVERED" &&
+          paymentAwaitingConfirmation ? (
+          <Text className="text-sm text-amber-700">
+            Ödeme kaydınız satıcının onayını bekliyor — satıcı onayladıktan
+            sonra siparişi tamamlayabilirsiniz.
+          </Text>
         ) : (
           <Text className="text-sm text-zinc-500">
             Karşı tarafın işlemi bekleniyor…

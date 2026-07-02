@@ -217,8 +217,18 @@ export class CompanyOrdersService {
     return { ok: res.ok, status: res.status };
   }
 
-  /** Alıcı siparişi tamamlar: DELIVERED → COMPLETED (+ not). */
+  /** Alıcı siparişi tamamlar: DELIVERED → COMPLETED (+ not).
+   *  Satıcının ONAYLAMADIĞI ödeme kaydı varken tamamlanamaz — alıcı "ödedim"
+   *  deyip satıcı doğrulamadan siparişi kapatamaz (SERVER-side kapı). */
   async complete(user: AuthenticatedCompanyUser, id: string, input: OrderNoteDto) {
+    const pendingPayments = await this.prisma.companyOrderPayment.count({
+      where: { orderId: id, status: "AWAITING_CONFIRMATION" },
+    });
+    if (pendingPayments > 0) {
+      throw new BadRequestException(
+        "Satıcının onaylamadığı ödeme kaydı var — satıcı ödemeyi onayladıktan (veya reddettikten) sonra siparişi tamamlayabilirsiniz",
+      );
+    }
     const res = await this.transition(user, id, {
       side: "buyer",
       from: "DELIVERED",

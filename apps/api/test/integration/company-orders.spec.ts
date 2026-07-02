@@ -180,3 +180,39 @@ describe("SATIS kalem-bazlı kazandırma — sipariş yönü", () => {
     expect(b2Orders[0]!.counterpartyCompanyId).toBe(owner.company.id);
   });
 });
+
+describe("tamamlama kapısı — satıcı onayı bekleyen ödeme", () => {
+  it("bekleyen ödeme varken alıcı tamamlayamaz; satıcı onaylayınca tamamlanır", async () => {
+    const { orders } = makeOrdersService();
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const order = await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: seller.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 1000,
+        status: "DELIVERED",
+        paymentTiming: "AFTER_DELIVERY",
+        deliveredAt: new Date(),
+      },
+    });
+
+    // Alıcı KISMİ ödeme kaydı girer (AWAITING_CONFIRMATION) — tam tutar
+    // onaylanırsa sipariş zaten otomatik tamamlanır (mevcut davranış).
+    const payment = (await orders.recordPayment(buyer.auth, order.id, {
+      amount: 500,
+      method: "EFT",
+    } as never)) as { id: string };
+
+    // Satıcı onaylamadan tamamla → reddedilir.
+    await expect(
+      orders.complete(buyer.auth, order.id, {} as never),
+    ).rejects.toThrow(/onaylamadığı ödeme/);
+
+    // Satıcı ödemeyi onaylar (kısmi → oto-tamamlama tetiklenmez);
+    // tamamla artık serbest.
+    await orders.confirmPayment(seller.auth, order.id, payment.id);
+    const res = await orders.complete(buyer.auth, order.id, {} as never);
+    expect(res.status).toBe("COMPLETED");
+  });
+});
