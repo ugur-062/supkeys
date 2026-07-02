@@ -8,7 +8,7 @@ import {
   SearchInput,
 } from "@/components/list";
 import { LISTING_STATUS_LABELS } from "@/components/tenders/status-badge";
-import { TendersTable } from "@/components/tenders/tenders-table";
+import { OwnerTenderList } from "@/components/tenders/owner-tender-cards";
 import { Button } from "@/components/ui/button";
 import {
   useTenders,
@@ -179,7 +179,7 @@ export function IhalelerView({
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       <PageHeader
         title={isSatis ? "Satış İlanlarım" : "İhaleler"}
         description={
@@ -284,12 +284,12 @@ export function IhalelerView({
         </div>
       </div>
 
-      <TendersTable
+      <OwnerTenderList
         items={pageRows}
         isLoading={list.isLoading}
         isError={list.isError}
-        pageSize={PAGE_SIZE}
         onRetry={() => list.refetch()}
+        listingType={listingType}
         emptyCtaLabel={isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
       />
 
