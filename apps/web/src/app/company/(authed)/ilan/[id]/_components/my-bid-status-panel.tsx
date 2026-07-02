@@ -167,7 +167,19 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
   }
 
   const alerts: React.ReactNode[] = [];
-  if (bid.status === "WON") {
+  // İptal her sonucu ezer — iptalde teklifler LOST'a çekildiğinden "kazanamadın"
+  // mesajı yanıltıcı olurdu.
+  if (l.status === "CANCELLED") {
+    alerts.push(
+      <StatusAlert
+        key="cancelled"
+        tone="info"
+        title="İhale ilan sahibi tarafından iptal edildi."
+      >
+        {l.cancelReason ? <p>Gerekçe: {l.cancelReason}</p> : null}
+      </StatusAlert>,
+    );
+  } else if (bid.status === "WON") {
     alerts.push(
       <StatusAlert key="won" tone="success" title="Tebrikler! Teklifiniz kazandı 🏆">
         <p className="flex items-center gap-1.5">
@@ -210,12 +222,20 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
         {bid.updatedAt ? <p>{formatDateTime(bid.updatedAt)}</p> : null}
       </StatusAlert>,
     );
-  } else if (bid.status === "DRAFT") {
+  } else if (bid.status === "DRAFT" && open) {
     alerts.push(
       <StatusAlert
         key="draft"
         tone="warning"
         title="Taslak teklifiniz var — kapanıştan önce göndermeyi unutmayın."
+      />,
+    );
+  } else if (bid.status === "DRAFT") {
+    alerts.push(
+      <StatusAlert
+        key="draft-late"
+        tone="info"
+        title="İhale kapandı — taslak teklifiniz gönderilmedi."
       />,
     );
   } else if (bid.status === "SUBMITTED" && !open) {

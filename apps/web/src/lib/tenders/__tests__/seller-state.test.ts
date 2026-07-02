@@ -45,6 +45,11 @@ describe("deriveSellerTenderState", () => {
     expect(deriveSellerTenderState("CLOSED", "SUBMITTED", false).label).toBe(
       "Değerlendiriliyor",
     );
+    // Gönderilmemiş taslak "değerlendirmede" DEĞİL (denetim düzeltmesi).
+    expect(deriveSellerTenderState("CLOSED", "DRAFT", true).label).toBe(
+      "Kapandı (taslak gönderilmedi)",
+    );
+    expect(deriveSellerTenderState("CLOSED", null, true).label).toBe("Kapandı");
     expect(
       deriveSellerTenderState("IN_AWARD_APPROVAL", "SUBMITTED", false).label,
     ).toBe("Değerlendiriliyor");

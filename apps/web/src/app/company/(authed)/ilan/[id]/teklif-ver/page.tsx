@@ -287,6 +287,11 @@ export default function TeklifVerPage() {
     } else if (!singleAmount || Number(singleAmount) <= 0) {
       problems.push("Geçerli bir tutar girin.");
     }
+    if (
+      hasItems &&
+      pricedItems.some((it) => Number(itemState[it.id]?.price ?? 0) <= 0)
+    )
+      problems.push("Fiyatlanan her kalemin birim fiyatı sıfırdan büyük olmalı.");
     if (!deliveryDate) problems.push("Teslim tarihi zorunlu.");
     if (!validityDays || Number(validityDays) < 1)
       problems.push("Geçerlilik süresi zorunlu.");
@@ -295,22 +300,28 @@ export default function TeklifVerPage() {
     return problems;
   };
 
-  /** Seçilen dosyaları teklif kaydı sonrası yükler (kısmi hatada uyarır). */
-  const uploadStaged = async () => {
-    if (stagedFiles.length === 0) return;
-    let failed = 0;
+  /**
+   * Seçilen dosyaları yükler. Başarısız olanlar STAGED listede KALIR (kullanıcı
+   * tekrar deneyebilir — eskiden sessizce kayboluyordu). Başarı sayısını döner.
+   */
+  const uploadStaged = async (): Promise<{ ok: boolean }> => {
+    if (stagedFiles.length === 0) return { ok: true };
+    const failed: File[] = [];
     for (const f of stagedFiles) {
       try {
         await uploadDoc.mutateAsync(f);
       } catch {
-        failed++;
+        failed.push(f);
       }
     }
-    setStagedFiles([]);
-    if (failed > 0)
+    setStagedFiles(failed);
+    if (failed.length > 0) {
       toast.error(
-        `${failed} dosya yüklenemedi — Teklifim sekmesinden kontrol edin`,
+        `${failed.length} dosya yüklenemedi — listede kaldı, tekrar deneyin`,
       );
+      return { ok: false };
+    }
+    return { ok: true };
   };
 
   const buildPayload = (asDraft: boolean) => ({
@@ -342,19 +353,29 @@ export default function TeklifVerPage() {
   const saveDraft = async () => {
     try {
       await placeBid.mutateAsync(buildPayload(true));
-      await uploadStaged();
+      const up = await uploadStaged();
       toast.success("Taslak kaydedildi");
-      router.push(detailHref);
+      if (up.ok) router.push(detailHref);
+      // Yükleme başarısızsa sayfada kal — dosyalar staged listede duruyor.
     } catch (err) {
       toast.error(extractErrorMessage(err, "Taslak kaydedilemedi"));
     }
   };
 
+  /**
+   * İKİ AŞAMALI gönderim: dosya varsa önce TASLAK kaydet → dosyaları yükle →
+   * sonra gönder. Böylece belge-zorunlu ihalede teklif hiçbir zaman belgesiz
+   * SUBMITTED kalmaz (backend de submit'te belge sayısını doğrular).
+   */
   const submit = async () => {
     setConfirmOpen(false);
     try {
+      if (stagedFiles.length > 0) {
+        await placeBid.mutateAsync(buildPayload(true)); // taslak (bid kaydı oluşsun)
+        const up = await uploadStaged();
+        if (!up.ok) return; // taslak + staged korunur; kullanıcı tekrar dener
+      }
       await placeBid.mutateAsync(buildPayload(false));
-      await uploadStaged();
       toast.success("Teklifiniz gönderildi");
       router.push(detailHref);
     } catch (err) {
@@ -550,6 +571,7 @@ export default function TeklifVerPage() {
                             <Label>Kalem Teslim Tarihi (opsiyonel)</Label>
                             <Input
                               type="date"
+                              min={new Date().toISOString().slice(0, 10)}
                               value={st?.deliveryDate ?? ""}
                               onChange={(e) =>
                                 setItem(it.id, { deliveryDate: e.target.value })

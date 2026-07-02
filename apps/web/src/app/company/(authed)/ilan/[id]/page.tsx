@@ -65,7 +65,7 @@ const TRIGGER_CLASSES = cn(
   "group inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
   "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700",
   "data-selected:border-zinc-900 data-selected:text-zinc-950",
-  "focus:outline-none",
+  "focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900",
 );
 
 function TabBadge({ count }: { count: number }) {
@@ -273,16 +273,22 @@ export default function ListingDetailPage() {
         const unit = Number(
           b.items?.find((x) => x.itemId === itemId)?.unitPrice ?? 0,
         );
+        const rate = bidRate(b);
         return {
           bidId: b.id,
           bidderName: b.bidderName,
           price: unit,
           currency: b.currency,
-          priceTry: unit * bidRate(b),
+          priceTry: rate != null ? unit * rate : null,
         };
       })
       .filter((o) => o.price > 0)
-      .sort((a, b) => a.priceTry - b.priceTry);
+      // Kur'suz (null) satırlar kıyaslanamaz → listenin SONUNA (ön-seçilmez).
+      .sort(
+        (a, b) =>
+          (a.priceTry ?? Number.MAX_SAFE_INTEGER) -
+          (b.priceTry ?? Number.MAX_SAFE_INTEGER),
+      );
 
   const startItemAward = () => {
     const winners: Record<string, string> = {};
@@ -372,10 +378,29 @@ export default function ListingDetailPage() {
   // Çok para birimli karşılaştırma TRY üzerinden yapılır. TRY teklifte tutar
   // zaten TRY; yabancı teklifte kur snapshot'ından TRY karşılığı kullanılır.
   // Gösterim ise her teklifin KENDİ para birimiyle yapılır.
-  const bidRate = (b: { currency?: string; exchangeRateSnapshot?: string | null }) =>
-    b.currency && b.currency !== "TRY" ? Number(b.exchangeRateSnapshot ?? 0) : 1;
-  const amountTryOf = (b: { amount: string; amountTry?: string | null }) =>
-    b.amountTry != null ? Number(b.amountTry) : Number(b.amount);
+  // Kur oranı: TRY→1; yabancı ve snapshot'lı→oran; yabancı ve SNAPSHOT'SIZ→null
+  // (0 döndürmek bu teklifi "en ucuz" gösterip kalem-kazandırmada otomatik
+  // ön-seçtiriyordu — karşılaştırma dışı bırakılır, "kur yok" işaretlenir).
+  const bidRate = (b: {
+    currency?: string;
+    exchangeRateSnapshot?: string | null;
+  }): number | null =>
+    !b.currency || b.currency === "TRY"
+      ? 1
+      : b.exchangeRateSnapshot != null
+        ? Number(b.exchangeRateSnapshot)
+        : null;
+  // TRY karşılığı: yabancı + kur'suz teklif karşılaştırılamaz → null.
+  const amountTryOf = (b: {
+    amount: string;
+    currency?: string;
+    amountTry?: string | null;
+  }): number | null =>
+    b.amountTry != null
+      ? Number(b.amountTry)
+      : !b.currency || b.currency === "TRY"
+        ? Number(b.amount)
+        : null;
   // Erken kapatınca (CLOSED) da kazandırma/eleme açık kalır.
   const canDecide = l.status === "OPEN" || l.status === "CLOSED";
   // Teklif verme / güncelleme / belge ekleme yalnızca ilan AÇIK iken.
@@ -576,8 +601,11 @@ export default function ListingDetailPage() {
   const bidItemCount = l.items?.length ?? 0;
   const allBids = l.bids ?? [];
   const invitedCount = l.invitations?.length ?? 0;
-  const submittedCount = allBids.length;
-  const completeCount = allBids.filter(
+  // "Teklif Veren" = değerlendirmede olan (SUBMITTED) teklifler; elenen/kazanan
+  // aktif sayaçları şişirmesin.
+  const activeBids = allBids.filter((b) => b.status === "SUBMITTED");
+  const submittedCount = activeBids.length;
+  const completeCount = activeBids.filter(
     (b) =>
       bidItemCount > 0 &&
       (b.items?.filter((x) => Number(x.unitPrice) > 0).length ?? 0) >=
@@ -598,7 +626,7 @@ export default function ListingDetailPage() {
     for (const bi of b.items ?? []) {
       const unit = Number(bi.unitPrice);
       inner.set(bi.itemId, unit);
-      innerTry.set(bi.itemId, unit * rate);
+      if (rate != null) innerTry.set(bi.itemId, unit * rate);
     }
     priceMap.set(b.id, inner);
     priceTryMap.set(b.id, innerTry);
@@ -608,12 +636,14 @@ export default function ListingDetailPage() {
   // SATIS→en yüksek; karşılaştırma TRY karşılığı üzerinden (çok para birimi).
   // "En iyi" rozeti filtre/sıraya değil buna bağlanır.
   const bestBidId = (() => {
-    const subs = allBids.filter((b) => b.status === "SUBMITTED");
+    const subs = allBids.filter(
+      (b) => b.status === "SUBMITTED" && amountTryOf(b) != null,
+    );
     if (subs.length === 0) return null;
     const sorted = [...subs].sort((a, b) =>
       isAlim
-        ? amountTryOf(a) - amountTryOf(b)
-        : amountTryOf(b) - amountTryOf(a),
+        ? amountTryOf(a)! - amountTryOf(b)!
+        : amountTryOf(b)! - amountTryOf(a)!,
     );
     return sorted[0]?.id ?? null;
   })();
@@ -831,6 +861,7 @@ export default function ListingDetailPage() {
               <button
                 key={key}
                 type="button"
+                aria-pressed={bidView === key}
                 onClick={() => setBidView(key)}
                 className={`rounded-full px-3 py-1 font-medium ${
                   bidView === key
@@ -1000,7 +1031,10 @@ export default function ListingDetailPage() {
               <Text className="text-sm">
                 Mevcut teklifin:{" "}
                 <strong>
-                  {Number(l.myBid.amount).toLocaleString("tr-TR")} ₺
+                  {Number(l.myBid.amount).toLocaleString("tr-TR")}{" "}
+                  {!l.myBid.currency || l.myBid.currency === "TRY"
+                    ? "₺"
+                    : l.myBid.currency}
                 </strong>
               </Text>
               {biddingOpen && l.myBid.status === "SUBMITTED" ? (
@@ -1244,7 +1278,10 @@ export default function ListingDetailPage() {
               <Text className="text-sm">
                 Mevcut teklifin:{" "}
                 <strong>
-                  {Number(l.myBid.amount).toLocaleString("tr-TR")} ₺
+                  {Number(l.myBid.amount).toLocaleString("tr-TR")}{" "}
+                  {!l.myBid.currency || l.myBid.currency === "TRY"
+                    ? "₺"
+                    : l.myBid.currency}
                 </strong>
               </Text>
               <Button
@@ -1256,7 +1293,6 @@ export default function ListingDetailPage() {
               </Button>
             </div>
           ) : null}
-          {!biddingOpen && l.myBid ? null : null}
           <Text className="text-xs text-zinc-400">
             {l.english?.isEnglishAuction
               ? "Açık eksiltme: teklifin güncel en düşüğün altında olmalı."
@@ -1514,7 +1550,7 @@ export default function ListingDetailPage() {
           title="Teklifi ele"
           description={
             eliminateTarget
-              ? `"${eliminateTarget.bidderName}" elensin mi? Yeniden teklif verebilir.`
+              ? `"${eliminateTarget.bidderName}" elensin mi? Yeniden teklif verebilir. Yazdığınız gerekçe tedarikçiye GÖSTERİLİR.`
               : undefined
           }
           confirmLabel="Ele"
@@ -1586,7 +1622,7 @@ export default function ListingDetailPage() {
             <MetaItem
               icon={Layers}
               label="Kalem"
-              value={`${l.items?.length ?? 0} kalem`}
+              value={`${l.itemCount ?? l.items?.length ?? 0} kalem`}
             />
             <MetaItem
               icon={Wallet}
@@ -1630,7 +1666,16 @@ export default function ListingDetailPage() {
               <MyBidStatusPanel l={l} />
               {sellerBidSection}
             </TabPanel>
-            <TabPanel className="outline-none">{itemsSection}</TabPanel>
+            <TabPanel className="outline-none">
+              {l.masked ? (
+                <div className="rounded-xl border border-zinc-100 bg-zinc-50/60 p-6 text-center text-sm text-zinc-500">
+                  Kalem detayları önizleme modunda gizli — görmek için premium
+                  üyeliğe geçin.
+                </div>
+              ) : (
+                itemsSection
+              )}
+            </TabPanel>
             <TabPanel className="outline-none">
               <GeneralInfoTab l={l} />
             </TabPanel>

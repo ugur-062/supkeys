@@ -88,10 +88,19 @@ export function deriveSellerTenderState(
     listingStatus === "IN_AWARD" ||
     listingStatus === "IN_AWARD_APPROVAL"
   ) {
+    // Yalnız GÖNDERİLMİŞ teklif değerlendirmededir; gönderilmemiş taslak
+    // (veya teklifsiz) kapanmış ihale "kaçırıldı" durumudur.
+    if (bidStatus === "SUBMITTED") {
+      return {
+        label: "Değerlendiriliyor",
+        className: "bg-indigo-50 text-indigo-700 border-indigo-200",
+        tone: "active",
+      };
+    }
     return {
-      label: "Değerlendiriliyor",
-      className: "bg-indigo-50 text-indigo-700 border-indigo-200",
-      tone: "active",
+      label: bidStatus === "DRAFT" ? "Kapandı (taslak gönderilmedi)" : "Kapandı",
+      className: NEUTRAL,
+      tone: "neutral",
     };
   }
   // AWARDED / CLOSED_NO_AWARD (teklifsiz veya sonuçsuz)

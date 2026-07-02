@@ -320,6 +320,8 @@ export interface ListingDetail {
   autoExtendThresholdMin?: number | null;
   autoExtendByMinutes?: number | null;
   items?: ListingItemRow[];
+  /** Kalem sayısı — maskeli önizlemede items boşken de dolu (listeyle tutarlı). */
+  itemCount?: number;
   // sahip:
   bids?: ListingBidRow[];
   internalNotes?: string | null;

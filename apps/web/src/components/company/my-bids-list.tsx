@@ -26,17 +26,22 @@ import { useMemo, useState } from "react";
 const PAGE_SIZE = 10;
 
 const STATUS: Record<
-  MyBid["status"],
+  string,
   { label: string; color: "amber" | "green" | "zinc" | "red" }
 > = {
+  DRAFT: { label: "Taslak", color: "amber" },
   SUBMITTED: { label: "Değerlendirmede", color: "amber" },
   WON: { label: "Kazandı", color: "green" },
+  AWARDED_PARTIAL: { label: "Kısmen Kazandı", color: "green" },
   LOST: { label: "Elendi", color: "zinc" },
   WITHDRAWN: { label: "Geri çekildi", color: "red" },
 };
+// Bilinmeyen statü listeyi ÇÖKERTMESİN (eskiden DRAFT'ta beyaz ekran).
+const STATUS_FALLBACK = { label: "Bilinmiyor", color: "zinc" as const };
 
 const STATUS_FILTER_OPTIONS = [
   { value: "all", label: "Tüm durumlar" },
+  { value: "DRAFT", label: "Taslak" },
   { value: "SUBMITTED", label: "Değerlendirmede" },
   { value: "WON", label: "Kazandı" },
   { value: "LOST", label: "Elendi" },
@@ -161,11 +166,16 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
           <>
             <div className="divide-y divide-zinc-950/5">
               {pageRows.map((b) => {
-                const st = STATUS[b.status];
+                const st = STATUS[b.status] ?? STATUS_FALLBACK;
                 return (
                   <Link
                     key={b.id}
-                    href={`/company/ilan/${b.listing.id}?from=${encodeURIComponent("/company/satis/tekliflerim")}&fromLabel=Tekliflerim`}
+                    // Geri dönüş bağlamı portala göre (bileşen iki portalda kullanılır).
+                    href={`/company/ilan/${b.listing.id}?from=${encodeURIComponent(
+                      isPurchase
+                        ? "/company/satinalma/tekliflerim"
+                        : "/company/satis/tekliflerim",
+                    )}&fromLabel=Tekliflerim`}
                     className="flex items-center justify-between gap-4 px-4 py-3 transition hover:bg-zinc-50"
                   >
                     <div className="min-w-0">

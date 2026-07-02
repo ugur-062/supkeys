@@ -51,8 +51,8 @@ export function PublishConfirmDialog({
           davet e-postası gönderilecek.
         </p>
         <p className="p-3 rounded-lg bg-warning-50 border border-warning-200 text-xs text-warning-800">
-          Yayınladıktan sonra kalemler ve davetli tedarikçi listesi
-          değiştirilemez. Sadece kapanış tarihinden önce iptal edebilirsiniz.
+          İlk teklif geldikten sonra kalemler değiştirilemez. Yayın sonrası
+          yeni tedarikçi davet edilebilir; kapanıştan önce iptal mümkündür.
         </p>
         <p className="text-xs text-zinc-500">Devam edilsin mi?</p>
       </DialogBody>

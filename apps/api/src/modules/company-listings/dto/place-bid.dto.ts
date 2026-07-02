@@ -44,6 +44,7 @@ export class PlaceBidItemDto {
     { message: "Geçerli bir birim fiyat girin" },
   )
   @Min(0)
+  @Max(1_000_000_000_000, { message: "Birim fiyat çok büyük" })
   unitPrice!: number;
 
   // Kalem-özel teslim tarihi (opsiyonel — boşsa genel teslim tarihi geçerli).
@@ -65,6 +66,7 @@ export class PlaceBidDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 }, { message: "Geçerli bir tutar girin" })
   @Min(0.01, { message: "Tutar 0'dan büyük olmalı" })
+  @Max(1_000_000_000_000, { message: "Tutar çok büyük" })
   amount?: number;
 
   // Kalem-bazlı teklif: her kaleme birim fiyat.

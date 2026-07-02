@@ -215,6 +215,24 @@ export const tenderFormSchema = baseTenderSchema
     },
     { message: "Açılış tarihi kapanıştan önce olmalı", path: ["bidsOpenAt"] },
   )
+  .refine(
+    (d) =>
+      d.type !== "ENGLISH_AUCTION" || (d.priceDecrementValue ?? 0) > 0,
+    {
+      message: "Açık eksiltme için fiyat azaltma değeri zorunlu",
+      path: ["priceDecrementValue"],
+    },
+  )
+  .refine(
+    (d) =>
+      d.type !== "ENGLISH_AUCTION" ||
+      d.priceDecrementType !== "PERCENT" ||
+      (d.priceDecrementValue ?? 0) < 100,
+    {
+      message: "Yüzde azaltma 100'den küçük olmalı",
+      path: ["priceDecrementValue"],
+    },
+  )
   .refine((d) => !d.isLogistics || !!d.logistics?.originCity?.trim(), {
     message: "Çıkış ili zorunlu",
     path: ["logistics", "originCity"],

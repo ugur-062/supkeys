@@ -80,6 +80,14 @@ export class CompanyBidDocumentsService {
     listingId: string,
     input: { key: string; fileName: string; mimeType: string },
   ) {
+    // GÜVENLİK (F4 benzeri): key yalnız BU ilanın BU firmaya ait klasörüne
+    // işaret edebilir — başka teklifin/rastgele bir nesnenin key'i kaydedilemez.
+    if (!input.key.startsWith(`listing-bids/${listingId}/${user.companyId}/`)) {
+      throw new BadRequestException("Geçersiz dosya anahtarı");
+    }
+    if (!ALLOWED_MIME.includes(input.mimeType)) {
+      throw new BadRequestException("Sadece PDF, görsel veya Excel yüklenebilir");
+    }
     await this.assertListingOpen(listingId);
     const bid = await this.requireOwnBid(user, listingId);
     const doc = await this.prisma.listingBidDocument.create({

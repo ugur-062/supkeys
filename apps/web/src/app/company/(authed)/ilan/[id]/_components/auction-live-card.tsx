@@ -75,8 +75,12 @@ export function AuctionLiveCard({ l }: { l: ListingDetail }) {
   const closesMs = l.closesAt ? new Date(l.closesAt).getTime() - now : null;
   const urgent = closesMs !== null && closesMs > 0 && closesMs < 5 * 60_000;
   const view = l.auctionView;
-  const money = (v: string | null | undefined) =>
-    v ? `${Number(v).toLocaleString("tr-TR")} ${l.primaryCurrency === "TRY" ? "₺" : l.primaryCurrency}` : "—";
+  const sym = (c: string | null | undefined) =>
+    !c || c === "TRY" ? "₺" : c;
+  const money = (v: string | null | undefined, currency?: string | null) =>
+    v
+      ? `${Number(v).toLocaleString("tr-TR")} ${sym(currency ?? l.primaryCurrency)}`
+      : "—";
 
   const decrement =
     l.priceDecrementType === "PERCENT"
@@ -107,8 +111,13 @@ export function AuctionLiveCard({ l }: { l: ListingDetail }) {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile
           label="Senin Teklifin"
-          value={l.myBid ? money(l.myBid.amount) : "—"}
-          sub={l.myBid?.version ? `Tur #${l.myBid.version}` : undefined}
+          // Teklifçinin KENDİ para birimiyle gösterilir (ilanınkiyle değil).
+          value={l.myBid ? money(l.myBid.amount, l.myBid.currency) : "—"}
+          sub={
+            l.myBid?.version && l.myBid.version > 1
+              ? `v${l.myBid.version}`
+              : undefined
+          }
           highlight={!!l.myBid}
         />
         <Tile

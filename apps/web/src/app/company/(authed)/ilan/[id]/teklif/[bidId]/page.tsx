@@ -140,8 +140,16 @@ export default function BidDetailPage() {
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold tabular-nums text-zinc-950">
-              {Number(bid.amount).toLocaleString("tr-TR")} ₺
+              {Number(bid.amount).toLocaleString("tr-TR")}{" "}
+              {!bid.currency || bid.currency === "TRY" ? "₺" : bid.currency}
             </div>
+            {bid.currency && bid.currency !== "TRY" ? (
+              <div className="text-xs text-zinc-500">
+                {bid.amountTry != null
+                  ? `≈ ${Number(bid.amountTry).toLocaleString("tr-TR")} ₺`
+                  : "TRY karşılığı yok (kur alınamadı)"}
+              </div>
+            ) : null}
             {bid.bidderCompanyId ? (
               <Link
                 href={`/company/satinalma/mesajlar?with=${bid.bidderCompanyId}`}
@@ -221,11 +229,13 @@ export default function BidDetailPage() {
                         {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
                       </TableCell>
                       <TableCell className="text-right font-mono tabular-nums text-zinc-700">
-                        {up ? `${Number(up).toLocaleString("tr-TR")} ₺` : "—"}
+                        {up
+                          ? `${Number(up).toLocaleString("tr-TR")} ${!bid.currency || bid.currency === "TRY" ? "₺" : bid.currency}`
+                          : "—"}
                       </TableCell>
                       <TableCell className="text-right font-mono tabular-nums text-zinc-900">
                         {line != null
-                          ? `${line.toLocaleString("tr-TR")} ₺`
+                          ? `${line.toLocaleString("tr-TR")} ${!bid.currency || bid.currency === "TRY" ? "₺" : bid.currency}`
                           : "—"}
                       </TableCell>
                     </TableRow>
@@ -276,7 +286,7 @@ export default function BidDetailPage() {
         onClose={() => setEliminateOpen(false)}
         onSubmit={submitEliminate}
         title="Teklifi ele"
-        description={`"${bid.bidderName}" elensin mi? Yeniden teklif verebilir.`}
+        description={`"${bid.bidderName}" elensin mi? Yeniden teklif verebilir. Yazdığınız gerekçe tedarikçiye GÖSTERİLİR.`}
         confirmLabel="Ele"
         destructive
         pending={eliminate.isPending}
