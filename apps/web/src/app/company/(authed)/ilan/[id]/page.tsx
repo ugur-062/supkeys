@@ -38,6 +38,7 @@ import {
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
+import { subscribeRealtime } from "@/lib/realtime";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
@@ -57,7 +58,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 const TRIGGER_CLASSES = cn(
@@ -157,6 +158,9 @@ export default function ListingDetailPage() {
     bidId: string;
     bidderName: string;
   } | null>(null);
+
+  // WS: bu ilanın odasına abone ol — teklif/durum değişimi anında düşer.
+  useEffect(() => subscribeRealtime("listing", id), [id]);
 
 
   const handleWithdraw = async () => {

@@ -1,4 +1,5 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Optional, Logger } from "@nestjs/common";
+import { RealtimeService } from "../realtime/realtime.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
 
@@ -23,7 +24,10 @@ export interface InAppPayload {
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly realtime?: RealtimeService,
+  ) {}
 
   /** Tek firmanın aktif kullanıcılarına in-app bildirim. Döner: yazılan satır. */
   async pushToCompany(companyId: string, payload: InAppPayload): Promise<number> {
@@ -54,6 +58,7 @@ export class NotificationService {
     ) {
       return 0;
     }
+    this.realtime?.pingNotification(user.companyId);
     await this.prisma.notification.create({
       data: {
         companyUserId: user.id,
@@ -102,6 +107,10 @@ export class NotificationService {
       }));
     if (rows.length === 0) return 0;
     await this.prisma.notification.createMany({ data: rows });
+    // WS: zil anında güncellensin (bildirim yazılan her firmaya sinyal).
+    for (const c of new Set(rows.map((r) => r.companyId))) {
+      this.realtime?.pingNotification(c);
+    }
     return rows.length;
   }
 

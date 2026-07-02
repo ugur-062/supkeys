@@ -23,8 +23,10 @@
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.15",
+    "@nestjs/platform-socket.io": "^10.4.22",
     "@nestjs/schedule": "^6.1.3",
     "@nestjs/throttler": "^6.5.0",
+    "@nestjs/websockets": "^10.4.22",
     "@supabase/supabase-js": "^2.106.0",
     "@supkeys/db": "workspace:*",
     "@supkeys/email": "workspace:*",
@@ -42,6 +44,7 @@
     "qrcode": "^1.5.4",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "socket.io": "^4.8.3",
     "svix": "^1.93.0",
     "xml2js": "^0.6.2",
     "zod": "^3.24.1"

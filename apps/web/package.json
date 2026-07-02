@@ -32,6 +32,7 @@
     "react-dropzone": "^15.0.0",
     "react-hook-form": "^7.54.2",
     "recharts": "^3.8.1",
+    "socket.io-client": "^4.8.3",
     "sonner": "^1.7.1",
     "tailwind-merge": "^2.6.0",
     "use-debounce": "^10.1.1",

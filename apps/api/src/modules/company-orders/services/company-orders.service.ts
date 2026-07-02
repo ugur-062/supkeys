@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
@@ -20,6 +21,7 @@ import type {
 } from "../dto/order-action.dto";
 import { EmailService } from "../../email/email.service";
 import { NotificationService } from "../../notifications/notification.service";
+import { RealtimeService } from "../../realtime/realtime.service";
 
 @Injectable()
 export class CompanyOrdersService {
@@ -30,6 +32,7 @@ export class CompanyOrdersService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationService,
+    @Optional() private readonly realtime?: RealtimeService,
   ) {}
 
   private webUrl(): string {
@@ -303,6 +306,11 @@ export class CompanyOrdersService {
       where: { id },
       data: { status: rule.to, ...rule.data },
     });
+    // WS: iki tarafın sipariş listesi + açık detayları anında güncellensin.
+    this.realtime?.pingOrder(id, [
+      order.sellerCompanyId,
+      order.buyerCompanyId,
+    ]);
     return { ok: true, status: rule.to, order };
   }
 
@@ -422,6 +430,7 @@ export class CompanyOrdersService {
       "Ödeme kaydedildi",
       `${this.orderLabel(order.number)} sipariş için ${input.amount.toLocaleString("tr-TR")} ₺ tutarında ödeme kaydedildi. Onaylamanız bekleniyor.`,
     );
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     return this.serializePayment(payment);
   }
 
@@ -517,6 +526,7 @@ export class CompanyOrdersService {
       }
     }
 
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     return this.serializePayment(updated);
   }
 

@@ -24,6 +24,7 @@ import {
   type CompanyOrderStatus,
 } from "@/hooks/use-company-orders";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { subscribeRealtime } from "@/lib/realtime";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { OrderDocumentsSection } from "./_components/order-documents-section";
 import {
@@ -47,7 +48,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 const STEPS = [
@@ -115,6 +116,9 @@ export default function OrderDetailPage() {
   const [modal, setModal] = useState<
     "accept" | "reject" | "cancel" | "ship" | "receive" | "complete" | null
   >(null);
+
+  // WS: bu siparişin odasına abone ol — karşı tarafın adımı anında düşer.
+  useEffect(() => subscribeRealtime("order", id), [id]);
 
   if (isLoading)
     return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;

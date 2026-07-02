@@ -30,6 +30,7 @@ import {
 } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDateTime } from "@/lib/tenders/date";
+import { subscribeRealtime } from "@/lib/realtime";
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
@@ -144,6 +145,9 @@ export default function TeklifVerPage() {
   >([]);
   // Seçili teklif belgesi bölümü — yeni dosyalar bu kategoriye eklenir.
   const [docKind, setDocKind] = useState<BidDocKind>("TEKLIF_MEKTUBU");
+
+  // WS: canlı artırma/eksiltme — rakip teklifi anında yansısın.
+  useEffect(() => subscribeRealtime("listing", id), [id]);
 
   // İlan değişirse (client-side geçiş) önceki formun state'i taşınmasın.
   useEffect(() => {

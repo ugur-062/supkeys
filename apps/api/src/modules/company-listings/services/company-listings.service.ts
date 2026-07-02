@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import {
   CompanyRole,
@@ -35,6 +36,7 @@ import { ConfigService } from "@nestjs/config";
 import { ExchangeRateService } from "../../currency/services/exchange-rate.service";
 import { EmailService } from "../../email/email.service";
 import { NotificationService } from "../../notifications/notification.service";
+import { RealtimeService } from "../../realtime/realtime.service";
 import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-category-match.helper";
 import { isNotificationEnabled } from "../../../common/notifications/notification-prefs";
 import { CreateListingDto } from "../dto/create-listing.dto";
@@ -66,6 +68,7 @@ export class CompanyListingsService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationService,
+    @Optional() private readonly realtime?: RealtimeService,
   ) {}
 
   private webUrl(): string {
@@ -1015,6 +1018,7 @@ export class CompanyListingsService {
     if (res.approved) {
       void this.notifyListingInvitees(listingId, "invitation");
       void this.notifyCategoryMatchedCompanies(listingId);
+      this.realtime?.pingListing(listingId);
     }
     return this.serialize(updated);
   }
@@ -2376,6 +2380,10 @@ export class CompanyListingsService {
       }
     }
 
+    // WS: ilan sahibi + detay izleyicileri anında görsün (taslak hariç).
+    if (!isDraft) {
+      this.realtime?.pingListing(id, [listing.companyId]);
+    }
     return { id: bid.id, amount: bid.amount.toString(), status: bid.status };
   }
 
@@ -2487,6 +2495,7 @@ export class CompanyListingsService {
         version: { increment: 1 },
       },
     });
+    this.realtime?.pingListing(listingId, [listing.companyId]);
     return { id: bid.id, amount: bid.amount.toString(), isBuyNow: true };
   }
 
@@ -2615,6 +2624,7 @@ export class CompanyListingsService {
       listing.type === "ALIM" ? bid.bidderCompanyId : listing.companyId;
     const buyerCompanyId =
       listing.type === "ALIM" ? listing.companyId : bid.bidderCompanyId;
+    const awardParties = [sellerCompanyId, buyerCompanyId];
 
     const number = await this.nextOrderNumber();
     const order = await this.prisma.$transaction(async (tx) => {
@@ -2684,6 +2694,8 @@ export class CompanyListingsService {
       ctaLabel: "Siparişi Gör",
       ctaUrl: `${this.webUrl()}/company/siparis/${order.id}`,
     });
+    this.realtime?.pingListing(listingId, awardParties);
+    this.realtime?.pingOrder(order.id, awardParties);
     return { orderId: order.id, number: order.number };
   }
 
@@ -3005,6 +3017,13 @@ export class CompanyListingsService {
         });
       }
     }
+    this.realtime?.pingListing(listingId, [
+      listing.companyId,
+      ...groupArr.map(([bidderCompanyId]) => bidderCompanyId),
+    ]);
+    for (const o of created) {
+      this.realtime?.pingOrder(o.id, [listing.companyId]);
+    }
     return { orders: created, count: created.length };
   }
 
@@ -3180,6 +3199,7 @@ export class CompanyListingsService {
     });
 
     void this.notifyListingInvitees(listingId, "reminder");
+    this.realtime?.pingListing(listingId);
     return { ok: true, round: listing.currentRound + 1 };
   }
 
@@ -3388,6 +3408,7 @@ export class CompanyListingsService {
       ctaUrl: `${this.webUrl()}/company/ilan/${listingId}`,
       listingId,
     });
+    this.realtime?.pingListing(listingId, [bid.bidderCompanyId]);
     return { ok: true };
   }
 
@@ -3625,7 +3646,11 @@ export class CompanyListingsService {
           bidderCompanyId: user.companyId,
         },
       },
-      select: { id: true, status: true, listing: { select: { status: true } } },
+      select: {
+        id: true,
+        status: true,
+        listing: { select: { status: true, companyId: true } },
+      },
     });
     if (!bid || bid.status !== "SUBMITTED") {
       throw new BadRequestException("Geri çekilebilir teklif yok");
@@ -3642,6 +3667,7 @@ export class CompanyListingsService {
       where: { id: bid.id },
       data: { status: "WITHDRAWN" },
     });
+    this.realtime?.pingListing(listingId, [bid.listing.companyId]);
     return { ok: true };
   }
 

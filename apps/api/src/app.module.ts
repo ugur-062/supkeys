@@ -23,6 +23,7 @@ import { CompanyMessagesModule } from "./modules/company-messages/company-messag
 import { CompanyQuestionTemplatesModule } from "./modules/company-question-templates/company-question-templates.module";
 import { CompanyAddressesModule } from "./modules/company-addresses/company-addresses.module";
 import { CompanyBankAccountsModule } from "./modules/company-bank-accounts/company-bank-accounts.module";
+import { RealtimeModule } from "./modules/realtime/realtime.module";
 import { CompanyApprovalsModule } from "./modules/company-approvals/company-approvals.module";
 import { CompanyDocsModule } from "./modules/company-docs/company-docs.module";
 import { CompanyReportsModule } from "./modules/company-reports/company-reports.module";
@@ -92,6 +93,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     CompanyApprovalsModule,
     CompanyAddressesModule,
     CompanyBankAccountsModule,
+    RealtimeModule,
     CompanyReportsModule,
     CompanyReviewsModule,
     CompanyDocsModule,
