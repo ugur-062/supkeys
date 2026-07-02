@@ -1167,6 +1167,180 @@ export class CompanyListingsService {
   }
 
   /**
+   * Satıcı İhaleler listesi (eski tedarikçi paneli paritesi) — teklif
+   * verilebilir AÇIK ALIM ilanları + geçmiş (davetli olduğum / teklif verdiğim
+   * kapanmış) ilanlar, teklif durumu + davet + kategori eşleşmesiyle zengin.
+   * ÖNEMLİ: davetli olunan ilan (PRIVATE dahil) görünürlük/ülke kapsamından
+   * bağımsız listeye girer — browse()'daki "davetli PRIVATE görünmez" boşluğunu
+   * kapatır.
+   */
+  async sellerTenders(user: AuthenticatedCompanyUser) {
+    const companyId = user.companyId;
+    const [connectedIds, blockedIds, myCompany] = await Promise.all([
+      this.connectedCompanyIds(companyId),
+      this.blocks.blockedCompanyIds(companyId),
+      this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: { sellerCategoryIds: true, sellerSubCategoryIds: true },
+      }),
+    ]);
+    const isPremium = user.tier === "PAKET";
+    const myCountry = user.country;
+
+    const baseWhere = {
+      type: "ALIM" as const,
+      companyId: { notIn: [companyId, ...blockedIds] },
+    };
+    const invitedClause = {
+      invitations: { some: { invitedCompanyId: companyId } },
+    };
+    // Ülke kapsamı (yurtiçi VEYA bana açık uluslararası) — davetliler hariç.
+    const countryOr = [
+      { isInternational: false, company: { country: myCountry } },
+      {
+        isInternational: true,
+        company: { country: { not: myCountry } },
+        AND: [
+          {
+            OR: [
+              { targetCountries: { isEmpty: true } },
+              { targetCountries: { has: myCountry } },
+            ],
+          },
+        ],
+      },
+    ];
+    const visibilityOr = isPremium
+      ? [
+          { visibility: "PUBLIC" as const },
+          { visibility: "CONNECTIONS" as const, companyId: { in: connectedIds } },
+        ]
+      : [
+          { visibility: "CONNECTIONS" as const, companyId: { in: connectedIds } },
+        ];
+
+    const select = {
+      id: true,
+      number: true,
+      title: true,
+      status: true,
+      visibility: true,
+      format: true,
+      primaryCurrency: true,
+      categoryIds: true,
+      isInternational: true,
+      closesAt: true,
+      createdAt: true,
+      companyId: true,
+      company: { select: { name: true } },
+      _count: { select: { items: true } },
+    };
+
+    const [openRows, pastRows] = await Promise.all([
+      this.prisma.listing.findMany({
+        where: {
+          ...baseWhere,
+          status: "OPEN",
+          OR: [
+            invitedClause,
+            { AND: [{ OR: countryOr }, { OR: visibilityOr }] },
+          ],
+        },
+        select,
+        orderBy: { closesAt: "asc" },
+        take: 300,
+      }),
+      // Geçmiş: katıldığım (davet/teklif) kapanmış ilanlar.
+      this.prisma.listing.findMany({
+        where: {
+          ...baseWhere,
+          status: { notIn: ["OPEN", "DRAFT", "IN_APPROVAL"] },
+          OR: [
+            invitedClause,
+            { bids: { some: { bidderCompanyId: companyId } } },
+          ],
+        },
+        select,
+        orderBy: { updatedAt: "desc" },
+        take: 200,
+      }),
+    ]);
+    const byId = new Map(
+      [...openRows, ...pastRows].map((l) => [l.id, l] as const),
+    );
+    const all = [...byId.values()];
+    const ids = all.map((l) => l.id);
+    if (ids.length === 0) return [];
+
+    const [myBids, myInvites, categories] = await Promise.all([
+      this.prisma.listingBid.findMany({
+        where: { listingId: { in: ids }, bidderCompanyId: companyId },
+        select: { listingId: true, status: true, version: true },
+      }),
+      this.prisma.listingInvitation.findMany({
+        where: { listingId: { in: ids }, invitedCompanyId: companyId },
+        select: { listingId: true },
+      }),
+      this.prisma.category.findMany({
+        where: {
+          code: { in: [...new Set(all.flatMap((l) => l.categoryIds.slice(0, 2)))] },
+        },
+        select: { code: true, nameTr: true },
+      }),
+    ]);
+    const bidByListing = new Map(myBids.map((b) => [b.listingId, b] as const));
+    const invitedSet = new Set(myInvites.map((iv) => iv.listingId));
+    const catName = new Map(categories.map((c) => [c.code, c.nameTr] as const));
+
+    // Kategori eşleşmesi: ilan kodları → segment/alt adayları, benim satıcı
+    // kategorilerimle kesişiyor mu (bildirim eşleştiricisiyle aynı mantık).
+    const mySegs = new Set(myCompany?.sellerCategoryIds ?? []);
+    const mySubs = new Set(myCompany?.sellerSubCategoryIds ?? []);
+    const matchesMyCategories = (codes: string[]): boolean => {
+      if (mySegs.size === 0 && mySubs.size === 0) return false;
+      const { segmentIds, subCandidates } = deriveCategoryMatchCandidates(codes);
+      return (
+        segmentIds.some((c) => mySegs.has(c)) ||
+        subCandidates.some((c) => mySubs.has(c))
+      );
+    };
+
+    return all.map((l) => {
+      const connected = connectedIds.includes(l.companyId);
+      const invited = invitedSet.has(l.id);
+      const bid = bidByListing.get(l.id);
+      const masked =
+        l.visibility === "PUBLIC" && !connected && !invited && !isPremium;
+      const canBid =
+        invited || connected || (l.visibility === "PUBLIC" && isPremium);
+      return {
+        id: l.id,
+        number: l.number,
+        title: l.title,
+        status: l.status,
+        visibility: l.visibility,
+        format: l.format,
+        currency: l.primaryCurrency,
+        isInternational: l.isInternational,
+        closesAt: l.closesAt,
+        createdAt: l.createdAt,
+        itemCount: l._count.items,
+        owner: masked ? null : { name: l.company.name },
+        masked,
+        canBid,
+        invited,
+        myBidStatus: bid?.status ?? null,
+        myBidVersion: bid?.version ?? null,
+        categoryMatch: matchesMyCategories(l.categoryIds),
+        categories: l.categoryIds
+          .slice(0, 2)
+          .map((code) => ({ code, name: catName.get(code) ?? code })),
+        extraCategoryCount: Math.max(0, l.categoryIds.length - 2),
+      };
+    });
+  }
+
+  /**
    * İlan detayı. Sahip → ilan + gelen TÜM teklifler (sıralı). Sahip değil →
    * görünürlük kontrolü (yoksa 404), maskeleme + kendi teklifi (myBid) + canBid.
    * Kapalı zarf: sahip olmayan başkalarının tekliflerini GÖREMEZ.

@@ -58,6 +58,12 @@ export class CompanyListingsController {
     return this.service.listTenders(user.companyId);
   }
 
+  /** Satıcı İhaleler listesi — açık + geçmiş, teklif/davet/kategori zengin. */
+  @Get("seller-tenders")
+  sellerTenders(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.sellerTenders(user);
+  }
+
   @Get(":id")
   getOne(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
