@@ -702,6 +702,7 @@ model ListingBid {
 
   items     ListingBidItem[]
   documents ListingBidDocument[]
+  answers   ListingBidAnswer[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -984,8 +985,26 @@ model ListingItemQuestion {
 
   createdAt DateTime @default(now())
 
+  answers ListingBidAnswer[]
+
   @@index([itemId])
   @@map("listing_item_questions")
+}
+
+// Teklifin kalem sorusuna verdiği cevap (satıcı tarafı — Faz D).
+model ListingBidAnswer {
+  id         String              @id @default(cuid())
+  bidId      String
+  bid        ListingBid          @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  questionId String
+  question   ListingItemQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  value      String
+
+  createdAt DateTime @default(now())
+
+  @@unique([bidId, questionId])
+  @@index([bidId])
+  @@map("listing_bid_answers")
 }
 
 // Kayıtlı soru şablonu — firma kalem sorularını tekrar kullanmak için saklar.
@@ -1026,6 +1045,8 @@ model ListingBidItem {
   item      ListingItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   unitPrice Decimal     @db.Decimal(18, 2)
   note      String?
+  // Kalem-özel teslim tarihi (opsiyonel) — boşsa teklifin genel teslim tarihi geçerli.
+  deliveryDate DateTime?
 
   @@unique([bidId, itemId])
   @@index([bidId])

@@ -986,6 +986,66 @@ export default function ListingDetailPage() {
     </section>
   );
 
+  // Teklif belgeleri — hem SATIS tek-akış formunda hem ALIM Teklifim sekmesinde.
+  const bidDocsSection = l.myBid ? (
+    <div className="space-y-2 border-t border-zinc-100 pt-3">
+      <div className="flex items-center justify-between">
+        <div className="text-sm font-medium text-zinc-900">
+          Teklif Belgeleri
+          {l.requireBidDocument ? " (zorunlu)" : ""}
+        </div>
+        {biddingOpen ? (
+          <label className="cursor-pointer text-xs font-medium text-blue-600 hover:underline">
+            {uploadBidDoc.isPending ? "Yükleniyor…" : "+ Belge Ekle"}
+            <input
+              type="file"
+              className="hidden"
+              accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
+              onChange={handleUploadBidDoc}
+              disabled={uploadBidDoc.isPending}
+            />
+          </label>
+        ) : null}
+      </div>
+      {(bidDocs.data ?? []).filter((d) => d.mine).length === 0 ? (
+        <Text className="text-xs text-zinc-400">
+          {l.requireBidDocument
+            ? "Bu ihale belge zorunlu — kazanabilmek için en az bir dosya ekle."
+            : "Henüz belge eklemedin."}
+        </Text>
+      ) : (
+        <div className="space-y-1">
+          {(bidDocs.data ?? [])
+            .filter((d) => d.mine)
+            .map((d) => (
+              <div
+                key={d.id}
+                className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2.5 py-1.5 text-xs"
+              >
+                <a
+                  href={d.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="truncate text-blue-600 hover:underline"
+                >
+                  {d.fileName}
+                </a>
+                {biddingOpen ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteBidDoc(d.id)}
+                    className="shrink-0 text-zinc-400 hover:text-red-600"
+                  >
+                    Sil
+                  </button>
+                ) : null}
+              </div>
+            ))}
+        </div>
+      )}
+    </div>
+  ) : null;
+
   const bidFormSection = (
     <section className="space-y-3">
       <Subheading>Teklif Ver</Subheading>
@@ -1186,64 +1246,7 @@ export default function ListingDetailPage() {
               : "Kapalı zarf: diğer tekliflerin tutarını göremezsin."}
           </Text>
 
-          {l.myBid ? (
-            <div className="space-y-2 border-t border-zinc-100 pt-3">
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium text-zinc-900">
-                  Teklif Belgeleri
-                  {l.requireBidDocument ? " (zorunlu)" : ""}
-                </div>
-                {biddingOpen ? (
-                  <label className="cursor-pointer text-xs font-medium text-blue-600 hover:underline">
-                    {uploadBidDoc.isPending ? "Yükleniyor…" : "+ Belge Ekle"}
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
-                      onChange={handleUploadBidDoc}
-                      disabled={uploadBidDoc.isPending}
-                    />
-                  </label>
-                ) : null}
-              </div>
-              {(bidDocs.data ?? []).filter((d) => d.mine).length === 0 ? (
-                <Text className="text-xs text-zinc-400">
-                  {l.requireBidDocument
-                    ? "Bu ihale belge zorunlu — kazanabilmek için en az bir dosya ekle."
-                    : "Henüz belge eklemedin."}
-                </Text>
-              ) : (
-                <div className="space-y-1">
-                  {(bidDocs.data ?? [])
-                    .filter((d) => d.mine)
-                    .map((d) => (
-                      <div
-                        key={d.id}
-                        className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2.5 py-1.5 text-xs"
-                      >
-                        <a
-                          href={d.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="truncate text-blue-600 hover:underline"
-                        >
-                          {d.fileName}
-                        </a>
-                        {biddingOpen ? (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteBidDoc(d.id)}
-                            className="shrink-0 text-zinc-400 hover:text-red-600"
-                          >
-                            Sil
-                          </button>
-                        ) : null}
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
-          ) : null}
+          {bidDocsSection}
         </div>
       ) : (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
@@ -1251,6 +1254,85 @@ export default function ListingDetailPage() {
             Bu ilana teklif vermek için <strong>premium üyelik</strong> gerekir
             (veya ilanı açan firmayla bağlantı kur).
           </Text>
+        </div>
+      )}
+    </section>
+  );
+
+  // ALIM Teklifim sekmesi aksiyonları — form ayrı sayfada (/teklif-ver),
+  // burada duruma göre CTA + geri çekme + belgeler (eski panel paritesi).
+  const bidHref = `/company/ilan/${l.id}/teklif-ver`;
+  const bidCta = (() => {
+    if (!biddingOpen || !l.canBid) return null;
+    const st = l.myBid?.status;
+    if (!l.myBid)
+      return { label: "Teklif Ver", href: bidHref };
+    if (st === "DRAFT")
+      return { label: "Taslağa Devam Et", href: bidHref };
+    if (st === "LOST")
+      return { label: "Yeniden Teklif Ver", href: bidHref };
+    if (st === "SUBMITTED" && l.english?.isEnglishAuction)
+      return { label: "Yeni Teklif Ver (Fiyat Düşür)", href: bidHref };
+    return null; // SUBMITTED RFQ (değişiklik yok) / WITHDRAWN
+  })();
+
+  const sellerBidSection = (
+    <section className="space-y-3">
+      {!l.canBid ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+          <Text className="text-sm text-amber-800">
+            Bu ilana teklif vermek için <strong>premium üyelik</strong> gerekir
+            (veya ilanı açan firmayla bağlantı kur).
+          </Text>
+        </div>
+      ) : (
+        <div className="space-y-4 rounded-xl border border-zinc-950/10 bg-white p-5">
+          {bidCta ? (
+            <div className="flex items-center justify-between gap-3">
+              <Text className="text-sm text-zinc-600">
+                {l.myBid?.status === "SUBMITTED"
+                  ? "Açık eksiltme — fiyatını düşürerek yeni teklif verebilirsin."
+                  : l.myBid?.status === "LOST"
+                    ? "İhale hâlâ açık — güncellenmiş teklifle yeniden katıl."
+                    : l.myBid?.status === "DRAFT"
+                      ? "Taslağın kapanıştan önce gönderilmeli."
+                      : "Bu ihaleye teklif verebilirsin."}
+              </Text>
+              <Button href={bidCta.href}>{bidCta.label}</Button>
+            </div>
+          ) : null}
+          {l.myBid?.status === "SUBMITTED" &&
+          biddingOpen &&
+          !l.english?.isEnglishAuction ? (
+            <Text className="text-xs text-zinc-500">
+              Gönderilmiş teklif düzenlenemez — değişiklik için alıcıyla
+              iletişime geç ya da teklifini geri çek.
+            </Text>
+          ) : null}
+          {l.myBid && biddingOpen && l.myBid.status === "SUBMITTED" ? (
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2">
+              <Text className="text-sm">
+                Mevcut teklifin:{" "}
+                <strong>
+                  {Number(l.myBid.amount).toLocaleString("tr-TR")} ₺
+                </strong>
+              </Text>
+              <Button
+                plain
+                onClick={handleWithdraw}
+                disabled={withdrawBid.isPending}
+              >
+                Geri Çek
+              </Button>
+            </div>
+          ) : null}
+          {!biddingOpen && l.myBid ? null : null}
+          <Text className="text-xs text-zinc-400">
+            {l.english?.isEnglishAuction
+              ? "Açık eksiltme: teklifin güncel en düşüğün altında olmalı."
+              : "Kapalı zarf: diğer tekliflerin tutarını göremezsin."}
+          </Text>
+          {bidDocsSection}
         </div>
       )}
     </section>
@@ -1613,7 +1695,7 @@ export default function ListingDetailPage() {
           <TabPanels className="pt-5">
             <TabPanel className="space-y-5 outline-none">
               <MyBidStatusPanel l={l} />
-              {bidFormSection}
+              {sellerBidSection}
             </TabPanel>
             <TabPanel className="outline-none">{itemsSection}</TabPanel>
             <TabPanel className="outline-none">

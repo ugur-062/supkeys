@@ -224,6 +224,7 @@ export interface ListingItemRow {
 export interface ListingBidItemRow {
   itemId: string;
   unitPrice: string;
+  deliveryDate?: string | null;
 }
 
 export interface ListingBidRow {
@@ -241,6 +242,7 @@ export interface ListingBidRow {
   round?: number;
   createdAt: string;
   items?: ListingBidItemRow[];
+  answers?: { questionId: string; value: string }[];
 }
 
 export interface ListingInvitationRow {
@@ -339,6 +341,7 @@ export interface ListingDetail {
     validityDays?: number | null;
     currency?: string | null;
     items?: ListingBidItemRow[];
+    answers?: { questionId: string; value: string }[];
   } | null;
   // İngiliz Usulü (açık eksiltme):
   english?: {
@@ -379,7 +382,12 @@ export function usePlaceBid(id: string) {
   return useMutation({
     mutationFn: async (input: {
       amount?: number;
-      items?: { itemId: string; unitPrice: number }[];
+      items?: {
+        itemId: string;
+        unitPrice: number;
+        deliveryDate?: string;
+        answers?: { questionId: string; value: string }[];
+      }[];
       note?: string;
       asDraft?: boolean;
       deliveryDate?: string;

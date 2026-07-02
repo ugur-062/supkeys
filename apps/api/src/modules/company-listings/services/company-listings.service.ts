@@ -1460,6 +1460,7 @@ export class CompanyListingsService {
           include: {
             bidderCompany: { select: { name: true } },
             items: true,
+            answers: true,
           },
         }),
         this.prisma.listingInvitation.findMany({
@@ -1528,6 +1529,13 @@ export class CompanyListingsService {
           items: b.items.map((bi) => ({
             itemId: bi.itemId,
             unitPrice: bi.unitPrice.toString(),
+            deliveryDate: bi.deliveryDate
+              ? bi.deliveryDate.toISOString()
+              : null,
+          })),
+          answers: b.answers.map((a) => ({
+            questionId: a.questionId,
+            value: a.value,
           })),
         })),
       };
@@ -1549,7 +1557,7 @@ export class CompanyListingsService {
             bidderCompanyId: user.companyId,
           },
         },
-        include: { items: true },
+        include: { items: true, answers: true },
       }),
       // Açık eksiltme görünürlüğü (bidVisibility) — kapalı zarf korunur, sadece
       // ayara göre en iyi fiyat / kendi sıra / tüm sıralar açılır.
@@ -1634,6 +1642,13 @@ export class CompanyListingsService {
             items: myBid.items.map((bi) => ({
               itemId: bi.itemId,
               unitPrice: bi.unitPrice.toString(),
+              deliveryDate: bi.deliveryDate
+                ? bi.deliveryDate.toISOString()
+                : null,
+            })),
+            answers: myBid.answers.map((a) => ({
+              questionId: a.questionId,
+              value: a.value,
             })),
           }
         : null,
@@ -1779,20 +1794,19 @@ export class CompanyListingsService {
     const connectedIds = await this.connectedCompanyIds(user.companyId);
     const connected = connectedIds.includes(listing.companyId);
     const isPremium = user.tier === "PAKET";
+    // Davet her görünürlükte teklif hakkı verir (getOne/sellerTenders kuralı).
     const isInvited =
-      listing.visibility === "PRIVATE"
-        ? (await this.prisma.listingInvitation.count({
-            where: { listingId: id, invitedCompanyId: user.companyId },
-          })) > 0
-        : false;
+      (await this.prisma.listingInvitation.count({
+        where: { listingId: id, invitedCompanyId: user.companyId },
+      })) > 0;
     const visible =
+      isInvited ||
       listing.visibility === "PUBLIC" ||
-      (listing.visibility === "CONNECTIONS" && connected) ||
-      (listing.visibility === "PRIVATE" && isInvited);
+      (listing.visibility === "CONNECTIONS" && connected);
     if (!visible) throw new NotFoundException("İlan bulunamadı");
 
     const canBid =
-      (listing.visibility === "PRIVATE" && isInvited) ||
+      isInvited ||
       (listing.visibility === "CONNECTIONS" && connected) ||
       (listing.visibility === "PUBLIC" && (connected || isPremium));
     if (!canBid) {
@@ -1818,12 +1832,21 @@ export class CompanyListingsService {
     // toplam = Σ(birim fiyat × kalem miktarı).
     const listingItems = await this.prisma.listingItem.findMany({
       where: { listingId: id },
-      select: { id: true, quantity: true },
+      select: {
+        id: true,
+        quantity: true,
+        questions: { select: { id: true, required: true, text: true } },
+      },
     });
 
     // Para tutarları Decimal ile hesaplanır (kayan nokta birikimi yok — F7).
     let amount: Prisma.Decimal;
-    let bidItemsData: { itemId: string; unitPrice: number }[] = [];
+    let bidItemsData: {
+      itemId: string;
+      unitPrice: number;
+      deliveryDate: Date | null;
+    }[] = [];
+    let answersData: { questionId: string; value: string }[] = [];
 
     if (listingItems.length > 0) {
       if (!dto.items || dto.items.length === 0) {
@@ -1868,7 +1891,48 @@ export class CompanyListingsService {
       bidItemsData = provided.map((bi) => ({
         itemId: bi.itemId,
         unitPrice: bi.unitPrice,
+        deliveryDate: bi.deliveryDate ? new Date(bi.deliveryDate) : null,
       }));
+
+      // Kalem soruları: cevaplar yalnız FİYATLANAN kalemin sorularına verilebilir;
+      // gönderimde fiyatlanan kalemlerin ZORUNLU soruları cevaplanmış olmalı.
+      const pricedItemIds = new Set(provided.map((bi) => bi.itemId));
+      const questionById = new Map(
+        listingItems.flatMap((it) =>
+          it.questions.map((q) => [q.id, { ...q, itemId: it.id }] as const),
+        ),
+      );
+      const seen = new Set<string>();
+      for (const bi of provided) {
+        for (const a of bi.answers ?? []) {
+          const q = questionById.get(a.questionId);
+          if (!q || q.itemId !== bi.itemId) {
+            throw new BadRequestException("Geçersiz soru cevabı");
+          }
+          if (seen.has(a.questionId)) {
+            throw new BadRequestException(
+              "Aynı soruya birden fazla cevap girilemez",
+            );
+          }
+          seen.add(a.questionId);
+          const value = a.value.trim();
+          if (value) answersData.push({ questionId: a.questionId, value });
+        }
+      }
+      if (!isDraft) {
+        const answered = new Set(answersData.map((a) => a.questionId));
+        for (const it of listingItems) {
+          if (!pricedItemIds.has(it.id)) continue;
+          const missing = it.questions.find(
+            (q) => q.required && !answered.has(q.id),
+          );
+          if (missing) {
+            throw new BadRequestException(
+              `Zorunlu kalem sorusu cevaplanmadı: "${missing.text}"`,
+            );
+          }
+        }
+      }
     } else {
       if (dto.amount == null || dto.amount <= 0) {
         throw new BadRequestException("Geçerli bir tutar girin");
@@ -1992,8 +2056,16 @@ export class CompanyListingsService {
             bidId: b.id,
             itemId: bi.itemId,
             unitPrice: bi.unitPrice,
+            deliveryDate: bi.deliveryDate,
           })),
         });
+        // Kalem sorusu cevaplarını yenile (aynı desen).
+        await tx.listingBidAnswer.deleteMany({ where: { bidId: b.id } });
+        if (answersData.length > 0) {
+          await tx.listingBidAnswer.createMany({
+            data: answersData.map((a) => ({ bidId: b.id, ...a })),
+          });
+        }
       }
       return b;
     });

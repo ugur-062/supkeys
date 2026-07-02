@@ -26,6 +26,15 @@ export enum BidCurrencyDto {
   CNY = "CNY",
 }
 
+export class PlaceBidAnswerDto {
+  @IsString()
+  questionId!: string;
+
+  @IsString()
+  @MaxLength(500)
+  value!: string;
+}
+
 export class PlaceBidItemDto {
   @IsString()
   itemId!: string;
@@ -36,6 +45,19 @@ export class PlaceBidItemDto {
   )
   @Min(0)
   unitPrice!: number;
+
+  // Kalem-özel teslim tarihi (opsiyonel — boşsa genel teslim tarihi geçerli).
+  @IsOptional()
+  @IsISO8601({}, { message: "Geçersiz kalem teslim tarihi" })
+  deliveryDate?: string;
+
+  // Kalemin sorularına cevaplar (gönderimde zorunlu sorular denetlenir).
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PlaceBidAnswerDto)
+  @ArrayMaxSize(20)
+  answers?: PlaceBidAnswerDto[];
 }
 
 export class PlaceBidDto {

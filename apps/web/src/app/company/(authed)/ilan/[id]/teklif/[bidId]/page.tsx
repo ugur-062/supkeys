@@ -185,11 +185,38 @@ export default function BidDetailPage() {
               </TableHead>
               <TableBody>
                 {items.map((it) => {
-                  const up = priceFor(it.id);
+                  const bi = bid.items?.find((x) => x.itemId === it.id);
+                  const up = bi?.unitPrice;
                   const line = up ? Number(up) * Number(it.quantity) : null;
+                  // Kalem sorularının cevapları (satıcı girdiyse).
+                  const itemAnswers = (it.questions ?? [])
+                    .map((q) => ({
+                      q,
+                      value: bid.answers?.find((a) => a.questionId === q.id)
+                        ?.value,
+                    }))
+                    .filter((x) => x.value);
                   return (
                     <TableRow key={it.id}>
-                      <TableCell className="text-zinc-900">{it.name}</TableCell>
+                      <TableCell className="text-zinc-900">
+                        {it.name}
+                        {bi?.deliveryDate ? (
+                          <span className="block text-[11px] text-zinc-500">
+                            Kalem teslimi:{" "}
+                            {new Date(bi.deliveryDate).toLocaleDateString(
+                              "tr-TR",
+                            )}
+                          </span>
+                        ) : null}
+                        {itemAnswers.map(({ q, value }) => (
+                          <span
+                            key={q.id}
+                            className="block text-[11px] text-zinc-500"
+                          >
+                            {q.text}: <strong>{value}</strong>
+                          </span>
+                        ))}
+                      </TableCell>
                       <TableCell className="text-right tabular-nums text-zinc-600">
                         {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
                       </TableCell>
