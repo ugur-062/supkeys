@@ -719,15 +719,26 @@ model ListingBid {
 }
 
 // Teklif belgesi — tedarikçinin teklifine eklediği dosya (R2 key).
+// Teklif belgesi bölümü — tedarikçi/alıcı yüklerken kategoriye ayırır.
+enum ListingBidDocKind {
+  TEKLIF_MEKTUBU // teklif mektubu / kapak
+  TEKNIK_DOKUMAN // teknik doküman / şartname yanıtı
+  REFERANS // referans / iş bitirme
+  KATALOG // katalog / ürün broşürü
+  TEMINAT // teminat mektubu (peşin ödemede)
+  DIGER // diğer
+}
+
 model ListingBidDocument {
-  id                  String     @id @default(cuid())
+  id                  String            @id @default(cuid())
   bidId               String
-  bid                 ListingBid @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  bid                 ListingBid        @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  kind                ListingBidDocKind @default(DIGER)
   key                 String // R2 object key
   fileName            String
   mimeType            String
   uploadedByCompanyId String
-  createdAt           DateTime   @default(now())
+  createdAt           DateTime          @default(now())
 
   @@index([bidId])
   @@map("listing_bid_documents")
@@ -747,16 +758,27 @@ model ListingRoundSnapshot {
   @@map("listing_round_snapshots")
 }
 
+// İhale dosyası bölümü — sahip yüklerken kategoriye ayırır.
+enum ListingDocKind {
+  IDARI_SARTNAME // idari şartname
+  TEKNIK_SARTNAME // teknik şartname
+  SOZLESME // sözleşme taslağı
+  EK // ek / çizim
+  NUMUNE // numune / görsel
+  DIGER // diğer
+}
+
 // İhale dosyası — sahip yükler (şartname/teknik resim); görünür firmalar indirir.
 model ListingDocument {
-  id                  String   @id @default(cuid())
+  id                  String         @id @default(cuid())
   listingId           String
-  listing             Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listing             Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  kind                ListingDocKind @default(DIGER)
   key                 String // R2 object key
   fileName            String
   mimeType            String
   uploadedByCompanyId String
-  createdAt           DateTime @default(now())
+  createdAt           DateTime       @default(now())
 
   @@index([listingId])
   @@map("listing_documents")

@@ -14,7 +14,11 @@ import {
 import { Text } from "@/components/catalyst/text";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
-import { useBidDocuments } from "@/hooks/use-bid-documents";
+import {
+  BID_DOC_KIND_LABELS,
+  BID_DOC_KINDS,
+  useBidDocuments,
+} from "@/hooks/use-bid-documents";
 import {
   useAwardListing,
   useEliminateBid,
@@ -265,18 +269,29 @@ export default function BidDetailPage() {
         {docs.length === 0 ? (
           <Text className="text-sm text-zinc-500">Belge eklenmemiş.</Text>
         ) : (
-          <div className="space-y-1">
-            {docs.map((d) => (
-              <a
-                key={d.id}
-                href={d.url}
-                target="_blank"
-                rel="noreferrer"
-                className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-blue-600 hover:bg-zinc-50"
-              >
-                <span aria-hidden="true">📎</span> {d.fileName}
-              </a>
-            ))}
+          <div className="space-y-4">
+            {BID_DOC_KINDS.map((k) => {
+              const group = docs.filter((d) => d.kind === k);
+              if (group.length === 0) return null;
+              return (
+                <div key={k} className="space-y-1">
+                  <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+                    {BID_DOC_KIND_LABELS[k]}
+                  </p>
+                  {group.map((d) => (
+                    <a
+                      key={d.id}
+                      href={d.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-blue-600 hover:bg-zinc-50"
+                    >
+                      <span aria-hidden="true">📎</span> {d.fileName}
+                    </a>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </section>

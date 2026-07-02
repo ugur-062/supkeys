@@ -7,12 +7,13 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
-import { IsInt, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
+import { IsEnum, IsInt, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
+import { ListingBidDocKind } from "@supkeys/db";
 import { CompanyBidDocumentsService } from "./company-bid-documents.service";
 
 class UploadUrlDto {
@@ -43,6 +44,10 @@ class RegisterDto {
   @IsString()
   @MaxLength(120)
   mimeType!: string;
+
+  @IsOptional()
+  @IsEnum(ListingBidDocKind)
+  kind?: ListingBidDocKind;
 }
 
 @Controller("company/listings/:id/bid-documents")

@@ -40,7 +40,13 @@ export class CompanyListingDocumentsController {
   register(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
-    @Body() body: { key: string; fileName: string; mimeType: string },
+    @Body()
+    body: {
+      key: string;
+      fileName: string;
+      mimeType: string;
+      kind?: import("@supkeys/db").ListingDocKind;
+    },
   ) {
     return this.service.register(user, id, body);
   }

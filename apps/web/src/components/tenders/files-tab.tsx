@@ -1,24 +1,21 @@
 "use client";
 
+import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/catalyst/table";
 import { Text } from "@/components/catalyst/text";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import {
+  LISTING_DOC_KINDS,
+  LISTING_DOC_KIND_LABELS,
   useDeleteListingDoc,
   useListingDocuments,
   useUploadListingDoc,
+  type ListingDocKind,
 } from "@/hooks/use-listing-documents";
 import { formatDate } from "@/lib/tenders/date";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { FileText, Paperclip, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export function FilesTab({
@@ -36,6 +33,8 @@ export function FilesTab({
   const docs = useListingDocuments(listingId);
   const upload = useUploadListingDoc(listingId);
   const del = useDeleteListingDoc(listingId);
+  // Yükleme öncesi seçilen bölüm — dosya bu kategoriye kaydedilir.
+  const [kind, setKind] = useState<ListingDocKind>("IDARI_SARTNAME");
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -47,7 +46,7 @@ export function FilesTab({
       return;
     }
     try {
-      await upload.mutateAsync(file);
+      await upload.mutateAsync({ file, kind });
       toast.success("Dosya yüklendi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Yüklenemedi"));
@@ -73,6 +72,12 @@ export function FilesTab({
   };
 
   const rows = docs.data ?? [];
+  // Bölümlere göre grupla; yalnızca dosyası olan bölümler gösterilir.
+  const grouped = LISTING_DOC_KINDS.map((k) => ({
+    kind: k,
+    label: LISTING_DOC_KIND_LABELS[k],
+    items: rows.filter((d) => d.kind === k),
+  })).filter((g) => g.items.length > 0);
 
   return (
     <section className="rounded-2xl border border-zinc-950/5 bg-white p-5 md:p-6">
@@ -84,17 +89,35 @@ export function FilesTab({
           <h3 className="font-semibold text-zinc-900">İhale Dosyaları</h3>
         </div>
         {isOwner && canEdit ? (
-          <Button as="label" outline>
-            <Paperclip data-slot="icon" />
-            {upload.isPending ? "Yükleniyor…" : "Dosya Ekle"}
-            <input
-              type="file"
-              className="hidden"
-              accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
-              onChange={handleUpload}
-              disabled={upload.isPending}
-            />
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="sr-only" htmlFor="listing-doc-kind">
+              Dosya bölümü
+            </label>
+            <select
+              id="listing-doc-kind"
+              value={kind}
+              onChange={(e) => setKind(e.target.value as ListingDocKind)}
+              className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+            >
+              {LISTING_DOC_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {LISTING_DOC_KIND_LABELS[k]}
+                </option>
+              ))}
+            </select>
+            <Button as="label" outline>
+              <Paperclip data-slot="icon" />
+              {upload.isPending ? "Yükleniyor…" : "Dosya Ekle"}
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
+                aria-label={`${LISTING_DOC_KIND_LABELS[kind]} bölümüne dosya ekle`}
+                onChange={handleUpload}
+                disabled={upload.isPending}
+              />
+            </Button>
+          </div>
         ) : isOwner ? (
           <Text className="text-xs text-zinc-400">
             Dosyalar Düzenle ekranından yönetilir
@@ -118,51 +141,56 @@ export function FilesTab({
           </div>
           <p className="mt-3 text-sm text-zinc-500">
             {isOwner && canEdit
-              ? "Henüz dosya eklenmemiş. Şartname, teknik resim vb. ekleyebilirsin."
+              ? "Henüz dosya eklenmemiş. Bölüm seçip Şartname, teknik resim vb. ekleyebilirsin."
               : "Bu ihaleye dosya eklenmemiş."}
           </p>
         </div>
       ) : (
-        <Table dense>
-          <TableHead>
-            <TableRow>
-              <TableHeader>Dosya</TableHeader>
-              <TableHeader>Eklenme</TableHeader>
-              <TableHeader className="text-right">İşlem</TableHeader>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map((d) => (
-              <TableRow key={d.id}>
-                <TableCell>
-                  <a
-                    href={d.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-medium text-blue-600 hover:underline"
+        <div className="space-y-5">
+          {grouped.map((g) => (
+            <div key={g.kind}>
+              <div className="mb-2 flex items-center gap-2">
+                <h4 className="text-sm font-semibold text-zinc-800">
+                  {g.label}
+                </h4>
+                <Badge color="zinc">{g.items.length}</Badge>
+              </div>
+              <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-100">
+                {g.items.map((d) => (
+                  <li
+                    key={d.id}
+                    className="flex items-center justify-between gap-3 px-3 py-2.5"
                   >
-                    {d.fileName}
-                  </a>
-                </TableCell>
-                <TableCell className="text-zinc-500">
-                  {formatDate(d.createdAt)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {isOwner && canEdit && d.mine ? (
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(d.id)}
-                      className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-red-600"
+                    <a
+                      href={d.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="min-w-0 truncate text-sm font-medium text-blue-600 hover:underline"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Sil
-                    </button>
-                  ) : null}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+                      {d.fileName}
+                    </a>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span className="text-xs text-zinc-400">
+                        {formatDate(d.createdAt)}
+                      </span>
+                      {isOwner && canEdit && d.mine ? (
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(d.id)}
+                          aria-label={`${d.fileName} dosyasını sil`}
+                          className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-red-600"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          Sil
+                        </button>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
       )}
     </section>
   );

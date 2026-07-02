@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import * as crypto from "node:crypto";
+import { ListingDocKind } from "@supkeys/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { StorageService } from "../storage/storage.service";
@@ -150,7 +151,12 @@ export class CompanyListingDocumentsService {
   async register(
     user: AuthenticatedCompanyUser,
     listingId: string,
-    input: { key: string; fileName: string; mimeType: string },
+    input: {
+      key: string;
+      fileName: string;
+      mimeType: string;
+      kind?: ListingDocKind;
+    },
   ) {
     await this.requireOwner(user, listingId);
     await this.assertEditable(listingId);
@@ -169,6 +175,7 @@ export class CompanyListingDocumentsService {
     const doc = await this.prisma.listingDocument.create({
       data: {
         listingId,
+        kind: input.kind ?? "DIGER",
         key: input.key,
         fileName: input.fileName.slice(0, 200),
         mimeType: input.mimeType,
@@ -204,6 +211,7 @@ export class CompanyListingDocumentsService {
     return Promise.all(
       docs.map(async (d) => ({
         id: d.id,
+        kind: d.kind,
         fileName: d.fileName,
         mimeType: d.mimeType,
         createdAt: d.createdAt,

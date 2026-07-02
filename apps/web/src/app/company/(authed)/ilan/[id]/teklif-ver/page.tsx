@@ -15,9 +15,12 @@ import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
 import {
+  BID_DOC_KINDS,
+  BID_DOC_KIND_LABELS,
   useBidDocuments,
   useDeleteBidDoc,
   useUploadBidDoc,
+  type BidDocKind,
 } from "@/hooks/use-bid-documents";
 import {
   useListingDetail,
@@ -136,7 +139,11 @@ export default function TeklifVerPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [seeded, setSeeded] = useState(false);
   // Henüz teklif kaydı yokken seçilen dosyalar — kayıt sonrası yüklenir.
-  const [stagedFiles, setStagedFiles] = useState<File[]>([]);
+  const [stagedFiles, setStagedFiles] = useState<
+    { file: File; kind: BidDocKind }[]
+  >([]);
+  // Seçili teklif belgesi bölümü — yeni dosyalar bu kategoriye eklenir.
+  const [docKind, setDocKind] = useState<BidDocKind>("TEKLIF_MEKTUBU");
 
   // İlan değişirse (client-side geçiş) önceki formun state'i taşınmasın.
   useEffect(() => {
@@ -334,14 +341,14 @@ export default function TeklifVerPage() {
    */
   const uploadStaged = async (): Promise<{ ok: boolean }> => {
     if (stagedFiles.length === 0) return { ok: true };
-    const failed: File[] = [];
+    const failed: { file: File; kind: BidDocKind }[] = [];
     let lastError: unknown = null;
-    for (const f of stagedFiles) {
+    for (const sf of stagedFiles) {
       try {
-        await uploadDoc.mutateAsync(f);
+        await uploadDoc.mutateAsync(sf);
       } catch (err) {
         lastError = err;
-        failed.push(f);
+        failed.push(sf);
       }
     }
     setStagedFiles(failed);
@@ -737,83 +744,135 @@ export default function TeklifVerPage() {
             </div>
           </section>
 
-          {/* Teklif dosyaları — formda seçilir, teklif kaydıyla birlikte yüklenir */}
+          {/* Teklif dosyaları — bölümlere ayrılır; teklif kaydıyla yüklenir */}
           <section className="space-y-3">
             <Subheading>
               Teklif Dosyaları{l.requireBidDocument ? " (zorunlu)" : ""}
             </Subheading>
-            <div className="space-y-2 rounded-xl border border-zinc-950/10 bg-white p-4">
+            <div className="space-y-3 rounded-xl border border-zinc-950/10 bg-white p-4">
               {l.requireBidDocument ? (
                 <p className="text-xs text-amber-700">
                   Bu ihalede teklif dosyası zorunlu — en az bir dosya ekleyin.
                 </p>
               ) : null}
-              {myDocs.map((d) => (
-                <div
-                  key={d.id}
-                  className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2.5 py-1.5 text-xs"
+
+              {/* Bölüm seçici + dosya ekle */}
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="sr-only" htmlFor="bid-doc-kind">
+                  Belge bölümü
+                </label>
+                <select
+                  id="bid-doc-kind"
+                  value={docKind}
+                  onChange={(e) => setDocKind(e.target.value as BidDocKind)}
+                  className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                 >
-                  <a
-                    href={d.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="truncate text-blue-600 hover:underline"
-                  >
-                    {d.fileName}
-                  </a>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                        if (!confirm(`"${d.fileName}" silinsin mi?`)) return;
-                        try {
-                          await deleteDoc.mutateAsync(d.id);
-                          toast.success("Belge silindi");
-                        } catch (err) {
-                          toast.error(extractErrorMessage(err, "Belge silinemedi"));
-                        }
-                      }}
-                    disabled={deleteDoc.isPending}
-                    className="shrink-0 text-zinc-400 hover:text-red-600"
-                  >
-                    Sil
-                  </button>
-                </div>
-              ))}
-              {stagedFiles.map((f, i) => (
-                <div
-                  key={`${f.name}-${i}`}
-                  className="flex items-center justify-between gap-2 rounded-md bg-blue-50/50 px-2.5 py-1.5 text-xs"
-                >
-                  <span className="truncate text-zinc-700">
-                    {f.name}{" "}
-                    <span className="text-zinc-400">(kayıtla yüklenecek)</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setStagedFiles((s) => s.filter((_, j) => j !== i))
-                    }
-                    className="shrink-0 text-zinc-400 hover:text-red-600"
-                  >
-                    Kaldır
-                  </button>
-                </div>
-              ))}
-              <label className="inline-block cursor-pointer text-xs font-medium text-blue-600 hover:underline">
-                + Dosya Seç
-                <input
-                  type="file"
-                  className="hidden"
-                  multiple
-                  accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files ?? []);
-                    e.target.value = "";
-                    if (files.length)
-                      setStagedFiles((s) => [...s, ...files].slice(0, 10));
-                  }}
-                />
-              </label>
+                  {BID_DOC_KINDS.map((k) => (
+                    <option key={k} value={k}>
+                      {BID_DOC_KIND_LABELS[k]}
+                    </option>
+                  ))}
+                </select>
+                <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">
+                  + Dosya Seç
+                  <input
+                    type="file"
+                    className="hidden"
+                    multiple
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
+                    aria-label={`${BID_DOC_KIND_LABELS[docKind]} bölümüne dosya seç`}
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files ?? []);
+                      e.target.value = "";
+                      const MAX = 50 * 1024 * 1024;
+                      const tooBig = files.filter((f) => f.size > MAX);
+                      if (tooBig.length) {
+                        toast.error(
+                          `${tooBig.map((f) => f.name).join(", ")} 50MB sınırını aşıyor`,
+                        );
+                      }
+                      const ok = files
+                        .filter((f) => f.size <= MAX)
+                        .map((file) => ({ file, kind: docKind }));
+                      if (ok.length)
+                        setStagedFiles((s) => [...s, ...ok].slice(0, 10));
+                    }}
+                  />
+                </label>
+              </div>
+
+              {/* Yüklü + bekleyen dosyalar, bölüme göre gruplu */}
+              {BID_DOC_KINDS.map((k) => {
+                const saved = myDocs.filter((d) => d.kind === k);
+                const staged = stagedFiles
+                  .map((sf, i) => ({ sf, i }))
+                  .filter((x) => x.sf.kind === k);
+                if (saved.length === 0 && staged.length === 0) return null;
+                return (
+                  <div key={k} className="space-y-1.5">
+                    <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
+                      {BID_DOC_KIND_LABELS[k]}
+                    </p>
+                    {saved.map((d) => (
+                      <div
+                        key={d.id}
+                        className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2.5 py-1.5 text-xs"
+                      >
+                        <a
+                          href={d.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="truncate text-blue-600 hover:underline"
+                        >
+                          {d.fileName}
+                        </a>
+                        <button
+                          type="button"
+                          aria-label={`${d.fileName} belgesini sil`}
+                          onClick={async () => {
+                            if (!confirm(`"${d.fileName}" silinsin mi?`)) return;
+                            try {
+                              await deleteDoc.mutateAsync(d.id);
+                              toast.success("Belge silindi");
+                            } catch (err) {
+                              toast.error(
+                                extractErrorMessage(err, "Belge silinemedi"),
+                              );
+                            }
+                          }}
+                          disabled={deleteDoc.isPending}
+                          className="shrink-0 text-zinc-400 hover:text-red-600"
+                        >
+                          Sil
+                        </button>
+                      </div>
+                    ))}
+                    {staged.map(({ sf, i }) => (
+                      <div
+                        key={`${sf.file.name}-${i}`}
+                        className="flex items-center justify-between gap-2 rounded-md bg-blue-50/50 px-2.5 py-1.5 text-xs"
+                      >
+                        <span className="truncate text-zinc-700">
+                          {sf.file.name}{" "}
+                          <span className="text-zinc-400">
+                            (kayıtla yüklenecek)
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`${sf.file.name} dosyasını kaldır`}
+                          onClick={() =>
+                            setStagedFiles((s) => s.filter((_, j) => j !== i))
+                          }
+                          className="shrink-0 text-zinc-400 hover:text-red-600"
+                        >
+                          Kaldır
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
             </div>
           </section>
         </div>

@@ -31,7 +31,10 @@ import {
 } from "@/hooks/use-company-listings";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { useCancelApproval } from "@/hooks/use-company-approvals";
-import { useBidDocuments } from "@/hooks/use-bid-documents";
+import {
+  BID_DOC_KIND_LABELS,
+  useBidDocuments,
+} from "@/hooks/use-bid-documents";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
@@ -798,12 +801,13 @@ export default function ListingDetailPage() {
                       href={d.url}
                       target="_blank"
                       rel="noreferrer"
-                      title={d.fileName}
+                      title={`${BID_DOC_KIND_LABELS[d.kind]}: ${d.fileName}`}
                       className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-blue-600 hover:underline"
                     >
                       <span aria-hidden="true">📎</span>{" "}
-                      {d.fileName.length > 18
-                        ? `${d.fileName.slice(0, 16)}…`
+                      {BID_DOC_KIND_LABELS[d.kind]} —{" "}
+                      {d.fileName.length > 16
+                        ? `${d.fileName.slice(0, 14)}…`
                         : d.fileName}
                     </a>
                   ))}

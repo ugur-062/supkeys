@@ -3,9 +3,29 @@
 import { companyApi } from "@/lib/company-auth/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+export type BidDocKind =
+  | "TEKLIF_MEKTUBU"
+  | "TEKNIK_DOKUMAN"
+  | "REFERANS"
+  | "KATALOG"
+  | "TEMINAT"
+  | "DIGER";
+
+/** Teklif belgesi bölümü etiketleri (UI). */
+export const BID_DOC_KIND_LABELS: Record<BidDocKind, string> = {
+  TEKLIF_MEKTUBU: "Teklif Mektubu",
+  TEKNIK_DOKUMAN: "Teknik Doküman",
+  REFERANS: "Referans / İş Bitirme",
+  KATALOG: "Katalog / Broşür",
+  TEMINAT: "Teminat Mektubu",
+  DIGER: "Diğer",
+};
+export const BID_DOC_KINDS = Object.keys(BID_DOC_KIND_LABELS) as BidDocKind[];
+
 export interface BidDocument {
   id: string;
   bidId: string;
+  kind: BidDocKind;
   bidderName: string;
   fileName: string;
   mimeType: string;
@@ -29,7 +49,7 @@ export function useBidDocuments(listingId: string) {
 export function useUploadBidDoc(listingId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, kind }: { file: File; kind: BidDocKind }) => {
       const { data } = await companyApi.post<{ url: string; key: string }>(
         `/company/listings/${listingId}/bid-documents/upload-url`,
         { fileName: file.name, mimeType: file.type, fileSize: file.size },
@@ -44,6 +64,7 @@ export function useUploadBidDoc(listingId: string) {
         key: data.key,
         fileName: file.name,
         mimeType: file.type,
+        kind,
       });
     },
     onSuccess: () =>

@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import * as crypto from "node:crypto";
+import { ListingBidDocKind } from "@supkeys/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { StorageService } from "../storage/storage.service";
@@ -85,7 +86,12 @@ export class CompanyBidDocumentsService {
   async register(
     user: AuthenticatedCompanyUser,
     listingId: string,
-    input: { key: string; fileName: string; mimeType: string },
+    input: {
+      key: string;
+      fileName: string;
+      mimeType: string;
+      kind?: ListingBidDocKind;
+    },
   ) {
     // GÜVENLİK (F4 benzeri): key yalnız BU ilanın BU firmaya ait klasörüne
     // işaret edebilir — başka teklifin/rastgele bir nesnenin key'i kaydedilemez.
@@ -102,6 +108,7 @@ export class CompanyBidDocumentsService {
     const doc = await this.prisma.listingBidDocument.create({
       data: {
         bidId: bid.id,
+        kind: input.kind ?? "DIGER",
         key: input.key,
         fileName: input.fileName.slice(0, 200),
         mimeType: input.mimeType,
@@ -131,6 +138,7 @@ export class CompanyBidDocumentsService {
       docs.map(async (d) => ({
         id: d.id,
         bidId: d.bidId,
+        kind: d.kind,
         bidderName: d.bid.bidderCompany.name,
         fileName: d.fileName,
         mimeType: d.mimeType,

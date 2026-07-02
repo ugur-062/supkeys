@@ -3,8 +3,30 @@
 import { companyApi } from "@/lib/company-auth/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+export type ListingDocKind =
+  | "IDARI_SARTNAME"
+  | "TEKNIK_SARTNAME"
+  | "SOZLESME"
+  | "EK"
+  | "NUMUNE"
+  | "DIGER";
+
+/** İhale dosyası bölümü etiketleri (UI). */
+export const LISTING_DOC_KIND_LABELS: Record<ListingDocKind, string> = {
+  IDARI_SARTNAME: "İdari Şartname",
+  TEKNIK_SARTNAME: "Teknik Şartname",
+  SOZLESME: "Sözleşme Taslağı",
+  EK: "Ek / Çizim",
+  NUMUNE: "Numune / Görsel",
+  DIGER: "Diğer",
+};
+export const LISTING_DOC_KINDS = Object.keys(
+  LISTING_DOC_KIND_LABELS,
+) as ListingDocKind[];
+
 export interface ListingDocument {
   id: string;
+  kind: ListingDocKind;
   fileName: string;
   mimeType: string;
   createdAt: string;
@@ -27,7 +49,7 @@ export function useListingDocuments(listingId: string) {
 export function useUploadListingDoc(listingId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, kind }: { file: File; kind: ListingDocKind }) => {
       const { data } = await companyApi.post<{ url: string; key: string }>(
         `/company/listings/${listingId}/documents/upload-url`,
         { fileName: file.name, mimeType: file.type, fileSize: file.size },
@@ -42,6 +64,7 @@ export function useUploadListingDoc(listingId: string) {
         key: data.key,
         fileName: file.name,
         mimeType: file.type,
+        kind,
       });
     },
     onSuccess: () =>

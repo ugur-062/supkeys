@@ -29,6 +29,22 @@ vi.mock("@/hooks/use-bid-documents", () => ({
   useBidDocuments: () => ({ data: [] }),
   useUploadBidDoc: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useDeleteBidDoc: () => ({ mutate: vi.fn(), isPending: false }),
+  BID_DOC_KINDS: [
+    "TEKLIF_MEKTUBU",
+    "TEKNIK_DOKUMAN",
+    "REFERANS",
+    "KATALOG",
+    "TEMINAT",
+    "DIGER",
+  ],
+  BID_DOC_KIND_LABELS: {
+    TEKLIF_MEKTUBU: "Teklif Mektubu",
+    TEKNIK_DOKUMAN: "Teknik Doküman",
+    REFERANS: "Referans / İş Bitirme",
+    KATALOG: "Katalog / Broşür",
+    TEMINAT: "Teminat Mektubu",
+    DIGER: "Diğer",
+  },
 }));
 
 import TeklifVerPage from "../page";
