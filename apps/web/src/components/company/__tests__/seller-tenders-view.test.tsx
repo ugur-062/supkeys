@@ -40,7 +40,7 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
     closesAt: new Date(Date.now() + 5 * 86_400_000).toISOString(),
     createdAt: new Date().toISOString(),
     itemCount: 3,
-    owner: { name: "Alıcı A.Ş." },
+    owner: { id: "buyer-1", name: "Alıcı A.Ş." },
     masked: false,
     canBid: true,
     invited: true,
@@ -105,15 +105,15 @@ describe("SellerTendersView", () => {
   it("müşteri filtresi veriden türetilir ve uygulanır", async () => {
     const user = userEvent.setup();
     h.rows = [
-      row({ owner: { name: "Firma X" }, title: "X'in ihalesi" }),
-      row({ owner: { name: "Firma Y" }, title: "Y'nin ihalesi" }),
+      row({ owner: { id: "cx", name: "Firma X" }, title: "X'in ihalesi" }),
+      row({ owner: { id: "cy", name: "Firma Y" }, title: "Y'nin ihalesi" }),
     ];
     render(<SellerTendersView />);
 
     const musteri = screen.getByLabelText("Müşteri");
     await user.selectOptions(
       within(musteri.parentElement!).getByRole("combobox"),
-      "Firma X",
+      "cx",
     );
     expect(screen.getByText("X'in ihalesi")).toBeInTheDocument();
     expect(screen.queryByText("Y'nin ihalesi")).not.toBeInTheDocument();

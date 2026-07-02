@@ -16,7 +16,7 @@ export interface SellerTenderRow {
   closesAt: string | null;
   createdAt: string;
   itemCount: number;
-  owner: { name: string } | null;
+  owner: { id: string; name: string } | null;
   masked: boolean;
   canBid: boolean;
   invited: boolean;

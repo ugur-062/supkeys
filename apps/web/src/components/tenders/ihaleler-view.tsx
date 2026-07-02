@@ -191,6 +191,8 @@ export function IhalelerView({
     range !== DEFAULT_RANGE ||
     scope !== "all" ||
     Boolean(createdById);
+  // Backend en fazla 500 kayıt döndürür (listTenders take).
+  const atCap = all.length >= 500;
 
   const reset = <T,>(setter: (v: T) => void) => (v: T) => {
     setPage(1);
@@ -221,6 +223,13 @@ export function IhalelerView({
           </Link>
         }
       />
+
+      {atCap ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+          En fazla 500 ihale gösteriliyor — daha fazlası varsa arama ve
+          filtrelerle daraltın.
+        </div>
+      ) : null}
 
       {/* Arama + filtreler */}
       <div className="space-y-3">

@@ -43,6 +43,7 @@ export function OwnerTenderCard({
   return (
     <Link
       href={`/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`}
+      aria-label={`${t.tenderNumber ?? ""} ${t.title}`.trim()}
       className="group block"
     >
       <div className="flex h-full flex-col rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-sm transition-all hover:border-zinc-300 hover:shadow-md">

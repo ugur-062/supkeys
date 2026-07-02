@@ -79,6 +79,7 @@ export function SellerTenderCard({
   return (
     <Link
       href={`/company/ilan/${tender.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`}
+      aria-label={`${tender.number ?? ""} ${tender.title}`.trim()}
       className="group block"
     >
       <div className="flex h-full flex-col rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-sm transition-all hover:border-zinc-300 hover:shadow-md">
@@ -221,16 +222,19 @@ export function SellerTendersView({
 
   // Müşteri + kategori seçenekleri veriden türetilir (sayaçlı).
   const buyerOptions = useMemo(() => {
-    const counts = new Map<string, number>();
+    // Aynı adlı iki firma karışmasın diye ID bazlı gruplanır.
+    const counts = new Map<string, { name: string; n: number }>();
     for (const t of all) {
       if (!t.owner) continue;
-      counts.set(t.owner.name, (counts.get(t.owner.name) ?? 0) + 1);
+      const e = counts.get(t.owner.id) ?? { name: t.owner.name, n: 0 };
+      e.n += 1;
+      counts.set(t.owner.id, e);
     }
     return [
       { value: "all", label: isSatis ? "Tüm Satıcılar" : "Tüm Müşteriler" },
       ...[...counts.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .map(([name, n]) => ({ value: name, label: `${name} (${n})` })),
+        .sort((a, b) => b[1].n - a[1].n)
+        .map(([id, e]) => ({ value: id, label: `${e.name} (${e.n})` })),
     ];
   }, [all, isSatis]);
 
@@ -243,7 +247,7 @@ export function SellerTendersView({
       if (tab === "past" && !isPast(t.status)) return false;
       if (rangeMs !== null && now - new Date(t.createdAt).getTime() > rangeMs)
         return false;
-      if (buyer !== "all" && t.owner?.name !== buyer) return false;
+      if (buyer !== "all" && t.owner?.id !== buyer) return false;
       if (search) {
         const q = search.toLocaleLowerCase("tr-TR");
         const hay = `${t.title} ${t.number ?? ""} ${t.owner?.name ?? ""}`
@@ -279,6 +283,8 @@ export function SellerTendersView({
     safePage * PAGE_SIZE,
   );
   const isFiltered = search !== "" || buyer !== "all" || range !== "all";
+  // Backend en fazla 300 kayıt döndürür; sınıra ulaşıldıysa kullanıcı bilsin.
+  const atCap = all.length >= 300;
 
   function withReset<T>(setter: (v: T) => void) {
     return (v: T) => {
@@ -297,6 +303,13 @@ export function SellerTendersView({
             : "Bağlı olduğun alıcı firmaların ve herkese açık ihalelerin listesi — teklif ver, sonuçları takip et."
         }
       />
+
+      {atCap ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
+          En fazla 300 ihale gösteriliyor — daha fazlası varsa arama ve
+          filtrelerle daraltın.
+        </div>
+      ) : null}
 
       {/* Arama + filtreler — İhalelerim düzeni: üstte tam-genişlik arama +
           sıralama, altta filtre pill'leri + sonuç sayacı. */}

@@ -1275,7 +1275,7 @@ export class CompanyListingsService {
         description: masked ? null : l.description,
         status: l.status,
         createdAt: l.createdAt,
-        owner: masked ? null : { name: l.company.name },
+        owner: masked ? null : { id: l.companyId, name: l.company.name },
         masked,
         canBid,
       };

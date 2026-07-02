@@ -384,7 +384,11 @@ export function useListingDetail(id: string) {
     refetchInterval: (query) => {
       const d = query.state.data;
       if (!d || d.status !== "OPEN") return false;
-      return d.english?.isEnglishAuction ? 4000 : 10_000;
+      if (!d.english?.isEnglishAuction) return 10_000;
+      // Açık artırma/eksiltme: kapanışa son 2 dk'da 1.5sn (snipe/oto-uzatma
+      // hassas), aksi 4sn.
+      const msLeft = d.closesAt ? new Date(d.closesAt).getTime() - Date.now() : null;
+      return msLeft != null && msLeft > 0 && msLeft < 120_000 ? 1500 : 4000;
     },
     refetchOnWindowFocus: true,
   });
