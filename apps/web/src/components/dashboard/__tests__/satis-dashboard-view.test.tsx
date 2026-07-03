@@ -64,7 +64,7 @@ describe("SatisDashboardView", () => {
     h.stats = fullStats();
     render(<SatisDashboardView />);
 
-    expect(screen.getByText(/Hoş geldin, Ada/)).toBeInTheDocument();
+    expect(screen.getByText("Satış paneli")).toBeInTheDocument();
     expect(screen.getByText("Aktif Davetler")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
     expect(screen.getByText("Kazanılan İhale")).toBeInTheDocument();

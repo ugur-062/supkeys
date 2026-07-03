@@ -29,10 +29,13 @@ export class CompanyMessagesController {
     return this.service.listThreads(user, portal);
   }
 
-  /** Nav rozeti — iki portal toplamı okunmamış. */
+  /** Nav rozeti — AKTİF portalın okunmamış mesaj sayısı (portal verilmezse toplam). */
   @Get("unread-count")
-  unread(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    return this.service.unreadCount(user);
+  unread(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query("portal") portal?: string,
+  ) {
+    return this.service.unreadCount(user, portal);
   }
 
   /** Bir firmayla bu portaldaki konuşma. */

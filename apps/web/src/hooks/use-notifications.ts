@@ -4,9 +4,12 @@ import { companyApi } from "@/lib/company-auth/api";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+export type NotificationPortal = "satinalma" | "satis";
+
 export interface AppNotification {
   id: string;
   type: string;
+  portal: NotificationPortal | null;
   title: string;
   body: string;
   ctaUrl: string | null;
@@ -18,13 +21,15 @@ export interface AppNotification {
 
 const KEY = ["company-notifications"] as const;
 
-/** Bildirim listesi (en yeni önce). */
-export function useNotifications(enabled = true) {
+/** Bildirim listesi — AKTİF portal (+ ortak). */
+export function useNotifications(portal?: NotificationPortal, enabled = true) {
   const token = useCompanyAuthStore((s) => s.token);
   return useQuery({
-    queryKey: [...KEY, "list"],
+    queryKey: [...KEY, "list", portal ?? "all"],
     queryFn: async () => {
-      const { data } = await companyApi.get<AppNotification[]>("/notifications");
+      const { data } = await companyApi.get<AppNotification[]>("/notifications", {
+        params: portal ? { portal } : undefined,
+      });
       return data;
     },
     enabled: !!token && enabled,
@@ -32,14 +37,15 @@ export function useNotifications(enabled = true) {
   });
 }
 
-/** Okunmamış sayısı — zil rozeti. Periyodik yenilenir. */
-export function useUnreadCount() {
+/** Okunmamış sayısı — zil rozeti (aktif portal + ortak). Periyodik yenilenir. */
+export function useUnreadCount(portal?: NotificationPortal) {
   const token = useCompanyAuthStore((s) => s.token);
   return useQuery({
-    queryKey: [...KEY, "unread"],
+    queryKey: [...KEY, "unread", portal ?? "all"],
     queryFn: async () => {
       const { data } = await companyApi.get<{ count: number }>(
         "/notifications/unread-count",
+        { params: portal ? { portal } : undefined },
       );
       return data.count;
     },
@@ -63,12 +69,15 @@ export function useMarkNotificationsRead() {
   });
 }
 
+/** Tümünü okundu — verilen portal (+ ortak) kapsamında. */
 export function useMarkAllNotificationsRead() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (portal?: NotificationPortal) => {
       const { data } = await companyApi.post<{ updated: number }>(
         "/notifications/read-all",
+        undefined,
+        { params: portal ? { portal } : undefined },
       );
       return data;
     },

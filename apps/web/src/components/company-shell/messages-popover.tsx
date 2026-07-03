@@ -108,7 +108,7 @@ export function MessagesPopover({
   portal: PortalKey;
   basePath: string;
 }) {
-  const { data: unreadData } = useUnreadMessages();
+  const { data: unreadData } = useUnreadMessages(portal);
   const unread = unreadData?.count ?? 0;
 
   return (

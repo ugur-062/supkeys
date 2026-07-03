@@ -36,7 +36,11 @@ import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/com
 import { ConfigService } from "@nestjs/config";
 import { ExchangeRateService } from "../../currency/services/exchange-rate.service";
 import { EmailService } from "../../email/email.service";
-import { NotificationService } from "../../notifications/notification.service";
+import {
+  NotificationService,
+  rolesForPortal,
+  type NotificationPortal,
+} from "../../notifications/notification.service";
 import { RealtimeService } from "../../realtime/realtime.service";
 import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-category-match.helper";
 import { isNotificationEnabled } from "../../../common/notifications/notification-prefs";
@@ -76,8 +80,15 @@ export class CompanyListingsService {
     return this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
   }
 
-  /** Firmanın bildirim alıcısı — fatura e-postası veya ilk aktif kullanıcı. */
-  private async companyRecipient(companyId: string): Promise<Recipient | null> {
+  /**
+   * Firmanın bildirim alıcısı — fatura e-postası veya PORTALA ERİŞİMLİ ilk aktif
+   * kullanıcı. `portal` verilirse (satis/satinalma) kullanıcı fallback'i o
+   * portalın rolüne göre süzülür: satış maili saf satın almacıya düşmez.
+   */
+  private async companyRecipient(
+    companyId: string,
+    portal?: NotificationPortal,
+  ): Promise<Recipient | null> {
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
       select: { name: true, billingEmail: true },
@@ -88,7 +99,12 @@ export class CompanyListingsService {
       return { email: company.billingEmail, name: company.name, prefs: null };
     }
     const user = await this.prisma.companyUser.findFirst({
-      where: { companyId, isActive: true, deletedAt: null },
+      where: {
+        companyId,
+        isActive: true,
+        deletedAt: null,
+        ...(portal ? { roles: { hasSome: rolesForPortal(portal) } } : {}),
+      },
       orderBy: { createdAt: "asc" },
       select: {
         email: true,
@@ -108,9 +124,11 @@ export class CompanyListingsService {
   /**
    * Çok sayıda firmanın bildirim alıcısını TEK seferde çözer (N+1 yerine 2 sorgu):
    * billingEmail olanlar doğrudan; olmayanlar için tek toplu kullanıcı sorgusu.
+   * `portal` verilirse kullanıcı fallback'i o portala erişimli rollerle süzülür.
    */
   private async companyRecipients(
     companyIds: string[],
+    portal?: NotificationPortal,
   ): Promise<Map<string, Recipient>> {
     const ids = [...new Set(companyIds)];
     const out = new Map<string, Recipient>();
@@ -120,16 +138,19 @@ export class CompanyListingsService {
       select: { id: true, name: true, billingEmail: true },
     });
     const needUser: string[] = [];
-    const nameById = new Map<string, string>();
     for (const c of companies) {
-      nameById.set(c.id, c.name);
       if (c.billingEmail)
         out.set(c.id, { email: c.billingEmail, name: c.name, prefs: null });
       else needUser.push(c.id);
     }
     if (needUser.length > 0) {
       const users = await this.prisma.companyUser.findMany({
-        where: { companyId: { in: needUser }, isActive: true, deletedAt: null },
+        where: {
+          companyId: { in: needUser },
+          isActive: true,
+          deletedAt: null,
+          ...(portal ? { roles: { hasSome: rolesForPortal(portal) } } : {}),
+        },
         orderBy: { createdAt: "asc" },
         select: {
           companyId: true,
@@ -140,7 +161,7 @@ export class CompanyListingsService {
         },
       });
       for (const u of users) {
-        if (out.has(u.companyId)) continue; // ilk aktif kullanıcı
+        if (out.has(u.companyId)) continue; // ilk aktif (portala erişimli) kullanıcı
         out.set(u.companyId, {
           email: u.email,
           prefs: u.notificationPrefs as Record<string, boolean> | null,
@@ -149,6 +170,18 @@ export class CompanyListingsService {
       }
     }
     return out;
+  }
+
+  /**
+   * İlan tipine göre portal eşlemesi:
+   *  - SAHİP tarafı: ALIM ilanı → satınalma, SATIS ilanı → satış
+   *  - TEKLİFÇİ tarafı: TERS (ALIM'a satıcılar teklif verir → satış, vb.)
+   */
+  private ownerPortal(type: ListingType): NotificationPortal {
+    return type === "ALIM" ? "satinalma" : "satis";
+  }
+  private bidderPortal(type: ListingType): NotificationPortal {
+    return type === "ALIM" ? "satis" : "satinalma";
   }
 
   /** Bildirim e-postası gönder (fire-and-forget). */
@@ -191,12 +224,20 @@ export class CompanyListingsService {
   async notifyListingClosed(listingId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, title: true, number: true, companyId: true },
+      select: {
+        id: true,
+        title: true,
+        number: true,
+        companyId: true,
+        type: true,
+      },
     });
     if (!listing) return;
     const label = `"${listing.title}" (${listing.number ?? "—"})`;
+    const ownerPortal = this.ownerPortal(listing.type);
+    const bidderPortal = this.bidderPortal(listing.type);
 
-    // Davetlilere kapanış bildirimi.
+    // Davetlilere kapanış bildirimi (teklifçi tarafı).
     const invs = await this.prisma.listingInvitation.findMany({
       where: { listingId },
       select: { invitedCompanyId: true },
@@ -204,6 +245,7 @@ export class CompanyListingsService {
     const bidUrl = `${this.webUrl()}/company/ilan/${listingId}`;
     const closeRecipients = await this.companyRecipients(
       invs.map((iv) => iv.invitedCompanyId),
+      bidderPortal,
     );
     for (const iv of invs) {
       const r = closeRecipients.get(iv.invitedCompanyId);
@@ -228,6 +270,7 @@ export class CompanyListingsService {
       invs.map((iv) => iv.invitedCompanyId),
       {
         type: "listing_closed",
+        portal: bidderPortal,
         title: "İhale kapandı",
         body: `${label} ihalesi teklife kapandı. Sonuç açıklandığında bilgilendirileceksiniz.`,
         ctaLabel: "İhaleyi Gör",
@@ -237,8 +280,11 @@ export class CompanyListingsService {
     );
 
     // Sahibe "karar zamanı" bildirimi.
-    const owner = await this.companyRecipient(listing.companyId);
-    const ownerUrl = `${this.webUrl()}/company/satinalma/ihalelerim/${listingId}`;
+    const owner = await this.companyRecipient(listing.companyId, ownerPortal);
+    const ownerUrl =
+      listing.type === "ALIM"
+        ? `${this.webUrl()}/company/satinalma/ihalelerim/${listingId}`
+        : `${this.webUrl()}/company/satis/ilanlarim/${listingId}`;
     if (owner) {
       this.notify(
         owner,
@@ -258,6 +304,7 @@ export class CompanyListingsService {
     // In-app: sahibe karar zamanı.
     await this.notifications.pushToCompany(listing.companyId, {
       type: "listing_closed_owner",
+      portal: ownerPortal,
       title: "Kazandırma kararı zamanı",
       body: `${label} ihaleniz teklife kapandı. Teklifleri inceleyip kazandırma kararınızı verebilirsiniz.`,
       ctaLabel: "Teklifleri İncele",
@@ -342,8 +389,13 @@ export class CompanyListingsService {
     });
     if (candidates.length === 0) return [];
 
-    // billingEmail yoksa ilk aktif kullanıcıya düş (kapsama boşluğu kapandı).
-    const recipients = await this.companyRecipients(candidates.map((c) => c.id));
+    // Teklifçi portalı (ALIM→satış, SATIS→satınalma) — e-posta fallback'i de
+    // bu portalın rolüne göre süzülür.
+    const matchPortal = this.bidderPortal(listing.type);
+    const recipients = await this.companyRecipients(
+      candidates.map((c) => c.id),
+      matchPortal,
+    );
     const url = `${this.webUrl()}${
       isBuyDemand ? "/company/satis/acik-ihaleler" : "/company/satinalma/satin-al"
     }`;
@@ -398,9 +450,11 @@ export class CompanyListingsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, title: true, number: true },
+      select: { id: true, title: true, number: true, type: true },
     });
     if (!listing) return;
+    // Davetliler teklifçidir → teklifçi portalı (ALIM→satış, SATIS→satınalma).
+    const invitePortal = this.bidderPortal(listing.type);
     const invs = await this.prisma.listingInvitation.findMany({
       where: { listingId },
       select: { invitedCompanyId: true },
@@ -417,7 +471,7 @@ export class CompanyListingsService {
       targets = targets.filter((id) => !bidderSet.has(id));
     }
     const url = `${this.webUrl()}/company/ilan/${listingId}`;
-    const recipients = await this.companyRecipients(targets);
+    const recipients = await this.companyRecipients(targets, invitePortal);
     for (const invitedCompanyId of targets) {
       const r = recipients.get(invitedCompanyId);
       if (!r) continue;
@@ -459,6 +513,7 @@ export class CompanyListingsService {
       mode === "invitation"
         ? {
             type: "listing_invitation",
+            portal: invitePortal,
             title: "İhale daveti",
             body: `"${listing.title}" (${listing.number ?? "—"}) ihalesine davet edildiniz.`,
             ctaLabel: "İhaleyi Gör",
@@ -467,6 +522,7 @@ export class CompanyListingsService {
           }
         : {
             type: "listing_reminder",
+            portal: invitePortal,
             title: "Kapanış hatırlatması",
             body: `"${listing.title}" (${listing.number ?? "—"}) ihalesinin kapanışı yaklaşıyor. Teklif vermek için son şansınız.`,
             ctaLabel: "Teklif Ver",
@@ -3116,7 +3172,8 @@ export class CompanyListingsService {
       // varsayılan 5sn interactive-transaction limiti aşılabilir.
     }, { timeout: 20000 });
 
-    const recipient = await this.companyRecipient(bid.bidderCompanyId);
+    const wonPortal = this.bidderPortal(listing.type);
+    const recipient = await this.companyRecipient(bid.bidderCompanyId, wonPortal);
     if (recipient) {
       this.notify(
         recipient,
@@ -3135,6 +3192,7 @@ export class CompanyListingsService {
     }
     await this.notifications.pushToCompany(bid.bidderCompanyId, {
       type: "bid_awarded",
+      portal: wonPortal,
       title: "Teklifiniz kazandı 🎉",
       body: `Bir ihalede teklifiniz kazandı ve ${order.number} numaralı sipariş oluştu.`,
       ctaLabel: "Siparişi Gör",
@@ -3436,8 +3494,10 @@ export class CompanyListingsService {
     }, { timeout: 20000 });
 
     // Kazanan her firmaya (teklifçi) bildirim — tek seferde topla (N+1 yerine).
+    const itemWonPortal = this.bidderPortal(listing.type);
     const recipients = await this.companyRecipients(
       groupArr.map(([bidderCompanyId]) => bidderCompanyId),
+      itemWonPortal,
     );
     for (let i = 0; i < groupArr.length; i++) {
       const [bidderCompanyId] = groupArr[i]!;
@@ -3463,6 +3523,7 @@ export class CompanyListingsService {
       if (o) {
         await this.notifications.pushToCompany(bidderCompanyId, {
           type: "bid_awarded",
+          portal: itemWonPortal,
           title: "Teklifiniz kazandı 🎉",
           body: `Bir ihalede teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
           ctaLabel: "Siparişi Gör",
@@ -3683,6 +3744,7 @@ export class CompanyListingsService {
         status: true,
         format: true,
         closesAt: true,
+        type: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -3738,7 +3800,8 @@ export class CompanyListingsService {
           select: { title: true, number: true },
         });
         const url = `${this.webUrl()}/company/ilan/${listingId}`;
-        const addRecipients = await this.companyRecipients(toAdd);
+        const addPortal = this.bidderPortal(listing.type);
+        const addRecipients = await this.companyRecipients(toAdd, addPortal);
         for (const cid of toAdd) {
           const r = addRecipients.get(cid);
           if (!r) continue;
@@ -3759,6 +3822,7 @@ export class CompanyListingsService {
         }
         await this.notifications.pushToCompanies(toAdd, {
           type: "listing_invitation",
+          portal: addPortal,
           title: "İhale daveti",
           body: `"${title?.title ?? "İhale"}" (${title?.number ?? "—"}) ihalesine davet edildiniz.`,
           ctaLabel: "İhaleyi Gör",
@@ -3846,13 +3910,15 @@ export class CompanyListingsService {
     });
 
     // Tedarikçiye eleme bildirimi (gerekçe paylaşılmaz — eski sistem davranışı).
-    const [recipient, info] = await Promise.all([
-      this.companyRecipient(bid.bidderCompanyId),
-      this.prisma.listing.findUnique({
-        where: { id: listingId },
-        select: { title: true, number: true },
-      }),
-    ]);
+    const info = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { title: true, number: true, type: true },
+    });
+    const elimPortal = info ? this.bidderPortal(info.type) : undefined;
+    const recipient = await this.companyRecipient(
+      bid.bidderCompanyId,
+      elimPortal,
+    );
     if (recipient) {
       this.notify(
         recipient,
@@ -3871,6 +3937,7 @@ export class CompanyListingsService {
     }
     await this.notifications.pushToCompany(bid.bidderCompanyId, {
       type: "bid_eliminated",
+      portal: elimPortal,
       title: "Teklifiniz değerlendirme dışı kaldı",
       body: `"${info?.title ?? "İhale"}" (${info?.number ?? "—"}) ihalesinde teklifiniz bu turda elendi. Dilerseniz güncelleyip yeniden teklif verebilirsiniz.`,
       ctaLabel: "İhaleyi Gör",
@@ -3942,7 +4009,7 @@ export class CompanyListingsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, title: true, number: true },
+      select: { id: true, title: true, number: true, type: true },
     });
     if (!listing) return;
     const label = `"${listing.title}" (${listing.number ?? "—"})`;
@@ -3964,7 +4031,9 @@ export class CompanyListingsService {
     ];
     if (companyIds.length === 0) return;
     const url = `${this.webUrl()}/company/ilan/${listingId}`;
-    const recipients = await this.companyRecipients(companyIds);
+    // Katılımcılar teklifçidir → teklifçi portalı.
+    const partPortal = this.bidderPortal(listing.type);
+    const recipients = await this.companyRecipients(companyIds, partPortal);
     for (const cid of companyIds) {
       const r = recipients.get(cid);
       if (!r) continue;
@@ -3982,6 +4051,7 @@ export class CompanyListingsService {
     }
     await this.notifications.pushToCompanies(companyIds, {
       type: opts.type,
+      portal: partPortal,
       title: opts.heading,
       body: opts.body(label),
       ctaLabel: "İhaleyi Gör",

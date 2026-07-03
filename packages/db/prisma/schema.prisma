@@ -1205,6 +1205,10 @@ model Notification {
   companyId     String // denormalize — firma kapsamı/temizlik için
 
   type     String // ör. listing_category_match, listing_invitation, bid_awarded
+  // Bildirim hangi portala ait: "satinalma" | "satis" | null (ortak — bağlantı
+  // gibi). Zil/sayaç AKTİF portalı (+ ortak) gösterir; satış bildirimi saf
+  // satın almacıya HİÇ oluşturulmaz (alıcı filtresi üretim anında uygular).
+  portal   String?
   title    String
   body     String
   ctaUrl   String?
@@ -1214,7 +1218,7 @@ model Notification {
   readAt    DateTime?
   createdAt DateTime  @default(now())
 
-  @@index([companyUserId, readAt])
+  @@index([companyUserId, portal, readAt])
   @@index([companyUserId, createdAt])
   @@map("notifications")
 }

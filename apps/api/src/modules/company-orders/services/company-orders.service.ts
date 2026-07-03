@@ -21,7 +21,11 @@ import type {
   ShipOrderDto,
 } from "../dto/order-action.dto";
 import { EmailService } from "../../email/email.service";
-import { NotificationService } from "../../notifications/notification.service";
+import {
+  NotificationService,
+  rolesForPortal,
+  type NotificationPortal,
+} from "../../notifications/notification.service";
 import { RealtimeService } from "../../realtime/realtime.service";
 
 @Injectable()
@@ -42,6 +46,7 @@ export class CompanyOrdersService {
 
   private async companyRecipient(
     companyId: string,
+    portal?: NotificationPortal,
   ): Promise<{ email: string; name: string } | null> {
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
@@ -52,7 +57,12 @@ export class CompanyOrdersService {
       return { email: company.billingEmail, name: company.name };
     }
     const user = await this.prisma.companyUser.findFirst({
-      where: { companyId, isActive: true, deletedAt: null },
+      where: {
+        companyId,
+        isActive: true,
+        deletedAt: null,
+        ...(portal ? { roles: { hasSome: rolesForPortal(portal) } } : {}),
+      },
       orderBy: { createdAt: "asc" },
       select: { email: true, firstName: true, lastName: true },
     });
@@ -60,24 +70,30 @@ export class CompanyOrdersService {
     return { email: user.email, name: `${user.firstName} ${user.lastName}` };
   }
 
-  /** Sipariş durumu değişince karşı tarafa bildirim (fire-and-forget). */
+  /**
+   * Sipariş durumu değişince karşı tarafa bildirim (fire-and-forget). `portal`
+   * alıcının siparişteki rolüdür: alıcı→satinalma, satıcı→satış (böylece
+   * satış siparişi bildirimi saf satın almacıya düşmez).
+   */
   private async notifyOrderParty(
     orderId: string,
     recipientCompanyId: string,
     subject: string,
     heading: string,
     paragraph: string,
+    portal: NotificationPortal,
   ): Promise<void> {
     const ctaUrl = `${this.webUrl()}/company/siparis/${orderId}`;
     // In-app kanal (order_status_changed transactional → her zaman gider).
     await this.notifications.pushToCompany(recipientCompanyId, {
       type: "order_status_changed",
+      portal,
       title: heading,
       body: paragraph,
       ctaLabel: "Siparişi Gör",
       ctaUrl,
     });
-    const to = await this.companyRecipient(recipientCompanyId);
+    const to = await this.companyRecipient(recipientCompanyId, portal);
     if (!to) return;
     void this.email
       .send({
@@ -156,6 +172,7 @@ export class CompanyOrdersService {
       "Siparişiniz onaylandı",
       "Sipariş onaylandı",
       `${this.orderLabel(res.order.number)} siparişiniz satıcı tarafından onaylandı ve hazırlanıyor.`,
+      "satinalma",
     );
     return { ok: res.ok, status: res.status };
   }
@@ -183,6 +200,7 @@ export class CompanyOrdersService {
       `${this.orderLabel(res.order.number)} siparişiniz satıcı tarafından reddedildi.${
         reason ? ` Gerekçe: ${reason}` : ""
       }`,
+      "satinalma",
     );
     return { ok: res.ok, status: res.status };
   }
@@ -215,6 +233,7 @@ export class CompanyOrdersService {
       "Siparişiniz kargoya verildi",
       "Sipariş yolda",
       `${this.orderLabel(res.order.number)} siparişiniz kargoya verildi (Fatura no: ${input.invoiceNumber.trim()}).`,
+      "satinalma",
     );
     return { ok: res.ok, status: res.status };
   }
@@ -264,6 +283,7 @@ export class CompanyOrdersService {
       `${this.orderLabel(res.order.number)} siparişi alıcı tarafından teslim alındı${
         toCompleted ? " ve tamamlandı" : ""
       }.`,
+      "satis",
     );
     return { ok: res.ok, status: res.status };
   }
@@ -292,6 +312,7 @@ export class CompanyOrdersService {
       "Sipariş tamamlandı",
       "Sipariş tamamlandı",
       `${this.orderLabel(res.order.number)} siparişi tamamlandı.`,
+      "satis",
     );
     return { ok: res.ok, status: res.status };
   }
@@ -322,6 +343,7 @@ export class CompanyOrdersService {
       `${this.orderLabel(res.order.number)} siparişi alıcı tarafından iptal edildi.${
         reason ? ` Gerekçe: ${reason}` : ""
       }`,
+      "satis",
     );
     return { ok: res.ok, status: res.status };
   }
@@ -514,6 +536,7 @@ export class CompanyOrdersService {
       "Yeni ödeme kaydı — onayınız bekleniyor",
       "Ödeme kaydedildi",
       `${this.orderLabel(order.number)} sipariş için ${input.amount.toLocaleString("tr-TR")} ₺ tutarında ödeme kaydedildi. Onaylamanız bekleniyor.`,
+      "satis",
     );
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     return this.serializePayment(payment);
@@ -587,6 +610,7 @@ export class CompanyOrdersService {
         : `${this.orderLabel(order.number)} sipariş için ödemeniz reddedildi.${
             reason ? ` Gerekçe: ${reason}` : ""
           }`,
+      "satinalma",
     );
 
     // Otomatik tamamlama (eski sistemle aynı): sipariş teslim alındı (DELIVERED)
@@ -617,6 +641,7 @@ export class CompanyOrdersService {
           "Sipariş tamamlandı",
           "Sipariş tamamlandı",
           `${this.orderLabel(order.number)} sipariş tam ödeme ile tamamlandı.`,
+          "satinalma",
         );
       }
     }

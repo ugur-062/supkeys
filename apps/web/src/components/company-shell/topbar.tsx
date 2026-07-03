@@ -134,7 +134,7 @@ export function CompanyTopbar({
           basePath={portal.basePath}
         />
 
-        <NotificationBell />
+        <NotificationBell portal={activePortal} />
 
         {user ? (
           <Dropdown>

@@ -7,6 +7,7 @@ import {
   type AppNotification,
 } from "@/hooks/use-notifications";
 import { EmptyState, ListSkeleton } from "@/components/list";
+import { useActivePortal } from "@/hooks/use-active-portal";
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -20,7 +21,8 @@ function formatDate(iso: string): string {
 }
 
 export default function BildirimlerPage() {
-  const { data: items = [], isLoading } = useNotifications();
+  const portal = useActivePortal();
+  const { data: items = [], isLoading } = useNotifications(portal);
   const markRead = useMarkNotificationsRead();
   const markAll = useMarkAllNotificationsRead();
   const router = useRouter();
@@ -46,7 +48,7 @@ export default function BildirimlerPage() {
         {hasUnread ? (
           <button
             type="button"
-            onClick={() => markAll.mutate()}
+            onClick={() => markAll.mutate(portal)}
             disabled={markAll.isPending}
             className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:border-zinc-300 disabled:opacity-50"
           >

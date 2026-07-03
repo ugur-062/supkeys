@@ -1,7 +1,10 @@
 import { Injectable, Optional, Logger } from "@nestjs/common";
+import { CompanyRole, Prisma } from "@supkeys/db";
 import { RealtimeService } from "../realtime/realtime.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
+
+export type NotificationPortal = "satinalma" | "satis";
 
 /** In-app bildirim içeriği (e-posta ile paralel kanal). */
 export interface InAppPayload {
@@ -11,14 +14,36 @@ export interface InAppPayload {
   ctaUrl?: string | null;
   ctaLabel?: string | null;
   listingId?: string | null;
+  /**
+   * Bildirimin ait olduğu portal. Belirtilmezse ORTAK (null) — her iki portalda
+   * görünür (ör. bağlantı istekleri). Portal verilirse yalnız o portala erişimi
+   * olan roldeki kullanıcılara oluşturulur: satış bildirimi saf satın almacıya
+   * hiç yazılmaz (ve tersine).
+   */
+  portal?: NotificationPortal;
+}
+
+/** Portala erişim veren roller — fan-out + e-posta alıcı filtresi (paylaşılan). */
+export function rolesForPortal(portal: NotificationPortal): CompanyRole[] {
+  return portal === "satis"
+    ? [CompanyRole.SATISCI, CompanyRole.YONETICI]
+    : [CompanyRole.SATIN_ALMACI, CompanyRole.YONETICI];
+}
+
+/** Okuma tarafı: aktif portal + ORTAK (null) bildirimler. */
+function portalReadFilter(
+  portal?: NotificationPortal,
+): Prisma.NotificationWhereInput {
+  if (!portal) return {}; // portal verilmezse hepsi (geriye uyum)
+  return { OR: [{ portal }, { portal: null }] };
 }
 
 /**
  * Uygulama-içi bildirim servisi — KULLANICI bazında. Bir firmaya bildirim, o
- * firmanın tüm aktif kullanıcılarına fan-out edilir (her kullanıcının
- * `notificationPrefs` tercihi ayrı kontrol edilir; transactional tipler her
- * zaman gider). E-posta gönderimi ayrı kanaldır (EmailService) — bu servis
- * yalnız in-app kayıt tutar.
+ * firmanın YALNIZCA ilgili portala erişimi olan aktif kullanıcılarına fan-out
+ * edilir (satış/satınalma ayrımı). Her kullanıcının `notificationPrefs` tercihi
+ * ayrı kontrol edilir; transactional tipler her zaman gider. E-posta gönderimi
+ * ayrı kanaldır (EmailService).
  */
 @Injectable()
 export class NotificationService {
@@ -29,7 +54,7 @@ export class NotificationService {
     @Optional() private readonly realtime?: RealtimeService,
   ) {}
 
-  /** Tek firmanın aktif kullanıcılarına in-app bildirim. Döner: yazılan satır. */
+  /** Tek firmanın (portala erişimli) aktif kullanıcılarına in-app bildirim. */
   async pushToCompany(companyId: string, payload: InAppPayload): Promise<number> {
     return this.pushToCompanies([companyId], payload);
   }
@@ -64,6 +89,7 @@ export class NotificationService {
         companyUserId: user.id,
         companyId: user.companyId,
         type: payload.type,
+        portal: payload.portal ?? null,
         title: payload.title,
         body: payload.body,
         ctaUrl: payload.ctaUrl ?? null,
@@ -75,8 +101,8 @@ export class NotificationService {
   }
 
   /**
-   * Çok firmanın aktif kullanıcılarına in-app bildirim (2 sorgu, fan-out).
-   * Aynı payload tüm alıcılara yazılır (ilan başına ortak metin).
+   * Çok firmanın (portala erişimli) aktif kullanıcılarına in-app bildirim
+   * (2 sorgu, fan-out). Portal verilmişse alıcı rolleri o portala göre süzülür.
    */
   async pushToCompanies(
     companyIds: string[],
@@ -85,7 +111,15 @@ export class NotificationService {
     const ids = [...new Set(companyIds.filter(Boolean))];
     if (ids.length === 0) return 0;
     const users = await this.prisma.companyUser.findMany({
-      where: { companyId: { in: ids }, isActive: true, deletedAt: null },
+      where: {
+        companyId: { in: ids },
+        isActive: true,
+        deletedAt: null,
+        // Portal verildiyse yalnız o portala erişimi olan roldeki kullanıcılar.
+        ...(payload.portal
+          ? { roles: { hasSome: rolesForPortal(payload.portal) } }
+          : {}),
+      },
       select: { id: true, companyId: true, notificationPrefs: true },
     });
     const rows = users
@@ -99,6 +133,7 @@ export class NotificationService {
         companyUserId: u.id,
         companyId: u.companyId,
         type: payload.type,
+        portal: payload.portal ?? null,
         title: payload.title,
         body: payload.body,
         ctaUrl: payload.ctaUrl ?? null,
@@ -114,25 +149,37 @@ export class NotificationService {
     return rows.length;
   }
 
-  /** Kullanıcının bildirimleri (en yeni önce). */
+  /** Kullanıcının bildirimleri (aktif portal + ortak; en yeni önce). */
   listForUser(
     userId: string,
-    opts: { unreadOnly?: boolean; take?: number } = {},
+    opts: {
+      unreadOnly?: boolean;
+      take?: number;
+      portal?: NotificationPortal;
+    } = {},
   ) {
     const take = Math.min(Math.max(opts.take ?? 30, 1), 100);
     return this.prisma.notification.findMany({
       where: {
         companyUserId: userId,
         ...(opts.unreadOnly ? { readAt: null } : {}),
+        ...portalReadFilter(opts.portal),
       },
       orderBy: { createdAt: "desc" },
       take,
     });
   }
 
-  async unreadCount(userId: string): Promise<number> {
+  async unreadCount(
+    userId: string,
+    portal?: NotificationPortal,
+  ): Promise<number> {
     return this.prisma.notification.count({
-      where: { companyUserId: userId, readAt: null },
+      where: {
+        companyUserId: userId,
+        readAt: null,
+        ...portalReadFilter(portal),
+      },
     });
   }
 
@@ -147,9 +194,17 @@ export class NotificationService {
     return res.count;
   }
 
-  async markAllRead(userId: string): Promise<number> {
+  /** Tümünü okundu — portal verilirse yalnız o portal (+ ortak) kapsamında. */
+  async markAllRead(
+    userId: string,
+    portal?: NotificationPortal,
+  ): Promise<number> {
     const res = await this.prisma.notification.updateMany({
-      where: { companyUserId: userId, readAt: null },
+      where: {
+        companyUserId: userId,
+        readAt: null,
+        ...portalReadFilter(portal),
+      },
       data: { readAt: new Date() },
     });
     return res.count;

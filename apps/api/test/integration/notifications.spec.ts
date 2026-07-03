@@ -171,3 +171,114 @@ describe("wiring: kategori eşleşmesi in-app kayıt üretir", () => {
     expect(rows[0].readAt).toBeNull();
   });
 });
+
+describe("portal ayrımı — satış/satınalma bildirimleri karışmaz", () => {
+  it("portal=satis yalnız SATISCI/YÖNETİCİ'ye; saf satın almacı almaz", async () => {
+    const n = svc();
+    const co = await makeCompany(prisma, {});
+    const seller = await makeUser(prisma, co.id, [CompanyRole.SATISCI]);
+    const manager = await makeUser(prisma, co.id, [CompanyRole.YONETICI]);
+    const buyer = await makeUser(prisma, co.id, [CompanyRole.SATIN_ALMACI]);
+
+    const count = await n.pushToCompany(co.id, {
+      type: "listing_invitation",
+      portal: "satis",
+      title: "Davet",
+      body: "İhaleye davet edildiniz",
+    });
+    expect(count).toBe(2);
+    const rows = await prisma.notification.findMany({
+      where: { companyId: co.id },
+    });
+    const uids = rows.map((r) => r.companyUserId).sort();
+    expect(uids).toEqual([seller.id, manager.id].sort());
+    expect(uids).not.toContain(buyer.id);
+    expect(rows.every((r) => r.portal === "satis")).toBe(true);
+  });
+
+  it("portal=satinalma yalnız SATIN_ALMACI/YÖNETİCİ'ye; saf satışçı almaz", async () => {
+    const n = svc();
+    const co = await makeCompany(prisma, {});
+    const buyer = await makeUser(prisma, co.id, [CompanyRole.SATIN_ALMACI]);
+    await makeUser(prisma, co.id, [CompanyRole.SATISCI]);
+
+    const count = await n.pushToCompany(co.id, {
+      type: "listing_closed_owner",
+      portal: "satinalma",
+      title: "Karar",
+      body: "Kazandırma zamanı",
+    });
+    expect(count).toBe(1);
+    const rows = await prisma.notification.findMany({
+      where: { companyId: co.id },
+    });
+    expect(rows.map((r) => r.companyUserId)).toEqual([buyer.id]);
+  });
+
+  it("SATIN_ALMACI + SATISCI çift rollü kullanıcı HER İKİ portalı da alır", async () => {
+    const n = svc();
+    const co = await makeCompany(prisma, {});
+    const both = await makeUser(prisma, co.id, [
+      CompanyRole.SATIN_ALMACI,
+      CompanyRole.SATISCI,
+    ]);
+    await n.pushToCompany(co.id, {
+      type: "listing_invitation",
+      portal: "satis",
+      title: "S",
+      body: "b",
+    });
+    await n.pushToCompany(co.id, {
+      type: "listing_closed_owner",
+      portal: "satinalma",
+      title: "A",
+      body: "b",
+    });
+    const rows = await prisma.notification.findMany({
+      where: { companyUserId: both.id },
+    });
+    expect(rows.map((r) => r.portal).sort()).toEqual(["satinalma", "satis"]);
+  });
+
+  it("liste + okunmamış sayısı AKTİF portal (+ ortak) ile süzülür", async () => {
+    const n = svc();
+    const co = await makeCompany(prisma, {});
+    const u = await makeUser(prisma, co.id, [
+      CompanyRole.SATIN_ALMACI,
+      CompanyRole.SATISCI,
+    ]);
+    // 1 satış, 1 satınalma, 1 ortak (bağlantı) bildirim.
+    await n.pushToUser(u.id, {
+      type: "listing_invitation",
+      portal: "satis",
+      title: "S",
+      body: "b",
+    });
+    await n.pushToUser(u.id, {
+      type: "listing_closed_owner",
+      portal: "satinalma",
+      title: "A",
+      body: "b",
+    });
+    await n.pushToUser(u.id, {
+      type: "connection_request",
+      title: "Bağlantı",
+      body: "b",
+    });
+
+    // Satınalma portalı → satınalma + ortak = 2 (satış görünmez).
+    const buyList = await n.listForUser(u.id, { portal: "satinalma" });
+    expect(buyList).toHaveLength(2);
+    expect(buyList.every((r) => r.portal !== "satis")).toBe(true);
+    expect(await n.unreadCount(u.id, "satinalma")).toBe(2);
+
+    // Satış portalı → satış + ortak = 2.
+    expect(await n.unreadCount(u.id, "satis")).toBe(2);
+
+    // Tümünü okundu (satınalma) → yalnız satınalma+ortak okunur; satış açık kalır.
+    await n.markAllRead(u.id, "satinalma");
+    expect(await n.unreadCount(u.id, "satinalma")).toBe(0);
+    // Satış hâlâ okunmamış (1 satış); ortak ise satınalma ile okundu → satış=1.
+    expect(await n.unreadCount(u.id, "satis")).toBe(1);
+  });
+});

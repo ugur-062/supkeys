@@ -59,7 +59,7 @@ export function ActionStrip({
   const isBuyer = portal === "satinalma";
   const canAct = useHasCompanyPermission("approval:act");
   const { data: pendingApprovals = 0 } = usePendingApprovalCount(canAct);
-  const { data: unreadData } = useUnreadMessages();
+  const { data: unreadData } = useUnreadMessages(portal);
   const { data: orders } = useOrders();
   const { data: listings } = useMyListings();
 

@@ -205,18 +205,29 @@ export class CompanyMessagesService {
     };
   }
 
-  /** Nav rozeti — iki portal toplamı okunmamış mesaj sayısı. */
-  async unreadCount(user: AuthenticatedCompanyUser) {
-    const count = await this.prisma.message.count({
-      where: {
-        readAt: null,
-        senderCompanyId: { not: user.companyId },
-        thread: {
+  /**
+   * Nav rozeti — okunmamış mesaj sayısı. `portal` verilirse yalnız o portalın
+   * thread'leri (satınalma → firma ALICI; satış → firma SATICI). Verilmezse
+   * iki portal toplamı (geriye uyum).
+   */
+  async unreadCount(user: AuthenticatedCompanyUser, portalRaw?: string) {
+    const portal =
+      portalRaw === "satinalma" || portalRaw === "satis" ? portalRaw : null;
+    const threadWhere = portal
+      ? portal === "satinalma"
+        ? { buyerCompanyId: user.companyId }
+        : { sellerCompanyId: user.companyId }
+      : {
           OR: [
             { buyerCompanyId: user.companyId },
             { sellerCompanyId: user.companyId },
           ],
-        },
+        };
+    const count = await this.prisma.message.count({
+      where: {
+        readAt: null,
+        senderCompanyId: { not: user.companyId },
+        thread: threadWhere,
       },
     });
     return { count };

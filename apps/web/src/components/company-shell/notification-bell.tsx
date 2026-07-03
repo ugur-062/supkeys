@@ -6,6 +6,7 @@ import {
   useNotifications,
   useUnreadCount,
   type AppNotification,
+  type NotificationPortal,
 } from "@/hooks/use-notifications";
 import {
   Popover,
@@ -29,9 +30,16 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString("tr-TR");
 }
 
-export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
-  const { data: unread = 0 } = useUnreadCount();
-  const { data: items = [], isLoading } = useNotifications();
+export function NotificationBell({
+  onDark = false,
+  portal,
+}: {
+  onDark?: boolean;
+  /** Aktif portal — zil yalnız bu portalın (+ ortak) bildirimlerini gösterir. */
+  portal?: NotificationPortal;
+}) {
+  const { data: unread = 0 } = useUnreadCount(portal);
+  const { data: items = [], isLoading } = useNotifications(portal);
   const markRead = useMarkNotificationsRead();
   const markAll = useMarkAllNotificationsRead();
   const router = useRouter();
@@ -77,7 +85,7 @@ export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
               {unread > 0 ? (
                 <button
                   type="button"
-                  onClick={() => markAll.mutate()}
+                  onClick={() => markAll.mutate(portal)}
                   className="text-xs font-medium text-blue-600 hover:underline"
                 >
                   Tümünü okundu işaretle
