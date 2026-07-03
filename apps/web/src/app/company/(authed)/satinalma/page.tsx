@@ -49,29 +49,26 @@ export default function SatinalmaDashboardPage() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          <h1 className="mb-1.5 text-2xl font-semibold leading-tight tracking-tight text-zinc-950 sm:text-3xl">
-            Satınalma paneli
-          </h1>
-          <p className="text-[15px] text-zinc-500">
-            {company?.name ?? "Supkeys"}
-            {todayLabel ? (
-              <>
-                <span className="mx-2 text-zinc-300">·</span>
-                <span>{todayLabel}</span>
-              </>
-            ) : null}
-          </p>
-        </div>
-        {/* TCMB döviz kurları */}
-        <div className="w-full md:w-auto md:max-w-md md:flex-shrink-0">
-          <TcmbRatesWidget />
-        </div>
+      <header className="min-w-0">
+        <h1 className="mb-1.5 text-2xl font-semibold leading-tight tracking-tight text-zinc-950 sm:text-3xl">
+          Satınalma paneli
+        </h1>
+        <p className="text-[15px] text-zinc-500">
+          {company?.name ?? "Supkeys"}
+          {todayLabel ? (
+            <>
+              <span className="mx-2 text-zinc-300">·</span>
+              <span>{todayLabel}</span>
+            </>
+          ) : null}
+        </p>
       </header>
 
       {/* Bugün ne yapmalıyım? — bekleyen işler (yoksa görünmez) */}
       <ActionStrip portal="satinalma" />
+
+      {/* TCMB döviz kurları — tam genişlik yatay şerit (doğal formu) */}
+      <TcmbRatesWidget />
 
       <TabGroup className="space-y-6">
         <TabList
