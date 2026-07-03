@@ -413,32 +413,53 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
             {o.status === "REJECTED" ? "Satıcı reddetti" : "İptal edildi"}
           </Badge>
         ) : (
-          <div className="flex items-center gap-2">
-            {STEPS.map((s, i) => (
-              <div key={s.key} className="flex flex-1 items-center gap-2">
-                <div className="flex flex-col items-center gap-1">
-                  <CheckCircleIcon
-                    className={`h-6 w-6 ${
-                      i <= stepIndex ? "text-emerald-500" : "text-zinc-300"
-                    }`}
-                  />
-                  <span
-                    className={`text-center text-xs ${
-                      i <= stepIndex ? "text-zinc-900" : "text-zinc-400"
-                    }`}
-                  >
-                    {s.label}
-                  </span>
+          <div className="flex items-start gap-2">
+            {STEPS.map((s, i) => {
+              const done =
+                i < stepIndex || o.status === "COMPLETED";
+              const current = o.status !== "COMPLETED" && i === stepIndex;
+              return (
+                <div key={s.key} className="flex flex-1 items-start gap-2">
+                  <div className="flex min-w-0 flex-col items-center gap-1.5">
+                    <div
+                      className={`flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition ${
+                        done
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : current
+                            ? "border-blue-500 bg-blue-50 text-blue-700 ring-4 ring-blue-500/15"
+                            : "border-zinc-200 bg-white text-zinc-300"
+                      }`}
+                    >
+                      {done ? (
+                        <CheckCircleIcon className="size-5" aria-hidden />
+                      ) : (
+                        <span className="text-[11px] font-bold">{i + 1}</span>
+                      )}
+                    </div>
+                    <span
+                      className={`whitespace-nowrap text-center text-xs ${
+                        done
+                          ? "text-emerald-700"
+                          : current
+                            ? "font-semibold text-blue-700"
+                            : "text-zinc-400"
+                      }`}
+                    >
+                      {s.label}
+                    </span>
+                  </div>
+                  {i < STEPS.length - 1 ? (
+                    <div
+                      className={`mt-3.5 h-0.5 flex-1 rounded-full ${
+                        i < stepIndex || o.status === "COMPLETED"
+                          ? "bg-emerald-400"
+                          : "bg-zinc-200"
+                      }`}
+                    />
+                  ) : null}
                 </div>
-                {i < STEPS.length - 1 ? (
-                  <div
-                    className={`mb-5 h-0.5 flex-1 ${
-                      i < stepIndex ? "bg-emerald-400" : "bg-zinc-200"
-                    }`}
-                  />
-                ) : null}
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

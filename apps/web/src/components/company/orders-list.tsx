@@ -21,6 +21,7 @@ import {
   ArrowUpDown,
   Building2,
   CalendarRange,
+  Check,
   CircleSlash,
   ListFilter,
   Package,
@@ -84,9 +85,9 @@ function OrderStatusBadge({ status }: { status: CompanyOrderStatus }) {
   );
 }
 
-// 5 aşamalı akış: Onay → Onaylandı → Kargoda → Teslim alındı → Tamamlandı.
+// 5 aşamalı akış: Onay → Onaylandı → Gönderildi → Teslim Alındı → Tamamlandı.
 const STAGES = [
-  "Onay",
+  "Onay Bekliyor",
   "Onaylandı",
   "Gönderildi",
   "Teslim Alındı",
@@ -110,6 +111,84 @@ function getStageState(status: CompanyOrderStatus): {
   if (status === "COMPLETED")
     return { active: 4, lastDone: 4, isTerminated: false };
   return { active: 0, lastDone: -1, isTerminated: false };
+}
+
+/**
+ * Aşama göstergesi — ikonlu nokta stepper + TAM okunur tek satır etiket.
+ * (Önceki tasarımda 5 minik yazı yan yana kırpılıyordu — "Teslim Alı…".)
+ * Biten adımlar yeşil tikli, aktif adım mavi halkalı; adların tamamı yalnızca
+ * aktif adım için yazılır, diğerleri hover'da (title) görünür.
+ */
+function StageStepper({
+  active,
+  lastDone,
+}: {
+  active: number;
+  lastDone: number;
+}) {
+  const isDone = active === STAGES.length - 1 && lastDone === active;
+  return (
+    <div>
+      <div className="flex items-center">
+        {STAGES.map((label, i) => {
+          const done = i <= lastDone || (isDone && i <= active);
+          const current = !isDone && i === active;
+          return (
+            <div
+              key={label}
+              className={cn("flex items-center", i > 0 && "flex-1")}
+            >
+              {/* Bağlantı çizgisi */}
+              {i > 0 ? (
+                <div
+                  className={cn(
+                    "h-0.5 min-w-3 flex-1 rounded-full",
+                    done ? "bg-success-500" : "bg-zinc-200",
+                  )}
+                />
+              ) : null}
+              <div
+                title={label}
+                className={cn(
+                  "flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition",
+                  done
+                    ? "border-success-500 bg-success-500 text-white"
+                    : current
+                      ? "border-brand-500 bg-brand-50 text-brand-700 ring-4 ring-brand-500/15"
+                      : "border-zinc-200 bg-white text-zinc-300",
+                )}
+              >
+                {done ? (
+                  <Check className="size-3.5" strokeWidth={3} aria-hidden />
+                ) : (
+                  <span className="text-[10px] font-bold">{i + 1}</span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {/* Tek satır, tam metin — kırpılma yok */}
+      <p className="mt-1.5 flex items-baseline gap-1.5 text-xs">
+        <span
+          className={cn(
+            "font-semibold",
+            isDone ? "text-success-700" : "text-brand-700",
+          )}
+        >
+          {STAGES[isDone ? STAGES.length - 1 : active]}
+        </span>
+        <span className="text-zinc-400">
+          · {isDone ? STAGES.length : active + 1}/{STAGES.length}
+        </span>
+        {!isDone && active + 1 < STAGES.length ? (
+          <span className="hidden truncate text-zinc-400 sm:inline">
+            → {STAGES[active + 1]}
+          </span>
+        ) : null}
+      </p>
+    </div>
+  );
 }
 
 const SORT_OPTIONS = [
@@ -259,42 +338,20 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
           </p>
         </div>
 
-        {/* Orta: aşama çubuğu */}
-        <div className="w-full shrink-0 lg:w-72">
+        {/* Orta: aşama göstergesi */}
+        <div className="w-full shrink-0 lg:w-80">
           {!isTerminated ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-1">
-                {STAGES.map((_, i) => (
-                  <div
-                    key={i}
-                    className={cn(
-                      "h-1.5 flex-1 rounded-full transition",
-                      i === active
-                        ? "bg-brand-500"
-                        : i <= lastDone
-                          ? "bg-success-500"
-                          : "bg-zinc-200",
-                    )}
-                  />
-                ))}
-              </div>
-              <div className="flex items-center justify-between gap-1 text-[10px] font-medium tracking-tight text-zinc-500">
-                {STAGES.map((label, i) => (
-                  <span
-                    key={label}
-                    className={cn(
-                      "flex-1 truncate text-center first:text-left last:text-right",
-                      i === active && "text-brand-700",
-                      i < active && "text-success-700",
-                    )}
-                  >
-                    {label}
-                  </span>
-                ))}
-              </div>
-            </div>
+            <StageStepper active={active} lastDone={lastDone} />
           ) : (
-            <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-600">
+            <div
+              className={cn(
+                "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium",
+                o.status === "REJECTED"
+                  ? "border-orange-200 bg-orange-50 text-orange-700"
+                  : "border-zinc-200 bg-zinc-50 text-zinc-600",
+              )}
+            >
+              <CircleSlash className="size-4 shrink-0" aria-hidden />
               {o.status === "REJECTED"
                 ? "Sipariş reddedildi"
                 : "Sipariş iptal edildi"}
