@@ -134,6 +134,9 @@ export function SellerTenderCard({
           ) : (
             <Badge color="zinc">Teklif Toplama</Badge>
           )}
+          {isSatis && tender.priceScope === "KALEM" ? (
+            <Badge color="emerald">Kalem Bazlı Fiyat</Badge>
+          ) : null}
           {isSatis && tender.minPrice ? (
             <Badge color="emerald">
               Taban {Number(tender.minPrice).toLocaleString("tr-TR")}

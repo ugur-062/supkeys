@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsEnum,
   IsISO8601,
+  IsIn,
   IsInt,
   IsNumber,
   IsOptional,
@@ -134,6 +135,18 @@ export class ListingItemDto {
   @Min(0)
   targetPrice?: number;
 
+  /** SATIS + KALEM fiyatlandırma: kalem taban birim fiyatı. */
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
+  minUnitPrice?: number;
+
+  /** SATIS + KALEM: kalem hemen-al birim fiyatı (≥ taban). */
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0.01)
+  buyNowUnitPrice?: number;
+
   @IsOptional()
   @IsString()
   @MaxLength(50)
@@ -254,6 +267,11 @@ export class CreateListingDto {
   @IsOptional()
   @IsEnum(ListingFormatDto, { message: "Geçersiz format" })
   format?: ListingFormatDto;
+
+  /** SATIS fiyatlandırma kapsamı: TOPLU (varsayılan) | KALEM. */
+  @IsOptional()
+  @IsIn(["TOPLU", "KALEM"])
+  priceScope?: "TOPLU" | "KALEM";
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })

@@ -38,6 +38,8 @@ export function mapDetailToForm(
   return {
     ...DEFAULT_FORM_VALUES,
     listingType: (l.type as TenderFormData["listingType"]) ?? "ALIM",
+    priceScope:
+      (l.priceScope as TenderFormData["priceScope"]) ?? "TOPLU",
     minPrice: l.minPrice != null ? Number(l.minPrice) : undefined,
     buyNowPrice: l.buyNowPrice != null ? Number(l.buyNowPrice) : undefined,
     categoryIds: l.categoryIds ?? [],
@@ -96,6 +98,12 @@ export function mapDetailToForm(
             requiredByDate: toDateInput(it.requiredByDate),
             targetUnitPrice:
               it.targetPrice != null ? Number(it.targetPrice) : undefined,
+            minUnitPrice:
+              it.minUnitPrice != null ? Number(it.minUnitPrice) : undefined,
+            buyNowUnitPrice:
+              it.buyNowUnitPrice != null
+                ? Number(it.buyNowUnitPrice)
+                : undefined,
             customQuestion: "",
             questions: (it.questions ?? []).map((q) => ({
               id: q.id,

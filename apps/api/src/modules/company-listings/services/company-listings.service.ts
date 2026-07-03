@@ -8,19 +8,20 @@ import {
 } from "@nestjs/common";
 import {
   CompanyRole,
-  type Currency,
+  ListingPriceScope,
   ListingType,
-  type ListingFormat,
-  type ListingVisibility,
+  Prisma,
+  type Currency,
+  type ListingBidStatus,
+  type ListingBidVisibility,
+  type ListingDecrementBasis,
+  type ListingDecrementType,
   type ListingDeliveryTerm,
+  type ListingFormat,
   type ListingPaymentTerm,
   type ListingPaymentTiming,
-  type ListingBidVisibility,
-  type ListingBidStatus,
-  type ListingDecrementType,
-  type ListingDecrementBasis,
   type ListingQuestionAnswerType,
-  Prisma,
+  type ListingVisibility,
 } from "@supkeys/db";
 import { OnEvent } from "@nestjs/event-emitter";
 import {
@@ -500,6 +501,58 @@ export class CompanyListingsService {
    * İlan oluştur. PAKET üyelik gerektirir (STANDARD yalnızca teklif verir,
    * ilan/ihale açamaz). Rol-korumalı: ALIM → SATIN_ALMACI, SATIS → SATISCI.
    */
+
+  /**
+   * SATIS fiyatlandırma doğrulaması (create + update ortak).
+   * TOPLU: ilan geneli taban zorunlu, hemen-al ≥ taban.
+   * KALEM: her kalemin taban BİRİM fiyatı zorunlu; kalem hemen-al ≥ kalem taban;
+   *        ilan geneli minPrice/buyNowPrice KULLANILMAZ (null yazılır).
+   */
+  private validateSatisPricing(dto: CreateListingDto): {
+    priceScope: ListingPriceScope;
+    minPrice: number | null;
+    buyNowPrice: number | null;
+  } {
+    const priceScope = (dto.priceScope ?? "TOPLU") as ListingPriceScope;
+    if (priceScope === "KALEM") {
+      if (!dto.items?.length) {
+        throw new BadRequestException(
+          "Kalem bazlı fiyatlandırma için en az bir kalem girin",
+        );
+      }
+      for (const it of dto.items) {
+        if (!it.minUnitPrice || it.minUnitPrice <= 0) {
+          throw new BadRequestException(
+            `"${it.name}" kalemi için taban birim fiyat girin`,
+          );
+        }
+        if (
+          it.buyNowUnitPrice != null &&
+          it.buyNowUnitPrice < it.minUnitPrice
+        ) {
+          throw new BadRequestException(
+            `"${it.name}" kaleminde hemen-al fiyatı tabandan düşük olamaz`,
+          );
+        }
+      }
+      return { priceScope, minPrice: null, buyNowPrice: null };
+    }
+    // TOPLU
+    if (!dto.minPrice || dto.minPrice <= 0) {
+      throw new BadRequestException("Satış ilanı için taban fiyat girin");
+    }
+    if (dto.buyNowPrice != null && dto.buyNowPrice < dto.minPrice) {
+      throw new BadRequestException(
+        "Hemen-al fiyatı taban fiyattan düşük olamaz",
+      );
+    }
+    return {
+      priceScope,
+      minPrice: dto.minPrice,
+      buyNowPrice: dto.buyNowPrice ?? null,
+    };
+  }
+
   /**
    * İş kuralı doğrulamaları (create + update ortak — createNextRound ile
    * tutarlı): açık eksiltme parametreleri, para birimi seti, hedef ülkeler,
@@ -606,6 +659,7 @@ export class CompanyListingsService {
     let format: ListingFormat | null = null;
     let minPrice: number | null = null;
     let buyNowPrice: number | null = null;
+    let priceScope: ListingPriceScope | null = null;
 
     if (!dto.format) {
       throw new BadRequestException(
@@ -616,19 +670,10 @@ export class CompanyListingsService {
     }
     format = dto.format as ListingFormat;
     if (type === "SATIS") {
-      // SATIS: taban fiyat zorunlu, hemen-al opsiyonel (≥ taban).
-      if (!dto.minPrice || dto.minPrice <= 0) {
-        throw new BadRequestException("Satış ilanı için taban fiyat girin");
-      }
-      minPrice = dto.minPrice;
-      if (dto.buyNowPrice != null) {
-        if (dto.buyNowPrice < dto.minPrice) {
-          throw new BadRequestException(
-            "Hemen-al fiyatı taban fiyattan düşük olamaz",
-          );
-        }
-        buyNowPrice = dto.buyNowPrice;
-      }
+      const pricing = this.validateSatisPricing(dto);
+      priceScope = pricing.priceScope;
+      minPrice = pricing.minPrice;
+      buyNowPrice = pricing.buyNowPrice;
     }
 
     const number = await this.nextListingNumber();
@@ -669,6 +714,7 @@ export class CompanyListingsService {
           deliveryAddressId: dto.deliveryAddressId ?? null,
           billingAddressId: dto.billingAddressId ?? null,
           format,
+          priceScope,
           minPrice,
           buyNowPrice,
           visibility: (dto.visibility as ListingVisibility) ?? "CONNECTIONS",
@@ -726,6 +772,10 @@ export class CompanyListingsService {
               quantity: it.quantity,
               unit: it.unit.trim(),
               targetPrice: it.targetPrice ?? null,
+              minUnitPrice:
+                priceScope === "KALEM" ? (it.minUnitPrice ?? null) : null,
+              buyNowUnitPrice:
+                priceScope === "KALEM" ? (it.buyNowUnitPrice ?? null) : null,
               materialCode: it.materialCode?.trim() || null,
               requiredByDate: it.requiredByDate
                 ? new Date(it.requiredByDate)
@@ -818,19 +868,12 @@ export class CompanyListingsService {
       );
     }
     format = dto.format as ListingFormat;
+    let priceScope: ListingPriceScope | null = null;
     if (type === "SATIS") {
-      if (!dto.minPrice || dto.minPrice <= 0) {
-        throw new BadRequestException("Satış ilanı için taban fiyat girin");
-      }
-      minPrice = dto.minPrice;
-      if (dto.buyNowPrice != null) {
-        if (dto.buyNowPrice < dto.minPrice) {
-          throw new BadRequestException(
-            "Hemen-al fiyatı taban fiyattan düşük olamaz",
-          );
-        }
-        buyNowPrice = dto.buyNowPrice;
-      }
+      const pricing = this.validateSatisPricing(dto);
+      priceScope = pricing.priceScope;
+      minPrice = pricing.minPrice;
+      buyNowPrice = pricing.buyNowPrice;
     }
 
     // Davet edilecek firmaları çöz (create ile aynı kural).
@@ -867,6 +910,7 @@ export class CompanyListingsService {
           deliveryAddressId: dto.deliveryAddressId ?? null,
           billingAddressId: dto.billingAddressId ?? null,
           format,
+          priceScope,
           minPrice,
           buyNowPrice,
           visibility: (dto.visibility as ListingVisibility) ?? "CONNECTIONS",
@@ -923,6 +967,10 @@ export class CompanyListingsService {
               quantity: it.quantity,
               unit: it.unit.trim(),
               targetPrice: it.targetPrice ?? null,
+              minUnitPrice:
+                priceScope === "KALEM" ? (it.minUnitPrice ?? null) : null,
+              buyNowUnitPrice:
+                priceScope === "KALEM" ? (it.buyNowUnitPrice ?? null) : null,
               materialCode: it.materialCode?.trim() || null,
               requiredByDate: it.requiredByDate
                 ? new Date(it.requiredByDate)
@@ -1356,6 +1404,7 @@ export class CompanyListingsService {
       closesAt: true,
       createdAt: true,
       companyId: true,
+      priceScope: true,
       minPrice: true,
       buyNowPrice: true,
       company: { select: { name: true } },
@@ -1468,6 +1517,7 @@ export class CompanyListingsService {
         myBidStatus: bid?.status ?? null,
         myBidVersion: bid?.version ?? null,
         // SATIS: taban + hemen-al (maskelide fiyat sızdırılmaz).
+        priceScope: l.priceScope,
         minPrice: masked ? null : (l.minPrice?.toString() ?? null),
         buyNowPrice: masked ? null : (l.buyNowPrice?.toString() ?? null),
         categoryMatch: matchesMyCategories(l.categoryIds),
@@ -1582,6 +1632,9 @@ export class CompanyListingsService {
       quantity: it.quantity.toString(),
       unit: it.unit,
       targetPrice: it.targetPrice?.toString() ?? null,
+      // SATIS + KALEM fiyatlandırma (maskeli görünümde items zaten boş).
+      minUnitPrice: it.minUnitPrice?.toString() ?? null,
+      buyNowUnitPrice: it.buyNowUnitPrice?.toString() ?? null,
       materialCode: it.materialCode,
       requiredByDate: it.requiredByDate ? it.requiredByDate.toISOString() : null,
       questions: it.questions.map((q) => ({
@@ -2055,7 +2108,10 @@ export class CompanyListingsService {
       where: { listingId: id },
       select: {
         id: true,
+        name: true,
         quantity: true,
+        minUnitPrice: true,
+        buyNowUnitPrice: true,
         questions: { select: { id: true, required: true, text: true } },
       },
     });
@@ -2194,6 +2250,29 @@ export class CompanyListingsService {
       throw new BadRequestException(
         `Teklifiniz Hemen-Al fiyatına (${Number(listing.buyNowPrice).toLocaleString("tr-TR")} ${curSym}) ulaştı — bu fiyattan almak için Hemen Al'ı kullanın`,
       );
+    }
+    // SATIS + KALEM fiyatlandırma: fiyatlanan her kalem kendi tabanının
+    // altına inemez; kalem hemen-al fiyatına eşit/üzeri birim fiyat yerine
+    // o kalem Hemen Al ile alınır. (Taslakta serbest.)
+    if (!isDraft && listing.type === "SATIS" && bidItemsData.length > 0) {
+      const itemById = new Map(listingItems.map((li) => [li.id, li]));
+      for (const bi of bidItemsData) {
+        const li = itemById.get(bi.itemId);
+        if (!li) continue;
+        if (li.minUnitPrice != null && bi.unitPrice < Number(li.minUnitPrice)) {
+          throw new BadRequestException(
+            `"${li.name}" kaleminde birim fiyat tabanın (${Number(li.minUnitPrice).toLocaleString("tr-TR")} ${curSym}) altında olamaz`,
+          );
+        }
+        if (
+          li.buyNowUnitPrice != null &&
+          bi.unitPrice >= Number(li.buyNowUnitPrice)
+        ) {
+          throw new BadRequestException(
+            `"${li.name}" kaleminde teklif Hemen-Al fiyatına (${Number(li.buyNowUnitPrice).toLocaleString("tr-TR")} ${curSym}) ulaştı — bu kalemi Hemen Al ile alın`,
+          );
+        }
+      }
     }
 
     // İngiliz Usulü: GÖNDERİLEN teklif, adım kuralına göre referanstan
@@ -2395,7 +2474,13 @@ export class CompanyListingsService {
   async buyNow(
     user: AuthenticatedCompanyUser,
     listingId: string,
-    input?: { note?: string; deliveryDate?: string; validityDays?: number },
+    input?: {
+      note?: string;
+      deliveryDate?: string;
+      validityDays?: number;
+      /** KALEM fiyatlandırmada hemen-al ile alınacak kalemler (boş = uygun tümü). */
+      itemIds?: string[];
+    },
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
@@ -2405,17 +2490,36 @@ export class CompanyListingsService {
         type: true,
         visibility: true,
         status: true,
+        priceScope: true,
         buyNowPrice: true,
+        requireAllItems: true,
+        requireBidDocument: true,
         primaryCurrency: true,
         closesAt: true,
         bidsOpenAt: true,
         isInternational: true,
         targetCountries: true,
         company: { select: { country: true } },
+        items: {
+          select: {
+            id: true,
+            name: true,
+            quantity: true,
+            buyNowUnitPrice: true,
+          },
+        },
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
-    if (listing.type !== "SATIS" || !listing.buyNowPrice) {
+    const isKalem = listing.priceScope === "KALEM";
+    const buyableItems = listing.items.filter(
+      (it) => it.buyNowUnitPrice != null,
+    );
+    if (
+      listing.type !== "SATIS" ||
+      (!isKalem && !listing.buyNowPrice) ||
+      (isKalem && buyableItems.length === 0)
+    ) {
       throw new BadRequestException("Bu ilanda hemen-al seçeneği yok");
     }
     if (listing.companyId === user.companyId) {
@@ -2473,6 +2577,15 @@ export class CompanyListingsService {
       throw new BadRequestException("Teklif süresi doldu");
     }
 
+    // Hemen-al da bir TEKLİF gönderimidir — normal gönderimle aynı detaylar
+    // zorunlu (teslim tarihi + geçerlilik); teklif-ver ekranından girilir.
+    // (Erişim kontrollerinden SONRA — davetsiz prober'a bilgi sızmaz.)
+    if (!input?.deliveryDate || !input?.validityDays) {
+      throw new BadRequestException(
+        "Hemen-Al için teslim tarihi ve geçerlilik süresi zorunlu",
+      );
+    }
+
     // Mükerrer/kural koruması: gönderilmiş Hemen-Al tekrarlanamaz; geri
     // çekilen teklif Hemen-Al ile de diriltilemez (placeBid ile aynı kural).
     const existing = await this.prisma.listingBid.findUnique({
@@ -2493,41 +2606,111 @@ export class CompanyListingsService {
       );
     }
 
-    const deliveryDate = input?.deliveryDate
-      ? new Date(input.deliveryDate)
-      : null;
-    const bid = await this.prisma.listingBid.upsert({
-      where: {
-        listingId_bidderCompanyId: {
+    // Belge zorunlu ihalede hemen-al da belgesiz gönderilemez (normal teklifle
+    // aynı kural; teklif-ver akışı: taslak → belge → hemen-al onayı).
+    if (listing.requireBidDocument) {
+      const docCount = existing
+        ? await this.prisma.listingBidDocument.count({
+            where: {
+              bid: { listingId, bidderCompanyId: user.companyId },
+            },
+          })
+        : 0;
+      if (docCount === 0) {
+        throw new BadRequestException(
+          "Bu ihalede teklif belgesi zorunlu — önce belge yükleyin",
+        );
+      }
+    }
+
+    // Tutar + kalemler: KALEM modda seçilen kalemler hemen-al birim
+    // fiyatlarından; TOPLU modda ilan geneli hemen-al tutarı.
+    let amount: Prisma.Decimal;
+    let buyItems: { itemId: string; unitPrice: number }[] = [];
+    if (isKalem) {
+      const buyableById = new Map(buyableItems.map((it) => [it.id, it]));
+      const selectedIds =
+        input.itemIds && input.itemIds.length > 0
+          ? [...new Set(input.itemIds)]
+          : buyableItems.map((it) => it.id);
+      for (const itemId of selectedIds) {
+        if (!buyableById.has(itemId)) {
+          throw new BadRequestException(
+            "Seçilen kalemlerden biri hemen-al ile alınamıyor",
+          );
+        }
+      }
+      if (
+        listing.requireAllItems &&
+        selectedIds.length < listing.items.length
+      ) {
+        throw new BadRequestException(
+          buyableItems.length < listing.items.length
+            ? "Bu ihalede tüm kalemlere teklif zorunlu; hemen-al fiyatı olmayan kalemler nedeniyle Hemen Al kullanılamaz — normal teklif verin"
+            : "Bu ihalede tüm kalemlere teklif zorunlu — tüm kalemleri seçin",
+        );
+      }
+      amount = selectedIds.reduce((sum, itemId) => {
+        const it = buyableById.get(itemId)!;
+        return sum.plus(
+          new Prisma.Decimal(it.buyNowUnitPrice!).mul(it.quantity),
+        );
+      }, new Prisma.Decimal(0));
+      buyItems = selectedIds.map((itemId) => ({
+        itemId,
+        unitPrice: Number(buyableById.get(itemId)!.buyNowUnitPrice),
+      }));
+    } else {
+      amount = new Prisma.Decimal(listing.buyNowPrice!);
+    }
+
+    const deliveryDate = new Date(input.deliveryDate);
+    const bid = await this.prisma.$transaction(async (tx) => {
+      const b = await tx.listingBid.upsert({
+        where: {
+          listingId_bidderCompanyId: {
+            listingId,
+            bidderCompanyId: user.companyId,
+          },
+        },
+        create: {
           listingId,
           bidderCompanyId: user.companyId,
+          amount,
+          isBuyNow: true,
+          createdById: user.userId,
+          status: "SUBMITTED",
+          submittedAt: new Date(),
+          note: input.note?.trim() || null,
+          deliveryDate,
+          validityDays: input.validityDays ?? null,
         },
-      },
-      create: {
-        listingId,
-        bidderCompanyId: user.companyId,
-        amount: listing.buyNowPrice,
-        isBuyNow: true,
-        createdById: user.userId,
-        status: "SUBMITTED",
-        submittedAt: new Date(),
-        note: input?.note?.trim() || null,
-        deliveryDate,
-        validityDays: input?.validityDays ?? null,
-      },
-      update: {
-        // Eski taslak/teklifin kalıntıları (yabancı currency, bayat submittedAt)
-        // hemen-al fiyatını bozmasın — ilan birimi + şimdiki zaman yazılır.
-        amount: listing.buyNowPrice,
-        isBuyNow: true,
-        status: "SUBMITTED",
-        currency: listing.primaryCurrency,
-        submittedAt: new Date(),
-        version: { increment: 1 },
-        note: input?.note?.trim() || null,
-        deliveryDate,
-        validityDays: input?.validityDays ?? null,
-      },
+        update: {
+          // Eski taslak/teklifin kalıntıları (yabancı currency, bayat
+          // submittedAt) hemen-al fiyatını bozmasın.
+          amount,
+          isBuyNow: true,
+          status: "SUBMITTED",
+          currency: listing.primaryCurrency,
+          submittedAt: new Date(),
+          version: { increment: 1 },
+          note: input.note?.trim() || null,
+          deliveryDate,
+          validityDays: input.validityDays ?? null,
+        },
+      });
+      // KALEM modda kalem teklifleri hemen-al fiyatlarıyla yenilenir.
+      if (isKalem) {
+        await tx.listingBidItem.deleteMany({ where: { bidId: b.id } });
+        await tx.listingBidItem.createMany({
+          data: buyItems.map((bi) => ({
+            bidId: b.id,
+            itemId: bi.itemId,
+            unitPrice: bi.unitPrice,
+          })),
+        });
+      }
+      return b;
     });
     this.realtime?.pingListing(listingId, [listing.companyId]);
     return { id: bid.id, amount: bid.amount.toString(), isBuyNow: true };
@@ -3730,6 +3913,7 @@ export class CompanyListingsService {
       isInternational: boolean;
       targetCountries: string[];
       format: ListingFormat | null;
+      priceScope: ListingPriceScope | null;
       minPrice: { toString(): string } | null;
       buyNowPrice: { toString(): string } | null;
       visibility: ListingVisibility;
@@ -3776,6 +3960,7 @@ export class CompanyListingsService {
       isInternational: l.isInternational,
       targetCountries: l.targetCountries,
       format: l.format,
+      priceScope: l.priceScope,
       // Maskeli önizlemede fiyat bilgisi sızmaz (taban/hemen-al).
       minPrice: masked ? null : (l.minPrice?.toString() ?? null),
       buyNowPrice: masked ? null : (l.buyNowPrice?.toString() ?? null),

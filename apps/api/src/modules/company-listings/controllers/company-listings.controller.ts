@@ -135,7 +135,12 @@ export class CompanyListingsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
     @Body()
-    body?: { note?: string; deliveryDate?: string; validityDays?: number },
+    body?: {
+      note?: string;
+      deliveryDate?: string;
+      validityDays?: number;
+      itemIds?: string[];
+    },
   ) {
     return this.service.buyNow(user, id, body);
   }

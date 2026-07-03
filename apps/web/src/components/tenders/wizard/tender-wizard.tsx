@@ -130,8 +130,10 @@ function mapToInput(d: TenderFormData): CreateListingInput {
     type: d.listingType,
     // Format iki yönde de var: ALIM'da RFQ/eksiltme, SATIS'ta RFQ/açık artırma.
     format: d.type,
-    minPrice: isSatis ? d.minPrice : undefined,
-    buyNowPrice: isSatis ? d.buyNowPrice : undefined,
+    priceScope: isSatis ? d.priceScope : undefined,
+    minPrice: isSatis && d.priceScope !== "KALEM" ? d.minPrice : undefined,
+    buyNowPrice:
+      isSatis && d.priceScope !== "KALEM" ? d.buyNowPrice : undefined,
     isInternational: d.isInternational,
     targetCountries: d.isInternational ? d.targetCountries : [],
     deliveryAddressId: d.deliveryAddressId || undefined,
@@ -147,6 +149,10 @@ function mapToInput(d: TenderFormData): CreateListingInput {
       quantity: it.quantity,
       unit: it.unit.trim(),
       targetPrice: it.targetUnitPrice,
+      minUnitPrice:
+        isSatis && d.priceScope === "KALEM" ? it.minUnitPrice : undefined,
+      buyNowUnitPrice:
+        isSatis && d.priceScope === "KALEM" ? it.buyNowUnitPrice : undefined,
       materialCode: it.materialCode?.trim() || undefined,
       requiredByDate: toIso(it.requiredByDate),
       questions: it.questions?.length

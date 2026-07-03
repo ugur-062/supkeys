@@ -151,6 +151,53 @@ describe("tenderFormSchema — SATIS (satış ihalesi)", () => {
     ).toBe(true);
   });
 
+  it("KALEM fiyatlandırma: kalem tabanı zorunlu, hemen-al ≥ taban; toplu taban aranmaz", () => {
+    const noItemFloor = tenderFormSchema.safeParse(
+      validForm({ listingType: "SATIS", priceScope: "KALEM" }),
+    );
+    expect(noItemFloor.success).toBe(false);
+    expect(
+      noItemFloor.success
+        ? ""
+        : noItemFloor.error.issues.map((i) => i.path.join(".")).join(","),
+    ).toContain("minUnitPrice");
+
+    const badBuyNow = tenderFormSchema.safeParse(
+      validForm({
+        listingType: "SATIS",
+        priceScope: "KALEM",
+        items: [
+          {
+            name: "Kalem",
+            quantity: 1,
+            unit: "adet",
+            minUnitPrice: 100,
+            buyNowUnitPrice: 50,
+          },
+        ],
+      }),
+    );
+    expect(badBuyNow.success).toBe(false);
+
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({
+          listingType: "SATIS",
+          priceScope: "KALEM",
+          items: [
+            {
+              name: "Kalem",
+              quantity: 1,
+              unit: "adet",
+              minUnitPrice: 100,
+              buyNowUnitPrice: 150,
+            },
+          ],
+        }),
+      ).success,
+    ).toBe(true);
+  });
+
   it("SATIS + RFQ: artış adımı gerektirmez", () => {
     expect(
       tenderFormSchema.safeParse(

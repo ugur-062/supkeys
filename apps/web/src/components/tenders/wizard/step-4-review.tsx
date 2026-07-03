@@ -57,24 +57,28 @@ export function Step4Review({ onEditStep }: Props) {
           }
         />
         {d.listingType === "SATIS" ? (
-          <>
-            <Row
-              label="Taban Fiyat"
-              value={
-                d.minPrice != null
-                  ? `${d.minPrice.toLocaleString("tr-TR")} ${sym}`
-                  : "—"
-              }
-            />
-            <Row
-              label="Hemen-Al Fiyatı"
-              value={
-                d.buyNowPrice != null
-                  ? `${d.buyNowPrice.toLocaleString("tr-TR")} ${sym}`
-                  : "Yok"
-              }
-            />
-          </>
+          d.priceScope === "KALEM" ? (
+            <Row label="Fiyatlandırma" value="Kalem Bazlı (taban/hemen-al kalemlerde)" />
+          ) : (
+            <>
+              <Row
+                label="Taban Fiyat"
+                value={
+                  d.minPrice != null
+                    ? `${d.minPrice.toLocaleString("tr-TR")} ${sym}`
+                    : "—"
+                }
+              />
+              <Row
+                label="Hemen-Al Fiyatı"
+                value={
+                  d.buyNowPrice != null
+                    ? `${d.buyNowPrice.toLocaleString("tr-TR")} ${sym}`
+                    : "Yok"
+                }
+              />
+            </>
+          )
         ) : null}
         <Row label="Kapsam" value={d.isInternational ? "Uluslararası" : "Yurtiçi"} />
         {d.isInternational ? (
@@ -136,6 +140,14 @@ export function Step4Review({ onEditStep }: Props) {
                 <th className="px-3 py-2 text-right font-medium">
                   {d.listingType === "SATIS" ? "İstenen Fiyat" : "Hedef Fiyat"}
                 </th>
+                {d.listingType === "SATIS" && d.priceScope === "KALEM" ? (
+                  <>
+                    <th className="px-3 py-2 text-right font-medium">Taban</th>
+                    <th className="px-3 py-2 text-right font-medium">
+                      Hemen-Al
+                    </th>
+                  </>
+                ) : null}
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
@@ -150,6 +162,20 @@ export function Step4Review({ onEditStep }: Props) {
                       ? `${sym}${it.targetUnitPrice.toLocaleString("tr-TR")}`
                       : "—"}
                   </td>
+                  {d.listingType === "SATIS" && d.priceScope === "KALEM" ? (
+                    <>
+                      <td className="px-3 py-2 text-right font-mono text-zinc-600">
+                        {it.minUnitPrice != null
+                          ? `${sym}${it.minUnitPrice.toLocaleString("tr-TR")}`
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono text-zinc-600">
+                        {it.buyNowUnitPrice != null
+                          ? `${sym}${it.buyNowUnitPrice.toLocaleString("tr-TR")}`
+                          : "—"}
+                      </td>
+                    </>
+                  ) : null}
                 </tr>
               ))}
             </tbody>

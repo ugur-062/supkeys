@@ -124,7 +124,74 @@ describe("SATIS teklif — taban fiyat tabanı", () => {
   it("hemen-al taban kuralından bağımsız çalışır (buyNowPrice ≥ taban zaten)", async () => {
     const { service, seller, buyer } = await sellerAndBuyer();
     const listing = await service.create(seller.auth, satisDto() as never);
-    const res = await service.buyNow(buyer.auth, listing.id);
+    const res = await service.buyNow(buyer.auth, listing.id, {
+      deliveryDate: future(7).toISOString(),
+      validityDays: 30,
+    });
     expect(Number(res.amount)).toBe(5000);
+  });
+});
+
+describe("SATIS kalem bazlı fiyatlandırma — oluşturma", () => {
+  it("kalem tabansız reddedilir; hemen-al < taban reddedilir; geçerli KALEM yayınlanır", async () => {
+    const { service, seller } = await sellerAndBuyer();
+
+    await expect(
+      service.create(
+        seller.auth,
+        satisDto({
+          priceScope: "KALEM",
+          minPrice: undefined,
+          buyNowPrice: undefined,
+          items: [{ name: "Bakır", quantity: 1, unit: "ton" }],
+        }) as never,
+      ),
+    ).rejects.toThrow(/taban birim fiyat girin/);
+
+    await expect(
+      service.create(
+        seller.auth,
+        satisDto({
+          priceScope: "KALEM",
+          minPrice: undefined,
+          buyNowPrice: undefined,
+          items: [
+            {
+              name: "Bakır",
+              quantity: 1,
+              unit: "ton",
+              minUnitPrice: 100,
+              buyNowUnitPrice: 50,
+            },
+          ],
+        }) as never,
+      ),
+    ).rejects.toThrow(/tabandan düşük olamaz/);
+
+    const listing = await service.create(
+      seller.auth,
+      satisDto({
+        priceScope: "KALEM",
+        minPrice: undefined,
+        buyNowPrice: undefined,
+        items: [
+          {
+            name: "Bakır",
+            quantity: 1,
+            unit: "ton",
+            minUnitPrice: 100,
+            buyNowUnitPrice: 150,
+          },
+        ],
+      }) as never,
+    );
+    const db = await prisma.listing.findUniqueOrThrow({
+      where: { id: listing.id },
+      include: { items: true },
+    });
+    expect(db.priceScope).toBe("KALEM");
+    expect(db.minPrice).toBeNull(); // ilan geneli fiyat KALEM'de yazılmaz
+    expect(Number(db.items[0]!.minUnitPrice)).toBe(100);
+    expect(Number(db.items[0]!.buyNowUnitPrice)).toBe(150);
   });
 });

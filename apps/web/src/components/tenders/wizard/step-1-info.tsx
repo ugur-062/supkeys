@@ -673,14 +673,52 @@ export function Step1Info({ listingId }: { listingId?: string }) {
         </Field>
       </section>
 
-      {/* SATIS — Satış Fiyatları: taban (zorunlu) + hemen-al (opsiyonel ≥ taban) */}
+      {/* SATIS — Satış Fiyatları: kapsam (TOPLU/KALEM) + toplu alanlar */}
       {isSatis ? (
         <section>
           <SectionHeader
             icon={Wallet}
             title="Satış Fiyatları"
-            description="Taban fiyatın altındaki teklifler kabul edilmez. Hemen-al fiyatı verirseniz alıcı bu fiyattan anında teklif oluşturabilir (onayınızla sipariş olur)."
+            description="Taban fiyatın altındaki teklifler kabul edilmez. Hemen-al fiyatı verirseniz alıcı o fiyattan anında teklif oluşturabilir (onayınızla sipariş olur)."
           />
+          <Field className="mb-4">
+            <Label required>Fiyatlandırma</Label>
+            <FormRadioGroup
+              name="priceScope"
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+            >
+              <div className="flex items-start gap-3 rounded-lg p-3 ring-1 ring-zinc-950/10 transition-colors has-data-checked:bg-zinc-50 has-data-checked:ring-2 has-data-checked:ring-zinc-900">
+                <Radio value="TOPLU" aria-label="Toplu fiyat" className="mt-0.5" />
+                <p className="text-sm font-semibold text-zinc-900">
+                  Toplu
+                  <span className="block text-xs font-normal text-zinc-500">
+                    İhale geneli tek taban + tek hemen-al fiyatı.
+                  </span>
+                </p>
+              </div>
+              <div className="flex items-start gap-3 rounded-lg p-3 ring-1 ring-zinc-950/10 transition-colors has-data-checked:bg-zinc-50 has-data-checked:ring-2 has-data-checked:ring-zinc-900">
+                <Radio
+                  value="KALEM"
+                  aria-label="Kalem bazlı fiyat"
+                  className="mt-0.5"
+                />
+                <p className="text-sm font-semibold text-zinc-900">
+                  Kalem Bazlı
+                  <span className="block text-xs font-normal text-zinc-500">
+                    Her kaleme ayrı taban + hemen-al birim fiyatı (Kalemler
+                    adımında girilir).
+                  </span>
+                </p>
+              </div>
+            </FormRadioGroup>
+          </Field>
+          {watch("priceScope") === "KALEM" ? (
+            <div className="rounded-lg border border-brand-100 bg-brand-50/30 p-3 text-xs text-slate-700">
+              Kalem taban ve hemen-al birim fiyatlarını{" "}
+              <strong>Kalemler adımında</strong> her kalemin üzerinde
+              gireceksiniz.
+            </div>
+          ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field error={errors.minPrice?.message as string | undefined}>
               <Label required htmlFor="satis-min-price">
@@ -718,6 +756,7 @@ export function Step1Info({ listingId }: { listingId?: string }) {
               />
             </Field>
           </div>
+          )}
         </section>
       ) : null}
 

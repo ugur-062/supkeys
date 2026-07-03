@@ -784,6 +784,11 @@ model ListingDocument {
   @@map("listing_documents")
 }
 
+enum ListingPriceScope {
+  TOPLU // ilan geneli tek taban + tek hemen-al
+  KALEM // kalem başına taban/hemen-al birim fiyatlar
+}
+
 enum ListingStatus {
   DRAFT // taslak — düzenlenebilir, yayınlanmadı
   IN_APPROVAL // yayın onayı bekliyor (onay akışı varsa)
@@ -879,7 +884,11 @@ model Listing {
   visibility            ListingVisibility @default(CONNECTIONS)
   title                 String
   description           String?
-  // SATIS için: taban (min) fiyat + hemen-al fiyatı.
+  // SATIS fiyatlandırma kapsamı: TOPLU (ilan geneli taban/hemen-al) veya
+  // KALEM (her kalemin kendi minUnitPrice/buyNowUnitPrice'ı). null = TOPLU
+  // (legacy). ALIM'da anlamsız.
+  priceScope            ListingPriceScope?
+  // SATIS + TOPLU için: taban (min) fiyat + hemen-al fiyatı.
   minPrice              Decimal?          @db.Decimal(18, 2)
   buyNowPrice           Decimal?          @db.Decimal(18, 2)
   status                ListingStatus     @default(OPEN)
@@ -987,6 +996,9 @@ model ListingItem {
   quantity        Decimal   @db.Decimal(18, 3)
   unit            String // adet, kg, m, paket…
   targetPrice     Decimal?  @db.Decimal(18, 2) // hedef birim fiyat (opsiyonel)
+  // SATIS + kalem-bazlı fiyatlandırma: kalem taban / hemen-al BİRİM fiyatları.
+  minUnitPrice    Decimal?  @db.Decimal(18, 2)
+  buyNowUnitPrice Decimal?  @db.Decimal(18, 2)
   materialCode    String? // malzeme/stok kodu
   requiredByDate  DateTime? // istenen teslim tarihi
   awardedQuantity Decimal?  @db.Decimal(18, 3) // kısmi kazandırmada verilen miktar

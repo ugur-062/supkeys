@@ -25,6 +25,8 @@ export interface SellerTenderRow {
   categoryMatch: boolean;
   categories: { code: string; name: string }[];
   extraCategoryCount: number;
+  /** SATIS fiyatlandırma kapsamı (TOPLU/KALEM). */
+  priceScope?: "TOPLU" | "KALEM" | null;
   /** SATIS ilanlarında taban + hemen-al (maskelide null). */
   minPrice: string | null;
   buyNowPrice: string | null;

@@ -189,7 +189,12 @@ describe("buyNow — yetki matrisi", () => {
       tier: "STANDARD",
     });
     await connect(prisma, owner.company.id, v.company.id, owner.user.id);
-    await expect(service.buyNow(v.auth, l.id)).resolves.toBeDefined();
+    await expect(
+      service.buyNow(v.auth, l.id, {
+        deliveryDate: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        validityDays: 30,
+      }),
+    ).resolves.toBeDefined();
   });
 
   it("yanlış rol (Satın Almacı değil) → reddedilir", async () => {

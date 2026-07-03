@@ -104,6 +104,10 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
     control,
     formState: { errors },
   } = useFormContext<TenderFormData>();
+  // SATIS + KALEM fiyatlandırma: kalem başına taban/hemen-al girişleri açılır.
+  const isKalemPricing =
+    useWatch({ control, name: "listingType" }) === "SATIS" &&
+    useWatch({ control, name: "priceScope" }) === "KALEM";
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [questionOpen, setQuestionOpen] = useState(false);
@@ -224,6 +228,55 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
+
+      {/* SATIS + KALEM: kalem taban / hemen-al birim fiyatları */}
+      {isKalemPricing ? (
+        <div className="mt-3 grid grid-cols-1 gap-3 border-t border-emerald-100 pt-3 pl-11 sm:grid-cols-2">
+          <Field
+            error={
+              (errors.items?.[index] as Record<string, { message?: string }>)
+                ?.minUnitPrice?.message
+            }
+          >
+            <Label htmlFor={`items.${index}.minUnitPrice`} required>
+              Taban Birim Fiyat
+            </Label>
+            <Input
+              id={`items.${index}.minUnitPrice`}
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="0.00"
+              {...register(`items.${index}.minUnitPrice`, {
+                setValueAs: (v) =>
+                  v === "" || v == null ? undefined : Number(v),
+              })}
+            />
+          </Field>
+          <Field
+            error={
+              (errors.items?.[index] as Record<string, { message?: string }>)
+                ?.buyNowUnitPrice?.message
+            }
+            hint="Boş bırakılabilir — verilirse alıcı bu kalemi anında bu fiyattan alabilir."
+          >
+            <Label htmlFor={`items.${index}.buyNowUnitPrice`}>
+              Hemen-Al Birim Fiyatı
+            </Label>
+            <Input
+              id={`items.${index}.buyNowUnitPrice`}
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="—"
+              {...register(`items.${index}.buyNowUnitPrice`, {
+                setValueAs: (v) =>
+                  v === "" || v == null ? undefined : Number(v),
+              })}
+            />
+          </Field>
+        </div>
+      ) : null}
 
       {/* 2 ayrı buton + chip özeti */}
       <div className="mt-3 pt-3 border-t border-slate-100 pl-11 flex items-center gap-2 flex-wrap">

@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "l1" }),
   useRouter: () => ({ push: h.push }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
@@ -23,6 +24,7 @@ vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
     ...mod,
     useListingDetail: () => ({ data: h.detail, isLoading: h.isLoading }),
     usePlaceBid: () => ({ mutateAsync: h.mutateAsync, isPending: false }),
+    useBuyNow: () => ({ mutateAsync: vi.fn(), isPending: false }),
   };
 });
 vi.mock("@/hooks/use-bid-documents", () => ({

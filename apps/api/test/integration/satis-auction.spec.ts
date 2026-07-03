@@ -150,7 +150,10 @@ describe("SATIS açık artırma — teklif kuralları", () => {
     const ok = await bid(service, b1.auth, l.id, 4900);
     expect(ok.status).toBe("SUBMITTED");
 
-    const bn = await service.buyNow(b2.auth, l.id);
+    const bn = await service.buyNow(b2.auth, l.id, {
+      deliveryDate: future(7).toISOString(),
+      validityDays: 30,
+    });
     expect(Number(bn.amount)).toBe(5000);
   });
 

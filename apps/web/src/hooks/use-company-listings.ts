@@ -92,6 +92,9 @@ export interface ListingItemInput {
   quantity: number;
   unit: string;
   targetPrice?: number;
+  /** SATIS + KALEM fiyatlandırma. */
+  minUnitPrice?: number;
+  buyNowUnitPrice?: number;
   materialCode?: string;
   requiredByDate?: string;
   questions?: ItemQuestionInput[];
@@ -105,6 +108,7 @@ export interface CreateListingInput {
   deliveryAddressId?: string;
   billingAddressId?: string;
   format?: ListingFormat; // ALIM
+  priceScope?: "TOPLU" | "KALEM"; // SATIS fiyatlandırma kapsamı
   minPrice?: number; // SATIS
   buyNowPrice?: number; // SATIS
   visibility: ListingVisibility;
@@ -223,6 +227,9 @@ export interface ListingItemRow {
   quantity: string;
   unit: string;
   targetPrice: string | null;
+  /** SATIS + KALEM fiyatlandırma. */
+  minUnitPrice?: string | null;
+  buyNowUnitPrice?: string | null;
   materialCode?: string | null;
   requiredByDate?: string | null;
   questions?: ListingItemQuestionRow[];
@@ -278,6 +285,7 @@ export interface ListingDetail {
   isInternational: boolean;
   targetCountries: string[];
   format: ListingFormat | null;
+  priceScope: "TOPLU" | "KALEM" | null;
   minPrice: string | null;
   buyNowPrice: string | null;
   visibility: ListingVisibility;
@@ -432,6 +440,7 @@ export function useBuyNow(id: string) {
       note?: string;
       deliveryDate?: string;
       validityDays?: number;
+      itemIds?: string[];
     }) => {
       const { data } = await companyApi.post(
         `/company/listings/${id}/buy-now`,

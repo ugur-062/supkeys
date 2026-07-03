@@ -23,6 +23,7 @@ import {
   type BidDocKind,
 } from "@/hooks/use-bid-documents";
 import {
+  useBuyNow,
   useListingDetail,
   usePlaceBid,
   type ListingDetail,
@@ -36,7 +37,7 @@ import { cn } from "@/lib/utils";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import { AlertTriangle, Info, Lock, X } from "lucide-react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { AuctionLiveCard } from "../_components/auction-live-card";
@@ -118,8 +119,10 @@ export default function TeklifVerPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
   const router = useRouter();
+  const searchParams = useSearchParams();
   const detail = useListingDetail(id);
   const placeBid = usePlaceBid(id);
+  const buyNow = useBuyNow(id);
   const bidDocs = useBidDocuments(id);
   const uploadDoc = useUploadBidDoc(id);
   const deleteDoc = useDeleteBidDoc(id);
@@ -129,6 +132,16 @@ export default function TeklifVerPage() {
   // SATIS ihalede teklifçi ALICI'dır; ilan sahibi satıcıdır ve en yüksek
   // teklif kazanır (taban fiyat altı kabul edilmez).
   const isSatis = l?.type === "SATIS";
+  const isKalemPricing = isSatis && l?.priceScope === "KALEM";
+  // Hemen-Al modu: fiyatlar hemen-al değerleriyle KİLİTLİ; alıcı yalnızca
+  // detayları (teslim/geçerlilik/not/belge) girer; gönderim buyNow ile.
+  const isBuyNowMode =
+    searchParams.get("hemenAl") === "1" &&
+    !!l &&
+    isSatis &&
+    (isKalemPricing
+      ? (l.items ?? []).some((it) => it.buyNowUnitPrice != null)
+      : l.buyNowPrice != null);
 
   // ── Form durumu ──
   const [itemState, setItemState] = useState<Record<string, ItemState>>({});
@@ -176,21 +189,38 @@ export default function TeklifVerPage() {
       for (const q of it.questions ?? []) {
         answers[q.id] = answerByQ.get(q.id) ?? "";
       }
+      // Hemen-Al modunda kalem fiyatı hemen-al değeriyle sabitlenir;
+      // hemen-al fiyatı olmayan kalem otomatik kapsam dışı (null = opt-out).
+      const buyNowSeed =
+        isBuyNowMode && l.priceScope === "KALEM"
+          ? it.buyNowUnitPrice != null
+            ? String(Number(it.buyNowUnitPrice))
+            : null
+          : undefined;
       next[it.id] = {
-        price: bi ? String(Number(bi.unitPrice)) : "",
+        price:
+          buyNowSeed !== undefined
+            ? buyNowSeed
+            : bi
+              ? String(Number(bi.unitPrice))
+              : "",
         deliveryDate: bi?.deliveryDate ? bi.deliveryDate.slice(0, 10) : "",
         answers,
       };
     }
     setItemState(next);
+    if (isBuyNowMode && !l.items?.length && l.buyNowPrice) {
+      setSingleAmount(String(Number(l.buyNowPrice)));
+    }
     if (bid) {
-      if (!l.items?.length) setSingleAmount(String(Number(bid.amount)));
+      if (!l.items?.length && !isBuyNowMode)
+        setSingleAmount(String(Number(bid.amount)));
       if (bid.deliveryDate) setDeliveryDate(bid.deliveryDate.slice(0, 10));
       if (bid.validityDays) setValidityDays(String(bid.validityDays));
       if (bid.note) setNote(bid.note);
       if (bid.currency) setCurrency(bid.currency);
     }
-  }, [l, seeded]);
+  }, [l, seeded, isBuyNowMode]);
 
   const items = l?.items ?? [];
   const hasItems = items.length > 0;
@@ -208,12 +238,16 @@ export default function TeklifVerPage() {
   );
 
   const total = useMemo(() => {
+    // Hemen-Al TOPLU: tutar ilan geneli hemen-al fiyatıdır (kalem fiyatı yok).
+    if (isBuyNowMode && l?.priceScope !== "KALEM") {
+      return Number(l?.buyNowPrice ?? 0);
+    }
     if (!hasItems) return Number(singleAmount) || 0;
     return pricedItems.reduce((sum, it) => {
       const p = Number(itemState[it.id]?.price ?? 0);
       return sum + (Number.isFinite(p) ? p * Number(it.quantity) : 0);
     }, 0);
-  }, [hasItems, singleAmount, pricedItems, itemState]);
+  }, [hasItems, singleAmount, pricedItems, itemState, isBuyNowMode, l]);
 
   if (detail.isLoading) {
     return (
@@ -259,7 +293,16 @@ export default function TeklifVerPage() {
       />
     );
   }
+  if (isBuyNowMode && l.myBid?.status === "SUBMITTED" && l.myBid.isBuyNow) {
+    return (
+      <Blocked
+        title="Hemen-Al teklifin zaten gönderildi — satıcı onayı bekleniyor"
+        detailHref={detailHref}
+      />
+    );
+  }
   if (
+    !isBuyNowMode &&
     l.myBid?.status === "SUBMITTED" &&
     !l.english?.isEnglishAuction
   ) {
@@ -274,13 +317,15 @@ export default function TeklifVerPage() {
   const isRebidAfterLoss = l.myBid?.status === "LOST";
   const isAuctionRebid =
     l.myBid?.status === "SUBMITTED" && !!l.english?.isEnglishAuction;
-  const pageTitle = isAuctionRebid
-    ? isSatis
-      ? "Yeni Teklif Ver (Fiyat Artır)"
-      : "Yeni Teklif Ver (Fiyat Düşür)"
-    : isRebidAfterLoss
-      ? "Yeniden Teklif Ver"
-      : "Teklif Ver";
+  const pageTitle = isBuyNowMode
+    ? "Hemen Al"
+    : isAuctionRebid
+      ? isSatis
+        ? "Yeni Teklif Ver (Fiyat Artır)"
+        : "Yeni Teklif Ver (Fiyat Düşür)"
+      : isRebidAfterLoss
+        ? "Yeniden Teklif Ver"
+        : "Teklif Ver";
 
   const days = daysUntil(l.closesAt);
   const deadlineClass =
@@ -299,12 +344,22 @@ export default function TeklifVerPage() {
   // ── Doğrulama (gönderim) ──
   const submitProblems = (): string[] => {
     const problems: string[] = [];
-    if (hasItems) {
+    // Hemen-Al modunda fiyatlar sabittir — fiyat problemleri üretilmez;
+    // yalnızca detaylar (teslim/geçerlilik/belge/zorunlu soru) doğrulanır.
+    if (hasItems && !isBuyNowMode) {
       if (pricedItems.length === 0)
         problems.push("En az bir kaleme birim fiyat girin.");
       if (l.requireAllItems && pricedItems.length < items.length)
         problems.push("Bu ihalede tüm kalemlere teklif vermelisiniz.");
-      for (const it of pricedItems) {
+    } else if (!hasItems && !isBuyNowMode) {
+      if (!singleAmount || Number(singleAmount) <= 0)
+        problems.push("Geçerli bir tutar girin.");
+    }
+    if (hasItems) {
+      const scope = isBuyNowMode
+        ? items.filter((it) => itemState[it.id]?.price !== null)
+        : pricedItems;
+      for (const it of scope) {
         for (const q of it.questions ?? []) {
           if (q.required && !(itemState[it.id]?.answers[q.id] ?? "").trim()) {
             problems.push(`"${it.name}" kalemi için zorunlu soru cevaplanmadı.`);
@@ -312,11 +367,14 @@ export default function TeklifVerPage() {
           }
         }
       }
-    } else if (!singleAmount || Number(singleAmount) <= 0) {
-      problems.push("Geçerli bir tutar girin.");
+      if (isBuyNowMode && l.requireAllItems && scope.length < items.length)
+        problems.push(
+          "Bu ihalede tüm kalemlere teklif zorunlu — kalem kapsam dışı bırakılamaz.",
+        );
     }
     if (
       hasItems &&
+      !isBuyNowMode &&
       pricedItems.some((it) => Number(itemState[it.id]?.price ?? 0) <= 0)
     )
       problems.push("Fiyatlanan her kalemin birim fiyatı sıfırdan büyük olmalı.");
@@ -326,7 +384,11 @@ export default function TeklifVerPage() {
     if (l.requireBidDocument && myDocs.length + stagedFiles.length === 0)
       problems.push("Bu ihalede teklif dosyası zorunlu.");
     // SATIS: taban/hemen-al kıyası yalnız ilanın kendi para biriminde anlamlı.
-    if (isSatis && effectiveCurrency === (l.primaryCurrency ?? "TRY")) {
+    if (
+      isSatis &&
+      !isBuyNowMode &&
+      effectiveCurrency === (l.primaryCurrency ?? "TRY")
+    ) {
       if (l.minPrice && total > 0 && total < Number(l.minPrice))
         problems.push(
           `Toplam teklif taban fiyatın (${money(Number(l.minPrice), effectiveCurrency)}) altında olamaz.`,
@@ -424,8 +486,29 @@ export default function TeklifVerPage() {
         const up = await uploadStaged();
         if (!up.ok) return; // taslak + staged korunur; kullanıcı tekrar dener
       }
-      await placeBid.mutateAsync(buildPayload(false));
-      toast.success("Teklifiniz gönderildi");
+      if (isBuyNowMode) {
+        // Hemen-Al: fiyatlar sunucuda hemen-al değerlerinden hesaplanır —
+        // istemci fiyatı güvenilmez. KALEM modda kapsam = fiyatı açık kalemler.
+        await buyNow.mutateAsync({
+          note: note.trim() || undefined,
+          deliveryDate: deliveryDate
+            ? new Date(deliveryDate).toISOString()
+            : undefined,
+          validityDays: validityDays ? Number(validityDays) : undefined,
+          itemIds:
+            l && l.priceScope === "KALEM"
+              ? items
+                  .filter((it) => itemState[it.id]?.price !== null)
+                  .map((it) => it.id)
+              : undefined,
+        });
+        toast.success(
+          "Hemen-Al teklifin gönderildi — satıcı onayı bekleniyor",
+        );
+      } else {
+        await placeBid.mutateAsync(buildPayload(false));
+        toast.success("Teklifiniz gönderildi");
+      }
       router.push(detailHref);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Teklif gönderilemedi"));
@@ -476,7 +559,18 @@ export default function TeklifVerPage() {
         </div>
       ) : null}
 
-      {isSatis && l.minPrice ? (
+      {isSatis && l.priceScope === "KALEM" && !isBuyNowMode ? (
+        <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <p>
+            <span className="font-semibold">Kalem bazlı taban fiyat:</span>{" "}
+            her kalemin birim fiyatı kendi tabanının altına inemez; hemen-al
+            fiyatlı kalemler o fiyattan anında alınabilir. En yüksek teklif
+            kazanır.
+          </p>
+        </div>
+      ) : null}
+      {isSatis && l.priceScope !== "KALEM" && l.minPrice ? (
         <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <p>
@@ -491,6 +585,21 @@ export default function TeklifVerPage() {
               ? ` Hemen-Al: ${money(Number(l.buyNowPrice), l.primaryCurrency ?? "TRY")} (bu fiyata ulaşan teklif yerine ihale detayındaki Hemen Al kullanılır).`
               : ""}{" "}
             En yüksek teklif kazanır.
+          </p>
+        </div>
+      ) : null}
+
+      {isBuyNowMode ? (
+        <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <p>
+            <span className="font-semibold">Hemen-Al modu:</span> fiyatlar
+            hemen-al değerleriyle sabittir, değiştirilemez.{" "}
+            {l.priceScope === "KALEM"
+              ? "İstemediğin kalemi kapsam dışı bırakabilirsin (✕); hemen-al fiyatı olmayan kalemler zaten kapsam dışıdır."
+              : ""}
+            Teslim tarihi ve geçerlilik süresini girip onayla — satıcı
+            kazandırınca sipariş oluşur.
           </p>
         </div>
       ) : null}
@@ -584,6 +693,12 @@ export default function TeklifVerPage() {
                             {it.targetPrice
                               ? ` · ${isSatis ? "İstenen" : "Hedef"}: ${money(Number(it.targetPrice), effectiveCurrency)}`
                               : ""}
+                            {it.minUnitPrice != null
+                              ? ` · Taban: ${money(Number(it.minUnitPrice), effectiveCurrency)}`
+                              : ""}
+                            {it.buyNowUnitPrice != null
+                              ? ` · Hemen-Al: ${money(Number(it.buyNowUnitPrice), effectiveCurrency)}`
+                              : ""}
                           </p>
                         </div>
 
@@ -606,6 +721,7 @@ export default function TeklifVerPage() {
                                   step="0.01"
                                   aria-label={`${it.name} birim fiyat`}
                                   value={st?.price ?? ""}
+                                  disabled={isBuyNowMode}
                                   onChange={(e) =>
                                     setItem(it.id, { price: e.target.value })
                                   }
@@ -682,6 +798,7 @@ export default function TeklifVerPage() {
                     min={0}
                     step="0.01"
                     value={singleAmount}
+                    disabled={isBuyNowMode}
                     onChange={(e) => setSingleAmount(e.target.value)}
                   />
                 </Field>
@@ -909,19 +1026,23 @@ export default function TeklifVerPage() {
             <Button
               color="emerald"
               className="w-full"
-              disabled={problems.length > 0 || placeBid.isPending}
+              disabled={
+                problems.length > 0 || placeBid.isPending || buyNow.isPending
+              }
               onClick={() => setConfirmOpen(true)}
             >
-              Teklif Gönder
+              {isBuyNowMode ? "Hemen Al" : "Teklif Gönder"}
             </Button>
-            <Button
-              outline
-              className="w-full"
-              disabled={placeBid.isPending}
-              onClick={saveDraft}
-            >
-              Taslak Olarak Kaydet
-            </Button>
+            {!isBuyNowMode ? (
+              <Button
+                outline
+                className="w-full"
+                disabled={placeBid.isPending}
+                onClick={saveDraft}
+              >
+                Taslak Olarak Kaydet
+              </Button>
+            ) : null}
             <Link
               href={detailHref}
               className="block text-center text-sm text-zinc-500 hover:text-zinc-700"
@@ -958,10 +1079,12 @@ export default function TeklifVerPage() {
         </div>
         <Button
           color="emerald"
-          disabled={problems.length > 0 || placeBid.isPending}
+          disabled={
+            problems.length > 0 || placeBid.isPending || buyNow.isPending
+          }
           onClick={() => setConfirmOpen(true)}
         >
-          Teklif Gönder
+          {isBuyNowMode ? "Hemen Al" : "Teklif Gönder"}
         </Button>
       </div>
       {/* Yapışkan çubuk içeriği örtmesin */}
@@ -970,7 +1093,11 @@ export default function TeklifVerPage() {
       {/* Gönderim onayı */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>
-          {isAuctionRebid || isRebidAfterLoss ? "Teklifi Revize Et" : "Teklif Gönder"}
+          {isBuyNowMode
+            ? "Hemen Al — Onayla"
+            : isAuctionRebid || isRebidAfterLoss
+              ? "Teklifi Revize Et"
+              : "Teklif Gönder"}
         </DialogTitle>
         <DialogBody>
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
@@ -988,8 +1115,16 @@ export default function TeklifVerPage() {
           <Button plain onClick={() => setConfirmOpen(false)}>
             Vazgeç
           </Button>
-          <Button color="emerald" onClick={submit} disabled={placeBid.isPending}>
-            {placeBid.isPending ? "Gönderiliyor…" : "Teklifi Gönder"}
+          <Button
+            color="emerald"
+            onClick={submit}
+            disabled={placeBid.isPending || buyNow.isPending}
+          >
+            {placeBid.isPending || buyNow.isPending
+              ? "Gönderiliyor…"
+              : isBuyNowMode
+                ? "Hemen Al"
+                : "Teklifi Gönder"}
           </Button>
         </DialogActions>
       </Dialog>
