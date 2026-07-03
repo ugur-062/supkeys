@@ -313,11 +313,15 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
       createUser: jest.fn().mockResolvedValue({ authId: `auth-${Date.now()}` }),
       deleteUser: jest.fn(),
     };
-    const passwordReset = { requestForCompany: jest.fn() };
+    const companyAuth = { createSession: jest.fn() };
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
     return new CompanyUsersService(
       prisma as never,
       supabase as never,
-      passwordReset as never,
+      companyAuth as never,
+      email as never,
+      config as never,
     );
   }
 

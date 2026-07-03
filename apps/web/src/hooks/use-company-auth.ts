@@ -28,6 +28,19 @@ export function useHasRole(role: string): boolean {
   return !!user?.roles.includes(role as never);
 }
 
+/**
+ * Efektif izin kontrolü — backend'in hesapladığı (rol + override + sahiplik)
+ * izin kümesini kullanır; sahibin verdiği izin ekleri UI'da da açılır.
+ * Eski önbellekte `permissions` yoksa Yönetici/sahip varsayımına düşer
+ * (yalnızca yönetim izinleri için güvenli — /me yenilenince kendini düzeltir).
+ */
+export function useHasCompanyPermission(permission: string): boolean {
+  const user = useCompanyAuthStore((s) => s.user);
+  if (!user) return false;
+  if (user.permissions) return user.permissions.includes(permission);
+  return user.isOwner || user.roles.includes("YONETICI" as never);
+}
+
 export type CompanyLoginResult =
   | CompanyLoginResponse
   | { twoFactorRequired: true };
@@ -94,6 +107,53 @@ export function useResendEmailCode() {
 
 export function useSetCompanyAuth() {
   return useCompanyAuthStore((s) => s.setAuth);
+}
+
+// ── Token'lı ekip daveti (public — davetli henüz hesapsız) ──
+
+export interface InvitationPreview {
+  email: string;
+  roles: string[];
+  companyName: string;
+  expiresAt: string;
+}
+
+export function useInvitationPreview(token: string) {
+  return useQuery({
+    queryKey: ["company-invitation", token],
+    queryFn: async () => {
+      const { data } = await companyApi.get<InvitationPreview>(
+        `/company/invitations/${token}`,
+      );
+      return data;
+    },
+    enabled: !!token,
+    retry: false,
+  });
+}
+
+export interface AcceptInvitationInput {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  password: string;
+  termsAccepted: boolean;
+  mediationAccepted: boolean;
+  kvkkAccepted: boolean;
+  marketingConsent?: boolean;
+  profileImprovementConsent?: boolean;
+}
+
+export function useAcceptInvitation(token: string) {
+  return useMutation({
+    mutationFn: async (input: AcceptInvitationInput) => {
+      const { data } = await companyApi.post<CompanyLoginResponse>(
+        `/company/invitations/${token}/accept`,
+        input,
+      );
+      return data;
+    },
+  });
 }
 
 /** Faz 5 — AB VAT numarası VIES ile doğrula. */

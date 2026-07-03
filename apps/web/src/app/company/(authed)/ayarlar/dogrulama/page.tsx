@@ -3,7 +3,7 @@
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Text } from "@/components/catalyst/text";
-import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import {
   docLabels,
   useCompanyDocs,
@@ -29,10 +29,9 @@ const STATUS_META: Record<
 };
 
 export default function DogrulamaPage() {
-  const { user } = useCompanyAuth();
-  // Backend upload/submit uçları company:manage ister (YONETICI ya da firma
-  // sahibi) — diğer roller yalnızca durumu görür.
-  const canManage = !!user && (user.isOwner || user.roles.includes("YONETICI"));
+  // Backend upload/submit uçları company:manage ister — diğer roller
+  // yalnızca durumu görür (efektif izin: rol + sahip + override).
+  const canManage = useHasCompanyPermission("company:manage");
   const { data, isLoading } = useCompanyDocs();
   const upload = useUploadDoc();
   const submit = useSubmitDocs();

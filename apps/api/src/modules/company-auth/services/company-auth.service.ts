@@ -27,6 +27,12 @@ import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
 import { CompanyLoginDto } from "../dto/company-login.dto";
 import { CompanySignupDto } from "../dto/company-signup.dto";
 import { CompleteOnboardingDto } from "../dto/onboarding.dto";
+import {
+  ALL_COMPANY_PERMISSIONS,
+  OWNER_ONLY_PERMISSIONS,
+  hasCompanyPermission,
+  type CompanyPermissionOverride,
+} from "../permissions/company-permissions.constants";
 import type { CompanyJwtPayload } from "../strategies/company-jwt.strategy";
 
 const ROLE_LABELS: Record<CompanyRole, string> = {
@@ -886,6 +892,19 @@ export class CompanyAuthService {
     return this.getMe(userId);
   }
 
+  /**
+   * Parolasız oturum aç — davet kabulü gibi kimliği BAŞKA yoldan kanıtlanmış
+   * akışlar için (token'lı davet linki). Login ile aynı yanıt şekli.
+   */
+  async createSession(userId: string, ctx?: Ctx) {
+    const user = await this.prisma.companyUser.findUnique({
+      where: { id: userId },
+      include: { company: true },
+    });
+    if (!user) throw new UnauthorizedException();
+    return this.buildLoginResponse(user, user.company, ctx);
+  }
+
   // ============================================================
   // HELPERS
   // ============================================================
@@ -930,6 +949,14 @@ export class CompanyAuthService {
   }
 
   private serializeUser(user: CompanyUser, isOwner: boolean) {
+    // Efektif izinler (rol + override + sahiplik) — UI kapıları bunu kullanır,
+    // böylece sahibin verdiği izin ekleri arayüzde de açılır.
+    const override =
+      (user.permissionsOverride as CompanyPermissionOverride | null) ?? null;
+    const permissions = [
+      ...ALL_COMPANY_PERMISSIONS,
+      ...OWNER_ONLY_PERMISSIONS,
+    ].filter((p) => hasCompanyPermission(user.roles, isOwner, p, override));
     return {
       id: user.id,
       email: user.email,
@@ -938,6 +965,7 @@ export class CompanyAuthService {
       phone: user.phone,
       roles: user.roles,
       isOwner,
+      permissions,
       twoFactorEnabled: user.twoFactorEnabled,
       notificationPrefs:
         (user.notificationPrefs as Record<string, boolean> | null) ?? null,

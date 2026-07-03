@@ -10,7 +10,9 @@ import { TEST_DB_URL, TEST_SCHEMA } from "./env";
 export default async function globalSetup(): Promise<void> {
   const dbDir = path.resolve(__dirname, "../../../../packages/db");
   // Modelleri test şemasına yansıt (yalnızca schema=supkeys_test bağlantısı).
-  execSync("pnpm exec prisma db push --skip-generate", {
+  // --accept-data-loss: test şeması atılabilir (her test truncate eder); yeni
+  // unique index eklemeleri "olası veri kaybı" uyarısıyla push'u kilitlemesin.
+  execSync("pnpm exec prisma db push --skip-generate --accept-data-loss", {
     cwd: dbDir,
     stdio: "inherit",
     env: { ...process.env, DATABASE_URL: TEST_DB_URL, DIRECT_URL: TEST_DB_URL },

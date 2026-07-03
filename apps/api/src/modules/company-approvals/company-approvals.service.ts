@@ -221,6 +221,7 @@ export class CompanyApprovalsService {
         order: s.order,
         approverUserId: s.approverUserId,
         approverName: nameById.get(s.approverUserId) ?? "—",
+        displayLabel: s.displayLabel,
         conditionMinAmount: s.conditionMinAmount
           ? Number(s.conditionMinAmount)
           : null,
@@ -245,6 +246,7 @@ export class CompanyApprovalsService {
           create: dto.steps.map((s, i) => ({
             order: i + 1,
             approverUserId: s.approverUserId,
+            displayLabel: s.displayLabel?.trim() || null,
             conditionMinAmount: s.conditionMinAmount ?? null,
           })),
         },
@@ -274,6 +276,7 @@ export class CompanyApprovalsService {
             create: dto.steps.map((s, i) => ({
               order: i + 1,
               approverUserId: s.approverUserId,
+              displayLabel: s.displayLabel?.trim() || null,
               conditionMinAmount: s.conditionMinAmount ?? null,
             })),
           },
@@ -347,6 +350,7 @@ export class CompanyApprovalsService {
           create: src.steps.map((s) => ({
             order: s.order,
             approverUserId: s.approverUserId,
+            displayLabel: s.displayLabel,
             conditionMinAmount: s.conditionMinAmount,
           })),
         },
@@ -371,16 +375,83 @@ export class CompanyApprovalsService {
       amount: number;
       currency: string;
       payload?: Prisma.InputJsonValue;
+      /** Başlatanın onaycılara notu (opsiyonel). */
+      initiatorNote?: string;
     },
   ): Promise<{ approved: true } | { approved: false; requestId: string }> {
-    const flow = await this.prisma.approvalFlow.findFirst({
+    const flow = await this.findMatchingFlow(
+      user,
+      input.type,
+      input.listingType,
+    );
+    if (!flow || flow.steps.length === 0) return { approved: true };
+
+    const drafts = flow.steps.map((s) => {
+      const min = s.conditionMinAmount ? Number(s.conditionMinAmount) : 0;
+      const skipped = input.amount < min;
+      return {
+        order: s.order,
+        approverUserId: s.approverUserId,
+        // Etiket snapshot — akış sonradan değişse de görünen ad sabit kalır.
+        displayLabel: s.displayLabel,
+        status: (skipped ? "SKIPPED" : "WAITING") as
+          | "SKIPPED"
+          | "WAITING"
+          | "PENDING",
+      };
+    });
+    const firstActive = drafts.findIndex((d) => d.status !== "SKIPPED");
+    if (firstActive === -1) return { approved: true }; // hepsi atlandı
+    drafts[firstActive]!.status = "PENDING";
+
+    // APR-YYYY-NNNN — yarışta unique constraint patlarsa yeniden dene.
+    let req: { id: string } | null = null;
+    for (let attempt = 0; attempt < 3 && !req; attempt++) {
+      const requestNo = await this.nextRequestNo(user.companyId);
+      try {
+        req = await this.prisma.approvalRequest.create({
+          data: {
+            companyId: user.companyId,
+            listingId: input.listingId,
+            type: input.type,
+            status: "PENDING",
+            requestNo,
+            amount: input.amount,
+            currency: input.currency as never,
+            payload: input.payload ?? Prisma.JsonNull,
+            initiatorNote: input.initiatorNote?.trim() || null,
+            createdById: user.userId,
+            steps: { create: drafts },
+          },
+          select: { id: true },
+        });
+      } catch (e) {
+        const conflict =
+          e instanceof Prisma.PrismaClientKnownRequestError &&
+          e.code === "P2002";
+        if (!conflict || attempt === 2) throw e;
+      }
+    }
+    // İlk aktif adımın onaycısına bildir.
+    const firstApprover = drafts[firstActive]!.approverUserId;
+    void this.notifyApprover(firstApprover, input.listingId);
+    return { approved: false, requestId: req!.id };
+  }
+
+  /** Eşleşen aktif akış: tip + ilan tipi + başlatıcı rol (requestApproval/preview ortak). */
+  private findMatchingFlow(
+    user: AuthenticatedCompanyUser,
+    type: ApprovalType,
+    listingType: "ALIM" | "SATIS",
+  ) {
+    return this.prisma.approvalFlow.findFirst({
       where: {
         companyId: user.companyId,
-        type: input.type,
+        type,
         status: "ACTIVE",
         AND: [
           // İlan tipi: akış belirli tipe bağlıysa eşleşmeli; null = her ikisi.
-          { OR: [{ listingType: null }, { listingType: input.listingType }] },
+          { OR: [{ listingType: null }, { listingType }] },
           // Başlatıcı rol: boşsa kısıt yok; doluysa kullanıcının rollerinden biri.
           {
             OR: [
@@ -393,41 +464,35 @@ export class CompanyApprovalsService {
       include: { steps: { orderBy: { order: "asc" } } },
       orderBy: { createdAt: "asc" },
     });
-    if (!flow || flow.steps.length === 0) return { approved: true };
+  }
 
-    const drafts = flow.steps.map((s) => {
-      const min = s.conditionMinAmount ? Number(s.conditionMinAmount) : 0;
-      const skipped = input.amount < min;
-      return {
-        order: s.order,
-        approverUserId: s.approverUserId,
-        status: (skipped ? "SKIPPED" : "WAITING") as
-          | "SKIPPED"
-          | "WAITING"
-          | "PENDING",
-      };
-    });
-    const firstActive = drafts.findIndex((d) => d.status !== "SKIPPED");
-    if (firstActive === -1) return { approved: true }; // hepsi atlandı
-    drafts[firstActive]!.status = "PENDING";
+  /**
+   * Ön kontrol: bu kullanıcı yayın/kazandırma yaptığında onay akışı devreye
+   * girecek mi? UI, girecekse başlatıcı notu alanı gösterir.
+   */
+  async preview(user: AuthenticatedCompanyUser, listingType: "ALIM" | "SATIS") {
+    const [publish, award] = await Promise.all([
+      this.findMatchingFlow(user, "LISTING_PUBLISH", listingType),
+      this.findMatchingFlow(user, "LISTING_AWARD", listingType),
+    ]);
+    return {
+      publish: !!publish && publish.steps.length > 0,
+      award: !!award && award.steps.length > 0,
+    };
+  }
 
-    const req = await this.prisma.approvalRequest.create({
-      data: {
-        companyId: user.companyId,
-        listingId: input.listingId,
-        type: input.type,
-        status: "PENDING",
-        amount: input.amount,
-        currency: input.currency as never,
-        payload: input.payload ?? Prisma.JsonNull,
-        createdById: user.userId,
-        steps: { create: drafts },
-      },
+  /** Firma bazında sıradaki onay numarası (APR-YYYY-NNNN). */
+  private async nextRequestNo(companyId: string): Promise<string> {
+    const prefix = `APR-${new Date().getFullYear()}-`;
+    const last = await this.prisma.approvalRequest.findFirst({
+      where: { companyId, requestNo: { startsWith: prefix } },
+      orderBy: { requestNo: "desc" },
+      select: { requestNo: true },
     });
-    // İlk aktif adımın onaycısına bildir.
-    const firstApprover = drafts[firstActive]!.approverUserId;
-    void this.notifyApprover(firstApprover, input.listingId);
-    return { approved: false, requestId: req.id };
+    const n = last?.requestNo
+      ? parseInt(last.requestNo.slice(prefix.length), 10) + 1
+      : 1;
+    return `${prefix}${String(n).padStart(4, "0")}`;
   }
 
   /** Bekleyen istek üzerinde onaycı kararı (onayla/reddet). */
@@ -524,8 +589,12 @@ export class CompanyApprovalsService {
     if (!req || req.companyId !== user.companyId) {
       throw new NotFoundException("Onay isteği bulunamadı");
     }
-    if (req.createdById !== user.userId && !user.isOwner) {
-      throw new ForbiddenException("Bu isteği yalnızca başlatan iptal edebilir");
+    // Eski sistem paritesi: başlatan VEYA Yönetici (owner ⊇ Yönetici) iptal eder.
+    const isManager = user.isOwner || user.roles.includes(CompanyRole.YONETICI);
+    if (req.createdById !== user.userId && !isManager) {
+      throw new ForbiddenException(
+        "Bu isteği yalnızca başlatan veya Yönetici iptal edebilir",
+      );
     }
     if (req.status !== "PENDING") {
       throw new BadRequestException("Yalnızca bekleyen istek iptal edilebilir");
@@ -670,11 +739,22 @@ export class CompanyApprovalsService {
       },
       orderBy: { createdAt: "asc" },
     });
+    const creatorIds = [...new Set(reqs.map((r) => r.createdById))];
+    const creators = await this.prisma.companyUser.findMany({
+      where: { id: { in: creatorIds } },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    const nameById = new Map(
+      creators.map((u) => [u.id, `${u.firstName} ${u.lastName}`]),
+    );
     return reqs.map((r) => ({
       id: r.id,
+      requestNo: r.requestNo,
       type: r.type,
       amount: Number(r.amount),
       currency: r.currency,
+      initiatorNote: r.initiatorNote,
+      createdBy: nameById.get(r.createdById) ?? "—",
       createdAt: r.createdAt,
       listing: r.listing,
       currentStepOrder: r.steps.find((s) => s.status === "PENDING")?.order ?? 0,
@@ -719,25 +799,110 @@ export class CompanyApprovalsService {
     const nameById = new Map(
       users.map((u) => [u.id, `${u.firstName} ${u.lastName}`]),
     );
-    return reqs.map((r) => ({
+    return reqs.map((r) => this.serializeRequest(r, nameById, user.userId));
+  }
+
+  /**
+   * Tüm Süreçler — firma genelindeki onay istekleri (eski sistem paritesi:
+   * herkes firmadaki onay süreçlerini izleyebilir). Filtreler: durum, tip, arama
+   * (onay no / ilan no / ilan başlığı).
+   */
+  async listAll(
+    user: AuthenticatedCompanyUser,
+    filters: { status?: string; type?: string; search?: string },
+  ) {
+    const where: Prisma.ApprovalRequestWhereInput = {
+      companyId: user.companyId,
+    };
+    if (
+      filters.status &&
+      ["PENDING", "APPROVED", "REJECTED", "CANCELLED"].includes(filters.status)
+    ) {
+      where.status = filters.status as never;
+    }
+    if (
+      filters.type &&
+      ["LISTING_PUBLISH", "LISTING_AWARD"].includes(filters.type)
+    ) {
+      where.type = filters.type as never;
+    }
+    const search = filters.search?.trim();
+    if (search) {
+      where.OR = [
+        { requestNo: { contains: search, mode: "insensitive" } },
+        { listing: { number: { contains: search, mode: "insensitive" } } },
+        { listing: { title: { contains: search, mode: "insensitive" } } },
+      ];
+    }
+    const reqs = await this.prisma.approvalRequest.findMany({
+      where,
+      include: {
+        listing: { select: { id: true, number: true, title: true, type: true } },
+        steps: { orderBy: { order: "asc" } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+    const userIds = [
+      ...new Set([
+        ...reqs.flatMap((r) => r.steps.map((s) => s.approverUserId)),
+        ...reqs.map((r) => r.createdById),
+      ]),
+    ];
+    const users = await this.prisma.companyUser.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    const nameById = new Map(
+      users.map((u) => [u.id, `${u.firstName} ${u.lastName}`]),
+    );
+    return reqs.map((r) => this.serializeRequest(r, nameById, user.userId));
+  }
+
+  /** İstek + adım zaman çizelgesini UI şekline indir (history/all ortak). */
+  private serializeRequest(
+    r: Prisma.ApprovalRequestGetPayload<{
+      include: {
+        listing: {
+          select: { id: true; number: true; title: true; type: true };
+        };
+        steps: true;
+      };
+    }>,
+    nameById: Map<string, string>,
+    viewerId: string,
+  ) {
+    const pendingStep = r.steps.find((s) => s.status === "PENDING");
+    return {
       id: r.id,
+      requestNo: r.requestNo,
       type: r.type,
       status: r.status,
       amount: Number(r.amount),
       currency: r.currency,
+      initiatorNote: r.initiatorNote,
       createdAt: r.createdAt,
       decidedAt: r.decidedAt,
       createdBy: nameById.get(r.createdById) ?? "—",
-      mine: r.createdById === user.userId,
+      mine: r.createdById === viewerId,
       listing: r.listing,
+      currentStepOrder: pendingStep?.order ?? 0,
+      currentApprover: pendingStep
+        ? (nameById.get(pendingStep.approverUserId) ?? "—")
+        : null,
+      totalSteps: r.steps.filter((s) => s.status !== "SKIPPED").length,
+      decidedSteps: r.steps.filter(
+        (s) => s.status === "APPROVED" || s.status === "REJECTED",
+      ).length,
       steps: r.steps.map((s) => ({
         order: s.order,
         approverName: nameById.get(s.approverUserId) ?? "—",
+        displayLabel: s.displayLabel,
         status: s.status,
         note: s.note,
         decidedAt: s.decidedAt,
       })),
-    }));
+    };
   }
 
   async pendingCount(user: AuthenticatedCompanyUser) {

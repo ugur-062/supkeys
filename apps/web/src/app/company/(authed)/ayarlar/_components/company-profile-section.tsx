@@ -13,7 +13,10 @@ import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
-import { useCompanyAuth } from "@/hooks/use-company-auth";
+import {
+  useCompanyAuth,
+  useHasCompanyPermission,
+} from "@/hooks/use-company-auth";
 import {
   useCompanyProfile,
   useUpdateCompanyProfile,
@@ -28,7 +31,7 @@ export function CompanyProfileSection() {
   const { user } = useCompanyAuth();
   const { data: profile, isLoading } = useCompanyProfile();
   const update = useUpdateCompanyProfile();
-  const canEdit = !!user && (user.isOwner || user.roles.includes("YONETICI"));
+  const canEdit = useHasCompanyPermission("company:manage");
 
   const [form, setForm] = useState({
     name: "",

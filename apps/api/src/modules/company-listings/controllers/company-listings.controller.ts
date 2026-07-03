@@ -99,8 +99,15 @@ export class CompanyListingsController {
   publish(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
+    @Body() body?: { approvalNote?: string },
   ) {
-    return this.service.publishListing(user, id);
+    return this.service.publishListing(
+      user,
+      id,
+      typeof body?.approvalNote === "string"
+        ? body.approvalNote.slice(0, 1000)
+        : undefined,
+    );
   }
 
   /** Taslak ilanı sil. */
@@ -143,7 +150,7 @@ export class CompanyListingsController {
     @Param("id") id: string,
     @Body() dto: AwardListingDto,
   ) {
-    return this.service.award(user, id, dto.bidId);
+    return this.service.award(user, id, dto.bidId, dto.approvalNote);
   }
 
   @Post(":id/award-by-item")
@@ -152,7 +159,7 @@ export class CompanyListingsController {
     @Param("id") id: string,
     @Body() dto: AwardByItemDto,
   ) {
-    return this.service.awardByItem(user, id, dto.itemAwards);
+    return this.service.awardByItem(user, id, dto.itemAwards, dto.approvalNote);
   }
 
   @Post(":id/new-round")

@@ -6,6 +6,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   Min,
   ValidateNested,
 } from "class-validator";
@@ -31,4 +32,10 @@ export class AwardByItemDto {
   @ValidateNested({ each: true })
   @Type(() => ItemAwardDto)
   itemAwards!: ItemAwardDto[];
+
+  // Onay akışı devredeyse onaycılara iletilen başlatıcı notu.
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  approvalNote?: string;
 }

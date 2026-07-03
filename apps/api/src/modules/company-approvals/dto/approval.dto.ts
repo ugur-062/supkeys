@@ -40,6 +40,12 @@ export class ApprovalFlowStepDto {
   @IsString()
   approverUserId!: string;
 
+  // Diagramda gösterilen yumuşak etiket (örn. "Satınalma Müdürü").
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  displayLabel?: string;
+
   // Bu eşik ALTINDAysa adım atlanır (SKIPPED). null = her zaman gerekli.
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })

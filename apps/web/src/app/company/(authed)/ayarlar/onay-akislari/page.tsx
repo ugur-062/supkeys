@@ -1,12 +1,15 @@
 "use client";
 
-import { useCompanyAuth } from "@/hooks/use-company-auth";
+import {
+  useCompanyAuth,
+  useHasCompanyPermission,
+} from "@/hooks/use-company-auth";
 import { ApprovalFlowsSection } from "../_components/approval-flows-section";
 import { SettingsShell } from "../_components/settings-shell";
 
 export default function Page() {
   const { user } = useCompanyAuth();
-  const canEdit = !!user && (user.isOwner || user.roles.includes("YONETICI"));
+  const canEdit = useHasCompanyPermission("approvals:manage");
   return (
     <SettingsShell
       title="Onay Akışları"

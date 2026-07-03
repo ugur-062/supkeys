@@ -29,7 +29,10 @@ import {
   useWithdrawBid,
 } from "@/hooks/use-company-listings";
 import { useConfirm } from "@/components/providers/confirm-dialog";
-import { useCancelApproval } from "@/hooks/use-company-approvals";
+import {
+  useApprovalPreview,
+  useCancelApproval,
+} from "@/hooks/use-company-approvals";
 import {
   BID_DOC_KIND_LABELS,
   useBidDocuments,
@@ -156,6 +159,20 @@ export default function ListingDetailPage() {
     bidId: string;
     bidderName: string;
   } | null>(null);
+  // Onay akışı devredeyse yayın/kazandırma öncesi başlatıcı notu sorulur.
+  const approvalPreview = useApprovalPreview(
+    l?.type as "ALIM" | "SATIS" | undefined,
+    !!l?.isOwner,
+  );
+  const [noteAction, setNoteAction] = useState<
+    | { kind: "publish" }
+    | { kind: "award"; bidId: string; bidderName: string }
+    | {
+        kind: "itemAward";
+        itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[];
+      }
+    | null
+  >(null);
 
 
   // WS: bu ilanın odasına abone ol — teklif/durum değişimi anında düşer.
@@ -173,6 +190,11 @@ export default function ListingDetailPage() {
 
 
   const handleAward = async (bidId: string, bidderName: string) => {
+    // Onay akışı devreye girecekse: not girişli tek dialog (onaycılara iletilir).
+    if (approvalPreview.data?.award) {
+      setNoteAction({ kind: "award", bidId, bidderName });
+      return;
+    }
     if (
       !(await confirm({
         title: "Kazandır",
@@ -182,7 +204,7 @@ export default function ListingDetailPage() {
     )
       return;
     try {
-      const res = await award.mutateAsync(bidId);
+      const res = await award.mutateAsync({ bidId });
       toast.success(
         res.pendingApproval
           ? "Kazandırma onaya gönderildi"
@@ -190,6 +212,42 @@ export default function ListingDetailPage() {
       );
     } catch (err) {
       toast.error(extractErrorMessage(err, "Kazandırılamadı"));
+    }
+  };
+
+  /** Onay notu dialogu onaylandı — bekleyen aksiyonu notla birlikte uygula. */
+  const submitNoteAction = async (note: string) => {
+    if (!noteAction) return;
+    const approvalNote = note.trim() || undefined;
+    try {
+      if (noteAction.kind === "publish") {
+        await publish.mutateAsync({ approvalNote });
+        toast.success("İlan yayın onayına gönderildi");
+      } else if (noteAction.kind === "award") {
+        const res = await award.mutateAsync({
+          bidId: noteAction.bidId,
+          approvalNote,
+        });
+        toast.success(
+          res.pendingApproval
+            ? "Kazandırma onaya gönderildi"
+            : `Kazandırıldı — sipariş ${res.number} oluştu`,
+        );
+      } else {
+        const res = await awardByItem.mutateAsync({
+          itemAwards: noteAction.itemAwards,
+          approvalNote,
+        });
+        toast.success(
+          res.pendingApproval
+            ? "Kazandırma onaya gönderildi"
+            : `Kazandırıldı — ${res.count} sipariş oluştu`,
+        );
+        setItemAwardMode(false);
+      }
+      setNoteAction(null);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "İşlem başarısız"));
     }
   };
 
@@ -227,6 +285,11 @@ export default function ListingDetailPage() {
   };
 
   const handlePublish = async () => {
+    // Yayın onaya takılacaksa: not girişli dialog (onaycılara iletilir).
+    if (approvalPreview.data?.publish) {
+      setNoteAction({ kind: "publish" });
+      return;
+    }
     if (
       !(await confirm({
         title: "İhaleyi yayınla",
@@ -238,7 +301,7 @@ export default function ListingDetailPage() {
     )
       return;
     try {
-      await publish.mutateAsync();
+      await publish.mutateAsync(undefined);
       toast.success("İhale yayınlandı");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Yayınlanamadı"));
@@ -299,6 +362,11 @@ export default function ListingDetailPage() {
       toast.error("En az bir kalem için kazanan seçin");
       return;
     }
+    // Onay akışı devreye girecekse: not girişli dialog.
+    if (approvalPreview.data?.award) {
+      setNoteAction({ kind: "itemAward", itemAwards });
+      return;
+    }
     const skipped = items.length - itemAwards.length;
     if (
       !(await confirm({
@@ -312,7 +380,7 @@ export default function ListingDetailPage() {
     )
       return;
     try {
-      const res = await awardByItem.mutateAsync(itemAwards);
+      const res = await awardByItem.mutateAsync({ itemAwards });
       toast.success(
         res.pendingApproval
           ? "Kazandırma onaya gönderildi"
@@ -1307,6 +1375,29 @@ export default function ListingDetailPage() {
           confirmLabel="Ele"
           destructive
           pending={eliminate.isPending}
+        />
+
+        {/* Onay akışı devrede — başlatıcı notu (onaycılara iletilir, opsiyonel) */}
+        <ReasonDialog
+          open={!!noteAction}
+          onClose={() => setNoteAction(null)}
+          onSubmit={submitNoteAction}
+          title={
+            noteAction?.kind === "publish"
+              ? "Yayını onaya gönder"
+              : "Kazandırmayı onaya gönder"
+          }
+          description={
+            noteAction?.kind === "publish"
+              ? "Bu ilan için onay akışı tanımlı — ilan, onay tamamlanınca yayınlanır. Notunuz onaycılara iletilir."
+              : noteAction?.kind === "award"
+                ? `"${noteAction.bidderName}" kazandırılacak — onay akışı tanımlı, sipariş onay tamamlanınca oluşur. Notunuz onaycılara iletilir.`
+                : "Kalem-bazlı kazandırma onaya gönderilecek — siparişler onay tamamlanınca oluşur. Notunuz onaycılara iletilir."
+          }
+          confirmLabel="Onaya Gönder"
+          pending={
+            publish.isPending || award.isPending || awardByItem.isPending
+          }
         />
       </div>
     );

@@ -1076,7 +1076,11 @@ export class CompanyListingsService {
    * onay akışı varsa IN_APPROVAL'a geçer (onay sonrası event ile OPEN olur);
    * yoksa doğrudan OPEN.
    */
-  async publishListing(user: AuthenticatedCompanyUser, listingId: string) {
+  async publishListing(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    approvalNote?: string,
+  ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -1102,6 +1106,7 @@ export class CompanyListingsService {
       listingType: listing.type,
       amount,
       currency: listing.primaryCurrency,
+      initiatorNote: approvalNote,
     });
     const updated = await this.prisma.listing.update({
       where: { id: listingId },
@@ -2930,7 +2935,12 @@ export class CompanyListingsService {
    * ALIM ilanı: satıcı=kazanan teklifçi, alıcı=ilan sahibi.
    * SATIS ilanı: satıcı=ilan sahibi, alıcı=kazanan teklifçi.
    */
-  async award(user: AuthenticatedCompanyUser, listingId: string, bidId: string) {
+  async award(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    bidId: string,
+    approvalNote?: string,
+  ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -2989,6 +2999,7 @@ export class CompanyListingsService {
       amount: Number(bid.amount),
       currency: listing.primaryCurrency,
       payload: { kind: "full", bidId },
+      initiatorNote: approvalNote,
     });
     if (!res.approved) {
       await this.prisma.listing.update({
@@ -3142,6 +3153,7 @@ export class CompanyListingsService {
     user: AuthenticatedCompanyUser,
     listingId: string,
     itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
+    approvalNote?: string,
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
@@ -3194,6 +3206,7 @@ export class CompanyListingsService {
       amount: total,
       currency: listing.primaryCurrency,
       payload: { kind: "by-item", itemAwards },
+      initiatorNote: approvalNote,
     });
     if (!res.approved) {
       await this.prisma.listing.update({

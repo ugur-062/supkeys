@@ -16,13 +16,17 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { useState } from "react";
 import { toast } from "sonner";
 
-const ROLES: { key: CompanyRole; label: string }[] = [
-  { key: "YONETICI", label: "Yönetici" },
-  { key: "SATIN_ALMACI", label: "Satın Almacı" },
-  { key: "SATISCI", label: "Satışçı" },
-  { key: "ONAYLAYICI", label: "Onaylayıcı" },
+const ROLES: { key: CompanyRole; label: string; hint: string }[] = [
+  { key: "YONETICI", label: "Yönetici", hint: "Hesap ve ekip yönetimi" },
+  { key: "SATIN_ALMACI", label: "Satın Almacı", hint: "Alım ihaleleri" },
+  { key: "SATISCI", label: "Satışçı", hint: "Satış ilanları" },
+  { key: "ONAYLAYICI", label: "Onaylayıcı", hint: "Onay süreçleri" },
 ];
 
+/**
+ * Token'lı davet — yalnızca e-posta + rol girilir. Davetli, e-postadaki linkten
+ * adını/parolasını KENDİSİ belirleyip sözleşmeleri onaylayarak katılır.
+ */
 export function InviteUserDialog({
   open,
   onClose,
@@ -32,10 +36,6 @@ export function InviteUserDialog({
 }) {
   const invite = useInviteUser();
   const [email, setEmail] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [password, setPassword] = useState("");
-  const [byEmail, setByEmail] = useState(true);
   const [roles, setRoles] = useState<CompanyRole[]>(["SATIN_ALMACI"]);
 
   // Kural: tek rol; istisna Satın Almacı + Satışçı birlikte.
@@ -47,114 +47,46 @@ export function InviteUserDialog({
       return [...ops, r];
     });
 
-  const canSave =
-    email.includes("@") &&
-    firstName.trim().length >= 2 &&
-    lastName.trim().length >= 2 &&
-    (byEmail || password.length >= 8) &&
-    roles.length > 0;
-
-  const reset = () => {
-    setEmail("");
-    setFirstName("");
-    setLastName("");
-    setPassword("");
-    setByEmail(true);
-    setRoles(["SATIN_ALMACI"]);
-  };
+  const canSave = email.includes("@") && roles.length > 0;
 
   const handleSave = async () => {
     if (!canSave) return;
     try {
-      await invite.mutateAsync({
-        email: email.trim(),
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        password: byEmail ? undefined : password,
-        roles,
-      });
-      toast.success(
-        byEmail ? "Davet e-postası gönderildi" : "Kullanıcı eklendi",
-      );
-      reset();
+      await invite.mutateAsync({ email: email.trim(), roles });
+      toast.success("Davet e-postası gönderildi — 7 gün geçerli");
+      setEmail("");
+      setRoles(["SATIN_ALMACI"]);
       onClose();
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Eklenemedi"));
+      toast.error(extractErrorMessage(err, "Davet gönderilemedi"));
     }
   };
 
   return (
     <Dialog open={open} onClose={() => !invite.isPending && onClose()} size="md">
-      <DialogTitle>Kullanıcı Ekle</DialogTitle>
+      <DialogTitle>Üye Davet Et</DialogTitle>
       <DialogDescription>
-        Ekip üyesi ekleyin ve rollerini atayın.
+        Davetli, e-postasındaki linkten adını ve parolasını kendisi belirleyerek
+        ekibe katılır. Davet 7 gün geçerlidir.
       </DialogDescription>
       <DialogBody className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <Field>
-            <Label>Ad</Label>
-            <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-          </Field>
-          <Field>
-            <Label>Soyad</Label>
-            <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
-          </Field>
-        </div>
         <Field>
           <Label>E-posta</Label>
           <Input
             type="email"
+            autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            placeholder="kisi@firma.com"
           />
         </Field>
         <div>
-          <div className="text-sm font-medium text-zinc-900">Parola yöntemi</div>
+          <p className="text-sm font-medium text-zinc-900">Rol</p>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            Yönetici ve Onaylayıcı tek başına atanır; yalnızca Satın Almacı +
+            Satışçı birlikte seçilebilir.
+          </p>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setByEmail(true)}
-              className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
-                byEmail
-                  ? "border-blue-500 bg-blue-50 text-blue-800"
-                  : "border-zinc-200 text-zinc-500 hover:border-zinc-300"
-              }`}
-            >
-              <div className="font-semibold">E-posta daveti</div>
-              <div className="mt-0.5 text-[11px] opacity-80">
-                Kullanıcı parolasını kendi belirler
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setByEmail(false)}
-              className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
-                !byEmail
-                  ? "border-blue-500 bg-blue-50 text-blue-800"
-                  : "border-zinc-200 text-zinc-500 hover:border-zinc-300"
-              }`}
-            >
-              <div className="font-semibold">Parolayı ben belirle</div>
-              <div className="mt-0.5 text-[11px] opacity-80">
-                Geçici parola gir, paylaş
-              </div>
-            </button>
-          </div>
-        </div>
-        {!byEmail ? (
-          <Field>
-            <Label>Geçici parola (en az 8)</Label>
-            <Input
-              type="text"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Harf + rakam içermeli"
-            />
-          </Field>
-        ) : null}
-        <div>
-          <div className="text-sm font-medium text-zinc-900">Roller</div>
-          <div className="mt-2 flex flex-wrap gap-2">
             {ROLES.map((r) => {
               const on = roles.includes(r.key);
               return (
@@ -162,13 +94,14 @@ export function InviteUserDialog({
                   key={r.key}
                   type="button"
                   onClick={() => toggle(r.key)}
-                  className={`rounded-md border px-2.5 py-1 text-xs transition ${
+                  className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
                     on
-                      ? "border-blue-500 bg-blue-50 text-blue-700"
-                      : "border-zinc-200 text-zinc-500 hover:border-zinc-300"
+                      ? "border-zinc-900 bg-zinc-900 text-white"
+                      : "border-zinc-200 text-zinc-600 hover:border-zinc-400"
                   }`}
                 >
-                  {r.label}
+                  <div className="font-semibold">{r.label}</div>
+                  <div className="mt-0.5 text-[11px] opacity-70">{r.hint}</div>
                 </button>
               );
             })}
@@ -180,7 +113,7 @@ export function InviteUserDialog({
           Vazgeç
         </Button>
         <Button onClick={handleSave} disabled={!canSave || invite.isPending}>
-          {invite.isPending ? "Ekleniyor…" : "Ekle"}
+          {invite.isPending ? "Gönderiliyor…" : "Davet Gönder"}
         </Button>
       </DialogActions>
     </Dialog>

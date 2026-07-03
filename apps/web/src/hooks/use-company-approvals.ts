@@ -12,6 +12,8 @@ export interface ApprovalFlowStep {
   order: number;
   approverUserId: string;
   approverName: string;
+  /** Diagramda gösterilen yumuşak etiket (örn. "Satınalma Müdürü"). */
+  displayLabel: string | null;
   conditionMinAmount: number | null;
 }
 
@@ -31,14 +33,21 @@ export interface CreateApprovalFlowInput {
   type: ApprovalType;
   listingType?: ApprovalListingType;
   initiatorRoles?: CompanyRole[];
-  steps: { approverUserId: string; conditionMinAmount?: number }[];
+  steps: {
+    approverUserId: string;
+    displayLabel?: string;
+    conditionMinAmount?: number;
+  }[];
 }
 
 export interface PendingApproval {
   id: string;
+  requestNo: string | null;
   type: ApprovalType;
   amount: number;
   currency: string;
+  initiatorNote: string | null;
+  createdBy: string;
   createdAt: string;
   listing: { id: string; number: string | null; title: string; type: string };
   currentStepOrder: number;
@@ -164,19 +173,27 @@ export function usePendingApprovalCount(enabled: boolean) {
 
 export interface ApprovalHistoryItem {
   id: string;
+  requestNo: string | null;
   type: ApprovalType;
   status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
   amount: number;
   currency: string;
+  initiatorNote: string | null;
   createdAt: string;
   decidedAt: string | null;
   createdBy: string;
   /** İsteği ben başlattım (bekleyeni iptal edebilirim). */
   mine: boolean;
   listing: { id: string; number: string | null; title: string; type: string };
+  currentStepOrder: number;
+  /** Sırası gelen onaycının adı (PENDING'de dolu). */
+  currentApprover: string | null;
+  totalSteps: number;
+  decidedSteps: number;
   steps: {
     order: number;
     approverName: string;
+    displayLabel: string | null;
     status: "WAITING" | "PENDING" | "APPROVED" | "REJECTED" | "SKIPPED";
     note: string | null;
     decidedAt: string | null;
@@ -190,6 +207,48 @@ export function useApprovalHistory() {
     queryFn: async () => {
       const { data } = await companyApi.get<ApprovalHistoryItem[]>(
         "/company/approvals/history",
+      );
+      return data;
+    },
+  });
+}
+
+/**
+ * Ön kontrol — bu kullanıcının yayın/kazandırması onaya takılacak mı?
+ * UI, girecekse "başlatıcı notu" alanı gösterir.
+ */
+export function useApprovalPreview(
+  listingType: "ALIM" | "SATIS" | undefined,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["company-approvals", "preview", listingType],
+    enabled: enabled && !!listingType,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data } = await companyApi.get<{
+        publish: boolean;
+        award: boolean;
+      }>("/company/approvals/preview", { params: { listingType } });
+      return data;
+    },
+  });
+}
+
+export interface ApprovalListFilters {
+  status?: string;
+  type?: string;
+  search?: string;
+}
+
+/** Tüm Süreçler — firma genelindeki onay istekleri (filtreli). */
+export function useAllApprovals(filters: ApprovalListFilters) {
+  return useQuery({
+    queryKey: ["company-approvals", "all", filters],
+    queryFn: async () => {
+      const { data } = await companyApi.get<ApprovalHistoryItem[]>(
+        "/company/approvals/all",
+        { params: filters },
       );
       return data;
     },

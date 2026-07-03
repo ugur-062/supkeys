@@ -56,6 +56,31 @@ export class CompanyUsersController {
     return this.service.invite(user, dto);
   }
 
+  /** Bekleyen davetler (iptal/yeniden gönder aksiyonlarıyla). */
+  @Get("invitations")
+  @RequireCompanyPermission("users:manage")
+  listInvitations(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.listInvitations(user.companyId);
+  }
+
+  @Delete("invitations/:id")
+  @RequireCompanyPermission("users:manage")
+  cancelInvitation(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.cancelInvitation(user, id);
+  }
+
+  @Post("invitations/:id/resend")
+  @RequireCompanyPermission("users:manage")
+  resendInvitation(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.resendInvitation(user, id);
+  }
+
   @Patch(":id/roles")
   @RequireCompanyPermission("users:manage")
   updateRoles(

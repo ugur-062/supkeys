@@ -30,9 +30,12 @@ import {
 } from "@/components/catalyst/table";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import {
+  useCancelInvitation,
+  useCompanyInvitations,
   useCompanyUsers,
   usePermissionCatalog,
   useRemoveUser,
+  useResendInvitation,
   useSetUserActive,
   useUpdateUser,
   useUpdateUserPermissions,
@@ -43,6 +46,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDistanceToNowStrict } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
+  MailPlus,
   MoreVertical,
   Pencil,
   Power,
@@ -237,6 +241,8 @@ export function CompanyUsersSection({
         </div>
       )}
 
+      {canManage ? <PendingInvitations /> : null}
+
       <InviteUserDialog open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
       {editing ? (
@@ -276,6 +282,96 @@ export function CompanyUsersSection({
           </Button>
         </DialogActions>
       </Dialog>
+    </div>
+  );
+}
+
+/** Bekleyen davetler — iptal / yeniden gönder (eski sistem paritesi). */
+function PendingInvitations() {
+  const { data: invitations } = useCompanyInvitations();
+  const cancel = useCancelInvitation();
+  const resend = useResendInvitation();
+
+  if (!invitations || invitations.length === 0) return null;
+
+  const handleCancel = async (id: string) => {
+    try {
+      await cancel.mutateAsync(id);
+      toast.success("Davet iptal edildi");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "İptal edilemedi"));
+    }
+  };
+  const handleResend = async (id: string) => {
+    try {
+      await resend.mutateAsync(id);
+      toast.success("Davet yeniden gönderildi — süre uzatıldı");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Gönderilemedi"));
+    }
+  };
+
+  return (
+    <div className="border-t border-zinc-950/5">
+      <header className="flex items-center gap-2 px-5 pb-1 pt-4">
+        <MailPlus className="h-4 w-4 text-zinc-500" />
+        <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-900">
+          Bekleyen Davetler ({invitations.length})
+        </h3>
+      </header>
+      <ul className="divide-y divide-zinc-100 px-5 pb-3">
+        {invitations.map((inv) => {
+          const expired = inv.status === "EXPIRED";
+          return (
+            <li
+              key={inv.id}
+              className="flex flex-wrap items-center justify-between gap-2 py-2.5"
+            >
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="truncate text-sm font-medium text-zinc-900">
+                    {inv.email}
+                  </span>
+                  {inv.roles.map((r) => (
+                    <Badge key={r} color="zinc">
+                      {ROLE_LABEL[r] ?? r}
+                    </Badge>
+                  ))}
+                  {expired ? (
+                    <Badge color="red">Süresi doldu</Badge>
+                  ) : (
+                    <Badge color="amber">Bekliyor</Badge>
+                  )}
+                </div>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  {inv.invitedByName} davet etti ·{" "}
+                  {expired
+                    ? "yeniden gönderilebilir"
+                    : `${formatDistanceToNowStrict(new Date(inv.expiresAt), {
+                        locale: tr,
+                      })} içinde sona erer`}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button
+                  plain
+                  onClick={() => handleResend(inv.id)}
+                  disabled={resend.isPending}
+                >
+                  Yeniden Gönder
+                </Button>
+                <Button
+                  plain
+                  onClick={() => handleCancel(inv.id)}
+                  disabled={cancel.isPending}
+                >
+                  <Trash2 className="h-4 w-4 text-red-500" />
+                </Button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

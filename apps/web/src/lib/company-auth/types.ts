@@ -22,6 +22,8 @@ export interface CompanyUserDto {
   phone: string | null;
   roles: CompanyRole[];
   isOwner: boolean;
+  /** Efektif izinler (rol + override + sahiplik) — UI kapıları için. */
+  permissions?: string[];
   twoFactorEnabled: boolean;
   notificationPrefs: Record<string, boolean> | null;
   lastLoginAt: string | null;

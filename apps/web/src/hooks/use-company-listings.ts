@@ -573,18 +573,20 @@ export function useWithdrawBid(id: string) {
 export function useAwardByItem(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (
+    mutationFn: async (input: {
       itemAwards: {
         itemId: string;
         bidId: string;
         awardedQuantity?: number;
-      }[],
-    ) => {
+      }[];
+      /** Onay akışı devredeyse onaycılara iletilen not. */
+      approvalNote?: string;
+    }) => {
       const { data } = await companyApi.post<{
         orders?: { id: string; number: string | null }[];
         count?: number;
         pendingApproval?: boolean;
-      }>(`/company/listings/${id}/award-by-item`, { itemAwards });
+      }>(`/company/listings/${id}/award-by-item`, input);
       return data;
     },
     onSuccess: () => {
@@ -667,12 +669,12 @@ export function useEliminateBid(id: string) {
 export function useAwardListing(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (bidId: string) => {
+    mutationFn: async (input: { bidId: string; approvalNote?: string }) => {
       const { data } = await companyApi.post<{
         orderId?: string;
         number?: string;
         pendingApproval?: boolean;
-      }>(`/company/listings/${id}/award`, { bidId });
+      }>(`/company/listings/${id}/award`, input);
       return data;
     },
     onSuccess: () => {
@@ -700,9 +702,10 @@ export function useCreateListing() {
 export function usePublishListing(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
+    mutationFn: async (input?: { approvalNote?: string }) => {
       const { data } = await companyApi.post<Listing>(
         `/company/listings/${id}/publish`,
+        input ?? {},
       );
       return data;
     },

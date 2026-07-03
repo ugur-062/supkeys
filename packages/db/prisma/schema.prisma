@@ -344,6 +344,7 @@ model Company {
   questionTemplates    ListingQuestionTemplate[]
   approvalFlows        ApprovalFlow[]
   approvalRequests     ApprovalRequest[]
+  userInvitations      CompanyUserInvitation[]
   addresses            CompanyAddress[]
   bankAccounts         CompanyBankAccount[]
   reviewsGiven         CompanyReview[]    @relation("ReviewsGiven")
@@ -1157,6 +1158,40 @@ model CompanyUser {
   @@map("company_users")
 }
 
+enum CompanyInvitationStatus {
+  PENDING
+  ACCEPTED
+  CANCELLED
+  EXPIRED
+}
+
+/**
+ * Token'lı kullanıcı daveti — hesap davet KABULÜNDE açılır (KVKK/consent:
+ * kullanıcı adını/parolasını kendisi belirler, sözleşmeleri kendisi onaylar).
+ * TTL 7 gün; süre dolunca okuma anında EXPIRED'a çekilir.
+ */
+model CompanyUserInvitation {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  email  String
+  roles  CompanyRole[]           @default([])
+  token  String                  @unique // crypto.randomBytes(32).hex — kabul linki
+  status CompanyInvitationStatus @default(PENDING)
+
+  expiresAt   DateTime
+  invitedById String
+  acceptedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, status])
+  @@index([email, status])
+  @@map("company_user_invitations")
+}
+
 /**
  * Uygulama-içi bildirim (e-postaya ek). KULLANICI bazında — her aktif kullanıcı
  * kendi zilini/okundu durumunu görür. Bir firmaya bildirim = firmanın aktif
@@ -1243,6 +1278,8 @@ model ApprovalFlowStep {
   flow               ApprovalFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
   order              Int // 1..n
   approverUserId     String // onaylayacak CompanyUser id
+  // Diagramda gösterilen yumuşak etiket (örn. "Satınalma Müdürü").
+  displayLabel       String?
   // Bu eşik ALTINDAysa adım atlanır (SKIPPED). null = her zaman gerekli.
   conditionMinAmount Decimal?     @db.Decimal(18, 2)
   createdAt          DateTime     @default(now())
@@ -1261,10 +1298,14 @@ model ApprovalRequest {
   listing     Listing               @relation(fields: [listingId], references: [id], onDelete: Cascade)
   type        ApprovalType
   status      ApprovalRequestStatus @default(PENDING)
+  // İnsan-okur onay numarası: APR-YYYY-NNNN (firma bazında benzersiz).
+  requestNo   String?
   amount      Decimal               @db.Decimal(18, 2) // snapshot (kural sonradan değişse de bağımsız)
   currency    Currency              @default(TRY)
   // Onaylanınca tetiklenecek işlemin verisi (örn. kazandırma seçimleri).
   payload     Json?
+  // Başlatanın onaycılara notu (yayın/kazandırma anında girilir).
+  initiatorNote String?
   steps       ApprovalRequestStep[]
   createdById String
   decidedAt   DateTime?
@@ -1273,6 +1314,7 @@ model ApprovalRequest {
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
 
+  @@unique([companyId, requestNo])
   @@index([companyId, status, type])
   @@index([listingId])
   @@map("approval_requests")
@@ -1285,6 +1327,8 @@ model ApprovalRequestStep {
   request        ApprovalRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
   order          Int
   approverUserId String
+  // Akış adımından snapshot — kural sonradan değişse de görünen etiket sabit.
+  displayLabel   String?
   status         ApprovalStepStatus @default(WAITING)
   note           String?
   decidedAt      DateTime?

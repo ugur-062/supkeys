@@ -88,7 +88,7 @@ export default function BidDetailPage() {
     )
       return;
     try {
-      const res = await award.mutateAsync(bid.id);
+      const res = await award.mutateAsync({ bidId: bid.id });
       toast.success(
         res.pendingApproval
           ? "Kazandırma onaya gönderildi"
