@@ -44,6 +44,42 @@ export function fetchSupplierTemplate(id: string) {
     .then((r) => r.data);
 }
 
+/** Şablon detayı — düzenleme dialogu için (üye listesiyle). */
+export function useSupplierTemplateDetail(id: string) {
+  return useQuery({
+    queryKey: ["supplier-templates", "detail", id],
+    enabled: !!id,
+    queryFn: () => fetchSupplierTemplate(id),
+  });
+}
+
+export function useUpdateSupplierTemplate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      ...input
+    }: {
+      id: string;
+      name?: string;
+      isPublic?: boolean;
+      memberCompanyIds?: string[];
+    }) => {
+      const { data } = await companyApi.patch(
+        `/company/supplier-templates/${id}`,
+        input,
+      );
+      return data;
+    },
+    onSuccess: (_d, v) => {
+      qc.invalidateQueries({ queryKey: ["supplier-templates"] });
+      qc.invalidateQueries({
+        queryKey: ["supplier-templates", "detail", v.id],
+      });
+    },
+  });
+}
+
 export function useCreateSupplierTemplate() {
   const qc = useQueryClient();
   return useMutation({

@@ -125,6 +125,18 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         href: "/company/satis/siparisler",
       },
       {
+        icon: ChartBarIcon,
+        label: "Raporlar",
+        href: "/company/satis/raporlar",
+        paidOnly: true,
+      },
+      {
+        icon: DocumentDuplicateIcon,
+        label: "Şablonlar",
+        href: "/company/satis/sablonlar",
+        paidOnly: true,
+      },
+      {
         icon: BuildingStorefrontIcon,
         label: "Bağlantılar",
         href: "/company/satis/musterilerim",

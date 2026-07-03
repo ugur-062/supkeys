@@ -133,7 +133,7 @@ function SaveTemplateModal({
         isPublic,
         memberCompanyIds,
       });
-      toast.success("Tedarikçi şablonu kaydedildi");
+      toast.success("Grup şablonu kaydedildi");
       setName("");
       onClose();
     } catch (err) {
@@ -392,7 +392,7 @@ export function Step3Suppliers() {
               <div className="space-y-2 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    Tedarikçi Şablonları
+                    {RoleWord} Grupları
                   </h4>
                   <button
                     type="button"
