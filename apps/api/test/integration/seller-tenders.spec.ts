@@ -34,10 +34,6 @@ describe("sellerTenders", () => {
     });
     await invite(prisma, l.id, seller.company.id, buyer.user.id);
 
-    // browse() PRIVATE'ı hiç göstermez (mevcut davranış).
-    const browse = await service.browse(seller.auth);
-    expect(browse.find((r) => r.id === l.id)).toBeUndefined();
-
     // sellerTenders davetli PRIVATE'ı gösterir.
     const rows = await service.sellerTenders(seller.auth);
     const row = rows.find((r) => r.id === l.id);

@@ -903,7 +903,8 @@ export default function ListingDetailPage() {
   // burada duruma göre CTA + geri çekme + belgeler (eski panel paritesi).
   const bidHref = `/company/ilan/${l.id}/teklif-ver`;
   const bidCta = (() => {
-    if (!biddingOpen || !l.canBid) return null;
+    // Rol yoksa CTA gösterme — form zaten rol kapısıyla engelliyor.
+    if (!biddingOpen || !l.canBid || l.roleAllowsBid === false) return null;
     const st = l.myBid?.status;
     if (!l.myBid)
       return { label: "Teklif Ver", href: bidHref };
@@ -932,6 +933,17 @@ export default function ListingDetailPage() {
           <Button href="/company/premium" className="shrink-0">
             Premium&apos;a Geç
           </Button>
+        </div>
+      ) : l.roleAllowsBid === false ? (
+        // Rol kapısı: sessiz buton yokluğu yerine açık yönlendirme.
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+          <Text className="text-sm text-amber-800">
+            {isAlim
+              ? "Bu alım ihalesine teklif (satış) vermek için hesabınızda "
+              : "Bu satış ilanına teklif (alım) vermek için hesabınızda "}
+            <strong>{isAlim ? "Satışçı" : "Satın Almacı"}</strong> rolü gerekir
+            — firma yöneticiniz Ayarlar → Kullanıcılar&apos;dan verebilir.
+          </Text>
         </div>
       ) : (
         <div className="space-y-4 rounded-xl border border-zinc-950/10 bg-white p-5">

@@ -1,6 +1,7 @@
 import { Controller, Get, Logger } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
+import { ExchangeRateService } from "../currency/services/exchange-rate.service";
 
 interface HealthCheckResult {
   status: "ok" | "degraded";
@@ -8,6 +9,8 @@ interface HealthCheckResult {
   timestamp: string;
   checks: {
     database: "up" | "down";
+    /** TCMB kuru tazeliği — bayat kur taban kıyası/TRY karşılığını bozar. */
+    exchangeRates: { latestRateDate: string | null; stale: boolean } | null;
   };
 }
 
@@ -18,6 +21,7 @@ export class HealthController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly exchangeRates: ExchangeRateService,
   ) {}
 
   @Get()
@@ -33,12 +37,18 @@ export class HealthController {
         }`,
       );
     }
+    // Kur tazeliği bilgilendirici; DB down iken ayrıca sorgulanmaz.
+    let rates: HealthCheckResult["checks"]["exchangeRates"] = null;
+    if (dbStatus === "up") {
+      rates = await this.exchangeRates.freshness().catch(() => null);
+    }
 
     return {
-      status: dbStatus === "down" ? "degraded" : "ok",
+      // Bayat kur kesinti değildir ama izleme fark etsin → degraded.
+      status: dbStatus === "down" || rates?.stale ? "degraded" : "ok",
       service: "supkeys-api",
       timestamp: new Date().toISOString(),
-      checks: { database: dbStatus },
+      checks: { database: dbStatus, exchangeRates: rates },
     };
   }
 

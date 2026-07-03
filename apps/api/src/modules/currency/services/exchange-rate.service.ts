@@ -40,14 +40,29 @@ const FALLBACK_RATES: Record<Exclude<Currency, "TRY">, number> = {
   CNY: 4.75,
 };
 
+/**
+ * Bayatlık eşiği — TCMB hafta sonu/resmî tatilde yayınlamaz (4 güne kadar
+ * boşluk meşrudur); 7 günü aşan yaş cron arızası işaretidir.
+ */
+const STALE_AFTER_MS = 7 * 86_400_000;
+
 @Injectable()
 export class ExchangeRateService {
   private readonly logger = new Logger(ExchangeRateService.name);
+  // Aynı uyarıyı log'a boğmamak için birim başına saatte bir yazılır.
+  private readonly lastWarnAt = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly tcmb: TcmbService,
   ) {}
+
+  private warnThrottled(key: string, msg: string): void {
+    const now = Date.now();
+    if (now - (this.lastWarnAt.get(key) ?? 0) < 3_600_000) return;
+    this.lastWarnAt.set(key, now);
+    this.logger.warn(msg);
+  }
 
   async getCurrentRate(currency: Currency): Promise<number> {
     if (currency === "TRY") return 1;
@@ -55,8 +70,39 @@ export class ExchangeRateService {
       where: { currency },
       orderBy: { rateDate: "desc" },
     });
-    if (!latest) return FALLBACK_RATES[currency] ?? 1;
+    if (!latest) {
+      // Sessiz fallback taban kıyasını/TRY karşılığını yanlış kurla yapardı —
+      // en azından gözlemlenebilir olsun (boot seed normalde doldurur).
+      this.warnThrottled(
+        `fallback:${currency}`,
+        `Kur tablosu boş — ${currency} için FALLBACK kuru (${FALLBACK_RATES[currency] ?? 1}) kullanılıyor; TCMB cron'unu kontrol edin`,
+      );
+      return FALLBACK_RATES[currency] ?? 1;
+    }
+    const ageMs = Date.now() - latest.rateDate.getTime();
+    if (ageMs > STALE_AFTER_MS) {
+      this.warnThrottled(
+        `stale:${currency}`,
+        `${currency} kuru BAYAT: son kayıt ${latest.rateDate.toISOString().slice(0, 10)} (${Math.floor(ageMs / 86_400_000)} gün önce) — TCMB cron'u çalışmıyor olabilir; taban kıyası/TRY karşılığı bu kurla hesaplanıyor`,
+      );
+    }
     return Number(latest.rate);
+  }
+
+  /**
+   * Kur tazeliği — health endpoint'i için: en son kayıt tarihi ve bayatlık.
+   * DB boşsa stale=true (fallback kullanılıyor demektir).
+   */
+  async freshness(): Promise<{ latestRateDate: string | null; stale: boolean }> {
+    const latest = await this.prisma.exchangeRate.findFirst({
+      orderBy: { rateDate: "desc" },
+      select: { rateDate: true },
+    });
+    if (!latest) return { latestRateDate: null, stale: true };
+    return {
+      latestRateDate: latest.rateDate.toISOString().slice(0, 10),
+      stale: Date.now() - latest.rateDate.getTime() > STALE_AFTER_MS,
+    };
   }
 
   /**

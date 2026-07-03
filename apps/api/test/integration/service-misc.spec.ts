@@ -1,6 +1,6 @@
 /**
  * (3) Kalan servis metodları — çok-kiracılı scope (listMine/listMyBids/
- * listTenders/browse), deleteListing, changeClosingTime, updateInternalNotes,
+ * listTenders/sellerTenders), deleteListing, changeClosingTime, updateInternalNotes,
  * addInvitations guard'ları, roundHistory, updateListing guard'ları.
  */
 import { prisma, truncateAll } from "./test-db";
@@ -98,7 +98,7 @@ describe("çok-kiracılı scope", () => {
     expect(await service.listMyBids(owner.company.id)).toHaveLength(0);
   });
 
-  it("browse kendi ilanını dışlar, başka firmanın görünür ilanını içerir", async () => {
+  it("liste kendi ilanını dışlar, başka firmanın görünür ilanını içerir", async () => {
     const { service } = makeService();
     const other = await makeCompanyWithUser(prisma, { country: "TR" });
     const viewer = await makeCompanyWithUser(prisma, {
@@ -121,7 +121,8 @@ describe("çok-kiracılı scope", () => {
       visibility: "PUBLIC",
       closesAt: FUTURE,
     });
-    const res = (await service.browse(viewer.auth, "domestic")) as Array<{
+    // browse() söküldü — tek liste kaynağı sellerTenders.
+    const res = (await service.sellerTenders(viewer.auth)) as Array<{
       id: string;
     }>;
     const ids = res.map((r) => r.id);

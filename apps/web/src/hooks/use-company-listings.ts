@@ -54,20 +54,6 @@ export interface Listing {
   createdAt: string;
 }
 
-export interface BrowseListing {
-  id: string;
-  number: string | null;
-  type: ListingType;
-  visibility: ListingVisibility;
-  title: string;
-  description: string | null;
-  status: ListingStatus;
-  createdAt: string;
-  owner: { name: string } | null; // null = maskeli (standart + public)
-  masked: boolean;
-  canBid: boolean;
-}
-
 // Backend Prisma `Currency` enum'u ile birebir (8 birim) — eksik tutmak
 // AED/CNY tekliflerini `as` cast'leriyle maskeleyip sessiz hataya yol açıyordu.
 export type CurrencyCode =
@@ -197,20 +183,8 @@ export function useMyBids() {
   });
 }
 
-export type BrowseScope = "domestic" | "international";
-
-export function useBrowseListings(scope: BrowseScope = "domestic") {
-  return useQuery({
-    queryKey: ["company-listings", "browse", scope],
-    queryFn: async () => {
-      const { data } = await companyApi.get<BrowseListing[]>(
-        "/company/listings/browse",
-        { params: { scope } },
-      );
-      return data;
-    },
-  });
-}
+// NOT: useBrowseListings/BrowseListing kaldırıldı (2026-07-03) — backend
+// browse endpoint'i söküldü; liste kaynağı useSellerTenders.
 
 export interface ListingItemQuestionRow {
   id: string;
@@ -360,6 +334,8 @@ export interface ListingDetail {
   // sahip değil:
   masked?: boolean;
   canBid?: boolean;
+  /** Rol kapısı: ALIM'a teklif SATISCI, SATIS'a teklif SATIN_ALMACI ister. */
+  roleAllowsBid?: boolean;
   invited?: boolean;
   myBid?: {
     amount: string;

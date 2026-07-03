@@ -1296,92 +1296,10 @@ export class CompanyListingsService {
     });
   }
 
-  /**
-   * Bana açık ilanlar (başka firmaların): PUBLIC + bağlantılı firmaların
-   * CONNECTIONS ilanları. PUBLIC ilanı bağlı olmayan STANDART MASKELİ görür
-   * (firma gizli, teklif veremez); premium tam görür.
-   */
-  async browse(
-    user: AuthenticatedCompanyUser,
-    scope: "domestic" | "international" = "domestic",
-  ) {
-    // Bağımsız sorgular paralel; izleyenin ülkesi token'dan (ekstra sorgu yok).
-    const [connectedIds, blockedIds] = await Promise.all([
-      this.connectedCompanyIds(user.companyId),
-      this.blocks.blockedCompanyIds(user.companyId),
-    ]);
-    const isPremium = user.tier === "PAKET";
-    const myCountry = user.country;
-
-    // Yurtiçi: SADECE yurtiçi ilanlar (isInternational=false) + aynı ülke.
-    // Uluslararası: ilan sınır ötesine açılmış (isInternational=true), sahibi
-    // BAŞKA ülkede VE hedef ülke listesi beni kapsıyor. Uluslararası ilan
-    // yurtiçi kapsamda GÖRÜNMEZ (adı üstünde — yurtiçi tedarikçi görmez).
-    const scopeWhere =
-      scope === "international"
-        ? {
-            isInternational: true,
-            company: { country: { not: myCountry } },
-            // Hedef ülke filtresi: liste boş = tüm ülkeler; dolu = ülkem dahil mi?
-            AND: [
-              {
-                OR: [
-                  { targetCountries: { isEmpty: true } },
-                  { targetCountries: { has: myCountry } },
-                ],
-              },
-            ],
-          }
-        : { isInternational: false, company: { country: myCountry } };
-
-    // STANDARD (premium değil) public ilanları GÖREMEZ — yalnızca bağlantılı
-    // (referans) firmalarının açık ilanlarını görür. PAKET hepsini görür.
-    const visibilityOr = isPremium
-      ? [
-          { visibility: "PUBLIC" as const },
-          {
-            visibility: "CONNECTIONS" as const,
-            companyId: { in: connectedIds },
-          },
-        ]
-      : [
-          {
-            visibility: "CONNECTIONS" as const,
-            companyId: { in: connectedIds },
-          },
-        ];
-
-    const rows = await this.prisma.listing.findMany({
-      where: {
-        status: "OPEN",
-        companyId: { notIn: [user.companyId, ...blockedIds] },
-        ...scopeWhere,
-        OR: visibilityOr,
-      },
-      include: { company: { select: { name: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
-
-    return rows.map((l) => {
-      const connected = connectedIds.includes(l.companyId);
-      const masked = l.visibility === "PUBLIC" && !connected && !isPremium;
-      const canBid = connected || (l.visibility === "PUBLIC" && isPremium);
-      return {
-        id: l.id,
-        number: l.number,
-        type: l.type,
-        visibility: l.visibility,
-        title: l.title,
-        description: masked ? null : l.description,
-        status: l.status,
-        createdAt: l.createdAt,
-        owner: masked ? null : { id: l.companyId, name: l.company.name },
-        masked,
-        canBid,
-      };
-    });
-  }
+  // NOT: eski browse() endpoint'i kaldırıldı (2026-07-03) — frontend'de
+  // tüketicisi yoktu ve kuralları sellerTenders'tan sapmıştı (STANDARD'a
+  // PUBLIC maskeli önizleme + davetli PRIVATE göstermiyordu). Tek liste
+  // kaynağı sellerTenders'tır.
 
   /**
    * Satıcı İhaleler listesi (eski tedarikçi paneli paritesi) — teklif
@@ -1881,6 +1799,11 @@ export class CompanyListingsService {
       isInvited ||
       (listing.visibility === "CONNECTIONS" && connected) ||
       (listing.visibility === "PUBLIC" && (connected || isPremium));
+    // Rol kapısı UI'a da yansısın: placeBid ALIM'da SATISCI, SATIS'ta
+    // SATIN_ALMACI ister — kullanıcı formu doldurup 403 yemesin.
+    const roleAllowsBid = user.roles.includes(
+      listing.type === "ALIM" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI,
+    );
     // Bidder'a dönen `english` bloğu görünürlükle sınırlanır; MASKELİ izleyici
     // canlı fiyat/katılımcı verisi almaz (önizleme sızıntısı yok).
     const englishForBidder =
@@ -1896,6 +1819,7 @@ export class CompanyListingsService {
       isOwner: false,
       masked,
       canBid,
+      roleAllowsBid,
       invited: isInvited,
       english: englishForBidder,
       auctionView: masked ? null : auctionView,

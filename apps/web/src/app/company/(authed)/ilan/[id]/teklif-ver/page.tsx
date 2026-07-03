@@ -302,6 +302,18 @@ export default function TeklifVerPage() {
       </div>
     );
   }
+  if (l.roleAllowsBid === false) {
+    return (
+      <Blocked
+        title={
+          isSatis
+            ? "Satış ilanına teklif (alım) için Satın Almacı rolü gerekir — firma yöneticinizden rol isteyin"
+            : "Alım ihalesine teklif (satış) için Satışçı rolü gerekir — firma yöneticinizden rol isteyin"
+        }
+        detailHref={detailHref}
+      />
+    );
+  }
   if (l.status !== "OPEN") {
     return <Blocked title="Bu ihaleye artık teklif verilemez" detailHref={detailHref} />;
   }

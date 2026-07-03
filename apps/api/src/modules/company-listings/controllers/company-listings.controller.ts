@@ -37,15 +37,6 @@ export class CompanyListingsController {
     return this.service.listMine(user.companyId);
   }
 
-  @Get("browse")
-  browse(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Query("scope") scope?: string,
-  ) {
-    const s = scope === "international" ? "international" : "domestic";
-    return this.service.browse(user, s);
-  }
-
   /** Firmanın başka ilanlara verdiği tüm teklifler (Tekliflerim ekranı). */
   @Get("my-bids")
   listMyBids(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
