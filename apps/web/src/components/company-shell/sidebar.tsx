@@ -120,11 +120,14 @@ function RailItem({
 export function CompanySidebarContent({
   expanded,
   showPin = true,
+  /** Portal seçici masaüstünde TOPBAR'da — yalnız mobil çekmecede burada. */
+  showPortalSwitcher = false,
   onNavigate,
 }: {
   expanded: boolean;
   /** Mobilde pin anlamsız — gizlenir. */
   showPin?: boolean;
+  showPortalSwitcher?: boolean;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -149,14 +152,9 @@ export function CompanySidebarContent({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Portal değiştirici */}
-      {available.length > 1 ? (
-        <div
-          className={cn(
-            "mx-2 mt-3 gap-1 rounded-lg bg-zinc-100 p-1",
-            expanded ? "grid grid-cols-2" : "flex flex-col",
-          )}
-        >
+      {/* Portal değiştirici — yalnız mobil çekmecede (masaüstünde topbar'da) */}
+      {showPortalSwitcher && available.length > 1 ? (
+        <div className="mx-2 mt-3 grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1">
           {PORTAL_ORDER.filter((p) => available.includes(p)).map((p) => {
             const def = PORTALS[p];
             const on = p === active;
@@ -168,32 +166,19 @@ export function CompanySidebarContent({
                   setLastPortal(p);
                   onNavigate?.();
                 }}
-                title={def.label}
                 className={cn(
-                  "rounded-md py-1.5 text-center text-xs font-semibold whitespace-nowrap transition",
-                  expanded ? "px-2" : "px-0",
+                  "rounded-md px-2 py-1.5 text-center text-xs font-semibold whitespace-nowrap transition",
                   on
                     ? ACCENT[def.accent].switch
                     : "text-zinc-500 hover:text-zinc-800",
                 )}
               >
-                {expanded ? def.label : def.label[0]}
+                {def.label}
               </Link>
             );
           })}
         </div>
-      ) : (
-        <div className="mx-2 mt-3">
-          <div
-            className={cn(
-              "rounded-md py-1.5 text-center text-xs font-semibold whitespace-nowrap",
-              ACCENT[portal.accent].active,
-            )}
-          >
-            {expanded ? `${portal.label} Portalı` : portal.label[0]}
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {/* Nav */}
       <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden px-2">

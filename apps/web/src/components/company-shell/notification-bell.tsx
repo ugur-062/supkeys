@@ -29,7 +29,7 @@ function timeAgo(iso: string): string {
   return new Date(iso).toLocaleDateString("tr-TR");
 }
 
-export function NotificationBell() {
+export function NotificationBell({ onDark = false }: { onDark?: boolean }) {
   const { data: unread = 0 } = useUnreadCount();
   const { data: items = [], isLoading } = useNotifications();
   const markRead = useMarkNotificationsRead();
@@ -50,7 +50,11 @@ export function NotificationBell() {
     <Popover className="relative">
       <PopoverButton
         aria-label={`Bildirimler${unread > 0 ? ` (${unread} okunmamış)` : ""}`}
-        className="relative flex size-10 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        className={`relative flex size-10 items-center justify-center rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+          onDark
+            ? "text-zinc-400 hover:bg-white/10 hover:text-white"
+            : "text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900"
+        }`}
       >
         <Bell className="size-5" aria-hidden="true" />
         {unread > 0 ? (
