@@ -110,19 +110,41 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
       href={`/company/ilan/${b.listing.id}?from=${encodeURIComponent(fromHref)}&fromLabel=Tekliflerim`}
       className="group block"
     >
-      <div className="flex h-full flex-col rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-sm transition-all hover:border-zinc-300 hover:shadow-md">
+      <div
+        className={cn(
+          "relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-950/10 bg-white p-5 pl-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+          isAlim ? "hover:border-blue-300" : "hover:border-emerald-300",
+        )}
+      >
+        {/* Sol aksan şeridi — ihale tipi rengi (İhalelerim kart dili) */}
+        <span
+          aria-hidden
+          className={cn(
+            "absolute left-0 top-0 bottom-0 w-1",
+            isAlim
+              ? "bg-gradient-to-b from-blue-500 to-blue-300"
+              : "bg-gradient-to-b from-emerald-500 to-emerald-300",
+          )}
+        />
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="font-mono text-[11px] text-zinc-500">
+              <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] font-medium text-zinc-600">
                 {b.listing.number ?? "—"}
-              </p>
+              </span>
               {/* Alım/Satış tip etiketi — ilan sayfası renkleriyle. */}
               <Badge color={isAlim ? "blue" : "emerald"}>
                 {isAlim ? "Alım İhalesi" : "Satış İlanı"}
               </Badge>
             </div>
-            <h3 className="mt-0.5 line-clamp-2 leading-snug font-semibold text-zinc-950">
+            <h3
+              className={cn(
+                "mt-1.5 line-clamp-2 text-[15px] leading-snug font-semibold text-zinc-950 transition-colors",
+                isAlim
+                  ? "group-hover:text-blue-700"
+                  : "group-hover:text-emerald-700",
+              )}
+            >
               {b.listing.title}
             </h3>
           </div>
@@ -133,13 +155,22 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
 
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
           <span className="inline-flex items-center gap-1.5 text-sm text-zinc-600">
-            <Building2 className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-zinc-100">
+              <Building2 className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
+            </span>
             <span className="truncate font-medium">
               {isAlim ? "Alıcı: " : "Satıcı: "}
               {b.listing.ownerName}
             </span>
           </span>
-          <span className="font-mono text-sm font-bold text-zinc-900 tabular-nums">
+          <span
+            className={cn(
+              "inline-flex items-center rounded-lg px-2.5 py-1 font-mono text-sm font-bold tabular-nums ring-1",
+              isAlim
+                ? "bg-blue-50 text-blue-700 ring-blue-100"
+                : "bg-emerald-50 text-emerald-700 ring-emerald-100",
+            )}
+          >
             {Number(b.amount).toLocaleString("tr-TR")} {sym(b.currency)}
           </span>
           {b.currency !== "TRY" && b.amountTry ? (
@@ -192,7 +223,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
           ) : b.listing.status === "OPEN" && b.listing.closesAt ? (
             <span
               className={cn(
-                "inline-flex items-center gap-1 font-semibold",
+                "inline-flex items-center gap-1 rounded-full bg-current/10 px-2.5 py-1 font-semibold whitespace-nowrap",
                 urgency?.className ?? "text-zinc-500",
               )}
             >

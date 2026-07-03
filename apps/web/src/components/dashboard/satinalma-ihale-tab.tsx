@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { DashboardKpiCard } from "@/components/dashboard/dashboard-kpi-card";
+import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
 import type { SatinalmaDashboard } from "@/hooks/use-company-dashboard";
 import { cn } from "@/lib/utils";
 import { FileX2 } from "lucide-react";
@@ -59,6 +60,9 @@ export function SatinalmaIhaleTab({ data }: { data: SatinalmaDashboard }) {
         />
       </div>
 
+      {/* KPI altı — satış paneliyle aynı desen: sol geniş içerik + sağ kur kutusu */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
       {/* Teklife Açık İhaleler paneli */}
       <section className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-950/5 px-5 py-4">
@@ -152,6 +156,13 @@ export function SatinalmaIhaleTab({ data }: { data: SatinalmaDashboard }) {
           </div>
         )}
       </section>
+        </div>
+
+        {/* Sağ ray — TCMB kurları */}
+        <div className="space-y-4">
+          <TcmbRatesWidget />
+        </div>
+      </div>
     </div>
   );
 }

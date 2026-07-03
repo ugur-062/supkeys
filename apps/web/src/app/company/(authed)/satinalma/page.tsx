@@ -4,7 +4,6 @@ import { ActionStrip } from "@/components/dashboard/action-strip";
 import { SatinalmaIhaleTab } from "@/components/dashboard/satinalma-ihale-tab";
 import { TasarrufTab } from "@/components/dashboard/tasarruf-tab";
 import { TedarikciTab } from "@/components/dashboard/tedarikci-tab";
-import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
   useSatinalmaDashboard,
@@ -66,9 +65,6 @@ export default function SatinalmaDashboardPage() {
 
       {/* Bugün ne yapmalıyım? — bekleyen işler (yoksa görünmez) */}
       <ActionStrip portal="satinalma" />
-
-      {/* TCMB döviz kurları — tam genişlik yatay şerit (doğal formu) */}
-      <TcmbRatesWidget />
 
       <TabGroup className="space-y-6">
         <TabList
