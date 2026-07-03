@@ -11,7 +11,6 @@ import {
   DropdownMenu,
 } from "@/components/catalyst/dropdown";
 import { useCompanyAuth, useCompanyLogout } from "@/hooks/use-company-auth";
-import { useUnreadMessages } from "@/hooks/use-company-messages";
 import { usePortalStore } from "@/lib/company/portal-store";
 import {
   PORTALS,
@@ -25,8 +24,8 @@ import {
   ChevronDownIcon,
   Cog6ToothIcon,
 } from "@heroicons/react/20/solid";
-import { MessageSquare } from "lucide-react";
 import Link from "next/link";
+import { MessagesPopover } from "./messages-popover";
 import { NotificationBell } from "./notification-bell";
 
 function initialsOf(first?: string | null, last?: string | null) {
@@ -80,8 +79,6 @@ export function CompanyTopbar({
 }) {
   const { company, user } = useCompanyAuth();
   const logout = useCompanyLogout();
-  const { data: unreadData } = useUnreadMessages();
-  const unreadMsgs = unreadData?.count ?? 0;
   const isPaid = company?.tier === "PAKET";
   const portal = PORTALS[activePortal];
 
@@ -132,18 +129,10 @@ export function CompanyTopbar({
 
       {/* Sağ: mesajlar + bildirimler + kullanıcı */}
       <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-        <Link
-          href={`${portal.basePath}/mesajlar`}
-          aria-label={`Mesajlar${unreadMsgs > 0 ? ` (${unreadMsgs} okunmamış)` : ""}`}
-          className="relative flex size-10 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900"
-        >
-          <MessageSquare className="size-5" aria-hidden />
-          {unreadMsgs > 0 ? (
-            <span className="absolute top-1.5 right-1.5 flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
-              {unreadMsgs > 9 ? "9+" : unreadMsgs}
-            </span>
-          ) : null}
-        </Link>
+        <MessagesPopover
+          portal={activePortal}
+          basePath={portal.basePath}
+        />
 
         <NotificationBell />
 

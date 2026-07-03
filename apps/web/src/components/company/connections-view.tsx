@@ -397,27 +397,28 @@ export function ConnectionsView() {
             Tedarikçinin e-postası: kayıtlıysa istek gider, değilse davet
             e-postası; kaydolunca kalıcı bağlanırsınız.
           </Text>
-          <div className="mt-3 flex gap-2">
+          <div className="mt-3 space-y-2">
             <Input
               type="email"
               aria-label="Davet edilecek e-posta adresi"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="ornek@firma.com"
-              className="max-w-xs"
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleInviteByEmail();
               }}
             />
-            <Button
-              onClick={handleInviteByEmail}
-              disabled={inviteByEmail.isPending}
-            >
-              Davet Et
-            </Button>
-            <Button outline onClick={() => setBatchOpen(true)}>
-              Toplu Davet
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                onClick={handleInviteByEmail}
+                disabled={inviteByEmail.isPending || !email.includes("@")}
+              >
+                {inviteByEmail.isPending ? "Gönderiliyor…" : "Davet Et"}
+              </Button>
+              <Button outline onClick={() => setBatchOpen(true)}>
+                Toplu Davet
+              </Button>
+            </div>
           </div>
           {referralInvites.data && referralInvites.data.length > 0 ? (
             <Text className="mt-2 text-xs text-zinc-400">

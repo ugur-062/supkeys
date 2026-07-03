@@ -2,7 +2,6 @@ import type { CompanyRole } from "@/lib/company-auth/types";
 import {
   BuildingStorefrontIcon,
   ChartBarIcon,
-  ChatBubbleLeftRightIcon,
   ClipboardDocumentListIcon,
   DocumentDuplicateIcon,
   HomeIcon,
@@ -89,11 +88,6 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         label: "Profilim",
         href: "/company/satinalma/profilim",
       },
-      {
-        icon: ChatBubbleLeftRightIcon,
-        label: "Mesajlar",
-        href: "/company/satinalma/mesajlar",
-      },
     ],
   },
   satis: {
@@ -145,11 +139,6 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         icon: IdentificationIcon,
         label: "Profilim",
         href: "/company/satis/profilim",
-      },
-      {
-        icon: ChatBubbleLeftRightIcon,
-        label: "Mesajlar",
-        href: "/company/satis/mesajlar",
       },
     ],
   },

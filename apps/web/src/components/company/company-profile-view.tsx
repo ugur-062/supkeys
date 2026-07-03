@@ -19,6 +19,40 @@ export interface ProfileViewData {
   linkedinUrl: string | null;
   instagramUrl: string | null;
   rating?: { avg: number; count: number } | null;
+  /** Kamuya açık ticari sicil bilgileri (tüzel kişi verisi). */
+  trade?: {
+    legalName: string | null;
+    taxNumber: string | null;
+    taxOffice: string | null;
+    mersisNo: string | null;
+    tradeRegistryNo: string | null;
+    kepAddress: string | null;
+  } | null;
+}
+
+function TradeRow({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div>
+      <dt className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">
+        {label}
+      </dt>
+      <dd
+        className={`mt-0.5 text-sm font-semibold text-zinc-900 ${
+          mono ? "font-mono tracking-wide" : ""
+        }`}
+      >
+        {value}
+      </dd>
+    </div>
+  );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -182,6 +216,50 @@ export function CompanyProfileView({
               <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-zinc-600">
                 {p.aboutText}
               </p>
+            </section>
+          ) : null}
+
+          {/* Ticari sicil bilgileri — kamuya açık tüzel kişi verileri; güven
+              göstergesi (IBAN/TCKN gibi hassas veriler burada ASLA yer almaz). */}
+          {p.trade &&
+          (p.trade.legalName ||
+            p.trade.taxNumber ||
+            p.trade.mersisNo ||
+            p.trade.tradeRegistryNo ||
+            p.trade.kepAddress) ? (
+            <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+              <h2 className="text-base font-semibold text-zinc-900">
+                Ticari Bilgiler
+              </h2>
+              <dl className="mt-4 grid grid-cols-1 gap-x-8 gap-y-3 sm:grid-cols-2">
+                {p.trade.legalName ? (
+                  <TradeRow label="Ticari Ünvan" value={p.trade.legalName} />
+                ) : null}
+                {p.trade.taxNumber ? (
+                  <TradeRow
+                    label="Vergi No"
+                    value={
+                      p.trade.taxOffice
+                        ? `${p.trade.taxNumber} · ${p.trade.taxOffice}`
+                        : p.trade.taxNumber
+                    }
+                    mono
+                  />
+                ) : null}
+                {p.trade.mersisNo ? (
+                  <TradeRow label="MERSİS No" value={p.trade.mersisNo} mono />
+                ) : null}
+                {p.trade.tradeRegistryNo ? (
+                  <TradeRow
+                    label="Ticaret Sicil No"
+                    value={p.trade.tradeRegistryNo}
+                    mono
+                  />
+                ) : null}
+                {p.trade.kepAddress ? (
+                  <TradeRow label="KEP Adresi" value={p.trade.kepAddress} mono />
+                ) : null}
+              </dl>
             </section>
           ) : null}
 

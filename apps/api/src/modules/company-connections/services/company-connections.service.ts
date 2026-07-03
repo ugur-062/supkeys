@@ -582,6 +582,14 @@ export class CompanyConnectionsService {
         instagramUrl: true,
         publicEnabled: true,
         isActive: true,
+        // Kamuya açık ticari sicil bilgileri (tüzel kişi verisi — KVKK dışı).
+        // IBAN / yetkili TCKN / fatura iletişimi ASLA buraya girmez.
+        legalName: true,
+        taxNumber: true,
+        taxOffice: true,
+        mersisNo: true,
+        tradeRegistryNo: true,
+        kepAddress: true,
       },
     });
     if (!c || !c.isActive || !c.publicEnabled) {
@@ -667,6 +675,14 @@ export class CompanyConnectionsService {
         rating: {
           avg: ratingAgg._avg.rating ?? 0,
           count: ratingAgg._count,
+        },
+        trade: {
+          legalName: c.legalName,
+          taxNumber: c.taxNumber,
+          taxOffice: c.taxOffice,
+          mersisNo: c.mersisNo,
+          tradeRegistryNo: c.tradeRegistryNo,
+          kepAddress: c.kepAddress,
         },
       },
       connectionStatus,
