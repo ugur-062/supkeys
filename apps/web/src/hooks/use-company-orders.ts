@@ -70,6 +70,18 @@ export interface CounterpartyProfile {
   supkeysId: string | null;
 }
 
+/** Teslimat adresi snapshot'ı (award anında: ALIM→ilan, SATIS→kazanan teklif). */
+export interface OrderDeliveryAddress {
+  title: string;
+  contactName: string | null;
+  phone: string | null;
+  country: string;
+  city: string | null;
+  district: string | null;
+  addressLine: string;
+  postalCode: string | null;
+}
+
 export interface CompanyOrderDetail extends CompanyOrder {
   counterpartyProfile: CounterpartyProfile;
   paymentTiming: PaymentTiming;
@@ -77,6 +89,7 @@ export interface CompanyOrderDetail extends CompanyOrder {
   paymentTotals: { confirmed: string; pending: string; remaining: string };
   payments: OrderPayment[];
   items: CompanyOrderItemRow[];
+  deliveryAddress?: OrderDeliveryAddress | null;
   // Adım verileri + timeline (eski sistemle birebir)
   acceptedAt: string | null;
   acceptedNote: string | null;

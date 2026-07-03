@@ -588,6 +588,10 @@ model CompanyOrder {
   paymentTiming  CompanyOrderPaymentTiming @default(AFTER_DELIVERY)
   rejectedReason String?
   cancelReason   String?
+  // Teslimat adresi snapshot'ı (award anında: ALIM→ilanın adresi, SATIS→kazanan
+  // teklifin adresi). Adres defteri sonradan değişse de sipariş sabit kalır.
+  // { title, contactName, phone, country, city, district, addressLine, postalCode }
+  deliveryAddress Json?
 
   // ── Adım verileri (eski sistemle birebir) ──
   // KABUL (PENDING→ACCEPTED): satıcı tahmini teslim + banka + not girer.
@@ -698,11 +702,19 @@ model ListingBid {
   // Zenginleştirme (eski Bid ile paralel).
   version              Int       @default(1) // taslak güncellemede artar
   submittedAt          DateTime? // SUBMITTED'a geçiş anı
-  deliveryDate         DateTime? // teklif edilen teslim tarihi (gönderimde zorunlu)
+  // ALIM: satıcının taahhüt ettiği teslim tarihi. SATIS: alıcının İSTEDİĞİ
+  // teslim tarihi (teslim eden ilan sahibi satıcıdır). Gönderimde zorunlu.
+  deliveryDate         DateTime?
   validityDays         Int? // teklif geçerlilik süresi (gönderimde zorunlu)
   exchangeRateSnapshot Decimal?  @db.Decimal(18, 6) // TRY dışı teklifte TCMB kuru
   eliminationReason    String? // alıcı eleme sebebi
   eliminatedAt         DateTime?
+
+  // SATIS: alıcının teslimat adresi (kendi adres defterinden). Adrese-teslim
+  // şartlarında (DOMESTIC_DELIVERED/ON_VEHICLE/CARRIER_COLLECT, DAP/DPU/DDP)
+  // gönderimde zorunlu; award anında siparişe snapshot'lanır.
+  deliveryAddressId String?
+  deliveryAddress   CompanyAddress? @relation("BidDeliveryAddress", fields: [deliveryAddressId], references: [id], onDelete: SetNull)
 
   items     ListingBidItem[]
   documents ListingBidDocument[]
@@ -1323,6 +1335,8 @@ model CompanyAddress {
   taxOffice   String?
   taxNumber   String?
   isDefault   Boolean            @default(false)
+
+  bidDeliveries ListingBid[] @relation("BidDeliveryAddress")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -87,10 +87,17 @@ export class PlaceBidDto {
   @IsBoolean()
   asDraft?: boolean;
 
-  // Gönderimde zorunlu: teklif edilen teslim tarihi + geçerlilik süresi.
+  // Gönderimde zorunlu: teslim tarihi (ALIM: satıcının taahhüdü,
+  // SATIS: alıcının istediği tarih) + geçerlilik süresi.
   @IsOptional()
   @IsISO8601({}, { message: "Geçersiz teslim tarihi" })
   deliveryDate?: string;
+
+  // SATIS: alıcının teslimat adresi (kendi adres defterinden). Adrese-teslim
+  // şartlı ilanlarda gönderimde zorunlu.
+  @IsOptional()
+  @IsString()
+  deliveryAddressId?: string;
 
   @IsOptional()
   @IsInt()

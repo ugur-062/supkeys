@@ -44,6 +44,7 @@ import {
   CalendarClock,
   Gavel,
   Layers,
+  Truck,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -375,6 +376,35 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
           </dl>
         </section>
       </div>
+
+      {/* Teslimat adresi — award anındaki snapshot (ALIM: ilanın adresi,
+          SATIS: kazanan alıcının teklifte seçtiği adres). */}
+      {o.deliveryAddress ? (
+        <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Truck className="h-4 w-4 text-zinc-500" />
+            <h3 className="text-sm font-semibold text-zinc-900">
+              Teslimat Adresi
+            </h3>
+          </div>
+          <p className="text-sm text-zinc-900">
+            <span className="font-medium">{o.deliveryAddress.title}</span> —{" "}
+            {o.deliveryAddress.addressLine}
+            {o.deliveryAddress.district ? `, ${o.deliveryAddress.district}` : ""}
+            {o.deliveryAddress.city ? `, ${o.deliveryAddress.city}` : ""}
+            {o.deliveryAddress.postalCode
+              ? ` ${o.deliveryAddress.postalCode}`
+              : ""}
+          </p>
+          {o.deliveryAddress.contactName || o.deliveryAddress.phone ? (
+            <p className="mt-1 text-xs text-zinc-500">
+              {[o.deliveryAddress.contactName, o.deliveryAddress.phone]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          ) : null}
+        </section>
+      ) : null}
 
       {/* Durum akışı */}
       <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">

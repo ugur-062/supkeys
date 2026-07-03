@@ -139,6 +139,7 @@ export class CompanyListingsController {
       note?: string;
       deliveryDate?: string;
       validityDays?: number;
+      deliveryAddressId?: string;
       itemIds?: string[];
     },
   ) {

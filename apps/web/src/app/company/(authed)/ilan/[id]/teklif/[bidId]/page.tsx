@@ -156,7 +156,7 @@ export default function BidDetailPage() {
             ) : null}
             {bid.bidderCompanyId ? (
               <Link
-                href={`/company/satinalma/mesajlar?with=${bid.bidderCompanyId}`}
+                href={`/company/${l.type === "SATIS" ? "satis" : "satinalma"}/mesajlar?with=${bid.bidderCompanyId}`}
                 className="text-xs font-semibold text-blue-600 hover:underline"
               >
                 Mesaj Gönder
@@ -180,6 +180,60 @@ export default function BidDetailPage() {
           </div>
         ) : null}
       </div>
+
+      {/* Teslim & geçerlilik — ALIM: satıcının taahhüdü; SATIS: alıcının
+          İSTEDİĞİ tarih (kesin tarihi satıcı sipariş onayında verir). */}
+      <section className="rounded-2xl border border-zinc-950/5 bg-white p-5 shadow-sm">
+        <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
+          <div>
+            <dt className="text-xs text-zinc-500">
+              {l.type === "SATIS"
+                ? "Alıcının İstediği Teslim"
+                : "Taahhüt Edilen Teslim"}
+            </dt>
+            <dd className="font-medium text-zinc-900">
+              {bid.deliveryDate
+                ? new Date(bid.deliveryDate).toLocaleDateString("tr-TR")
+                : "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs text-zinc-500">Teklif Geçerliliği</dt>
+            <dd className="font-medium text-zinc-900">
+              {bid.validityDays ? `${bid.validityDays} gün` : "—"}
+            </dd>
+          </div>
+          {l.type === "SATIS" ? (
+            <div className="col-span-2 sm:col-span-1">
+              <dt className="text-xs text-zinc-500">
+                Alıcının Teslimat Adresi
+              </dt>
+              <dd className="font-medium text-zinc-900">
+                {bid.deliveryAddress ? (
+                  <>
+                    {bid.deliveryAddress.title} —{" "}
+                    {bid.deliveryAddress.addressLine}
+                    {bid.deliveryAddress.district
+                      ? `, ${bid.deliveryAddress.district}`
+                      : ""}
+                    {bid.deliveryAddress.city
+                      ? `, ${bid.deliveryAddress.city}`
+                      : ""}
+                    {bid.deliveryAddress.contactName
+                      ? ` · ${bid.deliveryAddress.contactName}`
+                      : ""}
+                    {bid.deliveryAddress.phone
+                      ? ` · ${bid.deliveryAddress.phone}`
+                      : ""}
+                  </>
+                ) : (
+                  "—"
+                )}
+              </dd>
+            </div>
+          ) : null}
+        </dl>
+      </section>
 
       {/* Kalem kırılımı */}
       {items.length > 0 && bid.items && bid.items.length > 0 ? (
@@ -214,7 +268,9 @@ export default function BidDetailPage() {
                         {it.name}
                         {bi?.deliveryDate ? (
                           <span className="block text-[11px] text-zinc-500">
-                            Kalem teslimi:{" "}
+                            {l.type === "SATIS"
+                              ? "İstenen kalem teslimi:"
+                              : "Kalem teslimi:"}{" "}
                             {new Date(bi.deliveryDate).toLocaleDateString(
                               "tr-TR",
                             )}
@@ -301,7 +357,7 @@ export default function BidDetailPage() {
         onClose={() => setEliminateOpen(false)}
         onSubmit={submitEliminate}
         title="Teklifi ele"
-        description={`"${bid.bidderName}" elensin mi? Yeniden teklif verebilir. Yazdığınız gerekçe tedarikçiye GÖSTERİLİR.`}
+        description={`"${bid.bidderName}" elensin mi? Yeniden teklif verebilir. Yazdığınız gerekçe ${l.type === "SATIS" ? "alıcıya" : "tedarikçiye"} GÖSTERİLİR.`}
         confirmLabel="Ele"
         destructive
         pending={eliminate.isPending}

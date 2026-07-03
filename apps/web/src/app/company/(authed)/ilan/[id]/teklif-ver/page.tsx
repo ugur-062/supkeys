@@ -29,6 +29,9 @@ import {
   type ListingDetail,
   type ListingItemRow,
 } from "@/hooks/use-company-listings";
+import { useAddresses } from "@/hooks/use-company-addresses";
+import { BUYER_ADDRESS_REQUIRED_TERMS } from "@/lib/tenders/labels";
+import type { DeliveryTerm } from "@/lib/tenders/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDateTime } from "@/lib/tenders/date";
 import { subscribeRealtime } from "@/lib/realtime";
@@ -147,6 +150,9 @@ export default function TeklifVerPage() {
   const [itemState, setItemState] = useState<Record<string, ItemState>>({});
   const [singleAmount, setSingleAmount] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
+  // SATIS: alıcının teslimat adresi (kendi adres defterinden) — adrese-teslim
+  // şartlı ilanda gönderimde zorunlu.
+  const [deliveryAddressId, setDeliveryAddressId] = useState("");
   const [validityDays, setValidityDays] = useState("30");
   const [currency, setCurrency] = useState("");
   const [note, setNote] = useState("");
@@ -168,6 +174,7 @@ export default function TeklifVerPage() {
     setItemState({});
     setSingleAmount("");
     setDeliveryDate("");
+    setDeliveryAddressId("");
     setValidityDays("30");
     setCurrency("");
     setNote("");
@@ -217,6 +224,7 @@ export default function TeklifVerPage() {
         setSingleAmount(String(Number(bid.amount)));
       if (bid.deliveryDate) setDeliveryDate(bid.deliveryDate.slice(0, 10));
       if (bid.validityDays) setValidityDays(String(bid.validityDays));
+      if (bid.deliveryAddressId) setDeliveryAddressId(bid.deliveryAddressId);
       if (bid.note) setNote(bid.note);
       if (bid.currency) setCurrency(bid.currency);
     }
@@ -227,6 +235,17 @@ export default function TeklifVerPage() {
   const myDocs = (bidDocs.data ?? []).filter((d) => d.mine);
   const effectiveCurrency =
     currency || l?.primaryCurrency || "TRY";
+
+  // SATIS: teslimat adresi seçimi. Adres defterinden TESLIMAT/ILETISIM tipli
+  // adresler; adrese-teslim şartlı ilanda gönderimde zorunlu.
+  const { data: myAddresses } = useAddresses();
+  const deliveryAddrs = (myAddresses ?? []).filter(
+    (a) => a.type === "TESLIMAT" || a.type === "ILETISIM",
+  );
+  const addressRequired =
+    isSatis &&
+    !!l?.deliveryTerm &&
+    BUYER_ADDRESS_REQUIRED_TERMS.includes(l.deliveryTerm as DeliveryTerm);
 
   const pricedItems = useMemo(
     () =>
@@ -378,7 +397,14 @@ export default function TeklifVerPage() {
       pricedItems.some((it) => Number(itemState[it.id]?.price ?? 0) <= 0)
     )
       problems.push("Fiyatlanan her kalemin birim fiyatı sıfırdan büyük olmalı.");
-    if (!deliveryDate) problems.push("Teslim tarihi zorunlu.");
+    if (!deliveryDate)
+      problems.push(
+        isSatis ? "İstenen teslim tarihi zorunlu." : "Teslim tarihi zorunlu.",
+      );
+    if (addressRequired && !deliveryAddressId)
+      problems.push(
+        "Bu ilanda teslim şekli adrese teslim — teslimat adresi seçin.",
+      );
     if (!validityDays || Number(validityDays) < 1)
       problems.push("Geçerlilik süresi zorunlu.");
     if (l.requireBidDocument && myDocs.length + stagedFiles.length === 0)
@@ -435,6 +461,7 @@ export default function TeklifVerPage() {
     note: note.trim() || undefined,
     deliveryDate: deliveryDate || undefined,
     validityDays: validityDays ? Number(validityDays) : undefined,
+    deliveryAddressId: (isSatis && deliveryAddressId) || undefined,
     currency: currency || undefined,
     ...(hasItems
       ? {
@@ -495,6 +522,7 @@ export default function TeklifVerPage() {
             ? new Date(deliveryDate).toISOString()
             : undefined,
           validityDays: validityDays ? Number(validityDays) : undefined,
+          deliveryAddressId: deliveryAddressId || undefined,
           itemIds:
             l && l.priceScope === "KALEM"
               ? items
@@ -598,8 +626,8 @@ export default function TeklifVerPage() {
             {l.priceScope === "KALEM"
               ? "İstemediğin kalemi kapsam dışı bırakabilirsin (✕); hemen-al fiyatı olmayan kalemler zaten kapsam dışıdır."
               : ""}
-            Teslim tarihi ve geçerlilik süresini girip onayla — satıcı
-            kazandırınca sipariş oluşur.
+            İstenen teslim tarihini ve geçerlilik süresini girip onayla —
+            satıcı kazandırınca sipariş oluşur.
           </p>
         </div>
       ) : null}
@@ -753,7 +781,11 @@ export default function TeklifVerPage() {
                       {!optedOut ? (
                         <div className="mt-3 grid grid-cols-1 gap-3 border-t border-zinc-50 pt-3 sm:grid-cols-2">
                           <Field>
-                            <Label>Kalem Teslim Tarihi (opsiyonel)</Label>
+                            <Label>
+                              {isSatis
+                                ? "Kalem İçin İstenen Teslim (opsiyonel)"
+                                : "Kalem Teslim Tarihi (opsiyonel)"}
+                            </Label>
                             <Input
                               type="date"
                               aria-label={`${it.name} teslim tarihi`}
@@ -806,12 +838,15 @@ export default function TeklifVerPage() {
             </section>
           )}
 
-          {/* Teslim & geçerlilik */}
+          {/* Teslim & geçerlilik — SATIS'ta teslim eden SATICI'dır (ilan
+              sahibi); alıcı tarih taahhüt etmez, İSTEDİĞİ tarihi belirtir. */}
           <section className="space-y-3">
             <Subheading>Teslim &amp; Geçerlilik</Subheading>
             <div className="grid grid-cols-1 gap-3 rounded-xl border border-zinc-950/10 bg-white p-4 sm:grid-cols-3">
               <Field>
-                <Label>Genel Teslim Tarihi *</Label>
+                <Label>
+                  {isSatis ? "İstenen Teslim Tarihi *" : "Genel Teslim Tarihi *"}
+                </Label>
                 <Input
                   type="date"
                   min={new Date().toISOString().slice(0, 10)}
@@ -845,9 +880,43 @@ export default function TeklifVerPage() {
                 </Field>
               ) : null}
             </div>
+            {isSatis ? (
+              <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
+                <Field>
+                  <Label>
+                    Teslimat Adresiniz{addressRequired ? " *" : ""}
+                  </Label>
+                  <Select
+                    value={deliveryAddressId}
+                    onChange={(e) => setDeliveryAddressId(e.target.value)}
+                  >
+                    <option value="">
+                      {deliveryAddrs.length === 0
+                        ? "Adres defterinizde teslimat adresi yok"
+                        : addressRequired
+                          ? "— Seçiniz —"
+                          : "— Seçiniz (opsiyonel) —"}
+                    </option>
+                    {deliveryAddrs.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.title}
+                        {a.city ? ` — ${a.city}` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+                <Text className="mt-2 text-xs text-zinc-400">
+                  {addressRequired
+                    ? "Bu ilanda teslim şekli adrese teslim — satıcı bu adrese gönderir. "
+                    : "Satıcının teslimatı planlaması için (opsiyonel). "}
+                  Adres yoksa Ayarlar → Adresler&apos;den ekleyin.
+                </Text>
+              </div>
+            ) : null}
             <Text className="text-xs text-zinc-400">
-              Kalem-özel teslim tarihi girilmeyen kalemler için genel teslim
-              tarihi geçerlidir.
+              {isSatis
+                ? "İstenen teslim tarihi satıcıya iletilir; kesin teslim tarihini satıcı sipariş onayında verir."
+                : "Kalem-özel teslim tarihi girilmeyen kalemler için genel teslim tarihi geçerlidir."}
             </Text>
           </section>
 

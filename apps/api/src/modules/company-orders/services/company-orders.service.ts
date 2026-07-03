@@ -634,6 +634,11 @@ export class CompanyOrdersService {
         pending: pending.toFixed(2),
         remaining: remaining.toFixed(2),
       },
+      // Teslimat adresi snapshot'ı (award anında: ALIM→ilan, SATIS→teklif).
+      deliveryAddress: o.deliveryAddress as Record<
+        string,
+        string | null
+      > | null,
       // Adım verileri + timeline (eski sistemle birebir).
       acceptedAt: o.acceptedAt,
       acceptedNote: o.acceptedNote,

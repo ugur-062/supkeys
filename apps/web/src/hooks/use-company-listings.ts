@@ -241,6 +241,18 @@ export interface ListingBidItemRow {
   deliveryDate?: string | null;
 }
 
+/** SATIS teklifinde alıcının teslimat adresi (satıcıya gösterilir). */
+export interface BidDeliveryAddress {
+  title: string;
+  contactName: string | null;
+  phone: string | null;
+  country: string;
+  city: string | null;
+  district: string | null;
+  addressLine: string;
+  postalCode: string | null;
+}
+
 export interface ListingBidRow {
   id: string;
   bidderName: string;
@@ -255,6 +267,10 @@ export interface ListingBidRow {
   status: string;
   round?: number;
   createdAt: string;
+  /** ALIM: satıcının taahhüdü; SATIS: alıcının İSTEDİĞİ teslim tarihi. */
+  deliveryDate?: string | null;
+  validityDays?: number | null;
+  deliveryAddress?: BidDeliveryAddress | null;
   items?: ListingBidItemRow[];
   answers?: { questionId: string; value: string }[];
 }
@@ -357,6 +373,8 @@ export interface ListingDetail {
     updatedAt?: string;
     deliveryDate?: string | null;
     validityDays?: number | null;
+    /** SATIS: alıcının seçtiği teslimat adresi (kendi adres defterinden). */
+    deliveryAddressId?: string | null;
     currency?: string | null;
     items?: ListingBidItemRow[];
     answers?: { questionId: string; value: string }[];
@@ -418,6 +436,7 @@ export function usePlaceBid(id: string) {
       asDraft?: boolean;
       deliveryDate?: string;
       validityDays?: number;
+      deliveryAddressId?: string;
       currency?: string;
     }) => {
       const { data } = await companyApi.post(
@@ -440,6 +459,7 @@ export function useBuyNow(id: string) {
       note?: string;
       deliveryDate?: string;
       validityDays?: number;
+      deliveryAddressId?: string;
       itemIds?: string[];
     }) => {
       const { data } = await companyApi.post(

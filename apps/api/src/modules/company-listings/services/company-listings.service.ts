@@ -1657,6 +1657,19 @@ export class CompanyListingsService {
             bidderCompany: { select: { name: true } },
             items: true,
             answers: true,
+            // SATIS: alıcının teslimat adresi (satıcı görür — nereye teslim).
+            deliveryAddress: {
+              select: {
+                title: true,
+                contactName: true,
+                phone: true,
+                country: true,
+                city: true,
+                district: true,
+                addressLine: true,
+                postalCode: true,
+              },
+            },
           },
         }),
         this.prisma.listingInvitation.findMany({
@@ -1722,6 +1735,10 @@ export class CompanyListingsService {
           status: b.status,
           round: b.round,
           createdAt: b.createdAt,
+          // ALIM: satıcının taahhüdü; SATIS: alıcının istediği teslim tarihi.
+          deliveryDate: b.deliveryDate ? b.deliveryDate.toISOString() : null,
+          validityDays: b.validityDays,
+          deliveryAddress: b.deliveryAddress,
           items: b.items.map((bi) => ({
             itemId: bi.itemId,
             unitPrice: bi.unitPrice.toString(),
@@ -1849,6 +1866,7 @@ export class CompanyListingsService {
               ? myBid.deliveryDate.toISOString()
               : null,
             validityDays: myBid.validityDays,
+            deliveryAddressId: myBid.deliveryAddressId,
             currency: myBid.currency,
             items: myBid.items.map((bi) => ({
               itemId: bi.itemId,
@@ -1926,6 +1944,85 @@ export class CompanyListingsService {
   }
 
   /** Görülebilen bir ilana teklif ver/güncelle (firma başına tek teklif). */
+  /**
+   * Adrese-teslim şartları — SATIS teklifinde alıcının teslimat adresi
+   * gönderimde zorunlu (satıcı nereye teslim edeceğini bilmeli).
+   */
+  private static readonly BUYER_ADDRESS_REQUIRED_TERMS: ReadonlySet<string> =
+    new Set([
+      "DOMESTIC_DELIVERED",
+      "DOMESTIC_ON_VEHICLE",
+      "DOMESTIC_CARRIER_COLLECT",
+      "DAP",
+      "DPU",
+      "DDP",
+    ]);
+
+  /**
+   * SATIS teklifindeki alıcı teslimat adresini doğrular; upsert'e yazılacak
+   * id'yi döner. ALIM'da adres kabul edilmez (teslimat adresi ilanın kendisinde).
+   */
+  private async resolveBidDeliveryAddress(
+    companyId: string,
+    listingType: ListingType,
+    deliveryTerm: string | null,
+    dtoAddressId: string | undefined,
+    isDraft: boolean,
+  ): Promise<string | null> {
+    let addressId: string | null = null;
+    if (dtoAddressId) {
+      if (listingType !== "SATIS") {
+        throw new BadRequestException(
+          "Teslimat adresi yalnız satış ilanına verilen teklifte girilir",
+        );
+      }
+      const addr = await this.prisma.companyAddress.findUnique({
+        where: { id: dtoAddressId },
+        select: { companyId: true, type: true },
+      });
+      if (!addr || addr.companyId !== companyId || addr.type === "FATURA") {
+        throw new BadRequestException("Geçersiz teslimat adresi");
+      }
+      addressId = dtoAddressId;
+    }
+    if (
+      !isDraft &&
+      listingType === "SATIS" &&
+      deliveryTerm &&
+      CompanyListingsService.BUYER_ADDRESS_REQUIRED_TERMS.has(deliveryTerm) &&
+      !addressId
+    ) {
+      throw new BadRequestException(
+        "Bu ilanda teslim şekli adrese teslim — teklif göndermek için teslimat adresi seçin",
+      );
+    }
+    return addressId;
+  }
+
+  /**
+   * Sipariş için teslimat adresi snapshot'ı (award anında çekilir — adres
+   * defteri sonradan değişse/silinse de sipariş sabit kalır).
+   */
+  private async orderDeliverySnapshot(
+    addressId: string | null,
+  ): Promise<Prisma.InputJsonValue | undefined> {
+    if (!addressId) return undefined;
+    const a = await this.prisma.companyAddress.findUnique({
+      where: { id: addressId },
+      select: {
+        title: true,
+        contactName: true,
+        phone: true,
+        country: true,
+        city: true,
+        district: true,
+        addressLine: true,
+        postalCode: true,
+      },
+    });
+    return a ? (a as Prisma.InputJsonValue) : undefined;
+  }
+
   async placeBid(user: AuthenticatedCompanyUser, id: string, dto: PlaceBidDto) {
     const listing = await this.prisma.listing.findUnique({
       where: { id },
@@ -1943,6 +2040,7 @@ export class CompanyListingsService {
         currentRound: true,
         primaryCurrency: true,
         allowedCurrencies: true,
+        deliveryTerm: true,
         closesAt: true,
         bidsOpenAt: true,
         isInternational: true,
@@ -2072,9 +2170,13 @@ export class CompanyListingsService {
       throw new BadRequestException("Bu ilan için geçersiz para birimi");
     }
     // Gönderimde teslim tarihi + geçerlilik zorunlu (taslakta opsiyonel).
+    // ALIM: satıcının taahhüdü; SATIS: alıcının İSTEDİĞİ tarih (teslim eden
+    // ilan sahibi satıcıdır — alıcı taahhüt veremez).
     if (!isDraft && (!dto.deliveryDate || !dto.validityDays)) {
       throw new BadRequestException(
-        "Teklif göndermek için teslim tarihi ve geçerlilik süresi zorunlu",
+        listing.type === "SATIS"
+          ? "Teklif göndermek için istenen teslim tarihi ve geçerlilik süresi zorunlu"
+          : "Teklif göndermek için teslim tarihi ve geçerlilik süresi zorunlu",
       );
     }
     // Gönderimde teslim tarihi geçmişte olamaz.
@@ -2085,6 +2187,16 @@ export class CompanyListingsService {
     ) {
       throw new BadRequestException("Teslim tarihi geçmişte olamaz");
     }
+    // SATIS: alıcının teslimat adresi. Verilmişse sahiplik + tip doğrulanır
+    // (IDOR); adrese-teslim şartlı ilanda gönderimde zorunlu — satıcı "nakliye
+    // dahil" taahhüt etti, nereye teslim edeceğini bilmeli.
+    const deliveryAddressId = await this.resolveBidDeliveryAddress(
+      user.companyId,
+      listing.type,
+      listing.deliveryTerm,
+      dto.deliveryAddressId,
+      isDraft,
+    );
     // Gönderimde belge zorunluysa teklifin en az bir belgesi olmalı
     // (akış: taslak kaydet → belge yükle → gönder).
     if (!isDraft && listing.requireBidDocument) {
@@ -2225,15 +2337,67 @@ export class CompanyListingsService {
       amount = new Prisma.Decimal(dto.amount);
     }
 
-    // SATIS: taban fiyatın ALTINDA gönderilmiş teklif kabul edilmez
-    // (taslakta serbest — kullanıcı formda düzeltir).
+    // TRY dışı teklifte güncel TCMB kuru anlık snapshot'lanır — hem kayıt
+    // (TRY karşılığı gösterimi) hem de aşağıdaki taban/hemen-al kıyası için.
+    // Kur alınamazsa teklif yine kabul edilir ama TRY karşılığı boş kalır;
+    // sessiz kalmasın diye loglanır (gözlemlenebilirlik).
+    let exchangeRateSnapshot: number | null = null;
+    if (currency !== "TRY") {
+      exchangeRateSnapshot = await this.exchangeRates
+        .getCurrentRate(currency)
+        .catch((err) => {
+          this.logger.warn(
+            `TCMB kuru alınamadı (${currency}); teklif TRY karşılığı olmadan kaydedilecek: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+          return null;
+        });
+    }
+
+    // Taban/hemen-al kıyası İLANIN para biriminde yapılır. Teklif farklı
+    // birimdeyse TCMB kuruyla çevrilir (çevrimsiz ham kıyas yanlıştı:
+    // 100 USD, 3.000 TL tabanın "altında" sayılıyordu). Kur yoksa ve kıyas
+    // gerekiyorsa gönderim reddedilir — yanlış kıyasla teklif kabul edilmez.
     const curSym =
       listing.primaryCurrency === "TRY" ? "₺" : listing.primaryCurrency;
-    if (
+    let toListingCurrency: Prisma.Decimal | null = null;
+    if (currency === listing.primaryCurrency) {
+      toListingCurrency = new Prisma.Decimal(1);
+    } else {
+      const bidRate = currency === "TRY" ? 1 : exchangeRateSnapshot;
+      const listingRate =
+        listing.primaryCurrency === "TRY"
+          ? 1
+          : await this.exchangeRates
+              .getCurrentRate(listing.primaryCurrency)
+              .catch(() => null);
+      if (bidRate != null && listingRate != null && listingRate > 0) {
+        toListingCurrency = new Prisma.Decimal(bidRate).div(listingRate);
+      }
+    }
+    const needsFloorCheck =
       !isDraft &&
       listing.type === "SATIS" &&
+      (listing.minPrice != null ||
+        listing.buyNowPrice != null ||
+        listingItems.some(
+          (li) => li.minUnitPrice != null || li.buyNowUnitPrice != null,
+        ));
+    if (needsFloorCheck && toListingCurrency == null) {
+      throw new BadRequestException(
+        "Kur bilgisi alınamadı — teklifiniz taban fiyatla karşılaştırılamıyor, lütfen tekrar deneyin",
+      );
+    }
+    const inListingCur = (v: Prisma.Decimal | number): Prisma.Decimal =>
+      new Prisma.Decimal(v).mul(toListingCurrency ?? 1);
+
+    // SATIS: taban fiyatın ALTINDA gönderilmiş teklif kabul edilmez
+    // (taslakta serbest — kullanıcı formda düzeltir).
+    if (
+      needsFloorCheck &&
       listing.minPrice != null &&
-      amount.lt(listing.minPrice)
+      inListingCur(amount).lt(listing.minPrice)
     ) {
       throw new BadRequestException(
         `Teklif taban fiyatın (${Number(listing.minPrice).toLocaleString("tr-TR")} ${curSym}) altında olamaz`,
@@ -2242,10 +2406,9 @@ export class CompanyListingsService {
     // SATIS + hemen-al: hemen-al fiyatı tavandır — ona eşit/üzeri teklif
     // yerine Hemen Al kullanılır (anında o fiyattan teklif oluşturur).
     if (
-      !isDraft &&
-      listing.type === "SATIS" &&
+      needsFloorCheck &&
       listing.buyNowPrice != null &&
-      amount.gte(listing.buyNowPrice)
+      inListingCur(amount).gte(listing.buyNowPrice)
     ) {
       throw new BadRequestException(
         `Teklifiniz Hemen-Al fiyatına (${Number(listing.buyNowPrice).toLocaleString("tr-TR")} ${curSym}) ulaştı — bu fiyattan almak için Hemen Al'ı kullanın`,
@@ -2254,19 +2417,20 @@ export class CompanyListingsService {
     // SATIS + KALEM fiyatlandırma: fiyatlanan her kalem kendi tabanının
     // altına inemez; kalem hemen-al fiyatına eşit/üzeri birim fiyat yerine
     // o kalem Hemen Al ile alınır. (Taslakta serbest.)
-    if (!isDraft && listing.type === "SATIS" && bidItemsData.length > 0) {
+    if (needsFloorCheck && bidItemsData.length > 0) {
       const itemById = new Map(listingItems.map((li) => [li.id, li]));
       for (const bi of bidItemsData) {
         const li = itemById.get(bi.itemId);
         if (!li) continue;
-        if (li.minUnitPrice != null && bi.unitPrice < Number(li.minUnitPrice)) {
+        const unitPriceCmp = inListingCur(bi.unitPrice);
+        if (li.minUnitPrice != null && unitPriceCmp.lt(li.minUnitPrice)) {
           throw new BadRequestException(
             `"${li.name}" kaleminde birim fiyat tabanın (${Number(li.minUnitPrice).toLocaleString("tr-TR")} ${curSym}) altında olamaz`,
           );
         }
         if (
           li.buyNowUnitPrice != null &&
-          bi.unitPrice >= Number(li.buyNowUnitPrice)
+          unitPriceCmp.gte(li.buyNowUnitPrice)
         ) {
           throw new BadRequestException(
             `"${li.name}" kaleminde teklif Hemen-Al fiyatına (${Number(li.buyNowUnitPrice).toLocaleString("tr-TR")} ${curSym}) ulaştı — bu kalemi Hemen Al ile alın`,
@@ -2357,23 +2521,6 @@ export class CompanyListingsService {
       }
     }
 
-    // TRY dışı teklifte güncel TCMB kuru anlık snapshot'lanır (karşılaştırma için).
-    let exchangeRateSnapshot: number | null = null;
-    if (currency !== "TRY") {
-      exchangeRateSnapshot = await this.exchangeRates
-        .getCurrentRate(currency)
-        .catch((err) => {
-          // Kur alınamazsa teklif yine kabul edilir ama TRY karşılığı boş kalır;
-          // sessiz kalmasın diye logla (gözlemlenebilirlik).
-          this.logger.warn(
-            `TCMB kuru alınamadı (${currency}); teklif TRY karşılığı olmadan kaydedilecek: ${
-              err instanceof Error ? err.message : String(err)
-            }`,
-          );
-          return null;
-        });
-    }
-
     const status = isDraft ? "DRAFT" : "SUBMITTED";
     const deliveryDate = dto.deliveryDate ? new Date(dto.deliveryDate) : null;
     const validityDays = dto.validityDays ?? null;
@@ -2394,6 +2541,7 @@ export class CompanyListingsService {
           exchangeRateSnapshot,
           deliveryDate,
           validityDays,
+          deliveryAddressId,
           note: dto.note?.trim() || null,
           createdById: user.userId,
           status,
@@ -2406,6 +2554,7 @@ export class CompanyListingsService {
           exchangeRateSnapshot,
           deliveryDate,
           validityDays,
+          deliveryAddressId,
           note: dto.note?.trim() || null,
           status,
           version: { increment: 1 },
@@ -2478,6 +2627,7 @@ export class CompanyListingsService {
       note?: string;
       deliveryDate?: string;
       validityDays?: number;
+      deliveryAddressId?: string;
       /** KALEM fiyatlandırmada hemen-al ile alınacak kalemler (boş = uygun tümü). */
       itemIds?: string[];
     },
@@ -2495,6 +2645,7 @@ export class CompanyListingsService {
         requireAllItems: true,
         requireBidDocument: true,
         primaryCurrency: true,
+        deliveryTerm: true,
         closesAt: true,
         bidsOpenAt: true,
         isInternational: true,
@@ -2582,9 +2733,18 @@ export class CompanyListingsService {
     // (Erişim kontrollerinden SONRA — davetsiz prober'a bilgi sızmaz.)
     if (!input?.deliveryDate || !input?.validityDays) {
       throw new BadRequestException(
-        "Hemen-Al için teslim tarihi ve geçerlilik süresi zorunlu",
+        "Hemen-Al için istenen teslim tarihi ve geçerlilik süresi zorunlu",
       );
     }
+    // Alıcının teslimat adresi — normal teklif gönderimiyle aynı kural
+    // (adrese-teslim şartlı ilanda zorunlu; sahiplik/tip doğrulanır).
+    const deliveryAddressId = await this.resolveBidDeliveryAddress(
+      user.companyId,
+      listing.type,
+      listing.deliveryTerm,
+      input.deliveryAddressId,
+      false,
+    );
 
     // Mükerrer/kural koruması: gönderilmiş Hemen-Al tekrarlanamaz; geri
     // çekilen teklif Hemen-Al ile de diriltilemez (placeBid ile aynı kural).
@@ -2684,6 +2844,7 @@ export class CompanyListingsService {
           note: input.note?.trim() || null,
           deliveryDate,
           validityDays: input.validityDays ?? null,
+          deliveryAddressId,
         },
         update: {
           // Eski taslak/teklifin kalıntıları (yabancı currency, bayat
@@ -2697,6 +2858,7 @@ export class CompanyListingsService {
           note: input.note?.trim() || null,
           deliveryDate,
           validityDays: input.validityDays ?? null,
+          deliveryAddressId,
         },
       });
       // KALEM modda kalem teklifleri hemen-al fiyatlarıyla yenilenir.
@@ -2796,7 +2958,7 @@ export class CompanyListingsService {
   private async runFullAward(listingId: string, bidId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, type: true },
+      select: { id: true, companyId: true, type: true, deliveryAddressId: true },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     const bid = await this.prisma.listingBid.findUnique({
@@ -2807,6 +2969,7 @@ export class CompanyListingsService {
         bidderCompanyId: true,
         amount: true,
         currency: true,
+        deliveryAddressId: true,
         items: { select: { itemId: true, unitPrice: true } },
       },
     });
@@ -2843,6 +3006,14 @@ export class CompanyListingsService {
       listing.type === "ALIM" ? listing.companyId : bid.bidderCompanyId;
     const awardParties = [sellerCompanyId, buyerCompanyId];
 
+    // Teslimat adresi: ALIM'da ilanın adresi (alıcı = ilan sahibi),
+    // SATIS'ta kazanan teklifin adresi (alıcı = teklifçi).
+    const deliveryAddress = await this.orderDeliverySnapshot(
+      listing.type === "ALIM"
+        ? listing.deliveryAddressId
+        : bid.deliveryAddressId,
+    );
+
     const number = await this.nextOrderNumber();
     const order = await this.prisma.$transaction(async (tx) => {
       // Atomik durum geçişi: yalnızca OPEN|CLOSED iken AWARDED'a geç. Eşzamanlı
@@ -2875,6 +3046,7 @@ export class CompanyListingsService {
           amount: bid.amount,
           currency: bid.currency, // sipariş tutarı teklifin biriminde
           status: "PENDING", // satıcı onayı bekler (accept/reject)
+          deliveryAddress,
         },
       });
       if (orderItems.length > 0) {
@@ -3099,9 +3271,13 @@ export class CompanyListingsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, type: true },
+      select: { id: true, companyId: true, type: true, deliveryAddressId: true },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
+    // Kalem-bazlı kazandırma yalnız ALIM'da — teslimat adresi ilanın adresi.
+    const deliveryAddress = await this.orderDeliverySnapshot(
+      listing.type === "ALIM" ? listing.deliveryAddressId : null,
+    );
     const { groups, itemQty } = await this.buildItemGroups(
       listingId,
       itemAwards,
@@ -3182,6 +3358,7 @@ export class CompanyListingsService {
             amount: g.amount,
             currency: g.currency, // sipariş tutarı teklifin biriminde
             status: "PENDING", // satıcı onayı bekler (accept/reject)
+            deliveryAddress,
             items: {
               create: g.orderItems.map((it) => ({
                 name: it.name,
