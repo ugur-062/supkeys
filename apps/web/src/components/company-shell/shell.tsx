@@ -47,15 +47,12 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
       />
 
       {/* Masaüstü rayı — mouse gelince genişler (pin ile sabitlenebilir).
-          Genişleme içeriği İTMEZ, üstüne biner (pinli değilse). */}
+          Genişleme içeriğin üstüne BİNMEZ; içerik aynı animasyonla sağa kayar. */}
       <aside
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{ width: expanded ? RAIL_EXPANDED : RAIL }}
-        className={cn(
-          "fixed top-14 bottom-0 left-0 z-30 hidden border-r border-zinc-950/10 bg-white transition-[width] duration-200 ease-out lg:block",
-          expanded && !pinned && "shadow-xl shadow-zinc-950/10",
-        )}
+        className="fixed top-14 bottom-0 left-0 z-30 hidden border-r border-zinc-950/10 bg-white transition-[width] duration-200 ease-out lg:block"
       >
         <CompanySidebarContent expanded={expanded} />
       </aside>
@@ -96,12 +93,13 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
         </Headless.DialogPanel>
       </Headless.Dialog>
 
-      {/* İçerik — üstte topbar payı, solda DAR ray payı (pinliyse geniş).
+      {/* İçerik — üstte topbar payı; sol pay ray genişliğini AYNI animasyonla
+          izler (menü açılınca içerik sağa kayar, üstüne binmez).
           Beyaz kart deseni korunur: sayfalar önceki görünümüyle aynı kalır. */}
       <main
         className={cn(
           "flex min-h-svh flex-col pt-14 transition-[padding] duration-200 ease-out",
-          pinned ? "lg:pl-64" : "lg:pl-[4.5rem]",
+          expanded ? "lg:pl-64" : "lg:pl-[4.5rem]",
         )}
       >
         <div className="flex grow flex-col p-2 pt-2">
