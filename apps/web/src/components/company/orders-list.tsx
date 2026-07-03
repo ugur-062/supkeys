@@ -161,105 +161,156 @@ function sym(currency: string | undefined): string {
   );
 }
 
-/** Kaynak ilan tipi rozeti — ilan sayfasındaki renklerle (Alım=mavi, Satış=yeşil). */
-function SourceTypeBadge({ type }: { type: "ALIM" | "SATIS" | null }) {
-  if (!type) return null;
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-        type === "ALIM"
-          ? "border-blue-200 bg-blue-50 text-blue-700"
-          : "border-emerald-200 bg-emerald-50 text-emerald-700",
-      )}
-    >
-      {type === "ALIM" ? "Alım İhalesi" : "Satış İlanı"}
-    </span>
-  );
+/**
+ * Kaynak rozeti + açıklaması — PORTALA GÖRE anlamlandırılır (ham "Alım
+ * İhalesi/Satış İlanı" etiketi kafa karıştırıyordu: alıcı portalında "Satış
+ * İlanı" gören kullanıcı kendi alımını satış sanıyordu).
+ *  - Alıcı: ALIM → "Kendi İhalem", SATIS → "Satın Alım"
+ *  - Satıcı: SATIS → "Satış İlanım", ALIM → "Kazanılan İhale"
+ * İlan silinmişse (listingType null) nötr "İlan silinmiş" gösterilir —
+ * etiketi hiç olmayan sipariş kalmaz.
+ */
+function sourceMeta(
+  role: "buyer" | "seller",
+  type: "ALIM" | "SATIS" | null,
+): { label: string; hint: string; cls: string } {
+  if (!type) {
+    return {
+      label: "İlan silinmiş",
+      hint: "Bu siparişin bağlı olduğu ilan kaydı artık yok.",
+      cls: "border-zinc-200 bg-zinc-50 text-zinc-500",
+    };
+  }
+  if (role === "buyer") {
+    return type === "ALIM"
+      ? {
+          label: "Kendi İhalem",
+          hint: "Açtığın alım ihalesini kazandırdın — bu onun siparişi.",
+          cls: "border-blue-200 bg-blue-50 text-blue-700",
+        }
+      : {
+          label: "Satın Alım",
+          hint: "Bir satıcının satış ilanından satın aldın.",
+          cls: "border-violet-200 bg-violet-50 text-violet-700",
+        };
+  }
+  return type === "SATIS"
+    ? {
+        label: "Satış İlanım",
+        hint: "Açtığın satış ilanını kazandırdın — bu onun siparişi.",
+        cls: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      }
+    : {
+        label: "Kazanılan İhale",
+        hint: "Bir alıcının ihalesine verdiğin teklif kazandı.",
+        cls: "border-blue-200 bg-blue-50 text-blue-700",
+      };
 }
 
-function OrderCard({ o }: { o: CompanyOrder }) {
+/** Tek satırlık sipariş kutusu (İhalelerim listesiyle aynı desen). */
+function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
   const { active, lastDone, isTerminated } = getStageState(o.status);
+  const src = sourceMeta(role, o.listingType);
 
   return (
     <Link
       href={`/company/siparis/${o.id}`}
-      className="group block rounded-2xl border border-zinc-200 bg-white p-5 transition-all hover:border-brand-300 hover:shadow-md"
+      className="group block rounded-2xl border border-zinc-200 bg-white p-4 transition-all hover:border-brand-300 hover:shadow-md sm:p-5"
     >
-      {/* Üst: no + tip + başlık + statü */}
-      <div className="mb-3 flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        {/* Sol: kimlik + kaynak */}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-mono text-[11px] tracking-wide text-zinc-500">
+            <span className="font-mono text-[11px] tracking-wide text-zinc-500">
               {o.number ?? "—"}
-            </p>
-            <SourceTypeBadge type={o.listingType} />
+            </span>
+            <span
+              title={src.hint}
+              className={cn(
+                "inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+                src.cls,
+              )}
+            >
+              {src.label}
+            </span>
+            <OrderStatusBadge status={o.status} />
           </div>
-          <p className="mt-0.5 line-clamp-2 font-semibold leading-snug text-zinc-900 group-hover:text-brand-700">
+          <p className="mt-1 truncate font-semibold leading-snug text-zinc-900 group-hover:text-brand-700">
             {o.listingTitle ?? "—"}
           </p>
-        </div>
-        <OrderStatusBadge status={o.status} />
-      </div>
-
-      {/* Karşı taraf + tutar */}
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2 text-sm text-zinc-600">
-          <Building2 className="h-4 w-4 flex-shrink-0 text-zinc-400" />
-          <span className="truncate font-medium">{o.counterparty}</span>
-        </div>
-        <p className="whitespace-nowrap font-mono text-base font-bold tabular-nums text-success-700">
-          {Number(o.amount).toLocaleString("tr-TR")} {sym(o.currency)}
-        </p>
-      </div>
-
-      {/* Aşama çubuğu */}
-      {!isTerminated ? (
-        <div className="mb-3 space-y-1.5">
-          <div className="flex items-center gap-1">
-            {STAGES.map((_, i) => (
-              <div
-                key={i}
-                className={cn(
-                  "h-1.5 flex-1 rounded-full transition",
-                  i === active
-                    ? "bg-brand-500"
-                    : i <= lastDone
-                      ? "bg-success-500"
-                      : "bg-zinc-200",
-                )}
-              />
-            ))}
-          </div>
-          <div className="flex items-center justify-between gap-1 text-[10px] font-medium tracking-tight text-zinc-500">
-            {STAGES.map((label, i) => (
-              <span
-                key={label}
-                className={cn(
-                  "flex-1 truncate text-center first:text-left last:text-right",
-                  i === active && "text-brand-700",
-                  i < active && "text-success-700",
-                )}
-              >
-                {label}
+          {/* Kaynak açıklaması — rozetin uzun hali; kafa karışıklığını bitirir. */}
+          <p className="mt-0.5 truncate text-xs text-zinc-500">
+            {src.hint}
+            {o.listingNumber ? (
+              <span className="ml-1 font-mono text-zinc-400">
+                ({o.listingNumber})
               </span>
-            ))}
-          </div>
+            ) : null}
+          </p>
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-zinc-600">
+            <Building2
+              className="h-3.5 w-3.5 flex-shrink-0 text-zinc-400"
+              aria-hidden="true"
+            />
+            <span className="truncate font-medium">
+              {role === "buyer" ? "Satıcı: " : "Alıcı: "}
+              {o.counterparty}
+            </span>
+          </p>
         </div>
-      ) : (
-        <div className="mb-3 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-600">
-          {o.status === "REJECTED"
-            ? "Sipariş reddedildi"
-            : "Sipariş iptal edildi"}
-        </div>
-      )}
 
-      {/* Alt: ilan no + tarih */}
-      <div className="flex items-center justify-between gap-3 border-t border-zinc-100 pt-2 text-xs text-zinc-500">
-        <span className="truncate font-mono">{o.listingNumber ?? "—"}</span>
-        <span className="whitespace-nowrap">
-          {format(new Date(o.createdAt), "d MMM yyyy", { locale: tr })}
-        </span>
+        {/* Orta: aşama çubuğu */}
+        <div className="w-full shrink-0 lg:w-72">
+          {!isTerminated ? (
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1">
+                {STAGES.map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "h-1.5 flex-1 rounded-full transition",
+                      i === active
+                        ? "bg-brand-500"
+                        : i <= lastDone
+                          ? "bg-success-500"
+                          : "bg-zinc-200",
+                    )}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center justify-between gap-1 text-[10px] font-medium tracking-tight text-zinc-500">
+                {STAGES.map((label, i) => (
+                  <span
+                    key={label}
+                    className={cn(
+                      "flex-1 truncate text-center first:text-left last:text-right",
+                      i === active && "text-brand-700",
+                      i < active && "text-success-700",
+                    )}
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-[11px] text-zinc-600">
+              {o.status === "REJECTED"
+                ? "Sipariş reddedildi"
+                : "Sipariş iptal edildi"}
+            </div>
+          )}
+        </div>
+
+        {/* Sağ: tutar + tarih */}
+        <div className="flex shrink-0 items-center justify-between gap-4 lg:w-40 lg:flex-col lg:items-end lg:justify-center lg:gap-1">
+          <p className="whitespace-nowrap font-mono text-base font-bold tabular-nums text-success-700">
+            {Number(o.amount).toLocaleString("tr-TR")} {sym(o.currency)}
+          </p>
+          <p className="whitespace-nowrap text-xs text-zinc-400">
+            {format(new Date(o.createdAt), "d MMM yyyy", { locale: tr })}
+          </p>
+        </div>
       </div>
     </Link>
   );
@@ -357,27 +408,14 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
       setter(v);
     };
 
-  // KPI şeridi (eski panel paritesi). Tutar toplamı para birimine göre gruplu.
+  // KPI şeridi (eski panel paritesi).
   const kpis = useMemo(() => {
     const active = all.filter((o) =>
       ["PENDING", "ACCEPTED", "CREATED", "IN_DELIVERY"].includes(o.status),
     ).length;
     const awaitingPayment = counts["DELIVERED"] ?? 0;
     const completed = counts["COMPLETED"] ?? 0;
-    const sums = new Map<string, number>();
-    for (const o of all) {
-      if (o.status === "REJECTED" || o.status === "CANCELLED") continue;
-      const cur = o.currency ?? "TRY";
-      sums.set(cur, (sums.get(cur) ?? 0) + Number(o.amount));
-    }
-    const totalLabel =
-      sums.size === 0
-        ? `0 ${sym("TRY")}`
-        : [...sums.entries()]
-            .sort((a, b) => b[1] - a[1])
-            .map(([c, v]) => `${v.toLocaleString("tr-TR")} ${sym(c)}`)
-            .join(" · ");
-    return { active, awaitingPayment, completed, totalLabel };
+    return { active, awaitingPayment, completed };
   }, [all, counts]);
 
   const emptyHint = isSeller
@@ -396,7 +434,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
       />
 
       {/* KPI şeridi — tıklayınca ilgili durum filtresi uygulanır */}
-      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-zinc-950/5 bg-zinc-950/[0.06] sm:grid-cols-3 lg:grid-cols-5">
+      <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-zinc-950/5 bg-zinc-950/[0.06] sm:grid-cols-4">
         {(
           [
             { label: "Toplam Sipariş", value: String(all.length), filter: "all" },
@@ -411,7 +449,6 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
               value: String(kpis.completed),
               filter: "COMPLETED",
             },
-            { label: "Toplam Tutar", value: kpis.totalLabel, filter: null },
           ] as const
         ).map((k) => (
           <button
@@ -473,12 +510,22 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             icon={Package}
             value={srcType}
             onChange={reset(setSrcType)}
-            options={[
-              { value: "all", label: "Alım + Satış" },
-              { value: "ALIM", label: "Alım İhalesi" },
-              { value: "SATIS", label: "Satış İlanı" },
-            ]}
-            ariaLabel="Kaynak ilan tipi"
+            options={
+              // Kaynak filtresi portala göre adlandırılır (ham tip adı kafa
+              // karıştırıyordu) — değerler yine listingType.
+              isSeller
+                ? [
+                    { value: "all", label: "Tüm Kaynaklar" },
+                    { value: "SATIS", label: "Satış İlanlarımdan" },
+                    { value: "ALIM", label: "Kazanılan İhalelerden" },
+                  ]
+                : [
+                    { value: "all", label: "Tüm Kaynaklar" },
+                    { value: "ALIM", label: "Kendi İhalelerimden" },
+                    { value: "SATIS", label: "Satın Alımlarım" },
+                  ]
+            }
+            ariaLabel="Sipariş kaynağı"
             active={srcType !== "all"}
           />
           <FilterSelect
@@ -509,10 +556,10 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
         </div>
       </div>
 
-      {/* Liste — kart ızgarası */}
+      {/* Liste — satır başına tek sipariş (İhalelerim deseni) */}
       {isLoading && all.length === 0 ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="flex flex-col gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
             <CardSkeleton key={i} />
           ))}
         </div>
@@ -529,9 +576,9 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="flex flex-col gap-3">
             {pageRows.map((o) => (
-              <OrderCard key={o.id} o={o} />
+              <OrderRow key={o.id} o={o} role={role} />
             ))}
           </div>
           {totalPages > 1 ? (
