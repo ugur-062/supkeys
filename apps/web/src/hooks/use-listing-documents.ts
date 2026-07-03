@@ -46,27 +46,38 @@ export function useListingDocuments(listingId: string) {
   });
 }
 
+/**
+ * Tek dosya yükleme (presigned R2 PUT + kayıt). Hook dışında da kullanılır —
+ * wizard, ilan oluşturulduktan hemen sonra staged dosyaları bununla yükler.
+ */
+export async function uploadListingDocument(
+  listingId: string,
+  file: File,
+  kind: ListingDocKind,
+): Promise<void> {
+  const { data } = await companyApi.post<{ url: string; key: string }>(
+    `/company/listings/${listingId}/documents/upload-url`,
+    { fileName: file.name, mimeType: file.type, fileSize: file.size },
+  );
+  const put = await fetch(data.url, {
+    method: "PUT",
+    body: file,
+    headers: { "Content-Type": file.type },
+  });
+  if (!put.ok) throw new Error("Dosya yüklenemedi (R2)");
+  await companyApi.post(`/company/listings/${listingId}/documents`, {
+    key: data.key,
+    fileName: file.name,
+    mimeType: file.type,
+    kind,
+  });
+}
+
 export function useUploadListingDoc(listingId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ file, kind }: { file: File; kind: ListingDocKind }) => {
-      const { data } = await companyApi.post<{ url: string; key: string }>(
-        `/company/listings/${listingId}/documents/upload-url`,
-        { fileName: file.name, mimeType: file.type, fileSize: file.size },
-      );
-      const put = await fetch(data.url, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
-      });
-      if (!put.ok) throw new Error("Dosya yüklenemedi (R2)");
-      await companyApi.post(`/company/listings/${listingId}/documents`, {
-        key: data.key,
-        fileName: file.name,
-        mimeType: file.type,
-        kind,
-      });
-    },
+    mutationFn: ({ file, kind }: { file: File; kind: ListingDocKind }) =>
+      uploadListingDocument(listingId, file, kind),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["listing-documents", listingId] }),
   });

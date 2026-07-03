@@ -20,12 +20,14 @@ import { useFormContext } from "react-hook-form";
 
 interface Props {
   onEditStep: (step: 1 | 2 | 3) => void;
+  /** Create modu: yayın/taslakta yüklenecek staged döküman sayısı. */
+  stagedDocsCount?: number;
 }
 
 const fmtDate = formatDateTime;
 
 /** Adım 4 — Özet & Yayınla. Tüm form özeti, bölüm-bölüm düzenle linkli. */
-export function Step4Review({ onEditStep }: Props) {
+export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
   const { watch } = useFormContext<TenderFormData>();
   const d = watch();
   const connections = useConnections();
@@ -122,6 +124,12 @@ export function Step4Review({ onEditStep }: Props) {
         />
         <Row label="Kapanış" value={fmtDate(d.bidsCloseAt)} />
         {d.bidsOpenAt ? <Row label="Açılış" value={fmtDate(d.bidsOpenAt)} /> : null}
+        {stagedDocsCount != null && stagedDocsCount > 0 ? (
+          <Row
+            label="İhale Dökümanları"
+            value={`${stagedDocsCount} dosya — yayınlanınca yüklenecek`}
+          />
+        ) : null}
       </Section>
 
       {d.isLogistics && d.logistics ? (

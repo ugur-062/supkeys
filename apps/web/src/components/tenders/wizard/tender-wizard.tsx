@@ -27,9 +27,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { uploadListingDocument } from "@/hooks/use-listing-documents";
 import { MissingTargetWarningDialog } from "./missing-target-warning-dialog";
 import { PublishConfirmDialog } from "./publish-confirm-dialog";
 import { SaveTemplateDialog } from "./save-template-dialog";
+import type { StagedListingDoc } from "./staged-documents";
 import { Step0TypeScope } from "./step-0-type-scope";
 import { Step1Info } from "./step-1-info";
 import { Step2Items } from "./step-2-items";
@@ -209,6 +211,10 @@ export function TenderWizard({
   const [missingOpen, setMissingOpen] = useState(false);
   const [missingCount, setMissingCount] = useState(0);
   const [templateOpen, setTemplateOpen] = useState(false);
+  // Create modunda seçilen ihale dökümanları — ilan kaydedilince yüklenir
+  // (edit modunda FilesTab doğrudan yükler, staging gerekmez).
+  const [stagedDocs, setStagedDocs] = useState<StagedListingDoc[]>([]);
+  const [docsUploading, setDocsUploading] = useState(false);
 
   const form = useForm<TenderFormData>({
     resolver: zodResolver(tenderFormSchema),
@@ -226,7 +232,33 @@ export function TenderWizard({
 
   const create = useCreateListing();
   const update = useUpdateListing(listingId ?? "");
-  const submitting = isEdit ? update.isPending : create.isPending;
+  const submitting = (isEdit ? update.isPending : create.isPending) || docsUploading;
+
+  /**
+   * Staged dökümanları yeni oluşan ilana sırayla yükler. Başarısız olanlar
+   * ilanı engellemez — kullanıcı Düzenle ekranından tamamlayabilir.
+   */
+  const uploadStagedDocs = async (newListingId: string) => {
+    if (stagedDocs.length === 0) return;
+    setDocsUploading(true);
+    let failed = 0;
+    try {
+      for (const d of stagedDocs) {
+        try {
+          await uploadListingDocument(newListingId, d.file, d.kind);
+        } catch {
+          failed += 1;
+        }
+      }
+    } finally {
+      setDocsUploading(false);
+    }
+    if (failed > 0) {
+      toast.warning(
+        `${failed} döküman yüklenemedi — Düzenle ekranından tekrar ekleyebilirsiniz`,
+      );
+    }
+  };
   const templates = useListingTemplates();
   const saveTemplate = useSaveTemplate();
 
@@ -330,6 +362,7 @@ export function TenderWizard({
         ...mapToInput(form.getValues()),
         asDraft: true,
       });
+      await uploadStagedDocs(listing.id);
       toast.success("Taslak kaydedildi");
       router.push(`/company/ilan/${listing.id}`);
     } catch (err) {
@@ -351,6 +384,7 @@ export function TenderWizard({
     }
     try {
       const listing = await create.mutateAsync(input);
+      await uploadStagedDocs(listing.id);
       toast.success("İhale oluşturuldu");
       setPublishOpen(false);
       router.push(`/company/ilan/${listing.id}`);
@@ -418,10 +452,21 @@ export function TenderWizard({
         {/* İçerik */}
         <div className="min-w-0 pt-2">
           {step === 0 ? <Step0TypeScope /> : null}
-          {step === 1 ? <Step1Info listingId={listingId} /> : null}
+          {step === 1 ? (
+            <Step1Info
+              listingId={listingId}
+              stagedDocs={stagedDocs}
+              onStagedDocsChange={setStagedDocs}
+            />
+          ) : null}
           {step === 2 ? <Step2Items /> : null}
           {step === 3 ? <Step3Suppliers /> : null}
-          {step === 4 ? <Step4Review onEditStep={(s) => setStep(s)} /> : null}
+          {step === 4 ? (
+            <Step4Review
+              onEditStep={(s) => setStep(s)}
+              stagedDocsCount={isEdit ? undefined : stagedDocs.length}
+            />
+          ) : null}
 
           {/* Alt navigasyon */}
           <div className="mt-10 flex items-center justify-between border-t border-zinc-950/10 pt-6">

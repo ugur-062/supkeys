@@ -5,6 +5,10 @@ import { Radio, RadioGroup } from "@/components/catalyst/radio";
 import { Select } from "@/components/catalyst/select";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { FilesTab } from "@/components/tenders/files-tab";
+import {
+  StagedDocuments,
+  type StagedListingDoc,
+} from "./staged-documents";
 import { useAddresses } from "@/hooks/use-company-addresses";
 import { CurrencyMultiSelect } from "@/components/currency-multi-select";
 import { Button } from "@/components/ui/button";
@@ -500,7 +504,16 @@ function LogisticsSection() {
   );
 }
 
-export function Step1Info({ listingId }: { listingId?: string }) {
+export function Step1Info({
+  listingId,
+  stagedDocs = [],
+  onStagedDocsChange,
+}: {
+  listingId?: string;
+  /** Create modu: ilan kaydedilince yüklenecek dökümanlar (wizard state'i). */
+  stagedDocs?: StagedListingDoc[];
+  onStagedDocsChange?: (docs: StagedListingDoc[]) => void;
+}) {
   const {
     register,
     formState: { errors },
@@ -1391,19 +1404,17 @@ export function Step1Info({ listingId }: { listingId?: string }) {
         </div>
       </section>
 
-      {/* SECTION: İhale Dökümanları (Hüküm/Notlar'ın hemen altında) */}
+      {/* SECTION: İhale Dökümanları (Hüküm/Notlar'ın hemen altında).
+          Edit: doğrudan yüklenir (FilesTab). Create: staged — ilan
+          kaydedilince (taslak/yayın) sırayla yüklenir. */}
       <section>
         {listingId ? (
           <FilesTab listingId={listingId} isOwner canEdit />
         ) : (
-          <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-            <FileText className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500" />
-            <p>
-              İhale dökümanlarını (şartname, teknik resim vb.) ilanı
-              oluşturduktan sonra <strong>Düzenle</strong> ekranından
-              ekleyebilirsiniz.
-            </p>
-          </div>
+          <StagedDocuments
+            docs={stagedDocs}
+            onChange={(d) => onStagedDocsChange?.(d)}
+          />
         )}
       </section>
 
