@@ -141,7 +141,7 @@ export class CompanyOrderDocumentsService {
     return order;
   }
 
-  /** DELIVERY → satıcı yükler; PAYMENT → alıcı yükler. */
+  /** DELIVERY/TEMINAT → satıcı yükler; PAYMENT → alıcı yükler. */
   private async assertCanUpload(
     user: AuthenticatedCompanyUser,
     orderId: string,
@@ -151,6 +151,9 @@ export class CompanyOrderDocumentsService {
     const isSeller = order.sellerCompanyId === user.companyId;
     if (type === "DELIVERY" && !isSeller) {
       throw new ForbiddenException("Teslim belgesini satıcı yükler");
+    }
+    if (type === "TEMINAT" && !isSeller) {
+      throw new ForbiddenException("Teminat mektubunu satıcı yükler");
     }
     if (type === "PAYMENT" && isSeller) {
       throw new ForbiddenException("Ödeme dekontunu alıcı yükler");

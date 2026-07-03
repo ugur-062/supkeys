@@ -99,18 +99,38 @@ function DocGroup({
 export function OrderDocumentsSection({
   orderId,
   role,
+  requiresGuarantee = false,
 }: {
   orderId: string;
   role: "seller" | "buyer";
+  /** Peşin (CASH) iş: satıcı onaydan önce teminat mektubu yüklemek zorunda. */
+  requiresGuarantee?: boolean;
 }) {
   const { data: docs } = useOrderDocuments(orderId);
   const delivery = (docs ?? []).filter((d) => d.type === "DELIVERY");
   const payment = (docs ?? []).filter((d) => d.type === "PAYMENT");
+  const guarantee = (docs ?? []).filter((d) => d.type === "TEMINAT");
 
   return (
     <section className="space-y-3">
       <Subheading>Belgeler</Subheading>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {/* Teminat grubu: peşin işte her zaman; değilse yalnız belge varsa
+            (eski kayıtlar) gösterilir. */}
+        {requiresGuarantee || guarantee.length > 0 ? (
+          <DocGroup
+            orderId={orderId}
+            type="TEMINAT"
+            title="Teminat Mektubu"
+            hint={
+              requiresGuarantee
+                ? "Peşin iş — satıcı sipariş onayından ÖNCE yükler (zorunlu)"
+                : "Teslimat garantisi (satıcı yükler)"
+            }
+            canUpload={role === "seller"}
+            docs={guarantee}
+          />
+        ) : null}
         <DocGroup
           orderId={orderId}
           type="DELIVERY"

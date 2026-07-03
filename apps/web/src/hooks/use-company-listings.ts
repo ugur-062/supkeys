@@ -149,11 +149,23 @@ export interface MyBid {
   id: string;
   amount: string;
   currency: CurrencyCode;
-  status: "SUBMITTED" | "WITHDRAWN" | "WON" | "LOST";
+  /** TRY karşılığı (kur snapshot'ı) — çoklu birimde adil sıralama/kıyas. */
+  amountTry: string | null;
+  status:
+    | "DRAFT"
+    | "SUBMITTED"
+    | "WITHDRAWN"
+    | "WON"
+    | "AWARDED_PARTIAL"
+    | "LOST";
   round: number;
   version: number;
   isBuyNow: boolean;
   createdAt: string;
+  /** ALIM: taahhüt edilen teslim; SATIS: istenen teslim tarihi. */
+  deliveryDate: string | null;
+  /** Kazanan teklifin oluşturduğu sipariş (WON/AWARDED_PARTIAL). */
+  orderId: string | null;
   listing: {
     id: string;
     number: string | null;

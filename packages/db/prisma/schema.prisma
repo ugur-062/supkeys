@@ -552,6 +552,7 @@ enum CompanyOrderPaymentStatus {
 enum CompanyDocType {
   DELIVERY // teslim belgesi — yurtiçi irsaliye / uluslararası konşimento (satıcı yükler)
   PAYMENT // ödeme dekontu (alıcı yükler)
+  TEMINAT // teminat mektubu — peşin (CASH) işte satıcı SİPARİŞ ONAYINDAN ÖNCE yükler
 }
 
 model CompanyOrderDocument {

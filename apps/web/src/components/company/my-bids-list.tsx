@@ -31,6 +31,7 @@ import {
   ListFilter,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 const PAGE_SIZE = 10;
@@ -44,7 +45,8 @@ const STATUS: Record<
   WON: { label: "Kazandı", color: "green" },
   AWARDED_PARTIAL: { label: "Kısmen Kazandı", color: "green" },
   LOST: { label: "Elendi", color: "zinc" },
-  WITHDRAWN: { label: "Geri çekildi", color: "red" },
+  // Nötr kullanıcı eylemi — kırmızı hata/tehlike imasıydı (detay paneliyle uyum).
+  WITHDRAWN: { label: "Geri çekildi", color: "zinc" },
 };
 // Bilinmeyen statü listeyi ÇÖKERTMESİN (eskiden DRAFT'ta beyaz ekran).
 const STATUS_FALLBACK = { label: "Bilinmiyor", color: "zinc" as const };
@@ -93,7 +95,11 @@ function matchesSearch(b: MyBid, q: string) {
 
 /** Teklif kartı — Satın Al / Açık İhaleler kart dilinin teklif sürümü. */
 function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
+  const router = useRouter();
   const st = STATUS[b.status] ?? STATUS_FALLBACK;
+  const isAlim = b.listing.type === "ALIM";
+  const won = b.status === "WON" || b.status === "AWARDED_PARTIAL";
+  const canRebid = b.status === "LOST" && b.listing.status === "OPEN";
   const urgency =
     b.listing.status === "OPEN"
       ? closingUrgency(b.listing.status, b.listing.closesAt)
@@ -107,9 +113,15 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
       <div className="flex h-full flex-col rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-sm transition-all hover:border-zinc-300 hover:shadow-md">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="font-mono text-[11px] text-zinc-500">
-              {b.listing.number ?? "—"}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-mono text-[11px] text-zinc-500">
+                {b.listing.number ?? "—"}
+              </p>
+              {/* Alım/Satış tip etiketi — ilan sayfası renkleriyle. */}
+              <Badge color={isAlim ? "blue" : "emerald"}>
+                {isAlim ? "Alım İhalesi" : "Satış İlanı"}
+              </Badge>
+            </div>
             <h3 className="mt-0.5 line-clamp-2 leading-snug font-semibold text-zinc-950">
               {b.listing.title}
             </h3>
@@ -122,11 +134,25 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
         <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
           <span className="inline-flex items-center gap-1.5 text-sm text-zinc-600">
             <Building2 className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
-            <span className="truncate font-medium">{b.listing.ownerName}</span>
+            <span className="truncate font-medium">
+              {isAlim ? "Alıcı: " : "Satıcı: "}
+              {b.listing.ownerName}
+            </span>
           </span>
           <span className="font-mono text-sm font-bold text-zinc-900 tabular-nums">
             {Number(b.amount).toLocaleString("tr-TR")} {sym(b.currency)}
           </span>
+          {b.currency !== "TRY" && b.amountTry ? (
+            <span className="font-mono text-[11px] text-zinc-400 tabular-nums">
+              ≈ {Number(b.amountTry).toLocaleString("tr-TR")} ₺
+            </span>
+          ) : null}
+          {b.deliveryDate ? (
+            <span className="text-[11px] text-zinc-400">
+              {isAlim ? "Taahhüt teslim:" : "İstenen teslim:"}{" "}
+              {format(new Date(b.deliveryDate), "dd MMM yyyy", { locale: tr })}
+            </span>
+          ) : null}
           {b.isBuyNow ? <Badge color="emerald">Hemen-Al</Badge> : null}
           {b.round > 1 ? <Badge color="zinc">Tur {b.round}</Badge> : null}
           {b.version > 1 ? (
@@ -136,6 +162,12 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
           ) : null}
         </div>
 
+        {canRebid ? (
+          <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] text-amber-800">
+            İhale hâlâ açık — güncellenmiş teklifle yeniden katılabilirsin.
+          </p>
+        ) : null}
+
         <div className="mt-auto flex items-center justify-between border-t border-zinc-100 pt-3 text-xs">
           <div className="flex items-center gap-1.5 text-zinc-500">
             <Calendar className="h-3 w-3" aria-hidden="true" />
@@ -144,7 +176,20 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               {format(new Date(b.createdAt), "dd MMM yyyy", { locale: tr })}
             </span>
           </div>
-          {b.listing.status === "OPEN" && b.listing.closesAt ? (
+          {won && b.orderId ? (
+            // Kart zaten Link — iç içe <a> yerine programatik yönlendirme.
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                router.push(`/company/siparis/${b.orderId}`);
+              }}
+              className="font-semibold text-blue-600 hover:underline"
+            >
+              Siparişe Git →
+            </button>
+          ) : b.listing.status === "OPEN" && b.listing.closesAt ? (
             <span
               className={cn(
                 "inline-flex items-center gap-1 font-semibold",
@@ -210,7 +255,9 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
     if (sort === "oldest") {
       out.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     } else if (sort === "amount") {
-      out.sort((a, b) => Number(b.amount) - Number(a.amount));
+      // Çoklu birimde adil kıyas: TRY karşılığı varsa onunla, yoksa ham tutar.
+      const val = (x: MyBid) => Number(x.amountTry ?? x.amount);
+      out.sort((a, b) => val(b) - val(a));
     } else {
       out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     }

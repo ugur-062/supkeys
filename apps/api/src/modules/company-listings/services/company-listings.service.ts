@@ -1207,15 +1207,45 @@ export class CompanyListingsService {
       take: 200,
     });
 
+    // Kazanan tekliflerin siparişleri — karttan "Siparişe Git" için.
+    // ALIM'da satıcıyım, SATIS'ta alıcıyım; her iki rolü tek sorguda kapsar.
+    const wonListingIds = bids
+      .filter((b) => b.status === "WON" || b.status === "AWARDED_PARTIAL")
+      .map((b) => b.listingId);
+    const orders =
+      wonListingIds.length > 0
+        ? await this.prisma.companyOrder.findMany({
+            where: {
+              listingId: { in: wonListingIds },
+              OR: [
+                { sellerCompanyId: companyId },
+                { buyerCompanyId: companyId },
+              ],
+            },
+            select: { id: true, listingId: true },
+          })
+        : [];
+    const orderByListing = new Map(orders.map((o) => [o.listingId, o.id]));
+
     return bids.map((b) => ({
       id: b.id,
       amount: b.amount.toString(),
       currency: b.currency,
+      // TRY karşılığı — çoklu para biriminde adil sıralama/kıyas için
+      // (sahip görünümündeki amountTry ile aynı hesap).
+      amountTry: b.exchangeRateSnapshot
+        ? new Prisma.Decimal(b.amount).mul(b.exchangeRateSnapshot).toFixed(2)
+        : b.currency === "TRY"
+          ? b.amount.toString()
+          : null,
       status: b.status,
       round: b.round,
       version: b.version,
       isBuyNow: b.isBuyNow,
       createdAt: b.createdAt,
+      // ALIM: taahhüt edilen teslim; SATIS: istenen teslim (yön etiketi UI'da).
+      deliveryDate: b.deliveryDate ? b.deliveryDate.toISOString() : null,
+      orderId: orderByListing.get(b.listingId) ?? null,
       listing: {
         id: b.listing.id,
         number: b.listing.number,

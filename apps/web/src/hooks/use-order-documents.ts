@@ -3,7 +3,7 @@
 import { companyApi } from "@/lib/company-auth/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-export type OrderDocType = "DELIVERY" | "PAYMENT";
+export type OrderDocType = "DELIVERY" | "PAYMENT" | "TEMINAT";
 
 export interface OrderDocument {
   id: string;

@@ -161,6 +161,23 @@ function sym(currency: string | undefined): string {
   );
 }
 
+/** Kaynak ilan tipi rozeti — ilan sayfasındaki renklerle (Alım=mavi, Satış=yeşil). */
+function SourceTypeBadge({ type }: { type: "ALIM" | "SATIS" | null }) {
+  if (!type) return null;
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+        type === "ALIM"
+          ? "border-blue-200 bg-blue-50 text-blue-700"
+          : "border-emerald-200 bg-emerald-50 text-emerald-700",
+      )}
+    >
+      {type === "ALIM" ? "Alım İhalesi" : "Satış İlanı"}
+    </span>
+  );
+}
+
 function OrderCard({ o }: { o: CompanyOrder }) {
   const { active, lastDone, isTerminated } = getStageState(o.status);
 
@@ -169,12 +186,15 @@ function OrderCard({ o }: { o: CompanyOrder }) {
       href={`/company/siparis/${o.id}`}
       className="group block rounded-2xl border border-zinc-200 bg-white p-5 transition-all hover:border-brand-300 hover:shadow-md"
     >
-      {/* Üst: no + başlık + statü */}
+      {/* Üst: no + tip + başlık + statü */}
       <div className="mb-3 flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="font-mono text-[11px] tracking-wide text-zinc-500">
-            {o.number ?? "—"}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-mono text-[11px] tracking-wide text-zinc-500">
+              {o.number ?? "—"}
+            </p>
+            <SourceTypeBadge type={o.listingType} />
+          </div>
           <p className="mt-0.5 line-clamp-2 font-semibold leading-snug text-zinc-900 group-hover:text-brand-700">
             {o.listingTitle ?? "—"}
           </p>
@@ -269,6 +289,8 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   const [sort, setSort] = useState("newest");
   const [range, setRange] = useState<RangeKey>("all");
   const [counterparty, setCounterparty] = useState("");
+  // Kaynak ilan tipi: kendi ihalemden mi (ALIM) satış ilanından mı (SATIS).
+  const [srcType, setSrcType] = useState("all");
   const [page, setPage] = useState(1);
 
   const all = useMemo(
@@ -296,6 +318,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
     const q = search.trim().toLocaleLowerCase("tr");
     const rows = all.filter((o) => {
       if (status !== "all" && o.status !== status) return false;
+      if (srcType !== "all" && o.listingType !== srcType) return false;
       if (counterparty && o.counterparty !== counterparty) return false;
       if (minDate && new Date(o.createdAt).getTime() < minDate) return false;
       if (q && !matchesSearch(o, q)) return false;
@@ -312,10 +335,14 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
       out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     }
     return out;
-  }, [all, status, counterparty, range, search, sort]);
+  }, [all, status, srcType, counterparty, range, search, sort]);
 
   const isFiltered =
-    search !== "" || status !== "all" || range !== "all" || counterparty !== "";
+    search !== "" ||
+    status !== "all" ||
+    srcType !== "all" ||
+    range !== "all" ||
+    counterparty !== "";
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
   const pageRows = filtered.slice(
@@ -441,6 +468,18 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             }))}
             ariaLabel="Durum filtresi"
             active={status !== "all"}
+          />
+          <FilterSelect
+            icon={Package}
+            value={srcType}
+            onChange={reset(setSrcType)}
+            options={[
+              { value: "all", label: "Alım + Satış" },
+              { value: "ALIM", label: "Alım İhalesi" },
+              { value: "SATIS", label: "Satış İlanı" },
+            ]}
+            ariaLabel="Kaynak ilan tipi"
+            active={srcType !== "all"}
           />
           <FilterSelect
             icon={CalendarRange}
