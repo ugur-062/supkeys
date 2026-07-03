@@ -8,7 +8,11 @@ import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
-import { useCompanyAuth } from "@/hooks/use-company-auth";
+import {
+  useCompanyAuth,
+  useHasCompanyPermission,
+} from "@/hooks/use-company-auth";
+import { ApprovalFlowsSection } from "@/app/company/(authed)/ayarlar/_components/approval-flows-section";
 import {
   useAllApprovals,
   useApprovalHistory,
@@ -31,7 +35,9 @@ import {
   Circle,
   ClipboardCheck,
   MinusCircle,
+  Plus,
   Search,
+  Workflow,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -205,10 +211,15 @@ function RequestCard({
   );
 }
 
+type OnaylarTab = "pending" | "history" | "all" | "flows";
+
 export default function OnaylarPage() {
-  const [tab, setTab] = useState<"pending" | "history" | "all">("pending");
+  const [tab, setTab] = useState<OnaylarTab>("pending");
   const { user } = useCompanyAuth();
   const isManager = !!user && (user.isOwner || user.roles.includes("YONETICI"));
+  const canManageFlows = useHasCompanyPermission("approvals:manage");
+  // Üst "Yeni Onay Akışı" butonu → flows sekmesine geçer + sihirbazı açar.
+  const [newFlowNonce, setNewFlowNonce] = useState(0);
 
   const { data: pending, isLoading: pendingLoading } = usePendingApprovals();
   const { data: history, isLoading: historyLoading } = useApprovalHistory();
@@ -282,36 +293,53 @@ export default function OnaylarPage() {
     }
   };
 
-  const tabs = [
-    { key: "pending" as const, label: `Sıra Sizde (${pending?.length ?? 0})` },
-    { key: "history" as const, label: "Geçmiş & Taleplerim" },
-    { key: "all" as const, label: "Tüm Süreçler" },
+  const tabs: { key: OnaylarTab; label: string }[] = [
+    { key: "pending", label: `Sıra Sizde (${pending?.length ?? 0})` },
+    { key: "history", label: "Geçmiş & Taleplerim" },
+    { key: "all", label: "Tüm Süreçler" },
+    ...(canManageFlows
+      ? [{ key: "flows" as const, label: "Onay Akışları" }]
+      : []),
   ];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <Heading>Onaylar</Heading>
-        <Text className="mt-1 text-sm text-zinc-500">
-          İlan yayını ve kazandırma onay süreçleri — sırası sende olanlar,
-          taleplerin ve firmadaki tüm süreçler.
-        </Text>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Heading>Onaylar</Heading>
+          <Text className="mt-1 text-sm text-zinc-500">
+            Kazandırma onay süreçleri — sırası sende olanlar, taleplerin ve
+            firmadaki tüm süreçler. Akışları buradan tanımlarsın.
+          </Text>
+        </div>
+        {canManageFlows ? (
+          <Button
+            onClick={() => {
+              setTab("flows");
+              setNewFlowNonce((n) => n + 1);
+            }}
+          >
+            <Plus className="size-4" />
+            Yeni Onay Akışı
+          </Button>
+        ) : null}
       </div>
 
       {/* Sekmeler */}
-      <div className="flex gap-1 border-b border-zinc-950/10">
+      <div className="flex gap-1 overflow-x-auto border-b border-zinc-950/10">
         {tabs.map((t) => (
           <button
             key={t.key}
             type="button"
             onClick={() => setTab(t.key)}
             className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+              "-mb-px inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors",
               tab === t.key
                 ? "border-zinc-900 text-zinc-900"
                 : "border-transparent text-zinc-500 hover:text-zinc-800",
             )}
           >
+            {t.key === "flows" ? <Workflow className="size-4" /> : null}
             {t.label}
           </button>
         ))}
@@ -447,8 +475,8 @@ export default function OnaylarPage() {
               className="max-w-40"
             >
               <option value="">Tüm türler</option>
-              <option value="LISTING_PUBLISH">İlan Yayını</option>
               <option value="LISTING_AWARD">Kazandırma</option>
+              <option value="LISTING_PUBLISH">İlan Yayını (eski)</option>
             </Select>
           </div>
           {allLoading ? (
@@ -469,6 +497,13 @@ export default function OnaylarPage() {
             </div>
           )}
         </>
+      ) : null}
+
+      {tab === "flows" && canManageFlows ? (
+        <ApprovalFlowsSection
+          canManage={canManageFlows}
+          openNewNonce={newFlowNonce}
+        />
       ) : null}
 
       <ReasonDialog

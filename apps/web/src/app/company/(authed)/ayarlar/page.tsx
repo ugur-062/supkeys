@@ -85,10 +85,11 @@ const GROUPS: SettingsGroup[] = [
         managerOnly: true,
       },
       {
-        href: "/company/ayarlar/onay-akislari",
+        // Onay akışları artık Onaylar sayfasından yönetiliyor — kısayol.
+        href: "/company/onaylar",
         icon: Workflow,
         title: "Onay Akışları",
-        description: "İhale yayın ve kazandırma onay süreçleri",
+        description: "Kazandırma onay süreçlerini Onaylar sayfasından tanımlayın",
         managerOnly: true,
       },
       {

@@ -65,15 +65,24 @@ export class CompanyApprovalsService {
     if (!isNotificationEnabled(prefs, "approval_pending")) return;
     const webUrl =
       this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
-    // In-app kanal — onaycı kullanıcısına.
-    await this.notifications.pushToUser(approverUserId, {
-      type: "approval_pending",
-      title: "Onayınız bekleniyor",
-      body: `"${listing?.title ?? "İhale"}" (${listing?.number ?? "—"}) için onay sırası sizde. Lütfen Onaylar sayfasından inceleyip karar verin.`,
-      ctaLabel: "Onaylar Sayfası",
-      ctaUrl: `${webUrl}/company/onaylar`,
-      listingId,
-    });
+    // In-app kanal — onaycı kullanıcısına. Best-effort: yazım hatası (ör.
+    // kullanıcı bu arada silindi) onay akışını çökertmesin.
+    await this.notifications
+      .pushToUser(approverUserId, {
+        type: "approval_pending",
+        title: "Onayınız bekleniyor",
+        body: `"${listing?.title ?? "İhale"}" (${listing?.number ?? "—"}) için onay sırası sizde. Lütfen Onaylar sayfasından inceleyip karar verin.`,
+        ctaLabel: "Onaylar Sayfası",
+        ctaUrl: `${webUrl}/company/onaylar`,
+        listingId,
+      })
+      .catch((err) =>
+        this.logger.warn(
+          `Onay in-app bildirimi yazılamadı: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
     void this.email
       .send({
         to: {
@@ -136,14 +145,22 @@ export class CompanyApprovalsService {
     const body = `"${listing?.title ?? "İhale"}" (${listing?.number ?? "—"}) için başlattığınız onay isteği ${
       approved ? "onaylandı ve işlem uygulandı" : "reddedildi"
     }.${note ? ` Not: ${note}` : ""}`;
-    await this.notifications.pushToUser(requestCreatorId, {
-      type: "approval_pending",
-      title,
-      body,
-      ctaLabel: "İhaleyi Gör",
-      ctaUrl: `${webUrl}/company/ilan/${listingId}`,
-      listingId,
-    });
+    await this.notifications
+      .pushToUser(requestCreatorId, {
+        type: "approval_pending",
+        title,
+        body,
+        ctaLabel: "İhaleyi Gör",
+        ctaUrl: `${webUrl}/company/ilan/${listingId}`,
+        listingId,
+      })
+      .catch((err) =>
+        this.logger.warn(
+          `Onay sonucu in-app bildirimi yazılamadı: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
     void this.email
       .send({
         to: {
@@ -176,6 +193,12 @@ export class CompanyApprovalsService {
 
   /** Akış girdisi doğrulama: bütçe eşiği monoton artan + başlatıcı rol kısıtı. */
   private validateFlowInput(dto: CreateApprovalFlowDto) {
+    // Yayın onayı kaldırıldı — onay akışı yalnız KAZANDIRMA için tanımlanır.
+    if (dto.type !== "LISTING_AWARD") {
+      throw new BadRequestException(
+        "Onay akışı yalnızca kazandırma için tanımlanabilir",
+      );
+    }
     if ((dto.initiatorRoles ?? []).includes("ONAYLAYICI" as never)) {
       throw new BadRequestException(
         "Onaylayıcı rolü onay akışını başlatamaz",
@@ -467,16 +490,13 @@ export class CompanyApprovalsService {
   }
 
   /**
-   * Ön kontrol: bu kullanıcı yayın/kazandırma yaptığında onay akışı devreye
-   * girecek mi? UI, girecekse başlatıcı notu alanı gösterir.
+   * Ön kontrol: bu kullanıcı KAZANDIRMA yaptığında onay akışı devreye girecek
+   * mi? UI, girecekse başlatıcı notu alanı gösterir. (Yayın onayı kaldırıldı.)
    */
   async preview(user: AuthenticatedCompanyUser, listingType: "ALIM" | "SATIS") {
-    const [publish, award] = await Promise.all([
-      this.findMatchingFlow(user, "LISTING_PUBLISH", listingType),
-      this.findMatchingFlow(user, "LISTING_AWARD", listingType),
-    ]);
+    const award = await this.findMatchingFlow(user, "LISTING_AWARD", listingType);
     return {
-      publish: !!publish && publish.steps.length > 0,
+      publish: false as const,
       award: !!award && award.steps.length > 0,
     };
   }

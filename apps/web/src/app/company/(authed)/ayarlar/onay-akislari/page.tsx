@@ -1,21 +1,17 @@
 "use client";
 
-import {
-  useCompanyAuth,
-  useHasCompanyPermission,
-} from "@/hooks/use-company-auth";
-import { ApprovalFlowsSection } from "../_components/approval-flows-section";
-import { SettingsShell } from "../_components/settings-shell";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
+/** Onay akışları Onaylar sayfasına taşındı — eski bağlantıyı yönlendir. */
 export default function Page() {
-  const { user } = useCompanyAuth();
-  const canEdit = useHasCompanyPermission("approvals:manage");
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/company/onaylar");
+  }, [router]);
   return (
-    <SettingsShell
-      title="Onay Akışları"
-      description="İhale yayın ve kazandırma onay süreçleri."
-    >
-      <ApprovalFlowsSection canManage={canEdit} />
-    </SettingsShell>
+    <div className="p-8 text-center text-sm text-zinc-400">
+      Onay akışları Onaylar sayfasına taşındı — yönlendiriliyorsunuz…
+    </div>
   );
 }

@@ -1128,25 +1128,13 @@ export class CompanyListingsService {
   }
 
   /**
-   * Taslağı yayınla. Yalnızca SAHİP + DRAFT. Eşleşen aktif bir LISTING_PUBLISH
-   * onay akışı varsa IN_APPROVAL'a geçer (onay sonrası event ile OPEN olur);
-   * yoksa doğrudan OPEN.
+   * Taslağı yayınla. Yalnızca SAHİP + DRAFT → doğrudan OPEN.
+   * (Yayın onayı KALDIRILDI — onay akışı yalnız KAZANDIRMADA devreye girer.)
    */
-  async publishListing(
-    user: AuthenticatedCompanyUser,
-    listingId: string,
-    approvalNote?: string,
-  ) {
+  async publishListing(user: AuthenticatedCompanyUser, listingId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: {
-        id: true,
-        companyId: true,
-        status: true,
-        type: true,
-        minPrice: true,
-        primaryCurrency: true,
-      },
+      select: { id: true, companyId: true, status: true },
     });
     if (!listing || listing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
@@ -1155,30 +1143,20 @@ export class CompanyListingsService {
       throw new BadRequestException("Yalnızca taslak ilan yayınlanabilir");
     }
 
-    const amount = await this.estimateListingAmount(listing);
-    const res = await this.approvals.requestApproval(user, {
-      listingId,
-      type: "LISTING_PUBLISH",
-      listingType: listing.type,
-      amount,
-      currency: listing.primaryCurrency,
-      initiatorNote: approvalNote,
-    });
     const updated = await this.prisma.listing.update({
       where: { id: listingId },
-      data: res.approved
-        ? { status: "OPEN", publishedAt: new Date() }
-        : { status: "IN_APPROVAL" },
+      data: { status: "OPEN", publishedAt: new Date() },
     });
-    if (res.approved) {
-      void this.notifyListingInvitees(listingId, "invitation");
-      void this.notifyCategoryMatchedCompanies(listingId);
-      this.realtime?.pingListing(listingId);
-    }
+    void this.notifyListingInvitees(listingId, "invitation");
+    void this.notifyCategoryMatchedCompanies(listingId);
+    this.realtime?.pingListing(listingId);
     return this.serialize(updated);
   }
 
-  /** Onay isteği için tahmini bütçe — ALIM: hedef fiyatlar toplamı; SATIS: taban. */
+  /**
+   * Onay isteği için tahmini bütçe — kazandırma tutarı (ALIM/SATIS teklif
+   * bazlı hesaplanır; award akışı çağırır).
+   */
   private async estimateListingAmount(listing: {
     id: string;
     type: ListingType;
@@ -1200,7 +1178,10 @@ export class CompanyListingsService {
     return total.toNumber();
   }
 
-  /** Yayın onayı onaylandı → ilanı OPEN yap. */
+  /**
+   * (Geriye uyum) Eski LISTING_PUBLISH onayı onaylanırsa ilanı OPEN yap —
+   * artık yeni akış üretilmez ama bekleyen eski istekler tamamlanabilsin.
+   */
   @OnEvent("listing.publish.approved")
   async onPublishApproved(payload: { listingId: string }) {
     await this.prisma.listing.update({
@@ -1209,12 +1190,10 @@ export class CompanyListingsService {
     });
     void this.notifyListingInvitees(payload.listingId, "invitation");
     void this.notifyCategoryMatchedCompanies(payload.listingId);
-    // Sahip IN_APPROVAL detayında bekliyor olabilir — poll durduğundan
-    // (yalnız OPEN'da çalışır) durumu ancak realtime sinyali tazeler.
     this.realtime?.pingListing(payload.listingId);
   }
 
-  /** Yayın onayı reddedildi → ilan taslağa geri döner. */
+  /** (Geriye uyum) Eski yayın onayı reddedilirse ilan taslağa geri döner. */
   @OnEvent("listing.publish.rejected")
   async onPublishRejected(payload: { listingId: string }) {
     await this.prisma.listing.update({

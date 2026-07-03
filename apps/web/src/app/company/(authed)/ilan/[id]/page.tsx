@@ -165,7 +165,6 @@ export default function ListingDetailPage() {
     !!l?.isOwner,
   );
   const [noteAction, setNoteAction] = useState<
-    | { kind: "publish" }
     | { kind: "award"; bidId: string; bidderName: string }
     | {
         kind: "itemAward";
@@ -220,10 +219,7 @@ export default function ListingDetailPage() {
     if (!noteAction) return;
     const approvalNote = note.trim() || undefined;
     try {
-      if (noteAction.kind === "publish") {
-        await publish.mutateAsync({ approvalNote });
-        toast.success("İlan yayın onayına gönderildi");
-      } else if (noteAction.kind === "award") {
+      if (noteAction.kind === "award") {
         const res = await award.mutateAsync({
           bidId: noteAction.bidId,
           approvalNote,
@@ -285,11 +281,7 @@ export default function ListingDetailPage() {
   };
 
   const handlePublish = async () => {
-    // Yayın onaya takılacaksa: not girişli dialog (onaycılara iletilir).
-    if (approvalPreview.data?.publish) {
-      setNoteAction({ kind: "publish" });
-      return;
-    }
+    // Yayın onayı kaldırıldı — taslak doğrudan yayınlanır.
     if (
       !(await confirm({
         title: "İhaleyi yayınla",
@@ -1382,22 +1374,14 @@ export default function ListingDetailPage() {
           open={!!noteAction}
           onClose={() => setNoteAction(null)}
           onSubmit={submitNoteAction}
-          title={
-            noteAction?.kind === "publish"
-              ? "Yayını onaya gönder"
-              : "Kazandırmayı onaya gönder"
-          }
+          title="Kazandırmayı onaya gönder"
           description={
-            noteAction?.kind === "publish"
-              ? "Bu ilan için onay akışı tanımlı — ilan, onay tamamlanınca yayınlanır. Notunuz onaycılara iletilir."
-              : noteAction?.kind === "award"
-                ? `"${noteAction.bidderName}" kazandırılacak — onay akışı tanımlı, sipariş onay tamamlanınca oluşur. Notunuz onaycılara iletilir.`
-                : "Kalem-bazlı kazandırma onaya gönderilecek — siparişler onay tamamlanınca oluşur. Notunuz onaycılara iletilir."
+            noteAction?.kind === "award"
+              ? `"${noteAction.bidderName}" kazandırılacak — onay akışı tanımlı, sipariş onay tamamlanınca oluşur. Notunuz onaycılara iletilir.`
+              : "Kalem-bazlı kazandırma onaya gönderilecek — siparişler onay tamamlanınca oluşur. Notunuz onaycılara iletilir."
           }
           confirmLabel="Onaya Gönder"
-          pending={
-            publish.isPending || award.isPending || awardByItem.isPending
-          }
+          pending={award.isPending || awardByItem.isPending}
         />
       </div>
     );

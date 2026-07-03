@@ -41,18 +41,20 @@ function makeApprovalRig() {
   // @ts-expect-error test: mock'lanmış approvals gerçek servisle değiştirilir.
   listings["approvals"] = approvals;
   // @OnEvent bağları Nest dışı testte elle kurulur; handler promise'ları
-  // biriktirilir ki karar sonrası deterministik beklenebilsin.
+  // biriktirilir ki karar sonrası deterministik beklenebilsin. Kazandırma
+  // onayı: reddi ilanı CLOSED yapar (onAwardRejected); onayı ise gerçek
+  // kazandırmayı çalıştırır (payload'daki bidId gerçek olmalı) — motor
+  // testlerinde onay olayı YALNIZCA yakalanır (award yürütülmez).
   const inflight: Promise<unknown>[] = [];
-  events.on("listing.publish.approved", (p) =>
-    inflight.push(listings.onPublishApproved(p as never)),
+  const awardApproved: unknown[] = [];
+  events.on("listing.award.rejected", (p) =>
+    inflight.push(listings.onAwardRejected(p as never)),
   );
-  events.on("listing.publish.rejected", (p) =>
-    inflight.push(listings.onPublishRejected(p as never)),
-  );
+  events.on("listing.award.approved", (p) => awardApproved.push(p));
   const flush = async () => {
     await Promise.all(inflight.splice(0));
   };
-  return { approvals, listings, flush, email };
+  return { approvals, listings, flush, email, awardApproved };
 }
 
 /** Aynı firmaya ek kullanıcı + auth. */
@@ -76,11 +78,37 @@ async function addUser(
 }
 
 const flowInput = (approverIds: string[], over: Record<string, unknown> = {}) => ({
-  name: "Yayın onayı",
-  type: "LISTING_PUBLISH" as const,
+  name: "Kazandırma onayı",
+  type: "LISTING_AWARD" as const,
   steps: approverIds.map((id) => ({ approverUserId: id })),
   ...over,
 });
+
+/** CLOSED ilan + kazandırma onay isteği başlat (publishListing yerine). */
+async function startAward(
+  approvals: { requestApproval: (...a: never[]) => Promise<unknown> },
+  ownerAuth: unknown,
+  companyId: string,
+  createdById: string,
+  amount = 5000,
+) {
+  const listing = await makeListing(prisma, {
+    companyId,
+    createdById,
+    type: "ALIM",
+    status: "CLOSED",
+    closesAt: future(3),
+  });
+  const res = (await approvals.requestApproval(ownerAuth as never, {
+    listingId: listing.id,
+    type: "LISTING_AWARD",
+    listingType: "ALIM",
+    amount,
+    currency: "TRY",
+    payload: { kind: "full", bidId: "test-bid" },
+  } as never)) as { approved: boolean; requestId?: string };
+  return { listing, res };
+}
 
 describe("Akış doğrulama (eski sistem kuralları)", () => {
   it("operasyon rollü kullanıcı onaycı OLAMAZ; eşikler artan olmalı", async () => {
@@ -113,9 +141,9 @@ describe("Akış doğrulama (eski sistem kuralları)", () => {
   });
 });
 
-describe("Yayın onayı — uçtan uca", () => {
-  it("aktif akış: publish → IN_APPROVAL; yanlış onaycı reddedilir; zincir onaylanınca OPEN", async () => {
-    const { approvals, listings, flush } = makeApprovalRig();
+describe("Kazandırma onayı — uçtan uca", () => {
+  it("aktif akış: award → IN_AWARD_APPROVAL isteği; yanlış onaycı reddedilir; zincir onaylanınca award.approved event'i", async () => {
+    const { approvals, awardApproved } = makeApprovalRig();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
     const a2 = await addUser(owner.company.id, "TR", ["YONETICI"]);
@@ -127,18 +155,16 @@ describe("Yayın onayı — uçtan uca", () => {
     );
     await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
 
-    const draft = await makeListing(prisma, {
-      companyId: owner.company.id,
-      createdById: owner.user.id,
-      type: "ALIM",
-      status: "DRAFT",
-      closesAt: future(3),
-    });
-    const published = await listings.publishListing(owner.auth, draft.id);
-    expect(published.status).toBe("IN_APPROVAL");
+    const { res: started } = await startAward(
+      approvals,
+      owner.auth,
+      owner.company.id,
+      owner.user.id,
+    );
+    expect(started.approved).toBe(false);
 
     const req = await prisma.approvalRequest.findFirstOrThrow({
-      where: { listingId: draft.id, status: "PENDING" },
+      where: { id: started.requestId!, status: "PENDING" },
       include: { steps: { orderBy: { order: "asc" } } },
     });
     expect(req.steps.map((s) => s.status)).toEqual(["PENDING", "WAITING"]);
@@ -154,19 +180,18 @@ describe("Yayın onayı — uçtan uca", () => {
     // 1. adım onayı → 2. adım PENDING olur; istek hâlâ bekler.
     const r1 = await approvals.decide(a1.auth, req.id, "approve", {} as never);
     expect(r1.status).toBe("STEP_APPROVED");
-    // 2. adım onayı → istek APPROVED + event → ilan OPEN.
+    // 2. adım onayı → istek APPROVED + award.approved event (payload'lı).
     const r2 = await approvals.decide(a2.auth, req.id, "approve", {} as never);
     expect(r2.status).toBe("APPROVED");
-    await flush();
-    const listing = await prisma.listing.findUniqueOrThrow({
-      where: { id: draft.id },
+    expect(awardApproved).toHaveLength(1);
+    expect((awardApproved[0] as { payload: unknown }).payload).toMatchObject({
+      kind: "full",
+      bidId: "test-bid",
     });
-    expect(listing.status).toBe("OPEN");
-    expect(listing.publishedAt).not.toBeNull();
   });
 
-  it("ret: ilan DRAFT'a döner; başlatana in-app bildirim düşer (not ile)", async () => {
-    const { approvals, listings, flush } = makeApprovalRig();
+  it("ret: ilan CLOSED'a döner; başlatana in-app bildirim düşer (not ile)", async () => {
+    const { approvals, flush } = makeApprovalRig();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
     const flow = await approvals.createFlow(
@@ -174,27 +199,25 @@ describe("Yayın onayı — uçtan uca", () => {
       flowInput([a1.user.id]) as never,
     );
     await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
-    const draft = await makeListing(prisma, {
-      companyId: owner.company.id,
-      createdById: owner.user.id,
-      type: "ALIM",
-      status: "DRAFT",
-      closesAt: future(3),
-    });
-    await listings.publishListing(owner.auth, draft.id);
+    const { listing, res: started } = await startAward(
+      approvals,
+      owner.auth,
+      owner.company.id,
+      owner.user.id,
+    );
     const req = await prisma.approvalRequest.findFirstOrThrow({
-      where: { listingId: draft.id },
+      where: { id: started.requestId! },
     });
 
     const res = await approvals.decide(a1.auth, req.id, "reject", {
-      note: "bütçe uygun değil",
+      note: "fiyat uygun değil",
     } as never);
     expect(res.status).toBe("REJECTED");
     await flush();
-    const listing = await prisma.listing.findUniqueOrThrow({
-      where: { id: draft.id },
+    const after = await prisma.listing.findUniqueOrThrow({
+      where: { id: listing.id },
     });
-    expect(listing.status).toBe("DRAFT");
+    expect(after.status).toBe("CLOSED");
 
     // Başlatana bildirim (notifyRequester) — fire-and-forget'i bekle.
     await new Promise((r) => setTimeout(r, 300));
@@ -205,7 +228,7 @@ describe("Yayın onayı — uçtan uca", () => {
       },
     });
     expect(notif).not.toBeNull();
-    expect(notif!.body).toContain("bütçe uygun değil");
+    expect(notif!.body).toContain("fiyat uygun değil");
   });
 
   it("eşik atlama: tutar tüm adım eşiklerinin altındaysa onaysız ilerler", async () => {
@@ -223,12 +246,12 @@ describe("Yayın onayı — uçtan uca", () => {
       companyId: owner.company.id,
       createdById: owner.user.id,
       type: "ALIM",
-      status: "DRAFT",
+      status: "CLOSED",
     });
 
     const res = await approvals.requestApproval(owner.auth, {
       listingId: listing.id,
-      type: "LISTING_PUBLISH",
+      type: "LISTING_AWARD",
       listingType: "ALIM",
       amount: 500, // eşik altı → adım atlanır
       currency: "TRY",
@@ -236,8 +259,8 @@ describe("Yayın onayı — uçtan uca", () => {
     expect(res).toEqual({ approved: true });
   });
 
-  it("iptal: yalnız başlatan/sahip; ilan DRAFT'a döner; geçmişte görünür", async () => {
-    const { approvals, listings } = makeApprovalRig();
+  it("iptal: yalnız başlatan/sahip; ilan CLOSED'a döner; geçmişte görünür", async () => {
+    const { approvals } = makeApprovalRig();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
     const other = await addUser(owner.company.id, "TR", ["SATIN_ALMACI"]);
@@ -246,26 +269,24 @@ describe("Yayın onayı — uçtan uca", () => {
       flowInput([a1.user.id]) as never,
     );
     await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
-    const draft = await makeListing(prisma, {
-      companyId: owner.company.id,
-      createdById: owner.user.id,
-      type: "ALIM",
-      status: "DRAFT",
-      closesAt: future(3),
-    });
-    await listings.publishListing(owner.auth, draft.id);
+    const { listing, res: started } = await startAward(
+      approvals,
+      owner.auth,
+      owner.company.id,
+      owner.user.id,
+    );
     const req = await prisma.approvalRequest.findFirstOrThrow({
-      where: { listingId: draft.id },
+      where: { id: started.requestId! },
     });
 
     await expect(
       approvals.cancelRequest(other.auth, req.id),
     ).rejects.toThrow(/başlatan/);
     await approvals.cancelRequest(owner.auth, req.id);
-    const listing = await prisma.listing.findUniqueOrThrow({
-      where: { id: draft.id },
+    const after = await prisma.listing.findUniqueOrThrow({
+      where: { id: listing.id },
     });
-    expect(listing.status).toBe("DRAFT");
+    expect(after.status).toBe("CLOSED");
 
     // Geçmiş: başlatan kendi isteğini iptal edilmiş görür (adımlarla).
     const hist = await approvals.listHistory(owner.auth);
@@ -276,7 +297,7 @@ describe("Yayın onayı — uçtan uca", () => {
   });
 
   it("pasif onaycı fallback: bekleyen adım aktif YONETICI'ye devredilir", async () => {
-    const { approvals, listings } = makeApprovalRig();
+    const { approvals } = makeApprovalRig();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // YONETICI (sahip)
     const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
     const flow = await approvals.createFlow(
@@ -284,14 +305,7 @@ describe("Yayın onayı — uçtan uca", () => {
       flowInput([a1.user.id]) as never,
     );
     await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
-    const draft = await makeListing(prisma, {
-      companyId: owner.company.id,
-      createdById: owner.user.id,
-      type: "ALIM",
-      status: "DRAFT",
-      closesAt: future(3),
-    });
-    await listings.publishListing(owner.auth, draft.id);
+    await startAward(approvals, owner.auth, owner.company.id, owner.user.id);
 
     // Onaycı işten ayrıldı (pasif) → cron fallback'i devreder.
     await prisma.companyUser.update({

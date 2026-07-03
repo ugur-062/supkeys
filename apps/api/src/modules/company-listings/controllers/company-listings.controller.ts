@@ -94,20 +94,13 @@ export class CompanyListingsController {
     return this.service.updateListing(user, id, dto);
   }
 
-  /** Taslağı yayınla (DRAFT → OPEN; onay akışı varsa IN_APPROVAL). */
+  /** Taslağı yayınla (DRAFT → OPEN). Yayın onayı kaldırıldı. */
   @Post(":id/publish")
   publish(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
-    @Body() body?: { approvalNote?: string },
   ) {
-    return this.service.publishListing(
-      user,
-      id,
-      typeof body?.approvalNote === "string"
-        ? body.approvalNote.slice(0, 1000)
-        : undefined,
-    );
+    return this.service.publishListing(user, id);
   }
 
   /** Taslak ilanı sil. */
