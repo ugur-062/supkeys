@@ -108,6 +108,70 @@ export class CompanyApprovalsService {
       );
   }
 
+  /**
+   * Nihai karar (onay/ret) isteği BAŞLATANA bildirilir — eski sistem
+   * paritesi: başlatan sonucu sayfada beklemeden öğrenir.
+   */
+  private async notifyRequester(
+    requestCreatorId: string,
+    listingId: string,
+    decision: "APPROVED" | "REJECTED",
+    note?: string,
+  ) {
+    const [creator, listing] = await Promise.all([
+      this.prisma.companyUser.findUnique({
+        where: { id: requestCreatorId },
+        select: { email: true, firstName: true, lastName: true },
+      }),
+      this.prisma.listing.findUnique({
+        where: { id: listingId },
+        select: { title: true, number: true },
+      }),
+    ]);
+    if (!creator) return;
+    const approved = decision === "APPROVED";
+    const webUrl =
+      this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+    const title = approved ? "Onay isteğiniz onaylandı" : "Onay isteğiniz reddedildi";
+    const body = `"${listing?.title ?? "İhale"}" (${listing?.number ?? "—"}) için başlattığınız onay isteği ${
+      approved ? "onaylandı ve işlem uygulandı" : "reddedildi"
+    }.${note ? ` Not: ${note}` : ""}`;
+    await this.notifications.pushToUser(requestCreatorId, {
+      type: "approval_pending",
+      title,
+      body,
+      ctaLabel: "İhaleyi Gör",
+      ctaUrl: `${webUrl}/company/ilan/${listingId}`,
+      listingId,
+    });
+    void this.email
+      .send({
+        to: {
+          email: creator.email,
+          name: `${creator.firstName} ${creator.lastName}`,
+        },
+        subject: title,
+        templateData: {
+          template: "notification",
+          data: {
+            subject: title,
+            heading: title,
+            paragraphs: ["Merhaba,", body],
+            ctaLabel: "İhaleyi Gör",
+            ctaUrl: `${webUrl}/company/ilan/${listingId}`,
+          },
+        },
+        context: { type: "approval_decided", id: listingId },
+      })
+      .catch((err) =>
+        this.logger.error(
+          `Onay sonucu bildirimi gönderilemedi: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+  }
+
   // ─────────────────────────── Akış CRUD (Ayarlar) ───────────────────────────
 
   /** Akış girdisi doğrulama: bütçe eşiği monoton artan + başlatıcı rol kısıtı. */
@@ -404,6 +468,12 @@ export class CompanyApprovalsService {
         listingId: req.listingId,
         payload: req.payload,
       });
+      void this.notifyRequester(
+        req.createdById,
+        req.listingId,
+        "REJECTED",
+        dto.note,
+      );
       return { ok: true, status: "REJECTED" as const };
     }
 
@@ -431,6 +501,7 @@ export class CompanyApprovalsService {
       listingId: req.listingId,
       payload: req.payload,
     });
+    void this.notifyRequester(req.createdById, req.listingId, "APPROVED");
     return { ok: true, status: "APPROVED" as const };
   }
 
@@ -611,6 +682,64 @@ export class CompanyApprovalsService {
     }));
   }
 
+  /**
+   * Onay geçmişi + taleplerim — kullanıcının PARÇASI olduğu istekler:
+   * başlattıkları (her durumda — bekleyeni iptal edebilsin) + onaycısı olduğu
+   * sonuçlanmışlar. Adım zaman çizelgesi (onaycı adı, karar, not) ile döner.
+   */
+  async listHistory(user: AuthenticatedCompanyUser) {
+    const reqs = await this.prisma.approvalRequest.findMany({
+      where: {
+        companyId: user.companyId,
+        OR: [
+          { createdById: user.userId },
+          {
+            status: { not: "PENDING" },
+            steps: { some: { approverUserId: user.userId } },
+          },
+        ],
+      },
+      include: {
+        listing: { select: { id: true, number: true, title: true, type: true } },
+        steps: { orderBy: { order: "asc" } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+    const userIds = [
+      ...new Set([
+        ...reqs.flatMap((r) => r.steps.map((s) => s.approverUserId)),
+        ...reqs.map((r) => r.createdById),
+      ]),
+    ];
+    const users = await this.prisma.companyUser.findMany({
+      where: { id: { in: userIds } },
+      select: { id: true, firstName: true, lastName: true },
+    });
+    const nameById = new Map(
+      users.map((u) => [u.id, `${u.firstName} ${u.lastName}`]),
+    );
+    return reqs.map((r) => ({
+      id: r.id,
+      type: r.type,
+      status: r.status,
+      amount: Number(r.amount),
+      currency: r.currency,
+      createdAt: r.createdAt,
+      decidedAt: r.decidedAt,
+      createdBy: nameById.get(r.createdById) ?? "—",
+      mine: r.createdById === user.userId,
+      listing: r.listing,
+      steps: r.steps.map((s) => ({
+        order: s.order,
+        approverName: nameById.get(s.approverUserId) ?? "—",
+        status: s.status,
+        note: s.note,
+        decidedAt: s.decidedAt,
+      })),
+    }));
+  }
+
   async pendingCount(user: AuthenticatedCompanyUser) {
     const count = await this.prisma.approvalRequest.count({
       where: {
@@ -638,11 +767,24 @@ export class CompanyApprovalsService {
   private async assertApproversValid(companyId: string, ids: string[]) {
     const uniq = [...new Set(ids)];
     // Onaycılar firmaya ait + aktif olmalı (pasif onaycı zinciri tıkar).
-    const count = await this.prisma.companyUser.count({
+    const rows = await this.prisma.companyUser.findMany({
       where: { id: { in: uniq }, companyId, deletedAt: null, isActive: true },
+      select: { id: true, roles: true, firstName: true, lastName: true },
     });
-    if (count !== uniq.length) {
+    if (rows.length !== uniq.length) {
       throw new BadRequestException("Geçersiz veya pasif onaycı kullanıcı");
+    }
+    // Eski sistem kuralı: onaycı YONETICI veya ONAYLAYICI rolünde olmalı —
+    // operasyon rolleri (satın almacı/satışçı) onay zincirinde karar veremez.
+    const bad = rows.find(
+      (u) =>
+        !u.roles.includes(CompanyRole.YONETICI) &&
+        !u.roles.includes(CompanyRole.ONAYLAYICI),
+    );
+    if (bad) {
+      throw new BadRequestException(
+        `${bad.firstName} ${bad.lastName} onaycı olamaz — onaycı Yönetici veya Onaylayıcı rolünde olmalı`,
+      );
     }
   }
 }

@@ -162,6 +162,40 @@ export function usePendingApprovalCount(enabled: boolean) {
   });
 }
 
+export interface ApprovalHistoryItem {
+  id: string;
+  type: ApprovalType;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+  amount: number;
+  currency: string;
+  createdAt: string;
+  decidedAt: string | null;
+  createdBy: string;
+  /** İsteği ben başlattım (bekleyeni iptal edebilirim). */
+  mine: boolean;
+  listing: { id: string; number: string | null; title: string; type: string };
+  steps: {
+    order: number;
+    approverName: string;
+    status: "WAITING" | "PENDING" | "APPROVED" | "REJECTED" | "SKIPPED";
+    note: string | null;
+    decidedAt: string | null;
+  }[];
+}
+
+/** Geçmiş + taleplerim — kullanıcının parçası olduğu istekler. */
+export function useApprovalHistory() {
+  return useQuery({
+    queryKey: ["company-approvals", "history"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<ApprovalHistoryItem[]>(
+        "/company/approvals/history",
+      );
+      return data;
+    },
+  });
+}
+
 export function useCancelApproval() {
   const qc = useQueryClient();
   return useMutation({

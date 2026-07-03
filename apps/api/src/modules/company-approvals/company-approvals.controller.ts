@@ -96,6 +96,15 @@ export class CompanyApprovalsController {
     return this.service.pendingCount(user);
   }
 
+  /**
+   * Geçmiş + taleplerim — izin gerektirmez: kullanıcı yalnızca PARÇASI olduğu
+   * istekleri görür (başlattıkları + onaycısı olduğu sonuçlanmışlar).
+   */
+  @Get("history")
+  listHistory(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.listHistory(user);
+  }
+
   @Post(":id/approve")
   @RequireCompanyPermission("approval:act")
   approve(

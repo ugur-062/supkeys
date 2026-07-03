@@ -164,10 +164,19 @@ export function ApprovalFlowsSection({ canManage }: { canManage: boolean }) {
       {editing ? (
         <FlowDialog
           flow={editing === "new" ? null : editing}
-          users={(users ?? []).map((u) => ({
-            id: u.id,
-            name: `${u.firstName} ${u.lastName}`,
-          }))}
+          // Onaycı yalnızca AKTİF Yönetici/Onaylayıcı olabilir (backend de
+          // zorlar) — operasyon rolleri listede görünmez.
+          users={(users ?? [])
+            .filter(
+              (u) =>
+                u.isActive &&
+                (u.roles.includes("YONETICI") ||
+                  u.roles.includes("ONAYLAYICI")),
+            )
+            .map((u) => ({
+              id: u.id,
+              name: `${u.firstName} ${u.lastName}`,
+            }))}
           onClose={() => setEditing(null)}
         />
       ) : null}
@@ -326,6 +335,10 @@ function FlowDialog({
           <div className="mb-2 flex items-center justify-between">
             <span className="text-sm font-medium text-zinc-950">
               Onay adımları (sıralı)
+              <span className="ml-1.5 text-xs font-normal text-zinc-400">
+                — onaycı yalnızca Yönetici/Onaylayıcı rolündeki aktif
+                kullanıcılar olabilir
+              </span>
             </span>
             <Button plain onClick={addStep}>
               <Plus className="h-4 w-4" />
