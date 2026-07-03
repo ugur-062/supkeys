@@ -270,9 +270,11 @@ export const tenderFormSchema = baseTenderSchema
       d.listingType !== "SATIS" ||
       d.priceScope === "KALEM" ||
       d.buyNowPrice == null ||
-      d.buyNowPrice >= (d.minPrice ?? 0),
+      // Kesin büyük: eşitlikte taban ile hemen-al arası boş kalır, normal
+      // teklif verilemez (backend de aynı kuralı zorlar).
+      d.buyNowPrice > (d.minPrice ?? 0),
     {
-      message: "Hemen-al fiyatı taban fiyattan düşük olamaz",
+      message: "Hemen-al fiyatı taban fiyattan büyük olmalı",
       path: ["buyNowPrice"],
     },
   )
@@ -290,11 +292,11 @@ export const tenderFormSchema = baseTenderSchema
       if (
         it.buyNowUnitPrice != null &&
         it.minUnitPrice != null &&
-        it.buyNowUnitPrice < it.minUnitPrice
+        it.buyNowUnitPrice <= it.minUnitPrice
       ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: "Hemen-al, tabandan düşük olamaz",
+          message: "Hemen-al, tabandan büyük olmalı",
           path: ["items", i, "buyNowUnitPrice"],
         });
       }

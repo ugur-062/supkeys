@@ -276,7 +276,8 @@ export default function TeklifVerPage() {
     );
   }
   if (!l) {
-    return <Blocked title="İhale bulunamadı" detailHref="/company/satis/acik-ihaleler" />;
+    // İlan yüklenemedi — tipi (ALIM/SATIS) bilinmediğinden nötr hedef.
+    return <Blocked title="İhale bulunamadı" detailHref="/company" />;
   }
 
   // ── Kapılar ──
@@ -423,6 +424,42 @@ export default function TeklifVerPage() {
         problems.push(
           `Teklif Hemen-Al fiyatına (${money(Number(l.buyNowPrice), effectiveCurrency)}) ulaştı — ihale detayından Hemen Al kullanın.`,
         );
+      // KALEM fiyatlandırma: kalem tabanı/hemen-al'ı gönderimden ÖNCE yakala
+      // (backend de aynı kuralı zorlar — 400 yerine anlık geri bildirim).
+      if (l.priceScope === "KALEM") {
+        for (const it of pricedItems) {
+          const p = Number(itemState[it.id]?.price ?? 0);
+          if (!(p > 0)) continue; // fiyat problemi ayrıca üretiliyor
+          if (it.minUnitPrice != null && p < Number(it.minUnitPrice))
+            problems.push(
+              `"${it.name}" birim fiyatı tabanın (${money(Number(it.minUnitPrice), effectiveCurrency)}) altında olamaz.`,
+            );
+          if (it.buyNowUnitPrice != null && p >= Number(it.buyNowUnitPrice))
+            problems.push(
+              `"${it.name}" birim fiyatı Hemen-Al fiyatına (${money(Number(it.buyNowUnitPrice), effectiveCurrency)}) ulaştı — bu kalemi Hemen Al ile alın.`,
+            );
+        }
+      }
+    }
+    // İngiliz usulü yeniden teklif: kendi gönderilmiş teklifine karşı
+    // monotonluk ön-kontrolü (ALIM'da düşmeli, SATIS'ta yükselmeli) — adım
+    // kuralı sunucuda (rakip referansı kapalı zarfta görünmeyebilir).
+    if (
+      !isBuyNowMode &&
+      l.english?.isEnglishAuction &&
+      l.myBid?.status === "SUBMITTED" &&
+      total > 0 &&
+      effectiveCurrency === (l.myBid.currency ?? l.primaryCurrency ?? "TRY")
+    ) {
+      const own = Number(l.myBid.amount);
+      if (isSatis && total <= own)
+        problems.push(
+          `Açık artırma: yeni teklifin önceki teklifinin (${money(own, effectiveCurrency)}) üzerinde olmalı.`,
+        );
+      if (!isSatis && total >= own)
+        problems.push(
+          `Açık eksiltme: yeni teklifin önceki teklifinin (${money(own, effectiveCurrency)}) altında olmalı.`,
+        );
     }
     return problems;
   };
@@ -509,9 +546,14 @@ export default function TeklifVerPage() {
     setConfirmOpen(false);
     try {
       if (stagedFiles.length > 0) {
-        await placeBid.mutateAsync(buildPayload(true)); // taslak (bid kaydı oluşsun)
+        // Taslak adımı yalnız hiç teklif kaydı yokken (dosyaların bağlanacağı
+        // satır oluşsun diye). Mevcut kayıt varsa atlanır — özellikle açık
+        // eksiltmede gönderilmiş teklifi DRAFT'a düşürmek yarıştan düşürürdü.
+        if (!l.myBid) {
+          await placeBid.mutateAsync(buildPayload(true));
+        }
         const up = await uploadStaged();
-        if (!up.ok) return; // taslak + staged korunur; kullanıcı tekrar dener
+        if (!up.ok) return; // staged korunur; kullanıcı tekrar dener
       }
       if (isBuyNowMode) {
         // Hemen-Al: fiyatlar sunucuda hemen-al değerlerinden hesaplanır —
@@ -731,13 +773,28 @@ export default function TeklifVerPage() {
                         </div>
 
                         {optedOut ? (
-                          <button
-                            type="button"
-                            onClick={() => setItem(it.id, { price: "" })}
-                            className="text-xs font-semibold text-blue-600 hover:underline"
-                          >
-                            Teklif ver
-                          </button>
+                          // Hemen-Al modunda: fiyat hemen-al değeriyle geri
+                          // gelir; hemen-al fiyatı olmayan kalem kapsama hiç
+                          // alınamaz (buton yok) — backend zaten reddeder.
+                          !isBuyNowMode || it.buyNowUnitPrice != null ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setItem(it.id, {
+                                  price: isBuyNowMode
+                                    ? String(Number(it.buyNowUnitPrice))
+                                    : "",
+                                })
+                              }
+                              className="text-xs font-semibold text-blue-600 hover:underline"
+                            >
+                              {isBuyNowMode ? "Kapsama al" : "Teklif ver"}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-zinc-400">
+                              Hemen-al fiyatı yok
+                            </span>
+                          )
                         ) : (
                           <div className="flex items-start gap-2">
                             <div className="w-36">
@@ -1102,7 +1159,9 @@ export default function TeklifVerPage() {
             >
               {isBuyNowMode ? "Hemen Al" : "Teklif Gönder"}
             </Button>
-            {!isBuyNowMode ? (
+            {/* Auction'da GÖNDERİLMİŞ teklif taslağa çekilemez (yarıştan
+                düşürürdü) — rebid'de taslak butonu gizli; backend de reddeder. */}
+            {!isBuyNowMode && !isAuctionRebid ? (
               <Button
                 outline
                 className="w-full"

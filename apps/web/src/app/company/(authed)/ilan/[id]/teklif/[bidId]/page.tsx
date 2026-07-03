@@ -129,6 +129,8 @@ export default function BidDetailPage() {
             <div className="flex flex-wrap items-center gap-2">
               {bid.status === "WON" ? (
                 <Badge color="green">Kazandı</Badge>
+              ) : bid.status === "AWARDED_PARTIAL" ? (
+                <Badge color="green">Kısmen Kazandı</Badge>
               ) : bid.status === "LOST" ? (
                 <Badge color="zinc">Elendi</Badge>
               ) : (

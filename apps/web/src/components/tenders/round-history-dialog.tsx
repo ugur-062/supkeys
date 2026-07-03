@@ -22,13 +22,19 @@ export function RoundHistoryDialog({
   id,
   open,
   onClose,
+  isSatis = false,
+  currency,
 }: {
   id: string;
   open: boolean;
   onClose: () => void;
+  /** SATIS artırma: karşı taraf alıcıdır, en YÜKSEK teklif en iyidir. */
+  isSatis?: boolean;
+  currency?: string;
 }) {
   const history = useRoundHistory(id, open);
   const rounds = history.data ?? [];
+  const sym = !currency || currency === "TRY" ? "₺" : currency;
 
   return (
     <Dialog open={open} onClose={onClose} size="2xl">
@@ -60,7 +66,7 @@ export function RoundHistoryDialog({
                 <Table dense>
                   <TableHead>
                     <TableRow>
-                      <TableHeader>Tedarikçi</TableHeader>
+                      <TableHeader>{isSatis ? "Alıcı" : "Tedarikçi"}</TableHeader>
                       <TableHeader className="text-right">Teklif</TableHeader>
                     </TableRow>
                   </TableHead>
@@ -77,7 +83,7 @@ export function RoundHistoryDialog({
                               : "text-zinc-700"
                           }`}
                         >
-                          {Number(b.amount).toLocaleString("tr-TR")} ₺
+                          {Number(b.amount).toLocaleString("tr-TR")} {sym}
                         </TableCell>
                       </TableRow>
                     ))}

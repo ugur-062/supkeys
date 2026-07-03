@@ -63,6 +63,12 @@ export class CompanyListingDocumentsService {
       }),
     ]);
     const connected = connectedCount > 0;
+    const isInvited = invitedCount > 0;
+
+    // Davet, getOne/placeBid ile aynı şekilde HER görünürlüğü ve ülke
+    // kapsamını aşar — davetli teklif verebildiği ilanın şartname
+    // dosyalarını da indirebilmeli (requireBidDocument akışı buna dayanır).
+    if (isInvited) return;
 
     let allowed: boolean;
     if (listing.visibility === "PUBLIC") {
@@ -70,7 +76,7 @@ export class CompanyListingDocumentsService {
     } else if (listing.visibility === "CONNECTIONS") {
       allowed = connected;
     } else {
-      allowed = invitedCount > 0; // PRIVATE → davetli
+      allowed = false; // PRIVATE → yalnız davetli (yukarıda döndü)
     }
 
     // Ülke kapsamı (uluslararası → hedef ülke; yurtiçi → aynı ülke).

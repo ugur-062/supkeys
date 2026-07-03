@@ -526,12 +526,14 @@ export class CompanyListingsService {
             `"${it.name}" kalemi için taban birim fiyat girin`,
           );
         }
+        // KESİN büyük: eşitlikte taban ≤ teklif < hemen-al aralığı boş kalır
+        // ve hiçbir normal teklif verilemezdi (yalnız Hemen-Al mümkün olurdu).
         if (
           it.buyNowUnitPrice != null &&
-          it.buyNowUnitPrice < it.minUnitPrice
+          it.buyNowUnitPrice <= it.minUnitPrice
         ) {
           throw new BadRequestException(
-            `"${it.name}" kaleminde hemen-al fiyatı tabandan düşük olamaz`,
+            `"${it.name}" kaleminde hemen-al fiyatı taban fiyattan büyük olmalı`,
           );
         }
       }
@@ -541,9 +543,11 @@ export class CompanyListingsService {
     if (!dto.minPrice || dto.minPrice <= 0) {
       throw new BadRequestException("Satış ilanı için taban fiyat girin");
     }
-    if (dto.buyNowPrice != null && dto.buyNowPrice < dto.minPrice) {
+    // KESİN büyük — eşitlikte normal teklif aralığı boş kalır (yukarıdaki
+    // kalem kuralıyla aynı gerekçe).
+    if (dto.buyNowPrice != null && dto.buyNowPrice <= dto.minPrice) {
       throw new BadRequestException(
-        "Hemen-al fiyatı taban fiyattan düşük olamaz",
+        "Hemen-al fiyatı taban fiyattan büyük olmalı",
       );
     }
     return {
@@ -601,6 +605,22 @@ export class CompanyListingsService {
       throw new BadRequestException(
         "İzin verilen para birimleri ilanın ana birimini içermeli",
       );
+    }
+    // Teslim şekli kapsamla uyumlu olmalı (yurtiçi ↔ DOMESTIC_*, uluslararası
+    // ↔ Incoterms) — frontend filtreliyor ama backend otorite; kapsam
+    // değişen update'te bayat terim de burada yakalanır.
+    if (dto.deliveryTerm) {
+      const isDomesticTerm = String(dto.deliveryTerm).startsWith("DOMESTIC_");
+      if ((dto.isInternational ?? false) && isDomesticTerm) {
+        throw new BadRequestException(
+          "Uluslararası ilanda yurtiçi teslim şekli seçilemez — Incoterm seçin",
+        );
+      }
+      if (!(dto.isInternational ?? false) && !isDomesticTerm) {
+        throw new BadRequestException(
+          "Yurtiçi ilanda Incoterm seçilemez — yurtiçi teslim şekli seçin",
+        );
+      }
     }
     // Hedef ülkeler gerçek ülke kodu olmalı ("XX" değil).
     for (const c of dto.targetCountries ?? []) {
@@ -731,7 +751,12 @@ export class CompanyListingsService {
           requireAllItems: dto.requireAllItems ?? false,
           requireBidDocument: dto.requireBidDocument ?? false,
           primaryCurrency: (dto.primaryCurrency as Currency) ?? "TRY",
-          allowedCurrencies: (dto.allowedCurrencies as Currency[]) ?? [],
+          // Auction'da best/adım/monotonluk kıyasları ham tutarla yapılır —
+          // tek para birimi ZORUNLU; boş dizi "her birim serbest" açığıydı.
+          allowedCurrencies:
+            format === "ENGLISH_AUCTION"
+              ? [(dto.primaryCurrency as Currency) ?? "TRY"]
+              : ((dto.allowedCurrencies as Currency[]) ?? []),
           // ── Wizard zenginleştirme ──
           bidsOpenAt: dto.bidsOpenAt ? new Date(dto.bidsOpenAt) : null,
           isSealedBid: dto.isSealedBid ?? true,
@@ -755,8 +780,14 @@ export class CompanyListingsService {
           sendClosingReminder: true,
           reminderMinutesBefore: CLOSING_REMINDER_MINUTES,
           autoExtendOnLateBid: dto.autoExtendOnLateBid ?? false,
-          autoExtendThresholdMin: dto.autoExtendThresholdMin ?? null,
-          autoExtendByMinutes: dto.autoExtendByMinutes ?? null,
+          // Bayrak açıkken eşik/dakika boşsa sessizce devre dışı kalıyordu —
+          // yeni-tur (createNextRound) ile aynı 2dk/2dk default uygulanır.
+          autoExtendThresholdMin: dto.autoExtendOnLateBid
+            ? (dto.autoExtendThresholdMin ?? 2)
+            : (dto.autoExtendThresholdMin ?? null),
+          autoExtendByMinutes: dto.autoExtendOnLateBid
+            ? (dto.autoExtendByMinutes ?? 2)
+            : (dto.autoExtendByMinutes ?? null),
         },
       });
       if (dto.items?.length) {
@@ -840,10 +871,14 @@ export class CompanyListingsService {
       );
     }
     if (existing.status === "OPEN") {
-      const submittedCount = await this.prisma.listingBid.count({
-        where: { listingId, status: "SUBMITTED" },
+      // HERHANGİ bir teklif kaydı (elenen/geri çekilen/taslak dahil) düzenlemeyi
+      // kilitler: kalemler sil-ve-yeniden-yaz olduğundan cascade, mevcut teklif
+      // kalemlerini siler — "tümünü ele → yeniden yaz" ile katılım almış ihale
+      // sessizce değiştirilemesin.
+      const bidCount = await this.prisma.listingBid.count({
+        where: { listingId },
       });
-      if (submittedCount > 0) {
+      if (bidCount > 0) {
         throw new BadRequestException(
           "Bu ihaleye teklif verilmiş; düzenleme yapılamaz",
         );
@@ -924,7 +959,12 @@ export class CompanyListingsService {
           requireAllItems: dto.requireAllItems ?? false,
           requireBidDocument: dto.requireBidDocument ?? false,
           primaryCurrency: (dto.primaryCurrency as Currency) ?? "TRY",
-          allowedCurrencies: (dto.allowedCurrencies as Currency[]) ?? [],
+          // Auction'da best/adım/monotonluk kıyasları ham tutarla yapılır —
+          // tek para birimi ZORUNLU; boş dizi "her birim serbest" açığıydı.
+          allowedCurrencies:
+            format === "ENGLISH_AUCTION"
+              ? [(dto.primaryCurrency as Currency) ?? "TRY"]
+              : ((dto.allowedCurrencies as Currency[]) ?? []),
           bidsOpenAt: dto.bidsOpenAt ? new Date(dto.bidsOpenAt) : null,
           isSealedBid: dto.isSealedBid ?? true,
           isLogistics: dto.isLogistics ?? false,
@@ -947,8 +987,14 @@ export class CompanyListingsService {
           sendClosingReminder: true,
           reminderMinutesBefore: CLOSING_REMINDER_MINUTES,
           autoExtendOnLateBid: dto.autoExtendOnLateBid ?? false,
-          autoExtendThresholdMin: dto.autoExtendThresholdMin ?? null,
-          autoExtendByMinutes: dto.autoExtendByMinutes ?? null,
+          // Bayrak açıkken eşik/dakika boşsa sessizce devre dışı kalıyordu —
+          // yeni-tur (createNextRound) ile aynı 2dk/2dk default uygulanır.
+          autoExtendThresholdMin: dto.autoExtendOnLateBid
+            ? (dto.autoExtendThresholdMin ?? 2)
+            : (dto.autoExtendThresholdMin ?? null),
+          autoExtendByMinutes: dto.autoExtendOnLateBid
+            ? (dto.autoExtendByMinutes ?? 2)
+            : (dto.autoExtendByMinutes ?? null),
         },
       });
 
@@ -1102,6 +1148,9 @@ export class CompanyListingsService {
     });
     void this.notifyListingInvitees(payload.listingId, "invitation");
     void this.notifyCategoryMatchedCompanies(payload.listingId);
+    // Sahip IN_APPROVAL detayında bekliyor olabilir — poll durduğundan
+    // (yalnız OPEN'da çalışır) durumu ancak realtime sinyali tazeler.
+    this.realtime?.pingListing(payload.listingId);
   }
 
   /** Yayın onayı reddedildi → ilan taslağa geri döner. */
@@ -1510,7 +1559,9 @@ export class CompanyListingsService {
         closesAt: l.closesAt,
         createdAt: l.createdAt,
         itemCount: l._count.items,
-        owner: masked ? null : { name: l.company.name },
+        // id: liste "Müşteri/Satıcı" filtresi companyId'ye göre gruplar
+        // (browse ile aynı shape; maskelide kimlik sızdırılmaz).
+        owner: masked ? null : { id: l.companyId, name: l.company.name },
         masked,
         canBid,
         invited,
@@ -1650,9 +1701,15 @@ export class CompanyListingsService {
       const needsApproval =
         listing.status === "IN_APPROVAL" ||
         listing.status === "IN_AWARD_APPROVAL";
-      const [bids, invitations, pendingApprovalId] = await Promise.all([
+      const [bids, invitations, pendingApprovalId, totalBidCount] =
+        await Promise.all([
         this.prisma.listingBid.findMany({
-          where: { listingId: id, status: { in: ["SUBMITTED", "WON", "LOST"] } },
+          where: {
+            listingId: id,
+            // AWARDED_PARTIAL dahil — kalem-bazlı kısmi kazanan sahibin
+            // listesinden kaybolmasın (yalnız WITHDRAWN/DRAFT gizli).
+            status: { in: ["SUBMITTED", "WON", "AWARDED_PARTIAL", "LOST"] },
+          },
           include: {
             bidderCompany: { select: { name: true } },
             items: true,
@@ -1682,22 +1739,23 @@ export class CompanyListingsService {
         needsApproval
           ? this.approvals.pendingForListing(user.companyId, id)
           : Promise.resolve(null),
+        // canEdit için TÜM teklif kayıtları sayılır (WITHDRAWN/DRAFT dahil) —
+        // updateListing kilidiyle birebir aynı kural.
+        this.prisma.listingBid.count({ where: { listingId: id } }),
       ]);
       bids.sort((a, b) =>
         listing.type === "ALIM"
           ? Number(a.amount) - Number(b.amount) // ALIM: düşük iyi
           : Number(b.amount) - Number(a.amount), // SATIS: yüksek iyi
       );
-      const submittedCount = bids.filter(
-        (b) => b.status === "SUBMITTED",
-      ).length;
       return {
         ...this.detail(listing, false),
         isOwner: true,
-        // Düzenlenebilir: TASLAK her zaman, AÇIK ise teklif gelmemişken.
+        // Düzenlenebilir: TASLAK her zaman, AÇIK ise HİÇ teklif kaydı yokken
+        // (elenen/geri çekilen dahil — updateListing kilidiyle aynı).
         canEdit:
           listing.status === "DRAFT" ||
-          (listing.status === "OPEN" && submittedCount === 0),
+          (listing.status === "OPEN" && totalBidCount === 0),
         // Yayınlanabilir: yalnızca taslakken.
         canPublish: listing.status === "DRAFT",
         // Bekleyen onay isteği (iptal için).
@@ -2161,6 +2219,18 @@ export class CompanyListingsService {
     }
 
     const isDraft = dto.asDraft === true;
+    // Auction'da gönderilmiş teklif TASLAĞA çekilemez: agregattan düşürür
+    // ("yumuşak geri çekme" ile fiyat manipülasyonu) ve sonraki gönderimde
+    // monotonluk referanssız kalırdı. Kalıcı çıkış için Geri Çek kullanılır.
+    if (
+      isDraft &&
+      existingBid?.status === "SUBMITTED" &&
+      listing.format === "ENGLISH_AUCTION"
+    ) {
+      throw new BadRequestException(
+        "Açık eksiltme/artırmada gönderilmiş teklif taslağa çekilemez — yeni tutarı doğrudan gönderin veya teklifi geri çekin",
+      );
+    }
     // Para birimi: ilan izin veriyorsa seçilebilir; varsayılan ilanın birimi.
     const currency = (dto.currency as Currency) ?? listing.primaryCurrency;
     if (
@@ -2487,7 +2557,11 @@ export class CompanyListingsService {
         }
       }
       const ref =
-        listing.priceDecrementBasis === "OWN_LAST_BID" ? ownLast ?? best : best;
+        // BEST_BID bazında rakip yoksa kendi son teklifi referans olur —
+        // solo teklifçi 0,01'lik anlamsız adımlarla ilerleyemesin.
+        listing.priceDecrementBasis === "OWN_LAST_BID"
+          ? ownLast ?? best
+          : best ?? ownLast;
       if (ref != null) {
         const dv =
           listing.priceDecrementValue != null
@@ -2596,8 +2670,12 @@ export class CompanyListingsService {
       const msLeft = listing.closesAt.getTime() - Date.now();
       const thresholdMs = listing.autoExtendThresholdMin * 60_000;
       if (msLeft > 0 && msLeft <= thresholdMs) {
-        await this.prisma.listing.update({
-          where: { id },
+        // Optimistic: closesAt bu istek başladığından beri DEĞİŞMEDİYSE uzat.
+        // Eşzamanlı iki geç teklifte bayat tabanla yazan taraf, diğerinin
+        // uzatmasını geriye çekebilirdi (kapanış kısalırdı) — eşleşmezse
+        // rakip uzatma zaten yapılmıştır, atlamak güvenli.
+        await this.prisma.listing.updateMany({
+          where: { id, closesAt: listing.closesAt },
           data: {
             closesAt: new Date(
               listing.closesAt.getTime() +
@@ -2646,6 +2724,7 @@ export class CompanyListingsService {
         requireBidDocument: true,
         primaryCurrency: true,
         deliveryTerm: true,
+        currentRound: true,
         closesAt: true,
         bidsOpenAt: true,
         isInternational: true,
@@ -2825,6 +2904,14 @@ export class CompanyListingsService {
     }
 
     const deliveryDate = new Date(input.deliveryDate);
+    // Hemen-Al teklifi HER ZAMAN ilanın ana para birimindedir; TRY dışıysa
+    // TRY karşılığı gösterimi için kur snapshot'lanır (placeBid ile aynı).
+    const exchangeRateSnapshot =
+      listing.primaryCurrency !== "TRY"
+        ? await this.exchangeRates
+            .getCurrentRate(listing.primaryCurrency)
+            .catch(() => null)
+        : null;
     const bid = await this.prisma.$transaction(async (tx) => {
       const b = await tx.listingBid.upsert({
         where: {
@@ -2837,6 +2924,8 @@ export class CompanyListingsService {
           listingId,
           bidderCompanyId: user.companyId,
           amount,
+          currency: listing.primaryCurrency,
+          exchangeRateSnapshot,
           isBuyNow: true,
           createdById: user.userId,
           status: "SUBMITTED",
@@ -2845,20 +2934,23 @@ export class CompanyListingsService {
           deliveryDate,
           validityDays: input.validityDays ?? null,
           deliveryAddressId,
+          round: listing.currentRound,
         },
         update: {
           // Eski taslak/teklifin kalıntıları (yabancı currency, bayat
-          // submittedAt) hemen-al fiyatını bozmasın.
+          // submittedAt, eski tur damgası) hemen-al fiyatını bozmasın.
           amount,
           isBuyNow: true,
           status: "SUBMITTED",
           currency: listing.primaryCurrency,
+          exchangeRateSnapshot,
           submittedAt: new Date(),
           version: { increment: 1 },
           note: input.note?.trim() || null,
           deliveryDate,
           validityDays: input.validityDays ?? null,
           deliveryAddressId,
+          round: listing.currentRound,
         },
       });
       // KALEM modda kalem teklifleri hemen-al fiyatlarıyla yenilenir.
@@ -3472,6 +3564,9 @@ export class CompanyListingsService {
         type: true,
         status: true,
         currentRound: true,
+        autoExtendOnLateBid: true,
+        autoExtendThresholdMin: true,
+        autoExtendByMinutes: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -3581,12 +3676,18 @@ export class CompanyListingsService {
           priceDecrementType: isAuction ? dto.priceDecrementType : null,
           priceDecrementValue: isAuction ? dto.priceDecrementValue : null,
           priceDecrementBasis: isAuction ? dto.priceDecrementBasis : null,
-          autoExtendOnLateBid: isAuction ? (dto.autoExtendOnLateBid ?? true) : false,
+          // dto boşsa ilanın MEVCUT ayarı korunur (create'te false default'ken
+          // yeni turun sessizce true'ya dönmesi tutarsızdı).
+          autoExtendOnLateBid: isAuction
+            ? (dto.autoExtendOnLateBid ?? listing.autoExtendOnLateBid)
+            : false,
           autoExtendThresholdMin: isAuction
-            ? (dto.autoExtendThresholdMin ?? 2)
+            ? (dto.autoExtendThresholdMin ??
+              listing.autoExtendThresholdMin ??
+              2)
             : null,
           autoExtendByMinutes: isAuction
-            ? (dto.autoExtendByMinutes ?? 2)
+            ? (dto.autoExtendByMinutes ?? listing.autoExtendByMinutes ?? 2)
             : null,
         },
       });
@@ -3702,18 +3803,25 @@ export class CompanyListingsService {
     return { added: toAdd.length, skipped: wanted.length - toAdd.length };
   }
 
-  /** İngiliz Usulü tur geçmişi — sahip görür. Tur → teklifler (artan). */
+  /**
+   * İngiliz Usulü tur geçmişi — sahip görür. Tur içinde teklifler EN İYİDEN
+   * kötüye: ALIM (eksiltme) artan, SATIS (artırma) azalan — UI ilk satırı
+   * "en iyi" vurgular.
+   */
   async roundHistory(user: AuthenticatedCompanyUser, listingId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true },
+      select: { id: true, companyId: true, type: true },
     });
     if (!listing || listing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
     }
     const snaps = await this.prisma.listingRoundSnapshot.findMany({
       where: { listingId },
-      orderBy: [{ round: "desc" }, { amount: "asc" }],
+      orderBy: [
+        { round: "desc" },
+        { amount: listing.type === "SATIS" ? "desc" : "asc" },
+      ],
     });
     const byRound = new Map<
       number,
@@ -3942,6 +4050,28 @@ export class CompanyListingsService {
     const date = new Date(closesAt);
     if (Number.isNaN(date.getTime()) || date.getTime() <= Date.now()) {
       throw new BadRequestException("Kapanış tarihi gelecekte olmalı");
+    }
+    const extra = await this.prisma.listing.findUnique({
+      where: { id: listing.id },
+      select: { bidsOpenAt: true, format: true, closesAt: true },
+    });
+    // Kapanış açılıştan önce olamaz (yayındaki ilanın bütünlüğü).
+    if (extra?.bidsOpenAt && date.getTime() <= extra.bidsOpenAt.getTime()) {
+      throw new BadRequestException(
+        "Kapanış tarihi açılış tarihinden sonra olmalı",
+      );
+    }
+    // İngiliz usulünde kapanışa <2 dk kala değişiklik yok — davet ekleme
+    // (addInvitations) ile aynı snipe koruması; son saniye kural değişimi
+    // yarıştaki teklifçileri mağdur eder.
+    if (
+      extra?.format === "ENGLISH_AUCTION" &&
+      extra.closesAt &&
+      extra.closesAt.getTime() - Date.now() < 2 * 60_000
+    ) {
+      throw new BadRequestException(
+        "Kapanışa 2 dakikadan az kaldı — açık eksiltme/artırmada kapanış saati artık değiştirilemez",
+      );
     }
     await this.prisma.listing.update({
       where: { id: listing.id },

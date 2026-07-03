@@ -50,18 +50,18 @@ type TabKey =
   | "IN_APPROVAL"
   | "OPEN"
   | "CLOSED"
-  | "IN_AWARD"
   | "IN_AWARD_APPROVAL"
   | "AWARDED"
   | "CLOSED_NO_AWARD"
   | "CANCELLED";
+// Not: IN_AWARD backend'de hiç set edilmiyor (kapanış CLOSED yazar) — ölü
+// filtre seçeneği kaldırıldı; kazandırma bekleyenler "Teklife Kapalı"dadır.
 const STATUS_OPTIONS: { value: TabKey; label: string }[] = [
   { value: "all", label: "Tüm Durumlar" },
   { value: "DRAFT", label: LISTING_STATUS_LABELS.DRAFT },
   { value: "IN_APPROVAL", label: LISTING_STATUS_LABELS.IN_APPROVAL },
   { value: "OPEN", label: LISTING_STATUS_LABELS.OPEN },
   { value: "CLOSED", label: LISTING_STATUS_LABELS.CLOSED },
-  { value: "IN_AWARD", label: LISTING_STATUS_LABELS.IN_AWARD },
   { value: "IN_AWARD_APPROVAL", label: LISTING_STATUS_LABELS.IN_AWARD_APPROVAL },
   { value: "AWARDED", label: LISTING_STATUS_LABELS.AWARDED },
   { value: "CLOSED_NO_AWARD", label: LISTING_STATUS_LABELS.CLOSED_NO_AWARD },

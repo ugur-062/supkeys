@@ -13,6 +13,13 @@ function docsService() {
     generatePresignedGet: jest.fn().mockResolvedValue("https://r2/get"),
     getPublicUrl: jest.fn((k: string) => `https://r2/${k}`),
     deleteObject: jest.fn(),
+    // KYC belgeleri kısa ömürlü presigned GET ile sunulur — gerçek servisle
+    // aynı sözleşme: boş değer null, dolu değer URL.
+    presignStoredObject: jest.fn(async (v: string | null) =>
+      v ? `https://r2/presigned/${v}` : null,
+    ),
+    // commit, nesnenin R2'da var olduğunu doğrular (assertUploadedObjectValid).
+    checkExists: jest.fn(async () => ({ exists: true, size: 1024 })),
   };
   return new CompanyDocsService(prisma as never, storage as never);
 }
@@ -70,13 +77,19 @@ describe("ülke-farkında belge seti", () => {
     await expect(
       svc.commit(co.id, "taxPlate", `company-docs/BASKA-FIRMA/x.pdf`),
     ).rejects.toThrow(/anahtar|geçersiz/i);
-    // Doğru prefix'li key kabul edilir.
+    // Doğru prefix'li key kabul edilir — KEY saklanır (public URL değil;
+    // okuma tarafı presigned GET üretir).
     const ok = await svc.commit(
       co.id,
       "taxPlate",
       `company-docs/${co.id}/x.pdf`,
     );
-    expect(ok.url).toContain(`company-docs/${co.id}/`);
+    expect(ok.ok).toBe(true);
+    const db = await prisma.company.findUniqueOrThrow({
+      where: { id: co.id },
+      select: { docTaxPlateUrl: true },
+    });
+    expect(db.docTaxPlateUrl).toBe(`company-docs/${co.id}/x.pdf`);
   });
 });
 

@@ -389,10 +389,14 @@ export default function ListingDetailPage() {
   // Teklif verme / güncelleme / belge ekleme yalnızca ilan AÇIK iken.
   const biddingOpen = l.status === "OPEN";
   // Hemen-al mevcut mu: TOPLU'da ilan fiyatı, KALEM'de en az bir kalemde.
+  // requireAllItems + hemen-al'sız kalem varsa Hemen Al kullanılamaz (backend
+  // "tüm kalemlere teklif zorunlu" ile reddeder) — ölü uç butonu gösterme.
   const hasBuyNow =
     !isAlim &&
     (l.priceScope === "KALEM"
-      ? (l.items ?? []).some((it) => it.buyNowUnitPrice != null)
+      ? (l.items ?? []).some((it) => it.buyNowUnitPrice != null) &&
+        (!l.requireAllItems ||
+          (l.items ?? []).every((it) => it.buyNowUnitPrice != null))
       : l.buyNowPrice != null);
   const directionHint = isAlim
     ? "Alım ilanı — en düşük teklif kazanır."
@@ -780,6 +784,9 @@ export default function ListingDetailPage() {
                   <Badge color="green">En iyi</Badge>
                 ) : null}
                 {b.status === "WON" ? <Badge color="green">Kazandı</Badge> : null}
+                {b.status === "AWARDED_PARTIAL" ? (
+                  <Badge color="green">Kısmen Kazandı</Badge>
+                ) : null}
                 {b.status === "LOST" ? <Badge color="zinc">Elendi</Badge> : null}
                 {b.isBuyNow ? <Badge color="emerald">Hemen-Al</Badge> : null}
                 <Link
@@ -1050,9 +1057,13 @@ export default function ListingDetailPage() {
           )}
           {l.isInternational ? "Uluslararası" : "Yurtiçi"}
         </Badge>
-        {isAlim && l.format ? (
+        {l.format ? (
           <Badge color="purple">
-            {l.format === "RFQ" ? "RFQ" : "İngiliz Usulü"}
+            {l.format === "RFQ"
+              ? "RFQ"
+              : isAlim
+                ? "İngiliz Usulü Eksiltme"
+                : "İngiliz Usulü Artırma"}
           </Badge>
         ) : null}
       </div>
@@ -1085,9 +1096,12 @@ export default function ListingDetailPage() {
 
       {!isAlim && l.minPrice ? (
         <Text className="text-sm text-zinc-600">
-          Taban: <strong>{Number(l.minPrice).toLocaleString("tr-TR")} ₺</strong>
+          Taban:{" "}
+          <strong>
+            {Number(l.minPrice).toLocaleString("tr-TR")} {sym}
+          </strong>
           {l.buyNowPrice
-            ? ` · Hemen-Al: ${Number(l.buyNowPrice).toLocaleString("tr-TR")} ₺`
+            ? ` · Hemen-Al: ${Number(l.buyNowPrice).toLocaleString("tr-TR")} ${sym}`
             : ""}
         </Text>
       ) : null}
@@ -1153,6 +1167,7 @@ export default function ListingDetailPage() {
               internalNotes={l.internalNotes ?? null}
               canEdit={l.canEdit}
               listingType={isAlim ? "ALIM" : "SATIS"}
+              currency={l.primaryCurrency}
             />
           </div>
         </div>

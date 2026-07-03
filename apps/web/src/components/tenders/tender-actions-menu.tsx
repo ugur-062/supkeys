@@ -48,6 +48,8 @@ interface Props {
   canEdit?: boolean;
   /** SATIS: rotalar satış portalına, metinler alıcı/artırma yönüne uyarlanır. */
   listingType?: "ALIM" | "SATIS";
+  /** İlanın ana para birimi — tur geçmişi tutarları bu birimle gösterilir. */
+  currency?: string;
 }
 
 function toLocalInput(iso: string | null): string {
@@ -69,6 +71,7 @@ export function TenderActionsMenu({
   internalNotes,
   canEdit,
   listingType = "ALIM",
+  currency,
 }: Props) {
   const isSatis = listingType === "SATIS";
   const router = useRouter();
@@ -555,6 +558,8 @@ export function TenderActionsMenu({
         id={id}
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
+        isSatis={isSatis}
+        currency={currency}
       />
 
       {/* İptal / kazansız-kapat gerekçe diyalogları (prompt yerine) */}

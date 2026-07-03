@@ -634,6 +634,8 @@ export function useCreateNextRound(id: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+      // Önceki tur arşivlendi — açık tur geçmişi dialog cache'i bayatlamasın.
+      qc.invalidateQueries({ queryKey: ["listing-rounds", id] });
       invalidateListingCaches(qc);
     },
   });

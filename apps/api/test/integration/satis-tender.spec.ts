@@ -84,7 +84,7 @@ describe("SATIS ihale oluşturma (sihirbaz backend'i)", () => {
         seller.auth,
         satisDto({ minPrice: 1000, buyNowPrice: 500 }) as never,
       ),
-    ).rejects.toThrow(/taban fiyattan düşük olamaz/);
+    ).rejects.toThrow(/taban fiyattan büyük olmalı/);
   });
 });
 
@@ -166,7 +166,7 @@ describe("SATIS kalem bazlı fiyatlandırma — oluşturma", () => {
           ],
         }) as never,
       ),
-    ).rejects.toThrow(/tabandan düşük olamaz/);
+    ).rejects.toThrow(/taban fiyattan büyük olmalı/);
 
     const listing = await service.create(
       seller.auth,
