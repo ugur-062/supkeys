@@ -15,6 +15,8 @@ export type Currency =
 export type DeliveryTerm =
   | "DOMESTIC_DELIVERED"
   | "DOMESTIC_PICKUP"
+  | "DOMESTIC_CARRIER_COLLECT"
+  | "DOMESTIC_ON_VEHICLE"
   | "EXW"
   | "FCA"
   | "CPT"

@@ -103,10 +103,13 @@ function FormRadioGroup({
   );
 }
 
-// Yurtiçi (sade) — isInternational=false ihalelerde gösterilir.
+// Yurtiçi — isInternational=false ihalelerde gösterilir.
+// Satıcı sorumluluğu artan sırada (EXW→DDP merdiveninin yurtiçi karşılığı).
 const DOMESTIC_DELIVERY_TERMS: DeliveryTerm[] = [
-  "DOMESTIC_DELIVERED",
   "DOMESTIC_PICKUP",
+  "DOMESTIC_CARRIER_COLLECT",
+  "DOMESTIC_ON_VEHICLE",
+  "DOMESTIC_DELIVERED",
 ];
 // Uluslararası Incoterms — isInternational=true ihalelerde.
 const INTERNATIONAL_DELIVERY_TERMS: DeliveryTerm[] = [

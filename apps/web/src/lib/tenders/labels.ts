@@ -125,8 +125,13 @@ export const BID_STATUS_META: Record<BidStatus, BadgeMeta> = {
 };
 
 export const DELIVERY_TERM_LABELS: Record<DeliveryTerm, string> = {
-  DOMESTIC_DELIVERED: "Nakliye dahil — satıcı adrese teslim eder",
+  DOMESTIC_DELIVERED:
+    "Adrese teslim, indirilmiş — nakliye ve indirme satıcıya ait",
   DOMESTIC_PICKUP: "Fabrika / Depo teslim — alıcı kendisi alır",
+  DOMESTIC_CARRIER_COLLECT:
+    "Ambar / Kargoya teslim — nakliye alıcıya ait (karşı ödemeli)",
+  DOMESTIC_ON_VEHICLE:
+    "Adrese teslim, araç üstü — nakliye satıcıya, indirme alıcıya ait",
   EXW: "EXW (Ex Works) — Tedarikçi tesisinde teslim",
   FCA: "FCA (Free Carrier) — Taşıyıcıya teslim",
   CPT: "CPT (Carriage Paid To) — Taşıma ödenmiş",

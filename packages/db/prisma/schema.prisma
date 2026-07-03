@@ -813,9 +813,13 @@ enum ListingFormat {
 }
 
 // Teslim şekli (Incoterms + yurtiçi).
+// Yurtiçi merdiveni (satıcı sorumluluğu artan sırada, EXW→DDP karşılığı):
+// PICKUP → CARRIER_COLLECT → ON_VEHICLE → DELIVERED.
 enum ListingDeliveryTerm {
-  DOMESTIC_DELIVERED // yurtiçi adrese teslim
-  DOMESTIC_PICKUP // yurtiçi yerinden teslim
+  DOMESTIC_DELIVERED // yurtiçi adrese teslim — indirilmiş, nakliye satıcıya
+  DOMESTIC_PICKUP // yurtiçi yerinden teslim — alıcı kendisi alır
+  DOMESTIC_CARRIER_COLLECT // ambar/kargoya teslim — nakliye alıcıya (karşı ödemeli)
+  DOMESTIC_ON_VEHICLE // adrese teslim araç üstü — nakliye satıcıya, indirme alıcıya
   EXW
   FCA
   CPT
