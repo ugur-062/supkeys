@@ -1,163 +1,270 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 
 export type ReportType = "ALIM" | "SATIS";
 
-export interface GeneralReport {
-  total: number;
-  byStatus: Record<string, number>;
-  awardedCount: number;
-  totalEstimated: number;
-  totalAwarded: number;
-  /** ALIM: rekabet tasarrufu; SATIS: rekabet kazancı (TRY). */
-  totalCompetitionDelta: number;
-  avgBidsPerListing: number;
-  totalInvites: number;
-  totalBids: number;
+/* ── Genel rapor ── */
+
+export interface GeneralPayload {
+  type: ReportType;
+  mode: "SINGLE" | "RANGE";
+  listingId?: string;
+  rangeStart?: string;
+  rangeEnd?: string;
+  format?: string;
+  status?: string;
+  currency?: string;
+}
+
+export interface GeneralRow {
+  id: string;
+  number: string | null;
+  title: string;
+  format: string | null;
+  status: string;
+  currency: string;
+  round: number;
+  closesAt: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  createdBy: string | null;
+  invitedCount: number;
+  submittedBidCount: number;
+  responseRate: number | null;
+  estimatedTotal: number | null;
+  highestTotal: number | null;
+  lowestTotal: number | null;
+  winningTotal: number | null;
+  winnerName: string | null;
+  delta: number | null;
+}
+
+export interface GeneralResult {
+  mode: "SINGLE" | "RANGE";
+  type: ReportType;
+  generatedAt: string;
+  rangeStart: string | null;
+  rangeEnd: string | null;
+  listings: GeneralRow[];
+  summary: {
+    totalListings: number;
+    awardedListings: number;
+    cancelledListings: number;
+    statusBreakdown: Record<string, number>;
+    totalInvited: number;
+    totalSubmittedBids: number;
+    overallResponseRate: number;
+    avgBidsPerListing: number;
+    totalEstimated: number;
+    totalAwardedValue: number;
+    totalDelta: number;
+  };
+}
+
+/* ── Tasarruf / kazanç raporu ── */
+
+export interface SavingsPayload {
+  type: ReportType;
+  rangeStart: string;
+  rangeEnd: string;
+  currency?: string;
+}
+
+export interface SavingsItemRow {
+  name: string;
+  unit: string;
+  quantity: number;
+  awardedQuantity: number | null;
+  referenceUnitPrice: number | null;
+  winningUnitPrice: number | null;
+  winnerName: string | null;
+  itemReference: number | null;
+  itemActual: number | null;
+  delta: number | null;
 }
 
 export interface SavingsRow {
   id: string;
   number: string | null;
   title: string;
-  awardedAt: string | null;
-  /** ALIM: en yüksek teklif; SATIS: en düşük teklif (TRY). */
-  reference: number;
-  winning: number;
-  bidCount: number;
-  delta: number;
-  deltaPct: number;
-  /** SATIS: kazanan − taban. */
-  overFloor: number | null;
-}
-
-export interface SavingsReport {
-  rows: SavingsRow[];
-  grandDelta: number;
-  grandWinning: number;
-  best: { title: string; deltaPct: number } | null;
-  worst: { title: string; deltaPct: number } | null;
-}
-
-export interface MonthlyRow {
-  month: string; // YYYY-MM
-  created: number;
-  awarded: number;
-  awardedTry: number;
-}
-
-export interface CounterpartyRow {
-  companyId: string;
-  name: string;
-  orderCount: number;
-  totals: Record<string, number>; // para birimi → toplam
-}
-
-export interface OrdersSummary {
-  total: number;
-  byStatus: Record<string, number>;
-  totals: Record<string, number>;
-}
-
-export interface ListingReport {
-  id: string;
-  number: string | null;
-  title: string;
-  type: ReportType;
-  status: string;
-  format: string | null;
   currency: string;
-  createdAt: string;
-  publishedAt: string | null;
-  closesAt: string | null;
+  bidCount: number;
+  highestBid: number | null;
+  lowestBid: number | null;
+  winningTotal: number | null;
+  delta: number | null;
+  deltaPct: number | null;
+  targetTotal: number;
+  actualTotal: number;
+  winners: { name: string; total: number }[];
+  items: SavingsItemRow[];
   awardedAt: string | null;
-  participation: {
-    invited: number;
-    bidders: number;
-    invitedBidders: number;
-    totalBids: number;
-    buyNowUsed: boolean;
+}
+
+export interface SavingsResult {
+  type: ReportType;
+  generatedAt: string;
+  rangeStart: string;
+  rangeEnd: string;
+  currency: string | null;
+  rows: SavingsRow[];
+  summary: {
+    totalListings: number;
+    grandHighest: number;
+    grandLowest: number;
+    grandTarget: number;
+    grandActual: number;
+    grandDelta: number;
+    grandDeltaPct: number;
+    avgDeltaPct: number;
+    best: { number: string | null; title: string; deltaPct: number | null } | null;
+    worst: { number: string | null; title: string; deltaPct: number | null } | null;
+    byParty: { name: string; awarded: number }[];
   };
-  bidStats: {
-    min: number | null;
-    max: number | null;
-    avg: number | null;
-    winning: number | null;
-    delta: number | null;
+}
+
+/* ── Teklif karşılaştırma ── */
+
+export interface BidComparisonPayload {
+  type: ReportType;
+  listingId: string;
+  criteria: "PRICE" | "ANSWERS" | "BOTH";
+  includeNonBidders?: boolean;
+  showBidCurrencies?: boolean;
+  includeRoundHistory?: boolean;
+}
+
+export interface ComparisonParty {
+  companyId: string;
+  companyName: string;
+  submitted: boolean;
+  status: string;
+  isBuyNow: boolean;
+  totalAmount: number | null;
+  totalTry: number | null;
+  bidCurrency: string | null;
+  rank: number | null;
+  deltaVsReference: number | null;
+  itemPrices: {
+    itemId: string;
+    unitPrice: number | null;
+    totalPrice: number | null;
+    isBest: boolean;
+    deltaVsReferencePct: number | null;
+  }[];
+  itemAnswers: { itemId: string; answer: string | null }[];
+}
+
+export interface BidComparisonResult {
+  type: ReportType;
+  generatedAt: string;
+  includePrice: boolean;
+  includeAnswers: boolean;
+  includeNonBidders: boolean;
+  showBidCurrencies: boolean;
+  listing: {
+    id: string;
+    number: string | null;
+    title: string;
+    currency: string;
+    round: number;
+    referenceTotal: number;
   };
   items: {
     id: string;
     name: string;
-    quantity: string;
     unit: string;
-    offerCount: number;
+    quantity: number;
+    referenceUnitPrice: number | null;
     bestUnitPrice: number | null;
-    winningUnitPrice: number | null;
+    bestCompanyId: string | null;
   }[];
-  orders: {
-    id: string;
-    number: string | null;
-    status: string;
-    amount: string;
-    currency: string;
+  parties: ComparisonParty[];
+  recommendedAwards: {
+    itemId: string;
+    itemName: string;
+    companyName: string;
+    unitPrice: number;
   }[];
+  roundHistory: { round: number; bidderName: string; amount: number }[];
 }
 
-function reportQuery<T>(
-  path: string,
-  type: ReportType,
-  days: number | null,
-) {
-  return {
-    queryKey: ["company-reports", path, type, days],
-    queryFn: async (): Promise<T> => {
-      const { data } = await companyApi.get<T>(`/company/reports/${path}`, {
-        params: { type, ...(days ? { days } : {}) },
-      });
-      return data;
-    },
-  };
-}
+/* ── Mutations ── */
 
-export function useGeneralReport(type: ReportType, days: number | null) {
-  return useQuery(reportQuery<GeneralReport>("general", type, days));
-}
-
-export function useSavingsReport(type: ReportType, days: number | null) {
-  return useQuery(reportQuery<SavingsReport>("savings", type, days));
-}
-
-export function useMonthlyReport(type: ReportType, days: number | null) {
-  return useQuery(reportQuery<MonthlyRow[]>("monthly", type, days));
-}
-
-export function useCounterpartiesReport(
-  type: ReportType,
-  days: number | null,
-) {
-  return useQuery(
-    reportQuery<CounterpartyRow[]>("counterparties", type, days),
-  );
-}
-
-export function useOrdersSummaryReport(
-  type: ReportType,
-  days: number | null,
-) {
-  return useQuery(reportQuery<OrdersSummary>("orders-summary", type, days));
-}
-
-export function useListingReport(listingId: string) {
-  return useQuery({
-    queryKey: ["company-reports", "listing", listingId],
-    enabled: !!listingId,
-    queryFn: async () => {
-      const { data } = await companyApi.get<ListingReport>(
-        `/company/reports/listing/${listingId}`,
+export function useGeneralReport() {
+  return useMutation({
+    mutationFn: async (payload: GeneralPayload) => {
+      const { data } = await companyApi.post<GeneralResult>(
+        "/company/reports/general",
+        payload,
       );
       return data;
     },
+  });
+}
+
+export function useSavingsReport() {
+  return useMutation({
+    mutationFn: async (payload: SavingsPayload) => {
+      const { data } = await companyApi.post<SavingsResult>(
+        "/company/reports/savings",
+        payload,
+      );
+      return data;
+    },
+  });
+}
+
+export function useBidComparisonReport() {
+  return useMutation({
+    mutationFn: async (payload: BidComparisonPayload) => {
+      const { data } = await companyApi.post<BidComparisonResult>(
+        "/company/reports/bid-comparison",
+        payload,
+      );
+      return data;
+    },
+  });
+}
+
+/** xlsx indirir (blob) — dosya adı Content-Disposition'dan. */
+async function downloadXlsx(path: string, payload: unknown, fallback: string) {
+  const res = await companyApi.post(path, payload, { responseType: "blob" });
+  const dispo = String(res.headers["content-disposition"] ?? "");
+  const match = /filename="?([^";]+)"?/.exec(dispo);
+  const filename = match?.[1] ?? fallback;
+  const url = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+  return { filename };
+}
+
+export function useDownloadGeneralReport() {
+  return useMutation({
+    mutationFn: (payload: GeneralPayload) =>
+      downloadXlsx("/company/reports/general/download", payload, "rapor.xlsx"),
+  });
+}
+
+export function useDownloadSavingsReport() {
+  return useMutation({
+    mutationFn: (payload: SavingsPayload) =>
+      downloadXlsx("/company/reports/savings/download", payload, "rapor.xlsx"),
+  });
+}
+
+export function useDownloadBidComparisonReport() {
+  return useMutation({
+    mutationFn: (payload: BidComparisonPayload) =>
+      downloadXlsx(
+        "/company/reports/bid-comparison/download",
+        payload,
+        "rapor.xlsx",
+      ),
   });
 }

@@ -1,12 +1,14 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   ForbiddenException,
-  Get,
-  Param,
-  Query,
+  Post,
+  Res,
+  StreamableFile,
   UseGuards,
 } from "@nestjs/common";
+import type { Response } from "express";
 import type { ListingType } from "@supkeys/db";
 import {
   CurrentCompanyUser,
@@ -15,12 +17,18 @@ import {
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
-import { CompanyReportsService } from "./company-reports.service";
+import {
+  CompanyReportsService,
+  type BidComparisonInput,
+  type GeneralReportInput,
+  type SavingsReportInput,
+} from "./company-reports.service";
+import { ReportsExcelService } from "./reports-excel.service";
 
 /**
- * Raporlar iki portala da hizmet eder: type=ALIM alım raporları (satınalma,
- * buy izni), type=SATIS satış raporları (satış, sell izni). Dekoratör tek
- * izin desteklediğinden tip-bağımlı izin elle doğrulanır.
+ * Raporlar iki portala hizmet eder: type=ALIM (satınalma, buy izni) /
+ * type=SATIS (satış, sell izni). POST — kriter gövdede; /download uçları
+ * aynı kriterle xlsx döner.
  */
 function parseType(type?: string): ListingType {
   if (type === "SATIS") return "SATIS";
@@ -46,94 +54,95 @@ function assertTypeAllowed(user: AuthenticatedCompanyUser, type: ListingType) {
   }
 }
 
+function xlsx(res: Response, filename: string, buffer: Buffer) {
+  res.set({
+    "Content-Type":
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "Content-Disposition": `attachment; filename="${filename}"`,
+  });
+  return new StreamableFile(buffer);
+}
+
+const stamp = () => new Date().toISOString().slice(0, 10);
+
 @Controller("company/reports")
 @UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
 export class CompanyReportsController {
-  constructor(private readonly service: CompanyReportsService) {}
+  constructor(
+    private readonly service: CompanyReportsService,
+    private readonly excel: ReportsExcelService,
+  ) {}
 
-  @Get("general")
+  @Post("general")
   general(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Query("days") days?: string,
-    @Query("type") type?: string,
+    @Body() body: GeneralReportInput & { type?: string },
   ) {
-    const t = parseType(type);
+    const t = parseType(body.type);
     assertTypeAllowed(user, t);
-    return this.service.general(
-      user.companyId,
-      t,
-      days ? Number(days) : undefined,
-    );
+    return this.service.general(user.companyId, t, body);
   }
 
-  @Get("savings")
+  @Post("general/download")
+  async generalDownload(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() body: GeneralReportInput & { type?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const t = parseType(body.type);
+    assertTypeAllowed(user, t);
+    const data = await this.service.general(user.companyId, t, body);
+    const buf = await this.excel.general(data);
+    return xlsx(res, `genel-rapor-${stamp()}.xlsx`, buf);
+  }
+
+  @Post("savings")
   savings(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Query("days") days?: string,
-    @Query("type") type?: string,
+    @Body() body: SavingsReportInput & { type?: string },
   ) {
-    const t = parseType(type);
+    const t = parseType(body.type);
     assertTypeAllowed(user, t);
-    return this.service.savings(
-      user.companyId,
-      t,
-      days ? Number(days) : undefined,
+    return this.service.savings(user.companyId, t, body);
+  }
+
+  @Post("savings/download")
+  async savingsDownload(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() body: SavingsReportInput & { type?: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const t = parseType(body.type);
+    assertTypeAllowed(user, t);
+    const data = await this.service.savings(user.companyId, t, body);
+    const buf = await this.excel.savings(data);
+    return xlsx(
+      res,
+      `${t === "ALIM" ? "tasarruf" : "kazanc"}-raporu-${stamp()}.xlsx`,
+      buf,
     );
   }
 
-  @Get("monthly")
-  monthly(
+  @Post("bid-comparison")
+  bidComparison(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Query("days") days?: string,
-    @Query("type") type?: string,
+    @Body() body: BidComparisonInput & { type?: string },
   ) {
-    const t = parseType(type);
+    const t = parseType(body.type);
     assertTypeAllowed(user, t);
-    return this.service.monthly(
-      user.companyId,
-      t,
-      days ? Number(days) : undefined,
-    );
+    return this.service.bidComparison(user.companyId, t, body);
   }
 
-  @Get("counterparties")
-  counterparties(
+  @Post("bid-comparison/download")
+  async bidComparisonDownload(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Query("days") days?: string,
-    @Query("type") type?: string,
+    @Body() body: BidComparisonInput & { type?: string },
+    @Res({ passthrough: true }) res: Response,
   ) {
-    const t = parseType(type);
+    const t = parseType(body.type);
     assertTypeAllowed(user, t);
-    return this.service.counterparties(
-      user.companyId,
-      t,
-      days ? Number(days) : undefined,
-    );
-  }
-
-  @Get("orders-summary")
-  ordersSummary(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Query("days") days?: string,
-    @Query("type") type?: string,
-  ) {
-    const t = parseType(type);
-    assertTypeAllowed(user, t);
-    return this.service.ordersSummary(
-      user.companyId,
-      t,
-      days ? Number(days) : undefined,
-    );
-  }
-
-  /** İhale-bazlı detay — yalnız sahip; izin dönen ihale tipine göre doğrulanır. */
-  @Get("listing/:id")
-  async listingReport(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Param("id") id: string,
-  ) {
-    const report = await this.service.listingReport(user.companyId, id);
-    assertTypeAllowed(user, report.type);
-    return report;
+    const data = await this.service.bidComparison(user.companyId, t, body);
+    const buf = await this.excel.bidComparison(data);
+    return xlsx(res, `teklif-karsilastirma-${stamp()}.xlsx`, buf);
   }
 }

@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
+  ArrowLeft,
   FileText,
   ListChecks,
   Pencil,
@@ -45,6 +46,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -367,46 +369,11 @@ function QuestionTemplateDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-/* ───────────────────────── Ana görünüm ────────────────────────────────── */
+/* ───────────────────────── Alt sayfa görünümleri ──────────────────────── */
 
-/**
- * Şablonlar — iki portalın ortak görünümü.
- * type=ALIM (satınalma): Tedarikçi Grupları · type=SATIS (satış): Alıcı
- * Grupları; + Soru Setleri (ortak) + İhale Şablonları (portal tipine göre).
- */
-export function TemplatesView({ type }: { type: "ALIM" | "SATIS" }) {
-  const isAlim = type === "ALIM";
-  const partyWord = isAlim ? "Tedarikçi" : "Alıcı";
+function useDeleteWithConfirm() {
   const confirm = useConfirm();
-
-  const groups = useSupplierTemplates();
-  const deleteGroup = useDeleteSupplierTemplate();
-  const questionTpls = useQuestionTemplates();
-  const deleteQuestion = useDeleteQuestionTemplate();
-  const listingTpls = useListingTemplates();
-  const deleteListingTpl = useDeleteTemplate();
-
-  const [groupDialog, setGroupDialog] = useState<{ editId: string | null } | null>(
-    null,
-  );
-  const [questionDialog, setQuestionDialog] = useState(false);
-
-  // İhale şablonları portala göre süzülür (payload.listingType).
-  const myListingTpls = useMemo(
-    () =>
-      (listingTpls.data ?? []).filter(
-        (t) =>
-          ((t.payload as { listingType?: string })?.listingType ?? "ALIM") ===
-          type,
-      ),
-    [listingTpls.data, type],
-  );
-
-  const del = async (
-    kind: string,
-    name: string,
-    fn: () => Promise<unknown>,
-  ) => {
+  return async (kind: string, name: string, fn: () => Promise<unknown>) => {
     if (
       !(await confirm({
         title: `${kind} sil`,
@@ -423,25 +390,45 @@ export function TemplatesView({ type }: { type: "ALIM" | "SATIS" }) {
       toast.error(extractErrorMessage(err, "Silinemedi"));
     }
   };
+}
+
+function BackNav({ basePath }: { basePath: string }) {
+  return (
+    <nav className="text-sm text-zinc-500">
+      <Link
+        href={basePath}
+        className="inline-flex items-center gap-1 hover:text-zinc-800 hover:underline"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Şablonlar
+      </Link>
+    </nav>
+  );
+}
+
+/** Tedarikçi (ALIM) / Alıcı (SATIS) Grupları — bağımsız alt sayfa. */
+export function GroupTemplatesView({
+  type,
+  basePath,
+}: {
+  type: "ALIM" | "SATIS";
+  basePath: string;
+}) {
+  const partyWord = type === "ALIM" ? "Tedarikçi" : "Alıcı";
+  const groups = useSupplierTemplates();
+  const deleteGroup = useDeleteSupplierTemplate();
+  const del = useDeleteWithConfirm();
+  const [dialog, setDialog] = useState<{ editId: string | null } | null>(null);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <Heading>Şablonlar</Heading>
-        <Text className="mt-1 text-sm text-zinc-500">
-          {isAlim
-            ? "Sık kullandığınız tedarikçi gruplarını, kalem sorularını ve ihale taslaklarını kaydedin — yeni ihaleyi dakikalar içinde açın."
-            : "Sık kullandığınız alıcı gruplarını, kalem sorularını ve ilan taslaklarını kaydedin — yeni ilanı dakikalar içinde açın."}
-        </Text>
-      </div>
-
-      {/* Grup şablonları */}
+    <div className="mx-auto max-w-4xl space-y-5">
+      <BackNav basePath={basePath} />
       <Section
         icon={Users}
         title={`${partyWord} Grupları`}
-        description={`Birlikte davet ettiğiniz firmaları gruplayın — sihirbazın davet adımında tek tıkla ekleyin.`}
+        description="Birlikte davet ettiğiniz firmaları gruplayın — sihirbazın davet adımında tek tıkla ekleyin."
         action={
-          <Button onClick={() => setGroupDialog({ editId: null })}>
+          <Button onClick={() => setDialog({ editId: null })}>
             <Plus data-slot="icon" />
             Yeni Grup
           </Button>
@@ -459,7 +446,7 @@ export function TemplatesView({ type }: { type: "ALIM" | "SATIS" }) {
             {(groups.data ?? []).map((g) => (
               <li
                 key={g.id}
-                className="group flex items-start justify-between gap-3 rounded-xl border border-zinc-950/10 p-4 transition-colors hover:border-zinc-300"
+                className="flex items-start justify-between gap-3 rounded-xl border border-zinc-950/10 p-4 transition-colors hover:border-zinc-300"
               >
                 <div className="min-w-0">
                   <p className="truncate font-medium text-zinc-900">{g.name}</p>
@@ -474,7 +461,7 @@ export function TemplatesView({ type }: { type: "ALIM" | "SATIS" }) {
                   <Button
                     plain
                     aria-label={`${g.name} grubunu düzenle`}
-                    onClick={() => setGroupDialog({ editId: g.id })}
+                    onClick={() => setDialog({ editId: g.id })}
                   >
                     <Pencil className="h-4 w-4 text-zinc-400" />
                   </Button>
@@ -482,9 +469,7 @@ export function TemplatesView({ type }: { type: "ALIM" | "SATIS" }) {
                     plain
                     aria-label={`${g.name} grubunu sil`}
                     onClick={() =>
-                      del("Grubu", g.name, () =>
-                        deleteGroup.mutateAsync(g.id),
-                      )
+                      del("Grubu", g.name, () => deleteGroup.mutateAsync(g.id))
                     }
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
@@ -495,14 +480,33 @@ export function TemplatesView({ type }: { type: "ALIM" | "SATIS" }) {
           </ul>
         )}
       </Section>
+      {dialog ? (
+        <GroupTemplateDialog
+          partyWord={partyWord}
+          editId={dialog.editId}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
+    </div>
+  );
+}
 
-      {/* Soru setleri */}
+/** Soru Setleri — bağımsız alt sayfa (iki portalda ortak veri). */
+export function QuestionTemplatesView({ basePath }: { basePath: string }) {
+  const questionTpls = useQuestionTemplates();
+  const deleteQuestion = useDeleteQuestionTemplate();
+  const del = useDeleteWithConfirm();
+  const [dialog, setDialog] = useState(false);
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-5">
+      <BackNav basePath={basePath} />
       <Section
         icon={ListChecks}
         title="Soru Setleri"
         description="Kalem sorularını set olarak kaydedin — sihirbazın kalem adımında yeniden kullanın."
         action={
-          <Button onClick={() => setQuestionDialog(true)}>
+          <Button onClick={() => setDialog(true)}>
             <Plus data-slot="icon" />
             Yeni Set
           </Button>
@@ -544,8 +548,39 @@ export function TemplatesView({ type }: { type: "ALIM" | "SATIS" }) {
           </ul>
         )}
       </Section>
+      {dialog ? (
+        <QuestionTemplateDialog onClose={() => setDialog(false)} />
+      ) : null}
+    </div>
+  );
+}
 
-      {/* İhale şablonları */}
+/** İhale/İlan Şablonları — bağımsız alt sayfa (portal tipine göre süzülür). */
+export function ListingTemplatesView({
+  type,
+  basePath,
+}: {
+  type: "ALIM" | "SATIS";
+  basePath: string;
+}) {
+  const isAlim = type === "ALIM";
+  const listingTpls = useListingTemplates();
+  const deleteListingTpl = useDeleteTemplate();
+  const del = useDeleteWithConfirm();
+
+  const myListingTpls = useMemo(
+    () =>
+      (listingTpls.data ?? []).filter(
+        (t) =>
+          ((t.payload as { listingType?: string })?.listingType ?? "ALIM") ===
+          type,
+      ),
+    [listingTpls.data, type],
+  );
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-5">
+      <BackNav basePath={basePath} />
       <Section
         icon={FileText}
         title={isAlim ? "İhale Şablonları" : "İlan Şablonları"}
@@ -563,10 +598,7 @@ export function TemplatesView({ type }: { type: "ALIM" | "SATIS" }) {
         ) : (
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {myListingTpls.map((t) => {
-              const p = t.payload as {
-                title?: string;
-                items?: unknown[];
-              };
+              const p = t.payload as { title?: string; items?: unknown[] };
               return (
                 <li
                   key={t.id}
@@ -603,17 +635,6 @@ export function TemplatesView({ type }: { type: "ALIM" | "SATIS" }) {
           </ul>
         )}
       </Section>
-
-      {groupDialog ? (
-        <GroupTemplateDialog
-          partyWord={partyWord}
-          editId={groupDialog.editId}
-          onClose={() => setGroupDialog(null)}
-        />
-      ) : null}
-      {questionDialog ? (
-        <QuestionTemplateDialog onClose={() => setQuestionDialog(false)} />
-      ) : null}
     </div>
   );
 }
