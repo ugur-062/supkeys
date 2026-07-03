@@ -3,6 +3,14 @@
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/catalyst/dialog";
+import { Textarea } from "@/components/catalyst/textarea";
+import {
   Dropdown,
   DropdownButton,
   DropdownItem,
@@ -21,6 +29,7 @@ import {
   useIncomingInvites,
   useOutgoingInvites,
   useInviteByEmail,
+  useInviteByEmailBatch,
   useReferralInvites,
   useBlockCompany,
   useRespondInvite,
@@ -53,7 +62,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
 const TAB_KEYS = ["mine", "discover", "incoming"] as const;
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const ORIGIN_BADGE: Record<
@@ -267,6 +276,8 @@ export function ConnectionsView() {
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
 
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [connQ, setConnQ] = useState("");
   const search = useCompanySearch(q);
   const outgoing = useOutgoingInvites();
   const discover = useDiscover();
@@ -277,6 +288,23 @@ export function ConnectionsView() {
   const outgoingCount =
     (outgoing.data?.length ?? 0) + (referralInvites.data?.length ?? 0);
   const connCount = connections.data?.length ?? 0;
+  // Bağlantılarım içi arama — ad / Rothern ID / sektör / şehir (istemci tarafı).
+  const filteredConnections = useMemo(() => {
+    const rows = connections.data ?? [];
+    const needle = connQ.trim().toLocaleLowerCase("tr");
+    if (!needle) return rows;
+    return rows.filter((c) =>
+      [
+        c.company.name,
+        c.company.supkeysId ?? "",
+        c.company.industry ?? "",
+        c.company.city ?? "",
+      ]
+        .join(" ")
+        .toLocaleLowerCase("tr")
+        .includes(needle),
+    );
+  }, [connections.data, connQ]);
 
   const copyId = async () => {
     if (rothernId === "—") return;
@@ -386,6 +414,9 @@ export function ConnectionsView() {
               disabled={inviteByEmail.isPending}
             >
               Davet Et
+            </Button>
+            <Button outline onClick={() => setBatchOpen(true)}>
+              Toplu Davet
             </Button>
           </div>
           {referralInvites.data && referralInvites.data.length > 0 ? (
@@ -514,6 +545,15 @@ export function ConnectionsView() {
       {/* Bağlantılarım */}
       {tab === "mine" ? (
         <section className="space-y-3">
+          {connCount > 0 ? (
+            <Input
+              aria-label="Bağlantılarımda ara"
+              value={connQ}
+              onChange={(e) => setConnQ(e.target.value)}
+              placeholder="Bağlantılarında ara — firma adı, Rothern ID, sektör, şehir…"
+              className="max-w-md"
+            />
+          ) : null}
           {connections.isLoading ? (
             <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
           ) : connCount === 0 ? (
@@ -521,9 +561,14 @@ export function ConnectionsView() {
               title="Henüz bağlantın yok"
               desc="Keşfet'ten firma bul ya da e-posta ile tedarikçini davet et."
             />
+          ) : filteredConnections.length === 0 ? (
+            <EmptyBox
+              title="Eşleşen bağlantı yok"
+              desc={`"${connQ}" ile eşleşen bağlantın bulunamadı.`}
+            />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
-              {connections.data!.map((c) => (
+              {filteredConnections.map((c) => (
                 <ConnectionRow
                   key={c.connectionId}
                   connectionId={c.connectionId}
@@ -687,7 +732,171 @@ export function ConnectionsView() {
           ) : null}
         </section>
       ) : null}
+      <BatchInviteDialog open={batchOpen} onClose={() => setBatchOpen(false)} />
     </div>
+  );
+}
+
+/**
+ * Toplu e-posta daveti — eski sistem paritesi. Satır/virgül/noktalı virgülle
+ * ayrılmış adresler; 50 sınırı; gönderim sonrası adres bazında sonuç raporu.
+ */
+function BatchInviteDialog({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const batch = useInviteByEmailBatch();
+  const [raw, setRaw] = useState("");
+  const [result, setResult] = useState<
+    import("@/hooks/use-company-connections").BatchInviteResult | null
+  >(null);
+
+  const parsed = useMemo(() => {
+    const all = raw
+      .split(/[\n,;]+/)
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    const seen = new Set<string>();
+    const valid: string[] = [];
+    const invalid: string[] = [];
+    for (const e of all) {
+      if (seen.has(e)) continue;
+      seen.add(e);
+      if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) valid.push(e);
+      else invalid.push(e);
+    }
+    return { valid, invalid };
+  }, [raw]);
+
+  const overLimit = parsed.valid.length > 50;
+
+  const submit = async () => {
+    if (parsed.valid.length === 0 || overLimit) return;
+    try {
+      const res = await batch.mutateAsync(parsed.valid);
+      setResult(res);
+      toast.success(
+        `${res.summary.request + res.summary.invited} davet gönderildi${
+          res.summary.skipped ? `, ${res.summary.skipped} atlandı` : ""
+        }`,
+      );
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Toplu davet gönderilemedi"));
+    }
+  };
+
+  const close = () => {
+    setRaw("");
+    setResult(null);
+    onClose();
+  };
+
+  const STATUS_PILL: Record<
+    "request" | "invited" | "skipped",
+    { label: string; cls: string }
+  > = {
+    request: {
+      label: "İstek gönderildi",
+      cls: "bg-blue-50 text-blue-700 ring-blue-200",
+    },
+    invited: {
+      label: "Davet e-postası gitti",
+      cls: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+    },
+    skipped: {
+      label: "Atlandı",
+      cls: "bg-zinc-100 text-zinc-600 ring-zinc-200",
+    },
+  };
+
+  return (
+    <Dialog open={open} onClose={() => !batch.isPending && close()} size="lg">
+      <DialogTitle>Toplu E-posta Daveti</DialogTitle>
+      <DialogDescription>
+        Her satıra bir adres (virgül da olur), tek seferde en fazla 50.
+        Kayıtlı firmalara bağlantı isteği, kayıtsızlara davet e-postası gider.
+      </DialogDescription>
+      <DialogBody className="space-y-3">
+        {!result ? (
+          <>
+            <Textarea
+              rows={6}
+              aria-label="Davet edilecek e-posta adresleri"
+              value={raw}
+              onChange={(e) => setRaw(e.target.value)}
+              placeholder={"tedarikci1@firma.com\ntedarikci2@firma.com"}
+            />
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span
+                className={
+                  overLimit ? "font-semibold text-red-600" : "text-zinc-500"
+                }
+              >
+                {parsed.valid.length}/50 geçerli adres
+              </span>
+              {parsed.invalid.length > 0 ? (
+                <span className="text-amber-600">
+                  {parsed.invalid.length} geçersiz satır yok sayılacak
+                </span>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <ul className="max-h-72 space-y-1.5 overflow-y-auto">
+            {result.results.map((r) => {
+              const pill = STATUS_PILL[r.status];
+              return (
+                <li
+                  key={r.email}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-100 px-3 py-2"
+                >
+                  <span className="min-w-0 truncate text-sm text-zinc-800">
+                    {r.email}
+                    {r.targetName ? (
+                      <span className="ml-1.5 text-xs text-zinc-400">
+                        ({r.targetName})
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="flex items-center gap-2">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${pill.cls}`}
+                    >
+                      {pill.label}
+                    </span>
+                    {r.reason ? (
+                      <span className="text-[11px] text-zinc-400">
+                        {r.reason}
+                      </span>
+                    ) : null}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </DialogBody>
+      <DialogActions>
+        <Button plain onClick={close} disabled={batch.isPending}>
+          {result ? "Kapat" : "Vazgeç"}
+        </Button>
+        {!result ? (
+          <Button
+            onClick={submit}
+            disabled={
+              batch.isPending || parsed.valid.length === 0 || overLimit
+            }
+          >
+            {batch.isPending
+              ? "Gönderiliyor…"
+              : `${parsed.valid.length} Adrese Davet Gönder`}
+          </Button>
+        ) : null}
+      </DialogActions>
+    </Dialog>
   );
 }
 

@@ -303,6 +303,49 @@ describe("e-posta daveti + referral", () => {
   });
 });
 
+describe("toplu e-posta daveti", () => {
+  it("karışık liste: kayıtlı→istek, kayıtsız→davet, mükerrer/kendi/bağlı→atlanır", async () => {
+    const { service, email } = rig();
+    const { a, b, bCode } = await twoCompanies();
+    // a ile c zaten bağlı olsun.
+    const c = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    await giveSupkeysId(c.company.id);
+    await prisma.companyConnection.create({
+      data: {
+        inviterCompanyId: a.company.id,
+        inviteeCompanyId: c.company.id,
+        invitedById: a.user.id,
+        status: "ACTIVE",
+        origin: "INVITE",
+        decidedAt: new Date(),
+      },
+    });
+
+    const res = await service.inviteByEmailBatch(a.auth, [
+      b.user.email, // kayıtlı → istek
+      "YENI@firma.com", // kayıtsız → davet (normalize edilir)
+      "yeni@firma.com", // mükerrer → tek işlenir
+      a.user.email, // kendi firması → atlanır
+      c.user.email, // zaten bağlı → atlanır
+    ]);
+
+    expect(res.summary).toEqual({ request: 1, invited: 1, skipped: 2 });
+    const byEmail = new Map(res.results.map((r) => [r.email, r]));
+    expect(byEmail.get(b.user.email)?.status).toBe("request");
+    expect(byEmail.get("yeni@firma.com")?.status).toBe("invited");
+    expect(byEmail.get(a.user.email)?.status).toBe("skipped");
+    expect(byEmail.get(c.user.email)?.status).toBe("skipped");
+    expect(byEmail.get(c.user.email)?.reason).toMatch(/zaten bağlısınız/i);
+    // Mükerrer tek satır — toplam 4 sonuç.
+    expect(res.results).toHaveLength(4);
+    // Yalnız kayıtsız adrese e-posta gitti.
+    expect(email.send).toHaveBeenCalledTimes(1);
+    // Kayıtlıya istek düştü.
+    expect(await service.listIncoming(b.company.id)).toHaveLength(1);
+    void bCode;
+  });
+});
+
 describe("keşfet + profil", () => {
   it("discover: kategori kesişimine göre skorlar; bağlı/engelli/kendisi hariç", async () => {
     const { service, blocks } = rig();

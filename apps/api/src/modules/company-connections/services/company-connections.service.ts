@@ -154,6 +154,64 @@ export class CompanyConnectionsService {
     return { kind: "invited" as const, email };
   }
 
+  /**
+   * Toplu e-posta daveti (eski sistem paritesi, 50'ye kadar). Her adres tek
+   * tek işlenir ve SINIFLANDIRILMIŞ sonuç döner — biri patlarsa diğerleri
+   * etkilenmez:
+   *  - request  → kayıtlı firmaya bağlantı isteği gitti
+   *  - invited  → kayıtsız, davet e-postası gitti
+   *  - skipped  → gönderilmedi (zaten bağlı / zaten istekli / kendi firması /
+   *               pasif firma / engelli) — reason ile
+   */
+  async inviteByEmailBatch(user: AuthenticatedCompanyUser, emails: string[]) {
+    // Normalize + sıra korumalı dedupe.
+    const seen = new Set<string>();
+    const unique: string[] = [];
+    for (const raw of emails) {
+      const e = raw.trim().toLowerCase();
+      if (e && !seen.has(e)) {
+        seen.add(e);
+        unique.push(e);
+      }
+    }
+
+    const results: {
+      email: string;
+      status: "request" | "invited" | "skipped";
+      targetName?: string;
+      reason?: string;
+    }[] = [];
+
+    for (const email of unique) {
+      try {
+        const res = await this.inviteByEmail(user, email);
+        results.push(
+          res.kind === "request"
+            ? { email, status: "request", targetName: res.targetName }
+            : { email, status: "invited" },
+        );
+      } catch (e) {
+        const reason =
+          e instanceof ConflictException ||
+          e instanceof BadRequestException ||
+          e instanceof NotFoundException ||
+          e instanceof ForbiddenException
+            ? ((e.getResponse() as { message?: string }).message ?? e.message)
+            : "Gönderilemedi";
+        results.push({ email, status: "skipped", reason });
+      }
+    }
+
+    return {
+      results,
+      summary: {
+        request: results.filter((r) => r.status === "request").length,
+        invited: results.filter((r) => r.status === "invited").length,
+        skipped: results.filter((r) => r.status === "skipped").length,
+      },
+    };
+  }
+
   /** Gönderdiğim bekleyen e-posta davetleri. */
   async listReferralInvites(companyId: string) {
     const rows = await this.prisma.companyReferralInvite.findMany({

@@ -15,7 +15,10 @@ import { RequireCompanyPermission } from "../../company-auth/decorators/require-
 import { Throttle } from "@nestjs/throttler";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permissions.guard";
-import { InviteByEmailDto } from "../dto/invite-by-email.dto";
+import {
+  InviteByEmailBatchDto,
+  InviteByEmailDto,
+} from "../dto/invite-by-email.dto";
 import { InviteConnectionDto } from "../dto/invite-connection.dto";
 import { CompanyConnectionsService } from "../services/company-connections.service";
 
@@ -82,6 +85,18 @@ export class CompanyConnectionsController {
     @Body() dto: InviteByEmailDto,
   ) {
     return this.service.inviteByEmail(user, dto.email);
+  }
+
+  /** Toplu e-posta daveti — 50'ye kadar; sonuç sınıflandırılmış döner. */
+  @Post("invite-by-email/batch")
+  @RequireCompanyPermission("connections:manage")
+  // 50 dış e-posta tetikleyebilir — sıkı limit.
+  @Throttle({ auth: { limit: 3, ttl: 60_000 } })
+  inviteByEmailBatch(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: InviteByEmailBatchDto,
+  ) {
+    return this.service.inviteByEmailBatch(user, dto.emails);
   }
 
   @Post(":id/accept")

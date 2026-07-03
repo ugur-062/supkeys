@@ -82,6 +82,33 @@ export function useInviteByEmail() {
   });
 }
 
+export interface BatchInviteResult {
+  results: {
+    email: string;
+    status: "request" | "invited" | "skipped";
+    targetName?: string;
+    reason?: string;
+  }[];
+  summary: { request: number; invited: number; skipped: number };
+}
+
+export function useInviteByEmailBatch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (emails: string[]) => {
+      const { data } = await companyApi.post<BatchInviteResult>(
+        "/company/connections/invite-by-email/batch",
+        { emails },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-connections"] });
+      qc.invalidateQueries({ queryKey: ["company-directory"] });
+    },
+  });
+}
+
 export function useConnections() {
   return useQuery({
     queryKey: ["company-connections", "active"],
