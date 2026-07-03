@@ -1,13 +1,22 @@
 "use client";
 
 import { Badge } from "@/components/catalyst/badge";
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from "@/components/catalyst/dropdown";
 import { EmptyState, ListSkeleton } from "@/components/list";
 import {
   TenderStatusBadge,
   TenderTypeBadge,
 } from "@/components/tenders/status-badge";
 import { Button } from "@/components/ui/button";
+import { usePublishListing } from "@/hooks/use-company-listings";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
+import { extractErrorMessage } from "@/lib/tenders/error";
 import { closingUrgency } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -15,13 +24,19 @@ import { tr } from "date-fns/locale";
 import {
   Calendar,
   ClipboardList,
+  Eye,
   Gavel,
   Globe,
   MapPin,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Rocket,
   User as UserIcon,
   Users,
 } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 
 /** Sahip ihalesi kartı — Satın Al / Açık İhaleler kart dilinin sahip sürümü:
  *  numara + başlık + durum rozeti, usul/kapsam rozetleri, davet-teklif
@@ -35,31 +50,116 @@ export function OwnerTenderCard({
 }) {
   const isSatis = listingType === "SATIS";
   const urgency = closingUrgency(t.status, t.bidsCloseAt);
+  const publish = usePublishListing(t.id);
   const fromHref = isSatis
     ? "/company/satis/ilanlarim"
     : "/company/satinalma/ihalelerim";
   const fromLabel = isSatis ? "Satış İlanlarım" : "İhalelerim";
+  const detailHref = `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
+  const editHref = isSatis
+    ? `/company/satis/ilanlarim/${t.id}/duzenle`
+    : `/company/satinalma/ihalelerim/${t.id}/duzenle`;
+
+  const handlePublish = async () => {
+    try {
+      const res = await publish.mutateAsync(undefined);
+      toast.success(
+        res.status === "IN_APPROVAL"
+          ? "İlan yayın onayına gönderildi"
+          : "İhale yayınlandı",
+      );
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Yayınlanamadı"));
+    }
+  };
 
   return (
     <Link
-      href={`/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`}
+      href={detailHref}
       aria-label={`${t.tenderNumber ?? ""} ${t.title}`.trim()}
       className="group block"
     >
-      <div className="flex h-full flex-col rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-sm transition-all hover:border-zinc-300 hover:shadow-md">
+      <div
+        className={cn(
+          "relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-950/10 bg-white p-5 pl-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+          isSatis ? "hover:border-emerald-300" : "hover:border-blue-300",
+        )}
+      >
+        {/* Sol aksan şeridi — portal rengi */}
+        <span
+          aria-hidden
+          className={cn(
+            "absolute left-0 top-0 bottom-0 w-1",
+            isSatis
+              ? "bg-gradient-to-b from-emerald-500 to-emerald-300"
+              : "bg-gradient-to-b from-blue-500 to-blue-300",
+          )}
+        />
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="font-mono text-[11px] text-zinc-500">
-              {t.tenderNumber || "—"}
-            </p>
-            <h3 className="mt-0.5 line-clamp-2 leading-snug font-semibold text-zinc-950">
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] font-medium text-zinc-600">
+                {t.tenderNumber || "—"}
+              </span>
+            </div>
+            <h3
+              className={cn(
+                "mt-1.5 line-clamp-2 text-[15px] leading-snug font-semibold text-zinc-950 transition-colors",
+                isSatis
+                  ? "group-hover:text-emerald-700"
+                  : "group-hover:text-blue-700",
+              )}
+            >
               {t.title}
             </h3>
           </div>
-          <TenderStatusBadge status={t.status} className="shrink-0" />
+          <div className="flex shrink-0 items-center gap-1">
+            <TenderStatusBadge status={t.status} />
+            {/* Hızlı aksiyonlar — Link tıklamasını tetiklemesin */}
+            <span
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
+              <Dropdown>
+                <DropdownButton
+                  plain
+                  aria-label="Hızlı aksiyonlar"
+                  className="!p-1.5"
+                >
+                  <MoreVertical className="size-4 text-zinc-400" />
+                </DropdownButton>
+                <DropdownMenu anchor="bottom end">
+                  <DropdownItem href={detailHref}>
+                    <Eye data-slot="icon" />
+                    <DropdownLabel>Görüntüle</DropdownLabel>
+                  </DropdownItem>
+                  {t.status === "DRAFT" ? (
+                    <>
+                      <DropdownItem href={editHref}>
+                        <Pencil data-slot="icon" />
+                        <DropdownLabel>Düzenle</DropdownLabel>
+                      </DropdownItem>
+                      <DropdownItem
+                        onClick={handlePublish}
+                        disabled={publish.isPending}
+                      >
+                        <Rocket data-slot="icon" />
+                        <DropdownLabel>
+                          {publish.isPending ? "Yayınlanıyor…" : "Yayınla"}
+                        </DropdownLabel>
+                      </DropdownItem>
+                    </>
+                  ) : null}
+                </DropdownMenu>
+              </Dropdown>
+            </span>
+          </div>
         </div>
 
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+        {/* Rozetler + sayaç çipleri */}
+        <div className="mb-4 flex flex-wrap items-center gap-2">
           <TenderTypeBadge format={t.format} listingType={t.type} />
           <Badge color="zinc">
             {t.isInternational ? (
@@ -69,40 +169,56 @@ export function OwnerTenderCard({
             )}
             {t.isInternational ? "Uluslararası" : "Yurtiçi"}
           </Badge>
-          <span className="inline-flex items-center gap-1">
-            <Users className="h-3 w-3" aria-hidden="true" />
-            {t.invitationCount} davetli
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-50 px-2.5 py-1 text-xs text-zinc-600 ring-1 ring-zinc-950/5">
+            <Users className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
+            <strong className="font-semibold text-zinc-800">
+              {t.invitationCount}
+            </strong>
+            davetli
           </span>
-          <span className="inline-flex items-center gap-1">
-            <Gavel className="h-3 w-3" aria-hidden="true" />
-            {t.bidCount} teklif
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <UserIcon className="h-3 w-3" aria-hidden="true" />
-            {t.createdBy.firstName} {t.createdBy.lastName}
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs ring-1",
+              t.bidCount > 0
+                ? isSatis
+                  ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                  : "bg-blue-50 text-blue-700 ring-blue-100"
+                : "bg-zinc-50 text-zinc-600 ring-zinc-950/5",
+            )}
+          >
+            <Gavel className="h-3.5 w-3.5 opacity-60" aria-hidden="true" />
+            <strong className="font-semibold">{t.bidCount}</strong>
+            teklif
           </span>
         </div>
 
         <div className="mt-auto flex items-center justify-between border-t border-zinc-100 pt-3 text-xs">
-          <div
-            className={cn(
-              "flex items-center gap-1.5",
-              urgency?.className ?? "text-zinc-500",
-            )}
-          >
-            <Calendar className="h-3 w-3" aria-hidden="true" />
+          <div className="flex items-center gap-1.5 text-zinc-500">
+            <Calendar className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
             <span>
               {t.bidsCloseAt
                 ? `Kapanış ${format(new Date(t.bidsCloseAt), "dd MMM HH:mm", { locale: tr })}`
                 : "Kapanış belirlenmedi"}
             </span>
+            <span className="mx-1 text-zinc-300" aria-hidden>
+              ·
+            </span>
+            <UserIcon className="h-3 w-3 text-zinc-400" aria-hidden="true" />
+            <span className="truncate">
+              {t.createdBy.firstName} {t.createdBy.lastName}
+            </span>
           </div>
           {urgency ? (
-            <span className={cn("font-semibold", urgency.className)}>
+            <span
+              className={cn(
+                "rounded-full bg-current/10 px-2.5 py-1 font-semibold whitespace-nowrap",
+                urgency.className,
+              )}
+            >
               {urgency.text}
             </span>
           ) : (
-            <span className="text-zinc-400">
+            <span className="whitespace-nowrap text-zinc-400">
               {format(new Date(t.createdAt), "dd MMM yyyy", { locale: tr })}
             </span>
           )}
@@ -149,12 +265,25 @@ export function OwnerTenderList({
     return <ListSkeleton rows={5} />;
   }
   if (items.length === 0) {
+    const createHref =
+      listingType === "SATIS"
+        ? "/company/satis/ilanlarim/yeni"
+        : "/company/satinalma/ihalelerim/yeni";
     return (
       <EmptyState
         icon={ClipboardList}
         title="Henüz ihale yok"
-        description={`İlk ihalenizi açmak için "${emptyCtaLabel}" butonunu kullanın.`}
+        description="İlk ihaleni birkaç dakikada oluşturabilirsin — davetlileri seç, kalemleri gir, yayınla."
         variant="no-data"
+        action={
+          <Link
+            href={createHref}
+            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+          >
+            <Plus className="size-4" aria-hidden />
+            {emptyCtaLabel}
+          </Link>
+        }
       />
     );
   }

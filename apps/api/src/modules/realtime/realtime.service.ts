@@ -53,6 +53,11 @@ export class RealtimeService {
     this.emit(`company:${companyId}`, "notification.new", {});
   }
 
+  /** Yeni mesaj — ALICI firmanın kutusu/rozeti anında güncellensin. */
+  pingMessage(recipientCompanyId: string): void {
+    this.emit(`company:${recipientCompanyId}`, "message.new", {});
+  }
+
   private emit(room: string, event: string, payload: unknown): void {
     this.emitToRooms([room], event, payload);
   }

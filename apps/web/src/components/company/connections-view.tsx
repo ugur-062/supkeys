@@ -28,6 +28,9 @@ import {
   useCompanySearch,
   type DirectoryConnectionStatus,
 } from "@/hooks/use-company-directory";
+import { ListSkeleton } from "@/components/list";
+import { useConfirm } from "@/components/providers/confirm-dialog";
+import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import {
@@ -128,10 +131,17 @@ function ConnectionRow({
   const disconnect = useDisconnect();
   const block = useBlockCompany();
   const complaint = useFileComplaint();
+  const confirmDialog = useConfirm();
+  const [complaintOpen, setComplaintOpen] = useState(false);
 
   const handleDisconnect = async () => {
-    if (!confirm(`"${name}" ile bağlantınızı kaldırmak istiyor musunuz?`))
-      return;
+    const ok = await confirmDialog({
+      title: "Bağlantı kaldırılsın mı?",
+      description: `"${name}" ile bağlantınız kaldırılacak.`,
+      confirmLabel: "Kaldır",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await disconnect.mutateAsync(connectionId);
       toast.success("Bağlantı kaldırıldı");
@@ -142,7 +152,13 @@ function ConnectionRow({
 
   const handleBlock = async () => {
     if (!supkeysId) return;
-    if (!confirm(`"${name}" engellensin mi?`)) return;
+    const ok = await confirmDialog({
+      title: "Firma engellensin mi?",
+      description: `"${name}" sizi göremez ve sizinle işlem yapamaz.`,
+      confirmLabel: "Engelle",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await block.mutateAsync(supkeysId);
       toast.success("Firma engellendi");
@@ -151,13 +167,12 @@ function ConnectionRow({
     }
   };
 
-  const handleComplaint = async () => {
-    if (!supkeysId) return;
-    const reason = window.prompt("Şikayet konusu:");
-    if (!reason || reason.trim().length < 3) return;
+  const submitComplaint = async (reason: string) => {
+    if (!supkeysId || reason.trim().length < 3) return;
     try {
       await complaint.mutateAsync({ supkeysId, reason: reason.trim() });
       toast.success("Şikayet gönderildi");
+      setComplaintOpen(false);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Şikayet gönderilemedi"));
     }
@@ -198,12 +213,23 @@ function ConnectionRow({
             <Ban data-slot="icon" />
             Engelle
           </DropdownItem>
-          <DropdownItem onClick={handleComplaint}>
+          <DropdownItem onClick={() => setComplaintOpen(true)}>
             <Flag data-slot="icon" />
             Şikayet Et
           </DropdownItem>
         </DropdownMenu>
       </Dropdown>
+      <ReasonDialog
+        open={complaintOpen}
+        onClose={() => setComplaintOpen(false)}
+        onSubmit={submitComplaint}
+        title="Şikayet Et"
+        description={`"${name}" hakkındaki şikayetiniz platform yönetimine iletilir.`}
+        confirmLabel="Şikayeti Gönder"
+        minLength={3}
+        destructive
+        pending={complaint.isPending}
+      />
     </div>
   );
 }
@@ -395,7 +421,7 @@ export function ConnectionsView() {
             className="max-w-md"
           />
           {search.isLoading ? (
-            <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+            <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
           ) : !search.data || search.data.length === 0 ? (
             <EmptyBox
               title="Firma bulunamadı"
@@ -426,7 +452,7 @@ export function ConnectionsView() {
       {tab === "mine" ? (
         <section className="space-y-3">
           {connections.isLoading ? (
-            <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+            <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
           ) : connCount === 0 ? (
             <EmptyBox
               title="Henüz bağlantın yok"

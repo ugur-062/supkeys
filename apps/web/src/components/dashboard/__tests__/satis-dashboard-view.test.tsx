@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -21,6 +20,21 @@ vi.mock("@/hooks/use-company-dashboard", () => ({
 }));
 vi.mock("@/components/tcmb-rates-widget", () => ({
   TcmbRatesWidget: () => <div data-testid="tcmb" />,
+}));
+// ActionStrip kendi hook'larıyla (onay/mesaj/sipariş) ayrı test edilir —
+// burada extra prop sözleşmesini gözlemleyen hafif mock.
+vi.mock("@/components/dashboard/action-strip", () => ({
+  ActionStrip: ({
+    extra = [],
+  }: {
+    extra?: { key: string; label: string; count?: number }[];
+  }) => (
+    <div data-testid="action-strip">
+      {extra.map((e) => (
+        <span key={e.key}>{`${e.count} ${e.label}`}</span>
+      ))}
+    </div>
+  ),
 }));
 
 import { SatisDashboardView } from "../satis-dashboard-view";
@@ -68,31 +82,20 @@ describe("SatisDashboardView", () => {
     expect(screen.getByText("+100%")).toBeInTheDocument();
   });
 
-  it("aksiyon banner'ı davet+sipariş içerir ve kapatılabilir", async () => {
-    const user = userEvent.setup();
+  it("aksiyon şeridi aktif davet sayısını extra öğe olarak alır", () => {
     h.stats = fullStats();
     render(<SatisDashboardView />);
-
     expect(
       screen.getByText("3 aktif davete teklif bekleniyor"),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText("1 sipariş için teslimat başlatılmadı"),
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Bildirimi kapat" }));
-    expect(
-      screen.queryByText("3 aktif davete teklif bekleniyor"),
-    ).not.toBeInTheDocument();
   });
 
-  it("davet/sipariş sıfırsa banner hiç render edilmez", () => {
-    h.stats = fullStats({
-      invitations: { active: 0 },
-      orders: { pending: 0 },
-    });
+  it("davet sıfırsa şeride extra öğe geçilmez", () => {
+    h.stats = fullStats({ invitations: { active: 0 } });
     render(<SatisDashboardView />);
-    expect(screen.queryByText("Aksiyon Bekleyen İşler")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/aktif davete teklif bekleniyor/),
+    ).not.toBeInTheDocument();
   });
 
   it("aktivite akışı satırları render edilir; boşken boş mesajı", () => {

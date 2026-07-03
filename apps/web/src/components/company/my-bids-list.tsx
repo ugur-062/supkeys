@@ -343,6 +343,20 @@ export function MyBidsList({ listingType }: { listingType: ListingType }) {
           description={
             isFiltered ? "Filtreleri değiştirip tekrar dene." : emptyHint
           }
+          action={
+            isFiltered ? undefined : (
+              <Link
+                href={
+                  isPurchase
+                    ? "/company/satinalma/satin-al"
+                    : "/company/satis/acik-ihaleler"
+                }
+                className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              >
+                {isPurchase ? "Satın Al'a Göz At" : "Açık İhalelere Göz At"}
+              </Link>
+            )
+          }
         />
       ) : (
         <>

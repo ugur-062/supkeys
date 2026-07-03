@@ -33,7 +33,7 @@ function initialsOf(first?: string | null, last?: string | null) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
 }
 
-/** Siyah zemin üzerinde portal seçici — aktif portal beyaz zeminde aksan rengiyle. */
+/** Portal seçici — aktif portal beyaz zeminde aksan rengiyle. */
 function PortalSwitcher({ activePortal }: { activePortal: PortalKey }) {
   const { company, user } = useCompanyAuth();
   const setLastPortal = usePortalStore((s) => s.setLastPortal);
@@ -41,7 +41,7 @@ function PortalSwitcher({ activePortal }: { activePortal: PortalKey }) {
   if (available.length < 2) return null;
 
   return (
-    <div className="hidden items-center gap-1 rounded-lg bg-white/10 p-1 md:flex">
+    <div className="hidden items-center gap-1 rounded-lg bg-zinc-100 p-1 md:flex">
       {PORTAL_ORDER.filter((p) => available.includes(p)).map((p) => {
         const def = PORTALS[p];
         const on = p === activePortal;
@@ -56,7 +56,7 @@ function PortalSwitcher({ activePortal }: { activePortal: PortalKey }) {
                 ? p === "satinalma"
                   ? "bg-white text-blue-700 shadow-sm"
                   : "bg-white text-emerald-700 shadow-sm"
-                : "text-zinc-300 hover:text-white",
+                : "text-zinc-500 hover:text-zinc-900",
             )}
           >
             {def.label}
@@ -68,7 +68,7 @@ function PortalSwitcher({ activePortal }: { activePortal: PortalKey }) {
 }
 
 /**
- * Üst çubuk — TAM SİYAH. Solda Rothern logosu + firma kimliği, ortada
+ * Üst çubuk — BEYAZ; açık-mod logosu. Solda Rothern logosu + firma kimliği, ortada
  * Satınalma/Satış portal seçici, sağda mesajlar + bildirimler + kullanıcı.
  */
 export function CompanyTopbar({
@@ -86,39 +86,39 @@ export function CompanyTopbar({
   const portal = PORTALS[activePortal];
 
   return (
-    <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 bg-zinc-950 px-3 sm:px-4">
+    <header className="fixed inset-x-0 top-0 z-40 flex h-14 items-center gap-3 border-b border-zinc-950/10 bg-white px-3 sm:px-4">
       {/* Mobil: menü */}
       <button
         type="button"
         onClick={onOpenMobileNav}
         aria-label="Menüyü aç"
-        className="flex size-9 items-center justify-center rounded-lg text-zinc-400 hover:bg-white/10 hover:text-white lg:hidden"
+        className="flex size-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900 lg:hidden"
       >
         <svg viewBox="0 0 20 20" className="size-5 fill-current" aria-hidden>
           <path d="M2 6.75C2 6.33579 2.33579 6 2.75 6H17.25C17.6642 6 18 6.33579 18 6.75C18 7.16421 17.6642 7.5 17.25 7.5H2.75C2.33579 7.5 2 7.16421 2 6.75ZM2 13.25C2 12.8358 2.33579 12.5 2.75 12.5H17.25C17.6642 12.5 18 12.8358 18 13.25C18 13.6642 17.6642 14 17.25 14H2.75C2.33579 14 2 13.6642 2 13.25Z" />
         </svg>
       </button>
 
-      {/* Logo — sol üst (şeffaf beyaz wordmark, siyah zeminde plakasız) */}
+      {/* Logo — sol üst (açık-mod kilidi, plakasız) */}
       <Link href="/company" className="flex shrink-0 items-center">
         <RothernLogo
-          variant="full-white"
+          variant="full-light"
           size="sm"
           priority
-          className="h-7 w-auto"
+          className="h-8 w-auto"
         />
       </Link>
 
       {/* Firma kimliği */}
       <div className="hidden min-w-0 items-center gap-2.5 sm:flex">
-        <div className="h-6 w-px bg-white/15" aria-hidden />
-        <span className="truncate text-sm font-semibold text-white">
+        <div className="h-6 w-px bg-zinc-200" aria-hidden />
+        <span className="truncate text-sm font-semibold text-zinc-900">
           {company?.name ?? "—"}
         </span>
         <span
           className={cn(
             "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-            isPaid ? "bg-amber-400/15 text-amber-300" : "bg-white/10 text-zinc-300",
+            isPaid ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-600",
           )}
         >
           {isPaid ? "Tek Paket" : "Standart"}
@@ -135,7 +135,7 @@ export function CompanyTopbar({
         <Link
           href={`${portal.basePath}/mesajlar`}
           aria-label={`Mesajlar${unreadMsgs > 0 ? ` (${unreadMsgs} okunmamış)` : ""}`}
-          className="relative flex size-10 items-center justify-center rounded-lg text-zinc-400 hover:bg-white/10 hover:text-white"
+          className="relative flex size-10 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900"
         >
           <MessageSquare className="size-5" aria-hidden />
           {unreadMsgs > 0 ? (
@@ -145,31 +145,31 @@ export function CompanyTopbar({
           ) : null}
         </Link>
 
-        <NotificationBell onDark />
+        <NotificationBell />
 
         {user ? (
           <Dropdown>
             <DropdownButton
               plain
               aria-label="Hesap menüsü"
-              className="!px-2 hover:!bg-white/10"
+              className="!px-2"
             >
               <span className="flex items-center gap-2.5">
                 <Avatar
                   square
                   initials={initialsOf(user.firstName, user.lastName)}
-                  className="size-8 bg-white/15 text-white ring-1 ring-white/20"
+                  className="size-8 bg-zinc-900 text-white"
                   alt=""
                 />
                 <span className="hidden text-left md:block">
-                  <span className="block max-w-40 truncate text-sm font-semibold text-white">
+                  <span className="block max-w-40 truncate text-sm font-semibold text-zinc-900">
                     {user.firstName} {user.lastName}
                   </span>
-                  <span className="block text-[11px] leading-tight text-zinc-400">
+                  <span className="block text-[11px] leading-tight text-zinc-500">
                     {user.isOwner ? "Firma Sahibi" : (company?.name ?? "")}
                   </span>
                 </span>
-                <ChevronDownIcon className="hidden size-4 text-zinc-500 md:block" />
+                <ChevronDownIcon className="hidden size-4 text-zinc-400 md:block" />
               </span>
             </DropdownButton>
             <DropdownMenu className="min-w-64" anchor="bottom end">
@@ -180,7 +180,7 @@ export function CompanyTopbar({
                     <span className="text-amber-600"> · Sahip</span>
                   ) : null}
                 </p>
-                <p className="truncate text-xs text-zinc-500">{user.email}</p>
+                <p className="truncate text-xs text-slate-400">{user.email}</p>
               </div>
               <DropdownDivider />
               <DropdownItem href="/company/ayarlar">

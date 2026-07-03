@@ -6,6 +6,7 @@ import {
   useNotifications,
   type AppNotification,
 } from "@/hooks/use-notifications";
+import { EmptyState, ListSkeleton } from "@/components/list";
 import { Bell } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -55,14 +56,16 @@ export default function BildirimlerPage() {
       </div>
 
       {isLoading ? (
-        <p className="py-10 text-center text-sm text-zinc-400">Yükleniyor…</p>
+        <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white shadow-sm">
+          <ListSkeleton rows={6} />
+        </div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-zinc-100 bg-white py-16 text-center">
-          <Bell
-            className="mx-auto size-8 text-zinc-300"
-            aria-hidden="true"
+        <div className="rounded-2xl border border-zinc-100 bg-white">
+          <EmptyState
+            icon={Bell}
+            title="Henüz bildiriminiz yok"
+            description="İhale davetleri, kategori eşleşmeleri, sipariş ve onay güncellemeleri burada birikir."
           />
-          <p className="mt-3 text-sm text-zinc-500">Henüz bildiriminiz yok.</p>
         </div>
       ) : (
         <ul className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white shadow-sm">

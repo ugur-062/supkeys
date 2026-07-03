@@ -1,5 +1,6 @@
 "use client";
 
+import { ActionStrip } from "@/components/dashboard/action-strip";
 import { DashboardKpiCard } from "@/components/dashboard/dashboard-kpi-card";
 import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
@@ -12,7 +13,6 @@ import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
   Activity,
-  AlertCircle,
   ArrowRight,
   Briefcase,
   FileText,
@@ -163,7 +163,6 @@ export function SatisDashboardView() {
   const { user, company } = useCompanyAuth();
   const stats = useSatisStats();
   const activity = useSatisActivity(8);
-  const [dismissed, setDismissed] = useState(false);
 
   // Hydration-safe tarih (sunucu/istemci farkı olmasın).
   const [todayLabel, setTodayLabel] = useState("");
@@ -174,20 +173,6 @@ export function SatisDashboardView() {
   const s = stats.data;
   const loading = stats.isLoading;
   const val = (n: number | undefined) => (loading ? "…" : (n ?? 0));
-
-  const actionItems: { label: string; href: string }[] = [];
-  if ((s?.invitations.active ?? 0) > 0) {
-    actionItems.push({
-      label: `${s!.invitations.active} aktif davete teklif bekleniyor`,
-      href: "/company/satis/acik-ihaleler",
-    });
-  }
-  if ((s?.orders.pending ?? 0) > 0) {
-    actionItems.push({
-      label: `${s!.orders.pending} sipariş için teslimat başlatılmadı`,
-      href: "/company/satis/siparisler",
-    });
-  }
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
@@ -215,43 +200,22 @@ export function SatisDashboardView() {
         </Link>
       </header>
 
-      {/* Aksiyon bekleyen işler */}
-      {actionItems.length > 0 && !dismissed ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle
-              className="mt-0.5 h-5 w-5 shrink-0 text-amber-600"
-              aria-hidden="true"
-            />
-            <div className="flex-1">
-              <h4 className="mb-2 text-sm font-bold text-amber-900">
-                Aksiyon Bekleyen İşler
-              </h4>
-              <ul className="space-y-1.5">
-                {actionItems.map((item) => (
-                  <li key={item.label}>
-                    <Link
-                      href={item.href}
-                      className="inline-flex items-center gap-1.5 text-sm text-amber-700 hover:text-amber-900 hover:underline"
-                    >
-                      <ArrowRight className="h-3 w-3" aria-hidden="true" />
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <button
-              type="button"
-              aria-label="Bildirimi kapat"
-              onClick={() => setDismissed(true)}
-              className="text-amber-500 hover:text-amber-700"
-            >
-              ×
-            </button>
-          </div>
-        </div>
-      ) : null}
+      {/* Bugün ne yapmalıyım? — bekleyen işler (yoksa görünmez) */}
+      <ActionStrip
+        portal="satis"
+        extra={
+          (s?.invitations.active ?? 0) > 0
+            ? [
+                {
+                  key: "invitations",
+                  count: s!.invitations.active,
+                  label: "aktif davete teklif bekleniyor",
+                  href: "/company/satis/acik-ihaleler",
+                },
+              ]
+            : []
+        }
+      />
 
       {/* KPI grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

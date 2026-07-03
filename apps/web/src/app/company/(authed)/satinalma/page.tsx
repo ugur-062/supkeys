@@ -1,5 +1,6 @@
 "use client";
 
+import { ActionStrip } from "@/components/dashboard/action-strip";
 import { SatinalmaIhaleTab } from "@/components/dashboard/satinalma-ihale-tab";
 import { TasarrufTab } from "@/components/dashboard/tasarruf-tab";
 import { TedarikciTab } from "@/components/dashboard/tedarikci-tab";
@@ -20,7 +21,6 @@ import {
 } from "@headlessui/react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
 const TABS = [
@@ -70,6 +70,9 @@ export default function SatinalmaDashboardPage() {
         </div>
       </header>
 
+      {/* Bugün ne yapmalıyım? — bekleyen işler (yoksa görünmez) */}
+      <ActionStrip portal="satinalma" />
+
       <TabGroup className="space-y-6">
         <TabList
           className="flex gap-1 border-b border-zinc-950/10"
@@ -115,16 +118,25 @@ export default function SatinalmaDashboardPage() {
 }
 
 function TabLoading({ message }: { message?: string }) {
+  if (message) {
+    return (
+      <div className="flex items-center justify-center rounded-2xl bg-white py-20 text-sm text-zinc-500 shadow-sm ring-1 ring-zinc-950/5">
+        {message}
+      </div>
+    );
+  }
+  // Skeleton — KPI şeridi + tablo yer tutucusu (spinner yerine tek dil).
   return (
-    <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-white py-20 text-sm text-zinc-500 shadow-sm ring-1 ring-zinc-950/5">
-      {message ? (
-        message
-      ) : (
-        <>
-          <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
-          Yükleniyor…
-        </>
-      )}
+    <div className="space-y-4" aria-hidden>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-24 animate-pulse rounded-2xl bg-zinc-100"
+          />
+        ))}
+      </div>
+      <div className="h-72 animate-pulse rounded-2xl bg-zinc-100" />
     </div>
   );
 }

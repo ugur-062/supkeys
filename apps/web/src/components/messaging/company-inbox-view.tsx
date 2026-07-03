@@ -97,7 +97,11 @@ export function CompanyInboxView({ portal }: { portal: MessagePortal }) {
           </div>
           <div className="flex-1 overflow-y-auto">
             {connections.isLoading ? (
-              <p className="p-4 text-sm text-zinc-500">Yükleniyor…</p>
+              <div className="space-y-2 p-3" aria-hidden>
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-12 animate-pulse rounded-lg bg-zinc-100" />
+              ))}
+            </div>
             ) : contacts.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                 <MessageSquare className="mb-2 h-8 w-8 text-zinc-300" />

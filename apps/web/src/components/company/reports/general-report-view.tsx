@@ -248,7 +248,9 @@ export function GeneralReportView({
       </section>
 
       {/* Sonuç */}
-      {data ? (
+      {report.isPending ? (
+        <ReportPendingSkeleton />
+      ) : data ? (
         <section className="space-y-4">
           {/* Özet şeridi */}
           <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-zinc-950/5 bg-zinc-950/[0.06] sm:grid-cols-3 lg:grid-cols-6">
@@ -284,7 +286,7 @@ export function GeneralReportView({
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <TableHeader>{isAlim ? "İhale" : "İlan"}</TableHeader>
+                  <TableHeader className="sticky left-0 z-10 bg-white">{isAlim ? "İhale" : "İlan"}</TableHeader>
                   <TableHeader>Durum</TableHeader>
                   <TableHeader className="text-right">Davet</TableHeader>
                   <TableHeader className="text-right">Teklif</TableHeader>
@@ -302,7 +304,7 @@ export function GeneralReportView({
               <TableBody>
                 {data.listings.map((t) => (
                   <TableRow key={t.id}>
-                    <TableCell>
+                    <TableCell className="sticky left-0 z-10 bg-white">
                       <Link
                         href={`/company/ilan/${t.id}`}
                         className="font-medium text-zinc-900 hover:text-blue-600 hover:underline"
@@ -353,6 +355,20 @@ export function GeneralReportView({
           </Text>
         </section>
       ) : null}
+    </div>
+  );
+}
+
+/** Rapor üretilirken sonuç alanı yer tutucusu (tek skeleton dili). */
+function ReportPendingSkeleton() {
+  return (
+    <div className="space-y-3" aria-hidden>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-20 animate-pulse rounded-2xl bg-zinc-100" />
+        ))}
+      </div>
+      <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
     </div>
   );
 }

@@ -48,15 +48,24 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     };
     const onNotification = () => {
       qc.invalidateQueries({ queryKey: ["company-notifications"] });
+      // Onay istekleri bildirimle birlikte düşer — bekleyen rozeti de tazelensin.
+      qc.invalidateQueries({ queryKey: ["company-approvals"] });
+    };
+    const onMessage = () => {
+      qc.invalidateQueries({ queryKey: ["company-msg-unread"] });
+      qc.invalidateQueries({ queryKey: ["company-msg-threads"] });
+      qc.invalidateQueries({ queryKey: ["company-msg-thread"] });
     };
 
     socket.on("listing.updated", onListing);
     socket.on("order.updated", onOrder);
     socket.on("notification.new", onNotification);
+    socket.on("message.new", onMessage);
     return () => {
       socket.off("listing.updated", onListing);
       socket.off("order.updated", onOrder);
       socket.off("notification.new", onNotification);
+      socket.off("message.new", onMessage);
     };
   }, [token, qc]);
 

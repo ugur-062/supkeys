@@ -2,9 +2,11 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
+import { RealtimeService } from "../realtime/realtime.service";
 
 /**
  * Portal — mesajlaşma bağımsızlığının anahtarı. Satınalma'da firma ALICI
@@ -20,7 +22,10 @@ interface ThreadParties {
 
 @Injectable()
 export class CompanyMessagesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly realtime?: RealtimeService,
+  ) {}
 
   private parties(
     companyId: string,
@@ -181,6 +186,8 @@ export class CompanyMessagesService {
         body,
       },
     });
+    // Sinyal-only: karşı tarafın rozeti/kutusu anında tazelensin (veri REST'ten).
+    this.realtime?.pingMessage(otherCompanyId);
 
     return {
       id: message.id,

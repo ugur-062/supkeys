@@ -198,7 +198,9 @@ export function BidComparisonView({
       </section>
 
       {/* Sonuç: matris */}
-      {data ? (
+      {report.isPending ? (
+        <ReportPendingSkeleton />
+      ) : data ? (
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-xs text-zinc-400">
@@ -220,7 +222,7 @@ export function BidComparisonView({
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <TableHeader>Kalem</TableHeader>
+                  <TableHeader className="sticky left-0 z-10 bg-white">Kalem</TableHeader>
                   <TableHeader className="text-right">
                     {isAlim ? "Hedef" : "Taban"}
                   </TableHeader>
@@ -245,7 +247,7 @@ export function BidComparisonView({
               <TableBody>
                 {data.items.map((it) => (
                   <TableRow key={it.id}>
-                    <TableCell className="text-zinc-900">
+                    <TableCell className="sticky left-0 z-10 bg-white text-zinc-900">
                       {it.name}{" "}
                       <span className="text-xs text-zinc-400">
                         ({it.quantity.toLocaleString("tr-TR")} {it.unit})
@@ -295,7 +297,7 @@ export function BidComparisonView({
                 {data.includePrice ? (
                   <>
                     <TableRow>
-                      <TableCell className="font-semibold text-zinc-900">
+                      <TableCell className="sticky left-0 z-10 bg-white font-semibold text-zinc-900">
                         GENEL TOPLAM
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-zinc-500">
@@ -320,7 +322,7 @@ export function BidComparisonView({
                       ))}
                     </TableRow>
                     <TableRow>
-                      <TableCell className="font-semibold text-zinc-900">
+                      <TableCell className="sticky left-0 z-10 bg-white font-semibold text-zinc-900">
                         SIRA {isAlim ? "(en ucuz=1)" : "(en yüksek=1)"}
                       </TableCell>
                       <TableCell />
@@ -402,7 +404,7 @@ export function BidComparisonView({
                   {data.roundHistory.map((h, i) => (
                     <TableRow key={i}>
                       <TableCell>Tur {h.round}</TableCell>
-                      <TableCell className="text-zinc-900">
+                      <TableCell className="sticky left-0 z-10 bg-white text-zinc-900">
                         {h.bidderName}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
@@ -416,6 +418,20 @@ export function BidComparisonView({
           ) : null}
         </section>
       ) : null}
+    </div>
+  );
+}
+
+/** Rapor üretilirken sonuç alanı yer tutucusu (tek skeleton dili). */
+function ReportPendingSkeleton() {
+  return (
+    <div className="space-y-3" aria-hidden>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-20 animate-pulse rounded-2xl bg-zinc-100" />
+        ))}
+      </div>
+      <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
     </div>
   );
 }

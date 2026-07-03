@@ -82,19 +82,41 @@ export function SellerTenderCard({
       aria-label={`${tender.number ?? ""} ${tender.title}`.trim()}
       className="group block"
     >
-      <div className="flex h-full flex-col rounded-2xl border border-zinc-950/10 bg-white p-5 shadow-sm transition-all hover:border-zinc-300 hover:shadow-md">
+      <div
+        className={cn(
+          "relative flex h-full flex-col overflow-hidden rounded-2xl border border-zinc-950/10 bg-white p-5 pl-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+          isSatis ? "hover:border-violet-300" : "hover:border-emerald-300",
+        )}
+      >
+        {/* Sol aksan şeridi — karşı taraf ilanı (satın al: mor, açık ihale: yeşil) */}
+        <span
+          aria-hidden
+          className={cn(
+            "absolute left-0 top-0 bottom-0 w-1",
+            isSatis
+              ? "bg-gradient-to-b from-violet-500 to-violet-300"
+              : "bg-gradient-to-b from-emerald-500 to-emerald-300",
+          )}
+        />
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <p className="font-mono text-[11px] text-zinc-500">
+            <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] font-medium text-zinc-600">
               {tender.number ?? "—"}
-            </p>
-            <h3 className="mt-0.5 line-clamp-2 leading-snug font-semibold text-zinc-950">
+            </span>
+            <h3
+              className={cn(
+                "mt-1.5 line-clamp-2 text-[15px] leading-snug font-semibold text-zinc-950 transition-colors",
+                isSatis
+                  ? "group-hover:text-violet-700"
+                  : "group-hover:text-emerald-700",
+              )}
+            >
               {tender.title}
             </h3>
           </div>
           <span
             className={cn(
-              "inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap",
+              "inline-flex shrink-0 items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap",
               state.className,
             )}
           >
@@ -105,18 +127,22 @@ export function SellerTenderCard({
         <div className="mb-3 flex min-w-0 items-center gap-2 text-sm text-zinc-600">
           {tender.owner ? (
             <>
-              <Building2
-                className="h-3.5 w-3.5 shrink-0 text-zinc-400"
-                aria-hidden="true"
-              />
-              <span className="truncate">{tender.owner.name}</span>
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-zinc-100">
+                <Building2
+                  className="h-3.5 w-3.5 text-zinc-500"
+                  aria-hidden="true"
+                />
+              </span>
+              <span className="truncate font-medium">{tender.owner.name}</span>
             </>
           ) : (
             <>
-              <Lock
-                className="h-3.5 w-3.5 shrink-0 text-amber-500"
-                aria-hidden="true"
-              />
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-amber-50">
+                <Lock
+                  className="h-3.5 w-3.5 text-amber-500"
+                  aria-hidden="true"
+                />
+              </span>
               <span className="truncate text-zinc-500 italic">Gizli firma</span>
               <span className="inline-flex items-center rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
                 Premium
@@ -175,23 +201,23 @@ export function SellerTenderCard({
         </div>
 
         <div className="mt-auto flex items-center justify-between border-t border-zinc-100 pt-3 text-xs">
-          <div
-            className={cn(
-              "flex items-center gap-1.5",
-              urgency?.className ?? "text-zinc-500",
-            )}
-          >
-            <Calendar className="h-3 w-3" aria-hidden="true" />
+          <div className="flex items-center gap-1.5 text-zinc-500">
+            <Calendar className="h-3.5 w-3.5 text-zinc-400" aria-hidden="true" />
             <span>
               {tender.closesAt
-                ? format(new Date(tender.closesAt), "dd MMM HH:mm", {
+                ? `Kapanış ${format(new Date(tender.closesAt), "dd MMM HH:mm", {
                     locale: tr,
-                  })
+                  })}`
                 : "—"}
             </span>
           </div>
           {urgency ? (
-            <span className={cn("font-semibold", urgency.className)}>
+            <span
+              className={cn(
+                "rounded-full bg-current/10 px-2.5 py-1 font-semibold whitespace-nowrap",
+                urgency.className,
+              )}
+            >
               {urgency.text}
             </span>
           ) : null}

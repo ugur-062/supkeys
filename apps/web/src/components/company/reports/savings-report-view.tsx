@@ -24,7 +24,7 @@ import {
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { ArrowLeft, ChevronDown, FileSpreadsheet, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { toast } from "sonner";
 
 const CURRENCIES = ["TRY", "USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY"];
@@ -155,7 +155,9 @@ export function SavingsReportView({
         </div>
       </section>
 
-      {data ? (
+      {report.isPending ? (
+        <ReportPendingSkeleton />
+      ) : data ? (
         data.rows.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/50 p-8 text-center text-sm text-zinc-500">
             Bu aralıkta kazandırılmış {isAlim ? "ihale" : "ilan"} yok.
@@ -231,8 +233,8 @@ export function SavingsReportView({
                 </TableHead>
                 <TableBody>
                   {data.rows.map((r) => (
-                    <>
-                      <TableRow key={r.id}>
+                    <Fragment key={r.id}>
+                      <TableRow>
                         <TableCell>
                           <Link
                             href={`/company/ilan/${r.id}`}
@@ -349,7 +351,7 @@ export function SavingsReportView({
                           </TableCell>
                         </TableRow>
                       ) : null}
-                    </>
+                    </Fragment>
                   ))}
                 </TableBody>
               </Table>
@@ -385,6 +387,20 @@ export function SavingsReportView({
           </section>
         )
       ) : null}
+    </div>
+  );
+}
+
+/** Rapor üretilirken sonuç alanı yer tutucusu (tek skeleton dili). */
+function ReportPendingSkeleton() {
+  return (
+    <div className="space-y-3" aria-hidden>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-20 animate-pulse rounded-2xl bg-zinc-100" />
+        ))}
+      </div>
+      <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
     </div>
   );
 }

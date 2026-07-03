@@ -80,7 +80,7 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
             </span>
             <Headless.CloseButton
               aria-label="Menüyü kapat"
-              className="flex size-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-950/5"
+              className="flex size-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900"
             >
               <X className="size-5" aria-hidden />
             </Headless.CloseButton>

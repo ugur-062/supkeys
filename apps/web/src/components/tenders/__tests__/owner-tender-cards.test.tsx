@@ -1,10 +1,19 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render as rtlRender, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { OwnerTenderList } from "../owner-tender-cards";
 import { LISTING_STATUS_LABELS } from "../status-badge";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
+
+// Kart, hızlı "Yayınla" aksiyonu için QueryClient ister.
+function render(ui: React.ReactElement) {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return rtlRender(
+    <QueryClientProvider client={qc}>{ui}</QueryClientProvider>,
+  );
+}
 
 const item: TenderListItem = {
   id: "l1",
@@ -71,8 +80,18 @@ describe("OwnerTenderList durumları", () => {
     expect(
       screen.getByText(LISTING_STATUS_LABELS.OPEN),
     ).toBeInTheDocument();
-    expect(screen.getByText("3 davetli")).toBeInTheDocument();
-    expect(screen.getByText("1 teklif")).toBeInTheDocument();
+    expect(
+      screen.getAllByText((_, el) => {
+        const t = el?.textContent?.replace(/\s+/g, "") ?? "";
+        return t === "3davetli";
+      }).length,
+    ).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText((_, el) => {
+        const t = el?.textContent?.replace(/\s+/g, "") ?? "";
+        return t === "1teklif";
+      }).length,
+    ).toBeGreaterThan(0);
     expect(screen.getByText("Ali Veli")).toBeInTheDocument();
     // Kart detaya linkler.
     expect(

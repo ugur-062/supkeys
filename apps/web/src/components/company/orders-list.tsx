@@ -629,6 +629,20 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             description={
               isFiltered ? "Filtreleri değiştirip tekrar dene." : emptyHint
             }
+            action={
+              isFiltered ? undefined : (
+                <Link
+                  href={
+                    isSeller
+                      ? "/company/satis/acik-ihaleler"
+                      : "/company/satinalma/ihalelerim"
+                  }
+                  className="inline-flex items-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                >
+                  {isSeller ? "Açık İhalelere Göz At" : "İhalelerime Git"}
+                </Link>
+              )
+            }
           />
         </div>
       ) : (

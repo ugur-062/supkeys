@@ -1,7 +1,12 @@
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 
-export type LogoVariant = "full" | "icon" | "full-white" | "icon-white";
+export type LogoVariant =
+  | "full"
+  | "full-light"
+  | "icon"
+  | "full-white"
+  | "icon-white";
 export type LogoSize = "sm" | "md" | "lg" | "xl";
 
 interface RothernLogoProps {
@@ -26,6 +31,8 @@ const SIZES: Record<
 // bu kullanılır — kullanıcının açık/koyu mod tercihinden BAĞIMSIZ.
 const SOURCES: Record<LogoVariant, string> = {
   full: "/rothern-logo-on-dark.png",
+  // Açık-mod kilidi — plakasız, beyaz header/menüde kare yapmaz.
+  "full-light": "/rothern-logo-on-light.png",
   icon: "/rothern-icon.svg",
   // Şeffaf beyaz wordmark — plaka yok, değişken koyu zeminlerde kare yapmaz.
   "full-white": "/rothern-logo-trans-white.png",

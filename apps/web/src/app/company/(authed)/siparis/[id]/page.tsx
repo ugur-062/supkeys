@@ -122,7 +122,14 @@ export default function OrderDetailPage() {
   useEffect(() => subscribeRealtime("order", id), [id]);
 
   if (isLoading)
-    return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
+    return (
+      <div className="mx-auto max-w-4xl space-y-4" aria-hidden>
+        <div className="h-8 w-1/3 animate-pulse rounded bg-zinc-100" />
+        <div className="h-28 animate-pulse rounded-2xl bg-zinc-100" />
+        <div className="h-20 animate-pulse rounded-2xl bg-zinc-100" />
+        <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
+      </div>
+    );
   if (!o)
     return <Text className="text-sm text-zinc-500">Sipariş bulunamadı.</Text>;
 

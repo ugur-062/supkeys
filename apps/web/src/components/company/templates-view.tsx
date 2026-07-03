@@ -32,6 +32,7 @@ import {
   useSaveQuestionTemplate,
 } from "@/hooks/use-templates";
 import type { AnswerTypeValue } from "@/lib/tenders/form-schema";
+import { ListSkeleton } from "@/components/list";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -187,7 +188,7 @@ function GroupTemplateDialog({
             </span>
           </p>
           {connections.isLoading ? (
-            <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+            <ListSkeleton rows={3} />
           ) : rows.length === 0 ? (
             <EmptyHint>
               Henüz bağlantınız yok — önce Bağlantılar sayfasından firma
@@ -435,7 +436,7 @@ export function GroupTemplatesView({
         }
       >
         {groups.isLoading ? (
-          <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+          <ListSkeleton rows={3} />
         ) : (groups.data ?? []).length === 0 ? (
           <EmptyHint>
             Henüz grup yok. Bağlantılarınızdan bir {partyWord.toLowerCase()}{" "}
@@ -513,7 +514,7 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
         }
       >
         {questionTpls.isLoading ? (
-          <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+          <ListSkeleton rows={3} />
         ) : (questionTpls.data ?? []).length === 0 ? (
           <EmptyHint>
             Henüz soru seti yok. Menşei, garanti, sertifika gibi standart
@@ -589,7 +590,7 @@ export function ListingTemplatesView({
         } "Şablondan Yükle" menüsünden uygulanır.`}
       >
         {listingTpls.isLoading ? (
-          <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+          <ListSkeleton rows={3} />
         ) : myListingTpls.length === 0 ? (
           <EmptyHint>
             Henüz şablon yok. Sihirbazın üst çubuğundaki &quot;Şablon Olarak

@@ -18,6 +18,10 @@ import {
   type ApprovalHistoryItem,
   type PendingApproval,
 } from "@/hooks/use-company-approvals";
+import {
+  EmptyState as SharedEmptyState,
+  ListSkeleton,
+} from "@/components/list";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -116,11 +120,14 @@ function StepsTimeline({ steps }: { steps: ApprovalHistoryItem["steps"] }) {
   );
 }
 
-function EmptyState({ text }: { text: string }) {
+function Empty({ text }: { text: string }) {
   return (
-    <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/50 p-10 text-center">
-      <ClipboardCheck className="mx-auto h-8 w-8 text-zinc-300" />
-      <p className="mt-2 text-sm text-zinc-500">{text}</p>
+    <div className="rounded-2xl border border-zinc-100 bg-white">
+      <SharedEmptyState
+        icon={ClipboardCheck}
+        title={text}
+        variant="no-results"
+      />
     </div>
   );
 }
@@ -312,9 +319,9 @@ export default function OnaylarPage() {
 
       {tab === "pending" ? (
         pendingLoading ? (
-          <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+          <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
         ) : !pending || pending.length === 0 ? (
-          <EmptyState text="Bekleyen onay yok — sana yönlendirilen istekler burada görünür." />
+          <Empty text="Bekleyen onay yok — sana yönlendirilen istekler burada görünür." />
         ) : (
           <div className="space-y-3">
             {pending.map((p) => (
@@ -392,9 +399,9 @@ export default function OnaylarPage() {
 
       {tab === "history" ? (
         historyLoading ? (
-          <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+          <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
         ) : !history || history.length === 0 ? (
-          <EmptyState text="Henüz geçmiş yok — başlattığın ve karara bağlanan istekler burada görünür." />
+          <Empty text="Henüz geçmiş yok — başlattığın ve karara bağlanan istekler burada görünür." />
         ) : (
           <div className="space-y-3">
             {history.map((h) => (
@@ -445,9 +452,9 @@ export default function OnaylarPage() {
             </Select>
           </div>
           {allLoading ? (
-            <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+            <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
           ) : !all || all.length === 0 ? (
-            <EmptyState text="Kayıt bulunamadı — firmadaki tüm onay süreçleri burada listelenir." />
+            <Empty text="Kayıt bulunamadı — firmadaki tüm onay süreçleri burada listelenir." />
           ) : (
             <div className="space-y-3">
               {all.map((h) => (
