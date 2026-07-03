@@ -55,4 +55,58 @@ describe("ReasonDialog", () => {
     await userEvent.click(screen.getByRole("button", { name: "Onayla" }));
     expect(onSubmit).toHaveBeenCalledWith("");
   });
+
+  it("gönderim dialogu kapatmazsa (hata) yazılan metin KORUNUR", async () => {
+    // Başarısız gönderimi taklit et: onSubmit çağrılır ama dialog açık kalır.
+    const onSubmit = vi.fn();
+    render(
+      <ReasonDialog
+        open
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+        title="İsteği reddet"
+        confirmLabel="Reddet"
+      />,
+    );
+    const box = screen.getByRole("textbox");
+    await userEvent.type(box, "gerekçe");
+    await userEvent.click(screen.getByRole("button", { name: "Reddet" }));
+    expect(onSubmit).toHaveBeenCalledWith("gerekçe");
+    // Dialog hâlâ açık → metin silinmemeli (yeniden yazmaya zorlamasın).
+    expect(screen.getByRole("textbox")).toHaveValue("gerekçe");
+  });
+
+  it("dialog kapanınca metin sıfırlanır (yeniden açılışta boş)", async () => {
+    const { rerender } = render(
+      <ReasonDialog
+        open
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+        title="İsteği reddet"
+        confirmLabel="Reddet"
+      />,
+    );
+    await userEvent.type(screen.getByRole("textbox"), "eski metin");
+    expect(screen.getByRole("textbox")).toHaveValue("eski metin");
+    // Kapat → aç: state temizlenmeli.
+    rerender(
+      <ReasonDialog
+        open={false}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+        title="İsteği reddet"
+        confirmLabel="Reddet"
+      />,
+    );
+    rerender(
+      <ReasonDialog
+        open
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+        title="İsteği reddet"
+        confirmLabel="Reddet"
+      />,
+    );
+    expect(screen.getByRole("textbox")).toHaveValue("");
+  });
 });

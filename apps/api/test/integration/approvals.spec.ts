@@ -321,6 +321,115 @@ describe("Kazandırma onayı — uçtan uca", () => {
   });
 });
 
+describe("Yarış koruması (atomik karar/iptal)", () => {
+  it("çift onay (aynı son adım): yalnız biri kazanır, tek award.approved; diğeri hata", async () => {
+    const { approvals, awardApproved } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(
+      owner.auth,
+      flowInput([a1.user.id]) as never,
+    );
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { res: started } = await startAward(
+      approvals,
+      owner.auth,
+      owner.company.id,
+      owner.user.id,
+    );
+    const reqId = started.requestId!;
+
+    // İki eşzamanlı onay (çift tıklama / iki sekme).
+    const results = await Promise.allSettled([
+      approvals.decide(a1.auth, reqId, "approve", {} as never),
+      approvals.decide(a1.auth, reqId, "approve", {} as never),
+    ]);
+    const ok = results.filter((r) => r.status === "fulfilled");
+    const failed = results.filter((r) => r.status === "rejected");
+    expect(ok).toHaveLength(1);
+    expect(failed).toHaveLength(1);
+    // ÇİFT SİPARİŞ üretilmemeli: yalnız tek approved event.
+    expect(awardApproved).toHaveLength(1);
+    const req = await prisma.approvalRequest.findUniqueOrThrow({
+      where: { id: reqId },
+    });
+    expect(req.status).toBe("APPROVED");
+  });
+
+  it("çift reddet: yalnız biri kazanır; istek REJECTED; diğeri hata", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(
+      owner.auth,
+      flowInput([a1.user.id]) as never,
+    );
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { res: started } = await startAward(
+      approvals,
+      owner.auth,
+      owner.company.id,
+      owner.user.id,
+    );
+    const reqId = started.requestId!;
+
+    const results = await Promise.allSettled([
+      approvals.decide(a1.auth, reqId, "reject", { note: "a" } as never),
+      approvals.decide(a1.auth, reqId, "reject", { note: "b" } as never),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
+    const req = await prisma.approvalRequest.findUniqueOrThrow({
+      where: { id: reqId },
+    });
+    expect(req.status).toBe("REJECTED");
+  });
+
+  it("onay + iptal yarışı: tutarlı son durum; onaylandıysa event var, iptalse yok", async () => {
+    const { approvals, awardApproved } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(
+      owner.auth,
+      flowInput([a1.user.id]) as never,
+    );
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { listing, res: started } = await startAward(
+      approvals,
+      owner.auth,
+      owner.company.id,
+      owner.user.id,
+    );
+    const reqId = started.requestId!;
+
+    // Onaycı onaylarken başlatan aynı anda iptal ediyor.
+    const results = await Promise.allSettled([
+      approvals.decide(a1.auth, reqId, "approve", {} as never),
+      approvals.cancelRequest(owner.auth, reqId),
+    ]);
+    // Tam olarak biri başarılı olmalı (ikisi de istek statüsünü PENDING'den
+    // kaydırmaya çalışır; atomik CAS yalnız birine izin verir).
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+
+    const req = await prisma.approvalRequest.findUniqueOrThrow({
+      where: { id: reqId },
+    });
+    const listingAfter = await prisma.listing.findUniqueOrThrow({
+      where: { id: listing.id },
+    });
+    if (req.status === "APPROVED") {
+      // Onay kazandı: tek event, ilan iptalle yanlışlıkla CLOSED'a düşürülmedi.
+      expect(awardApproved).toHaveLength(1);
+      expect(listingAfter.status).not.toBe("CANCELLED");
+    } else {
+      // İptal kazandı: hiç award event'i yok, ilan CLOSED.
+      expect(req.status).toBe("CANCELLED");
+      expect(awardApproved).toHaveLength(0);
+      expect(listingAfter.status).toBe("CLOSED");
+    }
+  });
+});
+
 describe("Kullanıcı/rol yönetimi kuralları", () => {
   function makeUsersService() {
     const supabase = {

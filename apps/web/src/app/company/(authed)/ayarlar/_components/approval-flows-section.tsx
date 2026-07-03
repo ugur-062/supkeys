@@ -87,20 +87,28 @@ function InfoNote({ children }: { children: React.ReactNode }) {
 
 export function ApprovalFlowsSection({
   canManage,
-  /** Değeri arttıkça yeni akış sihirbazı açılır (Onaylar'daki üst butondan). */
-  openNewNonce = 0,
+  /** true ise yeni akış sihirbazı bir kez açılır (Onaylar'daki üst butondan). */
+  openNew = false,
+  /** Sihirbaz açıldıktan sonra intent'i sıfırlar (remount'ta tekrar açmasın). */
+  onConsumeOpenNew,
 }: {
   canManage: boolean;
-  openNewNonce?: number;
+  openNew?: boolean;
+  onConsumeOpenNew?: () => void;
 }) {
-  const { data: flows, isLoading } = useApprovalFlows();
+  const { data: flows, isLoading, isError, refetch } = useApprovalFlows();
   const { data: users } = useCompanyUsers();
   const [wizard, setWizard] = useState<ApprovalFlow | "new" | null>(null);
 
-  // Dışarıdan (üst buton) "yeni" tetikleyicisi.
+  // Dışarıdan (üst buton) "yeni" tetikleyicisi — yalnız intent geldiğinde açar,
+  // sonra tüketir. Bu sayede sekmeye tekrar girince (remount) kendiliğinden
+  // açılmaz; intent parent'ta false'a döner.
   useEffect(() => {
-    if (openNewNonce > 0) setWizard("new");
-  }, [openNewNonce]);
+    if (openNew) {
+      setWizard("new");
+      onConsumeOpenNew?.();
+    }
+  }, [openNew, onConsumeOpenNew]);
 
   // Onaycı yalnızca AKTİF Yönetici/Onaylayıcı olabilir (backend de zorlar).
   const approvers: ApproverOption[] = useMemo(
@@ -144,6 +152,8 @@ export function ApprovalFlowsSection({
     <FlowList
       flows={flows}
       isLoading={isLoading}
+      isError={isError}
+      onRetry={() => refetch()}
       onNew={() => setWizard("new")}
       onEdit={(f) => setWizard(f)}
     />
@@ -155,11 +165,15 @@ export function ApprovalFlowsSection({
 function FlowList({
   flows,
   isLoading,
+  isError,
+  onRetry,
   onNew,
   onEdit,
 }: {
   flows: ApprovalFlow[] | undefined;
   isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
   onNew: () => void;
   onEdit: (f: ApprovalFlow) => void;
 }) {
@@ -232,6 +246,21 @@ function FlowList({
 
       {isLoading ? (
         <div className="h-24 animate-pulse rounded-2xl bg-zinc-100" aria-hidden />
+      ) : isError ? (
+        <div
+          role="alert"
+          className="rounded-2xl border border-rose-200 bg-rose-50/60 p-8 text-center"
+        >
+          <p className="text-sm font-medium text-rose-900">
+            Onay akışları yüklenemedi
+          </p>
+          <p className="mt-1 text-sm text-rose-700/80">
+            Bağlantı sorunu olabilir. Lütfen yeniden deneyin.
+          </p>
+          <Button className="mt-4" outline onClick={onRetry}>
+            Yeniden Dene
+          </Button>
+        </div>
       ) : !flows || flows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-10 text-center">
           <BadgeCheck className="mx-auto h-9 w-9 text-zinc-300" />
@@ -293,11 +322,15 @@ function FlowList({
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
-                  <Button plain onClick={() => handleToggle(f)}>
+                  <Button
+                    plain
+                    onClick={() => handleToggle(f)}
+                    disabled={setStatus.isPending}
+                  >
                     {f.status === "ACTIVE" ? "Pasifleştir" : "Aktifleştir"}
                   </Button>
                   <Button plain onClick={() => onEdit(f)}>
-                    <Pencil className="size-4" />
+                    <Pencil className="size-4" aria-hidden />
                     Düzenle
                   </Button>
                   <Button
@@ -307,8 +340,14 @@ function FlowList({
                   >
                     Kopyala
                   </Button>
-                  <Button plain onClick={() => handleDelete(f)}>
-                    <Trash2 className="size-4 text-red-500" />
+                  <Button
+                    plain
+                    onClick={() => handleDelete(f)}
+                    disabled={remove.isPending}
+                    aria-label={`"${f.name}" akışını sil`}
+                    title="Sil"
+                  >
+                    <Trash2 className="size-4 text-red-500" aria-hidden />
                   </Button>
                 </div>
               </div>
@@ -587,6 +626,7 @@ function FlowWizard({
                       <button
                         key={role}
                         type="button"
+                        aria-pressed={on}
                         onClick={() => toggleInitiator(role)}
                         className={cn(
                           "rounded-lg border px-3 py-1.5 text-xs font-medium transition",
@@ -633,16 +673,23 @@ function FlowWizard({
                       </p>
                     </div>
                     <div className="flex shrink-0 gap-1">
-                      <Button plain onClick={() => setEditingStep(i)}>
-                        <Pencil className="size-3.5" />
+                      <Button
+                        plain
+                        onClick={() => setEditingStep(i)}
+                        aria-label={`${i + 1}. onaycıyı düzenle`}
+                        title="Düzenle"
+                      >
+                        <Pencil className="size-3.5" aria-hidden />
                       </Button>
                       <Button
                         plain
                         onClick={() =>
                           setSteps((cur) => cur.filter((_, idx) => idx !== i))
                         }
+                        aria-label={`${i + 1}. onaycıyı kaldır`}
+                        title="Kaldır"
                       >
-                        <Trash2 className="size-3.5 text-red-500" />
+                        <Trash2 className="size-3.5 text-red-500" aria-hidden />
                       </Button>
                     </div>
                   </div>

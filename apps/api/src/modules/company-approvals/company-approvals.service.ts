@@ -44,6 +44,24 @@ export class CompanyApprovalsService {
     listingId: string,
     daysWaiting?: number,
   ) {
+    try {
+      await this.notifyApproverInner(approverUserId, listingId, daysWaiting);
+    } catch (err) {
+      // Best-effort: bildirim öncesi DB okuması bile hata verse onay akışı
+      // çökmesin (void ile çağrıldığından unhandled rejection'ı yut).
+      this.logger.warn(
+        `Onay bildirimi hazırlanamadı: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
+  private async notifyApproverInner(
+    approverUserId: string,
+    listingId: string,
+    daysWaiting?: number,
+  ) {
     const [approver, listing] = await Promise.all([
       this.prisma.companyUser.findUnique({
         where: { id: approverUserId },
@@ -122,6 +140,23 @@ export class CompanyApprovalsService {
    * paritesi: başlatan sonucu sayfada beklemeden öğrenir.
    */
   private async notifyRequester(
+    requestCreatorId: string,
+    listingId: string,
+    decision: "APPROVED" | "REJECTED",
+    note?: string,
+  ) {
+    try {
+      await this.notifyRequesterInner(requestCreatorId, listingId, decision, note);
+    } catch (err) {
+      this.logger.warn(
+        `Onay sonucu bildirimi hazırlanamadı: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+
+  private async notifyRequesterInner(
     requestCreatorId: string,
     listingId: string,
     decision: "APPROVED" | "REJECTED",
@@ -537,17 +572,36 @@ export class CompanyApprovalsService {
       throw new ForbiddenException("Bu adımın onaycısı değilsiniz");
     }
 
+    // ── Yarış koruması ──
+    // Karar, adım statüsü üzerinde atomik compare-and-swap ile uygulanır:
+    // updateMany(where status=PENDING). İki eşzamanlı onay (çift tıklama / iki
+    // sekme) durumunda yalnızca biri count=1 alır; diğeri count=0 → "zaten
+    // sonuçlandı" hatası. Bu, SON adımda çift finalize → ÇİFT SİPARİŞ üretimini
+    // önler. Event emit yalnızca commit sonrası ve yalnızca kazanan tarafından.
+    const now = new Date();
+
     if (action === "reject") {
-      await this.prisma.$transaction([
-        this.prisma.approvalRequestStep.update({
-          where: { id: step.id },
-          data: { status: "REJECTED", note: dto.note, decidedAt: new Date() },
-        }),
-        this.prisma.approvalRequest.update({
-          where: { id: req.id },
-          data: { status: "REJECTED", decidedAt: new Date() },
-        }),
-      ]);
+      const won = await this.prisma.$transaction(async (tx) => {
+        // İlişki filtresi (request.status=PENDING) ters sıralı iptal yarışını da
+        // yakalar: istek bu arada iptal edildiyse adım flip'i hiç olmaz.
+        const cas = await tx.approvalRequestStep.updateMany({
+          where: {
+            id: step.id,
+            status: "PENDING",
+            request: { status: "PENDING" },
+          },
+          data: { status: "REJECTED", note: dto.note, decidedAt: now },
+        });
+        if (cas.count === 0) return false;
+        await tx.approvalRequest.updateMany({
+          where: { id: req.id, status: "PENDING" },
+          data: { status: "REJECTED", decidedAt: now },
+        });
+        return true;
+      });
+      if (!won) {
+        throw new BadRequestException("Bu adım zaten sonuçlandırıldı");
+      }
       this.events.emit(`${eventBase(req.type as ApprovalType)}.rejected`, {
         requestId: req.id,
         listingId: req.listingId,
@@ -562,25 +616,45 @@ export class CompanyApprovalsService {
       return { ok: true, status: "REJECTED" as const };
     }
 
-    await this.prisma.approvalRequestStep.update({
-      where: { id: step.id },
-      data: { status: "APPROVED", note: dto.note, decidedAt: new Date() },
-    });
     const next = req.steps.find(
       (s) => s.order > step.order && s.status === "WAITING",
     );
-    if (next) {
-      await this.prisma.approvalRequestStep.update({
-        where: { id: next.id },
-        data: { status: "PENDING" },
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      const cas = await tx.approvalRequestStep.updateMany({
+        where: {
+          id: step.id,
+          status: "PENDING",
+          request: { status: "PENDING" },
+        },
+        data: { status: "APPROVED", note: dto.note, decidedAt: now },
       });
-      void this.notifyApprover(next.approverUserId, req.listingId);
+      if (cas.count === 0) return "conflict" as const;
+      if (next) {
+        await tx.approvalRequestStep.update({
+          where: { id: next.id },
+          data: { status: "PENDING" },
+        });
+        return "next" as const;
+      }
+      const fin = await tx.approvalRequest.updateMany({
+        where: { id: req.id, status: "PENDING" },
+        data: { status: "APPROVED", decidedAt: now },
+      });
+      // İstek bu arada iptal edildiyse throw → adım flip'i geri alınır (rollback),
+      // hayalet sipariş üretilmez.
+      if (fin.count === 0) {
+        throw new BadRequestException("Bu istek artık beklemede değil");
+      }
+      return "final" as const;
+    });
+
+    if (outcome === "conflict") {
+      throw new BadRequestException("Bu adım zaten sonuçlandırıldı");
+    }
+    if (outcome === "next") {
+      void this.notifyApprover(next!.approverUserId, req.listingId);
       return { ok: true, status: "STEP_APPROVED" as const };
     }
-    await this.prisma.approvalRequest.update({
-      where: { id: req.id },
-      data: { status: "APPROVED", decidedAt: new Date() },
-    });
     this.events.emit(`${eventBase(req.type as ApprovalType)}.approved`, {
       requestId: req.id,
       listingId: req.listingId,
@@ -619,18 +693,27 @@ export class CompanyApprovalsService {
     if (req.status !== "PENDING") {
       throw new BadRequestException("Yalnızca bekleyen istek iptal edilebilir");
     }
-    await this.prisma.$transaction([
-      this.prisma.approvalRequest.update({
-        where: { id: req.id },
+    // Yarış koruması: iptal, onaycı kararıyla eşzamanlı gelebilir. İsteği yalnız
+    // hâlâ PENDING iken CANCELLED'a çevir (atomik CAS). Kaybeden taraf listing'i
+    // yanlışlıkla eski duruma döndürmesin (ör. onay bitip sipariş oluştuktan
+    // sonra iptal listing'i CLOSED'a düşürmesin).
+    const won = await this.prisma.$transaction(async (tx) => {
+      const cas = await tx.approvalRequest.updateMany({
+        where: { id: req.id, status: "PENDING" },
         data: { status: "CANCELLED", decidedAt: new Date() },
-      }),
-      this.prisma.listing.update({
+      });
+      if (cas.count === 0) return false;
+      await tx.listing.update({
         where: { id: req.listingId },
         data: {
           status: req.type === "LISTING_PUBLISH" ? "DRAFT" : "CLOSED",
         },
-      }),
-    ]);
+      });
+      return true;
+    });
+    if (!won) {
+      throw new BadRequestException("Yalnızca bekleyen istek iptal edilebilir");
+    }
     return { ok: true };
   }
 
@@ -668,6 +751,10 @@ export class CompanyApprovalsService {
           take: 1,
         },
       },
+      // Günlük cron — birikmiş backlog'da sınırsız yükleme yapmasın; kalanlar
+      // ertesi gün işlenir (lastReminderAt dedup zaten sağlıyor).
+      take: 200,
+      orderBy: { createdAt: "asc" },
     });
     let sent = 0;
     for (const r of reqs) {

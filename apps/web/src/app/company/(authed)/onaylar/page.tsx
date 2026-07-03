@@ -26,11 +26,13 @@ import {
   EmptyState as SharedEmptyState,
   ListSkeleton,
 } from "@/components/list";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
+  AlertTriangle,
   CheckCircle2,
   Circle,
   ClipboardCheck,
@@ -138,6 +140,27 @@ function Empty({ text }: { text: string }) {
   );
 }
 
+/** Sorgu hatası — yanıltıcı "boş" durumu yerine gerçek hata + yeniden dene. */
+function ErrorState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div
+      role="alert"
+      className="rounded-2xl border border-rose-200 bg-rose-50/60 p-8 text-center"
+    >
+      <AlertTriangle className="mx-auto h-8 w-8 text-rose-400" aria-hidden />
+      <p className="mt-3 text-sm font-medium text-rose-900">
+        Kayıtlar yüklenemedi
+      </p>
+      <p className="mt-1 text-sm text-rose-700/80">
+        Bağlantı sorunu olabilir. Lütfen yeniden deneyin.
+      </p>
+      <Button className="mt-4" outline onClick={onRetry}>
+        Yeniden Dene
+      </Button>
+    </div>
+  );
+}
+
 /** Geçmiş / Tüm Süreçler ortak istek kartı. */
 function RequestCard({
   h,
@@ -148,6 +171,7 @@ function RequestCard({
   h: ApprovalHistoryItem;
   canCancel: boolean;
   onCancel: (h: ApprovalHistoryItem) => void;
+  /** Yalnız BU kart iptal edilirken true — tüm listeyi kilitlemez. */
   cancelPending: boolean;
 }) {
   const st = REQ_STATUS[h.status];
@@ -202,7 +226,7 @@ function RequestCard({
         </div>
         {canCancel && h.status === "PENDING" ? (
           <Button plain onClick={() => onCancel(h)} disabled={cancelPending}>
-            İptal Et
+            {cancelPending ? "İptal ediliyor…" : "İptal Et"}
           </Button>
         ) : null}
       </div>
@@ -219,25 +243,46 @@ export default function OnaylarPage() {
   const isManager = !!user && (user.isOwner || user.roles.includes("YONETICI"));
   const canManageFlows = useHasCompanyPermission("approvals:manage");
   // Üst "Yeni Onay Akışı" butonu → flows sekmesine geçer + sihirbazı açar.
-  const [newFlowNonce, setNewFlowNonce] = useState(0);
+  // Boolean "intent" + consume: bölüm remount olduğunda (sekmeye tekrar
+  // girildiğinde) sihirbaz KENDİLİĞİNDEN açılmasın diye tüketilince sıfırlanır.
+  const [openNewFlow, setOpenNewFlow] = useState(false);
 
-  const { data: pending, isLoading: pendingLoading } = usePendingApprovals();
-  const { data: history, isLoading: historyLoading } = useApprovalHistory();
+  const {
+    data: pending,
+    isLoading: pendingLoading,
+    isError: pendingError,
+    refetch: refetchPending,
+  } = usePendingApprovals();
+  const {
+    data: history,
+    isLoading: historyLoading,
+    isError: historyError,
+    refetch: refetchHistory,
+  } = useApprovalHistory();
 
-  // Tüm Süreçler filtreleri
+  // Tüm Süreçler filtreleri — arama debounce'lı (her tuşta refetch etmesin).
   const [fltStatus, setFltStatus] = useState("");
   const [fltType, setFltType] = useState("");
   const [fltSearch, setFltSearch] = useState("");
-  const { data: all, isLoading: allLoading } = useAllApprovals({
+  const debouncedSearch = useDebouncedValue(fltSearch.trim(), 300);
+  const {
+    data: all,
+    isLoading: allLoading,
+    isError: allError,
+    refetch: refetchAll,
+  } = useAllApprovals({
     status: fltStatus || undefined,
     type: fltType || undefined,
-    search: fltSearch.trim() || undefined,
+    search: debouncedSearch || undefined,
   });
 
   const decide = useDecideApproval();
   const cancel = useCancelApproval();
   const confirm = useConfirm();
   const [rejecting, setRejecting] = useState<PendingApproval | null>(null);
+  // Hangi kart işlem görüyor — buton kilidi/spinner yalnız o karta uygulanır
+  // (paylaşılan isPending tüm listeyi kilitlemesin).
+  const [actingId, setActingId] = useState<string | null>(null);
 
   const approve = async (p: PendingApproval) => {
     if (
@@ -252,16 +297,20 @@ export default function OnaylarPage() {
       }))
     )
       return;
+    setActingId(p.id);
     try {
       await decide.mutateAsync({ id: p.id, action: "approve" });
       toast.success("Onaylandı");
     } catch (err) {
       toast.error(extractErrorMessage(err, "İşlem başarısız"));
+    } finally {
+      setActingId(null);
     }
   };
 
   const submitReject = async (reason: string) => {
     if (!rejecting) return;
+    setActingId(rejecting.id);
     try {
       await decide.mutateAsync({
         id: rejecting.id,
@@ -272,6 +321,8 @@ export default function OnaylarPage() {
       setRejecting(null);
     } catch (err) {
       toast.error(extractErrorMessage(err, "İşlem başarısız"));
+    } finally {
+      setActingId(null);
     }
   };
 
@@ -285,11 +336,14 @@ export default function OnaylarPage() {
       }))
     )
       return;
+    setActingId(h.id);
     try {
       await cancel.mutateAsync(h.id);
       toast.success("Onay isteği iptal edildi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "İptal edilemedi"));
+    } finally {
+      setActingId(null);
     }
   };
 
@@ -315,22 +369,30 @@ export default function OnaylarPage() {
         {canManageFlows ? (
           <Button
             onClick={() => {
+              setOpenNewFlow(true);
               setTab("flows");
-              setNewFlowNonce((n) => n + 1);
             }}
           >
-            <Plus className="size-4" />
+            <Plus className="size-4" aria-hidden />
             Yeni Onay Akışı
           </Button>
         ) : null}
       </div>
 
       {/* Sekmeler */}
-      <div className="flex gap-1 overflow-x-auto border-b border-zinc-950/10">
+      <div
+        role="tablist"
+        aria-label="Onay görünümleri"
+        className="flex gap-1 overflow-x-auto border-b border-zinc-950/10"
+      >
         {tabs.map((t) => (
           <button
             key={t.key}
             type="button"
+            role="tab"
+            id={`onaylar-tab-${t.key}`}
+            aria-selected={tab === t.key}
+            aria-controls={`onaylar-panel-${t.key}`}
             onClick={() => setTab(t.key)}
             className={cn(
               "-mb-px inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors",
@@ -339,15 +401,22 @@ export default function OnaylarPage() {
                 : "border-transparent text-zinc-500 hover:text-zinc-800",
             )}
           >
-            {t.key === "flows" ? <Workflow className="size-4" /> : null}
+            {t.key === "flows" ? <Workflow className="size-4" aria-hidden /> : null}
             {t.label}
           </button>
         ))}
       </div>
 
       {tab === "pending" ? (
-        pendingLoading ? (
+        <div
+          role="tabpanel"
+          id="onaylar-panel-pending"
+          aria-labelledby="onaylar-tab-pending"
+        >
+        {pendingLoading ? (
           <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
+        ) : pendingError ? (
+          <ErrorState onRetry={() => refetchPending()} />
         ) : !pending || pending.length === 0 ? (
           <Empty text="Bekleyen onay yok — sana yönlendirilen istekler burada görünür." />
         ) : (
@@ -408,26 +477,39 @@ export default function OnaylarPage() {
                     <Button
                       plain
                       onClick={() => setRejecting(p)}
-                      disabled={decide.isPending}
+                      disabled={decide.isPending && actingId === p.id}
                     >
-                      <XCircle className="h-4 w-4 text-red-500" />
+                      <XCircle className="h-4 w-4 text-red-500" aria-hidden />
                       Reddet
                     </Button>
-                    <Button onClick={() => approve(p)} disabled={decide.isPending}>
-                      <CheckCircle2 className="h-4 w-4" />
-                      Onayla
+                    <Button
+                      onClick={() => approve(p)}
+                      disabled={decide.isPending && actingId === p.id}
+                    >
+                      <CheckCircle2 className="h-4 w-4" aria-hidden />
+                      {decide.isPending && actingId === p.id
+                        ? "Onaylanıyor…"
+                        : "Onayla"}
                     </Button>
                   </div>
                 </div>
               </div>
             ))}
           </div>
-        )
+        )}
+        </div>
       ) : null}
 
       {tab === "history" ? (
-        historyLoading ? (
+        <div
+          role="tabpanel"
+          id="onaylar-panel-history"
+          aria-labelledby="onaylar-tab-history"
+        >
+        {historyLoading ? (
           <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
+        ) : historyError ? (
+          <ErrorState onRetry={() => refetchHistory()} />
         ) : !history || history.length === 0 ? (
           <Empty text="Henüz geçmiş yok — başlattığın ve karara bağlanan istekler burada görünür." />
         ) : (
@@ -438,29 +520,40 @@ export default function OnaylarPage() {
                 h={h}
                 canCancel={h.mine || isManager}
                 onCancel={cancelRequest}
-                cancelPending={cancel.isPending}
+                cancelPending={cancel.isPending && actingId === h.id}
               />
             ))}
           </div>
-        )
+        )}
+        </div>
       ) : null}
 
       {tab === "all" ? (
-        <>
+        <div
+          role="tabpanel"
+          id="onaylar-panel-all"
+          aria-labelledby="onaylar-tab-all"
+          className="space-y-4"
+        >
           {/* Filtreler — eski sistem paritesi: durum / tür / arama */}
           <div className="flex flex-wrap items-center gap-2">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+            <div className="relative min-w-0 flex-1 sm:max-w-xs">
+              <Search
+                className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400"
+                aria-hidden
+              />
               <Input
                 value={fltSearch}
                 onChange={(e) => setFltSearch(e.target.value)}
                 placeholder="Onay no / ihale ara…"
-                className="w-56 pl-8"
+                aria-label="Onay no veya ihale ara"
+                className="w-full pl-8"
               />
             </div>
             <Select
               value={fltStatus}
               onChange={(e) => setFltStatus(e.target.value)}
+              aria-label="Duruma göre filtrele"
               className="max-w-40"
             >
               <option value="">Tüm durumlar</option>
@@ -472,6 +565,7 @@ export default function OnaylarPage() {
             <Select
               value={fltType}
               onChange={(e) => setFltType(e.target.value)}
+              aria-label="Türe göre filtrele"
               className="max-w-40"
             >
               <option value="">Tüm türler</option>
@@ -481,6 +575,8 @@ export default function OnaylarPage() {
           </div>
           {allLoading ? (
             <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
+          ) : allError ? (
+            <ErrorState onRetry={() => refetchAll()} />
           ) : !all || all.length === 0 ? (
             <Empty text="Kayıt bulunamadı — firmadaki tüm onay süreçleri burada listelenir." />
           ) : (
@@ -491,19 +587,26 @@ export default function OnaylarPage() {
                   h={h}
                   canCancel={h.mine || isManager}
                   onCancel={cancelRequest}
-                  cancelPending={cancel.isPending}
+                  cancelPending={cancel.isPending && actingId === h.id}
                 />
               ))}
             </div>
           )}
-        </>
+        </div>
       ) : null}
 
       {tab === "flows" && canManageFlows ? (
-        <ApprovalFlowsSection
-          canManage={canManageFlows}
-          openNewNonce={newFlowNonce}
-        />
+        <div
+          role="tabpanel"
+          id="onaylar-panel-flows"
+          aria-labelledby="onaylar-tab-flows"
+        >
+          <ApprovalFlowsSection
+            canManage={canManageFlows}
+            openNew={openNewFlow}
+            onConsumeOpenNew={() => setOpenNewFlow(false)}
+          />
+        </div>
       ) : null}
 
       <ReasonDialog

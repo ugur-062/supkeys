@@ -10,7 +10,7 @@ import {
 } from "@/components/catalyst/dialog";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Textarea } from "@/components/catalyst/textarea";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Gerekçe girişli onay diyaloğu (window.prompt yerine — inline doğrulama,
@@ -41,10 +41,15 @@ export function ReasonDialog({
   const trimmed = reason.trim();
   const tooShort = minLength > 0 && trimmed.length < minLength;
 
+  // Metni yalnızca dialog KAPANDIĞINDA sıfırla. Submit sırasında sıfırlamak,
+  // gönderim başarısız olup dialog açık kalırsa kullanıcının yazdığını silerdi.
+  useEffect(() => {
+    if (!open) setReason("");
+  }, [open]);
+
   const submit = () => {
     if (tooShort) return;
     onSubmit(trimmed);
-    setReason("");
   };
 
   return (
