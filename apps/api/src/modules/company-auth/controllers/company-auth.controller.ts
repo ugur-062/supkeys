@@ -133,6 +133,7 @@ export class CompanyAuthController {
   }
 
   @Post("change-password")
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @UseGuards(CompanyJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   changePassword(
@@ -154,6 +155,7 @@ export class CompanyAuthController {
   }
 
   @Post("2fa/enable")
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @UseGuards(CompanyJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   enable2fa(
@@ -164,6 +166,7 @@ export class CompanyAuthController {
   }
 
   @Post("2fa/disable")
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @UseGuards(CompanyJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   disable2fa(

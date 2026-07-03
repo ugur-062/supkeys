@@ -68,6 +68,12 @@ export class PasswordResetService {
       where: { id: record.id },
       data: { usedAt: new Date() },
     });
+    // Tüm mevcut oturumlar geçersizleşir (tokenVersion) — parola sıfırlama
+    // genelde hesabın ele geçirilme şüphesinde yapılır.
+    await this.prisma.companyUser.update({
+      where: { id: target.id },
+      data: { tokenVersion: { increment: 1 } },
+    });
     return { success: true };
   }
 

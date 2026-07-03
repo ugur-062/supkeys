@@ -6,6 +6,7 @@ import {
   Logger,
   UnauthorizedException,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { authenticator } from "otplib";
 import * as crypto from "node:crypto";
@@ -18,6 +19,7 @@ import {
   isValidTckn,
 } from "@supkeys/shared";
 import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
+import { NOTIFICATION_PREF_KEYS } from "../../../common/notifications/notification-prefs";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { AuditService } from "../../audit/audit.service";
 import { EmailService } from "../../email/email.service";
@@ -49,6 +51,7 @@ export class CompanyAuthService {
     private readonly supabaseAuth: SupabaseAuthService,
     private readonly audit: AuditService,
     private readonly email: EmailService,
+    private readonly config: ConfigService,
   ) {}
 
   // ============================================================
@@ -478,20 +481,29 @@ export class CompanyAuthService {
       );
     }
 
-    // 2FA açıksa: kod yoksa "gerekli" yanıtı, varsa doğrula.
+    // 2FA açıksa: kod yoksa "gerekli" yanıtı; TOTP VEYA kurtarma kodu kabul.
     if (user.twoFactorEnabled) {
       if (!dto.code) {
         return { twoFactorRequired: true as const };
       }
-      const ok = user.twoFactorSecret
-        ? authenticator.verify({
-            token: dto.code.trim(),
-            secret: user.twoFactorSecret,
-          })
-        : false;
+      const { ok, usedRecovery } = await this.verifyTwoFactorCode(
+        user.id,
+        dto.code,
+      );
       if (!ok) {
         auditFail("bad_2fa");
         throw new UnauthorizedException("Doğrulama kodu hatalı");
+      }
+      if (usedRecovery) {
+        // Kurtarma koduyla giriş iz bırakır (tek kullanımlık kod tüketildi).
+        void this.audit.log({
+          action: "auth.2fa_recovery_used",
+          actorType: "company",
+          actorId: user.id,
+          actorEmail: user.email,
+          ip: ctx?.ip,
+          userAgent: ctx?.userAgent,
+        });
       }
     }
 
@@ -578,6 +590,96 @@ export class CompanyAuthService {
   // 2FA (TOTP) — eski ayarlar
   // ============================================================
 
+  /**
+   * TOTP secret'ları DB'de ŞİFRELİ tutulur (AES-256-GCM, anahtar JWT_SECRET
+   * türevi — ayrı env gerektirmeden DB sızıntısında seed'ler açık kalmasın).
+   * Eski düz-metin kayıtlar okurken şeffaf desteklenir (lazy migration).
+   */
+  private encKey(): Buffer {
+    return crypto
+      .createHash("sha256")
+      .update(`2fa:${this.config.getOrThrow<string>("JWT_SECRET")}`)
+      .digest();
+  }
+
+  private encryptSecret(plain: string): string {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv("aes-256-gcm", this.encKey(), iv);
+    const ct = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return `enc:v1:${iv.toString("base64")}:${tag.toString("base64")}:${ct.toString("base64")}`;
+  }
+
+  private decryptSecret(stored: string): string {
+    if (!stored.startsWith("enc:v1:")) return stored; // legacy düz metin
+    const [, , ivB64, tagB64, ctB64] = stored.split(":");
+    const decipher = crypto.createDecipheriv(
+      "aes-256-gcm",
+      this.encKey(),
+      Buffer.from(ivB64!, "base64"),
+    );
+    decipher.setAuthTag(Buffer.from(tagB64!, "base64"));
+    return Buffer.concat([
+      decipher.update(Buffer.from(ctB64!, "base64")),
+      decipher.final(),
+    ]).toString("utf8");
+  }
+
+  private hashRecoveryCode(code: string): string {
+    // Normalize: büyük harf, tire/boşluk yok — kullanıcı nasıl yazarsa yazsın.
+    const norm = code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    return crypto.createHash("sha256").update(`rc:${norm}`).digest("hex");
+  }
+
+  private generateRecoveryCodes(): string[] {
+    // 8 kod, XXXX-XXXX (karışan karakterler yok: 0/O, 1/I dışarıda).
+    const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    return Array.from({ length: 8 }, () => {
+      const raw = Array.from(crypto.randomBytes(8))
+        .map((b) => alphabet[b % alphabet.length])
+        .join("");
+      return `${raw.slice(0, 4)}-${raw.slice(4)}`;
+    });
+  }
+
+  /**
+   * TOTP kodu VEYA kurtarma kodu doğrula. Kurtarma kodu eşleşirse TÜKETİLİR
+   * (tek kullanımlık). Dönen değer: geçerli mi + kurtarma kodu mu kullanıldı.
+   */
+  private async verifyTwoFactorCode(
+    userId: string,
+    code: string,
+  ): Promise<{ ok: boolean; usedRecovery: boolean }> {
+    const user = await this.prisma.companyUser.findUnique({
+      where: { id: userId },
+      select: { twoFactorSecret: true, twoFactorRecoveryCodes: true },
+    });
+    if (!user?.twoFactorSecret) return { ok: false, usedRecovery: false };
+    const trimmed = code.trim();
+    if (
+      authenticator.verify({
+        token: trimmed,
+        secret: this.decryptSecret(user.twoFactorSecret),
+      })
+    ) {
+      return { ok: true, usedRecovery: false };
+    }
+    // Kurtarma kodu — hash eşleşirse listeden düş (replay engeli).
+    const hash = this.hashRecoveryCode(trimmed);
+    if (user.twoFactorRecoveryCodes.includes(hash)) {
+      await this.prisma.companyUser.update({
+        where: { id: userId },
+        data: {
+          twoFactorRecoveryCodes: user.twoFactorRecoveryCodes.filter(
+            (h) => h !== hash,
+          ),
+        },
+      });
+      return { ok: true, usedRecovery: true };
+    }
+    return { ok: false, usedRecovery: false };
+  }
+
   /** 2FA kurulumunu başlat — secret üret, QR + otpauth döndür (henüz aktif değil). */
   async setupTwoFactor(userId: string) {
     const user = await this.prisma.companyUser.findUnique({
@@ -591,42 +693,65 @@ export class CompanyAuthService {
     const secret = authenticator.generateSecret();
     await this.prisma.companyUser.update({
       where: { id: userId },
-      data: { twoFactorSecret: secret },
+      data: { twoFactorSecret: this.encryptSecret(secret) },
     });
     const otpauthUrl = authenticator.keyuri(user.email, "Rothern", secret);
     const qrDataUrl = await QRCode.toDataURL(otpauthUrl);
     return { otpauthUrl, qrDataUrl, secret };
   }
 
-  /** Kurulum kodunu doğrulayıp 2FA'yı aç. */
+  /**
+   * Kurulum kodunu doğrulayıp 2FA'yı aç. Kurtarma kodları BURADA üretilir ve
+   * yalnızca bu yanıtta düz görünür — kullanıcı saklamalı (authenticator
+   * kaybında tek giriş yolu).
+   */
   async enableTwoFactor(userId: string, code: string) {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { twoFactorSecret: true },
+      select: { email: true, twoFactorSecret: true },
     });
     if (!user?.twoFactorSecret) {
       throw new BadRequestException("Önce 2FA kurulumunu başlatın");
     }
-    if (!authenticator.verify({ token: code.trim(), secret: user.twoFactorSecret })) {
+    if (
+      !authenticator.verify({
+        token: code.trim(),
+        secret: this.decryptSecret(user.twoFactorSecret),
+      })
+    ) {
       throw new BadRequestException("Doğrulama kodu hatalı");
     }
+    const recoveryCodes = this.generateRecoveryCodes();
     await this.prisma.companyUser.update({
       where: { id: userId },
-      data: { twoFactorEnabled: true, twoFactorEnabledAt: new Date() },
+      data: {
+        twoFactorEnabled: true,
+        twoFactorEnabledAt: new Date(),
+        twoFactorRecoveryCodes: recoveryCodes.map((c) =>
+          this.hashRecoveryCode(c),
+        ),
+      },
     });
-    return { ok: true };
+    void this.audit.log({
+      action: "auth.2fa_enabled",
+      actorType: "company",
+      actorId: userId,
+      actorEmail: user.email,
+    });
+    return { ok: true, recoveryCodes };
   }
 
-  /** Kod doğrulayıp 2FA'yı kapat. */
+  /** TOTP veya kurtarma koduyla 2FA'yı kapat. */
   async disableTwoFactor(userId: string, code: string) {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { twoFactorSecret: true, twoFactorEnabled: true },
+      select: { email: true, twoFactorSecret: true, twoFactorEnabled: true },
     });
     if (!user?.twoFactorEnabled || !user.twoFactorSecret) {
       throw new BadRequestException("İki adımlı doğrulama zaten kapalı");
     }
-    if (!authenticator.verify({ token: code.trim(), secret: user.twoFactorSecret })) {
+    const { ok } = await this.verifyTwoFactorCode(userId, code);
+    if (!ok) {
       throw new BadRequestException("Doğrulama kodu hatalı");
     }
     await this.prisma.companyUser.update({
@@ -635,7 +760,14 @@ export class CompanyAuthService {
         twoFactorEnabled: false,
         twoFactorEnabledAt: null,
         twoFactorSecret: null,
+        twoFactorRecoveryCodes: [],
       },
+    });
+    void this.audit.log({
+      action: "auth.2fa_disabled",
+      actorType: "company",
+      actorId: userId,
+      actorEmail: user.email,
     });
     return { ok: true };
   }
@@ -679,7 +811,11 @@ export class CompanyAuthService {
     return this.getMe(userId);
   }
 
-  /** Mevcut parolayı doğrulayıp yenisini ata (Supabase). */
+  /**
+   * Mevcut parolayı doğrulayıp yenisini ata (Supabase). tokenVersion artar —
+   * diğer cihazlardaki/eski JWT'ler geçersizleşir; bu oturuma TAZE token
+   * döner (kullanıcı oturumda kalır).
+   */
   async changePassword(
     userId: string,
     currentPassword: string,
@@ -687,7 +823,7 @@ export class CompanyAuthService {
   ) {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, authId: true },
+      select: { email: true, authId: true, companyId: true },
     });
     if (!user || !user.authId) throw new UnauthorizedException();
     try {
@@ -696,17 +832,56 @@ export class CompanyAuthService {
       throw new ForbiddenException("Mevcut parola hatalı");
     }
     await this.supabaseAuth.updatePassword(user.authId, newPassword);
-    return { ok: true };
+    const updated = await this.prisma.companyUser.update({
+      where: { id: userId },
+      data: { tokenVersion: { increment: 1 } },
+      select: { tokenVersion: true },
+    });
+    void this.audit.log({
+      action: "auth.password_changed",
+      actorType: "company",
+      actorId: userId,
+      actorEmail: user.email,
+    });
+    const payload: CompanyJwtPayload = {
+      sub: userId,
+      email: user.email,
+      type: "company",
+      userId,
+      companyId: user.companyId,
+      tv: updated.tokenVersion,
+    };
+    return { ok: true, token: this.jwt.sign(payload) };
   }
 
-  /** Bildirim tercihlerini güncelle (serbest Json). */
+  /**
+   * Bildirim tercihlerini güncelle — anahtarlar whitelist'ten, değerler
+   * boolean; MEVCUTLA BİRLEŞTİRİLİR (kısmi gönderim diğer tercihleri
+   * sıfırlamaz). Transactional tipler zaten okuma tarafında korunur.
+   */
   async updateNotificationPrefs(
     userId: string,
-    prefs: Record<string, boolean>,
+    prefs: Record<string, unknown>,
   ) {
+    const valid = new Set<string>(NOTIFICATION_PREF_KEYS);
+    const clean: Record<string, boolean> = {};
+    for (const [k, v] of Object.entries(prefs ?? {})) {
+      if (!valid.has(k)) {
+        throw new BadRequestException(`Geçersiz bildirim tercihi: ${k}`);
+      }
+      clean[k] = v === true;
+    }
+    const current = await this.prisma.companyUser.findUnique({
+      where: { id: userId },
+      select: { notificationPrefs: true },
+    });
+    const merged = {
+      ...((current?.notificationPrefs as Record<string, boolean> | null) ?? {}),
+      ...clean,
+    };
     await this.prisma.companyUser.update({
       where: { id: userId },
-      data: { notificationPrefs: prefs },
+      data: { notificationPrefs: merged },
     });
     return this.getMe(userId);
   }
@@ -730,6 +905,8 @@ export class CompanyAuthService {
       type: "company",
       userId: user.id,
       companyId: company.id,
+      // Oturum sürümü — parola değişince artar, eski token'lar ölür.
+      tv: user.tokenVersion,
     };
 
     void this.audit.log({

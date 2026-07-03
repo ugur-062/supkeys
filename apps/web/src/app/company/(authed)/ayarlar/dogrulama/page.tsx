@@ -3,6 +3,7 @@
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Text } from "@/components/catalyst/text";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
   docLabels,
   useCompanyDocs,
@@ -28,6 +29,10 @@ const STATUS_META: Record<
 };
 
 export default function DogrulamaPage() {
+  const { user } = useCompanyAuth();
+  // Backend upload/submit uçları company:manage ister (YONETICI ya da firma
+  // sahibi) — diğer roller yalnızca durumu görür.
+  const canManage = !!user && (user.isOwner || user.roles.includes("YONETICI"));
   const { data, isLoading } = useCompanyDocs();
   const upload = useUploadDoc();
   const submit = useSubmitDocs();
@@ -111,26 +116,30 @@ export default function DogrulamaPage() {
                           Görüntüle
                         </a>
                       ) : null}
-                      <Button
-                        plain
-                        onClick={() => inputs.current[d.key]?.click()}
-                        disabled={isBusy || data.status === "VERIFIED"}
-                      >
-                        <Upload className="h-4 w-4" />
-                        {isBusy ? "Yükleniyor…" : url ? "Değiştir" : "Yükle"}
-                      </Button>
-                      <input
-                        ref={(el) => {
-                          inputs.current[d.key] = el;
-                        }}
-                        type="file"
-                        accept=".pdf,.png,.jpg,.jpeg,.webp"
-                        className="hidden"
-                        onChange={(e) => {
-                          handleFile(d.key, e.target.files?.[0]);
-                          e.target.value = "";
-                        }}
-                      />
+                      {canManage ? (
+                        <>
+                          <Button
+                            plain
+                            onClick={() => inputs.current[d.key]?.click()}
+                            disabled={isBusy || data.status === "VERIFIED"}
+                          >
+                            <Upload className="h-4 w-4" />
+                            {isBusy ? "Yükleniyor…" : url ? "Değiştir" : "Yükle"}
+                          </Button>
+                          <input
+                            ref={(el) => {
+                              inputs.current[d.key] = el;
+                            }}
+                            type="file"
+                            accept=".pdf,.png,.jpg,.jpeg,.webp"
+                            className="hidden"
+                            onChange={(e) => {
+                              handleFile(d.key, e.target.files?.[0]);
+                              e.target.value = "";
+                            }}
+                          />
+                        </>
+                      ) : null}
                     </div>
                   </li>
                 );
@@ -138,7 +147,14 @@ export default function DogrulamaPage() {
             </ul>
           </div>
 
-          {data.status !== "VERIFIED" && data.status !== "PENDING" ? (
+          {!canManage ? (
+            <Text className="text-sm text-zinc-500">
+              Belgeleri yalnızca firma sahibi ya da Yönetici rolündeki
+              kullanıcılar yükleyebilir.
+            </Text>
+          ) : null}
+
+          {canManage && data.status !== "VERIFIED" && data.status !== "PENDING" ? (
             <div className="flex items-center justify-between gap-3">
               <Text className="text-xs text-zinc-400">
                 Tüm belgeler yüklendiğinde doğrulamaya gönderebilirsiniz.

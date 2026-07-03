@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { CompanyAddressType, Prisma } from "@supkeys/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -78,7 +82,37 @@ export class CompanyAddressesService {
 
   async remove(user: AuthenticatedCompanyUser, id: string) {
     await this.requireOwn(user.companyId, id);
-    await this.prisma.companyAddress.delete({ where: { id } });
+    // AKTİF ilanda kullanılan adres silinemez — Listing.deliveryAddressId/
+    // billingAddressId düz String (FK yok); silinirse açık ilan sarkan id'ye
+    // işaret eder ve teklifçiler teslimat adresini göremez olurdu.
+    const activeUse = await this.prisma.listing.count({
+      where: {
+        companyId: user.companyId,
+        status: { in: ["DRAFT", "IN_APPROVAL", "OPEN", "CLOSED", "IN_AWARD_APPROVAL"] },
+        OR: [{ deliveryAddressId: id }, { billingAddressId: id }],
+      },
+    });
+    if (activeUse > 0) {
+      throw new BadRequestException(
+        `Bu adres ${activeUse} aktif ilanda kullanılıyor — önce ilanlardaki adresi değiştirin`,
+      );
+    }
+    await this.prisma.$transaction([
+      // Sonuçlanmış (AWARDED/iptal) ilanlardaki sarkan referansları temizle
+      // (sipariş adresi zaten award anında snapshot'landı).
+      this.prisma.listing.updateMany({
+        where: { companyId: user.companyId, deliveryAddressId: id },
+        data: { deliveryAddressId: null },
+      }),
+      this.prisma.listing.updateMany({
+        where: { companyId: user.companyId, billingAddressId: id },
+        data: { billingAddressId: null },
+      }),
+      // deleteMany + companyId: requireOwn sonrası TOCTOU penceresini kapatır.
+      this.prisma.companyAddress.deleteMany({
+        where: { id, companyId: user.companyId },
+      }),
+    ]);
     return { ok: true };
   }
 

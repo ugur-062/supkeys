@@ -28,7 +28,7 @@ export function CompanyProfileSection() {
   const { user } = useCompanyAuth();
   const { data: profile, isLoading } = useCompanyProfile();
   const update = useUpdateCompanyProfile();
-  const canEdit = !!user?.roles.includes("YONETICI");
+  const canEdit = !!user && (user.isOwner || user.roles.includes("YONETICI"));
 
   const [form, setForm] = useState({
     name: "",
@@ -70,9 +70,13 @@ export function CompanyProfileSection() {
     }
   }, [profile]);
 
-  // TR IBAN basit UI geçerlilik ipucu (backend kesin doğrular).
+  // IBAN UI ipucu — banka hesaplarıyla AYNI kural: TR katı, yabancı gevşek
+  // (yabancı firma profili TR-only regex yüzünden IBAN kaydedemiyordu).
   const ibanClean = form.iban.replace(/\s/g, "").toUpperCase();
-  const ibanInvalid = ibanClean.length > 0 && !/^TR\d{24}$/.test(ibanClean);
+  const ibanInvalid =
+    ibanClean.startsWith("TR") && ibanClean.length > 0
+      ? !/^TR\d{24}$/.test(ibanClean)
+      : ibanClean.length > 0 && !/^[A-Z]{2}[0-9A-Z]{8,32}$/.test(ibanClean);
 
   const set = (patch: Partial<typeof form>) =>
     setForm((f) => ({ ...f, ...patch }));

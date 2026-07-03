@@ -50,7 +50,19 @@ describe("company-profile — kurumsal kimlik kalemleri", () => {
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     await expect(
       svc.update(owner.company.id, { iban: "TR00 1234" } as never),
-    ).rejects.toThrow(/geçersiz/i);
+    ).rejects.toThrow(/geçerli bir iban/i);
+  });
+
+  it("yabancı IBAN gevşek formatla kabul edilir (TR-dışı katı mod-97 yok)", async () => {
+    const svc = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "DE" });
+    await svc.update(owner.company.id, {
+      iban: "de89 3704 0044 0532 0130 00",
+    } as never);
+    const c = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(c.iban).toBe("DE89370400440532013000");
   });
 
   it("geçersiz KEP reddedilir", async () => {

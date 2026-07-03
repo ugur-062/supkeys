@@ -19,6 +19,7 @@ import {
   useSaveBankAccount,
   type CompanyBankAccount,
 } from "@/hooks/use-company-bank-accounts";
+import { useConfirm } from "@/components/providers/confirm-dialog";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -32,12 +33,19 @@ function fmtIban(iban: string): string {
 export function BankAccountsSection({ canManage }: { canManage: boolean }) {
   const { data: accounts, isLoading } = useBankAccounts();
   const del = useDeleteBankAccount();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState<CompanyBankAccount | "new" | null>(
     null,
   );
 
   const handleDelete = async (a: CompanyBankAccount) => {
-    if (!confirm(`"${a.title}" hesabı silinsin mi?`)) return;
+    const ok = await confirm({
+      title: "Banka hesabı silinsin mi?",
+      description: `"${a.title}" hesabı kalıcı olarak silinecek.`,
+      confirmLabel: "Sil",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await del.mutateAsync(a.id);
       toast.success("Banka hesabı silindi");

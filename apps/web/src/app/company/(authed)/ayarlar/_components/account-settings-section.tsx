@@ -56,6 +56,15 @@ export function AccountInfoSection() {
   }, [user]);
 
   const save = async () => {
+    if (!info.firstName.trim() || !info.lastName.trim()) {
+      toast.error("Ad ve soyad boş olamaz");
+      return;
+    }
+    const phone = info.phone.trim();
+    if (phone && !/^\+?[0-9 ()-]{7,20}$/.test(phone)) {
+      toast.error("Geçerli bir telefon numarası giriniz");
+      return;
+    }
     try {
       await updateMe.mutateAsync(info);
       toast.success("Bilgiler güncellendi");

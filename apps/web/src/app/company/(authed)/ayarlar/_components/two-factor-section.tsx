@@ -24,13 +24,18 @@ export function TwoFactorSection() {
 
   const enabled = !!user?.twoFactorEnabled;
   const [qr, setQr] = useState<string | null>(null);
+  const [secret, setSecret] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [disableMode, setDisableMode] = useState(false);
+  // Kurtarma kodları YALNIZCA enable yanıtında görünür — kullanıcı
+  // kaydettim diyene kadar ekranda tutulur.
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
 
   const startSetup = async () => {
     try {
       const res = await setup.mutateAsync();
       setQr(res.qrDataUrl);
+      setSecret(res.secret);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Kurulum başlatılamadı"));
     }
@@ -38,13 +43,37 @@ export function TwoFactorSection() {
 
   const confirmEnable = async () => {
     try {
-      await enable.mutateAsync(code.trim());
+      const res = await enable.mutateAsync(code.trim());
       toast.success("İki adımlı doğrulama açıldı");
       setQr(null);
+      setSecret(null);
       setCode("");
+      setRecoveryCodes(res.recoveryCodes ?? null);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Kod doğrulanamadı"));
     }
+  };
+
+  const copyRecovery = async () => {
+    if (!recoveryCodes) return;
+    await navigator.clipboard.writeText(recoveryCodes.join("\n"));
+    toast.success("Kurtarma kodları panoya kopyalandı");
+  };
+
+  const downloadRecovery = () => {
+    if (!recoveryCodes) return;
+    const blob = new Blob(
+      [
+        `Rothern 2FA kurtarma kodları (${user?.email ?? ""})\nHer kod TEK kullanımlıktır — güvenli bir yerde saklayın.\n\n${recoveryCodes.join("\n")}\n`,
+      ],
+      { type: "text/plain;charset=utf-8" },
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "rothern-2fa-kurtarma-kodlari.txt";
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const confirmDisable = async () => {
@@ -95,6 +124,28 @@ export function TwoFactorSection() {
             alt="2FA QR kodu"
             className="h-44 w-44 rounded-lg border border-zinc-200"
           />
+          {secret ? (
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2">
+              <p className="text-xs text-zinc-500">
+                QR okutamıyorsanız bu anahtarı uygulamaya elle girin:
+              </p>
+              <div className="mt-1 flex items-center gap-2">
+                <code className="font-mono text-sm tracking-wider text-zinc-900">
+                  {secret}
+                </code>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(secret);
+                    toast.success("Anahtar kopyalandı");
+                  }}
+                  className="text-xs font-semibold text-blue-600 hover:underline"
+                >
+                  Kopyala
+                </button>
+              </div>
+            </div>
+          ) : null}
           <Field>
             <Label>Doğrulama kodu</Label>
             <Input
@@ -116,8 +167,42 @@ export function TwoFactorSection() {
         </div>
       ) : null}
 
+      {/* Enable sonrası: kurtarma kodları — BİR KEZ gösterilir */}
+      {recoveryCodes ? (
+        <div className="mt-4 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-900">
+            Kurtarma kodlarınız — şimdi kaydedin, bir daha gösterilmez!
+          </p>
+          <p className="text-xs text-amber-800">
+            Authenticator cihazınızı kaybederseniz bu kodlardan biriyle giriş
+            yapabilirsiniz. Her kod tek kullanımlıktır.
+          </p>
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+            {recoveryCodes.map((c) => (
+              <code
+                key={c}
+                className="rounded bg-white px-2 py-1 text-center font-mono text-sm text-zinc-900"
+              >
+                {c}
+              </code>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button outline onClick={copyRecovery}>
+              Kopyala
+            </Button>
+            <Button outline onClick={downloadRecovery}>
+              .txt İndir
+            </Button>
+            <Button onClick={() => setRecoveryCodes(null)}>
+              Kodları kaydettim
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       {/* Açık → kapatma */}
-      {enabled ? (
+      {enabled && !recoveryCodes ? (
         <div className="mt-4">
           {!disableMode ? (
             <Button outline onClick={() => setDisableMode(true)}>
@@ -126,13 +211,12 @@ export function TwoFactorSection() {
           ) : (
             <div className="space-y-3">
               <Field>
-                <Label>Mevcut authenticator kodu</Label>
+                <Label>Authenticator kodu veya kurtarma kodu</Label>
                 <Input
-                  inputMode="numeric"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="6 haneli kod"
-                  className="max-w-[200px]"
+                  placeholder="6 haneli kod ya da XXXX-XXXX"
+                  className="max-w-[240px]"
                 />
               </Field>
               <div className="flex gap-2">

@@ -29,6 +29,17 @@ export function makeAuthService() {
     secret: "test-secret",
     signOptions: { expiresIn: "1h" },
   });
+  // 2FA secret şifrelemesi JWT_SECRET'tan anahtar türetir.
+  const lookup = (key: string) =>
+    key === "JWT_SECRET" ? "test-secret" : undefined;
+  const config = {
+    get: jest.fn(lookup),
+    getOrThrow: jest.fn((key: string) => {
+      const v = lookup(key);
+      if (v === undefined) throw new Error(`config eksik: ${key}`);
+      return v;
+    }),
+  };
 
   const service = new CompanyAuthService(
     prisma as never,
@@ -36,8 +47,9 @@ export function makeAuthService() {
     supabaseAuth as never,
     audit as never,
     email as never,
+    config as never,
   );
-  return { service, supabaseAuth, audit, email };
+  return { service, supabaseAuth, audit, email, jwt };
 }
 
 /** signup sonrası e-posta mock'undan 6 haneli kodu ayıkla. */

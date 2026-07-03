@@ -13,6 +13,7 @@ import { Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
 import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
+import { useConfirm } from "@/components/providers/confirm-dialog";
 import {
   useAddresses,
   useDeleteAddress,
@@ -21,6 +22,7 @@ import {
   type CompanyAddressType,
 } from "@/hooks/use-company-addresses";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { COUNTRIES } from "@supkeys/shared";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -32,10 +34,17 @@ function typeLabel(t: CompanyAddressType) {
 export function AddressBookSection({ canManage }: { canManage: boolean }) {
   const { data: addresses, isLoading } = useAddresses();
   const del = useDeleteAddress();
+  const confirm = useConfirm();
   const [editing, setEditing] = useState<CompanyAddress | "new" | null>(null);
 
   const handleDelete = async (a: CompanyAddress) => {
-    if (!confirm(`"${a.title}" adresi silinsin mi?`)) return;
+    const ok = await confirm({
+      title: "Adres silinsin mi?",
+      description: `"${a.title}" adresi kalıcı olarak silinecek.`,
+      confirmLabel: "Sil",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await del.mutateAsync(a.id);
       toast.success("Adres silindi");
@@ -140,6 +149,7 @@ function AddressDialog({
     title: address?.title ?? "",
     contactName: address?.contactName ?? "",
     phone: address?.phone ?? "",
+    country: address?.country ?? "TR",
     city: address?.city ?? "",
     district: address?.district ?? "",
     addressLine: address?.addressLine ?? "",
@@ -155,9 +165,22 @@ function AddressDialog({
       toast.error("Başlık ve açık adres zorunlu");
       return;
     }
-    if (f.type === "FATURA" && (!f.taxOffice.trim() || !f.taxNumber.trim())) {
-      toast.error("Fatura adresi için vergi dairesi ve vergi no zorunlu");
+    const phone = f.phone.trim();
+    if (phone && !/^\+?[0-9 ()-]{7,20}$/.test(phone)) {
+      toast.error("Geçerli bir telefon numarası giriniz");
       return;
+    }
+    if (f.type === "FATURA") {
+      if (!f.taxOffice.trim() || !f.taxNumber.trim()) {
+        toast.error("Fatura adresi için vergi dairesi ve vergi no zorunlu");
+        return;
+      }
+      // TR: VKN 10 hane / TCKN 11 hane; yabancı adreslerde format serbest.
+      const tax = f.taxNumber.trim();
+      if (f.country === "TR" && !/^\d{10}(\d)?$/.test(tax)) {
+        toast.error("Vergi no 10 haneli VKN ya da 11 haneli TCKN olmalı");
+        return;
+      }
     }
     try {
       await save.mutateAsync({ id: address?.id, ...f });
@@ -207,6 +230,19 @@ function AddressDialog({
               value={f.phone}
               onChange={(e) => set({ phone: e.target.value })}
             />
+          </Field>
+          <Field>
+            <Label>Ülke</Label>
+            <Select
+              value={f.country}
+              onChange={(e) => set({ country: e.target.value })}
+            >
+              {COUNTRIES.map((c) => (
+                <option key={c.code} value={c.code}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
           </Field>
           <Field>
             <Label>İl</Label>

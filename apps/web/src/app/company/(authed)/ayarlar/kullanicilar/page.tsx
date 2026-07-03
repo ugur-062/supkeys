@@ -6,7 +6,7 @@ import { SettingsShell } from "../_components/settings-shell";
 
 export default function Page() {
   const { user } = useCompanyAuth();
-  const canEdit = !!user?.roles.includes("YONETICI");
+  const canEdit = !!user && (user.isOwner || user.roles.includes("YONETICI"));
   return (
     <SettingsShell
       title="Kullanıcı Yönetimi"

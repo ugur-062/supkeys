@@ -56,9 +56,9 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
 
   const onSubmit = handleSubmit(async (data) => {
     setFormError(null);
-    // 2FA açıkken kod 6 hane olmalı — boş round-trip yapma.
-    if (twoFactor && code.trim().length !== 6) {
-      setFormError("6 haneli doğrulama kodunu girin");
+    // 2FA açıkken kod zorunlu: 6 haneli TOTP veya kurtarma kodu (XXXX-XXXX).
+    if (twoFactor && code.trim().length < 6) {
+      setFormError("Doğrulama kodunu ya da kurtarma kodunuzu girin");
       return;
     }
     try {
@@ -191,16 +191,17 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         <Field>
           <Label>Doğrulama kodu</Label>
           <Input
-            inputMode="numeric"
             autoComplete="one-time-code"
             autoFocus
-            maxLength={6}
-            placeholder="Authenticator 6 haneli kod"
+            maxLength={12}
+            placeholder="6 haneli kod ya da XXXX-XXXX"
             value={code}
-            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => setCode(e.target.value)}
           />
           <p className="mt-1 text-xs text-zinc-500">
             Hesabınızda iki adımlı doğrulama açık — uygulamanızdaki kodu girin.
+            Cihazınıza erişemiyorsanız kurtarma kodlarınızdan birini
+            kullanabilirsiniz.
           </p>
         </Field>
       ) : null}

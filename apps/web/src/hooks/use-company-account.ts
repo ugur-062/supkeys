@@ -1,6 +1,7 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 /**
@@ -48,11 +49,18 @@ export function useChangePassword() {
       currentPassword: string;
       newPassword: string;
     }) => {
-      const { data } = await companyApi.post(
+      const { data } = await companyApi.post<{ ok: boolean; token?: string }>(
         "/company-auth/change-password",
         input,
       );
       return data;
+    },
+    onSuccess: (data) => {
+      // Parola değişimi diğer oturumları geçersiz kılar (tokenVersion);
+      // BU oturum sunucunun döndürdüğü taze token'la devam eder.
+      if (data.token) {
+        useCompanyAuthStore.setState({ token: data.token });
+      }
     },
   });
 }
@@ -74,9 +82,11 @@ export function useEnable2fa() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (code: string) => {
-      const { data } = await companyApi.post("/company-auth/2fa/enable", {
-        code,
-      });
+      const { data } = await companyApi.post<{
+        ok: boolean;
+        /** Tek kullanımlık kurtarma kodları — YALNIZCA bu yanıtta görünür. */
+        recoveryCodes: string[];
+      }>("/company-auth/2fa/enable", { code });
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["company-auth", "me"] }),

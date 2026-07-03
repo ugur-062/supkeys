@@ -1126,6 +1126,12 @@ model CompanyUser {
   twoFactorEnabled    Boolean   @default(false)
   twoFactorEnabledAt  DateTime?
   twoFactorSecret     String? // TOTP secret (base32) — 2FA açıkken dolu
+  // Kurtarma kodları (SHA-256 hash) — enable'da üretilir, BİR KEZ gösterilir;
+  // her kod tek kullanımlık (girişte/kapatmada tüketilir).
+  twoFactorRecoveryCodes String[] @default([])
+  // Oturum sürümü — parola değişince artar; eski JWT'ler geçersizleşir
+  // (strategy her istekte DB'den doğrular).
+  tokenVersion Int @default(0)
   permissionsOverride Json? // { added?: string[], removed?: string[] }
   notificationPrefs   Json?
   invitedById         String?

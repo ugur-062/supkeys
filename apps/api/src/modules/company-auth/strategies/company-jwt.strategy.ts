@@ -12,6 +12,8 @@ export interface CompanyJwtPayload {
   type: "company";
   userId: string;
   companyId: string;
+  /** Oturum sürümü — parola değişince artar; eski token'lar geçersizleşir. */
+  tv?: number;
 }
 
 export interface AuthenticatedCompanyUser {
@@ -61,6 +63,13 @@ export class CompanyJwtStrategy extends PassportStrategy(
     }
     if (!user.company.isActive || user.company.isBlocked) {
       throw new UnauthorizedException("Firma hesabı pasif veya engellenmiş");
+    }
+    // Oturum sürümü: parola değişiminden önce kesilmiş token'lar reddedilir
+    // (tv'siz eski token = 0 varsayılır — sürüm hiç artmadıysa geçerli kalır).
+    if ((payload.tv ?? 0) !== user.tokenVersion) {
+      throw new UnauthorizedException(
+        "Oturum geçersiz — lütfen yeniden giriş yapın",
+      );
     }
 
     return {

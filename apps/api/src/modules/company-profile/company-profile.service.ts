@@ -162,8 +162,13 @@ export class CompanyProfileService {
       const raw = dto.iban.trim();
       if (raw) {
         const iban = normalizeIban(raw);
-        if (!isValidIbanTr(iban)) {
-          throw new BadRequestException("Bu değer geçersiz");
+        // Banka hesaplarıyla aynı kural: TR katı; yabancı IBAN gevşek format
+        // (yabancı firma profili TR-only kuralla IBAN kaydedemiyordu).
+        const valid = iban.startsWith("TR")
+          ? isValidIbanTr(iban)
+          : /^[A-Z]{2}[0-9A-Z]{8,32}$/.test(iban);
+        if (!valid) {
+          throw new BadRequestException("Geçerli bir IBAN giriniz");
         }
         data.iban = iban;
       } else {
