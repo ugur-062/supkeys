@@ -8,10 +8,12 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { normalizeShortCode, validateShortCode } from "@supkeys/shared";
+import { Prisma } from "@supkeys/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { EmailService } from "../../email/email.service";
+import { NotificationService } from "../../notifications/notification.service";
 
 type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
 
@@ -42,6 +44,7 @@ export class CompanyConnectionsService {
     private readonly blocks: CompanyBlocksService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationService,
   ) {}
 
   /** Kendi Rothern ID. */
@@ -85,14 +88,22 @@ export class CompanyConnectionsService {
   async inviteByEmail(user: AuthenticatedCompanyUser, emailRaw: string) {
     const email = emailRaw.trim().toLowerCase();
 
-    // Kayıtlı mı? (aktif kullanıcı)
-    const existing = await this.prisma.companyUser.findFirst({
-      where: { email, isActive: true, deletedAt: null },
+    // Kayıtlı mı? E-posta CompanyUser'da benzersizdir — pasif/çıkarılmış
+    // kullanıcı e-postasına referral maili göndermek boşa gider (o e-postayla
+    // yeniden kayıt olunamaz). Kullanıcı pasif ama FİRMA aktifse istek yine
+    // firmaya gider; firma pasifse anlamlı hata verilir.
+    const existing = await this.prisma.companyUser.findUnique({
+      where: { email },
       select: {
         company: { select: { id: true, name: true, isActive: true } },
       },
     });
     if (existing?.company) {
+      if (!existing.company.isActive) {
+        throw new BadRequestException(
+          "Bu e-posta adresinin bağlı olduğu firma artık aktif değil",
+        );
+      }
       const res = await this.createRequest(user, existing.company, "INVITE");
       return { kind: "request" as const, targetName: res.targetName };
     }
@@ -187,18 +198,73 @@ export class CompanyConnectionsService {
       throw new ConflictException("Bu firmaya zaten istek gönderdiniz");
     }
 
-    const conn = await this.prisma.companyConnection.create({
-      data: {
-        inviterCompanyId: user.companyId,
-        inviteeCompanyId: target.id,
-        invitedById: user.userId,
-        status: "PENDING",
-        origin,
-      },
+    let conn;
+    try {
+      conn = await this.prisma.companyConnection.create({
+        data: {
+          inviterCompanyId: user.companyId,
+          inviteeCompanyId: target.id,
+          invitedById: user.userId,
+          status: "PENDING",
+          origin,
+        },
+      });
+    } catch (e) {
+      // Yarış: findFirst ile create arasında aynı yönde kayıt oluştu.
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002"
+      ) {
+        throw new ConflictException("Bu firmaya zaten istek gönderdiniz");
+      }
+      throw e;
+    }
+    // Hedef firmaya in-app haber ver (tercihe tabi değil — bilinmeyen tip açık).
+    const me = await this.prisma.company.findUnique({
+      where: { id: user.companyId },
+      select: { name: true },
     });
+    void this.notifications
+      .pushToCompany(target.id, {
+        type: "connection_request",
+        title: "Yeni bağlantı isteği",
+        body: `${me?.name ?? "Bir firma"} sizinle bağlantı kurmak istiyor. Bağlantılar sayfasındaki Gelen İstekler'den yanıtlayabilirsiniz.`,
+      })
+      .catch((err) =>
+        this.logger.warn(
+          `Bağlantı isteği bildirimi gönderilemedi: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
     return { id: conn.id, status: conn.status, targetName: target.name };
   }
 
+
+  /** Gönderdiğim bekleyen bağlantı istekleri (iptal edilebilir). */
+  async listOutgoing(companyId: string) {
+    const rows = await this.prisma.companyConnection.findMany({
+      where: { inviterCompanyId: companyId, status: "PENDING" },
+      include: {
+        invitee: { select: { id: true, name: true, supkeysId: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map((r) => ({
+      connectionId: r.id,
+      company: r.invitee,
+      createdAt: r.createdAt,
+    }));
+  }
+
+  /** Bekleyen e-posta davetini iptal et (kayıt olunca bağ kurulmaz). */
+  async cancelReferralInvite(user: AuthenticatedCompanyUser, id: string) {
+    const res = await this.prisma.companyReferralInvite.deleteMany({
+      where: { id, inviterCompanyId: user.companyId, status: "PENDING" },
+    });
+    if (res.count === 0) throw new NotFoundException("Davet bulunamadı");
+    return { ok: true };
+  }
 
   /** Bana gelen bekleyen davetler. */
   async listIncoming(companyId: string) {
@@ -493,31 +559,32 @@ export class CompanyConnectionsService {
     const connectionId = conn?.id ?? null;
     const connected = connectionStatus === "active" || isSelf;
 
-    const listings = await this.prisma.listing.findMany({
-      where: {
-        companyId: c.id,
-        status: "OPEN",
-        ...(connected ? {} : { visibility: "PUBLIC" as const }),
-      },
-      select: {
-        id: true,
-        number: true,
-        type: true,
-        format: true,
-        title: true,
-        status: true,
-        createdAt: true,
-        closesAt: true,
-      },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    });
-
-    const ratingAgg = await this.prisma.companyReview.aggregate({
-      where: { targetCompanyId: c.id },
-      _avg: { rating: true },
-      _count: true,
-    });
+    const [listings, ratingAgg] = await Promise.all([
+      this.prisma.listing.findMany({
+        where: {
+          companyId: c.id,
+          status: "OPEN",
+          ...(connected ? {} : { visibility: "PUBLIC" as const }),
+        },
+        select: {
+          id: true,
+          number: true,
+          type: true,
+          format: true,
+          title: true,
+          status: true,
+          createdAt: true,
+          closesAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      }),
+      this.prisma.companyReview.aggregate({
+        where: { targetCompanyId: c.id },
+        _avg: { rating: true },
+        _count: true,
+      }),
+    ]);
 
     return {
       profile: {
@@ -554,17 +621,65 @@ export class CompanyConnectionsService {
   /** Gelen daveti kabul et. */
   async accept(user: AuthenticatedCompanyUser, connectionId: string) {
     const conn = await this.requireIncoming(user.companyId, connectionId);
-    await this.prisma.companyConnection.update({
-      where: { id: conn.id },
+    // Atomik geçiş: okuma ile yazma arasında reject/disconnect yarışırsa
+    // count=0 döner — "kabul edilmiş bağlantı silindi" durumu oluşamaz.
+    const updated = await this.prisma.companyConnection.updateMany({
+      where: {
+        id: conn.id,
+        inviteeCompanyId: user.companyId,
+        status: "PENDING",
+      },
       data: { status: "ACTIVE", decidedAt: new Date() },
     });
+    if (updated.count === 0) {
+      throw new ConflictException("Davet zaten yanıtlanmış");
+    }
+    await this.prisma.$transaction([
+      // Çapraz yarış temizliği: iki firma AYNI ANDA birbirine istek attıysa
+      // ters yönde ikinci bir PENDING kayıt oluşmuş olabilir — bağ kurulduğu
+      // anda sarkan ters istek silinir (listelerde mükerrer görünmesin).
+      this.prisma.companyConnection.deleteMany({
+        where: {
+          inviterCompanyId: user.companyId,
+          inviteeCompanyId: conn.inviterCompanyId,
+          status: "PENDING",
+        },
+      }),
+    ]);
+    // Davet eden firmaya haber ver.
+    const me = await this.prisma.company.findUnique({
+      where: { id: user.companyId },
+      select: { name: true },
+    });
+    void this.notifications
+      .pushToCompany(conn.inviterCompanyId, {
+        type: "connection_accepted",
+        title: "Bağlantı isteğiniz kabul edildi",
+        body: `${me?.name ?? "Bir firma"} bağlantı isteğinizi kabul etti — artık birbirinizin bağlantılara açık ihalelerini görebilirsiniz.`,
+      })
+      .catch((err) =>
+        this.logger.warn(
+          `Bağlantı kabul bildirimi gönderilemedi: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
     return { ok: true };
   }
 
-  /** Gelen daveti reddet (kaydı sil). */
+  /** Gelen daveti reddet (kaydı sil) — durum guard'lı atomik silme. */
   async reject(user: AuthenticatedCompanyUser, connectionId: string) {
-    const conn = await this.requireIncoming(user.companyId, connectionId);
-    await this.prisma.companyConnection.delete({ where: { id: conn.id } });
+    await this.requireIncoming(user.companyId, connectionId);
+    const res = await this.prisma.companyConnection.deleteMany({
+      where: {
+        id: connectionId,
+        inviteeCompanyId: user.companyId,
+        status: "PENDING",
+      },
+    });
+    if (res.count === 0) {
+      throw new ConflictException("Davet zaten yanıtlanmış");
+    }
     return { ok: true };
   }
 
@@ -588,7 +703,12 @@ export class CompanyConnectionsService {
   private async requireIncoming(companyId: string, connectionId: string) {
     const conn = await this.prisma.companyConnection.findUnique({
       where: { id: connectionId },
-      select: { id: true, inviteeCompanyId: true, status: true },
+      select: {
+        id: true,
+        inviterCompanyId: true,
+        inviteeCompanyId: true,
+        status: true,
+      },
     });
     if (!conn || conn.inviteeCompanyId !== companyId) {
       throw new NotFoundException("Davet bulunamadı");

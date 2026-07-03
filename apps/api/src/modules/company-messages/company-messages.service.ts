@@ -5,6 +5,7 @@ import {
   Optional,
 } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { CompanyBlocksService } from "../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { RealtimeService } from "../realtime/realtime.service";
 
@@ -24,6 +25,7 @@ interface ThreadParties {
 export class CompanyMessagesService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly blocks: CompanyBlocksService,
     @Optional() private readonly realtime?: RealtimeService,
   ) {}
 
@@ -162,6 +164,11 @@ export class CompanyMessagesService {
       select: { id: true },
     });
     if (!other) throw new NotFoundException("Firma bulunamadı");
+    // Engel (iki yön) mesajlaşmayı da kapatır — engelleyen taraf sızdırılmaz.
+    const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
+    if (blockedIds.includes(otherCompanyId)) {
+      throw new NotFoundException("Firma bulunamadı");
+    }
 
     const parties = this.parties(user.companyId, portal, otherCompanyId);
     const now = new Date();

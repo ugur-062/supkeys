@@ -33,7 +33,11 @@ export class CompanyBlocksService {
     return [...ids];
   }
 
-  async block(actor: AuthenticatedCompanyUser, supkeysIdRaw: string) {
+  async block(
+    actor: AuthenticatedCompanyUser,
+    supkeysIdRaw: string,
+    reason?: string,
+  ) {
     const code = normalizeShortCode(supkeysIdRaw);
     if (!validateShortCode(code)) {
       throw new BadRequestException("Geçersiz firma kodu");
@@ -58,8 +62,9 @@ export class CompanyBlocksService {
         create: {
           blockerCompanyId: actor.companyId,
           blockedCompanyId: target.id,
+          reason: reason?.trim() || null,
         },
-        update: {},
+        update: { reason: reason?.trim() || null },
       }),
       // Mevcut bağlantı/davet varsa kaldır (iki yön).
       this.prisma.companyConnection.deleteMany({

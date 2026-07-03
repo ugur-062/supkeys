@@ -13,10 +13,13 @@ import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import {
+  useCancelReferralInvite,
   useConnections,
   useConnectionSelf,
   useDisconnect,
+  useDiscover,
   useIncomingInvites,
+  useOutgoingInvites,
   useInviteByEmail,
   useReferralInvites,
   useBlockCompany,
@@ -93,6 +96,10 @@ function CompanyCard({
   return (
     <Link
       href={supkeysId ? `/company/firma/${supkeysId}` : "#"}
+      aria-disabled={!supkeysId}
+      onClick={(e) => {
+        if (!supkeysId) e.preventDefault();
+      }}
       className="flex items-center gap-3 rounded-xl border border-zinc-950/10 bg-white p-4 transition hover:bg-zinc-50"
     >
       <AvatarInitials name={name} size="md" />
@@ -160,7 +167,7 @@ function ConnectionRow({
     });
     if (!ok) return;
     try {
-      await block.mutateAsync(supkeysId);
+      await block.mutateAsync({ supkeysId });
       toast.success("Firma engellendi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Engellenemedi"));
@@ -182,6 +189,10 @@ function ConnectionRow({
     <div className="flex items-center gap-2 rounded-xl border border-zinc-950/10 bg-white pr-2 transition hover:bg-zinc-50">
       <Link
         href={supkeysId ? `/company/firma/${supkeysId}` : "#"}
+        aria-disabled={!supkeysId}
+        onClick={(e) => {
+          if (!supkeysId) e.preventDefault();
+        }}
         className="flex min-w-0 flex-1 items-center gap-3 p-4"
       >
         <AvatarInitials name={name} size="md" />
@@ -209,11 +220,14 @@ function ConnectionRow({
             <Unlink data-slot="icon" />
             Bağlantıyı Kaldır
           </DropdownItem>
-          <DropdownItem onClick={handleBlock}>
+          <DropdownItem onClick={handleBlock} disabled={block.isPending}>
             <Ban data-slot="icon" />
             Engelle
           </DropdownItem>
-          <DropdownItem onClick={() => setComplaintOpen(true)}>
+          <DropdownItem
+            onClick={() => setComplaintOpen(true)}
+            disabled={complaint.isPending}
+          >
             <Flag data-slot="icon" />
             Şikayet Et
           </DropdownItem>
@@ -254,8 +268,14 @@ export function ConnectionsView() {
   const [copied, setCopied] = useState(false);
 
   const search = useCompanySearch(q);
+  const outgoing = useOutgoingInvites();
+  const discover = useDiscover();
+  const cancelReferral = useCancelReferralInvite();
+  const disconnectOutgoing = useDisconnect();
   const rothernId = self.data?.rothernId ?? "—";
   const incomingCount = incoming.data?.length ?? 0;
+  const outgoingCount =
+    (outgoing.data?.length ?? 0) + (referralInvites.data?.length ?? 0);
   const connCount = connections.data?.length ?? 0;
 
   const copyId = async () => {
@@ -304,9 +324,9 @@ export function ConnectionsView() {
       { key: "discover", label: "Keşfet", icon: Compass },
       {
         key: "incoming",
-        label: "Gelen İstekler",
+        label: "İstekler",
         icon: Inbox,
-        count: incomingCount,
+        count: incomingCount + outgoingCount,
       },
     ];
 
@@ -352,6 +372,7 @@ export function ConnectionsView() {
           <div className="mt-3 flex gap-2">
             <Input
               type="email"
+              aria-label="Davet edilecek e-posta adresi"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="ornek@firma.com"
@@ -376,7 +397,11 @@ export function ConnectionsView() {
       </section>
 
       {/* Sekmeler */}
-      <div className="flex gap-1 border-b border-zinc-950/10">
+      <div
+        role="tablist"
+        aria-label="Bağlantı sekmeleri"
+        className="flex gap-1 border-b border-zinc-950/10"
+      >
         {TABS.map((t) => {
           const active = tab === t.key;
           const Icon = t.icon;
@@ -384,6 +409,8 @@ export function ConnectionsView() {
             <button
               key={t.key}
               type="button"
+              role="tab"
+              aria-selected={active}
               onClick={() => setTab(t.key)}
               className={cn(
                 "-mb-px inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
@@ -415,11 +442,47 @@ export function ConnectionsView() {
       {tab === "discover" ? (
         <section className="space-y-3">
           <Input
+            aria-label="Firma ara"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Firma adı, sektör veya Rothern ID ara…"
             className="max-w-md"
           />
+          {/* Arama boşken: kategori eşleşmesine göre "Sana Uygun Firmalar" */}
+          {!q.trim() &&
+          !discover.isLoading &&
+          discover.data &&
+          !discover.data.locked &&
+          discover.data.companies.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Sana uygun firmalar
+                <span className="ml-1.5 font-normal normal-case text-zinc-400">
+                  — kategori eşleşmesine göre
+                </span>
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {discover.data.companies.slice(0, 6).map((c) => (
+                  <CompanyCard
+                    key={c.id}
+                    supkeysId={c.supkeysId}
+                    name={c.name}
+                    industry={c.industry}
+                    city={null}
+                    badge={
+                      c.matchScore > 0
+                        ? { label: `${c.matchScore} kategori eşleşmesi`, color: "blue" }
+                        : undefined
+                    }
+                  />
+                ))}
+              </div>
+              <div className="h-px bg-zinc-100" aria-hidden />
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Tüm firmalar
+              </p>
+            </div>
+          ) : null}
           {search.isLoading ? (
             <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={4} /></div>
           ) : !search.data || search.data.length === 0 ? (
@@ -474,61 +537,190 @@ export function ConnectionsView() {
         </section>
       ) : null}
 
-      {/* Gelen İstekler */}
+      {/* İstekler — gelen + gönderdiğim + bekleyen e-posta davetleri */}
       {tab === "incoming" ? (
-        <section className="space-y-3">
-          {incomingCount === 0 ? (
-            <EmptyBox
-              title="Bekleyen istek yok"
-              desc="Sana gönderilen bağlantı istekleri burada görünür."
-            />
-          ) : (
-            <div className="space-y-2">
-              {incoming.data!.map((inv) => (
-                <div
-                  key={inv.connectionId}
-                  className="flex items-center justify-between gap-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"
-                >
-                  <Link
-                    href={
-                      inv.company.supkeysId
-                        ? `/company/firma/${inv.company.supkeysId}`
-                        : "#"
-                    }
-                    className="flex min-w-0 items-center gap-3"
-                  >
-                    <AvatarInitials name={inv.company.name} size="sm" />
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-semibold text-zinc-900">
-                        {inv.company.name}
-                      </div>
-                      <div className="font-mono text-xs text-zinc-500">
-                        {inv.company.supkeysId}
+        <section className="space-y-5">
+          {/* Gelen */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Gelen istekler
+            </p>
+            {incoming.isLoading ? (
+              <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={2} /></div>
+            ) : incomingCount === 0 ? (
+              <EmptyBox
+                title="Bekleyen istek yok"
+                desc="Sana gönderilen bağlantı istekleri burada görünür."
+              />
+            ) : (
+              <div className="space-y-2">
+                {incoming.data!.map((inv) => {
+                  // Yalnızca İŞLENEN satırın butonları kilitlenir.
+                  const busy =
+                    respond.isPending &&
+                    respond.variables?.connectionId === inv.connectionId;
+                  return (
+                    <div
+                      key={inv.connectionId}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"
+                    >
+                      <CompanyLinkRow
+                        supkeysId={inv.company.supkeysId}
+                        name={inv.company.name}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => handleRespond(inv.connectionId, "accept")}
+                          disabled={busy}
+                        >
+                          Kabul Et
+                        </Button>
+                        <Button
+                          plain
+                          onClick={() => handleRespond(inv.connectionId, "reject")}
+                          disabled={busy}
+                        >
+                          Reddet
+                        </Button>
                       </div>
                     </div>
-                  </Link>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={() => handleRespond(inv.connectionId, "accept")}
-                      disabled={respond.isPending}
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Gönderdiğim (iptal edilebilir) */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Gönderdiğim istekler
+            </p>
+            {outgoing.isLoading ? (
+              <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white"><ListSkeleton rows={2} /></div>
+            ) : (outgoing.data?.length ?? 0) === 0 ? (
+              <EmptyBox
+                title="Bekleyen isteğin yok"
+                desc="Gönderdiğin bağlantı istekleri karşı taraf yanıtlayana dek burada durur."
+              />
+            ) : (
+              <div className="space-y-2">
+                {outgoing.data!.map((inv) => {
+                  const busy =
+                    disconnectOutgoing.isPending &&
+                    disconnectOutgoing.variables === inv.connectionId;
+                  return (
+                    <div
+                      key={inv.connectionId}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
                     >
-                      Kabul Et
-                    </Button>
-                    <Button
-                      plain
-                      onClick={() => handleRespond(inv.connectionId, "reject")}
-                      disabled={respond.isPending}
+                      <CompanyLinkRow
+                        supkeysId={inv.company.supkeysId}
+                        name={inv.company.name}
+                      />
+                      <Button
+                        plain
+                        onClick={async () => {
+                          try {
+                            await disconnectOutgoing.mutateAsync(inv.connectionId);
+                            toast.success("İstek geri çekildi");
+                          } catch (err) {
+                            toast.error(
+                              extractErrorMessage(err, "Geri çekilemedi"),
+                            );
+                          }
+                        }}
+                        disabled={busy}
+                      >
+                        Geri Çek
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Bekleyen e-posta davetleri (kayıtsız firmalar) */}
+          {referralInvites.data && referralInvites.data.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Bekleyen e-posta davetleri
+              </p>
+              <div className="space-y-2">
+                {referralInvites.data.map((r) => {
+                  const busy =
+                    cancelReferral.isPending && cancelReferral.variables === r.id;
+                  return (
+                    <div
+                      key={r.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
                     >
-                      Reddet
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium text-zinc-900">
+                          {r.email}
+                        </div>
+                        <div className="text-xs text-zinc-400">
+                          Kayıt olunca otomatik bağlanır
+                        </div>
+                      </div>
+                      <Button
+                        plain
+                        onClick={async () => {
+                          try {
+                            await cancelReferral.mutateAsync(r.id);
+                            toast.success("Davet iptal edildi");
+                          } catch (err) {
+                            toast.error(
+                              extractErrorMessage(err, "İptal edilemedi"),
+                            );
+                          }
+                        }}
+                        disabled={busy}
+                      >
+                        İptal Et
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          )}
+          ) : null}
         </section>
       ) : null}
     </div>
+  );
+}
+
+function CompanyLinkRow({
+  supkeysId,
+  name,
+}: {
+  supkeysId: string | null;
+  name: string;
+}) {
+  const inner = (
+    <>
+      <AvatarInitials name={name} size="sm" />
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold text-zinc-900">
+          {name}
+        </div>
+        {supkeysId ? (
+          <div className="font-mono text-xs text-zinc-500">{supkeysId}</div>
+        ) : null}
+      </div>
+    </>
+  );
+  if (!supkeysId) {
+    return <div className="flex min-w-0 items-center gap-3">{inner}</div>;
+  }
+  return (
+    <Link
+      href={`/company/firma/${supkeysId}`}
+      className="flex min-w-0 items-center gap-3"
+    >
+      {inner}
+    </Link>
   );
 }
 

@@ -94,6 +94,32 @@ export function useConnections() {
   });
 }
 
+export function useOutgoingInvites() {
+  return useQuery({
+    queryKey: ["company-connections", "outgoing"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<IncomingInvite[]>(
+        "/company/connections/outgoing",
+      );
+      return data;
+    },
+  });
+}
+
+export function useCancelReferralInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await companyApi.delete(
+        `/company/connections/referral-invites/${id}`,
+      );
+      return data;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["company-connections"] }),
+  });
+}
+
 export function useIncomingInvites() {
   return useQuery({
     queryKey: ["company-connections", "incoming"],
@@ -137,8 +163,11 @@ export function useInviteConnection() {
       );
       return data;
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["company-connections"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-connections"] });
+      // Profil/arama kartlarındaki bağlantı durumu da bayatlamasın.
+      qc.invalidateQueries({ queryKey: ["company-directory"] });
+    },
   });
 }
 
@@ -162,16 +191,23 @@ export function useBlocks() {
 export function useBlockCompany() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (supkeysId: string) => {
+    mutationFn: async ({
+      supkeysId,
+      reason,
+    }: {
+      supkeysId: string;
+      reason?: string;
+    }) => {
       const { data } = await companyApi.post<{ name: string }>(
         "/company/blocks",
-        { supkeysId },
+        { supkeysId, reason },
       );
       return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["company-blocks"] });
       qc.invalidateQueries({ queryKey: ["company-connections"] });
+      qc.invalidateQueries({ queryKey: ["company-directory"] });
     },
   });
 }
@@ -183,7 +219,10 @@ export function useUnblockCompany() {
       const { data } = await companyApi.delete(`/company/blocks/${companyId}`);
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-blocks"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-blocks"] });
+      qc.invalidateQueries({ queryKey: ["company-directory"] });
+    },
   });
 }
 

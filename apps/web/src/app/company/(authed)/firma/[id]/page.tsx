@@ -10,6 +10,8 @@ import {
 } from "@/components/catalyst/dropdown";
 import { Text } from "@/components/catalyst/text";
 import { CompanyProfileView } from "@/components/company/company-profile-view";
+import { useConfirm } from "@/components/providers/confirm-dialog";
+import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import {
   TenderStatusBadge,
   TenderTypeBadge,
@@ -27,6 +29,7 @@ import { tr } from "date-fns/locale";
 import { ArrowLeft, Ban, Flag, Lock, MoreVertical, Unlink } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 
 export default function CompanyProfilePage() {
@@ -37,9 +40,18 @@ export default function CompanyProfilePage() {
   const block = useBlockCompany();
   const complaint = useFileComplaint();
   const disconnect = useDisconnect();
+  const confirmDialog = useConfirm();
+  const [blockOpen, setBlockOpen] = useState(false);
+  const [complaintOpen, setComplaintOpen] = useState(false);
 
   if (isLoading) {
-    return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
+    return (
+      <div className="mx-auto max-w-5xl space-y-4" aria-hidden>
+        <div className="h-5 w-28 animate-pulse rounded bg-zinc-100" />
+        <div className="h-48 animate-pulse rounded-2xl bg-zinc-100" />
+        <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
+      </div>
+    );
   }
   if (!data) {
     return (
@@ -65,12 +77,15 @@ export default function CompanyProfilePage() {
     }
   };
 
-  const handleBlock = async () => {
+  const submitBlock = async (reason: string) => {
     if (!p.supkeysId) return;
-    if (!confirm(`"${p.name}" engellensin mi?`)) return;
     try {
-      await block.mutateAsync(p.supkeysId);
+      await block.mutateAsync({
+        supkeysId: p.supkeysId,
+        reason: reason.trim() || undefined,
+      });
       toast.success("Firma engellendi");
+      setBlockOpen(false);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Engellenemedi"));
     }
@@ -78,8 +93,13 @@ export default function CompanyProfilePage() {
 
   const handleDisconnect = async () => {
     if (!connectionId) return;
-    if (!confirm(`"${p.name}" ile bağlantınızı kaldırmak istiyor musunuz?`))
-      return;
+    const ok = await confirmDialog({
+      title: "Bağlantı kaldırılsın mı?",
+      description: `"${p.name}" ile bağlantınız kaldırılacak; davetli ihalelerini artık göremezsiniz.`,
+      confirmLabel: "Kaldır",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await disconnect.mutateAsync(connectionId);
       toast.success("Bağlantı kaldırıldı");
@@ -88,16 +108,15 @@ export default function CompanyProfilePage() {
     }
   };
 
-  const handleComplaint = async () => {
-    if (!p.supkeysId) return;
-    const reason = window.prompt("Şikayet konusu:");
-    if (!reason || reason.trim().length < 3) return;
+  const submitComplaint = async (reason: string) => {
+    if (!p.supkeysId || reason.trim().length < 3) return;
     try {
       await complaint.mutateAsync({
         supkeysId: p.supkeysId,
         reason: reason.trim(),
       });
       toast.success("Şikayet gönderildi");
+      setComplaintOpen(false);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Şikayet gönderilemedi"));
     }
@@ -134,11 +153,17 @@ export default function CompanyProfilePage() {
                 Bağlantıyı Kaldır
               </DropdownItem>
             ) : null}
-            <DropdownItem onClick={handleBlock}>
+            <DropdownItem
+              onClick={() => setBlockOpen(true)}
+              disabled={block.isPending}
+            >
               <Ban data-slot="icon" />
               Engelle
             </DropdownItem>
-            <DropdownItem onClick={handleComplaint}>
+            <DropdownItem
+              onClick={() => setComplaintOpen(true)}
+              disabled={complaint.isPending}
+            >
               <Flag data-slot="icon" />
               Şikayet Et
             </DropdownItem>
@@ -210,6 +235,28 @@ export default function CompanyProfilePage() {
       <CompanyProfileView profile={p} actions={actions}>
         {tenders}
       </CompanyProfileView>
+
+      <ReasonDialog
+        open={blockOpen}
+        onClose={() => setBlockOpen(false)}
+        onSubmit={submitBlock}
+        title="Firmayı Engelle"
+        description={`"${p.name}" sizi göremez ve sizinle işlem yapamaz; mevcut bağlantı kaldırılır. Gerekçe kayda geçer.`}
+        confirmLabel="Engelle"
+        destructive
+        pending={block.isPending}
+      />
+      <ReasonDialog
+        open={complaintOpen}
+        onClose={() => setComplaintOpen(false)}
+        onSubmit={submitComplaint}
+        title="Şikayet Et"
+        description={`"${p.name}" hakkındaki şikayetiniz platform yönetimine iletilir.`}
+        confirmLabel="Şikayeti Gönder"
+        minLength={3}
+        destructive
+        pending={complaint.isPending}
+      />
     </div>
   );
 }

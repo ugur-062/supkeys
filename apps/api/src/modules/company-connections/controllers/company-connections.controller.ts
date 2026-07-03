@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -11,6 +12,7 @@ import {
   type AuthenticatedCompanyUser,
 } from "../../company-auth/decorators/current-company-user.decorator";
 import { RequireCompanyPermission } from "../../company-auth/decorators/require-company-permission.decorator";
+import { Throttle } from "@nestjs/throttler";
 import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPermissionsGuard } from "../../company-auth/guards/company-permissions.guard";
 import { InviteByEmailDto } from "../dto/invite-by-email.dto";
@@ -42,6 +44,21 @@ export class CompanyConnectionsController {
     return this.service.listIncoming(user.companyId);
   }
 
+  /** Gönderdiğim bekleyen istekler — iptal için :id/disconnect kullanılır. */
+  @Get("outgoing")
+  outgoing(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.listOutgoing(user.companyId);
+  }
+
+  @Delete("referral-invites/:id")
+  @RequireCompanyPermission("connections:manage")
+  cancelReferralInvite(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.cancelReferralInvite(user, id);
+  }
+
   @Get("discover")
   discover(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.discover(user);
@@ -58,6 +75,8 @@ export class CompanyConnectionsController {
 
   @Post("invite-by-email")
   @RequireCompanyPermission("connections:manage")
+  // Spam vektörü: dışa e-posta tetikler — dakikada 10 ile sınırlı.
+  @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   inviteByEmail(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: InviteByEmailDto,

@@ -7,7 +7,7 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
-import { IsString, MaxLength, MinLength } from "class-validator";
+import { IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -22,6 +22,12 @@ class BlockDto {
   @MinLength(4)
   @MaxLength(20)
   supkeysId!: string;
+
+  // Opsiyonel gerekçe — kayda geçer (eski sistemde engelleme gerekçeliydi).
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }
 
 @Controller("company/blocks")
@@ -40,7 +46,7 @@ export class CompanyBlocksController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: BlockDto,
   ) {
-    return this.service.block(user, dto.supkeysId);
+    return this.service.block(user, dto.supkeysId, dto.reason);
   }
 
   @Delete(":companyId")
