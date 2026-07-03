@@ -1,10 +1,10 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { api } from "@/lib/api";
+import { Button } from "@/components/catalyst/button";
+import { Field, Label } from "@/components/catalyst/fieldset";
+import { Input } from "@/components/catalyst/input";
+import { companyApi } from "@/lib/company-auth/api";
+import { extractErrorMessage } from "@/lib/tenders/error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Check, Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
@@ -14,13 +14,16 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
+// Politika backend ConfirmPasswordResetDto ile BİREBİR aynı — kullanıcı
+// frontend'in kabul ettiği parolayı backend'de reddedilmiş görmesin.
 const schema = z
   .object({
     newPassword: z
       .string()
       .min(8, "En az 8 karakter")
       .max(72, "En fazla 72 karakter")
-      .regex(/[A-Za-z]/, "En az bir harf içermeli")
+      .regex(/[a-z]/, "En az bir küçük harf içermeli")
+      .regex(/[A-Z]/, "En az bir büyük harf içermeli")
       .regex(/\d/, "En az bir rakam içermeli"),
     confirmPassword: z.string(),
   })
@@ -48,20 +51,20 @@ export function ResetPasswordForm() {
 
   if (!token) {
     return (
-      <div className="rounded-2xl border border-danger-200 bg-danger-50 p-5">
+      <div className="rounded-xl border border-red-200 bg-red-50 p-5" role="alert">
         <div className="flex items-start gap-2">
-          <AlertCircle className="h-5 w-5 text-danger-600 flex-shrink-0 mt-0.5" />
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
           <div>
-            <p className="font-semibold text-danger-900">Geçersiz bağlantı</p>
-            <p className="mt-1 text-sm text-danger-800">
+            <p className="font-semibold text-red-900">Geçersiz bağlantı</p>
+            <p className="mt-1 text-sm text-red-800">
               Token bulunamadı. Bağlantıyı doğrudan e-postadaki halinden açın
-              veya destek ekibinden yeni link talep edin.
+              veya yeni sıfırlama bağlantısı isteyin.
             </p>
             <Link
-              href="/login"
-              className="mt-3 inline-block text-sm text-brand-700 hover:underline"
+              href="/company/sifremi-unuttum"
+              className="mt-3 inline-block text-sm font-semibold text-zinc-900 underline"
             >
-              ← Girişe dön
+              Yeni bağlantı iste
             </Link>
           </div>
         </div>
@@ -71,23 +74,26 @@ export function ResetPasswordForm() {
 
   if (submitted) {
     return (
-      <div className="rounded-2xl border border-success-200 bg-success-50 p-5">
+      <div
+        className="rounded-xl border border-emerald-200 bg-emerald-50 p-5"
+        role="status"
+      >
         <div className="flex items-start gap-2">
-          <Check className="h-5 w-5 text-success-600 flex-shrink-0 mt-0.5" />
+          <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-600" />
           <div>
-            <p className="font-semibold text-success-900">
+            <p className="font-semibold text-emerald-900">
               Parolanız değiştirildi
             </p>
-            <p className="mt-1 text-sm text-success-800">
-              Yeni parolanızla giriş yapabilirsiniz.
+            <p className="mt-1 text-sm text-emerald-800">
+              Güvenlik için tüm oturumlarınız kapatıldı — yeni parolanızla
+              giriş yapabilirsiniz.
             </p>
-            <button
-              type="button"
-              onClick={() => router.push("/login")}
-              className="mt-3 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700"
+            <Button
+              className="mt-3"
+              onClick={() => router.push("/company/login")}
             >
               Giriş Yap
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -98,76 +104,81 @@ export function ResetPasswordForm() {
     setPending(true);
     setError(null);
     try {
-      await api.post("/auth/password-reset/confirm", {
+      await companyApi.post("/auth/password-reset/confirm", {
         token,
         newPassword: values.newPassword,
       });
       toast.success("Parola değiştirildi");
       setSubmitted(true);
     } catch (err) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message ?? "Bağlantı geçersiz veya süresi dolmuş";
-      setError(typeof msg === "string" ? msg : "Bir hata oluştu");
+      setError(
+        extractErrorMessage(err, "Bağlantı geçersiz veya süresi dolmuş"),
+      );
     } finally {
       setPending(false);
     }
   };
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="space-y-4 rounded-2xl border border-surface-border bg-white p-6 shadow-sm"
-      noValidate
-    >
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
       {error ? (
-        <div className="rounded-lg border border-danger-200 bg-danger-50 px-3 py-2 text-sm text-danger-800">
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+        >
           {error}
         </div>
       ) : null}
 
-      <Field error={errors.newPassword?.message}>
-        <Label htmlFor="newPassword">Yeni Parola</Label>
+      <Field>
+        <Label>Yeni Parola</Label>
         <div className="relative">
           <Input
-            id="newPassword"
             type={show ? "text" : "password"}
-            hasError={!!errors.newPassword}
-            placeholder="En az 8 karakter, 1 harf 1 rakam"
+            autoComplete="new-password"
+            invalid={!!errors.newPassword}
+            placeholder="En az 8 karakter — büyük/küçük harf + rakam"
+            className="pr-10"
             {...register("newPassword")}
           />
           <button
             type="button"
+            tabIndex={-1}
+            aria-label={show ? "Parolayı gizle" : "Parolayı göster"}
             onClick={() => setShow((s) => !s)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+            className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-0.5 text-zinc-400 hover:text-zinc-700"
           >
             {show ? (
-              <EyeOff className="h-4 w-4" />
+              <EyeOff className="h-4 w-4" aria-hidden />
             ) : (
-              <Eye className="h-4 w-4" />
+              <Eye className="h-4 w-4" aria-hidden />
             )}
           </button>
         </div>
+        {errors.newPassword ? (
+          <p className="mt-1 text-xs text-red-600">
+            {errors.newPassword.message}
+          </p>
+        ) : null}
       </Field>
 
-      <Field error={errors.confirmPassword?.message}>
-        <Label htmlFor="confirmPassword">Parolayı Tekrar</Label>
+      <Field>
+        <Label>Parolayı Tekrar</Label>
         <Input
-          id="confirmPassword"
           type={show ? "text" : "password"}
-          hasError={!!errors.confirmPassword}
+          autoComplete="new-password"
+          invalid={!!errors.confirmPassword}
           {...register("confirmPassword")}
         />
+        {errors.confirmPassword ? (
+          <p className="mt-1 text-xs text-red-600">
+            {errors.confirmPassword.message}
+          </p>
+        ) : null}
       </Field>
 
-      <Button
-        type="submit"
-        variant="primary"
-        loading={pending}
-        disabled={pending}
-        className="w-full"
-      >
-        Parolayı Değiştir
+      <Button type="submit" className="w-full" disabled={pending}>
+        {pending ? "Değiştiriliyor…" : "Parolayı Değiştir"}
       </Button>
     </form>
   );

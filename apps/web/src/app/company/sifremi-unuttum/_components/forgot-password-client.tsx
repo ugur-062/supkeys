@@ -18,7 +18,9 @@ export function CompanyForgotPasswordClient() {
     if (!email.includes("@")) return;
     setPending(true);
     try {
-      await companyApi.post("/company-auth/forgot-password", { email });
+      await companyApi.post("/company-auth/forgot-password", {
+        email: email.trim().toLowerCase(),
+      });
     } catch {
       // Backend var/yok ayrımı sızdırmaz, her zaman success döner; buraya
       // yalnızca ağ hatasında düşeriz — yine de generic mesaj göster.
@@ -45,7 +47,10 @@ export function CompanyForgotPasswordClient() {
       }
     >
       {sent ? (
-        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center text-sm text-emerald-800">
+        <div
+          role="status"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center text-sm text-emerald-800"
+        >
           Eğer bu e-posta kayıtlıysa, parola sıfırlama bağlantısı gönderildi.
           Gelen kutunu (ve spam klasörünü) kontrol et. Bağlantı 1 saat geçerli.
         </div>
