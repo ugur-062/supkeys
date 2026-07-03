@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
+  CompanyRole,
   Prisma,
   type CompanyOrderPaymentTiming,
   type CompanyOrderStatus,
@@ -159,15 +160,20 @@ export class CompanyOrdersService {
     return { ok: res.ok, status: res.status };
   }
 
-  /** Satıcı siparişi reddeder: PENDING → REJECTED (+ gerekçe). */
+  /** Satıcı siparişi reddeder: PENDING → REJECTED (+ gerekçe zorunlu). */
   async reject(user: AuthenticatedCompanyUser, id: string, reason?: string) {
+    // Eski sistem paritesi + frontend ReasonModal minLength=10 ile aynı kural:
+    // karşı taraf gerekçesiz ret görmesin (sunucu otorite).
+    if ((reason?.trim().length ?? 0) < 10) {
+      throw new BadRequestException("Red gerekçesi en az 10 karakter olmalı");
+    }
     const res = await this.transition(user, id, {
       side: "seller",
       from: "PENDING",
       to: "REJECTED",
       // Gerekçe geçişle AYNI yazmada — ikinci update yarıda kalırsa
       // gerekçesiz REJECTED kalmasın.
-      data: { rejectedReason: reason?.trim() || null, rejectedAt: new Date() },
+      data: { rejectedReason: reason!.trim(), rejectedAt: new Date() },
     });
     await this.notifyOrderParty(
       id,
@@ -290,13 +296,23 @@ export class CompanyOrdersService {
     return { ok: res.ok, status: res.status };
   }
 
-  /** Alıcı siparişi iptal eder (teslimat öncesi): PENDING/ACCEPTED → CANCELLED. */
+  /**
+   * Alıcı siparişi iptal eder (teslimat öncesi): PENDING/ACCEPTED → CANCELLED.
+   * Gerekçe zorunlu (eski sistem paritesi). Bilinçli fark: eski sistem
+   * IN_DELIVERY'de de iptale izin veriyordu — kargodaki (faturası kesilmiş)
+   * siparişin tek taraflı iptali ihtilaf yarattığından yeni akışta kapalı.
+   */
   async cancel(user: AuthenticatedCompanyUser, id: string, reason?: string) {
+    if ((reason?.trim().length ?? 0) < 10) {
+      throw new BadRequestException(
+        "İptal gerekçesi en az 10 karakter olmalı",
+      );
+    }
     const res = await this.transition(user, id, {
       side: "buyer",
       from: ["PENDING", "ACCEPTED", "CREATED"],
       to: "CANCELLED",
-      data: { cancelReason: reason?.trim() || null, cancelledAt: new Date() },
+      data: { cancelReason: reason!.trim(), cancelledAt: new Date() },
     });
     await this.notifyOrderParty(
       id,
@@ -330,6 +346,7 @@ export class CompanyOrdersService {
     if (!allowed) {
       throw new ForbiddenException("Bu işlemi yapamazsınız");
     }
+    this.assertOrderRole(user, rule.side);
     const fromList = Array.isArray(rule.from) ? rule.from : [rule.from];
     if (!fromList.includes(order.status)) {
       throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
@@ -352,6 +369,26 @@ export class CompanyOrdersService {
       order.buyerCompanyId,
     ]);
     return { ok: true, status: rule.to, order };
+  }
+
+  /**
+   * Kişi-rol kapısı — teklif/kazandırma ile tutarlı: satıcı tarafı aksiyonları
+   * SATISCI, alıcı tarafı aksiyonları SATIN_ALMACI rolü ister (firma doğru
+   * olsa bile rolsüz kullanıcı sipariş adımı atamaz).
+   */
+  private assertOrderRole(
+    user: AuthenticatedCompanyUser,
+    side: "seller" | "buyer",
+  ): void {
+    const needed =
+      side === "seller" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI;
+    if (!user.roles.includes(needed)) {
+      throw new ForbiddenException(
+        side === "seller"
+          ? "Bu işlem için Satışçı rolü gerekir — firma yöneticinizden rol isteyin"
+          : "Bu işlem için Satın Almacı rolü gerekir — firma yöneticinizden rol isteyin",
+      );
+    }
   }
 
   private async loadParticipant(user: AuthenticatedCompanyUser, id: string) {
@@ -420,6 +457,7 @@ export class CompanyOrdersService {
     if (order.buyerCompanyId !== user.companyId) {
       throw new ForbiddenException("Ödemeyi yalnızca alıcı kaydedebilir");
     }
+    this.assertOrderRole(user, "buyer");
     if (!this.isPaymentOpen(order.paymentTiming, order.status)) {
       throw new BadRequestException(
         "Bu sipariş şu an ödeme kaydına uygun değil",
@@ -511,6 +549,7 @@ export class CompanyOrdersService {
     if (order.sellerCompanyId !== user.companyId) {
       throw new ForbiddenException("Ödemeyi yalnızca satıcı onaylayabilir");
     }
+    this.assertOrderRole(user, "seller");
     const payment = await this.prisma.companyOrderPayment.findUnique({
       where: { id: paymentId },
     });

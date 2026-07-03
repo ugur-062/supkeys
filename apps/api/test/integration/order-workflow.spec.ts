@@ -156,9 +156,9 @@ describe("taraf ve durum guard'ları", () => {
     await expect(
       orders.complete(seller.auth, order.id, {} as never),
     ).rejects.toThrow(/yapamazsınız/);
-    await expect(orders.cancel(seller.auth, order.id)).rejects.toThrow(
-      /yapamazsınız/,
-    );
+    await expect(
+      orders.cancel(seller.auth, order.id, "vazgeçtik, gerek kalmadı"),
+    ).rejects.toThrow(/yapamazsınız/);
     // Üçüncü firma siparişi hiç göremez.
     const outsider = await makeCompanyWithUser(prisma, { country: "TR" });
     await expect(
@@ -187,10 +187,53 @@ describe("taraf ve durum guard'ları", () => {
     ).rejects.toThrow(/uygun değil/); // çift accept
 
     await orders.ship(seller.auth, order.id, { invoiceNumber: "F-1" } as never);
-    // Kargodayken alıcı iptal EDEMEZ.
+    // Kargodayken alıcı iptal EDEMEZ (eski sistemden bilinçli fark).
+    await expect(
+      orders.cancel(buyer.auth, order.id, "vazgeçtik, gerek kalmadı"),
+    ).rejects.toThrow(/uygun değil/);
+  });
+
+  it("iptal/ret gerekçesi zorunlu (≥10 karakter) — sunucu tarafında", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id);
     await expect(orders.cancel(buyer.auth, order.id)).rejects.toThrow(
-      /uygun değil/,
+      /en az 10 karakter/,
     );
+    await expect(orders.cancel(buyer.auth, order.id, "kısa")).rejects.toThrow(
+      /en az 10 karakter/,
+    );
+    await expect(orders.reject(seller.auth, order.id, "yok")).rejects.toThrow(
+      /en az 10 karakter/,
+    );
+  });
+
+  it("rol kapısı: Satışçı rolü olmayan satıcı kullanıcısı onaylayamaz; Satın Almacı olmayan alıcı teslim alamaz", async () => {
+    const orders = makeOrdersService();
+    // Satıcı firmada YALNIZ satın-almacı rollü kullanıcı; alıcıda yalnız satışçı.
+    const seller = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      roles: ["SATIN_ALMACI"] as never,
+    });
+    const buyer = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      roles: ["SATISCI"] as never,
+    });
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "IN_DELIVERY",
+      acceptedAt: new Date(),
+      deliveryStartedAt: new Date(),
+    });
+
+    await expect(
+      orders.accept(seller.auth, order.id, acceptInput as never),
+    ).rejects.toThrow(/Satışçı rolü/);
+    await expect(
+      orders.receive(buyer.auth, order.id, {} as never),
+    ).rejects.toThrow(/Satın Almacı rolü/);
+    await expect(
+      orders.recordPayment(buyer.auth, order.id, { amount: 100 } as never),
+    ).rejects.toThrow(/Satın Almacı rolü/);
   });
 
   it("reddedilen sipariş gerekçesiyle tek yazmada REJECTED olur", async () => {
