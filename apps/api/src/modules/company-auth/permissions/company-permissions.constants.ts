@@ -22,6 +22,9 @@ export const COMPANY_ROLE_PERMISSIONS: Record<CompanyRole, readonly string[]> = 
     "connections:manage", // bağlantılar (davet/kabul)
     "templates:manage",
     "approvals:manage", // onay akışı oluştur/düzenle
+    // Yönetici onay adımına onaycı olarak atanabilir (assertApproversValid) —
+    // karar verebilmesi için approval:act şart (eski COMPANY_ADMIN paritesi).
+    "approval:act",
   ],
   SATIN_ALMACI: [
     "buy:listing:create", // alım ilanı aç (tier=PAKET gerekir)

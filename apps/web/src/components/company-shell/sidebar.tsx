@@ -1,27 +1,11 @@
 "use client";
 
-import { Avatar } from "@/components/catalyst/avatar";
-import { Badge } from "@/components/catalyst/badge";
 import {
-  Dropdown,
-  DropdownButton,
-  DropdownDivider,
-  DropdownItem,
-  DropdownLabel,
-  DropdownMenu,
-} from "@/components/catalyst/dropdown";
-import {
-  Sidebar,
-  SidebarBody,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarItem,
-  SidebarLabel,
-  SidebarSection,
-} from "@/components/catalyst/sidebar";
+  useCompanyAuth,
+  useHasCompanyPermission,
+} from "@/hooks/use-company-auth";
 import { usePendingApprovalCount } from "@/hooks/use-company-approvals";
-import { useCompanyAuth, useCompanyLogout } from "@/hooks/use-company-auth";
-import { useUnreadCount } from "@/hooks/use-notifications";
+import { usePortalStore } from "@/lib/company/portal-store";
 import {
   PORTALS,
   PORTAL_ORDER,
@@ -30,47 +14,132 @@ import {
   isPortalItemActive,
   type PortalKey,
 } from "@/lib/company/portals";
-import { usePortalStore } from "@/lib/company/portal-store";
+import { cn } from "@/lib/utils";
 import {
-  ArrowRightStartOnRectangleIcon,
-  BellIcon,
-  ChevronUpIcon,
   Cog6ToothIcon,
   LockClosedIcon,
   ShieldCheckIcon,
 } from "@heroicons/react/20/solid";
+import { Pin, PinOff } from "lucide-react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-function initialsOf(first?: string | null, last?: string | null) {
-  return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
+/** Portal aksanına göre aktif öğe stilleri (dinamik Tailwind sınıfı üretmemek için sabit). */
+const ACCENT = {
+  blue: {
+    active: "bg-blue-50 text-blue-700",
+    bar: "bg-blue-600",
+    switch: "bg-white text-blue-700 shadow-sm",
+  },
+  emerald: {
+    active: "bg-emerald-50 text-emerald-700",
+    bar: "bg-emerald-600",
+    switch: "bg-white text-emerald-700 shadow-sm",
+  },
+} as const;
+
+/** Tekil nav satırı — daralınca etiket ray genişliğiyle kırpılır (animasyonlu). */
+function RailItem({
+  href,
+  icon: Icon,
+  label,
+  active,
+  accent,
+  expanded,
+  badge,
+  locked,
+  onClick,
+}: {
+  href: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  label: string;
+  active: boolean;
+  accent: "blue" | "emerald" | "zinc";
+  expanded: boolean;
+  badge?: number;
+  locked?: boolean;
+  onClick?: () => void;
+}) {
+  const accentCls =
+    accent === "zinc"
+      ? { active: "bg-zinc-100 text-zinc-900", bar: "bg-zinc-700" }
+      : ACCENT[accent];
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      title={expanded ? undefined : label}
+      className={cn(
+        "group/item relative flex h-10 items-center gap-3 rounded-lg px-2.5 text-sm font-medium transition-colors",
+        active
+          ? accentCls.active
+          : "text-zinc-600 hover:bg-zinc-950/5 hover:text-zinc-900",
+      )}
+    >
+      {/* Aktif gösterge çubuğu */}
+      {active ? (
+        <span
+          className={cn(
+            "absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full",
+            accentCls.bar,
+          )}
+          aria-hidden
+        />
+      ) : null}
+      <span className="relative ml-0.5 shrink-0">
+        <Icon className="size-5" aria-hidden />
+        {/* Daralmışken rozet yerine nokta */}
+        {!expanded && badge ? (
+          <span className="absolute -top-1 -right-1 size-2 rounded-full bg-red-500" />
+        ) : null}
+      </span>
+      <span
+        className={cn(
+          "min-w-0 flex-1 truncate whitespace-nowrap transition-opacity duration-150",
+          expanded ? "opacity-100" : "opacity-0",
+        )}
+      >
+        {label}
+      </span>
+      {expanded && badge ? (
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-semibold text-white">
+          {badge > 9 ? "9+" : badge}
+        </span>
+      ) : null}
+      {expanded && locked ? (
+        <LockClosedIcon className="size-4 shrink-0 text-zinc-400" aria-hidden />
+      ) : null}
+    </Link>
+  );
 }
 
-function companyInitials(name?: string | null) {
-  if (!name) return "?";
-  return name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
-}
-
-export function CompanySidebar() {
+/**
+ * Sol navigasyon içeriği — masaüstünde ikon rayı (hover'da genişler),
+ * mobil dialog'da hep geniş. Ayarlar sol altta sabit.
+ */
+export function CompanySidebarContent({
+  expanded,
+  showPin = true,
+  onNavigate,
+}: {
+  expanded: boolean;
+  /** Mobilde pin anlamsız — gizlenir. */
+  showPin?: boolean;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
   const { company, user } = useCompanyAuth();
-  const logout = useCompanyLogout();
   const setLastPortal = usePortalStore((s) => s.setLastPortal);
+  const pinned = usePortalStore((s) => s.sidebarPinned);
+  const togglePinned = usePortalStore((s) => s.toggleSidebarPinned);
   const isPaid = company?.tier === "PAKET";
 
   const roles = user?.roles ?? [];
-  const isApprover = roles.includes("ONAYLAYICI");
-  const { data: pendingCount } = usePendingApprovalCount(isApprover);
-  const { data: unreadCount } = useUnreadCount();
+  const canAct = useHasCompanyPermission("approval:act");
+  const { data: pendingCount } = usePendingApprovalCount(canAct);
   const available = accessiblePortals(roles, company?.tier);
   const lastPortal = usePortalStore((s) => s.lastPortal);
-  // Portal-nötr rotalarda (/company/ilan, /company/siparis, /company/bildirimler…)
-  // SON ziyaret edilen portalda kal — Satış'tan açılan ihale detayı sidebar'ı
-  // Satınalma'ya kaydırmasın (iki portal ayrıdır).
+  // Portal-nötr rotalarda (/company/ilan, /company/onaylar…) SON portalda kal.
   const active: PortalKey =
     activePortalFromPath(pathname) ??
     (lastPortal && available.includes(lastPortal) ? lastPortal : null) ??
@@ -79,147 +148,122 @@ export function CompanySidebar() {
   const portal = PORTALS[active];
 
   return (
-    <Sidebar>
-      <SidebarHeader>
-        <div className="flex items-center gap-3">
-          <Avatar
-            square
-            initials={companyInitials(company?.name)}
-            className="size-10 bg-zinc-900 text-white"
-            alt={company?.name ?? ""}
-          />
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-zinc-950">
-              {company?.name ?? "—"}
-            </div>
-            <Badge className="mt-1" color={isPaid ? "amber" : "zinc"}>
-              {isPaid ? "Tek Paket" : "Standart"}
-            </Badge>
-          </div>
-        </div>
-
-        {/* Portal switcher — yalnızca erişilebilir portallar */}
-        {available.length > 1 ? (
-          <div className="mt-3 grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1">
-            {PORTAL_ORDER.filter((p) => available.includes(p)).map((p) => {
-              const def = PORTALS[p];
-              const on = p === active;
-              return (
-                <a
-                  key={p}
-                  href={def.basePath}
-                  onClick={() => setLastPortal(p)}
-                  className={`rounded-md px-2 py-1.5 text-center text-xs font-semibold transition ${
-                    on
-                      ? p === "satinalma"
-                        ? "bg-white text-blue-700 shadow-sm"
-                        : "bg-white text-emerald-700 shadow-sm"
-                      : "text-zinc-500 hover:text-zinc-800"
-                  }`}
-                >
-                  {def.label}
-                </a>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="mt-3">
-            <Badge color={portal.accent === "blue" ? "blue" : "emerald"}>
-              {portal.label} Portalı
-            </Badge>
-          </div>
-        )}
-      </SidebarHeader>
-
-      <SidebarBody>
-        <SidebarSection>
-          {portal.nav.map((item) => {
-            const Icon = item.icon;
-            const locked = item.paidOnly && !isPaid;
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Portal değiştirici */}
+      {available.length > 1 ? (
+        <div
+          className={cn(
+            "mx-2 mt-3 gap-1 rounded-lg bg-zinc-100 p-1",
+            expanded ? "grid grid-cols-2" : "flex flex-col",
+          )}
+        >
+          {PORTAL_ORDER.filter((p) => available.includes(p)).map((p) => {
+            const def = PORTALS[p];
+            const on = p === active;
             return (
-              <SidebarItem
-                key={item.href}
-                href={item.href}
-                current={isPortalItemActive(item.href, pathname)}
+              <Link
+                key={p}
+                href={def.basePath}
+                onClick={() => {
+                  setLastPortal(p);
+                  onNavigate?.();
+                }}
+                title={def.label}
+                className={cn(
+                  "rounded-md py-1.5 text-center text-xs font-semibold whitespace-nowrap transition",
+                  expanded ? "px-2" : "px-0",
+                  on
+                    ? ACCENT[def.accent].switch
+                    : "text-zinc-500 hover:text-zinc-800",
+                )}
               >
-                <Icon data-slot="icon" />
-                <SidebarLabel>{item.label}</SidebarLabel>
-                {locked ? <LockClosedIcon data-slot="icon" /> : null}
-              </SidebarItem>
+                {expanded ? def.label : def.label[0]}
+              </Link>
             );
           })}
-        </SidebarSection>
-
-        {/* Bildirimler — portaldan bağımsız, okunmamış rozetli */}
-        <SidebarSection>
-          <SidebarItem
-            href="/company/bildirimler"
-            current={isPortalItemActive("/company/bildirimler", pathname)}
+        </div>
+      ) : (
+        <div className="mx-2 mt-3">
+          <div
+            className={cn(
+              "rounded-md py-1.5 text-center text-xs font-semibold whitespace-nowrap",
+              ACCENT[portal.accent].active,
+            )}
           >
-            <BellIcon data-slot="icon" />
-            <SidebarLabel>Bildirimler</SidebarLabel>
-            {unreadCount && unreadCount > 0 ? (
-              <Badge color="red">{unreadCount > 9 ? "9+" : unreadCount}</Badge>
-            ) : null}
-          </SidebarItem>
-        </SidebarSection>
+            {expanded ? `${portal.label} Portalı` : portal.label[0]}
+          </div>
+        </div>
+      )}
 
-        {/* Onaylar — portaldan bağımsız, yalnızca onaylayıcılarda */}
-        {isApprover ? (
-          <SidebarSection>
-            <SidebarItem
+      {/* Nav */}
+      <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden px-2">
+        {portal.nav.map((item) => (
+          <RailItem
+            key={item.href}
+            href={item.href}
+            icon={item.icon}
+            label={item.label}
+            active={isPortalItemActive(item.href, pathname)}
+            accent={portal.accent}
+            expanded={expanded}
+            locked={item.paidOnly && !isPaid}
+            onClick={onNavigate}
+          />
+        ))}
+
+        {canAct ? (
+          <>
+            <div className="mx-1 my-2 h-px bg-zinc-100" aria-hidden />
+            <RailItem
               href="/company/onaylar"
-              current={isPortalItemActive("/company/onaylar", pathname)}
-            >
-              <ShieldCheckIcon data-slot="icon" />
-              <SidebarLabel>Onaylar</SidebarLabel>
-              {pendingCount && pendingCount > 0 ? (
-                <Badge color="amber">{pendingCount}</Badge>
-              ) : null}
-            </SidebarItem>
-          </SidebarSection>
+              icon={ShieldCheckIcon}
+              label="Onaylar"
+              active={isPortalItemActive("/company/onaylar", pathname)}
+              accent="zinc"
+              expanded={expanded}
+              badge={pendingCount || undefined}
+              onClick={onNavigate}
+            />
+          </>
         ) : null}
-      </SidebarBody>
+      </nav>
 
-      <SidebarFooter>
-        {user ? (
-          <Dropdown>
-            <DropdownButton as={SidebarItem}>
-              <span className="flex min-w-0 items-center gap-3">
-                <Avatar
-                  square
-                  initials={initialsOf(user.firstName, user.lastName)}
-                  className="size-8 bg-zinc-900 text-white"
-                  alt=""
-                />
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium text-zinc-950">
-                    {user.firstName} {user.lastName}
-                    {user.isOwner ? (
-                      <span className="text-amber-600"> · Sahip</span>
-                    ) : null}
-                  </span>
-                  <span className="block truncate text-xs text-slate-500">
-                    {user.email}
-                  </span>
-                </span>
-              </span>
-              <ChevronUpIcon data-slot="icon" />
-            </DropdownButton>
-            <DropdownMenu className="min-w-64" anchor="top start">
-              <DropdownItem href="/company/ayarlar">
-                <Cog6ToothIcon data-slot="icon" />
-                <DropdownLabel>Ayarlar</DropdownLabel>
-              </DropdownItem>
-              <DropdownDivider />
-              <DropdownItem onClick={() => logout()}>
-                <ArrowRightStartOnRectangleIcon data-slot="icon" />
-                <DropdownLabel>Çıkış</DropdownLabel>
-              </DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
+      {/* Alt: Ayarlar (sol altta) + pin */}
+      <div className="space-y-0.5 border-t border-zinc-100 px-2 py-2">
+        <RailItem
+          href="/company/ayarlar"
+          icon={Cog6ToothIcon}
+          label="Ayarlar"
+          active={pathname?.startsWith("/company/ayarlar") ?? false}
+          accent="zinc"
+          expanded={expanded}
+          onClick={onNavigate}
+        />
+        {showPin ? (
+          <button
+            type="button"
+            onClick={togglePinned}
+            title={pinned ? "Menüyü serbest bırak" : "Menüyü sabitle"}
+            className="flex h-9 w-full items-center gap-3 rounded-lg px-2.5 text-xs font-medium text-zinc-400 transition-colors hover:bg-zinc-950/5 hover:text-zinc-700"
+          >
+            <span className="ml-0.5 shrink-0">
+              {pinned ? (
+                <PinOff className="size-4.5" aria-hidden />
+              ) : (
+                <Pin className="size-4.5" aria-hidden />
+              )}
+            </span>
+            <span
+              className={cn(
+                "truncate whitespace-nowrap transition-opacity duration-150",
+                expanded ? "opacity-100" : "opacity-0",
+              )}
+            >
+              {pinned ? "Sabitlemeyi kaldır" : "Menüyü sabitle"}
+            </span>
+          </button>
         ) : null}
-      </SidebarFooter>
-    </Sidebar>
+      </div>
+    </div>
   );
 }
