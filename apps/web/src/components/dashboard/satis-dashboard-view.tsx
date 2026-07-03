@@ -160,7 +160,7 @@ function QuickLink({
  * Aktiviteler, TCMB kurları + Hızlı Erişim. Görsel dil: zinc/Catalyst.
  */
 export function SatisDashboardView() {
-  const { user, company } = useCompanyAuth();
+  const { company } = useCompanyAuth();
   const stats = useSatisStats();
   const activity = useSatisActivity(8);
 
@@ -176,19 +176,20 @@ export function SatisDashboardView() {
 
   return (
     <div className="mx-auto max-w-7xl space-y-8">
-      {/* Karşılama başlığı */}
+      {/* Karşılama başlığı — satınalma paneliyle aynı biçim */}
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          {todayLabel ? (
-            <p className="text-xs font-medium tracking-wider text-zinc-400 uppercase">
-              {todayLabel}
-            </p>
-          ) : null}
-          <h1 className="mt-1 text-2xl font-semibold leading-tight tracking-tight text-zinc-950 sm:text-3xl">
-            Hoş geldin, {user?.firstName ?? "—"} 👋
+          <h1 className="mb-1.5 text-2xl font-semibold leading-tight tracking-tight text-zinc-950 sm:text-3xl">
+            Satış paneli
           </h1>
-          <p className="mt-1 text-[15px] text-zinc-500">
-            {company?.name ? `${company.name} — satış genel bakış` : "Satış genel bakış"}
+          <p className="text-[15px] text-zinc-500">
+            {company?.name ?? "Supkeys"}
+            {todayLabel ? (
+              <>
+                <span className="mx-2 text-zinc-300">·</span>
+                <span>{todayLabel}</span>
+              </>
+            ) : null}
           </p>
         </div>
         <Link
