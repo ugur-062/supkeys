@@ -238,6 +238,40 @@ describe("addInvitations / roundHistory / updateListing — guard'lar", () => {
     ).rejects.toThrow(/davet/i);
   });
 
+  it("STANDARD (downgrade): yeni ilan işi başlatamaz — publish/yeni-tur/davet kilitli", async () => {
+    const { service } = makeService();
+    // PAKET'ken ihale açmış, sonra STANDARD'a düşmüş firma.
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "STANDARD",
+    });
+    const draft = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "DRAFT",
+      closesAt: FUTURE,
+    });
+    const open = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      closesAt: FUTURE,
+    });
+    await expect(
+      service.publishListing(owner.auth, draft.id),
+    ).rejects.toThrow(/premium/i);
+    await expect(
+      service.addInvitations(owner.auth, open.id, ["ROT-0001"]),
+    ).rejects.toThrow(/premium/i);
+    await expect(
+      service.createNextRound(owner.auth, open.id, {
+        closesAt: FUTURE,
+      } as never),
+    ).rejects.toThrow(/premium/i);
+  });
+
   it("roundHistory sahip-dışı reddi + boş geçmiş []", async () => {
     const { service } = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });

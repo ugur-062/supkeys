@@ -432,3 +432,59 @@ describe("keşfet + profil", () => {
     );
   });
 });
+
+describe("STANDARD premium kapıları — davet + dizin", () => {
+  it("STANDARD e-posta ile davet gönderemez (tekli + toplu)", async () => {
+    const { service } = rig();
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    await expect(
+      service.inviteByEmail(std.auth, "biri@firma.com"),
+    ).rejects.toThrow(/premium/i);
+    await expect(
+      service.inviteByEmailBatch(std.auth, ["biri@firma.com"]),
+    ).rejects.toThrow(/premium/i);
+  });
+
+  it("STANDARD firma dizininde arama yapamaz — boş döner", async () => {
+    const { service } = rig();
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    // Aranabilir public bir PAKET firma olsa bile STANDARD boş alır.
+    const target = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    await giveSupkeysId(target.company.id);
+    await prisma.company.update({
+      where: { id: target.company.id },
+      data: { publicEnabled: true },
+    });
+    expect(await service.searchCompanies(std.auth)).toEqual([]);
+  });
+
+  it("STANDARD yalnız ilişkili firmanın profilini görür — yabancı 404, bağlı OK", async () => {
+    const { service } = rig();
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    const other = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const otherCode = await giveSupkeysId(other.company.id);
+    await prisma.company.update({
+      where: { id: other.company.id },
+      data: { publicEnabled: true },
+    });
+
+    // İlişkisiz → 404 (varlığı sızdırmaz).
+    await expect(service.getProfile(std.auth, otherCode)).rejects.toThrow(
+      /bulunamadı/i,
+    );
+
+    // Bağlantı kurulunca görebilir (tedarikçi olarak kabul ettiği alıcı).
+    await prisma.companyConnection.create({
+      data: {
+        inviterCompanyId: other.company.id,
+        inviteeCompanyId: std.company.id,
+        invitedById: other.user.id,
+        status: "ACTIVE",
+        origin: "INVITE",
+        decidedAt: new Date(),
+      },
+    });
+    const prof = await service.getProfile(std.auth, otherCode);
+    expect(prof.connectionStatus).toBe("active");
+  });
+});

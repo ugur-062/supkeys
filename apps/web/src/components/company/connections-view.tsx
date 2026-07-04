@@ -35,6 +35,7 @@ import {
   useRespondInvite,
   type ConnectionOrigin,
 } from "@/hooks/use-company-connections";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useFileComplaint } from "@/hooks/use-company-complaints";
 import {
   useCompanySearch,
@@ -272,6 +273,12 @@ export function ConnectionsView() {
     ? (searchParams.get("tab") as TabKey)
     : "mine";
   const [tab, setTab] = useState<TabKey>(initialTab);
+  // STANDARD: davet gönderemez + firma dizininde arama/keşif yapamaz; yalnızca
+  // bağlantılarını görür ve gelen daveti kabul edip tedarikçi olabilir.
+  const { company } = useCompanyAuth();
+  const isPaid = company?.tier === "PAKET";
+  // Keşfet premium — STANDARD'da o sekme yok; URL'den gelse de Bağlantılarım'a düş.
+  const shownTab: TabKey = !isPaid && tab === "discover" ? "mine" : tab;
   const [q, setQ] = useState("");
   const [email, setEmail] = useState("");
   const [copied, setCopied] = useState(false);
@@ -349,7 +356,10 @@ export function ConnectionsView() {
   const TABS: { key: TabKey; label: string; icon: typeof Users; count?: number }[] =
     [
       { key: "mine", label: "Bağlantılarım", icon: Users, count: connCount },
-      { key: "discover", label: "Keşfet", icon: Compass },
+      // Keşfet (dizin arama + kategori keşfi) premium — STANDARD'da gizli.
+      ...(isPaid
+        ? [{ key: "discover" as const, label: "Keşfet", icon: Compass }]
+        : []),
       {
         key: "incoming",
         label: "İstekler",
@@ -368,8 +378,14 @@ export function ConnectionsView() {
         </Text>
       </div>
 
-      {/* Rothern ID + e-posta daveti */}
-      <section className="grid gap-4 rounded-2xl border border-zinc-950/10 bg-white p-5 sm:grid-cols-2">
+      {/* Rothern ID (herkes — tedarikçi olarak bulunmak için) + e-posta daveti
+          (yalnız premium — STANDARD davet gönderemez) */}
+      <section
+        className={cn(
+          "grid gap-4 rounded-2xl border border-zinc-950/10 bg-white p-5",
+          isPaid ? "sm:grid-cols-2" : "sm:grid-cols-1",
+        )}
+      >
         <div>
           <Subheading>Rothern ID&apos;n</Subheading>
           <Text className="mt-1 text-sm text-zinc-500">
@@ -388,6 +404,7 @@ export function ConnectionsView() {
             </Button>
           </div>
         </div>
+        {isPaid ? (
         <div className="sm:border-l sm:border-zinc-950/10 sm:pl-5">
           <Subheading className="flex items-center gap-2">
             <Mail className="h-4 w-4 text-zinc-400" />
@@ -426,6 +443,7 @@ export function ConnectionsView() {
             </Text>
           ) : null}
         </div>
+        ) : null}
       </section>
 
       {/* Sekmeler */}
@@ -435,7 +453,7 @@ export function ConnectionsView() {
         className="flex gap-1 border-b border-zinc-950/10"
       >
         {TABS.map((t) => {
-          const active = tab === t.key;
+          const active = shownTab === t.key;
           const Icon = t.icon;
           return (
             <button
@@ -470,8 +488,8 @@ export function ConnectionsView() {
         })}
       </div>
 
-      {/* Keşfet — arama + dizin */}
-      {tab === "discover" ? (
+      {/* Keşfet — arama + dizin (yalnız premium) */}
+      {shownTab === "discover" && isPaid ? (
         <section className="space-y-3">
           <Input
             aria-label="Firma ara"
@@ -544,7 +562,7 @@ export function ConnectionsView() {
       ) : null}
 
       {/* Bağlantılarım */}
-      {tab === "mine" ? (
+      {shownTab === "mine" ? (
         <section className="space-y-3">
           {connCount > 0 ? (
             <Input
@@ -584,7 +602,7 @@ export function ConnectionsView() {
       ) : null}
 
       {/* İstekler — gelen + gönderdiğim + bekleyen e-posta davetleri */}
-      {tab === "incoming" ? (
+      {shownTab === "incoming" ? (
         <section className="space-y-5">
           {/* Gelen */}
           <div className="space-y-2">

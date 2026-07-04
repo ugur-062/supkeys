@@ -709,6 +709,23 @@ export class CompanyListingsService {
     }
   }
 
+  /**
+   * YENİ premium ilan işi başlatma (yayınla / yeni tur / yeni tedarikçi daveti)
+   * PAKET ister. Askıdaki ihaleyi settle etmek (kazandır/eleme/kapat) STANDARD'a
+   * SERBESTTİR — downgrade olmuş firma başlattığı ihaleyi bitirebilsin, teklif
+   * vermiş tedarikçiler mağdur olmasın.
+   */
+  private assertPaidForNewListingWork(
+    user: AuthenticatedCompanyUser,
+    action: string,
+  ) {
+    if (user.tier !== "PAKET") {
+      throw new ForbiddenException(
+        `${action} için premium (PAKET) üyelik gerekir. Standart üyeler mevcut ihalelerini tamamlayabilir ancak yeni ilan işi başlatamaz.`,
+      );
+    }
+  }
+
   async create(user: AuthenticatedCompanyUser, dto: CreateListingDto) {
     const type = dto.type as ListingType;
     this.validateListingDates(dto);
@@ -1132,6 +1149,7 @@ export class CompanyListingsService {
    * (Yayın onayı KALDIRILDI — onay akışı yalnız KAZANDIRMADA devreye girer.)
    */
   async publishListing(user: AuthenticatedCompanyUser, listingId: string) {
+    this.assertPaidForNewListingWork(user, "İlan yayınlamak");
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: { id: true, companyId: true, status: true },
@@ -3563,6 +3581,7 @@ export class CompanyListingsService {
     listingId: string,
     dto: NextRoundDto,
   ) {
+    this.assertPaidForNewListingWork(user, "Yeni tur açmak");
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -3715,6 +3734,7 @@ export class CompanyListingsService {
     listingId: string,
     supkeysIds: string[],
   ) {
+    this.assertPaidForNewListingWork(user, "İhaleye yeni tedarikçi davet etmek");
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {

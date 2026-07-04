@@ -63,7 +63,7 @@ export class CompanyConnectionsService {
   async invite(user: AuthenticatedCompanyUser, supkeysIdRaw: string) {
     if (user.tier !== "PAKET") {
       throw new ForbiddenException(
-        "Rothern ID ile bağlantı isteği premium üyelik gerektirir. Kendi tedarikçinizi referans kodu ile davet edebilirsiniz.",
+        "Bağlantı daveti göndermek premium (PAKET) üyelik gerektirir. Standart üyeler yalnızca gelen davetleri kabul edip tedarikçi olabilir.",
       );
     }
     const code = normalizeShortCode(supkeysIdRaw);
@@ -86,6 +86,11 @@ export class CompanyConnectionsService {
    * (signup hook) otomatik INVITE bağlantı kurulur.
    */
   async inviteByEmail(user: AuthenticatedCompanyUser, emailRaw: string) {
+    if (user.tier !== "PAKET") {
+      throw new ForbiddenException(
+        "Bağlantı daveti göndermek premium (PAKET) üyelik gerektirir. Standart üyeler yalnızca gelen davetleri kabul edip tedarikçi olabilir.",
+      );
+    }
     const email = emailRaw.trim().toLowerCase();
 
     // Kayıtlı mı? E-posta CompanyUser'da benzersizdir — pasif/çıkarılmış
@@ -164,6 +169,11 @@ export class CompanyConnectionsService {
    *               pasif firma / engelli) — reason ile
    */
   async inviteByEmailBatch(user: AuthenticatedCompanyUser, emails: string[]) {
+    if (user.tier !== "PAKET") {
+      throw new ForbiddenException(
+        "Bağlantı daveti göndermek premium (PAKET) üyelik gerektirir. Standart üyeler yalnızca gelen davetleri kabul edip tedarikçi olabilir.",
+      );
+    }
     // Normalize + sıra korumalı dedupe.
     const seen = new Set<string>();
     const unique: string[] = [];
@@ -505,6 +515,9 @@ export class CompanyConnectionsService {
 
   /** Firma dizini araması — public profilli (PAKET) aktif firmalar. */
   async searchCompanies(user: AuthenticatedCompanyUser, qRaw?: string) {
+    // Firma dizini araması premium özelliğidir — STANDARD firma dizinde arama
+    // yapamaz, yalnızca mevcut bağlantılarını görür (Bağlantılarım sekmesi).
+    if (user.tier !== "PAKET") return [];
     const q = (qRaw ?? "").trim();
     const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     const text = q
@@ -624,6 +637,13 @@ export class CompanyConnectionsService {
             : ("pending" as const);
     const connectionId = conn?.id ?? null;
     const connected = connectionStatus === "active" || isSelf;
+
+    // STANDARD firma yalnızca ilişkili olduğu firmaların profilini görür
+    // (bağlı / bekleyen / gelen istek / kendisi). Yabancı firma profili premium.
+    // Varlığı sızdırmamak için 404.
+    if (user.tier !== "PAKET" && connectionStatus === "none") {
+      throw new NotFoundException("Firma profili bulunamadı");
+    }
 
     const [listings, ratingAgg] = await Promise.all([
       this.prisma.listing.findMany({
