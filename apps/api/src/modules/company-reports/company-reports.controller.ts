@@ -15,6 +15,7 @@ import {
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
+import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import {
@@ -66,7 +67,8 @@ function xlsx(res: Response, filename: string, buffer: Buffer) {
 const stamp = () => new Date().toISOString().slice(0, 10);
 
 @Controller("company/reports")
-@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard)
+// Raporlar premium özelliğidir — STANDARD firma erişemez (yalnız teklif verir).
+@UseGuards(CompanyJwtAuthGuard, CompanyPermissionsGuard, CompanyPaidTierGuard)
 export class CompanyReportsController {
   constructor(
     private readonly service: CompanyReportsService,
