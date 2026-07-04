@@ -655,11 +655,39 @@ export class CompanyApprovalsService {
       void this.notifyApprover(next!.approverUserId, req.listingId);
       return { ok: true, status: "STEP_APPROVED" as const };
     }
-    this.events.emit(`${eventBase(req.type as ApprovalType)}.approved`, {
-      requestId: req.id,
-      listingId: req.listingId,
-      payload: req.payload,
-    });
+    // İstek transaction içinde APPROVED işaretlendi → iptal artık kilitli.
+    // Kazandırmayı SENKRON uygula (emitAsync handler'ı bekler): başarısızsa
+    // FAIL-CLOSED — finalize'ı geri al ki "onay var ama sipariş yok" tutarsızlığı
+    // oluşmasın; onaycı tekrar deneyebilsin.
+    try {
+      await this.events.emitAsync(
+        `${eventBase(req.type as ApprovalType)}.approved`,
+        {
+          requestId: req.id,
+          listingId: req.listingId,
+          payload: req.payload,
+        },
+      );
+    } catch (err) {
+      await this.prisma.$transaction([
+        this.prisma.approvalRequestStep.update({
+          where: { id: step.id },
+          data: { status: "PENDING", decidedAt: null, note: null },
+        }),
+        this.prisma.approvalRequest.update({
+          where: { id: req.id },
+          data: { status: "PENDING", decidedAt: null },
+        }),
+      ]);
+      this.logger.error(
+        `Kazandırma uygulanamadı, onay geri alındı (istek ${req.id}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      throw new BadRequestException(
+        "Kazandırma uygulanamadı — teklif durumu değişmiş olabilir. Lütfen tekrar deneyin.",
+      );
+    }
     void this.notifyRequester(req.createdById, req.listingId, "APPROVED");
     return { ok: true, status: "APPROVED" as const };
   }

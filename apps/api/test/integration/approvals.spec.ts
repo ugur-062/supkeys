@@ -54,7 +54,7 @@ function makeApprovalRig() {
   const flush = async () => {
     await Promise.all(inflight.splice(0));
   };
-  return { approvals, listings, flush, email, awardApproved };
+  return { approvals, listings, flush, email, awardApproved, events };
 }
 
 /** Aynı firmaya ek kullanıcı + auth. */
@@ -383,6 +383,42 @@ describe("Yarış koruması (atomik karar/iptal)", () => {
       where: { id: reqId },
     });
     expect(req.status).toBe("REJECTED");
+  });
+
+  it("fail-closed: award yürütücü patlarsa onay finalize EDİLMEZ, adım+istek PENDING'e döner", async () => {
+    const { approvals, events } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(
+      owner.auth,
+      flowInput([a1.user.id]) as never,
+    );
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { res: started } = await startAward(
+      approvals,
+      owner.auth,
+      owner.company.id,
+      owner.user.id,
+    );
+    const reqId = started.requestId!;
+
+    // runFullAward'ın patlamasını taklit et (ör. teklif artık SUBMITTED değil).
+    events.on("listing.award.approved", async () => {
+      throw new Error("teklif durumu değişti");
+    });
+
+    await expect(
+      approvals.decide(a1.auth, reqId, "approve", {} as never),
+    ).rejects.toThrow(/uygulanamadı/);
+
+    // Fail-closed: istek ve adım PENDING'e geri döndü → onaycı tekrar deneyebilir.
+    const req = await prisma.approvalRequest.findUniqueOrThrow({
+      where: { id: reqId },
+      include: { steps: true },
+    });
+    expect(req.status).toBe("PENDING");
+    expect(req.steps[0]!.status).toBe("PENDING");
+    expect(req.steps[0]!.decidedAt).toBeNull();
   });
 
   it("onay + iptal yarışı: tutarlı son durum; onaylandıysa event var, iptalse yok", async () => {
