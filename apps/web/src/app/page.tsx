@@ -49,7 +49,7 @@ const faqs = [
   },
   {
     q: "Standart üyelikle ne yapabilirim?",
-    a: "Bağlandığın firmaların ilanlarına teklif verebilir, sipariş ve belge akışını yürütebilirsin. Kendi ilanını açmak, firma keşfetmek ve herkese açık ilanlara teklif vermek Tek Paket ile gelir.",
+    a: "Bağlandığın firmaların ilanlarına teklif verebilir, sipariş ve belge akışını yürütebilirsin. Kendi ilanını açmak, firma keşfetmek ve herkese açık ilanlara teklif vermek Premium ile gelir.",
   },
   {
     q: "Platform paraya aracılık ediyor mu?",
@@ -1257,7 +1257,7 @@ export default function HomePage() {
           <p className="mx-auto mt-6 max-w-2xl text-lg/8 text-zinc-600">
             Standart üyelik ücretsiz, sınırsız kullanıcı ve rol. Kendi ilanını
             açmak, firma keşfetmek ve herkese açık ilanlara teklif vermek için
-            Tek Paket&apos;e yükselt.
+            Premium&apos;a yükselt.
           </p>
         </div>
         <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-stretch gap-8 px-6 sm:mt-20 lg:max-w-4xl lg:grid-cols-2 lg:px-8">
@@ -1291,13 +1291,13 @@ export default function HomePage() {
               Ücretsiz Başla
             </Link>
           </div>
-          {/* Tek Paket — vurgulu */}
+          {/* Premium — vurgulu */}
           <div className="relative flex flex-col rounded-3xl bg-[#0A0A0A] p-8 shadow-2xl ring-1 ring-zinc-950 transition hover:-translate-y-1 sm:p-10">
             <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-950 shadow">
               Önerilen
             </div>
             <h3 className="text-base/7 font-semibold text-zinc-300">
-              Tek Paket
+              Premium
             </h3>
             <p className="mt-4 flex items-baseline gap-x-2">
               <span className="text-4xl font-semibold tracking-tight text-white">

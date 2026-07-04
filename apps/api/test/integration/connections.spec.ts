@@ -487,6 +487,36 @@ describe("STANDARD premium kapıları — davet + dizin", () => {
     const prof = await service.getProfile(std.auth, otherCode);
     expect(prof.connectionStatus).toBe("active");
   });
+
+  it("STANDARD HEDEF firma yalnız bağlantılarına görünür — PAKET izleyen bağlı değilse 404", async () => {
+    const { service } = rig();
+    const viewer = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const target = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    const targetCode = await giveSupkeysId(target.company.id);
+    // publicEnabled açık olsa bile STANDARD firma dizinde/dışarıda görünmez.
+    await prisma.company.update({
+      where: { id: target.company.id },
+      data: { publicEnabled: true },
+    });
+
+    await expect(service.getProfile(viewer.auth, targetCode)).rejects.toThrow(
+      /bulunamadı/i,
+    );
+
+    // Bağlanınca görebilir (STANDARD firma yalnız bağlantılarına görünür).
+    await prisma.companyConnection.create({
+      data: {
+        inviterCompanyId: viewer.company.id,
+        inviteeCompanyId: target.company.id,
+        invitedById: viewer.user.id,
+        status: "ACTIVE",
+        origin: "PREMIUM",
+        decidedAt: new Date(),
+      },
+    });
+    const prof = await service.getProfile(viewer.auth, targetCode);
+    expect(prof.connectionStatus).toBe("active");
+  });
 });
 
 describe("bağlantı dayanıklılığı — kuran taraf premium kaldıkça aktif", () => {

@@ -118,7 +118,7 @@ export function CompanyTopbar({
             isPaid ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-600",
           )}
         >
-          {isPaid ? "Tek Paket" : "Standart"}
+          {isPaid ? "Premium" : "Standart"}
         </span>
       </div>
 

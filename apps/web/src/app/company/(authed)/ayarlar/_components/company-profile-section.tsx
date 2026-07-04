@@ -136,7 +136,7 @@ export function CompanyProfileSection() {
           <DescriptionTerm>Üyelik</DescriptionTerm>
           <DescriptionDetails>
             <Badge color={profile.tier === "PAKET" ? "amber" : "zinc"}>
-              {profile.tier === "PAKET" ? "Tek Paket" : "Standart"}
+              {profile.tier === "PAKET" ? "Premium" : "Standart"}
             </Badge>
           </DescriptionDetails>
           <DescriptionTerm>Doğrulama</DescriptionTerm>

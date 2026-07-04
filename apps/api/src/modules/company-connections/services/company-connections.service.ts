@@ -599,6 +599,7 @@ export class CompanyConnectionsService {
         instagramUrl: true,
         publicEnabled: true,
         isActive: true,
+        tier: true,
         // Kamuya açık ticari sicil bilgileri (tüzel kişi verisi — KVKK dışı).
         // IBAN / yetkili TCKN / fatura iletişimi ASLA buraya girmez.
         legalName: true,
@@ -609,7 +610,7 @@ export class CompanyConnectionsService {
         kepAddress: true,
       },
     });
-    if (!c || !c.isActive || !c.publicEnabled) {
+    if (!c || !c.isActive) {
       throw new NotFoundException("Firma profili bulunamadı");
     }
     const isSelf = c.id === user.companyId;
@@ -642,10 +643,15 @@ export class CompanyConnectionsService {
     const connectionId = conn?.id ?? null;
     const connected = connectionStatus === "active" || isSelf;
 
-    // STANDARD firma yalnızca ilişkili olduğu firmaların profilini görür
-    // (bağlı / bekleyen / gelen istek / kendisi). Yabancı firma profili premium.
-    // Varlığı sızdırmamak için 404.
-    if (user.tier !== "PAKET" && connectionStatus === "none") {
+    // Görünürlük kuralı:
+    // - İlişkili (kendisi / bağlı / bekleyen / gelen istek) → her zaman görür.
+    // - Aksi halde yalnızca "herkese açık" profil: hedef PAKET + publicEnabled
+    //   VE izleyen de PAKET (dizin). STANDARD firma yalnız BAĞLANTILARINA görünür;
+    //   STANDARD izleyen yalnız ilişkili firmayı görür. Varlığı sızdırmamak için 404.
+    const related = isSelf || connectionStatus !== "none";
+    const publiclyListed =
+      user.tier === "PAKET" && c.tier === "PAKET" && c.publicEnabled;
+    if (!related && !publiclyListed) {
       throw new NotFoundException("Firma profili bulunamadı");
     }
 

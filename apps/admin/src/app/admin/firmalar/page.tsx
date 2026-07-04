@@ -152,7 +152,7 @@ function FirmalarView() {
                     </TableCell>
                     <TableCell>
                       <Badge color={c.tier === "PAKET" ? "amber" : "zinc"}>
-                        {c.tier === "PAKET" ? "Tek Paket" : "Standart"}
+                        {c.tier === "PAKET" ? "Premium" : "Standart"}
                       </Badge>
                     </TableCell>
                     <TableCell>
