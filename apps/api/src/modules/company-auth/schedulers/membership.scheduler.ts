@@ -16,17 +16,34 @@ export class MembershipScheduler {
    */
   @Cron("0 3 * * *", { timeZone: "Europe/Istanbul" })
   async downgradeExpired(): Promise<void> {
-    const res = await this.prisma.company.updateMany({
+    const expired = await this.prisma.company.findMany({
       where: {
         tier: "PAKET",
         membershipEndAt: { not: null, lt: new Date() },
       },
-      data: { tier: "STANDARD" },
+      select: { id: true },
     });
-    if (res.count > 0) {
-      this.logger.log(
-        `${res.count} firmanın premium süresi doldu → STANDARD'a düşürüldü`,
-      );
-    }
+    if (expired.length === 0) return;
+    const ids = expired.map((c) => c.id);
+
+    await this.prisma.$transaction([
+      this.prisma.company.updateMany({
+        where: { id: { in: ids } },
+        data: { tier: "STANDARD" },
+      }),
+      // Downgrade olan firmanın GÖNDERDİĞİ bekleyen davetleri iptal et: STANDARD
+      // davet gönderemez ve kabul edilse bağlantı ölü doğardı (kural: bağlantı
+      // onu KURAN taraf PAKET kaldıkça aktif). Kayıtlı-firma daveti + kayıtsız
+      // e-posta (referral) daveti — ikisi de. Gelen davetlere dokunulmaz.
+      this.prisma.companyConnection.deleteMany({
+        where: { inviterCompanyId: { in: ids }, status: "PENDING" },
+      }),
+      this.prisma.companyReferralInvite.deleteMany({
+        where: { inviterCompanyId: { in: ids }, status: "PENDING" },
+      }),
+    ]);
+    this.logger.log(
+      `${ids.length} firmanın premium süresi doldu → STANDARD; giden bekleyen davetler iptal edildi`,
+    );
   }
 }
