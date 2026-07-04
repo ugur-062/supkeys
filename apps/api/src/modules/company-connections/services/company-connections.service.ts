@@ -352,8 +352,10 @@ export class CompanyConnectionsService {
 
   /**
    * Aktif bağlantılarım (her iki yön — karşı firmayı döner).
-   * PREMIUM-origin bağlantı yalnızca İKİ taraf da PAKET iken aktif sayılır
-   * (premium bitince pasifleşir, silinmez). INVITE/ADMIN her zaman aktif.
+   * Bağlantı, onu KURAN (davet eden) taraf PAKET kaldığı sürece aktif sayılır —
+   * PREMIUM ve INVITE için (premium bitince pasifleşir, silinmez). ADMIN hariç
+   * (platform kararı, hep açık). Böylece bir kez premium olup bol davet atarak
+   * kalıcı bedava bağlantı ağı tutulamaz.
    */
   async list(companyId: string) {
     const rows = await this.prisma.companyConnection.findMany({
@@ -372,9 +374,11 @@ export class CompanyConnectionsService {
     });
     return rows
       .filter(
-        // PREMIUM bağlantı, onu KURAN (Keşfet'i kullanan → daima PAKET olan)
-        // davet eden taraf PAKET kaldığı sürece aktif. Tedarikçi STANDARD olabilir.
-        (r) => r.origin !== "PREMIUM" || r.inviter.tier === "PAKET",
+        // Bağlantı, onu KURAN (davet eden) taraf PAKET kaldığı sürece aktif —
+        // hem PREMIUM hem INVITE için (ADMIN hariç: platform kararı, hep açık).
+        // Ödemeyi bırakınca kendi başlattığın ağı kaybedersin; açık kalan tek
+        // pencere hâlâ ödeyen birinin seni davet ettiği bağlantılardır.
+        (r) => r.origin === "ADMIN" || r.inviter.tier === "PAKET",
       )
       .map((r) => {
         const other = r.inviterCompanyId === companyId ? r.invitee : r.inviter;

@@ -488,3 +488,56 @@ describe("STANDARD premium kapıları — davet + dizin", () => {
     expect(prof.connectionStatus).toBe("active");
   });
 });
+
+describe("bağlantı dayanıklılığı — kuran taraf premium kaldıkça aktif", () => {
+  /** ACTIVE bağlantı kur (kuran = inviter). */
+  async function connect(
+    inviter: { company: { id: string }; user: { id: string } },
+    invitee: { company: { id: string } },
+    origin: "PREMIUM" | "INVITE",
+  ) {
+    await prisma.companyConnection.create({
+      data: {
+        inviterCompanyId: inviter.company.id,
+        inviteeCompanyId: invitee.company.id,
+        invitedById: inviter.user.id,
+        status: "ACTIVE",
+        origin,
+        decidedAt: new Date(),
+      },
+    });
+  }
+
+  it("INVITE: KURAN taraf STANDARD'a düşünce iki tarafta da pasifleşir (bedava ağ tutulamaz)", async () => {
+    const { service } = rig();
+    const a = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const b = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    await connect(a, b, "INVITE"); // kuran = A
+
+    expect(await service.list(a.company.id)).toHaveLength(1);
+    expect(await service.list(b.company.id)).toHaveLength(1);
+
+    // A (kuran) premium'u bırakır → kendi kurduğu bağlantı düşer.
+    await prisma.company.update({
+      where: { id: a.company.id },
+      data: { tier: "STANDARD" },
+    });
+    expect(await service.list(a.company.id)).toHaveLength(0);
+    expect(await service.list(b.company.id)).toHaveLength(0);
+  });
+
+  it("KABUL EDEN taraf STANDARD'a düşse de aktif kalır (kuran hâlâ premium)", async () => {
+    const { service } = rig();
+    const inviter = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const invitee = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    await connect(inviter, invitee, "PREMIUM"); // kuran = inviter
+
+    // Kabul eden (tedarikçi) STANDARD'a düşer — kuran premium kaldıkça bağlı kalır.
+    await prisma.company.update({
+      where: { id: invitee.company.id },
+      data: { tier: "STANDARD" },
+    });
+    expect(await service.list(inviter.company.id)).toHaveLength(1);
+    expect(await service.list(invitee.company.id)).toHaveLength(1);
+  });
+});

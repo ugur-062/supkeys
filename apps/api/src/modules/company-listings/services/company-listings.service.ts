@@ -4385,9 +4385,11 @@ export class CompanyListingsService {
     });
     return rows
       .filter(
-        // PREMIUM bağlantı, onu kuran (daima PAKET olan) davet eden taraf PAKET
-        // kaldığı sürece geçerli. Tedarikçi STANDARD olabilir.
-        (r) => r.origin !== "PREMIUM" || r.inviter.tier === "PAKET",
+        // Bağlantı, onu KURAN (davet eden) taraf PAKET kaldığı sürece geçerli —
+        // hem PREMIUM hem INVITE için (ADMIN hariç: platform kararı, hep açık).
+        // Ödemeyi bırakınca kendi başlattığın bağlantılar düşer → bir kez premium
+        // olup bol davet atarak kalıcı "bedava ihale penceresi" kurulamaz.
+        (r) => r.origin === "ADMIN" || r.inviter.tier === "PAKET",
       )
       .map((r) =>
         r.inviterCompanyId === companyId
