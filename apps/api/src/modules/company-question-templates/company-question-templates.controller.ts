@@ -12,11 +12,13 @@ import {
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
+import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
 import { CompanyQuestionTemplatesService } from "./company-question-templates.service";
 import { SaveQuestionTemplateDto } from "./dto/save-question-template.dto";
 
 @Controller("company/question-templates")
-@UseGuards(CompanyJwtAuthGuard)
+// Soru seti şablonları premium özelliğidir — STANDARD firma erişemez.
+@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard)
 export class CompanyQuestionTemplatesController {
   constructor(private readonly service: CompanyQuestionTemplatesService) {}
 

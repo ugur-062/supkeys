@@ -18,6 +18,7 @@ import {
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
+import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
 import { CompanyListingTemplatesService } from "./company-listing-templates.service";
 
 class SaveTemplateDto {
@@ -31,7 +32,8 @@ class SaveTemplateDto {
 }
 
 @Controller("company/listing-templates")
-@UseGuards(CompanyJwtAuthGuard)
+// İhale şablonları premium özelliğidir — STANDARD firma erişemez.
+@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard)
 export class CompanyListingTemplatesController {
   constructor(private readonly service: CompanyListingTemplatesService) {}
 
