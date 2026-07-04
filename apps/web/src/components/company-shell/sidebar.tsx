@@ -149,6 +149,8 @@ export function CompanySidebarContent({
     available[0] ??
     "satis";
   const portal = PORTALS[active];
+  // Profilim öğesi (portal-özel href) — ayraç altında ayrı render edilir.
+  const profilItem = portal.nav.find((i) => i.href.endsWith("/profilim"));
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -180,33 +182,50 @@ export function CompanySidebarContent({
         </div>
       ) : null}
 
-      {/* Nav */}
+      {/* Nav — Profilim ayraç altına alınır; Onaylar onun eski (liste-içi) yerine
+          gelir (kullanıcı isteği: Onaylar ↔ Profil yer değişimi). */}
       <nav className="mt-3 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden px-2">
-        {portal.nav.map((item) => (
+        {portal.nav
+          .filter((item) => !item.href.endsWith("/profilim"))
+          .map((item) => (
+            <RailItem
+              key={item.href}
+              href={item.href}
+              icon={item.icon}
+              label={item.label}
+              active={isPortalItemActive(item.href, pathname)}
+              accent={portal.accent}
+              expanded={expanded}
+              locked={item.paidOnly && !isPaid}
+              onClick={onNavigate}
+            />
+          ))}
+
+        {/* Onaylar — Profilim'in eski liste-içi konumu (ayraçsız). */}
+        {canAct ? (
           <RailItem
-            key={item.href}
-            href={item.href}
-            icon={item.icon}
-            label={item.label}
-            active={isPortalItemActive(item.href, pathname)}
-            accent={portal.accent}
+            href="/company/onaylar"
+            icon={ShieldCheckIcon}
+            label="Onaylar"
+            active={isPortalItemActive("/company/onaylar", pathname)}
+            accent="zinc"
             expanded={expanded}
-            locked={item.paidOnly && !isPaid}
+            badge={pendingCount || undefined}
             onClick={onNavigate}
           />
-        ))}
+        ) : null}
 
-        {canAct ? (
+        {/* Profilim — Onaylar'ın eski (ayraç altı) konumu. */}
+        {profilItem ? (
           <>
             <div className="mx-1 my-2 h-px bg-zinc-100" aria-hidden />
             <RailItem
-              href="/company/onaylar"
-              icon={ShieldCheckIcon}
-              label="Onaylar"
-              active={isPortalItemActive("/company/onaylar", pathname)}
-              accent="zinc"
+              href={profilItem.href}
+              icon={profilItem.icon}
+              label={profilItem.label}
+              active={isPortalItemActive(profilItem.href, pathname)}
+              accent={portal.accent}
               expanded={expanded}
-              badge={pendingCount || undefined}
               onClick={onNavigate}
             />
           </>
