@@ -8,6 +8,7 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -34,6 +35,7 @@ export class CompanyUsersController {
   constructor(private readonly service: CompanyUsersService) {}
 
   @Get()
+  @RequireCompanyPermission("users:manage")
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.list(user.companyId);
   }
@@ -49,6 +51,8 @@ export class CompanyUsersController {
 
   @Post()
   @RequireCompanyPermission("users:manage")
+  // E-posta bomba amplifikasyonuna karşı sınır (kimlikli manager da spam atmasın).
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   invite(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: InviteCompanyUserDto,
@@ -74,6 +78,7 @@ export class CompanyUsersController {
 
   @Post("invitations/:id/resend")
   @RequireCompanyPermission("users:manage")
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   resendInvitation(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

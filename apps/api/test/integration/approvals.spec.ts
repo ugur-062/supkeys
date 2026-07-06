@@ -548,4 +548,45 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
     expect(ov.added).toContain("sell:listing:create");
     expect(ov.added).not.toContain("buy:bid:review"); // rolde zaten var
   });
+
+  it("yükseltme koruması: devredilen users:manage ile operasyon rollü kullanıcı kendini YONETICI yapamaz", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      roles: ["YONETICI"] as never,
+    });
+    const staff = await addUser(owner.company.id, "TR", ["SATISCI"]);
+    // Owner, staff'a users:manage iznini devreder.
+    await svc.updatePermissions(
+      { ...(owner.auth as object), isOwner: true } as never,
+      staff.user.id,
+      { added: ["users:manage"], removed: [] } as never,
+    );
+    // staff kullanıcı yönetebilir AMA kendini/başkasını YONETICI YAPAMAZ (rol tavanı).
+    await expect(
+      svc.updateRoles(staff.auth, staff.user.id, {
+        roles: ["YONETICI"],
+      } as never),
+    ).rejects.toThrow(/yalnızca firma sahibi veya Yönetici/);
+    // Operasyon rollerini yönetmek serbest (tavan yalnız YONETICI/ONAYLAYICI).
+    const other = await addUser(owner.company.id, "TR", ["SATIN_ALMACI"]);
+    await svc.updateRoles(staff.auth, other.user.id, {
+      roles: ["SATISCI"],
+    } as never);
+  });
+
+  it("çıkarılan kullanıcının e-postası serbest kalır (yeniden davet/kayıt dead-end olmaz)", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      roles: ["YONETICI"] as never,
+    });
+    const staff = await addUser(owner.company.id, "TR", ["SATISCI"]);
+    const email = staff.user.email;
+    await svc.remove(owner.auth, staff.user.id);
+    // Orijinal e-posta artık hiçbir kullanıcıda değil (tombstone) → yeniden kullanılabilir.
+    expect(
+      await prisma.companyUser.findUnique({ where: { email } }),
+    ).toBeNull();
+  });
 });

@@ -8,7 +8,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "node:crypto";
-import { CompanyRole } from "@supkeys/db";
+import { CompanyRole, Prisma } from "@supkeys/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { CompanyAuthService } from "../company-auth/services/company-auth.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -367,17 +367,17 @@ export class CompanyUsersService {
     });
     const roles = dto.roles as CompanyRole[];
     this.assertValidRoleCombo(roles);
+    this.assertCanGrantRoles(actor, roles);
 
     if (company?.ownerUserId === targetId && !roles.includes("YONETICI")) {
       throw new BadRequestException(
         "Firma sahibinin Yönetici rolü kaldırılamaz",
       );
     }
-    await this.assertNotLastAdmin(actor.companyId, targetId, roles, target.roles);
-
-    await this.prisma.companyUser.update({
-      where: { id: targetId },
-      data: { roles },
+    void target;
+    await this.lockedAdminTx(actor.companyId, async (tx) => {
+      await this.assertNotLastAdmin(tx, actor.companyId, targetId, roles);
+      await tx.companyUser.update({ where: { id: targetId }, data: { roles } });
     });
     return { ok: true };
   }
@@ -401,31 +401,31 @@ export class CompanyUsersService {
     const roles = dto.roles as CompanyRole[] | undefined;
     if (roles) {
       this.assertValidRoleCombo(roles);
+      this.assertCanGrantRoles(actor, roles);
       if (company?.ownerUserId === targetId && !roles.includes("YONETICI")) {
         throw new BadRequestException(
           "Firma sahibinin Yönetici rolü kaldırılamaz",
         );
       }
-      await this.assertNotLastAdmin(
-        actor.companyId,
-        targetId,
-        roles,
-        target.roles,
-      );
     }
-    await this.prisma.companyUser.update({
-      where: { id: targetId },
-      data: {
-        ...(dto.firstName !== undefined
-          ? { firstName: dto.firstName.trim() }
-          : {}),
-        ...(dto.lastName !== undefined
-          ? { lastName: dto.lastName.trim() }
-          : {}),
-        ...(dto.phone !== undefined ? { phone: dto.phone.trim() || null } : {}),
-        ...(roles ? { roles } : {}),
-      },
-    });
+    void target;
+    const data = {
+      ...(dto.firstName !== undefined
+        ? { firstName: dto.firstName.trim() }
+        : {}),
+      ...(dto.lastName !== undefined ? { lastName: dto.lastName.trim() } : {}),
+      ...(dto.phone !== undefined ? { phone: dto.phone.trim() || null } : {}),
+      ...(roles ? { roles } : {}),
+    };
+    // Rol değişimi yönetici sayısını etkileyebilir → atomik firma-kilidi altında.
+    if (roles) {
+      await this.lockedAdminTx(actor.companyId, async (tx) => {
+        await this.assertNotLastAdmin(tx, actor.companyId, targetId, roles);
+        await tx.companyUser.update({ where: { id: targetId }, data });
+      });
+    } else {
+      await this.prisma.companyUser.update({ where: { id: targetId }, data });
+    }
     return { ok: true };
   }
 
@@ -447,12 +447,19 @@ export class CompanyUsersService {
       throw new BadRequestException("Kendinizi pasifleştiremezsiniz");
     }
     if (!active) {
-      await this.assertNotLastAdmin(actor.companyId, targetId, [], null);
+      await this.lockedAdminTx(actor.companyId, async (tx) => {
+        await this.assertNotLastAdmin(tx, actor.companyId, targetId, []);
+        await tx.companyUser.update({
+          where: { id: targetId },
+          data: { isActive: false },
+        });
+      });
+    } else {
+      await this.prisma.companyUser.update({
+        where: { id: targetId },
+        data: { isActive: true },
+      });
     }
-    await this.prisma.companyUser.update({
-      where: { id: targetId },
-      data: { isActive: active },
-    });
     return { ok: true };
   }
 
@@ -509,7 +516,7 @@ export class CompanyUsersService {
 
   /** İş çıkışı — soft delete (login engellenir, geçmiş korunur). */
   async remove(actor: AuthenticatedCompanyUser, targetId: string) {
-    await this.requireMember(actor.companyId, targetId);
+    const target = await this.requireMember(actor.companyId, targetId);
     const company = await this.prisma.company.findUnique({
       where: { id: actor.companyId },
       select: { ownerUserId: true },
@@ -522,12 +529,32 @@ export class CompanyUsersService {
     if (targetId === actor.userId) {
       throw new BadRequestException("Kendinizi çıkaramazsınız");
     }
-    await this.assertNotLastAdmin(actor.companyId, targetId, [], null);
-
-    await this.prisma.companyUser.update({
-      where: { id: targetId },
-      data: { isActive: false, deletedAt: new Date() },
+    await this.lockedAdminTx(actor.companyId, async (tx) => {
+      await this.assertNotLastAdmin(tx, actor.companyId, targetId, []);
+      await tx.companyUser.update({
+        where: { id: targetId },
+        data: {
+          isActive: false,
+          deletedAt: new Date(),
+          // E-postayı serbest bırak: global-unique email aksi halde bu kişiyi
+          // yeniden davet edilemez kılar (accept'te Supabase/unique çakışması →
+          // dead-end davet). KVKK ile de uyumlu (silinen PII tombstone'lanır).
+          email: `deleted-${targetId}@deleted.rothern`,
+        },
+      });
     });
+    // Supabase auth kaydını da temizle → giriş imkânsız + e-posta orada da serbest.
+    if (target.authId) {
+      void this.supabaseAuth
+        .deleteUser(target.authId)
+        .catch((err: unknown) =>
+          this.logger.warn(
+            `Silinen kullanıcının Supabase auth kaydı temizlenemedi (${targetId}): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
+    }
     return { ok: true };
   }
 
@@ -552,36 +579,71 @@ export class CompanyUsersService {
   private async requireMember(companyId: string, userId: string) {
     const u = await this.prisma.companyUser.findFirst({
       where: { id: userId, companyId, deletedAt: null },
-      select: { id: true, roles: true },
+      select: { id: true, roles: true, email: true, authId: true },
     });
     if (!u) throw new NotFoundException("Kullanıcı bulunamadı");
     return u;
   }
 
   /**
-   * targetId'nin rolleri `newRoles`a değişir/çıkarılırsa firmada en az 1
-   * YONETICI kalmalı.
+   * Yükseltme koruması: YONETICI/ONAYLAYICI gibi ayrıcalıklı rolleri yalnızca
+   * firma SAHİBİ veya YONETICI atayabilir. Aksi halde owner'ın devrettiği
+   * `users:manage` iznine sahip operasyon rollü bir kullanıcı kendisini (ya da
+   * bir suç ortağını) YONETICI yapıp tüm yetkileri ele geçirebilirdi.
+   */
+  private assertCanGrantRoles(
+    actor: AuthenticatedCompanyUser,
+    roles: CompanyRole[],
+  ) {
+    const grantsPrivileged = roles.some(
+      (r) => r === "YONETICI" || r === "ONAYLAYICI",
+    );
+    const actorIsAdmin = actor.isOwner || actor.roles.includes("YONETICI");
+    if (grantsPrivileged && !actorIsAdmin) {
+      throw new ForbiddenException(
+        "Yönetici veya Onaylayıcı rolünü yalnızca firma sahibi veya Yönetici atayabilir",
+      );
+    }
+  }
+
+  /**
+   * Yönetici sayısını etkileyen mutasyonları firma bazında serialize eder:
+   * firma satırını FOR UPDATE ile kilitler → iki eşzamanlı düşürme/pasifleştirme
+   * TÜM aktif yöneticileri sıfırlayamaz (son-yönetici garantisi atomik uygulanır).
+   */
+  private async lockedAdminTx<T>(
+    companyId: string,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM companies WHERE id = ${companyId} FOR UPDATE`;
+      return fn(tx);
+    });
+  }
+
+  /**
+   * targetId'nin rolleri `newRoles`a değişir/çıkarılırsa (ya da pasif/silinirse)
+   * firmada en az 1 AKTİF YONETICI kalmalı — pasif yöneticiler SAYILMAZ, aksi
+   * halde tek aktif yönetici düşürülüp tüm firma kilitlenirdi.
    */
   private async assertNotLastAdmin(
+    tx: Prisma.TransactionClient,
     companyId: string,
     targetId: string,
     newRoles: CompanyRole[],
-    _targetCurrentRoles: CompanyRole[] | null,
   ) {
-    const targetStaysAdmin = newRoles.includes("YONETICI");
-    if (targetStaysAdmin) return;
-    const otherAdmins = await this.prisma.companyUser.count({
+    if (newRoles.includes("YONETICI")) return;
+    const otherActiveAdmins = await tx.companyUser.count({
       where: {
         companyId,
         deletedAt: null,
+        isActive: true,
         id: { not: targetId },
         roles: { has: "YONETICI" },
       },
     });
-    if (otherAdmins === 0) {
-      throw new BadRequestException(
-        "Firmada en az bir Yönetici kalmalı",
-      );
+    if (otherActiveAdmins === 0) {
+      throw new BadRequestException("Firmada en az bir aktif Yönetici kalmalı");
     }
   }
 }
