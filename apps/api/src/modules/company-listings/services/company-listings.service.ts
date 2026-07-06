@@ -3093,6 +3093,7 @@ export class CompanyListingsService {
         title: true,
         number: true,
         deliveryAddressId: true,
+        paymentTiming: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -3112,6 +3113,7 @@ export class CompanyListingsService {
       where: { id: bidId },
       select: {
         id: true,
+        listingId: true,
         status: true,
         bidderCompanyId: true,
         amount: true,
@@ -3120,7 +3122,11 @@ export class CompanyListingsService {
         items: { select: { itemId: true, unitPrice: true } },
       },
     });
-    if (!bid) throw new BadRequestException("Geçersiz teklif");
+    if (!bid || bid.listingId !== listingId) {
+      // Savunma derinliği: payload sunucu-üretimi ama yanlış bidId yanlış
+      // taraflarla sipariş yazmasın.
+      throw new BadRequestException("Geçersiz teklif");
+    }
     // Onay penceresi güvencesi: kazandırma anında teklif hâlâ SUBMITTED olmalı
     // (geri çekilmiş/elenmiş teklife sipariş yazılmaz).
     if (bid.status !== "SUBMITTED") {
@@ -3192,6 +3198,10 @@ export class CompanyListingsService {
           buyerCompanyId,
           amount: bid.amount,
           currency: bid.currency, // sipariş tutarı teklifin biriminde
+          // Ödeme zamanlaması ilandan snapshot'lanır — aksi halde varsayılan
+          // AFTER_DELIVERY olur ve peşin (BEFORE_DELIVERY) ilanlarda alıcı ön
+          // ödemeyi kaydedemezdi.
+          paymentTiming: listing.paymentTiming,
           status: "PENDING", // satıcı onayı bekler (accept/reject)
           deliveryAddress,
         },
@@ -3332,8 +3342,9 @@ export class CompanyListingsService {
       listingId,
       type: "LISTING_AWARD",
       listingType: listing.type,
+      // total TRY'ye normalize edildi (itemAwardTotal) — onay eşiği TRY bazında.
       amount: total,
-      currency: listing.primaryCurrency,
+      currency: "TRY",
       payload: { kind: "by-item", itemAwards },
       initiatorNote: approvalNote,
     });
@@ -3442,14 +3453,34 @@ export class CompanyListingsService {
     return { groups, itemQty };
   }
 
+  /** Tutarı TRY'ye çevir (onay eşiği TRY bazında kıyaslanır). Kur alınamazsa ham. */
+  private async toTryAmount(
+    amount: Prisma.Decimal | number,
+    currency: string,
+  ): Promise<Prisma.Decimal> {
+    const dec = new Prisma.Decimal(amount);
+    if (currency === "TRY") return dec;
+    const rate = await this.exchangeRates
+      .getCurrentRate(currency as never)
+      .catch(() => null);
+    return rate ? dec.mul(rate) : dec;
+  }
+
+  /**
+   * Onay yönlendirmesi için kalem-bazlı kazandırmanın TOPLAM değeri — her grup
+   * kendi biriminde olduğundan TRY'ye çevrilip toplanır (karışık para birimli
+   * kazandırmada ham USD+TRY toplamı anlamsız olurdu; eşik yanlış yönlenirdi).
+   */
   private async itemAwardTotal(
     listingId: string,
     itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
   ): Promise<number> {
     const { groups } = await this.buildItemGroups(listingId, itemAwards);
-    return [...groups.values()]
-      .reduce((s, g) => s.plus(g.amount), new Prisma.Decimal(0))
-      .toNumber();
+    let total = new Prisma.Decimal(0);
+    for (const g of groups.values()) {
+      total = total.plus(await this.toTryAmount(g.amount, g.currency));
+    }
+    return total.toNumber();
   }
 
   /** Kalem-bazlı kazandırmayı uygula — kazanan firma başına sipariş. */
@@ -3459,13 +3490,15 @@ export class CompanyListingsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, type: true, deliveryAddressId: true },
+      select: {
+        id: true,
+        companyId: true,
+        type: true,
+        deliveryAddressId: true,
+        paymentTiming: true,
+      },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
-    // Kalem-bazlı kazandırma yalnız ALIM'da — teslimat adresi ilanın adresi.
-    const deliveryAddress = await this.orderDeliverySnapshot(
-      listing.type === "ALIM" ? listing.deliveryAddressId : null,
-    );
     const { groups, itemQty } = await this.buildItemGroups(
       listingId,
       itemAwards,
@@ -3473,6 +3506,30 @@ export class CompanyListingsService {
     const groupArr = [...groups.entries()];
     const numbers = await this.nextOrderNumbers(groupArr.length);
     const winningBidIds = [...new Set(itemAwards.map((a) => a.bidId))];
+
+    // Teslim adresi: ALIM'da ALICI = ilan sahibi → ilanın adresi (tek).
+    // SATIS'ta ALICI = teklifçi → her grubun teklif adresi (firma başına).
+    const isAlim = listing.type === "ALIM";
+    const alimDelivery = isAlim
+      ? await this.orderDeliverySnapshot(listing.deliveryAddressId)
+      : undefined;
+    // SATIS: her kazanan firmanın teslim adresi snapshot'ı (tx öncesi hazırlanır).
+    const deliveryByCompany = new Map<
+      string,
+      Awaited<ReturnType<typeof this.orderDeliverySnapshot>>
+    >();
+    if (!isAlim) {
+      const winBids = await this.prisma.listingBid.findMany({
+        where: { id: { in: winningBidIds } },
+        select: { bidderCompanyId: true, deliveryAddressId: true },
+      });
+      for (const wb of winBids) {
+        deliveryByCompany.set(
+          wb.bidderCompanyId,
+          await this.orderDeliverySnapshot(wb.deliveryAddressId),
+        );
+      }
+    }
 
     // Kısmi kazanım tespiti: teklifin fiyatladığı kalem sayısı > kazandığı
     // kalem sayısı ise AWARDED_PARTIAL (satıcı "Kısmen Kazandın" görür).
@@ -3539,14 +3596,16 @@ export class CompanyListingsService {
             number: numbers[i],
             listingId,
             // ALIM: kazanan teklifçi SATICI, ilan sahibi ALICI — SATIS'ta ters.
-            sellerCompanyId:
-              listing.type === "ALIM" ? bidderCompanyId : listing.companyId,
-            buyerCompanyId:
-              listing.type === "ALIM" ? listing.companyId : bidderCompanyId,
+            sellerCompanyId: isAlim ? bidderCompanyId : listing.companyId,
+            buyerCompanyId: isAlim ? listing.companyId : bidderCompanyId,
             amount: g.amount,
             currency: g.currency, // sipariş tutarı teklifin biriminde
+            paymentTiming: listing.paymentTiming,
             status: "PENDING", // satıcı onayı bekler (accept/reject)
-            deliveryAddress,
+            // ALIM: ilan adresi; SATIS: bu grubun teklifçisinin adresi.
+            deliveryAddress: isAlim
+              ? alimDelivery
+              : deliveryByCompany.get(bidderCompanyId),
             items: {
               create: g.orderItems.map((it) => ({
                 name: it.name,

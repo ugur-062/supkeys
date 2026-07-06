@@ -14,7 +14,9 @@ import {
 export const CHEQUE_METHOD = "Çek";
 
 export class RecordPaymentDto {
-  @IsNumber()
+  // Decimal(18,2) sütununa yazılır — 2 ondalıktan fazlası kap kontrolüyle
+  // saklanan değer arasında yuvarlama sapması yaratmasın.
+  @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive({ message: "Tutar 0'dan büyük olmalı" })
   amount!: number;
 

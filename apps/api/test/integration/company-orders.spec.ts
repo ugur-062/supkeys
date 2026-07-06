@@ -218,6 +218,48 @@ describe("tamamlama kapısı — satıcı onayı bekleyen ödeme", () => {
   });
 });
 
+describe("ödeme kap koruması — atomik (fazla-tahsilat yarışı)", () => {
+  it("eşzamanlı iki ödeme kaydı sipariş tutarını AŞAMAZ (FOR UPDATE kilidi)", async () => {
+    const { orders } = makeOrdersService();
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const order = await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: seller.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 1000,
+        status: "DELIVERED",
+        paymentTiming: "AFTER_DELIVERY",
+        deliveredAt: new Date(),
+      },
+    });
+
+    // İkisi de 700 → toplam 1400 > 1000; atomik cap yalnız birine izin vermeli.
+    const results = await Promise.allSettled([
+      orders.recordPayment(buyer.auth, order.id, {
+        amount: 700,
+        method: "EFT",
+      } as never),
+      orders.recordPayment(buyer.auth, order.id, {
+        amount: 700,
+        method: "EFT",
+      } as never),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((r) => r.status === "rejected")).toHaveLength(1);
+
+    // DB'de kayıtlı toplam sipariş tutarını aşmamalı.
+    const sum = await prisma.companyOrderPayment.aggregate({
+      where: {
+        orderId: order.id,
+        status: { in: ["AWAITING_CONFIRMATION", "CONFIRMED"] },
+      },
+      _sum: { amount: true },
+    });
+    expect(Number(sum._sum.amount ?? 0)).toBeLessThanOrEqual(1000);
+  });
+});
+
 describe("kargo kapısı — satıcı, bekleyen ödemeyi sonuçlandırmadan kargolayamaz", () => {
   it("bekleyen ödeme varken ship reddedilir; satıcı onaylayınca kargolanır", async () => {
     const { orders } = makeOrdersService();

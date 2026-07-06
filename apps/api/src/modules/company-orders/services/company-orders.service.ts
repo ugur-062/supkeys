@@ -488,54 +488,61 @@ export class CompanyOrdersService {
     if (!(input.amount > 0)) {
       throw new BadRequestException("Tutar 0'dan büyük olmalı");
     }
-    // Kalan tutar koruması — AWAITING + CONFIRMED toplamı sipariş tutarını aşamaz.
-    const [orderAmt, existing] = await Promise.all([
-      this.prisma.companyOrder.findUnique({
-        where: { id },
-        select: { amount: true, currency: true },
-      }),
-      this.prisma.companyOrderPayment.findMany({
-        where: {
-          orderId: id,
-          status: { in: ["AWAITING_CONFIRMATION", "CONFIRMED"] },
-        },
-        select: { amount: true },
-      }),
-    ]);
-    const cap = orderAmt ? Number(orderAmt.amount) : 0;
-    const recorded = existing.reduce((s, p) => s + Number(p.amount), 0);
-    if (recorded + input.amount > cap + 0.01) {
-      const remaining = Math.max(0, cap - recorded);
-      // Sembol siparişin para birimine göre — USD siparişte "₺" yazıyordu.
-      const cur = orderAmt?.currency ?? "TRY";
-      const curSym = cur === "TRY" ? "₺" : cur;
-      throw new BadRequestException(
-        `Kalan ödeme ${remaining.toLocaleString("tr-TR")} ${curSym} — bu tutarı aşan ödeme kaydedilemez`,
-      );
-    }
+    // Kalan tutar koruması ATOMİK: sipariş satırını FOR UPDATE ile kilitle →
+    // aynı siparişe eşzamanlı ödeme kayıtları serialize olur, AWAITING+CONFIRMED
+    // toplamı sipariş tutarını AŞAMAZ (çift-gönderim / yarış fazla-tahsilatı kapatır).
     const isCheque = input.method?.trim() === "Çek";
-    const payment = await this.prisma.companyOrderPayment.create({
-      data: {
-        orderId: id,
-        amount: input.amount,
-        method: input.method?.trim() || null,
-        note: input.note?.trim() || null,
-        recordedByCompanyId: user.companyId,
-        recordedByUserId: user.userId,
-        chequeNo: isCheque ? input.chequeNo?.trim() || null : null,
-        chequeBank: isCheque ? input.chequeBank?.trim() || null : null,
-        chequeDueDate:
-          isCheque && input.chequeDueDate
-            ? new Date(input.chequeDueDate)
-            : null,
-      },
+    const { payment, currency } = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM company_orders WHERE id = ${id} FOR UPDATE`;
+      const [orderAmt, existing] = await Promise.all([
+        tx.companyOrder.findUnique({
+          where: { id },
+          select: { amount: true, currency: true },
+        }),
+        tx.companyOrderPayment.findMany({
+          where: {
+            orderId: id,
+            status: { in: ["AWAITING_CONFIRMATION", "CONFIRMED"] },
+          },
+          select: { amount: true },
+        }),
+      ]);
+      const cap = orderAmt ? Number(orderAmt.amount) : 0;
+      const recorded = existing.reduce((s, p) => s + Number(p.amount), 0);
+      const cur = orderAmt?.currency ?? "TRY";
+      if (recorded + input.amount > cap + 0.01) {
+        const remaining = Math.max(0, cap - recorded);
+        const curSym = cur === "TRY" ? "₺" : cur;
+        throw new BadRequestException(
+          `Kalan ödeme ${remaining.toLocaleString("tr-TR")} ${curSym} — bu tutarı aşan ödeme kaydedilemez`,
+        );
+      }
+      const p = await tx.companyOrderPayment.create({
+        data: {
+          orderId: id,
+          amount: input.amount,
+          method: input.method?.trim() || null,
+          note: input.note?.trim() || null,
+          recordedByCompanyId: user.companyId,
+          recordedByUserId: user.userId,
+          chequeNo: isCheque ? input.chequeNo?.trim() || null : null,
+          chequeBank: isCheque ? input.chequeBank?.trim() || null : null,
+          chequeDueDate:
+            isCheque && input.chequeDueDate
+              ? new Date(input.chequeDueDate)
+              : null,
+        },
+      });
+      return { payment: p, currency: cur };
     });
+    // Bildirim tutarı siparişin para biriminde (USD siparişte "₺" yazıyordu).
+    const curSym = currency === "TRY" ? "₺" : currency;
     await this.notifyOrderParty(
       id,
       order.sellerCompanyId,
       "Yeni ödeme kaydı — onayınız bekleniyor",
       "Ödeme kaydedildi",
-      `${this.orderLabel(order.number)} sipariş için ${input.amount.toLocaleString("tr-TR")} ₺ tutarında ödeme kaydedildi. Onaylamanız bekleniyor.`,
+      `${this.orderLabel(order.number)} sipariş için ${input.amount.toLocaleString("tr-TR")} ${curSym} tutarında ödeme kaydedildi. Onaylamanız bekleniyor.`,
       "satis",
     );
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
