@@ -918,7 +918,13 @@ export class CompanyListingsService {
     // Doğrudan yayınlandıysa: davetlilere davet + PUBLIC+ALIM'da kategori haberi.
     if (!dto.asDraft) {
       void this.notifyListingInvitees(listing.id, "invitation");
-      void this.notifyCategoryMatchedCompanies(listing.id);
+      void this.notifyCategoryMatchedCompanies(listing.id).catch((err) =>
+        this.logger.warn(
+          `Kategori eşleşme bildirimi başarısız (${listing.id}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
     }
     return this.serialize(listing);
   }
@@ -1171,7 +1177,13 @@ export class CompanyListingsService {
       data: { status: "OPEN", publishedAt: new Date() },
     });
     void this.notifyListingInvitees(listingId, "invitation");
-    void this.notifyCategoryMatchedCompanies(listingId);
+    void this.notifyCategoryMatchedCompanies(listingId).catch((err) =>
+      this.logger.warn(
+        `Kategori eşleşme bildirimi başarısız (${listingId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
     this.realtime?.pingListing(listingId);
     return this.serialize(updated);
   }
@@ -1212,7 +1224,13 @@ export class CompanyListingsService {
       data: { status: "OPEN", publishedAt: new Date() },
     });
     void this.notifyListingInvitees(payload.listingId, "invitation");
-    void this.notifyCategoryMatchedCompanies(payload.listingId);
+    void this.notifyCategoryMatchedCompanies(payload.listingId).catch((err) =>
+      this.logger.warn(
+        `Kategori eşleşme bildirimi başarısız (${payload.listingId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
     this.realtime?.pingListing(payload.listingId);
   }
 
@@ -2109,6 +2127,7 @@ export class CompanyListingsService {
         number: true,
         format: true,
         visibility: true,
+        bidVisibility: true,
         status: true,
         requireAllItems: true,
         requireBidDocument: true,
@@ -2591,23 +2610,38 @@ export class CompanyListingsService {
             ? ref.mul(dv).div(100)
             : dv
           : new Prisma.Decimal(0);
+        // KAPALI-ZARF SIZINTISI KORUMASI: referans RAKİBİN en iyi teklifiyse ve
+        // bidVisibility en iyiyi zaten AÇIKLAMIYORSA (OWN_ONLY/OWN_RANK), hata
+        // mesajı ref/tavan sayısını ECHO ETMEZ — aksi halde teklifçi geçersiz
+        // teklif atıp mesajdan rakip en iyi teklifi geri hesaplardı. Referans
+        // kendi son teklifiyse ya da best zaten görünürse detaylı mesaj güvenli.
+        const bestDisclosed =
+          listing.bidVisibility === "BEST_PRICE" ||
+          listing.bidVisibility === "BEST_AND_OWN_RANK" ||
+          listing.bidVisibility === "ALL";
+        const refFromCompetitor = ref === best && best != null;
+        const revealRef = bestDisclosed || !refFromCompetitor;
         // Decimal kesin aritmetik — epsilon toleransına gerek yok.
         if (!isAscending) {
           const maxAllowed = ref.minus(step);
           if (amount.gt(maxAllowed)) {
             throw new BadRequestException(
-              step.gt(0)
-                ? `İngiliz usulü: teklifiniz en fazla ${fmt(maxAllowed)} ${curSym} olabilir (referansı en az ${fmt(step)} azaltmalısınız)`
-                : `İngiliz usulü: teklifiniz ${fmt(ref)} ${curSym}'nin altında olmalı`,
+              !revealRef
+                ? "İngiliz usulü: teklifiniz yeterince düşük değil — gerekli en az azaltma karşılanmadı."
+                : step.gt(0)
+                  ? `İngiliz usulü: teklifiniz en fazla ${fmt(maxAllowed)} ${curSym} olabilir (referansı en az ${fmt(step)} azaltmalısınız)`
+                  : `İngiliz usulü: teklifiniz ${fmt(ref)} ${curSym}'nin altında olmalı`,
             );
           }
         } else {
           const minAllowed = ref.plus(step);
           if (amount.lt(minAllowed)) {
             throw new BadRequestException(
-              step.gt(0)
-                ? `Açık artırma: teklifiniz en az ${fmt(minAllowed)} ${curSym} olmalı (referansı en az ${fmt(step)} artırmalısınız)`
-                : `Açık artırma: teklifiniz ${fmt(ref)} ${curSym}'nin üzerinde olmalı`,
+              !revealRef
+                ? "Açık artırma: teklifiniz yeterince yüksek değil — gerekli en az artırma karşılanmadı."
+                : step.gt(0)
+                  ? `Açık artırma: teklifiniz en az ${fmt(minAllowed)} ${curSym} olmalı (referansı en az ${fmt(step)} artırmalısınız)`
+                  : `Açık artırma: teklifiniz ${fmt(ref)} ${curSym}'nin üzerinde olmalı`,
             );
           }
         }
@@ -2651,7 +2685,11 @@ export class CompanyListingsService {
           note: dto.note?.trim() || null,
           status,
           version: { increment: 1 },
-          ...(isDraft ? {} : { submittedAt: new Date() }),
+          // Yeniden teklif (elenmişken tekrar SUBMITTED) → eski eleme izini temizle
+          // ki myBid'de "elendi" bilgisi canlı teklifle çelişmesin.
+          ...(isDraft
+            ? {}
+            : { submittedAt: new Date(), eliminationReason: null, eliminatedAt: null }),
           round: listing.currentRound,
         },
       });
@@ -2711,15 +2749,24 @@ export class CompanyListingsService {
       this.realtime?.pingListing(id, [listing.companyId]);
       // İlan sahibine "yeni teklif geldi" in-app bildirimi (sahip portalı).
       // E-posta yok — yüksek teklif hacminde spam olmasın; zil kaydı yeterli.
-      void this.notifications.pushToCompany(listing.companyId, {
-        type: "bid_received",
-        portal: this.ownerPortal(listing.type),
-        title: "Yeni teklif geldi",
-        body: `"${listing.title}" (${listing.number ?? "—"}) ilanınıza yeni bir teklif verildi.`,
-        ctaLabel: "İhaleyi Gör",
-        ctaUrl: `${this.webUrl()}/company/ilan/${id}`,
-        listingId: id,
-      });
+      // Best-effort: bildirim hatası (ör. teardown yarışı) teklif akışını etkilemesin.
+      void this.notifications
+        .pushToCompany(listing.companyId, {
+          type: "bid_received",
+          portal: this.ownerPortal(listing.type),
+          title: "Yeni teklif geldi",
+          body: `"${listing.title}" (${listing.number ?? "—"}) ilanınıza yeni bir teklif verildi.`,
+          ctaLabel: "İhaleyi Gör",
+          ctaUrl: `${this.webUrl()}/company/ilan/${id}`,
+          listingId: id,
+        })
+        .catch((err) =>
+          this.logger.warn(
+            `Yeni teklif bildirimi yazılamadı (${id}): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
     }
     return { id: bid.id, amount: bid.amount.toString(), status: bid.status };
   }
@@ -4242,9 +4289,16 @@ export class CompanyListingsService {
         "Kapanışa 2 dakikadan az kaldı — açık eksiltme/artırmada kapanış saati artık değiştirilemez",
       );
     }
+    // Uzatma (yeni kapanış daha ileri) → kapanış-hatırlatması bayrağını sıfırla
+    // ki yeni pencere için tekrar gönderilebilsin (placeBid auto-extend de böyle yapar).
+    const isExtension =
+      extra?.closesAt != null && date.getTime() > extra.closesAt.getTime();
     await this.prisma.listing.update({
       where: { id: listing.id },
-      data: { closesAt: date },
+      data: {
+        closesAt: date,
+        ...(isExtension ? { closingReminderSentAt: null } : {}),
+      },
     });
     return { ok: true };
   }

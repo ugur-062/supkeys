@@ -63,6 +63,49 @@ describe("İngiliz Usulü — azaltma kuralı", () => {
     ).resolves.toBeDefined();
   });
 
+  it("KAPALI-ZARF: en iyi GİZLİ (OWN_ONLY) modda azaltma hatası rakip en iyiyi/tavanı SIZDIRMAZ", async () => {
+    const { service, bidder, listing } = await auction({
+      priceDecrementBasis: "BEST_BID",
+      priceDecrementType: "AMOUNT",
+      priceDecrementValue: "50",
+      bidVisibility: "OWN_ONLY",
+    });
+    const rival = await makeCompanyWithUser(prisma, { country: "TR" });
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: rival.company.id,
+      createdById: rival.user.id,
+      amount: 1000,
+    });
+    const err = await service
+      .placeBid(bidder.auth, listing.id, submit(2000))
+      .catch((e: Error) => e);
+    expect(String((err as Error).message)).toMatch(/yeterince düşük değil/);
+    // Rakip en iyi (1000) veya tavan (950) mesajda GEÇMEMELİ.
+    expect(String((err as Error).message)).not.toMatch(/1[.\s]?000|950/);
+  });
+
+  it("en iyi GÖRÜNÜR (BEST_PRICE) modda detaylı tavan mesajı gösterilebilir (sızıntı değil)", async () => {
+    const { service, bidder, listing } = await auction({
+      priceDecrementBasis: "BEST_BID",
+      priceDecrementType: "AMOUNT",
+      priceDecrementValue: "50",
+      bidVisibility: "BEST_PRICE",
+    });
+    const rival = await makeCompanyWithUser(prisma, { country: "TR" });
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: rival.company.id,
+      createdById: rival.user.id,
+      amount: 1000,
+    });
+    const err = await service
+      .placeBid(bidder.auth, listing.id, submit(2000))
+      .catch((e: Error) => e);
+    // best zaten görünür → tavan (950) echo'lanabilir.
+    expect(String((err as Error).message)).toMatch(/950/);
+  });
+
   it("BEST_BID + PERCENT: adım = en iyi × yüzde", async () => {
     const { service, owner, bidder, listing } = await auction({
       priceDecrementBasis: "BEST_BID",
