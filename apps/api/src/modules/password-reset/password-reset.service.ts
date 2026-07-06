@@ -63,11 +63,17 @@ export class PasswordResetService {
       );
     }
 
-    await this.supabaseAuth.updatePassword(target.authId, newPassword);
-    await this.prisma.passwordResetToken.update({
-      where: { id: record.id },
+    // Token'ı ATOMİK tüket (tek-kullanım yarış koruması) — parolayı GÜNCELLEMEDEN
+    // önce. İki eşzamanlı confirm'de yalnız biri count=1 alır; diğeri count=0 →
+    // "zaten kullanılmış". Böylece parola ikinci kez (farklı değerle) set edilemez.
+    const claimed = await this.prisma.passwordResetToken.updateMany({
+      where: { id: record.id, usedAt: null },
       data: { usedAt: new Date() },
     });
+    if (claimed.count === 0) {
+      throw new ForbiddenException("Bu bağlantı zaten kullanılmış");
+    }
+    await this.supabaseAuth.updatePassword(target.authId, newPassword);
     // Tüm mevcut oturumlar geçersizleşir (tokenVersion) — parola sıfırlama
     // genelde hesabın ele geçirilme şüphesinde yapılır.
     await this.prisma.companyUser.update({

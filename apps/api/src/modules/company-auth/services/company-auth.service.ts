@@ -11,7 +11,7 @@ import { JwtService } from "@nestjs/jwt";
 import { authenticator } from "otplib";
 import * as crypto from "node:crypto";
 import * as QRCode from "qrcode";
-import { CompanyRole, type Company, type CompanyUser } from "@supkeys/db";
+import { CompanyRole, Prisma, type Company, type CompanyUser } from "@supkeys/db";
 import {
   generateShortCode,
   isValidCountryCode,
@@ -127,6 +127,13 @@ export class CompanyAuthService {
     } catch (e) {
       // Orphan auth.users bırakma.
       await this.supabaseAuth.deleteUser(authId);
+      // Eşzamanlı aynı-e-posta kaydı (ön kontrolü geçen yarış) → dostane çakışma.
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002"
+      ) {
+        throw new ConflictException("Bu e-posta ile zaten bir hesap var");
+      }
       throw e;
     }
 
