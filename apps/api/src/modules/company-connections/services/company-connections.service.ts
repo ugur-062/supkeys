@@ -305,7 +305,72 @@ export class CompanyConnectionsService {
           }`,
         ),
       );
+    // E-posta kanalı (in-app'e paralel) — hedef firma uygulamada değilse kaçırmasın.
+    void this.emailCompany(
+      target.id,
+      "Yeni bağlantı isteği",
+      [
+        "Merhaba,",
+        `${me?.name ?? "Bir firma"} sizinle bağlantı kurmak istiyor. Rothern'de Bağlantılar → Gelen İstekler'den yanıtlayabilirsiniz.`,
+      ],
+      "connection_request",
+      conn.id,
+    );
     return { id: conn.id, status: conn.status, targetName: target.name };
+  }
+
+  /** Firmanın bildirim e-postasına (billingEmail → ilk aktif kullanıcı) bildirim
+   *  şablonuyla e-posta. Best-effort. */
+  private async emailCompany(
+    companyId: string,
+    subject: string,
+    paragraphs: string[],
+    type: string,
+    contextId: string,
+  ) {
+    try {
+      const c = await this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          name: true,
+          billingEmail: true,
+          users: {
+            where: { isActive: true, deletedAt: null },
+            select: { email: true, firstName: true, lastName: true },
+            orderBy: { createdAt: "asc" },
+            take: 1,
+          },
+        },
+      });
+      const email = c?.billingEmail || c?.users[0]?.email;
+      if (!c || !email) return;
+      const name = c.users[0]
+        ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
+        : c.name;
+      const baseUrl =
+        this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+      await this.email.send({
+        to: { email, name },
+        subject,
+        templateData: {
+          template: "notification",
+          data: {
+            subject,
+            heading: subject,
+            paragraphs,
+            ctaLabel: "Rothern'e Git",
+            ctaUrl: `${baseUrl}/company`,
+          },
+        },
+        context: { type, id: contextId },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Bağlantı e-postası gönderilemedi (${companyId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
   }
 
 
@@ -768,6 +833,16 @@ export class CompanyConnectionsService {
           }`,
         ),
       );
+    void this.emailCompany(
+      conn.inviterCompanyId,
+      "Bağlantı isteğiniz kabul edildi",
+      [
+        "Merhaba,",
+        `${me?.name ?? "Bir firma"} bağlantı isteğinizi kabul etti — artık birbirinizin bağlantılara açık ihalelerini görebilirsiniz.`,
+      ],
+      "connection_accepted",
+      conn.id,
+    );
     return { ok: true };
   }
 

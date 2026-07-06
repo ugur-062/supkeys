@@ -27,6 +27,7 @@ const PREF_KEY_BY_TYPE: Record<string, NotificationPrefKey | undefined> = {
   listing_invitation: "invitation",
   listing_reminder: "reminder",
   bid_eliminated: "bidElimination",
+  bid_lost: "bidElimination",
   listing_closed: "listingClosed",
   listing_closed_owner: "listingClosed",
   listing_category_match: "categoryMatch",

@@ -2105,6 +2105,8 @@ export class CompanyListingsService {
         id: true,
         companyId: true,
         type: true,
+        title: true,
+        number: true,
         format: true,
         visibility: true,
         status: true,
@@ -2707,6 +2709,17 @@ export class CompanyListingsService {
     // WS: ilan sahibi + detay izleyicileri anında görsün (taslak hariç).
     if (!isDraft) {
       this.realtime?.pingListing(id, [listing.companyId]);
+      // İlan sahibine "yeni teklif geldi" in-app bildirimi (sahip portalı).
+      // E-posta yok — yüksek teklif hacminde spam olmasın; zil kaydı yeterli.
+      void this.notifications.pushToCompany(listing.companyId, {
+        type: "bid_received",
+        portal: this.ownerPortal(listing.type),
+        title: "Yeni teklif geldi",
+        body: `"${listing.title}" (${listing.number ?? "—"}) ilanınıza yeni bir teklif verildi.`,
+        ctaLabel: "İhaleyi Gör",
+        ctaUrl: `${this.webUrl()}/company/ilan/${id}`,
+        listingId: id,
+      });
     }
     return { id: bid.id, amount: bid.amount.toString(), status: bid.status };
   }
@@ -3073,9 +3086,28 @@ export class CompanyListingsService {
   private async runFullAward(listingId: string, bidId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, type: true, deliveryAddressId: true },
+      select: {
+        id: true,
+        companyId: true,
+        type: true,
+        title: true,
+        number: true,
+        deliveryAddressId: true,
+      },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
+    // Kaybedecek teklif sahiplerini kazandırma ÖNCESİ yakala (tx onları LOST'a
+    // çevirecek) → sonuç sonrası "kazanamadınız" bildirimi için.
+    const losingBidderIds = [
+      ...new Set(
+        (
+          await this.prisma.listingBid.findMany({
+            where: { listingId, status: "SUBMITTED", id: { not: bidId } },
+            select: { bidderCompanyId: true },
+          })
+        ).map((b) => b.bidderCompanyId),
+      ),
+    ];
     const bid = await this.prisma.listingBid.findUnique({
       where: { id: bidId },
       select: {
@@ -3200,6 +3232,43 @@ export class CompanyListingsService {
       ctaLabel: "Siparişi Gör",
       ctaUrl: `${this.webUrl()}/company/siparis/${order.id}`,
     });
+    // Kaybeden teklif sahiplerine "ihale sonuçlandı" bildirimi (teklifçi portalı,
+    // bidElimination tercihine bağlı — eleme bildirimini kapatan bunu da almaz).
+    if (losingBidderIds.length > 0) {
+      const lostUrl = `${this.webUrl()}/company/ilan/${listingId}`;
+      const lostBody = `"${listing.title}" (${listing.number ?? "—"}) ihalesi sonuçlandı; bu turda teklifiniz kazanmadı.`;
+      const lostRecipients = await this.companyRecipients(
+        losingBidderIds,
+        wonPortal,
+      );
+      for (const cid of losingBidderIds) {
+        const r = lostRecipients.get(cid);
+        if (!r) continue;
+        this.notify(
+          r,
+          {
+            subject: "İhale sonuçlandı",
+            heading: "İhale sonuçlandı",
+            paragraphs: [
+              "Merhaba,",
+              `${lostBody} Yeni fırsatlar için Rothern'i takip edebilirsiniz.`,
+            ],
+            ctaLabel: "İhaleyi Gör",
+            ctaUrl: lostUrl,
+          },
+          { type: "bid_lost", id: listingId },
+        );
+      }
+      await this.notifications.pushToCompanies(losingBidderIds, {
+        type: "bid_lost",
+        portal: wonPortal,
+        title: "İhale sonuçlandı",
+        body: lostBody,
+        ctaLabel: "İhaleyi Gör",
+        ctaUrl: lostUrl,
+        listingId,
+      });
+    }
     this.realtime?.pingListing(listingId, awardParties);
     this.realtime?.pingOrder(order.id, awardParties);
     return { orderId: order.id, number: order.number };

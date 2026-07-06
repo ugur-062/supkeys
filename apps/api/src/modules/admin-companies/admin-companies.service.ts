@@ -1,14 +1,88 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { CompanyVerificationStatus, ComplaintStatus } from "@supkeys/db";
 import { StorageService } from "../storage/storage.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { EmailService } from "../email/email.service";
+import { NotificationService } from "../notifications/notification.service";
 
 @Injectable()
 export class AdminCompaniesService {
+  private readonly logger = new Logger(AdminCompaniesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly email: EmailService,
+    private readonly notifications: NotificationService,
+    private readonly config: ConfigService,
   ) {}
+
+  /** Firmaya (in-app + e-posta) bildirim — admin aksiyonları için. Best-effort. */
+  private async notifyCompany(
+    companyId: string,
+    subject: string,
+    paragraphs: string[],
+    type: string,
+    cta?: { label: string; path: string },
+  ) {
+    const baseUrl =
+      this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+    const ctaUrl = `${baseUrl}${cta?.path ?? "/company"}`;
+    const ctaLabel = cta?.label ?? "Rothern'e Git";
+    // In-app (portal-nötr → her iki panelde görünür).
+    await this.notifications
+      .pushToCompany(companyId, {
+        type,
+        title: subject,
+        body: paragraphs.slice(1).join(" ") || subject,
+        ctaLabel,
+        ctaUrl,
+      })
+      .catch((err) =>
+        this.logger.warn(
+          `Admin bildirimi yazılamadı (${companyId}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+    // E-posta.
+    const c = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        name: true,
+        billingEmail: true,
+        users: {
+          where: { isActive: true, deletedAt: null },
+          select: { email: true, firstName: true, lastName: true },
+          orderBy: { createdAt: "asc" },
+          take: 1,
+        },
+      },
+    });
+    const email = c?.billingEmail || c?.users[0]?.email;
+    if (!c || !email) return;
+    const name = c.users[0]
+      ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
+      : c.name;
+    void this.email
+      .send({
+        to: { email, name },
+        subject,
+        templateData: {
+          template: "notification",
+          data: { subject, heading: subject, paragraphs, ctaLabel, ctaUrl },
+        },
+        context: { type, id: companyId },
+      })
+      .catch((err: unknown) =>
+        this.logger.warn(
+          `Admin e-postası gönderilemedi (${companyId}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+  }
 
   async list(query: { status?: string; blocked?: string; q?: string }) {
     const where: Record<string, unknown> = {};
@@ -133,6 +207,30 @@ export class AdminCompaniesService {
         companyVerifiedAt: status === "VERIFIED" ? new Date() : null,
       },
     });
+    // Firmaya sonucu bildir (in-app + e-posta) — onboarding için kritik.
+    if (status === "VERIFIED") {
+      void this.notifyCompany(
+        id,
+        "Firma doğrulamanız onaylandı",
+        [
+          "Merhaba,",
+          "Firma doğrulama belgeleriniz incelendi ve onaylandı. Artık premium doğrulama gerektiren adımlara devam edebilirsiniz.",
+        ],
+        "company_verification",
+        { label: "Hesabım", path: "/company/ayarlar/dogrulama" },
+      );
+    } else {
+      void this.notifyCompany(
+        id,
+        "Firma doğrulamanız reddedildi",
+        [
+          "Merhaba,",
+          "Firma doğrulama belgeleriniz incelendi ancak onaylanamadı. Lütfen belgelerinizi güncelleyip yeniden gönderin.",
+        ],
+        "company_verification",
+        { label: "Belgeleri Güncelle", path: "/company/ayarlar/dogrulama" },
+      );
+    }
     return { ok: true };
   }
 

@@ -338,8 +338,15 @@ describe("toplu e-posta daveti", () => {
     expect(byEmail.get(c.user.email)?.reason).toMatch(/zaten bağlısınız/i);
     // Mükerrer tek satır — toplam 4 sonuç.
     expect(res.results).toHaveLength(4);
-    // Yalnız kayıtsız adrese e-posta gitti.
-    expect(email.send).toHaveBeenCalledTimes(1);
+    // Kayıtsız adrese referral e-postası gitti (kayıtlıya ayrıca bağlantı-isteği
+    // e-postası düşer — sayı yerine referral çağrısının varlığını doğrula).
+    expect(
+      email.send.mock.calls.some(
+        (c) =>
+          (c[0] as { templateData?: { template?: string } })?.templateData
+            ?.template === "referral_invite",
+      ),
+    ).toBe(true);
     // Kayıtlıya istek düştü.
     expect(await service.listIncoming(b.company.id)).toHaveLength(1);
     void bCode;

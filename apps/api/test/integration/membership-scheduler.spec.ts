@@ -17,7 +17,13 @@ beforeEach(async () => {
 
 describe("MembershipScheduler.downgradeExpired", () => {
   it("süresi biten PAKET → STANDARD + giden bekleyen davetler iptal; gelen davet & süresi geçmemiş firma korunur", async () => {
-    const scheduler = new MembershipScheduler(prisma as never);
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+    const scheduler = new MembershipScheduler(
+      prisma as never,
+      email as never,
+      config as never,
+    );
     const past = new Date(Date.now() - 86_400_000);
     const future = new Date(Date.now() + 86_400_000);
 
@@ -93,7 +99,13 @@ describe("MembershipScheduler.downgradeExpired", () => {
   });
 
   it("düşecek firma yoksa hiçbir şeye dokunmaz", async () => {
-    const scheduler = new MembershipScheduler(prisma as never);
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+    const scheduler = new MembershipScheduler(
+      prisma as never,
+      email as never,
+      config as never,
+    );
     const a = await makeCompanyWithUser(prisma, { tier: "PAKET" }); // membershipEndAt null
     await scheduler.downgradeExpired();
     expect(

@@ -406,6 +406,11 @@ export class CompanyAuthService {
       where: { email, status: "PENDING" },
       select: { id: true, inviterCompanyId: true, invitedById: true },
     });
+    if (invites.length === 0) return;
+    const newCompany = await this.prisma.company.findUnique({
+      where: { id: newCompanyId },
+      select: { name: true },
+    });
     for (const inv of invites) {
       if (inv.inviterCompanyId === newCompanyId) continue;
       await this.prisma.companyConnection.upsert({
@@ -433,6 +438,23 @@ export class CompanyAuthService {
           acceptedAt: new Date(),
         },
       });
+      // Davet edene "davetiniz kabul edildi" e-postası (kayıt hook'undan çağrılır;
+      // in-app kanal burada döngü nedeniyle kullanılmaz — NotificationModule bu
+      // servise enjekte edilemez, CompanyAuthModule'e bağımlı).
+      const inviterEmail = await this.companyNotifyEmail(inv.inviterCompanyId);
+      if (inviterEmail) {
+        this.sendNotificationEmail(
+          inviterEmail,
+          "Davetiniz kabul edildi",
+          [
+            "Merhaba,",
+            `Davet ettiğiniz ${newCompany?.name ?? "bir firma"} Rothern'e katıldı ve artık bağlantınız.`,
+          ],
+          { label: "Bağlantılarım", url: `${this.webBase()}/company` },
+          "connection_accepted",
+          inv.id,
+        );
+      }
     }
   }
 
@@ -711,6 +733,67 @@ export class CompanyAuthService {
    * yalnızca bu yanıtta düz görünür — kullanıcı saklamalı (authenticator
    * kaybında tek giriş yolu).
    */
+  private webBase() {
+    return this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+  }
+
+  /** Generic "notification" şablonlu e-posta — best-effort. */
+  private sendNotificationEmail(
+    to: { email: string; name?: string },
+    subject: string,
+    paragraphs: string[],
+    cta: { label: string; url: string },
+    type: string,
+    id: string,
+  ) {
+    void this.email
+      .send({
+        to,
+        subject,
+        templateData: {
+          template: "notification",
+          data: {
+            subject,
+            heading: subject,
+            paragraphs,
+            ctaLabel: cta.label,
+            ctaUrl: cta.url,
+          },
+        },
+        context: { type, id },
+      })
+      .catch((err: unknown) =>
+        this.logger.warn(
+          `Bildirim e-postası gönderilemedi: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+  }
+
+  /** Firmanın bildirim e-postası (billingEmail → ilk aktif kullanıcı). */
+  private async companyNotifyEmail(companyId: string) {
+    const c = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: {
+        name: true,
+        billingEmail: true,
+        users: {
+          where: { isActive: true, deletedAt: null },
+          select: { email: true, firstName: true, lastName: true },
+          orderBy: { createdAt: "asc" },
+          take: 1,
+        },
+      },
+    });
+    const email = c?.billingEmail || c?.users[0]?.email;
+    if (!c || !email) return null;
+    const name = c.users[0]
+      ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
+      : c.name;
+    return { email, name };
+  }
+
   async enableTwoFactor(userId: string, code: string) {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
@@ -744,6 +827,17 @@ export class CompanyAuthService {
       actorId: userId,
       actorEmail: user.email,
     });
+    this.sendNotificationEmail(
+      { email: user.email },
+      "İki adımlı doğrulama açıldı",
+      [
+        "Merhaba,",
+        "Hesabınızda iki adımlı doğrulama (2FA) etkinleştirildi. Bu işlemi siz yapmadıysanız derhal parolanızı değiştirin ve destekle iletişime geçin.",
+      ],
+      { label: "Hesap Ayarları", url: `${this.webBase()}/company/ayarlar` },
+      "two_factor_enabled",
+      userId,
+    );
     return { ok: true, recoveryCodes };
   }
 
@@ -775,6 +869,17 @@ export class CompanyAuthService {
       actorId: userId,
       actorEmail: user.email,
     });
+    this.sendNotificationEmail(
+      { email: user.email },
+      "İki adımlı doğrulama kapatıldı",
+      [
+        "Merhaba,",
+        "Hesabınızda iki adımlı doğrulama (2FA) kapatıldı. Bu işlemi siz yapmadıysanız derhal parolanızı değiştirin ve destekle iletişime geçin.",
+      ],
+      { label: "Hesap Ayarları", url: `${this.webBase()}/company/ayarlar` },
+      "two_factor_disabled",
+      userId,
+    );
     return { ok: true };
   }
 
@@ -849,6 +954,17 @@ export class CompanyAuthService {
       actorId: userId,
       actorEmail: user.email,
     });
+    this.sendNotificationEmail(
+      { email: user.email },
+      "Parolanız değiştirildi",
+      [
+        "Merhaba,",
+        "Hesabınızın parolası değiştirildi. Bu işlemi siz yapmadıysanız derhal parolanızı sıfırlayın ve destekle iletişime geçin.",
+      ],
+      { label: "Hesap Ayarları", url: `${this.webBase()}/company/ayarlar` },
+      "password_changed",
+      userId,
+    );
     const payload: CompanyJwtPayload = {
       sub: userId,
       email: user.email,

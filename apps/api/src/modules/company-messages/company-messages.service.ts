@@ -1,12 +1,15 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
   Optional,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { CompanyBlocksService } from "../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
+import { EmailService } from "../email/email.service";
 import { RealtimeService } from "../realtime/realtime.service";
 
 /**
@@ -23,11 +26,70 @@ interface ThreadParties {
 
 @Injectable()
 export class CompanyMessagesService {
+  private readonly logger = new Logger(CompanyMessagesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly blocks: CompanyBlocksService,
+    private readonly email: EmailService,
+    private readonly config: ConfigService,
     @Optional() private readonly realtime?: RealtimeService,
   ) {}
+
+  /** Yeni mesaj e-postası — alıcının bildirim e-postasına (best-effort). */
+  private async emailNewMessage(
+    companyId: string,
+    portal: MessagePortal,
+    senderName: string,
+  ) {
+    try {
+      const c = await this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          name: true,
+          billingEmail: true,
+          users: {
+            where: { isActive: true, deletedAt: null },
+            select: { email: true, firstName: true, lastName: true },
+            orderBy: { createdAt: "asc" },
+            take: 1,
+          },
+        },
+      });
+      const email = c?.billingEmail || c?.users[0]?.email;
+      if (!c || !email) return;
+      const name = c.users[0]
+        ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
+        : c.name;
+      const baseUrl =
+        this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+      const subject = `${senderName} size mesaj gönderdi`;
+      await this.email.send({
+        to: { email, name },
+        subject,
+        templateData: {
+          template: "notification",
+          data: {
+            subject,
+            heading: "Yeni mesajınız var",
+            paragraphs: [
+              "Merhaba,",
+              `${senderName} size Rothern üzerinden bir mesaj gönderdi. Görüntülemek ve yanıtlamak için giriş yapın.`,
+            ],
+            ctaLabel: "Mesajları Gör",
+            ctaUrl: `${baseUrl}/company/${portal}/mesajlar`,
+          },
+        },
+        context: { type: "message_received", id: companyId },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Mesaj e-postası gönderilemedi (${companyId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
 
   private parties(
     companyId: string,
@@ -173,6 +235,17 @@ export class CompanyMessagesService {
     const parties = this.parties(user.companyId, portal, otherCompanyId);
     const now = new Date();
 
+    // E-posta spam-koruması için önceki aktiviteyi yakala (upsert güncellemeden).
+    const existingThread = await this.prisma.messageThread.findUnique({
+      where: {
+        buyerCompanyId_sellerCompanyId: {
+          buyerCompanyId: parties.buyerCompanyId,
+          sellerCompanyId: parties.sellerCompanyId,
+        },
+      },
+      select: { lastMessageAt: true },
+    });
+
     const thread = await this.prisma.messageThread.upsert({
       where: {
         buyerCompanyId_sellerCompanyId: {
@@ -195,6 +268,16 @@ export class CompanyMessagesService {
     });
     // Sinyal-only: karşı tarafın rozeti/kutusu anında tazelensin (veri REST'ten).
     this.realtime?.pingMessage(otherCompanyId);
+
+    // E-posta (best-effort, spam-önleyici): yalnızca konuşmada boşluk varsa (son
+    // mesajdan >15 dk ya da ilk mesaj) → karşı taraf muhtemelen uygulamada değil.
+    // Aktif yazışmada her mesaja mail atılmaz.
+    const GAP_MS = 15 * 60_000;
+    const lastAt = existingThread?.lastMessageAt;
+    const quiet = !lastAt || now.getTime() - lastAt.getTime() > GAP_MS;
+    if (quiet) {
+      void this.emailNewMessage(otherCompanyId, portal, message.senderName);
+    }
 
     return {
       id: message.id,
