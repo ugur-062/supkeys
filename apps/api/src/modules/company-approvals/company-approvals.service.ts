@@ -182,7 +182,10 @@ export class CompanyApprovalsService {
     }.${note ? ` Not: ${note}` : ""}`;
     await this.notifications
       .pushToUser(requestCreatorId, {
-        type: "approval_pending",
+        // Karar SONUCU (onaylandı/reddedildi) — "sıra sizde" (approval_pending)
+        // tipiyle değil; sonuç kapatılamaz olmalı, başlatan kendi isteğinin
+        // sonucunu tercihle susturamasın.
+        type: "approval_decided",
         title,
         body,
         ctaLabel: "İhaleyi Gör",

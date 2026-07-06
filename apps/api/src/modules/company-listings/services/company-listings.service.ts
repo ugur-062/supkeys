@@ -423,7 +423,10 @@ export class CompanyListingsService {
       );
       sent++;
     }
-    // In-app kanal (e-postaya paralel) — eşleşen firmaların aktif kullanıcılarına.
+    // In-app kanal (e-postaya paralel) — eşleşen firmaların YALNIZCA teklifçi
+    // portalındaki (ALIM→satış, SATIS→satınalma) aktif kullanıcılarına. Portal
+    // verilmezse bildirim iki panelde de görünürdü (ör. satın almacıya "sattığınız
+    // kategoriye uygun ihale" düşerdi) — matchPortal ile doğru panele sınırlanır.
     await this.notifications.pushToCompanies(
       candidates.map((c) => c.id),
       {
@@ -433,6 +436,7 @@ export class CompanyListingsService {
         ctaUrl: url,
         ctaLabel: isBuyDemand ? "Açık İhaleleri Gör" : "Satış İlanlarını Gör",
         listingId: listing.id,
+        portal: matchPortal,
       },
     );
     this.logger.log(
@@ -446,7 +450,7 @@ export class CompanyListingsService {
   /** Davetli firmalara ihale daveti / kapanış hatırlatması e-postası. */
   async notifyListingInvitees(
     listingId: string,
-    mode: "invitation" | "reminder",
+    mode: "invitation" | "reminder" | "newRound",
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
@@ -462,7 +466,7 @@ export class CompanyListingsService {
     // Hatırlatma yalnızca HENÜZ TEKLİF VERMEMİŞ davetlilere gider (davet ise
     // herkese). Teklif vermiş firmaları çıkar.
     let targets = invs.map((iv) => iv.invitedCompanyId);
-    if (mode === "reminder") {
+    if (mode === "reminder" || mode === "newRound") {
       const bidders = await this.prisma.listingBid.findMany({
         where: { listingId, status: "SUBMITTED" },
         select: { bidderCompanyId: true },
@@ -471,65 +475,66 @@ export class CompanyListingsService {
       targets = targets.filter((id) => !bidderSet.has(id));
     }
     const url = `${this.webUrl()}/company/ilan/${listingId}`;
+    const t = listing.title;
+    const no = listing.number ?? "—";
+    // Mod'a göre metin + tip. Yeni tur (`listing_new_round`) tercihte
+    // listelenmez → transactional (kapatılamaz): açılan yeni tur mutlaka duyulmalı.
+    const content = {
+      invitation: {
+        type: "listing_invitation" as const,
+        subject: "Bir ihaleye davet edildiniz",
+        heading: "İhale daveti",
+        paragraph: `"${t}" (${no}) ihalesine davet edildiniz. Detayları görmek ve teklif vermek için giriş yapın.`,
+        inAppTitle: "İhale daveti",
+        inAppBody: `"${t}" (${no}) ihalesine davet edildiniz.`,
+        ctaLabel: "İhaleyi Gör",
+      },
+      reminder: {
+        type: "listing_reminder" as const,
+        subject: "İhale kapanışı yaklaşıyor",
+        heading: "Kapanış hatırlatması",
+        paragraph: `"${t}" (${no}) ihalesinin kapanışı yaklaşıyor. Teklif vermek için son şansınız.`,
+        inAppTitle: "Kapanış hatırlatması",
+        inAppBody: `"${t}" (${no}) ihalesinin kapanışı yaklaşıyor. Teklif vermek için son şansınız.`,
+        ctaLabel: "Teklif Ver",
+      },
+      newRound: {
+        type: "listing_new_round" as const,
+        subject: "İhalede yeni tur başladı",
+        heading: "Yeni tur açıldı",
+        paragraph: `"${t}" (${no}) ihalesinde yeni bir tur açıldı. Güncel teklifinizi vermek için giriş yapın.`,
+        inAppTitle: "Yeni tur açıldı",
+        inAppBody: `"${t}" (${no}) ihalesinde yeni tur açıldı — güncel teklifinizi verin.`,
+        ctaLabel: "Teklif Ver",
+      },
+    }[mode];
+
     const recipients = await this.companyRecipients(targets, invitePortal);
     for (const invitedCompanyId of targets) {
       const r = recipients.get(invitedCompanyId);
       if (!r) continue;
-      if (mode === "invitation") {
-        this.notify(
-          r,
-          {
-            subject: "Bir ihaleye davet edildiniz",
-            heading: "İhale daveti",
-            paragraphs: [
-              "Merhaba,",
-              `"${listing.title}" (${listing.number ?? "—"}) ihalesine davet edildiniz. Detayları görmek ve teklif vermek için giriş yapın.`,
-            ],
-            ctaLabel: "İhaleyi Gör",
-            ctaUrl: url,
-          },
-          { type: "listing_invitation", id: listingId },
-        );
-      } else {
-        this.notify(
-          r,
-          {
-            subject: "İhale kapanışı yaklaşıyor",
-            heading: "Kapanış hatırlatması",
-            paragraphs: [
-              "Merhaba,",
-              `"${listing.title}" (${listing.number ?? "—"}) ihalesinin kapanışı yaklaşıyor. Teklif vermek için son şansınız.`,
-            ],
-            ctaLabel: "Teklif Ver",
-            ctaUrl: url,
-          },
-          { type: "listing_reminder", id: listingId },
-        );
-      }
+      this.notify(
+        r,
+        {
+          subject: content.subject,
+          heading: content.heading,
+          paragraphs: ["Merhaba,", content.paragraph],
+          ctaLabel: content.ctaLabel,
+          ctaUrl: url,
+        },
+        { type: content.type, id: listingId },
+      );
     }
-    // In-app kanal — davet/hatırlatma hedeflerine.
-    await this.notifications.pushToCompanies(
-      targets,
-      mode === "invitation"
-        ? {
-            type: "listing_invitation",
-            portal: invitePortal,
-            title: "İhale daveti",
-            body: `"${listing.title}" (${listing.number ?? "—"}) ihalesine davet edildiniz.`,
-            ctaLabel: "İhaleyi Gör",
-            ctaUrl: url,
-            listingId,
-          }
-        : {
-            type: "listing_reminder",
-            portal: invitePortal,
-            title: "Kapanış hatırlatması",
-            body: `"${listing.title}" (${listing.number ?? "—"}) ihalesinin kapanışı yaklaşıyor. Teklif vermek için son şansınız.`,
-            ctaLabel: "Teklif Ver",
-            ctaUrl: url,
-            listingId,
-          },
-    );
+    // In-app kanal — davet/hatırlatma/yeni-tur hedeflerine (teklifçi portalı).
+    await this.notifications.pushToCompanies(targets, {
+      type: content.type,
+      portal: invitePortal,
+      title: content.inAppTitle,
+      body: content.inAppBody,
+      ctaLabel: content.ctaLabel,
+      ctaUrl: url,
+      listingId,
+    });
   }
 
   /**
@@ -3719,7 +3724,7 @@ export class CompanyListingsService {
       });
     });
 
-    void this.notifyListingInvitees(listingId, "reminder");
+    void this.notifyListingInvitees(listingId, "newRound");
     this.realtime?.pingListing(listingId);
     return { ok: true, round: listing.currentRound + 1 };
   }
