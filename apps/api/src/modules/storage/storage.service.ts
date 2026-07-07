@@ -19,7 +19,9 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 const PUT_TTL_SECONDS = 15 * 60;
-const GET_TTL_SECONDS = 60 * 60;
+// GET presigned URL ömrü kısa tutulur — hassas belge (KYC/teklif) URL'si loglara/
+// referer'a sızarsa tekrar-oynatma penceresi dar olsun. İndirme için 15 dk yeter.
+const GET_TTL_SECONDS = 15 * 60;
 
 /**
  * Browser → R2 direct PUT/GET için bucket CORS policy gerekli.

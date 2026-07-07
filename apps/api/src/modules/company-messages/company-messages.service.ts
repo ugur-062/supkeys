@@ -111,13 +111,22 @@ export class CompanyMessagesService {
   /** Portal gelen kutusu — bu portalda firmanın tüm konuşmaları (özet). */
   async listThreads(user: AuthenticatedCompanyUser, portalRaw: string) {
     const portal = this.assertPortal(portalRaw);
+    // Bloklu karşı taraf gelen kutusunda da görünmez (karşılıklı-görünmezlik).
+    const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     const where =
       portal === "satinalma"
-        ? { buyerCompanyId: user.companyId }
-        : { sellerCompanyId: user.companyId };
+        ? {
+            buyerCompanyId: user.companyId,
+            sellerCompanyId: { notIn: blockedIds },
+          }
+        : {
+            sellerCompanyId: user.companyId,
+            buyerCompanyId: { notIn: blockedIds },
+          };
 
     const threads = await this.prisma.messageThread.findMany({
       where,
+      take: 200,
       include: {
         buyerCompany: { select: { id: true, name: true } },
         sellerCompany: { select: { id: true, name: true } },
@@ -167,6 +176,12 @@ export class CompanyMessagesService {
       select: { id: true, name: true },
     });
     if (!other) throw new NotFoundException("Firma bulunamadı");
+    // Blok (iki yön) → konuşma GÖRÜNMEZ (send() ile tutarlı karşılıklı-görünmezlik;
+    // engellenen taraf eski geçmişi de okuyamaz).
+    const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
+    if (blockedIds.includes(otherCompanyId)) {
+      throw new NotFoundException("Firma bulunamadı");
+    }
 
     const parties = this.parties(user.companyId, portal, otherCompanyId);
     const thread = await this.prisma.messageThread.findUnique({
@@ -176,7 +191,8 @@ export class CompanyMessagesService {
           sellerCompanyId: parties.sellerCompanyId,
         },
       },
-      include: { messages: { orderBy: { createdAt: "asc" } } },
+      // Son 200 mesaj (pagination cap) — uzun konuşmalarda sınırsız yükleme yok.
+      include: { messages: { orderBy: { createdAt: "desc" }, take: 200 } },
     });
 
     if (!thread) {
@@ -200,7 +216,8 @@ export class CompanyMessagesService {
     return {
       thread: { id: thread.id, lastMessageAt: thread.lastMessageAt },
       otherParty: other,
-      messages: thread.messages.map((m) => ({
+      // desc çekildi → gösterim için eskiden yeniye çevir.
+      messages: [...thread.messages].reverse().map((m) => ({
         id: m.id,
         body: m.body,
         senderName: m.senderName,
@@ -306,10 +323,12 @@ export class CompanyMessagesService {
             { sellerCompanyId: user.companyId },
           ],
         };
+    // Bloklu gönderenlerin okunmamışları rozete sayılmaz (karşılıklı-görünmezlik).
+    const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     const count = await this.prisma.message.count({
       where: {
         readAt: null,
-        senderCompanyId: { not: user.companyId },
+        senderCompanyId: { notIn: [user.companyId, ...blockedIds] },
         thread: threadWhere,
       },
     });

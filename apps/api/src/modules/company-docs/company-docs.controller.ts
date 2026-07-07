@@ -26,6 +26,10 @@ export class CompanyDocsController {
   constructor(private readonly service: CompanyDocsService) {}
 
   @Get()
+  // KYC belgeleri (vergi levhası/sicil/imza sirküleri/kimlik) hassas PII —
+  // presigned URL'leri yalnız company:manage yetkisi olan kullanıcı alabilir
+  // (düşük yetkili operasyon rolleri firmanın KYC'sini çekemesin).
+  @RequireCompanyPermission("company:manage")
   get(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.get(user.companyId);
   }

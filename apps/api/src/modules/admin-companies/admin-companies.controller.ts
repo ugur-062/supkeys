@@ -78,6 +78,9 @@ export class AdminCompaniesController {
   }
 
   @Get("companies/:id")
+  // Detay KYC PII (vergi/sicil/imza/kimlik presigned URL'leri) döndürür →
+  // salt-okuma SUPPORT rolüne kapalı; yalnız doğrulama yapan roller.
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
   detail(@Param("id") id: string) {
     return this.service.detail(id);
   }

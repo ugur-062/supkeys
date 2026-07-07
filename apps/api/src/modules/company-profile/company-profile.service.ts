@@ -95,12 +95,23 @@ export class CompanyProfileService {
     return { url };
   }
 
-  async get(companyId: string) {
+  async get(companyId: string, canSeeSensitive = true) {
     const c = await this.prisma.company.findUnique({
       where: { id: companyId },
       select: SELECT,
     });
     if (!c) throw new NotFoundException("Firma bulunamadı");
+    // KVKK veri-minimizasyonu: yetkili TCKN + IBAN + fatura telefonu kişisel/
+    // finansal veridir — yalnız company:manage yetkisi olan kullanıcıya döner.
+    if (!canSeeSensitive) {
+      return {
+        ...c,
+        authorizedTckn: null,
+        iban: null,
+        ibanHolder: null,
+        billingPhone: null,
+      };
+    }
     return c;
   }
 

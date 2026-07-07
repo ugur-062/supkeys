@@ -18,8 +18,17 @@ import { RealtimeService } from "./realtime.service";
  * yetkiyle çekilir) — bu yüzden oda aboneliğinde ayrıca erişim kontrolü
  * yapılmaz (kapalı zarf REST katmanında korunur).
  */
+// WS CORS, REST ile AYNI allowlist (CORS_ORIGINS) — origin:true yerine.
+// Env decorator değerlendirilmeden (AppModule import'undan) önce dotenv ile yüklenir.
+const WS_ORIGINS = (
+  process.env.CORS_ORIGINS ?? "http://localhost:3000,http://localhost:3001"
+)
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
 @WebSocketGateway({
-  cors: { origin: true, credentials: true },
+  cors: { origin: WS_ORIGINS, credentials: true },
   path: "/rt",
 })
 export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
@@ -62,6 +71,8 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
     if (!client.data.companyId) return;
     if (!body?.id || (body.kind !== "listing" && body.kind !== "order")) return;
     if (typeof body.id !== "string" || body.id.length > 60) return;
+    // subscribe-spam koruması: tek soket sınırsız odaya katılıp bellek şişiremez.
+    if (client.rooms.size > 100) return;
     await client.join(`${body.kind}:${body.id}`);
   }
 

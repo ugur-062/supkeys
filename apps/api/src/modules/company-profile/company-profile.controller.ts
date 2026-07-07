@@ -6,6 +6,7 @@ import {
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
+import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import {
   ProfileImageCommitDto,
   ProfileImageUploadDto,
@@ -20,7 +21,14 @@ export class CompanyProfileController {
 
   @Get()
   get(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    return this.service.get(user.companyId);
+    // Hassas alanlar (TCKN/IBAN/fatura tel) yalnız company:manage yetkisinde döner.
+    const canSeeSensitive = hasCompanyPermission(
+      user.roles,
+      user.isOwner,
+      "company:manage",
+      user.permissionsOverride,
+    );
+    return this.service.get(user.companyId, canSeeSensitive);
   }
 
   @Patch()

@@ -115,7 +115,15 @@ export class ExchangeRateService {
       where: { currency, rateDate: { lte: date } },
       orderBy: { rateDate: "desc" },
     });
-    if (!row) return FALLBACK_RATES[currency] ?? 1;
+    if (!row) {
+      // Sessiz fallback tehlikeli: dashboard/rapor para hesapları sabit tahminle
+      // (ör. USD=34) yapılır. Gözlemlenebilirlik için uyar (saatte bir).
+      this.warnThrottled(
+        `rateOnDate:${currency}`,
+        `Kur bulunamadı (${currency} @ ${date.toISOString().slice(0, 10)}) → FALLBACK kullanılıyor; para hesapları yaklaşık olabilir.`,
+      );
+      return FALLBACK_RATES[currency] ?? 1;
+    }
     return Number(row.rate);
   }
 
@@ -159,6 +167,10 @@ export class ExchangeRateService {
         source: row.source as "TCMB" | "MANUAL" | "FALLBACK",
       };
     }
+    this.warnThrottled(
+      `snapshot:${currency}`,
+      `Kur snapshot yok (${currency}) → FALLBACK; teklif TRY karşılığı yaklaşık olabilir.`,
+    );
     return {
       rate: FALLBACK_RATES[currency] ?? 1,
       rateDate: new Date().toISOString().slice(0, 10),
