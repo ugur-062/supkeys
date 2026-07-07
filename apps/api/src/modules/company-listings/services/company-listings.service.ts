@@ -336,7 +336,6 @@ export class CompanyListingsService {
         title: true,
         isInternational: true,
         targetCountries: true,
-        company: { select: { country: true } },
       },
     });
     if (
@@ -346,9 +345,18 @@ export class CompanyListingsService {
     ) {
       return [];
     }
+    // Sahip firmanın ülkesi — AYRI, korumalı sorgu. Zorunlu nested `company`
+    // include'u, firma satırı kaybolmuşsa (teardown/cascade yarışı) Prisma'da
+    // "required relation returned null" fırlatıyordu; ayrı findUnique null'ı
+    // düzgünce döner ve en-iyi-çaba akışını sessizce sonlandırır.
+    const owner = await this.prisma.company.findUnique({
+      where: { id: listing.companyId },
+      select: { country: true },
+    });
+    if (!owner) return [];
     // Ülke kapsamı: yurtiçi ilan → yalnızca sahip ülkesi; uluslararası →
     // YALNIZCA yabancı hedef ülkeler (sahip ülkesi HARİÇ — yurtiçi görmez).
-    const ownerCountry = listing.company.country;
+    const ownerCountry = owner.country;
     const countryWhere = !listing.isInternational
       ? { country: ownerCountry }
       : listing.targetCountries.length === 0

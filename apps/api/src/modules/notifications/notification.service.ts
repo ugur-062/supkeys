@@ -23,6 +23,21 @@ export interface InAppPayload {
   portal?: NotificationPortal;
 }
 
+/**
+ * Bir bildirim yazımı, referans verilen alıcı satırının (companyUser) okuma ile
+ * yazma arasında kaybolmasından mı düştü? In-app bildirim en-iyi-çabadır; alıcı
+ * kullanıcı yarış içinde silinmişse (FK ihlali / kayıt yok) sessizce atlanır.
+ * companyUserId'ler daima kendi sorgumuzdan geldiği için bu kod-hatası değil,
+ * yalnız eşzamanlılık yarışıdır. (Prod'da kullanıcı soft-delete edilir → pratikte
+ * olmaz; teardown/hard-delete testlerinde görülür.)
+ */
+function isMissingRecipientError(err: unknown): boolean {
+  return (
+    err instanceof Prisma.PrismaClientKnownRequestError &&
+    (err.code === "P2003" || err.code === "P2025")
+  );
+}
+
 /** Portala erişim veren roller — fan-out + e-posta alıcı filtresi (paylaşılan). */
 export function rolesForPortal(portal: NotificationPortal): CompanyRole[] {
   return portal === "satis"
@@ -83,20 +98,30 @@ export class NotificationService {
     ) {
       return 0;
     }
+    try {
+      await this.prisma.notification.create({
+        data: {
+          companyUserId: user.id,
+          companyId: user.companyId,
+          type: payload.type,
+          portal: payload.portal ?? null,
+          title: payload.title,
+          body: payload.body,
+          ctaUrl: payload.ctaUrl ?? null,
+          ctaLabel: payload.ctaLabel ?? null,
+          listingId: payload.listingId ?? null,
+        },
+      });
+    } catch (err) {
+      if (isMissingRecipientError(err)) {
+        this.logger.debug(
+          `In-app bildirim atlandı (alıcı kayboldu): ${payload.type}`,
+        );
+        return 0;
+      }
+      throw err;
+    }
     this.realtime?.pingNotification(user.companyId);
-    await this.prisma.notification.create({
-      data: {
-        companyUserId: user.id,
-        companyId: user.companyId,
-        type: payload.type,
-        portal: payload.portal ?? null,
-        title: payload.title,
-        body: payload.body,
-        ctaUrl: payload.ctaUrl ?? null,
-        ctaLabel: payload.ctaLabel ?? null,
-        listingId: payload.listingId ?? null,
-      },
-    });
     return 1;
   }
 
@@ -141,7 +166,19 @@ export class NotificationService {
         listingId: payload.listingId ?? null,
       }));
     if (rows.length === 0) return 0;
-    await this.prisma.notification.createMany({ data: rows });
+    try {
+      await this.prisma.notification.createMany({ data: rows });
+    } catch (err) {
+      // Alıcı satırlarından biri okuma↔yazma arasında kaybolduysa (FK ihlali)
+      // toplu insert atomik olduğundan tümü düşer — en-iyi-çaba: sessizce atla.
+      if (isMissingRecipientError(err)) {
+        this.logger.debug(
+          `In-app bildirim atlandı (alıcı kayboldu): ${payload.type}`,
+        );
+        return 0;
+      }
+      throw err;
+    }
     // WS: zil anında güncellensin (bildirim yazılan her firmaya sinyal).
     for (const c of new Set(rows.map((r) => r.companyId))) {
       this.realtime?.pingNotification(c);
