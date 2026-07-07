@@ -9,6 +9,7 @@ import {
   useSetCompanyAuth,
   useVerifyEmail,
 } from "@/hooks/use-company-auth";
+import { setCompanyRemember } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
@@ -41,6 +42,9 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
   const [verifyEmail, setVerifyEmail] = useState("");
   const [verifyCode, setVerifyCode] = useState("");
   const [cooldown, setCooldown] = useState(0);
+  // "Beni hatırla" — varsayılan işaretli (standart). İşaretsiz → oturum
+  // tarayıcı kapanınca biter (session cookie + sessionStorage).
+  const [remember, setRemember] = useState(true);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -65,11 +69,14 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
       const res = await login.mutateAsync({
         ...data,
         code: twoFactor ? code.trim() : undefined,
+        rememberMe: remember,
       });
       if ("twoFactorRequired" in res) {
         setTwoFactor(true);
         return;
       }
+      // Cookie (API) + istemci snapshot'ı aynı "hatırla" tercihine göre.
+      setCompanyRemember(remember);
       setAuth({ user: res.user, company: res.company });
       router.replace(nextPath);
     } catch (err) {
@@ -105,6 +112,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         setVerifyCode("");
         return;
       }
+      setCompanyRemember(remember);
       setAuth({ user: res.user, company: res.company });
       router.replace(nextPath);
     } catch (err) {
@@ -206,7 +214,16 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         </Field>
       ) : null}
 
-      <div className="-mt-1 text-right">
+      <div className="-mt-1 flex items-center justify-between">
+        <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-zinc-600 select-none">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+            className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+          />
+          Beni hatırla
+        </label>
         <Link href="/company/sifremi-unuttum" className="text-xs font-medium text-zinc-500 hover:text-zinc-900">
           Şifremi unuttum?
         </Link>

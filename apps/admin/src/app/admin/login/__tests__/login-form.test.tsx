@@ -60,7 +60,8 @@ describe("AdminLoginForm", () => {
     await submit(user);
 
     expect(h.mutate).toHaveBeenCalledWith(
-      { email: "admin@rothern.com", password: "admin12345" },
+      // "Beni hatırla" varsayılan işaretli → rememberMe: true gönderilir.
+      { email: "admin@rothern.com", password: "admin12345", rememberMe: true },
       expect.anything(),
     );
     expect(h.toast.success).toHaveBeenCalledWith("Hoş geldin, Ada!");

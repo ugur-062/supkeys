@@ -5,7 +5,7 @@ import {
   type NestInterceptor,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import { type Observable, map } from "rxjs";
 import { type Realm, setAuthCookies } from "./cookie";
 
@@ -29,8 +29,16 @@ export class AuthCookieInterceptor implements NestInterceptor {
         if (token) {
           const realm = decodeRealm(token);
           if (realm) {
-            const res = context.switchToHttp().getResponse<Response>();
-            setAuthCookies(res, realm, token, this.config);
+            const http = context.switchToHttp();
+            const req = http.getRequest<Request>();
+            const response = http.getResponse<Response>();
+            // "Beni hatırla" — yalnız açıkça false ise session cookie'si.
+            // Diğer token akışları (verify/2fa/davet/şifre) rememberMe taşımaz
+            // → kalıcı (varsayılan true).
+            const persistent =
+              (req.body as { rememberMe?: unknown } | undefined)?.rememberMe !==
+              false;
+            setAuthCookies(response, realm, token, this.config, persistent);
           }
         }
         return body;

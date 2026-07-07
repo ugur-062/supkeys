@@ -23,6 +23,8 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 export function AdminLoginForm() {
   const [showPassword, setShowPassword] = useState(false);
+  // "Beni hatırla" — varsayılan işaretli; işaretsiz → tarayıcı kapanınca çıkış.
+  const [remember, setRemember] = useState(true);
   const router = useRouter();
   const login = useAdminLogin();
 
@@ -35,7 +37,9 @@ export function AdminLoginForm() {
   });
 
   const onSubmit = (values: LoginValues) => {
-    login.mutate(values, {
+    login.mutate(
+      { ...values, rememberMe: remember },
+      {
       onSuccess: (data) => {
         toast.success(`Hoş geldin, ${data.admin.firstName}!`);
         router.push("/admin/dashboard");
@@ -103,6 +107,16 @@ export function AdminLoginForm() {
           </button>
         </div>
       </Field>
+
+      <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-admin-text select-none">
+        <input
+          type="checkbox"
+          checked={remember}
+          onChange={(e) => setRemember(e.target.checked)}
+          className="h-4 w-4 rounded border-admin-border"
+        />
+        Beni hatırla
+      </label>
 
       <div className="pt-1">
         <Button type="submit" loading={login.isPending} fullWidth size="lg">

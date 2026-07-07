@@ -31,7 +31,7 @@ function isProd(config: ConfigService): boolean {
 }
 
 /** Ortak cookie opsiyonları — prod'da Secure + cross-subdomain Domain. */
-function baseOptions(config: ConfigService) {
+function baseOptions(config: ConfigService, persistent: boolean) {
   const prod = isProd(config);
   // Prod: app/admin/api aynı site (.rothern.com) → Domain ile paylaşılır.
   // Dev: localhost (portlar same-site) → Domain vermiyoruz (host-only).
@@ -41,18 +41,24 @@ function baseOptions(config: ConfigService) {
     path: "/",
     sameSite: "lax" as const,
     secure: prod,
-    maxAge: MAX_AGE_MS,
+    // "Beni hatırla": kalıcı → maxAge (30 gün). Değilse maxAge YOK → SESSION
+    // cookie'si (tarayıcı kapanınca silinir). JWT 1sa'de expire eder (asıl kapı).
+    ...(persistent ? { maxAge: MAX_AGE_MS } : {}),
   };
 }
 
-/** Oturum (httpOnly) + CSRF (okunabilir) cookie'lerini yazar. */
+/**
+ * Oturum (httpOnly) + CSRF (okunabilir) cookie'lerini yazar. `persistent=false`
+ * → session cookie'si (tarayıcı kapanınca çıkış — "Beni hatırla" işaretsiz).
+ */
 export function setAuthCookies(
   res: Response,
   realm: Realm,
   token: string,
   config: ConfigService,
+  persistent = true,
 ): void {
-  const base = baseOptions(config);
+  const base = baseOptions(config, persistent);
   res.cookie(AUTH_COOKIE[realm], token, { ...base, httpOnly: true });
   res.cookie(CSRF_COOKIE, randomBytes(32).toString("hex"), {
     ...base,
@@ -66,7 +72,7 @@ export function clearAuthCookies(
   realm: Realm,
   config: ConfigService,
 ): void {
-  const { domain, path } = baseOptions(config);
+  const { domain, path } = baseOptions(config, true);
   res.clearCookie(AUTH_COOKIE[realm], { domain, path });
   res.clearCookie(CSRF_COOKIE, { domain, path });
 }

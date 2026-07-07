@@ -50,6 +50,7 @@ export function useCompanyLogin() {
       email: string;
       password: string;
       code?: string;
+      rememberMe?: boolean;
     }) => {
       const { data } = await companyApi.post<CompanyLoginResult>(
         "/company-auth/login",

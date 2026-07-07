@@ -1,7 +1,7 @@
 "use client";
 
 import { api } from "@/lib/api";
-import { useAdminAuthStore } from "@/lib/auth/store";
+import { setAdminRemember, useAdminAuthStore } from "@/lib/auth/store";
 import type { AdminAuthResponse, AuthAdmin } from "@/lib/auth/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -20,14 +20,20 @@ export function useAdminLogin() {
   const setAuth = useAdminAuthStore((s) => s.setAuth);
 
   return useMutation({
-    mutationFn: async (input: { email: string; password: string }) => {
+    mutationFn: async (input: {
+      email: string;
+      password: string;
+      rememberMe?: boolean;
+    }) => {
       const { data } = await api.post<AdminAuthResponse>(
         "/admin/auth/login",
         input,
       );
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
+      // Cookie (API) + istemci snapshot'ı aynı "hatırla" tercihine göre.
+      setAdminRemember(variables.rememberMe !== false);
       setAuth(data.admin);
     },
   });
