@@ -142,6 +142,8 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         icon: IdentificationIcon,
         label: "Profilim",
         href: "/company/satis/profilim",
+        // Herkese açık firma profili PAKET özelliğidir (kilit + PremiumOnly).
+        paidOnly: true,
       },
     ],
   },

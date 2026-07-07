@@ -3,9 +3,33 @@
 import { Button } from "@/components/catalyst/button";
 import { useCompanyMe, useUpgradePremium } from "@/hooks/use-company-auth";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { Check, Lock } from "lucide-react";
+import { Check, Lock, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+
+/** Premium ile açılan özellikler — kilitli sayfalardaki "reklam" listesi. */
+const BENEFITS = [
+  {
+    title: "Satınalma paneli",
+    desc: "İhale açıp tedarikçilerden teklif topla, en iyi fiyatı yakala",
+  },
+  {
+    title: "Satış ilanları",
+    desc: "Ürün ve hizmetlerini yayınla, alıcılara doğrudan ulaş",
+  },
+  {
+    title: "Detaylı raporlar",
+    desc: "Tasarruf/kazanç analizi ve teklif karşılaştırma",
+  },
+  {
+    title: "Hazır şablonlar",
+    desc: "Saniyeler içinde ihale ve ilan oluştur",
+  },
+  {
+    title: "Öne çıkan profil + davet",
+    desc: "Keşfedilebilir ol, firmaları keşfet ve iş ortağı davet et",
+  },
+];
 
 /**
  * İhale açma / Satınalma kapısı (Faz 3). Doğrulama tamamlanmadan Satınalma
@@ -37,40 +61,69 @@ export function PremiumGate() {
   };
 
   return (
-    <div className="mx-auto max-w-xl px-4 py-14">
-      <div className="rounded-2xl border border-zinc-950/5 bg-white p-6 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50">
-            <Lock className="h-5 w-5 text-blue-600" aria-hidden="true" />
+    <div className="mx-auto max-w-xl px-4 py-12">
+      <div className="overflow-hidden rounded-2xl border border-zinc-950/5 bg-white shadow-sm">
+        {/* Premium başlık şeridi — marka mavisi */}
+        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 px-6 py-7 text-white">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5" aria-hidden="true" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-blue-100">
+              Rothern Premium
+            </span>
           </div>
-          <div>
-            <h1 className="text-lg font-bold text-zinc-900">
-              İhale oluşturmak için doğrulama gerekli
-            </h1>
-            <p className="text-sm text-zinc-500">
-              Satınalma özellikleri (ihale açma) premium doğrulama gerektirir.
-            </p>
-          </div>
+          <h1 className="mt-2 text-xl font-bold">Bu özellik Premium&apos;a özel</h1>
+          <p className="mt-1 text-sm text-blue-100">
+            Standart üyeler açık ihalelere teklif verebilir. Premium ile
+            platformun tamamını açın.
+          </p>
         </div>
 
-        <ul className="mt-6 space-y-3">
-          <Requirement
-            done={!!docsVerified}
-            title="Şirket belgelerini doğrula"
-            hint={docsVerified ? "Doğrulandı" : docsHint}
-            href="/company/ayarlar/dogrulama"
-          />
-          <Requirement
-            done={!!twoFa}
-            title="2 adımlı doğrulamayı (2FA) etkinleştir"
-            hint={twoFa ? "Aktif" : "E-posta/uygulama tabanlı 2FA'yı açın"}
-            href="/company/ayarlar/2fa"
-          />
-        </ul>
+        <div className="p-6">
+          {/* Faydalar — Rothern Premium "reklamı" */}
+          <p className="text-sm font-semibold text-zinc-900">
+            Premium ile neler açılır?
+          </p>
+          <ul className="mt-3 space-y-2.5">
+            {BENEFITS.map((b) => (
+              <li key={b.title} className="flex items-start gap-3">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                  <Check
+                    className="h-3 w-3 text-emerald-600"
+                    aria-hidden="true"
+                  />
+                </span>
+                <span className="text-sm text-zinc-700">
+                  <span className="font-semibold text-zinc-900">{b.title}</span>{" "}
+                  — {b.desc}
+                </span>
+              </li>
+            ))}
+          </ul>
 
-        <div className="mt-6 border-t border-zinc-100 pt-4">
+          {/* Geçiş gereksinimleri */}
+          <div className="mt-6 rounded-xl border border-zinc-100 bg-zinc-50/60 p-4">
+            <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              <Lock className="h-3.5 w-3.5" aria-hidden="true" />
+              Premium&apos;a geçmek için
+            </p>
+            <ul className="mt-3 space-y-3">
+              <Requirement
+                done={!!docsVerified}
+                title="Şirket belgelerini doğrula"
+                hint={docsVerified ? "Doğrulandı" : docsHint}
+                href="/company/ayarlar/dogrulama"
+              />
+              <Requirement
+                done={!!twoFa}
+                title="2 adımlı doğrulamayı (2FA) etkinleştir"
+                hint={twoFa ? "Aktif" : "E-posta/uygulama tabanlı 2FA'yı açın"}
+                href="/company/ayarlar/2fa"
+              />
+            </ul>
+          </div>
+
           <Button
-            className="w-full"
+            className="mt-5 w-full"
             disabled={!ready || upgrade.isPending}
             onClick={doUpgrade}
           >

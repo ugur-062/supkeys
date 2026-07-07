@@ -23,6 +23,7 @@ import {
   ArrowRightStartOnRectangleIcon,
   ChevronDownIcon,
   Cog6ToothIcon,
+  LockClosedIcon,
 } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { MessagesPopover } from "./messages-popover";
@@ -36,29 +37,52 @@ function initialsOf(first?: string | null, last?: string | null) {
 function PortalSwitcher({ activePortal }: { activePortal: PortalKey }) {
   const { company, user } = useCompanyAuth();
   const setLastPortal = usePortalStore((s) => s.setLastPortal);
-  const available = accessiblePortals(user?.roles ?? [], company?.tier);
-  if (available.length < 2) return null;
+  const roles = user?.roles ?? [];
+  const available = accessiblePortals(roles, company?.tier);
+  // Satınalma portalı PAKET ister. Rolü uygun (Yönetici/Satın Almacı) ama
+  // STANDARD ise switcher'da KİLİTLİ gösterilir — tıklayınca /company/satinalma
+  // → PortalGuard PremiumGate'i (Premium reklamı) açar. Böylece STANDARD
+  // Satınalma'nın var olduğunu görür ve premium'a teşvik edilir.
+  const canPurchase =
+    roles.includes("YONETICI") || roles.includes("SATIN_ALMACI");
+  const satinalmaLocked =
+    canPurchase && company?.tier !== "PAKET" && !available.includes("satinalma");
+  const visible: PortalKey[] = satinalmaLocked
+    ? [...available, "satinalma"]
+    : available;
+  if (visible.length < 2) return null;
 
   return (
     <div className="hidden items-center gap-1 rounded-lg bg-zinc-100 p-1 md:flex">
-      {PORTAL_ORDER.filter((p) => available.includes(p)).map((p) => {
+      {PORTAL_ORDER.filter((p) => visible.includes(p)).map((p) => {
         const def = PORTALS[p];
         const on = p === activePortal;
+        const locked = p === "satinalma" && satinalmaLocked;
         return (
           <Link
             key={p}
             href={def.basePath}
-            onClick={() => setLastPortal(p)}
+            onClick={() => {
+              if (!locked) setLastPortal(p);
+            }}
+            title={
+              locked ? "Premium özelliği — geçiş için tıklayın" : undefined
+            }
             className={cn(
-              "rounded-md px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition",
+              "flex items-center gap-1 rounded-md px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition",
               on
                 ? p === "satinalma"
                   ? "bg-white text-blue-700 shadow-sm"
                   : "bg-white text-emerald-700 shadow-sm"
-                : "text-zinc-500 hover:text-zinc-900",
+                : locked
+                  ? "text-zinc-400 hover:text-zinc-600"
+                  : "text-zinc-500 hover:text-zinc-900",
             )}
           >
             {def.label}
+            {locked ? (
+              <LockClosedIcon className="h-3 w-3" aria-hidden="true" />
+            ) : null}
           </Link>
         );
       })}
