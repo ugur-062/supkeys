@@ -30,6 +30,9 @@ export function useCompanySearch(q: string) {
       );
       return data;
     },
+    // Yazarken (q değişince) önceki sonuçlar ekranda kalsın — her tuşta
+    // skeleton'a flaş atmaz.
+    placeholderData: (prev) => prev,
   });
 }
 

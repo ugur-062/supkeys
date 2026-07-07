@@ -11,7 +11,6 @@ import {
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { FilterSelect, PageHeader, SearchInput } from "@/components/list";
-import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import { Button } from "@/components/ui/button";
 import {
   useAdminCompanies,
@@ -253,10 +252,8 @@ function FirmalarView() {
 
 export default function AdminFirmalarPage() {
   return (
-    <RequireAdminAuth>
-      <AdminShell>
-        <FirmalarView />
-      </AdminShell>
-    </RequireAdminAuth>
+    <AdminShell>
+      <FirmalarView />
+    </AdminShell>
   );
 }

@@ -16,7 +16,6 @@ import {
   Pagination,
   SearchInput,
 } from "@/components/list";
-import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import { useAuditLogs, type AuditLogItem } from "@/hooks/use-audit-logs";
 import { safeFormat } from "@/lib/date";
 import { useState } from "react";
@@ -193,10 +192,8 @@ function AuditRow({ item }: { item: AuditLogItem }) {
 
 export default function AuditLogsPage() {
   return (
-    <RequireAdminAuth>
-      <AdminShell>
-        <AuditView />
-      </AdminShell>
-    </RequireAdminAuth>
+    <AdminShell>
+      <AuditView />
+    </AdminShell>
   );
 }

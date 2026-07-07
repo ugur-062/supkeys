@@ -5,6 +5,10 @@ import { useEffect, useState } from "react";
 
 /**
  * Zustand persist localStorage hydration boundary — SSR/CSR mismatch'i önler.
+ * `mounted` deseni bilinçli: server + client-ilk-paint ikisinde de null döner
+ * (eşleşir), mount sonrası içeriği açar. Store'un `isHydrated`'ine bağlamak
+ * mismatch'e yol açardı (senkron localStorage'da client ilk render'da true,
+ * server'da false).
  */
 export function AuthHydrationBoundary({
   children,

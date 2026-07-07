@@ -1,7 +1,6 @@
 "use client";
 
 import { AdminShell } from "@/components/layout/admin-shell";
-import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import { useEmailLogs } from "@/hooks/use-email-logs";
 import { EMAIL_STATUS_ORDER } from "@/lib/email-logs/status";
 import type { EmailLogStatus } from "@/lib/email-logs/types";
@@ -145,9 +144,5 @@ function EmailLogsContent() {
 }
 
 export function EmailLogsView() {
-  return (
-    <RequireAdminAuth>
-      <EmailLogsContent />
-    </RequireAdminAuth>
-  );
+  return <EmailLogsContent />;
 }

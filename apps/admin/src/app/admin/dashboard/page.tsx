@@ -2,7 +2,6 @@
 
 import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader } from "@/components/list";
-import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import {
   useAdminCompanies,
   useAdminComplaints,
@@ -176,10 +175,8 @@ function KpiCard({
 
 export default function AdminDashboardPage() {
   return (
-    <RequireAdminAuth>
-      <AdminShell>
-        <DashboardContent />
-      </AdminShell>
-    </RequireAdminAuth>
+    <AdminShell>
+      <DashboardContent />
+    </AdminShell>
   );
 }

@@ -11,7 +11,6 @@ import {
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { FilterSelect, PageHeader } from "@/components/list";
-import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import { Button } from "@/components/ui/button";
 import {
   useAdminComplaints,
@@ -181,10 +180,8 @@ function SikayetlerView() {
 
 export default function AdminSikayetlerPage() {
   return (
-    <RequireAdminAuth>
-      <AdminShell>
-        <SikayetlerView />
-      </AdminShell>
-    </RequireAdminAuth>
+    <AdminShell>
+      <SikayetlerView />
+    </AdminShell>
   );
 }

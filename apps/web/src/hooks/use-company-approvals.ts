@@ -252,6 +252,8 @@ export function useAllApprovals(filters: ApprovalListFilters) {
       );
       return data;
     },
+    // Filtre değişince önceki liste korunur — skeleton flaşı yok.
+    placeholderData: (prev) => prev,
   });
 }
 
