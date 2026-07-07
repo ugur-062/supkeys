@@ -70,7 +70,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         setTwoFactor(true);
         return;
       }
-      setAuth({ token: res.token, user: res.user, company: res.company });
+      setAuth({ user: res.user, company: res.company });
       router.replace(nextPath);
     } catch (err) {
       // E-posta doğrulanmamışsa doğrulama moduna geç + kod gönder.
@@ -105,7 +105,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         setVerifyCode("");
         return;
       }
-      setAuth({ token: res.token, user: res.user, company: res.company });
+      setAuth({ user: res.user, company: res.company });
       router.replace(nextPath);
     } catch (err) {
       setFormError(extractErrorMessage(err, "Kod doğrulanamadı"));

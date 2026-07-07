@@ -14,23 +14,24 @@ export function RequireCompanyAuth({
 }: {
   children: React.ReactNode;
 }) {
-  const token = useCompanyAuthStore((s) => s.token);
+  // Oturum httpOnly cookie'de; istemci sinyali `user` (persist snapshot).
+  const user = useCompanyAuthStore((s) => s.user);
   const isHydrated = useCompanyAuthStore((s) => s.isHydrated);
-  const me = useCompanyMe(!!token);
+  const me = useCompanyMe(!!user);
   const needsOnboarding = !!me.data && !me.data.company.onboardingCompletedAt;
 
   useEffect(() => {
     if (!isHydrated || typeof window === "undefined") return;
-    if (!token) {
+    if (!user) {
       window.location.href = "/company/login";
       return;
     }
     if (needsOnboarding) {
       window.location.href = "/company/onboarding";
     }
-  }, [isHydrated, token, needsOnboarding]);
+  }, [isHydrated, user, needsOnboarding]);
 
-  if (!isHydrated || !token) return null;
+  if (!isHydrated || !user) return null;
   // Onboarding gerekiyorsa panel içeriğini gösterme (yönlendiriliyor).
   if (needsOnboarding) return null;
 

@@ -25,7 +25,7 @@ const h = vi.hoisted(() => ({
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/lib/company-auth/store", () => ({
   useCompanyAuthStore: (sel: (s: unknown) => unknown) =>
-    sel({ token: "jwt", isHydrated: true }),
+    sel({ user: { id: "u1" }, isHydrated: true }),
 }));
 vi.mock("@/hooks/use-categories", () => ({
   useRoots: () => h.roots,

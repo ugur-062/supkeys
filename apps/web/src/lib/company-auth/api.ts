@@ -2,24 +2,29 @@
 
 import axios, { type AxiosError } from "axios";
 import { toast } from "sonner";
+import { readCsrfToken } from "../csrf";
 import { resolveApiBaseUrl } from "../resolve-api-url";
 import { useCompanyAuthStore } from "./store";
 
 /**
- * Birleşik sistem — Company paneline ait axios instance. Eski tenant/supplier
- * api'lerinden BAĞIMSIZ. Kendi store'undan token okur, 401'de /company/login'e
- * yönlendirir.
+ * Birleşik sistem — Company paneline ait axios instance. Oturum httpOnly
+ * cookie'dedir (withCredentials); Bearer taşımıyoruz. Mutating isteklerde CSRF
+ * çift-gönderim header'ı eklenir. 401'de /company/login'e yönlendirir.
  */
 export const companyApi = axios.create({
   baseURL: resolveApiBaseUrl(),
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
 });
+
+const MUTATING = new Set(["post", "put", "patch", "delete"]);
 
 companyApi.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    const token = useCompanyAuthStore.getState().token;
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const method = (config.method ?? "get").toLowerCase();
+    if (MUTATING.has(method)) {
+      const csrf = readCsrfToken();
+      if (csrf) config.headers["X-CSRF-Token"] = csrf;
     }
   }
   return config;
@@ -49,8 +54,9 @@ companyApi.interceptors.response.use(
     const data = error.response?.data;
 
     if (status === 401) {
-      const { token, clear } = useCompanyAuthStore.getState();
-      if (token) {
+      // Oturum sinyali artık `user` (cookie geçersizse /me 401 verir).
+      const { user, clear } = useCompanyAuthStore.getState();
+      if (user) {
         clear();
         const onLogin = window.location.pathname === "/company/login";
         if (!onLogin) {

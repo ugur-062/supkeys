@@ -11,14 +11,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
 export function useCompanyAuth() {
-  const token = useCompanyAuthStore((s) => s.token);
   const user = useCompanyAuthStore((s) => s.user);
   const company = useCompanyAuthStore((s) => s.company);
   return {
-    token,
     user,
     company,
-    isAuthenticated: !!token && !!user,
+    // Oturum httpOnly cookie'de; `user` varlığı istemci-taraflı "giriş yapıldı".
+    isAuthenticated: !!user,
   };
 }
 
@@ -201,7 +200,7 @@ export function useCompleteOnboarding() {
 }
 
 export function useCompanyMe(enabled = true) {
-  const token = useCompanyAuthStore((s) => s.token);
+  const user = useCompanyAuthStore((s) => s.user);
   const setMe = useCompanyAuthStore((s) => s.setMe);
   const query = useQuery({
     queryKey: ["company-auth", "me"],
@@ -211,7 +210,7 @@ export function useCompanyMe(enabled = true) {
       );
       return data;
     },
-    enabled: !!token && enabled,
+    enabled: !!user && enabled,
     staleTime: 60 * 1000,
   });
   // Store senkronu render sonrası yan-etkiyle (queryFn içinde değil — StrictMode
@@ -226,6 +225,8 @@ export function useCompanyLogout() {
   const clear = useCompanyAuthStore((s) => s.clear);
   const queryClient = useQueryClient();
   return () => {
+    // Backend httpOnly cookie'yi temizler; sonucu beklemeden UI'ı boşalt.
+    void companyApi.post("/company-auth/logout").catch(() => undefined);
     clear();
     queryClient.clear();
     if (typeof window !== "undefined") {

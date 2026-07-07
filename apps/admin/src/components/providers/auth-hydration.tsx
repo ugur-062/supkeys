@@ -36,15 +36,16 @@ export function RequireAdminAuth({
 }: {
   children: React.ReactNode;
 }) {
-  const { token, isHydrated } = useAdminAuthStore();
+  // Oturum httpOnly cookie'de; istemci sinyali `admin` (persist snapshot).
+  const { admin, isHydrated } = useAdminAuthStore();
 
   useEffect(() => {
-    if (isHydrated && !token) {
+    if (isHydrated && !admin) {
       window.location.href = "/admin/login";
     }
-  }, [isHydrated, token]);
+  }, [isHydrated, admin]);
 
-  if (!isHydrated || !token) {
+  if (!isHydrated || !admin) {
     return null;
   }
 

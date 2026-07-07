@@ -18,17 +18,17 @@ function safeNextPath(value: string | null): string {
 }
 
 export function CompanyLoginClient() {
-  const token = useCompanyAuthStore((s) => s.token);
+  const user = useCompanyAuthStore((s) => s.user);
   const isHydrated = useCompanyAuthStore((s) => s.isHydrated);
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = safeNextPath(searchParams.get("next"));
 
   useEffect(() => {
-    if (isHydrated && token) {
+    if (isHydrated && user) {
       router.replace(nextPath);
     }
-  }, [isHydrated, token, router, nextPath]);
+  }, [isHydrated, user, router, nextPath]);
 
   return (
     <AuthShell

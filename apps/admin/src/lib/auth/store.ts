@@ -4,11 +4,15 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import type { AuthAdmin } from "./types";
 
+/**
+ * Oturum artık httpOnly cookie'de (XSS'e kapalı) — token BURADA TUTULMAZ.
+ * Store yalnız UI için `admin` snapshot'ını tutar; gerçek kimlik cookie'dir,
+ * /me ile doğrulanır. `admin` varlığı "giriş yapıldı" sinyalidir.
+ */
 interface AdminAuthState {
-  token: string | null;
   admin: AuthAdmin | null;
   isHydrated: boolean;
-  setAuth: (token: string, admin: AuthAdmin) => void;
+  setAuth: (admin: AuthAdmin) => void;
   setAdmin: (admin: AuthAdmin) => void;
   clear: () => void;
   setHydrated: () => void;
@@ -17,18 +21,17 @@ interface AdminAuthState {
 export const useAdminAuthStore = create<AdminAuthState>()(
   persist(
     (set) => ({
-      token: null,
       admin: null,
       isHydrated: false,
-      setAuth: (token, admin) => set({ token, admin }),
+      setAuth: (admin) => set({ admin }),
       setAdmin: (admin) => set({ admin }),
-      clear: () => set({ token: null, admin: null }),
+      clear: () => set({ admin: null }),
       setHydrated: () => set({ isHydrated: true }),
     }),
     {
       name: "supkeys-admin-auth",
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ token: state.token, admin: state.admin }),
+      partialize: (state) => ({ admin: state.admin }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated();
       },

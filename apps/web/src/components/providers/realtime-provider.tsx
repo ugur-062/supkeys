@@ -14,15 +14,15 @@ import { useEffect } from "react";
  * Poll'lar yedek olarak kalır (WS koparsa deneyim 10-15sn tazeliğe düşer).
  */
 export function RealtimeProvider({ children }: { children: React.ReactNode }) {
-  const token = useCompanyAuthStore((s) => s.token);
+  const user = useCompanyAuthStore((s) => s.user);
   const qc = useQueryClient();
 
   useEffect(() => {
-    if (!token) {
+    if (!user) {
       disconnectRealtime();
       return;
     }
-    const socket = connectRealtime(token);
+    const socket = connectRealtime();
 
     const onListing = (p: { listingId?: string }) => {
       if (p?.listingId) {
@@ -67,7 +67,7 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
       socket.off("notification.new", onNotification);
       socket.off("message.new", onMessage);
     };
-  }, [token, qc]);
+  }, [user, qc]);
 
   return <>{children}</>;
 }

@@ -6,11 +6,11 @@ import type { AdminAuthResponse, AuthAdmin } from "@/lib/auth/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export function useAdminAuth() {
-  const { token, admin, setAuth, clear } = useAdminAuthStore();
+  const { admin, setAuth, clear } = useAdminAuthStore();
   return {
-    token,
     admin,
-    isAuthenticated: !!token && !!admin,
+    // Oturum httpOnly cookie'de; `admin` varlığı istemci-taraflı "giriş yapıldı".
+    isAuthenticated: !!admin,
     setAuth,
     logout: clear,
   };
@@ -28,13 +28,13 @@ export function useAdminLogin() {
       return data;
     },
     onSuccess: (data) => {
-      setAuth(data.token, data.admin);
+      setAuth(data.admin);
     },
   });
 }
 
 export function useAdminMe() {
-  const token = useAdminAuthStore((s) => s.token);
+  const admin = useAdminAuthStore((s) => s.admin);
   const setAdmin = useAdminAuthStore((s) => s.setAdmin);
 
   return useQuery({
@@ -44,7 +44,7 @@ export function useAdminMe() {
       setAdmin(data);
       return data;
     },
-    enabled: !!token,
+    enabled: !!admin,
     staleTime: 60 * 1000,
   });
 }
@@ -54,6 +54,8 @@ export function useAdminLogout() {
   const queryClient = useQueryClient();
 
   return () => {
+    // Backend httpOnly cookie'yi temizler; sonucu beklemeden UI'ı boşalt.
+    void api.post("/admin/auth/logout").catch(() => undefined);
     clear();
     queryClient.clear();
     window.location.href = "/admin/login";

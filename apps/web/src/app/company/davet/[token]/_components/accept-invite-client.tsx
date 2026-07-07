@@ -96,7 +96,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
         marketingConsent: consents.marketing,
         profileImprovementConsent: consents.profile,
       });
-      setAuth({ token: res.token, user: res.user, company: res.company });
+      setAuth({ user: res.user, company: res.company });
       router.replace("/company");
     } catch (err) {
       setError(extractErrorMessage(err, "Davet kabul edilemedi"));

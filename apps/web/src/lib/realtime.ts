@@ -15,19 +15,13 @@ function wsOrigin(): string {
   return resolveApiBaseUrl().replace(/\/api\/?$/, "");
 }
 
-export function connectRealtime(token: string): Socket {
-  if (socket) {
-    // Token değiştiyse (yeniden giriş) taze bağlantı kur.
-    if ((socket.auth as { token?: string })?.token !== token) {
-      socket.disconnect();
-      socket = null;
-    } else {
-      return socket;
-    }
-  }
+export function connectRealtime(): Socket {
+  if (socket) return socket;
+  // Kimlik httpOnly cookie'den — handshake withCredentials ile cookie gönderir
+  // (gateway sk_company okur). Bearer/auth.token taşınmaz.
   socket = io(wsOrigin(), {
     path: "/rt",
-    auth: { token },
+    withCredentials: true,
     transports: ["websocket"],
     reconnectionDelayMax: 10_000,
   });

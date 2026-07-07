@@ -43,7 +43,7 @@ const PW_RULES = [
 const STRENGTH = ["Çok Zayıf", "Zayıf", "Orta", "İyi", "Güçlü", "Çok Güçlü"];
 
 export function CompanySignupClient() {
-  const token = useCompanyAuthStore((s) => s.token);
+  const user = useCompanyAuthStore((s) => s.user);
   const isHydrated = useCompanyAuthStore((s) => s.isHydrated);
   const router = useRouter();
   const signup = useCompanySignup();
@@ -72,8 +72,8 @@ export function CompanySignupClient() {
   const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
-    if (isHydrated && token) router.replace("/company");
-  }, [isHydrated, token, router]);
+    if (isHydrated && user) router.replace("/company");
+  }, [isHydrated, user, router]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -134,7 +134,7 @@ export function CompanySignupClient() {
         router.replace("/company/login");
         return;
       }
-      setAuth({ token: res.token, user: res.user, company: res.company });
+      setAuth({ user: res.user, company: res.company });
       router.replace("/company");
     } catch (err) {
       setError(extractErrorMessage(err, "Kod doğrulanamadı"));

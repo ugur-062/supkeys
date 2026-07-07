@@ -38,9 +38,9 @@ const EU_VAT = new Set([
 ]);
 
 export function OnboardingClient() {
-  const token = useCompanyAuthStore((s) => s.token);
+  const authUser = useCompanyAuthStore((s) => s.user);
   const isHydrated = useCompanyAuthStore((s) => s.isHydrated);
-  const me = useCompanyMe(!!token);
+  const me = useCompanyMe(!!authUser);
   const complete = useCompleteOnboarding();
   const vies = useViesCheck();
   const roots = useRoots();
@@ -69,10 +69,10 @@ export function OnboardingClient() {
   const set = (k: keyof typeof f) => (v: unknown) => setF((s) => ({ ...s, [k]: v }));
 
   useEffect(() => {
-    if (isHydrated && !token && typeof window !== "undefined") {
+    if (isHydrated && !authUser && typeof window !== "undefined") {
       window.location.href = "/company/login";
     }
-  }, [isHydrated, token]);
+  }, [isHydrated, authUser]);
   // Zaten tamamlanmışsa panele dön.
   useEffect(() => {
     if (me.data?.company.onboardingCompletedAt) {
@@ -155,7 +155,7 @@ export function OnboardingClient() {
     }
   };
 
-  if (!isHydrated || !token || me.isLoading) {
+  if (!isHydrated || !authUser || me.isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-zinc-500">
         Yükleniyor…

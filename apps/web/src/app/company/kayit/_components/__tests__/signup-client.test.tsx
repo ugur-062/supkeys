@@ -18,7 +18,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/lib/company-auth/store", () => ({
   useCompanyAuthStore: (sel: (s: unknown) => unknown) =>
-    sel({ token: null, isHydrated: true }),
+    sel({ user: null, isHydrated: true }),
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
   useCompanySignup: () => ({ mutateAsync: h.signupAsync, isPending: false }),
@@ -128,8 +128,8 @@ describe("CompanySignupClient — doğrulama aşaması", () => {
       email: "ada@firma.com",
       code: "123456",
     });
+    // Oturum httpOnly cookie'de — setAuth artık token taşımaz (user+company).
     expect(h.setAuth).toHaveBeenCalledWith({
-      token: "jwt",
       user: { id: "u1" },
       company: { id: "c1" },
     });

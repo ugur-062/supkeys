@@ -23,7 +23,7 @@ const KEY = ["company-notifications"] as const;
 
 /** Bildirim listesi — AKTİF portal (+ ortak). */
 export function useNotifications(portal?: NotificationPortal, enabled = true) {
-  const token = useCompanyAuthStore((s) => s.token);
+  const user = useCompanyAuthStore((s) => s.user);
   return useQuery({
     queryKey: [...KEY, "list", portal ?? "all"],
     queryFn: async () => {
@@ -32,14 +32,14 @@ export function useNotifications(portal?: NotificationPortal, enabled = true) {
       });
       return data;
     },
-    enabled: !!token && enabled,
+    enabled: !!user && enabled,
     staleTime: 30 * 1000,
   });
 }
 
 /** Okunmamış sayısı — zil rozeti (aktif portal + ortak). Periyodik yenilenir. */
 export function useUnreadCount(portal?: NotificationPortal) {
-  const token = useCompanyAuthStore((s) => s.token);
+  const user = useCompanyAuthStore((s) => s.user);
   return useQuery({
     queryKey: [...KEY, "unread", portal ?? "all"],
     queryFn: async () => {
@@ -49,7 +49,7 @@ export function useUnreadCount(portal?: NotificationPortal) {
       );
       return data.count;
     },
-    enabled: !!token,
+    enabled: !!user,
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
   });

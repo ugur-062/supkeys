@@ -57,8 +57,8 @@ describe("CompanyLoginForm", () => {
     render(<CompanyLoginForm nextPath="/company/satinalma" />);
     await login(user);
 
+    // Oturum httpOnly cookie'de — setAuth artık token taşımaz (user+company).
     expect(h.setAuth).toHaveBeenCalledWith({
-      token: "jwt",
       user: { id: "u1" },
       company: { id: "c1" },
     });
