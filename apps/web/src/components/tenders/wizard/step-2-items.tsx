@@ -105,9 +105,12 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
     formState: { errors },
   } = useFormContext<TenderFormData>();
   // SATIS + KALEM fiyatlandırma: kalem başına taban/hemen-al girişleri açılır.
-  const isKalemPricing =
-    useWatch({ control, name: "listingType" }) === "SATIS" &&
-    useWatch({ control, name: "priceScope" }) === "KALEM";
+  // Her iki useWatch KOŞULSUZ çağrılmalı — `&&` içinde kısa-devre edilirse
+  // hook sırası render'lar arası değişir (rules-of-hooks; listingType SATIS↔
+  // değişince React "fewer hooks" hatası verir).
+  const listingType = useWatch({ control, name: "listingType" });
+  const priceScope = useWatch({ control, name: "priceScope" });
+  const isKalemPricing = listingType === "SATIS" && priceScope === "KALEM";
 
   const [detailOpen, setDetailOpen] = useState(false);
   const [questionOpen, setQuestionOpen] = useState(false);

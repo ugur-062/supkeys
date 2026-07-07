@@ -1,0 +1,36 @@
+# Docker build bağlamından çıkarılanlar — imaj küçük + build hızlı kalsın.
+# node_modules imaj içinde `pnpm install` ile yeniden kurulur (host'unki değil).
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/.turbo
+**/tsconfig.tsbuildinfo
+
+# VCS + editör + yerel
+.git
+.gitignore
+**/.vscode
+**/.idea
+
+# Ortam sırları — ASLA imaja girmesin (Coolify runtime env sağlar)
+.env
+.env.*
+!.env.production.example
+**/.env
+**/.env.*
+
+# Test + döküman + CI (runtime'da gereksiz)
+**/__tests__
+**/*.spec.ts
+**/*.test.ts
+**/*.test.tsx
+**/e2e
+**/playwright-report
+**/test-results
+docs
+*.md
+!README.md
+
+# Log + geçici
+**/*.log

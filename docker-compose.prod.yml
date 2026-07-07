@@ -1,0 +1,52 @@
+# Yerel ÜRETİM-PARİTESİ / referans stack.
+# Coolify'de bunu KULLANMIYORUZ — orada 3 ayrı uygulama (her biri kendi
+# Dockerfile'ı). Bu dosya (a) imajları lokalde build+doğrulamak, (b) env
+# kablolamasını göstermek içindir.
+#
+# Çalıştırma:  docker compose -f docker-compose.prod.yml --env-file .env up --build
+# (.env'i .env.production.example'dan türetin.)
+#
+# NEXT_PUBLIC_* build args'tır (runtime değil) → build: args altında verilir.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file: [.env]
+    environment:
+      NODE_ENV: production
+      API_PORT: 4000
+      # İlk kurulumda admin tohumu için: RUN_SEED=true (sonra kaldırın).
+      RUN_SEED: ${RUN_SEED:-false}
+    ports: ["4000:4000"]
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+    environment:
+      PORT: 3000
+    ports: ["3000:3000"]
+    depends_on: [api]
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: .
+      dockerfile: apps/admin/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
+    environment:
+      PORT: 3001
+    ports: ["3001:3001"]
+    depends_on: [api]
+    restart: unless-stopped

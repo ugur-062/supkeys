@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 // V2-7+ güvenlik (OWASP A05) — CSP + tamamlayıcı header'lar.
@@ -30,6 +31,16 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Docker/Coolify: kendine-yeterli minimal sunucu çıktısı (node_modules izlenip
+  // .next/standalone'a kopyalanır → ~150MB imaj, `next start` yerine `node
+  // server.js`). Monorepo'da workspace bağımlılıkları (@supkeys/shared) repo
+  // kökünden izlensin diye tracingRoot kök olarak verilir.
+  output: "standalone",
+  outputFileTracingRoot: path.join(__dirname, "../../"),
+  // Monorepo workspace paketini DERLEMEYE göm (harici require etme). Aksi halde
+  // standalone çıktı @supkeys/shared'i kopyalamıyor, symlink ile repo köküne
+  // çözüyor → Docker imajında (monorepo yok) runtime'da modül bulunamıyordu.
+  transpilePackages: ["@supkeys/shared"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

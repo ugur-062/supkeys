@@ -259,10 +259,6 @@ function SectionHeader({
   );
 }
 
-interface Step1Props {
-  /** V2-2 — wizard'da `File[]` olarak stage edilen dosyalar. Yayın sonrası R2'ye yüklenir. */
-}
-
 // UNSPSC Segment 78 = "Nakliye, Depolama ve Posta Hizmetleri" (lojistik).
 // Bu segment altındaki tüm kategori kodları "78" ile başlar.
 function isLogisticsCategoryCode(code: string): boolean {

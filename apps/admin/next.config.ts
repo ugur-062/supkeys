@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 // V2-7+ güvenlik (OWASP A05) — CSP + tamamlayıcı header'lar (web ile aynı).
@@ -26,6 +27,9 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Docker/Coolify: kendine-yeterli minimal sunucu çıktısı (bkz. web config).
+  output: "standalone",
+  outputFileTracingRoot: path.join(__dirname, "../../"),
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
