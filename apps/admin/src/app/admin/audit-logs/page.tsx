@@ -18,8 +18,7 @@ import {
 } from "@/components/list";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import { useAuditLogs, type AuditLogItem } from "@/hooks/use-audit-logs";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
+import { safeFormat } from "@/lib/date";
 import { useState } from "react";
 
 const ACTION_LABELS: Record<string, string> = {
@@ -158,7 +157,7 @@ function AuditRow({ item }: { item: AuditLogItem }) {
   return (
     <TableRow>
       <TableCell className="whitespace-nowrap text-xs text-admin-text-muted">
-        {format(new Date(item.createdAt), "d MMM yyyy HH:mm", { locale: tr })}
+        {safeFormat(item.createdAt, "d MMM yyyy HH:mm")}
       </TableCell>
       <TableCell>
         <Badge color={actor.color}>{actor.label}</Badge>

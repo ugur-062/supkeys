@@ -12,6 +12,7 @@ import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { Select } from "@/components/catalyst/select";
 import { useBankAccounts } from "@/hooks/use-company-bank-accounts";
+import { todayLocalISO } from "@/lib/tenders/date";
 import Link from "next/link";
 import { Textarea } from "@/components/catalyst/textarea";
 import { useState } from "react";
@@ -41,7 +42,7 @@ export function AcceptOrderModal({
   const defaultId =
     accounts.data?.find((a) => a.isDefault)?.id ?? accounts.data?.[0]?.id ?? "";
   const effectiveAccountId = accountId || defaultId;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayLocalISO();
 
   const submit = () => {
     if (!date) return;

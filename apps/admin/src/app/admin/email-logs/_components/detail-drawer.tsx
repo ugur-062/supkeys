@@ -13,8 +13,7 @@ import {
   DialogPanel,
   DialogTitle,
 } from "@headlessui/react";
-import { format, formatDistanceToNow } from "date-fns";
-import { tr } from "date-fns/locale";
+import { safeFormat, safeFormatDistance } from "@/lib/date";
 import {
   AlertOctagon,
   AlertTriangle,
@@ -34,24 +33,11 @@ interface DetailDrawerProps {
 }
 
 function formatFull(date: string | null) {
-  if (!date) return "—";
-  try {
-    return format(new Date(date), "dd MMMM yyyy HH:mm:ss", { locale: tr });
-  } catch {
-    return "—";
-  }
+  return safeFormat(date, "dd MMMM yyyy HH:mm:ss");
 }
 
 function formatRelative(date: string | null) {
-  if (!date) return "—";
-  try {
-    return formatDistanceToNow(new Date(date), {
-      addSuffix: true,
-      locale: tr,
-    });
-  } catch {
-    return "—";
-  }
+  return safeFormatDistance(date, { addSuffix: true });
 }
 
 export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
@@ -317,9 +303,7 @@ function EventTimelineSection({ events }: { events: EmailEvent[] }) {
                     {meta.label}
                   </p>
                   <span className="text-[11px] text-admin-text-muted whitespace-nowrap">
-                    {format(new Date(ev.occurredAt), "d MMM HH:mm:ss", {
-                      locale: tr,
-                    })}
+                    {safeFormat(ev.occurredAt, "d MMM HH:mm:ss")}
                   </span>
                 </div>
                 {ev.clickedUrl ? (

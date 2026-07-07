@@ -33,7 +33,7 @@ import { useAddresses } from "@/hooks/use-company-addresses";
 import { BUYER_ADDRESS_REQUIRED_TERMS } from "@/lib/tenders/labels";
 import type { DeliveryTerm } from "@/lib/tenders/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { formatDateTime } from "@/lib/tenders/date";
+import { formatDateTime, todayLocalISO } from "@/lib/tenders/date";
 import { subscribeRealtime } from "@/lib/realtime";
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
@@ -572,9 +572,10 @@ export default function TeklifVerPage() {
         // istemci fiyatı güvenilmez. KALEM modda kapsam = fiyatı açık kalemler.
         await buyNow.mutateAsync({
           note: note.trim() || undefined,
-          deliveryDate: deliveryDate
-            ? new Date(deliveryDate).toISOString()
-            : undefined,
+          // Ham YYYY-MM-DD gönder (placeBid ile aynı biçim). Backend `new Date()`
+          // ile UTC-gece-yarısına çevirir; istemcide `.toISOString()` yapmak
+          // aynı instant'ı üretir ama iki yol arasında biçim tutarsızlığı yaratırdı.
+          deliveryDate: deliveryDate || undefined,
           validityDays: validityDays ? Number(validityDays) : undefined,
           deliveryAddressId: deliveryAddressId || undefined,
           itemIds:
@@ -858,7 +859,7 @@ export default function TeklifVerPage() {
                             <Input
                               type="date"
                               aria-label={`${it.name} teslim tarihi`}
-                              min={new Date().toISOString().slice(0, 10)}
+                              min={todayLocalISO()}
                               value={st?.deliveryDate ?? ""}
                               onChange={(e) =>
                                 setItem(it.id, { deliveryDate: e.target.value })
@@ -918,7 +919,7 @@ export default function TeklifVerPage() {
                 </Label>
                 <Input
                   type="date"
-                  min={new Date().toISOString().slice(0, 10)}
+                  min={todayLocalISO()}
                   value={deliveryDate}
                   onChange={(e) => setDeliveryDate(e.target.value)}
                 />

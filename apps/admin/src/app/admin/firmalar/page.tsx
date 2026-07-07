@@ -19,8 +19,7 @@ import {
   useSetCompanyTier,
   type AdminCompanyRow,
 } from "@/hooks/use-admin-companies";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
+import { safeFormat } from "@/lib/date";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -166,9 +165,7 @@ function FirmalarView() {
                       )}
                     </TableCell>
                     <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
-                      {format(new Date(c.createdAt), "d MMM yyyy", {
-                        locale: tr,
-                      })}
+                      {safeFormat(c.createdAt, "d MMM yyyy")}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-2">

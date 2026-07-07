@@ -12,8 +12,7 @@ import { Button } from "@/components/ui/button";
 import { EmailStatusBadge } from "@/components/ui/email-status-badge";
 import { getTemplateLabel } from "@/lib/email-logs/status";
 import type { EmailLog } from "@/lib/email-logs/types";
-import { formatDistanceToNow } from "date-fns";
-import { tr } from "date-fns/locale";
+import { safeFormatDistance } from "@/lib/date";
 import { ArrowRight, Mail } from "lucide-react";
 
 interface EmailLogsTableProps {
@@ -26,14 +25,7 @@ interface EmailLogsTableProps {
 }
 
 function formatRelative(date: string) {
-  try {
-    return formatDistanceToNow(new Date(date), {
-      addSuffix: true,
-      locale: tr,
-    });
-  } catch {
-    return "—";
-  }
+  return safeFormatDistance(date, { addSuffix: true });
 }
 
 export function EmailLogsTable({

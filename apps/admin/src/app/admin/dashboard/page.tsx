@@ -8,8 +8,7 @@ import {
   useAdminComplaints,
 } from "@/hooks/use-admin-companies";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
+import { safeFormat } from "@/lib/date";
 import {
   Building2,
   Clock,
@@ -94,7 +93,7 @@ function DashboardContent() {
                     </p>
                   </div>
                   <span className="text-admin-text-muted ml-3 flex-shrink-0 text-xs">
-                    {format(new Date(c.createdAt), "d MMM", { locale: tr })}
+                    {safeFormat(c.createdAt, "d MMM")}
                   </span>
                 </div>
               ))
