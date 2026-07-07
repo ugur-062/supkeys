@@ -11,12 +11,14 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   Max,
   MaxLength,
   Min,
 } from "class-validator";
+import type { DocKind } from "../company-docs/company-docs.service";
 import {
   CurrentAdmin,
   type AuthenticatedAdmin,
@@ -38,6 +40,14 @@ class RejectDto {
   @IsString()
   @MaxLength(500)
   reason?: string;
+}
+
+/** Belge bazlı inceleme kararları — { [docKind]: { status, reason? } }. */
+class ReviewDocsDto {
+  @IsObject()
+  decisions!: Partial<
+    Record<DocKind, { status: "APPROVED" | "REJECTED"; reason?: string }>
+  >;
 }
 
 class SetTierDto {
@@ -106,6 +116,18 @@ export class AdminCompaniesController {
     @Body() dto: RejectDto,
   ) {
     return this.service.setVerification(id, "REJECTED", admin.id, dto.reason);
+  }
+
+  @Post("companies/:id/review")
+  // Belge bazlı onay/red — bazı belgeler reddedilse bile firma yalnız onları
+  // yeniden yükler (onaylananlar kilitli kalır).
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
+  review(
+    @Param("id") id: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Body() dto: ReviewDocsDto,
+  ) {
+    return this.service.reviewDocuments(id, dto.decisions, admin.id);
   }
 
   @Post("companies/:id/suspend")

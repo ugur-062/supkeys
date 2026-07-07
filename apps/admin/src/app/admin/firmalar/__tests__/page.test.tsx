@@ -7,6 +7,7 @@ const h = vi.hoisted(() => ({
   companies: { data: [] as unknown[], isLoading: false, isError: false },
   detail: null as unknown,
   actMutate: vi.fn(),
+  reviewMutate: vi.fn(),
   tierMutate: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
@@ -18,6 +19,7 @@ vi.mock("@/components/layout/admin-shell", () => ({
 vi.mock("@/hooks/use-admin-companies", () => ({
   useAdminCompanies: () => h.companies,
   useCompanyAction: () => ({ mutate: h.actMutate, isPending: false }),
+  useReviewDocuments: () => ({ mutate: h.reviewMutate, isPending: false }),
   useSetCompanyTier: () => ({ mutate: h.tierMutate, isPending: false }),
   useCompanyDetail: () => ({ data: h.detail, isLoading: false }),
 }));
@@ -63,11 +65,23 @@ beforeEach(() => {
     iban: "TR000000000000000000000000",
     ibanHolder: "Acme A.Ş.",
     docTaxPlateUrl: "https://x/tax",
-    docTradeRegistryUrl: null,
-    docSignatureCircularUrl: null,
-    docActivityCertUrl: null,
-    docIdFrontUrl: null,
-    docIdBackUrl: null,
+    docTaxPlateStatus: "PENDING",
+    docTaxPlateReason: null,
+    docTradeRegistryUrl: "https://x/trade",
+    docTradeRegistryStatus: "PENDING",
+    docTradeRegistryReason: null,
+    docSignatureCircularUrl: "https://x/sig",
+    docSignatureCircularStatus: "PENDING",
+    docSignatureCircularReason: null,
+    docActivityCertUrl: "https://x/act",
+    docActivityCertStatus: "PENDING",
+    docActivityCertReason: null,
+    docIdFrontUrl: "https://x/idf",
+    docIdFrontStatus: "PENDING",
+    docIdFrontReason: null,
+    docIdBackUrl: "https://x/idb",
+    docIdBackStatus: "PENDING",
+    docIdBackReason: null,
     isBlocked: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     _count: { users: 1, listings: 0, complaintsReceived: 0 },
@@ -101,32 +115,60 @@ describe("FirmalarView — durum tablosu", () => {
 });
 
 describe("FirmalarView — KYC inceleme (İncele modalı)", () => {
-  it("İncele → modalda Doğrula → verify action'ıyla mutate", async () => {
+  it("İncele → Hepsini Onayla → Kararı Kaydet → review (hepsi APPROVED) mutate", async () => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
     await user.click(screen.getByRole("button", { name: "İncele" }));
     const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "Doğrula" }));
-    expect(h.actMutate).toHaveBeenCalledWith(
-      { id: "c1", action: "verify" },
+    await user.click(
+      within(dialog).getByRole("button", { name: "Hepsini Onayla" }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Kararı Kaydet" }),
+    );
+    expect(h.reviewMutate).toHaveBeenCalledWith(
+      {
+        id: "c1",
+        decisions: {
+          taxPlate: { status: "APPROVED" },
+          tradeRegistry: { status: "APPROVED" },
+          signatureCircular: { status: "APPROVED" },
+          activityCert: { status: "APPROVED" },
+          idFront: { status: "APPROVED" },
+          idBack: { status: "APPROVED" },
+        },
+      },
       expect.anything(),
     );
   });
 
-  it("İncele → Reddet + gerekçe → reject action'ıyla mutate", async () => {
+  it("İncele → bir belgeyi Reddet + gerekçe (kalanlar onaylı) → review mutate", async () => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
     await user.click(screen.getByRole("button", { name: "İncele" }));
     const dialog = await screen.findByRole("dialog");
-    // İlk Reddet → gerekçe modu (textarea)
-    await user.click(within(dialog).getByRole("button", { name: "Reddet" }));
+    // Önce hepsini onayla, sonra ilk belgeyi reddet.
+    await user.click(
+      within(dialog).getByRole("button", { name: "Hepsini Onayla" }),
+    );
+    await user.click(
+      within(dialog).getAllByRole("button", { name: "Reddet" })[0],
+    );
     await user.type(
-      within(dialog).getByPlaceholderText(/Red gerekçesi/),
+      within(dialog).getByLabelText(/Vergi Levhası red gerekçesi/),
       "belge okunmuyor",
     );
-    await user.click(within(dialog).getByRole("button", { name: "Reddet" }));
-    expect(h.actMutate).toHaveBeenCalledWith(
-      { id: "c1", action: "reject", reason: "belge okunmuyor" },
+    await user.click(
+      within(dialog).getByRole("button", { name: "Kararı Kaydet" }),
+    );
+    expect(h.reviewMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "c1",
+        decisions: expect.objectContaining({
+          taxPlate: { status: "REJECTED", reason: "belge okunmuyor" },
+          tradeRegistry: { status: "APPROVED" },
+        }),
+      }),
       expect.anything(),
     );
   });
@@ -138,9 +180,9 @@ describe("FirmalarView — KYC inceleme (İncele modalı)", () => {
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("0000000000000000")).toBeInTheDocument();
     expect(within(dialog).getByText("Vergi Levhası")).toBeInTheDocument();
-    // yüklü belge → Görüntüle linki
+    // yüklü belge → Görüntüle linki (birden çok belge → getAllBy)
     expect(
-      within(dialog).getByRole("link", { name: "Görüntüle" }),
+      within(dialog).getAllByRole("link", { name: "Görüntüle" })[0],
     ).toBeInTheDocument();
   });
 });

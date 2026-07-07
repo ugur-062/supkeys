@@ -54,9 +54,17 @@ export default function DogrulamaPage() {
   }, [data]);
 
   // Gönderildikten sonra (PENDING) veya onaylandıktan sonra (VERIFIED) kilitli;
-  // yalnız REJECTED/UNVERIFIED'de düzenlenebilir.
+  // yalnız REJECTED/UNVERIFIED'de (kimlik alanları) düzenlenebilir.
   const locked = data?.status === "PENDING" || data?.status === "VERIFIED";
   const isTR = (data?.country ?? "TR").toUpperCase() === "TR";
+  // Belge bazlı kilit: onaylanan belge her durumda kilitli; genel REJECTED iken
+  // yalnız onaylı OLMAYAN (reddedilen/bekleyen) belgeler yeniden yüklenebilir.
+  const docEditable = (k: DocKind) => {
+    if (!data) return false;
+    if (data.status === "UNVERIFIED") return true;
+    if (data.status === "REJECTED") return data.docStatus[k] !== "APPROVED";
+    return false; // PENDING / VERIFIED
+  };
 
   const handleFile = async (kind: DocKind, file: File | undefined) => {
     if (!file) return;
@@ -116,16 +124,17 @@ export default function DogrulamaPage() {
             </Badge>
           </div>
 
-          {/* Red gerekçesi — reddedilince gösterilir, kullanıcı düzeltip yeniden gönderir */}
+          {/* Red — reddedilince gösterilir. Belge bazlı: yalnız işaretli
+              belgeler yeniden yüklenir, onaylananlar kilitli kalır. */}
           {data.status === "REJECTED" ? (
             <div
               role="alert"
               className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
             >
-              <p className="font-semibold">Doğrulama reddedildi</p>
+              <p className="font-semibold">Bazı belgeler reddedildi</p>
               <p className="mt-0.5">
                 {data.rejectionReason ||
-                  "Belge/bilgilerinizi kontrol edip yeniden gönderin."}
+                  "Aşağıda “Reddedildi” işaretli belgeleri düzeltip yeniden yükleyin, ardından tekrar gönderin. Onaylanan belgeleri yeniden yüklemenize gerek yok."}
               </p>
             </div>
           ) : data.status === "PENDING" ? (
@@ -194,58 +203,86 @@ export default function DogrulamaPage() {
               {labels.map((d) => {
                 const url = data.docs[d.key];
                 const isBusy = busyKind === d.key;
+                const st = data.docStatus[d.key];
+                const editable = canManage && docEditable(d.key);
+                // Belge durum rozeti — genel PENDING/VERIFIED/REJECTED'de anlamlı.
+                const showStatus = data.status !== "UNVERIFIED";
                 return (
                   <li
                     key={d.key}
-                    className="flex items-center justify-between gap-3 px-4 py-3"
+                    className="flex flex-col gap-1.5 px-4 py-3"
                   >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <FileText className="h-4 w-4 shrink-0 text-zinc-400" />
-                      <span className="text-sm text-zinc-900">{d.label}</span>
-                      {url ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
-                          <Check className="h-3.5 w-3.5" /> Yüklendi
-                        </span>
-                      ) : (
-                        <span className="text-xs text-zinc-400">Eksik</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {url ? (
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-xs font-medium text-blue-600 hover:underline"
-                        >
-                          Görüntüle
-                        </a>
-                      ) : null}
-                      {canManage && !locked ? (
-                        <>
-                          <Button
-                            plain
-                            onClick={() => inputs.current[d.key]?.click()}
-                            disabled={isBusy}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <FileText className="h-4 w-4 shrink-0 text-zinc-400" />
+                        <span className="text-sm text-zinc-900">{d.label}</span>
+                        {showStatus && st === "APPROVED" ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+                            <Check className="h-3.5 w-3.5" /> Onaylandı
+                          </span>
+                        ) : showStatus && st === "REJECTED" ? (
+                          <span className="text-xs font-medium text-red-600">
+                            Reddedildi
+                          </span>
+                        ) : showStatus && st === "PENDING" ? (
+                          <span className="text-xs text-amber-600">
+                            İnceleniyor
+                          </span>
+                        ) : url ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
+                            <Check className="h-3.5 w-3.5" /> Yüklendi
+                          </span>
+                        ) : (
+                          <span className="text-xs text-zinc-400">Eksik</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {url ? (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs font-medium text-blue-600 hover:underline"
                           >
-                            <Upload className="h-4 w-4" />
-                            {isBusy ? "Yükleniyor…" : url ? "Değiştir" : "Yükle"}
-                          </Button>
-                          <input
-                            ref={(el) => {
-                              inputs.current[d.key] = el;
-                            }}
-                            type="file"
-                            accept=".pdf,.png,.jpg,.jpeg,.webp"
-                            className="hidden"
-                            onChange={(e) => {
-                              handleFile(d.key, e.target.files?.[0]);
-                              e.target.value = "";
-                            }}
-                          />
-                        </>
-                      ) : null}
+                            Görüntüle
+                          </a>
+                        ) : null}
+                        {editable ? (
+                          <>
+                            <Button
+                              plain
+                              onClick={() => inputs.current[d.key]?.click()}
+                              disabled={isBusy}
+                            >
+                              <Upload className="h-4 w-4" />
+                              {isBusy
+                                ? "Yükleniyor…"
+                                : url
+                                  ? "Değiştir"
+                                  : "Yükle"}
+                            </Button>
+                            <input
+                              ref={(el) => {
+                                inputs.current[d.key] = el;
+                              }}
+                              type="file"
+                              accept=".pdf,.png,.jpg,.jpeg,.webp"
+                              className="hidden"
+                              onChange={(e) => {
+                                handleFile(d.key, e.target.files?.[0]);
+                                e.target.value = "";
+                              }}
+                            />
+                          </>
+                        ) : null}
+                      </div>
                     </div>
+                    {/* Belge bazlı red gerekçesi — kullanıcı ne düzelteceğini bilir. */}
+                    {st === "REJECTED" && data.docReason[d.key] ? (
+                      <p className="pl-6 text-xs text-red-600">
+                        {data.docReason[d.key]}
+                      </p>
+                    ) : null}
                   </li>
                 );
               })}

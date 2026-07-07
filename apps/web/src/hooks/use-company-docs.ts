@@ -50,6 +50,9 @@ export type VerificationStatus =
   | "VERIFIED"
   | "REJECTED";
 
+// Belge bazlı inceleme durumu (admin her belgeyi ayrı onaylar/reddeder).
+export type DocStatus = "PENDING" | "APPROVED" | "REJECTED";
+
 export interface KycFields {
   mersisNo: string | null;
   tradeRegistryNo: string | null;
@@ -63,6 +66,9 @@ export interface CompanyDocs extends KycFields {
   rejectionReason: string | null;
   country: string | null;
   docs: Record<DocKind, string | null>;
+  // Belge bazlı inceleme durumu + red gerekçesi.
+  docStatus: Record<DocKind, DocStatus>;
+  docReason: Record<DocKind, string | null>;
   required: DocKind[];
 }
 

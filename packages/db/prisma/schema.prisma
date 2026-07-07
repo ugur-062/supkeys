@@ -168,6 +168,15 @@ enum CompanyVerificationStatus {
   REJECTED // reddedildi (eksik/hatalı belge)
 }
 
+// Belge bazlı inceleme durumu — admin her belgeyi ayrı onaylar/reddeder.
+// Onaylanan belge kilitlenir; reddedilen belge firma tarafından yeniden
+// yüklenebilir (yeniden yüklenince PENDING'e döner).
+enum KycDocStatus {
+  PENDING // yüklendi, admin incelemesi bekliyor
+  APPROVED // admin onayladı — kilitli
+  REJECTED // admin reddetti — firma yeniden yükleyebilir
+}
+
 enum Currency {
   TRY
   USD
@@ -297,13 +306,26 @@ model Company {
   // KYC / doğrulama
   companyVerificationStatus CompanyVerificationStatus @default(UNVERIFIED)
   companyVerifiedAt         DateTime?
-  companyRejectionReason    String? // admin red gerekçesi (REJECTED → firmaya gösterilir)
+  companyRejectionReason    String? // genel red özeti (REJECTED → firmaya gösterilir; belge bazlı gerekçe ayrıca)
+  // Her belge: URL(key) + inceleme durumu + belge bazlı red gerekçesi.
   docTaxPlateUrl            String?
+  docTaxPlateStatus        KycDocStatus @default(PENDING)
+  docTaxPlateReason        String?
   docTradeRegistryUrl       String?
+  docTradeRegistryStatus   KycDocStatus @default(PENDING)
+  docTradeRegistryReason   String?
   docSignatureCircularUrl   String?
+  docSignatureCircularStatus KycDocStatus @default(PENDING)
+  docSignatureCircularReason String?
   docActivityCertUrl        String?
-  docIdFrontUrl             String?
-  docIdBackUrl              String?
+  docActivityCertStatus    KycDocStatus @default(PENDING)
+  docActivityCertReason    String?
+  docIdFrontUrl            String?
+  docIdFrontStatus         KycDocStatus @default(PENDING)
+  docIdFrontReason         String?
+  docIdBackUrl             String?
+  docIdBackStatus          KycDocStatus @default(PENDING)
+  docIdBackReason          String?
   onboardingCompletedAt     DateTime?
 
   // Public profil (sadece PAKET görünür)

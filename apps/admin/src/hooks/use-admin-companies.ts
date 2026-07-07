@@ -80,15 +80,65 @@ export interface AdminCompanyDetail {
   iban: string | null;
   ibanHolder: string | null;
   docTaxPlateUrl: string | null;
+  docTaxPlateStatus: DocStatus;
+  docTaxPlateReason: string | null;
   docTradeRegistryUrl: string | null;
+  docTradeRegistryStatus: DocStatus;
+  docTradeRegistryReason: string | null;
   docSignatureCircularUrl: string | null;
+  docSignatureCircularStatus: DocStatus;
+  docSignatureCircularReason: string | null;
   docActivityCertUrl: string | null;
+  docActivityCertStatus: DocStatus;
+  docActivityCertReason: string | null;
   docIdFrontUrl: string | null;
+  docIdFrontStatus: DocStatus;
+  docIdFrontReason: string | null;
   docIdBackUrl: string | null;
+  docIdBackStatus: DocStatus;
+  docIdBackReason: string | null;
   isBlocked: boolean;
   createdAt: string;
   _count: { users: number; listings: number; complaintsReceived: number };
   openComplaints: number;
+}
+
+// Belge türü (admin inceleme) + belge bazlı inceleme durumu.
+export type DocKind =
+  | "taxPlate"
+  | "tradeRegistry"
+  | "signatureCircular"
+  | "activityCert"
+  | "idFront"
+  | "idBack";
+export type DocStatus = "PENDING" | "APPROVED" | "REJECTED";
+export interface DocDecision {
+  status: "APPROVED" | "REJECTED";
+  reason?: string;
+}
+
+/** Belge bazlı inceleme kararlarını kaydeder (onayla/reddet). */
+export function useReviewDocuments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      decisions,
+    }: {
+      id: string;
+      decisions: Partial<Record<DocKind, DocDecision>>;
+    }) => {
+      const { data } = await api.post<{ ok: boolean; status: string }>(
+        `/admin/companies/${id}/review`,
+        { decisions },
+      );
+      return data;
+    },
+    onSuccess: (_d, { id }) => {
+      qc.invalidateQueries({ queryKey: ["admin-companies"] });
+      qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
+    },
+  });
 }
 
 /** Firma detayı — KYC belgeleri (presigned) + kimlik bilgileri. Modal açıkken. */

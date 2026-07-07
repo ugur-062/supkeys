@@ -1,7 +1,21 @@
-import { Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { CompanyVerificationStatus, ComplaintStatus } from "@rothern/db";
+import {
+  CompanyVerificationStatus,
+  ComplaintStatus,
+  KycDocStatus,
+} from "@rothern/db";
 import { StorageService } from "../storage/storage.service";
+import {
+  DOC_META,
+  requiredKinds,
+  type DocKind,
+} from "../company-docs/company-docs.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { EmailService } from "../email/email.service";
@@ -155,12 +169,25 @@ export class AdminCompaniesService {
         tradeRegistryNo: true,
         iban: true,
         ibanHolder: true,
+        // Belgeler: url/key + belge bazlı inceleme durumu + red gerekçesi.
         docTaxPlateUrl: true,
+        docTaxPlateStatus: true,
+        docTaxPlateReason: true,
         docTradeRegistryUrl: true,
+        docTradeRegistryStatus: true,
+        docTradeRegistryReason: true,
         docSignatureCircularUrl: true,
+        docSignatureCircularStatus: true,
+        docSignatureCircularReason: true,
         docActivityCertUrl: true,
+        docActivityCertStatus: true,
+        docActivityCertReason: true,
         docIdFrontUrl: true,
+        docIdFrontStatus: true,
+        docIdFrontReason: true,
         docIdBackUrl: true,
+        docIdBackStatus: true,
+        docIdBackReason: true,
         isBlocked: true,
         blockedReason: true,
         blockedAt: true,
@@ -209,6 +236,17 @@ export class AdminCompaniesService {
     reason?: string,
   ) {
     await this.requireCompany(id);
+    // Genel karar tüm belgelere yansır (durum tutarlılığı): VERIFIED → hepsi
+    // APPROVED; REJECTED → hepsi REJECTED (aynı gerekçe). Belge bazlı ayrı
+    // karar için reviewDocuments kullanılır.
+    const docStatus: KycDocStatus = status === "VERIFIED" ? "APPROVED" : "REJECTED";
+    const docReason = status === "REJECTED" ? (reason?.trim() || null) : null;
+    const docData = Object.fromEntries(
+      (Object.keys(DOC_META) as DocKind[]).flatMap((k) => [
+        [DOC_META[k].status, docStatus],
+        [DOC_META[k].reason, docReason],
+      ]),
+    );
     await this.prisma.company.update({
       where: { id },
       data: {
@@ -217,6 +255,7 @@ export class AdminCompaniesService {
         // Red gerekçesi firmaya gösterilir; onayda temizlenir.
         companyRejectionReason:
           status === "REJECTED" ? (reason?.trim() || null) : null,
+        ...docData,
       },
     });
     await this.audit.log({
@@ -252,6 +291,106 @@ export class AdminCompaniesService {
       );
     }
     return { ok: true };
+  }
+
+  /**
+   * Belge bazlı inceleme: admin her belgeyi ayrı onaylar/reddeder. Reddedilen
+   * belge(ler) varsa firma yalnız onları yeniden yükler; onaylananlar kilitli
+   * kalır. Tüm zorunlu belgeler APPROVED ise firma VERIFIED; en az biri
+   * REJECTED ise firma REJECTED.
+   */
+  async reviewDocuments(
+    id: string,
+    decisions: Partial<
+      Record<DocKind, { status: "APPROVED" | "REJECTED"; reason?: string }>
+    >,
+    adminId: string,
+  ) {
+    const c = await this.prisma.company.findUnique({
+      where: { id },
+      select: {
+        country: true,
+        docTaxPlateUrl: true,
+        docTradeRegistryUrl: true,
+        docSignatureCircularUrl: true,
+        docActivityCertUrl: true,
+        docIdFrontUrl: true,
+        docIdBackUrl: true,
+      },
+    });
+    if (!c) throw new NotFoundException("Firma bulunamadı");
+    const required = requiredKinds(c.country);
+    const data: Record<string, unknown> = {};
+    let anyRejected = false;
+    for (const k of required) {
+      const uploaded = !!(c as Record<string, unknown>)[DOC_META[k].url];
+      if (!uploaded) {
+        throw new BadRequestException(`Eksik belge var; karar verilemez (${k})`);
+      }
+      const d = decisions[k];
+      if (!d || (d.status !== "APPROVED" && d.status !== "REJECTED")) {
+        throw new BadRequestException(`Her zorunlu belge için karar gerekli (${k})`);
+      }
+      if (d.status === "REJECTED") {
+        const reason = d.reason?.trim();
+        if (!reason || reason.length < 3) {
+          throw new BadRequestException(
+            `Reddedilen belgeye gerekçe gerekli (${k})`,
+          );
+        }
+        anyRejected = true;
+        data[DOC_META[k].status] = "REJECTED" as KycDocStatus;
+        data[DOC_META[k].reason] = reason;
+      } else {
+        data[DOC_META[k].status] = "APPROVED" as KycDocStatus;
+        data[DOC_META[k].reason] = null;
+      }
+    }
+    const status: CompanyVerificationStatus = anyRejected
+      ? "REJECTED"
+      : "VERIFIED";
+    await this.prisma.company.update({
+      where: { id },
+      data: {
+        ...data,
+        companyVerificationStatus: status,
+        companyVerifiedAt: status === "VERIFIED" ? new Date() : null,
+        // Belge bazlı gerekçe ayrı tutulur; genel özet alanı temizlenir.
+        companyRejectionReason: null,
+      },
+    });
+    await this.audit.log({
+      action: "admin.company.docs_reviewed",
+      actorType: "admin",
+      actorId: adminId ?? null,
+      entityType: "company",
+      entityId: id,
+      metadata: { status, rejected: anyRejected },
+    });
+    if (status === "VERIFIED") {
+      void this.notifyCompany(
+        id,
+        "Firma doğrulamanız onaylandı",
+        [
+          "Merhaba,",
+          "Firma doğrulama belgeleriniz incelendi ve onaylandı. Artık premium doğrulama gerektiren adımlara devam edebilirsiniz.",
+        ],
+        "company_verification",
+        { label: "Hesabım", path: "/company/ayarlar/dogrulama" },
+      );
+    } else {
+      void this.notifyCompany(
+        id,
+        "Bazı belgeleriniz reddedildi",
+        [
+          "Merhaba,",
+          "Firma doğrulama belgelerinizin bir kısmı onaylanmadı. Reddedilen belgeleri düzeltip yeniden gönderin; onaylanan belgeleri tekrar yüklemenize gerek yok.",
+        ],
+        "company_verification",
+        { label: "Belgeleri Güncelle", path: "/company/ayarlar/dogrulama" },
+      );
+    }
+    return { ok: true, status };
   }
 
   /** PAKET ver / al. PAKET → membershipEndAt = now + months (varsayılan 12). */

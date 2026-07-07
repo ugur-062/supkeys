@@ -23,6 +23,9 @@ CREATE TYPE "Currency" AS ENUM ('TRY', 'USD', 'EUR', 'GBP', 'CHF', 'JPY', 'AED',
 CREATE TYPE "TwoFactorMethod" AS ENUM ('AUTHENTICATOR', 'EMAIL');
 
 -- CreateEnum
+CREATE TYPE "KycDocStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED');
+
+-- CreateEnum
 CREATE TYPE "CompanyRole" AS ENUM ('YONETICI', 'SATIN_ALMACI', 'SATISCI', 'ONAYLAYICI');
 
 -- CreateEnum
@@ -277,11 +280,23 @@ CREATE TABLE "companies" (
     "companyVerifiedAt" TIMESTAMP(3),
     "companyRejectionReason" TEXT,
     "docTaxPlateUrl" TEXT,
+    "docTaxPlateStatus" "KycDocStatus" NOT NULL DEFAULT 'PENDING',
+    "docTaxPlateReason" TEXT,
     "docTradeRegistryUrl" TEXT,
+    "docTradeRegistryStatus" "KycDocStatus" NOT NULL DEFAULT 'PENDING',
+    "docTradeRegistryReason" TEXT,
     "docSignatureCircularUrl" TEXT,
+    "docSignatureCircularStatus" "KycDocStatus" NOT NULL DEFAULT 'PENDING',
+    "docSignatureCircularReason" TEXT,
     "docActivityCertUrl" TEXT,
+    "docActivityCertStatus" "KycDocStatus" NOT NULL DEFAULT 'PENDING',
+    "docActivityCertReason" TEXT,
     "docIdFrontUrl" TEXT,
+    "docIdFrontStatus" "KycDocStatus" NOT NULL DEFAULT 'PENDING',
+    "docIdFrontReason" TEXT,
     "docIdBackUrl" TEXT,
+    "docIdBackStatus" "KycDocStatus" NOT NULL DEFAULT 'PENDING',
+    "docIdBackReason" TEXT,
     "onboardingCompletedAt" TIMESTAMP(3),
     "publicEnabled" BOOLEAN NOT NULL DEFAULT false,
     "aboutText" TEXT,
