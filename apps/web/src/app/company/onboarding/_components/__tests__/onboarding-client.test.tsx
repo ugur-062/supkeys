@@ -91,20 +91,39 @@ describe("OnboardingClient — adım 2 (kişi + sektör)", () => {
     await user.click(screen.getByRole("button", { name: "Devam" }));
   }
 
-  it("sektör chip'i aria-pressed toggle + 3 sınırı", async () => {
+  // Sektör seçimi artık aranabilir modal (SegmentOnlyPicker): trigger aç →
+  // option seç → Onayla.
+  async function pickSector(
+    user: ReturnType<typeof userEvent.setup>,
+    name: RegExp,
+  ) {
+    await user.click(
+      screen.getByRole("button", { name: /Sektör seçmek için tıklayın/ }),
+    );
+    await user.click(screen.getByRole("option", { name }));
+    await user.click(screen.getByRole("button", { name: /Onayla/ }));
+  }
+
+  it("sektör modalı: aç → option aria-selected toggle → onayla, seçim yansır", async () => {
     const user = userEvent.setup();
     await goStep2(user);
-    const chip = screen.getByRole("button", { name: "Yazılım & IT" });
-    expect(chip).toHaveAttribute("aria-pressed", "false");
-    await user.click(chip);
-    expect(chip).toHaveAttribute("aria-pressed", "true");
+    await user.click(
+      screen.getByRole("button", { name: /Sektör seçmek için tıklayın/ }),
+    );
+    const opt = screen.getByRole("option", { name: /Yazılım & IT/ });
+    expect(opt).toHaveAttribute("aria-selected", "false");
+    await user.click(opt);
+    expect(opt).toHaveAttribute("aria-selected", "true");
+    await user.click(screen.getByRole("button", { name: /Onayla/ }));
+    // Modal kapanır, seçili çip trigger'da görünür.
+    expect(screen.getByText("Yazılım & IT")).toBeInTheDocument();
   });
 
   it("TCKN (11 hane) + en az 1 sektör → 'Devam' aktif", async () => {
     const user = userEvent.setup();
     await goStep2(user);
     await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000146");
-    await user.click(screen.getByRole("button", { name: "Yazılım & IT" }));
+    await pickSector(user, /Yazılım & IT/);
     expect(screen.getByRole("button", { name: "Devam" })).toBeEnabled();
   });
 
@@ -127,7 +146,12 @@ describe("OnboardingClient — adım 3 (özet + gönderim)", () => {
     await fillStep1TR(user);
     await user.click(screen.getByRole("button", { name: "Devam" }));
     await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000146");
-    await user.click(screen.getByRole("button", { name: "Yazılım & IT" }));
+    // Sektör: aranabilir modal (aç → seç → onayla).
+    await user.click(
+      screen.getByRole("button", { name: /Sektör seçmek için tıklayın/ }),
+    );
+    await user.click(screen.getByRole("option", { name: /Yazılım & IT/ }));
+    await user.click(screen.getByRole("button", { name: /Onayla/ }));
     await user.click(screen.getByRole("button", { name: "Devam" }));
 
     const tamamla = screen.getByRole("button", { name: "Tamamla" });

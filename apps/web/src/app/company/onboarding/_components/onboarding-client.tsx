@@ -5,6 +5,7 @@ import { Checkbox } from "@/components/catalyst/checkbox";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { Select } from "@/components/catalyst/select";
+import { SegmentOnlyPicker } from "@/components/categories/segment-only-picker";
 import { useRoots } from "@/hooks/use-categories";
 import {
   useCompanyMe,
@@ -95,15 +96,6 @@ export function OnboardingClient() {
     (isTR ? f.authorizedTckn.trim().length === 11 : true) &&
     f.mainCategoryIds.length >= 1 &&
     f.mainCategoryIds.length <= 3;
-
-  const toggleCat = (id: string) =>
-    setF((s) => {
-      const has = s.mainCategoryIds.includes(id);
-      if (has)
-        return { ...s, mainCategoryIds: s.mainCategoryIds.filter((c) => c !== id) };
-      if (s.mainCategoryIds.length >= 3) return s;
-      return { ...s, mainCategoryIds: [...s.mainCategoryIds, id] };
-    });
 
   const isEuVat = !isTR && EU_VAT.has(f.country);
   const checkVies = async () => {
@@ -361,11 +353,14 @@ export function OnboardingClient() {
                 id="sector-label"
                 className="text-base/6 text-zinc-950 select-none sm:text-sm/6"
               >
-                Faaliyet Sektörü * (1-3 seçin)
+                Faaliyet Sektörü{" "}
+                <span className="text-zinc-400">* (1-3 seçin)</span>
               </p>
-              {roots.isLoading ? (
-                <p className="mt-2 text-xs text-zinc-400">Sektörler yükleniyor…</p>
-              ) : roots.isError ? (
+              <p className="mt-0.5 mb-2 text-xs text-zinc-500">
+                Firmanızın faaliyet gösterdiği ana sektörleri arayıp seçin — size
+                uygun alım/satım ilanları bununla eşleştirilir.
+              </p>
+              {roots.isError ? (
                 <p className="mt-2 text-xs text-red-600">
                   Sektörler yüklenemedi.{" "}
                   <button
@@ -376,37 +371,18 @@ export function OnboardingClient() {
                     Tekrar dene
                   </button>
                 </p>
-              ) : (roots.data ?? []).length === 0 ? (
-                <p className="mt-2 text-xs text-zinc-400">
-                  Sektör listesi bulunamadı.
-                </p>
               ) : (
-                <div
-                  role="group"
-                  aria-labelledby="sector-label"
-                  className="mt-2 flex flex-wrap gap-2"
-                >
-                  {(roots.data ?? []).map((c) => {
-                    const on = f.mainCategoryIds.includes(c.id);
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        aria-pressed={on}
-                        onClick={() => toggleCat(c.id)}
-                        className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
-                          on
-                            ? "border-zinc-900 bg-zinc-900 text-white"
-                            : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
-                        }`}
-                      >
-                        {c.nameTr}
-                      </button>
-                    );
-                  })}
-                </div>
+                // 58 UNSPSC segmenti düz chip duvarı yerine aranabilir modal
+                // seçici (arama + checkbox listesi + kaldırılabilir seçili çipler).
+                <SegmentOnlyPicker
+                  value={f.mainCategoryIds}
+                  onChange={set("mainCategoryIds")}
+                  maxSelection={3}
+                  placeholder="Sektör seçmek için tıklayın"
+                  title="Faaliyet Sektörünüz"
+                  description="Firmanızın faaliyet gösterdiği ana sektörleri seçin (en fazla 3). Bu seçim, size uygun alım/satım ilanlarını eşleştirmek için kullanılır."
+                />
               )}
-              <p className="mt-1 text-xs text-zinc-400">{f.mainCategoryIds.length}/3 seçildi</p>
             </div>
           </div>
         ) : null}
