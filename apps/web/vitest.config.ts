@@ -18,5 +18,11 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     setupFiles: ["./vitest.setup.ts"],
+    // Bileşen testleri userEvent ile karakter-karakter yazıyor; tüm suite'ler
+    // paralel koşarken CPU rekabeti tekil testi 5sn varsayılanının üstüne
+    // itiyor (izole ~2.4sn). Zaman aşımını yükselterek flaky-timeout'u keser —
+    // gerçek assertion hataları yine anında düşer.
+    testTimeout: 15000,
+    hookTimeout: 15000,
   },
 });

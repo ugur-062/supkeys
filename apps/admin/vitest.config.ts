@@ -16,5 +16,9 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     setupFiles: ["./vitest.setup.ts"],
+    // Bkz. web/vitest.config.ts — paralel yükte userEvent yavaşlar; zaman
+    // aşımını yükseltip flaky-timeout'u keser, gerçek hatalar anında düşer.
+    testTimeout: 15000,
+    hookTimeout: 15000,
   },
 });
