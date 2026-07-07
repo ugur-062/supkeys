@@ -240,7 +240,11 @@ type OnaylarTab = "pending" | "history" | "all" | "flows";
 export default function OnaylarPage() {
   const [tab, setTab] = useState<OnaylarTab>("pending");
   const { user } = useCompanyAuth();
-  const isManager = !!user && (user.isOwner || user.roles.includes("YONETICI"));
+  const isManager =
+    !!user &&
+    (user.isOwner ||
+      user.roles.includes("SAHIP") ||
+      user.roles.includes("YONETICI"));
   const canManageFlows = useHasCompanyPermission("approvals:manage");
   // Üst "Yeni Onay Akışı" butonu → flows sekmesine geçer + sihirbazı açar.
   // Boolean "intent" + consume: bölüm remount olduğunda (sekmeye tekrar

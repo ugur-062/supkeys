@@ -13,6 +13,9 @@ import {
 } from "class-validator";
 
 export enum CompanyRoleDto {
+  // SAHIP yalnız DEVİR (updateRoles/updateUser) için geçerli; davet servis
+  // katmanında ayrıca engellenir ("sahiplik davetle verilemez").
+  SAHIP = "SAHIP",
   YONETICI = "YONETICI",
   SATIN_ALMACI = "SATIN_ALMACI",
   SATISCI = "SATISCI",

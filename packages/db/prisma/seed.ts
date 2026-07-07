@@ -82,12 +82,8 @@ function genCode(): string {
   return `${pick()}-${pick()}`;
 }
 
-const ALL_ROLES: CompanyRole[] = [
-  "YONETICI",
-  "SATIN_ALMACI",
-  "SATISCI",
-  "ONAYLAYICI",
-];
+// Kurucu = Firma Sahibi (SAHIP ⊇ Yönetici) + operasyon rolleri.
+const OWNER_ROLES: CompanyRole[] = ["SAHIP", "SATIN_ALMACI", "SATISCI"];
 
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -221,7 +217,7 @@ async function ensureCompany(
       authId,
       firstName: name.split(" ")[0] ?? name,
       lastName: "Demo",
-      roles: ALL_ROLES,
+      roles: OWNER_ROLES,
       companyId: company.id,
       emailVerifiedAt: new Date(),
     },

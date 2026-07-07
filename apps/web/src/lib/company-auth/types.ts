@@ -1,6 +1,7 @@
 // Birleşik sistem — Company auth tipleri (backend /company-auth ile uyumlu).
 
 export type CompanyRole =
+  | "SAHIP"
   | "YONETICI"
   | "SATIN_ALMACI"
   | "SATISCI"

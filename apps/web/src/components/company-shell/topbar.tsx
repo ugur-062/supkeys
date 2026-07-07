@@ -44,7 +44,9 @@ function PortalSwitcher({ activePortal }: { activePortal: PortalKey }) {
   // → PortalGuard PremiumGate'i (Premium reklamı) açar. Böylece STANDARD
   // Satınalma'nın var olduğunu görür ve premium'a teşvik edilir.
   const canPurchase =
-    roles.includes("YONETICI") || roles.includes("SATIN_ALMACI");
+    roles.includes("SAHIP") ||
+    roles.includes("YONETICI") ||
+    roles.includes("SATIN_ALMACI");
   const satinalmaLocked =
     canPurchase && company?.tier !== "PAKET" && !available.includes("satinalma");
   const visible: PortalKey[] = satinalmaLocked

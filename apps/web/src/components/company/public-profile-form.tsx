@@ -27,7 +27,11 @@ export function PublicProfileForm() {
   const { user } = useCompanyAuth();
   const { data: profile, isLoading } = useCompanyProfile();
   const update = useUpdateCompanyProfile();
-  const canEdit = !!user?.roles.includes("YONETICI");
+  const canEdit =
+    !!user &&
+    (user.isOwner ||
+      user.roles.includes("SAHIP") ||
+      user.roles.includes("YONETICI"));
 
   const [form, setForm] = useState({
     aboutText: "",

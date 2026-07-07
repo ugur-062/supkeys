@@ -24,11 +24,13 @@ const COMPANY_TYPES = [
   { value: "JOINT_STOCK", label: "Anonim Şirket" },
   { value: "SOLE_PROPRIETOR", label: "Şahıs Firması" },
 ];
-const ROLES = [
-  { value: "YONETICI", label: "Yönetici" },
-  { value: "SATIN_ALMACI", label: "Satın Almacı" },
-  { value: "SATISCI", label: "Satışçı" },
-  { value: "ONAYLAYICI", label: "Onaylayıcı" },
+// Kurucu = Firma Sahibi (sabit). Buradan yalnız operasyonel katılım seçilir;
+// "Yalnız yönetim" hiç operasyon rolü eklemez.
+const OPERATIONAL_OPTIONS = [
+  { value: "none", label: "Yalnız yönetim (Firma Sahibi)", roles: [] as string[] },
+  { value: "buy", label: "Satın Alma", roles: ["SATIN_ALMACI"] },
+  { value: "sell", label: "Satış", roles: ["SATISCI"] },
+  { value: "both", label: "Alım + Satış", roles: ["SATIN_ALMACI", "SATISCI"] },
 ];
 const STEPS = ["Şirket Bilgileri", "Kişisel Bilgiler", "Özet & Beyan"];
 // AB VAT (VIES) kapsamındaki ülkeler.
@@ -62,7 +64,7 @@ export function OnboardingClient() {
     addressLine: "",
     deliverySameAsBilling: true,
     authorizedTckn: "",
-    role: "YONETICI",
+    operational: "none",
     mainCategoryIds: [] as string[],
     declarationAccepted: false,
   });
@@ -136,7 +138,9 @@ export function OnboardingClient() {
         addressLine: f.addressLine.trim(),
         deliverySameAsBilling: f.deliverySameAsBilling,
         authorizedTckn: f.authorizedTckn.trim() || undefined,
-        role: f.role,
+        operationalRoles:
+          OPERATIONAL_OPTIONS.find((o) => o.value === f.operational)?.roles ??
+          [],
         mainCategoryIds: f.mainCategoryIds,
         declarationAccepted: f.declarationAccepted,
       });
@@ -338,12 +342,20 @@ export function OnboardingClient() {
                 />
               </Field>
               <Field>
-                <Label>Ünvan / Rol *</Label>
-                <Select value={f.role} onChange={(e) => set("role")(e.target.value)}>
-                  {ROLES.map((r) => (
+                <Label>Operasyonel katılımınız</Label>
+                <Select
+                  value={f.operational}
+                  onChange={(e) => set("operational")(e.target.value)}
+                >
+                  {OPERATIONAL_OPTIONS.map((r) => (
                     <option key={r.value} value={r.value}>{r.label}</option>
                   ))}
                 </Select>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Firmayı kurduğunuz için <strong>Firma Sahibi</strong>siniz
+                  (tüm yönetim yetkileri). İsterseniz alım/satım operasyonuna da
+                  katılın.
+                </p>
               </Field>
             </div>
             <div>
@@ -405,7 +417,14 @@ export function OnboardingClient() {
                 value={COUNTRIES.find((c) => c.code === f.country)?.name}
               />
               <Summary label="Yetkili" value={`${user?.firstName} ${user?.lastName}`} />
-              <Summary label="Rol" value={ROLES.find((r) => r.value === f.role)?.label} />
+              <Summary label="Rol" value="Firma Sahibi" />
+              <Summary
+                label="Operasyon"
+                value={
+                  OPERATIONAL_OPTIONS.find((r) => r.value === f.operational)
+                    ?.label
+                }
+              />
               <Summary
                 label="Sektörler"
                 value={(roots.data ?? [])

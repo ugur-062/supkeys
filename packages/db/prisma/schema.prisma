@@ -246,6 +246,7 @@ model AuditLog {
 }
 
 enum CompanyRole {
+  SAHIP // firma sahibi — Yönetici ⊇ + billing/silme/devir. Firmada TEK kişi.
   YONETICI // hesap yönetimi: kullanıcı/rol, ayarlar, bağlantılar
   SATIN_ALMACI // alım operasyonu (🔵)
   SATISCI // satış operasyonu (🟢)

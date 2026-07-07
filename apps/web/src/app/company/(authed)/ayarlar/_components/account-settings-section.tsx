@@ -32,6 +32,7 @@ import { toast } from "sonner";
 const card = "rounded-xl border border-zinc-950/10 bg-white p-5";
 
 const ROLE_LABEL: Record<CompanyRole, string> = {
+  SAHIP: "Firma Sahibi",
   YONETICI: "Yönetici",
   SATIN_ALMACI: "Satın Almacı",
   SATISCI: "Satışçı",

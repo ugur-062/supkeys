@@ -34,7 +34,7 @@ const dto = (categoryId: string, over: Record<string, unknown> = {}) => ({
   addressLine: "Moda Cad. No:1",
   deliverySameAsBilling: true,
   authorizedTckn: TCKN,
-  role: CompanyRole.SATIN_ALMACI,
+  operationalRoles: [CompanyRole.SATIN_ALMACI],
   mainCategoryIds: [categoryId],
   declarationAccepted: true,
   ...over,
@@ -74,7 +74,7 @@ describe("completeOnboarding", () => {
     const u = await prisma.companyUser.findUniqueOrThrow({
       where: { id: owner.user.id },
     });
-    expect(u.roles).toContain(CompanyRole.YONETICI);
+    expect(u.roles).toContain(CompanyRole.SAHIP);
     expect(u.roles).toContain(CompanyRole.SATIN_ALMACI);
 
     const addrs = await prisma.companyAddress.findMany({

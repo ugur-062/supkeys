@@ -65,6 +65,7 @@ const ROLES: { key: CompanyRole; label: string; desc: string }[] = [
   { key: "ONAYLAYICI", label: "Onaylayıcı", desc: "Onay zincirinde onay/ret" },
 ];
 const ROLE_LABEL: Record<CompanyRole, string> = {
+  SAHIP: "Firma Sahibi",
   YONETICI: "Yönetici",
   SATIN_ALMACI: "Satın Almacı",
   SATISCI: "Satışçı",
@@ -436,6 +437,7 @@ function EditUserModal({
   // Kural: tek rol; istisna Satın Almacı + Satışçı birlikte. Rol değişince
   // izinler yeni rolün varsayılanına SIFIRLANIR (eski sistem davranışı).
   const toggleRole = (r: CompanyRole) => {
+    const hasSahip = roles.includes("SAHIP");
     let next: CompanyRole[];
     if (roles.includes(r)) next = roles.filter((x) => x !== r);
     else if (r === "YONETICI" || r === "ONAYLAYICI") next = [r];
@@ -444,8 +446,44 @@ function EditUserModal({
         ...roles.filter((x) => x === "SATIN_ALMACI" || x === "SATISCI"),
         r,
       ];
+    // Firma Sahibi rolü buradan düşürülemez (yalnız devirle) — hep korunur;
+    // SAHIP ⊇ Yönetici olduğundan onunla YONETICI/ONAYLAYICI birleşmez.
+    if (hasSahip && !next.includes("SAHIP")) {
+      next = [
+        "SAHIP",
+        ...next.filter((x) => x === "SATIN_ALMACI" || x === "SATISCI"),
+      ];
+    }
     setRoles(next);
     if (next.length > 0) applyDefaults(next);
+  };
+
+  // Sahiplik devri (yalnız sahip görür, sahip-olmayan hedefte). Hedefin
+  // operasyon rolleri korunur; backend eski sahibi Yönetici'ye düşürür.
+  const transferOwnership = async () => {
+    if (
+      !window.confirm(
+        `Firma sahipliğini ${user.firstName} ${user.lastName} kişisine devretmek üzeresiniz. Siz Yönetici'ye düşeceksiniz. Onaylıyor musunuz?`,
+      )
+    )
+      return;
+    try {
+      await update.mutateAsync({
+        id: user.id,
+        roles: [
+          "SAHIP" as CompanyRole,
+          ...user.roles.filter(
+            (x) => x === "SATIN_ALMACI" || x === "SATISCI",
+          ),
+        ],
+      });
+      toast.success("Firma sahipliği devredildi");
+      onClose();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Sahiplik devredilemedi",
+      );
+    }
   };
 
   const isCustomized = useMemo(
@@ -526,20 +564,39 @@ function EditUserModal({
         <div>
           <span className="block text-sm font-medium text-zinc-950">Roller</span>
           <div className="mt-2 space-y-2">
-            {ROLES.map((r) => {
+            {/* Firma Sahibi: kilitli gösterim — buradan kaldırılamaz, devirle. */}
+            {user.isOwner ? (
+              <div className="flex items-start gap-3 rounded-lg bg-violet-50 p-2.5 text-sm ring-1 ring-violet-200">
+                <Checkbox checked disabled className="mt-0.5" />
+                <span>
+                  <span className="font-semibold text-zinc-900">
+                    Firma Sahibi
+                  </span>
+                  <span className="mt-0.5 block text-xs text-zinc-500">
+                    Tüm yönetim yetkileri + billing/silme/devir. Devretmeden
+                    kaldırılamaz.
+                  </span>
+                </span>
+              </div>
+            ) : null}
+            {/* Sahip için yalnız operasyon rolleri; diğerleri normal liste. */}
+            {(user.isOwner
+              ? ROLES.filter(
+                  (r) => r.key === "SATIN_ALMACI" || r.key === "SATISCI",
+                )
+              : ROLES
+            ).map((r) => {
               const on = roles.includes(r.key);
-              const lockOwnerAdmin = user.isOwner && r.key === "YONETICI";
               return (
                 <label
                   key={r.key}
                   className={`flex cursor-pointer items-start gap-3 rounded-lg p-2.5 text-sm ring-1 transition ${
                     on ? "bg-zinc-50 ring-2 ring-zinc-900" : "bg-white ring-zinc-950/10"
-                  } ${lockOwnerAdmin ? "opacity-70" : ""}`}
+                  }`}
                 >
                   <Checkbox
                     checked={on}
-                    disabled={lockOwnerAdmin}
-                    onChange={() => !lockOwnerAdmin && toggleRole(r.key)}
+                    onChange={() => toggleRole(r.key)}
                     className="mt-0.5"
                   />
                   <span>
@@ -552,6 +609,17 @@ function EditUserModal({
               );
             })}
           </div>
+          {/* Sahiplik devri — yalnız mevcut sahip, başka bir kullanıcıya. */}
+          {viewerIsOwner && !user.isOwner ? (
+            <button
+              type="button"
+              onClick={transferOwnership}
+              disabled={update.isPending}
+              className="mt-2 text-xs font-semibold text-violet-700 hover:text-violet-800 disabled:opacity-50"
+            >
+              Firma sahipliğini bu kullanıcıya devret
+            </button>
+          ) : null}
         </div>
 
         {/* Yetkiler (yalnızca firma sahibi) */}

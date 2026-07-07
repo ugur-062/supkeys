@@ -15,17 +15,29 @@ import type { CompanyRole } from "@rothern/db";
  * İki katman: bu roller "kişi firmanın izinli kümesinde ne yapar"; firmanın
  * neyi yapabildiği (ilan açma vb.) ayrıca üyelik `tier`ine (PAKET) bağlıdır.
  */
+/** Yönetici yetkileri — Firma Sahibi bunların TAMAMINI kapsar (SAHIP ⊇ YONETICI). */
+const YONETICI_PERMISSIONS: readonly string[] = [
+  "company:manage", // firma profili/ayarları
+  "users:manage", // kullanıcı + rol atama/çıkarma
+  "connections:manage", // bağlantılar (davet/kabul)
+  "templates:manage",
+  "approvals:manage", // onay akışı oluştur/düzenle
+  // Yönetici onay adımına onaycı olarak atanabilir (assertApproversValid) —
+  // karar verebilmesi için approval:act şart (eski COMPANY_ADMIN paritesi).
+  "approval:act",
+];
+
+/** Yalnızca firma sahibinin (SAHIP rolü) yapabileceği korumalı işlemler. */
+export const OWNER_ONLY_PERMISSIONS = [
+  "billing:manage", // abonelik/paket
+  "company:delete",
+  "ownership:transfer",
+] as const;
+
 export const COMPANY_ROLE_PERMISSIONS: Record<CompanyRole, readonly string[]> = {
-  YONETICI: [
-    "company:manage", // firma profili/ayarları
-    "users:manage", // kullanıcı + rol atama/çıkarma
-    "connections:manage", // bağlantılar (davet/kabul)
-    "templates:manage",
-    "approvals:manage", // onay akışı oluştur/düzenle
-    // Yönetici onay adımına onaycı olarak atanabilir (assertApproversValid) —
-    // karar verebilmesi için approval:act şart (eski COMPANY_ADMIN paritesi).
-    "approval:act",
-  ],
+  // Firma Sahibi = Yönetici'nin tamamı + sahibe-özel (billing/silme/devir).
+  SAHIP: [...YONETICI_PERMISSIONS, ...OWNER_ONLY_PERMISSIONS],
+  YONETICI: YONETICI_PERMISSIONS,
   SATIN_ALMACI: [
     "buy:listing:create", // alım ilanı aç (tier=PAKET gerekir)
     "buy:listing:manage",
@@ -46,12 +58,14 @@ export const COMPANY_ROLE_PERMISSIONS: Record<CompanyRole, readonly string[]> = 
   ],
 } as const;
 
-/** Yalnızca firma sahibinin (isOwner) yapabileceği korumalı işlemler. */
-export const OWNER_ONLY_PERMISSIONS = [
-  "billing:manage", // abonelik/paket
-  "company:delete",
-  "ownership:transfer",
-] as const;
+/**
+ * Yönetim yetkisi taşıyan roller — Firma Sahibi ve Yönetici. Portal erişimi,
+ * son-yönetici garantisi, rol atama gibi "admin" kontrolleri bunu kullanır.
+ */
+export const MANAGEMENT_ROLES: readonly CompanyRole[] = ["SAHIP", "YONETICI"];
+export function hasManagementRole(roles: readonly CompanyRole[]): boolean {
+  return roles.some((r) => MANAGEMENT_ROLES.includes(r));
+}
 
 /** Kişi-bazlı izin override (firma sahibi rol-varsayılanını artırır/azaltır). */
 export interface CompanyPermissionOverride {

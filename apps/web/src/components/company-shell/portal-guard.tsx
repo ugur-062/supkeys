@@ -28,7 +28,9 @@ export function PortalGuard({
   // doğrulama kapısı göster (yönlendirme yerine). Rolü yoksa yönlendir.
   const hasPurchasingRole =
     !!user &&
-    (user.roles.includes("YONETICI") || user.roles.includes("SATIN_ALMACI"));
+    (user.roles.includes("SAHIP") ||
+      user.roles.includes("YONETICI") ||
+      user.roles.includes("SATIN_ALMACI"));
   const premiumLocked =
     portal === "satinalma" &&
     !allowed &&

@@ -45,6 +45,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const ROLE_LABEL: Record<CompanyRole, string> = {
+  SAHIP: "Firma Sahibi",
   YONETICI: "Yönetici",
   SATIN_ALMACI: "Satın Almacı",
   SATISCI: "Satışçı",
@@ -117,7 +118,9 @@ export function ApprovalFlowsSection({
         .filter(
           (u) =>
             u.isActive &&
-            (u.roles.includes("YONETICI") || u.roles.includes("ONAYLAYICI")),
+            (u.roles.includes("SAHIP") ||
+              u.roles.includes("YONETICI") ||
+              u.roles.includes("ONAYLAYICI")),
         )
         .map((u) => ({
           id: u.id,

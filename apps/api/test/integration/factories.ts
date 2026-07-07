@@ -66,13 +66,13 @@ export async function makeCompanyWithUser(
     tier: opts.tier ?? "PAKET",
     ...(opts.name ? { name: opts.name } : {}),
   });
+  // Gerçek model: kurucu = Firma Sahibi (SAHIP ⊇ Yönetici) + op-roller.
   const roles = opts.roles ?? [
+    CompanyRole.SAHIP,
     CompanyRole.SATIN_ALMACI,
     CompanyRole.SATISCI,
-    CompanyRole.YONETICI,
   ];
   const user = await makeUser(prisma, company.id, roles);
-  // Gerçek signup akışı gibi: oluşturan kullanıcı firmanın SAHİBİdir.
   await prisma.company.update({
     where: { id: company.id },
     data: { ownerUserId: user.id },
@@ -85,6 +85,7 @@ export async function makeCompanyWithUser(
     roles,
     country: company.country,
     tier: company.tier,
+    isOwner: true,
   } as AuthenticatedCompanyUser;
   return { company, user, auth };
 }

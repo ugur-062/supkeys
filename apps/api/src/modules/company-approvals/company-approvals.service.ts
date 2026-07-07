@@ -714,8 +714,11 @@ export class CompanyApprovalsService {
     if (!req || req.companyId !== user.companyId) {
       throw new NotFoundException("Onay isteği bulunamadı");
     }
-    // Eski sistem paritesi: başlatan VEYA Yönetici (owner ⊇ Yönetici) iptal eder.
-    const isManager = user.isOwner || user.roles.includes(CompanyRole.YONETICI);
+    // Eski sistem paritesi: başlatan VEYA yönetim (Firma Sahibi/Yönetici) iptal eder.
+    const isManager =
+      user.isOwner ||
+      user.roles.includes(CompanyRole.SAHIP) ||
+      user.roles.includes(CompanyRole.YONETICI);
     if (req.createdById !== user.userId && !isManager) {
       throw new ForbiddenException(
         "Bu isteği yalnızca başlatan veya Yönetici iptal edebilir",
@@ -836,7 +839,7 @@ export class CompanyApprovalsService {
       const fallback = await this.prisma.companyUser.findFirst({
         where: {
           companyId: step.request.companyId,
-          roles: { has: "YONETICI" },
+          roles: { hasSome: ["SAHIP", "YONETICI"] },
           isActive: true,
           deletedAt: null,
           id: { not: step.approverUserId },
@@ -1079,14 +1082,16 @@ export class CompanyApprovalsService {
     }
     // Eski sistem kuralı: onaycı YONETICI veya ONAYLAYICI rolünde olmalı —
     // operasyon rolleri (satın almacı/satışçı) onay zincirinde karar veremez.
+    // Firma Sahibi (SAHIP) ⊇ Yönetici → onaycı olabilir.
     const bad = rows.find(
       (u) =>
+        !u.roles.includes(CompanyRole.SAHIP) &&
         !u.roles.includes(CompanyRole.YONETICI) &&
         !u.roles.includes(CompanyRole.ONAYLAYICI),
     );
     if (bad) {
       throw new BadRequestException(
-        `${bad.firstName} ${bad.lastName} onaycı olamaz — onaycı Yönetici veya Onaylayıcı rolünde olmalı`,
+        `${bad.firstName} ${bad.lastName} onaycı olamaz — onaycı Firma Sahibi, Yönetici veya Onaylayıcı rolünde olmalı`,
       );
     }
   }

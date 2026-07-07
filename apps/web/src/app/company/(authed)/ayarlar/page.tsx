@@ -105,7 +105,11 @@ const GROUPS: SettingsGroup[] = [
 
 export default function AyarlarPage() {
   const { user } = useCompanyAuth();
-  const isManager = !!user && (user.isOwner || user.roles.includes("YONETICI"));
+  const isManager =
+    !!user &&
+    (user.isOwner ||
+      user.roles.includes("SAHIP") ||
+      user.roles.includes("YONETICI"));
 
   return (
     <div className="mx-auto max-w-4xl">

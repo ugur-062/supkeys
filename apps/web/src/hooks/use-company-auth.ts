@@ -37,7 +37,11 @@ export function useHasCompanyPermission(permission: string): boolean {
   const user = useCompanyAuthStore((s) => s.user);
   if (!user) return false;
   if (user.permissions) return user.permissions.includes(permission);
-  return user.isOwner || user.roles.includes("YONETICI" as never);
+  return (
+    user.isOwner ||
+    user.roles.includes("SAHIP" as never) ||
+    user.roles.includes("YONETICI" as never)
+  );
 }
 
 export type CompanyLoginResult =

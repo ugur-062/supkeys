@@ -55,7 +55,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.usersLoading = false;
   h.users = [
-    user({ id: "owner", email: "sahip@firma.com", firstName: "Umut", isOwner: true, roles: ["YONETICI"] }),
+    user({ id: "owner", email: "sahip@firma.com", firstName: "Umut", isOwner: true, roles: ["SAHIP"] }),
     user(),
   ];
   h.invitations = [];
@@ -68,8 +68,9 @@ describe("CompanyUsersSection", () => {
     expect(screen.getByText("ada@firma.com")).toBeInTheDocument();
     // Rol rozetleri Türkçe etiketle.
     expect(screen.getByText("Satın Almacı")).toBeInTheDocument();
-    expect(screen.getByText("Yönetici")).toBeInTheDocument();
-    // Sahip etiketi.
+    // Sahip için rol rozeti "Firma Sahibi".
+    expect(screen.getByText("Firma Sahibi")).toBeInTheDocument();
+    // Sahip etiketi (isim yanı).
     expect(screen.getByText("Sahip")).toBeInTheDocument();
     // Aktif durum rozeti.
     expect(screen.getAllByText("Aktif").length).toBeGreaterThanOrEqual(1);

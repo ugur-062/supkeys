@@ -503,12 +503,12 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
       roles: ["SATIN_ALMACI", "SATISCI"],
     } as never);
 
-    // Sahibin Yönetici rolü kaldırılamaz.
+    // Sahip, sahipliğini devretmeden bırakamaz (SAHIP rolü tek taraflı düşmez).
     await expect(
       svc.updateRoles(owner.auth, owner.user.id, {
         roles: ["SATIN_ALMACI"],
       } as never),
-    ).rejects.toThrow(/sahibinin Yönetici rolü/);
+    ).rejects.toThrow(/devret/);
 
     // Sahip pasifleştirilemez / çıkarılamaz.
     await expect(

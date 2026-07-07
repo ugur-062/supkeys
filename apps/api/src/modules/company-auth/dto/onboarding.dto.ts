@@ -114,9 +114,12 @@ export class CompleteOnboardingDto {
   @MaxLength(30)
   authorizedTckn?: string;
 
-  // Ünvan/Rol — bizim CompanyRole enum'umuz.
-  @IsEnum(CompanyRole)
-  role!: CompanyRole;
+  // Kurucu = Firma Sahibi (sabit). Buradan yalnız İSTEĞE BAĞLI operasyon
+  // rolleri (Satın Almacı / Satışçı) eklenir; boş bırakılabilir.
+  @IsOptional()
+  @IsArray()
+  @IsEnum(CompanyRole, { each: true })
+  operationalRoles?: CompanyRole[];
 
   // Faaliyet sektörü: 1-3 ana kategori (+ opsiyonel alt).
   @IsArray()

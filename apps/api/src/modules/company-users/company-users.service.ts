@@ -15,6 +15,7 @@ import type { AuthenticatedCompanyUser } from "../company-auth/strategies/compan
 import {
   ALL_COMPANY_PERMISSIONS,
   type CompanyPermissionOverride,
+  hasManagementRole,
   permissionsForRoles,
 } from "../company-auth/permissions/company-permissions.constants";
 import { EmailService } from "../email/email.service";
@@ -30,6 +31,7 @@ import {
 const INVITATION_TTL_DAYS = 7;
 
 const ROLE_LABEL: Record<CompanyRole, string> = {
+  SAHIP: "Firma Sahibi",
   YONETICI: "Yönetici",
   SATIN_ALMACI: "Satın Almacı",
   SATISCI: "Satışçı",
@@ -89,7 +91,14 @@ export class CompanyUsersService {
 
   /** Ekibe davet gönder — 7 gün geçerli tek kullanımlık kabul linki e-postalanır. */
   async invite(actor: AuthenticatedCompanyUser, dto: InviteCompanyUserDto) {
-    this.assertValidRoleCombo(dto.roles as CompanyRole[]);
+    const roles = dto.roles as CompanyRole[];
+    // Sahiplik davetle verilemez — mevcut bir kullanıcıya devir ile aktarılır.
+    if (roles.includes("SAHIP")) {
+      throw new BadRequestException(
+        "Firma sahipliği davetle verilemez; mevcut bir kullanıcıya devredin",
+      );
+    }
+    this.assertValidRoleCombo(roles);
     const email = dto.email.toLowerCase().trim();
 
     const existing = await this.prisma.companyUser.findUnique({
@@ -368,14 +377,17 @@ export class CompanyUsersService {
     const roles = dto.roles as CompanyRole[];
     this.assertValidRoleCombo(roles);
     this.assertCanGrantRoles(actor, roles);
-
-    if (company?.ownerUserId === targetId && !roles.includes("YONETICI")) {
-      throw new BadRequestException(
-        "Firma sahibinin Yönetici rolü kaldırılamaz",
-      );
-    }
     void target;
     await this.lockedAdminTx(actor.companyId, async (tx) => {
+      // Sahiplik önce çözülür (sahip-bırakma net "devret" hatası versin), sonra
+      // son-yönetici garantisi.
+      await this.resolveOwnership(
+        tx,
+        actor.companyId,
+        company?.ownerUserId ?? null,
+        targetId,
+        roles,
+      );
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, roles);
       await tx.companyUser.update({ where: { id: targetId }, data: { roles } });
     });
@@ -402,11 +414,6 @@ export class CompanyUsersService {
     if (roles) {
       this.assertValidRoleCombo(roles);
       this.assertCanGrantRoles(actor, roles);
-      if (company?.ownerUserId === targetId && !roles.includes("YONETICI")) {
-        throw new BadRequestException(
-          "Firma sahibinin Yönetici rolü kaldırılamaz",
-        );
-      }
     }
     void target;
     const data = {
@@ -417,9 +424,16 @@ export class CompanyUsersService {
       ...(dto.phone !== undefined ? { phone: dto.phone.trim() || null } : {}),
       ...(roles ? { roles } : {}),
     };
-    // Rol değişimi yönetici sayısını etkileyebilir → atomik firma-kilidi altında.
+    // Rol değişimi yönetici sayısını + sahipliği etkileyebilir → atomik kilit.
     if (roles) {
       await this.lockedAdminTx(actor.companyId, async (tx) => {
+        await this.resolveOwnership(
+          tx,
+          actor.companyId,
+          company?.ownerUserId ?? null,
+          targetId,
+          roles,
+        );
         await this.assertNotLastAdmin(tx, actor.companyId, targetId, roles);
         await tx.companyUser.update({ where: { id: targetId }, data });
       });
@@ -561,10 +575,21 @@ export class CompanyUsersService {
   /**
    * Rol kombinasyon kuralı: bir kişiye tek rol atanır; istisna olarak yalnızca
    * Satın Almacı + Satışçı birlikte verilebilir. Yönetici ve Onaylayıcı tek başına.
+   * Firma Sahibi (SAHIP), Yönetici'yi kapsadığından yalnız operasyon rolleriyle
+   * (Satın Almacı/Satışçı) birleşebilir.
    */
   private assertValidRoleCombo(roles: CompanyRole[]) {
     if (roles.length === 0) {
       throw new BadRequestException("En az bir rol seçin");
+    }
+    if (roles.includes("SAHIP")) {
+      const extra = roles.filter((r) => r !== "SAHIP");
+      if (extra.some((r) => r !== "SATIN_ALMACI" && r !== "SATISCI")) {
+        throw new BadRequestException(
+          "Firma Sahibi yalnızca Satın Almacı ve/veya Satışçı ile birleştirilebilir",
+        );
+      }
+      return;
     }
     const hasExclusive = roles.some(
       (r) => r === "YONETICI" || r === "ONAYLAYICI",
@@ -595,14 +620,68 @@ export class CompanyUsersService {
     actor: AuthenticatedCompanyUser,
     roles: CompanyRole[],
   ) {
+    // Sahiplik (SAHIP) yalnız mevcut firma sahibi tarafından devredilebilir.
+    if (roles.includes("SAHIP") && !actor.isOwner) {
+      throw new ForbiddenException(
+        "Firma sahipliğini yalnızca mevcut firma sahibi devredebilir",
+      );
+    }
     const grantsPrivileged = roles.some(
       (r) => r === "YONETICI" || r === "ONAYLAYICI",
     );
-    const actorIsAdmin = actor.isOwner || actor.roles.includes("YONETICI");
+    const actorIsAdmin = actor.isOwner || hasManagementRole(actor.roles);
     if (grantsPrivileged && !actorIsAdmin) {
       throw new ForbiddenException(
         "Yönetici veya Onaylayıcı rolünü yalnızca firma sahibi veya Yönetici atayabilir",
       );
+    }
+  }
+
+  /**
+   * Sahiplik (SAHIP) değişimini uygular. Firmada TEK sahip olur:
+   * - Hedef sahip olacaksa (devir) → eski sahip Yönetici'ye düşer (op-rolleri
+   *   korunur), ownerUserId hedefe geçer.
+   * - Mevcut sahip SAHIP rolünü bırakmaya çalışırsa → devir olmadan reddedilir.
+   * lockedAdminTx içinde çağrılır (atomik).
+   */
+  private async resolveOwnership(
+    tx: Prisma.TransactionClient,
+    companyId: string,
+    currentOwnerId: string | null,
+    targetId: string,
+    roles: CompanyRole[],
+  ) {
+    const targetWantsOwner = roles.includes("SAHIP");
+    const targetIsOwner = currentOwnerId === targetId;
+    if (!targetWantsOwner && targetIsOwner) {
+      throw new BadRequestException(
+        "Firma sahipliğini bırakmadan önce başka bir aktif kullanıcıya devretmelisiniz",
+      );
+    }
+    if (targetWantsOwner && !targetIsOwner) {
+      // DEVİR: eski sahip Yönetici'ye düşer (op-rolleri korunur).
+      if (currentOwnerId) {
+        const prev = await tx.companyUser.findUnique({
+          where: { id: currentOwnerId },
+          select: { roles: true },
+        });
+        if (prev) {
+          const demoted = Array.from(
+            new Set<CompanyRole>([
+              "YONETICI",
+              ...prev.roles.filter((r) => r !== "SAHIP"),
+            ]),
+          );
+          await tx.companyUser.update({
+            where: { id: currentOwnerId },
+            data: { roles: demoted },
+          });
+        }
+      }
+      await tx.company.update({
+        where: { id: companyId },
+        data: { ownerUserId: targetId },
+      });
     }
   }
 
@@ -632,18 +711,21 @@ export class CompanyUsersService {
     targetId: string,
     newRoles: CompanyRole[],
   ) {
-    if (newRoles.includes("YONETICI")) return;
+    // Yönetim yetkisi = Firma Sahibi VEYA Yönetici.
+    if (newRoles.includes("SAHIP") || newRoles.includes("YONETICI")) return;
     const otherActiveAdmins = await tx.companyUser.count({
       where: {
         companyId,
         deletedAt: null,
         isActive: true,
         id: { not: targetId },
-        roles: { has: "YONETICI" },
+        roles: { hasSome: ["SAHIP", "YONETICI"] },
       },
     });
     if (otherActiveAdmins === 0) {
-      throw new BadRequestException("Firmada en az bir aktif Yönetici kalmalı");
+      throw new BadRequestException(
+        "Firmada en az bir aktif yönetim yetkilisi (Firma Sahibi/Yönetici) kalmalı",
+      );
     }
   }
 }
