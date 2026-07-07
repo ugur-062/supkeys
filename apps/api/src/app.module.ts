@@ -5,6 +5,7 @@ import { EventEmitterModule } from "@nestjs/event-emitter";
 import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { LoggerModule } from "nestjs-pino";
 import { PrismaModule } from "./common/prisma/prisma.module";
 import { AdminAuditModule } from "./modules/admin-audit/admin-audit.module";
 import { AdminAuthModule } from "./modules/admin-auth/admin-auth.module";
@@ -49,6 +50,35 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ["../../.env"],
+    }),
+    // Structured logger (Pino) — prod'da JSON, dev'de okunur pretty; hassas
+    // alanlar redaction ile maskelenir. Health check gürültüsü loglanmaz.
+    LoggerModule.forRoot({
+      pinoHttp: {
+        level: process.env.LOG_LEVEL ?? "info",
+        transport:
+          process.env.NODE_ENV !== "production"
+            ? { target: "pino-pretty", options: { singleLine: true } }
+            : undefined,
+        redact: {
+          paths: [
+            "req.headers.authorization",
+            "req.headers.cookie",
+            'res.headers["set-cookie"]',
+            "req.body.password",
+            "req.body.currentPassword",
+            "req.body.newPassword",
+            "req.body.confirmPassword",
+            "req.body.token",
+            "req.body.code",
+          ],
+          censor: "[redacted]",
+        },
+        autoLogging: {
+          ignore: (req: { url?: string }) =>
+            (req.url ?? "").startsWith("/api/health"),
+        },
+      },
     }),
     // Sentry (hata izleme) — Sentry.init instrument.ts'te; DSN yoksa no-op.
     SentryModule.forRoot(),

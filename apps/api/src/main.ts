@@ -13,11 +13,14 @@ import { ConfigService } from "@nestjs/config";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import type { ValidationError } from "class-validator";
 import helmet from "helmet";
+import { Logger as PinoLogger } from "nestjs-pino";
 import { AppModule } from "./app.module";
 import { translateValidatorMessage } from "./common/error-messages";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    // Pino logger devralınana kadar bootstrap loglarını tamponla.
+    bufferLogs: true,
     bodyParser: false,
     /**
      * V2-1 — Resend webhook svix signature verification için raw body gerekir.
@@ -26,6 +29,8 @@ async function bootstrap() {
      */
     rawBody: true,
   });
+  // Structured logger (Pino) — tüm Nest loglarını JSON + redaction ile üstlenir.
+  app.useLogger(app.get(PinoLogger));
   const config = app.get(ConfigService);
 
   // Security audit O-3 — Production'da placeholder/zayıf JWT_SECRET reddi.
