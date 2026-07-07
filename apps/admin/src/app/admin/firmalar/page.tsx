@@ -12,6 +12,7 @@ import {
 import { AdminShell } from "@/components/layout/admin-shell";
 import { FilterSelect, PageHeader, SearchInput } from "@/components/list";
 import { Button } from "@/components/ui/button";
+import { PromptDialog } from "@/components/ui/prompt-dialog";
 import {
   useAdminCompanies,
   useCompanyAction,
@@ -43,13 +44,19 @@ function FirmalarView() {
   const tierAct = useSetCompanyTier();
   const items = query.data ?? [];
 
-  const setTier = (id: string, tier: "STANDARD" | "PAKET") => {
-    let months: number | undefined;
-    if (tier === "PAKET") {
-      const m = window.prompt("Kaç ay premium verilsin?", "12");
-      if (m === null) return;
-      months = Number(m) || 12;
-    }
+  // window.prompt yerine erişilebilir/test edilebilir modal — girdi gerektiren
+  // aksiyonlar (PAKET ay sayısı, askı sebebi) bunu açar.
+  const [prompt, setPrompt] = useState<
+    | { kind: "tierMonths"; id: string }
+    | { kind: "suspendReason"; id: string }
+    | null
+  >(null);
+
+  const runTier = (
+    id: string,
+    tier: "STANDARD" | "PAKET",
+    months?: number,
+  ) =>
     tierAct.mutate(
       { id, tier, months },
       {
@@ -59,17 +66,13 @@ function FirmalarView() {
           toast.error(e instanceof Error ? e.message : "Hata"),
       },
     );
-  };
 
-  const run = (
+  const runAction = (
     id: string,
     action: "verify" | "reject" | "suspend" | "unsuspend",
     msg: string,
-  ) => {
-    let reason: string | undefined;
-    if (action === "suspend") {
-      reason = window.prompt("Askı sebebi (opsiyonel):") ?? undefined;
-    }
+    reason?: string,
+  ) =>
     act.mutate(
       { id, action, reason },
       {
@@ -78,6 +81,25 @@ function FirmalarView() {
           toast.error(e instanceof Error ? e.message : "Hata"),
       },
     );
+
+  const setTier = (id: string, tier: "STANDARD" | "PAKET") => {
+    if (tier === "PAKET") {
+      setPrompt({ kind: "tierMonths", id });
+      return;
+    }
+    runTier(id, tier);
+  };
+
+  const run = (
+    id: string,
+    action: "verify" | "reject" | "suspend" | "unsuspend",
+    msg: string,
+  ) => {
+    if (action === "suspend") {
+      setPrompt({ kind: "suspendReason", id });
+      return;
+    }
+    runAction(id, action, msg);
   };
 
   return (
@@ -246,6 +268,37 @@ function FirmalarView() {
           </TableBody>
         </Table>
       </div>
+
+      <PromptDialog
+        open={prompt?.kind === "tierMonths"}
+        title="Premium (PAKET) Ver"
+        label="Kaç ay premium verilsin?"
+        type="number"
+        min={1}
+        defaultValue="12"
+        required
+        confirmLabel="PAKET Ver"
+        onConfirm={(v) => {
+          if (prompt?.kind !== "tierMonths") return;
+          const n = Math.floor(Number(v));
+          runTier(prompt.id, "PAKET", n >= 1 ? n : 12);
+          setPrompt(null);
+        }}
+        onClose={() => setPrompt(null)}
+      />
+      <PromptDialog
+        open={prompt?.kind === "suspendReason"}
+        title="Firmayı Askıya Al"
+        label="Askı sebebi (opsiyonel)"
+        placeholder="Örn. tekrarlanan şikayet"
+        confirmLabel="Askıya Al"
+        onConfirm={(v) => {
+          if (prompt?.kind !== "suspendReason") return;
+          runAction(prompt.id, "suspend", "Askıya alındı", v || undefined);
+          setPrompt(null);
+        }}
+        onClose={() => setPrompt(null)}
+      />
     </div>
   );
 }

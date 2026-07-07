@@ -12,6 +12,7 @@ import {
 import { AdminShell } from "@/components/layout/admin-shell";
 import { FilterSelect, PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
+import { PromptDialog } from "@/components/ui/prompt-dialog";
 import {
   useAdminComplaints,
   useResolveComplaint,
@@ -36,21 +37,32 @@ function SikayetlerView() {
   const resolve = useResolveComplaint();
   const items = query.data ?? [];
 
+  // window.prompt yerine erişilebilir/test edilebilir modal — yönetici notu.
+  const [prompt, setPrompt] = useState<{
+    id: string;
+    status: "RESOLVED" | "DISMISSED";
+    suspend: boolean;
+    msg: string;
+  } | null>(null);
+
   const act = (
     id: string,
     s: "RESOLVED" | "DISMISSED",
     suspend: boolean,
     msg: string,
-  ) => {
-    const adminNote = window.prompt("Yönetici notu (opsiyonel):") ?? undefined;
+  ) => setPrompt({ id, status: s, suspend, msg });
+
+  const runResolve = (adminNote?: string) => {
+    if (!prompt) return;
     resolve.mutate(
-      { id, status: s, adminNote, suspend },
+      { id: prompt.id, status: prompt.status, adminNote, suspend: prompt.suspend },
       {
-        onSuccess: () => toast.success(msg),
+        onSuccess: () => toast.success(prompt.msg),
         onError: (e: unknown) =>
           toast.error(e instanceof Error ? e.message : "Hata"),
       },
     );
+    setPrompt(null);
   };
 
   return (
@@ -174,6 +186,16 @@ function SikayetlerView() {
           </TableBody>
         </Table>
       </div>
+
+      <PromptDialog
+        open={prompt !== null}
+        title={prompt?.status === "DISMISSED" ? "Şikayeti Reddet" : "Şikayeti Çöz"}
+        label="Yönetici notu (opsiyonel)"
+        placeholder="Karar gerekçesi"
+        confirmLabel={prompt?.msg ?? "Onayla"}
+        onConfirm={(v) => runResolve(v || undefined)}
+        onClose={() => setPrompt(null)}
+      />
     </div>
   );
 }
