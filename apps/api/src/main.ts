@@ -180,8 +180,10 @@ async function bootstrap() {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
   process.on("SIGINT", () => void shutdown("SIGINT"));
 
-  const port = config.get<number>("API_PORT", 4000);
-  await app.listen(port);
+  // PORT: Railway/Heroku gibi platformlar dinamik atar → önce ona bak, yoksa
+  // API_PORT (Coolify/dev), yoksa 4000. 0.0.0.0: konteynerde dış arayüzden erişim.
+  const port = config.get<number>("PORT") ?? config.get<number>("API_PORT", 4000);
+  await app.listen(port, "0.0.0.0");
   // Logging audit Y-1 — NestJS Logger üzerinden yazılıyor (structured log
   // pipeline'ı için tutarlı). console.log paralel akışta kalmasın.
   bootstrapLogger.log(`🚀 Supkeys API running on http://localhost:${port}/api`);
