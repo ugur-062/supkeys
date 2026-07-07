@@ -102,6 +102,9 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         icon: TagIcon,
         label: "Satış İlanlarım",
         href: "/company/satis/ilanlarim",
+        // Satış ilanı oluşturma/yönetme PAKET özelliğidir — STANDARD yalnız
+        // teklif verir. Kilit ikonu + segment layout'unda PremiumOnly kapısı.
+        paidOnly: true,
       },
       {
         icon: InboxArrowDownIcon,
