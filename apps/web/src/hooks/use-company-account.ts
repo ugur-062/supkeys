@@ -101,6 +101,33 @@ export function useDisable2fa() {
   });
 }
 
+/** E-posta 2FA — kurulum/kapatma için e-postaya kod gönderir. */
+export function useSendEmail2faCode() {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post<{ sent: boolean }>(
+        "/company-auth/2fa/email/send-code",
+      );
+      return data;
+    },
+  });
+}
+
+/** E-postaya gelen kodla E-POSTA 2FA'yı açar (kurtarma kodları döner). */
+export function useEnableEmail2fa() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (code: string) => {
+      const { data } = await companyApi.post<{
+        ok: boolean;
+        recoveryCodes: string[];
+      }>("/company-auth/2fa/email/enable", { code });
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-auth", "me"] }),
+  });
+}
+
 export function useUpdateNotificationPrefs() {
   const qc = useQueryClient();
   return useMutation({

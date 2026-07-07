@@ -42,7 +42,7 @@ export function useHasCompanyPermission(permission: string): boolean {
 
 export type CompanyLoginResult =
   | CompanyLoginResponse
-  | { twoFactorRequired: true };
+  | { twoFactorRequired: true; method?: "email" | "authenticator" };
 
 export function useCompanyLogin() {
   return useMutation({

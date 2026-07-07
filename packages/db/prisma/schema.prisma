@@ -179,6 +179,11 @@ enum Currency {
   CNY
 }
 
+enum TwoFactorMethod {
+  AUTHENTICATOR // TOTP uygulaması (Google Authenticator vb.)
+  EMAIL // girişte e-postaya kod
+}
+
 model Category {
   id     String @id @default(cuid())
   /**
@@ -1127,7 +1132,9 @@ model CompanyUser {
   emailVerifiedAt     DateTime?
   twoFactorEnabled    Boolean   @default(false)
   twoFactorEnabledAt  DateTime?
-  twoFactorSecret     String? // TOTP secret (base32) — 2FA açıkken dolu
+  // 2FA yöntemi: AUTHENTICATOR (TOTP uygulaması) veya EMAIL (girişte e-postaya kod).
+  twoFactorMethod     TwoFactorMethod @default(AUTHENTICATOR)
+  twoFactorSecret     String? // TOTP secret (base32) — AUTHENTICATOR yönteminde dolu
   // Kurtarma kodları (SHA-256 hash) — enable'da üretilir, BİR KEZ gösterilir;
   // her kod tek kullanımlık (girişte/kapatmada tüketilir).
   twoFactorRecoveryCodes String[] @default([])

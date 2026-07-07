@@ -20,6 +20,9 @@ CREATE TYPE "CompanyVerificationStatus" AS ENUM ('UNVERIFIED', 'PENDING', 'VERIF
 CREATE TYPE "Currency" AS ENUM ('TRY', 'USD', 'EUR', 'GBP', 'CHF', 'JPY', 'AED', 'CNY');
 
 -- CreateEnum
+CREATE TYPE "TwoFactorMethod" AS ENUM ('AUTHENTICATOR', 'EMAIL');
+
+-- CreateEnum
 CREATE TYPE "CompanyRole" AS ENUM ('YONETICI', 'SATIN_ALMACI', 'SATISCI', 'ONAYLAYICI');
 
 -- CreateEnum
@@ -733,6 +736,7 @@ CREATE TABLE "company_users" (
     "emailVerifiedAt" TIMESTAMP(3),
     "twoFactorEnabled" BOOLEAN NOT NULL DEFAULT false,
     "twoFactorEnabledAt" TIMESTAMP(3),
+    "twoFactorMethod" "TwoFactorMethod" NOT NULL DEFAULT 'AUTHENTICATOR',
     "twoFactorSecret" TEXT,
     "twoFactorRecoveryCodes" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "tokenVersion" INTEGER NOT NULL DEFAULT 0,
@@ -1314,6 +1318,6 @@ ALTER TABLE "company_bank_accounts" ADD CONSTRAINT "company_bank_accounts_compan
 ALTER TABLE "company_addresses" ADD CONSTRAINT "company_addresses_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 
--- Global sequenceler (Prisma datamodelde yok, elle korunur).
+-- Global sequenceler (elle korunur).
 CREATE SEQUENCE IF NOT EXISTS "listing_number_seq" START 1;
 CREATE SEQUENCE IF NOT EXISTS "order_number_seq" START 1;

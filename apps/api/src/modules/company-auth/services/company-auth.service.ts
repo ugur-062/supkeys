@@ -170,7 +170,12 @@ export class CompanyAuthService {
   }
 
   /** Yeni kod üret, eski kodları geçersiz kıl, e-posta gönder. */
-  private async issueEmailCode(userId: string, email: string, firstName: string) {
+  private async issueEmailCode(
+    userId: string,
+    email: string,
+    firstName: string,
+    kind: "verify" | "login" = "verify",
+  ) {
     const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
     await this.prisma.emailVerificationCode.updateMany({
       where: { companyUserId: userId, usedAt: null },
@@ -183,23 +188,29 @@ export class CompanyAuthService {
         expiresAt: new Date(Date.now() + EMAIL_CODE_TTL_MIN * 60_000),
       },
     });
+    const isLogin = kind === "login";
+    const subject = isLogin ? "Giriş doğrulama kodunuz" : "E-posta doğrulama kodunuz";
     void this.email
       .send({
         to: { email, name: firstName },
-        subject: "E-posta doğrulama kodunuz",
+        subject,
         templateData: {
           template: "notification",
           data: {
-            subject: "E-posta doğrulama kodunuz",
-            heading: "E-posta adresinizi doğrulayın",
+            subject,
+            heading: isLogin
+              ? "İki adımlı doğrulama kodu"
+              : "E-posta adresinizi doğrulayın",
             paragraphs: [
               "Merhaba,",
-              `Rothern hesabınızı etkinleştirmek için doğrulama kodunuz: ${code}`,
+              isLogin
+                ? `Giriş için iki adımlı doğrulama kodunuz: ${code}`
+                : `Rothern hesabınızı etkinleştirmek için doğrulama kodunuz: ${code}`,
               `Kod ${EMAIL_CODE_TTL_MIN} dakika geçerlidir.`,
             ],
           },
         },
-        context: { type: "email_verify", id: userId },
+        context: { type: isLogin ? "login_2fa" : "email_verify", id: userId },
       })
       .catch((err) =>
         this.logger.error(
@@ -208,6 +219,34 @@ export class CompanyAuthService {
           }`,
         ),
       );
+  }
+
+  /**
+   * En son gönderilen e-posta kodunu doğrulayıp tüketir (emailVerifiedAt'e
+   * DOKUNMAZ). E-posta 2FA login/kurulumunda kullanılır. Başarısızda false.
+   */
+  private async consumeEmailCode(
+    userId: string,
+    code: string,
+  ): Promise<boolean> {
+    const record = await this.prisma.emailVerificationCode.findFirst({
+      where: { companyUserId: userId, usedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!record || record.expiresAt < new Date()) return false;
+    if (record.attempts >= EMAIL_CODE_MAX_ATTEMPTS) return false;
+    if (record.codeHash !== this.hashCode(code.trim())) {
+      await this.prisma.emailVerificationCode.update({
+        where: { id: record.id },
+        data: { attempts: { increment: 1 } },
+      });
+      return false;
+    }
+    await this.prisma.emailVerificationCode.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    });
+    return true;
   }
 
   /** Kodu doğrula → emailVerifiedAt set + otomatik login (token). */
@@ -516,10 +555,23 @@ export class CompanyAuthService {
       );
     }
 
-    // 2FA açıksa: kod yoksa "gerekli" yanıtı; TOTP VEYA kurtarma kodu kabul.
+    // 2FA açıksa: kod yoksa "gerekli" yanıtı. E-posta yönteminde kodu HEMEN
+    // e-postaya gönder; authenticator'da kullanıcı uygulamadan okur.
     if (user.twoFactorEnabled) {
       if (!dto.code) {
-        return { twoFactorRequired: true as const };
+        if (user.twoFactorMethod === "EMAIL") {
+          await this.issueEmailCode(
+            user.id,
+            user.email,
+            user.firstName,
+            "login",
+          );
+          return { twoFactorRequired: true as const, method: "email" as const };
+        }
+        return {
+          twoFactorRequired: true as const,
+          method: "authenticator" as const,
+        };
       }
       const { ok, usedRecovery } = await this.verifyTwoFactorCode(
         user.id,
@@ -687,11 +739,21 @@ export class CompanyAuthService {
   ): Promise<{ ok: boolean; usedRecovery: boolean }> {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { twoFactorSecret: true, twoFactorRecoveryCodes: true },
+      select: {
+        twoFactorMethod: true,
+        twoFactorSecret: true,
+        twoFactorRecoveryCodes: true,
+      },
     });
-    if (!user?.twoFactorSecret) return { ok: false, usedRecovery: false };
+    if (!user) return { ok: false, usedRecovery: false };
     const trimmed = code.trim();
-    if (
+    // Ana yöntem: EMAIL → e-postaya giden kod; AUTHENTICATOR → TOTP.
+    if (user.twoFactorMethod === "EMAIL") {
+      if (await this.consumeEmailCode(userId, trimmed)) {
+        return { ok: true, usedRecovery: false };
+      }
+    } else if (
+      user.twoFactorSecret &&
       authenticator.verify({
         token: trimmed,
         secret: this.decryptSecret(user.twoFactorSecret),
@@ -699,7 +761,7 @@ export class CompanyAuthService {
     ) {
       return { ok: true, usedRecovery: false };
     }
-    // Kurtarma kodu — hash eşleşirse listeden düş (replay engeli).
+    // Kurtarma kodu — her iki yöntemde de geçerli; hash eşleşirse listeden düş.
     const hash = this.hashRecoveryCode(trimmed);
     if (user.twoFactorRecoveryCodes.includes(hash)) {
       await this.prisma.companyUser.update({
@@ -823,19 +885,66 @@ export class CompanyAuthService {
       data: {
         twoFactorEnabled: true,
         twoFactorEnabledAt: new Date(),
+        twoFactorMethod: "AUTHENTICATOR",
         twoFactorRecoveryCodes: recoveryCodes.map((c) =>
           this.hashRecoveryCode(c),
         ),
       },
     });
+    this.notify2faEnabled(userId, user.email);
+    return { ok: true, recoveryCodes };
+  }
+
+  /** E-posta 2FA kurulumu/kapatma için kod gönder (kullanıcının e-postasına). */
+  async sendEmailTwoFactorCode(userId: string) {
+    const user = await this.prisma.companyUser.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true },
+    });
+    if (!user) throw new UnauthorizedException();
+    await this.issueEmailCode(userId, user.email, user.firstName, "login");
+    return { sent: true };
+  }
+
+  /** E-postaya gelen kodu doğrulayıp E-POSTA 2FA'yı aç (kurtarma kodları üret). */
+  async enableEmailTwoFactor(userId: string, code: string) {
+    const user = await this.prisma.companyUser.findUnique({
+      where: { id: userId },
+      select: { email: true, twoFactorEnabled: true },
+    });
+    if (!user) throw new UnauthorizedException();
+    if (user.twoFactorEnabled) {
+      throw new BadRequestException("İki adımlı doğrulama zaten açık");
+    }
+    if (!(await this.consumeEmailCode(userId, code))) {
+      throw new BadRequestException("Doğrulama kodu hatalı veya süresi dolmuş");
+    }
+    const recoveryCodes = this.generateRecoveryCodes();
+    await this.prisma.companyUser.update({
+      where: { id: userId },
+      data: {
+        twoFactorEnabled: true,
+        twoFactorEnabledAt: new Date(),
+        twoFactorMethod: "EMAIL",
+        twoFactorSecret: null,
+        twoFactorRecoveryCodes: recoveryCodes.map((c) =>
+          this.hashRecoveryCode(c),
+        ),
+      },
+    });
+    this.notify2faEnabled(userId, user.email);
+    return { ok: true, recoveryCodes };
+  }
+
+  private notify2faEnabled(userId: string, email: string) {
     void this.audit.log({
       action: "auth.2fa_enabled",
       actorType: "company",
       actorId: userId,
-      actorEmail: user.email,
+      actorEmail: email,
     });
     this.sendNotificationEmail(
-      { email: user.email },
+      { email },
       "İki adımlı doğrulama açıldı",
       [
         "Merhaba,",
@@ -845,18 +954,18 @@ export class CompanyAuthService {
       "two_factor_enabled",
       userId,
     );
-    return { ok: true, recoveryCodes };
   }
 
   /** TOTP veya kurtarma koduyla 2FA'yı kapat. */
   async disableTwoFactor(userId: string, code: string) {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, twoFactorSecret: true, twoFactorEnabled: true },
+      select: { email: true, twoFactorEnabled: true },
     });
-    if (!user?.twoFactorEnabled || !user.twoFactorSecret) {
+    if (!user?.twoFactorEnabled) {
       throw new BadRequestException("İki adımlı doğrulama zaten kapalı");
     }
+    // Kod: authenticator TOTP / e-posta kodu / kurtarma kodu (yönteme göre).
     const { ok } = await this.verifyTwoFactorCode(userId, code);
     if (!ok) {
       throw new BadRequestException("Doğrulama kodu hatalı");
@@ -866,6 +975,7 @@ export class CompanyAuthService {
       data: {
         twoFactorEnabled: false,
         twoFactorEnabledAt: null,
+        twoFactorMethod: "AUTHENTICATOR", // varsayılana dön
         twoFactorSecret: null,
         twoFactorRecoveryCodes: [],
       },

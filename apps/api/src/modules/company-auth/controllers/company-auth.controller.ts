@@ -187,4 +187,24 @@ export class CompanyAuthController {
   ) {
     return this.service.disableTwoFactor(user.userId, dto.code);
   }
+
+  // ── E-posta 2FA ── (authenticator uygulaması olmayan kullanıcılar için)
+  @Post("2fa/email/send-code")
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @UseGuards(CompanyJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  send2faEmailCode(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.sendEmailTwoFactorCode(user.userId);
+  }
+
+  @Post("2fa/email/enable")
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @UseGuards(CompanyJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  enable2faEmail(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: TwoFactorCodeDto,
+  ) {
+    return this.service.enableEmailTwoFactor(user.userId, dto.code);
+  }
 }

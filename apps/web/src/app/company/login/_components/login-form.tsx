@@ -36,6 +36,9 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
   const setAuth = useSetCompanyAuth();
   const [formError, setFormError] = useState<string | null>(null);
   const [twoFactor, setTwoFactor] = useState(false);
+  const [twoFactorMethod, setTwoFactorMethod] = useState<
+    "email" | "authenticator"
+  >("authenticator");
   const [code, setCode] = useState("");
   // E-posta doğrulanmamışsa: login yerine doğrulama modu.
   const [needsVerify, setNeedsVerify] = useState(false);
@@ -73,6 +76,8 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
       });
       if ("twoFactorRequired" in res) {
         setTwoFactor(true);
+        // E-posta yönteminde backend kodu zaten gönderdi; UI mesajını uyarlar.
+        setTwoFactorMethod(res.method ?? "authenticator");
         return;
       }
       // Cookie (API) + istemci snapshot'ı aynı "hatırla" tercihine göre.
@@ -207,9 +212,9 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
             onChange={(e) => setCode(e.target.value)}
           />
           <p className="mt-1 text-xs text-zinc-500">
-            Hesabınızda iki adımlı doğrulama açık — uygulamanızdaki kodu girin.
-            Cihazınıza erişemiyorsanız kurtarma kodlarınızdan birini
-            kullanabilirsiniz.
+            {twoFactorMethod === "email"
+              ? "E-posta adresinize gönderilen 6 haneli kodu girin. Erişemiyorsanız kurtarma kodlarınızdan birini kullanabilirsiniz."
+              : "Hesabınızda iki adımlı doğrulama açık — authenticator uygulamanızdaki kodu girin. Cihazınıza erişemiyorsanız kurtarma kodlarınızdan birini kullanabilirsiniz."}
           </p>
         </Field>
       ) : null}
