@@ -3,7 +3,7 @@
 import { AuthShell } from "@/components/marketing/auth-shell";
 import { Button } from "@/components/catalyst/button";
 import { Checkbox } from "@/components/catalyst/checkbox";
-import { Field, Label } from "@/components/catalyst/fieldset";
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import {
   useCompanySignup,
@@ -264,7 +264,7 @@ export function CompanySignupClient() {
           <Input type="password" autoComplete="new-password" value={form.password} onChange={(e) => set("password")(e.target.value)} />
         </Field>
         {form.password ? (
-          <div className="space-y-1.5">
+          <div className="space-y-1.5" role="status" aria-live="polite">
             <div className="flex items-center gap-2">
               <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100">
                 <div
@@ -292,9 +292,15 @@ export function CompanySignupClient() {
 
         <Field>
           <Label>Şifre (tekrar)</Label>
-          <Input type="password" autoComplete="new-password" value={form.passwordConfirm} onChange={(e) => set("passwordConfirm")(e.target.value)} />
+          <Input
+            type="password"
+            autoComplete="new-password"
+            invalid={!!(form.passwordConfirm && !confirmOk)}
+            value={form.passwordConfirm}
+            onChange={(e) => set("passwordConfirm")(e.target.value)}
+          />
           {form.passwordConfirm && !confirmOk ? (
-            <p className="mt-1 text-xs text-red-600">Parolalar eşleşmiyor</p>
+            <ErrorMessage className="mt-1">Parolalar eşleşmiyor</ErrorMessage>
           ) : null}
         </Field>
 

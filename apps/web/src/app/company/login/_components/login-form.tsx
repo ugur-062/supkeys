@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/catalyst/button";
-import { Field, Label } from "@/components/catalyst/fieldset";
+import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import {
   useCompanyLogin,
@@ -175,7 +175,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         <Label>E-posta</Label>
         <Input type="email" autoComplete="email" autoFocus invalid={!!errors.email} {...register("email")} />
         {errors.email ? (
-          <p className="mt-1 text-xs text-red-600">{errors.email.message}</p>
+          <ErrorMessage className="mt-1">{errors.email.message}</ErrorMessage>
         ) : null}
       </Field>
 
@@ -183,7 +183,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         <Label>Parola</Label>
         <Input type="password" autoComplete="current-password" invalid={!!errors.password} {...register("password")} />
         {errors.password ? (
-          <p className="mt-1 text-xs text-red-600">{errors.password.message}</p>
+          <ErrorMessage className="mt-1">{errors.password.message}</ErrorMessage>
         ) : null}
       </Field>
 

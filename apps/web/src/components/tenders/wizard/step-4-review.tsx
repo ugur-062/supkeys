@@ -139,8 +139,8 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
       ) : null}
 
       <Section title={`Kalemler (${d.items?.length ?? 0})`} onEdit={() => onEditStep(2)}>
-        <div className="overflow-hidden rounded-lg border border-zinc-950/10">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-lg border border-zinc-950/10">
+          <table className="w-full min-w-[32rem] text-sm">
             <thead className="bg-zinc-50 text-xs text-zinc-500">
               <tr>
                 <th className="px-3 py-2 text-left font-medium">Kalem</th>
