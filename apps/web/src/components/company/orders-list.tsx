@@ -8,6 +8,7 @@ import {
   ResultCount,
   SearchInput,
 } from "@/components/list";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   useOrders,
   type CompanyOrder,
@@ -388,7 +389,7 @@ function CardSkeleton() {
 }
 
 export function OrdersList({ role }: { role: "buyer" | "seller" }) {
-  const { data, isLoading } = useOrders();
+  const { data, isLoading, isError, refetch } = useOrders();
   const isSeller = role === "seller";
   const partyPlural = isSeller ? "Alıcılar" : "Tedarikçiler";
 
@@ -620,6 +621,11 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             <CardSkeleton key={i} />
           ))}
         </div>
+      ) : isError && all.length === 0 ? (
+        <ErrorState
+          message="Siparişler yüklenemedi. Lütfen tekrar deneyin."
+          onRetry={() => refetch()}
+        />
       ) : filtered.length === 0 ? (
         <div className="overflow-hidden rounded-2xl border border-zinc-950/10 bg-white">
           <EmptyState

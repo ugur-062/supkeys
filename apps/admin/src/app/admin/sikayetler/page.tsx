@@ -95,7 +95,11 @@ function SikayetlerView() {
                   colSpan={6}
                   className="text-admin-text-muted py-8 text-center"
                 >
-                  {query.isLoading ? "Yükleniyor..." : "Şikayet bulunamadı"}
+                  {query.isError
+                    ? "Veri alınamadı — lütfen tekrar deneyin"
+                    : query.isLoading
+                      ? "Yükleniyor..."
+                      : "Şikayet bulunamadı"}
                 </TableCell>
               </TableRow>
             ) : (

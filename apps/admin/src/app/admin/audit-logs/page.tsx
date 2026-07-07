@@ -117,7 +117,11 @@ function AuditView() {
             {items.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center text-admin-text-muted py-8">
-                  {query.isLoading ? "Yükleniyor..." : "Kayıt bulunamadı"}
+                  {query.isError
+                    ? "Veri alınamadı — lütfen tekrar deneyin"
+                    : query.isLoading
+                      ? "Yükleniyor..."
+                      : "Kayıt bulunamadı"}
                 </TableCell>
               </TableRow>
             ) : (
