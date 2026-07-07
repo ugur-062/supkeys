@@ -8,9 +8,13 @@ import {
   Ip,
   Patch,
   Post,
+  Res,
   UseGuards,
 } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { Throttle } from "@nestjs/throttler";
+import type { Response } from "express";
+import { clearAuthCookies } from "../../../common/auth/cookie";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -38,7 +42,15 @@ export class CompanyAuthController {
   constructor(
     private readonly service: CompanyAuthService,
     private readonly passwordReset: PasswordResetService,
+    private readonly config: ConfigService,
   ) {}
+
+  @Post("logout")
+  @HttpCode(HttpStatus.OK)
+  logout(@Res({ passthrough: true }) res: Response) {
+    clearAuthCookies(res, "company", this.config);
+    return { ok: true };
+  }
 
   @Post("forgot-password")
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })

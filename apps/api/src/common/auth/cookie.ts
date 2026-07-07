@@ -1,0 +1,92 @@
+import { randomBytes } from "node:crypto";
+import type { ConfigService } from "@nestjs/config";
+import type { Request, Response } from "express";
+
+/**
+ * httpOnly cookie tabanlı oturum yardımcıları — token localStorage yerine
+ * httpOnly cookie'de taşınır (XSS ile sızdırılamaz). CSRF için çift-gönderim
+ * (double-submit) deseni: JS-okunabilir `sk_csrf` cookie'si + mutating
+ * isteklerde `X-CSRF-Token` header eşleşmesi (bkz. CsrfGuard).
+ *
+ * Yeni bağımlılık YOK: set = Express native `res.cookie()`, oku = elle parse.
+ */
+
+export type Realm = "company" | "admin";
+
+/** httpOnly oturum cookie adı — realm başına ayrı (aynı tarayıcıda ikisi de). */
+export const AUTH_COOKIE: Record<Realm, string> = {
+  company: "sk_company",
+  admin: "sk_admin",
+};
+
+/** JS-okunabilir CSRF cookie'si (httpOnly DEĞİL — frontend header'a echo'lar). */
+export const CSRF_COOKIE = "sk_csrf";
+export const CSRF_HEADER = "x-csrf-token";
+
+/** Cookie ömrü — JWT 1sa'de expire olur (asıl kapı); cookie daha uzun yaşar. */
+const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 gün
+
+function isProd(config: ConfigService): boolean {
+  return config.get<string>("NODE_ENV") === "production";
+}
+
+/** Ortak cookie opsiyonları — prod'da Secure + cross-subdomain Domain. */
+function baseOptions(config: ConfigService) {
+  const prod = isProd(config);
+  // Prod: app/admin/api aynı site (.supkeys.com) → Domain ile paylaşılır.
+  // Dev: localhost (portlar same-site) → Domain vermiyoruz (host-only).
+  const domain = config.get<string>("COOKIE_DOMAIN") || undefined;
+  return {
+    domain,
+    path: "/",
+    sameSite: "lax" as const,
+    secure: prod,
+    maxAge: MAX_AGE_MS,
+  };
+}
+
+/** Oturum (httpOnly) + CSRF (okunabilir) cookie'lerini yazar. */
+export function setAuthCookies(
+  res: Response,
+  realm: Realm,
+  token: string,
+  config: ConfigService,
+): void {
+  const base = baseOptions(config);
+  res.cookie(AUTH_COOKIE[realm], token, { ...base, httpOnly: true });
+  res.cookie(CSRF_COOKIE, randomBytes(32).toString("hex"), {
+    ...base,
+    httpOnly: false,
+  });
+}
+
+/** Oturum + CSRF cookie'lerini temizler (logout). */
+export function clearAuthCookies(
+  res: Response,
+  realm: Realm,
+  config: ConfigService,
+): void {
+  const { domain, path } = baseOptions(config);
+  res.clearCookie(AUTH_COOKIE[realm], { domain, path });
+  res.clearCookie(CSRF_COOKIE, { domain, path });
+}
+
+/** `Cookie` header'ını elle parse eder (cookie-parser bağımlılığı olmadan). */
+export function parseCookies(header: string | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!header) return out;
+  for (const part of header.split(";")) {
+    const idx = part.indexOf("=");
+    if (idx < 0) continue;
+    const k = part.slice(0, idx).trim();
+    const v = part.slice(idx + 1).trim();
+    if (k) out[k] = decodeURIComponent(v);
+  }
+  return out;
+}
+
+/** İstekten realm oturum token'ını okur (cookie). Yoksa null. */
+export function readAuthCookie(req: Request, realm: Realm): string | null {
+  const cookies = parseCookies(req.headers.cookie);
+  return cookies[AUTH_COOKIE[realm]] ?? null;
+}

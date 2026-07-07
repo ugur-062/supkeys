@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { readAuthCookie } from "../../../common/auth/cookie";
 
 export interface AdminJwtPayload {
   sub: string;
@@ -18,7 +19,11 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, "admin-jwt") {
     private readonly prisma: PrismaService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // Önce httpOnly cookie (yeni), geri düşüş Bearer header (geçiş uyumu).
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req) => readAuthCookie(req, "admin"),
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       ignoreExpiration: false,
       secretOrKey: config.getOrThrow<string>("JWT_SECRET"),
     });

@@ -8,6 +8,7 @@ import {
   WebSocketGateway,
 } from "@nestjs/websockets";
 import type { Server, Socket } from "socket.io";
+import { AUTH_COOKIE, parseCookies } from "../../common/auth/cookie";
 import type { CompanyJwtPayload } from "../company-auth/strategies/company-jwt.strategy";
 import { RealtimeService } from "./realtime.service";
 
@@ -46,7 +47,13 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
   }
 
   async handleConnection(client: Socket): Promise<void> {
+    // Önce httpOnly cookie (withCredentials handshake), geri düşüş auth.token /
+    // Authorization Bearer (geçiş uyumu).
+    const cookieToken = parseCookies(client.handshake.headers.cookie)[
+      AUTH_COOKIE.company
+    ];
     const token =
+      cookieToken ??
       (client.handshake.auth?.token as string | undefined) ??
       (client.handshake.headers.authorization ?? "").replace(/^Bearer /, "");
     try {

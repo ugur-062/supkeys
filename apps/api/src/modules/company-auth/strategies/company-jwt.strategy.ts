@@ -4,6 +4,7 @@ import { PassportStrategy } from "@nestjs/passport";
 import type { CompanyRole, CompanyTier } from "@supkeys/db";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { readAuthCookie } from "../../../common/auth/cookie";
 import type { CompanyPermissionOverride } from "../permissions/company-permissions.constants";
 
 export interface CompanyJwtPayload {
@@ -39,7 +40,11 @@ export class CompanyJwtStrategy extends PassportStrategy(
     private readonly prisma: PrismaService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      // Önce httpOnly cookie (yeni), geri düşüş Bearer header (geçiş uyumu).
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req) => readAuthCookie(req, "company"),
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ]),
       ignoreExpiration: false,
       secretOrKey: config.getOrThrow<string>("JWT_SECRET"),
     });
