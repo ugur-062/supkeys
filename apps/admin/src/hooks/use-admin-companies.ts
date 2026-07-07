@@ -46,11 +46,62 @@ export function useCompanyAction() {
     }) => {
       await api.post(
         `/admin/companies/${id}/${action}`,
-        action === "suspend" ? { reason } : {},
+        action === "suspend" || action === "reject" ? { reason } : {},
       );
     },
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["admin-companies"] }),
+    onSuccess: (_d, { id }) => {
+      qc.invalidateQueries({ queryKey: ["admin-companies"] });
+      qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
+    },
+  });
+}
+
+export interface AdminCompanyDetail {
+  id: string;
+  rothernId: string | null;
+  name: string;
+  legalName: string | null;
+  taxNumber: string | null;
+  taxOffice: string | null;
+  country: string;
+  city: string | null;
+  tier: "STANDARD" | "PAKET";
+  industry: string | null;
+  website: string | null;
+  companyVerificationStatus:
+    | "UNVERIFIED"
+    | "PENDING"
+    | "VERIFIED"
+    | "REJECTED";
+  companyVerifiedAt: string | null;
+  companyRejectionReason: string | null;
+  mersisNo: string | null;
+  tradeRegistryNo: string | null;
+  iban: string | null;
+  ibanHolder: string | null;
+  docTaxPlateUrl: string | null;
+  docTradeRegistryUrl: string | null;
+  docSignatureCircularUrl: string | null;
+  docActivityCertUrl: string | null;
+  docIdFrontUrl: string | null;
+  docIdBackUrl: string | null;
+  isBlocked: boolean;
+  createdAt: string;
+  _count: { users: number; listings: number; complaintsReceived: number };
+  openComplaints: number;
+}
+
+/** Firma detayı — KYC belgeleri (presigned) + kimlik bilgileri. Modal açıkken. */
+export function useCompanyDetail(id: string | null) {
+  return useQuery({
+    queryKey: ["admin-company-detail", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data } = await api.get<AdminCompanyDetail>(
+        `/admin/companies/${id}`,
+      );
+      return data;
+    },
   });
 }
 

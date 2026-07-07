@@ -149,6 +149,12 @@ export class AdminCompaniesService {
         website: true,
         companyVerificationStatus: true,
         companyVerifiedAt: true,
+        companyRejectionReason: true,
+        // KYC kimlik bilgileri — admin onaydan önce inceler.
+        mersisNo: true,
+        tradeRegistryNo: true,
+        iban: true,
+        ibanHolder: true,
         docTaxPlateUrl: true,
         docTradeRegistryUrl: true,
         docSignatureCircularUrl: true,
@@ -200,6 +206,7 @@ export class AdminCompaniesService {
     id: string,
     status: "VERIFIED" | "REJECTED",
     adminId: string,
+    reason?: string,
   ) {
     await this.requireCompany(id);
     await this.prisma.company.update({
@@ -207,6 +214,9 @@ export class AdminCompaniesService {
       data: {
         companyVerificationStatus: status as CompanyVerificationStatus,
         companyVerifiedAt: status === "VERIFIED" ? new Date() : null,
+        // Red gerekçesi firmaya gösterilir; onayda temizlenir.
+        companyRejectionReason:
+          status === "REJECTED" ? (reason?.trim() || null) : null,
       },
     });
     await this.audit.log({

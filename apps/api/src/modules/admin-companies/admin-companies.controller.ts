@@ -33,6 +33,13 @@ class SuspendDto {
   reason?: string;
 }
 
+class RejectDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
 class SetTierDto {
   @IsIn(["STANDARD", "PAKET"])
   tier!: "STANDARD" | "PAKET";
@@ -93,8 +100,12 @@ export class AdminCompaniesController {
 
   @Post("companies/:id/reject")
   @RequireAdminRole("SUPER_ADMIN", "SALES")
-  reject(@Param("id") id: string, @CurrentAdmin() admin: AuthenticatedAdmin) {
-    return this.service.setVerification(id, "REJECTED", admin.id);
+  reject(
+    @Param("id") id: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Body() dto: RejectDto,
+  ) {
+    return this.service.setVerification(id, "REJECTED", admin.id, dto.reason);
   }
 
   @Post("companies/:id/suspend")

@@ -13,6 +13,7 @@ import { AdminShell } from "@/components/layout/admin-shell";
 import { FilterSelect, PageHeader, SearchInput } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
+import { CompanyDetailModal } from "./_components/company-detail-modal";
 import {
   useAdminCompanies,
   useCompanyAction,
@@ -51,6 +52,8 @@ function FirmalarView() {
     | { kind: "suspendReason"; id: string }
     | null
   >(null);
+  // İnceleme modalı — belgeler + KYC gösterip Doğrula/Reddet.
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const runTier = (
     id: string,
@@ -215,27 +218,14 @@ function FirmalarView() {
                             PAKET Ver
                           </Button>
                         )}
-                        {c.verification !== "VERIFIED" ? (
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={pending}
-                            onClick={() => run(c.id, "verify", "Doğrulandı")}
-                          >
-                            Doğrula
-                          </Button>
-                        ) : null}
-                        {c.verification !== "REJECTED" ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={pending}
-                            onClick={() => run(c.id, "reject", "Reddedildi")}
-                          >
-                            Reddet
-                          </Button>
-                        ) : null}
+                        {/* Kör onay yerine: İncele → belgeler+KYC modalı, karar orada. */}
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => setDetailId(c.id)}
+                        >
+                          İncele
+                        </Button>
                         {c.isBlocked ? (
                           <Button
                             type="button"
@@ -299,6 +289,12 @@ function FirmalarView() {
         }}
         onClose={() => setPrompt(null)}
       />
+      {detailId ? (
+        <CompanyDetailModal
+          companyId={detailId}
+          onClose={() => setDetailId(null)}
+        />
+      ) : null}
     </div>
   );
 }
