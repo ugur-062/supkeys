@@ -21,7 +21,9 @@ import {
   CurrentAdmin,
   type AuthenticatedAdmin,
 } from "../../common/decorators/current-admin.decorator";
+import { RequireAdminRole } from "../admin-auth/decorators/require-admin-role.decorator";
 import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
+import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
 import { AdminCompaniesService } from "./admin-companies.service";
 
 class SuspendDto {
@@ -62,7 +64,7 @@ class ResolveComplaintDto {
 }
 
 @Controller("admin")
-@UseGuards(AdminJwtAuthGuard)
+@UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
 export class AdminCompaniesController {
   constructor(private readonly service: AdminCompaniesService) {}
 
@@ -81,28 +83,44 @@ export class AdminCompaniesController {
   }
 
   @Post("companies/:id/verify")
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
   verify(@Param("id") id: string, @CurrentAdmin() admin: AuthenticatedAdmin) {
     return this.service.setVerification(id, "VERIFIED", admin.id);
   }
 
   @Post("companies/:id/reject")
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
   reject(@Param("id") id: string, @CurrentAdmin() admin: AuthenticatedAdmin) {
     return this.service.setVerification(id, "REJECTED", admin.id);
   }
 
   @Post("companies/:id/suspend")
-  suspend(@Param("id") id: string, @Body() dto: SuspendDto) {
-    return this.service.suspend(id, dto.reason ?? "");
+  @RequireAdminRole("SUPER_ADMIN")
+  suspend(
+    @Param("id") id: string,
+    @Body() dto: SuspendDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.service.suspend(id, dto.reason ?? "", admin.id);
   }
 
   @Post("companies/:id/unsuspend")
-  unsuspend(@Param("id") id: string) {
-    return this.service.unsuspend(id);
+  @RequireAdminRole("SUPER_ADMIN")
+  unsuspend(
+    @Param("id") id: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.service.unsuspend(id, admin.id);
   }
 
   @Post("companies/:id/tier")
-  setTier(@Param("id") id: string, @Body() dto: SetTierDto) {
-    return this.service.setTier(id, dto.tier, dto.months);
+  @RequireAdminRole("SUPER_ADMIN")
+  setTier(
+    @Param("id") id: string,
+    @Body() dto: SetTierDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.service.setTier(id, dto.tier, dto.months, admin.id);
   }
 
   @Get("complaints")
@@ -111,6 +129,7 @@ export class AdminCompaniesController {
   }
 
   @Post("complaints/:id/resolve")
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
   resolve(
     @Param("id") id: string,
     @Body() dto: ResolveComplaintDto,

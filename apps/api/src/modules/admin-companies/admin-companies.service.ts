@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { CompanyVerificationStatus, ComplaintStatus } from "@supkeys/db";
 import { StorageService } from "../storage/storage.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
 import { EmailService } from "../email/email.service";
 import { NotificationService } from "../notifications/notification.service";
 
@@ -16,6 +17,7 @@ export class AdminCompaniesService {
     private readonly email: EmailService,
     private readonly notifications: NotificationService,
     private readonly config: ConfigService,
+    private readonly audit: AuditService,
   ) {}
 
   /** Firmaya (in-app + e-posta) bildirim — admin aksiyonları için. Best-effort. */
@@ -197,7 +199,7 @@ export class AdminCompaniesService {
   async setVerification(
     id: string,
     status: "VERIFIED" | "REJECTED",
-    _adminId: string,
+    adminId: string,
   ) {
     await this.requireCompany(id);
     await this.prisma.company.update({
@@ -206,6 +208,14 @@ export class AdminCompaniesService {
         companyVerificationStatus: status as CompanyVerificationStatus,
         companyVerifiedAt: status === "VERIFIED" ? new Date() : null,
       },
+    });
+    await this.audit.log({
+      action: "admin.company.verification_set",
+      actorType: "admin",
+      actorId: adminId ?? null,
+      entityType: "company",
+      entityId: id,
+      metadata: { status },
     });
     // Firmaya sonucu bildir (in-app + e-posta) — onboarding için kritik.
     if (status === "VERIFIED") {
@@ -235,37 +245,65 @@ export class AdminCompaniesService {
   }
 
   /** PAKET ver / al. PAKET → membershipEndAt = now + months (varsayılan 12). */
-  async setTier(id: string, tier: "STANDARD" | "PAKET", months?: number) {
+  async setTier(
+    id: string,
+    tier: "STANDARD" | "PAKET",
+    months?: number,
+    adminId?: string,
+  ) {
     await this.requireCompany(id);
-    const membershipEndAt =
-      tier === "PAKET"
-        ? new Date(Date.now() + (months ?? 12) * 30 * 24 * 60 * 60 * 1000)
-        : null;
+    let membershipEndAt: Date | null = null;
+    if (tier === "PAKET") {
+      // Takvim ayı (setMonth) — 30-gün çarpımı yılda ~5 gün drift ediyordu.
+      const end = new Date();
+      end.setMonth(end.getMonth() + (months ?? 12));
+      membershipEndAt = end;
+    }
     await this.prisma.company.update({
       where: { id },
       data: { tier, membershipEndAt },
     });
+    await this.audit.log({
+      action: "admin.company.tier_set",
+      actorType: "admin",
+      actorId: adminId ?? null,
+      entityType: "company",
+      entityId: id,
+      metadata: { tier, months: months ?? 12 },
+    });
     return { ok: true, tier, membershipEndAt };
   }
 
-  async suspend(id: string, reason: string) {
+  async suspend(id: string, reason: string, adminId?: string) {
     await this.requireCompany(id);
+    const blockedReason = reason?.trim() || "Yönetici tarafından askıya alındı";
     await this.prisma.company.update({
       where: { id },
-      data: {
-        isBlocked: true,
-        blockedReason: reason?.trim() || "Yönetici tarafından askıya alındı",
-        blockedAt: new Date(),
-      },
+      data: { isBlocked: true, blockedReason, blockedAt: new Date() },
+    });
+    await this.audit.log({
+      action: "admin.company.suspended",
+      actorType: "admin",
+      actorId: adminId ?? null,
+      entityType: "company",
+      entityId: id,
+      metadata: { reason: blockedReason },
     });
     return { ok: true };
   }
 
-  async unsuspend(id: string) {
+  async unsuspend(id: string, adminId?: string) {
     await this.requireCompany(id);
     await this.prisma.company.update({
       where: { id },
       data: { isBlocked: false, blockedReason: null, blockedAt: null },
+    });
+    await this.audit.log({
+      action: "admin.company.unsuspended",
+      actorType: "admin",
+      actorId: adminId ?? null,
+      entityType: "company",
+      entityId: id,
     });
     return { ok: true };
   }
@@ -317,6 +355,14 @@ export class AdminCompaniesService {
         resolvedByAdminId: adminId,
       },
     });
+    await this.audit.log({
+      action: "admin.complaint.resolved",
+      actorType: "admin",
+      actorId: adminId ?? null,
+      entityType: "complaint",
+      entityId: id,
+      metadata: { status: input.status, suspend: !!input.suspend },
+    });
     if (input.suspend) {
       await this.prisma.company.update({
         where: { id: c.againstCompanyId },
@@ -328,6 +374,14 @@ export class AdminCompaniesService {
             "Şikayet üzerine askıya alındı",
           blockedAt: new Date(),
         },
+      });
+      await this.audit.log({
+        action: "admin.company.suspended",
+        actorType: "admin",
+        actorId: adminId ?? null,
+        entityType: "company",
+        entityId: c.againstCompanyId,
+        metadata: { via: "complaint", complaintId: id },
       });
     }
     return { ok: true };

@@ -143,6 +143,24 @@ async function ensureSuperAdmin() {
     return;
   }
 
+  // Production'da zayıf/örnek super-admin parolasıyla ASLA seed etme — .env.example
+  // "changeme" ya da dev "admin12345" ile canlıya çıkma riskini kapatır. (Dev'de
+  // NODE_ENV != production olduğundan mevcut zayıf dev parolaları çalışmaya devam eder.)
+  if (process.env.NODE_ENV === "production") {
+    const WEAK = new Set([
+      "changeme",
+      "admin12345",
+      "password",
+      "admin",
+      "12345678",
+    ]);
+    if (WEAK.has(password) || password.length < 12) {
+      throw new Error(
+        "GÜVENLİK: production'da INITIAL_ADMIN_PASSWORD zayıf/örnek olamaz (≥12 karakter, güçlü bir sır kullanın).",
+      );
+    }
+  }
+
   const authId = await ensureAuthUser(email, password, {
     role: "platform_admin",
   });
