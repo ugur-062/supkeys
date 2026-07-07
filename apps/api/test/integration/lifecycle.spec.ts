@@ -87,9 +87,10 @@ describe("onay akışı (approval) dalları", () => {
     expect(l.status).toBe("CLOSED");
   });
 
-  it("publish onay gerekiyorsa IN_APPROVAL'a alınır", async () => {
+  it("publish onayı KALDIRILDI (877c7cc) → DRAFT doğrudan OPEN olur, onay istenmez", async () => {
+    // LISTING_PUBLISH onay akışı 877c7cc'de bilinçli kaldırıldı: onay artık
+    // YALNIZ kazandırmada (award). Yayın hiçbir koşulda IN_APPROVAL'a girmez.
     const { service, approvals } = makeService();
-    approvals.requestApproval.mockResolvedValue({ approved: false });
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const listing = await makeListing(prisma, {
       companyId: owner.company.id,
@@ -102,7 +103,9 @@ describe("onay akışı (approval) dalları", () => {
     const l = await prisma.listing.findUniqueOrThrow({
       where: { id: listing.id },
     });
-    expect(l.status).toBe("IN_APPROVAL");
+    expect(l.status).toBe("OPEN");
+    // Kapı geri gelmesin: yayın onay servisini ÇAĞIRMAMALI.
+    expect(approvals.requestApproval).not.toHaveBeenCalled();
   });
 });
 
