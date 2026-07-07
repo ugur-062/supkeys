@@ -1,4 +1,6 @@
 import "reflect-metadata";
+// Sentry — AppModule'den ÖNCE (auto-instrumentation + env'i kendi yükler).
+import "./instrument";
 // .env'i NestFactory'den ÖNCE yükle — decorator'larda process.env'e güvenen
 // modüller (ThrottlerModule.forRoot vb.) için critical.
 import * as dotenv from "dotenv";

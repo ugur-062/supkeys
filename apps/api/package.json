@@ -27,6 +27,7 @@
     "@nestjs/schedule": "^6.1.3",
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/websockets": "^10.4.22",
+    "@sentry/nestjs": "^8.55.2",
     "@supabase/supabase-js": "^2.106.0",
     "@supkeys/db": "workspace:*",
     "@supkeys/email": "workspace:*",

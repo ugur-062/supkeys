@@ -1,7 +1,8 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { EventEmitterModule } from "@nestjs/event-emitter";
+import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { PrismaModule } from "./common/prisma/prisma.module";
@@ -49,6 +50,8 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
       isGlobal: true,
       envFilePath: ["../../.env"],
     }),
+    // Sentry (hata izleme) — Sentry.init instrument.ts'te; DSN yoksa no-op.
+    SentryModule.forRoot(),
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
     // Global rate limiter. Default: 100 req / 60sn / IP. Login/register'da
@@ -110,6 +113,9 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
   providers: [
     // Global guard: @SkipThrottle ile özel endpoint'lerde bypass edilebilir.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Yakalanmamış istisnaları Sentry'e raporlar, sonra normal hata yanıtına
+    // devreder (DSN yoksa capture no-op; yanıt davranışı değişmez).
+    { provide: APP_FILTER, useClass: SentryGlobalFilter },
   ],
 })
 export class AppModule {}
