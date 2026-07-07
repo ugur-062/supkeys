@@ -292,6 +292,7 @@ model Company {
   // KYC / doğrulama
   companyVerificationStatus CompanyVerificationStatus @default(UNVERIFIED)
   companyVerifiedAt         DateTime?
+  companyRejectionReason    String? // admin red gerekçesi (REJECTED → firmaya gösterilir)
   docTaxPlateUrl            String?
   docTradeRegistryUrl       String?
   docSignatureCircularUrl   String?

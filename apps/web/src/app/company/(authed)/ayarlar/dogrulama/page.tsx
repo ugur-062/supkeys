@@ -2,6 +2,8 @@
 
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
+import { Field, Label } from "@/components/catalyst/fieldset";
+import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import {
@@ -14,7 +16,7 @@ import {
 } from "@/hooks/use-company-docs";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { Check, FileText, Upload } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { SettingsShell } from "../_components/settings-shell";
 
@@ -38,6 +40,24 @@ export default function DogrulamaPage() {
   const [busyKind, setBusyKind] = useState<DocKind | null>(null);
   const inputs = useRef<Record<string, HTMLInputElement | null>>({});
 
+  // KYC kimlik alanları — data gelince ön-doldurulur.
+  const [mersisNo, setMersisNo] = useState("");
+  const [tradeRegistryNo, setTradeRegistryNo] = useState("");
+  const [iban, setIban] = useState("");
+  const [ibanHolder, setIbanHolder] = useState("");
+  useEffect(() => {
+    if (!data) return;
+    setMersisNo(data.mersisNo ?? "");
+    setTradeRegistryNo(data.tradeRegistryNo ?? "");
+    setIban(data.iban ?? "");
+    setIbanHolder(data.ibanHolder ?? "");
+  }, [data]);
+
+  // Gönderildikten sonra (PENDING) veya onaylandıktan sonra (VERIFIED) kilitli;
+  // yalnız REJECTED/UNVERIFIED'de düzenlenebilir.
+  const locked = data?.status === "PENDING" || data?.status === "VERIFIED";
+  const isTR = (data?.country ?? "TR").toUpperCase() === "TR";
+
   const handleFile = async (kind: DocKind, file: File | undefined) => {
     if (!file) return;
     if (file.size > 50 * 1024 * 1024) {
@@ -57,7 +77,12 @@ export default function DogrulamaPage() {
 
   const handleSubmit = async () => {
     try {
-      await submit.mutateAsync();
+      await submit.mutateAsync({
+        mersisNo: mersisNo.trim(),
+        tradeRegistryNo: tradeRegistryNo.trim(),
+        iban: iban.replace(/\s+/g, "").toUpperCase(),
+        ibanHolder: ibanHolder.trim(),
+      });
       toast.success("Belgeler doğrulamaya gönderildi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Gönderilemedi"));
@@ -65,17 +90,25 @@ export default function DogrulamaPage() {
   };
 
   const labels = data ? docLabels(data.country, data.required) : [];
-  const allUploaded = data && labels.every((d) => data.docs[d.key]);
+  const allUploaded = !!data && labels.every((d) => data.docs[d.key]);
+  // TR'de kimlik alanları da zorunlu; yabancıda opsiyonel.
+  const kycComplete =
+    !isTR ||
+    (mersisNo.trim().length >= 10 &&
+      tradeRegistryNo.trim().length > 0 &&
+      /^TR\d{24}$/.test(iban.replace(/\s+/g, "").toUpperCase()) &&
+      ibanHolder.trim().length > 0);
+  const canSubmit = allUploaded && kycComplete && !locked;
 
   return (
     <SettingsShell
       title="Doğrulama Belgeleri"
-      description="Firma doğrulaması için gerekli belgeleri yükleyin. Premium (PAKET) üyelik için doğrulama zorunludur."
+      description="Firma doğrulaması için gerekli belge ve bilgileri girin. Premium (PAKET) üyelik için doğrulama zorunludur."
     >
       {isLoading || !data ? (
         <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5">
           <div className="flex items-center gap-2">
             <Text className="text-sm text-zinc-500">Durum:</Text>
             <Badge color={STATUS_META[data.status].color}>
@@ -83,6 +116,79 @@ export default function DogrulamaPage() {
             </Badge>
           </div>
 
+          {/* Red gerekçesi — reddedilince gösterilir, kullanıcı düzeltip yeniden gönderir */}
+          {data.status === "REJECTED" ? (
+            <div
+              role="alert"
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+            >
+              <p className="font-semibold">Doğrulama reddedildi</p>
+              <p className="mt-0.5">
+                {data.rejectionReason ||
+                  "Belge/bilgilerinizi kontrol edip yeniden gönderin."}
+              </p>
+            </div>
+          ) : data.status === "PENDING" ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Belge ve bilgileriniz inceleniyor — sonuç bildirilecektir. İnceleme
+              sürerken değişiklik yapılamaz.
+            </div>
+          ) : data.status === "VERIFIED" ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+              Firmanız doğrulandı. Premium özellikleri kullanabilirsiniz.
+            </div>
+          ) : null}
+
+          {/* ── Kimlik bilgileri (MERSİS / Ticari Sicil / IBAN) ── */}
+          <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
+            <p className="text-sm font-semibold text-zinc-900">
+              Firma Kimlik Bilgileri
+            </p>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <Field>
+                <Label>MERSİS No {isTR ? "*" : ""}</Label>
+                <Input
+                  value={mersisNo}
+                  onChange={(e) => setMersisNo(e.target.value)}
+                  placeholder="0000000000000000"
+                  disabled={!canManage || locked}
+                  maxLength={20}
+                />
+              </Field>
+              <Field>
+                <Label>Ticari Sicil No {isTR ? "*" : ""}</Label>
+                <Input
+                  value={tradeRegistryNo}
+                  onChange={(e) => setTradeRegistryNo(e.target.value)}
+                  placeholder="123456"
+                  disabled={!canManage || locked}
+                  maxLength={30}
+                />
+              </Field>
+              <Field>
+                <Label>IBAN {isTR ? "*" : ""}</Label>
+                <Input
+                  value={iban}
+                  onChange={(e) => setIban(e.target.value)}
+                  placeholder="TR00 0000 0000 0000 0000 0000 00"
+                  disabled={!canManage || locked}
+                  maxLength={40}
+                />
+              </Field>
+              <Field>
+                <Label>IBAN Hesap Sahibi {isTR ? "*" : ""}</Label>
+                <Input
+                  value={ibanHolder}
+                  onChange={(e) => setIbanHolder(e.target.value)}
+                  placeholder="Firma Ünvanı A.Ş."
+                  disabled={!canManage || locked}
+                  maxLength={120}
+                />
+              </Field>
+            </div>
+          </div>
+
+          {/* ── Belgeler ── */}
           <div className="overflow-hidden rounded-xl border border-zinc-950/10 bg-white">
             <ul className="divide-y divide-zinc-100">
               {labels.map((d) => {
@@ -115,12 +221,12 @@ export default function DogrulamaPage() {
                           Görüntüle
                         </a>
                       ) : null}
-                      {canManage ? (
+                      {canManage && !locked ? (
                         <>
                           <Button
                             plain
                             onClick={() => inputs.current[d.key]?.click()}
-                            disabled={isBusy || data.status === "VERIFIED"}
+                            disabled={isBusy}
                           >
                             <Upload className="h-4 w-4" />
                             {isBusy ? "Yükleniyor…" : url ? "Değiştir" : "Yükle"}
@@ -151,24 +257,19 @@ export default function DogrulamaPage() {
               Belgeleri yalnızca firma sahibi ya da Yönetici rolündeki
               kullanıcılar yükleyebilir.
             </Text>
-          ) : null}
-
-          {canManage && data.status !== "VERIFIED" && data.status !== "PENDING" ? (
+          ) : !locked ? (
             <div className="flex items-center justify-between gap-3">
               <Text className="text-xs text-zinc-400">
-                Tüm belgeler yüklendiğinde doğrulamaya gönderebilirsiniz.
+                Tüm belgeler ve kimlik bilgileri tamamlanınca gönderebilirsiniz.
+                Gönderdikten sonra inceleme bitene kadar değişiklik yapılamaz.
               </Text>
               <Button
                 onClick={handleSubmit}
-                disabled={!allUploaded || submit.isPending}
+                disabled={!canSubmit || submit.isPending}
               >
-                Doğrulamaya Gönder
+                {submit.isPending ? "Gönderiliyor…" : "Doğrulamaya Gönder"}
               </Button>
             </div>
-          ) : data.status === "PENDING" ? (
-            <Text className="text-sm text-amber-700">
-              Belgeleriniz inceleniyor — sonuç bildirilecektir.
-            </Text>
           ) : null}
         </div>
       )}

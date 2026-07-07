@@ -272,6 +272,7 @@ CREATE TABLE "companies" (
     "membershipEndAt" TIMESTAMP(3),
     "companyVerificationStatus" "CompanyVerificationStatus" NOT NULL DEFAULT 'UNVERIFIED',
     "companyVerifiedAt" TIMESTAMP(3),
+    "companyRejectionReason" TEXT,
     "docTaxPlateUrl" TEXT,
     "docTradeRegistryUrl" TEXT,
     "docSignatureCircularUrl" TEXT,

@@ -50,9 +50,17 @@ export type VerificationStatus =
   | "VERIFIED"
   | "REJECTED";
 
-export interface CompanyDocs {
+export interface KycFields {
+  mersisNo: string | null;
+  tradeRegistryNo: string | null;
+  iban: string | null;
+  ibanHolder: string | null;
+}
+
+export interface CompanyDocs extends KycFields {
   status: VerificationStatus;
   verifiedAt: string | null;
+  rejectionReason: string | null;
   country: string | null;
   docs: Record<DocKind, string | null>;
   required: DocKind[];
@@ -100,8 +108,8 @@ export function useUploadDoc() {
 export function useSubmitDocs() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      const { data } = await companyApi.post("/company/docs/submit");
+    mutationFn: async (kyc: Partial<KycFields>) => {
+      const { data } = await companyApi.post("/company/docs/submit", kyc);
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["company-docs"] }),

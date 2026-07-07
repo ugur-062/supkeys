@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
-import { IsInt, IsOptional, IsString } from "class-validator";
+import { IsInt, IsOptional, IsString, MaxLength } from "class-validator";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -18,6 +18,13 @@ class UploadUrlDto {
 class CommitDto {
   @IsString() kind!: string;
   @IsString() key!: string;
+}
+/** Doğrulamaya gönderim — belgelerle birlikte KYC kimlik bilgileri. */
+class SubmitDocsDto {
+  @IsOptional() @IsString() @MaxLength(20) mersisNo?: string;
+  @IsOptional() @IsString() @MaxLength(30) tradeRegistryNo?: string;
+  @IsOptional() @IsString() @MaxLength(40) iban?: string;
+  @IsOptional() @IsString() @MaxLength(120) ibanHolder?: string;
 }
 
 @Controller("company/docs")
@@ -60,7 +67,10 @@ export class CompanyDocsController {
 
   @Post("submit")
   @RequireCompanyPermission("company:manage")
-  submit(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    return this.service.submit(user.companyId);
+  submit(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: SubmitDocsDto,
+  ) {
+    return this.service.submit(user.companyId, dto);
   }
 }

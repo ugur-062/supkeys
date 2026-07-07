@@ -59,6 +59,11 @@ export class CompanyDocsService {
         country: true,
         companyVerificationStatus: true,
         companyVerifiedAt: true,
+        companyRejectionReason: true,
+        mersisNo: true,
+        tradeRegistryNo: true,
+        iban: true,
+        ibanHolder: true,
       },
     });
     if (!c) throw new NotFoundException("Firma bulunamadı");
@@ -74,9 +79,15 @@ export class CompanyDocsService {
     return {
       status: c.companyVerificationStatus,
       verifiedAt: c.companyVerifiedAt,
+      rejectionReason: c.companyRejectionReason,
       country: c.country,
       docs,
       required: requiredKinds(c.country),
+      // KYC kimlik alanları — formda ön-doldurma + gönderimde zorunlu.
+      mersisNo: c.mersisNo,
+      tradeRegistryNo: c.tradeRegistryNo,
+      iban: c.iban,
+      ibanHolder: c.ibanHolder,
     };
   }
 
@@ -116,8 +127,16 @@ export class CompanyDocsService {
   }
 
   /** Tüm belgeler yüklüyse doğrulamaya gönder (PENDING). */
-  async submit(companyId: string) {
-    const { docs, status, required } = await this.get(companyId);
+  async submit(
+    companyId: string,
+    kyc: {
+      mersisNo?: string;
+      tradeRegistryNo?: string;
+      iban?: string;
+      ibanHolder?: string;
+    } = {},
+  ) {
+    const { docs, status, required, country } = await this.get(companyId);
     const missing = required.filter((k) => !docs[k]);
     if (missing.length > 0) {
       throw new BadRequestException(
@@ -127,9 +146,42 @@ export class CompanyDocsService {
     if (status === "VERIFIED") {
       throw new BadRequestException("Firma zaten doğrulanmış");
     }
+    if (status === "PENDING") {
+      throw new BadRequestException("Doğrulama zaten inceleniyor");
+    }
+    // KYC kimlik bilgileri — TR firmalar için zorunlu (yabancıda opsiyonel,
+    // admin manuel KYB yapar). IBAN basit format kontrolü.
+    const isTR = (country ?? "TR").toUpperCase() === "TR";
+    const mersisNo = kyc.mersisNo?.trim();
+    const tradeRegistryNo = kyc.tradeRegistryNo?.trim();
+    const iban = kyc.iban?.replace(/\s+/g, "").toUpperCase();
+    const ibanHolder = kyc.ibanHolder?.trim();
+    if (isTR) {
+      if (!mersisNo || mersisNo.length < 10) {
+        throw new BadRequestException("MERSİS numarası gerekli (16 hane).");
+      }
+      if (!tradeRegistryNo) {
+        throw new BadRequestException("Ticari sicil numarası gerekli.");
+      }
+      if (!iban || !/^TR\d{24}$/.test(iban)) {
+        throw new BadRequestException(
+          "Geçerli bir IBAN gerekli (TR + 24 rakam).",
+        );
+      }
+      if (!ibanHolder) {
+        throw new BadRequestException("IBAN hesap sahibi gerekli.");
+      }
+    }
     await this.prisma.company.update({
       where: { id: companyId },
-      data: { companyVerificationStatus: "PENDING" },
+      data: {
+        companyVerificationStatus: "PENDING",
+        companyRejectionReason: null, // yeniden gönderimde eski red temizlenir
+        ...(mersisNo !== undefined ? { mersisNo } : {}),
+        ...(tradeRegistryNo !== undefined ? { tradeRegistryNo } : {}),
+        ...(iban !== undefined ? { iban } : {}),
+        ...(ibanHolder !== undefined ? { ibanHolder } : {}),
+      },
     });
     return { ok: true };
   }
