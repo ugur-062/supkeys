@@ -1,6 +1,6 @@
 /**
  * company-listings (ihaleler) — integration testleri (gerçek Postgres, izole
- * supkeys_test şeması). Denetimde bulunan kritik güvenlik/doğruluk noktalarını
+ * rothern_test şeması). Denetimde bulunan kritik güvenlik/doğruluk noktalarını
  * kapsar: kapalı zarf, ülke görünürlüğü, IDOR/owner-scope, teklif kapıları
  * (F2/F3/F6), kazandırma→sipariş doğruluğu, çift-kazandırma (F1), kalem-bazlı
  * (F8), state-machine.

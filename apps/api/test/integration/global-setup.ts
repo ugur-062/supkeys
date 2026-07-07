@@ -1,15 +1,15 @@
 import { execSync } from "node:child_process";
 import * as path from "node:path";
-import { PrismaClient } from "@supkeys/db";
+import { PrismaClient } from "@rothern/db";
 import { TEST_DB_URL, TEST_SCHEMA } from "./env";
 
 /**
- * Tek seferlik: model şemasını izole `supkeys_test` şemasına push et + custom
+ * Tek seferlik: model şemasını izole `rothern_test` şemasına push et + custom
  * SQL sequence'leri (db push türetmez) oluştur. Public (dev) şemasına dokunmaz.
  */
 export default async function globalSetup(): Promise<void> {
   const dbDir = path.resolve(__dirname, "../../../../packages/db");
-  // Modelleri test şemasına yansıt (yalnızca schema=supkeys_test bağlantısı).
+  // Modelleri test şemasına yansıt (yalnızca schema=rothern_test bağlantısı).
   // --accept-data-loss: test şeması atılabilir (her test truncate eder); yeni
   // unique index eklemeleri "olası veri kaybı" uyarısıyla push'u kilitlemesin.
   execSync("pnpm exec prisma db push --skip-generate --accept-data-loss", {

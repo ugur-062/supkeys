@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
-import type { CompanyRole, CompanyTier } from "@supkeys/db";
+import type { CompanyRole, CompanyTier } from "@rothern/db";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { readAuthCookie } from "../../../common/auth/cookie";

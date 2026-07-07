@@ -9,7 +9,7 @@ export const revalidate = 300;
 interface PublicProfile {
   name: string;
   slug: string | null;
-  supkeysId: string | null;
+  rothernId: string | null;
   industry: string | null;
   city: string | null;
   country: string | null;

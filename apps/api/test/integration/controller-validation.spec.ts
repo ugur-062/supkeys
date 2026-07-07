@@ -82,15 +82,15 @@ describe("DTO doğrulama (global ValidationPipe)", () => {
   describe("AddInvitationsDto", () => {
     it("dizi olmalı ve 500'ü aşmamalı", async () => {
       await expect(
-        validate(AddInvitationsDto, { supkeysIds: "x" }),
+        validate(AddInvitationsDto, { rothernIds: "x" }),
       ).rejects.toBeDefined();
       await expect(
         validate(AddInvitationsDto, {
-          supkeysIds: Array.from({ length: 501 }, (_, i) => `c${i}`),
+          rothernIds: Array.from({ length: 501 }, (_, i) => `c${i}`),
         }),
       ).rejects.toBeDefined();
       await expect(
-        validate(AddInvitationsDto, { supkeysIds: ["c1", "c2"] }),
+        validate(AddInvitationsDto, { rothernIds: ["c1", "c2"] }),
       ).resolves.toBeDefined();
     });
   });

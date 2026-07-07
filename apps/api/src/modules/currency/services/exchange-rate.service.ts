@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import type { Currency } from "@supkeys/db";
+import type { Currency } from "@rothern/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { TcmbService } from "./tcmb.service";
 

@@ -5,7 +5,7 @@
  *  2) İngiliz Usulü BEST_AND_OWN_RANK modu (hem en iyi hem kendi sıra).
  *  3) buyNow yetki matrisi (bağlantı/premium/rol).
  */
-import { CompanyRole } from "@supkeys/db";
+import { CompanyRole } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
 import {
   connect,

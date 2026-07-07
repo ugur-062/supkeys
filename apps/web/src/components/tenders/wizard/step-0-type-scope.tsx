@@ -4,7 +4,7 @@ import { useCompanyAuth } from "@/hooks/use-company-auth";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import { cn } from "@/lib/utils";
 import { Radio, RadioGroup } from "@headlessui/react";
-import { COUNTRIES } from "@supkeys/shared";
+import { COUNTRIES } from "@rothern/shared";
 import { Check, FileText, Gavel, Globe, Info, MapPin, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";

@@ -18,7 +18,7 @@ function wsOrigin(): string {
 export function connectRealtime(): Socket {
   if (socket) return socket;
   // Kimlik httpOnly cookie'den — handshake withCredentials ile cookie gönderir
-  // (gateway sk_company okur). Bearer/auth.token taşınmaz.
+  // (gateway rk_company okur). Bearer/auth.token taşınmaz.
   socket = io(wsOrigin(), {
     path: "/rt",
     withCredentials: true,

@@ -20,7 +20,7 @@ export interface SupplierTemplateDetail {
   members: {
     id: string;
     name: string;
-    supkeysId: string | null;
+    rothernId: string | null;
     tier: "STANDARD" | "PAKET";
   }[];
 }

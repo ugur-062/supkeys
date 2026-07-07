@@ -71,7 +71,7 @@ async function ensureAuthUser(
   return data.user.id;
 }
 
-// supkeysId kodu — @supkeys/shared SHORT_CODE alfabesi (karışık karakter yok).
+// rothernId kodu — @rothern/shared SHORT_CODE alfabesi (karışık karakter yok).
 const CODE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 function genCode(): string {
   const pick = () =>
@@ -208,12 +208,12 @@ async function ensureCompany(
   }
 
   let code = genCode();
-  while ((await prisma.company.count({ where: { supkeysId: code } })) > 0) {
+  while ((await prisma.company.count({ where: { rothernId: code } })) > 0) {
     code = genCode();
   }
 
   const company = await prisma.company.create({
-    data: { name, supkeysId: code, tier, country: "TR" },
+    data: { name, rothernId: code, tier, country: "TR" },
   });
   const user = await prisma.companyUser.create({
     data: {

@@ -52,7 +52,7 @@ describe("mesaj blok zorlaması (okuma + inbox)", () => {
     const aCode = "AAAA-0001";
     await prisma.company.update({
       where: { id: a.company.id },
-      data: { supkeysId: aCode },
+      data: { rothernId: aCode },
     });
 
     // A (satınalma=alıcı) → B'ye mesaj; başlangıçta konuşma okunur + inbox'ta var.

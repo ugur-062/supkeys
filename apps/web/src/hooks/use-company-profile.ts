@@ -40,7 +40,7 @@ export interface CompanyProfile {
   ibanHolder: string | null;
   billingPhone: string | null;
   billingPhoneVerifiedAt: string | null;
-  supkeysId: string | null;
+  rothernId: string | null;
   slug: string | null;
   tier: "STANDARD" | "PAKET";
   companyVerificationStatus: string;

@@ -90,13 +90,13 @@ type TabKey = "discover" | "mine" | "incoming";
 
 /** Tıklanabilir firma kartı → herkese açık profil. */
 function CompanyCard({
-  supkeysId,
+  rothernId,
   name,
   industry,
   city,
   badge,
 }: {
-  supkeysId: string | null;
+  rothernId: string | null;
   name: string;
   industry: string | null;
   city: string | null;
@@ -105,10 +105,10 @@ function CompanyCard({
   const meta = [industry, city].filter(Boolean).join(" · ");
   return (
     <Link
-      href={supkeysId ? `/company/firma/${supkeysId}` : "#"}
-      aria-disabled={!supkeysId}
+      href={rothernId ? `/company/firma/${rothernId}` : "#"}
+      aria-disabled={!rothernId}
       onClick={(e) => {
-        if (!supkeysId) e.preventDefault();
+        if (!rothernId) e.preventDefault();
       }}
       className="flex items-center gap-3 rounded-xl border border-zinc-950/10 bg-white p-4 transition hover:bg-zinc-50"
     >
@@ -119,8 +119,8 @@ function CompanyCard({
         </div>
         <div className="truncate text-xs text-zinc-500">
           {meta || "—"}
-          {supkeysId ? (
-            <span className="ml-2 font-mono text-zinc-400">{supkeysId}</span>
+          {rothernId ? (
+            <span className="ml-2 font-mono text-zinc-400">{rothernId}</span>
           ) : null}
         </div>
       </div>
@@ -136,12 +136,12 @@ function CompanyCard({
 /** Bağlantılarım satırı — kart + bağlantıyı kaldır. */
 function ConnectionRow({
   connectionId,
-  supkeysId,
+  rothernId,
   name,
   badge,
 }: {
   connectionId: string;
-  supkeysId: string | null;
+  rothernId: string | null;
   name: string;
   badge?: { label: string; color: React.ComponentProps<typeof Badge>["color"] };
 }) {
@@ -168,7 +168,7 @@ function ConnectionRow({
   };
 
   const handleBlock = async () => {
-    if (!supkeysId) return;
+    if (!rothernId) return;
     const ok = await confirmDialog({
       title: "Firma engellensin mi?",
       description: `"${name}" sizi göremez ve sizinle işlem yapamaz.`,
@@ -177,7 +177,7 @@ function ConnectionRow({
     });
     if (!ok) return;
     try {
-      await block.mutateAsync({ supkeysId });
+      await block.mutateAsync({ rothernId });
       toast.success("Firma engellendi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Engellenemedi"));
@@ -185,9 +185,9 @@ function ConnectionRow({
   };
 
   const submitComplaint = async (reason: string) => {
-    if (!supkeysId || reason.trim().length < 3) return;
+    if (!rothernId || reason.trim().length < 3) return;
     try {
-      await complaint.mutateAsync({ supkeysId, reason: reason.trim() });
+      await complaint.mutateAsync({ rothernId, reason: reason.trim() });
       toast.success("Şikayet gönderildi");
       setComplaintOpen(false);
     } catch (err) {
@@ -198,10 +198,10 @@ function ConnectionRow({
   return (
     <div className="flex items-center gap-2 rounded-xl border border-zinc-950/10 bg-white pr-2 transition hover:bg-zinc-50">
       <Link
-        href={supkeysId ? `/company/firma/${supkeysId}` : "#"}
-        aria-disabled={!supkeysId}
+        href={rothernId ? `/company/firma/${rothernId}` : "#"}
+        aria-disabled={!rothernId}
         onClick={(e) => {
-          if (!supkeysId) e.preventDefault();
+          if (!rothernId) e.preventDefault();
         }}
         className="flex min-w-0 flex-1 items-center gap-3 p-4"
       >
@@ -210,9 +210,9 @@ function ConnectionRow({
           <div className="truncate text-sm font-semibold text-zinc-900">
             {name}
           </div>
-          {supkeysId ? (
+          {rothernId ? (
             <div className="truncate font-mono text-xs text-zinc-400">
-              {supkeysId}
+              {rothernId}
             </div>
           ) : null}
         </div>
@@ -303,7 +303,7 @@ export function ConnectionsView() {
     return rows.filter((c) =>
       [
         c.company.name,
-        c.company.supkeysId ?? "",
+        c.company.rothernId ?? "",
         c.company.industry ?? "",
         c.company.city ?? "",
       ]
@@ -515,7 +515,7 @@ export function ConnectionsView() {
                 {discover.data.companies.slice(0, 6).map((c) => (
                   <CompanyCard
                     key={c.id}
-                    supkeysId={c.supkeysId}
+                    rothernId={c.rothernId}
                     name={c.name}
                     industry={c.industry}
                     city={null}
@@ -548,8 +548,8 @@ export function ConnectionsView() {
             <div className="grid gap-3 sm:grid-cols-2">
               {search.data.map((c) => (
                 <CompanyCard
-                  key={c.supkeysId ?? c.name}
-                  supkeysId={c.supkeysId}
+                  key={c.rothernId ?? c.name}
+                  rothernId={c.rothernId}
                   name={c.name}
                   industry={c.industry}
                   city={c.city}
@@ -591,7 +591,7 @@ export function ConnectionsView() {
                 <ConnectionRow
                   key={c.connectionId}
                   connectionId={c.connectionId}
-                  supkeysId={c.company.supkeysId}
+                  rothernId={c.company.rothernId}
                   name={c.company.name}
                   badge={ORIGIN_BADGE[c.origin]}
                 />
@@ -629,7 +629,7 @@ export function ConnectionsView() {
                       className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3"
                     >
                       <CompanyLinkRow
-                        supkeysId={inv.company.supkeysId}
+                        rothernId={inv.company.rothernId}
                         name={inv.company.name}
                       />
                       <div className="flex gap-2">
@@ -678,7 +678,7 @@ export function ConnectionsView() {
                       className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
                     >
                       <CompanyLinkRow
-                        supkeysId={inv.company.supkeysId}
+                        rothernId={inv.company.rothernId}
                         name={inv.company.name}
                       />
                       <Button
@@ -920,10 +920,10 @@ function BatchInviteDialog({
 }
 
 function CompanyLinkRow({
-  supkeysId,
+  rothernId,
   name,
 }: {
-  supkeysId: string | null;
+  rothernId: string | null;
   name: string;
 }) {
   const inner = (
@@ -933,18 +933,18 @@ function CompanyLinkRow({
         <div className="truncate text-sm font-semibold text-zinc-900">
           {name}
         </div>
-        {supkeysId ? (
-          <div className="font-mono text-xs text-zinc-500">{supkeysId}</div>
+        {rothernId ? (
+          <div className="font-mono text-xs text-zinc-500">{rothernId}</div>
         ) : null}
       </div>
     </>
   );
-  if (!supkeysId) {
+  if (!rothernId) {
     return <div className="flex min-w-0 items-center gap-3">{inner}</div>;
   }
   return (
     <Link
-      href={`/company/firma/${supkeysId}`}
+      href={`/company/firma/${rothernId}`}
       className="flex min-w-0 items-center gap-3"
     >
       {inner}

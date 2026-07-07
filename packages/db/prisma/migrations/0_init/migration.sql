@@ -237,7 +237,7 @@ CREATE TABLE "audit_logs" (
 -- CreateTable
 CREATE TABLE "companies" (
     "id" TEXT NOT NULL,
-    "supkeysId" TEXT,
+    "rothernId" TEXT,
     "slug" TEXT,
     "name" TEXT NOT NULL,
     "legalName" TEXT,
@@ -953,7 +953,7 @@ CREATE INDEX "audit_logs_action_createdAt_idx" ON "audit_logs"("action", "create
 CREATE INDEX "audit_logs_actorId_idx" ON "audit_logs"("actorId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "companies_supkeysId_key" ON "companies"("supkeysId");
+CREATE UNIQUE INDEX "companies_rothernId_key" ON "companies"("rothernId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "companies_slug_key" ON "companies"("slug");
@@ -1313,7 +1313,6 @@ ALTER TABLE "company_bank_accounts" ADD CONSTRAINT "company_bank_accounts_compan
 ALTER TABLE "company_addresses" ADD CONSTRAINT "company_addresses_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "companies"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 
--- Uygulama sistem-genelinde benzersiz numara için global sequence kullanır
--- (nextval $queryRaw ile). Prisma datamodel'de temsil edilmez → elle korunur.
+-- Global sequenceler (Prisma datamodelde yok, elle korunur).
 CREATE SEQUENCE IF NOT EXISTS "listing_number_seq" START 1;
 CREATE SEQUENCE IF NOT EXISTS "order_number_seq" START 1;

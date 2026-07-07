@@ -20,7 +20,7 @@ import {
  * Public (auth guard YOK), svix imza ile korunur.
  *
  * Resend dashboard'unda (production) URL:
- *   https://api.supkeys.com/api/webhooks/resend
+ *   https://api.rothern.com/api/webhooks/resend
  *
  * Local'de mock script `pnpm test:webhook` doğrudan ResendEventService'i
  * çağırır — bu controller'a HTTP request atmaz.

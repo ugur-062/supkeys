@@ -1,6 +1,6 @@
 # Web E2E Tests (Playwright)
 
-Browser-based UI tests for the supkeys web app.
+Browser-based UI tests for the rothern web app.
 
 > **Durum:** Eski tenant/supplier sistemine ait `auction.spec.ts` kaldırıldı
 > (sistem söküldü). Şu an aktif e2e spec'i YOK. Birleşik Company sistemi
@@ -51,4 +51,4 @@ Yeni spec'ler için dev hesapları (birleşik Company sistemi):
 CI'da çalıştırmak için:
 1. Workflow'da `pnpm exec playwright install --with-deps chromium`
 2. API + web background'da başlat
-3. `pnpm --filter @supkeys/web e2e`
+3. `pnpm --filter @rothern/web e2e`

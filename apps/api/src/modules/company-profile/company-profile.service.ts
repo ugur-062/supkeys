@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { generateSlug, isValidIbanTr, normalizeIban } from "@supkeys/shared";
+import { generateSlug, isValidIbanTr, normalizeIban } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
 import { UpdateCompanyProfileDto } from "./dto/update-company-profile.dto";
@@ -48,7 +48,7 @@ const SELECT = {
   ibanHolder: true,
   billingPhone: true,
   billingPhoneVerifiedAt: true,
-  supkeysId: true,
+  rothernId: true,
   slug: true,
   tier: true,
   companyVerificationStatus: true,

@@ -2,7 +2,7 @@
  * Faz 2 — Firma Doğrulama sihirbazı (completeOnboarding). Kurumsal kimlik +
  * TR vergi/TCKN doğrulama + kategori + adres + rol + onboardingCompletedAt.
  */
-import { CompanyRole, Prisma } from "@supkeys/db";
+import { CompanyRole, Prisma } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeUser } from "./factories";
 import { makeAuthService } from "./make-auth-service";

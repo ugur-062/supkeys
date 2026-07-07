@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import * as crypto from "node:crypto";
-import { ListingBidDocKind } from "@supkeys/db";
+import { ListingBidDocKind } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { StorageService } from "../storage/storage.service";

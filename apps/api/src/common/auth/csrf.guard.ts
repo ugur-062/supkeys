@@ -11,7 +11,7 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /**
  * CSRF çift-gönderim (double-submit) guard'ı. Yalnız COOKIE ile kimlik
- * doğrulanan mutating isteklerde `X-CSRF-Token` header'ı = `sk_csrf` cookie'si
+ * doğrulanan mutating isteklerde `X-CSRF-Token` header'ı = `rk_csrf` cookie'si
  * şartını arar. Muaf:
  *  - Güvenli metotlar (GET/HEAD/OPTIONS)
  *  - Auth cookie'si olmayan istekler (login/signup/public/webhook — korunacak

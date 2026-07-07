@@ -67,7 +67,7 @@ export interface CounterpartyProfile {
   industry: string | null;
   email: string | null;
   phone: string | null;
-  supkeysId: string | null;
+  rothernId: string | null;
 }
 
 /** Teslimat adresi snapshot'ı (award anında: ALIM→ilan, SATIS→kazanan teklif). */

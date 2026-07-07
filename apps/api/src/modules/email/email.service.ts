@@ -7,7 +7,7 @@ import {
   type EmailProviderName,
   type EmailRecipient,
   type EmailTemplateData,
-} from "@supkeys/email";
+} from "@rothern/email";
 import { PrismaService } from "../../common/prisma/prisma.service";
 
 export interface SendEmailInput {

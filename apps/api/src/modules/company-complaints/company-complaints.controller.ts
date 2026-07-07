@@ -18,7 +18,7 @@ class FileComplaintDto {
   @IsString()
   @MinLength(4)
   @MaxLength(20)
-  supkeysId!: string;
+  rothernId!: string;
 
   @IsString()
   @MinLength(3)

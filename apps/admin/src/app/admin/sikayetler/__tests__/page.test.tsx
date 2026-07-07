@@ -23,8 +23,8 @@ import AdminSikayetlerPage from "../page";
 function complaint(overrides: Record<string, unknown> = {}) {
   return {
     id: "k1",
-    complainant: { name: "Şikayetçi A.Ş.", supkeysId: "SK-001" },
-    against: { id: "c2", name: "Hakkında Ltd.", supkeysId: "SK-002" },
+    complainant: { name: "Şikayetçi A.Ş.", rothernId: "SK-001" },
+    against: { id: "c2", name: "Hakkında Ltd.", rothernId: "SK-002" },
     reason: "Teslimat gecikmesi",
     detail: "Sipariş 30 gün geç geldi.",
     status: "OPEN",

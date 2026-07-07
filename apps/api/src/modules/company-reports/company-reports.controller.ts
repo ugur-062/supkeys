@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import type { Response } from "express";
-import type { ListingType } from "@supkeys/db";
+import type { ListingType } from "@rothern/db";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,

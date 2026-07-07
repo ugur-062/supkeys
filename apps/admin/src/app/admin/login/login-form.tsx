@@ -66,7 +66,7 @@ export function AdminLoginForm() {
         <Input
           id="email"
           type="email"
-          placeholder="admin@supkeys.com"
+          placeholder="admin@rothern.com"
           autoComplete="email"
           autoFocus
           hasError={!!errors.email}

@@ -30,7 +30,7 @@ describe("AuditLogsPage", () => {
             tenantId: null,
             actorType: "admin",
             actorId: "adm1",
-            actorEmail: "admin@supkeys.com",
+            actorEmail: "admin@rothern.com",
             action: "auth.login",
             entityType: "Company",
             entityId: "company-123456789",
@@ -48,7 +48,7 @@ describe("AuditLogsPage", () => {
 
     // Satırı e-posta hücresinden bul; "Admin" aktör-tipi filtre <option>'unda
     // da geçtiği için rozeti satır içine kısıtla.
-    const row = screen.getByText("admin@supkeys.com").closest("tr") as HTMLElement;
+    const row = screen.getByText("admin@rothern.com").closest("tr") as HTMLElement;
     // ACTION_LABELS["auth.login"] = "Giriş"
     expect(within(row).getByText("Giriş")).toBeInTheDocument();
     // ACTOR_META admin label

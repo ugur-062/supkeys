@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { CompanyVerificationStatus, ComplaintStatus } from "@supkeys/db";
+import { CompanyVerificationStatus, ComplaintStatus } from "@rothern/db";
 import { StorageService } from "../storage/storage.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -96,7 +96,7 @@ export class AdminCompaniesService {
       const q = query.q.trim();
       where.OR = [
         { name: { contains: q, mode: "insensitive" } },
-        { supkeysId: { contains: q.toUpperCase() } },
+        { rothernId: { contains: q.toUpperCase() } },
         { taxNumber: { contains: q } },
       ];
     }
@@ -104,7 +104,7 @@ export class AdminCompaniesService {
       where,
       select: {
         id: true,
-        supkeysId: true,
+        rothernId: true,
         name: true,
         taxNumber: true,
         country: true,
@@ -119,7 +119,7 @@ export class AdminCompaniesService {
     });
     return rows.map((c) => ({
       id: c.id,
-      supkeysId: c.supkeysId,
+      rothernId: c.rothernId,
       name: c.name,
       taxNumber: c.taxNumber,
       country: c.country,
@@ -136,7 +136,7 @@ export class AdminCompaniesService {
       where: { id },
       select: {
         id: true,
-        supkeysId: true,
+        rothernId: true,
         name: true,
         legalName: true,
         taxNumber: true,
@@ -312,8 +312,8 @@ export class AdminCompaniesService {
     const rows = await this.prisma.companyComplaint.findMany({
       where: status ? { status: status as ComplaintStatus } : {},
       include: {
-        complainant: { select: { name: true, supkeysId: true } },
-        against: { select: { id: true, name: true, supkeysId: true } },
+        complainant: { select: { name: true, rothernId: true } },
+        against: { select: { id: true, name: true, rothernId: true } },
       },
       orderBy: [{ status: "asc" }, { createdAt: "desc" }],
       take: 200,

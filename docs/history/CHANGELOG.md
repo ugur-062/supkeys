@@ -1,4 +1,4 @@
-# Supkeys — Geliştirme Geçmişi
+# Rothern — Geliştirme Geçmişi
 
 Bu dosya tamamlanmış aşamaların detaylı kaydıdır. Aktif çalışma için CLAUDE.md'ye bakın.
 
@@ -46,7 +46,7 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 - **Sipariş modülleri V1 read-only:** `/tenants/me/orders` + `/supplier/orders` (list/stats/detail). `/dashboard/siparisler` + `/supplier/siparisler` aktif.
 
 ### E.6 — V1 Final Polish
-- `packages/db` tsconfig fix (rootDir `./src` → `.`, `@supkeys/shared` workspace dep eklendi)
+- `packages/db` tsconfig fix (rootDir `./src` → `.`, `@rothern/shared` workspace dep eklendi)
 - Cleanup script `prisma/scripts/cleanup-pending-relations.ts` (legacy `PENDING_TENANT_APPROVAL` → `ACTIVE` migration)
 - Tenant Dashboard canlı KPI'lar: aktif/kazandırma/aktif tedarikçi/bekleyen sipariş + Son 30 Gün özeti (tamamlanan ihale + gelen teklif + toplam harcama) + Aktif İhaleler Özeti (4 tab linki) + Aktivite Feed (tender/bid/order, tıklayınca detay)
 - Supplier Dashboard canlı KPI'lar: aktif davetler/aktif teklifler/kazanılan/bekleyen sipariş + Performans (son 30 gün teklif + toplam gelir + bağlı alıcı) + Aktivite Feed (invitation/bid/order)
@@ -63,13 +63,13 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
   - `tenant-users` (`/tenants/me/users` namespace): `GET /` (list), `GET /me`, `PATCH /me` (sadece firstName/lastName/phone, role/isActive strip), `POST /change-password`, `PATCH /me/notification-prefs` ({prefs} body, sanitize boolean only). COMPANY_ADMIN-only: `POST /invite`, `GET /invitations`, `DELETE /invitations/:id`, `POST /invitations/:id/resend`, `PATCH /:id`. **Son admin protection** servis seviyesinde: COMPANY_ADMIN'i pasif yapamaz veya rolünü değiştiremez (en az 1 aktif admin kontrolü).
   - `public-invitations` (`/invitations` namespace, JWT yok): `GET /:token` (davet bilgisi), `POST /:token/accept` (user create + JWT döner — auto-login). On-the-fly EXPIRED detection (kayıt update + 409). Race protection: aynı e-posta zaten user olarak kayıtlıysa 409.
   - `AuthModule` artık `JwtModule`'ü export ediyor — diğer modüller (PublicInvitations) aynı imza ile token üretebilsin.
-- **E-posta:** `user_invitation` şablonu (Layout + heading + info box "Davet bilgileri: firma/rol/süre" + acceptUrl CTA + "beklemiyorsan yok say" footer). Subject `👥 {tenantName} ekibine davet edildiniz — Supkeys`. types.ts/render.ts/index.ts'e tam entegre.
+- **E-posta:** `user_invitation` şablonu (Layout + heading + info box "Davet bilgileri: firma/rol/süre" + acceptUrl CTA + "beklemiyorsan yok say" footer). Subject `👥 {tenantName} ekibine davet edildiniz — Rothern`. types.ts/render.ts/index.ts'e tam entegre.
 - **Frontend ayarlar (`/dashboard/ayarlar`):** Ana sayfa 5 kart (Hesap Bilgileri / Şifre İşlemleri / Kullanıcı İşlemleri (admin-only) / Bildirim Tercihleri / Firma Profili) PratisPro stili. Tüm alt sayfalarda `<BackToSettings>` ortak komponent.
   - **Hesap Bilgileri:** read-only mode + Pencil "Düzenle" butonu → react-hook-form + zod (firstName/lastName/phone). E-posta disabled. Rol read-only (label).
   - **Şifre İşlemleri:** 3 alan (mevcut/yeni/onay), zod refine ile "şifreler eşleşmiyor" + "yeni şifre eski ile aynı olamaz". Backend `currentPassword` bcrypt karşılaştırma + 400.
   - **Kullanıcı İşlemleri:** UsersTable (avatar + ad + e-posta + rol pill + aktif/pasif chip + son giriş relative time + Radix DropdownMenu "Düzenle" / "Pasif Yap" / "Aktif Et"). InvitationsList (sadece bekleyen davetler — Mail ikon + e-posta + rol + invitedBy + süre + Yeniden Gönder/İptal Et). InviteUserModal (e-posta + 3 radio kart rol seçimi). EditUserModal (firstName/lastName/phone/role). BUYER/APPROVER login olduğunda sayfa "sadece COMPANY_ADMIN" warning kartına düşer.
   - **Bildirim Tercihleri:** 5 grup (İhale 8 alt, Onay 2, Sipariş 2, Tedarikçi 2, Sistem 2 — sistem `locked: true`). Group-level toggle (indeterminate state) + alt-checkbox. Auto-save (her toggle'da PATCH `/me/notification-prefs`). Default opt-in (key yoksa `true`).
-  - **Firma Profili:** read-only (companyName/taxNumber/taxOffice/industry/city/district/addressLine/postalCode) + warning pill "Düzenleme · V2" + destek@supkeys.com link.
+  - **Firma Profili:** read-only (companyName/taxNumber/taxOffice/industry/city/district/addressLine/postalCode) + warning pill "Düzenleme · V2" + destek@rothern.com link.
   - Hooks: `useTenantUsers/UserMe/UpdateMe/ChangePassword/UpdateUser/InviteUser/Invitations/CancelInvitation/ResendInvitation/UpdateNotificationPrefs`. Public hooks: `useInvitation` (retry: false) + `useAcceptInvitation`.
 - **Frontend `/accept-invite/[token]` (public):** Server component → token-aware client. `useInvitation(token)` ile davet bilgisi (loading/error states + 409/404 farklı mesajlar). Form: ad/soyad/telefon (opsiyonel)/şifre/şifre tekrar. Şifre regex `/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/`. Submit → `useAcceptInvitation` → setAuth → `/dashboard` redirect + welcome toast. metadata.robots noindex/nofollow.
 - **Manuel E2E doğrulama:**
@@ -207,7 +207,7 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
   - Webhook endpoint dev'de svix-id header eksik → 400 "svix-id header zorunlu" (guard skip ama controller seviyesi validation) ✓
   - typecheck (api+web+admin+email+shared+db) tüm yeşil ✓
 
-> **Production'a geçiş**: Resend dashboard → Webhooks → URL `https://api.supkeys.com/api/webhooks/resend` + `RESEND_WEBHOOK_SECRET=whsec_...` env'e set edilecek. `NODE_ENV=production` ile guard tam svix imza doğrulamasına geçer; eksik secret 401 döner.
+> **Production'a geçiş**: Resend dashboard → Webhooks → URL `https://api.rothern.com/api/webhooks/resend` + `RESEND_WEBHOOK_SECRET=whsec_...` env'e set edilecek. `NODE_ENV=production` ile guard tam svix imza doğrulamasına geçer; eksik secret 401 döner.
 
 ### V2-2 — Cloudflare R2 + Dosya Upload Sistemi
 - **Schema migration `v2_attachments_r2`:**
@@ -261,7 +261,7 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
   - typecheck 6/6 (api+web+admin+email+shared+db) yeşil ✓
   - **Kullanıcı tarafı bekleyen**: gerçek R2 credentials → API reload → bucket health log → browser'dan upload/download/delete + Cloudflare R2 console doğrulama (8 senaryo: upload, list, download, delete, MIME reject, size reject, cross-tenant 403, published-tender delete-block) — kullanıcı bu env'leri verince tek tıkla test edilebilir.
 
-> **R2 setup**: Cloudflare Dashboard → R2 → bucket oluştur (ad fark etmez; `R2_BUCKET` env'i ile eşleştir). Bu kurulumda bucket adı `supkeys-documents`. Manage R2 API Tokens → Create Token → "Object Read & Write" permission, bucket scope'lu. Token oluşunca `R2_ACCOUNT_ID` (Cloudflare hesap ID), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`, `R2_BUCKET=<bucket-adı>` **root `/.env`'e** yazılır (ConfigModule sadece root .env'i okur). Sonra API restart.
+> **R2 setup**: Cloudflare Dashboard → R2 → bucket oluştur (ad fark etmez; `R2_BUCKET` env'i ile eşleştir). Bu kurulumda bucket adı `rothern-documents`. Manage R2 API Tokens → Create Token → "Object Read & Write" permission, bucket scope'lu. Token oluşunca `R2_ACCOUNT_ID` (Cloudflare hesap ID), `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`, `R2_BUCKET=<bucket-adı>` **root `/.env`'e** yazılır (ConfigModule sadece root .env'i okur). Sonra API restart.
 
 ### V2-3 — Multi-Currency + TCMB Integration
 - **Schema migration `v2_multi_currency`:**
@@ -440,7 +440,7 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
   - Geçersiz email format → `errors.email` TR mesaj ✓
   - `forbidNonWhitelisted` extra field → `errors.extra: "Bu alan kabul edilmiyor"` ✓
   - SQL injection sort (`?sort=DROP+TABLE--`) → `errors.sort: "Geçersiz seçim"` (whitelist'ten) ✓
-  - `pnpm test:emails` → 30 şablon enqueue edildi, hepsi Mailpit'e SENT durumunda ulaştı (DB'de `email_logs` `qa-mailpit@supkeys-dev.local` query 30 satır SENT). Mailpit UI üzerinden http://localhost:8025'te görsel inceleme yapılabilir.
+  - `pnpm test:emails` → 30 şablon enqueue edildi, hepsi Mailpit'e SENT durumunda ulaştı (DB'de `email_logs` `qa-mailpit@rothern-dev.local` query 30 satır SENT). Mailpit UI üzerinden http://localhost:8025'te görsel inceleme yapılabilir.
   - typecheck (api+web+admin+email+shared+db) tüm yeşil ✓
 
 > NOT — Mobile responsive (sidebar drawer, tablo card view, modal full-screen): Tenant sidebar `mobileOpen` drawer çoktan mevcut (Polish öncesi). Diğer mobile fix'ler (tablo card view 768px, modal `inset-0` 640px, supplier sidebar drawer) Polish-3 scope'unda DOKUNULMADI — V2'de "mobile responsive sweep" ayrı sprint olarak ele alınacak. iOS zoom prevention CSS hızlı kazanç olarak eklendi (en sık şikayet edilen mobile bug).
@@ -551,11 +551,11 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
   - **Items hesabı:** `bid.items` `isWinner=true`, `awardedQuantity ?? tenderItem.quantity` × `unitPrice` = `totalPrice`. KDV %20 sabit (V1.5), `subtotal + vatAmount = total`.
   - Status TR label sabit map (`PENDING/IN_DELIVERY/COMPLETED/CANCELLED + legacy`).
 - **Order PDF HTML template** (`pdf/templates/order-pdf.template.ts`):
-  - A4 page, brand-blue gradient header (`#2563eb→#1e40af`), supkeys logo + sub-tagline, sağ üstte sipariş no + status pill.
+  - A4 page, brand-blue gradient header (`#2563eb→#1e40af`), rothern logo + sub-tagline, sağ üstte sipariş no + status pill.
   - 4 ana bölüm: Sipariş Bilgileri (tarih/ihale ref/title/tahmini teslim) + Teslimat Adresi (snapshot pre-line) + 2 info card (Alıcı/Tedarikçi: VKN/vergi dairesi/adres/iletişim) + Kalemler tablosu (#/Ürün+desc/Miktar/Birim/Birim Fiyat/Toplam) + Totals box (Ara Toplam / KDV %20 / Genel Toplam).
   - Notlar bölümü (varsa Teklif Notu + Teslimat Notu — yellow `#fef3c7` callout).
   - **2 imza kutusu** (Alıcı + Tedarikçi şirket adı + dashed `İmza & Tarih` placeholder).
-  - Footer "Bu belge supkeys.com üzerinden ... oluşturulmuştur".
+  - Footer "Bu belge rothern.com üzerinden ... oluşturulmuştur".
   - HTML escape utility (XSS koruması: `&<>"'` → entity).
 - **Endpoint'ler:**
   - `GET /tenants/me/orders/:id/pdf` — `Res()` express response, `Content-Type: application/pdf`, `Content-Disposition: attachment; filename="Siparis-ORD-2026-XXXX.pdf"`.
@@ -581,7 +581,7 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
   - PENDING_TENANT_APPROVAL → ACTIVE (defansif).
   - `userInvitation.expiresAt < now` AND `status=PENDING` → `EXPIRED`.
   - 30+ gün önce FAILED EmailLog count raporlaması (silinmez).
-  - `package.json` script: `pnpm --filter @supkeys/db v15-cleanup`.
+  - `package.json` script: `pnpm --filter @rothern/db v15-cleanup`.
 - **Manuel E2E doğrulama:**
   - cleanup script: 0 PENDING + 0 expired + 0 old failed (boş ortam) ✓
   - cleanup script: test expired invitation ekle → 1 expired UserInvitation marked EXPIRED ✓
@@ -623,7 +623,7 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
 - **Approver pasifleştirilirse cron-tabanlı fallback** (`@Cron(EVERY_MINUTE)` `fallbackInactiveApprovers` in `TenantApprovalRequestsService`):
   - PENDING request'lerde PENDING step'i olup `approver.isActive=false` olanlar batch 50 fetch.
   - Her step için: aynı tenant'taki ilk ACTIVE COMPANY_ADMIN'i bulur (eski approver hariç, createdAt asc), step'in `approverUserId`'sini günceller.
-  - Idempotency: zaten admin ise atla. Admin yoksa error log + skip (V2'de support@supkeys.com alert).
+  - Idempotency: zaten admin ise atla. Admin yoksa error log + skip (V2'de support@rothern.com alert).
   - Yeni approver'a `approval_required` e-postası `isFallback: true` + `originalApproverName` flag'leri ile. Subject prefix `[Otomatik Atama]`.
   - `ApprovalRequiredData` typeına `isFallback?` + `originalApproverName?` eklendi. Şablon body'sinde sarı warning banner (HTML + text).
 - **Manuel E2E doğrulama** (10 senaryo + 3 fallback senaryosu):
@@ -683,7 +683,7 @@ NestJS Schedule cron (`EVERY_MINUTE` `closeExpiredTenders`), 3 buyer endpoint (`
   - `SupplierCategory` junction (`supplierId` + `categoryId` + UNIQUE composite + `categoryId` index).
   - `Tender.categoryId String?` + FK ON DELETE SetNull (V1 backward-compat: legacy ihaleler null).
   - `Supplier.categories` + `Tenant…` reverse relations; `SupplierApplication.categoryIds Json?` (register'da seçilen ID'ler, admin onayında junction'a kopyalanır).
-- **Seed `packages/db/src/seeds/categories.json`** — 8 segment (A-H, PratisPro tarzı Türkçe isimler) × 46-57 family = **400 kayıt** Türkçe + İngilizce. `pnpm --filter @supkeys/db seed-categories` idempotent upsert (re-run güvenli).
+- **Seed `packages/db/src/seeds/categories.json`** — 8 segment (A-H, PratisPro tarzı Türkçe isimler) × 46-57 family = **400 kayıt** Türkçe + İngilizce. `pnpm --filter @rothern/db seed-categories` idempotent upsert (re-run güvenli).
 - **Backend `categories` modülü** (`@Global`, `apps/api/src/modules/categories/`):
   - `CategoryService.getTree()` — segment + nested children (1 query + filter).
   - `CategoryService.search(q)` — Family seviyesi case-insensitive `nameTr/nameEn` OR + `breadcrumb` ("A. Segment Adı › Family Adı"). Min 2 char (boş array <2). Top 50.

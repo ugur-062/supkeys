@@ -64,7 +64,7 @@ async function fetchWithTimeout(
       signal: ctrl.signal,
       redirect: "follow",
       headers: {
-        "User-Agent": "SupkeysBot/1.0 (+https://supkeys.com)",
+        "User-Agent": "RothernBot/1.0 (+https://rothern.com)",
         Accept: accept,
       },
     });

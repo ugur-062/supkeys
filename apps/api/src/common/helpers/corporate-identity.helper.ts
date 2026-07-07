@@ -4,7 +4,7 @@ import {
   isValidIbanTr,
   isValidMersis,
   normalizeIban,
-} from "@supkeys/shared";
+} from "@rothern/shared";
 
 export interface CorporateIdentityInput {
   mersisNo?: string;

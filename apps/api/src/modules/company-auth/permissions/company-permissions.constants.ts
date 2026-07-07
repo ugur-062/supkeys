@@ -1,4 +1,4 @@
-import type { CompanyRole } from "@supkeys/db";
+import type { CompanyRole } from "@rothern/db";
 
 /**
  * Birleşik sistem — CompanyRole → izin matrisi.

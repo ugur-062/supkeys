@@ -27,7 +27,7 @@ async function submit(user: ReturnType<typeof userEvent.setup>) {
   // form kontrolüne kısıtla.
   await user.type(
     screen.getByLabelText("E-posta", { exact: false, selector: "input" }),
-    "admin@supkeys.com",
+    "admin@rothern.com",
   );
   await user.type(
     screen.getByLabelText("Şifre", { exact: false, selector: "input" }),
@@ -60,7 +60,7 @@ describe("AdminLoginForm", () => {
     await submit(user);
 
     expect(h.mutate).toHaveBeenCalledWith(
-      { email: "admin@supkeys.com", password: "admin12345" },
+      { email: "admin@rothern.com", password: "admin12345" },
       expect.anything(),
     );
     expect(h.toast.success).toHaveBeenCalledWith("Hoş geldin, Ada!");

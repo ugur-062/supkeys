@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { Currency } from "@supkeys/db";
+import type { Currency } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { ExchangeRateService } from "../currency/services/exchange-rate.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";

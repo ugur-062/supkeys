@@ -13,7 +13,7 @@ export class AddInvitationsDto {
   @ArrayMaxSize(500)
   @IsString({ each: true })
   @Type(() => String)
-  supkeysIds!: string[];
+  rothernIds!: string[];
 }
 
 export class InternalNotesDto {

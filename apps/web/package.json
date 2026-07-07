@@ -1,5 +1,5 @@
 {
-  "name": "@supkeys/web",
+  "name": "@rothern/web",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -19,7 +19,7 @@
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@supabase/supabase-js": "^2.106.0",
-    "@supkeys/shared": "workspace:*",
+    "@rothern/shared": "workspace:*",
     "@tanstack/react-query": "^5.62.11",
     "axios": "^1.7.9",
     "clsx": "^2.1.1",

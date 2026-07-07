@@ -138,7 +138,7 @@
 | Mod-geçişi veri sızıntısı | Tüm sorgular **companyId + rol** scope; kapalı zarf korunur |
 | Auth 2 token | Tek **`company`** token (roller + üyelik claim'leri) |
 | Adres: TenantAddress (tipli) vs supplier inline | Tek **Address** defteri (TenantAddress genelleşir) |
-| supkeysId ikisinde de var | Tek Company.supkeysId |
+| rothernId ikisinde de var | Tek Company.rothernId |
 | Banka/sertifika (supplier'da zengin) | Company seviyesine taşınır |
 
 **FK migration (en riskli):** `bid.supplierId`, `invitation.supplierId`, `order.tenantId/supplierId`, ilişkiler → **companyId** (sipariş: `sellerCompanyId`/`buyerCompanyId`). Kademeli: Company kur → veri taşı → FK repoint → eski tabloları deprecate. **Staging'de prova zorunlu.**
@@ -148,7 +148,7 @@
 ## 10. Auth
 
 - İki strateji (`type:"tenant"` / `type:"supplier"`) → tek **`type:"company"`** token. İçinde: `companyId`, `userId`, `roles[]`, `tier`.
-- Tek login, tek store (`supkeys-auth`), tek axios. Admin (`type:"admin"`) **ayrı kalır.**
+- Tek login, tek store (`rothern-auth`), tek axios. Admin (`type:"admin"`) **ayrı kalır.**
 - Permission guard'lar: "panel tipi" değil **"işlemdeki rol + firma üyeliği"** ile.
 
 ---

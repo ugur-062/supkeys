@@ -18,9 +18,9 @@ function loadRootEnv(): void {
 }
 loadRootEnv();
 
-export const TEST_SCHEMA = "supkeys_test";
+export const TEST_SCHEMA = "rothern_test";
 
-/** Bağlantı URL'ine `schema=supkeys_test` ekler (varsa eskisini değiştirir). */
+/** Bağlantı URL'ine `schema=rothern_test` ekler (varsa eskisini değiştirir). */
 function withTestSchema(url: string): string {
   let u = url
     .replace(/([?&])schema=[^&]*/, "$1")

@@ -16,7 +16,7 @@ export class PublicProfileService {
         id: true,
         name: true,
         slug: true,
-        supkeysId: true,
+        rothernId: true,
         industry: true,
         city: true,
         country: true,

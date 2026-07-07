@@ -45,7 +45,7 @@ export class CompanyListingDocumentsController {
       key: string;
       fileName: string;
       mimeType: string;
-      kind?: import("@supkeys/db").ListingDocKind;
+      kind?: import("@rothern/db").ListingDocKind;
     },
   ) {
     return this.service.register(user, id, body);

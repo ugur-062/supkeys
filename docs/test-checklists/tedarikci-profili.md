@@ -8,7 +8,7 @@ V2-PUBLIC-PROFILE + V2-REVIEWS + V2-SEO uçtan uca test.
 
 ```bash
 # Migration uygulanmış mı
-pnpm --filter @supkeys/db exec prisma migrate status
+pnpm --filter @rothern/db exec prisma migrate status
 # Beklenen: "Database schema is up to date"
 
 # API çalışıyor mu

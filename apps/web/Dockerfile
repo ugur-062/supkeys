@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # ─────────────────────────────────────────────────────────────────────────────
-# Supkeys Web (Next.js 15, tenant + supplier) — Coolify/Hetzner imajı.
+# Rothern Web (Next.js 15, tenant + supplier) — Coolify/Hetzner imajı.
 # output:"standalone" → ~150MB runtime imaj (`node server.js`, `next start` yok).
 #
 # DİKKAT — NEXT_PUBLIC_* DERLEME ZAMANI gömülür (runtime env DEĞİL). Coolify'de
@@ -34,12 +34,12 @@ COPY packages/shared/package.json packages/shared/package.json
 COPY packages/email/package.json packages/email/package.json
 RUN pnpm install --frozen-lockfile
 
-# 2) Kaynak + build (shared tsc → web next build). Web yalnız @supkeys/shared'e
+# 2) Kaynak + build (shared tsc → web next build). Web yalnız @rothern/shared'e
 #    bağlı; db/prisma gerekmez.
 COPY packages/shared/ packages/shared/
 COPY apps/web/ apps/web/
-RUN pnpm --filter @supkeys/shared build \
- && pnpm --filter @supkeys/web build
+RUN pnpm --filter @rothern/shared build \
+ && pnpm --filter @rothern/web build
 
 # ── Runtime: yalnız standalone çıktı ──
 FROM node:22-slim AS runner

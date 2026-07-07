@@ -21,7 +21,7 @@ class BlockDto {
   @IsString()
   @MinLength(4)
   @MaxLength(20)
-  supkeysId!: string;
+  rothernId!: string;
 
   // Opsiyonel gerekçe — kayda geçer (eski sistemde engelleme gerekçeliydi).
   @IsOptional()
@@ -46,7 +46,7 @@ export class CompanyBlocksController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: BlockDto,
   ) {
-    return this.service.block(user, dto.supkeysId, dto.reason);
+    return this.service.block(user, dto.rothernId, dto.reason);
   }
 
   @Delete(":companyId")

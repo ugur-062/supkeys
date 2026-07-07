@@ -1,5 +1,5 @@
 {
-  "name": "@supkeys/db",
+  "name": "@rothern/db",
   "version": "0.0.1",
   "private": true,
   "main": "./src/index.ts",
@@ -19,7 +19,7 @@
   "dependencies": {
     "@prisma/client": "^6.1.0",
     "@supabase/supabase-js": "^2.106.0",
-    "@supkeys/shared": "workspace:*"
+    "@rothern/shared": "workspace:*"
   },
   "devDependencies": {
     "prisma": "^6.1.0",

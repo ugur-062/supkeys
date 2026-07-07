@@ -33,14 +33,14 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // Docker/Coolify: kendine-yeterli minimal sunucu çıktısı (node_modules izlenip
   // .next/standalone'a kopyalanır → ~150MB imaj, `next start` yerine `node
-  // server.js`). Monorepo'da workspace bağımlılıkları (@supkeys/shared) repo
+  // server.js`). Monorepo'da workspace bağımlılıkları (@rothern/shared) repo
   // kökünden izlensin diye tracingRoot kök olarak verilir.
   output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
   // Monorepo workspace paketini DERLEMEYE göm (harici require etme). Aksi halde
-  // standalone çıktı @supkeys/shared'i kopyalamıyor, symlink ile repo köküne
+  // standalone çıktı @rothern/shared'i kopyalamıyor, symlink ile repo köküne
   // çözüyor → Docker imajında (monorepo yok) runtime'da modül bulunamıyordu.
-  transpilePackages: ["@supkeys/shared"],
+  transpilePackages: ["@rothern/shared"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

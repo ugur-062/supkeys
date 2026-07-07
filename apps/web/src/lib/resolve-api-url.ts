@@ -21,7 +21,7 @@ export function resolveApiBaseUrl(): string {
     // ama yanlış host'a (localhost) trafik akmaz.
     if (typeof window !== "undefined") {
       console.error(
-        "[supkeys] NEXT_PUBLIC_API_URL set edilmemiş — production build'inde API isteği yapılamayacak.",
+        "[rothern] NEXT_PUBLIC_API_URL set edilmemiş — production build'inde API isteği yapılamayacak.",
       );
     }
     return "";

@@ -33,7 +33,7 @@ export interface CompanyProfile {
   id: string;
   name: string;
   slug: string | null;
-  supkeysId: string | null;
+  rothernId: string | null;
   tier: CompanyTier;
   country: string;
   companyVerificationStatus: CompanyVerificationStatus;

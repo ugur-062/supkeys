@@ -88,7 +88,7 @@ function DashboardContent() {
                       {c.name}
                     </p>
                     <p className="text-admin-text-muted font-mono text-xs">
-                      {c.supkeysId ?? "—"}
+                      {c.rothernId ?? "—"}
                     </p>
                   </div>
                   <span className="text-admin-text-muted ml-3 flex-shrink-0 text-xs">

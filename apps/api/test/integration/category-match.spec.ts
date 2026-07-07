@@ -7,7 +7,7 @@
  * ve ilan kategori dizileri bu kodları tutar; matcher kod türetir. Bu yüzden test
  * dizileri de 8-haneli kod kullanır (Category satırı gerekmez — matcher join'lemez).
  */
-import { CompanyRole } from "@supkeys/db";
+import { CompanyRole } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompany, makeCompanyWithUser, makeListing, makeUser } from "./factories";
 import { makeService } from "./make-service";

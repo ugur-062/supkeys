@@ -62,7 +62,7 @@ export class CompanySupplierTemplatesService {
     }));
   }
 
-  /** Şablon detayı — üye firmalar (ad + supkeysId + tier) ile. */
+  /** Şablon detayı — üye firmalar (ad + rothernId + tier) ile. */
   async findOne(companyId: string, id: string) {
     const tpl = await this.prisma.supplierTemplate.findFirst({
       where: { id, companyId },
@@ -70,7 +70,7 @@ export class CompanySupplierTemplatesService {
     if (!tpl) throw new NotFoundException("Şablon bulunamadı");
     const members = await this.prisma.company.findMany({
       where: { id: { in: tpl.memberCompanyIds } },
-      select: { id: true, name: true, supkeysId: true, tier: true },
+      select: { id: true, name: true, rothernId: true, tier: true },
     });
     return {
       id: tpl.id,

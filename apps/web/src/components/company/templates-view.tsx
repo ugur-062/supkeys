@@ -217,7 +217,7 @@ function GroupTemplateDialog({
                     <span className="block truncate text-xs text-zinc-400">
                       {[c.company.city, c.company.industry]
                         .filter(Boolean)
-                        .join(" · ") || c.company.supkeysId || ""}
+                        .join(" · ") || c.company.rothernId || ""}
                     </span>
                   </span>
                 </label>

@@ -25,7 +25,7 @@ import AdminFirmalarPage from "../page";
 function row(overrides: Record<string, unknown> = {}) {
   return {
     id: "c1",
-    supkeysId: "SK-001",
+    rothernId: "SK-001",
     name: "Acme A.Ş.",
     taxNumber: "1234567890",
     country: "TR",

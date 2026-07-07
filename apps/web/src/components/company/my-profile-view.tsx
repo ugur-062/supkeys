@@ -35,7 +35,7 @@ export function MyProfileView() {
 
   const viewData: ProfileViewData = {
     name: profile.name,
-    supkeysId: profile.supkeysId,
+    rothernId: profile.rothernId,
     industry: profile.industry,
     city: profile.city,
     country: profile.country,

@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 # ─────────────────────────────────────────────────────────────────────────────
-# Supkeys API (NestJS) — Coolify/Hetzner imajı.
+# Rothern API (NestJS) — Coolify/Hetzner imajı.
 # Yan servisler managed (Supabase/Resend/R2) → bu imaj yalnız API sürecidir.
 #
-# NOT (Node sürümü): @supkeys/db `main: src/index.ts` (ham TS) olarak dışa açılır;
-# derlenmiş API çalışırken `require("@supkeys/db")` yapar. Node ≥22.18 `require`
+# NOT (Node sürümü): @rothern/db `main: src/index.ts` (ham TS) olarak dışa açılır;
+# derlenmiş API çalışırken `require("@rothern/db")` yapar. Node ≥22.18 `require`
 # içinde TS tip-soyma (type stripping) VARSAYILAN açık olduğundan bu çalışır.
 # Bu yüzden taban imaj node:22-slim (22.18+) ZORUNLU — daha eskiye düşürmeyin.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -31,10 +31,10 @@ RUN pnpm install --frozen-lockfile
 # 2) Kaynak + build. Sıra: shared/email (tsc) → prisma client → api (tsc).
 COPY packages/ packages/
 COPY apps/api/ apps/api/
-RUN pnpm --filter @supkeys/shared build \
- && pnpm --filter @supkeys/email build \
- && pnpm --filter @supkeys/db generate \
- && pnpm --filter @supkeys/api build
+RUN pnpm --filter @rothern/shared build \
+ && pnpm --filter @rothern/email build \
+ && pnpm --filter @rothern/db generate \
+ && pnpm --filter @rothern/api build
 
 # 3) Çalıştırma. (prisma CLI + tsx dev-dep olarak kalır: migrate deploy + seed
 #    entrypoint'te gerekiyor; imajı ayrıca slimlemek isterseniz docs/deploy.md.)

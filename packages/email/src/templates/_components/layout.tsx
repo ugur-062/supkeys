@@ -88,7 +88,7 @@ export function Layout({ preview, children }: LayoutProps) {
             <Text style={footerStyle}>
               © 2026 Rothern
               <br />
-              Bu e-postayı supkeys.com platformundan aldınız.
+              Bu e-postayı rothern.com platformundan aldınız.
             </Text>
           </Section>
         </Container>

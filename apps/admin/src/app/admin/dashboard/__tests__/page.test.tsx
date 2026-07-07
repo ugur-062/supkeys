@@ -21,7 +21,7 @@ function company(id: string, verification: string, extra: Record<string, unknown
   return {
     id,
     name: `Firma ${id}`,
-    supkeysId: `SK-${id}`,
+    rothernId: `SK-${id}`,
     verification,
     createdAt: "2026-01-15T10:00:00.000Z",
     ...extra,
@@ -66,7 +66,7 @@ describe("AdminDashboardPage — DashboardContent", () => {
 
   it("son firmaları ve açık şikayetleri listeler + tarih formatlar", () => {
     h.companies = {
-      data: [company("1", "VERIFIED", { supkeysId: null })],
+      data: [company("1", "VERIFIED", { rothernId: null })],
       isLoading: false,
     };
     h.complaints = {
@@ -78,7 +78,7 @@ describe("AdminDashboardPage — DashboardContent", () => {
     render(<AdminDashboardPage />);
 
     expect(screen.getByText("Firma 1")).toBeInTheDocument();
-    // supkeysId null → "—" fallback
+    // rothernId null → "—" fallback
     expect(screen.getByText("—")).toBeInTheDocument();
     // safeFormat(createdAt, "d MMM") → "15 Oca" (tr locale)
     expect(screen.getByText("15 Oca")).toBeInTheDocument();

@@ -6,8 +6,8 @@
  * şekilde günceller. Idempotent — tekrar çalıştırılabilir.
  *
  * Kullanım:
- *   pnpm --filter @supkeys/db cleanup-categories              # dry-run (varsayılan)
- *   pnpm --filter @supkeys/db cleanup-categories -- --apply   # DB'ye yaz
+ *   pnpm --filter @rothern/db cleanup-categories              # dry-run (varsayılan)
+ *   pnpm --filter @rothern/db cleanup-categories -- --apply   # DB'ye yaz
  *
  * Tasarım kararları:
  * - Hard delete YOK. Mevcut tender/supplier kategori bağlantıları korunur;
@@ -236,7 +236,7 @@ async function main() {
   );
 
   if (!isApply) {
-    console.log("\n💡 Uygulamak için: pnpm --filter @supkeys/db cleanup-categories -- --apply");
+    console.log("\n💡 Uygulamak için: pnpm --filter @rothern/db cleanup-categories -- --apply");
   } else {
     console.log("\n✅ APPLY tamamlandı");
   }

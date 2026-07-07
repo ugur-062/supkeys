@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import type { Prisma } from "@supkeys/db";
-import type { EmailTemplateData } from "@supkeys/email";
+import type { Prisma } from "@rothern/db";
+import type { EmailTemplateData } from "@rothern/email";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { EmailService } from "./email.service";

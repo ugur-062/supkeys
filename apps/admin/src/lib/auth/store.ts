@@ -29,7 +29,7 @@ export const useAdminAuthStore = create<AdminAuthState>()(
       setHydrated: () => set({ isHydrated: true }),
     }),
     {
-      name: "supkeys-admin-auth",
+      name: "rothern-admin-auth",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({ admin: state.admin }),
       onRehydrateStorage: () => (state) => {

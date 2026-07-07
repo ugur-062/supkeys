@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { normalizeShortCode, validateShortCode } from "@supkeys/shared";
+import { normalizeShortCode, validateShortCode } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 
@@ -35,15 +35,15 @@ export class CompanyBlocksService {
 
   async block(
     actor: AuthenticatedCompanyUser,
-    supkeysIdRaw: string,
+    rothernIdRaw: string,
     reason?: string,
   ) {
-    const code = normalizeShortCode(supkeysIdRaw);
+    const code = normalizeShortCode(rothernIdRaw);
     if (!validateShortCode(code)) {
       throw new BadRequestException("Geçersiz firma kodu");
     }
     const target = await this.prisma.company.findUnique({
-      where: { supkeysId: code },
+      where: { rothernId: code },
       select: { id: true, name: true },
     });
     if (!target) throw new NotFoundException("Firma bulunamadı");
@@ -93,7 +93,7 @@ export class CompanyBlocksService {
     const rows = await this.prisma.companyBlock.findMany({
       where: { blockerCompanyId: actor.companyId },
       include: {
-        blocked: { select: { id: true, name: true, supkeysId: true } },
+        blocked: { select: { id: true, name: true, rothernId: true } },
       },
       orderBy: { createdAt: "desc" },
     });

@@ -1,5 +1,5 @@
 {
-  "name": "@supkeys/api",
+  "name": "@rothern/api",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -29,9 +29,9 @@
     "@nestjs/websockets": "^10.4.22",
     "@sentry/nestjs": "^8.55.2",
     "@supabase/supabase-js": "^2.106.0",
-    "@supkeys/db": "workspace:*",
-    "@supkeys/email": "workspace:*",
-    "@supkeys/shared": "workspace:*",
+    "@rothern/db": "workspace:*",
+    "@rothern/email": "workspace:*",
+    "@rothern/shared": "workspace:*",
     "axios": "^1.15.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",

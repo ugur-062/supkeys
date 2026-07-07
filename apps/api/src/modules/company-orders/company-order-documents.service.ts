@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { CompanyDocType } from "@supkeys/db";
+import { CompanyDocType } from "@rothern/db";
 import * as crypto from "crypto";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";

@@ -1,4 +1,4 @@
-// Supkeys/Rothern — birleşik Company sistemi şeması (eski Tenant/Supplier söküldü)
+// Rothern/Rothern — birleşik Company sistemi şeması (eski Tenant/Supplier söküldü)
 
 generator client {
   provider = "prisma-client-js"
@@ -245,7 +245,7 @@ enum CompanyTier {
 
 model Company {
   id        String  @id @default(cuid())
-  supkeysId String? @unique // genel kimlik (Rothern ID) — keşfet/istek için
+  rothernId String? @unique // genel kimlik (Rothern ID) — keşfet/istek için
   slug      String? @unique // public profil URL'i (sadece PAKET)
 
   // Kimlik

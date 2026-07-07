@@ -213,21 +213,21 @@ export function Step3Suppliers() {
     setApplyingId(id);
     try {
       const tpl = await fetchSupplierTemplate(id);
-      const connectedSupkeys = new Set(
+      const connectedRothern = new Set(
         (connections.data ?? [])
-          .map((c) => c.company.supkeysId)
+          .map((c) => c.company.rothernId)
           .filter(Boolean) as string[],
       );
       const current = new Set<string>(getValues("invitedSupplierIds") ?? []);
       let added = 0;
       let skipped = 0;
       for (const m of tpl.members) {
-        if (!m.supkeysId || !connectedSupkeys.has(m.supkeysId)) {
+        if (!m.rothernId || !connectedRothern.has(m.rothernId)) {
           skipped++;
           continue;
         }
-        if (!current.has(m.supkeysId)) {
-          current.add(m.supkeysId);
+        if (!current.has(m.rothernId)) {
+          current.add(m.rothernId);
           added++;
         }
       }
@@ -246,13 +246,13 @@ export function Step3Suppliers() {
   const companies = useMemo(() => {
     const rows = (connections.data ?? [])
       .map((c) => c.company)
-      .filter((c) => Boolean(c.supkeysId));
+      .filter((c) => Boolean(c.rothernId));
     const q = search.trim().toLocaleLowerCase("tr");
     if (!q) return rows;
     return rows.filter(
       (c) =>
         c.name.toLocaleLowerCase("tr").includes(q) ||
-        (c.supkeysId ?? "").toLocaleLowerCase("tr").includes(q) ||
+        (c.rothernId ?? "").toLocaleLowerCase("tr").includes(q) ||
         (c.taxNumber ?? "").toLocaleLowerCase("tr").includes(q) ||
         (c.contactEmail ?? "").toLocaleLowerCase("tr").includes(q),
     );
@@ -265,7 +265,7 @@ export function Step3Suppliers() {
       render={({ field }) => {
         const selected = new Set(field.value ?? []);
         const visibleCodes = companies
-          .map((c) => c.supkeysId!)
+          .map((c) => c.rothernId!)
           .filter(Boolean);
         const allVisibleSelected =
           visibleCodes.length > 0 && visibleCodes.every((c) => selected.has(c));
@@ -285,7 +285,7 @@ export function Step3Suppliers() {
 
         const selectedCompanies = (connections.data ?? [])
           .map((c) => c.company)
-          .filter((c) => c.supkeysId && selected.has(c.supkeysId));
+          .filter((c) => c.rothernId && selected.has(c.rothernId));
 
         // PUBLIC'te bağlı-firma listesi varsayılan gizli; PRIVATE'te hep açık.
         const connListVisible = !isPublic || showConnections;
@@ -501,7 +501,7 @@ export function Step3Suppliers() {
                 </p>
                 <div className="max-h-[480px] space-y-2 overflow-y-auto pr-1">
                   {companies.map((c) => {
-                    const code = c.supkeysId!;
+                    const code = c.rothernId!;
                     const checked = selected.has(code);
                     return (
                       <button
@@ -605,7 +605,7 @@ export function Step3Suppliers() {
                       <span className="max-w-[14rem] truncate">{c.name}</span>
                       <button
                         type="button"
-                        onClick={() => toggle(c.supkeysId!)}
+                        onClick={() => toggle(c.rothernId!)}
                         aria-label={`${c.name} kaldır`}
                         className="ml-0.5 text-zinc-400 hover:text-red-600"
                       >

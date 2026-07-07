@@ -3,7 +3,7 @@
  *
  * Kullanım:
  *   TEST_COMPANY_EMAIL=firma@demo.com TEST_COMPANY_PASSWORD=Demo1234! \
- *     pnpm --filter @supkeys/db create-test-company
+ *     pnpm --filter @rothern/db create-test-company
  *
  * company-auth signup akışını birebir taklit eder: Supabase auth.users +
  * Company + ilk CompanyUser (owner + YONETICI/SATIN_ALMACI/SATISCI).
@@ -12,18 +12,18 @@
 
 import { CompanyRole, PrismaClient } from "@prisma/client";
 import { createClient } from "@supabase/supabase-js";
-import { generateShortCode } from "@supkeys/shared";
+import { generateShortCode } from "@rothern/shared";
 
 const prisma = new PrismaClient();
 
-async function uniqueSupkeysId(): Promise<string> {
+async function uniqueRothernId(): Promise<string> {
   for (let i = 0; i < 10; i++) {
     const code = generateShortCode();
-    if ((await prisma.company.count({ where: { supkeysId: code } })) === 0) {
+    if ((await prisma.company.count({ where: { rothernId: code } })) === 0) {
       return code;
     }
   }
-  throw new Error("supkeysId üretilemedi");
+  throw new Error("rothernId üretilemedi");
 }
 
 function buildSupabase() {
@@ -92,22 +92,22 @@ async function main() {
     include: { company: true },
   });
   if (existingUser) {
-    // supkeysId yoksa backfill et (bağlantı daveti için gerekli).
+    // rothernId yoksa backfill et (bağlantı daveti için gerekli).
     const co = existingUser.company;
-    if (!co.supkeysId) {
-      const code = await uniqueSupkeysId();
+    if (!co.rothernId) {
+      const code = await uniqueRothernId();
       await prisma.company.update({
         where: { id: co.id },
-        data: { supkeysId: code },
+        data: { rothernId: code },
       });
-      console.log(`  🔧 supkeysId backfill: ${code}`);
+      console.log(`  🔧 rothernId backfill: ${code}`);
     }
     console.log(
-      `  🔁 Zaten var: company=${existingUser.companyId} (supkeysId=${co.supkeysId ?? "yeni atandı"})`,
+      `  🔁 Zaten var: company=${existingUser.companyId} (rothernId=${co.rothernId ?? "yeni atandı"})`,
     );
   } else {
     const company = await prisma.company.create({
-      data: { name: companyName, tier: "STANDARD", supkeysId: await uniqueSupkeysId() },
+      data: { name: companyName, tier: "STANDARD", rothernId: await uniqueRothernId() },
     });
     const user = await prisma.companyUser.create({
       data: {

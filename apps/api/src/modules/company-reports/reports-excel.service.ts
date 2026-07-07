@@ -62,7 +62,7 @@ export class ReportsExcelService {
     const isAlim = data.type === "ALIM";
     const deltaWord = isAlim ? "Tasarruf" : "Rekabet Kazancı";
     const wb = new ExcelJS.Workbook();
-    wb.creator = "Supkeys";
+    wb.creator = "Rothern";
     wb.created = new Date();
     const ws = wb.addWorksheet(
       isAlim ? "Genel İhale Raporu" : "Genel İlan Raporu",
@@ -158,7 +158,7 @@ export class ReportsExcelService {
     const deltaWord = isAlim ? "Tasarruf" : "Kazanç";
     const partyWord = isAlim ? "Tedarikçi" : "Alıcı";
     const wb = new ExcelJS.Workbook();
-    wb.creator = "Supkeys";
+    wb.creator = "Rothern";
     wb.created = new Date();
 
     const ws = wb.addWorksheet(`${deltaWord} Raporu`);
@@ -285,7 +285,7 @@ export class ReportsExcelService {
     const isAlim = data.type === "ALIM";
     const partyWord = isAlim ? "Tedarikçi" : "Alıcı";
     const wb = new ExcelJS.Workbook();
-    wb.creator = "Supkeys";
+    wb.creator = "Rothern";
     wb.created = new Date();
 
     const ws = wb.addWorksheet(

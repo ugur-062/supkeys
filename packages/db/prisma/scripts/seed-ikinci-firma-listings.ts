@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   const company = await prisma.company.findUnique({
-    where: { supkeysId: "8H48-W6ZD" },
+    where: { rothernId: "8H48-W6ZD" },
     select: { id: true, name: true },
   });
   if (!company) throw new Error("İkinci Firma Ltd bulunamadı (8H48-W6ZD)");

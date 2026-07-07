@@ -12,7 +12,7 @@ import {
   Prisma,
   type CompanyOrderPaymentTiming,
   type CompanyOrderStatus,
-} from "@supkeys/db";
+} from "@rothern/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import type {
@@ -712,7 +712,7 @@ export class CompanyOrdersService {
     industry: true,
     billingEmail: true,
     billingPhone: true,
-    supkeysId: true,
+    rothernId: true,
   } as const;
 
   async getOne(user: AuthenticatedCompanyUser, id: string) {
@@ -754,7 +754,7 @@ export class CompanyOrdersService {
         industry: other.industry,
         email: other.billingEmail,
         phone: other.billingPhone,
-        supkeysId: other.supkeysId,
+        rothernId: other.rothernId,
       },
       paymentTiming: o.paymentTiming,
       paymentOpen: this.isPaymentOpen(o.paymentTiming, o.status),

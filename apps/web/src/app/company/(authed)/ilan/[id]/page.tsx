@@ -530,12 +530,12 @@ export default function ListingDetailPage() {
         <div className="flex flex-wrap gap-2">
           {l.invitations.map((iv) => (
             <span
-              key={iv.supkeysId ?? iv.companyName}
+              key={iv.rothernId ?? iv.companyName}
               className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm"
             >
               {iv.companyName}{" "}
               <span className="font-mono text-xs text-zinc-500">
-                {iv.supkeysId}
+                {iv.rothernId}
               </span>
             </span>
           ))}

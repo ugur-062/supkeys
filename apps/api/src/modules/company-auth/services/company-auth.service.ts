@@ -11,13 +11,13 @@ import { JwtService } from "@nestjs/jwt";
 import { authenticator } from "otplib";
 import * as crypto from "node:crypto";
 import * as QRCode from "qrcode";
-import { CompanyRole, Prisma, type Company, type CompanyUser } from "@supkeys/db";
+import { CompanyRole, Prisma, type Company, type CompanyUser } from "@rothern/db";
 import {
   generateShortCode,
   isValidCountryCode,
   isValidTaxIdForCountry,
   isValidTckn,
-} from "@supkeys/shared";
+} from "@rothern/shared";
 import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
 import { NOTIFICATION_PREF_KEYS } from "../../../common/notifications/notification-prefs";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -80,7 +80,7 @@ export class CompanyAuthService {
       type: "company",
     });
 
-    const supkeysId = await this.generateUniqueSupkeysId();
+    const rothernId = await this.generateUniqueRothernId();
     const now = new Date();
 
     // 2) Company + ilk CompanyUser (owner). Prisma hatasında auth.users temizle.
@@ -93,7 +93,7 @@ export class CompanyAuthService {
           data: {
             name: `${dto.firstName.trim()} ${dto.lastName.trim()} Firması`,
             tier: "STANDARD",
-            supkeysId,
+            rothernId,
           },
         });
         const user = await tx.companyUser.create({
@@ -1096,16 +1096,16 @@ export class CompanyAuthService {
     };
   }
 
-  /** Çakışmasız supkeysId üretir (XXXX-XXXX). Bağlantı davetinde kullanılır. */
-  private async generateUniqueSupkeysId(): Promise<string> {
+  /** Çakışmasız rothernId üretir (XXXX-XXXX). Bağlantı davetinde kullanılır. */
+  private async generateUniqueRothernId(): Promise<string> {
     for (let i = 0; i < 10; i++) {
       const code = generateShortCode();
       const exists = await this.prisma.company.count({
-        where: { supkeysId: code },
+        where: { rothernId: code },
       });
       if (exists === 0) return code;
     }
-    throw new Error("supkeysId üretilemedi (çakışma)");
+    throw new Error("rothernId üretilemedi (çakışma)");
   }
 
   private serializeCompany(company: Company) {
@@ -1113,7 +1113,7 @@ export class CompanyAuthService {
       id: company.id,
       name: company.name,
       slug: company.slug,
-      supkeysId: company.supkeysId,
+      rothernId: company.rothernId,
       tier: company.tier,
       country: company.country,
       companyVerificationStatus: company.companyVerificationStatus,

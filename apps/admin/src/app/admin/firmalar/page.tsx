@@ -172,7 +172,7 @@ function FirmalarView() {
                       ) : null}
                     </TableCell>
                     <TableCell className="text-admin-text-muted font-mono text-xs">
-                      {c.supkeysId ?? "—"}
+                      {c.rothernId ?? "—"}
                     </TableCell>
                     <TableCell>
                       <Badge color={c.tier === "PAKET" ? "amber" : "zinc"}>

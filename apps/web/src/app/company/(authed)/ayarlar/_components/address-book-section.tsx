@@ -22,7 +22,7 @@ import {
   type CompanyAddressType,
 } from "@/hooks/use-company-addresses";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { COUNTRIES } from "@supkeys/shared";
+import { COUNTRIES } from "@rothern/shared";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";

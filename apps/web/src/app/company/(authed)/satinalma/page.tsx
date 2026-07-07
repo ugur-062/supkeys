@@ -53,7 +53,7 @@ export default function SatinalmaDashboardPage() {
           Satınalma paneli
         </h1>
         <p className="text-[15px] text-zinc-500">
-          {company?.name ?? "Supkeys"}
+          {company?.name ?? "Rothern"}
           {todayLabel ? (
             <>
               <span className="mx-2 text-zinc-300">·</span>

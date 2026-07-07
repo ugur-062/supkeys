@@ -7,7 +7,7 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
-import type { CompanyDocType } from "@supkeys/db";
+import type { CompanyDocType } from "@rothern/db";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,

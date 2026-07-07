@@ -4,5 +4,5 @@ export class InviteConnectionDto {
   @IsString()
   @MinLength(4, { message: "Firma kodu gerekli" })
   @MaxLength(20)
-  supkeysId!: string;
+  rothernId!: string;
 }

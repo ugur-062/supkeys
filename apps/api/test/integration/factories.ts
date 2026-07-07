@@ -7,7 +7,7 @@ import {
   type ListingVisibility,
   Prisma,
   PrismaClient,
-} from "@supkeys/db";
+} from "@rothern/db";
 import type { AuthenticatedCompanyUser } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
 
 let counter = 0;

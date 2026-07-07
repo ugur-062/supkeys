@@ -5,7 +5,7 @@ import { ExchangeRateService } from "../currency/services/exchange-rate.service"
 
 interface HealthCheckResult {
   status: "ok" | "degraded";
-  service: "supkeys-api";
+  service: "rothern-api";
   timestamp: string;
   checks: {
     database: "up" | "down";
@@ -46,7 +46,7 @@ export class HealthController {
     return {
       // Bayat kur kesinti değildir ama izleme fark etsin → degraded.
       status: dbStatus === "down" || rates?.stale ? "degraded" : "ok",
-      service: "supkeys-api",
+      service: "rothern-api",
       timestamp: new Date().toISOString(),
       checks: { database: dbStatus, exchangeRates: rates },
     };

@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma } from "@supkeys/db";
+import { Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 
 interface QuestionItem {

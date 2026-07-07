@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface MyComplaint {
   id: string;
-  against: { name: string; supkeysId: string | null };
+  against: { name: string; rothernId: string | null };
   reason: string;
   status: "OPEN" | "RESOLVED" | "DISMISSED";
   createdAt: string;
@@ -27,7 +27,7 @@ export function useFileComplaint() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: {
-      supkeysId: string;
+      rothernId: string;
       reason: string;
       detail?: string;
     }) => {

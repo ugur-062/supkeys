@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { normalizeShortCode, validateShortCode } from "@supkeys/shared";
+import { normalizeShortCode, validateShortCode } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 
@@ -14,14 +14,14 @@ export class CompanyComplaintsService {
 
   async file(
     actor: AuthenticatedCompanyUser,
-    input: { supkeysId: string; reason: string; detail?: string },
+    input: { rothernId: string; reason: string; detail?: string },
   ) {
-    const code = normalizeShortCode(input.supkeysId);
+    const code = normalizeShortCode(input.rothernId);
     if (!validateShortCode(code)) {
       throw new BadRequestException("Geçersiz firma kodu");
     }
     const target = await this.prisma.company.findUnique({
-      where: { supkeysId: code },
+      where: { rothernId: code },
       select: { id: true, name: true },
     });
     if (!target) throw new NotFoundException("Firma bulunamadı");
@@ -54,7 +54,7 @@ export class CompanyComplaintsService {
   async listMine(actor: AuthenticatedCompanyUser) {
     const rows = await this.prisma.companyComplaint.findMany({
       where: { complainantCompanyId: actor.companyId },
-      include: { against: { select: { name: true, supkeysId: true } } },
+      include: { against: { select: { name: true, rothernId: true } } },
       orderBy: { createdAt: "desc" },
     });
     return rows.map((r) => ({

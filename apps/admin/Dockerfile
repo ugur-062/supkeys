@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # ─────────────────────────────────────────────────────────────────────────────
-# Supkeys Admin (Next.js 15) — Coolify/Hetzner imajı.
+# Rothern Admin (Next.js 15) — Coolify/Hetzner imajı.
 # output:"standalone". Admin hiçbir workspace paketine bağlı değil (yalnız dış
 # deps) → en yalın imaj.
 #
@@ -32,7 +32,7 @@ COPY packages/email/package.json packages/email/package.json
 RUN pnpm install --frozen-lockfile
 
 COPY apps/admin/ apps/admin/
-RUN pnpm --filter @supkeys/admin build
+RUN pnpm --filter @rothern/admin build
 
 # ── Runtime: yalnız standalone çıktı ──
 FROM node:22-slim AS runner

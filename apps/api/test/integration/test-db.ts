@@ -1,4 +1,4 @@
-import { PrismaClient } from "@supkeys/db";
+import { PrismaClient } from "@rothern/db";
 import { TEST_DB_URL, TEST_SCHEMA } from "./env";
 
 /** İzole test şemasına bağlı tek PrismaClient. */

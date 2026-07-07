@@ -25,13 +25,13 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: supkeys
-          POSTGRES_PASSWORD: supkeys_test_password
-          POSTGRES_DB: supkeys_test
+          POSTGRES_USER: rothern
+          POSTGRES_PASSWORD: rothern_test_password
+          POSTGRES_DB: rothern_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U supkeys"
+          --health-cmd "pg_isready -U rothern"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -40,10 +40,10 @@ jobs:
 
     env:
       # Test DB — service container'a doğrudan bağlantı
-      DATABASE_URL: "postgresql://supkeys:supkeys_test_password@localhost:5432/supkeys_test?schema=public"
-      POSTGRES_USER: supkeys
-      POSTGRES_PASSWORD: supkeys_test_password
-      POSTGRES_DB: supkeys_test
+      DATABASE_URL: "postgresql://rothern:rothern_test_password@localhost:5432/rothern_test?schema=public"
+      POSTGRES_USER: rothern
+      POSTGRES_PASSWORD: rothern_test_password
+      POSTGRES_DB: rothern_test
       POSTGRES_HOST: localhost
       POSTGRES_PORT: "5432"
       NODE_ENV: test
@@ -89,10 +89,10 @@ jobs:
         run: pnpm typecheck
 
       - name: Run tests with coverage
-        run: pnpm --filter @supkeys/api test:cov
+        run: pnpm --filter @rothern/api test:cov
         env:
           # apps/api/.env.test test runner'a yüklenir, ama burada da garanti
-          DATABASE_URL: "postgresql://supkeys:supkeys_test_password@localhost:5432/supkeys_test?schema=public"
+          DATABASE_URL: "postgresql://rothern:rothern_test_password@localhost:5432/rothern_test?schema=public"
 
       - name: Upload coverage report (artifact)
         if: always()

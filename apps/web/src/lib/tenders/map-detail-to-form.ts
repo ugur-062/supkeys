@@ -115,7 +115,7 @@ export function mapDetailToForm(
         : DEFAULT_FORM_VALUES.items,
     // Kopyada davetliler taşınır (aynı tedarikçi havuzu); düzenlemede de aynı.
     invitedSupplierIds: (l.invitations ?? [])
-      .map((iv) => iv.supkeysId)
+      .map((iv) => iv.rothernId)
       .filter((s): s is string => !!s),
   };
 }

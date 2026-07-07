@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import type { ListingType, Prisma } from "@supkeys/db";
+import type { ListingType, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 
 /**

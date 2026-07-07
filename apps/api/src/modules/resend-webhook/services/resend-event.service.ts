@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { Prisma } from "@supkeys/db";
-import type { EmailEventType, EmailStatus } from "@supkeys/db";
+import { Prisma } from "@rothern/db";
+import type { EmailEventType, EmailStatus } from "@rothern/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 
 /**

@@ -33,7 +33,7 @@ export const useCompanyAuthStore = create<CompanyAuthState>()(
       setHydrated: () => set({ isHydrated: true }),
     }),
     {
-      name: "supkeys-company-auth",
+      name: "rothern-company-auth",
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         user: state.user,

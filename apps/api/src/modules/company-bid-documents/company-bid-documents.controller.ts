@@ -13,7 +13,7 @@ import {
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
-import { ListingBidDocKind } from "@supkeys/db";
+import { ListingBidDocKind } from "@rothern/db";
 import { CompanyBidDocumentsService } from "./company-bid-documents.service";
 
 class UploadUrlDto {

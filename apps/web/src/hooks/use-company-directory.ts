@@ -11,7 +11,7 @@ export type DirectoryConnectionStatus =
   | "self";
 
 export interface DirectoryCompany {
-  supkeysId: string | null;
+  rothernId: string | null;
   slug: string | null;
   name: string;
   industry: string | null;
@@ -49,7 +49,7 @@ export interface ProfileListing {
 
 export interface CompanyProfile {
   profile: {
-    supkeysId: string | null;
+    rothernId: string | null;
     slug: string | null;
     name: string;
     industry: string | null;
@@ -75,13 +75,13 @@ export interface CompanyProfile {
   listings: ProfileListing[];
 }
 
-export function useCompanyProfile(supkeysId: string) {
+export function useCompanyProfile(rothernId: string) {
   return useQuery({
-    queryKey: ["company-directory", "profile", supkeysId],
-    enabled: !!supkeysId,
+    queryKey: ["company-directory", "profile", rothernId],
+    enabled: !!rothernId,
     queryFn: async () => {
       const { data } = await companyApi.get<CompanyProfile>(
-        `/company/directory/companies/${supkeysId}`,
+        `/company/directory/companies/${rothernId}`,
       );
       return data;
     },

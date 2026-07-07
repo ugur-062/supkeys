@@ -22,13 +22,13 @@ import {
   type ListingPaymentTiming,
   type ListingQuestionAnswerType,
   type ListingVisibility,
-} from "@supkeys/db";
+} from "@rothern/db";
 import { OnEvent } from "@nestjs/event-emitter";
 import {
   isValidCountryCode,
   normalizeShortCode,
   validateShortCode,
-} from "@supkeys/shared";
+} from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
@@ -784,7 +784,7 @@ export class CompanyListingsService {
 
     const number = await this.nextListingNumber();
 
-    // Davet edilecek firmaları çöz: supkeysId → companyId, bağlı olmalı.
+    // Davet edilecek firmaları çöz: rothernId → companyId, bağlı olmalı.
     let inviteCompanyIds: string[] = [];
     if (dto.invitations?.length) {
       const connectedIds = await this.connectedCompanyIds(user.companyId);
@@ -792,7 +792,7 @@ export class CompanyListingsService {
         .map((c) => normalizeShortCode(c))
         .filter((c) => validateShortCode(c));
       const targets = await this.prisma.company.findMany({
-        where: { supkeysId: { in: codes } },
+        where: { rothernId: { in: codes } },
         select: { id: true },
       });
       inviteCompanyIds = targets
@@ -1011,7 +1011,7 @@ export class CompanyListingsService {
         .map((c) => normalizeShortCode(c))
         .filter((c) => validateShortCode(c));
       const targets = await this.prisma.company.findMany({
-        where: { supkeysId: { in: codes } },
+        where: { rothernId: { in: codes } },
         select: { id: true },
       });
       inviteCompanyIds = targets
@@ -1769,7 +1769,7 @@ export class CompanyListingsService {
         this.prisma.listingInvitation.findMany({
           where: { listingId: id },
           include: {
-            invitedCompany: { select: { name: true, supkeysId: true } },
+            invitedCompany: { select: { name: true, rothernId: true } },
           },
           orderBy: { createdAt: "asc" },
         }),
@@ -1806,7 +1806,7 @@ export class CompanyListingsService {
         items: itemsOut,
         invitations: invitations.map((iv) => ({
           companyName: iv.invitedCompany.name,
-          supkeysId: iv.invitedCompany.supkeysId,
+          rothernId: iv.invitedCompany.rothernId,
           createdAt: iv.createdAt,
         })),
         bids: bids.map((b) => ({
@@ -3920,7 +3920,7 @@ export class CompanyListingsService {
   async addInvitations(
     user: AuthenticatedCompanyUser,
     listingId: string,
-    supkeysIds: string[],
+    rothernIds: string[],
   ) {
     this.assertPaidForNewListingWork(user, "İhaleye yeni tedarikçi davet etmek");
     const listing = await this.prisma.listing.findUnique({
@@ -3953,11 +3953,11 @@ export class CompanyListingsService {
     }
 
     const connectedIds = await this.connectedCompanyIds(user.companyId);
-    const codes = (supkeysIds ?? [])
+    const codes = (rothernIds ?? [])
       .map((c) => normalizeShortCode(c))
       .filter((c) => validateShortCode(c));
     const targets = await this.prisma.company.findMany({
-      where: { supkeysId: { in: codes } },
+      where: { rothernId: { in: codes } },
       select: { id: true },
     });
     const wanted = targets

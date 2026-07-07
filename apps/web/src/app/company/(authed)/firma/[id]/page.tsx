@@ -34,8 +34,8 @@ import { toast } from "sonner";
 
 export default function CompanyProfilePage() {
   const params = useParams<{ id: string }>();
-  const supkeysId = params.id;
-  const { data, isLoading } = useCompanyProfile(supkeysId);
+  const rothernId = params.id;
+  const { data, isLoading } = useCompanyProfile(rothernId);
   const invite = useInviteConnection();
   const block = useBlockCompany();
   const complaint = useFileComplaint();
@@ -68,9 +68,9 @@ export default function CompanyProfilePage() {
     data;
 
   const handleConnect = async () => {
-    if (!p.supkeysId) return;
+    if (!p.rothernId) return;
     try {
-      await invite.mutateAsync(p.supkeysId);
+      await invite.mutateAsync(p.rothernId);
       toast.success("Bağlantı isteği gönderildi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "İstek gönderilemedi"));
@@ -78,10 +78,10 @@ export default function CompanyProfilePage() {
   };
 
   const submitBlock = async (reason: string) => {
-    if (!p.supkeysId) return;
+    if (!p.rothernId) return;
     try {
       await block.mutateAsync({
-        supkeysId: p.supkeysId,
+        rothernId: p.rothernId,
         reason: reason.trim() || undefined,
       });
       toast.success("Firma engellendi");
@@ -109,10 +109,10 @@ export default function CompanyProfilePage() {
   };
 
   const submitComplaint = async (reason: string) => {
-    if (!p.supkeysId || reason.trim().length < 3) return;
+    if (!p.rothernId || reason.trim().length < 3) return;
     try {
       await complaint.mutateAsync({
-        supkeysId: p.supkeysId,
+        rothernId: p.rothernId,
         reason: reason.trim(),
       });
       toast.success("Şikayet gönderildi");
@@ -201,7 +201,7 @@ export default function CompanyProfilePage() {
             <Link
               key={l.id}
               href={`/company/ilan/${l.id}?from=${encodeURIComponent(
-                `/company/firma/${supkeysId}`,
+                `/company/firma/${rothernId}`,
               )}&fromLabel=${encodeURIComponent(p.name)}`}
               className="block rounded-xl border border-zinc-950/10 p-3 transition hover:bg-zinc-50"
             >

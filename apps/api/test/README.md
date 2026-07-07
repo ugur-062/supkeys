@@ -1,27 +1,27 @@
 # API Integration Tests
 
-Gerçek Postgres'e (Supabase) bağlı integration testleri. **İzole `supkeys_test`
+Gerçek Postgres'e (Supabase) bağlı integration testleri. **İzole `rothern_test`
 şeması** kullanır — `public` (dev) verisine asla dokunmaz.
 
 ## Çalıştırma
 
 ```bash
-pnpm --filter @supkeys/api test          # tüm suite
-pnpm --filter @supkeys/api test company-listings   # tek dosya
+pnpm --filter @rothern/api test          # tüm suite
+pnpm --filter @rothern/api test company-listings   # tek dosya
 ```
 
 Kök `.env`'deki `DIRECT_URL` otomatik yüklenir; test bağlantısı ona
-`?schema=supkeys_test` eklenerek türetilir (`test/integration/env.ts`). Ayrı bir
+`?schema=rothern_test` eklenerek türetilir (`test/integration/env.ts`). Ayrı bir
 env değişkeni gerekmez.
 
-İlk koşuda `prisma db push` modelleri `supkeys_test` şemasına yansıtır ve custom
+İlk koşuda `prisma db push` modelleri `rothern_test` şemasına yansıtır ve custom
 SQL sequence'leri (`order_number_seq`, `listing_number_seq`) oluşturur
 (`global-setup.ts`). Sonraki koşularda "already in sync" → hızlı.
 
 ## Yapı
 
 - `env.ts` — kök .env yükler, test şema URL'ini türetir, **şema guard'ı** (test
-  bağlantısı `supkeys_test` değilse durur).
+  bağlantısı `rothern_test` değilse durur).
 - `test-db.ts` — test şemasına bağlı PrismaClient + `truncateAll()`.
 - `factories.ts` — firma/kullanıcı/ilan/kalem/teklif/bağlantı/davet seed yardımcıları.
 - `make-service.ts` — gerçek Prisma + mock'lanmış yan-etki bağımlılıkları

@@ -105,7 +105,7 @@ export function CompanyProfileSection() {
         <DescriptionList className="mt-3">
           <DescriptionTerm>Firma Kodu</DescriptionTerm>
           <DescriptionDetails className="font-mono">
-            {profile.supkeysId ?? "—"}
+            {profile.rothernId ?? "—"}
           </DescriptionDetails>
           <DescriptionTerm>Yasal Ünvan</DescriptionTerm>
           <DescriptionDetails>{profile.legalName ?? "—"}</DescriptionDetails>

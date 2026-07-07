@@ -31,8 +31,8 @@ const detail = {
     },
   ],
   invitations: [
-    { companyName: "A", supkeysId: "ROT-0001" },
-    { companyName: "B", supkeysId: null },
+    { companyName: "A", rothernId: "ROT-0001" },
+    { companyName: "B", rothernId: null },
   ],
 } as unknown as ListingDetail;
 
@@ -59,7 +59,7 @@ describe("mapDetailToForm", () => {
     expect(f.type).toBe("RFQ");
     expect(f.items[0]).toMatchObject({ name: "Çelik", quantity: 5, unit: "ton" });
     expect(f.bidsCloseAt).not.toBe(""); // closesAt taşınır
-    expect(f.invitedSupplierIds).toEqual(["ROT-0001"]); // null supkeysId atılır
+    expect(f.invitedSupplierIds).toEqual(["ROT-0001"]); // null rothernId atılır
   });
 
   it("kopya: başlığa (kopya) eklenir, tarihler boşaltılır", () => {

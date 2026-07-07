@@ -11,7 +11,7 @@ import {
   Matches,
   MaxLength,
 } from "class-validator";
-import { CompanyRole } from "@supkeys/db";
+import { CompanyRole } from "@rothern/db";
 
 export enum CompanyTypeDto {
   JOINT_STOCK = "JOINT_STOCK",

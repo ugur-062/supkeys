@@ -1,4 +1,4 @@
-# Supkeys — Geliştirme Yol Haritası (33 madde)
+# Rothern — Geliştirme Yol Haritası (33 madde)
 
 > Oluşturulma: 2026-06-17 · Kaynak: ürün sahibi backlog
 > Son denetim: 2026-06-21 · Durum: 33 maddenin çoğu ✅ (aşağıdaki tablo).
@@ -29,7 +29,7 @@
 | G5 | 19/21 (sipariş Dosyalar: proforma/teknik/fatura/**Teslimat Evrakları**) | ✅ (2026-06-21) — kategori bazlı belge paneli; tedarikçi yükler, alıcı görür; statüye göre kademeli; COMPLETED'de teslimat evrakı boşsa uyarı |
 | 3 | 16 (direkt ödeme — nakit/çek handshake) | ✅ (2026-06-21) — OrderPayment modeli + state machine (Teslim Aldım → DELIVERED → tam ödeme onayında otomatik COMPLETED) + ödeme dekontu + popup |
 | 3 | 20 (Kayıtlı Bankalarım + tek yönetici) | ✅ — `supplier-banks` modülü + ayarlar/bankalar UI; sipariş onayında bankadan seçim |
-| 3 | 6 (Supkeys ID + Alıcı Havuzu) | ✅ (2026-06-21) — kalıcı supkeysId (alıcı+tedarikçi) + çift yönlü ekleme; Alıcı Havuzu (tedarikçi paneli) ad/ID arama + public profil |
+| 3 | 6 (Rothern ID + Alıcı Havuzu) | ✅ (2026-06-21) — kalıcı rothernId (alıcı+tedarikçi) + çift yönlü ekleme; Alıcı Havuzu (tedarikçi paneli) ad/ID arama + public profil |
 | 4 | Açık İhale (PUBLIC görünürlük) + premium erişim | ✅ (2026-06-21) — Tender.visibility PRIVATE/PUBLIC; premium tedarikçi PUBLIC+OPEN ihaleleri davetsiz görür/teklif verir (ilk teklifte davet otomatik); standart 2 bağlantı limiti |
 | 3 | 33 (teminat mektubu) | ✅ (2026-06-21) — nakit (paymentTerm=CASH) ihalede kazanan tedarikçi siparişi ONAYLARKEN teminat mektubu yüklemek ZORUNDA (hard block); ORDER_GUARANTEE_LETTER scope; wizard uyarı + accept modal upload + belge panelinde kategori. **Faz 3 TAM bitti.** |
 | 4 | 27 (KYC ek belgeler) | ✅ — ticari sicil + imza sirküleri + banka onaylı IBAN (connect-kyc-uploads) |
@@ -43,7 +43,7 @@
 - **İmzalı irsaliye:** "Tamamlandı"yı **bloklamaz**; eksikse küçük uyarı gösterilir ("opsiyonel" yazısı yok).
 - **Belge kategori adı:** "İmzalı İrsaliye" değil → **"Teslimat Evrakları"** (2026-06-21).
 
-**Sonuç:** Faz 1 ✅ · G5 ✅ · **Faz 3 kodlanabilir kısmı ✅ (16 + 20)**. Faz 3 kalan: **33 (teminat mektubu)** ve **6 (Supkeys ID)** — ikisi de açık ürün sorusu bekliyor (bkz. Açık sorular 6 + 11). **Faz 5 (Açık Eksiltme) planlardan çıkarıldı (2026-06-21).** Kalan büyük fazlar: **Faz 6 (Uluslararası: 29, 30, 5)** ve **Faz 7 (Escrow)**.
+**Sonuç:** Faz 1 ✅ · G5 ✅ · **Faz 3 kodlanabilir kısmı ✅ (16 + 20)**. Faz 3 kalan: **33 (teminat mektubu)** ve **6 (Rothern ID)** — ikisi de açık ürün sorusu bekliyor (bkz. Açık sorular 6 + 11). **Faz 5 (Açık Eksiltme) planlardan çıkarıldı (2026-06-21).** Kalan büyük fazlar: **Faz 6 (Uluslararası: 29, 30, 5)** ve **Faz 7 (Escrow)**.
 
 ## Alınan Kararlar (kilitli)
 
@@ -139,7 +139,7 @@ Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İki
 | # | Anladığım | Durum |
 |---|---|---|
 | 20 | Tedarikçide **"Kayıtlı Bankalarım"**; sipariş onayında otomatik seçilebilir. Sadece **tek yönetici** ekler/düzenler. | ✅ (karar: tek yönetici) |
-| 6 | **Supkeys ID** ile taraflar birbirini ekleyebilecek. | ❓ Kim kimi ekliyor (alıcı↔tedarikçi)? Ekleme = bağlantı mı? Referans kodu ile ilişkisi? |
+| 6 | **Rothern ID** ile taraflar birbirini ekleyebilecek. | ❓ Kim kimi ekliyor (alıcı↔tedarikçi)? Ekleme = bağlantı mı? Referans kodu ile ilişkisi? |
 
 ### J. Raporlama
 | # | Anladığım | Durum |
@@ -169,7 +169,7 @@ Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İki
 |---|---|---|
 | **1 — Hızlı düzeltmeler** | 8, 9, 10, 11, 13, 18, 24, 25, 26 | S |
 | **2 — Sipariş, belge & onay netliği** | 12/14, 15, 19/21, 22, 23 | M |
-| **3 — Direkt ödeme + roller + kimlik** | 16, 33, 20 (tek yönetici + Kayıtlı Bankalarım), 6 (Supkeys ID) | M-L |
+| **3 — Direkt ödeme + roller + kimlik** | 16, 33, 20 (tek yönetici + Kayıtlı Bankalarım), 6 (Rothern ID) | M-L |
 | **4 — KYC + rapor + şablon/arama** | 27, 28, 7, 3 | M |
 | ~~**5 — Açık eksiltme**~~ | ~~4, 17~~ → ❌ **planlardan çıkarıldı (2026-06-21)** | — |
 | **6 — Uluslararası** | 29, 30, 5 | L |
@@ -189,7 +189,7 @@ Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İki
 3. **(3)** "Proje Haber" nedir, API var mı?
 4. **(4)** % gösterge tedarikçiye mi (mantıken evet)?
 5. **(5/30)** Yurtiçi teslim kaç seçenek; gümrük teslim uluslararasıya mı?
-6. **(6)** Supkeys ID — kim kimi ekliyor, ne yapıyor?
+6. **(6)** Rothern ID — kim kimi ekliyor, ne yapıyor?
 7. **(12/14)** Fatura no tek aşama = "Hazırlanıyor" (tedarikçi) onaylanıyor mu?
 8. **(15)** PDF indirmede ne hatası?
 9. **(16)** Ödeme şartını (önce/sonra) kim belirliyor?
@@ -245,7 +245,7 @@ Yani **madde 4 = anonimlik + % gösterge**, **madde 17 = otomatik uzatma**. İki
 - 26 (ISO belgesi), 27 (alıcı profilinden gelen + premium ek belgeler)
 
 ### G10 — Kimlik & bağlantı
-- 6 (Supkeys ID)
+- 6 (Rothern ID)
 
 ### G11 — Uluslararası / kayıt
 - 29 (TR dışı kayıt + doğrulama)

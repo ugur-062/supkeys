@@ -1,5 +1,5 @@
 import { Injectable, Optional, Logger } from "@nestjs/common";
-import { CompanyRole, Prisma } from "@supkeys/db";
+import { CompanyRole, Prisma } from "@rothern/db";
 import { RealtimeService } from "../realtime/realtime.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";

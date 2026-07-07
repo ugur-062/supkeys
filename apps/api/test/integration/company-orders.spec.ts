@@ -99,7 +99,7 @@ describe("sipariş para birimi + yeni liste/detay alanları", () => {
       industry: "Metal",
       email: "satis@firma.local",
       phone: "+90 555 111 22 33",
-      supkeysId: null,
+      rothernId: null,
     });
 
     // Satıcı gözünden aynı sipariş: role seller, karşı taraf = alıcı firma.

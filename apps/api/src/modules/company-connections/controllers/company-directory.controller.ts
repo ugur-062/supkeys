@@ -20,11 +20,11 @@ export class CompanyDirectoryController {
     return this.service.searchCompanies(user, q);
   }
 
-  @Get("companies/:supkeysId")
+  @Get("companies/:rothernId")
   profile(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Param("supkeysId") supkeysId: string,
+    @Param("rothernId") rothernId: string,
   ) {
-    return this.service.getProfile(user, supkeysId);
+    return this.service.getProfile(user, rothernId);
   }
 }

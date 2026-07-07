@@ -13,7 +13,7 @@ import {
 } from "@/hooks/use-company-auth";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { COUNTRIES, TURKEY_LOCATIONS } from "@supkeys/shared";
+import { COUNTRIES, TURKEY_LOCATIONS } from "@rothern/shared";
 import { Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";

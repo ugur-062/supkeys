@@ -8,7 +8,7 @@ export type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
 export interface ConnectionCompany {
   id: string;
   name: string;
-  supkeysId: string | null;
+  rothernId: string | null;
   // İhale daveti adımı için zengin kart alanları (yalnızca bağlantı listesinde dolu).
   tier?: "STANDARD" | "PAKET";
   taxNumber?: string | null;
@@ -162,7 +162,7 @@ export function useIncomingInvites() {
 export interface DiscoverCompany {
   id: string;
   name: string;
-  supkeysId: string | null;
+  rothernId: string | null;
   industry: string | null;
   matchScore: number;
 }
@@ -183,10 +183,10 @@ export function useDiscover() {
 export function useInviteConnection() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (supkeysId: string) => {
+    mutationFn: async (rothernId: string) => {
       const { data } = await companyApi.post<{ targetName: string }>(
         "/company/connections/invite",
-        { supkeysId },
+        { rothernId },
       );
       return data;
     },
@@ -219,15 +219,15 @@ export function useBlockCompany() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({
-      supkeysId,
+      rothernId,
       reason,
     }: {
-      supkeysId: string;
+      rothernId: string;
       reason?: string;
     }) => {
       const { data } = await companyApi.post<{ name: string }>(
         "/company/blocks",
-        { supkeysId, reason },
+        { rothernId, reason },
       );
       return data;
     },

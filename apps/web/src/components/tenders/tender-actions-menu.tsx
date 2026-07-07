@@ -154,7 +154,7 @@ export function TenderActionsMenu({
   const inviteCompanies = useMemo(() => {
     const rows = (connections.data ?? [])
       .map((c) => c.company)
-      .filter((c) => c.supkeysId);
+      .filter((c) => c.rothernId);
     const q = inviteSearch.trim().toLocaleLowerCase("tr");
     return q
       ? rows.filter((c) => c.name.toLocaleLowerCase("tr").includes(q))
@@ -604,7 +604,7 @@ export function TenderActionsMenu({
               </p>
             ) : (
               inviteCompanies.map((c) => {
-                const code = c.supkeysId!;
+                const code = c.rothernId!;
                 const checked = inviteSel.has(code);
                 return (
                   <label

@@ -3,8 +3,8 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma } from "@supkeys/db";
-import { isValidIbanTr, normalizeIban } from "@supkeys/shared";
+import { Prisma } from "@rothern/db";
+import { isValidIbanTr, normalizeIban } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { UpsertBankAccountDto } from "./dto/company-bank-account.dto";

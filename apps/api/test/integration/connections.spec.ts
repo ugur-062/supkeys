@@ -19,11 +19,11 @@ beforeEach(async () => {
 });
 
 let codeSeq = 100;
-async function giveSupkeysId(companyId: string): Promise<string> {
+async function giveRothernId(companyId: string): Promise<string> {
   const code = `TEST-${String(codeSeq++).padStart(4, "0")}`;
   await prisma.company.update({
     where: { id: companyId },
-    data: { supkeysId: code },
+    data: { rothernId: code },
   });
   return code;
 }
@@ -47,12 +47,12 @@ function rig() {
   return { service, blocks, messages, email, notifications };
 }
 
-/** İki PAKET firma + supkeysId'ler. */
+/** İki PAKET firma + rothernId'ler. */
 async function twoCompanies() {
   const a = await makeCompanyWithUser(prisma, { tier: "PAKET" });
   const b = await makeCompanyWithUser(prisma, { tier: "PAKET" });
-  const aCode = await giveSupkeysId(a.company.id);
-  const bCode = await giveSupkeysId(b.company.id);
+  const aCode = await giveRothernId(a.company.id);
+  const bCode = await giveRothernId(b.company.id);
   return { a, b, aCode, bCode };
 }
 
@@ -228,8 +228,8 @@ describe("engelleme etkileri", () => {
     await expect(service.invite(a.auth, bCode)).rejects.toThrow(/bulunamadı/i);
     const aCode2 = (await prisma.company.findUniqueOrThrow({
       where: { id: a.company.id },
-      select: { supkeysId: true },
-    })).supkeysId!;
+      select: { rothernId: true },
+    })).rothernId!;
     await expect(service.invite(b.auth, aCode2)).rejects.toThrow(
       /bulunamadı/i,
     );
@@ -309,7 +309,7 @@ describe("toplu e-posta daveti", () => {
     const { a, b, bCode } = await twoCompanies();
     // a ile c zaten bağlı olsun.
     const c = await makeCompanyWithUser(prisma, { tier: "PAKET" });
-    await giveSupkeysId(c.company.id);
+    await giveRothernId(c.company.id);
     await prisma.companyConnection.create({
       data: {
         inviterCompanyId: a.company.id,
@@ -357,7 +357,7 @@ describe("keşfet + profil", () => {
   it("discover: kategori kesişimine göre skorlar; bağlı/engelli/kendisi hariç", async () => {
     const { service, blocks } = rig();
     const me = await makeCompanyWithUser(prisma, { tier: "PAKET" });
-    await giveSupkeysId(me.company.id);
+    await giveRothernId(me.company.id);
     await prisma.company.update({
       where: { id: me.company.id },
       data: { buyerCategoryIds: ["10000000", "20000000"], sellerCategoryIds: [] },
@@ -375,7 +375,7 @@ describe("keşfet + profil", () => {
     await makeCompanyWithUser(prisma, { tier: "STANDARD" });
     // Engellenen PAKET.
     const blocked = await makeCompanyWithUser(prisma, { tier: "PAKET" });
-    const blockedCode = await giveSupkeysId(blocked.company.id);
+    const blockedCode = await giveRothernId(blocked.company.id);
     await blocks.block(me.auth, blockedCode);
 
     const res = await service.discover(me.auth);
@@ -457,7 +457,7 @@ describe("STANDARD premium kapıları — davet + dizin", () => {
     const std = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
     // Aranabilir public bir PAKET firma olsa bile STANDARD boş alır.
     const target = await makeCompanyWithUser(prisma, { tier: "PAKET" });
-    await giveSupkeysId(target.company.id);
+    await giveRothernId(target.company.id);
     await prisma.company.update({
       where: { id: target.company.id },
       data: { publicEnabled: true },
@@ -469,7 +469,7 @@ describe("STANDARD premium kapıları — davet + dizin", () => {
     const { service } = rig();
     const std = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
     const other = await makeCompanyWithUser(prisma, { tier: "PAKET" });
-    const otherCode = await giveSupkeysId(other.company.id);
+    const otherCode = await giveRothernId(other.company.id);
     await prisma.company.update({
       where: { id: other.company.id },
       data: { publicEnabled: true },
@@ -499,7 +499,7 @@ describe("STANDARD premium kapıları — davet + dizin", () => {
     const { service } = rig();
     const viewer = await makeCompanyWithUser(prisma, { tier: "PAKET" });
     const target = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
-    const targetCode = await giveSupkeysId(target.company.id);
+    const targetCode = await giveRothernId(target.company.id);
     // publicEnabled açık olsa bile STANDARD firma dizinde/dışarıda görünmez.
     await prisma.company.update({
       where: { id: target.company.id },

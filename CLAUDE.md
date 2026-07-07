@@ -1,7 +1,7 @@
-# Supkeys — Bağlam Dosyası
+# Rothern — Bağlam Dosyası
 
 ## Proje
-**Supkeys**, AI destekli e-procurement & e-ihale SaaS platformu. PratisPro/SAP Ariba tarzı B2B; alıcılar için RFQ/teklif toplama/açık eksiltme/kazandırma/sipariş, tedarikçiler için davet kabul/teklif verme. V1 hedefi: 3 ay içinde RFQ flow'u tamamlanmış, üretime hazır iskelet.
+**Rothern**, AI destekli e-procurement & e-ihale SaaS platformu. PratisPro/SAP Ariba tarzı B2B; alıcılar için RFQ/teklif toplama/açık eksiltme/kazandırma/sipariş, tedarikçiler için davet kabul/teklif verme. V1 hedefi: 3 ay içinde RFQ flow'u tamamlanmış, üretime hazır iskelet.
 
 ## Marka
 Mavi & beyaz · Inter (UI) + Plus Jakarta Sans (display) · "S" mavi kutu + lacivert/mavi dual-tone · AI agent katmanı ileride aktif olacak.
@@ -18,12 +18,12 @@ Mavi & beyaz · Inter (UI) + Plus Jakarta Sans (display) · "S" mavi kutu + laci
 
 ## Repo Yapısı
 ```
-apps/api      NestJS         port 4000  api.supkeys.com
-apps/web      Next.js        port 3000  app.supkeys.com  (tenant + supplier rotaları)
-apps/admin    Next.js        port 3001  admin.supkeys.com
-packages/db       @supkeys/db        Prisma schema + migrations + seed + scripts
-packages/shared   @supkeys/shared    Zod + types + helpers (slug, short-code, tender-number)
-packages/email    @supkeys/email     React Email templates + Resend provider
+apps/api      NestJS         port 4000  api.rothern.com
+apps/web      Next.js        port 3000  app.rothern.com  (tenant + supplier rotaları)
+apps/admin    Next.js        port 3001  admin.rothern.com
+packages/db       @rothern/db        Prisma schema + migrations + seed + scripts
+packages/shared   @rothern/shared    Zod + types + helpers (slug, short-code, tender-number)
+packages/email    @rothern/email     React Email templates + Resend provider
 ```
 
 ## Test Hesapları (Dev)
@@ -33,7 +33,7 @@ packages/email    @supkeys/email     React Email templates + Resend provider
 | Tip | URL | E-posta | Şifre |
 |-----|-----|---------|-------|
 | Tenant | localhost:3000/login | ugur@demo.com | demo12345 |
-| Admin | localhost:3001/admin/login | admin@supkeys.com | admin12345 |
+| Admin | localhost:3001/admin/login | admin@rothern.com | admin12345 |
 | Supplier | localhost:3000/supplier/login | demo-supplier@firma.com | Test1234 |
 
 E-postalar Resend `onboarding@resend.dev` test domain'inden gerçekten gönderilir — kullanıcı kayıtlı gerçek bir adres olmalı (test için kendi adresini kullan).
@@ -42,9 +42,9 @@ E-postalar Resend `onboarding@resend.dev` test domain'inden gerçekten gönderil
 ```bash
 pnpm dev   # turbo, hepsi paralel
 # veya tek tek:
-pnpm --filter @supkeys/api dev
-pnpm --filter @supkeys/web dev
-pnpm --filter @supkeys/admin dev
+pnpm --filter @rothern/api dev
+pnpm --filter @rothern/web dev
+pnpm --filter @rothern/admin dev
 ```
 Yan servis yok — Supabase Postgres, Supabase Auth, Cloudflare R2, Resend hepsi managed.
 
@@ -70,15 +70,15 @@ Yan servis yok — Supabase Postgres, Supabase Auth, Cloudflare R2, Resend hepsi
 - `<RequireAuth>` / `<RequireAdminAuth>` / `<RequireSupplierAuth>` boundary
 - Component yolu: `@/components/{ui,brand,providers,dashboard,tenders,orders}/*`
 - API çağrıları: `useMutation` / `useQuery` (TanStack Query) + axios instance
-- Auth state: Zustand persist (localStorage keys: `supkeys-auth`, `supkeys-admin-auth`, `supkeys-supplier-auth`)
+- Auth state: Zustand persist (localStorage keys: `rothern-auth`, `rothern-admin-auth`, `rothern-supplier-auth`)
 
 ## Geliştirme Notları
 - **NestJS CLI watch modu WSL'de bozuk.** `apps/api/package.json` `dev` script'i `concurrently` + `tsc -w` + `nodemon` kullanır. `nest start --watch` KULLANMAYIN.
 - **Prisma `.env` symlink:** `packages/db/.env` → `../../.env`. Migration komutları için gerekli.
 - **Tailwind v4:** `tailwind.config.ts` YOK, tema `globals.css`'te `@theme { ... }` ile.
 - **`.env`'de `INITIAL_ADMIN_*`** seed için kullanılır (production'da kaldırılır).
-- **Schema değişikliği:** `pnpm --filter @supkeys/db migrate` (dev) → `migrate:deploy` (prod). Manuel SQL gerektiğinde migration klasörüne yaz, `_journal.json` güncelle.
-- **DB cleanup:** `pnpm --filter @supkeys/db cleanup-pending-relations` legacy `PENDING_TENANT_APPROVAL` kayıtlarını ACTIVE'e çevirir.
+- **Schema değişikliği:** `pnpm --filter @rothern/db migrate` (dev) → `migrate:deploy` (prod). Manuel SQL gerektiğinde migration klasörüne yaz, `_journal.json` güncelle.
+- **DB cleanup:** `pnpm --filter @rothern/db cleanup-pending-relations` legacy `PENDING_TENANT_APPROVAL` kayıtlarını ACTIVE'e çevirir.
 
 ## Token İzolasyonu
 JWT payload `type` field'ıyla doğrulanır. Tenant token → admin/supplier endpoint = 401 "Geçersiz token tipi". Aynı şekilde diğer kombinasyonlar. Cross-token testleri yapıldı.
@@ -89,7 +89,7 @@ JWT payload `type` field'ıyla doğrulanır. Tenant token → admin/supplier end
 
 - **Test sayısı:** 534 test, 25 suite — Supabase Auth geçişi (2026-05-19/20) sonrası bcrypt mock'ları kırık. Login/register/password servisleri `SupabaseAuthService` bridge'i bekliyor, mock güncellenmedi. **Smoke test manuel doğrulandı** (admin/tenant/supplier login → JWT alındı, generic 401 davranışı korundu). Test paketi refactor edilmeli (bekleyen iş).
 - **Coverage (geçiş öncesi):** Kritik dosyalarda %85-100 (auth, permissions, controllers)
-- **Test DB:** İzole `supkeys_test`
+- **Test DB:** İzole `rothern_test`
 - **Komutlar:**
   ```bash
   pnpm test              # tüm testler (şu an kırık — refactor bekliyor)
@@ -147,7 +147,7 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 **Teknik borç / temizlik**
 - **Test paketi refactor:** 534 testin bcrypt mock'ları `SupabaseAuthService` bridge'i ile uyumsuz; login/register/password test'leri Supabase auth.users mock'larıyla yeniden yazılmalı + smoke E2E paketi güncellenmeli.
 - `Supplier.sectors` (kürasyonlu) deprecated kolon kaldırılmalı (migration).
-- `@supkeys/email` değişince `pnpm --filter @supkeys/email build` şart — CI'da otomatikleşmeli.
+- `@rothern/email` değişince `pnpm --filter @rothern/email build` şart — CI'da otomatikleşmeli.
 
 **AI katmanı**
 - AI agent layer (event-bus, MCP entegrasyonu, action endpoint'leri `/api/agents/v1/...`)
@@ -179,7 +179,7 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 ---
 
 ## Git
-- Repo: `git@github.com:ugur-062/supkeys.git`
+- Repo: `git@github.com:ugur-062/rothern.git`
 - Branch: `main`
 - Her özellikten sonra commit + push.
 - WIP commit'leri OK (oturum sonlarında), ama main'e push etmeden önce squash veya rebase düşün.

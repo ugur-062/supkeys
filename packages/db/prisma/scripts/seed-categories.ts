@@ -7,7 +7,7 @@
  * class=XXXXXX00, commodity=XXXXXXXX). Category.id = UNSPSC kodu (stabil + parent
  * çözümü bedava). Idempotent: eski kategori + junction'ları siler, yeniden kurar.
  *
- * Çalıştırma: `pnpm --filter @supkeys/db seed-categories`
+ * Çalıştırma: `pnpm --filter @rothern/db seed-categories`
  */
 import { PrismaClient } from "@prisma/client";
 import * as fs from "fs";

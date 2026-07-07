@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 export interface ProfileViewData {
   name: string;
-  supkeysId?: string | null;
+  rothernId?: string | null;
   industry: string | null;
   city: string | null;
   country: string | null;
@@ -128,9 +128,9 @@ export function CompanyProfileView({
                 <p className="mt-1 text-sm text-zinc-500">
                   {[p.industry, location].filter(Boolean).join("  ·  ") ||
                     "Rothern tedarik profili"}
-                  {p.supkeysId ? (
+                  {p.rothernId ? (
                     <span className="ml-2 font-mono text-xs text-zinc-400">
-                      {p.supkeysId}
+                      {p.rothernId}
                     </span>
                   ) : null}
                 </p>

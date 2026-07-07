@@ -3,7 +3,7 @@
 import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
 import { useConnections } from "@/hooks/use-company-connections";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
-import { countryName } from "@supkeys/shared";
+import { countryName } from "@rothern/shared";
 import {
   CURRENCY_SYMBOL,
   DELIVERY_TERM_LABELS,
@@ -35,7 +35,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
   const invited = (d.invitedSupplierIds ?? [])
     .map(
       (code) =>
-        (connections.data ?? []).find((c) => c.company.supkeysId === code)
+        (connections.data ?? []).find((c) => c.company.rothernId === code)
           ?.company.name ?? code,
     )
     .filter(Boolean);

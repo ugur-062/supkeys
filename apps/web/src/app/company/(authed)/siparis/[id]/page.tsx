@@ -345,9 +345,9 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
               <dt className="text-xs text-zinc-500">Firma</dt>
               <dd className="font-medium text-zinc-900">
                 {o.counterparty}
-                {o.counterpartyProfile.supkeysId ? (
+                {o.counterpartyProfile.rothernId ? (
                   <span className="ml-2 font-mono text-xs text-zinc-400">
-                    {o.counterpartyProfile.supkeysId}
+                    {o.counterpartyProfile.rothernId}
                   </span>
                 ) : null}
               </dd>

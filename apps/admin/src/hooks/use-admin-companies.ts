@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface AdminCompanyRow {
   id: string;
-  supkeysId: string | null;
+  rothernId: string | null;
   name: string;
   taxNumber: string | null;
   country: string;
@@ -74,8 +74,8 @@ export function useSetCompanyTier() {
 
 export interface AdminComplaint {
   id: string;
-  complainant: { name: string; supkeysId: string | null };
-  against: { id: string; name: string; supkeysId: string | null };
+  complainant: { name: string; rothernId: string | null };
+  against: { id: string; name: string; rothernId: string | null };
   reason: string;
   detail: string | null;
   status: "OPEN" | "RESOLVED" | "DISMISSED";

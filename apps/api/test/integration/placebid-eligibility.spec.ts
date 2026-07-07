@@ -2,7 +2,7 @@
  * placeBid — görünürlük/uygunluk (PRIVATE/CONNECTIONS/PUBLIC), rol (işleme göre),
  * para birimi izin listesi + FX snapshot, requireAllItems.
  */
-import { CompanyRole } from "@supkeys/db";
+import { CompanyRole } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
 import {
   connect,

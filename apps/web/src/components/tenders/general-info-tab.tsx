@@ -3,7 +3,7 @@
 import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import type { ListingDetail } from "@/hooks/use-company-listings";
-import { countryName } from "@supkeys/shared";
+import { countryName } from "@rothern/shared";
 import {
   CURRENCY_SYMBOL,
   DELIVERY_TERM_LABELS,

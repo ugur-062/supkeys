@@ -1,4 +1,4 @@
-# Supkeys V1 E2E QA Report
+# Rothern V1 E2E QA Report
 
 **Tarih:** 2026-05-08
 **Kapsam:** V1 final pre-release audit (E.1–E.6)
@@ -155,4 +155,4 @@ Cross-tenant izolasyon (tenant kendi olmayan tender'ında 403): ✓
 
 - Bu rapor Claude Code automated test suite tarafından üretildi.
 - Detay log'lar: git history + `email_logs` tablosu + Mailpit (`localhost:8025`).
-- DB cleanup script (idempotent): `pnpm --filter @supkeys/db cleanup-pending-relations`.
+- DB cleanup script (idempotent): `pnpm --filter @rothern/db cleanup-pending-relations`.

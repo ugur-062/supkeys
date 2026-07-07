@@ -46,11 +46,11 @@ const satisDto = (over: Record<string, unknown> = {}) => ({
 describe("SATIS ihale oluşturma (sihirbaz backend'i)", () => {
   it("taban + hemen-al + kalemler + davetlerle yayınlanır", async () => {
     const { service, seller, buyer } = await sellerAndBuyer();
-    // Factory supkeysId üretmez — davet çözümü kod ister (K7X9-3M2P formatı).
+    // Factory rothernId üretmez — davet çözümü kod ister (K7X9-3M2P formatı).
     const buyerCode = "K7X9-3M2P";
     await prisma.company.update({
       where: { id: buyer.company.id },
-      data: { supkeysId: buyerCode },
+      data: { rothernId: buyerCode },
     });
 
     const listing = await service.create(

@@ -9,7 +9,7 @@ export function resolveApiBaseUrl(): string {
   if (process.env.NODE_ENV === "production") {
     if (typeof window !== "undefined") {
       console.error(
-        "[supkeys-admin] NEXT_PUBLIC_API_URL set edilmemiş — production build'inde API isteği yapılamayacak.",
+        "[rothern-admin] NEXT_PUBLIC_API_URL set edilmemiş — production build'inde API isteği yapılamayacak.",
       );
     }
     return "";

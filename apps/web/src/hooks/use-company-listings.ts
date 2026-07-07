@@ -104,7 +104,7 @@ export interface CreateListingInput {
   bidsOpenAt?: string;
   // İhale (ALIM) zenginleştirme
   items?: ListingItemInput[];
-  invitations?: string[]; // davet edilen supkeysId'ler
+  invitations?: string[]; // davet edilen rothernId'ler
   categoryIds?: string[]; // UNGM UNSPSC TR kategori kodları
   keywords?: string[];
   terms?: string;
@@ -263,7 +263,7 @@ export interface ListingBidRow {
 
 export interface ListingInvitationRow {
   companyName: string;
-  supkeysId: string | null;
+  rothernId: string | null;
   createdAt: string;
 }
 
@@ -635,10 +635,10 @@ export function useCreateNextRound(id: string) {
 export function useAddInvitations(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (supkeysIds: string[]) => {
+    mutationFn: async (rothernIds: string[]) => {
       const { data } = await companyApi.post<{ added: number; skipped: number }>(
         `/company/listings/${id}/invitations`,
-        { supkeysIds },
+        { rothernIds },
       );
       return data;
     },

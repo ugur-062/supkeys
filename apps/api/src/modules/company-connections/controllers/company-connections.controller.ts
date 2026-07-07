@@ -73,7 +73,7 @@ export class CompanyConnectionsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: InviteConnectionDto,
   ) {
-    return this.service.invite(user, dto.supkeysId);
+    return this.service.invite(user, dto.rothernId);
   }
 
   @Post("invite-by-email")

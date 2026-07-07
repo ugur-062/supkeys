@@ -170,7 +170,7 @@ export class CompanyListingsController {
     @Param("id") id: string,
     @Body() dto: AddInvitationsDto,
   ) {
-    return this.service.addInvitations(user, id, dto.supkeysIds ?? []);
+    return this.service.addInvitations(user, id, dto.rothernIds ?? []);
   }
 
   @Post(":id/bids/:bidId/eliminate")

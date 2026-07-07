@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
-import { CompanyRole, Prisma } from "@supkeys/db";
+import { CompanyRole, Prisma } from "@rothern/db";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";

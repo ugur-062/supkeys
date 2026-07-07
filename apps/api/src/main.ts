@@ -186,7 +186,7 @@ async function bootstrap() {
   await app.listen(port, "0.0.0.0");
   // Logging audit Y-1 — NestJS Logger üzerinden yazılıyor (structured log
   // pipeline'ı için tutarlı). console.log paralel akışta kalmasın.
-  bootstrapLogger.log(`🚀 Supkeys API running on http://localhost:${port}/api`);
+  bootstrapLogger.log(`🚀 Rothern API running on http://localhost:${port}/api`);
   bootstrapLogger.log(`   CORS origins: ${corsOrigins.join(", ")}`);
 }
 

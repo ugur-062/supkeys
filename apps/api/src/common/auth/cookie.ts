@@ -5,7 +5,7 @@ import type { Request, Response } from "express";
 /**
  * httpOnly cookie tabanlı oturum yardımcıları — token localStorage yerine
  * httpOnly cookie'de taşınır (XSS ile sızdırılamaz). CSRF için çift-gönderim
- * (double-submit) deseni: JS-okunabilir `sk_csrf` cookie'si + mutating
+ * (double-submit) deseni: JS-okunabilir `rk_csrf` cookie'si + mutating
  * isteklerde `X-CSRF-Token` header eşleşmesi (bkz. CsrfGuard).
  *
  * Yeni bağımlılık YOK: set = Express native `res.cookie()`, oku = elle parse.
@@ -15,12 +15,12 @@ export type Realm = "company" | "admin";
 
 /** httpOnly oturum cookie adı — realm başına ayrı (aynı tarayıcıda ikisi de). */
 export const AUTH_COOKIE: Record<Realm, string> = {
-  company: "sk_company",
-  admin: "sk_admin",
+  company: "rk_company",
+  admin: "rk_admin",
 };
 
 /** JS-okunabilir CSRF cookie'si (httpOnly DEĞİL — frontend header'a echo'lar). */
-export const CSRF_COOKIE = "sk_csrf";
+export const CSRF_COOKIE = "rk_csrf";
 export const CSRF_HEADER = "x-csrf-token";
 
 /** Cookie ömrü — JWT 1sa'de expire olur (asıl kapı); cookie daha uzun yaşar. */
@@ -33,7 +33,7 @@ function isProd(config: ConfigService): boolean {
 /** Ortak cookie opsiyonları — prod'da Secure + cross-subdomain Domain. */
 function baseOptions(config: ConfigService) {
   const prod = isProd(config);
-  // Prod: app/admin/api aynı site (.supkeys.com) → Domain ile paylaşılır.
+  // Prod: app/admin/api aynı site (.rothern.com) → Domain ile paylaşılır.
   // Dev: localhost (portlar same-site) → Domain vermiyoruz (host-only).
   const domain = config.get<string>("COOKIE_DOMAIN") || undefined;
   return {

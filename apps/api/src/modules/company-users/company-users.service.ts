@@ -8,7 +8,7 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "node:crypto";
-import { CompanyRole, Prisma } from "@supkeys/db";
+import { CompanyRole, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { CompanyAuthService } from "../company-auth/services/company-auth.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";

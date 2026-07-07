@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { RothernLogo, type LogoSize, type LogoVariant } from "./supkeys-logo";
+import { RothernLogo, type LogoSize, type LogoVariant } from "./rothern-logo";
 
 interface AdminLogoProps {
   className?: string;

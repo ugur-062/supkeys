@@ -7,8 +7,8 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { normalizeShortCode, validateShortCode } from "@supkeys/shared";
-import { Prisma } from "@supkeys/db";
+import { normalizeShortCode, validateShortCode } from "@rothern/shared";
+import { Prisma } from "@rothern/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -21,7 +21,7 @@ type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
 const COMPANY_CARD_SELECT = {
   id: true,
   name: true,
-  supkeysId: true,
+  rothernId: true,
   tier: true,
   taxNumber: true,
   city: true,
@@ -51,27 +51,27 @@ export class CompanyConnectionsService {
   async getSelf(user: AuthenticatedCompanyUser) {
     const c = await this.prisma.company.findUnique({
       where: { id: user.companyId },
-      select: { supkeysId: true },
+      select: { rothernId: true },
     });
-    return { rothernId: c?.supkeysId ?? null };
+    return { rothernId: c?.rothernId ?? null };
   }
 
   /**
-   * Rothern ID (supkeysId) ile bağlantı isteği — PLATFORM (PREMIUM) bağlantısı.
+   * Rothern ID (rothernId) ile bağlantı isteği — PLATFORM (PREMIUM) bağlantısı.
    * Sadece PAKET gönderebilir; premium bitince bu bağlantı pasifleşir.
    */
-  async invite(user: AuthenticatedCompanyUser, supkeysIdRaw: string) {
+  async invite(user: AuthenticatedCompanyUser, rothernIdRaw: string) {
     if (user.tier !== "PAKET") {
       throw new ForbiddenException(
         "Bağlantı daveti göndermek premium (PAKET) üyelik gerektirir. Standart üyeler yalnızca gelen davetleri kabul edip tedarikçi olabilir.",
       );
     }
-    const code = normalizeShortCode(supkeysIdRaw);
+    const code = normalizeShortCode(rothernIdRaw);
     if (!validateShortCode(code)) {
       throw new BadRequestException("Geçersiz Rothern ID (XXXX-XXXX)");
     }
     const target = await this.prisma.company.findUnique({
-      where: { supkeysId: code },
+      where: { rothernId: code },
       select: { id: true, name: true, isActive: true },
     });
     if (!target || !target.isActive) {
@@ -379,7 +379,7 @@ export class CompanyConnectionsService {
     const rows = await this.prisma.companyConnection.findMany({
       where: { inviterCompanyId: companyId, status: "PENDING" },
       include: {
-        invitee: { select: { id: true, name: true, supkeysId: true } },
+        invitee: { select: { id: true, name: true, rothernId: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -404,7 +404,7 @@ export class CompanyConnectionsService {
     const rows = await this.prisma.companyConnection.findMany({
       where: { inviteeCompanyId: companyId, status: "PENDING" },
       include: {
-        inviter: { select: { id: true, name: true, supkeysId: true } },
+        inviter: { select: { id: true, name: true, rothernId: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -454,7 +454,7 @@ export class CompanyConnectionsService {
           company: {
             id: other.id,
             name: other.name,
-            supkeysId: other.supkeysId,
+            rothernId: other.rothernId,
             tier: other.tier,
             taxNumber: other.taxNumber,
             city: other.city,
@@ -516,7 +516,7 @@ export class CompanyConnectionsService {
       select: {
         id: true,
         name: true,
-        supkeysId: true,
+        rothernId: true,
         industry: true,
         buyerCategoryIds: true,
         sellerCategoryIds: true,
@@ -535,7 +535,7 @@ export class CompanyConnectionsService {
         return {
           id: c.id,
           name: c.name,
-          supkeysId: c.supkeysId,
+          rothernId: c.rothernId,
           industry: c.industry,
           matchScore: sellsWhatIBuy + buysWhatISell,
         };
@@ -593,7 +593,7 @@ export class CompanyConnectionsService {
       ? {
           OR: [
             { name: { contains: q, mode: "insensitive" as const } },
-            { supkeysId: { contains: normalizeShortCode(q) } },
+            { rothernId: { contains: normalizeShortCode(q) } },
             { industry: { contains: q, mode: "insensitive" as const } },
           ],
         }
@@ -609,7 +609,7 @@ export class CompanyConnectionsService {
       },
       select: {
         id: true,
-        supkeysId: true,
+        rothernId: true,
         slug: true,
         name: true,
         industry: true,
@@ -624,7 +624,7 @@ export class CompanyConnectionsService {
       rows.map((r) => r.id),
     );
     return rows.map((r) => ({
-      supkeysId: r.supkeysId,
+      rothernId: r.rothernId,
       slug: r.slug,
       name: r.name,
       industry: r.industry,
@@ -638,13 +638,13 @@ export class CompanyConnectionsService {
    * Herkese açık firma profili + bağlantı durumu + AÇIK ihaleleri.
    * Bağlıysa tüm açık ihaleleri; değilse yalnızca PUBLIC olanlar.
    */
-  async getProfile(user: AuthenticatedCompanyUser, supkeysIdRaw: string) {
-    const code = normalizeShortCode(supkeysIdRaw);
+  async getProfile(user: AuthenticatedCompanyUser, rothernIdRaw: string) {
+    const code = normalizeShortCode(rothernIdRaw);
     const c = await this.prisma.company.findUnique({
-      where: { supkeysId: code },
+      where: { rothernId: code },
       select: {
         id: true,
-        supkeysId: true,
+        rothernId: true,
         slug: true,
         name: true,
         industry: true,
@@ -749,7 +749,7 @@ export class CompanyConnectionsService {
 
     return {
       profile: {
-        supkeysId: c.supkeysId,
+        rothernId: c.rothernId,
         slug: c.slug,
         name: c.name,
         industry: c.industry,

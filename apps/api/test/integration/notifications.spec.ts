@@ -2,7 +2,7 @@
  * Uygulama-içi bildirim motoru (NotificationService) + kategori-eşleşme wiring.
  * Kullanıcı bazında fan-out, tercih filtresi, transactional bypass, okundu akışı.
  */
-import { CompanyRole } from "@supkeys/db";
+import { CompanyRole } from "@rothern/db";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompany, makeCompanyWithUser, makeListing, makeUser } from "./factories";

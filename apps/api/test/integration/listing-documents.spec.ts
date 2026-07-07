@@ -3,7 +3,7 @@
  * Kapsam: F4 (anahtar öneki + mime guard'ı), sahip/düzenlenebilirlik kilidi,
  * görünürlük-bazlı indirme yetkisi (getOne ile aynı), R2 mock.
  */
-import { Prisma } from "@supkeys/db";
+import { Prisma } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
 import {
   connect,
