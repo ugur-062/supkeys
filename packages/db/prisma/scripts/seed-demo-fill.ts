@@ -83,6 +83,15 @@ const CONNECTIONS: [string, string][] = [
   ["ege", "marmara"], ["toros", "karadeniz"], ["yildiz", "ege"], ["demir", "toros"],
 ];
 
+// Yetki testi için: bu firmalara her rolden birer takım üyesi eklenir.
+const TEAM_KEYS = ["anadolu", "baskent", "yildiz", "gunes"];
+const TEAM_ROLES: { suffix: string; roles: CompanyRole[]; label: string }[] = [
+  { suffix: "yonetici", roles: ["YONETICI"], label: "Yönetici" },
+  { suffix: "satinalmaci", roles: ["SATIN_ALMACI"], label: "Satın Almacı" },
+  { suffix: "satisci", roles: ["SATISCI"], label: "Satışçı" },
+  { suffix: "onaylayici", roles: ["ONAYLAYICI"], label: "Onaylayıcı" },
+];
+
 type Item = { name: string; quantity: number; unit: string; targetPrice?: number };
 type L = {
   owner: string; type: "ALIM" | "SATIS"; visibility: "PUBLIC" | "CONNECTIONS" | "PRIVATE";
@@ -188,6 +197,25 @@ async function main() {
   }
   console.log(`  🔗 ${CONNECTIONS.length} bağlantı`);
 
+  // 3b) Takım üyeleri (rol bazlı — yetki testi için).
+  let teamCount = 0;
+  for (const key of TEAM_KEYS) {
+    for (const t of TEAM_ROLES) {
+      const email = `${t.suffix}.${key}${DOMAIN}`;
+      const authId = await ensureAuthUser(email);
+      await prisma.companyUser.upsert({
+        where: { email },
+        update: { authId, roles: t.roles, companyId: id[key].companyId, isActive: true, deletedAt: null },
+        create: {
+          email, authId, firstName: t.label, lastName: COMPANIES.find((c) => c.key === key)!.name,
+          roles: t.roles, companyId: id[key].companyId, emailVerifiedAt: new Date(),
+        },
+      });
+      teamCount++;
+    }
+  }
+  console.log(`  👥 ${teamCount} rol-bazlı takım üyesi`);
+
   // 4) İhaleler + kalemler + davetler.
   const listingRef: { owner: string; title: string; listingId: string }[] = [];
   for (const l of LISTINGS) {
@@ -236,8 +264,12 @@ async function main() {
   console.log(`  💰 ${bidCount} teklif`);
 
   console.log("\n✅ Demo doluluk tamam. Giriş: şifre hepsi 'Demo1234!'");
-  console.log("   PAKET (ilan açan): anadolu@demofill.local, baskent@demofill.local");
-  console.log("   STANDARD (herkese açık ihaleleri kontrol): yildiz@demofill.local, gunes@demofill.local");
+  console.log("   Sahip (tam yetki): anadolu@demofill.local (PAKET), yildiz@demofill.local (STANDARD)");
+  console.log("   Rol testi kullanıcıları (her firmada aynı desen):");
+  for (const key of TEAM_KEYS) {
+    const tier = COMPANIES.find((c) => c.key === key)!.tier;
+    console.log(`   • ${key} [${tier}]: ${TEAM_ROLES.map((t) => `${t.suffix}.${key}@demofill.local (${t.label})`).join(", ")}`);
+  }
   await prisma.$disconnect();
 }
 
