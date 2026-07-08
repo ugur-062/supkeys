@@ -6,6 +6,7 @@ import {
   type CompanyOrderDetail,
   type OrderPayment,
 } from "@/hooks/use-company-orders";
+import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { format } from "date-fns";
@@ -101,18 +102,19 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
     }
   };
 
-  const handleDecision = async (
+  // Reddedilecek ödeme kaydının id'si — set edilince ReasonDialog açılır
+  // (native window.prompt yerine uygulama diyaloğu).
+  const [rejectId, setRejectId] = useState<string | null>(null);
+
+  const runDecision = async (
     paymentId: string,
     decision: "confirm" | "reject",
+    reason?: string,
   ) => {
-    let reason: string | undefined;
-    if (decision === "reject") {
-      reason = window.prompt("Red sebebi (zorunlu):")?.trim() || undefined;
-      if (!reason) return;
-    }
     try {
       await decide.mutateAsync({ paymentId, decision, reason });
       toast.success(decision === "confirm" ? "Ödeme onaylandı" : "Ödeme reddedildi");
+      setRejectId(null);
     } catch (err) {
       toast.error(extractErrorMessage(err, "İşlem başarısız"));
     }
@@ -293,7 +295,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                     <>
                       <button
                         type="button"
-                        onClick={() => handleDecision(p.id, "confirm")}
+                        onClick={() => runDecision(p.id, "confirm")}
                         disabled={decide.isPending}
                         className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-success-50 text-success-600 hover:bg-success-500/10 disabled:opacity-50"
                         title="Onayla"
@@ -302,7 +304,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDecision(p.id, "reject")}
+                        onClick={() => setRejectId(p.id)}
                         disabled={decide.isPending}
                         className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-danger-50 text-danger-600 hover:bg-danger-500/10 disabled:opacity-50"
                         title="Reddet"
@@ -317,6 +319,19 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
           })
         )}
       </div>
+
+      {/* Ödeme reddi gerekçe diyaloğu (native window.prompt yerine). */}
+      <ReasonDialog
+        open={rejectId !== null}
+        onClose={() => setRejectId(null)}
+        onSubmit={(reason) => rejectId && runDecision(rejectId, "reject", reason)}
+        title="Ödemeyi Reddet"
+        description="Red gerekçesi alıcıya iletilir."
+        confirmLabel="Reddet"
+        minLength={1}
+        pending={decide.isPending}
+        destructive
+      />
     </section>
   );
 }

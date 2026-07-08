@@ -18,6 +18,9 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("sonner", () => ({ toast: h.toast }));
+vi.mock("@/components/providers/confirm-dialog", () => ({
+  useConfirm: () => async () => true,
+}));
 vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
   const mod = await importOriginal<Record<string, unknown>>();
   return {

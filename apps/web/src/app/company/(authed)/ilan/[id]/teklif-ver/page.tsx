@@ -52,6 +52,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/providers/confirm-dialog";
 import { AuctionLiveCard } from "../_components/auction-live-card";
 
 /** Kalem başına form durumu. null fiyat = "bu kaleme teklif verme". */
@@ -144,6 +145,7 @@ export default function TeklifVerPage() {
   const bidDocs = useBidDocuments(id);
   const uploadDoc = useUploadBidDoc(id);
   const deleteDoc = useDeleteBidDoc(id);
+  const confirm = useConfirm();
 
   const l = detail.data;
   const detailHref = `/company/ilan/${id}`;
@@ -1150,7 +1152,15 @@ export default function TeklifVerPage() {
                         aria-label={`${d.fileName} belgesini sil`}
                         disabled={deleteDoc.isPending}
                         onClick={async () => {
-                          if (!confirm(`"${d.fileName}" silinsin mi?`)) return;
+                          if (
+                            !(await confirm({
+                              title: "Belge silinsin mi?",
+                              description: `"${d.fileName}" kalıcı olarak silinecek.`,
+                              confirmLabel: "Sil",
+                              destructive: true,
+                            }))
+                          )
+                            return;
                           try {
                             await deleteDoc.mutateAsync(d.id);
                             toast.success("Belge silindi");
