@@ -56,7 +56,7 @@ describe("getOne — görüntüleme & maskeleme matrisi", () => {
     expect(res.items.length).toBe(1);
   });
 
-  it("PUBLIC + STANDARD bağlı-değil → görür ama MASKELİ (kalem gizli, teklif veremez)", async () => {
+  it("PUBLIC + STANDARD bağlı-değil → görür ama MASKELİ (kalem teaser, teklif veremez)", async () => {
     const { service, l } = await listing("PUBLIC");
     const v = await makeCompanyWithUser(prisma, {
       country: "TR",
@@ -65,11 +65,13 @@ describe("getOne — görüntüleme & maskeleme matrisi", () => {
     const res = (await service.getOne(v.auth, l.id)) as {
       masked: boolean;
       canBid: boolean;
-      items: unknown[];
+      items: { targetPrice: unknown }[];
     };
     expect(res.masked).toBe(true);
     expect(res.canBid).toBe(false);
-    expect(res.items.length).toBe(0);
+    // Teaser: kalem görünür (ne alınıyor belli) ama fiyat gizli.
+    expect(res.items.length).toBe(1);
+    expect(res.items[0].targetPrice).toBeNull();
   });
 
   it("PUBLIC + STANDARD ama BAĞLI → maskesiz", async () => {

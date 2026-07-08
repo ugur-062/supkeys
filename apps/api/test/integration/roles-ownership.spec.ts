@@ -86,36 +86,36 @@ describe("Sahiplik devri (updateRoles)", () => {
       svc.updateRoles(owner.auth, member.id, {
         roles: [CompanyRole.SAHIP, CompanyRole.YONETICI],
       } as never),
-    ).rejects.toThrow(/yalnızca Satın Almacı/i);
+    ).rejects.toThrow(/tam yetkili|birleştirilemez|ayrı rol/i);
   });
 
-  it("sahip başka kullanıcıya devreder → yeni sahip SAHIP, eski Yönetici'ye düşer", async () => {
+  it("kuruculuk devri → yeni Kurucu [SAHIP], eski Kurucu Yönetici'ye düşer", async () => {
     const svc = makeUsersService();
-    const owner = await makeCompanyWithUser(prisma); // [SAHIP, SATIN_ALMACI, SATISCI]
+    const owner = await makeCompanyWithUser(prisma); // [SAHIP]
     const member = await makeUser(prisma, owner.company.id, [
       CompanyRole.SATISCI,
     ]);
 
+    // Kurucu tam yetkilidir; ek rol taşımaz → yalnız SAHIP gönderilir.
     await svc.updateRoles(owner.auth, member.id, {
-      roles: [CompanyRole.SAHIP, CompanyRole.SATISCI],
+      roles: [CompanyRole.SAHIP],
     } as never);
 
     const company = await prisma.company.findUniqueOrThrow({
       where: { id: owner.company.id },
     });
-    expect(company.ownerUserId).toBe(member.id); // sahiplik geçti
+    expect(company.ownerUserId).toBe(member.id); // kuruculuk geçti
 
     const newOwner = await prisma.companyUser.findUniqueOrThrow({
       where: { id: member.id },
     });
-    expect(newOwner.roles).toContain(CompanyRole.SAHIP);
+    expect(newOwner.roles).toEqual([CompanyRole.SAHIP]); // tek başına
 
     const oldOwner = await prisma.companyUser.findUniqueOrThrow({
       where: { id: owner.user.id },
     });
     expect(oldOwner.roles).not.toContain(CompanyRole.SAHIP);
-    expect(oldOwner.roles).toContain(CompanyRole.YONETICI); // yönetim kalır
-    expect(oldOwner.roles).toContain(CompanyRole.SATIN_ALMACI); // op-rol korunur
+    expect(oldOwner.roles).toContain(CompanyRole.YONETICI); // yönetime düşer
   });
 
   it("sahip olmayan kullanıcı SAHIP veremez (devredemez)", async () => {
@@ -138,7 +138,7 @@ describe("Sahiplik devri (updateRoles)", () => {
       svc.updateRoles(managerAuth, target.id, {
         roles: [CompanyRole.SAHIP],
       } as never),
-    ).rejects.toThrow(/mevcut firma sahibi/i);
+    ).rejects.toThrow(/mevcut Kurucu/i);
   });
 
   it("sahip, devretmeden SAHIP rolünü bırakamaz", async () => {

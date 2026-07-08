@@ -515,7 +515,7 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
       svc.setActive(owner.auth, owner.user.id, false),
     ).rejects.toThrow(/pasifleştirilemez|Kendinizi/);
     await expect(svc.remove(owner.auth, owner.user.id)).rejects.toThrow(
-      /sahibi çıkarılamaz|Kendinizi/,
+      /Kurucu çıkarılamaz|Kendinizi/,
     );
   });
 
@@ -531,7 +531,7 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
         member.user.id,
         { added: [], removed: [] } as never,
       ),
-    ).rejects.toThrow(/yalnızca firma sahibi/);
+    ).rejects.toThrow(/yalnızca Kurucu/);
 
     await svc.updatePermissions(
       { ...(owner.auth as object), isOwner: true } as never,
@@ -567,7 +567,7 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
       svc.updateRoles(staff.auth, staff.user.id, {
         roles: ["YONETICI"],
       } as never),
-    ).rejects.toThrow(/yalnızca firma sahibi veya Yönetici/);
+    ).rejects.toThrow(/yalnızca Kurucu veya Yönetici/);
     // Operasyon rollerini yönetmek serbest (tavan yalnız YONETICI/ONAYLAYICI).
     const other = await addUser(owner.company.id, "TR", ["SATIN_ALMACI"]);
     await svc.updateRoles(staff.auth, other.user.id, {

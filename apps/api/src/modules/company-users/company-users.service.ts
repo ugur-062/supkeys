@@ -95,7 +95,7 @@ export class CompanyUsersService {
     // Sahiplik davetle verilemez — mevcut bir kullanıcıya devir ile aktarılır.
     if (roles.includes("SAHIP")) {
       throw new BadRequestException(
-        "Firma sahipliği davetle verilemez; mevcut bir kullanıcıya devredin",
+        "Kuruculuk davetle verilemez; mevcut bir kullanıcıya devredin",
       );
     }
     this.assertValidRoleCombo(roles);
@@ -488,7 +488,7 @@ export class CompanyUsersService {
   ) {
     if (!actor.isOwner) {
       throw new ForbiddenException(
-        "İzinleri yalnızca firma sahibi düzenleyebilir",
+        "İzinleri yalnızca Kurucu düzenleyebilir",
       );
     }
     const target = await this.requireMember(actor.companyId, targetId);
@@ -498,7 +498,7 @@ export class CompanyUsersService {
     });
     if (company?.ownerUserId === targetId) {
       throw new BadRequestException(
-        "Firma sahibinin izinleri kısıtlanamaz (tüm yetkilere sahiptir)",
+        "Kurucunun izinleri kısıtlanamaz (tüm yetkilere sahiptir)",
       );
     }
 
@@ -537,7 +537,7 @@ export class CompanyUsersService {
     });
     if (company?.ownerUserId === targetId) {
       throw new BadRequestException(
-        "Firma sahibi çıkarılamaz — önce sahipliği devredin",
+        "Kurucu çıkarılamaz — önce kuruculuğu devredin",
       );
     }
     if (targetId === actor.userId) {
@@ -575,18 +575,16 @@ export class CompanyUsersService {
   /**
    * Rol kombinasyon kuralı: bir kişiye tek rol atanır; istisna olarak yalnızca
    * Satın Almacı + Satışçı birlikte verilebilir. Yönetici ve Onaylayıcı tek başına.
-   * Kurucu (SAHIP), Yönetici'yi kapsadığından yalnız operasyon rolleriyle
-   * (Satın Almacı/Satışçı) birleşebilir.
+   * Kurucu (SAHIP) TAM YETKİLİDİR — tek başına olur, ek rol ile birleşmez.
    */
   private assertValidRoleCombo(roles: CompanyRole[]) {
     if (roles.length === 0) {
       throw new BadRequestException("En az bir rol seçin");
     }
     if (roles.includes("SAHIP")) {
-      const extra = roles.filter((r) => r !== "SAHIP");
-      if (extra.some((r) => r !== "SATIN_ALMACI" && r !== "SATISCI")) {
+      if (roles.length > 1) {
         throw new BadRequestException(
-          "Kurucu yalnızca Satın Almacı ve/veya Satışçı ile birleştirilebilir",
+          "Kurucu tam yetkilidir; ayrı rol (Satın Almacı/Satışçı vb.) ile birleştirilemez",
         );
       }
       return;
@@ -623,7 +621,7 @@ export class CompanyUsersService {
     // Sahiplik (SAHIP) yalnız mevcut firma sahibi tarafından devredilebilir.
     if (roles.includes("SAHIP") && !actor.isOwner) {
       throw new ForbiddenException(
-        "Firma sahipliğini yalnızca mevcut firma sahibi devredebilir",
+        "Kuruculuğu yalnızca mevcut Kurucu devredebilir",
       );
     }
     const grantsPrivileged = roles.some(
@@ -632,7 +630,7 @@ export class CompanyUsersService {
     const actorIsAdmin = actor.isOwner || hasManagementRole(actor.roles);
     if (grantsPrivileged && !actorIsAdmin) {
       throw new ForbiddenException(
-        "Yönetici veya Onaylayıcı rolünü yalnızca firma sahibi veya Yönetici atayabilir",
+        "Yönetici veya Onaylayıcı rolünü yalnızca Kurucu veya Yönetici atayabilir",
       );
     }
   }
@@ -655,7 +653,7 @@ export class CompanyUsersService {
     const targetIsOwner = currentOwnerId === targetId;
     if (!targetWantsOwner && targetIsOwner) {
       throw new BadRequestException(
-        "Firma sahipliğini bırakmadan önce başka bir aktif kullanıcıya devretmelisiniz",
+        "Kuruculuğu bırakmadan önce başka bir aktif kullanıcıya devretmelisiniz",
       );
     }
     if (targetWantsOwner && !targetIsOwner) {

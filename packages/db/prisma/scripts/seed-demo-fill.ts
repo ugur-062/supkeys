@@ -30,7 +30,7 @@ const supabase = createClient(
 
 const PASSWORD = "Demo1234!";
 const DOMAIN = "@demofill.local";
-const OWNER_ROLES: CompanyRole[] = ["SAHIP", "SATIN_ALMACI", "SATISCI"];
+const OWNER_ROLES: CompanyRole[] = ["SAHIP"]; // Kurucu tam yetkili, tek başına
 const CODE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const genCode = () => {
   const p = () => Array.from({ length: 4 }, () => CODE_ALPHABET[Math.floor(Math.random() * CODE_ALPHABET.length)]).join("");

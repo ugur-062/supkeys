@@ -40,9 +40,10 @@ function isMissingRecipientError(err: unknown): boolean {
 
 /** Portala erişim veren roller — fan-out + e-posta alıcı filtresi (paylaşılan). */
 export function rolesForPortal(portal: NotificationPortal): CompanyRole[] {
+  // Kurucu (SAHIP) her iki portalı da kapsar → tüm portal bildirimlerini alır.
   return portal === "satis"
-    ? [CompanyRole.SATISCI, CompanyRole.YONETICI]
-    : [CompanyRole.SATIN_ALMACI, CompanyRole.YONETICI];
+    ? [CompanyRole.SAHIP, CompanyRole.SATISCI, CompanyRole.YONETICI]
+    : [CompanyRole.SAHIP, CompanyRole.SATIN_ALMACI, CompanyRole.YONETICI];
 }
 
 /** Okuma tarafı: aktif portal + ORTAK (null) bildirimler. */

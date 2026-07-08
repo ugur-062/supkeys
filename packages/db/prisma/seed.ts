@@ -82,8 +82,8 @@ function genCode(): string {
   return `${pick()}-${pick()}`;
 }
 
-// Kurucu = Firma Sahibi (SAHIP ⊇ Yönetici) + operasyon rolleri.
-const OWNER_ROLES: CompanyRole[] = ["SAHIP", "SATIN_ALMACI", "SATISCI"];
+// Kurucu (SAHIP) TAM YETKİLİDİR — tek başına, ayrı op-rol taşımaz.
+const OWNER_ROLES: CompanyRole[] = ["SAHIP"];
 
 // ──────────────────────────────────────────────────────────────────────────────
 

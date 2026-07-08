@@ -46,6 +46,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDistanceToNowStrict } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
+  Crown,
   MailPlus,
   MoreVertical,
   Pencil,
@@ -463,25 +464,21 @@ function EditUserModal({
   const transferOwnership = async () => {
     if (
       !window.confirm(
-        `Firma sahipliğini ${user.firstName} ${user.lastName} kişisine devretmek üzeresiniz. Siz Yönetici'ye düşeceksiniz. Onaylıyor musunuz?`,
+        `Kuruculuğu ${user.firstName} ${user.lastName} kişisine devretmek üzeresiniz. Siz Yönetici'ye düşeceksiniz. Onaylıyor musunuz?`,
       )
     )
       return;
     try {
+      // Kurucu TAM YETKİ zaten; ek op-rol taşımaz → yalnız SAHIP.
       await update.mutateAsync({
         id: user.id,
-        roles: [
-          "SAHIP" as CompanyRole,
-          ...user.roles.filter(
-            (x) => x === "SATIN_ALMACI" || x === "SATISCI",
-          ),
-        ],
+        roles: ["SAHIP" as CompanyRole],
       });
-      toast.success("Firma sahipliği devredildi");
+      toast.success("Kuruculuk devredildi");
       onClose();
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Sahiplik devredilemedi",
+        err instanceof Error ? err.message : "Kuruculuk devredilemedi",
       );
     }
   };
@@ -537,10 +534,12 @@ function EditUserModal({
   };
 
   return (
-    <Dialog open onClose={onClose} size="2xl">
+    <Dialog open onClose={onClose} size="xl">
       <DialogTitle>Kullanıcıyı Düzenle</DialogTitle>
       <DialogDescription>{user.email}</DialogDescription>
-      <DialogBody className="space-y-5">
+      {/* Uzun içerik (yetki editörü) viewport'u aşıp üstü header altında
+          kalmasın diye body iç scroll ile sınırlanır. */}
+      <DialogBody className="max-h-[65vh] space-y-4 overflow-y-auto">
         <div className="grid grid-cols-2 gap-3">
           <Field>
             <Label>Ad</Label>
@@ -564,28 +563,22 @@ function EditUserModal({
         <div>
           <span className="block text-sm font-medium text-zinc-950">Roller</span>
           <div className="mt-2 space-y-2">
-            {/* Kurucu: kilitli gösterim — buradan kaldırılamaz, devirle. */}
+            {/* Kurucu: TAM YETKİ — ayrı rol atanmaz (operasyon dahil hepsini
+                kapsar). Kilitli; yalnız devirle değişir. */}
             {user.isOwner ? (
               <div className="flex items-start gap-3 rounded-lg bg-violet-50 p-2.5 text-sm ring-1 ring-violet-200">
                 <Checkbox checked disabled className="mt-0.5" />
                 <span>
-                  <span className="font-semibold text-zinc-900">
-                    Kurucu
-                  </span>
+                  <span className="font-semibold text-zinc-900">Kurucu</span>
                   <span className="mt-0.5 block text-xs text-zinc-500">
-                    Tüm yönetim yetkileri + billing/silme/devir. Devretmeden
-                    kaldırılamaz.
+                    Tam yetki — yönetim, alım, satış ve billing/silme/devir dahil
+                    her şeyi kapsar. Ayrı rol atanmaz; yalnız devirle değişir.
                   </span>
                 </span>
               </div>
             ) : null}
-            {/* Sahip için yalnız operasyon rolleri; diğerleri normal liste. */}
-            {(user.isOwner
-              ? ROLES.filter(
-                  (r) => r.key === "SATIN_ALMACI" || r.key === "SATISCI",
-                )
-              : ROLES
-            ).map((r) => {
+            {/* Kurucu'ya ek rol atanmaz; yalnız davetli/normal kullanıcılar. */}
+            {(user.isOwner ? [] : ROLES).map((r) => {
               const on = roles.includes(r.key);
               return (
                 <label
@@ -609,15 +602,16 @@ function EditUserModal({
               );
             })}
           </div>
-          {/* Sahiplik devri — yalnız mevcut sahip, başka bir kullanıcıya. */}
+          {/* Kuruculuk devri — yalnız mevcut Kurucu, başka bir kullanıcıya. */}
           {viewerIsOwner && !user.isOwner ? (
             <button
               type="button"
               onClick={transferOwnership}
               disabled={update.isPending}
-              className="mt-2 text-xs font-semibold text-violet-700 hover:text-violet-800 disabled:opacity-50"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 shadow-sm transition hover:bg-violet-100 disabled:opacity-50"
             >
-              Firma sahipliğini bu kullanıcıya devret
+              <Crown className="h-3.5 w-3.5" />
+              Kuruculuğu bu kullanıcıya devret
             </button>
           ) : null}
         </div>

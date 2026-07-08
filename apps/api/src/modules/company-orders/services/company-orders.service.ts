@@ -404,7 +404,11 @@ export class CompanyOrdersService {
   ): void {
     const needed =
       side === "seller" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI;
-    if (!user.roles.includes(needed)) {
+    // Kurucu (SAHIP) tam yetkilidir — her iki taraftaki sipariş adımını atabilir.
+    if (
+      !user.roles.includes(CompanyRole.SAHIP) &&
+      !user.roles.includes(needed)
+    ) {
       throw new ForbiddenException(
         side === "seller"
           ? "Bu işlem için Satışçı rolü gerekir — firma yöneticinizden rol isteyin"

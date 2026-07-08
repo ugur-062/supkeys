@@ -66,12 +66,8 @@ export async function makeCompanyWithUser(
     tier: opts.tier ?? "PAKET",
     ...(opts.name ? { name: opts.name } : {}),
   });
-  // Gerçek model: kurucu = Firma Sahibi (SAHIP ⊇ Yönetici) + op-roller.
-  const roles = opts.roles ?? [
-    CompanyRole.SAHIP,
-    CompanyRole.SATIN_ALMACI,
-    CompanyRole.SATISCI,
-  ];
+  // Gerçek model: Kurucu (SAHIP) tam yetkilidir — tek başına, ek op-rol yok.
+  const roles = opts.roles ?? [CompanyRole.SAHIP];
   const user = await makeUser(prisma, company.id, roles);
   await prisma.company.update({
     where: { id: company.id },

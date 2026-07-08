@@ -388,7 +388,13 @@ export class CompanyListingsService {
         isActive: true,
         ...countryWhere,
         users: {
-          some: { roles: { has: matchRole }, deletedAt: null, isActive: true },
+          // Kurucu (SAHIP) tam yetkilidir → op-rol taşımasa da eşleşen ilandan
+          // haberdar edilir.
+          some: {
+            roles: { hasSome: [matchRole, CompanyRole.SAHIP] },
+            deletedAt: null,
+            isActive: true,
+          },
         },
         OR: catOr,
       },
@@ -2911,7 +2917,10 @@ export class CompanyListingsService {
     if (!canBid) {
       throw new ForbiddenException("Bu ilana teklif için premium gerekir");
     }
-    if (!user.roles.includes(CompanyRole.SATIN_ALMACI)) {
+    if (
+      !user.roles.includes(CompanyRole.SAHIP) &&
+      !user.roles.includes(CompanyRole.SATIN_ALMACI)
+    ) {
       throw new ForbiddenException("Hemen-Al için Satın Almacı rolü gerekir");
     }
 
@@ -3122,7 +3131,10 @@ export class CompanyListingsService {
     }
     const neededRole =
       listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
-    if (!user.roles.includes(neededRole)) {
+    if (
+      !user.roles.includes(CompanyRole.SAHIP) &&
+      !user.roles.includes(neededRole)
+    ) {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
     }
 
@@ -3406,7 +3418,10 @@ export class CompanyListingsService {
     // SATIS'ta farklı alıcılara verilebilir (rol, tam kazandırmayla aynı).
     const neededRole =
       listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
-    if (!user.roles.includes(neededRole)) {
+    if (
+      !user.roles.includes(CompanyRole.SAHIP) &&
+      !user.roles.includes(neededRole)
+    ) {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
     }
 

@@ -13,7 +13,7 @@ import {
 } from "@/hooks/use-company-auth";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { Check, X } from "lucide-react";
+import { Check, Crown, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -232,6 +232,15 @@ export function CompanySignupClient() {
         }}
         className="space-y-3"
       >
+        {/* Kurucu bilgilendirmesi — ilk kullanıcı firmanın Kurucusu olur. */}
+        <div className="flex items-start gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2.5 text-xs text-violet-800">
+          <Crown className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>
+            Firmayı ilk siz açtığınız için hesabın <strong>Kurucu</strong>su
+            olarak size atanır — tüm yetkilere sahip olursunuz. Dilerseniz
+            sonradan başka bir kullanıcıya devredebilirsiniz.
+          </span>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <Field>
             <Label>Ad</Label>
