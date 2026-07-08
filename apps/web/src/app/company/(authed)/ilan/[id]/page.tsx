@@ -1433,8 +1433,9 @@ export default function ListingDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
             <p className="flex items-start gap-2">
               <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              Bu herkese açık ihale önizleme modunda — {isAlim ? "alıcı" : "satıcı"}{" "}
-              firma ve kalemler gizli. Teklif vermek için premium üyelik gerekir.
+              Bu herkese açık ihale önizleme modunda — kalemleri görüyorsunuz
+              ama {isAlim ? "alıcı" : "satıcı"} firma, fiyatlar ve dosyalar
+              gizli. Teklif vermek için premium üyelik gerekir.
             </p>
             <Button href="/company/premium" className="shrink-0">
               Premium&apos;a Geç
@@ -1502,14 +1503,9 @@ export default function ListingDetailPage() {
               {sellerBidSection}
             </TabPanel>
             <TabPanel className="outline-none">
-              {l.masked ? (
-                <div className="rounded-xl border border-zinc-100 bg-zinc-50/60 p-6 text-center text-sm text-zinc-500">
-                  Kalem detayları önizleme modunda gizli — görmek için premium
-                  üyeliğe geçin.
-                </div>
-              ) : (
-                itemsSection
-              )}
+              {/* Maskede de kalemler görünür (teaser: isim/miktar/birim);
+                  fiyat/detay itemsSection içinde gizlenir + upsell notu. */}
+              {itemsSection}
             </TabPanel>
             <TabPanel className="outline-none">
               <GeneralInfoTab l={l} />
