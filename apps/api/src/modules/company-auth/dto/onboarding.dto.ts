@@ -114,12 +114,7 @@ export class CompleteOnboardingDto {
   @MaxLength(30)
   authorizedTckn?: string;
 
-  // Kurucu = Firma Sahibi (sabit). Buradan yalnız İSTEĞE BAĞLI operasyon
-  // rolleri (Satın Almacı / Satışçı) eklenir; boş bırakılabilir.
-  @IsOptional()
-  @IsArray()
-  @IsEnum(CompanyRole, { each: true })
-  operationalRoles?: CompanyRole[];
+  // Kurucu her zaman Kurucu (tam yetki) olur — ayrı rol seçimi yok.
 
   // Faaliyet sektörü: 1-3 ana kategori (+ opsiyonel alt).
   @IsArray()

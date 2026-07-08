@@ -15,7 +15,7 @@ import type { CompanyRole } from "@rothern/db";
  * İki katman: bu roller "kişi firmanın izinli kümesinde ne yapar"; firmanın
  * neyi yapabildiği (ilan açma vb.) ayrıca üyelik `tier`ine (PAKET) bağlıdır.
  */
-/** Yönetici yetkileri — Firma Sahibi bunların TAMAMINI kapsar (SAHIP ⊇ YONETICI). */
+/** Yönetici yetkileri — Kurucu bunların TAMAMINI kapsar (SAHIP ⊇ YONETICI). */
 const YONETICI_PERMISSIONS: readonly string[] = [
   "company:manage", // firma profili/ayarları
   "users:manage", // kullanıcı + rol atama/çıkarma
@@ -34,32 +34,43 @@ export const OWNER_ONLY_PERMISSIONS = [
   "ownership:transfer",
 ] as const;
 
+const SATIN_ALMACI_PERMISSIONS: readonly string[] = [
+  "buy:listing:create", // alım ilanı aç (tier=PAKET gerekir)
+  "buy:listing:manage",
+  "buy:bid:review", // gelen teklifleri gör/karşılaştır
+  "buy:award", // kazandır
+  "buy:order:manage", // alım siparişi (öde/teslim al)
+  "sell:bid:submit", // başkasının satış ilanına teklif (mal alımı)
+];
+const SATISCI_PERMISSIONS: readonly string[] = [
+  "sell:bid:submit", // alım ilanına teklif (satış)
+  "sell:listing:create", // satış ilanı aç (tier=PAKET gerekir)
+  "sell:listing:manage",
+  "sell:award",
+  "sell:order:manage", // satış siparişi (kargola)
+];
+const ONAYLAYICI_PERMISSIONS: readonly string[] = ["approval:act"];
+
 export const COMPANY_ROLE_PERMISSIONS: Record<CompanyRole, readonly string[]> = {
-  // Firma Sahibi = Yönetici'nin tamamı + sahibe-özel (billing/silme/devir).
-  SAHIP: [...YONETICI_PERMISSIONS, ...OWNER_ONLY_PERMISSIONS],
+  // Kurucu = TAM YETKİ: tüm rollerin izinleri + sahibe-özel. Sahip,
+  // firmanın en üst yetkilisi; yönetir + operasyon yapar (ilan aç/teklif ver).
+  SAHIP: [
+    ...new Set([
+      ...YONETICI_PERMISSIONS,
+      ...SATIN_ALMACI_PERMISSIONS,
+      ...SATISCI_PERMISSIONS,
+      ...ONAYLAYICI_PERMISSIONS,
+      ...OWNER_ONLY_PERMISSIONS,
+    ]),
+  ],
   YONETICI: YONETICI_PERMISSIONS,
-  SATIN_ALMACI: [
-    "buy:listing:create", // alım ilanı aç (tier=PAKET gerekir)
-    "buy:listing:manage",
-    "buy:bid:review", // gelen teklifleri gör/karşılaştır
-    "buy:award", // kazandır
-    "buy:order:manage", // alım siparişi (öde/teslim al)
-    "sell:bid:submit", // başkasının satış ilanına teklif (mal alımı)
-  ],
-  SATISCI: [
-    "sell:bid:submit", // alım ilanına teklif (satış)
-    "sell:listing:create", // satış ilanı aç (tier=PAKET gerekir)
-    "sell:listing:manage",
-    "sell:award",
-    "sell:order:manage", // satış siparişi (kargola)
-  ],
-  ONAYLAYICI: [
-    "approval:act", // onay zincirinde onayla/reddet
-  ],
+  SATIN_ALMACI: SATIN_ALMACI_PERMISSIONS,
+  SATISCI: SATISCI_PERMISSIONS,
+  ONAYLAYICI: ONAYLAYICI_PERMISSIONS,
 } as const;
 
 /**
- * Yönetim yetkisi taşıyan roller — Firma Sahibi ve Yönetici. Portal erişimi,
+ * Yönetim yetkisi taşıyan roller — Kurucu ve Yönetici. Portal erişimi,
  * son-yönetici garantisi, rol atama gibi "admin" kontrolleri bunu kullanır.
  */
 export const MANAGEMENT_ROLES: readonly CompanyRole[] = ["SAHIP", "YONETICI"];

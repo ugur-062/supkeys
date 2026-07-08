@@ -752,7 +752,11 @@ export class CompanyListingsService {
     const neededRole =
       type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
 
-    if (!user.roles.includes(neededRole)) {
+    // Kurucu (SAHIP) tam yetkilidir — her rolü kapsar.
+    if (
+      !user.roles.includes(CompanyRole.SAHIP) &&
+      !user.roles.includes(neededRole)
+    ) {
       throw new ForbiddenException(
         type === "ALIM"
           ? "Alım ilanı açmak için Satın Almacı rolü gerekir"
@@ -1920,9 +1924,11 @@ export class CompanyListingsService {
       (listing.visibility === "PUBLIC" && (connected || isPremium));
     // Rol kapısı UI'a da yansısın: placeBid ALIM'da SATISCI, SATIS'ta
     // SATIN_ALMACI ister — kullanıcı formu doldurup 403 yemesin.
-    const roleAllowsBid = user.roles.includes(
-      listing.type === "ALIM" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI,
-    );
+    const roleAllowsBid =
+      user.roles.includes(CompanyRole.SAHIP) ||
+      user.roles.includes(
+        listing.type === "ALIM" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI,
+      );
     // Bidder'a dönen `english` bloğu görünürlükle sınırlanır; MASKELİ izleyici
     // canlı fiyat/katılımcı verisi almaz (önizleme sızıntısı yok).
     const englishForBidder =
@@ -2220,9 +2226,13 @@ export class CompanyListingsService {
     }
 
     // Rol (işleme göre): ALIM ilanı → teklifçi SATAR → Satışçı; SATIS → ALIR → Satın Almacı.
+    // Kurucu (SAHIP) tam yetkilidir — her iki tarafta da teklif verebilir.
     const neededRole =
       listing.type === "ALIM" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI;
-    if (!user.roles.includes(neededRole)) {
+    if (
+      !user.roles.includes(CompanyRole.SAHIP) &&
+      !user.roles.includes(neededRole)
+    ) {
       throw new ForbiddenException(
         listing.type === "ALIM"
           ? "Alım ilanına teklif (satış) için Satışçı rolü gerekir"

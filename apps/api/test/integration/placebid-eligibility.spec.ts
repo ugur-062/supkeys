@@ -103,6 +103,20 @@ describe("placeBid — görünürlük/uygunluk", () => {
       service.placeBid(buyerOnly.auth, listing.id, bid(item.id)),
     ).rejects.toThrow(/rol|Satışçı/i);
   });
+
+  it("rol: Kurucu (SAHIP) tek başına teklif verebilir — tam yetki", async () => {
+    const { service, listing, item } = await listingWithItem();
+    // Yalnız SAHIP rolü (op-rol yok), PAKET → premium PUBLIC'e teklif verebilir.
+    const founder = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      roles: [CompanyRole.SAHIP],
+    });
+    await service.placeBid(founder.auth, listing.id, bid(item.id));
+    const count = await prisma.listingBid.count({
+      where: { listingId: listing.id, bidderCompanyId: founder.company.id },
+    });
+    expect(count).toBe(1);
+  });
 });
 
 describe("placeBid — para birimi & kalem zorunluluğu", () => {

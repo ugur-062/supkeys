@@ -31,7 +31,7 @@ import {
 const INVITATION_TTL_DAYS = 7;
 
 const ROLE_LABEL: Record<CompanyRole, string> = {
-  SAHIP: "Firma Sahibi",
+  SAHIP: "Kurucu",
   YONETICI: "Yönetici",
   SATIN_ALMACI: "Satın Almacı",
   SATISCI: "Satışçı",
@@ -575,7 +575,7 @@ export class CompanyUsersService {
   /**
    * Rol kombinasyon kuralı: bir kişiye tek rol atanır; istisna olarak yalnızca
    * Satın Almacı + Satışçı birlikte verilebilir. Yönetici ve Onaylayıcı tek başına.
-   * Firma Sahibi (SAHIP), Yönetici'yi kapsadığından yalnız operasyon rolleriyle
+   * Kurucu (SAHIP), Yönetici'yi kapsadığından yalnız operasyon rolleriyle
    * (Satın Almacı/Satışçı) birleşebilir.
    */
   private assertValidRoleCombo(roles: CompanyRole[]) {
@@ -586,7 +586,7 @@ export class CompanyUsersService {
       const extra = roles.filter((r) => r !== "SAHIP");
       if (extra.some((r) => r !== "SATIN_ALMACI" && r !== "SATISCI")) {
         throw new BadRequestException(
-          "Firma Sahibi yalnızca Satın Almacı ve/veya Satışçı ile birleştirilebilir",
+          "Kurucu yalnızca Satın Almacı ve/veya Satışçı ile birleştirilebilir",
         );
       }
       return;
@@ -711,7 +711,7 @@ export class CompanyUsersService {
     targetId: string,
     newRoles: CompanyRole[],
   ) {
-    // Yönetim yetkisi = Firma Sahibi VEYA Yönetici.
+    // Yönetim yetkisi = Kurucu VEYA Yönetici.
     if (newRoles.includes("SAHIP") || newRoles.includes("YONETICI")) return;
     const otherActiveAdmins = await tx.companyUser.count({
       where: {
@@ -724,7 +724,7 @@ export class CompanyUsersService {
     });
     if (otherActiveAdmins === 0) {
       throw new BadRequestException(
-        "Firmada en az bir aktif yönetim yetkilisi (Firma Sahibi/Yönetici) kalmalı",
+        "Firmada en az bir aktif yönetim yetkilisi (Kurucu/Yönetici) kalmalı",
       );
     }
   }

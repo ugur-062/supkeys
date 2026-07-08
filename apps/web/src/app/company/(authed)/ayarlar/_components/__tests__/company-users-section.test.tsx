@@ -68,10 +68,8 @@ describe("CompanyUsersSection", () => {
     expect(screen.getByText("ada@firma.com")).toBeInTheDocument();
     // Rol rozetleri Türkçe etiketle.
     expect(screen.getByText("Satın Almacı")).toBeInTheDocument();
-    // Sahip için rol rozeti "Firma Sahibi".
-    expect(screen.getByText("Firma Sahibi")).toBeInTheDocument();
-    // Sahip etiketi (isim yanı).
-    expect(screen.getByText("Sahip")).toBeInTheDocument();
+    // Kurucu için rol rozeti "Kurucu".
+    expect(screen.getAllByText("Kurucu").length).toBeGreaterThanOrEqual(1);
     // Aktif durum rozeti.
     expect(screen.getAllByText("Aktif").length).toBeGreaterThanOrEqual(1);
   });

@@ -714,7 +714,7 @@ export class CompanyApprovalsService {
     if (!req || req.companyId !== user.companyId) {
       throw new NotFoundException("Onay isteği bulunamadı");
     }
-    // Eski sistem paritesi: başlatan VEYA yönetim (Firma Sahibi/Yönetici) iptal eder.
+    // Eski sistem paritesi: başlatan VEYA yönetim (Kurucu/Yönetici) iptal eder.
     const isManager =
       user.isOwner ||
       user.roles.includes(CompanyRole.SAHIP) ||
@@ -1082,7 +1082,7 @@ export class CompanyApprovalsService {
     }
     // Eski sistem kuralı: onaycı YONETICI veya ONAYLAYICI rolünde olmalı —
     // operasyon rolleri (satın almacı/satışçı) onay zincirinde karar veremez.
-    // Firma Sahibi (SAHIP) ⊇ Yönetici → onaycı olabilir.
+    // Kurucu (SAHIP) ⊇ Yönetici → onaycı olabilir.
     const bad = rows.find(
       (u) =>
         !u.roles.includes(CompanyRole.SAHIP) &&
@@ -1091,7 +1091,7 @@ export class CompanyApprovalsService {
     );
     if (bad) {
       throw new BadRequestException(
-        `${bad.firstName} ${bad.lastName} onaycı olamaz — onaycı Firma Sahibi, Yönetici veya Onaylayıcı rolünde olmalı`,
+        `${bad.firstName} ${bad.lastName} onaycı olamaz — onaycı Kurucu, Yönetici veya Onaylayıcı rolünde olmalı`,
       );
     }
   }

@@ -32,7 +32,7 @@ import { toast } from "sonner";
 const card = "rounded-xl border border-zinc-950/10 bg-white p-5";
 
 const ROLE_LABEL: Record<CompanyRole, string> = {
-  SAHIP: "Firma Sahibi",
+  SAHIP: "Kurucu",
   YONETICI: "Yönetici",
   SATIN_ALMACI: "Satın Almacı",
   SATISCI: "Satışçı",
@@ -89,7 +89,7 @@ export function AccountInfoSection() {
                 {fullName || "—"}
               </h2>
               {user?.isOwner ? (
-                <Badge color="amber">Firma Sahibi</Badge>
+                <Badge color="amber">Kurucu</Badge>
               ) : null}
             </div>
             <div className="mt-0.5 flex items-center gap-1.5 text-sm text-zinc-500">

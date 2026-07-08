@@ -24,14 +24,6 @@ const COMPANY_TYPES = [
   { value: "JOINT_STOCK", label: "Anonim Şirket" },
   { value: "SOLE_PROPRIETOR", label: "Şahıs Firması" },
 ];
-// Kurucu = Firma Sahibi (sabit). Buradan yalnız operasyonel katılım seçilir;
-// "Yalnız yönetim" hiç operasyon rolü eklemez.
-const OPERATIONAL_OPTIONS = [
-  { value: "none", label: "Yalnız yönetim (Firma Sahibi)", roles: [] as string[] },
-  { value: "buy", label: "Satın Alma", roles: ["SATIN_ALMACI"] },
-  { value: "sell", label: "Satış", roles: ["SATISCI"] },
-  { value: "both", label: "Alım + Satış", roles: ["SATIN_ALMACI", "SATISCI"] },
-];
 const STEPS = ["Şirket Bilgileri", "Kişisel Bilgiler", "Özet & Beyan"];
 // AB VAT (VIES) kapsamındaki ülkeler.
 const EU_VAT = new Set([
@@ -64,7 +56,6 @@ export function OnboardingClient() {
     addressLine: "",
     deliverySameAsBilling: true,
     authorizedTckn: "",
-    operational: "none",
     mainCategoryIds: [] as string[],
     declarationAccepted: false,
   });
@@ -138,9 +129,6 @@ export function OnboardingClient() {
         addressLine: f.addressLine.trim(),
         deliverySameAsBilling: f.deliverySameAsBilling,
         authorizedTckn: f.authorizedTckn.trim() || undefined,
-        operationalRoles:
-          OPERATIONAL_OPTIONS.find((o) => o.value === f.operational)?.roles ??
-          [],
         mainCategoryIds: f.mainCategoryIds,
         declarationAccepted: f.declarationAccepted,
       });
@@ -341,22 +329,11 @@ export function OnboardingClient() {
                   }
                 />
               </Field>
-              <Field>
-                <Label>Operasyonel katılımınız</Label>
-                <Select
-                  value={f.operational}
-                  onChange={(e) => set("operational")(e.target.value)}
-                >
-                  {OPERATIONAL_OPTIONS.map((r) => (
-                    <option key={r.value} value={r.value}>{r.label}</option>
-                  ))}
-                </Select>
-                <p className="mt-1 text-xs text-zinc-500">
-                  Firmayı kurduğunuz için <strong>Firma Sahibi</strong>siniz
-                  (tüm yönetim yetkileri). İsterseniz alım/satım operasyonuna da
-                  katılın.
-                </p>
-              </Field>
+              <div className="rounded-lg bg-blue-50 px-3 py-2.5 text-xs text-blue-800">
+                Firmayı kurduğunuz için <strong>Kurucu</strong>sunuz —
+                yönetim ve tüm operasyonlar (ilan açma, teklif verme) dahil tam
+                yetkiye sahipsiniz.
+              </div>
             </div>
             <div>
               {/* Grup etiketi — tek input'a bağlı değil, bu yüzden Headless
@@ -417,14 +394,7 @@ export function OnboardingClient() {
                 value={COUNTRIES.find((c) => c.code === f.country)?.name}
               />
               <Summary label="Yetkili" value={`${user?.firstName} ${user?.lastName}`} />
-              <Summary label="Rol" value="Firma Sahibi" />
-              <Summary
-                label="Operasyon"
-                value={
-                  OPERATIONAL_OPTIONS.find((r) => r.value === f.operational)
-                    ?.label
-                }
-              />
+              <Summary label="Rol" value="Kurucu (tam yetki)" />
               <Summary
                 label="Sektörler"
                 value={(roots.data ?? [])

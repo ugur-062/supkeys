@@ -172,7 +172,7 @@ export function accessiblePortals(
   roles: CompanyRole[],
   tier?: "STANDARD" | "PAKET",
 ): PortalKey[] {
-  // Firma Sahibi (SAHIP) ⊇ Yönetici — her iki portalı da görür.
+  // Kurucu (SAHIP) ⊇ Yönetici — her iki portalı da görür.
   const isManager = roles.includes("YONETICI") || roles.includes("SAHIP");
   const out: PortalKey[] = [];
   if ((isManager || roles.includes("SATIN_ALMACI")) && tier === "PAKET")

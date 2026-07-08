@@ -40,7 +40,7 @@ function PortalSwitcher({ activePortal }: { activePortal: PortalKey }) {
   const roles = user?.roles ?? [];
   const tier = company?.tier;
   const available = accessiblePortals(roles, tier);
-  // Portal rolleri (Firma Sahibi/Yönetici ikisini de kapsar).
+  // Portal rolleri (Kurucu/Yönetici ikisini de kapsar).
   const canPurchase =
     roles.includes("SAHIP") ||
     roles.includes("YONETICI") ||
@@ -191,7 +191,7 @@ export function CompanyTopbar({
                     {user.firstName} {user.lastName}
                   </span>
                   <span className="block text-[11px] leading-tight text-zinc-500">
-                    {user.isOwner ? "Firma Sahibi" : (company?.name ?? "")}
+                    {user.isOwner ? "Kurucu" : (company?.name ?? "")}
                   </span>
                 </span>
                 <ChevronDownIcon className="hidden size-4 text-zinc-400 md:block" />
@@ -205,7 +205,7 @@ export function CompanyTopbar({
                 <p className="text-sm font-semibold text-zinc-900">
                   {user.firstName} {user.lastName}
                   {user.isOwner ? (
-                    <span className="text-amber-600"> · Sahip</span>
+                    <span className="text-amber-600"> · Kurucu</span>
                   ) : null}
                 </p>
                 <p className="truncate text-xs text-slate-400">{user.email}</p>

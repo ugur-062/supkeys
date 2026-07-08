@@ -8,7 +8,7 @@ import { Lock } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
 
-// Portala girmek için gereken operasyon rolü (Firma Sahibi/Yönetici her ikisini de kapsar).
+// Portala girmek için gereken operasyon rolü (Kurucu/Yönetici her ikisini de kapsar).
 const PORTAL_REQUIRED_ROLE: Record<PortalKey, string> = {
   satinalma: "Satın Almacı",
   satis: "Satışçı",
@@ -80,7 +80,7 @@ function PortalAccessDenied({
       </h1>
       <p className="mt-2 text-sm text-zinc-600">
         Bu panele girmek için <strong>{requiredRole}</strong> (veya Yönetici /
-        Firma Sahibi) rolüne sahip olmalısınız. Yetki için firma yöneticinizle
+        Kurucu) rolüne sahip olmalısınız. Yetki için firma yöneticinizle
         görüşün.
       </p>
       <div className="mt-6 flex flex-col items-center gap-2">

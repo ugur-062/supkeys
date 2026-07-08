@@ -45,7 +45,7 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const ROLE_LABEL: Record<CompanyRole, string> = {
-  SAHIP: "Firma Sahibi",
+  SAHIP: "Kurucu",
   YONETICI: "Yönetici",
   SATIN_ALMACI: "Satın Almacı",
   SATISCI: "Satışçı",

@@ -65,7 +65,7 @@ const ROLES: { key: CompanyRole; label: string; desc: string }[] = [
   { key: "ONAYLAYICI", label: "Onaylayıcı", desc: "Onay zincirinde onay/ret" },
 ];
 const ROLE_LABEL: Record<CompanyRole, string> = {
-  SAHIP: "Firma Sahibi",
+  SAHIP: "Kurucu",
   YONETICI: "Yönetici",
   SATIN_ALMACI: "Satın Almacı",
   SATISCI: "Satışçı",
@@ -152,7 +152,7 @@ export function CompanyUsersSection({
                             {u.firstName} {u.lastName}
                             {u.isOwner ? (
                               <span className="ml-1.5 text-[10px] font-semibold uppercase text-amber-600">
-                                Sahip
+                                Kurucu
                               </span>
                             ) : null}
                             {isMe ? (
@@ -446,7 +446,7 @@ function EditUserModal({
         ...roles.filter((x) => x === "SATIN_ALMACI" || x === "SATISCI"),
         r,
       ];
-    // Firma Sahibi rolü buradan düşürülemez (yalnız devirle) — hep korunur;
+    // Kurucu rolü buradan düşürülemez (yalnız devirle) — hep korunur;
     // SAHIP ⊇ Yönetici olduğundan onunla YONETICI/ONAYLAYICI birleşmez.
     if (hasSahip && !next.includes("SAHIP")) {
       next = [
@@ -564,13 +564,13 @@ function EditUserModal({
         <div>
           <span className="block text-sm font-medium text-zinc-950">Roller</span>
           <div className="mt-2 space-y-2">
-            {/* Firma Sahibi: kilitli gösterim — buradan kaldırılamaz, devirle. */}
+            {/* Kurucu: kilitli gösterim — buradan kaldırılamaz, devirle. */}
             {user.isOwner ? (
               <div className="flex items-start gap-3 rounded-lg bg-violet-50 p-2.5 text-sm ring-1 ring-violet-200">
                 <Checkbox checked disabled className="mt-0.5" />
                 <span>
                   <span className="font-semibold text-zinc-900">
-                    Firma Sahibi
+                    Kurucu
                   </span>
                   <span className="mt-0.5 block text-xs text-zinc-500">
                     Tüm yönetim yetkileri + billing/silme/devir. Devretmeden

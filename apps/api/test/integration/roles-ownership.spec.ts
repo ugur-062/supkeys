@@ -46,13 +46,20 @@ describe("Firma Sahibi rolü + izinler", () => {
       where: { id: owner.user.id },
     });
     expect(u.roles).toContain(CompanyRole.SAHIP);
-    // SAHIP ⊇ Yönetici + sahibe-özel.
+    // Kurucu (SAHIP) = TAM YETKİ: yönetim + sahibe-özel + tüm operasyonlar.
     expect(hasCompanyPermission(u.roles, true, "billing:manage")).toBe(true);
     expect(hasCompanyPermission(u.roles, true, "company:delete")).toBe(true);
     expect(hasCompanyPermission(u.roles, true, "users:manage")).toBe(true);
-    // Salt YONETICI'de sahibe-özel YOK.
+    // Operasyon izinleri de var (ilan açma + teklif verme).
+    expect(hasCompanyPermission(u.roles, true, "sell:bid:submit")).toBe(true);
+    expect(hasCompanyPermission(u.roles, true, "buy:listing:create")).toBe(true);
+    expect(hasCompanyPermission(u.roles, true, "sell:listing:create")).toBe(true);
+    // Salt YONETICI'de sahibe-özel + operasyon YOK.
     expect(
       hasCompanyPermission([CompanyRole.YONETICI], false, "billing:manage"),
+    ).toBe(false);
+    expect(
+      hasCompanyPermission([CompanyRole.YONETICI], false, "sell:bid:submit"),
     ).toBe(false);
   });
 });

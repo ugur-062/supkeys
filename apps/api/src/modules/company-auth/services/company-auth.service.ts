@@ -36,7 +36,7 @@ import {
 import type { CompanyJwtPayload } from "../strategies/company-jwt.strategy";
 
 const ROLE_LABELS: Record<CompanyRole, string> = {
-  [CompanyRole.SAHIP]: "Firma Sahibi",
+  [CompanyRole.SAHIP]: "Kurucu",
   [CompanyRole.YONETICI]: "Yönetici",
   [CompanyRole.SATIN_ALMACI]: "Satın Almacı",
   [CompanyRole.SATISCI]: "Satışçı",
@@ -104,7 +104,7 @@ export class CompanyAuthService {
             firstName: dto.firstName.trim(),
             lastName: dto.lastName.trim(),
             phone: dto.phone.trim(),
-            // Firmayı kuran = Firma Sahibi (görünür rol). Operasyon rolleri
+            // Firmayı kuran = Kurucu (görünür rol). Operasyon rolleri
             // (Satın Almacı/Satışçı) onboarding'de isteğe bağlı eklenir.
             roles: [CompanyRole.SAHIP],
             companyId: company.id,
@@ -363,13 +363,9 @@ export class CompanyAuthService {
       dto.subCategoryIds ?? [],
     );
 
-    // Kurucu = Firma Sahibi (SAHIP ⊇ Yönetici). İsteğe bağlı operasyon rolleri
-    // yalnız Satın Almacı/Satışçı olabilir; diğerleri (Yönetici/Onaylayıcı)
-    // SAHIP'te zaten kapsandığı için elenir.
-    const opRoles = (dto.operationalRoles ?? []).filter(
-      (r) => r === CompanyRole.SATIN_ALMACI || r === CompanyRole.SATISCI,
-    );
-    const roles = Array.from(new Set<CompanyRole>([CompanyRole.SAHIP, ...opRoles]));
+    // Kurucu = Kurucu (tam yetki: yönetim + tüm operasyonlar). Ayrı
+    // operasyon rolü seçtirmeye gerek yok — SAHIP zaten hepsini kapsar.
+    const roles: CompanyRole[] = [CompanyRole.SAHIP];
     const deliverySame = dto.deliverySameAsBilling !== false;
 
     await this.prisma.$transaction(async (tx) => {
