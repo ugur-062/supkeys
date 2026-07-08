@@ -10,6 +10,7 @@ import {
   Text,
 } from "@react-email/components";
 import * as React from "react";
+import { LOGO_CID } from "../../assets/logo";
 import { COLORS, FONTS } from "./tokens";
 
 interface LayoutProps {
@@ -56,8 +57,9 @@ const footerStyle = {
   lineHeight: "1.6",
 };
 
-const WEB_URL = (process.env.WEB_URL ?? "http://localhost:3000").replace(/\/$/, "");
-const LOGO_URL = `${WEB_URL}/rothern-logo-on-light.png`;
+// Logo gömülü (inline CID) ek olarak gönderilir → uzak görsel engelleyen
+// istemcilerde ve dev'de (localhost) de görünür. Ek client.ts'te eklenir.
+const LOGO_SRC = `cid:${LOGO_CID}`;
 
 export function Layout({ preview, children }: LayoutProps) {
   return (
@@ -68,7 +70,7 @@ export function Layout({ preview, children }: LayoutProps) {
         <Container style={wrapper}>
           <Section style={headerSection}>
             <Img
-              src={LOGO_URL}
+              src={LOGO_SRC}
               alt="Rothern"
               width="160"
               height="40"

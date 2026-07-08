@@ -71,11 +71,22 @@ export interface RenderedEmail {
   text: string;
 }
 
+/** E-posta eki. inlineContentId set ise gömülü (inline) ek olur ve HTML'de
+ *  `cid:<inlineContentId>` ile referanslanır (ör. gömülü logo). */
+export interface EmailAttachment {
+  filename: string;
+  /** base64 içerik. */
+  content: string;
+  contentType?: string;
+  inlineContentId?: string;
+}
+
 export interface SendEmailInput {
   to: EmailRecipient;
   from: { email: string; name?: string };
   replyTo?: string;
   rendered: RenderedEmail;
+  attachments?: EmailAttachment[];
 }
 
 export interface SendEmailResult {

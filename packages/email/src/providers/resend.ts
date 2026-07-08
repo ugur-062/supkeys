@@ -20,6 +20,14 @@ export class ResendProvider extends BaseEmailProvider {
       ? `${input.from.name} <${input.from.email}>`
       : input.from.email;
 
+    const attachments = input.attachments?.map((a) => ({
+      filename: a.filename,
+      content: a.content,
+      contentType: a.contentType,
+      // Set ise Resend eki INLINE gönderir; HTML'de cid: ile referanslanır.
+      inlineContentId: a.inlineContentId,
+    }));
+
     const { data, error } = await this.client.emails.send({
       from: fromHeader,
       to: [input.to.email],
@@ -27,6 +35,7 @@ export class ResendProvider extends BaseEmailProvider {
       html: input.rendered.html,
       text: input.rendered.text,
       replyTo: input.replyTo,
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
     });
 
     if (error) {

@@ -1,10 +1,26 @@
+import {
+  LOGO_CID,
+  LOGO_FILENAME,
+  ROTHERN_LOGO_BASE64,
+} from "./assets/logo";
 import { BaseEmailProvider } from "./providers/base";
 import { ResendProvider } from "./providers/resend";
 import type {
+  EmailAttachment,
   EmailClientConfig,
   SendEmailInput,
   SendEmailResult,
 } from "./types";
+
+/** Tüm e-postalar Rothern layout'unu kullanır ve logoyu `cid:rothern-logo` ile
+ *  referanslar → logo her gönderime gömülü (inline) ek olarak eklenir. Böylece
+ *  uzak görsel engelleyen istemcilerde (Gmail vb.) ve dev'de de görünür. */
+const LOGO_ATTACHMENT: EmailAttachment = {
+  filename: LOGO_FILENAME,
+  content: ROTHERN_LOGO_BASE64,
+  contentType: "image/png",
+  inlineContentId: LOGO_CID,
+};
 
 export class EmailClient {
   readonly provider: BaseEmailProvider;
@@ -34,6 +50,8 @@ export class EmailClient {
       ...input,
       from: this.from,
       replyTo: this.replyTo,
+      // Gömülü Rothern logosu + çağıranın (varsa) ekleri.
+      attachments: [LOGO_ATTACHMENT, ...(input.attachments ?? [])],
     });
   }
 }
