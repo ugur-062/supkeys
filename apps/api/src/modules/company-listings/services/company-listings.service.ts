@@ -1586,7 +1586,7 @@ export class CompanyListingsService {
       );
     };
 
-    return all.map((l) => {
+    const rows = all.map((l) => {
       const connected = connectedIds.includes(l.companyId);
       const invited = invitedSet.has(l.id);
       const bid = bidByListing.get(l.id);
@@ -1595,6 +1595,7 @@ export class CompanyListingsService {
       const canBid =
         invited || connected || (l.visibility === "PUBLIC" && isPremium);
       return {
+        _open: l.status === "OPEN",
         id: l.id,
         number: l.number,
         title: l.title,
@@ -1625,6 +1626,22 @@ export class CompanyListingsService {
         extraCategoryCount: Math.max(0, l.categoryIds.length - 2),
       };
     });
+
+    // Öncelik sıralaması (stable — aynı kademede mevcut düzen korunur:
+    // açıkta yakın kapanış, geçmişte yeni önce):
+    //   1) Açık ilanlar üstte
+    //   2) DAVET EDİLENLER (bir tık daha önemli)
+    //   3) Kategori eşleşenler
+    //   4) gerisi
+    rows.sort(
+      (a, b) =>
+        Number(b._open) - Number(a._open) ||
+        Number(b.invited) - Number(a.invited) ||
+        Number(b.categoryMatch) - Number(a.categoryMatch) ||
+        0,
+    );
+    // Yardımcı alan dışarı sızmasın.
+    return rows.map(({ _open, ...r }) => r);
   }
 
   /**

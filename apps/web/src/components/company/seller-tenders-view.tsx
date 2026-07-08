@@ -173,6 +173,9 @@ export function SellerTenderCard({
               Hemen-Al {Number(tender.buyNowPrice).toLocaleString("tr-TR")}
             </Badge>
           ) : null}
+          {tender.invited ? (
+            <Badge color="amber">Davetlisiniz</Badge>
+          ) : null}
           {tender.visibility === "PUBLIC" ? (
             <Badge color="green">Herkese Açık</Badge>
           ) : null}
@@ -288,8 +291,10 @@ export function SellerTendersView({
     });
     const time = (iso: string | null) => (iso ? new Date(iso).getTime() : null);
     rows.sort((a, b) => {
-      // Kategori eşleşenler her sıralamada üstte (özellikle maskeli önizlemede
-      // standart üyeye "senin kategorinde ihale var" sinyali).
+      // Öncelik (seçilen sıralama modunun ÜSTÜNDE):
+      //   1) DAVET EDİLENLER — müşteri seni bu ihaleye özel çağırdı (bir tık
+      //      daha önemli), 2) kategorine uygun ihaleler.
+      if (a.invited !== b.invited) return a.invited ? -1 : 1;
       if (a.categoryMatch !== b.categoryMatch) return a.categoryMatch ? -1 : 1;
       if (sort === "newest")
         return (
