@@ -84,6 +84,32 @@ describe("mutlu yol — AFTER_DELIVERY (teslim sonrası ödeme)", () => {
     expect(db.completedAt).not.toBeNull(); // oto-tamamlamada damga eksikti
     expect(db.invoiceNumber).toBe("FTR-1");
   });
+
+  it("oto-tamamlama bildirimi SATICIYA gider, alıcıya çift düşmez", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id);
+
+    await orders.accept(seller.auth, order.id, acceptInput as never);
+    await orders.ship(seller.auth, order.id, { invoiceNumber: "FTR-1" } as never);
+    await orders.receive(buyer.auth, order.id, {} as never);
+    const payment = (await orders.recordPayment(buyer.auth, order.id, {
+      amount: 1000,
+      method: "EFT",
+    } as never)) as { id: string };
+    await orders.confirmPayment(seller.auth, order.id, payment.id);
+
+    // "Sipariş tamamlandı" bildirimi siparişi oto-kapanan SATICIYA gitmeli.
+    const sellerDone = await prisma.notification.count({
+      where: { companyId: seller.company.id, title: "Sipariş tamamlandı" },
+    });
+    expect(sellerDone).toBeGreaterThan(0);
+    // Alıcı tamamlanma bildirimini ALMAMALI (o "Ödeme onaylandı" aldı).
+    const buyerDone = await prisma.notification.count({
+      where: { companyId: buyer.company.id, title: "Sipariş tamamlandı" },
+    });
+    expect(buyerDone).toBe(0);
+  });
 });
 
 describe("BEFORE_DELIVERY (teslim öncesi ödeme) — teslim alma davranışı", () => {
@@ -135,6 +161,49 @@ describe("BEFORE_DELIVERY (teslim öncesi ödeme) — teslim alma davranışı",
 
     const rec = await orders.receive(buyer.auth, order.id, {} as never);
     expect(rec.status).toBe("COMPLETED");
+  });
+});
+
+describe("iptal kapısı — onaylı ödeme", () => {
+  it("onaylı (CONFIRMED) ödeme varken alıcı siparişi iptal EDEMEZ", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      paymentTiming: "BEFORE_DELIVERY",
+      acceptedAt: new Date(),
+    });
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: 1000,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+    await expect(
+      orders.cancel(buyer.auth, order.id, "İhtiyaç değişti, iptal ediyorum"),
+    ).rejects.toThrow(/onaylı ödeme|iade/i);
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("ACCEPTED"); // iptal edilmedi
+  });
+
+  it("onaylı ödeme yokken alıcı ACCEPTED siparişi iptal edebilir", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      acceptedAt: new Date(),
+    });
+    const res = await orders.cancel(
+      buyer.auth,
+      order.id,
+      "İhtiyaç değişti, iptal ediyorum",
+    );
+    expect(res.status).toBe("CANCELLED");
   });
 });
 

@@ -124,6 +124,21 @@ export class CompanyOrderDocumentsService {
     if (doc.uploadedByCompanyId !== user.companyId) {
       throw new ForbiddenException("Bu belgeyi silemezsiniz");
     }
+    // Teminat mektubu onaydan sonra silinemez: teslimat garantisi (alıcı
+    // koruması) onay ANINDA count>0 kapısıyla doğrulanıyor; sonrasında
+    // silinebilseydi garanti sessizce kaybolurdu. Yükleme kapısının aynası
+    // (TEMINAT yalnız PENDING'de yönetilir).
+    if (doc.type === "TEMINAT") {
+      const order = await this.prisma.companyOrder.findUnique({
+        where: { id: orderId },
+        select: { status: true },
+      });
+      if (order && order.status !== "PENDING") {
+        throw new BadRequestException(
+          "Teminat mektubu, sipariş onaylandıktan sonra silinemez",
+        );
+      }
+    }
     await this.storage.deleteObject(doc.key).catch(() => undefined);
     await this.prisma.companyOrderDocument.delete({ where: { id: docId } });
     return { ok: true };

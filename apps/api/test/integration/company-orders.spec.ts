@@ -446,4 +446,40 @@ describe("sipariş belgesi — adım bazlı yükleme kilidi", () => {
       docs.requestUploadUrl(buyer.auth, delivered.id, pdf("PAYMENT")),
     ).resolves.toHaveProperty("url");
   });
+
+  const mkTeminat = (orderId: string, companyId: string) =>
+    prisma.companyOrderDocument.create({
+      data: {
+        orderId,
+        type: "TEMINAT",
+        key: `company-orders/${orderId}/teminat/x.pdf`,
+        fileName: "teminat.pdf",
+        mimeType: "application/pdf",
+        uploadedByCompanyId: companyId,
+      },
+    });
+
+  it("teminat mektubu onaydan SONRA (ACCEPTED) silinemez", async () => {
+    const docs = makeDocsService();
+    const { seller, buyer } = await party();
+    const order = await mkOrder(seller.company.id, buyer.company.id, "ACCEPTED");
+    const doc = await mkTeminat(order.id, seller.company.id);
+    await expect(
+      docs.remove(seller.auth, order.id, doc.id),
+    ).rejects.toThrow(/onaylandıktan sonra silinemez/i);
+    // Belge duruyor.
+    expect(
+      await prisma.companyOrderDocument.count({ where: { id: doc.id } }),
+    ).toBe(1);
+  });
+
+  it("teminat mektubu onay öncesi (PENDING) silinebilir", async () => {
+    const docs = makeDocsService();
+    const { seller, buyer } = await party();
+    const order = await mkOrder(seller.company.id, buyer.company.id, "PENDING");
+    const doc = await mkTeminat(order.id, seller.company.id);
+    await expect(
+      docs.remove(seller.auth, order.id, doc.id),
+    ).resolves.toEqual({ ok: true });
+  });
 });

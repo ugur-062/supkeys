@@ -332,6 +332,17 @@ export class CompanyOrdersService {
         "İptal gerekçesi en az 10 karakter olmalı",
       );
     }
+    // Onaylı (CONFIRMED) ödeme varsa tek taraflı iptal edilemez — para el
+    // değiştirdi, iade/geri-alma akışı gerekir (ship/complete kapılarının
+    // finansal simetriği). Bekleyen ödeme (AWAITING) iptali engellemez.
+    const confirmedPayments = await this.prisma.companyOrderPayment.count({
+      where: { orderId: id, status: "CONFIRMED" },
+    });
+    if (confirmedPayments > 0) {
+      throw new BadRequestException(
+        "Onaylı ödeme bulunan sipariş iptal edilemez — iade için destek ekibiyle iletişime geçin",
+      );
+    }
     const res = await this.transition(user, id, {
       side: "buyer",
       from: ["PENDING", "ACCEPTED", "CREATED"],
@@ -648,14 +659,16 @@ export class CompanyOrdersService {
           where: { id, status: "DELIVERED" },
           data: { status: "COMPLETED", completedAt: new Date() },
         });
-        // Tam ödeme ile otomatik tamamlandı → her iki tarafa bilgi.
+        // Tam ödeme ile otomatik tamamlandı → SATICIYA bilgi. Alıcı zaten
+        // yukarıda "Ödeme onaylandı" bildirimini aldı; tamamlanma haberi
+        // siparişi oto-kapanan satıcıya gitmeli (aksi halde satıcı habersiz kalır).
         await this.notifyOrderParty(
           id,
-          order.buyerCompanyId,
+          order.sellerCompanyId,
           "Sipariş tamamlandı",
           "Sipariş tamamlandı",
           `${this.orderLabel(order.number)} sipariş tam ödeme ile tamamlandı.`,
-          "satinalma",
+          "satis",
         );
       }
     }
