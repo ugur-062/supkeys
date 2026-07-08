@@ -10,6 +10,7 @@
     "migrate:deploy": "prisma migrate deploy",
     "studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
+    "seed-demo-fill": "tsx prisma/scripts/seed-demo-fill.ts",
     "create-test-company": "tsx prisma/scripts/create-test-company.ts",
     "seed-categories": "tsx prisma/scripts/seed-categories.ts",
     "cleanup-categories": "tsx prisma/scripts/cleanup-categories.ts",
