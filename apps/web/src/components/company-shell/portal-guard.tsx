@@ -3,13 +3,22 @@
 import { PremiumGate } from "@/components/company-shell/premium-gate";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { usePortalStore } from "@/lib/company/portal-store";
-import { accessiblePortals, type PortalKey } from "@/lib/company/portals";
-import { useRouter } from "next/navigation";
+import { accessiblePortals, PORTALS, type PortalKey } from "@/lib/company/portals";
+import { Lock } from "lucide-react";
+import Link from "next/link";
 import { useEffect } from "react";
 
+// Portala girmek için gereken operasyon rolü (Firma Sahibi/Yönetici her ikisini de kapsar).
+const PORTAL_REQUIRED_ROLE: Record<PortalKey, string> = {
+  satinalma: "Satın Almacı",
+  satis: "Satışçı",
+};
+
 /**
- * Portal erişim kapısı — kullanıcının rolü bu portala izin vermiyorsa
- * erişebildiği ilk portala (yoksa Ayarlar'a) yönlendirir + son portalı kaydeder.
+ * Portal erişim kapısı:
+ * - Rolü uygunsa → içerik.
+ * - Satınalma'ya rolü uygun ama STANDARD → Premium kapısı (PremiumGate).
+ * - Rolü uygun DEĞİLSE → "erişim yetkiniz yok" ekranı (sessiz yönlendirme YOK).
  */
 export function PortalGuard({
   portal,
@@ -19,13 +28,11 @@ export function PortalGuard({
   children: React.ReactNode;
 }) {
   const { user, company } = useCompanyAuth();
-  const router = useRouter();
   const setLastPortal = usePortalStore((s) => s.setLastPortal);
 
   const available = user ? accessiblePortals(user.roles, company?.tier) : [];
   const allowed = available.includes(portal);
-  // Satınalma'ya rolü uygun (YÖNETİCİ/Satın Almacı) ama STANDARD → premium
-  // doğrulama kapısı göster (yönlendirme yerine). Rolü yoksa yönlendir.
+  // Satınalma'ya rolü var (Yönetici/Satın Almacı/Sahip) ama STANDARD → premium kapısı.
   const hasPurchasingRole =
     !!user &&
     (user.roles.includes("SAHIP") ||
@@ -38,17 +45,60 @@ export function PortalGuard({
     company?.tier !== "PAKET";
 
   useEffect(() => {
-    if (!user) return;
-    if (allowed) {
-      setLastPortal(portal);
-    } else if (!premiumLocked) {
-      router.replace(available[0] ? `/company/${available[0]}` : "/company/ayarlar");
-    }
-  }, [user, allowed, premiumLocked, available, portal, router, setLastPortal]);
+    if (user && allowed) setLastPortal(portal);
+  }, [user, allowed, portal, setLastPortal]);
 
-  if (user && premiumLocked) return <PremiumGate />;
-  if (user && !allowed) {
-    return <div className="p-8 text-sm text-zinc-400">Yönlendiriliyor…</div>;
+  if (!user) {
+    return <div className="p-8 text-sm text-zinc-400">Yükleniyor…</div>;
+  }
+  if (premiumLocked) return <PremiumGate />;
+  if (!allowed) {
+    return (
+      <PortalAccessDenied portal={portal} fallback={available[0] ?? null} />
+    );
   }
   return <>{children}</>;
+}
+
+/** Rol yetersizliği ekranı — kullanıcı bu panele giremez, gereken rolü söyler. */
+function PortalAccessDenied({
+  portal,
+  fallback,
+}: {
+  portal: PortalKey;
+  fallback: PortalKey | null;
+}) {
+  const label = PORTALS[portal].label;
+  const requiredRole = PORTAL_REQUIRED_ROLE[portal];
+  return (
+    <div className="mx-auto max-w-md px-4 py-16 text-center">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100">
+        <Lock className="h-5 w-5 text-zinc-500" aria-hidden="true" />
+      </div>
+      <h1 className="mt-4 text-lg font-bold text-zinc-900">
+        {label} paneline erişim yetkiniz yok
+      </h1>
+      <p className="mt-2 text-sm text-zinc-600">
+        Bu panele girmek için <strong>{requiredRole}</strong> (veya Yönetici /
+        Firma Sahibi) rolüne sahip olmalısınız. Yetki için firma yöneticinizle
+        görüşün.
+      </p>
+      <div className="mt-6 flex flex-col items-center gap-2">
+        {fallback ? (
+          <Link
+            href={PORTALS[fallback].basePath}
+            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+          >
+            {PORTALS[fallback].label} paneline dön
+          </Link>
+        ) : null}
+        <Link
+          href="/company/ayarlar"
+          className="text-sm font-medium text-zinc-500 hover:text-zinc-700"
+        >
+          Ayarlar
+        </Link>
+      </div>
+    </div>
+  );
 }

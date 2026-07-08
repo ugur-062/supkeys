@@ -58,16 +58,30 @@ describe("PortalGuard", () => {
     expect(h.replace).not.toHaveBeenCalled();
   });
 
-  it("portal rolü yok → erişilebilir portala yönlendirir + ara metin", () => {
+  it("sadece Satışçı → Satınalma'da 'yetkiniz yok' ekranı (yönlendirme YOK)", () => {
     h.auth.user = { roles: ["SATISCI"] };
-    h.auth.company = { tier: "STANDARD" };
+    h.auth.company = { tier: "PAKET" };
     render(
       <PortalGuard portal="satinalma">
         <div data-testid="child">SATINALMA</div>
       </PortalGuard>,
     );
     expect(screen.queryByTestId("child")).not.toBeInTheDocument();
-    expect(screen.getByText(/Yönlendiriliyor/i)).toBeInTheDocument();
-    expect(h.replace).toHaveBeenCalledWith("/company/satis");
+    expect(screen.getByText(/erişim yetkiniz yok/i)).toBeInTheDocument();
+    expect(screen.getByText(/Satın Almacı/)).toBeInTheDocument();
+    expect(h.replace).not.toHaveBeenCalled();
+  });
+
+  it("sadece Satın Almacı → Satış'ta 'yetkiniz yok' ekranı", () => {
+    h.auth.user = { roles: ["SATIN_ALMACI"] };
+    h.auth.company = { tier: "PAKET" };
+    render(
+      <PortalGuard portal="satis">
+        <div data-testid="child">SATIŞ</div>
+      </PortalGuard>,
+    );
+    expect(screen.queryByTestId("child")).not.toBeInTheDocument();
+    expect(screen.getByText(/erişim yetkiniz yok/i)).toBeInTheDocument();
+    expect(screen.getByText(/Satışçı/)).toBeInTheDocument();
   });
 });

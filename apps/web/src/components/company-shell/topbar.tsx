@@ -38,20 +38,22 @@ function PortalSwitcher({ activePortal }: { activePortal: PortalKey }) {
   const { company, user } = useCompanyAuth();
   const setLastPortal = usePortalStore((s) => s.setLastPortal);
   const roles = user?.roles ?? [];
-  const available = accessiblePortals(roles, company?.tier);
-  // Satınalma portalı PAKET ister. Rolü uygun (Yönetici/Satın Almacı) ama
-  // STANDARD ise switcher'da KİLİTLİ gösterilir — tıklayınca /company/satinalma
-  // → PortalGuard PremiumGate'i (Premium reklamı) açar. Böylece STANDARD
-  // Satınalma'nın var olduğunu görür ve premium'a teşvik edilir.
+  const tier = company?.tier;
+  const available = accessiblePortals(roles, tier);
+  // Portal rolleri (Firma Sahibi/Yönetici ikisini de kapsar).
   const canPurchase =
     roles.includes("SAHIP") ||
     roles.includes("YONETICI") ||
     roles.includes("SATIN_ALMACI");
-  const satinalmaLocked =
-    canPurchase && company?.tier !== "PAKET" && !available.includes("satinalma");
-  const visible: PortalKey[] = satinalmaLocked
-    ? [...available, "satinalma"]
-    : available;
+  const canSell =
+    roles.includes("SAHIP") ||
+    roles.includes("YONETICI") ||
+    roles.includes("SATISCI");
+  // Operasyonel kullanıcıya (en az bir portal rolü) HER İKİ panel de gösterilir;
+  // giremediği panel KİLİTLİ görünür. Tıklayınca PortalGuard uygun ekranı açar:
+  // rolü yoksa "yetkiniz yok", rolü var ama STANDARD ise Premium kapısı.
+  const isOperational = canPurchase || canSell;
+  const visible: PortalKey[] = isOperational ? [...PORTAL_ORDER] : available;
   if (visible.length < 2) return null;
 
   return (
@@ -59,7 +61,11 @@ function PortalSwitcher({ activePortal }: { activePortal: PortalKey }) {
       {PORTAL_ORDER.filter((p) => visible.includes(p)).map((p) => {
         const def = PORTALS[p];
         const on = p === activePortal;
-        const locked = p === "satinalma" && satinalmaLocked;
+        const allowedP = available.includes(p);
+        const premiumLock =
+          p === "satinalma" && !allowedP && canPurchase && tier !== "PAKET";
+        const roleLock = !allowedP && !premiumLock;
+        const locked = !allowedP;
         return (
           <Link
             key={p}
@@ -68,7 +74,11 @@ function PortalSwitcher({ activePortal }: { activePortal: PortalKey }) {
               if (!locked) setLastPortal(p);
             }}
             title={
-              locked ? "Premium özelliği — geçiş için tıklayın" : undefined
+              premiumLock
+                ? "Premium özelliği — geçiş için tıklayın"
+                : roleLock
+                  ? "Bu panel için yetkiniz yok"
+                  : undefined
             }
             className={cn(
               "flex items-center gap-1 rounded-md px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition",
