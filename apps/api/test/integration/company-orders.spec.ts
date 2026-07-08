@@ -346,3 +346,104 @@ describe("sipariş belgesi register — anahtar/MIME doğrulaması (F4)", () => 
     expect(ok.id).toBeTruthy();
   });
 });
+
+describe("sipariş belgesi — adım bazlı yükleme kilidi", () => {
+  function makeDocsService() {
+    const storage = {
+      generatePresignedPut: jest.fn().mockResolvedValue("https://r2/put"),
+      generatePresignedGet: jest.fn().mockResolvedValue("https://r2/get"),
+      checkExists: jest.fn().mockResolvedValue({ exists: true, size: 2048 }),
+      deleteObject: jest.fn().mockResolvedValue(undefined),
+    };
+    return new CompanyOrderDocumentsService(
+      prisma as never,
+      storage as never,
+    );
+  }
+  const pdf = (type: string) => ({
+    fileName: "x.pdf",
+    mimeType: "application/pdf",
+    type: type as never,
+    fileSize: 1024,
+  });
+  async function party() {
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    return { seller, buyer };
+  }
+  const mkOrder = (
+    sellerId: string,
+    buyerId: string,
+    status: string,
+    timing: string = "AFTER_DELIVERY",
+  ) =>
+    prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: sellerId,
+        buyerCompanyId: buyerId,
+        amount: 1000,
+        status: status as never,
+        paymentTiming: timing as never,
+      },
+    });
+
+  it("alıcı, satıcı onaylamadan (PENDING) ödeme dekontu yükleyemez", async () => {
+    const docs = makeDocsService();
+    const { seller, buyer } = await party();
+    const order = await mkOrder(seller.company.id, buyer.company.id, "PENDING");
+    await expect(
+      docs.requestUploadUrl(buyer.auth, order.id, pdf("PAYMENT")),
+    ).rejects.toThrow(/ödeme adımı|ödeme dekontu/i);
+  });
+
+  it("satıcı, onaydan önce (PENDING) teslim belgesi yükleyemez", async () => {
+    const docs = makeDocsService();
+    const { seller, buyer } = await party();
+    const order = await mkOrder(seller.company.id, buyer.company.id, "PENDING");
+    await expect(
+      docs.requestUploadUrl(seller.auth, order.id, pdf("DELIVERY")),
+    ).rejects.toThrow(/onaylandıktan sonra/i);
+  });
+
+  it("satıcı, onaydan SONRA (ACCEPTED) teminat mektubu yükleyemez", async () => {
+    const docs = makeDocsService();
+    const { seller, buyer } = await party();
+    const order = await mkOrder(seller.company.id, buyer.company.id, "ACCEPTED");
+    await expect(
+      docs.requestUploadUrl(seller.auth, order.id, pdf("TEMINAT")),
+    ).rejects.toThrow(/onayından önce/i);
+  });
+
+  it("evre uygunsa yükleme URL'i üretilir (PENDING→teminat, ACCEPTED→teslim, teslim sonrası→dekont)", async () => {
+    const docs = makeDocsService();
+    const { seller, buyer } = await party();
+    const pending = await mkOrder(
+      seller.company.id,
+      buyer.company.id,
+      "PENDING",
+    );
+    await expect(
+      docs.requestUploadUrl(seller.auth, pending.id, pdf("TEMINAT")),
+    ).resolves.toHaveProperty("url");
+
+    const accepted = await mkOrder(
+      seller.company.id,
+      buyer.company.id,
+      "ACCEPTED",
+    );
+    await expect(
+      docs.requestUploadUrl(seller.auth, accepted.id, pdf("DELIVERY")),
+    ).resolves.toHaveProperty("url");
+
+    // AFTER_DELIVERY: ödeme yalnız teslim alındıktan sonra.
+    const delivered = await mkOrder(
+      seller.company.id,
+      buyer.company.id,
+      "DELIVERED",
+      "AFTER_DELIVERY",
+    );
+    await expect(
+      docs.requestUploadUrl(buyer.auth, delivered.id, pdf("PAYMENT")),
+    ).resolves.toHaveProperty("url");
+  });
+});

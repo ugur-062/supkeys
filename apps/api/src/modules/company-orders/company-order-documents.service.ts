@@ -4,7 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { CompanyDocType } from "@rothern/db";
+import {
+  CompanyDocType,
+  CompanyOrderPaymentTiming,
+  CompanyOrderStatus,
+} from "@rothern/db";
 import * as crypto from "crypto";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
@@ -129,7 +133,12 @@ export class CompanyOrderDocumentsService {
   private async requireParty(user: AuthenticatedCompanyUser, orderId: string) {
     const order = await this.prisma.companyOrder.findUnique({
       where: { id: orderId },
-      select: { sellerCompanyId: true, buyerCompanyId: true },
+      select: {
+        sellerCompanyId: true,
+        buyerCompanyId: true,
+        status: true,
+        paymentTiming: true,
+      },
     });
     if (
       !order ||
@@ -141,7 +150,34 @@ export class CompanyOrderDocumentsService {
     return order;
   }
 
-  /** DELIVERY/TEMINAT → satıcı yükler; PAYMENT → alıcı yükler. */
+  /**
+   * Ödeme penceresi açık mı? CompanyOrdersService.isPaymentOpen ile birebir
+   * (ödeme dekontu yükleme, ödeme kaydıyla aynı adımda açılmalı):
+   *  - BEFORE_DELIVERY: satıcı onayından itibaren (ACCEPTED → COMPLETED)
+   *  - AFTER_DELIVERY: teslim alındıktan itibaren (DELIVERED, COMPLETED)
+   */
+  private isPaymentOpen(
+    timing: CompanyOrderPaymentTiming,
+    status: CompanyOrderStatus,
+  ): boolean {
+    if (timing === "BEFORE_DELIVERY") {
+      return (
+        status === "ACCEPTED" ||
+        status === "IN_DELIVERY" ||
+        status === "DELIVERED" ||
+        status === "COMPLETED"
+      );
+    }
+    return status === "DELIVERED" || status === "COMPLETED";
+  }
+
+  /**
+   * Belge yükleme yetkisi = taraf (kim) + sipariş evresi (ne zaman):
+   *  - TEMINAT → satıcı, yalnız onay öncesi (PENDING). Peşin işte onayın ön koşulu.
+   *  - DELIVERY → satıcı, onaydan teslime kadar (ACCEPTED/CREATED/IN_DELIVERY/DELIVERED).
+   *  - PAYMENT → alıcı, ödeme penceresi açıkken (isPaymentOpen).
+   * Evre-dışı yükleme (ör. satıcı onaylamadan alıcının dekont yüklemesi) reddedilir.
+   */
   private async assertCanUpload(
     user: AuthenticatedCompanyUser,
     orderId: string,
@@ -149,14 +185,45 @@ export class CompanyOrderDocumentsService {
   ) {
     const order = await this.requireParty(user, orderId);
     const isSeller = order.sellerCompanyId === user.companyId;
-    if (type === "DELIVERY" && !isSeller) {
-      throw new ForbiddenException("Teslim belgesini satıcı yükler");
+
+    if (type === "TEMINAT") {
+      if (!isSeller) {
+        throw new ForbiddenException("Teminat mektubunu satıcı yükler");
+      }
+      if (order.status !== "PENDING") {
+        throw new BadRequestException(
+          "Teminat mektubu yalnızca sipariş onayından önce yüklenebilir",
+        );
+      }
+      return;
     }
-    if (type === "TEMINAT" && !isSeller) {
-      throw new ForbiddenException("Teminat mektubunu satıcı yükler");
+
+    if (type === "DELIVERY") {
+      if (!isSeller) {
+        throw new ForbiddenException("Teslim belgesini satıcı yükler");
+      }
+      const open =
+        order.status === "ACCEPTED" ||
+        order.status === "CREATED" ||
+        order.status === "IN_DELIVERY" ||
+        order.status === "DELIVERED";
+      if (!open) {
+        throw new BadRequestException(
+          "Teslim belgesi, sipariş onaylandıktan sonra yüklenebilir",
+        );
+      }
+      return;
     }
-    if (type === "PAYMENT" && isSeller) {
-      throw new ForbiddenException("Ödeme dekontunu alıcı yükler");
+
+    if (type === "PAYMENT") {
+      if (isSeller) {
+        throw new ForbiddenException("Ödeme dekontunu alıcı yükler");
+      }
+      if (!this.isPaymentOpen(order.paymentTiming, order.status)) {
+        throw new BadRequestException(
+          "Ödeme dekontu, ödeme adımı açıldığında yüklenebilir",
+        );
+      }
     }
   }
 }

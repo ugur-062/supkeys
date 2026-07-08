@@ -619,11 +619,7 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
       {/* Ödeme */}
       <OrderPaymentsCard order={o} />
 
-      <OrderDocumentsSection
-        orderId={id}
-        role={o.role}
-        requiresGuarantee={o.listingPaymentTerm === "CASH"}
-      />
+      <OrderDocumentsSection order={o} />
 
       {/* Değerlendirme — alıcı, tamamlanmış siparişte satıcıyı puanlar */}
       {!isSeller && o.status === "COMPLETED" ? (
