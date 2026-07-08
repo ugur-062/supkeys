@@ -99,8 +99,13 @@ export class SupabaseAuthService {
     });
     if (error || !data.user) {
       this.logger.error(`createUser failed for ${email}: ${error?.message}`);
+      // Supabase e-posta çakışmasında "already been registered" benzeri döner —
+      // kullanıcıya teknik detay değil, dostane çakışma mesajı göster.
+      if (error && /registered|exists|taken|already/i.test(error.message)) {
+        throw new ConflictException("Bu e-posta ile zaten bir hesap var");
+      }
       throw new ServiceUnavailableException(
-        "Supabase auth.users oluşturulamadı",
+        "Hesap oluşturulamadı, lütfen birazdan tekrar deneyin",
       );
     }
     return { authId: data.user.id };
