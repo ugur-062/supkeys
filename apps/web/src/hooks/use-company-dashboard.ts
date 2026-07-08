@@ -18,6 +18,8 @@ export interface SatinalmaDashboard {
   bidsReceived: number;
   awarded: number;
   ongoingOrders: number;
+  /** Davet edilip teklif verilmemiş açık SATIŞ ihalesi sayısı (anasayfa uyarısı). */
+  invitedPending: number;
   openTendersOwn: OpenTenderRow[];
   openTendersCompany: OpenTenderRow[];
 }

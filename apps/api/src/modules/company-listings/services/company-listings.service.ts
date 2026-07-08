@@ -1613,6 +1613,9 @@ export class CompanyListingsService {
         masked,
         canBid,
         invited,
+        // Bağlantılı firma ihalesi (aktif iş ilişkisi) — sıralamada davetlinin
+        // altında, kategori eşleşenin üstünde önceliklenir.
+        connected,
         myBidStatus: bid?.status ?? null,
         myBidVersion: bid?.version ?? null,
         // SATIS: taban + hemen-al (maskelide fiyat sızdırılmaz).
@@ -1630,13 +1633,15 @@ export class CompanyListingsService {
     // Öncelik sıralaması (stable — aynı kademede mevcut düzen korunur:
     // açıkta yakın kapanış, geçmişte yeni önce):
     //   1) Açık ilanlar üstte
-    //   2) DAVET EDİLENLER (bir tık daha önemli)
-    //   3) Kategori eşleşenler
-    //   4) gerisi
+    //   2) DAVET EDİLENLER (beni özel çağıran — en güçlü sinyal)
+    //   3) BAĞLANTILI firma ihaleleri (iş ilişkim olan firma)
+    //   4) Kategori eşleşenler (sektörüme uygun herkese açık)
+    //   5) gerisi
     rows.sort(
       (a, b) =>
         Number(b._open) - Number(a._open) ||
         Number(b.invited) - Number(a.invited) ||
+        Number(b.connected) - Number(a.connected) ||
         Number(b.categoryMatch) - Number(a.categoryMatch) ||
         0,
     );

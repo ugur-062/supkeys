@@ -82,19 +82,19 @@ describe("SatisDashboardView", () => {
     expect(screen.getByText("+100%")).toBeInTheDocument();
   });
 
-  it("aksiyon şeridi aktif davet sayısını extra öğe olarak alır", () => {
+  it("davet uyarı banner'ı teklif verilmemiş davet sayısını gösterir", () => {
     h.stats = fullStats();
     render(<SatisDashboardView />);
     expect(
-      screen.getByText("3 aktif davete teklif bekleniyor"),
+      screen.getByText("Davet edildiğiniz 3 ihaleye henüz teklif vermediniz"),
     ).toBeInTheDocument();
   });
 
-  it("davet sıfırsa şeride extra öğe geçilmez", () => {
+  it("davet sıfırsa uyarı banner'ı görünmez", () => {
     h.stats = fullStats({ invitations: { active: 0 } });
     render(<SatisDashboardView />);
     expect(
-      screen.queryByText(/aktif davete teklif bekleniyor/),
+      screen.queryByText(/henüz teklif vermediniz/),
     ).not.toBeInTheDocument();
   });
 

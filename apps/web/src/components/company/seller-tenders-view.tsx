@@ -176,6 +176,9 @@ export function SellerTenderCard({
           {tender.invited ? (
             <Badge color="amber">Davetlisiniz</Badge>
           ) : null}
+          {!tender.invited && tender.connected ? (
+            <Badge color="purple">Bağlantılı</Badge>
+          ) : null}
           {tender.visibility === "PUBLIC" ? (
             <Badge color="green">Herkese Açık</Badge>
           ) : null}
@@ -292,9 +295,11 @@ export function SellerTendersView({
     const time = (iso: string | null) => (iso ? new Date(iso).getTime() : null);
     rows.sort((a, b) => {
       // Öncelik (seçilen sıralama modunun ÜSTÜNDE):
-      //   1) DAVET EDİLENLER — müşteri seni bu ihaleye özel çağırdı (bir tık
-      //      daha önemli), 2) kategorine uygun ihaleler.
+      //   1) DAVET EDİLENLER (beni özel çağıran — en güçlü sinyal)
+      //   2) BAĞLANTILI firma ihaleleri (iş ilişkim olan firma)
+      //   3) Kategori eşleşenler (sektörüme uygun herkese açık)
       if (a.invited !== b.invited) return a.invited ? -1 : 1;
+      if (a.connected !== b.connected) return a.connected ? -1 : 1;
       if (a.categoryMatch !== b.categoryMatch) return a.categoryMatch ? -1 : 1;
       if (sort === "newest")
         return (

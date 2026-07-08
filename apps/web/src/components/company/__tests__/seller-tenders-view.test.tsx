@@ -44,6 +44,7 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
     masked: false,
     canBid: true,
     invited: true,
+    connected: false,
     myBidStatus: null,
     myBidVersion: null,
     categoryMatch: false,
@@ -148,6 +149,31 @@ describe("SellerTendersView", () => {
       .getAllByRole("heading", { level: 3 })
       .map((el) => el.textContent);
     expect(titles).toEqual(["Eşleşen", "Eşleşmeyen"]);
+  });
+
+  it("öncelik sırası: davetli > bağlantılı > kategori > gerisi", () => {
+    h.rows = [
+      row({ title: "Gerisi", invited: false, connected: false, categoryMatch: false }),
+      row({ title: "Kategori", invited: false, connected: false, categoryMatch: true }),
+      row({ title: "Bağlantılı", invited: false, connected: true, categoryMatch: false }),
+      row({ title: "Davetli", invited: true, connected: false, categoryMatch: false }),
+    ];
+    render(<SellerTendersView />);
+    const titles = screen
+      .getAllByRole("heading", { level: 3 })
+      .map((el) => el.textContent);
+    expect(titles).toEqual(["Davetli", "Bağlantılı", "Kategori", "Gerisi"]);
+  });
+
+  it("bağlantılı (davetsiz) ilan 'Bağlantılı' rozeti gösterir; davetli ilanda gösterilmez", () => {
+    h.rows = [row({ invited: false, connected: true })];
+    const { rerender } = render(<SellerTendersView />);
+    expect(screen.getByText("Bağlantılı")).toBeInTheDocument();
+    // Davetli aynı zamanda bağlantılı olsa da 'Davetlisiniz' baskın rozet.
+    h.rows = [row({ invited: true, connected: true })];
+    rerender(<SellerTendersView />);
+    expect(screen.getByText("Davetlisiniz")).toBeInTheDocument();
+    expect(screen.queryByText("Bağlantılı")).not.toBeInTheDocument();
   });
 
   it("boş durum + hata durumu", () => {

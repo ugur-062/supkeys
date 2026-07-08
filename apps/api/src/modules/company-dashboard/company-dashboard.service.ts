@@ -29,31 +29,49 @@ export class CompanyDashboardService {
   async satinalma(user: AuthenticatedCompanyUser) {
     const companyId = user.companyId;
 
-    const [openListings, awarded, ongoingOrders] = await Promise.all([
-      this.prisma.listing.findMany({
-        where: { companyId, type: "ALIM", status: "OPEN" },
-        select: {
-          id: true,
-          number: true,
-          title: true,
-          createdAt: true,
-          closesAt: true,
-          createdById: true,
-        },
-        orderBy: { createdAt: "desc" },
-      }),
-      this.prisma.listing.count({
-        where: { companyId, type: "ALIM", status: "AWARDED" },
-      }),
-      this.prisma.companyOrder.count({
-        where: {
-          buyerCompanyId: companyId,
-          status: {
-            in: ["PENDING", "ACCEPTED", "CREATED", "IN_DELIVERY", "DELIVERED"],
+    const [openListings, awarded, ongoingOrders, invitedPending] =
+      await Promise.all([
+        this.prisma.listing.findMany({
+          where: { companyId, type: "ALIM", status: "OPEN" },
+          select: {
+            id: true,
+            number: true,
+            title: true,
+            createdAt: true,
+            closesAt: true,
+            createdById: true,
           },
-        },
-      }),
-    ]);
+          orderBy: { createdAt: "desc" },
+        }),
+        this.prisma.listing.count({
+          where: { companyId, type: "ALIM", status: "AWARDED" },
+        }),
+        this.prisma.companyOrder.count({
+          where: {
+            buyerCompanyId: companyId,
+            status: {
+              in: ["PENDING", "ACCEPTED", "CREATED", "IN_DELIVERY", "DELIVERED"],
+            },
+          },
+        }),
+        // Davet edilip henüz teklif verilmemiş açık SATIŞ ihaleleri (satış
+        // tarafındaki activeInvitations'ın simetriği — alıcı olarak davet).
+        this.prisma.listingInvitation.count({
+          where: {
+            invitedCompanyId: companyId,
+            listing: {
+              status: "OPEN",
+              type: "SATIS",
+              bids: {
+                none: {
+                  bidderCompanyId: companyId,
+                  status: { in: ["DRAFT", "SUBMITTED"] },
+                },
+              },
+            },
+          },
+        }),
+      ]);
 
     const openIds = openListings.map((l) => l.id);
     const bidsReceived =
@@ -76,6 +94,8 @@ export class CompanyDashboardService {
       bidsReceived,
       awarded,
       ongoingOrders,
+      // Davet edilip teklif verilmemiş açık SATIŞ ihalesi sayısı (anasayfa uyarısı).
+      invitedPending,
       openTendersOwn: openListings
         .filter((l) => l.createdById === user.userId)
         .map(row),

@@ -121,6 +121,46 @@ describe("sellerTenders", () => {
     expect(rows.find((r) => r.id === noMatch.id)?.categoryMatch).toBe(false);
   });
 
+  it("öncelik sıralaması: davetli > bağlantılı > herkese açık (connected alanı döner)", async () => {
+    const { service } = makeService();
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const invBuyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const connBuyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const pubBuyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    // Sadece connBuyer ile aktif bağlantı.
+    await connect(prisma, connBuyer.company.id, seller.company.id, connBuyer.user.id);
+
+    const invited = await makeListing(prisma, {
+      companyId: invBuyer.company.id,
+      createdById: invBuyer.user.id,
+      type: "ALIM",
+      visibility: "PRIVATE",
+    });
+    await invite(prisma, invited.id, seller.company.id, invBuyer.user.id);
+    const connectedL = await makeListing(prisma, {
+      companyId: connBuyer.company.id,
+      createdById: connBuyer.user.id,
+      type: "ALIM",
+      visibility: "PUBLIC",
+    });
+    const publicL = await makeListing(prisma, {
+      companyId: pubBuyer.company.id,
+      createdById: pubBuyer.user.id,
+      type: "ALIM",
+      visibility: "PUBLIC",
+    });
+
+    const rows = await service.sellerTenders(seller.auth);
+    // connected alanı doğru döner.
+    expect(rows.find((r) => r.id === connectedL.id)?.connected).toBe(true);
+    expect(rows.find((r) => r.id === publicL.id)?.connected).toBe(false);
+    expect(rows.find((r) => r.id === invited.id)?.invited).toBe(true);
+    // Sıra (küçük index = üstte): davetli < bağlantılı < herkese açık.
+    const idx = (id: string) => rows.findIndex((r) => r.id === id);
+    expect(idx(invited.id)).toBeLessThan(idx(connectedL.id));
+    expect(idx(connectedL.id)).toBeLessThan(idx(publicL.id));
+  });
+
   it("STANDARD firma PUBLIC ilanı MASKELİ görür (premium başvuru yönlendirmesi); PAKET tam görür", async () => {
     const { service } = makeService();
     const buyer = await makeCompanyWithUser(prisma, { country: "TR" });

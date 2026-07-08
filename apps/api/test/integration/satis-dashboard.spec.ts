@@ -199,3 +199,44 @@ describe("satisAktivite", () => {
     expect(limited.length).toBe(2);
   });
 });
+
+describe("satinalma — invitedPending (anasayfa uyarısı)", () => {
+  it("teklif verilmemiş OPEN SATIŞ davetleri sayılır; teklif verilen ve ALIM sayılmaz", async () => {
+    const svc = makeDashboardService();
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+
+    // SATIŞ daveti, teklif yok → sayılır.
+    const s1 = await makeListing(prisma, {
+      companyId: seller.company.id,
+      createdById: seller.user.id,
+      type: "SATIS",
+    });
+    await invite(prisma, s1.id, buyer.company.id, seller.user.id);
+
+    // SATIŞ daveti, teklif verilmiş → sayılmaz.
+    const s2 = await makeListing(prisma, {
+      companyId: seller.company.id,
+      createdById: seller.user.id,
+      type: "SATIS",
+    });
+    await invite(prisma, s2.id, buyer.company.id, seller.user.id);
+    await makeBid(prisma, {
+      listingId: s2.id,
+      bidderCompanyId: buyer.company.id,
+      createdById: buyer.user.id,
+      amount: 1000,
+    });
+
+    // ALIM daveti → satınalma uyarısına GİRMEZ (o satış tarafına ait).
+    const a1 = await makeListing(prisma, {
+      companyId: seller.company.id,
+      createdById: seller.user.id,
+      type: "ALIM",
+    });
+    await invite(prisma, a1.id, buyer.company.id, seller.user.id);
+
+    const d = await svc.satinalma(buyer.auth);
+    expect(d.invitedPending).toBe(1);
+  });
+});

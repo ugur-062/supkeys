@@ -3,6 +3,7 @@
 import { ActionStrip } from "@/components/dashboard/action-strip";
 import { DashboardKpiCard } from "@/components/dashboard/dashboard-kpi-card";
 import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
+import { InvitedPendingBanner } from "@/components/dashboard/invited-pending-banner";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
   useSatisActivity,
@@ -201,22 +202,14 @@ export function SatisDashboardView() {
         </Link>
       </header>
 
-      {/* Bugün ne yapmalıyım? — bekleyen işler (yoksa görünmez) */}
-      <ActionStrip
-        portal="satis"
-        extra={
-          (s?.invitations.active ?? 0) > 0
-            ? [
-                {
-                  key: "invitations",
-                  count: s!.invitations.active,
-                  label: "aktif davete teklif bekleniyor",
-                  href: "/company/satis/acik-ihaleler",
-                },
-              ]
-            : []
-        }
+      {/* Uyarı: davet edilip teklif verilmemiş açık ihaleler (yoksa görünmez) */}
+      <InvitedPendingBanner
+        count={s?.invitations.active ?? 0}
+        href="/company/satis/acik-ihaleler"
       />
+
+      {/* Bugün ne yapmalıyım? — bekleyen işler (yoksa görünmez) */}
+      <ActionStrip portal="satis" />
 
       {/* KPI grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

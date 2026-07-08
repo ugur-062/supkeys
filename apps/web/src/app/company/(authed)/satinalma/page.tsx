@@ -1,6 +1,7 @@
 "use client";
 
 import { ActionStrip } from "@/components/dashboard/action-strip";
+import { InvitedPendingBanner } from "@/components/dashboard/invited-pending-banner";
 import { SatinalmaIhaleTab } from "@/components/dashboard/satinalma-ihale-tab";
 import { TasarrufTab } from "@/components/dashboard/tasarruf-tab";
 import { TedarikciTab } from "@/components/dashboard/tedarikci-tab";
@@ -62,6 +63,12 @@ export default function SatinalmaDashboardPage() {
           ) : null}
         </p>
       </header>
+
+      {/* Uyarı: davet edilip teklif verilmemiş açık SATIŞ ihaleleri (yoksa görünmez) */}
+      <InvitedPendingBanner
+        count={ihale.data?.invitedPending ?? 0}
+        href="/company/satinalma/satin-al"
+      />
 
       {/* Bugün ne yapmalıyım? — bekleyen işler (yoksa görünmez) */}
       <ActionStrip portal="satinalma" />

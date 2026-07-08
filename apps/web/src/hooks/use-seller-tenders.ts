@@ -20,6 +20,8 @@ export interface SellerTenderRow {
   masked: boolean;
   canBid: boolean;
   invited: boolean;
+  /** İhaleyi açan firma bağlantım mı (aktif iş ilişkisi) — sıralama sinyali. */
+  connected: boolean;
   myBidStatus: string | null;
   myBidVersion: number | null;
   categoryMatch: boolean;
