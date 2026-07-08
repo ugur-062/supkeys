@@ -15,8 +15,8 @@ import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
 import {
-  BID_DOC_KINDS,
   BID_DOC_KIND_LABELS,
+  BID_DOC_SELECTABLE_KINDS,
   useBidDocuments,
   useDeleteBidDoc,
   useUploadBidDoc,
@@ -38,7 +38,16 @@ import { subscribeRealtime } from "@/lib/realtime";
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
-import { AlertTriangle, Info, Lock, X } from "lucide-react";
+import {
+  AlertTriangle,
+  FileText,
+  Info,
+  Lock,
+  Paperclip,
+  Trash2,
+  UploadCloud,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -56,6 +65,12 @@ function money(v: number, currency: string): string {
   return `${v.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ${
     currency === "TRY" ? "₺" : currency
   }`;
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function Blocked({ title, detailHref }: { title: string; detailHref: string }) {
@@ -162,8 +177,8 @@ export default function TeklifVerPage() {
   const [stagedFiles, setStagedFiles] = useState<
     { file: File; kind: BidDocKind }[]
   >([]);
-  // Seçili teklif belgesi bölümü — yeni dosyalar bu kategoriye eklenir.
-  const [docKind, setDocKind] = useState<BidDocKind>("TEKLIF_MEKTUBU");
+  // Sürükle-bırak alanı görsel geri bildirimi.
+  const [dragActive, setDragActive] = useState(false);
 
   // WS: canlı artırma/eksiltme — rakip teklifi anında yansısın.
   useEffect(() => subscribeRealtime("listing", id), [id]);
@@ -233,6 +248,22 @@ export default function TeklifVerPage() {
   const items = l?.items ?? [];
   const hasItems = items.length > 0;
   const myDocs = (bidDocs.data ?? []).filter((d) => d.mine);
+
+  // Dosya ekleme — dropzone ve dosya seçici ortak kullanır. Yeni dosyalar
+  // varsayılan "Teklif Mektubu" kategorisiyle gelir; kullanıcı satırdan değiştirir.
+  const addFiles = (files: File[]) => {
+    const MAX = 50 * 1024 * 1024;
+    const tooBig = files.filter((f) => f.size > MAX);
+    if (tooBig.length) {
+      toast.error(
+        `${tooBig.map((f) => f.name).join(", ")} 50MB sınırını aşıyor`,
+      );
+    }
+    const ok = files
+      .filter((f) => f.size <= MAX)
+      .map((file) => ({ file, kind: "TEKLIF_MEKTUBU" as BidDocKind }));
+    if (ok.length) setStagedFiles((s) => [...s, ...ok].slice(0, 10));
+  };
   const effectiveCurrency =
     currency || l?.primaryCurrency || "TRY";
 
@@ -1004,135 +1035,154 @@ export default function TeklifVerPage() {
             </div>
           </section>
 
-          {/* Teklif dosyaları — bölümlere ayrılır; teklif kaydıyla yüklenir */}
+          {/* Teklif dosyaları — sürükle-bırak + dosya başına kategori. Teminat
+              burada YOK; ihale sonrası sipariş aşamasında yüklenir. */}
           <section className="space-y-3">
             <Subheading>
               Teklif Dosyaları{l.requireBidDocument ? " (zorunlu)" : ""}
             </Subheading>
             <div className="space-y-3 rounded-xl border border-zinc-950/10 bg-white p-4">
               {l.requireBidDocument ? (
-                <p className="text-xs text-amber-700">
+                <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
                   Bu ihalede teklif dosyası zorunlu — en az bir dosya ekleyin.
                 </p>
               ) : null}
 
-              {/* Bölüm seçici + dosya ekle */}
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="sr-only" htmlFor="bid-doc-kind">
-                  Belge bölümü
-                </label>
-                <select
-                  id="bid-doc-kind"
-                  value={docKind}
-                  onChange={(e) => setDocKind(e.target.value as BidDocKind)}
-                  className="rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                >
-                  {BID_DOC_KINDS.map((k) => (
-                    <option key={k} value={k}>
-                      {BID_DOC_KIND_LABELS[k]}
-                    </option>
-                  ))}
-                </select>
-                <label className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 hover:bg-blue-100">
-                  + Dosya Seç
-                  <input
-                    type="file"
-                    className="hidden"
-                    multiple
-                    accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
-                    aria-label={`${BID_DOC_KIND_LABELS[docKind]} bölümüne dosya seç`}
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files ?? []);
-                      e.target.value = "";
-                      const MAX = 50 * 1024 * 1024;
-                      const tooBig = files.filter((f) => f.size > MAX);
-                      if (tooBig.length) {
-                        toast.error(
-                          `${tooBig.map((f) => f.name).join(", ")} 50MB sınırını aşıyor`,
-                        );
-                      }
-                      const ok = files
-                        .filter((f) => f.size <= MAX)
-                        .map((file) => ({ file, kind: docKind }));
-                      if (ok.length)
-                        setStagedFiles((s) => [...s, ...ok].slice(0, 10));
-                    }}
-                  />
-                </label>
-              </div>
+              {/* Sürükle-bırak alanı */}
+              <label
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragActive(true);
+                }}
+                onDragLeave={() => setDragActive(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragActive(false);
+                  addFiles(Array.from(e.dataTransfer.files));
+                }}
+                className={`flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${
+                  dragActive
+                    ? "border-blue-400 bg-blue-50"
+                    : "border-zinc-200 bg-zinc-50/60 hover:border-zinc-300"
+                }`}
+              >
+                <UploadCloud className="h-6 w-6 text-zinc-400" aria-hidden="true" />
+                <p className="text-sm font-medium text-zinc-700">
+                  Dosyaları sürükleyin ya da{" "}
+                  <span className="text-blue-600">seçmek için tıklayın</span>
+                </p>
+                <p className="text-xs text-zinc-400">
+                  PDF, görsel veya Excel · dosya başına en fazla 50 MB
+                </p>
+                <input
+                  type="file"
+                  className="hidden"
+                  multiple
+                  accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
+                  aria-label="Teklif dosyası seç"
+                  onChange={(e) => {
+                    addFiles(Array.from(e.target.files ?? []));
+                    e.target.value = "";
+                  }}
+                />
+              </label>
 
-              {/* Yüklü + bekleyen dosyalar, bölüme göre gruplu */}
-              {BID_DOC_KINDS.map((k) => {
-                const saved = myDocs.filter((d) => d.kind === k);
-                const staged = stagedFiles
-                  .map((sf, i) => ({ sf, i }))
-                  .filter((x) => x.sf.kind === k);
-                if (saved.length === 0 && staged.length === 0) return null;
-                return (
-                  <div key={k} className="space-y-1.5">
-                    <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
-                      {BID_DOC_KIND_LABELS[k]}
-                    </p>
-                    {saved.map((d) => (
-                      <div
-                        key={d.id}
-                        className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 px-2.5 py-1.5 text-xs"
+              {/* Dosya listesi — yüklü belgeler + gönderimde yüklenecek dosyalar */}
+              {myDocs.length === 0 && stagedFiles.length === 0 ? (
+                <p className="text-center text-xs text-zinc-400">
+                  Henüz dosya eklenmedi.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {myDocs.map((d) => (
+                    <li
+                      key={d.id}
+                      className="flex items-center gap-3 rounded-lg border border-zinc-100 bg-zinc-50/60 px-3 py-2"
+                    >
+                      <FileText className="h-4 w-4 shrink-0 text-zinc-400" />
+                      <a
+                        href={d.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="min-w-0 flex-1 truncate text-sm text-blue-600 hover:underline"
                       >
-                        <a
-                          href={d.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="truncate text-blue-600 hover:underline"
-                        >
-                          {d.fileName}
-                        </a>
-                        <button
-                          type="button"
-                          aria-label={`${d.fileName} belgesini sil`}
-                          onClick={async () => {
-                            if (!confirm(`"${d.fileName}" silinsin mi?`)) return;
-                            try {
-                              await deleteDoc.mutateAsync(d.id);
-                              toast.success("Belge silindi");
-                            } catch (err) {
-                              toast.error(
-                                extractErrorMessage(err, "Belge silinemedi"),
-                              );
-                            }
-                          }}
-                          disabled={deleteDoc.isPending}
-                          className="shrink-0 text-zinc-400 hover:text-red-600"
-                        >
-                          Sil
-                        </button>
-                      </div>
-                    ))}
-                    {staged.map(({ sf, i }) => (
-                      <div
-                        key={`${sf.file.name}-${i}`}
-                        className="flex items-center justify-between gap-2 rounded-md bg-blue-50/50 px-2.5 py-1.5 text-xs"
-                      >
-                        <span className="truncate text-zinc-700">
-                          {sf.file.name}{" "}
-                          <span className="text-zinc-400">
-                            (kayıtla yüklenecek)
-                          </span>
-                        </span>
-                        <button
-                          type="button"
-                          aria-label={`${sf.file.name} dosyasını kaldır`}
-                          onClick={() =>
-                            setStagedFiles((s) => s.filter((_, j) => j !== i))
+                        {d.fileName}
+                      </a>
+                      <span className="hidden shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 sm:inline">
+                        {BID_DOC_KIND_LABELS[d.kind]}
+                      </span>
+                      <span className="shrink-0 text-[11px] font-medium text-emerald-600">
+                        Yüklendi
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`${d.fileName} belgesini sil`}
+                        disabled={deleteDoc.isPending}
+                        onClick={async () => {
+                          if (!confirm(`"${d.fileName}" silinsin mi?`)) return;
+                          try {
+                            await deleteDoc.mutateAsync(d.id);
+                            toast.success("Belge silindi");
+                          } catch (err) {
+                            toast.error(
+                              extractErrorMessage(err, "Belge silinemedi"),
+                            );
                           }
-                          className="shrink-0 text-zinc-400 hover:text-red-600"
-                        >
-                          Kaldır
-                        </button>
+                        }}
+                        className="shrink-0 text-zinc-400 hover:text-red-600 disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                  {stagedFiles.map((sf, i) => (
+                    <li
+                      key={`${sf.file.name}-${i}`}
+                      className="flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50/40 px-3 py-2"
+                    >
+                      <Paperclip className="h-4 w-4 shrink-0 text-blue-400" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-zinc-800">
+                          {sf.file.name}
+                        </p>
+                        <p className="text-[11px] text-zinc-400">
+                          {formatBytes(sf.file.size)} · gönderimde yüklenecek
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                );
-              })}
+                      <select
+                        value={sf.kind}
+                        aria-label={`${sf.file.name} kategorisi`}
+                        onChange={(e) =>
+                          setStagedFiles((s) =>
+                            s.map((x, j) =>
+                              j === i
+                                ? { ...x, kind: e.target.value as BidDocKind }
+                                : x,
+                            ),
+                          )
+                        }
+                        className="shrink-0 rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                      >
+                        {BID_DOC_SELECTABLE_KINDS.map((k) => (
+                          <option key={k} value={k}>
+                            {BID_DOC_KIND_LABELS[k]}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        aria-label={`${sf.file.name} dosyasını kaldır`}
+                        onClick={() =>
+                          setStagedFiles((s) => s.filter((_, j) => j !== i))
+                        }
+                        className="shrink-0 text-zinc-400 hover:text-red-600"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </section>
         </div>

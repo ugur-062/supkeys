@@ -42,6 +42,13 @@ vi.mock("@/hooks/use-bid-documents", () => ({
     "TEMINAT",
     "DIGER",
   ],
+  BID_DOC_SELECTABLE_KINDS: [
+    "TEKLIF_MEKTUBU",
+    "TEKNIK_DOKUMAN",
+    "REFERANS",
+    "KATALOG",
+    "DIGER",
+  ],
   BID_DOC_KIND_LABELS: {
     TEKLIF_MEKTUBU: "Teklif Mektubu",
     TEKNIK_DOKUMAN: "Teknik Doküman",

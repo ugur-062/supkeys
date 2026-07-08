@@ -10,6 +10,9 @@ import {
 export enum CompanyDocTypeDto {
   DELIVERY = "DELIVERY",
   PAYMENT = "PAYMENT",
+  // Teminat mektubu — peşin (CASH) işte satıcı sipariş onayından ÖNCE yükler.
+  // Şema/servis/frontend destekliyordu; DTO'da eksikti (yükleme reddediliyordu).
+  TEMINAT = "TEMINAT",
 }
 
 export class UploadUrlDto {

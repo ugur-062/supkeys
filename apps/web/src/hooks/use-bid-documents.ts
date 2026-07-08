@@ -11,7 +11,8 @@ export type BidDocKind =
   | "TEMINAT"
   | "DIGER";
 
-/** Teklif belgesi bölümü etiketleri (UI). */
+/** Teklif belgesi bölümü etiketleri (UI). TEMINAT: eski kayıtlar görünsün diye
+ * etikette kalır ama teklifte SEÇİLEMEZ (teminat ihale sonrası sipariş aşaması). */
 export const BID_DOC_KIND_LABELS: Record<BidDocKind, string> = {
   TEKLIF_MEKTUBU: "Teklif Mektubu",
   TEKNIK_DOKUMAN: "Teknik Doküman",
@@ -21,6 +22,10 @@ export const BID_DOC_KIND_LABELS: Record<BidDocKind, string> = {
   DIGER: "Diğer",
 };
 export const BID_DOC_KINDS = Object.keys(BID_DOC_KIND_LABELS) as BidDocKind[];
+/** Teklif aşamasında SEÇİLEBİLİR kategoriler — teminat hariç (o, sipariş aşaması). */
+export const BID_DOC_SELECTABLE_KINDS: BidDocKind[] = BID_DOC_KINDS.filter(
+  (k) => k !== "TEMINAT",
+);
 
 export interface BidDocument {
   id: string;
