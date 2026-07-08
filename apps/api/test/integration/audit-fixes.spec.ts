@@ -303,7 +303,15 @@ describe("davetli ülke-bypass + maskeli yanıt kırpma", () => {
     expect(d.auctionView).toBeNull();
     expect(d.deliveryAddress).toBeNull();
     expect(d.keywords).toEqual([]);
-    expect(d.items).toEqual([]);
+    // Maskeli teaser: kalem adı/miktar/birim GÖRÜNÜR (ne alınıyor belli olsun)
+    // ama fiyat/malzeme kodu/açıklama/sorular GİZLİ (rekabet-hassas veri sızmaz).
+    const items = d.items as Array<Record<string, unknown>>;
+    expect(items).toHaveLength(1);
+    expect(items[0].name).toBe("Kalem 1");
+    expect(items[0].targetPrice).toBeNull();
+    expect(items[0].materialCode).toBeNull();
+    expect(items[0].description).toBeNull();
+    expect(items[0].questions).toEqual([]);
     expect(d.itemCount).toBe(1); // sayı listeyle tutarlı görünür
   });
 });

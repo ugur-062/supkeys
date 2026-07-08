@@ -468,6 +468,13 @@ export default function ListingDetailPage() {
     l.items && l.items.length > 0 ? (
       <section className="space-y-2">
         <Subheading>Kalemler ({l.items.length})</Subheading>
+        {l.masked ? (
+          <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+            <Lock className="h-3.5 w-3.5 shrink-0" />
+            Ne alındığını görüyorsunuz. <strong>Fiyat, detay ve teklif verme</strong>{" "}
+            için premium&apos;a geçin ya da firmayla bağlantı kurun.
+          </div>
+        ) : null}
         <div className="rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
           <Table dense>
             <TableHead>
@@ -1349,6 +1356,7 @@ export default function ListingDetailPage() {
                 listingId={l.id}
                 isOwner={!!l.isOwner}
                 canEdit={false}
+                masked={!!l.masked}
               />
             </TabPanel>
           </TabPanels>
@@ -1507,7 +1515,7 @@ export default function ListingDetailPage() {
               <GeneralInfoTab l={l} />
             </TabPanel>
             <TabPanel className="outline-none">
-              <FilesTab listingId={l.id} isOwner={false} canEdit={false} />
+              <FilesTab listingId={l.id} isOwner={false} canEdit={false} masked={!!l.masked} />
             </TabPanel>
           </TabPanels>
         </TabGroup>

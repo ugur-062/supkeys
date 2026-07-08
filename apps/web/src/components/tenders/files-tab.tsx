@@ -14,7 +14,7 @@ import {
 } from "@/hooks/use-listing-documents";
 import { formatDate } from "@/lib/tenders/date";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { FileText, Paperclip, Trash2 } from "lucide-react";
+import { FileText, Lock, Paperclip, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -22,15 +22,18 @@ export function FilesTab({
   listingId,
   isOwner,
   canEdit = false,
+  masked = false,
 }: {
   listingId: string;
   isOwner: boolean;
   // İhale belgeleri yalnızca ilan düzenlenebilirken (TASLAK / teklifsiz AÇIK)
   // değiştirilebilir; kapandıktan sonra salt-okunur.
   canEdit?: boolean;
+  // Maskeli önizleme (standart + bağsız): şartname/dosyalar kilitli gösterilir.
+  masked?: boolean;
 }) {
   const confirm = useConfirm();
-  const docs = useListingDocuments(listingId);
+  const docs = useListingDocuments(listingId, !masked);
   const upload = useUploadListingDoc(listingId);
   const del = useDeleteListingDoc(listingId);
   // Yükleme öncesi seçilen bölüm — dosya bu kategoriye kaydedilir.
@@ -125,7 +128,21 @@ export function FilesTab({
         ) : null}
       </div>
 
-      {docs.isLoading ? (
+      {masked ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/60 py-12 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+            <Lock className="h-5 w-5 text-blue-600" />
+          </div>
+          <p className="text-sm font-semibold text-zinc-900">
+            Şartname ve dosyalar kilitli
+          </p>
+          <p className="max-w-sm text-sm text-zinc-500">
+            İhale dosyalarını (şartname, teknik resim vb.) görmek ve teklif
+            vermek için <strong>premium</strong>&apos;a geçin ya da ilanı açan
+            firmayla <strong>bağlantı</strong> kurun.
+          </p>
+        </div>
+      ) : docs.isLoading ? (
         <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
       ) : docs.isError ? (
         <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">

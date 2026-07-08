@@ -34,9 +34,11 @@ export interface ListingDocument {
   url: string;
 }
 
-export function useListingDocuments(listingId: string) {
+export function useListingDocuments(listingId: string, enabled = true) {
   return useQuery({
     queryKey: ["listing-documents", listingId],
+    // Maskeli önizlemede çağrı yapılmaz — uç 404 döner (şartname gizli).
+    enabled: !!listingId && enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<ListingDocument[]>(
         `/company/listings/${listingId}/documents`,

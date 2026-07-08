@@ -1736,6 +1736,23 @@ export class CompanyListingsService {
         required: q.required,
       })),
     }));
+    // Maskeli görünüm için teaser: NE alınıyor belli olsun (isim/miktar/birim)
+    // ama fiyat/malzeme kodu/teslim tarihi/açıklama/sorular GİZLİ. Standart üye
+    // görüp teklif vermeye özenir; rekabet-hassas veri sızmaz.
+    const teaserItems = items.map((it) => ({
+      id: it.id,
+      lineNo: it.lineNo,
+      name: it.name,
+      quantity: it.quantity.toString(),
+      unit: it.unit,
+      description: null,
+      targetPrice: null,
+      minUnitPrice: null,
+      buyNowUnitPrice: null,
+      materialCode: null,
+      requiredByDate: null,
+      questions: [] as { id: string; text: string; answerType: string; required: boolean }[],
+    }));
 
     if (isOwner) {
       // Bağımsız sorgular paralel (sahip detayı 4sn'de bir poll'lanabilir).
@@ -1951,8 +1968,8 @@ export class CompanyListingsService {
       // Teslimat adresi (PII: ad/telefon) yalnız teklif verebilenlere —
       // maskeli/premium-kilitli izleyici görmez.
       deliveryAddress: canBid ? deliveryAddress : null,
-      items: masked ? [] : itemsOut,
-      // Maskeli önizlemede kalemler gizli ama SAYISI bilgilendirici (listeyle tutarlı).
+      // Maskeli üye teaser görür (isim/miktar/birim); fiyat/detay gizli.
+      items: masked ? teaserItems : itemsOut,
       itemCount: itemsOut.length,
       myBid: myBid
         ? {
