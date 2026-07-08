@@ -287,6 +287,19 @@ export default function TeklifVerPage() {
     [items, itemState],
   );
 
+  // Teklif verilen kalemler (Hemen-Al'da fiyatı olanlar, normalde pricedItems).
+  const bidItemsForDelivery = !hasItems
+    ? []
+    : isBuyNowMode
+      ? items.filter((it) => itemState[it.id]?.price !== null)
+      : pricedItems;
+  // Genel teslim tarihi, teklif verilen HER kalemin kendi teslim tarihi varsa
+  // GEREKSİZ (tedarikçi ayrı ayrı girdi) → zorunlu değil, gizlenir.
+  const everyBidItemHasDelivery =
+    hasItems &&
+    bidItemsForDelivery.length > 0 &&
+    bidItemsForDelivery.every((it) => !!itemState[it.id]?.deliveryDate);
+
   const total = useMemo(() => {
     // Hemen-Al TOPLU: tutar ilan geneli hemen-al fiyatıdır (kalem fiyatı yok).
     if (isBuyNowMode && l?.priceScope !== "KALEM") {
@@ -441,9 +454,12 @@ export default function TeklifVerPage() {
       pricedItems.some((it) => Number(itemState[it.id]?.price ?? 0) <= 0)
     )
       problems.push("Fiyatlanan her kalemin birim fiyatı sıfırdan büyük olmalı.");
-    if (!deliveryDate)
+    // Genel teslim tarihi yalnız kalem tarihi GİRİLMEYEN kalem varsa zorunlu.
+    if (!everyBidItemHasDelivery && !deliveryDate)
       problems.push(
-        isSatis ? "İstenen teslim tarihi zorunlu." : "Teslim tarihi zorunlu.",
+        isSatis
+          ? "İstenen teslim tarihi zorunlu (kalem tarihi girmediğiniz kalemler için)."
+          : "Teslim tarihi zorunlu (kalem tarihi girmediğiniz kalemler için).",
       );
     if (addressRequired && !deliveryAddressId)
       problems.push(
@@ -946,14 +962,29 @@ export default function TeklifVerPage() {
             <div className="grid grid-cols-1 gap-3 rounded-xl border border-zinc-950/10 bg-white p-4 sm:grid-cols-3">
               <Field>
                 <Label>
-                  {isSatis ? "İstenen Teslim Tarihi *" : "Genel Teslim Tarihi *"}
+                  {isSatis ? "İstenen Teslim Tarihi" : "Genel Teslim Tarihi"}
+                  {everyBidItemHasDelivery ? "" : " *"}
                 </Label>
-                <Input
-                  type="date"
-                  min={todayLocalISO()}
-                  value={deliveryDate}
-                  onChange={(e) => setDeliveryDate(e.target.value)}
-                />
+                {everyBidItemHasDelivery ? (
+                  <p className="pt-2 text-xs text-emerald-700">
+                    Her kaleme ayrı teslim tarihi girdiniz — genel tarihe gerek
+                    yok.
+                  </p>
+                ) : (
+                  <>
+                    <Input
+                      type="date"
+                      min={todayLocalISO()}
+                      value={deliveryDate}
+                      onChange={(e) => setDeliveryDate(e.target.value)}
+                    />
+                    {hasItems ? (
+                      <p className="mt-1 text-[11px] text-zinc-400">
+                        Kalem tarihi girmediğiniz kalemler için geçerli olur.
+                      </p>
+                    ) : null}
+                  </>
+                )}
               </Field>
               <Field>
                 <Label>Geçerlilik (gün) *</Label>

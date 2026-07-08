@@ -90,6 +90,44 @@ describe("placeBid — kalem cevapları + kalem teslim tarihi", () => {
     expect(ownerView.bids[0].items[0].deliveryDate).toBe(itemDelivery);
   });
 
+  it("her kaleme teslim tarihi girildiyse GENEL teslim tarihi zorunlu değil", async () => {
+    const { service, seller, listing, item, question } = await setup();
+    const itemDelivery = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    // deliveryDate (genel) YOK — tüm kalemlerin kendi tarihi var.
+    await service.placeBid(seller.auth, listing.id, {
+      validityDays: 30,
+      items: [
+        {
+          itemId: item.id,
+          unitPrice: 100,
+          deliveryDate: itemDelivery,
+          answers: [{ questionId: question.id, value: "TR" }],
+        },
+      ],
+    } as never);
+    const bid = await prisma.listingBid.findFirstOrThrow({
+      where: { listingId: listing.id, bidderCompanyId: seller.company.id },
+    });
+    expect(bid.status).toBe("SUBMITTED");
+    expect(bid.deliveryDate).toBeNull(); // genel tarih girilmedi ama sorun değil
+  });
+
+  it("kalem teslim tarihi YOKSA ve genel de yoksa gönderim reddedilir", async () => {
+    const { service, seller, listing, item, question } = await setup();
+    await expect(
+      service.placeBid(seller.auth, listing.id, {
+        validityDays: 30, // deliveryDate YOK, kalem tarihi de YOK
+        items: [
+          {
+            itemId: item.id,
+            unitPrice: 100,
+            answers: [{ questionId: question.id, value: "TR" }],
+          },
+        ],
+      } as never),
+    ).rejects.toThrow(/teslim tarihi/i);
+  });
+
   it("GÖNDERİMDE zorunlu soru cevapsız → reddedilir; taslakta serbest", async () => {
     const { service, seller, listing, item } = await setup();
 

@@ -2312,14 +2312,22 @@ export class CompanyListingsService {
     ) {
       throw new BadRequestException("Bu ilan için geçersiz para birimi");
     }
-    // Gönderimde teslim tarihi + geçerlilik zorunlu (taslakta opsiyonel).
-    // ALIM: satıcının taahhüdü; SATIS: alıcının İSTEDİĞİ tarih (teslim eden
-    // ilan sahibi satıcıdır — alıcı taahhüt veremez).
-    if (!isDraft && (!dto.deliveryDate || !dto.validityDays)) {
+    // Gönderimde geçerlilik her zaman zorunlu (taslakta opsiyonel).
+    if (!isDraft && !dto.validityDays) {
+      throw new BadRequestException(
+        "Teklif göndermek için geçerlilik süresi zorunlu",
+      );
+    }
+    // Genel teslim tarihi: kalem-bazlı teklifte teklif verilen HER kalemin kendi
+    // teslim tarihi varsa GEREKSİZ (tedarikçi ayrı ayrı girdi) → tekrar istenmez.
+    // Aksi halde (kalemsiz teklif ya da tarihsiz kalem var) gönderimde zorunlu.
+    const everyItemHasDelivery =
+      !!dto.items?.length && dto.items.every((bi) => !!bi.deliveryDate);
+    if (!isDraft && !everyItemHasDelivery && !dto.deliveryDate) {
       throw new BadRequestException(
         listing.type === "SATIS"
-          ? "Teklif göndermek için istenen teslim tarihi ve geçerlilik süresi zorunlu"
-          : "Teklif göndermek için teslim tarihi ve geçerlilik süresi zorunlu",
+          ? "İstenen teslim tarihi zorunlu (kalem tarihi girmediğiniz kalemler için)"
+          : "Teslim tarihi zorunlu (kalem tarihi girmediğiniz kalemler için)",
       );
     }
     // Gönderimde teslim tarihi geçmişte olamaz.

@@ -201,10 +201,11 @@ describe("TeklifVerPage — form", () => {
       screen.getByLabelText("Kalem Teslim Tarihi (opsiyonel)"),
       itemDate,
     );
-    await user.type(
-      screen.getByLabelText("Genel Teslim Tarihi *"),
-      new Date(Date.now() + 5 * 86_400_000).toISOString().slice(0, 10),
-    );
+    // Kalemin kendi teslim tarihi girildi → genel teslim tarihi alanı artık
+    // "gerek yok" notuna döner (zorunlu değil); doldurulmasına gerek yok.
+    expect(
+      screen.getByText(/genel tarihe gerek yok/i),
+    ).toBeInTheDocument();
 
     await user.click(
       screen.getAllByRole("button", { name: "Teklif Gönder" })[0]!,
