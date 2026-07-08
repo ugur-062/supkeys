@@ -44,7 +44,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
     basePath: "/company/satinalma",
     accent: "blue",
     nav: [
-      { icon: HomeIcon, label: "Panel", href: "/company/satinalma" },
+      { icon: HomeIcon, label: "Anasayfa", href: "/company/satinalma" },
       {
         icon: ClipboardDocumentListIcon,
         label: "İhalelerim",
@@ -97,7 +97,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
     basePath: "/company/satis",
     accent: "emerald",
     nav: [
-      { icon: HomeIcon, label: "Panel", href: "/company/satis" },
+      { icon: HomeIcon, label: "Anasayfa", href: "/company/satis" },
       {
         icon: TagIcon,
         label: "Satış İlanlarım",
