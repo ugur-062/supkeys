@@ -9,7 +9,8 @@ import { SettingsShell } from "../_components/settings-shell";
 
 export default function Page() {
   const { user } = useCompanyAuth();
-  const canEdit = useHasCompanyPermission("company:manage");
+  // Banka hesabı yönetimi yalnız Kurucu (billing:manage = owner-only).
+  const canEdit = useHasCompanyPermission("billing:manage");
   return (
     <SettingsShell
       title="Banka Hesapları"

@@ -125,16 +125,23 @@ export class CompanyOrdersService {
    *  aitliği doğrulanır ve siparişe SNAPSHOT yazılır (hesap sonradan silinse
    *  de sipariş kaydı değişmez). */
   async accept(user: AuthenticatedCompanyUser, id: string, input: AcceptOrderDto) {
+    // Yetki + durum ön-kontrolü (transition atomik olarak yineler): yalnız
+    // satıcı, yalnız PENDING. Yanlış taraf, teminat/banka hatası değil YETKİ
+    // hatası almalı (kontrol sırası: authz → iş doğrulaması).
+    const src = await this.loadParticipant(user, id);
+    if (src.sellerCompanyId !== user.companyId) {
+      throw new ForbiddenException("Bu işlemi yapamazsınız");
+    }
+    this.assertOrderRole(user, "seller");
+    if (src.status !== "PENDING") {
+      throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
+    }
     // Teminat mektubu ZORUNLU yalnızca alıcı TESLİMATTAN ÖNCE ödediğinde
     // (BEFORE_DELIVERY): parayı önden alan satıcı, teslimatı garanti etmek için
     // onaydan önce teminat yükler. Teslim sonrası ödemede (COD/vadeli) alıcı
     // riskte olmadığı için teminat istenmez. NOT: tetik ödeme ZAMANIDIR
     // (paymentTiming), ödeme TİPİ (peşin/vadeli) değil.
-    const src = await this.prisma.companyOrder.findUnique({
-      where: { id },
-      select: { paymentTiming: true },
-    });
-    if (src?.paymentTiming === "BEFORE_DELIVERY") {
+    if (src.paymentTiming === "BEFORE_DELIVERY") {
       const teminat = await this.prisma.companyOrderDocument.count({
         where: { orderId: id, type: "TEMINAT" },
       });
@@ -144,19 +151,22 @@ export class CompanyOrdersService {
         );
       }
     }
-    let bankAccountHolder: string | null = null;
-    let bankIban: string | null = null;
-    if (input.bankAccountId) {
-      const acct = await this.prisma.companyBankAccount.findUnique({
-        where: { id: input.bankAccountId },
-        select: { companyId: true, accountHolder: true, iban: true },
-      });
-      if (!acct || acct.companyId !== user.companyId) {
-        throw new BadRequestException("Geçersiz banka hesabı seçimi");
-      }
-      bankAccountHolder = acct.accountHolder;
-      bankIban = acct.iban;
+    // Ödeme alabilmek için kayıtlı banka hesabı ZORUNLU — alıcı buraya öder.
+    // (Hesabı yalnız Kurucu ekler; satıcı onayda kayıtlı hesaplarından seçer.)
+    if (!input.bankAccountId) {
+      throw new BadRequestException(
+        "Ödeme alabilmek için onayda bir banka hesabı seçmelisiniz — kayıtlı hesabınız yoksa Ayarlar → Banka Hesapları'ndan ekleyin (yalnız Kurucu ekleyebilir)",
+      );
     }
+    const acct = await this.prisma.companyBankAccount.findUnique({
+      where: { id: input.bankAccountId },
+      select: { companyId: true, accountHolder: true, iban: true },
+    });
+    if (!acct || acct.companyId !== user.companyId) {
+      throw new BadRequestException("Geçersiz banka hesabı seçimi");
+    }
+    const bankAccountHolder = acct.accountHolder;
+    const bankIban = acct.iban;
     const res = await this.transition(user, id, {
       side: "seller",
       from: "PENDING",
@@ -295,12 +305,43 @@ export class CompanyOrdersService {
    *  Satıcının ONAYLAMADIĞI ödeme kaydı varken tamamlanamaz — alıcı "ödedim"
    *  deyip satıcı doğrulamadan siparişi kapatamaz (SERVER-side kapı). */
   async complete(user: AuthenticatedCompanyUser, id: string, input: OrderNoteDto) {
+    // Yetki + durum ön-kontrolü (transition atomik yineler): yalnız alıcı,
+    // yalnız DELIVERED. Yanlış taraf, ödeme değil YETKİ hatası almalı.
+    const src = await this.loadParticipant(user, id);
+    if (src.buyerCompanyId !== user.companyId) {
+      throw new ForbiddenException("Bu işlemi yapamazsınız");
+    }
+    this.assertOrderRole(user, "buyer");
+    if (src.status !== "DELIVERED") {
+      throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
+    }
     const pendingPayments = await this.prisma.companyOrderPayment.count({
       where: { orderId: id, status: "AWAITING_CONFIRMATION" },
     });
     if (pendingPayments > 0) {
       throw new BadRequestException(
         "Satıcının onaylamadığı ödeme kaydı var — satıcı ödemeyi onayladıktan (veya reddettikten) sonra siparişi tamamlayabilirsiniz",
+      );
+    }
+    // Ödeme tam olarak ONAYLANMADAN tamamlanamaz: alıcı ödemeyi bildirir,
+    // satıcı onaylar, sonra tamamlanır. (receive/auto-complete yollarıyla aynı
+    // değişmez; teslim öncesi/sonrası fark etmez — her ikisinde de tam ödeme
+    // onaylı olmalı.)
+    const [amt, agg] = await Promise.all([
+      this.prisma.companyOrder.findUnique({
+        where: { id },
+        select: { amount: true },
+      }),
+      this.prisma.companyOrderPayment.aggregate({
+        where: { orderId: id, status: "CONFIRMED" },
+        _sum: { amount: true },
+      }),
+    ]);
+    const total = amt ? Number(amt.amount) : 0;
+    const confirmed = agg._sum.amount ? Number(agg._sum.amount) : 0;
+    if (!(total > 0 && confirmed + 0.01 >= total)) {
+      throw new BadRequestException(
+        "Sipariş, ödeme tam olarak alınıp onaylanmadan tamamlanamaz — alıcı ödemeyi bildirir, satıcı onayladığında tamamlanır",
       );
     }
     const res = await this.transition(user, id, {
@@ -460,9 +501,9 @@ export class CompanyOrdersService {
    *  - BEFORE_DELIVERY: satıcı onayından itibaren (ACCEPTED → COMPLETED);
    *    DELIVERED dahil — tam ödeme onaylanmadan teslim alınmışsa kalan
    *    ödeme burada kaydedilir.
-   *  - AFTER_DELIVERY: teslim alındıktan itibaren (DELIVERED, COMPLETED) —
-   *    COMPLETED dahil: kısmi ödemeyle tamamlanan siparişin kalanı sonradan
-   *    kaydedilebilsin (eskiden pencere kapanıyor, bakiye takipsiz kalıyordu).
+   *  - AFTER_DELIVERY: teslim alındıktan itibaren (DELIVERED, COMPLETED).
+   *    COMPLETED defansif olarak dahil (legacy kayıtlar); yeni kuralda sipariş
+   *    ancak TAM ödeme onaylıyken tamamlanır → COMPLETED'da kalan olmaz.
    *  Kalan-tutar tavanı (recordPayment) fazla ödemeyi zaten engeller.
    */
   private isPaymentOpen(

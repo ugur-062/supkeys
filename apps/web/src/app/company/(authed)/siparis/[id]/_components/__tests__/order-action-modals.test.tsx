@@ -83,7 +83,7 @@ describe("AcceptOrderModal", () => {
     );
   });
 
-  it("kayıtlı hesap yoksa uyarı gösterir, yine de onaylanabilir (bankAccountId undefined)", async () => {
+  it("kayıtlı hesap yoksa uyarı gösterir ve onay KAPALI (banka hesabı zorunlu)", async () => {
     const onSubmit = vi.fn();
     h.bankAccounts = { data: [] };
     render(
@@ -95,7 +95,7 @@ describe("AcceptOrderModal", () => {
       />,
     );
     expect(
-      screen.getByText(/Kayıtlı banka hesabınız yok/),
+      screen.getByText(/banka hesabı gerekli/i),
     ).toBeInTheDocument();
     const date = new Date(Date.now() + 2 * 86_400_000)
       .toISOString()
@@ -104,13 +104,10 @@ describe("AcceptOrderModal", () => {
       screen.getByLabelText("Tahmini Teslim Tarihi *"),
       date,
     );
+    // Hesap yokken tarih girilse de onay KAPALI (ödeme alınamaz).
+    expect(screen.getByRole("button", { name: "Onayla" })).toBeDisabled();
     await userEvent.click(screen.getByRole("button", { name: "Onayla" }));
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        expectedDeliveryDate: date,
-        bankAccountId: undefined,
-      }),
-    );
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });
 

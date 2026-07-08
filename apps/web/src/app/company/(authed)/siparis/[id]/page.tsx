@@ -150,6 +150,10 @@ export default function OrderDetailPage() {
   // Satıcının onaylamadığı ödeme kaydı varken sipariş TAMAMLANAMAZ
   // (server-side de reddeder) — buton yerine bekleme mesajı gösterilir.
   const paymentAwaitingConfirmation = Number(o.paymentTotals?.pending ?? 0) > 0;
+  // Tam ödeme onaylı mı? (backend complete/auto-complete kapısıyla birebir:
+  // onaylı toplam ≥ sipariş tutarı). Sipariş ancak bu sağlanınca tamamlanır.
+  const fullyPaid =
+    Number(o.paymentTotals?.confirmed ?? 0) + 0.01 >= Number(o.amount);
   // Sonraki ana aksiyon (modal açar).
   const next =
     isSeller &&
@@ -158,7 +162,11 @@ export default function OrderDetailPage() {
       ? { label: "Kargoya Ver", modal: "ship" as const }
       : !isSeller && o.status === "IN_DELIVERY"
         ? { label: "Teslim Aldım", modal: "receive" as const }
-        : !isSeller && o.status === "DELIVERED" && !paymentAwaitingConfirmation
+        : // Tamamla yalnız tam ödeme onaylıyken (aksi halde aşağıda mesaj).
+          !isSeller &&
+            o.status === "DELIVERED" &&
+            !paymentAwaitingConfirmation &&
+            fullyPaid
           ? { label: "Siparişi Tamamla", modal: "complete" as const }
           : null;
 
@@ -589,7 +597,7 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
                 ? "Malı kargoya verdiğinde fatura no ile işaretle."
                 : next.modal === "receive"
                   ? "Malı teslim aldığında işaretle."
-                  : "Teslim + ödeme tamamlandığında siparişi kapat."}
+                  : "Ödeme tam olarak onaylandı — siparişi tamamla."}
             </Text>
             <Button
               onClick={() => setModal(next.modal)}
@@ -603,7 +611,12 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
           paymentAwaitingConfirmation ? (
           <Text className="text-sm text-amber-700">
             Ödeme kaydınız satıcının onayını bekliyor — satıcı onayladıktan
-            sonra siparişi tamamlayabilirsiniz.
+            sonra sipariş tamamlanır.
+          </Text>
+        ) : !isSeller && o.status === "DELIVERED" && !fullyPaid ? (
+          <Text className="text-sm text-amber-700">
+            Kalan ödemenizi aşağıdaki Ödemeler bölümünden kaydedin — satıcı
+            onayladığında sipariş otomatik tamamlanır.
           </Text>
         ) : isSeller && !terminal && paymentAwaitingConfirmation ? (
           <Text className="text-sm text-amber-700">

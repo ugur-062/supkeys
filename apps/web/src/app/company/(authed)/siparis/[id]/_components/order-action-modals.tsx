@@ -44,12 +44,14 @@ export function AcceptOrderModal({
   const effectiveAccountId = accountId || defaultId;
   const today = todayLocalISO();
 
+  const hasAccounts = !!accounts.data && accounts.data.length > 0;
+
   const submit = () => {
-    if (!date) return;
+    if (!date || !effectiveAccountId) return;
     onSubmit({
       expectedDeliveryDate: date,
       acceptedNote: note.trim() || undefined,
-      bankAccountId: effectiveAccountId || undefined,
+      bankAccountId: effectiveAccountId,
     });
   };
 
@@ -70,16 +72,15 @@ export function AcceptOrderModal({
           />
         </Field>
         <Field>
-          <Label>Ödeme Hesabı</Label>
-          {accounts.data && accounts.data.length > 0 ? (
+          <Label>Ödeme Hesabı *</Label>
+          {hasAccounts ? (
             <>
               <Select
                 value={effectiveAccountId}
                 onChange={(e) => setAccountId(e.target.value)}
                 aria-label="Ödeme hesabı"
               >
-                <option value="">— Hesap bildirme —</option>
-                {accounts.data.map((a) => (
+                {accounts.data!.map((a) => (
                   <option key={a.id} value={a.id}>
                     {a.title} · {a.iban.slice(0, 6)}…{a.iban.slice(-4)}
                     {a.isDefault ? " (varsayılan)" : ""}
@@ -87,12 +88,12 @@ export function AcceptOrderModal({
                 ))}
               </Select>
               <p className="mt-1 text-xs text-zinc-500">
-                Alıcının ödeme yapacağı hesap — siparişe işlenir.
+                Alıcının ödeme yapacağı hesap — siparişe işlenir (zorunlu).
               </p>
             </>
           ) : (
             <p className="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              Kayıtlı banka hesabınız yok.{" "}
+              Ödeme alabilmek için kayıtlı bir banka hesabı gerekli.{" "}
               <Link
                 href="/company/ayarlar/banka-hesaplari"
                 className="font-semibold underline"
@@ -100,7 +101,8 @@ export function AcceptOrderModal({
               >
                 Ayarlar → Banka Hesapları
               </Link>
-              &apos;ndan ekleyin; hesap bildirmeden de onaylayabilirsiniz.
+              &apos;ndan ekleyin (yalnız Kurucu ekleyebilir). Hesap eklenmeden
+              sipariş onaylanamaz.
             </p>
           )}
         </Field>
@@ -118,7 +120,7 @@ export function AcceptOrderModal({
         <Button plain onClick={onClose}>
           Vazgeç
         </Button>
-        <Button onClick={submit} disabled={pending || !date}>
+        <Button onClick={submit} disabled={pending || !date || !effectiveAccountId}>
           Onayla
         </Button>
       </DialogActions>

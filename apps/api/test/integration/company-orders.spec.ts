@@ -198,23 +198,33 @@ describe("tamamlama kapısı — satıcı onayı bekleyen ödeme", () => {
       },
     });
 
-    // Alıcı KISMİ ödeme kaydı girer (AWAITING_CONFIRMATION) — tam tutar
-    // onaylanırsa sipariş zaten otomatik tamamlanır (mevcut davranış).
-    const payment = (await orders.recordPayment(buyer.auth, order.id, {
+    // Alıcı KISMİ ödeme kaydı girer (AWAITING_CONFIRMATION).
+    const p1 = (await orders.recordPayment(buyer.auth, order.id, {
       amount: 500,
       method: "EFT",
     } as never)) as { id: string };
 
-    // Satıcı onaylamadan tamamla → reddedilir.
+    // Satıcı onaylamadan tamamla → reddedilir (bekleyen ödeme kapısı).
     await expect(
       orders.complete(buyer.auth, order.id, {} as never),
     ).rejects.toThrow(/onaylamadığı ödeme/);
 
-    // Satıcı ödemeyi onaylar (kısmi → oto-tamamlama tetiklenmez);
-    // tamamla artık serbest.
-    await orders.confirmPayment(seller.auth, order.id, payment.id);
-    const res = await orders.complete(buyer.auth, order.id, {} as never);
-    expect(res.status).toBe("COMPLETED");
+    // Satıcı kısmi ödemeyi onaylar (500/1000) → hâlâ TAM değil → tamamlanamaz.
+    await orders.confirmPayment(seller.auth, order.id, p1.id);
+    await expect(
+      orders.complete(buyer.auth, order.id, {} as never),
+    ).rejects.toThrow(/tamamlanamaz/i);
+
+    // Kalan 500 ödenip onaylanınca sipariş OTOMATİK tamamlanır.
+    const p2 = (await orders.recordPayment(buyer.auth, order.id, {
+      amount: 500,
+      method: "EFT",
+    } as never)) as { id: string };
+    await orders.confirmPayment(seller.auth, order.id, p2.id);
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("COMPLETED");
   });
 });
 

@@ -166,11 +166,26 @@ describe("OrderDetailPage — durum → aksiyon eşlemesi", () => {
     ).toBeInTheDocument();
   });
 
-  it("DELIVERED + alıcı (bekleyen ödeme yok) → Siparişi Tamamla", () => {
-    h.order = order("DELIVERED", "buyer");
+  it("DELIVERED + alıcı + TAM ödeme onaylı → Siparişi Tamamla", () => {
+    h.order = order("DELIVERED", "buyer", {
+      paymentTotals: { confirmed: "1000", pending: "0", remaining: "0" },
+    });
     render(<OrderDetailPage />);
     expect(
       screen.getByRole("button", { name: "Siparişi Tamamla" }),
+    ).toBeInTheDocument();
+  });
+
+  it("DELIVERED + alıcı + ödeme eksik (bekleyen yok) → tamamla YOK, ödeme kaydı istenir", () => {
+    h.order = order("DELIVERED", "buyer", {
+      paymentTotals: { confirmed: "0", pending: "0", remaining: "1000" },
+    });
+    render(<OrderDetailPage />);
+    expect(
+      screen.queryByRole("button", { name: "Siparişi Tamamla" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/kalan ödemenizi.*kaydedin/i),
     ).toBeInTheDocument();
   });
 

@@ -20,11 +20,11 @@ export class AcceptOrderDto {
   @MaxLength(2000)
   acceptedNote?: string;
 
-  /** Ayarlar → Banka Hesapları'ndan seçilen hesabın id'si (opsiyonel). */
-  @IsOptional()
-  @IsString()
+  /** Ayarlar → Banka Hesapları'ndan seçilen hesabın id'si — ZORUNLU: satıcı
+   *  ödeme alabilmek için kayıtlı bir hesap seçmeli (alıcının ödeyeceği hesap). */
+  @IsString({ message: "Ödeme için banka hesabı seçilmelidir" })
   @MaxLength(60)
-  bankAccountId?: string;
+  bankAccountId!: string;
 }
 
 export class ShipOrderDto {

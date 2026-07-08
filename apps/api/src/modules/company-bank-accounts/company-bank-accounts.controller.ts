@@ -29,7 +29,7 @@ export class CompanyBankAccountsController {
   }
 
   @Post()
-  @RequireCompanyPermission("company:manage")
+  @RequireCompanyPermission("billing:manage")
   create(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: UpsertBankAccountDto,
@@ -38,7 +38,7 @@ export class CompanyBankAccountsController {
   }
 
   @Patch(":id")
-  @RequireCompanyPermission("company:manage")
+  @RequireCompanyPermission("billing:manage")
   update(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -48,7 +48,7 @@ export class CompanyBankAccountsController {
   }
 
   @Delete(":id")
-  @RequireCompanyPermission("company:manage")
+  @RequireCompanyPermission("billing:manage")
   remove(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

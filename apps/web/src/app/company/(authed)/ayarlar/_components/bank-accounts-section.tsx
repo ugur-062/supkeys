@@ -65,7 +65,11 @@ export function BankAccountsSection({ canManage }: { canManage: boolean }) {
         </div>
         {canManage ? (
           <Button onClick={() => setEditing("new")}>Hesap Ekle</Button>
-        ) : null}
+        ) : (
+          <Text className="text-xs text-zinc-500">
+            Banka hesabı yalnız Kurucu tarafından eklenir.
+          </Text>
+        )}
       </div>
 
       {isLoading ? (

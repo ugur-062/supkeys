@@ -3,9 +3,11 @@
  * IBAN doğrulama + firma izolasyonu (IDOR) + sipariş kabulünde hesap seçimi
  * (IBAN elle girilmez, kayıtlı hesaptan SNAPSHOT yazılır).
  */
+import { CompanyRole } from "@rothern/db";
 import { CompanyBankAccountsService } from "../../src/modules/company-bank-accounts/company-bank-accounts.service";
 import { CompanyOrdersService } from "../../src/modules/company-orders/services/company-orders.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
+import { hasCompanyPermission } from "../../src/modules/company-auth/permissions/company-permissions.constants";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
 
@@ -144,7 +146,7 @@ describe("sipariş kabulünde banka hesabı seçimi", () => {
     expect(still.bankIban).toBe(VALID_TR_IBAN);
   });
 
-  it("başka firmanın hesabıyla kabul reddedilir; hesapsız kabul serbest", async () => {
+  it("başka firmanın hesabıyla kabul reddedilir; hesapsız kabul da reddedilir", async () => {
     const bank = makeBankService();
     const orders = makeOrdersService();
     const { seller, buyer, order } = await pendingOrder();
@@ -164,10 +166,40 @@ describe("sipariş kabulünde banka hesabı seçimi", () => {
       } as never),
     ).rejects.toThrow(/Geçersiz banka hesabı/);
 
-    // Hesap bildirmeden kabul mümkün (ödeme hesabı opsiyonel).
-    const res = await orders.accept(seller.auth, order.id, {
-      expectedDeliveryDate: new Date(Date.now() + 7 * 86_400_000).toISOString(),
-    } as never);
-    expect(res.status).toBe("ACCEPTED");
+    // Banka hesabı ZORUNLU — hesap seçmeden kabul edilemez (ödeme alınamaz).
+    await expect(
+      orders.accept(seller.auth, order.id, {
+        expectedDeliveryDate: new Date(
+          Date.now() + 7 * 86_400_000,
+        ).toISOString(),
+      } as never),
+    ).rejects.toThrow(/banka hesabı seç/i);
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("PENDING"); // onaylanmadı
+  });
+});
+
+describe("banka hesabı yönetimi — yalnız Kurucu (billing:manage)", () => {
+  it("banka hesabı yönetimi owner-only izne bağlıdır; Yönetici/Satışçı erişemez", () => {
+    // Controller create/update/delete = @RequireCompanyPermission("billing:manage").
+    // billing:manage OWNER_ONLY → yalnız Kurucu (isOwner); rol yetmez.
+    expect(
+      hasCompanyPermission([CompanyRole.SAHIP], true, "billing:manage"),
+    ).toBe(true);
+    expect(
+      hasCompanyPermission([CompanyRole.YONETICI], false, "billing:manage"),
+    ).toBe(false);
+    expect(
+      hasCompanyPermission([CompanyRole.SATISCI], false, "billing:manage"),
+    ).toBe(false);
+    expect(
+      hasCompanyPermission(
+        [CompanyRole.YONETICI, CompanyRole.SATISCI],
+        false,
+        "billing:manage",
+      ),
+    ).toBe(false);
   });
 });
