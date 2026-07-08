@@ -459,20 +459,23 @@ function EditUserModal({
     if (next.length > 0) applyDefaults(next);
   };
 
-  // Sahiplik devri (yalnız sahip görür, sahip-olmayan hedefte). Hedefin
-  // operasyon rolleri korunur; backend eski sahibi Yönetici'ye düşürür.
-  const transferOwnership = async () => {
-    if (
-      !window.confirm(
-        `Kuruculuğu ${user.firstName} ${user.lastName} kişisine devretmek üzeresiniz. Siz Yönetici'ye düşeceksiniz. Onaylıyor musunuz?`,
-      )
-    )
-      return;
+  // Kuruculuk devri — panel açılır, eski Kurucu (siz) yeni rolünü seçer.
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [myNewRole, setMyNewRole] = useState<
+    "YONETICI" | "SATIN_ALMACI" | "SATISCI" | "BOTH"
+  >("YONETICI");
+  const NEW_ROLE_MAP: Record<typeof myNewRole, CompanyRole[]> = {
+    YONETICI: ["YONETICI"],
+    SATIN_ALMACI: ["SATIN_ALMACI"],
+    SATISCI: ["SATISCI"],
+    BOTH: ["SATIN_ALMACI", "SATISCI"],
+  };
+  const confirmTransfer = async () => {
     try {
-      // Kurucu TAM YETKİ zaten; ek op-rol taşımaz → yalnız SAHIP.
       await update.mutateAsync({
         id: user.id,
         roles: ["SAHIP" as CompanyRole],
+        previousOwnerRoles: NEW_ROLE_MAP[myNewRole],
       });
       toast.success("Kuruculuk devredildi");
       onClose();
@@ -604,15 +607,57 @@ function EditUserModal({
           </div>
           {/* Kuruculuk devri — yalnız mevcut Kurucu, başka bir kullanıcıya. */}
           {viewerIsOwner && !user.isOwner ? (
-            <button
-              type="button"
-              onClick={transferOwnership}
-              disabled={update.isPending}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 shadow-sm transition hover:bg-violet-100 disabled:opacity-50"
-            >
-              <Crown className="h-3.5 w-3.5" />
-              Kuruculuğu bu kullanıcıya devret
-            </button>
+            transferOpen ? (
+              <div className="mt-3 space-y-2 rounded-lg border border-violet-200 bg-violet-50 p-3">
+                <p className="text-xs font-semibold text-violet-900">
+                  Kuruculuğu {user.firstName} {user.lastName} kişisine devret
+                </p>
+                <p className="text-xs text-violet-700">
+                  Devirden sonra <strong>sizin</strong> rolünüz ne olsun? (Yönetim
+                  ve operasyon aynı anda seçilemez.)
+                </p>
+                <select
+                  value={myNewRole}
+                  onChange={(e) =>
+                    setMyNewRole(e.target.value as typeof myNewRole)
+                  }
+                  aria-label="Devir sonrası rolünüz"
+                  className="w-full rounded-lg border border-violet-300 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
+                >
+                  <option value="YONETICI">Yönetici (yönetim; operasyon yok)</option>
+                  <option value="SATIN_ALMACI">Satın Almacı (yalnız alım)</option>
+                  <option value="SATISCI">Satışçı (yalnız satış)</option>
+                  <option value="BOTH">Satın Almacı + Satışçı</option>
+                </select>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={confirmTransfer}
+                    disabled={update.isPending}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:opacity-50"
+                  >
+                    <Crown className="h-3.5 w-3.5" />
+                    {update.isPending ? "Devrediliyor…" : "Devret"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTransferOpen(false)}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-700"
+                  >
+                    Vazgeç
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setTransferOpen(true)}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-700 shadow-sm transition hover:bg-violet-100"
+              >
+                <Crown className="h-3.5 w-3.5" />
+                Kuruculuğu bu kullanıcıya devret
+              </button>
+            )
           ) : null}
         </div>
 

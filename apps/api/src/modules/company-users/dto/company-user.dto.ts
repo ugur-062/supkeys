@@ -113,6 +113,13 @@ export class UpdateUserDto {
   @ArrayMinSize(1, { message: "En az bir rol seçin" })
   @IsEnum(CompanyRoleDto, { each: true, message: "Geçersiz rol" })
   roles?: CompanyRoleDto[];
+
+  // Kuruculuk devrinde eski Kurucu'nun yeni rolü (kişiye sorulur).
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsEnum(CompanyRoleDto, { each: true, message: "Geçersiz rol" })
+  previousOwnerRoles?: CompanyRoleDto[];
 }
 
 export class SetUserActiveDto {

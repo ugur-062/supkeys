@@ -171,6 +171,8 @@ export function useUpdateUser() {
       lastName?: string;
       phone?: string;
       roles?: CompanyRole[];
+      // Kuruculuk devrinde eski Kurucu'nun yeni rolü.
+      previousOwnerRoles?: CompanyRole[];
     }) => {
       const { data } = await companyApi.patch(`/company/users/${id}`, payload);
       return data;

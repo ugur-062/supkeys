@@ -403,6 +403,8 @@ export class CompanyUsersService {
       lastName?: string;
       phone?: string;
       roles?: CompanyRole[];
+      // Devirde eski Kurucu'nun yeni rolü (kişiye sorulur).
+      previousOwnerRoles?: CompanyRole[];
     },
   ) {
     const target = await this.requireMember(actor.companyId, targetId);
@@ -433,6 +435,7 @@ export class CompanyUsersService {
           company?.ownerUserId ?? null,
           targetId,
           roles,
+          dto.previousOwnerRoles as CompanyRole[] | undefined,
         );
         await this.assertNotLastAdmin(tx, actor.companyId, targetId, roles);
         await tx.companyUser.update({ where: { id: targetId }, data });
@@ -648,6 +651,10 @@ export class CompanyUsersService {
     currentOwnerId: string | null,
     targetId: string,
     roles: CompanyRole[],
+    // Devirde eski Kurucu'nun yeni rolü — kişiye sorulur (Yönetici VEYA op-rol).
+    // Verilmezse varsayılan Yönetici. (Yönetici op-rolle birleşmez, bu yüzden
+    // "yönetim mi operasyon mu" tercihi.)
+    previousOwnerRoles?: CompanyRole[],
   ) {
     const targetWantsOwner = roles.includes("SAHIP");
     const targetIsOwner = currentOwnerId === targetId;
@@ -657,24 +664,22 @@ export class CompanyUsersService {
       );
     }
     if (targetWantsOwner && !targetIsOwner) {
-      // DEVİR: eski sahip Yönetici'ye düşer (op-rolleri korunur).
+      // DEVİR: eski Kurucu, seçtiği role düşer (varsayılan Yönetici).
+      const demoted =
+        previousOwnerRoles && previousOwnerRoles.length > 0
+          ? previousOwnerRoles
+          : [CompanyRole.YONETICI];
+      if (demoted.includes(CompanyRole.SAHIP)) {
+        throw new BadRequestException(
+          "Devirde eski Kurucu tekrar Kurucu olamaz",
+        );
+      }
+      this.assertValidRoleCombo(demoted);
       if (currentOwnerId) {
-        const prev = await tx.companyUser.findUnique({
+        await tx.companyUser.update({
           where: { id: currentOwnerId },
-          select: { roles: true },
+          data: { roles: demoted },
         });
-        if (prev) {
-          const demoted = Array.from(
-            new Set<CompanyRole>([
-              "YONETICI",
-              ...prev.roles.filter((r) => r !== "SAHIP"),
-            ]),
-          );
-          await tx.companyUser.update({
-            where: { id: currentOwnerId },
-            data: { roles: demoted },
-          });
-        }
       }
       await tx.company.update({
         where: { id: companyId },
