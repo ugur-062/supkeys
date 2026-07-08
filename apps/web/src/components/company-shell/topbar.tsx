@@ -198,7 +198,10 @@ export function CompanyTopbar({
               </span>
             </DropdownButton>
             <DropdownMenu className="min-w-64" anchor="bottom end">
-              <div className="px-3.5 pt-2.5 pb-2">
+              {/* col-span-full ŞART: menü subgrid olduğundan ham div aksi halde
+                  1. (ikon) kolonuna düşüp geniş e-posta ile kolonu şişirir →
+                  ikonlar ile etiketler arası boşluk açılır. */}
+              <div className="col-span-full px-3.5 pt-2.5 pb-2">
                 <p className="text-sm font-semibold text-zinc-900">
                   {user.firstName} {user.lastName}
                   {user.isOwner ? (
