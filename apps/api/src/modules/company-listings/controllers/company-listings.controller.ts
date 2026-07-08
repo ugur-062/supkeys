@@ -192,13 +192,8 @@ export class CompanyListingsController {
     return this.service.cancel(user, id, dto.reason);
   }
 
-  @Post(":id/withdraw-bid")
-  withdrawBid(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Param("id") id: string,
-  ) {
-    return this.service.withdrawBid(user, id);
-  }
+  // NOT: Teklif "Geri Çek" kaldırıldı — gönderilmiş teklif geri çekilemez.
+  // Değişiklik yolu: alıcıyla iletişim → alıcı eler (LOST) → yeniden teklif.
 
   // ── Sahip karar aksiyonları (üç-nokta menü) ──
 

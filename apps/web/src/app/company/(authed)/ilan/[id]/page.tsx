@@ -26,7 +26,6 @@ import {
   useEliminateBid,
   useListingDetail,
   usePublishListing,
-  useWithdrawBid,
 } from "@/hooks/use-company-listings";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import {
@@ -142,7 +141,6 @@ export default function ListingDetailPage() {
   const { data: l, isLoading, isError, refetch } = useListingDetail(id);
   const confirm = useConfirm();
   const award = useAwardListing(id);
-  const withdrawBid = useWithdrawBid(id);
   const eliminate = useEliminateBid(id);
   const awardByItem = useAwardByItem(id);
   const publish = usePublishListing(id);
@@ -176,17 +174,6 @@ export default function ListingDetailPage() {
 
   // WS: bu ilanın odasına abone ol — teklif/durum değişimi anında düşer.
   useEffect(() => subscribeRealtime("listing", id), [id]);
-
-
-  const handleWithdraw = async () => {
-    try {
-      await withdrawBid.mutateAsync();
-      toast.success("Teklifin geri çekildi");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "Geri çekilemedi"));
-    }
-  };
-
 
   const handleAward = async (bidId: string, bidderName: string) => {
     // Onay akışı devreye girecekse: not girişli tek dialog (onaycılara iletilir).
@@ -1066,13 +1053,13 @@ export default function ListingDetailPage() {
           biddingOpen &&
           !l.english?.isEnglishAuction ? (
             <Text className="text-xs text-zinc-500">
-              Gönderilmiş teklif düzenlenemez — değişiklik için{" "}
-              {isAlim ? "alıcıyla" : "satıcıyla"} iletişime geç ya da teklifini
-              geri çek.
+              Gönderilmiş teklif geri çekilemez ve düzenlenemez — değişiklik için{" "}
+              {isAlim ? "alıcıyla" : "satıcıyla"} iletişime geç. {isAlim ? "Alıcı" : "Satıcı"}{" "}
+              teklifini elerse yeniden teklif verebilirsin.
             </Text>
           ) : null}
           {l.myBid && biddingOpen && l.myBid.status === "SUBMITTED" ? (
-            <div className="flex items-center justify-between gap-3 rounded-lg bg-zinc-50 px-3 py-2">
+            <div className="rounded-lg bg-zinc-50 px-3 py-2">
               <Text className="text-sm">
                 Mevcut teklifin:{" "}
                 <strong>
@@ -1082,13 +1069,6 @@ export default function ListingDetailPage() {
                     : l.myBid.currency}
                 </strong>
               </Text>
-              <Button
-                plain
-                onClick={handleWithdraw}
-                disabled={withdrawBid.isPending}
-              >
-                Geri Çek
-              </Button>
             </div>
           ) : null}
           <Text className="text-xs text-zinc-400">

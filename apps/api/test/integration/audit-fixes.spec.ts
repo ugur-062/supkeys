@@ -106,13 +106,17 @@ describe("Teklif durum kuralları (server-side)", () => {
       service.placeBid(seller.auth, l.id, { amount: 90, ...bidBase } as never),
     ).rejects.toThrow(/düzenlenemez/);
 
-    await service.withdrawBid(seller.auth, l.id);
+    // Legacy WITHDRAWN kayıt (geri çekme özelliği kaldırıldı; doğrudan yazılır).
+    await prisma.listingBid.updateMany({
+      where: { listingId: l.id, bidderCompanyId: seller.company.id },
+      data: { status: "WITHDRAWN" },
+    });
     await expect(
       service.placeBid(seller.auth, l.id, { amount: 90, ...bidBase } as never),
     ).rejects.toThrow(/yeniden verilemez/);
   });
 
-  it("ilan kapandıktan sonra geri çekme reddedilir + geri çekilmiş teklif kazandırılamaz", async () => {
+  it("geri çekilmiş (legacy WITHDRAWN) teklif kazandırılamaz", async () => {
     const { service, buyer, seller } = await pair();
     const l = await makeListing(prisma, {
       companyId: buyer.company.id,
@@ -127,11 +131,6 @@ describe("Teklif durum kuralları (server-side)", () => {
       createdById: seller.user.id,
       amount: 100,
     });
-    // Kapat → geri çekme reddedilir.
-    await prisma.listing.update({ where: { id: l.id }, data: { status: "CLOSED" } });
-    await expect(service.withdrawBid(seller.auth, l.id)).rejects.toThrow(
-      /geri çekilemez/,
-    );
     // Geri çekilmiş teklife kazandırma reddedilir (onay penceresi güvencesi).
     await prisma.listingBid.update({
       where: { id: bid.id },

@@ -554,21 +554,8 @@ export function useCloseNoAward(id: string) {
   });
 }
 
-export function useWithdrawBid(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async () => {
-      const { data } = await companyApi.post(
-        `/company/listings/${id}/withdraw-bid`,
-      );
-      return data;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
-      invalidateListingCaches(qc, { myBids: true });
-    },
-  });
-}
+// NOT: useWithdrawBid kaldırıldı — teklif geri çekme özelliği kaldırıldı
+// (gönderilmiş teklif geri çekilemez; değişiklik alıcı elemesiyle olur).
 
 export function useAwardByItem(id: string) {
   const qc = useQueryClient();

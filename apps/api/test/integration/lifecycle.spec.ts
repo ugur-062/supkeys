@@ -139,7 +139,7 @@ describe("SATIS kazandırma yönü", () => {
 });
 
 describe("durum geçişleri", () => {
-  it("withdrawBid: SUBMITTED → WITHDRAWN", async () => {
+  it("gönderilmiş teklif geri çekilemez/düzenlenemez; eleme (LOST) sonrası yeniden teklif serbest", async () => {
     const { service } = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const bidder = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -150,19 +150,32 @@ describe("durum geçişleri", () => {
       status: "OPEN",
       closesAt: FUTURE,
     });
-    const item = await makeItem(prisma, listing.id);
-    const b = await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: bidder.company.id,
-      createdById: bidder.user.id,
+    const bidBase = { deliveryDate: FUTURE.toISOString(), validityDays: 30 };
+    await service.placeBid(bidder.auth, listing.id, {
       amount: 1000,
-      items: [{ itemId: item.id, unitPrice: 1000 }],
+      ...bidBase,
+    } as never);
+    // SUBMITTED teklif düzenlenemez (geri çekme de yok — endpoint kaldırıldı).
+    await expect(
+      service.placeBid(bidder.auth, listing.id, {
+        amount: 900,
+        ...bidBase,
+      } as never),
+    ).rejects.toThrow(/düzenlenemez/);
+    // Alıcı eler → LOST.
+    await prisma.listingBid.updateMany({
+      where: { listingId: listing.id, bidderCompanyId: bidder.company.id },
+      data: { status: "LOST" },
     });
-    await service.withdrawBid(bidder.auth, listing.id);
-    const after = await prisma.listingBid.findUniqueOrThrow({
-      where: { id: b.id },
+    // Eleme sonrası yeniden teklif serbest → SUBMITTED.
+    await service.placeBid(bidder.auth, listing.id, {
+      amount: 900,
+      ...bidBase,
+    } as never);
+    const after = await prisma.listingBid.findFirstOrThrow({
+      where: { listingId: listing.id, bidderCompanyId: bidder.company.id },
     });
-    expect(after.status).toBe("WITHDRAWN");
+    expect(after.status).toBe("SUBMITTED");
   });
 
   it("closeBiddingEarly: OPEN → CLOSED", async () => {

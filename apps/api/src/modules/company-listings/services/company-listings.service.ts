@@ -2302,9 +2302,10 @@ export class CompanyListingsService {
     }
 
     // ── Mevcut teklif durum kuralları (SERVER-side — UI'a güvenilmez) ──
-    // Geri çekme kalıcıdır; kapalı-zarf RFQ'da gönderilmiş teklif revize
-    // edilemez (eleme sonrası LOST → serbest; açık eksiltmede fiyat düşürme
-    // serbest — aşağıda monotonluk zorlanır).
+    // Gönderilmiş teklif geri çekilemez ve kapalı-zarf RFQ'da revize edilemez.
+    // Değişiklik yolu: alıcıyla iletişim → alıcı eler (LOST) → yeniden teklif
+    // serbest (version++). Açık eksiltmede fiyat düşürme serbest (monotonluk
+    // aşağıda zorlanır). WITHDRAWN yalnız legacy kayıtlarda olabilir.
     if (existingBid?.status === "WITHDRAWN") {
       throw new BadRequestException(
         "Geri çekilen teklif yeniden verilemez",
@@ -2315,21 +2316,21 @@ export class CompanyListingsService {
       listing.format !== "ENGLISH_AUCTION"
     ) {
       throw new BadRequestException(
-        "Gönderilmiş teklif düzenlenemez — geri çekebilir veya alıcıyla iletişime geçebilirsiniz",
+        "Gönderilmiş teklif düzenlenemez — değişiklik için alıcıyla iletişime geçin; alıcı teklifinizi elerse yeniden teklif verebilirsiniz",
       );
     }
 
     const isDraft = dto.asDraft === true;
     // Auction'da gönderilmiş teklif TASLAĞA çekilemez: agregattan düşürür
     // ("yumuşak geri çekme" ile fiyat manipülasyonu) ve sonraki gönderimde
-    // monotonluk referanssız kalırdı. Kalıcı çıkış için Geri Çek kullanılır.
+    // monotonluk referanssız kalırdı.
     if (
       isDraft &&
       existingBid?.status === "SUBMITTED" &&
       listing.format === "ENGLISH_AUCTION"
     ) {
       throw new BadRequestException(
-        "Açık eksiltme/artırmada gönderilmiş teklif taslağa çekilemez — yeni tutarı doğrudan gönderin veya teklifi geri çekin",
+        "Açık eksiltme/artırmada gönderilmiş teklif taslağa çekilemez — yeni tutarı doğrudan gönderin",
       );
     }
     // Para birimi: ilan izin veriyorsa seçilebilir; varsayılan ilanın birimi.
@@ -4465,38 +4466,11 @@ export class CompanyListingsService {
   }
 
   /** Teklif veren kendi teklifini geri çeker. */
-  async withdrawBid(user: AuthenticatedCompanyUser, listingId: string) {
-    const bid = await this.prisma.listingBid.findUnique({
-      where: {
-        listingId_bidderCompanyId: {
-          listingId,
-          bidderCompanyId: user.companyId,
-        },
-      },
-      select: {
-        id: true,
-        status: true,
-        listing: { select: { status: true, companyId: true } },
-      },
-    });
-    if (!bid || bid.status !== "SUBMITTED") {
-      throw new BadRequestException("Geri çekilebilir teklif yok");
-    }
-    // Yalnız İLAN AÇIKKEN geri çekilebilir — kapanış/kazandırma-onayı
-    // penceresinde geri çekme, onaylanan kazandırmanın geri çekilmiş teklife
-    // sipariş yazmasına yol açıyordu.
-    if (bid.listing.status !== "OPEN") {
-      throw new BadRequestException(
-        "İlan teklife kapandı — teklif artık geri çekilemez",
-      );
-    }
-    await this.prisma.listingBid.update({
-      where: { id: bid.id },
-      data: { status: "WITHDRAWN" },
-    });
-    this.realtime?.pingListing(listingId, [bid.listing.companyId]);
-    return { ok: true };
-  }
+  // NOT: withdrawBid (teklif geri çekme) kaldırıldı — gönderilmiş teklif geri
+  // çekilemez. Tedarikçi değişiklik isterse alıcıyla iletişime geçer; alıcı
+  // teklifi elerse (LOST) tedarikçi yeniden teklif verebilir (version++).
+  // WITHDRAWN enum + eski-kayıt guard'ları (yeniden verilemez / kazandırılamaz)
+  // legacy kayıtlar için korunur; yeni WITHDRAWN üretilmez.
 
   private async nextOrderNumber(): Promise<string> {
     const rows = await this.prisma.$queryRaw<Array<{ n: bigint }>>`

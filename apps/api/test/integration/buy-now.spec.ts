@@ -109,10 +109,14 @@ describe("buyNow — mükerrer/kural korumaları + detaylar", () => {
     expect(after.version).toBe(bid.version);
   });
 
-  it("geri çekilen teklif Hemen-Al ile diriltilemez", async () => {
+  it("geri çekilmiş (legacy WITHDRAWN) teklif Hemen-Al ile diriltilemez", async () => {
     const { service, buyer, listing } = await satisListing();
     await service.buyNow(buyer.auth, listing.id, bnDetails);
-    await service.withdrawBid(buyer.auth, listing.id);
+    // Geri çekme özelliği kaldırıldı — legacy WITHDRAWN doğrudan yazılır.
+    await prisma.listingBid.updateMany({
+      where: { listingId: listing.id, bidderCompanyId: buyer.company.id },
+      data: { status: "WITHDRAWN" },
+    });
     await expect(
       service.buyNow(buyer.auth, listing.id, bnDetails),
     ).rejects.toThrow(/yeniden verilemez/);
