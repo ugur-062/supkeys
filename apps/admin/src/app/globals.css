@@ -2,6 +2,12 @@
 
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap");
 
+/* Dark mode KAPALI — `dark` variant'ı class-tabanlı yapılır ve `.dark` class'ı
+   hiçbir zaman eklenmez → tüm `dark:` utility'leri etkisiz kalır. OS dark modda
+   olsa bile admin her zaman açık (light) görünür.
+   (Varsayılan Tailwind v4 davranışı `@media (prefers-color-scheme: dark)`'tı.) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* Brand — Catalyst monokrom (zinc). brand-* siyah/zinc'e map edildi →
      tüm mavi aksanlar web/tedarikçi paneliyle birebir monokrom olur.
@@ -89,6 +95,11 @@
   html,
   body {
     height: 100%;
+  }
+
+  /* Native kontroller/scrollbar da OS dark tercihinden bağımsız açık kalsın. */
+  :root {
+    color-scheme: light;
   }
 
   body {

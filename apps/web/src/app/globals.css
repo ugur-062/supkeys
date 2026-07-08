@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Dark mode KAPALI — `dark` variant'ı class-tabanlı yapılır ve `.dark` class'ı
+   hiçbir zaman eklenmez → tüm `dark:` utility'leri etkisiz kalır. Kullanıcının
+   OS'i dark modda olsa bile ürün her zaman açık (light) görünür.
+   (Varsayılan Tailwind v4 davranışı `@media (prefers-color-scheme: dark)`'tı.) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   /* Brand — Catalyst monokrom (zinc). brand-* yalnızca tenant yüzeyinde kullanılır;
      siyah/zinc'e map edildi → tüm mavi aksanlar tedarikçiyle aynı monokrom olur.
@@ -74,6 +80,11 @@
   html,
   body {
     height: 100%;
+  }
+
+  /* Native kontroller/scrollbar da OS dark tercihinden bağımsız açık kalsın. */
+  :root {
+    color-scheme: light;
   }
 
   body {
