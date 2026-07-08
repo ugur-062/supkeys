@@ -33,8 +33,8 @@ const BENEFITS = [
 
 /**
  * İhale açma / Satınalma kapısı (Faz 3). Doğrulama tamamlanmadan Satınalma
- * paneli kilitli. 2 gereksinim: şirket belgeleri VERIFIED + 2FA aktif. İkisi de
- * tamamsa "Premium'a Geç" ile tier PAKET olur (ödeme sonraya bırakıldı).
+ * paneli kilitli. 3 gereksinim: şirket belgeleri VERIFIED + 2FA aktif + firma
+ * web sitesi girilmiş. Hepsi tamamsa "Premium'a Geç" ile tier PAKET olur.
  */
 export function PremiumGate() {
   const me = useCompanyMe();
@@ -42,7 +42,9 @@ export function PremiumGate() {
 
   const docsVerified = me.data?.company.companyVerificationStatus === "VERIFIED";
   const twoFa = me.data?.user.twoFactorEnabled === true;
-  const ready = docsVerified && twoFa;
+  // Premium için firma web sitesi zorunlu (link-benzeri).
+  const hasWebsite = !!me.data?.company.website?.trim().includes(".");
+  const ready = docsVerified && twoFa && hasWebsite;
 
   const docsHint =
     me.data?.company.companyVerificationStatus === "PENDING"
@@ -119,6 +121,12 @@ export function PremiumGate() {
                 hint={twoFa ? "Aktif" : "E-posta/uygulama tabanlı 2FA'yı açın"}
                 href="/company/ayarlar/2fa"
               />
+              <Requirement
+                done={hasWebsite}
+                title="Firma web sitesi adresini gir"
+                hint={hasWebsite ? "Girildi" : "Firma profilinde web sitesi ekleyin"}
+                href="/company/ayarlar/firma"
+              />
             </ul>
           </div>
 
@@ -131,7 +139,7 @@ export function PremiumGate() {
           </Button>
           {!ready ? (
             <p className="mt-2 text-center text-xs text-zinc-400">
-              Yukarıdaki 2 adım tamamlanınca aktifleşir.
+              Yukarıdaki adımlar tamamlanınca aktifleşir.
             </p>
           ) : null}
         </div>

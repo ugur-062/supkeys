@@ -642,6 +642,7 @@ export class CompanyAuthService {
           tier: true,
           companyVerificationStatus: true,
           ownerUserId: true,
+          website: true,
         },
       }),
       this.prisma.companyUser.findUnique({
@@ -664,6 +665,13 @@ export class CompanyAuthService {
     if (!user.twoFactorEnabled) {
       throw new BadRequestException(
         "Önce iki adımlı doğrulamayı (2FA) etkinleştirmelisiniz",
+      );
+    }
+    // Premium için firma web sitesi zorunlu (link-benzeri: en az bir nokta).
+    const website = company.website?.trim();
+    if (!website || !website.includes(".")) {
+      throw new BadRequestException(
+        "Premium için geçerli bir firma web sitesi adresi girmelisiniz",
       );
     }
     // TODO(ödeme): premium ücretlendirme burada devreye girecek. Şimdilik
@@ -1233,6 +1241,7 @@ export class CompanyAuthService {
       ownerUserId: company.ownerUserId,
       publicEnabled: company.publicEnabled,
       isActive: company.isActive,
+      website: company.website,
     };
   }
 }

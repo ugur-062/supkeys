@@ -42,6 +42,7 @@ export interface CompanyProfile {
   ownerUserId: string | null;
   publicEnabled: boolean;
   isActive: boolean;
+  website: string | null;
 }
 
 export interface CompanyLoginResponse {

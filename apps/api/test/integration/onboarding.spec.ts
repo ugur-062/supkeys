@@ -248,7 +248,10 @@ describe("upgradeToPremium (Faz 3 kapısı)", () => {
     });
     await prisma.company.update({
       where: { id: owner.company.id },
-      data: { companyVerificationStatus: "VERIFIED" },
+      data: {
+        companyVerificationStatus: "VERIFIED",
+        website: "https://firma.test",
+      },
     });
     await prisma.companyUser.update({
       where: { id: owner.user.id },
@@ -260,5 +263,28 @@ describe("upgradeToPremium (Faz 3 kapısı)", () => {
       where: { id: owner.company.id },
     });
     expect(c.tier).toBe("PAKET");
+  });
+
+  it("VERIFIED + 2FA ama web sitesi yoksa reddedilir", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "STANDARD",
+    });
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { companyVerificationStatus: "VERIFIED", website: null },
+    });
+    await prisma.companyUser.update({
+      where: { id: owner.user.id },
+      data: { twoFactorEnabled: true },
+    });
+    await expect(
+      service.upgradeToPremium(owner.user.id, owner.company.id),
+    ).rejects.toThrow(/web sitesi/i);
+    const c = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(c.tier).toBe("STANDARD");
   });
 });

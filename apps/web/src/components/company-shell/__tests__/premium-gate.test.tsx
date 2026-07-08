@@ -20,9 +20,10 @@ import { PremiumGate } from "../premium-gate";
 function setMe(
   status: string,
   twoFactorEnabled: boolean,
+  website: string | null = "https://firma.test",
 ) {
   h.meData = {
-    company: { companyVerificationStatus: status },
+    company: { companyVerificationStatus: status, website },
     user: { twoFactorEnabled },
   };
 }
@@ -33,12 +34,22 @@ beforeEach(() => {
 
 describe("PremiumGate", () => {
   it("doğrulama eksikken 'Premium'a Geç' devre dışı + 'Aç' linkleri var", () => {
-    setMe("UNVERIFIED", false);
+    setMe("UNVERIFIED", false, null);
     render(<PremiumGate />);
     expect(
       screen.getByRole("button", { name: "Premium'a Geç" }),
     ).toBeDisabled();
-    expect(screen.getAllByRole("link", { name: "Aç" })).toHaveLength(2);
+    // 3 gereksinim: belgeler + 2FA + web sitesi.
+    expect(screen.getAllByRole("link", { name: "Aç" })).toHaveLength(3);
+  });
+
+  it("belgeler+2FA tamam ama web sitesi yoksa buton devre dışı", () => {
+    setMe("VERIFIED", true, null);
+    render(<PremiumGate />);
+    expect(
+      screen.getByRole("button", { name: "Premium'a Geç" }),
+    ).toBeDisabled();
+    expect(screen.getAllByRole("link", { name: "Aç" })).toHaveLength(1);
   });
 
   it("belgeler PENDING → inceleme ipucu gösterir", () => {
