@@ -518,6 +518,7 @@ export function Step1Info({
   } = useFormContext<TenderFormData>();
 
   const paymentTerm = watch("paymentTerm");
+  const paymentTiming = watch("paymentTiming");
   const primaryCurrency = watch("primaryCurrency");
   const allowedCurrencies = watch("allowedCurrencies") ?? [];
   const tenderType = watch("type");
@@ -1282,28 +1283,6 @@ export function Step1Info({
             </FormRadioGroup>
           </Field>
 
-          {/* Madde 33 — peşin/nakit ödemede teminat mektubu uyarısı */}
-          {paymentTerm === "CASH" ? (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
-              <p className="text-xs text-amber-800">
-                {isSatis ? (
-                  <>
-                    Peşin (nakit) satışta parayı önden alan taraf sizsiniz —
-                    siparişi onaylarken <strong>teminat mektubu</strong>{" "}
-                    yüklemeniz gerekir (teslimat garantisi).
-                  </>
-                ) : (
-                  <>
-                    Peşin (nakit) ödemede, <strong>kazanan tedarikçi</strong>{" "}
-                    siparişi onaylamadan önce <strong>teminat mektubu</strong>{" "}
-                    yüklemek zorundadır (teslimat garantisi).
-                  </>
-                )}
-              </p>
-            </div>
-          ) : null}
-
           {paymentTerm === "DEFERRED" ? (
             <Field
               error={errors.paymentDays?.message}
@@ -1359,6 +1338,30 @@ export function Step1Info({
               </div>
             </FormRadioGroup>
           </Field>
+
+          {/* Teminat mektubu uyarısı — yalnız TESLİM ÖNCESİ ödemede: alıcı
+              parayı önden verdiği için satıcı teslimatı garanti eder. Teslim
+              sonrası (COD/vadeli) ödemede teminat istenmez. */}
+          {paymentTiming === "BEFORE_DELIVERY" ? (
+            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+              <p className="text-xs text-amber-800">
+                {isSatis ? (
+                  <>
+                    Teslim öncesi ödemede parayı önden alan taraf sizsiniz —
+                    siparişi onaylarken <strong>teminat mektubu</strong>{" "}
+                    yüklemeniz gerekir (teslimat garantisi).
+                  </>
+                ) : (
+                  <>
+                    Teslim öncesi ödemede, <strong>kazanan tedarikçi</strong>{" "}
+                    siparişi onaylamadan önce <strong>teminat mektubu</strong>{" "}
+                    yüklemek zorundadır (teslimat garantisi).
+                  </>
+                )}
+              </p>
+            </div>
+          ) : null}
         </div>
       </section>
 

@@ -582,7 +582,7 @@ enum CompanyOrderPaymentStatus {
 enum CompanyDocType {
   DELIVERY // teslim belgesi — yurtiçi irsaliye / uluslararası konşimento (satıcı yükler)
   PAYMENT // ödeme dekontu (alıcı yükler)
-  TEMINAT // teminat mektubu — peşin (CASH) işte satıcı SİPARİŞ ONAYINDAN ÖNCE yükler
+  TEMINAT // teminat mektubu — teslim öncesi ödemede satıcı SİPARİŞ ONAYINDAN ÖNCE yükler
 }
 
 model CompanyOrderDocument {
@@ -768,7 +768,7 @@ enum ListingBidDocKind {
   TEKNIK_DOKUMAN // teknik doküman / şartname yanıtı
   REFERANS // referans / iş bitirme
   KATALOG // katalog / ürün broşürü
-  TEMINAT // teminat mektubu (peşin ödemede)
+  TEMINAT // teminat mektubu (teslim öncesi ödemede)
   DIGER // diğer
 }
 

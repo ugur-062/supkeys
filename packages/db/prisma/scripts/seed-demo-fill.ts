@@ -97,6 +97,10 @@ type L = {
   owner: string; type: "ALIM" | "SATIS"; visibility: "PUBLIC" | "CONNECTIONS" | "PRIVATE";
   title: string; items: Item[]; closesInDays: number;
   minPrice?: number; buyNowPrice?: number; invite?: string[];
+  // Ödeme zamanı — teminat mektubu YALNIZ "BEFORE_DELIVERY"de istenir
+  // (alıcı teslimden önce öder → satıcı teslimatı garanti eder). Verilmezse
+  // "AFTER_DELIVERY" (teslim sonrası ödeme, teminat yok).
+  paymentTiming?: "BEFORE_DELIVERY" | "AFTER_DELIVERY";
 };
 const LISTINGS: L[] = [
   { owner: "anadolu", type: "ALIM", visibility: "PUBLIC", closesInDays: 14, title: "Şantiye için inşaat demiri ve çimento alımı",
@@ -113,7 +117,9 @@ const LISTINGS: L[] = [
     items: [{ name: "Cerrahi eldiven (M)", quantity: 50000, unit: "adet" }, { name: "Enjektör 5 ml", quantity: 100000, unit: "adet" }, { name: "Antiseptik solüsyon 1 L", quantity: 800, unit: "adet" }] },
   { owner: "akdeniz", type: "ALIM", visibility: "PUBLIC", closesInDays: 9, title: "Palet ve depo ekipmanı alımı",
     items: [{ name: "Euro palet", quantity: 2000, unit: "adet" }, { name: "Manuel transpalet 2.5 t", quantity: 10, unit: "adet" }, { name: "Streç film", quantity: 1500, unit: "rulo" }] },
+  // Teslim ÖNCESİ ödeme örneği → kazandırılınca satıcıdan teminat mektubu istenir.
   { owner: "metal", type: "ALIM", visibility: "PUBLIC", closesInDays: 15, title: "Sac ve profil alımı",
+    paymentTiming: "BEFORE_DELIVERY",
     items: [{ name: "DKP sac 2 mm", quantity: 15000, unit: "kg" }, { name: "Kutu profil 40x40", quantity: 3000, unit: "m" }, { name: "Paslanmaz sac 304", quantity: 4000, unit: "kg" }] },
   // CONNECTIONS — yalnız bağlantılı firmalar görür
   { owner: "anadolu", type: "ALIM", visibility: "CONNECTIONS", closesInDays: 8, title: "İş güvenliği ekipmanları alımı",
@@ -227,6 +233,7 @@ async function main() {
         type: l.type, format: l.type === "ALIM" ? "RFQ" : null,
         visibility: l.visibility, title: l.title, status: "OPEN", publishedAt: new Date(),
         closesAt: days(l.closesInDays), primaryCurrency: "TRY",
+        paymentTiming: l.paymentTiming ?? "AFTER_DELIVERY",
         priceScope: l.type === "SATIS" ? "TOPLU" : "KALEM",
         minPrice: l.minPrice ?? null, buyNowPrice: l.buyNowPrice ?? null,
         categoryIds: [cats[Math.floor(Math.random() * cats.length)]],

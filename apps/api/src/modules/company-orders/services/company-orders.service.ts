@@ -125,19 +125,22 @@ export class CompanyOrdersService {
    *  aitliği doğrulanır ve siparişe SNAPSHOT yazılır (hesap sonradan silinse
    *  de sipariş kaydı değişmez). */
   async accept(user: AuthenticatedCompanyUser, id: string, input: AcceptOrderDto) {
-    // Peşin (CASH) işte teminat mektubu ZORUNLU: parayı önden alan satıcı,
-    // onaydan önce teslimat garantisi yükler (ilan wizard'ındaki taahhüt).
+    // Teminat mektubu ZORUNLU yalnızca alıcı TESLİMATTAN ÖNCE ödediğinde
+    // (BEFORE_DELIVERY): parayı önden alan satıcı, teslimatı garanti etmek için
+    // onaydan önce teminat yükler. Teslim sonrası ödemede (COD/vadeli) alıcı
+    // riskte olmadığı için teminat istenmez. NOT: tetik ödeme ZAMANIDIR
+    // (paymentTiming), ödeme TİPİ (peşin/vadeli) değil.
     const src = await this.prisma.companyOrder.findUnique({
       where: { id },
-      select: { listing: { select: { paymentTerm: true } } },
+      select: { paymentTiming: true },
     });
-    if (src?.listing?.paymentTerm === "CASH") {
+    if (src?.paymentTiming === "BEFORE_DELIVERY") {
       const teminat = await this.prisma.companyOrderDocument.count({
         where: { orderId: id, type: "TEMINAT" },
       });
       if (teminat === 0) {
         throw new BadRequestException(
-          "Bu iş peşin (nakit) — siparişi onaylamadan önce Belgeler bölümünden teminat mektubu yükleyin",
+          "Alıcı teslimattan önce ödüyor — siparişi onaylamadan önce Belgeler bölümünden teminat mektubu yükleyin (teslimat garantisi)",
         );
       }
     }
@@ -772,8 +775,8 @@ export class CompanyOrdersService {
         string,
         string | null
       > | null,
-      // Peşin işte satıcı onaydan önce teminat mektubu yüklemek zorunda —
-      // UI (accept modalı + belgeler bölümü) bu bayrağa göre yönlendirir.
+      // İlanın ticari ödeme tipi (peşin/vadeli) — yalnız bilgi. Teminat tetiği
+      // bu değil, order.paymentTiming === "BEFORE_DELIVERY"dir (aşağıda döner).
       listingPaymentTerm: o.listing?.paymentTerm ?? null,
       // Adım verileri + timeline (eski sistemle birebir).
       acceptedAt: o.acceptedAt,

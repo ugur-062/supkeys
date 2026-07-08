@@ -173,7 +173,7 @@ export class CompanyOrderDocumentsService {
 
   /**
    * Belge yükleme yetkisi = taraf (kim) + sipariş evresi (ne zaman):
-   *  - TEMINAT → satıcı, yalnız onay öncesi (PENDING). Peşin işte onayın ön koşulu.
+   *  - TEMINAT → satıcı, yalnız onay öncesi (PENDING). Teslim öncesi ödemede onayın ön koşulu.
    *  - DELIVERY → satıcı, onaydan teslime kadar (ACCEPTED/CREATED/IN_DELIVERY/DELIVERED).
    *  - PAYMENT → alıcı, ödeme penceresi açıkken (isPaymentOpen).
    * Evre-dışı yükleme (ör. satıcı onaylamadan alıcının dekont yüklemesi) reddedilir.

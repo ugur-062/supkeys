@@ -250,19 +250,12 @@ describe("taraf ve durum guard'ları", () => {
   });
 });
 
-describe("teminat mektubu — peşin (CASH) iş", () => {
-  it("CASH ilan kaynaklı sipariş, teminat belgesi yüklenmeden onaylanamaz", async () => {
+describe("teminat mektubu — teslim ÖNCESİ ödeme (BEFORE_DELIVERY)", () => {
+  it("teslim öncesi ödemeli sipariş, teminat belgesi yüklenmeden onaylanamaz", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
-    const listing = await makeListing(prisma, {
-      companyId: buyer.company.id,
-      createdById: buyer.user.id,
-      type: "ALIM",
-      status: "AWARDED",
-      paymentTerm: "CASH",
-    });
     const order = await makeOrder(seller.company.id, buyer.company.id, {
-      listingId: listing.id,
+      paymentTiming: "BEFORE_DELIVERY",
     });
 
     await expect(
@@ -284,18 +277,20 @@ describe("teminat mektubu — peşin (CASH) iş", () => {
     expect(res.status).toBe("ACCEPTED");
   });
 
-  it("vadeli (DEFERRED) işte teminat istenmez", async () => {
+  it("teslim SONRASI ödemede (COD/vadeli) teminat istenmez — peşin olsa bile", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
+    // Peşin (CASH) ilan ama ödeme teslim SONRASI → alıcı riskte değil, teminat yok.
     const listing = await makeListing(prisma, {
       companyId: buyer.company.id,
       createdById: buyer.user.id,
       type: "ALIM",
       status: "AWARDED",
-      paymentTerm: "DEFERRED",
+      paymentTerm: "CASH",
     });
     const order = await makeOrder(seller.company.id, buyer.company.id, {
       listingId: listing.id,
+      paymentTiming: "AFTER_DELIVERY",
     });
     const res = await orders.accept(seller.auth, order.id, acceptInput as never);
     expect(res.status).toBe("ACCEPTED");

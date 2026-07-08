@@ -90,7 +90,8 @@ export interface CompanyOrderDetail extends CompanyOrder {
   payments: OrderPayment[];
   items: CompanyOrderItemRow[];
   deliveryAddress?: OrderDeliveryAddress | null;
-  /** Kaynak ilanın ödeme tipi — CASH ise satıcı onaydan önce teminat yükler. */
+  /** Kaynak ilanın ticari ödeme tipi (peşin/vadeli) — yalnız bilgi amaçlı.
+   *  Teminat tetiği bu DEĞİL, `paymentTiming === "BEFORE_DELIVERY"`dir. */
   listingPaymentTerm?: "CASH" | "DEFERRED" | null;
   // Adım verileri + timeline (eski sistemle birebir)
   acceptedAt: string | null;

@@ -204,8 +204,8 @@ describe("OrderDetailPage — durum → aksiyon eşlemesi", () => {
     expect(screen.getByText(/Sipariş tamamlandı/)).toBeInTheDocument();
   });
 
-  it("PENDING + peşin (CASH) satıcı → teminat mektubu uyarısı", () => {
-    h.order = order("PENDING", "seller", { listingPaymentTerm: "CASH" });
+  it("PENDING + teslim öncesi ödeme (BEFORE_DELIVERY) satıcı → teminat mektubu uyarısı", () => {
+    h.order = order("PENDING", "seller", { paymentTiming: "BEFORE_DELIVERY" });
     render(<OrderDetailPage />);
     expect(screen.getByText(/teminat mektubu/)).toBeInTheDocument();
   });

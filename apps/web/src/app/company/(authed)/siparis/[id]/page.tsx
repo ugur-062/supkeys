@@ -549,12 +549,13 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
       <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
         {o.status === "PENDING" && isSeller ? (
           <div className="space-y-3">
-            {/* Peşin iş: teminat mektubu yüklenmeden onay backend'de reddedilir. */}
-            {o.listingPaymentTerm === "CASH" ? (
+            {/* Teslim öncesi ödeme: teminat yüklenmeden onay backend'de reddedilir. */}
+            {o.paymentTiming === "BEFORE_DELIVERY" ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Bu iş <strong>peşin (nakit)</strong> — siparişi onaylamadan
-                önce aşağıdaki Belgeler bölümünden <strong>teminat mektubu</strong>{" "}
-                yüklemeniz zorunlu (teslimat garantisi).
+                Alıcı <strong>teslimattan önce ödüyor</strong> — siparişi
+                onaylamadan önce aşağıdaki Belgeler bölümünden{" "}
+                <strong>teminat mektubu</strong> yüklemeniz zorunlu (teslimat
+                garantisi).
               </div>
             ) : null}
             <div className="flex flex-wrap items-center justify-between gap-4">

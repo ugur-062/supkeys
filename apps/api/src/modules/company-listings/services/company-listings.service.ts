@@ -3318,8 +3318,8 @@ export class CompanyListingsService {
           amount: bid.amount,
           currency: bid.currency, // sipariş tutarı teklifin biriminde
           // Ödeme zamanlaması ilandan snapshot'lanır — aksi halde varsayılan
-          // AFTER_DELIVERY olur ve peşin (BEFORE_DELIVERY) ilanlarda alıcı ön
-          // ödemeyi kaydedemezdi.
+          // AFTER_DELIVERY olur ve teslim öncesi (BEFORE_DELIVERY) ilanlarda
+          // alıcı ön ödemeyi kaydedemez, satıcıdan teminat da istenmezdi.
           paymentTiming: listing.paymentTiming,
           status: "PENDING", // satıcı onayı bekler (accept/reject)
           deliveryAddress,
