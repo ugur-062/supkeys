@@ -240,9 +240,13 @@ export class CompanyMessagesService {
     }
     const other = await this.prisma.company.findUnique({
       where: { id: otherCompanyId },
-      select: { id: true },
+      select: { id: true, isActive: true, isBlocked: true },
     });
-    if (!other) throw new NotFoundException("Firma bulunamadı");
+    // Pasif veya admin-bloklu firmaya mesaj gönderilemez (istenmeyen bildirim/
+    // e-posta üretmesin; varlığı sızdırmamak için jenerik 404).
+    if (!other || !other.isActive || other.isBlocked) {
+      throw new NotFoundException("Firma bulunamadı");
+    }
     // Engel (iki yön) mesajlaşmayı da kapatır — engelleyen taraf sızdırılmaz.
     const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     if (blockedIds.includes(otherCompanyId)) {

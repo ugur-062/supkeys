@@ -517,11 +517,16 @@ export class AdminCompaniesService {
   ) {
     const c = await this.prisma.companyComplaint.findUnique({
       where: { id },
-      select: { id: true, againstCompanyId: true },
+      select: { id: true, againstCompanyId: true, status: true },
     });
     if (!c) throw new NotFoundException("Şikayet bulunamadı");
-    await this.prisma.companyComplaint.update({
-      where: { id },
+    if (c.status !== "OPEN") {
+      throw new BadRequestException("Bu şikayet zaten sonuçlanmış");
+    }
+    // Atomik CAS: yalnız hâlâ OPEN ise sonuçlandır — tekrar-resolve / eşzamanlı
+    // ikinci karar tekrar suspend/üzerine yazma yapamaz.
+    const resolved = await this.prisma.companyComplaint.updateMany({
+      where: { id, status: "OPEN" },
       data: {
         status: input.status as ComplaintStatus,
         adminNote: input.adminNote?.trim() || null,
@@ -529,6 +534,9 @@ export class AdminCompaniesService {
         resolvedByAdminId: adminId,
       },
     });
+    if (resolved.count === 0) {
+      throw new BadRequestException("Bu şikayet zaten sonuçlanmış");
+    }
     await this.audit.log({
       action: "admin.complaint.resolved",
       actorType: "admin",

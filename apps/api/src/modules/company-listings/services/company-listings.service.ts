@@ -4038,25 +4038,48 @@ export class CompanyListingsService {
         // (best/monotonluk/sıralama). Primary-dışı birimdeki teklifler karışık
         // kıyası bozacağından SUBMITTED taşınmaz; taslağa çekilir (tedarikçi
         // primary birimde yeniden verir). RFQ turunda böyle bir kısıt yok.
+        // Revive edilen (SUBMITTED/DRAFT) teklifin bayat eleme damgası temizlenir
+        // — aksi halde önceki turda ELENEN teklif yeni turda "elendi" metadata'sıyla
+        // diriliyordu (çelişki; placeBid resubmit'te de aynı temizlik yapılır).
         if (isAuction) {
           await tx.listingBid.updateMany({
             where: { ...priorWhere, currency: { not: listing.primaryCurrency } },
-            data: { status: "DRAFT", round: newRound },
+            data: {
+              status: "DRAFT",
+              round: newRound,
+              eliminationReason: null,
+              eliminatedAt: null,
+            },
           });
           await tx.listingBid.updateMany({
             where: { ...priorWhere, currency: listing.primaryCurrency },
-            data: { status: "SUBMITTED", round: newRound },
+            data: {
+              status: "SUBMITTED",
+              round: newRound,
+              eliminationReason: null,
+              eliminatedAt: null,
+            },
           });
         } else {
           await tx.listingBid.updateMany({
             where: priorWhere,
-            data: { status: "SUBMITTED", round: newRound },
+            data: {
+              status: "SUBMITTED",
+              round: newRound,
+              eliminationReason: null,
+              eliminatedAt: null,
+            },
           });
         }
       } else if (dto.carryBids === "LAZY") {
         await tx.listingBid.updateMany({
           where: priorWhere,
-          data: { status: "DRAFT", round: newRound },
+          data: {
+            status: "DRAFT",
+            round: newRound,
+            eliminationReason: null,
+            eliminatedAt: null,
+          },
         });
       } else {
         await tx.listingBid.updateMany({

@@ -72,9 +72,9 @@ export class CompanyConnectionsService {
     }
     const target = await this.prisma.company.findUnique({
       where: { rothernId: code },
-      select: { id: true, name: true, isActive: true },
+      select: { id: true, name: true, isActive: true, isBlocked: true },
     });
-    if (!target || !target.isActive) {
+    if (!target || !target.isActive || target.isBlocked) {
       throw new NotFoundException("Bu Rothern ID'ye sahip firma bulunamadı");
     }
     return this.createRequest(user, target, "PREMIUM");
@@ -100,11 +100,13 @@ export class CompanyConnectionsService {
     const existing = await this.prisma.companyUser.findUnique({
       where: { email },
       select: {
-        company: { select: { id: true, name: true, isActive: true } },
+        company: {
+          select: { id: true, name: true, isActive: true, isBlocked: true },
+        },
       },
     });
     if (existing?.company) {
-      if (!existing.company.isActive) {
+      if (!existing.company.isActive || existing.company.isBlocked) {
         throw new BadRequestException(
           "Bu e-posta adresinin bağlı olduğu firma artık aktif değil",
         );
