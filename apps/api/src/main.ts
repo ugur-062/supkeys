@@ -31,6 +31,10 @@ async function bootstrap() {
   });
   // Structured logger (Pino) — tüm Nest loglarını JSON + redaction ile üstlenir.
   app.useLogger(app.get(PinoLogger));
+  // Proxy arkasında (Render/Vercel/Cloudflare) gerçek client IP'si
+  // X-Forwarded-For'dan okunsun — aksi halde rate limiter TÜM trafiği proxy'nin
+  // tek IP'si altında toplar ve herkes ortak limite takılıp 429 alır.
+  app.set("trust proxy", 1);
   const config = app.get(ConfigService);
 
   // Security audit O-3 — Production'da placeholder/zayıf JWT_SECRET reddi.

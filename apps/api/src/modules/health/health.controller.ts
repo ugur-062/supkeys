@@ -1,4 +1,5 @@
 import { Controller, Get, Logger, UseGuards } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
 import { ExchangeRateService } from "../currency/services/exchange-rate.service";
@@ -15,6 +16,9 @@ interface HealthCheckResult {
   };
 }
 
+// Health uçları rate-limit DIŞI — platform (Render/uptime) sık sık yoklar;
+// throttle'a takılıp 429 dönerse sağlıksız sayılıp gereksiz yeniden başlatılır.
+@SkipThrottle()
 @Controller("health")
 export class HealthController {
   private readonly logger = new Logger(HealthController.name);
