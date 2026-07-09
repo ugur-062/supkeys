@@ -515,3 +515,52 @@ describe("ödeme kuralları", () => {
     expect(Number(totals.paymentTotals.remaining)).toBe(0);
   });
 });
+
+describe("sıfır-tutarlı sipariş — tamamlanabilir", () => {
+  it("amount=0 sipariş, ödeme beklenmeden COMPLETED olabilir", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DELIVERED",
+      amount: 0,
+      deliveredAt: new Date(),
+    });
+    const res = await orders.complete(buyer.auth, order.id, {} as never);
+    expect(res.status).toBe("COMPLETED"); // total<=0 → ödenecek yok = tam ödenmiş
+  });
+});
+
+describe("iptal edilmiş siparişte asılı ödeme", () => {
+  it("CANCELLED sipariş + AWAITING ödeme → satıcı CONFIRM edemez ama REDDEDEBİLİR", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "CANCELLED",
+      cancelledAt: new Date(),
+      cancelReason: "test iptal gerekçesi",
+    });
+    const payment = await prisma.companyOrderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: 1000,
+        status: "AWAITING_CONFIRMATION",
+        recordedByCompanyId: buyer.company.id,
+      },
+    });
+    // CONFIRM edilemez (iptal edilmiş siparişte onaylı para oluşmaz).
+    await expect(
+      orders.confirmPayment(seller.auth, order.id, payment.id),
+    ).rejects.toThrow(/onaylanamaz/i);
+    // Ama REDDEDİLEBİLİR — asılı AWAITING kaydı sonuçlandırılabilsin.
+    await orders.rejectPayment(
+      seller.auth,
+      order.id,
+      payment.id,
+      "sipariş iptal edildi",
+    );
+    const db = await prisma.companyOrderPayment.findUniqueOrThrow({
+      where: { id: payment.id },
+    });
+    expect(db.status).toBe("REJECTED");
+  });
+});

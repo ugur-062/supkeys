@@ -274,7 +274,7 @@ export class CompanyOrdersService {
       ]);
       const total = amt ? Number(amt.amount) : 0;
       const confirmed = agg._sum.amount ? Number(agg._sum.amount) : 0;
-      toCompleted = total > 0 && confirmed + 0.01 >= total;
+      toCompleted = this.isFullyPaid(total, confirmed);
     }
     const res = await this.transition(user, id, {
       side: "buyer",
@@ -339,7 +339,7 @@ export class CompanyOrdersService {
     ]);
     const total = amt ? Number(amt.amount) : 0;
     const confirmed = agg._sum.amount ? Number(agg._sum.amount) : 0;
-    if (!(total > 0 && confirmed + 0.01 >= total)) {
+    if (!this.isFullyPaid(total, confirmed)) {
       throw new BadRequestException(
         "Sipariş, ödeme tam olarak alınıp onaylanmadan tamamlanamaz — alıcı ödemeyi bildirir, satıcı onayladığında tamamlanır",
       );
@@ -373,38 +373,72 @@ export class CompanyOrdersService {
         "İptal gerekçesi en az 10 karakter olmalı",
       );
     }
-    // Onaylı (CONFIRMED) ödeme varsa tek taraflı iptal edilemez — para el
-    // değiştirdi, iade/geri-alma akışı gerekir (ship/complete kapılarının
-    // finansal simetriği). Bekleyen ödeme (AWAITING) iptali engellemez.
-    const confirmedPayments = await this.prisma.companyOrderPayment.count({
-      where: { orderId: id, status: "CONFIRMED" },
-    });
-    if (confirmedPayments > 0) {
-      throw new BadRequestException(
-        "Onaylı ödeme bulunan sipariş iptal edilemez — iade için destek ekibiyle iletişime geçin",
-      );
+    // Yetki dış katmanda (iş doğrulamasından önce).
+    const order = await this.loadParticipant(user, id);
+    if (order.buyerCompanyId !== user.companyId) {
+      throw new ForbiddenException("Bu işlemi yapamazsınız");
     }
-    const res = await this.transition(user, id, {
-      side: "buyer",
-      from: ["PENDING", "ACCEPTED", "CREATED"],
-      to: "CANCELLED",
-      data: { cancelReason: reason!.trim(), cancelledAt: new Date() },
+    this.assertOrderRole(user, "buyer");
+
+    const CANCELABLE: CompanyOrderStatus[] = ["PENDING", "ACCEPTED", "CREATED"];
+    // Sipariş satırını FOR UPDATE kilitle → CONFIRMED say → geçiş, tek tx'te.
+    // paymentDecision(confirm) da aynı satırı kilitlediğinden iptal↔onay yarışı
+    // serileşir: ikisi aynı anda çalışamaz, biri diğerinin sonucunu görür.
+    await this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<{ status: CompanyOrderStatus }[]>`
+        SELECT "status" FROM "company_orders" WHERE "id" = ${id} FOR UPDATE`;
+      const status = rows[0]?.status;
+      if (!status || !CANCELABLE.includes(status)) {
+        throw new BadRequestException(
+          "Sipariş bu durumda bu işleme uygun değil",
+        );
+      }
+      // Onaylı (CONFIRMED) ödeme varsa tek taraflı iptal edilemez — para el
+      // değiştirdi, iade akışı gerekir. Bekleyen ödeme (AWAITING) engel değil.
+      const confirmedPayments = await tx.companyOrderPayment.count({
+        where: { orderId: id, status: "CONFIRMED" },
+      });
+      if (confirmedPayments > 0) {
+        throw new BadRequestException(
+          "Onaylı ödeme bulunan sipariş iptal edilemez — iade için destek ekibiyle iletişime geçin",
+        );
+      }
+      const done = await tx.companyOrder.updateMany({
+        where: { id, status: { in: CANCELABLE } },
+        data: { status: "CANCELLED", cancelReason: reason!.trim(), cancelledAt: new Date() },
+      });
+      if (done.count !== 1) {
+        throw new BadRequestException(
+          "Sipariş durumu az önce değişti — sayfayı yenileyip tekrar deneyin",
+        );
+      }
     });
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     await this.notifyOrderParty(
       id,
-      res.order.sellerCompanyId,
+      order.sellerCompanyId,
       "Sipariş iptal edildi",
       "Sipariş iptal edildi",
-      `${this.orderLabel(res.order.number)} siparişi alıcı tarafından iptal edildi.${
+      `${this.orderLabel(order.number)} siparişi alıcı tarafından iptal edildi.${
         reason ? ` Gerekçe: ${reason}` : ""
       }`,
       "satis",
     );
-    return { ok: res.ok, status: res.status };
+    return { ok: true, status: "CANCELLED" as const };
   }
 
   private orderLabel(number: string | null): string {
     return number ? `${number} numaralı` : "İlgili";
+  }
+
+  /**
+   * Tam-ödeme kapısı. total <= 0 → ödenecek tutar yok = tam ödenmiş sayılır
+   * (kalem-bazlı kazandırmada yalnız 0-fiyatlı kalem kazanan teklifçi sıfır
+   * tutarlı sipariş doğurabilir; aksi halde bu sipariş hiçbir yoldan COMPLETED
+   * olamaz, DELIVERED'da sonsuza kilitlenirdi). Aksi halde 1 kuruş tolerans.
+   */
+  private isFullyPaid(total: number, confirmed: number): boolean {
+    return total <= 0 || confirmed + 0.01 >= total;
   }
 
   private async transition(
@@ -639,36 +673,67 @@ export class CompanyOrdersService {
       throw new ForbiddenException("Ödemeyi yalnızca satıcı onaylayabilir");
     }
     this.assertOrderRole(user, "seller");
-    // İptal/reddedilmiş siparişte ödeme kararı verilemez — aksi halde alıcı
-    // ACCEPTED'da ödeme kaydedip iptal ettikten sonra satıcı ödemeyi CONFIRMED
-    // yapabilir (iade akışı yokken CANCELLED sipariş üstünde onaylı para).
-    if (order.status === "CANCELLED" || order.status === "REJECTED") {
-      throw new BadRequestException(
-        "İptal edilmiş siparişte ödeme kararı verilemez",
-      );
-    }
+    // Ödeme kaydı ön-kontrolü (temiz 404).
     const payment = await this.prisma.companyOrderPayment.findUnique({
       where: { id: paymentId },
     });
     if (!payment || payment.orderId !== id) {
       throw new NotFoundException("Ödeme kaydı bulunamadı");
     }
-    if (payment.status !== "AWAITING_CONFIRMATION") {
-      throw new BadRequestException("Bu ödeme zaten sonuçlanmış");
-    }
-    // Atomik karar: çift tık / eşzamanlı onay+red yarışında ikinci yazma
-    // ilkini ezemez (yalnız hâlâ bekleyense sonuçlanır).
-    const res = await this.prisma.companyOrderPayment.updateMany({
-      where: { id: paymentId, status: "AWAITING_CONFIRMATION" },
-      data: {
-        status: decision,
-        confirmedAt: decision === "CONFIRMED" ? new Date() : null,
-        rejectReason: decision === "REJECTED" ? reason?.trim() || null : null,
-      },
+
+    // Kararı, sipariş satırını FOR UPDATE kilitleyerek UYGULA (cancel ile
+    // serileşir → iptal↔onay yarışı kapanır):
+    //  - CONFIRMED yalnız iptal/red DIŞINDA (CANCELLED sipariş üstünde onaylı
+    //    para oluşmasın; cancel de aynı satırı kilitleyip CONFIRMED sayar).
+    //  - REJECTED HER durumda serbest — iptal edilmiş siparişte havale yapıp
+    //    asılı kalan AWAITING ödeme reddedilerek sonuçlandırılabilsin.
+    const autoCompleted = await this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<{ status: CompanyOrderStatus }[]>`
+        SELECT "status" FROM "company_orders" WHERE "id" = ${id} FOR UPDATE`;
+      const status = rows[0]?.status;
+      if (!status) throw new NotFoundException("Sipariş bulunamadı");
+      if (
+        decision === "CONFIRMED" &&
+        (status === "CANCELLED" || status === "REJECTED")
+      ) {
+        throw new BadRequestException(
+          "İptal edilmiş siparişte ödeme onaylanamaz",
+        );
+      }
+      // Atomik CAS: yalnız hâlâ bekleyen ödeme sonuçlanır (çift tık güvenli).
+      const res = await tx.companyOrderPayment.updateMany({
+        where: { id: paymentId, orderId: id, status: "AWAITING_CONFIRMATION" },
+        data: {
+          status: decision,
+          confirmedAt: decision === "CONFIRMED" ? new Date() : null,
+          rejectReason: decision === "REJECTED" ? reason?.trim() || null : null,
+        },
+      });
+      if (res.count !== 1) {
+        throw new BadRequestException("Bu ödeme zaten sonuçlanmış");
+      }
+      // Otomatik tamamlama — kilit altında taze durum + toplam ile.
+      if (decision === "CONFIRMED" && status === "DELIVERED") {
+        const [orderAmt, agg] = await Promise.all([
+          tx.companyOrder.findUnique({ where: { id }, select: { amount: true } }),
+          tx.companyOrderPayment.aggregate({
+            where: { orderId: id, status: "CONFIRMED" },
+            _sum: { amount: true },
+          }),
+        ]);
+        const total = orderAmt ? Number(orderAmt.amount) : 0;
+        const confirmedSum = agg._sum.amount ? Number(agg._sum.amount) : 0;
+        if (this.isFullyPaid(total, confirmedSum)) {
+          const done = await tx.companyOrder.updateMany({
+            where: { id, status: "DELIVERED" },
+            data: { status: "COMPLETED", completedAt: new Date() },
+          });
+          return done.count === 1;
+        }
+      }
+      return false;
     });
-    if (res.count !== 1) {
-      throw new BadRequestException("Bu ödeme zaten sonuçlanmış");
-    }
+
     const updated = await this.prisma.companyOrderPayment.findUniqueOrThrow({
       where: { id: paymentId },
     });
@@ -687,39 +752,16 @@ export class CompanyOrdersService {
       "satinalma",
     );
 
-    // Otomatik tamamlama (eski sistemle aynı): sipariş teslim alındı (DELIVERED)
-    // ve onaylı ödemeler toplamı sipariş tutarına ulaştıysa → COMPLETED.
-    if (decision === "CONFIRMED" && order.status === "DELIVERED") {
-      const [orderAmt, agg] = await Promise.all([
-        this.prisma.companyOrder.findUnique({
-          where: { id },
-          select: { amount: true },
-        }),
-        this.prisma.companyOrderPayment.aggregate({
-          where: { orderId: id, status: "CONFIRMED" },
-          _sum: { amount: true },
-        }),
-      ]);
-      const total = orderAmt ? Number(orderAmt.amount) : 0;
-      const confirmedSum = agg._sum.amount ? Number(agg._sum.amount) : 0;
-      if (total > 0 && confirmedSum + 0.01 >= total) {
-        // Atomik: alıcı aynı anda complete ettiyse ezme; damga eksik kalmasın.
-        await this.prisma.companyOrder.updateMany({
-          where: { id, status: "DELIVERED" },
-          data: { status: "COMPLETED", completedAt: new Date() },
-        });
-        // Tam ödeme ile otomatik tamamlandı → SATICIYA bilgi. Alıcı zaten
-        // yukarıda "Ödeme onaylandı" bildirimini aldı; tamamlanma haberi
-        // siparişi oto-kapanan satıcıya gitmeli (aksi halde satıcı habersiz kalır).
-        await this.notifyOrderParty(
-          id,
-          order.sellerCompanyId,
-          "Sipariş tamamlandı",
-          "Sipariş tamamlandı",
-          `${this.orderLabel(order.number)} sipariş tam ödeme ile tamamlandı.`,
-          "satis",
-        );
-      }
+    // Otomatik tamamlandıysa → SATICIYA bilgi (alıcı zaten onay bildirimini aldı).
+    if (autoCompleted) {
+      await this.notifyOrderParty(
+        id,
+        order.sellerCompanyId,
+        "Sipariş tamamlandı",
+        "Sipariş tamamlandı",
+        `${this.orderLabel(order.number)} sipariş tam ödeme ile tamamlandı.`,
+        "satis",
+      );
     }
 
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
