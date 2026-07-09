@@ -1,20 +1,22 @@
+// Tamamen monokrom (zinc) palet — app'in Catalyst siyah-beyaz temasıyla aynı.
+// Hiç mavi/renk yok; buton = siyah, metin = near-black, kutular = açık gri.
 export const COLORS = {
-  brand50: "#EFF4FF",
-  brand100: "#DCE6FF",
-  brand500: "#3B6BFF",
-  brand600: "#1E5BFF",
-  brand700: "#1648CC",
-  brand900: "#0A2540",
+  brand50: "#F4F4F5", // açık kutu zemini (zinc-100)
+  brand100: "#E4E4E7", // kutu kenarı (zinc-200)
+  brand500: "#52525B", // orta aksan (zinc-600)
+  brand600: "#18181B", // primary / buton zemini (zinc-900 = siyah)
+  brand700: "#09090B", // hover / link (zinc-950)
+  brand900: "#18181B", // koyu başlık / metin (zinc-900)
 
-  slate100: "#F1F5F9",
-  slate500: "#64748B",
-  slate600: "#475569",
-  slate700: "#334155",
-  slate900: "#0F172A",
+  slate100: "#F4F4F5",
+  slate500: "#71717A",
+  slate600: "#52525B",
+  slate700: "#3F3F46",
+  slate900: "#18181B",
 
-  surfaceSubtle: "#F8FAFC",
-  surfaceMuted: "#F1F5F9",
-  surfaceBorder: "#E2E8F0",
+  surfaceSubtle: "#FAFAFA",
+  surfaceMuted: "#F4F4F5",
+  surfaceBorder: "#E4E4E7",
 } as const;
 
 export const FONTS = {
