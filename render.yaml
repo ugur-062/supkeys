@@ -1,0 +1,86 @@
+# Render Blueprint — Rothern API (NestJS).
+# Ücretsiz yayın: API burada (Render free, Docker), web+admin Vercel'de.
+# Kurulum: Render → New → Blueprint → bu repo'yu bağla → sync:false env'leri doldur.
+# Not: Docker entrypoint başlangıçta `prisma migrate:deploy` çalıştırır; ilk
+# deploy'da RUN_SEED=true ile admin tohumlanır (sonra false yap).
+services:
+  - type: web
+    name: rothern-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    plan: free
+    region: frankfurt # Supabase eu-central-1 + TR'ye en yakın
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # ── Sabitler ──
+      - key: NODE_ENV
+        value: production
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: EMAIL_FROM_NAME
+        value: Rothern
+      - key: JWT_EXPIRES_IN
+        value: 1h
+      - key: LOG_LEVEL
+        value: info
+      # İlk deploy: admin tohumla. Tohumlandıktan sonra false yapıp yeniden deploy et.
+      - key: RUN_SEED
+        value: "true"
+      # ── DB (Supabase) — dashboard'da doldur ──
+      - key: DATABASE_URL # transaction pooler (6543, pgbouncer)
+        sync: false
+      - key: DIRECT_URL # session pooler (5432) — prisma migrate için
+        sync: false
+      # ── Kimlik / JWT ──
+      - key: JWT_SECRET # güçlü rastgele sır (min 32 karakter)
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      # ── Depolama (Cloudflare R2) ──
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_ENDPOINT
+        sync: false
+      - key: R2_BUCKET
+        sync: false
+      - key: R2_PUBLIC_BASE_URL
+        sync: false
+      # ── E-posta (Resend) ──
+      - key: EMAIL_FROM_ADDRESS # doğrulanmış domain adresi (onboarding@resend.dev DEĞİL)
+        sync: false
+      - key: EMAIL_REPLY_TO
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_WEBHOOK_SECRET
+        sync: false
+      # ── URL / CORS (Vercel deploy'undan SONRA doldur) ──
+      - key: CORS_ORIGINS # https://<web>.vercel.app,https://<admin>.vercel.app
+        sync: false
+      - key: WEB_URL
+        sync: false
+      - key: ADMIN_URL
+        sync: false
+      - key: COOKIE_DOMAIN # boş bırak (varsayılan host) veya .rothern.com
+        sync: false
+      # ── İlk admin (RUN_SEED=true iken kullanılır; prod'da zayıf parola reddedilir) ──
+      - key: INITIAL_ADMIN_EMAIL
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD # ≥12 karakter güçlü
+        sync: false
+      - key: INITIAL_ADMIN_FIRST_NAME
+        value: Rothern
+      - key: INITIAL_ADMIN_LAST_NAME
+        value: Admin
