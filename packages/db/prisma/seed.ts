@@ -199,6 +199,12 @@ async function ensureCompany(
     select: { companyId: true },
   });
   if (existingUser) {
+    // Eski seed'lerde onboardingCompletedAt yoktu → demo hesap onboarding'e
+    // takılıyordu. Idempotent backfill: mevcut demo firmasını da tamamla.
+    await prisma.company.updateMany({
+      where: { id: existingUser.companyId, onboardingCompletedAt: null },
+      data: { onboardingCompletedAt: new Date() },
+    });
     console.log("ℹ️  Firma kullanıcısı zaten var:", email);
     return existingUser.companyId;
   }
@@ -209,7 +215,15 @@ async function ensureCompany(
   }
 
   const company = await prisma.company.create({
-    data: { name, rothernId: code, tier, country: "TR" },
+    // onboardingCompletedAt set → demo hesap login'de onboarding wizard'ına
+    // takılmadan direkt panele girer (hydration guard bu alana bakar).
+    data: {
+      name,
+      rothernId: code,
+      tier,
+      country: "TR",
+      onboardingCompletedAt: new Date(),
+    },
   });
   const user = await prisma.companyUser.create({
     data: {
