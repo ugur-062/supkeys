@@ -94,34 +94,12 @@ async function main() {
 
   const c1 = await ensureCompany("firma@demo.com", "Demo Firma A.Ş.", "PAKET");
   const c2 = await ensureCompany("firma2@demo.com", "İkinci Firma Ltd", "PAKET");
-  await ensureCompany("firma3@demo.com", "Üçüncü Firma", "PAKET");
+  const c3 = await ensureCompany("firma3@demo.com", "Üçüncü Firma", "PAKET");
 
-  // firma@demo ↔ firma2 ACTIVE bağlantı (ilan/teklif testleri için).
-  const exists = await prisma.companyConnection.findFirst({
-    where: {
-      OR: [
-        { inviterCompanyId: c1, inviteeCompanyId: c2 },
-        { inviterCompanyId: c2, inviteeCompanyId: c1 },
-      ],
-    },
-  });
-  if (!exists) {
-    const owner1 = await prisma.companyUser.findFirst({
-      where: { companyId: c1 },
-      select: { id: true },
-    });
-    await prisma.companyConnection.create({
-      data: {
-        inviterCompanyId: c1,
-        inviteeCompanyId: c2,
-        status: "ACTIVE",
-        origin: "ADMIN",
-        invitedById: owner1!.id,
-        decidedAt: new Date(),
-      },
-    });
-    console.log("✅ firma@demo ↔ firma2 ACTIVE bağlantı");
-  }
+  // Üç premium firma tam bağlı ağ (ilan/teklif/mesaj demosu için).
+  await ensureConnection(c1, c2);
+  await ensureConnection(c1, c3);
+  await ensureConnection(c2, c3);
 
   console.log("🌱 Seed tamam.");
 }
@@ -242,6 +220,34 @@ async function ensureCompany(
   });
   console.log(`✅ Firma: ${name} (${email}) [${code}] ${tier}`);
   return company.id;
+}
+
+/** İki firma arasında yön-bağımsız ACTIVE bağlantı (idempotent). */
+async function ensureConnection(a: string, b: string): Promise<void> {
+  const exists = await prisma.companyConnection.findFirst({
+    where: {
+      OR: [
+        { inviterCompanyId: a, inviteeCompanyId: b },
+        { inviterCompanyId: b, inviteeCompanyId: a },
+      ],
+    },
+  });
+  if (exists) return;
+  const owner = await prisma.companyUser.findFirst({
+    where: { companyId: a },
+    select: { id: true },
+  });
+  await prisma.companyConnection.create({
+    data: {
+      inviterCompanyId: a,
+      inviteeCompanyId: b,
+      status: "ACTIVE",
+      origin: "ADMIN",
+      invitedById: owner!.id,
+      decidedAt: new Date(),
+    },
+  });
+  console.log(`✅ ACTIVE bağlantı: ${a} ↔ ${b}`);
 }
 
 main()
