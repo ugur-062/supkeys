@@ -36,11 +36,17 @@ function baseOptions(config: ConfigService, persistent: boolean) {
   // Prod: app/admin/api aynı site (.rothern.com) → Domain ile paylaşılır.
   // Dev: localhost (portlar same-site) → Domain vermiyoruz (host-only).
   const domain = config.get<string>("COOKIE_DOMAIN") || undefined;
+  // SameSite: aynı-site (app+api ortak .rothern.com) → "lax" (CSRF için sıkı).
+  // Cross-site (frontend Vercel + API Render farklı domain) → COOKIE_SAMESITE=none
+  // ŞART, aksi halde auth cookie'si XHR'de gönderilmez ve giriş sonrası login'e
+  // geri atar. "none" tarayıcıda Secure gerektirir → secure zorlanır.
+  const sameSite = ((config.get<string>("COOKIE_SAMESITE") || "lax")
+    .toLowerCase() as "lax" | "none" | "strict");
   return {
     domain,
     path: "/",
-    sameSite: "lax" as const,
-    secure: prod,
+    sameSite,
+    secure: prod || sameSite === "none",
     // "Beni hatırla": kalıcı → maxAge (30 gün). Değilse maxAge YOK → SESSION
     // cookie'si (tarayıcı kapanınca silinir). JWT 1sa'de expire eder (asıl kapı).
     ...(persistent ? { maxAge: MAX_AGE_MS } : {}),
