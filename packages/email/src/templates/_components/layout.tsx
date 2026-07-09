@@ -43,8 +43,18 @@ const headerSection = {
   marginBottom: "24px",
 };
 
+// Logo BEYAZ bir kutuya oturur: siyah+şeffaf logo, istemci dark-mode uygulasa
+// bile (color-scheme meta'sını yok sayan Gmail vb.) koyu zeminde kaybolmasın —
+// tablo-hücresi arka planı e-postada en dayanıklı yapıdır.
+const logoChip = {
+  backgroundColor: "#FFFFFF",
+  padding: "14px 22px",
+  borderRadius: "10px",
+  border: `1px solid ${COLORS.surfaceBorder}`,
+};
+
 const logoStyle = {
-  display: "inline-block",
+  display: "block",
   height: "auto",
   margin: 0,
 };
@@ -82,13 +92,30 @@ export function Layout({ preview, children }: LayoutProps) {
       <Body style={main}>
         <Container style={wrapper}>
           <Section style={headerSection}>
-            <Img
-              src={LOGO_SRC}
-              alt="Rothern"
-              width="170"
-              height="50"
-              style={logoStyle}
-            />
+            <table
+              role="presentation"
+              cellPadding={0}
+              cellSpacing={0}
+              border={0}
+              style={{ margin: "0 auto" }}
+            >
+              <tbody>
+                <tr>
+                  <td
+                    style={logoChip}
+                    {...({ bgcolor: "#FFFFFF" } as Record<string, string>)}
+                  >
+                    <Img
+                      src={LOGO_SRC}
+                      alt="Rothern"
+                      width="150"
+                      height="44"
+                      style={logoStyle}
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </Section>
 
           <Section style={card}>{children}</Section>
