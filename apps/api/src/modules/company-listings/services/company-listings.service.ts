@@ -1244,31 +1244,6 @@ export class CompanyListingsService {
   }
 
   /**
-   * Onay isteği için tahmini bütçe — kazandırma tutarı (ALIM/SATIS teklif
-   * bazlı hesaplanır; award akışı çağırır).
-   */
-  private async estimateListingAmount(listing: {
-    id: string;
-    type: ListingType;
-    minPrice: { toString(): string } | null;
-  }): Promise<number> {
-    if (listing.type === "SATIS") {
-      return listing.minPrice ? Number(listing.minPrice) : 0;
-    }
-    const items = await this.prisma.listingItem.findMany({
-      where: { listingId: listing.id },
-      select: { quantity: true, targetPrice: true },
-    });
-    // Decimal aritmetiği (kayan nokta birikimli hata olmadan).
-    const total = items.reduce(
-      (sum, it) =>
-        sum.plus(new Prisma.Decimal(it.targetPrice ?? 0).mul(it.quantity)),
-      new Prisma.Decimal(0),
-    );
-    return total.toNumber();
-  }
-
-  /**
    * (Geriye uyum) Eski LISTING_PUBLISH onayı onaylanırsa ilanı OPEN yap —
    * artık yeni akış üretilmez ama bekleyen eski istekler tamamlanabilsin.
    */
@@ -1974,6 +1949,12 @@ export class CompanyListingsService {
       listing.visibility === "PUBLIC" ||
       (listing.visibility === "CONNECTIONS" && connected);
     if (!visible) throw new NotFoundException("İlan bulunamadı");
+
+    // Yayınlanmamış (DRAFT) ilan sahip dışında kimseye görünmez — davetli/
+    // bağlantılı firma dahi id ile taslağı açamaz (owner dalı yukarıda döner).
+    if (listing.status === "DRAFT") {
+      throw new NotFoundException("İlan bulunamadı");
+    }
 
     // Engelli firma ilanı göremez.
     if (blockedIds.includes(user.companyId)) {
@@ -3542,6 +3523,15 @@ export class CompanyListingsService {
     // ile aynı kural — item-award baypasını kapatır).
     if (listing.requireBidDocument) {
       const winningBidIds = [...new Set(itemAwards.map((a) => a.bidId))];
+      // Belge sayımından ÖNCE tekliflerin BU ilana ait + SUBMITTED olduğunu
+      // doğrula — aksi halde yabancı bidId ile "belge var/yok" 1-bit oracle
+      // sızardı (buildItemGroups sonradan da doğrular; burada erken kapatılır).
+      const validBids = await this.prisma.listingBid.count({
+        where: { id: { in: winningBidIds }, listingId, status: "SUBMITTED" },
+      });
+      if (validBids !== winningBidIds.length) {
+        throw new BadRequestException("Geçersiz teklif");
+      }
       for (const bidId of winningBidIds) {
         const docCount = await this.prisma.listingBidDocument.count({
           where: { bidId },

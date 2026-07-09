@@ -6,6 +6,7 @@ import {
   Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { CompanyBlocksService } from "../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -267,16 +268,32 @@ export class CompanyMessagesService {
       select: { lastMessageAt: true },
     });
 
-    const thread = await this.prisma.messageThread.upsert({
-      where: {
-        buyerCompanyId_sellerCompanyId: {
-          buyerCompanyId: parties.buyerCompanyId,
-          sellerCompanyId: parties.sellerCompanyId,
+    const upsertThread = () =>
+      this.prisma.messageThread.upsert({
+        where: {
+          buyerCompanyId_sellerCompanyId: {
+            buyerCompanyId: parties.buyerCompanyId,
+            sellerCompanyId: parties.sellerCompanyId,
+          },
         },
-      },
-      create: { ...parties, lastMessageAt: now },
-      update: { lastMessageAt: now },
-    });
+        create: { ...parties, lastMessageAt: now },
+        update: { lastMessageAt: now },
+      });
+    let thread;
+    try {
+      thread = await upsertThread();
+    } catch (e) {
+      // Eşzamanlı ilk-mesaj yarışı: iki istek aynı anda thread create ederse
+      // biri P2002 alır. Thread artık var → upsert'i tekrar dene (update yolu).
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002"
+      ) {
+        thread = await upsertThread();
+      } else {
+        throw e;
+      }
+    }
 
     const message = await this.prisma.message.create({
       data: {

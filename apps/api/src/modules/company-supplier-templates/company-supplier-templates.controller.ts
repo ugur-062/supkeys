@@ -23,8 +23,10 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
+import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { CompanySupplierTemplatesService } from "./company-supplier-templates.service";
 
 class CreateSupplierTemplateDto {
@@ -67,10 +69,11 @@ class UpdateSupplierTemplateDto {
 
 @Controller("company/supplier-templates")
 // Tedarikçi şablonları premium özelliğidir — STANDARD firma erişemez.
-@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard, CompanyPermissionsGuard)
 export class CompanySupplierTemplatesController {
   constructor(private readonly service: CompanySupplierTemplatesService) {}
 
+  // Okuma her role açık; yazma templates:manage ister.
   @Get()
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.list(user.companyId);
@@ -85,6 +88,7 @@ export class CompanySupplierTemplatesController {
   }
 
   @Post()
+  @RequireCompanyPermission("templates:manage")
   create(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: CreateSupplierTemplateDto,
@@ -93,6 +97,7 @@ export class CompanySupplierTemplatesController {
   }
 
   @Patch(":id")
+  @RequireCompanyPermission("templates:manage")
   update(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -102,6 +107,7 @@ export class CompanySupplierTemplatesController {
   }
 
   @Delete(":id")
+  @RequireCompanyPermission("templates:manage")
   remove(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

@@ -17,8 +17,10 @@ import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
 } from "../company-auth/decorators/current-company-user.decorator";
+import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
+import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { CompanyListingTemplatesService } from "./company-listing-templates.service";
 
 class SaveTemplateDto {
@@ -33,16 +35,18 @@ class SaveTemplateDto {
 
 @Controller("company/listing-templates")
 // İhale şablonları premium özelliğidir — STANDARD firma erişemez.
-@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard)
+@UseGuards(CompanyJwtAuthGuard, CompanyPaidTierGuard, CompanyPermissionsGuard)
 export class CompanyListingTemplatesController {
   constructor(private readonly service: CompanyListingTemplatesService) {}
 
+  // Okuma her role açık; yazma templates:manage ister (ONAYLAYICI vb. CRUD yapamaz).
   @Get()
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.list(user.companyId);
   }
 
   @Post()
+  @RequireCompanyPermission("templates:manage")
   save(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: SaveTemplateDto,
@@ -51,6 +55,7 @@ export class CompanyListingTemplatesController {
   }
 
   @Delete(":id")
+  @RequireCompanyPermission("templates:manage")
   remove(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type { Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -7,10 +11,20 @@ import type { AuthenticatedCompanyUser } from "../company-auth/strategies/compan
 export class CompanyListingTemplatesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  // Şablon payload'ı için makul üst sınır (25MB global gövde limitinin altında
+  // ayrı koruma — @IsObject boyut sınırlamıyordu, DoS-boyut riski).
+  private static readonly MAX_PAYLOAD_BYTES = 512_000;
+
   async save(
     user: AuthenticatedCompanyUser,
     input: { name: string; payload: unknown },
   ) {
+    if (
+      JSON.stringify(input.payload ?? null).length >
+      CompanyListingTemplatesService.MAX_PAYLOAD_BYTES
+    ) {
+      throw new BadRequestException("Şablon içeriği çok büyük (maks 500 KB)");
+    }
     const t = await this.prisma.listingTemplate.create({
       data: {
         companyId: user.companyId,

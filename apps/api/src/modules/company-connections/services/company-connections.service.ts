@@ -871,18 +871,20 @@ export class CompanyConnectionsService {
 
   /** Bağlantıyı kopar — taraflardan biri ilişkiyi siler (kaydı kaldırır). */
   async disconnect(user: AuthenticatedCompanyUser, connectionId: string) {
-    const conn = await this.prisma.companyConnection.findUnique({
-      where: { id: connectionId },
-      select: { id: true, inviterCompanyId: true, inviteeCompanyId: true },
+    // Atomik deleteMany (sahiplik koşullu): çift-disconnect yarışında ikinci
+    // çağrı count=0 alır — findUnique+delete'in P2025 (yakalanmamış 500) yerine.
+    const res = await this.prisma.companyConnection.deleteMany({
+      where: {
+        id: connectionId,
+        OR: [
+          { inviterCompanyId: user.companyId },
+          { inviteeCompanyId: user.companyId },
+        ],
+      },
     });
-    if (
-      !conn ||
-      (conn.inviterCompanyId !== user.companyId &&
-        conn.inviteeCompanyId !== user.companyId)
-    ) {
+    if (res.count === 0) {
       throw new NotFoundException("Bağlantı bulunamadı");
     }
-    await this.prisma.companyConnection.delete({ where: { id: conn.id } });
     return { ok: true };
   }
 
