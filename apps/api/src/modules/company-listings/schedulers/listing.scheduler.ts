@@ -23,13 +23,19 @@ export class ListingScheduler {
       select: { id: true },
     });
     if (due.length === 0) return;
-    await this.prisma.listing.updateMany({
-      where: { id: { in: due.map((l) => l.id) } },
-      data: { status: "CLOSED" },
-    });
-    this.logger.log(`${due.length} ilan süre dolduğu için CLOSED'a alındı`);
-    // Kapanış bildirimleri (davetliler + sahip) — fire-and-forget.
+    // Her ilanı ATOMİK claim et: yalnız hâlâ OPEN iken CLOSED'a çeviren worker
+    // bildirimi atar. Redis/dağıtık kilit yok; iki replica veya 1dk'dan uzun
+    // süren run'ın overlap'inde koşulsuz updateMany davetlilere ÇİFT kapanış
+    // e-postası atardı. Koşullu updateMany (status=OPEN) + count kontrolü bunu
+    // tekilleştirir.
+    let closed = 0;
     for (const l of due) {
+      const claimed = await this.prisma.listing.updateMany({
+        where: { id: l.id, status: "OPEN" },
+        data: { status: "CLOSED" },
+      });
+      if (claimed.count !== 1) continue; // başka worker aldı → atla
+      closed++;
       void this.listings.notifyListingClosed(l.id).catch((err) =>
         this.logger.error(
           `Kapanış bildirimi gönderilemedi (${l.id}): ${
@@ -37,6 +43,9 @@ export class ListingScheduler {
           }`,
         ),
       );
+    }
+    if (closed > 0) {
+      this.logger.log(`${closed} ilan süre dolduğu için CLOSED'a alındı`);
     }
   }
 
@@ -69,14 +78,20 @@ export class ListingScheduler {
       return now >= windowStart;
     });
     if (due.length === 0) return;
-    await this.prisma.listing.updateMany({
-      where: { id: { in: due.map((l) => l.id) } },
-      data: { closingReminderSentAt: new Date() },
-    });
-    // Davetlilere kapanış hatırlatma e-postası (fire-and-forget).
+    // Atomik claim (closingReminderSentAt: null → şimdi): yalnız damgayı ilk
+    // koyan worker hatırlatma atar → overlap/2-replica'da çift e-posta olmaz.
+    let sent = 0;
     for (const l of due) {
+      const claimed = await this.prisma.listing.updateMany({
+        where: { id: l.id, closingReminderSentAt: null },
+        data: { closingReminderSentAt: new Date() },
+      });
+      if (claimed.count !== 1) continue;
+      sent++;
       void this.listings.notifyListingInvitees(l.id, "reminder");
     }
-    this.logger.log(`${due.length} ilan için kapanış hatırlatması gönderildi`);
+    if (sent > 0) {
+      this.logger.log(`${sent} ilan için kapanış hatırlatması gönderildi`);
+    }
   }
 }

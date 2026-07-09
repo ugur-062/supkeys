@@ -1,7 +1,8 @@
-import { Controller, Get, Logger } from "@nestjs/common";
+import { Controller, Get, Logger, UseGuards } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
 import { ExchangeRateService } from "../currency/services/exchange-rate.service";
+import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
 
 interface HealthCheckResult {
   status: "ok" | "degraded";
@@ -28,7 +29,14 @@ export class HealthController {
   async check(): Promise<HealthCheckResult> {
     let dbStatus: "up" | "down" = "down";
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      // Timeout: DB bağlantısı asılırsa health isteği süresiz beklemesin
+      // (yalnız global throttler koruması vardı).
+      await Promise.race([
+        this.prisma.$queryRaw`SELECT 1`,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("DB ping timeout (5s)")), 5000),
+        ),
+      ]);
       dbStatus = "up";
     } catch (err) {
       this.logger.error(
@@ -55,9 +63,12 @@ export class HealthController {
   /**
    * V2-2 — R2 bucket CORS state debug endpoint.
    * Browser upload başarısız olursa "AllowedOrigins" listesinin doğru olup
-   * olmadığını buradan görebilirsin.
+   * olmadığını buradan görebilirsin. YALNIZ ADMIN — bucket adı/envPrefix/CORS
+   * iç altyapı bilgisidir, kimliksiz kullanıcıya sızmamalı; ayrıca her çağrı
+   * R2'ya komut atar.
    */
   @Get("storage")
+  @UseGuards(AdminJwtAuthGuard)
   async storageHealth() {
     const cors = await this.storage.getBucketCorsConfig();
     return {

@@ -817,14 +817,22 @@ export class CompanyApprovalsService {
     for (const r of reqs) {
       const approverId = r.steps[0]?.approverUserId;
       if (!approverId) continue;
+      // Atomik claim ÖNCE: lastReminderAt'i yalnız hâlâ eski/null iken güncelleyen
+      // worker e-posta atar. Eskiden e-posta gönderilip SONRA update yapılıyordu;
+      // iki replica 09:00'te aynı reqs'i okuyup çift hatırlatma atabilirdi.
+      const claimed = await this.prisma.approvalRequest.updateMany({
+        where: {
+          id: r.id,
+          status: "PENDING",
+          OR: [{ lastReminderAt: null }, { lastReminderAt: { lt: dedupAfter } }],
+        },
+        data: { lastReminderAt: new Date() },
+      });
+      if (claimed.count !== 1) continue; // başka worker aldı
       const daysWaiting = Math.floor(
         (now - r.createdAt.getTime()) / 86_400_000,
       );
       await this.notifyApprover(approverId, r.listingId, daysWaiting);
-      await this.prisma.approvalRequest.update({
-        where: { id: r.id },
-        data: { lastReminderAt: new Date() },
-      });
       sent++;
     }
     return sent;

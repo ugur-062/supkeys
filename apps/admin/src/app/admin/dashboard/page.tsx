@@ -4,6 +4,7 @@ import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader } from "@/components/list";
 import {
   useAdminCompanies,
+  useAdminCompanyStats,
   useAdminComplaints,
 } from "@/hooks/use-admin-companies";
 import { cn } from "@/lib/utils";
@@ -20,13 +21,15 @@ import Link from "next/link";
 function DashboardContent() {
   const companiesQ = useAdminCompanies({});
   const openComplaintsQ = useAdminComplaints("OPEN");
+  const statsQ = useAdminCompanyStats();
 
   const companies = companiesQ.data ?? [];
-  const total = companies.length;
-  const verified = companies.filter((c) => c.verification === "VERIFIED").length;
-  const pendingKyc = companies.filter(
-    (c) => c.verification === "PENDING" || c.verification === "UNVERIFIED",
-  ).length;
+  // KPI'lar server-side agregat (200-limitli listeden DEĞİL — 200 firma sonrası
+  // yanlış sayardı). Liste yalnız "Son Firmalar" bölümü için.
+  const total = statsQ.data?.totalCompanies ?? 0;
+  const verified = statsQ.data?.verified ?? 0;
+  const pendingKyc = statsQ.data?.pendingKyc ?? 0;
+  const openComplaintCount = statsQ.data?.openComplaints ?? 0;
   const openComplaints = openComplaintsQ.data ?? [];
 
   return (
@@ -58,9 +61,9 @@ function DashboardContent() {
         <KpiCard
           icon={Flag}
           label="Açık Şikayet"
-          value={openComplaints.length}
+          value={openComplaintCount}
           href="/admin/sikayetler"
-          alert={openComplaints.length > 0}
+          alert={openComplaintCount > 0}
         />
       </div>
 

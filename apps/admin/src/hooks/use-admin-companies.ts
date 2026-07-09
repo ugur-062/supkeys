@@ -32,6 +32,26 @@ export function useAdminCompanies(params: {
   });
 }
 
+export interface AdminCompanyStats {
+  totalCompanies: number;
+  verified: number;
+  pendingKyc: number;
+  openComplaints: number;
+}
+
+/** Dashboard KPI'ları — server-side count/groupBy (200-limitten bağımsız). */
+export function useAdminCompanyStats() {
+  return useQuery({
+    queryKey: ["admin-company-stats"],
+    queryFn: async () => {
+      const { data } = await api.get<AdminCompanyStats>(
+        "/admin/companies/stats",
+      );
+      return data;
+    },
+  });
+}
+
 export function useCompanyAction() {
   const qc = useQueryClient();
   return useMutation({

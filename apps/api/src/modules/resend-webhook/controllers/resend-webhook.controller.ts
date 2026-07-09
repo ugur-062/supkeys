@@ -8,6 +8,7 @@ import {
   Post,
   UseGuards,
 } from "@nestjs/common";
+import { SkipThrottle } from "@nestjs/throttler";
 import { WebhookSignatureGuard } from "../guards/webhook-signature.guard";
 import {
   ResendEventService,
@@ -31,7 +32,11 @@ export class ResendWebhookController {
 
   constructor(private readonly eventService: ResendEventService) {}
 
+  // svix imza guard'ı zaten koruyor; global 100/dk throttle toplu gönderimde
+  // (bir ilan kapanınca N davetliye e-posta → N×delivered/opened webhook aynı
+  // svix IP'sinden) 429'a yol açıp delivery-tracking'i geciktirir.
   @Post()
+  @SkipThrottle()
   @UseGuards(WebhookSignatureGuard)
   @HttpCode(200)
   async handle(

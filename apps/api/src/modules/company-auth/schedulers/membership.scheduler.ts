@@ -40,17 +40,27 @@ export class MembershipScheduler {
       },
     });
     if (expired.length === 0) return;
-    const ids = expired.map((c) => c.id);
 
-    await this.prisma.$transaction([
-      this.prisma.company.updateMany({
-        where: { id: { in: ids } },
+    // Her firmayı ATOMİK claim et (tier: PAKET → STANDARD): yalnız geçişi
+    // gerçekten yapan worker bilgilendirme e-postası atar. Dağıtık kilit yok;
+    // iki replica 03:00'te aynı anda tetiklenirse koşulsuz updateMany + mail
+    // çift downgrade e-postası atardı.
+    const downgraded: typeof expired = [];
+    for (const c of expired) {
+      const claimed = await this.prisma.company.updateMany({
+        where: { id: c.id, tier: "PAKET" },
         data: { tier: "STANDARD" },
-      }),
-      // Downgrade olan firmanın GÖNDERDİĞİ bekleyen davetleri iptal et: STANDARD
-      // davet gönderemez ve kabul edilse bağlantı ölü doğardı (kural: bağlantı
-      // onu KURAN taraf PAKET kaldıkça aktif). Kayıtlı-firma daveti + kayıtsız
-      // e-posta (referral) daveti — ikisi de. Gelen davetlere dokunulmaz.
+      });
+      if (claimed.count === 1) downgraded.push(c);
+    }
+    if (downgraded.length === 0) return;
+    const ids = downgraded.map((c) => c.id);
+
+    // Downgrade olan firmanın GÖNDERDİĞİ bekleyen davetleri iptal et: STANDARD
+    // davet gönderemez ve kabul edilse bağlantı ölü doğardı (kural: bağlantı
+    // onu KURAN taraf PAKET kaldıkça aktif). Kayıtlı-firma daveti + kayıtsız
+    // e-posta (referral) daveti — ikisi de. Gelen davetlere dokunulmaz.
+    await this.prisma.$transaction([
       this.prisma.companyConnection.deleteMany({
         where: { inviterCompanyId: { in: ids }, status: "PENDING" },
       }),
@@ -65,7 +75,7 @@ export class MembershipScheduler {
     // Bilgilendirme e-postası (best-effort) — firma yetkisini kaybettiğini bilsin.
     const baseUrl =
       this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
-    for (const c of expired) {
+    for (const c of downgraded) {
       const email = c.billingEmail || c.users[0]?.email;
       if (!email) continue;
       const name = c.users[0]

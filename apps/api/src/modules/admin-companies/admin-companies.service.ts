@@ -145,6 +145,31 @@ export class AdminCompaniesService {
     }));
   }
 
+  /**
+   * Dashboard KPI'ları — SERVER-SIDE agregat (count/groupBy). Eskiden dashboard
+   * 200-limitli listeden `.length`/`.filter` ile sayıyordu → 200 firma sonrası
+   * yanlış/eksik sayılıyordu.
+   */
+  async stats() {
+    const [total, byVerification, openComplaints] = await Promise.all([
+      this.prisma.company.count(),
+      this.prisma.company.groupBy({
+        by: ["companyVerificationStatus"],
+        _count: true,
+      }),
+      this.prisma.companyComplaint.count({ where: { status: "OPEN" } }),
+    ]);
+    const vmap = new Map(
+      byVerification.map((g) => [g.companyVerificationStatus, g._count]),
+    );
+    return {
+      totalCompanies: total,
+      verified: vmap.get("VERIFIED") ?? 0,
+      pendingKyc: (vmap.get("PENDING") ?? 0) + (vmap.get("UNVERIFIED") ?? 0),
+      openComplaints,
+    };
+  }
+
   async detail(id: string) {
     const c = await this.prisma.company.findUnique({
       where: { id },

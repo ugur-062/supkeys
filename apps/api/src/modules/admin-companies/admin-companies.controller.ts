@@ -94,6 +94,12 @@ export class AdminCompaniesController {
     return this.service.list({ status, blocked, q });
   }
 
+  // ":id"den ÖNCE — aksi halde "stats" bir firma id'si sanılırdı.
+  @Get("companies/stats")
+  stats() {
+    return this.service.stats();
+  }
+
   @Get("companies/:id")
   // Detay KYC PII (vergi/sicil/imza/kimlik presigned URL'leri) döndürür →
   // salt-okuma SUPPORT rolüne kapalı; yalnız doğrulama yapan roller.

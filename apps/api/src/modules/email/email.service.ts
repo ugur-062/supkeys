@@ -81,6 +81,43 @@ export class EmailService implements OnModuleInit {
    * Hata caller'a fırlatılır; fire-and-forget istiyorsan `.catch(...)`.
    */
   async send(input: SendEmailInput): Promise<{ emailLogId: string }> {
+    // G-M2 suppression: kalıcı-bounce (hard) veya şikayet (complaint) almış
+    // adrese gönderim yapma — Resend itibar riski + boşa gönderim. Mevcut
+    // EmailLog verisinden kontrol (migration'sız). Soft/undetermined bounce
+    // geçici olduğundan suppress edilmez.
+    const suppressed = await this.prisma.emailLog.findFirst({
+      where: {
+        toEmail: input.to.email,
+        OR: [
+          { status: "COMPLAINED" },
+          { status: "BOUNCED", bounceType: "hard" },
+        ],
+      },
+      select: { status: true },
+    });
+    if (suppressed) {
+      this.logger.warn(
+        `Gönderim atlandı — adres ${suppressed.status} (${input.to.email}); ${input.templateData.template}`,
+      );
+      const skipped = await this.prisma.emailLog.create({
+        data: {
+          template: input.templateData.template,
+          toEmail: input.to.email,
+          toName: input.to.name,
+          subject: input.subject ?? input.templateData.template,
+          provider: this.providerName,
+          status: "FAILED",
+          errorMessage: `suppressed: adres daha önce ${suppressed.status}`,
+          failedAt: new Date(),
+          contextType: input.context?.type,
+          contextId: input.context?.id,
+          attemptCount: 0,
+        },
+        select: { id: true },
+      });
+      return { emailLogId: skipped.id };
+    }
+
     // Hassas tiplerde token/kod düz saklanmaz (bkz. REDACTED_CONTEXT_TYPES).
     const logPayload =
       input.context && REDACTED_CONTEXT_TYPES.has(input.context.type)
