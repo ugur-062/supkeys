@@ -28,12 +28,17 @@ export class CsrfGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     if (SAFE_METHODS.has(req.method.toUpperCase())) return true;
 
-    // Cross-domain kurulum (COOKIE_SAMESITE=none, ör. Vercel frontend + Render
-    // API): frontend farklı origin'de olduğundan JS-okunabilir CSRF cookie'sini
+    // Cross-domain kurulum (SameSite=None, ör. Vercel frontend + Render API):
+    // frontend farklı origin'de olduğundan JS-okunabilir CSRF cookie'sini
     // document.cookie ile okuyup echo'layamaz → double-submit yapısal olarak
     // çalışmaz. Bu modda CSRF koruması CORS origin-allowlist + JSON (preflight)
-    // katmanına devredilir.
-    if ((process.env.COOKIE_SAMESITE ?? "").toLowerCase() === "none") {
+    // katmanına devredilir. Effective SameSite cookie.ts ile AYNI kural:
+    // açıkça COOKIE_SAMESITE, yoksa prod → "none" / dev → "lax".
+    const configuredSameSite = (process.env.COOKIE_SAMESITE ?? "").toLowerCase();
+    const effectiveSameSite =
+      configuredSameSite ||
+      (process.env.NODE_ENV === "production" ? "none" : "lax");
+    if (effectiveSameSite === "none") {
       return true;
     }
 

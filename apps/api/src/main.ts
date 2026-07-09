@@ -157,9 +157,16 @@ async function bootstrap() {
     "http://localhost:3000,http://localhost:3001",
   );
   const corsOrigins = corsOriginsRaw.split(",").map((o) => o.trim()).filter(Boolean);
-
+  // Exact allowlist (CORS_ORIGINS) + tüm Vercel deploy/preview URL'leri
+  // (*.vercel.app) otomatik izinli — demo'da hangi Vercel adresini açarsan aç
+  // (production/preview/git-branch) domain eşleştirme derdi olmadan çalışır.
+  const VERCEL_ORIGIN = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
   app.enableCors({
-    origin: corsOrigins,
+    origin: (origin, cb) => {
+      // origin yoksa (curl / same-origin / mobil) engelleme.
+      const ok = !origin || corsOrigins.includes(origin) || VERCEL_ORIGIN.test(origin);
+      cb(null, ok);
+    },
     credentials: true,
   });
 

@@ -36,12 +36,17 @@ function baseOptions(config: ConfigService, persistent: boolean) {
   // Prod: app/admin/api aynı site (.rothern.com) → Domain ile paylaşılır.
   // Dev: localhost (portlar same-site) → Domain vermiyoruz (host-only).
   const domain = config.get<string>("COOKIE_DOMAIN") || undefined;
-  // SameSite: aynı-site (app+api ortak .rothern.com) → "lax" (CSRF için sıkı).
-  // Cross-site (frontend Vercel + API Render farklı domain) → COOKIE_SAMESITE=none
-  // ŞART, aksi halde auth cookie'si XHR'de gönderilmez ve giriş sonrası login'e
-  // geri atar. "none" tarayıcıda Secure gerektirir → secure zorlanır.
-  const sameSite = ((config.get<string>("COOKIE_SAMESITE") || "lax")
-    .toLowerCase() as "lax" | "none" | "strict");
+  // SameSite kuralı: "none" tarayıcıda Secure gerektirir → aşağıda secure zorlanır.
+  // Prod VARSAYILANI "none" — Vercel+Render gibi cross-domain kurulumlar
+  // out-of-the-box çalışsın (auth cookie'si cross-site XHR'de gönderilir).
+  // Same-site prod (app.rothern.com + api.rothern.com, COOKIE_DOMAIN) isteyen
+  // COOKIE_SAMESITE=lax ile geri alır. Dev'de (localhost, HTTP) "lax".
+  const configuredSameSite = (config.get<string>("COOKIE_SAMESITE") || "")
+    .toLowerCase();
+  const sameSite = (configuredSameSite || (prod ? "none" : "lax")) as
+    | "lax"
+    | "none"
+    | "strict";
   return {
     domain,
     path: "/",
