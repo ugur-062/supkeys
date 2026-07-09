@@ -43,18 +43,8 @@ const headerSection = {
   marginBottom: "24px",
 };
 
-// Logo BEYAZ bir kutuya oturur: siyah+şeffaf logo, istemci dark-mode uygulasa
-// bile (color-scheme meta'sını yok sayan Gmail vb.) koyu zeminde kaybolmasın —
-// tablo-hücresi arka planı e-postada en dayanıklı yapıdır.
-const logoChip = {
-  backgroundColor: "#FFFFFF",
-  padding: "14px 22px",
-  borderRadius: "10px",
-  border: `1px solid ${COLORS.surfaceBorder}`,
-};
-
 const logoStyle = {
-  display: "block",
+  display: "inline-block",
   height: "auto",
   margin: 0,
 };
@@ -75,47 +65,32 @@ export function Layout({ preview, children }: LayoutProps) {
   return (
     <Html lang="tr">
       <Head>
-        {/* E-posta yalnız AÇIK (light) temada render edilsin — istemci (Gmail/
-            Apple Mail/Outlook) otomatik dark-mode renk ters-çevirmesi yapmasın.
-            Aksi halde siyah+şeffaf logo koyu zeminde kaybolur, monokrom palet
-            bozulurdu. */}
-        <meta name="color-scheme" content="light" />
-        <meta name="supported-color-schemes" content="light" />
+        {/* Dark mode destekli. Sorun: istemciler dark-mode'da arka planı
+            koyulaştırır ama GÖRSELLERİ ters çevirmez → siyah+şeffaf logo koyu
+            zeminde kaybolur. Çözüm: dark-mode'da logoyu CSS filter ile BEYAZA
+            çevir (Rothern yazısı+ikon tek görsel, ikisi de beyazlaşır). Hem
+            prefers-color-scheme hem Gmail (data-ogsc) hedeflenir. */}
+        <meta name="color-scheme" content="light dark" />
+        <meta name="supported-color-schemes" content="light dark" />
         <style>{`
-          :root {
-            color-scheme: light only;
-            supported-color-schemes: light;
+          @media (prefers-color-scheme: dark) {
+            .rothern-logo { filter: invert(1) brightness(2) !important; }
           }
+          [data-ogsc] .rothern-logo { filter: invert(1) brightness(2) !important; }
         `}</style>
       </Head>
       <Preview>{preview}</Preview>
       <Body style={main}>
         <Container style={wrapper}>
           <Section style={headerSection}>
-            <table
-              role="presentation"
-              cellPadding={0}
-              cellSpacing={0}
-              border={0}
-              style={{ margin: "0 auto" }}
-            >
-              <tbody>
-                <tr>
-                  <td
-                    style={logoChip}
-                    {...({ bgcolor: "#FFFFFF" } as Record<string, string>)}
-                  >
-                    <Img
-                      src={LOGO_SRC}
-                      alt="Rothern"
-                      width="150"
-                      height="44"
-                      style={logoStyle}
-                    />
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <Img
+              src={LOGO_SRC}
+              alt="Rothern"
+              width="170"
+              height="50"
+              className="rothern-logo"
+              style={logoStyle}
+            />
           </Section>
 
           <Section style={card}>{children}</Section>
