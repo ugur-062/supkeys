@@ -35,7 +35,8 @@ const nextConfig: NextConfig = {
   // .next/standalone'a kopyalanır → ~150MB imaj, `next start` yerine `node
   // server.js`). Monorepo'da workspace bağımlılıkları (@rothern/shared) repo
   // kökünden izlensin diye tracingRoot kök olarak verilir.
-  output: "standalone",
+  // Vercel kendi çıktısını yönetir; standalone yalnız Docker/Coolify için.
+  output: process.env.VERCEL ? undefined : "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
   // Monorepo workspace paketini DERLEMEYE göm (harici require etme). Aksi halde
   // standalone çıktı @rothern/shared'i kopyalamıyor, symlink ile repo köküne

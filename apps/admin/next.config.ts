@@ -28,7 +28,8 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   // Docker/Coolify: kendine-yeterli minimal sunucu çıktısı (bkz. web config).
-  output: "standalone",
+  // Vercel kendi çıktısını yönetir; standalone yalnız Docker/Coolify için.
+  output: process.env.VERCEL ? undefined : "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../"),
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
