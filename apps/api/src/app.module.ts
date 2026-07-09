@@ -86,8 +86,18 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     SentryModule.forRoot(),
     ScheduleModule.forRoot(),
     EventEmitterModule.forRoot(),
-    // Global rate limiter. Default: 100 req / 60sn / IP. Login/register'da
-    // @Throttle("auth") override ile daha sıkı. Dev'de THROTTLE_DEFAULT_LIMIT.
+    // Global rate limiter. Etkin global tavan = "default" (100 req/60sn/IP).
+    //
+    // DİKKAT (footgun): @nestjs/throttler'da forRoot'taki HER isimli throttler
+    // TÜM route'lara uygulanır — "auth" da global geçerli. Bu yüzden "auth"un
+    // GLOBAL limiti YÜKSEK tutulur (non-binding), aksi halde işaretsiz tüm
+    // endpoint'ler (ilan listesi, bildirim, profil…) bu tavana takılıp panel
+    // sayfa açılışındaki istek patlamasında 429 alır.
+    //
+    // Hassas route'ların sıkılığı forRoot'tan DEĞİL, route üstündeki
+    // @Throttle({ auth: { limit: 5, ttl } }) OVERRIDE'ından gelir (override her
+    // zaman kazanır) → login/register/reset aynen sıkı kalır. THROTTLE_AUTH_LIMIT
+    // yalnız bu global tavanı ayarlar; auth route override'larını etkilemez.
     ThrottlerModule.forRoot([
       {
         name: "default",
@@ -97,7 +107,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
       {
         name: "auth",
         ttl: 60_000,
-        limit: Number(process.env.THROTTLE_AUTH_LIMIT ?? 10),
+        limit: Number(process.env.THROTTLE_AUTH_LIMIT ?? 1000),
       },
     ]),
     PrismaModule,
