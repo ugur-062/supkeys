@@ -1,5 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "installCommand": "cd ../.. && pnpm install --no-frozen-lockfile",
-  "buildCommand": "cd ../.. && pnpm --filter @rothern/web build"
+  "buildCommand": "cd ../.. && pnpm --filter @rothern/shared build && pnpm --filter @rothern/web build"
 }
