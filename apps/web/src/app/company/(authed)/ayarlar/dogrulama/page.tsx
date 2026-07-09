@@ -148,48 +148,64 @@ export default function DogrulamaPage() {
             </div>
           ) : null}
 
-          {/* ── Kimlik bilgileri (MERSİS / Ticari Sicil / IBAN) ── */}
+          {/* ── Kimlik bilgileri — TR'ye özgü alanlar (MERSİS) yabancıda gizli;
+              yabancıda tüm alanlar opsiyonel (admin manuel KYB yapar). ── */}
           <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
             <p className="text-sm font-semibold text-zinc-900">
-              Firma Kimlik Bilgileri
+              Firma Kimlik Bilgileri{isTR ? "" : " (opsiyonel)"}
             </p>
+            {!isTR ? (
+              <p className="mt-0.5 text-xs text-zinc-500">
+                Yurtdışı firmalarda bu alanlar zorunlu değildir; doğrulama admin
+                tarafından yüklediğiniz belgelere göre yapılır.
+              </p>
+            ) : null}
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              {/* MERSİS yalnızca Türkiye'de vardır — yabancıda gösterilmez. */}
+              {isTR ? (
+                <Field>
+                  <Label>MERSİS No *</Label>
+                  <Input
+                    value={mersisNo}
+                    onChange={(e) => setMersisNo(e.target.value)}
+                    placeholder="0000000000000000"
+                    disabled={!canManage || locked}
+                    maxLength={20}
+                  />
+                </Field>
+              ) : null}
               <Field>
-                <Label>MERSİS No {isTR ? "*" : ""}</Label>
-                <Input
-                  value={mersisNo}
-                  onChange={(e) => setMersisNo(e.target.value)}
-                  placeholder="0000000000000000"
-                  disabled={!canManage || locked}
-                  maxLength={20}
-                />
-              </Field>
-              <Field>
-                <Label>Ticari Sicil No {isTR ? "*" : ""}</Label>
+                <Label>
+                  {isTR ? "Ticari Sicil No *" : "Sicil / Kayıt No"}
+                </Label>
                 <Input
                   value={tradeRegistryNo}
                   onChange={(e) => setTradeRegistryNo(e.target.value)}
-                  placeholder="123456"
+                  placeholder={isTR ? "123456" : "Registration / Company No"}
                   disabled={!canManage || locked}
                   maxLength={30}
                 />
               </Field>
               <Field>
-                <Label>IBAN {isTR ? "*" : ""}</Label>
+                <Label>{isTR ? "IBAN *" : "IBAN / Hesap No"}</Label>
                 <Input
                   value={iban}
                   onChange={(e) => setIban(e.target.value)}
-                  placeholder="TR00 0000 0000 0000 0000 0000 00"
+                  placeholder={
+                    isTR
+                      ? "TR00 0000 0000 0000 0000 0000 00"
+                      : "IBAN veya banka hesap no"
+                  }
                   disabled={!canManage || locked}
                   maxLength={40}
                 />
               </Field>
               <Field>
-                <Label>IBAN Hesap Sahibi {isTR ? "*" : ""}</Label>
+                <Label>{isTR ? "IBAN Hesap Sahibi *" : "Hesap Sahibi"}</Label>
                 <Input
                   value={ibanHolder}
                   onChange={(e) => setIbanHolder(e.target.value)}
-                  placeholder="Firma Ünvanı A.Ş."
+                  placeholder={isTR ? "Firma Ünvanı A.Ş." : "Firma ünvanı"}
                   disabled={!canManage || locked}
                   maxLength={120}
                 />
