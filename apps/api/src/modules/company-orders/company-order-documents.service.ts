@@ -8,6 +8,7 @@ import {
   CompanyDocType,
   CompanyOrderPaymentTiming,
   CompanyOrderStatus,
+  CompanyRole,
 } from "@rothern/db";
 import * as crypto from "crypto";
 import { PrismaService } from "../../common/prisma/prisma.service";
@@ -128,6 +129,10 @@ export class CompanyOrderDocumentsService {
     // koruması) onay ANINDA count>0 kapısıyla doğrulanıyor; sonrasında
     // silinebilseydi garanti sessizce kaybolurdu. Yükleme kapısının aynası
     // (TEMINAT yalnız PENDING'de yönetilir).
+    // NOT (kabul-edilen kalıntı): remove-status-check ile accept'in teminat
+    // sayımı+geçişi arasında dar bir yarış var (satıcı teminatı silerken kendi
+    // siparişini accept ederse). Tam kapatma accept'i FOR UPDATE + teminat +
+    // geçiş atomik yapmayı gerektirir; self-inflicted/dar olduğu için ayrı iş.
     if (doc.type === "TEMINAT") {
       const order = await this.prisma.companyOrder.findUnique({
         where: { id: orderId },
@@ -201,6 +206,11 @@ export class CompanyOrderDocumentsService {
     const order = await this.requireParty(user, orderId);
     const isSeller = order.sellerCompanyId === user.companyId;
 
+    // Rol kapısı — sipariş geçişleriyle simetrik: satıcı belgeleri (TEMINAT/
+    // DELIVERY) SATISCI, alıcı belgesi (PAYMENT) SATIN_ALMACI ister; SAHIP tam
+    // yetkili. Eskiden yalnız taraf kontrol ediliyordu (rolsüz üye yükleyebilirdi).
+    this.assertUploadRole(user, isSeller ? "seller" : "buyer");
+
     if (type === "TEMINAT") {
       if (!isSeller) {
         throw new ForbiddenException("Teminat mektubunu satıcı yükler");
@@ -239,6 +249,25 @@ export class CompanyOrderDocumentsService {
           "Ödeme dekontu, ödeme adımı açıldığında yüklenebilir",
         );
       }
+    }
+  }
+
+  /** Sipariş belgesi yükleme rolü (sipariş geçişleriyle aynı; SAHIP tam yetkili). */
+  private assertUploadRole(
+    user: AuthenticatedCompanyUser,
+    side: "seller" | "buyer",
+  ): void {
+    const needed =
+      side === "seller" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI;
+    if (
+      !user.roles.includes(CompanyRole.SAHIP) &&
+      !user.roles.includes(needed)
+    ) {
+      throw new ForbiddenException(
+        side === "seller"
+          ? "Belge yüklemek için Satışçı rolü gerekir"
+          : "Belge yüklemek için Satın Almacı rolü gerekir",
+      );
     }
   }
 }
