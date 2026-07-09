@@ -99,6 +99,10 @@ export class CompanyUsersService {
       );
     }
     this.assertValidRoleCombo(roles);
+    // Davet yolu da güncelleme yolu gibi rol-verme kontrolünü uygulamalı:
+    // admin OLMAYAN (users:manage override'lı) bir kullanıcı, davetle YONETICI/
+    // ONAYLAYICI atayıp kendine admin suç ortağı üretemesin.
+    this.assertCanGrantRoles(actor, roles);
     const email = dto.email.toLowerCase().trim();
 
     const existing = await this.prisma.companyUser.findUnique({

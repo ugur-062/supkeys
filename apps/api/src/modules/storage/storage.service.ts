@@ -214,6 +214,11 @@ export class StorageService implements OnModuleInit {
     return `${this.envPrefix}/supplier-certificates/${supplierId}/${id}-${sanitized}`;
   }
 
+  /** Alıcı (tenant) public profil görsel key'lerinin firma-öznel prefix'i. */
+  buildTenantProfilePrefix(tenantId: string): string {
+    return `${this.envPrefix}/tenant-profile/${tenantId}/`;
+  }
+
   /** Alıcı (tenant) public profil görselleri (logo/cover) için R2 key. */
   buildTenantProfileKey(
     tenantId: string,
@@ -222,7 +227,7 @@ export class StorageService implements OnModuleInit {
     originalFilename: string,
   ): string {
     const sanitized = this.sanitizeFilename(originalFilename);
-    return `${this.envPrefix}/tenant-profile/${tenantId}/${kind}-${id}-${sanitized}`;
+    return `${this.buildTenantProfilePrefix(tenantId)}${kind}-${id}-${sanitized}`;
   }
 
   /**

@@ -19,6 +19,20 @@ export interface SendEmailInput {
 }
 
 /**
+ * Payload'ında tek-kullanımlık sır (parola-reset token'ı, 2FA/doğrulama kodu)
+ * taşıyan context tipleri. Bu tiplerde EmailLog.payload DÜZ saklanırsa, admin
+ * e-posta-logları uçları (findOne payload'ı aynen döndürür) ya da DB okuma
+ * erişimi olan biri aktif token/kodu okuyup hesap ele geçirebilirdi — token'ı
+ * hash'lemenin (tokenHash/codeHash) tüm amacını boşa çıkarırdı. Bu tiplerde
+ * payload maskeli yazılır; gerçek veri yalnız o an render için kullanılır.
+ */
+const REDACTED_CONTEXT_TYPES = new Set([
+  "password_reset",
+  "login_2fa",
+  "email_verify",
+]);
+
+/**
  * E-posta gönderim servisi.
  *
  * BullMQ kuyruğu kaldırıldıktan sonra (2026-05-20) senkron pipeline:
@@ -67,6 +81,11 @@ export class EmailService implements OnModuleInit {
    * Hata caller'a fırlatılır; fire-and-forget istiyorsan `.catch(...)`.
    */
   async send(input: SendEmailInput): Promise<{ emailLogId: string }> {
+    // Hassas tiplerde token/kod düz saklanmaz (bkz. REDACTED_CONTEXT_TYPES).
+    const logPayload =
+      input.context && REDACTED_CONTEXT_TYPES.has(input.context.type)
+        ? { __redacted: "hassas içerik (token/kod) loglanmaz" }
+        : (input.templateData.data as object);
     const log = await this.prisma.emailLog.create({
       data: {
         template: input.templateData.template,
@@ -75,7 +94,7 @@ export class EmailService implements OnModuleInit {
         subject: input.subject ?? input.templateData.template,
         provider: this.providerName,
         status: "SENDING",
-        payload: input.templateData.data as object,
+        payload: logPayload,
         contextType: input.context?.type,
         contextId: input.context?.id,
         attemptCount: 1,

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -3168,6 +3169,7 @@ export class CompanyListingsService {
         listingId: true,
         bidderCompanyId: true,
         amount: true,
+        currency: true,
         status: true,
         items: { select: { itemId: true, unitPrice: true } },
       },
@@ -3188,20 +3190,33 @@ export class CompanyListingsService {
     }
 
     // Onay akışı varsa kazandırmayı askıya al (IN_AWARD_APPROVAL); yoksa uygula.
+    // Onay eşiği TRY bazında olduğundan (conditionMinAmount) tutarı TRY'ye
+    // normalize et — aksi halde yabancı para teklif (ör. 50k USD) düşük ham
+    // sayıyla eşiği atlayıp onay adımını baypas ederdi (awardByItem ile simetri).
+    const awardAmountTry = (
+      await this.toTryAmount(bid.amount, bid.currency)
+    ).toNumber();
     const res = await this.approvals.requestApproval(user, {
       listingId,
       type: "LISTING_AWARD",
       listingType: listing.type,
-      amount: Number(bid.amount),
-      currency: listing.primaryCurrency,
+      amount: awardAmountTry,
+      currency: "TRY",
       payload: { kind: "full", bidId },
       initiatorNote: approvalNote,
     });
     if (!res.approved) {
-      await this.prisma.listing.update({
-        where: { id: listingId },
+      // Koşullu geçiş: yalnız hâlâ OPEN/CLOSED ise askıya al. Eşzamanlı başka bir
+      // kazandırma bu arada AWARDED yaptıysa (count=0) üzerine yazma.
+      const moved = await this.prisma.listing.updateMany({
+        where: { id: listingId, status: { in: ["OPEN", "CLOSED"] } },
         data: { status: "IN_AWARD_APPROVAL" },
       });
+      if (moved.count !== 1) {
+        throw new ConflictException(
+          "İlan durumu değişti; kazandırmayı tekrar deneyin",
+        );
+      }
       return { pendingApproval: true as const };
     }
     return this.runFullAward(listingId, bidId);
@@ -3477,10 +3492,15 @@ export class CompanyListingsService {
       initiatorNote: approvalNote,
     });
     if (!res.approved) {
-      await this.prisma.listing.update({
-        where: { id: listingId },
+      const moved = await this.prisma.listing.updateMany({
+        where: { id: listingId, status: { in: ["OPEN", "CLOSED"] } },
         data: { status: "IN_AWARD_APPROVAL" },
       });
+      if (moved.count !== 1) {
+        throw new ConflictException(
+          "İlan durumu değişti; kazandırmayı tekrar deneyin",
+        );
+      }
       return { pendingApproval: true as const };
     }
     return this.runItemAward(listingId, itemAwards);
@@ -3824,8 +3844,11 @@ export class CompanyListingsService {
   /** Kazandırma onayı reddedildi → ilan teklife kapalı (CLOSED) durumuna döner. */
   @OnEvent("listing.award.rejected")
   async onAwardRejected(payload: { listingId: string }) {
-    await this.prisma.listing.update({
-      where: { id: payload.listingId },
+    // Yalnız hâlâ onay-bekleyen ilanı kapat. İlan bu arada başka bir istekle
+    // AWARDED olduysa (sipariş var) CLOSED'a düşürme — aksi halde sahibi
+    // yeniden kazandırıp ikinci sipariş üretebilirdi.
+    await this.prisma.listing.updateMany({
+      where: { id: payload.listingId, status: "IN_AWARD_APPROVAL" },
       data: { status: "CLOSED" },
     });
   }
@@ -3851,6 +3874,7 @@ export class CompanyListingsService {
         type: true,
         status: true,
         currentRound: true,
+        primaryCurrency: true,
         autoExtendOnLateBid: true,
         autoExtendThresholdMin: true,
         autoExtendByMinutes: true,
@@ -3925,10 +3949,25 @@ export class CompanyListingsService {
       // kazanabilirdi).
       const newRound = listing.currentRound + 1;
       if (dto.carryBids === "AUTO") {
-        await tx.listingBid.updateMany({
-          where: priorWhere,
-          data: { status: "SUBMITTED", round: newRound },
-        });
+        // Açık eksiltmeye geçişte auction tüm para mantığını HAM tutarla yürütür
+        // (best/monotonluk/sıralama). Primary-dışı birimdeki teklifler karışık
+        // kıyası bozacağından SUBMITTED taşınmaz; taslağa çekilir (tedarikçi
+        // primary birimde yeniden verir). RFQ turunda böyle bir kısıt yok.
+        if (isAuction) {
+          await tx.listingBid.updateMany({
+            where: { ...priorWhere, currency: { not: listing.primaryCurrency } },
+            data: { status: "DRAFT", round: newRound },
+          });
+          await tx.listingBid.updateMany({
+            where: { ...priorWhere, currency: listing.primaryCurrency },
+            data: { status: "SUBMITTED", round: newRound },
+          });
+        } else {
+          await tx.listingBid.updateMany({
+            where: priorWhere,
+            data: { status: "SUBMITTED", round: newRound },
+          });
+        }
       } else if (dto.carryBids === "LAZY") {
         await tx.listingBid.updateMany({
           where: priorWhere,
@@ -3956,6 +3995,12 @@ export class CompanyListingsService {
           publishedAt: new Date(),
           closingReminderSentAt: null,
           currentRound: { increment: 1 },
+          // Açık eksiltme tek para birimi (create/update ile aynı kural) —
+          // aksi halde auction ham-tutar kıyası karışık birimle bozulurdu.
+          // RFQ turunda mevcut ayar korunur (undefined = değiştirme).
+          allowedCurrencies: isAuction
+            ? [listing.primaryCurrency as Currency]
+            : undefined,
           isSealedBid: isAuction,
           bidVisibility: isAuction
             ? (dto.bidVisibility as ListingBidVisibility)
@@ -4420,16 +4465,23 @@ export class CompanyListingsService {
     if (listing.status !== "OPEN" && listing.status !== "CLOSED") {
       throw new BadRequestException("Bu ilan kapatılamaz");
     }
-    await this.prisma.$transaction([
-      this.prisma.listing.update({
-        where: { id: listing.id },
+    await this.prisma.$transaction(async (tx) => {
+      // Koşullu: eşzamanlı runFullAward bu arada AWARDED + sipariş yazdıysa
+      // (count=0) üzerine yazma — sipariş dururken "kazanansız kapandı" olmasın.
+      const closed = await tx.listing.updateMany({
+        where: { id: listing.id, status: { in: ["OPEN", "CLOSED"] } },
         data: { status: "CLOSED_NO_AWARD", cancelReason: reason?.trim() || null },
-      }),
-      this.prisma.listingBid.updateMany({
+      });
+      if (closed.count !== 1) {
+        throw new ConflictException(
+          "İlan durumu değişti; kazanansız kapatma uygulanamadı",
+        );
+      }
+      await tx.listingBid.updateMany({
         where: { listingId, status: "SUBMITTED" },
         data: { status: "LOST" },
-      }),
-    ]);
+      });
+    });
     void this.notifyListingParticipants(listingId, {
       subject: "İhale kazanan olmadan kapatıldı",
       heading: "İhale sonuçlanmadan kapatıldı",

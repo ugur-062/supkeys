@@ -55,6 +55,11 @@ export function OnboardingClient() {
     postalCode: "",
     addressLine: "",
     deliverySameAsBilling: true,
+    deliveryCity: "",
+    deliveryDistrict: "",
+    deliveryNeighborhood: "",
+    deliveryPostalCode: "",
+    deliveryAddressLine: "",
     authorizedTckn: "",
     mainCategoryIds: [] as string[],
     declarationAccepted: false,
@@ -84,7 +89,12 @@ export function OnboardingClient() {
     f.taxNumber.trim().length >= 4 &&
     f.city.trim().length >= 2 &&
     (isTR ? !!f.district : true) &&
-    f.addressLine.trim().length >= 5;
+    f.addressLine.trim().length >= 5 &&
+    // Ayrı teslimat adresi seçiliyse il + açık adres zorunlu (BE @Length ile
+    // uyumlu — boş bırakılırsa 400 yerine burada engelle).
+    (f.deliverySameAsBilling ||
+      (f.deliveryCity.trim().length >= 2 &&
+        f.deliveryAddressLine.trim().length >= 5));
   const step2Valid =
     (isTR ? f.authorizedTckn.trim().length === 11 : true) &&
     f.mainCategoryIds.length >= 1 &&
@@ -128,6 +138,15 @@ export function OnboardingClient() {
         postalCode: f.postalCode.trim() || undefined,
         addressLine: f.addressLine.trim(),
         deliverySameAsBilling: f.deliverySameAsBilling,
+        ...(f.deliverySameAsBilling
+          ? {}
+          : {
+              deliveryCity: f.deliveryCity.trim(),
+              deliveryDistrict: f.deliveryDistrict.trim() || undefined,
+              deliveryNeighborhood: f.deliveryNeighborhood.trim() || undefined,
+              deliveryPostalCode: f.deliveryPostalCode.trim() || undefined,
+              deliveryAddressLine: f.deliveryAddressLine.trim(),
+            }),
         authorizedTckn: f.authorizedTckn.trim() || undefined,
         mainCategoryIds: f.mainCategoryIds,
         declarationAccepted: f.declarationAccepted,
@@ -301,6 +320,35 @@ export function OnboardingClient() {
               <Checkbox aria-label="Fatura adresini teslimat adresi olarak kullan" checked={f.deliverySameAsBilling} onChange={(v) => set("deliverySameAsBilling")(v)} />
               Fatura adresini teslimat adresi olarak kullan
             </label>
+            {!f.deliverySameAsBilling && (
+              <div className="space-y-3 rounded-lg border border-zinc-200 p-3">
+                <p className="text-sm font-medium text-zinc-700">Teslimat Adresi</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field>
+                    <Label>{f.country === "TR" ? "İl" : "Şehir"} *</Label>
+                    <Input value={f.deliveryCity} onChange={(e) => set("deliveryCity")(e.target.value)} />
+                  </Field>
+                  <Field>
+                    <Label>İlçe</Label>
+                    <Input value={f.deliveryDistrict} onChange={(e) => set("deliveryDistrict")(e.target.value)} />
+                  </Field>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field>
+                    <Label>Mahalle</Label>
+                    <Input value={f.deliveryNeighborhood} onChange={(e) => set("deliveryNeighborhood")(e.target.value)} />
+                  </Field>
+                  <Field>
+                    <Label>Posta Kodu</Label>
+                    <Input value={f.deliveryPostalCode} onChange={(e) => set("deliveryPostalCode")(e.target.value.replace(/\D/g, ""))} />
+                  </Field>
+                </div>
+                <Field>
+                  <Label>Açık Adres *</Label>
+                  <Input value={f.deliveryAddressLine} onChange={(e) => set("deliveryAddressLine")(e.target.value)} />
+                </Field>
+              </div>
+            )}
           </div>
         ) : null}
 

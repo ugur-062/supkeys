@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -465,6 +466,24 @@ export class CompanyApprovalsService {
     if (firstActive === -1) return { approved: true }; // hepsi atlandı
     drafts[firstActive]!.status = "PENDING";
 
+    // İlan başına aynı tipte tek açık istek. İki eşzamanlı kazandırma (~round-trip
+    // penceresinde) iki PENDING istek üretip, biri onaylanıp sipariş oluştuktan
+    // sonra diğerinin reddi/iptali ilanı geri açarak çift-sipariş riski
+    // doğuruyordu. Mükerrer isteği baştan reddet.
+    const existingPending = await this.prisma.approvalRequest.findFirst({
+      where: {
+        listingId: input.listingId,
+        type: input.type,
+        status: "PENDING",
+      },
+      select: { id: true },
+    });
+    if (existingPending) {
+      throw new ConflictException(
+        "Bu ilan için zaten bekleyen bir onay isteği var",
+      );
+    }
+
     // APR-YYYY-NNNN — yarışta unique constraint patlarsa yeniden dene.
     let req: { id: string } | null = null;
     for (let attempt = 0; attempt < 3 && !req; attempt++) {
@@ -737,11 +756,15 @@ export class CompanyApprovalsService {
         data: { status: "CANCELLED", decidedAt: new Date() },
       });
       if (cas.count === 0) return false;
-      await tx.listing.update({
-        where: { id: req.listingId },
-        data: {
-          status: req.type === "LISTING_PUBLISH" ? "DRAFT" : "CLOSED",
-        },
+      // İlanı yalnız hâlâ ONAY-BEKLİYOR durumundaysa geri al. Award bu arada
+      // başka bir yolla tamamlandıysa (AWARDED + sipariş) koşullu updateMany
+      // count=0 döner ve dokunmayız — iptal, biten kazandırmayı bozamaz.
+      const expected =
+        req.type === "LISTING_PUBLISH" ? "DRAFT" : "IN_AWARD_APPROVAL";
+      const target = req.type === "LISTING_PUBLISH" ? "DRAFT" : "CLOSED";
+      await tx.listing.updateMany({
+        where: { id: req.listingId, status: expected },
+        data: { status: target },
       });
       return true;
     });

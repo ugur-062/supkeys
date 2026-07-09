@@ -180,6 +180,11 @@ export class LogisticsDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(60)
+  originDistrict?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(300)
   originAddress?: string;
 
@@ -187,6 +192,11 @@ export class LogisticsDto {
   @IsString()
   @MaxLength(60)
   destinationCity?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  destinationDistrict?: string;
 
   @IsOptional()
   @IsString()
@@ -229,6 +239,22 @@ export class LogisticsDto {
   @IsOptional()
   @IsBoolean()
   fragile?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  stackable?: boolean;
+
+  // Serbest metin — boş string de kabul (FE seçilmeden gönderebilir); lojistik
+  // verisi JSON olarak saklanır, tarih mantığı yok.
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  loadingDate?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  deliveryDate?: string;
 
   @IsOptional()
   @IsString()

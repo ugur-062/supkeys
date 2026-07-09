@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -88,7 +89,13 @@ export class CompanyProfileService {
    * Yükleme bitince key → kalıcı public URL'e çevirir (DB'ye YAZMAZ — URL forma
    * konup diğer alanlarla birlikte Kaydet'te kalıcılaşır).
    */
-  async resolveUploadedImage(key: string) {
+  async resolveUploadedImage(companyId: string, key: string) {
+    // IDOR koruması: istemci-verdiği key yalnız KENDİ firmasının tenant-profile
+    // prefix'inde olabilir. Aksi halde başka firmanın (KYC/teklif dahil aynı
+    // bucket) nesnesine presigned URL üretilebilirdi.
+    if (!key.startsWith(this.storage.buildTenantProfilePrefix(companyId))) {
+      throw new ForbiddenException("Bu görsel anahtarına erişim yetkiniz yok");
+    }
     const url =
       this.storage.getPublicUrl(key) ??
       (await this.storage.resolveImageUrl(key));

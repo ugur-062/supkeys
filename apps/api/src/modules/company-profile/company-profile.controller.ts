@@ -56,7 +56,10 @@ export class CompanyProfileController {
 
   @Post("image/commit")
   @RequireCompanyPermission("company:manage")
-  imageCommit(@Body() dto: ProfileImageCommitDto) {
-    return this.service.resolveUploadedImage(dto.key);
+  imageCommit(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: ProfileImageCommitDto,
+  ) {
+    return this.service.resolveUploadedImage(user.companyId, dto.key);
   }
 }
