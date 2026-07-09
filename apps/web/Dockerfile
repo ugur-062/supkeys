@@ -25,7 +25,7 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
 # 1) TÜM workspace manifest'leri + lockfile → frozen-lockfile eksiksiz workspace
 #    ister. (Fazladan kurulan app'ler yalnız BUILD katmanında; runtime imaj
 #    aşağıda yalnız standalone çıktıyı kopyalar → küçük kalır.)
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json turbo.json tsconfig.base.json ./
 COPY apps/api/package.json apps/api/package.json
 COPY apps/web/package.json apps/web/package.json
 COPY apps/admin/package.json apps/admin/package.json
