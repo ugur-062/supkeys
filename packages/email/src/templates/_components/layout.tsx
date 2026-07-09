@@ -64,7 +64,20 @@ const LOGO_SRC = `cid:${LOGO_CID}`;
 export function Layout({ preview, children }: LayoutProps) {
   return (
     <Html lang="tr">
-      <Head />
+      <Head>
+        {/* E-posta yalnız AÇIK (light) temada render edilsin — istemci (Gmail/
+            Apple Mail/Outlook) otomatik dark-mode renk ters-çevirmesi yapmasın.
+            Aksi halde siyah+şeffaf logo koyu zeminde kaybolur, monokrom palet
+            bozulurdu. */}
+        <meta name="color-scheme" content="light" />
+        <meta name="supported-color-schemes" content="light" />
+        <style>{`
+          :root {
+            color-scheme: light only;
+            supported-color-schemes: light;
+          }
+        `}</style>
+      </Head>
       <Preview>{preview}</Preview>
       <Body style={main}>
         <Container style={wrapper}>
