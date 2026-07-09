@@ -18,7 +18,10 @@ interface HealthCheckResult {
 
 // Health uçları rate-limit DIŞI — platform (Render/uptime) sık sık yoklar;
 // throttle'a takılıp 429 dönerse sağlıksız sayılıp gereksiz yeniden başlatılır.
-@SkipThrottle()
+// HER İKİ isimli throttler'ı da atla: argümansız @SkipThrottle() yalnızca
+// "default"u atlar, "auth" (10/dk, global) takılı kalır → Render yoklaması
+// dakikada 10'u aşınca 429 alır. Bu yüzden ikisini de açıkça kapatıyoruz.
+@SkipThrottle({ default: true, auth: true })
 @Controller("health")
 export class HealthController {
   private readonly logger = new Logger(HealthController.name);
