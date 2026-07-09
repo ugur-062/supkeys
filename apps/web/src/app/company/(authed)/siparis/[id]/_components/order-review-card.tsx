@@ -12,9 +12,11 @@ import { toast } from "sonner";
 export function OrderReviewCard({
   orderId,
   targetName,
+  title = "Tedarikçi Değerlendirme",
 }: {
   orderId: string;
   targetName: string;
+  title?: string;
 }) {
   const { data: existing } = useOrderReview(orderId, true);
   const upsert = useUpsertReview(orderId);
@@ -44,7 +46,7 @@ export function OrderReviewCard({
 
   return (
     <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
-      <Subheading>Tedarikçi Değerlendirme</Subheading>
+      <Subheading>{title}</Subheading>
       <Text className="mt-0.5 text-sm text-zinc-500">
         {targetName} ile bu siparişteki deneyiminizi puanlayın. Puan, firmanın
         profilinde ortalamaya katılır.

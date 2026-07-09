@@ -646,7 +646,7 @@ model CompanyOrder {
   documents CompanyOrderDocument[]
   items     CompanyOrderItem[]
   payments  CompanyOrderPayment[]
-  review    CompanyReview?
+  reviews   CompanyReview[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -660,7 +660,7 @@ model CompanyOrder {
 // Sipariş sonrası değerlendirme — alıcı, karşı tarafı (genelde satıcı) puanlar.
 model CompanyReview {
   id                String       @id @default(cuid())
-  orderId           String       @unique
+  orderId           String
   order             CompanyOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
   reviewerCompanyId String
   reviewer          Company      @relation("ReviewsGiven", fields: [reviewerCompanyId], references: [id], onDelete: Cascade)
@@ -671,6 +671,9 @@ model CompanyReview {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
+  // Çift yönlü: alıcı ve satıcı AYNI siparişte birbirini puanlar → sipariş
+  // başına taraf-başına tek review (orderId tek başına unique DEĞİL).
+  @@unique([orderId, reviewerCompanyId])
   @@index([targetCompanyId])
   @@map("company_reviews")
 }

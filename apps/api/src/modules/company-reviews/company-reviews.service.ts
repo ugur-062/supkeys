@@ -10,7 +10,10 @@ import type { AuthenticatedCompanyUser } from "../company-auth/strategies/compan
 export class CompanyReviewsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Tamamlanmış siparişte karşı tarafı puanla (alıcı → satıcı). Sipariş başına tek. */
+  /**
+   * Tamamlanmış siparişte karşı tarafı puanla — ÇİFT YÖNLÜ: alıcı satıcıyı,
+   * satıcı alıcıyı puanlar. Sipariş başına taraf-başına tek (hedef karşı taraf).
+   */
   async upsert(
     user: AuthenticatedCompanyUser,
     input: { orderId: string; rating: number; comment?: string },
@@ -27,7 +30,11 @@ export class CompanyReviewsService {
         sellerCompanyId: true,
       },
     });
-    if (!order || order.buyerCompanyId !== user.companyId) {
+    // Alıcı VEYA satıcı puanlayabilir; hedef her zaman karşı taraf (body'den
+    // değil siparişten türetilir → spoofing yok).
+    const isBuyer = order?.buyerCompanyId === user.companyId;
+    const isSeller = order?.sellerCompanyId === user.companyId;
+    if (!order || (!isBuyer && !isSeller)) {
       throw new NotFoundException("Sipariş bulunamadı");
     }
     if (order.status !== "COMPLETED") {
@@ -35,12 +42,20 @@ export class CompanyReviewsService {
         "Yalnızca tamamlanmış siparişler değerlendirilebilir",
       );
     }
+    const targetCompanyId = isBuyer
+      ? order.sellerCompanyId
+      : order.buyerCompanyId;
     await this.prisma.companyReview.upsert({
-      where: { orderId: order.id },
+      where: {
+        orderId_reviewerCompanyId: {
+          orderId: order.id,
+          reviewerCompanyId: user.companyId,
+        },
+      },
       create: {
         orderId: order.id,
         reviewerCompanyId: user.companyId,
-        targetCompanyId: order.sellerCompanyId,
+        targetCompanyId,
         rating: input.rating,
         comment: input.comment?.trim() || null,
       },
@@ -52,14 +67,15 @@ export class CompanyReviewsService {
     return { ok: true };
   }
 
-  /** Bir siparişe ait kendi değerlendirmen (varsa). */
+  /** Bir siparişe ait kendi (bu firmanın verdiği) değerlendirme (varsa). */
   async getForOrder(user: AuthenticatedCompanyUser, orderId: string) {
     const r = await this.prisma.companyReview.findUnique({
-      where: { orderId },
-      select: { rating: true, comment: true, reviewerCompanyId: true },
+      where: {
+        orderId_reviewerCompanyId: { orderId, reviewerCompanyId: user.companyId },
+      },
+      select: { rating: true, comment: true },
     });
-    if (!r || r.reviewerCompanyId !== user.companyId) return null;
-    return { rating: r.rating, comment: r.comment };
+    return r ? { rating: r.rating, comment: r.comment } : null;
   }
 
   /** Bir firmaya yapılan değerlendirmeler + ortalama (profil için). */

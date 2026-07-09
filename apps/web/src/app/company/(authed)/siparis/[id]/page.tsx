@@ -635,9 +635,13 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
 
       <OrderDocumentsSection order={o} />
 
-      {/* Değerlendirme — alıcı, tamamlanmış siparişte satıcıyı puanlar */}
-      {!isSeller && o.status === "COMPLETED" ? (
-        <OrderReviewCard orderId={id} targetName={o.counterparty} />
+      {/* Değerlendirme — ÇİFT YÖNLÜ: alıcı satıcıyı, satıcı alıcıyı puanlar */}
+      {o.status === "COMPLETED" ? (
+        <OrderReviewCard
+          orderId={id}
+          targetName={o.counterparty}
+          title={isSeller ? "Müşteri Değerlendirme" : "Tedarikçi Değerlendirme"}
+        />
       ) : null}
 
       {/* Modallar */}
