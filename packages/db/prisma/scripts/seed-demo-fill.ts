@@ -146,7 +146,7 @@ const BIDS: { bidder: string; owner: string; titleIncludes: string; amount: numb
 
 async function nextNumber(): Promise<string> {
   const rows = await prisma.$queryRaw<Array<{ n: bigint }>>`SELECT nextval('listing_number_seq') AS n`;
-  return `ROT-${String(rows[0].n).padStart(6, "0")}`;
+  return `ROT-${String(rows[0]!.n).padStart(6, "0")}`;
 }
 
 async function main() {
@@ -164,17 +164,19 @@ async function main() {
 
   // 1) Kategori havuzu (geçerli UNSPSC kodları).
   const cats = (await prisma.category.findMany({ where: { level: 2, isActive: true }, select: { code: true }, take: 24 })).map((c) => c.code);
+  if (!cats.length) throw new Error("Kategori bulunamadı — önce kategori seed'ini çalıştırın.");
+  const cat = (idx: number) => cats[idx % cats.length]!;
 
   // 2) Firmalar + owner + auth.
   const id: Record<string, { companyId: string; ownerId: string }> = {};
   for (let i = 0; i < COMPANIES.length; i++) {
-    const d = COMPANIES[i];
+    const d = COMPANIES[i]!;
     const email = `${d.key}${DOMAIN}`;
     const authId = await ensureAuthUser(email);
     let code = genCode();
     while ((await prisma.company.count({ where: { rothernId: code } })) > 0) code = genCode();
-    const buyerCats = [cats[(i * 2) % cats.length], cats[(i * 2 + 1) % cats.length]];
-    const sellerCats = [cats[(i * 2 + 2) % cats.length], cats[(i * 2 + 3) % cats.length]];
+    const buyerCats = [cat(i * 2), cat(i * 2 + 1)];
+    const sellerCats = [cat(i * 2 + 2), cat(i * 2 + 3)];
     const company = await prisma.company.create({
       data: {
         name: d.name, rothernId: code, tier: d.tier, country: "TR",
@@ -183,7 +185,7 @@ async function main() {
         onboardingCompletedAt: new Date(),
       },
     });
-    const [firstName] = d.name.split(" ");
+    const firstName = d.name.split(" ")[0] ?? d.name;
     const user = await prisma.companyUser.create({
       data: { email, authId, firstName, lastName: "Yetkili", roles: OWNER_ROLES, companyId: company.id, emailVerifiedAt: new Date() },
     });
@@ -196,8 +198,8 @@ async function main() {
   for (const [a, b] of CONNECTIONS) {
     await prisma.companyConnection.create({
       data: {
-        inviterCompanyId: id[a].companyId, inviteeCompanyId: id[b].companyId,
-        status: "ACTIVE", origin: "ADMIN", invitedById: id[a].ownerId, decidedAt: new Date(),
+        inviterCompanyId: id[a]!.companyId, inviteeCompanyId: id[b]!.companyId,
+        status: "ACTIVE", origin: "ADMIN", invitedById: id[a]!.ownerId, decidedAt: new Date(),
       },
     });
   }
@@ -211,10 +213,10 @@ async function main() {
       const authId = await ensureAuthUser(email);
       await prisma.companyUser.upsert({
         where: { email },
-        update: { authId, roles: t.roles, companyId: id[key].companyId, isActive: true, deletedAt: null },
+        update: { authId, roles: t.roles, companyId: id[key]!.companyId, isActive: true, deletedAt: null },
         create: {
           email, authId, firstName: t.label, lastName: COMPANIES.find((c) => c.key === key)!.name,
-          roles: t.roles, companyId: id[key].companyId, emailVerifiedAt: new Date(),
+          roles: t.roles, companyId: id[key]!.companyId, emailVerifiedAt: new Date(),
         },
       });
       teamCount++;
@@ -225,7 +227,7 @@ async function main() {
   // 4) İhaleler + kalemler + davetler.
   const listingRef: { owner: string; title: string; listingId: string }[] = [];
   for (const l of LISTINGS) {
-    const o = id[l.owner];
+    const o = id[l.owner]!;
     const number = await nextNumber();
     const listing = await prisma.listing.create({
       data: {
@@ -236,18 +238,18 @@ async function main() {
         paymentTiming: l.paymentTiming ?? "AFTER_DELIVERY",
         priceScope: l.type === "SATIS" ? "TOPLU" : "KALEM",
         minPrice: l.minPrice ?? null, buyNowPrice: l.buyNowPrice ?? null,
-        categoryIds: [cats[Math.floor(Math.random() * cats.length)]],
+        categoryIds: [cat(Math.floor(Math.random() * cats.length))],
       },
     });
     for (let i = 0; i < l.items.length; i++) {
-      const it = l.items[i];
+      const it = l.items[i]!;
       await prisma.listingItem.create({
         data: { listingId: listing.id, lineNo: i + 1, name: it.name, quantity: it.quantity, unit: it.unit, targetPrice: it.targetPrice ?? null },
       });
     }
     if (l.invite?.length) {
       await prisma.listingInvitation.createMany({
-        data: l.invite.map((k) => ({ listingId: listing.id, invitedCompanyId: id[k].companyId, invitedById: o.ownerId })),
+        data: l.invite.map((k) => ({ listingId: listing.id, invitedCompanyId: id[k]!.companyId, invitedById: o.ownerId })),
         skipDuplicates: true,
       });
     }
@@ -262,7 +264,7 @@ async function main() {
     if (!ref) continue;
     await prisma.listingBid.create({
       data: {
-        listingId: ref.listingId, bidderCompanyId: id[b.bidder].companyId, createdById: id[b.bidder].ownerId,
+        listingId: ref.listingId, bidderCompanyId: id[b.bidder]!.companyId, createdById: id[b.bidder]!.ownerId,
         amount: b.amount, currency: "TRY", status: "SUBMITTED", submittedAt: new Date(), deliveryDate: days(20),
       },
     });
