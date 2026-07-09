@@ -9,15 +9,17 @@ import {
 } from "@nestjs/websockets";
 import type { Server, Socket } from "socket.io";
 import { AUTH_COOKIE, parseCookies } from "../../common/auth/cookie";
+import { PrismaService } from "../../common/prisma/prisma.service";
 import type { CompanyJwtPayload } from "../company-auth/strategies/company-jwt.strategy";
 import { RealtimeService } from "./realtime.service";
 
 /**
  * Firma WS geçidi — bağlantıda company JWT doğrulanır, istemci kendi
  * company:{id} odasına alınır. İlan/sipariş odaları "değişti" sinyali içindir;
- * odaya katılmak veri SIZDIRMAZ (event yalnızca id taşır, veri REST'ten
- * yetkiyle çekilir) — bu yüzden oda aboneliğinde ayrıca erişim kontrolü
- * yapılmaz (kapalı zarf REST katmanında korunur).
+ * event yalnız id taşır (veri REST'ten yetkiyle çekilir). Yine de oda ABONELİĞİ
+ * erişim-kontrollüdür: aksi halde ilgisiz firma `listing:{id}` odasına katılıp
+ * her teklifte gelen ping'i sayarak kapalı-zarf RFQ'da rakip teklif sayısı/
+ * zamanlaması çıkarabilir (K1). Subscribe'da katılımcı/görünürlük doğrulanır.
  */
 // WS CORS, REST ile AYNI allowlist (CORS_ORIGINS) — origin:true yerine.
 // Env decorator değerlendirilmeden (AppModule import'undan) önce dotenv ile yüklenir.
@@ -39,6 +41,7 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
     private readonly realtime: RealtimeService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
   ) {}
 
   afterInit(server: Server): void {
@@ -75,12 +78,69 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
     client: Socket,
     body: { kind: "listing" | "order"; id: string },
   ): Promise<void> {
-    if (!client.data.companyId) return;
+    const companyId = client.data.companyId as string | undefined;
+    if (!companyId) return;
     if (!body?.id || (body.kind !== "listing" && body.kind !== "order")) return;
     if (typeof body.id !== "string" || body.id.length > 60) return;
     // subscribe-spam koruması: tek soket sınırsız odaya katılıp bellek şişiremez.
     if (client.rooms.size > 100) return;
+    // Erişim kontrolü (K1): yalnız ilgili firma odaya katılabilir.
+    const allowed =
+      body.kind === "order"
+        ? await this.canSubscribeOrder(companyId, body.id)
+        : await this.canSubscribeListing(companyId, body.id);
+    if (!allowed) return;
     await client.join(`${body.kind}:${body.id}`);
+  }
+
+  /** Sipariş odası: yalnız alıcı veya satıcı. */
+  private async canSubscribeOrder(
+    companyId: string,
+    orderId: string,
+  ): Promise<boolean> {
+    const count = await this.prisma.companyOrder.count({
+      where: {
+        id: orderId,
+        OR: [{ buyerCompanyId: companyId }, { sellerCompanyId: companyId }],
+      },
+    });
+    return count > 0;
+  }
+
+  /**
+   * İlan odası: sahip VEYA ilanla meşru ilişkisi olan (teklif vermiş, davetli
+   * veya sahibiyle aktif bağlantılı) firma. İlgisiz/engellenen firma katılamaz
+   * → kapalı-zarf teklif-aktivitesi ping'lerini dinleyemez.
+   */
+  private async canSubscribeListing(
+    companyId: string,
+    listingId: string,
+  ): Promise<boolean> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { companyId: true },
+    });
+    if (!listing) return false;
+    if (listing.companyId === companyId) return true; // sahip
+
+    const [bid, invite, connection] = await Promise.all([
+      this.prisma.listingBid.count({
+        where: { listingId, bidderCompanyId: companyId },
+      }),
+      this.prisma.listingInvitation.count({
+        where: { listingId, invitedCompanyId: companyId },
+      }),
+      this.prisma.companyConnection.count({
+        where: {
+          status: "ACTIVE",
+          OR: [
+            { inviterCompanyId: companyId, inviteeCompanyId: listing.companyId },
+            { inviterCompanyId: listing.companyId, inviteeCompanyId: companyId },
+          ],
+        },
+      }),
+    ]);
+    return bid > 0 || invite > 0 || connection > 0;
   }
 
   @SubscribeMessage("unsubscribe")

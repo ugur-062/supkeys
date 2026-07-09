@@ -607,14 +607,19 @@ model CompanyOrder {
   listingId       String?
   listing         Listing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
   sellerCompanyId String
-  seller          Company  @relation("OrderSeller", fields: [sellerCompanyId], references: [id], onDelete: Cascade)
+  // Restrict: bir firmanın siparişleri varken hard-delete engellenir — aksi
+  // halde karşı taraf mevcut/ödemeli olsa bile finansal kayıt CASCADE ile
+  // silinirdi. App zaten soft-delete kullanır (isActive/isBlocked/deletedAt).
+  seller          Company  @relation("OrderSeller", fields: [sellerCompanyId], references: [id], onDelete: Restrict)
   buyerCompanyId  String
-  buyer           Company  @relation("OrderBuyer", fields: [buyerCompanyId], references: [id], onDelete: Cascade)
+  buyer           Company  @relation("OrderBuyer", fields: [buyerCompanyId], references: [id], onDelete: Restrict)
 
   amount         Decimal                   @db.Decimal(18, 2)
   // Tutarın para birimi = KAZANAN TEKLİFİN birimi (çoklu-birim RFQ'da ilanın
   // ana biriminden farklı olabilir). Award anında yazılır; legacy → TRY.
-  currency       String                    @default("TRY")
+  // Currency enum (String değil) — bid/approval/exchangeRate ile tutarlı,
+  // DB-seviyesinde geçersiz değer ("try"/yazım hatası) engellenir.
+  currency       Currency                  @default(TRY)
   status         CompanyOrderStatus        @default(PENDING)
   paymentTiming  CompanyOrderPaymentTiming @default(AFTER_DELIVERY)
   rejectedReason String?

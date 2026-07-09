@@ -3633,7 +3633,7 @@ export class CompanyListingsService {
           unitPrice: number;
         }[];
         amount: Prisma.Decimal; // sipariş tutarı — Decimal (F7)
-        currency: string; // teklifçinin birimi (firma başına tek teklif)
+        currency: Currency; // teklifçinin birimi (firma başına tek teklif)
         bidIds: Set<string>;
       }
     >();

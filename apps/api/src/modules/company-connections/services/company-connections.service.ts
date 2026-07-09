@@ -793,31 +793,33 @@ export class CompanyConnectionsService {
   /** Gelen daveti kabul et. */
   async accept(user: AuthenticatedCompanyUser, connectionId: string) {
     const conn = await this.requireIncoming(user.companyId, connectionId);
-    // Atomik geçiş: okuma ile yazma arasında reject/disconnect yarışırsa
-    // count=0 döner — "kabul edilmiş bağlantı silindi" durumu oluşamaz.
-    const updated = await this.prisma.companyConnection.updateMany({
-      where: {
-        id: conn.id,
-        inviteeCompanyId: user.companyId,
-        status: "PENDING",
-      },
-      data: { status: "ACTIVE", decidedAt: new Date() },
-    });
-    if (updated.count === 0) {
-      throw new ConflictException("Davet zaten yanıtlanmış");
-    }
-    await this.prisma.$transaction([
+    // Atomik: ters-yön sarkan PENDING'i ÖNCE sil, SONRA ACTIVE yap — tek tx'te.
+    // Sıra önemli: yön-bağımsız partial unique index (PENDING+ACTIVE) A→B ACTIVE
+    // olurken B→A PENDING ile çakışırdı; önce silmek çakışmayı önler. Geçiş
+    // koşullu (status=PENDING) kalır → reject/disconnect yarışında count=0.
+    const updatedCount = await this.prisma.$transaction(async (tx) => {
       // Çapraz yarış temizliği: iki firma AYNI ANDA birbirine istek attıysa
-      // ters yönde ikinci bir PENDING kayıt oluşmuş olabilir — bağ kurulduğu
-      // anda sarkan ters istek silinir (listelerde mükerrer görünmesin).
-      this.prisma.companyConnection.deleteMany({
+      // ters yönde ikinci bir PENDING kayıt oluşmuş olabilir.
+      await tx.companyConnection.deleteMany({
         where: {
           inviterCompanyId: user.companyId,
           inviteeCompanyId: conn.inviterCompanyId,
           status: "PENDING",
         },
-      }),
-    ]);
+      });
+      const updated = await tx.companyConnection.updateMany({
+        where: {
+          id: conn.id,
+          inviteeCompanyId: user.companyId,
+          status: "PENDING",
+        },
+        data: { status: "ACTIVE", decidedAt: new Date() },
+      });
+      return updated.count;
+    });
+    if (updatedCount === 0) {
+      throw new ConflictException("Davet zaten yanıtlanmış");
+    }
     // Davet eden firmaya haber ver.
     const me = await this.prisma.company.findUnique({
       where: { id: user.companyId },
