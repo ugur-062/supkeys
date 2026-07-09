@@ -639,6 +639,14 @@ export class CompanyOrdersService {
       throw new ForbiddenException("Ödemeyi yalnızca satıcı onaylayabilir");
     }
     this.assertOrderRole(user, "seller");
+    // İptal/reddedilmiş siparişte ödeme kararı verilemez — aksi halde alıcı
+    // ACCEPTED'da ödeme kaydedip iptal ettikten sonra satıcı ödemeyi CONFIRMED
+    // yapabilir (iade akışı yokken CANCELLED sipariş üstünde onaylı para).
+    if (order.status === "CANCELLED" || order.status === "REJECTED") {
+      throw new BadRequestException(
+        "İptal edilmiş siparişte ödeme kararı verilemez",
+      );
+    }
     const payment = await this.prisma.companyOrderPayment.findUnique({
       where: { id: paymentId },
     });

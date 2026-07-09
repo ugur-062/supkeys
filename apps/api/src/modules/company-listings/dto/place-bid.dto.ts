@@ -110,3 +110,31 @@ export class PlaceBidDto {
   @IsEnum(BidCurrencyDto)
   currency?: BidCurrencyDto;
 }
+
+/** Hemen Al — placeBid ile aynı validasyon sınırları (eskiden DTO yoktu). */
+export class BuyNowDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+
+  @IsOptional()
+  @IsISO8601({}, { message: "Geçersiz teslim tarihi" })
+  deliveryDate?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  validityDays?: number;
+
+  @IsOptional()
+  @IsString()
+  deliveryAddressId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(200)
+  itemIds?: string[];
+}

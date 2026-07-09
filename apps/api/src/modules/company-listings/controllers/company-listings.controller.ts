@@ -24,7 +24,7 @@ import {
   InternalNotesDto,
   ListingReasonDto,
 } from "../dto/owner-action.dto";
-import { PlaceBidDto } from "../dto/place-bid.dto";
+import { BuyNowDto, PlaceBidDto } from "../dto/place-bid.dto";
 import { CompanyListingsService } from "../services/company-listings.service";
 
 @Controller("company/listings")
@@ -125,14 +125,7 @@ export class CompanyListingsController {
   buyNow(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
-    @Body()
-    body?: {
-      note?: string;
-      deliveryDate?: string;
-      validityDays?: number;
-      deliveryAddressId?: string;
-      itemIds?: string[];
-    },
+    @Body() body: BuyNowDto,
   ) {
     return this.service.buyNow(user, id, body);
   }

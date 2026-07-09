@@ -47,7 +47,7 @@ import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-ca
 import { isNotificationEnabled } from "../../../common/notifications/notification-prefs";
 import { CreateListingDto } from "../dto/create-listing.dto";
 import { NextRoundDto } from "../dto/next-round.dto";
-import { PlaceBidDto } from "../dto/place-bid.dto";
+import { BuyNowDto, PlaceBidDto } from "../dto/place-bid.dto";
 
 /** Bildirim alıcısı — e-posta/isim + (varsa) kullanıcı bildirim tercihleri. */
 type Recipient = {
@@ -1182,13 +1182,39 @@ export class CompanyListingsService {
     this.assertPaidForNewListingWork(user, "İlan yayınlamak");
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, status: true },
+      select: {
+        id: true,
+        companyId: true,
+        status: true,
+        closesAt: true,
+        visibility: true,
+      },
     });
     if (!listing || listing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
     }
     if (listing.status !== "DRAFT") {
       throw new BadRequestException("Yalnızca taslak ilan yayınlanabilir");
+    }
+    // Taslak, tarih/davet kontrolünü atlayarak kaydedilebildiğinden yayında
+    // yeniden doğrula (create'in non-draft yoluyla aynı kurallar):
+    // (a) kapanış tarihi zorunlu + gelecekte — yoksa cron kapatamaz / anında
+    //     kapanır; (b) PRIVATE ilan en az 1 davetli olmadan yayınlanamaz
+    //     (kimsenin göremeyeceği açık ilan olmasın).
+    if (!listing.closesAt || listing.closesAt.getTime() <= Date.now()) {
+      throw new BadRequestException(
+        "Yayın için geçerli bir kapanış tarihi (gelecekte) gerekli",
+      );
+    }
+    if (listing.visibility === "PRIVATE") {
+      const inviteCount = await this.prisma.listingInvitation.count({
+        where: { listingId },
+      });
+      if (inviteCount === 0) {
+        throw new BadRequestException(
+          "Özel (davetli) ilan yayınlamak için en az bir firma davet edilmeli",
+        );
+      }
     }
 
     const updated = await this.prisma.listing.update({
@@ -2848,18 +2874,7 @@ export class CompanyListingsService {
    * Hemen-Al — SATIS ilanında tavan (buyNow) fiyattan teklif oluşturur.
    * DİREKT SİPARİŞ DEĞİL: sahip yine onaylar (kazandırır). isBuyNow=true bayraklı.
    */
-  async buyNow(
-    user: AuthenticatedCompanyUser,
-    listingId: string,
-    input?: {
-      note?: string;
-      deliveryDate?: string;
-      validityDays?: number;
-      deliveryAddressId?: string;
-      /** KALEM fiyatlandırmada hemen-al ile alınacak kalemler (boş = uygun tümü). */
-      itemIds?: string[];
-    },
-  ) {
+  async buyNow(user: AuthenticatedCompanyUser, listingId: string, input?: BuyNowDto) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -2968,6 +2983,11 @@ export class CompanyListingsService {
         "Hemen-Al için istenen teslim tarihi ve geçerlilik süresi zorunlu",
       );
     }
+    // Teslim tarihi geçmişte olamaz (placeBid ile aynı; DTO ISO8601 doğruladığı
+    // için new Date güvenli — eskiden validasyonsuzdu, Invalid Date → 500).
+    if (new Date(input.deliveryDate).getTime() < Date.now() - 86_400_000) {
+      throw new BadRequestException("Teslim tarihi geçmişte olamaz");
+    }
     // Alıcının teslimat adresi — normal teklif gönderimiyle aynı kural
     // (adrese-teslim şartlı ilanda zorunlu; sahiplik/tip doğrulanır).
     const deliveryAddressId = await this.resolveBidDeliveryAddress(
@@ -2992,9 +3012,15 @@ export class CompanyListingsService {
     if (existing?.status === "WITHDRAWN") {
       throw new BadRequestException("Geri çekilen teklif yeniden verilemez");
     }
-    if (existing?.status === "SUBMITTED" && existing.isBuyNow) {
+    // SUBMITTED teklif (normal VEYA hemen-al) kilitlidir — hemen-al ile üzerine
+    // yazılıp kapsamı/tutarı değiştirilemez (kural #6: gönderilmiş teklif
+    // editlenmez/geri çekilemez). Aksi halde KALEM modda itemIds alt-kümesiyle
+    // kilitli teklifin kapsamı daraltılabiliyordu.
+    if (existing?.status === "SUBMITTED") {
       throw new BadRequestException(
-        "Hemen-Al teklifiniz zaten gönderildi — satıcı onayı bekleniyor",
+        existing.isBuyNow
+          ? "Hemen-Al teklifiniz zaten gönderildi — satıcı onayı bekleniyor"
+          : "Gönderilmiş teklifiniz var — Hemen-Al ile değiştirilemez",
       );
     }
 
@@ -3356,71 +3382,87 @@ export class CompanyListingsService {
       // varsayılan 5sn interactive-transaction limiti aşılabilir.
     }, { timeout: 20000 });
 
-    const wonPortal = this.bidderPortal(listing.type);
-    const recipient = await this.companyRecipient(bid.bidderCompanyId, wonPortal);
-    if (recipient) {
-      this.notify(
-        recipient,
-        {
-          subject: "Tebrikler — teklifiniz kazandı",
-          heading: "Teklifiniz kazandı 🎉",
-          paragraphs: [
-            "Merhaba,",
-            `Bir ihalede teklifiniz kazandı ve ${order.number} numaralı sipariş oluştu. Sipariş detaylarını ve sonraki adımları Rothern'den takip edebilirsiniz.`,
-          ],
-          ctaLabel: "Siparişi Gör",
-          ctaUrl: `${this.webUrl()}/company/siparis/${order.id}`,
-        },
-        { type: "bid_awarded", id: order.id },
-      );
-    }
-    await this.notifications.pushToCompany(bid.bidderCompanyId, {
-      type: "bid_awarded",
-      portal: wonPortal,
-      title: "Teklifiniz kazandı 🎉",
-      body: `Bir ihalede teklifiniz kazandı ve ${order.number} numaralı sipariş oluştu.`,
-      ctaLabel: "Siparişi Gör",
-      ctaUrl: `${this.webUrl()}/company/siparis/${order.id}`,
-    });
-    // Kaybeden teklif sahiplerine "ihale sonuçlandı" bildirimi (teklifçi portalı,
-    // bidElimination tercihine bağlı — eleme bildirimini kapatan bunu da almaz).
-    if (losingBidderIds.length > 0) {
-      const lostUrl = `${this.webUrl()}/company/ilan/${listingId}`;
-      const lostBody = `"${listing.title}" (${listing.number ?? "—"}) ihalesi sonuçlandı; bu turda teklifiniz kazanmadı.`;
-      const lostRecipients = await this.companyRecipients(
-        losingBidderIds,
+    // C8: sipariş atomik oluştu. Bundan sonraki bildirim/realtime BEST-EFFORT —
+    // hatası kazandırmayı geri almamalı. Aksi halde onay motorunun (decide)
+    // fail-closed rollback'i tetiklenip, sipariş zaten dururken onayı yeniden
+    // PENDING'e açar ve sonsuz "tekrar deneyin" döngüsü oluşurdu.
+    try {
+      const wonPortal = this.bidderPortal(listing.type);
+      const recipient = await this.companyRecipient(
+        bid.bidderCompanyId,
         wonPortal,
       );
-      for (const cid of losingBidderIds) {
-        const r = lostRecipients.get(cid);
-        if (!r) continue;
+      if (recipient) {
         this.notify(
-          r,
+          recipient,
           {
-            subject: "İhale sonuçlandı",
-            heading: "İhale sonuçlandı",
+            subject: "Tebrikler — teklifiniz kazandı",
+            heading: "Teklifiniz kazandı 🎉",
             paragraphs: [
               "Merhaba,",
-              `${lostBody} Yeni fırsatlar için Rothern'i takip edebilirsiniz.`,
+              `Bir ihalede teklifiniz kazandı ve ${order.number} numaralı sipariş oluştu. Sipariş detaylarını ve sonraki adımları Rothern'den takip edebilirsiniz.`,
             ],
-            ctaLabel: "İhaleyi Gör",
-            ctaUrl: lostUrl,
+            ctaLabel: "Siparişi Gör",
+            ctaUrl: `${this.webUrl()}/company/siparis/${order.id}`,
           },
-          { type: "bid_lost", id: listingId },
+          { type: "bid_awarded", id: order.id },
         );
       }
-      await this.notifications.pushToCompanies(losingBidderIds, {
-        type: "bid_lost",
+      await this.notifications.pushToCompany(bid.bidderCompanyId, {
+        type: "bid_awarded",
         portal: wonPortal,
-        title: "İhale sonuçlandı",
-        body: lostBody,
-        ctaLabel: "İhaleyi Gör",
-        ctaUrl: lostUrl,
-        listingId,
+        title: "Teklifiniz kazandı 🎉",
+        body: `Bir ihalede teklifiniz kazandı ve ${order.number} numaralı sipariş oluştu.`,
+        ctaLabel: "Siparişi Gör",
+        ctaUrl: `${this.webUrl()}/company/siparis/${order.id}`,
       });
+      // Kaybeden teklif sahiplerine "ihale sonuçlandı" bildirimi (teklifçi
+      // portalı, bidElimination tercihine bağlı — eleme bildirimini kapatan
+      // bunu da almaz).
+      if (losingBidderIds.length > 0) {
+        const lostUrl = `${this.webUrl()}/company/ilan/${listingId}`;
+        const lostBody = `"${listing.title}" (${listing.number ?? "—"}) ihalesi sonuçlandı; bu turda teklifiniz kazanmadı.`;
+        const lostRecipients = await this.companyRecipients(
+          losingBidderIds,
+          wonPortal,
+        );
+        for (const cid of losingBidderIds) {
+          const r = lostRecipients.get(cid);
+          if (!r) continue;
+          this.notify(
+            r,
+            {
+              subject: "İhale sonuçlandı",
+              heading: "İhale sonuçlandı",
+              paragraphs: [
+                "Merhaba,",
+                `${lostBody} Yeni fırsatlar için Rothern'i takip edebilirsiniz.`,
+              ],
+              ctaLabel: "İhaleyi Gör",
+              ctaUrl: lostUrl,
+            },
+            { type: "bid_lost", id: listingId },
+          );
+        }
+        await this.notifications.pushToCompanies(losingBidderIds, {
+          type: "bid_lost",
+          portal: wonPortal,
+          title: "İhale sonuçlandı",
+          body: lostBody,
+          ctaLabel: "İhaleyi Gör",
+          ctaUrl: lostUrl,
+          listingId,
+        });
+      }
+      this.realtime?.pingListing(listingId, awardParties);
+      this.realtime?.pingOrder(order.id, awardParties);
+    } catch (err) {
+      this.logger.warn(
+        `Kazandırma sonrası bildirim başarısız (sipariş ${order.id}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
     }
-    this.realtime?.pingListing(listingId, awardParties);
-    this.realtime?.pingOrder(order.id, awardParties);
     return { orderId: order.id, number: order.number };
   }
 
@@ -3771,50 +3813,60 @@ export class CompanyListingsService {
       // varsayılanı yetmeyebilir.
     }, { timeout: 20000 });
 
-    // Kazanan her firmaya (teklifçi) bildirim — tek seferde topla (N+1 yerine).
-    const itemWonPortal = this.bidderPortal(listing.type);
-    const recipients = await this.companyRecipients(
-      groupArr.map(([bidderCompanyId]) => bidderCompanyId),
-      itemWonPortal,
-    );
-    for (let i = 0; i < groupArr.length; i++) {
-      const [bidderCompanyId] = groupArr[i]!;
-      const o = created[i];
-      const recipient = recipients.get(bidderCompanyId);
-      if (recipient && o) {
-        this.notify(
-          recipient,
-          {
-            subject: "Tebrikler — teklifiniz kazandı",
-            heading: "Teklifiniz kazandı 🎉",
-            paragraphs: [
-              "Merhaba,",
-              `Bir ihalede teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
-            ],
+    // C8: siparişler atomik oluştu. Sonraki bildirim/realtime BEST-EFFORT —
+    // hatası kazandırmayı geri almamalı (decide rollback → sonsuz döngü riski).
+    try {
+      // Kazanan her firmaya (teklifçi) bildirim — tek seferde topla (N+1 yerine).
+      const itemWonPortal = this.bidderPortal(listing.type);
+      const recipients = await this.companyRecipients(
+        groupArr.map(([bidderCompanyId]) => bidderCompanyId),
+        itemWonPortal,
+      );
+      for (let i = 0; i < groupArr.length; i++) {
+        const [bidderCompanyId] = groupArr[i]!;
+        const o = created[i];
+        const recipient = recipients.get(bidderCompanyId);
+        if (recipient && o) {
+          this.notify(
+            recipient,
+            {
+              subject: "Tebrikler — teklifiniz kazandı",
+              heading: "Teklifiniz kazandı 🎉",
+              paragraphs: [
+                "Merhaba,",
+                `Bir ihalede teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
+              ],
+              ctaLabel: "Siparişi Gör",
+              ctaUrl: `${this.webUrl()}/company/siparis/${o.id}`,
+            },
+            { type: "bid_awarded", id: o.id },
+          );
+        }
+        // In-app: kazanan teklifçiye sipariş bildirimi.
+        if (o) {
+          await this.notifications.pushToCompany(bidderCompanyId, {
+            type: "bid_awarded",
+            portal: itemWonPortal,
+            title: "Teklifiniz kazandı 🎉",
+            body: `Bir ihalede teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
             ctaLabel: "Siparişi Gör",
             ctaUrl: `${this.webUrl()}/company/siparis/${o.id}`,
-          },
-          { type: "bid_awarded", id: o.id },
-        );
+          });
+        }
       }
-      // In-app: kazanan teklifçiye sipariş bildirimi.
-      if (o) {
-        await this.notifications.pushToCompany(bidderCompanyId, {
-          type: "bid_awarded",
-          portal: itemWonPortal,
-          title: "Teklifiniz kazandı 🎉",
-          body: `Bir ihalede teklifiniz kazandı ve ${o.number} numaralı sipariş oluştu.`,
-          ctaLabel: "Siparişi Gör",
-          ctaUrl: `${this.webUrl()}/company/siparis/${o.id}`,
-        });
+      this.realtime?.pingListing(listingId, [
+        listing.companyId,
+        ...groupArr.map(([bidderCompanyId]) => bidderCompanyId),
+      ]);
+      for (const o of created) {
+        this.realtime?.pingOrder(o.id, [listing.companyId]);
       }
-    }
-    this.realtime?.pingListing(listingId, [
-      listing.companyId,
-      ...groupArr.map(([bidderCompanyId]) => bidderCompanyId),
-    ]);
-    for (const o of created) {
-      this.realtime?.pingOrder(o.id, [listing.companyId]);
+    } catch (err) {
+      this.logger.warn(
+        `Kalem-bazlı kazandırma sonrası bildirim başarısız (${listingId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
     }
     return { orders: created, count: created.length };
   }
