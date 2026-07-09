@@ -72,8 +72,8 @@ export function Layout({ preview, children }: LayoutProps) {
             <Img
               src={LOGO_SRC}
               alt="Rothern"
-              width="160"
-              height="40"
+              width="170"
+              height="50"
               style={logoStyle}
             />
           </Section>
