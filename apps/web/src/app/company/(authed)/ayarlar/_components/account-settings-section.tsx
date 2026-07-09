@@ -4,6 +4,7 @@ import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Text } from "@/components/catalyst/text";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
@@ -166,10 +167,9 @@ export function AccountInfoSection() {
               </Field>
               <Field>
                 <Label>Telefon</Label>
-                <Input
+                <PhoneInput
                   value={info.phone}
-                  onChange={(e) => setInfo({ ...info, phone: e.target.value })}
-                  placeholder="opsiyonel"
+                  onChange={(v) => setInfo({ ...info, phone: v })}
                 />
               </Field>
               <Field>

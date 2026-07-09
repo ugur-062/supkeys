@@ -5,13 +5,13 @@ import { Button } from "@/components/catalyst/button";
 import { Checkbox } from "@/components/catalyst/checkbox";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { AuthShell } from "@/components/marketing/auth-shell";
 import {
   useAcceptInvitation,
   useInvitationPreview,
   useSetCompanyAuth,
 } from "@/hooks/use-company-auth";
-import { formatPhone } from "@/app/company/kayit/_components/signup-client";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { Check, X } from "lucide-react";
 import Link from "next/link";
@@ -186,13 +186,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
 
         <Field>
           <Label>Telefon (opsiyonel)</Label>
-          <Input
-            type="tel"
-            autoComplete="tel"
-            placeholder="+90 5XX XXX XX XX"
-            value={form.phone}
-            onChange={(e) => set("phone")(formatPhone(e.target.value))}
-          />
+          <PhoneInput value={form.phone} onChange={set("phone")} />
         </Field>
 
         <Field>

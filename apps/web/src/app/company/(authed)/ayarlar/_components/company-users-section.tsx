@@ -20,6 +20,7 @@ import {
 } from "@/components/catalyst/dropdown";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import {
   Table,
   TableBody,
@@ -555,11 +556,7 @@ function EditUserModal({
         </div>
         <Field>
           <Label>Telefon</Label>
-          <Input
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="opsiyonel"
-          />
+          <PhoneInput value={phone} onChange={setPhone} />
         </Field>
 
         {/* Roller (çoklu) */}

@@ -5,6 +5,7 @@ import { Button } from "@/components/catalyst/button";
 import { Checkbox } from "@/components/catalyst/checkbox";
 import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import {
   useCompanySignup,
   useResendEmailCode,
@@ -259,13 +260,7 @@ export function CompanySignupClient() {
 
         <Field>
           <Label>Telefon</Label>
-          <Input
-            type="tel"
-            autoComplete="tel"
-            placeholder="+90 5XX XXX XX XX (uluslararası: +ülke kodu)"
-            value={form.phone}
-            onChange={(e) => set("phone")(formatPhone(e.target.value))}
-          />
+          <PhoneInput value={form.phone} onChange={set("phone")} />
         </Field>
 
         <Field>

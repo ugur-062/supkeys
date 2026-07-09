@@ -11,6 +11,7 @@ import {
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Subheading } from "@/components/catalyst/heading";
 import { Input } from "@/components/catalyst/input";
+import { PhoneInput } from "@/components/ui/phone-input";
 import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
 import { useConfirm } from "@/components/providers/confirm-dialog";
@@ -226,10 +227,7 @@ function AddressDialog({
           </Field>
           <Field>
             <Label>Telefon</Label>
-            <Input
-              value={f.phone}
-              onChange={(e) => set({ phone: e.target.value })}
-            />
+            <PhoneInput value={f.phone} onChange={(v) => set({ phone: v })} />
           </Field>
           <Field>
             <Label>Ülke</Label>
