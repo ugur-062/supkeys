@@ -197,6 +197,22 @@ describe("list — görünürlük bazlı indirme yetkisi", () => {
     );
   });
 
+  it("engellenen firma PUBLIC premium olsa da belgeleri göremez (404)", async () => {
+    const { service, blocks } = makeDocsService();
+    const { owner, listing } = await ownerListing({
+      status: "OPEN",
+      visibility: "PUBLIC",
+    });
+    await seedDoc(listing.id, owner.company.id);
+    const viewer = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      tier: "PAKET",
+    });
+    // İlan sahibi bu firmayı engellemiş → blok listesinde görünür (M4 drift'i).
+    blocks.blockedCompanyIds.mockResolvedValue([viewer.company.id]);
+    await expect(service.list(viewer.auth, listing.id)).rejects.toThrow();
+  });
+
   it("CONNECTIONS: bağsız firma göremez (404), bağlı görür", async () => {
     const { service } = makeDocsService();
     const { owner, listing } = await ownerListing({

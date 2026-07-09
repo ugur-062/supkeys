@@ -7,6 +7,7 @@ import {
 import { randomUUID } from "node:crypto";
 import { generateSlug, isValidIbanTr, normalizeIban } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { CategoryService } from "../categories/services/category.service";
 import { StorageService } from "../storage/storage.service";
 import { UpdateCompanyProfileDto } from "./dto/update-company-profile.dto";
 
@@ -61,6 +62,7 @@ export class CompanyProfileService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly categories: CategoryService,
   ) {}
 
   /** Logo/kapak için presigned PUT URL üretir (tarayıcı doğrudan R2'ye yükler). */
@@ -117,6 +119,10 @@ export class CompanyProfileService {
         iban: null,
         ibanHolder: null,
         billingPhone: null,
+        // Şahıs firmasında taxNumber = 11 haneli TCKN (kişisel veri) → onu da
+        // maskele. Tüzel kişide (JOINT_STOCK/LIMITED) vergi no kamuya açıktır.
+        taxNumber:
+          c.companyType === "SOLE_PROPRIETOR" ? null : c.taxNumber,
       };
     }
     return c;
@@ -158,10 +164,17 @@ export class CompanyProfileService {
       data.certificateImages = dto.certificateImages
         .map((s) => s.trim())
         .filter(Boolean);
-    if (dto.buyerCategoryIds !== undefined)
+    // Kategori id'leri var-olan + aktif olmalı (eskiden doğrudan yazılıyordu →
+    // geçersiz/ölü kod veya aşırı-geniş eşleşme mümkündü). minLevel:1 = herhangi
+    // aktif kategori seviyesi kabul, yalnız var-olma/aktiflik zorlanır.
+    if (dto.buyerCategoryIds !== undefined) {
+      await this.categories.validateIds(dto.buyerCategoryIds, { minLevel: 1 });
       data.buyerCategoryIds = dto.buyerCategoryIds;
-    if (dto.sellerCategoryIds !== undefined)
+    }
+    if (dto.sellerCategoryIds !== undefined) {
+      await this.categories.validateIds(dto.sellerCategoryIds, { minLevel: 1 });
       data.sellerCategoryIds = dto.sellerCategoryIds;
+    }
 
     // Kurumsal kimlik — düzenlenebilir kalemler (Faz 4).
     if (dto.mersisNo !== undefined) data.mersisNo = dto.mersisNo.trim() || null;

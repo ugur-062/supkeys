@@ -34,11 +34,20 @@ export class PublicProfileService {
         instagramUrl: true,
         publicEnabled: true,
         isActive: true,
+        isBlocked: true,
         tier: true,
         updatedAt: true,
       },
     });
-    if (!c || !c.isActive || !c.publicEnabled || c.tier !== "PAKET") {
+    // Admin tarafından bloklanan firma dışarıda (SEO profilinde) görünmez —
+    // blok yalnız isBlocked set eder, isActive/publicEnabled'a dokunmaz.
+    if (
+      !c ||
+      !c.isActive ||
+      c.isBlocked ||
+      !c.publicEnabled ||
+      c.tier !== "PAKET"
+    ) {
       throw new NotFoundException("Profil bulunamadı");
     }
     const ratingAgg = await this.prisma.companyReview.aggregate({
@@ -46,10 +55,11 @@ export class PublicProfileService {
       _avg: { rating: true },
       _count: true,
     });
-    const { id, publicEnabled, isActive, tier, ...pub } = c;
+    const { id, publicEnabled, isActive, isBlocked, tier, ...pub } = c;
     void id;
     void publicEnabled;
     void isActive;
+    void isBlocked;
     void tier;
     return {
       ...pub,
@@ -63,6 +73,7 @@ export class PublicProfileService {
       where: {
         publicEnabled: true,
         isActive: true,
+        isBlocked: false,
         tier: "PAKET",
         slug: { not: null },
       },

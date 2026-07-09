@@ -9,6 +9,7 @@ import * as crypto from "node:crypto";
 import { ListingDocKind } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
+import { CompanyBlocksService } from "../company-blocks/company-blocks.service";
 import { StorageService } from "../storage/storage.service";
 import {
   assertReportedSize,
@@ -32,6 +33,7 @@ export class CompanyListingDocumentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly blocks: CompanyBlocksService,
   ) {}
 
   /** İlanı görme yetkisi (getOne ile aynı kural). Yetkisizse 404. */
@@ -47,6 +49,14 @@ export class CompanyListingDocumentsService {
     },
   ) {
     if (listing.companyId === user.companyId) return; // sahip
+
+    // Engellenen firma şartname/çizim dosyalarını göremez (getOne/placeBid ile
+    // aynı kural — bu servis eskiden blok kontrolünü atlıyordu: engelli-ama-
+    // bağlantılı/premium firma dosyaları indirebiliyordu).
+    const blockedIds = await this.blocks.blockedCompanyIds(listing.companyId);
+    if (blockedIds.includes(user.companyId)) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
 
     const [connectedCount, invitedCount] = await Promise.all([
       this.prisma.companyConnection.count({

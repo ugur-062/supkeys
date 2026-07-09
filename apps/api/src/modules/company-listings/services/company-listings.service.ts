@@ -815,6 +815,11 @@ export class CompanyListingsService {
       format,
       inviteCount: inviteCompanyIds.length,
     });
+    await this.assertListingAddressesOwned(
+      user.companyId,
+      dto.deliveryAddressId,
+      dto.billingAddressId,
+    );
 
     const listing = await this.prisma.$transaction(async (tx) => {
       const l = await tx.listing.create({
@@ -1034,6 +1039,11 @@ export class CompanyListingsService {
       format,
       inviteCount: inviteCompanyIds.length,
     });
+    await this.assertListingAddressesOwned(
+      user.companyId,
+      dto.deliveryAddressId,
+      dto.billingAddressId,
+    );
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const l = await tx.listing.update({
@@ -2176,6 +2186,29 @@ export class CompanyListingsService {
       );
     }
     return addressId;
+  }
+
+  /**
+   * İlana yazılan teslimat/fatura adres id'leri istek sahibinin KENDİ adres
+   * defterinden olmalı. Aksi halde yabancı bir CompanyAddress'in id'si ilana
+   * yazılıp award'da orderDeliverySnapshot ile siparişin deliveryAddress JSON'una
+   * (karşı tarafın gördüğü) PII olarak kopyalanabilirdi.
+   */
+  private async assertListingAddressesOwned(
+    companyId: string,
+    deliveryAddressId?: string | null,
+    billingAddressId?: string | null,
+  ): Promise<void> {
+    const ids = [...new Set(
+      [deliveryAddressId, billingAddressId].filter((v): v is string => !!v),
+    )];
+    if (ids.length === 0) return;
+    const owned = await this.prisma.companyAddress.count({
+      where: { id: { in: ids }, companyId },
+    });
+    if (owned !== ids.length) {
+      throw new BadRequestException("Geçersiz teslimat/fatura adresi");
+    }
   }
 
   /**

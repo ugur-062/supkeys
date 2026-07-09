@@ -664,6 +664,7 @@ export class CompanyConnectionsService {
         instagramUrl: true,
         publicEnabled: true,
         isActive: true,
+        isBlocked: true,
         tier: true,
         // Kamuya açık ticari sicil bilgileri (tüzel kişi verisi — KVKK dışı).
         // IBAN / yetkili TCKN / fatura iletişimi ASLA buraya girmez.
@@ -675,7 +676,9 @@ export class CompanyConnectionsService {
         kepAddress: true,
       },
     });
-    if (!c || !c.isActive) {
+    // Admin-bloklu firma dizin/doğrudan-id yolundan da görünmez (arama zaten
+    // filtreliyor; doğrudan rothernId erişimi bu filtreyi atlıyordu).
+    if (!c || !c.isActive || c.isBlocked) {
       throw new NotFoundException("Firma profili bulunamadı");
     }
     const isSelf = c.id === user.companyId;
