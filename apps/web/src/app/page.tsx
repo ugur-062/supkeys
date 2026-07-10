@@ -708,12 +708,6 @@ export default function HomePage() {
               Hem al, hem sat —{" "}
               <span className="text-zinc-500">tek platformda.</span>
             </h1>
-            <p className="mx-auto mt-8 max-w-2xl text-lg font-medium text-pretty text-zinc-600 sm:text-xl/8">
-              Alım ilanı aç, kapalı zarf teklif topla; ya da fazlanı sat.
-              Yurtiçinde veya 98 ülkede firmalarla bağlan, ihaleyi yönet,
-              siparişi belgesine kadar takip et. Şeffaf, denetlenebilir, AI
-              destekli.
-            </p>
             <div className="mt-10 flex items-center justify-center gap-x-4">
               <Link
                 href="/company/kayit"
