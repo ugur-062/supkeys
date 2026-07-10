@@ -29,7 +29,13 @@ interface PublicProfile {
 }
 
 function apiBase() {
-  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api";
+  // resolve-api-url ile aynı kural: prod'da env eksikse localhost'a DÜŞME —
+  // boş base SSR fetch'ini try/catch'e düşürür (profil "bulunamadı" olur),
+  // localhost'a istek atmaktan iyidir.
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  return process.env.NODE_ENV === "production"
+    ? ""
+    : "http://localhost:4000/api";
 }
 function siteUrl() {
   return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";

@@ -10,6 +10,9 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  // Asılı soket koruması — cömert üst sınır: API (free tier) uykudan ~30 sn'de
+  // kalkar, KISA timeout her cold-start'ı öldürür. Kısaltmayın.
+  timeout: 45_000,
 });
 
 interface ApiErrorPayload {

@@ -33,8 +33,10 @@ function isProd(config: ConfigService): boolean {
 /** Ortak cookie opsiyonları — prod'da Secure + cross-subdomain Domain. */
 function baseOptions(config: ConfigService, persistent: boolean) {
   const prod = isProd(config);
-  // Prod: app/admin/api aynı site (.rothern.com) → Domain ile paylaşılır.
-  // Dev: localhost (portlar same-site) → Domain vermiyoruz (host-only).
+  // COOKIE_DOMAIN yalnız SAME-SITE prod'da set edilir (Railway: app/api ortak
+  // .rothern.com → Domain ile paylaşılır). Cross-domain kurulumda (Vercel +
+  // Render) ASLA set etme: API kendi sahibi olmadığı domain'e cookie yazamaz,
+  // tarayıcı düşürür → auth komple çöker. Dev: localhost → host-only.
   const domain = config.get<string>("COOKIE_DOMAIN") || undefined;
   // SameSite kuralı: "none" tarayıcıda Secure gerektirir → aşağıda secure zorlanır.
   // Prod VARSAYILANI "none" — Vercel+Render gibi cross-domain kurulumlar

@@ -4,6 +4,7 @@ import { ActionStrip } from "@/components/dashboard/action-strip";
 import { DashboardKpiCard } from "@/components/dashboard/dashboard-kpi-card";
 import { TcmbRatesWidget } from "@/components/tcmb-rates-widget";
 import { InvitedPendingBanner } from "@/components/dashboard/invited-pending-banner";
+import { ErrorState } from "@/components/ui/error-state";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
   useSatisActivity,
@@ -210,6 +211,14 @@ export function SatisDashboardView() {
 
       {/* Bugün ne yapmalıyım? — bekleyen işler (yoksa görünmez) */}
       <ActionStrip portal="satis" />
+
+      {/* Hata → retry: aksi halde tüm KPI'lar sessizce 0 görünüp yanıltır. */}
+      {stats.isError && !s ? (
+        <ErrorState
+          title="Veri alınamadı"
+          onRetry={() => void stats.refetch()}
+        />
+      ) : null}
 
       {/* KPI grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

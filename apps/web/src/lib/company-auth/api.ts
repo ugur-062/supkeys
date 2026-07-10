@@ -15,6 +15,9 @@ export const companyApi = axios.create({
   baseURL: resolveApiBaseUrl(),
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
+  // Asılı soket koruması — cömert üst sınır: API (free tier) uykudan ~30 sn'de
+  // kalkar, KISA timeout her cold-start'ı öldürür. Kısaltmayın.
+  timeout: 45_000,
 });
 
 const MUTATING = new Set(["post", "put", "patch", "delete"]);

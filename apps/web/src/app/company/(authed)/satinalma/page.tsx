@@ -3,6 +3,7 @@
 import { ActionStrip } from "@/components/dashboard/action-strip";
 import { InvitedPendingBanner } from "@/components/dashboard/invited-pending-banner";
 import { SatinalmaIhaleTab } from "@/components/dashboard/satinalma-ihale-tab";
+import { ErrorState } from "@/components/ui/error-state";
 import { TasarrufTab } from "@/components/dashboard/tasarruf-tab";
 import { TedarikciTab } from "@/components/dashboard/tedarikci-tab";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
@@ -86,29 +87,42 @@ export default function SatinalmaDashboardPage() {
         </TabList>
 
         <TabPanels>
+          {/* Hata → ErrorState + Tekrar dene (refetch); retry'sız statik mesaj
+              kullanıcıyı tam sayfa yenilemeye mecbur bırakıyordu. */}
           <TabPanel className="outline-none">
             {ihale.data ? (
               <SatinalmaIhaleTab data={ihale.data} />
+            ) : ihale.isError ? (
+              <ErrorState
+                title="Veri alınamadı"
+                onRetry={() => void ihale.refetch()}
+              />
             ) : (
-              <TabLoading message={ihale.isError ? "Veri alınamadı" : undefined} />
+              <TabLoading />
             )}
           </TabPanel>
           <TabPanel className="outline-none">
             {tasarruf.data ? (
               <TasarrufTab data={tasarruf.data} />
-            ) : (
-              <TabLoading
-                message={tasarruf.isError ? "Veri alınamadı" : undefined}
+            ) : tasarruf.isError ? (
+              <ErrorState
+                title="Veri alınamadı"
+                onRetry={() => void tasarruf.refetch()}
               />
+            ) : (
+              <TabLoading />
             )}
           </TabPanel>
           <TabPanel className="outline-none">
             {tedarikci.data ? (
               <TedarikciTab data={tedarikci.data} />
-            ) : (
-              <TabLoading
-                message={tedarikci.isError ? "Veri alınamadı" : undefined}
+            ) : tedarikci.isError ? (
+              <ErrorState
+                title="Veri alınamadı"
+                onRetry={() => void tedarikci.refetch()}
               />
+            ) : (
+              <TabLoading />
             )}
           </TabPanel>
         </TabPanels>
@@ -117,14 +131,7 @@ export default function SatinalmaDashboardPage() {
   );
 }
 
-function TabLoading({ message }: { message?: string }) {
-  if (message) {
-    return (
-      <div className="flex items-center justify-center rounded-2xl bg-white py-20 text-sm text-zinc-500 shadow-sm ring-1 ring-zinc-950/5">
-        {message}
-      </div>
-    );
-  }
+function TabLoading() {
   // Skeleton — KPI şeridi + tablo yer tutucusu (spinner yerine tek dil).
   return (
     <div className="space-y-4" aria-hidden>
