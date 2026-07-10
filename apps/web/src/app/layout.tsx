@@ -18,11 +18,11 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Rothern — AI Destekli E-Satın Alma Platformu",
+    default: "Rothern — Al · Sat · Keşfet",
     template: "%s · Rothern",
   },
   description:
-    "Tedarikçi yönetimi, RFQ, açık eksiltme — tek platformda. Tasarrufunuzu artırın, satın alma sürecinizi otomatikleştirin.",
+    "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu. Kapalı zarf teklif topla, ilan aç, firma keşfet — al, sat, keşfet, tek panelden.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -35,8 +35,8 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   openGraph: {
-    title: "Rothern",
-    description: "AI Destekli B2B Ticaret Platformu",
+    title: "Rothern — Al · Sat · Keşfet",
+    description: "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu.",
     images: ["/rothern-logo-on-light.png"],
     locale: "tr_TR",
     type: "website",
