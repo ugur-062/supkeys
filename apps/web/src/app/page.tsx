@@ -370,16 +370,12 @@ function BidsPreview() {
 }
 
 function SaleListingPreview() {
+  // Kazandır sabit — en düşük tekliftekinde durur (animasyon kaldırıldı).
   const offers = [
-    { n: "Alıcı X", a: "62.000 ₺" },
-    { n: "Alıcı Y", a: "71.500 ₺" },
-    { n: "Alıcı Z", a: "80.000 ₺" },
+    { n: "Alıcı X", a: "62.000 ₺", best: true },
+    { n: "Alıcı Y", a: "71.500 ₺", best: false },
+    { n: "Alıcı Z", a: "80.000 ₺", best: false },
   ];
-  const [active, setActive] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setActive((a) => (a + 1) % offers.length), 1400);
-    return () => clearInterval(id);
-  }, [offers.length]);
   return (
     <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="flex items-center justify-between">
@@ -409,20 +405,20 @@ function SaleListingPreview() {
         Sana gelen teklifler
       </div>
       <div className="mt-1.5 space-y-1.5">
-        {offers.map((o, i) => (
+        {offers.map((o) => (
           <div
             key={o.n}
-            className={`flex items-center justify-between rounded-lg border px-3 py-2 transition-all duration-500 ${
-              i === active
-                ? "-translate-y-0.5 border-emerald-300 bg-emerald-50 shadow-sm"
+            className={`flex items-center justify-between rounded-lg border px-3 py-2 ${
+              o.best
+                ? "border-emerald-300 bg-emerald-50"
                 : "border-zinc-200"
             }`}
           >
             <span className="text-xs font-medium text-zinc-700">{o.n}</span>
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-zinc-900">{o.a}</span>
-              {i === active ? (
-                <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px] font-medium text-white">
+              {o.best ? (
+                <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-medium text-white">
                   Kazandır
                 </span>
               ) : null}
