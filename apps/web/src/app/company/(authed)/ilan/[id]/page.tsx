@@ -469,7 +469,7 @@ export default function ListingDetailPage() {
           (l.items ?? []).every((it) => it.buyNowUnitPrice != null))
       : l.buyNowPrice != null);
   const directionHint = isAlim
-    ? "Alım ilanı — en düşük teklif kazanır."
+    ? "Alış ilanı — en düşük teklif kazanır."
     : "Satış ilanı — en yüksek teklif kazanır.";
 
   // ───────────────────────── Bölümler (sekmelere yerleşir) ─────────────────
@@ -1016,8 +1016,8 @@ export default function ListingDetailPage() {
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
           <Text className="text-sm text-amber-800">
             {isAlim
-              ? "Bu alım ihalesine teklif (satış) vermek için hesabınızda "
-              : "Bu satış ilanına teklif (alım) vermek için hesabınızda "}
+              ? "Bu alış ihalesine teklif (satış) vermek için hesabınızda "
+              : "Bu satış ilanına teklif (alış) vermek için hesabınızda "}
             <strong>{isAlim ? "Satışçı" : "Satın Almacı"}</strong> rolü gerekir
             — firma yöneticiniz Ayarlar → Kullanıcılar&apos;dan verebilir.
           </Text>
@@ -1129,7 +1129,7 @@ export default function ListingDetailPage() {
       {/* Tanım rozetleri — emojisiz, anlamsal renkler */}
       <div className="flex flex-wrap items-center gap-1.5">
         <Badge color={isAlim ? "blue" : "emerald"}>
-          {isAlim ? "Alım" : "Satış"}
+          {isAlim ? "Alış" : "Satış"}
         </Badge>
         <Badge color="zinc">
           {l.isInternational ? (

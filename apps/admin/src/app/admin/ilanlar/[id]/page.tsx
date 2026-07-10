@@ -79,7 +79,7 @@ function ListingInspection({ id }: { id: string }) {
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge color={meta.color}>{meta.label}</Badge>
             <Badge color={l.type === "ALIM" ? "blue" : "green"}>
-              {l.type === "ALIM" ? "Alım" : "Satış"}
+              {l.type === "ALIM" ? "Alış" : "Satış"}
             </Badge>
             {l.isSealedBid ? <Badge color="zinc">Kapalı zarf</Badge> : null}
             <span className="text-admin-text-muted font-mono text-xs">

@@ -353,8 +353,8 @@ export default function TeklifVerPage() {
       <Blocked
         title={
           isSatis
-            ? "Satış ilanına teklif (alım) için Satın Almacı rolü gerekir — firma yöneticinizden rol isteyin"
-            : "Alım ihalesine teklif (satış) için Satışçı rolü gerekir — firma yöneticinizden rol isteyin"
+            ? "Satış ilanına teklif (alış) için Satın Almacı rolü gerekir — firma yöneticinizden rol isteyin"
+            : "Alış ihalesine teklif (satış) için Satışçı rolü gerekir — firma yöneticinizden rol isteyin"
         }
         detailHref={detailHref}
       />

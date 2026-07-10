@@ -18,7 +18,7 @@ import { toast } from "sonner";
 
 const ROLES: { key: CompanyRole; label: string; hint: string }[] = [
   { key: "YONETICI", label: "Yönetici", hint: "Hesap ve ekip yönetimi" },
-  { key: "SATIN_ALMACI", label: "Satın Almacı", hint: "Alım ihaleleri" },
+  { key: "SATIN_ALMACI", label: "Satın Almacı", hint: "Alış ihaleleri" },
   { key: "SATISCI", label: "Satışçı", hint: "Satış ilanları" },
   { key: "ONAYLAYICI", label: "Onaylayıcı", hint: "Onay süreçleri" },
 ];

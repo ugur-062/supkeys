@@ -433,7 +433,7 @@ export function SellerTendersView({
             isFiltered
               ? "Filtrelerinizi değiştirerek tekrar deneyin."
               : isSatis
-                ? "Satıcılarla bağlantı kurduğunda veya alım kategorine uygun herkese açık satış ihalesi yayınlandığında burada görünür."
+                ? "Satıcılarla bağlantı kurduğunda veya alış kategorine uygun herkese açık satış ihalesi yayınlandığında burada görünür."
                 : "Alıcılarla bağlantı kurduğunda veya kategorine uygun herkese açık ihale yayınlandığında burada görünür."
           }
           variant={isFiltered ? "no-results" : "no-data"}

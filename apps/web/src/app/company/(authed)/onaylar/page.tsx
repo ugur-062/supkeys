@@ -65,7 +65,7 @@ function ListingTypeBadge({ type }: { type: string }) {
   const isAlim = type === "ALIM";
   return (
     <Badge color={isAlim ? "blue" : "emerald"}>
-      {isAlim ? "Alım" : "Satış"}
+      {isAlim ? "Alış" : "Satış"}
     </Badge>
   );
 }

@@ -54,7 +54,7 @@ const ROLE_LABEL: Record<CompanyRole, string> = {
 
 function listingTypeLabel(t: ApprovalListingType | null) {
   return t === "ALIM"
-    ? "Alım ihaleleri"
+    ? "Alış ihaleleri"
     : t === "SATIS"
       ? "Satış ilanları"
       : "Tüm ihaleler";
@@ -577,8 +577,8 @@ function FlowWizard({
                   setListingType(e.target.value as ApprovalListingType | "")
                 }
               >
-                <option value="">Tüm ihaleler (alım + satış)</option>
-                <option value="ALIM">Yalnız alım ihaleleri</option>
+                <option value="">Tüm ihaleler (alış + satış)</option>
+                <option value="ALIM">Yalnız alış ihaleleri</option>
                 <option value="SATIS">Yalnız satış ilanları</option>
               </Select>
               <Text className="mt-1 text-xs text-zinc-400">

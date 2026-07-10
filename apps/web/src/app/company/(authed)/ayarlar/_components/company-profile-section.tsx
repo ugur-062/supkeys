@@ -289,7 +289,7 @@ export function CompanyProfileSection() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <span className="block text-sm font-medium text-zinc-950">
-                🔵 Ne alırım (alım kategorileri)
+                🔵 Ne alırım (alış kategorileri)
               </span>
               {canEdit ? (
                 <div className="mt-2">

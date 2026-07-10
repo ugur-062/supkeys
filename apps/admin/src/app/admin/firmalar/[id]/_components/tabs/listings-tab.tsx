@@ -63,7 +63,7 @@ export function ListingsTab({ companyId }: { companyId: string }) {
                   </TableCell>
                   <TableCell>
                     <Badge color={l.type === "ALIM" ? "blue" : "green"}>
-                      {l.type === "ALIM" ? "Alım" : "Satış"}
+                      {l.type === "ALIM" ? "Alış" : "Satış"}
                     </Badge>
                     {l.format === "ENGLISH_AUCTION" ? (
                       <Badge color="amber" className="ml-1.5">

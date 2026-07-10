@@ -23,7 +23,7 @@ const stats = [
 ];
 
 const standartFeatures = [
-  "Bağlantılı firmalarla alım & satım",
+  "Bağlantılı firmalarla alış & satış",
   "Kapalı zarf teklif toplama",
   "Sipariş, kargo, teslim & ödeme takibi",
   "Sınırsız kullanıcı & rol",
@@ -32,7 +32,7 @@ const standartFeatures = [
 
 const premiumFeatures = [
   "Standart'taki her şey",
-  "Kendi alım/satış ilanını aç",
+  "Kendi alış/satış ilanını aç",
   "Kategori eşleşmeli firma keşfi",
   "Herkese açık ilanlara teklif ver",
   "Öncelikli destek",
@@ -41,7 +41,7 @@ const premiumFeatures = [
 const faqs = [
   {
     q: "Alıcı ve tedarikçi ayrı mı kayıt oluyor?",
-    a: "Hayır. Rothern'de tek firma hesabı var; aynı hesap hem alım hem satım yapar. Kişilere atadığın roller (Satın Almacı / Satışçı) neyi görüp yapabileceğini belirler.",
+    a: "Hayır. Rothern'de tek firma hesabı var; aynı hesap hem alış hem satış yapar. Kişilere atadığın roller (Satın Almacı / Satışçı) neyi görüp yapabileceğini belirler.",
   },
   {
     q: "Tedarikçiler birbirinin teklifini görür mü?",
@@ -158,7 +158,7 @@ function AppPreview() {
               </span>
             </div>
             <p className="mt-0.5 text-xs text-zinc-500">
-              Dikkat bekleyen işler — alım ve satım, tek akışta
+              Dikkat bekleyen işler — alış ve satış, tek akışta
             </p>
             <div className="mt-4 space-y-2">
               {previewRows.map((r, i) => (
@@ -305,7 +305,7 @@ function ListingWizardPreview() {
           <div className="mt-1.5 grid grid-cols-2 gap-2">
             <div className="flex items-center gap-2 rounded-lg border-2 border-blue-500 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700">
               <span className="size-2 rounded-full bg-blue-500" />
-              Alım
+              Alış
             </div>
             <div className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-400">
               <span className="size-2 rounded-full bg-emerald-500" />
@@ -825,7 +825,7 @@ export default function HomePage() {
                   İhtiyacını en uyguna al
                 </h3>
                 <p className="mt-1.5 text-sm/6 text-zinc-600">
-                  Alım ilanı aç, kapalı zarf teklif topla. Tedarikçiler
+                  Alış ilanı aç, kapalı zarf teklif topla. Tedarikçiler
                   birbirini görmez; en uygun fiyatı sen seçip al.
                 </p>
               </div>
@@ -1019,7 +1019,7 @@ export default function HomePage() {
               Her ihtiyaca uygun format
             </p>
             <p className="mt-6 text-lg/8 text-zinc-600">
-              Alımda RFQ ya da İngiliz Usulü; satışta taban + hemen-al. Doğru
+              Alışta RFQ ya da İngiliz Usulü; satışta taban + hemen-al. Doğru
               formatı seç, gerisini panel yönetsin.
             </p>
           </div>
@@ -1045,7 +1045,7 @@ export default function HomePage() {
                 </div>
               </div>
               <span className="mt-5 inline-flex w-fit rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                Alım · RFQ
+                Alış · RFQ
               </span>
               <h3 className="mt-3 text-lg font-semibold text-zinc-950">
                 Kapalı zarf
@@ -1074,7 +1074,7 @@ export default function HomePage() {
                 </div>
               </div>
               <span className="mt-5 inline-flex w-fit rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                Alım · Eksiltme
+                Alış · Eksiltme
               </span>
               <h3 className="mt-3 text-lg font-semibold text-zinc-950">
                 İngiliz Usulü

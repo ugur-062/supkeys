@@ -62,7 +62,7 @@ import { InviteUserDialog } from "./invite-user-dialog";
 
 const ROLES: { key: CompanyRole; label: string; desc: string }[] = [
   { key: "YONETICI", label: "Yönetici", desc: "Hesap, kullanıcı, ayar ve bağlantı yönetimi" },
-  { key: "SATIN_ALMACI", label: "Satın Almacı", desc: "Alım ihaleleri açma, teklif değerlendirme, kazandırma" },
+  { key: "SATIN_ALMACI", label: "Satın Almacı", desc: "Alış ihaleleri açma, teklif değerlendirme, kazandırma" },
   { key: "SATISCI", label: "Satışçı", desc: "Satış ilanları, ihalelere teklif verme" },
   { key: "ONAYLAYICI", label: "Onaylayıcı", desc: "Onay zincirinde onay/ret" },
 ];
@@ -571,7 +571,7 @@ function EditUserModal({
                 <span>
                   <span className="font-semibold text-zinc-900">Kurucu</span>
                   <span className="mt-0.5 block text-xs text-zinc-500">
-                    Tam yetki — yönetim, alım, satış ve billing/silme/devir dahil
+                    Tam yetki — yönetim, alış, satış ve billing/silme/devir dahil
                     her şeyi kapsar. Ayrı rol atanmaz; yalnız devirle değişir.
                   </span>
                 </span>
@@ -622,7 +622,7 @@ function EditUserModal({
                   className="w-full rounded-lg border border-violet-300 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20"
                 >
                   <option value="YONETICI">Yönetici (yönetim; operasyon yok)</option>
-                  <option value="SATIN_ALMACI">Satın Almacı (yalnız alım)</option>
+                  <option value="SATIN_ALMACI">Satın Almacı (yalnız alış)</option>
                   <option value="SATISCI">Satışçı (yalnız satış)</option>
                   <option value="BOTH">Satın Almacı + Satışçı</option>
                 </select>

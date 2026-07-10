@@ -169,7 +169,7 @@ export default async function PublicCompanyProfile({
         <section className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-zinc-200 bg-white px-5 py-4 shadow-sm sm:px-6">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-zinc-900">
-              {p.name} ile alım-satım yapmak için Rothern&apos;e kayıt olun
+              {p.name} ile alış-satış yapmak için Rothern&apos;e kayıt olun
             </p>
             <p className="mt-0.5 text-xs text-zinc-500">
               Bağlantı kurun, ihalelerini görün, teklif verin — tek panelden

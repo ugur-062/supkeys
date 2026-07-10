@@ -13,7 +13,7 @@ export default function SatinalmaSablonlarPage() {
           href: "/company/satinalma/sablonlar/ihale",
           label: "İhale Şablonları",
           description:
-            "Tekrarlayan alımlarınızı (kalemler + ayarlar dahil) şablonlayın; yeni ihaleyi tek tıkla şablondan başlatın.",
+            "Tekrarlayan alışlarınızı (kalemler + ayarlar dahil) şablonlayın; yeni ihaleyi tek tıkla şablondan başlatın.",
           icon: FileStack,
         },
         {

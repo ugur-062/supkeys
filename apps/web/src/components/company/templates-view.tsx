@@ -611,7 +611,7 @@ export function ListingTemplatesView({
                         {t.name}
                       </p>
                       <Badge color={isAlim ? "blue" : "emerald"}>
-                        {isAlim ? "Alım" : "Satış"}
+                        {isAlim ? "Alış" : "Satış"}
                       </Badge>
                     </div>
                     <p className="mt-0.5 truncate text-xs text-zinc-400">

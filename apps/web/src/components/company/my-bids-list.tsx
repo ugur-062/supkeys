@@ -132,9 +132,9 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 tabular-nums text-[11px] font-medium text-zinc-600">
                 {b.listing.number ?? "—"}
               </span>
-              {/* Alım/Satış tip etiketi — ilan sayfası renkleriyle. */}
+              {/* Alış/Satış tip etiketi — ilan sayfası renkleriyle. */}
               <Badge color={isAlim ? "blue" : "emerald"}>
-                {isAlim ? "Alım İhalesi" : "Satış İlanı"}
+                {isAlim ? "Alış İhalesi" : "Satış İlanı"}
               </Badge>
             </div>
             <h3

@@ -242,9 +242,9 @@ function sym(currency: string | undefined): string {
 }
 
 /**
- * Kaynak rozeti + açıklaması — PORTALA GÖRE anlamlandırılır (ham "Alım
+ * Kaynak rozeti + açıklaması — PORTALA GÖRE anlamlandırılır (ham "Alış
  * İhalesi/Satış İlanı" etiketi kafa karıştırıyordu: alıcı portalında "Satış
- * İlanı" gören kullanıcı kendi alımını satış sanıyordu).
+ * İlanı" gören kullanıcı kendi alışını satış sanıyordu).
  *  - Alıcı: ALIM → "Kendi İhalem", SATIS → "Satın Alım"
  *  - Satıcı: SATIS → "Satış İlanım", ALIM → "Kazanılan İhale"
  * İlan silinmişse (listingType null) nötr "İlan silinmiş" gösterilir —
@@ -265,7 +265,7 @@ function sourceMeta(
     return type === "ALIM"
       ? {
           label: "Kendi İhalem",
-          hint: "Açtığın alım ihalesini kazandırdın — bu onun siparişi.",
+          hint: "Açtığın alış ihalesini kazandırdın — bu onun siparişi.",
           cls: "border-blue-200 bg-blue-50 text-blue-700",
         }
       : {
@@ -478,7 +478,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
 
   const emptyHint = isSeller
     ? "Henüz satış siparişin yok. Bir satış ilanın veya ihale teklifin kazandığında burada görünür."
-    : "Henüz alım siparişin yok. Bir ihaleni kazandırdığında veya satın aldığında burada görünür.";
+    : "Henüz alış siparişin yok. Bir ihaleni kazandırdığında veya satın aldığında burada görünür.";
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -487,7 +487,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
         description={
           isSeller
             ? "Satış siparişlerin — kazandığın ihalelerden ve satışlarından. Onayla, kargoya ver, ödemeyi takip et."
-            : "Alım siparişlerin — kazandırdığın ihalelerden ve satın almalarından. Teslim al, ödemeyi kaydet, tamamla."
+            : "Alış siparişlerin — kazandırdığın ihalelerden ve satın almalarından. Teslim al, ödemeyi kaydet, tamamla."
         }
       />
 

@@ -395,7 +395,7 @@ export function OnboardingClient() {
               </p>
               <p className="mt-0.5 mb-2 text-xs text-zinc-500">
                 Firmanızın faaliyet gösterdiği ana sektörleri arayıp seçin — size
-                uygun alım/satım ilanları bununla eşleştirilir.
+                uygun alış/satış ilanları bununla eşleştirilir.
               </p>
               {roots.isError ? (
                 <p className="mt-2 text-xs text-red-600">
@@ -417,7 +417,7 @@ export function OnboardingClient() {
                   maxSelection={3}
                   placeholder="Sektör seçmek için tıklayın"
                   title="Faaliyet Sektörünüz"
-                  description="Firmanızın faaliyet gösterdiği ana sektörleri seçin (en fazla 3). Bu seçim, size uygun alım/satım ilanlarını eşleştirmek için kullanılır."
+                  description="Firmanızın faaliyet gösterdiği ana sektörleri seçin (en fazla 3). Bu seçim, size uygun alış/satış ilanlarını eşleştirmek için kullanılır."
                 />
               )}
             </div>

@@ -317,7 +317,7 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
                   {o.listingNumber ?? "—"}
                   {o.listingType ? (
                     <span className="ml-2 font-sans">
-                      {o.listingType === "ALIM" ? "Alım ihalesi" : "Satış ihalesi"}
+                      {o.listingType === "ALIM" ? "Alış ihalesi" : "Satış ihalesi"}
                     </span>
                   ) : null}
                 </p>
