@@ -19,9 +19,10 @@ import { ComplaintsTab } from "./tabs/complaints-tab";
 import { ConnectionsTab } from "./tabs/connections-tab";
 import { DocsTab } from "./tabs/docs-tab";
 import { ListingsTab } from "./tabs/listings-tab";
+import { NotesTab } from "./tabs/notes-tab";
 import { OrdersTab } from "./tabs/orders-tab";
 import { MembershipTab } from "./tabs/membership-tab";
-import { PlaceholderTab } from "./tabs/placeholder-tab";
+import { NotifyDialog } from "./notify-dialog";
 import { SummaryTab } from "./tabs/summary-tab";
 import { UsersTab } from "./tabs/users-tab";
 
@@ -67,9 +68,9 @@ export function CompanyDetailView({
   );
   const act = useCompanyAction();
   const tierAct = useSetCompanyTier();
-  const [prompt, setPrompt] = useState<"tierMonths" | "suspendReason" | null>(
-    null,
-  );
+  const [prompt, setPrompt] = useState<
+    "tierMonths" | "suspendReason" | "notify" | null
+  >(null);
 
   if (isLoading) {
     return (
@@ -120,6 +121,13 @@ export function CompanyDetailView({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => setPrompt("notify")}
+          >
+            Bildirim Gönder
+          </Button>
           {data.tier === "PAKET" ? (
             <Button
               variant="ghost"
@@ -220,9 +228,7 @@ export function CompanyDetailView({
         <ConnectionsTab companyId={companyId} />
       ) : null}
       {tab === "sikayetler" ? <ComplaintsTab companyId={companyId} /> : null}
-      {tab === "notlar" ? (
-        <PlaceholderTab label="Dahili admin notları (müşteri görmez)" />
-      ) : null}
+      {tab === "notlar" ? <NotesTab companyId={companyId} /> : null}
       {tab === "denetim" ? <AuditTab companyId={companyId} /> : null}
 
       <PromptDialog
@@ -248,6 +254,9 @@ export function CompanyDetailView({
         }}
         onClose={() => setPrompt(null)}
       />
+      {prompt === "notify" ? (
+        <NotifyDialog companyId={companyId} onClose={() => setPrompt(null)} />
+      ) : null}
       <PromptDialog
         open={prompt === "suspendReason"}
         title="Firmayı Askıya Al"

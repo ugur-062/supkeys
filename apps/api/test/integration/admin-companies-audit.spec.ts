@@ -20,7 +20,7 @@ function rig() {
     config as never,
     audit,
   );
-  return { service };
+  return { service, notifications };
 }
 
 afterAll(async () => {
@@ -212,6 +212,86 @@ describe("üyelik yönetimi — event kayıtları + ek-süreli uzatma (Faz 3)", 
     expect(report.totals.monthsGranted).toBeGreaterThanOrEqual(18);
     const row = report.rows.find((r) => r.action === "GRANT");
     expect(row!.companyName).toBe(co.company.name);
+  });
+});
+
+describe("destek araçları (Faz 6) — notlar + arama + duyuru + şikayet sayfalama", () => {
+  it("not ekle/listele/sil — audit'li; kısa not reddedilir", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    await expect(
+      service.addNote(co.company.id, "a", "admin-1"),
+    ).rejects.toThrow(/en az 3/);
+    const added = await service.addNote(
+      co.company.id,
+      "Telefonla arandı, belge yarın gelecek",
+      "admin-1",
+    );
+    const notes = await service.listNotes(co.company.id);
+    expect(notes).toHaveLength(1);
+    expect(notes[0]!.body).toContain("Telefonla arandı");
+    await service.deleteNote(added.id, "admin-1");
+    expect(await service.listNotes(co.company.id)).toHaveLength(0);
+    const log = await prisma.auditLog.findFirst({
+      where: { action: "admin.company.note_added", entityId: co.company.id },
+    });
+    expect(log).not.toBeNull();
+  });
+
+  it("globalSearch: firma adı + kullanıcı e-postası bulur; 2 karakterden kısa boş döner", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, { name: "Arama Test A.Ş." });
+    expect(await service.globalSearch("a")).toEqual({
+      companies: [],
+      users: [],
+    });
+    const byName = await service.globalSearch("Arama Test");
+    expect(byName.companies.map((c) => c.id)).toContain(co.company.id);
+    const byEmail = await service.globalSearch(co.user.email.slice(0, 10));
+    expect(byEmail.users.map((u) => u.companyId)).toContain(co.company.id);
+  });
+
+  it("announce: segment (tier) filtresine uyan firmalara in-app push + audit", async () => {
+    const { service, notifications } = rig();
+    await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    const res = await service.announce(
+      { subject: "Bakım", message: "Planlı bakım bildirimi", tier: "PAKET" },
+      "admin-1",
+    );
+    expect(res.targets).toBe(2);
+    expect(res.delivered).toBe(2);
+    expect(notifications.pushToCompany).toHaveBeenCalledTimes(2);
+    const log = await prisma.auditLog.findFirst({
+      where: { action: "admin.announcement.sent" },
+    });
+    expect(log?.metadata).toMatchObject({ tier: "PAKET", targets: 2 });
+  });
+
+  it("listComplaints: paged + q araması (firma adı)", async () => {
+    const { service } = rig();
+    const a = await makeCompanyWithUser(prisma, { name: "Şikayetçi Firma" });
+    const b = await makeCompanyWithUser(prisma, { name: "Suçlanan Firma" });
+    await prisma.companyComplaint.create({
+      data: {
+        complainantCompanyId: a.company.id,
+        againstCompanyId: b.company.id,
+        reason: "Geç teslimat",
+        createdById: a.user.id,
+      },
+    });
+    const all = await service.listComplaints();
+    expect(all.total).toBe(1);
+    expect(all.items[0]!.reason).toBe("Geç teslimat");
+    const byName = await service.listComplaints(
+      undefined,
+      undefined,
+      "Suçlanan",
+    );
+    expect(byName.total).toBe(1);
+    const miss = await service.listComplaints(undefined, undefined, "yok-böyle");
+    expect(miss.total).toBe(0);
   });
 });
 

@@ -24,7 +24,7 @@ const STATUS_META: Record<
 /** Şikayetler — firma hem "hakkında" hem "şikayet eden" olarak. */
 export function ComplaintsTab({ companyId }: { companyId: string }) {
   const query = useAdminComplaints(undefined, companyId);
-  const items = query.data ?? [];
+  const items = query.data?.items ?? [];
 
   return (
     <div className="admin-card overflow-hidden">

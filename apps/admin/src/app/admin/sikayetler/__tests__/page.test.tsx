@@ -23,7 +23,7 @@ import AdminSikayetlerPage from "../page";
 function complaint(overrides: Record<string, unknown> = {}) {
   return {
     id: "k1",
-    complainant: { name: "Şikayetçi A.Ş.", rothernId: "SK-001" },
+    complainant: { id: "c1", name: "Şikayetçi A.Ş.", rothernId: "SK-001" },
     against: { id: "c2", name: "Hakkında Ltd.", rothernId: "SK-002" },
     reason: "Teslimat gecikmesi",
     detail: "Sipariş 30 gün geç geldi.",
@@ -37,24 +37,24 @@ function complaint(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  h.complaints = { data: [complaint()], isLoading: false, isError: false };
+  h.complaints = { data: { items: [complaint()], total: 1, page: 1, pageSize: 25 }, isLoading: false, isError: false };
 });
 
 describe("SikayetlerView — durum tablosu", () => {
   it("isError → 'Veri alınamadı' gösterir", () => {
-    h.complaints = { data: [], isLoading: false, isError: true };
+    h.complaints = { data: undefined, isLoading: false, isError: true };
     render(<AdminSikayetlerPage />);
     expect(screen.getByText(/Veri alınamadı/)).toBeInTheDocument();
   });
 
   it("isLoading → 'Yükleniyor...' gösterir", () => {
-    h.complaints = { data: [], isLoading: true, isError: false };
+    h.complaints = { data: undefined, isLoading: true, isError: false };
     render(<AdminSikayetlerPage />);
     expect(screen.getByText("Yükleniyor...")).toBeInTheDocument();
   });
 
   it("boş veri → 'Şikayet bulunamadı' gösterir", () => {
-    h.complaints = { data: [], isLoading: false, isError: false };
+    h.complaints = { data: { items: [], total: 0, page: 1, pageSize: 25 }, isLoading: false, isError: false };
     render(<AdminSikayetlerPage />);
     expect(screen.getByText("Şikayet bulunamadı")).toBeInTheDocument();
   });

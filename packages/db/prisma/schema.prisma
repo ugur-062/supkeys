@@ -377,6 +377,7 @@ model Company {
   addresses            CompanyAddress[]
   bankAccounts         CompanyBankAccount[]
   membershipEvents     CompanyMembershipEvent[]
+  adminNotes           CompanyAdminNote[]
   reviewsGiven         CompanyReview[]    @relation("ReviewsGiven")
   reviewsReceived      CompanyReview[]    @relation("ReviewsReceived")
 
@@ -441,6 +442,19 @@ model ExchangeRate {
   @@unique([currency, rateDate])
   @@index([rateDate])
   @@map("exchange_rates")
+}
+
+/// Dahili admin notu — müşteri ASLA görmez ("aradı, X sözü verildi" kayıtları).
+model CompanyAdminNote {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  adminId   String // PlatformAdmin id
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@map("company_admin_notes")
 }
 
 enum MembershipEventAction {

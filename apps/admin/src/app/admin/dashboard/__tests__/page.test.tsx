@@ -62,7 +62,7 @@ describe("AdminDashboardPage — DashboardContent", () => {
   it("KPI sayaçlarını server-side stats'tan gösterir", () => {
     h.stats = { data: statsFixture(), isLoading: false };
     h.companies = { data: { items: [], total: 0 }, isLoading: false };
-    h.complaints = { data: [], isLoading: false };
+    h.complaints = { data: { items: [], total: 0 }, isLoading: false };
     render(<AdminDashboardPage />);
 
     expect(screen.getByText("Toplam Firma")).toBeInTheDocument();
@@ -88,14 +88,17 @@ describe("AdminDashboardPage — DashboardContent", () => {
       isLoading: false,
     };
     h.complaints = {
-      data: [
-        {
-          id: "x1",
-          against: { id: "a1", name: "Kötü Firma" },
-          reason: "spam",
-          complainant: { name: "Şikayetçi" },
-        },
-      ],
+      data: {
+        items: [
+          {
+            id: "x1",
+            against: { id: "a1", name: "Kötü Firma" },
+            reason: "spam",
+            complainant: { name: "Şikayetçi" },
+          },
+        ],
+        total: 1,
+      },
       isLoading: false,
     };
     render(<AdminDashboardPage />);
@@ -126,7 +129,7 @@ describe("AdminDashboardPage — DashboardContent", () => {
       isLoading: false,
     };
     h.companies = { data: { items: [], total: 0 }, isLoading: false };
-    h.complaints = { data: [], isLoading: false };
+    h.complaints = { data: { items: [], total: 0 }, isLoading: false };
     render(<AdminDashboardPage />);
 
     expect(screen.getByText("Bitecek A.Ş.")).toBeInTheDocument();
@@ -136,7 +139,7 @@ describe("AdminDashboardPage — DashboardContent", () => {
   it("boş durum → 'Firma yok' + 'Açık şikayet yok' + üyelik boş mesajı", () => {
     h.stats = { data: statsFixture({ countryBreakdown: [] }), isLoading: false };
     h.companies = { data: { items: [], total: 0 }, isLoading: false };
-    h.complaints = { data: [], isLoading: false };
+    h.complaints = { data: { items: [], total: 0 }, isLoading: false };
     render(<AdminDashboardPage />);
 
     expect(screen.getByText("Firma yok")).toBeInTheDocument();

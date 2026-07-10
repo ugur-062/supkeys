@@ -31,7 +31,7 @@ function DashboardContent() {
   const s = statsQ.data;
 
   const companies = companiesQ.data?.items ?? [];
-  const openComplaints = openComplaintsQ.data ?? [];
+  const openComplaints = openComplaintsQ.data?.items ?? [];
 
   // KYC kuyruk yaşı — en eski bekleyen başvuru kaç gündür bekliyor?
   const queueAgeDays = s?.oldestPendingSince

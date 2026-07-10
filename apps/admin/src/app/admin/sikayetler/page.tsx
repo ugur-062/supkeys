@@ -10,7 +10,12 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
-import { FilterSelect, PageHeader } from "@/components/list";
+import {
+  FilterSelect,
+  PageHeader,
+  Pagination,
+  SearchInput,
+} from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
 import {
@@ -19,6 +24,8 @@ import {
   type AdminComplaint,
 } from "@/hooks/use-admin-companies";
 import { safeFormat } from "@/lib/date";
+import { Download } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -31,11 +38,49 @@ const STATUS_META: Record<
   DISMISSED: { label: "Reddedildi", color: "zinc" },
 };
 
+/** Filtreli sonucu CSV'ye dök (Excel-TR uyumlu, BOM'lu). */
+function downloadCsv(items: AdminComplaint[]) {
+  const esc = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
+  const header = ["Tarih", "Şikayet Eden", "Hakkında", "Konu", "Detay", "Durum", "Yönetici Notu"];
+  const lines = items.map((c) =>
+    [
+      safeFormat(c.createdAt, "yyyy-MM-dd HH:mm"),
+      c.complainant.name,
+      c.against.name,
+      c.reason,
+      c.detail ?? "",
+      STATUS_META[c.status]?.label ?? c.status,
+      c.adminNote ?? "",
+    ]
+      .map(esc)
+      .join(";"),
+  );
+  const blob = new Blob(["﻿" + [header.join(";"), ...lines].join("\n")], {
+    type: "text/csv;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `sikayetler-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function SikayetlerView() {
   const [status, setStatus] = useState("OPEN");
-  const query = useAdminComplaints(status || undefined);
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const query = useAdminComplaints(
+    status || undefined,
+    undefined,
+    q.trim() || undefined,
+    page,
+  );
   const resolve = useResolveComplaint();
-  const items = query.data ?? [];
+  const items = query.data?.items ?? [];
+  const total = query.data?.total ?? 0;
+  const pageSize = query.data?.pageSize ?? 25;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   // window.prompt yerine erişilebilir/test edilebilir modal — yönetici notu.
   const [prompt, setPrompt] = useState<{
@@ -77,7 +122,10 @@ function SikayetlerView() {
           ariaLabel="Durum"
           value={status}
           active={!!status}
-          onChange={setStatus}
+          onChange={(v) => {
+            setStatus(v);
+            setPage(1);
+          }}
           options={[
             { value: "", label: "Tümü" },
             { value: "OPEN", label: "Açık" },
@@ -85,6 +133,22 @@ function SikayetlerView() {
             { value: "DISMISSED", label: "Reddedildi" },
           ]}
         />
+        <SearchInput
+          value={q}
+          onChange={(v) => {
+            setQ(v);
+            setPage(1);
+          }}
+          placeholder="Firma adı / konu / detay ara..."
+        />
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={items.length === 0}
+          onClick={() => downloadCsv(items)}
+        >
+          <Download className="mr-1.5 h-3.5 w-3.5" /> CSV
+        </Button>
       </div>
 
       <div className="admin-card overflow-hidden">
@@ -120,10 +184,20 @@ function SikayetlerView() {
                 return (
                   <TableRow key={c.id}>
                     <TableCell className="text-admin-text">
-                      {c.complainant.name}
+                      <Link
+                        href={`/admin/firmalar/${c.complainant.id}`}
+                        className="hover:underline"
+                      >
+                        {c.complainant.name}
+                      </Link>
                     </TableCell>
                     <TableCell className="text-admin-text font-medium">
-                      {c.against.name}
+                      <Link
+                        href={`/admin/firmalar/${c.against.id}?tab=sikayetler`}
+                        className="hover:underline"
+                      >
+                        {c.against.name}
+                      </Link>
                     </TableCell>
                     <TableCell className="text-admin-text max-w-[280px]">
                       <div className="font-medium">{c.reason}</div>
@@ -185,6 +259,13 @@ function SikayetlerView() {
             )}
           </TableBody>
         </Table>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={pageSize}
+          onPageChange={setPage}
+        />
       </div>
 
       <PromptDialog

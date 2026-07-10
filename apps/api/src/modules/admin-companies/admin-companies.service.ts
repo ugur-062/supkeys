@@ -853,7 +853,13 @@ export class AdminCompaniesService {
     return { ok: true };
   }
 
-  async listComplaints(status?: string, companyId?: string) {
+  async listComplaints(
+    status?: string,
+    companyId?: string,
+    q?: string,
+    page?: number,
+    pageSize?: number,
+  ) {
     const where: Record<string, unknown> = {};
     if (status) where.status = status as ComplaintStatus;
     // Firma detay "Şikayetler" sekmesi: hem hakkında hem şikayet eden olarak.
@@ -863,26 +869,248 @@ export class AdminCompaniesService {
         { complainantCompanyId: companyId },
       ];
     }
-    const rows = await this.prisma.companyComplaint.findMany({
-      where,
-      include: {
-        complainant: { select: { name: true, rothernId: true } },
-        against: { select: { id: true, name: true, rothernId: true } },
-      },
-      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    if (q?.trim()) {
+      const term = q.trim();
+      where.AND = [
+        {
+          OR: [
+            { reason: { contains: term, mode: "insensitive" } },
+            { detail: { contains: term, mode: "insensitive" } },
+            { against: { name: { contains: term, mode: "insensitive" } } },
+            { complainant: { name: { contains: term, mode: "insensitive" } } },
+          ],
+        },
+      ];
+    }
+    const p = Math.max(1, page ?? 1);
+    const ps = Math.min(100, Math.max(1, pageSize ?? 25));
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.companyComplaint.count({ where }),
+      this.prisma.companyComplaint.findMany({
+        where,
+        include: {
+          complainant: { select: { id: true, name: true, rothernId: true } },
+          against: { select: { id: true, name: true, rothernId: true } },
+        },
+        orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+        skip: (p - 1) * ps,
+        take: ps,
+      }),
+    ]);
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        complainant: r.complainant,
+        against: r.against,
+        reason: r.reason,
+        detail: r.detail,
+        status: r.status,
+        adminNote: r.adminNote,
+        createdAt: r.createdAt,
+        resolvedAt: r.resolvedAt,
+      })),
+      total,
+      page: p,
+      pageSize: ps,
+    };
+  }
+
+  // ── DAHİLİ NOTLAR (Faz 6) — müşteri asla görmez ─────────────
+
+  async listNotes(companyId: string) {
+    await this.requireCompany(companyId);
+    const notes = await this.prisma.companyAdminNote.findMany({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
       take: 200,
     });
-    return rows.map((r) => ({
-      id: r.id,
-      complainant: r.complainant,
-      against: r.against,
-      reason: r.reason,
-      detail: r.detail,
-      status: r.status,
-      adminNote: r.adminNote,
-      createdAt: r.createdAt,
-      resolvedAt: r.resolvedAt,
+    const admins = await this.adminEmailMap(notes.map((n) => n.adminId));
+    return notes.map((n) => ({
+      id: n.id,
+      body: n.body,
+      adminEmail: admins.get(n.adminId) ?? null,
+      createdAt: n.createdAt,
     }));
+  }
+
+  async addNote(companyId: string, body: string, adminId: string) {
+    await this.requireCompany(companyId);
+    const trimmed = body.trim();
+    if (trimmed.length < 3) {
+      throw new BadRequestException("Not en az 3 karakter olmalı");
+    }
+    const note = await this.prisma.companyAdminNote.create({
+      data: { companyId, adminId, body: trimmed },
+    });
+    await this.audit.log({
+      action: "admin.company.note_added",
+      actorType: "admin",
+      actorId: adminId,
+      entityType: "company",
+      entityId: companyId,
+    });
+    return { ok: true, id: note.id };
+  }
+
+  async deleteNote(noteId: string, adminId: string) {
+    const done = await this.prisma.companyAdminNote.deleteMany({
+      where: { id: noteId },
+    });
+    if (done.count !== 1) throw new NotFoundException("Not bulunamadı");
+    await this.audit.log({
+      action: "admin.company.note_deleted",
+      actorType: "admin",
+      actorId: adminId,
+      entityType: "company_note",
+      entityId: noteId,
+    });
+    return { ok: true };
+  }
+
+  // ── GLOBAL ARAMA (Faz 6) — tek kutu: firma + kullanıcı ─────
+
+  async globalSearch(qRaw: string) {
+    const q = qRaw.trim();
+    if (q.length < 2) return { companies: [], users: [] };
+    const [companies, users] = await Promise.all([
+      this.prisma.company.findMany({
+        where: {
+          OR: [
+            { name: { contains: q, mode: "insensitive" } },
+            { legalName: { contains: q, mode: "insensitive" } },
+            { rothernId: { contains: q.toUpperCase() } },
+            { taxNumber: { contains: q } },
+          ],
+        },
+        select: {
+          id: true,
+          name: true,
+          rothernId: true,
+          country: true,
+          tier: true,
+          isBlocked: true,
+        },
+        take: 8,
+      }),
+      this.prisma.companyUser.findMany({
+        where: {
+          email: { contains: q, mode: "insensitive" },
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          companyId: true,
+          company: { select: { name: true } },
+        },
+        take: 5,
+      }),
+    ]);
+    return {
+      companies,
+      users: users.map((u) => ({
+        id: u.id,
+        email: u.email,
+        name: `${u.firstName} ${u.lastName}`.trim(),
+        companyId: u.companyId,
+        companyName: u.company.name,
+      })),
+    };
+  }
+
+  // ── BİLDİRİM + DUYURU (Faz 6) ───────────────────────────────
+
+  /** Tek firmaya panelden bildirim/e-posta — "aradı, bilgi verdik" akışı. */
+  async sendNotification(
+    companyId: string,
+    subject: string,
+    message: string,
+    adminId: string,
+  ) {
+    await this.requireCompany(companyId);
+    await this.notifyCompany(companyId, subject.trim(), [
+      "Merhaba,",
+      message.trim(),
+    ], "admin_message");
+    await this.audit.log({
+      action: "admin.company.notified",
+      actorType: "admin",
+      actorId: adminId,
+      entityType: "company",
+      entityId: companyId,
+      metadata: { subject },
+    });
+    return { ok: true };
+  }
+
+  /**
+   * Segment duyurusu — tüm firmalara veya filtreye (tier/ülke) uyanlara
+   * in-app bildirim (+ opsiyonel e-posta). Best-effort: tek firmadaki hata
+   * kalanları durdurmaz.
+   */
+  async announce(
+    input: {
+      subject: string;
+      message: string;
+      tier?: "PAKET" | "STANDARD";
+      country?: string;
+      sendEmail?: boolean;
+    },
+    adminId: string,
+  ) {
+    const where: Record<string, unknown> = { isActive: true, isBlocked: false };
+    if (input.tier) where.tier = input.tier;
+    if (input.country) where.country = input.country.trim().toUpperCase();
+    const targets = await this.prisma.company.findMany({
+      where,
+      select: { id: true },
+      take: 5000,
+    });
+    let delivered = 0;
+    for (const t of targets) {
+      try {
+        if (input.sendEmail) {
+          // notifyCompany = in-app + e-posta birlikte.
+          await this.notifyCompany(t.id, input.subject.trim(), [
+            "Merhaba,",
+            input.message.trim(),
+          ], "admin_announcement");
+        } else {
+          await this.notifications.pushToCompany(t.id, {
+            type: "admin_announcement",
+            title: input.subject.trim(),
+            body: input.message.trim(),
+            ctaLabel: "Rothern'e Git",
+            ctaUrl: `${this.config.get<string>("WEB_URL") ?? "http://localhost:3000"}/company`,
+          });
+        }
+        delivered++;
+      } catch (err) {
+        this.logger.warn(
+          `Duyuru gönderilemedi (${t.id}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+    await this.audit.log({
+      action: "admin.announcement.sent",
+      actorType: "admin",
+      actorId: adminId,
+      entityType: "announcement",
+      entityId: null,
+      metadata: {
+        subject: input.subject,
+        tier: input.tier ?? "all",
+        country: input.country ?? "all",
+        email: !!input.sendEmail,
+        targets: targets.length,
+        delivered,
+      },
+    });
+    return { ok: true, targets: targets.length, delivered };
   }
 
   async resolveComplaint(

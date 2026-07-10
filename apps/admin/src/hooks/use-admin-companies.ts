@@ -381,7 +381,7 @@ export function useMembershipReport(from?: string, to?: string) {
 
 export interface AdminComplaint {
   id: string;
-  complainant: { name: string; rothernId: string | null };
+  complainant: { id: string; name: string; rothernId: string | null };
   against: { id: string; name: string; rothernId: string | null };
   reason: string;
   detail: string | null;
@@ -391,18 +391,33 @@ export interface AdminComplaint {
   resolvedAt: string | null;
 }
 
-export function useAdminComplaints(status?: string, companyId?: string) {
+export interface AdminComplaintList {
+  items: AdminComplaint[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export function useAdminComplaints(
+  status?: string,
+  companyId?: string,
+  q?: string,
+  page?: number,
+) {
   return useQuery({
-    queryKey: ["admin-complaints", status, companyId],
+    queryKey: ["admin-complaints", status, companyId, q, page],
     queryFn: async () => {
-      const { data } = await api.get<AdminComplaint[]>("/admin/complaints", {
+      const { data } = await api.get<AdminComplaintList>("/admin/complaints", {
         params: {
           ...(status ? { status } : {}),
           ...(companyId ? { companyId } : {}),
+          ...(q ? { q } : {}),
+          ...(page ? { page } : {}),
         },
       });
       return data;
     },
+    placeholderData: (prev) => prev,
   });
 }
 

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -214,6 +215,45 @@ class MembershipReportDto {
   to?: string;
 }
 
+class AddNoteDto {
+  @IsString()
+  @MaxLength(2000)
+  body!: string;
+}
+
+class NotifyDto {
+  @IsString()
+  @MaxLength(150)
+  subject!: string;
+
+  @IsString()
+  @MaxLength(3000)
+  message!: string;
+}
+
+class AnnounceDto {
+  @IsString()
+  @MaxLength(150)
+  subject!: string;
+
+  @IsString()
+  @MaxLength(3000)
+  message!: string;
+
+  @IsOptional()
+  @IsIn(["PAKET", "STANDARD"])
+  tier?: "PAKET" | "STANDARD";
+
+  @IsOptional()
+  @IsString()
+  @Length(2, 2)
+  country?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  sendEmail?: boolean;
+}
+
 class ResolveComplaintDto {
   @IsIn(["RESOLVED", "DISMISSED"])
   status!: "RESOLVED" | "DISMISSED";
@@ -353,8 +393,67 @@ export class AdminCompaniesController {
   complaints(
     @Query("status") status?: string,
     @Query("companyId") companyId?: string,
+    @Query("q") q?: string,
+    @Query("page") page?: string,
+    @Query("pageSize") pageSize?: string,
   ) {
-    return this.service.listComplaints(status, companyId);
+    return this.service.listComplaints(
+      status,
+      companyId,
+      q,
+      page ? parseInt(page, 10) : undefined,
+      pageSize ? parseInt(pageSize, 10) : undefined,
+    );
+  }
+
+  // ── Dahili notlar (Faz 6) ──
+  @Get("companies/:id/notes")
+  listNotes(@Param("id") id: string) {
+    return this.service.listNotes(id);
+  }
+
+  @Post("companies/:id/notes")
+  addNote(
+    @Param("id") id: string,
+    @Body() dto: AddNoteDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.service.addNote(id, dto.body, admin.id);
+  }
+
+  @Delete("notes/:noteId")
+  @RequireAdminRole("SUPER_ADMIN")
+  deleteNote(
+    @Param("noteId") noteId: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.service.deleteNote(noteId, admin.id);
+  }
+
+  // ── Global arama (Faz 6) ──
+  @Get("search")
+  search(@Query("q") q?: string) {
+    return this.service.globalSearch(q ?? "");
+  }
+
+  // ── Bildirim + duyuru (Faz 6) ──
+  @Post("companies/:id/notify")
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
+  notify(
+    @Param("id") id: string,
+    @Body() dto: NotifyDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.service.sendNotification(id, dto.subject, dto.message, admin.id);
+  }
+
+  @Post("announcements")
+  @RequireAdminRole("SUPER_ADMIN")
+  announce(
+    @Body() dto: AnnounceDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.service.announce(dto, admin.id);
   }
 
   @Post("complaints/:id/resolve")

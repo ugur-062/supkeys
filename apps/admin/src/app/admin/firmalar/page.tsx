@@ -23,8 +23,11 @@ import {
   useAdminCompanyStats,
   useCompanyAction,
   useSetCompanyTier,
+  type AdminCompanyListResponse,
   type AdminCompanyRow,
 } from "@/hooks/use-admin-companies";
+import { api } from "@/lib/api";
+import { Download } from "lucide-react";
 import { useListFilters } from "@/hooks/use-list-filters";
 import { countryFlag, countryName } from "@/lib/country";
 import { safeFormat } from "@/lib/date";
@@ -43,6 +46,52 @@ const VERIFY_META: Record<
 };
 
 const PAGE_SIZE = 25;
+
+/**
+ * Filtreli TÜM sonucu sayfa sayfa çekip CSV indir (tavan 2000 kayıt —
+ * sunucu pageSize=100 sınırıyla 20 istek).
+ */
+async function exportCsv(params: Record<string, string | undefined>) {
+  const rows: AdminCompanyRow[] = [];
+  for (let page = 1; page <= 20; page++) {
+    const { data } = await api.get<AdminCompanyListResponse>(
+      "/admin/companies",
+      { params: { ...params, page, pageSize: 100 } },
+    );
+    rows.push(...data.items);
+    if (page * 100 >= data.total) break;
+  }
+  const esc = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
+  const header = ["Firma", "Kod", "Vergi No", "Ülke", "Bölge/Şehir", "Üyelik", "Üyelik Bitişi", "KYC", "Askıda", "Şikayet", "Kullanıcı", "Kayıt"];
+  const lines = rows.map((c) =>
+    [
+      c.name,
+      c.rothernId ?? "",
+      c.taxNumber ?? "",
+      c.country,
+      [c.stateRegion, c.city].filter(Boolean).join(" / "),
+      c.tier === "PAKET" ? "Premium" : "Standart",
+      c.membershipEndAt ? safeFormat(c.membershipEndAt, "yyyy-MM-dd") : "",
+      VERIFY_META[c.verification]?.label ?? c.verification,
+      c.isBlocked ? "Evet" : "",
+      c.complaintCount,
+      c.userCount,
+      safeFormat(c.createdAt, "yyyy-MM-dd"),
+    ]
+      .map(esc)
+      .join(";"),
+  );
+  const blob = new Blob(["﻿" + [header.join(";"), ...lines].join("\n")], {
+    type: "text/csv;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `firmalar-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  return rows.length;
+}
 
 interface Filters {
   status?: string;
@@ -166,6 +215,22 @@ function FirmalarView() {
           onChange={(v) => setFilters({ search: v })}
           placeholder="Ad / kod / vergi no / kullanıcı e-postası ara..."
         />
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={total === 0}
+          onClick={() => {
+            void exportCsv({
+              status: filters.status || undefined,
+              country: filters.country || undefined,
+              tier: filters.tier || undefined,
+              blocked: filters.blocked || undefined,
+              q: filters.search?.trim() || undefined,
+            }).then((n) => toast.success(`${n} firma CSV'ye aktarıldı`));
+          }}
+        >
+          <Download className="mr-1.5 h-3.5 w-3.5" /> CSV
+        </Button>
       </div>
 
       <div className="admin-card overflow-hidden">

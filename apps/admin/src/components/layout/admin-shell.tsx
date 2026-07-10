@@ -22,6 +22,7 @@ import {
   SidebarSection,
 } from "@/components/catalyst/sidebar";
 import { SidebarLayout } from "@/components/catalyst/sidebar-layout";
+import { GlobalSearch } from "@/components/layout/global-search";
 import { useAdminAuth, useAdminLogout } from "@/hooks/use-admin-auth";
 import {
   ArrowRightStartOnRectangleIcon,
@@ -34,6 +35,7 @@ import {
   Flag,
   Inbox,
   LayoutDashboard,
+  Megaphone,
   Link2,
   Mail,
   MessageSquare,
@@ -91,6 +93,12 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/uyelik-raporu",
         icon: BadgeDollarSign,
         activeMatch: "/admin/uyelik-raporu",
+      },
+      {
+        label: "Duyuru",
+        href: "/admin/duyuru",
+        icon: Megaphone,
+        activeMatch: "/admin/duyuru",
       },
     ],
   },
@@ -227,6 +235,10 @@ function AdminNavbar() {
 export function AdminShell({ children }: { children: React.ReactNode }) {
   return (
     <SidebarLayout sidebar={<AdminSidebar />} navbar={<AdminNavbar />}>
+      {/* Global arama — her sayfanın üstünde (firma/kod/vergi/e-posta). */}
+      <div className="mb-6">
+        <GlobalSearch />
+      </div>
       {children}
     </SidebarLayout>
   );
