@@ -807,7 +807,7 @@ export default function HomePage() {
               </div>
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-zinc-950">
-                  Fazlanı en yükseğe sat
+                  Ürününü en yükseğe sat
                 </h3>
                 <p className="mt-1.5 text-sm/6 text-zinc-600">
                   Satış ilanı aç, taban ve hemen-al fiyatını belirle. Alıcılar
