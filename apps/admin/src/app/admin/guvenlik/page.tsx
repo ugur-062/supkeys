@@ -29,7 +29,7 @@ function GuvenlikView() {
     <div className="max-w-[1100px] space-y-6">
       <PageHeader
         title="Güvenlik"
-        description="Başarısız giriş denemeleri — brute-force / hesap ele geçirme takibi."
+        description="Başarısız giriş denemeleri — şüpheli giriş etkinliği takibi."
       />
 
       <div className="admin-card overflow-hidden">
@@ -52,7 +52,7 @@ function GuvenlikView() {
                 >
                   {query.isLoading
                     ? "Yükleniyor..."
-                    : "🎉 Başarısız giriş denemesi yok"}
+                    : "Başarısız giriş denemesi kaydı yok"}
                 </TableCell>
               </TableRow>
             ) : (

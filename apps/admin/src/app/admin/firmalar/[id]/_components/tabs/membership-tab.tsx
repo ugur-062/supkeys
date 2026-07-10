@@ -27,7 +27,7 @@ const ACTION_META: Record<
   MembershipEvent["action"],
   { label: string; color: "green" | "blue" | "red" | "zinc" }
 > = {
-  GRANT: { label: "Verildi", color: "green" },
+  GRANT: { label: "Tanımlandı", color: "green" },
   EXTEND: { label: "Uzatıldı", color: "blue" },
   REVOKE: { label: "Kaldırıldı", color: "red" },
   EXPIRE: { label: "Süre doldu", color: "zinc" },
@@ -127,7 +127,7 @@ function MonthsReasonDialog({
 
 /**
  * Üyelik — durum + ver/UZAT/kaldır + geçmiş. Uzat mevcut bitişe ay EKLER
- * (kalan süre yanmaz); "PAKET Ver" ise bitişi bugünden yeniden başlatır.
+ * (kalan süre yanmaz); "Yeni Dönem Başlat" bitişi bugünden yeniden başlatır.
  */
 export function MembershipTab({
   companyId,
@@ -161,7 +161,7 @@ export function MembershipTab({
             </h3>
             <div className="mt-2 flex items-center gap-2">
               <Badge color={data.tier === "PAKET" ? "amber" : "zinc"}>
-                {data.tier === "PAKET" ? "Premium (PAKET)" : "Standart"}
+                {data.tier === "PAKET" ? "Premium" : "Standart"}
               </Badge>
               {data.tier === "PAKET" && data.membershipEndAt ? (
                 <span className="text-admin-text-muted text-sm">
@@ -192,7 +192,7 @@ export function MembershipTab({
                   size="sm"
                   onClick={() => setDialog("grant")}
                 >
-                  Yeniden Başlat
+                  Yeni Dönem Başlat
                 </Button>
                 <Button
                   variant="danger"
@@ -205,14 +205,14 @@ export function MembershipTab({
               </>
             ) : (
               <Button size="sm" onClick={() => setDialog("grant")}>
-                PAKET Ver
+                Premium Tanımla
               </Button>
             )}
           </div>
         </div>
         <p className="text-admin-text-muted mt-3 text-xs">
           <strong>Süre Uzat</strong> mevcut bitişe ay ekler (kalan süre yanmaz).
-          <strong> Yeniden Başlat</strong> bitişi bugünden yeniden hesaplar.
+          <strong> Yeni Dönem Başlat</strong> bitişi bugünden yeniden hesaplar.
         </p>
       </section>
 
@@ -278,13 +278,17 @@ export function MembershipTab({
 
       {dialog === "grant" ? (
         <MonthsReasonDialog
-          title={data.tier === "PAKET" ? "Üyeliği Yeniden Başlat" : "Premium (PAKET) Ver"}
-          confirmLabel="PAKET Ver"
+          title={
+            data.tier === "PAKET"
+              ? "Yeni Üyelik Dönemi Başlat"
+              : "Premium Üyelik Tanımla"
+          }
+          confirmLabel="Tanımla"
           onConfirm={(months, reason) => {
             tierAct.mutate(
               { id: companyId, tier: "PAKET", months, reason: reason || undefined },
               {
-                onSuccess: () => toast.success("PAKET verildi"),
+                onSuccess: () => toast.success("Premium üyelik tanımlandı"),
                 onError: err,
               },
             );
@@ -327,7 +331,7 @@ export function MembershipTab({
               reason: (v || "").trim() || undefined,
             },
             {
-              onSuccess: () => toast.success("Standart'a alındı"),
+              onSuccess: () => toast.success("Standart üyeliğe alındı"),
               onError: err,
             },
           );

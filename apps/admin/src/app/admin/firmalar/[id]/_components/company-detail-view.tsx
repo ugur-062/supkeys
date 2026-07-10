@@ -26,15 +26,7 @@ import { NotifyDialog } from "./notify-dialog";
 import { SummaryTab } from "./tabs/summary-tab";
 import { UsersTab } from "./tabs/users-tab";
 
-const VERIFY_META: Record<
-  string,
-  { label: string; color: "green" | "amber" | "red" | "zinc" }
-> = {
-  VERIFIED: { label: "Doğrulandı", color: "green" },
-  PENDING: { label: "Onay bekliyor", color: "amber" },
-  REJECTED: { label: "Reddedildi", color: "red" },
-  UNVERIFIED: { label: "Doğrulanmadı", color: "zinc" },
-};
+import { TIER_LABEL, VERIFY_META } from "@/lib/terms";
 
 const TABS = [
   { key: "ozet", label: "Özet" },
@@ -109,7 +101,7 @@ export function CompanyDetailView({
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge color={meta.color}>{meta.label}</Badge>
             <Badge color={data.tier === "PAKET" ? "amber" : "zinc"}>
-              {data.tier === "PAKET" ? "Premium" : "Standart"}
+              {TIER_LABEL[data.tier]}
             </Badge>
             {data.isBlocked ? <Badge color="red">Askıda</Badge> : null}
             <span className="text-admin-text-muted font-mono text-xs">
@@ -137,14 +129,14 @@ export function CompanyDetailView({
                 tierAct.mutate(
                   { id: companyId, tier: "STANDARD" },
                   {
-                    onSuccess: () => toast.success("Standart'a alındı"),
+                    onSuccess: () => toast.success("Standart üyeliğe alındı"),
                     onError: (e: unknown) =>
                       toast.error(e instanceof Error ? e.message : "Hata"),
                   },
                 )
               }
             >
-              PAKET Al
+              Premium'u Kaldır
             </Button>
           ) : (
             <Button
@@ -153,7 +145,7 @@ export function CompanyDetailView({
               disabled={tierAct.isPending}
               onClick={() => setPrompt("tierMonths")}
             >
-              PAKET Ver
+              Premium Tanımla
             </Button>
           )}
           {data.isBlocked ? (
@@ -233,19 +225,19 @@ export function CompanyDetailView({
 
       <PromptDialog
         open={prompt === "tierMonths"}
-        title="Premium (PAKET) Ver"
+        title="Premium Üyelik Tanımla"
         label="Kaç ay premium verilsin?"
         type="number"
         min={1}
         defaultValue="12"
         required
-        confirmLabel="PAKET Ver"
+        confirmLabel="Tanımla"
         onConfirm={(v) => {
           const n = Math.floor(Number(v));
           tierAct.mutate(
             { id: companyId, tier: "PAKET", months: n >= 1 ? n : 12 },
             {
-              onSuccess: () => toast.success("PAKET verildi"),
+              onSuccess: () => toast.success("Premium üyelik tanımlandı"),
               onError: (e: unknown) =>
                 toast.error(e instanceof Error ? e.message : "Hata"),
             },

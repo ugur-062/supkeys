@@ -99,7 +99,7 @@ function EmailLogsContent() {
       <div className="space-y-5 max-w-6xl">
         <div className="space-y-1">
           <h1 className="font-display font-bold text-3xl text-admin-text">
-            E-posta Logları
+            E-posta Kayıtları
           </h1>
           <p className="text-admin-text-muted">
             Sistem tarafından gönderilen tüm e-postaların kaydı.

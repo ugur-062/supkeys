@@ -42,7 +42,7 @@ const DOC_BADGE: Record<
   DocStatus,
   { label: string; color: "amber" | "green" | "red" }
 > = {
-  PENDING: { label: "İnceleniyor", color: "amber" },
+  PENDING: { label: "İnceleme Bekliyor", color: "amber" },
   APPROVED: { label: "Onaylı", color: "green" },
   REJECTED: { label: "Reddedildi", color: "red" },
 };
@@ -53,7 +53,7 @@ const REJECT_TEMPLATES = [
   "Yanlış belge yüklenmiş",
   "Belge güncel değil (son 3 ay içinde alınmış olmalı)",
   "Belgedeki bilgiler firma bilgileriyle uyuşmuyor",
-  "İmza / kaşe eksik",
+  "İmza / kaşe Yüklenmedi",
 ];
 
 /**
@@ -180,7 +180,7 @@ export function DocsTab({
                         {DOC_BADGE[st].label}
                       </Badge>
                     ) : (
-                      <span className="text-admin-text-muted text-xs">eksik</span>
+                      <span className="text-admin-text-muted text-xs">Yüklenmedi</span>
                     )}
                   </span>
                   {url ? (

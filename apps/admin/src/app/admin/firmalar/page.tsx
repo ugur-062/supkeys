@@ -36,15 +36,7 @@ import Link from "next/link";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
-const VERIFY_META: Record<
-  string,
-  { label: string; color: "green" | "amber" | "red" | "zinc" }
-> = {
-  VERIFIED: { label: "Doğrulandı", color: "green" },
-  PENDING: { label: "Beklemede", color: "amber" },
-  REJECTED: { label: "Reddedildi", color: "red" },
-  UNVERIFIED: { label: "Doğrulanmadı", color: "zinc" },
-};
+import { VERIFY_META } from "@/lib/terms";
 
 const PAGE_SIZE = 25;
 
@@ -63,7 +55,7 @@ async function exportCsv(params: Record<string, string | undefined>) {
     if (page * 100 >= data.total) break;
   }
   const esc = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
-  const header = ["Firma", "Kod", "Vergi No", "Ülke", "Bölge/Şehir", "Üyelik", "Üyelik Bitişi", "KYC", "Askıda", "Şikayet", "Kullanıcı", "Kayıt"];
+  const header = ["Firma", "Kod", "Vergi No", "Ülke", "Bölge/Şehir", "Üyelik", "Üyelik Bitişi", "Doğrulama", "Askıda", "Şikayet", "Kullanıcı", "Kayıt"];
   const lines = rows.map((c) =>
     [
       c.name,
@@ -139,7 +131,11 @@ function FirmalarView() {
       { id, tier, months },
       {
         onSuccess: () =>
-          toast.success(tier === "PAKET" ? "PAKET verildi" : "Standart'a alındı"),
+          toast.success(
+            tier === "PAKET"
+              ? "Premium üyelik tanımlandı"
+              : "Standart üyeliğe alındı",
+          ),
         onError: (e: unknown) =>
           toast.error(e instanceof Error ? e.message : "Hata"),
       },
@@ -164,7 +160,7 @@ function FirmalarView() {
     <div className="max-w-[1280px] space-y-6">
       <PageHeader
         title="Firmalar"
-        description="Birleşik firma hesapları — inceleme, KYC, üyelik ve askı yönetimi."
+        description="Firma hesapları — inceleme, doğrulama, üyelik ve askı yönetimi."
       />
 
       <div className="flex flex-wrap items-center gap-3">
@@ -176,7 +172,7 @@ function FirmalarView() {
           options={[
             { value: "", label: "Tüm durumlar" },
             { value: "UNVERIFIED", label: "Doğrulanmadı" },
-            { value: "PENDING", label: "Beklemede" },
+            { value: "PENDING", label: "İnceleme Bekliyor" },
             { value: "VERIFIED", label: "Doğrulandı" },
             { value: "REJECTED", label: "Reddedildi" },
           ]}
@@ -246,7 +242,7 @@ function FirmalarView() {
               <TableHeader>Kod</TableHeader>
               <TableHeader>Ülke</TableHeader>
               <TableHeader>Üyelik</TableHeader>
-              <TableHeader>KYC</TableHeader>
+              <TableHeader>Doğrulama</TableHeader>
               <TableHeader>Şikayet</TableHeader>
               <TableHeader>Kayıt</TableHeader>
               <TableHeader className="text-right">İşlemler</TableHeader>
@@ -329,7 +325,7 @@ function FirmalarView() {
                             disabled={tierAct.isPending}
                             onClick={() => runTier(c.id, "STANDARD")}
                           >
-                            PAKET Al
+                            Premium'u Kaldır
                           </Button>
                         ) : (
                           <Button
@@ -339,7 +335,7 @@ function FirmalarView() {
                             disabled={tierAct.isPending}
                             onClick={() => setPrompt({ kind: "tierMonths", id: c.id })}
                           >
-                            PAKET Ver
+                            Premium Tanımla
                           </Button>
                         )}
                         <Link
@@ -393,13 +389,13 @@ function FirmalarView() {
 
       <PromptDialog
         open={prompt?.kind === "tierMonths"}
-        title="Premium (PAKET) Ver"
+        title="Premium Üyelik Tanımla"
         label="Kaç ay premium verilsin?"
         type="number"
         min={1}
         defaultValue="12"
         required
-        confirmLabel="PAKET Ver"
+        confirmLabel="Tanımla"
         onConfirm={(v) => {
           if (prompt?.kind !== "tierMonths") return;
           const n = Math.floor(Number(v));

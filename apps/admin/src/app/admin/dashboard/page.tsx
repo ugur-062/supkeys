@@ -43,8 +43,8 @@ function DashboardContent() {
   return (
     <div className="max-w-[1400px] space-y-6">
       <PageHeader
-        title="Sistem Geneli"
-        description="Birleşik firma ekosistemi — doğrulama, üyelik ve moderasyon."
+        title="Genel Bakış"
+        description="Platform geneli — doğrulama, üyelik ve operasyon özeti."
       />
 
       {/* Ana KPI'lar */}
@@ -245,8 +245,8 @@ function FunnelCard({
 }) {
   const steps = [
     { label: "Kayıt", value: funnel.signedUp },
-    { label: "Onboarding tamam", value: funnel.onboarded },
-    { label: "KYC belgeleri", value: funnel.kycSubmitted },
+    { label: "Kayıt tamamlandı", value: funnel.onboarded },
+    { label: "Belgeler yüklendi", value: funnel.kycSubmitted },
     { label: "Doğrulandı", value: funnel.verified },
   ];
   const max = Math.max(1, funnel.signedUp);

@@ -18,6 +18,7 @@ import {
 } from "@/components/list";
 import { useAuditLogs, type AuditLogItem } from "@/hooks/use-audit-logs";
 import { safeFormat } from "@/lib/date";
+import { ENTITY_TYPE_LABEL } from "@/lib/terms";
 import { useState } from "react";
 
 const ACTION_LABELS: Record<string, string> = {
@@ -174,7 +175,7 @@ function AuditRow({ item }: { item: AuditLogItem }) {
       <TableCell className="text-xs text-admin-text-muted">
         {item.entityType ? (
           <>
-            {item.entityType}
+            {ENTITY_TYPE_LABEL[item.entityType] ?? item.entityType}
             {item.entityId ? (
               <span className="font-mono"> · {item.entityId.slice(0, 10)}</span>
             ) : null}

@@ -191,7 +191,7 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                 ) : (
                   <section className="admin-card p-4">
                     <h3 className="text-xs font-semibold uppercase tracking-wide text-admin-text-muted mb-2">
-                      Webhook Event Timeline
+                      Teslimat Geçmişi
                     </h3>
                     <p className="text-xs text-admin-text-muted">
                       Henüz event yok. Resend webhook'u prod'da delivery
@@ -275,7 +275,7 @@ function EventTimelineSection({ events }: { events: EmailEvent[] }) {
   return (
     <section className="admin-card p-4 space-y-3">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-admin-text-muted">
-        Webhook Event Timeline ({events.length})
+        Teslimat Geçmişi ({events.length})
       </h3>
       <ol className="space-y-3">
         {events.map((ev) => {

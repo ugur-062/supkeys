@@ -171,7 +171,7 @@ function AddStaffDialog({
               className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
             >
               <option value="SUPPORT">Destek — salt-okuma + kurtarma</option>
-              <option value="SALES">Satış — KYC + üyelik + müdahale</option>
+              <option value="SALES">Satış — doğrulama + üyelik + müdahale</option>
               <option value="SUPER_ADMIN">Süper Admin — her şey</option>
             </select>
           </label>
@@ -268,7 +268,7 @@ function PersonelView() {
                       </span>
                       {isSelf ? (
                         <Badge color="blue" className="ml-2">
-                          siz
+                          Siz
                         </Badge>
                       ) : null}
                       <span className="text-admin-text-muted block text-xs">
@@ -318,7 +318,7 @@ function PersonelView() {
                     <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
                       {s.lastLoginAt
                         ? safeFormat(s.lastLoginAt, "d MMM yyyy HH:mm")
-                        : "hiç girmedi"}
+                        : "Henüz giriş yapmadı"}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1.5">

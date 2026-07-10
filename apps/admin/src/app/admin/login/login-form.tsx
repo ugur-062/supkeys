@@ -48,7 +48,7 @@ export function AdminLoginForm() {
       },
       {
       onSuccess: (data) => {
-        toast.success(`Hoş geldin, ${data.admin.firstName}!`);
+        toast.success(`Hoş geldiniz, ${data.admin.firstName}`);
         router.push("/admin/dashboard");
       },
       onError: (err) => {

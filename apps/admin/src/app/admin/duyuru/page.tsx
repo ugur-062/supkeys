@@ -134,7 +134,7 @@ function DuyuruView() {
           <span className="text-admin-text text-sm">
             E-posta olarak da gönder{" "}
             <span className="text-admin-text-muted text-xs">
-              (yalnız uygulama-içi için işaretsiz bırak)
+              (yalnız uygulama-içi bildirim için işaretsiz bırakın)
             </span>
           </span>
         </label>
@@ -143,7 +143,7 @@ function DuyuruView() {
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
             <p className="text-sm text-red-800">
               Bu duyuru seçili segmentteki <strong>tüm firmalara</strong>{" "}
-              gidecek{form.sendEmail ? " (e-posta dahil)" : ""}. Emin misin?
+              gidecek{form.sendEmail ? " (e-posta dahil)" : ""}. Emin misiniz?
             </p>
             <div className="mt-2 flex gap-2">
               <Button

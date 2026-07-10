@@ -64,7 +64,7 @@ describe("AdminLoginForm", () => {
       { email: "admin@rothern.com", password: "admin12345", rememberMe: true },
       expect.anything(),
     );
-    expect(h.toast.success).toHaveBeenCalledWith("Hoş geldin, Ada!");
+    expect(h.toast.success).toHaveBeenCalledWith("Hoş geldiniz, Ada");
     expect(h.push).toHaveBeenCalledWith("/admin/dashboard");
   });
 

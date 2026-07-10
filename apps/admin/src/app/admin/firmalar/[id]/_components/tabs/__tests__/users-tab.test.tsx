@@ -81,7 +81,7 @@ describe("UsersTab — kullanıcı kurtarma", () => {
     };
     const uev = userEvent.setup();
     render(<UsersTab companyId="c1" />);
-    const buttons = screen.getAllByRole("button", { name: "Devre Dışı" });
+    const buttons = screen.getAllByRole("button", { name: "Devre Dışı Bırak" });
     expect(buttons).toHaveLength(1); // yalnız normal üye
     await uev.click(buttons[0]!);
     expect(h.setActiveMutate).toHaveBeenCalledWith(

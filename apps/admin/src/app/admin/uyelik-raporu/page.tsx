@@ -24,7 +24,7 @@ const ACTION_META: Record<
   MembershipReportRow["action"],
   { label: string; color: "green" | "blue" | "red" | "zinc" }
 > = {
-  GRANT: { label: "Verildi", color: "green" },
+  GRANT: { label: "Tanımlandı", color: "green" },
   EXTEND: { label: "Uzatıldı", color: "blue" },
   REVOKE: { label: "Kaldırıldı", color: "red" },
   EXPIRE: { label: "Süre doldu", color: "zinc" },
@@ -71,7 +71,7 @@ function RaporView() {
     <div className="max-w-[1100px] space-y-6">
       <PageHeader
         title="Üyelik Raporu"
-        description="Premium verme / uzatma / kaldırma hareketleri — satış ve yenileme takibi."
+        description="Premium tanımlama / uzatma / kaldırma hareketleri — satış ve yenileme takibi."
         action={
           <Button
             variant="secondary"
@@ -125,7 +125,7 @@ function RaporView() {
       {/* Toplamlar */}
       {t ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-          <TotalCard label="Verilen" value={t.grants} />
+          <TotalCard label="Tanımlanan" value={t.grants} />
           <TotalCard label="Uzatılan" value={t.extends} />
           <TotalCard label="Kaldırılan" value={t.revokes} />
           <TotalCard label="Süresi dolan" value={t.expires} />

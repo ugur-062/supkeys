@@ -77,7 +77,7 @@ describe("AdminDashboardPage — DashboardContent", () => {
     expect(screen.getByText(/1 premium · 3 standart/)).toBeInTheDocument();
     // Kayıt hunisi (Faz 2) — 4 adım ve oran yüzdesi render olur.
     expect(screen.getByText("Kayıt Hunisi")).toBeInTheDocument();
-    expect(screen.getByText("Onboarding tamam")).toBeInTheDocument();
+    expect(screen.getByText("Kayıt tamamlandı")).toBeInTheDocument();
     expect(screen.getByText("%75")).toBeInTheDocument(); // 3/4
   });
 

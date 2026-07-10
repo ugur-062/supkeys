@@ -74,7 +74,7 @@ function BasvurularView() {
                     ? "Yükleniyor..."
                     : query.isError
                       ? "Veri alınamadı — lütfen tekrar deneyin"
-                      : "🎉 Kuyruk boş — bekleyen başvuru yok"}
+                      : "Kuyruk boş — bekleyen başvuru yok"}
                 </TableCell>
               </TableRow>
             ) : (

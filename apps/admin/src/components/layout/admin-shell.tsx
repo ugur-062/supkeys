@@ -25,6 +25,7 @@ import { SidebarLayout } from "@/components/catalyst/sidebar-layout";
 import { GlobalSearch } from "@/components/layout/global-search";
 import { useAdminAuth, useAdminLogout } from "@/hooks/use-admin-auth";
 import type { AdminRole } from "@/lib/auth/types";
+import { ADMIN_ROLE_LABEL } from "@/lib/terms";
 import {
   ArrowRightStartOnRectangleIcon,
   ChevronUpIcon,
@@ -69,11 +70,11 @@ interface NavSection {
 const NAV_SECTIONS: NavSection[] = [
   {
     items: [
-      { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+      { label: "Genel Bakış", href: "/admin/dashboard", icon: LayoutDashboard },
     ],
   },
   {
-    heading: "Birleşik Sistem",
+    heading: "Operasyon",
     items: [
       {
         label: "Başvurular",
@@ -115,7 +116,7 @@ const NAV_SECTIONS: NavSection[] = [
     heading: "Yönetim",
     items: [
       {
-        label: "E-posta Logları",
+        label: "E-posta Kayıtları",
         href: "/admin/email-logs",
         icon: Mail,
         activeMatch: "/admin/email-logs",
@@ -238,7 +239,7 @@ function AdminSidebar() {
                     {admin.firstName} {admin.lastName}
                   </span>
                   <span className="block truncate text-xs text-zinc-500">
-                    {admin.role}
+                    {ADMIN_ROLE_LABEL[admin.role] ?? admin.role}
                   </span>
                 </span>
               </span>

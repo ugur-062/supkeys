@@ -117,20 +117,22 @@ describe("FirmalarView — PAKET (tier) verme", () => {
   it("PAKET Ver → PromptDialog açılır (başlık 'Premium (PAKET) Ver')", async () => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
-    await user.click(screen.getByRole("button", { name: "PAKET Ver" }));
+    await user.click(screen.getByRole("button", { name: "Premium Tanımla" }));
     const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("Premium (PAKET) Ver")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("Premium Üyelik Tanımla"),
+    ).toBeInTheDocument();
   });
 
   it("ay '6' girilip onaylanınca months=6 ile tier mutate", async () => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
-    await user.click(screen.getByRole("button", { name: "PAKET Ver" }));
+    await user.click(screen.getByRole("button", { name: "Premium Tanımla" }));
     const dialog = await screen.findByRole("dialog");
     const input = screen.getByLabelText(/Kaç ay premium verilsin/);
     await user.clear(input);
     await user.type(input, "6");
-    await user.click(within(dialog).getByRole("button", { name: "PAKET Ver" }));
+    await user.click(within(dialog).getByRole("button", { name: "Tanımla" }));
     expect(h.tierMutate).toHaveBeenCalledWith(
       { id: "c1", tier: "PAKET", months: 6 },
       expect.anything(),
@@ -140,9 +142,9 @@ describe("FirmalarView — PAKET (tier) verme", () => {
   it("varsayılan (12) korunursa months=12 ile mutate", async () => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
-    await user.click(screen.getByRole("button", { name: "PAKET Ver" }));
+    await user.click(screen.getByRole("button", { name: "Premium Tanımla" }));
     const dialog = await screen.findByRole("dialog");
-    await user.click(within(dialog).getByRole("button", { name: "PAKET Ver" }));
+    await user.click(within(dialog).getByRole("button", { name: "Tanımla" }));
     expect(h.tierMutate).toHaveBeenCalledWith(
       { id: "c1", tier: "PAKET", months: 12 },
       expect.anything(),
@@ -152,12 +154,12 @@ describe("FirmalarView — PAKET (tier) verme", () => {
   it("geçersiz (n<1) → Number coercion fix ile months=12'ye düşer", async () => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
-    await user.click(screen.getByRole("button", { name: "PAKET Ver" }));
+    await user.click(screen.getByRole("button", { name: "Premium Tanımla" }));
     const dialog = await screen.findByRole("dialog");
     const input = screen.getByLabelText(/Kaç ay premium verilsin/);
     await user.clear(input);
     await user.type(input, "0");
-    await user.click(within(dialog).getByRole("button", { name: "PAKET Ver" }));
+    await user.click(within(dialog).getByRole("button", { name: "Tanımla" }));
     expect(h.tierMutate).toHaveBeenCalledWith(
       { id: "c1", tier: "PAKET", months: 12 },
       expect.anything(),

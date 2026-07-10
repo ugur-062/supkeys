@@ -18,15 +18,11 @@ import { safeFormat } from "@/lib/date";
 import Link from "next/link";
 import { toast } from "sonner";
 
-const CONN_STATUS: Record<
-  string,
-  { label: string; color: "green" | "amber" | "zinc" | "red" }
-> = {
-  ACTIVE: { label: "Aktif", color: "green" },
-  PENDING: { label: "Bekliyor", color: "amber" },
-  REJECTED: { label: "Reddedildi", color: "red" },
-  INACTIVE: { label: "Pasif", color: "zinc" },
-};
+import {
+  CONNECTION_STATUS_META,
+  metaOf,
+  REFERRAL_STATUS_META,
+} from "@/lib/terms";
 
 /** Bağlantılar + referans davetleri — bekleyen davetler iptal edilebilir. */
 export function ConnectionsTab({ companyId }: { companyId: string }) {
@@ -68,10 +64,7 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
               </TableRow>
             ) : (
               connections.map((c) => {
-                const meta = CONN_STATUS[c.status] ?? {
-                  label: c.status,
-                  color: "zinc" as const,
-                };
+                const meta = metaOf(CONNECTION_STATUS_META, c.status);
                 return (
                   <TableRow key={c.id}>
                     <TableCell className="text-admin-text text-sm font-medium">
@@ -155,8 +148,8 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
                     {r.email}
                   </TableCell>
                   <TableCell>
-                    <Badge color={r.status === "PENDING" ? "amber" : "zinc"}>
-                      {r.status === "PENDING" ? "Bekliyor" : r.status}
+                    <Badge color={metaOf(REFERRAL_STATUS_META, r.status).color}>
+                      {metaOf(REFERRAL_STATUS_META, r.status).label}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">

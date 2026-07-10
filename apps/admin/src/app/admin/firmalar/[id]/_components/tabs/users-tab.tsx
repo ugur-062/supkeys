@@ -257,7 +257,7 @@ export function UsersTab({ companyId }: { companyId: string }) {
                       {u.email}
                       {!u.emailVerifiedAt ? (
                         <Badge color="amber" className="ml-1.5">
-                          doğrulanmadı
+                          Doğrulanmadı
                         </Badge>
                       ) : null}
                     </span>
@@ -282,7 +282,7 @@ export function UsersTab({ companyId }: { companyId: string }) {
                   <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
                     {u.lastLoginAt
                       ? safeFormat(u.lastLoginAt, "d MMM yyyy HH:mm")
-                      : "hiç girmedi"}
+                      : "Henüz giriş yapmadı"}
                   </TableCell>
                   <TableCell>
                     {u.deletedAt ? null : (
@@ -359,7 +359,7 @@ export function UsersTab({ companyId }: { companyId: string }) {
                               )
                             }
                           >
-                            Devre Dışı
+                            Devre Dışı Bırak
                           </Button>
                         ) : (
                           <Button

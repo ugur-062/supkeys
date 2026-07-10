@@ -59,7 +59,7 @@ export function EmailLogsTable({
             <TableHeader>Şablon</TableHeader>
             <TableHeader>Alıcı</TableHeader>
             <TableHeader>Durum</TableHeader>
-            <TableHeader>Provider</TableHeader>
+            <TableHeader>Servis</TableHeader>
             <TableHeader className="text-right" />
           </TableRow>
         </TableHead>
@@ -83,7 +83,7 @@ export function EmailLogsTable({
                     <Mail className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="font-medium text-zinc-900">E-posta logu yok</p>
+                    <p className="font-medium text-zinc-900">E-posta kaydı yok</p>
                     <p className="text-sm">
                       Filtreleri temizleyerek tekrar deneyebilirsin.
                     </p>
@@ -121,7 +121,7 @@ export function EmailLogsTable({
                     onSelect(item.id);
                   }}
                 >
-                  Detay
+                  İncele
                   <ArrowRight className="w-4 h-4" />
                 </Button>
               </TableCell>

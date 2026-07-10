@@ -38,7 +38,7 @@ export const BID_STATUS: Record<
   UNDER_REVIEW: { label: "Değerlendirmede", color: "amber" },
   WON: { label: "Kazandı", color: "green" },
   LOST: { label: "Elendi", color: "red" },
-  WITHDRAWN: { label: "Geri çekildi (legacy)", color: "zinc" },
+  WITHDRAWN: { label: "Geri Çekildi", color: "zinc" },
 };
 
 export const PAYMENT_STATUS: Record<

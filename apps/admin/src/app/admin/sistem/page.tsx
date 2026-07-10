@@ -108,17 +108,17 @@ function SuppressionsSection() {
     <section className="admin-card overflow-hidden">
       <div className="border-surface-border border-b px-5 py-4">
         <h3 className="text-admin-text flex items-center gap-2 text-sm font-semibold">
-          <MailWarning className="h-4 w-4" /> E-posta İtibar — Engelli Adresler
+          <MailWarning className="h-4 w-4" /> E-posta Gönderimi — Engellenen Adresler
         </h3>
         <p className="text-admin-text-muted mt-0.5 text-xs">
           Kalıcı bounce / şikayet almış adreslere gönderim otomatik atlanır.
-          Adres düzeldiyse (ör. posta kutusu açıldı) aklayabilirsiniz.
+          Adres yeniden ulaşılabilir olduysa engeli kaldırabilirsiniz.
         </p>
       </div>
       <div className="divide-surface-border divide-y">
         {rows.length === 0 ? (
           <p className="text-admin-text-muted px-5 py-6 text-center text-sm">
-            {list.isLoading ? "Yükleniyor..." : "🎉 Engelli adres yok"}
+            {list.isLoading ? "Yükleniyor..." : "Engellenen adres yok"}
           </p>
         ) : (
           rows.map((r) => (
@@ -142,14 +142,14 @@ function SuppressionsSection() {
                   clear.mutate(
                     { email: r.email },
                     {
-                      onSuccess: () => toast.success("Adres aklandı"),
+                      onSuccess: () => toast.success("Engel kaldırıldı"),
                       onError: (e: unknown) =>
                         toast.error(e instanceof Error ? e.message : "Hata"),
                     },
                   )
                 }
               >
-                Akla
+                Engeli Kaldır
               </Button>
             </div>
           ))
@@ -189,7 +189,7 @@ function SistemView() {
           <Timer className="h-6 w-6 text-zinc-500" />
           <div>
             <p className="text-admin-text-muted text-xs font-semibold uppercase">
-              Uygulama açılışı
+              Son açılış
             </p>
             <p className="text-admin-text text-sm font-semibold">
               {s?.bootAt ? safeFormat(s.bootAt, "d MMM yyyy HH:mm") : "…"}
@@ -200,7 +200,7 @@ function SistemView() {
           <HardDrive className="h-6 w-6 text-zinc-500" />
           <div>
             <p className="text-admin-text-muted text-xs font-semibold uppercase">
-              Depolama (R2)
+              Dosya Depolama
             </p>
             <p className="text-admin-text text-sm font-semibold">
               {storage.data
@@ -222,7 +222,7 @@ function SistemView() {
             </h3>
             <div className="mt-1 flex items-center gap-2 text-sm">
               <Badge color={s?.exchangeRates.stale ? "red" : "green"}>
-                {s?.exchangeRates.stale ? "BAYAT" : "Güncel"}
+                {s?.exchangeRates.stale ? "Güncel Değil" : "Güncel"}
               </Badge>
               <span className="text-admin-text-muted text-xs">
                 Son kur günü: {s?.exchangeRates.latestRateDate ?? "—"}
@@ -276,7 +276,7 @@ function SistemView() {
             Zamanlanmış İşler
           </h3>
           <p className="text-admin-text-muted mt-0.5 text-xs">
-            Bu açılıştan beri çalışma kayıtları — restart sonrası sıfırlanır.
+            Son açılıştan bu yana çalışma kayıtları — uygulama yeniden başladığında sıfırlanır.
           </p>
         </div>
         <Table dense>
@@ -314,7 +314,7 @@ function SistemView() {
                   <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
                     {c.lastRunAt
                       ? safeFormat(c.lastRunAt, "d MMM HH:mm:ss")
-                      : "bu açılışta henüz çalışmadı"}
+                      : "son açılıştan beri çalışmadı"}
                   </TableCell>
                   <TableCell>
                     {c.lastStatus === null ? (
