@@ -640,8 +640,13 @@ export class AdminCompaniesService {
     tier: "STANDARD" | "PAKET",
     months?: number,
     adminId?: string,
+    reason?: string,
   ) {
-    await this.requireCompany(id);
+    const before = await this.prisma.company.findUnique({
+      where: { id },
+      select: { membershipEndAt: true, tier: true },
+    });
+    if (!before) throw new NotFoundException("Firma bulunamadı");
     let membershipEndAt: Date | null = null;
     if (tier === "PAKET") {
       // Takvim ayı (setMonth) — 30-gün çarpımı yılda ~5 gün drift ediyordu.
@@ -653,6 +658,18 @@ export class AdminCompaniesService {
       where: { id },
       data: { tier, membershipEndAt },
     });
+    // Üyelik geçmişi (append-only) — rapor + destek "premium'um nereye gitti".
+    await this.prisma.companyMembershipEvent.create({
+      data: {
+        companyId: id,
+        action: tier === "PAKET" ? "GRANT" : "REVOKE",
+        months: tier === "PAKET" ? (months ?? 12) : null,
+        endBefore: before.membershipEndAt,
+        endAfter: membershipEndAt,
+        reason: reason?.trim() || null,
+        adminId: adminId ?? null,
+      },
+    });
     await this.audit.log({
       action: "admin.company.tier_set",
       actorType: "admin",
@@ -662,6 +679,141 @@ export class AdminCompaniesService {
       metadata: { tier, months: months ?? 12 },
     });
     return { ok: true, tier, membershipEndAt };
+  }
+
+  /**
+   * Ek-süreli uzatma — mevcut bitişe AY EKLER (setTier'ın aksine bitişi
+   * bugünden yeniden HESAPLAMAZ; müşterinin kalan süresi yanmaz). Bitiş
+   * geçmişte kaldıysa bugünden itibaren eklenir.
+   */
+  async extendMembership(
+    id: string,
+    months: number,
+    adminId: string,
+    reason?: string,
+  ) {
+    const c = await this.prisma.company.findUnique({
+      where: { id },
+      select: { tier: true, membershipEndAt: true },
+    });
+    if (!c) throw new NotFoundException("Firma bulunamadı");
+    if (c.tier !== "PAKET") {
+      throw new BadRequestException(
+        "Uzatma yalnız premium (PAKET) üyelikte — önce PAKET verin",
+      );
+    }
+    const now = new Date();
+    const base =
+      c.membershipEndAt && c.membershipEndAt.getTime() > now.getTime()
+        ? new Date(c.membershipEndAt)
+        : now;
+    const end = new Date(base);
+    end.setMonth(end.getMonth() + months);
+    await this.prisma.company.update({
+      where: { id },
+      data: { membershipEndAt: end },
+    });
+    await this.prisma.companyMembershipEvent.create({
+      data: {
+        companyId: id,
+        action: "EXTEND",
+        months,
+        endBefore: c.membershipEndAt,
+        endAfter: end,
+        reason: reason?.trim() || null,
+        adminId,
+      },
+    });
+    await this.audit.log({
+      action: "admin.company.membership_extended",
+      actorType: "admin",
+      actorId: adminId,
+      entityType: "company",
+      entityId: id,
+      metadata: { months },
+    });
+    return { ok: true, membershipEndAt: end };
+  }
+
+  /** Firma üyelik geçmişi — en yeni önce (admin e-postaları eşlenmiş). */
+  async membershipHistory(id: string) {
+    await this.requireCompany(id);
+    const events = await this.prisma.companyMembershipEvent.findMany({
+      where: { companyId: id },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+    });
+    const admins = await this.adminEmailMap(
+      events.map((e) => e.adminId).filter((v): v is string => !!v),
+    );
+    return events.map((e) => ({
+      id: e.id,
+      action: e.action,
+      months: e.months,
+      endBefore: e.endBefore,
+      endAfter: e.endAfter,
+      reason: e.reason,
+      adminEmail: e.adminId ? (admins.get(e.adminId) ?? null) : null,
+      createdAt: e.createdAt,
+    }));
+  }
+
+  /**
+   * Üyelik satış/yenileme raporu — tarih aralığındaki tüm olaylar + toplamlar.
+   * (Fiyatlandırma manuel takip edildiğinden "gelir" = verilen ay toplamı.)
+   */
+  async membershipReport(from?: string, to?: string) {
+    const where: Record<string, unknown> = {};
+    const createdAt: Record<string, Date> = {};
+    if (from) createdAt.gte = new Date(from);
+    if (to) {
+      // to = gün SONU dahil.
+      const end = new Date(to);
+      end.setHours(23, 59, 59, 999);
+      createdAt.lte = end;
+    }
+    if (Object.keys(createdAt).length > 0) where.createdAt = createdAt;
+    const events = await this.prisma.companyMembershipEvent.findMany({
+      where,
+      include: { company: { select: { name: true, rothernId: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 1000,
+    });
+    const admins = await this.adminEmailMap(
+      events.map((e) => e.adminId).filter((v): v is string => !!v),
+    );
+    const rows = events.map((e) => ({
+      id: e.id,
+      companyName: e.company.name,
+      rothernId: e.company.rothernId,
+      action: e.action,
+      months: e.months,
+      endAfter: e.endAfter,
+      reason: e.reason,
+      adminEmail: e.adminId ? (admins.get(e.adminId) ?? null) : null,
+      createdAt: e.createdAt,
+    }));
+    const totals = {
+      grants: rows.filter((r) => r.action === "GRANT").length,
+      extends: rows.filter((r) => r.action === "EXTEND").length,
+      revokes: rows.filter((r) => r.action === "REVOKE").length,
+      expires: rows.filter((r) => r.action === "EXPIRE").length,
+      /** Satılan toplam ay (GRANT+EXTEND) — gelirin vekil ölçüsü. */
+      monthsGranted: rows
+        .filter((r) => r.action === "GRANT" || r.action === "EXTEND")
+        .reduce((sum, r) => sum + (r.months ?? 0), 0),
+    };
+    return { rows, totals };
+  }
+
+  /** PlatformAdmin id → e-posta eşlemesi (rapor/geçmiş gösterimi). */
+  private async adminEmailMap(ids: string[]): Promise<Map<string, string>> {
+    if (ids.length === 0) return new Map();
+    const admins = await this.prisma.platformAdmin.findMany({
+      where: { id: { in: [...new Set(ids)] } },
+      select: { id: true, email: true },
+    });
+    return new Map(admins.map((a) => [a.id, a.email]));
   }
 
   async suspend(id: string, reason: string, adminId?: string) {

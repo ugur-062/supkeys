@@ -67,6 +67,7 @@ export class MembershipScheduler implements OnModuleInit {
       select: {
         id: true,
         name: true,
+        membershipEndAt: true,
         billingEmail: true,
         users: {
           where: { isActive: true, deletedAt: null },
@@ -88,7 +89,27 @@ export class MembershipScheduler implements OnModuleInit {
         where: { id: c.id, tier: "PAKET" },
         data: { tier: "STANDARD" },
       });
-      if (claimed.count === 1) downgraded.push(c);
+      if (claimed.count !== 1) continue;
+      downgraded.push(c);
+      // Üyelik geçmişi: sistem EXPIRE olayı (adminId null) — best-effort,
+      // kayıt hatası downgrade akışını durdurmaz.
+      await this.prisma.companyMembershipEvent
+        .create({
+          data: {
+            companyId: c.id,
+            action: "EXPIRE",
+            endBefore: c.membershipEndAt,
+            endAfter: null,
+            reason: "Süre doldu (otomatik)",
+          },
+        })
+        .catch((err: unknown) =>
+          this.logger.warn(
+            `EXPIRE event yazılamadı (${c.id}): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
     }
     if (downgraded.length === 0) return;
     const ids = downgraded.map((c) => c.id);

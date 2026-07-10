@@ -182,6 +182,36 @@ class SetTierDto {
   @Min(1)
   @Max(60)
   months?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
+class ExtendMembershipDto {
+  @IsInt()
+  @Min(1)
+  @Max(60)
+  months!: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
+class MembershipReportDto {
+  /** ISO tarih (YYYY-MM-DD) — aralık başı. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  from?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  to?: string;
 }
 
 class ResolveComplaintDto {
@@ -292,7 +322,31 @@ export class AdminCompaniesController {
     @Body() dto: SetTierDto,
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
-    return this.service.setTier(id, dto.tier, dto.months, admin.id);
+    return this.service.setTier(id, dto.tier, dto.months, admin.id, dto.reason);
+  }
+
+  @Post("companies/:id/membership/extend")
+  // Uzatma = satış işlemi — SALES de yapabilir (tier ver/al SUPER_ADMIN kalır).
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
+  extendMembership(
+    @Param("id") id: string,
+    @Body() dto: ExtendMembershipDto,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.service.extendMembership(id, dto.months, admin.id, dto.reason);
+  }
+
+  @Get("companies/:id/membership/history")
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
+  membershipHistory(@Param("id") id: string) {
+    return this.service.membershipHistory(id);
+  }
+
+  // ":id"den etkilenmez — "companies/:id" pattern'iyle çakışmayan ayrı yol.
+  @Get("membership/report")
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
+  membershipReport(@Query() dto: MembershipReportDto) {
+    return this.service.membershipReport(dto.from, dto.to);
   }
 
   @Get("complaints")

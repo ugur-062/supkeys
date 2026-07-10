@@ -1,19 +1,133 @@
 "use client";
 
 import { Badge } from "@/components/catalyst/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
 import { Button } from "@/components/ui/button";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
 import {
+  useExtendMembership,
+  useMembershipHistory,
   useSetCompanyTier,
   type AdminCompanyDetail,
+  type MembershipEvent,
 } from "@/hooks/use-admin-companies";
 import { safeFormat } from "@/lib/date";
-import { useState } from "react";
+import { X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+const ACTION_META: Record<
+  MembershipEvent["action"],
+  { label: string; color: "green" | "blue" | "red" | "zinc" }
+> = {
+  GRANT: { label: "Verildi", color: "green" },
+  EXTEND: { label: "Uzatıldı", color: "blue" },
+  REVOKE: { label: "Kaldırıldı", color: "red" },
+  EXPIRE: { label: "Süre doldu", color: "zinc" },
+};
+
+/** Ay + gerekçe isteyen küçük aksiyon dialog'u (ver/uzat). */
+function MonthsReasonDialog({
+  title,
+  confirmLabel,
+  onConfirm,
+  onClose,
+}: {
+  title: string;
+  confirmLabel: string;
+  onConfirm: (months: number, reason: string) => void;
+  onClose: () => void;
+}) {
+  const [months, setMonths] = useState("12");
+  const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-24"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
+    >
+      <div
+        className="bg-admin-surface w-full max-w-sm rounded-2xl shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="border-admin-border flex items-center justify-between border-b px-5 py-3.5">
+          <h2 className="text-admin-text text-base font-bold">{title}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="hover:bg-admin-border/40 rounded-lg p-1"
+            aria-label="Kapat"
+          >
+            <X className="text-admin-text-muted h-4 w-4" />
+          </button>
+        </div>
+        <div className="space-y-3 px-5 py-4">
+          <label className="flex flex-col gap-1">
+            <span className="text-admin-text-muted text-xs font-medium">
+              Ay sayısı
+            </span>
+            <input
+              type="number"
+              min={1}
+              max={60}
+              value={months}
+              onChange={(e) => setMonths(e.target.value)}
+              className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-admin-text-muted text-xs font-medium">
+              Gerekçe (opsiyonel — geçmişte görünür)
+            </span>
+            <input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Örn. yıllık yenileme satışı"
+              className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
+            />
+          </label>
+        </div>
+        <div className="border-admin-border flex items-center justify-end gap-2 border-t px-5 py-3">
+          <Button variant="ghost" onClick={onClose}>
+            Vazgeç
+          </Button>
+          <Button
+            onClick={() => {
+              const n = Math.floor(Number(months));
+              if (!Number.isFinite(n) || n < 1 || n > 60) {
+                toast.error("Ay 1-60 arası olmalı");
+                return;
+              }
+              onConfirm(n, reason.trim());
+            }}
+          >
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
- * Üyelik — mevcut tier + bitiş + ver/al. Ek-süreli uzatma ve üyelik geçmişi
- * Faz 3'te bu sekmeye eklenecek.
+ * Üyelik — durum + ver/UZAT/kaldır + geçmiş. Uzat mevcut bitişe ay EKLER
+ * (kalan süre yanmaz); "PAKET Ver" ise bitişi bugünden yeniden başlatır.
  */
 export function MembershipTab({
   companyId,
@@ -23,12 +137,19 @@ export function MembershipTab({
   data: AdminCompanyDetail;
 }) {
   const tierAct = useSetCompanyTier();
-  const [prompt, setPrompt] = useState(false);
+  const extend = useExtendMembership();
+  const history = useMembershipHistory(companyId);
+  const [dialog, setDialog] = useState<"grant" | "extend" | "revoke" | null>(
+    null,
+  );
   const daysLeft = data.membershipEndAt
     ? Math.ceil(
         (new Date(data.membershipEndAt).getTime() - Date.now()) / 86_400_000,
       )
     : null;
+
+  const err = (e: unknown) =>
+    toast.error(e instanceof Error ? e.message : "Hata");
 
   return (
     <div className="space-y-4">
@@ -48,7 +169,9 @@ export function MembershipTab({
                   {daysLeft != null ? (
                     <span
                       className={
-                        daysLeft <= 30 ? "ml-1 font-semibold text-red-600" : "ml-1"
+                        daysLeft <= 30
+                          ? "ml-1 font-semibold text-red-600"
+                          : "ml-1"
                       }
                     >
                       ({daysLeft} gün)
@@ -61,73 +184,156 @@ export function MembershipTab({
           <div className="flex items-center gap-2">
             {data.tier === "PAKET" ? (
               <>
+                <Button size="sm" onClick={() => setDialog("extend")}>
+                  Süre Uzat
+                </Button>
                 <Button
                   variant="secondary"
                   size="sm"
-                  disabled={tierAct.isPending}
-                  onClick={() => setPrompt(true)}
+                  onClick={() => setDialog("grant")}
                 >
-                  Yeniden Ver / Süre Belirle
+                  Yeniden Başlat
                 </Button>
                 <Button
                   variant="danger"
                   size="sm"
                   disabled={tierAct.isPending}
-                  onClick={() =>
-                    tierAct.mutate(
-                      { id: companyId, tier: "STANDARD" },
-                      {
-                        onSuccess: () => toast.success("Standart'a alındı"),
-                        onError: (e: unknown) =>
-                          toast.error(e instanceof Error ? e.message : "Hata"),
-                      },
-                    )
-                  }
+                  onClick={() => setDialog("revoke")}
                 >
                   Premium'u Kaldır
                 </Button>
               </>
             ) : (
-              <Button
-                size="sm"
-                disabled={tierAct.isPending}
-                onClick={() => setPrompt(true)}
-              >
+              <Button size="sm" onClick={() => setDialog("grant")}>
                 PAKET Ver
               </Button>
             )}
           </div>
         </div>
+        <p className="text-admin-text-muted mt-3 text-xs">
+          <strong>Süre Uzat</strong> mevcut bitişe ay ekler (kalan süre yanmaz).
+          <strong> Yeniden Başlat</strong> bitişi bugünden yeniden hesaplar.
+        </p>
       </section>
 
-      <p className="text-admin-text-muted text-xs">
-        Ek-süreli uzatma (mevcut bitişe ay ekleme) ve üyelik geçmişi Faz 3 ile
-        bu sekmeye gelecek. Şimdilik &quot;Yeniden Ver&quot; bitişi bugünden
-        itibaren yeniden hesaplar.
-      </p>
+      {/* Geçmiş */}
+      <section className="admin-card overflow-hidden">
+        <div className="border-surface-border border-b px-5 py-3.5">
+          <h3 className="text-admin-text text-sm font-semibold">
+            Üyelik Geçmişi
+          </h3>
+        </div>
+        <Table dense>
+          <TableHead>
+            <TableRow>
+              <TableHeader>Tarih</TableHeader>
+              <TableHeader>İşlem</TableHeader>
+              <TableHeader>Ay</TableHeader>
+              <TableHeader>Yeni bitiş</TableHeader>
+              <TableHeader>Yapan</TableHeader>
+              <TableHeader>Gerekçe</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {(history.data ?? []).length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="text-admin-text-muted py-8 text-center"
+                >
+                  {history.isLoading
+                    ? "Yükleniyor..."
+                    : "Üyelik hareketi yok"}
+                </TableCell>
+              </TableRow>
+            ) : (
+              (history.data ?? []).map((e) => (
+                <TableRow key={e.id}>
+                  <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
+                    {safeFormat(e.createdAt, "d MMM yyyy HH:mm")}
+                  </TableCell>
+                  <TableCell>
+                    <Badge color={ACTION_META[e.action].color}>
+                      {ACTION_META[e.action].label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-admin-text text-sm tabular-nums">
+                    {e.months ?? "—"}
+                  </TableCell>
+                  <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
+                    {e.endAfter ? safeFormat(e.endAfter, "d MMM yyyy") : "—"}
+                  </TableCell>
+                  <TableCell className="text-admin-text-muted text-xs">
+                    {e.adminEmail ?? "sistem"}
+                  </TableCell>
+                  <TableCell className="text-admin-text-muted max-w-[240px] truncate text-xs">
+                    {e.reason ?? "—"}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </section>
 
+      {dialog === "grant" ? (
+        <MonthsReasonDialog
+          title={data.tier === "PAKET" ? "Üyeliği Yeniden Başlat" : "Premium (PAKET) Ver"}
+          confirmLabel="PAKET Ver"
+          onConfirm={(months, reason) => {
+            tierAct.mutate(
+              { id: companyId, tier: "PAKET", months, reason: reason || undefined },
+              {
+                onSuccess: () => toast.success("PAKET verildi"),
+                onError: err,
+              },
+            );
+            setDialog(null);
+          }}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
+      {dialog === "extend" ? (
+        <MonthsReasonDialog
+          title="Süre Uzat (mevcut bitişe ekler)"
+          confirmLabel="Uzat"
+          onConfirm={(months, reason) => {
+            extend.mutate(
+              { id: companyId, months, reason: reason || undefined },
+              {
+                onSuccess: (r) =>
+                  toast.success(
+                    `Uzatıldı — yeni bitiş ${safeFormat(r.membershipEndAt, "d MMMM yyyy")}`,
+                  ),
+                onError: err,
+              },
+            );
+            setDialog(null);
+          }}
+          onClose={() => setDialog(null)}
+        />
+      ) : null}
       <PromptDialog
-        open={prompt}
-        title="Premium (PAKET) Ver"
-        label="Kaç ay premium verilsin?"
-        type="number"
-        min={1}
-        defaultValue="12"
-        required
-        confirmLabel="PAKET Ver"
+        open={dialog === "revoke"}
+        title="Premium'u Kaldır"
+        label="Gerekçe (opsiyonel — geçmişte görünür)"
+        placeholder="Örn. iade talebi"
+        confirmLabel="Kaldır"
         onConfirm={(v) => {
-          const n = Math.floor(Number(v));
           tierAct.mutate(
-            { id: companyId, tier: "PAKET", months: n >= 1 ? n : 12 },
             {
-              onSuccess: () => toast.success("PAKET verildi"),
-              onError: (e: unknown) =>
-                toast.error(e instanceof Error ? e.message : "Hata"),
+              id: companyId,
+              tier: "STANDARD",
+              reason: (v || "").trim() || undefined,
+            },
+            {
+              onSuccess: () => toast.success("Standart'a alındı"),
+              onError: err,
             },
           );
-          setPrompt(false);
+          setDialog(null);
         }}
-        onClose={() => setPrompt(false)}
+        onClose={() => setDialog(null)}
       />
     </div>
   );

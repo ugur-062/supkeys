@@ -29,6 +29,7 @@ import {
 } from "@heroicons/react/20/solid";
 import {
   Activity,
+  BadgeDollarSign,
   Building2,
   Flag,
   Inbox,
@@ -84,6 +85,12 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/sikayetler",
         icon: Flag,
         activeMatch: "/admin/sikayetler",
+      },
+      {
+        label: "Üyelik Raporu",
+        href: "/admin/uyelik-raporu",
+        icon: BadgeDollarSign,
+        activeMatch: "/admin/uyelik-raporu",
       },
     ],
   },

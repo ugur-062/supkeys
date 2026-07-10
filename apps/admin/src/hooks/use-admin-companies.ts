@@ -276,14 +276,106 @@ export function useSetCompanyTier() {
       id,
       tier,
       months,
+      reason,
     }: {
       id: string;
       tier: "STANDARD" | "PAKET";
       months?: number;
+      reason?: string;
     }) => {
-      await api.post(`/admin/companies/${id}/tier`, { tier, months });
+      await api.post(`/admin/companies/${id}/tier`, { tier, months, reason });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-companies"] }),
+    onSuccess: (_d, { id }) => {
+      qc.invalidateQueries({ queryKey: ["admin-companies"] });
+      qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
+      qc.invalidateQueries({ queryKey: ["membership-history", id] });
+    },
+  });
+}
+
+/** Ek-süreli uzatma — mevcut bitişe ay EKLER (bitişi sıfırlamaz). */
+export function useExtendMembership() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      months,
+      reason,
+    }: {
+      id: string;
+      months: number;
+      reason?: string;
+    }) => {
+      const { data } = await api.post<{ ok: boolean; membershipEndAt: string }>(
+        `/admin/companies/${id}/membership/extend`,
+        { months, reason },
+      );
+      return data;
+    },
+    onSuccess: (_d, { id }) => {
+      qc.invalidateQueries({ queryKey: ["admin-companies"] });
+      qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
+      qc.invalidateQueries({ queryKey: ["membership-history", id] });
+    },
+  });
+}
+
+export interface MembershipEvent {
+  id: string;
+  action: "GRANT" | "EXTEND" | "REVOKE" | "EXPIRE";
+  months: number | null;
+  endBefore: string | null;
+  endAfter: string | null;
+  reason: string | null;
+  adminEmail: string | null;
+  createdAt: string;
+}
+
+export function useMembershipHistory(id: string) {
+  return useQuery({
+    queryKey: ["membership-history", id],
+    queryFn: async () => {
+      const { data } = await api.get<MembershipEvent[]>(
+        `/admin/companies/${id}/membership/history`,
+      );
+      return data;
+    },
+  });
+}
+
+export interface MembershipReportRow {
+  id: string;
+  companyName: string;
+  rothernId: string | null;
+  action: "GRANT" | "EXTEND" | "REVOKE" | "EXPIRE";
+  months: number | null;
+  endAfter: string | null;
+  reason: string | null;
+  adminEmail: string | null;
+  createdAt: string;
+}
+
+export interface MembershipReport {
+  rows: MembershipReportRow[];
+  totals: {
+    grants: number;
+    extends: number;
+    revokes: number;
+    expires: number;
+    monthsGranted: number;
+  };
+}
+
+export function useMembershipReport(from?: string, to?: string) {
+  return useQuery({
+    queryKey: ["membership-report", from, to],
+    queryFn: async () => {
+      const { data } = await api.get<MembershipReport>(
+        "/admin/membership/report",
+        { params: { ...(from ? { from } : {}), ...(to ? { to } : {}) } },
+      );
+      return data;
+    },
   });
 }
 

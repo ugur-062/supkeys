@@ -376,6 +376,7 @@ model Company {
   userInvitations      CompanyUserInvitation[]
   addresses            CompanyAddress[]
   bankAccounts         CompanyBankAccount[]
+  membershipEvents     CompanyMembershipEvent[]
   reviewsGiven         CompanyReview[]    @relation("ReviewsGiven")
   reviewsReceived      CompanyReview[]    @relation("ReviewsReceived")
 
@@ -440,6 +441,34 @@ model ExchangeRate {
   @@unique([currency, rateDate])
   @@index([rateDate])
   @@map("exchange_rates")
+}
+
+enum MembershipEventAction {
+  GRANT // PAKET verildi (bitiş bugünden hesap)
+  EXTEND // mevcut bitişe EK ay
+  REVOKE // premium admin eliyle kaldırıldı
+  EXPIRE // süre doldu (scheduler otomatik düşürdü)
+}
+
+/// Üyelik geçmişi — kim, ne zaman, kaç ay, hangi gerekçeyle (append-only).
+/// Gelir/yenileme raporu ve destek çağrılarındaki "premium'um nereye gitti?"
+/// sorusunun tek kaynağı.
+model CompanyMembershipEvent {
+  id        String                @id @default(cuid())
+  companyId String
+  company   Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  action    MembershipEventAction
+  months    Int?
+  endBefore DateTime?
+  endAfter  DateTime?
+  reason    String?
+  /// PlatformAdmin id — null = sistem (scheduler EXPIRE).
+  adminId   String?
+  createdAt DateTime              @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([createdAt])
+  @@map("company_membership_events")
 }
 
 enum ComplaintStatus {
