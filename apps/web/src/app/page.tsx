@@ -689,105 +689,13 @@ function SignupPreview() {
   );
 }
 
-function FloatingCard({
-  className,
-  dot,
-  title,
-  sub,
-  float = "rt-float",
-}: {
-  className: string;
-  dot?: string;
-  title: string;
-  sub?: string;
-  float?: string;
-}) {
-  return (
-    <div
-      className={`absolute z-10 hidden w-max max-w-[13rem] rounded-xl border border-zinc-950/5 bg-white/90 px-4 py-3 shadow-xl ring-1 ring-zinc-950/5 backdrop-blur xl:block ${float} ${className}`}
-    >
-      <div className="flex items-center gap-2">
-        {dot ? <span className={`size-2 shrink-0 rounded-full ${dot}`} /> : null}
-        <span className="text-sm font-semibold text-zinc-900">{title}</span>
-      </div>
-      {sub ? <div className="mt-0.5 text-xs text-zinc-500">{sub}</div> : null}
-    </div>
-  );
-}
-
 export default function HomePage() {
   return (
     <div className="bg-white">
       <MarketingHeader />
 
-      {/* Hero */}
-      <section className="relative isolate overflow-hidden px-6 pb-20 lg:px-8">
-        {/* grid arka plan */}
-        <svg
-          aria-hidden="true"
-          className="absolute inset-0 -z-10 size-full stroke-zinc-200 [mask-image:radial-gradient(64rem_48rem_at_50%_-4rem,white,transparent)]"
-        >
-          <defs>
-            <pattern
-              id="hero-grid"
-              width={48}
-              height={48}
-              x="50%"
-              y={-1}
-              patternUnits="userSpaceOnUse"
-            >
-              <path d="M.5 48V.5H48" fill="none" />
-            </pattern>
-          </defs>
-          <rect
-            width="100%"
-            height="100%"
-            strokeWidth={0}
-            fill="url(#hero-grid)"
-          />
-        </svg>
-        {/* yumuşak gradient */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80"
-        >
-          <div
-            style={{
-              clipPath:
-                "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)",
-            }}
-            className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36rem] -translate-x-1/2 rotate-30 bg-gradient-to-tr from-zinc-300 to-zinc-500 opacity-20 sm:left-[calc(50%-30rem)] sm:w-[72rem]"
-          />
-        </div>
-
-        {/* uçuşan sistem kartları — sağı/solu doldurur */}
-        <FloatingCard
-          className="top-[22%] left-[2%] xl:left-[6%]"
-          float="rt-float"
-          dot="bg-blue-500"
-          title="Çelik alımı"
-          sub="3 yeni teklif geldi"
-        />
-        <FloatingCard
-          className="top-[40%] left-[4%] xl:left-[9%]"
-          float="rt-float-slow"
-          title="🌍 98 ülke"
-          sub="Sınır ötesi alım & satım"
-        />
-        <FloatingCard
-          className="top-[26%] right-[2%] xl:right-[6%]"
-          float="rt-float-slow"
-          dot="bg-emerald-500"
-          title="Sipariş kargolandı"
-          sub="ROT-ORD-000128"
-        />
-        <FloatingCard
-          className="top-[60%] right-[4%] xl:right-[9%]"
-          float="rt-float"
-          title="Yeni bağlantı"
-          sub="Üçüncü Firma · kabul edildi"
-        />
-
+      {/* Hero — sade beyaz zemin (grid deseni + gradient + uçuşan kartlar kaldırıldı) */}
+      <section className="relative isolate overflow-hidden bg-white px-6 pb-20 lg:px-8">
         <div className="mx-auto max-w-3xl pt-24 pb-16 sm:pt-32 lg:pt-36">
           <div className="mb-8 flex justify-center">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-sm/6 font-medium text-zinc-700 ring-1 ring-zinc-950/10 backdrop-blur">
