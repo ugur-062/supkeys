@@ -302,17 +302,26 @@ export class StorageService implements OnModuleInit {
   /**
    * Allowed origin'leri `CORS_ORIGINS` env'inden okur — backend CORS ile aynı set.
    * Tedarikçi paneli + alıcı paneli aynı host'ta (apps/web), admin ayrı host
-   * (apps/admin) — ikisini de kapsar.
+   * (apps/admin) — ikisini de kapsar. Ek olarak REST/WS CORS'la simetrik şekilde
+   * tüm Vercel deploy/preview origin'leri (S3/R2 tek `*` wildcard destekler)
+   * izinli — aksi halde tarayıcı-direkt presigned PUT/GET Vercel domain'inden
+   * R2 tarafından bloklanır; bucket konsolundan elle düzeltmek de tutmaz çünkü
+   * ensureCorsPolicy her boot'ta bu listeyi yeniden yazar. Güvenlik sınırı CORS
+   * değil presigned imzanın kendisidir.
    */
   private buildAllowedOrigins(): string[] {
     const raw = this.configService.get<string>(
       "CORS_ORIGINS",
       "http://localhost:3000,http://localhost:3001",
     );
-    return raw
+    const origins = raw
       .split(",")
       .map((o) => o.trim())
       .filter(Boolean);
+    if (!origins.includes("https://*.vercel.app")) {
+      origins.push("https://*.vercel.app");
+    }
+    return origins;
   }
 
   /**

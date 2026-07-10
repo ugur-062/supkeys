@@ -83,9 +83,13 @@ export function clearAuthCookies(
   realm: Realm,
   config: ConfigService,
 ): void {
-  const { domain, path } = baseOptions(config, true);
-  res.clearCookie(AUTH_COOKIE[realm], { domain, path });
-  res.clearCookie(CSRF_COOKIE, { domain, path });
+  // Silme Set-Cookie'si de set ile AYNI attribute'ları taşımalı: cross-site
+  // yanıtta SameSite=None+Secure olmayan Set-Cookie'yi tarayıcı REDDEDER →
+  // logout cookie'yi silemez (oturum JWT ömrü boyunca yaşar). maxAge'i
+  // clearCookie kendisi epoch'a çeker, o yüzden düşürüyoruz.
+  const { maxAge: _maxAge, ...base } = baseOptions(config, true);
+  res.clearCookie(AUTH_COOKIE[realm], base);
+  res.clearCookie(CSRF_COOKIE, base);
 }
 
 /** `Cookie` header'ını elle parse eder (cookie-parser bağımlılığı olmadan). */

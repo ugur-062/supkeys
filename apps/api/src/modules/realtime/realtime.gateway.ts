@@ -21,17 +21,30 @@ import { RealtimeService } from "./realtime.service";
  * her teklifte gelen ping'i sayarak kapalı-zarf RFQ'da rakip teklif sayısı/
  * zamanlaması çıkarabilir (K1). Subscribe'da katılımcı/görünürlük doğrulanır.
  */
-// WS CORS, REST ile AYNI allowlist (CORS_ORIGINS) — origin:true yerine.
-// Env decorator değerlendirilmeden (AppModule import'undan) önce dotenv ile yüklenir.
-const WS_ORIGINS = (
-  process.env.CORS_ORIGINS ?? "http://localhost:3000,http://localhost:3001"
-)
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
+// WS CORS, REST (main.ts) ile AYNI kural: CORS_ORIGINS allowlist + tüm Vercel
+// deploy/preview origin'leri (*.vercel.app) otomatik izinli. Fonksiyon origin
+// handshake ANINDA çalışır → env'i lazy okur (decorator module-load'da
+// değerlendirilse bile dotenv sıralaması footgun olmaktan çıkar).
+const WS_VERCEL_ORIGIN = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+
+function wsOriginAllowed(
+  origin: string | undefined,
+  cb: (err: Error | null, allow?: boolean) => void,
+): void {
+  const allowlist = (
+    process.env.CORS_ORIGINS ?? "http://localhost:3000,http://localhost:3001"
+  )
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+  // origin yoksa (native/mobil istemci) engelleme — REST ile aynı davranış.
+  const ok =
+    !origin || allowlist.includes(origin) || WS_VERCEL_ORIGIN.test(origin);
+  cb(null, ok);
+}
 
 @WebSocketGateway({
-  cors: { origin: WS_ORIGINS, credentials: true },
+  cors: { origin: wsOriginAllowed, credentials: true },
   path: "/rt",
 })
 export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
