@@ -1,5 +1,7 @@
 "use client";
 
+import { Input } from "@/components/ui/input";
+import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Table,
@@ -12,10 +14,12 @@ import {
 import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
+import { StatCard } from "@/components/ui/stat-card";
 import {
   useMembershipReport,
   type MembershipReportRow,
 } from "@/hooks/use-admin-companies";
+import { downloadCsv } from "@/lib/csv";
 import { safeFormat } from "@/lib/date";
 import { Download } from "lucide-react";
 import { useState } from "react";
@@ -30,12 +34,11 @@ const ACTION_META: Record<
   EXPIRE: { label: "Süre doldu", color: "zinc" },
 };
 
-/** Filtreli sonucu istemci tarafında CSV'ye dök (Excel uyumlu, BOM'lu). */
-function downloadCsv(rows: MembershipReportRow[]) {
-  const esc = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
-  const header = ["Tarih", "Firma", "Kod", "İşlem", "Ay", "Yeni Bitiş", "Yapan", "Gerekçe"];
-  const lines = rows.map((r) =>
-    [
+function exportReportCsv(rows: MembershipReportRow[]) {
+  downloadCsv(
+    `uyelik-raporu-${new Date().toISOString().slice(0, 10)}.csv`,
+    ["Tarih", "Firma", "Kod", "İşlem", "Ay", "Yeni Bitiş", "Yapan", "Gerekçe"],
+    rows.map((r) => [
       safeFormat(r.createdAt, "yyyy-MM-dd HH:mm"),
       r.companyName,
       r.rothernId ?? "",
@@ -44,20 +47,8 @@ function downloadCsv(rows: MembershipReportRow[]) {
       r.endAfter ? safeFormat(r.endAfter, "yyyy-MM-dd") : "",
       r.adminEmail ?? "sistem",
       r.reason ?? "",
-    ]
-      .map(esc)
-      .join(";"),
+    ]),
   );
-  // ﻿ BOM — Excel'in TR karakterleri doğru açması için.
-  const blob = new Blob(["﻿" + [header.join(";"), ...lines].join("\n")], {
-    type: "text/csv;charset=utf-8",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `uyelik-raporu-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 function RaporView() {
@@ -77,7 +68,7 @@ function RaporView() {
             variant="secondary"
             size="sm"
             disabled={rows.length === 0}
-            onClick={() => downloadCsv(rows)}
+            onClick={() => exportReportCsv(rows)}
           >
             <Download className="mr-1.5 h-3.5 w-3.5" /> CSV İndir
           </Button>
@@ -90,22 +81,20 @@ function RaporView() {
           <span className="text-admin-text-muted text-xs font-medium">
             Başlangıç
           </span>
-          <input
+          <Input
             type="date"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
           />
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-admin-text-muted text-xs font-medium">
             Bitiş
           </span>
-          <input
+          <Input
             type="date"
             value={to}
             onChange={(e) => setTo(e.target.value)}
-            className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
           />
         </label>
         {from || to ? (
@@ -125,11 +114,15 @@ function RaporView() {
       {/* Toplamlar */}
       {t ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-          <TotalCard label="Tanımlanan" value={t.grants} />
-          <TotalCard label="Uzatılan" value={t.extends} />
-          <TotalCard label="Kaldırılan" value={t.revokes} />
-          <TotalCard label="Süresi dolan" value={t.expires} />
-          <TotalCard label="Toplam ay (satış)" value={t.monthsGranted} strong />
+          <StatCard label="Tanımlanan" value={t.grants.toLocaleString("tr-TR")} />
+          <StatCard label="Uzatılan" value={t.extends.toLocaleString("tr-TR")} />
+          <StatCard label="Kaldırılan" value={t.revokes.toLocaleString("tr-TR")} />
+          <StatCard label="Süresi dolan" value={t.expires.toLocaleString("tr-TR")} />
+          <StatCard
+            label="Toplam ay (satış)"
+            value={t.monthsGranted.toLocaleString("tr-TR")}
+            accent="emerald"
+          />
         </div>
       ) : null}
 
@@ -148,18 +141,13 @@ function RaporView() {
           </TableHead>
           <TableBody>
             {rows.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="text-admin-text-muted py-8 text-center"
-                >
-                  {query.isLoading
-                    ? "Yükleniyor..."
-                    : query.isError
-                      ? "Veri alınamadı"
-                      : "Bu aralıkta üyelik hareketi yok"}
-                </TableCell>
-              </TableRow>
+              <TableStateRow
+                colSpan={7}
+                loading={query.isLoading}
+                error={query.isError}
+                onRetry={() => void query.refetch()}
+                empty="Bu aralıkta üyelik hareketi yok"
+              />
             ) : (
               rows.map((r) => (
                 <TableRow key={r.id}>
@@ -199,26 +187,6 @@ function RaporView() {
   );
 }
 
-function TotalCard({
-  label,
-  value,
-  strong,
-}: {
-  label: string;
-  value: number;
-  strong?: boolean;
-}) {
-  return (
-    <div className="admin-card px-4 py-3">
-      <p className="text-admin-text-muted text-xs font-medium">{label}</p>
-      <p
-        className={`text-admin-text mt-1 text-2xl font-bold tabular-nums ${strong ? "text-emerald-700" : ""}`}
-      >
-        {value.toLocaleString("tr-TR")}
-      </p>
-    </div>
-  );
-}
 
 export default function AdminUyelikRaporuPage() {
   return (

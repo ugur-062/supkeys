@@ -1,5 +1,6 @@
 "use client";
 
+import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Table,
@@ -65,18 +66,13 @@ function BasvurularView() {
           </TableHead>
           <TableBody>
             {items.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="text-admin-text-muted py-10 text-center"
-                >
-                  {query.isLoading
-                    ? "Yükleniyor..."
-                    : query.isError
-                      ? "Veri alınamadı — lütfen tekrar deneyin"
-                      : "Kuyruk boş — bekleyen başvuru yok"}
-                </TableCell>
-              </TableRow>
+              <TableStateRow
+                colSpan={5}
+                loading={query.isLoading}
+                error={query.isError}
+                onRetry={() => void query.refetch()}
+                empty="Kuyruk boş — bekleyen başvuru yok"
+              />
             ) : (
               items.map((c) => (
                 <TableRow key={c.id}>

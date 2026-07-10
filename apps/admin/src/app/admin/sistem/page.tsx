@@ -1,5 +1,7 @@
 "use client";
 
+import { Input } from "@/components/ui/input";
+import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Table,
@@ -60,14 +62,14 @@ function ManualRateForm() {
         <span className="text-admin-text-muted text-xs font-medium">
           Kur (₺)
         </span>
-        <input
+        <Input
           type="number"
           step="0.0001"
           min="0"
           value={rate}
           onChange={(e) => setRate(e.target.value)}
           placeholder="34.5000"
-          className="border-admin-border bg-admin-surface text-admin-text w-32 rounded-lg border px-3 py-1.5 text-sm"
+          className="w-32"
         />
       </label>
       <Button
@@ -106,7 +108,7 @@ function SuppressionsSection() {
   const rows = list.data ?? [];
   return (
     <section className="admin-card overflow-hidden">
-      <div className="border-surface-border border-b px-5 py-4">
+      <div className="border-admin-border border-b px-5 py-4">
         <h3 className="text-admin-text flex items-center gap-2 text-sm font-semibold">
           <MailWarning className="h-4 w-4" /> E-posta Gönderimi — Engellenen Adresler
         </h3>
@@ -115,7 +117,7 @@ function SuppressionsSection() {
           Adres yeniden ulaşılabilir olduysa engeli kaldırabilirsiniz.
         </p>
       </div>
-      <div className="divide-surface-border divide-y">
+      <div className="divide-admin-border divide-y">
         {rows.length === 0 ? (
           <p className="text-admin-text-muted px-5 py-6 text-center text-sm">
             {list.isLoading ? "Yükleniyor..." : "Engellenen adres yok"}
@@ -271,7 +273,7 @@ function SistemView() {
 
       {/* Cron işleri */}
       <section className="admin-card overflow-hidden">
-        <div className="border-surface-border border-b px-5 py-4">
+        <div className="border-admin-border border-b px-5 py-4">
           <h3 className="text-admin-text text-sm font-semibold">
             Zamanlanmış İşler
           </h3>
@@ -291,14 +293,11 @@ function SistemView() {
           </TableHead>
           <TableBody>
             {(s?.crons ?? []).length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="text-admin-text-muted py-8 text-center"
-                >
-                  {sys.isLoading ? "Yükleniyor..." : "Kayıtlı iş yok"}
-                </TableCell>
-              </TableRow>
+              <TableStateRow
+                colSpan={5}
+                loading={sys.isLoading}
+                empty="Kayıtlı iş yok"
+              />
             ) : (
               (s?.crons ?? []).map((c) => (
                 <TableRow key={c.key}>

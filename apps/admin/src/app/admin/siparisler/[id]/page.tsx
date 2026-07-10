@@ -161,7 +161,7 @@ function OrderInspection({ id }: { id: string }) {
 
       {/* Ödemeler — "ödedim ama görünmüyor" çağrısının ekranı */}
       <section className="admin-card overflow-hidden">
-        <div className="border-surface-border flex items-center justify-between border-b px-5 py-3.5">
+        <div className="border-admin-border flex items-center justify-between border-b px-5 py-3.5">
           <h3 className="text-admin-text text-sm font-semibold">
             Ödemeler ({o.payments.length})
           </h3>
@@ -224,7 +224,7 @@ function OrderInspection({ id }: { id: string }) {
       {/* Kalemler + belgeler */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section className="admin-card overflow-hidden">
-          <div className="border-surface-border border-b px-5 py-3.5">
+          <div className="border-admin-border border-b px-5 py-3.5">
             <h3 className="text-admin-text text-sm font-semibold">
               Kalemler ({o.items.length})
             </h3>
@@ -249,12 +249,12 @@ function OrderInspection({ id }: { id: string }) {
         </section>
 
         <section className="admin-card overflow-hidden">
-          <div className="border-surface-border border-b px-5 py-3.5">
+          <div className="border-admin-border border-b px-5 py-3.5">
             <h3 className="text-admin-text text-sm font-semibold">
               Belgeler ({o.documents.length})
             </h3>
           </div>
-          <div className="divide-surface-border divide-y">
+          <div className="divide-admin-border divide-y">
             {o.documents.length === 0 ? (
               <p className="text-admin-text-muted px-5 py-6 text-center text-sm">
                 Belge yok

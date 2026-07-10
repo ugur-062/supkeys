@@ -1,5 +1,8 @@
 "use client";
 
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/catalyst/select";
+import { Textarea } from "@/components/ui/textarea";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
@@ -72,23 +75,21 @@ function DuyuruView() {
           <span className="text-admin-text-muted text-xs font-medium">
             Konu
           </span>
-          <input
+          <Input
             value={form.subject}
             onChange={(e) => set("subject", e.target.value)}
             placeholder="Örn. Planlı bakım bildirimi"
-            className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
           />
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-admin-text-muted text-xs font-medium">
             Mesaj
           </span>
-          <textarea
+          <Textarea
             value={form.message}
             onChange={(e) => set("message", e.target.value)}
             rows={5}
             placeholder="Duyuru metni..."
-            className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-2 text-sm"
           />
         </label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -96,24 +97,22 @@ function DuyuruView() {
             <span className="text-admin-text-muted text-xs font-medium">
               Üyelik segmenti
             </span>
-            <select
+            <Select
               value={form.tier}
               onChange={(e) => set("tier", e.target.value)}
-              className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
             >
               <option value="">Tüm üyelikler</option>
               <option value="PAKET">Yalnız Premium</option>
               <option value="STANDARD">Yalnız Standart</option>
-            </select>
+            </Select>
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-admin-text-muted text-xs font-medium">
               Ülke segmenti
             </span>
-            <select
+            <Select
               value={form.country}
               onChange={(e) => set("country", e.target.value)}
-              className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
             >
               <option value="">Tüm ülkeler</option>
               {(stats.data?.countryBreakdown ?? []).map((c) => (
@@ -121,7 +120,7 @@ function DuyuruView() {
                   {countryFlag(c.country)} {countryName(c.country)} ({c.count})
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
         </div>
         <label className="flex items-center gap-2">

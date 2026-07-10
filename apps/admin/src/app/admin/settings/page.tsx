@@ -1,5 +1,6 @@
 "use client";
 
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/catalyst/badge";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader } from "@/components/list";
@@ -26,36 +27,33 @@ function PasswordSection() {
           <span className="text-admin-text-muted text-xs font-medium">
             Mevcut şifre
           </span>
-          <input
+          <Input
             type="password"
             value={form.current}
             onChange={(e) => set("current", e.target.value)}
             autoComplete="current-password"
-            className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
           />
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-admin-text-muted text-xs font-medium">
             Yeni şifre (en az 12 karakter)
           </span>
-          <input
+          <Input
             type="password"
             value={form.next}
             onChange={(e) => set("next", e.target.value)}
             autoComplete="new-password"
-            className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
           />
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-admin-text-muted text-xs font-medium">
             Yeni şifre (tekrar)
           </span>
-          <input
+          <Input
             type="password"
             value={form.confirm}
             onChange={(e) => set("confirm", e.target.value)}
             autoComplete="new-password"
-            className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
           />
         </label>
         <div>
@@ -162,14 +160,14 @@ function TwoFactorSection() {
             2. Uygulamanın ürettiği 6 haneli kodu girin:
           </p>
           <div className="flex items-center gap-2">
-            <input
+            <Input
               value={code}
               onChange={(e) => setCode(e.target.value)}
               inputMode="numeric"
               maxLength={6}
               placeholder="123456"
               aria-label="2FA doğrulama kodu"
-              className="border-admin-border bg-admin-surface text-admin-text w-32 rounded-lg border px-3 py-1.5 text-sm"
+              className="w-32"
             />
             <Button
               size="sm"
@@ -204,14 +202,14 @@ function TwoFactorSection() {
             Kapatmak için authenticator kodunuzu girin:
           </p>
           <div className="flex items-center gap-2">
-            <input
+            <Input
               value={code}
               onChange={(e) => setCode(e.target.value)}
               inputMode="numeric"
               maxLength={6}
               placeholder="123456"
               aria-label="2FA kapatma kodu"
-              className="border-admin-border bg-admin-surface text-admin-text w-32 rounded-lg border px-3 py-1.5 text-sm"
+              className="w-32"
             />
             <Button
               variant="danger"

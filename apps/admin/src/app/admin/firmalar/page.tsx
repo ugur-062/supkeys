@@ -1,5 +1,6 @@
 "use client";
 
+import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Dropdown,
@@ -35,6 +36,7 @@ import {
   type AdminCompanyRow,
 } from "@/hooks/use-admin-companies";
 import { api } from "@/lib/api";
+import { downloadCsv } from "@/lib/csv";
 import { Download, EllipsisVertical } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useListFilters } from "@/hooks/use-list-filters";
@@ -62,10 +64,10 @@ async function exportCsv(params: Record<string, string | undefined>) {
     rows.push(...data.items);
     if (page * 100 >= data.total) break;
   }
-  const esc = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
-  const header = ["Firma", "Kod", "Vergi No", "Ülke", "Bölge/Şehir", "Üyelik", "Üyelik Bitişi", "Doğrulama", "Askıda", "Şikayet", "Kullanıcı", "Kayıt"];
-  const lines = rows.map((c) =>
-    [
+  downloadCsv(
+    `firmalar-${new Date().toISOString().slice(0, 10)}.csv`,
+    ["Firma", "Kod", "Vergi No", "Ülke", "Bölge/Şehir", "Üyelik", "Üyelik Bitişi", "Doğrulama", "Askıda", "Şikayet", "Kullanıcı", "Kayıt"],
+    rows.map((c) => [
       c.name,
       c.rothernId ?? "",
       c.taxNumber ?? "",
@@ -78,19 +80,8 @@ async function exportCsv(params: Record<string, string | undefined>) {
       c.complaintCount,
       c.userCount,
       safeFormat(c.createdAt, "yyyy-MM-dd"),
-    ]
-      .map(esc)
-      .join(";"),
+    ]),
   );
-  const blob = new Blob(["﻿" + [header.join(";"), ...lines].join("\n")], {
-    type: "text/csv;charset=utf-8",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `firmalar-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
   return rows.length;
 }
 
@@ -258,18 +249,13 @@ function FirmalarView() {
           </TableHead>
           <TableBody>
             {items.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="text-admin-text-muted py-8 text-center"
-                >
-                  {query.isError
-                    ? "Veri alınamadı — lütfen tekrar deneyin"
-                    : query.isLoading
-                      ? "Yükleniyor..."
-                      : "Firma bulunamadı"}
-                </TableCell>
-              </TableRow>
+              <TableStateRow
+                colSpan={8}
+                loading={query.isLoading}
+                error={query.isError}
+                onRetry={() => void query.refetch()}
+                empty="Firma bulunamadı"
+              />
             ) : (
               items.map((c: AdminCompanyRow) => {
                 const meta = VERIFY_META[c.verification] ?? VERIFY_META.UNVERIFIED;

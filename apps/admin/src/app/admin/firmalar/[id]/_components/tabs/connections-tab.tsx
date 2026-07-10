@@ -1,5 +1,6 @@
 "use client";
 
+import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Table,
@@ -37,7 +38,7 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
   return (
     <div className="space-y-4">
       <section className="admin-card overflow-hidden">
-        <div className="border-surface-border border-b px-5 py-3.5">
+        <div className="border-admin-border border-b px-5 py-3.5">
           <h3 className="text-admin-text text-sm font-semibold">
             Firma Bağlantıları
           </h3>
@@ -54,14 +55,11 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
           </TableHead>
           <TableBody>
             {connections.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="text-admin-text-muted py-8 text-center"
-                >
-                  {query.isLoading ? "Yükleniyor..." : "Bağlantı yok"}
-                </TableCell>
-              </TableRow>
+              <TableStateRow
+                colSpan={5}
+                loading={query.isLoading}
+                empty="Bağlantı yok"
+              />
             ) : (
               connections.map((c) => {
                 const meta = metaOf(CONNECTION_STATUS_META, c.status);
@@ -117,7 +115,7 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
       </section>
 
       <section className="admin-card overflow-hidden">
-        <div className="border-surface-border border-b px-5 py-3.5">
+        <div className="border-admin-border border-b px-5 py-3.5">
           <h3 className="text-admin-text text-sm font-semibold">
             Referans Davetleri (e-posta)
           </h3>
@@ -133,14 +131,11 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
           </TableHead>
           <TableBody>
             {referrals.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={4}
-                  className="text-admin-text-muted py-8 text-center"
-                >
-                  {query.isLoading ? "Yükleniyor..." : "Referans daveti yok"}
-                </TableCell>
-              </TableRow>
+              <TableStateRow
+                colSpan={4}
+                loading={query.isLoading}
+                empty="Referans daveti yok"
+              />
             ) : (
               referrals.map((r) => (
                 <TableRow key={r.id}>

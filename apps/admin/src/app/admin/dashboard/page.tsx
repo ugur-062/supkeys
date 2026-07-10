@@ -299,7 +299,7 @@ function Panel({
 }) {
   return (
     <div className="admin-card">
-      <div className="border-surface-border flex items-center justify-between border-b px-5 py-4">
+      <div className="border-admin-border flex items-center justify-between border-b px-5 py-4">
         <h3 className="text-admin-text flex items-center gap-2 font-bold">
           {Icon ? <Icon className="text-admin-text-muted h-4 w-4" /> : null}
           {title}
@@ -311,7 +311,7 @@ function Panel({
           Tümünü Gör →
         </Link>
       </div>
-      <div className="divide-surface-border divide-y">{children}</div>
+      <div className="divide-admin-border divide-y">{children}</div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Table,
@@ -34,18 +35,13 @@ export function ListingsTab({ companyId }: { companyId: string }) {
         </TableHead>
         <TableBody>
           {items.length === 0 ? (
-            <TableRow>
-              <TableCell
+            <TableStateRow
                 colSpan={6}
-                className="text-admin-text-muted py-8 text-center"
-              >
-                {query.isLoading
-                  ? "Yükleniyor..."
-                  : query.isError
-                    ? "Veri alınamadı"
-                    : "İlan yok"}
-              </TableCell>
-            </TableRow>
+                loading={query.isLoading}
+                error={query.isError}
+                onRetry={() => void query.refetch()}
+                empty="İlan yok"
+              />
           ) : (
             items.map((l) => {
               const meta = LISTING_STATUS[l.status] ?? {

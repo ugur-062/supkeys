@@ -1,5 +1,6 @@
 "use client";
 
+import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Table,
@@ -41,18 +42,13 @@ export function AuditTab({ companyId }: { companyId: string }) {
         </TableHead>
         <TableBody>
           {items.length === 0 ? (
-            <TableRow>
-              <TableCell
+            <TableStateRow
                 colSpan={4}
-                className="text-admin-text-muted py-8 text-center"
-              >
-                {query.isLoading
-                  ? "Yükleniyor..."
-                  : query.isError
-                    ? "Veri alınamadı"
-                    : "Bu firmayla ilgili denetim kaydı yok"}
-              </TableCell>
-            </TableRow>
+                loading={query.isLoading}
+                error={query.isError}
+                onRetry={() => void query.refetch()}
+                empty="Bu firmayla ilgili denetim kaydı yok"
+              />
           ) : (
             items.map((r) => (
               <TableRow key={r.id}>

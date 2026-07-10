@@ -133,7 +133,7 @@ function ListingInspection({ id }: { id: string }) {
 
       {/* Teklifler */}
       <section className="admin-card overflow-hidden">
-        <div className="border-surface-border border-b px-5 py-3.5">
+        <div className="border-admin-border border-b px-5 py-3.5">
           <h3 className="text-admin-text text-sm font-semibold">
             Teklifler ({l.bids.length})
           </h3>
@@ -208,7 +208,7 @@ function ListingInspection({ id }: { id: string }) {
       {/* Kalemler + Davetliler + Siparişler */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <section className="admin-card overflow-hidden">
-          <div className="border-surface-border border-b px-5 py-3.5">
+          <div className="border-admin-border border-b px-5 py-3.5">
             <h3 className="text-admin-text text-sm font-semibold">
               Kalemler ({l.items.length})
             </h3>
@@ -240,13 +240,13 @@ function ListingInspection({ id }: { id: string }) {
         </section>
 
         <section className="admin-card overflow-hidden">
-          <div className="border-surface-border border-b px-5 py-3.5">
+          <div className="border-admin-border border-b px-5 py-3.5">
             <h3 className="text-admin-text text-sm font-semibold">
               Davetliler ({l.invitations.length}) · Siparişler (
               {l.orders.length})
             </h3>
           </div>
-          <div className="divide-surface-border divide-y">
+          <div className="divide-admin-border divide-y">
             {l.invitations.map((inv) => (
               <div
                 key={inv.id}

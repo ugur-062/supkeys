@@ -1,5 +1,6 @@
 "use client";
 
+import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Table,
@@ -45,16 +46,11 @@ function GuvenlikView() {
           </TableHead>
           <TableBody>
             {items.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="text-admin-text-muted py-8 text-center"
-                >
-                  {query.isLoading
-                    ? "Yükleniyor..."
-                    : "Başarısız giriş denemesi kaydı yok"}
-                </TableCell>
-              </TableRow>
+              <TableStateRow
+                colSpan={5}
+                loading={query.isLoading}
+                empty="Başarısız giriş denemesi kaydı yok"
+              />
             ) : (
               items.map((r) => {
                 const meta = (r.metadata ?? {}) as {

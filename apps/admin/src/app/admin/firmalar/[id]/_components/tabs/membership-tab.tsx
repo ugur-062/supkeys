@@ -1,5 +1,6 @@
 "use client";
 
+import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Dialog,
@@ -195,7 +196,7 @@ export function MembershipTab({
 
       {/* Geçmiş */}
       <section className="admin-card overflow-hidden">
-        <div className="border-surface-border border-b px-5 py-3.5">
+        <div className="border-admin-border border-b px-5 py-3.5">
           <h3 className="text-admin-text text-sm font-semibold">
             Üyelik Geçmişi
           </h3>
@@ -213,16 +214,11 @@ export function MembershipTab({
           </TableHead>
           <TableBody>
             {(history.data ?? []).length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="text-admin-text-muted py-8 text-center"
-                >
-                  {history.isLoading
-                    ? "Yükleniyor..."
-                    : "Üyelik hareketi yok"}
-                </TableCell>
-              </TableRow>
+              <TableStateRow
+                colSpan={6}
+                loading={history.isLoading}
+                empty="Üyelik hareketi yok"
+              />
             ) : (
               (history.data ?? []).map((e) => (
                 <TableRow key={e.id}>

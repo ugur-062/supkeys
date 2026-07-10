@@ -1,5 +1,6 @@
 "use client";
 
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
   useAddNote,
@@ -32,12 +33,11 @@ export function NotesTab({ companyId }: { companyId: string }) {
           <span className="text-admin-text text-sm font-semibold">
             Yeni not
           </span>
-          <textarea
+          <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={3}
             placeholder="Örn. 10 Tem — telefonla aradı, KYC belgesini yarın yükleyecek; premium teklifi iletildi."
-            className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-2 text-sm"
           />
         </label>
         <div className="mt-2 flex justify-end">

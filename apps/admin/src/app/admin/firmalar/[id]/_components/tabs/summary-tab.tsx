@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { StatCard } from "@/components/ui/stat-card";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import type { AdminCompanyDetail } from "@/hooks/use-admin-companies";
 import { api } from "@/lib/api";
@@ -108,16 +109,6 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="admin-card px-4 py-3">
-      <p className="text-admin-text-muted text-xs font-medium">{label}</p>
-      <p className="text-admin-text mt-1 text-2xl font-bold tabular-nums">
-        {value}
-      </p>
-    </div>
-  );
-}
 
 /** Özet — kimlik + iletişim + sayaçlar + kimlik düzeltme + KVKK. */
 export function SummaryTab({ data }: { data: AdminCompanyDetail }) {

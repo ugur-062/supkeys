@@ -1,5 +1,8 @@
 "use client";
 
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/catalyst/select";
+import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Table,
@@ -93,11 +96,10 @@ function AddUserDialog({
             <span className="text-admin-text-muted text-xs font-medium">
               E-posta
             </span>
-            <input
+            <Input
               type="email"
               value={form.email}
               onChange={(e) => set("email", e.target.value)}
-              className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
             />
           </label>
           <div className="grid grid-cols-2 gap-3">
@@ -105,20 +107,18 @@ function AddUserDialog({
               <span className="text-admin-text-muted text-xs font-medium">
                 Ad
               </span>
-              <input
+              <Input
                 value={form.firstName}
                 onChange={(e) => set("firstName", e.target.value)}
-                className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
               />
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-admin-text-muted text-xs font-medium">
                 Soyad
               </span>
-              <input
+              <Input
                 value={form.lastName}
                 onChange={(e) => set("lastName", e.target.value)}
-                className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
               />
             </label>
           </div>
@@ -126,17 +126,16 @@ function AddUserDialog({
             <span className="text-admin-text-muted text-xs font-medium">
               Rol
             </span>
-            <select
+            <Select
               value={form.role}
               onChange={(e) => set("role", e.target.value)}
-              className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
             >
               {ADDABLE_ROLES.map((r) => (
                 <option key={r.value} value={r.value}>
                   {r.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </label>
           <p className="text-admin-text-muted text-xs">
             Kullanıcıya şifre belirleme e-postası gönderilir; e-posta
@@ -221,18 +220,13 @@ export function UsersTab({ companyId }: { companyId: string }) {
           </TableHead>
           <TableBody>
             {users.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="text-admin-text-muted py-8 text-center"
-                >
-                  {query.isLoading
-                    ? "Yükleniyor..."
-                    : query.isError
-                      ? "Veri alınamadı"
-                      : "Kullanıcı yok"}
-                </TableCell>
-              </TableRow>
+              <TableStateRow
+                colSpan={5}
+                loading={query.isLoading}
+                error={query.isError}
+                onRetry={() => void query.refetch()}
+                empty="Kullanıcı yok"
+              />
             ) : (
               users.map((u) => (
                 <TableRow key={u.id}>

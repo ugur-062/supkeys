@@ -1,5 +1,6 @@
 "use client";
 
+import { TableStateRow } from "@/components/list/table-state";
 import { Badge } from "@/components/catalyst/badge";
 import {
   Table,
@@ -23,6 +24,7 @@ import {
   useResolveComplaint,
   type AdminComplaint,
 } from "@/hooks/use-admin-companies";
+import { downloadCsv } from "@/lib/csv";
 import { safeFormat } from "@/lib/date";
 import { Download } from "lucide-react";
 import Link from "next/link";
@@ -38,12 +40,11 @@ const STATUS_META: Record<
   DISMISSED: { label: "Reddedildi", color: "zinc" },
 };
 
-/** Filtreli sonucu CSV'ye dök (Excel-TR uyumlu, BOM'lu). */
-function downloadCsv(items: AdminComplaint[]) {
-  const esc = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
-  const header = ["Tarih", "Şikayet Eden", "Hakkında", "Konu", "Detay", "Durum", "Yönetici Notu"];
-  const lines = items.map((c) =>
-    [
+function exportComplaintsCsv(items: AdminComplaint[]) {
+  downloadCsv(
+    `sikayetler-${new Date().toISOString().slice(0, 10)}.csv`,
+    ["Tarih", "Şikayet Eden", "Hakkında", "Konu", "Detay", "Durum", "Yönetici Notu"],
+    items.map((c) => [
       safeFormat(c.createdAt, "yyyy-MM-dd HH:mm"),
       c.complainant.name,
       c.against.name,
@@ -51,19 +52,8 @@ function downloadCsv(items: AdminComplaint[]) {
       c.detail ?? "",
       STATUS_META[c.status]?.label ?? c.status,
       c.adminNote ?? "",
-    ]
-      .map(esc)
-      .join(";"),
+    ]),
   );
-  const blob = new Blob(["﻿" + [header.join(";"), ...lines].join("\n")], {
-    type: "text/csv;charset=utf-8",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `sikayetler-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 function SikayetlerView() {
@@ -145,7 +135,7 @@ function SikayetlerView() {
           variant="secondary"
           size="sm"
           disabled={items.length === 0}
-          onClick={() => downloadCsv(items)}
+          onClick={() => exportComplaintsCsv(items)}
         >
           <Download className="mr-1.5 h-3.5 w-3.5" /> CSV
         </Button>
@@ -165,18 +155,13 @@ function SikayetlerView() {
           </TableHead>
           <TableBody>
             {items.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={6}
-                  className="text-admin-text-muted py-8 text-center"
-                >
-                  {query.isError
-                    ? "Veri alınamadı — lütfen tekrar deneyin"
-                    : query.isLoading
-                      ? "Yükleniyor..."
-                      : "Şikayet bulunamadı"}
-                </TableCell>
-              </TableRow>
+              <TableStateRow
+                colSpan={6}
+                loading={query.isLoading}
+                error={query.isError}
+                onRetry={() => void query.refetch()}
+                empty="Şikayet bulunamadı"
+              />
             ) : (
               items.map((c: AdminComplaint) => {
                 const meta = STATUS_META[c.status] ?? STATUS_META.OPEN;
