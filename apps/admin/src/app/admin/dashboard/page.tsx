@@ -87,6 +87,9 @@ function DashboardContent() {
         />
       </div>
 
+      {/* Kayıt hunisi: kayıt → onboarding → KYC → doğrulandı */}
+      {s?.funnel ? <FunnelCard funnel={s.funnel} /> : null}
+
       {/* Son 30 gün aktivite */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <MiniStat
@@ -224,6 +227,60 @@ function DashboardContent() {
             ))
           )}
         </Panel>
+      </div>
+    </div>
+  );
+}
+
+/** Kayıt hunisi — her adımda kaç firma kaldı + önceki adıma göre oran. */
+function FunnelCard({
+  funnel,
+}: {
+  funnel: {
+    signedUp: number;
+    onboarded: number;
+    kycSubmitted: number;
+    verified: number;
+  };
+}) {
+  const steps = [
+    { label: "Kayıt", value: funnel.signedUp },
+    { label: "Onboarding tamam", value: funnel.onboarded },
+    { label: "KYC belgeleri", value: funnel.kycSubmitted },
+    { label: "Doğrulandı", value: funnel.verified },
+  ];
+  const max = Math.max(1, funnel.signedUp);
+  return (
+    <div className="admin-card px-5 py-4">
+      <h3 className="text-admin-text font-bold">Kayıt Hunisi</h3>
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-4">
+        {steps.map((st, i) => {
+          const prev = i === 0 ? st.value : steps[i - 1]!.value;
+          const rate = prev > 0 ? Math.round((st.value / prev) * 100) : 0;
+          return (
+            <div key={st.label}>
+              <div className="flex items-baseline justify-between">
+                <span className="text-admin-text-muted text-xs font-medium">
+                  {st.label}
+                </span>
+                {i > 0 ? (
+                  <span className="text-admin-text-muted text-[11px]">
+                    %{rate}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-admin-text mt-0.5 text-xl font-bold tabular-nums">
+                {st.value.toLocaleString("tr-TR")}
+              </p>
+              <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-100">
+                <div
+                  className="h-full rounded-full bg-zinc-900"
+                  style={{ width: `${Math.round((st.value / max) * 100)}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

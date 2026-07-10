@@ -133,6 +133,44 @@ describe("DocsTab — KYC belge inceleme", () => {
     expect(screen.getByText("Ticaret Sicil Gazetesi")).toBeInTheDocument();
   });
 
+  it("red şablonu chip'i tıklanınca gerekçe input'una dolar", async () => {
+    const user = userEvent.setup();
+    render(<DocsTab companyId="c1" data={detail()} />);
+    await user.click(screen.getByRole("button", { name: "Hepsini Onayla" }));
+    await user.click(screen.getAllByRole("button", { name: "Reddet" })[0]!);
+    await user.click(
+      screen.getByRole("button", { name: "Belge okunmuyor / bulanık" }),
+    );
+    expect(
+      screen.getByLabelText(/Vergi Levhası red gerekçesi/),
+    ).toHaveValue("Belge okunmuyor / bulanık");
+    await user.click(screen.getByRole("button", { name: "Kararı Kaydet" }));
+    expect(h.reviewMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decisions: expect.objectContaining({
+          taxPlate: {
+            status: "REJECTED",
+            reason: "Belge okunmuyor / bulanık",
+          },
+        }),
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("Önizle → sayfa içi iframe açılır, tekrar tıklayınca kapanır", async () => {
+    const user = userEvent.setup();
+    render(<DocsTab companyId="c1" data={detail()} />);
+    await user.click(screen.getAllByRole("button", { name: "Önizle" })[0]!);
+    expect(screen.getByTitle("Vergi Levhası önizleme")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Önizlemeyi Kapat" }),
+    );
+    expect(
+      screen.queryByTitle("Vergi Levhası önizleme"),
+    ).not.toBeInTheDocument();
+  });
+
   it("karar verilmemiş belge varken kaydetmeye çalışınca hata toast'ı", async () => {
     const user = userEvent.setup();
     render(<DocsTab companyId="c1" data={detail()} />);

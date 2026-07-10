@@ -49,9 +49,17 @@ type TabKey = (typeof TABS)[number]["key"];
  * Tam-sayfa firma detayı — eski modalın yerini alır. Sekmeler fazlarla dolar:
  * Kullanıcılar (Faz 4), İlanlar/Siparişler (Faz 5), Notlar (Faz 6).
  */
-export function CompanyDetailView({ companyId }: { companyId: string }) {
+export function CompanyDetailView({
+  companyId,
+  initialTab,
+}: {
+  companyId: string;
+  initialTab?: string;
+}) {
   const { data, isLoading, isError, refetch } = useCompanyDetail(companyId);
-  const [tab, setTab] = useState<TabKey>("ozet");
+  const [tab, setTab] = useState<TabKey>(
+    TABS.some((t) => t.key === initialTab) ? (initialTab as TabKey) : "ozet",
+  );
   const act = useCompanyAction();
   const tierAct = useSetCompanyTier();
   const [prompt, setPrompt] = useState<"tierMonths" | "suspendReason" | null>(

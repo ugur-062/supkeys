@@ -35,6 +35,7 @@ function statsFixture(over: Record<string, unknown> = {}) {
     last30Days: { newCompanies: 2, newListings: 5, newOrders: 1 },
     expiringMemberships: [],
     oldestPendingSince: null,
+    funnel: { signedUp: 4, onboarded: 3, kycSubmitted: 2, verified: 2 },
     ...over,
   };
 }
@@ -65,7 +66,8 @@ describe("AdminDashboardPage — DashboardContent", () => {
     render(<AdminDashboardPage />);
 
     expect(screen.getByText("Toplam Firma")).toBeInTheDocument();
-    expect(screen.getByText("4")).toBeInTheDocument(); // total
+    // "4" hem Toplam Firma KPI'sında hem huni "Kayıt" adımında.
+    expect(screen.getAllByText("4").length).toBeGreaterThanOrEqual(1);
     // "2" hem Doğrulanmış KPI'sında hem "Yeni firma (30 gün)" mini-stat'ında.
     expect(screen.getAllByText("2").length).toBeGreaterThanOrEqual(1);
     // "3" hem Açık Şikayet KPI'sında hem ülke dağılımında (TR=3) geçer.
@@ -73,6 +75,10 @@ describe("AdminDashboardPage — DashboardContent", () => {
     expect(screen.getByText("İnceleme Bekleyen")).toBeInTheDocument();
     // Tier breakdown alt yazısı
     expect(screen.getByText(/1 premium · 3 standart/)).toBeInTheDocument();
+    // Kayıt hunisi (Faz 2) — 4 adım ve oran yüzdesi render olur.
+    expect(screen.getByText("Kayıt Hunisi")).toBeInTheDocument();
+    expect(screen.getByText("Onboarding tamam")).toBeInTheDocument();
+    expect(screen.getByText("%75")).toBeInTheDocument(); // 3/4
   });
 
   it("ülke dağılımı ve son firmaları listeler + tarih formatlar", () => {

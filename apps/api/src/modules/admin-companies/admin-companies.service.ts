@@ -111,6 +111,7 @@ export class AdminCompaniesService {
     q?: string;
     country?: string;
     tier?: string;
+    sort?: string;
     page?: number;
     pageSize?: number;
   }) {
@@ -159,9 +160,15 @@ export class AdminCompaniesService {
           companyVerificationStatus: true,
           isBlocked: true,
           createdAt: true,
+          updatedAt: true,
           _count: { select: { complaintsReceived: true, users: true } },
         },
-        orderBy: { createdAt: "desc" },
+        // "oldest": KYC kuyruğu için en-eski-önce (updatedAt ≈ belgelerin
+        // yüklendiği/PENDING'e geçtiği an) — SLA'ya göre işlem sırası.
+        orderBy:
+          query.sort === "oldest"
+            ? { updatedAt: "asc" }
+            : { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,
       }),
@@ -182,6 +189,7 @@ export class AdminCompaniesService {
         complaintCount: c._count.complaintsReceived,
         userCount: c._count.users,
         createdAt: c.createdAt,
+        updatedAt: c.updatedAt,
       })),
       total,
       page,
@@ -209,6 +217,7 @@ export class AdminCompaniesService {
       new30Orders,
       expiring,
       oldestPending,
+      onboarded,
     ] = await Promise.all([
       this.prisma.company.count(),
       this.prisma.company.groupBy({
@@ -247,6 +256,10 @@ export class AdminCompaniesService {
         select: { updatedAt: true },
         orderBy: { updatedAt: "asc" },
       }),
+      // Kayıt hunisi 2. adımı: onboarding wizard'ını bitirenler.
+      this.prisma.company.count({
+        where: { onboardingCompletedAt: { not: null } },
+      }),
     ]);
     const vmap = new Map(
       byVerification.map((g) => [g.companyVerificationStatus, g._count]),
@@ -275,6 +288,16 @@ export class AdminCompaniesService {
       },
       expiringMemberships: expiring,
       oldestPendingSince: oldestPending?.updatedAt ?? null,
+      /** Kayıt hunisi: kayıt → onboarding → KYC belgeleri → doğrulandı. */
+      funnel: {
+        signedUp: total,
+        onboarded,
+        kycSubmitted:
+          (vmap.get("PENDING") ?? 0) +
+          (vmap.get("VERIFIED") ?? 0) +
+          (vmap.get("REJECTED") ?? 0),
+        verified: vmap.get("VERIFIED") ?? 0,
+      },
     };
   }
 
@@ -363,6 +386,88 @@ export class AdminCompaniesService {
       docIdBackUrl,
       openComplaints,
     };
+  }
+
+  /**
+   * Firma kimlik bilgisi düzeltme — "yanlış yazdım" destek çağrıları için.
+   * Yalnız gönderilen alanlar değişir; öncesi/sonrası audit'e yazılır.
+   * Vergi no/ülke gibi alanların değişimi KYC kararını OTOMATİK bozmaz —
+   * gerekiyorsa admin belgeleri yeniden inceler (bilinçli ayrım).
+   */
+  async updateProfile(
+    id: string,
+    input: Partial<
+      Record<
+        | "name"
+        | "legalName"
+        | "taxNumber"
+        | "taxOffice"
+        | "mersisNo"
+        | "tradeRegistryNo"
+        | "country"
+        | "stateRegion"
+        | "city"
+        | "addressLine"
+        | "billingEmail"
+        | "website"
+        | "industry"
+        | "iban"
+        | "ibanHolder",
+        string | null
+      >
+    >,
+    adminId: string,
+  ) {
+    const before = await this.prisma.company.findUnique({
+      where: { id },
+      select: {
+        name: true,
+        legalName: true,
+        taxNumber: true,
+        taxOffice: true,
+        mersisNo: true,
+        tradeRegistryNo: true,
+        country: true,
+        stateRegion: true,
+        city: true,
+        addressLine: true,
+        billingEmail: true,
+        website: true,
+        industry: true,
+        iban: true,
+        ibanHolder: true,
+      },
+    });
+    if (!before) throw new NotFoundException("Firma bulunamadı");
+
+    // Yalnız gerçekten değişen alanları uygula ("" → null normalize).
+    const changes: Record<string, { from: unknown; to: unknown }> = {};
+    const data: Record<string, string | null> = {};
+    for (const [key, raw] of Object.entries(input)) {
+      if (raw === undefined) continue;
+      const value = typeof raw === "string" ? raw.trim() || null : raw;
+      const prev = (before as Record<string, unknown>)[key] ?? null;
+      if (value === prev) continue;
+      // Ad boş bırakılamaz; ülke 2 harfli koda normalize edilir.
+      if (key === "name" && !value) {
+        throw new BadRequestException("Firma adı boş olamaz");
+      }
+      data[key] = key === "country" && value ? value.toUpperCase() : value;
+      changes[key] = { from: prev, to: data[key] };
+    }
+    if (Object.keys(data).length === 0) {
+      return { ok: true, changed: [] };
+    }
+    await this.prisma.company.update({ where: { id }, data });
+    await this.audit.log({
+      action: "admin.company.profile_updated",
+      actorType: "admin",
+      actorId: adminId ?? null,
+      entityType: "company",
+      entityId: id,
+      metadata: { changes },
+    });
+    return { ok: true, changed: Object.keys(data) };
   }
 
   async setVerification(

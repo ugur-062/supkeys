@@ -54,6 +54,11 @@ class ListCompaniesDto {
   @IsIn(["STANDARD", "PAKET"])
   tier?: string;
 
+  /** "oldest" = KYC kuyruğu için en-eski-önce (varsayılan: en yeni). */
+  @IsOptional()
+  @IsIn(["newest", "oldest"])
+  sort?: string;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -88,6 +93,84 @@ class ReviewDocsDto {
   decisions!: Partial<
     Record<DocKind, { status: "APPROVED" | "REJECTED"; reason?: string }>
   >;
+}
+
+/** Firma kimlik düzeltme — yalnız gönderilen alanlar değişir. */
+class UpdateCompanyProfileDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  legalName?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  taxNumber?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  taxOffice?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  mersisNo?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  tradeRegistryNo?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @Length(2, 2)
+  country?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  stateRegion?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  city?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
+  addressLine?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  billingEmail?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  website?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  industry?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  iban?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  ibanHolder?: string | null;
 }
 
 class SetTierDto {
@@ -142,6 +225,17 @@ export class AdminCompaniesController {
   @RequireAdminRole("SUPER_ADMIN", "SALES")
   detail(@Param("id") id: string) {
     return this.service.detail(id);
+  }
+
+  @Post("companies/:id/profile")
+  // Kimlik düzeltme ("yanlış yazdım" çağrıları) — KYC yapan roller.
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
+  updateProfile(
+    @Param("id") id: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Body() dto: UpdateCompanyProfileDto,
+  ) {
+    return this.service.updateProfile(id, dto, admin.id);
   }
 
   @Post("companies/:id/verify")

@@ -47,6 +47,15 @@ const DOC_BADGE: Record<
   REJECTED: { label: "Reddedildi", color: "red" },
 };
 
+/** Hazır red gerekçeleri — tıklayınca input'a dolar (elle düzenlenebilir). */
+const REJECT_TEMPLATES = [
+  "Belge okunmuyor / bulanık",
+  "Yanlış belge yüklenmiş",
+  "Belge güncel değil (son 3 ay içinde alınmış olmalı)",
+  "Belgedeki bilgiler firma bilgileriyle uyuşmuyor",
+  "İmza / kaşe eksik",
+];
+
 /**
  * Belgeler — KYC belge bazlı inceleme (eski modalın portu). Yabancı firmada
  * zorunlu set 3 belgeye iner; hangi belgelerin istendiği açıkça görünür.
@@ -62,6 +71,8 @@ export function DocsTab({
   const [decisions, setDecisions] = useState<
     Partial<Record<DocKind, DocDecision>>
   >({});
+  // Sayfa içi önizleme — açık olan belge (yeni sekmeye gitmeden inceleme).
+  const [previewKey, setPreviewKey] = useState<DocKind | null>(null);
 
   const required = useMemo(() => requiredKinds(data.country), [data.country]);
   const foreign = (data.country ?? "TR").toUpperCase() !== "TR";
@@ -173,16 +184,35 @@ export function DocsTab({
                     )}
                   </span>
                   {url ? (
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="shrink-0 text-xs font-semibold text-blue-600 hover:underline"
-                    >
-                      Görüntüle
-                    </a>
+                    <span className="flex shrink-0 items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewKey(previewKey === d.key ? null : d.key)
+                        }
+                        className="text-xs font-semibold text-blue-600 hover:underline"
+                      >
+                        {previewKey === d.key ? "Önizlemeyi Kapat" : "Önizle"}
+                      </button>
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-semibold text-blue-600 hover:underline"
+                      >
+                        Görüntüle
+                      </a>
+                    </span>
                   ) : null}
                 </div>
+                {/* Sayfa içi önizleme — PDF/görsel iframe'de açılır. */}
+                {url && previewKey === d.key ? (
+                  <iframe
+                    src={url}
+                    title={`${d.label} önizleme`}
+                    className="border-admin-border h-[480px] w-full rounded-lg border bg-white"
+                  />
+                ) : null}
                 {url ? (
                   <div className="flex flex-col gap-2">
                     <div className="flex gap-2">
@@ -215,18 +245,38 @@ export function DocsTab({
                       </button>
                     </div>
                     {dec?.status === "REJECTED" ? (
-                      <input
-                        value={dec.reason ?? ""}
-                        onChange={(e) =>
-                          setDecision(d.key, {
-                            status: "REJECTED",
-                            reason: e.target.value,
-                          })
-                        }
-                        placeholder="Red gerekçesi — firmaya gösterilir (ör. belge okunmuyor)"
-                        aria-label={`${d.label} red gerekçesi`}
-                        className="border-admin-border bg-admin-surface text-admin-text w-full rounded-lg border px-3 py-1.5 text-xs"
-                      />
+                      <div className="flex flex-col gap-1.5">
+                        <input
+                          value={dec.reason ?? ""}
+                          onChange={(e) =>
+                            setDecision(d.key, {
+                              status: "REJECTED",
+                              reason: e.target.value,
+                            })
+                          }
+                          placeholder="Red gerekçesi — firmaya gösterilir (ör. belge okunmuyor)"
+                          aria-label={`${d.label} red gerekçesi`}
+                          className="border-admin-border bg-admin-surface text-admin-text w-full rounded-lg border px-3 py-1.5 text-xs"
+                        />
+                        {/* Hazır gerekçeler — tıkla doldur, gerekirse düzenle. */}
+                        <div className="flex flex-wrap gap-1.5">
+                          {REJECT_TEMPLATES.map((t) => (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() =>
+                                setDecision(d.key, {
+                                  status: "REJECTED",
+                                  reason: t,
+                                })
+                              }
+                              className="border-admin-border text-admin-text-muted hover:bg-admin-border/30 rounded-full border px-2 py-0.5 text-[11px]"
+                            >
+                              {t}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     ) : null}
                   </div>
                 ) : null}

@@ -18,6 +18,8 @@ export interface AdminCompanyRow {
   complaintCount: number;
   userCount: number;
   createdAt: string;
+  /** Kuyruk yaşı için — PENDING'e geçiş/belge yükleme yaklaşık anı. */
+  updatedAt: string;
 }
 
 export interface AdminCompanyListResponse {
@@ -33,6 +35,7 @@ export interface AdminCompanyListParams {
   q?: string;
   country?: string;
   tier?: string;
+  sort?: "newest" | "oldest";
   page?: number;
   pageSize?: number;
 }
@@ -73,6 +76,13 @@ export interface AdminCompanyStats {
     membershipEndAt: string;
   }[];
   oldestPendingSince: string | null;
+  /** Kayıt hunisi: kayıt → onboarding → KYC belgeleri → doğrulandı. */
+  funnel: {
+    signedUp: number;
+    onboarded: number;
+    kycSubmitted: number;
+    verified: number;
+  };
 }
 
 /** Dashboard KPI'ları — server-side count/groupBy (200-limitten bağımsız). */
@@ -213,6 +223,48 @@ export function useCompanyDetail(id: string | null) {
         `/admin/companies/${id}`,
       );
       return data;
+    },
+  });
+}
+
+/** Firma kimlik bilgisi düzeltme — yalnız gönderilen alanlar değişir. */
+export interface CompanyProfilePatch {
+  name?: string;
+  legalName?: string | null;
+  taxNumber?: string | null;
+  taxOffice?: string | null;
+  mersisNo?: string | null;
+  tradeRegistryNo?: string | null;
+  country?: string;
+  stateRegion?: string | null;
+  city?: string | null;
+  addressLine?: string | null;
+  billingEmail?: string | null;
+  website?: string | null;
+  industry?: string | null;
+  iban?: string | null;
+  ibanHolder?: string | null;
+}
+
+export function useUpdateCompanyProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: CompanyProfilePatch;
+    }) => {
+      const { data } = await api.post<{ ok: boolean; changed: string[] }>(
+        `/admin/companies/${id}/profile`,
+        patch,
+      );
+      return data;
+    },
+    onSuccess: (_d, { id }) => {
+      qc.invalidateQueries({ queryKey: ["admin-companies"] });
+      qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
     },
   });
 }

@@ -31,6 +31,7 @@ import {
   Activity,
   Building2,
   Flag,
+  Inbox,
   LayoutDashboard,
   Link2,
   Mail,
@@ -66,6 +67,12 @@ const NAV_SECTIONS: NavSection[] = [
   {
     heading: "Birleşik Sistem",
     items: [
+      {
+        label: "Başvurular",
+        href: "/admin/basvurular",
+        icon: Inbox,
+        activeMatch: "/admin/basvurular",
+      },
       {
         label: "Firmalar",
         href: "/admin/firmalar",

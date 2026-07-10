@@ -1,8 +1,12 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import type { AdminCompanyDetail } from "@/hooks/use-admin-companies";
 import { countryLabel } from "@/lib/country";
 import { safeFormat } from "@/lib/date";
+import { Pencil } from "lucide-react";
+import { useState } from "react";
+import { EditProfileDialog } from "../edit-profile-dialog";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -24,8 +28,9 @@ function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-/** Özet — kimlik + iletişim + sayaçlar. */
+/** Özet — kimlik + iletişim + sayaçlar + kimlik düzeltme. */
 export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
+  const [editing, setEditing] = useState(false);
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -36,7 +41,14 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
       </div>
 
       <section className="admin-card px-5 py-4">
-        <h3 className="text-admin-text text-sm font-semibold">Kimlik Bilgileri</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-admin-text text-sm font-semibold">
+            Kimlik Bilgileri
+          </h3>
+          <Button variant="secondary" size="sm" onClick={() => setEditing(true)}>
+            <Pencil className="mr-1.5 h-3.5 w-3.5" /> Düzenle
+          </Button>
+        </div>
         <dl className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Row label="Ünvan" value={data.legalName} />
           <Row label="Vergi No" value={data.taxNumber} />
@@ -84,6 +96,14 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
           </p>
         ) : null}
       </section>
+
+      {editing ? (
+        <EditProfileDialog
+          companyId={data.id}
+          data={data}
+          onClose={() => setEditing(false)}
+        />
+      ) : null}
     </div>
   );
 }
