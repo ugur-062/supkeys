@@ -221,6 +221,23 @@ export class CompanyAuthService {
   }
 
   /**
+   * Admin destek akışı — doğrulanmamış kullanıcıya doğrulama kodunu yeniden
+   * gönderir ("doğrulama maili gelmedi" çağrısı). issueEmailCode'un public
+   * sarmalayıcısı; kod/TTL/hash mantığı tek yerde kalır.
+   */
+  async adminResendVerificationCode(userId: string): Promise<void> {
+    const user = await this.prisma.companyUser.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true, emailVerifiedAt: true },
+    });
+    if (!user) throw new BadRequestException("Kullanıcı bulunamadı");
+    if (user.emailVerifiedAt) {
+      throw new BadRequestException("E-posta zaten doğrulanmış");
+    }
+    await this.issueEmailCode(userId, user.email, user.firstName);
+  }
+
+  /**
    * En son gönderilen e-posta kodunu doğrulayıp tüketir (emailVerifiedAt'e
    * DOKUNMAZ). E-posta 2FA login/kurulumunda kullanılır. Başarısızda false.
    */

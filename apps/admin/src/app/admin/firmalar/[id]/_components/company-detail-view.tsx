@@ -20,6 +20,7 @@ import { DocsTab } from "./tabs/docs-tab";
 import { MembershipTab } from "./tabs/membership-tab";
 import { PlaceholderTab } from "./tabs/placeholder-tab";
 import { SummaryTab } from "./tabs/summary-tab";
+import { UsersTab } from "./tabs/users-tab";
 
 const VERIFY_META: Record<
   string,
@@ -208,9 +209,7 @@ export function CompanyDetailView({
       {tab === "ozet" ? <SummaryTab data={data} /> : null}
       {tab === "belgeler" ? <DocsTab companyId={companyId} data={data} /> : null}
       {tab === "uyelik" ? <MembershipTab companyId={companyId} data={data} /> : null}
-      {tab === "kullanicilar" ? (
-        <PlaceholderTab label="Kullanıcı yönetimi (şifre sıfırlama, devre dışı bırakma, oturum düşürme)" />
-      ) : null}
+      {tab === "kullanicilar" ? <UsersTab companyId={companyId} /> : null}
       {tab === "ilanlar" ? (
         <PlaceholderTab label="İlan görünümü (tüm ihaleler, teklifler ve durumları)" />
       ) : null}
