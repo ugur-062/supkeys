@@ -2578,20 +2578,25 @@ export class CompanyListingsService {
 
     // Taban/hemen-al kıyası İLANIN para biriminde yapılır. Teklif farklı
     // birimdeyse TCMB kuruyla çevrilir (çevrimsiz ham kıyas yanlıştı:
-    // 100 USD, 3.000 TL tabanın "altında" sayılıyordu). Kur yoksa ve kıyas
-    // gerekiyorsa gönderim reddedilir — yanlış kıyasla teklif kabul edilmez.
+    // 100 USD, 3.000 TL tabanın "altında" sayılıyordu). Kur yoksa/BAYATSA ve
+    // kıyas gerekiyorsa gönderim reddedilir — yanlış kıyasla teklif kabul
+    // edilmez. DİKKAT: burada getCurrentRate DEĞİL getFreshRate — o sessizce
+    // bayat/fallback kur döndürür (gösterim için OK, para kararı için değil).
     const curSym =
       listing.primaryCurrency === "TRY" ? "₺" : listing.primaryCurrency;
     let toListingCurrency: Prisma.Decimal | null = null;
     if (currency === listing.primaryCurrency) {
       toListingCurrency = new Prisma.Decimal(1);
     } else {
-      const bidRate = currency === "TRY" ? 1 : exchangeRateSnapshot;
+      const bidRate =
+        currency === "TRY"
+          ? 1
+          : await this.exchangeRates.getFreshRate(currency).catch(() => null);
       const listingRate =
         listing.primaryCurrency === "TRY"
           ? 1
           : await this.exchangeRates
-              .getCurrentRate(listing.primaryCurrency)
+              .getFreshRate(listing.primaryCurrency)
               .catch(() => null);
       if (bidRate != null && listingRate != null && listingRate > 0) {
         toListingCurrency = new Prisma.Decimal(bidRate).div(listingRate);
@@ -2607,7 +2612,7 @@ export class CompanyListingsService {
         ));
     if (needsFloorCheck && toListingCurrency == null) {
       throw new BadRequestException(
-        "Kur bilgisi alınamadı — teklifiniz taban fiyatla karşılaştırılamıyor, lütfen tekrar deneyin",
+        "Güncel kur bilgisi yok (TCMB) — teklifiniz taban fiyatla karşılaştırılamıyor. Lütfen daha sonra tekrar deneyin veya teklifi ilanın para biriminde verin",
       );
     }
     const inListingCur = (v: Prisma.Decimal | number): Prisma.Decimal =>

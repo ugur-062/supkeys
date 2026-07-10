@@ -77,6 +77,15 @@ export class CompanyJwtStrategy extends PassportStrategy(
       );
     }
 
+    // EFEKTİF tier — lazy guard: üyelik süresi geçmişse istek boyunca STANDARD
+    // muamelesi görür, 03:00 cron'unu BEKLEMEZ (cron kaçarsa/uyursa süresi
+    // bitmiş firma premium yetkiyle işlem yapamasın). Kalıcı downgrade +
+    // davet iptali + e-posta scheduler'ın işi (boot catch-up dahil).
+    const membershipExpired =
+      user.company.tier === "PAKET" &&
+      user.company.membershipEndAt != null &&
+      user.company.membershipEndAt.getTime() < Date.now();
+
     return {
       userId: user.id,
       companyId: user.companyId,
@@ -84,7 +93,7 @@ export class CompanyJwtStrategy extends PassportStrategy(
       firstName: user.firstName,
       lastName: user.lastName,
       roles: user.roles,
-      tier: user.company.tier,
+      tier: membershipExpired ? "STANDARD" : user.company.tier,
       country: user.company.country,
       isOwner: user.company.ownerUserId === user.id,
       permissionsOverride:

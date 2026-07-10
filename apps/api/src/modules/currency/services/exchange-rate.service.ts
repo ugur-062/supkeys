@@ -90,6 +90,30 @@ export class ExchangeRateService {
   }
 
   /**
+   * Para-yolu (taban/hemen-al kıyası) için GÜVENİLİR kur: kayıt yoksa veya
+   * bayatsa (>7 gün) null döner — sessiz fallback/bayat kurla YANLIŞ kıyas
+   * yapıp teklifi haksız kabul/reddetmek yerine caller işlemi açık hatayla
+   * reddeder. Gösterim amaçlı yaklaşık değer için getCurrentRate kullanın.
+   */
+  async getFreshRate(currency: Currency): Promise<number | null> {
+    if (currency === "TRY") return 1;
+    const latest = await this.prisma.exchangeRate.findFirst({
+      where: { currency },
+      orderBy: { rateDate: "desc" },
+    });
+    if (!latest) return null;
+    const ageMs = Date.now() - latest.rateDate.getTime();
+    if (ageMs > STALE_AFTER_MS) {
+      this.warnThrottled(
+        `fresh-stale:${currency}`,
+        `${currency} kuru BAYAT (${Math.floor(ageMs / 86_400_000)} gün) — para-yolu kıyası REDDEDİLİYOR; TCMB cron'unu kontrol edin`,
+      );
+      return null;
+    }
+    return Number(latest.rate);
+  }
+
+  /**
    * Kur tazeliği — health endpoint'i için: en son kayıt tarihi ve bayatlık.
    * DB boşsa stale=true (fallback kullanılıyor demektir).
    */

@@ -1,11 +1,11 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailService } from "../../email/email.service";
 
 @Injectable()
-export class MembershipScheduler {
+export class MembershipScheduler implements OnModuleInit {
   private readonly logger = new Logger(MembershipScheduler.name);
 
   constructor(
@@ -13,6 +13,26 @@ export class MembershipScheduler {
     private readonly email: EmailService,
     private readonly config: ConfigService,
   ) {}
+
+  /**
+   * Boot catch-up — sabit-saatli cron (03:00) uyku/restart'ta KAÇAR ve
+   * @nestjs/schedule kaçan çalıştırmayı telafi etmez; her açılışta bir kez
+   * süresi geçmişleri süpür (kur boot-seed'iyle aynı desen). 30 sn gecikme:
+   * bootstrap'ı bloklamasın. JWT strategy'deki efektif-tier lazy guard bu
+   * arada yetkiyi zaten anlık kapatıyor; burası kalıcı state + davet iptali
+   * + e-posta.
+   */
+  onModuleInit(): void {
+    setTimeout(() => {
+      this.downgradeExpired().catch((err: unknown) =>
+        this.logger.warn(
+          `Boot membership catch-up başarısız: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+    }, 30_000);
+  }
 
   /**
    * Her gün İstanbul saatiyle 03:00 — süresi geçmiş PAKET üyelikleri
