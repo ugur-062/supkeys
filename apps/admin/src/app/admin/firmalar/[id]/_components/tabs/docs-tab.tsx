@@ -10,6 +10,7 @@ import {
   type DocStatus,
 } from "@/hooks/use-admin-companies";
 import { Check, FileText, X } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -68,6 +69,10 @@ export function DocsTab({
   data: AdminCompanyDetail;
 }) {
   const review = useReviewDocuments();
+  // Başvurular kuyruğundan gelindiyse (?from=queue) karar sonrası kuyruğa
+  // dönülür — inceleme temposu kesilmesin.
+  const router = useRouter();
+  const fromQueue = useSearchParams().get("from") === "queue";
   const [decisions, setDecisions] = useState<
     Partial<Record<DocKind, DocDecision>>
   >({});
@@ -129,12 +134,14 @@ export function DocsTab({
     review.mutate(
       { id: companyId, decisions: payload },
       {
-        onSuccess: (res) =>
+        onSuccess: (res) => {
           toast.success(
             res.status === "VERIFIED"
               ? "Firma doğrulandı"
               : "Karar kaydedildi — bazı belgeler reddedildi",
-          ),
+          );
+          if (fromQueue) router.push("/admin/basvurular");
+        },
         onError: (e: unknown) =>
           toast.error(e instanceof Error ? e.message : "Hata"),
       },

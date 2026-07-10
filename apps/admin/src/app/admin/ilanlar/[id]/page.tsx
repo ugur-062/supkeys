@@ -322,6 +322,7 @@ function ListingInspection({ id }: { id: string }) {
         title="Süre Uzat"
         label="Yeni kapanış (yalnız uzatma — kısaltma yapılamaz)"
         type="datetime-local"
+        minDateTime={(l.closesAt ?? new Date().toISOString()).slice(0, 16)}
         required
         confirmLabel="Uzat"
         onConfirm={(v) => {
@@ -342,6 +343,7 @@ function ListingInspection({ id }: { id: string }) {
         title="İlanı Yeniden Aç"
         label="Yeni kapanış tarihi"
         type="datetime-local"
+        minDateTime={new Date().toISOString().slice(0, 16)}
         required
         confirmLabel="Yeniden Aç"
         onConfirm={(v) => {

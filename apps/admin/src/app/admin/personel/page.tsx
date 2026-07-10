@@ -118,6 +118,7 @@ function AddStaffDialog({
             </span>
             <Input
               type="email"
+              autoFocus
               value={form.email}
               onChange={(e) => set("email", e.target.value)}
             />
@@ -163,7 +164,7 @@ function AddStaffDialog({
           <Button
             loading={pending}
             onClick={() => {
-              if (!form.email.includes("@")) {
+              if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
                 toast.error("Geçerli bir e-posta girin");
                 return;
               }
@@ -193,6 +194,13 @@ function PersonelView() {
   const act = useStaffAction();
   const [adding, setAdding] = useState(false);
   const [tempPw, setTempPw] = useState<string | null>(null);
+  // Rol değişimi = en riskli aksiyon → tek tık yerine onay dialog'u.
+  const [rolePrompt, setRolePrompt] = useState<{
+    id: string;
+    email: string;
+    from: AdminRole;
+    to: AdminRole;
+  } | null>(null);
 
   const err = (e: unknown) =>
     toast.error(e instanceof Error ? e.message : "Hata");
@@ -257,17 +265,13 @@ function PersonelView() {
                         disabled={act.isPending || isSelf}
                         aria-label={`${s.email} rolü`}
                         onChange={(e) =>
-                          act.mutate(
-                            {
-                              id: s.id,
-                              action: "role",
-                              role: e.target.value as AdminRole,
-                            },
-                            {
-                              onSuccess: () => toast.success("Rol güncellendi"),
-                              onError: err,
-                            },
-                          )
+                          // Anında mutasyon YOK — onay dialog'u açılır.
+                          setRolePrompt({
+                            id: s.id,
+                            email: s.email,
+                            from: s.role,
+                            to: e.target.value as AdminRole,
+                          })
                         }
                         className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-2 py-1 text-xs"
                       >
@@ -289,7 +293,11 @@ function PersonelView() {
                         <Badge color="blue" className="ml-1.5">
                           2FA
                         </Badge>
-                      ) : null}
+                      ) : (
+                        <Badge color="amber" className="ml-1.5">
+                          2FA yok
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
                       {s.lastLoginAt
@@ -363,6 +371,58 @@ function PersonelView() {
           </TableBody>
         </Table>
       </div>
+
+      {rolePrompt ? (
+        <Dialog
+          open
+          onClose={() => setRolePrompt(null)}
+          size="sm"
+          aria-label="Rol değişikliği onayı"
+        >
+          <DialogTitle>Rol Değişikliği</DialogTitle>
+          <DialogBody>
+            <p className="text-admin-text text-sm">
+              <strong>{rolePrompt.email}</strong> kullanıcısının rolü{" "}
+              <Badge color={ROLE_META[rolePrompt.from].color}>
+                {ROLE_META[rolePrompt.from].label}
+              </Badge>{" "}
+              →{" "}
+              <Badge color={ROLE_META[rolePrompt.to].color}>
+                {ROLE_META[rolePrompt.to].label}
+              </Badge>{" "}
+              olarak değiştirilecek.
+              {rolePrompt.to === "SUPER_ADMIN"
+                ? " DİKKAT: Süper Admin tüm yetkilere sahiptir."
+                : ""}
+            </p>
+          </DialogBody>
+          <DialogActions>
+            <Button variant="ghost" onClick={() => setRolePrompt(null)}>
+              Vazgeç
+            </Button>
+            <Button
+              loading={act.isPending}
+              onClick={() =>
+                act.mutate(
+                  { id: rolePrompt.id, action: "role", role: rolePrompt.to },
+                  {
+                    onSuccess: () => {
+                      toast.success("Rol güncellendi");
+                      setRolePrompt(null);
+                    },
+                    onError: (e: unknown) => {
+                      err(e);
+                      setRolePrompt(null);
+                    },
+                  },
+                )
+              }
+            >
+              Onayla
+            </Button>
+          </DialogActions>
+        </Dialog>
+      ) : null}
 
       {adding ? (
         <AddStaffDialog

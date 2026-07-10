@@ -62,6 +62,11 @@ async function exportCsv(params: Record<string, string | undefined>) {
       { params: { ...params, page, pageSize: 100 } },
     );
     rows.push(...data.items);
+    if (page === 1 && data.total > 2000) {
+      toast.warning(
+        `Sonuç ${data.total.toLocaleString("tr-TR")} kayıt — CSV ilk 2000 ile sınırlı`,
+      );
+    }
     if (page * 100 >= data.total) break;
   }
   downloadCsv(

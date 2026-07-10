@@ -150,7 +150,11 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
             value={
               data.website ? (
                 <a
-                  href={data.website}
+                  href={
+                    /^https?:\/\//.test(data.website)
+                      ? data.website
+                      : `https://${data.website}`
+                  }
                   target="_blank"
                   rel="noreferrer"
                   className="text-blue-600 hover:underline"
@@ -160,7 +164,19 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
               ) : null
             }
           />
-          <Row label="Fatura e-postası" value={data.billingEmail} />
+          <Row
+            label="Fatura e-postası"
+            value={
+              data.billingEmail ? (
+                <a
+                  href={`mailto:${data.billingEmail}`}
+                  className="text-blue-600 hover:underline"
+                >
+                  {data.billingEmail}
+                </a>
+              ) : null
+            }
+          />
           <Row label="IBAN" value={data.iban} />
           <Row label="IBAN Sahibi" value={data.ibanHolder} />
           <Row label="Kayıt tarihi" value={safeFormat(data.createdAt, "d MMM yyyy HH:mm")} />

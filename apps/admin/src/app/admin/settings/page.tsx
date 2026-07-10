@@ -124,7 +124,10 @@ function TwoFactorSection() {
             loading={setup.isPending}
             onClick={() =>
               setup.mutate(undefined, {
-                onSuccess: (d) => setPending(d),
+                onSuccess: (d) => {
+                  setPending(d);
+                  setCode("");
+                },
                 onError: err,
               })
             }
@@ -189,7 +192,14 @@ function TwoFactorSection() {
             >
               Etkinleştir
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setPending(null)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setPending(null);
+                setCode("");
+              }}
+            >
               Vazgeç
             </Button>
           </div>

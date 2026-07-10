@@ -61,6 +61,8 @@ export function AdminLoginForm() {
             toast.info("Doğrulama kodunuzu girin (authenticator uygulaması)");
             return;
           }
+          // Hatalı 2FA kodu — alan temizlensin, tekrar denemesi kolay olsun.
+          if (needsCode) setCode("");
           toast.error(msg);
         } else {
           toast.error("Bir sorun oluştu");

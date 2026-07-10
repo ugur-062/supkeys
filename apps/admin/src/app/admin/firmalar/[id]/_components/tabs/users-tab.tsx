@@ -149,7 +149,7 @@ function AddUserDialog({
           <Button
             loading={pending}
             onClick={() => {
-              if (!form.email.includes("@")) {
+              if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
                 toast.error("Geçerli bir e-posta girin");
                 return;
               }

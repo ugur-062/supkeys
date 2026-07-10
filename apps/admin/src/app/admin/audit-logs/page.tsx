@@ -54,11 +54,13 @@ const ACTOR_META: Record<
 
 function AuditView() {
   const [actorType, setActorType] = useState("");
+  const [action, setAction] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
   const query = useAuditLogs({
     actorType: actorType || undefined,
+    action: action || undefined,
     search: search.trim() || undefined,
     page,
   });
@@ -89,6 +91,22 @@ function AuditView() {
             { value: "tenant", label: "Alıcı" },
             { value: "supplier", label: "Tedarikçi" },
             { value: "system", label: "Sistem" },
+          ]}
+        />
+        <FilterSelect
+          ariaLabel="Eylem"
+          value={action}
+          active={!!action}
+          onChange={(v) => {
+            setAction(v);
+            setPage(1);
+          }}
+          options={[
+            { value: "", label: "Tüm eylemler" },
+            ...Object.entries(ACTION_LABELS).map(([value, label]) => ({
+              value,
+              label,
+            })),
           ]}
         />
         <SearchInput

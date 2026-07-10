@@ -71,7 +71,8 @@ function DashboardContent() {
           label="İnceleme Bekleyen"
           value={s?.pendingReview ?? 0}
           href="/admin/firmalar?status=PENDING"
-          alert={(s?.pendingReview ?? 0) > 0}
+          // SLA: kuyrukta 2+ gün bekleyen başvuru varsa kırmızı uyarı.
+          alert={(s?.pendingReview ?? 0) > 0 && (queueAgeDays ?? 0) >= 2}
           sub={
             queueAgeDays != null
               ? `en eski başvuru ${queueAgeDays} gündür kuyrukta`
@@ -214,7 +215,7 @@ function DashboardContent() {
             openComplaints.slice(0, 6).map((c) => (
               <Link
                 key={c.id}
-                href={`/admin/firmalar/${c.against.id}`}
+                href={`/admin/firmalar/${c.against.id}?tab=sikayetler`}
                 className="hover:bg-admin-border/20 block px-5 py-3"
               >
                 <p className="text-admin-text truncate font-semibold">

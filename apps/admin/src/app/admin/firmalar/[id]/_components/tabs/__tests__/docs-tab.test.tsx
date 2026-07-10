@@ -9,6 +9,10 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("sonner", () => ({ toast: h.toast }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("@/hooks/use-admin-companies", () => ({
   useReviewDocuments: () => ({ mutate: h.reviewMutate, isPending: false }),
 }));

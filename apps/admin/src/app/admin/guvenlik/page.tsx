@@ -22,9 +22,26 @@ import { useState } from "react";
  */
 function GuvenlikView() {
   const [page, setPage] = useState(1);
-  const query = useAuditLogs({ action: "auth.login_failed", page });
+  const query = useAuditLogs({ action: "auth.login_failed", page, pageSize: 100 });
   const items = query.data?.items ?? [];
   const pg = query.data?.pagination;
+
+  // Brute-force deseni: bu sayfadaki (son 100 kayıt) en çok deneme yapan
+  // IP'ler ve en çok hedeflenen e-postalar.
+  const topOf = (key: (r: (typeof items)[number]) => string | null) => {
+    const counts = new Map<string, number>();
+    for (const r of items) {
+      const v = key(r);
+      if (!v) continue;
+      counts.set(v, (counts.get(v) ?? 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .filter(([, n]) => n >= 2);
+  };
+  const topIps = topOf((r) => r.ip);
+  const topEmails = topOf((r) => r.actorEmail);
 
   return (
     <div className="max-w-[1100px] space-y-6">
@@ -32,6 +49,57 @@ function GuvenlikView() {
         title="Güvenlik"
         description="Başarısız giriş denemeleri — şüpheli giriş etkinliği takibi."
       />
+
+      {topIps.length > 0 || topEmails.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="admin-card px-5 py-4">
+            <h3 className="text-admin-text text-sm font-semibold">
+              En çok deneme yapan IP&apos;ler
+              <span className="text-admin-text-muted ml-1 text-xs font-normal">
+                (son {items.length} kayıt)
+              </span>
+            </h3>
+            <ul className="mt-2 space-y-1">
+              {topIps.length === 0 ? (
+                <li className="text-admin-text-muted text-xs">
+                  Tekrarlayan IP yok
+                </li>
+              ) : (
+                topIps.map(([ip, n]) => (
+                  <li key={ip} className="flex justify-between text-sm">
+                    <span className="text-admin-text font-mono text-xs">
+                      {ip}
+                    </span>
+                    <Badge color={n >= 5 ? "red" : "amber"}>{n} deneme</Badge>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+          <div className="admin-card px-5 py-4">
+            <h3 className="text-admin-text text-sm font-semibold">
+              En çok hedeflenen hesaplar
+              <span className="text-admin-text-muted ml-1 text-xs font-normal">
+                (son {items.length} kayıt)
+              </span>
+            </h3>
+            <ul className="mt-2 space-y-1">
+              {topEmails.length === 0 ? (
+                <li className="text-admin-text-muted text-xs">
+                  Tekrarlayan hedef yok
+                </li>
+              ) : (
+                topEmails.map(([email, n]) => (
+                  <li key={email} className="flex justify-between text-sm">
+                    <span className="text-admin-text text-xs">{email}</span>
+                    <Badge color={n >= 5 ? "red" : "amber"}>{n} deneme</Badge>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+        </div>
+      ) : null}
 
       <div className="admin-card overflow-hidden">
         <Table dense>

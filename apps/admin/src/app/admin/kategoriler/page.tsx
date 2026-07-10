@@ -82,12 +82,26 @@ function KategorilerView() {
         </div>
       ) : query.isLoading ? (
         <p className="text-admin-text-muted text-sm">Aranıyor...</p>
+      ) : query.isError ? (
+        <div className="admin-card text-admin-text-muted px-6 py-10 text-center text-sm">
+          Kategoriler yüklenemedi —{" "}
+          <button
+            type="button"
+            onClick={() => void query.refetch()}
+            className="font-semibold text-blue-600 hover:underline"
+          >
+            tekrar deneyin
+          </button>
+        </div>
       ) : segments.length === 0 ? (
         <div className="admin-card text-admin-text-muted px-6 py-10 text-center text-sm">
           Sonuç yok
         </div>
       ) : (
         <div className="space-y-3">
+          <p className="text-admin-text-muted text-xs">
+            {segments.length} segment altında sonuçlar listeleniyor.
+          </p>
           {segments.map((seg) => (
             <div key={seg.id} className="admin-card px-5 py-3.5">
               <p className="text-admin-text text-sm font-bold">

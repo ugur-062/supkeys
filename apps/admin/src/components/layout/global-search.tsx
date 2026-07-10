@@ -4,7 +4,7 @@ import { Badge } from "@/components/catalyst/badge";
 import { useGlobalSearch } from "@/hooks/use-admin-support";
 import { countryFlag } from "@/lib/country";
 import { Search } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 /**
@@ -24,6 +24,12 @@ export function GlobalSearch() {
   }, [q]);
 
   const results = useGlobalSearch(debounced);
+
+  // Rota değişince panel kapansın (klavye/tarayıcı navigasyonu dahil).
+  const pathname = usePathname();
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -54,6 +60,18 @@ export function GlobalSearch() {
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setOpen(false);
+              (e.target as HTMLInputElement).blur();
+            } else if (e.key === "Enter") {
+              // İlk sonuca git — hızlı akış.
+              const first =
+                results.data?.companies[0]?.id ??
+                results.data?.users[0]?.companyId;
+              if (first) go(first);
+            }
+          }}
           placeholder="Firma / kod / vergi no / kullanıcı e-postası ara..."
           aria-label="Global arama"
           className="border-admin-border bg-admin-surface text-admin-text w-full rounded-lg border py-1.5 pr-3 pl-9 text-sm"

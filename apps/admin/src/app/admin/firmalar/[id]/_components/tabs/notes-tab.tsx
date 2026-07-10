@@ -18,6 +18,8 @@ export function NotesTab({ companyId }: { companyId: string }) {
   const add = useAddNote(companyId);
   const del = useDeleteNote(companyId);
   const [body, setBody] = useState("");
+  // Silme kurumsal hafızayı yok eder — iki adımlı onay (id bazlı).
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const err = (e: unknown) =>
     toast.error(e instanceof Error ? e.message : "Hata");
@@ -76,24 +78,47 @@ export function NotesTab({ companyId }: { companyId: string }) {
                 <p className="text-admin-text text-sm whitespace-pre-wrap">
                   {n.body}
                 </p>
-                <button
-                  type="button"
-                  title="Notu sil"
-                  aria-label="Notu sil"
-                  disabled={del.isPending}
-                  onClick={() =>
-                    del.mutate(
-                      { noteId: n.id },
-                      {
-                        onSuccess: () => toast.success("Not silindi"),
-                        onError: err,
-                      },
-                    )
-                  }
-                  className="text-admin-text-muted shrink-0 rounded p-1 hover:bg-red-50 hover:text-red-600"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                {confirmDeleteId === n.id ? (
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={del.isPending}
+                      onClick={() =>
+                        del.mutate(
+                          { noteId: n.id },
+                          {
+                            onSuccess: () => {
+                              toast.success("Not silindi");
+                              setConfirmDeleteId(null);
+                            },
+                            onError: err,
+                          },
+                        )
+                      }
+                      className="rounded bg-red-600 px-2 py-0.5 text-xs font-semibold text-white hover:bg-red-700"
+                    >
+                      Sil
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="text-admin-text-muted rounded px-1.5 py-0.5 text-xs hover:bg-zinc-100"
+                    >
+                      Vazgeç
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    title="Notu sil"
+                    aria-label="Notu sil"
+                    disabled={del.isPending}
+                    onClick={() => setConfirmDeleteId(n.id)}
+                    className="text-admin-text-muted shrink-0 rounded p-1 hover:bg-red-50 hover:text-red-600"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
               <p className="text-admin-text-muted mt-1.5 text-xs">
                 {n.adminEmail ?? "—"} ·{" "}

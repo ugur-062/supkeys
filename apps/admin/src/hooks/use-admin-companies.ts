@@ -436,6 +436,8 @@ export function useResolveComplaint() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-complaints"] });
       qc.invalidateQueries({ queryKey: ["admin-companies"] });
+      // Dashboard "Açık Şikayet" KPI'sı da bu veriden — bayat kalmasın.
+      qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
     },
   });
 }

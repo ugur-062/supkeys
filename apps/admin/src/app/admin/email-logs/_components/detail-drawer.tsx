@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmailStatusBadge } from "@/components/ui/email-status-badge";
 import { useEmailLogDetail, useResendEmail } from "@/hooks/use-email-logs";
@@ -41,6 +42,8 @@ function formatRelative(date: string | null) {
 }
 
 export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
+  // Yeniden gönderim gerçek dış etki — iki adımlı onay.
+  const [confirmResend, setConfirmResend] = useState(false);
   const open = !!id;
   const detail = useEmailLogDetail(id);
   const item = detail.data;
@@ -109,15 +112,43 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
                     </div>
                     <EmailStatusBadge status={item.status} />
                   </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    onClick={onResend}
-                    disabled={resend.isPending}
-                  >
-                    {resend.isPending ? "Gönderiliyor..." : "Yeniden Gönder"}
-                  </Button>
+                  {confirmResend ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-admin-text-muted text-xs">
+                        E-posta yeniden gönderilecek — emin misiniz?
+                      </span>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        onClick={() => {
+                          onResend();
+                          setConfirmResend(false);
+                        }}
+                        disabled={resend.isPending}
+                      >
+                        Evet, Gönder
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfirmResend(false)}
+                      >
+                        Vazgeç
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setConfirmResend(true)}
+                      disabled={resend.isPending}
+                    >
+                      {resend.isPending ? "Gönderiliyor..." : "Yeniden Gönder"}
+                    </Button>
+                  )}
 
                   <dl className="space-y-1.5 text-sm pt-1">
                     <div className="flex justify-between gap-4">

@@ -29,6 +29,21 @@ function DuyuruView() {
   });
   const [confirming, setConfirming] = useState(false);
 
+  // Gönderim ÖNCESİ tahmini hedef sayısı — kör toplu gönderim olmasın.
+  const estimatedTargets = (() => {
+    const d = stats.data;
+    if (!d) return null;
+    if (form.country) {
+      // Ülke seçiliyse tier kırılımı elimizde yok — ülke toplamını göster.
+      return (
+        d.countryBreakdown.find((c) => c.country === form.country)?.count ?? 0
+      );
+    }
+    if (form.tier === "PAKET") return d.tierBreakdown.PAKET;
+    if (form.tier === "STANDARD") return d.tierBreakdown.STANDARD;
+    return d.totalCompanies;
+  })();
+
   const set = (k: string, v: string | boolean) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
@@ -141,9 +156,18 @@ function DuyuruView() {
         {confirming ? (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
             <p className="text-sm text-red-800">
-              Bu duyuru seçili segmentteki <strong>tüm firmalara</strong>{" "}
+              Bu duyuru seçili segmentteki{" "}
+              <strong>
+                {estimatedTargets != null
+                  ? `yaklaşık ${estimatedTargets.toLocaleString("tr-TR")} firmaya`
+                  : "tüm firmalara"}
+              </strong>{" "}
               gidecek{form.sendEmail ? " (e-posta dahil)" : ""}. Emin misiniz?
             </p>
+            <div className="mt-2 rounded-lg bg-white px-3 py-2 text-xs text-zinc-700">
+              <p className="font-semibold">{form.subject}</p>
+              <p className="mt-0.5 whitespace-pre-wrap">{form.message}</p>
+            </div>
             <div className="mt-2 flex gap-2">
               <Button
                 variant="danger"

@@ -25,6 +25,8 @@ interface PromptDialogProps {
   required?: boolean;
   /** number tipinde min (>= 1 vb.). */
   min?: number;
+  /** datetime-local için alt sınır (geçmiş tarih seçilemesin). */
+  minDateTime?: string;
   onConfirm: (value: string) => void;
   onClose: () => void;
 }
@@ -44,6 +46,7 @@ export function PromptDialog({
   confirmLabel = "Onayla",
   required = false,
   min,
+  minDateTime,
   onConfirm,
   onClose,
 }: PromptDialogProps) {
@@ -72,7 +75,7 @@ export function PromptDialog({
           <Input
             id="prompt-dialog-input"
             type={type}
-            min={min}
+            min={type === "datetime-local" ? minDateTime : min}
             autoFocus
             value={value}
             placeholder={placeholder}

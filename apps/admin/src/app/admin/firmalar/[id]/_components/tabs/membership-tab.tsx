@@ -152,7 +152,7 @@ export function MembershipTab({
                           : "ml-1"
                       }
                     >
-                      ({daysLeft} gün)
+                      {daysLeft <= 0 ? "(Süresi doldu)" : `(${daysLeft} gün)`}
                     </span>
                   ) : null}
                 </span>

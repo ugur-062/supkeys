@@ -75,6 +75,65 @@ function RaporView() {
         }
       />
 
+      {/* Hazır aralıklar — en sık sorgular tek tık. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {(
+          [
+            {
+              label: "Bu Ay",
+              range: () => {
+                const n = new Date();
+                return [
+                  `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-01`,
+                  n.toISOString().slice(0, 10),
+                ];
+              },
+            },
+            {
+              label: "Geçen Ay",
+              range: () => {
+                const n = new Date();
+                const first = new Date(n.getFullYear(), n.getMonth() - 1, 1);
+                const last = new Date(n.getFullYear(), n.getMonth(), 0);
+                return [
+                  `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, "0")}-01`,
+                  `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`,
+                ];
+              },
+            },
+            {
+              label: "Son 30 Gün",
+              range: () => [
+                new Date(Date.now() - 30 * 86_400_000)
+                  .toISOString()
+                  .slice(0, 10),
+                new Date().toISOString().slice(0, 10),
+              ],
+            },
+            {
+              label: "Bu Yıl",
+              range: () => [
+                `${new Date().getFullYear()}-01-01`,
+                new Date().toISOString().slice(0, 10),
+              ],
+            },
+          ] as const
+        ).map((preset) => (
+          <button
+            key={preset.label}
+            type="button"
+            onClick={() => {
+              const [f, t] = preset.range();
+              setFrom(f);
+              setTo(t);
+            }}
+            className="rounded-full border border-zinc-950/10 bg-white px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+
       {/* Tarih aralığı */}
       <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1">

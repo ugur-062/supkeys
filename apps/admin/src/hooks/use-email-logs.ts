@@ -37,7 +37,8 @@ export function useEmailLogs(params: ListEmailLogsParams) {
       return data;
     },
     placeholderData: (prev) => prev,
-    refetchInterval: 5000, // logs canlı görünmeli, 5sn'de bir refresh
+    refetchInterval: 5000,
+    refetchIntervalInBackground: false, // logs canlı görünmeli, 5sn'de bir refresh
   });
 }
 

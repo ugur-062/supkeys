@@ -78,7 +78,7 @@ function BasvurularView() {
                 <TableRow key={c.id}>
                   <TableCell className="text-admin-text font-medium">
                     <Link
-                      href={`/admin/firmalar/${c.id}?tab=belgeler`}
+                      href={`/admin/firmalar/${c.id}?tab=belgeler&from=queue`}
                       className="hover:underline"
                     >
                       {c.name}
@@ -94,7 +94,7 @@ function BasvurularView() {
                     {countryFlag(c.country)} {c.country}
                     {c.country !== "TR" ? (
                       <Badge color="blue" className="ml-2">
-                        3 belge
+                        Yabancı
                       </Badge>
                     ) : null}
                   </TableCell>
@@ -104,7 +104,7 @@ function BasvurularView() {
                   <TableCell>{waitBadge(c.updatedAt)}</TableCell>
                   <TableCell className="text-right">
                     <Link
-                      href={`/admin/firmalar/${c.id}?tab=belgeler`}
+                      href={`/admin/firmalar/${c.id}?tab=belgeler&from=queue`}
                       className="inline-flex items-center rounded-lg bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-700"
                     >
                       İncele

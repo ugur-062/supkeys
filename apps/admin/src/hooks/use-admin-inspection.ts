@@ -114,6 +114,7 @@ export function useListingIntervention(listingId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-listing-detail", listingId] });
       qc.invalidateQueries({ queryKey: ["admin-company-listings"] });
+      qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
     },
   });
 }
@@ -207,6 +208,7 @@ export function useCancelOrder(orderId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin-order-detail", orderId] });
       qc.invalidateQueries({ queryKey: ["admin-company-orders"] });
+      qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
     },
   });
 }

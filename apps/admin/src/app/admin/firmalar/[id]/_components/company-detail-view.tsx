@@ -6,11 +6,11 @@ import { PromptDialog } from "@/components/ui/prompt-dialog";
 import {
   useCompanyAction,
   useCompanyDetail,
-  useSetCompanyTier,
 } from "@/hooks/use-admin-companies";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { countryLabel } from "@/lib/country";
 import { safeFormat } from "@/lib/date";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Copy, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -59,10 +59,12 @@ export function CompanyDetailView({
     TABS.some((t) => t.key === initialTab) ? (initialTab as TabKey) : "ozet",
   );
   const act = useCompanyAction();
-  const tierAct = useSetCompanyTier();
-  const [prompt, setPrompt] = useState<
-    "tierMonths" | "suspendReason" | "notify" | null
-  >(null);
+  // SUPPORT salt-okuma — yazma butonları gizli (BE guard asıl sınır).
+  const { admin } = useAdminAuth();
+  const canWrite = admin?.role !== "SUPPORT";
+  const [prompt, setPrompt] = useState<"suspendReason" | "notify" | null>(
+    null,
+  );
 
   if (isLoading) {
     return (
@@ -104,14 +106,35 @@ export function CompanyDetailView({
               {TIER_LABEL[data.tier]}
             </Badge>
             {data.isBlocked ? <Badge color="red">Askıda</Badge> : null}
-            <span className="text-admin-text-muted font-mono text-xs">
+            <button
+              type="button"
+              title="Firma kodunu kopyala"
+              onClick={() => {
+                if (!data.rothernId) return;
+                void navigator.clipboard.writeText(data.rothernId);
+                toast.success("Kod kopyalandı");
+              }}
+              className="text-admin-text-muted inline-flex items-center gap-1 rounded px-1 font-mono text-xs hover:bg-zinc-100"
+            >
               {data.rothernId ?? "—"}
-            </span>
+              <Copy className="h-3 w-3" aria-hidden />
+            </button>
             <span className="text-admin-text-muted text-xs">
               {countryLabel(data.country)}
             </span>
+            {data.billingEmail ? (
+              <a
+                href={`mailto:${data.billingEmail}`}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                {data.billingEmail}
+              </a>
+            ) : null}
           </div>
         </div>
+        {/* Üyelik yönetimi TEK yerden (Üyelik sekmesi) — header'daki kopya
+            kontrol farklı doğrulama/gerekçe kalitesiyle ikinci yol açıyordu. */}
+        {!canWrite ? null : (
         <div className="flex items-center gap-2">
           <Button
             variant="secondary"
@@ -120,34 +143,6 @@ export function CompanyDetailView({
           >
             Bildirim Gönder
           </Button>
-          {data.tier === "PAKET" ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={tierAct.isPending}
-              onClick={() =>
-                tierAct.mutate(
-                  { id: companyId, tier: "STANDARD" },
-                  {
-                    onSuccess: () => toast.success("Standart üyeliğe alındı"),
-                    onError: (e: unknown) =>
-                      toast.error(e instanceof Error ? e.message : "Hata"),
-                  },
-                )
-              }
-            >
-              Premium'u Kaldır
-            </Button>
-          ) : (
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={tierAct.isPending}
-              onClick={() => setPrompt("tierMonths")}
-            >
-              Premium Tanımla
-            </Button>
-          )}
           {data.isBlocked ? (
             <Button
               variant="secondary"
@@ -177,6 +172,7 @@ export function CompanyDetailView({
             </Button>
           )}
         </div>
+        )}
       </div>
 
       {/* Askı bilgisi — görünür uyarı */}
@@ -205,6 +201,12 @@ export function CompanyDetailView({
             {t.key === "sikayetler" && data.openComplaints > 0 ? (
               <Badge color="red">{data.openComplaints}</Badge>
             ) : null}
+            {t.key === "kullanicilar" && data._count.users > 0 ? (
+              <Badge color="zinc">{data._count.users}</Badge>
+            ) : null}
+            {t.key === "ilanlar" && data._count.listings > 0 ? (
+              <Badge color="zinc">{data._count.listings}</Badge>
+            ) : null}
           </button>
         ))}
       </div>
@@ -223,29 +225,6 @@ export function CompanyDetailView({
       {tab === "notlar" ? <NotesTab companyId={companyId} /> : null}
       {tab === "denetim" ? <AuditTab companyId={companyId} /> : null}
 
-      <PromptDialog
-        open={prompt === "tierMonths"}
-        title="Premium Üyelik Tanımla"
-        label="Kaç ay premium verilsin?"
-        type="number"
-        min={1}
-        defaultValue="12"
-        required
-        confirmLabel="Tanımla"
-        onConfirm={(v) => {
-          const n = Math.floor(Number(v));
-          tierAct.mutate(
-            { id: companyId, tier: "PAKET", months: n >= 1 ? n : 12 },
-            {
-              onSuccess: () => toast.success("Premium üyelik tanımlandı"),
-              onError: (e: unknown) =>
-                toast.error(e instanceof Error ? e.message : "Hata"),
-            },
-          );
-          setPrompt(null);
-        }}
-        onClose={() => setPrompt(null)}
-      />
       {prompt === "notify" ? (
         <NotifyDialog companyId={companyId} onClose={() => setPrompt(null)} />
       ) : null}

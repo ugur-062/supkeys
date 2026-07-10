@@ -32,6 +32,7 @@ export interface AuditLogParams {
   action?: string;
   search?: string;
   page?: number;
+  pageSize?: number;
 }
 
 export function useAuditLogs(params: AuditLogParams = {}) {
@@ -40,6 +41,7 @@ export function useAuditLogs(params: AuditLogParams = {}) {
   if (params.action) qs.set("action", params.action);
   if (params.search) qs.set("search", params.search);
   if (params.page) qs.set("page", String(params.page));
+  if (params.pageSize) qs.set("pageSize", String(params.pageSize));
   const q = qs.toString();
 
   return useQuery({

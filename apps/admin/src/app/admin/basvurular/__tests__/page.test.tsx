@@ -72,12 +72,12 @@ describe("Başvurular kuyruğu", () => {
     render(<AdminBasvurularPage />);
     expect(screen.getByText("8 gün")).toBeInTheDocument();
     expect(screen.getByText("bugün")).toBeInTheDocument();
-    // Yabancı firma → "3 belge" rozeti.
-    expect(screen.getByText("3 belge")).toBeInTheDocument();
+    // Yabancı firma rozeti.
+    expect(screen.getByText("Yabancı")).toBeInTheDocument();
     const links = screen.getAllByRole("link", { name: "İncele" });
     expect(links[0]).toHaveAttribute(
       "href",
-      "/admin/firmalar/a?tab=belgeler",
+      "/admin/firmalar/a?tab=belgeler&from=queue",
     );
   });
 });

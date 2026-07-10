@@ -65,7 +65,7 @@ export function OrdersTab({ companyId }: { companyId: string }) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-admin-text text-sm">
-                    {o.role === "buyer" ? o.sellerName : o.buyerName}
+                    {(o.role === "buyer" ? o.sellerName : o.buyerName) || "—"}
                   </TableCell>
                   <TableCell className="text-admin-text text-sm tabular-nums">
                     {fmtMoney(o.amount, o.currency)}

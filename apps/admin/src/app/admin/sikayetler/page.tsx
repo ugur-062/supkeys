@@ -78,14 +78,28 @@ function SikayetlerView() {
     status: "RESOLVED" | "DISMISSED";
     suspend: boolean;
     msg: string;
+    actionLabel: string;
+    /** Dialog bağlamı — hangi şikayet üzerinde işlem yapıldığı. */
+    againstName: string;
+    reason: string;
   } | null>(null);
 
   const act = (
-    id: string,
+    c: AdminComplaint,
     s: "RESOLVED" | "DISMISSED",
     suspend: boolean,
     msg: string,
-  ) => setPrompt({ id, status: s, suspend, msg });
+    actionLabel: string,
+  ) =>
+    setPrompt({
+      id: c.id,
+      status: s,
+      suspend,
+      msg,
+      actionLabel,
+      againstName: c.against.name,
+      reason: c.reason,
+    });
 
   const runResolve = (adminNote?: string) => {
     if (!prompt) return;
@@ -137,7 +151,7 @@ function SikayetlerView() {
           disabled={items.length === 0}
           onClick={() => exportComplaintsCsv(items)}
         >
-          <Download className="mr-1.5 h-3.5 w-3.5" /> CSV
+          <Download className="mr-1.5 h-3.5 w-3.5" /> CSV (bu sayfa)
         </Button>
       </div>
 
@@ -165,7 +179,7 @@ function SikayetlerView() {
             ) : (
               items.map((c: AdminComplaint) => {
                 const meta = STATUS_META[c.status] ?? STATUS_META.OPEN;
-                const pending = resolve.isPending;
+                const pending = resolve.isPending && prompt?.id === c.id;
                 return (
                   <TableRow key={c.id}>
                     <TableCell className="text-admin-text">
@@ -187,7 +201,10 @@ function SikayetlerView() {
                     <TableCell className="text-admin-text max-w-[280px]">
                       <div className="font-medium">{c.reason}</div>
                       {c.detail ? (
-                        <div className="text-admin-text-muted mt-0.5 line-clamp-2 text-xs">
+                        <div
+                          className="text-admin-text-muted mt-0.5 line-clamp-2 text-xs"
+                          title={c.detail}
+                        >
                           {c.detail}
                         </div>
                       ) : null}
@@ -207,7 +224,13 @@ function SikayetlerView() {
                             size="sm"
                             disabled={pending}
                             onClick={() =>
-                              act(c.id, "RESOLVED", true, "Çözüldü & askıya alındı")
+                              act(
+                                c,
+                                "RESOLVED",
+                                true,
+                                "Çözüldü & askıya alındı",
+                                "Çöz & Askıya Al",
+                              )
                             }
                           >
                             Çöz & Askıya Al
@@ -216,7 +239,7 @@ function SikayetlerView() {
                             type="button"
                             size="sm"
                             disabled={pending}
-                            onClick={() => act(c.id, "RESOLVED", false, "Çözüldü")}
+                            onClick={() => act(c, "RESOLVED", false, "Çözüldü", "Çöz")}
                           >
                             Çöz
                           </Button>
@@ -226,7 +249,7 @@ function SikayetlerView() {
                             size="sm"
                             disabled={pending}
                             onClick={() =>
-                              act(c.id, "DISMISSED", false, "Reddedildi")
+                              act(c, "DISMISSED", false, "Reddedildi", "Reddet")
                             }
                           >
                             Reddet
@@ -256,9 +279,18 @@ function SikayetlerView() {
       <PromptDialog
         open={prompt !== null}
         title={prompt?.status === "DISMISSED" ? "Şikayeti Reddet" : "Şikayeti Çöz"}
+        description={
+          prompt
+            ? `"${prompt.againstName}" hakkındaki "${prompt.reason}" şikayeti.${
+                prompt.suspend
+                  ? ` DİKKAT: Bu işlem "${prompt.againstName}" firmasını askıya alır.`
+                  : ""
+              }`
+            : undefined
+        }
         label="Yönetici notu (opsiyonel)"
         placeholder="Karar gerekçesi"
-        confirmLabel={prompt?.msg ?? "Onayla"}
+        confirmLabel={prompt?.actionLabel ?? "Onayla"}
         onConfirm={(v) => runResolve(v || undefined)}
         onClose={() => setPrompt(null)}
       />

@@ -279,6 +279,11 @@ function OrderInspection({ id }: { id: string }) {
       <PromptDialog
         open={dialog}
         title="Siparişi İptal Et (yönetici)"
+        description={
+          confirmed > 0
+            ? `DİKKAT: Bu siparişte ${fmtMoney(confirmed, o.currency)} onaylı ödeme var — iptal sonrası iade süreci gerekebilir.`
+            : undefined
+        }
         label="Gerekçe (en az 10 karakter — iki tarafa da bildirilir)"
         placeholder="Örn. taraflar anlaşamadı, destek talebi #123"
         required

@@ -78,7 +78,7 @@ describe("SikayetlerView — çözüm aksiyonları (PromptDialog)", () => {
     expect(within(dialog).getByText("Şikayeti Çöz")).toBeInTheDocument();
     const input = screen.getByLabelText(/Yönetici notu/);
     await user.type(input, "haklı bulundu");
-    await user.click(within(dialog).getByRole("button", { name: "Çözüldü" }));
+    await user.click(within(dialog).getByRole("button", { name: "Çöz" }));
     expect(h.resolveMutate).toHaveBeenCalledWith(
       {
         id: "k1",
@@ -98,7 +98,7 @@ describe("SikayetlerView — çözüm aksiyonları (PromptDialog)", () => {
     expect(within(dialog).getByText("Şikayeti Reddet")).toBeInTheDocument();
     const input = screen.getByLabelText(/Yönetici notu/);
     await user.type(input, "asılsız");
-    await user.click(within(dialog).getByRole("button", { name: "Reddedildi" }));
+    await user.click(within(dialog).getByRole("button", { name: "Reddet" }));
     expect(h.resolveMutate).toHaveBeenCalledWith(
       { id: "k1", status: "DISMISSED", adminNote: "asılsız", suspend: false },
       expect.anything(),
@@ -111,7 +111,7 @@ describe("SikayetlerView — çözüm aksiyonları (PromptDialog)", () => {
     await user.click(screen.getByRole("button", { name: "Çöz & Askıya Al" }));
     const dialog = await screen.findByRole("dialog");
     await user.click(
-      within(dialog).getByRole("button", { name: "Çözüldü & askıya alındı" }),
+      within(dialog).getByRole("button", { name: "Çöz & Askıya Al" }),
     );
     expect(h.resolveMutate).toHaveBeenCalledWith(
       {
