@@ -11,6 +11,12 @@ import {
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader } from "@/components/list";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogTitle,
+} from "@/components/catalyst/dialog";
 import { Button } from "@/components/ui/button";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import {
@@ -95,39 +101,14 @@ function AddStaffDialog({
     role: "SUPPORT" as AdminRole,
   });
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   const set = (k: string, v: string) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-24"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Personel ekle"
-    >
-      <div
-        className="bg-admin-surface w-full max-w-md rounded-2xl shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="border-admin-border flex items-center justify-between border-b px-5 py-3.5">
-          <h2 className="text-admin-text text-base font-bold">Personel Ekle</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="hover:bg-admin-border/40 rounded-lg p-1"
-            aria-label="Kapat"
-          >
-            <X className="text-admin-text-muted h-4 w-4" />
-          </button>
-        </div>
-        <div className="space-y-3 px-5 py-4">
+    <Dialog open onClose={onClose} size="md" aria-label="Personel ekle">
+      <DialogTitle>Personel Ekle</DialogTitle>
+      <DialogBody className="space-y-4">
           <label className="flex flex-col gap-1">
             <span className="text-admin-text-muted text-xs font-medium">
               E-posta
@@ -175,8 +156,8 @@ function AddStaffDialog({
               <option value="SUPER_ADMIN">Süper Admin — her şey</option>
             </select>
           </label>
-        </div>
-        <div className="border-admin-border flex items-center justify-end gap-2 border-t px-5 py-3">
+      </DialogBody>
+      <DialogActions>
           <Button variant="ghost" onClick={onClose}>
             Vazgeç
           </Button>
@@ -201,9 +182,8 @@ function AddStaffDialog({
           >
             Ekle
           </Button>
-        </div>
-      </div>
-    </div>
+      </DialogActions>
+    </Dialog>
   );
 }
 

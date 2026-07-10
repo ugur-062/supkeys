@@ -1,6 +1,7 @@
 "use client";
 
 import { AdminShell } from "@/components/layout/admin-shell";
+import { PageHeader } from "@/components/list";
 import { useEmailLogs } from "@/hooks/use-email-logs";
 import { EMAIL_STATUS_ORDER } from "@/lib/email-logs/status";
 import type { EmailLogStatus } from "@/lib/email-logs/types";
@@ -96,15 +97,11 @@ function EmailLogsContent() {
 
   return (
     <AdminShell>
-      <div className="space-y-5 max-w-6xl">
-        <div className="space-y-1">
-          <h1 className="font-display font-bold text-3xl text-admin-text">
-            E-posta Kayıtları
-          </h1>
-          <p className="text-admin-text-muted">
-            Sistem tarafından gönderilen tüm e-postaların kaydı.
-          </p>
-        </div>
+      <div className="max-w-6xl space-y-6">
+        <PageHeader
+          title="E-posta Kayıtları"
+          description="Sistem tarafından gönderilen tüm e-postaların kaydı ve teslimat durumu."
+        />
 
         <FiltersBar
           toEmail={toEmail}

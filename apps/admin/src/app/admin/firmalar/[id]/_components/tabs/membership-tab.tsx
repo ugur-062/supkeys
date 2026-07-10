@@ -2,6 +2,12 @@
 
 import { Badge } from "@/components/catalyst/badge";
 import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogTitle,
+} from "@/components/catalyst/dialog";
+import {
   Table,
   TableBody,
   TableCell,
@@ -10,6 +16,9 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { Button } from "@/components/ui/button";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
 import {
   useExtendMembership,
@@ -19,8 +28,7 @@ import {
   type MembershipEvent,
 } from "@/hooks/use-admin-companies";
 import { safeFormat } from "@/lib/date";
-import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 const ACTION_META: Record<
@@ -33,7 +41,7 @@ const ACTION_META: Record<
   EXPIRE: { label: "Süre doldu", color: "zinc" },
 };
 
-/** Ay + gerekçe isteyen küçük aksiyon dialog'u (ver/uzat). */
+/** Ay + gerekçe isteyen küçük aksiyon dialog'u (tanımla/uzat). */
 function MonthsReasonDialog({
   title,
   confirmLabel,
@@ -48,80 +56,49 @@ function MonthsReasonDialog({
   const [months, setMonths] = useState("12");
   const [reason, setReason] = useState("");
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-24"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-    >
-      <div
-        className="bg-admin-surface w-full max-w-sm rounded-2xl shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="border-admin-border flex items-center justify-between border-b px-5 py-3.5">
-          <h2 className="text-admin-text text-base font-bold">{title}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="hover:bg-admin-border/40 rounded-lg p-1"
-            aria-label="Kapat"
-          >
-            <X className="text-admin-text-muted h-4 w-4" />
-          </button>
-        </div>
-        <div className="space-y-3 px-5 py-4">
-          <label className="flex flex-col gap-1">
-            <span className="text-admin-text-muted text-xs font-medium">
-              Ay sayısı
-            </span>
-            <input
-              type="number"
-              min={1}
-              max={60}
-              value={months}
-              onChange={(e) => setMonths(e.target.value)}
-              className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-admin-text-muted text-xs font-medium">
-              Gerekçe (opsiyonel — geçmişte görünür)
-            </span>
-            <input
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Örn. yıllık yenileme satışı"
-              className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
-            />
-          </label>
-        </div>
-        <div className="border-admin-border flex items-center justify-end gap-2 border-t px-5 py-3">
-          <Button variant="ghost" onClick={onClose}>
-            Vazgeç
-          </Button>
-          <Button
-            onClick={() => {
-              const n = Math.floor(Number(months));
-              if (!Number.isFinite(n) || n < 1 || n > 60) {
-                toast.error("Ay 1-60 arası olmalı");
-                return;
-              }
-              onConfirm(n, reason.trim());
-            }}
-          >
-            {confirmLabel}
-          </Button>
-        </div>
-      </div>
-    </div>
+    <Dialog open onClose={onClose} size="sm" aria-label={title}>
+      <DialogTitle>{title}</DialogTitle>
+      <DialogBody className="space-y-4">
+        <Field>
+          <Label htmlFor="membership-months">Ay sayısı</Label>
+          <Input
+            id="membership-months"
+            type="number"
+            min={1}
+            max={60}
+            value={months}
+            onChange={(e) => setMonths(e.target.value)}
+          />
+        </Field>
+        <Field hint="Geçmiş kayıtlarında görünür.">
+          <Label htmlFor="membership-reason">Gerekçe (opsiyonel)</Label>
+          <Input
+            id="membership-reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Örn. yıllık yenileme satışı"
+          />
+        </Field>
+      </DialogBody>
+      <DialogActions>
+        <Button variant="ghost" onClick={onClose}>
+          Vazgeç
+        </Button>
+        <Button
+          onClick={() => {
+            const n = Math.floor(Number(months));
+            if (!Number.isFinite(n) || n < 1 || n > 60) {
+              toast.error("Ay 1-60 arası olmalı");
+              return;
+            }
+            onConfirm(n, reason.trim());
+          }}
+        >
+          {confirmLabel}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }
 

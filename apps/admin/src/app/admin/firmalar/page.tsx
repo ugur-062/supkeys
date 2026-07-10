@@ -2,6 +2,14 @@
 
 import { Badge } from "@/components/catalyst/badge";
 import {
+  Dropdown,
+  DropdownButton,
+  DropdownDivider,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from "@/components/catalyst/dropdown";
+import {
   Table,
   TableBody,
   TableCell,
@@ -27,7 +35,7 @@ import {
   type AdminCompanyRow,
 } from "@/hooks/use-admin-companies";
 import { api } from "@/lib/api";
-import { Download } from "lucide-react";
+import { Download, EllipsisVertical } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useListFilters } from "@/hooks/use-list-filters";
 import { countryFlag, countryName } from "@/lib/country";
@@ -315,61 +323,70 @@ function FirmalarView() {
                       {safeFormat(c.createdAt, "d MMM yyyy")}
                     </TableCell>
                     <TableCell>
+                      {/* Tek ana aksiyon (İncele) + ikincil işlemler ⋯ menüde
+                          — satır buton kalabalığı yerine müşteri paneli deseni. */}
                       {!canWrite ? null : (
-                      <div className="flex items-center justify-end gap-2">
-                        {c.tier === "PAKET" ? (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            disabled={tierAct.isPending}
-                            onClick={() => runTier(c.id, "STANDARD")}
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/admin/firmalar/${c.id}`}
+                            className="inline-flex items-center rounded-lg bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-700"
                           >
-                            Premium'u Kaldır
-                          </Button>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            disabled={tierAct.isPending}
-                            onClick={() => setPrompt({ kind: "tierMonths", id: c.id })}
-                          >
-                            Premium Tanımla
-                          </Button>
-                        )}
-                        <Link
-                          href={`/admin/firmalar/${c.id}`}
-                          className="inline-flex items-center rounded-lg bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-700"
-                        >
-                          İncele
-                        </Link>
-                        {c.isBlocked ? (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            disabled={act.isPending}
-                            onClick={() =>
-                              runAction(c.id, "unsuspend", "Askı kaldırıldı")
-                            }
-                          >
-                            Askıyı Kaldır
-                          </Button>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="danger"
-                            size="sm"
-                            disabled={act.isPending}
-                            onClick={() =>
-                              setPrompt({ kind: "suspendReason", id: c.id })
-                            }
-                          >
-                            Askıya Al
-                          </Button>
-                        )}
-                      </div>
+                            İncele
+                          </Link>
+                          <Dropdown>
+                            <DropdownButton
+                              plain
+                              aria-label={`${c.name} işlemleri`}
+                              className="!px-1.5"
+                            >
+                              <EllipsisVertical className="size-4 text-zinc-500" />
+                            </DropdownButton>
+                            <DropdownMenu anchor="bottom end">
+                              {c.tier === "PAKET" ? (
+                                <DropdownItem
+                                  onClick={() => runTier(c.id, "STANDARD")}
+                                >
+                                  <DropdownLabel>
+                                    Premium&apos;u Kaldır
+                                  </DropdownLabel>
+                                </DropdownItem>
+                              ) : (
+                                <DropdownItem
+                                  onClick={() =>
+                                    setPrompt({ kind: "tierMonths", id: c.id })
+                                  }
+                                >
+                                  <DropdownLabel>Premium Tanımla</DropdownLabel>
+                                </DropdownItem>
+                              )}
+                              <DropdownDivider />
+                              {c.isBlocked ? (
+                                <DropdownItem
+                                  onClick={() =>
+                                    runAction(
+                                      c.id,
+                                      "unsuspend",
+                                      "Askı kaldırıldı",
+                                    )
+                                  }
+                                >
+                                  <DropdownLabel>Askıyı Kaldır</DropdownLabel>
+                                </DropdownItem>
+                              ) : (
+                                <DropdownItem
+                                  onClick={() =>
+                                    setPrompt({
+                                      kind: "suspendReason",
+                                      id: c.id,
+                                    })
+                                  }
+                                >
+                                  <DropdownLabel>Askıya Al</DropdownLabel>
+                                </DropdownItem>
+                              )}
+                            </DropdownMenu>
+                          </Dropdown>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>

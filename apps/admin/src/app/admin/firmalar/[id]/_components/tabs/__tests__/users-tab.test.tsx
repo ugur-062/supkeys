@@ -66,7 +66,12 @@ describe("UsersTab — kullanıcı kurtarma", () => {
     };
     const uev = userEvent.setup();
     render(<UsersTab companyId="c1" />);
-    await uev.click(screen.getByRole("button", { name: /Doğrulama/ }));
+    await uev.click(
+      screen.getByRole("button", { name: "u1@firma.com işlemleri" }),
+    );
+    await uev.click(
+      await screen.findByRole("menuitem", { name: /Doğrulama Kodunu Gönder/ }),
+    );
     expect(h.recoveryMutate).toHaveBeenCalledWith(
       { userId: "u1", action: "resend-verification" },
       expect.anything(),
@@ -81,9 +86,20 @@ describe("UsersTab — kullanıcı kurtarma", () => {
     };
     const uev = userEvent.setup();
     render(<UsersTab companyId="c1" />);
-    const buttons = screen.getAllByRole("button", { name: "Devre Dışı Bırak" });
-    expect(buttons).toHaveLength(1); // yalnız normal üye
-    await uev.click(buttons[0]!);
+    // Kurucu satırında kebab menüde Devre Dışı yok; normal üyede var.
+    await uev.click(
+      screen.getByRole("button", { name: "owner@firma.com işlemleri" }),
+    );
+    expect(
+      screen.queryByRole("menuitem", { name: "Devre Dışı Bırak" }),
+    ).not.toBeInTheDocument();
+    await uev.keyboard("{Escape}");
+    await uev.click(
+      screen.getByRole("button", { name: "u1@firma.com işlemleri" }),
+    );
+    await uev.click(
+      await screen.findByRole("menuitem", { name: "Devre Dışı Bırak" }),
+    );
     expect(h.setActiveMutate).toHaveBeenCalledWith(
       { userId: "u1", active: false },
       expect.anything(),
@@ -120,7 +136,12 @@ describe("UsersTab — kullanıcı kurtarma", () => {
   it("E-posta → prompt → changeEmail mutate", async () => {
     const uev = userEvent.setup();
     render(<UsersTab companyId="c1" />);
-    await uev.click(screen.getByRole("button", { name: "E-posta" }));
+    await uev.click(
+      screen.getByRole("button", { name: "u1@firma.com işlemleri" }),
+    );
+    await uev.click(
+      await screen.findByRole("menuitem", { name: "E-posta Adresini Değiştir" }),
+    );
     const dialog = await screen.findByRole("dialog");
     await uev.type(
       within(dialog).getByLabelText(/Yeni e-posta/),

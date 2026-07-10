@@ -22,10 +22,10 @@ const SIZES: Record<
   xl: { full: { w: 274, h: 80 }, icon: { w: 80, h: 80 } },
 };
 
-// Asıl logo = "on-dark" koyu kilit (beyaz yazı, kendi koyu zemini). Her yerde
-// bu kullanılır — kullanıcının açık/koyu mod tercihinden BAĞIMSIZ.
+// Açık zemin (beyaz topbar/login) = "on-light" kilit — koyu plakalı "on-dark"
+// beyaz zeminde siyah kutu gibi görünüyordu. Koyu zemin gerekirse full-white.
 const SOURCES: Record<LogoVariant, string> = {
-  full: "/rothern-logo-on-dark.png",
+  full: "/rothern-logo-on-light.png",
   icon: "/rothern-icon.svg",
   "full-white": "/rothern-logo-trans-white.png",
   "icon-white": "/rothern-icon-white.svg",

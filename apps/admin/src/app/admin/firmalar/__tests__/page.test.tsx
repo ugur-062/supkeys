@@ -117,7 +117,12 @@ describe("FirmalarView — PAKET (tier) verme", () => {
   it("PAKET Ver → PromptDialog açılır (başlık 'Premium (PAKET) Ver')", async () => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
-    await user.click(screen.getByRole("button", { name: "Premium Tanımla" }));
+    await user.click(
+      screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Premium Tanımla" }),
+    );
     const dialog = await screen.findByRole("dialog");
     expect(
       within(dialog).getByText("Premium Üyelik Tanımla"),
@@ -127,7 +132,12 @@ describe("FirmalarView — PAKET (tier) verme", () => {
   it("ay '6' girilip onaylanınca months=6 ile tier mutate", async () => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
-    await user.click(screen.getByRole("button", { name: "Premium Tanımla" }));
+    await user.click(
+      screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Premium Tanımla" }),
+    );
     const dialog = await screen.findByRole("dialog");
     const input = screen.getByLabelText(/Kaç ay premium verilsin/);
     await user.clear(input);
@@ -142,7 +152,12 @@ describe("FirmalarView — PAKET (tier) verme", () => {
   it("varsayılan (12) korunursa months=12 ile mutate", async () => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
-    await user.click(screen.getByRole("button", { name: "Premium Tanımla" }));
+    await user.click(
+      screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Premium Tanımla" }),
+    );
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Tanımla" }));
     expect(h.tierMutate).toHaveBeenCalledWith(
@@ -154,7 +169,12 @@ describe("FirmalarView — PAKET (tier) verme", () => {
   it("geçersiz (n<1) → Number coercion fix ile months=12'ye düşer", async () => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
-    await user.click(screen.getByRole("button", { name: "Premium Tanımla" }));
+    await user.click(
+      screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Premium Tanımla" }),
+    );
     const dialog = await screen.findByRole("dialog");
     const input = screen.getByLabelText(/Kaç ay premium verilsin/);
     await user.clear(input);
@@ -171,7 +191,12 @@ describe("FirmalarView — askıya alma", () => {
   it("Askıya Al → PromptDialog 'Firmayı Askıya Al' açılır", async () => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
-    await user.click(screen.getByRole("button", { name: "Askıya Al" }));
+    await user.click(
+      screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Askıya Al" }),
+    );
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Firmayı Askıya Al")).toBeInTheDocument();
   });
@@ -179,7 +204,12 @@ describe("FirmalarView — askıya alma", () => {
   it("sebep girilip onaylanınca suspend action'ı reason ile mutate", async () => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
-    await user.click(screen.getByRole("button", { name: "Askıya Al" }));
+    await user.click(
+      screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Askıya Al" }),
+    );
     const dialog = await screen.findByRole("dialog");
     const input = screen.getByLabelText(/Askı sebebi/);
     await user.type(input, "tekrarlı şikayet");

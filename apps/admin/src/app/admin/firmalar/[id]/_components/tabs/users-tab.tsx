@@ -9,6 +9,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/catalyst/table";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogTitle,
+} from "@/components/catalyst/dialog";
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownDivider,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from "@/components/catalyst/dropdown";
 import { Button } from "@/components/ui/button";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
 import {
@@ -20,7 +34,13 @@ import {
   type AdminCompanyUser,
 } from "@/hooks/use-admin-company-users";
 import { safeFormat } from "@/lib/date";
-import { KeyRound, LogOut, MailCheck, UserPlus, X } from "lucide-react";
+import {
+  EllipsisVertical,
+  KeyRound,
+  LogOut,
+  MailCheck,
+  UserPlus,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -61,41 +81,14 @@ function AddUserDialog({
     role: "YONETICI",
   });
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   const set = (k: string, v: string) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-24"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Kullanıcı ekle"
-    >
-      <div
-        className="bg-admin-surface w-full max-w-md rounded-2xl shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="border-admin-border flex items-center justify-between border-b px-5 py-3.5">
-          <h2 className="text-admin-text text-base font-bold">
-            Kullanıcı Ekle
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="hover:bg-admin-border/40 rounded-lg p-1"
-            aria-label="Kapat"
-          >
-            <X className="text-admin-text-muted h-4 w-4" />
-          </button>
-        </div>
-        <div className="space-y-3 px-5 py-4">
+    <Dialog open onClose={onClose} size="md" aria-label="Kullanıcı ekle">
+      <DialogTitle>Kullanıcı Ekle</DialogTitle>
+      <DialogBody className="space-y-4">
           <label className="flex flex-col gap-1">
             <span className="text-admin-text-muted text-xs font-medium">
               E-posta
@@ -149,8 +142,8 @@ function AddUserDialog({
             Kullanıcıya şifre belirleme e-postası gönderilir; e-posta
             doğrulama adımı atlanır (kimliği telefonda doğruladınız).
           </p>
-        </div>
-        <div className="border-admin-border flex items-center justify-end gap-2 border-t px-5 py-3">
+      </DialogBody>
+      <DialogActions>
           <Button variant="ghost" onClick={onClose}>
             Vazgeç
           </Button>
@@ -175,9 +168,8 @@ function AddUserDialog({
           >
             Ekle
           </Button>
-        </div>
-      </div>
-    </div>
+      </DialogActions>
+    </Dialog>
   );
 }
 
@@ -285,8 +277,9 @@ export function UsersTab({ companyId }: { companyId: string }) {
                       : "Henüz giriş yapmadı"}
                   </TableCell>
                   <TableCell>
+                    {/* En sık kurtarma (Şifre) hızlı buton; kalanı ⋯ menüde. */}
                     {u.deletedAt ? null : (
-                      <div className="flex flex-wrap items-center justify-end gap-1.5">
+                      <div className="flex items-center justify-end gap-1.5">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -302,84 +295,94 @@ export function UsersTab({ companyId }: { companyId: string }) {
                         >
                           <KeyRound className="mr-1 h-3.5 w-3.5" /> Şifre
                         </Button>
-                        {!u.emailVerifiedAt ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            title="Doğrulama kodunu yeniden gönder"
-                            disabled={recovery.isPending}
-                            onClick={() =>
-                              runRecovery(
-                                u.id,
-                                "resend-verification",
-                                "Doğrulama kodu gönderildi",
-                              )
-                            }
+                        <Dropdown>
+                          <DropdownButton
+                            plain
+                            aria-label={`${u.email} işlemleri`}
+                            className="!px-1.5"
                           >
-                            <MailCheck className="mr-1 h-3.5 w-3.5" /> Doğrulama
-                          </Button>
-                        ) : null}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          title="Tüm oturumları düşür"
-                          disabled={recovery.isPending}
-                          onClick={() =>
-                            runRecovery(
-                              u.id,
-                              "drop-sessions",
-                              "Oturumlar düşürüldü",
-                            )
-                          }
-                        >
-                          <LogOut className="mr-1 h-3.5 w-3.5" /> Oturumlar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDialog({ kind: "email", user: u })}
-                        >
-                          E-posta
-                        </Button>
-                        {u.isOwner ? null : u.isActive ? (
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            disabled={setActive.isPending}
-                            onClick={() =>
-                              setActive.mutate(
-                                { userId: u.id, active: false },
-                                {
-                                  onSuccess: () =>
-                                    toast.success(
-                                      "Devre dışı bırakıldı — oturumları düşürüldü",
-                                    ),
-                                  onError: err,
-                                },
-                              )
-                            }
-                          >
-                            Devre Dışı Bırak
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            disabled={setActive.isPending}
-                            onClick={() =>
-                              setActive.mutate(
-                                { userId: u.id, active: true },
-                                {
-                                  onSuccess: () =>
-                                    toast.success("Aktifleştirildi"),
-                                  onError: err,
-                                },
-                              )
-                            }
-                          >
-                            Aktifleştir
-                          </Button>
-                        )}
+                            <EllipsisVertical className="size-4 text-zinc-500" />
+                          </DropdownButton>
+                          <DropdownMenu anchor="bottom end">
+                            {!u.emailVerifiedAt ? (
+                              <DropdownItem
+                                onClick={() =>
+                                  runRecovery(
+                                    u.id,
+                                    "resend-verification",
+                                    "Doğrulama kodu gönderildi",
+                                  )
+                                }
+                              >
+                                <MailCheck data-slot="icon" />
+                                <DropdownLabel>
+                                  Doğrulama Kodunu Gönder
+                                </DropdownLabel>
+                              </DropdownItem>
+                            ) : null}
+                            <DropdownItem
+                              onClick={() =>
+                                runRecovery(
+                                  u.id,
+                                  "drop-sessions",
+                                  "Oturumlar düşürüldü",
+                                )
+                              }
+                            >
+                              <LogOut data-slot="icon" />
+                              <DropdownLabel>Oturumları Düşür</DropdownLabel>
+                            </DropdownItem>
+                            <DropdownItem
+                              onClick={() =>
+                                setDialog({ kind: "email", user: u })
+                              }
+                            >
+                              <DropdownLabel>
+                                E-posta Adresini Değiştir
+                              </DropdownLabel>
+                            </DropdownItem>
+                            {u.isOwner ? null : (
+                              <>
+                                <DropdownDivider />
+                                {u.isActive ? (
+                                  <DropdownItem
+                                    onClick={() =>
+                                      setActive.mutate(
+                                        { userId: u.id, active: false },
+                                        {
+                                          onSuccess: () =>
+                                            toast.success(
+                                              "Devre dışı bırakıldı — oturumları düşürüldü",
+                                            ),
+                                          onError: err,
+                                        },
+                                      )
+                                    }
+                                  >
+                                    <DropdownLabel>
+                                      Devre Dışı Bırak
+                                    </DropdownLabel>
+                                  </DropdownItem>
+                                ) : (
+                                  <DropdownItem
+                                    onClick={() =>
+                                      setActive.mutate(
+                                        { userId: u.id, active: true },
+                                        {
+                                          onSuccess: () =>
+                                            toast.success("Aktifleştirildi"),
+                                          onError: err,
+                                        },
+                                      )
+                                    }
+                                  >
+                                    <DropdownLabel>Aktifleştir</DropdownLabel>
+                                  </DropdownItem>
+                                )}
+                              </>
+                            )}
+                          </DropdownMenu>
+                        </Dropdown>
                       </div>
                     )}
                   </TableCell>
