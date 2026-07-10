@@ -565,9 +565,14 @@ export class CompanyAuthService {
     }
     if (!user.emailVerifiedAt) {
       auditFail("email_unverified");
-      throw new ForbiddenException(
-        "Giriş yapmadan önce e-posta adresinizi doğrulayın.",
-      );
+      // Yapısal `code` — frontend akış kararını MESAJ METNİNE değil koda
+      // bağlar (metin eşleşmesi CSRF 403'üyle karışıp sahte "kod gönderildi"
+      // akışı tetiklemişti; mesaj değişse de akış kırılmasın).
+      throw new ForbiddenException({
+        statusCode: 403,
+        message: "Giriş yapmadan önce e-posta adresinizi doğrulayın.",
+        code: "EMAIL_NOT_VERIFIED",
+      });
     }
 
     // 2FA açıksa: kod yoksa "gerekli" yanıtı. E-posta yönteminde kodu HEMEN

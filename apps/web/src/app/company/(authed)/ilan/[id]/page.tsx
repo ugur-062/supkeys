@@ -138,7 +138,13 @@ export default function ListingDetailPage() {
       ? rawFrom
       : null;
   const fromLabel = searchParams.get("fromLabel");
-  const { data: l, isLoading, isError, refetch } = useListingDetail(id);
+  const { data: l, isLoading, isError, error, refetch } = useListingDetail(id);
+  // 404 = erişim kalktı (kapalı-zarf gereği sebep söylenmez): bağlantı
+  // pasifleşmiş, ilan kaldırılmış veya görünürlük değişmiş olabilir —
+  // "Tekrar dene" bu durumda aynı 404'ü döndürür, kullanıcıyı döngüye sokma.
+  const notFound =
+    (error as { response?: { status?: number } } | null)?.response?.status ===
+    404;
   const confirm = useConfirm();
   const award = useAwardListing(id);
   const eliminate = useEliminateBid(id);
@@ -381,6 +387,23 @@ export default function ListingDetailPage() {
     );
   }
   if (isError) {
+    if (notFound) {
+      return (
+        <div className="mx-auto max-w-3xl rounded-xl border border-zinc-200 bg-zinc-50 p-6 text-center">
+          <Text className="text-sm font-medium text-zinc-900">
+            Bu ihaleye artık erişiminiz yok.
+          </Text>
+          <Text className="mt-1 text-sm text-zinc-500">
+            İlan kaldırılmış olabilir ya da erişim koşulları değişmiş olabilir
+            (ör. firma bağlantısı veya üyelik durumu). Sorun olduğunu
+            düşünüyorsanız ilan sahibiyle iletişime geçin.
+          </Text>
+          <Button outline className="mt-3" href="/company">
+            Panele Dön
+          </Button>
+        </div>
+      );
+    }
     return (
       <div className="mx-auto max-w-3xl rounded-xl border border-red-200 bg-red-50 p-6 text-center">
         <Text className="text-sm text-red-700">İlan yüklenemedi.</Text>

@@ -39,14 +39,24 @@ export class CsrfGuard implements CanActivate {
     // yaşıyor — ya da aynı localhost'ta admin logout'unun paylaşılan rk_csrf'i
     // silmesi) yüzünden login'in 403 "CSRF doğrulaması başarısız" ile
     // kilitlenmesi kullanıcıyı içeri hiç alamaz hale getiriyordu.
+    // DİKKAT: gerçek rotalar "/api/company-auth/login" ve "/api/admin/auth/
+    // login" biçiminde — muafiyet auth controller'ı + bilinen son-ek ikilisine
+    // bakar (ilk sürümdeki endsWith("/auth/login") company-auth'ta hiç
+    // eşleşmiyordu — ölü koddu).
     const path = req.path ?? "";
+    const isAuthController =
+      path.includes("/company-auth/") || path.includes("/admin/auth/");
+    const PRE_SESSION_SUFFIXES = [
+      "/login",
+      "/logout",
+      "/signup",
+      "/verify-email",
+      "/resend-email-code",
+      "/forgot-password",
+    ];
     if (
-      path.endsWith("/auth/login") ||
-      path.endsWith("/auth/logout") ||
-      path.endsWith("/auth/signup") ||
-      path.endsWith("/auth/verify-email") ||
-      path.endsWith("/auth/resend-email-code") ||
-      path.endsWith("/auth/forgot-password")
+      isAuthController &&
+      PRE_SESSION_SUFFIXES.some((s) => path.endsWith(s))
     ) {
       return true;
     }
