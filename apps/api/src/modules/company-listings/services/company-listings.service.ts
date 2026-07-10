@@ -1533,7 +1533,12 @@ export class CompanyListingsService {
         orderBy: { closesAt: "asc" },
         take: 300,
       }),
-      // Geçmiş: katıldığım (davet/teklif) kapanmış ilanlar.
+      // Geçmiş: katıldığım (davet/teklif) kapanmış ilanlar + GÖREBİLDİĞİM
+      // yakın zamanda kapananlar. İkincisi olmadan cron OPEN→CLOSED yapınca
+      // teklif vermemiş kullanıcının listesinden ilan TAMAMEN kayboluyordu
+      // ("ihale kayboldu" algısı). Görünürlük kuralları openRows ile BİREBİR
+      // aynı (ülke + PUBLIC/CONNECTIONS) — yalnız durum farkı; 30 gün pencere
+      // geçmişin sınırsız şişmesini önler.
       this.prisma.listing.findMany({
         where: {
           ...baseWhere,
@@ -1541,6 +1546,17 @@ export class CompanyListingsService {
           OR: [
             invitedClause,
             { bids: { some: { bidderCompanyId: companyId } } },
+            {
+              AND: [
+                { OR: countryOr },
+                { OR: visibilityOr },
+                {
+                  updatedAt: {
+                    gte: new Date(Date.now() - 30 * 86_400_000),
+                  },
+                },
+              ],
+            },
           ],
         },
         select,

@@ -16,6 +16,8 @@ export function makeService() {
   };
   const exchangeRates = {
     getCurrentRate: jest.fn().mockResolvedValue(30),
+    // Para-yolu (taban kıyası) taze kur ister — testte hep taze (30).
+    getFreshRate: jest.fn().mockResolvedValue(30),
   };
   const email = {
     send: jest.fn().mockResolvedValue({ emailLogId: "test" }),
