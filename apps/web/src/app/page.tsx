@@ -807,11 +807,11 @@ export default function HomePage() {
               </div>
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-zinc-950">
-                  Tedarikçiysen, sat
+                  Fazlanı en yükseğe sat
                 </h3>
                 <p className="mt-1.5 text-sm/6 text-zinc-600">
-                  Satış ilanı aç — taban fiyat + hemen-al. Alıcılar sana teklif
-                  versin; en iyisini sen seç, kazandır.
+                  Satış ilanı aç, taban ve hemen-al fiyatını belirle. Alıcılar
+                  yarışsın; en yüksek teklifi sen kazandır.
                 </p>
               </div>
             </div>
@@ -822,12 +822,11 @@ export default function HomePage() {
               </div>
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-zinc-950">
-                  Alıcıysan, al
+                  İhtiyacını en uyguna al
                 </h3>
                 <p className="mt-1.5 text-sm/6 text-zinc-600">
                   Alım ilanı aç, kapalı zarf teklif topla. Tedarikçiler
-                  birbirini görmez; en uygun fiyatı sen seçip alırsın — şeffaf
-                  ve denetlenebilir.
+                  birbirini görmez; en uygun fiyatı sen seçip al.
                 </p>
               </div>
             </div>
