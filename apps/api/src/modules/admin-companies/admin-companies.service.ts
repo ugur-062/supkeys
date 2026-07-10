@@ -1177,6 +1177,144 @@ export class AdminCompaniesService {
     return { ok: true };
   }
 
+  // ── KVKK (Faz 9) — veri export + silme/anonimleştirme ──────
+
+  /**
+   * KVKK erişim hakkı — firmanın platformdaki TÜM verisi tek JSON.
+   * Dönüş gevşek tip: içerik sözleşmesi "her şey" (Prisma include ağacı).
+   */
+  async exportData(id: string): Promise<Record<string, unknown>> {
+    const company = await this.prisma.company.findUnique({
+      where: { id },
+      include: {
+        users: true,
+        listings: { include: { items: true, invitations: true } },
+        bidsPlaced: { include: { items: true } },
+        ordersAsBuyer: { include: { items: true, payments: true } },
+        ordersAsSeller: { include: { items: true, payments: true } },
+        connectionsInitiated: true,
+        connectionsReceived: true,
+        referralInvitesSent: true,
+        complaintsMade: true,
+        complaintsReceived: true,
+        membershipEvents: true,
+        adminNotes: true,
+        addresses: true,
+        bankAccounts: true,
+      },
+    });
+    if (!company) throw new NotFoundException("Firma bulunamadı");
+    return { exportedAt: new Date().toISOString(), company };
+  }
+
+  /**
+   * KVKK silme hakkı — iki yol:
+   *  - Siparişi YOKSA: hard delete (cascade; Supabase auth hesapları da silinir).
+   *  - Siparişi VARSA: finansal kayıt korunmalı (Order FK RESTRICT) →
+   *    ANONİMLEŞTİRME: kimlik/PII alanları temizlenir, kullanıcılar soft-delete
+   *    + e-postaları karartılır + oturumları düşer, hesap pasifleşir.
+   * Güvence: FE iki-adım onay (rothernId yazdırılır); yalnız SUPER_ADMIN.
+   */
+  async deleteOrAnonymize(
+    id: string,
+    adminId: string,
+    supabaseDeleteUser: (authId: string) => Promise<void>,
+  ) {
+    const company = await this.prisma.company.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        rothernId: true,
+        users: { select: { id: true, authId: true } },
+        _count: { select: { ordersAsBuyer: true, ordersAsSeller: true } },
+      },
+    });
+    if (!company) throw new NotFoundException("Firma bulunamadı");
+    const hasOrders =
+      company._count.ordersAsBuyer + company._count.ordersAsSeller > 0;
+
+    // Supabase auth hesapları her iki yolda da silinir (login kapanır).
+    for (const u of company.users) {
+      if (!u.authId) continue;
+      await supabaseDeleteUser(u.authId).catch((err: unknown) =>
+        this.logger.warn(
+          `Supabase kullanıcı silinemedi (${u.id}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+    }
+
+    if (!hasOrders) {
+      await this.prisma.company.delete({ where: { id } });
+      await this.audit.log({
+        action: "admin.company.deleted",
+        actorType: "admin",
+        actorId: adminId,
+        entityType: "company",
+        entityId: id,
+        metadata: { name: company.name, rothernId: company.rothernId },
+      });
+      return { ok: true, mode: "deleted" as const };
+    }
+
+    // Anonimleştirme — finansal geçmiş (siparişler) korunur, kimlik gider.
+    const anonName = `Silinmiş Firma (${company.rothernId ?? id.slice(0, 6)})`;
+    await this.prisma.$transaction([
+      this.prisma.company.update({
+        where: { id },
+        data: {
+          name: anonName,
+          legalName: null,
+          taxNumber: null,
+          taxOffice: null,
+          mersisNo: null,
+          tradeRegistryNo: null,
+          iban: null,
+          ibanHolder: null,
+          billingEmail: null,
+          website: null,
+          addressLine: null,
+          city: null,
+          stateRegion: null,
+          isActive: false,
+          isBlocked: true,
+          blockedReason: "KVKK silme talebi — anonimleştirildi",
+          blockedAt: new Date(),
+          tier: "STANDARD",
+          membershipEndAt: null,
+        },
+      }),
+      // Kullanıcılar: soft-delete + e-posta karartma (unique korunur) +
+      // oturum düşürme. İsimler de anonimleşir.
+      ...company.users.map((u, i) =>
+        this.prisma.companyUser.update({
+          where: { id: u.id },
+          data: {
+            email: `deleted-${id.slice(0, 8)}-${i}@anon.rothern.local`,
+            firstName: "Silinmiş",
+            lastName: "Kullanıcı",
+            phone: null,
+            isActive: false,
+            deletedAt: new Date(),
+            authId: null,
+            tokenVersion: { increment: 1 },
+          },
+        }),
+      ),
+    ]);
+    await this.audit.log({
+      action: "admin.company.anonymized",
+      actorType: "admin",
+      actorId: adminId,
+      entityType: "company",
+      entityId: id,
+      metadata: { name: company.name, rothernId: company.rothernId },
+    });
+    return { ok: true, mode: "anonymized" as const };
+  }
+
   private async requireCompany(id: string) {
     const exists = await this.prisma.company.findUnique({
       where: { id },

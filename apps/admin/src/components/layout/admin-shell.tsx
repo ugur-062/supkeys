@@ -35,6 +35,7 @@ import {
   BadgeDollarSign,
   Building2,
   Flag,
+  FolderTree,
   Inbox,
   LayoutDashboard,
   Megaphone,
@@ -145,6 +146,12 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/sistem",
         icon: Activity,
         activeMatch: "/admin/sistem",
+      },
+      {
+        label: "Kategoriler",
+        href: "/admin/kategoriler",
+        icon: FolderTree,
+        activeMatch: "/admin/kategoriler",
       },
       {
         label: "Ayarlar",

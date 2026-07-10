@@ -29,6 +29,7 @@ import {
 import { RequireAdminRole } from "../admin-auth/decorators/require-admin-role.decorator";
 import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
 import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
+import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { AdminCompaniesService } from "./admin-companies.service";
 
 class ListCompaniesDto {
@@ -276,7 +277,10 @@ class ResolveComplaintDto {
 @Controller("admin")
 @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
 export class AdminCompaniesController {
-  constructor(private readonly service: AdminCompaniesService) {}
+  constructor(
+    private readonly service: AdminCompaniesService,
+    private readonly supabase: SupabaseAuthService,
+  ) {}
 
   @Get("companies")
   list(@Query() query: ListCompaniesDto) {
@@ -387,6 +391,24 @@ export class AdminCompaniesController {
   @RequireAdminRole("SUPER_ADMIN", "SALES")
   membershipReport(@Query() dto: MembershipReportDto) {
     return this.service.membershipReport(dto.from, dto.to);
+  }
+
+  // ── KVKK (Faz 9) ──
+  @Get("companies/:id/export")
+  @RequireAdminRole("SUPER_ADMIN")
+  exportData(@Param("id") id: string) {
+    return this.service.exportData(id);
+  }
+
+  @Delete("companies/:id")
+  @RequireAdminRole("SUPER_ADMIN")
+  deleteCompany(
+    @Param("id") id: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+  ) {
+    return this.service.deleteOrAnonymize(id, admin.id, (authId) =>
+      this.supabase.deleteUser(authId),
+    );
   }
 
   @Get("complaints")

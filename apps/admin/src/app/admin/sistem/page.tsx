@@ -14,12 +14,150 @@ import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import {
   useAdminSystem,
+  useClearSuppression,
+  useManualRate,
   useRefreshRates,
   useStorageHealth,
+  useSuppressions,
 } from "@/hooks/use-admin-system";
 import { safeFormat } from "@/lib/date";
-import { Database, HardDrive, RefreshCw, Timer } from "lucide-react";
+import {
+  Database,
+  HardDrive,
+  MailWarning,
+  PencilLine,
+  RefreshCw,
+  Timer,
+} from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
+
+const MANUAL_CURRENCIES = ["USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY"];
+
+/** Manuel kur formu — TCMB arızası acil durumu (yalnız SUPER_ADMIN, BE guard). */
+function ManualRateForm() {
+  const manual = useManualRate();
+  const [currency, setCurrency] = useState("USD");
+  const [rate, setRate] = useState("");
+  return (
+    <div className="border-admin-border mt-4 flex flex-wrap items-end gap-2 border-t pt-3">
+      <PencilLine className="text-admin-text-muted mb-1.5 h-4 w-4" />
+      <label className="flex flex-col gap-1">
+        <span className="text-admin-text-muted text-xs font-medium">Birim</span>
+        <select
+          value={currency}
+          onChange={(e) => setCurrency(e.target.value)}
+          className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-2 py-1.5 text-sm"
+        >
+          {MANUAL_CURRENCIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col gap-1">
+        <span className="text-admin-text-muted text-xs font-medium">
+          Kur (₺)
+        </span>
+        <input
+          type="number"
+          step="0.0001"
+          min="0"
+          value={rate}
+          onChange={(e) => setRate(e.target.value)}
+          placeholder="34.5000"
+          className="border-admin-border bg-admin-surface text-admin-text w-32 rounded-lg border px-3 py-1.5 text-sm"
+        />
+      </label>
+      <Button
+        size="sm"
+        variant="secondary"
+        loading={manual.isPending}
+        disabled={!Number.isFinite(Number(rate)) || Number(rate) <= 0}
+        onClick={() =>
+          manual.mutate(
+            { currency, rate: Number(rate) },
+            {
+              onSuccess: () => {
+                toast.success(`${currency} manuel kuru kaydedildi`);
+                setRate("");
+              },
+              onError: (e: unknown) =>
+                toast.error(e instanceof Error ? e.message : "Hata"),
+            },
+          )
+        }
+      >
+        Manuel Kur Kaydet
+      </Button>
+      <p className="text-admin-text-muted w-full text-xs">
+        Yalnız TCMB uzun süre erişilemezse kullanın — sonraki TCMB çekimi
+        üzerine yazar; işlem denetim kaydına girer.
+      </p>
+    </div>
+  );
+}
+
+/** E-posta itibar — suppress edilmiş adresler + aklama. */
+function SuppressionsSection() {
+  const list = useSuppressions();
+  const clear = useClearSuppression();
+  const rows = list.data ?? [];
+  return (
+    <section className="admin-card overflow-hidden">
+      <div className="border-surface-border border-b px-5 py-4">
+        <h3 className="text-admin-text flex items-center gap-2 text-sm font-semibold">
+          <MailWarning className="h-4 w-4" /> E-posta İtibar — Engelli Adresler
+        </h3>
+        <p className="text-admin-text-muted mt-0.5 text-xs">
+          Kalıcı bounce / şikayet almış adreslere gönderim otomatik atlanır.
+          Adres düzeldiyse (ör. posta kutusu açıldı) aklayabilirsiniz.
+        </p>
+      </div>
+      <div className="divide-surface-border divide-y">
+        {rows.length === 0 ? (
+          <p className="text-admin-text-muted px-5 py-6 text-center text-sm">
+            {list.isLoading ? "Yükleniyor..." : "🎉 Engelli adres yok"}
+          </p>
+        ) : (
+          rows.map((r) => (
+            <div
+              key={r.email}
+              className="flex flex-wrap items-center justify-between gap-2 px-5 py-2.5"
+            >
+              <div className="min-w-0">
+                <p className="text-admin-text text-sm font-medium">{r.email}</p>
+                <p className="text-admin-text-muted text-xs">
+                  {r.status === "COMPLAINED" ? "Şikayet" : "Kalıcı bounce"}
+                  {r.reason ? ` — ${r.reason}` : ""} ·{" "}
+                  {safeFormat(r.at, "d MMM yyyy")}
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={clear.isPending}
+                onClick={() =>
+                  clear.mutate(
+                    { email: r.email },
+                    {
+                      onSuccess: () => toast.success("Adres aklandı"),
+                      onError: (e: unknown) =>
+                        toast.error(e instanceof Error ? e.message : "Hata"),
+                    },
+                  )
+                }
+              >
+                Akla
+              </Button>
+            </div>
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
 
 function SistemView() {
   const sys = useAdminSystem();
@@ -126,7 +264,10 @@ function SistemView() {
           Kur bayatken (7+ gün) döviz ilanlarında taban kıyası güvenlik gereği
           reddedilir — TCMB arızasında bu buton kilidi açar.
         </p>
+        <ManualRateForm />
       </section>
+
+      <SuppressionsSection />
 
       {/* Cron işleri */}
       <section className="admin-card overflow-hidden">

@@ -50,6 +50,47 @@ export function useRefreshRates() {
   });
 }
 
+/** Manuel kur girişi — TCMB arızasında para yolunun kilidini açar. */
+export function useManualRate() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { currency: string; rate: number }) => {
+      await api.post("/admin/system/rates/manual", input);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-system"] }),
+  });
+}
+
+export interface SuppressionRow {
+  email: string;
+  status: string;
+  reason: string | null;
+  at: string;
+}
+
+export function useSuppressions() {
+  return useQuery({
+    queryKey: ["admin-suppressions"],
+    queryFn: async () => {
+      const { data } = await api.get<SuppressionRow[]>(
+        "/admin/system/suppressions",
+      );
+      return data;
+    },
+  });
+}
+
+export function useClearSuppression() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ email }: { email: string }) => {
+      await api.post("/admin/system/suppressions/clear", { email });
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: ["admin-suppressions"] }),
+  });
+}
+
 export interface StorageHealth {
   bucket: string;
   envPrefix: string;

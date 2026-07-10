@@ -85,9 +85,19 @@ export class EmailService implements OnModuleInit {
     // adrese gönderim yapma — Resend itibar riski + boşa gönderim. Mevcut
     // EmailLog verisinden kontrol (migration'sız). Soft/undetermined bounce
     // geçici olduğundan suppress edilmez.
+    // Aklama (Faz 8): admin "suppression clear" marker'ı append-only bir
+    // EmailLog satırıdır (template=suppression_clear) — marker'dan ÖNCEKİ
+    // bounce/complaint kayıtları suppression'ı tetiklemez, tarih yeniden
+    // yazılmaz. Marker sonrası yeni bounce yeniden suppress eder.
+    const clearMarker = await this.prisma.emailLog.findFirst({
+      where: { toEmail: input.to.email, template: "suppression_clear" },
+      orderBy: { queuedAt: "desc" },
+      select: { queuedAt: true },
+    });
     const suppressed = await this.prisma.emailLog.findFirst({
       where: {
         toEmail: input.to.email,
+        ...(clearMarker ? { queuedAt: { gt: clearMarker.queuedAt } } : {}),
         OR: [
           { status: "COMPLAINED" },
           { status: "BOUNCED", bounceType: "hard" },
