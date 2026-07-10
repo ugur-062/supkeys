@@ -1017,8 +1017,8 @@ export default function HomePage() {
               Her ihtiyaca uygun format
             </p>
             <p className="mt-6 text-lg/8 text-zinc-600">
-              Alışta RFQ ya da İngiliz Usulü; satışta taban + hemen-al. Doğru
-              formatı seç, gerisini panel yönetsin.
+              Alışta RFQ ya da İngiliz Usulü, satışta taban + hemen-al; doğru
+              formatı seç, kazandırma öncesi onay zincirini panel yönetsin.
             </p>
           </div>
           <div className="mx-auto mt-16 grid max-w-5xl grid-cols-1 gap-6 sm:mt-20 sm:grid-cols-2">
@@ -1109,34 +1109,52 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* Hemen-Al */}
+            {/* Onay akışları */}
             <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
-              <div className="rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-[10px] text-zinc-400">
-                      Hemen-Al fiyatı
-                    </div>
-                    <div className="text-base font-bold text-zinc-900">
-                      80.000 ₺
-                    </div>
-                  </div>
-                  <span className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white">
-                    Hemen Al
+              <div className="space-y-1.5 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
+                <div className="flex items-center gap-2 rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
+                  <span className="flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white">
+                    <CheckIcon className="size-3" />
+                  </span>
+                  <span className="text-[11px] font-medium text-zinc-700">
+                    Satın Almacı
+                  </span>
+                  <span className="ml-auto text-[11px] text-zinc-400">
+                    Talep açtı
                   </span>
                 </div>
-                <div className="mt-2 text-[11px] text-zinc-400">
-                  Satıcı onayıyla anında sipariş
+                <div className="flex items-center gap-2 rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
+                  <span className="flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white">
+                    <CheckIcon className="size-3" />
+                  </span>
+                  <span className="text-[11px] font-medium text-zinc-700">
+                    Onaylayıcı
+                  </span>
+                  <span className="ml-auto text-[11px] text-zinc-400">
+                    Onayladı
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 rounded-md bg-violet-50 px-2.5 py-1.5 ring-1 ring-violet-200">
+                  <span className="flex size-4 items-center justify-center">
+                    <span className="size-2 animate-pulse rounded-full bg-violet-500" />
+                  </span>
+                  <span className="text-[11px] font-medium text-violet-800">
+                    Yönetici
+                  </span>
+                  <span className="ml-auto text-[11px] font-semibold text-violet-700">
+                    Bekliyor
+                  </span>
                 </div>
               </div>
-              <span className="mt-5 inline-flex w-fit rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-700">
-                Satış · Hızlı
+              <span className="mt-5 inline-flex w-fit rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
+                Onay akışı
               </span>
               <h3 className="mt-3 text-lg font-semibold text-zinc-950">
-                Hemen-Al
+                Onay zinciri
               </h3>
               <p className="mt-1.5 text-sm/6 text-zinc-600">
-                Tavan fiyattan al; sahip onayıyla anında bağlanır.
+                Tutara ve türe göre kural kur; kazandırma öncesi doğru kişilerden
+                sırayla onay al.
               </p>
             </div>
           </div>
