@@ -1,5 +1,6 @@
 "use client";
 
+import { Badge } from "@/components/catalyst/badge";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader } from "@/components/list";
 import {
@@ -7,85 +8,129 @@ import {
   useAdminCompanyStats,
   useAdminComplaints,
 } from "@/hooks/use-admin-companies";
-import { cn } from "@/lib/utils";
+import { countryFlag, countryName } from "@/lib/country";
 import { safeFormat } from "@/lib/date";
+import { cn } from "@/lib/utils";
 import {
   Building2,
+  CalendarClock,
   Clock,
+  FilePlus2,
   Flag,
   type LucideIcon,
+  Package,
   ShieldCheck,
+  UserPlus,
 } from "lucide-react";
 import Link from "next/link";
 
 function DashboardContent() {
-  const companiesQ = useAdminCompanies({});
+  const companiesQ = useAdminCompanies({ page: 1, pageSize: 6 });
   const openComplaintsQ = useAdminComplaints("OPEN");
   const statsQ = useAdminCompanyStats();
+  const s = statsQ.data;
 
-  const companies = companiesQ.data ?? [];
-  // KPI'lar server-side agregat (200-limitli listeden DEĞİL — 200 firma sonrası
-  // yanlış sayardı). Liste yalnız "Son Firmalar" bölümü için.
-  const total = statsQ.data?.totalCompanies ?? 0;
-  const verified = statsQ.data?.verified ?? 0;
-  const pendingKyc = statsQ.data?.pendingKyc ?? 0;
-  const openComplaintCount = statsQ.data?.openComplaints ?? 0;
+  const companies = companiesQ.data?.items ?? [];
   const openComplaints = openComplaintsQ.data ?? [];
+
+  // KYC kuyruk yaşı — en eski bekleyen başvuru kaç gündür bekliyor?
+  const queueAgeDays = s?.oldestPendingSince
+    ? Math.floor(
+        (Date.now() - new Date(s.oldestPendingSince).getTime()) / 86_400_000,
+      )
+    : null;
 
   return (
     <div className="max-w-[1400px] space-y-6">
       <PageHeader
         title="Sistem Geneli"
-        description="Birleşik firma ekosistemi — doğrulama ve moderasyon."
+        description="Birleşik firma ekosistemi — doğrulama, üyelik ve moderasyon."
       />
 
+      {/* Ana KPI'lar */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <KpiCard
           icon={Building2}
           label="Toplam Firma"
-          value={total}
+          value={s?.totalCompanies ?? 0}
           href="/admin/firmalar"
+          sub={
+            s
+              ? `${s.tierBreakdown.PAKET} premium · ${s.tierBreakdown.STANDARD} standart`
+              : undefined
+          }
         />
         <KpiCard
           icon={ShieldCheck}
           label="Doğrulanmış"
-          value={verified}
-          href="/admin/firmalar"
+          value={s?.verified ?? 0}
+          href="/admin/firmalar?status=VERIFIED"
         />
         <KpiCard
           icon={Clock}
-          label="KYC Bekleyen"
-          value={pendingKyc}
-          href="/admin/firmalar"
+          label="İnceleme Bekleyen"
+          value={s?.pendingReview ?? 0}
+          href="/admin/firmalar?status=PENDING"
+          alert={(s?.pendingReview ?? 0) > 0}
+          sub={
+            queueAgeDays != null
+              ? `en eski başvuru ${queueAgeDays} gündür kuyrukta`
+              : undefined
+          }
         />
         <KpiCard
           icon={Flag}
           label="Açık Şikayet"
-          value={openComplaintCount}
+          value={s?.openComplaints ?? 0}
           href="/admin/sikayetler"
-          alert={openComplaintCount > 0}
+          alert={(s?.openComplaints ?? 0) > 0}
+        />
+      </div>
+
+      {/* Son 30 gün aktivite */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <MiniStat
+          icon={UserPlus}
+          label="Yeni firma (30 gün)"
+          value={s?.last30Days.newCompanies ?? 0}
+        />
+        <MiniStat
+          icon={FilePlus2}
+          label="Yeni ilan (30 gün)"
+          value={s?.last30Days.newListings ?? 0}
+        />
+        <MiniStat
+          icon={Package}
+          label="Yeni sipariş (30 gün)"
+          value={s?.last30Days.newOrders ?? 0}
         />
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="admin-card">
-          <div className="border-surface-border flex items-center justify-between border-b px-5 py-4">
-            <h3 className="text-admin-text font-bold">Son Firmalar</h3>
-            <Link
-              href="/admin/firmalar"
-              className="text-xs font-semibold text-zinc-600 hover:underline"
-            >
-              Tümünü Gör →
-            </Link>
-          </div>
-          <div className="divide-surface-border divide-y">
-            {companies.length === 0 ? (
-              <p className="text-admin-text-muted p-6 text-center text-sm">
-                {companiesQ.isLoading ? "Yükleniyor…" : "Firma yok"}
-              </p>
-            ) : (
-              companies.slice(0, 6).map((c) => (
-                <div key={c.id} className="flex items-center justify-between px-5 py-3">
+        {/* Süresi yaklaşan üyelikler — yenileme satışı fırsatı */}
+        <Panel
+          title="Süresi Yaklaşan Üyelikler"
+          titleIcon={CalendarClock}
+          moreHref="/admin/firmalar?tier=PAKET"
+        >
+          {(s?.expiringMemberships ?? []).length === 0 ? (
+            <p className="text-admin-text-muted p-6 text-center text-sm">
+              {statsQ.isLoading
+                ? "Yükleniyor…"
+                : "30 gün içinde bitecek üyelik yok"}
+            </p>
+          ) : (
+            (s?.expiringMemberships ?? []).map((c) => {
+              const days = Math.ceil(
+                (new Date(c.membershipEndAt).getTime() - Date.now()) /
+                  86_400_000,
+              );
+              return (
+                <Link
+                  key={c.id}
+                  href={`/admin/firmalar/${c.id}`}
+                  className="hover:bg-admin-border/20 flex items-center justify-between px-5 py-3"
+                >
                   <div className="min-w-0">
                     <p className="text-admin-text truncate font-semibold">
                       {c.name}
@@ -94,46 +139,147 @@ function DashboardContent() {
                       {c.rothernId ?? "—"}
                     </p>
                   </div>
-                  <span className="text-admin-text-muted ml-3 flex-shrink-0 text-xs">
-                    {safeFormat(c.createdAt, "d MMM")}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+                  <Badge color={days <= 7 ? "red" : "amber"}>
+                    {days} gün
+                  </Badge>
+                </Link>
+              );
+            })
+          )}
+        </Panel>
 
-        <div className="admin-card">
-          <div className="border-surface-border flex items-center justify-between border-b px-5 py-4">
-            <h3 className="text-admin-text font-bold">Açık Şikayetler</h3>
-            <Link
-              href="/admin/sikayetler"
-              className="text-xs font-semibold text-zinc-600 hover:underline"
-            >
-              Tümünü Gör →
-            </Link>
-          </div>
-          <div className="divide-surface-border divide-y">
-            {openComplaints.length === 0 ? (
-              <p className="text-admin-text-muted p-6 text-center text-sm">
-                {openComplaintsQ.isLoading
-                  ? "Yükleniyor…"
-                  : "Açık şikayet yok"}
-              </p>
-            ) : (
-              openComplaints.slice(0, 6).map((c) => (
-                <div key={c.id} className="px-5 py-3">
+        {/* Ülke dağılımı */}
+        <Panel title="Ülke Dağılımı" moreHref="/admin/firmalar">
+          {(s?.countryBreakdown ?? []).length === 0 ? (
+            <p className="text-admin-text-muted p-6 text-center text-sm">
+              {statsQ.isLoading ? "Yükleniyor…" : "Veri yok"}
+            </p>
+          ) : (
+            (s?.countryBreakdown ?? []).map((c) => (
+              <Link
+                key={c.country}
+                href={`/admin/firmalar?country=${c.country}`}
+                className="hover:bg-admin-border/20 flex items-center justify-between px-5 py-2.5"
+              >
+                <span className="text-admin-text text-sm">
+                  {countryFlag(c.country)} {countryName(c.country)}
+                </span>
+                <span className="text-admin-text text-sm font-semibold tabular-nums">
+                  {c.count}
+                </span>
+              </Link>
+            ))
+          )}
+        </Panel>
+
+        {/* Son firmalar */}
+        <Panel title="Son Firmalar" moreHref="/admin/firmalar">
+          {companies.length === 0 ? (
+            <p className="text-admin-text-muted p-6 text-center text-sm">
+              {companiesQ.isLoading ? "Yükleniyor…" : "Firma yok"}
+            </p>
+          ) : (
+            companies.map((c) => (
+              <Link
+                key={c.id}
+                href={`/admin/firmalar/${c.id}`}
+                className="hover:bg-admin-border/20 flex items-center justify-between px-5 py-3"
+              >
+                <div className="min-w-0">
                   <p className="text-admin-text truncate font-semibold">
-                    {c.against.name}
+                    {countryFlag(c.country)} {c.name}
                   </p>
-                  <p className="text-admin-text-muted truncate text-xs">
-                    {c.reason} · şikayet eden: {c.complainant.name}
+                  <p className="text-admin-text-muted font-mono text-xs">
+                    {c.rothernId ?? "—"}
                   </p>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
+                <span className="text-admin-text-muted ml-3 flex-shrink-0 text-xs">
+                  {safeFormat(c.createdAt, "d MMM")}
+                </span>
+              </Link>
+            ))
+          )}
+        </Panel>
+
+        {/* Açık şikayetler */}
+        <Panel title="Açık Şikayetler" moreHref="/admin/sikayetler">
+          {openComplaints.length === 0 ? (
+            <p className="text-admin-text-muted p-6 text-center text-sm">
+              {openComplaintsQ.isLoading ? "Yükleniyor…" : "Açık şikayet yok"}
+            </p>
+          ) : (
+            openComplaints.slice(0, 6).map((c) => (
+              <Link
+                key={c.id}
+                href={`/admin/firmalar/${c.against.id}`}
+                className="hover:bg-admin-border/20 block px-5 py-3"
+              >
+                <p className="text-admin-text truncate font-semibold">
+                  {c.against.name}
+                </p>
+                <p className="text-admin-text-muted truncate text-xs">
+                  {c.reason} · şikayet eden: {c.complainant.name}
+                </p>
+              </Link>
+            ))
+          )}
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function Panel({
+  title,
+  titleIcon: Icon,
+  moreHref,
+  children,
+}: {
+  title: string;
+  titleIcon?: LucideIcon;
+  moreHref: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="admin-card">
+      <div className="border-surface-border flex items-center justify-between border-b px-5 py-4">
+        <h3 className="text-admin-text flex items-center gap-2 font-bold">
+          {Icon ? <Icon className="text-admin-text-muted h-4 w-4" /> : null}
+          {title}
+        </h3>
+        <Link
+          href={moreHref}
+          className="text-xs font-semibold text-zinc-600 hover:underline"
+        >
+          Tümünü Gör →
+        </Link>
+      </div>
+      <div className="divide-surface-border divide-y">{children}</div>
+    </div>
+  );
+}
+
+function MiniStat({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="admin-card flex items-center gap-3 px-5 py-4">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-100">
+        <Icon className="h-5 w-5 text-zinc-600" />
+      </div>
+      <div>
+        <p className="text-admin-text-muted text-xs font-semibold tracking-wide uppercase">
+          {label}
+        </p>
+        <p className="text-admin-text text-xl font-bold tabular-nums">
+          {value.toLocaleString("tr-TR")}
+        </p>
       </div>
     </div>
   );
@@ -145,16 +291,18 @@ function KpiCard({
   value,
   href,
   alert,
+  sub,
 }: {
   icon: LucideIcon;
   label: string;
   value: number;
   href: string;
   alert?: boolean;
+  sub?: string;
 }) {
   return (
     <Link href={href} className="block">
-      <div className="admin-card hover:border-zinc-300 h-full p-5 transition-colors">
+      <div className="admin-card h-full p-5 transition-colors hover:border-zinc-300">
         <div
           className={cn(
             "mb-3 flex h-10 w-10 items-center justify-center rounded-xl",
@@ -165,12 +313,13 @@ function KpiCard({
             className={cn("h-5 w-5", alert ? "text-danger-600" : "text-zinc-600")}
           />
         </div>
-        <p className="text-admin-text-muted text-xs font-semibold uppercase tracking-wide">
+        <p className="text-admin-text-muted text-xs font-semibold tracking-wide uppercase">
           {label}
         </p>
         <p className="text-admin-text mt-1 text-2xl font-bold">
           {value.toLocaleString("tr-TR")}
         </p>
+        {sub ? <p className="text-admin-text-muted mt-1 text-xs">{sub}</p> : null}
       </div>
     </Link>
   );

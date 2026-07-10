@@ -6,20 +6,20 @@ import {
   Param,
   Post,
   Query,
-  Req,
   UseGuards,
 } from "@nestjs/common";
-import type { Request } from "express";
+import {
+  CurrentAdmin,
+  type AuthenticatedAdmin,
+} from "../../common/decorators/current-admin.decorator";
+import { RequireAdminRole } from "../admin-auth/decorators/require-admin-role.decorator";
 import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
+import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
 import { AdminEmailLogsService } from "./admin-email-logs.service";
 import { ListEmailLogsDto } from "./dto/list-email-logs.dto";
 
-interface AdminAuthRequest extends Request {
-  user?: { sub: string; type: string };
-}
-
 @Controller("admin/email-logs")
-@UseGuards(AdminJwtAuthGuard)
+@UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
 export class AdminEmailLogsController {
   constructor(private readonly service: AdminEmailLogsService) {}
 
@@ -33,12 +33,17 @@ export class AdminEmailLogsController {
     return this.service.findOne(id);
   }
 
+  // YAZMA işlemi (dış dünyaya e-posta gönderir) — salt-okuma SUPPORT rolüne
+  // kapalı. Eskiden roles guard hiç yoktu → her admin resend edebiliyordu.
   @Post(":id/resend")
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
   @HttpCode(HttpStatus.OK)
   async resend(
     @Param("id") id: string,
-    @Req() req: AdminAuthRequest,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
   ): Promise<unknown> {
-    return this.service.resend(id, req.user?.sub ?? "");
+    // Eski kod `req.user?.sub` okuyordu — admin strategy `id` döndürür, yani
+    // audit kaydına hep "" yazılıyordu. CurrentAdmin ile gerçek kimlik.
+    return this.service.resend(id, admin.id);
   }
 }

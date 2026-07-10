@@ -10,18 +10,26 @@ import {
   TableRow,
 } from "@/components/catalyst/table";
 import { AdminShell } from "@/components/layout/admin-shell";
-import { FilterSelect, PageHeader, SearchInput } from "@/components/list";
+import {
+  FilterSelect,
+  PageHeader,
+  Pagination,
+  SearchInput,
+} from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
-import { CompanyDetailModal } from "./_components/company-detail-modal";
 import {
   useAdminCompanies,
+  useAdminCompanyStats,
   useCompanyAction,
   useSetCompanyTier,
   type AdminCompanyRow,
 } from "@/hooks/use-admin-companies";
+import { useListFilters } from "@/hooks/use-list-filters";
+import { countryFlag, countryName } from "@/lib/country";
 import { safeFormat } from "@/lib/date";
-import { useState } from "react";
+import Link from "next/link";
+import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
 const VERIFY_META: Record<
@@ -34,32 +42,45 @@ const VERIFY_META: Record<
   UNVERIFIED: { label: "Doğrulanmadı", color: "zinc" },
 };
 
+const PAGE_SIZE = 25;
+
+interface Filters {
+  status?: string;
+  country?: string;
+  tier?: string;
+  blocked?: string;
+  search?: string;
+  page?: number;
+  [key: string]: string | number | boolean | undefined;
+}
+
 function FirmalarView() {
-  const [status, setStatus] = useState("");
-  const [q, setQ] = useState("");
+  const { filters, setFilters } = useListFilters<Filters>();
   const query = useAdminCompanies({
-    status: status || undefined,
-    q: q.trim() || undefined,
+    status: filters.status || undefined,
+    country: filters.country || undefined,
+    tier: filters.tier || undefined,
+    blocked: filters.blocked || undefined,
+    q: filters.search?.trim() || undefined,
+    page: filters.page ?? 1,
+    pageSize: PAGE_SIZE,
   });
+  // Ülke filtresi seçenekleri gerçek veriden (stats countryBreakdown).
+  const stats = useAdminCompanyStats();
   const act = useCompanyAction();
   const tierAct = useSetCompanyTier();
-  const items = query.data ?? [];
+  const items = query.data?.items ?? [];
+  const total = query.data?.total ?? 0;
+  const page = query.data?.page ?? filters.page ?? 1;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  // window.prompt yerine erişilebilir/test edilebilir modal — girdi gerektiren
-  // aksiyonlar (PAKET ay sayısı, askı sebebi) bunu açar.
   const [prompt, setPrompt] = useState<
     | { kind: "tierMonths"; id: string }
     | { kind: "suspendReason"; id: string }
     | null
   >(null);
-  // İnceleme modalı — belgeler + KYC gösterip Doğrula/Reddet.
-  const [detailId, setDetailId] = useState<string | null>(null);
 
-  const runTier = (
-    id: string,
-    tier: "STANDARD" | "PAKET",
-    months?: number,
-  ) =>
+  const runTier = (id: string, tier: "STANDARD" | "PAKET", months?: number) =>
     tierAct.mutate(
       { id, tier, months },
       {
@@ -72,7 +93,7 @@ function FirmalarView() {
 
   const runAction = (
     id: string,
-    action: "verify" | "reject" | "suspend" | "unsuspend",
+    action: "suspend" | "unsuspend",
     msg: string,
     reason?: string,
   ) =>
@@ -85,39 +106,19 @@ function FirmalarView() {
       },
     );
 
-  const setTier = (id: string, tier: "STANDARD" | "PAKET") => {
-    if (tier === "PAKET") {
-      setPrompt({ kind: "tierMonths", id });
-      return;
-    }
-    runTier(id, tier);
-  };
-
-  const run = (
-    id: string,
-    action: "verify" | "reject" | "suspend" | "unsuspend",
-    msg: string,
-  ) => {
-    if (action === "suspend") {
-      setPrompt({ kind: "suspendReason", id });
-      return;
-    }
-    runAction(id, action, msg);
-  };
-
   return (
-    <div className="max-w-[1200px] space-y-6">
+    <div className="max-w-[1280px] space-y-6">
       <PageHeader
         title="Firmalar"
-        description="Birleşik firma hesapları — KYC doğrulama ve askıya alma."
+        description="Birleşik firma hesapları — inceleme, KYC, üyelik ve askı yönetimi."
       />
 
       <div className="flex flex-wrap items-center gap-3">
         <FilterSelect
           ariaLabel="Doğrulama"
-          value={status}
-          active={!!status}
-          onChange={setStatus}
+          value={filters.status ?? ""}
+          active={!!filters.status}
+          onChange={(v) => setFilters({ status: v })}
           options={[
             { value: "", label: "Tüm durumlar" },
             { value: "UNVERIFIED", label: "Doğrulanmadı" },
@@ -126,10 +127,44 @@ function FirmalarView() {
             { value: "REJECTED", label: "Reddedildi" },
           ]}
         />
+        <FilterSelect
+          ariaLabel="Ülke"
+          value={filters.country ?? ""}
+          active={!!filters.country}
+          onChange={(v) => setFilters({ country: v })}
+          options={[
+            { value: "", label: "Tüm ülkeler" },
+            ...(stats.data?.countryBreakdown ?? []).map((c) => ({
+              value: c.country,
+              label: `${countryFlag(c.country)} ${countryName(c.country)} (${c.count})`,
+            })),
+          ]}
+        />
+        <FilterSelect
+          ariaLabel="Üyelik"
+          value={filters.tier ?? ""}
+          active={!!filters.tier}
+          onChange={(v) => setFilters({ tier: v })}
+          options={[
+            { value: "", label: "Tüm üyelikler" },
+            { value: "PAKET", label: "Premium" },
+            { value: "STANDARD", label: "Standart" },
+          ]}
+        />
+        <FilterSelect
+          ariaLabel="Askı"
+          value={filters.blocked ?? ""}
+          active={!!filters.blocked}
+          onChange={(v) => setFilters({ blocked: v })}
+          options={[
+            { value: "", label: "Hepsi" },
+            { value: "true", label: "Askıda" },
+          ]}
+        />
         <SearchInput
-          value={q}
-          onChange={setQ}
-          placeholder="Firma adı / kod / vergi no ara..."
+          value={filters.search ?? ""}
+          onChange={(v) => setFilters({ search: v })}
+          placeholder="Ad / kod / vergi no / kullanıcı e-postası ara..."
         />
       </div>
 
@@ -139,6 +174,7 @@ function FirmalarView() {
             <TableRow>
               <TableHeader>Firma</TableHeader>
               <TableHeader>Kod</TableHeader>
+              <TableHeader>Ülke</TableHeader>
               <TableHeader>Üyelik</TableHeader>
               <TableHeader>KYC</TableHeader>
               <TableHeader>Şikayet</TableHeader>
@@ -150,7 +186,7 @@ function FirmalarView() {
             {items.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="text-admin-text-muted py-8 text-center"
                 >
                   {query.isError
@@ -163,11 +199,15 @@ function FirmalarView() {
             ) : (
               items.map((c: AdminCompanyRow) => {
                 const meta = VERIFY_META[c.verification] ?? VERIFY_META.UNVERIFIED;
-                const pending = act.isPending;
                 return (
                   <TableRow key={c.id}>
                     <TableCell className="text-admin-text font-medium">
-                      {c.name}
+                      <Link
+                        href={`/admin/firmalar/${c.id}`}
+                        className="hover:underline"
+                      >
+                        {c.name}
+                      </Link>
                       {c.isBlocked ? (
                         <Badge color="red" className="ml-2">
                           Askıda
@@ -177,10 +217,23 @@ function FirmalarView() {
                     <TableCell className="text-admin-text-muted font-mono text-xs">
                       {c.rothernId ?? "—"}
                     </TableCell>
-                    <TableCell>
+                    <TableCell
+                      className="text-admin-text text-sm whitespace-nowrap"
+                      title={[countryName(c.country), c.stateRegion, c.city]
+                        .filter(Boolean)
+                        .join(" / ")}
+                    >
+                      {countryFlag(c.country)} {c.country}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <Badge color={c.tier === "PAKET" ? "amber" : "zinc"}>
                         {c.tier === "PAKET" ? "Premium" : "Standart"}
                       </Badge>
+                      {c.tier === "PAKET" && c.membershipEndAt ? (
+                        <span className="text-admin-text-muted ml-1.5 text-xs">
+                          → {safeFormat(c.membershipEndAt, "d MMM yy")}
+                        </span>
+                      ) : null}
                     </TableCell>
                     <TableCell>
                       <Badge color={meta.color}>{meta.label}</Badge>
@@ -203,7 +256,7 @@ function FirmalarView() {
                             variant="ghost"
                             size="sm"
                             disabled={tierAct.isPending}
-                            onClick={() => setTier(c.id, "STANDARD")}
+                            onClick={() => runTier(c.id, "STANDARD")}
                           >
                             PAKET Al
                           </Button>
@@ -213,27 +266,25 @@ function FirmalarView() {
                             variant="secondary"
                             size="sm"
                             disabled={tierAct.isPending}
-                            onClick={() => setTier(c.id, "PAKET")}
+                            onClick={() => setPrompt({ kind: "tierMonths", id: c.id })}
                           >
                             PAKET Ver
                           </Button>
                         )}
-                        {/* Kör onay yerine: İncele → belgeler+KYC modalı, karar orada. */}
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={() => setDetailId(c.id)}
+                        <Link
+                          href={`/admin/firmalar/${c.id}`}
+                          className="inline-flex items-center rounded-lg bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-700"
                         >
                           İncele
-                        </Button>
+                        </Link>
                         {c.isBlocked ? (
                           <Button
                             type="button"
                             variant="secondary"
                             size="sm"
-                            disabled={pending}
+                            disabled={act.isPending}
                             onClick={() =>
-                              run(c.id, "unsuspend", "Askı kaldırıldı")
+                              runAction(c.id, "unsuspend", "Askı kaldırıldı")
                             }
                           >
                             Askıyı Kaldır
@@ -243,8 +294,10 @@ function FirmalarView() {
                             type="button"
                             variant="danger"
                             size="sm"
-                            disabled={pending}
-                            onClick={() => run(c.id, "suspend", "Askıya alındı")}
+                            disabled={act.isPending}
+                            onClick={() =>
+                              setPrompt({ kind: "suspendReason", id: c.id })
+                            }
                           >
                             Askıya Al
                           </Button>
@@ -257,6 +310,13 @@ function FirmalarView() {
             )}
           </TableBody>
         </Table>
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          pageSize={PAGE_SIZE}
+          onPageChange={(p) => setFilters({ page: p })}
+        />
       </div>
 
       <PromptDialog
@@ -289,12 +349,6 @@ function FirmalarView() {
         }}
         onClose={() => setPrompt(null)}
       />
-      {detailId ? (
-        <CompanyDetailModal
-          companyId={detailId}
-          onClose={() => setDetailId(null)}
-        />
-      ) : null}
     </div>
   );
 }
@@ -302,7 +356,10 @@ function FirmalarView() {
 export default function AdminFirmalarPage() {
   return (
     <AdminShell>
-      <FirmalarView />
+      {/* useSearchParams (URL-senkron filtreler) Suspense sınırı ister. */}
+      <Suspense fallback={null}>
+        <FirmalarView />
+      </Suspense>
     </AdminShell>
   );
 }

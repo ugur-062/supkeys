@@ -5,11 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   companies: { data: undefined as unknown, isLoading: false },
   complaints: { data: undefined as unknown, isLoading: false },
+  stats: { data: undefined as unknown, isLoading: false },
 }));
 
 vi.mock("@/hooks/use-admin-companies", () => ({
   useAdminCompanies: () => h.companies,
   useAdminComplaints: () => h.complaints,
+  useAdminCompanyStats: () => h.stats,
 }));
 vi.mock("@/components/layout/admin-shell", () => ({
   AdminShell: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -17,12 +19,32 @@ vi.mock("@/components/layout/admin-shell", () => ({
 
 import AdminDashboardPage from "../page";
 
-function company(id: string, verification: string, extra: Record<string, unknown> = {}) {
+function statsFixture(over: Record<string, unknown> = {}) {
+  return {
+    totalCompanies: 4,
+    verified: 2,
+    pendingKyc: 1,
+    pendingReview: 1,
+    rejected: 1,
+    openComplaints: 3,
+    tierBreakdown: { PAKET: 1, STANDARD: 3 },
+    countryBreakdown: [
+      { country: "TR", count: 3 },
+      { country: "DE", count: 1 },
+    ],
+    last30Days: { newCompanies: 2, newListings: 5, newOrders: 1 },
+    expiringMemberships: [],
+    oldestPendingSince: null,
+    ...over,
+  };
+}
+
+function company(id: string, extra: Record<string, unknown> = {}) {
   return {
     id,
     name: `Firma ${id}`,
     rothernId: `SK-${id}`,
-    verification,
+    country: "TR",
     createdAt: "2026-01-15T10:00:00.000Z",
     ...extra,
   };
@@ -32,75 +54,99 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.companies = { data: undefined, isLoading: false };
   h.complaints = { data: undefined, isLoading: false };
+  h.stats = { data: undefined, isLoading: false };
 });
 
 describe("AdminDashboardPage — DashboardContent", () => {
-  it("KPI sayaçlarını mock veriden hesaplar (toplam/doğrulanmış/kyc/şikayet)", () => {
-    h.companies = {
-      data: [
-        company("1", "VERIFIED"),
-        company("2", "VERIFIED"),
-        company("3", "PENDING"),
-        company("4", "REJECTED"),
-      ],
-      isLoading: false,
-    };
-    h.complaints = {
-      data: [
-        { id: "x1", against: { name: "A" }, reason: "spam", complainant: { name: "B" } },
-        { id: "x2", against: { name: "C" }, reason: "sahte", complainant: { name: "D" } },
-        { id: "x3", against: { name: "E" }, reason: "gecikme", complainant: { name: "F" } },
-      ],
-      isLoading: false,
-    };
+  it("KPI sayaçlarını server-side stats'tan gösterir", () => {
+    h.stats = { data: statsFixture(), isLoading: false };
+    h.companies = { data: { items: [], total: 0 }, isLoading: false };
+    h.complaints = { data: [], isLoading: false };
     render(<AdminDashboardPage />);
 
-    // total=4, verified=2, pendingKyc=1, açık şikayet=3 — hepsi farklı.
     expect(screen.getByText("Toplam Firma")).toBeInTheDocument();
-    expect(screen.getByText("4")).toBeInTheDocument();
-    expect(screen.getByText("2")).toBeInTheDocument();
-    // pendingKyc sadece PENDING/UNVERIFIED = 1; açık şikayet = 3.
-    expect(screen.getByText("1")).toBeInTheDocument();
-    expect(screen.getByText("3")).toBeInTheDocument();
+    expect(screen.getByText("4")).toBeInTheDocument(); // total
+    // "2" hem Doğrulanmış KPI'sında hem "Yeni firma (30 gün)" mini-stat'ında.
+    expect(screen.getAllByText("2").length).toBeGreaterThanOrEqual(1);
+    // "3" hem Açık Şikayet KPI'sında hem ülke dağılımında (TR=3) geçer.
+    expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("İnceleme Bekleyen")).toBeInTheDocument();
+    // Tier breakdown alt yazısı
+    expect(screen.getByText(/1 premium · 3 standart/)).toBeInTheDocument();
   });
 
-  it("son firmaları ve açık şikayetleri listeler + tarih formatlar", () => {
+  it("ülke dağılımı ve son firmaları listeler + tarih formatlar", () => {
+    h.stats = { data: statsFixture(), isLoading: false };
     h.companies = {
-      data: [company("1", "VERIFIED", { rothernId: null })],
+      data: { items: [company("1", { rothernId: null })], total: 1 },
       isLoading: false,
     };
     h.complaints = {
       data: [
-        { id: "x1", against: { name: "Kötü Firma" }, reason: "spam", complainant: { name: "Şikayetçi" } },
+        {
+          id: "x1",
+          against: { id: "a1", name: "Kötü Firma" },
+          reason: "spam",
+          complainant: { name: "Şikayetçi" },
+        },
       ],
       isLoading: false,
     };
     render(<AdminDashboardPage />);
 
-    expect(screen.getByText("Firma 1")).toBeInTheDocument();
+    expect(screen.getByText(/Firma 1/)).toBeInTheDocument();
     // rothernId null → "—" fallback
     expect(screen.getByText("—")).toBeInTheDocument();
     // safeFormat(createdAt, "d MMM") → "15 Oca" (tr locale)
     expect(screen.getByText("15 Oca")).toBeInTheDocument();
+    // Ülke dağılımı: Türkiye 3, Almanya 1
+    expect(screen.getByText(/Türkiye/)).toBeInTheDocument();
+    expect(screen.getByText(/Almanya/)).toBeInTheDocument();
 
     expect(screen.getByText("Kötü Firma")).toBeInTheDocument();
-    expect(screen.getByText(/spam · şikayet eden: Şikayetçi/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/spam · şikayet eden: Şikayetçi/),
+    ).toBeInTheDocument();
   });
 
-  it("boş durum → 'Firma yok' + 'Açık şikayet yok'", () => {
-    h.companies = { data: [], isLoading: false };
+  it("süresi yaklaşan üyelikler gün rozeti ile listelenir", () => {
+    const in10d = new Date(Date.now() + 10 * 86_400_000).toISOString();
+    h.stats = {
+      data: statsFixture({
+        expiringMemberships: [
+          { id: "e1", name: "Bitecek A.Ş.", rothernId: "SK-E1", membershipEndAt: in10d },
+        ],
+      }),
+      isLoading: false,
+    };
+    h.companies = { data: { items: [], total: 0 }, isLoading: false };
+    h.complaints = { data: [], isLoading: false };
+    render(<AdminDashboardPage />);
+
+    expect(screen.getByText("Bitecek A.Ş.")).toBeInTheDocument();
+    expect(screen.getByText("10 gün")).toBeInTheDocument();
+  });
+
+  it("boş durum → 'Firma yok' + 'Açık şikayet yok' + üyelik boş mesajı", () => {
+    h.stats = { data: statsFixture({ countryBreakdown: [] }), isLoading: false };
+    h.companies = { data: { items: [], total: 0 }, isLoading: false };
     h.complaints = { data: [], isLoading: false };
     render(<AdminDashboardPage />);
 
     expect(screen.getByText("Firma yok")).toBeInTheDocument();
     expect(screen.getByText("Açık şikayet yok")).toBeInTheDocument();
+    expect(
+      screen.getByText("30 gün içinde bitecek üyelik yok"),
+    ).toBeInTheDocument();
   });
 
-  it("yükleniyor durumu → her iki kartta 'Yükleniyor…'", () => {
+  it("yükleniyor durumu → panellerde 'Yükleniyor…'", () => {
+    h.stats = { data: undefined, isLoading: true };
     h.companies = { data: undefined, isLoading: true };
     h.complaints = { data: undefined, isLoading: true };
     render(<AdminDashboardPage />);
 
-    expect(screen.getAllByText("Yükleniyor…")).toHaveLength(2);
+    // 4 panel: üyelikler, ülke dağılımı, son firmalar, açık şikayetler.
+    expect(screen.getAllByText("Yükleniyor…")).toHaveLength(4);
   });
 });

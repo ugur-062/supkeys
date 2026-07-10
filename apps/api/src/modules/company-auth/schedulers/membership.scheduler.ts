@@ -1,6 +1,10 @@
-import { Injectable, Logger, type OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, Optional, type OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Cron } from "@nestjs/schedule";
+import {
+  CronRegistryService,
+  trackCronRun,
+} from "../../../common/cron/cron-registry.service";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailService } from "../../email/email.service";
 
@@ -12,6 +16,8 @@ export class MembershipScheduler implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
+    // @Optional: testler scheduler'ı DI dışında elle `new`'ler.
+    @Optional() private readonly cronRegistry?: CronRegistryService,
   ) {}
 
   /**
@@ -23,6 +29,11 @@ export class MembershipScheduler implements OnModuleInit {
    * + e-posta.
    */
   onModuleInit(): void {
+    this.cronRegistry?.register(
+      "membership.downgradeExpired",
+      "Üyelik süresi biteni STANDARD'a düşür",
+      "günlük 03:00 + boot catch-up",
+    );
     setTimeout(() => {
       this.downgradeExpired().catch((err: unknown) =>
         this.logger.warn(
@@ -42,6 +53,12 @@ export class MembershipScheduler implements OnModuleInit {
    */
   @Cron("0 3 * * *", { timeZone: "Europe/Istanbul" })
   async downgradeExpired(): Promise<void> {
+    return trackCronRun(this.cronRegistry, "membership.downgradeExpired", () =>
+      this.doDowngradeExpired(),
+    );
+  }
+
+  private async doDowngradeExpired(): Promise<void> {
     const expired = await this.prisma.company.findMany({
       where: {
         tier: "PAKET",

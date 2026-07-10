@@ -28,6 +28,7 @@ import {
   ChevronUpIcon,
 } from "@heroicons/react/20/solid";
 import {
+  Activity,
   Building2,
   Flag,
   LayoutDashboard,
@@ -93,6 +94,12 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/audit-logs",
         icon: ScrollText,
         activeMatch: "/admin/audit-logs",
+      },
+      {
+        label: "Sistem Sağlığı",
+        href: "/admin/sistem",
+        icon: Activity,
+        activeMatch: "/admin/sistem",
       },
       {
         label: "Ayarlar",

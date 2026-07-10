@@ -7,6 +7,7 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
+import { Type } from "class-transformer";
 import {
   IsBoolean,
   IsIn,
@@ -14,6 +15,7 @@ import {
   IsObject,
   IsOptional,
   IsString,
+  Length,
   Max,
   MaxLength,
   Min,
@@ -27,6 +29,44 @@ import { RequireAdminRole } from "../admin-auth/decorators/require-admin-role.de
 import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
 import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
 import { AdminCompaniesService } from "./admin-companies.service";
+
+class ListCompaniesDto {
+  @IsOptional()
+  @IsIn(["UNVERIFIED", "PENDING", "VERIFIED", "REJECTED"])
+  status?: string;
+
+  @IsOptional()
+  @IsIn(["true"])
+  blocked?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  q?: string;
+
+  /** ISO 3166-1 alpha-2 (TR, DE, ...) */
+  @IsOptional()
+  @IsString()
+  @Length(2, 2)
+  country?: string;
+
+  @IsOptional()
+  @IsIn(["STANDARD", "PAKET"])
+  tier?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number;
+}
 
 class SuspendDto {
   @IsOptional()
@@ -86,12 +126,8 @@ export class AdminCompaniesController {
   constructor(private readonly service: AdminCompaniesService) {}
 
   @Get("companies")
-  list(
-    @Query("status") status?: string,
-    @Query("blocked") blocked?: string,
-    @Query("q") q?: string,
-  ) {
-    return this.service.list({ status, blocked, q });
+  list(@Query() query: ListCompaniesDto) {
+    return this.service.list(query);
   }
 
   // ":id"den ÖNCE — aksi halde "stats" bir firma id'si sanılırdı.
@@ -166,8 +202,11 @@ export class AdminCompaniesController {
   }
 
   @Get("complaints")
-  complaints(@Query("status") status?: string) {
-    return this.service.listComplaints(status);
+  complaints(
+    @Query("status") status?: string,
+    @Query("companyId") companyId?: string,
+  ) {
+    return this.service.listComplaints(status, companyId);
   }
 
   @Post("complaints/:id/resolve")

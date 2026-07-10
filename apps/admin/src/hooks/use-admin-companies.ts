@@ -9,26 +9,46 @@ export interface AdminCompanyRow {
   name: string;
   taxNumber: string | null;
   country: string;
+  stateRegion: string | null;
+  city: string | null;
   tier: "STANDARD" | "PAKET";
+  membershipEndAt: string | null;
   verification: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
   isBlocked: boolean;
   complaintCount: number;
+  userCount: number;
   createdAt: string;
 }
 
-export function useAdminCompanies(params: {
+export interface AdminCompanyListResponse {
+  items: AdminCompanyRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminCompanyListParams {
   status?: string;
   blocked?: string;
   q?: string;
-}) {
+  country?: string;
+  tier?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+/** Sayfalı firma listesi — eski 200 kayıt tavanı kalktı. */
+export function useAdminCompanies(params: AdminCompanyListParams) {
   return useQuery({
     queryKey: ["admin-companies", params],
     queryFn: async () => {
-      const { data } = await api.get<AdminCompanyRow[]>("/admin/companies", {
-        params,
-      });
+      const { data } = await api.get<AdminCompanyListResponse>(
+        "/admin/companies",
+        { params },
+      );
       return data;
     },
+    placeholderData: (prev) => prev,
   });
 }
 
@@ -36,7 +56,23 @@ export interface AdminCompanyStats {
   totalCompanies: number;
   verified: number;
   pendingKyc: number;
+  pendingReview: number;
+  rejected: number;
   openComplaints: number;
+  tierBreakdown: { PAKET: number; STANDARD: number };
+  countryBreakdown: { country: string; count: number }[];
+  last30Days: {
+    newCompanies: number;
+    newListings: number;
+    newOrders: number;
+  };
+  expiringMemberships: {
+    id: string;
+    name: string;
+    rothernId: string | null;
+    membershipEndAt: string;
+  }[];
+  oldestPendingSince: string | null;
 }
 
 /** Dashboard KPI'ları — server-side count/groupBy (200-limitten bağımsız). */
@@ -84,8 +120,12 @@ export interface AdminCompanyDetail {
   taxNumber: string | null;
   taxOffice: string | null;
   country: string;
+  stateRegion: string | null;
   city: string | null;
+  addressLine: string | null;
+  billingEmail: string | null;
   tier: "STANDARD" | "PAKET";
+  membershipEndAt: string | null;
   industry: string | null;
   website: string | null;
   companyVerificationStatus:
@@ -118,6 +158,8 @@ export interface AdminCompanyDetail {
   docIdBackStatus: DocStatus;
   docIdBackReason: string | null;
   isBlocked: boolean;
+  blockedReason: string | null;
+  blockedAt: string | null;
   createdAt: string;
   _count: { users: number; listings: number; complaintsReceived: number };
   openComplaints: number;
@@ -205,12 +247,15 @@ export interface AdminComplaint {
   resolvedAt: string | null;
 }
 
-export function useAdminComplaints(status?: string) {
+export function useAdminComplaints(status?: string, companyId?: string) {
   return useQuery({
-    queryKey: ["admin-complaints", status],
+    queryKey: ["admin-complaints", status, companyId],
     queryFn: async () => {
       const { data } = await api.get<AdminComplaint[]>("/admin/complaints", {
-        params: status ? { status } : {},
+        params: {
+          ...(status ? { status } : {}),
+          ...(companyId ? { companyId } : {}),
+        },
       });
       return data;
     },

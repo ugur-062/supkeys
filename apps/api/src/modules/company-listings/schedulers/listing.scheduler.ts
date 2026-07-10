@@ -1,16 +1,40 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  Optional,
+  type OnModuleInit,
+} from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
+import {
+  CronRegistryService,
+  trackCronRun,
+} from "../../../common/cron/cron-registry.service";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { CompanyListingsService } from "../services/company-listings.service";
 
 @Injectable()
-export class ListingScheduler {
+export class ListingScheduler implements OnModuleInit {
   private readonly logger = new Logger(ListingScheduler.name);
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly listings: CompanyListingsService,
+    // @Optional: testler scheduler'ı DI dışında elle `new`'leyebilir.
+    @Optional() private readonly cronRegistry?: CronRegistryService,
   ) {}
+
+  onModuleInit(): void {
+    this.cronRegistry?.register(
+      "listing.closeExpired",
+      "Süresi dolan AÇIK ilanları kapat",
+      "her dakika",
+    );
+    this.cronRegistry?.register(
+      "listing.closingReminders",
+      "Kapanış hatırlatma e-postaları",
+      "her dakika",
+    );
+  }
 
   /**
    * Her dakika — kapanış süresi geçmiş AÇIK ilanları teklife kapatır (CLOSED).
@@ -18,6 +42,12 @@ export class ListingScheduler {
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async closeExpired(): Promise<void> {
+    return trackCronRun(this.cronRegistry, "listing.closeExpired", () =>
+      this.doCloseExpired(),
+    );
+  }
+
+  private async doCloseExpired(): Promise<void> {
     const due = await this.prisma.listing.findMany({
       where: { status: "OPEN", closesAt: { not: null, lt: new Date() } },
       select: { id: true },
@@ -56,6 +86,12 @@ export class ListingScheduler {
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async sendClosingReminders(): Promise<void> {
+    return trackCronRun(this.cronRegistry, "listing.closingReminders", () =>
+      this.doSendClosingReminders(),
+    );
+  }
+
+  private async doSendClosingReminders(): Promise<void> {
     const now = Date.now();
     const candidates = await this.prisma.listing.findMany({
       where: {

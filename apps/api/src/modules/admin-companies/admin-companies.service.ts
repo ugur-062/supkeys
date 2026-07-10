@@ -100,49 +100,93 @@ export class AdminCompaniesService {
       );
   }
 
-  async list(query: { status?: string; blocked?: string; q?: string }) {
+  /**
+   * Sayfalı firma listesi — eski 200-kayıt tavanı kalktı (destek ekibi tavan
+   * ötesindeki firmalara UI'dan erişemiyordu). Arama kullanıcı e-postasını da
+   * kapsar ("mailim şu" diye arayan müşteri adıyla değil e-postasıyla bulunur).
+   */
+  async list(query: {
+    status?: string;
+    blocked?: string;
+    q?: string;
+    country?: string;
+    tier?: string;
+    page?: number;
+    pageSize?: number;
+  }) {
     const where: Record<string, unknown> = {};
     if (query.status) {
       where.companyVerificationStatus = query.status as CompanyVerificationStatus;
     }
     if (query.blocked === "true") where.isBlocked = true;
+    if (query.country) where.country = query.country.trim().toUpperCase();
+    if (query.tier === "PAKET" || query.tier === "STANDARD") {
+      where.tier = query.tier;
+    }
     if (query.q) {
       const q = query.q.trim();
       where.OR = [
         { name: { contains: q, mode: "insensitive" } },
+        { legalName: { contains: q, mode: "insensitive" } },
         { rothernId: { contains: q.toUpperCase() } },
         { taxNumber: { contains: q } },
+        {
+          users: {
+            some: {
+              email: { contains: q, mode: "insensitive" },
+              deletedAt: null,
+            },
+          },
+        },
       ];
     }
-    const rows = await this.prisma.company.findMany({
-      where,
-      select: {
-        id: true,
-        rothernId: true,
-        name: true,
-        taxNumber: true,
-        country: true,
-        tier: true,
-        companyVerificationStatus: true,
-        isBlocked: true,
-        createdAt: true,
-        _count: { select: { complaintsReceived: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 200,
-    });
-    return rows.map((c) => ({
-      id: c.id,
-      rothernId: c.rothernId,
-      name: c.name,
-      taxNumber: c.taxNumber,
-      country: c.country,
-      tier: c.tier,
-      verification: c.companyVerificationStatus,
-      isBlocked: c.isBlocked,
-      complaintCount: c._count.complaintsReceived,
-      createdAt: c.createdAt,
-    }));
+    const page = Math.max(1, query.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
+    const [total, rows] = await this.prisma.$transaction([
+      this.prisma.company.count({ where }),
+      this.prisma.company.findMany({
+        where,
+        select: {
+          id: true,
+          rothernId: true,
+          name: true,
+          taxNumber: true,
+          country: true,
+          stateRegion: true,
+          city: true,
+          tier: true,
+          membershipEndAt: true,
+          companyVerificationStatus: true,
+          isBlocked: true,
+          createdAt: true,
+          _count: { select: { complaintsReceived: true, users: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+    return {
+      items: rows.map((c) => ({
+        id: c.id,
+        rothernId: c.rothernId,
+        name: c.name,
+        taxNumber: c.taxNumber,
+        country: c.country,
+        stateRegion: c.stateRegion,
+        city: c.city,
+        tier: c.tier,
+        membershipEndAt: c.membershipEndAt,
+        verification: c.companyVerificationStatus,
+        isBlocked: c.isBlocked,
+        complaintCount: c._count.complaintsReceived,
+        userCount: c._count.users,
+        createdAt: c.createdAt,
+      })),
+      total,
+      page,
+      pageSize,
+    };
   }
 
   /**
@@ -151,22 +195,86 @@ export class AdminCompaniesService {
    * yanlış/eksik sayılıyordu.
    */
   async stats() {
-    const [total, byVerification, openComplaints] = await Promise.all([
+    const now = new Date();
+    const d30 = new Date(now.getTime() - 30 * 86_400_000);
+    const in30 = new Date(now.getTime() + 30 * 86_400_000);
+    const [
+      total,
+      byVerification,
+      byTier,
+      byCountry,
+      openComplaints,
+      new30Companies,
+      new30Listings,
+      new30Orders,
+      expiring,
+      oldestPending,
+    ] = await Promise.all([
       this.prisma.company.count(),
       this.prisma.company.groupBy({
         by: ["companyVerificationStatus"],
         _count: true,
       }),
+      this.prisma.company.groupBy({ by: ["tier"], _count: true }),
+      this.prisma.company.groupBy({
+        by: ["country"],
+        _count: true,
+        orderBy: { _count: { country: "desc" } },
+        take: 10,
+      }),
       this.prisma.companyComplaint.count({ where: { status: "OPEN" } }),
+      this.prisma.company.count({ where: { createdAt: { gte: d30 } } }),
+      this.prisma.listing.count({ where: { createdAt: { gte: d30 } } }),
+      this.prisma.companyOrder.count({ where: { createdAt: { gte: d30 } } }),
+      // 30 gün içinde bitecek PAKET üyelikler — yenileme satışı için arama listesi.
+      this.prisma.company.findMany({
+        where: {
+          tier: "PAKET",
+          membershipEndAt: { not: null, gte: now, lte: in30 },
+        },
+        select: {
+          id: true,
+          name: true,
+          rothernId: true,
+          membershipEndAt: true,
+        },
+        orderBy: { membershipEndAt: "asc" },
+        take: 10,
+      }),
+      // KYC kuyruk yaşı: en eski PENDING başvuru — SLA takibi.
+      this.prisma.company.findFirst({
+        where: { companyVerificationStatus: "PENDING" },
+        select: { updatedAt: true },
+        orderBy: { updatedAt: "asc" },
+      }),
     ]);
     const vmap = new Map(
       byVerification.map((g) => [g.companyVerificationStatus, g._count]),
     );
+    const tmap = new Map(byTier.map((g) => [g.tier, g._count]));
     return {
       totalCompanies: total,
       verified: vmap.get("VERIFIED") ?? 0,
       pendingKyc: (vmap.get("PENDING") ?? 0) + (vmap.get("UNVERIFIED") ?? 0),
+      /** Yalnız inceleme bekleyen (6/6 belge yüklü) — gerçek kuyruk. */
+      pendingReview: vmap.get("PENDING") ?? 0,
+      rejected: vmap.get("REJECTED") ?? 0,
       openComplaints,
+      tierBreakdown: {
+        PAKET: tmap.get("PAKET") ?? 0,
+        STANDARD: tmap.get("STANDARD") ?? 0,
+      },
+      countryBreakdown: byCountry.map((g) => ({
+        country: g.country,
+        count: g._count,
+      })),
+      last30Days: {
+        newCompanies: new30Companies,
+        newListings: new30Listings,
+        newOrders: new30Orders,
+      },
+      expiringMemberships: expiring,
+      oldestPendingSince: oldestPending?.updatedAt ?? null,
     };
   }
 
@@ -181,7 +289,10 @@ export class AdminCompaniesService {
         taxNumber: true,
         taxOffice: true,
         country: true,
+        stateRegion: true,
         city: true,
+        addressLine: true,
+        billingEmail: true,
         tier: true,
         membershipEndAt: true,
         industry: true,
@@ -482,9 +593,18 @@ export class AdminCompaniesService {
     return { ok: true };
   }
 
-  async listComplaints(status?: string) {
+  async listComplaints(status?: string, companyId?: string) {
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status as ComplaintStatus;
+    // Firma detay "Şikayetler" sekmesi: hem hakkında hem şikayet eden olarak.
+    if (companyId) {
+      where.OR = [
+        { againstCompanyId: companyId },
+        { complainantCompanyId: companyId },
+      ];
+    }
     const rows = await this.prisma.companyComplaint.findMany({
-      where: status ? { status: status as ComplaintStatus } : {},
+      where,
       include: {
         complainant: { select: { name: true, rothernId: true } },
         against: { select: { id: true, name: true, rothernId: true } },

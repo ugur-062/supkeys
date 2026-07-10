@@ -12,6 +12,8 @@ import { PrismaModule } from "./common/prisma/prisma.module";
 import { AdminAuditModule } from "./modules/admin-audit/admin-audit.module";
 import { AdminAuthModule } from "./modules/admin-auth/admin-auth.module";
 import { AdminCompaniesModule } from "./modules/admin-companies/admin-companies.module";
+import { AdminSystemModule } from "./modules/admin-system/admin-system.module";
+import { CronRegistryModule } from "./common/cron/cron-registry.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { CompanyAuthModule } from "./modules/company-auth/company-auth.module";
@@ -124,6 +126,8 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     AdminAuthModule,
     AdminAuditModule,
     AdminCompaniesModule,
+    AdminSystemModule,
+    CronRegistryModule,
     // Birleşik firma sistemi
     CompanyAuthModule,
     CompanyBidDocumentsModule,

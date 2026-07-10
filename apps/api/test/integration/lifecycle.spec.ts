@@ -97,6 +97,8 @@ describe("onay akışı (approval) dalları", () => {
       createdById: owner.user.id,
       type: "ALIM",
       status: "DRAFT",
+      // cc5387b: yayın artık gelecekte kapanış tarihi şart koşar.
+      closesAt: FUTURE,
     });
     await makeItem(prisma, listing.id);
     await service.publishListing(owner.auth, listing.id);
