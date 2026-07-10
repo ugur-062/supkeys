@@ -354,8 +354,8 @@ function BidsPreview() {
             <div className="flex items-center gap-3">
               <span className="text-sm font-semibold text-zinc-900">{b.a}</span>
               {b.best ? (
-                <span className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white">
-                  Kazandır
+                <span className="rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white">
+                  Al
                 </span>
               ) : null}
             </div>
@@ -370,11 +370,11 @@ function BidsPreview() {
 }
 
 function SaleListingPreview() {
-  // Kazandır sabit — en düşük tekliftekinde durur (animasyon kaldırıldı).
+  // Kazandır sabit — satışta en YÜKSEK teklif kazanır (animasyon yok).
   const offers = [
-    { n: "Alıcı X", a: "62.000 ₺", best: true },
+    { n: "Alıcı X", a: "62.000 ₺", best: false },
     { n: "Alıcı Y", a: "71.500 ₺", best: false },
-    { n: "Alıcı Z", a: "80.000 ₺", best: false },
+    { n: "Alıcı Z", a: "80.000 ₺", best: true },
   ];
   return (
     <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
@@ -822,11 +822,12 @@ export default function HomePage() {
               </div>
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-zinc-950">
-                  Kapalı zarf teklif
+                  Alıcıysan, al
                 </h3>
                 <p className="mt-1.5 text-sm/6 text-zinc-600">
-                  Tedarikçiler birbirini görmez; sen hepsini görür, en iyisini
-                  kazandırırsın — şeffaf ve denetlenebilir.
+                  Alım ilanı aç, kapalı zarf teklif topla. Tedarikçiler
+                  birbirini görmez; en uygun fiyatı sen seçip alırsın — şeffaf
+                  ve denetlenebilir.
                 </p>
               </div>
             </div>
