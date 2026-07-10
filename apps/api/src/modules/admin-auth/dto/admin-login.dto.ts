@@ -18,4 +18,9 @@ export class AdminLoginDto {
   @IsOptional()
   @IsBoolean()
   rememberMe?: boolean;
+
+  /** 2FA (TOTP) kodu — hesap 2FA'lıysa zorunlu (401 2FA_REQUIRED tetikler). */
+  @IsOptional()
+  @IsString()
+  code?: string;
 }

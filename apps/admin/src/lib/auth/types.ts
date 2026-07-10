@@ -6,6 +6,7 @@ export interface AuthAdmin {
   firstName: string;
   lastName: string;
   role: AdminRole;
+  twoFactorEnabled?: boolean;
 }
 
 export interface AdminAuthResponse {

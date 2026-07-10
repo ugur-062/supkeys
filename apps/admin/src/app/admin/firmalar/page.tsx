@@ -28,6 +28,7 @@ import {
 } from "@/hooks/use-admin-companies";
 import { api } from "@/lib/api";
 import { Download } from "lucide-react";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useListFilters } from "@/hooks/use-list-filters";
 import { countryFlag, countryName } from "@/lib/country";
 import { safeFormat } from "@/lib/date";
@@ -105,6 +106,10 @@ interface Filters {
 
 function FirmalarView() {
   const { filters, setFilters } = useListFilters<Filters>();
+  // SUPPORT salt-okuma: yazma aksiyonları + PII'lı detay linki gizlenir
+  // (BE guard asıl sınır; bu UX — 403 ekranına düşmesin).
+  const { admin } = useAdminAuth();
+  const canWrite = admin?.role !== "SUPPORT";
   const query = useAdminCompanies({
     status: filters.status || undefined,
     country: filters.country || undefined,
@@ -314,6 +319,7 @@ function FirmalarView() {
                       {safeFormat(c.createdAt, "d MMM yyyy")}
                     </TableCell>
                     <TableCell>
+                      {!canWrite ? null : (
                       <div className="flex items-center justify-end gap-2">
                         {c.tier === "PAKET" ? (
                           <Button
@@ -368,6 +374,7 @@ function FirmalarView() {
                           </Button>
                         )}
                       </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 );

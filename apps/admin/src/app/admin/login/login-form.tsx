@@ -25,6 +25,9 @@ export function AdminLoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   // "Beni hatırla" — varsayılan işaretli; işaretsiz → tarayıcı kapanınca çıkış.
   const [remember, setRemember] = useState(true);
+  // 2FA — API "2FA_REQUIRED" dönerse kod alanı açılır, istek kodla tekrarlanır.
+  const [needsCode, setNeedsCode] = useState(false);
+  const [code, setCode] = useState("");
   const router = useRouter();
   const login = useAdminLogin();
 
@@ -38,7 +41,11 @@ export function AdminLoginForm() {
 
   const onSubmit = (values: LoginValues) => {
     login.mutate(
-      { ...values, rememberMe: remember },
+      {
+        ...values,
+        rememberMe: remember,
+        ...(needsCode && code.trim() ? { code: code.trim() } : {}),
+      },
       {
       onSuccess: (data) => {
         toast.success(`Hoş geldin, ${data.admin.firstName}!`);
@@ -49,6 +56,11 @@ export function AdminLoginForm() {
           const msg =
             (err.response?.data as { message?: string } | undefined)?.message ??
             "Giriş başarısız";
+          if (msg === "2FA_REQUIRED") {
+            setNeedsCode(true);
+            toast.info("Doğrulama kodunuzu girin (authenticator uygulaması)");
+            return;
+          }
           toast.error(msg);
         } else {
           toast.error("Bir sorun oluştu");
@@ -107,6 +119,23 @@ export function AdminLoginForm() {
           </button>
         </div>
       </Field>
+
+      {needsCode ? (
+        <Field>
+          <Label htmlFor="code" required>
+            Doğrulama kodu (2FA)
+          </Label>
+          <Input
+            id="code"
+            inputMode="numeric"
+            maxLength={6}
+            placeholder="123456"
+            autoFocus
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+          />
+        </Field>
+      ) : null}
 
       <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-admin-text select-none">
         <input

@@ -4,7 +4,11 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
-  complaints: { data: [] as unknown[], isLoading: false, isError: false },
+  complaints: {
+    data: undefined as unknown,
+    isLoading: false,
+    isError: false,
+  },
   resolveMutate: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));

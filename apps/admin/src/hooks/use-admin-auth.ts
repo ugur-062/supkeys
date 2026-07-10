@@ -24,6 +24,8 @@ export function useAdminLogin() {
       email: string;
       password: string;
       rememberMe?: boolean;
+      /** 2FA (TOTP) kodu — hesap 2FA'lıysa ikinci denemede gönderilir. */
+      code?: string;
     }) => {
       const { data } = await api.post<AdminAuthResponse>(
         "/admin/auth/login",

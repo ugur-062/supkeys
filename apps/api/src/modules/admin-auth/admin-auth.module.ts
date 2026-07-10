@@ -4,6 +4,8 @@ import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { SupabaseAuthModule } from "../supabase-auth/supabase-auth.module";
 import { AdminAuthController } from "./admin-auth.controller";
+import { AdminStaffController } from "./admin-staff.controller";
+import { AdminStaffService } from "./admin-staff.service";
 import { AdminAuthService } from "./admin-auth.service";
 import { AdminJwtStrategy } from "./strategies/admin-jwt.strategy";
 
@@ -23,8 +25,8 @@ import { AdminJwtStrategy } from "./strategies/admin-jwt.strategy";
       }),
     }),
   ],
-  controllers: [AdminAuthController],
-  providers: [AdminAuthService, AdminJwtStrategy],
+  controllers: [AdminAuthController, AdminStaffController],
+  providers: [AdminAuthService, AdminStaffService, AdminJwtStrategy],
   exports: [AdminAuthService],
 })
 export class AdminAuthModule {}

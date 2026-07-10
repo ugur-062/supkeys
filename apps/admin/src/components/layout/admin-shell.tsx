@@ -24,12 +24,14 @@ import {
 import { SidebarLayout } from "@/components/catalyst/sidebar-layout";
 import { GlobalSearch } from "@/components/layout/global-search";
 import { useAdminAuth, useAdminLogout } from "@/hooks/use-admin-auth";
+import type { AdminRole } from "@/lib/auth/types";
 import {
   ArrowRightStartOnRectangleIcon,
   ChevronUpIcon,
 } from "@heroicons/react/20/solid";
 import {
   Activity,
+  ShieldAlert,
   BadgeDollarSign,
   Building2,
   Flag,
@@ -54,6 +56,8 @@ interface NavLeaf {
   disabled?: boolean;
   /** Pathname'in match olacağı prefix; verilmezse exact href */
   activeMatch?: string;
+  /** Görecek roller — verilmezse herkes. BE guard asıl sınır; bu UX. */
+  roles?: AdminRole[];
 }
 
 interface NavSection {
@@ -75,6 +79,8 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/basvurular",
         icon: Inbox,
         activeMatch: "/admin/basvurular",
+        // KYC detayı (PII) SUPPORT'a kapalı — kuyruk da gizlenir.
+        roles: ["SUPER_ADMIN", "SALES"],
       },
       {
         label: "Firmalar",
@@ -93,12 +99,14 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/uyelik-raporu",
         icon: BadgeDollarSign,
         activeMatch: "/admin/uyelik-raporu",
+        roles: ["SUPER_ADMIN", "SALES"],
       },
       {
         label: "Duyuru",
         href: "/admin/duyuru",
         icon: Megaphone,
         activeMatch: "/admin/duyuru",
+        roles: ["SUPER_ADMIN"],
       },
     ],
   },
@@ -116,6 +124,21 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/audit-logs",
         icon: ScrollText,
         activeMatch: "/admin/audit-logs",
+        roles: ["SUPER_ADMIN", "SALES"],
+      },
+      {
+        label: "Güvenlik",
+        href: "/admin/guvenlik",
+        icon: ShieldAlert,
+        activeMatch: "/admin/guvenlik",
+        roles: ["SUPER_ADMIN", "SALES"],
+      },
+      {
+        label: "Personel",
+        href: "/admin/personel",
+        icon: UserCog,
+        activeMatch: "/admin/personel",
+        roles: ["SUPER_ADMIN"],
       },
       {
         label: "Sistem Sağlığı",
@@ -127,7 +150,7 @@ const NAV_SECTIONS: NavSection[] = [
         label: "Ayarlar",
         href: "/admin/settings",
         icon: Settings,
-        disabled: true,
+        activeMatch: "/admin/settings",
       },
     ],
   },
@@ -154,7 +177,13 @@ function AdminSidebar() {
             {section.heading ? (
               <SidebarHeading>{section.heading}</SidebarHeading>
             ) : null}
-            {section.items.map((item) => {
+            {section.items
+              .filter(
+                (item) =>
+                  !item.roles ||
+                  (admin?.role && item.roles.includes(admin.role)),
+              )
+              .map((item) => {
               const Icon = item.icon;
               const matchPath = item.activeMatch ?? item.href;
               const active = !!pathname && pathname.startsWith(matchPath);

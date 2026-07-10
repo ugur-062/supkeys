@@ -1,0 +1,417 @@
+"use client";
+
+import { Badge } from "@/components/catalyst/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
+import { AdminShell } from "@/components/layout/admin-shell";
+import { PageHeader } from "@/components/list";
+import { Button } from "@/components/ui/button";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import {
+  useCreateStaff,
+  useStaff,
+  useStaffAction,
+  type StaffRow,
+} from "@/hooks/use-admin-staff";
+import type { AdminRole } from "@/lib/auth/types";
+import { safeFormat } from "@/lib/date";
+import { Copy, UserPlus, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+const ROLE_META: Record<
+  AdminRole,
+  { label: string; color: "red" | "blue" | "zinc" }
+> = {
+  SUPER_ADMIN: { label: "Süper Admin", color: "red" },
+  SALES: { label: "Satış", color: "blue" },
+  SUPPORT: { label: "Destek", color: "zinc" },
+};
+
+/** Geçici parola tek-seferlik gösterimi — panelde kalmaz, loglanmaz. */
+function TempPasswordBanner({
+  password,
+  onClose,
+}: {
+  password: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3">
+      <p className="text-sm font-medium text-emerald-900">
+        Geçici şifre (BİR KEZ gösterilir — personele güvenli kanaldan iletin):
+      </p>
+      <div className="mt-1.5 flex items-center gap-2">
+        <code className="rounded bg-white px-2 py-1 font-mono text-sm">
+          {password}
+        </code>
+        <button
+          type="button"
+          onClick={() => {
+            void navigator.clipboard.writeText(password);
+            toast.success("Kopyalandı");
+          }}
+          className="rounded p-1 text-emerald-800 hover:bg-emerald-100"
+          aria-label="Şifreyi kopyala"
+        >
+          <Copy className="h-4 w-4" />
+        </button>
+        <Button variant="ghost" size="sm" onClick={onClose}>
+          Kapat
+        </Button>
+      </div>
+      <p className="mt-1 text-xs text-emerald-800">
+        Personel ilk girişte Ayarlar → Şifre Değiştir ile kendi şifresini
+        koymalı.
+      </p>
+    </div>
+  );
+}
+
+function AddStaffDialog({
+  onConfirm,
+  onClose,
+  pending,
+}: {
+  onConfirm: (v: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: AdminRole;
+  }) => void;
+  onClose: () => void;
+  pending: boolean;
+}) {
+  const [form, setForm] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    role: "SUPPORT" as AdminRole,
+  });
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const set = (k: string, v: string) =>
+    setForm((prev) => ({ ...prev, [k]: v }));
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 px-4 pt-24"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Personel ekle"
+    >
+      <div
+        className="bg-admin-surface w-full max-w-md rounded-2xl shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="border-admin-border flex items-center justify-between border-b px-5 py-3.5">
+          <h2 className="text-admin-text text-base font-bold">Personel Ekle</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="hover:bg-admin-border/40 rounded-lg p-1"
+            aria-label="Kapat"
+          >
+            <X className="text-admin-text-muted h-4 w-4" />
+          </button>
+        </div>
+        <div className="space-y-3 px-5 py-4">
+          <label className="flex flex-col gap-1">
+            <span className="text-admin-text-muted text-xs font-medium">
+              E-posta
+            </span>
+            <input
+              type="email"
+              value={form.email}
+              onChange={(e) => set("email", e.target.value)}
+              className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-admin-text-muted text-xs font-medium">
+                Ad
+              </span>
+              <input
+                value={form.firstName}
+                onChange={(e) => set("firstName", e.target.value)}
+                className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-admin-text-muted text-xs font-medium">
+                Soyad
+              </span>
+              <input
+                value={form.lastName}
+                onChange={(e) => set("lastName", e.target.value)}
+                className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
+              />
+            </label>
+          </div>
+          <label className="flex flex-col gap-1">
+            <span className="text-admin-text-muted text-xs font-medium">
+              Rol
+            </span>
+            <select
+              value={form.role}
+              onChange={(e) => set("role", e.target.value)}
+              className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-3 py-1.5 text-sm"
+            >
+              <option value="SUPPORT">Destek — salt-okuma + kurtarma</option>
+              <option value="SALES">Satış — KYC + üyelik + müdahale</option>
+              <option value="SUPER_ADMIN">Süper Admin — her şey</option>
+            </select>
+          </label>
+        </div>
+        <div className="border-admin-border flex items-center justify-end gap-2 border-t px-5 py-3">
+          <Button variant="ghost" onClick={onClose}>
+            Vazgeç
+          </Button>
+          <Button
+            loading={pending}
+            onClick={() => {
+              if (!form.email.includes("@")) {
+                toast.error("Geçerli bir e-posta girin");
+                return;
+              }
+              if (!form.firstName.trim() || !form.lastName.trim()) {
+                toast.error("Ad ve soyad gerekli");
+                return;
+              }
+              onConfirm({
+                email: form.email.trim(),
+                firstName: form.firstName.trim(),
+                lastName: form.lastName.trim(),
+                role: form.role,
+              });
+            }}
+          >
+            Ekle
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PersonelView() {
+  const { admin } = useAdminAuth();
+  const staff = useStaff();
+  const create = useCreateStaff();
+  const act = useStaffAction();
+  const [adding, setAdding] = useState(false);
+  const [tempPw, setTempPw] = useState<string | null>(null);
+
+  const err = (e: unknown) =>
+    toast.error(e instanceof Error ? e.message : "Hata");
+  const rows = staff.data ?? [];
+
+  return (
+    <div className="max-w-[1100px] space-y-6">
+      <PageHeader
+        title="Personel"
+        description="Yönetici hesapları — rol atama, pasifleştirme, şifre sıfırlama."
+        action={
+          <Button size="sm" onClick={() => setAdding(true)}>
+            <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Personel Ekle
+          </Button>
+        }
+      />
+
+      {tempPw ? (
+        <TempPasswordBanner password={tempPw} onClose={() => setTempPw(null)} />
+      ) : null}
+
+      <div className="admin-card overflow-hidden">
+        <Table dense>
+          <TableHead>
+            <TableRow>
+              <TableHeader>Yönetici</TableHeader>
+              <TableHeader>Rol</TableHeader>
+              <TableHeader>Durum</TableHeader>
+              <TableHeader>Son giriş</TableHeader>
+              <TableHeader className="text-right">İşlemler</TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="text-admin-text-muted py-8 text-center"
+                >
+                  {staff.isLoading ? "Yükleniyor..." : "Kayıt yok"}
+                </TableCell>
+              </TableRow>
+            ) : (
+              rows.map((s: StaffRow) => {
+                const rm = ROLE_META[s.role] ?? ROLE_META.SUPPORT;
+                const isSelf = s.id === admin?.id;
+                return (
+                  <TableRow key={s.id}>
+                    <TableCell className="text-admin-text">
+                      <span className="font-medium">
+                        {s.firstName} {s.lastName}
+                      </span>
+                      {isSelf ? (
+                        <Badge color="blue" className="ml-2">
+                          siz
+                        </Badge>
+                      ) : null}
+                      <span className="text-admin-text-muted block text-xs">
+                        {s.email}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <select
+                        value={s.role}
+                        disabled={act.isPending || isSelf}
+                        aria-label={`${s.email} rolü`}
+                        onChange={(e) =>
+                          act.mutate(
+                            {
+                              id: s.id,
+                              action: "role",
+                              role: e.target.value as AdminRole,
+                            },
+                            {
+                              onSuccess: () => toast.success("Rol güncellendi"),
+                              onError: err,
+                            },
+                          )
+                        }
+                        className="border-admin-border bg-admin-surface text-admin-text rounded-lg border px-2 py-1 text-xs"
+                      >
+                        <option value="SUPPORT">Destek</option>
+                        <option value="SALES">Satış</option>
+                        <option value="SUPER_ADMIN">Süper Admin</option>
+                      </select>
+                      <Badge color={rm.color} className="ml-1.5">
+                        {rm.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {s.isActive ? (
+                        <Badge color="green">Aktif</Badge>
+                      ) : (
+                        <Badge color="red">Pasif</Badge>
+                      )}
+                      {s.twoFactorEnabled ? (
+                        <Badge color="blue" className="ml-1.5">
+                          2FA
+                        </Badge>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-admin-text-muted text-xs whitespace-nowrap">
+                      {s.lastLoginAt
+                        ? safeFormat(s.lastLoginAt, "d MMM yyyy HH:mm")
+                        : "hiç girmedi"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={act.isPending}
+                          onClick={() =>
+                            act.mutate(
+                              { id: s.id, action: "reset-password" },
+                              {
+                                onSuccess: (r) => {
+                                  if (r.tempPassword) setTempPw(r.tempPassword);
+                                  toast.success("Şifre sıfırlandı");
+                                },
+                                onError: err,
+                              },
+                            )
+                          }
+                        >
+                          Şifre Sıfırla
+                        </Button>
+                        {isSelf ? null : s.isActive ? (
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            disabled={act.isPending}
+                            onClick={() =>
+                              act.mutate(
+                                { id: s.id, action: "active", active: false },
+                                {
+                                  onSuccess: () =>
+                                    toast.success("Pasifleştirildi"),
+                                  onError: err,
+                                },
+                              )
+                            }
+                          >
+                            Pasifleştir
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={act.isPending}
+                            onClick={() =>
+                              act.mutate(
+                                { id: s.id, action: "active", active: true },
+                                {
+                                  onSuccess: () =>
+                                    toast.success("Aktifleştirildi"),
+                                  onError: err,
+                                },
+                              )
+                            }
+                          >
+                            Aktifleştir
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {adding ? (
+        <AddStaffDialog
+          pending={create.isPending}
+          onConfirm={(v) =>
+            create.mutate(v, {
+              onSuccess: (r) => {
+                setTempPw(r.tempPassword);
+                setAdding(false);
+                toast.success("Personel eklendi");
+              },
+              onError: err,
+            })
+          }
+          onClose={() => setAdding(false)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+export default function AdminPersonelPage() {
+  return (
+    <AdminShell>
+      <PersonelView />
+    </AdminShell>
+  );
+}
