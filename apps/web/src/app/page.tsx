@@ -27,11 +27,9 @@ const standartFeatures = [
   "Kapalı zarf teklif toplama",
   "Sipariş, kargo, teslim & ödeme takibi",
   "Sınırsız kullanıcı & rol",
-  "Herkese açık ilanları görüntüleme (maskeli)",
 ];
 
 const premiumFeatures = [
-  "Standart'taki her şey",
   "Kendi alış/satış ilanını aç",
   "Kategori eşleşmeli firma keşfi",
   "Herkese açık ilanlara teklif ver",
@@ -696,7 +694,7 @@ export default function HomePage() {
           <div className="mb-8 flex justify-center">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-sm/6 font-medium text-zinc-700 ring-1 ring-zinc-950/10 backdrop-blur">
               <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-              Yurtiçi & uluslararası · AI destekli B2B ticaret
+              Al · Sat · Keşfet
             </div>
           </div>
           <div className="text-center">
@@ -1284,8 +1282,8 @@ export default function HomePage() {
               Firmanı bugün Rothern&apos;e taşı
             </h2>
             <p className="mx-auto mt-6 max-w-xl text-lg/8 text-pretty text-zinc-300">
-              Birkaç dakikada kaydol, ekibini davet et, ilk ilanını aç. Şeffaf,
-              denetlenebilir, AI destekli B2B ticaret.
+              Birkaç dakikada kaydol, ekibini davet et, ilk ilanını aç. Şeffaf
+              ve denetlenebilir B2B ticaret.
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-4">
               <Link
@@ -1316,8 +1314,8 @@ export default function HomePage() {
             <div className="space-y-6">
               <RothernLogo variant="full" size="md" />
               <p className="max-w-xs text-sm/6 text-zinc-400">
-                Alıcı ve tedarikçiyi tek hesapta birleştiren, şeffaf ve AI
-                destekli B2B ticaret platformu.
+                Alıcı ve tedarikçiyi tek hesapta birleştiren, şeffaf B2B
+                ticaret platformu.
               </p>
               <div className="flex gap-x-5">
                 {social.map((item) => (
@@ -1382,7 +1380,7 @@ export default function HomePage() {
           </div>
           <div className="mt-16 border-t border-white/10 pt-8">
             <p className="text-sm/6 text-zinc-400">
-              © 2026 Rothern · AI destekli B2B ticaret platformu
+              © 2026 Rothern · B2B ticaret platformu
             </p>
           </div>
         </div>
