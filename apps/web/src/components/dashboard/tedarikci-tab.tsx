@@ -193,7 +193,7 @@ export function TedarikciTab({ data }: Props) {
           </div>
 
           <div className="mt-3 space-y-0.5 border-t border-zinc-950/5 pt-3 text-center">
-            <p className="font-mono text-xs text-zinc-500">
+            <p className="tabular-nums text-xs text-zinc-500">
               #{competitive.tenderNumber}
             </p>
             <p className="text-sm font-semibold text-zinc-950">

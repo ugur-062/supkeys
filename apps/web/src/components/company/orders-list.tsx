@@ -301,7 +301,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
         {/* Sol: kimlik + kaynak */}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-[11px] tracking-wide text-zinc-500">
+            <span className="tabular-nums text-[11px] tracking-wide text-zinc-500">
               {o.number ?? "—"}
             </span>
             <span

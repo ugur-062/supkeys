@@ -203,7 +203,7 @@ export function BidComparisonView({
       ) : data ? (
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs text-zinc-400">
+            <span className="tabular-nums text-xs text-zinc-400">
               {data.listing.number ?? "—"}
             </span>
             <Badge color={isAlim ? "blue" : "emerald"}>

@@ -129,7 +129,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 font-mono text-[11px] font-medium text-zinc-600">
+              <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 tabular-nums text-[11px] font-medium text-zinc-600">
                 {b.listing.number ?? "—"}
               </span>
               {/* Alım/Satış tip etiketi — ilan sayfası renkleriyle. */}

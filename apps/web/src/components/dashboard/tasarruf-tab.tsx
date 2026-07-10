@@ -150,7 +150,7 @@ export function TasarrufTab({ data }: Props) {
                 <span className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-700">
                   {r.rank}
                 </span>
-                <span className="font-mono text-xs text-slate-500">
+                <span className="tabular-nums text-xs text-slate-500">
                   #{r.tenderNumber}
                 </span>
                 <span className="flex-1 truncate text-sm text-zinc-900">

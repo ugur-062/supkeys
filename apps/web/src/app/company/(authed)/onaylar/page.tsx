@@ -444,7 +444,7 @@ export default function OnaylarPage() {
                         {TYPE_LABEL[p.type]}
                       </Badge>
                       <ListingTypeBadge type={p.listing.type} />
-                      <span className="font-mono text-[11px] text-zinc-400">
+                      <span className="tabular-nums text-[11px] text-zinc-400">
                         {p.listing.number ?? "—"}
                       </span>
                     </div>

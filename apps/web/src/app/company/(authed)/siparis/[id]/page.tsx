@@ -260,7 +260,7 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           {o.number ? (
-            <span className="font-mono text-xs font-medium tracking-wide text-zinc-400">
+            <span className="tabular-nums text-xs font-medium tracking-wide text-zinc-400">
               {o.number}
             </span>
           ) : null}

@@ -242,7 +242,7 @@ export function SavingsReportView({
                           >
                             {r.title}
                           </Link>
-                          <div className="font-mono text-[11px] text-zinc-400">
+                          <div className="tabular-nums text-[11px] text-zinc-400">
                             {r.number ?? "—"} ·{" "}
                             {r.winners.map((w) => w.name).join(", ") || "—"}
                           </div>

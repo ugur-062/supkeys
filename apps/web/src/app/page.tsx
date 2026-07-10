@@ -384,7 +384,7 @@ function SaleListingPreview() {
     <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="flex items-center justify-between">
         <div>
-          <div className="font-mono text-[11px] font-medium text-zinc-400">
+          <div className="tabular-nums text-[11px] font-medium text-zinc-400">
             SATIŞ · ROT-000142
           </div>
           <div className="text-sm font-semibold text-zinc-900">
@@ -444,7 +444,7 @@ function OrderTimelinePreview() {
   return (
     <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
       <div className="flex items-center justify-between">
-        <div className="font-mono text-sm font-semibold text-zinc-900">
+        <div className="tabular-nums text-sm font-semibold text-zinc-900">
           ROT-ORD-000128
         </div>
         <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">

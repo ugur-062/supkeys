@@ -311,7 +311,7 @@ export function GeneralReportView({
                       >
                         {t.title}
                       </Link>
-                      <div className="font-mono text-[11px] text-zinc-400">
+                      <div className="tabular-nums text-[11px] text-zinc-400">
                         {t.number ?? "—"}
                         {t.closesAt
                           ? ` · ${format(new Date(t.closesAt), "d MMM yyyy", { locale: tr })}`

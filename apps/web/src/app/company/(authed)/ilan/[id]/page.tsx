@@ -1117,7 +1117,7 @@ export default function ListingDetailPage() {
       {/* Üst satır: numara (eyebrow) + durum */}
       <div className="flex flex-wrap items-center gap-2">
         {l.number ? (
-          <span className="font-mono text-xs font-medium tracking-wide text-zinc-400">
+          <span className="tabular-nums text-xs font-medium tracking-wide text-zinc-400">
             {l.number}
           </span>
         ) : null}

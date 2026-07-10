@@ -207,7 +207,7 @@ export default function CompanyProfilePage() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="font-mono text-[11px] text-zinc-400">
+                  <div className="tabular-nums text-[11px] text-zinc-400">
                     {l.number ?? "—"}
                   </div>
                   <div className="mt-0.5 truncate font-medium text-zinc-950">

@@ -132,7 +132,7 @@ export function SatinalmaIhaleTab({ data }: { data: SatinalmaDashboard }) {
               <TableBody>
                 {rows.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="font-mono text-xs text-zinc-600">
+                    <TableCell className="tabular-nums text-xs text-zinc-600">
                       {r.tenderNumber}
                     </TableCell>
                     <TableCell className="text-zinc-900">
