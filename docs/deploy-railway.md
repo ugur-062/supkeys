@@ -40,11 +40,22 @@ Railway'in verdiği adrese CNAME ile bağlanır.
 `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `NODE_ENV=production`,
 `JWT_SECRET`, `JWT_EXPIRES_IN=1h`,
 `CORS_ORIGINS=https://app.rothern.com,https://admin.rothern.com`,
-`COOKIE_DOMAIN=.rothern.com`, `EMAIL_*`, `RESEND_API_KEY`, `R2_*`,
-`SENTRY_*`, `LOG_LEVEL=info`.
+`WEB_URL=https://app.rothern.com` **(ŞART — tüm e-posta linkleri buna bakar;
+yoksa şifre sıfırlama/davet/bildirim linkleri `localhost:3000`'e işaret eder)**,
+`COOKIE_DOMAIN=.rothern.com`, `COOKIE_SAMESITE=lax`, `EMAIL_*`,
+`RESEND_API_KEY`, `R2_*`, `SENTRY_*`, `LOG_LEVEL=info`.
 İLK deploy için ayrıca: `RUN_SEED=true` + `INITIAL_ADMIN_*` (başarılı boot sonrası
 `RUN_SEED`'i sil/false yap).
 > `PORT`'u ELLE VERME — Railway atar; app onu okur (yoksa 4000).
+
+> **Cookie topolojisi (kritik):** Prod'da kod varsayılanı `SameSite=None`
+> (cross-domain kurulumlar için — Vercel+Render demosu gibi). Railway'de app+api
+> **aynı site** (.rothern.com) olduğundan `COOKIE_SAMESITE=lax` +
+> `COOKIE_DOMAIN=.rothern.com` SET EDİLMELİ → CSRF double-submit koruması
+> yeniden aktifleşir (none modunda yapısal olarak kapalı). TERSİ TUZAK:
+> custom domain'e geçmeden `*.up.railway.app` adresleriyle test edeceksen bu
+> iki değişkeni GİRME (PSL gereği cross-site sayılır; `COOKIE_DOMAIN` yanlış
+> domain'e yazılamaz, auth komple çöker).
 
 ### `web` servisi
 `NEXT_PUBLIC_API_URL=https://api.rothern.com/api`, `NEXT_PUBLIC_SUPABASE_URL`,

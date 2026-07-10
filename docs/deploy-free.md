@@ -41,9 +41,23 @@ Her app için AYRI Vercel projesi (aynı repo):
 ## 4. CORS geri-bağla (kritik)
 Render → rothern-api → Environment:
 - **CORS_ORIGINS** = `https://<web>.vercel.app,https://<admin>.vercel.app`
-- **WEB_URL** = `https://<web>.vercel.app`
+- **WEB_URL** = `https://<web>.vercel.app` **(ŞART — tüm e-posta linkleri
+  buna bakar; yoksa şifre sıfırlama/davet/bildirim linkleri `localhost:3000`'e
+  işaret eder)**
 - **ADMIN_URL** = `https://<admin>.vercel.app`
-→ Yeniden deploy. (Aksi halde frontend API'ye erişemez.)
+→ Yeniden deploy. (REST/WS/R2 CORS'u `*.vercel.app`'i otomatik izinli sayar;
+CORS_ORIGINS yine de doldurulmalı — custom domain'e geçince tek kaynak o.)
+
+### Env doğrulama checklist'i (cross-domain tuzakları)
+- **`NODE_ENV=production`** set mi? (Render otomatik VERMEZ.) Cookie
+  `Secure/SameSite=None`, CSRF modu ve R2 `prod/` prefix'i buna bakar —
+  yoksa cross-domain'de login çalışmaz.
+- **`COOKIE_SAMESITE` GİRME** (boş bırak): prod varsayılanı `none` —
+  Vercel↔Render cross-domain için doğru olan bu.
+- **`COOKIE_DOMAIN` GİRME**: API kendi sahibi olmadığı domain'e cookie
+  yazamaz, tarayıcı düşürür → auth komple çöker.
+- Doğrulama: login yanıtının `Set-Cookie` header'ında
+  `rk_company=...; HttpOnly; Secure; SameSite=None` görülmeli.
 
 ## 5. Resend domain (gerçek e-posta için)
 - resend.com → Domains → domain ekle + SPF/DKIM/DMARC doğrula.
