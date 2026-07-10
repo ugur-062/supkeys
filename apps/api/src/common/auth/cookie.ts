@@ -19,8 +19,16 @@ export const AUTH_COOKIE: Record<Realm, string> = {
   admin: "rk_admin",
 };
 
-/** JS-okunabilir CSRF cookie'si (httpOnly DEĞİL — frontend header'a echo'lar). */
-export const CSRF_COOKIE = "rk_csrf";
+/**
+ * JS-okunabilir CSRF cookie'si (httpOnly DEĞİL — frontend header'a echo'lar).
+ * REALM BAŞINA AYRI: localhost'ta web+admin aynı cookie kavanozunu paylaşır;
+ * ortak tek "rk_csrf" kullanılınca bir uygulamanın logout'u diğerinin GEÇERLİ
+ * oturumunun CSRF token'ını siliyor, tüm mutasyonları 403'e düşürüyordu.
+ */
+export const CSRF_COOKIE: Record<Realm, string> = {
+  company: "rk_csrf",
+  admin: "rk_admin_csrf",
+};
 export const CSRF_HEADER = "x-csrf-token";
 
 /** Cookie ömrü — JWT 1sa'de expire olur (asıl kapı); cookie daha uzun yaşar. */
@@ -73,7 +81,7 @@ export function setAuthCookies(
 ): void {
   const base = baseOptions(config, persistent);
   res.cookie(AUTH_COOKIE[realm], token, { ...base, httpOnly: true });
-  res.cookie(CSRF_COOKIE, randomBytes(32).toString("hex"), {
+  res.cookie(CSRF_COOKIE[realm], randomBytes(32).toString("hex"), {
     ...base,
     httpOnly: false,
   });
@@ -91,7 +99,7 @@ export function clearAuthCookies(
   // clearCookie kendisi epoch'a çeker, o yüzden düşürüyoruz.
   const { maxAge: _maxAge, ...base } = baseOptions(config, true);
   res.clearCookie(AUTH_COOKIE[realm], base);
-  res.clearCookie(CSRF_COOKIE, base);
+  res.clearCookie(CSRF_COOKIE[realm], base);
 }
 
 /** `Cookie` header'ını elle parse eder (cookie-parser bağımlılığı olmadan). */

@@ -5,7 +5,13 @@ import {
   Injectable,
 } from "@nestjs/common";
 import type { Request } from "express";
-import { AUTH_COOKIE, CSRF_COOKIE, CSRF_HEADER, parseCookies } from "./cookie";
+import {
+  AUTH_COOKIE,
+  CSRF_COOKIE,
+  CSRF_HEADER,
+  parseCookies,
+  type Realm,
+} from "./cookie";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
@@ -65,14 +71,18 @@ export class CsrfGuard implements CanActivate {
     if (!hasAuthCookie) return true; // cookie yoksa korunacak oturum yok
 
     const headerToken = req.headers[CSRF_HEADER];
-    const cookieToken = cookies[CSRF_COOKIE];
-    if (
-      cookieToken &&
-      typeof headerToken === "string" &&
-      headerToken.length > 0 &&
-      headerToken === cookieToken
-    ) {
-      return true;
+    if (typeof headerToken !== "string" || headerToken.length === 0) {
+      throw new ForbiddenException("CSRF doğrulaması başarısız");
+    }
+    // Realm-farkında eşleşme: header, MEVCUT auth cookie'sine karşılık gelen
+    // realm'in CSRF token'ıyla eşleşmeli (web ve admin ayrı cookie taşır).
+    const realms: Realm[] = ["company", "admin"];
+    for (const realm of realms) {
+      if (!cookies[AUTH_COOKIE[realm]]) continue;
+      const cookieToken = cookies[CSRF_COOKIE[realm]];
+      if (cookieToken && headerToken === cookieToken) {
+        return true;
+      }
     }
 
     throw new ForbiddenException("CSRF doğrulaması başarısız");
