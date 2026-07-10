@@ -17,7 +17,7 @@ interface PromptDialogProps {
   title: string;
   description?: string;
   label: string;
-  type?: "text" | "number";
+  type?: "text" | "number" | "datetime-local";
   defaultValue?: string;
   placeholder?: string;
   confirmLabel?: string;

@@ -34,8 +34,11 @@ export class AdminCompaniesService {
     private readonly audit: AuditService,
   ) {}
 
-  /** Firmaya (in-app + e-posta) bildirim — admin aksiyonları için. Best-effort. */
-  private async notifyCompany(
+  /**
+   * Firmaya (in-app + e-posta) bildirim — admin aksiyonları için. Best-effort.
+   * Public: AdminInspectionService (ilan kapatma/sipariş iptali) da kullanır.
+   */
+  async notifyCompany(
     companyId: string,
     subject: string,
     paragraphs: string[],

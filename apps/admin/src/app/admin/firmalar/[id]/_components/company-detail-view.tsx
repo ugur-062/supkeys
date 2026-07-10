@@ -16,7 +16,10 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { AuditTab } from "./tabs/audit-tab";
 import { ComplaintsTab } from "./tabs/complaints-tab";
+import { ConnectionsTab } from "./tabs/connections-tab";
 import { DocsTab } from "./tabs/docs-tab";
+import { ListingsTab } from "./tabs/listings-tab";
+import { OrdersTab } from "./tabs/orders-tab";
 import { MembershipTab } from "./tabs/membership-tab";
 import { PlaceholderTab } from "./tabs/placeholder-tab";
 import { SummaryTab } from "./tabs/summary-tab";
@@ -39,6 +42,7 @@ const TABS = [
   { key: "kullanicilar", label: "Kullanıcılar" },
   { key: "ilanlar", label: "İlanlar" },
   { key: "siparisler", label: "Siparişler" },
+  { key: "baglantilar", label: "Bağlantılar" },
   { key: "sikayetler", label: "Şikayetler" },
   { key: "notlar", label: "Notlar" },
   { key: "denetim", label: "Denetim" },
@@ -210,11 +214,10 @@ export function CompanyDetailView({
       {tab === "belgeler" ? <DocsTab companyId={companyId} data={data} /> : null}
       {tab === "uyelik" ? <MembershipTab companyId={companyId} data={data} /> : null}
       {tab === "kullanicilar" ? <UsersTab companyId={companyId} /> : null}
-      {tab === "ilanlar" ? (
-        <PlaceholderTab label="İlan görünümü (tüm ihaleler, teklifler ve durumları)" />
-      ) : null}
-      {tab === "siparisler" ? (
-        <PlaceholderTab label="Sipariş görünümü (durum, ödeme ve teminat takibi)" />
+      {tab === "ilanlar" ? <ListingsTab companyId={companyId} /> : null}
+      {tab === "siparisler" ? <OrdersTab companyId={companyId} /> : null}
+      {tab === "baglantilar" ? (
+        <ConnectionsTab companyId={companyId} />
       ) : null}
       {tab === "sikayetler" ? <ComplaintsTab companyId={companyId} /> : null}
       {tab === "notlar" ? (

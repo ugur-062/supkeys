@@ -8,6 +8,8 @@ import { AdminCompaniesController } from "./admin-companies.controller";
 import { AdminCompaniesService } from "./admin-companies.service";
 import { AdminCompanyUsersController } from "./admin-company-users.controller";
 import { AdminCompanyUsersService } from "./admin-company-users.service";
+import { AdminInspectionController } from "./admin-inspection.controller";
+import { AdminInspectionService } from "./admin-inspection.service";
 
 @Module({
   imports: [
@@ -18,7 +20,15 @@ import { AdminCompanyUsersService } from "./admin-company-users.service";
     CompanyAuthModule,
     SupabaseAuthModule,
   ],
-  controllers: [AdminCompaniesController, AdminCompanyUsersController],
-  providers: [AdminCompaniesService, AdminCompanyUsersService],
+  controllers: [
+    AdminCompaniesController,
+    AdminCompanyUsersController,
+    AdminInspectionController,
+  ],
+  providers: [
+    AdminCompaniesService,
+    AdminCompanyUsersService,
+    AdminInspectionService,
+  ],
 })
 export class AdminCompaniesModule {}
