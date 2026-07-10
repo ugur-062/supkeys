@@ -29,7 +29,7 @@ import { CompanyLoginForm } from "../login-form";
 function unverifiedError() {
   return new AxiosError("hata", "ERR_BAD_REQUEST", undefined, undefined, {
     status: 403,
-    data: { message: "E-postanızı doğrulayın" },
+    data: { message: "Giriş yapmadan önce e-posta adresinizi doğrulayın." },
     statusText: "Forbidden",
     headers: {},
     config: {} as never,

@@ -28,6 +28,23 @@ export class CsrfGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     if (SAFE_METHODS.has(req.method.toUpperCase())) return true;
 
+    // Ön-oturum auth uçları CSRF'ten muaf: login zaten kimlik bilgisiyle
+    // korunur; BAYAT bir auth cookie'si (JWT süresi dolmuş ama cookie 30 gün
+    // yaşıyor — ya da aynı localhost'ta admin logout'unun paylaşılan rk_csrf'i
+    // silmesi) yüzünden login'in 403 "CSRF doğrulaması başarısız" ile
+    // kilitlenmesi kullanıcıyı içeri hiç alamaz hale getiriyordu.
+    const path = req.path ?? "";
+    if (
+      path.endsWith("/auth/login") ||
+      path.endsWith("/auth/logout") ||
+      path.endsWith("/auth/signup") ||
+      path.endsWith("/auth/verify-email") ||
+      path.endsWith("/auth/resend-email-code") ||
+      path.endsWith("/auth/forgot-password")
+    ) {
+      return true;
+    }
+
     // Cross-domain kurulum (SameSite=None, ör. Vercel frontend + Render API):
     // frontend farklı origin'de olduğundan JS-okunabilir CSRF cookie'sini
     // document.cookie ile okuyup echo'layamaz → double-submit yapısal olarak

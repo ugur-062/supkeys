@@ -86,10 +86,15 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
       router.replace(nextPath);
     } catch (err) {
       // E-posta doğrulanmamışsa doğrulama moduna geç + kod gönder.
+      // DİKKAT: yalnız SPESİFİK mesaj — gevşek /doğrula/i eşleşmesi, "CSRF
+      // doğrulaması başarısız" gibi alakasız 403'lerde de doğrulama moduna
+      // geçip 2FA'sız kullanıcıya durduk yere e-posta kodu gönderiyordu.
       if (
         axios.isAxiosError(err) &&
         err.response?.status === 403 &&
-        /doğrula/i.test(String((err.response.data as { message?: string })?.message))
+        String(
+          (err.response.data as { message?: string })?.message,
+        ).includes("e-posta adresinizi doğrulayın")
       ) {
         setVerifyEmail(data.email.trim());
         setNeedsVerify(true);
