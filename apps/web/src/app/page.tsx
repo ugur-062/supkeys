@@ -25,7 +25,7 @@ const stats = [
 const standartFeatures = [
   "Bağlantılı firmalarla alım & satım",
   "Kapalı zarf teklif toplama",
-  "Sipariş, kargo, teslim & dekont akışı",
+  "Sipariş, kargo, teslim & ödeme takibi",
   "Sınırsız kullanıcı & rol",
   "Herkese açık ilanları görüntüleme (maskeli)",
 ];
@@ -53,11 +53,11 @@ const faqs = [
   },
   {
     q: "Platform paraya aracılık ediyor mu?",
-    a: "Hayır. Ödeme taraflar arasında doğrudan yapılır; Rothern yalnızca süreci ve dekont kaydını yönetir. Koltuk başına ücret yoktur.",
+    a: "Hayır. Ödeme taraflar arasında doğrudan yapılır; Rothern paraya aracılık etmez; ödeme yalnızca 'ödendi' ya da 'ödeme bekleniyor' olarak işaretlenir. Koltuk başına ücret yoktur.",
   },
   {
     q: "Siparişten sonra ne oluyor?",
-    a: "Kazandırma anında sipariş oluşur (satıcı→alıcı). Kargo, teslim ve ödeme adımlarını panelden takip eder; teslim belgesi (irsaliye/konşimento) ve dekontu yüklersiniz.",
+    a: "Kazandırma anında sipariş oluşur (satıcı→alıcı). Kargo ve teslim adımlarını panelden takip eder, teslim belgesini (irsaliye/konşimento) yükler, ödemeyi 'ödendi' olarak işaretlersiniz. Ödeme taraflar arasında yapılır.",
   },
 ];
 
@@ -477,8 +477,8 @@ function OrderTimelinePreview() {
         <span className="rounded-md bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600">
           Teslim belgesi
         </span>
-        <span className="rounded-md bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600">
-          Dekont
+        <span className="rounded-md bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+          Ödeme bekleniyor
         </span>
       </div>
     </div>
@@ -796,7 +796,7 @@ export default function HomePage() {
             Eksiksiz ticaret
           </h2>
           <p className="mt-2 max-w-2xl text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
-            Almaktan satmaya, ihaleden dekonta
+            Almaktan satmaya, ihaleden teslime
           </p>
 
           <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-16 lg:grid-cols-6">
@@ -851,10 +851,10 @@ export default function HomePage() {
               </div>
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-zinc-950">
-                  Sipariş'ten dekonta
+                  Sipariş'ten teslime
                 </h3>
                 <p className="mt-1.5 text-sm/6 text-zinc-600">
-                  Kargo, teslim ve ödeme; irsaliye ile dekont tek panelde.
+                  Kargo, teslim ve ödeme durumu; teslim belgesiyle tek panelde.
                 </p>
               </div>
             </div>
