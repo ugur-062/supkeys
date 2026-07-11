@@ -243,8 +243,8 @@ export function Step0TypeScope() {
               {isAuction
                 ? "Format düzenlemeyle değiştirilemez."
                 : isSatis
-                  ? "Canlı açık artırmaya geçiş, tur kapandıktan sonra ilan sayfasındaki 'Yeni Tur Oluştur' ile yapılır — taban fiyatı ilk turun teklifleri oluşturur."
-                  : "Canlı açık eksiltmeye geçiş, tur kapandıktan sonra ihale sayfasındaki 'Yeni Tur Oluştur' ile yapılır — taban fiyatı ilk turun teklifleri oluşturur."}
+                  ? "Tur kapandıktan sonra ilanı 'Yeni Tur Oluştur' ile canlı açık artırmaya taşıyabilirsiniz — alıcılar ilk turun teklifleri üzerinden fiyatı adım adım yükselterek yarışır."
+                  : "Tur kapandıktan sonra ihaleyi 'Yeni Tur Oluştur' ile canlı tura taşıyabilirsiniz — tedarikçiler ilk turun teklifleri üzerinden fiyatı adım adım düşürerek yarışır."}
             </p>
           </div>
         </div>
