@@ -282,10 +282,10 @@ export class CompanyListingsService {
 
     // Sahibe "karar zamanı" bildirimi.
     const owner = await this.companyRecipient(listing.companyId, ownerPortal);
-    const ownerUrl =
-      listing.type === "ALIM"
-        ? `${this.webUrl()}/company/satinalma/ihalelerim/${listingId}`
-        : `${this.webUrl()}/company/satis/ilanlarim/${listingId}`;
+    // Sahip detay sayfası: kanonik /company/ilan/[id] (owner branch teklifleri +
+    // kazandırmayı gösterir). ihalelerim/[id] · ilanlarim/[id] detay page.tsx'i
+    // YOK (yalnız .../duzenle var) — oraya yönlendirmek 404 veriyordu.
+    const ownerUrl = `${this.webUrl()}/company/ilan/${listingId}`;
     if (owner) {
       this.notify(
         owner,
