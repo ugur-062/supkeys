@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Rothern — Al · Sat · Keşfet",
+    default: "Rothern",
     template: "%s · Rothern",
   },
   description:
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   openGraph: {
-    title: "Rothern — Al · Sat · Keşfet",
+    title: "Rothern",
     description: "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu.",
     images: ["/rothern-logo-on-light.png"],
     locale: "tr_TR",
