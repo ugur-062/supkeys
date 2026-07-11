@@ -468,10 +468,6 @@ export default function ListingDetailPage() {
         (!l.requireAllItems ||
           (l.items ?? []).every((it) => it.buyNowUnitPrice != null))
       : l.buyNowPrice != null);
-  const directionHint = isAlim
-    ? "Alış ilanı — en düşük teklif kazanır."
-    : "Satış ilanı — en yüksek teklif kazanır.";
-
   // ───────────────────────── Bölümler (sekmelere yerleşir) ─────────────────
 
   const itemsSection =
@@ -1172,8 +1168,6 @@ export default function ListingDetailPage() {
           )}
           {l.owner ? l.owner.name : "Gizli firma"}
         </span>
-        <span className="mx-2 text-zinc-300">·</span>
-        {directionHint}
       </Text>
 
       {!isAlim && l.minPrice ? (
