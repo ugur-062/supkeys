@@ -27,7 +27,17 @@ import Link from "next/link";
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
 
-const CURRENCIES = ["TRY", "USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY"];
+const CURRENCIES = [
+  "TRY",
+  "USD",
+  "EUR",
+  "GBP",
+  "CHF",
+  "JPY",
+  "AED",
+  "CNY",
+  "RUB",
+];
 
 function tl(n: number | null) {
   return n == null

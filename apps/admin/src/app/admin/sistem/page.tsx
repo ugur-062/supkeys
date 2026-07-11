@@ -34,7 +34,16 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
-const MANUAL_CURRENCIES = ["USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY"];
+const MANUAL_CURRENCIES = [
+  "USD",
+  "EUR",
+  "GBP",
+  "CHF",
+  "JPY",
+  "AED",
+  "CNY",
+  "RUB",
+];
 
 /** Manuel kur formu — TCMB arızası acil durumu (yalnız SUPER_ADMIN, BE guard). */
 function ManualRateForm() {

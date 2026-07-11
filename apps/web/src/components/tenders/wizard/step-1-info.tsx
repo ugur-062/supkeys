@@ -1097,6 +1097,7 @@ export function Step1Info({
                   <option value="JPY">JPY</option>
                   <option value="AED">AED</option>
                   <option value="CNY">CNY</option>
+                  <option value="RUB">RUB</option>
                 </Select>
               </Field>
               <Field error={errors.decimalPlaces?.message as string | undefined}>

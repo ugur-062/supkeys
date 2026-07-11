@@ -28,7 +28,16 @@ import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
 import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
 import { ExchangeRateService } from "../currency/services/exchange-rate.service";
 
-const MANUAL_CURRENCIES = ["USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY"];
+const MANUAL_CURRENCIES = [
+  "USD",
+  "EUR",
+  "GBP",
+  "CHF",
+  "JPY",
+  "AED",
+  "CNY",
+  "RUB",
+];
 
 class ManualRateDto {
   @IsIn(MANUAL_CURRENCIES)

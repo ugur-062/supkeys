@@ -206,6 +206,7 @@ export const CURRENCY_SYMBOL: Record<Currency, string> = {
   JPY: "¥",
   AED: "د.إ",
   CNY: "¥",
+  RUB: "₽",
 };
 
 export const CURRENCY_NAMES: Record<Currency, string> = {
@@ -217,4 +218,5 @@ export const CURRENCY_NAMES: Record<Currency, string> = {
   JPY: "Japon Yeni",
   AED: "BAE Dirhemi",
   CNY: "Çin Yuanı",
+  RUB: "Rus Rublesi",
 };

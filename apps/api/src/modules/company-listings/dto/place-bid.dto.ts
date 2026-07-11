@@ -24,6 +24,7 @@ export enum BidCurrencyDto {
   JPY = "JPY",
   AED = "AED",
   CNY = "CNY",
+  RUB = "RUB",
 }
 
 export class PlaceBidAnswerDto {

@@ -9,6 +9,7 @@ const CURRENCY_VALUES = [
   "JPY",
   "AED",
   "CNY",
+  "RUB",
 ] as const;
 const TYPE_VALUES = ["RFQ", "ENGLISH_AUCTION"] as const;
 const VISIBILITY_VALUES = ["PRIVATE", "PUBLIC"] as const;

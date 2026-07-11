@@ -41,7 +41,17 @@ const STATUS_TR: Record<string, string> = {
   CANCELLED: "İptal",
   CLOSED_NO_AWARD: "Kazansız",
 };
-const CURRENCIES = ["TRY", "USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY"];
+const CURRENCIES = [
+  "TRY",
+  "USD",
+  "EUR",
+  "GBP",
+  "CHF",
+  "JPY",
+  "AED",
+  "CNY",
+  "RUB",
+];
 
 function tl(n: number | null) {
   return n == null

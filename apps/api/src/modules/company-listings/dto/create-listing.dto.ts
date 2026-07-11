@@ -43,6 +43,7 @@ export enum CurrencyDto {
   JPY = "JPY",
   AED = "AED",
   CNY = "CNY",
+  RUB = "RUB",
 }
 
 export enum DeliveryTermDto {

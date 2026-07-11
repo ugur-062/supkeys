@@ -22,6 +22,7 @@ const CURRENCIES: Currency[] = [
   "JPY",
   "AED",
   "CNY",
+  "RUB",
 ];
 
 interface Props {

@@ -1,6 +1,6 @@
 /**
- * V2-6 — Çoklu para birimi formatlama yardımcıları (8 birim).
- * TRY (₺), USD ($), EUR (€), GBP (£), CHF (₣), JPY (¥), AED (د.إ), CNY (¥).
+ * V2-6 — Çoklu para birimi formatlama yardımcıları (9 birim).
+ * TRY (₺), USD ($), EUR (€), GBP (£), CHF (₣), JPY (¥), AED (د.إ), CNY (¥), RUB (₽).
  */
 
 export type Currency =
@@ -11,7 +11,8 @@ export type Currency =
   | "CHF"
   | "JPY"
   | "AED"
-  | "CNY";
+  | "CNY"
+  | "RUB";
 
 const symbols: Record<Currency, string> = {
   TRY: "₺",
@@ -22,6 +23,7 @@ const symbols: Record<Currency, string> = {
   JPY: "¥",
   AED: "د.إ",
   CNY: "¥",
+  RUB: "₽",
 };
 
 const localeMap: Record<Currency, string> = {
@@ -33,6 +35,7 @@ const localeMap: Record<Currency, string> = {
   JPY: "ja-JP",
   AED: "ar-AE",
   CNY: "zh-CN",
+  RUB: "ru-RU",
 };
 
 export function getCurrencySymbol(currency: Currency): string {

@@ -190,6 +190,7 @@ enum Currency {
   JPY
   AED
   CNY
+  RUB
 }
 
 enum TwoFactorMethod {

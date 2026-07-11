@@ -54,7 +54,7 @@ export interface Listing {
   createdAt: string;
 }
 
-// Backend Prisma `Currency` enum'u ile birebir (8 birim) — eksik tutmak
+// Backend Prisma `Currency` enum'u ile birebir (9 birim) — eksik tutmak
 // AED/CNY tekliflerini `as` cast'leriyle maskeleyip sessiz hataya yol açıyordu.
 export type CurrencyCode =
   | "TRY"
@@ -64,7 +64,8 @@ export type CurrencyCode =
   | "CHF"
   | "JPY"
   | "AED"
-  | "CNY";
+  | "CNY"
+  | "RUB";
 
 export interface ItemQuestionInput {
   text: string;

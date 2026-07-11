@@ -10,7 +10,8 @@ export type Currency =
   | "CHF"
   | "JPY"
   | "AED"
-  | "CNY";
+  | "CNY"
+  | "RUB";
 
 export type DeliveryTerm =
   | "DOMESTIC_DELIVERED"

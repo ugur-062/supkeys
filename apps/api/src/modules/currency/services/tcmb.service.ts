@@ -10,7 +10,7 @@ export interface TcmbRates {
   date: string;
 }
 
-/** Türk B2B'de yaygın 8 birim (TRY hariç; TRY=1 sabit). */
+/** Türk B2B'de yaygın 9 birim (TRY hariç; TRY=1 sabit). */
 const TRACKED_CURRENCIES = [
   "USD",
   "EUR",
@@ -19,6 +19,7 @@ const TRACKED_CURRENCIES = [
   "JPY",
   "AED",
   "CNY",
+  "RUB",
 ] as const;
 
 /**

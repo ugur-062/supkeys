@@ -14,7 +14,7 @@ export interface ExchangeRateSnapshot {
 }
 
 /**
- * V2-6 — Türk B2B'de en yaygın 8 birim. TRY base, diğer 7'si TCMB'den fetch'lenir.
+ * V2-6 — Türk B2B'de en yaygın 9 birim. TRY base, diğer 8'i TCMB'den fetch'lenir.
  */
 const TRACKED_CURRENCIES = [
   "USD",
@@ -24,6 +24,7 @@ const TRACKED_CURRENCIES = [
   "JPY",
   "AED",
   "CNY",
+  "RUB",
 ] as const satisfies readonly Exclude<Currency, "TRY">[];
 
 /**
@@ -38,6 +39,7 @@ const FALLBACK_RATES: Record<Exclude<Currency, "TRY">, number> = {
   JPY: 0.23,
   AED: 9.25,
   CNY: 4.75,
+  RUB: 0.6,
 };
 
 /**
