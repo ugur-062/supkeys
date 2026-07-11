@@ -28,7 +28,6 @@ import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { uploadListingDocument } from "@/hooks/use-listing-documents";
-import { MissingTargetWarningDialog } from "./missing-target-warning-dialog";
 import { PublishConfirmDialog } from "./publish-confirm-dialog";
 import { SaveTemplateDialog } from "./save-template-dialog";
 import type { StagedListingDoc } from "./staged-documents";
@@ -209,8 +208,6 @@ export function TenderWizard({
   const isEdit = mode === "edit";
   const [step, setStep] = useState(0);
   const [publishOpen, setPublishOpen] = useState(false);
-  const [missingOpen, setMissingOpen] = useState(false);
-  const [missingCount, setMissingCount] = useState(0);
   const [templateOpen, setTemplateOpen] = useState(false);
   // Create modunda seçilen ihale dökümanları — ilan kaydedilince yüklenir
   // (edit modunda FilesTab doğrudan yükler, staging gerekmez).
@@ -333,20 +330,13 @@ export function TenderWizard({
       );
   };
 
-  // Yayınla'ya basınca: hedef fiyatsız kalem uyarısı → publish-confirm.
+  // Yayınla'ya basınca doğrudan publish-confirm. Hedef fiyat opsiyoneldir —
+  // eksikse uyarı ÇIKMAZ (kullanıcı kararı, 2026-07-11); bütçe-eşikli onay
+  // zinciri hedef fiyatsız tetiklenmeyebilir, bu bilinçli kabul edildi.
   const handlePublishClick = async () => {
     const ok = await form.trigger();
     if (!ok) {
       toast.error("Eksik/hatalı alanlar var — adımları kontrol et");
-      return;
-    }
-    const items = form.getValues("items");
-    const missing = isSatis
-      ? 0
-      : items.filter((i) => i.targetUnitPrice == null).length;
-    if (missing > 0) {
-      setMissingCount(missing);
-      setMissingOpen(true);
       return;
     }
     if (isEdit) {
@@ -510,16 +500,6 @@ export function TenderWizard({
         </div>
       </div>
 
-      <MissingTargetWarningDialog
-        open={missingOpen}
-        onClose={() => setMissingOpen(false)}
-        onContinue={() => {
-          setMissingOpen(false);
-          if (isEdit) void doSubmit();
-          else setPublishOpen(true);
-        }}
-        itemsMissingCount={missingCount}
-      />
       <PublishConfirmDialog
         open={publishOpen}
         onClose={() => setPublishOpen(false)}
