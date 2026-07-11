@@ -100,13 +100,20 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
         {d.keywords?.length ? (
           <Row label="Anahtar Kelimeler" value={d.keywords.join(", ")} />
         ) : null}
+        {/* Tüm birimler açık yazılır (ana birim önde) — "(+2)" kısaltması
+            hangi birimlerin seçili olduğunu gizliyordu. */}
         <Row
-          label="Para Birimi"
-          value={`${d.primaryCurrency}${
-            d.allowedCurrencies?.length > 1
-              ? ` (+${d.allowedCurrencies.length - 1})`
-              : ""
-          }`}
+          label={
+            (d.allowedCurrencies?.length ?? 0) > 1
+              ? "Para Birimleri"
+              : "Para Birimi"
+          }
+          value={[
+            d.primaryCurrency,
+            ...(d.allowedCurrencies ?? []).filter(
+              (c) => c !== d.primaryCurrency,
+            ),
+          ].join(", ")}
         />
         {d.deliveryTerm ? (
           <Row
