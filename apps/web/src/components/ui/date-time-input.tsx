@@ -34,22 +34,26 @@ export function DateTimeInput({
   const [datePart = "", timePart = ""] = value ? value.split("T") : [];
   return (
     <div className="flex gap-2">
-      <Input
-        id={`${idPrefix}-date`}
-        type="date"
-        className="flex-1"
-        value={datePart}
-        min={min ? min.slice(0, 10) : undefined}
-        hasError={hasError}
-        disabled={disabled}
-        aria-label={dateAriaLabel}
-        onChange={(e) => {
-          const d = e.target.value;
-          // Tarih silinirse değer tamamen boşalır; seçilirse mevcut saat
-          // korunur, yoksa default saat (gün sonu/başı) yazılır.
-          onChange(d ? `${d}T${timePart || defaultTime}` : "");
-        }}
-      />
+      {/* Kompakt sabit genişlik — "gg.aa.yyyy" + takvim ikonu sığar; alan
+          genişliğini doldurup kocaman görünmesin (Catalyst Input w-full basar,
+          o yüzden sınır sarmalayıcıda). */}
+      <div className="w-40 shrink-0">
+        <Input
+          id={`${idPrefix}-date`}
+          type="date"
+          value={datePart}
+          min={min ? min.slice(0, 10) : undefined}
+          hasError={hasError}
+          disabled={disabled}
+          aria-label={dateAriaLabel}
+          onChange={(e) => {
+            const d = e.target.value;
+            // Tarih silinirse değer tamamen boşalır; seçilirse mevcut saat
+            // korunur, yoksa default saat (gün sonu/başı) yazılır.
+            onChange(d ? `${d}T${timePart || defaultTime}` : "");
+          }}
+        />
+      </div>
       {/* Catalyst Input kendi span'ına w-full basar — genişliği sarmalayıcı
           sınırlar, yoksa saat kutusu tarih kadar büyüyordu. */}
       <div className="w-24 shrink-0">
