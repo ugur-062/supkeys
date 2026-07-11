@@ -14,6 +14,9 @@ function validForm(over: Partial<TenderFormData> = {}): TenderFormData {
     title: "Geçerli ihale başlığı",
     bidsCloseAt: future,
     items: [{ name: "Kalem", quantity: 1, unit: "adet" }],
+    // 2026-07-11 ürün kararı: teslim şekli + teslimat adresi zorunlu.
+    deliveryTerm: "DOMESTIC_DELIVERED",
+    deliveryAddressId: "addr-1",
     ...over,
   } as TenderFormData;
 }
@@ -21,6 +24,35 @@ function validForm(over: Partial<TenderFormData> = {}): TenderFormData {
 describe("tenderFormSchema", () => {
   it("geçerli form parse edilir", () => {
     expect(tenderFormSchema.safeParse(validForm()).success).toBe(true);
+  });
+
+  it("teslim şekli ve teslimat adresi zorunlu", () => {
+    expect(
+      tenderFormSchema.safeParse(validForm({ deliveryTerm: undefined }))
+        .success,
+    ).toBe(false);
+    expect(
+      tenderFormSchema.safeParse(validForm({ deliveryAddressId: "" })).success,
+    ).toBe(false);
+  });
+
+  it("fatura adresi: 'teslimatla aynı' tiki kapalıysa seçim zorunlu (yalnız ALIM)", () => {
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({ billingSameAsDelivery: false, billingAddressId: undefined }),
+      ).success,
+    ).toBe(false);
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({ billingSameAsDelivery: false, billingAddressId: "addr-2" }),
+      ).success,
+    ).toBe(true);
+    // Tik açıkken fatura seçimi istenmez.
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({ billingSameAsDelivery: true, billingAddressId: undefined }),
+      ).success,
+    ).toBe(true);
   });
 
   it("başlık en az 3 karakter", () => {

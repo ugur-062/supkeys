@@ -521,6 +521,7 @@ export function Step1Info({
 
   const paymentTerm = watch("paymentTerm");
   const paymentTiming = watch("paymentTiming");
+  const billingSameAsDelivery = watch("billingSameAsDelivery");
   const primaryCurrency = watch("primaryCurrency");
   const allowedCurrencies = watch("allowedCurrencies") ?? [];
   const tenderType = watch("type");
@@ -1221,7 +1222,9 @@ export function Step1Info({
                 : "Yurtiçi teslim şekli"
             }
           >
-            <Label htmlFor="deliveryTerm">Teslim Şekli</Label>
+            <Label htmlFor="deliveryTerm" required>
+              Teslim Şekli
+            </Label>
             <Select id="deliveryTerm" {...register("deliveryTerm")}>
               <option value="">— Seçiniz —</option>
               {deliveryTermOptions.map((t) => (
@@ -1233,6 +1236,7 @@ export function Step1Info({
           </Field>
 
           <Field
+            error={errors.deliveryAddressId?.message}
             hint={
               deliveryAddrs.length === 0
                 ? "Adres defterinizde teslimat adresi yok — Ayarlar → Adresler'den ekleyin."
@@ -1241,11 +1245,11 @@ export function Step1Info({
                   : `Davet edilen ${rolPl} bu adresi görür.`
             }
           >
-            <Label htmlFor="deliveryAddressId">
+            <Label htmlFor="deliveryAddressId" required>
               {isSatis ? "Teslim / Yükleme Noktası" : "Teslimat Adresi"}
             </Label>
             <Select id="deliveryAddressId" {...register("deliveryAddressId")}>
-              <option value="">— Seçiniz (opsiyonel) —</option>
+              <option value="">— Seçiniz —</option>
               {deliveryAddrs.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.title}
@@ -1256,20 +1260,52 @@ export function Step1Info({
           </Field>
 
           {/* SATIS'ta fatura adresi anlamsız: faturayı SİZ kesersiniz, size
-              kesilecek fatura yok — alan yalnız ALIM'da. */}
+              kesilecek fatura yok — alan yalnız ALIM'da. Varsayılan: fatura
+              adresi = teslimat adresi (tik); tik kaldırılırsa seçim zorunlu. */}
           {isSatis ? null : (
-            <Field hint="Yalnızca sizin gördüğünüz fatura adresi (opsiyonel).">
-              <Label htmlFor="billingAddressId">Fatura Adresi</Label>
-              <Select id="billingAddressId" {...register("billingAddressId")}>
-                <option value="">— Seçiniz (opsiyonel) —</option>
-                {billingAddrs.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.title}
-                    {a.city ? ` — ${a.city}` : ""}
-                  </option>
-                ))}
-              </Select>
-            </Field>
+            <div className="space-y-3">
+              <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-700">
+                <input
+                  type="checkbox"
+                  checked={billingSameAsDelivery}
+                  onChange={(e) => {
+                    setValue("billingSameAsDelivery", e.target.checked, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
+                    if (e.target.checked) {
+                      setValue("billingAddressId", undefined, {
+                        shouldValidate: true,
+                      });
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-zinc-300"
+                />
+                Fatura adresim teslimat adresim ile aynı
+              </label>
+              {billingSameAsDelivery ? null : (
+                <Field
+                  error={errors.billingAddressId?.message}
+                  hint="Yalnızca sizin gördüğünüz fatura adresi."
+                >
+                  <Label htmlFor="billingAddressId" required>
+                    Fatura Adresi
+                  </Label>
+                  <Select
+                    id="billingAddressId"
+                    {...register("billingAddressId")}
+                  >
+                    <option value="">— Seçiniz —</option>
+                    {billingAddrs.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.title}
+                        {a.city ? ` — ${a.city}` : ""}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              )}
+            </div>
           )}
         </div>
       </section>

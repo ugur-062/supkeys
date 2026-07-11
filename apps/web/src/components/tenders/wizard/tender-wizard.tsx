@@ -141,7 +141,11 @@ function mapToInput(d: TenderFormData): CreateListingInput {
     isInternational: d.isInternational,
     targetCountries: d.isInternational ? d.targetCountries : [],
     deliveryAddressId: d.deliveryAddressId || undefined,
-    billingAddressId: d.billingAddressId || undefined,
+    // "Fatura adresim teslimatla aynı" tiki: fatura adresi teslimat adresinden
+    // kopyalanır; tik kaldırıldıysa kullanıcının seçtiği adres gider.
+    billingAddressId: d.billingSameAsDelivery
+      ? d.deliveryAddressId || undefined
+      : d.billingAddressId || undefined,
     visibility: d.visibility === "PUBLIC" ? "PUBLIC" : "PRIVATE",
     title: d.title.trim(),
     description: d.description?.trim() || undefined,

@@ -51,8 +51,15 @@ export function mapDetailToForm(
     type: forCopy ? "RFQ" : ((l.format as TenderFormData["type"]) ?? "RFQ"),
     isInternational: l.isInternational,
     targetCountries: l.targetCountries ?? [],
-    deliveryAddressId: l.deliveryAddressId ?? undefined,
-    billingAddressId: l.billingAddressId ?? undefined,
+    deliveryAddressId: l.deliveryAddressId ?? "",
+    // Fatura adresi teslimattan farklıysa tik kapalı + seçim yüklenir;
+    // aynıysa/boşsa tik açık (varsayılan davranış).
+    billingSameAsDelivery:
+      !l.billingAddressId || l.billingAddressId === l.deliveryAddressId,
+    billingAddressId:
+      l.billingAddressId && l.billingAddressId !== l.deliveryAddressId
+        ? l.billingAddressId
+        : undefined,
     visibility: l.visibility === "PUBLIC" ? "PUBLIC" : "PRIVATE",
     isLogistics: l.isLogistics ?? false,
     logistics: {

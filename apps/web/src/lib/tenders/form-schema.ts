@@ -159,8 +159,12 @@ const baseTenderSchema = z.object({
   // Sınır ötesi hedef ülkeler (ISO kodları). Boş = tüm yabancı ülkeler.
   targetCountries: z.array(z.string()),
   // Teslimat / fatura adresi (CompanyAddress id) — opsiyonel.
-  deliveryAddressId: z.string().optional(),
+  // Teslimat adresi ZORUNLU (2026-07-11 ürün kararı — opsiyonel olamaz).
+  deliveryAddressId: z.string().min(1, "Teslimat adresi seçin"),
   billingAddressId: z.string().optional(),
+  // Fatura adresi = teslimat adresi tiki (varsayılan işaretli). Kaldırılırsa
+  // billingAddressId zorunlu olur (refine aşağıda; yalnız ALIM'da anlamlı).
+  billingSameAsDelivery: z.boolean(),
   visibility: z.enum(VISIBILITY_VALUES),
   isLogistics: z.boolean(),
   logistics: logisticsSchema.optional(),
@@ -172,8 +176,10 @@ const baseTenderSchema = z.object({
     .array(z.enum(CURRENCY_VALUES))
     .min(1, "En az 1 para birimi zorunludur")
     .max(8, "En fazla 8 para birimi seçebilirsiniz"),
-  // "— Seçiniz —" option'ı "" gönderir; undefined'a çevrilmezse z.enum
-  // İngilizce "Invalid enum value" hatası basar (alan opsiyonel — hata yanlış).
+  // Teslim şekli ZORUNLU (2026-07-11 ürün kararı) — zorunluluk aşağıdaki
+  // refine'da (tip opsiyonel kalır ki form boş başlayabilsin). "— Seçiniz —"
+  // option'ının "" değeri undefined'a çevrilir; yoksa zod İngilizce
+  // "Invalid enum value" basıyordu.
   deliveryTerm: z.preprocess(
     (v) => (v === "" || v == null ? undefined : v),
     z.enum(DELIVERY_TERM_VALUES).optional(),
@@ -236,6 +242,20 @@ const baseTenderSchema = z.object({
 });
 
 export const tenderFormSchema = baseTenderSchema
+  // Teslim şekli zorunlu (tip opsiyonel — form boş başlar, yayında bu kural).
+  .refine((d) => !!d.deliveryTerm, {
+    message: "Teslim şekli seçin",
+    path: ["deliveryTerm"],
+  })
+  .refine(
+    // Fatura adresi: "teslimatla aynı" tiki kaldırıldıysa seçim zorunlu
+    // (yalnız ALIM — SATIS'ta fatura adresi alanı yok, faturayı satıcı keser).
+    (d) =>
+      d.listingType === "SATIS" ||
+      d.billingSameAsDelivery ||
+      !!d.billingAddressId,
+    { message: "Fatura adresi seçin", path: ["billingAddressId"] },
+  )
   .refine(
     (d) =>
       d.paymentTerm === "CASH" ||
@@ -352,6 +372,9 @@ export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
     "primaryCurrency",
     "allowedCurrencies",
     "deliveryTerm",
+    "deliveryAddressId",
+    "billingAddressId",
+    "billingSameAsDelivery",
     "paymentTerm",
     "paymentDays",
     "termsAndConditions",
@@ -386,8 +409,9 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   type: "RFQ",
   isInternational: false,
   targetCountries: [],
-  deliveryAddressId: undefined,
+  deliveryAddressId: "",
   billingAddressId: undefined,
+  billingSameAsDelivery: true,
   visibility: "PRIVATE",
   isLogistics: false,
   logistics: {
