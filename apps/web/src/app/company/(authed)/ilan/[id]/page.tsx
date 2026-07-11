@@ -352,6 +352,34 @@ export default function ListingDetailPage() {
     setItemAwardMode(true);
   };
 
+  // Kalem kazandırma seçimleri REAKTİF dolar: detay 4 sn'de bir poll'landığı
+  // için panel açıkken teklif verisi tazelenebilir (ya da butona veri otururken
+  // basılmış olabilir) — boş/geçersiz kalan kalemlere en iyi teklif otomatik
+  // yazılır ("RFQ'da ön-seçim gelmedi" vakasının kökten çözümü). Kullanıcının
+  // yaptığı GEÇERLİ seçim asla ezilmez.
+  useEffect(() => {
+    if (!itemAwardMode || !l) return;
+    setItemWinners((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const it of l.items ?? []) {
+        const opts = bidsForItem(it.id);
+        const stillValid = opts.some((o) => o.bidId === next[it.id]);
+        if (!stillValid) {
+          if (opts[0]) {
+            next[it.id] = opts[0].bidId;
+            changed = true;
+          } else if (next[it.id]) {
+            delete next[it.id];
+            changed = true;
+          }
+        }
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemAwardMode, l?.bids]);
+
   const handleAwardByItem = async () => {
     const items = l?.items ?? [];
     const itemAwards = items
@@ -477,6 +505,58 @@ export default function ListingDetailPage() {
         : null;
   // Erken kapatınca (CLOSED) da kazandırma/eleme açık kalır.
   const canDecide = l.status === "OPEN" || l.status === "CLOSED";
+
+  // ── Tasarruf özeti (kalem-bazlı karar desteği) ────────────────────────
+  // Teorik kıyas: "en iyi TOPLU teklif" = TÜM kalemleri fiyatlamış tek
+  // teklifin TRY toplam en iyisi (kısmi teklif toplu adaya giremez — elma
+  // armut olurdu) vs "kalem bazlı en iyi dağılım" = her kalemde en iyi TRY
+  // birim fiyat × kalem miktarı. Alıcı kazandıranı SEÇERKEN görür, tek
+  // şirkete vermek yerine dağıtırsa ne kazanacağını yüzdeyle bilir;
+  // seçimleri değiştirmek yüzdeyi değiştirmez (tanım gereği teorik en iyi).
+  const itemSavings = (():
+    | { kind: "ok"; bestTotal: number; itemized: number; pct: number }
+    | { kind: "missing"; missingItems: number }
+    | null => {
+    const items = l.items ?? [];
+    if (items.length < 2) return null; // tek kalemde dağıtım = toplu
+    const bids = (l.bids ?? []).filter((b) => b.status === "SUBMITTED");
+    if (bids.length === 0) return null;
+
+    // Kalem bazlı taraf — kalemlerden biri fiyatsızsa kıyas yanıltıcı olur.
+    let itemized = 0;
+    let missingItems = 0;
+    for (const it of items) {
+      const best = bidsForItem(it.id).find((o) => o.priceTry != null);
+      if (!best) {
+        missingItems++;
+        continue;
+      }
+      itemized += (best.priceTry as number) * Number(it.quantity);
+    }
+    if (missingItems > 0) return { kind: "missing", missingItems };
+
+    // Toplu taraf: tüm kalemleri fiyatlamış + TRY karşılığı bilinen teklifler.
+    const itemIds = items.map((i) => i.id);
+    const fullTotals = bids
+      .filter((b) => {
+        const priced = new Set(
+          (b.items ?? [])
+            .filter((x) => Number(x.unitPrice) > 0)
+            .map((x) => x.itemId),
+        );
+        return itemIds.every((id) => priced.has(id));
+      })
+      .map((b) => amountTryOf(b))
+      .filter((x): x is number => x != null && x > 0);
+    if (fullTotals.length === 0) return null;
+    const bestTotal = isAlim
+      ? Math.min(...fullTotals)
+      : Math.max(...fullTotals);
+    const pct =
+      ((isAlim ? bestTotal - itemized : itemized - bestTotal) / bestTotal) *
+      100;
+    return { kind: "ok", bestTotal, itemized, pct };
+  })();
   // Teklif verme / güncelleme / belge ekleme yalnızca ilan AÇIK iken.
   const biddingOpen = l.status === "OPEN";
   // Hemen-al mevcut mu: TOPLU'da ilan fiyatı, KALEM'de en az bir kalemde.
@@ -756,7 +836,47 @@ export default function ListingDetailPage() {
       l.items.length > 0 &&
       l.bids &&
       l.bids.some((b) => b.items && b.items.length > 0) ? (
-        itemAwardMode ? (
+        <div className="space-y-3">
+          {/* Tasarruf şeridi — kazandıran SEÇİLİRKEN görünür ki alıcı toplu/
+              kalem-bazlı kararını buna göre versin. */}
+          {itemSavings?.kind === "ok" ? (
+            <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+              <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+              <p>
+                Kalem bazlı dağıtım:{" "}
+                <strong>
+                  {itemSavings.itemized.toLocaleString("tr-TR", {
+                    maximumFractionDigits: 2,
+                  })}{" "}
+                  ₺
+                </strong>
+                {" · "}En {isAlim ? "düşük" : "yüksek"} toplu teklif:{" "}
+                <strong>
+                  {itemSavings.bestTotal.toLocaleString("tr-TR", {
+                    maximumFractionDigits: 2,
+                  })}{" "}
+                  ₺
+                </strong>
+                {" → "}
+                <strong>
+                  %
+                  {itemSavings.pct.toLocaleString("tr-TR", {
+                    maximumFractionDigits: 1,
+                  })}{" "}
+                  {isAlim ? "tasarruf" : "ek gelir"}
+                </strong>
+                <span className="ml-1 text-xs text-emerald-700/80">
+                  (TRY karşılığıyla)
+                </span>
+              </p>
+            </div>
+          ) : itemSavings?.kind === "missing" ? (
+            <p className="text-xs text-zinc-400">
+              {itemSavings.missingItems} kalemde fiyatlı teklif yok —
+              toplu/kalem-bazlı tasarruf kıyası yapılamıyor.
+            </p>
+          ) : null}
+          {itemAwardMode ? (
           <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/40 p-4">
             <Subheading>Kalem-bazlı Kazandırma</Subheading>
             <Text className="text-xs text-zinc-500">
@@ -821,11 +941,12 @@ export default function ListingDetailPage() {
               </Button>
             </div>
           </div>
-        ) : (
-          <Button outline onClick={startItemAward}>
-            Kalem-bazlı Kazandır
-          </Button>
-        )
+          ) : (
+            <Button outline onClick={startItemAward}>
+              Kalem-bazlı Kazandır
+            </Button>
+          )}
+        </div>
       ) : null}
 
       {!l.bids || l.bids.length === 0 ? (
