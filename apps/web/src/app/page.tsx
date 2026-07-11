@@ -24,14 +24,15 @@ const stats = [
 
 const standartFeatures = [
   "Yalnızca bağlantılı firmalara teklif ver",
-  "Kapalı zarf — rakip teklifini görmez",
   "Sipariş, teslim & ödeme takibi",
 ];
 
 const premiumFeatures = [
-  "Kendi alış/satış ilanını aç",
-  "Kategori eşleşmeli firma keşfi",
-  "Herkese açık ilanlara teklif ver",
+  "Kendi ilanını aç — RFQ, açık eksiltme, satış",
+  "Herkese açık ilanlara tam erişim & teklif",
+  "Kategori eşleşmeli firma keşfi & dizin",
+  "Herkese açık firma profili",
+  "Raporlar, şablonlar & soru setleri",
   "Öncelikli destek",
 ];
 
