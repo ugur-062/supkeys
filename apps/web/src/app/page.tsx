@@ -23,10 +23,9 @@ const stats = [
 ];
 
 const standartFeatures = [
-  "Bağlantılı firmalarla alış & satış",
-  "Kapalı zarf teklif toplama",
-  "Sipariş, kargo, teslim & ödeme takibi",
-  "Sınırsız kullanıcı & rol",
+  "Yalnızca bağlantılı firmalara teklif ver",
+  "Kapalı zarf — rakip teklifini görmez",
+  "Sipariş, teslim & ödeme takibi",
 ];
 
 const premiumFeatures = [
