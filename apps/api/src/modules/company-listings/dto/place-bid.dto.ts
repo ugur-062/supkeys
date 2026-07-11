@@ -70,12 +70,13 @@ export class PlaceBidDto {
   @Max(1_000_000_000_000, { message: "Tutar çok büyük" })
   amount?: number;
 
-  // Kalem-bazlı teklif: her kaleme birim fiyat.
+  // Kalem-bazlı teklif: her kaleme birim fiyat. Tavan ilan kalem tavanıyla
+  // (500) eşit — requireAllItems'ta teklifçi TÜM kalemleri fiyatlayabilmeli.
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => PlaceBidItemDto)
-  @ArrayMaxSize(200)
+  @ArrayMaxSize(500)
   items?: PlaceBidItemDto[];
 
   @IsOptional()
@@ -136,6 +137,6 @@ export class BuyNowDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  @ArrayMaxSize(200)
+  @ArrayMaxSize(500) // ilan kalem tavanıyla (500) birebir
   itemIds?: string[];
 }

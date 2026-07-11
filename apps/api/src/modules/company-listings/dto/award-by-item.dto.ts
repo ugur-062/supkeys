@@ -28,7 +28,7 @@ export class ItemAwardDto {
 export class AwardByItemDto {
   @IsArray()
   @ArrayMinSize(1)
-  @ArrayMaxSize(200)
+  @ArrayMaxSize(500) // ilan kalem tavanıyla (500) birebir
   @ValidateNested({ each: true })
   @Type(() => ItemAwardDto)
   itemAwards!: ItemAwardDto[];

@@ -335,11 +335,13 @@ export class CreateListingDto {
   bidsOpenAt?: string;
 
   // ── Kalemler / davet / kategori ──
+  // Tavan web MAX_LISTING_ITEMS (500) ile birebir — teklif/award DTO'larının
+  // kalem tavanları da bu sayıya eşit olmalı (tam-kalem teklif zorunluluğu).
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ListingItemDto)
-  @ArrayMaxSize(200)
+  @ArrayMaxSize(500)
   items?: ListingItemDto[];
 
   @IsOptional()

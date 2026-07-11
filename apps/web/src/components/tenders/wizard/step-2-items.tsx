@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { TenderFormData } from "@/lib/tenders/form-schema";
+import {
+  MAX_LISTING_ITEMS,
+  type TenderFormData,
+} from "@/lib/tenders/form-schema";
 import { cn } from "@/lib/utils";
 import {
   CheckCircle2,
@@ -32,7 +35,7 @@ export function Step2Items() {
   const itemsArrayError = errors.items?.message ?? errors.items?.root?.message;
 
   const handleAdd = () => {
-    if (fields.length >= 100) return;
+    if (fields.length >= MAX_LISTING_ITEMS) return;
     append({
       name: "",
       description: "",
@@ -75,14 +78,15 @@ export function Step2Items() {
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-slate-500">
-          Toplam <strong>{fields.length}</strong> kalem · Maksimum 100
+          Toplam <strong>{fields.length}</strong> kalem · Maksimum{" "}
+          {MAX_LISTING_ITEMS}
         </p>
         <Button
           type="button"
           variant="secondary"
           size="sm"
           onClick={handleAdd}
-          disabled={fields.length >= 100}
+          disabled={fields.length >= MAX_LISTING_ITEMS}
         >
           <Plus className="w-4 h-4" />
           Yeni Kalem Ekle

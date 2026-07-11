@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+/** İlan başına kalem tavanı — backend CreateListingDto.items ArrayMaxSize ile
+ *  birebir. Sınırsız DEĞİL: teklif karşılaştırma matrisi (kalem × teklifçi),
+ *  sihirbaz form dizisi ve rapor/PDF üretimi makul bir tavan ister. */
+export const MAX_LISTING_ITEMS = 500;
+
 const CURRENCY_VALUES = [
   "TRY",
   "USD",
@@ -215,7 +220,7 @@ const baseTenderSchema = z.object({
   items: z
     .array(tenderItemSchema)
     .min(1, "En az 1 kalem eklemelisin")
-    .max(100, "Maksimum 100 kalem"),
+    .max(MAX_LISTING_ITEMS, `Maksimum ${MAX_LISTING_ITEMS} kalem`),
 
   // Adım 3
   invitedSupplierIds: z.array(z.string()).max(50, "Maksimum 50 tedarikçi"),
