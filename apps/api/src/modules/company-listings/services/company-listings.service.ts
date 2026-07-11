@@ -463,6 +463,46 @@ export class CompanyListingsService {
   }
 
   /** Davetli firmalara ihale daveti / kapanış hatırlatması e-postası. */
+  /**
+   * Yayın duyurusu — İDEMPOTENT + embargo-farkında. Açılış tarihi (bidsOpenAt)
+   * gelecekteyse HİÇBİR ŞEY yapmaz (openNotifiedAt null kalır; açılış cron'u
+   * tam açılışta yeniden çağırır). Değilse davetli bildirimleri + (ilk turda)
+   * kategori duyurusunu gönderir ve openNotifiedAt damgalar — ikinci çağrı
+   * sessizce döner, çift bildirim gitmez.
+   */
+  async announceListingOpen(
+    listingId: string,
+    kind: "invitation" | "newRound",
+  ) {
+    // Atomik claim (closeExpired/reminder ile aynı desen): koşulları sağlayan
+    // İLK çağrı damgayı basar ve duyuruyu atar; yarışan ikinci çağrı (cron
+    // overlap / publish+cron) count=0 alıp sessizce döner — çift bildirim yok.
+    // Embargo (bidsOpenAt gelecekte) koşulu sağlamaz → damga basılmaz, cron
+    // açılış anında yeniden dener.
+    const claimed = await this.prisma.listing.updateMany({
+      where: {
+        id: listingId,
+        status: "OPEN",
+        openNotifiedAt: null,
+        OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: new Date() } }],
+      },
+      data: { openNotifiedAt: new Date() },
+    });
+    if (claimed.count !== 1) return;
+    void this.notifyListingInvitees(listingId, kind);
+    if (kind === "invitation") {
+      void this.notifyCategoryMatchedCompanies(listingId).catch((err) =>
+        this.logger.warn(
+          `Kategori eşleşme bildirimi başarısız (${listingId}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+    }
+    // Embargolu ilan açılış anında görünür OLUR — listeler tazelensin.
+    this.realtime?.pingListing(listingId);
+  }
+
   async notifyListingInvitees(
     listingId: string,
     mode: "invitation" | "reminder" | "newRound",
@@ -954,12 +994,12 @@ export class CompanyListingsService {
       }
       return l;
     });
-    // Doğrudan yayınlandıysa: davetlilere davet + PUBLIC+ALIM'da kategori haberi.
+    // Doğrudan yayınlandıysa: davet + kategori duyurusu (embargo-farkında —
+    // açılış gelecekteyse cron açılışta gönderir).
     if (!dto.asDraft) {
-      void this.notifyListingInvitees(listing.id, "invitation");
-      void this.notifyCategoryMatchedCompanies(listing.id).catch((err) =>
+      void this.announceListingOpen(listing.id, "invitation").catch((err) =>
         this.logger.warn(
-          `Kategori eşleşme bildirimi başarısız (${listing.id}): ${
+          `Yayın duyurusu başarısız (${listing.id}): ${
             err instanceof Error ? err.message : String(err)
           }`,
         ),
@@ -1201,6 +1241,17 @@ export class CompanyListingsService {
       }
       return l;
     });
+    // Açılış tarihi düzenlemeyle geçmişe/boşa çekilmiş olabilir — duyuru henüz
+    // yapılmadıysa şimdi yapılır (idempotent; embargo sürüyorsa yine ertelenir).
+    if (existing.status === "OPEN") {
+      void this.announceListingOpen(listingId, "invitation").catch((err) =>
+        this.logger.warn(
+          `Yayın duyurusu başarısız (${listingId}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+    }
     return this.serialize(updated);
   }
 
@@ -1269,10 +1320,10 @@ export class CompanyListingsService {
       where: { id: listingId },
       data: { status: "OPEN", publishedAt: new Date() },
     });
-    void this.notifyListingInvitees(listingId, "invitation");
-    void this.notifyCategoryMatchedCompanies(listingId).catch((err) =>
+    // Embargo-farkında duyuru: açılış gelecekteyse cron açılışta gönderir.
+    void this.announceListingOpen(listingId, "invitation").catch((err) =>
       this.logger.warn(
-        `Kategori eşleşme bildirimi başarısız (${listingId}): ${
+        `Yayın duyurusu başarısız (${listingId}): ${
           err instanceof Error ? err.message : String(err)
         }`,
       ),
@@ -1291,10 +1342,9 @@ export class CompanyListingsService {
       where: { id: payload.listingId },
       data: { status: "OPEN", publishedAt: new Date() },
     });
-    void this.notifyListingInvitees(payload.listingId, "invitation");
-    void this.notifyCategoryMatchedCompanies(payload.listingId).catch((err) =>
+    void this.announceListingOpen(payload.listingId, "invitation").catch((err) =>
       this.logger.warn(
-        `Kategori eşleşme bildirimi başarısız (${payload.listingId}): ${
+        `Yayın duyurusu başarısız (${payload.listingId}): ${
           err instanceof Error ? err.message : String(err)
         }`,
       ),
@@ -1562,9 +1612,18 @@ export class CompanyListingsService {
         where: {
           ...baseWhere,
           status: "OPEN",
-          OR: [
-            invitedClause,
-            { AND: [{ OR: countryOr }, { OR: visibilityOr }] },
+          AND: [
+            // Açılış embargosu: açılış tarihi GELECEKTE olan ilan, sahibi
+            // dışında kimseye listelenmez (davetli dahil) — açılışta cron
+            // duyurusuyla görünür olur. NOT(gt) KULLANMA: SQL'de NULL > x
+            // NULL döner ve NOT(NULL) satırı eler — açılışsız ilan kaybolur.
+            { OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: new Date() } }] },
+            {
+              OR: [
+                invitedClause,
+                { AND: [{ OR: countryOr }, { OR: visibilityOr }] },
+              ],
+            },
           ],
         },
         select,
@@ -1995,6 +2054,13 @@ export class CompanyListingsService {
     // Yayınlanmamış (DRAFT) ilan sahip dışında kimseye görünmez — davetli/
     // bağlantılı firma dahi id ile taslağı açamaz (owner dalı yukarıda döner).
     if (listing.status === "DRAFT") {
+      throw new NotFoundException("İlan bulunamadı");
+    }
+
+    // Açılış embargosu: açılış tarihi GELECEKTEyse ilan sahibi dışında kimse
+    // (davetli dahil) göremez — sellerTenders listesiyle aynı kural; ihale
+    // ancak açılış anında görünür olur.
+    if (listing.bidsOpenAt && listing.bidsOpenAt.getTime() > Date.now()) {
       throw new NotFoundException("İlan bulunamadı");
     }
 
@@ -4143,6 +4209,9 @@ export class CompanyListingsService {
           closesAt,
           bidsOpenAt,
           publishedAt: new Date(),
+          // Yeni turun duyurusu yeniden yapılır — embargolu (gelecek açılışlı)
+          // turda cron açılış anında gönderir.
+          openNotifiedAt: null,
           closingReminderSentAt: null,
           currentRound: { increment: 1 },
           // Açık eksiltme tek para birimi (create/update ile aynı kural) —
@@ -4175,7 +4244,13 @@ export class CompanyListingsService {
       });
     });
 
-    void this.notifyListingInvitees(listingId, "newRound");
+    void this.announceListingOpen(listingId, "newRound").catch((err) =>
+      this.logger.warn(
+        `Yeni tur duyurusu başarısız (${listingId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
     this.realtime?.pingListing(listingId);
     return { ok: true, round: listing.currentRound + 1 };
   }
@@ -4199,6 +4274,7 @@ export class CompanyListingsService {
         status: true,
         format: true,
         closesAt: true,
+        bidsOpenAt: true,
         type: true,
       },
     });
@@ -4248,8 +4324,12 @@ export class CompanyListingsService {
         })),
         skipDuplicates: true,
       });
-      // OPEN ilanda yeni davetlilere anında davet e-postası.
-      if (listing.status === "OPEN") {
+      // OPEN ilanda yeni davetlilere anında davet e-postası — embargo (açılış
+      // gelecekte) sürüyorsa GÖNDERİLMEZ: ilan henüz görünmez, link 404 olurdu;
+      // açılış cron'u duyuruyu tüm davetlilere yapar.
+      const embargoed =
+        listing.bidsOpenAt && listing.bidsOpenAt.getTime() > Date.now();
+      if (listing.status === "OPEN" && !embargoed) {
         const title = await this.prisma.listing.findUnique({
           where: { id: listingId },
           select: { title: true, number: true },

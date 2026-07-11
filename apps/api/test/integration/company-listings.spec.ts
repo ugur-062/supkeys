@@ -157,6 +157,66 @@ describe("getOne — ülke görünürlüğü", () => {
   });
 });
 
+describe("açılış embargosu — gelecek tarihli bidsOpenAt", () => {
+  const OPEN_LATER = new Date(Date.now() + 3600 * 1000);
+
+  it("açılışı gelmemiş ilanı sahibi görür; davetli dahil kimse göremez (404) ve listede çıkmaz", async () => {
+    const { service, owner, bidder, listing } = await setupAlim({
+      bidsOpenAt: OPEN_LATER,
+    });
+    await connect(prisma, owner.company.id, bidder.company.id, owner.user.id);
+    await invite(prisma, listing.id, bidder.company.id, owner.user.id);
+
+    const own = (await service.getOne(owner.auth, listing.id)) as {
+      isOwner: boolean;
+    };
+    expect(own.isOwner).toBe(true);
+
+    await expect(service.getOne(bidder.auth, listing.id)).rejects.toThrow(
+      /bulunamadı/,
+    );
+    const rows = await service.sellerTenders(bidder.auth);
+    expect(rows.find((r) => r.id === listing.id)).toBeUndefined();
+  });
+
+  it("açılış geçmişse ilan görünür; duyuru damgası atomik + idempotent", async () => {
+    const { service, bidder, listing } = await setupAlim({
+      bidsOpenAt: PAST,
+    });
+    const d = (await service.getOne(bidder.auth, listing.id)) as {
+      isOwner: boolean;
+    };
+    expect(d.isOwner).toBe(false);
+
+    await service.announceListingOpen(listing.id, "invitation");
+    const first = await prisma.listing.findUniqueOrThrow({
+      where: { id: listing.id },
+      select: { openNotifiedAt: true },
+    });
+    expect(first.openNotifiedAt).not.toBeNull();
+
+    // İkinci çağrı damgayı DEĞİŞTİRMEZ (çift bildirim koruması).
+    await service.announceListingOpen(listing.id, "invitation");
+    const second = await prisma.listing.findUniqueOrThrow({
+      where: { id: listing.id },
+      select: { openNotifiedAt: true },
+    });
+    expect(second.openNotifiedAt!.getTime()).toBe(
+      first.openNotifiedAt!.getTime(),
+    );
+  });
+
+  it("embargolu ilanda duyuru ERTELENİR — damga basılmaz (cron açılışta gönderir)", async () => {
+    const { service, listing } = await setupAlim({ bidsOpenAt: OPEN_LATER });
+    await service.announceListingOpen(listing.id, "invitation");
+    const db = await prisma.listing.findUniqueOrThrow({
+      where: { id: listing.id },
+      select: { openNotifiedAt: true },
+    });
+    expect(db.openNotifiedAt).toBeNull();
+  });
+});
+
 describe("IDOR / owner-scope — sahip olmayan mutasyon yapamaz", () => {
   it("award başka firma tarafından çağrılamaz", async () => {
     const { service, bidder, listing, item } = await setupAlim();

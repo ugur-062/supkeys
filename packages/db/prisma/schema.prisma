@@ -1033,6 +1033,10 @@ model Listing {
   // seçer (BEFORE_DELIVERY'de sistem önerir); yalnız BEFORE_DELIVERY'de anlamlı.
   requireGuaranteeLetter Boolean @default(false)
   bidsOpenAt    DateTime?
+  // Açılış duyurusu damgası — gelecek-tarihli açılışta (embargo) ilan sahibi
+  // dışında kimse İLANI GÖREMEZ ve yayın bildirimleri açılış anına ertelenir;
+  // duyuruyu yapan (publish ya da açılış cron'u) bu alanı damgalar.
+  openNotifiedAt DateTime?
 
   // İngiliz Usulü açık eksiltme ayarları.
   bidVisibility          ListingBidVisibility   @default(OWN_ONLY)

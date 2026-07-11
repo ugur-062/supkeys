@@ -34,6 +34,11 @@ export class ListingScheduler implements OnModuleInit {
       "Kapanış hatırlatma e-postaları",
       "her dakika",
     );
+    this.cronRegistry?.register(
+      "listing.announceOpened",
+      "Açılış saati gelen (embargolu) ilanların yayın duyurusu",
+      "her dakika",
+    );
   }
 
   /**
@@ -128,6 +133,52 @@ export class ListingScheduler implements OnModuleInit {
     }
     if (sent > 0) {
       this.logger.log(`${sent} ilan için kapanış hatırlatması gönderildi`);
+    }
+  }
+
+  /**
+   * Her dakika — açılış saati (bidsOpenAt) gelmiş ama duyurusu yapılmamış
+   * AÇIK ilanların yayın duyurusunu gönderir. Embargolu ilan (gelecek açılış)
+   * yayında bildirimsiz bekler; görünürlüğü de bu andan itibaren açılır
+   * (sellerTenders/getOne bidsOpenAt'e bakar). announceListingOpen idempotent
+   * (openNotifiedAt damgası) → overlap'te çift duyuru olmaz.
+   */
+  @Cron(CronExpression.EVERY_MINUTE)
+  async announceOpened(): Promise<void> {
+    return trackCronRun(this.cronRegistry, "listing.announceOpened", () =>
+      this.doAnnounceOpened(),
+    );
+  }
+
+  private async doAnnounceOpened(): Promise<void> {
+    const due = await this.prisma.listing.findMany({
+      where: {
+        status: "OPEN",
+        openNotifiedAt: null,
+        bidsOpenAt: { not: null, lte: new Date() },
+      },
+      select: { id: true, currentRound: true },
+      take: 100,
+    });
+    if (due.length === 0) return;
+    let announced = 0;
+    for (const l of due) {
+      try {
+        await this.listings.announceListingOpen(
+          l.id,
+          l.currentRound > 1 ? "newRound" : "invitation",
+        );
+        announced++;
+      } catch (err) {
+        this.logger.error(
+          `Açılış duyurusu gönderilemedi (${l.id}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
+    if (announced > 0) {
+      this.logger.log(`${announced} ilanın açılış duyurusu gönderildi`);
     }
   }
 }
