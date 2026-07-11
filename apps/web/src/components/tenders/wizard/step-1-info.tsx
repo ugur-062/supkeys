@@ -1458,7 +1458,9 @@ export function Step1Info({
           title="Açılış / Kapanış"
           description={`${RolPl} ne zamandan ne zamana kadar teklif verebilecek?`}
         />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Alt alta: kompakt tarih+saat grupları yan yana iki kolonda boşluklu
+            ve dengesiz duruyordu. */}
+        <div className="space-y-4">
           <Field
             error={errors.bidsOpenAt?.message}
             hint="Boş bırakılırsa yayınlandığı anda açılır; saat seçmezseniz gün başında (00:00) açılır."
