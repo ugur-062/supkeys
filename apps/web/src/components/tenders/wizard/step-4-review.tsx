@@ -201,7 +201,13 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
       <Section title={`Davetli Firmalar (${invited.length})`} onEdit={() => onEditStep(3)}>
         {invited.length === 0 ? (
           <p className="text-sm text-zinc-500">
-            Davetli firma yok — sonra davet gönderebilirsin.
+            {/* PUBLIC'te davetsizlik doğal durumdur — "davetli yok" uyarı gibi
+                okunuyordu; ihalenin zaten herkese açık olduğu söylenir. */}
+            {d.visibility === "PUBLIC"
+              ? `İhale herkese açık — davet gerekmez; kategorine uygun premium ${
+                  d.listingType === "SATIS" ? "alıcılar" : "tedarikçiler"
+                } görüp teklif verebilir. İstersen sonradan da davet gönderebilirsin.`
+              : "Davetli firma yok — sonra davet gönderebilirsin."}
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
