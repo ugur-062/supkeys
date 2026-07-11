@@ -172,7 +172,12 @@ const baseTenderSchema = z.object({
     .array(z.enum(CURRENCY_VALUES))
     .min(1, "En az 1 para birimi zorunludur")
     .max(8, "En fazla 8 para birimi seçebilirsiniz"),
-  deliveryTerm: z.enum(DELIVERY_TERM_VALUES).optional(),
+  // "— Seçiniz —" option'ı "" gönderir; undefined'a çevrilmezse z.enum
+  // İngilizce "Invalid enum value" hatası basar (alan opsiyonel — hata yanlış).
+  deliveryTerm: z.preprocess(
+    (v) => (v === "" || v == null ? undefined : v),
+    z.enum(DELIVERY_TERM_VALUES).optional(),
+  ),
   paymentTerm: z.enum(PAYMENT_TERM_VALUES),
   paymentDays: z
     .number({ invalid_type_error: "Geçersiz gün sayısı" })
@@ -191,7 +196,11 @@ const baseTenderSchema = z.object({
 
   // İngiliz Usulü açık eksiltme
   bidVisibility: z.enum(BID_VISIBILITY_VALUES),
-  priceDecrementType: z.enum(DECREMENT_TYPE_VALUES).optional(),
+  // deliveryTerm ile aynı "" → undefined dönüşümü (boş '— Seçiniz —' değeri).
+  priceDecrementType: z.preprocess(
+    (v) => (v === "" || v == null ? undefined : v),
+    z.enum(DECREMENT_TYPE_VALUES).optional(),
+  ),
   priceDecrementValue: z
     .number({ invalid_type_error: "Geçersiz değer" })
     .min(0)
