@@ -82,11 +82,15 @@ function MetaItem({
   label,
   value,
   className,
+  title,
 }: {
   icon: typeof Layers;
   label: string;
   value: React.ReactNode;
   className?: string;
+  /** Değer truncate ile kırpılabilir — uzun listelerde (ör. çoklu para
+   *  birimi) hover'da tamamı görünsün diye native tooltip. */
+  title?: string;
 }) {
   return (
     <div
@@ -99,10 +103,27 @@ function MetaItem({
         <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
           {label}
         </p>
-        <p className="truncate text-sm font-semibold text-zinc-900">{value}</p>
+        <p
+          className="truncate text-sm font-semibold text-zinc-900"
+          title={title}
+        >
+          {value}
+        </p>
       </div>
     </div>
   );
+}
+
+/** İzinli para birimleri — ana birim önde, virgülle ("TRY, USD, EUR"). */
+function currencyListLabel(l: {
+  primaryCurrency?: string | null;
+  allowedCurrencies?: string[];
+}): string {
+  const primary = l.primaryCurrency ?? "TRY";
+  return [
+    primary,
+    ...(l.allowedCurrencies ?? []).filter((c) => c !== primary),
+  ].join(", ");
 }
 
 /** İlan durumu → Türkçe etiket + Catalyst rozet rengi. Ham enum kullanıcıya gösterilmez. */
@@ -1293,12 +1314,8 @@ export default function ListingDetailPage() {
                   ? "Para Birimleri"
                   : "Para Birimi"
               }
-              value={[
-                l.primaryCurrency ?? "TRY",
-                ...(l.allowedCurrencies ?? []).filter(
-                  (c) => c !== (l.primaryCurrency ?? "TRY"),
-                ),
-              ].join(", ")}
+              value={currencyListLabel(l)}
+              title={currencyListLabel(l)}
             />
             <MetaItem
               icon={CalendarClock}
@@ -1480,12 +1497,8 @@ export default function ListingDetailPage() {
                   ? "Para Birimleri"
                   : "Para Birimi"
               }
-              value={[
-                l.primaryCurrency ?? "TRY",
-                ...(l.allowedCurrencies ?? []).filter(
-                  (c) => c !== (l.primaryCurrency ?? "TRY"),
-                ),
-              ].join(", ")}
+              value={currencyListLabel(l)}
+              title={currencyListLabel(l)}
             />
             <MetaItem
               icon={CalendarClock}
