@@ -9,6 +9,18 @@ import {
   DialogTitle,
 } from "@/components/catalyst/dialog";
 import { Send } from "lucide-react";
+import { useState } from "react";
+
+/** "Bir daha gösterme" tercihi — cihaz bazlı (localStorage). */
+export const SKIP_PUBLISH_CONFIRM_KEY = "rothern-skip-publish-confirm";
+
+export function shouldSkipPublishConfirm(): boolean {
+  try {
+    return localStorage.getItem(SKIP_PUBLISH_CONFIRM_KEY) === "1";
+  } catch {
+    return false; // SSR / erişim engeli → diyaloğu göster (güvenli taraf)
+  }
+}
 
 interface Props {
   open: boolean;
@@ -28,6 +40,7 @@ export function PublishConfirmDialog({
   isSubmitting,
   isSatis = false,
 }: Props) {
+  const [dontShowAgain, setDontShowAgain] = useState(false);
   const rolDat = isSatis ? "Alıcılara" : "Tedarikçilere";
   const rolSingleDat = isSatis ? "alıcıya" : "tedarikçiye";
   const rolSingle = isSatis ? "alıcı" : "tedarikçi";
@@ -59,13 +72,37 @@ export function PublishConfirmDialog({
           yeni {rolSingle} davet edilebilir; kapanıştan önce iptal mümkündür.
         </p>
         <p className="text-xs text-zinc-500">Devam edilsin mi?</p>
+        <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-600">
+          <input
+            type="checkbox"
+            checked={dontShowAgain}
+            onChange={(e) => setDontShowAgain(e.target.checked)}
+            disabled={isSubmitting}
+            className="h-4 w-4 rounded border-zinc-300"
+          />
+          Bir daha gösterme — sonraki ihaleler onaysız yayınlansın
+        </label>
       </DialogBody>
 
       <DialogActions>
         <Button plain onClick={onClose} disabled={isSubmitting}>
           Vazgeç
         </Button>
-        <Button onClick={onConfirm} disabled={isSubmitting}>
+        <Button
+          onClick={() => {
+            // Tercih yalnız gerçekten YAYINLA'ya basınca kalıcılaşır —
+            // vazgeçilen diyalogda işaretlenmiş kutu iz bırakmaz.
+            if (dontShowAgain) {
+              try {
+                localStorage.setItem(SKIP_PUBLISH_CONFIRM_KEY, "1");
+              } catch {
+                // localStorage kapalıysa tercih kaydedilmez, diyalog çıkmaya devam eder
+              }
+            }
+            onConfirm();
+          }}
+          disabled={isSubmitting}
+        >
           <Send data-slot="icon" />
           Yayınla
         </Button>

@@ -28,7 +28,10 @@ import { useEffect, useRef, useState } from "react";
 import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { uploadListingDocument } from "@/hooks/use-listing-documents";
-import { PublishConfirmDialog } from "./publish-confirm-dialog";
+import {
+  PublishConfirmDialog,
+  shouldSkipPublishConfirm,
+} from "./publish-confirm-dialog";
 import { SaveTemplateDialog } from "./save-template-dialog";
 import type { StagedListingDoc } from "./staged-documents";
 import { Step0TypeScope } from "./step-0-type-scope";
@@ -340,6 +343,11 @@ export function TenderWizard({
       return;
     }
     if (isEdit) {
+      void doSubmit();
+      return;
+    }
+    // "Bir daha gösterme" işaretlenmişse onay diyaloğu atlanır, direkt yayın.
+    if (shouldSkipPublishConfirm()) {
       void doSubmit();
       return;
     }
