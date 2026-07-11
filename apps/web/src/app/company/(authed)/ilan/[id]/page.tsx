@@ -1288,8 +1288,17 @@ export default function ListingDetailPage() {
             />
             <MetaItem
               icon={Wallet}
-              label="Para Birimi"
-              value={l.primaryCurrency ?? "TRY"}
+              label={
+                (l.allowedCurrencies?.length ?? 0) > 1
+                  ? "Para Birimleri"
+                  : "Para Birimi"
+              }
+              value={[
+                l.primaryCurrency ?? "TRY",
+                ...(l.allowedCurrencies ?? []).filter(
+                  (c) => c !== (l.primaryCurrency ?? "TRY"),
+                ),
+              ].join(", ")}
             />
             <MetaItem
               icon={CalendarClock}
@@ -1466,8 +1475,17 @@ export default function ListingDetailPage() {
             />
             <MetaItem
               icon={Wallet}
-              label="Para Birimi"
-              value={l.primaryCurrency ?? "TRY"}
+              label={
+                (l.allowedCurrencies?.length ?? 0) > 1
+                  ? "Para Birimleri"
+                  : "Para Birimi"
+              }
+              value={[
+                l.primaryCurrency ?? "TRY",
+                ...(l.allowedCurrencies ?? []).filter(
+                  (c) => c !== (l.primaryCurrency ?? "TRY"),
+                ),
+              ].join(", ")}
             />
             <MetaItem
               icon={CalendarClock}
