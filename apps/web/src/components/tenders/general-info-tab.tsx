@@ -106,6 +106,13 @@ function RuleChip({ active, label }: { active: boolean; label: string }) {
 export function GeneralInfoTab({ l }: { l: ListingDetail }) {
   const categories = useCategoriesByIds(l.categoryIds ?? []);
   const cur = (l.primaryCurrency as Currency) ?? "TRY";
+  // İzinli TÜM birimler gösterilir (ana birim önde) — yalnız ana birimi
+  // basmak çoklu-birim ihalede "sadece TRY" yanılgısı yaratıyordu.
+  const allowedCurrencies = (l.allowedCurrencies as Currency[]) ?? [];
+  const currencyList = [
+    cur,
+    ...allowedCurrencies.filter((c) => c !== cur),
+  ];
 
   return (
     <div className="space-y-5">
@@ -139,9 +146,25 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
           <Fact label="Kapanış Hatırlatması">
             Kapanışa 60 dk kala (otomatik) — teklif vermemiş davetlilere
           </Fact>
-          <Fact label="Para Birimi">
-            <span className="inline-flex items-center rounded-md bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-800">
-              {cur} {CURRENCY_SYMBOL[cur]}
+          <Fact
+            label={
+              currencyList.length > 1 ? "Para Birimleri" : "Para Birimi"
+            }
+          >
+            <span className="flex flex-wrap items-center gap-1.5">
+              {currencyList.map((c) => (
+                <span
+                  key={c}
+                  className="inline-flex items-center rounded-md bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-800"
+                >
+                  {c} {CURRENCY_SYMBOL[c]}
+                  {currencyList.length > 1 && c === cur ? (
+                    <span className="ml-1 text-[10px] font-medium uppercase text-zinc-500">
+                      ana
+                    </span>
+                  ) : null}
+                </span>
+              ))}
             </span>
           </Fact>
           <Fact label="Görünürlük">
