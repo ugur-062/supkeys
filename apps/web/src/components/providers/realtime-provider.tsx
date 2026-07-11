@@ -1,5 +1,6 @@
 "use client";
 
+import { LiveToasts } from "@/components/company-shell/live-toasts";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import {
   connectRealtime,
@@ -69,5 +70,11 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user, qc]);
 
-  return <>{children}</>;
+  return (
+    <>
+      {/* Sinyal → sağ altta canlı popup (bildirim + yeni mesaj). */}
+      <LiveToasts />
+      {children}
+    </>
+  );
 }
