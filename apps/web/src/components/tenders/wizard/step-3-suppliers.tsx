@@ -303,7 +303,7 @@ export function Step3Suppliers() {
                 </h2>
                 <p className="text-sm text-zinc-500">
                   {isPublic
-                    ? "Opsiyonel — belirli bir firmayı ayrıca davet edebilirsin."
+                    ? "Opsiyonel — Rothern'de olmayan bir firmayı e-posta ile davet edebilirsin."
                     : "Bu ihaleye kimler teklif verebilir?"}
                 </p>
               </div>
@@ -324,8 +324,10 @@ export function Step3Suppliers() {
                   <>
                     Bu ihale <strong>Herkese Açık</strong>: kategorinize uygun
                     premium {roleWord === "alıcı" ? "alıcılar" : "tedarikçiler"} davet beklemeden görüp teklif verebilir.
-                    Bu adım <strong>opsiyonel</strong> — yalnızca belirli bir
-                    firmayı e-posta ile ayrıca davet etmek istersen kullan.
+                    Bu adım <strong>opsiyonel</strong> — çalışmak istediğin
+                    firma henüz Rothern&apos;de değilse buradan e-posta ile
+                    davet edebilirsin; kayıt olup davetini kabul ettiğinde
+                    ihaleni görür ve teklif verebilir.
                   </>
                 ) : (
                   <>
