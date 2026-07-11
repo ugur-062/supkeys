@@ -1250,6 +1250,13 @@ export default function ListingDetailPage() {
               canEdit={l.canEdit}
               listingType={isAlim ? "ALIM" : "SATIS"}
               currency={l.primaryCurrency}
+              carryableBidCount={
+                (l.bids ?? []).filter(
+                  (b) =>
+                    b.round === l.currentRound &&
+                    (b.status === "SUBMITTED" || b.status === "LOST"),
+                ).length
+              }
             />
           </div>
         </div>

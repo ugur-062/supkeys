@@ -294,6 +294,8 @@ export interface ListingDetail {
   title: string;
   description: string | null;
   status: ListingStatus;
+  /** Tur sayacı — Yeni Tur diyaloğunun teklifsiz-aktarma uyarısı için. */
+  currentRound: number;
   closesAt: string | null;
   cancelReason?: string | null;
   deliveryAddressId?: string | null;

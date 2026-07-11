@@ -50,6 +50,9 @@ interface Props {
   listingType?: "ALIM" | "SATIS";
   /** İlanın ana para birimi — tur geçmişi tutarları bu birimle gösterilir. */
   currency?: string;
+  /** Mevcut turda yeni tura taşınabilir (SUBMITTED/LOST) teklif sayısı —
+   *  0 ise İngiliz usulüne aktarmada "taban fiyatsız başlar" uyarısı çıkar. */
+  carryableBidCount?: number;
 }
 
 function toLocalInput(iso: string | null): string {
@@ -72,6 +75,7 @@ export function TenderActionsMenu({
   canEdit,
   listingType = "ALIM",
   currency,
+  carryableBidCount = 0,
 }: Props) {
   const isSatis = listingType === "SATIS";
   const router = useRouter();
@@ -430,6 +434,17 @@ export function TenderActionsMenu({
               <option value="RFQ">RFQ (Teklif Toplama)</option>
             </select>
           </Field>
+          {/* Teklifsiz aktarma uyarısı: taşınacak teklif yoksa eksiltme/artırma
+              taban fiyat olmadan başlar — engellemiyoruz, bilgilendiriyoruz. */}
+          {nrType === "ENGLISH_AUCTION" && carryableBidCount === 0 ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Bu turda taşınabilir teklif yok —{" "}
+              {isSatis ? "açık artırma" : "açık eksiltme"} taban fiyat olmadan
+              başlar; katılımcılar ilk tekliflerini serbestçe verir.{" "}
+              {isSatis ? "Artış" : "Azaltma"} kuralları sonraki tekliflerde
+              işler.
+            </div>
+          ) : null}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field>
               <Label>Önceki Teklifler</Label>

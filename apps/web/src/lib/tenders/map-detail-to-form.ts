@@ -46,7 +46,9 @@ export function mapDetailToForm(
     title: forCopy ? `${l.title} (kopya)` : l.title,
     description: l.description ?? "",
     keywords: l.keywords ?? [],
-    type: (l.format as TenderFormData["type"]) ?? "RFQ",
+    // Kopya daima RFQ açılır — İngiliz usulü doğrudan açılamaz (tek yol
+    // "Yeni Tur" aktarması); eksiltme ilanının kopyası formatı miras almaz.
+    type: forCopy ? "RFQ" : ((l.format as TenderFormData["type"]) ?? "RFQ"),
     isInternational: l.isInternational,
     targetCountries: l.targetCountries ?? [],
     deliveryAddressId: l.deliveryAddressId ?? undefined,

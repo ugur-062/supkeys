@@ -785,6 +785,16 @@ export class CompanyListingsService {
           : "Satış ilanı için format seçin (Teklif Toplama / Açık Artırma)",
       );
     }
+    // İngiliz usulü doğrudan AÇILAMAZ — tek yol RFQ turu kapanınca "Yeni Tur"
+    // ile aktarma (createNextRound): taban fiyat + katılımcılar RFQ'dan gelir,
+    // soğuk-başlangıç eksiltme/artırma olmaz.
+    if (dto.format === "ENGLISH_AUCTION") {
+      throw new BadRequestException(
+        type === "ALIM"
+          ? "İngiliz usulü doğrudan açılamaz — ilanı RFQ olarak açın, tur kapanınca 'Yeni Tur Oluştur' ile açık eksiltmeye aktarın"
+          : "Açık artırma doğrudan açılamaz — ilanı teklif toplama olarak açın, tur kapanınca 'Yeni Tur Oluştur' ile açık artırmaya aktarın",
+      );
+    }
     format = dto.format as ListingFormat;
     if (type === "SATIS") {
       const pricing = this.validateSatisPricing(dto);
@@ -966,7 +976,13 @@ export class CompanyListingsService {
   ) {
     const existing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, status: true, type: true },
+      select: {
+        id: true,
+        companyId: true,
+        status: true,
+        type: true,
+        format: true,
+      },
     });
     if (!existing || existing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
@@ -1008,6 +1024,18 @@ export class CompanyListingsService {
         type === "ALIM"
           ? "Alım ilanı için format seçin (RFQ / İngiliz Usulü)"
           : "Satış ilanı için format seçin (Teklif Toplama / Açık Artırma)",
+      );
+    }
+    // Düzenlemeyle İngiliz usulüne GEÇİLEMEZ (RFQ taslağı açıp edit'le
+    // eksiltmeye çevirme = doğrudan-açma yasağının arka kapısı olurdu).
+    // Tek dönüşüm yolu "Yeni Tur" (createNextRound). Ters yön (İngiliz→RFQ)
+    // serbest — eski doğrudan-açılmış eksiltme taslakları kurtarılabilsin.
+    if (
+      dto.format === "ENGLISH_AUCTION" &&
+      existing.format !== "ENGLISH_AUCTION"
+    ) {
+      throw new BadRequestException(
+        "İhale formatı düzenlemeyle İngiliz usulüne çevrilemez — tur kapanınca 'Yeni Tur Oluştur' ile aktarın",
       );
     }
     format = dto.format as ListingFormat;
@@ -4663,6 +4691,7 @@ export class CompanyListingsService {
       title: string;
       description: string | null;
       status: string;
+      currentRound: number;
       closesAt: Date | null;
       cancelReason: string | null;
       createdAt: Date;
@@ -4711,6 +4740,9 @@ export class CompanyListingsService {
       title: l.title,
       description: masked ? null : l.description,
       status: l.status,
+      // Tur sayacı — "Yeni Tur" diyaloğu mevcut turun taşınabilir teklif
+      // sayısını bununla hesaplar (teklifsiz aktarma uyarısı).
+      currentRound: l.currentRound,
       closesAt: l.closesAt,
       cancelReason: l.cancelReason,
       createdAt: l.createdAt,

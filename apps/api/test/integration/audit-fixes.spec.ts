@@ -153,21 +153,9 @@ describe("create/update iş kuralı doğrulamaları", () => {
     ...over,
   });
 
-  it("açık eksiltme: azaltma değeri zorunlu, PERCENT<100, tek para birimi", async () => {
+  it("açık eksiltme doğrudan açılamaz; aktarmada azaltma zorunlu, PERCENT<100, tek birime normalize", async () => {
     const { service, buyer } = await pair();
-    await expect(
-      service.create(buyer.auth, baseDto({ format: "ENGLISH_AUCTION" }) as never),
-    ).rejects.toThrow(/azaltma değeri zorunlu/);
-    await expect(
-      service.create(
-        buyer.auth,
-        baseDto({
-          format: "ENGLISH_AUCTION",
-          priceDecrementType: "PERCENT",
-          priceDecrementValue: 100,
-        }) as never,
-      ),
-    ).rejects.toThrow(/100'den küçük/);
+    // Doğrudan create yasak — İngiliz'e tek geçiş "Yeni Tur" aktarması.
     await expect(
       service.create(
         buyer.auth,
@@ -175,10 +163,41 @@ describe("create/update iş kuralı doğrulamaları", () => {
           format: "ENGLISH_AUCTION",
           priceDecrementType: "AMOUNT",
           priceDecrementValue: 10,
-          allowedCurrencies: ["TRY", "USD"],
         }) as never,
       ),
-    ).rejects.toThrow(/tek para birimi/);
+    ).rejects.toThrow(/doğrudan açılamaz/);
+
+    // Eski create-doğrulamaları artık aktarma (createNextRound) yolunda işler.
+    const l = await service.create(
+      buyer.auth,
+      baseDto({
+        allowedCurrencies: ["TRY", "USD"],
+        items: [{ name: "Kalem", quantity: 1, unit: "adet" }],
+      }) as never,
+    );
+    const convert = (over: Record<string, unknown> = {}) =>
+      service.createNextRound(buyer.auth as never, l.id, {
+        type: "ENGLISH_AUCTION",
+        carryBids: "NONE",
+        closesAt: future(2).toISOString(),
+        ...over,
+      } as never);
+
+    await expect(convert()).rejects.toThrow(/azaltma değeri zorunlu/);
+    await expect(
+      convert({ priceDecrementType: "PERCENT", priceDecrementValue: 100 }),
+    ).rejects.toThrow(/100'den küçük/);
+
+    // Geçerli aktarma: çok-birimli RFQ tek birime normalize edilir.
+    await convert({
+      priceDecrementType: "AMOUNT",
+      priceDecrementValue: 10,
+      priceDecrementBasis: "BEST_BID",
+      bidVisibility: "BEST_PRICE",
+    });
+    const db = await prisma.listing.findUniqueOrThrow({ where: { id: l.id } });
+    expect(db.format).toBe("ENGLISH_AUCTION");
+    expect(db.allowedCurrencies).toEqual(["TRY"]);
   });
 
   it("PRIVATE ilan davetsiz yayınlanamaz (taslak serbest)", async () => {

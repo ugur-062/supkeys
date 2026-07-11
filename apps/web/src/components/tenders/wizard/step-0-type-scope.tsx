@@ -187,55 +187,68 @@ function StepGroup({
   );
 }
 
-/** Faz 1 — yalnızca ihale türü ve kapsam seçilir. */
+/** Faz 1 — kapsam seçilir; ihale türü seçilMEZ. İlan daima RFQ (kapalı zarf)
+ *  açılır — İngiliz usulüne geçişin tek yolu, tur kapanınca "Yeni Tur
+ *  Oluştur" ile aktarmadır (taban fiyat + katılımcılar RFQ turundan gelir).
+ *  Edit modunda aktarılmış eksiltme/artırma salt-okunur gösterilir. */
 export function Step0TypeScope() {
   const { control, watch } = useFormContext<TenderFormData>();
   const isInternational = watch("isInternational");
-  // SATIS: aynı iki format, satış yönüne uyarlanır — RFQ = kapalı zarf teklif
-  // toplama (en yüksek kazanır), İngiliz usulü = canlı AÇIK ARTIRMA (fiyat
-  // yükselir). Taban + hemen-al fiyatlar adım 1'de.
+  // SATIS: aynı format mantığı satış yönüne uyarlanır — RFQ = kapalı zarf
+  // teklif toplama (en yüksek kazanır), İngiliz usulü = canlı AÇIK ARTIRMA.
   const isSatis = watch("listingType") === "SATIS";
+  const isAuction = watch("type") === "ENGLISH_AUCTION";
   const { company } = useCompanyAuth();
 
   return (
     <div className="space-y-12">
-      <Controller
-        control={control}
-        name="type"
-        render={({ field }) => (
-          <RadioGroup
-            value={(field.value ?? "") as string}
-            onChange={field.onChange}
-          >
-            <StepGroup
-              title="İhale Türü"
-              hint="Teklifleri nasıl toplamak istediğinizi seçin."
-            >
-              <TileOption
-                value="RFQ"
-                icon={FileText}
-                title="RFQ (Kapalı Teklif)"
-                desc={
-                  isSatis
-                    ? "Alıcılar birbirini görmez. Süre dolunca teklifler açılır; en yüksek teklif kazanır."
-                    : "Tedarikçiler birbirini görmez. Süre dolunca teklifler açılır."
-                }
-              />
-              <TileOption
-                value="ENGLISH_AUCTION"
-                icon={Gavel}
-                title={isSatis ? "İngiliz Usulü Açık Artırma" : "İngiliz Usulü"}
-                badge="Yeni"
-                desc={
-                  isSatis
+      <div>
+        <h2 className="text-lg font-semibold text-zinc-900">İhale Türü</h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          {isAuction
+            ? "Bu ihale 'Yeni Tur' ile İngiliz usulüne aktarılmış."
+            : "İhaleler kapalı zarf (RFQ) usulüyle açılır."}
+        </p>
+        <div className="mt-5 rounded-2xl border border-zinc-950/10 bg-white p-6">
+          <div className="flex items-start gap-4">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-600 text-white">
+              {isAuction ? (
+                <Gavel className="h-7 w-7" />
+              ) : (
+                <FileText className="h-7 w-7" />
+              )}
+            </span>
+            <div>
+              <p className="text-base font-semibold text-zinc-900">
+                {isAuction
+                  ? isSatis
+                    ? "İngiliz Usulü Açık Artırma"
+                    : "İngiliz Usulü Açık Eksiltme"
+                  : "RFQ (Kapalı Teklif)"}
+              </p>
+              <p className="mt-1.5 text-sm leading-relaxed text-zinc-500">
+                {isAuction
+                  ? isSatis
                     ? "Canlı açık artırma; alıcı sıralaması ve fiyat artış kuralları aktif — fiyat yükselir."
                     : "Canlı açık eksiltme; tedarikçi sıralaması ve fiyat azaltma kuralları aktif."
-                }
-              />
-            </StepGroup>
-          </RadioGroup>
-        )}
-      />
+                  : isSatis
+                    ? "Alıcılar birbirini görmez. Süre dolunca teklifler açılır; en yüksek teklif kazanır."
+                    : "Tedarikçiler birbirini görmez. Süre dolunca teklifler açılır."}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex items-start gap-2 rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
+            <p>
+              {isAuction
+                ? "Format düzenlemeyle değiştirilemez."
+                : isSatis
+                  ? "Canlı açık artırmaya geçiş, tur kapandıktan sonra ilan sayfasındaki 'Yeni Tur Oluştur' ile yapılır — taban fiyatı ilk turun teklifleri oluşturur."
+                  : "Canlı açık eksiltmeye geçiş, tur kapandıktan sonra ihale sayfasındaki 'Yeni Tur Oluştur' ile yapılır — taban fiyatı ilk turun teklifleri oluşturur."}
+            </p>
+          </div>
+        </div>
+      </div>
 
       <Controller
         control={control}

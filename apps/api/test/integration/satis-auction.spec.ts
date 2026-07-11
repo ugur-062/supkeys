@@ -50,6 +50,37 @@ const auctionDto = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+const rfqDto = (over: Record<string, unknown> = {}) =>
+  auctionDto({
+    format: "RFQ",
+    priceDecrementType: undefined,
+    priceDecrementValue: undefined,
+    priceDecrementBasis: undefined,
+    ...over,
+  });
+
+/** Açık artırmaya tek meşru yol: RFQ (teklif toplama) aç → "Yeni Tur" ile
+ *  aktar — doğrudan ENGLISH_AUCTION create artık reddedilir. */
+async function createAuction(
+  service: ReturnType<typeof makeService>["service"],
+  auth: { companyId: string; userId: string },
+  createOver: Record<string, unknown> = {},
+  roundOver: Record<string, unknown> = {},
+) {
+  const l = await service.create(auth as never, rfqDto(createOver) as never);
+  await service.createNextRound(auth as never, l.id, {
+    type: "ENGLISH_AUCTION",
+    carryBids: "NONE",
+    closesAt: future(3).toISOString(),
+    priceDecrementType: "AMOUNT",
+    priceDecrementValue: 100,
+    priceDecrementBasis: "BEST_BID",
+    bidVisibility: "BEST_PRICE",
+    ...roundOver,
+  } as never);
+  return l;
+}
+
 /** Kalemli ilanda toplam `total` olacak şekilde teklif verir (miktar 1). */
 async function bid(
   service: ReturnType<typeof makeService>["service"],
@@ -70,21 +101,39 @@ async function bid(
 }
 
 describe("SATIS açık artırma — oluşturma", () => {
-  it("artış adımsız reddedilir; adımlıyla yayınlanır (format kaydedilir)", async () => {
+  it("doğrudan açılamaz; 'Yeni Tur' aktarmasında artış adımı zorunlu, adımlıyla İngiliz'e döner", async () => {
     const { service, seller } = await sellerAndBuyers();
+    // Doğrudan create yasak — tek yol RFQ sonrası aktarma.
     await expect(
-      service.create(
-        seller.auth,
-        auctionDto({ priceDecrementValue: undefined }) as never,
-      ),
+      service.create(seller.auth, auctionDto() as never),
+    ).rejects.toThrow(/doğrudan açılamaz/);
+
+    const listing = await service.create(seller.auth, rfqDto() as never);
+    expect(listing.status).toBe("OPEN");
+
+    await expect(
+      service.createNextRound(seller.auth as never, listing.id, {
+        type: "ENGLISH_AUCTION",
+        carryBids: "NONE",
+        closesAt: future(3).toISOString(),
+      } as never),
     ).rejects.toThrow(/artış adımı zorunlu/);
 
-    const listing = await service.create(seller.auth, auctionDto() as never);
-    expect(listing.status).toBe("OPEN");
+    await service.createNextRound(seller.auth as never, listing.id, {
+      type: "ENGLISH_AUCTION",
+      carryBids: "NONE",
+      closesAt: future(3).toISOString(),
+      priceDecrementType: "AMOUNT",
+      priceDecrementValue: 100,
+      priceDecrementBasis: "BEST_BID",
+      bidVisibility: "BEST_PRICE",
+    } as never);
     const db = await prisma.listing.findUniqueOrThrow({
       where: { id: listing.id },
     });
+    expect(db.status).toBe("OPEN");
     expect(db.format).toBe("ENGLISH_AUCTION");
+    // Taban fiyat aktarımda korunur.
     expect(Number(db.minPrice)).toBe(1000);
   });
 });
@@ -92,7 +141,7 @@ describe("SATIS açık artırma — oluşturma", () => {
 describe("SATIS açık artırma — teklif kuralları", () => {
   it("fiyat yükselir: referansın en az artış adımı kadar ÜZERİNE çıkılmalı", async () => {
     const { service, seller, b1, b2 } = await sellerAndBuyers();
-    const l = await service.create(seller.auth, auctionDto() as never);
+    const l = await createAuction(service, seller.auth);
 
     // İlk teklif: referans yok, taban (1000) yeterli.
     const first = await bid(service, b1.auth, l.id, 1000);
@@ -117,9 +166,11 @@ describe("SATIS açık artırma — teklif kuralları", () => {
     const { service, seller, b1 } = await sellerAndBuyers();
     // Taban düşük tutulur ki 900'lük deneme taban kontrolüne değil
     // monotonluk kuralına takılsın.
-    const l = await service.create(
+    const l = await createAuction(
+      service,
       seller.auth,
-      auctionDto({ priceDecrementBasis: "OWN_LAST_BID", minPrice: 100 }) as never,
+      { minPrice: 100 },
+      { priceDecrementBasis: "OWN_LAST_BID" },
     );
     await bid(service, b1.auth, l.id, 1000);
     await expect(bid(service, b1.auth, l.id, 900)).rejects.toThrow(
@@ -135,7 +186,7 @@ describe("SATIS açık artırma — teklif kuralları", () => {
 
   it("taban altı ilk teklif reddedilir (artırmada da taban geçerli)", async () => {
     const { service, seller, b1 } = await sellerAndBuyers();
-    const l = await service.create(seller.auth, auctionDto() as never);
+    const l = await createAuction(service, seller.auth);
     await expect(bid(service, b1.auth, l.id, 900)).rejects.toThrow(
       /taban fiyatın .* altında olamaz/,
     );
@@ -143,7 +194,7 @@ describe("SATIS açık artırma — teklif kuralları", () => {
 
   it("hemen-al tavanı: tavana eşit/üstü teklif reddedilir, Hemen Al çalışır", async () => {
     const { service, seller, b1, b2 } = await sellerAndBuyers();
-    const l = await service.create(seller.auth, auctionDto() as never);
+    const l = await createAuction(service, seller.auth);
     await expect(bid(service, b1.auth, l.id, 5000)).rejects.toThrow(
       /Hemen Al/,
     );
@@ -159,7 +210,7 @@ describe("SATIS açık artırma — teklif kuralları", () => {
 
   it("en iyi teklif = EN YÜKSEK: getOne currentBest artırmada max döner", async () => {
     const { service, seller, b1, b2 } = await sellerAndBuyers();
-    const l = await service.create(seller.auth, auctionDto() as never);
+    const l = await createAuction(service, seller.auth);
     await bid(service, b1.auth, l.id, 1000);
     await bid(service, b2.auth, l.id, 1100);
 

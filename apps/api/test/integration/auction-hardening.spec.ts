@@ -48,6 +48,38 @@ const auctionDto = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
+const rfqDto = (over: Record<string, unknown> = {}) =>
+  auctionDto({
+    format: "RFQ",
+    priceDecrementType: undefined,
+    priceDecrementValue: undefined,
+    priceDecrementBasis: undefined,
+    ...over,
+  });
+
+/** İngiliz usulüne tek meşru yol: RFQ aç → "Yeni Tur" ile aktar (doğrudan
+ *  ENGLISH_AUCTION create artık reddedilir). Aktarım turu currentRound'u
+ *  2'ye çeker. */
+async function createAuction(
+  service: ReturnType<typeof makeService>["service"],
+  auth: { companyId: string; userId: string },
+  createOver: Record<string, unknown> = {},
+  roundOver: Record<string, unknown> = {},
+) {
+  const l = await service.create(auth as never, rfqDto(createOver) as never);
+  await service.createNextRound(auth as never, l.id, {
+    type: "ENGLISH_AUCTION",
+    carryBids: "NONE",
+    closesAt: future(3).toISOString(),
+    priceDecrementType: "AMOUNT",
+    priceDecrementValue: 100,
+    priceDecrementBasis: "BEST_BID",
+    bidVisibility: "BEST_PRICE",
+    ...roundOver,
+  } as never);
+  return l;
+}
+
 async function bid(
   service: ReturnType<typeof makeService>["service"],
   auth: { companyId: string; userId: string },
@@ -67,10 +99,12 @@ async function bid(
 }
 
 describe("Auction — tek para birimi zorlaması", () => {
-  it("allowedCurrencies boş bırakılırsa [primaryCurrency] olarak normalize edilir; yabancı birimle teklif reddedilir", async () => {
+  it("çok-birimli RFQ İngiliz'e aktarılınca [primaryCurrency]'ye normalize edilir; yabancı birimle teklif reddedilir", async () => {
     const { service, seller, b1 } = await sellerAndBuyers();
-    // Wizard tek birime zorlar ama backend otorite: boş dizi açığı kapalı olmalı.
-    const l = await service.create(seller.auth, auctionDto() as never);
+    // RFQ turunda çoklu birim serbest; aktarım tek birime zorlar (backend otorite).
+    const l = await createAuction(service, seller.auth, {
+      allowedCurrencies: ["TRY", "USD"],
+    });
     const db = await prisma.listing.findUniqueOrThrow({ where: { id: l.id } });
     expect(db.allowedCurrencies).toEqual(["TRY"]);
 
@@ -79,21 +113,25 @@ describe("Auction — tek para birimi zorlaması", () => {
     ).rejects.toThrow(/geçersiz para birimi/);
   });
 
-  it("birden çok izinli birimle auction oluşturulamaz", async () => {
+  it("İngiliz usulü doğrudan AÇILAMAZ; update arka kapısı da kapalı", async () => {
     const { service, seller } = await sellerAndBuyers();
     await expect(
-      service.create(
-        seller.auth,
-        auctionDto({ allowedCurrencies: ["TRY", "USD"] }) as never,
-      ),
-    ).rejects.toThrow(/tek para birimi/);
+      service.create(seller.auth, auctionDto() as never),
+    ).rejects.toThrow(/doğrudan açılamaz/);
+
+    // RFQ açıp düzenlemeyle İngiliz'e çevirme = doğrudan-açma yasağının
+    // arka kapısı — o da reddedilir.
+    const l = await service.create(seller.auth, rfqDto() as never);
+    await expect(
+      service.updateListing(seller.auth, l.id, auctionDto() as never),
+    ).rejects.toThrow(/düzenlemeyle İngiliz usulüne çevrilemez/);
   });
 });
 
 describe("Auction — SUBMITTED teklif taslağa çekilemez", () => {
   it("gönderilmiş auction teklifi asDraft:true ile DRAFT'a düşürülemez (yumuşak geri çekme yok)", async () => {
     const { service, seller, b1 } = await sellerAndBuyers();
-    const l = await service.create(seller.auth, auctionDto() as never);
+    const l = await createAuction(service, seller.auth);
     await bid(service, b1.auth, l.id, 1000);
 
     await expect(
@@ -112,14 +150,8 @@ describe("Auction — SUBMITTED teklif taslağa çekilemez", () => {
 describe("Auction — buyNow tur damgası", () => {
   it("Hemen-Al teklifi ilanın GÜNCEL turuyla damgalanır (round=1 default'una düşmez)", async () => {
     const { service, seller, b1 } = await sellerAndBuyers();
-    const l = await service.create(
-      seller.auth,
-      auctionDto({ buyNowPrice: 5000 }) as never,
-    );
-    await prisma.listing.update({
-      where: { id: l.id },
-      data: { currentRound: 2 },
-    });
+    // Aktarım turu currentRound'u doğal olarak 2'ye çeker.
+    const l = await createAuction(service, seller.auth, { buyNowPrice: 5000 });
 
     await service.buyNow(b1.auth, l.id, {
       deliveryDate: future(7).toISOString(),
@@ -139,7 +171,7 @@ describe("Auction — buyNow tur damgası", () => {
 describe("Auction — BEST_BID bazında solo adım", () => {
   it("rakip yokken kendi son teklifi referans olur — epsilon artış reddedilir", async () => {
     const { service, seller, b1 } = await sellerAndBuyers();
-    const l = await service.create(seller.auth, auctionDto() as never);
+    const l = await createAuction(service, seller.auth);
     await bid(service, b1.auth, l.id, 1000);
 
     // Monotonluk 1000,01'e izin verirdi; adım (100) artık solo'da da zorlanır.
@@ -152,7 +184,7 @@ describe("Auction — BEST_BID bazında solo adım", () => {
 describe("Auction — eleme sonrası yeniden teklif", () => {
   it("elenen (LOST) teklifçi auction'a yeniden katılabilir; adım kuralı en iyi rakibe göre işler", async () => {
     const { service, seller, b1, b2 } = await sellerAndBuyers();
-    const l = await service.create(seller.auth, auctionDto() as never);
+    const l = await createAuction(service, seller.auth);
     await bid(service, b1.auth, l.id, 1000);
     await bid(service, b2.auth, l.id, 1100);
 
@@ -171,9 +203,11 @@ describe("Auction — eleme sonrası yeniden teklif", () => {
 describe("Auction — auto-extend default'ları", () => {
   it("bayrak açık, eşik/dakika boş → 2dk/2dk default yazılır (sessiz devre dışı kalmaz)", async () => {
     const { service, seller } = await sellerAndBuyers();
-    const l = await service.create(
+    const l = await createAuction(
+      service,
       seller.auth,
-      auctionDto({ autoExtendOnLateBid: true }) as never,
+      {},
+      { autoExtendOnLateBid: true },
     );
     const db = await prisma.listing.findUniqueOrThrow({ where: { id: l.id } });
     expect(db.autoExtendOnLateBid).toBe(true);

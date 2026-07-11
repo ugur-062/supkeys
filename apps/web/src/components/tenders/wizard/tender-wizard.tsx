@@ -267,17 +267,21 @@ export function TenderWizard({
     const tpl = (templates.data ?? []).find((t) => t.id === id);
     if (!tpl) return;
     // Tarih/davetliler şablonda saklanmaz; yön mevcut sihirbazın yönünde kalır.
+    // `type` da uygulanmaz: format artık sihirbazda seçilmez (İngiliz usulüne
+    // tek geçiş yolu "Yeni Tur") — eski auction şablonu formatı ezmesin.
     const {
       bidsCloseAt: _c,
       bidsOpenAt: _o,
       invitedSupplierIds: _i,
       listingType: _t,
+      type: _ty,
       ...payload
     } = tpl.payload as Partial<TenderFormData>;
     form.reset({
       ...DEFAULT_FORM_VALUES,
       ...payload,
       listingType: form.getValues("listingType"),
+      type: form.getValues("type"),
     });
     setStep(0);
     toast.success(`"${tpl.name}" şablonu yüklendi`);
