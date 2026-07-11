@@ -670,6 +670,9 @@ model CompanyOrder {
   currency       Currency                  @default(TRY)
   status         CompanyOrderStatus        @default(PENDING)
   paymentTiming  CompanyOrderPaymentTiming @default(AFTER_DELIVERY)
+  // Award anında ilandan snapshot — true ise satıcı onaydan önce teminat
+  // mektubu yüklemek zorunda (accept guard'ı).
+  requireGuaranteeLetter Boolean @default(false)
   rejectedReason String?
   cancelReason   String?
   // Teslimat adresi snapshot'ı (award anında: ALIM→ilanın adresi, SATIS→kazanan
@@ -1026,6 +1029,9 @@ model Listing {
   paymentTerm   ListingPaymentTerm   @default(CASH)
   paymentDays   Int?
   paymentTiming ListingPaymentTiming @default(AFTER_DELIVERY)
+  // Teslim öncesi ödemede satıcıdan teminat mektubu istensin mi? İlan sahibi
+  // seçer (BEFORE_DELIVERY'de sistem önerir); yalnız BEFORE_DELIVERY'de anlamlı.
+  requireGuaranteeLetter Boolean @default(false)
   bidsOpenAt    DateTime?
 
   // İngiliz Usulü açık eksiltme ayarları.

@@ -176,6 +176,9 @@ const baseTenderSchema = z.object({
     .max(365)
     .optional(),
   paymentTiming: z.enum(PAYMENT_TIMING_VALUES),
+  // Teslim öncesi ödemede satıcıdan teminat mektubu istensin mi? (opsiyonel,
+  // BEFORE_DELIVERY seçilince sistem önerir/işaretler; kullanıcı kaldırabilir)
+  requireGuaranteeLetter: z.boolean(),
   termsAndConditions: z.string().max(10000).optional(),
   internalNotes: z.string().max(5000).optional(),
   bidsCloseAt: z.string().min(1, "Kapanış tarihi seçmelisin"),
@@ -403,6 +406,7 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   paymentTerm: "CASH",
   paymentDays: undefined,
   paymentTiming: "AFTER_DELIVERY",
+  requireGuaranteeLetter: false,
   termsAndConditions: "",
   internalNotes: "",
   bidsCloseAt: "",

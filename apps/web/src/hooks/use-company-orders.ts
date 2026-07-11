@@ -85,13 +85,16 @@ export interface OrderDeliveryAddress {
 export interface CompanyOrderDetail extends CompanyOrder {
   counterpartyProfile: CounterpartyProfile;
   paymentTiming: PaymentTiming;
+  /** İlan sahibinin seçimi (award snapshot'ı) — true ise satıcı onaydan önce
+   *  teminat mektubu yüklemek zorunda. Teminat tetiği artık BU bayraktır. */
+  requireGuaranteeLetter: boolean;
   paymentOpen: boolean;
   paymentTotals: { confirmed: string; pending: string; remaining: string };
   payments: OrderPayment[];
   items: CompanyOrderItemRow[];
   deliveryAddress?: OrderDeliveryAddress | null;
   /** Kaynak ilanın ticari ödeme tipi (peşin/vadeli) — yalnız bilgi amaçlı.
-   *  Teminat tetiği bu DEĞİL, `paymentTiming === "BEFORE_DELIVERY"`dir. */
+   *  Teminat tetiği bu DEĞİL, `requireGuaranteeLetter` bayrağıdır. */
   listingPaymentTerm?: "CASH" | "DEFERRED" | null;
   // Adım verileri + timeline (eski sistemle birebir)
   acceptedAt: string | null;

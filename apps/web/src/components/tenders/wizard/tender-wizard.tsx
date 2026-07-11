@@ -179,6 +179,7 @@ function mapToInput(d: TenderFormData): CreateListingInput {
     paymentTerm: d.paymentTerm,
     paymentDays: d.paymentDays,
     paymentTiming: d.paymentTiming,
+    requireGuaranteeLetter: d.requireGuaranteeLetter,
     isLogistics: d.isLogistics,
     logistics: d.isLogistics ? (d.logistics as Record<string, unknown>) : undefined,
     bidVisibility: d.bidVisibility,

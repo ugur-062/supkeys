@@ -330,14 +330,15 @@ describe("award — kazandırma & sipariş doğruluğu", () => {
     expect(orders[0].amount.toString()).toBe("1000");
   });
 
-  it("ilan paymentTiming siparişe kopyalanır (BEFORE_DELIVERY korunur, varsayılana düşmez)", async () => {
+  it("ilan paymentTiming + teminat şartı siparişe kopyalanır (varsayılana düşmez)", async () => {
     const { service, owner, bidder, listing, item } = await setupAlim({
       paymentTiming: "BEFORE_DELIVERY",
     });
-    // Factory paymentTiming'i geçirmezse doğrudan set et (test kesinliği).
+    // Factory geçirmezse doğrudan set et (test kesinliği). Teminat şartı da
+    // ilan sahibinin seçimi — award'da siparişe snapshot'lanmalı.
     await prisma.listing.update({
       where: { id: listing.id },
-      data: { paymentTiming: "BEFORE_DELIVERY" },
+      data: { paymentTiming: "BEFORE_DELIVERY", requireGuaranteeLetter: true },
     });
     const winBid = await makeBid(prisma, {
       listingId: listing.id,
@@ -351,6 +352,7 @@ describe("award — kazandırma & sipariş doğruluğu", () => {
       where: { listingId: listing.id },
     });
     expect(order.paymentTiming).toBe("BEFORE_DELIVERY");
+    expect(order.requireGuaranteeLetter).toBe(true);
   });
 
   it("requireBidDocument: belgesiz kazanan reddedilir", async () => {

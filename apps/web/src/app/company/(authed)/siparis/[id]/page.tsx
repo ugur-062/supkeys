@@ -557,10 +557,10 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
       <section className="rounded-2xl border border-zinc-950/10 bg-white p-5">
         {o.status === "PENDING" && isSeller ? (
           <div className="space-y-3">
-            {/* Teslim öncesi ödeme: teminat yüklenmeden onay backend'de reddedilir. */}
-            {o.paymentTiming === "BEFORE_DELIVERY" ? (
+            {/* İlan teminat şartlıysa: teminat yüklenmeden onay backend'de reddedilir. */}
+            {o.requireGuaranteeLetter ? (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Alıcı <strong>teslimattan önce ödüyor</strong> — siparişi
+                Bu ilanda <strong>teminat mektubu şartı</strong> var — siparişi
                 onaylamadan önce aşağıdaki Belgeler bölümünden{" "}
                 <strong>teminat mektubu</strong> yüklemeniz zorunlu (teslimat
                 garantisi).

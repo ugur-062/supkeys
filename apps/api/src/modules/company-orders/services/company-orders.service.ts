@@ -136,18 +136,17 @@ export class CompanyOrdersService {
     if (src.status !== "PENDING") {
       throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
     }
-    // Teminat mektubu ZORUNLU yalnızca alıcı TESLİMATTAN ÖNCE ödediğinde
-    // (BEFORE_DELIVERY): parayı önden alan satıcı, teslimatı garanti etmek için
-    // onaydan önce teminat yükler. Teslim sonrası ödemede (COD/vadeli) alıcı
-    // riskte olmadığı için teminat istenmez. NOT: tetik ödeme ZAMANIDIR
-    // (paymentTiming), ödeme TİPİ (peşin/vadeli) değil.
-    if (src.paymentTiming === "BEFORE_DELIVERY") {
+    // Teminat mektubu, İLAN SAHİBİ İSTEDİYSE zorunlu (opsiyonel özellik —
+    // yalnız teslim-öncesi ödemede seçilebilir, sistem orada önerir): parayı
+    // önden alan satıcı, teslimatı garanti etmek için onaydan önce teminat
+    // yükler. Bayrak award anında ilandan siparişe snapshot'lanır.
+    if (src.requireGuaranteeLetter) {
       const teminat = await this.prisma.companyOrderDocument.count({
         where: { orderId: id, type: "TEMINAT" },
       });
       if (teminat === 0) {
         throw new BadRequestException(
-          "Alıcı teslimattan önce ödüyor — siparişi onaylamadan önce Belgeler bölümünden teminat mektubu yükleyin (teslimat garantisi)",
+          "Bu ilanda teminat mektubu şartı var — siparişi onaylamadan önce Belgeler bölümünden teminat mektubu yükleyin (teslimat garantisi)",
         );
       }
     }
@@ -514,6 +513,7 @@ export class CompanyOrdersService {
         number: true,
         status: true,
         paymentTiming: true,
+        requireGuaranteeLetter: true,
         sellerCompanyId: true,
         buyerCompanyId: true,
       },
@@ -868,6 +868,9 @@ export class CompanyOrdersService {
         rothernId: other.rothernId,
       },
       paymentTiming: o.paymentTiming,
+      // İlan sahibinin seçimi (award snapshot'ı) — true ise satıcı onaydan
+      // önce teminat mektubu yükler; UI adımı buna göre gösterir.
+      requireGuaranteeLetter: o.requireGuaranteeLetter,
       paymentOpen: this.isPaymentOpen(o.paymentTiming, o.status),
       paymentTotals: {
         confirmed: confirmed.toFixed(2),

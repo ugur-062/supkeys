@@ -36,7 +36,7 @@ import {
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   Controller,
   useFormContext,
@@ -560,6 +560,22 @@ export function Step1Info({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInternational]);
+
+  // Teslim-öncesi ödemeye GEÇİLDİĞİNDE teminat şartını öner (otomatik
+  // işaretlenir; kullanıcı kaldırabilir). Mount'ta çalışmaz — edit modunda
+  // sahibin kayıtlı tercihi ezilmez. Teslim-sonrasına dönünce bayrak temizlenir
+  // (yalnız BEFORE_DELIVERY'de anlamlı; backend de false'a normalize eder).
+  const prevPaymentTimingRef = useRef(paymentTiming);
+  useEffect(() => {
+    const prev = prevPaymentTimingRef.current;
+    prevPaymentTimingRef.current = paymentTiming;
+    if (prev === paymentTiming) return;
+    setValue("requireGuaranteeLetter", paymentTiming === "BEFORE_DELIVERY", {
+      shouldValidate: false,
+      shouldDirty: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentTiming]);
 
   // V2-7 — Açık eksiltme seçilince tek para birimi zorunlu + decrement default'ları.
   useEffect(() => {
@@ -1340,27 +1356,42 @@ export function Step1Info({
             </FormRadioGroup>
           </Field>
 
-          {/* Teminat mektubu uyarısı — yalnız TESLİM ÖNCESİ ödemede: alıcı
-              parayı önden verdiği için satıcı teslimatı garanti eder. Teslim
-              sonrası (COD/vadeli) ödemede teminat istenmez. */}
+          {/* Teminat mektubu seçeneği — yalnız TESLİM ÖNCESİ ödemede: alıcı
+              parayı önden verdiği için sistem teslimat garantisi ÖNERİR
+              (otomatik işaretli), ama karar ilan sahibinindir (opsiyonel). */}
           {paymentTiming === "BEFORE_DELIVERY" ? (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
-              <p className="text-xs text-amber-800">
-                {isSatis ? (
-                  <>
-                    Teslim öncesi ödemede parayı önden alan taraf sizsiniz —
-                    siparişi onaylarken <strong>teminat mektubu</strong>{" "}
-                    yüklemeniz gerekir (teslimat garantisi).
-                  </>
-                ) : (
-                  <>
-                    Teslim öncesi ödemede, <strong>kazanan tedarikçi</strong>{" "}
-                    siparişi onaylamadan önce <strong>teminat mektubu</strong>{" "}
-                    yüklemek zorundadır (teslimat garantisi).
-                  </>
-                )}
-              </p>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <label className="flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  {...register("requireGuaranteeLetter")}
+                  className="mt-0.5 h-4 w-4 rounded border-amber-300"
+                />
+                <span className="text-xs text-amber-800">
+                  <span className="font-semibold">
+                    Teminat mektubu iste{" "}
+                    <span className="rounded bg-amber-200/70 px-1 py-px text-[10px] font-semibold uppercase">
+                      Önerilir
+                    </span>
+                  </span>
+                  <br />
+                  {isSatis ? (
+                    <>
+                      Teslim öncesi ödemede parayı önden alan taraf sizsiniz —
+                      işaretlerseniz siparişi onaylamadan önce{" "}
+                      <strong>teminat mektubu</strong> yüklemeniz gerekir
+                      (teslimat garantisi, alıcıya güven verir).
+                    </>
+                  ) : (
+                    <>
+                      İşaretlerseniz <strong>kazanan tedarikçi</strong> siparişi
+                      onaylamadan önce <strong>teminat mektubu</strong> yüklemek
+                      zorunda olur (teslimat garantisi). İşaretlemezseniz
+                      teminat istenmez.
+                    </>
+                  )}
+                </span>
+              </label>
             </div>
           ) : null}
         </div>

@@ -120,6 +120,8 @@ export interface CreateListingInput {
   paymentTerm?: "CASH" | "DEFERRED";
   paymentDays?: number;
   paymentTiming?: "BEFORE_DELIVERY" | "AFTER_DELIVERY";
+  /** Teslim öncesi ödemede satıcıdan teminat mektubu istensin mi (opsiyonel). */
+  requireGuaranteeLetter?: boolean;
   // Lojistik
   isLogistics?: boolean;
   logistics?: Record<string, unknown>;
@@ -329,6 +331,8 @@ export interface ListingDetail {
   paymentTerm?: string;
   paymentDays?: number | null;
   paymentTiming?: string;
+  /** Teslim öncesi ödemede teminat mektubu şartı (ilan sahibinin seçimi). */
+  requireGuaranteeLetter?: boolean;
   bidVisibility?: string;
   priceDecrementType?: string | null;
   priceDecrementValue?: string | null;

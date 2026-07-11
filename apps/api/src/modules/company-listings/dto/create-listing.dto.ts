@@ -412,6 +412,12 @@ export class CreateListingDto {
   @IsEnum(PaymentTimingDto)
   paymentTiming?: PaymentTimingDto;
 
+  /** Teslim öncesi ödemede satıcıdan teminat mektubu istensin mi? Opsiyonel —
+   *  ilan sahibi seçer; BEFORE_DELIVERY dışında servis false'a normalize eder. */
+  @IsOptional()
+  @IsBoolean()
+  requireGuaranteeLetter?: boolean;
+
   // ── Lojistik ──
   @IsOptional()
   @IsBoolean()

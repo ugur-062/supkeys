@@ -395,12 +395,13 @@ describe("taraf ve durum guard'ları", () => {
   });
 });
 
-describe("teminat mektubu — teslim ÖNCESİ ödeme (BEFORE_DELIVERY)", () => {
-  it("teslim öncesi ödemeli sipariş, teminat belgesi yüklenmeden onaylanamaz", async () => {
+describe("teminat mektubu — ilan sahibinin seçimi (requireGuaranteeLetter)", () => {
+  it("teminat şartlı sipariş, teminat belgesi yüklenmeden onaylanamaz", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await makeOrder(seller.company.id, buyer.company.id, {
       paymentTiming: "BEFORE_DELIVERY",
+      requireGuaranteeLetter: true,
     });
 
     await expect(
@@ -419,6 +420,21 @@ describe("teminat mektubu — teslim ÖNCESİ ödeme (BEFORE_DELIVERY)", () => {
       },
     });
     const res = await orders.accept(seller.auth, order.id, (await acceptInputFor(seller.company.id)) as never);
+    expect(res.status).toBe("ACCEPTED");
+  });
+
+  it("teslim ÖNCESİ ödeme ama şart İŞARETLENMEMİŞ → teminatsız onay geçer (opsiyonel özellik)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      paymentTiming: "BEFORE_DELIVERY",
+      requireGuaranteeLetter: false,
+    });
+    const res = await orders.accept(
+      seller.auth,
+      order.id,
+      (await acceptInputFor(seller.company.id)) as never,
+    );
     expect(res.status).toBe("ACCEPTED");
   });
 

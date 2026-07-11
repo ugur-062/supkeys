@@ -82,6 +82,7 @@ function order(
       rothernId: null,
     },
     paymentTiming: "AFTER_DELIVERY",
+    requireGuaranteeLetter: false,
     paymentOpen: false,
     paymentTotals: { confirmed: "0", pending: "0", remaining: "1000" },
     payments: [],
@@ -219,10 +220,22 @@ describe("OrderDetailPage — durum → aksiyon eşlemesi", () => {
     expect(screen.getByText(/Sipariş tamamlandı/)).toBeInTheDocument();
   });
 
-  it("PENDING + teslim öncesi ödeme (BEFORE_DELIVERY) satıcı → teminat mektubu uyarısı", () => {
-    h.order = order("PENDING", "seller", { paymentTiming: "BEFORE_DELIVERY" });
+  it("PENDING + teminat şartlı ilan, satıcı → teminat mektubu uyarısı", () => {
+    h.order = order("PENDING", "seller", {
+      paymentTiming: "BEFORE_DELIVERY",
+      requireGuaranteeLetter: true,
+    });
     render(<OrderDetailPage />);
-    expect(screen.getByText(/teminat mektubu/)).toBeInTheDocument();
+    expect(screen.getByText(/teminat mektubu şartı/)).toBeInTheDocument();
+  });
+
+  it("PENDING + teslim öncesi ödeme ama teminat şartsız → uyarı yok (opsiyonel özellik)", () => {
+    h.order = order("PENDING", "seller", {
+      paymentTiming: "BEFORE_DELIVERY",
+      requireGuaranteeLetter: false,
+    });
+    render(<OrderDetailPage />);
+    expect(screen.queryByText(/teminat mektubu şartı/)).not.toBeInTheDocument();
   });
 
   it("'Kabul Et' → AcceptOrderModal açılır (Siparişi Onayla)", async () => {

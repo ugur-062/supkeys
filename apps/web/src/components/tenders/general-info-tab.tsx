@@ -199,6 +199,9 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
             {l.paymentTiming
               ? ` · ${PAYMENT_TIMING_LABELS[l.paymentTiming as PaymentTiming]}`
               : ""}
+            {/* Teklifçi şartı teklif VERMEDEN görsün: kazanırsa sipariş
+                onayından önce teminat mektubu yüklemesi gerekecek. */}
+            {l.requireGuaranteeLetter ? " · Teminat mektubu şartlı" : ""}
           </Fact>
           {l.deliveryAddress ? (
             <Fact

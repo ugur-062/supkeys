@@ -70,6 +70,7 @@ export function mapDetailToForm(
     paymentDays: l.paymentDays ?? undefined,
     paymentTiming:
       (l.paymentTiming as TenderFormData["paymentTiming"]) ?? "AFTER_DELIVERY",
+    requireGuaranteeLetter: l.requireGuaranteeLetter ?? false,
     termsAndConditions: l.terms ?? "",
     internalNotes: l.internalNotes ?? "",
     // Kopyada tarihler boş (kullanıcı yeniden seçer).

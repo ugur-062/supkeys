@@ -881,6 +881,11 @@ export class CompanyListingsService {
           paymentDays: dto.paymentDays ?? null,
           paymentTiming:
             (dto.paymentTiming as ListingPaymentTiming) ?? "AFTER_DELIVERY",
+          // Teminat şartı yalnız teslim-öncesi ödemede anlamlı — diğer
+          // zamanlamada sessizce false'a normalize (bayat bayrak sızmasın).
+          requireGuaranteeLetter:
+            dto.paymentTiming === "BEFORE_DELIVERY" &&
+            (dto.requireGuaranteeLetter ?? false),
           bidVisibility:
             (dto.bidVisibility as ListingBidVisibility) ?? "OWN_ONLY",
           priceDecrementType:
@@ -1117,6 +1122,11 @@ export class CompanyListingsService {
           paymentDays: dto.paymentDays ?? null,
           paymentTiming:
             (dto.paymentTiming as ListingPaymentTiming) ?? "AFTER_DELIVERY",
+          // Teminat şartı yalnız teslim-öncesi ödemede anlamlı — diğer
+          // zamanlamada sessizce false'a normalize (bayat bayrak sızmasın).
+          requireGuaranteeLetter:
+            dto.paymentTiming === "BEFORE_DELIVERY" &&
+            (dto.requireGuaranteeLetter ?? false),
           bidVisibility:
             (dto.bidVisibility as ListingBidVisibility) ?? "OWN_ONLY",
           priceDecrementType:
@@ -3311,6 +3321,7 @@ export class CompanyListingsService {
         number: true,
         deliveryAddressId: true,
         paymentTiming: true,
+        requireGuaranteeLetter: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -3419,6 +3430,8 @@ export class CompanyListingsService {
           // AFTER_DELIVERY olur ve teslim öncesi (BEFORE_DELIVERY) ilanlarda
           // alıcı ön ödemeyi kaydedemez, satıcıdan teminat da istenmezdi.
           paymentTiming: listing.paymentTiming,
+          // Teminat şartı da snapshot — accept guard'ı siparişten okur.
+          requireGuaranteeLetter: listing.requireGuaranteeLetter,
           status: "PENDING", // satıcı onayı bekler (accept/reject)
           deliveryAddress,
         },
@@ -3746,6 +3759,7 @@ export class CompanyListingsService {
         type: true,
         deliveryAddressId: true,
         paymentTiming: true,
+        requireGuaranteeLetter: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -3851,6 +3865,7 @@ export class CompanyListingsService {
             amount: g.amount,
             currency: g.currency, // sipariş tutarı teklifin biriminde
             paymentTiming: listing.paymentTiming,
+            requireGuaranteeLetter: listing.requireGuaranteeLetter,
             status: "PENDING", // satıcı onayı bekler (accept/reject)
             // ALIM: ilan adresi; SATIS: bu grubun teklifçisinin adresi.
             deliveryAddress: isAlim
@@ -4712,6 +4727,7 @@ export class CompanyListingsService {
       paymentTerm: string;
       paymentDays: number | null;
       paymentTiming: string;
+      requireGuaranteeLetter: boolean;
       bidVisibility: string;
       priceDecrementType: string | null;
       priceDecrementValue: { toString(): string } | null;
@@ -4763,6 +4779,8 @@ export class CompanyListingsService {
       paymentTerm: l.paymentTerm,
       paymentDays: l.paymentDays,
       paymentTiming: l.paymentTiming,
+      // Teslim-öncesi ödemede teminat şartı — teklifçi teklif vermeden görsün.
+      requireGuaranteeLetter: l.requireGuaranteeLetter,
       bidVisibility: l.bidVisibility,
       priceDecrementType: l.priceDecrementType,
       priceDecrementValue: l.priceDecrementValue?.toString() ?? null,

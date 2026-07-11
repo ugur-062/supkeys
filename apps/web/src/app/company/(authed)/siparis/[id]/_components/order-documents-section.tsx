@@ -131,10 +131,10 @@ export function OrderDocumentsSection({
   const isBuyer = order.role === "buyer";
   const status = order.status;
   const terminal = status === "REJECTED" || status === "CANCELLED";
-  // Teminat: yalnız alıcı teslimattan ÖNCE ödediğinde (BEFORE_DELIVERY) —
-  // satıcı parayı önden aldığı için teslimatı garanti eder. Teslim sonrası
-  // ödemede teminat istenmez.
-  const requiresGuarantee = order.paymentTiming === "BEFORE_DELIVERY";
+  // Teminat: ilan sahibi İSTEDİYSE (opsiyonel özellik; yalnız teslim-öncesi
+  // ödemede seçilebilir) — satıcı parayı önden aldığı için teslimatı garanti
+  // eder. Bayrak award anında siparişe snapshot'lanır.
+  const requiresGuarantee = order.requireGuaranteeLetter;
 
   const { data: docs } = useOrderDocuments(orderId);
   const delivery = (docs ?? []).filter((d) => d.type === "DELIVERY");
@@ -170,8 +170,8 @@ export function OrderDocumentsSection({
     <section className="space-y-3">
       <Subheading>Belgeler</Subheading>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {/* Teminat grubu: teslim öncesi ödemede (BEFORE_DELIVERY) her zaman;
-            değilse yalnız belge varsa (eski kayıtlar) gösterilir. */}
+        {/* Teminat grubu: ilan teminat şartlıysa her zaman; değilse yalnız
+            belge varsa (eski/gönüllü kayıtlar) gösterilir. */}
         {requiresGuarantee || guarantee.length > 0 ? (
           <DocGroup
             orderId={orderId}
@@ -179,7 +179,7 @@ export function OrderDocumentsSection({
             title="Teminat Mektubu"
             hint={
               requiresGuarantee
-                ? "Teslim öncesi ödeme — satıcı, sipariş onayından ÖNCE yükler (zorunlu)"
+                ? "İlanda teminat şartı var — satıcı, sipariş onayından ÖNCE yükler (zorunlu)"
                 : "Teslimat garantisi (satıcı yükler)"
             }
             canUpload={canUploadTeminat}
