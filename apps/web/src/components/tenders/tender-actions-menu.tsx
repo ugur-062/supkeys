@@ -17,6 +17,7 @@ import {
   DropdownMenu,
 } from "@/components/catalyst/dropdown";
 import { Field, Label } from "@/components/catalyst/fieldset";
+import { DateTimeInput } from "@/components/ui/date-time-input";
 import { EllipsisVerticalIcon } from "@heroicons/react/16/solid";
 import { Input } from "@/components/catalyst/input";
 import { Textarea } from "@/components/catalyst/textarea";
@@ -366,10 +367,14 @@ export function TenderActionsMenu({
         <DialogBody>
           <Field>
             <Label>Kapanış</Label>
-            <Input
-              type="datetime-local"
+            {/* Saat seçilmezse gün sonu (23:59) uygulanır. */}
+            <DateTimeInput
+              idPrefix="change-closing"
               value={newClosing}
-              onChange={(e) => setNewClosing(e.target.value)}
+              onChange={setNewClosing}
+              defaultTime="23:59"
+              dateAriaLabel="Kapanış tarihi"
+              timeAriaLabel="Kapanış saati"
             />
           </Field>
         </DialogBody>
@@ -463,10 +468,14 @@ export function TenderActionsMenu({
             </Field>
             <Field>
               <Label>Yeni Kapanış</Label>
-              <Input
-                type="datetime-local"
+              {/* Saat seçilmezse gün sonu (23:59) uygulanır. */}
+              <DateTimeInput
+                idPrefix="next-round-closing"
                 value={nrClosing}
-                onChange={(e) => setNrClosing(e.target.value)}
+                onChange={setNrClosing}
+                defaultTime="23:59"
+                dateAriaLabel="Yeni kapanış tarihi"
+                timeAriaLabel="Yeni kapanış saati"
               />
             </Field>
           </div>

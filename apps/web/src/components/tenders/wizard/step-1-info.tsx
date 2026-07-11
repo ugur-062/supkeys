@@ -12,6 +12,7 @@ import {
 import { useAddresses } from "@/hooks/use-company-addresses";
 import { CurrencyMultiSelect } from "@/components/currency-multi-select";
 import { Button } from "@/components/ui/button";
+import { DateTimeInput } from "@/components/ui/date-time-input";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -512,6 +513,7 @@ export function Step1Info({
 }) {
   const {
     register,
+    control,
     formState: { errors },
     setValue,
     watch,
@@ -1459,27 +1461,48 @@ export function Step1Info({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field
             error={errors.bidsOpenAt?.message}
-            hint="Boş bırakılırsa yayınlanır anda açılır."
+            hint="Boş bırakılırsa yayınlandığı anda açılır; saat seçmezseniz gün başında (00:00) açılır."
           >
-            <Label htmlFor="bidsOpenAt">Açılış Tarihi</Label>
-            <Input
-              id="bidsOpenAt"
-              type="datetime-local"
-              min={minDateTime}
-              hasError={!!errors.bidsOpenAt}
-              {...register("bidsOpenAt")}
+            <Label htmlFor="bidsOpenAt-date">Açılış Tarihi</Label>
+            <Controller
+              control={control}
+              name="bidsOpenAt"
+              render={({ field }) => (
+                <DateTimeInput
+                  idPrefix="bidsOpenAt"
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  defaultTime="00:00"
+                  min={minDateTime}
+                  hasError={!!errors.bidsOpenAt}
+                  dateAriaLabel="Açılış tarihi"
+                  timeAriaLabel="Açılış saati"
+                />
+              )}
             />
           </Field>
-          <Field error={errors.bidsCloseAt?.message}>
-            <Label htmlFor="bidsCloseAt" required>
+          <Field
+            error={errors.bidsCloseAt?.message}
+            hint="Saat seçmezseniz ihale gün sonunda (23:59) kapanır."
+          >
+            <Label htmlFor="bidsCloseAt-date" required>
               Kapanış Tarihi
             </Label>
-            <Input
-              id="bidsCloseAt"
-              type="datetime-local"
-              min={minDateTime}
-              hasError={!!errors.bidsCloseAt}
-              {...register("bidsCloseAt")}
+            <Controller
+              control={control}
+              name="bidsCloseAt"
+              render={({ field }) => (
+                <DateTimeInput
+                  idPrefix="bidsCloseAt"
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  defaultTime="23:59"
+                  min={minDateTime}
+                  hasError={!!errors.bidsCloseAt}
+                  dateAriaLabel="Kapanış tarihi"
+                  timeAriaLabel="Kapanış saati"
+                />
+              )}
             />
           </Field>
         </div>
