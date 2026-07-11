@@ -50,21 +50,24 @@ export function DateTimeInput({
           onChange(d ? `${d}T${timePart || defaultTime}` : "");
         }}
       />
-      <Input
-        id={`${idPrefix}-time`}
-        type="time"
-        className="w-32 shrink-0"
-        value={timePart}
-        hasError={hasError}
-        disabled={disabled || !datePart}
-        aria-label={timeAriaLabel}
-        onChange={(e) => {
-          if (!datePart) return;
-          // Saat temizlenirse default'a döner — "saat yoksa gün sonu" kuralı
-          // görünür şekilde uygulanır, gizli sihir yok.
-          onChange(`${datePart}T${e.target.value || defaultTime}`);
-        }}
-      />
+      {/* Catalyst Input kendi span'ına w-full basar — genişliği sarmalayıcı
+          sınırlar, yoksa saat kutusu tarih kadar büyüyordu. */}
+      <div className="w-24 shrink-0">
+        <Input
+          id={`${idPrefix}-time`}
+          type="time"
+          value={timePart}
+          hasError={hasError}
+          disabled={disabled || !datePart}
+          aria-label={timeAriaLabel}
+          onChange={(e) => {
+            if (!datePart) return;
+            // Saat temizlenirse default'a döner — "saat yoksa gün sonu" kuralı
+            // görünür şekilde uygulanır, gizli sihir yok.
+            onChange(`${datePart}T${e.target.value || defaultTime}`);
+          }}
+        />
+      </div>
     </div>
   );
 }
