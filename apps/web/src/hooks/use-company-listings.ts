@@ -398,6 +398,28 @@ export interface ListingDetail {
       | { rank: number; total: string; currency?: string; isMine: boolean }[]
       | null;
   } | null;
+  /** Pazarlık hedefi — sunucunun "kaça inmeliyim/çıkmalıyım" cevabı (placeBid
+   *  doğrulamasıyla tek kaynak). Görünürlük en iyi teklifi gizliyorsa hedef
+   *  sayıları null gelir (disclosed=false). */
+  nextBidConstraint?: {
+    direction: "DOWN" | "UP";
+    /** SUBMITTED teklif sonrası birim kilitli — tek para birimi hesaplanır. */
+    currencyLocked: boolean;
+    ownCurrency: string | null;
+    ownLastTotal: string | null;
+    byCurrency: Record<
+      string,
+      {
+        hasReference: boolean;
+        disclosed: boolean;
+        /** İzin verilen sınır toplam (ALIM: en fazla, SATIS: en az). */
+        targetTotal: string | null;
+        referenceTotal: string | null;
+        step: string | null;
+        rateMissing: boolean;
+      }
+    >;
+  } | null;
 }
 
 export function useListingDetail(id: string) {

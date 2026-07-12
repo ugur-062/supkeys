@@ -54,6 +54,17 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { AuctionLiveCard } from "../_components/auction-live-card";
+import {
+  AuctionBidWorkbench,
+  type WorkbenchTarget,
+} from "../_components/auction-bid-workbench";
+import {
+  cmpDecimal,
+  decAdd,
+  decSub,
+  exactTotal,
+  unitStep,
+} from "@/lib/tenders/distribute";
 
 /** Kalem başına form durumu. null fiyat = "bu kaleme teklif verme". */
 interface ItemState {
@@ -175,6 +186,11 @@ export default function TeklifVerPage() {
   const [note, setNote] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [seeded, setSeeded] = useState(false);
+  // Pazarlık çalışma masası: kilitli kalemler + taşınan (diff/Sıfırla) fiyatlar.
+  const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
+  const [initialPrices, setInitialPrices] = useState<Record<string, string>>(
+    {},
+  );
   // Henüz teklif kaydı yokken seçilen dosyalar — kayıt sonrası yüklenir.
   const [stagedFiles, setStagedFiles] = useState<
     { file: File; kind: BidDocKind }[]
@@ -196,6 +212,8 @@ export default function TeklifVerPage() {
     setCurrency("");
     setNote("");
     setStagedFiles([]);
+    setLockedIds(new Set());
+    setInitialPrices({});
   }, [id]);
 
   // Mevcut tekliften tohumla (taslak devam / eleme sonrası / eksiltme yeni tur).
@@ -233,6 +251,13 @@ export default function TeklifVerPage() {
       };
     }
     setItemState(next);
+    // Taşınan fiyatların anlık görüntüsü — çalışma masası diff ve Sıfırla
+    // için (kullanıcı fiyatları değiştirdikçe bu sabit kalır).
+    const initP: Record<string, string> = {};
+    for (const [iid, stt] of Object.entries(next)) {
+      if (stt.price) initP[iid] = stt.price;
+    }
+    setInitialPrices(initP);
     if (isBuyNowMode && !l.items?.length && l.buyNowPrice) {
       setSingleAmount(String(Number(l.buyNowPrice)));
     }
@@ -313,6 +338,92 @@ export default function TeklifVerPage() {
       return sum + (Number.isFinite(p) ? p * Number(it.quantity) : 0);
     }, 0);
   }, [hasItems, singleAmount, pricedItems, itemState, isBuyNowMode, l]);
+
+  // ── Pazarlık çalışma masası hesapları ──
+  // Hedef sunucudan gelir (nextBidConstraint — placeBid ile tek kaynak);
+  // toplam kıyasları kesin aritmetikle yapılır ki "hedefe ulaştın" dediğimiz
+  // teklif sunucuda 400 yemesin (float drifti).
+  const isAuction = !!l?.english?.isEnglishAuction;
+  const auctionItemsMode = isAuction && hasItems && !isBuyNowMode;
+  const decimals = l?.decimalPlaces ?? 2;
+  const direction: "DOWN" | "UP" = isSatis ? "UP" : "DOWN";
+  const constraintEntry =
+    (isAuction && l?.nextBidConstraint?.byCurrency?.[effectiveCurrency]) ||
+    null;
+  // Birim kilitliyken tek birim hesaplanır ve o birim = effectiveCurrency.
+  const ownLastTotal = l?.nextBidConstraint?.ownLastTotal ?? null;
+
+  // Kalem id → formdaki fiyat (çalışma masası prop'u; null = kapsam dışı).
+  const priceMap = useMemo(() => {
+    const m: Record<string, string | null> = {};
+    for (const it of items) m[it.id] = itemState[it.id]?.price ?? "";
+    return m;
+  }, [items, itemState]);
+
+  const exactTotalStr = useMemo(() => {
+    if (!isAuction || isBuyNowMode) return "0";
+    if (!hasItems) {
+      return singleAmount && Number(singleAmount) > 0 ? singleAmount : "0";
+    }
+    return exactTotal(
+      pricedItems.map((it) => ({
+        quantity: it.quantity,
+        unitPrice: itemState[it.id]?.price ?? "0",
+      })),
+    );
+  }, [isAuction, isBuyNowMode, hasItems, singleAmount, pricedItems, itemState]);
+
+  // Efektif hedef = sunucu sınırı ∩ monotonluk (kendi son teklifinin en az
+  // bir adım altı/üstü). Hedef GİZLİYSE (disclosed=false) null kalır — kendi
+  // teklifine göre dağıtmak sunucunun gizli adım kuralına takılırdı.
+  const effectiveTarget = useMemo(() => {
+    if (!constraintEntry?.disclosed || !constraintEntry.targetTotal) {
+      return null;
+    }
+    let t = constraintEntry.targetTotal;
+    if (ownLastTotal) {
+      const ownAdj =
+        direction === "DOWN"
+          ? decSub(ownLastTotal, unitStep(decimals))
+          : decAdd(ownLastTotal, unitStep(decimals));
+      if (direction === "DOWN") {
+        if (cmpDecimal(ownAdj, t) < 0) t = ownAdj;
+      } else if (cmpDecimal(ownAdj, t) > 0) {
+        t = ownAdj;
+      }
+    }
+    return t;
+  }, [constraintEntry, ownLastTotal, direction, decimals]);
+
+  const workbenchTarget: WorkbenchTarget = useMemo(() => {
+    const hasAmount = cmpDecimal(exactTotalStr, "0") === 1;
+    const met =
+      effectiveTarget != null &&
+      hasAmount &&
+      (direction === "DOWN"
+        ? cmpDecimal(exactTotalStr, effectiveTarget) <= 0
+        : cmpDecimal(exactTotalStr, effectiveTarget) >= 0);
+    return {
+      effectiveTarget,
+      exactTotalStr,
+      met,
+      remaining:
+        effectiveTarget != null && !met && hasAmount
+          ? direction === "DOWN"
+            ? decSub(exactTotalStr, effectiveTarget)
+            : decSub(effectiveTarget, exactTotalStr)
+          : "0",
+      hidden:
+        !!constraintEntry &&
+        constraintEntry.hasReference &&
+        !constraintEntry.disclosed,
+      rateMissing: !!constraintEntry?.rateMissing,
+      noReference:
+        !!constraintEntry &&
+        !constraintEntry.hasReference &&
+        !constraintEntry.rateMissing,
+    };
+  }, [effectiveTarget, exactTotalStr, direction, constraintEntry]);
 
   if (detail.isLoading) {
     return (
@@ -419,6 +530,61 @@ export default function TeklifVerPage() {
       [itemId]: { ...(s[itemId] ?? { price: "", deliveryDate: "", answers: {} }), ...patch },
     }));
 
+  // Çalışma masası araçları: toplu fiyat yazımı + kalem kilidi.
+  const applyPrices = (next: Record<string, string>) =>
+    setItemState((s) => {
+      const out = { ...s };
+      for (const [iid, p] of Object.entries(next)) {
+        out[iid] = {
+          ...(out[iid] ?? { price: "", deliveryDate: "", answers: {} }),
+          price: p,
+        };
+      }
+      return out;
+    });
+  const toggleLock = (itemId: string) =>
+    setLockedIds((s) => {
+      const n = new Set(s);
+      if (n.has(itemId)) n.delete(itemId);
+      else n.add(itemId);
+      return n;
+    });
+  // Tablo satırının genişleyen ek alanları — kart görünümüyle aynı bileşenler
+  // (teslim tarihi + kalem soruları), tek kaynak.
+  const renderItemExtras = (it: ListingItemRow) => {
+    const st = itemState[it.id];
+    return (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field>
+          <Label>
+            {isSatis
+              ? "Kalem İçin İstenen Teslim (opsiyonel)"
+              : "Kalem Teslim Tarihi (opsiyonel)"}
+          </Label>
+          <Input
+            type="date"
+            aria-label={`${it.name} teslim tarihi`}
+            min={todayLocalISO()}
+            value={st?.deliveryDate ?? ""}
+            onChange={(e) => setItem(it.id, { deliveryDate: e.target.value })}
+          />
+        </Field>
+        {(it.questions ?? []).map((q) => (
+          <AnswerInput
+            key={q.id}
+            q={q}
+            value={st?.answers[q.id] ?? ""}
+            onChange={(v) =>
+              setItem(it.id, {
+                answers: { ...(st?.answers ?? {}), [q.id]: v },
+              })
+            }
+          />
+        ))}
+      </div>
+    );
+  };
+
   // ── Doğrulama (gönderim) ──
   const submitProblems = (): string[] => {
     const problems: string[] = [];
@@ -520,6 +686,29 @@ export default function TeklifVerPage() {
       if (!isSatis && total >= own)
         problems.push(
           `Açık eksiltme: yeni teklifin önceki teklifinin (${money(own, effectiveCurrency)}) altında olmalı.`,
+        );
+    }
+    // Pazarlık hedefi: sunucunun açıkladığı sınıra KESİN kıyas — 400 yemeden
+    // formda yakala (gizli hedefte sunucu denetler, burada susulur).
+    if (
+      !isBuyNowMode &&
+      l.english?.isEnglishAuction &&
+      effectiveTarget &&
+      cmpDecimal(exactTotalStr, "0") === 1
+    ) {
+      if (
+        direction === "DOWN" &&
+        cmpDecimal(exactTotalStr, effectiveTarget) === 1
+      )
+        problems.push(
+          `Pazarlık: toplam teklif en fazla ${money(Number(effectiveTarget), effectiveCurrency)} olabilir.`,
+        );
+      if (
+        direction === "UP" &&
+        cmpDecimal(exactTotalStr, effectiveTarget) === -1
+      )
+        problems.push(
+          `Açık artırma: toplam teklif en az ${money(Number(effectiveTarget), effectiveCurrency)} olmalı.`,
         );
     }
     return problems;
@@ -776,8 +965,39 @@ export default function TeklifVerPage() {
             ) : null}
           </section>
 
-          {/* Kalem fiyatları */}
-          {hasItems ? (
+          {/* Kalem fiyatları — pazarlıkta çalışma masası (hedef çubuğu +
+              toplu araçlar + kompakt tablo), diğer akışlarda kart listesi. */}
+          {hasItems && auctionItemsMode ? (
+            <section className="space-y-3">
+              <Subheading>Kalem Fiyatları</Subheading>
+              {l.requireAllItems ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Bu ihalede <strong>tüm kalemlere</strong> teklif vermek zorunlu.
+                </div>
+              ) : null}
+              <AuctionBidWorkbench
+                items={items}
+                prices={priceMap}
+                initialPrices={initialPrices}
+                setPrice={(iid, p) => setItem(iid, { price: p })}
+                applyPrices={applyPrices}
+                lockedIds={lockedIds}
+                toggleLock={toggleLock}
+                currency={effectiveCurrency}
+                decimals={decimals}
+                direction={direction}
+                target={workbenchTarget}
+                defaultPercent={
+                  l.priceDecrementType === "PERCENT" && l.priceDecrementValue
+                    ? String(Number(l.priceDecrementValue))
+                    : "5"
+                }
+                requireAllItems={!!l.requireAllItems}
+                isSatis={isSatis}
+                renderItemExtras={renderItemExtras}
+              />
+            </section>
+          ) : hasItems ? (
             <section className="space-y-3">
               <Subheading>Kalem Fiyatları</Subheading>
               {l.requireAllItems ? (
@@ -955,6 +1175,28 @@ export default function TeklifVerPage() {
                     onChange={(e) => setSingleAmount(e.target.value)}
                   />
                 </Field>
+                {isAuction && !isBuyNowMode && effectiveTarget ? (
+                  <p
+                    className={cn(
+                      "mt-2 text-xs",
+                      workbenchTarget.met
+                        ? "text-emerald-700"
+                        : "text-amber-700",
+                    )}
+                  >
+                    Hedef: {direction === "DOWN" ? "en fazla" : "en az"}{" "}
+                    <strong className="tabular-nums">
+                      {money(Number(effectiveTarget), effectiveCurrency)}
+                    </strong>
+                    {workbenchTarget.met ? " — karşılandı ✓" : ""}
+                  </p>
+                ) : isAuction && !isBuyNowMode && workbenchTarget.hidden ? (
+                  <p className="mt-2 text-xs text-zinc-500">
+                    Hedef gizli: görünürlük ayarı en iyi teklifi açıklamıyor —
+                    gerekli {direction === "DOWN" ? "azaltma" : "artırma"}{" "}
+                    gönderimde sunucu tarafından denetlenir.
+                  </p>
+                ) : null}
               </div>
             </section>
           )}
@@ -1250,6 +1492,19 @@ export default function TeklifVerPage() {
               <p className="mt-1 text-2xl font-bold tabular-nums">
                 {money(total, effectiveCurrency)}
               </p>
+              {isAuction && !isBuyNowMode && effectiveTarget ? (
+                <p className="mt-1 text-xs text-emerald-200">
+                  Hedef: {direction === "DOWN" ? "≤" : "≥"}{" "}
+                  <span className="tabular-nums">
+                    {money(Number(effectiveTarget), effectiveCurrency)}
+                  </span>
+                  {workbenchTarget.met
+                    ? " · karşılandı ✓"
+                    : cmpDecimal(workbenchTarget.remaining, "0") === 1
+                      ? ` · kalan ${money(Number(workbenchTarget.remaining), effectiveCurrency)}`
+                      : ""}
+                </p>
+              ) : null}
               {hasItems ? (
                 <>
                   <p className="mt-3 text-xs text-emerald-200">
@@ -1320,6 +1575,18 @@ export default function TeklifVerPage() {
           <p className="text-base font-bold text-zinc-950 tabular-nums">
             {money(total, effectiveCurrency)}
           </p>
+          {isAuction && !isBuyNowMode && effectiveTarget ? (
+            <p
+              className={cn(
+                "text-[10px] tabular-nums",
+                workbenchTarget.met ? "text-emerald-600" : "text-amber-600",
+              )}
+            >
+              Hedef {direction === "DOWN" ? "≤" : "≥"}{" "}
+              {money(Number(effectiveTarget), effectiveCurrency)}
+              {workbenchTarget.met ? " ✓" : ""}
+            </p>
+          ) : null}
         </div>
         <Button
           color="emerald"

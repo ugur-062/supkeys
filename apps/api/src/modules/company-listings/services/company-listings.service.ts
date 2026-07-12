@@ -2072,7 +2072,8 @@ export class CompanyListingsService {
 
     // Bağımsız non-owner okumaları tek turda (görünürlük/blok kapısı sonuçlar
     // gelince değerlendirilir; over-fetch ucuz, seri tur sayısı düşer — P1).
-    const [invitedCount, blockedIds, myBid, auctionView] = await Promise.all([
+    const [invitedCount, blockedIds, myBid, auctionView, auctionCompetitors] =
+      await Promise.all([
       // Davet durumu her görünürlükte döner (satıcı "Davet Edildi" rozeti);
       // PRIVATE erişim kontrolü de aynı sayıyı kullanır.
       this.prisma.listingInvitation.count({
@@ -2098,6 +2099,17 @@ export class CompanyListingsService {
             listing.type,
             listing.auctionRateSnapshot,
           )
+        : Promise.resolve(null),
+      // Pazarlık hedefi (nextBidConstraint) için rakip SUBMITTED teklifler.
+      listing.format === "ENGLISH_AUCTION"
+        ? this.prisma.listingBid.findMany({
+            where: {
+              listingId: id,
+              status: "SUBMITTED",
+              bidderCompanyId: { not: user.companyId },
+            },
+            select: { amount: true, currency: true },
+          })
         : Promise.resolve(null),
     ]);
 
@@ -2167,6 +2179,71 @@ export class CompanyListingsService {
       user.roles.includes(
         listing.type === "ALIM" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI,
       );
+    // Pazarlık hedefi — teklifçinin "kaça inmeliyim/çıkmalıyım" sorusunun
+    // SUNUCU cevabı (çalışma masası hedef çubuğu + otomatik dağıtım bunu
+    // kullanır; istemci hesabı kur/yuvarlama driftiyle 400 üretirdi).
+    // placeBid doğrulamasıyla TEK KAYNAK: auctionBidBounds. Görünürlük modu
+    // en iyi teklifi gizliyorsa hedef sayısı da GİZLİ kalır (revealRef) —
+    // hedeften rakip fiyatı geri hesaplanamaz. Birim kilidi varsa (SUBMITTED
+    // teklif) yalnız o birim; yoksa izinli her birim için hesaplanır.
+    type ConstraintByCurrency = {
+      hasReference: boolean;
+      disclosed: boolean;
+      targetTotal: string | null;
+      referenceTotal: string | null;
+      step: string | null;
+      rateMissing: boolean;
+    };
+    let nextBidConstraint: {
+      direction: "DOWN" | "UP";
+      currencyLocked: boolean;
+      ownCurrency: string | null;
+      ownLastTotal: string | null;
+      byCurrency: Record<string, ConstraintByCurrency>;
+    } | null = null;
+    if (
+      listing.format === "ENGLISH_AUCTION" &&
+      listing.status === "OPEN" &&
+      !masked &&
+      canBid &&
+      auctionCompetitors
+    ) {
+      const ownLast =
+        myBid && myBid.status === "SUBMITTED" ? myBid.amount : null;
+      const lockedCurrency = ownLast != null ? myBid!.currency : null;
+      const currencies = lockedCurrency
+        ? [lockedCurrency]
+        : listing.allowedCurrencies.length > 0
+          ? listing.allowedCurrencies
+          : [listing.primaryCurrency];
+      const byCurrency: Record<string, ConstraintByCurrency> = {};
+      for (const cur of currencies) {
+        const b = await this.auctionBidBounds({
+          listing,
+          currency: cur,
+          competitors: auctionCompetitors,
+          ownLast: lockedCurrency === cur ? ownLast : null,
+        });
+        const rateMissing = b.competitorRateMissing || b.stepRateMissing;
+        const show = b.revealRef && !rateMissing;
+        byCurrency[cur] = {
+          hasReference: !rateMissing && b.ref != null,
+          disclosed: b.revealRef,
+          targetTotal: show && b.bound != null ? b.bound.toString() : null,
+          referenceTotal: show && b.ref != null ? b.ref.toString() : null,
+          // PERCENT adımı referanstan türer — revealRef kapısına o da tabi.
+          step: show && b.ref != null ? b.step.toString() : null,
+          rateMissing,
+        };
+      }
+      nextBidConstraint = {
+        direction: listing.type === "SATIS" ? "UP" : "DOWN",
+        currencyLocked: lockedCurrency != null,
+        ownCurrency: lockedCurrency,
+        ownLastTotal: ownLast?.toString() ?? null,
+        byCurrency,
+      };
+    }
     // Bidder'a dönen `english` bloğu görünürlükle sınırlanır; MASKELİ izleyici
     // canlı fiyat/katılımcı verisi almaz (önizleme sızıntısı yok).
     const englishForBidder =
@@ -2187,6 +2264,7 @@ export class CompanyListingsService {
       invited: isInvited,
       english: englishForBidder,
       auctionView: masked ? null : auctionView,
+      nextBidConstraint,
       // Teslimat adresi (PII: ad/telefon) yalnız teklif verebilenlere —
       // maskeli/premium-kilitli izleyici görmez.
       deliveryAddress: canBid ? deliveryAddress : null,
@@ -2379,6 +2457,153 @@ export class CompanyListingsService {
               isMine: b.bidderCompanyId === companyId,
             }))
           : null,
+    };
+  }
+
+  /**
+   * İngiliz usulü teklif sınırı — TEK KAYNAK: hem placeBid doğrulaması hem
+   * teklifçiye dönen nextBidConstraint (pazarlık çalışma masası hedefi) bu
+   * hesabı kullanır. İkisi ayrışırsa istemci "hedefe ulaştın" derken sunucu
+   * reddeder — o yüzden kopya hesap YASAK, buraya bağlanın.
+   *
+   * Tüm kıyaslar `currency` biriminde: rakip referans ve sabit adım, açılış
+   * kur damgasıyla (auctionRateSnapshot) çevrilir; damgada olmayan birim
+   * güncel TCMB ile tamamlanır. Çevrilemeyen durum FLAG olarak döner (burada
+   * throw yok — placeBid hataya, görünüm "hedef hesaplanamadı"ya çevirir).
+   */
+  private async auctionBidBounds(args: {
+    listing: {
+      type: ListingType;
+      primaryCurrency: Currency;
+      priceDecrementType: string | null;
+      priceDecrementValue: Prisma.Decimal | null;
+      priceDecrementBasis: string | null;
+      bidVisibility: string;
+      auctionRateSnapshot: unknown;
+    };
+    /** Kıyas birimi — teklifçinin (verilecek teklifin) para birimi. */
+    currency: string;
+    competitors: { amount: Prisma.Decimal; currency: string }[];
+    /** Kendi SUBMITTED toplamı, `currency` biriminde (birim kilidi). */
+    ownLast: Prisma.Decimal | null;
+  }): Promise<{
+    /** Rakip teklif kıyas birimine çevrilemedi (kur eksik). */
+    competitorRateMissing: boolean;
+    /** AMOUNT tipli sabit adım kıyas birimine çevrilemedi. */
+    stepRateMissing: boolean;
+    ref: Prisma.Decimal | null;
+    step: Prisma.Decimal;
+    /** ALIM: izin verilen EN YÜKSEK teklif; SATIS: EN DÜŞÜK. null = sınır yok. */
+    bound: Prisma.Decimal | null;
+    refFromCompetitor: boolean;
+    /**
+     * KAPALI-ZARF SIZINTISI KORUMASI: referans rakibin en iyi teklifiyse ve
+     * bidVisibility en iyiyi AÇIKLAMIYORSA (OWN_ONLY/OWN_RANK) false —
+     * ref/bound sayısı teklifçiye HİÇBİR kanaldan (hata mesajı, constraint
+     * yanıtı) echo edilemez; aksi halde rakip fiyatı geri hesaplanırdı.
+     */
+    revealRef: boolean;
+  }> {
+    const { listing, currency, competitors, ownLast } = args;
+    const isAscending = listing.type === "SATIS";
+    const none = {
+      stepRateMissing: false,
+      ref: null,
+      step: new Prisma.Decimal(0),
+      bound: null,
+      refFromCompetitor: false,
+      revealRef: false,
+    };
+    // Kur damgası: tur açılışında yazılır; eksik birim (legacy tur / yeni
+    // eklenen birim) güncel TCMB kuruyla tamamlanır. Birim başına TRY.
+    const snap = (listing.auctionRateSnapshot ?? {}) as Record<
+      string,
+      unknown
+    >;
+    const rateCache = new Map<string, Prisma.Decimal | null>();
+    const auctionRate = async (
+      cur: string,
+    ): Promise<Prisma.Decimal | null> => {
+      const cached = rateCache.get(cur);
+      if (cached !== undefined) return cached;
+      let r: number | null = cur === "TRY" ? 1 : null;
+      const s = snap[cur];
+      if (r == null && typeof s === "number" && s > 0) r = s;
+      if (r == null) {
+        r = await this.exchangeRates
+          .getCurrentRate(cur as Currency)
+          .catch(() => null);
+      }
+      const d = r != null && r > 0 ? new Prisma.Decimal(r) : null;
+      rateCache.set(cur, d);
+      return d;
+    };
+    // from → to çevrimi; aynı birimde kur GEREKMEZ (oran 1 — legacy güvenli).
+    const convert = async (
+      v: Prisma.Decimal,
+      from: string,
+      to: string,
+    ): Promise<Prisma.Decimal | null> => {
+      if (from === to) return v;
+      const [rf, rt] = await Promise.all([auctionRate(from), auctionRate(to)]);
+      if (!rf || !rt) return null;
+      return v.mul(rf).div(rt);
+    };
+    // Rakip en iyi — kıyas biriminde.
+    let best: Prisma.Decimal | null = null;
+    for (const c of competitors) {
+      const conv = await convert(c.amount, c.currency, currency);
+      if (conv == null) return { ...none, competitorRateMissing: true };
+      if (best == null || (isAscending ? conv.gt(best) : conv.lt(best))) {
+        best = conv;
+      }
+    }
+    const ref =
+      // BEST_BID bazında rakip yoksa kendi son teklifi referans olur —
+      // solo teklifçi 0,01'lik anlamsız adımlarla ilerleyemesin.
+      listing.priceDecrementBasis === "OWN_LAST_BID"
+        ? ownLast ?? best
+        : best ?? ownLast;
+    let step = new Prisma.Decimal(0);
+    let stepRateMissing = false;
+    if (ref != null) {
+      const dv =
+        listing.priceDecrementValue != null
+          ? new Prisma.Decimal(listing.priceDecrementValue)
+          : new Prisma.Decimal(0);
+      // Sabit adım İLANIN ana biriminde tanımlı → kıyas birimine çevrilir ve
+      // 2 haneye YUKARI yuvarlanır ("en az adım eşdeğeri" garantisi
+      // yuvarlamayla erimesin). Yüzde adım birimden bağımsız (referans zaten
+      // kıyas biriminde).
+      if (dv.gt(0)) {
+        if (listing.priceDecrementType === "PERCENT") {
+          step = ref.mul(dv).div(100);
+        } else {
+          const conv = await convert(dv, listing.primaryCurrency, currency);
+          if (conv == null) stepRateMissing = true;
+          else step = conv.toDecimalPlaces(2, Prisma.Decimal.ROUND_UP);
+        }
+      }
+    }
+    const bound =
+      ref != null && !stepRateMissing
+        ? isAscending
+          ? ref.plus(step)
+          : ref.minus(step)
+        : null;
+    const bestDisclosed =
+      listing.bidVisibility === "BEST_PRICE" ||
+      listing.bidVisibility === "BEST_AND_OWN_RANK" ||
+      listing.bidVisibility === "ALL";
+    const refFromCompetitor = ref === best && best != null;
+    return {
+      competitorRateMissing: false,
+      stepRateMissing,
+      ref,
+      step,
+      bound,
+      refFromCompetitor,
+      revealRef: bestDisclosed || !refFromCompetitor,
     };
   }
 
@@ -2976,57 +3201,21 @@ export class CompanyListingsService {
           select: { amount: true, currency: true, status: true },
         }),
       ]);
-      // Kur damgası: tur açılışında yazılır; eksik birim (legacy tur / yeni
-      // eklenen birim) güncel TCMB kuruyla tamamlanır. Birim başına TRY.
-      const snap = (listing.auctionRateSnapshot ?? {}) as Record<
-        string,
-        unknown
-      >;
-      const rateCache = new Map<string, Prisma.Decimal | null>();
-      const auctionRate = async (
-        cur: string,
-      ): Promise<Prisma.Decimal | null> => {
-        const cached = rateCache.get(cur);
-        if (cached !== undefined) return cached;
-        let r: number | null = cur === "TRY" ? 1 : null;
-        const s = snap[cur];
-        if (r == null && typeof s === "number" && s > 0) r = s;
-        if (r == null) {
-          r = await this.exchangeRates
-            .getCurrentRate(cur as Currency)
-            .catch(() => null);
-        }
-        const d = r != null && r > 0 ? new Prisma.Decimal(r) : null;
-        rateCache.set(cur, d);
-        return d;
-      };
-      // from → to çevrimi; aynı birimde kur GEREKMEZ (oran 1 — legacy güvenli).
-      const convert = async (
-        v: Prisma.Decimal,
-        from: string,
-        to: string,
-      ): Promise<Prisma.Decimal | null> => {
-        if (from === to) return v;
-        const [rf, rt] = await Promise.all([auctionRate(from), auctionRate(to)]);
-        if (!rf || !rt) return null;
-        return v.mul(rf).div(rt);
-      };
-      // Rakip en iyi — teklifçinin biriminde.
-      let best: Prisma.Decimal | null = null;
-      for (const c of competitors) {
-        const conv = await convert(c.amount, c.currency, currency);
-        if (conv == null) {
-          throw new BadRequestException(
-            "Kur bilgisi eksik — teklifiniz diğer tekliflerle karşılaştırılamıyor, lütfen daha sonra tekrar deneyin",
-          );
-        }
-        if (best == null || (isAscending ? conv.gt(best) : conv.lt(best))) {
-          best = conv;
-        }
-      }
       // Kendi son teklifi — birim kilidi sayesinde teklifçinin biriminde.
       const ownLast: Prisma.Decimal | null =
         own && own.status === "SUBMITTED" ? own.amount : null;
+      // Sınır hesabı auctionBidBounds'ta (nextBidConstraint ile TEK KAYNAK).
+      const bounds = await this.auctionBidBounds({
+        listing,
+        currency,
+        competitors,
+        ownLast,
+      });
+      if (bounds.competitorRateMissing) {
+        throw new BadRequestException(
+          "Kur bilgisi eksik — teklifiniz diğer tekliflerle karşılaştırılamıyor, lütfen daha sonra tekrar deneyin",
+        );
+      }
       const fmt = (d: Prisma.Decimal) =>
         d.toNumber().toLocaleString("tr-TR", { maximumFractionDigits: 2 });
       // Mesajlar teklifçinin KENDİ biriminde konuşur (ilanın değil).
@@ -3046,66 +3235,31 @@ export class CompanyListingsService {
           );
         }
       }
-      const ref =
-        // BEST_BID bazında rakip yoksa kendi son teklifi referans olur —
-        // solo teklifçi 0,01'lik anlamsız adımlarla ilerleyemesin.
-        listing.priceDecrementBasis === "OWN_LAST_BID"
-          ? ownLast ?? best
-          : best ?? ownLast;
-      if (ref != null) {
-        const dv =
-          listing.priceDecrementValue != null
-            ? new Prisma.Decimal(listing.priceDecrementValue)
-            : new Prisma.Decimal(0);
-        // Sabit adım İLANIN ana biriminde tanımlı → teklifçinin birimine
-        // çevrilir ve 2 haneye YUKARI yuvarlanır ("en az adım eşdeğeri"
-        // garantisi yuvarlamayla erimesin). Yüzde adım birimden bağımsız
-        // (referans zaten teklifçinin biriminde).
-        let step = new Prisma.Decimal(0);
-        if (dv.gt(0)) {
-          if (listing.priceDecrementType === "PERCENT") {
-            step = ref.mul(dv).div(100);
-          } else {
-            const conv = await convert(dv, listing.primaryCurrency, currency);
-            if (conv == null) {
-              throw new BadRequestException(
-                "Kur bilgisi eksik — azaltma payı para biriminize çevrilemiyor, lütfen daha sonra tekrar deneyin",
-              );
-            }
-            step = conv.toDecimalPlaces(2, Prisma.Decimal.ROUND_UP);
-          }
-        }
-        // KAPALI-ZARF SIZINTISI KORUMASI: referans RAKİBİN en iyi teklifiyse ve
-        // bidVisibility en iyiyi zaten AÇIKLAMIYORSA (OWN_ONLY/OWN_RANK), hata
-        // mesajı ref/tavan sayısını ECHO ETMEZ — aksi halde teklifçi geçersiz
-        // teklif atıp mesajdan rakip en iyi teklifi geri hesaplardı. Referans
-        // kendi son teklifiyse ya da best zaten görünürse detaylı mesaj güvenli.
-        const bestDisclosed =
-          listing.bidVisibility === "BEST_PRICE" ||
-          listing.bidVisibility === "BEST_AND_OWN_RANK" ||
-          listing.bidVisibility === "ALL";
-        const refFromCompetitor = ref === best && best != null;
-        const revealRef = bestDisclosed || !refFromCompetitor;
+      if (bounds.stepRateMissing) {
+        throw new BadRequestException(
+          "Kur bilgisi eksik — azaltma payı para biriminize çevrilemiyor, lütfen daha sonra tekrar deneyin",
+        );
+      }
+      if (bounds.bound != null && bounds.ref != null) {
+        const { ref, step, bound, revealRef } = bounds;
         // Decimal kesin aritmetik — epsilon toleransına gerek yok.
         if (!isAscending) {
-          const maxAllowed = ref.minus(step);
-          if (amount.gt(maxAllowed)) {
+          if (amount.gt(bound)) {
             throw new BadRequestException(
               !revealRef
                 ? "Pazarlık: teklifiniz yeterince düşük değil — gerekli en az azaltma karşılanmadı."
                 : step.gt(0)
-                  ? `Pazarlık: teklifiniz en fazla ${fmt(maxAllowed)} ${bidSym} olabilir (referansı en az ${fmt(step)} ${bidSym} azaltmalısınız)`
+                  ? `Pazarlık: teklifiniz en fazla ${fmt(bound)} ${bidSym} olabilir (referansı en az ${fmt(step)} ${bidSym} azaltmalısınız)`
                   : `Pazarlık: teklifiniz ${fmt(ref)} ${bidSym}'nin altında olmalı`,
             );
           }
         } else {
-          const minAllowed = ref.plus(step);
-          if (amount.lt(minAllowed)) {
+          if (amount.lt(bound)) {
             throw new BadRequestException(
               !revealRef
                 ? "Açık artırma: teklifiniz yeterince yüksek değil — gerekli en az artırma karşılanmadı."
                 : step.gt(0)
-                  ? `Açık artırma: teklifiniz en az ${fmt(minAllowed)} ${bidSym} olmalı (referansı en az ${fmt(step)} ${bidSym} artırmalısınız)`
+                  ? `Açık artırma: teklifiniz en az ${fmt(bound)} ${bidSym} olmalı (referansı en az ${fmt(step)} ${bidSym} artırmalısınız)`
                   : `Açık artırma: teklifiniz ${fmt(ref)} ${bidSym}'nin üzerinde olmalı`,
             );
           }
