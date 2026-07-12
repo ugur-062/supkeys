@@ -635,6 +635,40 @@ export function useCreateNextRound(id: string) {
   });
 }
 
+/** Değerlendirmeye Al — OPEN'dan basılırsa teklif alımı da durur (IN_AWARD). */
+export function useStartEvaluation(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post<{ ok: boolean; status: string }>(
+        `/company/listings/${id}/start-evaluation`,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+      invalidateListingCaches(qc);
+    },
+  });
+}
+
+/** Değerlendirmeden Çıkar (geri al) — IN_AWARD → CLOSED, bildirimsiz. */
+export function useStopEvaluation(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post<{ ok: boolean; status: string }>(
+        `/company/listings/${id}/stop-evaluation`,
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+      invalidateListingCaches(qc);
+    },
+  });
+}
+
 /**
  * Teklif geçerlilik süresini uzat (fiyat değişmeden) — taşımada süresi
  * dolduğu için taslağa düşmüş teklifi aynı fiyatla canlandırabilir.

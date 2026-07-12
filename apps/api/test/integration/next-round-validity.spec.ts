@@ -221,12 +221,23 @@ describe("Geçerlilik uzatma (extendBidValidity)", () => {
     ).rejects.toThrow(/gönderilmiş bir teklif yok/);
   });
 
-  it("kapalı ilanda uzatılamaz; teklifi olmayana 404", async () => {
+  it("kapalı (CLOSED) ilanda uzatma SERBEST — değerlendirme uzarken teklif dolmasın; sonuçlanmışta kapalı; teklifi olmayana 404", async () => {
     const { service, valid, expired, listing } = await closedRfq();
-    // İlan CLOSED (yeni tur açılmadı) → uzatma kapalı.
+    // CLOSED'da uzatma serbest (alıcı karar verirken teklif dolmasın).
+    const ext = await service.extendBidValidity(valid.auth, listing.id, 30);
+    expect(ext.ok).toBe(true);
+    // Sonuçlanmış (CLOSED_NO_AWARD) ihalede uzatılamaz.
+    await prisma.listing.update({
+      where: { id: listing.id },
+      data: { status: "CLOSED_NO_AWARD" },
+    });
     await expect(
       service.extendBidValidity(valid.auth, listing.id, 30),
-    ).rejects.toThrow(/teklife kapalı/);
+    ).rejects.toThrow(/sonuçlandı/);
+    await prisma.listing.update({
+      where: { id: listing.id },
+      data: { status: "CLOSED" },
+    });
     // Teklifi olmayan firma → 404 (ilan OPEN olsa bile).
     const stranger = await makeCompanyWithUser(prisma, { country: "TR" });
     const open = await makeListing(prisma, {

@@ -340,6 +340,23 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
         title="İhale kapandı — taslak teklifiniz gönderilmedi."
       />,
     );
+  } else if (
+    bid.status === "SUBMITTED" &&
+    (l.status === "IN_AWARD" || l.status === "IN_AWARD_APPROVAL")
+  ) {
+    // Alıcının BİLİNÇLİ "Değerlendirmeye Al" sinyali — nötr kapanıştan farklı.
+    alerts.push(
+      <StatusAlert
+        key="evaluating"
+        tone="info"
+        title="Teklifiniz değerlendiriliyor"
+      >
+        <p>
+          {l.type === "SATIS" ? "Satıcı" : "Alıcı"} teklifleri değerlendirmeye
+          aldı — sonuç açıklandığında bilgilendirileceksiniz.
+        </p>
+      </StatusAlert>,
+    );
   } else if (bid.status === "SUBMITTED" && !open) {
     alerts.push(
       <StatusAlert

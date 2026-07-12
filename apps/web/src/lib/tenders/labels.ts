@@ -30,7 +30,7 @@ export const TENDER_STATUS_META: Record<TenderStatus, BadgeMeta> = {
     className: "bg-success-50 text-success-700 border-success-500/30",
   },
   IN_AWARD: {
-    label: "Kazandırma Aşamasında",
+    label: "Değerlendirmede",
     className: "bg-warning-50 text-warning-700 border-warning-500/30",
   },
   IN_AWARD_APPROVAL: {

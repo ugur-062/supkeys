@@ -1008,6 +1008,9 @@ model Listing {
   publishedAt           DateTime? // OPEN'a geçiş anı
   awardedAt             DateTime? // AWARDED anı
   closingReminderSentAt DateTime? // kapanış hatırlatma idempotency
+  // Değerlendirme (IN_AWARD) uzarken "teklif geçerlilikleri dolmak üzere"
+  // sahip hatırlatması idempotency damgası (cron bir kez gönderir).
+  evaluationReminderSentAt DateTime?
   // İngiliz Usulü çok-turlu eksiltme — alıcı tur tur ilerletir (eski yeni-tur).
   currentRound          Int               @default(1)
 

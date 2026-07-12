@@ -21,7 +21,7 @@ export const LISTING_STATUS_LABELS: Record<ListingStatus, string> = {
   IN_APPROVAL: "Onayda",
   OPEN: "Yayında",
   CLOSED: "Teklife Kapalı",
-  IN_AWARD: "Kazandırmada",
+  IN_AWARD: "Değerlendirmede",
   IN_AWARD_APPROVAL: "Kazandırma Onayı",
   AWARDED: "Tamamlandı",
   CLOSED_NO_AWARD: "Kazansız Kapandı",

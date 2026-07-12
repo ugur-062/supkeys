@@ -42,7 +42,12 @@ describe("deriveSellerTenderState", () => {
   });
 
   it("kapanış/değerlendirme durumları", () => {
+    // "Değerlendiriliyor" YALNIZ alıcının bilinçli sinyalinde (IN_AWARD*);
+    // sıradan kapanış nötr "Sonuç Bekleniyor" — ayrım düğmenin anlamı.
     expect(deriveSellerTenderState("CLOSED", "SUBMITTED", false).label).toBe(
+      "Sonuç Bekleniyor",
+    );
+    expect(deriveSellerTenderState("IN_AWARD", "SUBMITTED", false).label).toBe(
       "Değerlendiriliyor",
     );
     // Gönderilmemiş taslak "değerlendirmede" DEĞİL (denetim düzeltmesi).

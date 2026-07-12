@@ -39,6 +39,11 @@ export class ListingScheduler implements OnModuleInit {
       "Açılış saati gelen (embargolu) ilanların yayın duyurusu",
       "her dakika",
     );
+    this.cronRegistry?.register(
+      "listing.evaluationValidityReminders",
+      "Değerlendirmedeki ihalede geçerliliği dolmak üzere olan teklifler için sahibe hatırlatma",
+      "saatte bir",
+    );
   }
 
   /**
@@ -148,6 +153,70 @@ export class ListingScheduler implements OnModuleInit {
     return trackCronRun(this.cronRegistry, "listing.announceOpened", () =>
       this.doAnnounceOpened(),
     );
+  }
+
+  /**
+   * Saatte bir — DEĞERLENDİRMEDEKİ (IN_AWARD) ihalede geçerliliği 3 gün
+   * içinde dolacak (ya da dolmuş) SUBMITTED teklif varsa SAHİBE tek seferlik
+   * hatırlatma: "karar verin ya da tedarikçilerden uzatma isteyin".
+   * İdempotency: evaluationReminderSentAt damgası (değerlendirmeye her yeni
+   * alışta sıfırlanır → yeni pencere için yeniden kurulur).
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async evaluationValidityReminders(): Promise<void> {
+    return trackCronRun(
+      this.cronRegistry,
+      "listing.evaluationValidityReminders",
+      () => this.doEvaluationValidityReminders(),
+    );
+  }
+
+  private async doEvaluationValidityReminders(): Promise<void> {
+    const HORIZON_MS = 3 * 86_400_000;
+    const now = Date.now();
+    const candidates = await this.prisma.listing.findMany({
+      where: { status: "IN_AWARD", evaluationReminderSentAt: null },
+      select: {
+        id: true,
+        bids: {
+          where: { status: "SUBMITTED" },
+          select: { submittedAt: true, validityDays: true },
+        },
+      },
+      take: 200,
+    });
+    let sent = 0;
+    for (const l of candidates) {
+      const expiring = l.bids.filter(
+        (b) =>
+          b.submittedAt != null &&
+          b.validityDays != null &&
+          b.submittedAt.getTime() + b.validityDays * 86_400_000 <=
+            now + HORIZON_MS,
+      ).length;
+      if (expiring === 0) continue;
+      // Atomik claim — overlap/2-replica'da çift hatırlatma olmaz.
+      const claimed = await this.prisma.listing.updateMany({
+        where: { id: l.id, evaluationReminderSentAt: null },
+        data: { evaluationReminderSentAt: new Date() },
+      });
+      if (claimed.count !== 1) continue;
+      sent++;
+      void this.listings
+        .notifyEvaluationValidityReminder(l.id, expiring)
+        .catch((err) =>
+          this.logger.error(
+            `Değerlendirme hatırlatması gönderilemedi (${l.id}): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
+    }
+    if (sent > 0) {
+      this.logger.log(
+        `${sent} değerlendirmedeki ilan için geçerlilik hatırlatması gönderildi`,
+      );
+    }
   }
 
   private async doAnnounceOpened(): Promise<void> {

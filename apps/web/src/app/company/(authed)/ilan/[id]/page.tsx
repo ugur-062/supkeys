@@ -503,8 +503,9 @@ export default function ListingDetailPage() {
       : !b.currency || b.currency === "TRY"
         ? Number(b.amount)
         : null;
-  // Erken kapatınca (CLOSED) da kazandırma/eleme açık kalır.
-  const canDecide = l.status === "OPEN" || l.status === "CLOSED";
+  // Erken kapatınca (CLOSED) ve Değerlendirmede (IN_AWARD) kazandırma/eleme açık.
+  const canDecide =
+    l.status === "OPEN" || l.status === "CLOSED" || l.status === "IN_AWARD";
 
   // ── Tasarruf özeti (kalem-bazlı karar desteği) ────────────────────────
   // Teorik kıyas: "en iyi TOPLU teklif" = TÜM kalemleri fiyatlamış tek

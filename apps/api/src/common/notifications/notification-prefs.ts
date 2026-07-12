@@ -30,6 +30,10 @@ const PREF_KEY_BY_TYPE: Record<string, NotificationPrefKey | undefined> = {
   bid_lost: "bidElimination",
   listing_closed: "listingClosed",
   listing_closed_owner: "listingClosed",
+  // Değerlendirmeye alınma sinyali kapanış ailesindendir (aynı tercih anahtarı).
+  listing_evaluation: "listingClosed",
+  // Değerlendirme uzarken "teklif geçerlilikleri doluyor" sahip hatırlatması.
+  listing_evaluation_reminder: "reminder",
   listing_category_match: "categoryMatch",
   approval_pending: "approvalPending",
   // Aşağıdakiler bilinçli olarak listelenmez → transactional:

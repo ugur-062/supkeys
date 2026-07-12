@@ -3542,7 +3542,7 @@ export class CompanyListingsService {
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
     }
-    if (listing.status !== "OPEN" && listing.status !== "CLOSED") {
+    if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
     }
     const neededRole =
@@ -3601,7 +3601,7 @@ export class CompanyListingsService {
       // Koşullu geçiş: yalnız hâlâ OPEN/CLOSED ise askıya al. Eşzamanlı başka bir
       // kazandırma bu arada AWARDED yaptıysa (count=0) üzerine yazma.
       const moved = await this.prisma.listing.updateMany({
-        where: { id: listingId, status: { in: ["OPEN", "CLOSED"] } },
+        where: { id: listingId, status: { in: ["OPEN", "CLOSED", "IN_AWARD"] } },
         data: { status: "IN_AWARD_APPROVAL" },
       });
       if (moved.count !== 1) {
@@ -3708,7 +3708,7 @@ export class CompanyListingsService {
       const transition = await tx.listing.updateMany({
         where: {
           id: listingId,
-          status: { in: ["OPEN", "CLOSED", "IN_AWARD_APPROVAL"] },
+          status: { in: ["OPEN", "CLOSED", "IN_AWARD", "IN_AWARD_APPROVAL"] },
         },
         data: { status: "AWARDED", awardedAt: new Date() },
       });
@@ -3860,7 +3860,7 @@ export class CompanyListingsService {
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
     }
-    if (listing.status !== "OPEN" && listing.status !== "CLOSED") {
+    if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
     }
     // Kalem-bazlı kazandırma her iki yönde: ALIM'da kalemler farklı satıcılara,
@@ -3913,7 +3913,7 @@ export class CompanyListingsService {
     });
     if (!res.approved) {
       const moved = await this.prisma.listing.updateMany({
-        where: { id: listingId, status: { in: ["OPEN", "CLOSED"] } },
+        where: { id: listingId, status: { in: ["OPEN", "CLOSED", "IN_AWARD"] } },
         data: { status: "IN_AWARD_APPROVAL" },
       });
       if (moved.count !== 1) {
@@ -4120,7 +4120,7 @@ export class CompanyListingsService {
       const transition = await tx.listing.updateMany({
         where: {
           id: listingId,
-          status: { in: ["OPEN", "CLOSED", "IN_AWARD_APPROVAL"] },
+          status: { in: ["OPEN", "CLOSED", "IN_AWARD", "IN_AWARD_APPROVAL"] },
         },
         data: { status: "AWARDED", awardedAt: new Date() },
       });
@@ -4281,7 +4281,9 @@ export class CompanyListingsService {
     // yeniden kazandırıp ikinci sipariş üretebilirdi.
     await this.prisma.listing.updateMany({
       where: { id: payload.listingId, status: "IN_AWARD_APPROVAL" },
-      data: { status: "CLOSED" },
+      // Red → değerlendirme SÜRÜYOR (IN_AWARD): kazandırma denemesi yapan
+      // alıcı zaten değerlendirme aşamasındaydı; tedarikçi sinyali kaybolmasın.
+      data: { status: "IN_AWARD" },
     });
   }
 
@@ -4317,7 +4319,7 @@ export class CompanyListingsService {
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi yeni tur açabilir");
     }
-    if (!["OPEN", "CLOSED", "CLOSED_NO_AWARD"].includes(listing.status)) {
+    if (!["OPEN", "CLOSED", "IN_AWARD", "CLOSED_NO_AWARD"].includes(listing.status)) {
       throw new BadRequestException(
         "Yeni tur yalnızca açık veya kapanmış ilanda açılabilir",
       );
@@ -4634,12 +4636,18 @@ export class CompanyListingsService {
       select: { id: true, status: true, closesAt: true, currentRound: true },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
+    // Uzatma sonuçlanmamış her aşamada serbest — değerlendirme uzarken
+    // (CLOSED/IN_AWARD*) teklifin dolmaması tam da bu akışın amacı. OPEN'da
+    // kapanış saati geçmişse cron'u beklemeden reddedilir.
+    const extendable = ["OPEN", "CLOSED", "IN_AWARD", "IN_AWARD_APPROVAL"];
     if (
-      listing.status !== "OPEN" ||
-      (listing.closesAt && listing.closesAt.getTime() <= Date.now())
+      !extendable.includes(listing.status) ||
+      (listing.status === "OPEN" &&
+        listing.closesAt &&
+        listing.closesAt.getTime() <= Date.now())
     ) {
       throw new BadRequestException(
-        "İlan teklife kapalı — geçerlilik süresi uzatılamaz",
+        "İhale sonuçlandı — geçerlilik süresi uzatılamaz",
       );
     }
     const bid = await this.prisma.listingBid.findUnique({
@@ -4869,7 +4877,7 @@ export class CompanyListingsService {
       throw new ForbiddenException("Sadece ilan sahibi eleme yapabilir");
     }
     // Karar aşaması: açık VEYA kapanmış ilanda eleme yapılabilir (award ile aynı).
-    if (listing.status !== "OPEN" && listing.status !== "CLOSED") {
+    if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("Bu durumda eleme yapılamaz");
     }
     const bid = await this.prisma.listingBid.findUnique({
@@ -5061,6 +5069,166 @@ export class CompanyListingsService {
     return { ok: true, status: "CLOSED" };
   }
 
+  /**
+   * Değerlendirmeye Al — alıcının BİLİNÇLİ sinyali (IN_AWARD). OPEN'dan
+   * basılırsa teklif alımı da durur (erken kapat + değerlendir tek adım).
+   * Zorunlu bir ara adım DEĞİLDİR: kazandır/ele OPEN/CLOSED'dan da çalışır.
+   * SUBMITTED teklif sahipleri bilgilendirilir ("teklifiniz değerlendiriliyor").
+   */
+  async startEvaluation(user: AuthenticatedCompanyUser, listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true, status: true, type: true },
+    });
+    if (!listing || listing.companyId !== user.companyId) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
+    if (listing.status === "IN_AWARD") {
+      throw new BadRequestException("İhale zaten değerlendirmede");
+    }
+    if (listing.status !== "OPEN" && listing.status !== "CLOSED") {
+      throw new BadRequestException(
+        "Yalnızca açık veya kapanmış ihale değerlendirmeye alınabilir",
+      );
+    }
+    const fromOpen = listing.status === "OPEN";
+    // Koşullu geçiş: eşzamanlı kapanış cron'u / kazandırma yarışında durum
+    // değiştiyse üzerine yazma.
+    const updated = await this.prisma.listing.updateMany({
+      where: { id: listingId, status: { in: ["OPEN", "CLOSED"] } },
+      data: {
+        status: "IN_AWARD",
+        // OPEN'dan alınırsa teklif alımı ŞİMDİ durur (closeEarly ile aynı).
+        ...(fromOpen ? { closesAt: new Date() } : {}),
+        // Yeni değerlendirme penceresi → geçerlilik hatırlatması yeniden kurulur.
+        evaluationReminderSentAt: null,
+      },
+    });
+    if (updated.count !== 1) {
+      throw new ConflictException("İlan durumu değişti — sayfayı yenileyin");
+    }
+    void this.notifyEvaluationStarted(listingId).catch((err) =>
+      this.logger.error(
+        `Değerlendirme bildirimi gönderilemedi (${listingId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
+    this.realtime?.pingListing(listingId);
+    return { ok: true, status: "IN_AWARD" };
+  }
+
+  /**
+   * Değerlendirmeden Çıkar (geri al) — IN_AWARD → CLOSED. Bilinçli olarak
+   * BİLDİRİMSİZ: sinyal sessizce nötrlenir; tedarikçi etiketi "Sonuç
+   * Bekleniyor"a döner. Teklif alımı yeniden AÇILMAZ (o iş Yeni Tur'un).
+   */
+  async stopEvaluation(user: AuthenticatedCompanyUser, listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, companyId: true, status: true },
+    });
+    if (!listing || listing.companyId !== user.companyId) {
+      throw new NotFoundException("İlan bulunamadı");
+    }
+    if (listing.status !== "IN_AWARD") {
+      throw new BadRequestException("İhale değerlendirmede değil");
+    }
+    await this.prisma.listing.update({
+      where: { id: listingId },
+      data: { status: "CLOSED" },
+    });
+    this.realtime?.pingListing(listingId);
+    return { ok: true, status: "CLOSED" };
+  }
+
+  /** Değerlendirmeye alınınca SUBMITTED teklif sahiplerine in-app + e-posta. */
+  private async notifyEvaluationStarted(listingId: string) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, title: true, number: true, type: true },
+    });
+    if (!listing) return;
+    const bidders = await this.prisma.listingBid.findMany({
+      where: { listingId, status: "SUBMITTED" },
+      select: { bidderCompanyId: true },
+    });
+    const companyIds = [...new Set(bidders.map((b) => b.bidderCompanyId))];
+    if (companyIds.length === 0) return;
+    const label = `"${listing.title}" (${listing.number ?? "—"})`;
+    const portal = this.bidderPortal(listing.type);
+    const url = `${this.webUrl()}/company/ilan/${listingId}`;
+    const body = `${label} ihalesinde teklifiniz değerlendirmeye alındı. Sonuç açıklandığında bilgilendirileceksiniz.`;
+    const recipients = await this.companyRecipients(companyIds, portal);
+    for (const cid of companyIds) {
+      const r = recipients.get(cid);
+      if (!r) continue;
+      this.notify(
+        r,
+        {
+          subject: "Teklifiniz değerlendirmeye alındı",
+          heading: "Teklifiniz değerlendiriliyor",
+          paragraphs: ["Merhaba,", body],
+          ctaLabel: "İhaleyi Gör",
+          ctaUrl: url,
+        },
+        { type: "listing_evaluation", id: listingId },
+      );
+    }
+    await this.notifications.pushToCompanies(companyIds, {
+      type: "listing_evaluation",
+      portal,
+      title: "Teklifiniz değerlendiriliyor",
+      body,
+      ctaLabel: "İhaleyi Gör",
+      ctaUrl: url,
+      listingId,
+    });
+  }
+
+  /**
+   * Değerlendirme uzarken SAHİBE hatırlatma (cron çağırır): geçerliliği
+   * dolmak üzere/dolmuş SUBMITTED teklif sayısıyla "karar verin ya da
+   * tedarikçilerden uzatma isteyin".
+   */
+  async notifyEvaluationValidityReminder(
+    listingId: string,
+    expiringCount: number,
+  ) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, title: true, number: true, type: true, companyId: true },
+    });
+    if (!listing) return;
+    const label = `"${listing.title}" (${listing.number ?? "—"})`;
+    const portal = this.ownerPortal(listing.type);
+    const url = `${this.webUrl()}/company/ilan/${listingId}`;
+    const body = `${label} ihalesi değerlendirmede ve ${expiringCount} teklifin geçerlilik süresi dolmak üzere (ya da doldu). Kararınızı verin ya da ${listing.type === "SATIS" ? "alıcılardan" : "tedarikçilerden"} geçerlilik uzatması isteyin.`;
+    const recipient = await this.companyRecipient(listing.companyId, portal);
+    if (recipient) {
+      this.notify(
+        recipient,
+        {
+          subject: "Değerlendirmedeki ihalede teklif geçerlilikleri doluyor",
+          heading: "Teklif geçerlilikleri dolmak üzere",
+          paragraphs: ["Merhaba,", body],
+          ctaLabel: "İhaleyi Gör",
+          ctaUrl: url,
+        },
+        { type: "listing_evaluation_reminder", id: listingId },
+      );
+    }
+    await this.notifications.pushToCompany(listing.companyId, {
+      type: "listing_evaluation_reminder",
+      portal,
+      title: "Teklif geçerlilikleri dolmak üzere",
+      body,
+      ctaLabel: "İhaleyi Gör",
+      ctaUrl: url,
+      listingId,
+    });
+  }
+
   /** Sahip kapanış zamanını değiştirir (ileri/geri). OPEN ilanlarda. */
   async changeClosingTime(
     user: AuthenticatedCompanyUser,
@@ -5141,14 +5309,14 @@ export class CompanyListingsService {
     if (!listing || listing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
     }
-    if (listing.status !== "OPEN" && listing.status !== "CLOSED") {
+    if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("Bu ilan kapatılamaz");
     }
     await this.prisma.$transaction(async (tx) => {
       // Koşullu: eşzamanlı runFullAward bu arada AWARDED + sipariş yazdıysa
       // (count=0) üzerine yazma — sipariş dururken "kazanansız kapandı" olmasın.
       const closed = await tx.listing.updateMany({
-        where: { id: listing.id, status: { in: ["OPEN", "CLOSED"] } },
+        where: { id: listing.id, status: { in: ["OPEN", "CLOSED", "IN_AWARD"] } },
         data: { status: "CLOSED_NO_AWARD", cancelReason: reason?.trim() || null },
       });
       if (closed.count !== 1) {

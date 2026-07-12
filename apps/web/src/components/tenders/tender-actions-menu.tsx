@@ -33,6 +33,8 @@ import {
   useCloseNoAward,
   useCreateNextRound,
   useDeleteListing,
+  useStartEvaluation,
+  useStopEvaluation,
   useUpdateInternalNotes,
 } from "@/hooks/use-company-listings";
 import { useCurrentExchangeRates } from "@/hooks/use-exchange-rates";
@@ -97,13 +99,21 @@ export function TenderActionsMenu({
   const deleteListing = useDeleteListing();
   const nextRound = useCreateNextRound(id);
   const cancelListing = useCancelListing(id);
+  const startEvaluation = useStartEvaluation(id);
+  const stopEvaluation = useStopEvaluation(id);
   const addInvitations = useAddInvitations(id);
   const connections = useConnections();
 
   const isDraft = status === "DRAFT";
   const isAuction = format === "ENGLISH_AUCTION";
-  // Yeni tur (+ RFQ↔İngiliz dönüşümü) yalnızca kapanmış ilanda.
-  const canNewRound = status === "CLOSED" || status === "CLOSED_NO_AWARD";
+  const isInEvaluation = status === "IN_AWARD";
+  // Değerlendirme OPSİYONEL bir sinyaldir: kazandır/ele OPEN/CLOSED'dan da
+  // çalışır; buton yalnız durumu görünür kılar (tedarikçi "değerlendiriliyor").
+  const canStartEvaluation = status === "OPEN" || status === "CLOSED";
+  // Yeni tur (+ RFQ↔İngiliz dönüşümü) kapanmış VEYA değerlendirmedeki ilanda
+  // (değerlendirmenin meşru sonuçlarından biri: yeni tur açmak).
+  const canNewRound =
+    status === "CLOSED" || status === "CLOSED_NO_AWARD" || isInEvaluation;
   const canInvite = status === "DRAFT" || status === "OPEN";
 
   const handleDeleteDraft = async () => {
@@ -281,6 +291,36 @@ export function TenderActionsMenu({
     }
   };
 
+  const handleStartEvaluation = async () => {
+    if (
+      isOpen &&
+      !(await confirm({
+        title: "Değerlendirmeye Al",
+        description:
+          "Teklif alımı durdurulacak ve ihale değerlendirme aşamasına alınacak. " +
+          (isSatis ? "Alıcılar" : "Tedarikçiler") +
+          " \"teklifiniz değerlendiriliyor\" bilgisini görür.",
+        confirmLabel: "Değerlendirmeye Al",
+      }))
+    )
+      return;
+    try {
+      await startEvaluation.mutateAsync();
+      toast.success("İhale değerlendirmeye alındı");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Değerlendirmeye alınamadı"));
+    }
+  };
+
+  const handleStopEvaluation = async () => {
+    try {
+      await stopEvaluation.mutateAsync();
+      toast.success("Değerlendirmeden çıkarıldı");
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "İşlem yapılamadı"));
+    }
+  };
+
   const handleChangeClosing = async () => {
     if (!newClosing) {
       toast.error("Tarih seç");
@@ -324,6 +364,15 @@ export function TenderActionsMenu({
             {isSatis ? "Alıcı Davet Et" : "Tedarikçi Davet Et"}
           </Button>
         ) : null}
+        {canStartEvaluation ? (
+          <Button
+            outline
+            onClick={handleStartEvaluation}
+            disabled={startEvaluation.isPending}
+          >
+            Değerlendirmeye Al
+          </Button>
+        ) : null}
 
         <Dropdown>
           <DropdownButton outline aria-label="Diğer işlemler">
@@ -349,23 +398,33 @@ export function TenderActionsMenu({
                 <DropdownLabel>Yeni Tur Oluştur</DropdownLabel>
               </DropdownItem>
             ) : null}
+            {isInEvaluation ? (
+              <DropdownItem onClick={handleStopEvaluation}>
+                <DropdownLabel>Değerlendirmeden Çıkar</DropdownLabel>
+              </DropdownItem>
+            ) : null}
             {isOpen ? (
+              <DropdownItem onClick={handleCloseEarly}>
+                <DropdownLabel>İhaleyi Erken Kapat</DropdownLabel>
+              </DropdownItem>
+            ) : null}
+            {isOpen || status === "CLOSED" || isInEvaluation ? (
               <>
-                <DropdownItem onClick={handleCloseEarly}>
-                  <DropdownLabel>İhaleyi Erken Kapat</DropdownLabel>
-                </DropdownItem>
                 <DropdownDivider />
+                {/* Değerlendirmenin meşru sonuçlarından biri: kimseye vermemek. */}
                 <DropdownItem onClick={() => setCloseNoAwardOpen(true)}>
                   <DropdownLabel className="text-red-600">
                     Kazanan Olmadan Kapat
                   </DropdownLabel>
                 </DropdownItem>
-                <DropdownItem onClick={() => setCancelOpen(true)}>
-                  <DropdownLabel className="text-red-600">
-                    İhaleyi İptal Et
-                  </DropdownLabel>
-                </DropdownItem>
               </>
+            ) : null}
+            {isOpen ? (
+              <DropdownItem onClick={() => setCancelOpen(true)}>
+                <DropdownLabel className="text-red-600">
+                  İhaleyi İptal Et
+                </DropdownLabel>
+              </DropdownItem>
             ) : null}
             {isDraft ? (
               <>
