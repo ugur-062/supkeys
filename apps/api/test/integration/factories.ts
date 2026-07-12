@@ -148,17 +148,29 @@ export async function makeBid(
     amount: number | string;
     currency?: string;
     status?: string;
+    /** Geçerlilik senaryoları: submittedAt + validityDays → son geçerlilik. */
+    submittedAt?: Date;
+    validityDays?: number;
     items?: { itemId: string; unitPrice: number | string }[];
   },
 ) {
-  const { items, amount, currency, status = "SUBMITTED", ...rest } = opts;
+  const {
+    items,
+    amount,
+    currency,
+    status = "SUBMITTED",
+    submittedAt,
+    validityDays,
+    ...rest
+  } = opts;
   return prisma.listingBid.create({
     data: {
       ...rest,
       amount: new Prisma.Decimal(amount),
       ...(currency ? { currency: currency as never } : {}),
+      ...(validityDays != null ? { validityDays } : {}),
       status: status as never,
-      submittedAt: status === "DRAFT" ? null : new Date(),
+      submittedAt: submittedAt ?? (status === "DRAFT" ? null : new Date()),
       ...(items
         ? {
             items: {

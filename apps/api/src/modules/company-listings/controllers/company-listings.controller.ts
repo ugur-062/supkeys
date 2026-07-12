@@ -17,6 +17,7 @@ import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.
 import { AwardByItemDto } from "../dto/award-by-item.dto";
 import { AwardListingDto } from "../dto/award-listing.dto";
 import { CreateListingDto } from "../dto/create-listing.dto";
+import { ExtendBidValidityDto } from "../dto/extend-bid-validity.dto";
 import { NextRoundDto } from "../dto/next-round.dto";
 import {
   AddInvitationsDto,
@@ -119,6 +120,17 @@ export class CompanyListingsController {
     @Body() dto: PlaceBidDto,
   ) {
     return this.service.placeBid(user, id, dto);
+  }
+
+  /** Kendi teklifinin geçerlilik süresini uzatır (fiyat değişmeden);
+   *  taşımada süresi dolduğu için taslağa düşmüş teklifi canlandırabilir. */
+  @Post(":id/bids/extend-validity")
+  extendBidValidity(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: ExtendBidValidityDto,
+  ) {
+    return this.service.extendBidValidity(user, id, dto.additionalDays);
   }
 
   @Post(":id/buy-now")

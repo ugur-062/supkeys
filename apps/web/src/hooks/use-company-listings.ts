@@ -259,6 +259,8 @@ export interface ListingBidRow {
   /** ALIM: satıcının taahhüdü; SATIS: alıcının İSTEDİĞİ teslim tarihi. */
   deliveryDate?: string | null;
   validityDays?: number | null;
+  /** Geçerlilik rozeti: son geçerlilik = submittedAt + validityDays. */
+  submittedAt?: string | null;
   deliveryAddress?: BidDeliveryAddress | null;
   items?: ListingBidItemRow[];
   answers?: { questionId: string; value: string }[];
@@ -628,6 +630,29 @@ export function useCreateNextRound(id: string) {
       qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
       // Önceki tur arşivlendi — açık tur geçmişi dialog cache'i bayatlamasın.
       qc.invalidateQueries({ queryKey: ["listing-rounds", id] });
+      invalidateListingCaches(qc);
+    },
+  });
+}
+
+/**
+ * Teklif geçerlilik süresini uzat (fiyat değişmeden) — taşımada süresi
+ * dolduğu için taslağa düşmüş teklifi aynı fiyatla canlandırabilir.
+ */
+export function useExtendBidValidity(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (additionalDays: number) => {
+      const { data } = await companyApi.post<{
+        ok: boolean;
+        validityDays: number;
+        validUntil: string;
+        revived: boolean;
+      }>(`/company/listings/${id}/bids/extend-validity`, { additionalDays });
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
       invalidateListingCaches(qc);
     },
   });

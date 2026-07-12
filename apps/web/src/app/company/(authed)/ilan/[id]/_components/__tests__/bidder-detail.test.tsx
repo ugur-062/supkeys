@@ -1,9 +1,16 @@
 // @vitest-environment jsdom
 import type { ListingDetail } from "@/hooks/use-company-listings";
-import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { render as rtlRender, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { AuctionLiveCard } from "../auction-live-card";
 import { BidSummaryCard, MyBidStatusPanel } from "../my-bid-status-panel";
+
+// BidSummaryCard geçerlilik-uzatma mutation'ı kullanır → QueryClient şart.
+const render = (ui: React.ReactElement) =>
+  rtlRender(
+    <QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>,
+  );
 
 function detail(over: Partial<ListingDetail> = {}): ListingDetail {
   return {

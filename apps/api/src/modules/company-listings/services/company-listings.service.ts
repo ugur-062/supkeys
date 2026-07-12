@@ -1649,7 +1649,17 @@ export class CompanyListingsService {
             // dışında kimseye listelenmez (davetli dahil) — açılışta cron
             // duyurusuyla görünür olur. NOT(gt) KULLANMA: SQL'de NULL > x
             // NULL döner ve NOT(NULL) satırı eler — açılışsız ilan kaybolur.
-            { OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: new Date() } }] },
+            // İSTİSNA: ilanda TEKLİFİ olan firma (önceki turun katılımcısı)
+            // embargoda da görür — "yeni fiyat hazırla ya da geçerliliği uzat"
+            // bildirimi açılıştan önce gider; ilanı açamayan uzatamazdı.
+            // Teklif verme yine açılışa kadar kapalıdır (placeBid embargosu).
+            {
+              OR: [
+                { bidsOpenAt: null },
+                { bidsOpenAt: { lte: new Date() } },
+                { bids: { some: { bidderCompanyId: companyId } } },
+              ],
+            },
             {
               OR: [
                 invitedClause,
@@ -2042,6 +2052,8 @@ export class CompanyListingsService {
           // ALIM: satıcının taahhüdü; SATIS: alıcının istediği teslim tarihi.
           deliveryDate: b.deliveryDate ? b.deliveryDate.toISOString() : null,
           validityDays: b.validityDays,
+          // Geçerlilik rozeti için: son geçerlilik = submittedAt + validityDays.
+          submittedAt: b.submittedAt ? b.submittedAt.toISOString() : null,
           deliveryAddress: b.deliveryAddress,
           items: b.items.map((bi) => ({
             itemId: bi.itemId,
@@ -2107,8 +2119,15 @@ export class CompanyListingsService {
 
     // Açılış embargosu: açılış tarihi GELECEKTEyse ilan sahibi dışında kimse
     // (davetli dahil) göremez — sellerTenders listesiyle aynı kural; ihale
-    // ancak açılış anında görünür olur.
-    if (listing.bidsOpenAt && listing.bidsOpenAt.getTime() > Date.now()) {
+    // ancak açılış anında görünür olur. İSTİSNA: ilanda TEKLİFİ olan firma
+    // (önceki turun katılımcısı) görür — "geçerliliği uzat / yeni fiyat
+    // hazırla" bildirimi açılıştan önce gider; ilanı açamayan uzatamazdı.
+    // Teklif verme yine açılışa kadar kapalıdır (placeBid embargosu).
+    if (
+      listing.bidsOpenAt &&
+      listing.bidsOpenAt.getTime() > Date.now() &&
+      !myBid
+    ) {
       throw new NotFoundException("İlan bulunamadı");
     }
 
@@ -4353,6 +4372,19 @@ export class CompanyListingsService {
       round: listing.currentRound,
       status: { in: ["SUBMITTED", "LOST"] as ListingBidStatus[] },
     };
+    // GEÇERLİLİK-FARKINDA taşıma (AUTO): teklif, yeni turun AÇILIŞ tarihine
+    // kadar geçerliyse (submittedAt + validityDays) CANLI taşınır — sahibi
+    // yeniden fiyat vermek zorunda değildir. Süresi dolmuşsa fiyatı korunarak
+    // TASLAĞA düşer: tedarikçi ya yeni fiyat verir ya da geçerliliği uzatır
+    // (extendBidValidity). Geçerlilik bilgisi olmayan legacy teklif = süresiz.
+    const carryOpenAt = bidsOpenAt ?? new Date();
+    const isExpiredAtOpen = (b: (typeof bids)[number]): boolean =>
+      b.submittedAt != null &&
+      b.validityDays != null &&
+      b.submittedAt.getTime() + b.validityDays * 86_400_000 <
+        carryOpenAt.getTime();
+    const expiredBids = bids.filter(isExpiredAtOpen);
+    const validBids = bids.filter((b) => !isExpiredAtOpen(b));
 
     await this.prisma.$transaction(async (tx) => {
       if (bids.length > 0) {
@@ -4379,15 +4411,30 @@ export class CompanyListingsService {
         // Revive edilen teklifin bayat eleme damgası temizlenir — aksi halde
         // önceki turda ELENEN teklif yeni turda "elendi" metadata'sıyla
         // diriliyordu (çelişki; placeBid resubmit'te de aynı temizlik yapılır).
-        await tx.listingBid.updateMany({
-          where: priorWhere,
-          data: {
-            status: "SUBMITTED",
-            round: newRound,
-            eliminationReason: null,
-            eliminatedAt: null,
-          },
-        });
+        if (validBids.length > 0) {
+          await tx.listingBid.updateMany({
+            where: { id: { in: validBids.map((b) => b.id) } },
+            data: {
+              status: "SUBMITTED",
+              round: newRound,
+              eliminationReason: null,
+              eliminatedAt: null,
+            },
+          });
+        }
+        // Açılışa kadar geçerliliği DOLMUŞ teklifler taslağa — fiyat korunur,
+        // sahibi bildirimle yeni fiyata ya da geçerlilik uzatmaya çağrılır.
+        if (expiredBids.length > 0) {
+          await tx.listingBid.updateMany({
+            where: { id: { in: expiredBids.map((b) => b.id) } },
+            data: {
+              status: "DRAFT",
+              round: newRound,
+              eliminationReason: null,
+              eliminatedAt: null,
+            },
+          });
+        }
       } else if (dto.carryBids === "LAZY") {
         await tx.listingBid.updateMany({
           where: priorWhere,
@@ -4457,8 +4504,204 @@ export class CompanyListingsService {
         }`,
       ),
     );
+    // AUTO taşımada teklif sahipleri HEMEN bilgilendirilir (embargolu açılışta
+    // bile — açılıştan önce hazırlanma süresi): geçerli teklifi taşınanlara
+    // "taşındı", süresi dolanlara "yeni fiyat ver ya da geçerliliği uzat".
+    if (dto.carryBids === "AUTO" && bids.length > 0) {
+      void this.notifyNextRoundCarry(
+        listingId,
+        validBids.map((b) => ({
+          companyId: b.bidderCompanyId,
+          amount: b.amount.toString(),
+          currency: b.currency,
+        })),
+        expiredBids.map((b) => b.bidderCompanyId),
+        bidsOpenAt,
+      ).catch((err) =>
+        this.logger.warn(
+          `Taşıma bildirimi gönderilemedi (${listingId}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+    }
     this.realtime?.pingListing(listingId);
     return { ok: true, round: listing.currentRound + 1 };
+  }
+
+  /**
+   * Yeni tur AUTO taşıma bildirimi — geçerli teklifi taşınanlara "taşındı",
+   * süresi dolanlara "yeni fiyat ver ya da geçerliliği uzat". Tur oluşturulur
+   * oluşturulmaz gönderilir; embargolu açılışta tedarikçi açılıştan ÖNCE
+   * haberdar olur. Tip transactional (listing_new_round) — kapatılamaz.
+   */
+  private async notifyNextRoundCarry(
+    listingId: string,
+    carried: { companyId: string; amount: string; currency: string }[],
+    expiredCompanyIds: string[],
+    opensAt: Date | null,
+  ) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, title: true, number: true, type: true, format: true },
+    });
+    if (!listing) return;
+    const label = `"${listing.title}" (${listing.number ?? "—"})`;
+    const portal = this.bidderPortal(listing.type);
+    const url = `${this.webUrl()}/company/ilan/${listingId}`;
+    const isSatis = listing.type === "SATIS";
+    const roundName =
+      listing.format === "ENGLISH_AUCTION"
+        ? isSatis
+          ? "açık artırma turu"
+          : "açık eksiltme turu"
+        : "yeni tur";
+    const opensInFuture = opensAt != null && opensAt.getTime() > Date.now();
+    const opensText = opensInFuture
+      ? `Açılışa (${opensAt.toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" })}) kadar`
+      : "Devam etmek için";
+
+    const sym = (c: string) => (c === "TRY" ? "₺" : c);
+    for (const c of carried) {
+      const recipient = await this.companyRecipient(c.companyId, portal);
+      const body = `${label} ihalesinde ${roundName} açıldı. ${Number(c.amount).toLocaleString("tr-TR")} ${sym(c.currency)} teklifiniz geçerlilik süresi devam ettiği için aynen taşındı — dilerseniz fiyatınızı ${isSatis ? "artırabilirsiniz" : "düşürebilirsiniz"}.`;
+      if (recipient) {
+        this.notify(
+          recipient,
+          {
+            subject: "Yeni tur açıldı — teklifiniz taşındı",
+            heading: "Teklifiniz yeni tura taşındı",
+            paragraphs: ["Merhaba,", body],
+            ctaLabel: "İhaleyi Gör",
+            ctaUrl: url,
+          },
+          { type: "listing_new_round", id: listingId },
+        );
+      }
+      await this.notifications.pushToCompany(c.companyId, {
+        type: "listing_new_round",
+        portal,
+        title: "Yeni tur — teklifiniz taşındı",
+        body,
+        ctaLabel: "İhaleyi Gör",
+        ctaUrl: url,
+        listingId,
+      });
+    }
+    for (const companyId of expiredCompanyIds) {
+      const recipient = await this.companyRecipient(companyId, portal);
+      const body = `${label} ihalesinde ${roundName} açıldı ancak önceki teklifinizin geçerlilik süresi dolduğu için teklifiniz taşınamadı. ${opensText} yeni fiyat verin ya da mevcut teklifinizin geçerlilik süresini uzatın.`;
+      if (recipient) {
+        this.notify(
+          recipient,
+          {
+            subject: "Teklifinizin geçerlilik süresi doldu — işlem gerekli",
+            heading: "Teklifinizin geçerliliği doldu",
+            paragraphs: ["Merhaba,", body],
+            ctaLabel: "İhaleyi Gör",
+            ctaUrl: url,
+          },
+          { type: "listing_new_round", id: listingId },
+        );
+      }
+      await this.notifications.pushToCompany(companyId, {
+        type: "listing_new_round",
+        portal,
+        title: "Teklifinizin geçerliliği doldu",
+        body,
+        ctaLabel: "İhaleyi Gör",
+        ctaUrl: url,
+        listingId,
+      });
+    }
+  }
+
+  /**
+   * Teklif geçerlilik süresini UZAT — fiyat değişmeden. İki durum:
+   *  - SUBMITTED teklif: validityDays artırılır (alıcı beklerken süre dolmasın).
+   *  - Taşıma sırasında süresi dolduğu için TASLAĞA düşmüş teklif: uzatma
+   *    teklifin son geçerlilik gününü bugünün ilerisine taşıyorsa AYNI fiyatla
+   *    yeniden CANLIYA döner (adım kuralı aranmaz — taşınan teklifler gibi
+   *    "miras" fiyattır, yeni bir iyileştirme hamlesi değildir).
+   */
+  async extendBidValidity(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    additionalDays: number,
+  ) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: { id: true, status: true, closesAt: true, currentRound: true },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (
+      listing.status !== "OPEN" ||
+      (listing.closesAt && listing.closesAt.getTime() <= Date.now())
+    ) {
+      throw new BadRequestException(
+        "İlan teklife kapalı — geçerlilik süresi uzatılamaz",
+      );
+    }
+    const bid = await this.prisma.listingBid.findUnique({
+      where: {
+        listingId_bidderCompanyId: {
+          listingId,
+          bidderCompanyId: user.companyId,
+        },
+      },
+      select: {
+        id: true,
+        status: true,
+        round: true,
+        amount: true,
+        submittedAt: true,
+        validityDays: true,
+      },
+    });
+    if (!bid) throw new NotFoundException("Bu ilanda teklifiniz yok");
+    if (bid.status !== "SUBMITTED" && bid.status !== "DRAFT") {
+      throw new BadRequestException(
+        "Bu teklifin geçerlilik süresi uzatılamaz",
+      );
+    }
+    // Hiç gönderilmemiş (ham) taslak uzatılamaz — uzatma yalnız daha önce
+    // GÖNDERİLMİŞ bir fiyatın süresini yeniler; yeni fiyat = teklif-ver akışı.
+    if (!bid.submittedAt || !bid.validityDays || bid.amount.lte(0)) {
+      throw new BadRequestException(
+        "Uzatılacak gönderilmiş bir teklif yok — teklif verme ekranını kullanın",
+      );
+    }
+    // Taslağa düşmüş teklif yalnız GÜNCEL turda canlandırılabilir (taşınan
+    // teklif); eski tur artığı için yeni teklif verilmeli.
+    if (bid.status === "DRAFT" && bid.round !== listing.currentRound) {
+      throw new BadRequestException(
+        "Bu teklif güncel tura ait değil — lütfen yeni teklif verin",
+      );
+    }
+    const newValidityDays = bid.validityDays + additionalDays;
+    const validUntil = new Date(
+      bid.submittedAt.getTime() + newValidityDays * 86_400_000,
+    );
+    if (validUntil.getTime() <= Date.now()) {
+      throw new BadRequestException(
+        "Uzatma yetersiz — teklifin son geçerlilik günü hâlâ geçmişte kalıyor, daha uzun bir süre girin",
+      );
+    }
+    const revived = bid.status === "DRAFT";
+    await this.prisma.listingBid.update({
+      where: { id: bid.id },
+      data: {
+        validityDays: newValidityDays,
+        ...(revived ? { status: "SUBMITTED" } : {}),
+      },
+    });
+    this.realtime?.pingListing(listingId);
+    return {
+      ok: true,
+      validityDays: newValidityDays,
+      validUntil: validUntil.toISOString(),
+      revived,
+    };
   }
 
   /**

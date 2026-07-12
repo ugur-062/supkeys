@@ -1004,6 +1004,16 @@ export default function ListingDetailPage() {
                 ) : null}
                 {b.status === "LOST" ? <Badge color="zinc">Elendi</Badge> : null}
                 {b.isBuyNow ? <Badge color="emerald">Hemen-Al</Badge> : null}
+                {/* Geçerlilik dolmuş canlı teklif — alıcı kazandırmadan önce
+                    görsün (son gün = submittedAt + validityDays). */}
+                {b.status === "SUBMITTED" &&
+                b.submittedAt &&
+                b.validityDays &&
+                new Date(b.submittedAt).getTime() +
+                  b.validityDays * 86_400_000 <
+                  Date.now() ? (
+                  <Badge color="amber">Geçerlilik doldu</Badge>
+                ) : null}
                 <Link
                   href={`/company/ilan/${l.id}/teklif/${b.id}`}
                   className="text-sm font-medium text-zinc-900 hover:text-blue-600 hover:underline"
