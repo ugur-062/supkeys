@@ -28,7 +28,7 @@ const standartFeatures = [
 ];
 
 const premiumFeatures = [
-  "Kendi ilanını aç — RFQ, açık eksiltme, satış",
+  "Kendi ilanını aç — teklif toplama, açık eksiltme, satış",
   "Herkese açık ilanlara tam erişim & teklif",
   "Kategori eşleşmeli firma keşfi & dizin",
   "Herkese açık firma profili",
@@ -562,7 +562,7 @@ function ConnectionsPreview() {
 
 function PublicProfilePreview() {
   const tenders = [
-    { t: "Uluslararası çelik alımı", b: "RFQ", c: "bg-blue-50 text-blue-700" },
+    { t: "Uluslararası çelik alımı", b: "Teklif Toplama", c: "bg-blue-50 text-blue-700" },
     { t: "Fazla bakır satışı", b: "Satış", c: "bg-emerald-50 text-emerald-700" },
     { t: "Hurda eksiltmesi", b: "İngiliz Usulü", c: "bg-amber-50 text-amber-700" },
   ];
@@ -1017,7 +1017,7 @@ export default function HomePage() {
               Her ihtiyaca uygun format
             </p>
             <p className="mt-6 text-lg/8 text-zinc-600">
-              Alışta RFQ ya da İngiliz Usulü, satışta taban + hemen-al; doğru
+              Alışta teklif toplama ya da İngiliz Usulü, satışta taban + hemen-al; doğru
               formatı seç, kazandırma öncesi onay zincirini panel yönetsin.
             </p>
           </div>
@@ -1043,7 +1043,7 @@ export default function HomePage() {
                 </div>
               </div>
               <span className="mt-5 inline-flex w-fit rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                Alış · RFQ
+                Alış · Teklif Toplama
               </span>
               <h3 className="mt-3 text-lg font-semibold text-zinc-950">
                 Kapalı zarf

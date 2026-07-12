@@ -31,7 +31,7 @@ const STATUS_TR: Record<string, string> = {
 const statusTr = (s: string) => STATUS_TR[s] ?? s;
 
 const FORMAT_TR: Record<string, string> = {
-  RFQ: "RFQ",
+  RFQ: "Teklif Toplama",
   ENGLISH_AUCTION: "İngiliz Usulü",
 };
 

@@ -1280,7 +1280,7 @@ export default function ListingDetailPage() {
         {l.format ? (
           <Badge color="purple">
             {l.format === "RFQ"
-              ? "RFQ"
+              ? "Teklif Toplama"
               : isAlim
                 ? "İngiliz Usulü Eksiltme"
                 : "İngiliz Usulü Artırma"}

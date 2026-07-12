@@ -181,7 +181,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
               ? l.type === "SATIS"
                 ? "İngiliz Usulü (Açık Artırma)"
                 : "İngiliz Usulü (Açık Eksiltme)"
-              : "RFQ (Kapalı Teklif)"}
+              : "Teklif Toplama (Kapalı Zarf)"}
           </Fact>
           {l.type === "SATIS" && l.minPrice ? (
             <Fact label="Taban Fiyat">

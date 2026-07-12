@@ -846,7 +846,7 @@ export class CompanyListingsService {
     if (!dto.format) {
       throw new BadRequestException(
         type === "ALIM"
-          ? "Alım ilanı için format seçin (RFQ / İngiliz Usulü)"
+          ? "Alım ilanı için format seçin (Teklif Toplama / İngiliz Usulü)"
           : "Satış ilanı için format seçin (Teklif Toplama / Açık Artırma)",
       );
     }
@@ -856,7 +856,7 @@ export class CompanyListingsService {
     if (dto.format === "ENGLISH_AUCTION") {
       throw new BadRequestException(
         type === "ALIM"
-          ? "İngiliz usulü doğrudan açılamaz — ilanı RFQ olarak açın, tur kapanınca 'Yeni Tur Oluştur' ile açık eksiltmeye aktarın"
+          ? "İngiliz usulü doğrudan açılamaz — ilanı teklif toplama olarak açın, tur kapanınca 'Yeni Tur Oluştur' ile açık eksiltmeye aktarın"
           : "Açık artırma doğrudan açılamaz — ilanı teklif toplama olarak açın, tur kapanınca 'Yeni Tur Oluştur' ile açık artırmaya aktarın",
       );
     }
@@ -1089,7 +1089,7 @@ export class CompanyListingsService {
     if (!dto.format) {
       throw new BadRequestException(
         type === "ALIM"
-          ? "Alım ilanı için format seçin (RFQ / İngiliz Usulü)"
+          ? "Alım ilanı için format seçin (Teklif Toplama / İngiliz Usulü)"
           : "Satış ilanı için format seçin (Teklif Toplama / Açık Artırma)",
       );
     }

@@ -207,7 +207,7 @@ export function GeneralReportView({
               <Label>Usul</Label>
               <Select value={fmt} onChange={(e) => setFmt(e.target.value)}>
                 <option value="">Tümü</option>
-                <option value="RFQ">RFQ</option>
+                <option value="RFQ">Teklif Toplama</option>
                 <option value="ENGLISH_AUCTION">İngiliz Usulü</option>
               </Select>
             </Field>

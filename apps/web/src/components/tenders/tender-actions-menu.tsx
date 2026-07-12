@@ -459,7 +459,7 @@ export function TenderActionsMenu({
               className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
             >
               <option value="ENGLISH_AUCTION">{isSatis ? "İngiliz Usulü (Açık Artırma)" : "İngiliz Usulü (Açık Eksiltme)"}</option>
-              <option value="RFQ">RFQ (Teklif Toplama)</option>
+              <option value="RFQ">Teklif Toplama (Kapalı Zarf)</option>
             </select>
           </Field>
           {/* Teklifsiz aktarma uyarısı: taşınacak teklif yoksa eksiltme/artırma

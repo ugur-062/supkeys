@@ -207,7 +207,7 @@ export function Step0TypeScope() {
         <p className="mt-1 text-sm text-zinc-500">
           {isAuction
             ? "Bu ihale 'Yeni Tur' ile İngiliz usulüne aktarılmış."
-            : "İhaleler kapalı zarf (RFQ) usulüyle açılır."}
+            : "İhaleler kapalı zarf (teklif toplama) usulüyle açılır."}
         </p>
         <div className="mt-5 rounded-2xl border border-zinc-950/10 bg-white p-6">
           <div className="flex items-start gap-4">
@@ -224,7 +224,7 @@ export function Step0TypeScope() {
                   ? isSatis
                     ? "İngiliz Usulü Açık Artırma"
                     : "İngiliz Usulü Açık Eksiltme"
-                  : "RFQ (Kapalı Teklif)"}
+                  : "Teklif Toplama (Kapalı Zarf)"}
               </p>
               <p className="mt-1.5 text-sm leading-relaxed text-zinc-500">
                 {isAuction

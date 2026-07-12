@@ -64,7 +64,7 @@ export function tenderStatusLabel(status: string): string {
 
 export const TENDER_TYPE_META: Record<TenderType, BadgeMeta> = {
   RFQ: {
-    label: "RFQ",
+    label: "Teklif Toplama",
     className: "bg-brand-50 text-brand-700 border-brand-200",
   },
   ENGLISH_AUCTION: {
