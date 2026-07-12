@@ -1049,6 +1049,11 @@ model Listing {
   autoExtendOnLateBid    Boolean                @default(false)
   autoExtendThresholdMin Int?
   autoExtendByMinutes    Int?
+  // Açık eksiltme/artırma kur damgası — { "USD": 46.89, ... } (birim başına TRY,
+  // TRY=1). Tur açılış günü TCMB kurundan bir kez yazılır ve ihale boyunca
+  // sabittir: azaltma payının teklifçi birimine çevrimi ve birimler-arası
+  // en-iyi/sıralama kıyasları hep bu damgayla yapılır (kur oynasa da adil).
+  auctionRateSnapshot    Json?
 
   bids             ListingBid[]
   orders           CompanyOrder[]

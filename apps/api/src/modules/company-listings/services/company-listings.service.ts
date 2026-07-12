@@ -489,6 +489,36 @@ export class CompanyListingsService {
       data: { openNotifiedAt: new Date() },
     });
     if (claimed.count !== 1) return;
+    // Açık eksiltme kur damgası AÇILIŞ GÜNÜ kuruyla tazelenir — embargolu
+    // (gelecek açılışlı) turu cron tam açılışta buradan geçirir; anında açılan
+    // turda yayın günü zaten açılış günüdür (aynı gün → aynı kur, zararsız).
+    // Kur alınamazsa açılış ENGELLENMEZ: tur oluşturulurkenki damga geçerli kalır.
+    try {
+      const l = await this.prisma.listing.findUnique({
+        where: { id: listingId },
+        select: {
+          format: true,
+          primaryCurrency: true,
+          allowedCurrencies: true,
+        },
+      });
+      if (l?.format === "ENGLISH_AUCTION") {
+        const snap = await this.buildAuctionRateSnapshot(
+          l.allowedCurrencies as Currency[],
+          l.primaryCurrency as Currency,
+        );
+        await this.prisma.listing.update({
+          where: { id: listingId },
+          data: { auctionRateSnapshot: snap },
+        });
+      }
+    } catch (err) {
+      this.logger.warn(
+        `Açılış günü kur damgası tazelenemedi (${listingId}) — mevcut damga geçerli: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
     void this.notifyListingInvitees(listingId, kind);
     if (kind === "invitation") {
       void this.notifyCategoryMatchedCompanies(listingId).catch((err) =>
@@ -702,15 +732,10 @@ export class CompanyListingsService {
             : "Yüzde azaltma 100'den küçük olmalı",
         );
       }
-      // Çoklu para birimi adım kıyasını bozar (100 USD vs 200 TRY) —
-      // açık artırma/eksiltme tek birimle yürür.
-      if ((dto.allowedCurrencies?.length ?? 0) > 1) {
-        throw new BadRequestException(
-          isSatis
-            ? "Açık artırmada tek para birimi kullanılabilir"
-            : "Açık eksiltmede tek para birimi kullanılabilir",
-        );
-      }
+      // Çoklu para birimi DESTEKLİ: adım ve birimler-arası kıyas, açılış günü
+      // TCMB kur damgasıyla (auctionRateSnapshot) teklifçinin birimine
+      // çevrilerek yapılır — damga, tur açılışında buildAuctionRateSnapshot
+      // ile yazılır ve kuru olmayan birim orada reddedilir.
     }
     // İzinli birim seti ilanın ana birimini içermeli (teklif formu fallback'i).
     const primary = (dto.primaryCurrency ?? "TRY") as string;
@@ -903,12 +928,9 @@ export class CompanyListingsService {
           requireAllItems: dto.requireAllItems ?? false,
           requireBidDocument: dto.requireBidDocument ?? false,
           primaryCurrency: (dto.primaryCurrency as Currency) ?? "TRY",
-          // Auction'da best/adım/monotonluk kıyasları ham tutarla yapılır —
-          // tek para birimi ZORUNLU; boş dizi "her birim serbest" açığıydı.
-          allowedCurrencies:
-            format === "ENGLISH_AUCTION"
-              ? [(dto.primaryCurrency as Currency) ?? "TRY"]
-              : ((dto.allowedCurrencies as Currency[]) ?? []),
+          // Çoklu birim auction'da da serbest (kıyaslar açılış günü kur
+          // damgasıyla çevrilir) — zaten doğrudan auction create kapalı.
+          allowedCurrencies: (dto.allowedCurrencies as Currency[]) ?? [],
           // ── Wizard zenginleştirme ──
           bidsOpenAt: dto.bidsOpenAt ? new Date(dto.bidsOpenAt) : null,
           isSealedBid: dto.isSealedBid ?? true,
@@ -1118,10 +1140,23 @@ export class CompanyListingsService {
       dto.billingAddressId,
     );
 
+    // Açık eksiltme (legacy taslak) düzenleniyorsa kur damgası tazelenir —
+    // izinli birimler değişmiş olabilir; kuru olmayan birim burada reddedilir.
+    const updatedRateSnapshot =
+      format === "ENGLISH_AUCTION"
+        ? await this.buildAuctionRateSnapshot(
+            (dto.allowedCurrencies as Currency[]) ?? [],
+            (dto.primaryCurrency as Currency) ?? "TRY",
+          )
+        : null;
+
     const updated = await this.prisma.$transaction(async (tx) => {
       const l = await tx.listing.update({
         where: { id: listingId },
         data: {
+          ...(format === "ENGLISH_AUCTION"
+            ? { auctionRateSnapshot: updatedRateSnapshot ?? undefined }
+            : {}),
           isInternational: dto.isInternational ?? false,
           // Hedef ülkeler yalnızca uluslararası ilanda anlamlı; aksi halde boş.
           // Firmanın kendi ülkesi hedefe eklenmez (yurtiçi kapsam zaten görür).
@@ -1145,12 +1180,9 @@ export class CompanyListingsService {
           requireAllItems: dto.requireAllItems ?? false,
           requireBidDocument: dto.requireBidDocument ?? false,
           primaryCurrency: (dto.primaryCurrency as Currency) ?? "TRY",
-          // Auction'da best/adım/monotonluk kıyasları ham tutarla yapılır —
-          // tek para birimi ZORUNLU; boş dizi "her birim serbest" açığıydı.
-          allowedCurrencies:
-            format === "ENGLISH_AUCTION"
-              ? [(dto.primaryCurrency as Currency) ?? "TRY"]
-              : ((dto.allowedCurrencies as Currency[]) ?? []),
+          // Çoklu birim auction'da da serbest — kıyaslar açılış günü kur
+          // damgasıyla (yukarıda tazelenen auctionRateSnapshot) çevrilir.
+          allowedCurrencies: (dto.allowedCurrencies as Currency[]) ?? [],
           bidsOpenAt: dto.bidsOpenAt ? new Date(dto.bidsOpenAt) : null,
           isSealedBid: dto.isSealedBid ?? true,
           isLogistics: dto.isLogistics ?? false,
@@ -1791,11 +1823,13 @@ export class CompanyListingsService {
             ReturnType<typeof this.prisma.companyAddress.findMany>
           >),
       listing.format === "ENGLISH_AUCTION"
-        ? this.prisma.listingBid.aggregate({
+        ? this.prisma.listingBid.findMany({
             where: { listingId: id, status: "SUBMITTED" },
-            _min: { amount: true },
-            _max: { amount: true },
-            _count: true,
+            select: {
+              amount: true,
+              currency: true,
+              exchangeRateSnapshot: true,
+            },
           })
         : Promise.resolve(null),
       this.prisma.listingItem.findMany({
@@ -1832,24 +1866,37 @@ export class CompanyListingsService {
     );
 
     // İngiliz Usulü: güncel EN İYİ teklif herkese görünür — ALIM'da en düşük
-    // (ters eksiltme), SATIS'ta en yüksek (açık artırma).
-    const englishBest =
-      listing.type === "SATIS"
-        ? englishAgg?._max.amount
-        : englishAgg?._min.amount;
+    // (ters eksiltme), SATIS'ta en yüksek (açık artırma). Çoklu birimde kıyas
+    // açılış günü kur damgasıyla TRY-normalize; tutar KENDİ birimiyle döner.
+    const englishRanked = englishAgg
+      ? this.rankAuctionBids(
+          englishAgg,
+          listing.auctionRateSnapshot,
+          listing.type === "SATIS",
+        )
+      : null;
+    const englishBest = englishRanked?.[0] ?? null;
     const english:
       | {
           isEnglishAuction: true;
           currentBest: string | null;
+          currentBestCurrency: string | null;
           bidCount: number;
           currentRound: number;
+          rateSnapshot: Record<string, number> | null;
         }
-      | null = englishAgg
+      | null = englishRanked
       ? {
           isEnglishAuction: true,
-          currentBest: englishBest ? englishBest.toString() : null,
-          bidCount: englishAgg._count,
+          currentBest: englishBest ? englishBest.amount.toString() : null,
+          currentBestCurrency: englishBest ? englishBest.currency : null,
+          bidCount: englishRanked.length,
           currentRound: listing.currentRound,
+          // Açılış günü TCMB damgası — UI adımı/en iyiyi teklifçinin birimine
+          // bununla çevirir (kamusal kur verisi; zarf sızıntısı değil).
+          rateSnapshot:
+            (listing.auctionRateSnapshot as Record<string, number> | null) ??
+            null,
         }
       : null;
 
@@ -2037,6 +2084,7 @@ export class CompanyListingsService {
             user.companyId,
             listing.bidVisibility,
             listing.type,
+            listing.auctionRateSnapshot,
           )
         : Promise.resolve(null),
     ]);
@@ -2107,6 +2155,7 @@ export class CompanyListingsService {
         ? {
             ...english,
             currentBest: auctionView?.bestTotal ?? null,
+            currentBestCurrency: auctionView?.bestCurrency ?? null,
             bidCount: auctionView?.participantCount ?? 0,
           }
         : null;
@@ -2163,30 +2212,120 @@ export class CompanyListingsService {
   }
 
   /**
+   * Açık eksiltme kur damgası — izinli her birim için günün TCMB kuru (birim
+   * başına TRY, TRY=1). Kuru olmayan birimle açık eksiltme/artırma AÇILAMAZ:
+   * sessiz yanlış kıyas yerine açık hata.
+   */
+  private async buildAuctionRateSnapshot(
+    currencies: Currency[],
+    primary: Currency,
+  ): Promise<Record<string, number>> {
+    const set = [...new Set<Currency>([...(currencies ?? []), primary])];
+    const out: Record<string, number> = { TRY: 1 };
+    for (const cur of set) {
+      if (cur === "TRY") continue;
+      const rate = await this.exchangeRates
+        .getCurrentRate(cur)
+        .catch(() => null);
+      if (rate == null || rate <= 0) {
+        throw new BadRequestException(
+          `${cur} için TCMB kuru bulunamadı — bu para birimiyle açık eksiltme/artırma açılamaz`,
+        );
+      }
+      out[cur] = rate;
+    }
+    return out;
+  }
+
+  /**
+   * Teklifin TRY karşılığı — kur önceliği: ilanın AÇILIŞ günü damgası (adil,
+   * ihale boyunca sabit) → teklifin kendi kur snapshot'ı (legacy) → TRY=1.
+   * Hiçbiri yoksa null (kıyasta en sona düşer).
+   */
+  private auctionTryValue(
+    amount: Prisma.Decimal,
+    currency: string,
+    bidSnapshot: Prisma.Decimal | null,
+    listingSnap: unknown,
+  ): Prisma.Decimal | null {
+    if (currency === "TRY") return amount;
+    const s = (listingSnap as Record<string, unknown> | null)?.[currency];
+    if (typeof s === "number" && s > 0) return amount.mul(s);
+    if (bidSnapshot) return amount.mul(bidSnapshot);
+    return null;
+  }
+
+  /**
+   * Açık eksiltme tekliflerini EN İYİ önce sıralar — birimler arası kıyas
+   * TRY-normalize (açılış damgası) yapılır. Tüm teklifler aynı birimdeyse kur
+   * gerekmez (ham tutar sıralaması birebir eşdeğer — legacy turlar). Kur'suz
+   * karışık-birim satırlar kıyaslanamaz → listenin sonuna.
+   */
+  private rankAuctionBids<
+    T extends {
+      amount: Prisma.Decimal;
+      currency: string;
+      exchangeRateSnapshot: Prisma.Decimal | null;
+    },
+  >(bids: T[], listingSnap: unknown, isAscending: boolean): T[] {
+    const sameCur = bids.every((b) => b.currency === bids[0]?.currency);
+    const key = (b: T): Prisma.Decimal | null =>
+      this.auctionTryValue(
+        b.amount,
+        b.currency,
+        b.exchangeRateSnapshot,
+        listingSnap,
+      ) ?? (sameCur ? b.amount : null);
+    return [...bids].sort((a, b) => {
+      const ka = key(a);
+      const kb = key(b);
+      if (ka == null && kb == null) return 0;
+      if (ka == null) return 1;
+      if (kb == null) return -1;
+      const cmp = ka.minus(kb).isNegative() ? -1 : ka.eq(kb) ? 0 : 1;
+      return isAscending ? -cmp : cmp;
+    });
+  }
+
+  /**
    * Açık eksiltme görünürlük hesabı (eski computeAuctionView ile aynı mantık).
    * OWN_ONLY → null (hiçbir rakip bilgisi). Aksi halde bidVisibility'ye göre
    * en iyi fiyat / kendi sıra / katılımcı sayısı / tüm sıralar döner.
    * Kapalı zarf korunur: teklif sahibi kimlikleri ALL modunda bile gizli.
+   * Çoklu birimde sıralama TRY-normalize; tutarlar KENDİ birimiyle döner.
    */
   private async computeAuctionView(
     listingId: string,
     companyId: string,
     visibility: ListingBidVisibility,
     listingType: ListingType,
+    listingRateSnapshot: unknown,
   ): Promise<{
     bestTotal: string | null;
+    bestCurrency: string | null;
     myRank: number | null;
     participantCount: number | null;
-    allBids: { rank: number; total: string; isMine: boolean }[] | null;
+    allBids:
+      | { rank: number; total: string; currency: string; isMine: boolean }[]
+      | null;
   } | null> {
     if (visibility === "OWN_ONLY") return null;
 
-    const bids = await this.prisma.listingBid.findMany({
+    const rows = await this.prisma.listingBid.findMany({
       where: { listingId, status: "SUBMITTED" },
-      select: { bidderCompanyId: true, amount: true },
-      // ALIM = ters eksiltme (düşük en iyi), SATIS = açık artırma (yüksek en iyi).
-      orderBy: { amount: listingType === "SATIS" ? "desc" : "asc" },
+      select: {
+        bidderCompanyId: true,
+        amount: true,
+        currency: true,
+        exchangeRateSnapshot: true,
+      },
     });
+    // ALIM = ters eksiltme (düşük en iyi), SATIS = açık artırma (yüksek en iyi).
+    const bids = this.rankAuctionBids(
+      rows,
+      listingRateSnapshot,
+      listingType === "SATIS",
+    );
     const wantsBest =
       visibility === "BEST_PRICE" ||
       visibility === "BEST_AND_OWN_RANK" ||
@@ -2199,6 +2338,7 @@ export class CompanyListingsService {
     if (bids.length === 0) {
       return {
         bestTotal: null,
+        bestCurrency: null,
         myRank: null,
         participantCount: wantsBest || wantsRank ? 0 : null,
         allBids: visibility === "ALL" ? [] : null,
@@ -2208,6 +2348,7 @@ export class CompanyListingsService {
     const myIdx = bids.findIndex((b) => b.bidderCompanyId === companyId);
     return {
       bestTotal: wantsBest ? bids[0]!.amount.toString() : null,
+      bestCurrency: wantsBest ? bids[0]!.currency : null,
       myRank: wantsRank && myIdx >= 0 ? myIdx + 1 : null,
       participantCount: wantsBest || wantsRank ? bids.length : null,
       allBids:
@@ -2215,6 +2356,7 @@ export class CompanyListingsService {
           ? bids.map((b, i) => ({
               rank: i + 1,
               total: b.amount.toString(),
+              currency: b.currency,
               isMine: b.bidderCompanyId === companyId,
             }))
           : null,
@@ -2352,6 +2494,7 @@ export class CompanyListingsService {
         priceDecrementType: true,
         priceDecrementValue: true,
         priceDecrementBasis: true,
+        auctionRateSnapshot: true,
         autoExtendOnLateBid: true,
         autoExtendThresholdMin: true,
         autoExtendByMinutes: true,
@@ -2379,7 +2522,7 @@ export class CompanyListingsService {
               bidderCompanyId: user.companyId,
             },
           },
-          select: { status: true, amount: true },
+          select: { status: true, amount: true, currency: true },
         }),
       ]);
     if (blockedIds.includes(user.companyId)) {
@@ -2489,6 +2632,18 @@ export class CompanyListingsService {
       !listing.allowedCurrencies.includes(currency)
     ) {
       throw new BadRequestException("Bu ilan için geçersiz para birimi");
+    }
+    // İngiliz usulünde para birimi İLK gönderilmiş teklifle KİLİTLENİR —
+    // tur içinde birim değiştirip kur yuvarlamasıyla adım kuralı oynanamaz;
+    // monotonluk ve adım kıyası hep teklifçinin tek biriminde kalır.
+    if (
+      listing.format === "ENGLISH_AUCTION" &&
+      existingBid?.status === "SUBMITTED" &&
+      existingBid.currency !== currency
+    ) {
+      throw new BadRequestException(
+        `Açık eksiltme/artırmada para birimi değiştirilemez — teklifinizi ${existingBid.currency} olarak verin`,
+      );
     }
     // Gönderimde geçerlilik her zaman zorunlu (taslakta opsiyonel).
     if (!isDraft && !dto.validityDays) {
@@ -2777,18 +2932,20 @@ export class CompanyListingsService {
     // (en iyi teklif veya kendi son teklifi) yeterince İYİ olmalı.
     // Yön ilan tipine bağlı: ALIM = ters eksiltme (fiyat DÜŞER, en düşük
     // kazanır), SATIS = açık artırma (fiyat YÜKSELİR, en yüksek kazanır).
-    // Taslakta serbest.
+    // ÇOKLU BİRİM: tüm kıyaslar TEKLİFÇİNİN BİRİMİNDE yapılır — rakip
+    // referans ve sabit adım, açılış günü kur damgasıyla (auctionRateSnapshot)
+    // teklifçinin birimine çevrilir. Kur çevrilemiyorsa teklif REDDEDİLİR
+    // (yanlış kıyasla kabul edilmez). Taslakta serbest.
     if (!isDraft && listing.format === "ENGLISH_AUCTION") {
       const isAscending = listing.type === "SATIS";
-      const [bestAgg, own] = await Promise.all([
-        this.prisma.listingBid.aggregate({
+      const [competitors, own] = await Promise.all([
+        this.prisma.listingBid.findMany({
           where: {
             listingId: id,
             status: "SUBMITTED",
             bidderCompanyId: { not: user.companyId },
           },
-          _min: { amount: true },
-          _max: { amount: true },
+          select: { amount: true, currency: true },
         }),
         this.prisma.listingBid.findUnique({
           where: {
@@ -2797,26 +2954,76 @@ export class CompanyListingsService {
               bidderCompanyId: user.companyId,
             },
           },
-          select: { amount: true, status: true },
+          select: { amount: true, currency: true, status: true },
         }),
       ]);
-      const best: Prisma.Decimal | null =
-        (isAscending ? bestAgg._max.amount : bestAgg._min.amount) ?? null;
+      // Kur damgası: tur açılışında yazılır; eksik birim (legacy tur / yeni
+      // eklenen birim) güncel TCMB kuruyla tamamlanır. Birim başına TRY.
+      const snap = (listing.auctionRateSnapshot ?? {}) as Record<
+        string,
+        unknown
+      >;
+      const rateCache = new Map<string, Prisma.Decimal | null>();
+      const auctionRate = async (
+        cur: string,
+      ): Promise<Prisma.Decimal | null> => {
+        const cached = rateCache.get(cur);
+        if (cached !== undefined) return cached;
+        let r: number | null = cur === "TRY" ? 1 : null;
+        const s = snap[cur];
+        if (r == null && typeof s === "number" && s > 0) r = s;
+        if (r == null) {
+          r = await this.exchangeRates
+            .getCurrentRate(cur as Currency)
+            .catch(() => null);
+        }
+        const d = r != null && r > 0 ? new Prisma.Decimal(r) : null;
+        rateCache.set(cur, d);
+        return d;
+      };
+      // from → to çevrimi; aynı birimde kur GEREKMEZ (oran 1 — legacy güvenli).
+      const convert = async (
+        v: Prisma.Decimal,
+        from: string,
+        to: string,
+      ): Promise<Prisma.Decimal | null> => {
+        if (from === to) return v;
+        const [rf, rt] = await Promise.all([auctionRate(from), auctionRate(to)]);
+        if (!rf || !rt) return null;
+        return v.mul(rf).div(rt);
+      };
+      // Rakip en iyi — teklifçinin biriminde.
+      let best: Prisma.Decimal | null = null;
+      for (const c of competitors) {
+        const conv = await convert(c.amount, c.currency, currency);
+        if (conv == null) {
+          throw new BadRequestException(
+            "Kur bilgisi eksik — teklifiniz diğer tekliflerle karşılaştırılamıyor, lütfen daha sonra tekrar deneyin",
+          );
+        }
+        if (best == null || (isAscending ? conv.gt(best) : conv.lt(best))) {
+          best = conv;
+        }
+      }
+      // Kendi son teklifi — birim kilidi sayesinde teklifçinin biriminde.
       const ownLast: Prisma.Decimal | null =
         own && own.status === "SUBMITTED" ? own.amount : null;
-      const fmt = (d: Prisma.Decimal) => d.toNumber().toLocaleString("tr-TR");
+      const fmt = (d: Prisma.Decimal) =>
+        d.toNumber().toLocaleString("tr-TR", { maximumFractionDigits: 2 });
+      // Mesajlar teklifçinin KENDİ biriminde konuşur (ilanın değil).
+      const bidSym = currency === "TRY" ? "₺" : currency;
       // MONOTONLUK: kendi fiyatın yön aleyhine ASLA değişemez — basis
       // BEST_BID olsa bile. (ALIM'da lider rakip referansına sığınıp
       // 800→950'ye çıkamaz; SATIS'ta 950→800'e inemez.)
       if (ownLast != null) {
         if (!isAscending && amount.gte(ownLast)) {
           throw new BadRequestException(
-            `İngiliz usulü: yeni teklifiniz önceki teklifinizin (${fmt(ownLast)} ${curSym}) altında olmalı`,
+            `İngiliz usulü: yeni teklifiniz önceki teklifinizin (${fmt(ownLast)} ${bidSym}) altında olmalı`,
           );
         }
         if (isAscending && amount.lte(ownLast)) {
           throw new BadRequestException(
-            `Açık artırma: yeni teklifiniz önceki teklifinizin (${fmt(ownLast)} ${curSym}) üzerinde olmalı`,
+            `Açık artırma: yeni teklifiniz önceki teklifinizin (${fmt(ownLast)} ${bidSym}) üzerinde olmalı`,
           );
         }
       }
@@ -2831,11 +3038,24 @@ export class CompanyListingsService {
           listing.priceDecrementValue != null
             ? new Prisma.Decimal(listing.priceDecrementValue)
             : new Prisma.Decimal(0);
-        const step = dv.gt(0)
-          ? listing.priceDecrementType === "PERCENT"
-            ? ref.mul(dv).div(100)
-            : dv
-          : new Prisma.Decimal(0);
+        // Sabit adım İLANIN ana biriminde tanımlı → teklifçinin birimine
+        // çevrilir ve 2 haneye YUKARI yuvarlanır ("en az adım eşdeğeri"
+        // garantisi yuvarlamayla erimesin). Yüzde adım birimden bağımsız
+        // (referans zaten teklifçinin biriminde).
+        let step = new Prisma.Decimal(0);
+        if (dv.gt(0)) {
+          if (listing.priceDecrementType === "PERCENT") {
+            step = ref.mul(dv).div(100);
+          } else {
+            const conv = await convert(dv, listing.primaryCurrency, currency);
+            if (conv == null) {
+              throw new BadRequestException(
+                "Kur bilgisi eksik — azaltma payı para biriminize çevrilemiyor, lütfen daha sonra tekrar deneyin",
+              );
+            }
+            step = conv.toDecimalPlaces(2, Prisma.Decimal.ROUND_UP);
+          }
+        }
         // KAPALI-ZARF SIZINTISI KORUMASI: referans RAKİBİN en iyi teklifiyse ve
         // bidVisibility en iyiyi zaten AÇIKLAMIYORSA (OWN_ONLY/OWN_RANK), hata
         // mesajı ref/tavan sayısını ECHO ETMEZ — aksi halde teklifçi geçersiz
@@ -2855,8 +3075,8 @@ export class CompanyListingsService {
               !revealRef
                 ? "İngiliz usulü: teklifiniz yeterince düşük değil — gerekli en az azaltma karşılanmadı."
                 : step.gt(0)
-                  ? `İngiliz usulü: teklifiniz en fazla ${fmt(maxAllowed)} ${curSym} olabilir (referansı en az ${fmt(step)} azaltmalısınız)`
-                  : `İngiliz usulü: teklifiniz ${fmt(ref)} ${curSym}'nin altında olmalı`,
+                  ? `İngiliz usulü: teklifiniz en fazla ${fmt(maxAllowed)} ${bidSym} olabilir (referansı en az ${fmt(step)} ${bidSym} azaltmalısınız)`
+                  : `İngiliz usulü: teklifiniz ${fmt(ref)} ${bidSym}'nin altında olmalı`,
             );
           }
         } else {
@@ -2866,8 +3086,8 @@ export class CompanyListingsService {
               !revealRef
                 ? "Açık artırma: teklifiniz yeterince yüksek değil — gerekli en az artırma karşılanmadı."
                 : step.gt(0)
-                  ? `Açık artırma: teklifiniz en az ${fmt(minAllowed)} ${curSym} olmalı (referansı en az ${fmt(step)} artırmalısınız)`
-                  : `Açık artırma: teklifiniz ${fmt(ref)} ${curSym}'nin üzerinde olmalı`,
+                  ? `Açık artırma: teklifiniz en az ${fmt(minAllowed)} ${bidSym} olmalı (referansı en az ${fmt(step)} ${bidSym} artırmalısınız)`
+                  : `Açık artırma: teklifiniz ${fmt(ref)} ${bidSym}'nin üzerinde olmalı`,
             );
           }
         }
@@ -4068,6 +4288,7 @@ export class CompanyListingsService {
         status: true,
         currentRound: true,
         primaryCurrency: true,
+        allowedCurrencies: true,
         autoExtendOnLateBid: true,
         autoExtendThresholdMin: true,
         autoExtendByMinutes: true,
@@ -4106,6 +4327,16 @@ export class CompanyListingsService {
       throw new BadRequestException("Açılış tarihi kapanıştan önce olmalı");
     }
 
+    // Açık eksiltme kur damgası — izinli her birimin günün TCMB kuru (kuru
+    // olmayan birim burada reddedilir). Embargolu (gelecek açılışlı) turda
+    // açılış cron'u announceListingOpen üzerinden AÇILIŞ GÜNÜ kuruyla tazeler.
+    const rateSnapshot = isAuction
+      ? await this.buildAuctionRateSnapshot(
+          listing.allowedCurrencies as Currency[],
+          listing.primaryCurrency as Currency,
+        )
+      : null;
+
     // Mevcut turun teklifleri (gönderilmiş + elenmiş/kazansız). CLOSED_NO_AWARD'da
     // teklifler LOST olduğundan da taşınabilsin diye LOST dahil.
     const bids = await this.prisma.listingBid.findMany({
@@ -4142,43 +4373,21 @@ export class CompanyListingsService {
       // kazanabilirdi).
       const newRound = listing.currentRound + 1;
       if (dto.carryBids === "AUTO") {
-        // Açık eksiltmeye geçişte auction tüm para mantığını HAM tutarla yürütür
-        // (best/monotonluk/sıralama). Primary-dışı birimdeki teklifler karışık
-        // kıyası bozacağından SUBMITTED taşınmaz; taslağa çekilir (tedarikçi
-        // primary birimde yeniden verir). RFQ turunda böyle bir kısıt yok.
-        // Revive edilen (SUBMITTED/DRAFT) teklifin bayat eleme damgası temizlenir
-        // — aksi halde önceki turda ELENEN teklif yeni turda "elendi" metadata'sıyla
+        // Primary-dışı birimdeki teklifler de CANLI taşınır: auction kıyasları
+        // artık açılış günü kur damgasıyla birimler arası çevrilerek yapılıyor
+        // (eskiden karışık ham kıyas bozulmasın diye taslağa çekiliyordu).
+        // Revive edilen teklifin bayat eleme damgası temizlenir — aksi halde
+        // önceki turda ELENEN teklif yeni turda "elendi" metadata'sıyla
         // diriliyordu (çelişki; placeBid resubmit'te de aynı temizlik yapılır).
-        if (isAuction) {
-          await tx.listingBid.updateMany({
-            where: { ...priorWhere, currency: { not: listing.primaryCurrency } },
-            data: {
-              status: "DRAFT",
-              round: newRound,
-              eliminationReason: null,
-              eliminatedAt: null,
-            },
-          });
-          await tx.listingBid.updateMany({
-            where: { ...priorWhere, currency: listing.primaryCurrency },
-            data: {
-              status: "SUBMITTED",
-              round: newRound,
-              eliminationReason: null,
-              eliminatedAt: null,
-            },
-          });
-        } else {
-          await tx.listingBid.updateMany({
-            where: priorWhere,
-            data: {
-              status: "SUBMITTED",
-              round: newRound,
-              eliminationReason: null,
-              eliminatedAt: null,
-            },
-          });
-        }
+        await tx.listingBid.updateMany({
+          where: priorWhere,
+          data: {
+            status: "SUBMITTED",
+            round: newRound,
+            eliminationReason: null,
+            eliminatedAt: null,
+          },
+        });
       } else if (dto.carryBids === "LAZY") {
         await tx.listingBid.updateMany({
           where: priorWhere,
@@ -4214,12 +4423,9 @@ export class CompanyListingsService {
           openNotifiedAt: null,
           closingReminderSentAt: null,
           currentRound: { increment: 1 },
-          // Açık eksiltme tek para birimi (create/update ile aynı kural) —
-          // aksi halde auction ham-tutar kıyası karışık birimle bozulurdu.
-          // RFQ turunda mevcut ayar korunur (undefined = değiştirme).
-          allowedCurrencies: isAuction
-            ? [listing.primaryCurrency as Currency]
-            : undefined,
+          // Çoklu para birimi auction'da da serbest — izinli set KORUNUR;
+          // kıyaslar açılış günü kur damgasıyla çevrilir.
+          ...(isAuction ? { auctionRateSnapshot: rateSnapshot ?? undefined } : {}),
           isSealedBid: isAuction,
           bidVisibility: isAuction
             ? (dto.bidVisibility as ListingBidVisibility)

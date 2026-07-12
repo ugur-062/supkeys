@@ -35,6 +35,11 @@ import {
   useDeleteListing,
   useUpdateInternalNotes,
 } from "@/hooks/use-company-listings";
+import { useCurrentExchangeRates } from "@/hooks/use-exchange-rates";
+import {
+  currencySymbol,
+  formatStepConversions,
+} from "@/lib/tenders/auction-currency";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -51,6 +56,9 @@ interface Props {
   listingType?: "ALIM" | "SATIS";
   /** İlanın ana para birimi — tur geçmişi tutarları bu birimle gösterilir. */
   currency?: string;
+  /** İzinli para birimleri — azaltma payının diğer birim karşılıkları
+   *  (güncel TCMB) yeni-tur diyaloğunda gri satırla gösterilir. */
+  allowedCurrencies?: string[];
   /** Mevcut turda yeni tura taşınabilir (SUBMITTED/LOST) teklif sayısı —
    *  0 ise İngiliz usulüne aktarmada "taban fiyatsız başlar" uyarısı çıkar. */
   carryableBidCount?: number;
@@ -76,6 +84,7 @@ export function TenderActionsMenu({
   canEdit,
   listingType = "ALIM",
   currency,
+  allowedCurrencies = [],
   carryableBidCount = 0,
 }: Props) {
   const isSatis = listingType === "SATIS";
@@ -152,6 +161,20 @@ export function TenderActionsMenu({
     "OWN_ONLY" | "BEST_PRICE" | "OWN_RANK" | "BEST_AND_OWN_RANK" | "ALL"
   >("OWN_RANK");
   const [autoExtend, setAutoExtend] = useState(true);
+
+  // Azaltma payının diğer izinli birim karşılıkları — güncel TCMB önizlemesi
+  // (kesin damga tur açılışında backend'de basılır).
+  const { data: ratesData } = useCurrentExchangeRates();
+  const stepConversions = useMemo(() => {
+    const v = Number(decValue.replace(",", "."));
+    if (!(v > 0) || allowedCurrencies.length <= 1) return "";
+    return formatStepConversions(
+      v,
+      currency ?? "TRY",
+      allowedCurrencies,
+      ratesData?.rates,
+    );
+  }, [decValue, allowedCurrencies, currency, ratesData?.rates]);
 
   // Davet ekleme form durumu
   const [inviteSel, setInviteSel] = useState<Set<string>>(new Set());
@@ -507,7 +530,12 @@ export function TenderActionsMenu({
               </select>
             </Field>
             <Field>
-              <Label>{isSatis ? "Artış Değeri" : "Azaltma Değeri"} {decType === "PERCENT" ? "(%)" : "(₺)"}</Label>
+              <Label>
+                {isSatis ? "Artış Değeri" : "Azaltma Değeri"}{" "}
+                {decType === "PERCENT"
+                  ? "(%)"
+                  : `(${currencySymbol(currency)})`}
+              </Label>
               <Input
                 type="number"
                 min={0}
@@ -516,6 +544,17 @@ export function TenderActionsMenu({
                 onChange={(e) => setDecValue(e.target.value)}
                 placeholder="0"
               />
+              {/* Çoklu birimde adımın diğer birim karşılıkları — teklifçi
+                  kendi biriminde azaltır; tur açılışında o günün TCMB kuru
+                  ilana sabitlenir. */}
+              {decType === "AMOUNT" && stepConversions ? (
+                <p className="mt-1 text-xs text-zinc-400">
+                  ≈ {stepConversions}
+                  <span className="ml-1">
+                    (tur açılışında günün TCMB kuru sabitlenir)
+                  </span>
+                </p>
+              ) : null}
             </Field>
           </div>
           <Field>

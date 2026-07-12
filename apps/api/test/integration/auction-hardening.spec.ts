@@ -98,19 +98,26 @@ async function bid(
   } as never);
 }
 
-describe("Auction — tek para birimi zorlaması", () => {
-  it("çok-birimli RFQ İngiliz'e aktarılınca [primaryCurrency]'ye normalize edilir; yabancı birimle teklif reddedilir", async () => {
+describe("Auction — çoklu para birimi (kur damgalı)", () => {
+  it("çok-birimli RFQ İngiliz'e aktarılınca izinli set KORUNUR ve açılış kur damgası basılır; yabancı birimle teklif kabul edilir", async () => {
     const { service, seller, b1 } = await sellerAndBuyers();
-    // RFQ turunda çoklu birim serbest; aktarım tek birime zorlar (backend otorite).
+    // Çoklu birim artık auction'da da serbest — kıyaslar açılış günü kur
+    // damgasıyla teklifçinin birimine çevrilir (auction-multicurrency.spec
+    // adım/kıyas matematiğini ayrıntılı test eder).
     const l = await createAuction(service, seller.auth, {
       allowedCurrencies: ["TRY", "USD"],
     });
     const db = await prisma.listing.findUniqueOrThrow({ where: { id: l.id } });
-    expect(db.allowedCurrencies).toEqual(["TRY"]);
+    expect(db.allowedCurrencies).toEqual(["TRY", "USD"]);
+    // Damga: mock TCMB kuru (30) izinli birimler için yazıldı.
+    expect(db.auctionRateSnapshot).toMatchObject({ TRY: 1, USD: 30 });
 
     await expect(
       bid(service, b1.auth, l.id, 1000, { currency: "USD" }),
-    ).rejects.toThrow(/geçersiz para birimi/);
+    ).resolves.toBeDefined();
+    // İzinli SET dışı birim yine reddedilir.
+    const b2bid = bid(service, b1.auth, l.id, 900, { currency: "EUR" });
+    await expect(b2bid).rejects.toThrow(/geçersiz para birimi/);
   });
 
   it("İngiliz usulü doğrudan AÇILAMAZ; update arka kapısı da kapalı", async () => {

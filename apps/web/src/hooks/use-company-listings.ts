@@ -378,15 +378,23 @@ export interface ListingDetail {
   english?: {
     isEnglishAuction: true;
     currentBest: string | null;
+    /** En iyi teklifin KENDİ para birimi (çoklu birimde ilanınkinden farklı olabilir). */
+    currentBestCurrency?: string | null;
     bidCount: number;
     currentRound: number;
+    /** Açılış günü TCMB kur damgası { USD: 46.89, TRY: 1, ... } — adım/en iyi
+     *  teklifçinin birimine bununla çevrilir (ihale boyunca sabit). */
+    rateSnapshot?: Record<string, number> | null;
   } | null;
   // Açık eksiltme görünürlüğü (bidVisibility'ye göre, kapalı zarf korunur):
   auctionView?: {
     bestTotal: string | null;
+    bestCurrency?: string | null;
     myRank: number | null;
     participantCount: number | null;
-    allBids: { rank: number; total: string; isMine: boolean }[] | null;
+    allBids:
+      | { rank: number; total: string; currency?: string; isMine: boolean }[]
+      | null;
   } | null;
 }
 

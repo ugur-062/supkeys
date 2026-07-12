@@ -17,6 +17,7 @@ import type {
   PaymentTiming,
   TenderLogisticsDetails,
 } from "@/lib/tenders/types";
+import { formatStepConversions } from "@/lib/tenders/auction-currency";
 import { formatDateTime } from "@/lib/tenders/date";
 import { cn } from "@/lib/utils";
 import {
@@ -298,6 +299,25 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
                   ? `%${Number(l.priceDecrementValue)}`
                   : `${Number(l.priceDecrementValue)} ${cur}`
                 : "—"}
+              {/* Çoklu birimde adımın diğer birim karşılıkları — açılış günü
+                  kur damgası (ihale boyunca sabit; teklifçiler bunu görür). */}
+              {l.priceDecrementType === "AMOUNT" &&
+              l.priceDecrementValue &&
+              currencyList.length > 1 ? (
+                (() => {
+                  const conv = formatStepConversions(
+                    Number(l.priceDecrementValue),
+                    cur,
+                    currencyList,
+                    l.english?.rateSnapshot,
+                  );
+                  return conv ? (
+                    <span className="mt-0.5 block text-xs font-normal text-zinc-400">
+                      ≈ {conv}
+                    </span>
+                  ) : null;
+                })()
+              ) : null}
             </Fact>
             <Fact label="Ondalık Basamak">
               {String(l.decimalPlaces ?? 2)}

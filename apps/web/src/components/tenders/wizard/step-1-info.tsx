@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCategoriesByIds } from "@/hooks/use-categories";
+import { useCurrentExchangeRates } from "@/hooks/use-exchange-rates";
+import { formatStepConversions } from "@/lib/tenders/auction-currency";
 import { DELIVERY_TERM_LABELS } from "@/lib/tenders/labels";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import type { Currency, DeliveryTerm } from "@/lib/tenders/types";
@@ -527,8 +529,21 @@ export function Step1Info({
   const tenderType = watch("type");
   const isLogistics = watch("isLogistics");
   const decrementType = watch("priceDecrementType");
+  const decrementValue = watch("priceDecrementValue");
   const autoExtendOnLateBid = watch("autoExtendOnLateBid");
   const isAuction = tenderType === "ENGLISH_AUCTION";
+  // Payın diğer izinli birim karşılıkları — güncel TCMB önizlemesi (kesin
+  // damga tur açılışında backend'de basılır).
+  const { data: ratesData } = useCurrentExchangeRates();
+  const stepConversions =
+    isAuction && (decrementValue ?? 0) > 0 && allowedCurrencies.length > 1
+      ? formatStepConversions(
+          Number(decrementValue),
+          primaryCurrency ?? "TRY",
+          allowedCurrencies as Currency[],
+          ratesData?.rates,
+        )
+      : "";
   const isSatis = watch("listingType") === "SATIS";
   // SATIS'ta karşı taraf ALICI'dır; İngiliz usulünde fiyat YÜKSELİR (artırma).
   const rol = isSatis ? "alıcı" : "tedarikçi";
@@ -580,18 +595,12 @@ export function Step1Info({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentTiming]);
 
-  // V2-7 — Açık eksiltme seçilince tek para birimi zorunlu + decrement default'ları.
+  // V2-7 — Açık eksiltme seçilince decrement default'ları. Çoklu para birimi
+  // artık SERBEST: adım/kıyas açılış günü TCMB damgasıyla çevrilir.
   useEffect(() => {
-    if (isAuction) {
-      if (allowedCurrencies.length > 1) {
-        setValue("allowedCurrencies", [primaryCurrency], {
-          shouldValidate: true,
-        });
-      }
-      if (!decrementType) {
-        setValue("priceDecrementType", "AMOUNT", { shouldValidate: false });
-        setValue("priceDecrementBasis", "OWN_LAST_BID", { shouldValidate: false });
-      }
+    if (isAuction && !decrementType) {
+      setValue("priceDecrementType", "AMOUNT", { shouldValidate: false });
+      setValue("priceDecrementBasis", "OWN_LAST_BID", { shouldValidate: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuction]);
@@ -969,6 +978,14 @@ export function Step1Info({
                                 : primaryCurrency}
                             </span>
                           </div>
+                          {/* Çoklu birimde payın diğer birim karşılıkları —
+                              kesin damga tur açılışında günün TCMB kuruyla basılır. */}
+                          {decrementType !== "PERCENT" && stepConversions ? (
+                            <p className="mt-1 text-xs text-slate-400">
+                              ≈ {stepConversions} (açılışta günün TCMB kuru
+                              sabitlenir)
+                            </p>
+                          ) : null}
                         </Field>
                       </div>
                     </div>
@@ -1086,68 +1103,70 @@ export function Step1Info({
           title={isAuction ? "İhale Para Ayarları" : "Para Birimleri"}
           description={
             isAuction
-              ? `Açık ${auctionName} tek para biriminde yapılır. Ondalık basamak fiyat gösteriminde kullanılır.`
+              ? `${RolPlGen} kendi para biriminde ${isSatis ? "artırır" : "azaltır"} — pay, açılış günü TCMB kuruyla birimine çevrilir. Ondalık basamak fiyat gösteriminde kullanılır.`
               : `${RolPlGen} hangi para birimlerinde teklif verebileceğini belirle. Birden fazla seçebilirsin; ★ ana para birimi TRY equivalent karşılaştırmasının bazıdır.`
           }
         />
         <div className="space-y-4">
           {isAuction ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Field error={errors.primaryCurrency?.message as string | undefined}>
-                <Label htmlFor="primaryCurrency" required>
-                  İhale Para Birimi
-                </Label>
-                <Select
-                  id="primaryCurrency"
-                  value={primaryCurrency}
-                  onChange={(e) => {
-                    const next = e.target.value as Currency;
-                    setValue("primaryCurrency", next, { shouldValidate: true });
-                    setValue("allowedCurrencies", [next], {
+            <div className="space-y-4">
+              <Field
+                error={
+                  (errors.allowedCurrencies?.message as string | undefined) ??
+                  (errors.primaryCurrency?.message as string | undefined)
+                }
+              >
+                <Label required>Para Birimleri</Label>
+                <CurrencyMultiSelect
+                  value={allowedCurrencies as Currency[]}
+                  onChange={(next) => {
+                    setValue("allowedCurrencies", next, {
                       shouldValidate: true,
+                      shouldDirty: true,
                     });
+                    if (!next.includes(primaryCurrency)) {
+                      setValue("primaryCurrency", next[0] ?? "TRY", {
+                        shouldValidate: true,
+                      });
+                    }
                   }}
-                >
-                  <option value="TRY">TRY</option>
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
-                  <option value="CHF">CHF</option>
-                  <option value="JPY">JPY</option>
-                  <option value="AED">AED</option>
-                  <option value="CNY">CNY</option>
-                  <option value="RUB">RUB</option>
-                </Select>
+                  primary={primaryCurrency}
+                  onPrimaryChange={(p) =>
+                    setValue("primaryCurrency", p, { shouldValidate: true })
+                  }
+                  error={
+                    (errors.allowedCurrencies?.message as string | undefined) ??
+                    (errors.primaryCurrency?.message as string | undefined)
+                  }
+                />
               </Field>
-              <Field error={errors.decimalPlaces?.message as string | undefined}>
-                <Label htmlFor="decimalPlaces" required>
-                  Ondalık Basamak İzni
-                </Label>
-                <Select
-                  id="decimalPlaces"
-                  {...register("decimalPlaces", {
-                    setValueAs: (v) => Number(v),
-                  })}
-                >
-                  <option value="0">0</option>
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
-                  <option value="4">4</option>
-                </Select>
-              </Field>
-              <Field>
-                <Label htmlFor="auctionExtraCurrencies">
-                  Farklı Para Birimi
-                </Label>
-                <Select
-                  id="auctionExtraCurrencies"
-                  disabled
-                  title="Açık eksiltme tek para biriminde yapılır"
-                >
-                  <option>—</option>
-                </Select>
-              </Field>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Field error={errors.decimalPlaces?.message as string | undefined}>
+                  <Label htmlFor="decimalPlaces" required>
+                    Ondalık Basamak İzni
+                  </Label>
+                  <Select
+                    id="decimalPlaces"
+                    {...register("decimalPlaces", {
+                      setValueAs: (v) => Number(v),
+                    })}
+                  >
+                    <option value="0">0</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                  </Select>
+                </Field>
+              </div>
+              {allowedCurrencies.length > 1 ? (
+                <p className="text-xs text-slate-500">
+                  {isSatis ? "Artış" : "Azaltma"} payı ★ ana birimde tanımlanır;
+                  tur açılışında o günün TCMB kuruyla diğer birimlere sabitlenir
+                  — her {rol} yalnız kendi biriminde{" "}
+                  {isSatis ? "artırır" : "azaltır"}.
+                </p>
+              ) : null}
             </div>
           ) : (
             <>

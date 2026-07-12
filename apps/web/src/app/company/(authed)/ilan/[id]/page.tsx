@@ -1386,6 +1386,7 @@ export default function ListingDetailPage() {
               canEdit={l.canEdit}
               listingType={isAlim ? "ALIM" : "SATIS"}
               currency={l.primaryCurrency}
+              allowedCurrencies={l.allowedCurrencies ?? []}
               carryableBidCount={
                 (l.bids ?? []).filter(
                   (b) =>

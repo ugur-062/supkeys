@@ -1,6 +1,10 @@
 "use client";
 
 import type { ListingDetail } from "@/hooks/use-company-listings";
+import {
+  convertAuctionAmount,
+  convertAuctionStep,
+} from "@/lib/tenders/auction-currency";
 import { cn } from "@/lib/utils";
 import { Gavel } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -63,7 +67,15 @@ function Tile({
  * Kapalı zarf korunur: yalnızca sunucunun bidVisibility'ye göre açtığı
  * alanlar gösterilir.
  */
-export function AuctionLiveCard({ l }: { l: ListingDetail }) {
+export function AuctionLiveCard({
+  l,
+  bidderCurrency,
+}: {
+  l: ListingDetail;
+  /** Teklif formunda SEÇİLİ birim — henüz teklif yokken de adım/en-iyi bu
+   *  birimde gösterilsin (yoksa myBid birimi → ilan birimi sırası). */
+  bidderCurrency?: string;
+}) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -86,12 +98,39 @@ export function AuctionLiveCard({ l }: { l: ListingDetail }) {
       ? `${Number(v).toLocaleString("tr-TR")} ${sym(currency ?? l.primaryCurrency)}`
       : "—";
 
+  // Teklifçi HER ŞEYİ kendi biriminde görür: sabit adım, ilanın ana biriminde
+  // tanımlı olsa da açılış günü kur damgasıyla teklifçinin birimine çevrilir
+  // (ilanın 500 ₺'lik payı EUR teklifçisine yalnız €10,64 olarak görünür).
+  const myCurrency =
+    bidderCurrency ?? l.myBid?.currency ?? l.primaryCurrency ?? "TRY";
+  const rates = l.english?.rateSnapshot ?? null;
+  const stepInMyCurrency =
+    l.priceDecrementType === "PERCENT" || l.priceDecrementValue == null
+      ? null
+      : convertAuctionStep(
+          Number(l.priceDecrementValue),
+          l.primaryCurrency ?? "TRY",
+          myCurrency,
+          rates,
+        );
   const decrement =
     l.priceDecrementType === "PERCENT"
       ? `%${Number(l.priceDecrementValue ?? 0)}`
-      : l.priceDecrementValue
-        ? money(l.priceDecrementValue)
-        : "—";
+      : stepInMyCurrency != null
+        ? `${stepInMyCurrency.toLocaleString("tr-TR", {
+            maximumFractionDigits: 2,
+          })} ${sym(myCurrency)}`
+        : l.priceDecrementValue
+          ? money(l.priceDecrementValue)
+          : "—";
+
+  // En iyi teklif kendi birimiyle gelir; teklifçinin biriminden farklıysa
+  // altta yaklaşık karşılığı gösterilir (karar verirken çeviriyle uğraşmasın).
+  const bestCur = view?.bestCurrency ?? l.primaryCurrency ?? "TRY";
+  const bestInMyCurrency =
+    view?.bestTotal && bestCur !== myCurrency
+      ? convertAuctionAmount(Number(view.bestTotal), bestCur, myCurrency, rates)
+      : null;
 
   return (
     <section className="rounded-2xl border border-amber-200/70 bg-amber-50/40 p-4">
@@ -126,7 +165,14 @@ export function AuctionLiveCard({ l }: { l: ListingDetail }) {
         />
         <Tile
           label="En İyi Teklif"
-          value={view?.bestTotal ? money(view.bestTotal) : "Gizli"}
+          value={view?.bestTotal ? money(view.bestTotal, bestCur) : "Gizli"}
+          sub={
+            bestInMyCurrency != null
+              ? `≈ ${bestInMyCurrency.toLocaleString("tr-TR", {
+                  maximumFractionDigits: 2,
+                })} ${sym(myCurrency)}`
+              : undefined
+          }
         />
         <Tile
           label="Sıralaman"
@@ -181,7 +227,7 @@ export function AuctionLiveCard({ l }: { l: ListingDetail }) {
                   #{b.rank} {b.isMine ? "(Sen)" : isSatis ? "Alıcı" : "Tedarikçi"}
                 </span>
                 <span className="text-zinc-900 tabular-nums">
-                  {money(b.total)}
+                  {money(b.total, b.currency ?? l.primaryCurrency)}
                 </span>
               </li>
             ))}

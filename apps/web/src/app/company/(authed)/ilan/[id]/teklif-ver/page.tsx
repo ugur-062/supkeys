@@ -736,7 +736,9 @@ export default function TeklifVerPage() {
         </div>
       ) : null}
 
-      {l.english?.isEnglishAuction ? <AuctionLiveCard l={l} /> : null}
+      {l.english?.isEnglishAuction ? (
+        <AuctionLiveCard l={l} bidderCurrency={effectiveCurrency} />
+      ) : null}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         {/* Sol — form */}
@@ -1004,6 +1006,10 @@ export default function TeklifVerPage() {
                   <Select
                     value={currency || l.primaryCurrency}
                     onChange={(e) => setCurrency(e.target.value)}
+                    // Açık eksiltmede birim ilk gönderilmiş teklifle kilitlenir
+                    // (backend de reddeder) — kur oynamasıyla adım kuralı
+                    // oynanamaz; azaltma hep kendi biriminde işler.
+                    disabled={isAuctionRebid}
                   >
                     {l.allowedCurrencies!.map((c) => (
                       <option key={c} value={c}>
@@ -1011,6 +1017,12 @@ export default function TeklifVerPage() {
                       </option>
                     ))}
                   </Select>
+                  {isAuctionRebid ? (
+                    <p className="mt-1 text-xs text-zinc-400">
+                      Açık {isSatis ? "artırmada" : "eksiltmede"} para birimi
+                      ilk teklifle kilitlenir.
+                    </p>
+                  ) : null}
                 </Field>
               ) : null}
             </div>
