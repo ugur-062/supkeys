@@ -61,7 +61,7 @@ function Tile({
 }
 
 /**
- * İngiliz Usulü açık eksiltme canlı kartı — eski tedarikçi panelinin portu.
+ * Pazarlık (açık eksiltme) canlı kartı — eski tedarikçi panelinin portu.
  * 4 kutu (teklifin / en iyi / sıran / min. azaltma) + 1sn geri sayım +
  * görünürlük etiketi + oto-uzatma notu + (ALL modunda) anonim sıralama.
  * Kapalı zarf korunur: yalnızca sunucunun bidVisibility'ye göre açtığı
@@ -137,7 +137,7 @@ export function AuctionLiveCard({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
           <Gavel className="h-3.5 w-3.5" aria-hidden="true" />
-          {isSatis ? "İngiliz Usulü Açık Artırma" : "İngiliz Usulü Açık Eksiltme"} · Tur {l.english.currentRound}
+          {isSatis ? "Pazarlık (Açık Artırma)" : "Pazarlık (Açık Eksiltme)"} · Tur {l.english.currentRound}
         </span>
         {closesMs !== null ? (
           <span

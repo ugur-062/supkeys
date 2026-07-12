@@ -153,7 +153,7 @@ describe("create/update iş kuralı doğrulamaları", () => {
     ...over,
   });
 
-  it("açık eksiltme doğrudan açılamaz; aktarmada azaltma zorunlu, PERCENT<100, tek birime normalize", async () => {
+  it("açık eksiltme doğrudan açılamaz; aktarmada azaltma zorunlu, PERCENT<100, çok-birim kur damgasıyla korunur", async () => {
     const { service, buyer } = await pair();
     // Doğrudan create yasak — İngiliz'e tek geçiş "Yeni Tur" aktarması.
     await expect(
@@ -188,7 +188,9 @@ describe("create/update iş kuralı doğrulamaları", () => {
       convert({ priceDecrementType: "PERCENT", priceDecrementValue: 100 }),
     ).rejects.toThrow(/100'den küçük/);
 
-    // Geçerli aktarma: çok-birimli RFQ tek birime normalize edilir.
+    // Geçerli aktarma: çok-birimli RFQ'nun izinli seti KORUNUR ve açılış
+    // kur damgası basılır (6ff037b — eski "tek birime normalize" davranışı
+    // bilinçli terk edildi; sözleşme auction-hardening.spec'te de sabit).
     await convert({
       priceDecrementType: "AMOUNT",
       priceDecrementValue: 10,
@@ -197,7 +199,8 @@ describe("create/update iş kuralı doğrulamaları", () => {
     });
     const db = await prisma.listing.findUniqueOrThrow({ where: { id: l.id } });
     expect(db.format).toBe("ENGLISH_AUCTION");
-    expect(db.allowedCurrencies).toEqual(["TRY"]);
+    expect(db.allowedCurrencies).toEqual(["TRY", "USD"]);
+    expect(db.auctionRateSnapshot).not.toBeNull();
   });
 
   it("PRIVATE ilan davetsiz yayınlanamaz (taslak serbest)", async () => {

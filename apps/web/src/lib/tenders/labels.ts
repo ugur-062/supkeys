@@ -68,7 +68,8 @@ export const TENDER_TYPE_META: Record<TenderType, BadgeMeta> = {
     className: "bg-brand-50 text-brand-700 border-brand-200",
   },
   ENGLISH_AUCTION: {
-    label: "İngiliz Usulü",
+    // Kullanıcı yüzünde "Pazarlık" (açık eksiltme/artırma) — iç enum değişmedi.
+    label: "Pazarlık",
     className: "bg-purple-50 text-purple-700 border-purple-200",
   },
 };

@@ -564,7 +564,7 @@ function PublicProfilePreview() {
   const tenders = [
     { t: "Uluslararası çelik alımı", b: "Teklif Toplama", c: "bg-blue-50 text-blue-700" },
     { t: "Fazla bakır satışı", b: "Satış", c: "bg-emerald-50 text-emerald-700" },
-    { t: "Hurda eksiltmesi", b: "İngiliz Usulü", c: "bg-amber-50 text-amber-700" },
+    { t: "Hurda eksiltmesi", b: "Pazarlık", c: "bg-amber-50 text-amber-700" },
   ];
   return (
     <div className="overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-950/10">
@@ -1017,7 +1017,7 @@ export default function HomePage() {
               Her ihtiyaca uygun format
             </p>
             <p className="mt-6 text-lg/8 text-zinc-600">
-              Alışta teklif toplama ya da İngiliz Usulü, satışta taban + hemen-al; doğru
+              Alışta teklif toplama ya da pazarlık (açık eksiltme), satışta taban + hemen-al; doğru
               formatı seç, kazandırma öncesi onay zincirini panel yönetsin.
             </p>
           </div>
@@ -1054,7 +1054,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* İngiliz Usulü — eksiltme */}
+            {/* Pazarlık — eksiltme */}
             <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
               <div className="rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
                 <div className="flex h-16 items-end gap-1.5">
@@ -1075,7 +1075,7 @@ export default function HomePage() {
                 Alış · Eksiltme
               </span>
               <h3 className="mt-3 text-lg font-semibold text-zinc-950">
-                İngiliz Usulü
+                Pazarlık
               </h3>
               <p className="mt-1.5 text-sm/6 text-zinc-600">
                 Fiyat canlı düşer; en uygun teklif öne çıkar.

@@ -188,14 +188,14 @@ function StepGroup({
 }
 
 /** Faz 1 — kapsam seçilir; ihale türü seçilMEZ. İlan daima RFQ (kapalı zarf)
- *  açılır — İngiliz usulüne geçişin tek yolu, tur kapanınca "Yeni Tur
+ *  açılır — pazarlığa (açık eksiltme) geçişin tek yolu, tur kapanınca "Yeni Tur
  *  Oluştur" ile aktarmadır (taban fiyat + katılımcılar RFQ turundan gelir).
  *  Edit modunda aktarılmış eksiltme/artırma salt-okunur gösterilir. */
 export function Step0TypeScope() {
   const { control, watch } = useFormContext<TenderFormData>();
   const isInternational = watch("isInternational");
   // SATIS: aynı format mantığı satış yönüne uyarlanır — RFQ = kapalı zarf
-  // teklif toplama (en yüksek kazanır), İngiliz usulü = canlı AÇIK ARTIRMA.
+  // teklif toplama (en yüksek kazanır), pazarlık = canlı AÇIK ARTIRMA.
   const isSatis = watch("listingType") === "SATIS";
   const isAuction = watch("type") === "ENGLISH_AUCTION";
   const { company } = useCompanyAuth();
@@ -206,7 +206,7 @@ export function Step0TypeScope() {
         <h2 className="text-lg font-semibold text-zinc-900">İhale Türü</h2>
         <p className="mt-1 text-sm text-zinc-500">
           {isAuction
-            ? "Bu ihale 'Yeni Tur' ile İngiliz usulüne aktarılmış."
+            ? "Bu ihale 'Pazarlığa Geç' ile pazarlık (açık eksiltme) aşamasına aktarılmış."
             : "İhaleler kapalı zarf (teklif toplama) usulüyle açılır."}
         </p>
         <div className="mt-5 rounded-2xl border border-zinc-950/10 bg-white p-6">
@@ -222,8 +222,8 @@ export function Step0TypeScope() {
               <p className="text-base font-semibold text-zinc-900">
                 {isAuction
                   ? isSatis
-                    ? "İngiliz Usulü Açık Artırma"
-                    : "İngiliz Usulü Açık Eksiltme"
+                    ? "Pazarlık (Açık Artırma)"
+                    : "Pazarlık (Açık Eksiltme)"
                   : "Teklif Toplama (Kapalı Zarf)"}
               </p>
               <p className="mt-1.5 text-sm leading-relaxed text-zinc-500">

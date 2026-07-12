@@ -32,9 +32,9 @@ describe("TenderTypeBadge", () => {
     expect(screen.getByText("Teklif Toplama")).toBeInTheDocument();
   });
 
-  it("ENGLISH_AUCTION → 'Açık Eksiltme'", () => {
+  it("ENGLISH_AUCTION → 'Pazarlık'", () => {
     render(<TenderTypeBadge format="ENGLISH_AUCTION" />);
-    expect(screen.getByText("Açık Eksiltme")).toBeInTheDocument();
+    expect(screen.getByText("Pazarlık")).toBeInTheDocument();
   });
 
   it("null format → RFQ varsayılanı", () => {

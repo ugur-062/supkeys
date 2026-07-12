@@ -99,7 +99,7 @@ describe("OwnerTenderList durumları", () => {
     ).toHaveAttribute("href", expect.stringContaining("/company/ilan/l1"));
   });
 
-  it("SATIS: İngiliz usulü 'Açık Artırma' rozetiyle gösterilir", () => {
+  it("SATIS: açık artırma (ENGLISH_AUCTION) 'Pazarlık' rozetiyle gösterilir", () => {
     render(
       <OwnerTenderList
         items={[
@@ -116,6 +116,6 @@ describe("OwnerTenderList durumları", () => {
         {...base}
       />,
     );
-    expect(screen.getByText("Açık Artırma")).toBeInTheDocument();
+    expect(screen.getByText("Pazarlık")).toBeInTheDocument();
   });
 });

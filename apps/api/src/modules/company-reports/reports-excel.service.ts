@@ -32,7 +32,7 @@ const statusTr = (s: string) => STATUS_TR[s] ?? s;
 
 const FORMAT_TR: Record<string, string> = {
   RFQ: "Teklif Toplama",
-  ENGLISH_AUCTION: "İngiliz Usulü",
+  ENGLISH_AUCTION: "Pazarlık",
 };
 
 @Injectable()

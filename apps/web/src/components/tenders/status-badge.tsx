@@ -75,7 +75,7 @@ const FORMAT_META: Record<ListingFormat, { label: string; className: string }> =
       className: "bg-zinc-50 text-zinc-700 border-zinc-200",
     },
     ENGLISH_AUCTION: {
-      label: "Açık Eksiltme",
+      label: "Pazarlık",
       className: "bg-blue-50 text-blue-700 border-blue-200",
     },
   };
@@ -104,18 +104,15 @@ export function TenderStatusBadge({
 export function TenderTypeBadge({
   format,
   className,
-  listingType,
 }: {
   format: ListingFormat | null;
   className?: string;
-  /** SATIS'ta İngiliz usulü AÇIK ARTIRMA'dır (fiyat yükselir). */
+  /** SATIS'ta pazarlık AÇIK ARTIRMA yönündedir (fiyat yükselir) — rozet
+   *  etiketi iki yönde de "Pazarlık"; prop geriye uyumluluk için duruyor. */
   listingType?: "ALIM" | "SATIS";
 }) {
   const meta = FORMAT_META[format ?? "RFQ"];
-  const label =
-    listingType === "SATIS" && format === "ENGLISH_AUCTION"
-      ? "Açık Artırma"
-      : meta.label;
+  const label = meta.label;
   return (
     <span
       className={cn(

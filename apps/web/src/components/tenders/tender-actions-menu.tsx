@@ -62,7 +62,7 @@ interface Props {
    *  (güncel TCMB) yeni-tur diyaloğunda gri satırla gösterilir. */
   allowedCurrencies?: string[];
   /** Mevcut turda yeni tura taşınabilir (SUBMITTED/LOST) teklif sayısı —
-   *  0 ise İngiliz usulüne aktarmada "taban fiyatsız başlar" uyarısı çıkar. */
+   *  0 ise pazarlığa (açık eksiltme) aktarmada "taban fiyatsız başlar" uyarısı çıkar. */
   carryableBidCount?: number;
 }
 
@@ -115,6 +115,10 @@ export function TenderActionsMenu({
   const canNewRound =
     status === "CLOSED" || status === "CLOSED_NO_AWARD" || isInEvaluation;
   const canInvite = status === "DRAFT" || status === "OPEN";
+  // Pazarlığa Geç: RFQ'yu açık eksiltme/artırma turuna aktarır (createNextRound
+  // ENGLISH_AUCTION). Zaten pazarlıktaysa Yeni Tur devam turlarını yönetir.
+  const canStartNegotiation =
+    !isAuction && (status === "OPEN" || canNewRound);
 
   const handleDeleteDraft = async () => {
     if (
@@ -138,6 +142,11 @@ export function TenderActionsMenu({
   const [closingOpen, setClosingOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [nextRoundOpen, setNextRoundOpen] = useState(false);
+  // "auction" = Pazarlığa Geç butonundan açıldı: tip ENGLISH_AUCTION'a kilitli,
+  // diyalog kopyası pazarlık diliyle. "free" = Yeni Tur menü öğesi (tip seçilir).
+  const [nextRoundMode, setNextRoundMode] = useState<"free" | "auction">(
+    "free",
+  );
   const [historyOpen, setHistoryOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
@@ -228,7 +237,9 @@ export function TenderActionsMenu({
             }
           : {}),
       });
-      toast.success("Yeni tur açıldı");
+      toast.success(
+        nextRoundMode === "auction" ? "Pazarlık turu açıldı" : "Yeni tur açıldı",
+      );
       setNextRoundOpen(false);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Yeni tur açılamadı"));
@@ -359,9 +370,16 @@ export function TenderActionsMenu({
             Kapanış Zamanını Değiştir
           </Button>
         ) : null}
-        {canInvite ? (
-          <Button outline onClick={() => setInviteOpen(true)}>
-            {isSatis ? "Alıcı Davet Et" : "Tedarikçi Davet Et"}
+        {canStartNegotiation ? (
+          <Button
+            outline
+            onClick={() => {
+              setNrType("ENGLISH_AUCTION");
+              setNextRoundMode("auction");
+              setNextRoundOpen(true);
+            }}
+          >
+            Pazarlığa Geç
           </Button>
         ) : null}
         {canStartEvaluation ? (
@@ -380,6 +398,13 @@ export function TenderActionsMenu({
             <EllipsisVerticalIcon />
           </DropdownButton>
           <DropdownMenu anchor="bottom end">
+            {canInvite ? (
+              <DropdownItem onClick={() => setInviteOpen(true)}>
+                <DropdownLabel>
+                  {isSatis ? "Alıcı Davet Et" : "Tedarikçi Davet Et"}
+                </DropdownLabel>
+              </DropdownItem>
+            ) : null}
             <DropdownItem onClick={() => setNotesOpen(true)}>
               <DropdownLabel>İç Notlar</DropdownLabel>
             </DropdownItem>
@@ -394,7 +419,12 @@ export function TenderActionsMenu({
               </DropdownItem>
             ) : null}
             {canNewRound ? (
-              <DropdownItem onClick={() => setNextRoundOpen(true)}>
+              <DropdownItem
+                onClick={() => {
+                  setNextRoundMode("free");
+                  setNextRoundOpen(true);
+                }}
+              >
                 <DropdownLabel>Yeni Tur Oluştur</DropdownLabel>
               </DropdownItem>
             ) : null}
@@ -495,32 +525,40 @@ export function TenderActionsMenu({
         </DialogActions>
       </Dialog>
 
-      {/* Yeni Tur Oluştur (tip seçimi = RFQ↔İngiliz dönüşümü) */}
+      {/* Yeni Tur Oluştur (tip seçimi = RFQ↔pazarlık dönüşümü) /
+          Pazarlığa Geç (tip ENGLISH_AUCTION'a kilitli) */}
       <Dialog
         open={nextRoundOpen}
         onClose={() => setNextRoundOpen(false)}
         size="xl"
       >
-        <DialogTitle>Yeni Tur Oluştur</DialogTitle>
+        <DialogTitle>
+          {nextRoundMode === "auction"
+            ? "Pazarlık Aşamasına Geç"
+            : "Yeni Tur Oluştur"}
+        </DialogTitle>
         <DialogDescription>
-          Aynı kalem ve davetlilerle yeni bir tur açar. Tip olarak İngiliz
-          Usulü seçersen ihale {isSatis ? "açık artırmaya" : "açık eksiltmeye"} dönüşür.
+          {nextRoundMode === "auction"
+            ? `Aynı kalem ve davetlilerle pazarlık (${isSatis ? "açık artırma" : "açık eksiltme"}) turu başlar${isOpen ? "; mevcut teklif alımı kapanır" : ""}. Teklifler kurala göre taşınabilir.`
+            : `Aynı kalem ve davetlilerle yeni bir tur açar. Tip olarak Pazarlık seçersen ihale ${isSatis ? "açık artırmaya" : "açık eksiltmeye"} dönüşür.`}
         </DialogDescription>
         <DialogBody className="space-y-4">
-          <Field>
-            <Label>İhale Tipi</Label>
-            <select
-              aria-label="İhale Tipi"
-              value={nrType}
-              onChange={(e) =>
-                setNrType(e.target.value as "RFQ" | "ENGLISH_AUCTION")
-              }
-              className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
-            >
-              <option value="ENGLISH_AUCTION">{isSatis ? "İngiliz Usulü (Açık Artırma)" : "İngiliz Usulü (Açık Eksiltme)"}</option>
-              <option value="RFQ">Teklif Toplama (Kapalı Zarf)</option>
-            </select>
-          </Field>
+          {nextRoundMode === "free" ? (
+            <Field>
+              <Label>İhale Tipi</Label>
+              <select
+                aria-label="İhale Tipi"
+                value={nrType}
+                onChange={(e) =>
+                  setNrType(e.target.value as "RFQ" | "ENGLISH_AUCTION")
+                }
+                className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
+              >
+                <option value="ENGLISH_AUCTION">{isSatis ? "Pazarlık (Açık Artırma)" : "Pazarlık (Açık Eksiltme)"}</option>
+                <option value="RFQ">Teklif Toplama (Kapalı Zarf)</option>
+              </select>
+            </Field>
+          ) : null}
           {/* Teklifsiz aktarma uyarısı: taşınacak teklif yoksa eksiltme/artırma
               taban fiyat olmadan başlar — engellemiyoruz, bilgilendiriyoruz. */}
           {nrType === "ENGLISH_AUCTION" && carryableBidCount === 0 ? (
@@ -670,7 +708,9 @@ export function TenderActionsMenu({
             Vazgeç
           </Button>
           <Button onClick={handleNextRound} disabled={nextRound.isPending}>
-            Yeni Tur Oluştur
+            {nextRoundMode === "auction"
+              ? "Pazarlığı Başlat"
+              : "Yeni Tur Oluştur"}
           </Button>
         </DialogActions>
       </Dialog>

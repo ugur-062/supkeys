@@ -155,7 +155,7 @@ export function SellerTenderCard({
           <Badge color="zinc">{tender.currency}</Badge>
           {tender.format === "ENGLISH_AUCTION" ? (
             <Badge color="purple">
-              {isSatis ? "Açık Artırma" : "İngiliz Usulü"}
+              Pazarlık
             </Badge>
           ) : (
             <Badge color="zinc">Teklif Toplama</Badge>

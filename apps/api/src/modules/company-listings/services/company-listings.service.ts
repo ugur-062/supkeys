@@ -846,7 +846,7 @@ export class CompanyListingsService {
     if (!dto.format) {
       throw new BadRequestException(
         type === "ALIM"
-          ? "Alım ilanı için format seçin (Teklif Toplama / İngiliz Usulü)"
+          ? "Alım ilanı için format seçin (Teklif Toplama / Pazarlık)"
           : "Satış ilanı için format seçin (Teklif Toplama / Açık Artırma)",
       );
     }
@@ -856,7 +856,7 @@ export class CompanyListingsService {
     if (dto.format === "ENGLISH_AUCTION") {
       throw new BadRequestException(
         type === "ALIM"
-          ? "İngiliz usulü doğrudan açılamaz — ilanı teklif toplama olarak açın, tur kapanınca 'Yeni Tur Oluştur' ile açık eksiltmeye aktarın"
+          ? "Pazarlık doğrudan açılamaz — ilanı teklif toplama olarak açın, 'Pazarlığa Geç' ile açık eksiltme turuna aktarın"
           : "Açık artırma doğrudan açılamaz — ilanı teklif toplama olarak açın, tur kapanınca 'Yeni Tur Oluştur' ile açık artırmaya aktarın",
       );
     }
@@ -1089,7 +1089,7 @@ export class CompanyListingsService {
     if (!dto.format) {
       throw new BadRequestException(
         type === "ALIM"
-          ? "Alım ilanı için format seçin (Teklif Toplama / İngiliz Usulü)"
+          ? "Alım ilanı için format seçin (Teklif Toplama / Pazarlık)"
           : "Satış ilanı için format seçin (Teklif Toplama / Açık Artırma)",
       );
     }
@@ -1102,7 +1102,7 @@ export class CompanyListingsService {
       existing.format !== "ENGLISH_AUCTION"
     ) {
       throw new BadRequestException(
-        "İhale formatı düzenlemeyle İngiliz usulüne çevrilemez — tur kapanınca 'Yeni Tur Oluştur' ile aktarın",
+        "İhale formatı düzenlemeyle pazarlığa çevrilemez — 'Pazarlığa Geç' ile aktarın",
       );
     }
     format = dto.format as ListingFormat;
@@ -3037,7 +3037,7 @@ export class CompanyListingsService {
       if (ownLast != null) {
         if (!isAscending && amount.gte(ownLast)) {
           throw new BadRequestException(
-            `İngiliz usulü: yeni teklifiniz önceki teklifinizin (${fmt(ownLast)} ${bidSym}) altında olmalı`,
+            `Pazarlık: yeni teklifiniz önceki teklifinizin (${fmt(ownLast)} ${bidSym}) altında olmalı`,
           );
         }
         if (isAscending && amount.lte(ownLast)) {
@@ -3092,10 +3092,10 @@ export class CompanyListingsService {
           if (amount.gt(maxAllowed)) {
             throw new BadRequestException(
               !revealRef
-                ? "İngiliz usulü: teklifiniz yeterince düşük değil — gerekli en az azaltma karşılanmadı."
+                ? "Pazarlık: teklifiniz yeterince düşük değil — gerekli en az azaltma karşılanmadı."
                 : step.gt(0)
-                  ? `İngiliz usulü: teklifiniz en fazla ${fmt(maxAllowed)} ${bidSym} olabilir (referansı en az ${fmt(step)} ${bidSym} azaltmalısınız)`
-                  : `İngiliz usulü: teklifiniz ${fmt(ref)} ${bidSym}'nin altında olmalı`,
+                  ? `Pazarlık: teklifiniz en fazla ${fmt(maxAllowed)} ${bidSym} olabilir (referansı en az ${fmt(step)} ${bidSym} azaltmalısınız)`
+                  : `Pazarlık: teklifiniz ${fmt(ref)} ${bidSym}'nin altında olmalı`,
             );
           }
         } else {
@@ -4749,7 +4749,7 @@ export class CompanyListingsService {
       listing.closesAt.getTime() - Date.now() < 2 * 60_000
     ) {
       throw new BadRequestException(
-        "Kapanışa 2 dakikadan az kala İngiliz Usulü ihaleye tedarikçi eklenemez",
+        "Kapanışa 2 dakikadan az kala pazarlık ihalesine tedarikçi eklenemez",
       );
     }
 

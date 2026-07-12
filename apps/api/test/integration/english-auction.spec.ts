@@ -57,7 +57,7 @@ describe("İngiliz Usulü — azaltma kuralı", () => {
     // maxAllowed = 1000 - 50 = 950
     await expect(
       service.placeBid(bidder.auth, listing.id, submit(951)),
-    ).rejects.toThrow(/usul/i);
+    ).rejects.toThrow(/pazarlık/i);
     await expect(
       service.placeBid(bidder.auth, listing.id, submit(950)),
     ).resolves.toBeDefined();

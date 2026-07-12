@@ -1293,8 +1293,8 @@ export default function ListingDetailPage() {
             {l.format === "RFQ"
               ? "Teklif Toplama"
               : isAlim
-                ? "İngiliz Usulü Eksiltme"
-                : "İngiliz Usulü Artırma"}
+                ? "Pazarlık (Eksiltme)"
+                : "Pazarlık (Artırma)"}
           </Badge>
         ) : null}
       </div>

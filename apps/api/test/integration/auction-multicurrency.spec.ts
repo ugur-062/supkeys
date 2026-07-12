@@ -106,7 +106,7 @@ describe("Çoklu birim — adım çevrimi (açılış günü damgası)", () => {
     // best = 1000 ₺ = 20 € → maxAllowed = 20 − 10 = 10 €.
     await expect(
       service.placeBid(bidder.auth, listing.id, submit(10.01, "EUR")),
-    ).rejects.toThrow(/usul/i);
+    ).rejects.toThrow(/pazarlık/i);
     await expect(
       service.placeBid(bidder.auth, listing.id, submit(10, "EUR")),
     ).resolves.toBeDefined();
@@ -128,7 +128,7 @@ describe("Çoklu birim — adım çevrimi (açılış günü damgası)", () => {
     // %10 → maxAllowed = 90 $.
     await expect(
       service.placeBid(bidder.auth, listing.id, submit(90.5, "USD")),
-    ).rejects.toThrow(/usul/i);
+    ).rejects.toThrow(/pazarlık/i);
     await expect(
       service.placeBid(bidder.auth, listing.id, submit(90, "USD")),
     ).resolves.toBeDefined();
@@ -207,7 +207,7 @@ describe("Çoklu birim — birim kilidi ve kur eksikliği", () => {
     // adım 500 ₺, primary=TRY → çevrim yok; maxAllowed 500 ₺.
     await expect(
       service.placeBid(bidder.auth, listing.id, submit(501, "TRY")),
-    ).rejects.toThrow(/usul/i);
+    ).rejects.toThrow(/pazarlık/i);
     await expect(
       service.placeBid(bidder.auth, listing.id, submit(500, "TRY")),
     ).resolves.toBeDefined();

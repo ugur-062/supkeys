@@ -179,8 +179,8 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
           <Fact label="Format">
             {l.format === "ENGLISH_AUCTION"
               ? l.type === "SATIS"
-                ? "İngiliz Usulü (Açık Artırma)"
-                : "İngiliz Usulü (Açık Eksiltme)"
+                ? "Pazarlık (Açık Artırma)"
+                : "Pazarlık (Açık Eksiltme)"
               : "Teklif Toplama (Kapalı Zarf)"}
           </Fact>
           {l.type === "SATIS" && l.minPrice ? (

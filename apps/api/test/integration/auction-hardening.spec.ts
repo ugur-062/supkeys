@@ -131,7 +131,7 @@ describe("Auction — çoklu para birimi (kur damgalı)", () => {
     const l = await service.create(seller.auth, rfqDto() as never);
     await expect(
       service.updateListing(seller.auth, l.id, auctionDto() as never),
-    ).rejects.toThrow(/düzenlemeyle İngiliz usulüne çevrilemez/);
+    ).rejects.toThrow(/düzenlemeyle pazarlığa çevrilemez/);
   });
 });
 

@@ -51,10 +51,10 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
           value={
             d.listingType === "SATIS"
               ? d.type === "ENGLISH_AUCTION"
-                ? "Satış İhalesi — İngiliz Usulü Açık Artırma (en yüksek kazanır)"
+                ? "Satış İhalesi — Pazarlık (Açık Artırma — en yüksek kazanır)"
                 : "Satış İhalesi — Teklif Toplama (en yüksek kazanır)"
               : d.type === "ENGLISH_AUCTION"
-                ? "İngiliz Usulü Açık Eksiltme"
+                ? "Pazarlık (Açık Eksiltme)"
                 : "Teklif Toplama (Kapalı Zarf)"
           }
         />
