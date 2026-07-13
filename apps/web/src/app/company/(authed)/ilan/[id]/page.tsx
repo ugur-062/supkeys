@@ -745,6 +745,35 @@ export default function ListingDetailPage() {
   const cmpItems = (l.items ?? []).filter((it) =>
     itemMatchesSearch(cmpSearch, it),
   );
+  // Karşılaştırma tablosu ekleri: kapsam rozeti (kaç kalem fiyatlı) + toplam
+  // satırı. En iyi toplam yalnız SUBMITTED + TÜM kalemleri fiyatlamış + TRY
+  // karşılığı bilinen teklifler arasında seçilir — kısmi teklifin düşük
+  // toplamı "en iyi" görünüp yanıltmasın (itemSavings ile aynı ilke).
+  const cmpItemIds = new Set((l.items ?? []).map((i) => i.id));
+  const pricedCountById = new Map<string, number>();
+  const totalTryById = new Map<string, number | null>();
+  for (const b of allBids) {
+    pricedCountById.set(
+      b.id,
+      (b.items ?? []).filter(
+        (x) => cmpItemIds.has(x.itemId) && Number(x.unitPrice) > 0,
+      ).length,
+    );
+    totalTryById.set(b.id, amountTryOf(b));
+  }
+  const cmpFullCovered = (bidId: string) =>
+    (pricedCountById.get(bidId) ?? 0) >= (l.items?.length ?? 0);
+  const bestTotalTry = (() => {
+    const vals = allBids
+      .filter((b) => b.status === "SUBMITTED" && cmpFullCovered(b.id))
+      .map((b) => totalTryById.get(b.id))
+      .filter((x): x is number => x != null && x > 0);
+    return vals.length
+      ? isAlim
+        ? Math.min(...vals)
+        : Math.max(...vals)
+      : null;
+  })();
   // Gerçek en iyi (uygun) teklif: yalnız SUBMITTED arasında ALIM→en düşük,
   // SATIS→en yüksek; karşılaştırma TRY karşılığı üzerinden (çok para birimi).
   // "En iyi" rozeti filtre/sıraya değil buna bağlanır.
@@ -841,18 +870,36 @@ export default function ListingDetailPage() {
               sığmayacak kadar artarsa Catalyst Table'ın kendi overflow-x-auto
               sarmalayıcısı güvenlik ağı olarak devreye girer. */}
           <div className="rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
-            <Table dense>
+            {/* max-h + iç dikey scroll: sticky başlık/toplam satırı sayfa değil
+                bu kap içinde yapışır (overflow sarmalayıcı viewport sticky'yi
+                kırar). Hairline'lar border yerine shadow — border-collapse
+                sticky hücrede kenarlığı taşımaz. */}
+            <Table dense className="max-h-[65vh] overflow-y-auto">
               <TableHead>
                 <TableRow>
-                  <TableHeader>Kalem</TableHeader>
-                  {l.bids.map((b) => (
-                    <TableHeader
-                      key={b.id}
-                      className="text-right whitespace-normal"
-                    >
-                      {b.bidderName}
-                    </TableHeader>
-                  ))}
+                  <TableHeader className="sticky top-0 left-0 z-20 bg-white shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
+                    Kalem
+                  </TableHeader>
+                  {l.bids.map((b) => {
+                    const priced = pricedCountById.get(b.id) ?? 0;
+                    const totalItems = l.items?.length ?? 0;
+                    return (
+                      <TableHeader
+                        key={b.id}
+                        className="sticky top-0 z-10 bg-white text-right whitespace-normal shadow-[0_1px_0_0_rgba(0,0,0,0.05)]"
+                      >
+                        {b.bidderName}
+                        {priced < totalItems ? (
+                          <span
+                            className="block text-[10px] font-medium text-amber-600"
+                            title="Bu teklif tüm kalemleri fiyatlamadı"
+                          >
+                            {priced}/{totalItems} kalem
+                          </span>
+                        ) : null}
+                      </TableHeader>
+                    );
+                  })}
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -871,6 +918,9 @@ export default function ListingDetailPage() {
                     const v = priceMap.get(b.id)?.get(it.id);
                     const vTry = priceTryMap.get(b.id)?.get(it.id);
                     return {
+                      bidId: b.id,
+                      bidderName: b.bidderName,
+                      submitted: b.status === "SUBMITTED",
                       price: v != null ? v : null,
                       priceTry: vTry != null ? vTry : null,
                       currency: bidCurrencyById.get(b.id),
@@ -888,29 +938,103 @@ export default function ListingDetailPage() {
                     : null;
                   return (
                     <TableRow key={it.id}>
-                      <TableCell className="whitespace-normal text-zinc-900">
+                      <TableCell className="sticky left-0 z-[1] bg-white whitespace-normal text-zinc-900">
                         {it.name}{" "}
                         <span className="text-xs whitespace-nowrap text-zinc-400">
                           ({Number(it.quantity).toLocaleString("tr-TR")} {it.unit})
                         </span>
                       </TableCell>
-                      {cells.map((c, bi) => (
-                        <TableCell
-                          key={bi}
-                          className={`whitespace-nowrap text-right font-mono tabular-nums ${
-                            c.priceTry != null && c.priceTry === minTry
-                              ? "font-semibold text-emerald-700"
-                              : "text-zinc-600"
-                          }`}
-                        >
-                          {c.price != null
+                      {cells.map((c) => {
+                        const priceText =
+                          c.price != null
                             ? `${c.price.toLocaleString("tr-TR")} ${symFor(c.currency)}`
-                            : "—"}
-                        </TableCell>
-                      ))}
+                            : "—";
+                        const tone =
+                          c.priceTry != null && c.priceTry === minTry
+                            ? "font-semibold text-emerald-700"
+                            : "text-zinc-600";
+                        // Kazandırma modunda fiyatlı SUBMITTED hücre tıklanarak
+                        // o kalemin kazananı seçilir (aşağıdaki select ile aynı
+                        // state'i yazar — iki taraf senkron kalır).
+                        const clickable =
+                          itemAwardMode &&
+                          c.submitted &&
+                          c.price != null &&
+                          c.price > 0;
+                        const selected =
+                          itemAwardMode && itemWinners[it.id] === c.bidId;
+                        return (
+                          <TableCell
+                            key={c.bidId}
+                            className={cn(
+                              "whitespace-nowrap text-right font-mono tabular-nums",
+                              tone,
+                            )}
+                          >
+                            {clickable ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setItemWinners((w) => ({
+                                    ...w,
+                                    [it.id]: c.bidId,
+                                  }))
+                                }
+                                aria-pressed={selected}
+                                aria-label={`${it.name} için ${c.bidderName} teklifini seç`}
+                                className={cn(
+                                  "-mx-1 w-[calc(100%+0.5rem)] cursor-pointer rounded-md px-1 py-0.5 text-right transition-colors",
+                                  selected
+                                    ? "bg-blue-100 ring-1 ring-blue-400 ring-inset"
+                                    : "hover:bg-blue-50",
+                                )}
+                              >
+                                {priceText}
+                              </button>
+                            ) : (
+                              priceText
+                            )}
+                          </TableCell>
+                        );
+                      })}
                     </TableRow>
                   );
                 })}
+                {/* Toplam satırı — filtreden bağımsız, teklifin GENEL toplamı.
+                    Sticky bottom: uzun listede kaydırırken hep görünür. */}
+                <TableRow>
+                  <TableCell className="sticky bottom-0 left-0 z-20 bg-zinc-50 font-semibold text-zinc-900 shadow-[0_-1px_0_0_rgba(0,0,0,0.08)]">
+                    Teklif Toplamı
+                  </TableCell>
+                  {l.bids.map((b) => {
+                    const tTry = totalTryById.get(b.id);
+                    const isBest =
+                      bestTotalTry != null &&
+                      tTry != null &&
+                      b.status === "SUBMITTED" &&
+                      cmpFullCovered(b.id) &&
+                      tTry === bestTotalTry;
+                    return (
+                      <TableCell
+                        key={b.id}
+                        className={cn(
+                          "sticky bottom-0 z-10 bg-zinc-50 whitespace-nowrap text-right font-mono tabular-nums shadow-[0_-1px_0_0_rgba(0,0,0,0.08)]",
+                          isBest
+                            ? "font-bold text-emerald-700"
+                            : "font-semibold text-zinc-900",
+                        )}
+                      >
+                        {Number(b.amount).toLocaleString("tr-TR")}{" "}
+                        {symFor(b.currency)}
+                        {isBest ? (
+                          <span className="block text-[10px] font-semibold text-emerald-600">
+                            En iyi toplam
+                          </span>
+                        ) : null}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
               </TableBody>
             </Table>
           </div>
@@ -967,7 +1091,8 @@ export default function ListingDetailPage() {
             <Subheading>Kalem-bazlı Kazandırma</Subheading>
             <Text className="text-xs text-zinc-500">
               Her kalem için kazanan teklifi seç. Kazanan firma başına ayrı sipariş
-              oluşur.
+              oluşur. İpucu: yukarıdaki Kalem Karşılaştırma tablosunda fiyat
+              hücresine tıklayarak da seçim yapabilirsin.
             </Text>
             <div className="space-y-2">
               {l.items.map((it) => {
