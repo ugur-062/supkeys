@@ -695,12 +695,13 @@ export function TenderActionsMenu({
               </option>
               <option value="ALL">Tüm teklifler ve sıralama</option>
             </select>
-            {/* Öneri gerekçesi: BAFO'da tur arası tek motivasyon geri
-                bildirim; sıra baskı yaratır ama fiyat çıpası/sızıntısı yok. */}
-            <p className="mt-1 text-xs text-zinc-400">
-              &quot;Sadece kendi sıralaması&quot; rekabet baskısı yaratır,
-              fiyat bilgisi sızdırmaz — çoğu ihale için en dengeli mod.
-            </p>
+            {/* Mod açıklamaları yalnız İLGİLİ mod seçiliyken gösterilir. */}
+            {vis === "OWN_RANK" ? (
+              <p className="mt-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+                &quot;Sadece kendi sıralaması&quot; rekabet baskısı yaratır,
+                fiyat bilgisi sızdırmaz — çoğu ihale için en dengeli mod.
+              </p>
+            ) : null}
             {/* ALL seçilince anonimlik güvencesi açıkça yazılır (etiketteki
                 belirsiz '(anonim)' eki yerine). */}
             {vis === "ALL" ? (
