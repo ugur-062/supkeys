@@ -37,6 +37,7 @@ import {
   useBidDocuments,
 } from "@/hooks/use-bid-documents";
 import { useCategoriesByIds } from "@/hooks/use-categories";
+import { SearchInput } from "@/components/list/search-input";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
 import { subscribeRealtime } from "@/lib/realtime";
@@ -68,6 +69,21 @@ const TRIGGER_CLASSES = cn(
   "data-selected:border-zinc-900 data-selected:text-zinc-950",
   "focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900",
 );
+
+/** Kalem araması bu eşiğin üzerinde görünür — az kalemde kutu gürültü olur. */
+const ITEM_SEARCH_THRESHOLD = 10;
+
+function itemMatchesSearch(
+  q: string,
+  it: { name: string; materialCode?: string | null },
+): boolean {
+  const t = q.trim().toLocaleLowerCase("tr-TR");
+  if (!t) return true;
+  return (
+    it.name.toLocaleLowerCase("tr-TR").includes(t) ||
+    (it.materialCode ?? "").toLocaleLowerCase("tr-TR").includes(t)
+  );
+}
 
 function TabBadge({ count }: { count: number }) {
   return (
@@ -180,6 +196,10 @@ export default function ListingDetailPage() {
   const [bidView, setBidView] = useState<"all" | "complete" | "incomplete">(
     "all",
   );
+  // Kalem araması — çok kalemli ihalede (>10) liste ve karşılaştırma tablosu
+  // aramasız kullanılamaz hale geliyor; iki sekme ayrı kutu/ayrı durum taşır.
+  const [itemSearch, setItemSearch] = useState("");
+  const [cmpSearch, setCmpSearch] = useState("");
   const [eliminateTarget, setEliminateTarget] = useState<{
     bidId: string;
     bidderName: string;
@@ -572,10 +592,29 @@ export default function ListingDetailPage() {
       : l.buyNowPrice != null);
   // ───────────────────────── Bölümler (sekmelere yerleşir) ─────────────────
 
+  const visibleItems = (l.items ?? []).filter((it) =>
+    itemMatchesSearch(itemSearch, it),
+  );
   const itemsSection =
     l.items && l.items.length > 0 ? (
       <section className="space-y-2">
-        <Subheading>Kalemler ({l.items.length})</Subheading>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Subheading>
+            Kalemler (
+            {itemSearch.trim()
+              ? `${visibleItems.length}/${l.items.length}`
+              : l.items.length}
+            )
+          </Subheading>
+          {l.items.length > ITEM_SEARCH_THRESHOLD ? (
+            <SearchInput
+              value={itemSearch}
+              onChange={setItemSearch}
+              placeholder="Kalem ara…"
+              className="w-56"
+            />
+          ) : null}
+        </div>
         {l.masked ? (
           <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
             <Lock className="h-3.5 w-3.5 shrink-0" />
@@ -596,7 +635,17 @@ export default function ListingDetailPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {l.items.map((it) => (
+              {visibleItems.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="py-6 text-center text-zinc-400"
+                  >
+                    Aramanızla eşleşen kalem yok.
+                  </TableCell>
+                </TableRow>
+              ) : null}
+              {visibleItems.map((it) => (
                 <TableRow key={it.id}>
                   <TableCell className="text-zinc-400">{it.lineNo}</TableCell>
                   <TableCell>
@@ -693,6 +742,9 @@ export default function ListingDetailPage() {
     priceTryMap.set(b.id, innerTry);
     bidCurrencyById.set(b.id, b.currency);
   }
+  const cmpItems = (l.items ?? []).filter((it) =>
+    itemMatchesSearch(cmpSearch, it),
+  );
   // Gerçek en iyi (uygun) teklif: yalnız SUBMITTED arasında ALIM→en düşük,
   // SATIS→en yüksek; karşılaştırma TRY karşılığı üzerinden (çok para birimi).
   // "En iyi" rozeti filtre/sıraya değil buna bağlanır.
@@ -767,7 +819,22 @@ export default function ListingDetailPage() {
       l.bids &&
       l.bids.some((b) => b.items && b.items.length > 0) ? (
         <div className="space-y-2">
-          <Subheading>Kalem Karşılaştırma</Subheading>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Subheading>
+              Kalem Karşılaştırma
+              {cmpSearch.trim()
+                ? ` (${cmpItems.length}/${l.items.length})`
+                : ""}
+            </Subheading>
+            {l.items.length > ITEM_SEARCH_THRESHOLD ? (
+              <SearchInput
+                value={cmpSearch}
+                onChange={setCmpSearch}
+                placeholder="Kalem ara…"
+                className="w-56"
+              />
+            ) : null}
+          </div>
           {/* Sığdırma esas, kaydırma istisna: hücre nowrap'leri kaldırıldı ki
               tablo kap genişliğine otursun (uzun firma adı başlıkta sarar);
               yalnız fiyat hücreleri nowrap kalır. Teklifçi sayısı gerçekten
@@ -789,7 +856,17 @@ export default function ListingDetailPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {l.items.map((it) => {
+                {cmpItems.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={1 + (l.bids?.length ?? 0)}
+                      className="py-6 text-center text-zinc-400"
+                    >
+                      Aramanızla eşleşen kalem yok.
+                    </TableCell>
+                  </TableRow>
+                ) : null}
+                {cmpItems.map((it) => {
                   const cells = (l.bids ?? []).map((b) => {
                     const v = priceMap.get(b.id)?.get(it.id);
                     const vTry = priceTryMap.get(b.id)?.get(it.id);
