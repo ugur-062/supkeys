@@ -318,6 +318,7 @@ export function AuctionBidWorkbench({
               visibleItems.map((it, idx) => {
                 const price = prices[it.id];
                 const optedOut = price === null;
+                const hasPrice = !optedOut && price !== "" && Number(price) > 0;
                 const locked = lockedIds.has(it.id);
                 const init = initialPrices[it.id];
                 const changed = changedIds.has(it.id);
@@ -415,30 +416,40 @@ export function AuctionBidWorkbench({
                         {!optedOut ? (
                           // Yuvarlak seçim: işaretli = % aracı bu kalemi
                           // değiştirir (varsayılan). lockedIds = işareti
-                          // kaldırılanlar (seçim dışı).
+                          // kaldırılanlar (seçim dışı). Fiyatsız kalem
+                          // seçili GÖRÜNMEZ ve tıklanamaz — araç ona zaten
+                          // dokunmuyor, "boşa indirim uygulandı" izlenimi
+                          // vermesin; fiyat girilince seçime girer.
                           <button
                             type="button"
                             role="checkbox"
-                            aria-checked={!locked}
+                            aria-checked={hasPrice && !locked}
+                            disabled={!hasPrice}
                             aria-label={
-                              locked
-                                ? `${it.name} kalemini seçime ekle`
-                                : `${it.name} kalemini seçimden çıkar`
+                              !hasPrice
+                                ? `${it.name} fiyatsız — seçime girmez`
+                                : locked
+                                  ? `${it.name} kalemini seçime ekle`
+                                  : `${it.name} kalemini seçimden çıkar`
                             }
                             title={
-                              locked
-                                ? "Seçime ekle — % aracı bu kalemi de değiştirsin"
-                                : "Seçimden çıkar — % aracı bu kaleme dokunmasın"
+                              !hasPrice
+                                ? "Fiyat girilmeden seçime girmez"
+                                : locked
+                                  ? "Seçime ekle — % aracı bu kalemi de değiştirsin"
+                                  : "Seçimden çıkar — % aracı bu kaleme dokunmasın"
                             }
                             onClick={() => toggleLock(it.id)}
                             className={cn(
-                              "inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border transition",
-                              locked
-                                ? "border-zinc-300 bg-white hover:border-zinc-500"
-                                : "border-zinc-900 bg-zinc-900 text-white",
+                              "inline-flex h-5 w-5 items-center justify-center rounded-full border transition",
+                              !hasPrice
+                                ? "cursor-default border-zinc-200 bg-zinc-50"
+                                : locked
+                                  ? "cursor-pointer border-zinc-300 bg-white hover:border-zinc-500"
+                                  : "cursor-pointer border-zinc-900 bg-zinc-900 text-white",
                             )}
                           >
-                            {!locked ? (
+                            {hasPrice && !locked ? (
                               <Check
                                 className="h-3.5 w-3.5"
                                 strokeWidth={3}
