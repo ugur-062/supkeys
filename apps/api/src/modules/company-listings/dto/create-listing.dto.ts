@@ -64,14 +64,18 @@ export enum DeliveryTermDto {
   CIF = "CIF",
 }
 
-export enum PaymentTermDto {
-  CASH = "CASH",
+export enum PaymentCategoryDto {
+  ADVANCE = "ADVANCE",
   DEFERRED = "DEFERRED",
+  OPEN_ACCOUNT = "OPEN_ACCOUNT",
+  CHEQUE = "CHEQUE",
+  LETTER_OF_CREDIT = "LETTER_OF_CREDIT",
+  CUSTOM = "CUSTOM",
 }
 
-export enum PaymentTimingDto {
-  BEFORE_DELIVERY = "BEFORE_DELIVERY",
-  AFTER_DELIVERY = "AFTER_DELIVERY",
+export enum LcTypeDto {
+  SIGHT = "SIGHT",
+  USANCE = "USANCE",
 }
 
 export enum BidVisibilityDto {
@@ -390,10 +394,21 @@ export class CreateListingDto {
   @IsEnum(DeliveryTermDto)
   deliveryTerm?: DeliveryTermDto;
 
+  /** Ödeme planı — zamanlama SORULMAZ, servis plandan türetir (Faz 2).
+   *  Koşullu zorunluluklar (yüzde/vade/LC alt tip/özel not) serviste doğrulanır. */
   @IsOptional()
-  @IsEnum(PaymentTermDto)
-  paymentTerm?: PaymentTermDto;
+  @IsEnum(PaymentCategoryDto)
+  paymentCategory?: PaymentCategoryDto;
 
+  /** Yalnız ADVANCE: peşin yüzdesi. %<100 yalnız yurtiçi ilanda geçerli. */
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  advancePercent?: number;
+
+  /** Tek "vade günü" alanı: DEFERRED/CHEQUE vadesi, LC-USANCE vadesi, kısmi
+   *  peşinde kalanın vadesi (opsiyonel). */
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -401,11 +416,21 @@ export class CreateListingDto {
   paymentDays?: number;
 
   @IsOptional()
-  @IsEnum(PaymentTimingDto)
-  paymentTiming?: PaymentTimingDto;
+  @IsEnum(LcTypeDto)
+  lcType?: LcTypeDto;
+
+  /** Teyitli akreditif — ikinci banka da ödeme garantisi verir. */
+  @IsOptional()
+  @IsBoolean()
+  lcConfirmed?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  paymentNote?: string;
 
   /** Teslim öncesi ödemede satıcıdan teminat mektubu istensin mi? Opsiyonel —
-   *  ilan sahibi seçer; BEFORE_DELIVERY dışında servis false'a normalize eder. */
+   *  ilan sahibi seçer; yalnız PEŞİN kategorisinde anlamlı, aksi normalize. */
   @IsOptional()
   @IsBoolean()
   requireGuaranteeLetter?: boolean;

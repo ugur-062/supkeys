@@ -81,15 +81,92 @@ describe("tenderFormSchema", () => {
     expect(res.success).toBe(false);
   });
 
-  it("vadeli ödemede gün sayısı zorunlu", () => {
-    const bad = tenderFormSchema.safeParse(
-      validForm({ paymentTerm: "DEFERRED", paymentDays: undefined }),
-    );
-    expect(bad.success).toBe(false);
-    const ok = tenderFormSchema.safeParse(
-      validForm({ paymentTerm: "DEFERRED", paymentDays: 30 }),
-    );
-    expect(ok.success).toBe(true);
+  it("vadeli/çek ödemede gün sayısı zorunlu", () => {
+    for (const paymentCategory of ["DEFERRED", "CHEQUE"] as const) {
+      const bad = tenderFormSchema.safeParse(
+        validForm({ paymentCategory, paymentDays: undefined }),
+      );
+      expect(bad.success).toBe(false);
+      const ok = tenderFormSchema.safeParse(
+        validForm({ paymentCategory, paymentDays: 30 }),
+      );
+      expect(ok.success).toBe(true);
+    }
+  });
+
+  it("kısmi peşin yalnız yurtiçi ihalede", () => {
+    // Yurtiçi: %50 peşin OK (kalan vade opsiyonel).
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({ paymentCategory: "ADVANCE", advancePercent: 50 }),
+      ).success,
+    ).toBe(true);
+    // Uluslararası: %<100 reddedilir, %100 kabul.
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({
+          paymentCategory: "ADVANCE",
+          advancePercent: 50,
+          isInternational: true,
+        }),
+      ).success,
+    ).toBe(false);
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({
+          paymentCategory: "ADVANCE",
+          advancePercent: 100,
+          isInternational: true,
+        }),
+      ).success,
+    ).toBe(true);
+  });
+
+  it("akreditifte alt tip zorunlu; Usance vade ister", () => {
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({ paymentCategory: "LETTER_OF_CREDIT", lcType: undefined }),
+      ).success,
+    ).toBe(false);
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({ paymentCategory: "LETTER_OF_CREDIT", lcType: "SIGHT" }),
+      ).success,
+    ).toBe(true);
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({
+          paymentCategory: "LETTER_OF_CREDIT",
+          lcType: "USANCE",
+          paymentDays: undefined,
+        }),
+      ).success,
+    ).toBe(false);
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({
+          paymentCategory: "LETTER_OF_CREDIT",
+          lcType: "USANCE",
+          paymentDays: 90,
+        }),
+      ).success,
+    ).toBe(true);
+  });
+
+  it("özel ödeme şeklinde koşul notu zorunlu", () => {
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({ paymentCategory: "CUSTOM", paymentNote: " " }),
+      ).success,
+    ).toBe(false);
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({
+          paymentCategory: "CUSTOM",
+          paymentNote: "%30 sipariş onayında, kalan mal kabulünde",
+        }),
+      ).success,
+    ).toBe(true);
   });
 
   it("lojistik ihalede çıkış/varış/kargo zorunlu", () => {

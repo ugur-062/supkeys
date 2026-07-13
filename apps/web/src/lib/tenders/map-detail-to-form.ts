@@ -73,10 +73,14 @@ export function mapDetailToForm(
     allowedCurrencies: allowed.length > 0 ? allowed : [primary],
     deliveryTerm:
       (l.deliveryTerm as TenderFormData["deliveryTerm"]) ?? undefined,
-    paymentTerm: (l.paymentTerm as TenderFormData["paymentTerm"]) ?? "CASH",
+    paymentCategory:
+      (l.paymentCategory as TenderFormData["paymentCategory"]) ??
+      "OPEN_ACCOUNT",
+    advancePercent: l.advancePercent ?? undefined,
     paymentDays: l.paymentDays ?? undefined,
-    paymentTiming:
-      (l.paymentTiming as TenderFormData["paymentTiming"]) ?? "AFTER_DELIVERY",
+    lcType: (l.lcType as TenderFormData["lcType"]) ?? undefined,
+    lcConfirmed: l.lcConfirmed ?? false,
+    paymentNote: l.paymentNote ?? "",
     requireGuaranteeLetter: l.requireGuaranteeLetter ?? false,
     termsAndConditions: l.terms ?? "",
     internalNotes: l.internalNotes ?? "",

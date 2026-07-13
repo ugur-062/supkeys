@@ -398,7 +398,16 @@ describe("award — kazandırma & sipariş doğruluğu", () => {
     // ilan sahibinin seçimi — award'da siparişe snapshot'lanmalı.
     await prisma.listing.update({
       where: { id: listing.id },
-      data: { paymentTiming: "BEFORE_DELIVERY", requireGuaranteeLetter: true },
+      data: {
+        paymentTiming: "BEFORE_DELIVERY",
+        requireGuaranteeLetter: true,
+        // Faz 2 ödeme planı — award'da siparişe snapshot'lanmalı (S2).
+        paymentCategory: "ADVANCE",
+        advancePercent: 50,
+        paymentDays: 30,
+        paymentNote: "kalan mal kabulünde",
+        deliveryTerm: "DOMESTIC_DELIVERED",
+      },
     });
     const winBid = await makeBid(prisma, {
       listingId: listing.id,
@@ -413,6 +422,92 @@ describe("award — kazandırma & sipariş doğruluğu", () => {
     });
     expect(order.paymentTiming).toBe("BEFORE_DELIVERY");
     expect(order.requireGuaranteeLetter).toBe(true);
+    // Ödeme planı + teslim şekli snapshot'ı (Faz 2, S2).
+    expect(order.paymentCategory).toBe("ADVANCE");
+    expect(order.advancePercent).toBe(50);
+    expect(order.paymentDays).toBe(30);
+    expect(order.paymentNote).toBe("kalan mal kabulünde");
+    expect(order.deliveryTerm).toBe("DOMESTIC_DELIVERED");
+  });
+
+  it("ödeme planı: zamanlama plandan türetilir, kategori-dışı alanlar normalize (Faz 2)", async () => {
+    const owner = await makeCompanyWithUser(prisma, {});
+    const { service } = makeService();
+    const dto = (over: Record<string, unknown>) => ({
+      type: "ALIM",
+      format: "RFQ",
+      isInternational: false,
+      visibility: "CONNECTIONS",
+      title: "Ödeme planı türetme",
+      closesAt: new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString(),
+      primaryCurrency: "TRY",
+      allowedCurrencies: ["TRY"],
+      items: [{ name: "Kalem", quantity: 1, unit: "adet" }],
+      ...over,
+    });
+
+    // Peşin %50 (yurtiçi) → BEFORE_DELIVERY; teminat şartı korunur.
+    const adv = await service.create(
+      owner.auth,
+      dto({
+        paymentCategory: "ADVANCE",
+        advancePercent: 50,
+        paymentDays: 30,
+        requireGuaranteeLetter: true,
+      }) as never,
+    );
+    const a = await prisma.listing.findUniqueOrThrow({ where: { id: adv.id } });
+    expect(a.paymentTiming).toBe("BEFORE_DELIVERY");
+    expect(a.advancePercent).toBe(50);
+    expect(a.paymentDays).toBe(30);
+    expect(a.requireGuaranteeLetter).toBe(true);
+
+    // Kısmi peşin ULUSLARARASI ilanda reddedilir.
+    await expect(
+      service.create(
+        owner.auth,
+        dto({
+          isInternational: true,
+          targetCountries: ["DE"],
+          paymentCategory: "ADVANCE",
+          advancePercent: 40,
+        }) as never,
+      ),
+    ).rejects.toThrow(/yurtiçi/);
+
+    // LC-Usance → BEFORE_DELIVERY; teminat bayrağı LC'de false'a normalize.
+    const lc = await service.create(
+      owner.auth,
+      dto({
+        paymentCategory: "LETTER_OF_CREDIT",
+        lcType: "USANCE",
+        paymentDays: 90,
+        lcConfirmed: true,
+        requireGuaranteeLetter: true,
+        // Kategori-dışı bayat alan — sessizce sıfırlanmalı.
+        advancePercent: 70,
+      }) as never,
+    );
+    const l = await prisma.listing.findUniqueOrThrow({ where: { id: lc.id } });
+    expect(l.paymentTiming).toBe("BEFORE_DELIVERY");
+    expect(l.lcType).toBe("USANCE");
+    expect(l.lcConfirmed).toBe(true);
+    expect(l.advancePercent).toBeNull();
+    expect(l.requireGuaranteeLetter).toBe(false);
+
+    // Varsayılan (kategori gönderilmedi) → Açık Hesap, AFTER_DELIVERY.
+    const def = await service.create(owner.auth, dto({}) as never);
+    const d = await prisma.listing.findUniqueOrThrow({ where: { id: def.id } });
+    expect(d.paymentCategory).toBe("OPEN_ACCOUNT");
+    expect(d.paymentTiming).toBe("AFTER_DELIVERY");
+
+    // Vadeli gün olmadan reddedilir; Özel not olmadan reddedilir.
+    await expect(
+      service.create(owner.auth, dto({ paymentCategory: "DEFERRED" }) as never),
+    ).rejects.toThrow(/gün/);
+    await expect(
+      service.create(owner.auth, dto({ paymentCategory: "CUSTOM" }) as never),
+    ).rejects.toThrow(/not/);
   });
 
   it("requireBidDocument: belgesiz kazanan reddedilir", async () => {

@@ -441,13 +441,13 @@ describe("teminat mektubu — ilan sahibinin seçimi (requireGuaranteeLetter)", 
   it("teslim SONRASI ödemede (COD/vadeli) teminat istenmez — peşin olsa bile", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
-    // Peşin (CASH) ilan ama ödeme teslim SONRASI → alıcı riskte değil, teminat yok.
+    // Açık hesap (teslim sonrası) ilan → alıcı riskte değil, teminat yok.
     const listing = await makeListing(prisma, {
       companyId: buyer.company.id,
       createdById: buyer.user.id,
       type: "ALIM",
       status: "AWARDED",
-      paymentTerm: "CASH",
+      paymentCategory: "OPEN_ACCOUNT",
     });
     const order = await makeOrder(seller.company.id, buyer.company.id, {
       listingId: listing.id,

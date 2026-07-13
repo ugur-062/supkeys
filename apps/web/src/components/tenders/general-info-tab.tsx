@@ -7,14 +7,11 @@ import { countryName } from "@rothern/shared";
 import {
   CURRENCY_SYMBOL,
   DELIVERY_TERM_LABELS,
-  PAYMENT_TERM_LABELS,
-  PAYMENT_TIMING_LABELS,
+  formatPaymentPlan,
 } from "@/lib/tenders/labels";
 import type {
   Currency,
   DeliveryTerm,
-  PaymentTerm,
-  PaymentTiming,
   TenderLogisticsDetails,
 } from "@/lib/tenders/types";
 import { formatDateTime } from "@/lib/tenders/date";
@@ -213,19 +210,16 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
               : "—"}
           </Fact>
           <Fact label="Ödeme">
-            {l.paymentTerm
-              ? PAYMENT_TERM_LABELS[l.paymentTerm as PaymentTerm]
-              : "—"}
-            {l.paymentTerm === "DEFERRED" && l.paymentDays
-              ? ` — ${l.paymentDays} gün`
-              : ""}
-            {l.paymentTiming
-              ? ` · ${PAYMENT_TIMING_LABELS[l.paymentTiming as PaymentTiming]}`
-              : ""}
+            {formatPaymentPlan(l)}
             {/* Teklifçi şartı teklif VERMEDEN görsün: kazanırsa sipariş
                 onayından önce teminat mektubu yüklemesi gerekecek. */}
             {l.requireGuaranteeLetter ? " · Teminat mektubu şartlı" : ""}
           </Fact>
+          {l.paymentNote ? (
+            <Fact label="Ödeme Koşulu Notu" full>
+              {l.paymentNote}
+            </Fact>
+          ) : null}
           {l.deliveryAddress ? (
             <Fact
               label={

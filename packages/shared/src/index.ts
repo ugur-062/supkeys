@@ -1,6 +1,7 @@
 export * from "./helpers/slug";
 export * from "./helpers/short-code";
 export * from "./helpers/company-identity";
+export * from "./helpers/payment-plan";
 export * from "./data/turkey-locations";
 export * from "./data/countries";
 export * from "./data/phone-codes";

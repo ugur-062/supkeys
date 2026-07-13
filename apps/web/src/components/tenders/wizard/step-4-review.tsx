@@ -7,7 +7,7 @@ import { countryName } from "@rothern/shared";
 import {
   CURRENCY_SYMBOL,
   DELIVERY_TERM_LABELS,
-  PAYMENT_TERM_LABELS,
+  formatPaymentPlan,
 } from "@/lib/tenders/labels";
 import type {
   Currency,
@@ -121,14 +121,7 @@ export function Step4Review({ onEditStep, stagedDocsCount }: Props) {
             value={DELIVERY_TERM_LABELS[d.deliveryTerm as DeliveryTerm]}
           />
         ) : null}
-        <Row
-          label="Ödeme"
-          value={`${PAYMENT_TERM_LABELS[d.paymentTerm]}${
-            d.paymentTerm === "DEFERRED" && d.paymentDays
-              ? ` (${d.paymentDays} gün)`
-              : ""
-          }`}
-        />
+        <Row label="Ödeme" value={formatPaymentPlan(d)} />
         <Row label="Kapanış" value={fmtDate(d.bidsCloseAt)} />
         {d.bidsOpenAt ? <Row label="Açılış" value={fmtDate(d.bidsOpenAt)} /> : null}
         {stagedDocsCount != null && stagedDocsCount > 0 ? (

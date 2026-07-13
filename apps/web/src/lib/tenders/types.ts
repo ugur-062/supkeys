@@ -30,7 +30,15 @@ export type DeliveryTerm =
   | "CFR"
   | "CIF";
 
-export type PaymentTerm = "CASH" | "DEFERRED";
+// Ödeme planı (Faz 2) — kategori + koşullu alanlar; zamanlama türetilir.
+export type PaymentCategory =
+  | "ADVANCE"
+  | "DEFERRED"
+  | "OPEN_ACCOUNT"
+  | "CHEQUE"
+  | "LETTER_OF_CREDIT"
+  | "CUSTOM";
+export type LcSubType = "SIGHT" | "USANCE";
 export type PaymentTiming = "BEFORE_DELIVERY" | "AFTER_DELIVERY";
 export type PaymentMethod = "CASH" | "CHEQUE";
 

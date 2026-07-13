@@ -1,6 +1,7 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
+import type { PaymentCategoryValue } from "@/lib/tenders/form-schema";
 import {
   useMutation,
   useQuery,
@@ -131,12 +132,15 @@ export interface CreateListingInput {
   isSealedBid?: boolean;
   primaryCurrency?: CurrencyCode;
   allowedCurrencies?: CurrencyCode[];
-  // Teslim / ödeme
+  // Teslim / ödeme — zamanlama GÖNDERİLMEZ, backend plandan türetir (Faz 2).
   deliveryTerm?: string;
-  paymentTerm?: "CASH" | "DEFERRED";
+  paymentCategory?: PaymentCategoryValue;
+  advancePercent?: number;
   paymentDays?: number;
-  paymentTiming?: "BEFORE_DELIVERY" | "AFTER_DELIVERY";
-  /** Teslim öncesi ödemede satıcıdan teminat mektubu istensin mi (opsiyonel). */
+  lcType?: "SIGHT" | "USANCE";
+  lcConfirmed?: boolean;
+  paymentNote?: string;
+  /** Peşin ödemede satıcıdan teminat mektubu istensin mi (opsiyonel). */
   requireGuaranteeLetter?: boolean;
   // Lojistik
   isLogistics?: boolean;
@@ -343,8 +347,12 @@ export interface ListingDetail {
   isLogistics?: boolean;
   logistics?: Record<string, unknown> | null;
   deliveryTerm?: string | null;
-  paymentTerm?: string;
+  paymentCategory?: string;
+  advancePercent?: number | null;
   paymentDays?: number | null;
+  lcType?: string | null;
+  lcConfirmed?: boolean;
+  paymentNote?: string | null;
   paymentTiming?: string;
   /** Teslim öncesi ödemede teminat mektubu şartı (ilan sahibinin seçimi). */
   requireGuaranteeLetter?: boolean;

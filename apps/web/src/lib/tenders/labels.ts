@@ -2,9 +2,10 @@ import type {
   BidStatus,
   Currency,
   DeliveryTerm,
+  LcSubType,
   OrderPaymentStatus,
+  PaymentCategory,
   PaymentMethod,
-  PaymentTerm,
   PaymentTiming,
   TenderInvitationStatus,
   TenderStatus,
@@ -157,12 +158,66 @@ export const BUYER_ADDRESS_REQUIRED_TERMS: DeliveryTerm[] = [
   "DDP",
 ];
 
-export const PAYMENT_TERM_LABELS: Record<PaymentTerm, string> = {
-  CASH: "Peşin",
+// Ödeme planı (Faz 2) — kategori etiketleri + tek satırlık özet formatlayıcı.
+export const PAYMENT_CATEGORY_LABELS: Record<PaymentCategory, string> = {
+  ADVANCE: "Peşin",
   DEFERRED: "Vadeli",
+  OPEN_ACCOUNT: "Açık Hesap",
+  CHEQUE: "Çek",
+  LETTER_OF_CREDIT: "Akreditif",
+  CUSTOM: "Özel",
 };
 
-// Faz 3 madde 16 — Ödeme zamanı
+export const LC_TYPE_LABELS: Record<LcSubType, string> = {
+  SIGHT: "Sight — görüldüğünde ödemeli",
+  USANCE: "Usance — vadeli",
+};
+
+/** Ödeme planını tek satır özetle — ilan detayı, review adımı ve sipariş
+ *  detayı aynı metni kullanır. Ör: "Peşin %50 (kalan 30 gün vadeli)",
+ *  "Vadeli — 60 gün", "Akreditif (Usance 90 gün, Teyitli)". */
+export function formatPaymentPlan(p: {
+  paymentCategory?: string | null;
+  advancePercent?: number | null;
+  paymentDays?: number | null;
+  lcType?: string | null;
+  lcConfirmed?: boolean | null;
+}): string {
+  const cat = (p.paymentCategory ?? "OPEN_ACCOUNT") as PaymentCategory;
+  switch (cat) {
+    case "ADVANCE": {
+      const pct = p.advancePercent ?? 100;
+      if (pct >= 100) return "Peşin (%100)";
+      const rest = p.paymentDays
+        ? ` (kalan ${p.paymentDays} gün vadeli)`
+        : " (kalan teslim sonrası)";
+      return `Peşin %${pct}${rest}`;
+    }
+    case "DEFERRED":
+      return p.paymentDays ? `Vadeli — ${p.paymentDays} gün` : "Vadeli";
+    case "OPEN_ACCOUNT":
+      return "Açık Hesap (teslim sonrası)";
+    case "CHEQUE":
+      return p.paymentDays ? `Çek — ${p.paymentDays} gün vadeli` : "Çek";
+    case "LETTER_OF_CREDIT": {
+      const parts = [
+        p.lcType === "USANCE"
+          ? p.paymentDays
+            ? `Usance ${p.paymentDays} gün`
+            : "Usance"
+          : "Sight",
+      ];
+      if (p.lcConfirmed) parts.push("Teyitli");
+      return `Akreditif (${parts.join(", ")})`;
+    }
+    case "CUSTOM":
+      return "Özel ödeme koşulu";
+    default:
+      return PAYMENT_CATEGORY_LABELS[cat] ?? String(cat);
+  }
+}
+
+// Ödeme zamanı (türetilmiş — Faz 3'e köprü, sipariş akışı hâlâ okur)
 export const PAYMENT_TIMING_LABELS: Record<PaymentTiming, string> = {
   BEFORE_DELIVERY: "Teslim öncesi",
   AFTER_DELIVERY: "Teslim sonrası",

@@ -673,6 +673,17 @@ model CompanyOrder {
   // Award anında ilandan snapshot — true ise satıcı onaydan önce teminat
   // mektubu yüklemek zorunda (accept guard'ı).
   requireGuaranteeLetter Boolean @default(false)
+  // Award anında ilandan ödeme planı + teslim şekli snapshot'ı — ilan silinse
+  // de (listing SetNull) sipariş kendi şartlarını bilir; Faz 3 adım motorunun
+  // veri kaynağı. Legacy backfill: ilanı duranlar ilandan, öksüzler kendi
+  // paymentTiming'inden (BEFORE→Peşin %100, AFTER→Açık Hesap).
+  paymentCategory ListingPaymentCategory @default(OPEN_ACCOUNT)
+  advancePercent  Int?
+  paymentDays     Int?
+  lcType          LcType?
+  lcConfirmed     Boolean              @default(false)
+  paymentNote     String?
+  deliveryTerm    ListingDeliveryTerm?
   rejectedReason String?
   cancelReason   String?
   // Teslimat adresi snapshot'ı (award anında: ALIM→ilanın adresi, SATIS→kazanan
@@ -939,9 +950,22 @@ enum ListingDeliveryTerm {
   CIF
 }
 
-enum ListingPaymentTerm {
-  CASH // peşin
-  DEFERRED // vadeli
+// Ödeme şekli — ihale şartı olarak ilan sahibi belirler. Sipariş zamanlaması
+// (paymentTiming) bu plandan TÜRETİLİR, kullanıcıya ayrıca sorulmaz (Faz 2).
+enum ListingPaymentCategory {
+  ADVANCE // peşin (+advancePercent; %100 = tam peşin, %<100 YALNIZ yurtiçi)
+  DEFERRED // vadeli — teslimden paymentDays gün sonra
+  OPEN_ACCOUNT // açık hesap — teslim sonrası, vadesiz
+  CHEQUE // çek — vade = paymentDays
+  LETTER_OF_CREDIT // akreditif — lcType (+USANCE'ta vade = paymentDays)
+  CUSTOM // özel — paymentNote zorunlu
+}
+
+// Akreditif alt tipi (ödeme zamanına göre). Devredilebilir/rotatif gibi
+// yapısal türler ayrı alan DEĞİL — gerekirse paymentNote'a yazılır.
+enum LcType {
+  SIGHT // görüldüğünde ödemeli
+  USANCE // vadeli — belge ibrazından paymentDays gün sonra
 }
 
 enum ListingPaymentTiming {
@@ -1033,8 +1057,18 @@ model Listing {
   isLogistics   Boolean              @default(false) // lojistik ihalesi katmanı
   logistics     Json? // taşıma modu/adres/kargo/ağırlık vb. (LogisticsFormData)
   deliveryTerm  ListingDeliveryTerm?
-  paymentTerm   ListingPaymentTerm   @default(CASH)
-  paymentDays   Int?
+  // Ödeme planı — kategori + kategoriye göre koşullu alanlar. paymentDays tek
+  // "vade günü" alanıdır: DEFERRED/CHEQUE vadesi, LC-USANCE vadesi ve kısmi
+  // peşinde kalan tutarın vadesi (opsiyonel).
+  paymentCategory ListingPaymentCategory @default(OPEN_ACCOUNT)
+  advancePercent  Int? // yalnız ADVANCE (1-100); uluslararası ilanda hep 100
+  paymentDays     Int?
+  lcType          LcType? // yalnız LETTER_OF_CREDIT
+  lcConfirmed     Boolean @default(false) // teyitli akreditif
+  paymentNote     String? // serbest ödeme şartı notu — CUSTOM'da zorunlu
+  // TÜRETİLMİŞ zamanlama (kullanıcıya sorulmaz): ADVANCE/LC → BEFORE_DELIVERY,
+  // diğerleri → AFTER_DELIVERY (derivePaymentTiming, @rothern/shared). Belge
+  // pencereleri/complete kapısı bunu okumaya devam eder (Faz 3'e köprü).
   paymentTiming ListingPaymentTiming @default(AFTER_DELIVERY)
   // Teslim öncesi ödemede satıcıdan teminat mektubu istensin mi? İlan sahibi
   // seçer (BEFORE_DELIVERY'de sistem önerir); yalnız BEFORE_DELIVERY'de anlamlı.

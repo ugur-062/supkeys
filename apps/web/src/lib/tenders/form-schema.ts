@@ -35,8 +35,18 @@ const DELIVERY_TERM_VALUES = [
   "CFR",
   "CIF",
 ] as const;
-const PAYMENT_TERM_VALUES = ["CASH", "DEFERRED"] as const;
-const PAYMENT_TIMING_VALUES = ["BEFORE_DELIVERY", "AFTER_DELIVERY"] as const;
+// Ödeme planı kategorileri + LC alt tipleri — @rothern/shared ile birebir
+// (derivePaymentTiming da oradan gelir; zamanlama artık form alanı DEĞİL).
+export const PAYMENT_CATEGORY_VALUES = [
+  "ADVANCE",
+  "DEFERRED",
+  "OPEN_ACCOUNT",
+  "CHEQUE",
+  "LETTER_OF_CREDIT",
+  "CUSTOM",
+] as const;
+export type PaymentCategoryValue = (typeof PAYMENT_CATEGORY_VALUES)[number];
+export const LC_TYPE_VALUES = ["SIGHT", "USANCE"] as const;
 
 export const BID_VISIBILITY_VALUES = [
   "OWN_ONLY",
@@ -178,16 +188,31 @@ const baseTenderSchema = z.object({
     (v) => (v === "" || v == null ? undefined : v),
     z.enum(DELIVERY_TERM_VALUES).optional(),
   ),
-  paymentTerm: z.enum(PAYMENT_TERM_VALUES),
+  // Ödeme planı — zamanlama SORULMAZ, kategoriden türetilir (Faz 2).
+  paymentCategory: z.enum(PAYMENT_CATEGORY_VALUES),
+  // Yalnız Peşin: peşin yüzdesi (%100 = tam peşin; %<100 yalnız yurtiçi).
+  advancePercent: z
+    .number({ invalid_type_error: "Geçersiz yüzde" })
+    .int()
+    .min(1, "Yüzde 1-100 arası olmalı")
+    .max(100, "Yüzde 1-100 arası olmalı")
+    .optional(),
+  // Tek "vade günü" alanı: Vadeli/Çek vadesi, LC-Usance vadesi, kısmi peşinde
+  // kalanın vadesi (opsiyonel).
   paymentDays: z
     .number({ invalid_type_error: "Geçersiz gün sayısı" })
     .int()
     .min(1)
     .max(365)
     .optional(),
-  paymentTiming: z.enum(PAYMENT_TIMING_VALUES),
-  // Teslim öncesi ödemede satıcıdan teminat mektubu istensin mi? (opsiyonel,
-  // BEFORE_DELIVERY seçilince sistem önerir/işaretler; kullanıcı kaldırabilir)
+  lcType: z.preprocess(
+    (v) => (v === "" || v == null ? undefined : v),
+    z.enum(LC_TYPE_VALUES).optional(),
+  ),
+  lcConfirmed: z.boolean(),
+  paymentNote: z.string().max(1000, "Maksimum 1000 karakter").optional(),
+  // Peşin ödemede satıcıdan teminat mektubu istensin mi? (opsiyonel — sistem
+  // önerir/işaretler; kullanıcı kaldırabilir. Diğer kategorilerde anlamsız.)
   requireGuaranteeLetter: z.boolean(),
   termsAndConditions: z.string().max(10000).optional(),
   internalNotes: z.string().max(5000).optional(),
@@ -242,9 +267,42 @@ export const tenderFormSchema = baseTenderSchema
   )
   .refine(
     (d) =>
-      d.paymentTerm === "CASH" ||
+      d.paymentCategory !== "DEFERRED" && d.paymentCategory !== "CHEQUE"
+        ? true
+        : typeof d.paymentDays === "number" && d.paymentDays > 0,
+    { message: "Vade gün sayısı zorunlu", path: ["paymentDays"] },
+  )
+  // Kısmi peşin (%<100) YALNIZ yurtiçi ihalede — uluslararasında tam peşin.
+  .refine(
+    (d) =>
+      d.paymentCategory !== "ADVANCE" ||
+      !d.isInternational ||
+      (d.advancePercent ?? 100) === 100,
+    {
+      message: "Kısmi peşin ödeme yalnız yurtiçi ihalelerde seçilebilir",
+      path: ["advancePercent"],
+    },
+  )
+  .refine(
+    (d) => d.paymentCategory !== "LETTER_OF_CREDIT" || !!d.lcType,
+    { message: "Akreditif alt tipini seçin", path: ["lcType"] },
+  )
+  .refine(
+    (d) =>
+      d.paymentCategory !== "LETTER_OF_CREDIT" ||
+      d.lcType !== "USANCE" ||
       (typeof d.paymentDays === "number" && d.paymentDays > 0),
-    { message: "Vadeli ödeme için gün sayısı zorunlu", path: ["paymentDays"] },
+    {
+      message: "Vadeli (Usance) akreditif için vade gün sayısı zorunlu",
+      path: ["paymentDays"],
+    },
+  )
+  .refine(
+    (d) => d.paymentCategory !== "CUSTOM" || !!d.paymentNote?.trim(),
+    {
+      message: "Özel ödeme şeklinde ödeme koşulu notu zorunlu",
+      path: ["paymentNote"],
+    },
   )
   .refine(
     (d) => {
@@ -341,8 +399,12 @@ export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
     "deliveryAddressId",
     "billingAddressId",
     "billingSameAsDelivery",
-    "paymentTerm",
+    "paymentCategory",
+    "advancePercent",
     "paymentDays",
+    "lcType",
+    "lcConfirmed",
+    "paymentNote",
     "termsAndConditions",
     "internalNotes",
     "bidsCloseAt",
@@ -404,9 +466,12 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   primaryCurrency: "TRY",
   allowedCurrencies: ["TRY"],
   deliveryTerm: undefined,
-  paymentTerm: "CASH",
+  paymentCategory: "OPEN_ACCOUNT",
+  advancePercent: undefined,
   paymentDays: undefined,
-  paymentTiming: "AFTER_DELIVERY",
+  lcType: undefined,
+  lcConfirmed: false,
+  paymentNote: "",
   requireGuaranteeLetter: false,
   termsAndConditions: "",
   internalNotes: "",

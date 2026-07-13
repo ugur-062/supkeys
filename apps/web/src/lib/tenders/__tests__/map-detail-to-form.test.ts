@@ -20,7 +20,8 @@ const detail = {
   bidsOpenAt: null,
   primaryCurrency: "TRY",
   allowedCurrencies: ["TRY"],
-  paymentTerm: "CASH",
+  paymentCategory: "ADVANCE",
+  advancePercent: 100,
   items: [
     {
       id: "i1",

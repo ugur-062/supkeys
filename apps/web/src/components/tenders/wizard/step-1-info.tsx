@@ -20,8 +20,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useCurrentExchangeRates } from "@/hooks/use-exchange-rates";
 import { DELIVERY_TERM_LABELS } from "@/lib/tenders/labels";
-import type { TenderFormData } from "@/lib/tenders/form-schema";
+import type {
+  PaymentCategoryValue,
+  TenderFormData,
+} from "@/lib/tenders/form-schema";
 import type { Currency, DeliveryTerm } from "@/lib/tenders/types";
+import { derivePaymentTiming } from "@rothern/shared";
 import { cn } from "@/lib/utils";
 import {
   AlertCircle,
@@ -44,6 +48,37 @@ import {
   useFormContext,
   type FieldPath,
 } from "react-hook-form";
+
+/** Ödeme şekli seçenekleri — "Ödeme Zamanı" sorusu KALDIRILDI (Faz 2);
+ *  zamanlama seçilen plandan türetilir (derivePaymentTiming). */
+const PAYMENT_CATEGORY_OPTIONS: {
+  value: PaymentCategoryValue;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "ADVANCE",
+    label: "Peşin",
+    hint: "Teslimattan önce ödenir — oran %100 veya kısmi",
+  },
+  {
+    value: "DEFERRED",
+    label: "Vadeli",
+    hint: "Teslimden sonra belirlenen gün vadeyle",
+  },
+  {
+    value: "OPEN_ACCOUNT",
+    label: "Açık Hesap",
+    hint: "Teslim sonrası, vadesiz",
+  },
+  { value: "CHEQUE", label: "Çek", hint: "Vade günlü çek ile" },
+  {
+    value: "LETTER_OF_CREDIT",
+    label: "Akreditif",
+    hint: "Banka güvenceli (LC) — belge karşılığı",
+  },
+  { value: "CUSTOM", label: "Özel", hint: "Koşulu notta tanımlayın" },
+];
 
 /** RHF-bağlı Catalyst Checkbox kartı (step-1 ayar toggle'ları). */
 function FormCheckbox({
@@ -527,8 +562,9 @@ export function Step1Info({
     watch,
   } = useFormContext<TenderFormData>();
 
-  const paymentTerm = watch("paymentTerm");
-  const paymentTiming = watch("paymentTiming");
+  const paymentCategory = watch("paymentCategory");
+  const advancePercent = watch("advancePercent");
+  const lcType = watch("lcType");
   const billingSameAsDelivery = watch("billingSameAsDelivery");
   const primaryCurrency = watch("primaryCurrency");
   const allowedCurrencies = watch("allowedCurrencies") ?? [];
@@ -571,21 +607,37 @@ export function Step1Info({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isInternational]);
 
-  // Teslim-öncesi ödemeye GEÇİLDİĞİNDE teminat şartını öner (otomatik
-  // işaretlenir; kullanıcı kaldırabilir). Mount'ta çalışmaz — edit modunda
-  // sahibin kayıtlı tercihi ezilmez. Teslim-sonrasına dönünce bayrak temizlenir
-  // (yalnız BEFORE_DELIVERY'de anlamlı; backend de false'a normalize eder).
-  const prevPaymentTimingRef = useRef(paymentTiming);
+  // PEŞİN'e GEÇİLDİĞİNDE teminat şartını öner (otomatik işaretlenir; kullanıcı
+  // kaldırabilir). Mount'ta çalışmaz — edit modunda sahibin kayıtlı tercihi
+  // ezilmez. Başka kategoriye dönünce bayrak temizlenir (yalnız Peşin'de
+  // anlamlı — LC'de garanti zaten bankada; backend de false'a normalize eder).
+  const prevPaymentCategoryRef = useRef(paymentCategory);
   useEffect(() => {
-    const prev = prevPaymentTimingRef.current;
-    prevPaymentTimingRef.current = paymentTiming;
-    if (prev === paymentTiming) return;
-    setValue("requireGuaranteeLetter", paymentTiming === "BEFORE_DELIVERY", {
+    const prev = prevPaymentCategoryRef.current;
+    prevPaymentCategoryRef.current = paymentCategory;
+    if (prev === paymentCategory) return;
+    setValue("requireGuaranteeLetter", paymentCategory === "ADVANCE", {
       shouldValidate: false,
       shouldDirty: true,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [paymentTiming]);
+  }, [paymentCategory]);
+
+  // Kısmi peşin YALNIZ yurtiçi — kapsam uluslararasına dönerse %100'e çek
+  // (gizlenen alanda görünmez validasyon hatası kalmasın).
+  useEffect(() => {
+    if (
+      isInternational &&
+      paymentCategory === "ADVANCE" &&
+      (advancePercent ?? 100) !== 100
+    ) {
+      setValue("advancePercent", 100, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInternational, paymentCategory, advancePercent]);
 
   const categoryIds = watch("categoryIds") ?? [];
 
@@ -1243,29 +1295,90 @@ export function Step1Info({
           }
         />
         <div className="space-y-4">
-          <Field error={errors.paymentTerm?.message}>
-            <Label required>Ödeme Tipi</Label>
-            <FormRadioGroup name="paymentTerm" className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
-                <Radio value="CASH" aria-label="Peşin" />
-                <span className="text-sm font-semibold text-zinc-900">Peşin</span>
-              </div>
-              <div className="flex items-center gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
-                <Radio value="DEFERRED" aria-label="Vadeli" />
-                <span className="text-sm font-semibold text-zinc-900">
-                  Vadeli
-                </span>
-              </div>
+          <Field error={errors.paymentCategory?.message}>
+            <Label required>Ödeme Şekli</Label>
+            <FormRadioGroup
+              name="paymentCategory"
+              className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              {PAYMENT_CATEGORY_OPTIONS.map((o) => (
+                <div
+                  key={o.value}
+                  className="flex items-start gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50"
+                >
+                  <Radio value={o.value} aria-label={o.label} className="mt-0.5" />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-semibold text-zinc-900">
+                      {o.label}
+                    </span>
+                    <span className="block text-xs text-zinc-500">{o.hint}</span>
+                  </span>
+                </div>
+              ))}
             </FormRadioGroup>
           </Field>
 
-          {paymentTerm === "DEFERRED" ? (
+          {/* PEŞİN — oran; kısmi peşin YALNIZ yurtiçi (uluslararasında %100). */}
+          {paymentCategory === "ADVANCE" ? (
+            isInternational ? (
+              <p className="text-xs text-zinc-500">
+                Uluslararası ihalede peşin ödeme <strong>tam (%100)</strong>{" "}
+                uygulanır — kısmi peşin yalnız yurtiçi ihalelerde seçilebilir.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field
+                  error={errors.advancePercent?.message}
+                  hint="%100 = tam peşin. Daha düşük oranda kalan kısım teslim sonrası ödenir."
+                >
+                  <Label htmlFor="advancePercent">Peşin Oranı (%)</Label>
+                  <Input
+                    id="advancePercent"
+                    type="number"
+                    min={1}
+                    max={100}
+                    placeholder="100"
+                    hasError={!!errors.advancePercent}
+                    {...register("advancePercent", {
+                      setValueAs: (v) =>
+                        v === "" || v === undefined ? undefined : Number(v),
+                    })}
+                  />
+                </Field>
+                {(advancePercent ?? 100) < 100 ? (
+                  <Field
+                    error={errors.paymentDays?.message}
+                    hint="Boş bırakılırsa kalan tutar teslimde/açık hesap ödenir."
+                  >
+                    <Label htmlFor="paymentDays">Kalan İçin Vade (gün)</Label>
+                    <Input
+                      id="paymentDays"
+                      type="number"
+                      min={1}
+                      max={365}
+                      placeholder="30"
+                      hasError={!!errors.paymentDays}
+                      {...register("paymentDays", {
+                        setValueAs: (v) =>
+                          v === "" || v === undefined ? undefined : Number(v),
+                      })}
+                    />
+                  </Field>
+                ) : null}
+              </div>
+            )
+          ) : null}
+
+          {/* VADELİ / ÇEK — vade günü zorunlu (tek paymentDays alanı). */}
+          {paymentCategory === "DEFERRED" || paymentCategory === "CHEQUE" ? (
             <Field
               error={errors.paymentDays?.message}
               hint={
-                isSatis
-                  ? "Alıcı faturayı kaç gün vadede ödeyecek?"
-                  : "Faturayı kaç gün vadede ödeyeceksiniz?"
+                paymentCategory === "CHEQUE"
+                  ? "Çekin vadesi kaç gün olacak?"
+                  : isSatis
+                    ? "Alıcı faturayı kaç gün vadede ödeyecek?"
+                    : "Faturayı kaç gün vadede ödeyeceksiniz?"
               }
             >
               <Label htmlFor="paymentDays" required>
@@ -1286,39 +1399,112 @@ export function Step1Info({
             </Field>
           ) : null}
 
-          {/* Faz 3 madde 16 — Ödeme zamanı: sipariş ödeme akışını belirler. */}
+          {/* AKREDİTİF — alt tip + Usance vadesi + Teyitli. */}
+          {paymentCategory === "LETTER_OF_CREDIT" ? (
+            <div className="space-y-3">
+              <Field error={errors.lcType?.message}>
+                <Label required>Akreditif Tipi</Label>
+                <FormRadioGroup name="lcType" className="grid grid-cols-2 gap-3">
+                  <div className="flex items-start gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
+                    <Radio value="SIGHT" aria-label="Sight" className="mt-0.5" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-zinc-900">
+                        Sight
+                      </span>
+                      <span className="block text-xs text-zinc-500">
+                        Belgeler bankaya sunulunca ödenir
+                      </span>
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
+                    <Radio value="USANCE" aria-label="Usance" className="mt-0.5" />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold text-zinc-900">
+                        Usance
+                      </span>
+                      <span className="block text-xs text-zinc-500">
+                        Belge ibrazından sonra vadeyle ödenir
+                      </span>
+                    </span>
+                  </div>
+                </FormRadioGroup>
+              </Field>
+              {lcType === "USANCE" ? (
+                <Field
+                  error={errors.paymentDays?.message}
+                  hint="Belge ibrazından itibaren vade (30/60/90 gün gibi)."
+                >
+                  <Label htmlFor="paymentDays" required>
+                    Vade Gün Sayısı
+                  </Label>
+                  <Input
+                    id="paymentDays"
+                    type="number"
+                    min={1}
+                    max={365}
+                    placeholder="90"
+                    hasError={!!errors.paymentDays}
+                    {...register("paymentDays", {
+                      setValueAs: (v) =>
+                        v === "" || v === undefined ? undefined : Number(v),
+                    })}
+                  />
+                </Field>
+              ) : null}
+              <label className="flex cursor-pointer items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  {...register("lcConfirmed")}
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-300"
+                />
+                <span className="text-xs text-zinc-600">
+                  <span className="font-semibold text-zinc-900">
+                    Teyitli akreditif
+                  </span>
+                  <br />
+                  İkinci bir banka da ödeme garantisi verir — karşı tarafın
+                  ülke/banka riski yüksekse tercih edilir.
+                </span>
+              </label>
+            </div>
+          ) : null}
+
+          {/* Ödeme notu — Özel'de zorunlu koşul, diğerlerinde opsiyonel ek şart. */}
           <Field
-            error={errors.paymentTiming?.message}
+            error={errors.paymentNote?.message}
             hint={
-              isSatis
-                ? "Teslim öncesi seçilirse siparişi siz onayladıktan sonra, teslim sonrası seçilirse sipariş tamamlanınca alıcı ödeme kaydı girer."
-                : "Teslim öncesi seçilirse tedarikçi onayından sonra, teslim sonrası seçilirse sipariş tamamlanınca ödeme kaydı girilebilir."
+              paymentCategory === "CUSTOM"
+                ? `Ödeme koşulunu açıkça yazın — ${rolPl} teklif vermeden görür.`
+                : "Opsiyonel — devredilebilir/rotatif akreditif gibi ek şartları buraya yazın."
             }
           >
-            <Label required>Ödeme Zamanı</Label>
-            <FormRadioGroup
-              name="paymentTiming"
-              className="grid grid-cols-2 gap-3"
-            >
-              <div className="flex items-center gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
-                <Radio value="BEFORE_DELIVERY" aria-label="Teslim öncesi" />
-                <span className="text-sm font-semibold text-zinc-900">
-                  Teslim öncesi
-                </span>
-              </div>
-              <div className="flex items-center gap-2 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
-                <Radio value="AFTER_DELIVERY" aria-label="Teslim sonrası" />
-                <span className="text-sm font-semibold text-zinc-900">
-                  Teslim sonrası
-                </span>
-              </div>
-            </FormRadioGroup>
+            <Label htmlFor="paymentNote" required={paymentCategory === "CUSTOM"}>
+              Ödeme Koşulu Notu
+            </Label>
+            <Textarea
+              id="paymentNote"
+              rows={2}
+              placeholder="Örn. %30 sipariş onayında, kalan mal kabulünde…"
+              hasError={!!errors.paymentNote}
+              {...register("paymentNote")}
+            />
           </Field>
 
-          {/* Teminat mektubu seçeneği — yalnız TESLİM ÖNCESİ ödemede: alıcı
-              parayı önden verdiği için sistem teslimat garantisi ÖNERİR
-              (otomatik işaretli), ama karar ilan sahibinindir (opsiyonel). */}
-          {paymentTiming === "BEFORE_DELIVERY" ? (
+          {/* Türetilen zamanlama — soru DEĞİL, bilgi. */}
+          <p className="text-xs text-zinc-500">
+            Ödeme zamanlaması seçiminizden otomatik belirlenir:{" "}
+            <strong>
+              {derivePaymentTiming(paymentCategory) === "BEFORE_DELIVERY"
+                ? "teslim öncesi"
+                : "teslim sonrası"}
+            </strong>
+            . Ayrıca sorulmaz.
+          </p>
+
+          {/* Teminat mektubu seçeneği — yalnız PEŞİN'de: alıcı parayı önden
+              verdiği için sistem teslimat garantisi ÖNERİR (otomatik işaretli),
+              ama karar ilan sahibinindir (opsiyonel). */}
+          {paymentCategory === "ADVANCE" ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
               <label className="flex cursor-pointer items-start gap-2.5">
                 <input
@@ -1336,7 +1522,7 @@ export function Step1Info({
                   <br />
                   {isSatis ? (
                     <>
-                      Teslim öncesi ödemede parayı önden alan taraf sizsiniz —
+                      Peşin ödemede parayı önden alan taraf sizsiniz —
                       işaretlerseniz siparişi onaylamadan önce{" "}
                       <strong>teminat mektubu</strong> yüklemeniz gerekir
                       (teslimat garantisi, alıcıya güven verir).

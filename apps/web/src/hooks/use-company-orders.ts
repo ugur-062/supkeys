@@ -93,9 +93,16 @@ export interface CompanyOrderDetail extends CompanyOrder {
   payments: OrderPayment[];
   items: CompanyOrderItemRow[];
   deliveryAddress?: OrderDeliveryAddress | null;
-  /** Kaynak ilanın ticari ödeme tipi (peşin/vadeli) — yalnız bilgi amaçlı.
-   *  Teminat tetiği bu DEĞİL, `requireGuaranteeLetter` bayrağıdır. */
-  listingPaymentTerm?: "CASH" | "DEFERRED" | null;
+  /** Ödeme planı + teslim şekli — award anındaki SNAPSHOT (ilan silinse de
+   *  kalır; Faz 3 adım motorunun kaynağı). Teminat tetiği bu DEĞİL,
+   *  `requireGuaranteeLetter` bayrağıdır. */
+  paymentCategory?: string | null;
+  advancePercent?: number | null;
+  paymentDays?: number | null;
+  lcType?: string | null;
+  lcConfirmed?: boolean;
+  paymentNote?: string | null;
+  deliveryTerm?: string | null;
   // Adım verileri + timeline (eski sistemle birebir)
   acceptedAt: string | null;
   acceptedNote: string | null;

@@ -833,7 +833,7 @@ export class CompanyOrdersService {
         seller: { select: CompanyOrdersService.COUNTERPARTY_SELECT },
         buyer: { select: CompanyOrdersService.COUNTERPARTY_SELECT },
         listing: {
-          select: { title: true, type: true, number: true, paymentTerm: true },
+          select: { title: true, type: true, number: true },
         },
         items: true,
         payments: { orderBy: { createdAt: "desc" } },
@@ -882,9 +882,15 @@ export class CompanyOrdersService {
         string,
         string | null
       > | null,
-      // İlanın ticari ödeme tipi (peşin/vadeli) — yalnız bilgi. Teminat tetiği
-      // bu değil, order.paymentTiming === "BEFORE_DELIVERY"dir (aşağıda döner).
-      listingPaymentTerm: o.listing?.paymentTerm ?? null,
+      // Ödeme planı + teslim şekli — award anındaki SNAPSHOT (ilan silinse de
+      // kalır). Teminat tetiği bu değil, order.paymentTiming'dir (yukarıda).
+      paymentCategory: o.paymentCategory,
+      advancePercent: o.advancePercent,
+      paymentDays: o.paymentDays,
+      lcType: o.lcType,
+      lcConfirmed: o.lcConfirmed,
+      paymentNote: o.paymentNote,
+      deliveryTerm: o.deliveryTerm,
       // Adım verileri + timeline (eski sistemle birebir).
       acceptedAt: o.acceptedAt,
       acceptedNote: o.acceptedNote,

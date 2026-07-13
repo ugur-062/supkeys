@@ -8,7 +8,7 @@ import {
 } from "@/hooks/use-company-orders";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
+import { CURRENCY_SYMBOL, formatPaymentPlan } from "@/lib/tenders/labels";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { Check, Plus, X } from "lucide-react";
@@ -104,7 +104,14 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   return (
     <section className="rounded-xl border border-zinc-950/10 bg-white">
       <div className="flex items-center justify-between gap-3 border-b border-zinc-950/5 px-5 py-3">
-        <h3 className="text-sm font-semibold text-zinc-900">Ödeme</h3>
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold text-zinc-900">Ödeme</h3>
+          {/* İhale şartındaki ödeme planı — award anındaki snapshot. */}
+          <p className="truncate text-xs text-zinc-500">
+            {formatPaymentPlan(order)}
+            {order.paymentNote ? ` · ${order.paymentNote}` : ""}
+          </p>
+        </div>
         {isBuyer && order.paymentOpen ? (
           <button
             type="button"

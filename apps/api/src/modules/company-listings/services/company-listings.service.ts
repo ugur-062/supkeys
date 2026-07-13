@@ -19,13 +19,15 @@ import {
   type ListingDecrementType,
   type ListingDeliveryTerm,
   type ListingFormat,
-  type ListingPaymentTerm,
+  type ListingPaymentCategory,
   type ListingPaymentTiming,
+  type LcType,
   type ListingQuestionAnswerType,
   type ListingVisibility,
 } from "@rothern/db";
 import { OnEvent } from "@nestjs/event-emitter";
 import {
+  derivePaymentTiming,
   isValidCountryCode,
   normalizeShortCode,
   validateShortCode,
@@ -719,6 +721,98 @@ export class CompanyListingsService {
   }
 
   /**
+   * Ödeme planını doğrula + normalize et (create/update ortak, Faz 2).
+   * Zamanlama kullanıcıdan ALINMAZ — plandan türetilir (derivePaymentTiming).
+   * Kategoriye ait olmayan alanlar sessizce sıfırlanır (bayat değer sızmasın).
+   */
+  private buildPaymentPlan(dto: CreateListingDto): {
+    paymentCategory: ListingPaymentCategory;
+    advancePercent: number | null;
+    paymentDays: number | null;
+    lcType: LcType | null;
+    lcConfirmed: boolean;
+    paymentNote: string | null;
+    paymentTiming: ListingPaymentTiming;
+    requireGuaranteeLetter: boolean;
+  } {
+    const category =
+      (dto.paymentCategory as ListingPaymentCategory) ?? "OPEN_ACCOUNT";
+    const note = dto.paymentNote?.trim() || null;
+    const isInternational = dto.isInternational ?? false;
+
+    let advancePercent: number | null = null;
+    let paymentDays: number | null = null;
+    let lcType: LcType | null = null;
+
+    switch (category) {
+      case "ADVANCE": {
+        advancePercent = dto.advancePercent ?? 100;
+        if (advancePercent < 100 && isInternational) {
+          throw new BadRequestException(
+            "Kısmi peşin ödeme yalnız yurtiçi ilanlarda seçilebilir",
+          );
+        }
+        // Kısmi peşinde kalan tutarın vadesi OPSİYONEL (boş = teslimde/açık).
+        paymentDays = advancePercent < 100 ? (dto.paymentDays ?? null) : null;
+        break;
+      }
+      case "DEFERRED":
+      case "CHEQUE": {
+        if (!dto.paymentDays) {
+          throw new BadRequestException(
+            category === "CHEQUE"
+              ? "Çek için vade gün sayısı zorunlu"
+              : "Vadeli ödeme için gün sayısı zorunlu",
+          );
+        }
+        paymentDays = dto.paymentDays;
+        break;
+      }
+      case "LETTER_OF_CREDIT": {
+        lcType = (dto.lcType as LcType) ?? null;
+        if (!lcType) {
+          throw new BadRequestException(
+            "Akreditif için alt tip (Sight/Usance) seçin",
+          );
+        }
+        if (lcType === "USANCE") {
+          if (!dto.paymentDays) {
+            throw new BadRequestException(
+              "Vadeli (Usance) akreditif için vade gün sayısı zorunlu",
+            );
+          }
+          paymentDays = dto.paymentDays;
+        }
+        break;
+      }
+      case "CUSTOM": {
+        if (!note) {
+          throw new BadRequestException(
+            "Özel ödeme şeklinde ödeme koşulu notu zorunlu",
+          );
+        }
+        break;
+      }
+      case "OPEN_ACCOUNT":
+        break;
+    }
+
+    return {
+      paymentCategory: category,
+      advancePercent,
+      paymentDays,
+      lcType,
+      lcConfirmed: category === "LETTER_OF_CREDIT" && (dto.lcConfirmed ?? false),
+      paymentNote: note,
+      paymentTiming: derivePaymentTiming(category),
+      // Teminat şartı yalnız PEŞİN'de anlamlı (LC'de garanti zaten bankada) —
+      // diğer kategorilerde sessizce false'a normalize (bayat bayrak sızmasın).
+      requireGuaranteeLetter:
+        category === "ADVANCE" && (dto.requireGuaranteeLetter ?? false),
+    };
+  }
+
+  /**
    * İş kuralı doğrulamaları (create + update ortak — createNextRound ile
    * tutarlı): açık eksiltme parametreleri, para birimi seti, hedef ülkeler,
    * kategori kodları, PRIVATE davet zorunluluğu.
@@ -934,15 +1028,8 @@ export class CompanyListingsService {
             ? (dto.logistics as unknown as Prisma.InputJsonValue)
             : Prisma.JsonNull,
           deliveryTerm: (dto.deliveryTerm as ListingDeliveryTerm) ?? null,
-          paymentTerm: (dto.paymentTerm as ListingPaymentTerm) ?? "CASH",
-          paymentDays: dto.paymentDays ?? null,
-          paymentTiming:
-            (dto.paymentTiming as ListingPaymentTiming) ?? "AFTER_DELIVERY",
-          // Teminat şartı yalnız teslim-öncesi ödemede anlamlı — diğer
-          // zamanlamada sessizce false'a normalize (bayat bayrak sızmasın).
-          requireGuaranteeLetter:
-            dto.paymentTiming === "BEFORE_DELIVERY" &&
-            (dto.requireGuaranteeLetter ?? false),
+          // Ödeme planı — doğrulanmış + normalize; zamanlama plandan türetilir.
+          ...this.buildPaymentPlan(dto),
           bidVisibility:
             (dto.bidVisibility as ListingBidVisibility) ?? "OWN_ONLY",
           decimalPlaces: dto.decimalPlaces ?? 2,
@@ -1180,15 +1267,8 @@ export class CompanyListingsService {
             ? (dto.logistics as unknown as Prisma.InputJsonValue)
             : Prisma.JsonNull,
           deliveryTerm: (dto.deliveryTerm as ListingDeliveryTerm) ?? null,
-          paymentTerm: (dto.paymentTerm as ListingPaymentTerm) ?? "CASH",
-          paymentDays: dto.paymentDays ?? null,
-          paymentTiming:
-            (dto.paymentTiming as ListingPaymentTiming) ?? "AFTER_DELIVERY",
-          // Teminat şartı yalnız teslim-öncesi ödemede anlamlı — diğer
-          // zamanlamada sessizce false'a normalize (bayat bayrak sızmasın).
-          requireGuaranteeLetter:
-            dto.paymentTiming === "BEFORE_DELIVERY" &&
-            (dto.requireGuaranteeLetter ?? false),
+          // Ödeme planı — doğrulanmış + normalize; zamanlama plandan türetilir.
+          ...this.buildPaymentPlan(dto),
           bidVisibility:
             (dto.bidVisibility as ListingBidVisibility) ?? "OWN_ONLY",
           decimalPlaces: dto.decimalPlaces ?? 2,
@@ -3612,6 +3692,13 @@ export class CompanyListingsService {
         deliveryAddressId: true,
         paymentTiming: true,
         requireGuaranteeLetter: true,
+        paymentCategory: true,
+        advancePercent: true,
+        paymentDays: true,
+        lcType: true,
+        lcConfirmed: true,
+        paymentNote: true,
+        deliveryTerm: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -3722,6 +3809,15 @@ export class CompanyListingsService {
           paymentTiming: listing.paymentTiming,
           // Teminat şartı da snapshot — accept guard'ı siparişten okur.
           requireGuaranteeLetter: listing.requireGuaranteeLetter,
+          // Ödeme planı + teslim şekli snapshot'ı (S2) — ilan silinse de
+          // (SetNull) sipariş kendi şartlarını bilir; Faz 3 motoru buradan okur.
+          paymentCategory: listing.paymentCategory,
+          advancePercent: listing.advancePercent,
+          paymentDays: listing.paymentDays,
+          lcType: listing.lcType,
+          lcConfirmed: listing.lcConfirmed,
+          paymentNote: listing.paymentNote,
+          deliveryTerm: listing.deliveryTerm,
           status: "PENDING", // satıcı onayı bekler (accept/reject)
           deliveryAddress,
         },
@@ -4050,6 +4146,13 @@ export class CompanyListingsService {
         deliveryAddressId: true,
         paymentTiming: true,
         requireGuaranteeLetter: true,
+        paymentCategory: true,
+        advancePercent: true,
+        paymentDays: true,
+        lcType: true,
+        lcConfirmed: true,
+        paymentNote: true,
+        deliveryTerm: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -4156,6 +4259,14 @@ export class CompanyListingsService {
             currency: g.currency, // sipariş tutarı teklifin biriminde
             paymentTiming: listing.paymentTiming,
             requireGuaranteeLetter: listing.requireGuaranteeLetter,
+            // Ödeme planı + teslim şekli snapshot'ı (S2) — runFullAward ile aynı.
+            paymentCategory: listing.paymentCategory,
+            advancePercent: listing.advancePercent,
+            paymentDays: listing.paymentDays,
+            lcType: listing.lcType,
+            lcConfirmed: listing.lcConfirmed,
+            paymentNote: listing.paymentNote,
+            deliveryTerm: listing.deliveryTerm,
             status: "PENDING", // satıcı onayı bekler (accept/reject)
             // ALIM: ilan adresi; SATIS: bu grubun teklifçisinin adresi.
             deliveryAddress: isAlim
@@ -5338,8 +5449,12 @@ export class CompanyListingsService {
       isLogistics: boolean;
       logistics: unknown;
       deliveryTerm: string | null;
-      paymentTerm: string;
+      paymentCategory: string;
+      advancePercent: number | null;
       paymentDays: number | null;
+      lcType: string | null;
+      lcConfirmed: boolean;
+      paymentNote: string | null;
       paymentTiming: string;
       requireGuaranteeLetter: boolean;
       bidVisibility: string;
@@ -5390,8 +5505,12 @@ export class CompanyListingsService {
       isLogistics: l.isLogistics,
       logistics: masked ? null : (l.logistics ?? null),
       deliveryTerm: l.deliveryTerm,
-      paymentTerm: l.paymentTerm,
+      paymentCategory: l.paymentCategory,
+      advancePercent: l.advancePercent,
       paymentDays: l.paymentDays,
+      lcType: l.lcType,
+      lcConfirmed: l.lcConfirmed,
+      paymentNote: l.paymentNote,
       paymentTiming: l.paymentTiming,
       // Teslim-öncesi ödemede teminat şartı — teklifçi teklif vermeden görsün.
       requireGuaranteeLetter: l.requireGuaranteeLetter,
