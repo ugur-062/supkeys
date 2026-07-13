@@ -870,8 +870,8 @@ export function Step1Info({
                     </p>
                     <p className="mt-1 text-xs text-zinc-500">
                       {isSatis
-                        ? "Her yeni teklif, o firmanın kendi önceki teklifinden yüksek olmalıdır. Minimum artış şartı yoktur — alıcı ne kadar artıracağına kendisi karar verir."
-                        : "Her yeni teklif, o firmanın kendi önceki teklifinden düşük olmalıdır. Minimum indirim şartı yoktur — tedarikçi ne kadar ineceğine kendisi karar verir."}
+                        ? "Her yeni teklif, o firmanın kendi önceki teklifinden yüksek olmalıdır."
+                        : "Her yeni teklif, o firmanın kendi önceki teklifinden düşük olmalıdır."}
                     </p>
                   </div>
                 </div>

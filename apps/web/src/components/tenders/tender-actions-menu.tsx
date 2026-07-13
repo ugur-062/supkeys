@@ -649,11 +649,8 @@ export function TenderActionsMenu({
               <span className="font-semibold">Pazarlık kuralları:</span> her
               firma tur başına <strong>bir teklif</strong> verir ve yeni
               teklifi kendi öncekinden {isSatis ? "yüksek" : "düşük"} olmak
-              zorundadır. Minimum {isSatis ? "artış" : "indirim"} şartı yoktur
-              — {isSatis ? "alıcı" : "tedarikçi"} ne kadar{" "}
-              {isSatis ? "artıracağına" : "ineceğine"} kendisi karar verir.
-              Önceki turdan taşınan teklif, sahibinin bu turdaki teklif
-              hakkını yakmaz — firma dilerse turda bir kez fiyatını
+              zorundadır. Önceki turdan taşınan teklif, sahibinin bu turdaki
+              teklif hakkını yakmaz — firma dilerse turda bir kez fiyatını
               iyileştirebilir.
             </p>
           </div>
