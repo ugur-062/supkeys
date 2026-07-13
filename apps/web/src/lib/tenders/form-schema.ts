@@ -412,7 +412,7 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   internalNotes: "",
   bidsCloseAt: "",
   bidsOpenAt: "",
-  bidVisibility: "OWN_ONLY",
+  bidVisibility: "OWN_RANK",
   decimalPlaces: 2,
   autoExtendOnLateBid: true,
   autoExtendThresholdMin: 2,

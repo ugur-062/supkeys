@@ -604,12 +604,20 @@ export function TenderActionsMenu({
             >
               <option value="OWN_ONLY">Sadece kendi teklifi</option>
               <option value="BEST_PRICE">Sadece en iyi teklif</option>
-              <option value="OWN_RANK">Sadece kendi sıralaması</option>
+              <option value="OWN_RANK">
+                Sadece kendi sıralaması (Önerilen)
+              </option>
               <option value="BEST_AND_OWN_RANK">
                 En iyi teklif ve kendi sıralaması
               </option>
               <option value="ALL">Tüm teklifler ve sıralama (anonim)</option>
             </select>
+            {/* Öneri gerekçesi: BAFO'da tur arası tek motivasyon geri
+                bildirim; sıra baskı yaratır ama fiyat çıpası/sızıntısı yok. */}
+            <p className="mt-1 text-xs text-zinc-400">
+              &quot;Sadece kendi sıralaması&quot; rekabet baskısı yaratır,
+              fiyat bilgisi sızdırmaz — çoğu ihale için en dengeli mod.
+            </p>
           </Field>
           <label className="flex items-center gap-2 text-sm text-zinc-700">
             <input

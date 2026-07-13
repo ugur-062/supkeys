@@ -212,10 +212,12 @@ function VisibilityOption({
   value,
   title,
   desc,
+  recommended,
 }: {
   value: "OWN_ONLY" | "BEST_PRICE" | "OWN_RANK" | "BEST_AND_OWN_RANK" | "ALL";
   title: string;
   desc: string;
+  recommended?: boolean;
 }) {
   return (
     <div
@@ -228,6 +230,11 @@ function VisibilityOption({
         <Radio value={value} aria-label={title} className="mt-0.5" />
         <p className="text-sm font-semibold text-zinc-900 leading-tight">
           {title}
+          {recommended ? (
+            <span className="mt-1 block w-fit rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+              Önerilen
+            </span>
+          ) : null}
         </p>
       </div>
       <p className="text-xs text-zinc-500 ml-5">{desc}</p>
@@ -812,7 +819,8 @@ export function Step1Info({
               <VisibilityOption
                 value="OWN_RANK"
                 title="Sadece kendi sıralaması"
-                desc={`${Rol}, sadece kendi sıralamasını görür.`}
+                desc={`${Rol}, sadece kendi sıralamasını görür. Rekabet baskısı yaratır, fiyat bilgisi sızdırmaz — çoğu ihale için en dengeli mod.`}
+                recommended
               />
               <VisibilityOption
                 value="BEST_AND_OWN_RANK"
