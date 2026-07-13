@@ -165,11 +165,14 @@ export function AuctionBidWorkbench({
     );
   };
 
-  // Dağıtım hedefi: kullanıcı girdiyse o (sınıra karşı doğrulanır), yoksa
-  // sınırın kendisi (öncekinin bir adım altı/üstü).
+  // Dağıtım hedefi: yalnız kullanıcının GİRDİĞİ hedef (sınıra karşı
+  // doğrulanır). Eski "boşsa sınıra in" fallback'i kaldırıldı: minimum pay
+  // olmadığında sınır öncekinin bir adım altı — dağıtım 1 kuruşu tek kaleme
+  // yazıp "tüm indirim tek üründe" diye şaşırtıyordu. Genel indirim için
+  // "Tümüne %X" aracı var.
   const distributeTarget = userTarget.trim()
     ? userTarget.trim().replace(",", ".")
-    : target.effectiveTarget;
+    : null;
   const userTargetValid =
     !userTarget.trim() ||
     (Number(distributeTarget) > 0 &&
@@ -298,11 +301,13 @@ export function AuctionBidWorkbench({
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-950/10 bg-white p-3">
         <div className="flex items-center gap-1.5">
           <div className="w-20">
+            {/* step=1: ok tuşları 5→6→7 gitsin (0.01 adımla 5.01 oluyordu);
+                ondalık yüzde ("2,5") elle yazılabilir. */}
             <Input
               type="number"
-              min={0.01}
+              min={0}
               max={99.99}
-              step="0.01"
+              step="1"
               value={percent}
               aria-label="Yüzde"
               onChange={(e) => setPercent(e.target.value)}
@@ -333,8 +338,8 @@ export function AuctionBidWorkbench({
             disabled={!distributeTarget || distItems.length === 0}
             title={
               !distributeTarget
-                ? "Hedef toplam girin"
-                : "Girilen hedefe (boşsa sınıra) kilitsiz kalemlere dağıtarak in"
+                ? "Önce hedef toplam girin"
+                : "Girilen hedefe kilitsiz kalemlere orantılı dağıtarak in"
             }
             onClick={autoDistribute}
           >
