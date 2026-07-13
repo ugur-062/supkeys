@@ -1632,11 +1632,15 @@ export default function TeklifVerPage() {
               </ul>
             ) : null}
 
-            <p className="text-center text-[11px] text-zinc-400">
-              {l.english?.isEnglishAuction
-                ? `Açık ${isSatis ? "artırma" : "eksiltme"}: tutarlar rakiplere ayara göre görünür.`
-                : `Kapalı zarf: teklifin diğer ${isSatis ? "alıcılara" : "tedarikçilere"} gösterilmez.`}
-            </p>
+            {/* Pazarlıkta görünürlük notu kaldırıldı (belirsiz/mantıksızdı —
+                ne görüneceğini canlı kart zaten gösteriyor); kapalı zarf
+                notu RFQ'da kalır. */}
+            {!l.english?.isEnglishAuction ? (
+              <p className="text-center text-[11px] text-zinc-400">
+                Kapalı zarf: teklifin diğer{" "}
+                {isSatis ? "alıcılara" : "tedarikçilere"} gösterilmez.
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
