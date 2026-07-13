@@ -37,14 +37,12 @@ function fmt(n: string | number) {
   return Number(n).toLocaleString("tr-TR", { minimumFractionDigits: 2 });
 }
 
-/** Ödeme yöntemleri — "Çek" seçilince çek alanları açılır (backend ile aynı). */
-const CHEQUE_METHOD = "Çek";
-const PAYMENT_METHODS = ["Havale/EFT", "Nakit", "Çek", "Kredi Kartı"];
-
 /**
- * Sipariş ödeme kartı — eski order-payments-card'ın görseli, yeni manuel
- * ödeme-kaydı modeline bağlı. Alıcı kaydeder, satıcı onaylar/reddeder; kısmi
- * ödeme + onaylı/bekleyen/kalan toplamları.
+ * Sipariş ödeme kartı — alıcı "Ödemeyi Yaptım" der, satıcı "Ödemeyi Aldım"
+ * ile onaylar (veya reddeder); kısmi ödeme + onaylı/bekleyen/kalan toplamları.
+ * Ödeme YÖNTEMİ sorulmaz — ihale açılırken kararlaştırılır (Faz 2'de ilandan
+ * gösterilecek); eski kayıtlardaki yöntem/çek bilgisi listede görünmeye devam
+ * eder.
  */
 export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const curSym =
@@ -57,23 +55,14 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
 
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState("");
   const [note, setNote] = useState("");
-  const [chequeNo, setChequeNo] = useState("");
-  const [chequeBank, setChequeBank] = useState("");
-  const [chequeDueDate, setChequeDueDate] = useState("");
 
-  const isCheque = method === CHEQUE_METHOD;
   const t = order.paymentTotals;
 
   const resetForm = () => {
     setOpen(false);
     setAmount("");
-    setMethod("");
     setNote("");
-    setChequeNo("");
-    setChequeBank("");
-    setChequeDueDate("");
   };
 
   const submit = async () => {
@@ -82,23 +71,15 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
       toast.error("Geçerli bir tutar gir");
       return;
     }
-    if (isCheque && (!chequeNo.trim() || !chequeDueDate)) {
-      toast.error("Çek için çek numarası ve vade tarihi zorunlu");
-      return;
-    }
     try {
       await record.mutateAsync({
         amount: value,
-        method: method.trim() || undefined,
         note: note.trim() || undefined,
-        chequeNo: isCheque ? chequeNo.trim() : undefined,
-        chequeBank: isCheque ? chequeBank.trim() || undefined : undefined,
-        chequeDueDate: isCheque ? chequeDueDate : undefined,
       });
-      toast.success("Ödeme kaydedildi — satıcı onayı bekleniyor");
+      toast.success("Ödeme bildirildi — satıcının onayı bekleniyor");
       resetForm();
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Ödeme kaydedilemedi"));
+      toast.error(extractErrorMessage(err, "Ödeme bildirilemedi"));
     }
   };
 
@@ -131,7 +112,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
             className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800"
           >
             <Plus className="h-3.5 w-3.5" />
-            Ödeme Kaydet
+            Ödemeyi Yaptım
           </button>
         ) : null}
       </div>
@@ -146,74 +127,18 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
       {/* Kayıt formu (alıcı) */}
       {open && isBuyer ? (
         <div className="space-y-3 border-b border-zinc-950/5 bg-zinc-50 px-5 py-4">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-zinc-600">
-                Tutar ({curSym})
-              </span>
-              <input
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                inputMode="decimal"
-                placeholder="0,00"
-                className="w-full rounded-lg border border-surface-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-zinc-600">
-                Yöntem (opsiyonel)
-              </span>
-              <select
-                value={method}
-                onChange={(e) => setMethod(e.target.value)}
-                className="w-full rounded-lg border border-surface-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-              >
-                <option value="">Seçiniz…</option>
-                {PAYMENT_METHODS.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          {isCheque ? (
-            <div className="grid grid-cols-1 gap-3 rounded-lg border border-amber-200 bg-amber-50/50 p-3 sm:grid-cols-3">
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-zinc-600">
-                  Çek No
-                </span>
-                <input
-                  value={chequeNo}
-                  onChange={(e) => setChequeNo(e.target.value)}
-                  placeholder="Çek numarası"
-                  className="w-full rounded-lg border border-surface-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-zinc-600">
-                  Banka (opsiyonel)
-                </span>
-                <input
-                  value={chequeBank}
-                  onChange={(e) => setChequeBank(e.target.value)}
-                  placeholder="Banka adı"
-                  className="w-full rounded-lg border border-surface-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1 block text-xs font-medium text-zinc-600">
-                  Vade Tarihi
-                </span>
-                <input
-                  type="date"
-                  value={chequeDueDate}
-                  onChange={(e) => setChequeDueDate(e.target.value)}
-                  className="w-full rounded-lg border border-surface-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                />
-              </label>
-            </div>
-          ) : null}
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-zinc-600">
+              Tutar ({curSym})
+            </span>
+            <input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              inputMode="decimal"
+              placeholder="0,00"
+              className="w-full rounded-lg border border-surface-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+            />
+          </label>
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-zinc-600">
               Not (opsiyonel)
@@ -239,7 +164,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
               disabled={record.isPending}
               className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
             >
-              Kaydet
+              Bildir
             </button>
           </div>
         </div>
@@ -298,7 +223,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                         onClick={() => runDecision(p.id, "confirm")}
                         disabled={decide.isPending}
                         className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-success-50 text-success-600 hover:bg-success-500/10 disabled:opacity-50"
-                        title="Onayla"
+                        title="Ödemeyi Aldım"
                       >
                         <Check className="h-4 w-4" />
                       </button>

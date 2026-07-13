@@ -217,8 +217,8 @@ export class CompanyOrdersService {
     return { ok: res.ok, status: res.status };
   }
 
-  /** Satıcı kargoya verir: ACCEPTED → IN_DELIVERY (+ fatura no zorunlu).
-   *  Alıcının bekleyen ödeme kaydı varken kargoya verilemez — satıcı önce
+  /** Satıcı siparişi gönderir: ACCEPTED → IN_DELIVERY (+ fatura no zorunlu).
+   *  Alıcının bekleyen ödeme kaydı varken gönderilemez — satıcı önce
    *  ödemeyi onaylamalı ya da reddetmeli (alıcı tamamlama kapısının simetriği). */
   async ship(user: AuthenticatedCompanyUser, id: string, input: ShipOrderDto) {
     const pendingPayments = await this.prisma.companyOrderPayment.count({
@@ -226,7 +226,7 @@ export class CompanyOrdersService {
     });
     if (pendingPayments > 0) {
       throw new BadRequestException(
-        "Alıcının onay bekleyen ödeme kaydı var — kargoya vermeden önce Ödemeler bölümünden onaylayın veya reddedin",
+        "Alıcının onay bekleyen ödeme kaydı var — siparişi göndermeden önce Ödemeler bölümünden onaylayın veya reddedin",
       );
     }
     const res = await this.transition(user, id, {
@@ -242,9 +242,9 @@ export class CompanyOrdersService {
     await this.notifyOrderParty(
       id,
       res.order.buyerCompanyId,
-      "Siparişiniz kargoya verildi",
+      "Siparişiniz gönderildi",
       "Sipariş yolda",
-      `${this.orderLabel(res.order.number)} siparişiniz kargoya verildi (Fatura no: ${input.invoiceNumber.trim()}).`,
+      `${this.orderLabel(res.order.number)} siparişiniz gönderildi (Fatura no: ${input.invoiceNumber.trim()}).`,
       "satinalma",
     );
     return { ok: res.ok, status: res.status };

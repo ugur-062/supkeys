@@ -86,7 +86,6 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
             <CompanySidebarContent
               expanded
               showPin={false}
-              showPortalSwitcher
               onNavigate={() => setMobileOpen(false)}
             />
           </div>

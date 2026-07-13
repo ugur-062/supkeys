@@ -154,7 +154,7 @@ export function ShipOrderModal({
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>Siparişi Gönder</DialogTitle>
       <DialogDescription>
-        Kestiğiniz faturanın numarasını girin ve kargoya verin.
+        Kestiğiniz faturanın numarasını girin ve siparişi gönderin.
       </DialogDescription>
       <DialogBody className="space-y-4">
         <Field>

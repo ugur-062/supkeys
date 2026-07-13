@@ -140,7 +140,7 @@ function OrderInspection({ id }: { id: string }) {
             value={o.acceptedAt ? safeFormat(o.acceptedAt, "d MMM yyyy") : null}
           />
           <Row
-            label="Kargoya veriliş"
+            label="Gönderim"
             value={
               o.deliveryStartedAt
                 ? safeFormat(o.deliveryStartedAt, "d MMM yyyy")

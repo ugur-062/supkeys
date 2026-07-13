@@ -159,7 +159,7 @@ export default function OrderDetailPage() {
     isSeller &&
     (o.status === "ACCEPTED" || o.status === "CREATED") &&
     !paymentAwaitingConfirmation
-      ? { label: "Kargoya Ver", modal: "ship" as const }
+      ? { label: "Siparişi Gönder", modal: "ship" as const }
       : !isSeller && o.status === "IN_DELIVERY"
         ? { label: "Teslim Aldım", modal: "receive" as const }
         : // Tamamla yalnız tam ödeme onaylıyken (aksi halde aşağıda mesaj).
@@ -184,7 +184,7 @@ export default function OrderDetailPage() {
   const doAccept = (input: Parameters<typeof accept.mutateAsync>[0]) =>
     run(accept.mutateAsync(input), "Sipariş onaylandı", "İşlem başarısız");
   const doShip = (input: Parameters<typeof ship.mutateAsync>[0]) =>
-    run(ship.mutateAsync(input), "Sipariş kargoya verildi", "İşlem başarısız");
+    run(ship.mutateAsync(input), "Sipariş gönderildi", "İşlem başarısız");
   const doReceive = (note?: string) =>
     run(receive.mutateAsync({ note }), "Teslim alındı", "İşlem başarısız");
   const doComplete = (note?: string) =>
@@ -594,7 +594,7 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
           <div className="flex flex-wrap items-center justify-between gap-4">
             <Text className="text-sm text-zinc-600">
               {next.modal === "ship"
-                ? "Malı kargoya verdiğinde fatura no ile işaretle."
+                ? "Siparişi gönderdiğinde fatura no ile işaretle."
                 : next.modal === "receive"
                   ? "Malı teslim aldığında işaretle."
                   : "Ödeme tam olarak onaylandı — siparişi tamamla."}

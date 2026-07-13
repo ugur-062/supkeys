@@ -11,19 +11,12 @@ import {
   DropdownMenu,
 } from "@/components/catalyst/dropdown";
 import { useCompanyAuth, useCompanyLogout } from "@/hooks/use-company-auth";
-import { usePortalStore } from "@/lib/company/portal-store";
-import {
-  PORTALS,
-  PORTAL_ORDER,
-  accessiblePortals,
-  type PortalKey,
-} from "@/lib/company/portals";
+import { PORTALS, type PortalKey } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
 import {
   ArrowRightStartOnRectangleIcon,
   ChevronDownIcon,
   Cog6ToothIcon,
-  LockClosedIcon,
 } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { MessagesPopover } from "./messages-popover";
@@ -33,78 +26,10 @@ function initialsOf(first?: string | null, last?: string | null) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase() || "?";
 }
 
-/** Portal seçici — aktif portal beyaz zeminde aksan rengiyle. */
-function PortalSwitcher({ activePortal }: { activePortal: PortalKey }) {
-  const { company, user } = useCompanyAuth();
-  const setLastPortal = usePortalStore((s) => s.setLastPortal);
-  const roles = user?.roles ?? [];
-  const tier = company?.tier;
-  const available = accessiblePortals(roles, tier);
-  // Portal rolleri (Kurucu/Yönetici ikisini de kapsar).
-  const canPurchase =
-    roles.includes("SAHIP") ||
-    roles.includes("YONETICI") ||
-    roles.includes("SATIN_ALMACI");
-  const canSell =
-    roles.includes("SAHIP") ||
-    roles.includes("YONETICI") ||
-    roles.includes("SATISCI");
-  // Operasyonel kullanıcıya (en az bir portal rolü) HER İKİ panel de gösterilir;
-  // giremediği panel KİLİTLİ görünür. Tıklayınca PortalGuard uygun ekranı açar:
-  // rolü yoksa "yetkiniz yok", rolü var ama STANDARD ise Premium kapısı.
-  const isOperational = canPurchase || canSell;
-  const visible: PortalKey[] = isOperational ? [...PORTAL_ORDER] : available;
-  if (visible.length < 2) return null;
-
-  return (
-    <div className="hidden items-center gap-1 rounded-lg bg-zinc-100 p-1 md:flex">
-      {PORTAL_ORDER.filter((p) => visible.includes(p)).map((p) => {
-        const def = PORTALS[p];
-        const on = p === activePortal;
-        const allowedP = available.includes(p);
-        const premiumLock =
-          p === "satinalma" && !allowedP && canPurchase && tier !== "PAKET";
-        const roleLock = !allowedP && !premiumLock;
-        const locked = !allowedP;
-        return (
-          <Link
-            key={p}
-            href={def.basePath}
-            onClick={() => {
-              if (!locked) setLastPortal(p);
-            }}
-            title={
-              premiumLock
-                ? "Premium özelliği — geçiş için tıklayın"
-                : roleLock
-                  ? "Bu panel için yetkiniz yok"
-                  : undefined
-            }
-            className={cn(
-              "flex items-center gap-1 rounded-md px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition",
-              on
-                ? p === "satinalma"
-                  ? "bg-white text-blue-700 shadow-sm"
-                  : "bg-white text-emerald-700 shadow-sm"
-                : locked
-                  ? "text-zinc-400 hover:text-zinc-600"
-                  : "text-zinc-500 hover:text-zinc-900",
-            )}
-          >
-            {def.label}
-            {locked ? (
-              <LockClosedIcon className="h-3 w-3" aria-hidden="true" />
-            ) : null}
-          </Link>
-        );
-      })}
-    </div>
-  );
-}
-
 /**
- * Üst çubuk — BEYAZ; açık-mod logosu. Solda Rothern logosu + firma kimliği, ortada
- * Satınalma/Satış portal seçici, sağda mesajlar + bildirimler + kullanıcı.
+ * Üst çubuk — BEYAZ; açık-mod logosu. Solda Rothern logosu + firma kimliği,
+ * sağda mesajlar + bildirimler + kullanıcı. Satınalma/Satış geçişi sol menünün
+ * en üstünde (Anasayfa'nın üzerinde — kullanıcı isteği).
  */
 export function CompanyTopbar({
   activePortal,
@@ -158,13 +83,8 @@ export function CompanyTopbar({
         </span>
       </div>
 
-      {/* Orta: portal seçici */}
-      <div className="flex flex-1 justify-center">
-        <PortalSwitcher activePortal={activePortal} />
-      </div>
-
       {/* Sağ: mesajlar + bildirimler + kullanıcı */}
-      <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+      <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1">
         <MessagesPopover
           portal={activePortal}
           basePath={portal.basePath}

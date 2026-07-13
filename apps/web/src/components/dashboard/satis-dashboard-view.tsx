@@ -315,7 +315,7 @@ export function SatisDashboardView() {
               <QuickLink
                 href="/company/satis/siparisler"
                 icon={Package}
-                label="Siparişlerim"
+                label="Satışlarım"
               />
               <QuickLink
                 href="/company/satis/profilim"

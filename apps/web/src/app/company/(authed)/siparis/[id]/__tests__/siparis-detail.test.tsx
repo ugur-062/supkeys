@@ -151,11 +151,11 @@ describe("OrderDetailPage — durum → aksiyon eşlemesi", () => {
     ).toBeInTheDocument();
   });
 
-  it("ACCEPTED + satıcı → Kargoya Ver", () => {
+  it("ACCEPTED + satıcı → Siparişi Gönder", () => {
     h.order = order("ACCEPTED", "seller");
     render(<OrderDetailPage />);
     expect(
-      screen.getByRole("button", { name: "Kargoya Ver" }),
+      screen.getByRole("button", { name: "Siparişi Gönder" }),
     ).toBeInTheDocument();
   });
 
@@ -203,13 +203,13 @@ describe("OrderDetailPage — durum → aksiyon eşlemesi", () => {
     ).toBeInTheDocument();
   });
 
-  it("ACCEPTED + satıcı + bekleyen ödeme → kargo YOK, ödeme onayı uyarısı", () => {
+  it("ACCEPTED + satıcı + bekleyen ödeme → gönderim YOK, ödeme onayı uyarısı", () => {
     h.order = order("ACCEPTED", "seller", {
       paymentTotals: { confirmed: "0", pending: "1000", remaining: "0" },
     });
     render(<OrderDetailPage />);
     expect(
-      screen.queryByRole("button", { name: "Kargoya Ver" }),
+      screen.queryByRole("button", { name: "Siparişi Gönder" }),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/Alıcı ödeme bildirdi/)).toBeInTheDocument();
   });

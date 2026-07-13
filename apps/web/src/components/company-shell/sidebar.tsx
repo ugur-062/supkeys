@@ -16,9 +16,11 @@ import {
 } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
 import {
+  BuildingStorefrontIcon,
   Cog6ToothIcon,
   LockClosedIcon,
   ShieldCheckIcon,
+  ShoppingCartIcon,
 } from "@heroicons/react/20/solid";
 import { Pin, PinOff } from "lucide-react";
 import Link from "next/link";
@@ -120,14 +122,11 @@ function RailItem({
 export function CompanySidebarContent({
   expanded,
   showPin = true,
-  /** Portal seçici masaüstünde TOPBAR'da — yalnız mobil çekmecede burada. */
-  showPortalSwitcher = false,
   onNavigate,
 }: {
   expanded: boolean;
   /** Mobilde pin anlamsız — gizlenir. */
   showPin?: boolean;
-  showPortalSwitcher?: boolean;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -141,6 +140,19 @@ export function CompanySidebarContent({
   const canAct = useHasCompanyPermission("approval:act");
   const { data: pendingCount } = usePendingApprovalCount(canAct);
   const available = accessiblePortals(roles, company?.tier);
+  // Operasyonel kullanıcıya (en az bir portal rolü) HER İKİ panel gösterilir;
+  // giremediği panel kilitli görünür. Tıklayınca PortalGuard uygun ekranı açar
+  // (rol yoksa yetki ekranı, STANDARD ise Premium kapısı) — eski topbar mantığı.
+  const canPurchase =
+    roles.includes("SAHIP") ||
+    roles.includes("YONETICI") ||
+    roles.includes("SATIN_ALMACI");
+  const canSell =
+    roles.includes("SAHIP") ||
+    roles.includes("YONETICI") ||
+    roles.includes("SATISCI");
+  const visiblePortals: PortalKey[] =
+    canPurchase || canSell ? [...PORTAL_ORDER] : available;
   const lastPortal = usePortalStore((s) => s.lastPortal);
   // Portal-nötr rotalarda (/company/ilan, /company/onaylar…) SON portalda kal.
   const active: PortalKey =
@@ -154,29 +166,30 @@ export function CompanySidebarContent({
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      {/* Portal değiştirici — yalnız mobil çekmecede (masaüstünde topbar'da) */}
-      {showPortalSwitcher && available.length > 1 ? (
-        <div className="mx-2 mt-3 grid grid-cols-2 gap-1 rounded-lg bg-zinc-100 p-1">
-          {PORTAL_ORDER.filter((p) => available.includes(p)).map((p) => {
+      {/* Satınalma/Satış geçişi — Anasayfa'nın ÜSTÜNDE (kullanıcı isteği).
+          Masaüstü rayda ikonla daralır; kilitli panel PortalGuard'a gider. */}
+      {visiblePortals.length > 1 ? (
+        <div className="mt-3 space-y-0.5 border-b border-zinc-950/5 px-2 pb-2">
+          {PORTAL_ORDER.filter((p) => visiblePortals.includes(p)).map((p) => {
             const def = PORTALS[p];
-            const on = p === active;
+            const allowedP = available.includes(p);
             return (
-              <Link
+              <RailItem
                 key={p}
                 href={def.basePath}
+                icon={
+                  p === "satinalma" ? ShoppingCartIcon : BuildingStorefrontIcon
+                }
+                label={def.label}
+                active={p === active}
+                accent={def.accent}
+                expanded={expanded}
+                locked={!allowedP}
                 onClick={() => {
-                  setLastPortal(p);
+                  if (allowedP) setLastPortal(p);
                   onNavigate?.();
                 }}
-                className={cn(
-                  "rounded-md px-2 py-1.5 text-center text-xs font-semibold whitespace-nowrap transition",
-                  on
-                    ? ACCENT[def.accent].switch
-                    : "text-zinc-500 hover:text-zinc-800",
-                )}
-              >
-                {def.label}
-              </Link>
+              />
             );
           })}
         </div>

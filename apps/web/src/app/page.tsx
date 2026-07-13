@@ -55,7 +55,7 @@ const faqs = [
   },
   {
     q: "Siparişten sonra ne oluyor?",
-    a: "Kazandırma anında sipariş oluşur (satıcı→alıcı). Kargo ve teslim adımlarını panelden takip eder, teslim belgesini (irsaliye/konşimento) yükler, ödemeyi 'ödendi' olarak işaretlersiniz. Ödeme taraflar arasında yapılır.",
+    a: "Kazandırma anında sipariş oluşur (satıcı→alıcı). Gönderim ve teslim adımlarını panelden takip eder, teslim belgesini (irsaliye/konşimento) yükler, ödemeyi 'ödendi' olarak işaretlersiniz. Ödeme taraflar arasında yapılır.",
   },
 ];
 
@@ -431,7 +431,7 @@ function SaleListingPreview() {
 function OrderTimelinePreview() {
   const tl = [
     { t: "Sipariş oluştu", state: "done" },
-    { t: "Kargoya verildi", state: "done" },
+    { t: "Sipariş gönderildi", state: "done" },
     { t: "Teslim alındı", state: "active" },
     { t: "Tamamlandı", state: "todo" },
   ];

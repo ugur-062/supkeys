@@ -156,7 +156,7 @@ export function useOrder(id: string) {
   });
 }
 
-/** Satıcı: kargoya ver (fatura no zorunlu + gönderim notu). */
+/** Satıcı: siparişi gönder (fatura no zorunlu + gönderim notu). */
 export function useShipOrder(id: string) {
   const qc = useQueryClient();
   return useMutation({

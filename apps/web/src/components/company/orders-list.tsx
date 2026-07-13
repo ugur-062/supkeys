@@ -483,11 +483,11 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <PageHeader
-        title="Siparişlerim"
+        title={isSeller ? "Satışlarım" : "Siparişlerim"}
         description={
           isSeller
-            ? "Satış siparişlerin — kazandığın ihalelerden ve satışlarından. Onayla, kargoya ver, ödemeyi takip et."
-            : "Alış siparişlerin — kazandırdığın ihalelerden ve satın almalarından. Teslim al, ödemeyi kaydet, tamamla."
+            ? "Satışların — kazandığın ihalelerden ve satışlarından. Onayla, gönder, ödemeyi takip et."
+            : "Alış siparişlerin — kazandırdığın ihalelerden ve satın almalarından. Teslim al, ödemeni bildir, tamamla."
         }
       />
 

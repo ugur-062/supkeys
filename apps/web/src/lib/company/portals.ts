@@ -118,7 +118,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       },
       {
         icon: ShoppingBagIcon,
-        label: "Siparişlerim",
+        label: "Satışlarım",
         href: "/company/satis/siparisler",
       },
       {

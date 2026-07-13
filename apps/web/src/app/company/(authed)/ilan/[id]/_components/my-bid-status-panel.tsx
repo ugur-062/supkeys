@@ -396,6 +396,8 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
     l.type === "SATIS"
       ? "/company/satinalma/siparisler"
       : "/company/satis/siparisler";
+  const ordersLabel =
+    l.type === "SATIS" ? "Siparişlerimi Görüntüle" : "Satışlarımı Görüntüle";
 
   if (!bid) {
     return open ? null : (
@@ -423,7 +425,7 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
           <Trophy className="h-4 w-4" aria-hidden="true" />
           Sipariş oluşturuldu —{" "}
           <Link href={ordersHref} className="font-semibold underline">
-            Siparişlerimi Görüntüle
+            {ordersLabel}
           </Link>
         </p>
       </StatusAlert>,
@@ -432,7 +434,7 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
     alerts.push(
       <StatusAlert key="part" tone="success" title="Bazı kalemleri kazandınız">
         <Link href={ordersHref} className="font-semibold underline">
-          Siparişlerimi Görüntüle
+          {ordersLabel}
         </Link>
       </StatusAlert>,
     );

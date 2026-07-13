@@ -144,7 +144,7 @@ export function OrderDocumentsSection({
   // ── Adım bazlı yükleme pencereleri (backend assertCanUpload ile birebir) ──
   // Teminat: yalnız onay öncesi (PENDING), satıcı. Onaydan sonra salt-okunur.
   const canUploadTeminat = isSeller && status === "PENDING" && !terminal;
-  // Teslim belgesi: satıcı kargoya verirken → onaydan teslime kadar.
+  // Teslim belgesi: satıcı gönderirken → onaydan teslime kadar.
   const deliveryOpen =
     status === "ACCEPTED" ||
     status === "CREATED" ||
