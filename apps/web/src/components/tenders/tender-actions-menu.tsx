@@ -693,7 +693,7 @@ export function TenderActionsMenu({
               <option value="BEST_AND_OWN_RANK">
                 En iyi teklif ve kendi sıralaması
               </option>
-              <option value="ALL">Tüm teklifler ve sıralama (anonim)</option>
+              <option value="ALL">Tüm teklifler ve sıralama</option>
             </select>
             {/* Öneri gerekçesi: BAFO'da tur arası tek motivasyon geri
                 bildirim; sıra baskı yaratır ama fiyat çıpası/sızıntısı yok. */}
@@ -701,6 +701,15 @@ export function TenderActionsMenu({
               &quot;Sadece kendi sıralaması&quot; rekabet baskısı yaratır,
               fiyat bilgisi sızdırmaz — çoğu ihale için en dengeli mod.
             </p>
+            {/* ALL seçilince anonimlik güvencesi açıkça yazılır (etiketteki
+                belirsiz '(anonim)' eki yerine). */}
+            {vis === "ALL" ? (
+              <p className="mt-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Bu modda katılımcılar tüm teklif tutarlarını ve sıralamayı
+                görür; ancak <strong>firma adları hiçbir şekilde
+                gösterilmez</strong> — kimlikler tamamen anonim kalır.
+              </p>
+            ) : null}
           </Field>
           <label className="flex items-center gap-2 text-sm text-zinc-700">
             <input
