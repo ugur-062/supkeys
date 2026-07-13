@@ -470,14 +470,10 @@ export function AuctionBidWorkbench({
                           </div>
                         )}
                       </td>
+                      {/* "önce X" alt satırı kaldırıldı — önceki fiyat zaten
+                          kendi kolonunda (üstü çizili), iki kez yazılıyordu. */}
                       <td className="px-3 py-2 text-right font-semibold whitespace-nowrap text-zinc-800 tabular-nums">
                         {lineTotal !== null ? money(lineTotal, currency) : "—"}
-                        {changed && init && lineTotal !== null ? (
-                          <p className="text-[11px] font-normal text-zinc-400">
-                            önce{" "}
-                            {money(Number(init) * Number(it.quantity), currency)}
-                          </p>
-                        ) : null}
                       </td>
                       <td className="px-2 py-2 text-center">
                         {!optedOut ? (
