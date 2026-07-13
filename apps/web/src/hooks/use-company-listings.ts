@@ -24,6 +24,22 @@ function invalidateListingCaches(
   if (opts?.myBids) qc.invalidateQueries({ queryKey: ["company-my-bids"] });
 }
 
+/**
+ * Durum değiştiren sahip aksiyonları için ANINDA tazeleme (yeni-tur deseni):
+ * invalidate/sinyal yoluna güvenme — geçiş anında invalidation çığı istekleri
+ * kuyruklatıp iptal zincirine sokuyor, taze cevap uzun süre uygulanmayabiliyor.
+ * Detayı TEK doğrudan istekle çek ve cache'e YAZ; onSuccess'ten döndürülen bu
+ * promise bitmeden mutateAsync çözülmez → buton pending'i taze arayüz ekrana
+ * gelene dek sürer, bayat durum hiç görünmez.
+ */
+async function refreshListingDetail(qc: QueryClient, id: string) {
+  const { data } = await companyApi.get<ListingDetail>(
+    `/company/listings/${id}`,
+  );
+  qc.setQueryData(["company-listings", "detail", id], data);
+  invalidateListingCaches(qc);
+}
+
 export type ListingType = "ALIM" | "SATIS";
 export type ListingFormat = "RFQ" | "ENGLISH_AUCTION";
 export type ListingVisibility = "PUBLIC" | "CONNECTIONS" | "PRIVATE";
@@ -512,7 +528,7 @@ export function useCancelListing(id: string) {
       });
       return data;
     },
-    onSuccess: () => invalidateListingCaches(qc),
+    onSuccess: () => refreshListingDetail(qc, id),
   });
 }
 
@@ -545,7 +561,7 @@ export function useCloseEarly(id: string) {
       );
       return data;
     },
-    onSuccess: () => invalidateListingCaches(qc),
+    onSuccess: () => refreshListingDetail(qc, id),
   });
 }
 
@@ -560,7 +576,7 @@ export function useChangeClosing(id: string) {
       );
       return data;
     },
-    onSuccess: () => invalidateListingCaches(qc),
+    onSuccess: () => refreshListingDetail(qc, id),
   });
 }
 
@@ -590,7 +606,7 @@ export function useCloseNoAward(id: string) {
       );
       return data;
     },
-    onSuccess: () => invalidateListingCaches(qc),
+    onSuccess: () => refreshListingDetail(qc, id),
   });
 }
 
@@ -675,10 +691,7 @@ export function useStartEvaluation(id: string) {
       );
       return data;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
-      invalidateListingCaches(qc);
-    },
+    onSuccess: () => refreshListingDetail(qc, id),
   });
 }
 
@@ -692,10 +705,7 @@ export function useStopEvaluation(id: string) {
       );
       return data;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
-      invalidateListingCaches(qc);
-    },
+    onSuccess: () => refreshListingDetail(qc, id),
   });
 }
 

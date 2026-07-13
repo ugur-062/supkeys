@@ -1349,9 +1349,6 @@ export default function ListingDetailPage() {
               </div>
             </div>
           ))}
-          <Text className="text-xs text-zinc-400">
-            Kazandırınca sipariş oluşur (Siparişler'de görünür).
-          </Text>
         </div>
       )}
     </section>
