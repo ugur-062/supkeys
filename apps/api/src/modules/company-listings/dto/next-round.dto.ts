@@ -19,14 +19,6 @@ export enum CarryBidsDto {
   LAZY = "LAZY",
   NONE = "NONE",
 }
-export enum DecrementTypeDto {
-  AMOUNT = "AMOUNT",
-  PERCENT = "PERCENT",
-}
-export enum DecrementBasisDto {
-  OWN_LAST_BID = "OWN_LAST_BID",
-  BEST_BID = "BEST_BID",
-}
 export enum BidVisibilityDto {
   OWN_ONLY = "OWN_ONLY",
   BEST_PRICE = "BEST_PRICE",
@@ -57,20 +49,9 @@ export class NextRoundDto {
   @IsDateString({}, { message: "Geçerli bir açılış tarihi girin" })
   bidsOpenAt?: string;
 
-  // ── İngiliz Usulü parametreleri (type=ENGLISH_AUCTION ise zorunlu) ──
-  @ValidateIf((o) => o.type === NextRoundTypeDto.ENGLISH_AUCTION)
-  @IsEnum(DecrementTypeDto, { message: "Geçersiz fiyat azaltma tipi" })
-  priceDecrementType?: DecrementTypeDto;
-
-  @ValidateIf((o) => o.type === NextRoundTypeDto.ENGLISH_AUCTION)
-  @IsNumber({ maxDecimalPlaces: 4 }, { message: "Geçersiz azaltma değeri" })
-  @Min(0)
-  priceDecrementValue?: number;
-
-  @ValidateIf((o) => o.type === NextRoundTypeDto.ENGLISH_AUCTION)
-  @IsEnum(DecrementBasisDto, { message: "Geçersiz azaltma bazı" })
-  priceDecrementBasis?: DecrementBasisDto;
-
+  // ── İngiliz Usulü parametreleri (type=ENGLISH_AUCTION ise) ──
+  // Minimum azaltma payı KALDIRILDI (2026-07-13): pazarlıkta tek kural
+  // "kendi öncekinden kesin iyi" + turda tek aktif gönderim.
   @ValidateIf((o) => o.type === NextRoundTypeDto.ENGLISH_AUCTION)
   @IsEnum(BidVisibilityDto, { message: "Geçersiz görünürlük modu" })
   bidVisibility?: BidVisibilityDto;

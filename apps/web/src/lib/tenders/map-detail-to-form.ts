@@ -85,14 +85,6 @@ export function mapDetailToForm(
     bidsOpenAt: forCopy ? "" : toLocalInput(l.bidsOpenAt),
     bidVisibility:
       (l.bidVisibility as TenderFormData["bidVisibility"]) ?? "OWN_ONLY",
-    priceDecrementType:
-      (l.priceDecrementType as TenderFormData["priceDecrementType"]) ??
-      undefined,
-    priceDecrementValue:
-      l.priceDecrementValue != null ? Number(l.priceDecrementValue) : undefined,
-    priceDecrementBasis:
-      (l.priceDecrementBasis as TenderFormData["priceDecrementBasis"]) ??
-      undefined,
     decimalPlaces: l.decimalPlaces ?? 2,
     autoExtendOnLateBid: l.autoExtendOnLateBid ?? true,
     autoExtendThresholdMin: l.autoExtendThresholdMin ?? undefined,

@@ -37,11 +37,6 @@ import {
   useStopEvaluation,
   useUpdateInternalNotes,
 } from "@/hooks/use-company-listings";
-import { useCurrentExchangeRates } from "@/hooks/use-exchange-rates";
-import {
-  currencySymbol,
-  formatStepConversions,
-} from "@/lib/tenders/auction-currency";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -171,29 +166,10 @@ export function TenderActionsMenu({
   const [nrCarry, setNrCarry] = useState<"AUTO" | "LAZY" | "NONE">("AUTO");
   const [nrEliminate, setNrEliminate] = useState(false);
   const [nrClosing, setNrClosing] = useState("");
-  const [decType, setDecType] = useState<"AMOUNT" | "PERCENT">("AMOUNT");
-  const [decValue, setDecValue] = useState("");
-  const [decBasis, setDecBasis] = useState<"OWN_LAST_BID" | "BEST_BID">(
-    "OWN_LAST_BID",
-  );
   const [vis, setVis] = useState<
     "OWN_ONLY" | "BEST_PRICE" | "OWN_RANK" | "BEST_AND_OWN_RANK" | "ALL"
   >("OWN_RANK");
   const [autoExtend, setAutoExtend] = useState(true);
-
-  // Azaltma payının diğer izinli birim karşılıkları — güncel TCMB önizlemesi
-  // (kesin damga tur açılışında backend'de basılır).
-  const { data: ratesData } = useCurrentExchangeRates();
-  const stepConversions = useMemo(() => {
-    const v = Number(decValue.replace(",", "."));
-    if (!(v > 0) || allowedCurrencies.length <= 1) return "";
-    return formatStepConversions(
-      v,
-      currency ?? "TRY",
-      allowedCurrencies,
-      ratesData?.rates,
-    );
-  }, [decValue, allowedCurrencies, currency, ratesData?.rates]);
 
   // Davet ekleme form durumu
   const [inviteSel, setInviteSel] = useState<Set<string>>(new Set());
@@ -216,11 +192,6 @@ export function TenderActionsMenu({
       return;
     }
     const isAuc = nrType === "ENGLISH_AUCTION";
-    const v = Number(decValue.replace(",", "."));
-    if (isAuc && !(v > 0)) {
-      toast.error(isSatis ? "Açık artırma için artış değeri gir" : "Açık eksiltme için azaltma değeri gir");
-      return;
-    }
     try {
       await nextRound.mutateAsync({
         type: nrType,
@@ -229,9 +200,6 @@ export function TenderActionsMenu({
         closesAt: new Date(nrClosing).toISOString(),
         ...(isAuc
           ? {
-              priceDecrementType: decType,
-              priceDecrementValue: v,
-              priceDecrementBasis: decBasis,
               bidVisibility: vis,
               autoExtendOnLateBid: autoExtend,
             }
@@ -611,67 +579,19 @@ export function TenderActionsMenu({
 
           {nrType === "ENGLISH_AUCTION" ? (
             <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field>
-              <Label>{isSatis ? "Fiyat Artış Tipi" : "Fiyat Azaltma Tipi"}</Label>
-              <select
-                aria-label={isSatis ? "Fiyat Artış Tipi" : "Fiyat Azaltma Tipi"}
-                value={decType}
-                onChange={(e) =>
-                  setDecType(e.target.value as "AMOUNT" | "PERCENT")
-                }
-                className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
-              >
-                <option value="AMOUNT">Tutar</option>
-                <option value="PERCENT">Yüzde</option>
-              </select>
-            </Field>
-            <Field>
-              <Label>
-                {isSatis ? "Artış Değeri" : "Azaltma Değeri"}{" "}
-                {decType === "PERCENT"
-                  ? "(%)"
-                  : `(${currencySymbol(currency)})`}
-              </Label>
-              <Input
-                type="number"
-                min={0}
-                step="0.01"
-                value={decValue}
-                onChange={(e) => setDecValue(e.target.value)}
-                placeholder="0"
-              />
-              {/* Çoklu birimde adımın diğer birim karşılıkları — teklifçi
-                  kendi biriminde azaltır; tur açılışında o günün TCMB kuru
-                  ilana sabitlenir. */}
-              {decType === "AMOUNT" && stepConversions ? (
-                <p className="mt-1 text-xs text-zinc-400">
-                  ≈ {stepConversions}
-                  <span className="ml-1">
-                    (tur açılışında günün TCMB kuru sabitlenir)
-                  </span>
-                </p>
-              ) : null}
-            </Field>
+          {/* Pazarlık kuralları sabit: monotonluk + turda tek teklif.
+              Minimum pay kaldırıldı (2026-07-13) — çıpa etkisi. */}
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+            <p>
+              <span className="font-semibold">Pazarlık kuralları:</span> her
+              firma tur başına <strong>bir teklif</strong> verir ve yeni
+              teklifi kendi öncekinden {isSatis ? "yüksek" : "düşük"} olmak
+              zorundadır. Minimum {isSatis ? "artış" : "indirim"} şartı yoktur
+              — {isSatis ? "alıcı" : "tedarikçi"} ne kadar{" "}
+              {isSatis ? "artıracağına" : "ineceğine"} kendisi karar verir.
+              Önceki turdan taşınan teklif, tur hakkını kullanmaz.
+            </p>
           </div>
-          <Field>
-            <Label>{isSatis ? "Artış Bazı" : "Azaltma Bazı"}</Label>
-            <select
-              aria-label={isSatis ? "Artış Bazı" : "Azaltma Bazı"}
-              value={decBasis}
-              onChange={(e) =>
-                setDecBasis(e.target.value as "OWN_LAST_BID" | "BEST_BID")
-              }
-              className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
-            >
-              <option value="OWN_LAST_BID">
-                Kendi son teklifini baz alsın
-              </option>
-              <option value="BEST_BID">
-                İhaledeki en iyi teklifi baz alsın {isSatis ? "(klasik açık artırma)" : "(klasik ters eksiltme)"}
-              </option>
-            </select>
-          </Field>
           <Field>
             <Label>Görünürlük</Label>
             <select

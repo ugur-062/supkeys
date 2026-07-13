@@ -82,16 +82,6 @@ export enum BidVisibilityDto {
   ALL = "ALL",
 }
 
-export enum DecrementTypeDto {
-  AMOUNT = "AMOUNT",
-  PERCENT = "PERCENT",
-}
-
-export enum DecrementBasisDto {
-  OWN_LAST_BID = "OWN_LAST_BID",
-  BEST_BID = "BEST_BID",
-}
-
 export enum AnswerTypeDto {
   TEXT = "TEXT",
   NUMBER = "NUMBER",
@@ -431,22 +421,11 @@ export class CreateListingDto {
   logistics?: LogisticsDto;
 
   // ── İngiliz Usulü açık eksiltme ──
+  // Minimum azaltma payı alanları kaldırıldı (2026-07-13) — pazarlıkta tek
+  // kural "kendi öncekinden kesin iyi" + turda tek aktif gönderim.
   @IsOptional()
   @IsEnum(BidVisibilityDto)
   bidVisibility?: BidVisibilityDto;
-
-  @IsOptional()
-  @IsEnum(DecrementTypeDto)
-  priceDecrementType?: DecrementTypeDto;
-
-  @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 4 })
-  @Min(0)
-  priceDecrementValue?: number;
-
-  @IsOptional()
-  @IsEnum(DecrementBasisDto)
-  priceDecrementBasis?: DecrementBasisDto;
 
   @IsOptional()
   @IsInt()

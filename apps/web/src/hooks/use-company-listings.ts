@@ -125,11 +125,8 @@ export interface CreateListingInput {
   // Lojistik
   isLogistics?: boolean;
   logistics?: Record<string, unknown>;
-  // İngiliz Usulü açık eksiltme
+  // İngiliz Usulü açık eksiltme (minimum pay kaldırıldı 2026-07-13)
   bidVisibility?: string;
-  priceDecrementType?: "AMOUNT" | "PERCENT";
-  priceDecrementValue?: number;
-  priceDecrementBasis?: "OWN_LAST_BID" | "BEST_BID";
   decimalPlaces?: number;
   sendClosingReminder?: boolean;
   reminderMinutesBefore?: number;
@@ -336,6 +333,7 @@ export interface ListingDetail {
   /** Teslim öncesi ödemede teminat mektubu şartı (ilan sahibinin seçimi). */
   requireGuaranteeLetter?: boolean;
   bidVisibility?: string;
+  /** Legacy — minimum pay kaldırıldı (2026-07-13); eski ilanlarda dolu olabilir. */
   priceDecrementType?: string | null;
   priceDecrementValue?: string | null;
   priceDecrementBasis?: string | null;
@@ -403,22 +401,13 @@ export interface ListingDetail {
    *  sayıları null gelir (disclosed=false). */
   nextBidConstraint?: {
     direction: "DOWN" | "UP";
-    /** SUBMITTED teklif sonrası birim kilitli — tek para birimi hesaplanır. */
+    /** SUBMITTED teklif sonrası birim kilitli. */
     currencyLocked: boolean;
     ownCurrency: string | null;
+    /** Kendi son SUBMITTED toplamı — tek kural: bundan kesin daha iyi. */
     ownLastTotal: string | null;
-    byCurrency: Record<
-      string,
-      {
-        hasReference: boolean;
-        disclosed: boolean;
-        /** İzin verilen sınır toplam (ALIM: en fazla, SATIS: en az). */
-        targetTotal: string | null;
-        referenceTotal: string | null;
-        step: string | null;
-        rateMissing: boolean;
-      }
-    >;
+    /** Turda tek aktif gönderim hakkı — taşınan (carry-over) teklif yakmaz. */
+    canBidThisRound: boolean;
   } | null;
 }
 
@@ -628,9 +617,6 @@ export interface NextRoundInput {
   eliminateNonBidders?: boolean;
   closesAt: string;
   bidsOpenAt?: string;
-  priceDecrementType?: "AMOUNT" | "PERCENT";
-  priceDecrementValue?: number;
-  priceDecrementBasis?: "OWN_LAST_BID" | "BEST_BID";
   bidVisibility?: "OWN_ONLY" | "BEST_PRICE" | "OWN_RANK" | "BEST_AND_OWN_RANK" | "ALL";
   autoExtendOnLateBid?: boolean;
   autoExtendThresholdMin?: number;

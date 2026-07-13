@@ -1,7 +1,7 @@
 /**
- * SATIS + İngiliz Usulü AÇIK ARTIRMA — yön-farkında kurallar:
- * fiyat YÜKSELİR (referans + artış adımı tabanı), kendi teklifinin altına
- * inilemez (monotonik artış), taban fiyat ilk teklif tabanı, hemen-al tavanı,
+ * SATIS + açık artırma (pazarlık) — yön-farkında kurallar (2026-07-13 seti):
+ * fiyat YÜKSELİR (kendi öncekinden kesin yüksek; minimum artış payı YOK),
+ * turda tek aktif gönderim, taban fiyat ilk teklif tabanı, hemen-al tavanı,
  * en iyi teklif = EN YÜKSEK.
  */
 import { prisma, truncateAll } from "./test-db";
@@ -41,9 +41,6 @@ const auctionDto = (over: Record<string, unknown> = {}) => ({
   closesAt: future(3).toISOString(),
   minPrice: 1000,
   buyNowPrice: 5000,
-  priceDecrementType: "AMOUNT",
-  priceDecrementValue: 100,
-  priceDecrementBasis: "BEST_BID",
   bidVisibility: "BEST_PRICE",
   // Miktar 1 → toplam teklif = birim fiyat (adım matematiği okunur kalsın).
   items: [{ name: "Bakır hurda", quantity: 1, unit: "ton" }],
@@ -53,9 +50,6 @@ const auctionDto = (over: Record<string, unknown> = {}) => ({
 const rfqDto = (over: Record<string, unknown> = {}) =>
   auctionDto({
     format: "RFQ",
-    priceDecrementType: undefined,
-    priceDecrementValue: undefined,
-    priceDecrementBasis: undefined,
     ...over,
   });
 
@@ -72,9 +66,6 @@ async function createAuction(
     type: "ENGLISH_AUCTION",
     carryBids: "NONE",
     closesAt: future(3).toISOString(),
-    priceDecrementType: "AMOUNT",
-    priceDecrementValue: 100,
-    priceDecrementBasis: "BEST_BID",
     bidVisibility: "BEST_PRICE",
     ...roundOver,
   } as never);
@@ -101,7 +92,7 @@ async function bid(
 }
 
 describe("SATIS açık artırma — oluşturma", () => {
-  it("doğrudan açılamaz; 'Yeni Tur' aktarmasında artış adımı zorunlu, adımlıyla İngiliz'e döner", async () => {
+  it("doğrudan açılamaz; 'Yeni Tur' aktarması PAYSIZ açılır (minimum pay kaldırıldı)", async () => {
     const { service, seller } = await sellerAndBuyers();
     // Doğrudan create yasak — tek yol RFQ sonrası aktarma.
     await expect(
@@ -111,21 +102,11 @@ describe("SATIS açık artırma — oluşturma", () => {
     const listing = await service.create(seller.auth, rfqDto() as never);
     expect(listing.status).toBe("OPEN");
 
-    await expect(
-      service.createNextRound(seller.auth as never, listing.id, {
-        type: "ENGLISH_AUCTION",
-        carryBids: "NONE",
-        closesAt: future(3).toISOString(),
-      } as never),
-    ).rejects.toThrow(/artış adımı zorunlu/);
-
+    // Pay alanı olmadan aktarma GEÇERLİ (eskiden "artış adımı zorunlu" idi).
     await service.createNextRound(seller.auth as never, listing.id, {
       type: "ENGLISH_AUCTION",
       carryBids: "NONE",
       closesAt: future(3).toISOString(),
-      priceDecrementType: "AMOUNT",
-      priceDecrementValue: 100,
-      priceDecrementBasis: "BEST_BID",
       bidVisibility: "BEST_PRICE",
     } as never);
     const db = await prisma.listing.findUniqueOrThrow({
@@ -133,13 +114,14 @@ describe("SATIS açık artırma — oluşturma", () => {
     });
     expect(db.status).toBe("OPEN");
     expect(db.format).toBe("ENGLISH_AUCTION");
-    // Taban fiyat aktarımda korunur.
+    // Taban fiyat aktarımda korunur; pay yapılandırması boş.
     expect(Number(db.minPrice)).toBe(1000);
+    expect(db.priceDecrementValue).toBeNull();
   });
 });
 
 describe("SATIS açık artırma — teklif kuralları", () => {
-  it("fiyat yükselir: referansın en az artış adımı kadar ÜZERİNE çıkılmalı", async () => {
+  it("fiyat serbest: rakibi geçme şartı YOK, turda tek gönderim VAR", async () => {
     const { service, seller, b1, b2 } = await sellerAndBuyers();
     const l = await createAuction(service, seller.auth);
 
@@ -147,40 +129,52 @@ describe("SATIS açık artırma — teklif kuralları", () => {
     const first = await bid(service, b1.auth, l.id, 1000);
     expect(first.status).toBe("SUBMITTED");
 
-    // Rakip 1050 veremez (en iyi 1000 + adım 100 = 1100 tabanı).
-    await expect(bid(service, b2.auth, l.id, 1050)).rejects.toThrow(
-      /Açık artırma: teklifiniz en az/,
-    );
-    const second = await bid(service, b2.auth, l.id, 1100);
+    // Rakip en iyinin ÜZERİNE çıkmak zorunda değil (kazandırma manuel) —
+    // 1050 kabul edilir; minimum artış payı da yok.
+    const second = await bid(service, b2.auth, l.id, 1050);
     expect(second.status).toBe("SUBMITTED");
 
-    // b1 yeni teklifi: referans artık 1100 → 1150 yetmez, 1200 geçer.
-    await expect(bid(service, b1.auth, l.id, 1150)).rejects.toThrow(
-      /Açık artırma: teklifiniz en az/,
+    // b1'in tur hakkı doldu (ilk gönderimde kullanıldı).
+    await expect(bid(service, b1.auth, l.id, 1200)).rejects.toThrow(
+      /bu turdaki teklifinizi verdiniz/i,
     );
-    const third = await bid(service, b1.auth, l.id, 1200);
-    expect(third.status).toBe("SUBMITTED");
   });
 
-  it("monotonik artış: kendi teklifinin altına inilemez (OWN_LAST_BID bazında bile)", async () => {
+  it("monotonik artış: taşınan teklifin altına inilemez, kesin üstü kabul", async () => {
     const { service, seller, b1 } = await sellerAndBuyers();
     // Taban düşük tutulur ki 900'lük deneme taban kontrolüne değil
     // monotonluk kuralına takılsın.
-    const l = await createAuction(
-      service,
-      seller.auth,
-      { minPrice: 100 },
-      { priceDecrementBasis: "OWN_LAST_BID" },
-    );
-    await bid(service, b1.auth, l.id, 1000);
+    const l = await createAuction(service, seller.auth, { minPrice: 100 });
+    // Taşınan teklif simülasyonu: hak yakmamış SUBMITTED teklif.
+    const listing = await prisma.listing.findUniqueOrThrow({
+      where: { id: l.id },
+      select: { currentRound: true },
+    });
+    const item = await prisma.listingItem.findFirstOrThrow({
+      where: { listingId: l.id },
+      select: { id: true },
+    });
+    await prisma.listingBid.create({
+      data: {
+        listingId: l.id,
+        bidderCompanyId: b1.company.id,
+        createdById: b1.user.id,
+        amount: 1000,
+        status: "SUBMITTED",
+        submittedAt: new Date(),
+        round: listing.currentRound,
+        activeBidRound: listing.currentRound - 1, // önceki turun aktifi
+        items: { create: [{ itemId: item.id, unitPrice: 1000 }] },
+      },
+    });
     await expect(bid(service, b1.auth, l.id, 900)).rejects.toThrow(
       /önceki teklifinizin .* üzerinde olmalı/,
     );
-    // Kendi son teklifi + adım.
-    await expect(bid(service, b1.auth, l.id, 1050)).rejects.toThrow(
-      /en az/,
+    await expect(bid(service, b1.auth, l.id, 1000)).rejects.toThrow(
+      /önceki teklifinizin .* üzerinde olmalı/,
     );
-    const ok = await bid(service, b1.auth, l.id, 1100);
+    // Minimum artış yok — 1 ₺ üstü bile geçerli.
+    const ok = await bid(service, b1.auth, l.id, 1001);
     expect(ok.status).toBe("SUBMITTED");
   });
 

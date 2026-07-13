@@ -30,21 +30,21 @@ function money(v: number | string, currency: string): string {
   }`;
 }
 
-/** Sayfanın hesapladığı hedef durumu — çubuk ve araçlar bunu tüketir. */
+/** Sayfanın hesapladığı hedef durumu — çubuk ve araçlar bunu tüketir.
+ *  Minimum pay kaldırıldı (2026-07-13): tek sınır, kendi son teklifinin bir
+ *  adım altı/üstü (monotonluk). */
 export interface WorkbenchTarget {
-  /** Ulaşılması gereken kesin toplam (monotonluk dahil). null = hedef yok. */
+  /** Uyulması gereken sınır toplam (kendi öncekinin ∓1 adım). null = ilk teklif. */
   effectiveTarget: string | null;
+  /** Kendi son SUBMITTED toplamı (varsa). */
+  ownLastTotal: string | null;
   /** Mevcut kesin toplam (fiyatlanan kalemler). */
   exactTotalStr: string;
-  /** Hedef karşılandı mı (DOWN: ≤, UP: ≥). */
+  /** Sınır karşılandı mı (DOWN: ≤, UP: ≥). */
   met: boolean;
-  /** Hedefe kalan pozitif fark (karşılanmadıysa). */
+  /** Sınıra kalan pozitif fark (karşılanmadıysa). */
   remaining: string;
-  /** Görünürlük ayarı hedef sayısını gizliyor (sunucu yine denetler). */
-  hidden: boolean;
-  /** Kur eksik — hedef hesaplanamadı. */
-  rateMissing: boolean;
-  /** Referans yok (ilk teklif / rakipsiz) — hedef kısıtı yok. */
+  /** İlk teklif — sınır yok, fiyatlar serbest. */
   noReference: boolean;
 }
 
@@ -93,6 +93,9 @@ export function AuctionBidWorkbench({
   renderItemExtras: (it: ListingItemRow) => ReactNode;
 }) {
   const [percent, setPercent] = useState(defaultPercent);
+  // Tedarikçinin kendi hedef toplamı — "1.180.000'e in, kalemlere dağıt".
+  // Boşsa sınır (öncekinin bir adım altı/üstü) hedef alınır.
+  const [userTarget, setUserTarget] = useState("");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"ALL" | "CHANGED" | "LOCKED">("ALL");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -162,15 +165,36 @@ export function AuctionBidWorkbench({
     );
   };
 
+  // Dağıtım hedefi: kullanıcı girdiyse o (sınıra karşı doğrulanır), yoksa
+  // sınırın kendisi (öncekinin bir adım altı/üstü).
+  const distributeTarget = userTarget.trim()
+    ? userTarget.trim().replace(",", ".")
+    : target.effectiveTarget;
+  const userTargetValid =
+    !userTarget.trim() ||
+    (Number(distributeTarget) > 0 &&
+      (!target.effectiveTarget ||
+        (down
+          ? cmpDecimal(distributeTarget!, target.effectiveTarget) <= 0
+          : cmpDecimal(distributeTarget!, target.effectiveTarget) >= 0)));
+
   const autoDistribute = () => {
-    if (!target.effectiveTarget) return;
+    if (!distributeTarget) return;
+    if (!userTargetValid) {
+      toast.error(
+        down
+          ? `Hedef, önceki teklifinin altında olmalı (≤ ${money(target.effectiveTarget ?? "0", currency)})`
+          : `Hedef, önceki teklifinin üzerinde olmalı (≥ ${money(target.effectiveTarget ?? "0", currency)})`,
+      );
+      return;
+    }
     if (distItems.every((d) => d.locked)) {
       toast.error("Tüm kalemler kilitli — önce en az bir kilidi açın");
       return;
     }
     const r = distributeToTarget({
       items: distItems,
-      targetTotal: target.effectiveTarget,
+      targetTotal: distributeTarget,
       direction,
       decimals,
     });
@@ -221,7 +245,7 @@ export function AuctionBidWorkbench({
       <div
         className={cn(
           "flex flex-wrap items-center gap-x-5 gap-y-1 rounded-xl border px-4 py-3 text-sm",
-          target.rateMissing || target.hidden || target.noReference
+          target.noReference
             ? "border-zinc-200 bg-zinc-50 text-zinc-600"
             : target.met
               ? "border-emerald-200 bg-emerald-50 text-emerald-800"
@@ -234,20 +258,21 @@ export function AuctionBidWorkbench({
             {money(target.exactTotalStr, currency)}
           </strong>
         </span>
-        {target.rateMissing ? (
-          <span>Kur bilgisi eksik — hedef şu an hesaplanamıyor.</span>
-        ) : target.hidden ? (
+        {target.noReference ? (
           <span>
-            Hedef gizli: görünürlük ayarı en iyi teklifi açıklamıyor — gerekli{" "}
-            {down ? "azaltma" : "artırma"} gönderimde sunucu tarafından
-            denetlenir.
+            İlk teklifin — sınır yok, fiyatlarını serbestçe gir. Sonraki
+            teklifler bunun {down ? "altında" : "üzerinde"} olmak zorunda.
           </span>
-        ) : target.noReference ? (
-          <span>İlk teklif — hedef kısıtı yok, fiyatlarını serbestçe gir.</span>
         ) : target.effectiveTarget ? (
           <>
             <span>
-              Hedef:{" "}
+              Önceki teklifin:{" "}
+              <strong className="tabular-nums">
+                {money(target.ownLastTotal ?? "0", currency)}
+              </strong>
+            </span>
+            <span>
+              Sınır:{" "}
               <strong className="tabular-nums">
                 {down ? "≤" : "≥"} {money(target.effectiveTarget, currency)}
               </strong>
@@ -255,7 +280,7 @@ export function AuctionBidWorkbench({
             {target.met ? (
               <span className="inline-flex items-center gap-1 font-semibold">
                 <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                Hedef karşılandı
+                Gönderilebilir
               </span>
             ) : (
               <span>
@@ -287,21 +312,36 @@ export function AuctionBidWorkbench({
             Tümüne %{percent || "…"} {down ? "indirim" : "artış"}
           </Button>
         </div>
-        <Button
-          outline
-          disabled={!target.effectiveTarget || target.met}
-          title={
-            !target.effectiveTarget
-              ? "Hedef bilinmiyor (gizli/kur eksik/referans yok)"
-              : target.met
-                ? "Hedef zaten karşılandı"
-                : undefined
-          }
-          onClick={autoDistribute}
-        >
-          <Wand2 data-slot="icon" aria-hidden="true" />
-          Hedefe Otomatik Dağıt
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <div className="w-36">
+            <Input
+              type="number"
+              min={0}
+              value={userTarget}
+              aria-label="Hedef toplam"
+              placeholder={
+                target.effectiveTarget
+                  ? `≤ ${Number(target.effectiveTarget).toLocaleString("tr-TR", { maximumFractionDigits: decimals })}`
+                  : "Hedef toplam"
+              }
+              onChange={(e) => setUserTarget(e.target.value)}
+              className={cn(!userTargetValid && "text-red-600")}
+            />
+          </div>
+          <Button
+            outline
+            disabled={!distributeTarget || distItems.length === 0}
+            title={
+              !distributeTarget
+                ? "Hedef toplam girin"
+                : "Girilen hedefe (boşsa sınıra) kilitsiz kalemlere dağıtarak in"
+            }
+            onClick={autoDistribute}
+          >
+            <Wand2 data-slot="icon" aria-hidden="true" />
+            Hedefe Dağıt
+          </Button>
+        </div>
         <Button outline onClick={reset} disabled={changedIds.size === 0}>
           <RotateCcw data-slot="icon" aria-hidden="true" />
           Sıfırla

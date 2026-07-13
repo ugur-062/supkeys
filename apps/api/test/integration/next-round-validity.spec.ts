@@ -63,9 +63,6 @@ const nextRoundDto = (over: Record<string, unknown> = {}) =>
     carryBids: "AUTO",
     eliminateNonBidders: false,
     closesAt: FUTURE.toISOString(),
-    priceDecrementType: "AMOUNT",
-    priceDecrementValue: 50,
-    priceDecrementBasis: "OWN_LAST_BID",
     bidVisibility: "OWN_RANK",
     ...over,
   }) as never;
@@ -78,7 +75,13 @@ const bidOf = (listingId: string, companyId: string) =>
         bidderCompanyId: companyId,
       },
     },
-    select: { status: true, round: true, amount: true, validityDays: true },
+    select: {
+      status: true,
+      round: true,
+      amount: true,
+      validityDays: true,
+      activeBidRound: true,
+    },
   });
 
 describe("AUTO taşıma — geçerlilik ayrımı", () => {
@@ -91,6 +94,9 @@ describe("AUTO taşıma — geçerlilik ayrımı", () => {
     expect(v).toMatchObject({ status: "SUBMITTED", round: 2 });
     expect(e).toMatchObject({ status: "DRAFT", round: 2 });
     expect(Number(e.amount)).toBe(900); // fiyat korunur
+    // Taşıma TUR HAKKI yakmaz: activeBidRound taşımada güncellenmez —
+    // taşınan firma yeni turda bir kez fiyat verebilir.
+    expect(v.activeBidRound).not.toBe(2);
   });
 
   it("embargolu açılışta referans AÇILIŞ tarihi: bugün geçerli ama açılışa dek dolacak teklif TASLAĞA düşer", async () => {

@@ -17,7 +17,6 @@ import type {
   PaymentTiming,
   TenderLogisticsDetails,
 } from "@/lib/tenders/types";
-import { formatStepConversions } from "@/lib/tenders/auction-currency";
 import { formatDateTime } from "@/lib/tenders/date";
 import { cn } from "@/lib/utils";
 import {
@@ -293,31 +292,10 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
                 ? (BID_VISIBILITY_LABELS[l.bidVisibility] ?? "—")
                 : "—"}
             </Fact>
-            <Fact label={l.type === "SATIS" ? "Min. Fiyat Artışı" : "Min. Fiyat Azaltma"}>
-              {l.priceDecrementType && l.priceDecrementValue
-                ? l.priceDecrementType === "PERCENT"
-                  ? `%${Number(l.priceDecrementValue)}`
-                  : `${Number(l.priceDecrementValue)} ${cur}`
-                : "—"}
-              {/* Çoklu birimde adımın diğer birim karşılıkları — açılış günü
-                  kur damgası (ihale boyunca sabit; teklifçiler bunu görür). */}
-              {l.priceDecrementType === "AMOUNT" &&
-              l.priceDecrementValue &&
-              currencyList.length > 1 ? (
-                (() => {
-                  const conv = formatStepConversions(
-                    Number(l.priceDecrementValue),
-                    cur,
-                    currencyList,
-                    l.english?.rateSnapshot,
-                  );
-                  return conv ? (
-                    <span className="mt-0.5 block text-xs font-normal text-zinc-400">
-                      ≈ {conv}
-                    </span>
-                  ) : null;
-                })()
-              ) : null}
+            {/* Minimum pay kaldırıldı (2026-07-13) — kural sabit metin. */}
+            <Fact label="Teklif Kuralı">
+              Tur başına 1 teklif · kendi öncekinden{" "}
+              {l.type === "SATIS" ? "yüksek" : "düşük"} olmalı
             </Fact>
             <Fact label="Ondalık Basamak">
               {String(l.decimalPlaces ?? 2)}

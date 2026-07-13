@@ -47,12 +47,6 @@ export const BID_VISIBILITY_VALUES = [
 ] as const;
 export type BidVisibility = (typeof BID_VISIBILITY_VALUES)[number];
 
-export const DECREMENT_TYPE_VALUES = ["AMOUNT", "PERCENT"] as const;
-export type DecrementType = (typeof DECREMENT_TYPE_VALUES)[number];
-
-export const DECREMENT_BASIS_VALUES = ["OWN_LAST_BID", "BEST_BID"] as const;
-export type DecrementBasis = (typeof DECREMENT_BASIS_VALUES)[number];
-
 export const ANSWER_TYPE_VALUES = ["TEXT", "NUMBER", "YES_NO", "DATE"] as const;
 export type AnswerTypeValue = (typeof ANSWER_TYPE_VALUES)[number];
 
@@ -200,18 +194,8 @@ const baseTenderSchema = z.object({
   bidsCloseAt: z.string().min(1, "Kapanış tarihi seçmelisin"),
   bidsOpenAt: z.string().optional(),
 
-  // İngiliz Usulü açık eksiltme
+  // İngiliz Usulü açık eksiltme (minimum pay kaldırıldı 2026-07-13)
   bidVisibility: z.enum(BID_VISIBILITY_VALUES),
-  // deliveryTerm ile aynı "" → undefined dönüşümü (boş '— Seçiniz —' değeri).
-  priceDecrementType: z.preprocess(
-    (v) => (v === "" || v == null ? undefined : v),
-    z.enum(DECREMENT_TYPE_VALUES).optional(),
-  ),
-  priceDecrementValue: z
-    .number({ invalid_type_error: "Geçersiz değer" })
-    .min(0)
-    .optional(),
-  priceDecrementBasis: z.enum(DECREMENT_BASIS_VALUES).optional(),
   decimalPlaces: z
     .number({ invalid_type_error: "Geçersiz ondalık basamak" })
     .int()
@@ -277,24 +261,6 @@ export const tenderFormSchema = baseTenderSchema
       return Number.isFinite(open) && open < close;
     },
     { message: "Açılış tarihi kapanıştan önce olmalı", path: ["bidsOpenAt"] },
-  )
-  .refine(
-    (d) =>
-      d.type !== "ENGLISH_AUCTION" || (d.priceDecrementValue ?? 0) > 0,
-    {
-      message: "Açık eksiltme için fiyat azaltma değeri zorunlu",
-      path: ["priceDecrementValue"],
-    },
-  )
-  .refine(
-    (d) =>
-      d.type !== "ENGLISH_AUCTION" ||
-      d.priceDecrementType !== "PERCENT" ||
-      (d.priceDecrementValue ?? 0) < 100,
-    {
-      message: "Yüzde azaltma 100'den küçük olmalı",
-      path: ["priceDecrementValue"],
-    },
   )
   .refine(
     (d) =>
@@ -385,9 +351,6 @@ export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
     "minPrice",
     "buyNowPrice",
     "bidVisibility",
-    "priceDecrementType",
-    "priceDecrementValue",
-    "priceDecrementBasis",
     "decimalPlaces",
     "autoExtendOnLateBid",
     "autoExtendThresholdMin",
@@ -450,9 +413,6 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   bidsCloseAt: "",
   bidsOpenAt: "",
   bidVisibility: "OWN_ONLY",
-  priceDecrementType: undefined,
-  priceDecrementValue: undefined,
-  priceDecrementBasis: undefined,
   decimalPlaces: 2,
   autoExtendOnLateBid: true,
   autoExtendThresholdMin: 2,

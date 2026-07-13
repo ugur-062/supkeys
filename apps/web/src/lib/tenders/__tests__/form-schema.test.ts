@@ -154,30 +154,14 @@ describe("tenderFormSchema — SATIS (satış ihalesi)", () => {
     ).toBe(true);
   });
 
-  it("SATIS + İngiliz usulü (açık artırma): artış adımı zorunlu", () => {
-    const noStep = tenderFormSchema.safeParse(
-      validForm({
-        listingType: "SATIS",
-        minPrice: 1000,
-        type: "ENGLISH_AUCTION",
-        priceDecrementValue: undefined,
-      }),
-    );
-    expect(noStep.success).toBe(false);
-    expect(
-      noStep.success
-        ? ""
-        : noStep.error.issues.map((i) => i.path.join(".")).join(","),
-    ).toContain("priceDecrementValue");
-
+  it("SATIS + İngiliz usulü (açık artırma): artış adımı ARANMAZ (minimum pay kaldırıldı)", () => {
+    // Minimum pay 2026-07-13'te kaldırıldı — paysız pazarlık formu geçerli.
     expect(
       tenderFormSchema.safeParse(
         validForm({
           listingType: "SATIS",
           minPrice: 1000,
           type: "ENGLISH_AUCTION",
-          priceDecrementType: "AMOUNT",
-          priceDecrementValue: 100,
         }),
       ).success,
     ).toBe(true);

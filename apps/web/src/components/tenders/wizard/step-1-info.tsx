@@ -19,7 +19,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useCurrentExchangeRates } from "@/hooks/use-exchange-rates";
-import { formatStepConversions } from "@/lib/tenders/auction-currency";
 import { DELIVERY_TERM_LABELS } from "@/lib/tenders/labels";
 import type { TenderFormData } from "@/lib/tenders/form-schema";
 import type { Currency, DeliveryTerm } from "@/lib/tenders/types";
@@ -528,22 +527,8 @@ export function Step1Info({
   const allowedCurrencies = watch("allowedCurrencies") ?? [];
   const tenderType = watch("type");
   const isLogistics = watch("isLogistics");
-  const decrementType = watch("priceDecrementType");
-  const decrementValue = watch("priceDecrementValue");
   const autoExtendOnLateBid = watch("autoExtendOnLateBid");
   const isAuction = tenderType === "ENGLISH_AUCTION";
-  // Payın diğer izinli birim karşılıkları — güncel TCMB önizlemesi (kesin
-  // damga tur açılışında backend'de basılır).
-  const { data: ratesData } = useCurrentExchangeRates();
-  const stepConversions =
-    isAuction && (decrementValue ?? 0) > 0 && allowedCurrencies.length > 1
-      ? formatStepConversions(
-          Number(decrementValue),
-          primaryCurrency ?? "TRY",
-          allowedCurrencies as Currency[],
-          ratesData?.rates,
-        )
-      : "";
   const isSatis = watch("listingType") === "SATIS";
   // SATIS'ta karşı taraf ALICI'dır; İngiliz usulünde fiyat YÜKSELİR (artırma).
   const rol = isSatis ? "alıcı" : "tedarikçi";
@@ -594,16 +579,6 @@ export function Step1Info({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentTiming]);
-
-  // V2-7 — Açık eksiltme seçilince decrement default'ları. Çoklu para birimi
-  // artık SERBEST: adım/kıyas açılış günü TCMB damgasıyla çevrilir.
-  useEffect(() => {
-    if (isAuction && !decrementType) {
-      setValue("priceDecrementType", "AMOUNT", { shouldValidate: false });
-      setValue("priceDecrementBasis", "OWN_LAST_BID", { shouldValidate: false });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuction]);
 
   const categoryIds = watch("categoryIds") ?? [];
 
@@ -863,7 +838,9 @@ export function Step1Info({
         />
         <div className="space-y-3">
           {isAuction ? (
-            // İngiliz Usulü: decrement kuralı + checkboxlar
+            // Pazarlık kuralları: monotonluk + turda tek teklif. Minimum
+            // azaltma payı kaldırıldı (2026-07-13) — zorunlu pay çıpa etkisi
+            // yaratıyordu; tek-teklif hakkı sembolik indirimi zaten caydırır.
             <>
               <div className="rounded-xl border border-slate-200 p-4">
                 <div className="flex items-start gap-3">
@@ -880,115 +857,32 @@ export function Step1Info({
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-brand-900">
                       {isSatis
-                        ? "Alıcıların verdiği teklif fiyatları sürekli artsın."
-                        : "Tedarikçilerin kalem bazında verdiği teklif fiyatları sürekli azalsın."}
+                        ? "Alıcıların verdiği teklif fiyatları sürekli artar."
+                        : "Tedarikçilerin verdiği teklif fiyatları sürekli azalır."}
                     </p>
-                    <FormRadioGroup
-                      name="priceDecrementBasis"
-                      className="mt-3 ml-1 space-y-2"
-                    >
-                      <div className="flex items-start gap-3">
-                        <Radio
-                          value="OWN_LAST_BID"
-                          aria-label="Kendi son teklifini baz alsın"
-                          className="mt-0.5"
-                        />
-                        <p className="text-sm font-semibold text-zinc-900">
-                          Kendi son teklifini baz alsın.
-                          <span className="block text-xs font-normal text-zinc-500">
-                            {isSatis
-                              ? "Her yeni teklif, alıcının kendi önceki teklifinden en az artış kadar yüksek olur."
-                              : "Her yeni teklif, tedarikçinin kendi önceki teklifinden en az azaltma kadar düşük olur."}
-                          </span>
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <Radio
-                          value="BEST_BID"
-                          aria-label="İhaledeki en iyi teklifi baz alsın"
-                          className="mt-0.5"
-                        />
-                        <p className="text-sm font-semibold text-zinc-900">
-                          İhaledeki en iyi teklifi baz alsın.
-                          <span className="block text-xs font-normal text-zinc-500">
-                            {isSatis
-                              ? "Yeni teklif vermek için mevcut en yüksek teklifi en az artış kadar geçmek gerekir (klasik açık artırma)."
-                              : "Yeni teklif vermek için mevcut en iyi teklifi en az azaltma kadar geçmek gerekir (klasik ters eksiltme)."}
-                          </span>
-                        </p>
-                      </div>
-                    </FormRadioGroup>
-
-                    <div className="mt-4 ml-7">
-                      <p className="text-xs font-semibold text-slate-700 mb-2">
-                        {isSatis
-                          ? "Fiyat Artış Seçenekleri"
-                          : "Fiyat Azaltma Seçenekleri"}
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <Field
-                          error={
-                            errors.priceDecrementType?.message as
-                              | string
-                              | undefined
-                          }
-                        >
-                          <Label htmlFor="priceDecrementType">
-                            {isSatis ? "Fiyat Artış Tipi" : "Fiyat Azaltma Tipi"}
-                          </Label>
-                          <Select
-                            id="priceDecrementType"
-                            {...register("priceDecrementType")}
-                          >
-                            <option value="">— Seçiniz —</option>
-                            <option value="AMOUNT">Tutar</option>
-                            <option value="PERCENT">Yüzde</option>
-                          </Select>
-                        </Field>
-                        <Field
-                          error={
-                            errors.priceDecrementValue?.message as
-                              | string
-                              | undefined
-                          }
-                        >
-                          <Label htmlFor="priceDecrementValue">
-                            {isSatis
-                              ? "Fiyat Artış Değeri"
-                              : "Fiyat Azaltma Değeri"}
-                          </Label>
-                          <div className="relative">
-                            <Input
-                              id="priceDecrementValue"
-                              type="number"
-                              step="0.0001"
-                              min={0}
-                              placeholder="0.00"
-                              hasError={!!errors.priceDecrementValue}
-                              {...register("priceDecrementValue", {
-                                setValueAs: (v) =>
-                                  v === "" || v === undefined
-                                    ? undefined
-                                    : Number(v),
-                              })}
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500">
-                              {decrementType === "PERCENT"
-                                ? "%"
-                                : primaryCurrency}
-                            </span>
-                          </div>
-                          {/* Çoklu birimde payın diğer birim karşılıkları —
-                              kesin damga tur açılışında günün TCMB kuruyla basılır. */}
-                          {decrementType !== "PERCENT" && stepConversions ? (
-                            <p className="mt-1 text-xs text-slate-400">
-                              ≈ {stepConversions} (açılışta günün TCMB kuru
-                              sabitlenir)
-                            </p>
-                          ) : null}
-                        </Field>
-                      </div>
-                    </div>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {isSatis
+                        ? "Her yeni teklif, o firmanın kendi önceki teklifinden yüksek olmalıdır. Minimum artış şartı yoktur — alıcı ne kadar artıracağına kendisi karar verir."
+                        : "Her yeni teklif, o firmanın kendi önceki teklifinden düşük olmalıdır. Minimum indirim şartı yoktur — tedarikçi ne kadar ineceğine kendisi karar verir."}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-start gap-3 border-t border-slate-100 pt-3">
+                  <Checkbox
+                    checked
+                    disabled
+                    className="mt-0.5"
+                    aria-label="Tur başına tek teklif (sabit kural)"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-brand-900">
+                      Her firma tur başına bir teklif verir.
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      Gönderilen teklif o turda değiştirilemez; yeni fiyat için
+                      yeni tur açılır. Önceki turdan taşınan teklif bu hakkı
+                      kullanmaz.
+                    </p>
                   </div>
                 </div>
               </div>

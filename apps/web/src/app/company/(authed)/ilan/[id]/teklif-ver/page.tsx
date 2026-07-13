@@ -340,18 +340,22 @@ export default function TeklifVerPage() {
   }, [hasItems, singleAmount, pricedItems, itemState, isBuyNowMode, l]);
 
   // ── Pazarlık çalışma masası hesapları ──
-  // Hedef sunucudan gelir (nextBidConstraint — placeBid ile tek kaynak);
-  // toplam kıyasları kesin aritmetikle yapılır ki "hedefe ulaştın" dediğimiz
-  // teklif sunucuda 400 yemesin (float drifti).
+  // Minimum pay kaldırıldı (2026-07-13): tek kural "kendi öncekinden kesin
+  // iyi" + turda tek aktif gönderim. Hedef = kendi son teklifinin bir adım
+  // altı/üstü; toplam kıyasları kesin aritmetikle (float drifti sunucunun
+  // Decimal doğrulamasıyla çelişmesin).
   const isAuction = !!l?.english?.isEnglishAuction;
   const auctionItemsMode = isAuction && hasItems && !isBuyNowMode;
   const decimals = l?.decimalPlaces ?? 2;
   const direction: "DOWN" | "UP" = isSatis ? "UP" : "DOWN";
-  const constraintEntry =
-    (isAuction && l?.nextBidConstraint?.byCurrency?.[effectiveCurrency]) ||
+  // Kendi son toplam — birim kilidi gereği hep teklifçinin kendi biriminde;
+  // kilit yokken (ilk teklif) zaten null.
+  const ownLastTotal =
+    (isAuction &&
+      l?.nextBidConstraint?.ownCurrency === effectiveCurrency &&
+      l?.nextBidConstraint?.ownLastTotal) ||
     null;
-  // Birim kilitliyken tek birim hesaplanır ve o birim = effectiveCurrency.
-  const ownLastTotal = l?.nextBidConstraint?.ownLastTotal ?? null;
+  const canBidThisRound = l?.nextBidConstraint?.canBidThisRound ?? true;
 
   // Kalem id → formdaki fiyat (çalışma masası prop'u; null = kapsam dışı).
   const priceMap = useMemo(() => {
@@ -373,27 +377,15 @@ export default function TeklifVerPage() {
     );
   }, [isAuction, isBuyNowMode, hasItems, singleAmount, pricedItems, itemState]);
 
-  // Efektif hedef = sunucu sınırı ∩ monotonluk (kendi son teklifinin en az
-  // bir adım altı/üstü). Hedef GİZLİYSE (disclosed=false) null kalır — kendi
-  // teklifine göre dağıtmak sunucunun gizli adım kuralına takılırdı.
+  // Efektif hedef = monotonluk sınırı: kendi son teklifinin bir adım
+  // altı/üstü ("kesin daha iyi" kuralının sayısal karşılığı). İlk teklifte
+  // (ownLast yok) hedef kısıtı yoktur.
   const effectiveTarget = useMemo(() => {
-    if (!constraintEntry?.disclosed || !constraintEntry.targetTotal) {
-      return null;
-    }
-    let t = constraintEntry.targetTotal;
-    if (ownLastTotal) {
-      const ownAdj =
-        direction === "DOWN"
-          ? decSub(ownLastTotal, unitStep(decimals))
-          : decAdd(ownLastTotal, unitStep(decimals));
-      if (direction === "DOWN") {
-        if (cmpDecimal(ownAdj, t) < 0) t = ownAdj;
-      } else if (cmpDecimal(ownAdj, t) > 0) {
-        t = ownAdj;
-      }
-    }
-    return t;
-  }, [constraintEntry, ownLastTotal, direction, decimals]);
+    if (!ownLastTotal) return null;
+    return direction === "DOWN"
+      ? decSub(ownLastTotal, unitStep(decimals))
+      : decAdd(ownLastTotal, unitStep(decimals));
+  }, [ownLastTotal, direction, decimals]);
 
   const workbenchTarget: WorkbenchTarget = useMemo(() => {
     const hasAmount = cmpDecimal(exactTotalStr, "0") === 1;
@@ -405,6 +397,7 @@ export default function TeklifVerPage() {
         : cmpDecimal(exactTotalStr, effectiveTarget) >= 0);
     return {
       effectiveTarget,
+      ownLastTotal,
       exactTotalStr,
       met,
       remaining:
@@ -413,17 +406,9 @@ export default function TeklifVerPage() {
             ? decSub(exactTotalStr, effectiveTarget)
             : decSub(effectiveTarget, exactTotalStr)
           : "0",
-      hidden:
-        !!constraintEntry &&
-        constraintEntry.hasReference &&
-        !constraintEntry.disclosed,
-      rateMissing: !!constraintEntry?.rateMissing,
-      noReference:
-        !!constraintEntry &&
-        !constraintEntry.hasReference &&
-        !constraintEntry.rateMissing,
+      noReference: !ownLastTotal,
     };
-  }, [effectiveTarget, exactTotalStr, direction, constraintEntry]);
+  }, [effectiveTarget, ownLastTotal, exactTotalStr, direction]);
 
   if (detail.isLoading) {
     return (
@@ -498,6 +483,21 @@ export default function TeklifVerPage() {
     return (
       <Blocked
         title={`Teklif zaten verildi (v${l.myBid.version ?? 1}) — değişiklik için ${isSatis ? "satıcıyla" : "alıcıyla"} iletişime geçin`}
+        detailHref={detailHref}
+      />
+    );
+  }
+  // Pazarlıkta turda tek aktif gönderim: hak kullanıldıysa form kapalı.
+  // Taşınan (carry-over) teklif hak yakmaz — sunucu ayrımı yapar (canBidThisRound).
+  if (
+    !isBuyNowMode &&
+    l.english?.isEnglishAuction &&
+    l.myBid?.status === "SUBMITTED" &&
+    !canBidThisRound
+  ) {
+    return (
+      <Blocked
+        title="Bu turdaki teklifin verildi — yeni fiyat için bir sonraki turu bekle"
         detailHref={detailHref}
       />
     );
@@ -987,11 +987,7 @@ export default function TeklifVerPage() {
                 decimals={decimals}
                 direction={direction}
                 target={workbenchTarget}
-                defaultPercent={
-                  l.priceDecrementType === "PERCENT" && l.priceDecrementValue
-                    ? String(Number(l.priceDecrementValue))
-                    : "5"
-                }
+                defaultPercent="5"
                 requireAllItems={!!l.requireAllItems}
                 isSatis={isSatis}
                 renderItemExtras={renderItemExtras}
@@ -1184,17 +1180,13 @@ export default function TeklifVerPage() {
                         : "text-amber-700",
                     )}
                   >
-                    Hedef: {direction === "DOWN" ? "en fazla" : "en az"}{" "}
+                    Önceki teklifinden {direction === "DOWN" ? "düşük" : "yüksek"}{" "}
+                    olmalı:{" "}
                     <strong className="tabular-nums">
+                      {direction === "DOWN" ? "≤" : "≥"}{" "}
                       {money(Number(effectiveTarget), effectiveCurrency)}
                     </strong>
-                    {workbenchTarget.met ? " — karşılandı ✓" : ""}
-                  </p>
-                ) : isAuction && !isBuyNowMode && workbenchTarget.hidden ? (
-                  <p className="mt-2 text-xs text-zinc-500">
-                    Hedef gizli: görünürlük ayarı en iyi teklifi açıklamıyor —
-                    gerekli {direction === "DOWN" ? "azaltma" : "artırma"}{" "}
-                    gönderimde sunucu tarafından denetlenir.
+                    {workbenchTarget.met ? " — uygun ✓" : ""}
                   </p>
                 ) : null}
               </div>
@@ -1617,10 +1609,26 @@ export default function TeklifVerPage() {
               {money(total, effectiveCurrency)}
             </p>
           </div>
-          <Text className="mt-3 text-sm text-zinc-500">
-            Gönderilen teklif düzenlenemez; yalnızca geri çekilebilir veya
-            (elenirse / açık eksiltme-artırmada) yeni versiyonla güncellenir.
-          </Text>
+          {!isBuyNowMode && l.english?.isEnglishAuction ? (
+            <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <AlertTriangle
+                className="mt-0.5 h-4 w-4 shrink-0"
+                aria-hidden="true"
+              />
+              <p>
+                <span className="font-semibold">
+                  Bu turda tek teklif hakkın var.
+                </span>{" "}
+                Gönderdikten sonra bu turda değiştiremezsin — yeni fiyat ancak{" "}
+                {isSatis ? "satıcı" : "alıcı"} yeni tur açarsa verilebilir.
+              </p>
+            </div>
+          ) : (
+            <Text className="mt-3 text-sm text-zinc-500">
+              Gönderilen teklif düzenlenemez; yalnızca geri çekilebilir veya
+              (elenirse) yeni versiyonla güncellenir.
+            </Text>
+          )}
         </DialogBody>
         <DialogActions>
           <Button plain onClick={() => setConfirmOpen(false)}>

@@ -1,6 +1,8 @@
 /**
- * İngiliz Usulü (açık eksiltme) — fiyat azaltma kuralı (Decimal, F7) ve
- * otomatik uzatma. Kalemsiz ilan → placeBid dto.amount kullanır.
+ * Pazarlık (İngiliz usulü) — yeni kural seti (2026-07-13): minimum azaltma
+ * payı YOK; tek fiyat kuralı "kendi öncekinden kesin iyi" + TURDA TEK AKTİF
+ * GÖNDERİM (taşınan teklif hak yakmaz, eleme hakkı sıfırlar). Otomatik
+ * uzatma korunur. Kalemsiz ilan → placeBid dto.amount kullanır.
  */
 import { prisma, truncateAll } from "./test-db";
 import { makeBid, makeCompanyWithUser, makeListing } from "./factories";
@@ -40,13 +42,9 @@ const submit = (amount: number) =>
     validityDays: 30,
   }) as never;
 
-describe("İngiliz Usulü — azaltma kuralı", () => {
-  it("BEST_BID + AMOUNT: en iyiyi en az adım kadar geçmeli", async () => {
-    const { service, owner, bidder, listing } = await auction({
-      priceDecrementBasis: "BEST_BID",
-      priceDecrementType: "AMOUNT",
-      priceDecrementValue: "50",
-    });
+describe("Pazarlık — fiyat ve tur hakkı kuralları", () => {
+  it("rakip referansı YOK: ilk teklif en iyinin üzerinde bile kabul", async () => {
+    const { service, bidder, listing } = await auction();
     const rival = await makeCompanyWithUser(prisma, { country: "TR" });
     await makeBid(prisma, {
       listingId: listing.id,
@@ -54,120 +52,81 @@ describe("İngiliz Usulü — azaltma kuralı", () => {
       createdById: rival.user.id,
       amount: 1000,
     });
-    // maxAllowed = 1000 - 50 = 950
+    // Minimum pay / en-iyiyi-geçme şartı kaldırıldı — kazandırma manuel,
+    // sıralama görünürlükle yönetilir. 2000 kabul edilir.
     await expect(
-      service.placeBid(bidder.auth, listing.id, submit(951)),
-    ).rejects.toThrow(/pazarlık/i);
-    await expect(
-      service.placeBid(bidder.auth, listing.id, submit(950)),
+      service.placeBid(bidder.auth, listing.id, submit(2000)),
     ).resolves.toBeDefined();
   });
 
-  it("KAPALI-ZARF: en iyi GİZLİ (OWN_ONLY) modda azaltma hatası rakip en iyiyi/tavanı SIZDIRMAZ", async () => {
-    const { service, bidder, listing } = await auction({
-      priceDecrementBasis: "BEST_BID",
-      priceDecrementType: "AMOUNT",
-      priceDecrementValue: "50",
-      bidVisibility: "OWN_ONLY",
-    });
-    const rival = await makeCompanyWithUser(prisma, { country: "TR" });
-    await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: rival.company.id,
-      createdById: rival.user.id,
-      amount: 1000,
-    });
-    const err = await service
-      .placeBid(bidder.auth, listing.id, submit(2000))
-      .catch((e: Error) => e);
-    expect(String((err as Error).message)).toMatch(/yeterince düşük değil/);
-    // Rakip en iyi (1000) veya tavan (950) mesajda GEÇMEMELİ.
-    expect(String((err as Error).message)).not.toMatch(/1[.\s]?000|950/);
-  });
-
-  it("en iyi GÖRÜNÜR (BEST_PRICE) modda detaylı tavan mesajı gösterilebilir (sızıntı değil)", async () => {
-    const { service, bidder, listing } = await auction({
-      priceDecrementBasis: "BEST_BID",
-      priceDecrementType: "AMOUNT",
-      priceDecrementValue: "50",
-      bidVisibility: "BEST_PRICE",
-    });
-    const rival = await makeCompanyWithUser(prisma, { country: "TR" });
-    await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: rival.company.id,
-      createdById: rival.user.id,
-      amount: 1000,
-    });
-    const err = await service
-      .placeBid(bidder.auth, listing.id, submit(2000))
-      .catch((e: Error) => e);
-    // best zaten görünür → tavan (950) echo'lanabilir.
-    expect(String((err as Error).message)).toMatch(/950/);
-  });
-
-  it("BEST_BID + PERCENT: adım = en iyi × yüzde", async () => {
-    const { service, owner, bidder, listing } = await auction({
-      priceDecrementBasis: "BEST_BID",
-      priceDecrementType: "PERCENT",
-      priceDecrementValue: "10",
-    });
-    const rival = await makeCompanyWithUser(prisma, { country: "TR" });
-    await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: rival.company.id,
-      createdById: rival.user.id,
-      amount: 1000,
-    });
-    // maxAllowed = 1000 - (1000*10/100) = 900
-    await expect(
-      service.placeBid(bidder.auth, listing.id, submit(901)),
-    ).rejects.toThrow();
-    await expect(
-      service.placeBid(bidder.auth, listing.id, submit(900)),
-    ).resolves.toBeDefined();
-  });
-
-  it("OWN_LAST_BID: referans kendi son teklifi (en iyi değil)", async () => {
-    const { service, bidder, listing } = await auction({
-      priceDecrementBasis: "OWN_LAST_BID",
-      priceDecrementType: "AMOUNT",
-      priceDecrementValue: "50",
-    });
-    // başka firma çok daha düşük teklif vermiş (best=800)
-    const rival = await makeCompanyWithUser(prisma, { country: "TR" });
-    await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: rival.company.id,
-      createdById: rival.user.id,
-      amount: 800,
-    });
-    // bidder'ın kendi mevcut teklifi 1000
+  it("kendi öncekinden KESİN iyi olmalı: eşit reddedilir, 1 kuruş düşük kabul", async () => {
+    const { service, bidder, listing } = await auction();
+    // Taşınan (aktif olmayan) teklif: activeBidRound yok → hak duruyor.
     await makeBid(prisma, {
       listingId: listing.id,
       bidderCompanyId: bidder.company.id,
       createdById: bidder.user.id,
       amount: 1000,
     });
-    // ref=1000 (kendi), maxAllowed=950 → 940 kabul (BEST_BID olsaydı ref=800,
-    // maxAllowed=750 olur ve 940 reddedilirdi).
     await expect(
-      service.placeBid(bidder.auth, listing.id, submit(940)),
+      service.placeBid(bidder.auth, listing.id, submit(1000)),
+    ).rejects.toThrow(/altında olmalı/);
+    await expect(
+      service.placeBid(bidder.auth, listing.id, submit(1000.5)),
+    ).rejects.toThrow(/altında olmalı/);
+    // Sembolik indirim bile GEÇERLİ (pay şartı yok) — caydırıcılık tur
+    // hakkından gelir.
+    await expect(
+      service.placeBid(bidder.auth, listing.id, submit(999.99)),
     ).resolves.toBeDefined();
-    // Artık kendi son teklifi 940 → maxAllowed=890; 960 > 890 reddedilir.
-    await expect(
-      service.placeBid(bidder.auth, listing.id, submit(960)),
-    ).rejects.toThrow();
   });
 
-  it("ilk teklif (referans yok) herhangi bir tutarda kabul", async () => {
-    const { service, bidder, listing } = await auction({
-      priceDecrementBasis: "BEST_BID",
-      priceDecrementType: "AMOUNT",
-      priceDecrementValue: "50",
+  it("TURDA TEK AKTİF GÖNDERİM: ikinci gönderim reddedilir", async () => {
+    const { service, bidder, listing } = await auction();
+    await expect(
+      service.placeBid(bidder.auth, listing.id, submit(1000)),
+    ).resolves.toBeDefined();
+    await expect(
+      service.placeBid(bidder.auth, listing.id, submit(900)),
+    ).rejects.toThrow(/bu turdaki teklifinizi verdiniz/i);
+  });
+
+  it("taşınan (carry-over) teklif hak YAKMAZ: yeni turda bir kez iyileştirilebilir", async () => {
+    const { service, bidder, listing } = await auction({ currentRound: 2 });
+    // Önceki turun aktif teklifi 2. tura taşınmış: round=2 ama
+    // activeBidRound=1 (taşıma activeBidRound'a dokunmaz).
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: 1000,
+      round: 2,
+      activeBidRound: 1,
     });
     await expect(
-      service.placeBid(bidder.auth, listing.id, submit(99999)),
+      service.placeBid(bidder.auth, listing.id, submit(950)),
+    ).resolves.toBeDefined();
+    // Hak kullanıldı — aynı turda ikinci gönderim yok.
+    await expect(
+      service.placeBid(bidder.auth, listing.id, submit(900)),
+    ).rejects.toThrow(/bu turdaki teklifinizi verdiniz/i);
+  });
+
+  it("elenen (LOST) tedarikçi aynı turda yeniden teklif verebilir (hak sıfırlanır)", async () => {
+    const { service, bidder, listing } = await auction();
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: 1000,
+      status: "LOST",
+      round: 1,
+      activeBidRound: 1,
+    });
+    // Alıcının elemesi bilinçli sıfırlama — düzeltme yolu açık. Monotonluk
+    // da LOST teklife bakmaz (yeniden giriş serbest fiyatla).
+    await expect(
+      service.placeBid(bidder.auth, listing.id, submit(1200)),
     ).resolves.toBeDefined();
   });
 });

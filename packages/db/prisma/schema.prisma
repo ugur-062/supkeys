@@ -787,6 +787,10 @@ model ListingBid {
   isBuyNow    Boolean          @default(false)
   status      ListingBidStatus @default(SUBMITTED)
   round       Int              @default(1) // hangi turda verildi/güncellendi
+  // Pazarlıkta AKTİF gönderimin yapıldığı tur — "turda tek teklif" hakkı bunu
+  // sayar. Yeni-tur taşıması (carry-over) round'u ilerletir ama BUNA dokunmaz:
+  // taşınan teklif hak yakmaz. NULL = kural öncesi legacy / hiç aktif gönderim.
+  activeBidRound Int?
   createdById String // CompanyUser (teklifi veren kişi)
 
   // Zenginleştirme (eski Bid ile paralel).

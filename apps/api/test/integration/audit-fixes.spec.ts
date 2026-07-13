@@ -38,7 +38,7 @@ async function pair() {
 }
 
 describe("İngiliz usulü — fiyat monotonluğu", () => {
-  it("BEST_BID bazında lider kendi fiyatını YÜKSELTEMEZ", async () => {
+  it("taşınan teklifin sahibi fiyatını YÜKSELTEMEZ, düşürme serbest (pay yok)", async () => {
     const { service, buyer, seller } = await pair();
     const rival = await makeCompanyWithUser(prisma, { country: "TR" });
     await connect(prisma, buyer.company.id, rival.company.id, buyer.user.id);
@@ -49,24 +49,30 @@ describe("İngiliz usulü — fiyat monotonluğu", () => {
       visibility: "CONNECTIONS",
       format: "ENGLISH_AUCTION",
       closesAt: future(1),
-      priceDecrementType: "AMOUNT",
-      priceDecrementValue: 50,
-      priceDecrementBasis: "BEST_BID",
     });
-    // Rakip önce 1000 verir, lider 800 ile öne geçer.
+    // Rakip 1000 vermiş; kendi 800'lük teklifi TAŞINMIŞ (hak yakmamış).
     await service.placeBid(rival.auth, l.id, { amount: 1000, ...bidBase } as never);
-    await service.placeBid(seller.auth, l.id, { amount: 800, ...bidBase } as never);
+    await makeBid(prisma, {
+      listingId: l.id,
+      bidderCompanyId: seller.company.id,
+      createdById: seller.user.id,
+      amount: 800,
+    });
 
-    // Lider 950'ye YÜKSELTEMEZ (eskiden rakip-1000 referansıyla geçiyordu).
+    // 950'ye YÜKSELTEMEZ — rakip 1000'in altında olsa bile (monotonluk).
     await expect(
       service.placeBid(seller.auth, l.id, { amount: 950, ...bidBase } as never),
     ).rejects.toThrow(/önceki teklifinizin/);
-    // Düşürme serbest.
+    // Düşürme serbest (minimum pay yok) ve tur hakkını kullanır.
     const ok = await service.placeBid(seller.auth, l.id, {
-      amount: 700,
+      amount: 799,
       ...bidBase,
     } as never);
     expect(ok.status).toBe("SUBMITTED");
+    // Hak doldu — aynı turda üçüncü gönderim yok.
+    await expect(
+      service.placeBid(seller.auth, l.id, { amount: 700, ...bidBase } as never),
+    ).rejects.toThrow(/bu turdaki teklifinizi verdiniz/i);
   });
 
   it("rakipsizken de yükseltme yok (ref=null boşluğu)", async () => {
@@ -78,11 +84,14 @@ describe("İngiliz usulü — fiyat monotonluğu", () => {
       visibility: "CONNECTIONS",
       format: "ENGLISH_AUCTION",
       closesAt: future(1),
-      priceDecrementType: "AMOUNT",
-      priceDecrementValue: 50,
-      priceDecrementBasis: "BEST_BID",
     });
-    await service.placeBid(seller.auth, l.id, { amount: 500, ...bidBase } as never);
+    // Taşınan teklif (hak yakmamış) — 600'e yükseltme monotonluğa takılır.
+    await makeBid(prisma, {
+      listingId: l.id,
+      bidderCompanyId: seller.company.id,
+      createdById: seller.user.id,
+      amount: 500,
+    });
     await expect(
       service.placeBid(seller.auth, l.id, { amount: 600, ...bidBase } as never),
     ).rejects.toThrow(/önceki teklifinizin/);
@@ -153,21 +162,16 @@ describe("create/update iş kuralı doğrulamaları", () => {
     ...over,
   });
 
-  it("açık eksiltme doğrudan açılamaz; aktarmada azaltma zorunlu, PERCENT<100, çok-birim kur damgasıyla korunur", async () => {
+  it("açık eksiltme doğrudan açılamaz; aktarma PAYSIZ geçerli, çok-birim kur damgasıyla korunur", async () => {
     const { service, buyer } = await pair();
     // Doğrudan create yasak — İngiliz'e tek geçiş "Yeni Tur" aktarması.
     await expect(
       service.create(
         buyer.auth,
-        baseDto({
-          format: "ENGLISH_AUCTION",
-          priceDecrementType: "AMOUNT",
-          priceDecrementValue: 10,
-        }) as never,
+        baseDto({ format: "ENGLISH_AUCTION" }) as never,
       ),
     ).rejects.toThrow(/doğrudan açılamaz/);
 
-    // Eski create-doğrulamaları artık aktarma (createNextRound) yolunda işler.
     const l = await service.create(
       buyer.auth,
       baseDto({
@@ -175,30 +179,18 @@ describe("create/update iş kuralı doğrulamaları", () => {
         items: [{ name: "Kalem", quantity: 1, unit: "adet" }],
       }) as never,
     );
-    const convert = (over: Record<string, unknown> = {}) =>
-      service.createNextRound(buyer.auth as never, l.id, {
-        type: "ENGLISH_AUCTION",
-        carryBids: "NONE",
-        closesAt: future(2).toISOString(),
-        ...over,
-      } as never);
-
-    await expect(convert()).rejects.toThrow(/azaltma değeri zorunlu/);
-    await expect(
-      convert({ priceDecrementType: "PERCENT", priceDecrementValue: 100 }),
-    ).rejects.toThrow(/100'den küçük/);
-
-    // Geçerli aktarma: çok-birimli RFQ'nun izinli seti KORUNUR ve açılış
-    // kur damgası basılır (6ff037b — eski "tek birime normalize" davranışı
-    // bilinçli terk edildi; sözleşme auction-hardening.spec'te de sabit).
-    await convert({
-      priceDecrementType: "AMOUNT",
-      priceDecrementValue: 10,
-      priceDecrementBasis: "BEST_BID",
+    // Minimum pay kaldırıldı (2026-07-13): paysız aktarma GEÇERLİ; eski
+    // yapılandırma sıfırlanır. Çok-birimli RFQ'nun izinli seti KORUNUR ve
+    // açılış kur damgası basılır (6ff037b sözleşmesi sürer).
+    await service.createNextRound(buyer.auth as never, l.id, {
+      type: "ENGLISH_AUCTION",
+      carryBids: "NONE",
+      closesAt: future(2).toISOString(),
       bidVisibility: "BEST_PRICE",
-    });
+    } as never);
     const db = await prisma.listing.findUniqueOrThrow({ where: { id: l.id } });
     expect(db.format).toBe("ENGLISH_AUCTION");
+    expect(db.priceDecrementValue).toBeNull();
     expect(db.allowedCurrencies).toEqual(["TRY", "USD"]);
     expect(db.auctionRateSnapshot).not.toBeNull();
   });
@@ -310,8 +302,6 @@ describe("davetli ülke-bypass + maskeli yanıt kırpma", () => {
       format: "ENGLISH_AUCTION",
       closesAt: future(1),
       keywords: ["gizli-anahtar"],
-      priceDecrementType: "AMOUNT",
-      priceDecrementValue: 10,
     });
     await makeItem(prisma, l.id, { name: "Kalem 1" });
 

@@ -1,8 +1,9 @@
 /**
- * İngiliz Usulü sertleştirme — denetim bulgularının regresyon testleri:
- * tek para birimi normalizasyonu, SUBMITTED→DRAFT bypass reddi, buyNow tur
- * damgası, BEST_BID solo adım, auto-extend default'ları, taban=hemen-al reddi,
- * teslim şekli × kapsam doğrulaması.
+ * Pazarlık sertleştirme — regresyon testleri: çoklu para birimi kur damgası,
+ * SUBMITTED→DRAFT bypass reddi, buyNow tur damgası, turda tek aktif gönderim,
+ * eleme sonrası yeniden katılım, auto-extend default'ları, taban=hemen-al
+ * reddi, teslim şekli × kapsam doğrulaması. (Minimum pay 2026-07-13'te
+ * kaldırıldı — adım testleri tur-hakkı testlerine evrildi.)
  */
 import { prisma, truncateAll } from "./test-db";
 import { connect, makeCompanyWithUser } from "./factories";
@@ -40,9 +41,6 @@ const auctionDto = (over: Record<string, unknown> = {}) => ({
   title: "Hurda bakır — açık artırma",
   closesAt: future(3).toISOString(),
   minPrice: 100,
-  priceDecrementType: "AMOUNT",
-  priceDecrementValue: 100,
-  priceDecrementBasis: "BEST_BID",
   bidVisibility: "BEST_PRICE",
   items: [{ name: "Bakır hurda", quantity: 1, unit: "ton" }],
   ...over,
@@ -51,9 +49,6 @@ const auctionDto = (over: Record<string, unknown> = {}) => ({
 const rfqDto = (over: Record<string, unknown> = {}) =>
   auctionDto({
     format: "RFQ",
-    priceDecrementType: undefined,
-    priceDecrementValue: undefined,
-    priceDecrementBasis: undefined,
     ...over,
   });
 
@@ -71,9 +66,6 @@ async function createAuction(
     type: "ENGLISH_AUCTION",
     carryBids: "NONE",
     closesAt: future(3).toISOString(),
-    priceDecrementType: "AMOUNT",
-    priceDecrementValue: 100,
-    priceDecrementBasis: "BEST_BID",
     bidVisibility: "BEST_PRICE",
     ...roundOver,
   } as never);
@@ -175,21 +167,25 @@ describe("Auction — buyNow tur damgası", () => {
   });
 });
 
-describe("Auction — BEST_BID bazında solo adım", () => {
-  it("rakip yokken kendi son teklifi referans olur — epsilon artış reddedilir", async () => {
+describe("Auction — turda tek aktif gönderim", () => {
+  it("aynı turda ikinci gönderim reddedilir (minimum pay yok — caydırıcılık tur hakkı)", async () => {
     const { service, seller, b1 } = await sellerAndBuyers();
     const l = await createAuction(service, seller.auth);
     await bid(service, b1.auth, l.id, 1000);
 
-    // Monotonluk 1000,01'e izin verirdi; adım (100) artık solo'da da zorlanır.
-    await expect(bid(service, b1.auth, l.id, 1050)).rejects.toThrow(/en az/);
-    const ok = await bid(service, b1.auth, l.id, 1100);
-    expect(ok.status).toBe("SUBMITTED");
+    await expect(bid(service, b1.auth, l.id, 1100)).rejects.toThrow(
+      /bu turdaki teklifinizi verdiniz/i,
+    );
+    // activeBidRound güncel turla damgalandı (taşıma ayrımının temeli).
+    const dbBid = await prisma.listingBid.findFirstOrThrow({
+      where: { listingId: l.id, bidderCompanyId: b1.company.id },
+    });
+    expect(dbBid.activeBidRound).toBe(2);
   });
 });
 
 describe("Auction — eleme sonrası yeniden teklif", () => {
-  it("elenen (LOST) teklifçi auction'a yeniden katılabilir; adım kuralı en iyi rakibe göre işler", async () => {
+  it("elenen (LOST) teklifçi aynı turda yeniden katılabilir — eleme tur hakkını sıfırlar", async () => {
     const { service, seller, b1, b2 } = await sellerAndBuyers();
     const l = await createAuction(service, seller.auth);
     await bid(service, b1.auth, l.id, 1000);
@@ -200,10 +196,13 @@ describe("Auction — eleme sonrası yeniden teklif", () => {
     });
     await service.eliminate(seller.auth, l.id, b1Bid.id, "fiyat yetersiz");
 
-    // Yeniden teklif: en iyi (1100) + adım (100) tabanı geçerli.
-    await expect(bid(service, b1.auth, l.id, 1150)).rejects.toThrow(/en az/);
-    const back = await bid(service, b1.auth, l.id, 1200);
+    // Minimum pay yok; LOST → monotonluk referansı da sıfır (serbest giriş).
+    const back = await bid(service, b1.auth, l.id, 1150);
     expect(back.status).toBe("SUBMITTED");
+    // Yeniden giriş hakkı kullanıldı — aynı turda bir daha gönderemez.
+    await expect(bid(service, b1.auth, l.id, 1300)).rejects.toThrow(
+      /bu turdaki teklifinizi verdiniz/i,
+    );
   });
 });
 
@@ -231,9 +230,6 @@ describe("SATIS fiyat doğrulaması — taban/hemen-al eşitliği", () => {
         seller.auth,
         auctionDto({
           format: "RFQ",
-          priceDecrementType: undefined,
-          priceDecrementValue: undefined,
-          priceDecrementBasis: undefined,
           minPrice: 1000,
           buyNowPrice: 1000,
         }) as never,
@@ -248,9 +244,6 @@ describe("Teslim şekli × kapsam doğrulaması", () => {
     const rfq = (over: Record<string, unknown>) =>
       auctionDto({
         format: "RFQ",
-        priceDecrementType: undefined,
-        priceDecrementValue: undefined,
-        priceDecrementBasis: undefined,
         ...over,
       });
 

@@ -151,6 +151,9 @@ export async function makeBid(
     /** Geçerlilik senaryoları: submittedAt + validityDays → son geçerlilik. */
     submittedAt?: Date;
     validityDays?: number;
+    /** Pazarlık tur senaryoları: teklifin turu + aktif gönderim turu. */
+    round?: number;
+    activeBidRound?: number;
     items?: { itemId: string; unitPrice: number | string }[];
   },
 ) {

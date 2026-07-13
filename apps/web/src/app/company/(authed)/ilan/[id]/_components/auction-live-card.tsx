@@ -1,10 +1,7 @@
 "use client";
 
 import type { ListingDetail } from "@/hooks/use-company-listings";
-import {
-  convertAuctionAmount,
-  convertAuctionStep,
-} from "@/lib/tenders/auction-currency";
+import { convertAuctionAmount } from "@/lib/tenders/auction-currency";
 import { cn } from "@/lib/utils";
 import { Gavel } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -62,7 +59,7 @@ function Tile({
 
 /**
  * Pazarlık (açık eksiltme) canlı kartı — eski tedarikçi panelinin portu.
- * 4 kutu (teklifin / en iyi / sıran / min. azaltma) + 1sn geri sayım +
+ * 4 kutu (teklifin / en iyi / sıran / tur hakkı) + 1sn geri sayım +
  * görünürlük etiketi + oto-uzatma notu + (ALL modunda) anonim sıralama.
  * Kapalı zarf korunur: yalnızca sunucunun bidVisibility'ye göre açtığı
  * alanlar gösterilir.
@@ -98,31 +95,12 @@ export function AuctionLiveCard({
       ? `${Number(v).toLocaleString("tr-TR")} ${sym(currency ?? l.primaryCurrency)}`
       : "—";
 
-  // Teklifçi HER ŞEYİ kendi biriminde görür: sabit adım, ilanın ana biriminde
-  // tanımlı olsa da açılış günü kur damgasıyla teklifçinin birimine çevrilir
-  // (ilanın 500 ₺'lik payı EUR teklifçisine yalnız €10,64 olarak görünür).
+  // Teklifçi en iyi teklifi kendi biriminde görür (açılış günü kur damgası).
   const myCurrency =
     bidderCurrency ?? l.myBid?.currency ?? l.primaryCurrency ?? "TRY";
   const rates = l.english?.rateSnapshot ?? null;
-  const stepInMyCurrency =
-    l.priceDecrementType === "PERCENT" || l.priceDecrementValue == null
-      ? null
-      : convertAuctionStep(
-          Number(l.priceDecrementValue),
-          l.primaryCurrency ?? "TRY",
-          myCurrency,
-          rates,
-        );
-  const decrement =
-    l.priceDecrementType === "PERCENT"
-      ? `%${Number(l.priceDecrementValue ?? 0)}`
-      : stepInMyCurrency != null
-        ? `${stepInMyCurrency.toLocaleString("tr-TR", {
-            maximumFractionDigits: 2,
-          })} ${sym(myCurrency)}`
-        : l.priceDecrementValue
-          ? money(l.priceDecrementValue)
-          : "—";
+  // Turda tek aktif gönderim hakkı (taşınan teklif yakmaz) — sunucudan.
+  const canBidThisRound = l.nextBidConstraint?.canBidThisRound ?? true;
 
   // En iyi teklif kendi birimiyle gelir; teklifçinin biriminden farklıysa
   // altta yaklaşık karşılığı gösterilir (karar verirken çeviriyle uğraşmasın).
@@ -183,15 +161,14 @@ export function AuctionLiveCard({
           }
         />
         <Tile
-          label={isSatis ? "Min. Artış" : "Min. Azaltma"}
-          value={decrement}
+          label="Tur Hakkın"
+          value={canBidThisRound ? "1 teklif" : "Kullanıldı"}
           sub={
-            l.priceDecrementBasis === "OWN_LAST_BID"
-              ? "Kendi son teklifine göre"
-              : l.priceDecrementBasis === "BEST_BID"
-                ? "En iyi teklife göre"
-                : undefined
+            canBidThisRound
+              ? `Öncekinden ${isSatis ? "yüksek" : "düşük"} olmalı — min. ${isSatis ? "artış" : "indirim"} şartı yok`
+              : "Değişiklik bir sonraki turda"
           }
+          highlight={!canBidThisRound}
         />
       </div>
 

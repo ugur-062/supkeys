@@ -41,7 +41,7 @@ describe("AuctionLiveCard", () => {
     currentRound: 2,
   };
 
-  it("4 kutu: teklifim + en iyi + sıra + min. azaltma", () => {
+  it("4 kutu: teklifim + en iyi + sıra + tur hakkı", () => {
     render(
       <AuctionLiveCard
         l={detail({
@@ -53,9 +53,13 @@ describe("AuctionLiveCard", () => {
             allBids: null,
           },
           myBid: { amount: "1000", status: "SUBMITTED", version: 2, note: null },
-          priceDecrementType: "PERCENT",
-          priceDecrementValue: "5",
-          priceDecrementBasis: "OWN_LAST_BID",
+          nextBidConstraint: {
+            direction: "DOWN",
+            currencyLocked: true,
+            ownCurrency: "TRY",
+            ownLastTotal: "1000",
+            canBidThisRound: true,
+          },
           bidVisibility: "BEST_AND_OWN_RANK",
         })}
       />,
@@ -65,11 +69,33 @@ describe("AuctionLiveCard", () => {
     expect(screen.getByText("1.000 ₺")).toBeInTheDocument();
     expect(screen.getByText("900 ₺")).toBeInTheDocument();
     expect(screen.getByText("2 / 5")).toBeInTheDocument();
-    expect(screen.getByText("%5")).toBeInTheDocument();
-    expect(screen.getByText("Kendi son teklifine göre")).toBeInTheDocument();
+    expect(screen.getByText("Tur Hakkın")).toBeInTheDocument();
+    expect(screen.getByText("1 teklif")).toBeInTheDocument();
     expect(
       screen.getByText("En iyi teklif + kendi sıran görünür"),
     ).toBeInTheDocument();
+  });
+
+  it("tur hakkı kullanıldıysa 'Kullanıldı' gösterilir", () => {
+    render(
+      <AuctionLiveCard
+        l={detail({
+          english,
+          auctionView: null,
+          bidVisibility: "OWN_ONLY",
+          myBid: { amount: "1000", status: "SUBMITTED", version: 2, note: null },
+          nextBidConstraint: {
+            direction: "DOWN",
+            currencyLocked: true,
+            ownCurrency: "TRY",
+            ownLastTotal: "1000",
+            canBidThisRound: false,
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("Kullanıldı")).toBeInTheDocument();
+    expect(screen.getByText("Değişiklik bir sonraki turda")).toBeInTheDocument();
   });
 
   it("OWN_ONLY: rakip bilgileri 'Gizli'", () => {

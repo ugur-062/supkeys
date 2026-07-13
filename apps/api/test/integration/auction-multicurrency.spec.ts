@@ -1,11 +1,12 @@
 /**
- * İngiliz Usulü — ÇOKLU PARA BİRİMİ. Azaltma payı ilanın ana biriminde
- * tanımlanır; açılış günü kur damgası (auctionRateSnapshot) ile teklifçinin
- * birimine çevrilir. Tüm kıyaslar (rakip referans, adım, monotonluk)
- * teklifçinin biriminde işler; birim ilk gönderilmiş teklifle kilitlenir.
+ * Pazarlık — ÇOKLU PARA BİRİMİ. Minimum pay kaldırıldı (2026-07-13): fiyat
+ * kuralı yalnız monotonluk ve birim kilidi sayesinde HEP teklifçinin kendi
+ * biriminde işler (kur çevirisi gerektirmez). Kur damgası
+ * (auctionRateSnapshot) gösterim/sıralama (TRY-normalize) için sürer; yeni
+ * tur kuru olmayan birimle açılamaz.
  *
  * Test kurları: EUR=50 ₺, USD=40 ₺ (mock TCMB 30'dan ayrışsın diye damga
- * açıkça verilir — damga ≠ güncel kur olduğunda damganın kazandığı görülür).
+ * açıkça verilir).
  */
 import { prisma, truncateAll } from "./test-db";
 import { makeBid, makeCompanyWithUser, makeListing } from "./factories";
@@ -52,11 +53,9 @@ const submit = (amount: number, currency?: string) =>
     validityDays: 30,
   }) as never;
 
-describe("Çoklu birim — adım çevrimi (açılış günü damgası)", () => {
-  it("OWN_LAST_BID: 500 ₺ pay EUR teklifçisine 10 € olarak işler", async () => {
-    const { service, bidder, listing } = await auction({
-      priceDecrementBasis: "OWN_LAST_BID",
-    });
+describe("Çoklu birim — monotonluk kendi biriminde", () => {
+  it("kendi öncekinden kesin düşük olmalı: eşit reddedilir, 1 sent düşük kabul", async () => {
+    const { service, bidder, listing } = await auction();
     await makeBid(prisma, {
       listingId: listing.id,
       bidderCompanyId: bidder.company.id,
@@ -64,80 +63,17 @@ describe("Çoklu birim — adım çevrimi (açılış günü damgası)", () => {
       amount: 100,
       currency: "EUR",
     });
-    // adım = 500 / 50 = 10 € → maxAllowed = 100 − 10 = 90 €.
     await expect(
-      service.placeBid(bidder.auth, listing.id, submit(90.01, "EUR")),
-    ).rejects.toThrow(/90/);
+      service.placeBid(bidder.auth, listing.id, submit(100, "EUR")),
+    ).rejects.toThrow(/altında olmalı/);
+    // Minimum pay yok — sembolik indirim bile geçerli, kur çevirisi gerekmez.
     await expect(
-      service.placeBid(bidder.auth, listing.id, submit(90, "EUR")),
-    ).resolves.toBeDefined();
-  });
-
-  it("adım çevriminde damga kazanır (güncel mock 30 değil, damga 50)", async () => {
-    const { service, bidder, listing } = await auction({
-      priceDecrementBasis: "OWN_LAST_BID",
-    });
-    await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: bidder.company.id,
-      createdById: bidder.user.id,
-      amount: 100,
-      currency: "EUR",
-    });
-    // Damga yerine güncel kur (30) kullanılsaydı adım 16,67 € olurdu ve
-    // 90 € reddedilirdi (100−16,67=83,33) — damga (10 €) ile kabul edilir.
-    await expect(
-      service.placeBid(bidder.auth, listing.id, submit(90, "EUR")),
-    ).resolves.toBeDefined();
-  });
-
-  it("BEST_BID: TRY'lik rakip referansı teklifçinin birimine çevrilir", async () => {
-    const { service, bidder, listing } = await auction({
-      priceDecrementBasis: "BEST_BID",
-    });
-    const rival = await makeCompanyWithUser(prisma, { country: "TR" });
-    await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: rival.company.id,
-      createdById: rival.user.id,
-      amount: 1000,
-      currency: "TRY",
-    });
-    // best = 1000 ₺ = 20 € → maxAllowed = 20 − 10 = 10 €.
-    await expect(
-      service.placeBid(bidder.auth, listing.id, submit(10.01, "EUR")),
-    ).rejects.toThrow(/pazarlık/i);
-    await expect(
-      service.placeBid(bidder.auth, listing.id, submit(10, "EUR")),
-    ).resolves.toBeDefined();
-  });
-
-  it("PERCENT adım birimden bağımsız (kendi biriminde yüzde)", async () => {
-    const { service, bidder, listing } = await auction({
-      priceDecrementBasis: "OWN_LAST_BID",
-      priceDecrementType: "PERCENT",
-      priceDecrementValue: "10",
-    });
-    await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: bidder.company.id,
-      createdById: bidder.user.id,
-      amount: 100,
-      currency: "USD",
-    });
-    // %10 → maxAllowed = 90 $.
-    await expect(
-      service.placeBid(bidder.auth, listing.id, submit(90.5, "USD")),
-    ).rejects.toThrow(/pazarlık/i);
-    await expect(
-      service.placeBid(bidder.auth, listing.id, submit(90, "USD")),
+      service.placeBid(bidder.auth, listing.id, submit(99.99, "EUR")),
     ).resolves.toBeDefined();
   });
 
   it("hata mesajı teklifçinin biriminde konuşur (₺ değil)", async () => {
-    const { service, bidder, listing } = await auction({
-      priceDecrementBasis: "OWN_LAST_BID",
-    });
+    const { service, bidder, listing } = await auction();
     await makeBid(prisma, {
       listingId: listing.id,
       bidderCompanyId: bidder.company.id,
@@ -146,18 +82,16 @@ describe("Çoklu birim — adım çevrimi (açılış günü damgası)", () => {
       currency: "EUR",
     });
     const err = await service
-      .placeBid(bidder.auth, listing.id, submit(95, "EUR"))
+      .placeBid(bidder.auth, listing.id, submit(150, "EUR"))
       .catch((e: Error) => e);
     expect(String((err as Error).message)).toMatch(/EUR/);
     expect(String((err as Error).message)).not.toMatch(/₺|500/);
   });
 });
 
-describe("Çoklu birim — birim kilidi ve kur eksikliği", () => {
+describe("Çoklu birim — birim kilidi ve kur bağımsızlığı", () => {
   it("gönderilmiş teklif varken para birimi değiştirilemez", async () => {
-    const { service, bidder, listing } = await auction({
-      priceDecrementBasis: "OWN_LAST_BID",
-    });
+    const { service, bidder, listing } = await auction();
     await makeBid(prisma, {
       listingId: listing.id,
       bidderCompanyId: bidder.company.id,
@@ -170,9 +104,8 @@ describe("Çoklu birim — birim kilidi ve kur eksikliği", () => {
     ).rejects.toThrow(/para birimi değiştirilemez/);
   });
 
-  it("damga YOK + güncel kur YOK → çapraz-birim teklif reddedilir (yanlış kıyas yapılmaz)", async () => {
+  it("damga YOK + güncel kur YOK → İLK teklif yine kabul (rakip kıyası kalktı, kural kur istemez)", async () => {
     const { service, exchangeRates, bidder, listing } = await auction({
-      priceDecrementBasis: "BEST_BID",
       auctionRateSnapshot: undefined,
     });
     exchangeRates.getCurrentRate.mockRejectedValue(new Error("TCMB yok"));
@@ -184,33 +117,22 @@ describe("Çoklu birim — birim kilidi ve kur eksikliği", () => {
       amount: 1000,
       currency: "TRY",
     });
+    // Eskiden rakip referans çevrilemeyince reddediliyordu; minimum pay ve
+    // rakip kıyası kalktığından fiyat kuralı kur gerektirmez. TRY karşılığı
+    // (exchangeRateSnapshot) boş kalır — gösterimde "—".
     await expect(
       service.placeBid(bidder.auth, listing.id, submit(10, "EUR")),
-    ).rejects.toThrow(/[Kk]ur bilgisi eksik/);
-  });
-
-  it("legacy tek-birim tur (damga yok) aynen çalışır — kur hiç gerekmez", async () => {
-    const { service, exchangeRates, bidder, listing } = await auction({
-      priceDecrementBasis: "BEST_BID",
-      auctionRateSnapshot: undefined,
-      allowedCurrencies: ["TRY"] as never,
-    });
-    exchangeRates.getCurrentRate.mockRejectedValue(new Error("TCMB yok"));
-    const rival = await makeCompanyWithUser(prisma, { country: "TR" });
-    await makeBid(prisma, {
-      listingId: listing.id,
-      bidderCompanyId: rival.company.id,
-      createdById: rival.user.id,
-      amount: 1000,
-      currency: "TRY",
-    });
-    // adım 500 ₺, primary=TRY → çevrim yok; maxAllowed 500 ₺.
-    await expect(
-      service.placeBid(bidder.auth, listing.id, submit(501, "TRY")),
-    ).rejects.toThrow(/pazarlık/i);
-    await expect(
-      service.placeBid(bidder.auth, listing.id, submit(500, "TRY")),
     ).resolves.toBeDefined();
+    const db = await prisma.listingBid.findUniqueOrThrow({
+      where: {
+        listingId_bidderCompanyId: {
+          listingId: listing.id,
+          bidderCompanyId: bidder.company.id,
+        },
+      },
+      select: { exchangeRateSnapshot: true },
+    });
+    expect(db.exchangeRateSnapshot).toBeNull();
   });
 });
 
@@ -312,9 +234,6 @@ describe("Yeni tur — kur damgası ve çoklu-birim taşıma", () => {
       carryBids: "AUTO",
       eliminateNonBidders: false,
       closesAt: FUTURE.toISOString(),
-      priceDecrementType: "AMOUNT",
-      priceDecrementValue: 500,
-      priceDecrementBasis: "OWN_LAST_BID",
       bidVisibility: "OWN_RANK",
     } as never);
 
@@ -366,9 +285,6 @@ describe("Yeni tur — kur damgası ve çoklu-birim taşıma", () => {
         carryBids: "AUTO",
         eliminateNonBidders: false,
         closesAt: FUTURE.toISOString(),
-        priceDecrementType: "AMOUNT",
-        priceDecrementValue: 500,
-        priceDecrementBasis: "OWN_LAST_BID",
         bidVisibility: "OWN_RANK",
       } as never),
     ).rejects.toThrow(/EUR için TCMB kuru bulunamadı/);
