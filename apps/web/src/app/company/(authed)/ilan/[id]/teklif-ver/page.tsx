@@ -646,6 +646,9 @@ export default function TeklifVerPage() {
   // ── Doğrulama (gönderim) ──
   const submitProblems = (): string[] => {
     const problems: string[] = [];
+    // Form mevcut tekliften henüz tohumlanmadıysa susmalı — boş state'e
+    // bakıp "fiyat gir / bırakılamaz" gibi SAHTE hatalar flaşlıyordu.
+    if (!seeded) return problems;
     // Hemen-Al modunda fiyatlar sabittir — fiyat problemleri üretilmez;
     // yalnızca detaylar (teslim/geçerlilik/belge/zorunlu soru) doğrulanır.
     if (hasItems && !isBuyNowMode) {
@@ -1621,8 +1624,10 @@ export default function TeklifVerPage() {
 
             {problems.length > 0 ? (
               <ul className="space-y-1 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3 text-xs text-zinc-500">
-                {problems.map((p) => (
-                  <li key={p}>• {p}</li>
+                {/* key=metin OLMAZ: aynı adlı iki kalem aynı mesajı üretip
+                    çift key ile bayat <li> bırakıyordu. */}
+                {problems.map((p, i) => (
+                  <li key={`${i}-${p}`}>• {p}</li>
                 ))}
               </ul>
             ) : null}
