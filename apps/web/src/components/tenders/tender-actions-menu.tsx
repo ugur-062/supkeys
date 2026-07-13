@@ -409,7 +409,6 @@ export function TenderActionsMenu({
 
         <Dropdown>
           <DropdownButton outline aria-label="Diğer işlemler">
-            Diğer İşlemler
             <EllipsisVerticalIcon />
           </DropdownButton>
           <DropdownMenu anchor="bottom end">
