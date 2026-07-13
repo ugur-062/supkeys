@@ -499,6 +499,25 @@ export default function TeklifVerPage() {
       />
     );
   }
+  // GÖNDERİM SÜRERKEN/AZ ÖNCE GÖNDERİLDİĞİNDE: onSuccess içindeki cache
+  // yazımı isSuccess bayrağından ÖNCE ulaşır — aşağıdaki kapılar (zaten
+  // verildi / tur hakkı doldu) router.push tamamlanmadan devreye girip
+  // "İhale Detayına Dön" ekranı flaşlıyordu. Pending dahil tek durum
+  // ekranı göster; dönüş otomatik.
+  if (
+    placeBid.isPending ||
+    placeBid.isSuccess ||
+    buyNow.isPending ||
+    buyNow.isSuccess
+  ) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-zinc-500">
+        {placeBid.isSuccess || buyNow.isSuccess
+          ? "Teklifin gönderildi — ihale detayına dönülüyor…"
+          : "Teklifin gönderiliyor…"}
+      </div>
+    );
+  }
   if (l.status !== "OPEN") {
     return <Blocked title="Bu ihaleye artık teklif verilemez" detailHref={detailHref} />;
   }
