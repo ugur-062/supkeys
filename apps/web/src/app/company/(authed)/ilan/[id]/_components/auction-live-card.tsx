@@ -165,7 +165,7 @@ export function AuctionLiveCard({
           value={canBidThisRound ? "1 teklif" : "Kullanıldı"}
           sub={
             canBidThisRound
-              ? `Öncekinden ${isSatis ? "yüksek" : "düşük"} olmalı — min. ${isSatis ? "artış" : "indirim"} şartı yok`
+              ? `Öncekinden ${isSatis ? "yüksek" : "düşük"} olmalı`
               : "Değişiklik bir sonraki turda"
           }
           highlight={!canBidThisRound}
