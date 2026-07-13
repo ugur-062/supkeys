@@ -30,6 +30,8 @@ const PREF_KEY_BY_TYPE: Record<string, NotificationPrefKey | undefined> = {
   bid_lost: "bidElimination",
   listing_closed: "listingClosed",
   listing_closed_owner: "listingClosed",
+  // Kapanış zamanı değişikliği (uzatma/öne çekme) kapanış ailesindendir.
+  listing_closing_changed: "listingClosed",
   // Değerlendirmeye alınma sinyali kapanış ailesindendir (aynı tercih anahtarı).
   listing_evaluation: "listingClosed",
   // Değerlendirme uzarken "teklif geçerlilikleri doluyor" sahip hatırlatması.

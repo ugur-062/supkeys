@@ -5233,6 +5233,33 @@ export class CompanyListingsService {
         ...(isExtension ? { closingReminderSentAt: null } : {}),
       },
     });
+    // Kural değişikliği davetlilere/teklifçilere bildirilir — özellikle öne
+    // çekme "son gün veririm" diye plan yapan teklifçi için tuzak olmasın.
+    const direction =
+      extra?.closesAt == null
+        ? "güncellendi"
+        : date.getTime() > extra.closesAt.getTime()
+          ? "uzatıldı"
+          : "öne çekildi";
+    const newClosingLabel = date.toLocaleString("tr-TR", {
+      dateStyle: "long",
+      timeStyle: "short",
+      timeZone: "Europe/Istanbul",
+    });
+    void this.notifyListingParticipants(listing.id, {
+      subject: "İhale kapanış zamanı değişti",
+      heading: "Kapanış zamanı değişti",
+      body: (label) =>
+        `${label} ihalesinin kapanış zamanı ${direction}. Yeni kapanış: ${newClosingLabel}.`,
+      type: "listing_closing_changed",
+    }).catch((err) =>
+      this.logger.error(
+        `Kapanış değişikliği bildirimi gönderilemedi (${listing.id}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
+    this.realtime?.pingListing(listing.id);
     return { ok: true };
   }
 
