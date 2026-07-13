@@ -95,7 +95,10 @@ describe("AuctionLiveCard", () => {
       />,
     );
     expect(screen.getByText("Kullanıldı")).toBeInTheDocument();
-    expect(screen.getByText("Değişiklik bir sonraki turda")).toBeInTheDocument();
+    // Yeni tur garanti değil — copy söz vermeden anlatır.
+    expect(
+      screen.getByText(/yeni tur açarsa güncelleyebilirsin/),
+    ).toBeInTheDocument();
   });
 
   it("OWN_ONLY: rakip bilgileri 'Gizli'", () => {

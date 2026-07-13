@@ -540,7 +540,7 @@ export default function TeklifVerPage() {
   ) {
     return (
       <Blocked
-        title="Bu turdaki teklifin verildi — yeni fiyat için bir sonraki turu bekle"
+        title="Bu turdaki teklifin verildi — ilan sahibi yeni tur açarsa güncelleyebilirsin"
         detailHref={detailHref}
       />
     );
@@ -552,9 +552,7 @@ export default function TeklifVerPage() {
   const pageTitle = isBuyNowMode
     ? "Hemen Al"
     : isAuctionRebid
-      ? isSatis
-        ? "Yeni Teklif Ver (Fiyat Artır)"
-        : "Yeni Teklif Ver (Fiyat Düşür)"
+      ? "Yeni Teklif Ver"
       : isRebidAfterLoss
         ? "Yeniden Teklif Ver"
         : "Teklif Ver";

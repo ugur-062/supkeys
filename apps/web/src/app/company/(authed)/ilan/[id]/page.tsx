@@ -1375,14 +1375,14 @@ export default function ListingDetailPage() {
     if (st === "LOST")
       return { label: "Yeniden Teklif Ver", href: bidHref };
     if (st === "SUBMITTED" && l.english?.isEnglishAuction)
-      return {
-        label: isAlim
-          ? "Yeni Teklif Ver (Fiyat Düşür)"
-          : "Yeni Teklif Ver (Fiyat Artır)",
-        href: bidHref,
-      };
+      return { label: "Yeni Teklif Ver", href: bidHref };
     return null; // SUBMITTED RFQ (değişiklik yok) / WITHDRAWN
   })();
+  // Pazarlıkta tur hakkı kullanıldıysa CTA pasif — yeni tur garanti değil.
+  const bidCtaDisabled =
+    !!l.english?.isEnglishAuction &&
+    l.myBid?.status === "SUBMITTED" &&
+    l.nextBidConstraint?.canBidThisRound === false;
 
   const sellerBidSection = (
     <section className="space-y-3">
@@ -1442,50 +1442,75 @@ export default function ListingDetailPage() {
             )
           ) : null}
           {bidCta ? (
-            <div className="flex items-center justify-between gap-3">
-              <Text className="text-sm text-zinc-600">
-                {l.myBid?.status === "SUBMITTED"
-                  ? isAlim
-                    ? "Açık eksiltme — fiyatını düşürerek yeni teklif verebilirsin."
-                    : "Açık artırma — fiyatını artırarak yeni teklif verebilirsin."
-                  : l.myBid?.status === "LOST"
-                    ? "İhale hâlâ açık — güncellenmiş teklifle yeniden katıl."
-                    : l.myBid?.status === "DRAFT"
-                      ? "Taslağın kapanıştan önce gönderilmeli."
-                      : "Bu ihaleye teklif verebilirsin."}
-              </Text>
-              <Button href={bidCta.href}>{bidCta.label}</Button>
+            // Tek kompakt satır: durum metni + mevcut teklif solda, buton
+            // sağda. Tur hakkı yoksa buton PASİF — yeni tur garanti değil,
+            // söz vermeden anlat.
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <Text className="text-sm text-zinc-600">
+                  {bidCtaDisabled
+                    ? "Bu turdaki teklifin verildi — ilan sahibi yeni tur açarsa güncelleyebilirsin."
+                    : l.myBid?.status === "SUBMITTED"
+                      ? isAlim
+                        ? "Açık eksiltme — fiyatını düşürerek yeni teklif verebilirsin."
+                        : "Açık artırma — fiyatını artırarak yeni teklif verebilirsin."
+                      : l.myBid?.status === "LOST"
+                        ? "İhale hâlâ açık — güncellenmiş teklifle yeniden katıl."
+                        : l.myBid?.status === "DRAFT"
+                          ? "Taslağın kapanıştan önce gönderilmeli."
+                          : "Bu ihaleye teklif verebilirsin."}
+                </Text>
+                {l.myBid?.status === "SUBMITTED" ? (
+                  <Text className="mt-0.5 text-sm">
+                    Mevcut teklifin:{" "}
+                    <strong>
+                      {Number(l.myBid.amount).toLocaleString("tr-TR")}{" "}
+                      {!l.myBid.currency || l.myBid.currency === "TRY"
+                        ? "₺"
+                        : l.myBid.currency}
+                    </strong>
+                  </Text>
+                ) : null}
+              </div>
+              {bidCtaDisabled ? (
+                <Button disabled title="Bu turdaki teklif hakkın kullanıldı">
+                  {bidCta.label}
+                </Button>
+              ) : (
+                <Button href={bidCta.href}>{bidCta.label}</Button>
+              )}
             </div>
           ) : null}
           {l.myBid?.status === "SUBMITTED" &&
           biddingOpen &&
           !l.english?.isEnglishAuction ? (
-            <Text className="text-xs text-zinc-500">
-              Gönderilmiş teklif geri çekilemez ve düzenlenemez — değişiklik için{" "}
-              {isAlim ? "alıcıyla" : "satıcıyla"} iletişime geç. {isAlim ? "Alıcı" : "Satıcı"}{" "}
-              teklifini elerse yeniden teklif verebilirsin.
+            <>
+              <Text className="text-xs text-zinc-500">
+                Gönderilmiş teklif geri çekilemez ve düzenlenemez — değişiklik için{" "}
+                {isAlim ? "alıcıyla" : "satıcıyla"} iletişime geç. {isAlim ? "Alıcı" : "Satıcı"}{" "}
+                teklifini elerse yeniden teklif verebilirsin.
+              </Text>
+              <div className="rounded-lg bg-zinc-50 px-3 py-2">
+                <Text className="text-sm">
+                  Mevcut teklifin:{" "}
+                  <strong>
+                    {Number(l.myBid.amount).toLocaleString("tr-TR")}{" "}
+                    {!l.myBid.currency || l.myBid.currency === "TRY"
+                      ? "₺"
+                      : l.myBid.currency}
+                  </strong>
+                </Text>
+              </div>
+            </>
+          ) : null}
+          {/* Pazarlıkta alttaki kural kutusu KALDIRILDI (bayat 'güncel en
+              düşük' iddiası — kural kendi öncekinden düşük); kapalı zarf
+              notu RFQ'da kalır. */}
+          {!l.english?.isEnglishAuction ? (
+            <Text className="text-xs text-zinc-400">
+              Kapalı zarf: diğer tekliflerin tutarını göremezsin.
             </Text>
           ) : null}
-          {l.myBid && biddingOpen && l.myBid.status === "SUBMITTED" ? (
-            <div className="rounded-lg bg-zinc-50 px-3 py-2">
-              <Text className="text-sm">
-                Mevcut teklifin:{" "}
-                <strong>
-                  {Number(l.myBid.amount).toLocaleString("tr-TR")}{" "}
-                  {!l.myBid.currency || l.myBid.currency === "TRY"
-                    ? "₺"
-                    : l.myBid.currency}
-                </strong>
-              </Text>
-            </div>
-          ) : null}
-          <Text className="text-xs text-zinc-400">
-            {l.english?.isEnglishAuction
-              ? isAlim
-                ? "Açık eksiltme: teklifin güncel en düşüğün altında olmalı."
-                : "Açık artırma: teklifin güncel en yükseğin üzerinde olmalı."
-              : "Kapalı zarf: diğer tekliflerin tutarını göremezsin."}
-          </Text>
           {bidDocsSection}
         </div>
       )}

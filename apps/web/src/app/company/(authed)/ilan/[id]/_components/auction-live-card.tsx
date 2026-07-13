@@ -183,7 +183,8 @@ export function AuctionLiveCard({
           sub={
             canBidThisRound
               ? `Öncekinden ${isSatis ? "yüksek" : "düşük"} olmalı`
-              : "Değişiklik bir sonraki turda"
+              : // Yeni tur garanti değil — söz vermeden anlat.
+                `Bu turdaki teklifin kesin — ${isSatis ? "satıcı" : "alıcı"} yeni tur açarsa güncelleyebilirsin`
           }
           highlight={!canBidThisRound}
         />

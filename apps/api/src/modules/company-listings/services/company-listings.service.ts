@@ -2718,7 +2718,7 @@ export class CompanyListingsService {
       existingBid.activeBidRound === listing.currentRound
     ) {
       throw new BadRequestException(
-        "Bu turdaki teklifinizi verdiniz — değişiklik için bir sonraki turu bekleyin",
+        "Bu turdaki teklifinizi verdiniz — ilan sahibi yeni tur açarsa güncelleyebilirsiniz",
       );
     }
     // Gönderimde geçerlilik her zaman zorunlu (taslakta opsiyonel).
