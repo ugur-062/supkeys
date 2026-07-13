@@ -544,7 +544,7 @@ export default function TeklifVerPage() {
   ) {
     return (
       <Blocked
-        title={`Teklif zaten verildi (v${l.myBid.version ?? 1}) — değişiklik için ${isSatis ? "satıcıyla" : "alıcıyla"} iletişime geçin`}
+        title={`Teklif zaten verildi — değişiklik için ${isSatis ? "satıcıyla" : "alıcıyla"} iletişime geçin`}
         detailHref={detailHref}
       />
     );

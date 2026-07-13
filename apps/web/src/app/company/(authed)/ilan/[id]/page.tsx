@@ -1273,9 +1273,8 @@ export default function ListingDetailPage() {
                 {l.english?.isEnglishAuction && b.round ? (
                   <Badge color="zinc">Tur {b.round}</Badge>
                 ) : null}
-                {b.version && b.version > 1 ? (
-                  <Badge color="zinc">v{b.version}</Badge>
-                ) : null}
+                {/* v{n} rozeti kaldırıldı — teknik gürültü; Tur rozeti
+                    güncellenmişlik bilgisini zaten veriyor. */}
                 {/* Kısmi kapsam: toplamı diğerleriyle kıyaslanamaz — "En iyi"
                     kıyasına girmez (tablo başlığındaki rozetle aynı kural). */}
                 {b.status === "SUBMITTED" &&

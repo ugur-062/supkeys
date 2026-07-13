@@ -116,7 +116,7 @@ describe("TeklifVerPage — kapılar", () => {
     });
     render(<TeklifVerPage />);
     expect(
-      screen.getByText(/Teklif zaten verildi \(v2\)/),
+      screen.getByText(/Teklif zaten verildi/),
     ).toBeInTheDocument();
   });
 

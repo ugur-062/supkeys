@@ -143,12 +143,8 @@ export function AuctionLiveCard({
         <Tile
           label="Senin Teklifin"
           // Teklifçinin KENDİ para birimiyle gösterilir (ilanınkiyle değil).
+          // Versiyon alt yazısı kaldırıldı — tedarikçiye teknik gürültü.
           value={l.myBid ? money(l.myBid.amount, l.myBid.currency) : "—"}
-          sub={
-            l.myBid?.version && l.myBid.version > 1
-              ? `v${l.myBid.version}`
-              : undefined
-          }
           highlight={!!l.myBid}
         />
         <Tile

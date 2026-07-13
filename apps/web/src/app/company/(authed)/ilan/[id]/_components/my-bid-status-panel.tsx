@@ -152,7 +152,9 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
 
   return (
     <div className="rounded-xl border border-zinc-950/10 bg-white p-5">
-      <div className="grid grid-cols-3 gap-4">
+      {/* Versiyon hücresi kaldırıldı — tedarikçiye teknik gürültü
+          (alıcı tarafındaki v2 rozeti duruyor: güncellendi bilgisi). */}
+      <div className="grid grid-cols-2 gap-4">
         <div>
           <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
             Statü
@@ -161,19 +163,6 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
             <Badge color={badge.color}>{badge.label}</Badge>
           </div>
         </div>
-        {/* Versiyon yalnız güncellenmiş tekliflerde anlamlı (v1 gürültü). */}
-        {(bid.version ?? 1) > 1 ? (
-          <div>
-            <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
-              Versiyon
-            </p>
-            <p className="mt-1 font-mono text-sm font-semibold text-zinc-900">
-              v{bid.version}
-            </p>
-          </div>
-        ) : (
-          <div />
-        )}
         <div>
           <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
             Toplam
