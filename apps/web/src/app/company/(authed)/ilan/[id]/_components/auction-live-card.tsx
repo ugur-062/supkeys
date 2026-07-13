@@ -102,6 +102,16 @@ export function AuctionLiveCard({
   // Turda tek aktif gönderim hakkı (taşınan teklif yakmaz) — sunucudan.
   const canBidThisRound = l.nextBidConstraint?.canBidThisRound ?? true;
 
+  // Kısmi teklif (kalemli ilanda tüm kalemler fiyatlanmadı): toplamı
+  // diğerleriyle kıyaslanamaz — sunucu sıralamaya almaz; "Gizli" yerine
+  // nedenini söyle.
+  const itemCount = l.items?.length ?? l.itemCount ?? 0;
+  const myPricedCount = (l.myBid?.items ?? []).filter(
+    (x) => Number(x.unitPrice) > 0,
+  ).length;
+  const myBidPartial =
+    itemCount > 0 && !!l.myBid && myPricedCount < itemCount;
+
   // En iyi teklif kendi birimiyle gelir; teklifçinin biriminden farklıysa
   // altta yaklaşık karşılığı gösterilir (karar verirken çeviriyle uğraşmasın).
   const bestCur = view?.bestCurrency ?? l.primaryCurrency ?? "TRY";
@@ -157,7 +167,14 @@ export function AuctionLiveCard({
           value={
             view?.myRank != null && view.participantCount != null
               ? `${view.myRank} / ${view.participantCount}`
-              : "Gizli"
+              : myBidPartial
+                ? "—"
+                : "Gizli"
+          }
+          sub={
+            myBidPartial
+              ? `Kısmi teklif (${myPricedCount}/${itemCount} kalem) sıralamaya girmez`
+              : undefined
           }
         />
         <Tile

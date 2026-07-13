@@ -1809,6 +1809,12 @@ export class CompanyListingsService {
               amount: true,
               currency: true,
               exchangeRateSnapshot: true,
+              // Kapsam kontrolü: fiyatlanmış kalem sayısı (aşağıda tam
+              // kapsam filtresi için) — kalem detayı sızdırılmaz.
+              items: {
+                where: { unitPrice: { gt: 0 } },
+                select: { itemId: true },
+              },
             },
           })
         : Promise.resolve(null),
@@ -1848,9 +1854,17 @@ export class CompanyListingsService {
     // İngiliz Usulü: güncel EN İYİ teklif herkese görünür — ALIM'da en düşük
     // (ters eksiltme), SATIS'ta en yüksek (açık artırma). Çoklu birimde kıyas
     // açılış günü kur damgasıyla TRY-normalize; tutar KENDİ birimiyle döner.
-    const englishRanked = englishAgg
+    // Kalemli ilanda kıyasa yalnız TAM kapsamlı (tüm kalemleri fiyatlamış)
+    // teklifler girer — kısmi teklifin düşük toplamı "en iyi" değildir
+    // (elma-armut); bidCount da kıyaslanabilir teklif sayısıdır.
+    const englishComparable = englishAgg
+      ? englishAgg.filter(
+          (b) => items.length === 0 || b.items.length >= items.length,
+        )
+      : null;
+    const englishRanked = englishComparable
       ? this.rankAuctionBids(
-          englishAgg,
+          englishComparable,
           listing.auctionRateSnapshot,
           listing.type === "SATIS",
         )
@@ -2067,6 +2081,7 @@ export class CompanyListingsService {
             listing.bidVisibility,
             listing.type,
             listing.auctionRateSnapshot,
+            items.length,
           )
         : Promise.resolve(null),
     ]);
@@ -2321,6 +2336,7 @@ export class CompanyListingsService {
     visibility: ListingBidVisibility,
     listingType: ListingType,
     listingRateSnapshot: unknown,
+    listingItemCount: number,
   ): Promise<{
     bestTotal: string | null;
     bestCurrency: string | null;
@@ -2339,11 +2355,23 @@ export class CompanyListingsService {
         amount: true,
         currency: true,
         exchangeRateSnapshot: true,
+        // Kapsam kontrolü — fiyatlanmış kalem sayısı (detay sızdırılmaz).
+        items: {
+          where: { unitPrice: { gt: 0 } },
+          select: { itemId: true },
+        },
       },
     });
+    // Kalemli ilanda sıralama/en-iyi yalnız TAM kapsamlı teklifler arasında —
+    // kısmi teklifin düşük toplamı diğerleriyle kıyaslanamaz (elma-armut);
+    // kısmi teklif sahibi sıra alamaz (myRank null), katılımcı sayısı da
+    // kıyaslanabilir teklif sayısıdır (x/y tutarlı kalsın).
+    const comparable = rows.filter(
+      (b) => listingItemCount === 0 || b.items.length >= listingItemCount,
+    );
     // ALIM = ters eksiltme (düşük en iyi), SATIS = açık artırma (yüksek en iyi).
     const bids = this.rankAuctionBids(
-      rows,
+      comparable,
       listingRateSnapshot,
       listingType === "SATIS",
     );

@@ -788,10 +788,15 @@ export default function ListingDetailPage() {
   })();
   // Gerçek en iyi (uygun) teklif: yalnız SUBMITTED arasında ALIM→en düşük,
   // SATIS→en yüksek; karşılaştırma TRY karşılığı üzerinden (çok para birimi).
-  // "En iyi" rozeti filtre/sıraya değil buna bağlanır.
+  // "En iyi" rozeti filtre/sıraya değil buna bağlanır. Kalemli ilanda kıyasa
+  // yalnız TAM kapsamlı teklifler girer — 2/4 kalem fiyatlamış teklifin düşük
+  // toplamı "en iyi" değildir (toplam satırı/tasarruf kutusuyla aynı ilke).
   const bestBidId = (() => {
     const subs = allBids.filter(
-      (b) => b.status === "SUBMITTED" && amountTryOf(b) != null,
+      (b) =>
+        b.status === "SUBMITTED" &&
+        amountTryOf(b) != null &&
+        cmpFullCovered(b.id),
     );
     if (subs.length === 0) return null;
     const sorted = [...subs].sort((a, b) =>
@@ -1248,6 +1253,15 @@ export default function ListingDetailPage() {
                 ) : null}
                 {b.version && b.version > 1 ? (
                   <Badge color="zinc">v{b.version}</Badge>
+                ) : null}
+                {/* Kısmi kapsam: toplamı diğerleriyle kıyaslanamaz — "En iyi"
+                    kıyasına girmez (tablo başlığındaki rozetle aynı kural). */}
+                {b.status === "SUBMITTED" &&
+                bidItemCount > 0 &&
+                !cmpFullCovered(b.id) ? (
+                  <Badge color="amber">
+                    {pricedCountById.get(b.id) ?? 0}/{bidItemCount} kalem
+                  </Badge>
                 ) : null}
                 {(bidDocs.data ?? [])
                   .filter((d) => d.bidId === b.id)
