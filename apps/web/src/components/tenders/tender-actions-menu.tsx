@@ -112,9 +112,15 @@ export function TenderActionsMenu({
   // çalışır; buton yalnız durumu görünür kılar (tedarikçi "değerlendiriliyor").
   const canStartEvaluation = status === "OPEN" || status === "CLOSED";
   // Yeni tur (+ RFQ↔İngiliz dönüşümü) kapanmış VEYA değerlendirmedeki ilanda
-  // (değerlendirmenin meşru sonuçlarından biri: yeni tur açmak).
+  // (değerlendirmenin meşru sonuçlarından biri: yeni tur açmak). PAZARLIKTA
+  // AÇIKKEN DE serbest — BAFO akışının ana aracı turlardır: herkes tek
+  // atışını yaptı, alıcı kapanışı beklemeden sonraki turu açabilmeli
+  // (backend createNextRound OPEN'dan zaten izin veriyor).
   const canNewRound =
-    status === "CLOSED" || status === "CLOSED_NO_AWARD" || isInEvaluation;
+    status === "CLOSED" ||
+    status === "CLOSED_NO_AWARD" ||
+    isInEvaluation ||
+    (isAuction && status === "OPEN");
   const canInvite = status === "DRAFT" || status === "OPEN";
   // Pazarlığa Geç: RFQ'yu açık eksiltme/artırma turuna aktarır (createNextRound
   // ENGLISH_AUCTION). Zaten pazarlıktaysa Yeni Tur devam turlarını yönetir.
@@ -378,6 +384,19 @@ export function TenderActionsMenu({
             Pazarlığa Geç
           </Button>
         ) : null}
+        {/* Pazarlıkta yeni tur ANA akış — menüde saklanmaz, görünür buton. */}
+        {isAuction && canNewRound ? (
+          <Button
+            outline
+            onClick={() => {
+              setNrType("ENGLISH_AUCTION");
+              setNextRoundMode("free");
+              setNextRoundOpen(true);
+            }}
+          >
+            Yeni Tur Aç
+          </Button>
+        ) : null}
         {canStartEvaluation ? (
           <Button
             outline
@@ -414,7 +433,9 @@ export function TenderActionsMenu({
                 <DropdownLabel>Tur Geçmişi</DropdownLabel>
               </DropdownItem>
             ) : null}
-            {canNewRound ? (
+            {/* Pazarlıkta görünür 'Yeni Tur Aç' butonu var — menüde tekrarı
+                yalnız RFQ (kapanmış/değerlendirme) durumunda göster. */}
+            {canNewRound && !isAuction ? (
               <DropdownItem
                 onClick={() => {
                   setNextRoundMode("free");
