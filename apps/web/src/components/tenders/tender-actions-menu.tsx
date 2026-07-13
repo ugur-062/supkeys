@@ -375,6 +375,13 @@ export function TenderActionsMenu({
             Değerlendirmeye Al
           </Button>
         ) : null}
+        {/* Değerlendirmenin üç meşru sonucundan biri (kazandır / yeni tur /
+            kimseye verme) — bu aşamada ⋮ menüsünde saklanmaz. */}
+        {isInEvaluation ? (
+          <Button outline onClick={() => setCloseNoAwardOpen(true)}>
+            Kazanan Olmadan Kapat
+          </Button>
+        ) : null}
         <Dropdown>
           <DropdownButton outline aria-label="Diğer işlemler">
             <EllipsisVerticalIcon />
@@ -412,10 +419,11 @@ export function TenderActionsMenu({
                 <DropdownLabel>Yeni Tur Oluştur</DropdownLabel>
               </DropdownItem>
             ) : null}
-            {isOpen || isInEvaluation ? (
+            {/* Yayında'da nadir/yıkıcı işlem → menüde; Değerlendirmede'de
+                görünür buton (yukarıda), menüde tekrarlanmaz. */}
+            {isOpen ? (
               <>
                 <DropdownDivider />
-                {/* Değerlendirmenin meşru sonuçlarından biri: kimseye vermemek. */}
                 <DropdownItem onClick={() => setCloseNoAwardOpen(true)}>
                   <DropdownLabel className="text-red-600">
                     Kazanan Olmadan Kapat
