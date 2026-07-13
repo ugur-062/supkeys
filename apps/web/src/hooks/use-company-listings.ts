@@ -461,8 +461,16 @@ export function usePlaceBid(id: string) {
       );
       return data;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+    onSuccess: async () => {
+      // Detay ANINDA tazelensin: gönderim sonrası detaya dönülüyor —
+      // invalidate/sinyal yarışında bayat cache 'Yeni Teklif Ver'i bir süre
+      // aktif gösteriyordu. ÖNCE tek doğrudan GET + setQueryData (geniş
+      // invalidation'lar bağlantı kuyruğunu doldurmadan); mutateAsync bu
+      // bitmeden çözülmez, dönüş taze veriyle açılır (yeni-tur deseni).
+      const { data } = await companyApi.get<ListingDetail>(
+        `/company/listings/${id}`,
+      );
+      qc.setQueryData(["company-listings", "detail", id], data);
       invalidateListingCaches(qc, { myBids: true });
     },
   });
@@ -484,8 +492,12 @@ export function useBuyNow(id: string) {
       );
       return data;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+    onSuccess: async () => {
+      // placeBid ile aynı desen — dönüşte bayat 'Hemen Al/Teklif Ver' kalmasın.
+      const { data } = await companyApi.get<ListingDetail>(
+        `/company/listings/${id}`,
+      );
+      qc.setQueryData(["company-listings", "detail", id], data);
       invalidateListingCaches(qc, { myBids: true });
     },
   });
