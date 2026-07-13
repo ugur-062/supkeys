@@ -323,14 +323,9 @@ export function AuctionBidWorkbench({
         </span>
       </div>
 
-      {/* ── Tablo filtreleri: arama + görünüm chip'leri tablonun hemen
-          üstünde (araç kutusunun sağ köşesinde kayboluyordu) ── */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          {filterChip("ALL", "Tümü")}
-          {filterChip("CHANGED", "Değişen", changedIds.size)}
-          {filterChip("LOCKED", "Hariç", lockedIds.size)}
-        </div>
+      {/* ── Tablo filtreleri: arama SOLDA, görünüm chip'leri sağında —
+          tablonun hemen üstünde ── */}
+      <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
           <Search
             className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-zinc-400"
@@ -345,6 +340,9 @@ export function AuctionBidWorkbench({
             className="w-56 rounded-lg border border-zinc-300 bg-white py-1.5 pr-2 pl-8 text-sm shadow-sm focus:ring-2 focus:ring-zinc-900/10 focus:outline-none"
           />
         </div>
+        {filterChip("ALL", "Tümü")}
+        {filterChip("CHANGED", "Değişen", changedIds.size)}
+        {filterChip("LOCKED", "Hariç", lockedIds.size)}
       </div>
 
       {/* ── Kompakt kalem tablosu ── */}
