@@ -1225,7 +1225,7 @@ export default function TeklifVerPage() {
                 )}
               </Field>
               <Field>
-                <Label>Geçerlilik (gün) *</Label>
+                <Label>Teklif Geçerlilik Süresi (gün) *</Label>
                 <Input
                   type="number"
                   min={1}
