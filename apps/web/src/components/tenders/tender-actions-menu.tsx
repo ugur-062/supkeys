@@ -332,7 +332,8 @@ export function TenderActionsMenu({
       !(await confirm({
         title: "Değerlendirmeden Çıkar",
         description:
-          "İhale teklife kapalı kalır (durum: Kapandı). Yeniden teklif almak için Yeni Tur açın.",
+          "İhale değerlendirme aşamasından çıkarılacak ve \"Kapandı\" durumuna alınacak. " +
+          "Bu işlem teklif alımını yeniden başlatmaz; yeniden teklif almak isterseniz Yeni Tur açabilirsiniz.",
         confirmLabel: "Değerlendirmeden Çıkar",
       }))
     )
