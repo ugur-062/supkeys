@@ -38,6 +38,10 @@ export interface WorkbenchTarget {
   ownLastTotal: string | null;
   /** Mevcut kesin toplam (fiyatlanan kalemler). */
   exactTotalStr: string;
+  /** Monotonluk kıyas tabanı: önceki teklifte fiyatlanmış kalemlerin YENİ
+   *  ara toplamı — yeni eklenen kalem kıyasa girmez. Kapsam genişlemediyse
+   *  exactTotalStr ile aynı. */
+  comparableTotalStr: string;
   /** Sınır karşılandı mı (DOWN: ≤, UP: ≥). */
   met: boolean;
   /** Sınıra kalan pozitif fark (karşılanmadıysa). */
@@ -70,6 +74,7 @@ export function AuctionBidWorkbench({
   defaultPercent,
   requireAllItems,
   isSatis,
+  mandatoryIds,
   renderItemExtras,
 }: {
   items: ListingItemRow[];
@@ -89,6 +94,9 @@ export function AuctionBidWorkbench({
   defaultPercent: string;
   requireAllItems: boolean;
   isSatis: boolean;
+  /** Pazarlıkta bırakılamayan kalemler (önceki teklifte fiyatlanmış) —
+   *  kapsam-dışı bırakma (X) gizlenir; sunucu da reddeder. */
+  mandatoryIds?: Set<string>;
   /** Genişletilen satırın ek alanları (teslim tarihi + kalem soruları). */
   renderItemExtras: (it: ListingItemRow) => ReactNode;
 }) {
@@ -99,13 +107,16 @@ export function AuctionBidWorkbench({
 
   const down = direction === "DOWN";
 
-  // Yapılan indirim/artış — kendi öncekine göre (DOWN: önceki−mevcut,
-  // UP: mevcut−önceki). Tutar kesin aritmetik; % yalnız gösterim.
+  // Yapılan indirim/artış — kendi öncekine göre, AYNI KALEMLER ara
+  // toplamıyla (yeni eklenen kalem kıyasa girmez). Tutar kesin aritmetik;
+  // % yalnız gösterim.
   const madeDiff = target.ownLastTotal
     ? down
-      ? decSub(target.ownLastTotal, target.exactTotalStr)
-      : decSub(target.exactTotalStr, target.ownLastTotal)
+      ? decSub(target.ownLastTotal, target.comparableTotalStr)
+      : decSub(target.comparableTotalStr, target.ownLastTotal)
     : "0";
+  const scopeExpanded =
+    cmpDecimal(target.comparableTotalStr, target.exactTotalStr) !== 0;
   const madePct = (() => {
     const own = Number(target.ownLastTotal ?? 0);
     const diff = Number(madeDiff);
@@ -237,7 +248,8 @@ export function AuctionBidWorkbench({
               </strong>
             </span>
             {/* Sınır/"Gönderilebilir" yerine YAPILAN indirim/artış: tutar + %
-                (öncekine göre; kesin aritmetik, % yalnız gösterim). */}
+                (öncekine göre; kesin aritmetik, % yalnız gösterim). Kapsam
+                genişletildiyse kıyas önceki kalemlerin ara toplamıyla. */}
             {target.met ? (
               <span className="inline-flex items-center gap-1 font-semibold">
                 <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
@@ -249,10 +261,18 @@ export function AuctionBidWorkbench({
               </span>
             ) : (
               <span>
-                Öncekinden {down ? "düşük" : "yüksek"} olmalı — henüz{" "}
+                {scopeExpanded
+                  ? "Önceden fiyatladığın kalemlerin toplamı öncekinden"
+                  : "Öncekinden"}{" "}
+                {down ? "düşük" : "yüksek"} olmalı — henüz{" "}
                 {down ? "indirim" : "artış"} yok.
               </span>
             )}
+            {scopeExpanded ? (
+              <span className="text-xs opacity-70">
+                Yeni eklenen kalemler kıyasa girmez — fiyatları serbest.
+              </span>
+            ) : null}
           </>
         ) : null}
       </div>
@@ -404,7 +424,7 @@ export function AuctionBidWorkbench({
                               onChange={(e) => setPrice(it.id, e.target.value)}
                               className={cn(changed && "font-semibold")}
                             />
-                            {!requireAllItems ? (
+                            {!requireAllItems && !mandatoryIds?.has(it.id) ? (
                               <button
                                 type="button"
                                 aria-label="Bu kaleme teklif verme"

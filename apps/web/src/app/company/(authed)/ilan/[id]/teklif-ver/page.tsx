@@ -377,6 +377,40 @@ export default function TeklifVerPage() {
     );
   }, [isAuction, isBuyNowMode, hasItems, singleAmount, pricedItems, itemState]);
 
+  // KIYAS AYNI KALEMLER BAZINDA: monotonluk, önceki teklifte FİYATLANMIŞ
+  // kalemlerin yeni ara toplamına bakar — önceki toplam da yalnız onları
+  // kapsıyordu (elma-elma). Yeni eklenen kalem serbest (ilk teklif
+  // muamelesi, kıyasa girmez); önceden fiyatlanmış kalem BIRAKILAMAZ
+  // (sunucu da reddeder). Kalemsizde ara toplam = toplam.
+  const prevPricedIds = useMemo(() => {
+    if (!isAuction || l?.myBid?.status !== "SUBMITTED")
+      return new Set<string>();
+    return new Set(
+      (l?.myBid?.items ?? [])
+        .filter((x) => Number(x.unitPrice) > 0)
+        .map((x) => x.itemId),
+    );
+  }, [isAuction, l?.myBid]);
+  const comparableTotalStr = useMemo(() => {
+    if (!hasItems || prevPricedIds.size === 0) return exactTotalStr;
+    return exactTotal(
+      items
+        .filter((it) => prevPricedIds.has(it.id))
+        .map((it) => {
+          const p = itemState[it.id]?.price;
+          return {
+            quantity: it.quantity,
+            unitPrice: p && Number(p) > 0 ? p : "0",
+          };
+        }),
+    );
+  }, [hasItems, prevPricedIds, exactTotalStr, items, itemState]);
+  // Kapsam genişledi mi (yeni kalem fiyatlandı) — mesaj dili buna göre.
+  const scopeExpanded =
+    hasItems &&
+    prevPricedIds.size > 0 &&
+    pricedItems.some((it) => !prevPricedIds.has(it.id));
+
   // Efektif hedef = monotonluk sınırı: kendi son teklifinin bir adım
   // altı/üstü ("kesin daha iyi" kuralının sayısal karşılığı). İlk teklifte
   // (ownLast yok) hedef kısıtı yoktur.
@@ -388,27 +422,36 @@ export default function TeklifVerPage() {
   }, [ownLastTotal, direction, decimals]);
 
   const workbenchTarget: WorkbenchTarget = useMemo(() => {
-    const hasAmount = cmpDecimal(exactTotalStr, "0") === 1;
+    // met/kalan kıyası AYNI KALEMLER ara toplamıyla (kapsam genişletme
+    // toplamı büyütse de kural sağlanabilir).
+    const hasAmount = cmpDecimal(comparableTotalStr, "0") === 1;
     const met =
       effectiveTarget != null &&
       hasAmount &&
       (direction === "DOWN"
-        ? cmpDecimal(exactTotalStr, effectiveTarget) <= 0
-        : cmpDecimal(exactTotalStr, effectiveTarget) >= 0);
+        ? cmpDecimal(comparableTotalStr, effectiveTarget) <= 0
+        : cmpDecimal(comparableTotalStr, effectiveTarget) >= 0);
     return {
       effectiveTarget,
       ownLastTotal,
       exactTotalStr,
+      comparableTotalStr,
       met,
       remaining:
         effectiveTarget != null && !met && hasAmount
           ? direction === "DOWN"
-            ? decSub(exactTotalStr, effectiveTarget)
-            : decSub(effectiveTarget, exactTotalStr)
+            ? decSub(comparableTotalStr, effectiveTarget)
+            : decSub(effectiveTarget, comparableTotalStr)
           : "0",
       noReference: !ownLastTotal,
     };
-  }, [effectiveTarget, ownLastTotal, exactTotalStr, direction]);
+  }, [
+    effectiveTarget,
+    ownLastTotal,
+    exactTotalStr,
+    comparableTotalStr,
+    direction,
+  ]);
 
   if (detail.isLoading) {
     return (
@@ -668,25 +711,40 @@ export default function TeklifVerPage() {
         }
       }
     }
-    // İngiliz usulü yeniden teklif: kendi gönderilmiş teklifine karşı
-    // monotonluk ön-kontrolü (ALIM'da düşmeli, SATIS'ta yükselmeli) — adım
-    // kuralı sunucuda (rakip referansı kapalı zarfta görünmeyebilir).
+    // İngiliz usulü yeniden teklif: monotonluk ön-kontrolü AYNI KALEMLER
+    // ara toplamıyla (ALIM'da düşmeli, SATIS'ta yükselmeli) — yeni eklenen
+    // kalem kıyasa girmez, önceden fiyatlanmış kalem bırakılamaz (sunucu da
+    // aynı kuralları zorlar; burada anlık geri bildirim).
     if (
       !isBuyNowMode &&
       l.english?.isEnglishAuction &&
       l.myBid?.status === "SUBMITTED" &&
-      total > 0 &&
       effectiveCurrency === (l.myBid.currency ?? l.primaryCurrency ?? "TRY")
     ) {
+      if (hasItems && prevPricedIds.size > 0) {
+        for (const it of items) {
+          if (!prevPricedIds.has(it.id)) continue;
+          const p = itemState[it.id]?.price;
+          if (!(p != null && Number(p) > 0))
+            problems.push(
+              `Pazarlıkta önceden fiyatladığın kalem bırakılamaz — "${it.name}" için fiyat gir.`,
+            );
+        }
+      }
       const own = Number(l.myBid.amount);
-      if (isSatis && total <= own)
-        problems.push(
-          `Açık artırma: yeni teklifin önceki teklifinin (${money(own, effectiveCurrency)}) üzerinde olmalı.`,
-        );
-      if (!isSatis && total >= own)
-        problems.push(
-          `Açık eksiltme: yeni teklifin önceki teklifinin (${money(own, effectiveCurrency)}) altında olmalı.`,
-        );
+      const scopeNote = scopeExpanded
+        ? "önceden fiyatladığın kalemlerin toplamı"
+        : "yeni teklifin";
+      if (cmpDecimal(comparableTotalStr, "0") === 1) {
+        if (isSatis && cmpDecimal(comparableTotalStr, l.myBid.amount) <= 0)
+          problems.push(
+            `Açık artırma: ${scopeNote} önceki teklifinin (${money(own, effectiveCurrency)}) üzerinde olmalı.`,
+          );
+        if (!isSatis && cmpDecimal(comparableTotalStr, l.myBid.amount) >= 0)
+          problems.push(
+            `Açık eksiltme: ${scopeNote} önceki teklifinin (${money(own, effectiveCurrency)}) altında olmalı.`,
+          );
+      }
     }
     // NOT: eski "toplam en fazla X olabilir" (sınır = öncekinin 1 kuruş
     // altı/üstü) uyarısı kaldırıldı — yukarıdaki "öncekinden düşük/yüksek
@@ -970,6 +1028,7 @@ export default function TeklifVerPage() {
                 target={workbenchTarget}
                 defaultPercent="5"
                 requireAllItems={!!l.requireAllItems}
+                mandatoryIds={prevPricedIds}
                 isSatis={isSatis}
                 renderItemExtras={renderItemExtras}
               />
@@ -1480,10 +1539,10 @@ export default function TeklifVerPage() {
                             direction === "DOWN"
                               ? decSub(
                                   workbenchTarget.ownLastTotal,
-                                  workbenchTarget.exactTotalStr,
+                                  workbenchTarget.comparableTotalStr,
                                 )
                               : decSub(
-                                  workbenchTarget.exactTotalStr,
+                                  workbenchTarget.comparableTotalStr,
                                   workbenchTarget.ownLastTotal,
                                 ),
                           ),
@@ -1587,10 +1646,10 @@ export default function TeklifVerPage() {
                       direction === "DOWN"
                         ? decSub(
                             workbenchTarget.ownLastTotal,
-                            workbenchTarget.exactTotalStr,
+                            workbenchTarget.comparableTotalStr,
                           )
                         : decSub(
-                            workbenchTarget.exactTotalStr,
+                            workbenchTarget.comparableTotalStr,
                             workbenchTarget.ownLastTotal,
                           ),
                     ),

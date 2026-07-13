@@ -2576,6 +2576,12 @@ export class CompanyListingsService {
             amount: true,
             currency: true,
             activeBidRound: true,
+            // Monotonluk kıyası AYNI KALEMLER bazında — önceki teklifte
+            // fiyatlanmış kalemler (kapsam genişletme serbest, bırakma yasak).
+            items: {
+              where: { unitPrice: { gt: 0 } },
+              select: { itemId: true },
+            },
           },
         }),
       ]);
@@ -3015,14 +3021,53 @@ export class CompanyListingsService {
           d.toNumber().toLocaleString("tr-TR", { maximumFractionDigits: 2 });
         // Mesajlar teklifçinin KENDİ biriminde konuşur (ilanın değil).
         const bidSym = currency === "TRY" ? "₺" : currency;
-        if (!isAscending && amount.gte(ownLast)) {
+        // KIYAS AYNI KALEMLER BAZINDA: önceki teklif kısmi olabilir — yeni
+        // teklif kapsam GENİŞLETEBİLİR (yeni kalem ilk-teklif muamelesi,
+        // toplam artabilir). Kural: (a) önceden fiyatlanmış kalem
+        // BIRAKILAMAZ (pahalı kalemi silip "toplam düştü" oyunu kapanır),
+        // (b) o kalemlerin YENİ ara toplamı öncekinden kesin iyi olmalı —
+        // önceki toplam da yalnız o kalemleri kapsıyordu, kıyas elma-elma.
+        // Kalemsiz ilanda ara toplam = toplam (davranış değişmez).
+        const prevIds = new Set(
+          (existingBid?.items ?? []).map((x) => x.itemId),
+        );
+        let comparable = amount;
+        let scopeExpanded = false;
+        if (listingItems.length > 0 && prevIds.size > 0) {
+          const qtyById = new Map(
+            listingItems.map((i) => [i.id, i.quantity] as const),
+          );
+          const newPrice = new Map(
+            bidItemsData.map((bi) => [bi.itemId, bi.unitPrice] as const),
+          );
+          let sub = new Prisma.Decimal(0);
+          for (const pid of prevIds) {
+            const up = newPrice.get(pid);
+            if (up == null || up <= 0) {
+              const name =
+                listingItems.find((li) => li.id === pid)?.name ?? "kalem";
+              throw new BadRequestException(
+                `Pazarlıkta önceden fiyatladığınız kalem bırakılamaz — "${name}" için fiyat girin`,
+              );
+            }
+            sub = sub.plus(
+              new Prisma.Decimal(up).mul(qtyById.get(pid) ?? 0),
+            );
+          }
+          comparable = sub;
+          scopeExpanded = bidItemsData.length > prevIds.size;
+        }
+        const scopeNote = scopeExpanded
+          ? "önceden fiyatladığınız kalemlerin toplamı"
+          : "yeni teklifiniz";
+        if (!isAscending && comparable.gte(ownLast)) {
           throw new BadRequestException(
-            `Pazarlık: yeni teklifiniz önceki teklifinizin (${fmt(ownLast)} ${bidSym}) altında olmalı`,
+            `Pazarlık: ${scopeNote} önceki teklifinizin (${fmt(ownLast)} ${bidSym}) altında olmalı`,
           );
         }
-        if (isAscending && amount.lte(ownLast)) {
+        if (isAscending && comparable.lte(ownLast)) {
           throw new BadRequestException(
-            `Açık artırma: yeni teklifiniz önceki teklifinizin (${fmt(ownLast)} ${bidSym}) üzerinde olmalı`,
+            `Açık artırma: ${scopeNote} önceki teklifinizin (${fmt(ownLast)} ${bidSym}) üzerinde olmalı`,
           );
         }
       }
