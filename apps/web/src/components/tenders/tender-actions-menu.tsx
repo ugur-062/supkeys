@@ -549,10 +549,43 @@ export function TenderActionsMenu({
                 }
                 className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm shadow-sm"
               >
-                <option value="AUTO">Otomatik taşınsın (taslak)</option>
+                <option value="AUTO">Otomatik taşınsın</option>
                 <option value="LAZY">Teklif verince taşınsın</option>
                 <option value="NONE">Taşınmasın (sıfırdan)</option>
               </select>
+              {/* AUTO geçerlilik-farkındadır: geçerli teklif CANLI taşınır,
+                  süresi dolan fiyatı korunarak taslağa düşer (backend
+                  createNextRound ile birebir). */}
+              <dl className="mt-1.5 space-y-1 text-xs text-zinc-500">
+                <div>
+                  <dt className="inline font-medium text-zinc-600">
+                    Otomatik taşınsın:
+                  </dt>{" "}
+                  <dd className="inline">
+                    geçerli teklifler yeni tura gönderilmiş olarak aynen
+                    taşınır; geçerlilik süresi dolanlar fiyatı korunarak
+                    taslağa düşer. Taşınan teklif tur hakkını kullanmaz.
+                  </dd>
+                </div>
+                <div>
+                  <dt className="inline font-medium text-zinc-600">
+                    Teklif verince taşınsın:
+                  </dt>{" "}
+                  <dd className="inline">
+                    önceki teklifler fiyatı korunarak taslağa çekilir;
+                    katılımcı onaylayıp göndermeden yeni turda görünmez.
+                  </dd>
+                </div>
+                <div>
+                  <dt className="inline font-medium text-zinc-600">
+                    Taşınmasın:
+                  </dt>{" "}
+                  <dd className="inline">
+                    önceki teklifler kapanmış sayılır, herkes yeni turda
+                    sıfırdan teklif verir.
+                  </dd>
+                </div>
+              </dl>
             </Field>
             <Field>
               <Label>Yeni Kapanış</Label>
