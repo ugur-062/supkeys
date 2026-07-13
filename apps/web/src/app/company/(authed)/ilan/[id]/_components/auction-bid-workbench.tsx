@@ -7,6 +7,7 @@ import type { ListingItemRow } from "@/hooks/use-company-listings";
 import {
   applyPercentToItems,
   cmpDecimal,
+  decSub,
   type DistributeItem,
 } from "@/lib/tenders/distribute";
 import { cn } from "@/lib/utils";
@@ -97,6 +98,22 @@ export function AuctionBidWorkbench({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const down = direction === "DOWN";
+
+  // Yapılan indirim/artış — kendi öncekine göre (DOWN: önceki−mevcut,
+  // UP: mevcut−önceki). Tutar kesin aritmetik; % yalnız gösterim.
+  const madeDiff = target.ownLastTotal
+    ? down
+      ? decSub(target.ownLastTotal, target.exactTotalStr)
+      : decSub(target.exactTotalStr, target.ownLastTotal)
+    : "0";
+  const madePct = (() => {
+    const own = Number(target.ownLastTotal ?? 0);
+    const diff = Number(madeDiff);
+    if (!(own > 0) || !(diff > 0)) return null;
+    return ((diff / own) * 100).toLocaleString("tr-TR", {
+      maximumFractionDigits: 1,
+    });
+  })();
 
   /** Araçların çalışacağı kalemler: fiyatlı olanlar (kilitliler bayraklı —
    *  toplamda sayılır ama fiyatına dokunulmaz). */
@@ -219,23 +236,21 @@ export function AuctionBidWorkbench({
                 {money(target.ownLastTotal ?? "0", currency)}
               </strong>
             </span>
-            <span>
-              Sınır:{" "}
-              <strong className="tabular-nums">
-                {down ? "≤" : "≥"} {money(target.effectiveTarget, currency)}
-              </strong>
-            </span>
+            {/* Sınır/"Gönderilebilir" yerine YAPILAN indirim/artış: tutar + %
+                (öncekine göre; kesin aritmetik, % yalnız gösterim). */}
             {target.met ? (
               <span className="inline-flex items-center gap-1 font-semibold">
                 <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                Gönderilebilir
+                {down ? "İndirim" : "Artış"}:{" "}
+                <strong className="tabular-nums">
+                  {money(madeDiff, currency)}
+                  {madePct != null ? ` (%${madePct})` : ""}
+                </strong>
               </span>
             ) : (
               <span>
-                Kalan {down ? "indirim" : "artırım"}:{" "}
-                <strong className="tabular-nums">
-                  {money(target.remaining, currency)}
-                </strong>
+                Öncekinden {down ? "düşük" : "yüksek"} olmalı — henüz{" "}
+                {down ? "indirim" : "artış"} yok.
               </span>
             )}
           </>

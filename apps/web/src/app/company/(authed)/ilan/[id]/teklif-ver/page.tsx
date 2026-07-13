@@ -1484,17 +1484,39 @@ export default function TeklifVerPage() {
               <p className="mt-1 text-2xl font-bold tabular-nums">
                 {money(total, effectiveCurrency)}
               </p>
-              {isAuction && !isBuyNowMode && effectiveTarget ? (
+              {/* Sınır yerine YAPILAN indirim/artış (öncekine göre). */}
+              {isAuction &&
+              !isBuyNowMode &&
+              effectiveTarget &&
+              workbenchTarget.ownLastTotal ? (
                 <p className="mt-1 text-xs text-emerald-200">
-                  Hedef: {direction === "DOWN" ? "≤" : "≥"}{" "}
-                  <span className="tabular-nums">
-                    {money(Number(effectiveTarget), effectiveCurrency)}
-                  </span>
-                  {workbenchTarget.met
-                    ? " · karşılandı ✓"
-                    : cmpDecimal(workbenchTarget.remaining, "0") === 1
-                      ? ` · kalan ${money(Number(workbenchTarget.remaining), effectiveCurrency)}`
-                      : ""}
+                  {workbenchTarget.met ? (
+                    <>
+                      {direction === "DOWN" ? "İndirim" : "Artış"}:{" "}
+                      <span className="tabular-nums">
+                        {money(
+                          Number(
+                            direction === "DOWN"
+                              ? decSub(
+                                  workbenchTarget.ownLastTotal,
+                                  workbenchTarget.exactTotalStr,
+                                )
+                              : decSub(
+                                  workbenchTarget.exactTotalStr,
+                                  workbenchTarget.ownLastTotal,
+                                ),
+                          ),
+                          effectiveCurrency,
+                        )}
+                      </span>{" "}
+                      ✓
+                    </>
+                  ) : (
+                    <>
+                      Öncekinden ({money(Number(workbenchTarget.ownLastTotal), effectiveCurrency)}){" "}
+                      {direction === "DOWN" ? "düşük" : "yüksek"} olmalı
+                    </>
+                  )}
                 </p>
               ) : null}
               {hasItems ? (
@@ -1567,16 +1589,33 @@ export default function TeklifVerPage() {
           <p className="text-base font-bold text-zinc-950 tabular-nums">
             {money(total, effectiveCurrency)}
           </p>
-          {isAuction && !isBuyNowMode && effectiveTarget ? (
+          {/* Sınır yerine YAPILAN indirim/artış (öncekine göre). */}
+          {isAuction &&
+          !isBuyNowMode &&
+          effectiveTarget &&
+          workbenchTarget.ownLastTotal ? (
             <p
               className={cn(
                 "text-[10px] tabular-nums",
                 workbenchTarget.met ? "text-emerald-600" : "text-amber-600",
               )}
             >
-              Hedef {direction === "DOWN" ? "≤" : "≥"}{" "}
-              {money(Number(effectiveTarget), effectiveCurrency)}
-              {workbenchTarget.met ? " ✓" : ""}
+              {workbenchTarget.met
+                ? `${direction === "DOWN" ? "İndirim" : "Artış"}: ${money(
+                    Number(
+                      direction === "DOWN"
+                        ? decSub(
+                            workbenchTarget.ownLastTotal,
+                            workbenchTarget.exactTotalStr,
+                          )
+                        : decSub(
+                            workbenchTarget.exactTotalStr,
+                            workbenchTarget.ownLastTotal,
+                          ),
+                    ),
+                    effectiveCurrency,
+                  )} ✓`
+                : `Öncekinden ${direction === "DOWN" ? "düşük" : "yüksek"} olmalı`}
             </p>
           ) : null}
         </div>
