@@ -1407,7 +1407,14 @@ export default function ListingDetailPage() {
             — firma yöneticiniz Ayarlar → Kullanıcılar&apos;dan verebilir.
           </Text>
         </div>
-      ) : (
+      ) : (!isAlim && biddingOpen && hasBuyNow) ||
+        (l.myBid?.status === "SUBMITTED" &&
+          biddingOpen &&
+          !l.english?.isEnglishAuction) ||
+        !l.english?.isEnglishAuction ||
+        bidDocsSection != null ? (
+        // İçeriksiz beyaz kutu render etme (pazarlıkta çoğu not yok —
+        // CTA sekmenin en üstünde).
         <div className="space-y-4 rounded-xl border border-zinc-950/10 bg-white p-5">
           {/* SATIS + hemen-al: detaylar (teslim/geçerlilik/belge) teklif
               ekranında girilir — buton oraya yönlendirir. Gönderilmiş
@@ -1441,46 +1448,8 @@ export default function ListingDetailPage() {
               </div>
             )
           ) : null}
-          {bidCta ? (
-            // Tek kompakt satır: durum metni + mevcut teklif solda, buton
-            // sağda. Tur hakkı yoksa buton PASİF — yeni tur garanti değil,
-            // söz vermeden anlat.
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <Text className="text-sm text-zinc-600">
-                  {bidCtaDisabled
-                    ? "Bu turdaki teklifin verildi — ilan sahibi yeni tur açarsa güncelleyebilirsin."
-                    : l.myBid?.status === "SUBMITTED"
-                      ? isAlim
-                        ? "Açık eksiltme — fiyatını düşürerek yeni teklif verebilirsin."
-                        : "Açık artırma — fiyatını artırarak yeni teklif verebilirsin."
-                      : l.myBid?.status === "LOST"
-                        ? "İhale hâlâ açık — güncellenmiş teklifle yeniden katıl."
-                        : l.myBid?.status === "DRAFT"
-                          ? "Taslağın kapanıştan önce gönderilmeli."
-                          : "Bu ihaleye teklif verebilirsin."}
-                </Text>
-                {l.myBid?.status === "SUBMITTED" ? (
-                  <Text className="mt-0.5 text-sm">
-                    Mevcut teklifin:{" "}
-                    <strong>
-                      {Number(l.myBid.amount).toLocaleString("tr-TR")}{" "}
-                      {!l.myBid.currency || l.myBid.currency === "TRY"
-                        ? "₺"
-                        : l.myBid.currency}
-                    </strong>
-                  </Text>
-                ) : null}
-              </div>
-              {bidCtaDisabled ? (
-                <Button disabled title="Bu turdaki teklif hakkın kullanıldı">
-                  {bidCta.label}
-                </Button>
-              ) : (
-                <Button href={bidCta.href}>{bidCta.label}</Button>
-              )}
-            </div>
-          ) : null}
+          {/* CTA butonu sekmenin EN ÜSTÜNE taşındı (aşağıdaki panel) —
+              burada yalnız Hemen-Al / RFQ notları / belgeler kalır. */}
           {l.myBid?.status === "SUBMITTED" &&
           biddingOpen &&
           !l.english?.isEnglishAuction ? (
@@ -1513,7 +1482,7 @@ export default function ListingDetailPage() {
           ) : null}
           {bidDocsSection}
         </div>
-      )}
+      ) : null}
     </section>
   );
 
@@ -1930,6 +1899,22 @@ export default function ListingDetailPage() {
 
           <TabPanels className="pt-5">
             <TabPanel className="space-y-5 outline-none">
+              {/* Teklif CTA'sı sekmenin EN ÜSTÜNDE — tur hakkı yoksa pasif
+                  (yeni tur vaat edilmez, gerekçe tooltip'te). */}
+              {bidCta ? (
+                <div className="flex justify-end">
+                  {bidCtaDisabled ? (
+                    <Button
+                      disabled
+                      title="Bu turdaki teklifin verildi — ilan sahibi yeni tur açarsa güncelleyebilirsin"
+                    >
+                      {bidCta.label}
+                    </Button>
+                  ) : (
+                    <Button href={bidCta.href}>{bidCta.label}</Button>
+                  )}
+                </div>
+              ) : null}
               <MyBidStatusPanel l={l} />
               {sellerBidSection}
             </TabPanel>
