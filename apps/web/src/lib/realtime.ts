@@ -42,8 +42,10 @@ export function subscribeRealtime(
   kind: "listing" | "order",
   id: string,
 ): () => void {
-  const s = socket;
-  if (!s) return () => undefined;
+  // connectRealtime idempotent — doğrudan yüklemede (F5) sayfa efekti
+  // RealtimeProvider'ınkinden ÖNCE koşar; socket'i burada kurmazsak
+  // abonelik sessizce hiç oluşmaz ve oda sinyalleri o ziyarette kaybolur.
+  const s = connectRealtime();
   const join = () => s.emit("subscribe", { kind, id });
   join();
   // Yeniden bağlanınca oda üyeliği kaybolur — tekrar katıl.
