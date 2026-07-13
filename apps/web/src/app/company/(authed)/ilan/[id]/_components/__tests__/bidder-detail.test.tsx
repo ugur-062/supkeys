@@ -248,8 +248,9 @@ describe("BidSummaryCard", () => {
     expect(screen.getByText("Gönderildi")).toBeInTheDocument();
     // v1 gizli (yalnız v2+ gösterilir).
     expect(screen.queryByText("v1")).not.toBeInTheDocument();
-    // "1.500 ₺" hem Toplam'da hem kalem satır toplamında (10×150) geçer.
-    expect(screen.getAllByText("1.500 ₺")).toHaveLength(2);
+    // "1.500 ₺" üst Toplam + kalem satır toplamı (10×150) + tablo dipnotu
+    // Toplam satırında geçer.
+    expect(screen.getAllByText("1.500 ₺")).toHaveLength(3);
     expect(screen.getByText(/Çelik Boru/)).toBeInTheDocument();
     expect(screen.getByText("Fiyatlandırılan Kalemler (1)")).toBeInTheDocument();
     expect(screen.getByText("Hızlı teslimat yapılır")).toBeInTheDocument();

@@ -10,6 +10,14 @@ import {
   DialogTitle,
 } from "@/components/catalyst/dialog";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
+import {
   useExtendBidValidity,
   type ListingDetail,
 } from "@/hooks/use-company-listings";
@@ -301,35 +309,77 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
           <p className="mb-2 text-xs font-medium text-zinc-500">
             Fiyatlandırılan Kalemler ({bid.items.length})
           </p>
-          <ul className="space-y-1.5">
-            {bid.items.map((bi) => {
-              const item = itemName.get(bi.itemId);
-              return (
-                <li
-                  key={bi.itemId}
-                  className="flex items-center justify-between gap-3 text-sm"
-                >
-                  <span className="min-w-0 truncate text-zinc-700">
-                    {item?.name ?? "Kalem"}
-                    {item ? (
-                      <span className="ml-1 text-xs text-zinc-400">
-                        {Number(item.quantity)} {item.unit} ×{" "}
-                        {Number(bi.unitPrice).toLocaleString("tr-TR")} {symbol}
-                      </span>
+          {(() => {
+            // Teslim kolonu yalnız en az bir kalemde tarih girildiyse.
+            const hasDelivery = bid.items!.some((bi) => bi.deliveryDate);
+            return (
+              <Table dense>
+                <TableHead>
+                  <TableRow>
+                    <TableHeader>Kalem</TableHeader>
+                    <TableHeader className="text-right">Miktar</TableHeader>
+                    <TableHeader className="text-right">
+                      Birim Fiyat
+                    </TableHeader>
+                    {hasDelivery ? (
+                      <TableHeader className="text-right">Teslim</TableHeader>
                     ) : null}
-                  </span>
-                  {item ? (
-                    <span className="shrink-0 font-medium text-zinc-900 tabular-nums">
-                      {(
-                        Number(bi.unitPrice) * Number(item.quantity)
-                      ).toLocaleString("tr-TR")}{" "}
-                      {symbol}
-                    </span>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
+                    <TableHeader className="text-right">
+                      Satır Toplamı
+                    </TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {bid.items!.map((bi) => {
+                    const item = itemName.get(bi.itemId);
+                    return (
+                      <TableRow key={bi.itemId}>
+                        <TableCell className="whitespace-normal text-zinc-900">
+                          {item?.name ?? "Kalem"}
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
+                          {item
+                            ? `${Number(item.quantity).toLocaleString("tr-TR")} ${item.unit}`
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
+                          {Number(bi.unitPrice).toLocaleString("tr-TR")}{" "}
+                          {symbol}
+                        </TableCell>
+                        {hasDelivery ? (
+                          <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
+                            {bi.deliveryDate
+                              ? new Date(bi.deliveryDate).toLocaleDateString(
+                                  "tr-TR",
+                                )
+                              : "—"}
+                          </TableCell>
+                        ) : null}
+                        <TableCell className="text-right font-medium whitespace-nowrap text-zinc-900 tabular-nums">
+                          {item
+                            ? `${(
+                                Number(bi.unitPrice) * Number(item.quantity)
+                              ).toLocaleString("tr-TR")} ${symbol}`
+                            : "—"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  <TableRow>
+                    <TableCell className="font-semibold text-zinc-900">
+                      Toplam
+                    </TableCell>
+                    <TableCell />
+                    <TableCell />
+                    {hasDelivery ? <TableCell /> : null}
+                    <TableCell className="text-right font-bold whitespace-nowrap text-zinc-950 tabular-nums">
+                      {Number(bid.amount).toLocaleString("tr-TR")} {symbol}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            );
+          })()}
         </div>
       ) : null}
 
