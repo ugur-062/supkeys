@@ -158,6 +158,7 @@ export class CompanyOrderDocumentsService {
         buyerCompanyId: true,
         status: true,
         paymentTiming: true,
+        paymentCategory: true,
       },
     });
     if (
@@ -244,9 +245,34 @@ export class CompanyOrderDocumentsService {
       if (isSeller) {
         throw new ForbiddenException("Ödeme dekontunu alıcı yükler");
       }
+      // Akreditifte ödeme banka kanalından — alıcının dekont penceresi kapalı.
+      if (order.paymentCategory === "LETTER_OF_CREDIT") {
+        throw new BadRequestException(
+          "Akreditifli siparişte ödeme banka kanalından yapılır — dekont yüklenmez",
+        );
+      }
       if (!this.isPaymentOpen(order.paymentTiming, order.status)) {
         throw new BadRequestException(
           "Ödeme dekontu, ödeme adımı açıldığında yüklenebilir",
+        );
+      }
+      return;
+    }
+
+    if (type === "LC") {
+      // Akreditif belgesi (küşat mektubu): alıcı yükler, akreditifli siparişte,
+      // satıcı onayından ("Akreditif Açıldı" adımının ön koşulu) gönderime kadar.
+      if (isSeller) {
+        throw new ForbiddenException("Akreditif belgesini alıcı yükler");
+      }
+      if (order.paymentCategory !== "LETTER_OF_CREDIT") {
+        throw new BadRequestException("Bu sipariş akreditifli değil");
+      }
+      const open =
+        order.status === "ACCEPTED" || order.status === "IN_DELIVERY";
+      if (!open) {
+        throw new BadRequestException(
+          "Akreditif belgesi, sipariş onaylandıktan sonra yüklenebilir",
         );
       }
     }

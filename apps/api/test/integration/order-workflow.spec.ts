@@ -580,3 +580,203 @@ describe("iptal edilmiş siparişte asılı ödeme", () => {
     expect(db.status).toBe("REJECTED");
   });
 });
+
+describe("Faz 3 — gönderim kilidi (S3: peşin eşiği)", () => {
+  it("peşin şartlı siparişte eşik onaylanmadan GÖNDERİLEMEZ; onaylanınca gönderilir", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    // Kısmi peşin %50 → eşik 500. Sipariş tutarı 1000.
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      paymentTiming: "BEFORE_DELIVERY",
+      paymentCategory: "ADVANCE",
+      advancePercent: 50,
+      acceptedAt: new Date(),
+    });
+    // Ödeme yokken gönderim reddedilir.
+    await expect(
+      orders.ship(seller.auth, order.id, { invoiceNumber: "F1" } as never),
+    ).rejects.toThrow(/peşin/i);
+
+    // 500 onaylı ödeme → eşik karşılanır, gönderilebilir.
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: 500,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+    const res = await orders.ship(seller.auth, order.id, {
+      invoiceNumber: "F1",
+    } as never);
+    expect(res.status).toBe("IN_DELIVERY");
+  });
+
+  it("tam peşin (%100) siparişte eşik = tam tutar", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      paymentTiming: "BEFORE_DELIVERY",
+      paymentCategory: "ADVANCE",
+      advancePercent: 100,
+      acceptedAt: new Date(),
+    });
+    // 500 (yarısı) yetmez.
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: 500,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+    await expect(
+      orders.ship(seller.auth, order.id, { invoiceNumber: "F1" } as never),
+    ).rejects.toThrow(/peşin/i);
+  });
+
+  it("açık hesap/vadeli siparişte peşin şartı YOK — doğrudan gönderilir", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      paymentTiming: "AFTER_DELIVERY",
+      paymentCategory: "OPEN_ACCOUNT",
+      acceptedAt: new Date(),
+    });
+    const res = await orders.ship(seller.auth, order.id, {
+      invoiceNumber: "F1",
+    } as never);
+    expect(res.status).toBe("IN_DELIVERY");
+  });
+});
+
+describe("Faz 3 — akreditif adım seti (S5)", () => {
+  async function lcOrder(sellerId: string, buyerId: string) {
+    return makeOrder(sellerId, buyerId, {
+      status: "ACCEPTED",
+      paymentTiming: "BEFORE_DELIVERY",
+      paymentCategory: "LETTER_OF_CREDIT",
+      lcType: "SIGHT",
+      acceptedAt: new Date(),
+    });
+  }
+
+  it("uçtan uca: LC belgesi → açıldı → kabul → gönder → banka ödedi → tamamlandı", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await lcOrder(seller.company.id, buyer.company.id);
+
+    // Belge yokken "Akreditif Açıldı" reddedilir.
+    await expect(orders.lcMarkOpened(buyer.auth, order.id)).rejects.toThrow(
+      /belge/i,
+    );
+    // LC belgesi ekle → açıldı.
+    await prisma.companyOrderDocument.create({
+      data: {
+        orderId: order.id,
+        type: "LC",
+        key: `company-orders/${order.id}/lc/x.pdf`,
+        fileName: "kusat.pdf",
+        mimeType: "application/pdf",
+        uploadedByCompanyId: buyer.company.id,
+      },
+    });
+    await orders.lcMarkOpened(buyer.auth, order.id);
+
+    // Kabul edilmeden gönderilemez.
+    await expect(
+      orders.ship(seller.auth, order.id, { invoiceNumber: "F1" } as never),
+    ).rejects.toThrow(/kabul/i);
+
+    await orders.lcMarkAccepted(seller.auth, order.id);
+    // Kabulden sonra gönderilebilir.
+    await orders.ship(seller.auth, order.id, { invoiceNumber: "F1" } as never);
+    await orders.receive(buyer.auth, order.id, {} as never); // DELIVERED (ödeme yok)
+
+    let db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("DELIVERED");
+
+    // Banka ödedi → sistem onaylı tam-tutar kaydı + oto-tamamlama.
+    const res = await orders.lcMarkPaid(seller.auth, order.id);
+    expect(res.completed).toBe(true);
+    db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("COMPLETED");
+    expect(db.lcPaidAt).not.toBeNull();
+    const pay = await prisma.companyOrderPayment.findFirstOrThrow({
+      where: { orderId: order.id },
+    });
+    expect(pay.status).toBe("CONFIRMED");
+    expect(Number(pay.amount)).toBe(1000);
+    expect(pay.method).toBe("Akreditif");
+  });
+
+  it("LC'de alıcının manuel ödeme kaydı REDDEDİLİR (banka kanalı)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await lcOrder(seller.company.id, buyer.company.id);
+    await expect(
+      orders.recordPayment(buyer.auth, order.id, { amount: 100 } as never),
+    ).rejects.toThrow(/banka/i);
+  });
+
+  it("LC olmayan siparişte lc adımları reddedilir", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      paymentCategory: "OPEN_ACCOUNT",
+      acceptedAt: new Date(),
+    });
+    await expect(orders.lcMarkOpened(buyer.auth, order.id)).rejects.toThrow(
+      /akreditifli değil/i,
+    );
+  });
+});
+
+describe("Faz 3 — vade hatırlatması (S7)", () => {
+  it("vadesi yaklaşan, teslim alınmış, ödenmemiş siparişte alıcıya bir kez bildirim", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    // Teslim 29 gün önce, 30 gün vade → vade yarın (≤3 gün).
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DELIVERED",
+      paymentCategory: "DEFERRED",
+      paymentDays: 30,
+      deliveredAt: new Date(Date.now() - 29 * 86_400_000),
+      deliveryStartedAt: new Date(Date.now() - 30 * 86_400_000),
+      acceptedAt: new Date(Date.now() - 31 * 86_400_000),
+    });
+    const sent = await orders.sendDuePaymentReminders();
+    expect(sent).toBe(1);
+    const n = await prisma.notification.count({
+      where: { companyId: buyer.company.id, title: "Ödeme vadesi yaklaşıyor" },
+    });
+    expect(n).toBe(1);
+    // İkinci çağrı idempotent — tekrar göndermez.
+    const again = await orders.sendDuePaymentReminders();
+    expect(again).toBe(0);
+  });
+
+  it("vadesi uzak sipariş hatırlatılmaz", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DELIVERED",
+      paymentCategory: "DEFERRED",
+      paymentDays: 60,
+      deliveredAt: new Date(), // vade 60 gün sonra
+    });
+    void order;
+    const sent = await orders.sendDuePaymentReminders();
+    expect(sent).toBe(0);
+  });
+});

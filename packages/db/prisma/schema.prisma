@@ -631,6 +631,7 @@ enum CompanyDocType {
   DELIVERY // teslim belgesi — yurtiçi irsaliye / uluslararası konşimento (satıcı yükler)
   PAYMENT // ödeme dekontu (alıcı yükler)
   TEMINAT // teminat mektubu — teslim öncesi ödemede satıcı SİPARİŞ ONAYINDAN ÖNCE yükler
+  LC // akreditif belgesi (küşat mektubu) — alıcı "Akreditif Açıldı" adımında yükler
 }
 
 model CompanyOrderDocument {
@@ -698,6 +699,15 @@ model CompanyOrder {
   bankAccountHolder    String?
   bankIban             String?
   expectedDeliveryDate DateTime?
+  // AKREDİTİF adımları (paymentCategory=LETTER_OF_CREDIT, Faz 3): alıcı LC
+  // açtırır (LC belgesi zorunlu) → satıcı kabul eder (gönderim kilidi açılır)
+  // → satıcı "banka ödedi" der (sistem onaylı tam-tutar ödeme kaydı üretir).
+  lcOpenedAt   DateTime?
+  lcAcceptedAt DateTime?
+  lcPaidAt     DateTime?
+  // Vade hatırlatması idempotency (S7 cron): teslim + paymentDays yaklaşırken
+  // alıcıya BİR KEZ bildirim.
+  paymentDueReminderSentAt DateTime?
   // GÖNDER (ACCEPTED→IN_DELIVERY): satıcı fatura no (zorunlu) + gönderim notu.
   invoiceNumber        String?
   deliveryStartedAt    DateTime?

@@ -121,4 +121,33 @@ export class CompanyOrdersController {
   ) {
     return this.service.rejectPayment(user, id, paymentId, dto.reason);
   }
+
+  // ---- Akreditif adımları (yalnız akreditifli sipariş) ----
+
+  /** Alıcı: akreditif açıldı (LC belgesi yüklenmiş olmalı). */
+  @Post(":id/lc/opened")
+  lcOpened(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.lcMarkOpened(user, id);
+  }
+
+  /** Satıcı: akreditifi kabul etti (gönderim kilidini açar). */
+  @Post(":id/lc/accept")
+  lcAccept(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.lcMarkAccepted(user, id);
+  }
+
+  /** Satıcı: akreditif ödemesi bankadan alındı. */
+  @Post(":id/lc/paid")
+  lcPaid(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.lcMarkPaid(user, id);
+  }
 }

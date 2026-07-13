@@ -6,6 +6,7 @@ import { tr } from "date-fns/locale";
 import {
   Ban,
   CheckCircle2,
+  Landmark,
   Plus,
   ThumbsUp,
   Truck,
@@ -72,6 +73,27 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       lines: o.rejectedReason ? [`Sebep: ${o.rejectedReason}`] : [],
     });
   }
+  // Akreditif adımları (yalnız LC siparişte doludur).
+  if (o.lcOpenedAt) {
+    events.push({
+      icon: Landmark,
+      tone: "text-indigo-400",
+      title: "Akreditif Açıldı",
+      at: fmt(o.lcOpenedAt),
+      actor: buyerLabel,
+      lines: [],
+    });
+  }
+  if (o.lcAcceptedAt) {
+    events.push({
+      icon: Landmark,
+      tone: "text-indigo-500",
+      title: "Akreditif Kabul Edildi",
+      at: fmt(o.lcAcceptedAt),
+      actor: sellerLabel,
+      lines: [],
+    });
+  }
   if (o.deliveryStartedAt) {
     const lines: string[] = [];
     if (o.invoiceNumber) lines.push(`Fatura no: ${o.invoiceNumber}`);
@@ -92,6 +114,16 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       title: "Teslim Alındı",
       at: fmt(o.deliveredAt),
       actor: buyerLabel,
+      lines: [],
+    });
+  }
+  if (o.lcPaidAt) {
+    events.push({
+      icon: Landmark,
+      tone: "text-emerald-500",
+      title: "Akreditif Ödemesi Alındı",
+      at: fmt(o.lcPaidAt),
+      actor: sellerLabel,
       lines: [],
     });
   }

@@ -50,6 +50,7 @@ vi.mock("@/hooks/use-company-orders", () => {
     useAcceptOrder: mut,
     useRejectOrder: mut,
     useCancelOrder: mut,
+    useLcStep: mut,
   };
 });
 

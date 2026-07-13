@@ -45,3 +45,45 @@ export function paymentPlanSuggestsGuarantee(
 ): boolean {
   return category === "ADVANCE";
 }
+
+/**
+ * Gönderim ÖNCESİ onaylı olması gereken peşin tutar (S3). ADVANCE'ta sipariş
+ * tutarının advancePercent'i; diğer kategorilerde 0 (peşin şartı yok).
+ * advancePercent yoksa tam peşin (%100) varsayılır — legacy güvenli taban.
+ */
+export function advanceDueAmount(
+  category: PaymentCategory,
+  advancePercent: number | null | undefined,
+  totalAmount: number,
+): number {
+  if (category !== "ADVANCE") return 0;
+  const pct = advancePercent ?? 100;
+  // 2 ondalık — para alanı Decimal(18,2); yuvarlama tavan kontrolüyle tutarlı.
+  return Math.round(totalAmount * (pct / 100) * 100) / 100;
+}
+
+/** Akreditif siparişi mi? Adım seti ve ödeme akışı LC'de tamamen farklıdır. */
+export function isLetterOfCredit(category: PaymentCategory): boolean {
+  return category === "LETTER_OF_CREDIT";
+}
+
+/**
+ * Vadeli ödeme günü olan siparişte vade tarihi = teslim tarihi + paymentDays.
+ * Yalnız DEFERRED/CHEQUE ve kısmi peşin kalanı (ADVANCE + paymentDays) için
+ * anlamlı; değilse null. deliveredAt yoksa (henüz teslim edilmedi) null.
+ */
+export function paymentDueDate(
+  category: PaymentCategory,
+  paymentDays: number | null | undefined,
+  deliveredAt: Date | null | undefined,
+): Date | null {
+  if (!deliveredAt || !paymentDays) return null;
+  const relevant =
+    category === "DEFERRED" ||
+    category === "CHEQUE" ||
+    category === "ADVANCE"; // kısmi peşinde kalan vadeli olabilir
+  if (!relevant) return null;
+  const d = new Date(deliveredAt);
+  d.setDate(d.getDate() + paymentDays);
+  return d;
+}

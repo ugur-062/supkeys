@@ -7,10 +7,11 @@ import { CompanyOrderDocumentsController } from "./company-order-documents.contr
 import { CompanyOrderDocumentsService } from "./company-order-documents.service";
 import { CompanyOrdersController } from "./controllers/company-orders.controller";
 import { CompanyOrdersService } from "./services/company-orders.service";
+import { OrderScheduler } from "./schedulers/order.scheduler";
 
 @Module({
   imports: [CompanyAuthModule, StorageModule, EmailModule, NotificationModule],
   controllers: [CompanyOrdersController, CompanyOrderDocumentsController],
-  providers: [CompanyOrdersService, CompanyOrderDocumentsService],
+  providers: [CompanyOrdersService, CompanyOrderDocumentsService, OrderScheduler],
 })
 export class CompanyOrdersModule {}

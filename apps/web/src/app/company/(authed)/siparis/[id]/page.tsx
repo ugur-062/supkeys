@@ -27,6 +27,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { subscribeRealtime } from "@/lib/realtime";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { OrderDocumentsSection } from "./_components/order-documents-section";
+import { LcStepPanel } from "./_components/lc-step-panel";
 import {
   AcceptOrderModal,
   NoteModal,
@@ -152,13 +153,20 @@ export default function OrderDetailPage() {
   const paymentAwaitingConfirmation = Number(o.paymentTotals?.pending ?? 0) > 0;
   // Tam ödeme onaylı mı? (backend complete/auto-complete kapısıyla birebir:
   // onaylı toplam ≥ sipariş tutarı). Sipariş ancak bu sağlanınca tamamlanır.
-  const fullyPaid =
-    Number(o.paymentTotals?.confirmed ?? 0) + 0.01 >= Number(o.amount);
+  const confirmedPaid = Number(o.paymentTotals?.confirmed ?? 0);
+  const fullyPaid = confirmedPaid + 0.01 >= Number(o.amount);
+  // Faz 3 gönderim kilidi (S3/S5): akreditifte satıcı kabulü, peşinde eşik
+  // ödemesi olmadan satıcı GÖNDEREMEZ (backend de reddeder — UI önden kilitler).
+  const isLc = o.paymentCategory === "LETTER_OF_CREDIT";
+  const advanceDue = Number(o.advanceDue ?? 0);
+  const advanceMet = advanceDue <= 0 || confirmedPaid + 0.01 >= advanceDue;
+  const shipUnlocked = (!isLc || !!o.lcAcceptedAt) && advanceMet;
   // Sonraki ana aksiyon (modal açar).
   const next =
     isSeller &&
     (o.status === "ACCEPTED" || o.status === "CREATED") &&
-    !paymentAwaitingConfirmation
+    !paymentAwaitingConfirmation &&
+    shipUnlocked
       ? { label: "Siparişi Gönder", modal: "ship" as const }
       : !isSeller && o.status === "IN_DELIVERY"
         ? { label: "Teslim Aldım", modal: "receive" as const }
@@ -169,6 +177,13 @@ export default function OrderDetailPage() {
             fullyPaid
           ? { label: "Siparişi Tamamla", modal: "complete" as const }
           : null;
+  // Peşin eşiği bekleniyor mu (satıcı, gönderim öncesi)? Kilit mesajı için.
+  const advanceGate =
+    isSeller &&
+    !isLc &&
+    (o.status === "ACCEPTED" || o.status === "CREATED") &&
+    !advanceMet &&
+    !paymentAwaitingConfirmation;
 
   const close = () => setModal(null);
   const run = async (p: Promise<unknown>, ok: string, fallback: string) => {
@@ -590,6 +605,24 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
           </Text>
         ) : o.status === "COMPLETED" ? (
           <Text className="text-sm text-emerald-700">✓ Sipariş tamamlandı.</Text>
+        ) : advanceGate ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            Bu siparişte <strong>peşin ödeme şartı</strong> var — gönderim için{" "}
+            <strong>
+              {advanceDue.toLocaleString("tr-TR")} {curSym}
+            </strong>{" "}
+            peşin tahsilat onaylanmalı (onaylı:{" "}
+            {confirmedPaid.toLocaleString("tr-TR")} {curSym}). Alıcı ödemeyi
+            bildirip siz onayladıktan sonra gönderebilirsiniz.
+          </div>
+        ) : isSeller &&
+          isLc &&
+          !o.lcAcceptedAt &&
+          (o.status === "ACCEPTED" || o.status === "CREATED") ? (
+          <Text className="text-sm text-zinc-500">
+            Akreditif adımları aşağıda — kabul edildikten sonra
+            gönderebilirsiniz.
+          </Text>
         ) : next ? (
           <div className="flex flex-wrap items-center justify-between gap-4">
             <Text className="text-sm text-zinc-600">
@@ -629,6 +662,9 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
           </Text>
         )}
       </section>
+
+      {/* Akreditif adımları (yalnız LC siparişte) */}
+      <LcStepPanel order={o} />
 
       {/* Ödeme */}
       <OrderPaymentsCard order={o} />

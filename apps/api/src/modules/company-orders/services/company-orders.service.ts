@@ -13,6 +13,12 @@ import {
   type CompanyOrderPaymentTiming,
   type CompanyOrderStatus,
 } from "@rothern/db";
+import {
+  advanceDueAmount,
+  isLetterOfCredit,
+  paymentDueDate,
+  type PaymentCategory,
+} from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import type {
@@ -221,6 +227,39 @@ export class CompanyOrdersService {
    *  Alıcının bekleyen ödeme kaydı varken gönderilemez — satıcı önce
    *  ödemeyi onaylamalı ya da reddetmeli (alıcı tamamlama kapısının simetriği). */
   async ship(user: AuthenticatedCompanyUser, id: string, input: ShipOrderDto) {
+    const order = await this.loadParticipant(user, id);
+    const category = order.paymentCategory as PaymentCategory;
+    // AKREDİTİF: satıcı, alıcının açtırdığı akreditifi KABUL etmeden gönderemez
+    // (banka güvencesi teyit edilmeden mal yola çıkmasın — S5 adım kilidi).
+    if (isLetterOfCredit(category)) {
+      if (!order.lcOpenedAt) {
+        throw new BadRequestException(
+          "Alıcının akreditifi henüz açmadı — akreditif açılıp kabul edilmeden gönderilemez",
+        );
+      }
+      if (!order.lcAcceptedAt) {
+        throw new BadRequestException(
+          "Akreditifi kabul etmeden gönderemezsiniz — Akreditif bölümünden 'Akreditifi Kabul Ettim' adımını tamamlayın",
+        );
+      }
+    }
+    // PEŞİN (S3): onaylı ödeme, gönderim öncesi peşin eşiğine ulaşmalı. Alıcı
+    // hiç ödemeden satıcının kargoya vermesi burada engellenir (eski davranışta
+    // yalnız frontend gizliyordu). Kısmi peşinde eşik = tutar × yüzde.
+    const advanceDue = advanceDueAmount(
+      category,
+      order.advancePercent,
+      Number(order.amount),
+    );
+    if (advanceDue > 0) {
+      const confirmed = await this.confirmedPaymentSum(id);
+      if (confirmed + 0.01 < advanceDue) {
+        const curSym = await this.orderCurrencySymbol(id);
+        throw new BadRequestException(
+          `Bu siparişte peşin ödeme şartı var — gönderim için ${advanceDue.toLocaleString("tr-TR")} ${curSym} peşin tahsilat onaylanmalı (onaylı: ${confirmed.toLocaleString("tr-TR")} ${curSym})`,
+        );
+      }
+    }
     const pendingPayments = await this.prisma.companyOrderPayment.count({
       where: { orderId: id, status: "AWAITING_CONFIRMATION" },
     });
@@ -426,6 +465,239 @@ export class CompanyOrdersService {
     return { ok: true, status: "CANCELLED" as const };
   }
 
+  // ---- Akreditif adım seti (yalnız paymentCategory=LETTER_OF_CREDIT, Faz 3) ----
+
+  /** LC guard: sipariş akreditifli mi + istenen taraf mı (temiz yetki/durum). */
+  private assertLcOrder(
+    order: { paymentCategory: string; sellerCompanyId: string; buyerCompanyId: string },
+    user: AuthenticatedCompanyUser,
+    side: "seller" | "buyer",
+  ) {
+    if (!isLetterOfCredit(order.paymentCategory as PaymentCategory)) {
+      throw new BadRequestException("Bu sipariş akreditifli değil");
+    }
+    const own =
+      side === "seller"
+        ? order.sellerCompanyId === user.companyId
+        : order.buyerCompanyId === user.companyId;
+    if (!own) throw new ForbiddenException("Bu işlemi yapamazsınız");
+    this.assertOrderRole(user, side);
+  }
+
+  /** Alıcı: "Akreditif Açıldı" — LC belgesi yüklenmiş olmalı; ACCEPTED evresi. */
+  async lcMarkOpened(user: AuthenticatedCompanyUser, id: string) {
+    const order = await this.loadParticipant(user, id);
+    this.assertLcOrder(order, user, "buyer");
+    if (order.status !== "ACCEPTED") {
+      throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
+    }
+    if (order.lcOpenedAt) {
+      throw new BadRequestException("Akreditif zaten açıldı olarak işaretlendi");
+    }
+    // Akreditif belgesi (küşat mektubu) yüklenmeden "açıldı" denemez.
+    const lcDoc = await this.prisma.companyOrderDocument.count({
+      where: { orderId: id, type: "LC" },
+    });
+    if (lcDoc === 0) {
+      throw new BadRequestException(
+        "Akreditif belgesini (küşat mektubu) Belgeler bölümünden yüklemeden 'Akreditif Açıldı' işaretlenemez",
+      );
+    }
+    await this.prisma.companyOrder.update({
+      where: { id },
+      data: { lcOpenedAt: new Date() },
+    });
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
+    await this.notifyOrderParty(
+      id,
+      order.sellerCompanyId,
+      "Akreditif açıldı — kabulünüz bekleniyor",
+      "Akreditif açıldı",
+      `${this.orderLabel(order.number)} sipariş için alıcı akreditifi açtı. Belgeyi inceleyip 'Akreditifi Kabul Ettim' adımını tamamlayın.`,
+      "satis",
+    );
+    return { ok: true };
+  }
+
+  /** Satıcı: "Akreditifi Kabul Ettim" — açılmış olmalı; gönderim kilidini açar. */
+  async lcMarkAccepted(user: AuthenticatedCompanyUser, id: string) {
+    const order = await this.loadParticipant(user, id);
+    this.assertLcOrder(order, user, "seller");
+    if (order.status !== "ACCEPTED") {
+      throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
+    }
+    if (!order.lcOpenedAt) {
+      throw new BadRequestException(
+        "Önce alıcının akreditifi açması gerekir",
+      );
+    }
+    if (order.lcAcceptedAt) {
+      throw new BadRequestException("Akreditif zaten kabul edildi");
+    }
+    await this.prisma.companyOrder.update({
+      where: { id },
+      data: { lcAcceptedAt: new Date() },
+    });
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
+    await this.notifyOrderParty(
+      id,
+      order.buyerCompanyId,
+      "Akreditif kabul edildi",
+      "Akreditif kabul edildi",
+      `${this.orderLabel(order.number)} sipariş için satıcı akreditifi kabul etti ve gönderime hazırlanıyor.`,
+      "satinalma",
+    );
+    return { ok: true };
+  }
+
+  /**
+   * Satıcı: "Ödeme Bankadan Alındı" — akreditif ödemesi banka kanalından geldi.
+   * Sistem, siparişin kalanı kadar ONAYLI ödeme kaydı üretir (yöntem
+   * "Akreditif") → mevcut tamamlama/oto-tamamlama kapıları değişmeden çalışır.
+   * DELIVERED ise doğrudan tamamlanır; IN_DELIVERY ise teslim alınınca kapanır.
+   */
+  async lcMarkPaid(user: AuthenticatedCompanyUser, id: string) {
+    const order = await this.loadParticipant(user, id);
+    this.assertLcOrder(order, user, "seller");
+    if (!order.lcAcceptedAt) {
+      throw new BadRequestException(
+        "Akreditif kabul edilmeden ödeme alındı işaretlenemez",
+      );
+    }
+    if (order.status !== "IN_DELIVERY" && order.status !== "DELIVERED") {
+      throw new BadRequestException(
+        "Ödeme, sipariş gönderildikten sonra işaretlenebilir",
+      );
+    }
+    if (order.lcPaidAt) {
+      throw new BadRequestException("Ödeme zaten alındı olarak işaretlendi");
+    }
+    const autoCompleted = await this.prisma.$transaction(async (tx) => {
+      const rows = await tx.$queryRaw<
+        { status: CompanyOrderStatus; amount: Prisma.Decimal }[]
+      >`SELECT "status","amount" FROM "company_orders" WHERE "id" = ${id} FOR UPDATE`;
+      const row = rows[0];
+      if (!row) throw new NotFoundException("Sipariş bulunamadı");
+      if (row.status !== "IN_DELIVERY" && row.status !== "DELIVERED") {
+        throw new BadRequestException(
+          "Sipariş durumu az önce değişti — sayfayı yenileyip tekrar deneyin",
+        );
+      }
+      const total = Number(row.amount);
+      const confirmed = await tx.companyOrderPayment
+        .aggregate({
+          where: { orderId: id, status: "CONFIRMED" },
+          _sum: { amount: true },
+        })
+        .then((a) => (a._sum.amount ? Number(a._sum.amount) : 0));
+      const remaining = Math.max(0, total - confirmed);
+      // Kalan > 0 ise onaylı tam-tutar kaydı üret (idempotent lcPaidAt damgası
+      // çift-tıkı zaten engeller; remaining=0 ise yalnız damga).
+      if (remaining > 0) {
+        await tx.companyOrderPayment.create({
+          data: {
+            orderId: id,
+            amount: remaining,
+            method: "Akreditif",
+            note: "Akreditif ödemesi banka kanalından alındı",
+            status: "CONFIRMED",
+            confirmedAt: new Date(),
+            recordedByCompanyId: order.sellerCompanyId,
+            recordedByUserId: user.userId,
+          },
+        });
+      }
+      await tx.companyOrder.update({
+        where: { id },
+        data: { lcPaidAt: new Date() },
+      });
+      // DELIVERED ise tam ödeme sağlandı → tamamla (IN_DELIVERY'de teslim
+      // alınınca receive() aynı kapıdan COMPLETED'a geçirir).
+      if (row.status === "DELIVERED") {
+        const done = await tx.companyOrder.updateMany({
+          where: { id, status: "DELIVERED" },
+          data: { status: "COMPLETED", completedAt: new Date() },
+        });
+        return done.count === 1;
+      }
+      return false;
+    });
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
+    await this.notifyOrderParty(
+      id,
+      order.buyerCompanyId,
+      "Akreditif ödemesi alındı",
+      "Ödeme alındı",
+      `${this.orderLabel(order.number)} sipariş için akreditif ödemesi banka kanalından alındı${
+        autoCompleted ? " ve sipariş tamamlandı" : ""
+      }.`,
+      "satinalma",
+    );
+    return { ok: true, completed: autoCompleted };
+  }
+
+  /**
+   * S7 — Vade hatırlatması. Teslim alınmış (DELIVERED) ama tam ödenmemiş
+   * Vadeli/Çek/kısmi-peşin siparişlerde, vadeye `withinDays` gün veya daha az
+   * kalanlar için alıcıya BİR KEZ bildirim (idempotency: paymentDueReminderSentAt).
+   * Scheduler saatlik çağırır. Küçük aday kümesi → JS'te vade filtresi.
+   */
+  async sendDuePaymentReminders(withinDays = 3): Promise<number> {
+    const candidates = await this.prisma.companyOrder.findMany({
+      where: {
+        status: "DELIVERED",
+        paymentDueReminderSentAt: null,
+        deliveredAt: { not: null },
+        paymentDays: { not: null },
+        paymentCategory: { in: ["DEFERRED", "CHEQUE", "ADVANCE"] },
+      },
+      select: {
+        id: true,
+        number: true,
+        amount: true,
+        currency: true,
+        buyerCompanyId: true,
+        sellerCompanyId: true,
+        paymentCategory: true,
+        paymentDays: true,
+        deliveredAt: true,
+      },
+    });
+    if (candidates.length === 0) return 0;
+    const now = Date.now();
+    const horizon = now + withinDays * 24 * 60 * 60 * 1000;
+    let sent = 0;
+    for (const o of candidates) {
+      const due = paymentDueDate(
+        o.paymentCategory as PaymentCategory,
+        o.paymentDays,
+        o.deliveredAt,
+      );
+      if (!due || due.getTime() > horizon) continue; // vade henüz uzak
+      const confirmed = await this.confirmedPaymentSum(o.id);
+      if (this.isFullyPaid(Number(o.amount), confirmed)) continue; // ödenmiş
+      // Idempotent claim — yalnız hâlâ damgasız kayıt bildirim atar (overlap/
+      // çift-replica güvenli).
+      const claimed = await this.prisma.companyOrder.updateMany({
+        where: { id: o.id, paymentDueReminderSentAt: null },
+        data: { paymentDueReminderSentAt: new Date() },
+      });
+      if (claimed.count !== 1) continue;
+      const remaining = Math.max(0, Number(o.amount) - confirmed);
+      const curSym = o.currency && o.currency !== "TRY" ? o.currency : "₺";
+      await this.notifyOrderParty(
+        o.id,
+        o.buyerCompanyId,
+        "Ödeme vadesi yaklaşıyor",
+        "Ödeme vadesi yaklaşıyor",
+        `${this.orderLabel(o.number)} sipariş için ödeme vadesi ${due.toLocaleDateString("tr-TR")} — kalan tutar ${remaining.toLocaleString("tr-TR")} ${curSym}.`,
+        "satinalma",
+      );
+      sent++;
+    }
+    return sent;
+  }
+
   private orderLabel(number: string | null): string {
     return number ? `${number} numaralı` : "İlgili";
   }
@@ -438,6 +710,23 @@ export class CompanyOrdersService {
    */
   private isFullyPaid(total: number, confirmed: number): boolean {
     return total <= 0 || confirmed + 0.01 >= total;
+  }
+
+  /** Onaylı ödeme toplamı (peşin eşiği/tamamlama kapıları için). */
+  private async confirmedPaymentSum(id: string): Promise<number> {
+    const agg = await this.prisma.companyOrderPayment.aggregate({
+      where: { orderId: id, status: "CONFIRMED" },
+      _sum: { amount: true },
+    });
+    return agg._sum.amount ? Number(agg._sum.amount) : 0;
+  }
+
+  private async orderCurrencySymbol(id: string): Promise<string> {
+    const o = await this.prisma.companyOrder.findUnique({
+      where: { id },
+      select: { currency: true },
+    });
+    return o?.currency && o.currency !== "TRY" ? o.currency : "₺";
   }
 
   private async transition(
@@ -512,8 +801,18 @@ export class CompanyOrdersService {
         id: true,
         number: true,
         status: true,
+        amount: true,
         paymentTiming: true,
         requireGuaranteeLetter: true,
+        // Ödeme planı (Faz 2 snapshot) — adım motoru kararlarında kullanılır.
+        paymentCategory: true,
+        advancePercent: true,
+        paymentDays: true,
+        // Akreditif adım damgaları (Faz 3).
+        lcOpenedAt: true,
+        lcAcceptedAt: true,
+        lcPaidAt: true,
+        deliveredAt: true,
         sellerCompanyId: true,
         buyerCompanyId: true,
       },
@@ -543,7 +842,12 @@ export class CompanyOrdersService {
   private isPaymentOpen(
     timing: CompanyOrderPaymentTiming,
     status: CompanyOrderStatus,
+    category?: PaymentCategory | string | null,
   ): boolean {
+    // Akreditifte ödeme banka kanalından akar — alıcının manuel ödeme kaydı
+    // ve dekont penceresi KAPALI. Satıcı "Ödeme Bankadan Alındı" adımıyla
+    // sistem tam-tutar onaylı kayıt üretir (lcMarkPaid).
+    if (category === "LETTER_OF_CREDIT") return false;
     if (timing === "BEFORE_DELIVERY") {
       return (
         status === "ACCEPTED" ||
@@ -573,9 +877,17 @@ export class CompanyOrdersService {
       throw new ForbiddenException("Ödemeyi yalnızca alıcı kaydedebilir");
     }
     this.assertOrderRole(user, "buyer");
-    if (!this.isPaymentOpen(order.paymentTiming, order.status)) {
+    if (
+      !this.isPaymentOpen(
+        order.paymentTiming,
+        order.status,
+        order.paymentCategory,
+      )
+    ) {
       throw new BadRequestException(
-        "Bu sipariş şu an ödeme kaydına uygun değil",
+        isLetterOfCredit(order.paymentCategory as PaymentCategory)
+          ? "Akreditifli siparişte ödeme banka kanalından yapılır — manuel ödeme kaydı girilmez"
+          : "Bu sipariş şu an ödeme kaydına uygun değil",
       );
     }
     if (!(input.amount > 0)) {
@@ -871,12 +1183,34 @@ export class CompanyOrdersService {
       // İlan sahibinin seçimi (award snapshot'ı) — true ise satıcı onaydan
       // önce teminat mektubu yükler; UI adımı buna göre gösterir.
       requireGuaranteeLetter: o.requireGuaranteeLetter,
-      paymentOpen: this.isPaymentOpen(o.paymentTiming, o.status),
+      paymentOpen: this.isPaymentOpen(
+        o.paymentTiming,
+        o.status,
+        o.paymentCategory,
+      ),
       paymentTotals: {
         confirmed: confirmed.toFixed(2),
         pending: pending.toFixed(2),
         remaining: remaining.toFixed(2),
       },
+      // Gönderim öncesi onaylanması gereken peşin tutar (S3) — UI kilit/eşik
+      // mesajı bunu gösterir; 0 = peşin şartı yok.
+      advanceDue: advanceDueAmount(
+        o.paymentCategory as PaymentCategory,
+        o.advancePercent,
+        total,
+      ).toFixed(2),
+      // Vade tarihi (Vadeli/Çek/kısmi-peşin kalanı) — teslim + gün; UI bilgi
+      // satırı + vade hatırlatması bunu kullanır.
+      paymentDueDate: paymentDueDate(
+        o.paymentCategory as PaymentCategory,
+        o.paymentDays,
+        o.deliveredAt,
+      ),
+      // Akreditif adım damgaları (Faz 3) — UI LC adım setini bunlarla sürer.
+      lcOpenedAt: o.lcOpenedAt,
+      lcAcceptedAt: o.lcAcceptedAt,
+      lcPaidAt: o.lcPaidAt,
       // Teslimat adresi snapshot'ı (award anında: ALIM→ilan, SATIS→teklif).
       deliveryAddress: o.deliveryAddress as Record<
         string,

@@ -40,9 +40,9 @@ function fmt(n: string | number) {
 /**
  * Sipariş ödeme kartı — alıcı "Ödemeyi Yaptım" der, satıcı "Ödemeyi Aldım"
  * ile onaylar (veya reddeder); kısmi ödeme + onaylı/bekleyen/kalan toplamları.
- * Ödeme YÖNTEMİ sorulmaz — ihale açılırken kararlaştırılır (Faz 2'de ilandan
- * gösterilecek); eski kayıtlardaki yöntem/çek bilgisi listede görünmeye devam
- * eder.
+ * Ödeme YÖNTEMİ sorulmaz — ihale şartında kararlaştırılır (plan üstte). Akreditifte
+ * alıcının manuel ödeme akışı kapalıdır (paymentOpen=false) — ödeme banka
+ * kanalından, satıcı "Ödeme Bankadan Alındı" adımıyla işaretler.
  */
 export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const curSym =
@@ -50,6 +50,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
     "₺";
   const isBuyer = order.role === "buyer";
   const isSeller = order.role === "seller";
+  const isLc = order.paymentCategory === "LETTER_OF_CREDIT";
   const record = useRecordPayment(order.id);
   const decide = usePaymentDecision(order.id);
 
@@ -58,6 +59,23 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const [note, setNote] = useState("");
 
   const t = order.paymentTotals;
+
+  // S4 — adım tutarını önceden doldur: peşin adımındaysak (peşin eşiği henüz
+  // dolmadıysa) eşiğin kalanı, aksi halde sipariş kalanı. Alan DÜZENLENEBİLİR
+  // kalır (iki havaleyle ödeyen takılmaz; backend tavan korumasını zaten yapar).
+  const advanceDue = Number(order.advanceDue ?? 0);
+  const advanceRemaining = Math.max(
+    0,
+    advanceDue - Number(t.confirmed) - Number(t.pending),
+  );
+  const suggested =
+    advanceRemaining > 0.01 ? advanceRemaining : Number(t.remaining);
+
+  const openForm = () => {
+    setAmount(suggested > 0 ? suggested.toFixed(2) : "");
+    setNote("");
+    setOpen(true);
+  };
 
   const resetForm = () => {
     setOpen(false);
@@ -115,7 +133,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         {isBuyer && order.paymentOpen ? (
           <button
             type="button"
-            onClick={() => setOpen((v) => !v)}
+            onClick={() => (open ? resetForm() : openForm())}
             className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800"
           >
             <Plus className="h-3.5 w-3.5" />
@@ -130,6 +148,24 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         <Totals label="Bekleyen" value={t.pending} tone="text-warning-600" curSym={curSym} />
         <Totals label="Kalan" value={t.remaining} tone="text-zinc-900" curSym={curSym} />
       </div>
+
+      {/* Vade tarihi (Vadeli/Çek/kısmi-peşin kalanı) — teslim sonrası hesaplanır. */}
+      {order.paymentDueDate ? (
+        <div className="border-b border-zinc-950/5 px-5 py-2 text-xs text-zinc-600">
+          Ödeme vadesi:{" "}
+          <strong>
+            {format(new Date(order.paymentDueDate), "dd MMM yyyy", { locale: tr })}
+          </strong>
+        </div>
+      ) : null}
+
+      {/* Akreditif — manuel ödeme akışı kapalı bilgilendirmesi. */}
+      {isLc ? (
+        <div className="border-b border-zinc-950/5 bg-zinc-50 px-5 py-2 text-xs text-zinc-600">
+          Ödeme akreditif kapsamında <strong>banka kanalından</strong> yapılır —
+          satıcı ödemeyi aldığında Akreditif bölümünden işaretler.
+        </div>
+      ) : null}
 
       {/* Kayıt formu (alıcı) */}
       {open && isBuyer ? (

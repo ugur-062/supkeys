@@ -136,10 +136,13 @@ export function OrderDocumentsSection({
   // eder. Bayrak award anında siparişe snapshot'lanır.
   const requiresGuarantee = order.requireGuaranteeLetter;
 
+  const isLc = order.paymentCategory === "LETTER_OF_CREDIT";
+
   const { data: docs } = useOrderDocuments(orderId);
   const delivery = (docs ?? []).filter((d) => d.type === "DELIVERY");
   const payment = (docs ?? []).filter((d) => d.type === "PAYMENT");
   const guarantee = (docs ?? []).filter((d) => d.type === "TEMINAT");
+  const lc = (docs ?? []).filter((d) => d.type === "LC");
 
   // ── Adım bazlı yükleme pencereleri (backend assertCanUpload ile birebir) ──
   // Teminat: yalnız onay öncesi (PENDING), satıcı. Onaydan sonra salt-okunur.
@@ -151,8 +154,16 @@ export function OrderDocumentsSection({
     status === "IN_DELIVERY" ||
     status === "DELIVERED";
   const canUploadDelivery = isSeller && deliveryOpen && !terminal;
-  // Ödeme dekontu: ödeme penceresi (paymentOpen) açıkken, alıcı.
+  // Ödeme dekontu: ödeme penceresi (paymentOpen) açıkken, alıcı. Akreditifte
+  // ödeme banka kanalından — dekont kutusu hiç gösterilmez.
   const canUploadPayment = isBuyer && order.paymentOpen && !terminal;
+  // Akreditif belgesi (küşat mektubu): alıcı, onaydan gönderime kadar.
+  const lcOpen = status === "ACCEPTED" || status === "IN_DELIVERY";
+  const canUploadLc = isBuyer && isLc && lcOpen && !terminal;
+  const lcLockHint =
+    isBuyer && isLc && !lcOpen && !terminal
+      ? "Sipariş onaylandıktan sonra açılır."
+      : null;
 
   // Kilit ipuçları — sadece o belgeyi yüklemesi gereken taraf için.
   const deliveryLockHint =
@@ -195,15 +206,28 @@ export function OrderDocumentsSection({
           lockHint={deliveryLockHint}
           docs={delivery}
         />
-        <DocGroup
-          orderId={orderId}
-          type="PAYMENT"
-          title="Ödeme Dekontu"
-          hint="Ödeme kanıtı (alıcı yükler)"
-          canUpload={canUploadPayment}
-          lockHint={paymentLockHint}
-          docs={payment}
-        />
+        {/* Akreditif belgesi — yalnız LC siparişte; ödeme dekontu gösterilmez. */}
+        {isLc ? (
+          <DocGroup
+            orderId={orderId}
+            type="LC"
+            title="Akreditif Belgesi"
+            hint="Küşat mektubu (alıcı yükler) — 'Akreditif Açıldı' adımının ön koşulu"
+            canUpload={canUploadLc}
+            lockHint={lcLockHint}
+            docs={lc}
+          />
+        ) : (
+          <DocGroup
+            orderId={orderId}
+            type="PAYMENT"
+            title="Ödeme Dekontu"
+            hint="Ödeme kanıtı (alıcı yükler)"
+            canUpload={canUploadPayment}
+            lockHint={paymentLockHint}
+            docs={payment}
+          />
+        )}
       </div>
     </section>
   );

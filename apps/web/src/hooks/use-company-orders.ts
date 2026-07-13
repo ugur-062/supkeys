@@ -103,6 +103,14 @@ export interface CompanyOrderDetail extends CompanyOrder {
   lcConfirmed?: boolean;
   paymentNote?: string | null;
   deliveryTerm?: string | null;
+  /** Gönderim öncesi onaylanması gereken peşin tutar (S3); "0.00" = şart yok. */
+  advanceDue?: string | null;
+  /** Vade tarihi (Vadeli/Çek/kısmi-peşin kalanı) — teslim + gün; ISO/null. */
+  paymentDueDate?: string | null;
+  /** Akreditif adım damgaları (Faz 3). */
+  lcOpenedAt?: string | null;
+  lcAcceptedAt?: string | null;
+  lcPaidAt?: string | null;
   // Adım verileri + timeline (eski sistemle birebir)
   acceptedAt: string | null;
   acceptedNote: string | null;
@@ -242,6 +250,21 @@ export function useCancelOrder(id: string) {
       const { data } = await companyApi.post(`/company/orders/${id}/cancel`, {
         reason,
       });
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+  });
+}
+
+/** Akreditif adımı — action: opened (alıcı) | accept (satıcı) | paid (satıcı). */
+export function useLcStep(id: string, action: "opened" | "accept" | "paid") {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post(
+        `/company/orders/${id}/lc/${action}`,
+        {},
+      );
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
