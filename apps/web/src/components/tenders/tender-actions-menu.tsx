@@ -330,17 +330,17 @@ export function TenderActionsMenu({
     // onaylamadan işlem yapılmaz (Değerlendirmeye Al da onaylı).
     if (
       !(await confirm({
-        title: "Değerlendirmeden Çıkar",
+        title: "Değerlendirmeyi Geri Al",
         description:
           "İhale değerlendirme aşamasından çıkarılacak ve \"Kapandı\" durumuna alınacak. " +
           "Bu işlem teklif alımını yeniden başlatmaz; yeniden teklif almak isterseniz Yeni Tur açabilirsiniz.",
-        confirmLabel: "Değerlendirmeden Çıkar",
+        confirmLabel: "Geri Al",
       }))
     )
       return;
     try {
       await stopEvaluation.mutateAsync();
-      toast.success("Değerlendirmeden çıkarıldı");
+      toast.success("Değerlendirme geri alındı");
     } catch (err) {
       toast.error(extractErrorMessage(err, "İşlem yapılamadı"));
     }
@@ -425,7 +425,7 @@ export function TenderActionsMenu({
             onClick={handleStopEvaluation}
             disabled={stopEvaluation.isPending}
           >
-            Değerlendirmeden Çıkar
+            Değerlendirmeyi Geri Al
           </Button>
         ) : null}
 
