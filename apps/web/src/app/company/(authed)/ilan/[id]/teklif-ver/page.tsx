@@ -688,29 +688,10 @@ export default function TeklifVerPage() {
           `Açık eksiltme: yeni teklifin önceki teklifinin (${money(own, effectiveCurrency)}) altında olmalı.`,
         );
     }
-    // Pazarlık hedefi: sunucunun açıkladığı sınıra KESİN kıyas — 400 yemeden
-    // formda yakala (gizli hedefte sunucu denetler, burada susulur).
-    if (
-      !isBuyNowMode &&
-      l.english?.isEnglishAuction &&
-      effectiveTarget &&
-      cmpDecimal(exactTotalStr, "0") === 1
-    ) {
-      if (
-        direction === "DOWN" &&
-        cmpDecimal(exactTotalStr, effectiveTarget) === 1
-      )
-        problems.push(
-          `Pazarlık: toplam teklif en fazla ${money(Number(effectiveTarget), effectiveCurrency)} olabilir.`,
-        );
-      if (
-        direction === "UP" &&
-        cmpDecimal(exactTotalStr, effectiveTarget) === -1
-      )
-        problems.push(
-          `Açık artırma: toplam teklif en az ${money(Number(effectiveTarget), effectiveCurrency)} olmalı.`,
-        );
-    }
+    // NOT: eski "toplam en fazla X olabilir" (sınır = öncekinin 1 kuruş
+    // altı/üstü) uyarısı kaldırıldı — yukarıdaki "öncekinden düşük/yüksek
+    // olmalı" kuralının kafa karıştıran kuruşlu tekrarıydı; kuruş-altı uç
+    // durumda sunucu kesin Decimal kıyasla zaten reddeder.
     return problems;
   };
 
