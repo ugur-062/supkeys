@@ -1,7 +1,12 @@
 "use client";
 
+import { installToastDedupe } from "@/lib/toast-dedupe";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
+
+// Hata toast'ları iki katmandan (axios interceptor + mutation catch)
+// basılabiliyor — aynı metni kısa pencerede tekilleştir.
+installToastDedupe();
 
 /**
  * Durum-farkında retry: 4xx istemci hatasıdır, tekrar denemek anlamsız
