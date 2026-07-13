@@ -75,6 +75,7 @@ export function AuctionBidWorkbench({
   requireAllItems,
   isSatis,
   mandatoryIds,
+  rowMeta,
   renderItemExtras,
 }: {
   items: ListingItemRow[];
@@ -97,13 +98,29 @@ export function AuctionBidWorkbench({
   /** Pazarlıkta bırakılamayan kalemler (önceki teklifte fiyatlanmış) —
    *  kapsam-dışı bırakma (X) gizlenir; sunucu da reddeder. */
   mandatoryIds?: Set<string>;
+  /** Satır durumu: zorunlu sorusu CEVAPSIZ kalem (amber rozet + otomatik
+   *  açık gelir) ve kapalıyken görünsün istenen özet (ör. kalem teslim
+   *  tarihi) — detaylar chevron arkasında gizli kalıp gözden kaçmasın. */
+  rowMeta?: (it: ListingItemRow) => {
+    requiredMissing?: boolean;
+    note?: string | null;
+  };
   /** Genişletilen satırın ek alanları (teslim tarihi + kalem soruları). */
   renderItemExtras: (it: ListingItemRow) => ReactNode;
 }) {
   const [percent, setPercent] = useState(defaultPercent);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"ALL" | "CHANGED" | "LOCKED">("ALL");
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // Zorunlu sorusu cevapsız kalemler AÇIK başlar — chevron arkasında
+  // gizli kalıp "neden gönderemiyorum"a dönüşmesin.
+  const [expanded, setExpanded] = useState<Set<string>>(
+    () =>
+      new Set(
+        items
+          .filter((it) => rowMeta?.(it)?.requiredMissing)
+          .map((it) => it.id),
+      ),
+  );
 
   const down = direction === "DOWN";
 
@@ -363,6 +380,7 @@ export function AuctionBidWorkbench({
                     : null;
                 const isOpen = expanded.has(it.id);
                 const hasExtras = true; // teslim tarihi her kalemde var
+                const meta = rowMeta?.(it);
                 return (
                   <FragmentRow
                     key={it.id}
@@ -374,20 +392,28 @@ export function AuctionBidWorkbench({
                         {idx + 1}
                       </td>
                       <td className="max-w-64 px-3 py-2">
-                        <p className="truncate font-medium text-zinc-900">
-                          {it.name}
+                        <p className="flex items-center gap-1.5 truncate font-medium text-zinc-900">
+                          <span className="truncate">{it.name}</span>
+                          {meta?.requiredMissing ? (
+                            <Badge color="amber">Zorunlu soru</Badge>
+                          ) : null}
                         </p>
                         <p className="truncate text-[11px] text-zinc-400">
-                          {it.materialCode ? `${it.materialCode} · ` : ""}
-                          {it.minUnitPrice != null
-                            ? `Taban: ${money(it.minUnitPrice, currency)} · `
-                            : ""}
-                          {it.buyNowUnitPrice != null
-                            ? `Hemen-Al: ${money(it.buyNowUnitPrice, currency)} · `
-                            : ""}
-                          {it.targetPrice
-                            ? `${isSatis ? "İstenen" : "Hedef"}: ${money(it.targetPrice, currency)}`
-                            : ""}
+                          {[
+                            it.materialCode,
+                            it.minUnitPrice != null
+                              ? `Taban: ${money(it.minUnitPrice, currency)}`
+                              : null,
+                            it.buyNowUnitPrice != null
+                              ? `Hemen-Al: ${money(it.buyNowUnitPrice, currency)}`
+                              : null,
+                            it.targetPrice
+                              ? `${isSatis ? "İstenen" : "Hedef"}: ${money(it.targetPrice, currency)}`
+                              : null,
+                            meta?.note ?? null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </p>
                       </td>
                       <td className="px-3 py-2 text-right whitespace-nowrap text-zinc-600 tabular-nums">
@@ -500,6 +526,7 @@ export function AuctionBidWorkbench({
                             type="button"
                             aria-label={`${it.name} detayları`}
                             aria-expanded={isOpen}
+                            title="Kalem detayları — teslim tarihi ve sorular"
                             onClick={() =>
                               setExpanded((s) => {
                                 const n = new Set(s);
@@ -508,7 +535,12 @@ export function AuctionBidWorkbench({
                                 return n;
                               })
                             }
-                            className="rounded-md p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
+                            className={cn(
+                              "rounded-md p-1.5 hover:bg-zinc-100",
+                              meta?.requiredMissing
+                                ? "text-amber-600 hover:text-amber-700"
+                                : "text-zinc-400 hover:text-zinc-600",
+                            )}
                           >
                             <ChevronDown
                               className={cn(

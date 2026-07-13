@@ -594,6 +594,23 @@ export default function TeklifVerPage() {
     });
   // Tablo satırının genişleyen ek alanları — kart görünümüyle aynı bileşenler
   // (teslim tarihi + kalem soruları), tek kaynak.
+  // Çalışma masası satır durumu: fiyatlanmış kalemde CEVAPSIZ zorunlu soru
+  // (amber rozet + satır açık gelir) + girilmiş kalem teslim tarihi özeti —
+  // ikisi de chevron arkasında gizli kalıp gözden kaçmasın.
+  const workbenchRowMeta = (it: ListingItemRow) => {
+    const st = itemState[it.id];
+    const priced = st?.price != null && st.price !== "" && Number(st.price) > 0;
+    const requiredMissing =
+      priced &&
+      (it.questions ?? []).some(
+        (q) => q.required && !(st?.answers[q.id] ?? "").trim(),
+      );
+    const note = st?.deliveryDate
+      ? `Teslim: ${new Date(st.deliveryDate).toLocaleDateString("tr-TR")}`
+      : null;
+    return { requiredMissing, note };
+  };
+
   const renderItemExtras = (it: ListingItemRow) => {
     const st = itemState[it.id];
     return (
@@ -1029,6 +1046,7 @@ export default function TeklifVerPage() {
                 defaultPercent="5"
                 requireAllItems={!!l.requireAllItems}
                 mandatoryIds={prevPricedIds}
+                rowMeta={workbenchRowMeta}
                 isSatis={isSatis}
                 renderItemExtras={renderItemExtras}
               />
