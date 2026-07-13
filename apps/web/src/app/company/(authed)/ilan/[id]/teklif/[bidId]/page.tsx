@@ -72,7 +72,7 @@ export default function BidDetailPage() {
     );
 
   const items = l.items ?? [];
-  const canDecide = l.status === "OPEN" || l.status === "CLOSED";
+  const canDecide = l.status === "OPEN" || l.status === "IN_AWARD";
   const docs = (bidDocs.data ?? []).filter((d) => d.bidId === bid.id);
 
   const priceFor = (itemId: string) =>

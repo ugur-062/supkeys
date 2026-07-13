@@ -535,9 +535,8 @@ export default function ListingDetailPage() {
       : !b.currency || b.currency === "TRY"
         ? Number(b.amount)
         : null;
-  // Erken kapatınca (CLOSED) ve Değerlendirmede (IN_AWARD) kazandırma/eleme açık.
-  const canDecide =
-    l.status === "OPEN" || l.status === "CLOSED" || l.status === "IN_AWARD";
+  // Yayında ve Değerlendirmede (IN_AWARD) kazandırma/eleme açık.
+  const canDecide = l.status === "OPEN" || l.status === "IN_AWARD";
 
   // ── Tasarruf özeti (kalem-bazlı karar desteği) ────────────────────────
   // Teorik kıyas: "en iyi TOPLU teklif" = TÜM kalemleri fiyatlamış tek
@@ -824,9 +823,15 @@ export default function ListingDetailPage() {
           <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
           Yayında — yeni teklifler geldikçe sayfa otomatik güncellenir.
         </div>
-      ) : l.status === "IN_AWARD" || l.status === "CLOSED" ? (
+      ) : l.status === "IN_AWARD" ? (
         <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-2.5 text-sm text-purple-800">
-          Kazandırma aşaması — {submittedCount} teklif değerlendirilmeyi bekliyor.
+          Değerlendirme aşaması — {submittedCount} teklif kararınızı bekliyor.
+        </div>
+      ) : l.status === "CLOSED" ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+          İlan platform yöneticisi tarafından teklife kapatıldı.
+          {l.cancelReason ? ` Gerekçe: ${l.cancelReason}` : ""} Sorularınız için
+          destek ile iletişime geçin.
         </div>
       ) : l.status === "AWARDED" ? (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">
@@ -1831,11 +1836,10 @@ export default function ListingDetailPage() {
                   {formatDateTime(l.closesAt)}
                 </p>
               </div>
-            ) : l.status === "CLOSED" ||
-              l.status === "IN_AWARD" ||
+            ) : l.status === "IN_AWARD" ||
               l.status === "IN_AWARD_APPROVAL" ? (
               <span className="inline-flex shrink-0 items-center rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-600">
-                İhale kapandı, sonuç bekleniyor
+                Teklif alımı kapandı — değerlendirme aşamasında
               </span>
             ) : null}
           </div>

@@ -88,7 +88,7 @@ export class CompanyAddressesService {
     const activeUse = await this.prisma.listing.count({
       where: {
         companyId: user.companyId,
-        status: { in: ["DRAFT", "IN_APPROVAL", "OPEN", "CLOSED", "IN_AWARD_APPROVAL"] },
+        status: { in: ["DRAFT", "IN_APPROVAL", "OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"] },
         OR: [{ deliveryAddressId: id }, { billingAddressId: id }],
       },
     });

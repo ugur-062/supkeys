@@ -29,12 +29,10 @@ import {
   useAddInvitations,
   useCancelListing,
   useChangeClosing,
-  useCloseEarly,
   useCloseNoAward,
   useCreateNextRound,
   useDeleteListing,
   useStartEvaluation,
-  useStopEvaluation,
   useUpdateInternalNotes,
 } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -93,7 +91,6 @@ export function TenderActionsMenu({
   const isSatis = listingType === "SATIS";
   const router = useRouter();
   const confirm = useConfirm();
-  const closeEarly = useCloseEarly(id);
   const changeClosing = useChangeClosing(id);
   const updateNotes = useUpdateInternalNotes(id);
   const closeNoAward = useCloseNoAward(id);
@@ -101,23 +98,22 @@ export function TenderActionsMenu({
   const nextRound = useCreateNextRound(id);
   const cancelListing = useCancelListing(id);
   const startEvaluation = useStartEvaluation(id);
-  const stopEvaluation = useStopEvaluation(id);
   const addInvitations = useAddInvitations(id);
   const connections = useConnections();
 
   const isDraft = status === "DRAFT";
   const isAuction = format === "ENGLISH_AUCTION";
   const isInEvaluation = status === "IN_AWARD";
-  // Değerlendirme OPSİYONEL bir sinyaldir: kazandır/ele OPEN/CLOSED'dan da
-  // çalışır; buton yalnız durumu görünür kılar (tedarikçi "değerlendiriliyor").
-  const canStartEvaluation = status === "OPEN" || status === "CLOSED";
-  // Yeni tur (+ RFQ↔İngiliz dönüşümü) kapanmış VEYA değerlendirmedeki ilanda
-  // (değerlendirmenin meşru sonuçlarından biri: yeni tur açmak). PAZARLIKTA
-  // AÇIKKEN DE serbest — BAFO akışının ana aracı turlardır: herkes tek
-  // atışını yaptı, alıcı kapanışı beklemeden sonraki turu açabilmeli
+  // Değerlendirmeye Al = teklif alımını ŞİMDİ durdur + IN_AWARD. Ayrı bir
+  // "Kapandı" ara durumu yok; süre dolunca cron aynı geçişi yapar. Geri
+  // alınamaz — yeniden teklif almanın yolu Yeni Tur.
+  const canStartEvaluation = status === "OPEN";
+  // Yeni tur (+ RFQ↔İngiliz dönüşümü) değerlendirmedeki/sonuçsuz kapanmış
+  // ilanda (değerlendirmenin meşru sonuçlarından biri: yeni tur açmak).
+  // PAZARLIKTA AÇIKKEN DE serbest — BAFO akışının ana aracı turlardır: herkes
+  // tek atışını yaptı, alıcı kapanışı beklemeden sonraki turu açabilmeli
   // (backend createNextRound OPEN'dan zaten izin veriyor).
   const canNewRound =
-    status === "CLOSED" ||
     status === "CLOSED_NO_AWARD" ||
     isInEvaluation ||
     (isAuction && status === "OPEN");
@@ -276,24 +272,6 @@ export function TenderActionsMenu({
     }
   };
 
-  const handleCloseEarly = async () => {
-    if (
-      !(await confirm({
-        title: "İhaleyi erken kapat",
-        description:
-          "İhale şimdi kapatılsın mı? Teklif alımı durur, kazandırma aşamasına geçer.",
-        confirmLabel: "Kapat",
-      }))
-    )
-      return;
-    try {
-      await closeEarly.mutateAsync();
-      toast.success("İhale erken kapatıldı");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "Kapatılamadı"));
-    }
-  };
-
   const handleCloseNoAward = async (reason: string) => {
     try {
       await closeNoAward.mutateAsync(reason || undefined);
@@ -305,14 +283,14 @@ export function TenderActionsMenu({
   };
 
   const handleStartEvaluation = async () => {
+    // Tek yönlü kapı: teklif alımı kalıcı durur, geri açma yok (Yeni Tur var).
     if (
-      isOpen &&
       !(await confirm({
         title: "Değerlendirmeye Al",
         description:
-          "Teklif alımı durdurulacak ve ihale değerlendirme aşamasına alınacak. " +
-          (isSatis ? "Alıcılar" : "Tedarikçiler") +
-          " \"teklifiniz değerlendiriliyor\" bilgisini görür.",
+          "Kapanış zamanı beklenmeden teklif alımı şimdi durdurulacak ve ihale " +
+          "değerlendirme aşamasına geçecek. Bu işlem geri alınamaz; yeniden " +
+          "teklif almak isterseniz Yeni Tur açabilirsiniz. Teklif verenler bilgilendirilir.",
         confirmLabel: "Değerlendirmeye Al",
       }))
     )
@@ -322,27 +300,6 @@ export function TenderActionsMenu({
       toast.success("İhale değerlendirmeye alındı");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Değerlendirmeye alınamadı"));
-    }
-  };
-
-  const handleStopEvaluation = async () => {
-    // Simetri dürüstlüğü: geri alma OPEN'a DÖNDÜRMEZ — kullanıcı bunu
-    // onaylamadan işlem yapılmaz (Değerlendirmeye Al da onaylı).
-    if (
-      !(await confirm({
-        title: "İhaleyi Kapat",
-        description:
-          "İhale değerlendirme aşamasından çıkarılacak ve \"Kapandı\" durumuna alınacak. " +
-          "Bu işlem teklif alımını yeniden başlatmaz; yeniden teklif almak isterseniz Yeni Tur açabilirsiniz.",
-        confirmLabel: "Kapat",
-      }))
-    )
-      return;
-    try {
-      await stopEvaluation.mutateAsync();
-      toast.success("İhale kapatıldı");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, "İşlem yapılamadı"));
     }
   };
 
@@ -418,17 +375,6 @@ export function TenderActionsMenu({
             Değerlendirmeye Al
           </Button>
         ) : null}
-        {/* Geri yolu da işlemin kendisi kadar görünür — ⋮ menüsüne gömülmez. */}
-        {isInEvaluation ? (
-          <Button
-            outline
-            onClick={handleStopEvaluation}
-            disabled={stopEvaluation.isPending}
-          >
-            İhaleyi Kapat
-          </Button>
-        ) : null}
-
         <Dropdown>
           <DropdownButton outline aria-label="Diğer işlemler">
             <EllipsisVerticalIcon />
@@ -466,12 +412,7 @@ export function TenderActionsMenu({
                 <DropdownLabel>Yeni Tur Oluştur</DropdownLabel>
               </DropdownItem>
             ) : null}
-            {isOpen ? (
-              <DropdownItem onClick={handleCloseEarly}>
-                <DropdownLabel>İhaleyi Erken Kapat</DropdownLabel>
-              </DropdownItem>
-            ) : null}
-            {isOpen || status === "CLOSED" || isInEvaluation ? (
+            {isOpen || isInEvaluation ? (
               <>
                 <DropdownDivider />
                 {/* Değerlendirmenin meşru sonuçlarından biri: kimseye vermemek. */}

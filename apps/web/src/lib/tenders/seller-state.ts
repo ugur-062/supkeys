@@ -7,8 +7,10 @@
  *   OPEN + teklif yok + davetsiz  → "Teklife Açık"
  *   OPEN + DRAFT                  → "Taslak Teklifim"
  *   OPEN + SUBMITTED              → "Teklif Gönderildi"
- *   CLOSED + SUBMITTED            → "Sonuç Bekleniyor"
- *   IN_AWARD* + SUBMITTED         → "Değerlendiriliyor" (alıcı sinyali)
+ *   IN_AWARD* + SUBMITTED         → "Değerlendiriliyor" (kapanan ihale
+ *                                    doğrudan değerlendirmededir)
+ *   CLOSED + SUBMITTED            → "Sonuç Bekleniyor" (CLOSED artık yalnız
+ *                                    admin moderasyon kapatması, 2026-07-13)
  *   WON                           → "Kazandın"
  *   AWARDED_PARTIAL               → "Kısmen Kazandın"
  *   LOST                          → "Kaybettin"
@@ -89,8 +91,8 @@ export function deriveSellerTenderState(
     listingStatus === "IN_AWARD" ||
     listingStatus === "IN_AWARD_APPROVAL"
   ) {
-    // "Değerlendiriliyor" alıcının BİLİNÇLİ sinyalidir (IN_AWARD*) — sıradan
-    // kapanmış ihale nötr "Sonuç Bekleniyor" gösterir; ayrım düğmenin anlamı.
+    // Kapanan ihale doğrudan değerlendirmededir (IN_AWARD*); CLOSED yalnız
+    // admin moderasyon kapatmasında görülür ve nötr "Sonuç Bekleniyor" gösterir.
     // Yalnız GÖNDERİLMİŞ teklif değerlendirmededir; gönderilmemiş taslak
     // (veya teklifsiz) kapanmış ihale "kaçırıldı" durumudur.
     if (bidStatus === "SUBMITTED") {

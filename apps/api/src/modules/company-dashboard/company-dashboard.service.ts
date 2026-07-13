@@ -198,7 +198,7 @@ export class CompanyDashboardService {
         where: {
           bidderCompanyId: companyId,
           status: "SUBMITTED",
-          listing: { status: { in: ["OPEN", "CLOSED", "IN_AWARD_APPROVAL"] } },
+          listing: { status: { in: ["OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"] } },
         },
       }),
       this.prisma.listingBid.count({

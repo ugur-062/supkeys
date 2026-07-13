@@ -183,23 +183,6 @@ describe("durum geçişleri", () => {
     expect(after.status).toBe("SUBMITTED");
   });
 
-  it("closeBiddingEarly: OPEN → CLOSED", async () => {
-    const { service } = makeService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
-    const listing = await makeListing(prisma, {
-      companyId: owner.company.id,
-      createdById: owner.user.id,
-      type: "ALIM",
-      status: "OPEN",
-      closesAt: FUTURE,
-    });
-    await service.closeBiddingEarly(owner.auth, listing.id);
-    const l = await prisma.listing.findUniqueOrThrow({
-      where: { id: listing.id },
-    });
-    expect(l.status).toBe("CLOSED");
-  });
-
   it("closeNoAward: → CLOSED_NO_AWARD (+ gerekçe)", async () => {
     const { service } = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -277,22 +260,28 @@ describe("Değerlendirmeye Al (IN_AWARD)", () => {
         validityDays: 30,
       } as never),
     ).rejects.toThrow(/teklife kapalı/);
-    // Fire-and-forget bildirim — düşene dek bekle.
+    // Fire-and-forget bildirim — düşene dek bekle. Kapanış cron'uyla AYNI
+    // birleşik mesaj gider ("değerlendirme aşamasında"), ayrı bir
+    // "değerlendiriliyor" bildirimi yok (2026-07-13 birleştirmesi).
     let notifs: { title: string }[] = [];
     for (let i = 0; i < 40; i++) {
       notifs = await prisma.notification.findMany({
-        where: { companyId: bidder.company.id, type: "listing_evaluation" },
+        where: { companyId: bidder.company.id, type: "listing_closed" },
         select: { title: true },
       });
       if (notifs.length > 0) break;
       await new Promise((r) => setTimeout(r, 250));
     }
-    expect(notifs.some((n) => n.title.includes("değerlendiriliyor"))).toBe(
-      true,
-    );
+    expect(notifs.some((n) => n.title.includes("değerlendirme"))).toBe(true);
+    // Sahip kendisi tetikledi → sahibe "karar zamanı" bildirimi atlanır.
+    expect(
+      await prisma.notification.count({
+        where: { companyId: owner.company.id, type: "listing_closed_owner" },
+      }),
+    ).toBe(0);
   });
 
-  it("startEvaluation: CLOSED'dan alınır; tekrar/sonuçlanmışta reddedilir; sahibi olmayana 404", async () => {
+  it("startEvaluation: yalnız OPEN'dan; tekrar/sonuçlanmışta reddedilir; sahibi olmayana 404", async () => {
     const { service } = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const stranger = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -300,46 +289,32 @@ describe("Değerlendirmeye Al (IN_AWARD)", () => {
       companyId: owner.company.id,
       createdById: owner.user.id,
       type: "ALIM",
-      status: "CLOSED",
-      closesAt: PAST,
+      status: "OPEN",
+      closesAt: FUTURE,
     });
     await expect(
       service.startEvaluation(stranger.auth, listing.id),
     ).rejects.toThrow(/bulunamadı/);
     await service.startEvaluation(owner.auth, listing.id);
-    const l = await prisma.listing.findUniqueOrThrow({
-      where: { id: listing.id },
-    });
-    expect(l.status).toBe("IN_AWARD");
-    // CLOSED'dan alındıysa kapanış zamanına dokunulmaz.
-    expect(l.closesAt!.getTime()).toBe(PAST.getTime());
     await expect(
       service.startEvaluation(owner.auth, listing.id),
     ).rejects.toThrow(/zaten değerlendirmede/);
+    // Geri alma yolu YOK (stop-evaluation kaldırıldı) — sonuçlanmış/moderasyon
+    // kapatmalı ilan değerlendirmeye alınamaz.
     await prisma.listing.update({
       where: { id: listing.id },
       data: { status: "AWARDED" },
     });
     await expect(
       service.startEvaluation(owner.auth, listing.id),
-    ).rejects.toThrow(/açık veya kapanmış/);
-  });
-
-  it("stopEvaluation: IN_AWARD → CLOSED (bildirimsiz geri alma); değerlendirmede değilse reddedilir", async () => {
-    const { service } = makeService();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
-    const listing = await makeListing(prisma, {
-      companyId: owner.company.id,
-      createdById: owner.user.id,
-      type: "ALIM",
-      status: "IN_AWARD",
-      closesAt: PAST,
+    ).rejects.toThrow(/açık ihale/);
+    await prisma.listing.update({
+      where: { id: listing.id },
+      data: { status: "CLOSED" },
     });
-    const res = await service.stopEvaluation(owner.auth, listing.id);
-    expect(res.status).toBe("CLOSED");
     await expect(
-      service.stopEvaluation(owner.auth, listing.id),
-    ).rejects.toThrow(/değerlendirmede değil/);
+      service.startEvaluation(owner.auth, listing.id),
+    ).rejects.toThrow(/açık ihale/);
   });
 
   it("IN_AWARD'dan kazandırma (→ AWARDED + sipariş), kazansız kapatma ve yeni tur çalışır", async () => {
@@ -476,7 +451,7 @@ describe("Değerlendirmeye Al (IN_AWARD)", () => {
 });
 
 describe("scheduler — closeExpired", () => {
-  it("süresi geçmiş AÇIK ilanı CLOSED yapar, dolmamışa dokunmaz", async () => {
+  it("süresi geçmiş AÇIK ilanı doğrudan IN_AWARD yapar, dolmamışa dokunmaz", async () => {
     const { service } = makeService();
     const scheduler = new ListingScheduler(prisma as never, service as never);
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -498,7 +473,7 @@ describe("scheduler — closeExpired", () => {
     expect(
       (await prisma.listing.findUniqueOrThrow({ where: { id: expired.id } }))
         .status,
-    ).toBe("CLOSED");
+    ).toBe("IN_AWARD");
     expect(
       (await prisma.listing.findUniqueOrThrow({ where: { id: live.id } }))
         .status,

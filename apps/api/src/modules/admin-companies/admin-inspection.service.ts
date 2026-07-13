@@ -134,6 +134,8 @@ export class AdminInspectionService {
   /**
    * Moderasyon kapatması — uygunsuz/şikayetli ilan teklife kapatılır.
    * Yalnız OPEN ilan; atomik CAS (cron/sahip kapanışıyla yarışmaz).
+   * NOT: CLOSED durumu 2026-07-13'ten beri YALNIZ bu moderasyon kapatmasında
+   * yazılır (normal kapanış doğrudan IN_AWARD); çözüm sonrası reopen ile açılır.
    */
   async closeListing(id: string, reason: string, adminId: string) {
     const l = await this.requireListing(id);
@@ -210,8 +212,11 @@ export class AdminInspectionService {
   }
 
   /**
-   * Yanlışlıkla kapatılan ilanı yeniden aç — yalnız CLOSED ve kazandırma
-   * başlamamışken (award süreci/siparişe dokunmayız). Yeni kapanış şart.
+   * İlanı yeniden teklife aç — moderasyon kapatması (CLOSED) veya yanlışlıkla
+   * değerlendirmeye alınmış (IN_AWARD, "Değerlendirmeye Al" geri alınamaz —
+   * destek kanalı burası) ilan için; kazandırma başlamamışken (award
+   * süreci/siparişe dokunmayız). Yeni kapanış şart; sahip bilgilendirilir,
+   * audit'e düşer.
    */
   async reopenListing(id: string, closesAtRaw: string, adminId: string) {
     const l = await this.prisma.listing.findUnique({
@@ -235,12 +240,12 @@ export class AdminInspectionService {
       throw new BadRequestException("Kapanış gelecekte olmalı");
     }
     const done = await this.prisma.listing.updateMany({
-      where: { id, status: "CLOSED" },
+      where: { id, status: { in: ["CLOSED", "IN_AWARD"] } },
       data: { status: "OPEN", closesAt, closingReminderSentAt: null },
     });
     if (done.count !== 1) {
       throw new BadRequestException(
-        "Yalnız KAPALI (kazandırılmamış) ilan yeniden açılabilir",
+        "Yalnız kapalı/değerlendirmedeki (kazandırılmamış) ilan yeniden açılabilir",
       );
     }
     await this.audit.log({

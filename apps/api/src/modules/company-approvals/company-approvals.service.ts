@@ -761,7 +761,9 @@ export class CompanyApprovalsService {
       // count=0 döner ve dokunmayız — iptal, biten kazandırmayı bozamaz.
       const expected =
         req.type === "LISTING_PUBLISH" ? "DRAFT" : "IN_AWARD_APPROVAL";
-      const target = req.type === "LISTING_PUBLISH" ? "DRAFT" : "CLOSED";
+      // Kazandırma isteği iptali → IN_AWARD (CLOSED ara durumu kaldırıldı;
+      // kapanan ihale değerlendirmededir).
+      const target = req.type === "LISTING_PUBLISH" ? "DRAFT" : "IN_AWARD";
       await tx.listing.updateMany({
         where: { id: req.listingId, status: expected },
         data: { status: target },

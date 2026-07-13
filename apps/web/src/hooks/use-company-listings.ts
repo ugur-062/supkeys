@@ -551,20 +551,6 @@ export function useRoundHistory(id: string, enabled: boolean) {
   });
 }
 
-/** Sahip: ihaleyi erken kapat (OPEN → CLOSED). */
-export function useCloseEarly(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async () => {
-      const { data } = await companyApi.post(
-        `/company/listings/${id}/close-early`,
-      );
-      return data;
-    },
-    onSuccess: () => refreshListingDetail(qc, id),
-  });
-}
-
 /** Sahip: kapanış zamanını değiştir. */
 export function useChangeClosing(id: string) {
   const qc = useQueryClient();
@@ -681,27 +667,13 @@ export function useCreateNextRound(id: string) {
   });
 }
 
-/** Değerlendirmeye Al — OPEN'dan basılırsa teklif alımı da durur (IN_AWARD). */
+/** Değerlendirmeye Al — teklif alımını şimdi durdurur (OPEN → IN_AWARD). */
 export function useStartEvaluation(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
       const { data } = await companyApi.post<{ ok: boolean; status: string }>(
         `/company/listings/${id}/start-evaluation`,
-      );
-      return data;
-    },
-    onSuccess: () => refreshListingDetail(qc, id),
-  });
-}
-
-/** Değerlendirmeden Çıkar (geri al) — IN_AWARD → CLOSED, bildirimsiz. */
-export function useStopEvaluation(id: string) {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async () => {
-      const { data } = await companyApi.post<{ ok: boolean; status: string }>(
-        `/company/listings/${id}/stop-evaluation`,
       );
       return data;
     },

@@ -222,7 +222,7 @@ export class CompanyListingsService {
    * İlan teklife kapandığında (süre dolumu veya erken kapatma) bildirim:
    * davetlilere "ihale kapandı", sahibe "kazandırma kararı zamanı".
    */
-  async notifyListingClosed(listingId: string) {
+  async notifyListingClosed(listingId: string, opts?: { skipOwner?: boolean }) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -238,27 +238,40 @@ export class CompanyListingsService {
     const ownerPortal = this.ownerPortal(listing.type);
     const bidderPortal = this.bidderPortal(listing.type);
 
-    // Davetlilere kapanış bildirimi (teklifçi tarafı).
-    const invs = await this.prisma.listingInvitation.findMany({
-      where: { listingId },
-      select: { invitedCompanyId: true },
-    });
+    // Davetliler + teklif verenler (PUBLIC ilanda davetsiz teklifçi olabilir)
+    // birleşik kümesine kapanış bildirimi.
+    const [invs, bids] = await Promise.all([
+      this.prisma.listingInvitation.findMany({
+        where: { listingId },
+        select: { invitedCompanyId: true },
+      }),
+      this.prisma.listingBid.findMany({
+        where: { listingId },
+        select: { bidderCompanyId: true },
+      }),
+    ]);
+    const participantIds = [
+      ...new Set([
+        ...invs.map((iv) => iv.invitedCompanyId),
+        ...bids.map((b) => b.bidderCompanyId),
+      ]),
+    ];
     const bidUrl = `${this.webUrl()}/company/ilan/${listingId}`;
     const closeRecipients = await this.companyRecipients(
-      invs.map((iv) => iv.invitedCompanyId),
+      participantIds,
       bidderPortal,
     );
-    for (const iv of invs) {
-      const r = closeRecipients.get(iv.invitedCompanyId);
+    for (const cid of participantIds) {
+      const r = closeRecipients.get(cid);
       if (!r) continue;
       this.notify(
         r,
         {
-          subject: "İhale teklife kapandı",
-          heading: "İhale kapandı",
+          subject: "İhalede teklif alımı kapandı",
+          heading: "İhale değerlendirme aşamasında",
           paragraphs: [
             "Merhaba,",
-            `${label} ihalesi teklife kapandı. Sonuç açıklandığında bilgilendirileceksiniz.`,
+            `${label} ihalesinde teklif alımı kapandı; ihale değerlendirme aşamasına geçti. Sonuç açıklandığında bilgilendirileceksiniz.`,
           ],
           ctaLabel: "İhaleyi Gör",
           ctaUrl: bidUrl,
@@ -266,21 +279,23 @@ export class CompanyListingsService {
         { type: "listing_closed", id: listingId },
       );
     }
-    // In-app: davetlilere kapanış.
+    // In-app: davetli + teklifçilere kapanış.
     await this.notifications.pushToCompanies(
-      invs.map((iv) => iv.invitedCompanyId),
+      participantIds,
       {
         type: "listing_closed",
         portal: bidderPortal,
-        title: "İhale kapandı",
-        body: `${label} ihalesi teklife kapandı. Sonuç açıklandığında bilgilendirileceksiniz.`,
+        title: "İhale değerlendirme aşamasında",
+        body: `${label} ihalesinde teklif alımı kapandı; ihale değerlendirme aşamasına geçti. Sonuç açıklandığında bilgilendirileceksiniz.`,
         ctaLabel: "İhaleyi Gör",
         ctaUrl: bidUrl,
         listingId,
       },
     );
 
-    // Sahibe "karar zamanı" bildirimi.
+    // Sahibe "karar zamanı" bildirimi — sahip kapanışı kendisi tetiklediyse
+    // (Değerlendirmeye Al) gereksiz, atlanır.
+    if (opts?.skipOwner) return;
     const owner = await this.companyRecipient(listing.companyId, ownerPortal);
     // Sahip detay sayfası: kanonik /company/ilan/[id] (owner branch teklifleri +
     // kazandırmayı gösterir). ihalelerim/[id] · ilanlarim/[id] detay page.tsx'i
@@ -4243,7 +4258,7 @@ export class CompanyListingsService {
     }
   }
 
-  /** Kazandırma onayı reddedildi → ilan teklife kapalı (CLOSED) durumuna döner. */
+  /** Kazandırma onayı reddedildi → ilan değerlendirmeye (IN_AWARD) döner. */
   @OnEvent("listing.award.rejected")
   async onAwardRejected(payload: { listingId: string }) {
     // Yalnız hâlâ onay-bekleyen ilanı kapat. İlan bu arada başka bir istekle
@@ -5012,78 +5027,14 @@ export class CompanyListingsService {
     });
   }
 
-  /** Sahip ihaleyi belirtilen kapanışından önce erken kapatır (OPEN → CLOSED). */
-  async closeBiddingEarly(user: AuthenticatedCompanyUser, listingId: string) {
-    const listing = await this.ownerOpenListing(user, listingId);
-    await this.prisma.listing.update({
-      where: { id: listing.id },
-      data: { status: "CLOSED", closesAt: new Date() },
-    });
-    void this.notifyListingClosed(listing.id).catch((err) =>
-      this.logger.error(
-        `Kapanış bildirimi gönderilemedi (${listing.id}): ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      ),
-    );
-    return { ok: true, status: "CLOSED" };
-  }
-
   /**
-   * Değerlendirmeye Al — alıcının BİLİNÇLİ sinyali (IN_AWARD). OPEN'dan
-   * basılırsa teklif alımı da durur (erken kapat + değerlendir tek adım).
-   * Zorunlu bir ara adım DEĞİLDİR: kazandır/ele OPEN/CLOSED'dan da çalışır.
-   * SUBMITTED teklif sahipleri bilgilendirilir ("teklifiniz değerlendiriliyor").
+   * Değerlendirmeye Al — kapanış zamanı beklenmeden teklif alımını durdurur ve
+   * ihaleyi değerlendirme aşamasına (IN_AWARD) geçirir. Süre dolunca cron da
+   * aynı geçişi yapar; ayrı bir "Kapandı" ara durumu YOKTUR. Geri alınamaz —
+   * yeniden teklif almanın yolu Yeni Tur'dur. Davetliler bilgilendirilir
+   * (cron kapanışıyla aynı mesaj); sahibe bildirim atlanır (kendisi tetikledi).
    */
   async startEvaluation(user: AuthenticatedCompanyUser, listingId: string) {
-    const listing = await this.prisma.listing.findUnique({
-      where: { id: listingId },
-      select: { id: true, companyId: true, status: true, type: true },
-    });
-    if (!listing || listing.companyId !== user.companyId) {
-      throw new NotFoundException("İlan bulunamadı");
-    }
-    if (listing.status === "IN_AWARD") {
-      throw new BadRequestException("İhale zaten değerlendirmede");
-    }
-    if (listing.status !== "OPEN" && listing.status !== "CLOSED") {
-      throw new BadRequestException(
-        "Yalnızca açık veya kapanmış ihale değerlendirmeye alınabilir",
-      );
-    }
-    const fromOpen = listing.status === "OPEN";
-    // Koşullu geçiş: eşzamanlı kapanış cron'u / kazandırma yarışında durum
-    // değiştiyse üzerine yazma.
-    const updated = await this.prisma.listing.updateMany({
-      where: { id: listingId, status: { in: ["OPEN", "CLOSED"] } },
-      data: {
-        status: "IN_AWARD",
-        // OPEN'dan alınırsa teklif alımı ŞİMDİ durur (closeEarly ile aynı).
-        ...(fromOpen ? { closesAt: new Date() } : {}),
-        // Yeni değerlendirme penceresi → geçerlilik hatırlatması yeniden kurulur.
-        evaluationReminderSentAt: null,
-      },
-    });
-    if (updated.count !== 1) {
-      throw new ConflictException("İlan durumu değişti — sayfayı yenileyin");
-    }
-    void this.notifyEvaluationStarted(listingId).catch((err) =>
-      this.logger.error(
-        `Değerlendirme bildirimi gönderilemedi (${listingId}): ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      ),
-    );
-    this.realtime?.pingListing(listingId);
-    return { ok: true, status: "IN_AWARD" };
-  }
-
-  /**
-   * Değerlendirmeden Çıkar (geri al) — IN_AWARD → CLOSED. Bilinçli olarak
-   * BİLDİRİMSİZ: sinyal sessizce nötrlenir; tedarikçi etiketi "Sonuç
-   * Bekleniyor"a döner. Teklif alımı yeniden AÇILMAZ (o iş Yeni Tur'un).
-   */
-  async stopEvaluation(user: AuthenticatedCompanyUser, listingId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: { id: true, companyId: true, status: true },
@@ -5091,59 +5042,38 @@ export class CompanyListingsService {
     if (!listing || listing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
     }
-    if (listing.status !== "IN_AWARD") {
-      throw new BadRequestException("İhale değerlendirmede değil");
+    if (listing.status === "IN_AWARD") {
+      throw new BadRequestException("İhale zaten değerlendirmede");
     }
-    await this.prisma.listing.update({
-      where: { id: listingId },
-      data: { status: "CLOSED" },
-    });
-    this.realtime?.pingListing(listingId);
-    return { ok: true, status: "CLOSED" };
-  }
-
-  /** Değerlendirmeye alınınca SUBMITTED teklif sahiplerine in-app + e-posta. */
-  private async notifyEvaluationStarted(listingId: string) {
-    const listing = await this.prisma.listing.findUnique({
-      where: { id: listingId },
-      select: { id: true, title: true, number: true, type: true },
-    });
-    if (!listing) return;
-    const bidders = await this.prisma.listingBid.findMany({
-      where: { listingId, status: "SUBMITTED" },
-      select: { bidderCompanyId: true },
-    });
-    const companyIds = [...new Set(bidders.map((b) => b.bidderCompanyId))];
-    if (companyIds.length === 0) return;
-    const label = `"${listing.title}" (${listing.number ?? "—"})`;
-    const portal = this.bidderPortal(listing.type);
-    const url = `${this.webUrl()}/company/ilan/${listingId}`;
-    const body = `${label} ihalesinde teklifiniz değerlendirmeye alındı. Sonuç açıklandığında bilgilendirileceksiniz.`;
-    const recipients = await this.companyRecipients(companyIds, portal);
-    for (const cid of companyIds) {
-      const r = recipients.get(cid);
-      if (!r) continue;
-      this.notify(
-        r,
-        {
-          subject: "Teklifiniz değerlendirmeye alındı",
-          heading: "Teklifiniz değerlendiriliyor",
-          paragraphs: ["Merhaba,", body],
-          ctaLabel: "İhaleyi Gör",
-          ctaUrl: url,
-        },
-        { type: "listing_evaluation", id: listingId },
+    if (listing.status !== "OPEN") {
+      throw new BadRequestException(
+        "Yalnızca açık ihale değerlendirmeye alınabilir",
       );
     }
-    await this.notifications.pushToCompanies(companyIds, {
-      type: "listing_evaluation",
-      portal,
-      title: "Teklifiniz değerlendiriliyor",
-      body,
-      ctaLabel: "İhaleyi Gör",
-      ctaUrl: url,
-      listingId,
+    // Koşullu geçiş: eşzamanlı kapanış cron'u / kazandırma yarışında durum
+    // değiştiyse üzerine yazma (cron kazandıysa bildirim de ondan gitti).
+    const updated = await this.prisma.listing.updateMany({
+      where: { id: listingId, status: "OPEN" },
+      data: {
+        status: "IN_AWARD",
+        // Teklif alımı ŞİMDİ durur.
+        closesAt: new Date(),
+        // Yeni değerlendirme penceresi → geçerlilik hatırlatması yeniden kurulur.
+        evaluationReminderSentAt: null,
+      },
     });
+    if (updated.count !== 1) {
+      throw new ConflictException("İlan durumu değişti — sayfayı yenileyin");
+    }
+    void this.notifyListingClosed(listingId, { skipOwner: true }).catch((err) =>
+      this.logger.error(
+        `Kapanış bildirimi gönderilemedi (${listingId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
+    this.realtime?.pingListing(listingId);
+    return { ok: true, status: "IN_AWARD" };
   }
 
   /**

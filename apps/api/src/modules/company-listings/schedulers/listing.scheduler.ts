@@ -47,8 +47,10 @@ export class ListingScheduler implements OnModuleInit {
   }
 
   /**
-   * Her dakika — kapanış süresi geçmiş AÇIK ilanları teklife kapatır (CLOSED).
-   * Sahip kazandırma kararını CLOSED durumunda verir (award OPEN|CLOSED kabul eder).
+   * Her dakika — kapanış süresi geçmiş AÇIK ilanları doğrudan DEĞERLENDİRMEYE
+   * (IN_AWARD) alır. Ayrı bir "Kapandı" ara durumu yok: kapanan ihale
+   * değerlendirmededir; sahip oradan kazandırır, sonuçsuz kapatır ya da yeni
+   * tur açar.
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async closeExpired(): Promise<void> {
@@ -63,16 +65,17 @@ export class ListingScheduler implements OnModuleInit {
       select: { id: true },
     });
     if (due.length === 0) return;
-    // Her ilanı ATOMİK claim et: yalnız hâlâ OPEN iken CLOSED'a çeviren worker
-    // bildirimi atar. Redis/dağıtık kilit yok; iki replica veya 1dk'dan uzun
-    // süren run'ın overlap'inde koşulsuz updateMany davetlilere ÇİFT kapanış
-    // e-postası atardı. Koşullu updateMany (status=OPEN) + count kontrolü bunu
-    // tekilleştirir.
+    // Her ilanı ATOMİK claim et: yalnız hâlâ OPEN iken IN_AWARD'a çeviren
+    // worker bildirimi atar. Redis/dağıtık kilit yok; iki replica veya 1dk'dan
+    // uzun süren run'ın overlap'inde koşulsuz updateMany davetlilere ÇİFT
+    // kapanış e-postası atardı. Koşullu updateMany (status=OPEN) + count
+    // kontrolü bunu tekilleştirir.
     let closed = 0;
     for (const l of due) {
       const claimed = await this.prisma.listing.updateMany({
         where: { id: l.id, status: "OPEN" },
-        data: { status: "CLOSED" },
+        // Yeni değerlendirme penceresi → geçerlilik hatırlatması yeniden kurulur.
+        data: { status: "IN_AWARD", evaluationReminderSentAt: null },
       });
       if (claimed.count !== 1) continue; // başka worker aldı → atla
       closed++;
@@ -85,7 +88,9 @@ export class ListingScheduler implements OnModuleInit {
       );
     }
     if (closed > 0) {
-      this.logger.log(`${closed} ilan süre dolduğu için CLOSED'a alındı`);
+      this.logger.log(
+        `${closed} ilan süre dolduğu için değerlendirmeye (IN_AWARD) alındı`,
+      );
     }
   }
 

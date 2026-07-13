@@ -49,19 +49,18 @@ type TabKey =
   | "DRAFT"
   | "IN_APPROVAL"
   | "OPEN"
-  | "CLOSED"
   | "IN_AWARD"
   | "IN_AWARD_APPROVAL"
   | "AWARDED"
   | "CLOSED_NO_AWARD"
   | "CANCELLED";
-// IN_AWARD = "Değerlendirmede" — alıcının "Değerlendirmeye Al" sinyali.
+// IN_AWARD = "Değerlendirmede" — kapanan ihale doğrudan bu duruma geçer
+// (ayrı "Teklife Kapalı" ara durumu 2026-07-13'te kaldırıldı).
 const STATUS_OPTIONS: { value: TabKey; label: string }[] = [
   { value: "all", label: "Tüm Durumlar" },
   { value: "DRAFT", label: LISTING_STATUS_LABELS.DRAFT },
   { value: "IN_APPROVAL", label: LISTING_STATUS_LABELS.IN_APPROVAL },
   { value: "OPEN", label: LISTING_STATUS_LABELS.OPEN },
-  { value: "CLOSED", label: LISTING_STATUS_LABELS.CLOSED },
   { value: "IN_AWARD", label: LISTING_STATUS_LABELS.IN_AWARD },
   { value: "IN_AWARD_APPROVAL", label: LISTING_STATUS_LABELS.IN_AWARD_APPROVAL },
   { value: "AWARDED", label: LISTING_STATUS_LABELS.AWARDED },

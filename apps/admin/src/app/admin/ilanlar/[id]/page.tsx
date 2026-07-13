@@ -61,8 +61,12 @@ function ListingInspection({ id }: { id: string }) {
     label: l.status,
     color: "zinc" as const,
   };
+  // Moderasyon kapatması (CLOSED) veya yanlış "Değerlendirmeye Al" (IN_AWARD,
+  // sahip tarafında geri alınamaz — destek kanalı burası).
   const canReopen =
-    l.status === "CLOSED" && !l.awardedAt && l.orders.length === 0;
+    (l.status === "CLOSED" || l.status === "IN_AWARD") &&
+    !l.awardedAt &&
+    l.orders.length === 0;
 
   return (
     <div className="max-w-[1100px] space-y-6">

@@ -899,8 +899,8 @@ enum ListingStatus {
   DRAFT // taslak — düzenlenebilir, yayınlanmadı
   IN_APPROVAL // yayın onayı bekliyor (onay akışı varsa)
   OPEN // açık — teklif alınıyor
-  CLOSED // teklife kapalı (erken kapatma / süre doldu)
-  IN_AWARD // kapandı, alıcı kazandırma kararı veriyor
+  CLOSED // yalnız ADMIN moderasyon kapatması (2026-07-13: normal kapanış doğrudan IN_AWARD; admin reopen ile açılır)
+  IN_AWARD // değerlendirmede — teklif alımı kapandı (süre doldu / Değerlendirmeye Al), alıcı karar veriyor
   IN_AWARD_APPROVAL // kazandırma onayı bekliyor (onay akışı varsa)
   AWARDED // kazandırıldı, sipariş(ler) oluştu
   CLOSED_NO_AWARD // kazanan olmadan kapatıldı

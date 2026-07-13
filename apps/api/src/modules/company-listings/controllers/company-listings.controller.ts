@@ -202,30 +202,17 @@ export class CompanyListingsController {
 
   // ── Sahip karar aksiyonları (üç-nokta menü) ──
 
-  /** Değerlendirmeye Al — OPEN'dan teklif alımını da durdurur (IN_AWARD). */
+  /**
+   * Değerlendirmeye Al — teklif alımını şimdi durdurur, ihale IN_AWARD olur.
+   * Geri alınamaz; yeniden teklif almanın yolu Yeni Tur. (stop-evaluation ve
+   * close-early kaldırıldı — kapanan ihale zaten değerlendirmededir.)
+   */
   @Post(":id/start-evaluation")
   startEvaluation(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
   ) {
     return this.service.startEvaluation(user, id);
-  }
-
-  /** Değerlendirmeden Çıkar (geri al) — IN_AWARD → CLOSED, bildirimsiz. */
-  @Post(":id/stop-evaluation")
-  stopEvaluation(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Param("id") id: string,
-  ) {
-    return this.service.stopEvaluation(user, id);
-  }
-
-  @Post(":id/close-early")
-  closeEarly(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Param("id") id: string,
-  ) {
-    return this.service.closeBiddingEarly(user, id);
   }
 
   @Post(":id/change-closing")
