@@ -564,7 +564,9 @@ export function TenderActionsMenu({
                   <dd className="inline">
                     geçerli teklifler yeni tura gönderilmiş olarak aynen
                     taşınır; geçerlilik süresi dolanlar fiyatı korunarak
-                    taslağa düşer. Taşınan teklif tur hakkını kullanmaz.
+                    taslağa düşer. Taşınan teklif, sahibinin bu turdaki
+                    teklif hakkını yakmaz — firma dilerse turda bir kez
+                    fiyatını iyileştirebilir.
                   </dd>
                 </div>
                 <div>
@@ -622,7 +624,9 @@ export function TenderActionsMenu({
               zorundadır. Minimum {isSatis ? "artış" : "indirim"} şartı yoktur
               — {isSatis ? "alıcı" : "tedarikçi"} ne kadar{" "}
               {isSatis ? "artıracağına" : "ineceğine"} kendisi karar verir.
-              Önceki turdan taşınan teklif, tur hakkını kullanmaz.
+              Önceki turdan taşınan teklif, sahibinin bu turdaki teklif
+              hakkını yakmaz — firma dilerse turda bir kez fiyatını
+              iyileştirebilir.
             </p>
           </div>
           <Field>
