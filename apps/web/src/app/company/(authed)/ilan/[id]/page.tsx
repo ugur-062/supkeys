@@ -1066,7 +1066,29 @@ export default function ListingDetailPage() {
         <div className="space-y-3">
           {/* Tasarruf şeridi — kazandıran SEÇİLİRKEN görünür ki alıcı toplu/
               kalem-bazlı kararını buna göre versin. */}
-          {itemSavings?.kind === "ok" ? (
+          {itemSavings?.kind === "ok" && itemSavings.pct < 0.05 ? (
+            // Dağıtım kayda değer fark yaratmıyor (en iyi toplu teklif her
+            // kalemde de en iyi/eşit) — "%0 tasarruf" saçmalığı yerine net
+            // öneri: toplu kazandırma en ekonomik.
+            <div className="flex items-start gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
+              <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
+              <p>
+                Kalem bazlı dağıtım ek {isAlim ? "tasarruf" : "gelir"}{" "}
+                sağlamıyor — en {isAlim ? "düşük" : "yüksek"} toplu teklif (
+                <strong>
+                  {itemSavings.bestTotal.toLocaleString("tr-TR", {
+                    maximumFractionDigits: 2,
+                  })}{" "}
+                  ₺
+                </strong>
+                ) ile <strong>toplu kazandırma</strong> en{" "}
+                {isAlim ? "ekonomik" : "kazançlı"} seçenek.
+                <span className="ml-1 text-xs text-zinc-500">
+                  (TRY karşılığıyla)
+                </span>
+              </p>
+            </div>
+          ) : itemSavings?.kind === "ok" ? (
             <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
               <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
               <p>
