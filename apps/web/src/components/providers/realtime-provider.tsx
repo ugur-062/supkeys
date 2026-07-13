@@ -25,19 +25,27 @@ export function RealtimeProvider({ children }: { children: React.ReactNode }) {
     }
     const socket = connectRealtime();
 
+    // cancelRefetch:false ŞART: aynı kayda saniyeler içinde birden çok sinyal
+    // gelebiliyor (ör. yeni tur: commit ping'i + duyuru ping'i). Varsayılan
+    // davranış uçuştaki çekimi İPTAL edip baştan başlatır — yavaş bağlantıda
+    // sinyal fırtınası hiçbir cevabın uygulanmamasına (bayat arayüzün
+    // saniyelerce kalmasına) yol açar. Süren çekim bitirilir, sonucu uygulanır.
+    const keep = { cancelRefetch: false } as const;
     const onListing = (p: { listingId?: string }) => {
       if (p?.listingId) {
-        qc.invalidateQueries({
-          queryKey: ["company-listings", "detail", p.listingId],
-        });
-        qc.invalidateQueries({ queryKey: ["bid-documents", p.listingId] });
+        qc.invalidateQueries(
+          { queryKey: ["company-listings", "detail", p.listingId] },
+          keep,
+        );
+        qc.invalidateQueries({ queryKey: ["bid-documents", p.listingId] }, keep);
       }
       // Listeler: sahip sayaçları + teklifçi durumları.
-      qc.invalidateQueries({ queryKey: ["company-tenders"] });
-      qc.invalidateQueries({ queryKey: ["company-my-bids"] });
-      qc.invalidateQueries({
-        queryKey: ["company-listings", "seller-tenders"],
-      });
+      qc.invalidateQueries({ queryKey: ["company-tenders"] }, keep);
+      qc.invalidateQueries({ queryKey: ["company-my-bids"] }, keep);
+      qc.invalidateQueries(
+        { queryKey: ["company-listings", "seller-tenders"] },
+        keep,
+      );
     };
     const onOrder = (p: { orderId?: string }) => {
       if (p?.orderId) {

@@ -175,7 +175,8 @@ export default function ListingDetailPage() {
       ? rawFrom
       : null;
   const fromLabel = searchParams.get("fromLabel");
-  const { data: l, isLoading, isError, error, refetch } = useListingDetail(id);
+  const { data: l, isLoading, isFetching, isError, error, refetch } =
+    useListingDetail(id);
   // 404 = erişim kalktı (kapalı-zarf gereği sebep söylenmez): bağlantı
   // pasifleşmiş, ilan kaldırılmış veya görünürlük değişmiş olabilir —
   // "Tekrar dene" bu durumda aynı 404'ü döndürür, kullanıcıyı döngüye sokma.
@@ -483,6 +484,17 @@ export default function ListingDetailPage() {
     );
   }
   if (!l) {
+    // Veri yok ama istek sürüyor/yeniden başlayacak (iptal edilen ilk çekim,
+    // invalidate yarışı): "bulunamadı" flaşı yerine iskeleti koru.
+    if (isFetching) {
+      return (
+        <div className="mx-auto max-w-5xl space-y-4">
+          <div className="h-8 w-1/3 animate-pulse rounded bg-zinc-100" />
+          <div className="h-32 animate-pulse rounded-2xl bg-zinc-100" />
+          <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
+        </div>
+      );
+    }
     return (
       <div className="mx-auto max-w-3xl">
         <Text className="text-sm text-zinc-500">İlan bulunamadı.</Text>

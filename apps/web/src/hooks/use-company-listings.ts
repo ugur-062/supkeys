@@ -634,10 +634,20 @@ export function useCreateNextRound(id: string) {
       );
       return data;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+    onSuccess: async () => {
+      // Yeni tur ANINDA görünsün: invalidate/sinyal yoluna GÜVENME — geçiş
+      // anında sinyal + invalidation çığı istekleri kuyruklatıp iptal
+      // zincirine sokuyor, taze cevap dakikalarca uygulanmayabiliyor. Detayı
+      // TEK doğrudan istekle çek ve cache'e YAZ; mutateAsync bu await bitmeden
+      // çözülmez, diyalog yeni arayüz ekrandayken kapanır.
+      const { data } = await companyApi.get<ListingDetail>(
+        `/company/listings/${id}`,
+      );
+      qc.setQueryData(["company-listings", "detail", id], data);
       // Önceki tur arşivlendi — açık tur geçmişi dialog cache'i bayatlamasın.
       qc.invalidateQueries({ queryKey: ["listing-rounds", id] });
+      // Listeler arkadan tazelenir (detay az önce yazıldı; yeniden çekilse de
+      // aynı veri döner).
       invalidateListingCaches(qc);
     },
   });
