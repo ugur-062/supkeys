@@ -59,6 +59,10 @@ interface Props {
   /** Mevcut turda yeni tura taşınabilir (SUBMITTED/LOST) teklif sayısı —
    *  0 ise pazarlığa (açık eksiltme) aktarmada "taban fiyatsız başlar" uyarısı çıkar. */
   carryableBidCount?: number;
+  /** İlanın mevcut snipe-koruma süreleri — yeni tur diyaloğunda varsayılan
+   *  olarak gösterilir (yoksa 2/2 dk). */
+  autoExtendThresholdMin?: number | null;
+  autoExtendByMinutes?: number | null;
 }
 
 function toLocalInput(iso: string | null): string {
@@ -83,6 +87,8 @@ export function TenderActionsMenu({
   currency,
   allowedCurrencies = [],
   carryableBidCount = 0,
+  autoExtendThresholdMin,
+  autoExtendByMinutes,
 }: Props) {
   const isSatis = listingType === "SATIS";
   const router = useRouter();
@@ -170,6 +176,12 @@ export function TenderActionsMenu({
     "OWN_ONLY" | "BEST_PRICE" | "OWN_RANK" | "BEST_AND_OWN_RANK" | "ALL"
   >("OWN_RANK");
   const [autoExtend, setAutoExtend] = useState(true);
+  // Snipe-koruma süreleri: tetik penceresi + uzatma miktarı (dk, 1-30).
+  // Varsayılan ilanın mevcut ayarı; hiç kurulmamışsa 2/2.
+  const [aeThreshold, setAeThreshold] = useState(
+    String(autoExtendThresholdMin ?? 2),
+  );
+  const [aeBy, setAeBy] = useState(String(autoExtendByMinutes ?? 2));
 
   // Davet ekleme form durumu
   const [inviteSel, setInviteSel] = useState<Set<string>>(new Set());
@@ -192,6 +204,16 @@ export function TenderActionsMenu({
       return;
     }
     const isAuc = nrType === "ENGLISH_AUCTION";
+    // Snipe-koruma süreleri: backend DTO ile aynı sınır (1-30 dk).
+    const aeThresholdNum = Number(aeThreshold);
+    const aeByNum = Number(aeBy);
+    if (isAuc && autoExtend) {
+      const valid = (n: number) => Number.isInteger(n) && n >= 1 && n <= 30;
+      if (!valid(aeThresholdNum) || !valid(aeByNum)) {
+        toast.error("Snipe koruma süreleri 1-30 dakika arası olmalı");
+        return;
+      }
+    }
     try {
       await nextRound.mutateAsync({
         type: nrType,
@@ -202,6 +224,12 @@ export function TenderActionsMenu({
           ? {
               bidVisibility: vis,
               autoExtendOnLateBid: autoExtend,
+              ...(autoExtend
+                ? {
+                    autoExtendThresholdMin: aeThresholdNum,
+                    autoExtendByMinutes: aeByNum,
+                  }
+                : {}),
             }
           : {}),
       });
@@ -665,6 +693,31 @@ export function TenderActionsMenu({
             />
             Son dakika gelen teklif kapanışı otomatik uzatsın (snipe koruma)
           </label>
+          {autoExtend ? (
+            <div className="ml-6 flex flex-wrap items-center gap-x-1.5 gap-y-2 text-sm text-zinc-700">
+              Son
+              <input
+                type="number"
+                min={1}
+                max={30}
+                value={aeThreshold}
+                onChange={(e) => setAeThreshold(e.target.value)}
+                aria-label="Tetik penceresi (dakika)"
+                className="w-16 rounded-md border border-zinc-300 px-2 py-1 text-right text-sm"
+              />
+              dk içinde teklif gelirse kapanış
+              <input
+                type="number"
+                min={1}
+                max={30}
+                value={aeBy}
+                onChange={(e) => setAeBy(e.target.value)}
+                aria-label="Uzatma süresi (dakika)"
+                className="w-16 rounded-md border border-zinc-300 px-2 py-1 text-right text-sm"
+              />
+              dk uzatılsın.
+            </div>
+          ) : null}
             </>
           ) : null}
         </DialogBody>
