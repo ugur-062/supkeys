@@ -768,13 +768,21 @@ export default function ListingDetailPage() {
       l.bids.some((b) => b.items && b.items.length > 0) ? (
         <div className="space-y-2">
           <Subheading>Kalem Karşılaştırma</Subheading>
-          <div className="overflow-x-auto rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
+          {/* Sığdırma esas, kaydırma istisna: hücre nowrap'leri kaldırıldı ki
+              tablo kap genişliğine otursun (uzun firma adı başlıkta sarar);
+              yalnız fiyat hücreleri nowrap kalır. Teklifçi sayısı gerçekten
+              sığmayacak kadar artarsa Catalyst Table'ın kendi overflow-x-auto
+              sarmalayıcısı güvenlik ağı olarak devreye girer. */}
+          <div className="rounded-2xl border border-zinc-950/5 bg-white px-2 shadow-sm [--gutter:--spacing(4)]">
             <Table dense>
               <TableHead>
                 <TableRow>
                   <TableHeader>Kalem</TableHeader>
                   {l.bids.map((b) => (
-                    <TableHeader key={b.id} className="text-right">
+                    <TableHeader
+                      key={b.id}
+                      className="text-right whitespace-normal"
+                    >
                       {b.bidderName}
                     </TableHeader>
                   ))}
@@ -803,9 +811,9 @@ export default function ListingDetailPage() {
                     : null;
                   return (
                     <TableRow key={it.id}>
-                      <TableCell className="whitespace-nowrap text-zinc-900">
+                      <TableCell className="whitespace-normal text-zinc-900">
                         {it.name}{" "}
-                        <span className="text-xs text-zinc-400">
+                        <span className="text-xs whitespace-nowrap text-zinc-400">
                           ({Number(it.quantity).toLocaleString("tr-TR")} {it.unit})
                         </span>
                       </TableCell>
