@@ -640,3 +640,27 @@ describe("eliminate — state machine", () => {
     expect(after.status).toBe("LOST");
   });
 });
+
+describe("Faz 5 — kalem teslim tarihi award'da siparişe kopyalanır", () => {
+  it("bid item deliveryDate + note sipariş kalemine snapshot'lanır", async () => {
+    const { service, owner, bidder, listing, item } = await setupAlim();
+    const dd = new Date("2026-09-15T00:00:00.000Z");
+    const winBid = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: 1000,
+      items: [
+        { itemId: item.id, unitPrice: 1000, deliveryDate: dd, note: "hızlı teslim" },
+      ],
+    });
+    await service.award(owner.auth, listing.id, winBid.id);
+    const order = await prisma.companyOrder.findFirstOrThrow({
+      where: { listingId: listing.id },
+      include: { items: true },
+    });
+    expect(order.items).toHaveLength(1);
+    expect(order.items[0]!.deliveryDate?.toISOString()).toBe(dd.toISOString());
+    expect(order.items[0]!.note).toBe("hızlı teslim");
+  });
+});

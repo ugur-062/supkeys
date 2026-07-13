@@ -780,3 +780,147 @@ describe("Faz 3 — vade hatırlatması (S7)", () => {
     expect(sent).toBe(0);
   });
 });
+
+describe("Faz 5 — sipariş revizyon müzakeresi", () => {
+  async function acceptedOrderWithItems() {
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      amount: 1000,
+      acceptedAt: new Date(),
+      items: {
+        create: [
+          { name: "Çelik", quantity: 10, unit: "ton", unitPrice: 100 },
+        ],
+      },
+    });
+    return { seller, buyer, order };
+  }
+  const revItems = [
+    { name: "Çelik", quantity: 8, unit: "ton", unitPrice: 120 }, // 960
+    { name: "Nakliye", quantity: 1, unit: "sefer", unitPrice: 200 }, // 200
+  ];
+
+  it("satıcı öner → alıcı onayla: kalemler değişir, tutar (1160) + teslim güncellenir", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer, order } = await acceptedOrderWithItems();
+    const newDelivery = future(20).toISOString();
+
+    const prop = (await orders.proposeRevision(seller.auth, order.id, {
+      items: revItems,
+      expectedDeliveryDate: newDelivery,
+      note: "Fiyat güncellendi + nakliye eklendi",
+    } as never)) as { revisionId: string };
+
+    await orders.approveRevision(buyer.auth, order.id, prop.revisionId);
+
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+      include: { items: true, revisions: true },
+    });
+    expect(Number(db.amount)).toBe(1160);
+    expect(db.items).toHaveLength(2);
+    expect(db.items.map((i) => i.name).sort()).toEqual(["Nakliye", "Çelik"]);
+    expect(db.expectedDeliveryDate).not.toBeNull();
+    expect(db.revisions[0]!.status).toBe("APPROVED");
+    expect(db.status).toBe("ACCEPTED"); // sipariş durumu değişmez
+  });
+
+  it("alıcı reddederse sipariş değişmez, revizyon REJECTED", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer, order } = await acceptedOrderWithItems();
+    const prop = (await orders.proposeRevision(seller.auth, order.id, {
+      items: revItems,
+    } as never)) as { revisionId: string };
+    await orders.rejectRevision(
+      buyer.auth,
+      order.id,
+      prop.revisionId,
+      "Fiyat artışını kabul etmiyoruz",
+    );
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+      include: { items: true, revisions: true },
+    });
+    expect(Number(db.amount)).toBe(1000); // değişmedi
+    expect(db.items).toHaveLength(1);
+    expect(db.revisions[0]!.status).toBe("REJECTED");
+  });
+
+  it("satıcı önerdiği revizyonu geri çekebilir (CANCELLED)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer, order } = await acceptedOrderWithItems();
+    const prop = (await orders.proposeRevision(seller.auth, order.id, {
+      items: revItems,
+    } as never)) as { revisionId: string };
+    await orders.cancelRevision(seller.auth, order.id, prop.revisionId);
+    const rev = await prisma.orderRevision.findUniqueOrThrow({
+      where: { id: prop.revisionId },
+    });
+    expect(rev.status).toBe("CANCELLED");
+    void buyer;
+  });
+
+  it("guard: ACCEPTED dışında öneri reddedilir", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "IN_DELIVERY",
+      acceptedAt: new Date(),
+      deliveryStartedAt: new Date(),
+    });
+    await expect(
+      orders.proposeRevision(seller.auth, order.id, {
+        items: revItems,
+      } as never),
+    ).rejects.toThrow(/onaylanmış/i);
+  });
+
+  it("guard: ödeme kaydı varken öneri reddedilir", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer, order } = await acceptedOrderWithItems();
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: 500,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+    await expect(
+      orders.proposeRevision(seller.auth, order.id, {
+        items: revItems,
+      } as never),
+    ).rejects.toThrow(/ödeme kaydı/i);
+  });
+
+  it("guard: aynı anda ikinci açık revizyon reddedilir", async () => {
+    const orders = makeOrdersService();
+    const { seller, order } = await acceptedOrderWithItems();
+    await orders.proposeRevision(seller.auth, order.id, {
+      items: revItems,
+    } as never);
+    await expect(
+      orders.proposeRevision(seller.auth, order.id, {
+        items: revItems,
+      } as never),
+    ).rejects.toThrow(/bekleyen bir revizyon/i);
+  });
+
+  it("guard: alıcı öneremez, satıcı onaylayamaz (yetki)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer, order } = await acceptedOrderWithItems();
+    await expect(
+      orders.proposeRevision(buyer.auth, order.id, {
+        items: revItems,
+      } as never),
+    ).rejects.toThrow(/yalnızca satıcı/i);
+    const prop = (await orders.proposeRevision(seller.auth, order.id, {
+      items: revItems,
+    } as never)) as { revisionId: string };
+    await expect(
+      orders.approveRevision(seller.auth, order.id, prop.revisionId),
+    ).rejects.toThrow(/yalnızca alıcı/i);
+  });
+});

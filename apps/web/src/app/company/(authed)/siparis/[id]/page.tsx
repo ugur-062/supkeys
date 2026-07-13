@@ -28,6 +28,7 @@ import { subscribeRealtime } from "@/lib/realtime";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { OrderDocumentsSection } from "./_components/order-documents-section";
 import { LcStepPanel } from "./_components/lc-step-panel";
+import { OrderRevisionPanel } from "./_components/order-revision-panel";
 import {
   AcceptOrderModal,
   NoteModal,
@@ -79,6 +80,18 @@ const STATUS_META: Record<
 function stepIndexFor(status: CompanyOrderStatus): number {
   if (status === "CREATED") return 1;
   return STEPS.findIndex((s) => s.key === status);
+}
+
+/** Kalem teslim tarihi etiketi — kalem-özel tarih varsa onu, yoksa order-level
+ *  tarihe düşer (o zaman "genel" işaretiyle); ikisi de yoksa "—". */
+function itemDeliveryLabel(
+  itemDate: string | null | undefined,
+  orderDate: string | null,
+): string {
+  if (itemDate) return format(new Date(itemDate), "dd MMM yyyy", { locale: tr });
+  if (orderDate)
+    return `${format(new Date(orderDate), "dd MMM yyyy", { locale: tr })} (genel)`;
+  return "—";
 }
 
 function MetaItem({
@@ -216,7 +229,8 @@ export default function OrderDetailPage() {
     const rows = (o.items ?? [])
       .map((it) => {
         const line = Number(it.quantity) * Number(it.unitPrice);
-        return `<tr><td>${it.name}</td><td style="text-align:right">${Number(it.quantity).toLocaleString("tr-TR")} ${it.unit}</td><td style="text-align:right">${Number(it.unitPrice).toLocaleString("tr-TR")} ${curSym}</td><td style="text-align:right">${line.toLocaleString("tr-TR")} ${curSym}</td></tr>`;
+        const dd = itemDeliveryLabel(it.deliveryDate, o.expectedDeliveryDate);
+        return `<tr><td>${it.name}</td><td style="text-align:right">${Number(it.quantity).toLocaleString("tr-TR")} ${it.unit}</td><td style="text-align:right">${dd}</td><td style="text-align:right">${Number(it.unitPrice).toLocaleString("tr-TR")} ${curSym}</td><td style="text-align:right">${line.toLocaleString("tr-TR")} ${curSym}</td></tr>`;
       })
       .join("");
     w.document.write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>${o.number ?? "Sipariş"}</title>
@@ -234,8 +248,8 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
 <strong>İhale:</strong> ${o.listingTitle ?? "—"} (${o.listingNumber ?? "—"})<br>
 <strong>Durum:</strong> ${statusMeta.label}
 </div>
-<table><thead><tr><th>Kalem</th><th style="text-align:right">Miktar</th><th style="text-align:right">Birim</th><th style="text-align:right">Tutar</th></tr></thead>
-<tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:#a1a1aa">Kalem yok</td></tr>'}</tbody></table>
+<table><thead><tr><th>Kalem</th><th style="text-align:right">Miktar</th><th style="text-align:right">Teslim</th><th style="text-align:right">Birim</th><th style="text-align:right">Tutar</th></tr></thead>
+<tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:#a1a1aa">Kalem yok</td></tr>'}</tbody></table>
 <div class="tot">Toplam: ${Number(o.amount).toLocaleString("tr-TR")} ${curSym}</div>
 <script>window.onload=function(){window.print()}</script>
 </body></html>`);
@@ -502,6 +516,7 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
               <TableRow>
                 <TableHeader>Kalem</TableHeader>
                 <TableHeader className="text-right">Miktar</TableHeader>
+                <TableHeader className="text-right">Teslim Tarihi</TableHeader>
                 <TableHeader className="text-right">Birim Fiyat</TableHeader>
                 <TableHeader className="text-right">Tutar</TableHeader>
               </TableRow>
@@ -511,9 +526,17 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
                 <TableRow key={it.id}>
                   <TableCell className="font-medium text-zinc-900">
                     {it.name}
+                    {it.note ? (
+                      <span className="block text-xs font-normal text-zinc-400">
+                        {it.note}
+                      </span>
+                    ) : null}
                   </TableCell>
                   <TableCell className="text-right text-zinc-600">
                     {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
+                  </TableCell>
+                  <TableCell className="text-right text-zinc-600">
+                    {itemDeliveryLabel(it.deliveryDate, o.expectedDeliveryDate)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-zinc-600">
                     {Number(it.unitPrice).toLocaleString("tr-TR")} {curSym}
@@ -662,6 +685,9 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
           </Text>
         )}
       </section>
+
+      {/* Sipariş revizyon müzakeresi (satıcı öner / alıcı karar) */}
+      <OrderRevisionPanel order={o} />
 
       {/* Akreditif adımları (yalnız LC siparişte) */}
       <LcStepPanel order={o} />

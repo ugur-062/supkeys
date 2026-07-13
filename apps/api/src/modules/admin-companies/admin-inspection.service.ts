@@ -320,6 +320,8 @@ export class AdminInspectionService {
             quantity: true,
             unit: true,
             unitPrice: true,
+            deliveryDate: true,
+            note: true,
           },
         },
         payments: {

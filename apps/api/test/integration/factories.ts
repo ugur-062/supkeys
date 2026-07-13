@@ -154,7 +154,12 @@ export async function makeBid(
     /** Pazarlık tur senaryoları: teklifin turu + aktif gönderim turu. */
     round?: number;
     activeBidRound?: number;
-    items?: { itemId: string; unitPrice: number | string }[];
+    items?: {
+      itemId: string;
+      unitPrice: number | string;
+      deliveryDate?: Date;
+      note?: string;
+    }[];
   },
 ) {
   const {
@@ -180,6 +185,8 @@ export async function makeBid(
               create: items.map((i) => ({
                 itemId: i.itemId,
                 unitPrice: new Prisma.Decimal(i.unitPrice),
+                ...(i.deliveryDate ? { deliveryDate: i.deliveryDate } : {}),
+                ...(i.note ? { note: i.note } : {}),
               })),
             },
           }

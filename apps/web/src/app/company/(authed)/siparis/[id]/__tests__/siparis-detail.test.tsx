@@ -51,6 +51,8 @@ vi.mock("@/hooks/use-company-orders", () => {
     useRejectOrder: mut,
     useCancelOrder: mut,
     useLcStep: mut,
+    useProposeRevision: mut,
+    useRevisionDecision: mut,
   };
 });
 
@@ -88,6 +90,7 @@ function order(
     paymentTotals: { confirmed: "0", pending: "0", remaining: "1000" },
     payments: [],
     items: [],
+    revisions: [],
     deliveryAddress: null,
     paymentCategory: "OPEN_ACCOUNT",
     advancePercent: null,

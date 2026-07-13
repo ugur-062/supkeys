@@ -6,6 +6,7 @@ import { tr } from "date-fns/locale";
 import {
   Ban,
   CheckCircle2,
+  GitPullRequestArrow,
   Landmark,
   Plus,
   ThumbsUp,
@@ -72,6 +73,29 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       actor: sellerLabel,
       lines: o.rejectedReason ? [`Sebep: ${o.rejectedReason}`] : [],
     });
+  }
+  // Sonuçlanmış revizyonlar (onay/ret) — eskiden yeniye kronolojik (revisions
+  // response'ta yeniden eskiye sıralı).
+  for (const r of [...(o.revisions ?? [])].reverse()) {
+    if (r.status === "APPROVED") {
+      events.push({
+        icon: GitPullRequestArrow,
+        tone: "text-emerald-500",
+        title: "Revizyon Onaylandı",
+        at: fmt(r.decidedAt),
+        actor: buyerLabel,
+        lines: [`Yeni tutar: ${Number(r.amount).toLocaleString("tr-TR")}`],
+      });
+    } else if (r.status === "REJECTED") {
+      events.push({
+        icon: GitPullRequestArrow,
+        tone: "text-orange-500",
+        title: "Revizyon Reddedildi",
+        at: fmt(r.decidedAt),
+        actor: buyerLabel,
+        lines: r.rejectReason ? [`Sebep: ${r.rejectReason}`] : [],
+      });
+    }
   }
   // Akreditif adımları (yalnız LC siparişte doludur).
   if (o.lcOpenedAt) {

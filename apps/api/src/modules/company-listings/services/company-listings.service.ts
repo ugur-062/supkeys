@@ -3724,7 +3724,14 @@ export class CompanyListingsService {
         amount: true,
         currency: true,
         deliveryAddressId: true,
-        items: { select: { itemId: true, unitPrice: true } },
+        items: {
+          select: {
+            itemId: true,
+            unitPrice: true,
+            deliveryDate: true,
+            note: true,
+          },
+        },
       },
     });
     if (!bid || bid.listingId !== listingId) {
@@ -3753,6 +3760,9 @@ export class CompanyListingsService {
               quantity: li.quantity,
               unit: li.unit,
               unitPrice: bi.unitPrice,
+              // Kalem-bazlı teslim tarihi + not teklifin kalem satırından snapshot.
+              deliveryDate: bi.deliveryDate,
+              note: bi.note,
             }
           : null;
       })
@@ -4044,7 +4054,14 @@ export class CompanyListingsService {
         id: true,
         bidderCompanyId: true,
         currency: true,
-        items: { select: { itemId: true, unitPrice: true } },
+        items: {
+          select: {
+            itemId: true,
+            unitPrice: true,
+            deliveryDate: true,
+            note: true,
+          },
+        },
       },
     });
     const bidMap = new Map(bids.map((b) => [b.id, b]));
@@ -4057,6 +4074,8 @@ export class CompanyListingsService {
           quantity: number;
           unit: string;
           unitPrice: number;
+          deliveryDate: Date | null;
+          note: string | null;
         }[];
         amount: Prisma.Decimal; // sipariş tutarı — Decimal (F7)
         currency: Currency; // teklifçinin birimi (firma başına tek teklif)
@@ -4096,6 +4115,8 @@ export class CompanyListingsService {
         quantity: qty,
         unit: li.unit,
         unitPrice: Number(bi.unitPrice),
+        deliveryDate: bi.deliveryDate,
+        note: bi.note,
       });
       g.amount = g.amount.plus(new Prisma.Decimal(bi.unitPrice).mul(qty));
     }
@@ -4278,6 +4299,8 @@ export class CompanyListingsService {
                 quantity: it.quantity,
                 unit: it.unit,
                 unitPrice: it.unitPrice,
+                deliveryDate: it.deliveryDate,
+                note: it.note,
               })),
             },
           },

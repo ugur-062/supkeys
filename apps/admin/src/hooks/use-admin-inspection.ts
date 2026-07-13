@@ -171,6 +171,8 @@ export interface AdminOrderDetail {
     quantity: number;
     unit: string;
     unitPrice: number;
+    deliveryDate: string | null;
+    note: string | null;
   }[];
   payments: {
     id: string;

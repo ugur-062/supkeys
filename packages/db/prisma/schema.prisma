@@ -726,6 +726,7 @@ model CompanyOrder {
   items     CompanyOrderItem[]
   payments  CompanyOrderPayment[]
   reviews   CompanyReview[]
+  revisions OrderRevision[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -734,6 +735,59 @@ model CompanyOrder {
   @@index([buyerCompanyId])
   @@index([listingId])
   @@map("company_orders")
+}
+
+enum OrderRevisionStatus {
+  PENDING // satıcı önerdi, alıcı kararı bekleniyor
+  APPROVED // alıcı onayladı → sipariş güncellendi
+  REJECTED // alıcı reddetti (gerekçeli)
+  CANCELLED // satıcı karar öncesi geri çekti
+}
+
+/**
+ * Sipariş revizyonu — satıcı, ONAYLANMIŞ (ACCEPTED) siparişte kalem/teslim
+ * tarihi değişikliği önerir, alıcı onaylar/reddeder (müzakere). Ayrı kayıt:
+ * sipariş state machine'i tek-yönlü kalır, öneri snapshot + tur geçmişi burada
+ * tutulur (CompanyOrderPayment deseniyle aynı). Onaylanınca CompanyOrder.amount/
+ * expectedDeliveryDate + CompanyOrderItem satırları güncellenir.
+ */
+model OrderRevision {
+  id                  String              @id @default(cuid())
+  orderId             String
+  order               CompanyOrder        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  // Öneriyi yapan firma (satıcı) — audit; taraf servis seviyesinde doğrulanır.
+  proposedByCompanyId String
+  proposedByUserId    String?
+  status              OrderRevisionStatus @default(PENDING)
+  // Önerilen order-level değerler (snapshot). amount kalemlerden hesaplanır.
+  amount               Decimal   @db.Decimal(18, 2)
+  currency             Currency  @default(TRY)
+  expectedDeliveryDate DateTime?
+  note                 String? // satıcının revizyon açıklaması
+  rejectReason         String? // alıcının ret gerekçesi
+  decidedByUserId      String?
+  decidedAt            DateTime?
+  createdAt            DateTime  @default(now())
+
+  items OrderRevisionItem[]
+
+  @@index([orderId])
+  @@map("order_revisions")
+}
+
+model OrderRevisionItem {
+  id           String        @id @default(cuid())
+  revisionId   String
+  revision     OrderRevision @relation(fields: [revisionId], references: [id], onDelete: Cascade)
+  name         String
+  quantity     Decimal       @db.Decimal(18, 3)
+  unit         String
+  unitPrice    Decimal       @db.Decimal(18, 2)
+  deliveryDate DateTime?
+  note         String?
+
+  @@index([revisionId])
+  @@map("order_revision_items")
 }
 
 // Sipariş sonrası değerlendirme — alıcı, karşı tarafı (genelde satıcı) puanlar.
@@ -790,6 +844,11 @@ model CompanyOrderItem {
   quantity  Decimal      @db.Decimal(18, 3)
   unit      String
   unitPrice Decimal      @db.Decimal(18, 2)
+  // Kalem-özel teslim tarihi — award anında kazanan teklifin kalem tarihinden
+  // (ListingBidItem.deliveryDate) snapshot'lanır; boşsa order-level
+  // expectedDeliveryDate geçerli. Kalem notu da teklifin kalem notundan gelir.
+  deliveryDate DateTime?
+  note         String?
 
   @@index([orderId])
   @@map("company_order_items")

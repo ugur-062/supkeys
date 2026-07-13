@@ -239,6 +239,11 @@ function OrderInspection({ id }: { id: string }) {
                   <TableCell className="text-admin-text-muted text-xs">
                     {i.quantity.toLocaleString("tr-TR")} {i.unit}
                   </TableCell>
+                  <TableCell className="text-admin-text-muted text-right text-xs tabular-nums">
+                    {i.deliveryDate
+                      ? new Date(i.deliveryDate).toLocaleDateString("tr-TR")
+                      : "—"}
+                  </TableCell>
                   <TableCell className="text-admin-text text-right text-sm tabular-nums">
                     {fmtMoney(i.unitPrice, o.currency)}
                   </TableCell>

@@ -26,6 +26,9 @@ export interface CompanyOrderItemRow {
   quantity: string;
   unit: string;
   unitPrice: string;
+  /** Kalem-özel teslim tarihi (award snapshot) — boşsa order-level tarih. */
+  deliveryDate?: string | null;
+  note?: string | null;
 }
 
 export interface OrderPayment {
@@ -82,9 +85,25 @@ export interface OrderDeliveryAddress {
   postalCode: string | null;
 }
 
+export interface OrderRevisionRow {
+  id: string;
+  status: "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
+  proposedByCompanyId: string;
+  amount: string;
+  currency: string;
+  expectedDeliveryDate: string | null;
+  note: string | null;
+  rejectReason: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+  items: CompanyOrderItemRow[];
+}
+
 export interface CompanyOrderDetail extends CompanyOrder {
   counterpartyProfile: CounterpartyProfile;
   paymentTiming: PaymentTiming;
+  /** Revizyon müzakere geçmişi (en yeni önce). */
+  revisions: OrderRevisionRow[];
   /** İlan sahibinin seçimi (award snapshot'ı) — true ise satıcı onaydan önce
    *  teminat mektubu yüklemek zorunda. Teminat tetiği artık BU bayraktır. */
   requireGuaranteeLetter: boolean;
@@ -264,6 +283,52 @@ export function useLcStep(id: string, action: "opened" | "accept" | "paid") {
       const { data } = await companyApi.post(
         `/company/orders/${id}/lc/${action}`,
         {},
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+  });
+}
+
+export interface ReviseItemInput {
+  name: string;
+  quantity: number;
+  unit: string;
+  unitPrice: number;
+  deliveryDate?: string;
+  note?: string;
+}
+
+/** Satıcı: revizyon öner (yeni kalemler + opsiyonel teslim tarihi/not). */
+export function useProposeRevision(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      items: ReviseItemInput[];
+      expectedDeliveryDate?: string;
+      note?: string;
+    }) => {
+      const { data } = await companyApi.post(
+        `/company/orders/${id}/revisions`,
+        input,
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+  });
+}
+
+/** Revizyon kararı — action: approve (alıcı) | reject (alıcı) | cancel (satıcı). */
+export function useRevisionDecision(
+  id: string,
+  action: "approve" | "reject" | "cancel",
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input?: { revisionId: string; reason?: string }) => {
+      const { data } = await companyApi.post(
+        `/company/orders/${id}/revisions/${input!.revisionId}/${action}`,
+        action === "reject" ? { reason: input?.reason } : {},
       );
       return data;
     },

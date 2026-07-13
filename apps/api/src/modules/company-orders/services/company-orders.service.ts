@@ -24,6 +24,7 @@ import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/com
 import type {
   AcceptOrderDto,
   OrderNoteDto,
+  ProposeRevisionDto,
   ShipOrderDto,
 } from "../dto/order-action.dto";
 import { EmailService } from "../../email/email.service";
@@ -465,6 +466,265 @@ export class CompanyOrdersService {
     return { ok: true, status: "CANCELLED" as const };
   }
 
+  // ---- Sipariş revizyon müzakeresi (satıcı önerir, alıcı karar verir — Faz 5) ----
+
+  /** Revizyon açılabilir mi? ACCEPTED + ödeme kaydı YOK + LC henüz açılmamış +
+   *  açık (PENDING) revizyon yok. Para/enstrüman taahhüt edilmişse revizyon
+   *  iade/mutabakat gerektirir → destek kanalına bırakılır. */
+  private async assertRevisionAllowed(orderId: string, status: string) {
+    if (status !== "ACCEPTED") {
+      throw new BadRequestException(
+        "Revizyon yalnız onaylanmış, henüz gönderilmemiş siparişte önerilebilir",
+      );
+    }
+    const [payments, order, openRev] = await Promise.all([
+      this.prisma.companyOrderPayment.count({
+        where: {
+          orderId,
+          status: { in: ["AWAITING_CONFIRMATION", "CONFIRMED"] },
+        },
+      }),
+      this.prisma.companyOrder.findUnique({
+        where: { id: orderId },
+        select: { paymentCategory: true, lcOpenedAt: true },
+      }),
+      this.prisma.orderRevision.count({
+        where: { orderId, status: "PENDING" },
+      }),
+    ]);
+    if (payments > 0) {
+      throw new BadRequestException(
+        "Ödeme kaydı bulunan siparişte revizyon için destek ekibiyle iletişime geçin",
+      );
+    }
+    if (
+      order?.paymentCategory === "LETTER_OF_CREDIT" &&
+      order.lcOpenedAt
+    ) {
+      throw new BadRequestException(
+        "Akreditif açıldıktan sonra revizyon önerilemez — akreditif belirli bir tutar için açılmıştır",
+      );
+    }
+    if (openRev > 0) {
+      throw new BadRequestException(
+        "Bu siparişte alıcı kararı bekleyen bir revizyon zaten var",
+      );
+    }
+  }
+
+  /** Satıcı revizyon önerir: yeni kalemler + opsiyonel teslim tarihi/not. */
+  async proposeRevision(
+    user: AuthenticatedCompanyUser,
+    id: string,
+    input: ProposeRevisionDto,
+  ) {
+    const order = await this.loadParticipant(user, id);
+    if (order.sellerCompanyId !== user.companyId) {
+      throw new ForbiddenException("Revizyonu yalnızca satıcı önerebilir");
+    }
+    this.assertOrderRole(user, "seller");
+    await this.assertRevisionAllowed(id, order.status);
+
+    // Tutar kalemlerden hesaplanır (order-level tutar düzenlenmez → tutarsızlık
+    // olmaz). Para birimi siparişinkiyle aynı (revizyon birim değiştirmez).
+    const amount = input.items.reduce(
+      (sum, it) => sum.plus(new Prisma.Decimal(it.unitPrice).mul(it.quantity)),
+      new Prisma.Decimal(0),
+    );
+    const rev = await this.prisma.orderRevision.create({
+      data: {
+        orderId: id,
+        proposedByCompanyId: user.companyId,
+        proposedByUserId: user.userId,
+        status: "PENDING",
+        amount,
+        currency: order.currency,
+        expectedDeliveryDate: input.expectedDeliveryDate
+          ? new Date(input.expectedDeliveryDate)
+          : null,
+        note: input.note?.trim() || null,
+        items: {
+          create: input.items.map((it) => ({
+            name: it.name.trim(),
+            quantity: it.quantity,
+            unit: it.unit.trim(),
+            unitPrice: it.unitPrice,
+            deliveryDate: it.deliveryDate ? new Date(it.deliveryDate) : null,
+            note: it.note?.trim() || null,
+          })),
+        },
+      },
+    });
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
+    await this.notifyOrderParty(
+      id,
+      order.buyerCompanyId,
+      "Sipariş revizyonu önerildi — onayınız bekleniyor",
+      "Revizyon önerildi",
+      `${this.orderLabel(order.number)} sipariş için satıcı bir revizyon önerdi. İnceleyip onaylayın ya da reddedin.`,
+      "satinalma",
+    );
+    return { ok: true, revisionId: rev.id };
+  }
+
+  /** Alıcı revizyonu onaylar: kalemler değişir, tutar/teslim tarihi güncellenir. */
+  async approveRevision(
+    user: AuthenticatedCompanyUser,
+    id: string,
+    revisionId: string,
+  ) {
+    const order = await this.loadParticipant(user, id);
+    if (order.buyerCompanyId !== user.companyId) {
+      throw new ForbiddenException("Revizyonu yalnızca alıcı onaylayabilir");
+    }
+    this.assertOrderRole(user, "buyer");
+
+    await this.prisma.$transaction(async (tx) => {
+      // Sipariş satırını kilitle — eşzamanlı geçiş/ödeme ile serileşir.
+      const rows = await tx.$queryRaw<{ status: CompanyOrderStatus }[]>`
+        SELECT "status" FROM "company_orders" WHERE "id" = ${id} FOR UPDATE`;
+      const status = rows[0]?.status;
+      if (status !== "ACCEPTED") {
+        throw new BadRequestException(
+          "Sipariş revizyon onayına uygun değil (durumu değişmiş olabilir)",
+        );
+      }
+      // Onay anında ödeme oluştuysa (yarış) revizyon uygulanmaz.
+      const payments = await tx.companyOrderPayment.count({
+        where: {
+          orderId: id,
+          status: { in: ["AWAITING_CONFIRMATION", "CONFIRMED"] },
+        },
+      });
+      if (payments > 0) {
+        throw new BadRequestException(
+          "Bu siparişte ödeme kaydı oluştu — revizyon uygulanamaz",
+        );
+      }
+      const rev = await tx.orderRevision.findUnique({
+        where: { id: revisionId },
+        include: { items: true },
+      });
+      if (!rev || rev.orderId !== id) {
+        throw new NotFoundException("Revizyon bulunamadı");
+      }
+      if (rev.status !== "PENDING") {
+        throw new BadRequestException("Bu revizyon zaten sonuçlanmış");
+      }
+      // Sipariş kalemlerini revizyon kalemleriyle DEĞİŞTİR (sil + oluştur).
+      await tx.companyOrderItem.deleteMany({ where: { orderId: id } });
+      await tx.companyOrderItem.createMany({
+        data: rev.items.map((it) => ({
+          orderId: id,
+          name: it.name,
+          quantity: it.quantity,
+          unit: it.unit,
+          unitPrice: it.unitPrice,
+          deliveryDate: it.deliveryDate,
+          note: it.note,
+        })),
+      });
+      await tx.companyOrder.update({
+        where: { id },
+        data: {
+          amount: rev.amount,
+          ...(rev.expectedDeliveryDate
+            ? { expectedDeliveryDate: rev.expectedDeliveryDate }
+            : {}),
+        },
+      });
+      await tx.orderRevision.update({
+        where: { id: revisionId },
+        data: {
+          status: "APPROVED",
+          decidedByUserId: user.userId,
+          decidedAt: new Date(),
+        },
+      });
+    });
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
+    await this.notifyOrderParty(
+      id,
+      order.sellerCompanyId,
+      "Revizyon onaylandı",
+      "Revizyon onaylandı",
+      `${this.orderLabel(order.number)} sipariş için önerdiğiniz revizyon alıcı tarafından onaylandı ve uygulandı.`,
+      "satis",
+    );
+    return { ok: true };
+  }
+
+  /** Alıcı revizyonu reddeder (gerekçeli) — sipariş değişmez. */
+  async rejectRevision(
+    user: AuthenticatedCompanyUser,
+    id: string,
+    revisionId: string,
+    reason?: string,
+  ) {
+    const order = await this.loadParticipant(user, id);
+    if (order.buyerCompanyId !== user.companyId) {
+      throw new ForbiddenException("Revizyonu yalnızca alıcı reddedebilir");
+    }
+    this.assertOrderRole(user, "buyer");
+    if ((reason?.trim().length ?? 0) < 10) {
+      throw new BadRequestException("Ret gerekçesi en az 10 karakter olmalı");
+    }
+    const res = await this.prisma.orderRevision.updateMany({
+      where: { id: revisionId, orderId: id, status: "PENDING" },
+      data: {
+        status: "REJECTED",
+        rejectReason: reason!.trim(),
+        decidedByUserId: user.userId,
+        decidedAt: new Date(),
+      },
+    });
+    if (res.count !== 1) {
+      throw new BadRequestException("Revizyon bulunamadı veya zaten sonuçlanmış");
+    }
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
+    await this.notifyOrderParty(
+      id,
+      order.sellerCompanyId,
+      "Revizyon reddedildi",
+      "Revizyon reddedildi",
+      `${this.orderLabel(order.number)} sipariş için önerdiğiniz revizyon reddedildi.${
+        reason ? ` Gerekçe: ${reason}` : ""
+      }`,
+      "satis",
+    );
+    return { ok: true };
+  }
+
+  /** Satıcı önerdiği revizyonu karar öncesi geri çeker. */
+  async cancelRevision(
+    user: AuthenticatedCompanyUser,
+    id: string,
+    revisionId: string,
+  ) {
+    const order = await this.loadParticipant(user, id);
+    if (order.sellerCompanyId !== user.companyId) {
+      throw new ForbiddenException("Revizyonu yalnızca satıcı geri çekebilir");
+    }
+    this.assertOrderRole(user, "seller");
+    const res = await this.prisma.orderRevision.updateMany({
+      where: { id: revisionId, orderId: id, status: "PENDING" },
+      data: { status: "CANCELLED", decidedAt: new Date() },
+    });
+    if (res.count !== 1) {
+      throw new BadRequestException("Revizyon bulunamadı veya zaten sonuçlanmış");
+    }
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
+    await this.notifyOrderParty(
+      id,
+      order.buyerCompanyId,
+      "Revizyon geri çekildi",
+      "Revizyon geri çekildi",
+      `${this.orderLabel(order.number)} sipariş için önerilen revizyon satıcı tarafından geri çekildi.`,
+      "satinalma",
+    );
+    return { ok: true };
+  }
+
   // ---- Akreditif adım seti (yalnız paymentCategory=LETTER_OF_CREDIT, Faz 3) ----
 
   /** LC guard: sipariş akreditifli mi + istenen taraf mı (temiz yetki/durum). */
@@ -802,6 +1062,7 @@ export class CompanyOrdersService {
         number: true,
         status: true,
         amount: true,
+        currency: true,
         paymentTiming: true,
         requireGuaranteeLetter: true,
         // Ödeme planı (Faz 2 snapshot) — adım motoru kararlarında kullanılır.
@@ -1149,6 +1410,10 @@ export class CompanyOrdersService {
         },
         items: true,
         payments: { orderBy: { createdAt: "desc" } },
+        revisions: {
+          orderBy: { createdAt: "desc" },
+          include: { items: true },
+        },
       },
     });
     if (
@@ -1248,6 +1513,30 @@ export class CompanyOrdersService {
         quantity: it.quantity.toString(),
         unit: it.unit,
         unitPrice: it.unitPrice.toString(),
+        deliveryDate: it.deliveryDate,
+        note: it.note,
+      })),
+      // Revizyon müzakere geçmişi (en yeni önce) — UI öneri/karar akışı bunu sürer.
+      revisions: o.revisions.map((r) => ({
+        id: r.id,
+        status: r.status,
+        proposedByCompanyId: r.proposedByCompanyId,
+        amount: r.amount.toString(),
+        currency: r.currency,
+        expectedDeliveryDate: r.expectedDeliveryDate,
+        note: r.note,
+        rejectReason: r.rejectReason,
+        decidedAt: r.decidedAt,
+        createdAt: r.createdAt,
+        items: r.items.map((it) => ({
+          id: it.id,
+          name: it.name,
+          quantity: it.quantity.toString(),
+          unit: it.unit,
+          unitPrice: it.unitPrice.toString(),
+          deliveryDate: it.deliveryDate,
+          note: it.note,
+        })),
       })),
     };
   }
