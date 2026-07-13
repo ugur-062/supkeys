@@ -275,6 +275,36 @@ export class CompanyOrderDocumentsService {
           "Akreditif belgesi, sipariş onaylandıktan sonra yüklenebilir",
         );
       }
+      return;
+    }
+
+    const terminal =
+      order.status === "REJECTED" || order.status === "CANCELLED";
+
+    if (type === "INVOICE") {
+      // Fatura belgesi: satıcı yükler (faturayı kesen taraf), onaydan itibaren
+      // sipariş sonlanana kadar (teslim sonrası fatura da mümkün).
+      if (!isSeller) {
+        throw new ForbiddenException("Fatura belgesini satıcı yükler");
+      }
+      if (order.status === "PENDING" || terminal) {
+        throw new BadRequestException(
+          "Fatura belgesi, sipariş onaylandıktan sonra yüklenebilir",
+        );
+      }
+      return;
+    }
+
+    if (type === "OTHER") {
+      // Serbest ek belge (tek kutu): her iki taraf, sipariş aktifken. Rol kapısı
+      // yukarıda kullanıcının kendi tarafına göre zaten uygulandı. Sonlanmış
+      // (iptal/ret) siparişte yeni belge eklenemez.
+      if (terminal) {
+        throw new BadRequestException(
+          "Sonlanmış siparişe belge eklenemez",
+        );
+      }
+      return;
     }
   }
 

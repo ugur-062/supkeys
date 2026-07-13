@@ -13,6 +13,11 @@ export enum CompanyDocTypeDto {
   // Teminat mektubu — teslim öncesi ödemede satıcı sipariş onayından ÖNCE yükler.
   // Şema/servis/frontend destekliyordu; DTO'da eksikti (yükleme reddediliyordu).
   TEMINAT = "TEMINAT",
+  // Akreditif belgesi (küşat mektubu) — alıcı, "Akreditif Açıldı" adımında.
+  LC = "LC",
+  // Fatura belgesi (satıcı) + serbest ek belge kutusu (her iki taraf, Faz 4).
+  INVOICE = "INVOICE",
+  OTHER = "OTHER",
 }
 
 export class UploadUrlDto {

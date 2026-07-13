@@ -632,6 +632,8 @@ enum CompanyDocType {
   PAYMENT // ödeme dekontu (alıcı yükler)
   TEMINAT // teminat mektubu — teslim öncesi ödemede satıcı SİPARİŞ ONAYINDAN ÖNCE yükler
   LC // akreditif belgesi (küşat mektubu) — alıcı "Akreditif Açıldı" adımında yükler
+  INVOICE // fatura belgesi — satıcı yükler (fatura no metadata'ya ek olarak PDF/görsel)
+  OTHER // diğer belgeler — her iki taraf, serbest ek belge (tek kutu)
 }
 
 model CompanyOrderDocument {

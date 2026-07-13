@@ -492,4 +492,80 @@ describe("sipariş belgesi — adım bazlı yükleme kilidi", () => {
       docs.remove(seller.auth, order.id, doc.id),
     ).resolves.toEqual({ ok: true });
   });
+
+  // ── Faz 4: fatura belgesi (satıcı) + serbest ek belge kutusu (her iki taraf) ──
+
+  it("fatura belgesi: satıcı onaydan sonra yükleyebilir; PENDING'de ve alıcıda reddedilir", async () => {
+    const docs = makeDocsService();
+    const { seller, buyer } = await party();
+    const pending = await mkOrder(
+      seller.company.id,
+      buyer.company.id,
+      "PENDING",
+    );
+    await expect(
+      docs.requestUploadUrl(seller.auth, pending.id, pdf("INVOICE")),
+    ).rejects.toThrow(/onaylandıktan sonra/i);
+
+    const accepted = await mkOrder(
+      seller.company.id,
+      buyer.company.id,
+      "ACCEPTED",
+    );
+    await expect(
+      docs.requestUploadUrl(seller.auth, accepted.id, pdf("INVOICE")),
+    ).resolves.toHaveProperty("url");
+    // Alıcı fatura yükleyemez.
+    await expect(
+      docs.requestUploadUrl(buyer.auth, accepted.id, pdf("INVOICE")),
+    ).rejects.toThrow(/satıcı yükler/i);
+  });
+
+  it("diğer belgeler (OTHER): her iki taraf yükler; sonlanmış siparişte reddedilir", async () => {
+    const docs = makeDocsService();
+    const { seller, buyer } = await party();
+    const accepted = await mkOrder(
+      seller.company.id,
+      buyer.company.id,
+      "ACCEPTED",
+    );
+    await expect(
+      docs.requestUploadUrl(seller.auth, accepted.id, pdf("OTHER")),
+    ).resolves.toHaveProperty("url");
+    await expect(
+      docs.requestUploadUrl(buyer.auth, accepted.id, pdf("OTHER")),
+    ).resolves.toHaveProperty("url");
+
+    const cancelled = await mkOrder(
+      seller.company.id,
+      buyer.company.id,
+      "CANCELLED",
+    );
+    await expect(
+      docs.requestUploadUrl(buyer.auth, cancelled.id, pdf("OTHER")),
+    ).rejects.toThrow(/sonlanmış/i);
+  });
+
+  it("akreditif belgesi (LC): DTO enum'unda tanımlı — alıcı LC siparişte yükler (Faz 3 DTO düzeltmesi)", async () => {
+    const docs = makeDocsService();
+    const { seller, buyer } = await party();
+    const lcOrder = await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: seller.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 1000,
+        status: "ACCEPTED",
+        paymentCategory: "LETTER_OF_CREDIT",
+        lcType: "SIGHT",
+      } as never,
+    });
+    await expect(
+      docs.requestUploadUrl(buyer.auth, lcOrder.id, pdf("LC")),
+    ).resolves.toHaveProperty("url");
+    // LC olmayan siparişte reddedilir.
+    const plain = await mkOrder(seller.company.id, buyer.company.id, "ACCEPTED");
+    await expect(
+      docs.requestUploadUrl(buyer.auth, plain.id, pdf("LC")),
+    ).rejects.toThrow(/akreditifli değil/i);
+  });
 });

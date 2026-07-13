@@ -143,6 +143,8 @@ export function OrderDocumentsSection({
   const payment = (docs ?? []).filter((d) => d.type === "PAYMENT");
   const guarantee = (docs ?? []).filter((d) => d.type === "TEMINAT");
   const lc = (docs ?? []).filter((d) => d.type === "LC");
+  const invoice = (docs ?? []).filter((d) => d.type === "INVOICE");
+  const other = (docs ?? []).filter((d) => d.type === "OTHER");
 
   // ── Adım bazlı yükleme pencereleri (backend assertCanUpload ile birebir) ──
   // Teminat: yalnız onay öncesi (PENDING), satıcı. Onaydan sonra salt-okunur.
@@ -164,6 +166,15 @@ export function OrderDocumentsSection({
     isBuyer && isLc && !lcOpen && !terminal
       ? "Sipariş onaylandıktan sonra açılır."
       : null;
+  // Fatura belgesi: satıcı, onaydan itibaren (PENDING hariç), sonlanana kadar.
+  const invoiceOpen = status !== "PENDING" && !terminal;
+  const canUploadInvoice = isSeller && invoiceOpen;
+  const invoiceLockHint =
+    isSeller && !invoiceOpen && !terminal
+      ? "Sipariş onaylandıktan sonra açılır."
+      : null;
+  // Diğer belgeler (tek kutu): her iki taraf, sipariş sonlanmadıkça.
+  const canUploadOther = !terminal;
 
   // Kilit ipuçları — sadece o belgeyi yüklemesi gereken taraf için.
   const deliveryLockHint =
@@ -228,6 +239,25 @@ export function OrderDocumentsSection({
             docs={payment}
           />
         )}
+        {/* Fatura belgesi — satıcı yükler (fatura no'ya ek olarak PDF/görsel). */}
+        <DocGroup
+          orderId={orderId}
+          type="INVOICE"
+          title="Fatura Belgesi"
+          hint="Satıcının kestiği fatura (satıcı yükler)"
+          canUpload={canUploadInvoice}
+          lockHint={invoiceLockHint}
+          docs={invoice}
+        />
+        {/* Diğer belgeler — serbest ek belge kutusu (her iki taraf). */}
+        <DocGroup
+          orderId={orderId}
+          type="OTHER"
+          title="Diğer Belgeler"
+          hint="Sözleşme, ek şart, yazışma vb. (her iki taraf yükleyebilir)"
+          canUpload={canUploadOther}
+          docs={other}
+        />
       </div>
     </section>
   );
