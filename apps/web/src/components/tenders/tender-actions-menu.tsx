@@ -326,6 +326,17 @@ export function TenderActionsMenu({
   };
 
   const handleStopEvaluation = async () => {
+    // Simetri dürüstlüğü: geri alma OPEN'a DÖNDÜRMEZ — kullanıcı bunu
+    // onaylamadan işlem yapılmaz (Değerlendirmeye Al da onaylı).
+    if (
+      !(await confirm({
+        title: "Değerlendirmeden Çıkar",
+        description:
+          "İhale teklife kapalı kalır (durum: Kapandı). Yeniden teklif almak için Yeni Tur açın.",
+        confirmLabel: "Değerlendirmeden Çıkar",
+      }))
+    )
+      return;
     try {
       await stopEvaluation.mutateAsync();
       toast.success("Değerlendirmeden çıkarıldı");
@@ -406,6 +417,16 @@ export function TenderActionsMenu({
             Değerlendirmeye Al
           </Button>
         ) : null}
+        {/* Geri yolu da işlemin kendisi kadar görünür — ⋮ menüsüne gömülmez. */}
+        {isInEvaluation ? (
+          <Button
+            outline
+            onClick={handleStopEvaluation}
+            disabled={stopEvaluation.isPending}
+          >
+            Değerlendirmeden Çıkar
+          </Button>
+        ) : null}
 
         <Dropdown>
           <DropdownButton outline aria-label="Diğer işlemler">
@@ -442,11 +463,6 @@ export function TenderActionsMenu({
                 }}
               >
                 <DropdownLabel>Yeni Tur Oluştur</DropdownLabel>
-              </DropdownItem>
-            ) : null}
-            {isInEvaluation ? (
-              <DropdownItem onClick={handleStopEvaluation}>
-                <DropdownLabel>Değerlendirmeden Çıkar</DropdownLabel>
               </DropdownItem>
             ) : null}
             {isOpen ? (
