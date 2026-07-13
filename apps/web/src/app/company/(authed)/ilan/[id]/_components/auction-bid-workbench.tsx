@@ -186,6 +186,11 @@ export function AuctionBidWorkbench({
     });
   }, [items, query, filter, changedIds, lockedIds]);
 
+  // Hepsi seçiliyken "Tümüne", en az biri çıkarıldıysa "Seçililere".
+  const allSelected =
+    distItems.length > 0 && distItems.every((d) => !d.locked);
+  const percentScopeLabel = allSelected ? "Tümüne" : "Seçililere";
+
   const applyPercent = () => {
     const p = Number(percent);
     if (!Number.isFinite(p) || p <= 0 || p >= 100) {
@@ -200,9 +205,7 @@ export function AuctionBidWorkbench({
       applyPercentToItems({ items: distItems, percent, direction, decimals }),
     );
     toast.success(
-      down
-        ? `Seçili kalemlere %${percent} indirim uygulandı`
-        : `Seçili kalemlere %${percent} artış uygulandı`,
+      `${allSelected ? "Tüm kalemlere" : "Seçili kalemlere"} %${percent} ${down ? "indirim" : "artış"} uygulandı`,
     );
   };
 
@@ -311,7 +314,7 @@ export function AuctionBidWorkbench({
             />
           </div>
           <Button outline onClick={applyPercent}>
-            Seçililere %{percent || "…"} {down ? "indirim" : "artış"}
+            {percentScopeLabel} %{percent || "…"} {down ? "indirim" : "artış"}
           </Button>
         </div>
         <Button outline onClick={reset} disabled={changedIds.size === 0}>
