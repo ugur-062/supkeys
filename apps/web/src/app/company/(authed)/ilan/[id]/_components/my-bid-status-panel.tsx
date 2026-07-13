@@ -2,7 +2,13 @@
 
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
-import { Select } from "@/components/catalyst/select";
+import {
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/catalyst/dialog";
 import {
   useExtendBidValidity,
   type ListingDetail,
@@ -72,6 +78,7 @@ const BID_STATUS_BADGE: Record<string, { label: string; color: "zinc" | "amber" 
 export function BidSummaryCard({ l }: { l: ListingDetail }) {
   const bid = l.myBid;
   const extend = useExtendBidValidity(l.id);
+  const [extendOpen, setExtendOpen] = useState(false);
   const [extendDays, setExtendDays] = useState("30");
   if (!bid) return null;
   const symbol = bid.currency === "TRY" || !bid.currency ? "₺" : bid.currency;
@@ -92,19 +99,44 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
       : null;
   const validityExpired =
     validUntil != null && validUntil.getTime() < Date.now();
+  const daysLeft =
+    validUntil != null
+      ? Math.ceil((validUntil.getTime() - Date.now()) / 86_400_000)
+      : null;
+  // Uzatma backend'le aynı pencerede serbest: OPEN (kapanış geçmemişse) +
+  // değerlendirme aşamaları — alıcı karar veremezken teklifin dolmaması
+  // tam da bu akışın amacı (extendBidValidity ile birebir).
   const canExtend =
-    l.status === "OPEN" &&
     validUntil != null &&
-    (bid.status === "SUBMITTED" || bid.status === "DRAFT");
+    (bid.status === "SUBMITTED" || bid.status === "DRAFT") &&
+    (l.status === "OPEN"
+      ? !l.closesAt || new Date(l.closesAt).getTime() > Date.now()
+      : ["CLOSED", "IN_AWARD", "IN_AWARD_APPROVAL"].includes(l.status));
+
+  // Uzatma mevcut bitişin ÜZERİNE eklenir (backend: validityDays += gün).
+  const extendDaysNum = Number(extendDays);
+  const extendDaysValid =
+    Number.isInteger(extendDaysNum) &&
+    extendDaysNum >= 1 &&
+    extendDaysNum <= 365;
+  const newValidUntil =
+    validUntil != null && extendDaysValid
+      ? new Date(validUntil.getTime() + extendDaysNum * 86_400_000)
+      : null;
+  // Süresi dolmuş teklifte kısa uzatma bitişi yine geçmişte bırakabilir —
+  // backend reddeder, biz baştan engelleyip yönlendiriyoruz.
+  const extendTooShort =
+    newValidUntil != null && newValidUntil.getTime() <= Date.now();
 
   const handleExtend = async () => {
     try {
-      const res = await extend.mutateAsync(Number(extendDays));
+      const res = await extend.mutateAsync(extendDaysNum);
       toast.success(
         res.revived
           ? "Geçerlilik uzatıldı — teklifiniz aynı fiyatla yeniden aktif"
           : `Geçerlilik uzatıldı — ${formatDateTime(res.validUntil)} tarihine kadar`,
       );
+      setExtendOpen(false);
     } catch (err) {
       toast.error(extractErrorMessage(err, "Geçerlilik uzatılamadı"));
     }
@@ -148,42 +180,121 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-3">
           <div>
             <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
-              Geçerlilik
+              Teklif Geçerliliği
             </p>
-            <p
-              className={cn(
-                "mt-1 text-sm font-medium",
-                validityExpired ? "text-rose-600" : "text-zinc-900",
-              )}
-            >
-              {validUntil.toLocaleDateString("tr-TR")} tarihine kadar
-              {validityExpired ? " — süresi doldu" : ""}
-            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <p
+                className={cn(
+                  "text-sm font-medium",
+                  validityExpired ? "text-rose-600" : "text-zinc-900",
+                )}
+              >
+                {validUntil.toLocaleDateString("tr-TR")} tarihine kadar
+              </p>
+              <Badge
+                color={
+                  validityExpired
+                    ? "rose"
+                    : daysLeft != null && daysLeft <= 7
+                      ? "amber"
+                      : "zinc"
+                }
+              >
+                {validityExpired ? "Süresi doldu" : `${daysLeft} gün kaldı`}
+              </Badge>
+            </div>
           </div>
           {canExtend ? (
-            <div className="flex items-center gap-2">
-              <Select
-                aria-label="Uzatma süresi"
-                value={extendDays}
-                onChange={(e) => setExtendDays(e.target.value)}
-                className="max-w-32"
-              >
-                <option value="15">15 gün</option>
-                <option value="30">30 gün</option>
-                <option value="60">60 gün</option>
-                <option value="90">90 gün</option>
-              </Select>
-              <Button
-                outline
-                disabled={extend.isPending}
-                onClick={handleExtend}
-              >
-                Geçerliliği Uzat
-              </Button>
-            </div>
+            <Button outline onClick={() => setExtendOpen(true)}>
+              Geçerliliği Uzat
+            </Button>
           ) : null}
         </div>
       ) : null}
+
+      {/* Geçerlilik uzatma — gün seçimli diyalog. Süre mevcut bitişin üzerine
+          eklenir; süresi dolmuş/taslağa düşmüş teklif aynı fiyatla canlanır. */}
+      <Dialog open={extendOpen} onClose={() => setExtendOpen(false)}>
+        <DialogTitle>Teklif Geçerliliğini Uzat</DialogTitle>
+        <DialogDescription>
+          {validityExpired
+            ? `Teklifinizin geçerliliği ${validUntil?.toLocaleDateString("tr-TR")} tarihinde doldu.`
+            : `Teklifiniz ${validUntil?.toLocaleDateString("tr-TR")} tarihine kadar geçerli.`}{" "}
+          Seçtiğiniz süre mevcut bitiş tarihine eklenir; fiyatınız değişmez.
+        </DialogDescription>
+        <DialogBody className="space-y-4">
+          <div>
+            <p className="mb-2 text-sm font-medium text-zinc-700">
+              Uzatma süresi
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {[7, 15, 30, 60, 90].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setExtendDays(String(d))}
+                  aria-pressed={extendDays === String(d)}
+                  className={cn(
+                    "cursor-pointer rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+                    extendDays === String(d)
+                      ? "border-zinc-950 bg-zinc-950 text-white"
+                      : "border-zinc-300 text-zinc-700 hover:bg-zinc-50",
+                  )}
+                >
+                  {d} gün
+                </button>
+              ))}
+              <span className="flex items-center gap-1.5 text-sm text-zinc-500">
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={extendDays}
+                  onChange={(e) => setExtendDays(e.target.value)}
+                  aria-label="Özel uzatma süresi (gün)"
+                  className="w-20 rounded-md border border-zinc-300 px-2 py-1.5 text-right text-sm"
+                />
+                gün
+              </span>
+            </div>
+          </div>
+          {!extendDaysValid ? (
+            <p className="text-sm text-rose-600">
+              Uzatma süresi 1-365 gün arası tam sayı olmalı.
+            </p>
+          ) : extendTooShort ? (
+            <p className="text-sm text-rose-600">
+              Bu süre yetmiyor — son geçerlilik günü yine geçmişte kalıyor,
+              daha uzun bir süre seçin.
+            </p>
+          ) : newValidUntil ? (
+            <p className="text-sm text-zinc-700">
+              Yeni bitiş:{" "}
+              <span className="font-semibold text-zinc-950">
+                {newValidUntil.toLocaleDateString("tr-TR")}
+              </span>
+            </p>
+          ) : null}
+          {(validityExpired || bid.status === "DRAFT") &&
+          extendDaysValid &&
+          !extendTooShort ? (
+            <p className="text-sm text-emerald-700">
+              Uzatınca teklifiniz aynı fiyatla yeniden aktif olur.
+            </p>
+          ) : null}
+        </DialogBody>
+        <DialogActions>
+          <Button plain onClick={() => setExtendOpen(false)}>
+            Vazgeç
+          </Button>
+          <Button
+            disabled={extend.isPending || !extendDaysValid || extendTooShort}
+            onClick={handleExtend}
+          >
+            Geçerliliği Uzat
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {bid.items && bid.items.length > 0 ? (
         <div className="mt-4 border-t border-zinc-100 pt-3">
