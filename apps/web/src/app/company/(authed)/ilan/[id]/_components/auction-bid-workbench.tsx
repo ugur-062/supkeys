@@ -7,18 +7,15 @@ import type { ListingItemRow } from "@/hooks/use-company-listings";
 import {
   applyPercentToItems,
   cmpDecimal,
-  distributeToTarget,
   type DistributeItem,
 } from "@/lib/tenders/distribute";
 import { cn } from "@/lib/utils";
 import {
+  Check,
   CheckCircle2,
   ChevronDown,
-  Lock,
-  LockOpen,
   RotateCcw,
   Search,
-  Wand2,
   X,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
@@ -50,10 +47,12 @@ export interface WorkbenchTarget {
 
 /**
  * Pazarlık çalışma masası — çok kalemli açık eksiltme/artırmada tedarikçinin
- * hedefe hesap makinesisiz inmesini sağlar: canlı hedef çubuğu, kalem kilidi,
- * "tümüne %X" ve "hedefe otomatik dağıt" araçları, arama/filtre'li kompakt
- * tablo. Tüm toplam kıyasları kesin aritmetik (lib/tenders/distribute) —
- * sunucunun Decimal doğrulamasıyla drift yok.
+ * hedefe hesap makinesisiz inmesini sağlar: canlı hedef çubuğu, kalem seçimi
+ * (yuvarlak işaret; hepsi seçili başlar, % aracı yalnız seçililere uygulanır),
+ * arama/filtre'li kompakt tablo. Tüm toplam kıyasları kesin aritmetik
+ * (lib/tenders/distribute) — sunucunun Decimal doğrulamasıyla drift yok.
+ * NOT: lockedIds seti "seçim DIŞI" kalemleri tutar (eski kilit semantiğinin
+ * tersyüz görünümü) — ebeveyn API'si değişmedi.
  */
 export function AuctionBidWorkbench({
   items,
@@ -93,9 +92,6 @@ export function AuctionBidWorkbench({
   renderItemExtras: (it: ListingItemRow) => ReactNode;
 }) {
   const [percent, setPercent] = useState(defaultPercent);
-  // Tedarikçinin kendi hedef toplamı — "1.180.000'e in, kalemlere dağıt".
-  // Boşsa sınır (öncekinin bir adım altı/üstü) hedef alınır.
-  const [userTarget, setUserTarget] = useState("");
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"ALL" | "CHANGED" | "LOCKED">("ALL");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -152,7 +148,7 @@ export function AuctionBidWorkbench({
       return;
     }
     if (distItems.every((d) => d.locked)) {
-      toast.error("Tüm kalemler kilitli — önce en az bir kilidi açın");
+      toast.error("Seçili kalem yok — en az bir kalemi işaretleyin");
       return;
     }
     applyPrices(
@@ -160,60 +156,9 @@ export function AuctionBidWorkbench({
     );
     toast.success(
       down
-        ? `Kilitsiz kalemlere %${percent} indirim uygulandı`
-        : `Kilitsiz kalemlere %${percent} artış uygulandı`,
+        ? `Seçili kalemlere %${percent} indirim uygulandı`
+        : `Seçili kalemlere %${percent} artış uygulandı`,
     );
-  };
-
-  // Dağıtım hedefi: yalnız kullanıcının GİRDİĞİ hedef (sınıra karşı
-  // doğrulanır). Eski "boşsa sınıra in" fallback'i kaldırıldı: minimum pay
-  // olmadığında sınır öncekinin bir adım altı — dağıtım 1 kuruşu tek kaleme
-  // yazıp "tüm indirim tek üründe" diye şaşırtıyordu. Genel indirim için
-  // "Tümüne %X" aracı var.
-  const distributeTarget = userTarget.trim()
-    ? userTarget.trim().replace(",", ".")
-    : null;
-  const userTargetValid =
-    !userTarget.trim() ||
-    (Number(distributeTarget) > 0 &&
-      (!target.effectiveTarget ||
-        (down
-          ? cmpDecimal(distributeTarget!, target.effectiveTarget) <= 0
-          : cmpDecimal(distributeTarget!, target.effectiveTarget) >= 0)));
-
-  const autoDistribute = () => {
-    if (!distributeTarget) return;
-    if (!userTargetValid) {
-      toast.error(
-        down
-          ? `Hedef, önceki teklifinin altında olmalı (≤ ${money(target.effectiveTarget ?? "0", currency)})`
-          : `Hedef, önceki teklifinin üzerinde olmalı (≥ ${money(target.effectiveTarget ?? "0", currency)})`,
-      );
-      return;
-    }
-    if (distItems.every((d) => d.locked)) {
-      toast.error("Tüm kalemler kilitli — önce en az bir kilidi açın");
-      return;
-    }
-    const r = distributeToTarget({
-      items: distItems,
-      targetTotal: distributeTarget,
-      direction,
-      decimals,
-    });
-    applyPrices(r.prices);
-    if (r.ok) {
-      toast.success("Fiyatlar hedefe dağıtıldı");
-    } else {
-      toast.warning(
-        `Hedefe ulaşılamadı — kalan ${money(r.remaining, currency)}. ` +
-          (lockedIds.size > 0
-            ? "Kilitli kalemleri açıp tekrar deneyin."
-            : down
-              ? "Kalem tabanları daha fazla inmeye izin vermiyor."
-              : "Kalem hemen-al tavanları daha fazla artışa izin vermiyor."),
-      );
-    }
   };
 
   const reset = () => {
@@ -314,37 +259,7 @@ export function AuctionBidWorkbench({
             />
           </div>
           <Button outline onClick={applyPercent}>
-            Tümüne %{percent || "…"} {down ? "indirim" : "artış"}
-          </Button>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-36">
-            <Input
-              type="number"
-              min={0}
-              value={userTarget}
-              aria-label="Hedef toplam"
-              placeholder={
-                target.effectiveTarget
-                  ? `≤ ${Number(target.effectiveTarget).toLocaleString("tr-TR", { maximumFractionDigits: decimals })}`
-                  : "Hedef toplam"
-              }
-              onChange={(e) => setUserTarget(e.target.value)}
-              className={cn(!userTargetValid && "text-red-600")}
-            />
-          </div>
-          <Button
-            outline
-            disabled={!distributeTarget || distItems.length === 0}
-            title={
-              !distributeTarget
-                ? "Önce hedef toplam girin"
-                : "Girilen hedefe kilitsiz kalemlere orantılı dağıtarak in"
-            }
-            onClick={autoDistribute}
-          >
-            <Wand2 data-slot="icon" aria-hidden="true" />
-            Hedefe Dağıt
+            Seçililere %{percent || "…"} {down ? "indirim" : "artış"}
           </Button>
         </div>
         <Button outline onClick={reset} disabled={changedIds.size === 0}>
@@ -352,12 +267,12 @@ export function AuctionBidWorkbench({
           Sıfırla
         </Button>
         <span className="text-xs text-zinc-400">
-          Kilitli kalemin fiyatına araçlar dokunmaz.
+          İşareti kaldırılan kaleme % aracı dokunmaz.
         </span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {filterChip("ALL", "Tümü")}
           {filterChip("CHANGED", "Değişen", changedIds.size)}
-          {filterChip("LOCKED", "Kilitli", lockedIds.size)}
+          {filterChip("LOCKED", "Hariç", lockedIds.size)}
           <div className="relative">
             <Search
               className="pointer-events-none absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2 text-zinc-400"
@@ -388,7 +303,7 @@ export function AuctionBidWorkbench({
                 Yeni Birim Fiyat ({currency === "TRY" ? "₺" : currency})
               </th>
               <th className="px-3 py-2 text-right font-medium">Satır Toplamı</th>
-              <th className="px-2 py-2" aria-label="Kilit" />
+              <th className="px-2 py-2" aria-label="Seçim" />
               <th className="px-2 py-2" aria-label="Detay" />
             </tr>
           </thead>
@@ -469,7 +384,6 @@ export function AuctionBidWorkbench({
                               min={0}
                               step={String(Math.pow(10, -decimals))}
                               value={price ?? ""}
-                              disabled={locked}
                               aria-label={`${it.name} birim fiyat`}
                               onChange={(e) => setPrice(it.id, e.target.value)}
                               className={cn(changed && "font-semibold")}
@@ -499,32 +413,38 @@ export function AuctionBidWorkbench({
                       </td>
                       <td className="px-2 py-2 text-center">
                         {!optedOut ? (
+                          // Yuvarlak seçim: işaretli = % aracı bu kalemi
+                          // değiştirir (varsayılan). lockedIds = işareti
+                          // kaldırılanlar (seçim dışı).
                           <button
                             type="button"
+                            role="checkbox"
+                            aria-checked={!locked}
                             aria-label={
                               locked
-                                ? `${it.name} kilidini aç`
-                                : `${it.name} fiyatını kilitle`
+                                ? `${it.name} kalemini seçime ekle`
+                                : `${it.name} kalemini seçimden çıkar`
                             }
-                            aria-pressed={locked}
                             title={
                               locked
-                                ? "Kilidi aç — araçlar bu kalemi tekrar değiştirebilsin"
-                                : "Kilitle — araçlar bu kalemin fiyatına dokunmasın"
+                                ? "Seçime ekle — % aracı bu kalemi de değiştirsin"
+                                : "Seçimden çıkar — % aracı bu kaleme dokunmasın"
                             }
                             onClick={() => toggleLock(it.id)}
                             className={cn(
-                              "rounded-md p-1.5 transition",
+                              "inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border transition",
                               locked
-                                ? "bg-zinc-900 text-white"
-                                : "text-zinc-300 hover:bg-zinc-100 hover:text-zinc-600",
+                                ? "border-zinc-300 bg-white hover:border-zinc-500"
+                                : "border-zinc-900 bg-zinc-900 text-white",
                             )}
                           >
-                            {locked ? (
-                              <Lock className="h-4 w-4" aria-hidden="true" />
-                            ) : (
-                              <LockOpen className="h-4 w-4" aria-hidden="true" />
-                            )}
+                            {!locked ? (
+                              <Check
+                                className="h-3.5 w-3.5"
+                                strokeWidth={3}
+                                aria-hidden="true"
+                              />
+                            ) : null}
                           </button>
                         ) : null}
                       </td>
