@@ -86,7 +86,11 @@ export class AdminAuthController {
   }
 
   // ── Hesap güvenliği (Faz 7) ──
+  // #10 — Kimlik-doğrulanmış olsa da parola/2FA mutasyonları brute-force'a
+  // açık (mevcut parola/TOTP kodu deneme yüzeyi). Sıkı per-route throttle
+  // ekle; aksi halde global default'a (100/60s) düşerlerdi.
   @Post("change-password")
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
   @AllowAnyAdminRole()
   @HttpCode(HttpStatus.OK)
@@ -98,6 +102,7 @@ export class AdminAuthController {
   }
 
   @Post("2fa/setup")
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
   @AllowAnyAdminRole()
   @HttpCode(HttpStatus.OK)
@@ -106,6 +111,7 @@ export class AdminAuthController {
   }
 
   @Post("2fa/enable")
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
   @AllowAnyAdminRole()
   @HttpCode(HttpStatus.OK)
@@ -117,6 +123,7 @@ export class AdminAuthController {
   }
 
   @Post("2fa/disable")
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
   @AllowAnyAdminRole()
   @HttpCode(HttpStatus.OK)

@@ -15,6 +15,7 @@ import type { ValidationError } from "class-validator";
 import helmet from "helmet";
 import { Logger as PinoLogger } from "nestjs-pino";
 import { AppModule } from "./app.module";
+import { checkJwtSecret } from "./common/config/jwt-secret";
 import { translateValidatorMessage } from "./common/error-messages";
 
 async function bootstrap() {
@@ -37,34 +38,26 @@ async function bootstrap() {
   app.set("trust proxy", 1);
   const config = app.get(ConfigService);
 
-  // Security audit O-3 — Production'da placeholder/zayıf JWT_SECRET reddi.
+  // Security audit O-3 / #6 — placeholder/zayıf JWT_SECRET reddi (fail-closed).
   // `getOrThrow` boş string'i yakalar ama `.env.example`'daki "change_me_..."
   // placeholder'ı truthy olduğu için geçer; yanlışlıkla prod'a deploy edilirse
   // herkesin tahmin edebileceği secret'la JWT imzalanır (token forge riski).
+  // Kontrol allowlist mantığında: placeholder yalnız açıkça development/test'te
+  // kabul edilir — NODE_ENV unset/"staging"/tanınmayan da reddeder.
+  // (Saf mantık + config-matrix testleri: common/config/jwt-secret.ts.)
   const jwtSecret = config.getOrThrow<string>("JWT_SECRET");
-  const isProd = config.get<string>("NODE_ENV") === "production";
-  const JWT_SECRET_PLACEHOLDERS = [
-    "change_me_in_production_minimum_32_chars_long",
-    "ci_test_jwt_secret_only_for_pipeline_runs_64_chars_minimum_xxxxx",
-    "test_jwt_secret",
-  ];
-  if (isProd) {
-    if (
-      JWT_SECRET_PLACEHOLDERS.includes(jwtSecret) ||
-      jwtSecret.toLowerCase().startsWith("change_me") ||
-      jwtSecret.toLowerCase().startsWith("ci_test") ||
-      jwtSecret.toLowerCase().startsWith("test_")
-    ) {
-      throw new Error(
-        "🚨 JWT_SECRET production ortamında placeholder/fixture değer olamaz. .env'de güçlü bir secret koy (öneri: openssl rand -hex 32).",
-      );
-    }
-    if (jwtSecret.length < 32) {
-      throw new Error(
-        "🚨 JWT_SECRET production'da en az 32 karakter olmalı. Mevcut uzunluk: " +
-          jwtSecret.length,
-      );
-    }
+  const nodeEnv = config.get<string>("NODE_ENV");
+  const jwtRejection = checkJwtSecret(nodeEnv, jwtSecret);
+  if (jwtRejection === "placeholder") {
+    throw new Error(
+      "🚨 JWT_SECRET placeholder/fixture değer olamaz (yalnız development/test'te izinli). .env'de güçlü bir secret koy (öneri: openssl rand -hex 32).",
+    );
+  }
+  if (jwtRejection === "too_short") {
+    throw new Error(
+      "🚨 JWT_SECRET en az 32 karakter olmalı. Mevcut uzunluk: " +
+        jwtSecret.length,
+    );
   }
 
   // Security audit Y-3 — Body parser limit 25MB → 5MB (saldırı yüzeyi

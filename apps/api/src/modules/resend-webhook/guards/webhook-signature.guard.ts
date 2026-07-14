@@ -33,23 +33,28 @@ export class WebhookSignatureGuard implements CanActivate {
     >();
 
     const secret = this.config.get<string>("RESEND_WEBHOOK_SECRET");
-    const nodeEnv = this.config.get<string>("NODE_ENV") ?? "development";
-    const isProduction = nodeEnv === "production";
+    const nodeEnv = this.config.get<string>("NODE_ENV");
+    // #6 — Allowlist / fail-closed: bypass yalnız AÇIKÇA development/test
+    // ortamında mümkün. ESKİ mantık (`!== "production"`) bir denylist'ti —
+    // NODE_ENV unset (default "development") ya da "staging"/"prod" gibi
+    // yanlış yazımlar bypass'ı açık bırakıyordu. Artık tanınmayan/unset env
+    // production gibi sıkı davranır.
+    const bypassableEnv = nodeEnv === "development" || nodeEnv === "test";
     const allowInsecure =
       this.config.get<string>("ALLOW_INSECURE_WEBHOOK") === "true";
 
     if (!secret) {
       // Fail-closed: bypass sadece (1) explicit ALLOW_INSECURE_WEBHOOK=true
-      // VE (2) production değilse mümkün. Eksik env config production'da
-      // hata fırlatır.
-      if (!isProduction && allowInsecure) {
+      // VE (2) env açıkça development/test ise mümkün. Eksik env config
+      // production'da (ve unset/tanınmayan env'de) hata fırlatır.
+      if (bypassableEnv && allowInsecure) {
         this.logger.warn(
           "RESEND_WEBHOOK_SECRET yok + ALLOW_INSECURE_WEBHOOK=true → imza doğrulaması atlanıyor (sadece dev/test)",
         );
         return true;
       }
       this.logger.error(
-        `Webhook secret yapılandırılmamış (NODE_ENV=${nodeEnv}, allowInsecure=${allowInsecure})`,
+        `Webhook secret yapılandırılmamış (NODE_ENV=${nodeEnv ?? "(unset)"}, allowInsecure=${allowInsecure})`,
       );
       throw new UnauthorizedException("Webhook secret yapılandırılmamış");
     }

@@ -73,15 +73,21 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
 ## 5. Erişim kontrolü, veri sızıntısı, kimlik & üyelik
 
 - **INV-DOC-1** — Her belge okuma/indirme ve presigned-GET üretimi, veriyi döndürmeden/URL üretmeden ÖNCE sahiplik veya taraf-üyeliği doğrular; teklifveren yalnız KENDİ firmasının belgelerini presign edebilir (kapalı zarf).
-  - *Kanıt:* ilan belgeleri `assertCanView` (`company-listing-documents.service.ts:222` → presign `:235`) + upload/register/remove'da `requireOwner`; teklif belgeleri non-owner sorgusu `bidderCompanyId` ile filtreli (`company-bid-documents.service.ts:131-133` → presign `:147`); sipariş belgeleri `requireParty` (`company-order-documents.service.ts:100` → presign `:112`). Presigned-GET yalnız bu üç `list()`'te üretilir.
+  - *Kanıt:* Presigned-GET üreten **6 yol** var, hepsi sahiplik/üyelik/rol kapılı:
+    1. **İlan belgeleri** — `assertCanView` (`company-listing-documents.service.ts:222` → presign `:235`) + upload/register/remove'da `requireOwner`.
+    2. **Teklif belgeleri** — non-owner sorgusu `bidderCompanyId` ile filtreli, kapalı zarf (`company-bid-documents.service.ts:131-133` → presign `:147`).
+    3. **Sipariş belgeleri** — `requireParty` (`company-order-documents.service.ts:100` → presign `:112`).
+    4. **KYC self-view** — firma kendi belgelerini görür; controller `@RequireCompanyPermission("company:manage")` (`company-docs.controller.ts:39`) + kendi `companyId` scope, presign `company-docs.service.ts:113`. Düşük-yetkili operasyon rolleri firmanın KYC PII'sini çekemez.
+    5. **KYC admin-view** — `@RequireAdminRole("SUPER_ADMIN","SALES")` (`admin-companies.controller.ts:301`), salt-okuma SUPPORT rolüne kapalı; presign `admin-companies.service.ts:375-380`.
+    6. **Profil logo** — yükleme sonrası key→URL çözümü IDOR-kapılı: key yalnız KENDİ firmanın `buildTenantProfilePrefix(companyId)` öneki altında olabilir (`company-profile.service.ts:98` → `resolveImageUrl` presign `:103`); logo bilinçli-public vitrin görselidir, presign yalnız `R2_PUBLIC_BASE_URL` set değilken fallback.
 
 - **INV-BID-1** — Teklifveren (non-owner) yüzüne dönen ilan detay response'u `bids`/`invitations`/`bidStats` içermez; bu alanlar yalnız `getOne`'ın sahip dalında sorgulanıp döndürülür.
   - *Kanıt:* `company-listings.service.ts` owner dalı `:2057` (bids/invitations yalnız burada), non-owner return `:2315` (bu alanlar yok); `listTenders` yalnız `_count` (`:1639-1640`); `sellerTenders` yalnız kendi teklifi (`:1789-1792`).
   - *İstisna:* İngiliz-usulü açık en-iyi-fiyat görünümü (`english`/`auctionView`) non-owner'a `bidVisibility` moduna göre gösterilir — kapalı-zarf teklif verisi değil, tasarımca açık-eksiltme özelliği.
 
 - **INV-RL-1** — Kimlik/parola/kod-doğrulama endpoint'leri (login, kayıt, e-posta doğrula, kod-yeniden-gönder, parola-sıfırla) sıkı per-route `@Throttle` ile rate-limitlidir; global `ThrottlerGuard` (APP_GUARD) altında hiçbiri gevşek default'a düşmez.
-  - *Kanıt:* `app.module.ts:161` global guard; `company-auth.controller.ts` login `:87-88`(10)/signup `:62-63`(5)/verify `:73-74`(10)/resend `:80-81`(3)/forgot `:55-56`(5); `admin-auth.controller.ts` login `:66-68`(10); `password-reset.controller.ts:14-15`(5).
-  - *Not:* admin change-password (`admin-auth.controller.ts:86`) sıkı `@Throttle` taşımaz, binding default'a (100/60s) düşer — kimlik-doğrulanmış, kapsam dışı küçük tutarsızlık.
+  - *Kanıt:* `app.module.ts:161` global guard; `company-auth.controller.ts` login `:87-88`(10)/signup `:62-63`(5)/verify `:73-74`(10)/resend `:80-81`(3)/forgot `:55-56`(5); `admin-auth.controller.ts` login(10) + hesap-güvenlik mutasyonları change-password/2fa-setup/2fa-enable/2fa-disable her biri `@Throttle({ auth: { limit: 5, ttl: 60_000 } })`; `password-reset.controller.ts:14-15`(5).
+  - *Not:* #10 — admin parola/2FA mutasyonları artık sıkı `@Throttle` taşır (eskiden default 100/60s'e düşüyorlardı; kimlik-doğrulanmış olsa da brute-force yüzeyi). Wiring kanıtı: `test/unit/admin-auth-throttle-wiring.spec.ts`.
 
 - **INV-SD-1** — `deletedAt` işaretli `CompanyUser` kimlik doğrulayamaz ve iş akışına (üye/alıcı/onaylayıcı/bildirim) giremez; `CompanyUser` sistemdeki TEK soft-delete edilebilen modeldir ve ona dokunan sorgular `deletedAt: null` filtreler.
   - *Kanıt:* `company-jwt.strategy.ts:66`, `company-auth.service.ts:554`; `deletedAt` yalnız `CompanyUser`'da (`schema.prisma:1357`); filtreler `membership.scheduler.ts:73`, `notification.service.ts:89-93/143`, `approvals` `:863-877`, `orders` `:72`, `listings` `:109/155/414`, `company-users` `:56/611/726`.

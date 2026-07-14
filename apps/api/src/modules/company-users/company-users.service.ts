@@ -383,6 +383,12 @@ export class CompanyUsersService {
     const roles = dto.roles as CompanyRole[];
     this.assertValidRoleCombo(roles);
     this.assertCanGrantRoles(actor, roles);
+    // #8 — mevcut admin hedefini yalnız admin düşürebilir.
+    this.assertCanModifyAdminTarget(
+      actor,
+      { id: targetId, roles: target.roles as CompanyRole[] },
+      company?.ownerUserId ?? null,
+    );
     void target;
     await this.lockedAdminTx(actor.companyId, async (tx) => {
       // Sahiplik önce çözülür (sahip-bırakma net "devret" hatası versin), sonra
@@ -434,6 +440,13 @@ export class CompanyUsersService {
     if (roles) {
       this.assertValidRoleCombo(roles);
       this.assertCanGrantRoles(actor, roles);
+      // #8 — mevcut admin hedefini yalnız admin düşürebilir (updateRoles ile
+      // aynı sınıf; profil-alanı düzenlemesi kapsam dışı, yalnız rol değişimi).
+      this.assertCanModifyAdminTarget(
+        actor,
+        { id: targetId, roles: target.roles as CompanyRole[] },
+        company?.ownerUserId ?? null,
+      );
     }
     void target;
     const data = {
@@ -714,6 +727,30 @@ export class CompanyUsersService {
     if (grantsPrivileged && !actorIsAdmin) {
       throw new ForbiddenException(
         "Yönetici veya Onaylayıcı rolünü yalnızca Kurucu veya Yönetici atayabilir",
+      );
+    }
+  }
+
+  /**
+   * #8 Düşürme koruması: hedef ŞU AN admin (Kurucu/Yönetici) ise, rollerini
+   * değiştirmek/düşürmek yalnız admin (Kurucu/Yönetici) yetkisiyle mümkün.
+   * `assertCanGrantRoles` yalnız YÜKSELTMEYİ korur (yeni rol ayrıcalıklıysa);
+   * bu ise DÜŞÜRMEYİ korur: aksi halde `users:manage` override'lı operasyon
+   * rollü bir kullanıcı mevcut bir Yöneticiyi düşük role indirip yönetim
+   * katmanını sabote edebilirdi. Privilege gain yok — temizlik/simetri.
+   */
+  private assertCanModifyAdminTarget(
+    actor: AuthenticatedCompanyUser,
+    target: { id: string; roles: CompanyRole[] },
+    ownerUserId: string | null,
+  ) {
+    const targetIsAdmin =
+      target.id === ownerUserId || hasManagementRole(target.roles);
+    if (!targetIsAdmin) return;
+    const actorIsAdmin = actor.isOwner || hasManagementRole(actor.roles);
+    if (!actorIsAdmin) {
+      throw new ForbiddenException(
+        "Yönetici veya Kurucu rolündeki bir kullanıcının rollerini yalnızca Kurucu veya Yönetici değiştirebilir",
       );
     }
   }
