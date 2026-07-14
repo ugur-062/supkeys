@@ -212,7 +212,7 @@ export function OrderDocumentsSection({
           orderId={orderId}
           type="DELIVERY"
           title="Teslim Belgesi"
-          hint="İrsaliye / konşimento (satıcı yükler)"
+          hint="İrsaliye / sevk belgesi (satıcı yükler)"
           canUpload={canUploadDelivery}
           lockHint={deliveryLockHint}
           docs={delivery}

@@ -757,12 +757,15 @@ export class CompanyListingsService {
         break;
       }
       case "DEFERRED":
-      case "CHEQUE": {
+      case "CHEQUE":
+      case "SENET": {
         if (!dto.paymentDays) {
           throw new BadRequestException(
             category === "CHEQUE"
               ? "Çek için vade gün sayısı zorunlu"
-              : "Vadeli ödeme için gün sayısı zorunlu",
+              : category === "SENET"
+                ? "Senet için vade gün sayısı zorunlu"
+                : "Vadeli ödeme için gün sayısı zorunlu",
           );
         }
         paymentDays = dto.paymentDays;
@@ -794,6 +797,8 @@ export class CompanyListingsService {
         break;
       }
       case "OPEN_ACCOUNT":
+      case "CASH_AGAINST_DOCS":
+        // Vesaik mukabili: ek zorunlu alan yok; banka/belge detayı paymentNote'a.
         break;
     }
 

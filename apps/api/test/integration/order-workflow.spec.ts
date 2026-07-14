@@ -74,6 +74,42 @@ async function acceptInputFor(companyId: string) {
   };
 }
 
+describe("teslim şekline göre gönderim bildirimi (deliveryTerm)", () => {
+  it("satıcı-taşır (adrese teslim) → 'gönderildi' bildirimi", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      deliveryTerm: "DOMESTIC_DELIVERED",
+      acceptedAt: new Date(),
+    });
+    await orders.ship(seller.auth, order.id, { invoiceNumber: "F1" } as never);
+    const n = await prisma.notification.count({
+      where: { companyId: buyer.company.id, title: "Sipariş yolda" },
+    });
+    expect(n).toBe(1);
+  });
+
+  it("alıcı-toplar (EXW) → 'teslime hazır' bildirimi", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      deliveryTerm: "EXW",
+      acceptedAt: new Date(),
+    });
+    await orders.ship(seller.auth, order.id, { invoiceNumber: "F1" } as never);
+    const hazir = await prisma.notification.count({
+      where: { companyId: buyer.company.id, title: "Teslime hazır" },
+    });
+    expect(hazir).toBe(1);
+    const gonderildi = await prisma.notification.count({
+      where: { companyId: buyer.company.id, title: "Sipariş yolda" },
+    });
+    expect(gonderildi).toBe(0);
+  });
+});
+
 describe("mutlu yol — AFTER_DELIVERY (teslim sonrası ödeme)", () => {
   it("accept → ship → receive → tam ödeme onayı → oto-COMPLETED (damgalarla)", async () => {
     const orders = makeOrdersService();

@@ -1,6 +1,7 @@
 "use client";
 
 import type { CompanyOrderDetail } from "@/hooks/use-company-orders";
+import { sellerShipsGoods } from "@rothern/shared";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -125,7 +126,9 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
     events.push({
       icon: Truck,
       tone: "text-indigo-500",
-      title: "Sipariş Gönderildi",
+      title: sellerShipsGoods(o.deliveryTerm)
+        ? "Sipariş Gönderildi"
+        : "Teslime Hazırlandı",
       at: fmt(o.deliveryStartedAt),
       actor: sellerLabel,
       lines,

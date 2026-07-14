@@ -11,7 +11,9 @@ export const PAYMENT_CATEGORIES = [
   "DEFERRED", // vadeli — teslimden N gün sonra
   "OPEN_ACCOUNT", // açık hesap — teslim sonrası, vadesiz
   "CHEQUE", // çek — vade günlü
+  "SENET", // senet/bono — vade günlü kıymetli evrak (yurtiçi)
   "LETTER_OF_CREDIT", // akreditif — Sight/Usance (+Teyitli)
+  "CASH_AGAINST_DOCS", // vesaik mukabili — belge karşılığı ödeme (dış ticaret)
   "CUSTOM", // özel — serbest not zorunlu
 ] as const;
 export type PaymentCategory = (typeof PAYMENT_CATEGORIES)[number];
@@ -21,11 +23,15 @@ export type LcSubType = (typeof LC_TYPES)[number];
 
 export type DerivedPaymentTiming = "BEFORE_DELIVERY" | "AFTER_DELIVERY";
 
-/** Plandan zamanlama türet — Listing.paymentTiming buna göre yazılır. */
+/** Plandan zamanlama türet — Listing.paymentTiming buna göre yazılır.
+ *  Vesaik mukabili: alıcı belge karşılığı (mal yoldayken) öder → BEFORE_DELIVERY
+ *  penceresi (ACCEPTED'dan itibaren açık, sevkiyat sırasında ödeme yapılabilir). */
 export function derivePaymentTiming(
   category: PaymentCategory,
 ): DerivedPaymentTiming {
-  return category === "ADVANCE" || category === "LETTER_OF_CREDIT"
+  return category === "ADVANCE" ||
+    category === "LETTER_OF_CREDIT" ||
+    category === "CASH_AGAINST_DOCS"
     ? "BEFORE_DELIVERY"
     : "AFTER_DELIVERY";
 }
@@ -35,7 +41,13 @@ export function paymentPlanRequiresDays(
   category: PaymentCategory,
   lcType?: LcSubType | null,
 ): boolean {
-  if (category === "DEFERRED" || category === "CHEQUE") return true;
+  if (
+    category === "DEFERRED" ||
+    category === "CHEQUE" ||
+    category === "SENET"
+  ) {
+    return true;
+  }
   return category === "LETTER_OF_CREDIT" && lcType === "USANCE";
 }
 

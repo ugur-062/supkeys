@@ -72,10 +72,16 @@ const PAYMENT_CATEGORY_OPTIONS: {
     hint: "Teslim sonrası, vadesiz",
   },
   { value: "CHEQUE", label: "Çek", hint: "Vade günlü çek ile" },
+  { value: "SENET", label: "Senet", hint: "Vade günlü senet/bono ile" },
   {
     value: "LETTER_OF_CREDIT",
     label: "Akreditif",
     hint: "Banka güvenceli (LC) — belge karşılığı",
+  },
+  {
+    value: "CASH_AGAINST_DOCS",
+    label: "Vesaik Mukabili",
+    hint: "Belge karşılığı ödeme — banka aracılı (dış ticaret)",
   },
   { value: "CUSTOM", label: "Özel", hint: "Koşulu notta tanımlayın" },
 ];
@@ -1369,16 +1375,20 @@ export function Step1Info({
             )
           ) : null}
 
-          {/* VADELİ / ÇEK — vade günü zorunlu (tek paymentDays alanı). */}
-          {paymentCategory === "DEFERRED" || paymentCategory === "CHEQUE" ? (
+          {/* VADELİ / ÇEK / SENET — vade günü zorunlu (tek paymentDays alanı). */}
+          {paymentCategory === "DEFERRED" ||
+          paymentCategory === "CHEQUE" ||
+          paymentCategory === "SENET" ? (
             <Field
               error={errors.paymentDays?.message}
               hint={
                 paymentCategory === "CHEQUE"
                   ? "Çekin vadesi kaç gün olacak?"
-                  : isSatis
-                    ? "Alıcı faturayı kaç gün vadede ödeyecek?"
-                    : "Faturayı kaç gün vadede ödeyeceksiniz?"
+                  : paymentCategory === "SENET"
+                    ? "Senedin vadesi kaç gün olacak?"
+                    : isSatis
+                      ? "Alıcı faturayı kaç gün vadede ödeyecek?"
+                      : "Faturayı kaç gün vadede ödeyeceksiniz?"
               }
             >
               <Label htmlFor="paymentDays" required>

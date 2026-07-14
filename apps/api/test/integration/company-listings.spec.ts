@@ -508,6 +508,30 @@ describe("award — kazandırma & sipariş doğruluğu", () => {
     await expect(
       service.create(owner.auth, dto({ paymentCategory: "CUSTOM" }) as never),
     ).rejects.toThrow(/not/);
+
+    // SENET: vade günü zorunlu; verilince AFTER_DELIVERY.
+    await expect(
+      service.create(owner.auth, dto({ paymentCategory: "SENET" }) as never),
+    ).rejects.toThrow(/gün/);
+    const senet = await service.create(
+      owner.auth,
+      dto({ paymentCategory: "SENET", paymentDays: 45 }) as never,
+    );
+    const sn = await prisma.listing.findUniqueOrThrow({
+      where: { id: senet.id },
+    });
+    expect(sn.paymentCategory).toBe("SENET");
+    expect(sn.paymentDays).toBe(45);
+    expect(sn.paymentTiming).toBe("AFTER_DELIVERY");
+
+    // VESAİK MUKABİLİ: ek zorunlu alan yok; belge karşılığı → BEFORE_DELIVERY.
+    const cad = await service.create(
+      owner.auth,
+      dto({ paymentCategory: "CASH_AGAINST_DOCS" }) as never,
+    );
+    const cd = await prisma.listing.findUniqueOrThrow({ where: { id: cad.id } });
+    expect(cd.paymentCategory).toBe("CASH_AGAINST_DOCS");
+    expect(cd.paymentTiming).toBe("BEFORE_DELIVERY");
   });
 
   it("requireBidDocument: belgesiz kazanan reddedilir", async () => {

@@ -17,6 +17,7 @@ import {
   advanceDueAmount,
   isLetterOfCredit,
   paymentDueDate,
+  sellerShipsGoods,
   type PaymentCategory,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -279,12 +280,17 @@ export class CompanyOrdersService {
         deliveryStartedAt: new Date(),
       },
     });
+    // Teslim şekline göre bildirim: satıcı taşıyorsa "gönderildi/yolda";
+    // alıcı topluyorsa (EXW/fabrika teslim/FOB…) "teslime hazır".
+    const ships = sellerShipsGoods(order.deliveryTerm);
     await this.notifyOrderParty(
       id,
       res.order.buyerCompanyId,
-      "Siparişiniz gönderildi",
-      "Sipariş yolda",
-      `${this.orderLabel(res.order.number)} siparişiniz gönderildi (Fatura no: ${input.invoiceNumber.trim()}).`,
+      ships ? "Siparişiniz gönderildi" : "Siparişiniz teslime hazır",
+      ships ? "Sipariş yolda" : "Teslime hazır",
+      ships
+        ? `${this.orderLabel(res.order.number)} siparişiniz gönderildi (Fatura no: ${input.invoiceNumber.trim()}).`
+        : `${this.orderLabel(res.order.number)} siparişiniz teslime hazır — teslim alabilirsiniz (Fatura no: ${input.invoiceNumber.trim()}).`,
       "satinalma",
     );
     return { ok: res.ok, status: res.status };
@@ -1074,6 +1080,8 @@ export class CompanyOrdersService {
         lcAcceptedAt: true,
         lcPaidAt: true,
         deliveredAt: true,
+        // Teslim şekli — "gönder" mi "teslime hazırla" mı adım/etiketini belirler.
+        deliveryTerm: true,
         sellerCompanyId: true,
         buyerCompanyId: true,
       },

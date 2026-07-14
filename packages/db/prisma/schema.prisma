@@ -1028,7 +1028,9 @@ enum ListingPaymentCategory {
   DEFERRED // vadeli — teslimden paymentDays gün sonra
   OPEN_ACCOUNT // açık hesap — teslim sonrası, vadesiz
   CHEQUE // çek — vade = paymentDays
+  SENET // senet/bono — vade = paymentDays (yurtiçi kıymetli evrak)
   LETTER_OF_CREDIT // akreditif — lcType (+USANCE'ta vade = paymentDays)
+  CASH_AGAINST_DOCS // vesaik mukabili — belge karşılığı ödeme (dış ticaret)
   CUSTOM // özel — paymentNote zorunlu
 }
 

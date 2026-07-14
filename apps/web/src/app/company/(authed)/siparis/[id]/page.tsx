@@ -26,6 +26,7 @@ import {
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { subscribeRealtime } from "@/lib/realtime";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
+import { sellerShipsGoods } from "@rothern/shared";
 import { OrderDocumentsSection } from "./_components/order-documents-section";
 import { LcStepPanel } from "./_components/lc-step-panel";
 import { OrderRevisionPanel } from "./_components/order-revision-panel";
@@ -54,13 +55,18 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-const STEPS = [
-  { key: "PENDING", label: "Onay" },
-  { key: "ACCEPTED", label: "Onaylandı" },
-  { key: "IN_DELIVERY", label: "Gönderildi" },
-  { key: "DELIVERED", label: "Teslim alındı" },
-  { key: "COMPLETED", label: "Tamamlandı" },
-] as const;
+// Orta adım etiketi teslim şekline göre değişir (sellerShips): satıcı taşıyorsa
+// "Gönderildi", alıcı topluyorsa "Teslime Hazır".
+function stepsFor(sellerShips: boolean) {
+  return [
+    { key: "PENDING", label: "Onay" },
+    { key: "ACCEPTED", label: "Onaylandı" },
+    { key: "IN_DELIVERY", label: sellerShips ? "Gönderildi" : "Teslime Hazır" },
+    { key: "DELIVERED", label: "Teslim alındı" },
+    { key: "COMPLETED", label: "Tamamlandı" },
+  ] as const;
+}
+const STEPS = stepsFor(true);
 
 const STATUS_META: Record<
   CompanyOrderStatus,
@@ -151,12 +157,21 @@ export default function OrderDetailPage() {
   const curSym =
     CURRENCY_SYMBOL[(o.currency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
     "₺";
+  // Teslim şekli: satıcı taşır mı (gönder) yoksa alıcı toplar mı (teslime hazır)?
+  const sellerShips = sellerShipsGoods(o.deliveryTerm);
+  const steps = stepsFor(sellerShips);
   const stepIndex = stepIndexFor(o.status);
   const terminal = o.status === "REJECTED" || o.status === "CANCELLED";
-  const statusMeta = STATUS_META[o.status] ?? {
-    label: o.status,
-    color: "zinc" as const,
-  };
+  const statusMeta =
+    o.status === "IN_DELIVERY"
+      ? {
+          label: sellerShips ? "Gönderildi" : "Teslime hazır",
+          color: "indigo" as const,
+        }
+      : (STATUS_META[o.status] ?? {
+          label: o.status,
+          color: "zinc" as const,
+        });
   const ordersHref = isSeller
     ? "/company/satis/siparisler"
     : "/company/satinalma/siparisler";
@@ -180,7 +195,10 @@ export default function OrderDetailPage() {
     (o.status === "ACCEPTED" || o.status === "CREATED") &&
     !paymentAwaitingConfirmation &&
     shipUnlocked
-      ? { label: "Siparişi Gönder", modal: "ship" as const }
+      ? {
+          label: sellerShips ? "Siparişi Gönder" : "Teslime Hazırla",
+          modal: "ship" as const,
+        }
       : !isSeller && o.status === "IN_DELIVERY"
         ? { label: "Teslim Aldım", modal: "receive" as const }
         : // Tamamla yalnız tam ödeme onaylıyken (aksi halde aşağıda mesaj).
@@ -212,7 +230,11 @@ export default function OrderDetailPage() {
   const doAccept = (input: Parameters<typeof accept.mutateAsync>[0]) =>
     run(accept.mutateAsync(input), "Sipariş onaylandı", "İşlem başarısız");
   const doShip = (input: Parameters<typeof ship.mutateAsync>[0]) =>
-    run(ship.mutateAsync(input), "Sipariş gönderildi", "İşlem başarısız");
+    run(
+      ship.mutateAsync(input),
+      sellerShips ? "Sipariş gönderildi" : "Teslime hazır işaretlendi",
+      "İşlem başarısız",
+    );
   const doReceive = (note?: string) =>
     run(receive.mutateAsync({ note }), "Teslim alındı", "İşlem başarısız");
   const doComplete = (note?: string) =>
@@ -458,7 +480,7 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
           </Badge>
         ) : (
           <div className="flex items-start gap-2">
-            {STEPS.map((s, i) => {
+            {steps.map((s, i) => {
               const done =
                 i < stepIndex || o.status === "COMPLETED";
               const current = o.status !== "COMPLETED" && i === stepIndex;
@@ -492,7 +514,7 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
                       {s.label}
                     </span>
                   </div>
-                  {i < STEPS.length - 1 ? (
+                  {i < steps.length - 1 ? (
                     <div
                       className={`mt-3.5 h-0.5 flex-1 rounded-full ${
                         i < stepIndex || o.status === "COMPLETED"
@@ -650,7 +672,9 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
           <div className="flex flex-wrap items-center justify-between gap-4">
             <Text className="text-sm text-zinc-600">
               {next.modal === "ship"
-                ? "Siparişi gönderdiğinde fatura no ile işaretle."
+                ? sellerShips
+                  ? "Siparişi gönderdiğinde fatura no ile işaretle."
+                  : "Mal teslime hazır olduğunda fatura no ile işaretle — alıcı gelip alacak."
                 : next.modal === "receive"
                   ? "Malı teslim aldığında işaretle."
                   : "Ödeme tam olarak onaylandı — siparişi tamamla."}
@@ -718,6 +742,7 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
         onClose={close}
         onSubmit={doShip}
         pending={ship.isPending}
+        sellerShips={sellerShips}
       />
       <NoteModal
         open={modal === "receive"}

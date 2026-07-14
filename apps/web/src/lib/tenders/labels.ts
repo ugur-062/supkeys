@@ -164,7 +164,9 @@ export const PAYMENT_CATEGORY_LABELS: Record<PaymentCategory, string> = {
   DEFERRED: "Vadeli",
   OPEN_ACCOUNT: "Açık Hesap",
   CHEQUE: "Çek",
+  SENET: "Senet",
   LETTER_OF_CREDIT: "Akreditif",
+  CASH_AGAINST_DOCS: "Vesaik Mukabili",
   CUSTOM: "Özel",
 };
 
@@ -199,6 +201,10 @@ export function formatPaymentPlan(p: {
       return "Açık Hesap (teslim sonrası)";
     case "CHEQUE":
       return p.paymentDays ? `Çek — ${p.paymentDays} gün vadeli` : "Çek";
+    case "SENET":
+      return p.paymentDays ? `Senet — ${p.paymentDays} gün vadeli` : "Senet";
+    case "CASH_AGAINST_DOCS":
+      return "Vesaik Mukabili (belge karşılığı)";
     case "LETTER_OF_CREDIT": {
       const parts = [
         p.lcType === "USANCE"

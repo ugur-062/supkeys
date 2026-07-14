@@ -161,12 +161,23 @@ describe("OrderDetailPage — durum → aksiyon eşlemesi", () => {
     ).toBeInTheDocument();
   });
 
-  it("ACCEPTED + satıcı → Siparişi Gönder", () => {
+  it("ACCEPTED + satıcı → Siparişi Gönder (satıcı taşır)", () => {
     h.order = order("ACCEPTED", "seller");
     render(<OrderDetailPage />);
     expect(
       screen.getByRole("button", { name: "Siparişi Gönder" }),
     ).toBeInTheDocument();
+  });
+
+  it("ACCEPTED + satıcı + alıcı-toplar teslim (EXW) → Teslime Hazırla", () => {
+    h.order = order("ACCEPTED", "seller", { deliveryTerm: "EXW" });
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByRole("button", { name: "Teslime Hazırla" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Siparişi Gönder" }),
+    ).not.toBeInTheDocument();
   });
 
   it("IN_DELIVERY + alıcı → Teslim Aldım", () => {

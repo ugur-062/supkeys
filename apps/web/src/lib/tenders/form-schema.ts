@@ -42,7 +42,9 @@ export const PAYMENT_CATEGORY_VALUES = [
   "DEFERRED",
   "OPEN_ACCOUNT",
   "CHEQUE",
+  "SENET",
   "LETTER_OF_CREDIT",
+  "CASH_AGAINST_DOCS",
   "CUSTOM",
 ] as const;
 export type PaymentCategoryValue = (typeof PAYMENT_CATEGORY_VALUES)[number];
@@ -267,7 +269,9 @@ export const tenderFormSchema = baseTenderSchema
   )
   .refine(
     (d) =>
-      d.paymentCategory !== "DEFERRED" && d.paymentCategory !== "CHEQUE"
+      d.paymentCategory !== "DEFERRED" &&
+      d.paymentCategory !== "CHEQUE" &&
+      d.paymentCategory !== "SENET"
         ? true
         : typeof d.paymentDays === "number" && d.paymentDays > 0,
     { message: "Vade gün sayısı zorunlu", path: ["paymentDays"] },

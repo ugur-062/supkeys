@@ -36,7 +36,9 @@ export type PaymentCategory =
   | "DEFERRED"
   | "OPEN_ACCOUNT"
   | "CHEQUE"
+  | "SENET"
   | "LETTER_OF_CREDIT"
+  | "CASH_AGAINST_DOCS"
   | "CUSTOM";
 export type LcSubType = "SIGHT" | "USANCE";
 export type PaymentTiming = "BEFORE_DELIVERY" | "AFTER_DELIVERY";

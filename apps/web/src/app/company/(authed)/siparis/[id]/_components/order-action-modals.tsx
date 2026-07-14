@@ -133,11 +133,14 @@ export function ShipOrderModal({
   onClose,
   onSubmit,
   pending,
+  // Teslim şekli: satıcı taşır (gönder) mı yoksa alıcı toplar (teslime hazırla) mı?
+  sellerShips = true,
 }: {
   open: boolean;
   onClose: () => void;
   onSubmit: (input: { invoiceNumber: string; deliveryNote?: string }) => void;
   pending: boolean;
+  sellerShips?: boolean;
 }) {
   const [invoice, setInvoice] = useState("");
   const [note, setNote] = useState("");
@@ -150,11 +153,15 @@ export function ShipOrderModal({
     });
   };
 
+  const title = sellerShips ? "Siparişi Gönder" : "Teslime Hazırla";
+
   return (
     <Dialog open={open} onClose={onClose}>
-      <DialogTitle>Siparişi Gönder</DialogTitle>
+      <DialogTitle>{title}</DialogTitle>
       <DialogDescription>
-        Kestiğiniz faturanın numarasını girin ve siparişi gönderin.
+        {sellerShips
+          ? "Kestiğiniz faturanın numarasını girin ve siparişi gönderin."
+          : "Kestiğiniz faturanın numarasını girin ve malı teslime hazır işaretleyin — alıcı gelip alacak/taşıtacak."}
       </DialogDescription>
       <DialogBody className="space-y-4">
         <Field>
@@ -167,12 +174,18 @@ export function ShipOrderModal({
           />
         </Field>
         <Field>
-          <Label>Gönderim Notu (opsiyonel)</Label>
+          <Label>
+            {sellerShips ? "Gönderim Notu (opsiyonel)" : "Teslim Notu (opsiyonel)"}
+          </Label>
           <Input
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={500}
-            placeholder="Örn. Aras Kargo - 1234567890"
+            placeholder={
+              sellerShips
+                ? "Örn. Aras Kargo - 1234567890"
+                : "Örn. teslim yeri / hazır olduğu saat"
+            }
           />
         </Field>
       </DialogBody>
@@ -181,7 +194,7 @@ export function ShipOrderModal({
           Vazgeç
         </Button>
         <Button onClick={submit} disabled={pending || !invoice.trim()}>
-          Siparişi Gönder
+          {title}
         </Button>
       </DialogActions>
     </Dialog>
