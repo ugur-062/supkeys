@@ -62,6 +62,12 @@ export interface CompanyOrder {
   listingNumber: string | null;
   createdAt: string;
   items?: CompanyOrderItemRow[];
+  /** Liste rozet/adım etiketi teslim şekline göre uyarlanır (sellerShipsGoods). */
+  deliveryTerm?: string | null;
+  /** Liste kartı ödeme planı özeti için. */
+  paymentCategory?: string | null;
+  paymentDays?: number | null;
+  advancePercent?: number | null;
 }
 
 /** Karşı tarafın kurumsal özeti (sipariş detayında gösterilir). */

@@ -16,6 +16,7 @@ import {
 } from "@/hooks/use-company-orders";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
+import { sellerShipsGoods } from "@rothern/shared";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
@@ -72,8 +73,19 @@ const STATUS_META: Record<
   },
 };
 
-function OrderStatusBadge({ status }: { status: CompanyOrderStatus }) {
-  const meta = STATUS_META[status] ?? STATUS_META.CREATED;
+function OrderStatusBadge({
+  status,
+  sellerShips = true,
+}: {
+  status: CompanyOrderStatus;
+  sellerShips?: boolean;
+}) {
+  const base = STATUS_META[status] ?? STATUS_META.CREATED;
+  // IN_DELIVERY etiketi teslim şekline göre: satıcı taşımıyorsa "Teslime Hazır".
+  const meta =
+    status === "IN_DELIVERY" && !sellerShips
+      ? { ...base, label: "Teslime Hazır" }
+      : base;
   return (
     <span
       className={cn(
@@ -86,14 +98,17 @@ function OrderStatusBadge({ status }: { status: CompanyOrderStatus }) {
   );
 }
 
-// 5 aşamalı akış: Onay → Onaylandı → Gönderildi → Teslim Alındı → Tamamlandı.
-const STAGES = [
-  "Onay Bekliyor",
-  "Onaylandı",
-  "Gönderildi",
-  "Teslim Alındı",
-  "Tamamlandı",
-];
+// 5 aşamalı akış — orta adım teslim şekline göre "Gönderildi"/"Teslime Hazır".
+function stagesFor(sellerShips: boolean) {
+  return [
+    "Onay Bekliyor",
+    "Onaylandı",
+    sellerShips ? "Gönderildi" : "Teslime Hazır",
+    "Teslim Alındı",
+    "Tamamlandı",
+  ];
+}
+const STAGES = stagesFor(true);
 
 function getStageState(status: CompanyOrderStatus): {
   active: number;
@@ -123,10 +138,13 @@ function getStageState(status: CompanyOrderStatus): {
 function StageStepper({
   active,
   lastDone,
+  stages = STAGES,
 }: {
   active: number;
   lastDone: number;
+  stages?: string[];
 }) {
+  const STAGES = stages;
   const isDone = active === STAGES.length - 1 && lastDone === active;
   return (
     <div>
@@ -203,7 +221,7 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: "all", label: "Tümü" },
   { value: "PENDING", label: "Onay Bekliyor" },
   { value: "ACCEPTED", label: "Onaylandı" },
-  { value: "IN_DELIVERY", label: "Gönderildi" },
+  { value: "IN_DELIVERY", label: "Gönderildi / Hazır" },
   { value: "DELIVERED", label: "Ödeme Bekleniyor" },
   { value: "COMPLETED", label: "Tamamlandı" },
   { value: "REJECTED", label: "Reddedildi" },
@@ -291,6 +309,8 @@ function sourceMeta(
 function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
   const { active, lastDone, isTerminated } = getStageState(o.status);
   const src = sourceMeta(role, o.listingType);
+  // Teslim şekli: satıcı taşımıyorsa (EXW/fabrika teslim…) orta adım "Teslime Hazır".
+  const sellerShips = sellerShipsGoods(o.deliveryTerm);
 
   return (
     <Link
@@ -313,7 +333,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
             >
               {src.label}
             </span>
-            <OrderStatusBadge status={o.status} />
+            <OrderStatusBadge status={o.status} sellerShips={sellerShips} />
           </div>
           <p className="mt-1 truncate font-semibold leading-snug text-zinc-900 group-hover:text-brand-700">
             {o.listingTitle ?? "—"}
@@ -342,7 +362,11 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
         {/* Orta: aşama göstergesi */}
         <div className="w-full shrink-0 lg:w-80">
           {!isTerminated ? (
-            <StageStepper active={active} lastDone={lastDone} />
+            <StageStepper
+              active={active}
+              lastDone={lastDone}
+              stages={stagesFor(sellerShips)}
+            />
           ) : (
             <div
               className={cn(

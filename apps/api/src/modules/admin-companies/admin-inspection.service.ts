@@ -284,6 +284,7 @@ export class AdminInspectionService {
         currency: true,
         createdAt: true,
         buyerCompanyId: true,
+        deliveryTerm: true,
         buyer: { select: { name: true } },
         seller: { select: { name: true } },
       },
@@ -301,6 +302,8 @@ export class AdminInspectionService {
       role: o.buyerCompanyId === companyId ? "buyer" : "seller",
       buyerName: o.buyer.name,
       sellerName: o.seller.name,
+      // Durum etiketi teslim şekline göre ("Gönderildi"/"Teslime Hazır").
+      deliveryTerm: o.deliveryTerm,
     }));
   }
 

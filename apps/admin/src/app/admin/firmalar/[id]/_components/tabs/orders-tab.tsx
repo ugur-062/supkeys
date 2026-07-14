@@ -12,7 +12,7 @@ import {
 } from "@/components/catalyst/table";
 import { useAdminCompanyOrders } from "@/hooks/use-admin-inspection";
 import { safeFormat } from "@/lib/date";
-import { fmtMoney, ORDER_STATUS } from "@/lib/status-labels";
+import { fmtMoney, orderStatusMeta } from "@/lib/status-labels";
 import Link from "next/link";
 
 /** Siparişler — firma alıcı VEYA satıcı; satır → tam inceleme sayfası. */
@@ -45,10 +45,7 @@ export function OrdersTab({ companyId }: { companyId: string }) {
               />
           ) : (
             items.map((o) => {
-              const meta = ORDER_STATUS[o.status] ?? {
-                label: o.status,
-                color: "zinc" as const,
-              };
+              const meta = orderStatusMeta(o.status, o.deliveryTerm);
               return (
                 <TableRow key={o.id}>
                   <TableCell className="text-admin-text font-mono text-xs">

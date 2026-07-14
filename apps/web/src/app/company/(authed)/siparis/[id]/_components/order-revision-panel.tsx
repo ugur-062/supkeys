@@ -41,6 +41,7 @@ type DraftItem = {
   unit: string;
   unitPrice: string;
   deliveryDate: string;
+  note: string;
 };
 
 function fmtDate(v: string | null) {
@@ -102,6 +103,7 @@ export function OrderRevisionPanel({ order }: { order: CompanyOrderDetail }) {
         unit: it.unit,
         unitPrice: it.unitPrice,
         deliveryDate: it.deliveryDate ? it.deliveryDate.slice(0, 10) : "",
+        note: it.note ?? "",
       })),
     );
     setExpDate(order.expectedDeliveryDate?.slice(0, 10) ?? "");
@@ -114,7 +116,14 @@ export function OrderRevisionPanel({ order }: { order: CompanyOrderDetail }) {
   const addItem = () =>
     setItems((prev) => [
       ...prev,
-      { name: "", quantity: "1", unit: "adet", unitPrice: "0", deliveryDate: "" },
+      {
+        name: "",
+        quantity: "1",
+        unit: "adet",
+        unitPrice: "0",
+        deliveryDate: "",
+        note: "",
+      },
     ]);
   const removeItem = (i: number) =>
     setItems((prev) => prev.filter((_, j) => j !== i));
@@ -131,6 +140,7 @@ export function OrderRevisionPanel({ order }: { order: CompanyOrderDetail }) {
       unit: it.unit.trim(),
       unitPrice: Number(String(it.unitPrice).replace(",", ".")),
       deliveryDate: it.deliveryDate || undefined,
+      note: it.note.trim() || undefined,
     }));
     if (parsed.length === 0) {
       toast.error("En az 1 kalem gerekli");
@@ -356,6 +366,7 @@ export function OrderRevisionPanel({ order }: { order: CompanyOrderDetail }) {
                   <th className="pb-1 pr-2 font-medium">Birim</th>
                   <th className="pb-1 pr-2 font-medium">Birim Fiyat</th>
                   <th className="pb-1 pr-2 font-medium">Teslim</th>
+                  <th className="pb-1 pr-2 font-medium">Not</th>
                   <th className="pb-1" />
                 </tr>
               </thead>
@@ -403,6 +414,15 @@ export function OrderRevisionPanel({ order }: { order: CompanyOrderDetail }) {
                         onChange={(e) =>
                           setItem(i, { deliveryDate: e.target.value })
                         }
+                      />
+                    </td>
+                    <td className="py-1 pr-2">
+                      <Input
+                        value={it.note}
+                        onChange={(e) => setItem(i, { note: e.target.value })}
+                        placeholder="Kalem notu"
+                        maxLength={500}
+                        className="w-40"
                       />
                     </td>
                     <td className="py-1">

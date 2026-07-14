@@ -131,6 +131,7 @@ export interface AdminOrderRow {
   role: "buyer" | "seller";
   buyerName: string;
   sellerName: string;
+  deliveryTerm: string | null;
 }
 
 export function useAdminCompanyOrders(companyId: string) {
@@ -152,6 +153,15 @@ export interface AdminOrderDetail {
   amount: number;
   currency: string;
   paymentTiming: string;
+  // Ödeme planı snapshot'ı (award anındaki ihale şartı) + teslim şekli.
+  paymentCategory: string | null;
+  advancePercent: number | null;
+  paymentDays: number | null;
+  lcType: string | null;
+  lcConfirmed: boolean;
+  paymentNote: string | null;
+  deliveryTerm: string | null;
+  requireGuaranteeLetter: boolean;
   cancelReason: string | null;
   rejectedReason: string | null;
   acceptedAt: string | null;

@@ -15,6 +15,7 @@ import {
 } from "@rothern/db";
 import {
   advanceDueAmount,
+  DUE_DATE_CATEGORIES,
   isLetterOfCredit,
   paymentDueDate,
   sellerShipsGoods,
@@ -915,7 +916,7 @@ export class CompanyOrdersService {
         paymentDueReminderSentAt: null,
         deliveredAt: { not: null },
         paymentDays: { not: null },
-        paymentCategory: { in: ["DEFERRED", "CHEQUE", "ADVANCE"] },
+        paymentCategory: { in: [...DUE_DATE_CATEGORIES] },
       },
       select: {
         id: true,
@@ -1563,6 +1564,12 @@ export class CompanyOrdersService {
       buyer: { name: string };
       listing: { title: string; type: string; number: string | null } | null;
       createdAt: Date;
+      // Liste rozet/adım etiketi teslim şekline göre uyarlanır; ödeme planı
+      // liste kartında gösterilebilir (ikisi de include ile geliyor).
+      deliveryTerm?: string | null;
+      paymentCategory?: string | null;
+      paymentDays?: number | null;
+      advancePercent?: number | null;
     },
     companyId: string,
   ) {
@@ -1582,6 +1589,12 @@ export class CompanyOrdersService {
       listingType: o.listing?.type ?? null,
       listingNumber: o.listing?.number ?? null,
       createdAt: o.createdAt,
+      // Teslim şekli — liste durum etiketini "Gönderildi"/"Teslime Hazır"
+      // ayrımı için (sellerShipsGoods). Ödeme planı liste kartı özeti için.
+      deliveryTerm: o.deliveryTerm ?? null,
+      paymentCategory: o.paymentCategory ?? null,
+      paymentDays: o.paymentDays ?? null,
+      advancePercent: o.advancePercent ?? null,
     };
   }
 }

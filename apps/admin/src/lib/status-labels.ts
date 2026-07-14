@@ -22,12 +22,38 @@ export const ORDER_STATUS: Record<
   PENDING: { label: "Satıcı onayı bekliyor", color: "amber" },
   ACCEPTED: { label: "Onaylandı", color: "blue" },
   CREATED: { label: "Oluşturuldu", color: "zinc" },
-  IN_DELIVERY: { label: "Kargoda", color: "blue" },
+  IN_DELIVERY: { label: "Gönderildi", color: "blue" },
   DELIVERED: { label: "Teslim edildi", color: "green" },
   COMPLETED: { label: "Tamamlandı", color: "green" },
   REJECTED: { label: "Reddedildi", color: "red" },
   CANCELLED: { label: "İptal", color: "red" },
 };
+
+// Alıcının malı kendi topladığı teslim şekilleri — IN_DELIVERY "Teslime Hazır".
+const BUYER_COLLECTS_TERMS = new Set([
+  "DOMESTIC_PICKUP",
+  "DOMESTIC_CARRIER_COLLECT",
+  "EXW",
+  "FCA",
+  "FAS",
+  "FOB",
+]);
+
+/** Sipariş durum etiketi — IN_DELIVERY teslim şekline göre uyarlanır. */
+export function orderStatusMeta(
+  status: string,
+  deliveryTerm?: string | null,
+): { label: string; color: "green" | "amber" | "red" | "zinc" | "blue" } {
+  const base = ORDER_STATUS[status] ?? { label: status, color: "zinc" as const };
+  if (
+    status === "IN_DELIVERY" &&
+    deliveryTerm &&
+    BUYER_COLLECTS_TERMS.has(deliveryTerm)
+  ) {
+    return { ...base, label: "Teslime Hazır" };
+  }
+  return base;
+}
 
 export const BID_STATUS: Record<
   string,

@@ -837,6 +837,31 @@ describe("Faz 5 — sipariş revizyon müzakeresi", () => {
     { name: "Nakliye", quantity: 1, unit: "sefer", unitPrice: 200 }, // 200
   ];
 
+  it("revizyon kalem notu + teslim tarihi öneriden onaya KORUNUR (kayıp bug regresyonu)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer, order } = await acceptedOrderWithItems();
+    const itemDate = future(15).toISOString();
+    const prop = (await orders.proposeRevision(seller.auth, order.id, {
+      items: [
+        {
+          name: "Çelik",
+          quantity: 8,
+          unit: "ton",
+          unitPrice: 120,
+          deliveryDate: itemDate,
+          note: "galvanizli",
+        },
+      ],
+    } as never)) as { revisionId: string };
+    await orders.approveRevision(buyer.auth, order.id, prop.revisionId);
+    const items = await prisma.companyOrderItem.findMany({
+      where: { orderId: order.id },
+    });
+    expect(items).toHaveLength(1);
+    expect(items[0]!.note).toBe("galvanizli");
+    expect(items[0]!.deliveryDate).not.toBeNull();
+  });
+
   it("satıcı öner → alıcı onayla: kalemler değişir, tutar (1160) + teslim güncellenir", async () => {
     const orders = makeOrdersService();
     const { seller, buyer, order } = await acceptedOrderWithItems();

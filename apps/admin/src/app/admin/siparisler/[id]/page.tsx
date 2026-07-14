@@ -17,7 +17,15 @@ import {
   useCancelOrder,
 } from "@/hooks/use-admin-inspection";
 import { safeFormat } from "@/lib/date";
-import { fmtMoney, ORDER_STATUS, PAYMENT_STATUS } from "@/lib/status-labels";
+import {
+  fmtMoney,
+  orderStatusMeta,
+  PAYMENT_STATUS,
+} from "@/lib/status-labels";
+import {
+  deliveryTermLabelTr,
+  formatPaymentPlanTr,
+} from "@/lib/payment-plan-label";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -58,10 +66,7 @@ function OrderInspection({ id }: { id: string }) {
     );
   }
 
-  const meta = ORDER_STATUS[o.status] ?? {
-    label: o.status,
-    color: "zinc" as const,
-  };
+  const meta = orderStatusMeta(o.status, o.deliveryTerm);
   const confirmed = o.payments
     .filter((p) => p.status === "CONFIRMED")
     .reduce((s, p) => s + p.amount, 0);
@@ -156,6 +161,18 @@ function OrderInspection({ id }: { id: string }) {
             value={o.completedAt ? safeFormat(o.completedAt, "d MMM yyyy") : null}
           />
           <Row label="Fatura no" value={o.invoiceNumber} />
+          {/* Ödeme planı + teslim şekli (award anındaki ihale şartı snapshot'ı) */}
+          <Row label="Ödeme planı" value={formatPaymentPlanTr(o)} />
+          {o.paymentNote ? (
+            <Row label="Ödeme notu" value={o.paymentNote} />
+          ) : null}
+          <Row
+            label="Teslim şekli"
+            value={deliveryTermLabelTr(o.deliveryTerm)}
+          />
+          {o.requireGuaranteeLetter ? (
+            <Row label="Teminat mektubu" value="Şartlı (satıcı yükler)" />
+          ) : null}
         </dl>
       </section>
 
@@ -235,6 +252,11 @@ function OrderInspection({ id }: { id: string }) {
                 <TableRow key={i.id}>
                   <TableCell className="text-admin-text text-sm">
                     {i.name}
+                    {i.note ? (
+                      <span className="text-admin-text-muted block text-xs">
+                        {i.note}
+                      </span>
+                    ) : null}
                   </TableCell>
                   <TableCell className="text-admin-text-muted text-xs">
                     {i.quantity.toLocaleString("tr-TR")} {i.unit}
