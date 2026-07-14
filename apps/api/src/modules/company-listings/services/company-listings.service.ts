@@ -3624,6 +3624,7 @@ export class CompanyListingsService {
         status: true,
         requireBidDocument: true,
         primaryCurrency: true,
+        createdById: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -3641,6 +3642,10 @@ export class CompanyListingsService {
     ) {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
     }
+    // 11 yönetim aksiyonuyla simetri: kazandırmayı yalnız ilanı açan doğru-taraf
+    // operatörü veya firma sahibi başlatabilir (yönetim kapısını başlatan aktöre
+    // uygular — onay zinciri/onAwardApproved bundan etkilenmez).
+    this.assertListingManageRole(user, listing);
 
     const bid = await this.prisma.listingBid.findUnique({
       where: { id: bidId },
@@ -3968,6 +3973,7 @@ export class CompanyListingsService {
         status: true,
         primaryCurrency: true,
         requireBidDocument: true,
+        createdById: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -3987,6 +3993,9 @@ export class CompanyListingsService {
     ) {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
     }
+    // 11 yönetim aksiyonuyla simetri: kazandırmayı yalnız ilanı açan doğru-taraf
+    // operatörü veya firma sahibi başlatabilir (award ile aynı kapı).
+    this.assertListingManageRole(user, listing);
 
     // Belge zorunluysa her kazanan teklifin en az 1 belgesi olmalı (tam-kazandırma
     // ile aynı kural — item-award baypasını kapatır).

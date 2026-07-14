@@ -868,4 +868,75 @@ describe("ilan yönetim authz — assertListingManageRole", () => {
       await expect(s2.publishListing(badAuth, l2.id)).rejects.toThrow(DENY);
     });
   });
+
+  describe("kazandırma authz — award / awardByItem", () => {
+    // OPEN ilan + kalem + başka firmadan SUBMITTED teklif.
+    async function withBid(type: ListingType = "ALIM") {
+      const base = await setup(type, "OPEN");
+      const item = await makeItem(prisma, base.listing.id);
+      const bidder = await makeCompanyWithUser(prisma, { country: "TR" });
+      const bid = await makeBid(prisma, {
+        listingId: base.listing.id,
+        bidderCompanyId: bidder.company.id,
+        createdById: bidder.user.id,
+        amount: 1000,
+        items: [{ itemId: item.id, unitPrice: 1000 }],
+      });
+      return { ...base, item, bidder, bid };
+    }
+
+    it("award: ilanı açan doğru-taraf operatörü kazandırabilir", async () => {
+      const { service, company, creator, listing, bid, opRole } = await withBid("ALIM");
+      const auth = authFor(company, {
+        id: creator.id,
+        email: creator.email,
+        roles: [opRole],
+      });
+      await service.award(auth, listing.id, bid.id);
+      const after = await prisma.listing.findUniqueOrThrow({ where: { id: listing.id } });
+      expect(after.status).toBe("AWARDED");
+    });
+
+    it("award: aynı-taraf ama OLUŞTURMAYAN operatör REDDEDİLİR", async () => {
+      const { service, company, listing, bid, opRole } = await withBid("ALIM");
+      const other = await makeUser(prisma, company.id, [opRole]);
+      const auth = authFor(company, {
+        id: other.id,
+        email: other.email,
+        roles: [opRole],
+      });
+      await expect(service.award(auth, listing.id, bid.id)).rejects.toThrow(DENY);
+    });
+
+    it("award: SAHİP başkasının açtığı ihaleyi kazandırabilir", async () => {
+      const { service, ownerAuth, listing, bid } = await withBid("ALIM");
+      await service.award(ownerAuth, listing.id, bid.id);
+      const after = await prisma.listing.findUniqueOrThrow({ where: { id: listing.id } });
+      expect(after.status).toBe("AWARDED");
+    });
+
+    it("awardByItem: oluşturmayan operatör REDDEDİLİR, açan operatör geçer", async () => {
+      const { service, company, creator, listing, item, bid, opRole } = await withBid("ALIM");
+      const other = await makeUser(prisma, company.id, [opRole]);
+      const badAuth = authFor(company, {
+        id: other.id,
+        email: other.email,
+        roles: [opRole],
+      });
+      await expect(
+        service.awardByItem(badAuth, listing.id, [{ itemId: item.id, bidId: bid.id }]),
+      ).rejects.toThrow(DENY);
+
+      const okAuth = authFor(company, {
+        id: creator.id,
+        email: creator.email,
+        roles: [opRole],
+      });
+      expect(
+        await errOf(
+          service.awardByItem(okAuth, listing.id, [{ itemId: item.id, bidId: bid.id }]),
+        ),
+      ).not.toMatch(DENY);
+    });
+  });
 });
