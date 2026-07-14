@@ -36,6 +36,7 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
+import { hasCompanyPermission } from "../../company-auth/permissions/company-permissions.constants";
 import { ConfigService } from "@nestjs/config";
 import { ExchangeRateService } from "../../currency/services/exchange-rate.service";
 import { EmailService } from "../../email/email.service";
@@ -1113,8 +1114,9 @@ export class CompanyListingsService {
   }
 
   /**
-   * İlanı düzenle (eski sistemdeki updateDraft kuralı): yalnızca SAHİP,
-   * ilan AÇIK ve henüz SUBMITTED teklif gelmemişken. İlk teklif gelince
+   * İlanı düzenle (eski sistemdeki updateDraft kuralı): ilanı açan doğru-taraf
+   * operatörü (ALIM→Satın Almacı, SATIS→Satışçı) veya firma sahibi; ilan
+   * AÇIK/TASLAK ve henüz SUBMITTED teklif gelmemişken. İlk teklif gelince
    * kilitlenir. Tür değiştirilemez (mevcut tür korunur). Kalemler ve davetler
    * tamamen yeniden yazılır (sil-ve-oluştur).
    */
@@ -1131,11 +1133,13 @@ export class CompanyListingsService {
         status: true,
         type: true,
         format: true,
+        createdById: true,
       },
     });
     if (!existing || existing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
     }
+    this.assertListingManageRole(user, existing);
     // Düzenlenebilirlik kilidi — eski sistem birebir. DRAFT her zaman serbest;
     // OPEN ise yalnızca henüz SUBMITTED teklif yokken.
     if (existing.status !== "OPEN" && existing.status !== "DRAFT") {
@@ -1357,15 +1361,25 @@ export class CompanyListingsService {
     return this.serialize(updated);
   }
 
-  /** Taslak ilanı sil — yalnızca SAHİP + DRAFT (yayınlanmış silinemez). */
+  /**
+   * Taslak ilanı sil — ilanı açan doğru-taraf operatörü veya firma sahibi;
+   * yalnız DRAFT (yayınlanmış silinemez, iptal edilir).
+   */
   async deleteListing(user: AuthenticatedCompanyUser, listingId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, status: true },
+      select: {
+        id: true,
+        companyId: true,
+        status: true,
+        type: true,
+        createdById: true,
+      },
     });
     if (!listing || listing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
     }
+    this.assertListingManageRole(user, listing);
     if (listing.status !== "DRAFT") {
       throw new BadRequestException(
         "Yalnızca taslak ilan silinebilir; yayınlanmış ilan iptal edilir",
@@ -1376,7 +1390,8 @@ export class CompanyListingsService {
   }
 
   /**
-   * Taslağı yayınla. Yalnızca SAHİP + DRAFT → doğrudan OPEN.
+   * Taslağı yayınla. İlanı açan doğru-taraf operatörü veya firma sahibi;
+   * DRAFT → doğrudan OPEN.
    * (Yayın onayı KALDIRILDI — onay akışı yalnız KAZANDIRMADA devreye girer.)
    */
   async publishListing(user: AuthenticatedCompanyUser, listingId: string) {
@@ -1389,11 +1404,14 @@ export class CompanyListingsService {
         status: true,
         closesAt: true,
         visibility: true,
+        type: true,
+        createdById: true,
       },
     });
     if (!listing || listing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
     }
+    this.assertListingManageRole(user, listing);
     if (listing.status !== "DRAFT") {
       throw new BadRequestException("Yalnızca taslak ilan yayınlanabilir");
     }
@@ -4430,6 +4448,7 @@ export class CompanyListingsService {
         id: true,
         companyId: true,
         type: true,
+        createdById: true,
         status: true,
         currentRound: true,
         primaryCurrency: true,
@@ -4443,6 +4462,7 @@ export class CompanyListingsService {
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi yeni tur açabilir");
     }
+    this.assertListingManageRole(user, listing);
     if (!["OPEN", "CLOSED", "IN_AWARD", "CLOSED_NO_AWARD"].includes(listing.status)) {
       throw new BadRequestException(
         "Yeni tur yalnızca açık veya kapanmış ilanda açılabilir",
@@ -4847,12 +4867,14 @@ export class CompanyListingsService {
         closesAt: true,
         bidsOpenAt: true,
         type: true,
+        createdById: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi davet ekleyebilir");
     }
+    this.assertListingManageRole(user, listing);
     if (listing.status !== "DRAFT" && listing.status !== "OPEN") {
       throw new BadRequestException("Bu ilana artık davet eklenemez");
     }
@@ -4984,12 +5006,19 @@ export class CompanyListingsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, status: true },
+      select: {
+        id: true,
+        companyId: true,
+        status: true,
+        type: true,
+        createdById: true,
+      },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi eleme yapabilir");
     }
+    this.assertListingManageRole(user, listing);
     // Karar aşaması: açık VEYA kapanmış ilanda eleme yapılabilir (award ile aynı).
     if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("Bu durumda eleme yapılamaz");
@@ -5062,12 +5091,19 @@ export class CompanyListingsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, status: true },
+      select: {
+        id: true,
+        companyId: true,
+        status: true,
+        type: true,
+        createdById: true,
+      },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
     if (listing.companyId !== user.companyId) {
       throw new ForbiddenException("Sadece ilan sahibi iptal edebilir");
     }
+    this.assertListingManageRole(user, listing);
     if (listing.status !== "OPEN") {
       throw new BadRequestException("Sadece açık ilan iptal edilebilir");
     }
@@ -5176,11 +5212,18 @@ export class CompanyListingsService {
   async startEvaluation(user: AuthenticatedCompanyUser, listingId: string) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, status: true },
+      select: {
+        id: true,
+        companyId: true,
+        status: true,
+        type: true,
+        createdById: true,
+      },
     });
     if (!listing || listing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
     }
+    this.assertListingManageRole(user, listing);
     if (listing.status === "IN_AWARD") {
       throw new BadRequestException("İhale zaten değerlendirmede");
     }
@@ -5340,11 +5383,17 @@ export class CompanyListingsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true },
+      select: {
+        id: true,
+        companyId: true,
+        type: true,
+        createdById: true,
+      },
     });
     if (!listing || listing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
     }
+    this.assertListingManageRole(user, listing);
     await this.prisma.listing.update({
       where: { id: listing.id },
       data: { internalNotes: notes.trim() || null },
@@ -5360,11 +5409,18 @@ export class CompanyListingsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, status: true },
+      select: {
+        id: true,
+        companyId: true,
+        status: true,
+        type: true,
+        createdById: true,
+      },
     });
     if (!listing || listing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
     }
+    this.assertListingManageRole(user, listing);
     if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("Bu ilan kapatılamaz");
     }
@@ -5403,17 +5459,57 @@ export class CompanyListingsService {
     return { ok: true };
   }
 
+  /**
+   * İlan YÖNETİM aksiyonları için yetki kapısı — firma-sahipliği kapısının
+   * (companyId) ÜSTÜNE eklenir; onun yerine geçmez. `assertOrderRole`
+   * (company-orders) ve create/award desenlerinin simetriği.
+   *
+   * İzin verilir ancak ve ancak:
+   *  (a) ilanın tarafına göre buy:listing:manage (ALIM) VEYA sell:listing:manage
+   *      (SATIS) izni VAR, VE
+   *  (b) ilanı bu kişi açmış (createdById === userId) VEYA kişi firma sahibi
+   *      (isOwner — son çare emniyet supabı).
+   * SAHİP her iki koşulu da sağlar (tüm izinler + isOwner).
+   */
+  private assertListingManageRole(
+    user: AuthenticatedCompanyUser,
+    listing: { type: ListingType; createdById: string },
+  ): void {
+    const needed =
+      listing.type === "ALIM" ? "buy:listing:manage" : "sell:listing:manage";
+    const hasPerm = hasCompanyPermission(
+      user.roles,
+      user.isOwner,
+      needed,
+      user.permissionsOverride,
+    );
+    const isCreatorOrOwner =
+      listing.createdById === user.userId || user.isOwner;
+    if (!hasPerm || !isCreatorOrOwner) {
+      throw new ForbiddenException(
+        "Bu ilanı yönetme yetkiniz yok — ilanı açan operatör veya firma sahibi olmalısınız",
+      );
+    }
+  }
+
   private async ownerOpenListing(
     user: AuthenticatedCompanyUser,
     listingId: string,
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
-      select: { id: true, companyId: true, status: true },
+      select: {
+        id: true,
+        companyId: true,
+        status: true,
+        type: true,
+        createdById: true,
+      },
     });
     if (!listing || listing.companyId !== user.companyId) {
       throw new NotFoundException("İlan bulunamadı");
     }
+    this.assertListingManageRole(user, listing);
     if (listing.status !== "OPEN") {
       throw new BadRequestException("Sadece açık ilanda yapılabilir");
     }

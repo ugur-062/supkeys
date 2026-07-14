@@ -5,6 +5,8 @@
  * (F2/F3/F6), kazandırma→sipariş doğruluğu, çift-kazandırma (F1), kalem-bazlı
  * (F8), state-machine.
  */
+import { CompanyRole, type ListingStatus, type ListingType } from "@rothern/db";
+import type { AuthenticatedCompanyUser } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
 import { prisma, truncateAll } from "./test-db";
 import {
   connect,
@@ -13,6 +15,7 @@ import {
   makeCompanyWithUser,
   makeItem,
   makeListing,
+  makeUser,
 } from "./factories";
 import { makeService } from "./make-service";
 
@@ -686,5 +689,183 @@ describe("Faz 5 — kalem teslim tarihi award'da siparişe kopyalanır", () => {
     expect(order.items).toHaveLength(1);
     expect(order.items[0]!.deliveryDate?.toISOString()).toBe(dd.toISOString());
     expect(order.items[0]!.note).toBe("hızlı teslim");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// İlan YÖNETİM aksiyonlarında firma-içi rol/oluşturan kapısı
+// (assertListingManageRole). Firma-sahipliği (companyId) kapısı KORUNUR; üstüne:
+//   (a) tarafa göre buy:/sell:listing:manage izni VAR, VE
+//   (b) ilanı bu kişi açmış (createdById) VEYA firma sahibi (isOwner).
+// Görüntüleme değişmez — bu yalnız mutasyon aksiyonlarını kapsar.
+// ---------------------------------------------------------------------------
+describe("ilan yönetim authz — assertListingManageRole", () => {
+  const DENY = /yönetme yetkiniz yok/;
+
+  function authFor(
+    company: { id: string; country: string; tier: "STANDARD" | "PAKET"; ownerUserId: string | null },
+    user: { id: string; email: string; roles: CompanyRole[] },
+    over: Partial<AuthenticatedCompanyUser> = {},
+  ): AuthenticatedCompanyUser {
+    return {
+      userId: user.id,
+      companyId: company.id,
+      email: user.email,
+      roles: user.roles,
+      country: company.country,
+      tier: company.tier,
+      isOwner: company.ownerUserId === user.id,
+      permissionsOverride: null,
+      ...over,
+    } as AuthenticatedCompanyUser;
+  }
+
+  // Owner firma (SAHİP) + ilanı açan doğru-taraf operatör + o operatörün açtığı ilan.
+  async function setup(type: ListingType = "ALIM", status: ListingStatus = "OPEN") {
+    const { service } = makeService();
+    const oc = await makeCompanyWithUser(prisma, { country: "TR", tier: "PAKET" });
+    const opRole =
+      type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
+    const creator = await makeUser(prisma, oc.company.id, [opRole]);
+    const listing = await makeListing(prisma, {
+      companyId: oc.company.id,
+      createdById: creator.id,
+      type,
+      status,
+      visibility: "PUBLIC",
+      closesAt: FUTURE,
+    });
+    return { service, company: oc.company, ownerAuth: oc.auth, creator, listing, opRole };
+  }
+
+  // Aksiyonu minimal argümanla tetikle — authz kapısı iş-mantığından ÖNCE
+  // çalıştığı için geçersiz argüman authz sonucunu etkilemez.
+  type Invoke = (
+    service: Awaited<ReturnType<typeof setup>>["service"],
+    auth: AuthenticatedCompanyUser,
+    id: string,
+  ) => Promise<unknown>;
+  const METHODS: { name: string; run: Invoke }[] = [
+    { name: "updateListing", run: (s, a, id) => s.updateListing(a, id, {} as never) },
+    { name: "deleteListing", run: (s, a, id) => s.deleteListing(a, id) },
+    { name: "publishListing", run: (s, a, id) => s.publishListing(a, id) },
+    { name: "createNextRound", run: (s, a, id) => s.createNextRound(a, id, {} as never) },
+    { name: "addInvitations", run: (s, a, id) => s.addInvitations(a, id, []) },
+    { name: "eliminate", run: (s, a, id) => s.eliminate(a, id, "no-such-bid") },
+    { name: "cancel", run: (s, a, id) => s.cancel(a, id) },
+    { name: "startEvaluation", run: (s, a, id) => s.startEvaluation(a, id) },
+    { name: "closeNoAward", run: (s, a, id) => s.closeNoAward(a, id) },
+    {
+      name: "changeClosingTime",
+      run: (s, a, id) => s.changeClosingTime(a, id, FUTURE.toISOString()),
+    },
+    { name: "updateInternalNotes", run: (s, a, id) => s.updateInternalNotes(a, id, "not") },
+  ];
+
+  const errOf = (p: Promise<unknown>): Promise<string> =>
+    p.then(() => "").catch((e: unknown) => (e as Error)?.message ?? String(e));
+
+  for (const m of METHODS) {
+    it(`${m.name}: ilanı açan doğru-taraf operatörü authz kapısına TAKILMAZ`, async () => {
+      const { service, company, creator, listing, opRole } = await setup();
+      const auth = authFor(company, {
+        id: creator.id,
+        email: creator.email,
+        roles: [opRole],
+      });
+      // İş-mantığı başka sebeple hata verebilir; yalnız authz reddi OLMAMALI.
+      expect(await errOf(m.run(service, auth, listing.id))).not.toMatch(DENY);
+    });
+
+    it(`${m.name}: ONAYLAYICI (listing:manage yok) REDDEDİLİR`, async () => {
+      const { service, company, listing } = await setup();
+      const approver = await makeUser(prisma, company.id, [CompanyRole.ONAYLAYICI]);
+      const auth = authFor(company, {
+        id: approver.id,
+        email: approver.email,
+        roles: [CompanyRole.ONAYLAYICI],
+      });
+      await expect(m.run(service, auth, listing.id)).rejects.toThrow(DENY);
+    });
+  }
+
+  describe("kural dalları (updateListing üzerinden)", () => {
+    it("aynı-taraf ama OLUŞTURMAYAN operatör REDDEDİLİR (kural b)", async () => {
+      const { service, company, listing, opRole } = await setup("ALIM");
+      const other = await makeUser(prisma, company.id, [opRole]); // SATIN_ALMACI, farklı kişi
+      const auth = authFor(company, {
+        id: other.id,
+        email: other.email,
+        roles: [opRole],
+      });
+      await expect(service.updateListing(auth, listing.id, {} as never)).rejects.toThrow(DENY);
+    });
+
+    it("yanlış-taraf rol (ALIM'da SATISCI) REDDEDİLİR (kural a)", async () => {
+      const { service, company, listing } = await setup("ALIM");
+      const seller = await makeUser(prisma, company.id, [CompanyRole.SATISCI]);
+      // oluşturan yapılır ki yalnız kural (a) ihlali izole olsun
+      await prisma.listing.update({
+        where: { id: listing.id },
+        data: { createdById: seller.id },
+      });
+      const auth = authFor(company, {
+        id: seller.id,
+        email: seller.email,
+        roles: [CompanyRole.SATISCI],
+      });
+      await expect(service.updateListing(auth, listing.id, {} as never)).rejects.toThrow(DENY);
+    });
+
+    it("SAHİP, başkasının açtığı ilanı yönetebilir (owner istisnası)", async () => {
+      const { service, ownerAuth, listing } = await setup("ALIM");
+      expect(
+        await errOf(service.updateListing(ownerAuth, listing.id, {} as never)),
+      ).not.toMatch(DENY);
+    });
+
+    it("kişi-bazlı izin override ile verilen yetki tanınır", async () => {
+      const { service, company, listing } = await setup("ALIM");
+      const seller = await makeUser(prisma, company.id, [CompanyRole.SATISCI]);
+      await prisma.listing.update({
+        where: { id: listing.id },
+        data: { createdById: seller.id },
+      });
+      const base = { id: seller.id, email: seller.email, roles: [CompanyRole.SATISCI] };
+      // override YOK → ALIM ilanında sell rolü reddedilir
+      await expect(
+        service.updateListing(authFor(company, base), listing.id, {} as never),
+      ).rejects.toThrow(DENY);
+      // override ile buy:listing:manage eklenince authz geçer
+      const granted = authFor(company, base, {
+        permissionsOverride: { added: ["buy:listing:manage"], removed: [] },
+      });
+      expect(
+        await errOf(service.updateListing(granted, listing.id, {} as never)),
+      ).not.toMatch(DENY);
+    });
+
+    it("SATIS ilanı taraf-duyarlı: açan SATISCI geçer, SATIN_ALMACI reddedilir", async () => {
+      const { service, company, creator, listing, opRole } = await setup("SATIS", "DRAFT");
+      const okAuth = authFor(company, {
+        id: creator.id,
+        email: creator.email,
+        roles: [opRole],
+      });
+      expect(await errOf(service.publishListing(okAuth, listing.id))).not.toMatch(DENY);
+
+      const { service: s2, company: c2, listing: l2 } = await setup("SATIS", "DRAFT");
+      const buyer = await makeUser(prisma, c2.id, [CompanyRole.SATIN_ALMACI]);
+      await prisma.listing.update({
+        where: { id: l2.id },
+        data: { createdById: buyer.id },
+      });
+      const badAuth = authFor(c2, {
+        id: buyer.id,
+        email: buyer.email,
+        roles: [CompanyRole.SATIN_ALMACI],
+      });
+      await expect(s2.publishListing(badAuth, l2.id)).rejects.toThrow(DENY);
+    });
   });
 });
