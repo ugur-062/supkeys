@@ -3,6 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import {
   OnGatewayConnection,
+  OnGatewayDisconnect,
   OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
@@ -47,7 +48,9 @@ function wsOriginAllowed(
   cors: { origin: wsOriginAllowed, credentials: true },
   path: "/rt",
 })
-export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
+export class RealtimeGateway
+  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(RealtimeGateway.name);
 
   constructor(
@@ -79,11 +82,56 @@ export class RealtimeGateway implements OnGatewayInit, OnGatewayConnection {
       if (payload.type !== "company" || !payload.companyId) {
         throw new Error("Geçersiz token tipi");
       }
+
+      // İptal-bypass kapısı (INV-MT-3): REST company-jwt.strategy.ts:61-78 ile
+      // AYNI DB-taze doğrulama. WS doğrulaması yalnız handshake'te olduğundan,
+      // iptal edilmiş aktör (soft-delete/pasif kullanıcı, pasif/bloklu firma,
+      // parola değişmiş=tokenVersion artmış) yeni/yeniden bağlantı AÇAMAMALI.
+      // NOT: strategy ile senkron tutulmalı (reuse yerine inline — CompanyAuth
+      // passport'a bağlı, RealtimeModule'de değil).
+      const user = await this.prisma.companyUser.findUnique({
+        where: { id: payload.userId },
+        include: { company: true },
+      });
+      if (!user || !user.isActive || user.deletedAt) {
+        throw new Error("Kullanıcı geçersiz");
+      }
+      if (!user.company.isActive || user.company.isBlocked) {
+        throw new Error("Firma hesabı pasif veya engellenmiş");
+      }
+      if ((payload.tv ?? 0) !== user.tokenVersion) {
+        throw new Error("Oturum geçersiz");
+      }
+
       client.data.companyId = payload.companyId;
       await client.join(`company:${payload.companyId}`);
+
+      // Süresiz-soket kapatması (INV-SD-1): açık soket token doğal ömrünü
+      // aşarak yaşamasın. Saf exp-zamanlı self-disconnect — DB-polling DEĞİL,
+      // gateway'e sorgu yükü bindirmez. Client geçerli token'la reconnect
+      // edebilir (yeniden yukarıdaki kapıdan geçer). Expired token connect'te
+      // verifyAsync tarafından zaten reddedildiğinden ms daima > 0.
+      const exp = (payload as { exp?: number }).exp;
+      if (typeof exp === "number") {
+        const ms = exp * 1000 - Date.now();
+        if (ms > 0) {
+          client.data.expiryTimer = setTimeout(
+            () => client.disconnect(true),
+            ms,
+          );
+        }
+      }
     } catch {
       client.disconnect(true);
     }
+  }
+
+  /** Soket kapanınca sarkan exp-timer'ı temizle (bellek sızıntısı önlemi). */
+  handleDisconnect(client: Socket): void {
+    const timer = client.data?.expiryTimer as
+      | ReturnType<typeof setTimeout>
+      | undefined;
+    if (timer) clearTimeout(timer);
   }
 
   @SubscribeMessage("subscribe")
