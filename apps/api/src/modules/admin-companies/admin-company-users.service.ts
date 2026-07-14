@@ -52,7 +52,8 @@ export class AdminCompanyUsersService {
         email: true,
         firstName: true,
         lastName: true,
-        phone: true,
+        // phone: bilinçli ÇIKARILDI — SUPPORT dahil tüm rollere açık bu liste
+        // yalnız kullanıcı seçimi/e-posta kurtarma için; telefon gereksiz PII.
         roles: true,
         isActive: true,
         emailVerifiedAt: true,

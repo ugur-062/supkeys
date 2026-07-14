@@ -3,7 +3,9 @@ import { SkipThrottle } from "@nestjs/throttler";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
 import { ExchangeRateService } from "../currency/services/exchange-rate.service";
+import { AllowAnyAdminRole } from "../admin-auth/decorators/allow-any-admin-role.decorator";
 import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
+import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
 
 interface HealthCheckResult {
   status: "ok" | "degraded";
@@ -75,7 +77,10 @@ export class HealthController {
    * R2'ya komut atar.
    */
   @Get("storage")
-  @UseGuards(AdminJwtAuthGuard)
+  // RolesGuard zincire dahil (fail-closed tuzağı kapalı): buraya konacak bir
+  // @RequireAdminRole artık sessizce no-op olmaz. Infra debug → her admin.
+  @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
+  @AllowAnyAdminRole()
   async storageHealth() {
     const cors = await this.storage.getBucketCorsConfig();
     return {

@@ -209,3 +209,22 @@ describe("e-posta değiştirme + doğrudan ekleme", () => {
     ).rejects.toThrow(/Geçersiz rol/);
   });
 });
+
+describe("list — telefon PII response'ta yok (fazla-açığa-çıkarma kırpıldı)", () => {
+  it("phone anahtarı dönmez; email/ad döner", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    // Kullanıcıya telefon yaz — DB'de var ama response'a sızmamalı.
+    await prisma.companyUser.update({
+      where: { id: co.user.id },
+      data: { phone: "5551112233" },
+    });
+    const rows = await service.list(co.company.id);
+    expect(rows).toHaveLength(1);
+    const u = rows[0]!;
+    expect(u).not.toHaveProperty("phone");
+    expect(u.email).toBe(co.user.email);
+    expect(u).toHaveProperty("firstName");
+    expect(u).toHaveProperty("lastName");
+  });
+});

@@ -20,8 +20,10 @@ import {
 } from "../../common/decorators/current-admin.decorator";
 import { clearAuthCookies } from "../../common/auth/cookie";
 import { AdminAuthService } from "./admin-auth.service";
+import { AllowAnyAdminRole } from "./decorators/allow-any-admin-role.decorator";
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import { AdminJwtAuthGuard } from "./guards/admin-jwt-auth.guard";
+import { AdminRolesGuard } from "./guards/admin-roles.guard";
 
 class ChangePasswordDto {
   @IsString()
@@ -76,7 +78,8 @@ export class AdminAuthController {
   }
 
   @Get("me")
-  @UseGuards(AdminJwtAuthGuard)
+  @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
+  @AllowAnyAdminRole()
   me(@CurrentAdmin() admin: AuthenticatedAdmin) {
     // 2FA durumu gibi taze alanlar için DB'den oku (JWT payload'ı bayat olabilir).
     return this.adminAuthService.getMe(admin.id);
@@ -84,7 +87,8 @@ export class AdminAuthController {
 
   // ── Hesap güvenliği (Faz 7) ──
   @Post("change-password")
-  @UseGuards(AdminJwtAuthGuard)
+  @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
+  @AllowAnyAdminRole()
   @HttpCode(HttpStatus.OK)
   changePassword(
     @CurrentAdmin() admin: AuthenticatedAdmin,
@@ -94,14 +98,16 @@ export class AdminAuthController {
   }
 
   @Post("2fa/setup")
-  @UseGuards(AdminJwtAuthGuard)
+  @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
+  @AllowAnyAdminRole()
   @HttpCode(HttpStatus.OK)
   setup2fa(@CurrentAdmin() admin: AuthenticatedAdmin) {
     return this.adminAuthService.setupTwoFactor(admin.id);
   }
 
   @Post("2fa/enable")
-  @UseGuards(AdminJwtAuthGuard)
+  @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
+  @AllowAnyAdminRole()
   @HttpCode(HttpStatus.OK)
   enable2fa(
     @CurrentAdmin() admin: AuthenticatedAdmin,
@@ -111,7 +117,8 @@ export class AdminAuthController {
   }
 
   @Post("2fa/disable")
-  @UseGuards(AdminJwtAuthGuard)
+  @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
+  @AllowAnyAdminRole()
   @HttpCode(HttpStatus.OK)
   disable2fa(
     @CurrentAdmin() admin: AuthenticatedAdmin,
