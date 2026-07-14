@@ -2,7 +2,7 @@
 
 Bu dosya kodun *ne yaptığını* değil, HER ZAMAN doğru olması gerekeni tanımlar.
 Her invariant tek cümledir ve ihlali aranabilir olmalıdır. İhlal = bug.
-Kapsam: `apps/api` (NestJS + Prisma). Son güncelleme referansı: `company-listings.service.ts`, `company-orders.service.ts`, `schema.prisma`.
+Kapsam: `apps/api` (NestJS + Prisma). Son güncelleme referansı: `company-listings.service.ts`, `company-orders.service.ts`, `schema.prisma`. 2026-07-14 denetim hizalaması; kapatılan bulgular için bkz. dosya sonundaki "Denetim geçmişi".
 
 ---
 
@@ -13,8 +13,9 @@ Kapsam: `apps/api` (NestJS + Prisma). Son güncelleme referansı: `company-listi
   - *İstisna:* Admin realm (`AdminJwtAuthGuard`) tasarım gereği cross-tenant'tır; izolasyon `@RequireAdminRole` ile sağlanır.
   - *İstisna:* Public okuma yüzeyleri (`public-profile`, `categories`, maskeli `PUBLIC` ilan görünümü) tenant-scope'suz ama yalnız açıkça herkese-açık alanları döndürür.
 - **INV-MT-3** — Aktörün `roles` / `tier` / `isOwner` bilgisi her istekte DB'den taze okunur (`company-jwt.strategy.ts`), JWT payload'ından türetilmez; JWT yalnız `userId` taşır + `tokenVersion` ile iptal edilir.
+  - *Kapsam (WS, 2026-07-14):* Realtime handshake de aynı taze-DB kapısını uygular: `realtime.gateway.ts:96-102` bağlantı/yeniden-bağlantıda `isActive`/`deletedAt`/`company.isActive`/`company.isBlocked`/`tokenVersion` DB'den doğrular, başarısızsa soket reddedilir (iptal-bypass kapandı). Ayrıca token `exp` dolunca soket exp-timer ile kendini kapatır (`:114-121`, cleanup `:131`) — süresiz-soket önlemi. Periyodik DB-yeniden-doğrulama (tam polling) ölçek maliyeti için ERTELENDİ.
 - **INV-MT-4** — Hiçbir DTO'da `companyId` / `tenantId` alanı bulunmaz. (Hedef firmayı *aramak* için kullanılan public kod `rothernId` bir istisnadır; aktörü scope'lamak için ASLA kullanılmaz.)
-- **INV-MT-5 (YAPISAL HEDEF — henüz sağlanmıyor)** — Tenant scope'lama merkezi bir katmanla (Prisma middleware veya Postgres RLS) zorunlu kılınmalıdır. Bugün scope'lama YALNIZCA servis-katmanı disiplinine dayanır; scope'suz yazılan tek bir sorguyu yakalayacak güvenlik ağı YOKTUR. Bu kapatılana dek her yeni sorgu manuel denetime tabidir.
+- **INV-MT-5 (YAPISAL HEDEF — henüz sağlanmıyor)** — Tenant scope'lama merkezi bir katmanla (Prisma middleware veya Postgres RLS) zorunlu kılınmalıdır. Bugün scope'lama YALNIZCA servis-katmanı disiplinine dayanır; scope'suz yazılan tek bir sorguyu yakalayacak güvenlik ağı YOKTUR. Bu kapatılana dek her yeni sorgu manuel denetime tabidir. Ek not: bu denetim turlarındaki durum-yarışları (INV-SM-1 ihlalleri: #1/#5/#11) ve fail-open admin authz (#12) hep bu merkezi-zorlama eksikliğinin belirtileriydi — her biri nokta-atışı kapatıldı ama yapısal hedef DURUYOR.
 
 ---
 
@@ -72,6 +73,14 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
 
 ## 5. Erişim kontrolü, veri sızıntısı, kimlik & üyelik
 
+- **INV-ADMIN-1** — Admin realm route'ları GÜVENLİ-VARSAYILANDIR (fail-closed): `AdminRolesGuard` zincirinde, `@RequireAdminRole(...)` VEYA `@AllowAnyAdminRole()` ile AÇIKÇA işaretlenmemiş her admin ucu REDDEDİLİR. JWT taşıyan her admin handler `AdminRolesGuard`'ı da taşımalıdır — aksi halde konan rol işareti sessizce no-op olur.
+  - *Kanıt:* `admin-roles.guard.ts` (işaretsiz → Forbidden); wiring `test/unit/admin-route-authz-wiring.spec.ts` — "JWT taşıyan her handler RolesGuard da taşır" invariant testi + sensitif uçların rol işareti.
+  - *Geçmiş:* #12 olarak kapatıldı (kök fail-open: admin-auth/health uçları RolesGuard zincirinde DEĞİLDİ → oraya konan `@RequireAdminRole` no-op oluyordu; #4 companies list + #7 dahili notlar asimetrisi de aynı turda kapandı).
+
+- **INV-AUDIT-1 (KISMEN SAĞLANIYOR)** — Ayrıcalıklı/para/yetki geçişleri append-only audit trail'e (`AuditLog`, `audit.service.ts`) yazılır.
+  - *Sağlanan (kritik dalga):* kazandırma `company.listing.awarded` (`company-listings.service.ts:3911,4423`); ödeme onay/red `company.order.payment_{confirmed,rejected}` (`company-orders.service.ts:1328`); yetki geçişleri `company.user.{roles_changed,permissions_overridden,active_changed,removed}` (`company-users.service.ts:408/477/595/526/646`); admin eylemleri (`admin.staff.created`, `admin.listing.{closed,extended,reopened}`, `admin.order.cancelled`, `admin.*_invite.revoked`); auth (`signup/login/login_failed/2fa_*/password_changed`). Kritik izler `critical: true` + tx-SONRASI fail-safe yazılır; başlatan ≠ onaylayan ayrımı korunur.
+  - *GAP (ikinci dalga — henüz izsiz):* sipariş yaşam-döngüsü geçişleri (accept/reject/ship/receive/complete/cancel); ONAY KARARLARININ KENDİSİ (`company-approvals.service.ts` decide approve/reject); ilan durum geçişleri (publish/cancel/startEvaluation/closeNoAward/createNextRound — yalnız `awarded` izli); `placeBid`; bağlantı accept/reject/disconnect; sipariş revizyonu; ve **DENIAL AUDIT** — engellenmiş yetki eylemleri (ör. son-admin/admin-hedef düşürme denemesinin reddi, INV-AZ/#8 Forbidden'ları) hiç kaydedilmiyor.
+
 - **INV-DOC-1** — Her belge okuma/indirme ve presigned-GET üretimi, veriyi döndürmeden/URL üretmeden ÖNCE sahiplik veya taraf-üyeliği doğrular; teklifveren yalnız KENDİ firmasının belgelerini presign edebilir (kapalı zarf).
   - *Kanıt:* Presigned-GET üreten **6 yol** var, hepsi sahiplik/üyelik/rol kapılı:
     1. **İlan belgeleri** — `assertCanView` (`company-listing-documents.service.ts:222` → presign `:235`) + upload/register/remove'da `requireOwner`.
@@ -90,7 +99,7 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
   - *Not:* #10 — admin parola/2FA mutasyonları artık sıkı `@Throttle` taşır (eskiden default 100/60s'e düşüyorlardı; kimlik-doğrulanmış olsa da brute-force yüzeyi). Wiring kanıtı: `test/unit/admin-auth-throttle-wiring.spec.ts`.
 
 - **INV-SD-1** — `deletedAt` işaretli `CompanyUser` kimlik doğrulayamaz ve iş akışına (üye/alıcı/onaylayıcı/bildirim) giremez; `CompanyUser` sistemdeki TEK soft-delete edilebilen modeldir ve ona dokunan sorgular `deletedAt: null` filtreler.
-  - *Kanıt:* `company-jwt.strategy.ts:66`, `company-auth.service.ts:554`; `deletedAt` yalnız `CompanyUser`'da (`schema.prisma:1357`); filtreler `membership.scheduler.ts:73`, `notification.service.ts:89-93/143`, `approvals` `:863-877`, `orders` `:72`, `listings` `:109/155/414`, `company-users` `:56/611/726`.
+  - *Kanıt:* `company-jwt.strategy.ts:66`, `company-auth.service.ts:554`, `realtime.gateway.ts:96` (WS handshake `deletedAt`/`isActive` kapısı); `deletedAt` yalnız `CompanyUser`'da (`schema.prisma:1357`); filtreler `membership.scheduler.ts:73`, `notification.service.ts:89-93/143`, `approvals` `:863-877`, `orders` `:72`, `listings` `:109/155/414`, `company-users` `:56/611/726`.
   - *Kapsam düzeltmesi:* Önceki taslaktaki "tüm kayıt yüzeyleri" fazla genişti — Listing/Order/Notification soft-delete taşımaz (`isActive`/`status` kullanır).
 
 - **INV-CRON-1** — Katılımcı bildirimi gönderen zamanlanmış görevler (kapanış hatırlatması, vade/ödeme hatırlatması, değerlendirme-geçerlilik hatırlatması) alıcıları YALNIZ ilgili kaydın taraflarından çözer (ilan: davetli+teklifçi+sahip; sipariş: alıcı/satıcı); fan-out primitifi `pushToCompanies` alıcıyı verilen id kümesine kısıtlar.
@@ -104,19 +113,29 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
 
 ## Karşılanmamış hedefler (henüz sağlanmıyor — kural DEĞİL)
 
-- **INV-AUDIT-1 (HEDEF)** — Ayrıcalıklı/admin işlemleri ve para/durum geçişleri append-only bir audit trail'e kaydedilmelidir. Bugün `audit_logs` populate akışı eksik (CLAUDE.md); yalnız `admin_notes`/`membership_events` gibi kısmi kayıtlar var, kapsamlı iz YOK. Bu kapatılana dek denetim izi eksiktir.
 - **INV-MT-5 (HEDEF)** — Merkezi tenant-scope zorlaması (Prisma middleware / Postgres RLS) henüz yok; bölüm 1'e bakınız.
+- **INV-AUDIT-1 ikinci dalga (HEDEF)** — Sipariş yaşam-döngüsü, onay kararları, ilan durum geçişleri, `placeBid`, bağlantılar, revizyon ve DENIAL AUDIT hâlâ izsiz; ayrıntı için bölüm 5'teki INV-AUDIT-1 "GAP" alt-maddesine bakınız.
 
 ---
 
 ## Denetlenmemiş alanlar ("temiz" DEĞİL, "bilinmiyor")
-- Realtime event payload'larının tenant sınırını koruyup korumadığı
-- Admin rol granülaritesinin route-bazlı tam denetimi
 - İki büyük servisin (`company-listings` ~5600 st., `company-orders` ~1600 st.) satır-satır okunmamış kısımları
-- `tender-owner.guard.ts`'in bir controller'a bağlı olup olmadığı (ölü kod şüphesi)
+- Admin rol granülaritesinin SEMANTİK denetimi (fail-closed wiring INV-ADMIN-1 ile kanıtlı; hangi rolün hangi veriyi görmesi GEREKTİĞİ iş-kuralı ayrıca denetlenmedi)
+- Admin arama `list.q` `contains`-filtresinin ReDoS/injection yüzeyi
 - `.env`/deploy konfigürasyonu, git-history, secrets rotasyonu
 
 ## Bilinen küçük hijyen kalemleri
 - `password-reset.service.ts` / `supabase-auth.service.ts`: log'da PII (e-posta/authId)
-- `ALLOW_INSECURE_WEBHOOK` çift-yanlış-config riski (prod'da NODE_ENV unset + flag=true)
 - `seed.ts` demo parolası prod seed'inden uzak tutulmalı
+
+---
+
+## Denetim geçmişi (kapatılan bulgular → invariant)
+
+| Invariant | Bulgu | Ne düzeltildi | Commit |
+|-----------|-------|---------------|--------|
+| INV-SM-1 (kapsam genişledi) | #1/#5/#11 | publishListing/cancel/createNextRound → koşullu-atomik guard | `1061dc0` |
+| INV-AUDIT-1 (1. dalga, kısmen) | kritik dalga | award/ödeme/rol-izin-aktif-çıkış audit izi | `c037733` |
+| INV-ADMIN-1 (yeni) | #12 (+#4/#7) | admin authz fail-open → fail-closed + guard-chain tuzağı | `1592f51`, `9e48902` |
+| INV-MT-3 + INV-SD-1 (WS) | WS iptal-bypass | realtime handshake taze-DB kapısı + süresiz-soket exp-timer | `5ff3524` |
+| INV-DOC-1, INV-RL-1 + hijyen | #6/#8/#9/#10/#13 | env-bypass allowlist (ALLOW_INSECURE_WEBHOOK dahil), admin throttle, ölü guard silme, 6-presign doc, admin-demote guard | `bc22b7b` |
