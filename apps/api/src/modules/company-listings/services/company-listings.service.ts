@@ -1436,10 +1436,22 @@ export class CompanyListingsService {
       }
     }
 
-    const updated = await this.prisma.listing.update({
-      where: { id: listingId },
+    // GUARD (closeNoAward/award simetrisi): yalnız DRAFT iken yayınla —
+    // eşzamanlı çift-publish'te ikinci çağrı count=0 alır → announceListingOpen
+    // yalnız kazanan çağrıda çalışır, tek duyuru (Tur-3 denetimi #11, INV-SM-1).
+    const published = await this.prisma.listing.updateMany({
+      where: { id: listingId, status: "DRAFT" },
       data: { status: "OPEN", publishedAt: new Date() },
     });
+    if (published.count !== 1) {
+      throw new ConflictException(
+        "İlan durumu değişti; yalnızca taslak yayınlanabilir",
+      );
+    }
+    const updated = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+    });
+    if (!updated) throw new NotFoundException("İlan bulunamadı");
     // Embargo-farkında duyuru: açılış gelecekteyse cron açılışta gönderir.
     void this.announceListingOpen(listingId, "invitation").catch((err) =>
       this.logger.warn(
@@ -4530,6 +4542,61 @@ export class CompanyListingsService {
     const validBids = bids.filter((b) => !isExpiredAtOpen(b));
 
     await this.prisma.$transaction(async (tx) => {
+      const newRound = listing.currentRound + 1;
+      // GUARD-FIRST (award/closeNoAward simetrisi): durum geçişini koşullu
+      // atomik yaz — yalnız kaynak durum HÂLÂ geçerli VE tur değişmemişken.
+      // Eşzamanlı award (AWARDED/IN_AWARD_APPROVAL sette YOK) veya çift-tur
+      // (currentRound eşitliği) count=0 alır → rollback: ne çift sipariş ne
+      // de bekleyen kazandırma onayının ezilmesi (Tur-3 denetimi #1, INV-SM-1).
+      const transition = await tx.listing.updateMany({
+        where: {
+          id: listingId,
+          status: { in: ["OPEN", "CLOSED", "IN_AWARD", "CLOSED_NO_AWARD"] },
+          currentRound: listing.currentRound,
+        },
+        data: {
+          format: dto.type as ListingFormat,
+          status: "OPEN",
+          closesAt,
+          bidsOpenAt,
+          publishedAt: new Date(),
+          // Yeni turun duyurusu yeniden yapılır — embargolu (gelecek açılışlı)
+          // turda cron açılış anında gönderir.
+          openNotifiedAt: null,
+          closingReminderSentAt: null,
+          // {increment:1} DEĞİL — sabit newRound: çift-tur self-race'inde
+          // ikinci çağrı currentRound guard'ıyla zaten count=0 alır.
+          currentRound: newRound,
+          // Çoklu para birimi auction'da da serbest — izinli set KORUNUR;
+          // kıyaslar açılış günü kur damgasıyla çevrilir.
+          ...(isAuction ? { auctionRateSnapshot: rateSnapshot ?? undefined } : {}),
+          isSealedBid: isAuction,
+          bidVisibility: isAuction
+            ? (dto.bidVisibility as ListingBidVisibility)
+            : "OWN_ONLY",
+          // Minimum pay kaldırıldı (2026-07-13) — yeni turda eski yapılandırma
+          // sıfırlanır, kural artık yalnız "öncekinden kesin iyi".
+          priceDecrementType: null,
+          priceDecrementValue: null,
+          priceDecrementBasis: null,
+          // dto boşsa ilanın MEVCUT ayarı korunur (create'te false default'ken
+          // yeni turun sessizce true'ya dönmesi tutarsızdı).
+          autoExtendOnLateBid: isAuction
+            ? (dto.autoExtendOnLateBid ?? listing.autoExtendOnLateBid)
+            : false,
+          autoExtendThresholdMin: isAuction
+            ? (dto.autoExtendThresholdMin ??
+              listing.autoExtendThresholdMin ??
+              2)
+            : null,
+          autoExtendByMinutes: isAuction
+            ? (dto.autoExtendByMinutes ?? listing.autoExtendByMinutes ?? 2)
+            : null,
+        },
+      });
+      if (transition.count !== 1) {
+        throw new ConflictException("İlan durumu değişti; yeni tur açılamadı");
+      }
       if (bids.length > 0) {
         await tx.listingRoundSnapshot.createMany({
           data: bids.map((b) => ({
@@ -4545,8 +4612,7 @@ export class CompanyListingsService {
       // ÖNEMLİ: taşınan teklifin `round`'u YENİ tura yazılır — yoksa 3. tur
       // geçişinde önceki turların filtresi bu teklifleri ıskalar (bayat
       // SUBMITTED teklif snapshot'a girmez, NONE'da LOST'a çekilmez, hatta
-      // kazanabilirdi).
-      const newRound = listing.currentRound + 1;
+      // kazanabilirdi). `newRound` guard bloğunda hesaplandı.
       if (dto.carryBids === "AUTO") {
         // Primary-dışı birimdeki teklifler de CANLI taşınır: auction kıyasları
         // artık açılış günü kur damgasıyla birimler arası çevrilerek yapılıyor
@@ -4600,46 +4666,6 @@ export class CompanyListingsService {
           where: { listingId, invitedCompanyId: { notIn: bidderCompanyIds } },
         });
       }
-      await tx.listing.update({
-        where: { id: listingId },
-        data: {
-          format: dto.type as ListingFormat,
-          status: "OPEN",
-          closesAt,
-          bidsOpenAt,
-          publishedAt: new Date(),
-          // Yeni turun duyurusu yeniden yapılır — embargolu (gelecek açılışlı)
-          // turda cron açılış anında gönderir.
-          openNotifiedAt: null,
-          closingReminderSentAt: null,
-          currentRound: { increment: 1 },
-          // Çoklu para birimi auction'da da serbest — izinli set KORUNUR;
-          // kıyaslar açılış günü kur damgasıyla çevrilir.
-          ...(isAuction ? { auctionRateSnapshot: rateSnapshot ?? undefined } : {}),
-          isSealedBid: isAuction,
-          bidVisibility: isAuction
-            ? (dto.bidVisibility as ListingBidVisibility)
-            : "OWN_ONLY",
-          // Minimum pay kaldırıldı (2026-07-13) — yeni turda eski yapılandırma
-          // sıfırlanır, kural artık yalnız "öncekinden kesin iyi".
-          priceDecrementType: null,
-          priceDecrementValue: null,
-          priceDecrementBasis: null,
-          // dto boşsa ilanın MEVCUT ayarı korunur (create'te false default'ken
-          // yeni turun sessizce true'ya dönmesi tutarsızdı).
-          autoExtendOnLateBid: isAuction
-            ? (dto.autoExtendOnLateBid ?? listing.autoExtendOnLateBid)
-            : false,
-          autoExtendThresholdMin: isAuction
-            ? (dto.autoExtendThresholdMin ??
-              listing.autoExtendThresholdMin ??
-              2)
-            : null,
-          autoExtendByMinutes: isAuction
-            ? (dto.autoExtendByMinutes ?? listing.autoExtendByMinutes ?? 2)
-            : null,
-        },
-      });
     });
 
     void this.announceListingOpen(listingId, "newRound").catch((err) =>
@@ -5116,16 +5142,23 @@ export class CompanyListingsService {
     if (listing.status !== "OPEN") {
       throw new BadRequestException("Sadece açık ilan iptal edilebilir");
     }
-    await this.prisma.$transaction([
-      this.prisma.listing.update({
-        where: { id: listingId },
+    await this.prisma.$transaction(async (tx) => {
+      // GUARD-FIRST (closeNoAward simetrisi): yalnız OPEN iken iptal et.
+      // award ile yarışta AWARDED yazıldıysa count=0 → rollback: CANCELLED
+      // ama canlı siparişli ilan oluşmaz, aşağıdaki iptal bildirimi de hiç
+      // gönderilmez (throw yukarı fırlar) — Tur-3 denetimi #5, INV-SM-1.
+      const cancelled = await tx.listing.updateMany({
+        where: { id: listingId, status: "OPEN" },
         data: { status: "CANCELLED", cancelReason: reason?.trim() || null },
-      }),
-      this.prisma.listingBid.updateMany({
+      });
+      if (cancelled.count !== 1) {
+        throw new ConflictException("İlan durumu değişti; iptal uygulanamadı");
+      }
+      await tx.listingBid.updateMany({
         where: { listingId, status: "SUBMITTED" },
         data: { status: "LOST" },
-      }),
-    ]);
+      });
+    });
     // Katılımcılara haber ver (UI "gerekçe iletilir" vaadi artık gerçek).
     void this.notifyListingParticipants(listingId, {
       subject: "İhale iptal edildi",

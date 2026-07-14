@@ -33,6 +33,7 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
 - Yeni tur — `createNextRound` aynı ilanı in-place yeniden açar (round++), teklifleri taşıma moduna göre düzenler.
 
 - **INV-SM-1** — İlan durum geçişleri koşullu atomik yazımla korunur: geçiş yalnız kaynak durum hâlâ geçerliyken uygulanır (`updateMany({ where: { id, status: { in: [...] } } })`, ör. `company-listings.service.ts`). Aynı geçişin eşzamanlı iki tetiklenmesi tek etki yaratır (F1: çift-kazandırma → tek sipariş).
+  - *Kapsam (2026-07-14 sonrası):* `award`/`awardByItem`/`closeNoAward`/`startEvaluation`'a EK olarak `publishListing`, `cancel` ve `createNextRound` de artık bu deseni kullanır. Bu üçü önceden koşulsuz `listing.update` ile durumu KOŞULSUZ eziyordu (Tur-3 denetimi #11/#5/#1, INV-SM-1 ihlali) — düzeltildi: her biri `updateMany` + `count === 1` guard'ı, aksi halde `ConflictException` + tx rollback; yan etki (bildirim/duyuru/sipariş) yalnız kazanan çağrıda tetiklenir. `createNextRound` ayrıca `where`'ine `currentRound: <okunan>` eşitlik guard'ı ekler: eşzamanlı çift-tur açılışı ikinci çağrıda `count = 0` alır → tur bir kez artar (self-race'te +2 değil). Kanıt/regresyon: `test/integration/listing-state-race.spec.ts`.
 
 ### Teklif (`ListingBidStatus`)
 - `DRAFT → SUBMITTED` — `placeBid`. `SUBMITTED → WON | AWARDED_PARTIAL | LOST` — `award`/`awardByItem`. `SUBMITTED → LOST` — `eliminate`.
