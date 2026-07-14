@@ -4,6 +4,7 @@
  */
 import { CompanyRole } from "@rothern/db";
 import { CompanyUsersService } from "../../src/modules/company-users/company-users.service";
+import { AuditService } from "../../src/modules/audit/audit.service";
 import {
   hasCompanyPermission,
 } from "../../src/modules/company-auth/permissions/company-permissions.constants";
@@ -28,6 +29,7 @@ function makeUsersService() {
     companyAuth as never,
     email as never,
     config as never,
+    new AuditService(prisma as never),
   );
 }
 

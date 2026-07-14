@@ -1,4 +1,5 @@
 import { CompanyListingsService } from "../../src/modules/company-listings/services/company-listings.service";
+import { AuditService } from "../../src/modules/audit/audit.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { prisma } from "./test-db";
 
@@ -27,6 +28,8 @@ export function makeService() {
   };
   // Gerçek NotificationService (test şeması Prisma) — in-app kayıtlar test edilebilsin.
   const notifications = new NotificationService(prisma as never);
+  // Gerçek AuditService (test şeması) — para/yetki izleri assert edilebilsin.
+  const audit = new AuditService(prisma as never);
 
   const service = new CompanyListingsService(
     prisma as never,
@@ -36,7 +39,17 @@ export function makeService() {
     email as never,
     config as never,
     notifications,
+    audit,
   );
 
-  return { service, blocks, approvals, exchangeRates, email, config, notifications };
+  return {
+    service,
+    blocks,
+    approvals,
+    exchangeRates,
+    email,
+    config,
+    notifications,
+    audit,
+  };
 }

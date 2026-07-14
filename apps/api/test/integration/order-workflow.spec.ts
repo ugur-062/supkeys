@@ -6,6 +6,7 @@
  * için akış rol bazlıdır — testler rol üzerinden her iki kaynağı da kapsar.
  */
 import { CompanyOrdersService } from "../../src/modules/company-orders/services/company-orders.service";
+import { AuditService } from "../../src/modules/audit/audit.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing } from "./factories";
@@ -21,6 +22,7 @@ function makeOrdersService() {
     email as never,
     config as never,
     notifications,
+    new AuditService(prisma as never),
   );
 }
 

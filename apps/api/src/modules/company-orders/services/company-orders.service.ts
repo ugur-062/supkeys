@@ -22,6 +22,7 @@ import {
   type PaymentCategory,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { AuditService } from "../../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import type {
   AcceptOrderDto,
@@ -46,6 +47,7 @@ export class CompanyOrdersService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationService,
+    private readonly audit: AuditService,
     @Optional() private readonly realtime?: RealtimeService,
   ) {}
 
@@ -1318,6 +1320,32 @@ export class CompanyOrdersService {
 
     const updated = await this.prisma.companyOrderPayment.findUniqueOrThrow({
       where: { id: paymentId },
+    });
+
+    // INV-AUDIT-1: para geçişi (ödeme onay/red) — commit SONRASI, bildirimden
+    // önce. actor = kararı veren satıcı; before/after ödeme durumu metadata'da.
+    await this.audit.log({
+      action:
+        decision === "CONFIRMED"
+          ? "company.order.payment_confirmed"
+          : "company.order.payment_rejected",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order_payment",
+      entityId: paymentId,
+      critical: true,
+      metadata: {
+        orderId: id,
+        orderNumber: order.number,
+        amount: Number(updated.amount),
+        currency: order.currency,
+        from: "AWAITING_CONFIRMATION",
+        to: decision,
+        autoCompleted,
+        ...(decision === "REJECTED" ? { reason: reason?.trim() || null } : {}),
+      },
     });
 
     // Ödeme kararı bildirimi alıcıya.

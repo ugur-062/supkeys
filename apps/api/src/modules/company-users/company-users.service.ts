@@ -10,6 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import * as crypto from "node:crypto";
 import { CompanyRole, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
 import { CompanyAuthService } from "../company-auth/services/company-auth.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import {
@@ -48,6 +49,7 @@ export class CompanyUsersService {
     private readonly companyAuth: CompanyAuthService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
+    private readonly audit: AuditService,
   ) {}
 
   async list(companyId: string) {
@@ -395,6 +397,18 @@ export class CompanyUsersService {
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, roles);
       await tx.companyUser.update({ where: { id: targetId }, data: { roles } });
     });
+    // INV-AUDIT-1: yetki geçişi (rol değişimi) — commit SONRASI, before/after.
+    await this.audit.log({
+      action: "company.user.roles_changed",
+      actorType: "company",
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      tenantId: actor.companyId,
+      entityType: "company_user",
+      entityId: targetId,
+      critical: true,
+      metadata: { before: target.roles, after: roles },
+    });
     return { ok: true };
   }
 
@@ -444,6 +458,19 @@ export class CompanyUsersService {
         await this.assertNotLastAdmin(tx, actor.companyId, targetId, roles);
         await tx.companyUser.update({ where: { id: targetId }, data });
       });
+      // INV-AUDIT-1: yalnız rol değişince yetki izi (profil-alanı düzenlemesi
+      // audit'lenmez). before = eski roller, after = yeni roller.
+      await this.audit.log({
+        action: "company.user.roles_changed",
+        actorType: "company",
+        actorId: actor.userId,
+        actorEmail: actor.email,
+        tenantId: actor.companyId,
+        entityType: "company_user",
+        entityId: targetId,
+        critical: true,
+        metadata: { before: target.roles, after: roles },
+      });
     } else {
       await this.prisma.companyUser.update({ where: { id: targetId }, data });
     }
@@ -481,6 +508,18 @@ export class CompanyUsersService {
         data: { isActive: true },
       });
     }
+    // INV-AUDIT-1: erişim (aktif/pasif) değişimi — yetki tarafı.
+    await this.audit.log({
+      action: "company.user.active_changed",
+      actorType: "company",
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      tenantId: actor.companyId,
+      entityType: "company_user",
+      entityId: targetId,
+      critical: true,
+      metadata: { active },
+    });
     return { ok: true };
   }
 
@@ -526,10 +565,34 @@ export class CompanyUsersService {
     const effectiveAdded = added.filter((k) => !roleSet.has(k));
     const effectiveRemoved = removed.filter((k) => roleSet.has(k));
 
+    // before-override (requireMember seçmiyor) — audit için ayrı oku.
+    const beforeRow = await this.prisma.companyUser.findUnique({
+      where: { id: targetId },
+      select: { permissionsOverride: true },
+    });
+
     await this.prisma.companyUser.update({
       where: { id: targetId },
       data: {
         permissionsOverride: { added: effectiveAdded, removed: effectiveRemoved },
+      },
+    });
+    // INV-AUDIT-1: kişi-bazlı izin override — yetki tarafı, before/after.
+    await this.audit.log({
+      action: "company.user.permissions_overridden",
+      actorType: "company",
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      tenantId: actor.companyId,
+      entityType: "company_user",
+      entityId: targetId,
+      critical: true,
+      metadata: {
+        roles: target.roles,
+        before:
+          (beforeRow?.permissionsOverride as CompanyPermissionOverride | null) ??
+          null,
+        after: { added: effectiveAdded, removed: effectiveRemoved },
       },
     });
     return { ok: true };
@@ -563,6 +626,19 @@ export class CompanyUsersService {
           email: `deleted-${targetId}@deleted.rothern`,
         },
       });
+    });
+    // INV-AUDIT-1: iş çıkışı (soft-delete) = tüm erişimin iptali — yetki tarafı.
+    // Hedef e-postası metadata'ya YAZILMAZ (PII); yalnız entityId.
+    await this.audit.log({
+      action: "company.user.removed",
+      actorType: "company",
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      tenantId: actor.companyId,
+      entityType: "company_user",
+      entityId: targetId,
+      critical: true,
+      metadata: { previousRoles: target.roles },
     });
     // Supabase auth kaydını da temizle → giriş imkânsız + e-posta orada da serbest.
     if (target.authId) {

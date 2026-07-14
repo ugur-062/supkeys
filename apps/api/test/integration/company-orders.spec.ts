@@ -7,6 +7,7 @@
  */
 import { CompanyOrderDocumentsService } from "../../src/modules/company-orders/company-order-documents.service";
 import { CompanyOrdersService } from "../../src/modules/company-orders/services/company-orders.service";
+import { AuditService } from "../../src/modules/audit/audit.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { prisma, truncateAll } from "./test-db";
 import { connect, makeCompanyWithUser } from "./factories";
@@ -27,6 +28,7 @@ function makeOrdersService() {
     email as never,
     config as never,
     notifications,
+    new AuditService(prisma as never),
   );
   return { orders, email };
 }

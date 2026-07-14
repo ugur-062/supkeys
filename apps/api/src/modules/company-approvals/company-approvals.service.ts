@@ -688,6 +688,10 @@ export class CompanyApprovalsService {
           requestId: req.id,
           listingId: req.listingId,
           payload: req.payload,
+          // Insider incelemesi için initiator (kazandırmayı başlatan) ile
+          // approver (son adımı onaylayan) ayrımı — finalize audit'i buradan okur.
+          initiatorUserId: req.createdById,
+          approverUserId: user.userId,
         },
       );
     } catch (err) {

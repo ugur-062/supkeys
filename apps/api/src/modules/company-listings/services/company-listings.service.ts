@@ -33,6 +33,7 @@ import {
   validateShortCode,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { AuditService } from "../../audit/audit.service";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -60,6 +61,18 @@ type Recipient = {
 };
 
 /**
+ * Kazandırma audit'i aktörü. Doğrudan yolda (award/awardByItem) actorId = çağıran;
+ * onay-yolunda (onAwardApproved) actorId = kazandırmayı BAŞLATAN (initiator),
+ * approverUserId = son adımı ONAYLAYAN — insider incelemesi için ikisi ayrılır.
+ */
+type AwardActor = {
+  actorId: string | null;
+  actorEmail?: string | null;
+  viaApproval: boolean;
+  approverUserId?: string | null;
+};
+
+/**
  * Kapanış hatırlatması artık her ilanda otomatik — kullanıcıya sorulmaz.
  * Kapanışa bu kadar dk kala, teklif vermemiş davetlilere e-posta gider.
  */
@@ -77,8 +90,10 @@ export class CompanyListingsService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationService,
+    private readonly audit: AuditService,
     @Optional() private readonly realtime?: RealtimeService,
   ) {}
+
 
   private webUrl(): string {
     return this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
@@ -3716,11 +3731,19 @@ export class CompanyListingsService {
       }
       return { pendingApproval: true as const };
     }
-    return this.runFullAward(listingId, bidId);
+    return this.runFullAward(listingId, bidId, {
+      actorId: user.userId,
+      actorEmail: user.email,
+      viaApproval: false,
+    });
   }
 
   /** Tam kazandırmayı uygula — sipariş oluştur, WON/LOST, AWARDED. */
-  private async runFullAward(listingId: string, bidId: string) {
+  private async runFullAward(
+    listingId: string,
+    bidId: string,
+    actor: AwardActor,
+  ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -3881,6 +3904,34 @@ export class CompanyListingsService {
       // Sipariş oluşturma birden çok yazma içerir; yüksek DB gecikmesinde
       // varsayılan 5sn interactive-transaction limiti aşılabilir.
     }, { timeout: 20000 });
+
+    // INV-AUDIT-1: parasal taahhüt (sipariş) atomik oluştu → commit SONRASI izle.
+    // Bildirim best-effort bloğundan ÖNCE ve bağımsız; log() throw etmez.
+    await this.audit.log({
+      action: "company.listing.awarded",
+      actorType: "company",
+      actorId: actor.actorId,
+      actorEmail: actor.actorEmail ?? null,
+      tenantId: listing.companyId,
+      entityType: "company_order",
+      entityId: order.id,
+      critical: true,
+      metadata: {
+        listingId,
+        listingType: listing.type,
+        orderNumber: order.number,
+        bidId: bid.id,
+        bidderCompanyId: bid.bidderCompanyId,
+        sellerCompanyId,
+        buyerCompanyId,
+        amount: Number(bid.amount),
+        currency: bid.currency,
+        previousBidStatus: "SUBMITTED",
+        newBidStatus: "WON",
+        viaApproval: actor.viaApproval,
+        approverUserId: actor.approverUserId ?? null,
+      },
+    });
 
     // C8: sipariş atomik oluştu. Bundan sonraki bildirim/realtime BEST-EFFORT —
     // hatası kazandırmayı geri almamalı. Aksi halde onay motorunun (decide)
@@ -4058,7 +4109,11 @@ export class CompanyListingsService {
       }
       return { pendingApproval: true as const };
     }
-    return this.runItemAward(listingId, itemAwards);
+    return this.runItemAward(listingId, itemAwards, {
+      actorId: user.userId,
+      actorEmail: user.email,
+      viaApproval: false,
+    });
   }
 
   /**
@@ -4201,6 +4256,7 @@ export class CompanyListingsService {
   private async runItemAward(
     listingId: string,
     itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
+    actor: AwardActor,
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
@@ -4356,6 +4412,38 @@ export class CompanyListingsService {
       // varsayılanı yetmeyebilir.
     }, { timeout: 20000 });
 
+    // INV-AUDIT-1: her parasal taahhüt (sipariş başına) için ayrı iz — commit
+    // SONRASI, bildirimden ÖNCE. Sipariş başına kayıt = kalem-bazlı dağılımda
+    // her tedarikçiye giden taahhüt tekil izlenebilir.
+    for (let i = 0; i < groupArr.length; i++) {
+      const [bidderCompanyId, g] = groupArr[i]!;
+      const o = created[i];
+      if (!o) continue;
+      await this.audit.log({
+        action: "company.listing.awarded",
+        actorType: "company",
+        actorId: actor.actorId,
+        actorEmail: actor.actorEmail ?? null,
+        tenantId: listing.companyId,
+        entityType: "company_order",
+        entityId: o.id,
+        critical: true,
+        metadata: {
+          listingId,
+          listingType: listing.type,
+          orderNumber: o.number,
+          byItem: true,
+          bidderCompanyId,
+          sellerCompanyId: isAlim ? bidderCompanyId : listing.companyId,
+          buyerCompanyId: isAlim ? listing.companyId : bidderCompanyId,
+          amount: Number(g.amount),
+          currency: g.currency,
+          viaApproval: actor.viaApproval,
+          approverUserId: actor.approverUserId ?? null,
+        },
+      });
+    }
+
     // C8: siparişler atomik oluştu. Sonraki bildirim/realtime BEST-EFFORT —
     // hatası kazandırmayı geri almamalı (decide rollback → sonsuz döngü riski).
     try {
@@ -4416,7 +4504,12 @@ export class CompanyListingsService {
 
   /** Kazandırma onayı onaylandı → saklanan plana göre uygula. */
   @OnEvent("listing.award.approved")
-  async onAwardApproved(payload: { listingId: string; payload: unknown }) {
+  async onAwardApproved(payload: {
+    listingId: string;
+    payload: unknown;
+    initiatorUserId?: string | null;
+    approverUserId?: string | null;
+  }) {
     const p = payload.payload as
       | { kind: "full"; bidId: string }
       | {
@@ -4429,10 +4522,17 @@ export class CompanyListingsService {
         }
       | null;
     if (!p) return;
+    // Onay-yolu: actorId = kazandırmayı BAŞLATAN (initiator), approverUserId =
+    // son adımı onaylayan. E-posta event'te taşınmaz (opsiyonel).
+    const actor: AwardActor = {
+      actorId: payload.initiatorUserId ?? null,
+      viaApproval: true,
+      approverUserId: payload.approverUserId ?? null,
+    };
     if (p.kind === "full") {
-      await this.runFullAward(payload.listingId, p.bidId);
+      await this.runFullAward(payload.listingId, p.bidId, actor);
     } else if (p.kind === "by-item") {
-      await this.runItemAward(payload.listingId, p.itemAwards);
+      await this.runItemAward(payload.listingId, p.itemAwards, actor);
     }
   }
 

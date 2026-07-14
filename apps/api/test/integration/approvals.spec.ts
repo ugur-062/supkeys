@@ -8,6 +8,7 @@
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { CompanyApprovalsService } from "../../src/modules/company-approvals/company-approvals.service";
 import { CompanyUsersService } from "../../src/modules/company-users/company-users.service";
+import { AuditService } from "../../src/modules/audit/audit.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing, makeUser } from "./factories";
@@ -481,6 +482,7 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
       companyAuth as never,
       email as never,
       config as never,
+      new AuditService(prisma as never),
     );
   }
 

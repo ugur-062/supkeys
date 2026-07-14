@@ -6,6 +6,7 @@
 import { CompanyRole } from "@rothern/db";
 import { CompanyBankAccountsService } from "../../src/modules/company-bank-accounts/company-bank-accounts.service";
 import { CompanyOrdersService } from "../../src/modules/company-orders/services/company-orders.service";
+import { AuditService } from "../../src/modules/audit/audit.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { hasCompanyPermission } from "../../src/modules/company-auth/permissions/company-permissions.constants";
 import { prisma, truncateAll } from "./test-db";
@@ -26,6 +27,7 @@ function makeOrdersService() {
     email as never,
     config as never,
     notifications,
+    new AuditService(prisma as never),
   );
 }
 

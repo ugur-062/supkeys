@@ -21,6 +21,12 @@ export interface AuditEntry {
   metadata?: Record<string, unknown> | null;
   ip?: string | null;
   userAgent?: string | null;
+  /**
+   * Kritik iz (para/yetki geçişi). Yazım başarısız olursa ayırt edilebilir bir
+   * marker'la loglanır ki para/yetki audit kaybı sıradan hata gürültüsünde
+   * kaybolmasın (ileride alert-webhook bu marker'a key'lenebilir).
+   */
+  critical?: boolean;
 }
 
 /**
@@ -52,11 +58,19 @@ export class AuditService {
         },
       });
     } catch (err) {
-      this.logger.error(
-        `audit log yazılamadı (${entry.action}): ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
+      const reason = err instanceof Error ? err.message : String(err);
+      if (entry.critical) {
+        // Sabit, greplenebilir marker — para/yetki izinin kaybı sessizce geçmesin.
+        this.logger.error(
+          `[AUDIT-KRİTİK-KAYIP] action=${entry.action} actorId=${
+            entry.actorId ?? "-"
+          } entityType=${entry.entityType ?? "-"} entityId=${
+            entry.entityId ?? "-"
+          }: ${reason}`,
+        );
+      } else {
+        this.logger.error(`audit log yazılamadı (${entry.action}): ${reason}`);
+      }
     }
   }
 
