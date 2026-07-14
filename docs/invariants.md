@@ -69,17 +69,36 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
 
 ---
 
-## ÖNERİLEN EK INVARIANT'LAR (öneri — karar bekliyor, kural DEĞİL)
+## 5. Erişim kontrolü, veri sızıntısı, kimlik & üyelik
 
-- **P1 — Belge/upload erişim kontrolü.** Her belge okuma/indirme sahiplik veya taraf kontrolüyle yetkilendirilir ve kapalı-zarfı korur: ilan belgeleri `requireOwner`/`assertCanView` (`company-listing-documents.service.ts:105/40`), sipariş belgeleri `requireParty` (`company-order-documents.service.ts:153`). Öneri: presigned URL üretimi de aynı yetkiye tabidir; teklifveren rakip belgesine erişemez.
-- **P2 — Response'ta kapalı-zarf sızıntısı.** Teklifveren yüzüne dönen response `invitations`/`bids`/`bidStats` içermez; `getOne` non-owner için bunları soyar (`company-listings.service.ts`; CLAUDE.md #5). Öneri: serialization katmanında bu bir invariant olarak sabitlenmeli.
-- **P3 — Rate limiting.** Global `ThrottlerGuard` var (`app.module.ts:161`) + auth endpoint'leri (login/register/password-reset) sıkı `@Throttle` altında. Öneri: kimlik/parola/kod-doğrulama endpoint'lerinin rate-limitli kalması invariant'a bağlansın.
-- **P4 — Soft-delete erişilebilirliği.** `deletedAt` işaretli principal'lar kimlik doğrulayamaz ve iş akışına giremez (`company-jwt.strategy.ts:66`, `membership.scheduler.ts:73`). Öneri: soft-delete edilmiş kayıtlar tüm sorgu/bildirim yüzeylerinde filtrelenir.
-- **P5 — Cron/scheduled fan-out tenant sınırı.** Zamanlanmış görevler (kapanış hatırlatması, vade cron, değerlendirme hatırlatması) alıcıları yalnız ilgili ilanın firması/taraflarıyla sınırlı çözer; cross-tenant bildirim sızmaz.
-- **P6 — Audit log kapsamı.** Ayrıcalıklı/admin işlemleri ve para/durum geçişleri append-only kaydedilir. GAP: CLAUDE.md'ye göre `audit_logs` populate bekliyor — invariant henüz sağlanmıyor.
-- **P7 — Davet/üyelik akışı.** Bağlantı davet accept/reject atomiktir; firma-kullanıcı daveti token'lı ve tek-kullanımlıktır, hesap yalnız kabulde açılır.
+- **INV-DOC-1** — Her belge okuma/indirme ve presigned-GET üretimi, veriyi döndürmeden/URL üretmeden ÖNCE sahiplik veya taraf-üyeliği doğrular; teklifveren yalnız KENDİ firmasının belgelerini presign edebilir (kapalı zarf).
+  - *Kanıt:* ilan belgeleri `assertCanView` (`company-listing-documents.service.ts:222` → presign `:235`) + upload/register/remove'da `requireOwner`; teklif belgeleri non-owner sorgusu `bidderCompanyId` ile filtreli (`company-bid-documents.service.ts:131-133` → presign `:147`); sipariş belgeleri `requireParty` (`company-order-documents.service.ts:100` → presign `:112`). Presigned-GET yalnız bu üç `list()`'te üretilir.
 
-> **Not:** Önceki taslaktaki "P1 — kazandırmada oluşturan kısıtı asimetrisi" bulgusu, `award`/`awardByItem`'a `assertListingManageRole` eklenerek KAPATILDI (bkz. INV-AZ-1); artık öneri değil, sağlanan bir invariant.
+- **INV-BID-1** — Teklifveren (non-owner) yüzüne dönen ilan detay response'u `bids`/`invitations`/`bidStats` içermez; bu alanlar yalnız `getOne`'ın sahip dalında sorgulanıp döndürülür.
+  - *Kanıt:* `company-listings.service.ts` owner dalı `:2057` (bids/invitations yalnız burada), non-owner return `:2315` (bu alanlar yok); `listTenders` yalnız `_count` (`:1639-1640`); `sellerTenders` yalnız kendi teklifi (`:1789-1792`).
+  - *İstisna:* İngiliz-usulü açık en-iyi-fiyat görünümü (`english`/`auctionView`) non-owner'a `bidVisibility` moduna göre gösterilir — kapalı-zarf teklif verisi değil, tasarımca açık-eksiltme özelliği.
+
+- **INV-RL-1** — Kimlik/parola/kod-doğrulama endpoint'leri (login, kayıt, e-posta doğrula, kod-yeniden-gönder, parola-sıfırla) sıkı per-route `@Throttle` ile rate-limitlidir; global `ThrottlerGuard` (APP_GUARD) altında hiçbiri gevşek default'a düşmez.
+  - *Kanıt:* `app.module.ts:161` global guard; `company-auth.controller.ts` login `:87-88`(10)/signup `:62-63`(5)/verify `:73-74`(10)/resend `:80-81`(3)/forgot `:55-56`(5); `admin-auth.controller.ts` login `:66-68`(10); `password-reset.controller.ts:14-15`(5).
+  - *Not:* admin change-password (`admin-auth.controller.ts:86`) sıkı `@Throttle` taşımaz, binding default'a (100/60s) düşer — kimlik-doğrulanmış, kapsam dışı küçük tutarsızlık.
+
+- **INV-SD-1** — `deletedAt` işaretli `CompanyUser` kimlik doğrulayamaz ve iş akışına (üye/alıcı/onaylayıcı/bildirim) giremez; `CompanyUser` sistemdeki TEK soft-delete edilebilen modeldir ve ona dokunan sorgular `deletedAt: null` filtreler.
+  - *Kanıt:* `company-jwt.strategy.ts:66`, `company-auth.service.ts:554`; `deletedAt` yalnız `CompanyUser`'da (`schema.prisma:1357`); filtreler `membership.scheduler.ts:73`, `notification.service.ts:89-93/143`, `approvals` `:863-877`, `orders` `:72`, `listings` `:109/155/414`, `company-users` `:56/611/726`.
+  - *Kapsam düzeltmesi:* Önceki taslaktaki "tüm kayıt yüzeyleri" fazla genişti — Listing/Order/Notification soft-delete taşımaz (`isActive`/`status` kullanır).
+
+- **INV-CRON-1** — Katılımcı bildirimi gönderen zamanlanmış görevler (kapanış hatırlatması, vade/ödeme hatırlatması, değerlendirme-geçerlilik hatırlatması) alıcıları YALNIZ ilgili kaydın taraflarından çözer (ilan: davetli+teklifçi+sahip; sipariş: alıcı/satıcı); fan-out primitifi `pushToCompanies` alıcıyı verilen id kümesine kısıtlar.
+  - *Kanıt:* `notifyListingClosed` (`company-listings.service.ts:246-261,302`), `notifyListingInvitees` (`:565-568`), `notifyEvaluationValidityReminder` (`:5288,5302`), `sendDuePaymentReminders`→`notifyOrderParty` (`company-orders.service.ts:955-961,97-105`), `pushToCompanies` (`notification.service.ts:139-149`).
+  - *İstisna (meşru, tasarım):* `announceOpened` cron'u (`listing.scheduler.ts:156` → `notifyCategoryMatchedCompanies:345-414`) PUBLIC ilanları kategori-eşleşen PAKET firmalara tenant-ötesi duyurur — keşif yayını, `visibility === "PUBLIC"` kapılı (`:362`), özel/tenant verisi taşımaz.
+
+- **INV-INV-1** — Bağlantı davet accept/reject/disconnect atomik koşullu yazımla yapılır (`updateMany`/`deleteMany` status=PENDING, `count===0`→Conflict); firma-kullanıcı daveti `@unique` token'lıdır, tek kullanımlıktır ve `CompanyUser` hesabı YALNIZ accept transaction'ında oluşturulur (davet anında değil).
+  - *Kanıt:* connections accept `:802-822`/reject `:859-865`/disconnect `:876-884`; invitation token `@unique` (`schema.prisma:1396`), atomik consume `company-users.service.ts:247-255`, `requireUsableInvitation:294-300` (ACCEPTED/CANCELLED/EXPIRED + süre reddi), hesap yalnız accept tx'inde `:256-276`.
+
+---
+
+## Karşılanmamış hedefler (henüz sağlanmıyor — kural DEĞİL)
+
+- **INV-AUDIT-1 (HEDEF)** — Ayrıcalıklı/admin işlemleri ve para/durum geçişleri append-only bir audit trail'e kaydedilmelidir. Bugün `audit_logs` populate akışı eksik (CLAUDE.md); yalnız `admin_notes`/`membership_events` gibi kısmi kayıtlar var, kapsamlı iz YOK. Bu kapatılana dek denetim izi eksiktir.
+- **INV-MT-5 (HEDEF)** — Merkezi tenant-scope zorlaması (Prisma middleware / Postgres RLS) henüz yok; bölüm 1'e bakınız.
 
 ---
 
