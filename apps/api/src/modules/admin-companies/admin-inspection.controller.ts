@@ -12,6 +12,7 @@ import {
   CurrentAdmin,
   type AuthenticatedAdmin,
 } from "../../common/decorators/current-admin.decorator";
+import { AllowAnyAdminRole } from "../admin-auth/decorators/allow-any-admin-role.decorator";
 import { RequireAdminRole } from "../admin-auth/decorators/require-admin-role.decorator";
 import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
 import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
@@ -38,28 +39,33 @@ class ClosesAtDto {
 export class AdminInspectionController {
   constructor(private readonly service: AdminInspectionService) {}
 
-  // ── okuma ──
+  // ── okuma (bilinçli olarak tüm admin rollerine açık — SUPPORT dahil) ──
   @Get("companies/:companyId/listings")
+  @AllowAnyAdminRole()
   listListings(@Param("companyId") companyId: string) {
     return this.service.listListings(companyId);
   }
 
   @Get("listings/:id")
+  @AllowAnyAdminRole()
   listingDetail(@Param("id") id: string) {
     return this.service.listingDetail(id);
   }
 
   @Get("companies/:companyId/orders")
+  @AllowAnyAdminRole()
   listOrders(@Param("companyId") companyId: string) {
     return this.service.listOrders(companyId);
   }
 
   @Get("orders/:id")
+  @AllowAnyAdminRole()
   orderDetail(@Param("id") id: string) {
     return this.service.orderDetail(id);
   }
 
   @Get("companies/:companyId/connections")
+  @AllowAnyAdminRole()
   listConnections(@Param("companyId") companyId: string) {
     return this.service.listConnections(companyId);
   }

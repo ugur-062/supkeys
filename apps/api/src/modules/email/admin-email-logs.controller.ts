@@ -23,12 +23,16 @@ import { ListEmailLogsDto } from "./dto/list-email-logs.dto";
 export class AdminEmailLogsController {
   constructor(private readonly service: AdminEmailLogsService) {}
 
+  // Log satırları alıcı e-postalarını (PII) içerir → salt-okuma SUPPORT rolüne
+  // kapalı; resend zaten gated (asimetri kapatıldı).
   @Get()
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
   async list(@Query() query: ListEmailLogsDto): Promise<unknown> {
     return this.service.list(query);
   }
 
   @Get(":id")
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
   async findOne(@Param("id") id: string): Promise<unknown> {
     return this.service.findOne(id);
   }

@@ -18,6 +18,7 @@ import {
   CurrentAdmin,
   type AuthenticatedAdmin,
 } from "../../common/decorators/current-admin.decorator";
+import { AllowAnyAdminRole } from "../admin-auth/decorators/allow-any-admin-role.decorator";
 import { RequireAdminRole } from "../admin-auth/decorators/require-admin-role.decorator";
 import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
 import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
@@ -63,12 +64,15 @@ class AddUserDto {
 export class AdminCompanyUsersController {
   constructor(private readonly service: AdminCompanyUsersService) {}
 
+  // Okuma + zararsız kurtarma bilinçli olarak SUPPORT dahil tüm rollere açık.
   @Get()
+  @AllowAnyAdminRole()
   list(@Param("companyId") companyId: string) {
     return this.service.list(companyId);
   }
 
   @Post(":userId/password-reset")
+  @AllowAnyAdminRole()
   sendPasswordReset(
     @Param("companyId") companyId: string,
     @Param("userId") userId: string,
@@ -78,6 +82,7 @@ export class AdminCompanyUsersController {
   }
 
   @Post(":userId/resend-verification")
+  @AllowAnyAdminRole()
   resendVerification(
     @Param("companyId") companyId: string,
     @Param("userId") userId: string,
@@ -87,6 +92,7 @@ export class AdminCompanyUsersController {
   }
 
   @Post(":userId/drop-sessions")
+  @AllowAnyAdminRole()
   dropSessions(
     @Param("companyId") companyId: string,
     @Param("userId") userId: string,

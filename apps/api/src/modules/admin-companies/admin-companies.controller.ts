@@ -26,6 +26,7 @@ import {
   CurrentAdmin,
   type AuthenticatedAdmin,
 } from "../../common/decorators/current-admin.decorator";
+import { AllowAnyAdminRole } from "../admin-auth/decorators/allow-any-admin-role.decorator";
 import { RequireAdminRole } from "../admin-auth/decorators/require-admin-role.decorator";
 import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
 import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
@@ -283,12 +284,16 @@ export class AdminCompaniesController {
   ) {}
 
   @Get("companies")
+  // Liste projeksiyonu taxNumber (KYC PII) içerir → detail ile simetrik:
+  // salt-okuma SUPPORT rolüne kapalı.
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
   list(@Query() query: ListCompaniesDto) {
     return this.service.list(query);
   }
 
   // ":id"den ÖNCE — aksi halde "stats" bir firma id'si sanılırdı.
   @Get("companies/stats")
+  @AllowAnyAdminRole() // yalnız agregat sayaç, PII yok — tüm rollere açık
   stats() {
     return this.service.stats();
   }
@@ -412,6 +417,7 @@ export class AdminCompaniesController {
   }
 
   @Get("complaints")
+  @AllowAnyAdminRole() // SUPPORT şikayet triyajı yapabilir; resolve gated kalır
   complaints(
     @Query("status") status?: string,
     @Query("companyId") companyId?: string,
@@ -429,12 +435,16 @@ export class AdminCompaniesController {
   }
 
   // ── Dahili notlar (Faz 6) ──
+  // Dahili notlar hassastır; deleteNote zaten SUPER_ADMIN — oku/yaz da gated
+  // (asimetri kapatıldı). Salt-okuma SUPPORT rolüne kapalı.
   @Get("companies/:id/notes")
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
   listNotes(@Param("id") id: string) {
     return this.service.listNotes(id);
   }
 
   @Post("companies/:id/notes")
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
   addNote(
     @Param("id") id: string,
     @Body() dto: AddNoteDto,
@@ -453,7 +463,9 @@ export class AdminCompaniesController {
   }
 
   // ── Global arama (Faz 6) ──
+  // Firmalar arası arama PII (taxNumber vb.) yüzeyi açar → gated.
   @Get("search")
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
   search(@Query("q") q?: string) {
     return this.service.globalSearch(q ?? "");
   }

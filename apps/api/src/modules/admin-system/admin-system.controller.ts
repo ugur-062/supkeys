@@ -23,6 +23,7 @@ import {
 import { CronRegistryService } from "../../common/cron/cron-registry.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import { AllowAnyAdminRole } from "../admin-auth/decorators/allow-any-admin-role.decorator";
 import { RequireAdminRole } from "../admin-auth/decorators/require-admin-role.decorator";
 import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
 import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
@@ -71,6 +72,7 @@ export class AdminSystemController {
   ) {}
 
   @Get()
+  @AllowAnyAdminRole() // altyapı sağlık paneli — PII yok, tüm rollere açık
   async status() {
     let database: "up" | "down" = "down";
     try {
@@ -179,7 +181,10 @@ export class AdminSystemController {
    * E-posta itibar (Faz 8) — suppress edilmiş adresler: hard-bounce/complaint
    * almış VE sonrasında aklanmamış olanlar.
    */
+  // Bastırılmış adres listesi e-posta PII'ı içerir → gated; clear zaten
+  // SUPER_ADMIN (asimetri kapatıldı).
   @Get("suppressions")
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
   async listSuppressions() {
     const rows = await this.prisma.emailLog.findMany({
       where: {
