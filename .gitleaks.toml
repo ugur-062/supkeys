@@ -1,0 +1,19 @@
+# gitleaks yapılandırması — varsayılan kuralları genişletir (.githooks/pre-commit
+# ve tam-geçmiş taraması otomatik bu dosyayı kullanır: (target path)/.gitleaks.toml).
+title = "Rothern gitleaks"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = """
+YAML env-var ADI deklarasyonları (`- key: IDENT`). Render blueprint'te (render.yaml)
+tüm değerler `sync: false` ile dashboard'da tutulur; gerçek sır her zaman `value:`
+satırında olurdu, `key:` satırında ASLA. Bu yüzden `- key: R2_PRIVATE_BUCKET` gibi
+büyük-harf identifier'ların generic-api-key olarak işaretlenmesi false-positive'dir.
+Yalnız `- key: IDENT` desenli satırı allowlist'ler; `value:` satırları taranmaya devam eder.
+"""
+regexTarget = "line"
+regexes = [
+  '''^\s*-\s*key:\s*[A-Za-z_][A-Za-z0-9_]*\s*$''',
+]
