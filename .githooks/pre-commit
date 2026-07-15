@@ -1,0 +1,25 @@
+#!/usr/bin/env sh
+# gitleaks pre-commit — staged değişikliklerde sır taraması.
+#
+# Aktive et (repo başına bir kez):
+#   git config core.hooksPath .githooks
+#
+# Acil durum atlama (dikkatli kullan):
+#   SKIP_GITLEAKS=1 git commit ...
+
+if [ "${SKIP_GITLEAKS:-}" = "1" ]; then
+  echo "gitleaks: atlandı (SKIP_GITLEAKS=1)."
+  exit 0
+fi
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "HATA: gitleaks kurulu değil — commit fail-closed engellendi." >&2
+  echo "Kurulum: https://github.com/gitleaks/gitleaks#installing" >&2
+  echo "  ör: curl -sL https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks_<ver>_linux_x64.tar.gz \\" >&2
+  echo "        | tar xz gitleaks && install -m 0755 gitleaks ~/.local/bin/" >&2
+  echo "Geçici atlama: SKIP_GITLEAKS=1 git commit ..." >&2
+  exit 1
+fi
+
+# --staged: yalnız index'e alınmış değişiklikleri tara. --redact: sır değerini loglama.
+gitleaks git --staged --redact -v

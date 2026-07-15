@@ -338,9 +338,6 @@ importers:
       '@rothern/shared':
         specifier: workspace:*
         version: link:../../packages/shared
-      '@supabase/supabase-js':
-        specifier: ^2.106.0
-        version: 2.106.0
       '@tanstack/react-query':
         specifier: ^5.62.11
         version: 5.100.6(react@19.2.5)

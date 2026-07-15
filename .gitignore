@@ -8,6 +8,13 @@ coverage/
 .env
 .env.local
 .env.*.local
+
+# Gerçek sır taşıma riski olan env dosyaları. .env.test bir fixture (commit'li);
+# türevleri (.env.test.staging vb.) ve .env.production adı gereği gerçek prod
+# sırları taşıyabilir → ignore. Sadece bilinçli fixture'a açık istisna ver.
+.env.test.*
+.env.production
+!.env.test
 .DS_Store
 *.tsbuildinfo
 .vscode/
