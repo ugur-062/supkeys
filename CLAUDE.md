@@ -107,7 +107,9 @@ Yapılan audit'ler:
 - ✅ Yutulan catch'ler temizlendi
 - ✅ Health endpoint DB ping (Redis kaldırıldıktan sonra)
 - ✅ Console.log → NestJS Logger (production)
-- ⏳ Bekleyen: Structured logger (Pino + redact), Sentry, alert webhook, audit_logs populate, CSP (helmet), V2 httpOnly cookie auth
+- ✅ Structured logger (Pino + redact) + Sentry entegre; kritik-audit kaybı + webhook imza hataları `reportToSentry()` ile Sentry'e bağlı (fırlatılmayan logler SentryGlobalFilter'a takılmıyordu)
+- ⏳ Bekleyen: alert webhook, audit_logs populate, CSP (helmet), V2 httpOnly cookie auth; fast-follow: correlation-id, log drain, frontend Sentry
+- 🚀 **Launch checklist:** Prod deploy öncesi `SENTRY_DSN` **set edilmeli** — boşsa error tracking + kritik-audit/webhook alarmları tümüyle pasif (no-op). Bkz. `.env.production.example` Gözlemlenebilirlik bloğu.
 
 ---
 

@@ -26,3 +26,26 @@ if (dsn) {
 }
 
 export const sentryEnabled = !!dsn;
+
+/**
+ * Fırlatılmayan kritik olayları (kritik-audit kaybı, webhook imza hatası) Sentry'e
+ * bildirir — bunlar `logger.error/warn` olduğu için SentryGlobalFilter yakalamaz.
+ *
+ * Güvenlik/emniyet garantileri:
+ * - DSN yoksa (`sentryEnabled=false`) SESSİZ no-op — dev/test'te hiçbir şey gönderilmez.
+ * - Kendi try/catch'i var → çağıran akışı (audit `log()`, webhook guard) ASLA bozmaz.
+ * - PII göndermek çağıranın sorumluluğu: `sendDefaultPii:false` (init'te) korunur;
+ *   buraya yalnız kimlik/eylem context'i (id/action) geçir, e-posta/gövde/sır GEÇME.
+ */
+export function reportToSentry(
+  message: string,
+  level: "error" | "warning",
+  context?: { tags?: Record<string, string>; extra?: Record<string, unknown> },
+): void {
+  if (!sentryEnabled) return;
+  try {
+    Sentry.captureMessage(message, { level, ...context });
+  } catch {
+    // Gözlemlenebilirlik ana iş akışını bozamaz — yut.
+  }
+}

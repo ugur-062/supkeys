@@ -8,6 +8,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import type { Request } from "express";
 import { Webhook } from "svix";
+import { reportToSentry } from "../../../instrument";
 
 /**
  * V2-1 — Resend webhook svix imza doğrulayıcısı.
@@ -56,6 +57,12 @@ export class WebhookSignatureGuard implements CanActivate {
       this.logger.error(
         `Webhook secret yapılandırılmamış (NODE_ENV=${nodeEnv ?? "(unset)"}, allowInsecure=${allowInsecure})`,
       );
+      // 401 fırlatıyor → SentryGlobalFilter (yalnız 5xx/unhandled) yakalamaz.
+      // Config hatası: prod'da webhook'lar sessizce reddedilir → operatör görmeli.
+      reportToSentry("Webhook secret yapılandırılmamış", "error", {
+        tags: { webhook: "misconfig" },
+        extra: { nodeEnv: nodeEnv ?? null, allowInsecure },
+      });
       throw new UnauthorizedException("Webhook secret yapılandırılmamış");
     }
 
@@ -82,11 +89,14 @@ export class WebhookSignatureGuard implements CanActivate {
       });
       return true;
     } catch (err) {
-      this.logger.warn(
-        `Webhook imza doğrulama hatası: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
+      const reason = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Webhook imza doğrulama hatası: ${reason}`);
+      // Geçersiz imza olası saldırı/replay sinyali; 401 fırlatıldığı için
+      // SentryGlobalFilter yakalamaz → manuel bildir. rawBody/imza değeri GEÇME.
+      reportToSentry("Webhook imza doğrulama hatası", "warning", {
+        tags: { webhook: "bad-signature" },
+        extra: { svixId: svixId ?? null, reason },
+      });
       throw new UnauthorizedException("Geçersiz webhook imzası");
     }
   }

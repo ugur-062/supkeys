@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import type { Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { reportToSentry } from "../../instrument";
 
 export type AuditActorType =
   | "tenant"
@@ -68,6 +69,18 @@ export class AuditService {
             entry.entityId ?? "-"
           }: ${reason}`,
         );
+        // Log stdout'ta kalır; kritik audit kaybı alarm üretmeli → Sentry'e de
+        // bildir. PII GÖNDERME: actorEmail/metadata/ip/userAgent hariç, yalnız
+        // kimlik/eylem context'i. DSN yoksa reportToSentry sessiz no-op.
+        reportToSentry("[AUDIT-KRİTİK-KAYIP]", "error", {
+          tags: { audit: "critical-loss", action: entry.action },
+          extra: {
+            actorId: entry.actorId ?? null,
+            entityType: entry.entityType ?? null,
+            entityId: entry.entityId ?? null,
+            reason,
+          },
+        });
       } else {
         this.logger.error(`audit log yazılamadı (${entry.action}): ${reason}`);
       }
