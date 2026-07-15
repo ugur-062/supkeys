@@ -111,6 +111,7 @@ export class CompanyDocsService {
           [
             k,
             await this.storage.presignStoredObject(
+              "private",
               c[DOC_META[k].url] as string | null,
             ),
           ] as const,
@@ -155,7 +156,7 @@ export class CompanyDocsService {
     assertReportedSize(fileSize);
     const safe = fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
     const key = `company-docs/${companyId}/${kind}-${randomUUID()}-${safe}`;
-    const url = await this.storage.generatePresignedPut(key, mimeType);
+    const url = await this.storage.generatePresignedPut("private", key, mimeType);
     return { url, key };
   }
 
@@ -195,7 +196,7 @@ export class CompanyDocsService {
             : "Bu belge onaylandı; değiştirilemez",
       );
     }
-    await assertUploadedObjectValid(this.storage, key);
+    await assertUploadedObjectValid(this.storage, "private", key);
     // KEY saklanır (public URL değil); okurken presigned GET üretilir. Yeniden
     // yüklenen (reddedilmiş) belge PENDING'e döner, red gerekçesi temizlenir.
     await this.prisma.company.update({

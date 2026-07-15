@@ -15,7 +15,7 @@ function docsService() {
     deleteObject: jest.fn(),
     // KYC belgeleri kısa ömürlü presigned GET ile sunulur — gerçek servisle
     // aynı sözleşme: boş değer null, dolu değer URL.
-    presignStoredObject: jest.fn(async (v: string | null) =>
+    presignStoredObject: jest.fn(async (_bucket: string, v: string | null) =>
       v ? `https://r2/presigned/${v}` : null,
     ),
     // commit, nesnenin R2'da var olduğunu doğrular (assertUploadedObjectValid).

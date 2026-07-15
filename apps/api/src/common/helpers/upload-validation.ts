@@ -1,5 +1,8 @@
 import { BadRequestException } from "@nestjs/common";
-import type { StorageService } from "../../modules/storage/storage.service";
+import type {
+  BucketKind,
+  StorageService,
+} from "../../modules/storage/storage.service";
 
 /** Yükleme başına azami boyut (eski sistem paritesi: 50 MB). */
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
@@ -50,9 +53,10 @@ export function assertReportedSize(size: number | undefined): void {
  */
 export async function assertUploadedObjectValid(
   storage: StorageService,
+  bucket: BucketKind,
   key: string,
 ): Promise<void> {
-  const head = await storage.checkExists(key);
+  const head = await storage.checkExists(bucket, key);
   if (!head.exists) {
     throw new BadRequestException(
       "Dosya yüklenmemiş görünüyor — lütfen tekrar deneyin",
@@ -60,7 +64,7 @@ export async function assertUploadedObjectValid(
   }
   if (head.size != null && head.size > MAX_UPLOAD_BYTES) {
     // Yetim (limit aşan) nesneyi temizle ki bucket şişmesin.
-    await storage.deleteObject(key).catch(() => undefined);
+    await storage.deleteObject(bucket, key).catch(() => undefined);
     throw new BadRequestException("Dosya boyutu 50 MB sınırını aşıyor");
   }
 }

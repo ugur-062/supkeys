@@ -54,7 +54,7 @@ export class CompanyOrderDocumentsService {
 
     const safe = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
     const key = `company-orders/${orderId}/${input.type.toLowerCase()}/${crypto.randomUUID()}-${safe}`;
-    const url = await this.storage.generatePresignedPut(key, input.mimeType);
+    const url = await this.storage.generatePresignedPut("private", key, input.mimeType);
     return { url, key };
   }
 
@@ -81,7 +81,7 @@ export class CompanyOrderDocumentsService {
       throw new BadRequestException("Sadece PDF veya görsel yüklenebilir");
     }
     assertSafeFileName(input.fileName);
-    await assertUploadedObjectValid(this.storage, input.key);
+    await assertUploadedObjectValid(this.storage, "private", input.key);
     const doc = await this.prisma.companyOrderDocument.create({
       data: {
         orderId,
@@ -109,7 +109,7 @@ export class CompanyOrderDocumentsService {
         fileName: d.fileName,
         mimeType: d.mimeType,
         createdAt: d.createdAt,
-        url: await this.storage.generatePresignedGet(d.key, d.fileName),
+        url: await this.storage.generatePresignedGet("private", d.key, d.fileName),
       })),
     );
   }
@@ -144,7 +144,7 @@ export class CompanyOrderDocumentsService {
         );
       }
     }
-    await this.storage.deleteObject(doc.key).catch(() => undefined);
+    await this.storage.deleteObject("private", doc.key).catch(() => undefined);
     await this.prisma.companyOrderDocument.delete({ where: { id: docId } });
     return { ok: true };
   }

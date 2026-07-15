@@ -44,7 +44,7 @@ services:
         sync: false
       - key: SUPABASE_JWT_SECRET
         sync: false
-      # ── Depolama (Cloudflare R2) ──
+      # ── Depolama (Cloudflare R2) — İKİ BUCKET (bkz. docs/r2-bucket-split.md) ──
       - key: R2_ACCOUNT_ID
         sync: false
       - key: R2_ACCESS_KEY_ID
@@ -53,7 +53,13 @@ services:
         sync: false
       - key: R2_ENDPOINT
         sync: false
-      - key: R2_BUCKET
+      # PRIVATE bucket — KYC/ihale/teklif/sipariş; public access KAPALI.
+      - key: R2_PRIVATE_BUCKET
+        sync: false
+      # PUBLIC bucket — yalnız profil görselleri; custom domain bağlı.
+      # DİKKAT: API token deploy'dan ÖNCE HER İKİ bucket'a yetkili olmalı,
+      # yoksa onModuleInit HeadBucket fail → app BOOT ETMEZ.
+      - key: R2_PUBLIC_BUCKET
         sync: false
       - key: R2_PUBLIC_BASE_URL
         sync: false

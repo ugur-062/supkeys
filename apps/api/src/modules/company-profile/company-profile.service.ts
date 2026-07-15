@@ -83,7 +83,7 @@ export class CompanyProfileService {
       id,
       fileName,
     );
-    const url = await this.storage.generatePresignedPut(key, mimeType);
+    const url = await this.storage.generatePresignedPut("public", key, mimeType);
     return { url, key };
   }
 

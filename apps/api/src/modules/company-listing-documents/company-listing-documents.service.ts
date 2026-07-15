@@ -160,7 +160,7 @@ export class CompanyListingDocumentsService {
     await this.assertEditable(listingId);
     const safe = input.fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 80);
     const key = `listing-docs/${listingId}/${crypto.randomUUID()}-${safe}`;
-    const url = await this.storage.generatePresignedPut(key, input.mimeType);
+    const url = await this.storage.generatePresignedPut("private", key, input.mimeType);
     return { url, key };
   }
 
@@ -187,7 +187,7 @@ export class CompanyListingDocumentsService {
       throw new BadRequestException("Sadece PDF, görsel veya Excel yüklenebilir");
     }
     assertSafeFileName(input.fileName);
-    await assertUploadedObjectValid(this.storage, input.key);
+    await assertUploadedObjectValid(this.storage, "private", input.key);
     const doc = await this.prisma.listingDocument.create({
       data: {
         listingId,
@@ -232,7 +232,7 @@ export class CompanyListingDocumentsService {
         mimeType: d.mimeType,
         createdAt: d.createdAt,
         mine: d.uploadedByCompanyId === user.companyId,
-        url: await this.storage.generatePresignedGet(d.key, d.fileName),
+        url: await this.storage.generatePresignedGet("private", d.key, d.fileName),
       })),
     );
   }
@@ -252,7 +252,7 @@ export class CompanyListingDocumentsService {
     }
     // Best-effort R2 silme; başarısız olursa DB satırı yine silinir ama
     // sahipsiz nesne izlenebilsin diye logla (sessiz yutma yok).
-    await this.storage.deleteObject(doc.key).catch((err) => {
+    await this.storage.deleteObject("private", doc.key).catch((err) => {
       this.logger.warn(
         `R2 nesnesi silinemedi (key=${doc.key}); sahipsiz kalabilir: ${
           err instanceof Error ? err.message : String(err)

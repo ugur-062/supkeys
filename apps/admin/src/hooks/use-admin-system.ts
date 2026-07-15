@@ -92,9 +92,9 @@ export function useClearSuppression() {
 }
 
 export interface StorageHealth {
-  bucket: string;
+  buckets: { public: string; private: string };
   envPrefix: string;
-  cors: unknown[];
+  cors: { public: unknown[]; private: unknown[] };
 }
 
 /** R2 bucket CORS debug (V2-2 endpoint'i — UI'sı ilk kez burada). */

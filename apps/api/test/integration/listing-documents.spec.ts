@@ -263,7 +263,7 @@ describe("remove", () => {
     const { owner, listing } = await ownerListing();
     const doc = await seedDoc(listing.id, owner.company.id);
     await service.remove(owner.auth, listing.id, doc.id);
-    expect(storage.deleteObject).toHaveBeenCalledWith(doc.key);
+    expect(storage.deleteObject).toHaveBeenCalledWith("private", doc.key);
     expect(
       await prisma.listingDocument.count({ where: { id: doc.id } }),
     ).toBe(0);
@@ -343,6 +343,6 @@ describe("yükleme doğrulaması (boyut/uzantı/hayalet)", () => {
         mimeType: "application/pdf",
       }),
     ).rejects.toThrow(/boyut/i);
-    expect(storage.deleteObject).toHaveBeenCalledWith(key);
+    expect(storage.deleteObject).toHaveBeenCalledWith("private", key);
   });
 });

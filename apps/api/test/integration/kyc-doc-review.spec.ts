@@ -13,7 +13,7 @@ function storageMock() {
     generatePresignedGet: jest.fn().mockResolvedValue("https://r2/get"),
     getPublicUrl: jest.fn((k: string) => `https://r2/${k}`),
     deleteObject: jest.fn(),
-    presignStoredObject: jest.fn(async (v: string | null) =>
+    presignStoredObject: jest.fn(async (_bucket: string, v: string | null) =>
       v ? `https://r2/presigned/${v}` : null,
     ),
     checkExists: jest.fn(async () => ({ exists: true, size: 1024 })),

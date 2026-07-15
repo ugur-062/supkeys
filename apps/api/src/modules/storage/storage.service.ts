@@ -24,9 +24,26 @@ const PUT_TTL_SECONDS = 15 * 60;
 const GET_TTL_SECONDS = 15 * 60;
 
 /**
+ * İki-bucket ayrımı (R2). Public erişim R2'da BUCKET seviyesindedir → hassas
+ * belgeler (KYC/teklif/ihale/sipariş) public bucket'ta OLAMAZ, aksi halde key'i
+ * bilen herkes imzasız çeker (presigned baypas). Bkz. docs/invariants.md
+ * INV-STORAGE-1.
+ *
+ * - "public"  → yalnız profil görselleri; custom domain (R2_PUBLIC_BASE_URL) ile
+ *               kalıcı public URL. Anahtar prefix'i `{env}/tenant-profile/`.
+ * - "private" → KYC/ihale/teklif/sipariş belgeleri; public access ASLA, yalnız
+ *               kısa-ömürlü presigned URL.
+ */
+export type BucketKind = "public" | "private";
+
+// Public bucket'a KOYULABİLECEK tek prefix (env-öneki HARİÇ). Allowlist: bunun
+// dışındaki HER key private kabul edilir (fail-closed).
+const PUBLIC_KEY_INFIX = "tenant-profile/";
+
+/**
  * Browser → R2 direct PUT/GET için bucket CORS policy gerekli.
  * R2 bucket default'unda CORS YOK; preflight fail → upload silently başarısız.
- * `onModuleInit`'te idempotent set ediyoruz.
+ * `onModuleInit`'te her iki bucket'a idempotent set ediyoruz.
  */
 const CORS_ALLOWED_METHODS: CORSRule["AllowedMethods"] = ["PUT", "GET", "HEAD"];
 const CORS_ALLOWED_HEADERS: CORSRule["AllowedHeaders"] = ["*"];
@@ -37,7 +54,8 @@ const CORS_MAX_AGE_SECONDS = 3600;
 export class StorageService implements OnModuleInit {
   private readonly logger = new Logger(StorageService.name);
   private client!: S3Client;
-  private bucket!: string;
+  private publicBucket!: string;
+  private privateBucket!: string;
   private envPrefix!: string;
 
   constructor(private readonly configService: ConfigService) {}
@@ -47,26 +65,35 @@ export class StorageService implements OnModuleInit {
     const accessKey = this.configService.get<string>("R2_ACCESS_KEY_ID");
     const secretKey = this.configService.get<string>("R2_SECRET_ACCESS_KEY");
     const endpoint = this.configService.get<string>("R2_ENDPOINT");
-    const bucket = this.configService.get<string>("R2_BUCKET");
+    // Geçiş uyumu: R2_PRIVATE_BUCKET yoksa legacy R2_BUCKET'e düş (eski deploy
+    // config'i "her şey tek/private bucket" olarak güvenle boot eder). Bilinmeyen
+    // → private (fail-closed). R2_PUBLIC_BUCKET yoksa private ile aynı bucket
+    // kullanılır (legacy tek-bucket davranışı birebir korunur).
+    const privateBucket =
+      this.configService.get<string>("R2_PRIVATE_BUCKET") ??
+      this.configService.get<string>("R2_BUCKET");
 
     if (
       !accountId ||
       !accessKey ||
       !secretKey ||
       !endpoint ||
-      !bucket ||
+      !privateBucket ||
       accountId.startsWith("<") ||
       accessKey.startsWith("<") ||
       secretKey.startsWith("<") ||
       endpoint.includes("<account-id>")
     ) {
       this.logger.error(
-        "R2 yapılandırması eksik veya placeholder. Root `.env` dosyasında (ConfigModule `envFilePath: '../../.env'`) R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET değerlerini doldur.",
+        "R2 yapılandırması eksik veya placeholder. Root `.env` dosyasında (ConfigModule `envFilePath: '../../.env'`) R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT ve R2_PRIVATE_BUCKET (+ R2_PUBLIC_BUCKET) değerlerini doldur.",
       );
       throw new InternalServerErrorException("R2 storage configuration missing");
     }
 
-    this.bucket = bucket;
+    this.privateBucket = privateBucket;
+    // R2_PUBLIC_BUCKET yoksa private ile aynı bucket (legacy tek-bucket davranışı).
+    this.publicBucket =
+      this.configService.get<string>("R2_PUBLIC_BUCKET") ?? privateBucket;
     this.envPrefix =
       this.configService.get<string>("NODE_ENV") === "production" ? "prod" : "dev";
 
@@ -77,36 +104,66 @@ export class StorageService implements OnModuleInit {
       forcePathStyle: false,
     });
 
-    try {
-      await this.client.send(new HeadBucketCommand({ Bucket: this.bucket }));
-      this.logger.log(
-        `R2 bucket "${this.bucket}" erişilebilir (env prefix: ${this.envPrefix})`,
-      );
-      await this.ensureCorsPolicy();
-    } catch (err) {
-      const e = err as {
-        name?: string;
-        message?: string;
-        Code?: string;
-        $metadata?: { httpStatusCode?: number };
-        $response?: { statusCode?: number };
-      };
-      const msg = e?.message ?? String(err);
-      const status = e?.$metadata?.httpStatusCode ?? e?.$response?.statusCode;
-      this.logger.error(
-        `R2 bucket erişilemiyor (name=${e?.name ?? "?"}, code=${e?.Code ?? "?"}, status=${status ?? "?"}): ${msg}. Endpoint=${endpoint}, Bucket=${this.bucket}.`,
-      );
-      throw new InternalServerErrorException("R2 bucket erişilemiyor");
+    // Her iki bucket'ı doğrula + CORS uygula. Aynı bucket ise (legacy tek-bucket)
+    // tekilleştir. DİKKAT: API token yeni bucket'a yetkisizse HeadBucket fail →
+    // app BOOT ETMEZ (fail-closed) — token izni deploy'dan ÖNCE genişletilmeli.
+    const buckets = Array.from(new Set([this.privateBucket, this.publicBucket]));
+    for (const bucket of buckets) {
+      try {
+        await this.client.send(new HeadBucketCommand({ Bucket: bucket }));
+        this.logger.log(
+          `R2 bucket "${bucket}" erişilebilir (env prefix: ${this.envPrefix})`,
+        );
+        await this.ensureCorsPolicy(bucket);
+      } catch (err) {
+        const e = err as {
+          name?: string;
+          message?: string;
+          Code?: string;
+          $metadata?: { httpStatusCode?: number };
+          $response?: { statusCode?: number };
+        };
+        const msg = e?.message ?? String(err);
+        const status = e?.$metadata?.httpStatusCode ?? e?.$response?.statusCode;
+        this.logger.error(
+          `R2 bucket erişilemiyor (name=${e?.name ?? "?"}, code=${e?.Code ?? "?"}, status=${status ?? "?"}): ${msg}. Endpoint=${endpoint}, Bucket=${bucket}. API token'ın bu bucket'a yetkili olduğunu kontrol et.`,
+        );
+        throw new InternalServerErrorException("R2 bucket erişilemiyor");
+      }
     }
   }
 
-  /**
-   * Storage key — `{env}/{tenantId}/{attachmentId}-{sanitizedFilename}`
-   */
-  buildKey(tenantId: string, attachmentId: string, originalFilename: string): string {
-    const sanitized = this.sanitizeFilename(originalFilename);
-    return `${this.envPrefix}/${tenantId}/${attachmentId}-${sanitized}`;
+  // ── Bucket / key sınıflandırma ────────────────────────────────────────────
+
+  private bucketName(kind: BucketKind): string {
+    return kind === "public" ? this.publicBucket : this.privateBucket;
   }
+
+  /**
+   * Anahtarın ait olduğu bucket'ı belirler. YALNIZ `{env}/tenant-profile/` public;
+   * diğer HER anahtar private (fail-closed). Bu, INV-STORAGE-1'in tek kaynağı.
+   */
+  classifyKey(key: string): BucketKind {
+    return key.startsWith(`${this.envPrefix}/${PUBLIC_KEY_INFIX}`)
+      ? "public"
+      : "private";
+  }
+
+  /**
+   * Savunma-derinliği: bir çağrının hedef bucket'ı, anahtarın sınıfıyla
+   * uyuşmuyorsa (ör. KYC anahtarı public bucket'a) fırlat. Kodlama hatasını
+   * runtime'da yakalar — hassas belge asla public düzleme yazılamaz.
+   */
+  private assertKeyBucket(kind: BucketKind, key: string): void {
+    const expected = this.classifyKey(key);
+    if (expected !== kind) {
+      throw new InternalServerErrorException(
+        `Storage bucket uyuşmazlığı: '${key}' anahtarı '${expected}' bucket'a ait ama '${kind}' istendi (INV-STORAGE-1).`,
+      );
+    }
+  }
+
+  // ── Anahtar üreticiler ────────────────────────────────────────────────────
 
   private sanitizeFilename(filename: string): string {
     return filename
@@ -116,24 +173,49 @@ export class StorageService implements OnModuleInit {
       .substring(0, 100) || "file";
   }
 
-  async generatePresignedPut(key: string, mimeType: string): Promise<string> {
+  /** Alıcı (tenant) public profil görsel key'lerinin firma-öznel prefix'i. */
+  buildTenantProfilePrefix(tenantId: string): string {
+    return `${this.envPrefix}/tenant-profile/${tenantId}/`;
+  }
+
+  /** Alıcı (tenant) public profil görselleri (logo/cover/gallery) için R2 key. */
+  buildTenantProfileKey(
+    tenantId: string,
+    kind: "cover" | "logo" | "gallery",
+    id: string,
+    originalFilename: string,
+  ): string {
+    const sanitized = this.sanitizeFilename(originalFilename);
+    return `${this.buildTenantProfilePrefix(tenantId)}${kind}-${id}-${sanitized}`;
+  }
+
+  // ── Yazma / okuma ─────────────────────────────────────────────────────────
+
+  async generatePresignedPut(
+    bucket: BucketKind,
+    key: string,
+    mimeType: string,
+  ): Promise<string> {
+    this.assertKeyBucket(bucket, key);
     const command = new PutObjectCommand({
-      Bucket: this.bucket,
+      Bucket: this.bucketName(bucket),
       Key: key,
       ContentType: mimeType,
     });
     return getSignedUrl(this.client, command, { expiresIn: PUT_TTL_SECONDS });
   }
 
-  /** Sunucu tarafı upload — buffer'ı doğrudan R2'ya yazar (web sitesi import vb.). */
+  /** Sunucu tarafı upload — buffer'ı doğrudan R2'ya yazar. */
   async putObject(
+    bucket: BucketKind,
     key: string,
     body: Buffer,
     contentType: string,
   ): Promise<void> {
+    this.assertKeyBucket(bucket, key);
     await this.client.send(
       new PutObjectCommand({
-        Bucket: this.bucket,
+        Bucket: this.bucketName(bucket),
         Key: key,
         Body: body,
         ContentType: contentType,
@@ -142,11 +224,13 @@ export class StorageService implements OnModuleInit {
   }
 
   async generatePresignedGet(
+    bucket: BucketKind,
     key: string,
     originalFilename?: string,
   ): Promise<string> {
+    this.assertKeyBucket(bucket, key);
     const command = new GetObjectCommand({
-      Bucket: this.bucket,
+      Bucket: this.bucketName(bucket),
       Key: key,
       ...(originalFilename && {
         ResponseContentDisposition: `attachment; filename="${encodeURIComponent(
@@ -157,10 +241,14 @@ export class StorageService implements OnModuleInit {
     return getSignedUrl(this.client, command, { expiresIn: GET_TTL_SECONDS });
   }
 
-  async checkExists(key: string): Promise<{ exists: boolean; size?: number }> {
+  async checkExists(
+    bucket: BucketKind,
+    key: string,
+  ): Promise<{ exists: boolean; size?: number }> {
+    this.assertKeyBucket(bucket, key);
     try {
       const result = await this.client.send(
-        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+        new HeadObjectCommand({ Bucket: this.bucketName(bucket), Key: key }),
       );
       return { exists: true, size: result.ContentLength };
     } catch (err) {
@@ -174,70 +262,30 @@ export class StorageService implements OnModuleInit {
     }
   }
 
-  async deleteObject(key: string): Promise<void> {
+  async deleteObject(bucket: BucketKind, key: string): Promise<void> {
+    this.assertKeyBucket(bucket, key);
     await this.client.send(
-      new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+      new DeleteObjectCommand({ Bucket: this.bucketName(bucket), Key: key }),
     );
-    this.logger.log(`Deleted: ${key}`);
+    this.logger.log(`Deleted (${bucket}): ${key}`);
   }
 
   getEnvPrefix(): string {
     return this.envPrefix;
   }
 
-  getBucketName(): string {
-    return this.bucket;
+  getBucketNames(): { public: string; private: string } {
+    return { public: this.publicBucket, private: this.privateBucket };
   }
 
   /**
-   * V2-PUBLIC-PROFILE — Tedarikçi public profili için R2 key üretici.
-   * Cover (tek) ve photo (galeri) için ayrı kind'lar.
-   * Pattern: `{env}/supplier-profile/{supplierId}/{kind}-{id}-{sanitized}`
-   */
-  buildSupplierProfileKey(
-    supplierId: string,
-    kind: "cover" | "photo" | "logo",
-    id: string,
-    originalFilename: string,
-  ): string {
-    const sanitized = this.sanitizeFilename(originalFilename);
-    return `${this.envPrefix}/supplier-profile/${supplierId}/${kind}-${id}-${sanitized}`;
-  }
-
-  /** G9 madde 26 — tedarikçi sertifika/belge dosyaları için R2 key. */
-  buildSupplierCertificateKey(
-    supplierId: string,
-    id: string,
-    originalFilename: string,
-  ): string {
-    const sanitized = this.sanitizeFilename(originalFilename);
-    return `${this.envPrefix}/supplier-certificates/${supplierId}/${id}-${sanitized}`;
-  }
-
-  /** Alıcı (tenant) public profil görsel key'lerinin firma-öznel prefix'i. */
-  buildTenantProfilePrefix(tenantId: string): string {
-    return `${this.envPrefix}/tenant-profile/${tenantId}/`;
-  }
-
-  /** Alıcı (tenant) public profil görselleri (logo/cover) için R2 key. */
-  buildTenantProfileKey(
-    tenantId: string,
-    kind: "cover" | "logo" | "gallery",
-    id: string,
-    originalFilename: string,
-  ): string {
-    const sanitized = this.sanitizeFilename(originalFilename);
-    return `${this.buildTenantProfilePrefix(tenantId)}${kind}-${id}-${sanitized}`;
-  }
-
-  /**
-   * Persistent public URL — `R2_PUBLIC_BASE_URL` set edilmişse (Cloudflare R2
-   * public bucket veya custom domain) doğrudan URL döner. Aksi null →
-   * caller presigned GET'e fallback yapar (kısa TTL, public profil için
-   * ideal değil; production'da env doldurulmalı).
+   * Kalıcı public URL — YALNIZ public-sınıf anahtarlar için (`{env}/tenant-profile/`).
+   * INV-STORAGE-1: hassas (private) anahtar public URL'e ÇEVRİLEMEZ → daima `null`.
+   * `R2_PUBLIC_BASE_URL` set değilse de `null` (caller presigned public'e fallback).
    */
   getPublicUrl(key: string | null | undefined): string | null {
     if (!key) return null;
+    if (this.classifyKey(key) !== "public") return null; // INV-STORAGE-1
     const base = this.configService.get<string>("R2_PUBLIC_BASE_URL");
     if (!base) return null;
     const normalized = base.replace(/\/$/, "");
@@ -245,12 +293,12 @@ export class StorageService implements OnModuleInit {
   }
 
   /**
-   * DB'de saklanan bir belge değeri (key veya legacy tam public URL) için kısa
-   * ömürlü presigned GET üretir. KYC gibi HASSAS belgeler kalıcı public URL
-   * yerine bununla sunulur. Legacy tam URL ise key'i domain'den sonra çıkarır.
-   * Boş/çözülemezse null.
+   * DB'de saklanan bir belge değeri (key veya legacy tam URL) için kısa ömürlü
+   * presigned GET üretir. KYC gibi HASSAS belgeler bununla (private bucket)
+   * sunulur. Legacy tam URL ise key'i domain'den sonra çıkarır. Boş/çözülemezse null.
    */
   async presignStoredObject(
+    bucket: BucketKind,
     value: string | null | undefined,
     originalFilename?: string,
   ): Promise<string | null> {
@@ -264,12 +312,15 @@ export class StorageService implements OnModuleInit {
       key = decodeURIComponent(afterScheme.slice(slash + 1).split("?")[0]!);
     }
     if (!key) return null;
-    return this.generatePresignedGet(key, originalFilename);
+    return this.generatePresignedGet(bucket, key, originalFilename);
   }
 
   /**
-   * Public URL varsa onu; yoksa presigned GET (1 saat TTL). Public profil
-   * cover/galeri render'ında kullanılır.
+   * Public URL varsa onu; yoksa presigned GET (public bucket, 15 dk TTL). Public
+   * profil cover/galeri render'ında kullanılır. INV-STORAGE-1: yalnız public-sınıf
+   * anahtarlarda anlamlıdır — private anahtar için `getPublicUrl` null döner ve
+   * presigned de private değil public bucket'tan üretilir (assertKeyBucket ile
+   * private anahtar buraya gelirse fırlatır).
    */
   async resolveImageUrl(
     key: string | null | undefined,
@@ -277,21 +328,20 @@ export class StorageService implements OnModuleInit {
     if (!key) return null;
     const publicUrl = this.getPublicUrl(key);
     if (publicUrl) return publicUrl;
-    return this.generatePresignedGet(key);
+    return this.generatePresignedGet("public", key);
   }
 
-  /**
-   * Mevcut bucket CORS policy'sini oku. Set edilmemişse [].
-   */
-  async getBucketCorsConfig(): Promise<CORSRule[]> {
+  // ── CORS ──────────────────────────────────────────────────────────────────
+
+  /** Mevcut bucket CORS policy'sini oku. Set edilmemişse []. */
+  async getBucketCorsConfig(bucket: BucketKind): Promise<CORSRule[]> {
     try {
       const result = await this.client.send(
-        new GetBucketCorsCommand({ Bucket: this.bucket }),
+        new GetBucketCorsCommand({ Bucket: this.bucketName(bucket) }),
       );
       return result.CORSRules ?? [];
     } catch (err) {
       const e = err as { name?: string; Code?: string };
-      // R2'de policy yoksa NoSuchCORSConfiguration döner
       if (e?.name === "NoSuchCORSConfiguration" || e?.Code === "NoSuchCORSConfiguration") {
         return [];
       }
@@ -301,13 +351,8 @@ export class StorageService implements OnModuleInit {
 
   /**
    * Allowed origin'leri `CORS_ORIGINS` env'inden okur — backend CORS ile aynı set.
-   * Tedarikçi paneli + alıcı paneli aynı host'ta (apps/web), admin ayrı host
-   * (apps/admin) — ikisini de kapsar. Ek olarak REST/WS CORS'la simetrik şekilde
-   * tüm Vercel deploy/preview origin'leri (S3/R2 tek `*` wildcard destekler)
-   * izinli — aksi halde tarayıcı-direkt presigned PUT/GET Vercel domain'inden
-   * R2 tarafından bloklanır; bucket konsolundan elle düzeltmek de tutmaz çünkü
-   * ensureCorsPolicy her boot'ta bu listeyi yeniden yazar. Güvenlik sınırı CORS
-   * değil presigned imzanın kendisidir.
+   * Ek olarak tüm Vercel deploy/preview origin'leri izinli (S3/R2 tek `*` wildcard
+   * destekler). Güvenlik sınırı CORS değil BUCKET AYRIMI + presigned imzadır.
    */
   private buildAllowedOrigins(): string[] {
     const raw = this.configService.get<string>(
@@ -324,10 +369,8 @@ export class StorageService implements OnModuleInit {
     return origins;
   }
 
-  /**
-   * Idempotent — istenen config zaten kuruluysa skip, değilse PutBucketCors.
-   */
-  private async ensureCorsPolicy(): Promise<void> {
+  /** Idempotent — istenen config zaten kuruluysa skip, değilse PutBucketCors. */
+  private async ensureCorsPolicy(bucketName: string): Promise<void> {
     const desired: CORSRule[] = [
       {
         AllowedOrigins: this.buildAllowedOrigins(),
@@ -338,10 +381,10 @@ export class StorageService implements OnModuleInit {
       },
     ];
 
-    const current = await this.getBucketCorsConfig();
+    const current = await this.rawCors(bucketName);
     if (this.corsRulesEqual(current, desired)) {
       this.logger.log(
-        `R2 bucket CORS policy güncel (origins: ${desired[0]!.AllowedOrigins?.join(", ")})`,
+        `R2 bucket "${bucketName}" CORS policy güncel (origins: ${desired[0]!.AllowedOrigins?.join(", ")})`,
       );
       return;
     }
@@ -349,24 +392,38 @@ export class StorageService implements OnModuleInit {
     try {
       await this.client.send(
         new PutBucketCorsCommand({
-          Bucket: this.bucket,
+          Bucket: bucketName,
           CORSConfiguration: { CORSRules: desired },
         }),
       );
       this.logger.log(
-        `R2 bucket CORS policy ${current.length === 0 ? "kuruldu" : "güncellendi"} (origins: ${desired[0]!.AllowedOrigins?.join(", ")})`,
+        `R2 bucket "${bucketName}" CORS policy ${current.length === 0 ? "kuruldu" : "güncellendi"} (origins: ${desired[0]!.AllowedOrigins?.join(", ")})`,
       );
     } catch (err) {
       const e = err as { name?: string; message?: string };
       this.logger.warn(
-        `R2 bucket CORS policy set edilemedi (${e?.name ?? "?"}): ${e?.message ?? String(err)}. Browser uploadları başarısız olabilir; token'ın PutBucketCors izni olduğunu kontrol et.`,
+        `R2 bucket "${bucketName}" CORS policy set edilemedi (${e?.name ?? "?"}): ${e?.message ?? String(err)}. Browser uploadları başarısız olabilir; token'ın PutBucketCors izni olduğunu kontrol et.`,
       );
     }
   }
 
-  /**
-   * Sıralamadan bağımsız basit equality — set'lerin aynı olup olmadığına bakar.
-   */
+  /** Ham (bucket adıyla) CORS okuma — hem init hem debug endpoint için. */
+  private async rawCors(bucketName: string): Promise<CORSRule[]> {
+    try {
+      const result = await this.client.send(
+        new GetBucketCorsCommand({ Bucket: bucketName }),
+      );
+      return result.CORSRules ?? [];
+    } catch (err) {
+      const e = err as { name?: string; Code?: string };
+      if (e?.name === "NoSuchCORSConfiguration" || e?.Code === "NoSuchCORSConfiguration") {
+        return [];
+      }
+      throw err;
+    }
+  }
+
+  /** Sıralamadan bağımsız basit equality — set'lerin aynı olup olmadığına bakar. */
   private corsRulesEqual(a: CORSRule[], b: CORSRule[]): boolean {
     if (a.length !== b.length) return false;
     const norm = (rules: CORSRule[]) =>

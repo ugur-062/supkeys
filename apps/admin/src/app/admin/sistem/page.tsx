@@ -215,7 +215,7 @@ function SistemView() {
             </p>
             <p className="text-admin-text text-sm font-semibold">
               {storage.data
-                ? `${storage.data.bucket} (${storage.data.envPrefix})`
+                ? `${storage.data.buckets.public} + ${storage.data.buckets.private} (${storage.data.envPrefix})`
                 : storage.isError
                   ? "Erişilemiyor"
                   : "…"}

@@ -111,6 +111,15 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
 
 ---
 
+## 6. Depolama (R2 bucket ayrımı)
+
+- **INV-STORAGE-1** — Kalıcı public URL YALNIZ `{env}/tenant-profile/` prefix'li (profil görseli) anahtarlara uygulanabilir; diğer HER anahtar private'tır ve public URL'e ÇEVRİLEMEZ (fail-closed). Somut: `StorageService.getPublicUrl`/`resolveImageUrl`, `classifyKey(key) !== "public"` için daima `null` döner (`storage.service.ts`). Bu, KYC (`company-docs/`), ihale (`listing-docs/`), teklif (`listing-bids/` — kapalı zarf) ve sipariş (`company-orders/`) belgelerinin imzasız ifşasının kalıcı kilididir.
+  - *Zorlama (savunma-derinliği):* public erişim R2'da BUCKET seviyesindedir → hassas belgeler PUBLIC bucket'a hiç yazılmaz. Her PUT/GET/delete/checkExists çağrısı açık `BucketKind` alır ve `assertKeyBucket` ile anahtar-sınıfıyla uyumu doğrulanır: KYC anahtarını public bucket'a yazma denemesi runtime'da fırlatır. Tek kaynak `classifyKey` (`storage.service.ts`); allowlist yalnız `{env}/tenant-profile/`.
+  - *Kanıt/regresyon:* `test/unit/storage.service.spec.ts` — `getPublicUrl(company-docs/…)` → `null`; her prefix için `classifyKey` doğru bucket; doc anahtarıyla public PUT → throw.
+  - *Presigned baypas riski:* presigned URL key'i path'te taşır; bucket public olsaydı query atılınca kalıcı imzasız erişim kalırdı (TTL etkisiz). Ayrım tam da bunu keser. Bkz. `docs/r2-bucket-split.md`.
+
+---
+
 ## Karşılanmamış hedefler (henüz sağlanmıyor — kural DEĞİL)
 
 - **INV-MT-5 (HEDEF)** — Merkezi tenant-scope zorlaması (Prisma middleware / Postgres RLS) henüz yok; bölüm 1'e bakınız.

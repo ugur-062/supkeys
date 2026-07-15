@@ -372,12 +372,12 @@ export class AdminCompaniesService {
       docIdFrontUrl,
       docIdBackUrl,
     ] = await Promise.all([
-      this.storage.presignStoredObject(c.docTaxPlateUrl),
-      this.storage.presignStoredObject(c.docTradeRegistryUrl),
-      this.storage.presignStoredObject(c.docSignatureCircularUrl),
-      this.storage.presignStoredObject(c.docActivityCertUrl),
-      this.storage.presignStoredObject(c.docIdFrontUrl),
-      this.storage.presignStoredObject(c.docIdBackUrl),
+      this.storage.presignStoredObject("private", c.docTaxPlateUrl),
+      this.storage.presignStoredObject("private", c.docTradeRegistryUrl),
+      this.storage.presignStoredObject("private", c.docSignatureCircularUrl),
+      this.storage.presignStoredObject("private", c.docActivityCertUrl),
+      this.storage.presignStoredObject("private", c.docIdFrontUrl),
+      this.storage.presignStoredObject("private", c.docIdBackUrl),
     ]);
     return {
       ...c,

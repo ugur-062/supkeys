@@ -82,11 +82,14 @@ export class HealthController {
   @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
   @AllowAnyAdminRole()
   async storageHealth() {
-    const cors = await this.storage.getBucketCorsConfig();
+    const [publicCors, privateCors] = await Promise.all([
+      this.storage.getBucketCorsConfig("public"),
+      this.storage.getBucketCorsConfig("private"),
+    ]);
     return {
-      bucket: this.storage.getBucketName(),
+      buckets: this.storage.getBucketNames(),
       envPrefix: this.storage.getEnvPrefix(),
-      cors,
+      cors: { public: publicCors, private: privateCors },
     };
   }
 }
