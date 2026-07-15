@@ -109,7 +109,7 @@ Yapılan audit'ler:
 - ✅ Console.log → NestJS Logger (production)
 - ✅ Structured logger (Pino + redact) + Sentry entegre; kritik-audit kaybı + webhook imza hataları `reportToSentry()` ile Sentry'e bağlı (fırlatılmayan logler SentryGlobalFilter'a takılmıyordu)
 - ⏳ Bekleyen: alert webhook, audit_logs populate, CSP (helmet), V2 httpOnly cookie auth; fast-follow: correlation-id, log drain, frontend Sentry
-- 🚀 **Launch checklist:** Prod deploy öncesi `SENTRY_DSN` **set edilmeli** — boşsa error tracking + kritik-audit/webhook alarmları tümüyle pasif (no-op). Bkz. `.env.production.example` Gözlemlenebilirlik bloğu.
+- 🚀 **Launch checklist:** Prod deploy öncesi ödeme/plan + env + doğrulama adımları → **`docs/launch-checklist.md`**. Kritik: `SENTRY_DSN` boşsa error tracking + kritik-audit/webhook alarmları tümüyle pasif (sessiz no-op — tek fail-open servis); Supabase/R2/Resend env'leri eksikse app boot etmez (fail-closed).
 
 ---
 
