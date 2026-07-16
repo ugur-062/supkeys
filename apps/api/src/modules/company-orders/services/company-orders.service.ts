@@ -38,6 +38,13 @@ import {
 } from "../../notifications/notification.service";
 import { RealtimeService } from "../../realtime/realtime.service";
 
+/**
+ * Sipariş listesi tavanı — client-side işlenen liste (OrdersList) full-set ister.
+ * Eski 200 tavanı 200+ siparişli firmanın eski kayıtlarını erişilemez kılıyordu.
+ * ~800'e yaklaşınca liste server-driven'a taşınmalı (bkz. list() JSDoc'u).
+ */
+const ORDERS_LIST_CAP = 1000;
+
 @Injectable()
 export class CompanyOrdersService {
   private readonly logger = new Logger(CompanyOrdersService.name);
@@ -1546,19 +1553,47 @@ export class CompanyOrdersService {
     };
   }
 
-  /** Firmanın siparişleri — hem satıcı hem alıcı olduğu, role etiketli. */
+  /**
+   * Firmanın siparişleri — hem satıcı hem alıcı olduğu, role etiketli.
+   *
+   * Liste TAMAMEN client-side işleniyor (OrdersList: KPI/filtre/arama/sıralama/
+   * sayfalama hepsi full-set üzerinden). Bu yüzden burada sayfalama YOK; tavan
+   * `ORDERS_LIST_CAP` ile büyütüldü (eski 200 tavanı 200+ siparişli firmanın eski
+   * kayıtlarına erişimi kesiyordu — latency değil, veri erişilemezliği).
+   *
+   * Tavan yükselince aşırı-veri-çekme kritik oldu: `select` yalnız serialize()'ın
+   * kullandığı alanları çeker (eski include tüm kolonları — JSON adres, IBAN,
+   * notlar, lc-damgaları — getiriyordu → 1000 şişkin satır = gereksiz payload).
+   *
+   * TETİKLEYİCİ (server-side'a geçiş): bir firma ~800 siparişe yaklaşınca veya
+   * liste render'ı hissedilir yavaşlayınca OrdersList server-driven'a taşınmalı
+   * (filtre/arama/sıralama/KPI/sayaçlar backend'e). Bkz. docs/perf-notes.md.
+   */
   async list(companyId: string) {
     const rows = await this.prisma.companyOrder.findMany({
       where: {
         OR: [{ sellerCompanyId: companyId }, { buyerCompanyId: companyId }],
       },
-      include: {
+      select: {
+        id: true,
+        number: true,
+        amount: true,
+        currency: true,
+        status: true,
+        sellerCompanyId: true,
+        buyerCompanyId: true,
+        listingId: true,
+        createdAt: true,
+        deliveryTerm: true,
+        paymentCategory: true,
+        paymentDays: true,
+        advancePercent: true,
         seller: { select: { name: true } },
         buyer: { select: { name: true } },
         listing: { select: { title: true, type: true, number: true } },
       },
       orderBy: { createdAt: "desc" },
-      take: 200,
+      take: ORDERS_LIST_CAP,
     });
     return rows.map((o) => this.serialize(o, companyId));
   }

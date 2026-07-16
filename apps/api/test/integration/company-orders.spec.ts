@@ -111,6 +111,42 @@ describe("sipariş para birimi + yeni liste/detay alanları", () => {
   });
 });
 
+describe("list() — daraltılmış select serialize alanlarını KORUR", () => {
+  it("deliveryTerm/paymentCategory/paymentDays/advancePercent liste satırında gelir (over-fetch daraltması alan düşürmedi)", async () => {
+    const { orders } = makeOrdersService();
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: seller.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 1500,
+        currency: "TRY",
+        status: "ACCEPTED",
+        deliveryTerm: "EXW",
+        paymentCategory: "DEFERRED",
+        paymentDays: 45,
+        advancePercent: 20,
+      },
+    });
+
+    const rows = await orders.list(seller.company.id);
+    expect(rows).toHaveLength(1);
+    const r = rows[0]!;
+    // Eskiden full-include ile gelen, artık explicit select'teki alanlar:
+    expect(r.deliveryTerm).toBe("EXW");
+    expect(r.paymentCategory).toBe("DEFERRED");
+    expect(r.paymentDays).toBe(45);
+    expect(r.advancePercent).toBe(20);
+    // Çekirdek + relation-türevi alanlar da tam:
+    expect(r.role).toBe("seller");
+    expect(r.amount).toBe("1500");
+    expect(r.currency).toBe("TRY");
+    expect(r.counterpartyCompanyId).toBe(buyer.company.id);
+    expect(r.counterparty).toBe(buyer.company.name);
+  });
+});
+
 describe("SATIS kalem-bazlı kazandırma — sipariş yönü", () => {
   it("her kazanan alıcıya ayrı sipariş: satıcı=ilan sahibi, alıcı=teklifçi, birim=teklifin", async () => {
     const { service } = makeService();
