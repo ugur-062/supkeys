@@ -2657,24 +2657,48 @@ export class CompanyListingsService {
    * Sipariş için teslimat adresi snapshot'ı (award anında çekilir — adres
    * defteri sonradan değişse/silinse de sipariş sabit kalır).
    */
+  private static readonly ADDRESS_SNAPSHOT_SELECT = {
+    title: true,
+    contactName: true,
+    phone: true,
+    country: true,
+    city: true,
+    district: true,
+    addressLine: true,
+    postalCode: true,
+  } as const;
+
   private async orderDeliverySnapshot(
     addressId: string | null,
   ): Promise<Prisma.InputJsonValue | undefined> {
     if (!addressId) return undefined;
     const a = await this.prisma.companyAddress.findUnique({
       where: { id: addressId },
-      select: {
-        title: true,
-        contactName: true,
-        phone: true,
-        country: true,
-        city: true,
-        district: true,
-        addressLine: true,
-        postalCode: true,
-      },
+      select: CompanyListingsService.ADDRESS_SNAPSHOT_SELECT,
     });
     return a ? (a as Prisma.InputJsonValue) : undefined;
+  }
+
+  /**
+   * Perf (N+1): birden çok teslim adresinin snapshot'ını TEK sorguda çözer
+   * (kalem-bazlı SATIS kazandırmasında per-kazanan findUnique yerine). Dönen
+   * Map addressId → snapshot; null/silinmiş adres Map'te yer almaz.
+   */
+  private async orderDeliverySnapshots(
+    addressIds: (string | null)[],
+  ): Promise<Map<string, Prisma.InputJsonValue>> {
+    const ids = [...new Set(addressIds.filter((x): x is string => !!x))];
+    const out = new Map<string, Prisma.InputJsonValue>();
+    if (ids.length === 0) return out;
+    const rows = await this.prisma.companyAddress.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, ...CompanyListingsService.ADDRESS_SNAPSHOT_SELECT },
+    });
+    for (const r of rows) {
+      const { id, ...snap } = r;
+      out.set(id, snap as Prisma.InputJsonValue);
+    }
+    return out;
   }
 
   async placeBid(user: AuthenticatedCompanyUser, id: string, dto: PlaceBidDto) {
@@ -4090,15 +4114,19 @@ export class CompanyListingsService {
       if (validBids !== winningBidIds.length) {
         throw new BadRequestException("Geçersiz teklif");
       }
-      for (const bidId of winningBidIds) {
-        const docCount = await this.prisma.listingBidDocument.count({
-          where: { bidId },
-        });
-        if (docCount === 0) {
-          throw new BadRequestException(
-            "Belge zorunlu — kazanan teklifin yüklü belgesi yok",
-          );
-        }
+      // Perf (N+1): per-bid count yerine TEK groupBy — belgesi olan bidId kümesi.
+      const docCounts = await this.prisma.listingBidDocument.groupBy({
+        by: ["bidId"],
+        where: { bidId: { in: winningBidIds } },
+        _count: { _all: true },
+      });
+      const bidsWithDoc = new Set(
+        docCounts.filter((d) => d._count._all > 0).map((d) => d.bidId),
+      );
+      if (winningBidIds.some((id) => !bidsWithDoc.has(id))) {
+        throw new BadRequestException(
+          "Belge zorunlu — kazanan teklifin yüklü belgesi yok",
+        );
       }
     }
 
@@ -4318,10 +4346,17 @@ export class CompanyListingsService {
         where: { id: { in: winningBidIds } },
         select: { bidderCompanyId: true, deliveryAddressId: true },
       });
+      // Perf (N+1): tüm kazanan adreslerinin snapshot'ı TEK sorguda, sonra
+      // bellekte eşle (eski per-kazanan findUnique yerine).
+      const snaps = await this.orderDeliverySnapshots(
+        winBids.map((w) => w.deliveryAddressId),
+      );
       for (const wb of winBids) {
         deliveryByCompany.set(
           wb.bidderCompanyId,
-          await this.orderDeliverySnapshot(wb.deliveryAddressId),
+          wb.deliveryAddressId
+            ? snaps.get(wb.deliveryAddressId)
+            : undefined,
         );
       }
     }
@@ -4869,8 +4904,14 @@ export class CompanyListingsService {
       : "Devam etmek için";
 
     const sym = (c: string) => (c === "TRY" ? "₺" : c);
+    // Perf (N+1): tüm carried+expired bidder alıcıları TEK batch'te çözülür
+    // (eski per-bidder companyRecipient yerine — 630/5373'teki doğru desen).
+    const recipients = await this.companyRecipients(
+      [...carried.map((c) => c.companyId), ...expiredCompanyIds],
+      portal,
+    );
     for (const c of carried) {
-      const recipient = await this.companyRecipient(c.companyId, portal);
+      const recipient = recipients.get(c.companyId) ?? null;
       const body = `${label} ihalesinde ${roundName} açıldı. ${Number(c.amount).toLocaleString("tr-TR")} ${sym(c.currency)} teklifiniz geçerlilik süresi devam ettiği için aynen taşındı — dilerseniz fiyatınızı ${isSatis ? "artırabilirsiniz" : "düşürebilirsiniz"}.`;
       if (recipient) {
         this.notify(
@@ -4896,7 +4937,7 @@ export class CompanyListingsService {
       });
     }
     for (const companyId of expiredCompanyIds) {
-      const recipient = await this.companyRecipient(companyId, portal);
+      const recipient = recipients.get(companyId) ?? null;
       const body = `${label} ihalesinde ${roundName} açıldı ancak önceki teklifinizin geçerlilik süresi dolduğu için teklifiniz taşınamadı. ${opensText} yeni fiyat verin ya da mevcut teklifinizin geçerlilik süresini uzatın.`;
       if (recipient) {
         this.notify(
