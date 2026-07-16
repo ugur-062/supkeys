@@ -247,6 +247,9 @@ model AuditLog {
   @@index([tenantId, createdAt])
   @@index([action, createdAt])
   @@index([actorId])
+  // Perf: admin liste varsayılan sıralaması (orderBy createdAt, filtresiz);
+  // append-only yüksek hacim (INV-AUDIT-1 dalga 1+2).
+  @@index([createdAt])
   @@map("audit_logs")
 }
 
@@ -390,6 +393,8 @@ model Company {
   updatedAt DateTime @updatedAt
 
   @@index([tier, isActive, country])
+  // Perf: admin KYC kuyruğu (where companyVerificationStatus) + groupBy.
+  @@index([companyVerificationStatus])
   @@map("companies")
 }
 
@@ -413,8 +418,10 @@ model MessageThread {
   updatedAt DateTime @updatedAt
 
   @@unique([buyerCompanyId, sellerCompanyId])
-  @@index([buyerCompanyId])
-  @@index([sellerCompanyId])
+  // Perf: inbox (where OR[buyer,seller] orderBy lastMessageAt). FK-index'leri
+  // sort kolonuyla GENİŞLETİLDİ (prefix eski point-lookup'ı karşılar).
+  @@index([buyerCompanyId, lastMessageAt])
+  @@index([sellerCompanyId, lastMessageAt])
   @@map("message_threads")
 }
 
@@ -731,8 +738,12 @@ model CompanyOrder {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([sellerCompanyId])
-  @@index([buyerCompanyId])
+  // Perf: cron global-scan (where status) + dashboard/inbox per-firma status
+  // filtreleri. FK-index'leri status'la GENİŞLETİLDİ (prefix eski kullanımı
+  // karşılar → net yeni index yalnız [status]).
+  @@index([status])
+  @@index([sellerCompanyId, status])
+  @@index([buyerCompanyId, status])
   @@index([listingId])
   @@map("company_orders")
 }
@@ -901,7 +912,9 @@ model ListingBid {
 
   @@unique([listingId, bidderCompanyId])
   @@index([listingId])
-  @@index([bidderCompanyId])
+  // Perf: "tekliflerim" (where bidderCompanyId,status). FK-index GENİŞLETİLDİ
+  // (yazma-yoğun tablo → yeni index yerine mevcudu genişlet).
+  @@index([bidderCompanyId, status])
   @@index([listingId, status])
   @@map("listing_bids")
 }
@@ -1181,8 +1194,11 @@ model Listing {
   updatedAt DateTime @updatedAt
 
   @@index([companyId])
-  @@index([status])
-  @@index([companyId, type])
+  // Perf: keşif açık-feed (where status=OPEN orderBy closesAt) + dashboard
+  // (where companyId,type,status). Mevcut [status] ve [companyId,type]
+  // GENİŞLETİLDİ (prefix eski kullanımı karşılar).
+  @@index([status, closesAt])
+  @@index([companyId, type, status])
   @@map("listings")
 }
 
