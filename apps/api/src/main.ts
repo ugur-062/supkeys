@@ -82,7 +82,10 @@ async function bootstrap() {
       }
     },
   });
-  app.useBodyParser("urlencoded", { limit: "5mb", extended: true });
+  // NOT: urlencoded body parser KALDIRILDI (güvenlik) — hiçbir endpoint form/
+  // urlencoded gövde beklemiyordu (zero consumers, grep-verified); JSON-only API.
+  // Parser'ı tutmak, form-urlencoded'ın *simple request* olması nedeniyle
+  // preflight'sız <form method=POST> CSRF yüzeyini açık tutuyordu.
 
   // Security audit K-2 — defense-in-depth HTTP security headers.
   // CSP Next/React inline script'lerle çakışmasın diye kapalı (frontend zaten
