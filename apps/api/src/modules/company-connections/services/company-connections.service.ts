@@ -14,6 +14,7 @@ import { CompanyBlocksService } from "../../company-blocks/company-blocks.servic
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { EmailService } from "../../email/email.service";
 import { NotificationService } from "../../notifications/notification.service";
+import { resolveWebUrl } from "../../../common/config/web-url";
 
 type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
 
@@ -134,7 +135,7 @@ export class CompanyConnectionsService {
     });
 
     const baseUrl =
-      this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+      resolveWebUrl(this.config);
     const registerUrl = `${baseUrl}/company/kayit?ref=${inv.token}`;
 
     this.email
@@ -350,7 +351,7 @@ export class CompanyConnectionsService {
         ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
         : c.name;
       const baseUrl =
-        this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+        resolveWebUrl(this.config);
       await this.email.send({
         to: { email, name },
         subject,

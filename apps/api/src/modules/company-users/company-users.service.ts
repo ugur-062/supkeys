@@ -21,6 +21,7 @@ import {
 } from "../company-auth/permissions/company-permissions.constants";
 import { EmailService } from "../email/email.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
+import { resolveWebUrl } from "../../common/config/web-url";
 import {
   AcceptCompanyInvitationDto,
   InviteCompanyUserDto,
@@ -340,7 +341,7 @@ export class CompanyUsersService {
       `${inviter?.firstName ?? ""} ${inviter?.lastName ?? ""}`.trim() ||
       inv.company.name;
     const baseUrl = (
-      this.config.get<string>("WEB_URL") ?? "http://localhost:3000"
+      resolveWebUrl(this.config)
     ).replace(/\/$/, "");
     const acceptUrl = `${baseUrl}/company/davet/${inv.token}`;
     try {

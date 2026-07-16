@@ -12,6 +12,7 @@ import { CompanyBlocksService } from "../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { EmailService } from "../email/email.service";
 import { RealtimeService } from "../realtime/realtime.service";
+import { resolveWebUrl } from "../../common/config/web-url";
 
 /**
  * Portal — mesajlaşma bağımsızlığının anahtarı. Satınalma'da firma ALICI
@@ -63,7 +64,7 @@ export class CompanyMessagesService {
         ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
         : c.name;
       const baseUrl =
-        this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+        resolveWebUrl(this.config);
       const subject = `${senderName} size mesaj gönderdi`;
       await this.email.send({
         to: { email, name },

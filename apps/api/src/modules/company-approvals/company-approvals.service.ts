@@ -15,6 +15,7 @@ import type { AuthenticatedCompanyUser } from "../company-auth/strategies/compan
 import { AuditService } from "../audit/audit.service";
 import { EmailService } from "../email/email.service";
 import { NotificationService } from "../notifications/notification.service";
+import { resolveWebUrl } from "../../common/config/web-url";
 import {
   CreateApprovalFlowDto,
   DecideApprovalDto,
@@ -85,7 +86,7 @@ export class CompanyApprovalsService {
     const prefs = approver.notificationPrefs as Record<string, boolean> | null;
     if (!isNotificationEnabled(prefs, "approval_pending")) return;
     const webUrl =
-      this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+      resolveWebUrl(this.config);
     // In-app kanal — onaycı kullanıcısına. Best-effort: yazım hatası (ör.
     // kullanıcı bu arada silindi) onay akışını çökertmesin.
     await this.notifications
@@ -178,7 +179,7 @@ export class CompanyApprovalsService {
     if (!creator) return;
     const approved = decision === "APPROVED";
     const webUrl =
-      this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+      resolveWebUrl(this.config);
     const title = approved ? "Onay isteğiniz onaylandı" : "Onay isteğiniz reddedildi";
     const body = `"${listing?.title ?? "İhale"}" (${listing?.number ?? "—"}) için başlattığınız onay isteği ${
       approved ? "onaylandı ve işlem uygulandı" : "reddedildi"

@@ -17,6 +17,7 @@ import { Logger as PinoLogger } from "nestjs-pino";
 import { AppModule } from "./app.module";
 import { isCorsOriginAllowed } from "./common/cors-origin";
 import { checkJwtSecret } from "./common/config/jwt-secret";
+import { assertProdWebUrl } from "./common/config/web-url";
 import { translateValidatorMessage } from "./common/error-messages";
 
 async function bootstrap() {
@@ -60,6 +61,11 @@ async function bootstrap() {
         jwtSecret.length,
     );
   }
+
+  // WEB_URL fail-open → fail-closed: prod'da WEB_URL unset/localhost ise BOOT
+  // ETME. Aksi halde tüm e-posta linkleri (reset/davet/doğrulama) sessizce
+  // localhost'a düşüp ölü link gönderirdi (bkz. common/config/web-url.ts).
+  assertProdWebUrl(config);
 
   // Security audit Y-3 — Body parser limit 25MB → 5MB (saldırı yüzeyi
   // düşürüldü). Vergi levhası ve doc upload'ları için 5MB makul — TR

@@ -20,6 +20,7 @@ import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { EmailService } from "../email/email.service";
 import { NotificationService } from "../notifications/notification.service";
+import { resolveWebUrl } from "../../common/config/web-url";
 
 @Injectable()
 export class AdminCompaniesService {
@@ -46,7 +47,7 @@ export class AdminCompaniesService {
     cta?: { label: string; path: string },
   ) {
     const baseUrl =
-      this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+      resolveWebUrl(this.config);
     const ctaUrl = `${baseUrl}${cta?.path ?? "/company"}`;
     const ctaLabel = cta?.label ?? "Rothern'e Git";
     // In-app (portal-nötr → her iki panelde görünür).
@@ -102,7 +103,7 @@ export class AdminCompaniesService {
     cta?: { label: string; path: string },
   ) {
     const baseUrl =
-      this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+      resolveWebUrl(this.config);
     const ctaUrl = `${baseUrl}${cta?.path ?? "/company"}`;
     const ctaLabel = cta?.label ?? "Rothern'e Git";
     const email = company.billingEmail || company.users[0]?.email;
@@ -1124,7 +1125,7 @@ export class AdminCompaniesService {
       title: subject,
       body: message,
       ctaLabel: "Rothern'e Git",
-      ctaUrl: `${this.config.get<string>("WEB_URL") ?? "http://localhost:3000"}/company`,
+      ctaUrl: `${resolveWebUrl(this.config)}/company`,
     };
     const CHUNK = 25;
     let delivered = 0;

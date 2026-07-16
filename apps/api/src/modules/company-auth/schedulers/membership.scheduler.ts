@@ -7,6 +7,7 @@ import {
 } from "../../../common/cron/cron-registry.service";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { EmailService } from "../../email/email.service";
+import { resolveWebUrl } from "../../../common/config/web-url";
 
 @Injectable()
 export class MembershipScheduler implements OnModuleInit {
@@ -135,7 +136,7 @@ export class MembershipScheduler implements OnModuleInit {
 
     // Bilgilendirme e-postası (best-effort) — firma yetkisini kaybettiğini bilsin.
     const baseUrl =
-      this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+      resolveWebUrl(this.config);
     for (const c of downgraded) {
       const email = c.billingEmail || c.users[0]?.email;
       if (!email) continue;

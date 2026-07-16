@@ -37,6 +37,7 @@ import {
   type NotificationPortal,
 } from "../../notifications/notification.service";
 import { RealtimeService } from "../../realtime/realtime.service";
+import { resolveWebUrl } from "../../../common/config/web-url";
 
 /**
  * Sipariş listesi tavanı — client-side işlenen liste (OrdersList) full-set ister.
@@ -59,7 +60,7 @@ export class CompanyOrdersService {
   ) {}
 
   private webUrl(): string {
-    return this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+    return resolveWebUrl(this.config);
   }
 
   private async companyRecipient(

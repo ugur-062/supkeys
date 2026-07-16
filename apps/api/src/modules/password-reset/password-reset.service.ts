@@ -4,6 +4,7 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { EmailService } from "../email/email.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
+import { resolveWebUrl } from "../../common/config/web-url";
 
 const PASSWORD_RESET_TTL_MINUTES = 60;
 
@@ -119,7 +120,7 @@ export class PasswordResetService {
     });
 
     const baseUrl = (
-      this.config.get<string>("WEB_URL") ?? "http://localhost:3000"
+      resolveWebUrl(this.config)
     ).replace(/\/$/, "");
     const resetUrl = `${baseUrl}/reset-password?token=${plainToken}`;
 

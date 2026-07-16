@@ -36,6 +36,7 @@ import {
   type CompanyPermissionOverride,
 } from "../permissions/company-permissions.constants";
 import type { CompanyJwtPayload } from "../strategies/company-jwt.strategy";
+import { resolveWebUrl } from "../../../common/config/web-url";
 
 const ROLE_LABELS: Record<CompanyRole, string> = {
   [CompanyRole.SAHIP]: "Kurucu",
@@ -862,7 +863,7 @@ export class CompanyAuthService {
    * kaybında tek giriş yolu).
    */
   private webBase() {
-    return this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+    return resolveWebUrl(this.config);
   }
 
   /** Generic "notification" şablonlu e-posta — best-effort. */

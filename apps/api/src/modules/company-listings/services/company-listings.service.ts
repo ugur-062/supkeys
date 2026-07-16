@@ -53,6 +53,7 @@ import { isNotificationEnabled } from "../../../common/notifications/notificatio
 import { CreateListingDto } from "../dto/create-listing.dto";
 import { NextRoundDto } from "../dto/next-round.dto";
 import { BuyNowDto, PlaceBidDto } from "../dto/place-bid.dto";
+import { resolveWebUrl } from "../../../common/config/web-url";
 
 /** Bildirim alıcısı — e-posta/isim + (varsa) kullanıcı bildirim tercihleri. */
 type Recipient = {
@@ -97,7 +98,7 @@ export class CompanyListingsService {
 
 
   private webUrl(): string {
-    return this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+    return resolveWebUrl(this.config);
   }
 
   /**
