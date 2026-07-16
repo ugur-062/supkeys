@@ -817,6 +817,61 @@ describe("Faz 3 — vade hatırlatması (S7)", () => {
     const sent = await orders.sendDuePaymentReminders();
     expect(sent).toBe(0);
   });
+
+  it("çok sayıda aday: vadesi gelen+ödenmemiş hatırlatılır, tam ödenmiş ve vadesi uzak atlanır (groupBy + batch)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const dueBase = {
+      status: "DELIVERED" as const,
+      paymentCategory: "DEFERRED" as const,
+      paymentDays: 30,
+      deliveredAt: new Date(Date.now() - 29 * 86_400_000), // vade yarın
+      deliveryStartedAt: new Date(Date.now() - 30 * 86_400_000),
+      acceptedAt: new Date(Date.now() - 31 * 86_400_000),
+    };
+    // (1) vadesi gelen, ödenmemiş → hatırlatılır.
+    const unpaid = await makeOrder(seller.company.id, buyer.company.id, {
+      ...dueBase,
+      amount: 1000,
+    });
+    // (2) vadesi gelen ama TAM ödenmiş → atlanır (groupBy toplamı = tutar).
+    const paid = await makeOrder(seller.company.id, buyer.company.id, {
+      ...dueBase,
+      amount: 1000,
+    });
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: paid.id,
+        amount: 1000,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+    // (3) vadesi uzak → atlanır.
+    await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DELIVERED",
+      paymentCategory: "DEFERRED",
+      paymentDays: 90,
+      deliveredAt: new Date(),
+    });
+
+    const sent = await orders.sendDuePaymentReminders();
+    expect(sent).toBe(1); // yalnız (1)
+
+    // Yalnız ödenmemiş sipariş damgalandı; tam ödenmiş damgasız kaldı.
+    const unpaidRow = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: unpaid.id },
+    });
+    const paidRow = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: paid.id },
+    });
+    expect(unpaidRow.paymentDueReminderSentAt).not.toBeNull();
+    expect(paidRow.paymentDueReminderSentAt).toBeNull();
+
+    // İkinci çağrı idempotent.
+    expect(await orders.sendDuePaymentReminders()).toBe(0);
+  });
 });
 
 describe("Faz 5 — sipariş revizyon müzakeresi", () => {

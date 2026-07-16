@@ -324,3 +324,70 @@ describe("list — sayfalama + kuyruk sıralaması (Faz 1-2)", () => {
     expect(stats.funnel).toHaveProperty("verified");
   });
 });
+
+describe("announce — toplu duyuru (batch + paralel, per-firma findUnique yok)", () => {
+  function announceRig() {
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+    const notifications = { pushToCompany: jest.fn().mockResolvedValue(1) };
+    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+    const audit = new AuditService(prisma as never);
+    const service = new AdminCompaniesService(
+      prisma as never,
+      {} as never,
+      email as never,
+      notifications as never,
+      config as never,
+      audit,
+    );
+    return { service, email, notifications };
+  }
+
+  it("sendEmail: her firmaya in-app push + e-posta; per-firma company.findUnique ÇAĞRILMAZ", async () => {
+    const { service, email, notifications } = announceRig();
+    // 3 firma: biri billingEmail'li, ikisi user-fallback'li.
+    const a = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    await prisma.company.update({
+      where: { id: a.company.id },
+      data: { billingEmail: "muhasebe@a.test" },
+    });
+    await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    await makeCompanyWithUser(prisma, { tier: "PAKET" });
+
+    const findUniqueSpy = jest.spyOn(prisma.company, "findUnique");
+
+    const res = await service.announce(
+      { subject: "Duyuru", message: "Merhaba dünya", sendEmail: true },
+      "admin-1",
+    );
+
+    expect(res.targets).toBe(3);
+    expect(res.delivered).toBe(3);
+    // In-app push her firmaya bir kez.
+    expect(notifications.pushToCompany).toHaveBeenCalledTimes(3);
+    // E-posta her firmaya (billingEmail veya user fallback).
+    expect(email.send).toHaveBeenCalledTimes(3);
+    // N+1 kalktı: toplu findMany kullanılır, per-firma findUnique YOK.
+    expect(findUniqueSpy).not.toHaveBeenCalled();
+    findUniqueSpy.mockRestore();
+
+    // Audit metadata delivered=3.
+    const log = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "admin.announcement.sent" },
+    });
+    expect((log.metadata as { delivered: number }).delivered).toBe(3);
+  });
+
+  it("sendEmail=false: yalnız in-app push, e-posta yok", async () => {
+    const { service, email, notifications } = announceRig();
+    await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    await makeCompanyWithUser(prisma, { tier: "PAKET" });
+
+    const res = await service.announce(
+      { subject: "Duyuru", message: "yalnız uygulama-içi" },
+      "admin-1",
+    );
+    expect(res.delivered).toBe(2);
+    expect(notifications.pushToCompany).toHaveBeenCalledTimes(2);
+    expect(email.send).not.toHaveBeenCalled();
+  });
+});

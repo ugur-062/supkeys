@@ -69,6 +69,7 @@ export class AdminCompaniesService {
     const c = await this.prisma.company.findUnique({
       where: { id: companyId },
       select: {
+        id: true,
         name: true,
         billingEmail: true,
         users: {
@@ -79,11 +80,37 @@ export class AdminCompaniesService {
         },
       },
     });
-    const email = c?.billingEmail || c?.users[0]?.email;
-    if (!c || !email) return;
-    const name = c.users[0]
-      ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
-      : c.name;
+    if (!c) return;
+    this.notifyCompanyEmail(c, subject, paragraphs, type, cta);
+  }
+
+  /**
+   * notifyCompany'nin E-POSTA yarısı — alıcı satırı ÖNCEDEN çekilmiş olarak alır
+   * (announce toplu gönderiminde per-firma findUnique N+1'ini önlemek için).
+   * Push (in-app) çağıranda; bu yalnız e-posta gönderir.
+   */
+  private notifyCompanyEmail(
+    company: {
+      id: string;
+      name: string;
+      billingEmail: string | null;
+      users: { email: string; firstName: string; lastName: string }[];
+    },
+    subject: string,
+    paragraphs: string[],
+    type: string,
+    cta?: { label: string; path: string },
+  ) {
+    const baseUrl =
+      this.config.get<string>("WEB_URL") ?? "http://localhost:3000";
+    const ctaUrl = `${baseUrl}${cta?.path ?? "/company"}`;
+    const ctaLabel = cta?.label ?? "Rothern'e Git";
+    const email = company.billingEmail || company.users[0]?.email;
+    if (!email) return;
+    const name = company.users[0]
+      ? `${company.users[0].firstName} ${company.users[0].lastName}`.trim() ||
+        company.name
+      : company.name;
     void this.email
       .send({
         to: { email, name },
@@ -92,11 +119,11 @@ export class AdminCompaniesService {
           template: "notification",
           data: { subject, heading: subject, paragraphs, ctaLabel, ctaUrl },
         },
-        context: { type, id: companyId },
+        context: { type, id: company.id },
       })
       .catch((err: unknown) =>
         this.logger.warn(
-          `Admin e-postası gönderilemedi (${companyId}): ${
+          `Admin e-postası gönderilemedi (${company.id}): ${
             err instanceof Error ? err.message : String(err)
           }`,
         ),
@@ -1063,36 +1090,77 @@ export class AdminCompaniesService {
     const where: Record<string, unknown> = { isActive: true, isBlocked: false };
     if (input.tier) where.tier = input.tier;
     if (input.country) where.country = input.country.trim().toUpperCase();
-    const targets = await this.prisma.company.findMany({
+    // Perf (1000 firma): e-posta hedef alanları TEK sorguda çekilir (eski per-
+    // firma notifyCompany.findUnique N+1'i kalktı); gönderim SERİ değil, sınırlı
+    // paralel chunk'larda (5000 seri await → istek timeout riski kalktı).
+    const targets = (await this.prisma.company.findMany({
       where,
-      select: { id: true },
+      select: {
+        id: true,
+        ...(input.sendEmail
+          ? {
+              name: true,
+              billingEmail: true,
+              users: {
+                where: { isActive: true, deletedAt: null },
+                select: { email: true, firstName: true, lastName: true },
+                orderBy: { createdAt: "asc" },
+                take: 1,
+              },
+            }
+          : {}),
+      },
       take: 5000,
-    });
+    })) as {
+      id: string;
+      name: string;
+      billingEmail: string | null;
+      users: { email: string; firstName: string; lastName: string }[];
+    }[];
+    const subject = input.subject.trim();
+    const message = input.message.trim();
+    const pushPayload = {
+      type: "admin_announcement",
+      title: subject,
+      body: message,
+      ctaLabel: "Rothern'e Git",
+      ctaUrl: `${this.config.get<string>("WEB_URL") ?? "http://localhost:3000"}/company`,
+    };
+    const CHUNK = 25;
     let delivered = 0;
-    for (const t of targets) {
-      try {
-        if (input.sendEmail) {
-          // notifyCompany = in-app + e-posta birlikte.
-          await this.notifyCompany(t.id, input.subject.trim(), [
-            "Merhaba,",
-            input.message.trim(),
-          ], "admin_announcement");
-        } else {
-          await this.notifications.pushToCompany(t.id, {
-            type: "admin_announcement",
-            title: input.subject.trim(),
-            body: input.message.trim(),
-            ctaLabel: "Rothern'e Git",
-            ctaUrl: `${this.config.get<string>("WEB_URL") ?? "http://localhost:3000"}/company`,
-          });
-        }
-        delivered++;
-      } catch (err) {
-        this.logger.warn(
-          `Duyuru gönderilemedi (${t.id}): ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
+    for (let i = 0; i < targets.length; i += CHUNK) {
+      const results = await Promise.allSettled(
+        targets.slice(i, i + CHUNK).map(async (t) => {
+          if (input.sendEmail) {
+            // notifyCompany paritesi: in-app push (swallow) + prefetch'li e-posta.
+            await this.notifications
+              .pushToCompany(t.id, pushPayload)
+              .catch((err) =>
+                this.logger.warn(
+                  `Admin bildirimi yazılamadı (${t.id}): ${
+                    err instanceof Error ? err.message : String(err)
+                  }`,
+                ),
+              );
+            this.notifyCompanyEmail(
+              t,
+              subject,
+              ["Merhaba,", message],
+              "admin_announcement",
+            );
+          } else {
+            await this.notifications.pushToCompany(t.id, pushPayload);
+          }
+        }),
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled") delivered++;
+        else
+          this.logger.warn(
+            `Duyuru gönderilemedi: ${
+              r.reason instanceof Error ? r.reason.message : String(r.reason)
+            }`,
+          );
       }
     }
     await this.audit.log({
@@ -1184,27 +1252,103 @@ export class AdminCompaniesService {
    * Dönüş gevşek tip: içerik sözleşmesi "her şey" (Prisma include ağacı).
    */
   async exportData(id: string): Promise<Record<string, unknown>> {
-    const company = await this.prisma.company.findUnique({
-      where: { id },
-      include: {
-        users: true,
-        listings: { include: { items: true, invitations: true } },
-        bidsPlaced: { include: { items: true } },
-        ordersAsBuyer: { include: { items: true, payments: true } },
-        ordersAsSeller: { include: { items: true, payments: true } },
-        connectionsInitiated: true,
-        connectionsReceived: true,
-        referralInvitesSent: true,
-        complaintsMade: true,
-        complaintsReceived: true,
-        membershipEvents: true,
-        adminNotes: true,
-        addresses: true,
-        bankAccounts: true,
-      },
-    });
+    const company = await this.prisma.company.findUnique({ where: { id } });
     if (!company) throw new NotFoundException("Firma bulunamadı");
-    return { exportedAt: new Date().toISOString(), company };
+    // Perf (aktif/büyük firmada OOM): eski tek-sorgu 14-relation include ağacı
+    // her relation'ı SINIRSIZ belleğe yüklüyordu. Prisma FLUENT relation API'siyle
+    // her relation cursor-batch'lenir (include şekli AYNI, TÜM satırlar korunur —
+    // KVKK "her şey" sözleşmesi bozulmaz; fark yalnız çekme stratejisi).
+    const root = () => this.prisma.company.findUnique({ where: { id } });
+    const [
+      users,
+      listings,
+      bidsPlaced,
+      ordersAsBuyer,
+      ordersAsSeller,
+      connectionsInitiated,
+      connectionsReceived,
+      referralInvitesSent,
+      complaintsMade,
+      complaintsReceived,
+      membershipEvents,
+      adminNotes,
+      addresses,
+      bankAccounts,
+    ] = await Promise.all([
+      this.pageRelation((a) => root().users(a)),
+      this.pageRelation((a) =>
+        root().listings({ ...a, include: { items: true, invitations: true } }),
+      ),
+      this.pageRelation((a) =>
+        root().bidsPlaced({ ...a, include: { items: true } }),
+      ),
+      this.pageRelation((a) =>
+        root().ordersAsBuyer({ ...a, include: { items: true, payments: true } }),
+      ),
+      this.pageRelation((a) =>
+        root().ordersAsSeller({
+          ...a,
+          include: { items: true, payments: true },
+        }),
+      ),
+      this.pageRelation((a) => root().connectionsInitiated(a)),
+      this.pageRelation((a) => root().connectionsReceived(a)),
+      this.pageRelation((a) => root().referralInvitesSent(a)),
+      this.pageRelation((a) => root().complaintsMade(a)),
+      this.pageRelation((a) => root().complaintsReceived(a)),
+      this.pageRelation((a) => root().membershipEvents(a)),
+      this.pageRelation((a) => root().adminNotes(a)),
+      this.pageRelation((a) => root().addresses(a)),
+      this.pageRelation((a) => root().bankAccounts(a)),
+    ]);
+    return {
+      exportedAt: new Date().toISOString(),
+      company: {
+        ...company,
+        users,
+        listings,
+        bidsPlaced,
+        ordersAsBuyer,
+        ordersAsSeller,
+        connectionsInitiated,
+        connectionsReceived,
+        referralInvitesSent,
+        complaintsMade,
+        complaintsReceived,
+        membershipEvents,
+        adminNotes,
+        addresses,
+        bankAccounts,
+      },
+    };
+  }
+
+  /**
+   * Bir relation'ı `id` cursor'la batch batch çekip tümünü döndürür — tek dev
+   * sorgu yerine ≤`batch` satırlık pencereler (peak bellek sınırlı). Fluent
+   * relation query fonksiyonu alır (FK adı bilmeye gerek yok).
+   */
+  private async pageRelation<T extends { id: string }>(
+    query: (args: {
+      take: number;
+      skip?: number;
+      cursor?: { id: string };
+    }) => Promise<T[] | null>,
+    batch = 500,
+  ): Promise<T[]> {
+    const all: T[] = [];
+    let cursor: string | undefined;
+    for (;;) {
+      const rows =
+        (await query({
+          take: batch,
+          ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+        })) ?? [];
+      all.push(...rows);
+      if (rows.length < batch) break;
+      cursor = rows[rows.length - 1]!.id;
+    }
+    return all;
   }
 
   /**

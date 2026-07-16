@@ -6,7 +6,14 @@
 import { AdminCompaniesService } from "../../src/modules/admin-companies/admin-companies.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser } from "./factories";
+import {
+  connect,
+  invite,
+  makeBid,
+  makeCompanyWithUser,
+  makeItem,
+  makeListing,
+} from "./factories";
 
 function rig() {
   const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
@@ -41,6 +48,73 @@ describe("KVKK — export + silme/anonimleştirme", () => {
     expect(c.id).toBe(co.company.id);
     expect(c.users).toHaveLength(1);
     expect(dump.exportedAt).toBeTruthy();
+  });
+
+  it("exportData çok-relation + iç-içe veriyi (cursor-batch fluent) eksiksiz döner", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    const other = await makeCompanyWithUser(prisma, {});
+    await connect(prisma, co.company.id, other.company.id, co.user.id);
+    // Firmanın ilanı (item + davet) — listings.items / listings.invitations.
+    const listing = await makeListing(prisma, {
+      companyId: co.company.id,
+      createdById: co.user.id,
+      type: "ALIM",
+      status: "OPEN",
+    });
+    const item = await makeItem(prisma, listing.id);
+    await invite(prisma, listing.id, other.company.id, co.user.id);
+    // Firmanın verdiği teklif (item) — bidsPlaced.items.
+    await makeBid(prisma, {
+      listingId: (await makeListing(prisma, {
+        companyId: other.company.id,
+        createdById: other.user.id,
+        type: "ALIM",
+        status: "OPEN",
+      })).id,
+      bidderCompanyId: co.company.id,
+      createdById: co.user.id,
+      amount: 100,
+      items: [{ itemId: item.id, unitPrice: 100 }],
+    });
+    // Alıcı olduğu sipariş (item + payment) — ordersAsBuyer.items/payments.
+    await prisma.companyOrder.create({
+      data: {
+        buyerCompanyId: co.company.id,
+        sellerCompanyId: other.company.id,
+        amount: 250,
+        currency: "TRY",
+        status: "DELIVERED",
+        items: { create: [{ name: "Çelik", quantity: 5, unit: "ton", unitPrice: 50 }] },
+        payments: {
+          create: [
+            {
+              amount: 250,
+              status: "CONFIRMED",
+              recordedByCompanyId: co.company.id,
+              confirmedAt: new Date(),
+            },
+          ],
+        },
+      },
+    });
+
+    const dump = await service.exportData(co.company.id);
+    const c = dump.company as {
+      listings: { items: unknown[]; invitations: unknown[] }[];
+      bidsPlaced: { items: unknown[] }[];
+      ordersAsBuyer: { items: unknown[]; payments: unknown[] }[];
+      connectionsInitiated: unknown[];
+    };
+    expect(c.listings).toHaveLength(1);
+    expect(c.listings[0]!.items).toHaveLength(1);
+    expect(c.listings[0]!.invitations).toHaveLength(1);
+    expect(c.bidsPlaced).toHaveLength(1);
+    expect(c.bidsPlaced[0]!.items).toHaveLength(1);
+    expect(c.ordersAsBuyer).toHaveLength(1);
+    expect(c.ordersAsBuyer[0]!.items).toHaveLength(1);
+    expect(c.ordersAsBuyer[0]!.payments).toHaveLength(1);
+    expect(c.connectionsInitiated).toHaveLength(1);
   });
 
   it("siparişsiz firma HARD silinir + Supabase hesapları silinir", async () => {

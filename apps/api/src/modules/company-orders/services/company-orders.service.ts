@@ -1014,57 +1014,93 @@ export class CompanyOrdersService {
    * Scheduler saatlik çağırır. Küçük aday kümesi → JS'te vade filtresi.
    */
   async sendDuePaymentReminders(withinDays = 3): Promise<number> {
-    const candidates = await this.prisma.companyOrder.findMany({
-      where: {
-        status: "DELIVERED",
-        paymentDueReminderSentAt: null,
-        deliveredAt: { not: null },
-        paymentDays: { not: null },
-        paymentCategory: { in: [...DUE_DATE_CATEGORIES] },
-      },
-      select: {
-        id: true,
-        number: true,
-        amount: true,
-        currency: true,
-        buyerCompanyId: true,
-        sellerCompanyId: true,
-        paymentCategory: true,
-        paymentDays: true,
-        deliveredAt: true,
-      },
-    });
-    if (candidates.length === 0) return 0;
     const now = Date.now();
     const horizon = now + withinDays * 24 * 60 * 60 * 1000;
+    // Perf (1000 firma): global cron. Aday kümesi CURSOR-BATCH'lenir (sınırsız
+    // tarama yok); onaylı ödeme toplamı per-order aggregate DEĞİL, batch başına
+    // TEK groupBy + Map ile çözülür (eski N+1 → 1 sorgu/batch).
+    const BATCH = 500;
+    let cursor: string | undefined;
     let sent = 0;
-    for (const o of candidates) {
-      const due = paymentDueDate(
-        o.paymentCategory as PaymentCategory,
-        o.paymentDays,
-        o.deliveredAt,
-      );
-      if (!due || due.getTime() > horizon) continue; // vade henüz uzak
-      const confirmed = await this.confirmedPaymentSum(o.id);
-      if (this.isFullyPaid(Number(o.amount), confirmed)) continue; // ödenmiş
-      // Idempotent claim — yalnız hâlâ damgasız kayıt bildirim atar (overlap/
-      // çift-replica güvenli).
-      const claimed = await this.prisma.companyOrder.updateMany({
-        where: { id: o.id, paymentDueReminderSentAt: null },
-        data: { paymentDueReminderSentAt: new Date() },
+    for (;;) {
+      const candidates = await this.prisma.companyOrder.findMany({
+        where: {
+          status: "DELIVERED",
+          paymentDueReminderSentAt: null,
+          deliveredAt: { not: null },
+          paymentDays: { not: null },
+          paymentCategory: { in: [...DUE_DATE_CATEGORIES] },
+        },
+        select: {
+          id: true,
+          number: true,
+          amount: true,
+          currency: true,
+          buyerCompanyId: true,
+          sellerCompanyId: true,
+          paymentCategory: true,
+          paymentDays: true,
+          deliveredAt: true,
+        },
+        orderBy: { id: "asc" },
+        take: BATCH,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       });
-      if (claimed.count !== 1) continue;
-      const remaining = Math.max(0, Number(o.amount) - confirmed);
-      const curSym = o.currency && o.currency !== "TRY" ? o.currency : "₺";
-      await this.notifyOrderParty(
-        o.id,
-        o.buyerCompanyId,
-        "Ödeme vadesi yaklaşıyor",
-        "Ödeme vadesi yaklaşıyor",
-        `${this.orderLabel(o.number)} sipariş için ödeme vadesi ${due.toLocaleDateString("tr-TR")} — kalan tutar ${remaining.toLocaleString("tr-TR")} ${curSym}.`,
-        "satinalma",
-      );
-      sent++;
+      if (candidates.length === 0) break;
+      cursor = candidates[candidates.length - 1]!.id;
+
+      // Vade filtresi JS'te (küçük küme) → yalnız vadesi gelenler.
+      const due = candidates
+        .map((o) => ({
+          o,
+          dueAt: paymentDueDate(
+            o.paymentCategory as PaymentCategory,
+            o.paymentDays,
+            o.deliveredAt,
+          ),
+        }))
+        .filter((x) => x.dueAt != null && x.dueAt.getTime() <= horizon);
+
+      if (due.length > 0) {
+        // Batch'in onaylı ödeme toplamları: TEK groupBy (per-order aggregate yok).
+        const sums = await this.prisma.companyOrderPayment.groupBy({
+          by: ["orderId"],
+          where: {
+            orderId: { in: due.map((x) => x.o.id) },
+            status: "CONFIRMED",
+          },
+          _sum: { amount: true },
+        });
+        const sumByOrder = new Map(
+          sums.map((s) => [
+            s.orderId,
+            s._sum.amount ? Number(s._sum.amount) : 0,
+          ]),
+        );
+        for (const { o, dueAt } of due) {
+          const confirmed = sumByOrder.get(o.id) ?? 0;
+          if (this.isFullyPaid(Number(o.amount), confirmed)) continue; // ödenmiş
+          // Idempotent claim — yalnız hâlâ damgasız kayıt bildirim atar
+          // (overlap/çift-replica güvenli).
+          const claimed = await this.prisma.companyOrder.updateMany({
+            where: { id: o.id, paymentDueReminderSentAt: null },
+            data: { paymentDueReminderSentAt: new Date() },
+          });
+          if (claimed.count !== 1) continue;
+          const remaining = Math.max(0, Number(o.amount) - confirmed);
+          const curSym = o.currency && o.currency !== "TRY" ? o.currency : "₺";
+          await this.notifyOrderParty(
+            o.id,
+            o.buyerCompanyId,
+            "Ödeme vadesi yaklaşıyor",
+            "Ödeme vadesi yaklaşıyor",
+            `${this.orderLabel(o.number)} sipariş için ödeme vadesi ${dueAt!.toLocaleDateString("tr-TR")} — kalan tutar ${remaining.toLocaleString("tr-TR")} ${curSym}.`,
+            "satinalma",
+          );
+          sent++;
+        }
+      }
+      if (candidates.length < BATCH) break;
     }
     return sent;
   }
