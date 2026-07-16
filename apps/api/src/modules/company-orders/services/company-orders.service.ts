@@ -954,12 +954,10 @@ export class CompanyOrdersService {
         );
       }
       const total = Number(row.amount);
-      const confirmed = await tx.companyOrderPayment
-        .aggregate({
-          where: { orderId: id, status: "CONFIRMED" },
-          _sum: { amount: true },
-        })
-        .then((a) => (a._sum.amount ? Number(a._sum.amount) : 0));
+      // X7/C4: birleşik onaylı-toplam (kilit altında, tx ile). Fazla-tahsilat
+      // açığı YOK — remaining = total − confirmed doğası gereği cap'li ve LC
+      // siparişinde manuel recordPayment reddedilir (banka kanalı).
+      const confirmed = await this.confirmedPaymentSum(id, tx);
       const remaining = Math.max(0, total - confirmed);
       // Kalan > 0 ise onaylı tam-tutar kaydı üret (idempotent lcPaidAt damgası
       // çift-tıkı zaten engeller; remaining=0 ise yalnız damga).

@@ -766,6 +766,50 @@ describe("Faz 3 — akreditif adım seti (S5)", () => {
     ).rejects.toThrow(/banka/i);
   });
 
+  it("lcMarkPaid onaylı kısmi tutarda yalnız KALANI yazar (birleşik toplam, cap'li — fazla-tahsilat yok)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DELIVERED",
+      paymentTiming: "BEFORE_DELIVERY",
+      paymentCategory: "LETTER_OF_CREDIT",
+      lcType: "SIGHT",
+      amount: 1000,
+      acceptedAt: new Date(),
+      lcOpenedAt: new Date(),
+      lcAcceptedAt: new Date(),
+      deliveryStartedAt: new Date(),
+      deliveredAt: new Date(),
+    });
+    // Kısmi onaylı ödeme — senaryo yapay (LC'de manuel ödeme reddedilir), yalnız
+    // lcMarkPaid'in birleşik confirmedPaymentSum ile "kalanı" hesapladığını
+    // doğrulamak için doğrudan seed.
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: 400,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+
+    const res = await orders.lcMarkPaid(seller.auth, order.id);
+    expect(res.completed).toBe(true);
+
+    // Banka ödemesi yalnız kalanı (600) yazdı — tam tutarı (1000) DEĞİL.
+    const lcPayment = await prisma.companyOrderPayment.findFirstOrThrow({
+      where: { orderId: order.id, method: "Akreditif" },
+    });
+    expect(Number(lcPayment.amount)).toBe(600);
+    // Toplam onaylı = tam tutar; fazla-tahsilat yok.
+    const agg = await prisma.companyOrderPayment.aggregate({
+      where: { orderId: order.id, status: "CONFIRMED" },
+      _sum: { amount: true },
+    });
+    expect(Number(agg._sum.amount)).toBe(1000);
+  });
+
   it("LC olmayan siparişte lc adımları reddedilir", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
