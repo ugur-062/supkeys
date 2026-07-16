@@ -369,18 +369,14 @@ export class CompanyOrdersService {
     const order = await this.loadParticipant(user, id);
     let toCompleted = false;
     if (order.paymentTiming === "BEFORE_DELIVERY") {
-      const [amt, agg] = await Promise.all([
+      const [amt, confirmed] = await Promise.all([
         this.prisma.companyOrder.findUnique({
           where: { id },
           select: { amount: true },
         }),
-        this.prisma.companyOrderPayment.aggregate({
-          where: { orderId: id, status: "CONFIRMED" },
-          _sum: { amount: true },
-        }),
+        this.confirmedPaymentSum(id),
       ]);
       const total = amt ? Number(amt.amount) : 0;
-      const confirmed = agg._sum.amount ? Number(agg._sum.amount) : 0;
       toCompleted = this.isFullyPaid(total, confirmed);
     }
     const res = await this.transition(user, id, {
@@ -451,18 +447,14 @@ export class CompanyOrdersService {
     // satıcı onaylar, sonra tamamlanır. (receive/auto-complete yollarıyla aynı
     // değişmez; teslim öncesi/sonrası fark etmez — her ikisinde de tam ödeme
     // onaylı olmalı.)
-    const [amt, agg] = await Promise.all([
+    const [amt, confirmed] = await Promise.all([
       this.prisma.companyOrder.findUnique({
         where: { id },
         select: { amount: true },
       }),
-      this.prisma.companyOrderPayment.aggregate({
-        where: { orderId: id, status: "CONFIRMED" },
-        _sum: { amount: true },
-      }),
+      this.confirmedPaymentSum(id),
     ]);
     const total = amt ? Number(amt.amount) : 0;
-    const confirmed = agg._sum.amount ? Number(agg._sum.amount) : 0;
     if (!this.isFullyPaid(total, confirmed)) {
       throw new BadRequestException(
         "Sipariş, ödeme tam olarak alınıp onaylanmadan tamamlanamaz — alıcı ödemeyi bildirir, satıcı onayladığında tamamlanır",
@@ -1126,10 +1118,19 @@ export class CompanyOrdersService {
     return total <= 0 || confirmed + 0.01 >= total;
   }
 
-  /** Onaylı ödeme toplamı (peşin eşiği/tamamlama kapıları için). */
-  private async confirmedPaymentSum(id: string): Promise<number> {
-    const agg = await this.prisma.companyOrderPayment.aggregate({
-      where: { orderId: id, status: "CONFIRMED" },
+  /**
+   * Onaylı (CONFIRMED) ödeme toplamı — TEK KAYNAK. Peşin eşiği, tamamlama
+   * kapıları, oto-tamamlama ve LC ödeme hepsi bunu çağırır (X7: eskiden 4 ayrı
+   * inline aggregate vardı → tutarsız birikim). tx-içi çağrılar kilit altında
+   * okumak için `client = tx` geçer. NOT: `Number()` coercion bilinçli olarak
+   * TEK yerde tutulur (para-float ayrı iş, X1); değişirse buradan düzeltilir.
+   */
+  private async confirmedPaymentSum(
+    orderId: string,
+    client: Prisma.TransactionClient = this.prisma,
+  ): Promise<number> {
+    const agg = await client.companyOrderPayment.aggregate({
+      where: { orderId, status: "CONFIRMED" },
       _sum: { amount: true },
     });
     return agg._sum.amount ? Number(agg._sum.amount) : 0;
@@ -1443,15 +1444,11 @@ export class CompanyOrdersService {
       }
       // Otomatik tamamlama — kilit altında taze durum + toplam ile.
       if (decision === "CONFIRMED" && status === "DELIVERED") {
-        const [orderAmt, agg] = await Promise.all([
+        const [orderAmt, confirmedSum] = await Promise.all([
           tx.companyOrder.findUnique({ where: { id }, select: { amount: true } }),
-          tx.companyOrderPayment.aggregate({
-            where: { orderId: id, status: "CONFIRMED" },
-            _sum: { amount: true },
-          }),
+          this.confirmedPaymentSum(id, tx),
         ]);
         const total = orderAmt ? Number(orderAmt.amount) : 0;
-        const confirmedSum = agg._sum.amount ? Number(agg._sum.amount) : 0;
         if (this.isFullyPaid(total, confirmedSum)) {
           const done = await tx.companyOrder.updateMany({
             where: { id, status: "DELIVERED" },
