@@ -102,7 +102,8 @@ describe("Auction — çoklu para birimi (kur damgalı)", () => {
     const db = await prisma.listing.findUniqueOrThrow({ where: { id: l.id } });
     expect(db.allowedCurrencies).toEqual(["TRY", "USD"]);
     // Damga: mock TCMB kuru (30) izinli birimler için yazıldı.
-    expect(db.auctionRateSnapshot).toMatchObject({ TRY: 1, USD: 30 });
+    // INV-FX-1: kurlar Decimal-STRING saklanır (eski: JSON float).
+    expect(db.auctionRateSnapshot).toMatchObject({ TRY: "1", USD: "30" });
 
     await expect(
       bid(service, b1.auth, l.id, 1000, { currency: "USD" }),

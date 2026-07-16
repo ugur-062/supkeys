@@ -2480,6 +2480,26 @@ export class CompanyListingsService {
    * ihale boyunca sabit) → teklifin kendi kur snapshot'ı (legacy) → TRY=1.
    * Hiçbiri yoksa null (kıyasta en sona düşer).
    */
+  /**
+   * Açılış damgasından bir para biriminin kurunu Decimal olarak okur (INV-FX-1
+   * TEK KAYNAK — auctionTryValue + taban kontrolü aynı parser'ı kullanır).
+   * Snapshot artık kuru Decimal-STRING saklıyor (yeni); eski turlarda JSON FLOAT
+   * (number) kalabilir → iki tipi de kabul. Yoksa/≤0 → null. TRY → 1.
+   */
+  private snapRateDecimal(
+    listingSnap: unknown,
+    currency: string,
+  ): Prisma.Decimal | null {
+    if (currency === "TRY") return new Prisma.Decimal(1);
+    const s = (listingSnap as Record<string, unknown> | null)?.[currency];
+    if (typeof s === "string" && s.length > 0) {
+      const r = new Prisma.Decimal(s);
+      if (r.isPositive() && !r.isZero()) return r;
+    }
+    if (typeof s === "number" && s > 0) return new Prisma.Decimal(s);
+    return null;
+  }
+
   private auctionTryValue(
     amount: Prisma.Decimal,
     currency: string,
@@ -2487,16 +2507,9 @@ export class CompanyListingsService {
     listingSnap: unknown,
   ): Prisma.Decimal | null {
     if (currency === "TRY") return amount;
-    const s = (listingSnap as Record<string, unknown> | null)?.[currency];
-    // INV-MONEY-1 / INV-FX-1: kur açık Decimal'e çevrilir. Snapshot artık kuru
-    // Decimal-STRING saklıyor (yeni yazımlar); eski turlarda JSON FLOAT (number)
-    // kalabilir → iki tipi de kabul et (geriye uyumlu). String "50.5" veya
-    // number 50.5 → new Prisma.Decimal(...) her ikisini de parse eder.
-    if (typeof s === "string" && s.length > 0) {
-      const r = new Prisma.Decimal(s);
-      if (r.isPositive() && !r.isZero()) return amount.mul(r);
-    }
-    if (typeof s === "number" && s > 0) return amount.mul(new Prisma.Decimal(s));
+    // INV-FX-1: açılış damgası (adil, tur boyu sabit) → teklif damgası (legacy).
+    const r = this.snapRateDecimal(listingSnap, currency);
+    if (r) return amount.mul(r);
     if (bidSnapshot) return amount.mul(bidSnapshot);
     return null;
   }
@@ -3172,29 +3185,36 @@ export class CompanyListingsService {
     }
 
     // Taban/hemen-al kıyası İLANIN para biriminde yapılır. Teklif farklı
-    // birimdeyse TCMB kuruyla çevrilir (çevrimsiz ham kıyas yanlıştı:
-    // 100 USD, 3.000 TL tabanın "altında" sayılıyordu). Kur yoksa/BAYATSA ve
-    // kıyas gerekiyorsa gönderim reddedilir — yanlış kıyasla teklif kabul
-    // edilmez. DİKKAT: burada getCurrentRate DEĞİL getFreshRate — o sessizce
-    // bayat/fallback kur döndürür (gösterim için OK, para kararı için değil).
+    // birimdeyse kurla çevrilir (çevrimsiz ham kıyas yanlıştı: 100 USD, 3.000 TL
+    // tabanın "altında" sayılıyordu). Kur yoksa ve kıyas gerekiyorsa gönderim
+    // reddedilir — yanlış kıyasla teklif kabul edilmez (fail-closed).
+    //
+    // INV-FX-1 TEK BAZ: ENGLISH_AUCTION'da kur AÇILIŞ damgasından alınır
+    // (sıralama/eşik ile AYNI kaynak — taban da tur boyu sabit adil bazla
+    // kıyaslanır). Damgada olmayan birim veya RFQ (damga yok) → getFreshRate
+    // (strict; sessizce bayat/fallback dönmez — gösterim için OK, para kararı
+    // için değil). Her iki bacak da aynı politikayı izler (tutarlı oran).
     const curSym =
       listing.primaryCurrency === "TRY" ? "₺" : listing.primaryCurrency;
+    const floorRate = async (
+      cur: string,
+    ): Promise<Prisma.Decimal | null> => {
+      if (cur === "TRY") return new Prisma.Decimal(1);
+      const fromSnap = this.snapRateDecimal(listing.auctionRateSnapshot, cur);
+      if (fromSnap) return fromSnap; // açılış bazı (auction)
+      const fresh = await this.exchangeRates
+        .getFreshRate(cur as Currency)
+        .catch(() => null);
+      return fresh != null && fresh > 0 ? new Prisma.Decimal(fresh) : null;
+    };
     let toListingCurrency: Prisma.Decimal | null = null;
     if (currency === listing.primaryCurrency) {
       toListingCurrency = new Prisma.Decimal(1);
     } else {
-      const bidRate =
-        currency === "TRY"
-          ? 1
-          : await this.exchangeRates.getFreshRate(currency).catch(() => null);
-      const listingRate =
-        listing.primaryCurrency === "TRY"
-          ? 1
-          : await this.exchangeRates
-              .getFreshRate(listing.primaryCurrency)
-              .catch(() => null);
-      if (bidRate != null && listingRate != null && listingRate > 0) {
-        toListingCurrency = new Prisma.Decimal(bidRate).div(listingRate);
+      const bidRate = await floorRate(currency);
+      const listingRate = await floorRate(listing.primaryCurrency);
+      if (bidRate != null && listingRate != null && listingRate.gt(0)) {
+        toListingCurrency = bidRate.div(listingRate);
       }
     }
     const needsFloorCheck =
