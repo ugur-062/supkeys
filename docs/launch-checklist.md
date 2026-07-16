@@ -144,6 +144,40 @@ boşsa prod'da `none`'a düşüyor; `none` modunda guard KOMPLE bypass oluyor
 
 ---
 
+## Admin paneli (LAUNCH-BLOCKER — KYC ve premium bu panele bağlı)
+
+**Gerekçe:** `assertVerified` kapısı (INV-KYC-1) KYC onayını **manuel admin işi** yaptı;
+self-upgrade `PREMIUM_SELF_UPGRADE_ENABLED=false` ile kapatıldı (INV-TIER-1) → premium
+**yalnız admin grant**. İkisi de admin paneli olmadan çalışmaz → admin deploy'u
+launch-blocker. Tedarikçi VERIFIED olmadan **teklif veremez**, firma PAKET olmadan
+**ihale açamaz**.
+
+- [ ] `apps/admin`'i Vercel'e deploy et
+- [ ] `admin.rothern.com` custom domain'ini bağla (CSRF sırası için de gerekli — `*.rothern.com` same-site)
+- [ ] Render `CORS_ORIGINS`'e admin origin'ini ekle (`https://admin.rothern.com`)
+- [ ] Vercel'de admin env'lerini set et (`NEXT_PUBLIC_API_URL=https://api.rothern.com/api` — **build arg**)
+- [ ] **İlk PlatformAdmin hesabı — YÖNTEM: seed (RUN_SEED).** Manuel SQL / ayrı CLI YOK. Mekanizma (doğrulandı):
+  - Render API konteyner entrypoint'i (`apps/api/docker-entrypoint.sh`) her boot'ta
+    `prisma migrate:deploy` çalıştırır; **`RUN_SEED=true` ise** ardından
+    `pnpm --filter @rothern/db seed` (`packages/db/prisma/seed.ts`) koşar.
+  - `seed.ts → ensureSuperAdmin()`: `INITIAL_ADMIN_EMAIL` + `INITIAL_ADMIN_PASSWORD`
+    (+ opsiyonel `INITIAL_ADMIN_FIRST_NAME`/`LAST_NAME`) env'lerini okur → Supabase
+    auth kullanıcısı (`platform_admin`) + `PlatformAdmin` kaydı (`SUPER_ADMIN`) oluşturur.
+    Idempotent (varsa atlar) — tekrar boot güvenli.
+  - **Prod güvenlik:** `NODE_ENV=production`'da zayıf/örnek parola (`admin12345`, `changeme`,
+    <12 karakter) **reddedilir** (throw → deploy fail). Güçlü sır kullan (`openssl rand -base64 24`).
+  - Adım: (1) Render'da `RUN_SEED=true` + `INITIAL_ADMIN_EMAIL`/`INITIAL_ADMIN_PASSWORD` set et
+    → (2) deploy → log'da `✅ Super Admin oluşturuldu` gör → (3) **`RUN_SEED=false` yap** ve
+    `INITIAL_ADMIN_PASSWORD`'u kaldır (env'de canlı sır bırakma; her boot'ta gereksiz seed).
+  - Giriş: `admin.rothern.com/admin/login` (JWT tipi `admin`; ayrı realm).
+- [ ] **UÇTAN UCA TEST (bu zincir hiç test edilmedi):** firma kaydol → e-posta doğrula →
+      6 KYC belgesi yükle → **admin panelden VERIFIED yap** → firma artık **teklif verebiliyor
+      mu?** (`assertVerified` kapısı devrede — VERIFIED öncesi placeBid/award 403 vermeli).
+- [ ] **Premium grant testi:** admin panelden bir firmaya PAKET ver (`setTier`) → firma
+      **ihale açabiliyor mu?** (self-upgrade flag kapalı → admin grant tek yol).
+
+---
+
 ## Netleştirilecek (deploy öncesi karar)
 
 - [ ] **Hosting gerçekte nerede?** `render.yaml` "Render (API) + Vercel (web/admin)"
