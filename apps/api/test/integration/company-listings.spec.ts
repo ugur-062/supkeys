@@ -701,6 +701,33 @@ describe("awardByItem — kalem bazlı", () => {
     expect(orders).toHaveLength(2);
   });
 
+  it("X5: 0-fiyatlı kalem satırı olan tam-kazanan WON damgalanır (Kısmi DEĞİL)", async () => {
+    const { service, owner, bidder, listing, item } = await setupAlim();
+    const item2 = await makeItem(prisma, listing.id, { lineNo: 2 });
+    const bid = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: 100,
+      items: [{ itemId: item.id, unitPrice: 100 }],
+    });
+    // 0-fiyatlı satır enjekte et — normal submit reddeder (:3015), latent
+    // ıraksamayı doğrudan kur: "fiyatlı sayısı" iki farklı hesaplanırsa bug tetiklenir.
+    await prisma.listingBidItem.create({
+      data: { bidId: bid.id, itemId: item2.id, unitPrice: 0 },
+    });
+    // Bidder yalnız fiyatladığı kalemi (item) kazanır → TAM kazanan olmalı.
+    await service.awardByItem(owner.auth, listing.id, [
+      { itemId: item.id, bidId: bid.id },
+    ]);
+    const after = await prisma.listingBid.findUniqueOrThrow({
+      where: { id: bid.id },
+    });
+    // Fix: unitPrice>0 sayımı → priced=1, won=1 → WON. Eskiden _count._all=2 →
+    // 1<2 → AWARDED_PARTIAL (yanlış).
+    expect(after.status).toBe("WON");
+  });
+
   it("requireBidDocument: kazananlardan birinin belgesi yoksa reddedilir (groupBy guard)", async () => {
     const { service, owner, bidder, listing, item } = await setupAlim({
       requireBidDocument: true,

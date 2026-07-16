@@ -4373,7 +4373,10 @@ export class CompanyListingsService {
     }
     const pricedCounts = await this.prisma.listingBidItem.groupBy({
       by: ["bidId"],
-      where: { bidId: { in: winningBidIds } },
+      // X5: "fiyatlı kalem" = unitPrice>0 — sıralama/kapsam tarafıyla AYNI tanım
+      // (L:1977/2521). Eskiden filtresiz `_count._all` idi → 0-fiyatlı kalem satırı
+      // olan TAM kazanan yanlışlıkla AWARDED_PARTIAL damgalanıyordu.
+      where: { bidId: { in: winningBidIds }, unitPrice: { gt: 0 } },
       _count: { _all: true },
     });
     const pricedByBid = new Map(
