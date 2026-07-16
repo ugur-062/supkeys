@@ -298,10 +298,11 @@ describe("Kazandırma onayı — uçtan uca", () => {
     expect(hist[0]!.steps.length).toBeGreaterThan(0);
   });
 
-  it("pasif onaycı fallback: bekleyen adım aktif YONETICI'ye devredilir", async () => {
+  it("pasif onaycı fallback: initiator-DIŞI 3. admin'e devredilir (initiator'a DEĞİL)", async () => {
     const { approvals } = makeApprovalRig();
-    const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // YONETICI (sahip)
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // initiator
     const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const a2 = await addUser(owner.company.id, "TR", ["YONETICI"]); // 3. admin
     const flow = await approvals.createFlow(
       owner.auth,
       flowInput([a1.user.id]) as never,
@@ -309,7 +310,7 @@ describe("Kazandırma onayı — uçtan uca", () => {
     await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
     await startAward(approvals, owner.auth, owner.company.id, owner.user.id);
 
-    // Onaycı işten ayrıldı (pasif) → cron fallback'i devreder.
+    // Onaycı a1 işten ayrıldı (pasif) → cron fallback'i devreder.
     await prisma.companyUser.update({
       where: { id: a1.user.id },
       data: { isActive: false },
@@ -319,7 +320,46 @@ describe("Kazandırma onayı — uçtan uca", () => {
     const step = await prisma.approvalRequestStep.findFirstOrThrow({
       where: { status: "PENDING" },
     });
-    expect(step.approverUserId).toBe(owner.user.id); // aktif YONETICI
+    // initiator (owner) DEĞİL — initiator-dışı uygun admin (a2, YONETICI).
+    expect(step.approverUserId).toBe(a2.user.id);
+    expect(step.approverUserId).not.toBe(owner.user.id);
+  });
+
+  it("fallback: initiator-dışı uygun onaylayıcı YOK (tek-admin) → request REJECTED (sessiz PENDING DEĞİL)", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // TEK admin + initiator
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(
+      owner.auth,
+      flowInput([a1.user.id]) as never,
+    );
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { res } = await startAward(
+      approvals,
+      owner.auth,
+      owner.company.id,
+      owner.user.id,
+    );
+    const requestId = (res as { requestId?: string }).requestId!;
+
+    // Tek onaylayıcı a1 pasifleşti; owner initiator (fallback'e uygun değil) →
+    // uygun kimse kalmaz.
+    await prisma.companyUser.update({
+      where: { id: a1.user.id },
+      data: { isActive: false },
+    });
+    const n = await approvals.fallbackInactiveApprovers();
+    expect(n).toBe(0); // devredilen yok
+    // Sessiz PENDING DEĞİL: request tanımlı biçimde REJECTED.
+    const req = await prisma.approvalRequest.findUniqueOrThrow({
+      where: { id: requestId },
+    });
+    expect(req.status).toBe("REJECTED");
+    // Bekleyen adım da kapandı.
+    const pending = await prisma.approvalRequestStep.count({
+      where: { requestId, status: "PENDING" },
+    });
+    expect(pending).toBe(0);
   });
 });
 

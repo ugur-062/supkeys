@@ -926,7 +926,16 @@ export class CompanyApprovalsService {
       select: {
         id: true,
         approverUserId: true,
-        request: { select: { companyId: true, listingId: true } },
+        request: {
+          select: {
+            id: true,
+            companyId: true,
+            listingId: true,
+            type: true,
+            payload: true,
+            createdById: true,
+          },
+        },
       },
       take: 100,
     });
@@ -940,38 +949,115 @@ export class CompanyApprovalsService {
     const isInactive = new Map(
       approvers.map((a) => [a.id, !a.isActive || a.deletedAt != null]),
     );
-    const toFix = steps.filter((s) => isInactive.get(s.approverUserId));
+    // INV-APPR-1: GEÇERSİZ approver = inaktif/silinmiş VEYA initiator (görev
+    // ayrılığı — self-onay decide'da da reddedilir; burada zinciri açar).
+    const toFix = steps.filter(
+      (s) =>
+        isInactive.get(s.approverUserId) ||
+        s.approverUserId === s.request.createdById,
+    );
 
     let reassigned = 0;
     for (const step of toFix) {
-      const fallback = await this.prisma.companyUser.findFirst({
-        where: {
-          companyId: step.request.companyId,
-          roles: { hasSome: ["SAHIP", "YONETICI"] },
-          isActive: true,
-          deletedAt: null,
-          id: { not: step.approverUserId },
-        },
-        orderBy: { createdAt: "asc" },
-        select: { id: true },
-      });
+      // Havuz: aktif SAHIP/YONETICI/ONAYLAYICI ∖ {eski approver, initiator}
+      // ("approver-uygun = fallback-uygun" tutarsızlığı kapatıldı; ONAYLAYICI dahil).
+      const fallback = await this.findEligibleApprover(step.request.companyId, [
+        step.approverUserId,
+        step.request.createdById,
+      ]);
       if (!fallback) {
-        this.logger.error(
-          `Pasif onaycı fallback: firma ${step.request.companyId} için aktif YONETICI yok, adım ${step.id} atlanıyor`,
+        // Uygun onaylayıcı YOK → SESSİZ PENDING DEĞİL (eski deadlock): tanımlı
+        // reddet + initiator'ı bilgilendir (tek-admin senaryosu buraya düşer).
+        this.logger.warn(
+          `Onay fallback: firma ${step.request.companyId} isteği ${step.request.id} için initiator-dışı uygun onaylayıcı yok → REJECTED`,
         );
+        await this.rejectForNoApprover(step.request);
         continue;
       }
       await this.prisma.approvalRequestStep.update({
         where: { id: step.id },
-        data: { approverUserId: fallback.id },
+        data: { approverUserId: fallback },
       });
-      void this.notifyApprover(fallback.id, step.request.listingId);
+      void this.notifyApprover(fallback, step.request.listingId);
       reassigned++;
-      this.logger.log(
-        `Pasif onaycı fallback: adım ${step.id} → aktif YONETICI ${fallback.id}`,
-      );
+      this.logger.log(`Onay fallback: adım ${step.id} → ${fallback}`);
     }
     return reassigned;
+  }
+
+  /**
+   * INV-APPR-1: bir adım için UYGUN onaylayıcı — aktif SAHIP/YONETICI/ONAYLAYICI
+   * (onaycı-uygun rolleriyle AYNI küme; eski fallback'in yalnız SAHIP/YONETICI
+   * araması tutarsızdı), `excludeIds` dışında (eski/geçersiz approver + initiator).
+   * Uygun kimse yoksa null.
+   */
+  private async findEligibleApprover(
+    companyId: string,
+    excludeIds: string[],
+    client: Prisma.TransactionClient = this.prisma,
+  ): Promise<string | null> {
+    const u = await client.companyUser.findFirst({
+      where: {
+        companyId,
+        isActive: true,
+        deletedAt: null,
+        roles: { hasSome: ["SAHIP", "YONETICI", "ONAYLAYICI"] },
+        id: { notIn: excludeIds },
+      },
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+    return u?.id ?? null;
+  }
+
+  /**
+   * INV-APPR-1: initiator-dışı uygun onaylayıcı bulunamayınca isteği TANIMLI
+   * biçimde reddeder (sessiz PENDING deadlock yerine): request + bekleyen/açık
+   * adımlar REJECTED, listing IN_AWARD'a döner (rejected event), initiator net
+   * mesajla bilgilendirilir. Sistem kararı (adminId/actorId yok).
+   */
+  private async rejectForNoApprover(req: {
+    id: string;
+    companyId: string;
+    type: string;
+    listingId: string;
+    payload: unknown;
+    createdById: string;
+  }): Promise<void> {
+    const done = await this.prisma.approvalRequest.updateMany({
+      where: { id: req.id, status: "PENDING" },
+      data: { status: "REJECTED", decidedAt: new Date() },
+    });
+    if (done.count !== 1) return; // yarış: başka worker/karar sonuçlandırdı
+    await this.prisma.approvalRequestStep.updateMany({
+      where: { requestId: req.id, status: { in: ["PENDING", "WAITING"] } },
+      data: { status: "REJECTED", decidedAt: new Date() },
+    });
+    await this.audit.log({
+      action: "company.approval.rejected",
+      actorType: "system",
+      tenantId: req.companyId,
+      entityType: "approval_request",
+      entityId: req.id,
+      critical: true,
+      metadata: {
+        type: req.type,
+        listingId: req.listingId,
+        reason: "no_eligible_approver",
+        isFinal: true,
+      },
+    });
+    this.events.emit(`${eventBase(req.type as ApprovalType)}.rejected`, {
+      requestId: req.id,
+      listingId: req.listingId,
+      payload: req.payload,
+    });
+    void this.notifyRequester(
+      req.createdById,
+      req.listingId,
+      "REJECTED",
+      "Onay akışında sizden başka uygun bir onaylayıcı yok — akışa bir onaylayıcı ekleyin veya firma sahibine başvurun.",
+    );
   }
 
   /** Kullanıcının onayını bekleyen istekler (Onaylar sayfası). */
