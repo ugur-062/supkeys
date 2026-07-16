@@ -200,6 +200,42 @@ describe("Çoklu birim — en iyi teklif TRY-normalize sıralanır", () => {
       currency: "TRY",
     });
   });
+
+  it("INV-FX-1: Decimal-STRING damga da TRY-normalize sıralar (yeni storage)", async () => {
+    // Yeni yazımlar kuru string saklar; auctionTryValue reader hem string
+    // (yeni) hem number (legacy — yukarıdaki testler) kabul etmeli.
+    const { service, owner, listing } = await auction({
+      priceDecrementBasis: "BEST_BID",
+      auctionRateSnapshot: { TRY: "1", EUR: "50", USD: "40" },
+    });
+    const r1 = await makeCompanyWithUser(prisma, { country: "TR" });
+    const r2 = await makeCompanyWithUser(prisma, { country: "TR" });
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: r1.company.id,
+      createdById: r1.user.id,
+      amount: 999,
+      currency: "TRY",
+    });
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: r2.company.id,
+      createdById: r2.user.id,
+      amount: 19, // = 950 ₺ (string kur 50 ile) → 999 ₺'yi geçer
+      currency: "EUR",
+    });
+    const detail = (await service.getOne(owner.auth, listing.id)) as {
+      english: {
+        currentBest: string;
+        currentBestCurrency: string;
+        rateSnapshot: Record<string, number>;
+      };
+    };
+    expect(Number(detail.english.currentBest)).toBe(19);
+    expect(detail.english.currentBestCurrency).toBe("EUR");
+    // EKRAN sınırı: rateSnapshot API sözleşmesi number kalır (string değil).
+    expect(detail.english.rateSnapshot.EUR).toBe(50);
+  });
 });
 
 describe("Yeni tur — kur damgası ve çoklu-birim taşıma", () => {
@@ -246,7 +282,8 @@ describe("Yeni tur — kur damgası ve çoklu-birim taşıma", () => {
       },
     });
     expect(after.allowedCurrencies).toEqual(["TRY", "EUR"]);
-    expect(after.auctionRateSnapshot).toMatchObject({ TRY: 1, EUR: 48 });
+    // INV-FX-1: snapshot kurları artık Decimal-STRING saklanır (eski: JSON float).
+    expect(after.auctionRateSnapshot).toMatchObject({ TRY: "1", EUR: "48" });
     const carried = await prisma.listingBid.findUniqueOrThrow({
       where: {
         listingId_bidderCompanyId: {

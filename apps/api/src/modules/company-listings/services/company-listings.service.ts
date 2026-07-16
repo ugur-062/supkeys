@@ -2069,9 +2069,7 @@ export class CompanyListingsService {
           currentRound: listing.currentRound,
           // Açılış günü TCMB damgası — UI adımı/en iyiyi teklifçinin birimine
           // bununla çevirir (kamusal kur verisi; zarf sızıntısı değil).
-          rateSnapshot:
-            (listing.auctionRateSnapshot as Record<string, number> | null) ??
-            null,
+          rateSnapshot: this.rateSnapshotToNumbers(listing.auctionRateSnapshot),
         }
       : null;
 
@@ -2440,9 +2438,13 @@ export class CompanyListingsService {
   private async buildAuctionRateSnapshot(
     currencies: Currency[],
     primary: Currency,
-  ): Promise<Record<string, number>> {
+  ): Promise<Record<string, string>> {
     const set = [...new Set<Currency>([...(currencies ?? []), primary])];
-    const out: Record<string, number> = { TRY: 1 };
+    // INV-MONEY-1 / INV-FX-1: kurlar Decimal-STRING saklanır (eski: JSON float).
+    // JSON number tek-baz kuru için lossy'di (auctionTryValue her okumada float→
+    // Decimal); string saklamak kaynağı sabit tutar, tekrarlı float round-trip'i
+    // keser. auctionTryValue reader hem string (yeni) hem number (legacy) kabul.
+    const out: Record<string, string> = { TRY: "1" };
     for (const cur of set) {
       if (cur === "TRY") continue;
       const rate = await this.exchangeRates
@@ -2453,7 +2455,7 @@ export class CompanyListingsService {
           `${cur} için TCMB kuru bulunamadı — bu para birimiyle açık eksiltme/artırma açılamaz`,
         );
       }
-      out[cur] = rate;
+      out[cur] = new Prisma.Decimal(rate).toString();
     }
     return out;
   }
@@ -2471,12 +2473,36 @@ export class CompanyListingsService {
   ): Prisma.Decimal | null {
     if (currency === "TRY") return amount;
     const s = (listingSnap as Record<string, unknown> | null)?.[currency];
-    // INV-MONEY-1: Decimal.mul (amount Decimal) — kur açık Decimal'e çevrilir.
-    // NOT: kur `auctionRateSnapshot`'ta JSON FLOAT olarak saklanıyor; asıl
-    // hassasiyet kaybı orada (kuru Decimal-string saklamak ayrı/daha büyük iş).
+    // INV-MONEY-1 / INV-FX-1: kur açık Decimal'e çevrilir. Snapshot artık kuru
+    // Decimal-STRING saklıyor (yeni yazımlar); eski turlarda JSON FLOAT (number)
+    // kalabilir → iki tipi de kabul et (geriye uyumlu). String "50.5" veya
+    // number 50.5 → new Prisma.Decimal(...) her ikisini de parse eder.
+    if (typeof s === "string" && s.length > 0) {
+      const r = new Prisma.Decimal(s);
+      if (r.isPositive() && !r.isZero()) return amount.mul(r);
+    }
     if (typeof s === "number" && s > 0) return amount.mul(new Prisma.Decimal(s));
     if (bidSnapshot) return amount.mul(bidSnapshot);
     return null;
+  }
+
+  /**
+   * Snapshot kur haritasını EKRAN sınırında number'a indirger. Storage artık
+   * Decimal-string (INV-FX-1) ama API sözleşmesi `rateSnapshot: number` kalır
+   * (frontend JS math). Grup 2 deseni: karar=Decimal/string kesin, gösterim=
+   * mevcut şekil. Legacy number + yeni string değerlerin ikisini de kabul eder.
+   */
+  private rateSnapshotToNumbers(
+    snap: unknown,
+  ): Record<string, number> | null {
+    if (snap == null || typeof snap !== "object") return null;
+    const out: Record<string, number> = {};
+    for (const [k, v] of Object.entries(snap as Record<string, unknown>)) {
+      const n =
+        typeof v === "string" ? Number(v) : typeof v === "number" ? v : NaN;
+      if (Number.isFinite(n)) out[k] = n;
+    }
+    return out;
   }
 
   /**
