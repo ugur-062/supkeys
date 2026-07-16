@@ -70,7 +70,7 @@ Yan servis yok — Supabase Postgres, Supabase Auth, Cloudflare R2, Resend hepsi
 - `<RequireAuth>` / `<RequireAdminAuth>` / `<RequireSupplierAuth>` boundary
 - Component yolu: `@/components/{ui,brand,providers,dashboard,tenders,orders}/*`
 - API çağrıları: `useMutation` / `useQuery` (TanStack Query) + axios instance
-- Auth state: Zustand persist (localStorage keys: `rothern-auth`, `rothern-admin-auth`, `rothern-supplier-auth`)
+- **Auth = httpOnly cookie oturum** (token JS'ten OKUNMAZ; XSS'e kapalı). Zustand persist YALNIZ UI snapshot'ı tutar (`user`/`company`), token DEĞİL — persist key'leri `rothern-company-auth` (web) + `rothern-admin-auth` (admin); remember→localStorage, aksi→sessionStorage. Kimlik `/me` ile doğrulanır. Mutating isteklerde CSRF double-submit (`rk_csrf`/`rk_admin_csrf` → `X-CSRF-Token`).
 
 ## Geliştirme Notları
 - **NestJS CLI watch modu WSL'de bozuk.** `apps/api/package.json` `dev` script'i `concurrently` + `tsc -w` + `nodemon` kullanır. `nest start --watch` KULLANMAYIN.
@@ -114,7 +114,8 @@ Yapılan audit'ler:
 - ✅ Health endpoint DB ping (Redis kaldırıldıktan sonra)
 - ✅ Console.log → NestJS Logger (production)
 - ✅ Structured logger (Pino + redact) + Sentry entegre; kritik-audit kaybı + webhook imza hataları `reportToSentry()` ile Sentry'e bağlı (fırlatılmayan logler SentryGlobalFilter'a takılmıyordu)
-- ⏳ Bekleyen: alert webhook, audit_logs populate, CSP (helmet), V2 httpOnly cookie auth; fast-follow: correlation-id, log drain, frontend Sentry
+- ✅ httpOnly cookie auth + CSRF double-submit (tamamlandı — token localStorage'dan kaldırıldı)
+- ⏳ Bekleyen: alert webhook, audit_logs populate, CSP (helmet); fast-follow: log drain, frontend Sentry
 - 🚀 **Launch checklist:** Prod deploy öncesi ödeme/plan + env + doğrulama adımları → **`docs/launch-checklist.md`**. Kritik: `SENTRY_DSN` boşsa error tracking + kritik-audit/webhook alarmları tümüyle pasif (sessiz no-op — tek fail-open servis); Supabase/R2/Resend env'leri eksikse app boot etmez (fail-closed).
 
 ---
@@ -151,7 +152,7 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 **Altyapı / production**
 - Hosting / production setup (Coolify + Hetzner, Chromium pre-installed Docker image — PDF)
 - Resend domain doğrulaması + webhook tracking
-- Structured logger (Pino + redact), Sentry, alert webhook, audit_logs populate, CSP (helmet), httpOnly cookie auth
+- Structured logger (Pino + redact), Sentry, alert webhook, audit_logs populate, CSP (helmet)
 
 **Teknik borç / temizlik**
 - **Test paketi refactor:** 534 testin bcrypt mock'ları `SupabaseAuthService` bridge'i ile uyumsuz; login/register/password test'leri Supabase auth.users mock'larıyla yeniden yazılmalı + smoke E2E paketi güncellenmeli.
