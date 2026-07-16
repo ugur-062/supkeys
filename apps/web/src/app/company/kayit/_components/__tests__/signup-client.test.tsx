@@ -159,6 +159,22 @@ describe("CompanySignupClient — doğrulama aşaması", () => {
     expect(resendBtn).toBeDisabled();
   });
 
+  it("emailSent:false → 'gönderildi' yalanı YOK: hata + success toast yok + resend HEMEN aktif", async () => {
+    const user = userEvent.setup();
+    h.signupAsync.mockResolvedValue({ email: "ada@firma.com", emailSent: false });
+    render(<CompanySignupClient />);
+    await fillValidForm(user);
+    await user.click(screen.getByRole("button", { name: "Hesap Oluştur" }));
+    await screen.findByText("E-postanı doğrula");
+    // Dürüst sinyal: "gönderildi" toast'ı YOK, bunun yerine hata görünür.
+    expect(h.toast.success).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/gönderilemedi/i);
+    // cooldown 0 → kullanıcı hemen tekrar deneyebilir.
+    expect(
+      screen.getByRole("button", { name: "Kod gelmedi mi? Yeniden gönder" }),
+    ).toBeEnabled();
+  });
+
   it("e-posta değiştir → forma döner", async () => {
     const user = userEvent.setup();
     await reachVerify(user);

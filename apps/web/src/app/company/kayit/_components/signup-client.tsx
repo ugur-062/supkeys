@@ -105,7 +105,7 @@ export function CompanySignupClient() {
   const submitForm = async () => {
     setError(null);
     try {
-      await signup.mutateAsync({
+      const res = await signup.mutateAsync({
         firstName: form.firstName.trim(),
         lastName: form.lastName.trim(),
         email: form.email.trim(),
@@ -118,8 +118,18 @@ export function CompanySignupClient() {
         profileImprovementConsent: consents.profile,
       });
       setStep("verify");
-      setCooldown(60);
-      toast.success("Doğrulama kodu e-postanıza gönderildi");
+      // Hesap oluştu; kod adımına geçilir. Ama backend kod e-postasının GİDİP
+      // gitmediğini bildiriyor (emailSent). Gitmediyse "gönderildi" yalanı yerine
+      // hata göster ve cooldown'ı atla → kullanıcı hemen "Tekrar Gönder"sin.
+      if (res.emailSent === false) {
+        setCooldown(0);
+        setError(
+          "Doğrulama kodu şu anda gönderilemedi. Aşağıdan 'Tekrar Gönder' ile yeniden deneyin; sorun sürerse birkaç dakika sonra tekrar deneyin.",
+        );
+      } else {
+        setCooldown(60);
+        toast.success("Doğrulama kodu e-postanıza gönderildi");
+      }
     } catch (err) {
       setError(extractErrorMessage(err, "Kayıt başarısız"));
     }

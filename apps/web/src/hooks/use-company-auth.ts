@@ -71,6 +71,10 @@ export function useCompanySignup() {
       const { data } = await companyApi.post<{
         email: string;
         verificationRequired: true;
+        // Kod e-postası gerçekten gönderildi mi? false → gönderim başarısız
+        // (backend dürüst sinyal; UI "tekrar gönder" gösterir). Eski yanıtlarda
+        // alan olmayabilir → default true (geriye uyumlu).
+        emailSent?: boolean;
       }>("/company-auth/signup", input);
       return data;
     },
