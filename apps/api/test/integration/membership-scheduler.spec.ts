@@ -74,10 +74,13 @@ describe("MembershipScheduler.downgradeExpired", () => {
     await scheduler.downgradeExpired();
 
     // Tier: A düştü, D korundu.
-    expect(
-      (await prisma.company.findUniqueOrThrow({ where: { id: a.company.id } }))
-        .tier,
-    ).toBe("STANDARD");
+    const aAfter = await prisma.company.findUniqueOrThrow({
+      where: { id: a.company.id },
+    });
+    expect(aAfter.tier).toBe("STANDARD");
+    // Y3: membershipEndAt TEMİZLENDİ (bayat geçmiş tarih kalmaz → sonraki cron
+    // yeniden eşleştirmez, gelecekteki re-grant/upgrade kırılmaz).
+    expect(aAfter.membershipEndAt).toBeNull();
     expect(
       (await prisma.company.findUniqueOrThrow({ where: { id: d.company.id } }))
         .tier,
