@@ -595,6 +595,14 @@ export class CompanyApprovalsService {
     if (!step || step.approverUserId !== user.userId) {
       throw new ForbiddenException("Bu adımın onaycısı değilsiniz");
     }
+    // INV-APPR-1 (görev ayrılığı): başlatan kendi isteğini ONAYLAYAMAZ. Bir adımın
+    // approver'ı yanlışlıkla/kötü niyetle initiator'a eşitlenmişse burada kesilir;
+    // geçersiz-approver (initiator) ikamesi requestApproval + fallback cron'da.
+    if (user.userId === req.createdById) {
+      throw new ForbiddenException(
+        "Kendi başlattığınız kazandırmayı onaylayamazsınız (görev ayrılığı).",
+      );
+    }
 
     // ── Yarış koruması ──
     // Karar, adım statüsü üzerinde atomik compare-and-swap ile uygulanır:
