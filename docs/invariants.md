@@ -84,8 +84,14 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
   - *Geçmiş:* #12 olarak kapatıldı (kök fail-open: admin-auth/health uçları RolesGuard zincirinde DEĞİLDİ → oraya konan `@RequireAdminRole` no-op oluyordu; #4 companies list + #7 dahili notlar asimetrisi de aynı turda kapandı).
 
 - **INV-AUDIT-1 (KISMEN SAĞLANIYOR)** — Ayrıcalıklı/para/yetki geçişleri append-only audit trail'e (`AuditLog`, `audit.service.ts`) yazılır.
-  - *Sağlanan (kritik dalga):* kazandırma `company.listing.awarded` (`company-listings.service.ts:3911,4423`); ödeme onay/red `company.order.payment_{confirmed,rejected}` (`company-orders.service.ts:1328`); yetki geçişleri `company.user.{roles_changed,permissions_overridden,active_changed,removed}` (`company-users.service.ts:408/477/595/526/646`); admin eylemleri (`admin.staff.created`, `admin.listing.{closed,extended,reopened}`, `admin.order.cancelled`, `admin.*_invite.revoked`); auth (`signup/login/login_failed/2fa_*/password_changed`). Kritik izler `critical: true` + tx-SONRASI fail-safe yazılır; başlatan ≠ onaylayan ayrımı korunur.
-  - *GAP (ikinci dalga — henüz izsiz):* sipariş yaşam-döngüsü geçişleri (accept/reject/ship/receive/complete/cancel); ONAY KARARLARININ KENDİSİ (`company-approvals.service.ts` decide approve/reject); ilan durum geçişleri (publish/cancel/startEvaluation/closeNoAward/createNextRound — yalnız `awarded` izli); `placeBid`; bağlantı accept/reject/disconnect; sipariş revizyonu; ve **DENIAL AUDIT** — engellenmiş yetki eylemleri (ör. son-admin/admin-hedef düşürme denemesinin reddi, INV-AZ/#8 Forbidden'ları) hiç kaydedilmiyor.
+  - *Sağlanan (1. dalga — kritik):* kazandırma `company.listing.awarded` (`company-listings.service.ts:3911,4423`); ödeme onay/red `company.order.payment_{confirmed,rejected}` (`company-orders.service.ts:1328`); yetki geçişleri `company.user.{roles_changed,permissions_overridden,active_changed,removed}` (`company-users.service.ts:408/477/595/526/646`); admin eylemleri (`admin.staff.created`, `admin.listing.{closed,extended,reopened}`, `admin.order.cancelled`, `admin.*_invite.revoked`); auth (`signup/login/login_failed/2fa_*/password_changed`). Kritik izler `critical: true` + tx-SONRASI fail-safe yazılır; başlatan ≠ onaylayan ayrımı korunur.
+  - *Sağlanan (2. dalga — 2026-07-16, `2ea40d8`):* aynı desen (tx-SONRASI, awaited, fail-safe, `actorType:"company"`, PII yok).
+    - **Sipariş yaşam-döngüsü** — `company.order.{accepted,rejected,shipped,received,completed,cancelled}` (`company-orders.service.ts`), `critical:true`, before/after `from`/`to`.
+    - **Onay kararları** — `company.approval.{rejected,step_approved,approved}` (`company-approvals.service.ts` decide), `critical:true`. Son adım (`approved`) YALNIZ kazandırma `emitAsync` başarısında yazılır: fail/rollback ederse iz DÜŞMEZ (catch rethrow'dan sonraki satır → o noktaya yalnız başarıda ulaşılır). `AuditService` bu servise enjekte edildi.
+    - **İlan durum geçişleri** — `company.listing.{published,evaluation_started,cancelled,closed_no_award,next_round_created}` (`company-listings.service.ts`), `critical:true`.
+    - **DENIAL AUDIT (yeni sınıf)** — engellenmiş yetki eylemi iz bırakır (state değişmez, sinyal): `company.listing.manage_denied` (`assertListingManageRole`), `company.user.role_change_denied` (`assertCanModifyAdminTarget`), `company.user.last_admin_denied` (`assertNotLastAdmin` → `LastActiveAdminError` sentinel'i tx-abort SONRASI yakalanır). **Denial izleri `critical:false`** — Sentry'e kritik-kayıp marker'ı GÖNDERMEZ (bir insider sistemi zorlayınca denial seli alarm gürültüsü yaratmasın; yalnız state-değiştiren geçişler `critical:true`).
+    - *Sözleşme:* `test/integration/company-audit-trail.spec.ts` (30 test: 11 dalga-1 + 19 dalga-2, rollback→iz-yok dahil).
+  - *GAP (3. dalga — henüz izsiz):* `placeBid`; bağlantı accept/reject/disconnect; sipariş revizyon müzakeresi (propose/approve/reject/cancel-revision).
 
 - **INV-DOC-1** — Her belge okuma/indirme ve presigned-GET üretimi, veriyi döndürmeden/URL üretmeden ÖNCE sahiplik veya taraf-üyeliği doğrular; teklifveren yalnız KENDİ firmasının belgelerini presign edebilir (kapalı zarf).
   - *Kanıt:* Presigned-GET üreten **6 yol** var, hepsi sahiplik/üyelik/rol kapılı:
@@ -129,7 +135,7 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
 ## Karşılanmamış hedefler (henüz sağlanmıyor — kural DEĞİL)
 
 - **INV-MT-5 (HEDEF)** — Postgres RLS bir **güvenlik ağı** olarak henüz yok (servis disiplinini İKAME ETMEZ, yedekler); bugün RLS inert (Prisma tablo-sahibi rolle bağlanıyor). Ön koşullar + aşamalı yol + efor için bölüm 1'e bakınız.
-- **INV-AUDIT-1 ikinci dalga (HEDEF)** — Sipariş yaşam-döngüsü, onay kararları, ilan durum geçişleri, `placeBid`, bağlantılar, revizyon ve DENIAL AUDIT hâlâ izsiz; ayrıntı için bölüm 5'teki INV-AUDIT-1 "GAP" alt-maddesine bakınız.
+- **INV-AUDIT-1 üçüncü dalga (HEDEF)** — 1. + 2. dalga tamamlandı (sipariş yaşam-döngüsü, onay kararları, ilan durum geçişleri, denial audit izli). KALAN: `placeBid`, bağlantı işlemleri ve sipariş revizyon müzakeresi hâlâ izsiz; ayrıntı için bölüm 5'teki INV-AUDIT-1 "GAP" alt-maddesine bakınız.
 
 ---
 
@@ -151,6 +157,7 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
 |-----------|-------|---------------|--------|
 | INV-SM-1 (kapsam genişledi) | #1/#5/#11 | publishListing/cancel/createNextRound → koşullu-atomik guard | `1061dc0` |
 | INV-AUDIT-1 (1. dalga, kısmen) | kritik dalga | award/ödeme/rol-izin-aktif-çıkış audit izi | `c037733` |
+| INV-AUDIT-1 (2. dalga) | state geçişleri + denial | sipariş yaşam-döngüsü + onay kararları + ilan geçişleri + denial audit (critical:false) | `2ea40d8` |
 | INV-ADMIN-1 (yeni) | #12 (+#4/#7) | admin authz fail-open → fail-closed + guard-chain tuzağı | `1592f51`, `9e48902` |
 | INV-MT-3 + INV-SD-1 (WS) | WS iptal-bypass | realtime handshake taze-DB kapısı + süresiz-soket exp-timer | `5ff3524` |
 | INV-DOC-1, INV-RL-1 + hijyen | #6/#8/#9/#10/#13 | env-bypass allowlist (ALLOW_INSECURE_WEBHOOK dahil), admin throttle, ölü guard silme, 6-presign doc, admin-demote guard | `bc22b7b` |
