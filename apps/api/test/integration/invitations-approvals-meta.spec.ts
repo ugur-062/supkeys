@@ -56,6 +56,7 @@ function makeApprovalsService() {
     email as never,
     config as never,
     notifications,
+    new AuditService(prisma as never),
   );
   return { service, events };
 }

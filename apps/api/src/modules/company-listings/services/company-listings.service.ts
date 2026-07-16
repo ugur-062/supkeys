@@ -1467,6 +1467,23 @@ export class CompanyListingsService {
       where: { id: listingId },
     });
     if (!updated) throw new NotFoundException("İlan bulunamadı");
+    // INV-AUDIT-1: durum geçişi (yayınlama) — commit SONRASI, duyurudan önce.
+    await this.audit.log({
+      action: "company.listing.published",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "listing",
+      entityId: listingId,
+      critical: true,
+      metadata: {
+        listingType: listing.type,
+        from: "DRAFT",
+        to: "OPEN",
+        visibility: listing.visibility,
+      },
+    });
     // Embargo-farkında duyuru: açılış gelecekteyse cron açılışta gönderir.
     void this.announceListingOpen(listingId, "invitation").catch((err) =>
       this.logger.warn(
@@ -4768,6 +4785,25 @@ export class CompanyListingsService {
       }
     });
 
+    // INV-AUDIT-1: durum geçişi (yeni tur açma) — commit SONRASI, duyurudan önce.
+    await this.audit.log({
+      action: "company.listing.next_round_created",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "listing",
+      entityId: listingId,
+      critical: true,
+      metadata: {
+        listingType: listing.type,
+        fromRound: listing.currentRound,
+        toRound: listing.currentRound + 1,
+        newFormat: dto.type,
+        carryBids: dto.carryBids,
+        eliminateNonBidders: dto.eliminateNonBidders ?? false,
+      },
+    });
     void this.announceListingOpen(listingId, "newRound").catch((err) =>
       this.logger.warn(
         `Yeni tur duyurusu başarısız (${listingId}): ${
@@ -5259,6 +5295,23 @@ export class CompanyListingsService {
         data: { status: "LOST" },
       });
     });
+    // INV-AUDIT-1: durum geçişi (ilan iptali) — commit SONRASI, bildirimden önce.
+    await this.audit.log({
+      action: "company.listing.cancelled",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "listing",
+      entityId: listingId,
+      critical: true,
+      metadata: {
+        listingType: listing.type,
+        from: "OPEN",
+        to: "CANCELLED",
+        reason: reason?.trim() || null,
+      },
+    });
     // Katılımcılara haber ver (UI "gerekçe iletilir" vaadi artık gerçek).
     void this.notifyListingParticipants(listingId, {
       subject: "İhale iptal edildi",
@@ -5389,6 +5442,22 @@ export class CompanyListingsService {
     if (updated.count !== 1) {
       throw new ConflictException("İlan durumu değişti — sayfayı yenileyin");
     }
+    // INV-AUDIT-1: durum geçişi (değerlendirmeye alma) — commit SONRASI.
+    await this.audit.log({
+      action: "company.listing.evaluation_started",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "listing",
+      entityId: listingId,
+      critical: true,
+      metadata: {
+        listingType: listing.type,
+        from: "OPEN",
+        to: "IN_AWARD",
+      },
+    });
     void this.notifyListingClosed(listingId, { skipOwner: true }).catch((err) =>
       this.logger.error(
         `Kapanış bildirimi gönderilemedi (${listingId}): ${
@@ -5583,6 +5652,23 @@ export class CompanyListingsService {
         data: { status: "LOST" },
       });
     });
+    // INV-AUDIT-1: durum geçişi (kazanansız kapatma) — commit SONRASI.
+    await this.audit.log({
+      action: "company.listing.closed_no_award",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "listing",
+      entityId: listingId,
+      critical: true,
+      metadata: {
+        listingType: listing.type,
+        from: listing.status,
+        to: "CLOSED_NO_AWARD",
+        reason: reason?.trim() || null,
+      },
+    });
     void this.notifyListingParticipants(listingId, {
       subject: "İhale kazanan olmadan kapatıldı",
       heading: "İhale sonuçlanmadan kapatıldı",
@@ -5615,7 +5701,7 @@ export class CompanyListingsService {
    */
   private assertListingManageRole(
     user: AuthenticatedCompanyUser,
-    listing: { type: ListingType; createdById: string },
+    listing: { id: string; type: ListingType; createdById: string },
   ): void {
     const needed =
       listing.type === "ALIM" ? "buy:listing:manage" : "sell:listing:manage";
@@ -5628,6 +5714,26 @@ export class CompanyListingsService {
     const isCreatorOrOwner =
       listing.createdById === user.userId || user.isOwner;
     if (!hasPerm || !isCreatorOrOwner) {
+      // INV-AUDIT-1 (denial): engellenmiş ilan-yönetim denemesi iz bırakır —
+      // insider'ın DENEDİĞİ, başardığı kadar değerli. State değişmez → sinyal.
+      // Guard sync + 13 çağrı yeri → bilinçli await'siz (log() fail-safe).
+      // critical:FALSE — denial seli Sentry'i doldurmasın (yalnız state-geçişi
+      // audit'leri critical:true). PII yok, yalnız id'ler.
+      void this.audit.log({
+        action: "company.listing.manage_denied",
+        actorType: "company",
+        actorId: user.userId,
+        actorEmail: user.email,
+        tenantId: user.companyId,
+        entityType: "listing",
+        entityId: listing.id,
+        critical: false,
+        metadata: {
+          needed,
+          listingType: listing.type,
+          reason: hasPerm ? "not_creator_or_owner" : "missing_permission",
+        },
+      });
       throw new ForbiddenException(
         "Bu ilanı yönetme yetkiniz yok — ilanı açan operatör veya firma sahibi olmalısınız",
       );

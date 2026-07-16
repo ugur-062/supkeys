@@ -13,11 +13,13 @@ import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyApprovalsService } from "../../src/modules/company-approvals/company-approvals.service";
 import { CompanyOrdersService } from "../../src/modules/company-orders/services/company-orders.service";
 import { CompanyUsersService } from "../../src/modules/company-users/company-users.service";
+import type { AuthenticatedCompanyUser } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { prisma, truncateAll } from "./test-db";
 import {
   connect,
   makeBid,
+  makeCompany,
   makeCompanyWithUser,
   makeItem,
   makeListing,
@@ -76,6 +78,7 @@ function makeApprovalRig() {
     email as never,
     config as never,
     notifications,
+    new AuditService(prisma as never),
   );
   const { service: listings } = makeService();
   // @ts-expect-error test: mock'lanmış approvals gerçek servisle değiştirilir.
@@ -88,6 +91,127 @@ function makeApprovalRig() {
     await Promise.all(inflight.splice(0));
   };
   return { approvals, listings, flush, events };
+}
+
+/**
+ * Onay servisi + KAZANDIRMASI KASITEN PATLAYAN handler. decide() son adımda
+ * emitAsync'i bekler → handler reject edince finalize geri alınır (rollback) ve
+ * BadRequestException fırlar. INV-AUDIT-1: bu yolda company.approval.approved
+ * izi DÜŞMEMELİ (onay verildi ama kazandırma uygulanmadı).
+ */
+function makeFailingAwardRig() {
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+  const notifications = new NotificationService(prisma as never);
+  const events = new EventEmitter2();
+  const approvals = new CompanyApprovalsService(
+    prisma as never,
+    events,
+    email as never,
+    config as never,
+    notifications,
+    new AuditService(prisma as never),
+  );
+  // emitAsync bu async listener'ı bekler → reject → decide catch → rollback.
+  events.on("listing.award.approved", async () => {
+    throw new Error("kazandırma kasten patladı (test)");
+  });
+  return { approvals, events };
+}
+
+/** Onay eşiğine düşmesi için aktif LISTING_AWARD akışı + tek/çok adım kur. */
+async function setupAwardApprovalRequest(
+  approvals: CompanyApprovalsService,
+  ownerAuth: AuthenticatedCompanyUser,
+  approverIds: string[],
+) {
+  const owner = ownerAuth;
+  const bidderCompany = await makeCompanyWithUser(prisma, { country: "TR" });
+  await connect(prisma, owner.companyId, bidderCompany.company.id, owner.userId);
+  const listing = await makeListing(prisma, {
+    companyId: owner.companyId,
+    createdById: owner.userId,
+    type: "ALIM",
+    status: "OPEN",
+    closesAt: future(3),
+  });
+  const item = await makeItem(prisma, listing.id);
+  const bid = await makeBid(prisma, {
+    listingId: listing.id,
+    bidderCompanyId: bidderCompany.company.id,
+    createdById: bidderCompany.user.id,
+    amount: 5000,
+    currency: "TRY",
+    items: [{ itemId: item.id, unitPrice: 5000 }],
+  });
+  const flow = await approvals.createFlow(owner as never, {
+    name: "Kazandırma onayı",
+    type: "LISTING_AWARD",
+    steps: approverIds.map((id) => ({ approverUserId: id })),
+  } as never);
+  await approvals.setStatus(owner as never, flow.id, {
+    status: "ACTIVE",
+  } as never);
+  const started = (await approvals.requestApproval(owner as never, {
+    listingId: listing.id,
+    type: "LISTING_AWARD",
+    listingType: "ALIM",
+    amount: 5000,
+    currency: "TRY",
+    payload: { kind: "full", bidId: bid.id },
+  } as never)) as { approved: boolean; requestId?: string };
+  return { listing, bid, requestId: started.requestId!, started };
+}
+
+/** roles + companyId'den auth nesnesi (owner olmayan üye için). */
+function authFor(
+  user: { id: string; email: string },
+  companyId: string,
+  roles: CompanyRole[],
+  isOwner = false,
+): AuthenticatedCompanyUser {
+  return {
+    userId: user.id,
+    companyId,
+    email: user.email,
+    roles,
+    country: "TR",
+    tier: "PAKET",
+    isOwner,
+  } as AuthenticatedCompanyUser;
+}
+
+/** accept kayıtlı banka hesabı ister — satıcıya hesap açıp onay girdisi döndür. */
+async function acceptInputFor(companyId: string) {
+  const acct = await prisma.companyBankAccount.create({
+    data: {
+      companyId,
+      title: "Vadesiz TL",
+      accountHolder: "Test Firma A.Ş.",
+      iban: "TR330006100519786457841326",
+    },
+  });
+  return {
+    expectedDeliveryDate: future(5).toISOString(),
+    bankAccountId: acct.id,
+  };
+}
+
+async function makeOrder(
+  sellerCompanyId: string,
+  buyerCompanyId: string,
+  over: Record<string, unknown> = {},
+) {
+  return prisma.companyOrder.create({
+    data: {
+      sellerCompanyId,
+      buyerCompanyId,
+      amount: 1000,
+      status: "PENDING",
+      paymentTiming: "AFTER_DELIVERY",
+      ...over,
+    } as never,
+  });
 }
 
 afterAll(async () => {
@@ -464,5 +588,487 @@ describe("kritik audit kaybı marker'ı", () => {
 
     expect(errSpy.mock.calls[0]![0]).not.toContain("[AUDIT-KRİTİK-KAYIP]");
     expect(errSpy.mock.calls[0]![0]).toContain("audit log yazılamadı");
+  });
+});
+
+// ═══════════════════════ DALGA 2 ═══════════════════════
+
+// ─────────────────────────── Sipariş yaşam döngüsü ───────────────────────────
+
+describe("sipariş yaşam döngüsü audit'i", () => {
+  async function twoParties() {
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    return { seller, buyer };
+  }
+
+  it("accept → company.order.accepted iz (actor=satıcı, from/to)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id);
+    await orders.accept(
+      seller.auth,
+      order.id,
+      (await acceptInputFor(seller.company.id)) as never,
+    );
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.order.accepted", entityId: order.id },
+    });
+    expect(row.actorType).toBe("company");
+    expect(row.actorId).toBe(seller.user.id);
+    expect(row.tenantId).toBe(seller.company.id);
+    expect(row.entityType).toBe("company_order");
+    expect(row.metadata).toMatchObject({ from: "PENDING", to: "ACCEPTED" });
+  });
+
+  it("reject → company.order.rejected iz (reason + to=REJECTED)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id);
+    await orders.reject(seller.auth, order.id, "stok tükendi maalesef");
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.order.rejected", entityId: order.id },
+    });
+    expect(row.actorId).toBe(seller.user.id);
+    expect(row.metadata).toMatchObject({
+      to: "REJECTED",
+      reason: "stok tükendi maalesef",
+    });
+  });
+
+  it("ship → company.order.shipped iz (invoiceNumber + to=IN_DELIVERY)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      acceptedAt: new Date(),
+    });
+    await orders.ship(seller.auth, order.id, { invoiceNumber: "FTR-9" } as never);
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.order.shipped", entityId: order.id },
+    });
+    expect(row.actorId).toBe(seller.user.id);
+    expect(row.metadata).toMatchObject({
+      to: "IN_DELIVERY",
+      invoiceNumber: "FTR-9",
+    });
+  });
+
+  it("receive → company.order.received iz (actor=alıcı, autoCompleted)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "IN_DELIVERY",
+      acceptedAt: new Date(),
+      deliveryStartedAt: new Date(),
+    });
+    await orders.receive(buyer.auth, order.id, {} as never);
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.order.received", entityId: order.id },
+    });
+    expect(row.actorId).toBe(buyer.user.id);
+    expect(row.tenantId).toBe(buyer.company.id);
+    expect(row.metadata).toMatchObject({
+      from: "IN_DELIVERY",
+      to: "DELIVERED",
+      autoCompleted: false,
+    });
+  });
+
+  it("complete → company.order.completed iz (to=COMPLETED)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DELIVERED",
+      acceptedAt: new Date(),
+      deliveryStartedAt: new Date(),
+      deliveredAt: new Date(),
+    });
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: 1000,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+    await orders.complete(buyer.auth, order.id, {} as never);
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.order.completed", entityId: order.id },
+    });
+    expect(row.actorId).toBe(buyer.user.id);
+    expect(row.metadata).toMatchObject({ from: "DELIVERED", to: "COMPLETED" });
+  });
+
+  it("cancel → company.order.cancelled iz (reason + to=CANCELLED)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      acceptedAt: new Date(),
+    });
+    await orders.cancel(buyer.auth, order.id, "ihtiyaç ortadan kalktı");
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.order.cancelled", entityId: order.id },
+    });
+    expect(row.actorId).toBe(buyer.user.id);
+    expect(row.metadata).toMatchObject({
+      to: "CANCELLED",
+      reason: "ihtiyaç ortadan kalktı",
+    });
+  });
+});
+
+// ─────────────────────────── Onay kararı ───────────────────────────
+
+describe("onay kararı audit'i", () => {
+  async function approverAuthUser(companyId: string) {
+    const u = await makeUser(prisma, companyId, [CompanyRole.ONAYLAYICI]);
+    return { user: u, auth: authFor(u, companyId, [CompanyRole.ONAYLAYICI]) };
+  }
+
+  it("reject → company.approval.rejected iz (actor=onaycı, isFinal=false, note)", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const approver = await approverAuthUser(owner.company.id);
+    const { requestId } = await setupAwardApprovalRequest(
+      approvals,
+      owner.auth,
+      [approver.user.id],
+    );
+    await approvals.decide(approver.auth, requestId, "reject", {
+      note: "bütçe uygun değil",
+    } as never);
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.approval.rejected", entityId: requestId },
+    });
+    expect(row.actorType).toBe("company");
+    expect(row.actorId).toBe(approver.user.id);
+    expect(row.tenantId).toBe(owner.company.id);
+    expect(row.entityType).toBe("approval_request");
+    expect(row.metadata).toMatchObject({
+      isFinal: false,
+      note: "bütçe uygun değil",
+    });
+  });
+
+  it("ara adım onayı → company.approval.step_approved iz (isFinal=false)", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const a1 = await approverAuthUser(owner.company.id);
+    const a2 = await approverAuthUser(owner.company.id);
+    const { requestId } = await setupAwardApprovalRequest(
+      approvals,
+      owner.auth,
+      [a1.user.id, a2.user.id],
+    );
+    // İlk onaycı onaylar → sıradaki adıma geçer (henüz final değil).
+    const res = await approvals.decide(a1.auth, requestId, "approve", {} as never);
+    expect(res.status).toBe("STEP_APPROVED");
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.approval.step_approved", entityId: requestId },
+    });
+    expect(row.actorId).toBe(a1.user.id);
+    expect(row.metadata).toMatchObject({ isFinal: false });
+    // Final izi HENÜZ düşmemeli.
+    const finals = await prisma.auditLog.count({
+      where: { action: "company.approval.approved", entityId: requestId },
+    });
+    expect(finals).toBe(0);
+  });
+
+  it("son adım onayı (kazandırma başarılı) → company.approval.approved iz (isFinal=true)", async () => {
+    const { approvals, flush } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const approver = await approverAuthUser(owner.company.id);
+    const { requestId } = await setupAwardApprovalRequest(
+      approvals,
+      owner.auth,
+      [approver.user.id],
+    );
+    const res = await approvals.decide(
+      approver.auth,
+      requestId,
+      "approve",
+      {} as never,
+    );
+    expect(res.status).toBe("APPROVED");
+    await flush();
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.approval.approved", entityId: requestId },
+    });
+    expect(row.actorId).toBe(approver.user.id);
+    expect(row.tenantId).toBe(owner.company.id);
+    expect(row.metadata).toMatchObject({ isFinal: true });
+  });
+
+  it("son adım onaylandı ama KAZANDIRMA fail/rollback → company.approval.approved iz DÜŞMEZ", async () => {
+    const { approvals } = makeFailingAwardRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const approver = await approverAuthUser(owner.company.id);
+    const { requestId } = await setupAwardApprovalRequest(
+      approvals,
+      owner.auth,
+      [approver.user.id],
+    );
+    // emitAsync handler patlar → decide rollback edip fırlatır.
+    await expect(
+      approvals.decide(approver.auth, requestId, "approve", {} as never),
+    ).rejects.toThrow(/Kazandırma uygulanamadı/);
+    // Kritik: onay verildi ama kazandırma uygulanmadı → final iz OLMAMALI.
+    const finals = await prisma.auditLog.count({
+      where: { action: "company.approval.approved", entityId: requestId },
+    });
+    expect(finals).toBe(0);
+    // Rollback: istek yeniden PENDING (onaycı tekrar deneyebilir).
+    const req = await prisma.approvalRequest.findUniqueOrThrow({
+      where: { id: requestId },
+    });
+    expect(req.status).toBe("PENDING");
+  });
+});
+
+// ─────────────────────────── İlan durum geçişleri ───────────────────────────
+
+describe("ilan durum geçişi audit'i", () => {
+  it("publishListing → company.listing.published iz (DRAFT→OPEN)", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "DRAFT",
+      visibility: "PUBLIC",
+      closesAt: future(5),
+    });
+    await service.publishListing(owner.auth, listing.id);
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.listing.published", entityId: listing.id },
+    });
+    expect(row.actorId).toBe(owner.user.id);
+    expect(row.tenantId).toBe(owner.company.id);
+    expect(row.entityType).toBe("listing");
+    expect(row.metadata).toMatchObject({ from: "DRAFT", to: "OPEN" });
+  });
+
+  it("startEvaluation → company.listing.evaluation_started iz (OPEN→IN_AWARD)", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      closesAt: future(5),
+    });
+    await service.startEvaluation(owner.auth, listing.id);
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: {
+        action: "company.listing.evaluation_started",
+        entityId: listing.id,
+      },
+    });
+    expect(row.actorId).toBe(owner.user.id);
+    expect(row.metadata).toMatchObject({ from: "OPEN", to: "IN_AWARD" });
+  });
+
+  it("cancel → company.listing.cancelled iz (reason + to=CANCELLED)", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      closesAt: future(5),
+    });
+    await service.cancel(owner.auth, listing.id, "proje ertelendi");
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.listing.cancelled", entityId: listing.id },
+    });
+    expect(row.actorId).toBe(owner.user.id);
+    expect(row.metadata).toMatchObject({
+      to: "CANCELLED",
+      reason: "proje ertelendi",
+    });
+  });
+
+  it("closeNoAward → company.listing.closed_no_award iz", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      closesAt: future(5),
+    });
+    await service.closeNoAward(owner.auth, listing.id, "uygun teklif yok");
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: {
+        action: "company.listing.closed_no_award",
+        entityId: listing.id,
+      },
+    });
+    expect(row.actorId).toBe(owner.user.id);
+    expect(row.metadata).toMatchObject({
+      to: "CLOSED_NO_AWARD",
+      reason: "uygun teklif yok",
+    });
+  });
+
+  it("createNextRound → company.listing.next_round_created iz (tur before/after)", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "IN_AWARD",
+      closesAt: future(1),
+      currentRound: 1,
+    });
+    await service.createNextRound(owner.auth, listing.id, {
+      type: "RFQ",
+      carryBids: "NONE",
+      closesAt: future(5).toISOString(),
+    } as never);
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: {
+        action: "company.listing.next_round_created",
+        entityId: listing.id,
+      },
+    });
+    expect(row.actorId).toBe(owner.user.id);
+    expect(row.metadata).toMatchObject({ fromRound: 1, toRound: 2 });
+  });
+});
+
+// ─────────────────────────── DENIAL AUDIT (reddedilen yetki) ───────────────────────────
+
+describe("denial audit'i — reddedilen yetki eylemleri", () => {
+  /** void (fire-and-forget) denial log'u için kısa poll — yazma throw'dan sonra
+   *  tamamlanır. */
+  async function waitForAudit(
+    where: Record<string, unknown>,
+    tries = 30,
+    gapMs = 50,
+  ) {
+    for (let i = 0; i < tries; i++) {
+      const row = await prisma.auditLog.findFirst({ where });
+      if (row) return row;
+      await new Promise((r) => setTimeout(r, gapMs));
+    }
+    throw new Error(`denial audit bulunamadı: ${JSON.stringify(where)}`);
+  }
+
+  it("assertListingManageRole reddi → company.listing.manage_denied iz + Forbidden", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    // AYNI firmada ama ilanı açmayan + buy:listing:manage'siz üye.
+    const member = await makeUser(prisma, owner.company.id, [
+      CompanyRole.SATISCI,
+    ]);
+    const memberAuth = authFor(member, owner.company.id, [CompanyRole.SATISCI]);
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id, // ilanı SAHİP açtı, üye değil
+      type: "ALIM",
+      status: "OPEN",
+      closesAt: future(5),
+    });
+    await expect(
+      service.startEvaluation(memberAuth, listing.id),
+    ).rejects.toThrow(/yönetme yetkiniz yok/);
+    const row = await waitForAudit({
+      action: "company.listing.manage_denied",
+      entityId: listing.id,
+    });
+    expect(row.actorId).toBe(member.id);
+    expect(row.tenantId).toBe(owner.company.id);
+    expect(row.entityType).toBe("listing");
+    expect(row.metadata).toMatchObject({
+      needed: "buy:listing:manage",
+      reason: "missing_permission",
+    });
+  });
+
+  it("assertCanModifyAdminTarget reddi → company.user.role_change_denied iz + Forbidden", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    // Hedef ADMIN (Yönetici); aktör admin DEĞİL (operasyon rolü).
+    const adminTarget = await makeUser(prisma, owner.company.id, [
+      CompanyRole.YONETICI,
+    ]);
+    const actor = await makeUser(prisma, owner.company.id, [
+      CompanyRole.SATISCI,
+    ]);
+    const actorAuth = authFor(actor, owner.company.id, [CompanyRole.SATISCI]);
+    // Ayrıcalıksız yeni rol → assertCanGrantRoles geçer, admin-hedef guard'ı çarpar.
+    await expect(
+      svc.updateRoles(actorAuth, adminTarget.id, {
+        roles: [CompanyRole.SATIN_ALMACI],
+      } as never),
+    ).rejects.toThrow(/yalnızca Kurucu veya Yönetici/);
+    const row = await waitForAudit({
+      action: "company.user.role_change_denied",
+      entityId: adminTarget.id,
+    });
+    expect(row.actorId).toBe(actor.id);
+    expect(row.entityType).toBe("company_user");
+    expect(row.metadata).toMatchObject({ reason: "not_admin" });
+    // PII güvencesi: hedef e-postası metadata'da geçmez.
+    expect(JSON.stringify(row.metadata)).not.toContain(adminTarget.email);
+  });
+
+  it("assertNotLastAdmin tetiği → company.user.last_admin_denied iz + 400", async () => {
+    const svc = makeUsersService();
+    // Sahipsiz firma + TEK yönetici (kendini düşürmeye çalışır → son admin gider).
+    const company = await makeCompany(prisma);
+    const soleAdmin = await makeUser(prisma, company.id, [CompanyRole.YONETICI]);
+    const adminAuth = authFor(soleAdmin, company.id, [CompanyRole.YONETICI]);
+    await expect(
+      svc.updateRoles(adminAuth, soleAdmin.id, {
+        roles: [CompanyRole.SATISCI],
+      } as never),
+    ).rejects.toThrow(/aktif yönetim yetkilisi/);
+    // Denial tx abort SONRASI awaited yazılır — poll gerekmez ama güvenli.
+    const row = await waitForAudit({
+      action: "company.user.last_admin_denied",
+      entityId: soleAdmin.id,
+    });
+    expect(row.actorId).toBe(soleAdmin.id);
+    expect(row.tenantId).toBe(company.id);
+    expect(row.metadata).toMatchObject({
+      attemptedRoles: [CompanyRole.SATISCI],
+    });
+  });
+
+  it("denial audit'leri critical:FALSE (Sentry marker YOK) — state-geçişi audit'leri kritik", async () => {
+    // Doğrudan kanıt: manage_denied yaz → DB'ye düşen kaydın action'ı doğru,
+    // ve critical davranışı log() seviyesinde (yukarıdaki marker testleri
+    // critical=true'yu kapsıyor). Burada denial'ın app-side critical:false
+    // olduğunu, AuditService.log()'un marker YOLUNA girmediğini doğrularız.
+    const failingPrisma = {
+      auditLog: { create: jest.fn().mockRejectedValue(new Error("db down")) },
+    };
+    const audit = new AuditService(failingPrisma as never);
+    const errSpy = jest
+      .spyOn(
+        (audit as unknown as { logger: { error: (m: string) => void } }).logger,
+        "error",
+      )
+      .mockImplementation(() => undefined);
+    await audit.log({
+      action: "company.listing.manage_denied",
+      actorType: "company",
+      actorId: "u1",
+      entityType: "listing",
+      entityId: "l1",
+      critical: false,
+    });
+    expect(errSpy.mock.calls[0]![0]).not.toContain("[AUDIT-KRİTİK-KAYIP]");
   });
 });

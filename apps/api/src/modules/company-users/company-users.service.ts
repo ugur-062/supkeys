@@ -31,6 +31,19 @@ import {
 /** Davet linki geçerlilik süresi (eski sistemle aynı). */
 const INVITATION_TTL_DAYS = 7;
 
+/**
+ * INV-AUDIT-1 (denial): son-yönetici garantisi tetiklendiğinde fırlatılır.
+ * `BadRequestException` alt-sınıfı → dışarıya aynı 400 + aynı mesaj (davranış
+ * değişmez). Sentinel olması, tx İÇİNDE atılan bu hatayı çağrı yerinde
+ * `instanceof` ile ayırt edip (string eşleşmeye gerek yok) tx abort'undan
+ * SONRA denial audit yazmamızı sağlar — tx içinde yazsak rollback silerdi.
+ */
+class LastActiveAdminError extends BadRequestException {
+  constructor() {
+    super("Firmada en az bir aktif yönetim yetkilisi (Kurucu/Yönetici) kalmalı");
+  }
+}
+
 const ROLE_LABEL: Record<CompanyRole, string> = {
   SAHIP: "Kurucu",
   YONETICI: "Yönetici",
@@ -390,7 +403,7 @@ export class CompanyUsersService {
       company?.ownerUserId ?? null,
     );
     void target;
-    await this.lockedAdminTx(actor.companyId, async (tx) => {
+    await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
       // Sahiplik önce çözülür (sahip-bırakma net "devret" hatası versin), sonra
       // son-yönetici garantisi.
       await this.resolveOwnership(
@@ -459,7 +472,7 @@ export class CompanyUsersService {
     };
     // Rol değişimi yönetici sayısını + sahipliği etkileyebilir → atomik kilit.
     if (roles) {
-      await this.lockedAdminTx(actor.companyId, async (tx) => {
+      await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
         await this.resolveOwnership(
           tx,
           actor.companyId,
@@ -508,7 +521,7 @@ export class CompanyUsersService {
       throw new BadRequestException("Kendinizi pasifleştiremezsiniz");
     }
     if (!active) {
-      await this.lockedAdminTx(actor.companyId, async (tx) => {
+      await this.lockedAdminTxAudited(actor, targetId, [], async (tx) => {
         await this.assertNotLastAdmin(tx, actor.companyId, targetId, []);
         await tx.companyUser.update({
           where: { id: targetId },
@@ -626,7 +639,7 @@ export class CompanyUsersService {
     if (targetId === actor.userId) {
       throw new BadRequestException("Kendinizi çıkaramazsınız");
     }
-    await this.lockedAdminTx(actor.companyId, async (tx) => {
+    await this.lockedAdminTxAudited(actor, targetId, [], async (tx) => {
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, []);
       await tx.companyUser.update({
         where: { id: targetId },
@@ -749,6 +762,21 @@ export class CompanyUsersService {
     if (!targetIsAdmin) return;
     const actorIsAdmin = actor.isOwner || hasManagementRole(actor.roles);
     if (!actorIsAdmin) {
+      // INV-AUDIT-1 (denial): yetkisiz kişinin admin-hedefin rolüne müdahale
+      // denemesi iz bırakır. Guard sync → bilinçli await'siz (log() fail-safe).
+      // critical:FALSE — denial seli Sentry alarmı üretmesin. Hedef e-posta
+      // (PII) yazılmaz, yalnız id + roller.
+      void this.audit.log({
+        action: "company.user.role_change_denied",
+        actorType: "company",
+        actorId: actor.userId,
+        actorEmail: actor.email,
+        tenantId: actor.companyId,
+        entityType: "company_user",
+        entityId: target.id,
+        critical: false,
+        metadata: { reason: "not_admin", targetRoles: target.roles },
+      });
       throw new ForbiddenException(
         "Yönetici veya Kurucu rolündeki bir kullanıcının rollerini yalnızca Kurucu veya Yönetici değiştirebilir",
       );
@@ -843,9 +871,55 @@ export class CompanyUsersService {
       },
     });
     if (otherActiveAdmins === 0) {
-      throw new BadRequestException(
-        "Firmada en az bir aktif yönetim yetkilisi (Kurucu/Yönetici) kalmalı",
-      );
+      // Sentinel (aynı 400 + mesaj) → çağrı yeri tx abort sonrası denial audit'i
+      // instanceof ile ayırt eder. Bkz. LastActiveAdminError.
+      throw new LastActiveAdminError();
+    }
+  }
+
+  /**
+   * INV-AUDIT-1 (denial): son-yönetici garantisi bir mutasyonu engelledi → iz.
+   * lockedAdminTx ABORT ETTİKTEN SONRA çağrılır (tx içinde yazılsa rollback
+   * silerdi) → burada await'lidir (async bağlam). critical:FALSE — denial seli
+   * Sentry alarmı üretmesin. Hedef e-posta (PII) yazılmaz, yalnız id + denenen
+   * roller.
+   */
+  private async auditLastAdminDenial(
+    actor: AuthenticatedCompanyUser,
+    targetId: string,
+    attemptedRoles: CompanyRole[],
+  ) {
+    await this.audit.log({
+      action: "company.user.last_admin_denied",
+      actorType: "company",
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      tenantId: actor.companyId,
+      entityType: "company_user",
+      entityId: targetId,
+      critical: false,
+      metadata: { attemptedRoles },
+    });
+  }
+
+  /**
+   * lockedAdminTx'i son-yönetici denial audit'iyle sarmalar: tx içinde atılan
+   * LastActiveAdminError abort'tan SONRA iz bırakır, sonra aynen yukarı fırlar
+   * (davranış değişmez — hâlâ 400 + aynı mesaj).
+   */
+  private async lockedAdminTxAudited<T>(
+    actor: AuthenticatedCompanyUser,
+    targetId: string,
+    attemptedRoles: CompanyRole[],
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await this.lockedAdminTx(actor.companyId, fn);
+    } catch (e) {
+      if (e instanceof LastActiveAdminError) {
+        await this.auditLastAdminDenial(actor, targetId, attemptedRoles);
+      }
+      throw e;
     }
   }
 }

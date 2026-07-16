@@ -189,6 +189,24 @@ export class CompanyOrdersService {
         expectedDeliveryDate: new Date(input.expectedDeliveryDate),
       },
     });
+    // INV-AUDIT-1: durum geçişi (sipariş onayı) — commit SONRASI, bildirimden önce.
+    await this.audit.log({
+      action: "company.order.accepted",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order",
+      entityId: id,
+      critical: true,
+      metadata: {
+        orderNumber: res.order.number,
+        from: "PENDING",
+        to: "ACCEPTED",
+        expectedDeliveryDate: input.expectedDeliveryDate,
+        bankAccountId: input.bankAccountId,
+      },
+    });
     await this.notifyOrderParty(
       id,
       res.order.buyerCompanyId,
@@ -214,6 +232,23 @@ export class CompanyOrdersService {
       // Gerekçe geçişle AYNI yazmada — ikinci update yarıda kalırsa
       // gerekçesiz REJECTED kalmasın.
       data: { rejectedReason: reason!.trim(), rejectedAt: new Date() },
+    });
+    // INV-AUDIT-1: durum geçişi (sipariş reddi) — commit SONRASI, bildirimden önce.
+    await this.audit.log({
+      action: "company.order.rejected",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order",
+      entityId: id,
+      critical: true,
+      metadata: {
+        orderNumber: res.order.number,
+        from: "PENDING",
+        to: "REJECTED",
+        reason: reason!.trim(),
+      },
     });
     await this.notifyOrderParty(
       id,
@@ -283,6 +318,23 @@ export class CompanyOrdersService {
         deliveryStartedAt: new Date(),
       },
     });
+    // INV-AUDIT-1: durum geçişi (gönderim) — commit SONRASI, bildirimden önce.
+    await this.audit.log({
+      action: "company.order.shipped",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order",
+      entityId: id,
+      critical: true,
+      metadata: {
+        orderNumber: res.order.number,
+        from: order.status,
+        to: "IN_DELIVERY",
+        invoiceNumber: input.invoiceNumber.trim(),
+      },
+    });
     // Teslim şekline göre bildirim: satıcı taşıyorsa "gönderildi/yolda";
     // alıcı topluyorsa (EXW/fabrika teslim/FOB…) "teslime hazır".
     const ships = sellerShipsGoods(order.deliveryTerm);
@@ -335,6 +387,23 @@ export class CompanyOrdersService {
             completedNote: input.note?.trim() || null,
           }
         : { deliveredAt: new Date(), completedNote: input.note?.trim() || null },
+    });
+    // INV-AUDIT-1: durum geçişi (teslim alındı / oto-tamamlandı) — commit sonrası.
+    await this.audit.log({
+      action: "company.order.received",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order",
+      entityId: id,
+      critical: true,
+      metadata: {
+        orderNumber: res.order.number,
+        from: "IN_DELIVERY",
+        to: toCompleted ? "COMPLETED" : "DELIVERED",
+        autoCompleted: toCompleted,
+      },
     });
     await this.notifyOrderParty(
       id,
@@ -398,6 +467,22 @@ export class CompanyOrdersService {
       to: "COMPLETED",
       data: { completedAt: new Date(), completedNote: input.note?.trim() || null },
     });
+    // INV-AUDIT-1: durum geçişi (tamamlama) — commit SONRASI, bildirimden önce.
+    await this.audit.log({
+      action: "company.order.completed",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order",
+      entityId: id,
+      critical: true,
+      metadata: {
+        orderNumber: res.order.number,
+        from: "DELIVERED",
+        to: "COMPLETED",
+      },
+    });
     await this.notifyOrderParty(
       id,
       res.order.sellerCompanyId,
@@ -460,6 +545,23 @@ export class CompanyOrdersService {
           "Sipariş durumu az önce değişti — sayfayı yenileyip tekrar deneyin",
         );
       }
+    });
+    // INV-AUDIT-1: durum geçişi (iptal) — commit SONRASI, bildirimden önce.
+    await this.audit.log({
+      action: "company.order.cancelled",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order",
+      entityId: id,
+      critical: true,
+      metadata: {
+        orderNumber: order.number,
+        from: order.status,
+        to: "CANCELLED",
+        reason: reason!.trim(),
+      },
     });
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     await this.notifyOrderParty(

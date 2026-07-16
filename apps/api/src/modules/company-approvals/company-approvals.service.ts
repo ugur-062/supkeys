@@ -12,6 +12,7 @@ import { CompanyRole, Prisma } from "@rothern/db";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
+import { AuditService } from "../audit/audit.service";
 import { EmailService } from "../email/email.service";
 import { NotificationService } from "../notifications/notification.service";
 import {
@@ -37,6 +38,7 @@ export class CompanyApprovalsService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationService,
+    private readonly audit: AuditService,
   ) {}
 
   /** Sırası gelen onaycıya "onayınız bekleniyor" bildirimi (fire-and-forget). */
@@ -624,6 +626,26 @@ export class CompanyApprovalsService {
       if (!won) {
         throw new BadRequestException("Bu adım zaten sonuçlandırıldı");
       }
+      // INV-AUDIT-1: yetki kararı (onay adımı reddi) — commit SONRASI, emit'ten önce.
+      // Kim, hangi adımı reddetti? (Kazandırmanın kendisi ayrı iz bırakır.)
+      await this.audit.log({
+        action: "company.approval.rejected",
+        actorType: "company",
+        actorId: user.userId,
+        actorEmail: user.email,
+        tenantId: user.companyId,
+        entityType: "approval_request",
+        entityId: req.id,
+        critical: true,
+        metadata: {
+          type: req.type,
+          listingId: req.listingId,
+          stepId: step.id,
+          stepOrder: step.order,
+          isFinal: false,
+          note: dto.note ?? null,
+        },
+      });
       this.events.emit(`${eventBase(req.type as ApprovalType)}.rejected`, {
         requestId: req.id,
         listingId: req.listingId,
@@ -674,6 +696,25 @@ export class CompanyApprovalsService {
       throw new BadRequestException("Bu adım zaten sonuçlandırıldı");
     }
     if (outcome === "next") {
+      // INV-AUDIT-1: yetki kararı (ara adım onayı) — commit SONRASI, bildirimden önce.
+      await this.audit.log({
+        action: "company.approval.step_approved",
+        actorType: "company",
+        actorId: user.userId,
+        actorEmail: user.email,
+        tenantId: user.companyId,
+        entityType: "approval_request",
+        entityId: req.id,
+        critical: true,
+        metadata: {
+          type: req.type,
+          listingId: req.listingId,
+          stepId: step.id,
+          stepOrder: step.order,
+          isFinal: false,
+          note: dto.note ?? null,
+        },
+      });
       void this.notifyApprover(next!.approverUserId, req.listingId);
       return { ok: true, status: "STEP_APPROVED" as const };
     }
@@ -714,6 +755,28 @@ export class CompanyApprovalsService {
         "Kazandırma uygulanamadı — teklif durumu değişmiş olabilir. Lütfen tekrar deneyin.",
       );
     }
+    // INV-AUDIT-1: yetki kararı (SON adım onayı) — YALNIZ kazandırma başarıyla
+    // uygulandıktan SONRA. Yukarıdaki catch rollback edip throw ettiğinden buraya
+    // yalnız emitAsync başarısında ulaşılır: onay verildi ama kazandırma
+    // fail/rollback ederse bu iz DÜŞMEZ (INV-AUDIT-1 dalga-2 kuralı).
+    await this.audit.log({
+      action: "company.approval.approved",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "approval_request",
+      entityId: req.id,
+      critical: true,
+      metadata: {
+        type: req.type,
+        listingId: req.listingId,
+        stepId: step.id,
+        stepOrder: step.order,
+        isFinal: true,
+        note: dto.note ?? null,
+      },
+    });
     void this.notifyRequester(req.createdById, req.listingId, "APPROVED");
     return { ok: true, status: "APPROVED" as const };
   }

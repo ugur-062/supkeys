@@ -36,6 +36,7 @@ function makeApprovalRig() {
     email as never,
     config as never,
     notifications,
+    new AuditService(prisma as never),
   );
   // İlan servisi — approvals GERÇEK; diğer yan etkiler makeService kalıbı.
   const { service: listings } = makeService();
