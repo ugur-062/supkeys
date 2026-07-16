@@ -437,3 +437,78 @@ describe("Taban kontrolü — TEK BAZ (INV-FX-1 Faz 3)", () => {
     ).rejects.toThrow(/kur bilgisi yok|karşılaştırılamıyor/i);
   });
 });
+
+describe("Tie-break — eşit fiyat (INV-FX-1 X6)", () => {
+  it("eşit teklifte EN ERKEN submittedAt üstte (DB/insert sırasından bağımsız)", async () => {
+    const { service, bidder, listing } = await auction({ bidVisibility: "ALL" });
+    const early = bidder; // t0'da gönderecek
+    const late = await makeCompanyWithUser(prisma, { country: "TR" });
+    const t0 = new Date(Date.now() - 60_000);
+    const t1 = new Date(Date.now() - 30_000);
+    // GEÇ olanı ÖNCE oluştur → eski `?0` kararlı-sort'unda DB/insert sırasıyla
+    // üstte çıkardı. Tie-break submittedAt'e baktığından erken (t0) 1. olmalı.
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: late.company.id,
+      createdById: late.user.id,
+      amount: 1000,
+      currency: "TRY",
+      submittedAt: t1,
+    });
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: early.company.id,
+      createdById: early.user.id,
+      amount: 1000, // EŞİT fiyat
+      currency: "TRY",
+      submittedAt: t0,
+    });
+    const dEarly = (await service.getOne(early.auth, listing.id)) as {
+      auctionView: { myRank: number };
+    };
+    const dLate = (await service.getOne(late.auth, listing.id)) as {
+      auctionView: { myRank: number };
+    };
+    expect(dEarly.auctionView.myRank).toBe(1); // erken submittedAt kazanır
+    expect(dLate.auctionView.myRank).toBe(2);
+  });
+
+  it("submittedAt EŞİTSE id ile deterministik kırılır (kararlı, tie collapse yok)", async () => {
+    const { service, bidder, listing } = await auction({ bidVisibility: "ALL" });
+    const b2 = await makeCompanyWithUser(prisma, { country: "TR" });
+    const same = new Date(Date.now() - 45_000);
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: 1000,
+      currency: "TRY",
+      submittedAt: same,
+    });
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: b2.company.id,
+      createdById: b2.user.id,
+      amount: 1000,
+      currency: "TRY",
+      submittedAt: same,
+    });
+    const r1 = (
+      (await service.getOne(bidder.auth, listing.id)) as {
+        auctionView: { myRank: number };
+      }
+    ).auctionView.myRank;
+    const r1again = (
+      (await service.getOne(bidder.auth, listing.id)) as {
+        auctionView: { myRank: number };
+      }
+    ).auctionView.myRank;
+    const r2 = (
+      (await service.getOne(b2.auth, listing.id)) as {
+        auctionView: { myRank: number };
+      }
+    ).auctionView.myRank;
+    expect(r1).toBe(r1again); // kararlı (tekrar çağrıda aynı)
+    expect(new Set([r1, r2])).toEqual(new Set([1, 2])); // distinct — tie collapse yok
+  });
+});

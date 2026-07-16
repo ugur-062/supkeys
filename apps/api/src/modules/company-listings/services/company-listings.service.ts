@@ -1994,6 +1994,9 @@ export class CompanyListingsService {
         ? this.prisma.listingBid.findMany({
             where: { listingId: id, status: "SUBMITTED" },
             select: {
+              // INV-FX-1 (X6): id + submittedAt tie-break için (rankAuctionBids).
+              id: true,
+              submittedAt: true,
               amount: true,
               currency: true,
               exchangeRateSnapshot: true,
@@ -2538,12 +2541,19 @@ export class CompanyListingsService {
    * TRY-normalize (açılış damgası) yapılır. Tüm teklifler aynı birimdeyse kur
    * gerekmez (ham tutar sıralaması birebir eşdeğer — legacy turlar). Kur'suz
    * karışık-birim satırlar kıyaslanamaz → listenin sonuna.
+   *
+   * INV-FX-1 (X6) TIE-BREAK: fiyat EŞİTSE en erken `submittedAt` kazanır (yön
+   * bağımsız — eşit fiyatta önce gelen hep üstte, ALIM/SATIS fark etmez); submittedAt
+   * de eşitse `id` ile deterministik kırılır. Eski `? 0` keyfi DB/array sırasına
+   * bırakıyordu (aynı veri farklı sıralanabilir, en-iyi belirsizdi).
    */
   private rankAuctionBids<
     T extends {
       amount: Prisma.Decimal;
       currency: string;
       exchangeRateSnapshot: Prisma.Decimal | null;
+      submittedAt: Date | null;
+      id: string;
     },
   >(bids: T[], listingSnap: unknown, isAscending: boolean): T[] {
     const sameCur = bids.every((b) => b.currency === bids[0]?.currency);
@@ -2554,13 +2564,21 @@ export class CompanyListingsService {
         b.exchangeRateSnapshot,
         listingSnap,
       ) ?? (sameCur ? b.amount : null);
+    // Eşitlik/çevrilemez durumlarda deterministik kırıcı (yön bağımsız).
+    const tieBreak = (a: T, b: T): number => {
+      const ta = a.submittedAt ? a.submittedAt.getTime() : Infinity;
+      const tb = b.submittedAt ? b.submittedAt.getTime() : Infinity;
+      if (ta !== tb) return ta - tb; // erken submittedAt önce
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0; // sonra id
+    };
     return [...bids].sort((a, b) => {
       const ka = key(a);
       const kb = key(b);
-      if (ka == null && kb == null) return 0;
+      if (ka == null && kb == null) return tieBreak(a, b);
       if (ka == null) return 1;
       if (kb == null) return -1;
-      const cmp = ka.minus(kb).isNegative() ? -1 : ka.eq(kb) ? 0 : 1;
+      if (ka.eq(kb)) return tieBreak(a, b);
+      const cmp = ka.minus(kb).isNegative() ? -1 : 1;
       return isAscending ? -cmp : cmp;
     });
   }
@@ -2593,6 +2611,9 @@ export class CompanyListingsService {
     const rows = await this.prisma.listingBid.findMany({
       where: { listingId, status: "SUBMITTED" },
       select: {
+        // INV-FX-1 (X6): id + submittedAt tie-break için (rankAuctionBids).
+        id: true,
+        submittedAt: true,
         bidderCompanyId: true,
         amount: true,
         currency: true,
