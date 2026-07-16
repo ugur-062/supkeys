@@ -653,6 +653,14 @@ export class CompanyAuthService {
   // PREMIUM'A GEÇ (Faz 3) — doğrulama tamamsa tier=PAKET
   // ============================================================
   async upgradeToPremium(userId: string, companyId: string) {
+    // Y2: self-servis premium ödeme entegrasyonuna kadar KAPALI (flag default
+    // false). Endpoint silinmedi — ödeme gelince PREMIUM_SELF_UPGRADE_ENABLED=true
+    // ile açılır. Bugün premium yalnız admin grant ile verilir. Bkz. INV-TIER-1.
+    if (this.config.get<string>("PREMIUM_SELF_UPGRADE_ENABLED") !== "true") {
+      throw new ForbiddenException(
+        "Premium şu an manuel onayla veriliyor — self-servis yükseltme geçici olarak kapalı",
+      );
+    }
     const [company, user] = await Promise.all([
       this.prisma.company.findUnique({
         where: { id: companyId },
@@ -1040,6 +1048,10 @@ export class CompanyAuthService {
     return {
       user: this.serializeUser(user, user.company.ownerUserId === user.id),
       company: this.serializeCompany(user.company),
+      // Y2: self-servis premium açık mı — frontend CTA'sı bunu okur (TEK KAYNAK,
+      // env drift'i yok). Ödeme entegrasyonuna kadar default false.
+      selfUpgradeEnabled:
+        this.config.get<string>("PREMIUM_SELF_UPGRADE_ENABLED") === "true",
     };
   }
 

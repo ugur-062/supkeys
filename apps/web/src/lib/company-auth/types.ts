@@ -54,6 +54,9 @@ export interface CompanyLoginResponse {
 export interface CompanyMeResponse {
   user: CompanyUserDto;
   company: CompanyProfile;
+  /** Y2: self-servis premium yükseltme açık mı (backend flag — tek kaynak).
+   *  false ise "Premium'a Geç" CTA'sı gizlenir; premium manuel admin grant. */
+  selfUpgradeEnabled: boolean;
 }
 
 export interface CompanySignupInput {

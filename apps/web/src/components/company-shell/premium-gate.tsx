@@ -44,6 +44,9 @@ export function PremiumGate() {
   const twoFa = me.data?.user.twoFactorEnabled === true;
   // Premium için firma web sitesi zorunlu (link-benzeri).
   const hasWebsite = !!me.data?.company.website?.trim().includes(".");
+  // Y2: self-servis yükseltme ödeme entegrasyonuna kadar kapalı (backend flag,
+  // tek kaynak). Kapalıyken buton gizlenir; premium manuel admin grant ile.
+  const selfUpgradeEnabled = me.data?.selfUpgradeEnabled === true;
   const ready = docsVerified && twoFa && hasWebsite;
 
   const docsHint =
@@ -130,18 +133,28 @@ export function PremiumGate() {
             </ul>
           </div>
 
-          <Button
-            className="mt-5 w-full"
-            disabled={!ready || upgrade.isPending}
-            onClick={doUpgrade}
-          >
-            {upgrade.isPending ? "Geçiliyor…" : "Premium'a Geç"}
-          </Button>
-          {!ready ? (
-            <p className="mt-2 text-center text-xs text-zinc-400">
-              Yukarıdaki adımlar tamamlanınca aktifleşir.
+          {selfUpgradeEnabled ? (
+            <>
+              <Button
+                className="mt-5 w-full"
+                disabled={!ready || upgrade.isPending}
+                onClick={doUpgrade}
+              >
+                {upgrade.isPending ? "Geçiliyor…" : "Premium'a Geç"}
+              </Button>
+              {!ready ? (
+                <p className="mt-2 text-center text-xs text-zinc-400">
+                  Yukarıdaki adımlar tamamlanınca aktifleşir.
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="mt-5 rounded-xl border border-zinc-100 bg-zinc-50/60 px-4 py-3 text-center text-sm text-zinc-600">
+              Premium şu an <span className="font-semibold">manuel onayla</span>{" "}
+              veriliyor. Gereksinimleri tamamlayın; ekibimiz hesabınızı kısa
+              sürede yükseltir.
             </p>
-          ) : null}
+          )}
         </div>
       </div>
     </div>

@@ -21,10 +21,12 @@ function setMe(
   status: string,
   twoFactorEnabled: boolean,
   website: string | null = "https://firma.test",
+  selfUpgradeEnabled = true,
 ) {
   h.meData = {
     company: { companyVerificationStatus: status, website },
     user: { twoFactorEnabled },
+    selfUpgradeEnabled,
   };
 }
 
@@ -70,6 +72,15 @@ describe("PremiumGate", () => {
 
     expect(h.upgradeAsync).toHaveBeenCalledTimes(1);
     expect(h.toast.success).toHaveBeenCalled();
+  });
+
+  it("selfUpgradeEnabled=false → 'Premium'a Geç' butonu YOK, manuel-onay notu var (Y2 flag)", () => {
+    setMe("VERIFIED", true, "https://firma.test", false);
+    render(<PremiumGate />);
+    expect(
+      screen.queryByRole("button", { name: "Premium'a Geç" }),
+    ).toBeNull();
+    expect(screen.getByText(/manuel onayla/i)).toBeInTheDocument();
   });
 
   it("upgrade hatası → error toast (çift toast yok, interceptor skip'te)", async () => {

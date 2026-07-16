@@ -4,8 +4,9 @@ import { prisma } from "./test-db";
 
 let authSeq = 0;
 
-/** Gerçek Prisma (test şeması) + mock Supabase/audit/email ile auth servisi. */
-export function makeAuthService() {
+/** Gerçek Prisma (test şeması) + mock Supabase/audit/email ile auth servisi.
+ *  `env` ek config anahtarlarını (ör. PREMIUM_SELF_UPGRADE_ENABLED) override eder. */
+export function makeAuthService(env: Record<string, string> = {}) {
   // E-posta → authId eşlemesi (gerçek Supabase yerine): createUser kaydeder,
   // verifyPassword aynı authId'yi döndürür (login authId ile kullanıcı bulur).
   const byEmail = new Map<string, string>();
@@ -31,7 +32,7 @@ export function makeAuthService() {
   });
   // 2FA secret şifrelemesi JWT_SECRET'tan anahtar türetir.
   const lookup = (key: string) =>
-    key === "JWT_SECRET" ? "test-secret" : undefined;
+    key === "JWT_SECRET" ? "test-secret" : env[key];
   const config = {
     get: jest.fn(lookup),
     getOrThrow: jest.fn((key: string) => {
