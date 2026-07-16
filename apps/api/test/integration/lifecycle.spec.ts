@@ -479,4 +479,48 @@ describe("scheduler — closeExpired", () => {
         .status,
     ).toBe("OPEN");
   });
+
+  it("A5: tam closesAt anında da kapatır (sınır DAHİL, lte)", async () => {
+    const T = new Date("2026-09-01T12:00:00.000Z");
+    const { service } = makeService();
+    const scheduler = new ListingScheduler(prisma as never, service as never);
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const atClose = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      closesAt: T,
+    });
+    // Yalnız Date sahte (T'ye sabit); timer'lar GERÇEK (Prisma çalışır). Cron
+    // `new Date()` === T === closesAt → `lte` kapatır (eski `lt` kapatmazdı).
+    jest.useFakeTimers({
+      now: T.getTime(),
+      doNotFake: [
+        "hrtime",
+        "nextTick",
+        "performance",
+        "queueMicrotask",
+        "requestAnimationFrame",
+        "cancelAnimationFrame",
+        "requestIdleCallback",
+        "cancelIdleCallback",
+        "setImmediate",
+        "clearImmediate",
+        "setInterval",
+        "clearInterval",
+        "setTimeout",
+        "clearTimeout",
+      ],
+    });
+    try {
+      await scheduler.closeExpired();
+    } finally {
+      jest.useRealTimers();
+    }
+    expect(
+      (await prisma.listing.findUniqueOrThrow({ where: { id: atClose.id } }))
+        .status,
+    ).toBe("IN_AWARD");
+  });
 });

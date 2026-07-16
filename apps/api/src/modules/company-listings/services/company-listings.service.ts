@@ -2839,7 +2839,7 @@ export class CompanyListingsService {
     }
     // Kapanış zamanı geçmişse teklif alınmaz (cron'u beklemeden — geç teklif
     // bütünlüğü). Scheduler ilanı ~1 dk içinde CLOSED'a çeker.
-    if (listing.closesAt && Date.now() > listing.closesAt.getTime()) {
+    if (listing.closesAt && Date.now() >= listing.closesAt.getTime()) {
       throw new BadRequestException("Teklif süresi doldu");
     }
 
@@ -3497,7 +3497,7 @@ export class CompanyListingsService {
         "Teklif verme henüz başlamadı (açılış saatini bekleyin)",
       );
     }
-    if (listing.closesAt && Date.now() > listing.closesAt.getTime()) {
+    if (listing.closesAt && Date.now() >= listing.closesAt.getTime()) {
       throw new BadRequestException("Teklif süresi doldu");
     }
 

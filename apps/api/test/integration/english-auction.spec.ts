@@ -268,3 +268,40 @@ describe("İngiliz Usulü — otomatik uzatma", () => {
     expect(after.closesAt!.getTime()).toBeGreaterThan(soon.getTime());
   });
 });
+
+describe("A5/A6 — kapanış sınırı DAHİL kapalı (>=)", () => {
+  it("tam closesAt anında teklif REDDEDİLİR; hemen öncesi (1ms) KABUL", async () => {
+    // Date.now() mock'u yalnız closesAt karşılaştırmasını etkiler (new Date() ve
+    // Prisma timer'ları GERÇEK kalır — surgical).
+    // Kabul: closesAt'ten 1ms önce.
+    {
+      const closeAt = new Date(Date.now() + 3_600_000);
+      const { service, bidder, listing } = await auction({ closesAt: closeAt });
+      const spy = jest
+        .spyOn(Date, "now")
+        .mockReturnValue(closeAt.getTime() - 1);
+      try {
+        await expect(
+          service.placeBid(bidder.auth, listing.id, submit(1000)),
+        ).resolves.toBeDefined();
+      } finally {
+        spy.mockRestore();
+      }
+    }
+    // Ret: tam closesAt (eşitlik). Eski `>` GEÇERDİ; yeni `>=` reddeder.
+    {
+      const closeAt = new Date(Date.now() + 3_600_000);
+      const { service, bidder, listing } = await auction({ closesAt: closeAt });
+      const spy = jest
+        .spyOn(Date, "now")
+        .mockReturnValue(closeAt.getTime());
+      try {
+        await expect(
+          service.placeBid(bidder.auth, listing.id, submit(1000)),
+        ).rejects.toThrow(/süresi doldu/i);
+      } finally {
+        spy.mockRestore();
+      }
+    }
+  });
+});

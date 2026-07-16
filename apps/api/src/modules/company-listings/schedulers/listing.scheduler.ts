@@ -61,7 +61,10 @@ export class ListingScheduler implements OnModuleInit {
 
   private async doCloseExpired(): Promise<void> {
     const due = await this.prisma.listing.findMany({
-      where: { status: "OPEN", closesAt: { not: null, lt: new Date() } },
+      // A5 fix: closesAt DAHİL kapalı — tam closesAt anında kapat (`lte`). placeBid
+      // reddi de `>=` olduğundan sınır tek yönlü: ne "kapandıktan sonra açık"
+      // penceresi ne de teklif-kabul boşluğu kalır.
+      where: { status: "OPEN", closesAt: { not: null, lte: new Date() } },
       select: { id: true },
     });
     if (due.length === 0) return;
