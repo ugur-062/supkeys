@@ -161,6 +161,9 @@ async function bootstrap() {
       cb(null, ok);
     },
     credentials: true,
+    // Correlation-id: api ve app AYRI origin'de → tarayıcı istemci response
+    // header'ını ancak expose edilirse okuyabilir (destek ekibine iletmek için).
+    exposedHeaders: ["x-request-id"],
   });
 
   // Graceful shutdown — Nest lifecycle hooks tetiklenir (Prisma bağlantısı

@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { EventEmitterModule } from "@nestjs/event-emitter";
@@ -8,6 +8,8 @@ import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { LoggerModule } from "nestjs-pino";
 import { AuthCookieInterceptor } from "./common/auth/auth-cookie.interceptor";
 import { CsrfGuard } from "./common/auth/csrf.guard";
+import { RequestContextMiddleware } from "./common/logging/request-context.middleware";
+import { genRequestId } from "./common/logging/request-id";
 import { PrismaModule } from "./common/prisma/prisma.module";
 import { AdminAuditModule } from "./modules/admin-audit/admin-audit.module";
 import { AdminAuthModule } from "./modules/admin-auth/admin-auth.module";
@@ -60,6 +62,13 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL ?? "info",
+        // Correlation-id: gelen x-request-id'yi onurlandır/üret + response
+        // header'ında dön (genRequestId). `req.id` buradan gelir.
+        genReqId: genRequestId,
+        // Access (completion) log'u da servis loglarıyla AYNI `reqId` alanını
+        // taşısın → tek alandan grep. (Servis logları reqId'yi RequestContext
+        // middleware'inin PinoLogger.assign'ından alır.)
+        customProps: (req) => ({ reqId: (req as { id?: string }).id }),
         transport:
           process.env.NODE_ENV !== "production"
             ? { target: "pino-pretty", options: { singleLine: true } }
@@ -168,4 +177,12 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     { provide: APP_FILTER, useClass: SentryGlobalFilter },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    // nestjs-pino'nun middleware'i (LoggerModule) bundan ÖNCE kaydolur →
+    // burada `req.id` + ALS store hazır. reqId'yi Pino context'ine + Sentry
+    // isolation-scope'a bağlar. Health dahil tüm rotalara uygulanır (yeni log
+    // satırı üretmez → health gürültüsü artmaz).
+    consumer.apply(RequestContextMiddleware).forRoutes("*");
+  }
+}
