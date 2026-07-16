@@ -67,6 +67,58 @@ describe("getOne — kapalı zarf (closed envelope)", () => {
     expect((res as { bids: unknown[] }).bids).toHaveLength(1);
   });
 
+  it("A2: sahip-detay teklifleri KUR-NORMALİZE sıralar (karışık kurda doğru firma üstte)", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const bTry = await makeCompanyWithUser(prisma, { country: "TR" });
+    const bUsd = await makeCompanyWithUser(prisma, { country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      visibility: "PUBLIC",
+      closesAt: FUTURE,
+    });
+    const item = await makeItem(prisma, listing.id);
+    // TRY teklif 3000.
+    await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bTry.company.id,
+      createdById: bTry.user.id,
+      amount: 3000,
+      currency: "TRY",
+      items: [{ itemId: item.id, unitPrice: 3000 }],
+    });
+    // USD teklif 200 → kur 30 ile 6000 TRY normalize.
+    const usdBid = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bUsd.company.id,
+      createdById: bUsd.user.id,
+      amount: 200,
+      currency: "USD",
+      items: [{ itemId: item.id, unitPrice: 200 }],
+    });
+    await prisma.listingBid.update({
+      where: { id: usdBid.id },
+      data: { exchangeRateSnapshot: 30 },
+    });
+
+    const res = (await service.getOne(owner.auth, listing.id)) as {
+      bids: { amount: string; currency: string; bidderCompanyId: string }[];
+    };
+    // ALIM = düşük iyi. TRY-normalize: TRY 3000 < USD 6000 → TRY teklifi ÜSTTE.
+    expect(res.bids[0]!.currency).toBe("TRY");
+    expect(res.bids[0]!.bidderCompanyId).toBe(bTry.company.id);
+    expect(res.bids[1]!.currency).toBe("USD");
+    // BUG KANITI: eski ham `Number(a.amount)-Number(b.amount)` sıralaması TERS
+    // verirdi — ilk sıradaki ham tutar (3000) ikincidekinden (200) BÜYÜK; ham
+    // float USD'yi (200) öne alır, sahip yanlış firmaya kazandırırdı.
+    expect(Number(res.bids[0]!.amount)).toBeGreaterThan(
+      Number(res.bids[1]!.amount),
+    );
+  });
+
   it("teklif veren RAKİP tekliflerini GÖREMEZ (bids alanı yok)", async () => {
     const { service, bidder, listing, item } = await setupAlim();
     const rival = await makeCompanyWithUser(prisma, { country: "TR" });

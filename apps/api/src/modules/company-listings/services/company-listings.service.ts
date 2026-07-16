@@ -2145,10 +2145,14 @@ export class CompanyListingsService {
         // updateListing kilidiyle birebir aynı kural.
         this.prisma.listingBid.count({ where: { listingId: id } }),
       ]);
-      bids.sort((a, b) =>
-        listing.type === "ALIM"
-          ? Number(a.amount) - Number(b.amount) // ALIM: düşük iyi
-          : Number(b.amount) - Number(a.amount), // SATIS: yüksek iyi
+      // A2 fix: sahip-detay teklif sıralaması TEK KAYNAK — yetkili karşılaştırıcı
+      // (rankAuctionBids: Decimal + TRY-normalize). Eski ham `Number(a.amount)-
+      // Number(b.amount)` karışık kurda kur normalize ETMEDEN sıralıyordu → 100 USD
+      // (~3000 TRY) 3000 TRY'nin altında görünüp sahip yanlış firmaya kazandırırdı.
+      const rankedBids = this.rankAuctionBids(
+        bids,
+        listing.auctionRateSnapshot,
+        listing.type === "SATIS",
       );
       return {
         ...this.detail(listing, false),
@@ -2174,7 +2178,7 @@ export class CompanyListingsService {
           rothernId: iv.invitedCompany.rothernId,
           createdAt: iv.createdAt,
         })),
-        bids: bids.map((b) => ({
+        bids: rankedBids.map((b) => ({
           id: b.id,
           bidderName: b.bidderCompany.name,
           bidderCompanyId: b.bidderCompanyId,
