@@ -12,14 +12,52 @@ ayrımı kritik.
 
 ---
 
+## ✅ Tamamlandı — R2 iki-bucket ayrımı (prod'da canlı doğrulandı)
+
+İki-bucket ayrımı **tamamlandı ve prod'da canlı test edildi** (2026-07-16). KYC ve
+kapalı-zarf teklif belgelerinin imzasız public ifşası (INV-STORAGE-1'in kapattığı
+açık) prod ortamında fiilen kapalı. Kanıt (gerçek key ile):
+
+| Test | Sonuç | Anlamı |
+|---|---|---|
+| Gerçek public logo → `cdn.rothern.com/prod/tenant-profile/…` | **200** + image/jpeg | CDN → PUBLIC bucket'a bağlı |
+| Aynı gerçek private KYC key → `cdn.rothern.com/company-docs/…` | **404** | Private belge public domain'den servis edilmiyor |
+| Aynı gerçek private KYC key → private S3 endpoint, **imzasız** | **400** (nesne yok) | Private bucket public değil; yalnız imzalı (presigned) erişim |
+
+Bu üçü birlikte hem "CDN yanlış bucket'a bağlı" hem "presign baypası" senaryolarını
+kesin eler. Meşru presigned URL (imzalı) ile aynı key çekilebilir.
+
+### Kalıcı kurallar (deploy/altyapı — İHLAL = güvenlik açığı)
+
+- **`supkeys-documents` (PRIVATE bucket):** public dev URL (`*.r2.dev`) ve custom
+  domain **ASLA** açılmamalı. Yalnız presigned. Açılırsa key'i bilen herkes
+  KYC/teklif/ihale/sipariş belgesini imzasız çeker.
+- **`rothern-public` (PUBLIC bucket):** yalnız `{env}/tenant-profile/` prefix'i
+  bulunur; custom domain (`cdn.rothern.com`) yalnız buna bağlı. Kod tarafında
+  **INV-STORAGE-1** kilitliyor (`docs/invariants.md`): başka prefix public URL'e
+  çevrilemez, hassas anahtar public bucket'a yazılamaz (`assertKeyBucket`).
+- **Bucket adı tutarsızlığı** (`supkeys-documents` (private) vs `rothern-public`
+  (public)) **bilinçli olarak bırakıldı** — kozmetik, kullanıcıya görünmüyor,
+  yeniden adlandırma riskine değmez.
+
+Ayrıntı: `docs/r2-bucket-split.md` (Cloudflare kurulum + rollback).
+
+---
+
 ## Ödeme / plan (launch öncesi)
 
 ### Supabase (DB + Auth)
-- [ ] Pro'ya yükselt
-- [ ] **PITR eklentisini AYRICA aç** — Pro otomatik getirmiyor, ayrı add-on
-- [ ] Retention süresini panelde teyit et
-- [ ] Restore tatbikatı yap — **yeni projeye veya dump'a, prod'a DEĞİL** (PITR'ın
-      gerçekten çalıştığını felaket anından önce doğrula)
+
+> **TETİKLEYİCİ:** İlk gerçek müşteri verisi girmeden ÖNCE, launch'tan **en az
+> birkaç gün önce** yapılacak (tatbikat için marj gerekir).
+
+1. [ ] Supabase **Pro'ya yükselt**
+2. [ ] **PITR eklentisini AYRICA aç** — Pro otomatik getirmiyor, **en sık atlanan adım**
+3. [ ] **Retention'ı panelde teyit et** (hedef **≥30 gün**)
+4. [ ] **Restore tatbikatı:** bir backup'ı **YENİ bir projeye** geri yükle, verinin
+       geldiğini gör. **Prod'a DEĞİL.** Bu yapılmadan "backup'ım var" denmez.
+
+> **KIRMIZI ÇİZGİ:** Free planda gerçek müşteri verisiyle çalışılmaz.
 
 ### Render (API barındırma)
 - [ ] Plan kontrolü — **ücretsiz tier'da servis uyur** (ilk istekte cold start
@@ -73,6 +111,19 @@ ayrımı kritik.
 - [ ] **Ölü env temizliği:** `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`
       artık kullanılmıyor (frontend'den `@supabase/supabase-js` kaldırıldı) —
       `.env.example` + `.env.production.example`'dan kaldırılabilir.
+
+---
+
+## Fast-follow (launch sonrası teknik borç)
+
+- [ ] **Profil görseli değişince/kaldırılınca eski R2 nesnesini sil (best-effort).**
+      Bugün silinmiyor → public bucket'ta yetim logo/kapak/galeri nesneleri birikir
+      ve eski `cdn.rothern.com/{eski-key}` URL'i kalıcı erişilebilir kalır.
+      logo/kapak key'i dosya adını içerdiğinden farklı ad = yeni nesne (overwrite
+      garantisi yok); galeri her yüklemede `randomUUID`. Çözüm: yeni yükleme/
+      `photos[]` çıkarma öncesi `deleteObject("public", eskiKey)` (best-effort) —
+      ve/veya logo/kapak key'inden dosya adını çıkarıp gerçekten sabit key.
+      (`company-profile.service.ts`, `storage.service.ts:buildTenantProfileKey`.)
 
 ---
 
