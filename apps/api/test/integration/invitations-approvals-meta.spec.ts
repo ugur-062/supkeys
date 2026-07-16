@@ -242,12 +242,16 @@ describe("onay motoru meta (APR no, not, etiket, Tüm Süreçler, iptal)", () =>
   async function rig() {
     const { service } = makeApprovalsService();
     const owner = await makeCompanyWithUser(prisma);
+    // Onaycı initiator'dan FARKLI olmalı (INV-APPR-1 görev ayrılığı) — ayrı admin.
+    const approver = await makeUser(prisma, owner.company.id, [
+      "YONETICI",
+    ] as never);
     const flowRes = await service.createFlow(owner.auth, {
       name: "Kazandırma Onayı",
       type: "LISTING_AWARD",
       steps: [
         {
-          approverUserId: owner.user.id,
+          approverUserId: approver.id,
           displayLabel: "Satınalma Müdürü",
           conditionMinAmount: undefined,
         },
@@ -260,7 +264,7 @@ describe("onay motoru meta (APR no, not, etiket, Tüm Süreçler, iptal)", () =>
       type: "ALIM",
       status: "CLOSED",
     });
-    return { service, owner, listing, flowId: flowRes.id };
+    return { service, owner, listing, flowId: flowRes.id, approver };
   }
 
   it("requestNo APR-YYYY-NNNN sırayla; firma bazında bağımsız; not + etiket snapshot", async () => {
@@ -320,7 +324,7 @@ describe("onay motoru meta (APR no, not, etiket, Tüm Süreçler, iptal)", () =>
   });
 
   it("listPending + listAll: requestNo/not/etiket döner; filtre (durum + arama) çalışır", async () => {
-    const { service, owner, listing } = await rig();
+    const { service, owner, listing, approver } = await rig();
     await service.requestApproval(owner.auth, {
       listingId: listing.id,
       type: "LISTING_AWARD",
@@ -330,7 +334,13 @@ describe("onay motoru meta (APR no, not, etiket, Tüm Süreçler, iptal)", () =>
       initiatorNote: "Not-123",
     });
 
-    const pending = await service.listPending(owner.auth);
+    // Bekleyen adımın onaycısı initiator DEĞİL (görev ayrılığı) — ayrı approver.
+    const approverAuth = {
+      userId: approver.id,
+      companyId: owner.company.id,
+      roles: ["YONETICI"],
+    } as never;
+    const pending = await service.listPending(approverAuth);
     expect(pending).toHaveLength(1);
     expect(pending[0]!.requestNo).toMatch(/^APR-\d{4}-0001$/);
     expect(pending[0]!.initiatorNote).toBe("Not-123");

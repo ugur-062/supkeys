@@ -361,6 +361,48 @@ describe("Kazandırma onayı — uçtan uca", () => {
     });
     expect(pending).toBe(0);
   });
+
+  it("requestApproval: ilk adım approver'ı == initiator + başka admin var → ANINDA ikame", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // initiator + approver
+    const a2 = await addUser(owner.company.id, "TR", ["YONETICI"]); // ikame adayı
+    const flow = await approvals.createFlow(
+      owner.auth,
+      flowInput([owner.user.id]) as never, // approver = owner (initiator)
+    );
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { res } = await startAward(
+      approvals,
+      owner.auth,
+      owner.company.id,
+      owner.user.id,
+    );
+    expect((res as { approved: boolean }).approved).toBe(false);
+    const step = await prisma.approvalRequestStep.findFirstOrThrow({
+      where: { status: "PENDING" },
+    });
+    // owner DEĞİL — initiator-dışı admin (a2) ile ikame edildi.
+    expect(step.approverUserId).toBe(a2.user.id);
+    expect(step.approverUserId).not.toBe(owner.user.id);
+  });
+
+  it("requestApproval: ilk adım approver'ı == initiator + başka uygun YOK → award ANINDA reddedilir (doomed PENDING yok)", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // tek admin
+    const flow = await approvals.createFlow(
+      owner.auth,
+      flowInput([owner.user.id]) as never,
+    );
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    await expect(
+      startAward(approvals, owner.auth, owner.company.id, owner.user.id),
+    ).rejects.toThrow(/sizden başka uygun bir onaylayıcı yok/i);
+    // Doomed PENDING request oluşmadı.
+    const cnt = await prisma.approvalRequest.count({
+      where: { companyId: owner.company.id },
+    });
+    expect(cnt).toBe(0);
+  });
 });
 
 describe("Yarış koruması (atomik karar/iptal)", () => {

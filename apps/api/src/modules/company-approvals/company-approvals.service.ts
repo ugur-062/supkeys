@@ -468,6 +468,24 @@ export class CompanyApprovalsService {
     if (firstActive === -1) return { approved: true }; // hepsi atlandı
     drafts[firstActive]!.status = "PENDING";
 
+    // INV-APPR-1 (görev ayrılığı): ilk aktif adımın onaycısı BAŞLATAN'ın kendisi
+    // ise anında ikame et — initiator kendi isteğini onaylayamaz (decide de
+    // reddeder). İkame edecek initiator-dışı uygun onaylayıcı yoksa award'ı
+    // ANINDA reddet: doomed PENDING oluşmasın, kullanıcı ~1dk fallback-cron'unu
+    // beklemeden net hata alsın (tek-admin firma senaryosu). Sonraki adımların
+    // (ilerideki adım == initiator) ikamesi fallback cron'undadır.
+    if (drafts[firstActive]!.approverUserId === user.userId) {
+      const substitute = await this.findEligibleApprover(user.companyId, [
+        user.userId,
+      ]);
+      if (!substitute) {
+        throw new ForbiddenException(
+          "Onay akışında sizden başka uygun bir onaylayıcı yok — akışa bir onaylayıcı ekleyin veya firma sahibine başvurun.",
+        );
+      }
+      drafts[firstActive]!.approverUserId = substitute;
+    }
+
     // İlan başına aynı tipte tek açık istek. İki eşzamanlı kazandırma (~round-trip
     // penceresinde) iki PENDING istek üretip, biri onaylanıp sipariş oluştuktan
     // sonra diğerinin reddi/iptali ilanı geri açarak çift-sipariş riski
