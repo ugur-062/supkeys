@@ -201,6 +201,9 @@ async function ensureCompany(
       tier,
       country: "TR",
       onboardingCompletedAt: new Date(),
+      // INV-KYC-1: demo hesaplar operasyonel olsun (para-taahhüdü kapıları
+      // VERIFIED ister; aksi halde demo firma teklif/kazandırma yapamaz).
+      companyVerificationStatus: "VERIFIED",
     },
   });
   const user = await prisma.companyUser.create({
