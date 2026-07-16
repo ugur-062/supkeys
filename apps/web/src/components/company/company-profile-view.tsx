@@ -1,5 +1,33 @@
 import type { ReactNode } from "react";
 
+import { safeExternalUrl } from "@/lib/safe-url";
+
+/**
+ * Dış bağlantı — YALNIZ http/https render eder (`javascript:` vb. düşürülür).
+ * Bu view PUBLIC (/firma/[slug]) olduğundan kullanıcı-kontrollü URL'ler ham
+ * href olarak basılamaz (stored XSS). safeExternalUrl null dönerse hiç render yok.
+ */
+function ExternalLink({
+  href,
+  label,
+}: {
+  href: string | null | undefined;
+  label: string;
+}) {
+  const safe = safeExternalUrl(href);
+  if (!safe) return null;
+  return (
+    <a
+      href={safe}
+      target="_blank"
+      rel="noreferrer nofollow"
+      className="font-medium text-zinc-600 hover:text-zinc-900"
+    >
+      {label}
+    </a>
+  );
+}
+
 export interface ProfileViewData {
   name: string;
   rothernId?: string | null;
@@ -169,36 +197,9 @@ export function CompanyProfileView({
               ) : null}
               {p.industry ? <Stat label="Sektör" value={p.industry} /> : null}
               <div className="ml-auto flex items-center gap-4 text-sm">
-                {p.website ? (
-                  <a
-                    href={p.website}
-                    target="_blank"
-                    rel="noreferrer nofollow"
-                    className="font-medium text-zinc-600 hover:text-zinc-900"
-                  >
-                    Web Sitesi
-                  </a>
-                ) : null}
-                {p.linkedinUrl ? (
-                  <a
-                    href={p.linkedinUrl}
-                    target="_blank"
-                    rel="noreferrer nofollow"
-                    className="font-medium text-zinc-600 hover:text-zinc-900"
-                  >
-                    LinkedIn
-                  </a>
-                ) : null}
-                {p.instagramUrl ? (
-                  <a
-                    href={p.instagramUrl}
-                    target="_blank"
-                    rel="noreferrer nofollow"
-                    className="font-medium text-zinc-600 hover:text-zinc-900"
-                  >
-                    Instagram
-                  </a>
-                ) : null}
+                <ExternalLink href={p.website} label="Web Sitesi" />
+                <ExternalLink href={p.linkedinUrl} label="LinkedIn" />
+                <ExternalLink href={p.instagramUrl} label="Instagram" />
               </div>
             </div>
           ) : null}

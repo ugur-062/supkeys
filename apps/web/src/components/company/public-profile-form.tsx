@@ -15,6 +15,7 @@ import {
   useUploadProfileImage,
 } from "@/hooks/use-company-profile";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { safeExternalUrl } from "@/lib/safe-url";
 import { cn } from "@/lib/utils";
 import { ExternalLink, Lock, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -70,10 +71,20 @@ export function PublicProfileForm() {
     setForm((f) => ({ ...f, ...patch }));
 
   const handleSave = async () => {
-    const { foundedYear, ...rest } = form;
+    const { foundedYear, linkedinUrl, instagramUrl, ...rest } = form;
+    // Güvenlik (defense-in-depth): javascript:/data: gibi URL'leri KAYDETME;
+    // şemasızı https'e normalize et. Asıl koruma render tarafında (safeExternalUrl).
+    const normLinkedin = linkedinUrl.trim() ? safeExternalUrl(linkedinUrl) : "";
+    const normInstagram = instagramUrl.trim() ? safeExternalUrl(instagramUrl) : "";
+    if (normLinkedin === null || normInstagram === null) {
+      toast.error("Geçersiz bağlantı — yalnız http/https adresleri kabul edilir");
+      return;
+    }
     try {
       await update.mutateAsync({
         ...rest,
+        linkedinUrl: normLinkedin,
+        instagramUrl: normInstagram,
         foundedYear: foundedYear.trim() ? Number(foundedYear) : undefined,
       });
       toast.success("Profil güncellendi");

@@ -22,6 +22,7 @@ import {
   useUpdateCompanyProfile,
 } from "@/hooks/use-company-profile";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { safeExternalUrl } from "@/lib/safe-url";
 import { UserRound } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -85,8 +86,17 @@ export function CompanyProfileSection() {
     setForm((f) => ({ ...f, ...patch }));
 
   const handleSave = async () => {
+    // Güvenlik (defense-in-depth): website'i javascript:/data: gibi şemalardan
+    // arındır, şemasızı https'e normalize et. Asıl koruma render'da (safeExternalUrl).
+    const normWebsite = form.website.trim()
+      ? safeExternalUrl(form.website)
+      : "";
+    if (normWebsite === null) {
+      toast.error("Geçersiz web sitesi — yalnız http/https adresleri kabul edilir");
+      return;
+    }
     try {
-      await update.mutateAsync(form);
+      await update.mutateAsync({ ...form, website: normWebsite });
       toast.success("Firma bilgileri güncellendi");
     } catch (err) {
       toast.error(extractErrorMessage(err, "Güncellenemedi"));
