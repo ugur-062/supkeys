@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { effectiveTier } from "../../common/company/effective-tier";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 
 /**
@@ -22,10 +23,22 @@ export class CompanySupplierTemplatesService {
         status: "ACTIVE",
         OR: [{ inviterCompanyId: companyId }, { inviteeCompanyId: companyId }],
       },
-      select: { inviterCompanyId: true, inviteeCompanyId: true },
+      select: {
+        inviterCompanyId: true,
+        inviteeCompanyId: true,
+        origin: true,
+        inviter: { select: { tier: true, membershipEndAt: true } },
+      },
     });
     const set = new Set<string>();
     for (const r of rows) {
+      // INV-TIER-1: bağlantı yalnız onu KURAN taraf efektif PAKET kaldıkça
+      // geçerli (ADMIN hariç) — listings connectedCompanyIds ile AYNI kural
+      // (eskiden burada HİÇ tier filtresi yoktu → bayat-PAKET bağlantı sızardı).
+      const valid =
+        r.origin === "ADMIN" ||
+        effectiveTier(r.inviter.tier, r.inviter.membershipEndAt) === "PAKET";
+      if (!valid) continue;
       set.add(
         r.inviterCompanyId === companyId
           ? r.inviteeCompanyId

@@ -33,6 +33,7 @@ import {
   validateShortCode,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { effectiveTier } from "../../../common/company/effective-tier";
 import { AuditService } from "../../audit/audit.service";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
@@ -5983,7 +5984,7 @@ export class CompanyListingsService {
         inviterCompanyId: true,
         inviteeCompanyId: true,
         origin: true,
-        inviter: { select: { tier: true } },
+        inviter: { select: { tier: true, membershipEndAt: true } },
       },
     });
     return rows
@@ -5992,7 +5993,11 @@ export class CompanyListingsService {
         // hem PREMIUM hem INVITE için (ADMIN hariç: platform kararı, hep açık).
         // Ödemeyi bırakınca kendi başlattığın bağlantılar düşer → bir kez premium
         // olup bol davet atarak kalıcı "bedava ihale penceresi" kurulamaz.
-        (r) => r.origin === "ADMIN" || r.inviter.tier === "PAKET",
+        // INV-TIER-1: EFEKTİF tier (ham değil) — süre-dolma penceresinde bayat
+        // PAKET bağlantıyı canlı tutmasın (cron'u beklemeden).
+        (r) =>
+          r.origin === "ADMIN" ||
+          effectiveTier(r.inviter.tier, r.inviter.membershipEndAt) === "PAKET",
       )
       .map((r) =>
         r.inviterCompanyId === companyId
