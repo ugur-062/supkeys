@@ -8,6 +8,7 @@ import {
   type EmailRecipient,
   type EmailTemplateData,
 } from "@rothern/email";
+import { reportToSentry } from "../../instrument";
 import { PrismaService } from "../../common/prisma/prisma.service";
 
 export interface SendEmailInput {
@@ -31,6 +32,24 @@ const REDACTED_CONTEXT_TYPES = new Set([
   "login_2fa",
   "email_verify",
 ]);
+
+/**
+ * Erişimi kapılayan KRİTİK e-posta tipleri — bunlar gitmezse kullanıcı sisteme
+ * hiç giremez (kayıt doğrulama kodu, şifre sıfırlama, 2FA giriş kodu) ve in-app
+ * fallback YOKTUR (kullanıcı henüz giriş yapmamış). Gönderim başarısız/suppress
+ * olursa yalnız `logger.error` "sessiz ölüm"dü → SentryGlobalFilter fırlatılmayan
+ * log'u yakalamadığından `reportToSentry` ile açıkça alarm üret (ops fark etsin).
+ * PII GÖNDERİLMEZ: yalnız log-id + context tipi/id (adres/gövde/kod GEÇMEZ).
+ */
+const CRITICAL_EMAIL_CONTEXTS = new Set([
+  "password_reset",
+  "login_2fa",
+  "email_verify",
+]);
+
+export function isCriticalEmailContext(type: string | undefined): boolean {
+  return type != null && CRITICAL_EMAIL_CONTEXTS.has(type);
+}
 
 /**
  * E-posta gönderim servisi.
@@ -125,6 +144,18 @@ export class EmailService implements OnModuleInit {
         },
         select: { id: true },
       });
+      // Kritik e-posta suppress ise kullanıcı kalıcı mahsur (kod/reset gitmiyor)
+      // → ops alarmı (PII yok).
+      if (isCriticalEmailContext(input.context?.type)) {
+        reportToSentry("[EMAIL-KRİTİK-SUPPRESS]", "error", {
+          tags: { email: "critical-suppressed", context: input.context!.type },
+          extra: {
+            emailLogId: skipped.id,
+            contextId: input.context?.id ?? null,
+            suppressedStatus: suppressed.status,
+          },
+        });
+      }
       return { emailLogId: skipped.id };
     }
 
@@ -199,6 +230,14 @@ export class EmailService implements OnModuleInit {
         },
       });
       this.logger.error(`Email ${log.id} send failed: ${errorMessage}`);
+      // Kritik e-posta (kayıt kodu / reset / 2FA) gönderilemedi → "sessiz ölüm"
+      // yerine ops alarmı. PII YOK: yalnız log-id + context (adres/kod GEÇMEZ).
+      if (isCriticalEmailContext(input.context?.type)) {
+        reportToSentry("[EMAIL-KRİTİK-GÖNDERİLEMEDİ]", "error", {
+          tags: { email: "critical-send-failed", context: input.context!.type },
+          extra: { emailLogId: log.id, contextId: input.context?.id ?? null },
+        });
+      }
       throw err;
     }
   }
