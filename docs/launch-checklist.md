@@ -90,6 +90,8 @@ Ayrıntı: `docs/r2-bucket-split.md` (Cloudflare kurulum + rollback).
 | `ANTHROPIC_API_KEY` | AI "Hakkımızda" özelliği kapanır (heuristik fallback'e düşer) | Opsiyonel |
 | `NEXT_PUBLIC_API_URL` | Frontend API'ye ulaşamaz | **Vercel build-time — şart** |
 | `NEXT_PUBLIC_SITE_URL` | SEO canonical/sitemap/robots bozulur | **Vercel build-time — şart** |
+| `COOKIE_SAMESITE` | ⚠️ Boşsa prod'da `none` → **CsrfGuard komple bypass, CSRF açık** | **Same-site domain'de `lax`** (aşağıdaki sıralı adım) |
+| `CORS_ALLOW_VERCEL` | `true` ise **her `*.vercel.app`** credentials'lı istek atabilir (CSRF/veri sızıntısı) | Prod'da **boş/`false`**; yalnız preview/demo'da `true` |
 
 - [ ] `SENTRY_DSN`
 - [ ] `R2_PUBLIC_BASE_URL`
@@ -97,9 +99,41 @@ Ayrıntı: `docs/r2-bucket-split.md` (Cloudflare kurulum + rollback).
 - [ ] `ANTHROPIC_API_KEY` (opsiyonel)
 - [ ] `NEXT_PUBLIC_API_URL` (Vercel build arg)
 - [ ] `NEXT_PUBLIC_SITE_URL` (Vercel build arg)
+- [ ] `COOKIE_SAMESITE` (aşağıdaki CSRF sırası)
+- [ ] `CORS_ALLOW_VERCEL` prod'da kapalı
 
 > **Not:** Supabase / R2 / Resend env'leri eksikse app **BOOT ETMEZ** (fail-closed,
 > güvenli) — `onModuleInit`'te throw eder, deploy anında yakalanır.
+
+---
+
+## CSRF / Cookie güvenliği (KRİTİK — sıra önemli)
+
+**Sorun:** CsrfGuard double-submit koruması fail-closed yazılmış AMA `COOKIE_SAMESITE`
+boşsa prod'da `none`'a düşüyor; `none` modunda guard KOMPLE bypass oluyor
+(`csrf.guard.ts:70`) → CSRF koruması yalnız CORS'a kalıyor. Bu yüzden aşağıdaki
+**SIRALI BAĞIMLILIK** izlenmeli — ters sıra girişi kırar:
+
+- [ ] **1) Custom domain'leri bağla:** API → `api.rothern.com` (Render), web →
+      `app.rothern.com`, admin → `admin.rothern.com` (Vercel). Hepsi `rothern.com`
+      altında = **same-site**.
+- [ ] **2) DOĞRULA:** üç domain de HTTPS'te açılıyor + `NEXT_PUBLIC_API_URL=https://api.rothern.com/api`
+      + `COOKIE_DOMAIN=.rothern.com` + `CORS_ORIGINS` yalnız gerçek domain'ler.
+- [ ] **3) SONRA `COOKIE_SAMESITE=lax` set et** → CsrfGuard double-submit'i (header
+      eksik/boş → 403) VE tarayıcı SameSite backstop'u AÇILIR. Doğrula: giriş çalışıyor +
+      header'sız mutating istek 403.
+- [ ] **4) `CORS_ALLOW_VERCEL` prod'da boş/`false`** (kod default false) — `*.vercel.app`
+      joker origin'i kapalı kalsın.
+
+> ⚠️ **Şu an ham provider domain'lerindeyiz** (`rothern-api.onrender.com` +
+> `supkeys-web.vercel.app`) = **CROSS-SITE**. Bu topolojide `COOKIE_SAMESITE=lax`
+> cookie'yi cross-site göndermez → **GİRİŞ ÇALIŞMAZ**. Sırayı (1→2→3) tamamlamadan
+> `lax` set ETME.
+>
+> **Cross-site kalınacaksa** (custom domain bağlanmayacaksa): `none` zorunlu →
+> double-submit çalışamaz → CSRF'i **strict origin/referer allowlist guard'ıyla**
+> sağla (vercel-wildcard OLMADAN). Bu ayrı iş (item 4) — cross-site prod'a geçmeden
+> ÖNCE yapılmalı.
 
 ---
 
