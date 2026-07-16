@@ -9,6 +9,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { CompanyJwtStrategy } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
 import { CreateListingDto } from "../../src/modules/company-listings/dto/create-listing.dto";
 import { PlaceBidDto } from "../../src/modules/company-listings/dto/place-bid.dto";
+import { RejectPaymentReasonDto } from "../../src/modules/company-orders/dto/order-payment.dto";
 import {
   AddInvitationsDto,
   ChangeClosingDto,
@@ -89,6 +90,23 @@ describe("DTO doğrulama (global ValidationPipe)", () => {
       ).resolves.toBeDefined();
     });
 
+    it("kalem miktarı üst sınırı (@Max 1 milyar — Decimal taşma koruması)", async () => {
+      await expect(
+        validate(CreateListingDto, {
+          type: "ALIM",
+          title: "Test ihale",
+          items: [{ name: "Kalem", quantity: 2_000_000_000, unit: "adet" }],
+        }),
+      ).rejects.toBeDefined();
+      await expect(
+        validate(CreateListingDto, {
+          type: "ALIM",
+          title: "Test ihale",
+          items: [{ name: "Kalem", quantity: 1000, unit: "adet" }],
+        }),
+      ).resolves.toBeDefined();
+    });
+
     it("targetCountries ISO-2 olmalı (F10)", async () => {
       await expect(
         validate(CreateListingDto, {
@@ -152,6 +170,17 @@ describe("DTO doğrulama (global ValidationPipe)", () => {
           items: [{ itemId: "i1", unitPrice: -5 }],
         }),
       ).rejects.toBeDefined();
+    });
+  });
+
+  describe("RejectPaymentReasonDto", () => {
+    it("red sebebi min 10 karakter (iptal gerekçesiyle simetri)", async () => {
+      await expect(
+        validate(RejectPaymentReasonDto, { reason: "geç" }),
+      ).rejects.toBeDefined();
+      await expect(
+        validate(RejectPaymentReasonDto, { reason: "Dekont eşleşmiyor" }),
+      ).resolves.toBeDefined();
     });
   });
 });

@@ -56,10 +56,11 @@ export class OrderReasonDto {
   reason!: string;
 }
 
-/** Ödeme reddi — gerekçe zorunlu (eski sistemle aynı). */
+/** Ödeme reddi — gerekçe zorunlu (iptal gerekçesiyle simetri: min 10 karakter). */
 export class RejectPaymentReasonDto {
   @IsString()
   @IsNotEmpty({ message: "Red sebebi zorunludur" })
+  @MinLength(10, { message: "Red sebebi en az 10 karakter olmalı" })
   @MaxLength(1000)
   reason!: string;
 }

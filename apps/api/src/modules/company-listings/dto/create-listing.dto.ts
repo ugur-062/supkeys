@@ -121,8 +121,13 @@ export class ListingItemDto {
   @MaxLength(2000)
   description?: string;
 
+  // @Max: qty × unitPrice → Decimal(18,2) taşmasını önler. 1 milyar üst sınır
+  // gerçekçi B2B miktarları için bol; Decimal(18,3) kolonuna güvenle sığar.
+  // NOT: unitPrice üst sınırı AYRI (docs/business-rules.md açık madde) — çarpım
+  // taşmasını TAM kapatmak için o da sınırlanmalı (bu turda kapsam dışı).
   @IsNumber({ maxDecimalPlaces: 3 })
   @Min(0.001)
+  @Max(1_000_000_000)
   quantity!: number;
 
   @IsString()
