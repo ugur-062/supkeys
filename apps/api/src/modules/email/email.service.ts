@@ -31,6 +31,12 @@ const REDACTED_CONTEXT_TYPES = new Set([
   "password_reset",
   "login_2fa",
   "email_verify",
+  // Davet token'ları da tek-kullanımlık sır: payload'da düz saklanırsa admin
+  // e-posta-logları (findOne payload'ı aynen döner) veya DB okuma erişimi olan
+  // biri `?ref=<token>` / `/company/davet/<token>` linkindeki token'ı okuyup
+  // daveti kabul edebilir (bağlantı/ takıma katılma = yetki yükseltme).
+  "referral_invite",
+  "company_user_invitation",
 ]);
 
 /**
