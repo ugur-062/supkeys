@@ -763,7 +763,16 @@ export class CompanyListingsService {
 
     switch (category) {
       case "ADVANCE": {
-        advancePercent = dto.advancePercent ?? 100;
+        // advancePercent ZORUNLU — eski `?? 100` sessiz tam-peşin varsayımı
+        // kaldırıldı (yazma kapısı sıkı; kullanıcı yüzdeyi açıkça seçer). DTO
+        // ayrıca 1-100 sınırlar. NOT: shared `advancePercentFor` runtime `?? 100`
+        // backstop'u KORUNUR (fail-closed — stray/legacy null en katı kapıya düşer).
+        if (dto.advancePercent == null) {
+          throw new BadRequestException(
+            "Peşin ödemede peşin yüzdesi (%1-100) zorunlu",
+          );
+        }
+        advancePercent = dto.advancePercent;
         if (advancePercent < 100 && isInternational) {
           throw new BadRequestException(
             "Kısmi peşin ödeme yalnız yurtiçi ilanlarda seçilebilir",

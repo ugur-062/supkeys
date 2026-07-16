@@ -59,6 +59,36 @@ describe("DTO doğrulama (global ValidationPipe)", () => {
       ).rejects.toBeDefined();
     });
 
+    it("ADVANCE'ta advancePercent ZORUNLU (eski sessiz %100 kalktı)", async () => {
+      // Peşin kategorisi seçilip yüzde verilmezse reddedilir.
+      await expect(
+        validate(CreateListingDto, {
+          type: "ALIM",
+          title: "Test ihale",
+          paymentCategory: "ADVANCE",
+        }),
+      ).rejects.toBeDefined();
+      // Yüzde verilirse kabul.
+      await expect(
+        validate(CreateListingDto, {
+          type: "ALIM",
+          title: "Test ihale",
+          paymentCategory: "ADVANCE",
+          advancePercent: 50,
+        }),
+      ).resolves.toBeDefined();
+    });
+
+    it("ADVANCE dışında advancePercent opsiyonel kalır (ValidateIf atlar)", async () => {
+      await expect(
+        validate(CreateListingDto, {
+          type: "ALIM",
+          title: "Test ihale",
+          paymentCategory: "OPEN_ACCOUNT",
+        }),
+      ).resolves.toBeDefined();
+    });
+
     it("targetCountries ISO-2 olmalı (F10)", async () => {
       await expect(
         validate(CreateListingDto, {

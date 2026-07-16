@@ -15,6 +15,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from "class-validator";
 
@@ -402,8 +403,10 @@ export class CreateListingDto {
   @IsEnum(PaymentCategoryDto)
   paymentCategory?: PaymentCategoryDto;
 
-  /** Yalnız ADVANCE: peşin yüzdesi. %<100 yalnız yurtiçi ilanda geçerli. */
-  @IsOptional()
+  /** Yalnız ADVANCE: peşin yüzdesi (ZORUNLU — eski sessiz %100 varsayımı kalktı).
+   *  %<100 yalnız yurtiçi ilanda geçerli (serviste enforce). ValidateIf: ADVANCE
+   *  dışında atlanır (opsiyonel), ADVANCE'ta undefined → @IsInt hatası. */
+  @ValidateIf((o: { paymentCategory?: PaymentCategoryDto }) => o.paymentCategory === PaymentCategoryDto.ADVANCE)
   @IsInt()
   @Min(1)
   @Max(100)

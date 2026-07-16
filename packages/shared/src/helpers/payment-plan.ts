@@ -60,8 +60,14 @@ export function paymentPlanSuggestsGuarantee(
 
 /**
  * Gönderim ÖNCESİ peşin ŞARTI ve YÜZDESİ (KURAL — hesap değil). ADVANCE'ta
- * advancePercent (yoksa tam peşin %100 — legacy güvenli taban); diğer
- * kategorilerde null (peşin şartı yok).
+ * advancePercent; diğer kategorilerde null (peşin şartı yok).
+ *
+ * `?? 100` = FAIL-CLOSED BACKSTOP (sessiz iş varsayımı DEĞİL). Yazma kapısı artık
+ * ADVANCE'ta advancePercent'i ZORUNLU kılıyor (create-listing.dto @ValidateIf +
+ * buildPaymentPlan throw) → yeni null üretilmez. Bu backstop yalnız stray/legacy
+ * null içindir: onu %100'e (en katı peşin kapısı) düşürmek, `advanceDueDecimal`'da
+ * null→Decimal(0) (peşin şartı YOK = ödemesiz sevk) fail-OPEN'ından güvenlidir.
+ * Bu yüzden KALDIRILMAZ (Grup 4 kararı; ölçüm: 0 legacy null ama defense-in-depth).
  *
  * NOT (INV-MONEY-1): tutar HESABI burada DEĞİL — shared bir kural kütüphanesidir,
  * para motoru değil. Decimal tutar (`total × pct / 100`, ROUND_HALF_UP) API
