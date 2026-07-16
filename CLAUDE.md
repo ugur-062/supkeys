@@ -91,9 +91,15 @@ JWT payload `type` field'ıyla doğrulanır. Tenant token → admin/supplier end
 - **Test sayısı:** 534 test, 25 suite — Supabase Auth geçişi (2026-05-19/20) sonrası bcrypt mock'ları kırık. Login/register/password servisleri `SupabaseAuthService` bridge'i bekliyor, mock güncellenmedi. **Smoke test manuel doğrulandı** (admin/tenant/supplier login → JWT alındı, generic 401 davranışı korundu). Test paketi refactor edilmeli (bekleyen iş).
 - **Coverage (geçiş öncesi):** Kritik dosyalarda %85-100 (auth, permissions, controllers)
 - **Test DB:** İzole `rothern_test`
+- ⚠️ **Integration spec'leri TEK TEK / küçük gruplarla koş — TOPLU KOŞMA.** Paylaşımlı
+  remote Supabase `rothern_test` şemasında `beforeEach` TRUNCATE'i `40P01` deadlock'a
+  girer; birçok ağır suite'i tek `jest` çağrısında birleştirmek (ör. 6 suite) kurulumda
+  **süresiz asılı kalır** (CPU donar, worker açılmaz). Kanıtlanmış pratik: her spec'i
+  AYRI `npx jest <spec>` çağrısıyla, izole çalıştır (izole geçer, memory'de belgeli).
 - **Komutlar:**
   ```bash
-  pnpm test              # tüm testler (şu an kırık — refactor bekliyor)
+  npx jest <spec>        # DOĞRU: tek spec izole (ör. npx jest approvals.spec)
+  pnpm test              # tüm testler (şu an kırık — refactor bekliyor; ayrıca deadlock riski)
   pnpm test:cov          # +coverage rapor
   npx jest e2e.spec      # sadece E2E (13 suite, ~3 dk)
   ```
