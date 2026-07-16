@@ -53,6 +53,12 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
 - **INV-SM-3** — Her sipariş/ödeme geçişi aktörün tarafını doğrular: `assertOrderRole(user, "seller"|"buyer")` (`company-orders.service.ts:1045`). Satıcı: accept/reject/ship/ödeme-onayı; alıcı: receive/complete/cancel/ödeme-kaydı.
 - **INV-SM-4** — Bir sipariş `COMPLETED` olabilmesi için bekleyen (`AWAITING_CONFIRMATION`) ödeme kalmamalı ve ödeme tam onaylanmış olmalıdır (`complete()`).
 
+### Para (Decimal, epsilon yok)
+- **INV-MONEY-1** — Para karşılaştırmaları ve KAPI kontrolleri **`Prisma.Decimal`** ile yapılır; KARAR sınırında `Number()`'a düşürülmez. **Tolerans/epsilon KULLANILMAZ** — eşitlik geçer (`confirmed.gte(total)` = tam ödendi; `recorded+amount ≤ cap` = kabul), 1 kuruş eksik/fazla tam olarak yakalanır. Kapsanan kapılar (`company-orders.service.ts`): `isFullyPaid`, ship/advance eşiği, `recordPayment` cap, `receive`/`complete`/`paymentDecision` oto-tamamlama, `lcMarkPaid` remaining, due-reminder; onay eşiği (`company-approvals.service.ts` — award/awardByItem Decimal geçer, `amountDec.lt(minDec)`); `confirmedPaymentSum` TEK KAYNAK Decimal döner.
+  - **Karar ≠ Gösterim:** GÖSTERİM sınırı (serialize/response, mesaj) `.toFixed(2)`/`.toString()`/`.toNumber().toLocaleString()` ile string/number üretmeye DEVAM eder → API yanıt şekli değişmez. `Number()` yalnız gösterimde geçerlidir, kararda değil.
+  - **Yuvarlama:** para hesabı `Decimal ... ROUND_HALF_UP` (Decimal(18,2) kolon hassasiyeti; eski `Math.round` half-up davranışını korur). Kural (`advancePercentFor`) shared'da, HESAP (`total.mul(pct).div(100)`) API katmanında — shared kural kütüphanesi, para motoru değil.
+  - *Bilinen artık gap (ayrı iş):* `Listing.auctionRateSnapshot` kuru JSON'da FLOAT saklanır (hesap Decimal ama kaynak lossy); kuru Decimal-string saklamak daha büyük bir iş. Kanıt/regresyon: `test/integration/order-workflow.spec.ts` (tam-eşit geçer, 1 kuruş eksik/fazla sınırları).
+
 ### Idempotency & webhook
 - **INV-SM-5** — Para/durum geçişleri idempotenttir: koşullu atomik yazım veya unique kısıt ile aynı geçiş iki kez tetiklenirse tek etki oluşur.
 - **INV-SM-6** — Webhook'lar imza doğrular (svix HMAC, ham gövde üzerinden), imza/secret yoksa fail-closed davranır ve idempotenttir (dedupe referansı: `EmailEvent.eventId @unique`, `schema.prisma:132`).
@@ -173,6 +179,7 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
 | INV-TIER-1 (yeni) | Y2/Y3/Y7/#4 | self-upgrade flag (403, para kaçağı), expire→membershipEndAt null, effectiveTier tek kaynak (/me+JWT+profil+bağlantı filtresi) | `c6251d9`, `fed282b`, `096f088`, `bf90cd7` |
 | INV-KYC-1 (yeni) | Y1 | VERIFIED gate: placeBid-submit/award/awardByItem/publishListing (taslak+funnel serbest); assertVerified | `a5da85f`, `50b94ee` |
 | INV-APPR-1 (yeni) | Y4/Y5 | onay görev-ayrılığı: self-onay red + initiator-approver ikame; fallback havuzu +ONAYLAYICI ∖{initiator}; uygun yoksa REJECTED (sessiz PENDING yok) | `e5cc1df`, `8bf6719`, `5c99e92` |
+| INV-MONEY-1 (yeni) | X1/epsilon | para kapıları Decimal'e taşındı (karar≠gösterim), 0.01 epsilon kaldırıldı (tam-eşit geçer); advanceDueAmount kural/hesap ayrımı | `8095851`, `61d8541` |
 | INV-ADMIN-1 (yeni) | #12 (+#4/#7) | admin authz fail-open → fail-closed + guard-chain tuzağı | `1592f51`, `9e48902` |
 | INV-MT-3 + INV-SD-1 (WS) | WS iptal-bypass | realtime handshake taze-DB kapısı + süresiz-soket exp-timer | `5ff3524` |
 | INV-DOC-1, INV-RL-1 + hijyen | #6/#8/#9/#10/#13 | env-bypass allowlist (ALLOW_INSECURE_WEBHOOK dahil), admin throttle, ölü guard silme, 6-presign doc, admin-demote guard | `bc22b7b` |
