@@ -38,6 +38,7 @@ import {
 } from "./_components/order-action-modals";
 import { OrderReviewCard } from "./_components/order-review-card";
 import { OrderTimeline } from "./_components/order-timeline";
+import { buildOrderPrintHtml, itemDeliveryLabel } from "./_components/order-print";
 import { ArrowLeftIcon, CheckCircleIcon } from "@heroicons/react/20/solid";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -90,16 +91,6 @@ function stepIndexFor(status: CompanyOrderStatus): number {
 
 /** Kalem teslim tarihi etiketi — kalem-özel tarih varsa onu, yoksa order-level
  *  tarihe düşer (o zaman "genel" işaretiyle); ikisi de yoksa "—". */
-function itemDeliveryLabel(
-  itemDate: string | null | undefined,
-  orderDate: string | null,
-): string {
-  if (itemDate) return format(new Date(itemDate), "dd MMM yyyy", { locale: tr });
-  if (orderDate)
-    return `${format(new Date(orderDate), "dd MMM yyyy", { locale: tr })} (genel)`;
-  return "—";
-}
-
 function MetaItem({
   icon: Icon,
   label,
@@ -248,33 +239,15 @@ export default function OrderDetailPage() {
     if (!o) return;
     const w = window.open("", "_blank", "width=800,height=900");
     if (!w) return;
-    const rows = (o.items ?? [])
-      .map((it) => {
-        const line = Number(it.quantity) * Number(it.unitPrice);
-        const dd = itemDeliveryLabel(it.deliveryDate, o.expectedDeliveryDate);
-        return `<tr><td>${it.name}</td><td style="text-align:right">${Number(it.quantity).toLocaleString("tr-TR")} ${it.unit}</td><td style="text-align:right">${dd}</td><td style="text-align:right">${Number(it.unitPrice).toLocaleString("tr-TR")} ${curSym}</td><td style="text-align:right">${line.toLocaleString("tr-TR")} ${curSym}</td></tr>`;
-      })
-      .join("");
-    w.document.write(`<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>${o.number ?? "Sipariş"}</title>
-<style>body{font-family:system-ui,Arial,sans-serif;color:#18181b;padding:32px;max-width:720px;margin:auto}
-h1{font-size:20px;margin:0 0 4px}.muted{color:#71717a;font-size:13px}
-table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13px}
-th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#71717a;font-size:11px;text-transform:uppercase}
-.tot{text-align:right;font-size:16px;font-weight:700;margin-top:12px}
-.meta{margin-top:8px;font-size:13px;line-height:1.7}</style></head>
-<body>
-<h1>Sipariş ${o.number ?? ""}</h1>
-<div class="muted">Rothern · ${new Date(o.createdAt).toLocaleString("tr-TR")}</div>
-<div class="meta">
-<strong>${isSeller ? "Alıcı" : "Satıcı"}:</strong> ${o.counterparty}<br>
-<strong>İhale:</strong> ${o.listingTitle ?? "—"} (${o.listingNumber ?? "—"})<br>
-<strong>Durum:</strong> ${statusMeta.label}
-</div>
-<table><thead><tr><th>Kalem</th><th style="text-align:right">Miktar</th><th style="text-align:right">Teslim</th><th style="text-align:right">Birim</th><th style="text-align:right">Tutar</th></tr></thead>
-<tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:#a1a1aa">Kalem yok</td></tr>'}</tbody></table>
-<div class="tot">Toplam: ${Number(o.amount).toLocaleString("tr-TR")} ${curSym}</div>
-<script>window.onload=function(){window.print()}</script>
-</body></html>`);
+    // GÜVENLİK: HTML string'i saf builder üretir + karşı-taraf alanlarını
+    // escapeHtml'den geçirir (stored XSS kapandı). Bkz. order-print.ts.
+    w.document.write(
+      buildOrderPrintHtml(o, {
+        isSeller,
+        curSym,
+        statusLabel: statusMeta.label,
+      }),
+    );
     w.document.close();
   };
 
