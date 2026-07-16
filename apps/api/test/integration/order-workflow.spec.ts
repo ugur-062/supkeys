@@ -1086,3 +1086,106 @@ describe("Faz 5 — sipariş revizyon müzakeresi", () => {
     ).rejects.toThrow(/yalnızca alıcı/i);
   });
 });
+
+describe("INV-MONEY-1 — Decimal sınır (epsilon YOK)", () => {
+  it("tamamlama: tam-eşit onaylı ödeme GEÇER; 1 kuruş eksik GEÇMEZ", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    // 1 kuruş EKSİK → tamamlanamaz (eski 0.01 epsilon'u tam-sayardı = bug).
+    const short = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DELIVERED",
+      amount: 1000,
+      deliveredAt: new Date(),
+    });
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: short.id,
+        amount: 999.99,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+    await expect(
+      orders.complete(buyer.auth, short.id, {} as never),
+    ).rejects.toThrow(/tamamlanamaz/i);
+    // TAM eşit → tamamlanır.
+    const exact = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DELIVERED",
+      amount: 1000,
+      deliveredAt: new Date(),
+    });
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: exact.id,
+        amount: 1000,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+    const res = await orders.complete(buyer.auth, exact.id, {} as never);
+    expect(res.status).toBe("COMPLETED");
+  });
+
+  it("cap: cap'e tam ulaşan ödeme KABUL; cap'i 1 kuruş aşan REDDEDİLİR", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DELIVERED",
+      amount: 1000,
+      deliveredAt: new Date(),
+    });
+    // 999.99 kaydet (kalan 0.01).
+    await orders.recordPayment(buyer.auth, order.id, { amount: 999.99 } as never);
+    // +0.02 → toplam 1000.01 > cap → REDDEDİLİR.
+    await expect(
+      orders.recordPayment(buyer.auth, order.id, { amount: 0.02 } as never),
+    ).rejects.toThrow(/aşan ödeme/i);
+    // +0.01 → toplam 1000.00 = cap → KABUL (tam ulaşma geçer).
+    await expect(
+      orders.recordPayment(buyer.auth, order.id, { amount: 0.01 } as never),
+    ).resolves.toBeDefined();
+  });
+
+  it("peşin eşiği: eşiğe tam ulaşan gönderilir; 1 kuruş eksik gönderilemez", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    // Tam peşin (%100), tutar 1000 → eşik 1000.
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      paymentTiming: "BEFORE_DELIVERY",
+      paymentCategory: "ADVANCE",
+      advancePercent: 100,
+      amount: 1000,
+      acceptedAt: new Date(),
+    });
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: 999.99,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+    // 1 kuruş eksik → gönderilemez.
+    await expect(
+      orders.ship(seller.auth, order.id, { invoiceNumber: "F1" } as never),
+    ).rejects.toThrow(/peşin/i);
+    // +0.01 → tam eşik → gönderilebilir.
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: 0.01,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+    const res = await orders.ship(seller.auth, order.id, {
+      invoiceNumber: "F1",
+    } as never);
+    expect(res.status).toBe("IN_DELIVERY");
+  });
+});

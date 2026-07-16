@@ -300,8 +300,9 @@ export class CompanyOrdersService {
     );
     if (advanceDue.gt(0)) {
       const confirmed = await this.confirmedPaymentSum(id);
-      // Faz 1: Decimal karşılaştırma + 0.01 tolerans (Faz 2'de kaldırılır).
-      if (confirmed.plus("0.01").lt(advanceDue)) {
+      // INV-MONEY-1: tam Decimal, tolerans yok — eşiğe TAM ulaşma GEÇER,
+      // 1 kuruş eksik gönderimi ENGELLER.
+      if (confirmed.lt(advanceDue)) {
         const curSym = await this.orderCurrencySymbol(id);
         throw new BadRequestException(
           `Bu siparişte peşin ödeme şartı var — gönderim için ${advanceDue.toNumber().toLocaleString("tr-TR")} ${curSym} peşin tahsilat onaylanmalı (onaylı: ${confirmed.toNumber().toLocaleString("tr-TR")} ${curSym})`,
@@ -1137,9 +1138,10 @@ export class CompanyOrdersService {
     total: Prisma.Decimal,
     confirmed: Prisma.Decimal,
   ): boolean {
-    // INV-MONEY-1: Decimal karşılaştırma (float sapması yok). Faz 1: 0.01
-    // toleransı Decimal olarak KORUNUR; Faz 2'de kaldırılır (confirmed.gte(total)).
-    return total.lte(0) || confirmed.plus("0.01").gte(total);
+    // INV-MONEY-1: TAM Decimal karşılaştırma, tolerans YOK. Eşitlik GEÇER
+    // (confirmed == total → tam ödendi); 1 kuruş eksik GEÇMEZ. total<=0 =
+    // ödenecek yok (0-tutarlı sipariş kilitlenmesin).
+    return total.lte(0) || confirmed.gte(total);
   }
 
   /**
@@ -1363,9 +1365,9 @@ export class CompanyOrdersService {
       );
       const inputDec = new Prisma.Decimal(input.amount);
       const cur = orderAmt?.currency ?? "TRY";
-      // Faz 1: Decimal + 0.01 tolerans (AWAITING+CONFIRMED toplamı cap'i aşamaz;
-      // Faz 2'de epsilon kalkar → recorded.plus(inputDec).gt(cap)).
-      if (recorded.plus(inputDec).gt(cap.plus("0.01"))) {
+      // INV-MONEY-1: tam Decimal, tolerans yok — cap'e TAM ulaşma GEÇER,
+      // cap'i 1 kuruş aşan REDDEDİLİR (AWAITING+CONFIRMED toplamı cap'i aşamaz).
+      if (recorded.plus(inputDec).gt(cap)) {
         const remaining = Prisma.Decimal.max(0, cap.minus(recorded));
         const curSym = cur === "TRY" ? "₺" : cur;
         throw new BadRequestException(
