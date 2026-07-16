@@ -923,6 +923,7 @@ describe("ilan yönetim authz — assertListingManageRole", () => {
       roles: user.roles,
       country: company.country,
       tier: company.tier,
+      companyVerificationStatus: company.companyVerificationStatus,
       isOwner: company.ownerUserId === user.id,
       permissionsOverride: null,
       ...over,

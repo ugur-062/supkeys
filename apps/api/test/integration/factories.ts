@@ -23,6 +23,10 @@ export async function makeCompany(
       country: "TR",
       tier: "PAKET" as CompanyTier,
       isActive: true,
+      // INV-KYC-1: operasyonel test firması varsayılan VERIFIED (para-taahhüdü
+      // kapıları bunu ister). KYC-akış testleri (kyc-doc-review/foreign-
+      // verification) status'ü explicit geçer → etkilenmez.
+      companyVerificationStatus: "VERIFIED",
       ...over,
     },
   });
@@ -59,11 +63,16 @@ export async function makeCompanyWithUser(
     tier?: CompanyTier;
     roles?: CompanyRole[];
     name?: string;
+    /** INV-KYC-1 kapı testleri için: UNVERIFIED/PENDING firma kur. Default VERIFIED. */
+    companyVerificationStatus?: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED";
   } = {},
 ) {
   const company = await makeCompany(prisma, {
     country: opts.country ?? "TR",
     tier: opts.tier ?? "PAKET",
+    ...(opts.companyVerificationStatus
+      ? { companyVerificationStatus: opts.companyVerificationStatus }
+      : {}),
     ...(opts.name ? { name: opts.name } : {}),
   });
   // Gerçek model: Kurucu (SAHIP) tam yetkilidir — tek başına, ek op-rol yok.
@@ -81,6 +90,9 @@ export async function makeCompanyWithUser(
     roles,
     country: company.country,
     tier: company.tier,
+    // INV-KYC-1: auth objesi firmanın efektif doğrulama durumunu taşır (para
+    // kapıları user.companyVerificationStatus okur). Factory default VERIFIED.
+    companyVerificationStatus: company.companyVerificationStatus,
     isOwner: true,
   } as AuthenticatedCompanyUser;
   return { company, user, auth };

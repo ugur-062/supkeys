@@ -1,7 +1,11 @@
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
-import type { CompanyRole, CompanyTier } from "@rothern/db";
+import type {
+  CompanyRole,
+  CompanyTier,
+  CompanyVerificationStatus,
+} from "@rothern/db";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { readAuthCookie } from "../../../common/auth/cookie";
@@ -26,6 +30,8 @@ export interface AuthenticatedCompanyUser {
   lastName: string;
   roles: CompanyRole[];
   tier: CompanyTier;
+  /** INV-KYC-1: para-taahhüdü kapıları için (assertVerified). Her istekte taze. */
+  companyVerificationStatus: CompanyVerificationStatus;
   country: string;
   isOwner: boolean;
   permissionsOverride: CompanyPermissionOverride | null;
@@ -89,6 +95,7 @@ export class CompanyJwtStrategy extends PassportStrategy(
       lastName: user.lastName,
       roles: user.roles,
       tier: effectiveTier(user.company.tier, user.company.membershipEndAt),
+      companyVerificationStatus: user.company.companyVerificationStatus,
       country: user.company.country,
       isOwner: user.company.ownerUserId === user.id,
       permissionsOverride:

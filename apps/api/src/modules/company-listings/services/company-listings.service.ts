@@ -922,6 +922,23 @@ export class CompanyListingsService {
     }
   }
 
+  /**
+   * INV-KYC-1: para-taahhüdü doğuran aksiyonlar (teklif SUBMIT / kazandırma /
+   * ilan yayınlama) firma KYC doğrulaması (VERIFIED) ister — belge incelemesi
+   * yapılmamış firma bağlayıcı teklif/sipariş doğuramaz. Gezinme, keşif, davet
+   * kabul, TASLAK kaydetme SERBEST (funnel kırılmaz). PENDING (belge yüklü ama
+   * admin onayı bekliyor) YETMEZ: teklif bağlayıcı (INV-SM-2), PENDING teklifçi
+   * kazanıp REJECTED olursa reddedilmiş karşı taraflı canlı sipariş kalırdı.
+   * `assertPaidForNewListingWork` simetriği (ikisi de user objesinden okur).
+   */
+  private assertVerified(user: AuthenticatedCompanyUser, action: string) {
+    if (user.companyVerificationStatus !== "VERIFIED") {
+      throw new ForbiddenException(
+        `Firma doğrulamanız tamamlanmadan ${action} — belgelerinizi Ayarlar → Doğrulama'dan yükleyip onaya gönderin.`,
+      );
+    }
+  }
+
   async create(user: AuthenticatedCompanyUser, dto: CreateListingDto) {
     const type = dto.type as ListingType;
     this.validateListingDates(dto);
@@ -1412,6 +1429,7 @@ export class CompanyListingsService {
    */
   async publishListing(user: AuthenticatedCompanyUser, listingId: string) {
     this.assertPaidForNewListingWork(user, "İlan yayınlamak");
+    this.assertVerified(user, "ilan yayınlayamazsınız");
     const listing = await this.prisma.listing.findUnique({
       where: { id: listingId },
       select: {
@@ -2864,6 +2882,9 @@ export class CompanyListingsService {
     }
 
     const isDraft = dto.asDraft === true;
+    // INV-KYC-1: teklif SUBMIT para-taahhüdüdür (bağlayıcı) → VERIFIED ister.
+    // TASLAK kaydetme SERBEST (funnel kırılmaz).
+    if (!isDraft) this.assertVerified(user, "teklif veremezsiniz");
     // Auction'da gönderilmiş teklif TASLAĞA çekilemez: agregattan düşürür
     // ("yumuşak geri çekme" ile fiyat manipülasyonu) ve sonraki gönderimde
     // monotonluk referanssız kalırdı.
@@ -3719,6 +3740,8 @@ export class CompanyListingsService {
     // operatörü veya firma sahibi başlatabilir (yönetim kapısını başlatan aktöre
     // uygular — onay zinciri/onAwardApproved bundan etkilenmez).
     this.assertListingManageRole(user, listing);
+    // INV-KYC-1: kazandırma sipariş (para-taahhüdü) doğurur → VERIFIED ister.
+    this.assertVerified(user, "kazandıramazsınız");
 
     const bid = await this.prisma.listingBid.findUnique({
       where: { id: bidId },
@@ -4105,6 +4128,8 @@ export class CompanyListingsService {
     // 11 yönetim aksiyonuyla simetri: kazandırmayı yalnız ilanı açan doğru-taraf
     // operatörü veya firma sahibi başlatabilir (award ile aynı kapı).
     this.assertListingManageRole(user, listing);
+    // INV-KYC-1: kalem-bazlı kazandırma da sipariş doğurur → VERIFIED ister.
+    this.assertVerified(user, "kazandıramazsınız");
 
     // Belge zorunluysa her kazanan teklifin en az 1 belgesi olmalı (tam-kazandırma
     // ile aynı kural — item-award baypasını kapatır).
