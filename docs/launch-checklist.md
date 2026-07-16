@@ -125,6 +125,13 @@ boşsa prod'da `none`'a düşüyor; `none` modunda guard KOMPLE bypass oluyor
 - [ ] **4) `CORS_ALLOW_VERCEL` prod'da boş/`false`** (kod default false) — `*.vercel.app`
       joker origin'i kapalı kalsın.
 
+> ⚠️ **GEÇİŞ (şimdi geçerli):** `*.vercel.app` jokeri artık VARSAYILAN KAPALI. Demo
+> hâlâ `supkeys-web.vercel.app`'te olduğundan, custom domain bağlanana kadar CORS
+> onu REDDEDER → frontend API'ye ulaşamaz. Çözüm (tercih sırası): **(a)** demo'nun
+> tam origin'ini `CORS_ORIGINS`'e ekle (`https://supkeys-web.vercel.app` — strict,
+> önerilen); **(b)** rotating preview URL'leri varsa `CORS_ALLOW_VERCEL=true`
+> (TÜM vercel.app'i açar — yalnız demo/preview, prod'da ASLA).
+
 > ⚠️ **Şu an ham provider domain'lerindeyiz** (`rothern-api.onrender.com` +
 > `supkeys-web.vercel.app`) = **CROSS-SITE**. Bu topolojide `COOKIE_SAMESITE=lax`
 > cookie'yi cross-site göndermez → **GİRİŞ ÇALIŞMAZ**. Sırayı (1→2→3) tamamlamadan

@@ -15,6 +15,7 @@ import type { ValidationError } from "class-validator";
 import helmet from "helmet";
 import { Logger as PinoLogger } from "nestjs-pino";
 import { AppModule } from "./app.module";
+import { isCorsOriginAllowed } from "./common/cors-origin";
 import { checkJwtSecret } from "./common/config/jwt-secret";
 import { translateValidatorMessage } from "./common/error-messages";
 
@@ -150,16 +151,13 @@ async function bootstrap() {
     "http://localhost:3000,http://localhost:3001",
   );
   const corsOrigins = corsOriginsRaw.split(",").map((o) => o.trim()).filter(Boolean);
-  // Exact allowlist (CORS_ORIGINS) + tüm Vercel deploy/preview URL'leri
-  // (*.vercel.app) otomatik izinli — demo'da hangi Vercel adresini açarsan aç
-  // (production/preview/git-branch) domain eşleştirme derdi olmadan çalışır.
-  const VERCEL_ORIGIN = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i;
+  // GÜVENLİK: `*.vercel.app` jokeri VARSAYILAN KAPALI (isCorsOriginAllowed). Yalnız
+  // CORS_ALLOW_VERCEL=true (preview/demo) iken açılır — prod'da her vercel.app
+  // origin'ine credentials'lı erişim vermez (CSRF/veri sızıntısı riski).
+  const allowVercel = config.get<string>("CORS_ALLOW_VERCEL") === "true";
   app.enableCors({
-    origin: (origin, cb) => {
-      // origin yoksa (curl / same-origin / mobil) engelleme.
-      const ok = !origin || corsOrigins.includes(origin) || VERCEL_ORIGIN.test(origin);
-      cb(null, ok);
-    },
+    origin: (origin, cb) =>
+      cb(null, isCorsOriginAllowed(origin, { corsOrigins, allowVercel })),
     credentials: true,
     // Correlation-id: api ve app AYRI origin'de → tarayıcı istemci response
     // header'ını ancak expose edilirse okuyabilir (destek ekibine iletmek için).
