@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -156,9 +157,15 @@ export class CompanyAuthService {
     );
 
     // 3) 6-haneli doğrulama kodu üret + e-posta gönder. Token DÖNMEZ — kullanıcı
-    //    önce kodu doğrulamalı (verifyEmail token verir).
-    await this.issueEmailCode(result.user.id, email, result.user.firstName);
-    return { email, verificationRequired: true as const };
+    //    önce kodu doğrulamalı (verifyEmail token verir). failure-aware (1b):
+    //    kod e-postası gitmezse `emailSent:false` — kayıt olan kendi hesabını
+    //    biliyor (enumeration sızıntısı DEĞİL) → frontend "tekrar gönder" gösterir.
+    const { sent } = await this.issueEmailCode(
+      result.user.id,
+      email,
+      result.user.firstName,
+    );
+    return { email, verificationRequired: true as const, emailSent: sent };
   }
 
   // ============================================================
@@ -169,13 +176,18 @@ export class CompanyAuthService {
     return crypto.createHash("sha256").update(code).digest("hex");
   }
 
-  /** Yeni kod üret, eski kodları geçersiz kıl, e-posta gönder. */
+  /**
+   * Yeni kod üret, eski kodları geçersiz kıl, e-posta gönder.
+   * failure-aware (1b): gönderim AWAIT edilir; başarısızsa `{ sent: false }`
+   * döner (throw ETMEZ — kod-satırı yine oluşur, çağıran karar verir). Sentry
+   * alarmı `EmailService.send` içinde (Commit 1) — burada tekrar gerekmez.
+   */
   private async issueEmailCode(
     userId: string,
     email: string,
     firstName: string,
     kind: "verify" | "login" = "verify",
-  ) {
+  ): Promise<{ sent: boolean }> {
     const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
     await this.prisma.emailVerificationCode.updateMany({
       where: { companyUserId: userId, usedAt: null },
@@ -190,8 +202,8 @@ export class CompanyAuthService {
     });
     const isLogin = kind === "login";
     const subject = isLogin ? "Giriş doğrulama kodunuz" : "E-posta doğrulama kodunuz";
-    void this.email
-      .send({
+    try {
+      await this.email.send({
         to: { email, name: firstName },
         subject,
         templateData: {
@@ -211,14 +223,16 @@ export class CompanyAuthService {
           },
         },
         context: { type: isLogin ? "login_2fa" : "email_verify", id: userId },
-      })
-      .catch((err) =>
-        this.logger.error(
-          `Doğrulama kodu e-postası gönderilemedi (${email}): ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        ),
+      });
+      return { sent: true };
+    } catch (err) {
+      this.logger.error(
+        `Doğrulama kodu e-postası gönderilemedi (${email}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
       );
+      return { sent: false };
+    }
   }
 
   /**
@@ -581,12 +595,20 @@ export class CompanyAuthService {
     if (user.twoFactorEnabled) {
       if (!dto.code) {
         if (user.twoFactorMethod === "EMAIL") {
-          await this.issueEmailCode(
+          const { sent } = await this.issueEmailCode(
             user.id,
             user.email,
             user.firstName,
             "login",
           );
+          // failure-aware (1b): kod gitmezse kullanıcı ilerleyemez → sessizce
+          // "kodu gir" deme, açık hata ver. Parola zaten doğrulandı (post-auth)
+          // → enumeration sızıntısı DEĞİL. (Sentry alarmı send() içinde.)
+          if (!sent) {
+            throw new ServiceUnavailableException(
+              "Doğrulama kodu şu anda gönderilemedi. Lütfen birkaç dakika sonra tekrar deneyin.",
+            );
+          }
           return { twoFactorRequired: true as const, method: "email" as const };
         }
         return {

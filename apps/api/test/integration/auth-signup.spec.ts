@@ -142,3 +142,62 @@ describe("login gate", () => {
     expect(res.token).toBeTruthy();
   });
 });
+
+describe("failure-aware kritik gönderim (1b)", () => {
+  it("signup: kod e-postası giderse emailSent:true", async () => {
+    const { service } = makeAuthService();
+    const res = (await service.signup(validSignup() as never)) as {
+      emailSent?: boolean;
+    };
+    expect(res.emailSent).toBe(true);
+  });
+
+  it("signup: kod e-postası GİTMEZSE emailSent:false ama hesap+kod YİNE oluşur", async () => {
+    const { service, email } = makeAuthService();
+    email.send.mockRejectedValueOnce(new Error("resend down"));
+    const dto = validSignup();
+    const res = (await service.signup(dto as never)) as {
+      emailSent?: boolean;
+      verificationRequired?: boolean;
+    };
+    expect(res.verificationRequired).toBe(true);
+    expect(res.emailSent).toBe(false); // dürüst sinyal → frontend "tekrar gönder"
+    const user = await prisma.companyUser.findUniqueOrThrow({
+      where: { email: dto.email },
+    });
+    expect(
+      await prisma.emailVerificationCode.count({
+        where: { companyUserId: user.id },
+      }),
+    ).toBe(1); // kod satırı var → kurtarılabilir
+  });
+
+  it("resendEmailCode: e-posta gitmese bile generic {success:true} (enumeration-safe)", async () => {
+    const { service, email } = makeAuthService();
+    const dto = validSignup();
+    await service.signup(dto as never);
+    email.send.mockRejectedValueOnce(new Error("resend down"));
+    const res = (await service.resendEmailCode(dto.email)) as {
+      success?: boolean;
+    };
+    expect(res.success).toBe(true);
+  });
+
+  it("2FA (EMAIL): kod gönderilemezse login 503 (post-auth, sessizce ilerlemez)", async () => {
+    const { service, email } = makeAuthService();
+    const dto = validSignup();
+    await service.signup(dto as never);
+    await service.verifyEmail(dto.email, extractCode(email));
+    const user = await prisma.companyUser.findUniqueOrThrow({
+      where: { email: dto.email },
+    });
+    await prisma.companyUser.update({
+      where: { id: user.id },
+      data: { twoFactorEnabled: true, twoFactorMethod: "EMAIL" },
+    });
+    email.send.mockRejectedValueOnce(new Error("resend down"));
+    await expect(
+      service.login({ email: dto.email, password: dto.password } as never),
+    ).rejects.toThrow(/gönderilemedi|tekrar deneyin/i);
+  });
+});
