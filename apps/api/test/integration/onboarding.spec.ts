@@ -187,7 +187,7 @@ describe("completeOnboarding", () => {
 
 describe("upgradeToPremium (Faz 3 kapısı)", () => {
   it("doğrulanmamış firma reddedilir", async () => {
-    const { service } = makeAuthService();
+    const { service } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
     const owner = await makeCompanyWithUser(prisma, {
       country: "TR",
       tier: "STANDARD",
@@ -198,7 +198,7 @@ describe("upgradeToPremium (Faz 3 kapısı)", () => {
   });
 
   it("VERIFIED ama 2FA yoksa reddedilir", async () => {
-    const { service } = makeAuthService();
+    const { service } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
     const owner = await makeCompanyWithUser(prisma, {
       country: "TR",
       tier: "STANDARD",
@@ -213,7 +213,7 @@ describe("upgradeToPremium (Faz 3 kapısı)", () => {
   });
 
   it("GÜVENLİK: sahip olmayan kullanıcı paket yükseltemez", async () => {
-    const { service } = makeAuthService();
+    const { service } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
     const owner = await makeCompanyWithUser(prisma, {
       country: "TR",
       tier: "STANDARD",
@@ -240,7 +240,7 @@ describe("upgradeToPremium (Faz 3 kapısı)", () => {
   });
 
   it("VERIFIED + 2FA → tier PAKET", async () => {
-    const { service } = makeAuthService();
+    const { service } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
     const owner = await makeCompanyWithUser(prisma, {
       country: "TR",
       tier: "STANDARD",
@@ -265,7 +265,7 @@ describe("upgradeToPremium (Faz 3 kapısı)", () => {
   });
 
   it("VERIFIED + 2FA ama web sitesi yoksa reddedilir", async () => {
-    const { service } = makeAuthService();
+    const { service } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
     const owner = await makeCompanyWithUser(prisma, {
       country: "TR",
       tier: "STANDARD",
