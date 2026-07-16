@@ -57,6 +57,13 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
 - **INV-SM-5** — Para/durum geçişleri idempotenttir: koşullu atomik yazım veya unique kısıt ile aynı geçiş iki kez tetiklenirse tek etki oluşur.
 - **INV-SM-6** — Webhook'lar imza doğrular (svix HMAC, ham gövde üzerinden), imza/secret yoksa fail-closed davranır ve idempotenttir (dedupe referansı: `EmailEvent.eventId @unique`, `schema.prisma:132`).
 
+### Onay akışı (görev ayrılığı)
+- **INV-APPR-1** — Kazandırma onay akışında **başlatan (initiator) ≠ onaylayıcı (approver)** (görev ayrılığı): initiator kendi isteğini onaylayamaz. Zorlanma katmanları (`company-approvals.service.ts`):
+  - `decide()`: `user.userId === req.createdById` ise REDDEDİLİR (son savunma).
+  - `requestApproval()`: ilk aktif adımın approver'ı == initiator ise **anında ikame** edilir (`findEligibleApprover`); initiator-dışı uygun onaylayıcı yoksa award **ANINDA reddedilir** (doomed PENDING oluşmaz — net mesaj).
+  - `fallbackInactiveApprovers()` (dakikalık cron): geçersiz-approver = **inaktif/silinmiş VEYA initiator**; ikame havuzu = aktif **SAHIP/YONETICI/ONAYLAYICI** ∖ {eski approver, initiator} (onaycı-uygun = fallback-uygun; eski yalnız SAHIP/YONETICI tutarsızlığı kapatıldı); uygun kimse yoksa **SESSİZ PENDING DEĞİL** → request REJECTED + initiator bildirimi (`rejectForNoApprover`). Bu, tek-admin firmada deadlock'u tanımlı davranışa çevirir.
+  - *Karar (D neden değil):* config-time "en az bir approver ≠ initiator" guard'ı, akış oluşturulduktan sonra tek-admin kalan (admin ayrılan) durumu yakalayamaz; doğru koşul yalnız runtime'da bellidir → ikame-sonra-reddet runtime'da uygulanır. Kanıt/regresyon: `test/integration/approvals.spec.ts`.
+
 ---
 
 ## 3. Paket / entitlement
@@ -165,6 +172,7 @@ Geçişler ve tetikleyen (tümü firma-içi yetki kapısına tabidir — bkz. B�
 | INV-AUDIT-1 (2. dalga) | state geçişleri + denial | sipariş yaşam-döngüsü + onay kararları + ilan geçişleri + denial audit (critical:false) | `2ea40d8` |
 | INV-TIER-1 (yeni) | Y2/Y3/Y7/#4 | self-upgrade flag (403, para kaçağı), expire→membershipEndAt null, effectiveTier tek kaynak (/me+JWT+profil+bağlantı filtresi) | `c6251d9`, `fed282b`, `096f088`, `bf90cd7` |
 | INV-KYC-1 (yeni) | Y1 | VERIFIED gate: placeBid-submit/award/awardByItem/publishListing (taslak+funnel serbest); assertVerified | `a5da85f`, `50b94ee` |
+| INV-APPR-1 (yeni) | Y4/Y5 | onay görev-ayrılığı: self-onay red + initiator-approver ikame; fallback havuzu +ONAYLAYICI ∖{initiator}; uygun yoksa REJECTED (sessiz PENDING yok) | `e5cc1df`, `8bf6719`, `5c99e92` |
 | INV-ADMIN-1 (yeni) | #12 (+#4/#7) | admin authz fail-open → fail-closed + guard-chain tuzağı | `1592f51`, `9e48902` |
 | INV-MT-3 + INV-SD-1 (WS) | WS iptal-bypass | realtime handshake taze-DB kapısı + süresiz-soket exp-timer | `5ff3524` |
 | INV-DOC-1, INV-RL-1 + hijyen | #6/#8/#9/#10/#13 | env-bypass allowlist (ALLOW_INSECURE_WEBHOOK dahil), admin throttle, ölü guard silme, 6-presign doc, admin-demote guard | `bc22b7b` |
