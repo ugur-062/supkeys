@@ -14,7 +14,7 @@ import {
   type CompanyOrderStatus,
 } from "@rothern/db";
 import {
-  advanceDueAmount,
+  advancePercentFor,
   DUE_DATE_CATEGORIES,
   isLetterOfCredit,
   paymentDueDate,
@@ -293,17 +293,18 @@ export class CompanyOrdersService {
     // PEŞİN (S3): onaylı ödeme, gönderim öncesi peşin eşiğine ulaşmalı. Alıcı
     // hiç ödemeden satıcının kargoya vermesi burada engellenir (eski davranışta
     // yalnız frontend gizliyordu). Kısmi peşinde eşik = tutar × yüzde.
-    const advanceDue = advanceDueAmount(
+    const advanceDue = this.advanceDueDecimal(
       category,
       order.advancePercent,
-      Number(order.amount),
+      new Prisma.Decimal(order.amount),
     );
-    if (advanceDue > 0) {
+    if (advanceDue.gt(0)) {
       const confirmed = await this.confirmedPaymentSum(id);
-      if (confirmed + 0.01 < advanceDue) {
+      // Faz 1: Decimal karşılaştırma + 0.01 tolerans (Faz 2'de kaldırılır).
+      if (confirmed.plus("0.01").lt(advanceDue)) {
         const curSym = await this.orderCurrencySymbol(id);
         throw new BadRequestException(
-          `Bu siparişte peşin ödeme şartı var — gönderim için ${advanceDue.toLocaleString("tr-TR")} ${curSym} peşin tahsilat onaylanmalı (onaylı: ${confirmed.toLocaleString("tr-TR")} ${curSym})`,
+          `Bu siparişte peşin ödeme şartı var — gönderim için ${advanceDue.toNumber().toLocaleString("tr-TR")} ${curSym} peşin tahsilat onaylanmalı (onaylı: ${confirmed.toNumber().toLocaleString("tr-TR")} ${curSym})`,
         );
       }
     }
@@ -376,7 +377,7 @@ export class CompanyOrdersService {
         }),
         this.confirmedPaymentSum(id),
       ]);
-      const total = amt ? Number(amt.amount) : 0;
+      const total = amt ? new Prisma.Decimal(amt.amount) : new Prisma.Decimal(0);
       toCompleted = this.isFullyPaid(total, confirmed);
     }
     const res = await this.transition(user, id, {
@@ -454,7 +455,7 @@ export class CompanyOrdersService {
       }),
       this.confirmedPaymentSum(id),
     ]);
-    const total = amt ? Number(amt.amount) : 0;
+    const total = amt ? new Prisma.Decimal(amt.amount) : new Prisma.Decimal(0);
     if (!this.isFullyPaid(total, confirmed)) {
       throw new BadRequestException(
         "Sipariş, ödeme tam olarak alınıp onaylanmadan tamamlanamaz — alıcı ödemeyi bildirir, satıcı onayladığında tamamlanır",
@@ -953,15 +954,15 @@ export class CompanyOrdersService {
           "Sipariş durumu az önce değişti — sayfayı yenileyip tekrar deneyin",
         );
       }
-      const total = Number(row.amount);
+      const total = new Prisma.Decimal(row.amount);
       // X7/C4: birleşik onaylı-toplam (kilit altında, tx ile). Fazla-tahsilat
       // açığı YOK — remaining = total − confirmed doğası gereği cap'li ve LC
       // siparişinde manuel recordPayment reddedilir (banka kanalı).
       const confirmed = await this.confirmedPaymentSum(id, tx);
-      const remaining = Math.max(0, total - confirmed);
+      const remaining = Prisma.Decimal.max(0, total.minus(confirmed));
       // Kalan > 0 ise onaylı tam-tutar kaydı üret (idempotent lcPaidAt damgası
       // çift-tıkı zaten engeller; remaining=0 ise yalnız damga).
-      if (remaining > 0) {
+      if (remaining.gt(0)) {
         await tx.companyOrderPayment.create({
           data: {
             orderId: id,
@@ -1071,12 +1072,13 @@ export class CompanyOrdersService {
         const sumByOrder = new Map(
           sums.map((s) => [
             s.orderId,
-            s._sum.amount ? Number(s._sum.amount) : 0,
+            s._sum.amount ?? new Prisma.Decimal(0),
           ]),
         );
         for (const { o, dueAt } of due) {
-          const confirmed = sumByOrder.get(o.id) ?? 0;
-          if (this.isFullyPaid(Number(o.amount), confirmed)) continue; // ödenmiş
+          const confirmed = sumByOrder.get(o.id) ?? new Prisma.Decimal(0);
+          const totalDec = new Prisma.Decimal(o.amount);
+          if (this.isFullyPaid(totalDec, confirmed)) continue; // ödenmiş
           // Idempotent claim — yalnız hâlâ damgasız kayıt bildirim atar
           // (overlap/çift-replica güvenli).
           const claimed = await this.prisma.companyOrder.updateMany({
@@ -1084,14 +1086,14 @@ export class CompanyOrdersService {
             data: { paymentDueReminderSentAt: new Date() },
           });
           if (claimed.count !== 1) continue;
-          const remaining = Math.max(0, Number(o.amount) - confirmed);
+          const remaining = Prisma.Decimal.max(0, totalDec.minus(confirmed));
           const curSym = o.currency && o.currency !== "TRY" ? o.currency : "₺";
           await this.notifyOrderParty(
             o.id,
             o.buyerCompanyId,
             "Ödeme vadesi yaklaşıyor",
             "Ödeme vadesi yaklaşıyor",
-            `${this.orderLabel(o.number)} sipariş için ödeme vadesi ${dueAt!.toLocaleDateString("tr-TR")} — kalan tutar ${remaining.toLocaleString("tr-TR")} ${curSym}.`,
+            `${this.orderLabel(o.number)} sipariş için ödeme vadesi ${dueAt!.toLocaleDateString("tr-TR")} — kalan tutar ${remaining.toNumber().toLocaleString("tr-TR")} ${curSym}.`,
             "satinalma",
           );
           sent++;
@@ -1112,8 +1114,32 @@ export class CompanyOrdersService {
    * tutarlı sipariş doğurabilir; aksi halde bu sipariş hiçbir yoldan COMPLETED
    * olamaz, DELIVERED'da sonsuza kilitlenirdi). Aksi halde 1 kuruş tolerans.
    */
-  private isFullyPaid(total: number, confirmed: number): boolean {
-    return total <= 0 || confirmed + 0.01 >= total;
+  /**
+   * INV-MONEY-1: gönderim öncesi onaylı olması gereken peşin tutar (S3) — DECIMAL.
+   * Kural shared'da (`advancePercentFor`); HESAP burada: `total × pct / 100`,
+   * ROUND_HALF_UP (Decimal(18,2) kolon hassasiyeti; eski `Math.round` half-up
+   * davranışını korur). Peşin şartı yoksa 0.
+   */
+  private advanceDueDecimal(
+    category: PaymentCategory,
+    advancePercent: number | null | undefined,
+    total: Prisma.Decimal,
+  ): Prisma.Decimal {
+    const pct = advancePercentFor(category, advancePercent);
+    if (pct === null) return new Prisma.Decimal(0);
+    return total
+      .mul(pct)
+      .div(100)
+      .toDecimalPlaces(2, Prisma.Decimal.ROUND_HALF_UP);
+  }
+
+  private isFullyPaid(
+    total: Prisma.Decimal,
+    confirmed: Prisma.Decimal,
+  ): boolean {
+    // INV-MONEY-1: Decimal karşılaştırma (float sapması yok). Faz 1: 0.01
+    // toleransı Decimal olarak KORUNUR; Faz 2'de kaldırılır (confirmed.gte(total)).
+    return total.lte(0) || confirmed.plus("0.01").gte(total);
   }
 
   /**
@@ -1126,12 +1152,14 @@ export class CompanyOrdersService {
   private async confirmedPaymentSum(
     orderId: string,
     client: Prisma.TransactionClient = this.prisma,
-  ): Promise<number> {
+  ): Promise<Prisma.Decimal> {
     const agg = await client.companyOrderPayment.aggregate({
       where: { orderId, status: "CONFIRMED" },
       _sum: { amount: true },
     });
-    return agg._sum.amount ? Number(agg._sum.amount) : 0;
+    // INV-MONEY-1: TEK KAYNAK Decimal döner (X7'de "ileride tek noktadan" denen
+    // Number() coercion'ı kalktı). Kapılar Decimal karşılaştırır.
+    return agg._sum.amount ?? new Prisma.Decimal(0);
   }
 
   private async orderCurrencySymbol(id: string): Promise<string> {
@@ -1328,14 +1356,20 @@ export class CompanyOrdersService {
           select: { amount: true },
         }),
       ]);
-      const cap = orderAmt ? Number(orderAmt.amount) : 0;
-      const recorded = existing.reduce((s, p) => s + Number(p.amount), 0);
+      const cap = orderAmt ? new Prisma.Decimal(orderAmt.amount) : new Prisma.Decimal(0);
+      const recorded = existing.reduce(
+        (s, p) => s.plus(p.amount),
+        new Prisma.Decimal(0),
+      );
+      const inputDec = new Prisma.Decimal(input.amount);
       const cur = orderAmt?.currency ?? "TRY";
-      if (recorded + input.amount > cap + 0.01) {
-        const remaining = Math.max(0, cap - recorded);
+      // Faz 1: Decimal + 0.01 tolerans (AWAITING+CONFIRMED toplamı cap'i aşamaz;
+      // Faz 2'de epsilon kalkar → recorded.plus(inputDec).gt(cap)).
+      if (recorded.plus(inputDec).gt(cap.plus("0.01"))) {
+        const remaining = Prisma.Decimal.max(0, cap.minus(recorded));
         const curSym = cur === "TRY" ? "₺" : cur;
         throw new BadRequestException(
-          `Kalan ödeme ${remaining.toLocaleString("tr-TR")} ${curSym} — bu tutarı aşan ödeme kaydedilemez`,
+          `Kalan ödeme ${remaining.toNumber().toLocaleString("tr-TR")} ${curSym} — bu tutarı aşan ödeme kaydedilemez`,
         );
       }
       const p = await tx.companyOrderPayment.create({
@@ -1446,7 +1480,9 @@ export class CompanyOrdersService {
           tx.companyOrder.findUnique({ where: { id }, select: { amount: true } }),
           this.confirmedPaymentSum(id, tx),
         ]);
-        const total = orderAmt ? Number(orderAmt.amount) : 0;
+        const total = orderAmt
+          ? new Prisma.Decimal(orderAmt.amount)
+          : new Prisma.Decimal(0);
         if (this.isFullyPaid(total, confirmedSum)) {
           const done = await tx.companyOrder.updateMany({
             where: { id, status: "DELIVERED" },
@@ -1630,15 +1666,20 @@ export class CompanyOrdersService {
     }
     const other = o.sellerCompanyId === user.companyId ? o.buyer : o.seller;
 
-    let confirmed = 0;
-    let pending = 0;
+    // INV-MONEY-1: Decimal birikim (float sapması yok). Gösterim sınırında
+    // (.toFixed(2)) string'e çevrilir — yanıt şekli değişmez.
+    let confirmed = new Prisma.Decimal(0);
+    let pending = new Prisma.Decimal(0);
     for (const p of o.payments) {
-      const amt = Number(p.amount);
-      if (p.status === "CONFIRMED") confirmed += amt;
-      else if (p.status === "AWAITING_CONFIRMATION") pending += amt;
+      if (p.status === "CONFIRMED") confirmed = confirmed.plus(p.amount);
+      else if (p.status === "AWAITING_CONFIRMATION")
+        pending = pending.plus(p.amount);
     }
-    const total = Number(o.amount);
-    const remaining = Math.max(0, total - confirmed - pending);
+    const total = new Prisma.Decimal(o.amount);
+    const remaining = Prisma.Decimal.max(
+      0,
+      total.minus(confirmed).minus(pending),
+    );
 
     return {
       ...this.serialize(o, user.companyId),
@@ -1665,7 +1706,7 @@ export class CompanyOrdersService {
       },
       // Gönderim öncesi onaylanması gereken peşin tutar (S3) — UI kilit/eşik
       // mesajı bunu gösterir; 0 = peşin şartı yok.
-      advanceDue: advanceDueAmount(
+      advanceDue: this.advanceDueDecimal(
         o.paymentCategory as PaymentCategory,
         o.advancePercent,
         total,

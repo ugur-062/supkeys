@@ -59,19 +59,20 @@ export function paymentPlanSuggestsGuarantee(
 }
 
 /**
- * Gönderim ÖNCESİ onaylı olması gereken peşin tutar (S3). ADVANCE'ta sipariş
- * tutarının advancePercent'i; diğer kategorilerde 0 (peşin şartı yok).
- * advancePercent yoksa tam peşin (%100) varsayılır — legacy güvenli taban.
+ * Gönderim ÖNCESİ peşin ŞARTI ve YÜZDESİ (KURAL — hesap değil). ADVANCE'ta
+ * advancePercent (yoksa tam peşin %100 — legacy güvenli taban); diğer
+ * kategorilerde null (peşin şartı yok).
+ *
+ * NOT (INV-MONEY-1): tutar HESABI burada DEĞİL — shared bir kural kütüphanesidir,
+ * para motoru değil. Decimal tutar (`total × pct / 100`, ROUND_HALF_UP) API
+ * katmanında yapılır (Prisma.Decimal). Float `Math.round` para hesabı kaldırıldı.
  */
-export function advanceDueAmount(
+export function advancePercentFor(
   category: PaymentCategory,
   advancePercent: number | null | undefined,
-  totalAmount: number,
-): number {
-  if (category !== "ADVANCE") return 0;
-  const pct = advancePercent ?? 100;
-  // 2 ondalık — para alanı Decimal(18,2); yuvarlama tavan kontrolüyle tutarlı.
-  return Math.round(totalAmount * (pct / 100) * 100) / 100;
+): number | null {
+  if (category !== "ADVANCE") return null;
+  return advancePercent ?? 100;
 }
 
 /** Akreditif siparişi mi? Adım seti ve ödeme akışı LC'de tamamen farklıdır. */

@@ -436,7 +436,7 @@ export class CompanyApprovalsService {
       listingId: string;
       type: ApprovalType;
       listingType: "ALIM" | "SATIS";
-      amount: number;
+      amount: number | Prisma.Decimal;
       currency: string;
       payload?: Prisma.InputJsonValue;
       /** Başlatanın onaycılara notu (opsiyonel). */
@@ -450,9 +450,14 @@ export class CompanyApprovalsService {
     );
     if (!flow || flow.steps.length === 0) return { approved: true };
 
+    // INV-MONEY-1: eşik karşılaştırması DECIMAL (iki taraf da float değil). award
+    // artık .toNumber()'sız Decimal geçer; number gelse de normalize edilir.
+    const amountDec = new Prisma.Decimal(input.amount);
     const drafts = flow.steps.map((s) => {
-      const min = s.conditionMinAmount ? Number(s.conditionMinAmount) : 0;
-      const skipped = input.amount < min;
+      const min = s.conditionMinAmount
+        ? new Prisma.Decimal(s.conditionMinAmount)
+        : new Prisma.Decimal(0);
+      const skipped = amountDec.lt(min);
       return {
         order: s.order,
         approverUserId: s.approverUserId,
@@ -516,7 +521,7 @@ export class CompanyApprovalsService {
             type: input.type,
             status: "PENDING",
             requestNo,
-            amount: input.amount,
+            amount: amountDec,
             currency: input.currency as never,
             payload: input.payload ?? Prisma.JsonNull,
             initiatorNote: input.initiatorNote?.trim() || null,

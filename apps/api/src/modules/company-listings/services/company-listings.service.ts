@@ -2471,7 +2471,10 @@ export class CompanyListingsService {
   ): Prisma.Decimal | null {
     if (currency === "TRY") return amount;
     const s = (listingSnap as Record<string, unknown> | null)?.[currency];
-    if (typeof s === "number" && s > 0) return amount.mul(s);
+    // INV-MONEY-1: Decimal.mul (amount Decimal) — kur açık Decimal'e çevrilir.
+    // NOT: kur `auctionRateSnapshot`'ta JSON FLOAT olarak saklanıyor; asıl
+    // hassasiyet kaybı orada (kuru Decimal-string saklamak ayrı/daha büyük iş).
+    if (typeof s === "number" && s > 0) return amount.mul(new Prisma.Decimal(s));
     if (bidSnapshot) return amount.mul(bidSnapshot);
     return null;
   }
@@ -3774,9 +3777,9 @@ export class CompanyListingsService {
     // Onay eşiği TRY bazında olduğundan (conditionMinAmount) tutarı TRY'ye
     // normalize et — aksi halde yabancı para teklif (ör. 50k USD) düşük ham
     // sayıyla eşiği atlayıp onay adımını baypas ederdi (awardByItem ile simetri).
-    const awardAmountTry = (
-      await this.toTryAmount(bid.amount, bid.currency)
-    ).toNumber();
+    // INV-MONEY-1: onay eşiğine DECIMAL girer (.toNumber() kaldırıldı — float
+    // sapması yok).
+    const awardAmountTry = await this.toTryAmount(bid.amount, bid.currency);
     const res = await this.approvals.requestApproval(user, {
       listingId,
       type: "LISTING_AWARD",
@@ -4318,13 +4321,14 @@ export class CompanyListingsService {
   private async itemAwardTotal(
     listingId: string,
     itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
-  ): Promise<number> {
+  ): Promise<Prisma.Decimal> {
     const { groups } = await this.buildItemGroups(listingId, itemAwards);
     let total = new Prisma.Decimal(0);
     for (const g of groups.values()) {
       total = total.plus(await this.toTryAmount(g.amount, g.currency));
     }
-    return total.toNumber();
+    // INV-MONEY-1: onay eşiğine DECIMAL girer (.toNumber() kaldırıldı).
+    return total;
   }
 
   /** Kalem-bazlı kazandırmayı uygula — kazanan firma başına sipariş. */
