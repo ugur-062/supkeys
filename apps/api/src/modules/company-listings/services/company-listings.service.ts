@@ -2836,9 +2836,8 @@ export class CompanyListingsService {
         bidsOpenAt: true,
         isInternational: true,
         targetCountries: true,
-        priceDecrementType: true,
-        priceDecrementValue: true,
-        priceDecrementBasis: true,
+        // priceDecrement* DEAD (bkz. schema.prisma) — placeBid'de hiçbir kurala
+        // girmiyordu (BAFO öncesi minimum-decrement kalıntısı); ölü select kaldırıldı.
         auctionRateSnapshot: true,
         autoExtendOnLateBid: true,
         autoExtendThresholdMin: true,
