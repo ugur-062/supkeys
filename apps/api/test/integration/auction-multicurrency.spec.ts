@@ -8,6 +8,7 @@
  * Test kurları: EUR=50 ₺, USD=40 ₺ (mock TCMB 30'dan ayrışsın diye damga
  * açıkça verilir).
  */
+import { Prisma } from "@prisma/client";
 import { prisma, truncateAll } from "./test-db";
 import { makeBid, makeCompanyWithUser, makeListing } from "./factories";
 import { makeService } from "./make-service";
@@ -24,7 +25,7 @@ beforeEach(async () => {
 });
 
 async function auction(over: Record<string, unknown> = {}) {
-  const { service, exchangeRates } = makeService();
+  const { service, exchangeRates, approvals } = makeService();
   const owner = await makeCompanyWithUser(prisma, { country: "TR" });
   const bidder = await makeCompanyWithUser(prisma, { country: "TR" });
   const listing = await makeListing(prisma, {
@@ -42,7 +43,7 @@ async function auction(over: Record<string, unknown> = {}) {
     priceDecrementValue: "500",
     ...over,
   });
-  return { service, exchangeRates, owner, bidder, listing };
+  return { service, exchangeRates, approvals, owner, bidder, listing };
 }
 
 const submit = (amount: number, currency?: string) =>
@@ -325,5 +326,62 @@ describe("Yeni tur — kur damgası ve çoklu-birim taşıma", () => {
         bidVisibility: "OWN_RANK",
       } as never),
     ).rejects.toThrow(/EUR için TCMB kuru bulunamadı/);
+  });
+});
+
+describe("Onay eşiği — TEK BAZ + X3 fail-closed (INV-FX-1)", () => {
+  it("eşik TRY karşılığı AÇILIŞ damgasından hesaplanır (kazandırma-günü canlı kur DEĞİL)", async () => {
+    const { service, exchangeRates, approvals, owner, bidder, listing } =
+      await auction(); // damga { EUR: 50 }
+    // Canlı kur damgadan tamamen farklı — kullanılmadığını ispatlar (eski
+    // toTryAmount getCurrentRate'ti; 19×1=19 eşiği yanlış atlatırdı).
+    exchangeRates.getCurrentRate.mockResolvedValue(1);
+    approvals.requestApproval.mockResolvedValue({
+      approved: false,
+      requestId: "r1",
+    });
+    const bid = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: 19,
+      currency: "EUR", // per-bid damga YOK (makeBid set etmez) → yalnız açılış damgası
+    });
+
+    await service.award(owner.auth, listing.id, bid.id);
+
+    expect(approvals.requestApproval).toHaveBeenCalledTimes(1);
+    const arg = approvals.requestApproval.mock.calls[0][1];
+    // 19 × 50 (açılış damgası) = 950 ₺ — canlı kur (1) ile 19 olurdu.
+    expect(new Prisma.Decimal(arg.amount).toNumber()).toBe(950);
+    expect(arg.currency).toBe("TRY");
+    expect(arg.forceRequireApproval).toBeFalsy();
+  });
+
+  it("X3: baz bilinmiyorsa (açılış damgası + teklif damgası YOK) onay ZORUNLU (ham fallback yok)", async () => {
+    const { service, exchangeRates, approvals, owner, bidder, listing } =
+      await auction({ auctionRateSnapshot: undefined });
+    // Eski davranış: getCurrentRate fallback (30) → 100×30=3000 eşiğe göre
+    // sessizce değerlendirilir/atlanırdı. Artık: baz yok → onay zorunlu.
+    exchangeRates.getCurrentRate.mockResolvedValue(30);
+    approvals.requestApproval.mockResolvedValue({
+      approved: false,
+      requestId: "r1",
+    });
+    const bid = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: 100,
+      currency: "EUR", // exchangeRateSnapshot null
+    });
+
+    await service.award(owner.auth, listing.id, bid.id);
+
+    const arg = approvals.requestApproval.mock.calls[0][1];
+    expect(arg.forceRequireApproval).toBe(true);
+    // Ham yabancı tutar + KENDİ birimiyle saklanır (0/TRY yanıltmaz).
+    expect(arg.currency).toBe("EUR");
+    expect(new Prisma.Decimal(arg.amount).toNumber()).toBe(100);
   });
 });

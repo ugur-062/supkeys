@@ -1581,6 +1581,8 @@ export class CompanyListingsService {
             type: true,
             status: true,
             closesAt: true,
+            // INV-FX-1: amountTry tek-baz (açılış damgası → teklif damgası).
+            auctionRateSnapshot: true,
             company: { select: { name: true } },
           },
         },
@@ -1613,13 +1615,18 @@ export class CompanyListingsService {
       id: b.id,
       amount: b.amount.toString(),
       currency: b.currency,
-      // TRY karşılığı — çoklu para biriminde adil sıralama/kıyas için
-      // (sahip görünümündeki amountTry ile aynı hesap).
-      amountTry: b.exchangeRateSnapshot
-        ? new Prisma.Decimal(b.amount).mul(b.exchangeRateSnapshot).toFixed(2)
-        : b.currency === "TRY"
+      // TRY karşılığı — INV-FX-1 TEK BAZ (sahip sıralaması/amountTry ile aynı
+      // hesap): açılış damgası → teklif damgası. TRY teklif ham gösterilir.
+      amountTry:
+        b.currency === "TRY"
           ? b.amount.toString()
-          : null,
+          : this.auctionTryValue(
+                b.amount,
+                b.currency,
+                b.exchangeRateSnapshot,
+                b.listing.auctionRateSnapshot,
+              )
+              ?.toFixed(2) ?? null,
       status: b.status,
       round: b.round,
       version: b.version,
@@ -2202,15 +2209,23 @@ export class CompanyListingsService {
           amount: b.amount.toString(),
           currency: b.currency,
           version: b.version,
-          // TRY dışı tekliflerde TCMB kuru + TRY karşılığı (kur gösterimi).
+          // TRY dışı tekliflerde teklif-anı TCMB kuru (audit; kur gösterimi).
           exchangeRateSnapshot: b.exchangeRateSnapshot
             ? b.exchangeRateSnapshot.toString()
             : null,
-          amountTry: b.exchangeRateSnapshot
-            ? new Prisma.Decimal(b.amount)
-                .mul(b.exchangeRateSnapshot)
-                .toFixed(2)
-            : null,
+          // amountTry: INV-FX-1 TEK BAZ — sıralama (rankedBids) ile AYNI kaynak
+          // (açılış damgası → teklif damgası). Eski "yalnız per-bid damga"
+          // sıralamayla ıraksıyordu. TRY teklifte gereksiz → null (eski davranış).
+          amountTry:
+            b.currency !== "TRY"
+              ? this.auctionTryValue(
+                    b.amount,
+                    b.currency,
+                    b.exchangeRateSnapshot,
+                    listing.auctionRateSnapshot,
+                  )
+                  ?.toFixed(2) ?? null
+              : null,
           note: b.note,
           isBuyNow: b.isBuyNow,
           status: b.status,
@@ -3748,6 +3763,8 @@ export class CompanyListingsService {
         requireBidDocument: true,
         primaryCurrency: true,
         createdById: true,
+        // INV-FX-1: onay eşiği tek-baz — açılış damgasıyla TRY'ye çevir.
+        auctionRateSnapshot: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -3780,6 +3797,7 @@ export class CompanyListingsService {
         bidderCompanyId: true,
         amount: true,
         currency: true,
+        exchangeRateSnapshot: true,
         status: true,
         items: { select: { itemId: true, unitPrice: true } },
       },
@@ -3804,14 +3822,22 @@ export class CompanyListingsService {
     // normalize et — aksi halde yabancı para teklif (ör. 50k USD) düşük ham
     // sayıyla eşiği atlayıp onay adımını baypas ederdi (awardByItem ile simetri).
     // INV-MONEY-1: onay eşiğine DECIMAL girer (.toNumber() kaldırıldı — float
-    // sapması yok).
-    const awardAmountTry = await this.toTryAmount(bid.amount, bid.currency);
+    // sapması yok). INV-FX-1: TEK BAZ (açılış damgası → teklif damgası). Baz
+    // bilinmiyorsa (X3) tryVal null → ham yabancı tutar + kendi birimiyle sakla
+    // ve forceRequireApproval ile eşiği ATLA(t)MA — onay zorunlu, sessiz baypas yok.
+    const awardTry = this.toTryAmount(
+      bid.amount,
+      bid.currency,
+      bid.exchangeRateSnapshot,
+      listing.auctionRateSnapshot,
+    );
     const res = await this.approvals.requestApproval(user, {
       listingId,
       type: "LISTING_AWARD",
       listingType: listing.type,
-      amount: awardAmountTry,
-      currency: "TRY",
+      amount: awardTry ?? new Prisma.Decimal(bid.amount),
+      currency: awardTry ? "TRY" : bid.currency,
+      forceRequireApproval: awardTry == null,
       payload: { kind: "full", bidId },
       initiatorNote: approvalNote,
     });
@@ -4135,6 +4161,8 @@ export class CompanyListingsService {
         primaryCurrency: true,
         requireBidDocument: true,
         createdById: true,
+        // INV-FX-1: kalem-award onay eşiği tek-baz (açılış damgası).
+        auctionRateSnapshot: true,
       },
     });
     if (!listing) throw new NotFoundException("İlan bulunamadı");
@@ -4189,15 +4217,23 @@ export class CompanyListingsService {
       }
     }
 
-    const total = await this.itemAwardTotal(listingId, itemAwards);
+    const total = await this.itemAwardTotal(
+      listingId,
+      itemAwards,
+      listing.auctionRateSnapshot,
+    );
 
     const res = await this.approvals.requestApproval(user, {
       listingId,
       type: "LISTING_AWARD",
       listingType: listing.type,
       // total TRY'ye normalize edildi (itemAwardTotal) — onay eşiği TRY bazında.
-      amount: total,
+      // INV-FX-1 (X3): baz bilinmiyorsa total null → tutar bilinemez, eşiği ATLA(t)MA
+      // (forceRequireApproval), onay zorunlu (sessiz fallback yok). amount 0 gösterilir
+      // ama onay atlanmaz — onaylayan sipariş önizlemesinden gerçek kalemleri görür.
+      amount: total ?? new Prisma.Decimal(0),
       currency: "TRY",
+      forceRequireApproval: total == null,
       payload: { kind: "by-item", itemAwards },
       initiatorNote: approvalNote,
     });
@@ -4326,32 +4362,48 @@ export class CompanyListingsService {
     return { groups, itemQty };
   }
 
-  /** Tutarı TRY'ye çevir (onay eşiği TRY bazında kıyaslanır). Kur alınamazsa ham. */
-  private async toTryAmount(
+  /**
+   * Tutarı onay eşiği için TRY'ye çevir — TEK YETKİLİ BAZ (INV-FX-1): ilanın
+   * AÇILIŞ damgası (auctionRateSnapshot) → teklifin kendi damgası → TRY=1.
+   * Sıralama/ekran ile AYNI kaynak (auctionTryValue) — eski `getCurrentRate`
+   * (kazandırma-günü canlı/fallback kuru) ıraksaması kapatıldı.
+   *
+   * X3 fail-closed: baz bilinmiyorsa (yabancı para + damga yok + teklif-damgası
+   * yok) null döner — çağıran onayı ATLAMAZ, ZORUNLU kılar. Eski ham-tutar
+   * fallback'i (sessizce eşiği atlatan) KALDIRILDI.
+   */
+  private toTryAmount(
     amount: Prisma.Decimal | number,
     currency: string,
-  ): Promise<Prisma.Decimal> {
-    const dec = new Prisma.Decimal(amount);
-    if (currency === "TRY") return dec;
-    const rate = await this.exchangeRates
-      .getCurrentRate(currency as never)
-      .catch(() => null);
-    return rate ? dec.mul(rate) : dec;
+    bidSnapshot: Prisma.Decimal | null,
+    listingSnap: unknown,
+  ): Prisma.Decimal | null {
+    return this.auctionTryValue(
+      new Prisma.Decimal(amount),
+      currency,
+      bidSnapshot,
+      listingSnap,
+    );
   }
 
   /**
    * Onay yönlendirmesi için kalem-bazlı kazandırmanın TOPLAM değeri — her grup
    * kendi biriminde olduğundan TRY'ye çevrilip toplanır (karışık para birimli
    * kazandırmada ham USD+TRY toplamı anlamsız olurdu; eşik yanlış yönlenirdi).
+   * Kalem-award grupları per-bid damgası taşımaz → baz yalnız ilan açılış damgası
+   * (auctionSnap). Bir grup bile çevrilemezse null → onay ZORUNLU (X3 fail-closed).
    */
   private async itemAwardTotal(
     listingId: string,
     itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
-  ): Promise<Prisma.Decimal> {
+    auctionSnap: unknown,
+  ): Promise<Prisma.Decimal | null> {
     const { groups } = await this.buildItemGroups(listingId, itemAwards);
     let total = new Prisma.Decimal(0);
     for (const g of groups.values()) {
-      total = total.plus(await this.toTryAmount(g.amount, g.currency));
+      const tv = this.toTryAmount(g.amount, g.currency, null, auctionSnap);
+      if (tv == null) return null; // kur bilinmiyor → eşik değerlendirilemez
+      total = total.plus(tv);
     }
     // INV-MONEY-1: onay eşiğine DECIMAL girer (.toNumber() kaldırıldı).
     return total;

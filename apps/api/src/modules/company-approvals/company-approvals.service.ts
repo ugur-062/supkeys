@@ -441,6 +441,12 @@ export class CompanyApprovalsService {
       payload?: Prisma.InputJsonValue;
       /** Başlatanın onaycılara notu (opsiyonel). */
       initiatorNote?: string;
+      /**
+       * INV-FX-1 (X3 fail-closed): tutarın TRY karşılığı hesaplanamadığında
+       * (kur bazı bilinmiyor) true geçilir → eşik atlanamaz, HER adım aktif
+       * kalır (SKIPPED yok). "Bilmiyorsam insana sor" — sessiz baypas yerine.
+       */
+      forceRequireApproval?: boolean;
     },
   ): Promise<{ approved: true } | { approved: false; requestId: string }> {
     const flow = await this.findMatchingFlow(
@@ -457,7 +463,8 @@ export class CompanyApprovalsService {
       const min = s.conditionMinAmount
         ? new Prisma.Decimal(s.conditionMinAmount)
         : new Prisma.Decimal(0);
-      const skipped = amountDec.lt(min);
+      // INV-FX-1: kur bilinmiyorsa hiçbir adım atlanmaz (eşik değerlendirilemez).
+      const skipped = !input.forceRequireApproval && amountDec.lt(min);
       return {
         order: s.order,
         approverUserId: s.approverUserId,
