@@ -217,6 +217,50 @@ describe("BEFORE_DELIVERY (teslim öncesi ödeme) — teslim alma davranışı",
     const rec = await orders.receive(buyer.auth, order.id, {} as never);
     expect(rec.status).toBe("COMPLETED");
   });
+
+  it("C1: CAD (vesaik mukabili) ödenmeden teslim ALINAMAZ (diğer BEFORE_DELIVERY'nin aksine)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "IN_DELIVERY",
+      paymentTiming: "BEFORE_DELIVERY",
+      paymentCategory: "CASH_AGAINST_DOCS",
+      acceptedAt: new Date(),
+      deliveryStartedAt: new Date(),
+    });
+    // Kısmi-peşin/LC gibi diğer BEFORE_DELIVERY'de DELIVERED'a düşerdi; CAD'de
+    // belge karşılığı ödeme şart → teslim alma tam ödeme onayı olmadan reddedilir.
+    await expect(
+      orders.receive(buyer.auth, order.id, {} as never),
+    ).rejects.toThrow(/vesaik|tam ödeme/i);
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("IN_DELIVERY"); // teslim alınmadı
+  });
+
+  it("C1: CAD tam ödeme ONAYLIYKEN teslim alma COMPLETED", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "IN_DELIVERY",
+      paymentTiming: "BEFORE_DELIVERY",
+      paymentCategory: "CASH_AGAINST_DOCS",
+      acceptedAt: new Date(),
+      deliveryStartedAt: new Date(),
+    });
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: 1000,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+    const rec = await orders.receive(buyer.auth, order.id, {} as never);
+    expect(rec.status).toBe("COMPLETED");
+  });
 });
 
 describe("iptal kapısı — onaylı ödeme", () => {

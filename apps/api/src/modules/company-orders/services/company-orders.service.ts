@@ -379,7 +379,18 @@ export class CompanyOrdersService {
         this.confirmedPaymentSum(id),
       ]);
       const total = amt ? new Prisma.Decimal(amt.amount) : new Prisma.Decimal(0);
-      toCompleted = this.isFullyPaid(total, confirmed);
+      const fullyPaid = this.isFullyPaid(total, confirmed);
+      // C1: Vesaik mukabili (CASH_AGAINST_DOCS) — alıcı ÖDEMEDEN teslim ALAMAZ.
+      // Belge karşılığı ödeme modeli: satıcı malı gönderir + belgeleri bankaya
+      // verir; alıcı bankaya ödeyip belgeleri alır ve malı çeker. Ship kapısı
+      // YOK (satıcının göndermesi doğru) ama teslim-alma tam ödeme onayı ister —
+      // aksi halde alıcı sıfır tahsilatla malı teslim almış olurdu.
+      if (order.paymentCategory === "CASH_AGAINST_DOCS" && !fullyPaid) {
+        throw new BadRequestException(
+          "Vesaik mukabili: teslim almadan önce tam ödemenin onaylanması gerekir",
+        );
+      }
+      toCompleted = fullyPaid;
     }
     const res = await this.transition(user, id, {
       side: "buyer",
