@@ -18,6 +18,7 @@ import {
   isValidTaxIdForCountry,
   isValidTckn,
 } from "@rothern/shared";
+import { effectiveTier } from "../../../common/company/effective-tier";
 import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
 import { NOTIFICATION_PREF_KEYS } from "../../../common/notifications/notification-prefs";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -1264,7 +1265,9 @@ export class CompanyAuthService {
       name: company.name,
       slug: company.slug,
       rothernId: company.rothernId,
-      tier: company.tier,
+      // INV-TIER-1: efektif tier (süre-dolma penceresinde ham PAKET görünse de
+      // STANDARD döner) — /me'yi okuyan web shell tek kaynaktan görür.
+      tier: effectiveTier(company.tier, company.membershipEndAt),
       country: company.country,
       companyVerificationStatus: company.companyVerificationStatus,
       onboardingCompletedAt: company.onboardingCompletedAt,

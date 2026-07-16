@@ -5,6 +5,7 @@ import type { CompanyRole, CompanyTier } from "@rothern/db";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { readAuthCookie } from "../../../common/auth/cookie";
+import { effectiveTier } from "../../../common/company/effective-tier";
 import type { CompanyPermissionOverride } from "../permissions/company-permissions.constants";
 
 export interface CompanyJwtPayload {
@@ -77,15 +78,9 @@ export class CompanyJwtStrategy extends PassportStrategy(
       );
     }
 
-    // EFEKTİF tier — lazy guard: üyelik süresi geçmişse istek boyunca STANDARD
-    // muamelesi görür, 03:00 cron'unu BEKLEMEZ (cron kaçarsa/uyursa süresi
-    // bitmiş firma premium yetkiyle işlem yapamasın). Kalıcı downgrade +
-    // davet iptali + e-posta scheduler'ın işi (boot catch-up dahil).
-    const membershipExpired =
-      user.company.tier === "PAKET" &&
-      user.company.membershipEndAt != null &&
-      user.company.membershipEndAt.getTime() < Date.now();
-
+    // EFEKTİF tier — INV-TIER-1 TEK KAYNAK (effectiveTier): üyelik süresi
+    // geçmişse istek boyunca STANDARD, 03:00 cron'unu BEKLEMEZ. Kalıcı downgrade
+    // + davet iptali + e-posta scheduler'ın işi (boot catch-up dahil).
     return {
       userId: user.id,
       companyId: user.companyId,
@@ -93,7 +88,7 @@ export class CompanyJwtStrategy extends PassportStrategy(
       firstName: user.firstName,
       lastName: user.lastName,
       roles: user.roles,
-      tier: membershipExpired ? "STANDARD" : user.company.tier,
+      tier: effectiveTier(user.company.tier, user.company.membershipEndAt),
       country: user.company.country,
       isOwner: user.company.ownerUserId === user.id,
       permissionsOverride:

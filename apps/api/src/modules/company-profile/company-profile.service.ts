@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { generateSlug, isValidIbanTr, normalizeIban } from "@rothern/shared";
+import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { CategoryService } from "../categories/services/category.service";
 import { StorageService } from "../storage/storage.service";
@@ -53,6 +54,7 @@ const SELECT = {
   rothernId: true,
   slug: true,
   tier: true,
+  membershipEndAt: true, // INV-TIER-1: efektif tier hesabı için.
   companyVerificationStatus: true,
   onboardingCompletedAt: true,
 } as const;
@@ -110,11 +112,16 @@ export class CompanyProfileService {
       select: SELECT,
     });
     if (!c) throw new NotFoundException("Firma bulunamadı");
+    // INV-TIER-1: efektif tier — ham `tier` doğrudan dönmez (süre-dolma
+    // penceresinde /me ile ıraksardı). membershipEndAt yalnız hesap içindi,
+    // yanıttan çıkarılır.
+    const { membershipEndAt, ...rest } = c;
+    const base = { ...rest, tier: effectiveTier(c.tier, membershipEndAt) };
     // KVKK veri-minimizasyonu: yetkili TCKN + IBAN + fatura telefonu kişisel/
     // finansal veridir — yalnız company:manage yetkisi olan kullanıcıya döner.
     if (!canSeeSensitive) {
       return {
-        ...c,
+        ...base,
         authorizedTckn: null,
         iban: null,
         ibanHolder: null,
@@ -125,7 +132,7 @@ export class CompanyProfileService {
           c.companyType === "SOLE_PROPRIETOR" ? null : c.taxNumber,
       };
     }
-    return c;
+    return base;
   }
 
   /** Düzenlenebilir profil alanları (yetki: company:manage / YONETICI). */
