@@ -24,6 +24,7 @@ export function AcceptOrderModal({
   onClose,
   onSubmit,
   pending,
+  bankOptional = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -33,6 +34,8 @@ export function AcceptOrderModal({
     bankAccountId?: string;
   }) => void;
   pending: boolean;
+  /** S1: LC/vesaik mukabilinde ödeme banka kanalından gider → banka hesabı opsiyonel. */
+  bankOptional?: boolean;
 }) {
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
@@ -45,13 +48,14 @@ export function AcceptOrderModal({
   const today = todayLocalISO();
 
   const hasAccounts = !!accounts.data && accounts.data.length > 0;
+  const bankReady = bankOptional || !!effectiveAccountId;
 
   const submit = () => {
-    if (!date || !effectiveAccountId) return;
+    if (!date || !bankReady) return;
     onSubmit({
       expectedDeliveryDate: date,
       acceptedNote: note.trim() || undefined,
-      bankAccountId: effectiveAccountId,
+      bankAccountId: effectiveAccountId || undefined,
     });
   };
 
@@ -71,41 +75,51 @@ export function AcceptOrderModal({
             onChange={(e) => setDate(e.target.value)}
           />
         </Field>
-        <Field>
-          <Label>Ödeme Hesabı *</Label>
-          {hasAccounts ? (
-            <>
-              <Select
-                value={effectiveAccountId}
-                onChange={(e) => setAccountId(e.target.value)}
-                aria-label="Ödeme hesabı"
-              >
-                {accounts.data!.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.title} · {a.iban.slice(0, 6)}…{a.iban.slice(-4)}
-                    {a.isDefault ? " (varsayılan)" : ""}
-                  </option>
-                ))}
-              </Select>
-              <p className="mt-1 text-xs text-zinc-500">
-                Alıcının ödeme yapacağı hesap — siparişe işlenir (zorunlu).
-              </p>
-            </>
-          ) : (
-            <p className="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              Ödeme alabilmek için kayıtlı bir banka hesabı gerekli.{" "}
-              <Link
-                href="/company/ayarlar/banka-hesaplari"
-                className="font-semibold underline"
-                target="_blank"
-              >
-                Ayarlar → Banka Hesapları
-              </Link>
-              &apos;ndan ekleyin (yalnız Kurucu ekleyebilir). Hesap eklenmeden
-              sipariş onaylanamaz.
+        {bankOptional ? (
+          <Field>
+            <Label>Ödeme Hesabı</Label>
+            <p className="mt-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+              Akreditif / vesaik mukabili — ödeme banka kanalından (LC/belge
+              şartlarına göre) yapılır; banka hesabı seçmeniz gerekmez.
             </p>
-          )}
-        </Field>
+          </Field>
+        ) : (
+          <Field>
+            <Label>Ödeme Hesabı *</Label>
+            {hasAccounts ? (
+              <>
+                <Select
+                  value={effectiveAccountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                  aria-label="Ödeme hesabı"
+                >
+                  {accounts.data!.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.title} · {a.iban.slice(0, 6)}…{a.iban.slice(-4)}
+                      {a.isDefault ? " (varsayılan)" : ""}
+                    </option>
+                  ))}
+                </Select>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Alıcının ödeme yapacağı hesap — siparişe işlenir (zorunlu).
+                </p>
+              </>
+            ) : (
+              <p className="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Ödeme alabilmek için kayıtlı bir banka hesabı gerekli.{" "}
+                <Link
+                  href="/company/ayarlar/banka-hesaplari"
+                  className="font-semibold underline"
+                  target="_blank"
+                >
+                  Ayarlar → Banka Hesapları
+                </Link>
+                &apos;ndan ekleyin (yalnız Kurucu ekleyebilir). Hesap eklenmeden
+                sipariş onaylanamaz.
+              </p>
+            )}
+          </Field>
+        )}
         <Field>
           <Label>Onay Notu (opsiyonel)</Label>
           <Textarea
@@ -120,7 +134,7 @@ export function AcceptOrderModal({
         <Button plain onClick={onClose}>
           Vazgeç
         </Button>
-        <Button onClick={submit} disabled={pending || !date || !effectiveAccountId}>
+        <Button onClick={submit} disabled={pending || !date || !bankReady}>
           Onayla
         </Button>
       </DialogActions>

@@ -710,6 +710,8 @@ export default function OrderDetailPage() {
         onClose={close}
         onSubmit={doAccept}
         pending={accept.isPending}
+        // S1: LC/vesaik mukabilinde ödeme banka kanalından → banka hesabı opsiyonel.
+        bankOptional={isLc || o.paymentCategory === "CASH_AGAINST_DOCS"}
       />
       <ShipOrderModal
         open={modal === "ship"}

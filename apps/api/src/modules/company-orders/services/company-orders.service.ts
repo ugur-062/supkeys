@@ -170,22 +170,31 @@ export class CompanyOrdersService {
         );
       }
     }
-    // Ödeme alabilmek için kayıtlı banka hesabı ZORUNLU — alıcı buraya öder.
-    // (Hesabı yalnız Kurucu ekler; satıcı onayda kayıtlı hesaplarından seçer.)
-    if (!input.bankAccountId) {
+    // Ödeme alabilmek için kayıtlı banka hesabı — alıcı buraya öder. (Hesabı
+    // yalnız Kurucu ekler; satıcı onayda kayıtlı hesaplarından seçer.)
+    // S1: LC/vesaik mukabilinde ödeme banka kanalından LC/belge şartına göre
+    // gider → seçilen IBAN işlevsiz; bu iki kategoride banka hesabı OPSİYONEL
+    // (verilmezse snapshot null; verilirse yine doğrulanıp saklanır).
+    const skipBankRequired =
+      src.paymentCategory === "LETTER_OF_CREDIT" ||
+      src.paymentCategory === "CASH_AGAINST_DOCS";
+    let bankAccountHolder: string | null = null;
+    let bankIban: string | null = null;
+    if (input.bankAccountId) {
+      const acct = await this.prisma.companyBankAccount.findUnique({
+        where: { id: input.bankAccountId },
+        select: { companyId: true, accountHolder: true, iban: true },
+      });
+      if (!acct || acct.companyId !== user.companyId) {
+        throw new BadRequestException("Geçersiz banka hesabı seçimi");
+      }
+      bankAccountHolder = acct.accountHolder;
+      bankIban = acct.iban;
+    } else if (!skipBankRequired) {
       throw new BadRequestException(
         "Ödeme alabilmek için onayda bir banka hesabı seçmelisiniz — kayıtlı hesabınız yoksa Ayarlar → Banka Hesapları'ndan ekleyin (yalnız Kurucu ekleyebilir)",
       );
     }
-    const acct = await this.prisma.companyBankAccount.findUnique({
-      where: { id: input.bankAccountId },
-      select: { companyId: true, accountHolder: true, iban: true },
-    });
-    if (!acct || acct.companyId !== user.companyId) {
-      throw new BadRequestException("Geçersiz banka hesabı seçimi");
-    }
-    const bankAccountHolder = acct.accountHolder;
-    const bankIban = acct.iban;
     const res = await this.transition(user, id, {
       side: "seller",
       from: "PENDING",

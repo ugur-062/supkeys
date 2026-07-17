@@ -30,11 +30,13 @@ export class AcceptOrderDto {
   @MaxLength(2000)
   acceptedNote?: string;
 
-  /** Ayarlar → Banka Hesapları'ndan seçilen hesabın id'si — ZORUNLU: satıcı
-   *  ödeme alabilmek için kayıtlı bir hesap seçmeli (alıcının ödeyeceği hesap). */
-  @IsString({ message: "Ödeme için banka hesabı seçilmelidir" })
+  /** Ayarlar → Banka Hesapları'ndan seçilen hesabın id'si. Genelde zorunlu
+   *  (alıcının ödeyeceği hesap); S1: LC/vesaik mukabilinde OPSİYONEL (ödeme
+   *  banka kanalından gider) — zorunluluk servis katmanında kategoriye göre. */
+  @IsOptional()
+  @IsString({ message: "Geçersiz banka hesabı seçimi" })
   @MaxLength(60)
-  bankAccountId!: string;
+  bankAccountId?: string;
 }
 
 export class ShipOrderDto {

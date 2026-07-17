@@ -113,6 +113,33 @@ describe("teslim şekline göre gönderim bildirimi (deliveryTerm)", () => {
   });
 });
 
+describe("S1 — accept banka hesabı LC/vesaikte opsiyonel", () => {
+  it("akreditif siparişi banka hesabı SEÇMEDEN onaylanabilir", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      paymentCategory: "LETTER_OF_CREDIT",
+      paymentTiming: "BEFORE_DELIVERY",
+    });
+    // bankAccountId YOK — LC'de ödeme banka kanalından → yine de ACCEPTED.
+    await orders.accept(seller.auth, order.id, acceptInput as never);
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("ACCEPTED");
+    expect(db.bankIban).toBeNull();
+  });
+
+  it("normal (vadeli) siparişte banka hesabı hâlâ ZORUNLU", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id);
+    await expect(
+      orders.accept(seller.auth, order.id, acceptInput as never),
+    ).rejects.toThrow(/banka hesabı/i);
+  });
+});
+
 describe("mutlu yol — AFTER_DELIVERY (teslim sonrası ödeme)", () => {
   it("accept → ship → receive → tam ödeme onayı → oto-COMPLETED (damgalarla)", async () => {
     const orders = makeOrdersService();
