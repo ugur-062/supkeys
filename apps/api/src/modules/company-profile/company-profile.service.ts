@@ -8,6 +8,10 @@ import { randomUUID } from "node:crypto";
 import { generateSlug, isValidIbanTr, normalizeIban } from "@rothern/shared";
 import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import {
+  assertUploadedObjectValid,
+  MAX_IMAGE_BYTES,
+} from "../../common/helpers/upload-validation";
 import { CategoryService } from "../categories/services/category.service";
 import { StorageService } from "../storage/storage.service";
 import { UpdateCompanyProfileDto } from "./dto/update-company-profile.dto";
@@ -100,6 +104,10 @@ export class CompanyProfileService {
     if (!key.startsWith(this.storage.buildTenantProfilePrefix(companyId))) {
       throw new ForbiddenException("Bu görsel anahtarına erişim yetkiniz yok");
     }
+    // Fix2: public bucket'ta OTORİTATİF varlık + boyut kontrolü (10MB) — diğer
+    // 5 upload yolunun aksine burada eksikti → 5GB logo = bant/depolama DoS.
+    // Aşan orphan silinir (presigned PUT boyut sınırlayamaz, register'da yakalanır).
+    await assertUploadedObjectValid(this.storage, "public", key, MAX_IMAGE_BYTES);
     const url =
       this.storage.getPublicUrl(key) ??
       (await this.storage.resolveImageUrl(key));
@@ -137,6 +145,44 @@ export class CompanyProfileService {
 
   /** Düzenlenebilir profil alanları (yetki: company:manage / YONETICI). */
   async update(companyId: string, dto: UpdateCompanyProfileDto) {
+    // Fix1: SAKLANAN görsel URL'leri kendi R2 tenant-profile deposundan olmalı —
+    // harici/data: URL PATCH'i public profilde <img src> olarak render edilir.
+    // GRANDFATHER: yalnız DEĞİŞEN/YENİ değeri doğrula (mevcut değer dokunulmuyorsa
+    // yeniden doğrulanmaz → env-prefix farkı olan legacy kayıtlar kırılmaz; saldırı
+    // vektörü olan harici URL zaten YENİ değerdir → yakalanır).
+    const touchesImages =
+      dto.logoUrl !== undefined ||
+      dto.coverImageUrl !== undefined ||
+      dto.photos !== undefined ||
+      dto.certificateImages !== undefined;
+    if (touchesImages) {
+      const cur = await this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          logoUrl: true,
+          coverImageUrl: true,
+          photos: true,
+          certificateImages: true,
+        },
+      });
+      const checkSingle = (incoming: string | undefined, current: string | null) => {
+        const v = incoming?.trim();
+        if (v && v !== current) this.storage.assertOwnPublicImageUrl(v, companyId);
+      };
+      const checkArray = (incoming: string[] | undefined, current: string[]) => {
+        if (!incoming) return;
+        const known = new Set(current);
+        for (const raw of incoming) {
+          const v = raw.trim();
+          if (v && !known.has(v)) this.storage.assertOwnPublicImageUrl(v, companyId);
+        }
+      };
+      checkSingle(dto.logoUrl, cur?.logoUrl ?? null);
+      checkSingle(dto.coverImageUrl, cur?.coverImageUrl ?? null);
+      checkArray(dto.photos, cur?.photos ?? []);
+      checkArray(dto.certificateImages, cur?.certificateImages ?? []);
+    }
+
     const data: Record<string, unknown> = {};
     if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.legalName !== undefined) data.legalName = dto.legalName.trim() || null;

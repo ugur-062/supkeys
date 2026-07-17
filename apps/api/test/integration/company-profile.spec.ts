@@ -2,6 +2,7 @@
  * Faz 4 — Kurumsal Kimlik profili: düzenlenebilir kimlik kalemleri (MERSİS/KEP/
  * IBAN) doğrulaması + kaydı.
  */
+import { BadRequestException } from "@nestjs/common";
 import { CompanyProfileService } from "../../src/modules/company-profile/company-profile.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
@@ -84,5 +85,126 @@ describe("company-profile — kurumsal kimlik kalemleri", () => {
       where: { id: owner.company.id },
     });
     expect(c.iban).toBeNull();
+  });
+});
+
+// Fix1/Fix2 — görsel URL host doğrulama + upload boyut. Zengin storage mock:
+// assertOwnPublicImageUrl'in GERÇEK mantığı upload-validation.spec'te; burada
+// update()'in orkestasyonu (grandfather: yalnız DEĞİŞEN değeri doğrular) + boyut.
+function makeServiceEx(overrides: Record<string, unknown> = {}) {
+  const storage = {
+    generatePresignedPut: jest.fn(),
+    generatePresignedGet: jest.fn(),
+    deleteObject: jest.fn().mockResolvedValue(undefined),
+    buildTenantProfilePrefix: (id: string) => `prod/tenant-profile/${id}/`,
+    checkExists: jest.fn().mockResolvedValue({ exists: true, size: 1000 }),
+    getPublicUrl: jest.fn((k: string) => `https://cdn/${k}`),
+    resolveImageUrl: jest.fn(),
+    // testte "kötü" = tenant-profile içermeyen / evil / data:
+    assertOwnPublicImageUrl: jest.fn((v: string) => {
+      if (
+        v.startsWith("data:") ||
+        v.startsWith("https://evil") ||
+        !v.includes("tenant-profile/")
+      ) {
+        throw new BadRequestException("Görsel yalnız kendi profil deponuzdan olabilir");
+      }
+    }),
+    ...overrides,
+  };
+  return {
+    svc: new CompanyProfileService(prisma as never, storage as never),
+    storage,
+  };
+}
+
+describe("company-profile — görsel URL host doğrulama (Fix1)", () => {
+  it("harici URL PATCH → 400 (assertOwnPublicImageUrl kendi companyId ile çağrılır)", async () => {
+    const { svc, storage } = makeServiceEx();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    await expect(
+      svc.update(owner.company.id, {
+        logoUrl: "https://evil.com/x.jpg",
+      } as never),
+    ).rejects.toThrow(/kendi profil/);
+    expect(storage.assertOwnPublicImageUrl).toHaveBeenCalledWith(
+      "https://evil.com/x.jpg",
+      owner.company.id,
+    );
+  });
+
+  it("kendi R2 URL'i geçer + saklanır", async () => {
+    const { svc } = makeServiceEx();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const good = "https://cdn/prod/tenant-profile/x/logo.jpg";
+    await svc.update(owner.company.id, { logoUrl: good } as never);
+    const c = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(c.logoUrl).toBe(good);
+  });
+
+  it("GRANDFATHER: değişmeyen legacy değer YENİDEN doğrulanmaz (kırılmaz)", async () => {
+    const { svc, storage } = makeServiceEx();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    // Yeni kuralı GEÇMEYECEK legacy değer (tenant-profile yok) doğrudan DB'de.
+    const legacy = "https://old-host.example/legacy-logo.png";
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { logoUrl: legacy },
+    });
+    // Aynı değeri tekrar gönder + alakasız alan → doğrulama ATLANIR (400 YOK).
+    await svc.update(owner.company.id, {
+      logoUrl: legacy,
+      name: "Yeni Ad",
+    } as never);
+    expect(storage.assertOwnPublicImageUrl).not.toHaveBeenCalled();
+    const c = await prisma.company.findUniqueOrThrow({
+      where: { id: owner.company.id },
+    });
+    expect(c.name).toBe("Yeni Ad");
+  });
+
+  it("photos[]: yalnız YENİ eleman doğrulanır (eski korunur)", async () => {
+    const { svc, storage } = makeServiceEx();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const old = "https://old/legacy-photo.jpg";
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { photos: [old] },
+    });
+    const fresh = "https://cdn/prod/tenant-profile/x/photo.jpg";
+    await svc.update(owner.company.id, { photos: [old, fresh] } as never);
+    expect(storage.assertOwnPublicImageUrl).toHaveBeenCalledTimes(1);
+    expect(storage.assertOwnPublicImageUrl).toHaveBeenCalledWith(
+      fresh,
+      owner.company.id,
+    );
+  });
+});
+
+describe("company-profile — resolveUploadedImage boyut (Fix2)", () => {
+  it("10MB aşan → 400 + orphan silinir", async () => {
+    const { svc, storage } = makeServiceEx({
+      checkExists: jest
+        .fn()
+        .mockResolvedValue({ exists: true, size: 11 * 1024 * 1024 }),
+    });
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const key = `prod/tenant-profile/${owner.company.id}/logo-x.jpg`;
+    await expect(
+      svc.resolveUploadedImage(owner.company.id, key),
+    ).rejects.toThrow(/MB sınırını/);
+    expect(storage.deleteObject).toHaveBeenCalledWith("public", key);
+  });
+
+  it("≤10MB → URL döner", async () => {
+    const { svc } = makeServiceEx({
+      checkExists: jest.fn().mockResolvedValue({ exists: true, size: 500 }),
+    });
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const key = `prod/tenant-profile/${owner.company.id}/logo-x.jpg`;
+    const res = await svc.resolveUploadedImage(owner.company.id, key);
+    expect(res.url).toContain(key);
   });
 });

@@ -17,6 +17,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { assertOwnProfileImageUrl } from "../../common/helpers/upload-validation";
 
 const PUT_TTL_SECONDS = 15 * 60;
 // GET presigned URL ömrü kısa tutulur — hassas belge (KYC/teklif) URL'si loglara/
@@ -187,6 +188,38 @@ export class StorageService implements OnModuleInit {
   ): string {
     const sanitized = this.sanitizeFilename(originalFilename);
     return `${this.buildTenantProfilePrefix(tenantId)}${kind}-${id}-${sanitized}`;
+  }
+
+  /**
+   * İzinli görsel host'ları — R2 public base (CDN) + R2 endpoint (presigned).
+   * İkisi de yoksa BOŞ döner → `assertOwnPublicImageUrl` her değeri reddeder
+   * (FAIL-CLOSED: env eksikse "atla" değil "reddet").
+   */
+  private allowedImageHosts(): string[] {
+    const hosts: string[] = [];
+    for (const key of ["R2_PUBLIC_BASE_URL", "R2_ENDPOINT"] as const) {
+      const v = this.configService.get<string>(key);
+      if (v) {
+        try {
+          hosts.push(new URL(v).host);
+        } catch {
+          /* geçersiz env URL'i → atla */
+        }
+      }
+    }
+    return hosts;
+  }
+
+  /**
+   * SAKLANAN public görsel değeri (logoUrl/photos[] vb.) kendi tenant-profile
+   * deposundan mı? Harici/`data:` URL PATCH'ini engeller (bkz.
+   * `assertOwnProfileImageUrl`). Fail-closed: R2 host'ları yoksa reddeder.
+   */
+  assertOwnPublicImageUrl(value: string, tenantId: string): void {
+    assertOwnProfileImageUrl(value, {
+      tenantPrefix: this.buildTenantProfilePrefix(tenantId),
+      allowedHosts: this.allowedImageHosts(),
+    });
   }
 
   // ── Yazma / okuma ─────────────────────────────────────────────────────────
