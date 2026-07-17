@@ -1459,6 +1459,10 @@ export class CompanyListingsService {
         visibility: true,
         type: true,
         createdById: true,
+        // X-CF-2: açık eksiltmede açılış kur damgası yayında SENKRON kurulur.
+        format: true,
+        allowedCurrencies: true,
+        primaryCurrency: true,
       },
     });
     if (!listing || listing.companyId !== user.companyId) {
@@ -1489,12 +1493,28 @@ export class CompanyListingsService {
       }
     }
 
+    // X-CF-2 FAIL-CLOSED: açık eksiltmenin AÇILIŞ kur damgasını BURADA (senkron)
+    // kur → taze TCMB kuru yoksa 400 (ilan DRAFT kalır). announceListingOpen'daki
+    // re-stamp yutuluyor + void çağrılıyor → orada fail-OPEN olurdu (snapshot'sız
+    // açılır, per-bid'e düşer). Gerçek "kur yoksa açma" gate'i budur.
+    const auctionSnapshot =
+      listing.format === "ENGLISH_AUCTION"
+        ? await this.buildAuctionRateSnapshot(
+            listing.allowedCurrencies as Currency[],
+            listing.primaryCurrency as Currency,
+          )
+        : undefined;
+
     // GUARD (closeNoAward/award simetrisi): yalnız DRAFT iken yayınla —
     // eşzamanlı çift-publish'te ikinci çağrı count=0 alır → announceListingOpen
     // yalnız kazanan çağrıda çalışır, tek duyuru (Tur-3 denetimi #11, INV-SM-1).
     const published = await this.prisma.listing.updateMany({
       where: { id: listingId, status: "DRAFT" },
-      data: { status: "OPEN", publishedAt: new Date() },
+      data: {
+        status: "OPEN",
+        publishedAt: new Date(),
+        ...(auctionSnapshot ? { auctionRateSnapshot: auctionSnapshot } : {}),
+      },
     });
     if (published.count !== 1) {
       throw new ConflictException(
@@ -2484,12 +2504,15 @@ export class CompanyListingsService {
     const out: Record<string, string> = { TRY: "1" };
     for (const cur of set) {
       if (cur === "TRY") continue;
-      const rate = await this.exchangeRates
-        .getCurrentRate(cur)
-        .catch(() => null);
+      // X-CF-2: getFreshRate (strict null-on-stale) — getCurrentRate DEĞİL. Baz
+      // para kararı olduğundan (sıralama/taban/onay eşiği), getCurrentRate'in
+      // sessiz POZİTİF hardcoded fallback'i "tek yetkili bazı" fail-OPEN
+      // tohumluyordu (INV-FX-1 ihlali; taban bacağı zaten getFreshRate). Taze kur
+      // yoksa → throw → publish fail-closed (bkz. publishListing).
+      const rate = await this.exchangeRates.getFreshRate(cur).catch(() => null);
       if (rate == null || rate <= 0) {
         throw new BadRequestException(
-          `${cur} için TCMB kuru bulunamadı — bu para birimiyle açık eksiltme/artırma açılamaz`,
+          `${cur} için güncel TCMB kuru bulunamadı — bu para birimiyle açık eksiltme/artırma açılamaz`,
         );
       }
       out[cur] = new Prisma.Decimal(rate).toString();

@@ -247,7 +247,8 @@ describe("Çoklu birim — en iyi teklif TRY-normalize sıralanır", () => {
 describe("Yeni tur — kur damgası ve çoklu-birim taşıma", () => {
   it("createNextRound: damga basılır, izinli set korunur, EUR teklif CANLI taşınır", async () => {
     const { service, exchangeRates } = makeService();
-    exchangeRates.getCurrentRate.mockImplementation(
+    // X-CF-2: snapshot builder artık getFreshRate kullanır (getCurrentRate değil).
+    exchangeRates.getFreshRate.mockImplementation(
       async (cur: string) => (cur === "EUR" ? 48 : cur === "USD" ? 38 : 1),
     );
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -309,7 +310,8 @@ describe("Yeni tur — kur damgası ve çoklu-birim taşıma", () => {
 
   it("kuru olmayan birimle yeni tur açılamaz (açık hata)", async () => {
     const { service, exchangeRates } = makeService();
-    exchangeRates.getCurrentRate.mockRejectedValue(new Error("TCMB yok"));
+    // X-CF-2: snapshot builder getFreshRate kullanır → taze kur yoksa fail-closed.
+    exchangeRates.getFreshRate.mockResolvedValue(null);
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const listing = await makeListing(prisma, {
       companyId: owner.company.id,
@@ -330,7 +332,7 @@ describe("Yeni tur — kur damgası ve çoklu-birim taşıma", () => {
         closesAt: FUTURE.toISOString(),
         bidVisibility: "OWN_RANK",
       } as never),
-    ).rejects.toThrow(/EUR için TCMB kuru bulunamadı/);
+    ).rejects.toThrow(/EUR için güncel TCMB kuru bulunamadı/);
   });
 });
 
@@ -562,5 +564,48 @@ describe("Tie-break — eşit fiyat (INV-FX-1 X6)", () => {
     ).auctionView.myRank;
     expect(r1).toBe(r1again); // kararlı (tekrar çağrıda aynı)
     expect(new Set([r1, r2])).toEqual(new Set([1, 2])); // distinct — tie collapse yok
+  });
+});
+
+describe("X-CF-2: açık eksiltme publish FAIL-CLOSED (taze kur yoksa açılmaz)", () => {
+  async function draftAuction() {
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "DRAFT",
+      format: "ENGLISH_AUCTION",
+      visibility: "PUBLIC",
+      closesAt: FUTURE,
+      primaryCurrency: "TRY",
+      allowedCurrencies: ["TRY", "EUR"] as never,
+    });
+    return { owner, listing };
+  }
+
+  it("taze TCMB kuru YOK → publish 400 + ilan DRAFT KALIR (fail-OPEN'a düşmez)", async () => {
+    const { service, exchangeRates } = makeService();
+    exchangeRates.getFreshRate.mockResolvedValue(null); // taze kur yok
+    const { owner, listing } = await draftAuction();
+    await expect(
+      service.publishListing(owner.auth, listing.id),
+    ).rejects.toThrow(/güncel TCMB kuru/);
+    // KRİTİK: void announceListingOpen tuzağına DÜŞMEDİ — ilan hâlâ DRAFT, açılmadı.
+    const db = await prisma.listing.findUniqueOrThrow({ where: { id: listing.id } });
+    expect(db.status).toBe("DRAFT");
+    expect(db.auctionRateSnapshot).toBeNull();
+  });
+
+  it("taze kur VAR → publish OPEN + açılış damgası getFreshRate ile basılır", async () => {
+    const { service, exchangeRates } = makeService();
+    exchangeRates.getFreshRate.mockImplementation(async (cur: string) =>
+      cur === "EUR" ? 45 : 1,
+    );
+    const { owner, listing } = await draftAuction();
+    await service.publishListing(owner.auth, listing.id);
+    const db = await prisma.listing.findUniqueOrThrow({ where: { id: listing.id } });
+    expect(db.status).toBe("OPEN");
+    expect(db.auctionRateSnapshot).toMatchObject({ TRY: "1", EUR: "45" });
   });
 });
