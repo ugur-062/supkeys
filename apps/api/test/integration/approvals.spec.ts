@@ -714,3 +714,63 @@ describe("BK-1 — SAHIP rol-kapsamlı onay akışından muaf DEĞİL", () => {
     ).rejects.toThrow(/uygun bir onaylayıcı yok/i);
   });
 });
+
+describe("X-CF-3 — ilan+tip başına tek bekleyen istek (kısmi unique index)", () => {
+  it("findFirst ön-kontrolü yarışı kaçırsa DB index yakalar → ConflictException", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // SAHIP
+    const approver = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(
+      owner.auth,
+      flowInput([approver.user.id], { initiatorRoles: ["SATIN_ALMACI"] }) as never,
+    );
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "CLOSED",
+      closesAt: future(3),
+    });
+    // Zaten bekleyen bir istek VAR (ilk yarışçı kazandı).
+    await prisma.approvalRequest.create({
+      data: {
+        companyId: owner.company.id,
+        listingId: listing.id,
+        type: "LISTING_AWARD",
+        status: "PENDING",
+        requestNo: "APR-2026-90001",
+        amount: 1 as never,
+        currency: "TRY" as never,
+        createdById: owner.user.id,
+        payload: {} as never,
+      },
+    });
+    // Yarışı simüle et: existingPending ön-kontrolü bir kez NULL görsün
+    // (iki eşzamanlı çağrı da commit'ten önce boş görür). Gerçek koruma DB
+    // kısmi unique index — create P2002 → ConflictException'a çevrilmeli.
+    const spy = jest
+      .spyOn(prisma.approvalRequest, "findFirst")
+      .mockResolvedValueOnce(null as never);
+    try {
+      await expect(
+        approvals.requestApproval(owner.auth as never, {
+          listingId: listing.id,
+          type: "LISTING_AWARD",
+          listingType: "ALIM",
+          amount: 5000,
+          currency: "TRY",
+          payload: { kind: "full", bidId: "test-bid" },
+        } as never),
+      ).rejects.toThrow(/zaten bekleyen/i);
+    } finally {
+      spy.mockRestore();
+    }
+    // Hâlâ TEK bekleyen istek — ikinci üretilmedi.
+    const n = await prisma.approvalRequest.count({
+      where: { listingId: listing.id, type: "LISTING_AWARD", status: "PENDING" },
+    });
+    expect(n).toBe(1);
+  });
+});

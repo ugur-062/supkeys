@@ -28,6 +28,13 @@ export default async function globalSetup(): Promise<void> {
     await p.$executeRawUnsafe(
       `CREATE SEQUENCE IF NOT EXISTS "${TEST_SCHEMA}"."listing_number_seq" START 1`,
     );
+    // X-CF-3: kısmi unique index (listingId,type WHERE PENDING) migration SQL'de
+    // yaşar, Prisma şemasında ifade edilemez → db push türetmez, elle oluştur.
+    await p.$executeRawUnsafe(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "approval_requests_listingId_type_pending_key"
+         ON "${TEST_SCHEMA}"."approval_requests"("listingId", "type")
+         WHERE "status" = 'PENDING'`,
+    );
   } finally {
     await p.$disconnect();
   }

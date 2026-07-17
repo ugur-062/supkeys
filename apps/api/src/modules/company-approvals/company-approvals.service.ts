@@ -539,10 +539,25 @@ export class CompanyApprovalsService {
           select: { id: true },
         });
       } catch (e) {
-        const conflict =
+        if (
           e instanceof Prisma.PrismaClientKnownRequestError &&
-          e.code === "P2002";
-        if (!conflict || attempt === 2) throw e;
+          e.code === "P2002"
+        ) {
+          const target = Array.isArray(e.meta?.target)
+            ? e.meta.target.join(",")
+            : String(e.meta?.target ?? "");
+          // X-CF-3: kısmi unique index (listingId,type WHERE PENDING) → eşzamanlı
+          // mükerrer istek. findFirst ön-kontrolü yarışı kaçırdıysa DB yakalar;
+          // yeniden deneme dup'ı çözmez → hemen çakışma döndür (aynı mesaj).
+          if (target.includes("pending") || target.includes("listingId")) {
+            throw new ConflictException(
+              "Bu ilan için zaten bekleyen bir onay isteği var",
+            );
+          }
+          // (companyId,requestNo) çakışması → yeni no ile son denemeye dek tekrar.
+          if (attempt < 2) continue;
+        }
+        throw e;
       }
     }
     // İlk aktif adımın onaycısına bildir.
