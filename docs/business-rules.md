@@ -54,8 +54,23 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
 
 ## 3. Sipariş / Ödeme
 
-- **Ödeme kategorileri** (ADVANCE/DEFERRED/OPEN_ACCOUNT/CHEQUE/SENET/LC/CASH_AGAINST_DOCS/CUSTOM)
+- **Ödeme kategorileri** (ADVANCE/DEFERRED/OPEN_ACCOUNT/**MAL_MUKABILI**/CHEQUE/SENET/LC/CASH_AGAINST_DOCS/CUSTOM)
   ve zamanlama (BEFORE/AFTER_DELIVERY) plandan türetilir (`derivePaymentTiming`) | 🟡 tasarım
+- **Teslim-sonrası (AFTER_DELIVERY) 3 kategorinin ayrımı — vade günü davranışı:**
+  | Kategori | `paymentDays` | Vade takibi (cron) | Anlam |
+  |---|---|---|---|
+  | **Mal Mukabili** (`MAL_MUKABILI`) | **opsiyonel** (boş = teslimde muaccel) | evet (girilirse) | malı teslim alınca öde — dış ticaret usulü (ithalatta peşinle yarışan yöntem) |
+  | Vadeli (`DEFERRED`) | **zorunlu** | evet | sabit vadeli kredili satış |
+  | Açık Hesap (`OPEN_ACCOUNT`) | yok | hayır | vadesiz, güven ilişkisi / periyodik mutabakat |
+  Mal mukabili ≠ **vesaik mukabili** (`CASH_AGAINST_DOCS`): vesaik = belge karşılığı,
+  teslim **ÖNCESİ** (BEFORE_DELIVERY, `receive()` tam-ödeme kapısı). Mal mukabili =
+  mal karşılığı, teslim **SONRASI**. `MAL_MUKABILI` `DUE_DATE_CATEGORIES`'te →
+  `paymentDueDate = deliveredAt + paymentDays` (gün yoksa null, hatırlatma sessiz) | ✅ `2c12e489`
+- **Kısmi peşin (advancePercent<100) kalan bakiyeye vade — ZATEN VAR:** wizard
+  "Kalan İçin Vade (gün)" alanı **opsiyonel** (boş = kalan teslimde/açık); `ADVANCE`
+  `DUE_DATE_CATEGORIES`'te → `paymentDueDate` hesaplanır, sipariş kartında gösterilir,
+  cron alıcıya vade hatırlatması gönderir. Opsiyonel bırakıldı (bilinçli: "%X peşin +
+  kalan teslimde nakit" senaryosu ifade edilebilsin) | ✅ mevcut
 - **advancePercent ZORUNLU (ADVANCE):** eski sessiz `?? 100` yazma varsayımı kalktı;
   `create-listing.dto` `@ValidateIf(ADVANCE)` + `buildPaymentPlan` throw. Runtime
   `advancePercentFor` `?? 100` backstop KORUNDU (fail-closed — stray/legacy null en
