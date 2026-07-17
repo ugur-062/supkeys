@@ -97,6 +97,25 @@ export class CompanyAddressesService {
         `Bu adres ${activeUse} aktif ilanda kullanılıyor — önce ilanlardaki adresi değiştirin`,
       );
     }
+    // B2 (kör-nokta denetimi): guard yalnız İLANLARI sayıyordu, TEKLİFLERİ değil.
+    // SATIS ilanına verilen teklifin deliveryAddressId'si (onDelete:SetNull) bu
+    // adrese işaret eder; SUBMITTED teklif henüz award edilmedi → adres silinirse
+    // bid adressiz kalır, award'da orderDeliverySnapshot null döner → sipariş
+    // teslim-adressiz doğar (satıcı adressiz sipariş görür). Yalnız SUBMITTED
+    // kilitler: WON/AWARDED_PARTIAL zaten award anında order'a snapshot'landı
+    // (order sabit); DRAFT submit'te resolveBidDeliveryAddress ile yeniden çözülür.
+    const bidUse = await this.prisma.listingBid.count({
+      where: {
+        bidderCompanyId: user.companyId,
+        status: "SUBMITTED",
+        deliveryAddressId: id,
+      },
+    });
+    if (bidUse > 0) {
+      throw new BadRequestException(
+        `Bu adres ${bidUse} gönderilmiş teklifte kullanılıyor — teklif sonuçlanana kadar silinemez`,
+      );
+    }
     await this.prisma.$transaction([
       // Sonuçlanmış (AWARDED/iptal) ilanlardaki sarkan referansları temizle
       // (sipariş adresi zaten award anında snapshot'landı).
