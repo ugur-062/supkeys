@@ -5,6 +5,7 @@ import { sellerShipsGoods } from "@rothern/shared";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import {
+  AlertTriangle,
   Ban,
   CheckCircle2,
   GitPullRequestArrow,
@@ -162,6 +163,27 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       at: fmt(o.completedAt),
       actor: buyerLabel,
       lines: o.completedNote ? [o.completedNote] : [],
+    });
+  }
+  // A1: satıcı iptal talebi (açık ya da ihtilafa dönüşmüş) + ihtilaf damgası.
+  if (o.cancelRequestedAt) {
+    events.push({
+      icon: AlertTriangle,
+      tone: "text-zinc-500",
+      title: "Satıcı İptal Talep Etti",
+      at: fmt(o.cancelRequestedAt),
+      actor: sellerLabel,
+      lines: o.cancelRequestReason ? [`Gerekçe: ${o.cancelRequestReason}`] : [],
+    });
+  }
+  if (o.disputedAt) {
+    events.push({
+      icon: AlertTriangle,
+      tone: "text-amber-600",
+      title: "Sipariş İhtilaflı",
+      at: fmt(o.disputedAt),
+      actor: buyerLabel,
+      lines: ["İptal talebi reddedildi — iki-yönlü çıkış açık."],
     });
   }
   if (o.cancelledAt) {

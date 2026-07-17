@@ -11,7 +11,8 @@ export type CompanyOrderStatus =
   | "DELIVERED"
   | "COMPLETED"
   | "REJECTED"
-  | "CANCELLED";
+  | "CANCELLED"
+  | "DISPUTED";
 
 export type PaymentStatus =
   | "AWAITING_CONFIRMATION"
@@ -152,6 +153,11 @@ export interface CompanyOrderDetail extends CompanyOrder {
   rejectedReason: string | null;
   cancelledAt: string | null;
   cancelReason: string | null;
+  // A1 — satıcı iptal talebi + ihtilaf. Açık talep = status ACCEPTED && cancelRequestedAt.
+  cancelRequestedAt?: string | null;
+  cancelRequestReason?: string | null;
+  cancelRequestById?: string | null;
+  disputedAt?: string | null;
 }
 
 export interface AcceptOrderInput {
@@ -275,6 +281,54 @@ export function useCancelOrder(id: string) {
       const { data } = await companyApi.post(`/company/orders/${id}/cancel`, {
         reason,
       });
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+  });
+}
+
+/** A1 — Satıcı: iptal talebi aç (gerekçe zorunlu, min 10). */
+export function useRequestCancel(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (reason: string) => {
+      const { data } = await companyApi.post(
+        `/company/orders/${id}/cancel-request`,
+        { reason },
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+  });
+}
+
+/** A1 — Satıcı: açık iptal talebini geri çek. */
+export function useWithdrawCancelRequest(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post(
+        `/company/orders/${id}/cancel-request/withdraw`,
+        {},
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+  });
+}
+
+/** A1 — Alıcı iptal talebi kararı: approve (→CANCELLED) | reject (→DISPUTED). */
+export function useCancelRequestDecision(
+  id: string,
+  action: "approve" | "reject",
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input?: { note?: string }) => {
+      const { data } = await companyApi.post(
+        `/company/orders/${id}/cancel-request/${action}`,
+        action === "reject" ? { note: input?.note } : {},
+      );
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),

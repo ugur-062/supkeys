@@ -71,6 +71,10 @@ const STATUS_META: Record<
     label: "İptal Edildi",
     pill: "bg-danger-50 text-danger-700 border-danger-200",
   },
+  DISPUTED: {
+    label: "İhtilaflı",
+    pill: "bg-amber-50 text-amber-700 border-amber-200",
+  },
 };
 
 function OrderStatusBadge({

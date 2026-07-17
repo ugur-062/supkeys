@@ -16,6 +16,7 @@ import { OrderPaymentsCard } from "@/components/orders/order-payments-card";
 import {
   useAcceptOrder,
   useCancelOrder,
+  useRequestCancel,
   useCompleteOrder,
   useOrder,
   useReceiveOrder,
@@ -30,6 +31,7 @@ import { sellerShipsGoods } from "@rothern/shared";
 import { OrderDocumentsSection } from "./_components/order-documents-section";
 import { LcStepPanel } from "./_components/lc-step-panel";
 import { OrderRevisionPanel } from "./_components/order-revision-panel";
+import { OrderCancelRequestPanel } from "./_components/order-cancel-request-panel";
 import {
   AcceptOrderModal,
   NoteModal,
@@ -82,6 +84,7 @@ const STATUS_META: Record<
   COMPLETED: { label: "Tamamlandı", color: "green" },
   REJECTED: { label: "Reddedildi", color: "red" },
   CANCELLED: { label: "İptal", color: "zinc" },
+  DISPUTED: { label: "İhtilaflı", color: "amber" },
 };
 
 // Legacy CREATED siparişler ACCEPTED hizasında gösterilir.
@@ -126,8 +129,16 @@ export default function OrderDetailPage() {
   const accept = useAcceptOrder(id);
   const reject = useRejectOrder(id);
   const cancel = useCancelOrder(id);
+  const requestCancel = useRequestCancel(id);
   const [modal, setModal] = useState<
-    "accept" | "reject" | "cancel" | "ship" | "receive" | "complete" | null
+    | "accept"
+    | "reject"
+    | "cancel"
+    | "cancelRequest"
+    | "ship"
+    | "receive"
+    | "complete"
+    | null
   >(null);
 
   // WS: bu siparişin odasına abone ol — karşı tarafın adımı anında düşer.
@@ -184,7 +195,10 @@ export default function OrderDetailPage() {
   // Sonraki ana aksiyon (modal açar).
   const next =
     isSeller &&
-    (o.status === "ACCEPTED" || o.status === "CREATED") &&
+    // A1: DISPUTED'dan da sevk edilebilir (mal bulundu → ihtilaf çözülür).
+    (o.status === "ACCEPTED" ||
+      o.status === "CREATED" ||
+      o.status === "DISPUTED") &&
     !paymentAwaitingConfirmation &&
     shipUnlocked
       ? {
@@ -204,9 +218,15 @@ export default function OrderDetailPage() {
   const advanceGate =
     isSeller &&
     !isLc &&
-    (o.status === "ACCEPTED" || o.status === "CREATED") &&
+    (o.status === "ACCEPTED" ||
+      o.status === "CREATED" ||
+      o.status === "DISPUTED") &&
     !advanceMet &&
     !paymentAwaitingConfirmation;
+
+  // A1: açık satıcı iptal talebi = ACCEPTED && cancelRequestedAt dolu.
+  const pendingCancelRequest =
+    o.status === "ACCEPTED" && !!o.cancelRequestedAt;
 
   const close = () => setModal(null);
   const run = async (p: Promise<unknown>, ok: string, fallback: string) => {
@@ -235,6 +255,12 @@ export default function OrderDetailPage() {
     run(reject.mutateAsync(reason), "Sipariş reddedildi", "İşlem başarısız");
   const doCancel = (reason: string) =>
     run(cancel.mutateAsync(reason), "Sipariş iptal edildi", "İptal edilemedi");
+  const doRequestCancel = (reason: string) =>
+    run(
+      requestCancel.mutateAsync(reason),
+      "İptal talebi gönderildi — alıcının onayına düştü",
+      "Talep gönderilemedi",
+    );
 
   const handlePrint = () => {
     if (!o) return;
@@ -282,6 +308,17 @@ export default function OrderDetailPage() {
                 Siparişi İptal Et
               </Button>
             )
+          ) : null}
+          {/* A1: satıcı ACCEPTED siparişte iptal TALEBİ açar (açık talep yoksa).
+              Alıcı onaylar → CANCELLED, reddeder → DISPUTED. */}
+          {isSeller && o.status === "ACCEPTED" && !pendingCancelRequest ? (
+            <Button
+              plain
+              onClick={() => setModal("cancelRequest")}
+              disabled={requestCancel.isPending}
+            >
+              İptal Talebi
+            </Button>
           ) : null}
           <Button outline onClick={handlePrint}>
             Yazdır / PDF
@@ -696,6 +733,8 @@ export default function OrderDetailPage() {
       </section>
 
       {/* Sipariş revizyon müzakeresi (satıcı öner / alıcı karar) */}
+      <OrderCancelRequestPanel order={o} />
+
       <OrderRevisionPanel order={o} />
 
       {/* Akreditif adımları (yalnız LC siparişte) */}
@@ -767,6 +806,16 @@ export default function OrderDetailPage() {
         title="Siparişi İptal Et"
         description="İptal gerekçesi satıcıya iletilir."
         confirmLabel="Siparişi İptal Et"
+        minLength={10}
+      />
+      <ReasonModal
+        open={modal === "cancelRequest"}
+        onClose={close}
+        onSubmit={doRequestCancel}
+        pending={requestCancel.isPending}
+        title="İptal Talebi Aç"
+        description="Neden sevk edemiyorsunuz? Gerekçe alıcıya iletilir; alıcı onaylarsa sipariş iptal olur, reddederse ihtilaflı olarak işaretlenir."
+        confirmLabel="İptal Talebi Gönder"
         minLength={10}
       />
     </div>
