@@ -33,6 +33,7 @@ import { useAddresses } from "@/hooks/use-company-addresses";
 import { BUYER_ADDRESS_REQUIRED_TERMS } from "@/lib/tenders/labels";
 import type { DeliveryTerm } from "@/lib/tenders/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { moneyInputError } from "@/lib/money-input";
 import { formatDateTime, todayLocalISO } from "@/lib/tenders/date";
 import { subscribeRealtime } from "@/lib/realtime";
 import { daysUntil } from "@/lib/tenders/seller-state";
@@ -676,8 +677,12 @@ export default function TeklifVerPage() {
       if (l.requireAllItems && pricedItems.length < items.length)
         problems.push("Bu ihalede tüm kalemlere teklif vermelisiniz.");
     } else if (!hasItems && !isBuyNowMode) {
-      if (!singleAmount || Number(singleAmount) <= 0)
-        problems.push("Geçerli bir tutar girin.");
+      // F4: min 0.01 + 2 ondalık + MAX_MONEY (backend place-bid.dto birebir).
+      if (!singleAmount) problems.push("Geçerli bir tutar girin.");
+      else {
+        const e = moneyInputError(Number(singleAmount));
+        if (e) problems.push(e);
+      }
     }
     if (hasItems) {
       const scope = isBuyNowMode
@@ -696,12 +701,16 @@ export default function TeklifVerPage() {
           "Bu ihalede tüm kalemlere teklif zorunlu — kalem kapsam dışı bırakılamaz.",
         );
     }
-    if (
-      hasItems &&
-      !isBuyNowMode &&
-      pricedItems.some((it) => Number(itemState[it.id]?.price ?? 0) <= 0)
-    )
-      problems.push("Fiyatlanan her kalemin birim fiyatı sıfırdan büyük olmalı.");
+    if (hasItems && !isBuyNowMode) {
+      // F4: fiyatlanan her kalem >0 + 2 ondalık + MAX_MONEY (backend unitPrice birebir).
+      for (const it of pricedItems) {
+        const e = moneyInputError(Number(itemState[it.id]?.price ?? 0));
+        if (e) {
+          problems.push(`"${it.name}" kalemi birim fiyatı: ${e}.`);
+          break;
+        }
+      }
+    }
     // Genel teslim tarihi yalnız kalem tarihi GİRİLMEYEN kalem varsa zorunlu.
     if (!everyBidItemHasDelivery && !deliveryDate)
       problems.push(

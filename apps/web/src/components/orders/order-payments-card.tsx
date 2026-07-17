@@ -8,6 +8,7 @@ import {
 } from "@/hooks/use-company-orders";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { moneyInputError } from "@/lib/money-input";
 import { CURRENCY_SYMBOL, formatPaymentPlan } from "@/lib/tenders/labels";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
@@ -85,8 +86,10 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
 
   const submit = async () => {
     const value = Number(amount.replace(",", "."));
-    if (!(value > 0)) {
-      toast.error("Geçerli bir tutar gir");
+    // F4: min 0.01 + 2 ondalık + MAX_MONEY (backend order-payment.dto birebir).
+    const e = moneyInputError(value);
+    if (e) {
+      toast.error(e);
       return;
     }
     try {

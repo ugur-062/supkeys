@@ -1,4 +1,18 @@
 import { z } from "zod";
+import {
+  MAX_MONEY,
+  MAX_QUANTITY,
+  MIN_QUANTITY,
+  MONEY_DECIMALS,
+  QUANTITY_DECIMALS,
+} from "@rothern/shared";
+import { closesAtError } from "./closes-at";
+import { maxDecimals } from "../money-input";
+
+const money = (schema: z.ZodNumber) =>
+  schema
+    .max(MAX_MONEY, "Tutar çok büyük")
+    .refine((n) => maxDecimals(n, MONEY_DECIMALS), "En fazla 2 ondalık");
 
 /** İlan başına kalem tavanı — backend CreateListingDto.items ArrayMaxSize ile
  *  birebir. Sınırsız DEĞİL: teklif karşılaştırma matrisi (kalem × teklifçi),
@@ -108,26 +122,28 @@ export type TenderItemQuestion = z.infer<typeof tenderItemQuestionSchema>;
 
 export const tenderItemSchema = z.object({
   // SATIS + KALEM fiyatlandırma: kalem taban / hemen-al birim fiyatları.
-  minUnitPrice: z
-    .number({ invalid_type_error: "Geçersiz fiyat" })
-    .min(0.01, "Taban birim fiyat 0'dan büyük olmalı")
-    .optional(),
-  buyNowUnitPrice: z
-    .number({ invalid_type_error: "Geçersiz fiyat" })
-    .min(0.01)
-    .optional(),
+  minUnitPrice: money(
+    z
+      .number({ invalid_type_error: "Geçersiz fiyat" })
+      .min(0.01, "Taban birim fiyat 0'dan büyük olmalı"),
+  ).optional(),
+  buyNowUnitPrice: money(
+    z.number({ invalid_type_error: "Geçersiz fiyat" }).min(0.01),
+  ).optional(),
   name: z.string().min(1, "Kalem adı zorunlu").max(200, "Maksimum 200 karakter"),
   description: z.string().max(2000, "Maksimum 2000 karakter").optional(),
+  // F3: backend create-listing.dto ile birebir (@Min 0.001, @Max 1e9, 3 ondalık).
   quantity: z
     .number({ invalid_type_error: "Miktar girilmeli" })
-    .min(0.0001, "Miktar 0'dan büyük olmalı"),
+    .min(MIN_QUANTITY, "Miktar 0.001'den küçük olamaz")
+    .max(MAX_QUANTITY, "Miktar çok büyük")
+    .refine((n) => maxDecimals(n, QUANTITY_DECIMALS), "En fazla 3 ondalık"),
   unit: z.string().min(1, "Birim zorunlu").max(20, "Maksimum 20 karakter"),
   materialCode: z.string().max(50, "Maksimum 50 karakter").optional(),
   requiredByDate: z.string().optional(),
-  targetUnitPrice: z
-    .number({ invalid_type_error: "Geçersiz fiyat" })
-    .min(0)
-    .optional(),
+  targetUnitPrice: money(
+    z.number({ invalid_type_error: "Geçersiz fiyat" }).min(0),
+  ).optional(),
   customQuestion: z.string().max(500, "Maksimum 500 karakter").optional(),
   questions: z.array(tenderItemQuestionSchema).max(20).optional(),
 });
@@ -308,13 +324,16 @@ export const tenderFormSchema = baseTenderSchema
       path: ["paymentNote"],
     },
   )
-  .refine(
-    (d) => {
-      const t = new Date(d.bidsCloseAt).getTime();
-      return Number.isFinite(t) && t > Date.now();
-    },
-    { message: "Kapanış tarihi gelecekte olmalı", path: ["bidsCloseAt"] },
-  )
+  // F2: kapanış gelecekte + en fazla 2 yıl (backend birebir) — tek kaynak helper.
+  .superRefine((d, ctx) => {
+    const err = closesAtError(d.bidsCloseAt);
+    if (err)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: err,
+        path: ["bidsCloseAt"],
+      });
+  })
   .refine(
     (d) => {
       if (!d.bidsOpenAt) return true;

@@ -194,6 +194,39 @@ describe("tenderFormSchema", () => {
   });
 });
 
+describe("tenderFormSchema — sınır tavanları (F2/F3, backend DTO birebir)", () => {
+  it("F2: kapanış 2 yıldan ileri olamaz", () => {
+    const tooFar = new Date(
+      Date.now() + 3 * 365 * 24 * 3600 * 1000,
+    ).toISOString();
+    const res = tenderFormSchema.safeParse(validForm({ bidsCloseAt: tooFar }));
+    expect(res.success).toBe(false);
+    if (!res.success)
+      expect(res.error.issues.some((i) => /2 yıl/.test(i.message))).toBe(true);
+  });
+
+  it("F3: quantity 1e9'dan büyük olamaz", () => {
+    const res = tenderFormSchema.safeParse(
+      validForm({ items: [{ name: "K", quantity: 2_000_000_000, unit: "adet" }] }),
+    );
+    expect(res.success).toBe(false);
+  });
+
+  it("F3: quantity en fazla 3 ondalık", () => {
+    const res = tenderFormSchema.safeParse(
+      validForm({ items: [{ name: "K", quantity: 1.2345, unit: "adet" }] }),
+    );
+    expect(res.success).toBe(false);
+  });
+
+  it("F3: quantity 0.001 geçerli, 3 ondalık geçerli", () => {
+    const res = tenderFormSchema.safeParse(
+      validForm({ items: [{ name: "K", quantity: 0.001, unit: "adet" }] }),
+    );
+    expect(res.success).toBe(true);
+  });
+});
+
 describe("tenderFormSchema — SATIS (satış ihalesi)", () => {
   it("SATIS: taban fiyat zorunlu; verilince geçer", () => {
     const noMin = tenderFormSchema.safeParse(

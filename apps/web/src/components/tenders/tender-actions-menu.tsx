@@ -36,6 +36,7 @@ import {
   useUpdateInternalNotes,
 } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { closesAtError } from "@/lib/tenders/closes-at";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -201,8 +202,10 @@ export function TenderActionsMenu({
   const isOpen = status === "OPEN";
 
   const handleNextRound = async () => {
-    if (!nrClosing) {
-      toast.error("Kapanış tarihi seç");
+    // F2: kapanış gelecekte + en fazla 2 yıl (backend birebir) — sessiz-400 yerine.
+    const closingErr = closesAtError(nrClosing);
+    if (closingErr) {
+      toast.error(closingErr);
       return;
     }
     const isAuc = nrType === "ENGLISH_AUCTION";
@@ -304,8 +307,10 @@ export function TenderActionsMenu({
   };
 
   const handleChangeClosing = async () => {
-    if (!newClosing) {
-      toast.error("Tarih seç");
+    // F2: gelecekte + en fazla 2 yıl (backend changeClosingTime birebir).
+    const err = closesAtError(newClosing);
+    if (err) {
+      toast.error(err);
       return;
     }
     try {
