@@ -6195,7 +6195,10 @@ export class CompanyListingsService {
       paymentDays: l.paymentDays,
       lcType: l.lcType,
       lcConfirmed: l.lcConfirmed,
-      paymentNote: l.paymentNote,
+      // BK-B (kör-nokta denetimi): serbest-metin → maskeli PUBLIC teaser'da gizle
+      // (description/terms/minPrice ile tutarlı; sahip IBAN/iletişim yazarsa
+      // bağlantısız/davetsiz izleyiciye sızmasın).
+      paymentNote: masked ? null : l.paymentNote,
       paymentTiming: l.paymentTiming,
       // Teslim-öncesi ödemede teminat şartı — teklifçi teklif vermeden görsün.
       requireGuaranteeLetter: l.requireGuaranteeLetter,

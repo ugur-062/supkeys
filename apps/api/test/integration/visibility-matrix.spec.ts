@@ -37,6 +37,8 @@ async function listing(visibility: "PUBLIC" | "CONNECTIONS" | "PRIVATE") {
     status: "OPEN",
     visibility,
     closesAt: FUTURE,
+    // BK-B: serbest-metin ödeme notu — maskeli teaser'da gizlenmeli.
+    paymentNote: "Ödeme: IBAN TR00 ... 0000, muhasebe@firma.com",
   });
   await makeItem(prisma, l.id);
   return { service, owner, l };
@@ -50,10 +52,13 @@ describe("getOne — görüntüleme & maskeleme matrisi", () => {
       masked: boolean;
       canBid: boolean;
       items: unknown[];
+      paymentNote: unknown;
     };
     expect(res.masked).toBe(false);
     expect(res.canBid).toBe(true);
     expect(res.items.length).toBe(1);
+    // Maskesiz izleyici ödeme notunu görür.
+    expect(res.paymentNote).toBe("Ödeme: IBAN TR00 ... 0000, muhasebe@firma.com");
   });
 
   it("PUBLIC + STANDARD bağlı-değil → görür ama MASKELİ (kalem teaser, teklif veremez)", async () => {
@@ -66,12 +71,15 @@ describe("getOne — görüntüleme & maskeleme matrisi", () => {
       masked: boolean;
       canBid: boolean;
       items: { targetPrice: unknown }[];
+      paymentNote: unknown;
     };
     expect(res.masked).toBe(true);
     expect(res.canBid).toBe(false);
     // Teaser: kalem görünür (ne alınıyor belli) ama fiyat gizli.
     expect(res.items.length).toBe(1);
     expect(res.items[0].targetPrice).toBeNull();
+    // BK-B: serbest-metin ödeme notu maskede sızmaz.
+    expect(res.paymentNote).toBeNull();
   });
 
   it("PUBLIC + STANDARD ama BAĞLI → maskesiz", async () => {
