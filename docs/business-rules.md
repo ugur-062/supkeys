@@ -77,6 +77,18 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
   `DUE_DATE_CATEGORIES`'te → `paymentDueDate` hesaplanır, sipariş kartında gösterilir,
   cron alıcıya vade hatırlatması gönderir. Opsiyonel bırakıldı (bilinçli: "%X peşin +
   kalan teslimde nakit" senaryosu ifade edilebilsin) | ✅ mevcut
+- **Muayene/kabul + ayıp ihbarı (TTK 23):** tacirler arası satışta alıcı teslim alınca
+  malı inceleyip ayıbı süresinde ihbar etmezse **seçimlik haklarını kaybeder** (dönme/
+  bedel indirimi/onarım/değişim/tazminat). Sistemde muayene/ayıp yolu yoktu ("Teslim
+  Aldım" tek tıkla kabul). Eklendi: alıcı **teslimden 8 gün** içinde **Ayıp İhbarı**
+  açar (gerekçe min 10) → DISPUTED. Tek pencere (2/8 açık/gizli ayrımı hukuki
+  nitelendirme, buton değil); DELIVERED **ve** COMPLETED'da açık (TTK ödemeye bakmaz →
+  COMPLETED non-terminal). 8 gün dolunca buton kapanır — **otomatik kabul/damga YOK**
+  (hak-kaybı yasal sonuç, platform damgası değil). Çıkış: alıcı ihbarı geri çeker →
+  önceki durum; satıcının on-platform aksiyonu yok (çözüm taraflar arasında). Platform
+  icra etmez/hakem değildir — ihbarı KAYDEDER (audit = delil). A1 (satıcı iptal talebi)
+  DISPUTED'ından `defectNotifiedAt` ile ayrılır; A1 çıkışları (sevk/iptal-onay) ayıp-
+  DISPUTED'ta kapalı | ✅ **TTK-23**, `a28d4871`
 - **Satıcı iptal talebi + DISPUTED (A1):** satıcının ACCEPTED sonrası çıkışı yoktu
   (mal bulunamıyor → sipariş sonsuza dek "Onaylandı"da yalan söylüyordu). Satıcı yalnız
   **ACCEPTED**'te iptal TALEP eder (gerekçe min 10); alıcı **onaylar → CANCELLED** ya da
