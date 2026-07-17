@@ -89,6 +89,24 @@ describe("bağlantı yaşam döngüsü", () => {
     expect(await service.listOutgoing(a.company.id)).toHaveLength(0);
   });
 
+  it("T2 (INV-TIER-1): inviter üyeliği dolunca bağlantı listede PASİF (CL:connectedCompanyIds birebir)", async () => {
+    const { service } = rig();
+    const { a, b, bCode } = await twoCompanies();
+    const res = await service.invite(a.auth, bCode);
+    await service.accept(b.auth, res.id);
+    expect(await service.list(a.company.id)).toHaveLength(1);
+    expect(await service.list(b.company.id)).toHaveLength(1);
+    // Daveti KURAN taraf (inviter = a) üyeliği doldu → efektif STANDARD.
+    await prisma.company.update({
+      where: { id: a.company.id },
+      data: { tier: "PAKET", membershipEndAt: new Date(Date.now() - 86_400_000) },
+    });
+    // Ham tier hâlâ PAKET; eskiden bağlantı aktif görünüyordu (CL ile ıraksama).
+    // Artık efektif STANDARD → iki listede de pasif.
+    expect(await service.list(a.company.id)).toHaveLength(0);
+    expect(await service.list(b.company.id)).toHaveLength(0);
+  });
+
   it("reddet kaydı siler; tekrar davet edilebilir", async () => {
     const { service } = rig();
     const { a, b, bCode } = await twoCompanies();

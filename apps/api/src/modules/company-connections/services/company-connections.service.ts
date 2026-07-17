@@ -15,6 +15,10 @@ import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/com
 import { EmailService } from "../../email/email.service";
 import { NotificationService } from "../../notifications/notification.service";
 import { resolveWebUrl } from "../../../common/config/web-url";
+import {
+  effectiveTier,
+  effectivePaidWhere,
+} from "../../../common/company/effective-tier";
 
 type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
 
@@ -24,6 +28,7 @@ const COMPANY_CARD_SELECT = {
   name: true,
   rothernId: true,
   tier: true,
+  membershipEndAt: true, // INV-TIER-1: effectiveTier hesabı için
   taxNumber: true,
   city: true,
   country: true,
@@ -446,7 +451,11 @@ export class CompanyConnectionsService {
         // hem PREMIUM hem INVITE için (ADMIN hariç: platform kararı, hep açık).
         // Ödemeyi bırakınca kendi başlattığın ağı kaybedersin; açık kalan tek
         // pencere hâlâ ödeyen birinin seni davet ettiği bağlantılardır.
-        (r) => r.origin === "ADMIN" || r.inviter.tier === "PAKET",
+        // INV-TIER-1: EFEKTİF tier (CL:connectedCompanyIds ile BİREBİR) — süresi
+        // dolmuş inviter'ın bağlantısı bayat PAKET ile aktif görünmesin.
+        (r) =>
+          r.origin === "ADMIN" ||
+          effectiveTier(r.inviter.tier, r.inviter.membershipEndAt) === "PAKET",
       )
       .map((r) => {
         const other = r.inviterCompanyId === companyId ? r.invitee : r.inviter;
@@ -458,7 +467,9 @@ export class CompanyConnectionsService {
             id: other.id,
             name: other.name,
             rothernId: other.rothernId,
-            tier: other.tier,
+            // INV-TIER-1: gösterilen tier rozeti efektif (süresi-dolmuş PAKET
+            // "PAKET" göstermesin).
+            tier: effectiveTier(other.tier, other.membershipEndAt),
             taxNumber: other.taxNumber,
             city: other.city,
             country: other.country,
@@ -511,7 +522,8 @@ export class CompanyConnectionsService {
 
     const companies = await this.prisma.company.findMany({
       where: {
-        tier: "PAKET",
+        // INV-TIER-1: efektif PAKET (keşifte süresi-dolmuş PAKET aday çıkmasın).
+        ...effectivePaidWhere(),
         isActive: true,
         isBlocked: false,
         id: { notIn: [...exclude] },
@@ -607,7 +619,8 @@ export class CompanyConnectionsService {
         isActive: true,
         isBlocked: false,
         publicEnabled: true,
-        tier: "PAKET",
+        // INV-TIER-1: efektif PAKET (dizin aramasında süresi-dolmuş PAKET çıkmasın).
+        ...effectivePaidWhere(),
         ...text,
       },
       select: {
@@ -669,6 +682,7 @@ export class CompanyConnectionsService {
         isActive: true,
         isBlocked: true,
         tier: true,
+        membershipEndAt: true, // INV-TIER-1: effectiveTier hesabı için
         // Kamuya açık ticari sicil bilgileri (tüzel kişi verisi — KVKK dışı).
         // IBAN / yetkili TCKN / fatura iletişimi ASLA buraya girmez.
         legalName: true,
@@ -720,8 +734,12 @@ export class CompanyConnectionsService {
     //   VE izleyen de PAKET (dizin). STANDARD firma yalnız BAĞLANTILARINA görünür;
     //   STANDARD izleyen yalnız ilişkili firmayı görür. Varlığı sızdırmamak için 404.
     const related = isSelf || connectionStatus !== "none";
+    // INV-TIER-1: hedefin EFEKTİF tier'ı (süresi-dolmuş PAKET profili public
+    // dizinde görünmesin). user.tier zaten JWT'den efektif.
     const publiclyListed =
-      user.tier === "PAKET" && c.tier === "PAKET" && c.publicEnabled;
+      user.tier === "PAKET" &&
+      effectiveTier(c.tier, c.membershipEndAt) === "PAKET" &&
+      c.publicEnabled;
     if (!related && !publiclyListed) {
       throw new NotFoundException("Firma profili bulunamadı");
     }
