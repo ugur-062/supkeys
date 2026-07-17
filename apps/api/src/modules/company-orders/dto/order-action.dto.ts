@@ -77,8 +77,11 @@ export class ReviseOrderItemDto {
 
   // Tekil tavan — satır çarpımı (× miktar) ve genel toplam taşması AYRICA
   // serviste MAX_MONEY ile denetlenir.
+  // BK-2: >0 (placeBid ile simetri). 0-fiyatlı kalem iş açısından anlamsız;
+  // satıcı revizyonla siparişi 0'layıp alıcı yanlışlıkla onaylarsa sıfır ödemeyle
+  // COMPLETED oluyordu (isFullyPaid(0,·) true).
   @IsNumber({ maxDecimalPlaces: 2 })
-  @Min(0, { message: "Birim fiyat negatif olamaz" })
+  @Min(0.01, { message: "Birim fiyat 0'dan büyük olmalı" })
   @Max(MAX_MONEY, { message: "Birim fiyat çok büyük" })
   unitPrice!: number;
 

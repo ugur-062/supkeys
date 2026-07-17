@@ -259,6 +259,17 @@ describe("DTO doğrulama (global ValidationPipe)", () => {
           items: [{ ...validItem, unitPrice: MAX_MONEY + 1 }],
         }),
       ).rejects.toBeDefined();
+      // BK-2: 0-fiyatlı revizyon reddedilir (placeBid ile simetri); 0.01 kabul.
+      await expect(
+        validate(ProposeRevisionDto, {
+          items: [{ ...validItem, unitPrice: 0 }],
+        }),
+      ).rejects.toBeDefined();
+      await expect(
+        validate(ProposeRevisionDto, {
+          items: [{ ...validItem, unitPrice: 0.01 }],
+        }),
+      ).resolves.toBeDefined();
     });
 
     it("CreateApprovalFlowDto conditionMinAmount tavanı aşan red", async () => {
