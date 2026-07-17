@@ -6241,11 +6241,6 @@ export class CompanyListingsService {
   }
 
   /**
-   * Aktif bağlantılı firma id'leri (her iki yön).
-   * PREMIUM-origin bağlantı yalnızca İKİ taraf da PAKET iken sayılır
-   * (premium bitince pasif). INVITE/ADMIN her zaman geçerli.
-   */
-  /**
    * Ülke kapsamı uygunluğu (getOne ile aynı kural — tek kaynak). Uluslararası
    * ilan: farklı ülke + (hedef ülkeler boş ya da izleyeni içeriyor). Yurtiçi
    * ilan: aynı ülke. Sahip her zaman uygun (çağıran ayrıca kontrol eder).
