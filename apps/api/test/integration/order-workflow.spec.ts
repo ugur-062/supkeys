@@ -113,6 +113,122 @@ describe("teslim şekline göre gönderim bildirimi (deliveryTerm)", () => {
   });
 });
 
+describe("TTK 23 — muayene/ayıp ihbarı (8 gün)", () => {
+  const REASON = "teslim edilen mallar spesifikasyona uygun değil";
+
+  it("DELIVERED'da ihbar → DISPUTED (disputePrevStatus=DELIVERED)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DELIVERED",
+      acceptedAt: future(-3),
+      deliveredAt: future(-2),
+    });
+    await orders.raiseDefectNotice(buyer.auth, order.id, REASON);
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("DISPUTED");
+    expect(db.defectNotifiedAt).not.toBeNull();
+    expect(db.disputePrevStatus).toBe("DELIVERED");
+    expect(db.defectReason).toBe(REASON);
+  });
+
+  it("COMPLETED'da (BEFORE_DELIVERY oto-tamamlanmış) ihbar → DISPUTED; COMPLETED non-terminal", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "COMPLETED",
+      acceptedAt: future(-3),
+      deliveredAt: future(-2),
+      completedAt: future(-2),
+    });
+    await orders.raiseDefectNotice(buyer.auth, order.id, REASON);
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("DISPUTED");
+    expect(db.disputePrevStatus).toBe("COMPLETED");
+  });
+
+  it("8 gün geçince ihbar REDDEDİLİR (pencere kapalı)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DELIVERED",
+      acceptedAt: future(-10),
+      deliveredAt: future(-9),
+    });
+    await expect(
+      orders.raiseDefectNotice(buyer.auth, order.id, REASON),
+    ).rejects.toThrow(/süre/i);
+    // OTOMATİK KABUL YOK: süre dolsa da durum DEĞİŞMEZ (DELIVERED kalır).
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("DELIVERED");
+  });
+
+  it("geri çek → önceki duruma döner (DELIVERED ve COMPLETED)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    for (const prev of ["DELIVERED", "COMPLETED"] as const) {
+      const order = await makeOrder(seller.company.id, buyer.company.id, {
+        status: prev,
+        acceptedAt: future(-3),
+        deliveredAt: future(-2),
+        ...(prev === "COMPLETED" ? { completedAt: future(-2) } : {}),
+      });
+      await orders.raiseDefectNotice(buyer.auth, order.id, REASON);
+      await orders.withdrawDefectNotice(buyer.auth, order.id);
+      const db = await prisma.companyOrder.findUniqueOrThrow({
+        where: { id: order.id },
+      });
+      expect(db.status).toBe(prev);
+      expect(db.defectNotifiedAt).toBeNull();
+      expect(db.disputePrevStatus).toBeNull();
+    }
+  });
+
+  it("ayıp-DISPUTED SEVK EDİLEMEZ ve A1 iptal-onayı ETKİLEMEZ", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DELIVERED",
+      acceptedAt: future(-3),
+      deliveredAt: future(-2),
+    });
+    await orders.raiseDefectNotice(buyer.auth, order.id, REASON);
+    // Satıcı sevk edemez (mal zaten teslim).
+    await expect(
+      orders.ship(seller.auth, order.id, { invoiceNumber: "F-X" } as never),
+    ).rejects.toThrow(/ayıp/i);
+    // A1 iptal-onayı ayıp-DISPUTED'ı iptal edemez (defectNotifiedAt guard).
+    await expect(
+      orders.approveCancelRequest(buyer.auth, order.id),
+    ).rejects.toThrow();
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("DISPUTED");
+  });
+
+  it("audit izi: defect_notified", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DELIVERED",
+      acceptedAt: future(-3),
+      deliveredAt: future(-2),
+    });
+    await orders.raiseDefectNotice(buyer.auth, order.id, REASON);
+    const n = await prisma.auditLog.count({
+      where: { action: "company.order.defect_notified", entityId: order.id },
+    });
+    expect(n).toBe(1);
+  });
+});
+
 describe("MAL_MUKABILI — ödeme penceresi teslim SONRASI (AFTER_DELIVERY)", () => {
   it("ACCEPTED'da recordPayment REDDEDİLİR; accept→ship→receive→DELIVERED sonrası KABUL", async () => {
     const orders = makeOrdersService();

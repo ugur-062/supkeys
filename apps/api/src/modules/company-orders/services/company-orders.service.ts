@@ -47,6 +47,10 @@ import { resolveWebUrl } from "../../../common/config/web-url";
  */
 const ORDERS_LIST_CAP = 1000;
 
+// TTK 23 muayene/ayıp ihbarı penceresi — teslimden itibaren gün. Tek pencere
+// (2/8 açık/gizli ayrımı hukuki nitelendirme, buton değil): en geniş süreyi ver.
+const DEFECT_NOTICE_WINDOW_DAYS = 8;
+
 @Injectable()
 export class CompanyOrdersService {
   private readonly logger = new Logger(CompanyOrdersService.name);
@@ -286,6 +290,15 @@ export class CompanyOrdersService {
    *  ödemeyi onaylamalı ya da reddetmeli (alıcı tamamlama kapısının simetriği). */
   async ship(user: AuthenticatedCompanyUser, id: string, input: ShipOrderDto) {
     const order = await this.loadParticipant(user, id);
+    // TTK 23: ayıp ihbarı DISPUTED'ında satıcı SEVK EDEMEZ (mal zaten teslim,
+    // ihtilaf muayene/ayıp meselesi). A1 (satıcı iptal talebi) DISPUTED'ında
+    // sevk açık kalır — ayrımı defectNotifiedAt yapar. (ship from-list DISPUTED
+    // içerdiğinden bu guard olmadan ayıplı sipariş sevk yoluna girerdi.)
+    if (order.status === "DISPUTED" && order.defectNotifiedAt) {
+      throw new BadRequestException(
+        "Ayıp ihbarı bulunan sipariş sevk edilemez — mal zaten teslim edilmiş; çözüm taraflar arasında",
+      );
+    }
     const category = order.paymentCategory as PaymentCategory;
     // AKREDİTİF: satıcı, alıcının açtırdığı akreditifi KABUL etmeden gönderemez
     // (banka güvencesi teyit edilmeden mal yola çıkmasın — S5 adım kilidi).
@@ -713,7 +726,9 @@ export class CompanyOrdersService {
         id,
         OR: [
           { status: "ACCEPTED", cancelRequestedAt: { not: null } },
-          { status: "DISPUTED" },
+          // TTK 23: yalnız A1 (satıcı iptal talebi) DISPUTED'ı — ayıp ihbarı
+          // DISPUTED'ı (defectNotifiedAt dolu) buradan iptal edilemez.
+          { status: "DISPUTED", defectNotifiedAt: null },
         ],
       },
       data: {
@@ -803,6 +818,143 @@ export class CompanyOrdersService {
       "satis",
     );
     return { ok: true as const, status: "DISPUTED" as const };
+  }
+
+  // ---- TTK 23: Muayene/kabul + ayıp ihbarı (alıcı, teslimden sonra 8 gün) ----
+  // Tacirler arası satışta alıcı teslim alınca inceleyip ayıbı ihbar etmezse
+  // seçimlik haklarını kaybeder. Platform icra etmez/hakem değildir — ihbarı
+  // KAYDEDER (delil); çözüm (dönme/indirim/onarım/değişim) taraflar arasında.
+  // Tek pencere: 8 gün (2/8 açık/gizli ayrımı hukuki nitelendirme, buton değil).
+
+  /** Alıcı ayıp ihbarı açar (gerekçe ZORUNLU min 10) → DISPUTED. Teslimden
+   *  itibaren 8 gün içinde; DELIVERED ve COMPLETED'da (TTK ödemeye bakmaz).
+   *  Otomatik kabul YOK — süre dolunca yalnız pencere kapanır. */
+  async raiseDefectNotice(
+    user: AuthenticatedCompanyUser,
+    id: string,
+    reason?: string,
+  ) {
+    if ((reason?.trim().length ?? 0) < 10) {
+      throw new BadRequestException(
+        "Ayıp ihbarı gerekçesi en az 10 karakter olmalı",
+      );
+    }
+    const order = await this.loadParticipant(user, id);
+    if (order.buyerCompanyId !== user.companyId) {
+      throw new ForbiddenException("Bu işlemi yapamazsınız");
+    }
+    this.assertOrderRole(user, "buyer");
+    if (order.status !== "DELIVERED" && order.status !== "COMPLETED") {
+      throw new BadRequestException(
+        "Ayıp ihbarı yalnız teslim alınmış siparişte açılabilir",
+      );
+    }
+    if (!order.deliveredAt) {
+      throw new BadRequestException("Siparişin teslim tarihi yok");
+    }
+    // 8-gün muayene penceresi — WHERE'de tarih-aritmetiği ifade edilemez, kodda.
+    const windowMs = DEFECT_NOTICE_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+    if (Date.now() > new Date(order.deliveredAt).getTime() + windowMs) {
+      throw new BadRequestException(
+        `Muayene/ayıp ihbarı süresi (${DEFECT_NOTICE_WINDOW_DAYS} gün) doldu`,
+      );
+    }
+    // Atomik: DELIVERED/COMPLETED + açık ihbar yokken. disputePrevStatus geri
+    // çekmede restore için okunan durumla damgalanır (INV-SM-1 count===1).
+    const res = await this.prisma.companyOrder.updateMany({
+      where: {
+        id,
+        status: { in: ["DELIVERED", "COMPLETED"] },
+        defectNotifiedAt: null,
+      },
+      data: {
+        status: "DISPUTED",
+        disputedAt: new Date(),
+        defectNotifiedAt: new Date(),
+        defectReason: reason!.trim(),
+        disputePrevStatus: order.status,
+      },
+    });
+    if (res.count !== 1) {
+      throw new BadRequestException(
+        "Ayıp ihbarı açılamadı — sipariş durumu değişmiş veya zaten bir ihbar var",
+      );
+    }
+    await this.audit.log({
+      action: "company.order.defect_notified",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order",
+      entityId: id,
+      critical: true,
+      metadata: {
+        orderNumber: order.number,
+        from: order.status,
+        to: "DISPUTED",
+        reason: reason!.trim(),
+      },
+    });
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
+    await this.notifyOrderParty(
+      id,
+      order.sellerCompanyId,
+      "Ayıp ihbarı — sipariş ihtilaflı",
+      "Ayıp ihbarı",
+      `${this.orderLabel(order.number)} sipariş için alıcı ayıp ihbarında bulundu (TTK 23). Gerekçe: ${reason!.trim()} — çözüm taraflar arasındadır.`,
+      "satis",
+    );
+    return { ok: true as const, status: "DISPUTED" as const };
+  }
+
+  /** Alıcı ayıp ihbarını geri çeker → önceki durumuna (DELIVERED/COMPLETED) döner. */
+  async withdrawDefectNotice(user: AuthenticatedCompanyUser, id: string) {
+    const order = await this.loadParticipant(user, id);
+    if (order.buyerCompanyId !== user.companyId) {
+      throw new ForbiddenException("Bu işlemi yapamazsınız");
+    }
+    this.assertOrderRole(user, "buyer");
+    if (order.status !== "DISPUTED" || !order.defectNotifiedAt) {
+      throw new BadRequestException("Geri çekilecek açık bir ayıp ihbarı yok");
+    }
+    const prev: CompanyOrderStatus = order.disputePrevStatus ?? "DELIVERED";
+    const res = await this.prisma.companyOrder.updateMany({
+      where: { id, status: "DISPUTED", defectNotifiedAt: { not: null } },
+      data: {
+        status: prev,
+        disputedAt: null,
+        defectNotifiedAt: null,
+        defectReason: null,
+        disputePrevStatus: null,
+      },
+    });
+    if (res.count !== 1) {
+      throw new BadRequestException(
+        "Ayıp ihbarı geri çekilemedi — durum değişmiş olabilir",
+      );
+    }
+    await this.audit.log({
+      action: "company.order.defect_notice_withdrawn",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order",
+      entityId: id,
+      critical: true,
+      metadata: { orderNumber: order.number, from: "DISPUTED", to: prev },
+    });
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
+    await this.notifyOrderParty(
+      id,
+      order.sellerCompanyId,
+      "Ayıp ihbarı geri çekildi",
+      "Ayıp ihbarı geri çekildi",
+      `${this.orderLabel(order.number)} sipariş için alıcı ayıp ihbarını geri çekti; sipariş önceki durumuna döndü.`,
+      "satis",
+    );
+    return { ok: true as const, status: prev };
   }
 
   // ---- Sipariş revizyon müzakeresi (satıcı önerir, alıcı karar verir — Faz 5) ----
@@ -1497,6 +1649,10 @@ export class CompanyOrdersService {
         // A1: iptal talebi bağlamı (approve'da cancelReason'a taşınır).
         cancelRequestedAt: true,
         cancelRequestReason: true,
+        // TTK 23: ayıp ihbarı bağlamı (ship guard + withdraw restore).
+        // (deliveredAt yukarıda zaten seçili.)
+        defectNotifiedAt: true,
+        disputePrevStatus: true,
       },
     });
     if (
@@ -1938,6 +2094,13 @@ export class CompanyOrdersService {
       cancelRequestReason: o.cancelRequestReason,
       cancelRequestById: o.cancelRequestById,
       disputedAt: o.disputedAt,
+      // TTK 23: ayıp ihbarı durumu — alıcıya "Ayıp İhbarı" butonu (pencere içinde)
+      // + DISPUTED'da geri-çek paneli. Frontend deliveredAt + windowDays ile
+      // kalan süreyi hesaplar. defectNotifiedAt dolu → ayıp-DISPUTED (A1 değil).
+      defectNotifiedAt: o.defectNotifiedAt,
+      defectReason: o.defectReason,
+      disputePrevStatus: o.disputePrevStatus,
+      defectNoticeWindowDays: DEFECT_NOTICE_WINDOW_DAYS,
       paymentOpen: this.isPaymentOpen(
         o.paymentTiming,
         o.status,

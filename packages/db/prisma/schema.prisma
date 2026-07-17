@@ -738,6 +738,13 @@ model CompanyOrder {
   cancelRequestById    String?
   // İhtilaf damgası (ACCEPTED→DISPUTED): saat durur, iki-yönlü çıkış açık.
   disputedAt           DateTime?
+  // TTK 23 — ayıp ihbarı: alıcı teslimden sonra 8 gün içinde ayıp ihbar eder →
+  // DISPUTED. defectNotifiedAt varlığı bu ihtilafı A1 (satıcı iptal talebi)
+  // ihtilafından ayırır; disputePrevStatus geri çekmede önceki duruma (DELIVERED
+  // veya COMPLETED) döndürür. Platform kaydeder; çözüm taraflar arasında.
+  defectNotifiedAt     DateTime?
+  defectReason         String?
+  disputePrevStatus    CompanyOrderStatus?
 
   documents CompanyOrderDocument[]
   items     CompanyOrderItem[]

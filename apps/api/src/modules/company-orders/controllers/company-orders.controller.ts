@@ -129,6 +129,25 @@ export class CompanyOrdersController {
     return this.service.rejectCancelRequest(user, id, dto.note);
   }
 
+  // ---- TTK 23: Muayene/ayıp ihbarı (alıcı, teslimden sonra 8 gün) ----
+
+  @Post(":id/defect-notice")
+  raiseDefectNotice(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: OrderReasonDto,
+  ) {
+    return this.service.raiseDefectNotice(user, id, dto.reason);
+  }
+
+  @Post(":id/defect-notice/withdraw")
+  withdrawDefectNotice(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.withdrawDefectNotice(user, id);
+  }
+
   // ---- Ödeme kayıtları ----
 
   @Post(":id/payments")
