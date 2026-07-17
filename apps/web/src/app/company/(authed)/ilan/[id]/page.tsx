@@ -37,6 +37,9 @@ import {
   useBidDocuments,
 } from "@/hooks/use-bid-documents";
 import { useCategoriesByIds } from "@/hooks/use-categories";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { canManageListing } from "@/lib/tenders/can-manage-listing";
 import { SearchInput } from "@/components/list/search-input";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
@@ -191,6 +194,12 @@ export default function ListingDetailPage() {
   const cancelApproval = useCancelApproval();
   const categories = useCategoriesByIds(l?.categoryIds ?? []);
   const bidDocs = useBidDocuments(id);
+  // F7: kazandır/ele buton kapısı — backend assertListingManageRole birebir
+  // (buy/sell:listing:manage + oluşturan/SAHİP). Hook'lar erken-return öncesi.
+  const user = useCompanyAuthStore((s) => s.user);
+  const hasManagePermission = useHasCompanyPermission(
+    l?.type === "SATIS" ? "sell:listing:manage" : "buy:listing:manage",
+  );
   const [itemAwardMode, setItemAwardMode] = useState(false);
   const [itemWinners, setItemWinners] = useState<Record<string, string>>({});
   const [itemQty, setItemQty] = useState<Record<string, string>>({});
@@ -537,6 +546,13 @@ export default function ListingDetailPage() {
         : null;
   // Yayında ve Değerlendirmede (IN_AWARD) kazandırma/eleme açık.
   const canDecide = l.status === "OPEN" || l.status === "IN_AWARD";
+  // F7: durum uygun OLSA da yalnız izinli-yönetici kazandırma/eleme yapabilir.
+  const canManage = canManageListing({
+    hasManagePermission,
+    isOwner: !!user?.isOwner,
+    createdById: l.createdById,
+    userId: user?.id,
+  });
 
   // ── Tasarruf özeti (kalem-bazlı karar desteği) ────────────────────────
   // Teorik kıyas: "en iyi TOPLU teklif" = TÜM kalemleri fiyatlamış tek
@@ -1064,6 +1080,7 @@ export default function ListingDetailPage() {
       ) : null}
 
       {canDecide &&
+      canManage &&
       l.items &&
       l.items.length > 0 &&
       l.bids &&
@@ -1329,7 +1346,7 @@ export default function ListingDetailPage() {
                     Mesaj
                   </Link>
                 ) : null}
-                {canDecide && b.status === "SUBMITTED" ? (
+                {canDecide && canManage && b.status === "SUBMITTED" ? (
                   <>
                     <Button
                       plain

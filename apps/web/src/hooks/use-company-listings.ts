@@ -327,6 +327,8 @@ export interface ListingDetail {
   createdAt: string;
   owner: { name: string } | null;
   isOwner: boolean;
+  /** F7: kazandır/ele buton izin-kapısı (createdById===userId VEYA SAHİP). */
+  createdById?: string | null;
   // Sahip + (TASLAK | AÇIK & teklifsiz) → düzenlenebilir.
   canEdit?: boolean;
   // Sahip + TASLAK → yayınlanabilir.

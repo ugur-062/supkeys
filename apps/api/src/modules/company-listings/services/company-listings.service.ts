@@ -2244,6 +2244,9 @@ export class CompanyListingsService {
       return {
         ...this.detail(listing, false),
         isOwner: true,
+        // F7: buton izin-kapısı için — kazandır/ele assertListingManageRole
+        // (createdById===userId VEYA SAHİP) ister; UI aynı kapıyı uygular.
+        createdById: listing.createdById,
         // Düzenlenebilir: TASLAK her zaman, AÇIK ise HİÇ teklif kaydı yokken
         // (elenen/geri çekilen dahil — updateListing kilidiyle aynı).
         canEdit:
