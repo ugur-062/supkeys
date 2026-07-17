@@ -37,6 +37,20 @@ describe("tenderFormSchema", () => {
     ).toBe(true);
   });
 
+  it("W1: görünürlük üç değeri de kabul eder (CONNECTIONS = Davetli/Herkese-Açık arası)", () => {
+    for (const visibility of ["PRIVATE", "CONNECTIONS", "PUBLIC"] as const) {
+      expect(
+        tenderFormSchema.safeParse(validForm({ visibility })).success,
+      ).toBe(true);
+    }
+    // Geçersiz değer reddedilir (enum kapalı — üçüncü tanım sızmaz).
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({ visibility: "EVERYONE" as never }),
+      ).success,
+    ).toBe(false);
+  });
+
   it("fatura adresi: 'teslimatla aynı' tiki kapalıysa seçim zorunlu (yalnız ALIM)", () => {
     expect(
       tenderFormSchema.safeParse(
