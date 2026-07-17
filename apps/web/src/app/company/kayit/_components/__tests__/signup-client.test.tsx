@@ -14,6 +14,7 @@ const h = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: h.replace }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/lib/company-auth/store", () => ({

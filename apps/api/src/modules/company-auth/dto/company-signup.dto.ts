@@ -67,6 +67,16 @@ export class CompanySignupDto {
   @IsOptional()
   @IsBoolean()
   profileImprovementConsent?: boolean;
+
+  /**
+   * Davet linkinden gelen referral token'ı (`/company/kayit?ref=<token>`).
+   * BK-CONN-1: yalnız BU token'ın referral'ı ACTIVE bağlantı olur; aynı e-postayı
+   * davet eden diğer firmalar PENDING istek olarak kalır (rıza yalnız tıklanan
+   * davet için verildi).
+   */
+  @IsOptional()
+  @IsString()
+  referralToken?: string;
 }
 
 /** E-posta doğrulama — 6 haneli kod. */

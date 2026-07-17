@@ -16,7 +16,7 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { Check, Crown, X } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -47,6 +47,10 @@ export function CompanySignupClient() {
   const user = useCompanyAuthStore((s) => s.user);
   const isHydrated = useCompanyAuthStore((s) => s.isHydrated);
   const router = useRouter();
+  // BK-CONN-1: davet linkinden gelen referral token'ı (`/company/kayit?ref=`) —
+  // yalnız bu davet ACTIVE bağlantı olur; diğer davetler PENDING istek kalır.
+  const searchParams = useSearchParams();
+  const referralToken = searchParams.get("ref") ?? undefined;
   const signup = useCompanySignup();
   const verify = useVerifyEmail();
   const resend = useResendEmailCode();
@@ -116,6 +120,7 @@ export function CompanySignupClient() {
         kvkkAccepted: consents.kvkk,
         marketingConsent: consents.marketing,
         profileImprovementConsent: consents.profile,
+        referralToken,
       });
       setStep("verify");
       // Hesap oluştu; kod adımına geçilir. Ama backend kod e-postasının GİDİP

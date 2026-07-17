@@ -149,7 +149,11 @@ export class CompanyAuthService {
       userAgent: ctx?.userAgent,
     });
 
-    await this.acceptReferralInvites(email, result.company.id).catch((err) =>
+    await this.acceptReferralInvites(
+      email,
+      result.company.id,
+      dto.referralToken,
+    ).catch((err) =>
       this.logger.error(
         `Referans daveti bağlama hatası (${email}): ${
           err instanceof Error ? err.message : String(err)
@@ -478,10 +482,16 @@ export class CompanyAuthService {
   private async acceptReferralInvites(
     email: string,
     newCompanyId: string,
+    usedToken?: string,
   ): Promise<void> {
     const invites = await this.prisma.companyReferralInvite.findMany({
       where: { email, status: "PENDING" },
-      select: { id: true, inviterCompanyId: true, invitedById: true },
+      select: {
+        id: true,
+        inviterCompanyId: true,
+        invitedById: true,
+        token: true,
+      },
     });
     if (invites.length === 0) return;
     const newCompany = await this.prisma.company.findUnique({
@@ -490,6 +500,11 @@ export class CompanyAuthService {
     });
     for (const inv of invites) {
       if (inv.inviterCompanyId === newCompanyId) continue;
+      // BK-CONN-1: rıza yalnız KULLANILAN davet linki için verildi. O token'ın
+      // referral'ı ACTIVE bağlantı olur; aynı e-postayı davet eden DİĞER firmalar
+      // PENDING İSTEK olur (yeni firma listIncoming'de görür, mevcut accept/reject
+      // ile onaylar). Token yoksa (doğrudan signup) HEPSİ PENDING istek → güvenli.
+      const isUsed = !!usedToken && inv.token === usedToken;
       await this.prisma.companyConnection.upsert({
         where: {
           inviterCompanyId_inviteeCompanyId: {
@@ -501,9 +516,9 @@ export class CompanyAuthService {
           inviterCompanyId: inv.inviterCompanyId,
           inviteeCompanyId: newCompanyId,
           invitedById: inv.invitedById,
-          status: "ACTIVE",
+          status: isUsed ? "ACTIVE" : "PENDING",
           origin: "INVITE",
-          decidedAt: new Date(),
+          decidedAt: isUsed ? new Date() : null,
         },
         update: {},
       });
@@ -515,22 +530,24 @@ export class CompanyAuthService {
           acceptedAt: new Date(),
         },
       });
-      // Davet edene "davetiniz kabul edildi" e-postası (kayıt hook'undan çağrılır;
-      // in-app kanal burada döngü nedeniyle kullanılmaz — NotificationModule bu
-      // servise enjekte edilemez, CompanyAuthModule'e bağımlı).
-      const inviterEmail = await this.companyNotifyEmail(inv.inviterCompanyId);
-      if (inviterEmail) {
-        this.sendNotificationEmail(
-          inviterEmail,
-          "Davetiniz kabul edildi",
-          [
-            "Merhaba,",
-            `Davet ettiğiniz ${newCompany?.name ?? "bir firma"} Rothern'e katıldı ve artık bağlantınız.`,
-          ],
-          { label: "Bağlantılarım", url: `${this.webBase()}/company` },
-          "connection_accepted",
-          inv.id,
-        );
+      // Yalnız KULLANILAN davet (ACTIVE) inviter'a "kabul edildi" e-postası;
+      // PENDING istekler yeni firmanın onayını bekler (listIncoming). in-app kanal
+      // burada döngü nedeniyle yok — NotificationModule bu servise enjekte edilemez.
+      if (isUsed) {
+        const inviterEmail = await this.companyNotifyEmail(inv.inviterCompanyId);
+        if (inviterEmail) {
+          this.sendNotificationEmail(
+            inviterEmail,
+            "Davetiniz kabul edildi",
+            [
+              "Merhaba,",
+              `Davet ettiğiniz ${newCompany?.name ?? "bir firma"} Rothern'e katıldı ve artık bağlantınız.`,
+            ],
+            { label: "Bağlantılarım", url: `${this.webBase()}/company` },
+            "connection_accepted",
+            inv.id,
+          );
+        }
       }
     }
   }

@@ -70,4 +70,6 @@ export interface CompanySignupInput {
   kvkkAccepted: boolean;
   marketingConsent?: boolean;
   profileImprovementConsent?: boolean;
+  /** Davet linkinden gelen referral token'ı (`?ref=`); BK-CONN-1. */
+  referralToken?: string;
 }
