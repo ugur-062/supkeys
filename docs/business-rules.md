@@ -188,9 +188,13 @@ kapalı-zarf: bids/invitations/bidStats içermez, maskeli yol fiyat/PII/auctionV
 `orderDeliverySnapshot` award SONRASI order'ı sabitler (kusur yalnız bid↔award arası = B2).
 
 **Kalan kör noktalar (sonraki tur):**
-- 🔴 **`void this.notifyListingInvitees(...)` (CL:561) `.catch` YOK** — kardeşi (CL:563
-  `notifyCategoryMatchedCompanies`) `.catch`'li. Bildirim reddi (DB flake vb.) UNHANDLED
-  rejection → prod'da Node süreç çökmesi riski. Somut bulgu (bildirim-helper kör bölgesi).
+- ✅ **Fire-and-forget `void this.notifyX(...)` sweep** (kapandı) — tüm 32 `void this.*`
+  çağrısı tarandı. Korumasız (iç try/catch YOK + çağrı-yeri `.catch` YOK) yalnız İKİSİ:
+  `notifyListingInvitees` (CL:561 + listing.scheduler:145) ve `notifyCompany`'nin `findUnique`
+  bacağı (admin, 8 çağrı yeri). Düzeltildi: notifyListingInvitees çağrı-yerlerine `.catch`
+  (CL konvansiyonu), notifyCompany'ye iç try/catch (kardeş notify helper'larıyla simetri).
+  `audit.log` (11×, iç fail-safe), notifyApprover/notifyRequester/emailCompany/emailNewMessage/
+  bootSeed zaten iç try/catch'li → dokunulmadı. Kanıt: `notify-fire-and-forget.spec.ts`.
 - 🟡 **`changeClosingTime` (CL:5827)** koşulsuz `listing.update` — state-geçişi değil,
   düşük risk ama kardeşleriyle (updateMany) asimetrik.
 - Bildirim-helper gövdeleri (CL:89-512 + 5109-5172), `sellerTenders` 1750-1989, `serialize`

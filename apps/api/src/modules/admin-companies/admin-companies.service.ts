@@ -66,23 +66,33 @@ export class AdminCompaniesService {
           }`,
         ),
       );
-    // E-posta.
-    const c = await this.prisma.company.findUnique({
-      where: { id: companyId },
-      select: {
-        id: true,
-        name: true,
-        billingEmail: true,
-        users: {
-          where: { isActive: true, deletedAt: null },
-          select: { email: true, firstName: true, lastName: true },
-          orderBy: { createdAt: "asc" },
-          take: 1,
+    // E-posta — fail-safe: bu metot `void this.notifyCompany(...)` ile 8 yerden
+    // çağrılıyor; findUnique reddi (DB flake) UNHANDLED rejection'a düşmesin
+    // (push zaten .catch'li; kardeş notify helper'larıyla iç-guard simetrisi).
+    try {
+      const c = await this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: {
+          id: true,
+          name: true,
+          billingEmail: true,
+          users: {
+            where: { isActive: true, deletedAt: null },
+            select: { email: true, firstName: true, lastName: true },
+            orderBy: { createdAt: "asc" },
+            take: 1,
+          },
         },
-      },
-    });
-    if (!c) return;
-    this.notifyCompanyEmail(c, subject, paragraphs, type, cta);
+      });
+      if (!c) return;
+      this.notifyCompanyEmail(c, subject, paragraphs, type, cta);
+    } catch (err) {
+      this.logger.warn(
+        `Admin bildirimi e-posta hazırlanamadı (${companyId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
   }
 
   /**

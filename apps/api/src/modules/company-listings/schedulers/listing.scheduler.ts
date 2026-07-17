@@ -142,7 +142,13 @@ export class ListingScheduler implements OnModuleInit {
       });
       if (claimed.count !== 1) continue;
       sent++;
-      void this.listings.notifyListingInvitees(l.id, "reminder");
+      void this.listings.notifyListingInvitees(l.id, "reminder").catch((err) =>
+        this.logger.warn(
+          `Kapanış hatırlatma bildirimi başarısız (${l.id}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
     }
     if (sent > 0) {
       this.logger.log(`${sent} ilan için kapanış hatırlatması gönderildi`);

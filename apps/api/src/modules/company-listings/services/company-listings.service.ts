@@ -558,7 +558,16 @@ export class CompanyListingsService {
         }`,
       );
     }
-    void this.notifyListingInvitees(listingId, kind);
+    // Fire-and-forget: reddi (DB flake vb.) UNHANDLED rejection'a düşmesin →
+    // prod'da süreç çökme riski (kardeşi 563 gibi .catch — notifyListingInvitees
+    // iç try/catch taşımaz, çağıran korur).
+    void this.notifyListingInvitees(listingId, kind).catch((err) =>
+      this.logger.warn(
+        `İlan katılımcı bildirimi başarısız (${listingId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
     if (kind === "invitation") {
       void this.notifyCategoryMatchedCompanies(listingId).catch((err) =>
         this.logger.warn(
