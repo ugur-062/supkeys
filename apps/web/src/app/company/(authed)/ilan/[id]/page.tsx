@@ -22,16 +22,15 @@ import {
 import { Text } from "@/components/catalyst/text";
 import {
   useAwardByItem,
+  useAwardByItemPreview,
   useAwardListing,
+  useAwardPreview,
   useEliminateBid,
   useListingDetail,
   usePublishListing,
 } from "@/hooks/use-company-listings";
 import { useConfirm } from "@/components/providers/confirm-dialog";
-import {
-  useApprovalPreview,
-  useCancelApproval,
-} from "@/hooks/use-company-approvals";
+import { useCancelApproval } from "@/hooks/use-company-approvals";
 import {
   BID_DOC_KIND_LABELS,
   useBidDocuments,
@@ -188,8 +187,10 @@ export default function ListingDetailPage() {
     404;
   const confirm = useConfirm();
   const award = useAwardListing(id);
+  const awardPreview = useAwardPreview(id);
   const eliminate = useEliminateBid(id);
   const awardByItem = useAwardByItem(id);
+  const awardByItemPreview = useAwardByItemPreview(id);
   const publish = usePublishListing(id);
   const cancelApproval = useCancelApproval();
   const categories = useCategoriesByIds(l?.categoryIds ?? []);
@@ -214,11 +215,6 @@ export default function ListingDetailPage() {
     bidId: string;
     bidderName: string;
   } | null>(null);
-  // Onay akışı devredeyse yayın/kazandırma öncesi başlatıcı notu sorulur.
-  const approvalPreview = useApprovalPreview(
-    l?.type as "ALIM" | "SATIS" | undefined,
-    !!l?.isOwner,
-  );
   const [noteAction, setNoteAction] = useState<
     | { kind: "award"; bidId: string; bidderName: string }
     | {
@@ -233,8 +229,20 @@ export default function ListingDetailPage() {
   useEffect(() => subscribeRealtime("listing", id), [id]);
 
   const handleAward = async (bidId: string, bidderName: string) => {
-    // Onay akışı devreye girecekse: not girişli tek dialog (onaycılara iletilir).
-    if (approvalPreview.data?.award) {
+    // Tıklama-anı ön kontrol: bu teklif BU TUTARDA onaya takılır mı? Sunucu,
+    // gerçek award-anıyla AYNI tutarı+eleme mantığını kullanır. Takılıyorsa
+    // not girişli dialog (onaycılara iletilir); değilse doğrudan "Kazandır" onayı.
+    // Fail-closed: durum doğrulanamazsa sessiz kazandırma yapma (INV-FX-1 felsefesi).
+    let requiresApproval: boolean;
+    try {
+      ({ requiresApproval } = await awardPreview.mutateAsync({ bidId }));
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(err, "Onay durumu doğrulanamadı, tekrar deneyin"),
+      );
+      return;
+    }
+    if (requiresApproval) {
       setNoteAction({ kind: "award", bidId, bidderName });
       return;
     }
@@ -426,8 +434,20 @@ export default function ListingDetailPage() {
       toast.error("En az bir kalem için kazanan seçin");
       return;
     }
-    // Onay akışı devreye girecekse: not girişli dialog.
-    if (approvalPreview.data?.award) {
+    // Tıklama-anı ön kontrol: seçili kalem dağılımı BU TUTARDA onaya takılır mı?
+    // (sunucu itemAwardTotal ile TRY toplamını hesaplar; fail-closed.)
+    let requiresApproval: boolean;
+    try {
+      ({ requiresApproval } = await awardByItemPreview.mutateAsync({
+        itemAwards,
+      }));
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(err, "Onay durumu doğrulanamadı, tekrar deneyin"),
+      );
+      return;
+    }
+    if (requiresApproval) {
       setNoteAction({ kind: "itemAward", itemAwards });
       return;
     }

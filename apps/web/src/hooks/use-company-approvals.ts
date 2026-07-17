@@ -213,27 +213,6 @@ export function useApprovalHistory() {
   });
 }
 
-/**
- * Ön kontrol — bu kullanıcının yayın/kazandırması onaya takılacak mı?
- * UI, girecekse "başlatıcı notu" alanı gösterir.
- */
-export function useApprovalPreview(
-  listingType: "ALIM" | "SATIS" | undefined,
-  enabled: boolean,
-) {
-  return useQuery({
-    queryKey: ["company-approvals", "preview", listingType],
-    enabled: enabled && !!listingType,
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data } = await companyApi.get<{
-        publish: boolean;
-        award: boolean;
-      }>("/company/approvals/preview", { params: { listingType } });
-      return data;
-    },
-  });
-}
 
 export interface ApprovalListFilters {
   status?: string;

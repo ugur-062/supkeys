@@ -419,20 +419,19 @@ describe("onay motoru meta (APR no, not, etiket, Tüm Süreçler, iptal)", () =>
     expect(after.status).toBe("CANCELLED");
   });
 
-  it("preview: akış tipi + başlatıcı rol eşleşmesine göre publish/award bayrakları", async () => {
+  it("wouldRequireApproval: akış tipi + başlatıcı rol + TUTAR eşiğine göre onay gerekliliği", async () => {
     const { service } = makeApprovalsService();
     const owner = await makeCompanyWithUser(prisma);
-    // Yalnız SATIN_ALMACI başlatıcılı AWARD akışı (ALIM'a özel).
+    // Yalnız SATIN_ALMACI başlatıcılı AWARD akışı (ALIM'a özel), eşik 10.000 TL.
     const f = await service.createFlow(owner.auth, {
       name: "Alım Kazandırma",
       type: "LISTING_AWARD",
       listingType: "ALIM",
       initiatorRoles: ["SATIN_ALMACI"],
-      steps: [{ approverUserId: owner.user.id }],
+      steps: [{ approverUserId: owner.user.id, conditionMinAmount: 10_000 }],
     } as never);
     await service.setStatus(owner.auth, f.id, { status: "ACTIVE" } as never);
 
-    // Satın almacı için ALIM award=true, publish=false.
     const buyer = await makeUser(prisma, owner.company.id, [
       "SATIN_ALMACI",
     ] as never);
@@ -442,29 +441,47 @@ describe("onay motoru meta (APR no, not, etiket, Tüm Süreçler, iptal)", () =>
       roles: ["SATIN_ALMACI"],
       isOwner: false,
     } as never;
-    expect(await service.preview(buyerAuth, "ALIM")).toEqual({
-      publish: false,
-      award: true,
-    });
+
+    // Eşik-ÜSTÜ ALIM tutarı → onay gerekir.
+    expect(
+      await service.wouldRequireApproval(buyerAuth, {
+        type: "LISTING_AWARD",
+        listingType: "ALIM",
+        amount: 50_000,
+      }),
+    ).toBe(true);
+    // Eşik-ALTI tutar → akış VAR ama onay GEREKMEZ. (Kök-neden fix: preview akışın
+    // yalnız varlığına baksaydı burada true dönerdi → "Onaya Gönder" yanıltması.
+    // requestApproval ile AYNI eleme mantığı sayesinde doğrudan kazandırılır.)
+    expect(
+      await service.wouldRequireApproval(buyerAuth, {
+        type: "LISTING_AWARD",
+        listingType: "ALIM",
+        amount: 500,
+      }),
+    ).toBe(false);
     // SATIS ilanına uygulanmaz.
-    expect(await service.preview(buyerAuth, "SATIS")).toEqual({
-      publish: false,
-      award: false,
-    });
+    expect(
+      await service.wouldRequireApproval(buyerAuth, {
+        type: "LISTING_AWARD",
+        listingType: "SATIS",
+        amount: 50_000,
+      }),
+    ).toBe(false);
     // Satışçı başlatıcı rolde değil → akış onu yakalamaz.
     const seller = await makeUser(prisma, owner.company.id, [
       "SATISCI",
     ] as never);
     expect(
-      await service.preview(
+      await service.wouldRequireApproval(
         {
           userId: seller.id,
           companyId: owner.company.id,
           roles: ["SATISCI"],
           isOwner: false,
         } as never,
-        "ALIM",
+        { type: "LISTING_AWARD", listingType: "ALIM", amount: 50_000 },
       ),
-    ).toEqual({ publish: false, award: false });
+    ).toBe(false);
   });
 });

@@ -455,31 +455,19 @@ export class CompanyApprovalsService {
       input.type,
       input.listingType,
     );
-    if (!flow || flow.steps.length === 0) return { approved: true };
-
     // INV-MONEY-1: eşik karşılaştırması DECIMAL (iki taraf da float değil). award
     // artık .toNumber()'sız Decimal geçer; number gelse de normalize edilir.
     const amountDec = new Prisma.Decimal(input.amount);
-    const drafts = flow.steps.map((s) => {
-      const min = s.conditionMinAmount
-        ? new Prisma.Decimal(s.conditionMinAmount)
-        : new Prisma.Decimal(0);
-      // INV-FX-1: kur bilinmiyorsa hiçbir adım atlanmaz (eşik değerlendirilemez).
-      const skipped = !input.forceRequireApproval && amountDec.lt(min);
-      return {
-        order: s.order,
-        approverUserId: s.approverUserId,
-        // Etiket snapshot — akış sonradan değişse de görünen ad sabit kalır.
-        displayLabel: s.displayLabel,
-        status: (skipped ? "SKIPPED" : "WAITING") as
-          | "SKIPPED"
-          | "WAITING"
-          | "PENDING",
-      };
-    });
-    const firstActive = drafts.findIndex((d) => d.status !== "SKIPPED");
-    if (firstActive === -1) return { approved: true }; // hepsi atlandı
-    drafts[firstActive]!.status = "PENDING";
+    // TEK KAYNAK: skip/eşik mantığı buildApprovalPlan'de — ön kontrol
+    // (wouldRequireApproval) ile BİREBİR aynı hesap. null = akış yok VEYA tüm
+    // adımlar eşik-altı → doğrudan onaylı (caller ilerler).
+    const drafts = this.buildApprovalPlan(
+      flow,
+      amountDec,
+      !!input.forceRequireApproval,
+    );
+    if (!drafts) return { approved: true };
+    const firstActive = drafts.findIndex((d) => d.status === "PENDING");
 
     // INV-APPR-1 (görev ayrılığı): ilk aktif adımın onaycısı BAŞLATAN'ın kendisi
     // ise anında ikame et — initiator kendi isteğini onaylayamaz (decide de
@@ -613,15 +601,84 @@ export class CompanyApprovalsService {
   }
 
   /**
-   * Ön kontrol: bu kullanıcı KAZANDIRMA yaptığında onay akışı devreye girecek
-   * mi? UI, girecekse başlatıcı notu alanı gösterir. (Yayın onayı kaldırıldı.)
+   * requestApproval + ön kontrol ORTAK skip mantığı (TEK KAYNAK). Eşleşen akış +
+   * kazandırma tutarı verildiğinde: onay GEREKİR mi? Gerekiyorsa PENDING'i set
+   * edilmiş adım taslakları, aksi halde null (akış yok / tüm adımlar eşik-altı).
+   *
+   * NOT: substitution (initiator==onaycı) ve mükerrer-istek kontrolü KAPSAM DIŞI —
+   * onlar yalnız gerçek create'te (requestApproval) değerlendirilir; ön kontrol
+   * salt "onaya gider mi" sorusuna cevap verir.
    */
-  async preview(user: AuthenticatedCompanyUser, listingType: "ALIM" | "SATIS") {
-    const award = await this.findMatchingFlow(user, "LISTING_AWARD", listingType);
-    return {
-      publish: false as const,
-      award: !!award && award.steps.length > 0,
-    };
+  private buildApprovalPlan(
+    flow: {
+      steps: {
+        order: number;
+        approverUserId: string;
+        displayLabel: string | null;
+        conditionMinAmount: Prisma.Decimal | number | null;
+      }[];
+    } | null,
+    amountDec: Prisma.Decimal,
+    forceRequireApproval: boolean,
+  ):
+    | {
+        order: number;
+        approverUserId: string;
+        displayLabel: string | null;
+        status: "SKIPPED" | "WAITING" | "PENDING";
+      }[]
+    | null {
+    if (!flow || flow.steps.length === 0) return null;
+    const drafts = flow.steps.map((s) => {
+      const min = s.conditionMinAmount
+        ? new Prisma.Decimal(s.conditionMinAmount)
+        : new Prisma.Decimal(0);
+      // INV-FX-1: kur bilinmiyorsa hiçbir adım atlanmaz (eşik değerlendirilemez).
+      const skipped = !forceRequireApproval && amountDec.lt(min);
+      return {
+        order: s.order,
+        approverUserId: s.approverUserId,
+        // Etiket snapshot — akış sonradan değişse de görünen ad sabit kalır.
+        displayLabel: s.displayLabel,
+        status: (skipped ? "SKIPPED" : "WAITING") as
+          | "SKIPPED"
+          | "WAITING"
+          | "PENDING",
+      };
+    });
+    const firstActive = drafts.findIndex((d) => d.status !== "SKIPPED");
+    if (firstActive === -1) return null; // hepsi atlandı → onay gerekmez
+    drafts[firstActive]!.status = "PENDING";
+    return drafts;
+  }
+
+  /**
+   * Ön kontrol: bu kullanıcı verilen TUTARDA kazandırma yaptığında onay akışı
+   * devreye girecek mi? requestApproval ile AYNI eleme mantığını (buildApprovalPlan)
+   * kullanır — böylece "onaya gönder" UI'ı yalnız GERÇEKTEN onaya gidecekse çıkar
+   * (eşik-altı tutar için doğrudan kazandırılır, dialog gösterilmez).
+   */
+  async wouldRequireApproval(
+    user: AuthenticatedCompanyUser,
+    input: {
+      type: ApprovalType;
+      listingType: "ALIM" | "SATIS";
+      amount: Prisma.Decimal | number;
+      forceRequireApproval?: boolean;
+    },
+  ): Promise<boolean> {
+    const flow = await this.findMatchingFlow(
+      user,
+      input.type,
+      input.listingType,
+    );
+    return (
+      this.buildApprovalPlan(
+        flow,
+        new Prisma.Decimal(input.amount),
+        !!input.forceRequireApproval,
+      ) !== null
+    );
   }
 
   /** Firma bazında sıradaki onay numarası (APR-YYYY-NNNN). */

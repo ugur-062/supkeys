@@ -151,6 +151,17 @@ export class CompanyListingsController {
     return this.service.award(user, id, dto.bidId, dto.approvalNote);
   }
 
+  // Ön kontrol: bu teklifi kazandırmak (bu tutarda) onaya takılır mı? Frontend
+  // "Onaya Gönder" dialogunu yalnız requiresApproval=true ise gösterir. Salt-okunur.
+  @Post(":id/award/preview")
+  awardPreview(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: AwardListingDto,
+  ) {
+    return this.service.awardPreview(user, id, dto.bidId);
+  }
+
   @Post(":id/award-by-item")
   awardByItem(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
@@ -158,6 +169,16 @@ export class CompanyListingsController {
     @Body() dto: AwardByItemDto,
   ) {
     return this.service.awardByItem(user, id, dto.itemAwards, dto.approvalNote);
+  }
+
+  // Ön kontrol (kalem-bazlı): seçilen kalem dağılımı bu tutarda onaya takılır mı?
+  @Post(":id/award-by-item/preview")
+  awardByItemPreview(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: AwardByItemDto,
+  ) {
+    return this.service.awardByItemPreview(user, id, dto.itemAwards);
   }
 
   @Post(":id/new-round")

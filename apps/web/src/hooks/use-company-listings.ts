@@ -767,6 +767,37 @@ export function useAwardListing(id: string) {
   });
 }
 
+// Ön kontrol (tıklama-anı, salt-okunur): bu teklifi/kalem dağılımını bu tutarda
+// kazandırmak onay akışına takılır mı? "Onaya Gönder" dialogu YALNIZ
+// requiresApproval=true ise gösterilir. Query DEĞİL mutation — cache yok, her
+// tıklamada taze sunucu kararı (bayat award:true imkânsız). Backend award-anıyla
+// AYNI tutarı + eleme mantığını kullanır (tek kaynak).
+export function useAwardPreview(id: string) {
+  return useMutation({
+    mutationFn: async (input: { bidId: string }) => {
+      const { data } = await companyApi.post<{ requiresApproval: boolean }>(
+        `/company/listings/${id}/award/preview`,
+        input,
+      );
+      return data;
+    },
+  });
+}
+
+export function useAwardByItemPreview(id: string) {
+  return useMutation({
+    mutationFn: async (input: {
+      itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[];
+    }) => {
+      const { data } = await companyApi.post<{ requiresApproval: boolean }>(
+        `/company/listings/${id}/award-by-item/preview`,
+        input,
+      );
+      return data;
+    },
+  });
+}
+
 export function useCreateListing() {
   const qc = useQueryClient();
   return useMutation({

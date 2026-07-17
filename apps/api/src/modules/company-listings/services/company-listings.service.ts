@@ -4386,6 +4386,127 @@ export class CompanyListingsService {
   }
 
   /**
+   * Ön kontrol (tıklama-anı): bu teklifi kazandırmak onay akışına takılır mı?
+   * "Onaya Gönder" UI'ı YALNIZ bu true dönerse gösterilir. Kritik: preview ile
+   * gerçek award-anı kararı AYNI tutarı (toTryAmount) ve AYNI eleme mantığını
+   * (approvals.wouldRequireApproval → buildApprovalPlan, TEK KAYNAK) kullanır —
+   * eşik-altı tutar için doğrudan kazandırılır, yanıltıcı onay dialogu çıkmaz.
+   * Salt-okunur: sipariş/onay isteği OLUŞMAZ. assertListingManageRole burada
+   * çağrılmaz (denial audit yan etkisi olmasın); gerçek award() commit-anında
+   * tam yetki kapısını uygular.
+   */
+  async awardPreview(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    bidId: string,
+  ): Promise<{ requiresApproval: boolean }> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        id: true,
+        companyId: true,
+        type: true,
+        status: true,
+        auctionRateSnapshot: true,
+      },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (listing.companyId !== user.companyId) {
+      throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
+    }
+    if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
+      throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
+    }
+    const neededRole =
+      listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
+    if (
+      !user.roles.includes(CompanyRole.SAHIP) &&
+      !user.roles.includes(neededRole)
+    ) {
+      throw new ForbiddenException("Kazandırma için yetkiniz yok");
+    }
+
+    const bid = await this.prisma.listingBid.findUnique({
+      where: { id: bidId },
+      select: {
+        listingId: true,
+        amount: true,
+        currency: true,
+        exchangeRateSnapshot: true,
+      },
+    });
+    if (!bid || bid.listingId !== listingId) {
+      throw new BadRequestException("Geçersiz teklif");
+    }
+    // award() ile BİREBİR aynı tutar hesabı: INV-FX-1 tek-baz (açılış → teklif
+    // damgası); baz yoksa null → onay ZORUNLU (forceRequireApproval).
+    const awardTry = this.toTryAmount(
+      bid.amount,
+      bid.currency,
+      bid.exchangeRateSnapshot,
+      listing.auctionRateSnapshot,
+    );
+    const requiresApproval = await this.approvals.wouldRequireApproval(user, {
+      type: "LISTING_AWARD",
+      listingType: listing.type,
+      amount: awardTry ?? new Prisma.Decimal(bid.amount),
+      forceRequireApproval: awardTry == null,
+    });
+    return { requiresApproval };
+  }
+
+  /**
+   * Ön kontrol (tıklama-anı): kalem-bazlı kazandırma onay akışına takılır mı?
+   * awardByItem() ile AYNI TRY toplamı (itemAwardTotal) + AYNI eleme mantığı.
+   * itemAwardTotal → buildItemGroups seçimi de doğrular (geçersiz seçim → hata,
+   * frontend fail-closed yakalar). Salt-okunur.
+   */
+  async awardByItemPreview(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+    itemAwards: { itemId: string; bidId: string; awardedQuantity?: number }[],
+  ): Promise<{ requiresApproval: boolean }> {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        id: true,
+        companyId: true,
+        type: true,
+        status: true,
+        auctionRateSnapshot: true,
+      },
+    });
+    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (listing.companyId !== user.companyId) {
+      throw new ForbiddenException("Sadece ilan sahibi kazandırabilir");
+    }
+    if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
+      throw new BadRequestException("İlan zaten kazandırılmış veya iptal");
+    }
+    const neededRole =
+      listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
+    if (
+      !user.roles.includes(CompanyRole.SAHIP) &&
+      !user.roles.includes(neededRole)
+    ) {
+      throw new ForbiddenException("Kazandırma için yetkiniz yok");
+    }
+
+    const total = await this.itemAwardTotal(
+      listingId,
+      itemAwards,
+      listing.auctionRateSnapshot,
+    );
+    const requiresApproval = await this.approvals.wouldRequireApproval(user, {
+      type: "LISTING_AWARD",
+      listingType: listing.type,
+      amount: total ?? new Prisma.Decimal(0),
+      forceRequireApproval: total == null,
+    });
+    return { requiresApproval };
+  }
+
+  /**
    * Kalem-bazlı kazandırma planını kur (kazanan firma → sipariş kalemleri +
    * tutar). Kısmi miktar (awardedQuantity) desteklenir.
    */

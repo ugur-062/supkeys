@@ -106,18 +106,6 @@ export class CompanyApprovalsController {
     return this.service.listHistory(user);
   }
 
-  /** Ön kontrol — yayın/kazandırma bu kullanıcıda onaya takılacak mı? */
-  @Get("preview")
-  preview(
-    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Query("listingType") listingType?: string,
-  ) {
-    return this.service.preview(
-      user,
-      listingType === "SATIS" ? "SATIS" : "ALIM",
-    );
-  }
-
   /**
    * Tüm Süreçler — firma genelindeki onay istekleri (eski sistem paritesi:
    * ekipteki herkes süreçleri izleyebilir; karar yetkisi ayrı — approval:act).
