@@ -79,6 +79,7 @@ function MonthsReasonDialog({
           <Input
             id="membership-reason"
             value={reason}
+            maxLength={500}
             onChange={(e) => setReason(e.target.value)}
             placeholder="Örn. yıllık yenileme satışı"
           />

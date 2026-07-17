@@ -44,6 +44,7 @@ export function NotesTab({ companyId }: { companyId: string }) {
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={3}
+            maxLength={2000}
             placeholder="Örn. 10 Tem — telefonla aradı, KYC belgesini yarın yükleyecek; premium teklifi iletildi."
           />
         </label>

@@ -260,11 +260,11 @@ export function CompanySignupClient() {
         <div className="grid grid-cols-2 gap-3">
           <Field>
             <Label>Ad</Label>
-            <Input value={form.firstName} onChange={(e) => set("firstName")(e.target.value)} />
+            <Input value={form.firstName} maxLength={80} onChange={(e) => set("firstName")(e.target.value)} />
           </Field>
           <Field>
             <Label>Soyad</Label>
-            <Input value={form.lastName} onChange={(e) => set("lastName")(e.target.value)} />
+            <Input value={form.lastName} maxLength={80} onChange={(e) => set("lastName")(e.target.value)} />
           </Field>
         </div>
 
@@ -280,7 +280,7 @@ export function CompanySignupClient() {
 
         <Field>
           <Label>Şifre</Label>
-          <Input type="password" autoComplete="new-password" value={form.password} onChange={(e) => set("password")(e.target.value)} />
+          <Input type="password" autoComplete="new-password" maxLength={72} value={form.password} onChange={(e) => set("password")(e.target.value)} />
         </Field>
         {form.password ? (
           <div className="space-y-1.5" role="status" aria-live="polite">

@@ -10,9 +10,14 @@ const h = vi.hoisted(() => ({
   tierMutate: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
   replace: vi.fn(),
+  // Rol-tabanlı buton kapısı (canAdminDo): tier/suspend yalnız SUPER_ADMIN'e görünür.
+  admin: { role: "SUPER_ADMIN" } as { role: string } | null,
 }));
 
 vi.mock("sonner", () => ({ toast: h.toast }));
+vi.mock("@/hooks/use-admin-auth", () => ({
+  useAdminAuth: () => ({ admin: h.admin }),
+}));
 vi.mock("@/components/layout/admin-shell", () => ({
   AdminShell: ({ children }: { children: React.ReactNode }) => children,
 }));
@@ -56,6 +61,7 @@ function paged(items: unknown[]) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.admin = { role: "SUPER_ADMIN" };
   h.companies = { data: paged([row()]), isLoading: false, isError: false };
   h.stats = {
     data: {
@@ -184,6 +190,24 @@ describe("FirmalarView — PAKET (tier) verme", () => {
       { id: "c1", tier: "PAKET", months: 12 },
       expect.anything(),
     );
+  });
+});
+
+describe("FirmalarView — rol kapısı (canAdminDo)", () => {
+  it("SALES: tier/askı işlemleri menüsü GÖRÜNMEZ (yalnız SUPER_ADMIN)", () => {
+    h.admin = { role: "SALES" };
+    render(<AdminFirmalarPage />);
+    expect(
+      screen.queryByRole("button", { name: "Acme A.Ş. işlemleri" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("SUPER_ADMIN: tier/askı işlemleri menüsü görünür", () => {
+    h.admin = { role: "SUPER_ADMIN" };
+    render(<AdminFirmalarPage />);
+    expect(
+      screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
+    ).toBeInTheDocument();
   });
 });
 

@@ -171,18 +171,10 @@ function AddressDialog({
       toast.error("Geçerli bir telefon numarası giriniz");
       return;
     }
-    if (f.type === "FATURA") {
-      if (!f.taxOffice.trim() || !f.taxNumber.trim()) {
-        toast.error("Fatura adresi için vergi dairesi ve vergi no zorunlu");
-        return;
-      }
-      // TR: VKN 10 hane / TCKN 11 hane; yabancı adreslerde format serbest.
-      const tax = f.taxNumber.trim();
-      if (f.country === "TR" && !/^\d{10}(\d)?$/.test(tax)) {
-        toast.error("Vergi no 10 haneli VKN ya da 11 haneli TCKN olmalı");
-        return;
-      }
-    }
+    // Fatura adresinde vergi dairesi/no ve TR VKN/TCKN formatı ESKİDEN zorunluydu
+    // ama backend (company-address.dto) bu alanları @IsOptional tutar ve format
+    // doğrulamaz — frontend backend'den katı olmamalı (backend otoritedir). Bloklama
+    // kaldırıldı; alanlar hâlâ formda ve girildiğinde kaydedilir.
     try {
       await save.mutateAsync({ id: address?.id, ...f });
       toast.success(address ? "Adres güncellendi" : "Adres eklendi");

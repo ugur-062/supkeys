@@ -25,6 +25,10 @@ interface PromptDialogProps {
   required?: boolean;
   /** number tipinde min (>= 1 vb.). */
   min?: number;
+  /** number tipinde max (backend @Max ile birebir). */
+  max?: number;
+  /** text tipinde karakter sınırı (backend @MaxLength ile birebir). */
+  maxLength?: number;
   /** datetime-local için alt sınır (geçmiş tarih seçilemesin). */
   minDateTime?: string;
   onConfirm: (value: string) => void;
@@ -46,6 +50,8 @@ export function PromptDialog({
   confirmLabel = "Onayla",
   required = false,
   min,
+  max,
+  maxLength,
   minDateTime,
   onConfirm,
   onClose,
@@ -76,6 +82,8 @@ export function PromptDialog({
             id="prompt-dialog-input"
             type={type}
             min={type === "datetime-local" ? minDateTime : min}
+            max={type === "number" ? max : undefined}
+            maxLength={type === "text" ? maxLength : undefined}
             autoFocus
             value={value}
             placeholder={placeholder}

@@ -18,23 +18,31 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-/** Düzenlenebilir alanlar — sıra formda görünen sıradır. */
-const FIELDS: { key: keyof CompanyProfilePatch; label: string; hint?: string }[] = [
-  { key: "name", label: "Firma adı (görünen)" },
-  { key: "legalName", label: "Ünvan" },
-  { key: "taxNumber", label: "Vergi No" },
-  { key: "taxOffice", label: "Vergi Dairesi" },
-  { key: "mersisNo", label: "MERSİS No" },
-  { key: "tradeRegistryNo", label: "Ticari Sicil No" },
-  { key: "country", label: "Ülke (kod)", hint: "TR, DE... — 2 harf" },
-  { key: "stateRegion", label: "Eyalet / Bölge" },
-  { key: "city", label: "Şehir" },
-  { key: "addressLine", label: "Adres" },
-  { key: "billingEmail", label: "Fatura e-postası" },
-  { key: "website", label: "Web sitesi" },
-  { key: "industry", label: "Sektör" },
-  { key: "iban", label: "IBAN" },
-  { key: "ibanHolder", label: "IBAN Sahibi" },
+/**
+ * Düzenlenebilir alanlar — sıra formda görünen sıradır. `max` backend
+ * UpdateCompanyProfileDto @MaxLength/@Length ile BİREBİR (admin-companies.controller).
+ */
+const FIELDS: {
+  key: keyof CompanyProfilePatch;
+  label: string;
+  hint?: string;
+  max: number;
+}[] = [
+  { key: "name", label: "Firma adı (görünen)", max: 200 },
+  { key: "legalName", label: "Ünvan", max: 300 },
+  { key: "taxNumber", label: "Vergi No", max: 30 },
+  { key: "taxOffice", label: "Vergi Dairesi", max: 120 },
+  { key: "mersisNo", label: "MERSİS No", max: 30 },
+  { key: "tradeRegistryNo", label: "Ticari Sicil No", max: 40 },
+  { key: "country", label: "Ülke (kod)", hint: "TR, DE... — 2 harf", max: 2 },
+  { key: "stateRegion", label: "Eyalet / Bölge", max: 120 },
+  { key: "city", label: "Şehir", max: 120 },
+  { key: "addressLine", label: "Adres", max: 400 },
+  { key: "billingEmail", label: "Fatura e-postası", max: 200 },
+  { key: "website", label: "Web sitesi", max: 300 },
+  { key: "industry", label: "Sektör", max: 120 },
+  { key: "iban", label: "IBAN", max: 40 },
+  { key: "ibanHolder", label: "IBAN Sahibi", max: 200 },
 ];
 
 /**
@@ -104,6 +112,7 @@ export function EditProfileDialog({
               <Input
                 id={`profile-${f.key}`}
                 value={form[f.key] ?? ""}
+                maxLength={f.max}
                 onChange={(e) =>
                   setForm((prev) => ({ ...prev, [f.key]: e.target.value }))
                 }

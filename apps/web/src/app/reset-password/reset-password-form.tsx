@@ -139,6 +139,7 @@ export function ResetPasswordForm() {
             invalid={!!errors.newPassword}
             placeholder="En az 8 karakter — büyük/küçük harf + rakam"
             className="pr-10"
+            maxLength={72}
             {...register("newPassword")}
           />
           <button

@@ -11,9 +11,14 @@ const h = vi.hoisted(() => ({
   },
   resolveMutate: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+  // Şikayet çözme (resolveComplaint) yalnız SUPER_ADMIN+SALES'e görünür.
+  admin: { role: "SUPER_ADMIN" } as { role: string } | null,
 }));
 
 vi.mock("sonner", () => ({ toast: h.toast }));
+vi.mock("@/hooks/use-admin-auth", () => ({
+  useAdminAuth: () => ({ admin: h.admin }),
+}));
 vi.mock("@/components/layout/admin-shell", () => ({
   AdminShell: ({ children }: { children: React.ReactNode }) => children,
 }));
@@ -41,7 +46,25 @@ function complaint(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.admin = { role: "SUPER_ADMIN" };
   h.complaints = { data: { items: [complaint()], total: 1, page: 1, pageSize: 25 }, isLoading: false, isError: false };
+});
+
+describe("SikayetlerView — rol kapısı (canAdminDo resolveComplaint)", () => {
+  it("SUPPORT: Çöz/Reddet butonları GÖRÜNMEZ (yalnız SUPER_ADMIN+SALES)", () => {
+    h.admin = { role: "SUPPORT" };
+    render(<AdminSikayetlerPage />);
+    expect(screen.queryByRole("button", { name: "Çöz" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Reddet" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("SALES: Çöz butonu görünür", () => {
+    h.admin = { role: "SALES" };
+    render(<AdminSikayetlerPage />);
+    expect(screen.getByRole("button", { name: "Çöz" })).toBeInTheDocument();
+  });
 });
 
 describe("SikayetlerView — durum tablosu", () => {

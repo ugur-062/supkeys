@@ -42,6 +42,7 @@ export function NotifyDialog({
             id="notify-subject"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
+            maxLength={150}
             placeholder="Örn. Belgeleriniz hakkında"
           />
         </Field>
@@ -52,6 +53,7 @@ export function NotifyDialog({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             rows={4}
+            maxLength={3000}
             placeholder="Firma yetkilisine iletilecek mesaj..."
           />
         </Field>

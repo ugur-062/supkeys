@@ -99,6 +99,7 @@ function AddUserDialog({
             <Input
               type="email"
               value={form.email}
+              maxLength={200}
               onChange={(e) => set("email", e.target.value)}
             />
           </label>
@@ -109,6 +110,7 @@ function AddUserDialog({
               </span>
               <Input
                 value={form.firstName}
+                maxLength={80}
                 onChange={(e) => set("firstName", e.target.value)}
               />
             </label>
@@ -118,6 +120,7 @@ function AddUserDialog({
               </span>
               <Input
                 value={form.lastName}
+                maxLength={80}
                 onChange={(e) => set("lastName", e.target.value)}
               />
             </label>

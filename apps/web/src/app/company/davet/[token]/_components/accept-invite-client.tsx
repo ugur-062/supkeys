@@ -172,6 +172,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
             <Input
               autoFocus
               value={form.firstName}
+              maxLength={80}
               onChange={(e) => set("firstName")(e.target.value)}
             />
           </Field>
@@ -179,6 +180,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
             <Label>Soyad</Label>
             <Input
               value={form.lastName}
+              maxLength={80}
               onChange={(e) => set("lastName")(e.target.value)}
             />
           </Field>
@@ -194,6 +196,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
           <Input
             type="password"
             autoComplete="new-password"
+            maxLength={72}
             value={form.password}
             onChange={(e) => set("password")(e.target.value)}
           />

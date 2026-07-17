@@ -406,13 +406,15 @@ function FirmalarView() {
         label="Kaç ay premium verilsin?"
         type="number"
         min={1}
+        max={60}
         defaultValue="12"
         required
         confirmLabel="Tanımla"
         onConfirm={(v) => {
           if (prompt?.kind !== "tierMonths") return;
+          // Geçersiz/1 altı → varsayılan 12; üst sınır backend @Max(60) ile birebir.
           const n = Math.floor(Number(v));
-          runTier(prompt.id, "PAKET", n >= 1 ? n : 12);
+          runTier(prompt.id, "PAKET", n >= 1 ? Math.min(60, n) : 12);
           setPrompt(null);
         }}
         onClose={() => setPrompt(null)}
@@ -422,6 +424,7 @@ function FirmalarView() {
         title="Firmayı Askıya Al"
         label="Askı sebebi (opsiyonel)"
         placeholder="Örn. tekrarlanan şikayet"
+        maxLength={500}
         confirmLabel="Askıya Al"
         onConfirm={(v) => {
           if (prompt?.kind !== "suspendReason") return;

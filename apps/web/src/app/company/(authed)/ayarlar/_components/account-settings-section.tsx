@@ -287,6 +287,7 @@ export function PasswordSection() {
                 type={show[fld.key] ? "text" : "password"}
                 autoComplete={fld.auto}
                 value={pw[fld.key]}
+                maxLength={72}
                 onChange={(e) => setPw({ ...pw, [fld.key]: e.target.value })}
                 className="pr-10"
               />

@@ -564,6 +564,7 @@ function FlowWizard({
               <Input
                 autoFocus
                 value={name}
+                maxLength={120}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Örn. Yüksek Tutarlı Kazandırma Onayı"
               />
@@ -702,15 +703,16 @@ function FlowWizard({
               </div>
             ))}
 
-            {/* Yeni adım */}
+            {/* Yeni adım — backend @ArrayMaxSize(10): en çok 10 onay adımı. */}
             <ArrowDown className="my-2 size-4 text-zinc-300" />
             <button
               type="button"
+              disabled={steps.length >= 10}
               onClick={() => setEditingStep("new")}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-300 py-3.5 text-sm font-medium text-zinc-500 transition hover:border-zinc-500 hover:text-zinc-800"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-300 py-3.5 text-sm font-medium text-zinc-500 transition hover:border-zinc-500 hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Plus className="size-4" />
-              Onaycı Ekle
+              {steps.length >= 10 ? "En fazla 10 onay adımı" : "Onaycı Ekle"}
             </button>
 
             {/* Bitiş */}

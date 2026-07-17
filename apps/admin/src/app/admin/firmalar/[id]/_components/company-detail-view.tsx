@@ -242,6 +242,7 @@ export function CompanyDetailView({
         title="Firmayı Askıya Al"
         label="Askı sebebi (opsiyonel)"
         placeholder="Örn. tekrarlanan şikayet"
+        maxLength={500}
         confirmLabel="Askıya Al"
         onConfirm={(v) => {
           act.mutate(

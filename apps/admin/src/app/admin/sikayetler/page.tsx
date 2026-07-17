@@ -296,6 +296,7 @@ function SikayetlerView() {
         }
         label="Yönetici notu (opsiyonel)"
         placeholder="Karar gerekçesi"
+        maxLength={2000}
         confirmLabel={prompt?.actionLabel ?? "Onayla"}
         onConfirm={(v) => runResolve(v || undefined)}
         onClose={() => setPrompt(null)}
