@@ -215,3 +215,36 @@ görünürlük → blok → disconnect). Kapananlar:
 
 **Açık kalem:**
 - 🟡 **BK-CONN-2 referral e-posta hacim sınırı** — batch 50-cap + rate-limit (3/dk) VAR ama **toplam/günlük bekleyen referral cap YOK** → PAKET firma sürekli çağırıp keyfi adreslere referral e-postası püskürtebilir (throttle burst'ü sınırlar, toplam hacmi değil). Launch sonrası e-posta kötüye-kullanım turunda **per-email cooldown + bounce bildirimi + günlük referral cap** ile birlikte ele alınacak.
+
+## Frontend iş mantığı denetimi (2026-07-17)
+
+apps/web + apps/admin hesaplama/gösterim/durum/validation mantığı backend sınırıyla
+denetlendi (A2 sınıfı: ekran ham float sıralarken backend Decimal+TRY-normalize).
+**A2 tekrarı YOK** — karar-yollarında TRY-normalize öğrenilmiş (getOne owner-detay
+rankAuctionBids; my-bids amountTry). Kapananlar:
+
+| # | Kural | Durum |
+|---|-------|-------|
+| ✅ | **F1** sipariş tam-ödeme/peşin epsilon kaldırıldı (INV-MONEY-1 frontend); backend `remaining ≤ 0` okur, `orderFullyPaid`/`isAdvanceMet` helper | `2f4b83f` |
+| ✅ | **F5** admin onaylı-ödeme toplamı backend Decimal `paymentConfirmed`'den (float re-sum kaldırıldı, X7 kardeşi) | `01af040` |
+| ✅ | **F2/F3/F4** frontend validation backend DTO ile hizalandı; sabitler `@rothern/shared`'a taşındı (tek kaynak, yeni dep YOK); `closesAtError`/`moneyInputError`/`maxDecimals` helper | `3dbed3e` |
+| ✅ | **F7** kazandır/ele butonu izin-kapısı (`canManageListing`, assertListingManageRole birebir); backend getOne'a createdById | `16633fb` |
+
+**KONTROL VAR (temiz — doğrulandı):** effectiveTier istemcide İHLAL EDİLEMEZ
+(`membershipEndAt` frontend'e hiç gelmez, yalnız backend efektif tier tüketilir);
+INV-BID-1 kapalı-zarf korunuyor (rakip teklif verisi `isOwner` ayrı dalında, auction
+live-card server-driven); tarih/TZ temiz (epoch-ms countdown, closesAt inclusive
+birebir); kritik para yolu `distribute.ts` exact BigInt; cache invalidation mükemmel
+(WS→invalidation köprüsü, çekirdek akışlar doğru).
+
+**Açık kalemler (kozmetik/backend-bloklu):**
+- 🟡 **F6 orders-list tutar-sıralaması** karışık kurda ham `Number(amount)` (TRY-normalize
+  yok) — backend orders'ta `amountTry` DÖNMÜYOR; düzeltmek backend alan eklemek demek.
+  Liste-sırası, KARAR yolu değil (my-bids-list normalize ediyor → kardeş asimetri).
+- 🟢 **F8** advisory tasarruf-% float (karar-desteği gösterim); **F9** dashboard KPI'ları
+  mutasyon/sinyalle invalidate edilmiyor (bayat aggregate); **F10** realtime `onListing`
+  `company-listings/mine` prefix'ini atlıyor. Hepsi düşük/kozmetik.
+- 🟡 **F12 (bilinçli)** `useHasCompanyPermission` fail-open (permissions bayatsa
+  YONETICI/SAHİP varsayımı) DEĞİŞTİRİLMEDİ — 13 çağrı yeri, backend zaten bloklu,
+  fail-closed yaparsak yükleme anında yönetim butonları kaybolur (kötü UX). F11
+  (persisted tier snapshot ≤60s) + F13 (CLOSED'da kazandır gizli, nadir) benzer.
