@@ -35,6 +35,7 @@ export type PaymentCategory =
   | "ADVANCE"
   | "DEFERRED"
   | "OPEN_ACCOUNT"
+  | "MAL_MUKABILI"
   | "CHEQUE"
   | "SENET"
   | "LETTER_OF_CREDIT"

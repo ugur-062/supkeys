@@ -8,8 +8,9 @@
  */
 export const PAYMENT_CATEGORIES = [
   "ADVANCE", // peşin (+yüzde; %100 = tam peşin, %<100 YALNIZ yurtiçi)
-  "DEFERRED", // vadeli — teslimden N gün sonra
+  "DEFERRED", // vadeli — teslimden N gün sonra (sabit vade ZORUNLU)
   "OPEN_ACCOUNT", // açık hesap — teslim sonrası, vadesiz
+  "MAL_MUKABILI", // mal mukabili — teslim alınca öde; vade OPSİYONEL (dış ticaret)
   "CHEQUE", // çek — vade günlü
   "SENET", // senet/bono — vade günlü kıymetli evrak (yurtiçi)
   "LETTER_OF_CREDIT", // akreditif — Sight/Usance (+Teyitli)
@@ -87,12 +88,15 @@ export function isLetterOfCredit(category: PaymentCategory): boolean {
 }
 
 /** Teslimden sonra vadesi hesaplanan (vade günlü) ödeme kategorileri —
- *  DEFERRED/CHEQUE/SENET ve kısmi peşin kalanı (ADVANCE + paymentDays). */
+ *  DEFERRED/CHEQUE/SENET, kısmi peşin kalanı (ADVANCE + paymentDays) ve mal
+ *  mukabili (opsiyonel vade girildiyse). paymentDueDate paymentDays yoksa null
+ *  döndürdüğünden, vadesiz mal mukabili/açık hesapta hatırlatma sessizce kapalı. */
 export const DUE_DATE_CATEGORIES: readonly PaymentCategory[] = [
   "DEFERRED",
   "CHEQUE",
   "SENET",
   "ADVANCE", // kısmi peşinde kalan vadeli olabilir
+  "MAL_MUKABILI", // teslim alınca öde; vade girildiyse takip et
 ];
 
 /**

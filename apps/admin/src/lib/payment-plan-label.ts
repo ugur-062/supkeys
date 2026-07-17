@@ -5,6 +5,7 @@ const PAYMENT_CATEGORY_LABELS: Record<string, string> = {
   ADVANCE: "Peşin",
   DEFERRED: "Vadeli",
   OPEN_ACCOUNT: "Açık Hesap",
+  MAL_MUKABILI: "Mal Mukabili",
   CHEQUE: "Çek",
   SENET: "Senet",
   LETTER_OF_CREDIT: "Akreditif",
@@ -33,6 +34,10 @@ export function formatPaymentPlanTr(p: {
       return p.paymentDays ? `Vadeli — ${p.paymentDays} gün` : "Vadeli";
     case "OPEN_ACCOUNT":
       return "Açık Hesap (teslim sonrası)";
+    case "MAL_MUKABILI":
+      return p.paymentDays
+        ? `Mal Mukabili — ${p.paymentDays} gün vadeli`
+        : "Mal Mukabili (teslim sonrası)";
     case "CHEQUE":
       return p.paymentDays ? `Çek — ${p.paymentDays} gün vadeli` : "Çek";
     case "SENET":

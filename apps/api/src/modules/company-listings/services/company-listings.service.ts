@@ -846,9 +846,18 @@ export class CompanyListingsService {
         }
         break;
       }
+      case "MAL_MUKABILI": {
+        // Mal mukabili: teslim alınca öde (AFTER_DELIVERY). Vade OPSİYONEL —
+        // girilirse teslim+gün vade takibi (DUE_DATE_CATEGORIES), boşsa teslimde
+        // muaccel (kısmi-peşin kalanı deseniyle aynı, opsiyonel gün).
+        paymentDays = dto.paymentDays ?? null;
+        break;
+      }
       case "OPEN_ACCOUNT":
       case "CASH_AGAINST_DOCS":
-        // Vesaik mukabili: ek zorunlu alan yok; banka/belge detayı paymentNote'a.
+        // Açık hesap / vesaik mukabili: ek zorunlu alan yok; banka/belge detayı
+        // paymentNote'a. (Vesaik = belge karşılığı, teslim ÖNCESİ; mal mukabili
+        // ile karıştırma.)
         break;
     }
 

@@ -94,6 +94,21 @@ describe("tenderFormSchema", () => {
     }
   });
 
+  it("mal mukabili: vade OPSİYONEL (boş da, günlü de geçerli)", () => {
+    // Vadesiz (teslimde muaccel) — geçerli; DEFERRED/CHEQUE'in aksine gün istemez.
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({ paymentCategory: "MAL_MUKABILI", paymentDays: undefined }),
+      ).success,
+    ).toBe(true);
+    // Vade girilirse de geçerli (teslim + gün takibi).
+    expect(
+      tenderFormSchema.safeParse(
+        validForm({ paymentCategory: "MAL_MUKABILI", paymentDays: 60 }),
+      ).success,
+    ).toBe(true);
+  });
+
   it("kısmi peşin yalnız yurtiçi ihalede", () => {
     // Yurtiçi: %50 peşin OK (kalan vade opsiyonel).
     expect(

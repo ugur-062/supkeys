@@ -71,6 +71,11 @@ const PAYMENT_CATEGORY_OPTIONS: {
     label: "Açık Hesap",
     hint: "Teslim sonrası, vadesiz",
   },
+  {
+    value: "MAL_MUKABILI",
+    label: "Mal Mukabili",
+    hint: "Malı teslim aldıktan sonra ödeme — vade opsiyonel (dış ticaret)",
+  },
   { value: "CHEQUE", label: "Çek", hint: "Vade günlü çek ile" },
   { value: "SENET", label: "Senet", hint: "Vade günlü senet/bono ile" },
   {
@@ -1394,6 +1399,28 @@ export function Step1Info({
               <Label htmlFor="paymentDays" required>
                 Vade Gün Sayısı
               </Label>
+              <Input
+                id="paymentDays"
+                type="number"
+                min={1}
+                max={365}
+                placeholder="30"
+                hasError={!!errors.paymentDays}
+                {...register("paymentDays", {
+                  setValueAs: (v) =>
+                    v === "" || v === undefined ? undefined : Number(v),
+                })}
+              />
+            </Field>
+          ) : null}
+
+          {/* MAL MUKABİLİ — vade OPSİYONEL (boş = teslimde muaccel). */}
+          {paymentCategory === "MAL_MUKABILI" ? (
+            <Field
+              error={errors.paymentDays?.message}
+              hint="Boş bırakılırsa teslimde ödenir. Gün girilirse teslimden o kadar gün sonra vade takip edilir."
+            >
+              <Label htmlFor="paymentDays">Vade (gün) — opsiyonel</Label>
               <Input
                 id="paymentDays"
                 type="number"
