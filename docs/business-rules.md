@@ -168,3 +168,30 @@ yerde hesaplayan hatlar; regresyon nöbetçisi olarak izlenmeli (sonraki tur den
 `eliminate`/`cancel`/`startEvaluation`/`closeNoAward` yaşam-döngüsü geçişleri (eleme
 in-flight award ile yarışır mı — runFullAward status re-check muhtemelen güvenli, eleme
 tarafı denetlenmedi).
+
+## CL kör-nokta denetimi (2026-07-17) — kör bölgeler okundu
+
+Yukarıdaki kör noktalar tarandı. Kapananlar:
+
+| # | Kural | Durum |
+|---|-------|-------|
+| ✅ | **B1** eleme↔kazandırma yarışı koşullu-atomik (eliminate + runFullAward:4082 + runItemAward winner count guard; kazanan LOST'a ezilmez / elenmiş bid'e sipariş yazılmaz) | `504dc9b` |
+| ✅ | **B2** adres silme guard'ı SUBMITTED teklifleri de kilitler (silinen adres → bid adressiz → order adressiz kök nedeni) | `e87d39f` |
+| ✅ | **BK-A** `create(asDraft:false)` VERIFIED kapısına tabi (publishListing kardeş-yol KYC asimetrisi) | `a027c92` |
+| ✅ | **BK-B** maskeli PUBLIC teaser'da `paymentNote` gizli (serbest-metin sızıntısı) | `0748e4e` |
+
+**KONTROL VAR / temiz (bu turda doğrulandı):** create-anı SATIS pricing (min/buyNow/
+minUnitPrice/buyNowUnitPrice) `validateSatisPricing` (buyNow>min) ile placeBid floor-check
+tüketimiyle tutarlı; ALIM'da priceScope=null → per-item min/buyNow kasıtlı düşürülür.
+`cancel`/`startEvaluation`/`closeNoAward` zaten atomik (updateMany+count). `detail`
+kapalı-zarf: bids/invitations/bidStats içermez, maskeli yol fiyat/PII/auctionView null'lar.
+`orderDeliverySnapshot` award SONRASI order'ı sabitler (kusur yalnız bid↔award arası = B2).
+
+**Kalan kör noktalar (sonraki tur):**
+- 🔴 **`void this.notifyListingInvitees(...)` (CL:561) `.catch` YOK** — kardeşi (CL:563
+  `notifyCategoryMatchedCompanies`) `.catch`'li. Bildirim reddi (DB flake vb.) UNHANDLED
+  rejection → prod'da Node süreç çökmesi riski. Somut bulgu (bildirim-helper kör bölgesi).
+- 🟡 **`changeClosingTime` (CL:5827)** koşulsuz `listing.update` — state-geçişi değil,
+  düşük risk ama kardeşleriyle (updateMany) asimetrik.
+- Bildirim-helper gövdeleri (CL:89-512 + 5109-5172), `sellerTenders` 1750-1989, `serialize`
+  6235+ tam okunmadı (owner-scoped/sızıntı yüzeyi düşük görünüyor).
