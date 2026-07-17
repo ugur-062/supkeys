@@ -194,6 +194,8 @@ const baseTenderSchema = z.object({
   isSealedBid: z.boolean(),
   requireAllItems: z.boolean(),
   requireBidDocument: z.boolean(),
+  // CC-1: kalem hedef/istenen fiyatını karşı tarafa göster (opt-in, varsayılan false).
+  showTargetToSuppliers: z.boolean(),
   primaryCurrency: z.enum(CURRENCY_VALUES),
   allowedCurrencies: z
     .array(z.enum(CURRENCY_VALUES))
@@ -487,6 +489,7 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   isSealedBid: true,
   requireAllItems: false,
   requireBidDocument: false,
+  showTargetToSuppliers: false,
   primaryCurrency: "TRY",
   allowedCurrencies: ["TRY"],
   deliveryTerm: undefined,

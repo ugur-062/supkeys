@@ -1104,6 +1104,7 @@ export class CompanyListingsService {
           internalNotes: dto.internalNotes?.trim() || null,
           requireAllItems: dto.requireAllItems ?? false,
           requireBidDocument: dto.requireBidDocument ?? false,
+          showTargetToSuppliers: dto.showTargetToSuppliers ?? false,
           primaryCurrency: (dto.primaryCurrency as Currency) ?? "TRY",
           // Çoklu birim auction'da da serbest (kıyaslar açılış günü kur
           // damgasıyla çevrilir) — zaten doğrudan auction create kapalı.
@@ -1347,6 +1348,7 @@ export class CompanyListingsService {
           internalNotes: dto.internalNotes?.trim() || null,
           requireAllItems: dto.requireAllItems ?? false,
           requireBidDocument: dto.requireBidDocument ?? false,
+          showTargetToSuppliers: dto.showTargetToSuppliers ?? false,
           primaryCurrency: (dto.primaryCurrency as Currency) ?? "TRY",
           // Çoklu birim auction'da da serbest — kıyaslar açılış günü kur
           // damgasıyla (yukarıda tazelenen auctionRateSnapshot) çevrilir.
@@ -2163,7 +2165,12 @@ export class CompanyListingsService {
       description: it.description,
       quantity: it.quantity.toString(),
       unit: it.unit,
-      targetPrice: it.targetPrice?.toString() ?? null,
+      // CC-1: hedef/istenen fiyat non-owner'a YALNIZCA sahip opt-in ettiyse
+      // gösterilir (varsayılan gizli — çıpalama riski). Sahip yolu (detail) ayrı,
+      // hep görür. minUnitPrice/buyNowUnitPrice (SATIS tabanı) bilerek açık kalır.
+      targetPrice: listing.showTargetToSuppliers
+        ? (it.targetPrice?.toString() ?? null)
+        : null,
       // SATIS + KALEM fiyatlandırma (maskeli görünümde items zaten boş).
       minUnitPrice: it.minUnitPrice?.toString() ?? null,
       buyNowUnitPrice: it.buyNowUnitPrice?.toString() ?? null,
@@ -6284,6 +6291,7 @@ export class CompanyListingsService {
       terms: string | null;
       requireAllItems: boolean;
       requireBidDocument: boolean;
+      showTargetToSuppliers: boolean;
       primaryCurrency: Currency;
       allowedCurrencies: Currency[];
       // Wizard zenginleştirme
@@ -6340,6 +6348,7 @@ export class CompanyListingsService {
       terms: masked ? null : l.terms,
       requireAllItems: l.requireAllItems,
       requireBidDocument: l.requireBidDocument,
+      showTargetToSuppliers: l.showTargetToSuppliers,
       primaryCurrency: l.primaryCurrency,
       allowedCurrencies: l.allowedCurrencies,
       // Wizard zenginleştirme (Genel Bilgi sekmesi)

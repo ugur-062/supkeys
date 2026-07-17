@@ -69,6 +69,7 @@ export function mapDetailToForm(
     isSealedBid: l.isSealedBid ?? true,
     requireAllItems: l.requireAllItems ?? false,
     requireBidDocument: l.requireBidDocument ?? false,
+    showTargetToSuppliers: l.showTargetToSuppliers ?? false,
     primaryCurrency: primary,
     allowedCurrencies: allowed.length > 0 ? allowed : [primary],
     deliveryTerm:

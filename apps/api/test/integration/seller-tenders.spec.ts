@@ -9,6 +9,7 @@ import {
   invite,
   makeBid,
   makeCompanyWithUser,
+  makeItem,
   makeListing,
 } from "./factories";
 import { makeService } from "./make-service";
@@ -215,6 +216,40 @@ describe("sellerTenders", () => {
     expect(detail.invited).toBe(true);
     expect(detail.masked).toBe(false); // davet maskeyi kaldırır
     expect(detail.canBid).toBe(true); // davetli her görünürlükte teklif verir
+  });
+
+  it("CC-1 getOne: hedef fiyat non-owner'a varsayılan GİZLİ, opt-in açıkken görünür", async () => {
+    const { service } = makeService();
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    await connect(prisma, buyer.company.id, seller.company.id, buyer.user.id);
+
+    // Varsayılan (showTargetToSuppliers=false) → non-owner targetPrice GÖRMEZ.
+    const hidden = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      type: "ALIM",
+      visibility: "CONNECTIONS",
+    });
+    await makeItem(prisma, hidden.id, { targetPrice: 100 });
+    const hiddenDetail = (await service.getOne(seller.auth, hidden.id)) as {
+      items: { targetPrice: string | null }[];
+    };
+    expect(hiddenDetail.items[0]?.targetPrice).toBeNull();
+
+    // Opt-in açık → aynı non-owner targetPrice'ı görür.
+    const shown = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      type: "ALIM",
+      visibility: "CONNECTIONS",
+      showTargetToSuppliers: true,
+    });
+    await makeItem(prisma, shown.id, { targetPrice: 100 });
+    const shownDetail = (await service.getOne(seller.auth, shown.id)) as {
+      items: { targetPrice: string | null }[];
+    };
+    expect(shownDetail.items[0]?.targetPrice).toBe("100");
   });
 
   it("getOne: myBid version/submittedAt/eliminationReason döner", async () => {

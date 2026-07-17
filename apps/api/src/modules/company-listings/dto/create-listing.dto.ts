@@ -390,6 +390,11 @@ export class CreateListingDto {
   @IsBoolean()
   requireBidDocument?: boolean;
 
+  // CC-1: kalem hedef/istenen fiyatını karşı tarafa göster (opt-in, varsayılan false).
+  @IsOptional()
+  @IsBoolean()
+  showTargetToSuppliers?: boolean;
+
   @IsOptional()
   @IsBoolean()
   isSealedBid?: boolean;

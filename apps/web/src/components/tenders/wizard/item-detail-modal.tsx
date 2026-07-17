@@ -32,6 +32,7 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
     formState: { errors },
   } = useFormContext<TenderFormData>();
   const isSatis = watch("listingType") === "SATIS";
+  const showTarget = watch("showTargetToSuppliers");
 
   const itemErrors = errors.items?.[index];
 
@@ -112,7 +113,14 @@ export function ItemDetailModal({ open, onClose, index }: Props) {
               {...register(`items.${index}.requiredByDate`)}
             />
           </Field>
-          <Field error={itemErrors?.targetUnitPrice?.message}>
+          <Field
+            error={itemErrors?.targetUnitPrice?.message}
+            hint={
+              showTarget
+                ? `${isSatis ? "Alıcılar" : "Tedarikçiler"} bu fiyatı görecek (İhale Kuralları'nda açık).`
+                : "Yalnız sizin için — karşı tarafa gösterilmez."
+            }
+          >
             <Label htmlFor={`detail-targetUnitPrice-${index}`}>
               {isSatis ? "İstenen Birim Fiyat" : "Hedef Birim Fiyat"}
             </Label>

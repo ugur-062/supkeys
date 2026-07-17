@@ -1103,6 +1103,10 @@ model Listing {
   // ALIM için format (RFQ/İngiliz Usulü). SATIS'ta null (her zaman forward).
   format                ListingFormat?
   visibility            ListingVisibility @default(CONNECTIONS)
+  // Kalem "hedef/istenen birim fiyat"ı (targetPrice) teklif verebilen karşı
+  // tarafa gösterilsin mi? Varsayılan GİZLİ (opt-in) — açık göstermek fiyat
+  // çıpalaması yaratır; sahip bilerek bütçe paylaşmak isterse açar.
+  showTargetToSuppliers Boolean           @default(false)
   title                 String
   description           String?
   // SATIS fiyatlandırma kapsamı: TOPLU (ilan geneli taban/hemen-al) veya

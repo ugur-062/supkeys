@@ -129,6 +129,7 @@ export interface CreateListingInput {
   internalNotes?: string;
   requireAllItems?: boolean;
   requireBidDocument?: boolean;
+  showTargetToSuppliers?: boolean;
   isSealedBid?: boolean;
   primaryCurrency?: CurrencyCode;
   allowedCurrencies?: CurrencyCode[];
@@ -341,6 +342,7 @@ export interface ListingDetail {
   terms?: string | null;
   requireAllItems?: boolean;
   requireBidDocument?: boolean;
+  showTargetToSuppliers?: boolean;
   primaryCurrency?: string;
   allowedCurrencies?: string[];
   // Wizard zenginleştirme (Genel Bilgi sekmesi)

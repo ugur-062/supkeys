@@ -1058,6 +1058,18 @@ export function Step1Info({
                   teklif vermemiş davetlilere gönderilir (kullanıcıya sorulmaz). */}
             </>
           )}
+          {/* CC-1: kalem hedef/istenen fiyatının karşı tarafa görünürlüğü — RFQ
+              ve auction'da aynı; varsayılan kapalı (çıpalama riski). */}
+          <FormCheckbox name="showTargetToSuppliers">
+            <p>
+              Hedef fiyatları {isSatis ? "alıcılara" : "tedarikçilere"} göster
+            </p>
+            <p className="text-xs font-normal text-zinc-500">
+              Kapalı (varsayılan): kalem hedef/istenen birim fiyatları yalnız
+              sizde kalır. Açarsanız {isSatis ? "alıcılar" : "tedarikçiler"} bu
+              fiyatı görür — teklifler o rakama yakınsayabilir.
+            </p>
+          </FormCheckbox>
         </div>
       </section>
 
