@@ -113,6 +113,130 @@ describe("teslim şekline göre gönderim bildirimi (deliveryTerm)", () => {
   });
 });
 
+describe("A1 — satıcı iptal talebi + DISPUTED", () => {
+  const REASON = "fabrika yangını nedeniyle sevk edilemiyor";
+
+  it("satıcı ACCEPTED'da talep açar (ACCEPTED kalır); PENDING/IN_DELIVERY'de açılamaz", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const pend = await makeOrder(seller.company.id, buyer.company.id);
+    await expect(
+      orders.requestCancel(seller.auth, pend.id, REASON),
+    ).rejects.toThrow();
+    const acc = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      acceptedAt: new Date(),
+    });
+    await orders.requestCancel(seller.auth, acc.id, REASON);
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: acc.id },
+    });
+    expect(db.status).toBe("ACCEPTED");
+    expect(db.cancelRequestedAt).not.toBeNull();
+    const shipped = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "IN_DELIVERY",
+      acceptedAt: new Date(),
+    });
+    await expect(
+      orders.requestCancel(seller.auth, shipped.id, REASON),
+    ).rejects.toThrow();
+  });
+
+  it("alıcı onaylar → CANCELLED", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      acceptedAt: new Date(),
+    });
+    await orders.requestCancel(seller.auth, order.id, REASON);
+    await orders.approveCancelRequest(buyer.auth, order.id);
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("CANCELLED");
+    expect(db.cancelReason).toBe(REASON);
+  });
+
+  it("alıcı reddeder → DISPUTED (ACCEPTED'a dönmez)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      acceptedAt: new Date(),
+    });
+    await orders.requestCancel(seller.auth, order.id, REASON);
+    await orders.rejectCancelRequest(buyer.auth, order.id, "mal teslim bekliyorum");
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("DISPUTED");
+    expect(db.disputedAt).not.toBeNull();
+  });
+
+  it("DISPUTED iki-yönlü çıkış: satıcı SEVK edebilir (→IN_DELIVERY)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DISPUTED",
+      acceptedAt: new Date(),
+    });
+    await orders.ship(seller.auth, order.id, { invoiceNumber: "F-1" } as never);
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("IN_DELIVERY");
+  });
+
+  it("DISPUTED iki-yönlü çıkış: alıcı iptali ONAYLAYABİLİR (→CANCELLED)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DISPUTED",
+      acceptedAt: new Date(),
+    });
+    await orders.approveCancelRequest(buyer.auth, order.id);
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("CANCELLED");
+  });
+
+  it("otomatik onay YOK — açık talep varken karar verilmezse ACCEPTED kalır", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      acceptedAt: new Date(),
+    });
+    await orders.requestCancel(seller.auth, order.id, REASON);
+    // karar yok — sipariş hâlâ ACCEPTED (satıcı talep açıp kaçamaz).
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("ACCEPTED");
+  });
+
+  it("audit izi: cancel_requested + disputed", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      acceptedAt: new Date(),
+    });
+    await orders.requestCancel(seller.auth, order.id, REASON);
+    await orders.rejectCancelRequest(buyer.auth, order.id);
+    const requested = await prisma.auditLog.count({
+      where: { action: "company.order.cancel_requested", entityId: order.id },
+    });
+    const disputed = await prisma.auditLog.count({
+      where: { action: "company.order.disputed", entityId: order.id },
+    });
+    expect(requested).toBe(1);
+    expect(disputed).toBe(1);
+  });
+});
+
 describe("S1 — accept banka hesabı LC/vesaikte opsiyonel", () => {
   it("akreditif siparişi banka hesabı SEÇMEDEN onaylanabilir", async () => {
     const orders = makeOrdersService();

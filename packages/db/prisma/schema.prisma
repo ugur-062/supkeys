@@ -621,6 +621,7 @@ enum CompanyOrderStatus {
   COMPLETED // tamamlandı (ödeme + teslim)
   REJECTED // satıcı siparişi reddetti
   CANCELLED
+  DISPUTED // A1 — satıcı iptal talebini alıcı reddetti; ihtilaflı (iki-yönlü çıkış açık)
 }
 
 enum CompanyOrderPaymentTiming {
@@ -729,6 +730,14 @@ model CompanyOrder {
   // Timeline için sonlandırma damgaları (sebepler ayrı alanlarda).
   rejectedAt           DateTime?
   cancelledAt          DateTime?
+  // A1 — SATICI iptal talebi (yalnız ACCEPTED): satıcı çıkış talep eder, alıcı
+  // onaylar (→CANCELLED) ya da reddeder (→DISPUTED). Açık talep işareti =
+  // status===ACCEPTED && cancelRequestedAt!=null. Tam kanıt izi audit_logs'ta.
+  cancelRequestedAt    DateTime?
+  cancelRequestReason  String?
+  cancelRequestById    String?
+  // İhtilaf damgası (ACCEPTED→DISPUTED): saat durur, iki-yönlü çıkış açık.
+  disputedAt           DateTime?
 
   documents CompanyOrderDocument[]
   items     CompanyOrderItem[]

@@ -330,7 +330,9 @@ export class CompanyOrdersService {
     }
     const res = await this.transition(user, id, {
       side: "seller",
-      from: ["ACCEPTED", "CREATED"],
+      // A1: DISPUTED'dan da sevk edilebilir (mal bulundu → ihtilaf çözüldü).
+      // Ship ön-koşulları (peşin/LC/bekleyen-ödeme) yukarıda zaten çalıştı.
+      from: ["ACCEPTED", "CREATED", "DISPUTED"],
       to: "IN_DELIVERY",
       data: {
         invoiceNumber: input.invoiceNumber.trim(),
@@ -598,6 +600,209 @@ export class CompanyOrdersService {
       "satis",
     );
     return { ok: true, status: "CANCELLED" as const };
+  }
+
+  // ---- A1: Satıcı iptal talebi + DISPUTED (yalnız ACCEPTED) ----
+  // Platform sözleşme icra etmez / para tutmaz / hakem değildir — katkısı NE
+  // OLDUĞUNU DOĞRU KAYDETMEK (audit_logs). Satıcı çıkış talep eder; alıcı onaylar
+  // (→CANCELLED) ya da reddeder (→DISPUTED, saat durur, iki-yönlü çıkış açık).
+
+  /** Satıcı ACCEPTED siparişte iptal talebi açar (gerekçe ZORUNLU, min 10).
+   *  Durum ACCEPTED kalır (flag); otomatik onay YOK — alıcı karar verir. */
+  async requestCancel(user: AuthenticatedCompanyUser, id: string, reason?: string) {
+    if ((reason?.trim().length ?? 0) < 10) {
+      throw new BadRequestException(
+        "İptal talebi gerekçesi en az 10 karakter olmalı",
+      );
+    }
+    const order = await this.loadParticipant(user, id);
+    if (order.sellerCompanyId !== user.companyId) {
+      throw new ForbiddenException("Bu işlemi yapamazsınız");
+    }
+    this.assertOrderRole(user, "seller");
+    // Atomik: yalnız ACCEPTED ve açık talep YOKKEN (transition() flag koşulu
+    // alamaz → doğrudan updateMany + count===1, INV-SM-3 deseni).
+    const res = await this.prisma.companyOrder.updateMany({
+      where: { id, status: "ACCEPTED", cancelRequestedAt: null },
+      data: {
+        cancelRequestedAt: new Date(),
+        cancelRequestReason: reason!.trim(),
+        cancelRequestById: user.userId,
+      },
+    });
+    if (res.count !== 1) {
+      throw new BadRequestException(
+        "İptal talebi yalnız onaylanmış (ve açık talebi olmayan) siparişte açılabilir",
+      );
+    }
+    await this.audit.log({
+      action: "company.order.cancel_requested",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order",
+      entityId: id,
+      critical: true,
+      metadata: { orderNumber: order.number, reason: reason!.trim() },
+    });
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
+    await this.notifyOrderParty(
+      id,
+      order.buyerCompanyId,
+      "Satıcı sipariş iptali talep etti",
+      "Satıcı sipariş iptali talep etti",
+      `${this.orderLabel(order.number)} sipariş için satıcı iptal talep etti. Gerekçe: ${reason!.trim()} — Onaylayın veya reddedin.`,
+      "satinalma",
+    );
+    return { ok: true as const };
+  }
+
+  /** Satıcı açık iptal talebini geri çeker — sipariş ACCEPTED'da kalır. */
+  async withdrawCancelRequest(user: AuthenticatedCompanyUser, id: string) {
+    const order = await this.loadParticipant(user, id);
+    if (order.sellerCompanyId !== user.companyId) {
+      throw new ForbiddenException("Bu işlemi yapamazsınız");
+    }
+    this.assertOrderRole(user, "seller");
+    const res = await this.prisma.companyOrder.updateMany({
+      where: { id, status: "ACCEPTED", cancelRequestedAt: { not: null } },
+      data: {
+        cancelRequestedAt: null,
+        cancelRequestReason: null,
+        cancelRequestById: null,
+      },
+    });
+    if (res.count !== 1) {
+      throw new BadRequestException("Geri çekilecek açık bir iptal talebi yok");
+    }
+    await this.audit.log({
+      action: "company.order.cancel_request_withdrawn",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order",
+      entityId: id,
+      critical: true,
+      metadata: { orderNumber: order.number },
+    });
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
+    await this.notifyOrderParty(
+      id,
+      order.buyerCompanyId,
+      "İptal talebi geri çekildi",
+      "İptal talebi geri çekildi",
+      `${this.orderLabel(order.number)} sipariş için satıcı iptal talebini geri çekti; sipariş devam ediyor.`,
+      "satinalma",
+    );
+    return { ok: true as const };
+  }
+
+  /** Alıcı iptal talebini ONAYLAR → CANCELLED. DISPUTED'dan da çağrılabilir
+   *  (alıcı sonradan iptali kabul eder). CONFIRMED ödemede ENGELLEME YOK — iade
+   *  taraflar arasında (platform para tutmaz); uyarı frontend'de gösterilir. */
+  async approveCancelRequest(user: AuthenticatedCompanyUser, id: string) {
+    const order = await this.loadParticipant(user, id);
+    if (order.buyerCompanyId !== user.companyId) {
+      throw new ForbiddenException("Bu işlemi yapamazsınız");
+    }
+    this.assertOrderRole(user, "buyer");
+    const res = await this.prisma.companyOrder.updateMany({
+      where: {
+        id,
+        OR: [
+          { status: "ACCEPTED", cancelRequestedAt: { not: null } },
+          { status: "DISPUTED" },
+        ],
+      },
+      data: {
+        status: "CANCELLED",
+        cancelledAt: new Date(),
+        cancelReason:
+          order.cancelRequestReason ?? "Satıcı iptal talebi onaylandı",
+      },
+    });
+    if (res.count !== 1) {
+      throw new BadRequestException(
+        "Onaylanacak açık bir iptal talebi/ihtilaf yok — durum değişmiş olabilir",
+      );
+    }
+    await this.audit.log({
+      action: "company.order.cancel_request_approved",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order",
+      entityId: id,
+      critical: true,
+      metadata: {
+        orderNumber: order.number,
+        from: order.status,
+        to: "CANCELLED",
+      },
+    });
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
+    await this.notifyOrderParty(
+      id,
+      order.sellerCompanyId,
+      "İptal talebi onaylandı",
+      "İptal talebi onaylandı",
+      `${this.orderLabel(order.number)} sipariş, alıcının onayıyla iptal edildi.`,
+      "satis",
+    );
+    return { ok: true as const, status: "CANCELLED" as const };
+  }
+
+  /** Alıcı iptal talebini REDDEDER → DISPUTED (ACCEPTED'a geri DÖNMEZ). Sipariş
+   *  gerçekten ihtilaflı; saat durur, iki-yönlü çıkış açık (satıcı sevk / alıcı onay). */
+  async rejectCancelRequest(
+    user: AuthenticatedCompanyUser,
+    id: string,
+    reason?: string,
+  ) {
+    const order = await this.loadParticipant(user, id);
+    if (order.buyerCompanyId !== user.companyId) {
+      throw new ForbiddenException("Bu işlemi yapamazsınız");
+    }
+    this.assertOrderRole(user, "buyer");
+    const res = await this.prisma.companyOrder.updateMany({
+      where: { id, status: "ACCEPTED", cancelRequestedAt: { not: null } },
+      data: { status: "DISPUTED", disputedAt: new Date() },
+    });
+    if (res.count !== 1) {
+      throw new BadRequestException(
+        "Reddedilecek açık bir iptal talebi yok — durum değişmiş olabilir",
+      );
+    }
+    await this.audit.log({
+      action: "company.order.disputed",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_order",
+      entityId: id,
+      critical: true,
+      metadata: {
+        orderNumber: order.number,
+        from: "ACCEPTED",
+        to: "DISPUTED",
+        sellerReason: order.cancelRequestReason ?? null,
+        buyerReason: reason?.trim() || null,
+      },
+    });
+    this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
+    await this.notifyOrderParty(
+      id,
+      order.sellerCompanyId,
+      "İptal talebi reddedildi — sipariş ihtilaflı",
+      "İptal talebi reddedildi — sipariş ihtilaflı",
+      `${this.orderLabel(order.number)} sipariş için iptal talebiniz reddedildi. Sipariş ihtilaflı; mal bulunursa sevk edebilir, ya da alıcı sonradan iptali onaylayabilir.`,
+      "satis",
+    );
+    return { ok: true as const, status: "DISPUTED" as const };
   }
 
   // ---- Sipariş revizyon müzakeresi (satıcı önerir, alıcı karar verir — Faz 5) ----
@@ -1289,6 +1494,9 @@ export class CompanyOrdersService {
         deliveryTerm: true,
         sellerCompanyId: true,
         buyerCompanyId: true,
+        // A1: iptal talebi bağlamı (approve'da cancelReason'a taşınır).
+        cancelRequestedAt: true,
+        cancelRequestReason: true,
       },
     });
     if (
@@ -1724,6 +1932,12 @@ export class CompanyOrdersService {
       // İlan sahibinin seçimi (award snapshot'ı) — true ise satıcı onaydan
       // önce teminat mektubu yükler; UI adımı buna göre gösterir.
       requireGuaranteeLetter: o.requireGuaranteeLetter,
+      // A1: satıcı iptal talebi durumu — alıcıya onay/red paneli, satıcıya "Geri
+      // Çek", DISPUTED rozeti. Açık talep = status ACCEPTED && cancelRequestedAt.
+      cancelRequestedAt: o.cancelRequestedAt,
+      cancelRequestReason: o.cancelRequestReason,
+      cancelRequestById: o.cancelRequestById,
+      disputedAt: o.disputedAt,
       paymentOpen: this.isPaymentOpen(
         o.paymentTiming,
         o.status,

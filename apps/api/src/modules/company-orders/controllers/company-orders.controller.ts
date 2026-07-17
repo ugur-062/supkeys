@@ -93,6 +93,42 @@ export class CompanyOrdersController {
     return this.service.cancel(user, id, dto.reason);
   }
 
+  // ---- A1: Satıcı iptal talebi + DISPUTED (yalnız ACCEPTED) ----
+
+  @Post(":id/cancel-request")
+  requestCancel(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: OrderReasonDto,
+  ) {
+    return this.service.requestCancel(user, id, dto.reason);
+  }
+
+  @Post(":id/cancel-request/withdraw")
+  withdrawCancelRequest(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.withdrawCancelRequest(user, id);
+  }
+
+  @Post(":id/cancel-request/approve")
+  approveCancelRequest(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+  ) {
+    return this.service.approveCancelRequest(user, id);
+  }
+
+  @Post(":id/cancel-request/reject")
+  rejectCancelRequest(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("id") id: string,
+    @Body() dto: OrderNoteDto,
+  ) {
+    return this.service.rejectCancelRequest(user, id, dto.note);
+  }
+
   // ---- Ödeme kayıtları ----
 
   @Post(":id/payments")
