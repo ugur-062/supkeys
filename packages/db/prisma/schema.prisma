@@ -1038,8 +1038,9 @@ enum ListingDeliveryTerm {
 // (paymentTiming) bu plandan TÜRETİLİR, kullanıcıya ayrıca sorulmaz (Faz 2).
 enum ListingPaymentCategory {
   ADVANCE // peşin (+advancePercent; %100 = tam peşin, %<100 YALNIZ yurtiçi)
-  DEFERRED // vadeli — teslimden paymentDays gün sonra
-  OPEN_ACCOUNT // açık hesap — teslim sonrası, vadesiz
+  DEFERRED // vadeli — teslimden paymentDays gün sonra (sabit vade ZORUNLU)
+  OPEN_ACCOUNT // açık hesap — teslim sonrası, vadesiz (güven ilişkisi)
+  MAL_MUKABILI // mal mukabili — malı teslim alınca öde; vade OPSİYONEL (dış ticaret usulü)
   CHEQUE // çek — vade = paymentDays
   SENET // senet/bono — vade = paymentDays (yurtiçi kıymetli evrak)
   LETTER_OF_CREDIT // akreditif — lcType (+USANCE'ta vade = paymentDays)
