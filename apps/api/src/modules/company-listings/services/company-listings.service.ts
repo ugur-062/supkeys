@@ -4079,10 +4079,19 @@ export class CompanyListingsService {
       if (transition.count !== 1) {
         throw new BadRequestException("İlan zaten kazandırılmış");
       }
-      await tx.listingBid.update({
-        where: { id: bidId },
+      // B1: koşullu-atomik winner (runItemAward:4626 simetrisi). 4026 ön-okuması
+      // ile bu tx arasındaki pencerede bid elenirse (SUBMITTED→LOST) `where
+      // status:SUBMITTED` 0 satır alır → throw → tx ROLLBACK: elenmiş/çekilmiş
+      // teklife sipariş yazılmaz (LOST↔sipariş tutarlılığı korunur).
+      const won = await tx.listingBid.updateMany({
+        where: { id: bidId, status: "SUBMITTED" },
         data: { status: "WON" },
       });
+      if (won.count !== 1) {
+        throw new ConflictException(
+          "Teklif artık geçerli değil (elenmiş veya çekilmiş) — kazandırılamaz",
+        );
+      }
       await tx.listingBid.updateMany({
         where: { listingId, id: { not: bidId }, status: "SUBMITTED" },
         data: { status: "LOST" },
@@ -4621,17 +4630,30 @@ export class CompanyListingsService {
       const partialWinners = winningBidIds.filter(
         (bid) => !fullWinners.includes(bid),
       );
+      // B1: koşullu winner + count guard (runFullAward:4082 simetrisi). Ön-kontrol
+      // (awardByItem:4296) ile bu tx arasındaki pencerede kazanan bir teklif
+      // elenirse `where status:SUBMITTED` o satırı atlar → güncellenen kazanan
+      // sayısı düşer → throw → tx ROLLBACK: aşağıdaki sipariş döngüsü (groupArr)
+      // elenmiş teklife sipariş YAZMAZ (WON'suz sipariş sızıntısı kapanır).
+      let awardedWinners = 0;
       if (fullWinners.length > 0) {
-        await tx.listingBid.updateMany({
+        const r = await tx.listingBid.updateMany({
           where: { listingId, id: { in: fullWinners }, status: "SUBMITTED" },
           data: { status: "WON" },
         });
+        awardedWinners += r.count;
       }
       if (partialWinners.length > 0) {
-        await tx.listingBid.updateMany({
+        const r = await tx.listingBid.updateMany({
           where: { listingId, id: { in: partialWinners }, status: "SUBMITTED" },
           data: { status: "AWARDED_PARTIAL" },
         });
+        awardedWinners += r.count;
+      }
+      if (awardedWinners !== winningBidIds.length) {
+        throw new ConflictException(
+          "Kazanan tekliflerden biri artık geçerli değil (elenmiş veya çekilmiş) — kazandırma uygulanamadı",
+        );
       }
       await tx.listingBid.updateMany({
         where: { listingId, id: { notIn: winningBidIds }, status: "SUBMITTED" },
@@ -5476,14 +5498,23 @@ export class CompanyListingsService {
     if (!bid || bid.listingId !== listingId || bid.status !== "SUBMITTED") {
       throw new BadRequestException("Geçersiz teklif");
     }
-    await this.prisma.listingBid.update({
-      where: { id: bidId },
+    // B1: koşullu-atomik (kardeşler cancel:5556 / closeNoAward:5916 /
+    // startEvaluation:5702 ile simetri). Eşzamanlı award bu bid'i WON/
+    // AWARDED_PARTIAL yaptıysa `where status:SUBMITTED` 0 satır alır → eleme
+    // reddedilir: WON EZİLMEZ ve aşağıdaki "elendiniz" bildirimi TETİKLENMEZ
+    // (throw). Eski koşulsuz update, award-then-eliminate yarışında kazananı
+    // LOST'a çevirip yanıltıcı bildirim gönderiyordu.
+    const eliminated = await this.prisma.listingBid.updateMany({
+      where: { id: bidId, status: "SUBMITTED" },
       data: {
         status: "LOST",
         eliminationReason: reason?.trim() || null,
         eliminatedAt: new Date(),
       },
     });
+    if (eliminated.count !== 1) {
+      throw new ConflictException("Teklif durumu değişti; eleme uygulanamadı");
+    }
 
     // Tedarikçiye eleme bildirimi (gerekçe paylaşılmaz — eski sistem davranışı).
     const info = await this.prisma.listing.findUnique({
