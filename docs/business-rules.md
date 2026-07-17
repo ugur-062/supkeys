@@ -77,6 +77,15 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
   `DUE_DATE_CATEGORIES`'te → `paymentDueDate` hesaplanır, sipariş kartında gösterilir,
   cron alıcıya vade hatırlatması gönderir. Opsiyonel bırakıldı (bilinçli: "%X peşin +
   kalan teslimde nakit" senaryosu ifade edilebilsin) | ✅ mevcut
+- **Satıcı iptal talebi + DISPUTED (A1):** satıcının ACCEPTED sonrası çıkışı yoktu
+  (mal bulunamıyor → sipariş sonsuza dek "Onaylandı"da yalan söylüyordu). Satıcı yalnız
+  **ACCEPTED**'te iptal TALEP eder (gerekçe min 10); alıcı **onaylar → CANCELLED** ya da
+  **reddeder → DISPUTED** (ACCEPTED'a dönmez). DISPUTED = dürüst etiket: saat durur
+  (vade cron/ödeme penceresi/revizyon pasif), iki-yönlü çıkış açık (satıcı sevk / alıcı
+  onay). Otomatik onay YOK. CONFIRMED ödemede alıcı onayı ENGELLENMEZ ama iade uyarısı
+  gösterilir (platform para tutmaz — iade taraflar arası). Alıcının KENDİ `/cancel`'ı
+  CONFIRMED'de engelli kalır (CO cancel guard, değişmez). Ayrı tablo yok — kanıt izi
+  `audit_logs` (platform hakem değil, KAYDEDER) | ✅ **A1**, `752ad978`
 - **advancePercent ZORUNLU (ADVANCE):** eski sessiz `?? 100` yazma varsayımı kalktı;
   `create-listing.dto` `@ValidateIf(ADVANCE)` + `buildPaymentPlan` throw. Runtime
   `advancePercentFor` `?? 100` backstop KORUNDU (fail-closed — stray/legacy null en
