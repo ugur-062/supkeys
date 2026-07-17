@@ -43,7 +43,7 @@ import { SearchInput } from "@/components/list/search-input";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
 import { subscribeRealtime } from "@/lib/realtime";
-import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
+import { CURRENCY_SYMBOL, KDV_HARIC_NOTE } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
@@ -844,6 +844,7 @@ export default function ListingDetailPage() {
 
   const ownerBidsSection = (
     <section className="space-y-3">
+      <p className="text-xs text-zinc-400">{KDV_HARIC_NOTE}</p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Subheading>Gelen Teklifler ({l.bids?.length ?? 0})</Subheading>

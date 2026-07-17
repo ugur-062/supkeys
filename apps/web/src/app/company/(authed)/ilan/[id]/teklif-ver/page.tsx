@@ -30,7 +30,10 @@ import {
   type ListingItemRow,
 } from "@/hooks/use-company-listings";
 import { useAddresses } from "@/hooks/use-company-addresses";
-import { BUYER_ADDRESS_REQUIRED_TERMS } from "@/lib/tenders/labels";
+import {
+  BUYER_ADDRESS_REQUIRED_TERMS,
+  KDV_HARIC_NOTE,
+} from "@/lib/tenders/labels";
 import type { DeliveryTerm } from "@/lib/tenders/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { moneyInputError } from "@/lib/money-input";
@@ -1246,6 +1249,7 @@ export default function TeklifVerPage() {
           ) : (
             <section className="space-y-3">
               <Subheading>Teklif Tutarı</Subheading>
+              <p className="text-xs text-zinc-400">{KDV_HARIC_NOTE}</p>
               <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
                 <Field>
                   <Label>Tutar ({effectiveCurrency})</Label>

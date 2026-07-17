@@ -56,6 +56,12 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
 
 - **Ödeme kategorileri** (ADVANCE/DEFERRED/OPEN_ACCOUNT/**MAL_MUKABILI**/CHEQUE/SENET/LC/CASH_AGAINST_DOCS/CUSTOM)
   ve zamanlama (BEFORE/AFTER_DELIVERY) plandan türetilir (`derivePaymentTiming`) | 🟡 tasarım
+- **Fiyat konvansiyonu — tüm fiyatlar KDV HARİÇ (Fix 6):** platform fatura KESMEZ →
+  KDV oranı/hesabı/tevkifat GEREKMEZ; KDV'yi taraflar kendi faturalarında uygular.
+  Amaç yalnız **karşılaştırma bazı netliği** — tedarikçiler farklı KDV varsayarsa
+  teklifler sessizce kıyaslanamaz hâle gelir (yanlış kazandırma). `KDV_HARIC_NOTE`
+  ihale wizard'ı (Ödeme Şekli), teklif verme (Teklif Tutarı), teklif karşılaştırma
+  ve sipariş ödeme kartında gösterilir. Kod-mantığı yok, yalnız metin | ✅ **Fix 6**
 - **Teslim-sonrası (AFTER_DELIVERY) 3 kategorinin ayrımı — vade günü davranışı:**
   | Kategori | `paymentDays` | Vade takibi (cron) | Anlam |
   |---|---|---|---|

@@ -9,7 +9,11 @@ import {
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { moneyInputError } from "@/lib/money-input";
-import { CURRENCY_SYMBOL, formatPaymentPlan } from "@/lib/tenders/labels";
+import {
+  CURRENCY_SYMBOL,
+  formatPaymentPlan,
+  KDV_HARIC_NOTE,
+} from "@/lib/tenders/labels";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import { Check, Plus, X } from "lucide-react";
@@ -132,6 +136,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
             {formatPaymentPlan(order)}
             {order.paymentNote ? ` · ${order.paymentNote}` : ""}
           </p>
+          <p className="mt-0.5 text-xs text-zinc-400">{KDV_HARIC_NOTE}</p>
         </div>
         {isBuyer && order.paymentOpen ? (
           <button

@@ -228,6 +228,12 @@ export function formatPaymentPlan(p: {
   }
 }
 
+// KDV konvansiyonu (Fix 6): platform fatura KESMEZ, KDV hesaplanmaz. Tek amaç
+// karşılaştırma bazını netleştirmek — tedarikçiler farklı KDV varsayarsa teklifler
+// kıyaslanamaz. Fiyat girilen/gösterilen ekranlara bu not yerleştirilir.
+export const KDV_HARIC_NOTE =
+  "Tüm fiyatlar KDV hariçtir. Platform fatura kesmez; KDV'yi taraflar kendi faturalarında uygular.";
+
 // Ödeme zamanı (türetilmiş — Faz 3'e köprü, sipariş akışı hâlâ okur)
 export const PAYMENT_TIMING_LABELS: Record<PaymentTiming, string> = {
   BEFORE_DELIVERY: "Teslim öncesi",

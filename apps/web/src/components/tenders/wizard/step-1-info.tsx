@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useCurrentExchangeRates } from "@/hooks/use-exchange-rates";
-import { DELIVERY_TERM_LABELS } from "@/lib/tenders/labels";
+import { DELIVERY_TERM_LABELS, KDV_HARIC_NOTE } from "@/lib/tenders/labels";
 import type {
   PaymentCategoryValue,
   TenderFormData,
@@ -1332,6 +1332,7 @@ export function Step1Info({
         <div className="space-y-4">
           <Field error={errors.paymentCategory?.message}>
             <Label required>Ödeme Şekli</Label>
+            <p className="mb-2 text-xs text-zinc-400">{KDV_HARIC_NOTE}</p>
             <FormRadioGroup
               name="paymentCategory"
               className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
