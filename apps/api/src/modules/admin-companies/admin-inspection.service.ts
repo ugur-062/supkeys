@@ -5,7 +5,7 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
-import type { CompanyOrderStatus } from "@rothern/db";
+import { Prisma, type CompanyOrderStatus } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { RealtimeService } from "../realtime/realtime.service";
@@ -346,10 +346,18 @@ export class AdminInspectionService {
       },
     });
     if (!o) throw new NotFoundException("Sipariş bulunamadı");
+    // F5 (X7 frontend kardeşi): onaylı ödeme toplamı DECIMAL ile burada hesaplanır
+    // (INV-MONEY-1) → admin sayfası float `reduce` ile yeniden toplamasın; kuruş
+    // sapması olmadan "Onaylı: X" ve iptal-uyarısı bu değeri kullanır.
+    const paymentConfirmed = o.payments
+      .filter((p) => p.status === "CONFIRMED")
+      .reduce((s, p) => s.plus(p.amount), new Prisma.Decimal(0))
+      .toFixed(2);
     // Decimal → number (JSON temiz + TS2742 taşınabilirlik).
     return {
       ...o,
       amount: Number(o.amount),
+      paymentConfirmed,
       items: o.items.map((i) => ({
         ...i,
         quantity: Number(i.quantity),

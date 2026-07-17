@@ -151,6 +151,8 @@ export interface AdminOrderDetail {
   number: string | null;
   status: string;
   amount: number;
+  /** F5: backend Decimal onaylı-ödeme toplamı (INV-MONEY-1; float re-sum yerine). */
+  paymentConfirmed: string;
   currency: string;
   paymentTiming: string;
   // Ödeme planı snapshot'ı (award anındaki ihale şartı) + teslim şekli.

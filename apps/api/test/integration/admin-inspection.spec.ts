@@ -256,3 +256,41 @@ describe("davet iptalleri", () => {
     expect(bids[0]!.bidderCompany.id).toBe(b.company.id);
   });
 });
+
+describe("F5: orderDetail onaylı-ödeme toplamı (Decimal, INV-MONEY-1)", () => {
+  it("paymentConfirmed = onaylı ödemelerin Decimal toplamı; pending HARİÇ", async () => {
+    const { service } = rig();
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    const order = await makeOrder(buyer.company.id, seller.company.id, "ACCEPTED");
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: 333.33,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: 333.34,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+    // Onaylanmamış → toplama GİRMEZ.
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: 100,
+        status: "AWAITING_CONFIRMATION",
+        recordedByCompanyId: buyer.company.id,
+      },
+    });
+    const detail = await service.orderDetail(order.id);
+    expect(detail.paymentConfirmed).toBe("666.67"); // Decimal; 100 pending hariç
+  });
+});

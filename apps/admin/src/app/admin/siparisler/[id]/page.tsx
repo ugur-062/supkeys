@@ -67,9 +67,9 @@ function OrderInspection({ id }: { id: string }) {
   }
 
   const meta = orderStatusMeta(o.status, o.deliveryTerm);
-  const confirmed = o.payments
-    .filter((p) => p.status === "CONFIRMED")
-    .reduce((s, p) => s + p.amount, 0);
+  // F5: onaylı toplam backend'in DECIMAL değerinden (INV-MONEY-1) — float re-sum
+  // yerine tek kaynak (kuruş sapması yok).
+  const confirmed = Number(o.paymentConfirmed);
 
   return (
     <div className="max-w-[1100px] space-y-6">
