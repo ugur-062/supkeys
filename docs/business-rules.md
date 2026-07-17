@@ -72,16 +72,25 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
 - **Banka hesabı accept'te zorunlu;** complete() tam-ödeme-onayı şart | 🟡 tasarım
 - **Ödeme-red gerekçesi min 10 karakter** (iptal gerekçesiyle simetri) —
   `RejectPaymentReasonDto @MinLength(10)` | ✅ **Grup 4**, `d3bb0c1`
-- **unitPrice üst sınırı YOK:** `quantity` `@Max` kondu ama birim fiyatın tavanı yok →
-  `qty × unitPrice` Decimal(18,2) taşması TAM kapanmadı. unitPrice'a da makul `@Max`
-  eklenmeli | 🔴 **açık** (bu turda kapsam dışı — kaybolmasın)
+- **Parasal taşma koruması (Decimal(18,2) ~1e16):** `qty × unitPrice` çarpımı VE
+  satır toplamlarının GENEL TOPLAMI `MAX_MONEY`(1e15)'i aşarsa **400** (Postgres 500
+  yerine). ASIL koruma SERVİS katmanında (`amount.gt(MAX_MONEY)`): teklif
+  (`company-listings.service.ts:3211`), buyNow (`:3745`), revizyon
+  (`company-orders.service.ts:662`). DTO `@Max` (unitPrice/amount/price alanları)
+  yalnız erken eleme — **per-alan tavan çarpımların TOPLAMINI ifade edemez**.
+  Award/order transitif kapalı (`awardedQty ≤ fullQty` → bid guard'ı kapsar) | ✅ `e1047bf`
 - **CASH → accept guard, atomik geçişler, due-reminder cron** | 🟡 tasarım (INV-SM-*)
 
 ## 4. Miktar / Birim
 
 - **quantity `Decimal(18,3)`, `@Min(0.001)` `@Max(1_000_000_000)`** (Decimal taşma
   koruması) — `create-listing.dto` ListingItemDto | ✅ **Grup 4**, `d3bb0c1`
-- **unitPrice** — sınır yok → bkz. §3 açık kalem | 🔴 **açık**
+- **unitPrice/amount/price** — DTO `@Max(MAX_MONEY=1e15)` + servis toplam-guard'ı
+  (bkz. §3 parasal taşma) | ✅ `e1047bf`
+- **closesAt üst sınır** `now + 2 yıl` (`MAX_LISTING_HORIZON_MS`) — yoksa `closesAt=9999`
+  auto-close cron'unu hiç tetiklemez; create/next-round/changeClosingTime | ✅ `e1047bf`
+- **Sınırsız dizi DoS** — `subCategoryIds` çift-sınırsızdı → `@ArrayMaxSize`+`@MaxLength`;
+  permission/rol dizileri `@ArrayMaxSize` | ✅ `e1047bf`
 
 ## 5. Onay Akışları
 
@@ -119,7 +128,7 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
 | # | Kalem | Konum | Not |
 |---|-------|-------|-----|
 | 🔴 | **Y6 yarım-kayıt reaper** | kayıt akışı | doğrulanmamış Company/CompanyUser/Supabase temizliği yok |
-| 🔴 | **unitPrice `@Max` yok** | create-listing.dto | qty×price Decimal(18,2) taşması tam kapanmadı (quantity @Max kondu) |
+| ✅ | ~~unitPrice `@Max` / qty×price taşma~~ | — | KAPANDI `e1047bf`: servis toplam-guard'ı (MAX_MONEY) + DTO @Max (bkz. §3) |
 | 🔴 | **priceDecrement\* kolon-drop** | schema.prisma | DEAD işaretli; Supplier.sectors ile batched drop migration'a bırakıldı |
 | 🔴 | **vade `setDate()` server-local tz** | ödeme vade hesabı | timezone-farkında olmalı (küçük) |
 | 🔴 | **`Supplier.sectors` deprecated kolon** | schema.prisma | migration ile kaldırılmalı |
