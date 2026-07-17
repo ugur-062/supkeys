@@ -199,3 +199,19 @@ kapalı-zarf: bids/invitations/bidStats içermez, maskeli yol fiyat/PII/auctionV
   düşük risk ama kardeşleriyle (updateMany) asimetrik.
 - Bildirim-helper gövdeleri (CL:89-512 + 5109-5172), `sellerTenders` 1750-1989, `serialize`
   6235+ tam okunmadı (owner-scoped/sızıntı yüzeyi düşük görünüyor).
+
+## Bağlantı/davet/görünürlük denetimi (2026-07-17)
+
+Domain uçtan uca denetlendi (davet ID/e-posta/toplu/referral → kabul/red → ACTIVE →
+görünürlük → blok → disconnect). Kapananlar:
+
+| # | Kural | Durum |
+|---|-------|-------|
+| ✅ | **F-CONN-1** getProfile PRIVATE ihale sızıntısı → tek-kaynak görünürlük helper (`listing-visibility.ts`); bağlı-davetsiz firma PRIVATE görmez (getOne birebir) | `f31439e` |
+| ✅ | **BK-CONN-1** referral signup yalnız KULLANILAN token'ı ACTIVE bağlar; diğerleri PENDING istek (rıza tek davet için) | `95c786c` |
+| ✅ | **DOC-CONN-1** connectedCompanyIds bayat/öksüz doc-comment silindi (gerçek: inviter-only effectiveTier) | `370dd18` |
+
+**KONTROL VAR (temiz — bu turda doğrulandı):** blok ÇİFT YÖNLÜ (`blockedCompanyIds` = ben-engelledim VEYA beni-engelledi; `block()` bağlantıyı iki yönde atomik siler); accept/reject/disconnect ATOMİK (count guard, INV-INV-1); disconnect simetrik; davet kapıları simetrik (invite ID/e-posta/batch → aynı `createRequest` + tier gate); mükerrer/self/ters-yön engeli; discover/search tier-gated + block-excluded + company-card-only (ilan sızıntısı yok); e-posta davet throttle'lı (10/dk tekil, 3/dk batch × 50).
+
+**Açık kalem:**
+- 🟡 **BK-CONN-2 referral e-posta hacim sınırı** — batch 50-cap + rate-limit (3/dk) VAR ama **toplam/günlük bekleyen referral cap YOK** → PAKET firma sürekli çağırıp keyfi adreslere referral e-postası püskürtebilir (throttle burst'ü sınırlar, toplam hacmi değil). Launch sonrası e-posta kötüye-kullanım turunda **per-email cooldown + bounce bildirimi + günlük referral cap** ile birlikte ele alınacak.
