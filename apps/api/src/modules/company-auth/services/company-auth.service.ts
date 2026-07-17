@@ -690,6 +690,7 @@ export class CompanyAuthService {
         where: { id: companyId },
         select: {
           tier: true,
+          membershipEndAt: true, // INV-TIER-1: effectiveTier hesabı için
           companyVerificationStatus: true,
           ownerUserId: true,
           website: true,
@@ -706,7 +707,11 @@ export class CompanyAuthService {
     if (company.ownerUserId !== userId) {
       throw new ForbiddenException("Yalnızca firma sahibi paket yükseltebilir");
     }
-    if (company.tier === "PAKET") return { ok: true as const, tier: "PAKET" };
+    // INV-TIER-1: efektif tier — süresi-dolmuş (lazy) PAKET firma "zaten premium"
+    // engeline takılmadan yenileyebilsin; efektif STANDARD ise yükseltme akışına girer.
+    if (effectiveTier(company.tier, company.membershipEndAt) === "PAKET") {
+      return { ok: true as const, tier: "PAKET" };
+    }
     if (company.companyVerificationStatus !== "VERIFIED") {
       throw new BadRequestException(
         "Önce şirket belgelerinizi doğrulatmalısınız",

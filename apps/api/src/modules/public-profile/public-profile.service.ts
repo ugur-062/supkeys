@@ -1,5 +1,9 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import {
+  effectiveTier,
+  effectivePaidWhere,
+} from "../../common/company/effective-tier";
 
 /**
  * Herkese açık (auth gerektirmeyen) firma profili. SEO sayfası bunu kullanır.
@@ -36,6 +40,7 @@ export class PublicProfileService {
         isActive: true,
         isBlocked: true,
         tier: true,
+        membershipEndAt: true, // INV-TIER-1: effectiveTier hesabı için (yanıtta sızmaz)
         updatedAt: true,
       },
     });
@@ -46,7 +51,8 @@ export class PublicProfileService {
       !c.isActive ||
       c.isBlocked ||
       !c.publicEnabled ||
-      c.tier !== "PAKET"
+      // INV-TIER-1: efektif tier (süresi-dolmuş PAKET SEO profili görünmesin).
+      effectiveTier(c.tier, c.membershipEndAt) !== "PAKET"
     ) {
       throw new NotFoundException("Profil bulunamadı");
     }
@@ -55,12 +61,14 @@ export class PublicProfileService {
       _avg: { rating: true },
       _count: true,
     });
-    const { id, publicEnabled, isActive, isBlocked, tier, ...pub } = c;
+    const { id, publicEnabled, isActive, isBlocked, tier, membershipEndAt, ...pub } =
+      c;
     void id;
     void publicEnabled;
     void isActive;
     void isBlocked;
     void tier;
+    void membershipEndAt; // INV-TIER-1 iç hesap alanı — public yanıtta sızmaz
     return {
       ...pub,
       rating: { avg: ratingAgg._avg.rating ?? 0, count: ratingAgg._count },
@@ -74,7 +82,8 @@ export class PublicProfileService {
         publicEnabled: true,
         isActive: true,
         isBlocked: false,
-        tier: "PAKET",
+        // INV-TIER-1: efektif PAKET (sitemap'te süresi-dolmuş PAKET olmasın).
+        ...effectivePaidWhere(),
         slug: { not: null },
       },
       select: { slug: true, updatedAt: true },
