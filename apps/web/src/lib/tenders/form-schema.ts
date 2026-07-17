@@ -31,7 +31,7 @@ const CURRENCY_VALUES = [
   "RUB",
 ] as const;
 const TYPE_VALUES = ["RFQ", "ENGLISH_AUCTION"] as const;
-const VISIBILITY_VALUES = ["PRIVATE", "PUBLIC"] as const;
+const VISIBILITY_VALUES = ["PRIVATE", "CONNECTIONS", "PUBLIC"] as const;
 const DELIVERY_TERM_VALUES = [
   "DOMESTIC_DELIVERED",
   "DOMESTIC_PICKUP",

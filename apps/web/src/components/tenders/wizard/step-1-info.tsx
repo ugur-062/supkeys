@@ -701,12 +701,12 @@ export function Step1Info({
 
           {/* Açık İhale — görünürlük */}
           <Field
-            hint={`Herkese açık ihaleye premium ${rolPl} davet beklemeden teklif verebilir; davetli ihale yalnızca davet ettiklerinize gider.`}
+            hint={`Davetli: yalnız seçtikleriniz. Bağlantılarıma Açık: bağlı ${rolPl} davet beklemeden görür. Herkese Açık: ek olarak premium ${rolPl} de teklif verir.`}
           >
             <Label>İhale Görünürlüğü</Label>
             <FormRadioGroup
               name="visibility"
-              className="grid grid-cols-1 md:grid-cols-2 gap-3"
+              className="grid grid-cols-1 md:grid-cols-3 gap-3"
             >
               <div className="flex items-start gap-3 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
                 <Radio value="PRIVATE" aria-label="Davetli (Kapalı)" className="mt-0.5" />
@@ -716,6 +716,18 @@ export function Step1Info({
                   </p>
                   <p className="text-xs text-zinc-500">
                     Sadece davet ettiğiniz {rolPl} görür ve teklif verir.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-3 rounded-lg ring-1 transition-colors ring-zinc-950/10 has-data-checked:ring-2 has-data-checked:ring-zinc-900 has-data-checked:bg-zinc-50">
+                <Radio value="CONNECTIONS" aria-label="Bağlantılarıma Açık" className="mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900">
+                    Bağlantılarıma Açık
+                  </p>
+                  <p className="text-xs text-zinc-500">
+                    Bağlantılı {rolPl} davet beklemeden görür ve teklif verir;
+                    premium/herkese-açık değil.
                   </p>
                 </div>
               </div>

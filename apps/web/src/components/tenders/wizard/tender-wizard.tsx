@@ -146,7 +146,9 @@ function mapToInput(d: TenderFormData): CreateListingInput {
     billingAddressId: d.billingSameAsDelivery
       ? d.deliveryAddressId || undefined
       : d.billingAddressId || undefined,
-    visibility: d.visibility === "PUBLIC" ? "PUBLIC" : "PRIVATE",
+    // W1: üç görünürlük değeri de geçerli (backend PUBLIC/CONNECTIONS/PRIVATE);
+    // eski PUBLIC-veya-PRIVATE collapse'i CONNECTIONS'ı düşürüyordu.
+    visibility: d.visibility,
     title: d.title.trim(),
     description: d.description?.trim() || undefined,
     closesAt: toIso(d.bidsCloseAt),

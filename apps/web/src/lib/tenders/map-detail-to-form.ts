@@ -60,7 +60,14 @@ export function mapDetailToForm(
       l.billingAddressId && l.billingAddressId !== l.deliveryAddressId
         ? l.billingAddressId
         : undefined,
-    visibility: l.visibility === "PUBLIC" ? "PUBLIC" : "PRIVATE",
+    // W1: CONNECTIONS de geçerli — edit'te üç değeri de koru (eski collapse
+    // CONNECTIONS ilanı PRIVATE'e düşürüyordu).
+    visibility:
+      l.visibility === "PUBLIC"
+        ? "PUBLIC"
+        : l.visibility === "CONNECTIONS"
+          ? "CONNECTIONS"
+          : "PRIVATE",
     isLogistics: l.isLogistics ?? false,
     logistics: {
       ...DEFAULT_FORM_VALUES.logistics,
