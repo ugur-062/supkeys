@@ -113,6 +113,103 @@ describe("teslim şekline göre gönderim bildirimi (deliveryTerm)", () => {
   });
 });
 
+describe("MAL_MUKABILI — ödeme penceresi teslim SONRASI (AFTER_DELIVERY)", () => {
+  it("ACCEPTED'da recordPayment REDDEDİLİR; accept→ship→receive→DELIVERED sonrası KABUL", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      acceptedAt: new Date(),
+      paymentTiming: "AFTER_DELIVERY",
+      paymentCategory: "MAL_MUKABILI",
+      amount: 1000,
+    });
+    // ACCEPTED: teslim sonrası ödeme penceresi HENÜZ kapalı → reddedilir.
+    await expect(
+      orders.recordPayment(buyer.auth, order.id, {
+        amount: 1000,
+        method: "EFT",
+      } as never),
+    ).rejects.toThrow();
+    // Sevk + teslim (mal mukabili: teslim alınca öde) → DELIVERED.
+    await orders.ship(seller.auth, order.id, { invoiceNumber: "F-MM" } as never);
+    const rec = await orders.receive(buyer.auth, order.id, {} as never);
+    expect(rec.status).toBe("DELIVERED");
+    // DELIVERED: pencere açık → ödeme kabul.
+    const p = (await orders.recordPayment(buyer.auth, order.id, {
+      amount: 1000,
+      method: "EFT",
+    } as never)) as { id: string };
+    expect(p.id).toBeTruthy();
+  });
+});
+
+describe("ADVANCE %30 + 60 gün vade — ship-gate ∩ vade cron", () => {
+  it("(a) peşin (300) tahsil+onay edilmeden ship REDDEDİLİR; edilince açılır → IN_DELIVERY", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "ACCEPTED",
+      acceptedAt: new Date(),
+      paymentTiming: "BEFORE_DELIVERY",
+      paymentCategory: "ADVANCE",
+      advancePercent: 30,
+      paymentDays: 60,
+      amount: 1000,
+    });
+    // Peşin (1000×%30 = 300) onaylanmadan sevk edilemez.
+    await expect(
+      orders.ship(seller.auth, order.id, { invoiceNumber: "F-A" } as never),
+    ).rejects.toThrow(/peşin/i);
+    const p = (await orders.recordPayment(buyer.auth, order.id, {
+      amount: 300,
+      method: "EFT",
+    } as never)) as { id: string };
+    await orders.confirmPayment(seller.auth, order.id, p.id);
+    await orders.ship(seller.auth, order.id, { invoiceNumber: "F-A" } as never);
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("IN_DELIVERY");
+  });
+
+  it("(b) DELIVERED + deliveredAt 58 gün önce + onaylı 300 → cron kalan 700 için vade bildirimi üretir", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const order = await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DELIVERED",
+      acceptedAt: future(-60),
+      deliveryStartedAt: future(-59),
+      // vade = deliveredAt + 60 = -58 + 60 = +2 gün → 3-günlük ufuk içinde.
+      deliveredAt: future(-58),
+      paymentTiming: "BEFORE_DELIVERY",
+      paymentCategory: "ADVANCE",
+      advancePercent: 30,
+      paymentDays: 60,
+      amount: 1000,
+    });
+    // Onaylı peşin 300 → kalan 700 (tam ödenmemiş).
+    await prisma.companyOrderPayment.create({
+      data: {
+        orderId: order.id,
+        amount: 300,
+        status: "CONFIRMED",
+        recordedByCompanyId: buyer.company.id,
+        confirmedAt: new Date(),
+      },
+    });
+    const sent = await orders.sendDuePaymentReminders();
+    expect(sent).toBeGreaterThanOrEqual(1);
+    const n = await prisma.notification.count({
+      where: {
+        companyId: buyer.company.id,
+        title: "Ödeme vadesi yaklaşıyor",
+      },
+    });
+    expect(n).toBe(1);
+  });
+});
+
 describe("A1 — satıcı iptal talebi + DISPUTED", () => {
   const REASON = "fabrika yangını nedeniyle sevk edilemiyor";
 
