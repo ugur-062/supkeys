@@ -37,7 +37,10 @@ import {
   MAX_MONEY,
   MAX_LISTING_HORIZON_MS,
 } from "../../../common/constants/money";
-import { effectiveTier } from "../../../common/company/effective-tier";
+import {
+  effectiveTier,
+  effectivePaidWhere,
+} from "../../../common/company/effective-tier";
 import { AuditService } from "../../audit/audit.service";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
@@ -424,7 +427,8 @@ export class CompanyListingsService {
     const candidates = await this.prisma.company.findMany({
       where: {
         id: { notIn: [listing.companyId, ...blocked] },
-        tier: "PAKET",
+        // INV-TIER-1: efektif PAKET (süresi-dolmuş lazy PAKET'e duyuru gitmesin).
+        ...effectivePaidWhere(),
         isActive: true,
         ...countryWhere,
         users: {

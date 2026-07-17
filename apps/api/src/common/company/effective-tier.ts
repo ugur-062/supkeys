@@ -25,3 +25,22 @@ export function effectiveTier(
   }
   return tier === "PAKET" ? "PAKET" : "STANDARD";
 }
+
+/**
+ * Prisma `where` fragment'i: EFEKTİF olarak PAKET olan firmalar (INV-TIER-1 tek
+ * kaynak — DB-filter tarafı). `effectiveTier` yalnız in-memory çalıştığından,
+ * `where: { tier: "PAKET" }` yazan her yer süresi-dolmuş (lazy) PAKET'i de
+ * dahil ediyordu; bu helper "tier PAKET VE (membershipEndAt yok VEYA gelecekte)"
+ * koşulunu tek yerden üretir. Sınır `gte: now` = effectiveTier'ın `< now → expired`
+ * ile birebir. OR, sibling top-level `OR` ile çakışmasın diye AND'e sarılıdır.
+ *
+ * Kullanım: `where: { ...effectivePaidWhere(), isActive: true, ... }`.
+ */
+export function effectivePaidWhere(now: Date = new Date()) {
+  return {
+    tier: "PAKET" as const,
+    AND: [
+      { OR: [{ membershipEndAt: null }, { membershipEndAt: { gte: now } }] },
+    ],
+  };
+}

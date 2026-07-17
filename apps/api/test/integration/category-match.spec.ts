@@ -114,6 +114,57 @@ describe("notifyCategoryMatchedCompanies — ALIM → satıcılar", () => {
     expect(email.send).not.toHaveBeenCalled();
   });
 
+  it("F1 (INV-TIER-1): süresi DOLMUŞ PAKET satıcı duyuru ALMAZ (efektif STANDARD)", async () => {
+    const { service, email } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    await prisma.company.update({
+      where: { id: seller.company.id },
+      data: {
+        sellerCategoryIds: [SEG],
+        billingEmail: "expired@firma.com",
+        tier: "PAKET",
+        membershipEndAt: new Date(Date.now() - 86_400_000), // dün doldu (lazy)
+      },
+    });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      visibility: "PUBLIC",
+      categoryIds: [CLASS],
+    });
+    const matched = await service.notifyCategoryMatchedCompanies(listing.id);
+    // Ham tier PAKET görünse de efektif STANDARD → aday değil.
+    expect(matched).toEqual([]);
+    expect(email.send).not.toHaveBeenCalled();
+  });
+
+  it("F1 kontrol: GELECEK bitişli PAKET satıcı duyuru ALIR (efektif PAKET)", async () => {
+    const { service, email } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    await prisma.company.update({
+      where: { id: seller.company.id },
+      data: {
+        sellerCategoryIds: [SEG],
+        billingEmail: "aktif@firma.com",
+        tier: "PAKET",
+        membershipEndAt: new Date(Date.now() + 86_400_000),
+      },
+    });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      visibility: "PUBLIC",
+      categoryIds: [CLASS],
+    });
+    const matched = await service.notifyCategoryMatchedCompanies(listing.id);
+    expect(matched).toHaveLength(1);
+    expect(sentEmails(email)).toEqual(["aktif@firma.com"]);
+  });
+
   it("PUBLIC olmayan (CONNECTIONS) ilan hiç kimseye yayınlanmaz", async () => {
     const { service, email } = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
