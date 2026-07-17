@@ -5875,13 +5875,24 @@ export class CompanyListingsService {
     // ki yeni pencere için tekrar gönderilebilsin (placeBid auto-extend de böyle yapar).
     const isExtension =
       extra?.closesAt != null && date.getTime() > extra.closesAt.getTime();
-    await this.prisma.listing.update({
-      where: { id: listing.id },
+    // F2 (INV-SM-1 kardeş simetrisi): ownerOpenListing OPEN okur ama yazım
+    // koşulsuzdu → eşzamanlı cron auto-close / startEvaluation / award ilanı
+    // OPEN'dan çıkarırsa closesAt artık-OPEN-olmayan ilana yazılıyordu. Bugün
+    // kozmetik (closesAt status değil; placeBid/cron status-filtreli) AMA
+    // kardeşleri (cancel/publish/createNextRound/startEvaluation/closeNoAward)
+    // koşullu-atomik; simetriyi koru — yarın kozmetik kalacağı garanti değil.
+    const changed = await this.prisma.listing.updateMany({
+      where: { id: listing.id, status: "OPEN" },
       data: {
         closesAt: date,
         ...(isExtension ? { closingReminderSentAt: null } : {}),
       },
     });
+    if (changed.count !== 1) {
+      throw new ConflictException(
+        "İlan durumu değişti; kapanış zamanı güncellenemedi",
+      );
+    }
     // Kural değişikliği davetlilere/teklifçilere bildirilir — özellikle öne
     // çekme "son gün veririm" diye plan yapan teklifçi için tuzak olmasın.
     const direction =

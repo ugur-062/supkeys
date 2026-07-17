@@ -294,3 +294,48 @@ describe("B1 eliminate ↔ award yarışı — koşullu-atomik (INV-SM-1 kardeş
     if (after.status === "LOST") expect(orders).toHaveLength(0);
   });
 });
+
+describe("F2 changeClosingTime — koşullu-atomik durum guard'ı (INV-SM-1 kardeşi)", () => {
+  const FAR = new Date(Date.now() + 5 * 24 * 3600 * 1000).toISOString();
+
+  it("award SONRASI changeClosingTime reddedilir (non-OPEN) → closesAt DEĞİŞMEZ", async () => {
+    const { service, owner, listing, bid } = await openAlimWithBid();
+    const orig = listing.closesAt?.getTime();
+    await service.award(owner.auth, listing.id, bid.id); // → AWARDED
+
+    // Taze okuma: ownerOpenListing status!==OPEN → BadRequest (ön-kontrol).
+    await expect(
+      service.changeClosingTime(owner.auth, listing.id, FAR),
+    ).rejects.toThrow(/açık ilanda/i);
+
+    const after = await prisma.listing.findUniqueOrThrow({
+      where: { id: listing.id },
+      select: { closesAt: true },
+    });
+    expect(after.closesAt?.getTime()).toBe(orig);
+  });
+
+  it("in-tx backstop: ön-okuma OPEN görse de (yarış) non-OPEN'a yazılmaz → Conflict", async () => {
+    const { service, owner, listing, bid } = await openAlimWithBid();
+    await service.award(owner.auth, listing.id, bid.id); // DB: AWARDED
+
+    // Yarış penceresi: ownerOpenListing'i bayat OPEN döndürmeye zorla → tx
+    // updateMany({status:"OPEN"}) 0 satır → count guard throw (koşulsuz update
+    // olsaydı AWARDED ilana closesAt yazılırdı).
+    const spy = jest
+      .spyOn(
+        service as unknown as {
+          ownerOpenListing: (...a: unknown[]) => Promise<unknown>;
+        },
+        "ownerOpenListing",
+      )
+      .mockResolvedValue({ id: listing.id } as never);
+    try {
+      await expect(
+        service.changeClosingTime(owner.auth, listing.id, FAR),
+      ).rejects.toThrow(/durumu değişti/i);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
