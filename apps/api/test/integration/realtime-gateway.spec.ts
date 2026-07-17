@@ -28,6 +28,7 @@ const openSockets: FakeSocket[] = [];
 interface FakeSocket {
   handshake: { headers: Record<string, string>; auth: { token?: string } };
   data: Record<string, unknown>;
+  rooms: Set<string>;
   join: jest.Mock;
   disconnect: jest.Mock;
   leave: jest.Mock;
@@ -37,6 +38,7 @@ function fakeSocket(token?: string): FakeSocket {
   const s: FakeSocket = {
     handshake: { headers: {}, auth: { token } },
     data: {},
+    rooms: new Set<string>(),
     join: jest.fn(),
     disconnect: jest.fn(),
     leave: jest.fn(),
@@ -200,5 +202,77 @@ describe("3b — exp-zamanlı self-disconnect", () => {
     gateway().handleDisconnect(client as unknown as Socket);
     expect(clearSpy).toHaveBeenCalledWith(timer);
     clearSpy.mockRestore();
+  });
+});
+
+describe("F-WS-1 — subscribe rate-limit (DB sorgusundan ÖNCE)", () => {
+  it("LIMIT (30) mesajdan sonra canSubscribe DB sorgusu ÇAĞRILMAZ — amplifikasyon kesilir", async () => {
+    const { company } = await makeCompanyWithUser(prisma, {});
+    const gw = gateway();
+    const client = fakeSocket();
+    client.data.companyId = company.id;
+    // Olmayan id → canSubscribeListing findUnique(null) → join yok, oda büyümez
+    // (rooms.size cap'i tetiklenmez); yalnız DB sorgusu üretir = amplifikasyon.
+    const spy = jest.spyOn(prisma.listing, "findUnique");
+    const call = (n: number) =>
+      gw.onSubscribe(client as never, {
+        kind: "listing",
+        id: `nope-${n}`,
+      } as never);
+
+    for (let i = 0; i < 30; i++) await call(i);
+    expect(spy).toHaveBeenCalledTimes(30); // limit içi her mesaj DB'ye gitti
+
+    // 31. ve 32. mesaj rate-limitli → DB'ye HİÇ ulaşmaz (reddedilmesi yetmez,
+    // amplifikasyon kesilir). Spy sayısı 30'da kalır.
+    await call(30);
+    await call(31);
+    expect(spy).toHaveBeenCalledTimes(30);
+    spy.mockRestore();
+  });
+
+  it("pencere geçince yeniden izin verilir (kalıcı kilit değil)", async () => {
+    const { company } = await makeCompanyWithUser(prisma, {});
+    const gw = gateway();
+    const client = fakeSocket();
+    client.data.companyId = company.id;
+    // Pencereyi doldur.
+    for (let i = 0; i < 30; i++)
+      await gw.onSubscribe(client as never, { kind: "listing", id: `a${i}` } as never);
+    // 10sn öncesine kaydır (kayan pencere dışına).
+    client.data.msgTimes = (client.data.msgTimes as number[]).map(
+      (t) => t - 11_000,
+    );
+    const spy = jest.spyOn(prisma.listing, "findUnique");
+    await gw.onSubscribe(client as never, { kind: "listing", id: "again" } as never);
+    expect(spy).toHaveBeenCalledTimes(1); // yeniden izin verildi
+    spy.mockRestore();
+  });
+});
+
+describe("F-WS-3 — unsubscribe validation (subscribe ile simetri)", () => {
+  it("non-string id → leave çağrılmaz", async () => {
+    const client = fakeSocket();
+    await gateway().onUnsubscribe(client as never, {
+      kind: "listing",
+      id: { evil: 1 },
+    } as never);
+    expect(client.leave).not.toHaveBeenCalled();
+  });
+  it("60+ karakter id → leave çağrılmaz", async () => {
+    const client = fakeSocket();
+    await gateway().onUnsubscribe(client as never, {
+      kind: "listing",
+      id: "x".repeat(61),
+    } as never);
+    expect(client.leave).not.toHaveBeenCalled();
+  });
+  it("geçerli id → leave çağrılır", async () => {
+    const client = fakeSocket();
+    await gateway().onUnsubscribe(client as never, {
+      kind: "listing",
+      id: "abc",
+    } as never);
+    expect(client.leave).toHaveBeenCalledWith("listing:abc");
   });
 });

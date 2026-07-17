@@ -44,9 +44,20 @@ function wsOriginAllowed(
   cb(null, ok);
 }
 
+// F-WS-1: soket başına mesaj rate-limiti (kayan pencere). REST'te ThrottlerGuard
+// var, WS'te yoktu (kardeş-yol asimetrisi) → kimliği-doğrulanmış client `subscribe`
+// floodlayıp her mesajda DB sorgusu (canSubscribeListing 3 count) tetikleyebiliyordu;
+// oda büyümediği için rooms.size cap'i tetiklenmiyordu. Limit DB'den ÖNCE uygulanır
+// → amplifikasyon kesilir. 30/10sn: gezinme (detay aç/kapa) çok üstünde, flood altında.
+const WS_MSG_LIMIT = 30;
+const WS_MSG_WINDOW_MS = 10_000;
+
+// F-WS-4: payload'lar {kind,id} (~100 byte) → 1MB socket.io default'u fazla cömert.
+// 16KB açık cap DoS yüzeyini 64x küçültür (handshake HTTP olduğu için etkilenmez).
 @WebSocketGateway({
   cors: { origin: wsOriginAllowed, credentials: true },
   path: "/rt",
+  maxHttpBufferSize: 16 * 1024,
 })
 export class RealtimeGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
@@ -134,11 +145,30 @@ export class RealtimeGateway
     if (timer) clearTimeout(timer);
   }
 
+  /**
+   * F-WS-1: soket başına kayan-pencere rate-limit — DB sorgusundan ÖNCE çağrılır
+   * ki amplifikasyon (canSubscribeListing count'ları) kesilsin, yalnız mesaj
+   * reddedilmesin. Dizi pencere+LIMIT ile sınırlı (bellek şişmez).
+   */
+  private rateOk(client: Socket): boolean {
+    const now = Date.now();
+    const prev = (client.data.msgTimes as number[] | undefined) ?? [];
+    const recent = prev.filter((t) => now - t < WS_MSG_WINDOW_MS);
+    if (recent.length >= WS_MSG_LIMIT) {
+      client.data.msgTimes = recent;
+      return false;
+    }
+    recent.push(now);
+    client.data.msgTimes = recent;
+    return true;
+  }
+
   @SubscribeMessage("subscribe")
   async onSubscribe(
     client: Socket,
     body: { kind: "listing" | "order"; id: string },
   ): Promise<void> {
+    if (!this.rateOk(client)) return; // F-WS-1: DB'den ÖNCE
     const companyId = client.data.companyId as string | undefined;
     if (!companyId) return;
     if (!body?.id || (body.kind !== "listing" && body.kind !== "order")) return;
@@ -209,7 +239,11 @@ export class RealtimeGateway
     client: Socket,
     body: { kind: "listing" | "order"; id: string },
   ): Promise<void> {
+    if (!this.rateOk(client)) return; // F-WS-1
     if (!body?.id || (body.kind !== "listing" && body.kind !== "order")) return;
+    // F-WS-3: subscribe ile simetrik tip/uzunluk kontrolü (leave zaten no-op ama
+    // asimetri kapatılır — coerce'lu oda adı üretilmesin).
+    if (typeof body.id !== "string" || body.id.length > 60) return;
     await client.leave(`${body.kind}:${body.id}`);
   }
 }
