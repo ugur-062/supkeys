@@ -182,8 +182,9 @@ const baseTenderSchema = z.object({
   // Sınır ötesi hedef ülkeler (ISO kodları). Boş = tüm yabancı ülkeler.
   targetCountries: z.array(z.string()),
   // Teslimat / fatura adresi (CompanyAddress id) — opsiyonel.
-  // Teslimat adresi ZORUNLU (2026-07-11 ürün kararı — opsiyonel olamaz).
-  deliveryAddressId: z.string().min(1, "Teslimat adresi seçin"),
+  // Teslimat adresi OPSİYONEL (W2): hizmet/lojistik ihalede fiziksel adres
+  // anlamsız; backend zaten @IsOptional — frontend backend'den katı olmamalı.
+  deliveryAddressId: z.string().optional(),
   billingAddressId: z.string().optional(),
   // Fatura adresi = teslimat adresi tiki (varsayılan işaretli). Kaldırılırsa
   // billingAddressId zorunlu olur (refine aşağıda; yalnız ALIM'da anlamlı).

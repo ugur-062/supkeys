@@ -1237,11 +1237,11 @@ export function Step1Info({
               deliveryAddrs.length === 0
                 ? "Adres defterinizde teslimat adresi yok — Ayarlar → Adresler'den ekleyin."
                 : isSatis
-                  ? "Malın bulunduğu / yükleneceği adres — davetli alıcılar görür."
-                  : `Davet edilen ${rolPl} bu adresi görür.`
+                  ? "Opsiyonel — malın bulunduğu / yükleneceği adres; davetli alıcılar görür."
+                  : `Opsiyonel — hizmet ihalesinde boş bırakabilirsiniz. Seçilirse davet edilen ${rolPl} görür.`
             }
           >
-            <Label htmlFor="deliveryAddressId" required>
+            <Label htmlFor="deliveryAddressId">
               {isSatis ? "Teslim / Yükleme Noktası" : "Teslimat Adresi"}
             </Label>
             <Select id="deliveryAddressId" {...register("deliveryAddressId")}>

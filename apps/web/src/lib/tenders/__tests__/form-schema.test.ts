@@ -26,14 +26,15 @@ describe("tenderFormSchema", () => {
     expect(tenderFormSchema.safeParse(validForm()).success).toBe(true);
   });
 
-  it("teslim şekli ve teslimat adresi zorunlu", () => {
+  it("teslim şekli zorunlu; teslimat adresi OPSİYONEL (W2 — hizmet/lojistik)", () => {
     expect(
       tenderFormSchema.safeParse(validForm({ deliveryTerm: undefined }))
         .success,
     ).toBe(false);
+    // W2: adressiz ihale artık geçerli (backend @IsOptional ile hizalı).
     expect(
       tenderFormSchema.safeParse(validForm({ deliveryAddressId: "" })).success,
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("fatura adresi: 'teslimatla aynı' tiki kapalıysa seçim zorunlu (yalnız ALIM)", () => {
