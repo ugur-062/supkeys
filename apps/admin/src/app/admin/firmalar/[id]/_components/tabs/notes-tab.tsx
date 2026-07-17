@@ -8,6 +8,8 @@ import {
   useDeleteNote,
 } from "@/hooks/use-admin-support";
 import { safeFormat } from "@/lib/date";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
 import { StickyNote, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -17,6 +19,9 @@ export function NotesTab({ companyId }: { companyId: string }) {
   const notes = useCompanyNotes(companyId);
   const add = useAddNote(companyId);
   const del = useDeleteNote(companyId);
+  // F7: not SİLME yalnız SUPER_ADMIN (deleteNote); ekleme/okuma SALES+SUPER.
+  const { admin } = useAdminAuth();
+  const role = admin?.role;
   const [body, setBody] = useState("");
   // Silme kurumsal hafızayı yok eder — iki adımlı onay (id bazlı).
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -78,7 +83,8 @@ export function NotesTab({ companyId }: { companyId: string }) {
                 <p className="text-admin-text text-sm whitespace-pre-wrap">
                   {n.body}
                 </p>
-                {confirmDeleteId === n.id ? (
+                {canAdminDo(role, "deleteNote") &&
+                (confirmDeleteId === n.id ? (
                   <span className="flex shrink-0 items-center gap-1.5">
                     <button
                       type="button"
@@ -118,7 +124,7 @@ export function NotesTab({ companyId }: { companyId: string }) {
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
-                )}
+                ))}
               </div>
               <p className="text-admin-text-muted mt-1.5 text-xs">
                 {n.adminEmail ?? "—"} ·{" "}

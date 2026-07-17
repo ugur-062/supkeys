@@ -39,6 +39,7 @@ import { api } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
 import { Download, EllipsisVertical } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
 import { useListFilters } from "@/hooks/use-list-filters";
 import { countryFlag, countryName } from "@/lib/country";
 import { safeFormat } from "@/lib/date";
@@ -102,10 +103,12 @@ interface Filters {
 
 function FirmalarView() {
   const { filters, setFilters } = useListFilters<Filters>();
-  // SUPPORT salt-okuma: yazma aksiyonları + PII'lı detay linki gizlenir
-  // (BE guard asıl sınır; bu UX — 403 ekranına düşmesin).
+  // Rol-farkında kapı (F7, canAdminDo — backend @RequireAdminRole ile birebir).
+  // Bu liste zaten SUPER_ADMIN/SALES'e açık (GET companies gated); İncele ikisine
+  // de görünür, Premium/Askı menüsü yalnız SUPER_ADMIN'e (setTier/suspend SUPER).
   const { admin } = useAdminAuth();
-  const canWrite = admin?.role !== "SUPPORT";
+  const role = admin?.role;
+  const canWrite = role !== "SUPPORT";
   const query = useAdminCompanies({
     status: filters.status || undefined,
     country: filters.country || undefined,
@@ -324,6 +327,7 @@ function FirmalarView() {
                           >
                             İncele
                           </Link>
+                          {canAdminDo(role, "setTier") ? (
                           <Dropdown>
                             <DropdownButton
                               plain
@@ -377,6 +381,7 @@ function FirmalarView() {
                               )}
                             </DropdownMenu>
                           </Dropdown>
+                          ) : null}
                         </div>
                       )}
                     </TableCell>

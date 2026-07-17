@@ -22,6 +22,7 @@ import {
 } from "@/components/catalyst/dialog";
 import { Button } from "@/components/ui/button";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
 import {
   useCreateStaff,
   useStaff,
@@ -205,6 +206,18 @@ function PersonelView() {
   const err = (e: unknown) =>
     toast.error(e instanceof Error ? e.message : "Hata");
   const rows = staff.data ?? [];
+
+  // F7: personel yönetimi yalnız SUPER_ADMIN (manageStaff). SALES/SUPPORT
+  // deep-link'te tüm UI yerine yetki-yok mesajı (nav zaten gizli; BE 403).
+  if (!canAdminDo(admin?.role, "manageStaff")) {
+    return (
+      <div className="max-w-[1100px] py-16 text-center">
+        <p className="text-admin-text-muted text-sm">
+          Bu sayfaya erişim yetkiniz yok (yalnızca Süper Admin).
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1100px] space-y-6">

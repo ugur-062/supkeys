@@ -29,6 +29,8 @@ import {
   type MembershipEvent,
 } from "@/hooks/use-admin-companies";
 import { safeFormat } from "@/lib/date";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -115,6 +117,10 @@ export function MembershipTab({
   data: AdminCompanyDetail;
 }) {
   const tierAct = useSetCompanyTier();
+  // F7: setTier (ver/kaldır) SUPER_ADMIN-only; Süre Uzat SALES+SUPER (backend
+  // @RequireAdminRole birebir). SALES premium ver/kaldır GÖRMEZ.
+  const { admin } = useAdminAuth();
+  const role = admin?.role;
   const extend = useExtendMembership();
   const history = useMembershipHistory(companyId);
   const [dialog, setDialog] = useState<"grant" | "extend" | "revoke" | null>(
@@ -162,30 +168,36 @@ export function MembershipTab({
           <div className="flex items-center gap-2">
             {data.tier === "PAKET" ? (
               <>
-                <Button size="sm" onClick={() => setDialog("extend")}>
-                  Süre Uzat
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setDialog("grant")}
-                >
-                  Yeni Dönem Başlat
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  disabled={tierAct.isPending}
-                  onClick={() => setDialog("revoke")}
-                >
-                  Premium'u Kaldır
-                </Button>
+                {canAdminDo(role, "extendMembership") ? (
+                  <Button size="sm" onClick={() => setDialog("extend")}>
+                    Süre Uzat
+                  </Button>
+                ) : null}
+                {canAdminDo(role, "setTier") ? (
+                  <>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setDialog("grant")}
+                    >
+                      Yeni Dönem Başlat
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      disabled={tierAct.isPending}
+                      onClick={() => setDialog("revoke")}
+                    >
+                      Premium'u Kaldır
+                    </Button>
+                  </>
+                ) : null}
               </>
-            ) : (
+            ) : canAdminDo(role, "setTier") ? (
               <Button size="sm" onClick={() => setDialog("grant")}>
                 Premium Tanımla
               </Button>
-            )}
+            ) : null}
           </div>
         </div>
         <p className="text-admin-text-muted mt-3 text-xs">

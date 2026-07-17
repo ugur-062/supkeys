@@ -3,6 +3,7 @@
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/ui/button";
 import { PromptDialog } from "@/components/ui/prompt-dialog";
+import { canAdminDo } from "@/lib/admin-permissions";
 import {
   useCompanyAction,
   useCompanyDetail,
@@ -59,9 +60,11 @@ export function CompanyDetailView({
     TABS.some((t) => t.key === initialTab) ? (initialTab as TabKey) : "ozet",
   );
   const act = useCompanyAction();
-  // SUPPORT salt-okuma — yazma butonları gizli (BE guard asıl sınır).
+  // Rol-farkında buton kapısı (F7): backend @RequireAdminRole ile birebir
+  // (canAdminDo). BE guard asıl sınır; bu yalnız UI. SALES suspend/unsuspend
+  // GÖREMEZ (SUPER_ADMIN-only), notify GÖRÜR (SALES+SUPER).
   const { admin } = useAdminAuth();
-  const canWrite = admin?.role !== "SUPPORT";
+  const role = admin?.role;
   const [prompt, setPrompt] = useState<"suspendReason" | "notify" | null>(
     null,
   );
@@ -134,44 +137,50 @@ export function CompanyDetailView({
         </div>
         {/* Üyelik yönetimi TEK yerden (Üyelik sekmesi) — header'daki kopya
             kontrol farklı doğrulama/gerekçe kalitesiyle ikinci yol açıyordu. */}
-        {!canWrite ? null : (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setPrompt("notify")}
-          >
-            Bildirim Gönder
-          </Button>
-          {data.isBlocked ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={act.isPending}
-              onClick={() =>
-                act.mutate(
-                  { id: companyId, action: "unsuspend" },
-                  {
-                    onSuccess: () => toast.success("Askı kaldırıldı"),
-                    onError: (e: unknown) =>
-                      toast.error(e instanceof Error ? e.message : "Hata"),
-                  },
+        {!canAdminDo(role, "notify") &&
+        !canAdminDo(role, "suspend") &&
+        !canAdminDo(role, "unsuspend") ? null : (
+          <div className="flex items-center gap-2">
+            {canAdminDo(role, "notify") ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setPrompt("notify")}
+              >
+                Bildirim Gönder
+              </Button>
+            ) : null}
+            {data.isBlocked
+              ? canAdminDo(role, "unsuspend") && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={act.isPending}
+                    onClick={() =>
+                      act.mutate(
+                        { id: companyId, action: "unsuspend" },
+                        {
+                          onSuccess: () => toast.success("Askı kaldırıldı"),
+                          onError: (e: unknown) =>
+                            toast.error(e instanceof Error ? e.message : "Hata"),
+                        },
+                      )
+                    }
+                  >
+                    Askıyı Kaldır
+                  </Button>
                 )
-              }
-            >
-              Askıyı Kaldır
-            </Button>
-          ) : (
-            <Button
-              variant="danger"
-              size="sm"
-              disabled={act.isPending}
-              onClick={() => setPrompt("suspendReason")}
-            >
-              Askıya Al
-            </Button>
-          )}
-        </div>
+              : canAdminDo(role, "suspend") && (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    disabled={act.isPending}
+                    onClick={() => setPrompt("suspendReason")}
+                  >
+                    Askıya Al
+                  </Button>
+                )}
+          </div>
         )}
       </div>
 

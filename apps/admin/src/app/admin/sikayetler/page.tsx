@@ -26,6 +26,8 @@ import {
 } from "@/hooks/use-admin-companies";
 import { downloadCsv } from "@/lib/csv";
 import { safeFormat } from "@/lib/date";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
 import { Download } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -57,6 +59,10 @@ function exportComplaintsCsv(items: AdminComplaint[]) {
 }
 
 function SikayetlerView() {
+  // F7: complaint resolve SUPER_ADMIN+SALES (resolveComplaint); SUPPORT triyaj
+  // yapabilir (liste AllowAnyAdminRole) ama Çöz/Reddet butonlarını GÖRMEZ.
+  const { admin } = useAdminAuth();
+  const canResolve = canAdminDo(admin?.role, "resolveComplaint");
   const [status, setStatus] = useState("OPEN");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -216,7 +222,7 @@ function SikayetlerView() {
                       {safeFormat(c.createdAt, "d MMM yyyy")}
                     </TableCell>
                     <TableCell>
-                      {c.status === "OPEN" ? (
+                      {c.status === "OPEN" && canResolve ? (
                         <div className="flex items-center justify-end gap-2">
                           <Button
                             type="button"
