@@ -967,6 +967,13 @@ export class CompanyListingsService {
         "İlan/ihale açmak için premium (PAKET) üyelik gerekir. Standart üyeler yalnızca teklif verebilir.",
       );
     }
+    // BK-A (kör-nokta denetimi): asDraft:false doğrudan status:OPEN üretir =
+    // publishListing'in ürettiği aynı terminal durum → aynı KYC kapısı uygulanmalı.
+    // Aksi halde doğrulanmamış PAKET firma create(asDraft:false) ile publishListing'in
+    // assertVerified'ını atlayarak ilan yayınlar. Taslak SERBEST (INV-KYC-1 funnel).
+    if (!dto.asDraft) {
+      this.assertVerified(user, "ilan yayınlayamazsınız");
+    }
 
     const neededRole =
       type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;

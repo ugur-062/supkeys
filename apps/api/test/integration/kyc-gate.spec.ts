@@ -152,4 +152,41 @@ describe("INV-KYC-1 — para-taahhüdü kapıları VERIFIED ister", () => {
       service.award(owner.auth, listing.id, bid.id),
     ).resolves.toBeDefined();
   });
+
+  // BK-A (kör-nokta denetimi): create(asDraft:false) publishListing'in ürettiği
+  // aynı OPEN durumu üretir → aynı KYC kapısı. Taslak serbest.
+  const createDto = (over: Record<string, unknown> = {}) => ({
+    type: "ALIM",
+    format: "RFQ",
+    isInternational: false,
+    visibility: "PUBLIC",
+    title: "Test alım ilanı",
+    closesAt: FUTURE.toISOString(),
+    items: [{ name: "Kalem", quantity: 1, unit: "adet" }],
+    ...over,
+  });
+
+  it("BK-A: UNVERIFIED owner create(asDraft:false) → 403; TASLAK serbest", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      companyVerificationStatus: "UNVERIFIED", // PAKET ama doğrulanmamış
+    });
+    // Doğrudan yayın publishListing ile aynı kapıya takılır.
+    await expect(
+      service.create(owner.auth, createDto({ asDraft: false }) as never),
+    ).rejects.toThrow(/doğrulamanız tamamlanmadan.*yayınla/is);
+    // Taslak SERBEST (INV-KYC-1 funnel deseni).
+    await expect(
+      service.create(owner.auth, createDto({ asDraft: true }) as never),
+    ).resolves.toBeDefined();
+  });
+
+  it("BK-A: VERIFIED owner create(asDraft:false) geçer", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // VERIFIED
+    await expect(
+      service.create(owner.auth, createDto({ asDraft: false }) as never),
+    ).resolves.toBeDefined();
+  });
 });
