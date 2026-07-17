@@ -14,6 +14,7 @@ import {
   Min,
   ValidateNested,
 } from "class-validator";
+import { MAX_MONEY } from "../../../common/constants/money";
 
 export enum BidCurrencyDto {
   TRY = "TRY",
@@ -45,7 +46,9 @@ export class PlaceBidItemDto {
     { message: "Geçerli bir birim fiyat girin" },
   )
   @Min(0)
-  @Max(1_000_000_000_000, { message: "Birim fiyat çok büyük" })
+  // Tekil birim fiyat tavanı — çarpım (× miktar) taşması AYRICA serviste
+  // subtotal ≤ MAX_MONEY ile denetlenir (asıl koruma orada).
+  @Max(MAX_MONEY, { message: "Birim fiyat çok büyük" })
   unitPrice!: number;
 
   // Kalem-özel teslim tarihi (opsiyonel — boşsa genel teslim tarihi geçerli).
@@ -67,7 +70,7 @@ export class PlaceBidDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 }, { message: "Geçerli bir tutar girin" })
   @Min(0.01, { message: "Tutar 0'dan büyük olmalı" })
-  @Max(1_000_000_000_000, { message: "Tutar çok büyük" })
+  @Max(MAX_MONEY, { message: "Tutar çok büyük" })
   amount?: number;
 
   // Kalem-bazlı teklif: her kaleme birim fiyat. Tavan ilan kalem tavanıyla

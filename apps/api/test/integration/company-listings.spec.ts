@@ -1150,3 +1150,82 @@ describe("ilan yönetim authz — assertListingManageRole", () => {
     });
   });
 });
+
+describe("Taşma koruması — çarpım (birim fiyat × miktar) servis kapısı", () => {
+  it("subtotal MAX_MONEY'i aşınca 400 (Postgres 500 değil); faktörler tek başına sınır içinde", async () => {
+    const { service, bidder, listing } = await setupAlim();
+    // Faktörler tekil tavanların ALTINDA: quantity 1e6 < MAX_QUANTITY(1e9),
+    // unitPrice 2e9 < MAX_MONEY(1e15). ÇARPIM 2e15 > MAX_MONEY → taşma.
+    const item = await makeItem(prisma, listing.id, {
+      lineNo: 9,
+      quantity: "1000000",
+    });
+    await expect(
+      service.placeBid(bidder.auth, listing.id, {
+        items: [{ itemId: item.id, unitPrice: 2_000_000_000 }],
+        deliveryDate: FUTURE.toISOString(),
+        validityDays: 30,
+      } as never),
+    ).rejects.toThrow(/çok büyük/i);
+  });
+
+  it("sınır içindeki büyük çarpım kabul (1e3 × 1e9 = 1e12 < MAX_MONEY)", async () => {
+    const { service, bidder, listing } = await setupAlim();
+    const item = await makeItem(prisma, listing.id, {
+      lineNo: 9,
+      quantity: "1000",
+    });
+    const res = await service.placeBid(bidder.auth, listing.id, {
+      items: [{ itemId: item.id, unitPrice: 1_000_000_000 }],
+      deliveryDate: FUTURE.toISOString(),
+      validityDays: 30,
+    } as never);
+    expect((res as { status: string }).status).toBe("SUBMITTED");
+  });
+});
+
+describe("closesAt üst sınırı (now + 2 yıl) — auto-close kırılmasın", () => {
+  const dtoWith = (closesAt: string) => ({
+    type: "ALIM",
+    format: "RFQ",
+    isInternational: false,
+    visibility: "CONNECTIONS",
+    title: "Kapanış tavanı",
+    closesAt,
+    primaryCurrency: "TRY",
+    allowedCurrencies: ["TRY"],
+    items: [{ name: "Kalem", quantity: 1, unit: "adet" }],
+  });
+
+  it("2 yılı aşan closesAt reddedilir (create)", async () => {
+    const owner = await makeCompanyWithUser(prisma, {});
+    const { service } = makeService();
+    const threeYears = new Date(
+      Date.now() + 3 * 365 * 24 * 3600 * 1000,
+    ).toISOString();
+    await expect(
+      service.create(owner.auth, dtoWith(threeYears) as never),
+    ).rejects.toThrow(/ileri|2 yıl/i);
+  });
+
+  it("1 yıl sonrası closesAt kabul edilir (create)", async () => {
+    const owner = await makeCompanyWithUser(prisma, {});
+    const { service } = makeService();
+    const oneYear = new Date(
+      Date.now() + 365 * 24 * 3600 * 1000,
+    ).toISOString();
+    await expect(
+      service.create(owner.auth, dtoWith(oneYear) as never),
+    ).resolves.toBeDefined();
+  });
+
+  it("changeClosingTime da 2 yılı aşan tarihi reddeder (aynı bypass kapatıldı)", async () => {
+    const { service, owner, listing } = await setupAlim();
+    const threeYears = new Date(
+      Date.now() + 3 * 365 * 24 * 3600 * 1000,
+    ).toISOString();
+    await expect(
+      service.changeClosingTime(owner.auth, listing.id, threeYears),
+    ).rejects.toThrow(/ileri|2 yıl/i);
+  });
+});

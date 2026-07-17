@@ -8,6 +8,7 @@
 import { CompanyOrdersService } from "../../src/modules/company-orders/services/company-orders.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
+import { MAX_MONEY } from "../../src/common/constants/money";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing } from "./factories";
 
@@ -981,6 +982,30 @@ describe("Faz 5 — sipariş revizyon müzakeresi", () => {
     { name: "Çelik", quantity: 8, unit: "ton", unitPrice: 120 }, // 960
     { name: "Nakliye", quantity: 1, unit: "sefer", unitPrice: 200 }, // 200
   ];
+
+  it("SINIF-A guard: revizyon TOPLAMI MAX_MONEY'i aşınca 400 (Postgres 500 DEĞİL) — toplamsal", async () => {
+    const orders = makeOrdersService();
+    const { seller, order } = await acceptedOrderWithItems();
+    // İki kalem: her biri tek başına ≤ MAX_MONEY (DTO @Max geçer) ama TOPLAM
+    // > MAX_MONEY → yalnız servis guard'ı yakalar (per-alan @Max yetmez).
+    await expect(
+      orders.proposeRevision(seller.auth, order.id, {
+        items: [
+          { name: "A", quantity: 1, unit: "ad", unitPrice: MAX_MONEY },
+          { name: "B", quantity: 1, unit: "ad", unitPrice: MAX_MONEY },
+        ],
+      } as never),
+    ).rejects.toThrow(/çok büyük/);
+  });
+
+  it("SINIF-A guard: tam-sınır (toplam = MAX_MONEY) KABUL edilir", async () => {
+    const orders = makeOrdersService();
+    const { seller, order } = await acceptedOrderWithItems();
+    const prop = await orders.proposeRevision(seller.auth, order.id, {
+      items: [{ name: "A", quantity: 1, unit: "ad", unitPrice: MAX_MONEY }],
+    } as never);
+    expect(prop).toBeDefined();
+  });
 
   it("revizyon kalem notu + teslim tarihi öneriden onaya KORUNUR (kayıp bug regresyonu)", async () => {
     const orders = makeOrdersService();

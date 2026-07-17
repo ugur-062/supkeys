@@ -125,7 +125,9 @@ export class CompleteOnboardingDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsString({ each: true })
+  @MaxLength(40, { each: true })
   subCategoryIds?: string[];
 
   // ── Adım 3: Beyan ──

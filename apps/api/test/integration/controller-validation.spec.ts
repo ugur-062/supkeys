@@ -9,12 +9,23 @@ import { ValidationPipe } from "@nestjs/common";
 import { CompanyJwtStrategy } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
 import { CreateListingDto } from "../../src/modules/company-listings/dto/create-listing.dto";
 import { PlaceBidDto } from "../../src/modules/company-listings/dto/place-bid.dto";
-import { RejectPaymentReasonDto } from "../../src/modules/company-orders/dto/order-payment.dto";
+import {
+  RecordPaymentDto,
+  RejectPaymentReasonDto,
+} from "../../src/modules/company-orders/dto/order-payment.dto";
+import { ProposeRevisionDto } from "../../src/modules/company-orders/dto/order-action.dto";
+import { CreateApprovalFlowDto } from "../../src/modules/company-approvals/dto/approval.dto";
+import { CompleteOnboardingDto } from "../../src/modules/company-auth/dto/onboarding.dto";
+import {
+  InviteCompanyUserDto,
+  UpdateUserPermissionsDto,
+} from "../../src/modules/company-users/dto/company-user.dto";
 import {
   AddInvitationsDto,
   ChangeClosingDto,
   ListingReasonDto,
 } from "../../src/modules/company-listings/dto/owner-action.dto";
+import { MAX_MONEY, MAX_QUANTITY } from "../../src/common/constants/money";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompany, makeUser } from "./factories";
 
@@ -168,6 +179,161 @@ describe("DTO doğrulama (global ValidationPipe)", () => {
       await expect(
         validate(PlaceBidDto, {
           items: [{ itemId: "i1", unitPrice: -5 }],
+        }),
+      ).rejects.toBeDefined();
+    });
+
+    it("birim fiyat MAX_MONEY tavanı (tam-sınır kabul, aşan red)", async () => {
+      await expect(
+        validate(PlaceBidDto, {
+          items: [{ itemId: "i1", unitPrice: MAX_MONEY }],
+        }),
+      ).resolves.toBeDefined();
+      await expect(
+        validate(PlaceBidDto, {
+          items: [{ itemId: "i1", unitPrice: MAX_MONEY + 1 }],
+        }),
+      ).rejects.toBeDefined();
+    });
+
+    it("tek-tutar amount MAX_MONEY tavanı (aşan red)", async () => {
+      await expect(
+        validate(PlaceBidDto, { amount: MAX_MONEY + 1 }),
+      ).rejects.toBeDefined();
+    });
+  });
+
+  describe("Parasal tavan (@Max MAX_MONEY) — tekil değer alanları", () => {
+    it("CreateListingDto minPrice/targetPrice tavanı aşan red", async () => {
+      await expect(
+        validate(CreateListingDto, {
+          type: "SATIS",
+          title: "Test ihale",
+          minPrice: MAX_MONEY + 1,
+        }),
+      ).rejects.toBeDefined();
+      await expect(
+        validate(CreateListingDto, {
+          type: "ALIM",
+          title: "Test ihale",
+          items: [
+            {
+              name: "Kalem",
+              quantity: 1,
+              unit: "adet",
+              targetPrice: MAX_MONEY + 1,
+            },
+          ],
+        }),
+      ).rejects.toBeDefined();
+    });
+
+    it("RecordPaymentDto amount tavanı (tam-sınır kabul, aşan red)", async () => {
+      await expect(
+        validate(RecordPaymentDto, { amount: MAX_MONEY }),
+      ).resolves.toBeDefined();
+      await expect(
+        validate(RecordPaymentDto, { amount: MAX_MONEY + 1 }),
+      ).rejects.toBeDefined();
+    });
+
+    it("ProposeRevisionDto kalem miktar/birim fiyat çarpım-faktör tavanları", async () => {
+      const validItem = {
+        name: "Kalem",
+        quantity: 10,
+        unit: "adet",
+        unitPrice: 100,
+      };
+      await expect(
+        validate(ProposeRevisionDto, { items: [validItem] }),
+      ).resolves.toBeDefined();
+      // Miktar tavanı (MAX_QUANTITY) aşan red.
+      await expect(
+        validate(ProposeRevisionDto, {
+          items: [{ ...validItem, quantity: MAX_QUANTITY + 1 }],
+        }),
+      ).rejects.toBeDefined();
+      // Birim fiyat tavanı (MAX_MONEY) aşan red — eskiden İKİSİ de sınırsızdı.
+      await expect(
+        validate(ProposeRevisionDto, {
+          items: [{ ...validItem, unitPrice: MAX_MONEY + 1 }],
+        }),
+      ).rejects.toBeDefined();
+    });
+
+    it("CreateApprovalFlowDto conditionMinAmount tavanı aşan red", async () => {
+      await expect(
+        validate(CreateApprovalFlowDto, {
+          name: "Akış",
+          type: "LISTING_PUBLISH",
+          steps: [{ approverUserId: "u1", conditionMinAmount: MAX_MONEY + 1 }],
+        }),
+      ).rejects.toBeDefined();
+      await expect(
+        validate(CreateApprovalFlowDto, {
+          name: "Akış",
+          type: "LISTING_PUBLISH",
+          steps: [{ approverUserId: "u1", conditionMinAmount: 1000 }],
+        }),
+      ).resolves.toBeDefined();
+    });
+  });
+
+  describe("Dizi tavanları (DoS koruması)", () => {
+    const validOnboarding = {
+      legalName: "Test A.Ş.",
+      companyType: "LIMITED",
+      taxNumber: "1234567890",
+      city: "İstanbul",
+      addressLine: "Örnek Mah. No 1 Kadıköy",
+      mainCategoryIds: ["c1"],
+      declarationAccepted: true,
+    };
+
+    it("onboarding subCategoryIds ≤ 50 (51 eleman red, 50 kabul)", async () => {
+      await expect(
+        validate(CompleteOnboardingDto, {
+          ...validOnboarding,
+          subCategoryIds: Array.from({ length: 50 }, (_, i) => `s${i}`),
+        }),
+      ).resolves.toBeDefined();
+      await expect(
+        validate(CompleteOnboardingDto, {
+          ...validOnboarding,
+          subCategoryIds: Array.from({ length: 51 }, (_, i) => `s${i}`),
+        }),
+      ).rejects.toBeDefined();
+    });
+
+    it("onboarding subCategoryIds her eleman ≤ 40 karakter", async () => {
+      await expect(
+        validate(CompleteOnboardingDto, {
+          ...validOnboarding,
+          subCategoryIds: ["x".repeat(41)],
+        }),
+      ).rejects.toBeDefined();
+    });
+
+    it("roller dizisi ≤ 5 (6 eleman red)", async () => {
+      await expect(
+        validate(InviteCompanyUserDto, {
+          email: "a@b.com",
+          roles: Array.from({ length: 6 }, () => "YONETICI"),
+        }),
+      ).rejects.toBeDefined();
+      await expect(
+        validate(InviteCompanyUserDto, {
+          email: "a@b.com",
+          roles: ["YONETICI"],
+        }),
+      ).resolves.toBeDefined();
+    });
+
+    it("izin override dizileri ≤ 100 (101 eleman red)", async () => {
+      await expect(
+        validate(UpdateUserPermissionsDto, {
+          added: Array.from({ length: 101 }, (_, i) => `p${i}`),
+          removed: [],
         }),
       ).rejects.toBeDefined();
     });

@@ -18,6 +18,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from "class-validator";
+import { MAX_MONEY } from "../../../common/constants/money";
 
 export enum ListingTypeDto {
   ALIM = "ALIM",
@@ -138,18 +139,21 @@ export class ListingItemDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
+  @Max(MAX_MONEY)
   targetPrice?: number;
 
   /** SATIS + KALEM fiyatlandırma: kalem taban birim fiyatı. */
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
+  @Max(MAX_MONEY)
   minUnitPrice?: number;
 
   /** SATIS + KALEM: kalem hemen-al birim fiyatı (≥ taban). */
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
+  @Max(MAX_MONEY)
   buyNowUnitPrice?: number;
 
   @IsOptional()
@@ -307,11 +311,13 @@ export class CreateListingDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
+  @Max(MAX_MONEY)
   minPrice?: number;
 
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0.01)
+  @Max(MAX_MONEY)
   buyNowPrice?: number;
 
   @IsOptional()

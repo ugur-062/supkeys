@@ -33,6 +33,10 @@ import {
   validateShortCode,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import {
+  MAX_MONEY,
+  MAX_LISTING_HORIZON_MS,
+} from "../../../common/constants/money";
 import { effectiveTier } from "../../../common/company/effective-tier";
 import { AuditService } from "../../audit/audit.service";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
@@ -669,6 +673,11 @@ export class CompanyListingsService {
     const close = new Date(dto.closesAt);
     if (Number.isNaN(close.getTime()) || close.getTime() <= Date.now()) {
       throw new BadRequestException("Kapanış tarihi gelecekte olmalı");
+    }
+    // Üst sınır: closesAt=9999 → auto-close cron hiç tetiklenmez (yaşam döngüsü
+    // kırılır). En fazla now + 2 yıl. bidsOpenAt < closesAt zorunlu → transitif kapalı.
+    if (close.getTime() > Date.now() + MAX_LISTING_HORIZON_MS) {
+      throw new BadRequestException("Kapanış tarihi çok ileri (en fazla 2 yıl)");
     }
     if (dto.bidsOpenAt) {
       const open = new Date(dto.bidsOpenAt);
@@ -3196,6 +3205,13 @@ export class CompanyListingsService {
       amount = new Prisma.Decimal(dto.amount);
     }
 
+    // Taşma koruması: birim fiyat × miktar ÇARPIMI (ve satır toplamlarının
+    // TOPLAMI) tekil @Max'larla bağlanamaz; Decimal(18,2) kolonu ~1e16'da
+    // taşar → aksi halde Postgres 500. MAX_MONEY tavanı → temiz 400.
+    if (amount.gt(MAX_MONEY)) {
+      throw new BadRequestException("Teklif toplamı çok büyük");
+    }
+
     // TRY dışı teklifte güncel TCMB kuru anlık snapshot'lanır — hem kayıt
     // (TRY karşılığı gösterimi) hem de aşağıdaki taban/hemen-al kıyası için.
     // Kur alınamazsa teklif yine kabul edilir ama TRY karşılığı boş kalır;
@@ -3722,6 +3738,12 @@ export class CompanyListingsService {
       }));
     } else {
       amount = new Prisma.Decimal(listing.buyNowPrice!);
+    }
+
+    // Taşma koruması (placeBid ile aynı) — kalem hemen-al birim fiyatları ×
+    // miktar toplamı Decimal(18,2) kolonunu aşmasın.
+    if (amount.gt(MAX_MONEY)) {
+      throw new BadRequestException("Toplam tutar çok büyük");
     }
 
     const deliveryDate = new Date(input.deliveryDate);
@@ -4813,6 +4835,10 @@ export class CompanyListingsService {
     if (Number.isNaN(closesAt.getTime()) || closesAt.getTime() <= Date.now()) {
       throw new BadRequestException("Kapanış tarihi gelecekte olmalı");
     }
+    // Üst sınır (create ile aynı): en fazla now + 2 yıl — auto-close kırılmasın.
+    if (closesAt.getTime() > Date.now() + MAX_LISTING_HORIZON_MS) {
+      throw new BadRequestException("Kapanış tarihi çok ileri (en fazla 2 yıl)");
+    }
     const bidsOpenAt = dto.bidsOpenAt ? new Date(dto.bidsOpenAt) : null;
     if (bidsOpenAt && bidsOpenAt.getTime() >= closesAt.getTime()) {
       throw new BadRequestException("Açılış tarihi kapanıştan önce olmalı");
@@ -5728,6 +5754,11 @@ export class CompanyListingsService {
     const date = new Date(closesAt);
     if (Number.isNaN(date.getTime()) || date.getTime() <= Date.now()) {
       throw new BadRequestException("Kapanış tarihi gelecekte olmalı");
+    }
+    // Üst sınır (create/next-round ile aynı) — bu endpoint'ten de closesAt=9999
+    // ile auto-close kırılmasın.
+    if (date.getTime() > Date.now() + MAX_LISTING_HORIZON_MS) {
+      throw new BadRequestException("Kapanış tarihi çok ileri (en fazla 2 yıl)");
     }
     const extra = await this.prisma.listing.findUnique({
       where: { id: listing.id },

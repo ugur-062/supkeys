@@ -22,6 +22,7 @@ import {
   type PaymentCategory,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { MAX_MONEY } from "../../../common/constants/money";
 import { AuditService } from "../../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import type {
@@ -655,6 +656,12 @@ export class CompanyOrdersService {
       (sum, it) => sum.plus(new Prisma.Decimal(it.unitPrice).mul(it.quantity)),
       new Prisma.Decimal(0),
     );
+    // Taşma koruması: satıcının önerdiği birim fiyat × miktar ÇARPIMI ve satır
+    // toplamı tekil @Max'larla bağlanamaz; amount kolonu Decimal(18,2) → ~1e16'da
+    // taşar. MAX_MONEY tavanı → Postgres 500 yerine temiz 400.
+    if (amount.gt(MAX_MONEY)) {
+      throw new BadRequestException("Revizyon toplamı çok büyük");
+    }
     const rev = await this.prisma.orderRevision.create({
       data: {
         orderId: id,

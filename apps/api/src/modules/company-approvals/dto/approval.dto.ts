@@ -7,11 +7,13 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   MinLength,
   ValidateNested,
 } from "class-validator";
+import { MAX_MONEY } from "../../../common/constants/money";
 
 export enum ApprovalTypeDto {
   LISTING_PUBLISH = "LISTING_PUBLISH",
@@ -50,6 +52,7 @@ export class ApprovalFlowStepDto {
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
+  @Max(MAX_MONEY)
   conditionMinAmount?: number;
 }
 
@@ -69,6 +72,7 @@ export class CreateApprovalFlowDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(5)
   @IsEnum(CompanyRoleDto, { each: true })
   initiatorRoles?: CompanyRoleDto[];
 

@@ -5,10 +5,12 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  Max,
   MaxLength,
   MinLength,
   ValidateIf,
 } from "class-validator";
+import { MAX_MONEY } from "../../../common/constants/money";
 
 /** Çek ödemesi için method değeri — UI ve DTO bu sabiti paylaşır. */
 export const CHEQUE_METHOD = "Çek";
@@ -18,6 +20,7 @@ export class RecordPaymentDto {
   // saklanan değer arasında yuvarlama sapması yaratmasın.
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive({ message: "Tutar 0'dan büyük olmalı" })
+  @Max(MAX_MONEY, { message: "Tutar çok büyük" })
   amount!: number;
 
   @IsOptional()

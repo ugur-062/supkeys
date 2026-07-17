@@ -9,10 +9,12 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  Max,
   MaxLength,
   Min,
   ValidateNested,
 } from "class-validator";
+import { MAX_MONEY, MAX_QUANTITY } from "../../../common/constants/money";
 
 /**
  * Sipariş akış adımı DTO'ları (eski sistemle birebir).
@@ -65,6 +67,7 @@ export class ReviseOrderItemDto {
 
   @IsNumber({ maxDecimalPlaces: 3 })
   @IsPositive({ message: "Miktar 0'dan büyük olmalı" })
+  @Max(MAX_QUANTITY, { message: "Miktar çok büyük" })
   quantity!: number;
 
   @IsString()
@@ -72,8 +75,11 @@ export class ReviseOrderItemDto {
   @MaxLength(20)
   unit!: string;
 
+  // Tekil tavan — satır çarpımı (× miktar) ve genel toplam taşması AYRICA
+  // serviste MAX_MONEY ile denetlenir.
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0, { message: "Birim fiyat negatif olamaz" })
+  @Max(MAX_MONEY, { message: "Birim fiyat çok büyük" })
   unitPrice!: number;
 
   @IsOptional()

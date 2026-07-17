@@ -1,4 +1,5 @@
 import {
+  ArrayMaxSize,
   ArrayMinSize,
   Equals,
   IsArray,
@@ -32,6 +33,7 @@ export class InviteCompanyUserDto {
 
   @IsArray()
   @ArrayMinSize(1, { message: "En az bir rol seçin" })
+  @ArrayMaxSize(5)
   @IsEnum(CompanyRoleDto, { each: true, message: "Geçersiz rol" })
   roles!: CompanyRoleDto[];
 }
@@ -86,6 +88,7 @@ export class AcceptCompanyInvitationDto {
 export class UpdateUserRolesDto {
   @IsArray()
   @ArrayMinSize(1, { message: "En az bir rol seçin" })
+  @ArrayMaxSize(5)
   @IsEnum(CompanyRoleDto, { each: true, message: "Geçersiz rol" })
   roles!: CompanyRoleDto[];
 }
@@ -111,6 +114,7 @@ export class UpdateUserDto {
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1, { message: "En az bir rol seçin" })
+  @ArrayMaxSize(5)
   @IsEnum(CompanyRoleDto, { each: true, message: "Geçersiz rol" })
   roles?: CompanyRoleDto[];
 
@@ -118,6 +122,7 @@ export class UpdateUserDto {
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
+  @ArrayMaxSize(5)
   @IsEnum(CompanyRoleDto, { each: true, message: "Geçersiz rol" })
   previousOwnerRoles?: CompanyRoleDto[];
 }
@@ -130,12 +135,14 @@ export class SetUserActiveDto {
 export class UpdateUserPermissionsDto {
   // Rol-varsayılanı üstüne EKLENEN izin anahtarları.
   @IsArray()
+  @ArrayMaxSize(100)
   @IsString({ each: true })
   @MaxLength(60, { each: true })
   added!: string[];
 
   // Rol-varsayılanından ÇIKARILAN izin anahtarları.
   @IsArray()
+  @ArrayMaxSize(100)
   @IsString({ each: true })
   @MaxLength(60, { each: true })
   removed!: string[];
