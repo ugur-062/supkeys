@@ -10,7 +10,12 @@
  */
 import { Prisma } from "@prisma/client";
 import { prisma, truncateAll } from "./test-db";
-import { makeBid, makeCompanyWithUser, makeListing } from "./factories";
+import {
+  makeBid,
+  makeCompanyWithUser,
+  makeItem,
+  makeListing,
+} from "./factories";
 import { makeService } from "./make-service";
 
 const FUTURE = new Date(Date.now() + 7 * 24 * 3600 * 1000);
@@ -383,6 +388,53 @@ describe("Onay eşiği — TEK BAZ + X3 fail-closed (INV-FX-1)", () => {
     // Ham yabancı tutar + KENDİ birimiyle saklanır (0/TRY yanıltmaz).
     expect(arg.currency).toBe("EUR");
     expect(new Prisma.Decimal(arg.amount).toNumber()).toBe(100);
+  });
+
+  it("X-CF-1: KALEM-award eşiği teklif kur DAMGASINI kullanır (award ile aynı) — düz RFQ", async () => {
+    // Düz RFQ → açılış damgası (auctionRateSnapshot) YOK. Eski hata: itemAwardTotal
+    // bidSnapshot'ı null hardcode ediyordu → yabancı grup HER ZAMAN null → onaylayıcıya
+    // 0 TRY + forceRequireApproval. Fix: teklifin exchangeRateSnapshot'ı kullanılır.
+    const { service, approvals } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const bidder = await makeCompanyWithUser(prisma, { country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "CLOSED",
+      format: "RFQ",
+      visibility: "PUBLIC",
+      closesAt: new Date(Date.now() - 3600_000),
+      allowedCurrencies: ["TRY", "EUR"] as never,
+    });
+    const item = await makeItem(prisma, listing.id); // quantity 1
+    const bid = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: bidder.company.id,
+      createdById: bidder.user.id,
+      amount: 100,
+      currency: "EUR",
+      items: [{ itemId: item.id, unitPrice: 100 }],
+    });
+    // Teklif submit-anı kur damgası — EUR=40.
+    await prisma.listingBid.update({
+      where: { id: bid.id },
+      data: { exchangeRateSnapshot: new Prisma.Decimal(40) },
+    });
+    approvals.requestApproval.mockResolvedValue({
+      approved: false,
+      requestId: "r1",
+    });
+
+    await service.awardByItem(owner.auth, listing.id, [
+      { itemId: item.id, bidId: bid.id },
+    ] as never);
+
+    const arg = approvals.requestApproval.mock.calls[0][1];
+    // 100 EUR × 1 qty × 40 (teklif damgası) = 4000 ₺ — eski: 0 + forceRequireApproval.
+    expect(new Prisma.Decimal(arg.amount).toNumber()).toBe(4000);
+    expect(arg.currency).toBe("TRY");
+    expect(arg.forceRequireApproval).toBeFalsy();
   });
 });
 

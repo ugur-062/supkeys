@@ -4300,9 +4300,10 @@ export class CompanyListingsService {
       type: "LISTING_AWARD",
       listingType: listing.type,
       // total TRY'ye normalize edildi (itemAwardTotal) — onay eşiği TRY bazında.
-      // INV-FX-1 (X3): baz bilinmiyorsa total null → tutar bilinemez, eşiği ATLA(t)MA
-      // (forceRequireApproval), onay zorunlu (sessiz fallback yok). amount 0 gösterilir
-      // ama onay atlanmaz — onaylayan sipariş önizlemesinden gerçek kalemleri görür.
+      // X-CF-1: açılış damgası → teklif damgası önceliğiyle çevrilir (tam-award ile
+      // AYNI); yabancı-para teklif artık gerçek TRY tutarını gösterir. INV-FX-1 (X3):
+      // baz gerçekten bilinmiyorsa (damga yok + teklif damgası yok) total null →
+      // eşiği ATLA(t)MA (forceRequireApproval), onay zorunlu (sessiz fallback yok).
       amount: total ?? new Prisma.Decimal(0),
       currency: "TRY",
       forceRequireApproval: total == null,
@@ -4365,6 +4366,9 @@ export class CompanyListingsService {
         id: true,
         bidderCompanyId: true,
         currency: true,
+        // X-CF-1: teklifin kur damgası — onay eşiği TRY çevriminde `award` ile
+        // AYNI INV-FX-1 önceliği (açılış damgası → teklif damgası) kullanılsın.
+        exchangeRateSnapshot: true,
         items: {
           select: {
             itemId: true,
@@ -4390,6 +4394,7 @@ export class CompanyListingsService {
         }[];
         amount: Prisma.Decimal; // sipariş tutarı — Decimal (F7)
         currency: Currency; // teklifçinin birimi (firma başına tek teklif)
+        exchangeRateSnapshot: Prisma.Decimal | null; // teklif kur damgası (X-CF-1)
         bidIds: Set<string>;
       }
     >();
@@ -4416,6 +4421,8 @@ export class CompanyListingsService {
           orderItems: [],
           amount: new Prisma.Decimal(0),
           currency: bid.currency,
+          // Firma başına tek teklif → grup ilk kurulduğunda o teklifin damgası.
+          exchangeRateSnapshot: bid.exchangeRateSnapshot,
           bidIds: new Set(),
         };
         groups.set(bid.bidderCompanyId, g);
@@ -4462,8 +4469,11 @@ export class CompanyListingsService {
    * Onay yönlendirmesi için kalem-bazlı kazandırmanın TOPLAM değeri — her grup
    * kendi biriminde olduğundan TRY'ye çevrilip toplanır (karışık para birimli
    * kazandırmada ham USD+TRY toplamı anlamsız olurdu; eşik yanlış yönlenirdi).
-   * Kalem-award grupları per-bid damgası taşımaz → baz yalnız ilan açılış damgası
-   * (auctionSnap). Bir grup bile çevrilemezse null → onay ZORUNLU (X3 fail-closed).
+   * X-CF-1: `award` ile AYNI INV-FX-1 önceliği — açılış damgası (auctionSnap) →
+   * grubun teklif damgası (g.exchangeRateSnapshot) → null. Bir grup bile
+   * çevrilemezse null → onay ZORUNLU (X3 fail-closed). (Eskiden bidSnapshot
+   * hardcode null'dı → düz RFQ yabancı-para grubu HER ZAMAN null döner, tam-award
+   * ile ıraksardı ve onaylayıcıya 0 TRY gösterirdi.)
    */
   private async itemAwardTotal(
     listingId: string,
@@ -4473,7 +4483,12 @@ export class CompanyListingsService {
     const { groups } = await this.buildItemGroups(listingId, itemAwards);
     let total = new Prisma.Decimal(0);
     for (const g of groups.values()) {
-      const tv = this.toTryAmount(g.amount, g.currency, null, auctionSnap);
+      const tv = this.toTryAmount(
+        g.amount,
+        g.currency,
+        g.exchangeRateSnapshot,
+        auctionSnap,
+      );
       if (tv == null) return null; // kur bilinmiyor → eşik değerlendirilemez
       total = total.plus(tv);
     }
