@@ -41,9 +41,11 @@ vi.mock("@/hooks/use-company-auth", () => ({
 
 import { OnboardingClient } from "../onboarding-client";
 
+// LIMITED (tüzel) → 10 haneli VKN; TR'de vergi dairesi zorunlu (backend mirror).
 async function fillStep1TR(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText("Firma Ünvanı *"), "Örnek Ltd.");
-  await user.type(screen.getByLabelText("Vergi No / TCKN *"), "10000000146");
+  await user.type(screen.getByLabelText("Vergi No / TCKN *"), "1234567890");
+  await user.type(screen.getByLabelText("Vergi Dairesi *"), "Kadıköy VD");
   await user.selectOptions(screen.getByLabelText("İl *"), "İstanbul");
   await user.selectOptions(screen.getByLabelText("İlçe *"), "Kadıköy");
   await user.type(screen.getByLabelText("Açık Adres *"), "Moda Cad. No:1");
@@ -81,6 +83,23 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
     render(<OnboardingClient />);
     await fillStep1TR(user);
     expect(screen.getByRole("button", { name: "Devam" })).toBeEnabled();
+  });
+
+  // B (kök neden): form artık backend'in shared kimlik yardımcılarını kullanır —
+  // geçersiz VKN aynı kuralla formda yakalanır (11 hane, tüzel için VKN=10 hane).
+  it("geçersiz VKN (11 hane, tüzel) → hata gösterilir + 'Devam' devre dışı", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingClient />);
+    await user.type(screen.getByLabelText("Firma Ünvanı *"), "Örnek Ltd.");
+    await user.type(screen.getByLabelText("Vergi No / TCKN *"), "10000000146");
+    await user.type(screen.getByLabelText("Vergi Dairesi *"), "Kadıköy VD");
+    await user.selectOptions(screen.getByLabelText("İl *"), "İstanbul");
+    await user.selectOptions(screen.getByLabelText("İlçe *"), "Kadıköy");
+    await user.type(screen.getByLabelText("Açık Adres *"), "Moda Cad. No:1");
+    expect(
+      screen.getByText(/10 haneli geçerli vergi numarası/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Devam" })).toBeDisabled();
   });
 });
 
@@ -127,6 +146,18 @@ describe("OnboardingClient — adım 2 (kişi + sektör)", () => {
     expect(screen.getByRole("button", { name: "Devam" })).toBeEnabled();
   });
 
+  // B: yetkili TCKN checksum'lı doğrulanır (backend isValidTckn birebir).
+  it("geçersiz TCKN (checksum hatalı) → hata + 'Devam' devre dışı", async () => {
+    const user = userEvent.setup();
+    await goStep2(user);
+    await user.type(screen.getByLabelText("T.C. Kimlik No *"), "10000000140");
+    await pickSector(user, /Yazılım & IT/);
+    expect(
+      screen.getByText(/Geçerli bir T\.C\. Kimlik No/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Devam" })).toBeDisabled();
+  });
+
   it("kategori yüklenemezse hata + 'Tekrar dene'", async () => {
     const user = userEvent.setup();
     h.roots.isError = true;
@@ -169,7 +200,7 @@ describe("OnboardingClient — adım 3 (özet + gönderim)", () => {
       expect.objectContaining({
         legalName: "Örnek Ltd.",
         country: "TR",
-        taxNumber: "10000000146",
+        taxNumber: "1234567890",
         authorizedTckn: "10000000146",
         mainCategoryIds: ["cat1"],
         declarationAccepted: true,

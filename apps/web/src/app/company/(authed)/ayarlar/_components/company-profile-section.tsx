@@ -23,6 +23,7 @@ import {
 } from "@/hooks/use-company-profile";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { safeExternalUrl } from "@/lib/safe-url";
+import { isValidIbanTr, isValidMersis, normalizeIban } from "@rothern/shared";
 import { UserRound } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -74,18 +75,31 @@ export function CompanyProfileSection() {
     }
   }, [profile]);
 
-  // IBAN UI ipucu — banka hesaplarıyla AYNI kural: TR katı, yabancı gevşek
-  // (yabancı firma profili TR-only regex yüzünden IBAN kaydedemiyordu).
-  const ibanClean = form.iban.replace(/\s/g, "").toUpperCase();
+  // IBAN/MERSİS/KEP doğrulaması — backend company-profile.service ile BİREBİR.
+  // IBAN: TR strict mod-97 (isValidIbanTr), yabancı gevşek format. Eski
+  // `/^TR\d{24}$/` yalnız biçim kontrolüydü (checksum'sız → backend'e uyumsuz).
+  const ibanClean = normalizeIban(form.iban);
   const ibanInvalid =
-    ibanClean.startsWith("TR") && ibanClean.length > 0
-      ? !/^TR\d{24}$/.test(ibanClean)
-      : ibanClean.length > 0 && !/^[A-Z]{2}[0-9A-Z]{8,32}$/.test(ibanClean);
+    ibanClean.length > 0 &&
+    (ibanClean.startsWith("TR")
+      ? !isValidIbanTr(ibanClean)
+      : !/^[A-Z]{2}[0-9A-Z]{8,32}$/.test(ibanClean));
+  // MERSİS: boş VEYA tam 16 hane (backend @Matches /^$|^\d{16}$/).
+  const mersisInvalid = !isValidMersis(form.mersisNo);
+  // KEP: backend regex birebir (@...kep.tr).
+  const kepInvalid =
+    form.kepAddress.trim().length > 0 &&
+    !/^[^@\s]+@[^@\s]+\.kep\.tr$/i.test(form.kepAddress.trim());
 
   const set = (patch: Partial<typeof form>) =>
     setForm((f) => ({ ...f, ...patch }));
 
   const handleSave = async () => {
+    // Kimlik alanları geçersizse backend 400'ünü beklemeden burada engelle.
+    if (mersisInvalid || kepInvalid || ibanInvalid) {
+      toast.error("Kurumsal kimlik alanlarında geçersiz değer var");
+      return;
+    }
     // Güvenlik (defense-in-depth): website'i javascript:/data: gibi şemalardan
     // arındır, şemasızı https'e normalize et. Asıl koruma render'da (safeExternalUrl).
     const normWebsite = form.website.trim()
@@ -168,11 +182,17 @@ export function CompanyProfileSection() {
               value={form.mersisNo}
               maxLength={16}
               disabled={!canEdit}
+              invalid={mersisInvalid}
               placeholder="16 haneli"
               onChange={(e) =>
                 set({ mersisNo: e.target.value.replace(/\D/g, "") })
               }
             />
+            {mersisInvalid ? (
+              <p className="mt-1 text-xs text-red-600">
+                MERSİS No 16 haneli olmalı
+              </p>
+            ) : null}
           </Field>
           <Field>
             <Label>Ticaret Sicil No</Label>
@@ -187,9 +207,15 @@ export function CompanyProfileSection() {
             <Input
               value={form.kepAddress}
               disabled={!canEdit}
+              invalid={kepInvalid}
               placeholder="ornek@hs01.kep.tr"
               onChange={(e) => set({ kepAddress: e.target.value })}
             />
+            {kepInvalid ? (
+              <p className="mt-1 text-xs text-red-600">
+                Geçerli bir KEP adresi giriniz (…@…kep.tr)
+              </p>
+            ) : null}
           </Field>
           <Field>
             <Label>IBAN</Label>

@@ -14,7 +14,12 @@ import {
 } from "@/hooks/use-company-auth";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { COUNTRIES, TURKEY_LOCATIONS } from "@rothern/shared";
+import {
+  COUNTRIES,
+  TURKEY_LOCATIONS,
+  isValidTaxIdForCountry,
+  isValidTckn,
+} from "@rothern/shared";
 import { Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -65,6 +70,12 @@ export function OnboardingClient() {
     declarationAccepted: false,
   });
   const isTR = f.country === "TR";
+  const isSole = f.companyType === "SOLE_PROPRIETOR";
+  // Kimlik doğrulama — backend company-auth.service.completeOnboarding ile BİREBİR
+  // (isValidTaxIdForCountry: TR strict VKN(10)/TCKN(11) checksum, yabancı gevşek;
+  // TR yetkili için isValidTckn). Eski "length>=4 / ===11" gevşek gate'i kapatır.
+  const taxNumberValid = isValidTaxIdForCountry(f.taxNumber, f.country, isSole);
+  const tcknValid = isTR ? isValidTckn(f.authorizedTckn) : true;
   const set = (k: keyof typeof f) => (v: unknown) => setF((s) => ({ ...s, [k]: v }));
 
   useEffect(() => {
@@ -86,7 +97,9 @@ export function OnboardingClient() {
 
   const step1Valid =
     f.legalName.trim().length >= 2 &&
-    f.taxNumber.trim().length >= 4 &&
+    taxNumberValid &&
+    // TR'de vergi dairesi zorunlu (backend @400) — gate'e ekli.
+    (isTR ? f.taxOffice.trim().length > 0 : true) &&
     f.city.trim().length >= 2 &&
     (isTR ? !!f.district : true) &&
     f.addressLine.trim().length >= 5 &&
@@ -96,7 +109,7 @@ export function OnboardingClient() {
       (f.deliveryCity.trim().length >= 2 &&
         f.deliveryAddressLine.trim().length >= 5));
   const step2Valid =
-    (isTR ? f.authorizedTckn.trim().length === 11 : true) &&
+    tcknValid &&
     f.mainCategoryIds.length >= 1 &&
     f.mainCategoryIds.length <= 3;
 
@@ -251,6 +264,15 @@ export function OnboardingClient() {
                     )
                   }
                 />
+                {f.taxNumber.trim() && !taxNumberValid ? (
+                  <p className="mt-1 text-xs text-red-600">
+                    {isTR
+                      ? isSole
+                        ? "11 haneli geçerli TCKN giriniz"
+                        : "10 haneli geçerli vergi numarası giriniz"
+                      : "Geçerli bir vergi/sicil numarası giriniz"}
+                  </p>
+                ) : null}
                 {isEuVat ? (
                   <button
                     type="button"
@@ -376,6 +398,11 @@ export function OnboardingClient() {
                     )
                   }
                 />
+                {isTR && f.authorizedTckn.trim() && !tcknValid ? (
+                  <p className="mt-1 text-xs text-red-600">
+                    Geçerli bir T.C. Kimlik No giriniz
+                  </p>
+                ) : null}
               </Field>
               <div className="rounded-lg bg-blue-50 px-3 py-2.5 text-xs text-blue-800">
                 Firmayı kurduğunuz için <strong>Kurucu</strong>sunuz —

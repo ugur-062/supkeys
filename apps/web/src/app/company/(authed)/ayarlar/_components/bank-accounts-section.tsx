@@ -21,6 +21,7 @@ import {
 } from "@/hooks/use-company-bank-accounts";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { isValidIbanTr, normalizeIban } from "@rothern/shared";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -140,12 +141,15 @@ function BankAccountModal({
   const [bankName, setBankName] = useState(account?.bankName ?? "");
   const [isDefault, setIsDefault] = useState(account?.isDefault ?? false);
 
-  // TR IBAN basit UI ipucu (backend kesin doğrular).
-  const ibanClean = iban.replace(/\s/g, "").toUpperCase();
+  // IBAN doğrulaması — backend company-bank-accounts.service ile BİREBİR:
+  // TR strict mod-97 (isValidIbanTr), yabancı gevşek format. Eski `/^TR\d{24}$/`
+  // checksum'sızdı (biçimi doğru ama geçersiz IBAN'ları kaçırıyordu).
+  const ibanClean = normalizeIban(iban);
   const ibanInvalid =
-    ibanClean.startsWith("TR") && ibanClean.length > 0
-      ? !/^TR\d{24}$/.test(ibanClean)
-      : ibanClean.length > 0 && !/^[A-Z]{2}[0-9A-Z]{8,32}$/.test(ibanClean);
+    ibanClean.length > 0 &&
+    (ibanClean.startsWith("TR")
+      ? !isValidIbanTr(ibanClean)
+      : !/^[A-Z]{2}[0-9A-Z]{8,32}$/.test(ibanClean));
 
   const submit = async () => {
     try {

@@ -27,6 +27,7 @@ import {
 import { useCompanyUsers } from "@/hooks/use-company-users";
 import type { CompanyRole } from "@/lib/company-auth/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { moneyInputError } from "@/lib/money-input";
 import { cn } from "@/lib/utils";
 import {
   ArrowDown,
@@ -911,7 +912,12 @@ function StepEditorDialog({
   const [threshold, setThreshold] = useState(initial?.threshold ?? "");
 
   const thresholdNum = threshold ? Number(threshold) : 0;
-  const thresholdInvalid = threshold !== "" && thresholdNum < prevThreshold;
+  // Backend approval.dto conditionMinAmount: @Min(0) @Max(MAX_MONEY) + 2 ondalık.
+  // min:0 çünkü eşik 0 (her tutar) geçerli.
+  const thresholdMoneyErr =
+    threshold !== "" ? moneyInputError(thresholdNum, { min: 0 }) : null;
+  const thresholdOrderInvalid = threshold !== "" && thresholdNum < prevThreshold;
+  const thresholdInvalid = !!thresholdMoneyErr || thresholdOrderInvalid;
   const valid = !!approverUserId && !thresholdInvalid;
 
   return (
@@ -959,7 +965,9 @@ function StepEditorDialog({
             onChange={(e) => setThreshold(e.target.value)}
             placeholder="Boş = her tutarda onaylar"
           />
-          {thresholdInvalid ? (
+          {thresholdMoneyErr ? (
+            <p className="mt-1 text-xs text-red-600">{thresholdMoneyErr}</p>
+          ) : thresholdOrderInvalid ? (
             <p className="mt-1 text-xs text-red-600">
               Eşik önceki adımın eşiğinden ({fmtTl.format(prevThreshold)} ₺)
               küçük olamaz.
