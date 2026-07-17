@@ -1840,8 +1840,8 @@ export default function ListingDetailPage() {
           title="Kazandırmayı onaya gönder"
           description={
             noteAction?.kind === "award"
-              ? `"${noteAction.bidderName}" kazandırılacak — onay akışı tanımlı, sipariş onay tamamlanınca oluşur. Notunuz onaycılara iletilir.`
-              : "Kalem-bazlı kazandırma onaya gönderilecek — siparişler onay tamamlanınca oluşur. Notunuz onaycılara iletilir."
+              ? `"${noteAction.bidderName}" için kazandırma ONAYA gönderilecek. Sipariş şimdi oluşmaz — yalnızca onay zinciri tamamlanınca oluşur. Notunuz onaycılara iletilir.`
+              : "Kalem-bazlı kazandırma ONAYA gönderilecek. Siparişler şimdi oluşmaz — yalnızca onay zinciri tamamlanınca oluşur. Notunuz onaycılara iletilir."
           }
           confirmLabel="Onaya Gönder"
           pending={award.isPending || awardByItem.isPending}
