@@ -675,3 +675,42 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
     ).toBeNull();
   });
 });
+
+describe("BK-1 — SAHIP rol-kapsamlı onay akışından muaf DEĞİL", () => {
+  it("SAHIP, [SATIN_ALMACI]-kapsamlı ALIM akışında onay TETİKLER (eski: baypas)", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // SAHIP
+    const approver = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(
+      owner.auth,
+      flowInput([approver.user.id], { initiatorRoles: ["SATIN_ALMACI"] }) as never,
+    );
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { res } = await startAward(
+      approvals,
+      owner.auth,
+      owner.company.id,
+      owner.user.id,
+      5000,
+    );
+    // Eskiden SAHIP ∉ [SATIN_ALMACI] → {approved:true} (onaysız kazandırma).
+    // Artık ALIM'da SAHIP operasyonel rolle genişletilir → akış eşleşir.
+    expect(res.approved).toBe(false);
+    expect(res.requestId).toBeTruthy();
+  });
+
+  it("deadlock: tek-admin SAHIP kendi akışında ikame bulunamaz → REDDEDİLİR (Grup C)", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // TEK admin
+    const flow = await approvals.createFlow(
+      owner.auth,
+      flowInput([owner.user.id], { initiatorRoles: ["SATIN_ALMACI"] }) as never,
+    );
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    // Akış artık SAHIP'e eşleşir; SAHIP kendi isteğini onaylayamaz + başka uygun
+    // onaylayıcı yok → ikame-sonra-reddet (yeni deadlock değil, net hata).
+    await expect(
+      startAward(approvals, owner.auth, owner.company.id, owner.user.id, 5000),
+    ).rejects.toThrow(/uygun bir onaylayıcı yok/i);
+  });
+});
