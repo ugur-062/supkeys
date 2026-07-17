@@ -19,6 +19,7 @@ import {
   effectiveTier,
   effectivePaidWhere,
 } from "../../../common/company/effective-tier";
+import { visibleOwnerListingWhere } from "../../../common/company/listing-visibility";
 
 type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
 
@@ -652,7 +653,8 @@ export class CompanyConnectionsService {
 
   /**
    * Herkese açık firma profili + bağlantı durumu + AÇIK ihaleleri.
-   * Bağlıysa tüm açık ihaleleri; değilse yalnızca PUBLIC olanlar.
+   * Görünürlük getOne ile birebir: PUBLIC herkese; CONNECTIONS yalnız bağlıya;
+   * PRIVATE yalnız o ilana DAVETLİYE (bağlı olmak davetli olmak değildir).
    */
   async getProfile(user: AuthenticatedCompanyUser, rothernIdRaw: string) {
     const code = normalizeShortCode(rothernIdRaw);
@@ -749,7 +751,10 @@ export class CompanyConnectionsService {
         where: {
           companyId: c.id,
           status: "OPEN",
-          ...(connected ? {} : { visibility: "PUBLIC" as const }),
+          // F-CONN-1: görünürlük TEK KAYNAK (getOne ile birebir) — PUBLIC +
+          // bağlıysa CONNECTIONS + DAVETLİYSE PRIVATE. Eski `connected ? {}`
+          // bağlı firmaya davet-only PRIVATE ihaleleri sızdırıyordu.
+          AND: [visibleOwnerListingWhere(user.companyId, connected)],
         },
         select: {
           id: true,

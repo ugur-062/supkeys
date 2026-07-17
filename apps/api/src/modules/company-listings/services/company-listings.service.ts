@@ -41,6 +41,7 @@ import {
   effectiveTier,
   effectivePaidWhere,
 } from "../../../common/company/effective-tier";
+import { isListingVisibleToViewer } from "../../../common/company/listing-visibility";
 import { AuditService } from "../../audit/audit.service";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
@@ -2350,10 +2351,10 @@ export class CompanyListingsService {
     // Davet HER görünürlüğü açar ve ülke kapsamını aşar — liste (sellerTenders)
     // ve teklif (placeBid) ile aynı kural; davetlinin teklif verebildiği ilanın
     // detayı 404 olmamalı (eligibility drift fix).
-    const visible =
-      isInvited ||
-      listing.visibility === "PUBLIC" ||
-      (listing.visibility === "CONNECTIONS" && connected);
+    const visible = isListingVisibleToViewer(listing.visibility, {
+      isInvited,
+      connectedToOwner: connected,
+    });
     if (!visible) throw new NotFoundException("İlan bulunamadı");
 
     // Yayınlanmamış (DRAFT) ilan sahip dışında kimseye görünmez — davetli/
@@ -2941,10 +2942,10 @@ export class CompanyListingsService {
     // Davet her görünürlükte teklif hakkı verir ve ÜLKE kapsamını da aşar
     // (alıcı firmayı açıkça seçti) — getOne/sellerTenders ile aynı kural.
     const isInvited = invitedCount > 0;
-    const visible =
-      isInvited ||
-      listing.visibility === "PUBLIC" ||
-      (listing.visibility === "CONNECTIONS" && connected);
+    const visible = isListingVisibleToViewer(listing.visibility, {
+      isInvited,
+      connectedToOwner: connected,
+    });
     if (!visible) throw new NotFoundException("İlan bulunamadı");
     if (
       !isInvited &&
@@ -3636,10 +3637,10 @@ export class CompanyListingsService {
     const connected = connectedIds.includes(listing.companyId);
     const isPremium = user.tier === "PAKET";
     const isInvited = invitedCount > 0;
-    const visible =
-      isInvited ||
-      listing.visibility === "PUBLIC" ||
-      (listing.visibility === "CONNECTIONS" && connected);
+    const visible = isListingVisibleToViewer(listing.visibility, {
+      isInvited,
+      connectedToOwner: connected,
+    });
     if (!visible) throw new NotFoundException("İlan bulunamadı");
     if (
       !isInvited &&

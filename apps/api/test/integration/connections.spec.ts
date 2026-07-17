@@ -7,8 +7,10 @@
 import { CompanyBlocksService } from "../../src/modules/company-blocks/company-blocks.service";
 import { CompanyConnectionsService } from "../../src/modules/company-connections/services/company-connections.service";
 import { CompanyMessagesService } from "../../src/modules/company-messages/company-messages.service";
-import { makeCompanyWithUser } from "./factories";
+import { makeCompanyWithUser, makeListing } from "./factories";
 import { prisma, truncateAll } from "./test-db";
+
+const FUTURE = new Date(Date.now() + 7 * 24 * 3600 * 1000);
 
 afterAll(async () => {
   await truncateAll();
@@ -594,5 +596,65 @@ describe("bağlantı dayanıklılığı — kuran taraf premium kaldıkça aktif
     });
     expect(await service.list(inviter.company.id)).toHaveLength(1);
     expect(await service.list(invitee.company.id)).toHaveLength(1);
+  });
+});
+
+describe("F-CONN-1: getProfile ihale görünürlüğü — PRIVATE yalnız davetliye", () => {
+  const mkListing = (
+    a: { company: { id: string }; user: { id: string } },
+    visibility: string,
+  ) =>
+    makeListing(prisma, {
+      companyId: a.company.id,
+      createdById: a.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      visibility: visibility as never,
+      closesAt: FUTURE,
+    });
+
+  it("bağlı ama davetsiz firma PRIVATE ihaleyi GÖRMEZ; PUBLIC+CONNECTIONS görür; davet edilince görür", async () => {
+    const { service } = rig();
+    const { a, b, aCode, bCode } = await twoCompanies();
+    // a↔b aktif bağlantı.
+    const res = await service.invite(a.auth, bCode);
+    await service.accept(b.auth, res.id);
+
+    const pub = await mkListing(a, "PUBLIC");
+    const conn = await mkListing(a, "CONNECTIONS");
+    const priv = await mkListing(a, "PRIVATE");
+
+    const prof1 = await service.getProfile(b.auth, aCode);
+    const ids1 = prof1.listings.map((l) => l.id).sort();
+    // Eskiden `connected ? {}` PRIVATE'ı da gösteriyordu — artık göstermemeli.
+    expect(ids1).toEqual([pub.id, conn.id].sort());
+    expect(ids1).not.toContain(priv.id);
+
+    // b'yi PRIVATE ilana davet et → artık görür (getOne ile birebir).
+    await prisma.listingInvitation.create({
+      data: {
+        listingId: priv.id,
+        invitedCompanyId: b.company.id,
+        invitedById: a.user.id,
+      },
+    });
+    const prof2 = await service.getProfile(b.auth, aCode);
+    expect(prof2.listings.map((l) => l.id)).toContain(priv.id);
+  });
+
+  it("bağlantısız (public-listed) firma yalnız PUBLIC görür — CONNECTIONS+PRIVATE gizli", async () => {
+    const { service } = rig();
+    const { a, b, aCode } = await twoCompanies();
+    // Bağlantı yok; profilin görünmesi için a public-listed (PAKET+publicEnabled).
+    await prisma.company.update({
+      where: { id: a.company.id },
+      data: { publicEnabled: true },
+    });
+    const pub = await mkListing(a, "PUBLIC");
+    await mkListing(a, "CONNECTIONS");
+    await mkListing(a, "PRIVATE");
+
+    const prof = await service.getProfile(b.auth, aCode);
+    expect(prof.listings.map((l) => l.id)).toEqual([pub.id]);
   });
 });
