@@ -24,6 +24,7 @@ import {
   type ApprovalListingType,
   type CreateApprovalFlowInput,
 } from "@/hooks/use-company-approvals";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useCompanyUsers } from "@/hooks/use-company-users";
 import type { CompanyRole } from "@/lib/company-auth/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -905,11 +906,17 @@ function StepEditorDialog({
   onSave: (draft: StepDraft) => void;
   onClose: () => void;
 }) {
+  const { user } = useCompanyAuth();
   const [approverUserId, setApproverUserId] = useState(
     initial?.approverUserId ?? approvers[0]?.id ?? "",
   );
   const [displayLabel, setDisplayLabel] = useState(initial?.displayLabel ?? "");
   const [threshold, setThreshold] = useState(initial?.threshold ?? "");
+
+  // #9 / INV-APPR-1: kişi kendini onaycı seçebilir (engellenmez) ama görev
+  // ayrılığı gereği kazandırmayı başlatan, kendi adımını onaylayamaz — sistem o
+  // adımı başka uygun onaycıya devreder; yoksa kazandırma reddedilir. UYAR, engelleme.
+  const isSelfApprover = !!approverUserId && approverUserId === user?.id;
 
   const thresholdNum = threshold ? Number(threshold) : 0;
   // Backend approval.dto conditionMinAmount: @Min(0) @Max(MAX_MONEY) + 2 ondalık.
@@ -943,6 +950,17 @@ function StepEditorDialog({
             Bu kişi, sırası geldiğinde kazandırmayı Onaylar sayfasından onaylar
             ya da reddeder.
           </Text>
+          {isSelfApprover ? (
+            <div className="mt-2 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
+              <Info className="mt-0.5 size-3.5 shrink-0 text-amber-500" aria-hidden />
+              <span>
+                Kendinizi onaycı seçtiniz. Görev ayrılığı gereği, bu adım{" "}
+                <strong>kazandırmayı sizin başlattığınız</strong> durumlarda
+                başka bir onaylayıcıya atanır; uygun kimse yoksa kazandırma
+                reddedilir.
+              </span>
+            </div>
+          ) : null}
         </Field>
         <Field>
           <Label>Görünen etiket (opsiyonel)</Label>
