@@ -158,6 +158,11 @@ export interface CompanyOrderDetail extends CompanyOrder {
   cancelRequestReason?: string | null;
   cancelRequestById?: string | null;
   disputedAt?: string | null;
+  // TTK 23 — ayıp ihbarı. Ayıp-DISPUTED = status DISPUTED && defectNotifiedAt.
+  defectNotifiedAt?: string | null;
+  defectReason?: string | null;
+  disputePrevStatus?: CompanyOrderStatus | null;
+  defectNoticeWindowDays?: number;
 }
 
 export interface AcceptOrderInput {
@@ -328,6 +333,36 @@ export function useCancelRequestDecision(
       const { data } = await companyApi.post(
         `/company/orders/${id}/cancel-request/${action}`,
         action === "reject" ? { note: input?.note } : {},
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+  });
+}
+
+/** TTK 23 — Alıcı: ayıp ihbarı aç (gerekçe zorunlu, min 10) → DISPUTED. */
+export function useRaiseDefectNotice(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (reason: string) => {
+      const { data } = await companyApi.post(
+        `/company/orders/${id}/defect-notice`,
+        { reason },
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+  });
+}
+
+/** TTK 23 — Alıcı: ayıp ihbarını geri çek → önceki durumuna döner. */
+export function useWithdrawDefectNotice(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await companyApi.post(
+        `/company/orders/${id}/defect-notice/withdraw`,
+        {},
       );
       return data;
     },

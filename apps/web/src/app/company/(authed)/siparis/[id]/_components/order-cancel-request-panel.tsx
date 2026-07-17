@@ -36,7 +36,9 @@ export function OrderCancelRequestPanel({
 }) {
   const isSeller = order.role === "seller";
   const pending = order.status === "ACCEPTED" && !!order.cancelRequestedAt;
-  const disputed = order.status === "DISPUTED";
+  // A1 (satıcı iptal talebi) DISPUTED'ı — ayıp ihbarı DISPUTED'ını (defectNotifiedAt
+  // dolu) DIŞLA; onun kendi paneli (OrderDefectPanel) var.
+  const disputed = order.status === "DISPUTED" && !order.defectNotifiedAt;
 
   const withdraw = useWithdrawCancelRequest(order.id);
   const approve = useCancelRequestDecision(order.id, "approve");

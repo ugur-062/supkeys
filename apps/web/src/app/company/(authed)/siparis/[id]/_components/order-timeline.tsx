@@ -176,7 +176,18 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       lines: o.cancelRequestReason ? [`Gerekçe: ${o.cancelRequestReason}`] : [],
     });
   }
-  if (o.disputedAt) {
+  if (o.defectNotifiedAt) {
+    // TTK 23 ayıp ihbarı (geri çekilirse alan temizlenir → damga da kalkar;
+    // tam geçmiş audit_logs'ta).
+    events.push({
+      icon: AlertTriangle,
+      tone: "text-amber-600",
+      title: "Ayıp İhbarı (TTK 23)",
+      at: fmt(o.defectNotifiedAt),
+      actor: buyerLabel,
+      lines: o.defectReason ? [`Gerekçe: ${o.defectReason}`] : [],
+    });
+  } else if (o.disputedAt) {
     events.push({
       icon: AlertTriangle,
       tone: "text-amber-600",

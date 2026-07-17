@@ -53,6 +53,8 @@ vi.mock("@/hooks/use-company-orders", () => {
     useRequestCancel: mut,
     useWithdrawCancelRequest: mut,
     useCancelRequestDecision: mut,
+    useRaiseDefectNotice: mut,
+    useWithdrawDefectNotice: mut,
     useLcStep: mut,
     useProposeRevision: mut,
     useRevisionDecision: mut,

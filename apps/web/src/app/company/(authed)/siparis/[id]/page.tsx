@@ -17,6 +17,7 @@ import {
   useAcceptOrder,
   useCancelOrder,
   useRequestCancel,
+  useRaiseDefectNotice,
   useCompleteOrder,
   useOrder,
   useReceiveOrder,
@@ -32,6 +33,7 @@ import { OrderDocumentsSection } from "./_components/order-documents-section";
 import { LcStepPanel } from "./_components/lc-step-panel";
 import { OrderRevisionPanel } from "./_components/order-revision-panel";
 import { OrderCancelRequestPanel } from "./_components/order-cancel-request-panel";
+import { OrderDefectPanel } from "./_components/order-defect-panel";
 import {
   AcceptOrderModal,
   NoteModal,
@@ -130,11 +132,13 @@ export default function OrderDetailPage() {
   const reject = useRejectOrder(id);
   const cancel = useCancelOrder(id);
   const requestCancel = useRequestCancel(id);
+  const raiseDefect = useRaiseDefectNotice(id);
   const [modal, setModal] = useState<
     | "accept"
     | "reject"
     | "cancel"
     | "cancelRequest"
+    | "defectNotice"
     | "ship"
     | "receive"
     | "complete"
@@ -228,6 +232,22 @@ export default function OrderDetailPage() {
   const pendingCancelRequest =
     o.status === "ACCEPTED" && !!o.cancelRequestedAt;
 
+  // TTK 23: ayıp ihbarı penceresi — teslimden (deliveredAt) itibaren N gün.
+  // DELIVERED ve COMPLETED'da açık (TTK ödemeye bakmaz). Açık ihbar varsa kapalı.
+  const defectWindowMs = (o.defectNoticeWindowDays ?? 8) * 86_400_000;
+  const defectDeadline = o.deliveredAt
+    ? new Date(o.deliveredAt).getTime() + defectWindowMs
+    : 0;
+  const defectDaysLeft = defectDeadline
+    ? Math.max(0, Math.ceil((defectDeadline - Date.now()) / 86_400_000))
+    : 0;
+  const canRaiseDefect =
+    !isSeller &&
+    (o.status === "DELIVERED" || o.status === "COMPLETED") &&
+    !!o.deliveredAt &&
+    Date.now() < defectDeadline &&
+    !o.defectNotifiedAt;
+
   const close = () => setModal(null);
   const run = async (p: Promise<unknown>, ok: string, fallback: string) => {
     try {
@@ -260,6 +280,12 @@ export default function OrderDetailPage() {
       requestCancel.mutateAsync(reason),
       "İptal talebi gönderildi — alıcının onayına düştü",
       "Talep gönderilemedi",
+    );
+  const doRaiseDefect = (reason: string) =>
+    run(
+      raiseDefect.mutateAsync(reason),
+      "Ayıp ihbarı kaydedildi — sipariş ihtilaflı",
+      "Ayıp ihbarı gönderilemedi",
     );
 
   const handlePrint = () => {
@@ -319,6 +345,21 @@ export default function OrderDetailPage() {
             >
               İptal Talebi
             </Button>
+          ) : null}
+          {/* TTK 23: alıcı, teslimden 8 gün içinde ayıp ihbar edebilir. */}
+          {canRaiseDefect ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-zinc-400">
+                Muayene süresi: {defectDaysLeft} gün
+              </span>
+              <Button
+                plain
+                onClick={() => setModal("defectNotice")}
+                disabled={raiseDefect.isPending}
+              >
+                Ayıp İhbarı
+              </Button>
+            </div>
           ) : null}
           <Button outline onClick={handlePrint}>
             Yazdır / PDF
@@ -734,6 +775,7 @@ export default function OrderDetailPage() {
 
       {/* Sipariş revizyon müzakeresi (satıcı öner / alıcı karar) */}
       <OrderCancelRequestPanel order={o} />
+      <OrderDefectPanel order={o} />
 
       <OrderRevisionPanel order={o} />
 
@@ -816,6 +858,16 @@ export default function OrderDetailPage() {
         title="İptal Talebi Aç"
         description="Neden sevk edemiyorsunuz? Gerekçe alıcıya iletilir; alıcı onaylarsa sipariş iptal olur, reddederse ihtilaflı olarak işaretlenir."
         confirmLabel="İptal Talebi Gönder"
+        minLength={10}
+      />
+      <ReasonModal
+        open={modal === "defectNotice"}
+        onClose={close}
+        onSubmit={doRaiseDefect}
+        pending={raiseDefect.isPending}
+        title="Ayıp İhbarı (TTK 23)"
+        description="Teslim aldığınız maldaki ayıbı açıklayın. İhbar kaydedilir ve uyuşmazlıkta delil olur; sipariş ihtilaflı duruma geçer. Çözüm satıcıyla aranızdadır — platform hakem değildir."
+        confirmLabel="Ayıp İhbarı Gönder"
         minLength={10}
       />
     </div>
