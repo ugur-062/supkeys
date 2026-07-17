@@ -37,6 +37,7 @@ import {
   ShipOrderModal,
 } from "./_components/order-action-modals";
 import { OrderReviewCard } from "./_components/order-review-card";
+import { orderFullyPaid, isAdvanceMet } from "./_components/payment-status";
 import { OrderTimeline } from "./_components/order-timeline";
 import { buildOrderPrintHtml, itemDeliveryLabel } from "./_components/order-print";
 import { ArrowLeftIcon, CheckCircleIcon } from "@heroicons/react/20/solid";
@@ -170,15 +171,15 @@ export default function OrderDetailPage() {
   // Satıcının onaylamadığı ödeme kaydı varken sipariş TAMAMLANAMAZ
   // (server-side de reddeder) — buton yerine bekleme mesajı gösterilir.
   const paymentAwaitingConfirmation = Number(o.paymentTotals?.pending ?? 0) > 0;
-  // Tam ödeme onaylı mı? (backend complete/auto-complete kapısıyla birebir:
-  // onaylı toplam ≥ sipariş tutarı). Sipariş ancak bu sağlanınca tamamlanır.
+  // Tam ödeme onaylı mı? INV-MONEY-1 (F1): backend Decimal `remaining ≤ 0` oku,
+  // epsilon YOK (eski `confirmed + 0.01 >= amount` 1 kuruş eksikte açıyordu).
   const confirmedPaid = Number(o.paymentTotals?.confirmed ?? 0);
-  const fullyPaid = confirmedPaid + 0.01 >= Number(o.amount);
+  const fullyPaid = orderFullyPaid(o.paymentTotals, o.amount);
   // Faz 3 gönderim kilidi (S3/S5): akreditifte satıcı kabulü, peşinde eşik
   // ödemesi olmadan satıcı GÖNDEREMEZ (backend de reddeder — UI önden kilitler).
   const isLc = o.paymentCategory === "LETTER_OF_CREDIT";
   const advanceDue = Number(o.advanceDue ?? 0);
-  const advanceMet = advanceDue <= 0 || confirmedPaid + 0.01 >= advanceDue;
+  const advanceMet = isAdvanceMet(advanceDue, confirmedPaid);
   const shipUnlocked = (!isLc || !!o.lcAcceptedAt) && advanceMet;
   // Sonraki ana aksiyon (modal açar).
   const next =
