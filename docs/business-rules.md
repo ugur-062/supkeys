@@ -248,3 +248,30 @@ birebir); kritik para yolu `distribute.ts` exact BigInt; cache invalidation mük
   YONETICI/SAHİP varsayımı) DEĞİŞTİRİLMEDİ — 13 çağrı yeri, backend zaten bloklu,
   fail-closed yaparsak yükleme anında yönetim butonları kaybolur (kötü UX). F11
   (persisted tier snapshot ≤60s) + F13 (CLOSED'da kazandır gizli, nadir) benzer.
+
+## WebSocket (realtime) denetimi (2026-07-17)
+
+Gelen mesajlar (client→server) ilk kez denetlendi. 2 handler (subscribe/unsubscribe),
+ikisi de sinyal-only (state değiştirmez, DB yazmaz). Kapananlar:
+
+| # | Kural | Durum |
+|---|-------|-------|
+| ✅ | **F-WS-1** WS subscribe rate-limit (30/10sn, soket başına, DB sorgusundan ÖNCE → amplifikasyon kesilir); REST ThrottlerGuard'ın WS kardeş-yolu | `7897b58` |
+| ✅ | **F-WS-3** unsubscribe tip/uzunluk kontrolü (subscribe ile simetri) | `7897b58` |
+| ✅ | **F-WS-4** `maxHttpBufferSize: 16KB` (1MB default 64x kısıldı) | `7897b58` |
+| ✅ | **Framework kapsam boşluğu** — @SubscribeMessage throw → süreç çökmez, 'exception' emit; gerçek WS e2e ile TEST edildi (kod-okuma varsayımı değil) | `cd60de6` |
+
+**KONTROL VAR (temiz — doğrulandı):** emit payload'ları KATI id-only (INV-BID-1
+payload-temiz); subscribe erişim-kontrolü (canSubscribeOrder buyer/seller, canSubscribeListing
+owner/bidder/invited/connected — tenant-scoped, companyId handshake JWT'sinden); manuel payload
+validation (kind whitelist + id string ≤60); injection yok (Prisma parametrize, oda adı
+kısıtlı); handshake DB-taze iptal kapısı (INV-MT-3) + exp-timer (INV-SD-1).
+
+**Açık kalem (bilinçli kabul):**
+- 🟡 **F-WS-2 K1 zamanlama-residual** — `pingListing` DAİMA `listing:{id}` odasına yayar
+  ("detay izleyicileri görsün"); rakip teklifçi (canSubscribeListing bidder'a izin verir) o
+  odaya abone → her teklifte id-only `listing.updated` ping'i alır = **zamanlama/sayı
+  yan-kanalı** (tutar/kimlik DEĞİL). **Bilinçli KABUL:** ping tüm değişikliklerde çıkar
+  (gürültülü, yalnız teklifte değil), id-only, ve alan kişi zaten TARAF (bidder). Sahip-odasına
+  daraltmak davetli/bağlı MEŞRU izleyicilerin canlı güncellemesini kırar → UX kaybı > marjinal
+  güvenlik kazancı. Gateway yorumu (realtime.gateway.ts:22-23) K1'i zaten belgeliyor.
