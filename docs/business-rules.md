@@ -275,3 +275,25 @@ kısıtlı); handshake DB-taze iptal kapısı (INV-MT-3) + exp-timer (INV-SD-1).
   (gürültülü, yalnız teklifte değil), id-only, ve alan kişi zaten TARAF (bidder). Sahip-odasına
   daraltmak davetli/bağlı MEŞRU izleyicilerin canlı güncellemesini kırar → UX kaybı > marjinal
   güvenlik kazancı. Gateway yorumu (realtime.gateway.ts:22-23) K1'i zaten belgeliyor.
+
+## Form validation denetimi (2026-07-17) — admin rol-kapısı + kimlik kökü
+
+apps/admin (TAM) + apps/web'de bakılmamış formlar F1–F7 merceğiyle denetlendi. İki
+sınıf bulundu: (A) admin buton görünürlüğü tek eksende (`role !== "SUPPORT"`) → SALES
+ile SUPER_ADMIN ayrılmıyordu; (B) web kimlik alanları backend'den kopmuş gevşek
+kurallarla doğruluyordu. Kapananlar:
+
+| # | Kural | Durum |
+|---|-------|-------|
+| ✅ | **A** admin gerçek rol-kapısı — `canAdminDo(role, action)` matrisi backend `@RequireAdminRole`'ü yansıtır (F7 deseni); 6 kapı yeniden bağlandı (tier/suspend/deleteNote SUPER; resolve/notify/extend KYC; personel manageStaff sayfa-guard). apps/admin `@rothern/shared`'a bağlı olmadığından matris yerel | `d831a82` |
+| ✅ | **A-DRIFT** matris ıraksama nöbetçisi — `admin-action-roles-drift.spec` her aksiyonun backend handler metadata'sını okuyup karşılaştırır → decorator değişince kırılır (admin-route-authz-wiring deseni). Paketler ayrı → iki kopya + çapraz-ref | 17 test |
+| ✅ | **B** web kimlik doğrulama kök-neden — `@rothern/shared` saf yardımcıları: onboarding `isValidTaxIdForCountry`+`isValidTckn`; profil+banka IBAN `isValidIbanTr` (TR mod-97, eski `/^TR\d{24}$/` checksum'sızdı); profil MERSİS `isValidMersis`, KEP backend regex inline; onay eşiği `moneyInputError` (MAX_MONEY+2 ondalık) | `af75aef` |
+| ✅ | **maxLength hizalama** — admin edit-profile (15 alan) + notify/note/reason/add-user/add-staff + PromptDialog max/maxLength prop'u; web signup/parola/akış-adı/adım-sayısı(@ArrayMaxSize 10) hepsi backend @MaxLength/@Max birebir | `6997416` |
+| ✅ | **#9 / INV-APPR-1** onay akışında kendini onaycı seçince UYARI (engelleme YOK — Grup C kararı korunur); runtime devir/reddi anlatılır | `2616c5f` |
+| ✅ | **Adres FATURA gevşetildi** — vergi dairesi/no zorunluluğu + TR VKN/TCKN format bloğu KALDIRILDI; backend `company-address.dto` bu alanları `@IsOptional` tutup format doğrulamıyor → frontend backend'den katı olmamalı (backend otorite) | `6997416` |
+
+**Kalan form yüzeyi (🟡 sonraki tur — düşük öncelik):** admin docs/complaints/connections/
+summary/orders/listings/audit sekme gövdeleri + duyuru formu tek tek F1–F7 merceğinden
+GEÇİRİLMEDİ; web public-profile sayfa alanları, category-selector cap ve PhoneInput↔backend
+regex birebirliği doğrulanmadı. Ayrıca signup e-posta ve admin doc-reject reason backend'de
+cap'sız (`@IsEmail`/`@IsObject` yalnız) — sınır eklenip eklenmeyeceği ürün kararı.
