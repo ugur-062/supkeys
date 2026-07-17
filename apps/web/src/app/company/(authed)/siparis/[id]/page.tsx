@@ -263,17 +263,25 @@ export default function OrderDetailPage() {
           Siparişler
         </Link>
         <div className="flex items-center gap-2">
+          {/* A2: onaylı ödeme varken iptal backend'de zaten engelli (CO cancel
+              CONFIRMED guard) → buton görünüp 400 vermesin; gizle + not göster. */}
           {!isSeller &&
           (o.status === "PENDING" ||
             o.status === "ACCEPTED" ||
             o.status === "CREATED") ? (
-            <Button
-              plain
-              onClick={() => setModal("cancel")}
-              disabled={cancel.isPending}
-            >
-              Siparişi İptal Et
-            </Button>
+            confirmedPaid > 0 ? (
+              <span className="text-xs text-zinc-400">
+                Onaylı ödeme bulunan sipariş iptal edilemez — iade için destek.
+              </span>
+            ) : (
+              <Button
+                plain
+                onClick={() => setModal("cancel")}
+                disabled={cancel.isPending}
+              >
+                Siparişi İptal Et
+              </Button>
+            )
           ) : null}
           <Button outline onClick={handlePrint}>
             Yazdır / PDF
@@ -669,8 +677,11 @@ export default function OrderDetailPage() {
           </Text>
         ) : !isSeller && o.status === "DELIVERED" && !fullyPaid ? (
           <Text className="text-sm text-amber-700">
-            Kalan ödemenizi aşağıdaki Ödemeler bölümünden kaydedin — satıcı
-            onayladığında sipariş otomatik tamamlanır.
+            {/* O3: vadeli/mal-mukabili siparişte vade gelecekteyse "şimdi öde"
+                yerine vade tarihini göster (erken-ödemeye itme). */}
+            {o.paymentDueDate && new Date(o.paymentDueDate) > new Date()
+              ? `Ödeme vadesi: ${new Date(o.paymentDueDate).toLocaleDateString("tr-TR")} — kalan tutarı o tarihte aşağıdaki Ödemeler bölümünden ödeyebilirsiniz. Satıcı onayladığında sipariş tamamlanır.`
+              : "Kalan ödemenizi aşağıdaki Ödemeler bölümünden kaydedin — satıcı onayladığında sipariş otomatik tamamlanır."}
           </Text>
         ) : isSeller && !terminal && paymentAwaitingConfirmation ? (
           <Text className="text-sm text-amber-700">
