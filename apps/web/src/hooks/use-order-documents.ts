@@ -9,6 +9,7 @@ export type OrderDocType =
   | "TEMINAT"
   | "LC"
   | "INVOICE"
+  | "PROFORMA"
   | "OTHER";
 
 export interface OrderDocument {

@@ -144,6 +144,7 @@ export function OrderDocumentsSection({
   const guarantee = (docs ?? []).filter((d) => d.type === "TEMINAT");
   const lc = (docs ?? []).filter((d) => d.type === "LC");
   const invoice = (docs ?? []).filter((d) => d.type === "INVOICE");
+  const proforma = (docs ?? []).filter((d) => d.type === "PROFORMA");
   const other = (docs ?? []).filter((d) => d.type === "OTHER");
 
   // ── Adım bazlı yükleme pencereleri (backend assertCanUpload ile birebir) ──
@@ -171,6 +172,14 @@ export function OrderDocumentsSection({
   const canUploadInvoice = isSeller && invoiceOpen;
   const invoiceLockHint =
     isSeller && !invoiceOpen && !terminal
+      ? "Sipariş onaylandıktan sonra açılır."
+      : null;
+  // Proforma fatura: satıcı, onaydan itibaren (PENDING hariç), sonlanana kadar.
+  // Alıcı akreditif açmak / peşin ödemek için kullanır.
+  const proformaOpen = status !== "PENDING" && !terminal;
+  const canUploadProforma = isSeller && proformaOpen;
+  const proformaLockHint =
+    isSeller && !proformaOpen && !terminal
       ? "Sipariş onaylandıktan sonra açılır."
       : null;
   // Diğer belgeler (tek kutu): her iki taraf, sipariş sonlanmadıkça.
@@ -248,6 +257,16 @@ export function OrderDocumentsSection({
           canUpload={canUploadInvoice}
           lockHint={invoiceLockHint}
           docs={invoice}
+        />
+        {/* Proforma fatura — satıcı yükler; alıcı LC açmak/peşin ödemek için. */}
+        <DocGroup
+          orderId={orderId}
+          type="PROFORMA"
+          title="Proforma Fatura"
+          hint="Ön fatura (satıcı yükler) — alıcı akreditif açmak veya peşin ödeme için kullanır"
+          canUpload={canUploadProforma}
+          lockHint={proformaLockHint}
+          docs={proforma}
         />
         {/* Diğer belgeler — serbest ek belge kutusu (her iki taraf). */}
         <DocGroup

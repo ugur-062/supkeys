@@ -295,6 +295,21 @@ export class CompanyOrderDocumentsService {
       return;
     }
 
+    if (type === "PROFORMA") {
+      // Proforma fatura: satıcı yükler (proformayı satıcı düzenler), sipariş
+      // onaylandıktan sonra — alıcı bunu akreditif açmak / peşin ödeme yapmak
+      // için kullanır. INVOICE ile aynı pencere (PENDING/terminal dışı).
+      if (!isSeller) {
+        throw new ForbiddenException("Proforma faturayı satıcı yükler");
+      }
+      if (order.status === "PENDING" || terminal) {
+        throw new BadRequestException(
+          "Proforma fatura, sipariş onaylandıktan sonra yüklenebilir",
+        );
+      }
+      return;
+    }
+
     if (type === "OTHER") {
       // Serbest ek belge (tek kutu): her iki taraf, sipariş aktifken. Rol kapısı
       // yukarıda kullanıcının kendi tarafına göre zaten uygulandı. Sonlanmış

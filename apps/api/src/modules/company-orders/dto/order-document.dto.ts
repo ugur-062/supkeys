@@ -17,6 +17,8 @@ export enum CompanyDocTypeDto {
   LC = "LC",
   // Fatura belgesi (satıcı) + serbest ek belge kutusu (her iki taraf, Faz 4).
   INVOICE = "INVOICE",
+  // Proforma fatura (satıcı, onay sonrası) — alıcı LC açmak/peşin ödemek için.
+  PROFORMA = "PROFORMA",
   OTHER = "OTHER",
 }
 
