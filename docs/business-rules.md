@@ -99,7 +99,11 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
   fallback havuzu +ONAYLAYICI ∖{initiator}, uygun yoksa REJECTED (sessiz PENDING yok) | ✅ **INV-APPR-1**, `e5cc1df`
 - **Eşik Decimal** (`amountDec.lt(minDec)`); kur bilinmiyorsa `forceRequireApproval`
   (hiçbir adım SKIPPED değil) | ✅ INV-MONEY-1 + INV-FX-1
-- **Tek açık istek/ilan/tip** (mükerrer kazandırma yarışı engeli) | 🟡 tasarım (INV-SM)
+- **Tek açık istek/ilan/tip** (mükerrer kazandırma yarışı engeli) — kısmi unique index
+  `(listingId,type) WHERE PENDING`; findFirst ön-kontrol + create P2002→Conflict | ✅ **X-CF-3** `46d9b74`
+- **SAHIP muaf DEĞİL:** `findMatchingFlow` SAHIP'i operasyonel rolle (ALIM→SATIN_ALMACI,
+  SATIS→SATISCI) genişletir → rol-kapsamlı akış SAHIP'e de uygulanır (eski: hiçbir
+  initiatorRoles'e girmediğinden onaysız kazandırma). Deadlock yok (Grup C ikame/reddet) | ✅ **BK-1** `0645dfd`
 
 ## 6. Kayıt / KYC / Onboarding
 
@@ -136,3 +140,31 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
 > **NOT (bilinçli, açık DEĞİL):** `advancePercentFor` runtime `?? 100` backstop KORUNDU —
 > yazma kapısı sıkı (ADVANCE'ta zorunlu), backstop yalnız stray/legacy null için
 > fail-closed savunma; kaldırmak fail-open olurdu (bkz. §3).
+
+---
+
+## Cross-field denetimi (2026-07-17) — kapanan + yapısal drift-riskleri
+
+Ayrıntılı bulgular: `docs/audit-findings-crossfield.md`. Kapanan canlı ıraksamalar:
+
+| # | Kural | Durum |
+|---|-------|-------|
+| ✅ | **X-CF-1** kalem-award eşiği teklif kur DAMGASINI kullanır (`itemAwardTotal` artık `buildItemGroups` `exchangeRateSnapshot`'ını taşır, `null` hardcode DEĞİL — full-award ile birebir) | `a7cb413` |
+| ✅ | **X-CF-2** açık eksiltme kur damgası `getFreshRate` (taze TCMB yoksa publish 400, ilan DRAFT kalır — fail-OPEN'a düşmez; gate publishListing'de SENKRON) | `886ddfb` |
+| ✅ | **BK-2** revizyon `unitPrice @Min(0.01)` (0-fiyatlı sipariş sıfır-ödemeyle COMPLETED olamaz) | `3ff0e75` |
+
+**Yapısal tek-kaynak drift-riskleri (S1-S8)** — bugün İHLAL YOK, ama aynı büyüklüğü 2+
+yerde hesaplayan hatlar; regresyon nöbetçisi olarak izlenmeli (sonraki tur denetimi):
+
+| # | Büyüklük | Not / nöbetçi |
+|---|----------|---------------|
+| 🟡 | **S5** order-total türetme | runFullAward `=bid.amount` vs runItemAward `=Σ yeniden hesap`; eşit ÇÜNKÜ placeBid bid.amount'u listing-qty ile hesaplar (teklif DTO'sunda `quantity` YOK) + `updateListing` bidCount kilidi status-FİLTRESİZ. **Nöbetçi:** kilit status-filtreli count'a çevrilirse S5 sessiz para-ıraksamasına döner |
+| 🟡 | **S8** order kalem precision | `buildItemGroups Number(unitPrice)` vs runFullAward ham Decimal; MAX_MONEY-ölçek fiyatta fidelity farkı (edge) |
+| 🟢 | **S1-S4, S6-S7** | tutarlı (fiyatlı-kalem tanımı, comparable teklif, confirmedPaymentSum karar-yolu tek-kaynak/display re-derive, committed cap, closesAt `>=`/`lte` sınırı, bid-validity formülü) — tek-kaynak korundu |
+
+**Kör noktalar (bu turda OKUNMADI → sonraki tur):** CL `create` 961-1175 (create-anı
+`minPrice`/`buyNowUnitPrice` doğrulaması placeBid floor-check'iyle tutarlı mı?);
+`resolveBidDeliveryAddress`/`orderDeliverySnapshot` 2716-2824 (teslimat snapshot bid→order);
+`eliminate`/`cancel`/`startEvaluation`/`closeNoAward` yaşam-döngüsü geçişleri (eleme
+in-flight award ile yarışır mı — runFullAward status re-check muhtemelen güvenli, eleme
+tarafı denetlenmedi).
