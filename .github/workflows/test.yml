@@ -1,24 +1,20 @@
 name: Test
 
 on:
-  # Lokal full-suite yeşil (74 suite / 788 test, 0 deadlock) → push trigger AÇIK.
-  # Testler lokal Postgres service container'a koşar (aşağıda), remote Supabase'e
-  # DEĞİL; deadlock fix connection_limit=1 kodda (ortamdan bağımsız aktif).
-  # KADEMELİ: önce push; ilk koşu yeşil teyit edilince pull_request de açılacak.
+  # Full-suite lokal + CI'da yeşil (74 suite / 788 test, 0 deadlock). Testler lokal
+  # Postgres service container'a koşar (aşağıda), remote Supabase'e DEĞİL; deadlock
+  # fix connection_limit=1 kodda (ortamdan bağımsız aktif). Doc-only değişiklik CI
+  # yakmaz (paths-ignore, billing — private repo).
   push:
     branches: [main]
-    # Doc-only değişiklik full-suite yakmasın (billing — private repo).
     paths-ignore:
       - '**.md'
       - 'docs/**'
-  # KADEME 2 (ilk push yeşil teyidinden sonra aç):
-  # pull_request:
-  #   branches: [main]
-  #   paths-ignore:
-  #     - '**.md'
-  #     - 'docs/**'
-  # KADEME 2 NOTU: coverage'ı push'ta değil YALNIZ pull_request'te koş (test:cov
-  # ~%20 yavaş). push job'unda düz `test`, PR job'unda `test:cov` ayrımı yap.
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   workflow_dispatch:
 
 # Çakışan pipeline'ları iptal et — sadece son commit kalır
@@ -95,14 +91,23 @@ jobs:
       - name: Typecheck (all packages)
         run: pnpm typecheck
 
-      - name: Run tests with coverage
-        run: pnpm --filter @rothern/api test:cov
+      # push (main'e her commit): düz test — coverage ~%20 yavaş, ara commit'te
+      # gereksiz. Kalite kapısı (coverage + artifact + özet) yalnız pull_request'te.
+      - name: Run tests (push — coverage yok, hızlı)
+        if: github.event_name == 'push'
+        run: pnpm --filter @rothern/api test
         env:
           # apps/api/.env.test test runner'a yüklenir, ama burada da garanti
           DATABASE_URL: "postgresql://rothern:rothern_test_password@localhost:5432/rothern_test?schema=public"
 
+      - name: Run tests with coverage (pull_request / manuel)
+        if: github.event_name != 'push'
+        run: pnpm --filter @rothern/api test:cov
+        env:
+          DATABASE_URL: "postgresql://rothern:rothern_test_password@localhost:5432/rothern_test?schema=public"
+
       - name: Upload coverage report (artifact)
-        if: always()
+        if: ${{ always() && github.event_name != 'push' }}
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
@@ -110,7 +115,7 @@ jobs:
           retention-days: 7
 
       - name: Coverage summary (job log)
-        if: always()
+        if: ${{ always() && github.event_name != 'push' }}
         run: |
           if [ -f apps/api/coverage/coverage-summary.json ]; then
             echo "## 📊 Coverage Summary" >> $GITHUB_STEP_SUMMARY
