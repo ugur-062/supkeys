@@ -61,6 +61,10 @@ export interface CompanyOrder {
   listingTitle: string | null;
   listingType: "ALIM" | "SATIS" | null;
   listingNumber: string | null;
+  // Yaşam döngüsü ayrımı: ödeme durumu türetilir (status'tan bağımsız). Liste
+  // rozeti/KPI status yerine bunu kullanır. paymentDueDate = vade (varsa).
+  paymentSettled?: boolean;
+  paymentDueDate?: string | null;
   createdAt: string;
   items?: CompanyOrderItemRow[];
   /** Liste rozet/adım etiketi teslim şekline göre uyarlanır (sellerShipsGoods). */

@@ -56,8 +56,8 @@ const STATUS_META: Record<
     pill: "bg-indigo-50 text-indigo-700 border-indigo-200",
   },
   DELIVERED: {
-    label: "Ödeme Bekleniyor",
-    pill: "bg-amber-50 text-amber-700 border-amber-200",
+    label: "Teslim Alındı",
+    pill: "bg-cyan-50 text-cyan-700 border-cyan-200",
   },
   COMPLETED: {
     label: "Tamamlandı",
@@ -226,8 +226,9 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: "PENDING", label: "Onay Bekliyor" },
   { value: "ACCEPTED", label: "Onaylandı" },
   { value: "IN_DELIVERY", label: "Gönderildi / Hazır" },
-  { value: "DELIVERED", label: "Ödeme Bekleniyor" },
+  { value: "DELIVERED", label: "Teslim Alındı" },
   { value: "COMPLETED", label: "Tamamlandı" },
+  { value: "DISPUTED", label: "İhtilaflı" },
   { value: "REJECTED", label: "Reddedildi" },
   { value: "CANCELLED", label: "İptal Edildi" },
 ];
@@ -338,6 +339,16 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
               {src.label}
             </span>
             <OrderStatusBadge status={o.status} sellerShips={sellerShips} />
+            {/* Yaşam döngüsü ayrımı: ödeme durumu operasyonel durumdan ayrı. */}
+            {o.paymentSettled === false &&
+            !["CANCELLED", "REJECTED", "DISPUTED"].includes(o.status) ? (
+              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                Ödeme bekliyor
+                {o.paymentDueDate
+                  ? ` · Vade ${new Date(o.paymentDueDate).toLocaleDateString("tr-TR")}`
+                  : ""}
+              </span>
+            ) : null}
           </div>
           <p className="mt-1 truncate font-semibold leading-snug text-zinc-900 group-hover:text-brand-700">
             {o.listingTitle ?? "—"}
@@ -499,7 +510,14 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
     const active = all.filter((o) =>
       ["PENDING", "ACCEPTED", "CREATED", "IN_DELIVERY"].includes(o.status),
     ).length;
-    const awaitingPayment = counts["DELIVERED"] ?? 0;
+    // Yaşam döngüsü ayrımı: "Ödeme Bekleyen" artık DELIVERED sayısı DEĞİL —
+    // türetilen ödeme durumundan (paymentSettled=false), status'tan bağımsız.
+    // Terminal/ihtilaf hariç (borç kapanmamış canlı siparişler).
+    const awaitingPayment = all.filter(
+      (o) =>
+        o.paymentSettled === false &&
+        !["CANCELLED", "REJECTED", "DISPUTED"].includes(o.status),
+    ).length;
     const completed = counts["COMPLETED"] ?? 0;
     return { active, awaitingPayment, completed };
   }, [all, counts]);
@@ -526,9 +544,10 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
             { label: "Toplam Sipariş", value: String(all.length), filter: "all" },
             { label: "Aktif", value: String(kpis.active), filter: null },
             {
+              // Ödeme durumu türetilir; status filtresi değil (bilgi amaçlı sayım).
               label: "Ödeme Bekleyen",
               value: String(kpis.awaitingPayment),
-              filter: "DELIVERED",
+              filter: null,
             },
             {
               label: "Tamamlanan",

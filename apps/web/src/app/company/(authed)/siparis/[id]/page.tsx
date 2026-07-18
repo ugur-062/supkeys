@@ -211,11 +211,9 @@ export default function OrderDetailPage() {
         }
       : !isSeller && o.status === "IN_DELIVERY"
         ? { label: "Teslim Aldım", modal: "receive" as const }
-        : // Tamamla yalnız tam ödeme onaylıyken (aksi halde aşağıda mesaj).
-          !isSeller &&
-            o.status === "DELIVERED" &&
-            !paymentAwaitingConfirmation &&
-            fullyPaid
+        : // YAŞAM DÖNGÜSÜ AYRIMI: Tamamla = malın KABULÜ (operasyonel), ödemeden
+          // BAĞIMSIZ. Vadeli siparişte alıcı kabul edip tamamlar; borç ayrı izlenir.
+          !isSeller && o.status === "DELIVERED"
           ? { label: "Siparişi Tamamla", modal: "complete" as const }
           : null;
   // Peşin eşiği bekleniyor mu (satıcı, gönderim öncesi)? Kilit mesajı için.
@@ -709,7 +707,25 @@ export default function OrderDetailPage() {
             Satıcının siparişi onaylaması bekleniyor…
           </Text>
         ) : o.status === "COMPLETED" ? (
-          <Text className="text-sm text-emerald-700">✓ Sipariş tamamlandı.</Text>
+          <div className="space-y-1">
+            <Text className="text-sm text-emerald-700">
+              ✓ Sipariş tamamlandı (mal teslim edildi ve kabul edildi).
+            </Text>
+            {/* YAŞAM DÖNGÜSÜ AYRIMI: operasyonel bitiş ≠ ödeme; borç ayrı. */}
+            {fullyPaid ? (
+              <Text className="text-sm text-emerald-700">Ödeme tamamlandı.</Text>
+            ) : (
+              <Text className="text-sm text-amber-700">
+                Ödeme bekliyor — kalan{" "}
+                {Number(o.paymentTotals?.remaining ?? 0).toLocaleString("tr-TR")}{" "}
+                {curSym}
+                {o.paymentDueDate
+                  ? ` · Vade ${new Date(o.paymentDueDate).toLocaleDateString("tr-TR")}`
+                  : ""}
+                . Ödemeler bölümünden kaydedebilirsiniz.
+              </Text>
+            )}
+          </div>
         ) : advanceGate ? (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
             Bu siparişte <strong>peşin ödeme şartı</strong> var — gönderim için{" "}
@@ -737,7 +753,7 @@ export default function OrderDetailPage() {
                   : "Mal teslime hazır olduğunda fatura no ile işaretle — alıcı gelip alacak."
                 : next.modal === "receive"
                   ? "Malı teslim aldığında işaretle."
-                  : "Ödeme tam olarak onaylandı — siparişi tamamla."}
+                  : "Malı inceleyip kabul ettiğinde tamamla — ödeme ayrı izlenir (borç açık olsa da tamamlayabilirsin)."}
             </Text>
             <Button
               onClick={() => setModal(next.modal)}
