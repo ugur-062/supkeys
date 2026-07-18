@@ -7,8 +7,18 @@ on:
   # KADEMELİ: önce push; ilk koşu yeşil teyit edilince pull_request de açılacak.
   push:
     branches: [main]
+    # Doc-only değişiklik full-suite yakmasın (billing — private repo).
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  # KADEME 2 (ilk push yeşil teyidinden sonra aç):
   # pull_request:
   #   branches: [main]
+  #   paths-ignore:
+  #     - '**.md'
+  #     - 'docs/**'
+  # KADEME 2 NOTU: coverage'ı push'ta değil YALNIZ pull_request'te koş (test:cov
+  # ~%20 yavaş). push job'unda düz `test`, PR job'unda `test:cov` ayrımı yap.
   workflow_dispatch:
 
 # Çakışan pipeline'ları iptal et — sadece son commit kalır
