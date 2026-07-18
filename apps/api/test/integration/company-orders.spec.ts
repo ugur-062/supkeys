@@ -220,8 +220,8 @@ describe("SATIS kalem-bazlı kazandırma — sipariş yönü", () => {
   });
 });
 
-describe("tamamlama kapısı — satıcı onayı bekleyen ödeme", () => {
-  it("bekleyen ödeme varken alıcı tamamlayamaz; satıcı onaylayınca tamamlanır", async () => {
+describe("tamamlama = alıcı kabulü (ödemeden bağımsız — yaşam döngüsü ayrımı)", () => {
+  it("bekleyen/kısmi ödemeye rağmen tamamlanabilir; borç COMPLETED'da ayrı izlenir", async () => {
     const { orders } = makeOrdersService();
     const seller = await makeCompanyWithUser(prisma, { country: "TR" });
     const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -241,19 +241,13 @@ describe("tamamlama kapısı — satıcı onayı bekleyen ödeme", () => {
       amount: 500,
       method: "EFT",
     } as never)) as { id: string };
-
-    // Satıcı onaylamadan tamamla → reddedilir (bekleyen ödeme kapısı).
-    await expect(
-      orders.complete(buyer.auth, order.id, {} as never),
-    ).rejects.toThrow(/onaylamadığı ödeme/);
-
-    // Satıcı kısmi ödemeyi onaylar (500/1000) → hâlâ TAM değil → tamamlanamaz.
     await orders.confirmPayment(seller.auth, order.id, p1.id);
-    await expect(
-      orders.complete(buyer.auth, order.id, {} as never),
-    ).rejects.toThrow(/tamamlanamaz/i);
 
-    // Kalan 500 ödenip onaylanınca sipariş OTOMATİK tamamlanır.
+    // YAŞAM DÖNGÜSÜ AYRIMI: kısmi ödemeye rağmen alıcı malı kabul edip tamamlar.
+    const res = await orders.complete(buyer.auth, order.id, {} as never);
+    expect(res.status).toBe("COMPLETED");
+
+    // Borç COMPLETED'da açık; kalan ödenebilir, durum değişmez.
     const p2 = (await orders.recordPayment(buyer.auth, order.id, {
       amount: 500,
       method: "EFT",
@@ -263,6 +257,8 @@ describe("tamamlama kapısı — satıcı onayı bekleyen ödeme", () => {
       where: { id: order.id },
     });
     expect(db.status).toBe("COMPLETED");
+    const totals = await orders.getOne(buyer.auth, order.id);
+    expect(Number(totals.paymentTotals.remaining)).toBe(0);
   });
 });
 

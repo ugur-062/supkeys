@@ -415,7 +415,7 @@ describe("ödeme kararı audit'i", () => {
     return { seller, buyer, order };
   }
 
-  it("onay → payment_confirmed iz (from/to + autoCompleted, actor=satıcı)", async () => {
+  it("onay → payment_confirmed iz (from/to, actor=satıcı)", async () => {
     const orders = makeOrdersService();
     const { seller, buyer, order } = await deliveredOrder(1000);
     const p = (await orders.recordPayment(buyer.auth, order.id, {
@@ -436,7 +436,6 @@ describe("ödeme kararı audit'i", () => {
       orderId: order.id,
       from: "AWAITING_CONFIRMATION",
       to: "CONFIRMED",
-      autoCompleted: true,
     });
   });
 
@@ -456,7 +455,6 @@ describe("ödeme kararı audit'i", () => {
     expect(row.actorId).toBe(seller.user.id);
     expect(row.metadata).toMatchObject({
       to: "REJECTED",
-      autoCompleted: false,
       reason: "Dekont eşleşmiyor",
     });
   });
@@ -654,7 +652,7 @@ describe("sipariş yaşam döngüsü audit'i", () => {
     });
   });
 
-  it("receive → company.order.received iz (actor=alıcı, autoCompleted)", async () => {
+  it("receive → company.order.received iz (actor=alıcı, → DELIVERED)", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await makeOrder(seller.company.id, buyer.company.id, {
@@ -671,7 +669,6 @@ describe("sipariş yaşam döngüsü audit'i", () => {
     expect(row.metadata).toMatchObject({
       from: "IN_DELIVERY",
       to: "DELIVERED",
-      autoCompleted: false,
     });
   });
 

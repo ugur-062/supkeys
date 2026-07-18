@@ -478,7 +478,7 @@ describe("S1 — accept banka hesabı LC/vesaikte opsiyonel", () => {
 });
 
 describe("mutlu yol — AFTER_DELIVERY (teslim sonrası ödeme)", () => {
-  it("accept → ship → receive → tam ödeme onayı → oto-COMPLETED (damgalarla)", async () => {
+  it("accept → ship → receive(DELIVERED) → ödeme(borç kapanır ama DURUM değişmez) → complete(kabul)→COMPLETED", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await makeOrder(seller.company.id, buyer.company.id);
@@ -494,41 +494,23 @@ describe("mutlu yol — AFTER_DELIVERY (teslim sonrası ödeme)", () => {
     } as never)) as { id: string };
     await orders.confirmPayment(seller.auth, order.id, payment.id);
 
-    const db = await prisma.companyOrder.findUniqueOrThrow({
+    // YAŞAM DÖNGÜSÜ AYRIMI: tam ödeme onayı sipariş DURUMUNU değiştirmez —
+    // hâlâ DELIVERED (borç kapandı, operasyonel kabul ayrı adım).
+    let db = await prisma.companyOrder.findUniqueOrThrow({
       where: { id: order.id },
     });
-    expect(db.status).toBe("COMPLETED"); // tam ödeme → oto-tamamlama
+    expect(db.status).toBe("DELIVERED");
+
+    // Alıcı malı KABUL edince (complete) COMPLETED.
+    const res = await orders.complete(buyer.auth, order.id, {} as never);
+    expect(res.status).toBe("COMPLETED");
+    db = await prisma.companyOrder.findUniqueOrThrow({ where: { id: order.id } });
+    expect(db.status).toBe("COMPLETED");
     expect(db.acceptedAt).not.toBeNull();
     expect(db.deliveryStartedAt).not.toBeNull();
     expect(db.deliveredAt).not.toBeNull();
-    expect(db.completedAt).not.toBeNull(); // oto-tamamlamada damga eksikti
+    expect(db.completedAt).not.toBeNull();
     expect(db.invoiceNumber).toBe("FTR-1");
-  });
-
-  it("oto-tamamlama bildirimi SATICIYA gider, alıcıya çift düşmez", async () => {
-    const orders = makeOrdersService();
-    const { seller, buyer } = await twoParties();
-    const order = await makeOrder(seller.company.id, buyer.company.id);
-
-    await orders.accept(seller.auth, order.id, (await acceptInputFor(seller.company.id)) as never);
-    await orders.ship(seller.auth, order.id, { invoiceNumber: "FTR-1" } as never);
-    await orders.receive(buyer.auth, order.id, {} as never);
-    const payment = (await orders.recordPayment(buyer.auth, order.id, {
-      amount: 1000,
-      method: "EFT",
-    } as never)) as { id: string };
-    await orders.confirmPayment(seller.auth, order.id, payment.id);
-
-    // "Sipariş tamamlandı" bildirimi siparişi oto-kapanan SATICIYA gitmeli.
-    const sellerDone = await prisma.notification.count({
-      where: { companyId: seller.company.id, title: "Sipariş tamamlandı" },
-    });
-    expect(sellerDone).toBeGreaterThan(0);
-    // Alıcı tamamlanma bildirimini ALMAMALI (o "Ödeme onaylandı" aldı).
-    const buyerDone = await prisma.notification.count({
-      where: { companyId: buyer.company.id, title: "Sipariş tamamlandı" },
-    });
-    expect(buyerDone).toBe(0);
   });
 });
 
@@ -556,11 +538,11 @@ describe("BEFORE_DELIVERY (teslim öncesi ödeme) — teslim alma davranışı",
     const db = await prisma.companyOrder.findUniqueOrThrow({
       where: { id: order.id },
     });
-    expect(db.status).toBe("COMPLETED");
-    expect(db.completedAt).not.toBeNull();
+    // YAŞAM DÖNGÜSÜ AYRIMI: tam ödeme oto-tamamlamaz — DELIVERED kalır.
+    expect(db.status).toBe("DELIVERED");
   });
 
-  it("tam ödeme ONAYLIYKEN teslim alma doğrudan COMPLETED'a gider", async () => {
+  it("tam ödeme ONAYLIYKEN de teslim alma DELIVERED'a gider (prepaid oto-COMPLETE etmez); complete→COMPLETED", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await makeOrder(seller.company.id, buyer.company.id, {
@@ -580,7 +562,9 @@ describe("BEFORE_DELIVERY (teslim öncesi ödeme) — teslim alma davranışı",
     });
 
     const rec = await orders.receive(buyer.auth, order.id, {} as never);
-    expect(rec.status).toBe("COMPLETED");
+    expect(rec.status).toBe("DELIVERED");
+    const res = await orders.complete(buyer.auth, order.id, {} as never);
+    expect(res.status).toBe("COMPLETED");
   });
 
   it("C1: CAD (vesaik mukabili) ödenmeden teslim ALINAMAZ (diğer BEFORE_DELIVERY'nin aksine)", async () => {
@@ -604,7 +588,7 @@ describe("BEFORE_DELIVERY (teslim öncesi ödeme) — teslim alma davranışı",
     expect(db.status).toBe("IN_DELIVERY"); // teslim alınmadı
   });
 
-  it("C1: CAD tam ödeme ONAYLIYKEN teslim alma COMPLETED", async () => {
+  it("C1: CAD tam ödeme ONAYLIYKEN teslim alınır (DELIVERED; oto-COMPLETE etmez)", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await makeOrder(seller.company.id, buyer.company.id, {
@@ -624,7 +608,7 @@ describe("BEFORE_DELIVERY (teslim öncesi ödeme) — teslim alma davranışı",
       },
     });
     const rec = await orders.receive(buyer.auth, order.id, {} as never);
-    expect(rec.status).toBe("COMPLETED");
+    expect(rec.status).toBe("DELIVERED"); // teslim kapısı geçildi; kabul ayrı adım
   });
 });
 
@@ -671,7 +655,7 @@ describe("iptal kapısı — onaylı ödeme", () => {
   });
 });
 
-describe("tamamlama kapısı — tam ödeme onayı", () => {
+describe("tamamlama = alıcı kabulü (ödemeden BAĞIMSIZ — yaşam döngüsü ayrımı)", () => {
   const deliveredOrder = (sellerId: string, buyerId: string, amount = 1000) =>
     makeOrder(sellerId, buyerId, {
       status: "DELIVERED",
@@ -681,20 +665,18 @@ describe("tamamlama kapısı — tam ödeme onayı", () => {
       deliveredAt: new Date(),
     });
 
-  it("ödeme onaylı kayıt yokken alıcı siparişi TAMAMLAYAMAZ", async () => {
+  it("ödeme HİÇ yokken de alıcı siparişi tamamlayabilir (vadeli iş bitmiş, borç ayrı)", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await deliveredOrder(seller.company.id, buyer.company.id);
-    await expect(
-      orders.complete(buyer.auth, order.id, {} as never),
-    ).rejects.toThrow(/tamamlanamaz/i);
-    const db = await prisma.companyOrder.findUniqueOrThrow({
-      where: { id: order.id },
-    });
-    expect(db.status).toBe("DELIVERED");
+    const res = await orders.complete(buyer.auth, order.id, {} as never);
+    expect(res.status).toBe("COMPLETED");
+    // Borç açık kalır — ödeme durumu türetilir (getOne remaining > 0).
+    const totals = await orders.getOne(buyer.auth, order.id);
+    expect(Number(totals.paymentTotals.remaining)).toBe(1000);
   });
 
-  it("kısmi onaylı ödeme yetmez — tamamlanamaz", async () => {
+  it("kısmi ödemeyle de tamamlanır; kalan borç COMPLETED'da izlenmeye devam eder", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await deliveredOrder(seller.company.id, buyer.company.id, 1000);
@@ -707,26 +689,20 @@ describe("tamamlama kapısı — tam ödeme onayı", () => {
         confirmedAt: new Date(),
       },
     });
-    await expect(
-      orders.complete(buyer.auth, order.id, {} as never),
-    ).rejects.toThrow(/tamamlanamaz/i);
-  });
-
-  it("tam onaylı ödemeyle tamamlanır", async () => {
-    const orders = makeOrdersService();
-    const { seller, buyer } = await twoParties();
-    const order = await deliveredOrder(seller.company.id, buyer.company.id, 1000);
-    await prisma.companyOrderPayment.create({
-      data: {
-        orderId: order.id,
-        amount: 1000,
-        status: "CONFIRMED",
-        recordedByCompanyId: buyer.company.id,
-        confirmedAt: new Date(),
-      },
-    });
     const res = await orders.complete(buyer.auth, order.id, {} as never);
     expect(res.status).toBe("COMPLETED");
+    // COMPLETED siparişte ödeme penceresi açık → kalan ödenebilir.
+    const p = (await orders.recordPayment(buyer.auth, order.id, {
+      amount: 600,
+    } as never)) as { id: string };
+    await orders.confirmPayment(seller.auth, order.id, p.id);
+    const totals = await orders.getOne(buyer.auth, order.id);
+    expect(Number(totals.paymentTotals.remaining)).toBe(0);
+    // Ödeme sipariş DURUMUNU değiştirmedi — COMPLETED kaldı.
+    const db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("COMPLETED");
   });
 });
 
@@ -948,7 +924,7 @@ describe("ödeme kuralları", () => {
     ).rejects.toThrow(/yalnızca satıcı/);
   });
 
-  it("kısmi ödeme tamamlamaya yetmez; kalan onaylanınca sipariş tamamlanır", async () => {
+  it("ödeme onayı sipariş DURUMUNU değiştirmez (tam ödeme oto-tamamlamaz)", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
     const order = await makeOrder(seller.company.id, buyer.company.id, {
@@ -959,23 +935,63 @@ describe("ödeme kuralları", () => {
       amount: 400,
     } as never)) as { id: string };
     await orders.confirmPayment(seller.auth, order.id, p1.id);
-    // Kısmi (400/1000) onaylı → tamamlanamaz.
-    await expect(
-      orders.complete(buyer.auth, order.id, {} as never),
-    ).rejects.toThrow(/tamamlanamaz/i);
+    let db = await prisma.companyOrder.findUniqueOrThrow({
+      where: { id: order.id },
+    });
+    expect(db.status).toBe("DELIVERED"); // kısmi ödeme durumu değiştirmez
 
-    // Kalan ödenip satıcı onaylayınca sipariş OTOMATİK tamamlanır.
+    // Kalan ödenip satıcı onaylasa da sipariş DELIVERED kalır (oto-tamamlama YOK).
     const p2 = (await orders.recordPayment(buyer.auth, order.id, {
       amount: 600,
     } as never)) as { id: string };
     await orders.confirmPayment(seller.auth, order.id, p2.id);
-    const db = await prisma.companyOrder.findUniqueOrThrow({
-      where: { id: order.id },
-    });
-    expect(db.status).toBe("COMPLETED");
+    db = await prisma.companyOrder.findUniqueOrThrow({ where: { id: order.id } });
+    expect(db.status).toBe("DELIVERED");
     const totals = await orders.getOne(buyer.auth, order.id);
     expect(Number(totals.paymentTotals.confirmed)).toBe(1000);
     expect(Number(totals.paymentTotals.remaining)).toBe(0);
+  });
+});
+
+describe("yaşam döngüsü ayrımı — vade cron kapsamı", () => {
+  it("COMPLETED + vadesi yaklaşan vadeli sipariş → cron alıcıya vade bildirimi üretir", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    await makeOrder(seller.company.id, buyer.company.id, {
+      status: "COMPLETED",
+      completedAt: future(-2),
+      deliveredAt: future(-58), // vade = +2 gün (3-gün ufku içinde)
+      paymentTiming: "AFTER_DELIVERY",
+      paymentCategory: "DEFERRED",
+      paymentDays: 60,
+      amount: 1000,
+    });
+    const sent = await orders.sendDuePaymentReminders();
+    expect(sent).toBeGreaterThanOrEqual(1);
+    const n = await prisma.notification.count({
+      where: { companyId: buyer.company.id, title: "Ödeme vadesi yaklaşıyor" },
+    });
+    expect(n).toBe(1);
+  });
+
+  it("DISPUTED (ihtilaf) → cron vade bildirimi ÜRETMEZ (saat durur — A1/TTK korunur)", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    await makeOrder(seller.company.id, buyer.company.id, {
+      status: "DISPUTED",
+      deliveredAt: future(-58),
+      defectNotifiedAt: new Date(),
+      disputePrevStatus: "COMPLETED",
+      paymentTiming: "AFTER_DELIVERY",
+      paymentCategory: "DEFERRED",
+      paymentDays: 60,
+      amount: 1000,
+    });
+    await orders.sendDuePaymentReminders();
+    const n = await prisma.notification.count({
+      where: { companyId: buyer.company.id, title: "Ödeme vadesi yaklaşıyor" },
+    });
+    expect(n).toBe(0);
   });
 });
 
@@ -1150,14 +1166,17 @@ describe("Faz 3 — akreditif adım seti (S5)", () => {
     });
     expect(db.status).toBe("DELIVERED");
 
-    // Banka ödedi → sistem onaylı tam-tutar kaydı + oto-tamamlama.
-    const res = await orders.lcMarkPaid(seller.auth, order.id);
-    expect(res.completed).toBe(true);
+    // Banka ödedi → sistem onaylı tam-tutar kaydı + lcPaidAt. Yaşam döngüsü
+    // ayrımı: borç kapandı ama sipariş DURUMU değişmez (DELIVERED).
+    await orders.lcMarkPaid(seller.auth, order.id);
     db = await prisma.companyOrder.findUniqueOrThrow({
       where: { id: order.id },
     });
-    expect(db.status).toBe("COMPLETED");
+    expect(db.status).toBe("DELIVERED");
     expect(db.lcPaidAt).not.toBeNull();
+    // Alıcı malı kabul edince COMPLETED.
+    const res = await orders.complete(buyer.auth, order.id, {} as never);
+    expect(res.status).toBe("COMPLETED");
     const pay = await prisma.companyOrderPayment.findFirstOrThrow({
       where: { orderId: order.id },
     });
@@ -1203,8 +1222,7 @@ describe("Faz 3 — akreditif adım seti (S5)", () => {
       },
     });
 
-    const res = await orders.lcMarkPaid(seller.auth, order.id);
-    expect(res.completed).toBe(true);
+    await orders.lcMarkPaid(seller.auth, order.id);
 
     // Banka ödemesi yalnız kalanı (600) yazdı — tam tutarı (1000) DEĞİL.
     const lcPayment = await prisma.companyOrderPayment.findFirstOrThrow({
@@ -1521,10 +1539,12 @@ describe("Faz 5 — sipariş revizyon müzakeresi", () => {
 });
 
 describe("INV-MONEY-1 — Decimal sınır (epsilon YOK)", () => {
-  it("tamamlama: tam-eşit onaylı ödeme GEÇER; 1 kuruş eksik GEÇMEZ", async () => {
+  it("ödeme durumu (türetilen): tam-eşit = kapalı (remaining 0); 1 kuruş eksik = AÇIK (epsilon yok)", async () => {
     const orders = makeOrdersService();
     const { seller, buyer } = await twoParties();
-    // 1 kuruş EKSİK → tamamlanamaz (eski 0.01 epsilon'u tam-sayardı = bug).
+    // 1 kuruş EKSİK → remaining 0.01 > 0 → ödeme AÇIK (eski 0.01 epsilon'u
+    // tam-sayardı = bug). Yaşam döngüsü ayrımı: bu ödeme durumu, sipariş
+    // tamamlamayı ETKİLEMEZ (complete = kabul, ödemeden bağımsız).
     const short = await makeOrder(seller.company.id, buyer.company.id, {
       status: "DELIVERED",
       amount: 1000,
@@ -1539,10 +1559,9 @@ describe("INV-MONEY-1 — Decimal sınır (epsilon YOK)", () => {
         confirmedAt: new Date(),
       },
     });
-    await expect(
-      orders.complete(buyer.auth, short.id, {} as never),
-    ).rejects.toThrow(/tamamlanamaz/i);
-    // TAM eşit → tamamlanır.
+    const st = await orders.getOne(buyer.auth, short.id);
+    expect(Number(st.paymentTotals.remaining)).toBe(0.01); // kapanmadı
+    // TAM eşit → remaining 0 → ödeme kapandı.
     const exact = await makeOrder(seller.company.id, buyer.company.id, {
       status: "DELIVERED",
       amount: 1000,
@@ -1557,8 +1576,8 @@ describe("INV-MONEY-1 — Decimal sınır (epsilon YOK)", () => {
         confirmedAt: new Date(),
       },
     });
-    const res = await orders.complete(buyer.auth, exact.id, {} as never);
-    expect(res.status).toBe("COMPLETED");
+    const et = await orders.getOne(buyer.auth, exact.id);
+    expect(Number(et.paymentTotals.remaining)).toBe(0);
   });
 
   it("cap: cap'e tam ulaşan ödeme KABUL; cap'i 1 kuruş aşan REDDEDİLİR", async () => {

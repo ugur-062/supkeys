@@ -387,16 +387,19 @@ export class CompanyOrdersService {
   }
 
   /**
-   * Alıcı teslim alır. AFTER_DELIVERY → DELIVERED (ödeme adımı açılır);
-   * BEFORE_DELIVERY → tam ödeme ONAYLIYSA doğrudan COMPLETED, değilse
-   * DELIVERED (ödeme penceresi açık kalır). Eskiden koşulsuz COMPLETED'a
-   * geçiyordu — hiç ödeme kaydı olmadan sipariş "ödeme+teslim tamam" görünür,
-   * kalan ödemenin takibi kaybolurdu.
+   * Alıcı teslim alır → HER ZAMAN DELIVERED (fiziksel teslim). YAŞAM DÖNGÜSÜ
+   * AYRIMI: teslim (operasyonel) ile ödeme (finansal) ayrı — eskiden BEFORE_
+   * DELIVERY tam ödeme → oto-COMPLETED yapıyordu (ödeme→durum kaplini). Artık
+   * alıcı muayene (TTK 8 gün) sonrası `complete()` ile KABUL eder; ödeme ayrı
+   * izlenir. İSTİSNA: vesaik mukabili (CASH_AGAINST_DOCS) teslim KAPISI korunur
+   * (belge karşılığı ödeme onayı olmadan mal çekilemez — tamamlama değil, teslim).
    */
   async receive(user: AuthenticatedCompanyUser, id: string, input: OrderNoteDto) {
     const order = await this.loadParticipant(user, id);
-    let toCompleted = false;
-    if (order.paymentTiming === "BEFORE_DELIVERY") {
+    if (
+      order.paymentTiming === "BEFORE_DELIVERY" &&
+      order.paymentCategory === "CASH_AGAINST_DOCS"
+    ) {
       const [amt, confirmed] = await Promise.all([
         this.prisma.companyOrder.findUnique({
           where: { id },
@@ -405,32 +408,19 @@ export class CompanyOrdersService {
         this.confirmedPaymentSum(id),
       ]);
       const total = amt ? new Prisma.Decimal(amt.amount) : new Prisma.Decimal(0);
-      const fullyPaid = this.isFullyPaid(total, confirmed);
-      // C1: Vesaik mukabili (CASH_AGAINST_DOCS) — alıcı ÖDEMEDEN teslim ALAMAZ.
-      // Belge karşılığı ödeme modeli: satıcı malı gönderir + belgeleri bankaya
-      // verir; alıcı bankaya ödeyip belgeleri alır ve malı çeker. Ship kapısı
-      // YOK (satıcının göndermesi doğru) ama teslim-alma tam ödeme onayı ister —
-      // aksi halde alıcı sıfır tahsilatla malı teslim almış olurdu.
-      if (order.paymentCategory === "CASH_AGAINST_DOCS" && !fullyPaid) {
+      if (!this.isFullyPaid(total, confirmed)) {
         throw new BadRequestException(
           "Vesaik mukabili: teslim almadan önce tam ödemenin onaylanması gerekir",
         );
       }
-      toCompleted = fullyPaid;
     }
     const res = await this.transition(user, id, {
       side: "buyer",
       from: "IN_DELIVERY",
-      to: toCompleted ? "COMPLETED" : "DELIVERED",
-      data: toCompleted
-        ? {
-            deliveredAt: new Date(),
-            completedAt: new Date(),
-            completedNote: input.note?.trim() || null,
-          }
-        : { deliveredAt: new Date(), completedNote: input.note?.trim() || null },
+      to: "DELIVERED",
+      data: { deliveredAt: new Date(), completedNote: input.note?.trim() || null },
     });
-    // INV-AUDIT-1: durum geçişi (teslim alındı / oto-tamamlandı) — commit sonrası.
+    // INV-AUDIT-1: durum geçişi (teslim alındı) — commit sonrası.
     await this.audit.log({
       action: "company.order.received",
       actorType: "company",
@@ -443,29 +433,28 @@ export class CompanyOrdersService {
       metadata: {
         orderNumber: res.order.number,
         from: "IN_DELIVERY",
-        to: toCompleted ? "COMPLETED" : "DELIVERED",
-        autoCompleted: toCompleted,
+        to: "DELIVERED",
       },
     });
     await this.notifyOrderParty(
       id,
       res.order.sellerCompanyId,
-      toCompleted ? "Sipariş tamamlandı" : "Sipariş teslim alındı",
-      toCompleted ? "Sipariş tamamlandı" : "Teslim alındı",
-      `${this.orderLabel(res.order.number)} siparişi alıcı tarafından teslim alındı${
-        toCompleted ? " ve tamamlandı" : ""
-      }.`,
+      "Sipariş teslim alındı",
+      "Teslim alındı",
+      `${this.orderLabel(res.order.number)} siparişi alıcı tarafından teslim alındı.`,
       "satis",
     );
     return { ok: res.ok, status: res.status };
   }
 
-  /** Alıcı siparişi tamamlar: DELIVERED → COMPLETED (+ not).
-   *  Satıcının ONAYLAMADIĞI ödeme kaydı varken tamamlanamaz — alıcı "ödedim"
-   *  deyip satıcı doğrulamadan siparişi kapatamaz (SERVER-side kapı). */
+  /** Alıcı siparişi tamamlar: DELIVERED → COMPLETED = malın KABULÜ (operasyonel
+   *  bitiş). YAŞAM DÖNGÜSÜ AYRIMI: ödeme şartı YOK — sipariş (mal teslim/kabul)
+   *  ile ödeme (borç kapandı mı) farklı yaşam döngüleridir. Vadeli siparişte
+   *  alıcı malı kabul edip tamamlar; borç `paymentTotals`/cron ile AYRI izlenir
+   *  (COMPLETED sipariş ödeme-açık olabilir). */
   async complete(user: AuthenticatedCompanyUser, id: string, input: OrderNoteDto) {
     // Yetki + durum ön-kontrolü (transition atomik yineler): yalnız alıcı,
-    // yalnız DELIVERED. Yanlış taraf, ödeme değil YETKİ hatası almalı.
+    // yalnız DELIVERED.
     const src = await this.loadParticipant(user, id);
     if (src.buyerCompanyId !== user.companyId) {
       throw new ForbiddenException("Bu işlemi yapamazsınız");
@@ -473,31 +462,6 @@ export class CompanyOrdersService {
     this.assertOrderRole(user, "buyer");
     if (src.status !== "DELIVERED") {
       throw new BadRequestException("Sipariş bu durumda bu işleme uygun değil");
-    }
-    const pendingPayments = await this.prisma.companyOrderPayment.count({
-      where: { orderId: id, status: "AWAITING_CONFIRMATION" },
-    });
-    if (pendingPayments > 0) {
-      throw new BadRequestException(
-        "Satıcının onaylamadığı ödeme kaydı var — satıcı ödemeyi onayladıktan (veya reddettikten) sonra siparişi tamamlayabilirsiniz",
-      );
-    }
-    // Ödeme tam olarak ONAYLANMADAN tamamlanamaz: alıcı ödemeyi bildirir,
-    // satıcı onaylar, sonra tamamlanır. (receive/auto-complete yollarıyla aynı
-    // değişmez; teslim öncesi/sonrası fark etmez — her ikisinde de tam ödeme
-    // onaylı olmalı.)
-    const [amt, confirmed] = await Promise.all([
-      this.prisma.companyOrder.findUnique({
-        where: { id },
-        select: { amount: true },
-      }),
-      this.confirmedPaymentSum(id),
-    ]);
-    const total = amt ? new Prisma.Decimal(amt.amount) : new Prisma.Decimal(0);
-    if (!this.isFullyPaid(total, confirmed)) {
-      throw new BadRequestException(
-        "Sipariş, ödeme tam olarak alınıp onaylanmadan tamamlanamaz — alıcı ödemeyi bildirir, satıcı onayladığında tamamlanır",
-      );
     }
     const res = await this.transition(user, id, {
       side: "buyer",
@@ -1329,7 +1293,10 @@ export class CompanyOrdersService {
     if (order.lcPaidAt) {
       throw new BadRequestException("Ödeme zaten alındı olarak işaretlendi");
     }
-    const autoCompleted = await this.prisma.$transaction(async (tx) => {
+    // YAŞAM DÖNGÜSÜ AYRIMI: LC ödemesi borcu kapatır (onaylı tam-tutar kaydı +
+    // lcPaidAt damgası) ama sipariş DURUMUNU değiştirmez — operasyonel tamamlama
+    // alıcının `complete()` (kabul) adımıdır, ödeme değil.
+    await this.prisma.$transaction(async (tx) => {
       const rows = await tx.$queryRaw<
         { status: CompanyOrderStatus; amount: Prisma.Decimal }[]
       >`SELECT "status","amount" FROM "company_orders" WHERE "id" = ${id} FOR UPDATE`;
@@ -1341,9 +1308,7 @@ export class CompanyOrdersService {
         );
       }
       const total = new Prisma.Decimal(row.amount);
-      // X7/C4: birleşik onaylı-toplam (kilit altında, tx ile). Fazla-tahsilat
-      // açığı YOK — remaining = total − confirmed doğası gereği cap'li ve LC
-      // siparişinde manuel recordPayment reddedilir (banka kanalı).
+      // X7/C4: birleşik onaylı-toplam (kilit altında, tx ile).
       const confirmed = await this.confirmedPaymentSum(id, tx);
       const remaining = Prisma.Decimal.max(0, total.minus(confirmed));
       // Kalan > 0 ise onaylı tam-tutar kaydı üret (idempotent lcPaidAt damgası
@@ -1366,16 +1331,6 @@ export class CompanyOrdersService {
         where: { id },
         data: { lcPaidAt: new Date() },
       });
-      // DELIVERED ise tam ödeme sağlandı → tamamla (IN_DELIVERY'de teslim
-      // alınınca receive() aynı kapıdan COMPLETED'a geçirir).
-      if (row.status === "DELIVERED") {
-        const done = await tx.companyOrder.updateMany({
-          where: { id, status: "DELIVERED" },
-          data: { status: "COMPLETED", completedAt: new Date() },
-        });
-        return done.count === 1;
-      }
-      return false;
     });
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     await this.notifyOrderParty(
@@ -1383,12 +1338,10 @@ export class CompanyOrdersService {
       order.buyerCompanyId,
       "Akreditif ödemesi alındı",
       "Ödeme alındı",
-      `${this.orderLabel(order.number)} sipariş için akreditif ödemesi banka kanalından alındı${
-        autoCompleted ? " ve sipariş tamamlandı" : ""
-      }.`,
+      `${this.orderLabel(order.number)} sipariş için akreditif ödemesi banka kanalından alındı.`,
       "satinalma",
     );
-    return { ok: true, completed: autoCompleted };
+    return { ok: true };
   }
 
   /**
@@ -1409,7 +1362,10 @@ export class CompanyOrdersService {
     for (;;) {
       const candidates = await this.prisma.companyOrder.findMany({
         where: {
-          status: "DELIVERED",
+          // YAŞAM DÖNGÜSÜ AYRIMI: vadeli sipariş artık teslim/kabul edilince
+          // COMPLETED olabilir ama borç açık kalır → cron DELIVERED + COMPLETED
+          // izler. DISPUTED bilerek YOK (A1/TTK: ihtilafta ödeme saati durur).
+          status: { in: ["DELIVERED", "COMPLETED"] },
           paymentDueReminderSentAt: null,
           deliveredAt: { not: null },
           paymentDays: { not: null },
@@ -1843,7 +1799,7 @@ export class CompanyOrdersService {
     //    para oluşmasın; cancel de aynı satırı kilitleyip CONFIRMED sayar).
     //  - REJECTED HER durumda serbest — iptal edilmiş siparişte havale yapıp
     //    asılı kalan AWAITING ödeme reddedilerek sonuçlandırılabilsin.
-    const autoCompleted = await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx) => {
       const rows = await tx.$queryRaw<{ status: CompanyOrderStatus }[]>`
         SELECT "status" FROM "company_orders" WHERE "id" = ${id} FOR UPDATE`;
       const status = rows[0]?.status;
@@ -1868,24 +1824,9 @@ export class CompanyOrdersService {
       if (res.count !== 1) {
         throw new BadRequestException("Bu ödeme zaten sonuçlanmış");
       }
-      // Otomatik tamamlama — kilit altında taze durum + toplam ile.
-      if (decision === "CONFIRMED" && status === "DELIVERED") {
-        const [orderAmt, confirmedSum] = await Promise.all([
-          tx.companyOrder.findUnique({ where: { id }, select: { amount: true } }),
-          this.confirmedPaymentSum(id, tx),
-        ]);
-        const total = orderAmt
-          ? new Prisma.Decimal(orderAmt.amount)
-          : new Prisma.Decimal(0);
-        if (this.isFullyPaid(total, confirmedSum)) {
-          const done = await tx.companyOrder.updateMany({
-            where: { id, status: "DELIVERED" },
-            data: { status: "COMPLETED", completedAt: new Date() },
-          });
-          return done.count === 1;
-        }
-      }
-      return false;
+      // YAŞAM DÖNGÜSÜ AYRIMI: ödeme onayı borcu kapatır ama sipariş DURUMUNU
+      // değiştirmez (eski DELIVERED→COMPLETED oto-tamamlama kaldırıldı). Operasyonel
+      // tamamlama alıcının `complete()` (kabul) adımıdır; ödeme ayrı izlenir.
     });
 
     const updated = await this.prisma.companyOrderPayment.findUniqueOrThrow({
@@ -1913,7 +1854,6 @@ export class CompanyOrdersService {
         currency: order.currency,
         from: "AWAITING_CONFIRMATION",
         to: decision,
-        autoCompleted,
         ...(decision === "REJECTED" ? { reason: reason?.trim() || null } : {}),
       },
     });
@@ -1931,18 +1871,6 @@ export class CompanyOrdersService {
           }`,
       "satinalma",
     );
-
-    // Otomatik tamamlandıysa → SATICIYA bilgi (alıcı zaten onay bildirimini aldı).
-    if (autoCompleted) {
-      await this.notifyOrderParty(
-        id,
-        order.sellerCompanyId,
-        "Sipariş tamamlandı",
-        "Sipariş tamamlandı",
-        `${this.orderLabel(order.number)} sipariş tam ödeme ile tamamlandı.`,
-        "satis",
-      );
-    }
 
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     return this.serializePayment(updated);
@@ -2009,6 +1937,7 @@ export class CompanyOrdersService {
         buyerCompanyId: true,
         listingId: true,
         createdAt: true,
+        deliveredAt: true,
         deliveryTerm: true,
         paymentCategory: true,
         paymentDays: true,
@@ -2020,7 +1949,34 @@ export class CompanyOrdersService {
       orderBy: { createdAt: "desc" },
       take: ORDERS_LIST_CAP,
     });
-    return rows.map((o) => this.serialize(o, companyId));
+    // YAŞAM DÖNGÜSÜ AYRIMI: ödeme durumu türetilir (yeni alan yok). Sayfa
+    // siparişleri için TEK groupBy (cron deseni; N+1 yok) → paymentSettled +
+    // paymentDueDate. Liste rozeti/KPI status yerine bunu kullanır.
+    const ids = rows.map((r) => r.id);
+    const sums = ids.length
+      ? await this.prisma.companyOrderPayment.groupBy({
+          by: ["orderId"],
+          where: { orderId: { in: ids }, status: "CONFIRMED" },
+          _sum: { amount: true },
+        })
+      : [];
+    const confirmedByOrder = new Map(
+      sums.map((s) => [s.orderId, s._sum.amount ?? new Prisma.Decimal(0)]),
+    );
+    return rows.map((o) => {
+      const confirmed =
+        confirmedByOrder.get(o.id) ?? new Prisma.Decimal(0);
+      const due = paymentDueDate(
+        o.paymentCategory as PaymentCategory,
+        o.paymentDays,
+        o.deliveredAt,
+      );
+      return {
+        ...this.serialize(o, companyId),
+        paymentSettled: this.isFullyPaid(new Prisma.Decimal(o.amount), confirmed),
+        paymentDueDate: due ? due.toISOString() : null,
+      };
+    });
   }
 
   // Karşı taraf özeti — yalnız KURUMSAL iletişim alanları (kişi PII'si değil);
