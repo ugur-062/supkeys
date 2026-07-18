@@ -90,19 +90,25 @@ JWT payload `type` field'ıyla doğrulanır. Tenant token → admin/supplier end
 
 - **Test sayısı:** 534 test, 25 suite — Supabase Auth geçişi (2026-05-19/20) sonrası bcrypt mock'ları kırık. Login/register/password servisleri `SupabaseAuthService` bridge'i bekliyor, mock güncellenmedi. **Smoke test manuel doğrulandı** (admin/tenant/supplier login → JWT alındı, generic 401 davranışı korundu). Test paketi refactor edilmeli (bekleyen iş).
 - **Coverage (geçiş öncesi):** Kritik dosyalarda %85-100 (auth, permissions, controllers)
-- **Test DB:** İzole `rothern_test`
-- ⚠️ **Integration spec'leri TEK TEK / küçük gruplarla koş — TOPLU KOŞMA.** Paylaşımlı
-  remote Supabase `rothern_test` şemasında `beforeEach` TRUNCATE'i `40P01` deadlock'a
-  girer; birçok ağır suite'i tek `jest` çağrısında birleştirmek (ör. 6 suite) kurulumda
-  **süresiz asılı kalır** (CPU donar, worker açılmaz). Kanıtlanmış pratik: her spec'i
-  AYRI `npx jest <spec>` çağrısıyla, izole çalıştır (izole geçer, memory'de belgeli).
+- **Test DB — LOKAL izole Postgres (varsayılan):** integration testleri artık
+  `docker-compose.test.yml`'daki lokal `postgres:17`'ye koşar (Supabase 17.6 paritesi),
+  remote Supabase'e DEĞİL. Bağlantı `apps/api/.env.test` (lokal DB URL) → `test/
+  integration/env.ts` (kök `.env`'den önce yükler, `rothern_test` şeması ekler, remote
+  host'a fail-fast). Migration'lar jest globalSetup'ta `migrate deploy` ile uygulanır.
+- ✅ **"Tek tek koş" workaround'u KALKTI (lokal DB ile).** Eski `40P01` TRUNCATE
+  deadlock'u PAYLAŞIMLI remote Supabase kaynaklıydı (yabancı bağlantılar + pooler);
+  izole lokal DB + `maxWorkers:1` ile yapısal olarak imkânsız → ağır suite'ler
+  **BİRLİKTE** koşar. (Remote'a koşma; env.ts zaten reddeder.)
 - **Komutlar:**
   ```bash
-  npx jest <spec>        # DOĞRU: tek spec izole (ör. npx jest approvals.spec)
-  pnpm test              # tüm testler (şu an kırık — refactor bekliyor; ayrıca deadlock riski)
-  pnpm test:cov          # +coverage rapor
-  npx jest e2e.spec      # sadece E2E (13 suite, ~3 dk)
+  pnpm --filter @rothern/api test:db:up    # lokal test PG'yi başlat (docker, bir kez)
+  pnpm --filter @rothern/api test          # TÜM spec'ler birlikte (lokal, deadlock yok)
+  npx jest <spec>                          # tek spec (hızlı geri bildirim)
+  pnpm --filter @rothern/api test:cov      # +coverage
+  pnpm --filter @rothern/api test:db:down  # PG'yi durdur
   ```
+  (Docker Desktop WSL entegrasyonu gerekir. PG kapalıysa testler net "docker compose
+  up" hatası verir — sessizce remote'a düşmez.)
 - **Kapsam:** RBAC matrisi, IDOR senaryoları, multi-tenant scope, auth attack (timing-safe, malformed JWT, expired token), DTO validation, state machine geçişleri.
 
 ## Güvenlik Durumu
