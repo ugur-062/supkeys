@@ -49,6 +49,9 @@ describe("ülke-farkında belge seti", () => {
   it("yabancı firma 3 belge yeterli → PENDING", async () => {
     const svc = docsService();
     const co = await makeCompany(prisma, {
+      // Doc-akışı UNVERIFIED firmadan başlar (factory default VERIFIED — INV-KYC-1;
+      // submit()/commit() zaten-doğrulanmışı reddeder → explicit UNVERIFIED geç).
+      companyVerificationStatus: "UNVERIFIED",
       country: "DE",
       docTradeRegistryUrl: "k1", // Certificate of Incorporation
       docTaxPlateUrl: "k2", // Tax/VAT Certificate
@@ -72,7 +75,10 @@ describe("ülke-farkında belge seti", () => {
 
   it("GÜVENLİK: başka firmanın/rastgele key'i commit edilemez", async () => {
     const svc = docsService();
-    const co = await makeCompany(prisma, { country: "TR" });
+    const co = await makeCompany(prisma, {
+      companyVerificationStatus: "UNVERIFIED", // commit() doğrulanmışı reddeder
+      country: "TR",
+    });
     // Başka firmanın klasörüne işaret eden key reddedilir.
     await expect(
       svc.commit(co.id, "taxPlate", `company-docs/BASKA-FIRMA/x.pdf`),

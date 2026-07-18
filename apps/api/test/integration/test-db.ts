@@ -1,9 +1,23 @@
 import { PrismaClient } from "@rothern/db";
 import { TEST_DB_URL, TEST_SCHEMA } from "./env";
 
-/** İzole test şemasına bağlı tek PrismaClient. */
+/**
+ * İzole test şemasına bağlı tek PrismaClient.
+ *
+ * `connection_limit=1` — DEADLOCK KÖK ÇÖZÜMÜ. Varsayılan Prisma havuzu (~10 bağlantı)
+ * ile: `truncateAll`'ın TRUNCATE'i (AccessExclusiveLock) bir bağlantıda koşarken,
+ * bir önceki testten sızan fire-and-forget yazım (bildirim/FX insert → FK RowShareLock)
+ * BAŞKA bir havuz bağlantısında ters kilit sırası tutunca 40P01 deadlock oluşuyordu
+ * (maxWorkers:1 bunu çözmez — sorun jest paralelliği değil, havuzdaki çoklu bağlantı).
+ * Tek bağlantı → tüm sorgular serileşir → TRUNCATE hiçbir yazımla yarışamaz → deadlock
+ * yapısal olarak imkânsız. Testler zaten seri (maxWorkers:1) → performans etkisi yok.
+ */
+const CLIENT_URL = TEST_DB_URL.includes("connection_limit=")
+  ? TEST_DB_URL
+  : `${TEST_DB_URL}${TEST_DB_URL.includes("?") ? "&" : "?"}connection_limit=1`;
+
 export const prisma = new PrismaClient({
-  datasources: { db: { url: TEST_DB_URL } },
+  datasources: { db: { url: CLIENT_URL } },
 });
 
 /** Test şemasındaki tüm tabloları temizle (testler arası izolasyon).

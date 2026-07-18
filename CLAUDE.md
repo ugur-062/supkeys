@@ -95,10 +95,18 @@ JWT payload `type` field'ıyla doğrulanır. Tenant token → admin/supplier end
   remote Supabase'e DEĞİL. Bağlantı `apps/api/.env.test` (lokal DB URL) → `test/
   integration/env.ts` (kök `.env`'den önce yükler, `rothern_test` şeması ekler, remote
   host'a fail-fast). Migration'lar jest globalSetup'ta `migrate deploy` ile uygulanır.
-- ✅ **"Tek tek koş" workaround'u KALKTI (lokal DB ile).** Eski `40P01` TRUNCATE
-  deadlock'u PAYLAŞIMLI remote Supabase kaynaklıydı (yabancı bağlantılar + pooler);
-  izole lokal DB + `maxWorkers:1` ile yapısal olarak imkânsız → ağır suite'ler
-  **BİRLİKTE** koşar. (Remote'a koşma; env.ts zaten reddeder.)
+- ✅ **"Tek tek koş" workaround'u KALKTI — ama kök neden başkaymış.** `40P01`
+  TRUNCATE deadlock **lokal izole DB'de + `maxWorkers:1` ile de tekrarlandı** (ilk
+  varsayım "paylaşımlı remote kaynaklı" YANLIŞTI). GERÇEK kök neden: Prisma'nın
+  varsayılan çoklu-bağlantı havuzu — `truncateAll`'ın TRUNCATE'i (AccessExclusiveLock)
+  bir bağlantıda koşarken önceki testten sızan fire-and-forget yazım (bildirim/FX →
+  FK RowShareLock) başka bağlantıda ters kilit sırası tutunca deadlock. **FIX:
+  `test-db.ts` PrismaClient'ında `connection_limit=1`** → tüm sorgular tek bağlantıda
+  serileşir, TRUNCATE hiçbir yazımla yarışamaz → deadlock yapısal olarak imkânsız.
+  Testler zaten seri (maxWorkers:1) → performans kaybı yok. Ağır suite'ler artık
+  **BİRLİKTE** koşar (74 suite / 788 test yeşil, 0 deadlock). (Remote'a koşma;
+  env.ts reddeder.) Not: lokalde deadlock ~1sn'de tespit edilip abort olur (remote'ta
+  paylaşımlı-instance + yabancı idle bağlantı yüzünden 56 dk HANG'e dönüşüyordu).
 - **Komutlar:**
   ```bash
   pnpm --filter @rothern/api test:db:up    # lokal test PG'yi başlat (docker, bir kez)

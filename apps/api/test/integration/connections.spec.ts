@@ -194,21 +194,26 @@ describe("yarış durumları", () => {
     expect(conn.status).toBe("ACTIVE");
   });
 
-  it("çapraz PENDING (A→B ve B→A) — kabul anında ters istek temizlenir", async () => {
+  it("çapraz PENDING imkânsız — unordered-unique index ters yönü DB'de engeller", async () => {
     const { service } = rig();
     const { a, b, bCode, aCode } = await twoCompanies();
     const r1 = await service.invite(a.auth, bCode);
-    // Yarışı simüle et: ters yönlü ikinci PENDING'i doğrudan yaz
-    // (createRequest normalde engeller; eşzamanlı istekte oluşabilir).
-    await prisma.companyConnection.create({
-      data: {
-        inviterCompanyId: b.company.id,
-        inviteeCompanyId: a.company.id,
-        invitedById: b.user.id,
-        status: "PENDING",
-        origin: "PREMIUM",
-      },
-    });
+    // A→B PENDING varken ters yön B→A çapraz PENDING'i, DB'deki unordered-unique
+    // index (LEAST/GREATEST(inviter,invitee) — connection_unordered_unique
+    // migration'ı) engeller → P2002. Çapraz PENDING YAPISAL olarak oluşamaz;
+    // accept-anı cleanup savunma amaçlı ölü koddur. (Not: db push bu expression
+    // index'i oluşturmuyordu; migrate deploy ile gerçek şema parite ediyor.)
+    await expect(
+      prisma.companyConnection.create({
+        data: {
+          inviterCompanyId: b.company.id,
+          inviteeCompanyId: a.company.id,
+          invitedById: b.user.id,
+          status: "PENDING",
+          origin: "PREMIUM",
+        },
+      }),
+    ).rejects.toThrow();
 
     await service.accept(b.auth, r1.id);
 
