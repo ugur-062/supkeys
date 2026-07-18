@@ -1,12 +1,12 @@
 name: Test
 
 on:
-  # Redis/mailpit gereksinimi kalktı (testler @rothern/email + prisma'yı mock'lar;
-  # health = DB-ping). Suite lokal Postgres'te (bkz. docker-compose.test.yml) yeşil.
-  # KALAN GATE: lokal full-suite (`pnpm --filter @rothern/api test`) yeşil teyidi →
-  # sonra push/pull_request trigger'larını aç.
-  # push:
-  #   branches: [main]
+  # Lokal full-suite yeşil (74 suite / 788 test, 0 deadlock) → push trigger AÇIK.
+  # Testler lokal Postgres service container'a koşar (aşağıda), remote Supabase'e
+  # DEĞİL; deadlock fix connection_limit=1 kodda (ortamdan bağımsız aktif).
+  # KADEMELİ: önce push; ilk koşu yeşil teyit edilince pull_request de açılacak.
+  push:
+    branches: [main]
   # pull_request:
   #   branches: [main]
   workflow_dispatch:
