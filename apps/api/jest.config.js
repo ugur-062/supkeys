@@ -1,7 +1,7 @@
 /**
- * Integration test config — company-listings (ihaleler) modülü.
- * Gerçek Postgres'e (Supabase, izole `rothern_test` şeması) bağlanır.
- * Paylaşılan DB olduğundan paralel koşmaz (maxWorkers: 1).
+ * Integration test config. LOKAL izole Postgres'e (docker-compose.test.yml,
+ * `rothern_test` şeması) bağlanır — apps/api/.env.test + test/integration/env.ts.
+ * Seri koşar (maxWorkers: 1): tek DB, deterministik TRUNCATE izolasyonu.
  */
 /** @type {import('jest').Config} */
 module.exports = {
@@ -22,4 +22,14 @@ module.exports = {
   globalSetup: "<rootDir>/test/integration/global-setup.ts",
   maxWorkers: 1,
   testTimeout: 30000,
+  // Coverage (test:cov / CI). Kritik dosyalarda %80 hedefi (CLAUDE.md).
+  collectCoverageFrom: [
+    "src/**/*.ts",
+    "!src/**/*.module.ts",
+    "!src/**/*.dto.ts",
+    "!src/main.ts",
+    "!src/**/*.d.ts",
+  ],
+  coverageDirectory: "<rootDir>/coverage",
+  coverageReporters: ["text-summary", "json-summary", "lcov"],
 };

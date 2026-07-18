@@ -1,0 +1,28 @@
+# Lokal test-only Postgres — integration testleri remote Supabase yerine buraya
+# koşar (10x hız + 40P01 TRUNCATE deadlock'u yapısal olarak biter). Supabase 17.6
+# ile major parite: postgres:17. App Supabase-özel uzantı KULLANMAZ (ID'ler cuid,
+# uuid/citext/gen_random yok) → düz imaj yeterli.
+#
+# Kullanım:  docker compose -f docker-compose.test.yml up -d --wait
+#            pnpm --filter @rothern/api test
+#            docker compose -f docker-compose.test.yml down
+#
+# Cred/port CI (test.yml) + apps/api/.env.test ile BİREBİR (rothern /
+# rothern_test_password / 5432). Prod/dev'e DOKUNMAZ — docker-compose.prod.yml ayrı.
+services:
+  postgres-test:
+    image: postgres:17-alpine
+    container_name: rothern-postgres-test
+    environment:
+      POSTGRES_USER: rothern
+      POSTGRES_PASSWORD: rothern_test_password
+      POSTGRES_DB: rothern_test
+    ports:
+      - "5432:5432" # 5432 boş; CI service container ile aynı port paritesi
+    tmpfs:
+      - /var/lib/postgresql/data # ephemeral: her up temiz, diske yazmaz
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rothern -d rothern_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 20

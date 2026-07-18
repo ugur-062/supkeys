@@ -1,41 +1,30 @@
 import { execSync } from "node:child_process";
 import * as path from "node:path";
-import { PrismaClient } from "@rothern/db";
-import { TEST_DB_URL, TEST_SCHEMA } from "./env";
+import { TEST_DB_URL } from "./env";
 
 /**
- * Tek seferlik: model şemasını izole `rothern_test` şemasına push et + custom
- * SQL sequence'leri (db push türetmez) oluştur. Public (dev) şemasına dokunmaz.
+ * Tek seferlik: GERÇEK migration'ları (28 dosya) izole test DB'sine uygula
+ * (`migrate deploy`). Böylece lokal == CI == prod migration yolu — ayrışma yok.
+ *
+ * NOT: order_number_seq/listing_number_seq (0_init) ve X-CF-3 partial unique index
+ * (…_pending_unique migration'ı) MIGRATION SQL'inde yaşadığından `migrate deploy`
+ * bunları OTOMATİK uygular — eski `db push` + elle sequence/index dual-write'ı
+ * artık GEREKMEZ (Prisma şeması ifade edemediği için gerekiyordu; migrate deploy
+ * ham SQL'i uygular). Prod/dev şemasına dokunmaz (yalnız test DB URL'i, lokal).
  */
 export default async function globalSetup(): Promise<void> {
   const dbDir = path.resolve(__dirname, "../../../../packages/db");
-  // Modelleri test şemasına yansıt (yalnızca schema=rothern_test bağlantısı).
-  // --accept-data-loss: test şeması atılabilir (her test truncate eder); yeni
-  // unique index eklemeleri "olası veri kaybı" uyarısıyla push'u kilitlemesin.
-  execSync("pnpm exec prisma db push --skip-generate --accept-data-loss", {
-    cwd: dbDir,
-    stdio: "inherit",
-    env: { ...process.env, DATABASE_URL: TEST_DB_URL, DIRECT_URL: TEST_DB_URL },
-  });
-
-  // order_number_seq / listing_number_seq custom SQL ile gelir → test şemasında
-  // elle oluştur (service unqualified nextval çağırır, search_path = test şeması).
-  const p = new PrismaClient({ datasources: { db: { url: TEST_DB_URL } } });
   try {
-    await p.$executeRawUnsafe(
-      `CREATE SEQUENCE IF NOT EXISTS "${TEST_SCHEMA}"."order_number_seq" START 1`,
+    execSync("pnpm exec prisma migrate deploy", {
+      cwd: dbDir,
+      stdio: "inherit",
+      env: { ...process.env, DATABASE_URL: TEST_DB_URL, DIRECT_URL: TEST_DB_URL },
+    });
+  } catch (e) {
+    throw new Error(
+      "Test DB'ye migrate deploy başarısız — lokal Postgres ayakta mı?\n" +
+        "  docker compose -f docker-compose.test.yml up -d --wait\n" +
+        String(e),
     );
-    await p.$executeRawUnsafe(
-      `CREATE SEQUENCE IF NOT EXISTS "${TEST_SCHEMA}"."listing_number_seq" START 1`,
-    );
-    // X-CF-3: kısmi unique index (listingId,type WHERE PENDING) migration SQL'de
-    // yaşar, Prisma şemasında ifade edilemez → db push türetmez, elle oluştur.
-    await p.$executeRawUnsafe(
-      `CREATE UNIQUE INDEX IF NOT EXISTS "approval_requests_listingId_type_pending_key"
-         ON "${TEST_SCHEMA}"."approval_requests"("listingId", "type")
-         WHERE "status" = 'PENDING'`,
-    );
-  } finally {
-    await p.$disconnect();
   }
 }
