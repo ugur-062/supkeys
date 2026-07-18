@@ -77,6 +77,16 @@ sembol adları (fonksiyon/DTO) daha kalıcı referanstır.
   `DUE_DATE_CATEGORIES`'te → `paymentDueDate` hesaplanır, sipariş kartında gösterilir,
   cron alıcıya vade hatırlatması gönderir. Opsiyonel bırakıldı (bilinçli: "%X peşin +
   kalan teslimde nakit" senaryosu ifade edilebilsin) | ✅ mevcut
+- **Sipariş ↔ ödeme yaşam döngüsü AYRIMI:** sipariş durumu (operasyonel: mal geldi/kabul
+  edildi mi) ile ödeme (finansal: borç kapandı mı) farklı şeyler. Eskiden vadeli sipariş,
+  alıcı borcu TAM kapatana kadar DELIVERED'da kalıyordu (90 gün vadeli iş bitmiş ama sistem
+  "tamamlanmadı" gösteriyor → KPI/raporlama bozuk). Artık **`complete()` = alıcının malı
+  KABULÜ, ödemeden bağımsız**; ödeme→durum oto-tamamlama kaplini kaldırıldı (`receive` hep
+  DELIVERED; ödeme onayı durumu değiştirmez). **COMPLETED = operasyonel bitiş**, borç ayrı
+  izlenir (`paymentSettled` türetilir — yeni alan yok). Vade cron DELIVERED+COMPLETED izler
+  (DISPUTED hariç). KPI "Ödeme Bekleyen" = `paymentSettled=false` (status değil). İSTİSNA:
+  vesaik mukabili teslim kapısı (`receive` tam-ödeme şartı) korunur — o teslim kapısı,
+  tamamlama değil | ✅ **yaşam-döngüsü**
 - **Muayene/kabul + ayıp ihbarı (TTK 23):** tacirler arası satışta alıcı teslim alınca
   malı inceleyip ayıbı süresinde ihbar etmezse **seçimlik haklarını kaybeder** (dönme/
   bedel indirimi/onarım/değişim/tazminat). Sistemde muayene/ayıp yolu yoktu ("Teslim
