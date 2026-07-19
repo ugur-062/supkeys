@@ -41,6 +41,7 @@ import {
 } from "../../../common/company/effective-tier";
 import { isListingVisibleToViewer } from "../../../common/company/listing-visibility";
 import { PRICED_ITEM_WHERE } from "../../../common/company/bid-items";
+import { isListingClosedAt } from "../../../common/company/listing-timing";
 import { AuditService } from "../../audit/audit.service";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
@@ -3014,7 +3015,7 @@ export class CompanyListingsService {
     }
     // Kapanış zamanı geçmişse teklif alınmaz (cron'u beklemeden — geç teklif
     // bütünlüğü). Scheduler ilanı ~1 dk içinde CLOSED'a çeker.
-    if (listing.closesAt && Date.now() >= listing.closesAt.getTime()) {
+    if (isListingClosedAt(listing.closesAt)) {
       throw new BadRequestException("Teklif süresi doldu");
     }
 
@@ -3715,7 +3716,7 @@ export class CompanyListingsService {
         "Teklif verme henüz başlamadı (açılış saatini bekleyin)",
       );
     }
-    if (listing.closesAt && Date.now() >= listing.closesAt.getTime()) {
+    if (isListingClosedAt(listing.closesAt)) {
       throw new BadRequestException("Teklif süresi doldu");
     }
 
