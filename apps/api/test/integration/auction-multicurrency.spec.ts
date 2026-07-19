@@ -44,8 +44,6 @@ async function auction(over: Record<string, unknown> = {}) {
     primaryCurrency: "TRY",
     allowedCurrencies: ["TRY", "EUR", "USD"] as never,
     auctionRateSnapshot: SNAP,
-    priceDecrementType: "AMOUNT",
-    priceDecrementValue: "500",
     ...over,
   });
   return { service, exchangeRates, approvals, owner, bidder, listing };
@@ -144,9 +142,7 @@ describe("Çoklu birim — birim kilidi ve kur bağımsızlığı", () => {
 
 describe("Çoklu birim — en iyi teklif TRY-normalize sıralanır", () => {
   it("getOne: 19 € (=950 ₺) teklifi 999 ₺'yi geçer; kendi birimiyle döner", async () => {
-    const { service, owner, listing } = await auction({
-      priceDecrementBasis: "BEST_BID",
-    });
+    const { service, owner, listing } = await auction();
     const r1 = await makeCompanyWithUser(prisma, { country: "TR" });
     const r2 = await makeCompanyWithUser(prisma, { country: "TR" });
     await makeBid(prisma, {
@@ -172,7 +168,6 @@ describe("Çoklu birim — en iyi teklif TRY-normalize sıralanır", () => {
 
   it("auctionView (ALL): sıralama normalize, satırlar kendi birimiyle", async () => {
     const { service, bidder, listing } = await auction({
-      priceDecrementBasis: "BEST_BID",
       bidVisibility: "ALL",
     });
     const rival = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -211,7 +206,6 @@ describe("Çoklu birim — en iyi teklif TRY-normalize sıralanır", () => {
     // Yeni yazımlar kuru string saklar; auctionTryValue reader hem string
     // (yeni) hem number (legacy — yukarıdaki testler) kabul etmeli.
     const { service, owner, listing } = await auction({
-      priceDecrementBasis: "BEST_BID",
       auctionRateSnapshot: { TRY: "1", EUR: "50", USD: "40" },
     });
     const r1 = await makeCompanyWithUser(prisma, { country: "TR" });

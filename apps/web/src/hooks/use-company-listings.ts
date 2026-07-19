@@ -361,10 +361,6 @@ export interface ListingDetail {
   /** Teslim öncesi ödemede teminat mektubu şartı (ilan sahibinin seçimi). */
   requireGuaranteeLetter?: boolean;
   bidVisibility?: string;
-  /** Legacy — minimum pay kaldırıldı (2026-07-13); eski ilanlarda dolu olabilir. */
-  priceDecrementType?: string | null;
-  priceDecrementValue?: string | null;
-  priceDecrementBasis?: string | null;
   decimalPlaces?: number;
   sendClosingReminder?: boolean;
   reminderMinutesBefore?: number | null;

@@ -114,9 +114,8 @@ describe("SATIS açık artırma — oluşturma", () => {
     });
     expect(db.status).toBe("OPEN");
     expect(db.format).toBe("ENGLISH_AUCTION");
-    // Taban fiyat aktarımda korunur; pay yapılandırması boş.
+    // Taban fiyat aktarımda korunur.
     expect(Number(db.minPrice)).toBe(1000);
-    expect(db.priceDecrementValue).toBeNull();
   });
 });
 

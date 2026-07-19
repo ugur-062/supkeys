@@ -15,8 +15,6 @@ import {
   type Currency,
   type ListingBidStatus,
   type ListingBidVisibility,
-  type ListingDecrementBasis,
-  type ListingDecrementType,
   type ListingDeliveryTerm,
   type ListingFormat,
   type ListingPaymentCategory,
@@ -2909,8 +2907,6 @@ export class CompanyListingsService {
         bidsOpenAt: true,
         isInternational: true,
         targetCountries: true,
-        // priceDecrement* DEAD (bkz. schema.prisma) — placeBid'de hiçbir kurala
-        // girmiyordu (BAFO öncesi minimum-decrement kalıntısı); ölü select kaldırıldı.
         auctionRateSnapshot: true,
         autoExtendOnLateBid: true,
         autoExtendThresholdMin: true,
@@ -5138,11 +5134,6 @@ export class CompanyListingsService {
           bidVisibility: isAuction
             ? (dto.bidVisibility as ListingBidVisibility)
             : "OWN_ONLY",
-          // Minimum pay kaldırıldı (2026-07-13) — yeni turda eski yapılandırma
-          // sıfırlanır, kural artık yalnız "öncekinden kesin iyi".
-          priceDecrementType: null,
-          priceDecrementValue: null,
-          priceDecrementBasis: null,
           // dto boşsa ilanın MEVCUT ayarı korunur (create'te false default'ken
           // yeni turun sessizce true'ya dönmesi tutarsızdı).
           autoExtendOnLateBid: isAuction
@@ -6309,9 +6300,6 @@ export class CompanyListingsService {
       paymentTiming: string;
       requireGuaranteeLetter: boolean;
       bidVisibility: string;
-      priceDecrementType: string | null;
-      priceDecrementValue: { toString(): string } | null;
-      priceDecrementBasis: string | null;
       decimalPlaces: number;
       sendClosingReminder: boolean;
       reminderMinutesBefore: number | null;
@@ -6370,9 +6358,6 @@ export class CompanyListingsService {
       // Teslim-öncesi ödemede teminat şartı — teklifçi teklif vermeden görsün.
       requireGuaranteeLetter: l.requireGuaranteeLetter,
       bidVisibility: l.bidVisibility,
-      priceDecrementType: l.priceDecrementType,
-      priceDecrementValue: l.priceDecrementValue?.toString() ?? null,
-      priceDecrementBasis: l.priceDecrementBasis,
       decimalPlaces: l.decimalPlaces,
       sendClosingReminder: l.sendClosingReminder,
       reminderMinutesBefore: l.reminderMinutesBefore,

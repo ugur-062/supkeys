@@ -190,7 +190,6 @@ describe("create/update iş kuralı doğrulamaları", () => {
     } as never);
     const db = await prisma.listing.findUniqueOrThrow({ where: { id: l.id } });
     expect(db.format).toBe("ENGLISH_AUCTION");
-    expect(db.priceDecrementValue).toBeNull();
     expect(db.allowedCurrencies).toEqual(["TRY", "USD"]);
     expect(db.auctionRateSnapshot).not.toBeNull();
   });

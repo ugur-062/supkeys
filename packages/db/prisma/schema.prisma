@@ -1086,16 +1086,6 @@ enum ListingBidVisibility {
   ALL
 }
 
-enum ListingDecrementType {
-  AMOUNT
-  PERCENT
-}
-
-enum ListingDecrementBasis {
-  OWN_LAST_BID
-  BEST_BID
-}
-
 enum ListingQuestionAnswerType {
   TEXT
   NUMBER
@@ -1189,13 +1179,6 @@ model Listing {
 
   // İngiliz Usulü açık eksiltme ayarları.
   bidVisibility          ListingBidVisibility   @default(OWN_ONLY)
-  // DEAD (Grup 4): priceDecrement* hiçbir kuralda enforce EDİLMİYOR ve frontend'de
-  // gösterilmiyor — BAFO (minimum-pay kaldırıldı) öncesi minimum-decrement kalıntısı.
-  // Kolonlar Supplier.sectors ile birlikte batched drop migration'da kaldırılacak
-  // (şimdi drop edilmedi: veri/contract/test riski). Yeni kod bunları KULLANMASIN.
-  priceDecrementType     ListingDecrementType?
-  priceDecrementValue    Decimal?               @db.Decimal(18, 4)
-  priceDecrementBasis    ListingDecrementBasis?
   decimalPlaces          Int                    @default(2)
   sendClosingReminder    Boolean                @default(false)
   reminderMinutesBefore  Int?
