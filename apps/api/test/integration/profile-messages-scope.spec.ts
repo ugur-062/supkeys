@@ -5,6 +5,7 @@
 import { CompanyProfileService } from "../../src/modules/company-profile/company-profile.service";
 import { CompanyMessagesService } from "../../src/modules/company-messages/company-messages.service";
 import { CompanyBlocksService } from "../../src/modules/company-blocks/company-blocks.service";
+import { AuditService } from "../../src/modules/audit/audit.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
 
@@ -38,7 +39,10 @@ describe("profil KVKK gate", () => {
 
 describe("mesaj blok zorlaması (okuma + inbox)", () => {
   it("engellenince karşı taraf konuşmayı okuyamaz (404) ve inbox'ta görünmez", async () => {
-    const blocks = new CompanyBlocksService(prisma as never);
+    const blocks = new CompanyBlocksService(
+      prisma as never,
+      new AuditService(prisma as never),
+    );
     const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
     const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
     const svc = new CompanyMessagesService(

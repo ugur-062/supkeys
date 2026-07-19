@@ -1016,6 +1016,24 @@ export class CompanyOrdersService {
         },
       },
     });
+    // INV-AUDIT-1 (dalga 3): revizyon = sipariş tutarını değiştiren teklif →
+    // uyuşmazlıkta delil. Commit sonrası, bildirimden önce.
+    await this.audit.log({
+      action: "company.order.revision_proposed",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "order_revision",
+      entityId: rev.id,
+      critical: true,
+      metadata: {
+        orderId: id,
+        orderNumber: order.number,
+        amount: Number(amount),
+        currency: order.currency,
+      },
+    });
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     await this.notifyOrderParty(
       id,
@@ -1040,6 +1058,9 @@ export class CompanyOrdersService {
     }
     this.assertOrderRole(user, "buyer");
 
+    // Audit için tutar geçişini yakala (before commit-öncesi, after tx içinden).
+    const amountBefore = Number(order.amount);
+    let amountAfter = amountBefore;
     await this.prisma.$transaction(async (tx) => {
       // Sipariş satırını kilitle — eşzamanlı geçiş/ödeme ile serileşir.
       const rows = await tx.$queryRaw<{ status: CompanyOrderStatus }[]>`
@@ -1072,6 +1093,7 @@ export class CompanyOrdersService {
       if (rev.status !== "PENDING") {
         throw new BadRequestException("Bu revizyon zaten sonuçlanmış");
       }
+      amountAfter = Number(rev.amount);
       // Sipariş kalemlerini revizyon kalemleriyle DEĞİŞTİR (sil + oluştur).
       await tx.companyOrderItem.deleteMany({ where: { orderId: id } });
       await tx.companyOrderItem.createMany({
@@ -1102,6 +1124,25 @@ export class CompanyOrdersService {
           decidedAt: new Date(),
         },
       });
+    });
+    // INV-AUDIT-1 (dalga 3): revizyon onayı sipariş tutarını değiştirir (para
+    // geçişi) → kritik. Commit sonrası, bildirimden önce.
+    await this.audit.log({
+      action: "company.order.revision_approved",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "order_revision",
+      entityId: revisionId,
+      critical: true,
+      metadata: {
+        orderId: id,
+        orderNumber: order.number,
+        currency: order.currency,
+        amountBefore,
+        amountAfter,
+      },
     });
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     await this.notifyOrderParty(
@@ -1142,6 +1183,21 @@ export class CompanyOrdersService {
     if (res.count !== 1) {
       throw new BadRequestException("Revizyon bulunamadı veya zaten sonuçlanmış");
     }
+    // INV-AUDIT-1 (dalga 3): ret siparişi değiştirmez → non-critical, yine de iz.
+    await this.audit.log({
+      action: "company.order.revision_rejected",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "order_revision",
+      entityId: revisionId,
+      metadata: {
+        orderId: id,
+        orderNumber: order.number,
+        reason: reason!.trim(),
+      },
+    });
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     await this.notifyOrderParty(
       id,
@@ -1174,6 +1230,20 @@ export class CompanyOrdersService {
     if (res.count !== 1) {
       throw new BadRequestException("Revizyon bulunamadı veya zaten sonuçlanmış");
     }
+    // INV-AUDIT-1 (dalga 3): geri çekme siparişi değiştirmez → non-critical, iz.
+    await this.audit.log({
+      action: "company.order.revision_cancelled",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "order_revision",
+      entityId: revisionId,
+      metadata: {
+        orderId: id,
+        orderNumber: order.number,
+      },
+    });
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
     await this.notifyOrderParty(
       id,

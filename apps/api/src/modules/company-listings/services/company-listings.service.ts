@@ -3531,6 +3531,32 @@ export class CompanyListingsService {
       return b;
     });
 
+    // INV-AUDIT-1 (dalga 3): teklif gönderimi = finansal taahhüt → uyuşmazlıkta
+    // delil. Commit SONRASI, bildirimden önce. Taslak loglanmaz (taahhüt değil).
+    if (!isDraft) {
+      await this.audit.log({
+        action: "company.bid.submitted",
+        actorType: "company",
+        actorId: user.userId,
+        actorEmail: user.email,
+        tenantId: user.companyId,
+        entityType: "listing_bid",
+        entityId: bid.id,
+        critical: true,
+        metadata: {
+          listingId: id,
+          listingType: listing.type,
+          listingNumber: listing.number ?? null,
+          amount: Number(bid.amount),
+          currency: bid.currency,
+          round: listing.currentRound,
+          version: bid.version,
+          // version>1 → elenmiş/önceki teklifin üzerine yeniden gönderim.
+          resubmission: bid.version > 1,
+        },
+      });
+    }
+
     // Auto-extend: açık eksiltmede son dakikada gelen teklif kapanışı uzatır.
     if (
       !isDraft &&

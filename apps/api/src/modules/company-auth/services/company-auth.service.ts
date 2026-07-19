@@ -505,7 +505,7 @@ export class CompanyAuthService {
       // PENDING İSTEK olur (yeni firma listIncoming'de görür, mevcut accept/reject
       // ile onaylar). Token yoksa (doğrudan signup) HEPSİ PENDING istek → güvenli.
       const isUsed = !!usedToken && inv.token === usedToken;
-      await this.prisma.companyConnection.upsert({
+      const conn = await this.prisma.companyConnection.upsert({
         where: {
           inviterCompanyId_inviteeCompanyId: {
             inviterCompanyId: inv.inviterCompanyId,
@@ -528,6 +528,25 @@ export class CompanyAuthService {
           status: "ACCEPTED",
           acceptedCompanyId: newCompanyId,
           acceptedAt: new Date(),
+        },
+      });
+      // INV-AUDIT-1 (dalga 3): referral kaydından oto-oluşan bağlantı — açık
+      // kullanıcı aksiyonu yok, yine de ilişki olayı → uyuşmazlıkta delil.
+      // Aktör = yeni kayıtlı firma (signup akışı, ayrı userId yok).
+      await this.audit.log({
+        action: "company.connection.auto_created",
+        actorType: "company",
+        actorId: null,
+        actorEmail: email,
+        tenantId: newCompanyId,
+        entityType: "company_connection",
+        entityId: conn.id,
+        metadata: {
+          inviterCompanyId: inv.inviterCompanyId,
+          inviteeCompanyId: newCompanyId,
+          referralInviteId: inv.id,
+          origin: "INVITE",
+          status: isUsed ? "ACTIVE" : "PENDING",
         },
       });
       // Yalnız KULLANILAN davet (ACTIVE) inviter'a "kabul edildi" e-postası;

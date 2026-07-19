@@ -4,6 +4,7 @@
  * çapraz PENDING temizliği), e-posta daveti (kayıtlı/kayıtsız/pasif firma),
  * referral iptali ve keşfet skorlaması.
  */
+import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyBlocksService } from "../../src/modules/company-blocks/company-blocks.service";
 import { CompanyConnectionsService } from "../../src/modules/company-connections/services/company-connections.service";
 import { CompanyMessagesService } from "../../src/modules/company-messages/company-messages.service";
@@ -31,7 +32,8 @@ async function giveRothernId(companyId: string): Promise<string> {
 }
 
 function rig() {
-  const blocks = new CompanyBlocksService(prisma as never);
+  const audit = new AuditService(prisma as never);
+  const blocks = new CompanyBlocksService(prisma as never, audit);
   const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
   const notifications = {
@@ -44,6 +46,7 @@ function rig() {
     email as never,
     config as never,
     notifications as never,
+    audit,
   );
   const messages = new CompanyMessagesService(prisma as never, blocks);
   return { service, blocks, messages, email, notifications };

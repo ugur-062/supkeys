@@ -10,6 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import { normalizeShortCode, validateShortCode } from "@rothern/shared";
 import { Prisma } from "@rothern/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { AuditService } from "../../audit/audit.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { EmailService } from "../../email/email.service";
@@ -52,6 +53,7 @@ export class CompanyConnectionsService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationService,
+    private readonly audit: AuditService,
   ) {}
 
   /** Kendi Rothern ID. */
@@ -296,6 +298,22 @@ export class CompanyConnectionsService {
       }
       throw e;
     }
+    // INV-AUDIT-1 (dalga 3): bağlantı isteği = ilişki olayı, uyuşmazlıkta delil.
+    // Commit sonrası, bildirimden önce. Para/yetki değil → non-critical.
+    await this.audit.log({
+      action: "company.connection.requested",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_connection",
+      entityId: conn.id,
+      metadata: {
+        inviterCompanyId: user.companyId,
+        inviteeCompanyId: target.id,
+        origin,
+      },
+    });
     // Hedef firmaya in-app haber ver (tercihe tabi değil — bilinmeyen tip açık).
     const me = await this.prisma.company.findUnique({
       where: { id: user.companyId },
@@ -846,6 +864,20 @@ export class CompanyConnectionsService {
     if (updatedCount === 0) {
       throw new ConflictException("Davet zaten yanıtlanmış");
     }
+    // INV-AUDIT-1 (dalga 3): kabul = ilişki kuruldu, uyuşmazlıkta delil.
+    await this.audit.log({
+      action: "company.connection.accepted",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_connection",
+      entityId: conn.id,
+      metadata: {
+        inviterCompanyId: conn.inviterCompanyId,
+        inviteeCompanyId: user.companyId,
+      },
+    });
     // Davet eden firmaya haber ver.
     const me = await this.prisma.company.findUnique({
       where: { id: user.companyId },
@@ -879,7 +911,8 @@ export class CompanyConnectionsService {
 
   /** Gelen daveti reddet (kaydı sil) — durum guard'lı atomik silme. */
   async reject(user: AuthenticatedCompanyUser, connectionId: string) {
-    await this.requireIncoming(user.companyId, connectionId);
+    // requireIncoming dönüşünü tut → audit için karşı taraf (inviter) id'si.
+    const conn = await this.requireIncoming(user.companyId, connectionId);
     const res = await this.prisma.companyConnection.deleteMany({
       where: {
         id: connectionId,
@@ -890,11 +923,31 @@ export class CompanyConnectionsService {
     if (res.count === 0) {
       throw new ConflictException("Davet zaten yanıtlanmış");
     }
+    // INV-AUDIT-1 (dalga 3): ret = ilişki reddi, uyuşmazlıkta delil.
+    await this.audit.log({
+      action: "company.connection.rejected",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_connection",
+      entityId: connectionId,
+      metadata: {
+        inviterCompanyId: conn.inviterCompanyId,
+        inviteeCompanyId: user.companyId,
+      },
+    });
     return { ok: true };
   }
 
   /** Bağlantıyı kopar — taraflardan biri ilişkiyi siler (kaydı kaldırır). */
   async disconnect(user: AuthenticatedCompanyUser, connectionId: string) {
+    // Audit için karşı taraf id'sini deleteMany öncesi yakala (deleteMany satır
+    // döndürmez). Yalnız loglama amaçlı — silme kararı hâlâ atomik count'a bağlı.
+    const before = await this.prisma.companyConnection.findUnique({
+      where: { id: connectionId },
+      select: { inviterCompanyId: true, inviteeCompanyId: true },
+    });
     // Atomik deleteMany (sahiplik koşullu): çift-disconnect yarışında ikinci
     // çağrı count=0 alır — findUnique+delete'in P2025 (yakalanmamış 500) yerine.
     const res = await this.prisma.companyConnection.deleteMany({
@@ -909,6 +962,25 @@ export class CompanyConnectionsService {
     if (res.count === 0) {
       throw new NotFoundException("Bağlantı bulunamadı");
     }
+    // INV-AUDIT-1 (dalga 3): bağlantı koparma, uyuşmazlıkta delil. Karşı taraf =
+    // aktörün firması hangi tarafsa diğeri (before yarışta null olabilir).
+    const counterparty =
+      before && before.inviterCompanyId === user.companyId
+        ? before.inviteeCompanyId
+        : before?.inviterCompanyId ?? null;
+    await this.audit.log({
+      action: "company.connection.disconnected",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_connection",
+      entityId: connectionId,
+      metadata: {
+        actorCompanyId: user.companyId,
+        counterpartyCompanyId: counterparty,
+      },
+    });
     return { ok: true };
   }
 
