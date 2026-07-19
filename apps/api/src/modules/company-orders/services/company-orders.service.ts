@@ -23,6 +23,7 @@ import {
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { MAX_MONEY } from "../../../common/constants/money";
+import { sumPaymentsByStatus } from "../../../common/company/order-payments";
 import { AuditService } from "../../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import type {
@@ -2086,15 +2087,11 @@ export class CompanyOrdersService {
     }
     const other = o.sellerCompanyId === user.companyId ? o.buyer : o.seller;
 
-    // INV-MONEY-1: Decimal birikim (float sapması yok). Gösterim sınırında
-    // (.toFixed(2)) string'e çevrilir — yanıt şekli değişmez.
-    let confirmed = new Prisma.Decimal(0);
-    let pending = new Prisma.Decimal(0);
-    for (const p of o.payments) {
-      if (p.status === "CONFIRMED") confirmed = confirmed.plus(p.amount);
-      else if (p.status === "AWAITING_CONFIRMATION")
-        pending = pending.plus(p.amount);
-    }
+    // S3: gösterim toplamları tek-kaynak reducer'dan (eskiden inline döngü
+    // confirmedPaymentSum'ı re-derive ediyordu). Gösterim sınırında (.toFixed(2))
+    // string'e çevrilir — yanıt şekli değişmez.
+    const confirmed = sumPaymentsByStatus(o.payments, ["CONFIRMED"]);
+    const pending = sumPaymentsByStatus(o.payments, ["AWAITING_CONFIRMATION"]);
     const total = new Prisma.Decimal(o.amount);
     const remaining = Prisma.Decimal.max(
       0,
