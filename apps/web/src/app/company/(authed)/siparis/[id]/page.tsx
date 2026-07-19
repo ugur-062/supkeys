@@ -300,6 +300,12 @@ export default function OrderDetailPage() {
       }),
     );
     w.document.close();
+    // Yazdırmayı EBEVEYN tetikler — üretilen HTML'de inline <script> yok (strict
+    // CSP script-src'i about:blank popup'ta miras alınan nonce'suz inline'ı
+    // bloklardı). Harici kaynak yok (sistem fontu, resim yok) → close sonrası
+    // içerik hazır; focus+print güvenilir çalışır.
+    w.focus();
+    w.print();
   };
 
   return (

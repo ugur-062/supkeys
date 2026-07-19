@@ -16,6 +16,13 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+// CSP nonce → dinamik render ZORUNLU: statik prerender'da per-request nonce
+// enjekte edilemez → statik HTML'deki framework script'leri nonce'suz kalır,
+// strict-dynamic altında BLOKLANIR. Root layout'ta force-dynamic tüm rotalara
+// iner (public SEO sayfaları dahil — demo fazında dinamik render kabul edildi).
+// (bkz. src/middleware.ts)
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: {
     default: "Rothern",

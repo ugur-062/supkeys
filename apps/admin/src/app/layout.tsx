@@ -4,6 +4,13 @@ import type { Metadata } from "next";
 import { Toaster } from "sonner";
 import "./globals.css";
 
+// CSP nonce → dinamik render ZORUNLU: statik prerender'da per-request nonce
+// enjekte edilemez (build'de request yok) → statik HTML'deki framework
+// script'leri nonce'suz kalır, strict-dynamic altında BLOKLANIR (login ölür).
+// Root layout'ta force-dynamic tüm rotalara iner. Admin zaten tümüyle authed →
+// statik değer yok, kayıp yok. (bkz. src/middleware.ts)
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: {
     default: "Rothern Admin",

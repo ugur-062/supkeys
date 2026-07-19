@@ -72,6 +72,5 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
 <table><thead><tr><th>Kalem</th><th style="text-align:right">Miktar</th><th style="text-align:right">Teslim</th><th style="text-align:right">Birim</th><th style="text-align:right">Tutar</th></tr></thead>
 <tbody>${rows || '<tr><td colspan="5" style="text-align:center;color:#a1a1aa">Kalem yok</td></tr>'}</tbody></table>
 <div class="tot">Toplam: ${Number(o.amount).toLocaleString("tr-TR")} ${escapeHtml(curSym)}</div>
-<script>window.onload=function(){window.print()}</script>
 </body></html>`;
 }

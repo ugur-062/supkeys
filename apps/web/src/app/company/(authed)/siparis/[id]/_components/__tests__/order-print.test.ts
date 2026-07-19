@@ -51,7 +51,8 @@ describe("buildOrderPrintHtml — stored XSS escape", () => {
     expect(html).toContain("Boru");
     expect(html).toContain("Test Firma");
     expect(html).toContain("ORD-2026-0001");
-    // Bizim print tetikleyici script'imiz korunur (enjeksiyon değil).
-    expect(html).toContain("window.print()");
+    // CSP: üretilen HTML'de HİÇBİR inline <script> yok — yazdırmayı ebeveyn
+    // tetikler (bkz. page.tsx handlePrint). strict script-src'i kırmaz.
+    expect(html).not.toContain("<script");
   });
 });
