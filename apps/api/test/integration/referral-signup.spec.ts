@@ -17,6 +17,7 @@ function svc() {
     { log: jest.fn() } as never, // audit (acceptReferralInvites fire-and-forget log'lar)
     email as never,
     { get: jest.fn().mockReturnValue("http://localhost:3000") } as never,
+    prisma as never, // bypass client (acceptReferralInvites bypass'ta)
   );
 }
 

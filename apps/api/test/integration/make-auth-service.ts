@@ -49,6 +49,7 @@ export function makeAuthService(env: Record<string, string> = {}) {
     audit as never,
     email as never,
     config as never,
+    prisma as never, // bypass client — testte owner test-db prisma (RLS yok)
   );
   return { service, supabaseAuth, audit, email, jwt };
 }

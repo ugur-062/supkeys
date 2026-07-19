@@ -22,7 +22,10 @@ import {
 import { effectiveTier } from "../../../common/company/effective-tier";
 import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
 import { NOTIFICATION_PREF_KEYS } from "../../../common/notifications/notification-prefs";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import {
+  PrismaService,
+  PrismaBypassService,
+} from "../../../common/prisma/prisma.service";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { AuditService } from "../../audit/audit.service";
 import { EmailService } from "../../email/email.service";
@@ -63,6 +66,12 @@ export class CompanyAuthService {
     private readonly audit: AuditService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
+    // RLS Faz 2: pre-context (giriş-öncesi) kimlik-çözümü bypass client ile
+    // koşar (tenant bağlamı YOK → RLS'li main client bloklardı). YALNIZ
+    // pre-context metodlarda (login/signup/verify/…) kullanılır; authenticated
+    // self-yönetim metodları (getMe/changePassword/2FA-setup) main'de RLS-korumalı
+    // kalır. bkz. bu servisteki this.bypass kullanımları.
+    private readonly bypass: PrismaBypassService,
   ) {}
 
   // ============================================================
@@ -72,7 +81,7 @@ export class CompanyAuthService {
     const email = dto.email.toLowerCase().trim();
 
     // Aynı e-posta zaten bir CompanyUser'da var mı? (dostane mesaj)
-    const existing = await this.prisma.companyUser.findUnique({
+    const existing = await this.bypass.companyUser.findUnique({
       where: { email },
       select: { id: true },
     });
@@ -93,7 +102,7 @@ export class CompanyAuthService {
     //    güncellenir. E-posta doğrulanmadan (emailVerifiedAt=null) login engelli.
     let result: { company: Company; user: CompanyUser };
     try {
-      result = await runTenantTx(this.prisma, async (tx) => {
+      result = await runTenantTx(this.bypass, async (tx) => {
         const company = await tx.company.create({
           data: {
             name: `${dto.firstName.trim()} ${dto.lastName.trim()} Firması`,
@@ -195,11 +204,11 @@ export class CompanyAuthService {
     kind: "verify" | "login" = "verify",
   ): Promise<{ sent: boolean }> {
     const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
-    await this.prisma.emailVerificationCode.updateMany({
+    await this.bypass.emailVerificationCode.updateMany({
       where: { companyUserId: userId, usedAt: null },
       data: { usedAt: new Date() }, // eskileri kapat
     });
-    await this.prisma.emailVerificationCode.create({
+    await this.bypass.emailVerificationCode.create({
       data: {
         companyUserId: userId,
         codeHash: this.hashCode(code),
@@ -247,7 +256,7 @@ export class CompanyAuthService {
    * sarmalayıcısı; kod/TTL/hash mantığı tek yerde kalır.
    */
   async adminResendVerificationCode(userId: string): Promise<void> {
-    const user = await this.prisma.companyUser.findUnique({
+    const user = await this.bypass.companyUser.findUnique({
       where: { id: userId },
       select: { email: true, firstName: true, emailVerifiedAt: true },
     });
@@ -266,20 +275,20 @@ export class CompanyAuthService {
     userId: string,
     code: string,
   ): Promise<boolean> {
-    const record = await this.prisma.emailVerificationCode.findFirst({
+    const record = await this.bypass.emailVerificationCode.findFirst({
       where: { companyUserId: userId, usedAt: null },
       orderBy: { createdAt: "desc" },
     });
     if (!record || record.expiresAt < new Date()) return false;
     if (record.attempts >= EMAIL_CODE_MAX_ATTEMPTS) return false;
     if (record.codeHash !== this.hashCode(code.trim())) {
-      await this.prisma.emailVerificationCode.update({
+      await this.bypass.emailVerificationCode.update({
         where: { id: record.id },
         data: { attempts: { increment: 1 } },
       });
       return false;
     }
-    await this.prisma.emailVerificationCode.update({
+    await this.bypass.emailVerificationCode.update({
       where: { id: record.id },
       data: { usedAt: new Date() },
     });
@@ -289,7 +298,7 @@ export class CompanyAuthService {
   /** Kodu doğrula → emailVerifiedAt set + otomatik login (token). */
   async verifyEmail(email: string, code: string) {
     const normalized = email.toLowerCase().trim();
-    const user = await this.prisma.companyUser.findUnique({
+    const user = await this.bypass.companyUser.findUnique({
       where: { email: normalized },
       include: { company: true },
     });
@@ -300,7 +309,7 @@ export class CompanyAuthService {
     if (user.emailVerifiedAt) {
       return { alreadyVerified: true as const };
     }
-    const record = await this.prisma.emailVerificationCode.findFirst({
+    const record = await this.bypass.emailVerificationCode.findFirst({
       where: { companyUserId: user.id, usedAt: null },
       orderBy: { createdAt: "desc" },
     });
@@ -313,18 +322,18 @@ export class CompanyAuthService {
       );
     }
     if (record.codeHash !== this.hashCode(code)) {
-      await this.prisma.emailVerificationCode.update({
+      await this.bypass.emailVerificationCode.update({
         where: { id: record.id },
         data: { attempts: { increment: 1 } },
       });
       throw new BadRequestException("Kod geçersiz veya süresi dolmuş");
     }
-    const [, updatedUser] = await this.prisma.$transaction([
-      this.prisma.emailVerificationCode.update({
+    const [, updatedUser] = await this.bypass.$transaction([
+      this.bypass.emailVerificationCode.update({
         where: { id: record.id },
         data: { usedAt: new Date() },
       }),
-      this.prisma.companyUser.update({
+      this.bypass.companyUser.update({
         where: { id: user.id },
         data: { emailVerifiedAt: new Date() },
         include: { company: true },
@@ -336,7 +345,7 @@ export class CompanyAuthService {
   /** Kodu yeniden gönder (enumeration'a karşı her zaman genel yanıt). */
   async resendEmailCode(email: string) {
     const normalized = email.toLowerCase().trim();
-    const user = await this.prisma.companyUser.findUnique({
+    const user = await this.bypass.companyUser.findUnique({
       where: { email: normalized },
       select: { id: true, firstName: true, emailVerifiedAt: true },
     });
@@ -485,7 +494,7 @@ export class CompanyAuthService {
     newCompanyId: string,
     usedToken?: string,
   ): Promise<void> {
-    const invites = await this.prisma.companyReferralInvite.findMany({
+    const invites = await this.bypass.companyReferralInvite.findMany({
       where: { email, status: "PENDING" },
       select: {
         id: true,
@@ -495,7 +504,7 @@ export class CompanyAuthService {
       },
     });
     if (invites.length === 0) return;
-    const newCompany = await this.prisma.company.findUnique({
+    const newCompany = await this.bypass.company.findUnique({
       where: { id: newCompanyId },
       select: { name: true },
     });
@@ -506,7 +515,7 @@ export class CompanyAuthService {
       // PENDING İSTEK olur (yeni firma listIncoming'de görür, mevcut accept/reject
       // ile onaylar). Token yoksa (doğrudan signup) HEPSİ PENDING istek → güvenli.
       const isUsed = !!usedToken && inv.token === usedToken;
-      const conn = await this.prisma.companyConnection.upsert({
+      const conn = await this.bypass.companyConnection.upsert({
         where: {
           inviterCompanyId_inviteeCompanyId: {
             inviterCompanyId: inv.inviterCompanyId,
@@ -523,7 +532,7 @@ export class CompanyAuthService {
         },
         update: {},
       });
-      await this.prisma.companyReferralInvite.update({
+      await this.bypass.companyReferralInvite.update({
         where: { id: inv.id },
         data: {
           status: "ACCEPTED",
@@ -596,7 +605,7 @@ export class CompanyAuthService {
       throw new UnauthorizedException("E-posta veya şifre hatalı");
     }
 
-    const user = await this.prisma.companyUser.findUnique({
+    const user = await this.bypass.companyUser.findUnique({
       where: { authId },
       include: { company: true },
     });
@@ -839,7 +848,7 @@ export class CompanyAuthService {
     userId: string,
     code: string,
   ): Promise<{ ok: boolean; usedRecovery: boolean }> {
-    const user = await this.prisma.companyUser.findUnique({
+    const user = await this.bypass.companyUser.findUnique({
       where: { id: userId },
       select: {
         twoFactorMethod: true,
@@ -866,7 +875,7 @@ export class CompanyAuthService {
     // Kurtarma kodu — her iki yöntemde de geçerli; hash eşleşirse listeden düş.
     const hash = this.hashRecoveryCode(trimmed);
     if (user.twoFactorRecoveryCodes.includes(hash)) {
-      await this.prisma.companyUser.update({
+      await this.bypass.companyUser.update({
         where: { id: userId },
         data: {
           twoFactorRecoveryCodes: user.twoFactorRecoveryCodes.filter(
@@ -944,7 +953,7 @@ export class CompanyAuthService {
 
   /** Firmanın bildirim e-postası (billingEmail → ilk aktif kullanıcı). */
   private async companyNotifyEmail(companyId: string) {
-    const c = await this.prisma.company.findUnique({
+    const c = await this.bypass.company.findUnique({
       where: { id: companyId },
       select: {
         name: true,
@@ -999,7 +1008,7 @@ export class CompanyAuthService {
 
   /** E-posta 2FA kurulumu/kapatma için kod gönder (kullanıcının e-postasına). */
   async sendEmailTwoFactorCode(userId: string) {
-    const user = await this.prisma.companyUser.findUnique({
+    const user = await this.bypass.companyUser.findUnique({
       where: { id: userId },
       select: { email: true, firstName: true },
     });
@@ -1236,7 +1245,7 @@ export class CompanyAuthService {
    * akışlar için (token'lı davet linki). Login ile aynı yanıt şekli.
    */
   async createSession(userId: string, ctx?: Ctx) {
-    const user = await this.prisma.companyUser.findUnique({
+    const user = await this.bypass.companyUser.findUnique({
       where: { id: userId },
       include: { company: true },
     });
@@ -1252,7 +1261,7 @@ export class CompanyAuthService {
     company: Company,
     ctx?: Ctx,
   ) {
-    await this.prisma.companyUser.update({
+    await this.bypass.companyUser.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
@@ -1316,7 +1325,7 @@ export class CompanyAuthService {
   private async generateUniqueRothernId(): Promise<string> {
     for (let i = 0; i < 10; i++) {
       const code = generateShortCode();
-      const exists = await this.prisma.company.count({
+      const exists = await this.bypass.company.count({
         where: { rothernId: code },
       });
       if (exists === 0) return code;
