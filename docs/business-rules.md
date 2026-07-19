@@ -205,14 +205,23 @@ Ayrıntılı bulgular: `docs/audit-findings-crossfield.md`. Kapanan canlı ırak
 | ✅ | **X-CF-2** açık eksiltme kur damgası `getFreshRate` (taze TCMB yoksa publish 400, ilan DRAFT kalır — fail-OPEN'a düşmez; gate publishListing'de SENKRON) | `886ddfb` |
 | ✅ | **BK-2** revizyon `unitPrice @Min(0.01)` (0-fiyatlı sipariş sıfır-ödemeyle COMPLETED olamaz) | `3ff0e75` |
 
-**Yapısal tek-kaynak drift-riskleri (S1-S8)** — bugün İHLAL YOK, ama aynı büyüklüğü 2+
-yerde hesaplayan hatlar; regresyon nöbetçisi olarak izlenmeli (sonraki tur denetimi):
+**Yapısal tek-kaynak drift-riskleri (S1-S8) — ✅ HEPSİ TEK-KAYNAĞA İNDİRİLDİ**
+(2026-07-19, 8 ayrı commit). Her büyüklük saf helper'a çıkarıldı (`common/company/`),
+tekrarlı hatlar helper'ı çağırır; üçüncü tanım yaratılmadı. Her biri kendi testiyle:
 
-| # | Büyüklük | Not / nöbetçi |
-|---|----------|---------------|
-| 🟡 | **S5** order-total türetme | runFullAward `=bid.amount` vs runItemAward `=Σ yeniden hesap`; eşit ÇÜNKÜ placeBid bid.amount'u listing-qty ile hesaplar (teklif DTO'sunda `quantity` YOK) + `updateListing` bidCount kilidi status-FİLTRESİZ. **Nöbetçi:** kilit status-filtreli count'a çevrilirse S5 sessiz para-ıraksamasına döner |
-| 🟡 | **S8** order kalem precision | `buildItemGroups Number(unitPrice)` vs runFullAward ham Decimal; MAX_MONEY-ölçek fiyatta fidelity farkı (edge) |
-| 🟢 | **S1-S4, S6-S7** | tutarlı (fiyatlı-kalem tanımı, comparable teklif, confirmedPaymentSum karar-yolu tek-kaynak/display re-derive, committed cap, closesAt `>=`/`lte` sınırı, bid-validity formülü) — tek-kaynak korundu |
+| # | Büyüklük | Helper (common/company) | Commit |
+|---|----------|--------------------------|--------|
+| ✅ S1 | fiyatlı kalem `unitPrice>0` | `bid-items.PRICED_ITEM_WHERE` (4 site) | `2ca8a821` |
+| ✅ S2 | tam-kapsam kıyas filtresi | `bid-items.bidCoversAllItems` (owner+public; rankAuctionBids impure→serviste) | `35f8c99b` |
+| ✅ S3 | CONFIRMED gösterim toplamı | `order-payments.sumPaymentsByStatus` (getOne; karar-yolu `confirmedPaymentSum` agg query AYRI) | `f34c0f24` |
+| ✅ S4 | committed (AWAITING+CONFIRMED) | aynı `sumPaymentsByStatus` (recordPayment cap + getOne remaining) | `450b0fbd` |
+| ✅ S5 | order-total magnitude | `bid-items.lineTotal`/`sumLineTotals` (placeBid+buildItemGroups) **+ runFullAward FAIL-CLOSED nöbetçi** (bid.amount≡Σ değilse tx öncesi 400) | `736e3248` |
+| ✅ S6 | closesAt-dahil sınır | `listing-timing.isListingClosedAt` (placeBid+buyNow; cron `lte` Prisma aynası yorumla senkron) | `e17b8ebd` |
+| ✅ S7 | bid-validity expiry | `listing-timing.bidValidUntilMs` (createNextRound+extendBidValidity) | `cd937cc8` |
+| ✅ S8 | order kalem precision | `buildItemGroups` ham Decimal (runFullAward ile hizalı; `Number()` kalktı) | `1777447e` |
+
+Not: S5 nöbetçisi doc'un istediği "kilit statü-filtreli olursa sessiz ıraksama" senaryosunu
+makineyle yakalar (invariant kırılırsa award fail-closed, yanlış tutarlı sipariş yazılmaz).
 
 **Kör noktalar (bu turda OKUNMADI → sonraki tur):** CL `create` 961-1175 (create-anı
 `minPrice`/`buyNowUnitPrice` doğrulaması placeBid floor-check'iyle tutarlı mı?);

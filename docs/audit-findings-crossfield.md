@@ -45,6 +45,11 @@
 
 ## 🟢 YAPISAL RİSK (bugün TUTARLI, tek-kaynak yok → düzenlemede yeniden-ıraksayabilir)
 
+> **✅ GÜNCELLEME (2026-07-19): S1-S8'in TAMAMI tek-kaynağa indirildi** (8 ayrı commit,
+> saf helper'lar `common/company/`). Aşağıdaki tablo tarihsel tespit; güncel durum +
+> commit'ler için `docs/business-rules.md` "S1-S8 ✅" bölümüne bak. S5'e ayrıca
+> runFullAward fail-closed nöbetçisi eklendi (bid.amount≡Σ ihlali → award durur).
+
 Tekrarlanan-tanım/tekrarlanan-hesap yerleri (X5 sınıfı, şu an senkron):
 
 | # | Büyüklük | Yerler | Durum |
