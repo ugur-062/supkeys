@@ -14,6 +14,11 @@ const FURTHER = new Date(Date.now() + 14 * 86_400_000);
 function rig() {
   const companies = { notifyCompany: jest.fn().mockResolvedValue(undefined) };
   const audit = new AuditService(prisma as never);
+  // RLS modeli: admin-inspection cross-tenant OKUR (ilan/sipariş/bağlantı birden
+  // çok firmayı kapsar — inceleme doğası). Servis BYPASS client enjekte eder
+  // (PrismaBypassService, RLS'siz owner rol). Testte owner test-db prisma =
+  // bypass eşdeğeri → cross-tenant okumalar RLS-DOĞRU (admin bypass'a tabi, RLS
+  // kısıtlamasına DEĞİL). Domain servisleri (listing/order/bid) asla bypass DEĞİL.
   const service = new AdminInspectionService(
     prisma as never,
     audit,
