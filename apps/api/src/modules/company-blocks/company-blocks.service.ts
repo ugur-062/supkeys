@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { normalizeShortCode, validateShortCode } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { runTenantTx } from "../../common/prisma/tenant-tx";
 import { AuditService } from "../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 
@@ -55,8 +56,8 @@ export class CompanyBlocksService {
       throw new BadRequestException("Kendinizi engelleyemezsiniz");
     }
 
-    await this.prisma.$transaction([
-      this.prisma.companyBlock.upsert({
+    await runTenantTx(this.prisma, async (tx) => {
+      await tx.companyBlock.upsert({
         where: {
           blockerCompanyId_blockedCompanyId: {
             blockerCompanyId: actor.companyId,
@@ -69,17 +70,17 @@ export class CompanyBlocksService {
           reason: reason?.trim() || null,
         },
         update: { reason: reason?.trim() || null },
-      }),
+      });
       // Mevcut bağlantı/davet varsa kaldır (iki yön).
-      this.prisma.companyConnection.deleteMany({
+      await tx.companyConnection.deleteMany({
         where: {
           OR: [
             { inviterCompanyId: actor.companyId, inviteeCompanyId: target.id },
             { inviterCompanyId: target.id, inviteeCompanyId: actor.companyId },
           ],
         },
-      }),
-    ]);
+      });
+    });
     // INV-AUDIT-1 (dalga 3): engelleme ilişkiyi de koparır → uyuşmazlıkta delil.
     await this.audit.log({
       action: "company.connection.blocked",

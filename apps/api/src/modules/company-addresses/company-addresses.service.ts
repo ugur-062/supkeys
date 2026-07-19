@@ -117,22 +117,22 @@ export class CompanyAddressesService {
         `Bu adres ${bidUse} gönderilmiş teklifte kullanılıyor — teklif sonuçlanana kadar silinemez`,
       );
     }
-    await this.prisma.$transaction([
+    await runTenantTx(this.prisma, async (tx) => {
       // Sonuçlanmış (AWARDED/iptal) ilanlardaki sarkan referansları temizle
       // (sipariş adresi zaten award anında snapshot'landı).
-      this.prisma.listing.updateMany({
+      await tx.listing.updateMany({
         where: { companyId: user.companyId, deliveryAddressId: id },
         data: { deliveryAddressId: null },
-      }),
-      this.prisma.listing.updateMany({
+      });
+      await tx.listing.updateMany({
         where: { companyId: user.companyId, billingAddressId: id },
         data: { billingAddressId: null },
-      }),
+      });
       // deleteMany + companyId: requireOwn sonrası TOCTOU penceresini kapatır.
-      this.prisma.companyAddress.deleteMany({
+      await tx.companyAddress.deleteMany({
         where: { id, companyId: user.companyId },
-      }),
-    ]);
+      });
+    });
     return { ok: true };
   }
 

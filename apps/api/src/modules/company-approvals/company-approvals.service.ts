@@ -866,16 +866,16 @@ export class CompanyApprovalsService {
         },
       );
     } catch (err) {
-      await this.prisma.$transaction([
-        this.prisma.approvalRequestStep.update({
+      await runTenantTx(this.prisma, async (tx) => {
+        await tx.approvalRequestStep.update({
           where: { id: step.id },
           data: { status: "PENDING", decidedAt: null, note: null },
-        }),
-        this.prisma.approvalRequest.update({
+        });
+        await tx.approvalRequest.update({
           where: { id: req.id },
           data: { status: "PENDING", decidedAt: null },
-        }),
-      ]);
+        });
+      });
       this.logger.error(
         `Kazandırma uygulanamadı, onay geri alındı (istek ${req.id}): ${
           err instanceof Error ? err.message : String(err)
