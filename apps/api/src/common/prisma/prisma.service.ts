@@ -22,6 +22,35 @@ export class PrismaService
 }
 
 /**
+ * BYPASS client (INV-MT-5 Faz 1d) — RLS extension'ı ASLA uygulanmaz. Cross-tenant
+ * / bağlamsız erişimler için: admin realm (tüm firmaları okur), auth pre-context
+ * (jwt-validate/login — firma bağlamından ÖNCE companyUser'ı cross-tenant bulur),
+ * cron/sistem işleri (bağlam yok). Faz 2+ prod'da `DATABASE_URL_BYPASS` OWNER/
+ * BYPASSRLS rolüne bağlanır → RLS'i YAPISAL bypass eder (ana client kısıtlı role
+ * geçince). Env verilmezse ana `DATABASE_URL` (bugün owner) → BİREBİR aynı davranış.
+ *
+ * Wiring (admin/auth/cron servislerine enjeksiyon) Faz 2'de yapılır — orada
+ * kısıtlı rol + policy'lerle bypass GERÇEKTEN test edilebilir; bugün (flag OFF,
+ * policy yok) inert altyapı.
+ */
+@Injectable()
+export class PrismaBypassService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
+  constructor() {
+    const url = process.env.DATABASE_URL_BYPASS;
+    super(url ? { datasources: { db: { url } } } : undefined);
+  }
+  async onModuleInit() {
+    await this.$connect();
+  }
+  async onModuleDestroy() {
+    await this.$disconnect();
+  }
+}
+
+/**
  * DI değeri üretir (INV-MT-5 Faz 1c wiring).
  *
  * - `RLS_ENABLED !== "true"` → ÇIPLAK `PrismaService` instance'ı döner —

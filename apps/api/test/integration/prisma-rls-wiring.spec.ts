@@ -5,7 +5,10 @@
  * flag dallanması. (instanceof KULLANILMAZ: Prisma client constructor proxied
  * nesne döndürür → instanceof artefaktı; servisler yapısal kullanır.)
  */
-import { createInjectablePrisma } from "../../src/common/prisma/prisma.service";
+import {
+  createInjectablePrisma,
+  PrismaBypassService,
+} from "../../src/common/prisma/prisma.service";
 
 const usable = (p: unknown) => {
   const c = p as Record<string, unknown>;
@@ -31,6 +34,14 @@ describe("createInjectablePrisma — RLS wiring", () => {
       RLS_ENABLED: "true",
     } as NodeJS.ProcessEnv);
     expect(off).not.toBe(on);
+  });
+
+  it("PrismaBypassService: RLS extension'sız kullanılabilir client (Faz 1d)", async () => {
+    const bp = new PrismaBypassService();
+    // Yapısal: model delegate + tx + lifecycle. Extension asla uygulanmaz
+    // (hiç .$extends edilmez) → cross-tenant/bağlamsız erişim için.
+    usable(bp);
+    await bp.onModuleDestroy(); // hiç connect edilmedi → no-op güvenli
   });
   // NOT: gerçek connect+query boot-smoke'u BU harness'ta yapılamaz — factory ham
   // DATABASE_URL (schema=public) okur, test verisi env.ts ile rothern_test
