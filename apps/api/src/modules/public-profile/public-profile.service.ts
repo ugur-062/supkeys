@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import {
   effectiveTier,
   effectivePaidWhere,
@@ -11,7 +11,7 @@ import {
  */
 @Injectable()
 export class PublicProfileService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaBypassService) {}
 
   async getBySlug(slug: string) {
     const c = await this.prisma.company.findUnique({
