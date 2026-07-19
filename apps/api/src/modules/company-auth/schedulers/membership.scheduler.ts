@@ -5,7 +5,7 @@ import {
   CronRegistryService,
   trackCronRun,
 } from "../../../common/cron/cron-registry.service";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import { PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { EmailService } from "../../email/email.service";
 import { resolveWebUrl } from "../../../common/config/web-url";
 
@@ -14,7 +14,7 @@ export class MembershipScheduler implements OnModuleInit {
   private readonly logger = new Logger(MembershipScheduler.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaBypassService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
     // @Optional: testler scheduler'ı DI dışında elle `new`'ler.

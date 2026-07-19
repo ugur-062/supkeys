@@ -16,7 +16,7 @@ import {
   requiredKinds,
   type DocKind,
 } from "../company-docs/company-docs.service";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { EmailService } from "../email/email.service";
 import { EmailSuppressionService } from "../email/email-suppression.service";
@@ -28,7 +28,7 @@ export class AdminCompaniesService {
   private readonly logger = new Logger(AdminCompaniesService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaBypassService,
     private readonly storage: StorageService,
     private readonly email: EmailService,
     private readonly notifications: NotificationService,

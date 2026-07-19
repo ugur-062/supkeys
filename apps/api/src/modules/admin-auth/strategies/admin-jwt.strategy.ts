@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import { PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { readAuthCookie } from "../../../common/auth/cookie";
 
 export interface AdminJwtPayload {
@@ -16,7 +16,7 @@ export interface AdminJwtPayload {
 export class AdminJwtStrategy extends PassportStrategy(Strategy, "admin-jwt") {
   constructor(
     config: ConfigService,
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaBypassService,
   ) {
     super({
       // Önce httpOnly cookie (yeni), geri düşüş Bearer header (geçiş uyumu).

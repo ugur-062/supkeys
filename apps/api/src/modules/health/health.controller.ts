@@ -1,6 +1,6 @@
 import { Controller, Get, Logger, UseGuards } from "@nestjs/common";
 import { SkipThrottle } from "@nestjs/throttler";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { StorageService } from "../storage/storage.service";
 import { ExchangeRateService } from "../currency/services/exchange-rate.service";
 import { AllowAnyAdminRole } from "../admin-auth/decorators/allow-any-admin-role.decorator";
@@ -29,7 +29,7 @@ export class HealthController {
   private readonly logger = new Logger(HealthController.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaBypassService,
     private readonly storage: StorageService,
     private readonly exchangeRates: ExchangeRateService,
   ) {}

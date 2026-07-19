@@ -9,7 +9,7 @@ import {
   CronRegistryService,
   trackCronRun,
 } from "../../../common/cron/cron-registry.service";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import { PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { CompanyListingsService } from "../services/company-listings.service";
 
 @Injectable()
@@ -17,7 +17,7 @@ export class ListingScheduler implements OnModuleInit {
   private readonly logger = new Logger(ListingScheduler.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaBypassService,
     private readonly listings: CompanyListingsService,
     // @Optional: testler scheduler'ı DI dışında elle `new`'leyebilir.
     @Optional() private readonly cronRegistry?: CronRegistryService,

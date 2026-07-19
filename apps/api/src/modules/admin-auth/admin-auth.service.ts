@@ -5,7 +5,7 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { authenticator } from "otplib";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { AdminLoginDto } from "./dto/admin-login.dto";
@@ -16,7 +16,7 @@ const INVALID_CREDENTIALS_MESSAGE = "E-posta veya şifre hatalı";
 @Injectable()
 export class AdminAuthService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaBypassService,
     private readonly jwt: JwtService,
     private readonly supabaseAuth: SupabaseAuthService,
     private readonly audit: AuditService,

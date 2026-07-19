@@ -6,7 +6,7 @@ import {
   Optional,
 } from "@nestjs/common";
 import { Prisma, type CompanyOrderStatus } from "@rothern/db";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { RealtimeService } from "../realtime/realtime.service";
 import { AdminCompaniesService } from "./admin-companies.service";
@@ -22,7 +22,7 @@ export class AdminInspectionService {
   private readonly logger = new Logger(AdminInspectionService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaBypassService,
     private readonly audit: AuditService,
     private readonly companies: AdminCompaniesService,
     @Optional() private readonly realtime?: RealtimeService,

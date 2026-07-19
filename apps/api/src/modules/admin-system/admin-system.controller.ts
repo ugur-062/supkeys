@@ -21,7 +21,7 @@ import {
   type AuthenticatedAdmin,
 } from "../../common/decorators/current-admin.decorator";
 import { CronRegistryService } from "../../common/cron/cron-registry.service";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { AllowAnyAdminRole } from "../admin-auth/decorators/allow-any-admin-role.decorator";
 import { RequireAdminRole } from "../admin-auth/decorators/require-admin-role.decorator";
@@ -66,7 +66,7 @@ class ClearSuppressionDto {
 @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
 export class AdminSystemController {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaBypassService,
     private readonly exchangeRates: ExchangeRateService,
     private readonly cronRegistry: CronRegistryService,
     private readonly audit: AuditService,

@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import type { CompanyRole } from "@rothern/db";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { CompanyAuthService } from "../company-auth/services/company-auth.service";
 import { PasswordResetService } from "../password-reset/password-reset.service";
@@ -31,7 +31,7 @@ export class AdminCompanyUsersService {
   private readonly logger = new Logger(AdminCompanyUsersService.name);
 
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaBypassService,
     private readonly audit: AuditService,
     private readonly passwordReset: PasswordResetService,
     private readonly companyAuth: CompanyAuthService,

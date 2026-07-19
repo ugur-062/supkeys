@@ -7,7 +7,7 @@ import type {
   CompanyVerificationStatus,
 } from "@rothern/db";
 import { ExtractJwt, Strategy } from "passport-jwt";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import { PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { readAuthCookie } from "../../../common/auth/cookie";
 import { effectiveTier } from "../../../common/company/effective-tier";
 import type { CompanyPermissionOverride } from "../permissions/company-permissions.constants";
@@ -44,7 +44,7 @@ export class CompanyJwtStrategy extends PassportStrategy(
 ) {
   constructor(
     config: ConfigService,
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaBypassService,
   ) {
     super({
       // Önce httpOnly cookie (yeni), geri düşüş Bearer header (geçiş uyumu).

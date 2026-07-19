@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import type { AdminRole } from "@rothern/db";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 
@@ -26,7 +26,7 @@ function tempPassword(): string {
 @Injectable()
 export class AdminStaffService {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaBypassService,
     private readonly audit: AuditService,
     private readonly supabase: SupabaseAuthService,
   ) {}
