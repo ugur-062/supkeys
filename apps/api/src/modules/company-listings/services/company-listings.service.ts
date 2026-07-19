@@ -40,6 +40,7 @@ import {
   effectivePaidWhere,
 } from "../../../common/company/effective-tier";
 import { isListingVisibleToViewer } from "../../../common/company/listing-visibility";
+import { PRICED_ITEM_WHERE } from "../../../common/company/bid-items";
 import { AuditService } from "../../audit/audit.service";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
@@ -2072,7 +2073,7 @@ export class CompanyListingsService {
               // Kapsam kontrolü: fiyatlanmış kalem sayısı (aşağıda tam
               // kapsam filtresi için) — kalem detayı sızdırılmaz.
               items: {
-                where: { unitPrice: { gt: 0 } },
+                where: { ...PRICED_ITEM_WHERE },
                 select: { itemId: true },
               },
             },
@@ -2700,7 +2701,7 @@ export class CompanyListingsService {
         exchangeRateSnapshot: true,
         // Kapsam kontrolü — fiyatlanmış kalem sayısı (detay sızdırılmaz).
         items: {
-          where: { unitPrice: { gt: 0 } },
+          where: { ...PRICED_ITEM_WHERE },
           select: { itemId: true },
         },
       },
@@ -2943,7 +2944,7 @@ export class CompanyListingsService {
             // Monotonluk kıyası AYNI KALEMLER bazında — önceki teklifte
             // fiyatlanmış kalemler (kapsam genişletme serbest, bırakma yasak).
             items: {
-              where: { unitPrice: { gt: 0 } },
+              where: { ...PRICED_ITEM_WHERE },
               select: { itemId: true },
             },
           },
@@ -4786,7 +4787,7 @@ export class CompanyListingsService {
       // X5: "fiyatlı kalem" = unitPrice>0 — sıralama/kapsam tarafıyla AYNI tanım
       // (L:1977/2521). Eskiden filtresiz `_count._all` idi → 0-fiyatlı kalem satırı
       // olan TAM kazanan yanlışlıkla AWARDED_PARTIAL damgalanıyordu.
-      where: { bidId: { in: winningBidIds }, unitPrice: { gt: 0 } },
+      where: { bidId: { in: winningBidIds }, ...PRICED_ITEM_WHERE },
       _count: { _all: true },
     });
     const pricedByBid = new Map(
