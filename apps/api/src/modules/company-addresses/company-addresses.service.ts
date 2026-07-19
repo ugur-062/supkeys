@@ -5,6 +5,7 @@ import {
 } from "@nestjs/common";
 import { CompanyAddressType, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { runTenantTx } from "../../common/prisma/tenant-tx";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { UpsertAddressDto } from "./dto/company-address.dto";
 
@@ -21,7 +22,7 @@ export class CompanyAddressesService {
 
   async create(user: AuthenticatedCompanyUser, dto: UpsertAddressDto) {
     const type = dto.type as CompanyAddressType;
-    const address = await this.prisma.$transaction(async (tx) => {
+    const address = await runTenantTx(this.prisma, async (tx) => {
       const created = await tx.companyAddress.create({
         data: {
           companyId: user.companyId,
@@ -54,7 +55,7 @@ export class CompanyAddressesService {
   ) {
     await this.requireOwn(user.companyId, id);
     const type = dto.type as CompanyAddressType;
-    const updated = await this.prisma.$transaction(async (tx) => {
+    const updated = await runTenantTx(this.prisma, async (tx) => {
       const u = await tx.companyAddress.update({
         where: { id },
         data: {

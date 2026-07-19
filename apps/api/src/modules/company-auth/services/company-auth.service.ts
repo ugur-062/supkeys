@@ -23,6 +23,7 @@ import { effectiveTier } from "../../../common/company/effective-tier";
 import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
 import { NOTIFICATION_PREF_KEYS } from "../../../common/notifications/notification-prefs";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { AuditService } from "../../audit/audit.service";
 import { EmailService } from "../../email/email.service";
 import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
@@ -92,7 +93,7 @@ export class CompanyAuthService {
     //    güncellenir. E-posta doğrulanmadan (emailVerifiedAt=null) login engelli.
     let result: { company: Company; user: CompanyUser };
     try {
-      result = await this.prisma.$transaction(async (tx) => {
+      result = await runTenantTx(this.prisma, async (tx) => {
         const company = await tx.company.create({
           data: {
             name: `${dto.firstName.trim()} ${dto.lastName.trim()} Firması`,
@@ -405,7 +406,7 @@ export class CompanyAuthService {
     const roles: CompanyRole[] = [CompanyRole.SAHIP];
     const deliverySame = dto.deliverySameAsBilling !== false;
 
-    await this.prisma.$transaction(async (tx) => {
+    await runTenantTx(this.prisma, async (tx) => {
       await tx.company.update({
         where: { id: companyId },
         data: {

@@ -10,6 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import { normalizeShortCode, validateShortCode } from "@rothern/shared";
 import { Prisma } from "@rothern/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { AuditService } from "../../audit/audit.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -841,7 +842,7 @@ export class CompanyConnectionsService {
     // Sıra önemli: yön-bağımsız partial unique index (PENDING+ACTIVE) A→B ACTIVE
     // olurken B→A PENDING ile çakışırdı; önce silmek çakışmayı önler. Geçiş
     // koşullu (status=PENDING) kalır → reject/disconnect yarışında count=0.
-    const updatedCount = await this.prisma.$transaction(async (tx) => {
+    const updatedCount = await runTenantTx(this.prisma, async (tx) => {
       // Çapraz yarış temizliği: iki firma AYNI ANDA birbirine istek attıysa
       // ters yönde ikinci bir PENDING kayıt oluşmuş olabilir.
       await tx.companyConnection.deleteMany({

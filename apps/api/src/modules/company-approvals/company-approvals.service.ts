@@ -11,6 +11,7 @@ import { EventEmitter2 } from "@nestjs/event-emitter";
 import { CompanyRole, Prisma } from "@rothern/db";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { runTenantTx } from "../../common/prisma/tenant-tx";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { AuditService } from "../audit/audit.service";
 import { EmailService } from "../email/email.service";
@@ -328,7 +329,7 @@ export class CompanyApprovalsService {
     await this.requireOwnFlow(user.companyId, flowId);
     this.validateFlowInput(dto);
     await this.assertApproversValid(user.companyId, dto.steps.map((s) => s.approverUserId));
-    await this.prisma.$transaction(async (tx) => {
+    await runTenantTx(this.prisma, async (tx) => {
       await tx.approvalFlowStep.deleteMany({ where: { flowId } });
       await tx.approvalFlow.update({
         where: { id: flowId },
@@ -360,7 +361,7 @@ export class CompanyApprovalsService {
     if (dto.status === "ACTIVE") {
       // Tek aktif kural: aynı tip + örtüşen ilan tipindeki diğer aktif akışları
       // pasifleştir (null ilan tipi her ikisiyle örtüşür).
-      await this.prisma.$transaction(async (tx) => {
+      await runTenantTx(this.prisma, async (tx) => {
         await tx.approvalFlow.updateMany({
           where: {
             companyId: user.companyId,
@@ -734,7 +735,7 @@ export class CompanyApprovalsService {
     const now = new Date();
 
     if (action === "reject") {
-      const won = await this.prisma.$transaction(async (tx) => {
+      const won = await runTenantTx(this.prisma, async (tx) => {
         // İlişki filtresi (request.status=PENDING) ters sıralı iptal yarışını da
         // yakalar: istek bu arada iptal edildiyse adım flip'i hiç olmaz.
         const cas = await tx.approvalRequestStep.updateMany({
@@ -792,7 +793,7 @@ export class CompanyApprovalsService {
     const next = req.steps.find(
       (s) => s.order > step.order && s.status === "WAITING",
     );
-    const outcome = await this.prisma.$transaction(async (tx) => {
+    const outcome = await runTenantTx(this.prisma, async (tx) => {
       const cas = await tx.approvalRequestStep.updateMany({
         where: {
           id: step.id,
@@ -946,7 +947,7 @@ export class CompanyApprovalsService {
     // hâlâ PENDING iken CANCELLED'a çevir (atomik CAS). Kaybeden taraf listing'i
     // yanlışlıkla eski duruma döndürmesin (ör. onay bitip sipariş oluştuktan
     // sonra iptal listing'i CLOSED'a düşürmesin).
-    const won = await this.prisma.$transaction(async (tx) => {
+    const won = await runTenantTx(this.prisma, async (tx) => {
       const cas = await tx.approvalRequest.updateMany({
         where: { id: req.id, status: "PENDING" },
         data: { status: "CANCELLED", decidedAt: new Date() },

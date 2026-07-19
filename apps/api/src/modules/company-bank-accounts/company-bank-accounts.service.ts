@@ -6,6 +6,7 @@ import {
 import { Prisma } from "@rothern/db";
 import { isValidIbanTr, normalizeIban } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { runTenantTx } from "../../common/prisma/tenant-tx";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { UpsertBankAccountDto } from "./dto/company-bank-account.dto";
 
@@ -26,7 +27,7 @@ export class CompanyBankAccountsService {
 
   async create(user: AuthenticatedCompanyUser, dto: UpsertBankAccountDto) {
     const iban = this.validateIban(dto.iban);
-    return this.prisma.$transaction(async (tx) => {
+    return runTenantTx(this.prisma, async (tx) => {
       const created = await tx.companyBankAccount.create({
         data: {
           companyId: user.companyId,
@@ -51,7 +52,7 @@ export class CompanyBankAccountsService {
   ) {
     await this.requireOwn(user.companyId, id);
     const iban = this.validateIban(dto.iban);
-    return this.prisma.$transaction(async (tx) => {
+    return runTenantTx(this.prisma, async (tx) => {
       const u = await tx.companyBankAccount.update({
         where: { id },
         data: {

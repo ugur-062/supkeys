@@ -22,6 +22,7 @@ import {
   type PaymentCategory,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { MAX_MONEY } from "../../../common/constants/money";
 import { sumPaymentsByStatus } from "../../../common/company/order-payments";
 import { AuditService } from "../../audit/audit.service";
@@ -520,7 +521,7 @@ export class CompanyOrdersService {
     // Sipariş satırını FOR UPDATE kilitle → CONFIRMED say → geçiş, tek tx'te.
     // paymentDecision(confirm) da aynı satırı kilitlediğinden iptal↔onay yarışı
     // serileşir: ikisi aynı anda çalışamaz, biri diğerinin sonucunu görür.
-    await this.prisma.$transaction(async (tx) => {
+    await runTenantTx(this.prisma, async (tx) => {
       const rows = await tx.$queryRaw<{ status: CompanyOrderStatus }[]>`
         SELECT "status" FROM "company_orders" WHERE "id" = ${id} FOR UPDATE`;
       const status = rows[0]?.status;
@@ -1062,7 +1063,7 @@ export class CompanyOrdersService {
     // Audit için tutar geçişini yakala (before commit-öncesi, after tx içinden).
     const amountBefore = Number(order.amount);
     let amountAfter = amountBefore;
-    await this.prisma.$transaction(async (tx) => {
+    await runTenantTx(this.prisma, async (tx) => {
       // Sipariş satırını kilitle — eşzamanlı geçiş/ödeme ile serileşir.
       const rows = await tx.$queryRaw<{ status: CompanyOrderStatus }[]>`
         SELECT "status" FROM "company_orders" WHERE "id" = ${id} FOR UPDATE`;
@@ -1367,7 +1368,7 @@ export class CompanyOrdersService {
     // YAŞAM DÖNGÜSÜ AYRIMI: LC ödemesi borcu kapatır (onaylı tam-tutar kaydı +
     // lcPaidAt damgası) ama sipariş DURUMUNU değiştirmez — operasyonel tamamlama
     // alıcının `complete()` (kabul) adımıdır, ödeme değil.
-    await this.prisma.$transaction(async (tx) => {
+    await runTenantTx(this.prisma, async (tx) => {
       const rows = await tx.$queryRaw<
         { status: CompanyOrderStatus; amount: Prisma.Decimal }[]
       >`SELECT "status","amount" FROM "company_orders" WHERE "id" = ${id} FOR UPDATE`;
@@ -1762,7 +1763,7 @@ export class CompanyOrdersService {
     // aynı siparişe eşzamanlı ödeme kayıtları serialize olur, AWAITING+CONFIRMED
     // toplamı sipariş tutarını AŞAMAZ (çift-gönderim / yarış fazla-tahsilatı kapatır).
     const isCheque = input.method?.trim() === "Çek";
-    const { payment, currency } = await this.prisma.$transaction(async (tx) => {
+    const { payment, currency } = await runTenantTx(this.prisma, async (tx) => {
       await tx.$queryRaw`SELECT id FROM company_orders WHERE id = ${id} FOR UPDATE`;
       const [orderAmt, existing] = await Promise.all([
         tx.companyOrder.findUnique({
@@ -1872,7 +1873,7 @@ export class CompanyOrdersService {
     //    para oluşmasın; cancel de aynı satırı kilitleyip CONFIRMED sayar).
     //  - REJECTED HER durumda serbest — iptal edilmiş siparişte havale yapıp
     //    asılı kalan AWAITING ödeme reddedilerek sonuçlandırılabilsin.
-    await this.prisma.$transaction(async (tx) => {
+    await runTenantTx(this.prisma, async (tx) => {
       const rows = await tx.$queryRaw<{ status: CompanyOrderStatus }[]>`
         SELECT "status" FROM "company_orders" WHERE "id" = ${id} FOR UPDATE`;
       const status = rows[0]?.status;

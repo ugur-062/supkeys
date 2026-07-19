@@ -31,6 +31,7 @@ import {
   validateShortCode,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import {
   MAX_MONEY,
   MAX_LISTING_HORIZON_MS,
@@ -1081,7 +1082,7 @@ export class CompanyListingsService {
       dto.billingAddressId,
     );
 
-    const listing = await this.prisma.$transaction(async (tx) => {
+    const listing = await runTenantTx(this.prisma, async (tx) => {
       const l = await tx.listing.create({
         data: {
           number,
@@ -1327,7 +1328,7 @@ export class CompanyListingsService {
           )
         : null;
 
-    const updated = await this.prisma.$transaction(async (tx) => {
+    const updated = await runTenantTx(this.prisma, async (tx) => {
       const l = await tx.listing.update({
         where: { id: listingId },
         data: {
@@ -3465,7 +3466,7 @@ export class CompanyListingsService {
     const deliveryDate = dto.deliveryDate ? new Date(dto.deliveryDate) : null;
     const validityDays = dto.validityDays ?? null;
 
-    const bid = await this.prisma.$transaction(async (tx) => {
+    const bid = await runTenantTx(this.prisma, async (tx) => {
       const b = await tx.listingBid.upsert({
         where: {
           listingId_bidderCompanyId: {
@@ -3847,7 +3848,7 @@ export class CompanyListingsService {
             .getCurrentRate(listing.primaryCurrency)
             .catch(() => null)
         : null;
-    const bid = await this.prisma.$transaction(async (tx) => {
+    const bid = await runTenantTx(this.prisma, async (tx) => {
       const b = await tx.listingBid.upsert({
         where: {
           listingId_bidderCompanyId: {
@@ -4146,7 +4147,7 @@ export class CompanyListingsService {
     );
 
     const number = await this.nextOrderNumber();
-    const order = await this.prisma.$transaction(async (tx) => {
+    const order = await runTenantTx(this.prisma, async (tx) => {
       // Atomik durum geçişi: yalnızca OPEN|CLOSED iken AWARDED'a geç. Eşzamanlı
       // ikinci kazandırma (ya da tekrar gönderilen onay-event'i) burada count=0
       // alır ve iptal edilir — çift sipariş oluşmaz (F1/F5).
@@ -4815,7 +4816,7 @@ export class CompanyListingsService {
       pricedCounts.map((p) => [p.bidId, p._count._all] as const),
     );
 
-    const created = await this.prisma.$transaction(async (tx) => {
+    const created = await runTenantTx(this.prisma, async (tx) => {
       // Atomik durum geçişi (çift kazandırma koruması — F1/F5).
       const transition = await tx.listing.updateMany({
         where: {
@@ -5149,7 +5150,7 @@ export class CompanyListingsService {
     const expiredBids = bids.filter(isExpiredAtOpen);
     const validBids = bids.filter((b) => !isExpiredAtOpen(b));
 
-    await this.prisma.$transaction(async (tx) => {
+    await runTenantTx(this.prisma, async (tx) => {
       const newRound = listing.currentRound + 1;
       // GUARD-FIRST (award/closeNoAward simetrisi): durum geçişini koşullu
       // atomik yaz — yalnız kaynak durum HÂLÂ geçerli VE tur değişmemişken.
@@ -5778,7 +5779,7 @@ export class CompanyListingsService {
     if (listing.status !== "OPEN") {
       throw new BadRequestException("Sadece açık ilan iptal edilebilir");
     }
-    await this.prisma.$transaction(async (tx) => {
+    await runTenantTx(this.prisma, async (tx) => {
       // GUARD-FIRST (closeNoAward simetrisi): yalnız OPEN iken iptal et.
       // award ile yarışta AWARDED yazıldıysa count=0 → rollback: CANCELLED
       // ama canlı siparişli ilan oluşmaz, aşağıdaki iptal bildirimi de hiç
@@ -6151,7 +6152,7 @@ export class CompanyListingsService {
     if (!["OPEN", "CLOSED", "IN_AWARD"].includes(listing.status)) {
       throw new BadRequestException("Bu ilan kapatılamaz");
     }
-    await this.prisma.$transaction(async (tx) => {
+    await runTenantTx(this.prisma, async (tx) => {
       // Koşullu: eşzamanlı runFullAward bu arada AWARDED + sipariş yazdıysa
       // (count=0) üzerine yazma — sipariş dururken "kazanansız kapandı" olmasın.
       const closed = await tx.listing.updateMany({

@@ -10,6 +10,7 @@ import { ConfigService } from "@nestjs/config";
 import * as crypto from "node:crypto";
 import { CompanyRole, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { runTenantTx } from "../../common/prisma/tenant-tx";
 import { AuditService } from "../audit/audit.service";
 import { CompanyAuthService } from "../company-auth/services/company-auth.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -260,7 +261,7 @@ export class CompanyUsersService {
     const now = new Date();
     let userId: string;
     try {
-      userId = await this.prisma.$transaction(async (tx) => {
+      userId = await runTenantTx(this.prisma, async (tx) => {
         // Yarış: davet hâlâ PENDING mi? (çift kabul / bu arada iptal)
         const claimed = await tx.companyUserInvitation.updateMany({
           where: { id: inv.id, status: "PENDING" },
@@ -843,7 +844,7 @@ export class CompanyUsersService {
     companyId: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
   ): Promise<T> {
-    return this.prisma.$transaction(async (tx) => {
+    return runTenantTx(this.prisma, async (tx) => {
       await tx.$queryRaw`SELECT id FROM companies WHERE id = ${companyId} FOR UPDATE`;
       return fn(tx);
     });
