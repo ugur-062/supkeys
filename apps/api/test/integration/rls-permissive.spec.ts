@@ -2,6 +2,10 @@
  * RLS Faz 2b — ENABLE RLS + permissive USING(true), KISITLI rolle koşulur.
  * Kanıt: RLS aktif AMA permissive → kısıtlı rol grant'lerle HER firmanın verisini
  * görür (grant-gap olsaydı permission denied patlardı). Gerçek izolasyon Faz 2d.
+ *
+ * NOT: hâlâ PERMISSIVE bir tablo kullanılır (company_membership_events —
+ * admin/system yazar, gerçek policy'ye Faz 2 sonuna ertelendi). addresses/bank
+ * 2d-1'de gerçek policy'ye geçti → izolasyon kanıtı rls-isolation.spec'te.
  */
 import { PrismaClient } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
@@ -24,44 +28,26 @@ beforeEach(async () => {
   await truncateAll();
 });
 
-async function addressFor(companyId: string, title: string) {
-  return prisma.companyAddress.create({
-    data: {
-      companyId,
-      title,
-      type: "TESLIMAT",
-      addressLine: "X",
-      city: "İstanbul",
-      country: "TR",
-    },
-  });
-}
+const eventFor = (companyId: string, reason: string) =>
+  prisma.companyMembershipEvent.create({ data: { companyId, action: "GRANT", reason } });
 
 describe("Faz 2b — RLS enabled + permissive (kısıtlı rol)", () => {
-  it("RLS aktif ama permissive → kısıtlı rol İKİ firmanın da adresini görür (grant tam)", async () => {
+  it("RLS aktif ama permissive → kısıtlı rol İKİ firmanın da kaydını görür (grant tam)", async () => {
     const a = await makeCompany(prisma, { name: "A" });
     const b = await makeCompany(prisma, { name: "B" });
-    await addressFor(a.id, "A-adres");
-    await addressFor(b.id, "B-adres");
+    await eventFor(a.id, "A-olay");
+    await eventFor(b.id, "B-olay");
 
-    // Kısıtlı rol (RLS'e tabi) — permissive USING(true) → hepsini görür.
-    const rows = await restricted.companyAddress.findMany({
-      orderBy: { title: "asc" },
+    const rows = await restricted.companyMembershipEvent.findMany({
+      orderBy: { reason: "asc" },
     });
-    expect(rows.map((r) => r.title)).toEqual(["A-adres", "B-adres"]);
+    expect(rows.map((r) => r.reason)).toEqual(["A-olay", "B-olay"]);
   });
 
   it("kısıtlı rol INSERT edebilir (WITH CHECK=USING=true, DML grant tam)", async () => {
     const a = await makeCompany(prisma, { name: "A" });
-    const created = await restricted.companyAddress.create({
-      data: {
-        companyId: a.id,
-        title: "kısıtlı-insert",
-        type: "TESLIMAT",
-        addressLine: "X",
-        city: "İzmir",
-        country: "TR",
-      },
+    const created = await restricted.companyMembershipEvent.create({
+      data: { companyId: a.id, action: "GRANT", reason: "kısıtlı-insert" },
     });
     expect(created.id).toBeTruthy();
   });
