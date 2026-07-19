@@ -41,7 +41,10 @@ import {
 } from "../../../common/company/effective-tier";
 import { isListingVisibleToViewer } from "../../../common/company/listing-visibility";
 import { PRICED_ITEM_WHERE } from "../../../common/company/bid-items";
-import { isListingClosedAt } from "../../../common/company/listing-timing";
+import {
+  isListingClosedAt,
+  bidValidUntilMs,
+} from "../../../common/company/listing-timing";
 import { AuditService } from "../../audit/audit.service";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
@@ -5121,11 +5124,11 @@ export class CompanyListingsService {
     // TASLAĞA düşer: tedarikçi ya yeni fiyat verir ya da geçerliliği uzatır
     // (extendBidValidity). Geçerlilik bilgisi olmayan legacy teklif = süresiz.
     const carryOpenAt = bidsOpenAt ?? new Date();
-    const isExpiredAtOpen = (b: (typeof bids)[number]): boolean =>
-      b.submittedAt != null &&
-      b.validityDays != null &&
-      b.submittedAt.getTime() + b.validityDays * 86_400_000 <
-        carryOpenAt.getTime();
+    const isExpiredAtOpen = (b: (typeof bids)[number]): boolean => {
+      const until = bidValidUntilMs(b.submittedAt, b.validityDays);
+      // null = süresiz (legacy) → dolmamış say.
+      return until != null && until < carryOpenAt.getTime();
+    };
     const expiredBids = bids.filter(isExpiredAtOpen);
     const validBids = bids.filter((b) => !isExpiredAtOpen(b));
 
@@ -5464,14 +5467,13 @@ export class CompanyListingsService {
       );
     }
     const newValidityDays = bid.validityDays + additionalDays;
-    const validUntil = new Date(
-      bid.submittedAt.getTime() + newValidityDays * 86_400_000,
-    );
-    if (validUntil.getTime() <= Date.now()) {
+    const validUntilMs = bidValidUntilMs(bid.submittedAt, newValidityDays);
+    if (validUntilMs == null || validUntilMs <= Date.now()) {
       throw new BadRequestException(
         "Uzatma yetersiz — teklifin son geçerlilik günü hâlâ geçmişte kalıyor, daha uzun bir süre girin",
       );
     }
+    const validUntil = new Date(validUntilMs);
     const revived = bid.status === "DRAFT";
     await this.prisma.listingBid.update({
       where: { id: bid.id },

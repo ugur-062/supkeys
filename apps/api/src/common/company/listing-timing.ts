@@ -19,3 +19,20 @@ export function isListingClosedAt(
 ): boolean {
   return closesAt != null && nowMs >= closesAt.getTime();
 }
+
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * S7 — teklif "son geçerlilik anı" (ms). Tek formül: `submittedAt +
+ * validityDays gün`. createNextRound (turda açılışta süresi dolan teklifleri
+ * ayıklama) + extendBidValidity (uzatma yeterli mi) aynı tanımı kullanır.
+ * `submittedAt`/`validityDays` yoksa (legacy teklif) → `null` = SÜRESİZ
+ * (asla dolmaz); çağıran null'ı "dolmadı" olarak yorumlar.
+ */
+export function bidValidUntilMs(
+  submittedAt: Date | null | undefined,
+  validityDays: number | null | undefined,
+): number | null {
+  if (submittedAt == null || validityDays == null) return null;
+  return submittedAt.getTime() + validityDays * MS_PER_DAY;
+}
