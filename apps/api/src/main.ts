@@ -18,6 +18,7 @@ import { AppModule } from "./app.module";
 import { isCorsOriginAllowed } from "./common/cors-origin";
 import { checkJwtSecret } from "./common/config/jwt-secret";
 import { assertProdWebUrl } from "./common/config/web-url";
+import { assertProdConfigSanity } from "./common/config/prod-config-sanity";
 import { translateValidatorMessage } from "./common/error-messages";
 
 async function bootstrap() {
@@ -66,6 +67,12 @@ async function bootstrap() {
   // ETME. Aksi halde tüm e-posta linkleri (reset/davet/doğrulama) sessizce
   // localhost'a düşüp ölü link gönderirdi (bkz. common/config/web-url.ts).
   assertProdWebUrl(config);
+
+  // Cookie/CSRF prod config sağlığı (fail-closed): COOKIE_SAMESITE=lax +
+  // COOKIE_DOMAIN=.rothern.com zorunlu. Eksikse cookie'ler host-only kalır →
+  // frontend rk_csrf'i okuyamaz → mutasyonlar 403. Sessiz runtime 403 yerine
+  // boot'ta yakala (bkz. common/config/prod-config-sanity.ts).
+  assertProdConfigSanity(config);
 
   // Security audit Y-3 — Body parser limit 25MB → 5MB (saldırı yüzeyi
   // düşürüldü). Vergi levhası ve doc upload'ları için 5MB makul — TR
