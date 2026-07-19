@@ -1774,14 +1774,16 @@ export class CompanyOrdersService {
             orderId: id,
             status: { in: ["AWAITING_CONFIRMATION", "CONFIRMED"] },
           },
-          select: { amount: true },
+          select: { amount: true, status: true },
         }),
       ]);
       const cap = orderAmt ? new Prisma.Decimal(orderAmt.amount) : new Prisma.Decimal(0);
-      const recorded = existing.reduce(
-        (s, p) => s.plus(p.amount),
-        new Prisma.Decimal(0),
-      );
+      // S4: "committed" = AWAITING+CONFIRMED — getOne remaining ile AYNI tek-kaynak
+      // reducer. (Sorgu zaten bu iki statüye filtreli; helper tanımı tutarlı kılar.)
+      const recorded = sumPaymentsByStatus(existing, [
+        "AWAITING_CONFIRMATION",
+        "CONFIRMED",
+      ]);
       const inputDec = new Prisma.Decimal(input.amount);
       const cur = orderAmt?.currency ?? "TRY";
       // INV-MONEY-1: tam Decimal, tolerans yok — cap'e TAM ulaşma GEÇER,

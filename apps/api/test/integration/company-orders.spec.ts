@@ -302,6 +302,34 @@ describe("ödeme kap koruması — atomik (fazla-tahsilat yarışı)", () => {
     });
     expect(Number(sum._sum.amount ?? 0)).toBeLessThanOrEqual(1000);
   });
+
+  it("S4: ONAYLANMAMIŞ (AWAITING) ödeme de cap'i rezerve eder (committed=AWAITING+CONFIRMED)", async () => {
+    const { orders } = makeOrdersService();
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const order = await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: seller.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 1000,
+        status: "DELIVERED",
+        paymentTiming: "AFTER_DELIVERY",
+        deliveredAt: new Date(),
+      },
+    });
+    // Tam tutarlı ödeme kaydı — ONAYLANMADAN AWAITING_CONFIRMATION'da bekler.
+    await orders.recordPayment(buyer.auth, order.id, {
+      amount: 1000,
+      method: "EFT",
+    } as never);
+    // İkinci ödeme (onaysız bile olsa) committed cap'i aşar → reddedilir.
+    await expect(
+      orders.recordPayment(buyer.auth, order.id, {
+        amount: 1,
+        method: "EFT",
+      } as never),
+    ).rejects.toThrow(/aşan ödeme kaydedilemez/);
+  });
 });
 
 describe("kargo kapısı — satıcı, bekleyen ödemeyi sonuçlandırmadan kargolayamaz", () => {
