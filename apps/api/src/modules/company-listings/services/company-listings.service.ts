@@ -40,7 +40,10 @@ import {
   effectivePaidWhere,
 } from "../../../common/company/effective-tier";
 import { isListingVisibleToViewer } from "../../../common/company/listing-visibility";
-import { PRICED_ITEM_WHERE } from "../../../common/company/bid-items";
+import {
+  PRICED_ITEM_WHERE,
+  bidCoversAllItems,
+} from "../../../common/company/bid-items";
 import {
   isListingClosedAt,
   bidValidUntilMs,
@@ -2123,9 +2126,7 @@ export class CompanyListingsService {
     // teklifler girer — kısmi teklifin düşük toplamı "en iyi" değildir
     // (elma-armut); bidCount da kıyaslanabilir teklif sayısıdır.
     const englishComparable = englishAgg
-      ? englishAgg.filter(
-          (b) => items.length === 0 || b.items.length >= items.length,
-        )
+      ? englishAgg.filter((b) => bidCoversAllItems(b.items.length, items.length))
       : null;
     const englishRanked = englishComparable
       ? this.rankAuctionBids(
@@ -2714,8 +2715,8 @@ export class CompanyListingsService {
     // kısmi teklifin düşük toplamı diğerleriyle kıyaslanamaz (elma-armut);
     // kısmi teklif sahibi sıra alamaz (myRank null), katılımcı sayısı da
     // kıyaslanabilir teklif sayısıdır (x/y tutarlı kalsın).
-    const comparable = rows.filter(
-      (b) => listingItemCount === 0 || b.items.length >= listingItemCount,
+    const comparable = rows.filter((b) =>
+      bidCoversAllItems(b.items.length, listingItemCount),
     );
     // ALIM = ters eksiltme (düşük en iyi), SATIS = açık artırma (yüksek en iyi).
     const bids = this.rankAuctionBids(

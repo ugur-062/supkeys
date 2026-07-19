@@ -15,3 +15,20 @@ import { Prisma } from "@rothern/db";
 export const PRICED_ITEM_WHERE = {
   unitPrice: { gt: 0 },
 } as const satisfies Prisma.ListingBidItemWhereInput;
+
+/**
+ * S2 — "tam kapsam" teklif kıyas filtresi — TEK KAYNAK. Kalemli ilanda
+ * sıralamaya (owner currentBest + public bestTotal) yalnız TÜM kalemleri
+ * fiyatlamış teklifler girer; kısmi teklifin düşük toplamı "en iyi" değildir
+ * (elma-armut). Kalemsiz ilan (count 0) → herkes kıyaslanabilir.
+ * (`bidItemCount` = fiyatlı kalem sayısı = PRICED_ITEM_WHERE ile sayılan.)
+ * NOT: sıralamanın kendisi (FX-normalize + tie-break) `rankAuctionBids` servis
+ * metodudur (this.auctionTryValue'ye bağlı, impure → serviste kalır); burada
+ * yalnız kapsam predicate'i paylaşılır.
+ */
+export function bidCoversAllItems(
+  bidItemCount: number,
+  listingItemCount: number,
+): boolean {
+  return listingItemCount === 0 || bidItemCount >= listingItemCount;
+}
