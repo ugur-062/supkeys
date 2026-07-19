@@ -9,6 +9,8 @@ import { LoggerModule } from "nestjs-pino";
 import { AuthCookieInterceptor } from "./common/auth/auth-cookie.interceptor";
 import { CsrfGuard } from "./common/auth/csrf.guard";
 import { RequestContextMiddleware } from "./common/logging/request-context.middleware";
+import { TenantContextMiddleware } from "./common/tenant/tenant-context.middleware";
+import { TenantContextInterceptor } from "./common/tenant/tenant-context.interceptor";
 import { genRequestId } from "./common/logging/request-id";
 import { PrismaModule } from "./common/prisma/prisma.module";
 import { AdminAuditModule } from "./modules/admin-audit/admin-audit.module";
@@ -172,6 +174,9 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     { provide: APP_GUARD, useClass: CsrfGuard },
     // Token'lı yanıtlarda httpOnly oturum + CSRF cookie'lerini yazar.
     { provide: APP_INTERCEPTOR, useClass: AuthCookieInterceptor },
+    // RLS Faz 1a: guard'lardan sonra req.user.companyId'yi tenant ALS'e yazar
+    // (bugün hiçbir sorgu okumaz → davranış değişmez). bkz. common/tenant/*.
+    { provide: APP_INTERCEPTOR, useClass: TenantContextInterceptor },
     // Yakalanmamış istisnaları Sentry'e raporlar, sonra normal hata yanıtına
     // devreder (DSN yoksa capture no-op; yanıt davranışı değişmez).
     { provide: APP_FILTER, useClass: SentryGlobalFilter },
@@ -183,6 +188,10 @@ export class AppModule implements NestModule {
     // burada `req.id` + ALS store hazır. reqId'yi Pino context'ine + Sentry
     // isolation-scope'a bağlar. Health dahil tüm rotalara uygulanır (yeni log
     // satırı üretmez → health gürültüsü artmaz).
-    consumer.apply(RequestContextMiddleware).forRoutes("*");
+    // TenantContextMiddleware ÖNCE: als.run tüm isteği (RequestContext dahil
+    // guard/interceptor/handler) sarar → tenant bağlamı her yerde erişilebilir.
+    consumer
+      .apply(TenantContextMiddleware, RequestContextMiddleware)
+      .forRoutes("*");
   }
 }
