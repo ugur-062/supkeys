@@ -22,8 +22,13 @@ Runtime = Supabase **transaction pooler 6543** (`pgbouncer, connection_limit=1`)
   - **1c-1** ✅ Global client wiring (`createInjectablePrisma` factory, prisma.module useFactory). RLS_ENABLED OFF→çıplak `new PrismaService()` (birebir); ON→`base.$extends(RLS)`+iliştirilmiş lifecycle, çağrı-yeri değişmez (Proxy yok). Full-suite 92/873 yeşil.
   - **1c-2** ✅ `runTenantTx` (common/prisma/tenant-tx.ts) + tx migrasyonu. 1c-2a: 28 interactive site (8 servis, mekanik). 1c-2b: 3 company-realm array-form → interactive. BIRAKILDI (passthrough-safe): admin-companies ×3 (admin realm), membership.scheduler (cron no-ALS), company-auth verifyEmail (pre-context). Raw SQL: tenant-tablo dokunanlar zaten migrate edilen tx İÇİNDE (GUC alır); standalone raw (health SELECT 1) tenant-tablo değil. Flag OFF→düz tx (birebir). Full-suite 93/877 yeşil.
   - **1d** ✅ (kısmi) Bypass client ALTYAPI: `PrismaBypassService` (RLS extension'sız, `DATABASE_URL_BYPASS` owner-rol; env yoksa ana URL → birebir). PrismaModule provide+export. Per-modül wiring (admin/auth/cron enjeksiyon) + kısıtlı rol `rothern_app` SQL → **Faz 2'ye taşındı** (bypass yalnız policy+kısıtlı-rolle test edilebilir). Full-suite 93/878 yeşil. **→ FAZ 1 PLUMBING TAMAM.**
-- **Faz 2** — Permissive no-op: 13 doğrudan tabloya `ENABLE RLS` + `USING(true)` (rol/grant eksiği burada yakalanır).
-- **Faz 3** — İlk gerçek tablo (en düşük blast-radius: CompanyBankAccount/CompanyAddress) + izolasyon testi.
+- **Faz 2** — RLS aktivasyonu (SIRA: kısıtlı rol ÖNCE, her aşama onunla koşulur):
+  - **2a** ✅ Kısıtlı rol `rothern_app` + grants (migration 20260719130000, `current_schema()` DO-blok, parola env-özel). ⚠️ prod-ops: Supabase CREATE ROLE ayrı doğrula.
+  - **2b** ✅ ENABLE RLS + permissive `USING(true)` 13 tablo+kök (20260719131000). FORCE YOK → owner bypass, full-suite yeşil. Kısıtlı rolle grant-gap kanıtı.
+  - **2c** ✅ Bypass client → admin/auth/cron'a wire (11 doğrudan-prisma site). ⚠️ cron-via-service (order.scheduler→notifications) boşluğu 2d-2'de.
+  - **2d-1** ✅ Gerçek policy addresses+bank (20260719132000, `"companyId"=current_setting`). **İZOLASYON KANITI** (rls-isolation.spec 7/7: A≠B, kanıt-çifti, bypass, no-ctx boş+throw, WITH CHECK). Full-suite 96/890 yeşil.
+  - **2d-2** (SIRADA) kalan 11 tablo dalga dalga. **WRITER-AUDIT:** pre-context/cron yazanlar (companies=signup, company_users=signup, company_user_invitations=accept, notifications=cron) gerçek-policy'de bloklanır → **sistem-bypass bağlamı** gerekir (ALS realm="system"→extension bypass-GUC + policy OR-dalı, VEYA o yazımları bypass client'a al). Güvenli olanlar (templates×3, approval×2, admin_notes, membership_events, listings) önce.
+- **Faz 3** — (Faz 2'ye katıldı: ilk gerçek tablo 2d-1'de kanıtlandı.)
 - **Faz 4** — Kalan 12 doğrudan tablo (yaprak→Listing→Approval→CompanyUser en son; CompanyUser jwt-validate pre-context → bypass client şart).
 - **Faz 5** — Transitif (EXISTS parent, ebeveyn enforce sonrası).
 - **Faz 6** — İki-taraflı (`IN (a,b)`, iki taraf da izolasyon testi).
