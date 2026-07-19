@@ -20,6 +20,11 @@ export interface TenantStore {
   companyId: string | null;
   /** Realm — ileride bypass kararları için (admin/company). Faz 1a'da yalnız taşınır. */
   realm: "company" | "admin" | null;
+  /**
+   * Faz 1c: `runTenantTx` bir interactive tx açıp set_config'i ZATEN yaptığında
+   * true olur → RLS extension iç-op'ları TEKRAR sarmaz (nested-tx önlemi).
+   */
+  inTx?: boolean;
 }
 
 const als = new AsyncLocalStorage<TenantStore>();
