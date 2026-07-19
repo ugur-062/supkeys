@@ -19,6 +19,7 @@ import {
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { EmailService } from "../email/email.service";
+import { EmailSuppressionService } from "../email/email-suppression.service";
 import { NotificationService } from "../notifications/notification.service";
 import { resolveWebUrl } from "../../common/config/web-url";
 
@@ -33,6 +34,7 @@ export class AdminCompaniesService {
     private readonly notifications: NotificationService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
+    private readonly suppression: EmailSuppressionService,
   ) {}
 
   /**
@@ -392,6 +394,9 @@ export class AdminCompaniesService {
         blockedReason: true,
         blockedAt: true,
         createdAt: true,
+        // Suppression rozeti: kullanıcı login adresleri + billingEmail'in
+        // e-posta ALIP ALAMADIĞINI göster ("giriş yapamıyorum" destek çağrısı).
+        users: { select: { email: true } },
         _count: {
           select: { users: true, listings: true, complaintsReceived: true },
         },
@@ -401,6 +406,13 @@ export class AdminCompaniesService {
     const openComplaints = await this.prisma.companyComplaint.count({
       where: { againstCompanyId: id, status: "OPEN" },
     });
+    // Firmaya bağlı adreslerin suppression durumu (hard-bounce/şikayet →
+    // adres e-posta alamıyor). Tek-kaynak türetme (clear-marker sonrası).
+    const suppressionMap = await this.suppression.getSuppressionStatus([
+      ...c.users.map((u) => u.email),
+      ...(c.billingEmail ? [c.billingEmail] : []),
+    ]);
+    const suppressions = [...suppressionMap.values()];
     // Hassas KYC belgeleri kalıcı public URL değil, kısa ömürlü presigned GET.
     const [
       docTaxPlateUrl,
@@ -417,8 +429,11 @@ export class AdminCompaniesService {
       this.storage.presignStoredObject("private", c.docIdFrontUrl),
       this.storage.presignStoredObject("private", c.docIdBackUrl),
     ]);
+    // `users` yalnız suppression hesabı için çekildi — detay contract'ına ham
+    // liste sızdırma (ayrı users endpoint'i var); yalnız suppressions dön.
+    const { users: _users, ...company } = c;
     return {
-      ...c,
+      ...company,
       docTaxPlateUrl,
       docTradeRegistryUrl,
       docSignatureCircularUrl,
@@ -426,6 +441,7 @@ export class AdminCompaniesService {
       docIdFrontUrl,
       docIdBackUrl,
       openComplaints,
+      suppressions,
     };
   }
 

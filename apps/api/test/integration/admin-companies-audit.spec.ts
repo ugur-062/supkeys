@@ -4,6 +4,7 @@
  */
 import { AdminCompaniesService } from "../../src/modules/admin-companies/admin-companies.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
+import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
 
@@ -19,6 +20,7 @@ function rig() {
     notifications as never,
     config as never,
     audit,
+    new EmailSuppressionService(prisma as never),
   );
   return { service, notifications };
 }
@@ -338,6 +340,7 @@ describe("announce — toplu duyuru (batch + paralel, per-firma findUnique yok)"
       notifications as never,
       config as never,
       audit,
+      new EmailSuppressionService(prisma as never),
     );
     return { service, email, notifications };
   }

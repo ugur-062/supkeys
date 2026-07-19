@@ -68,6 +68,7 @@ function detail(over: Partial<AdminCompanyDetail> = {}): AdminCompanyDetail {
     createdAt: "2026-01-01T00:00:00.000Z",
     _count: { users: 1, listings: 0, complaintsReceived: 0 },
     openComplaints: 0,
+    suppressions: [],
     ...over,
   };
 }

@@ -10,6 +10,11 @@ import {
 } from "@rothern/email";
 import { reportToSentry } from "../../instrument";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { isCriticalEmailContext } from "./critical-contexts";
+
+// Geriye-dönük uyumluluk: mevcut import'lar (testler dahil) bu sembolü
+// email.service'ten çeker. Tek kaynak critical-contexts.ts; burada re-export.
+export { isCriticalEmailContext, CRITICAL_EMAIL_CONTEXTS } from "./critical-contexts";
 
 export interface SendEmailInput {
   to: EmailRecipient;
@@ -38,24 +43,6 @@ const REDACTED_CONTEXT_TYPES = new Set([
   "referral_invite",
   "company_user_invitation",
 ]);
-
-/**
- * Erişimi kapılayan KRİTİK e-posta tipleri — bunlar gitmezse kullanıcı sisteme
- * hiç giremez (kayıt doğrulama kodu, şifre sıfırlama, 2FA giriş kodu) ve in-app
- * fallback YOKTUR (kullanıcı henüz giriş yapmamış). Gönderim başarısız/suppress
- * olursa yalnız `logger.error` "sessiz ölüm"dü → SentryGlobalFilter fırlatılmayan
- * log'u yakalamadığından `reportToSentry` ile açıkça alarm üret (ops fark etsin).
- * PII GÖNDERİLMEZ: yalnız log-id + context tipi/id (adres/gövde/kod GEÇMEZ).
- */
-const CRITICAL_EMAIL_CONTEXTS = new Set([
-  "password_reset",
-  "login_2fa",
-  "email_verify",
-]);
-
-export function isCriticalEmailContext(type: string | undefined): boolean {
-  return type != null && CRITICAL_EMAIL_CONTEXTS.has(type);
-}
 
 /**
  * E-posta gönderim servisi.

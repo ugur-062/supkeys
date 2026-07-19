@@ -3,6 +3,7 @@
  * yeniden yükler; onaylanan belgeler kilitli kalır. Durum makinesi + kilit.
  */
 import { AdminCompaniesService } from "../../src/modules/admin-companies/admin-companies.service";
+import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
 import { CompanyDocsService } from "../../src/modules/company-docs/company-docs.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompany } from "./factories";
@@ -37,6 +38,7 @@ function adminService() {
     notifications as never,
     config as never,
     audit as never,
+    new EmailSuppressionService(prisma as never),
   );
 }
 

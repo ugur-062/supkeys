@@ -173,6 +173,17 @@ export interface AdminCompanyDetail {
   createdAt: string;
   _count: { users: number; listings: number; complaintsReceived: number };
   openComplaints: number;
+  /** Firmaya bağlı adreslerden e-posta ALAMAYANLAR (hard-bounce/şikayet).
+   *  Boşsa sorun yok. "Giriş yapamıyorum" destek çağrısında bakılır. */
+  suppressions: EmailSuppression[];
+}
+
+export interface EmailSuppression {
+  email: string;
+  /** "BOUNCED" (kalıcı/hard) | "COMPLAINED" (şikayet) */
+  status: "BOUNCED" | "COMPLAINED";
+  reason: string | null;
+  at: string;
 }
 
 // Belge türü (admin inceleme) + belge bazlı inceleme durumu.

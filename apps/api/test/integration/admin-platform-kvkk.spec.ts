@@ -5,6 +5,7 @@
  */
 import { AdminCompaniesService } from "../../src/modules/admin-companies/admin-companies.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
+import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
 import { prisma, truncateAll } from "./test-db";
 import {
   connect,
@@ -27,6 +28,7 @@ function rig() {
     notifications as never,
     config as never,
     audit,
+    new EmailSuppressionService(prisma as never),
   );
   return { service };
 }

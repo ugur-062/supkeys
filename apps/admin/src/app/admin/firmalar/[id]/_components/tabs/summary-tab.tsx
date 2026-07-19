@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { countryLabel } from "@/lib/country";
 import { safeFormat } from "@/lib/date";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Download, Pencil } from "lucide-react";
+import { AlertTriangle, Download, MailWarning, Pencil } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { EditProfileDialog } from "../edit-profile-dialog";
@@ -100,6 +100,47 @@ function DangerZone({ data }: { data: AdminCompanyDetail }) {
   );
 }
 
+/**
+ * E-posta suppression uyarısı — firmaya bağlı adresler hard-bounce/şikayet
+ * yüzünden e-posta ALAMIYORSA gösterilir. "Giriş yapamıyorum / kod gelmiyor"
+ * destek çağrısının kök nedeni burada görünür (doğrulama/şifre-reset sessizce
+ * kaybolur). Boşsa hiç render edilmez.
+ */
+function SuppressionWarning({ data }: { data: AdminCompanyDetail }) {
+  if (!data.suppressions || data.suppressions.length === 0) return null;
+  return (
+    <section className="rounded-xl border border-amber-300 bg-amber-50/60 px-5 py-4">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+        <MailWarning className="h-4 w-4" /> E-posta teslim sorunu (
+        {data.suppressions.length})
+      </h3>
+      <p className="mt-1 text-xs text-amber-800">
+        Aşağıdaki adresler kalıcı bounce veya şikayet nedeniyle e-posta{" "}
+        <strong>alamıyor</strong> — doğrulama/şifre-sıfırlama/2FA kodları bu
+        adreslere ulaşmaz. Adresi düzeltin veya (düzeldiyse) sistem panelinden
+        suppression'ı temizleyin.
+      </p>
+      <ul className="mt-3 space-y-1.5">
+        {data.suppressions.map((s) => (
+          <li
+            key={s.email}
+            className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-amber-900"
+          >
+            <span className="rounded bg-amber-200/70 px-1.5 py-0.5 text-xs font-semibold">
+              {s.status === "COMPLAINED" ? "ŞİKAYET" : "KALICI BOUNCE"}
+            </span>
+            <code className="font-mono break-all">{s.email}</code>
+            <span className="text-xs text-amber-700">
+              {safeFormat(s.at, "d MMM yyyy HH:mm")}
+              {s.reason ? ` · ${s.reason}` : ""}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
@@ -122,6 +163,8 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
         <StatCard label="Şikayet (toplam)" value={data._count.complaintsReceived} />
         <StatCard label="Açık şikayet" value={data.openComplaints} />
       </div>
+
+      <SuppressionWarning data={data} />
 
       <section className="admin-card px-5 py-4">
         <div className="flex items-center justify-between">

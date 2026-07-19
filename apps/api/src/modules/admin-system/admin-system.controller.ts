@@ -28,6 +28,7 @@ import { RequireAdminRole } from "../admin-auth/decorators/require-admin-role.de
 import { AdminJwtAuthGuard } from "../admin-auth/guards/admin-jwt-auth.guard";
 import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
 import { ExchangeRateService } from "../currency/services/exchange-rate.service";
+import { EmailSuppressionService } from "../email/email-suppression.service";
 
 const MANUAL_CURRENCIES = [
   "USD",
@@ -69,6 +70,7 @@ export class AdminSystemController {
     private readonly exchangeRates: ExchangeRateService,
     private readonly cronRegistry: CronRegistryService,
     private readonly audit: AuditService,
+    private readonly suppression: EmailSuppressionService,
   ) {}
 
   @Get()
@@ -186,49 +188,9 @@ export class AdminSystemController {
   @Get("suppressions")
   @RequireAdminRole("SUPER_ADMIN", "SALES")
   async listSuppressions() {
-    const rows = await this.prisma.emailLog.findMany({
-      where: {
-        OR: [
-          { status: "COMPLAINED" },
-          { status: "BOUNCED", bounceType: "hard" },
-        ],
-      },
-      select: {
-        toEmail: true,
-        status: true,
-        bounceReason: true,
-        queuedAt: true,
-      },
-      orderBy: { queuedAt: "desc" },
-      take: 500,
-    });
-    const markers = await this.prisma.emailLog.findMany({
-      where: { template: "suppression_clear" },
-      select: { toEmail: true, queuedAt: true },
-      orderBy: { queuedAt: "desc" },
-    });
-    const lastClear = new Map<string, Date>();
-    for (const m of markers) {
-      if (!lastClear.has(m.toEmail)) lastClear.set(m.toEmail, m.queuedAt);
-    }
-    // Adres başına en yeni tetikleyici; marker'dan eskiyse aklanmış say.
-    const byEmail = new Map<
-      string,
-      { email: string; status: string; reason: string | null; at: Date }
-    >();
-    for (const r of rows) {
-      const cleared = lastClear.get(r.toEmail);
-      if (cleared && r.queuedAt <= cleared) continue;
-      if (!byEmail.has(r.toEmail)) {
-        byEmail.set(r.toEmail, {
-          email: r.toEmail,
-          status: r.status,
-          reason: r.bounceReason,
-          at: r.queuedAt,
-        });
-      }
-    }
-    return [...byEmail.values()];
+    // Türetme tek-kaynak EmailSuppressionService'te (firma detayı da aynısını
+    // kullanır — clear-marker sıra mantığı iki yerde kalmasın).
+    return this.suppression.listSuppressed(500);
   }
 
   /** Adresi akla — append-only marker (tarih yeniden yazılmaz). */

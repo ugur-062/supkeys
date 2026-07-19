@@ -2,6 +2,8 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
 import type { EmailEventType, EmailStatus } from "@rothern/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { reportToSentry } from "../../../instrument";
+import { isCriticalEmailContext } from "../../email/critical-contexts";
 
 /**
  * Resend webhook payload shape.
@@ -83,44 +85,87 @@ export class ResendEventService {
     }
 
     // 4) Atomic — EmailEvent + EmailLog update
-    return this.prisma.$transaction(async (tx) => {
-      await tx.emailEvent.create({
-        data: {
-          eventId,
+    const result = await this.prisma.$transaction<HandleEventResult>(
+      async (tx) => {
+        await tx.emailEvent.create({
+          data: {
+            eventId,
+            emailLogId: emailLog.id,
+            eventType,
+            occurredAt: new Date(event.created_at),
+            payload: event as unknown as Prisma.InputJsonValue,
+            clickedUrl: event.data.click?.link ?? null,
+            bounceType: event.data.bounce?.type ?? null,
+            bounceReason:
+              event.data.bounce?.reason ?? event.data.bounce?.message ?? null,
+          },
+        });
+
+        const updates = this.computeEmailLogUpdates(
+          emailLog.status,
+          eventType,
+          new Date(event.created_at),
+          event,
+          emailLog,
+        );
+
+        if (Object.keys(updates).length > 0) {
+          await tx.emailLog.update({
+            where: { id: emailLog.id },
+            data: updates,
+          });
+        }
+
+        this.logger.log(
+          `Event ${eventType} işlendi → EmailLog ${emailLog.id} (provider ${providerMessageId})`,
+        );
+        return {
+          status: "processed",
           emailLogId: emailLog.id,
           eventType,
-          occurredAt: new Date(event.created_at),
-          payload: event as unknown as Prisma.InputJsonValue,
-          clickedUrl: event.data.click?.link ?? null,
-          bounceType: event.data.bounce?.type ?? null,
-          bounceReason:
-            event.data.bounce?.reason ?? event.data.bounce?.message ?? null,
-        },
-      });
+        };
+      },
+    );
 
-      const updates = this.computeEmailLogUpdates(
-        emailLog.status,
-        eventType,
-        new Date(event.created_at),
-        event,
-        emailLog,
-      );
+    // 5) Kritik-context alarmı — tx COMMIT'ten SONRA (rollback'te Sentry'e
+    // düşmesin). Kritik e-postanın KENDİSİ kalıcı-bounce/şikayet aldı: gönderim
+    // başarılıydı, bounce webhook async geldi → EmailLog güncellendi ama kimse
+    // haberdar değil. Typo'lu/şikayetçi adres = kullanıcı kalıcı mahsur (kod/
+    // reset gitmiyor) → ops alarmı. Duplicate event (adım 1) erken döndüğü için
+    // çift alarm olmaz. PII yok: yalnız log-id + context + bounceType.
+    this.maybeAlertCriticalBounce(eventType, event, emailLog);
 
-      if (Object.keys(updates).length > 0) {
-        await tx.emailLog.update({
-          where: { id: emailLog.id },
-          data: updates,
-        });
-      }
+    return result;
+  }
 
-      this.logger.log(
-        `Event ${eventType} işlendi → EmailLog ${emailLog.id} (provider ${providerMessageId})`,
-      );
-      return {
-        status: "processed",
+  /**
+   * Kritik-context (email_verify/password_reset/login_2fa) e-postası KALICI
+   * teslim başarısızlığı aldıysa ops alarmı. Yalnız hard-bounce veya complaint
+   * (soft/undetermined GEÇİCİ → alarm yok; send-suppression mantığıyla simetrik).
+   */
+  private maybeAlertCriticalBounce(
+    eventType: EmailEventType,
+    event: ResendWebhookEvent,
+    emailLog: { id: string; contextType: string | null; contextId: string | null },
+  ): void {
+    const isHardBounce =
+      eventType === "BOUNCED" && event.data.bounce?.type === "hard";
+    const isComplaint = eventType === "COMPLAINED";
+    if (!isHardBounce && !isComplaint) return;
+    if (!isCriticalEmailContext(emailLog.contextType ?? undefined)) return;
+
+    reportToSentry("[EMAIL-KRİTİK-BOUNCE]", "error", {
+      tags: {
+        email: isComplaint ? "critical-complaint" : "critical-hard-bounce",
+        context: emailLog.contextType as string,
+      },
+      extra: {
         emailLogId: emailLog.id,
-        eventType,
-      };
+        contextType: emailLog.contextType,
+        contextId: emailLog.contextId,
+        bounceType: event.data.bounce?.type ?? null,
+        providerMessageId: event.data.email_id,
+      },
     });
   }
 
