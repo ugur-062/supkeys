@@ -4606,9 +4606,12 @@ export class CompanyListingsService {
       {
         orderItems: {
           name: string;
-          quantity: number;
+          // S8: order kalem precision — ham Prisma.Decimal (runFullAward
+          // orderItems ile AYNI temsil; eskiden Number() → MAX_MONEY-ölçek
+          // fiyatta fidelity farkı vardı).
+          quantity: Prisma.Decimal;
           unit: string;
-          unitPrice: number;
+          unitPrice: Prisma.Decimal;
           deliveryDate: Date | null;
           note: string | null;
         }[];
@@ -4650,9 +4653,9 @@ export class CompanyListingsService {
       g.bidIds.add(bid.id);
       g.orderItems.push({
         name: li.name,
-        quantity: qty,
+        quantity: new Prisma.Decimal(qty),
         unit: li.unit,
-        unitPrice: Number(bi.unitPrice),
+        unitPrice: bi.unitPrice,
         deliveryDate: bi.deliveryDate,
         note: bi.note,
       });
