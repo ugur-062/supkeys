@@ -23,9 +23,9 @@ describe("S1 — fiyatlı kalem tek-kaynak", () => {
       ),
       "utf8",
     );
-    expect(src).toContain(
-      'import { PRICED_ITEM_WHERE } from "../../../common/company/bid-items"',
-    );
+    // Gruplu import'a dayanıklı: PRICED_ITEM_WHERE bid-items'tan gelmeli.
+    expect(src).toMatch(/PRICED_ITEM_WHERE/);
+    expect(src).toContain('from "../../../common/company/bid-items"');
     // Ham literal (boşluk varyasyonları dahil) kalmamalı — hepsi ...PRICED_ITEM_WHERE.
     expect(src).not.toMatch(/unitPrice:\s*{\s*gt:\s*0\s*}/);
   });

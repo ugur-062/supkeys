@@ -32,3 +32,35 @@ export function bidCoversAllItems(
 ): boolean {
   return listingItemCount === 0 || bidItemCount >= listingItemCount;
 }
+
+type PriceQty = {
+  unitPrice: Prisma.Decimal | string | number;
+  quantity: Prisma.Decimal | string | number;
+};
+
+/**
+ * S5 — tek kalem satır toplamı `unitPrice × quantity` (Decimal). Teklif/sipariş
+ * tutarının atom büyüklüğü — TEK KAYNAK.
+ */
+export function lineTotal(
+  unitPrice: Prisma.Decimal | string | number,
+  quantity: Prisma.Decimal | string | number,
+): Prisma.Decimal {
+  return new Prisma.Decimal(unitPrice).mul(quantity);
+}
+
+/**
+ * S5 — kalem satırları toplamı `Σ(unitPrice × quantity)` (Decimal) — TEK KAYNAK.
+ * placeBid `bid.amount`'u (miktar HER ZAMAN listing'den; teklif DTO'sunda
+ * quantity yok) VE buildItemGroups grup tutarı bu magnitude'u hesaplar; ayrıca
+ * runFullAward `bid.amount`'u bununla YENİDEN hesaplayıp eşitlik NÖBETÇİSİ tutar
+ * (invariant kırılırsa — ör. bidCount kilidi statü-filtreli olursa listing
+ * miktarı bid sonrası değişebilir — award fail-closed olur, sessiz para
+ * ıraksaması DEĞİL).
+ */
+export function sumLineTotals(lines: readonly PriceQty[]): Prisma.Decimal {
+  return lines.reduce(
+    (sum, l) => sum.plus(lineTotal(l.unitPrice, l.quantity)),
+    new Prisma.Decimal(0),
+  );
+}

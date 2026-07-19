@@ -43,6 +43,8 @@ import { isListingVisibleToViewer } from "../../../common/company/listing-visibi
 import {
   PRICED_ITEM_WHERE,
   bidCoversAllItems,
+  lineTotal,
+  sumLineTotals,
 } from "../../../common/company/bid-items";
 import {
   isListingClosedAt,
@@ -3204,14 +3206,13 @@ export class CompanyListingsService {
           "Fiyatlanan her kalemin birim fiyatı sıfırdan büyük olmalı",
         );
       }
-      amount = provided.reduce(
-        (sum, bi) =>
-          sum.plus(
-            new Prisma.Decimal(bi.unitPrice).mul(
-              qtyById.get(bi.itemId) ?? 0,
-            ),
-          ),
-        new Prisma.Decimal(0),
+      // S5: miktar HER ZAMAN listing'den (qtyById) — teklif DTO'sunda quantity
+      // yok. bid.amount = Σ(unitPrice × listingQty), tek-kaynak sumLineTotals.
+      amount = sumLineTotals(
+        provided.map((bi) => ({
+          unitPrice: bi.unitPrice,
+          quantity: qtyById.get(bi.itemId) ?? 0,
+        })),
       );
       // Gönderilen (taslak olmayan) teklif sıfır toplam olamaz; tüm birim
       // fiyatlar 0 ise "kazanan sıfır teklif" oluşmasın (F6).
@@ -4118,6 +4119,18 @@ export class CompanyListingsService {
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
 
+    // S5 NÖBETÇİSİ: order.amount = bid.amount (güvenilen stored) yolu, YALNIZ
+    // "bid.amount ≡ Σ(unitPrice × listingQty)" invariant'ı geçerliyken doğrudur
+    // (placeBid böyle hesaplar + bidCount kilidi listing miktarını dondurur).
+    // Invariant kırılırsa (ör. kilit statü-filtreli olur → miktar bid sonrası
+    // değişir) burada fail-closed: yanlış tutarlı sipariş YAZILMAZ (tx öncesi).
+    const recomputed = sumLineTotals(orderItems);
+    if (!recomputed.equals(bid.amount)) {
+      throw new BadRequestException(
+        "Sipariş tutarı tutarsızlığı — kazandırma güvenlik nedeniyle durduruldu (destek ekibiyle iletişime geçin)",
+      );
+    }
+
     const sellerCompanyId =
       listing.type === "ALIM" ? bid.bidderCompanyId : listing.companyId;
     const buyerCompanyId =
@@ -4660,7 +4673,7 @@ export class CompanyListingsService {
         deliveryDate: bi.deliveryDate,
         note: bi.note,
       });
-      g.amount = g.amount.plus(new Prisma.Decimal(bi.unitPrice).mul(qty));
+      g.amount = g.amount.plus(lineTotal(bi.unitPrice, qty)); // S5 tek-kaynak
     }
     return { groups, itemQty };
   }
