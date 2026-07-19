@@ -129,7 +129,8 @@ Yapılan audit'ler:
 - ✅ Console.log → NestJS Logger (production)
 - ✅ Structured logger (Pino + redact) + Sentry entegre; kritik-audit kaybı + webhook imza hataları `reportToSentry()` ile Sentry'e bağlı (fırlatılmayan logler SentryGlobalFilter'a takılmıyordu)
 - ✅ httpOnly cookie auth + CSRF double-submit (tamamlandı — token localStorage'dan kaldırıldı)
-- ⏳ Bekleyen: alert webhook, audit_logs populate, CSP (helmet); fast-follow: log drain, frontend Sentry
+- ✅ CSP: API helmet sıkı (`default-src 'none'`); web+admin nonce tabanlı `script-src 'self' 'nonce-<per-request>' 'strict-dynamic'` (unsafe-inline/eval kaldırıldı, src/middleware.ts + force-dynamic; style-src 'unsafe-inline' bilinçli kalır)
+- ⏳ Bekleyen: alert webhook, audit_logs populate; fast-follow: log drain, frontend Sentry
 - 🚀 **Launch checklist:** Prod deploy öncesi ödeme/plan + env + doğrulama adımları → **`docs/launch-checklist.md`**. Kritik: `SENTRY_DSN` boşsa error tracking + kritik-audit/webhook alarmları tümüyle pasif (sessiz no-op — tek fail-open servis); Supabase/R2/Resend env'leri eksikse app boot etmez (fail-closed).
 
 ---
@@ -166,7 +167,7 @@ Detaylı geçmiş için: `docs/history/CHANGELOG.md`
 **Altyapı / production**
 - Hosting / production setup (Coolify + Hetzner, Chromium pre-installed Docker image — PDF)
 - Resend domain doğrulaması + webhook tracking
-- Structured logger (Pino + redact), Sentry, alert webhook, audit_logs populate, CSP (helmet)
+- alert webhook, audit_logs populate (Structured logger/Sentry/CSP ✅ tamamlandı — bkz. Güvenlik Durumu)
 
 **Teknik borç / temizlik**
 - **Test paketi refactor:** 534 testin bcrypt mock'ları `SupabaseAuthService` bridge'i ile uyumsuz; login/register/password test'leri Supabase auth.users mock'larıyla yeniden yazılmalı + smoke E2E paketi güncellenmeli.
