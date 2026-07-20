@@ -253,6 +253,43 @@ describe("Faz 2d/5 — RLS izolasyon (kısıtlı rol + policy)", () => {
     expect(await seen(z.id)).toEqual([]);
   });
 
+  it("KAPALI-ZARF ÇOCUK (Faz 6e): listing_bid_documents — ebeveyn teklif görünürlüğünü miras alır; rakip GÖREMEZ", async () => {
+    const o = await makeCompany(prisma, { name: "O2" });
+    const x = await makeCompany(prisma, { name: "X2" });
+    const y = await makeCompany(prisma, { name: "Y2" });
+    const z = await makeCompany(prisma, { name: "Z2" });
+    const uo = await makeUser(prisma, o.id);
+    const ux = await makeUser(prisma, x.id);
+    const uy = await makeUser(prisma, y.id);
+    const listing = await prisma.listing.create({
+      data: { companyId: o.id, type: "ALIM", title: "L2", createdById: uo.id },
+    });
+    const bidX = await prisma.listingBid.create({
+      data: { listingId: listing.id, bidderCompanyId: x.id, createdById: ux.id, amount: 100 },
+    });
+    // Y'nin de teklifi var (rakip) ama X'in belgesini görmemeli.
+    await prisma.listingBid.create({
+      data: { listingId: listing.id, bidderCompanyId: y.id, createdById: uy.id, amount: 200 },
+    });
+    const doc = await prisma.listingBidDocument.create({
+      data: {
+        bidId: bidX.id,
+        key: "r2/x/teklif.pdf",
+        fileName: "teklif.pdf",
+        mimeType: "application/pdf",
+        uploadedByCompanyId: x.id,
+      },
+    });
+    const sees = async (cid: string) =>
+      (await asCompany(cid, () => R().listingBidDocument.findMany())).some(
+        (d) => d.id === doc.id,
+      );
+    expect(await sees(o.id)).toBe(true); // ilan sahibi (EXISTS parent → owner kolu)
+    expect(await sees(x.id)).toBe(true); // teklif sahibi (bidder kolu)
+    expect(await sees(y.id)).toBe(false); // rakip teklif veren — GÖREMEZ
+    expect(await sees(z.id)).toBe(false); // ilgisiz — GÖREMEZ
+  });
+
   it("YAZMA izolasyonu (WITH CHECK): A bağlamında B'ye adres yazılamaz", async () => {
     const { b } = await seedAB();
     await expect(
