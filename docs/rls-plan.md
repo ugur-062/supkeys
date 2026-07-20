@@ -52,3 +52,20 @@ Runtime = Supabase **transaction pooler 6543** (`pgbouncer, connection_limit=1`)
 - 🟠 Extension nested-tx/perf → `inTx` bayrağı + latency ölç.
 - 🟠 Rol grant eksik → Faz 2 (no-op) yakalar.
 - 🟠 Admin/login bypass kaçağı → ayrı bypass client.
+
+## 2d-2 bulgu (2026-07-20): "13 direct" fazla saymış — 9 temiz + 4 cross-tenant
+Yalnız 9/13 tablo TEMİZ tek-tenant RLS: addresses, bank, listing/supplier/question
+templates, approval_flows/requests, admin_notes, membership_events (hepsi gerçek
+policy ✅). Kalan 4 cross-tenant/pre-context BY DESIGN → strict policy özellikleri
+kırar (force-fit ETME):
+- **companies** — cross-tenant OKUNUR: invite (rothernId), connection-card firma
+  bilgisi, discover.
+- **company_users** — cross-tenant OKUNUR: connection-card karşı-taraf contact.
+- **notifications** — cross-tenant YAZILIR: karşı-tarafı bilgilendirir (counterparty).
+- **company_user_invitations** — pre-context OKUNUR: accept-by-token (davetli giriş öncesi).
+- **listings** — tedarikçi görünürlük (Faz 6).
+
+Bunlar "shared/directory" → permissive kalır (servis-scope birincil gate; RLS=backstop
+zaten ikincil) VEYA özellik-farkında nuanced policy + per-path bypass (Faz 6-benzeri,
+deliberate iş — rush ETME). RLS backstop 9 temiz tablo + transitif (Faz 5) + iki-taraflı
+(Faz 6)'da anlamlı.
