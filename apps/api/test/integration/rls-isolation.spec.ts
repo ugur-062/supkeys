@@ -290,6 +290,39 @@ describe("Faz 2d/5 — RLS izolasyon (kısıtlı rol + policy)", () => {
     expect(await sees(z.id)).toBe(false); // ilgisiz — GÖREMEZ
   });
 
+  it("İKİ-TARAFLI (Faz 6f Step2): company_orders A↔B + kalem — HER İKİ taraf görür, üçüncü GÖREMEZ (child EXISTS-parent miras)", async () => {
+    const a = await makeCompany(prisma, { name: "OA" }); // buyer
+    const b = await makeCompany(prisma, { name: "OB" }); // seller
+    const c = await makeCompany(prisma, { name: "OC" }); // ilgisiz
+    const order = await prisma.companyOrder.create({
+      data: { buyerCompanyId: a.id, sellerCompanyId: b.id, amount: 1000 },
+    });
+    const item = await prisma.companyOrderItem.create({
+      data: {
+        orderId: order.id,
+        name: "Kalem",
+        quantity: 2,
+        unit: "adet",
+        unitPrice: 500,
+      },
+    });
+    const seesOrder = async (cid: string) =>
+      (await asCompany(cid, () => R().companyOrder.findMany())).some(
+        (o) => o.id === order.id,
+      );
+    const seesItem = async (cid: string) =>
+      (await asCompany(cid, () => R().companyOrderItem.findMany())).some(
+        (i) => i.id === item.id,
+      );
+    expect(await seesOrder(a.id)).toBe(true); // alıcı
+    expect(await seesOrder(b.id)).toBe(true); // satıcı
+    expect(await seesOrder(c.id)).toBe(false); // üçüncü — GÖREMEZ
+    // Çocuk kalem ebeveyn siparişin görünürlüğünü miras alır:
+    expect(await seesItem(a.id)).toBe(true);
+    expect(await seesItem(b.id)).toBe(true);
+    expect(await seesItem(c.id)).toBe(false);
+  });
+
   it("YAZMA izolasyonu (WITH CHECK): A bağlamında B'ye adres yazılamaz", async () => {
     const { b } = await seedAB();
     await expect(
