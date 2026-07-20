@@ -6,7 +6,7 @@
 
 ## 🟢 GÜNCEL DURUM (2026-07-21) — sonraki oturum buradan devam et
 
-**23 tablo RLS-korumalı, LOKAL-KANITLI. Prod'da KAPALI** (`RLS_ENABLED` set edilmemiş →
+**24 tablo RLS-korumalı, LOKAL-KANITLI. Prod'da KAPALI** (`RLS_ENABLED` set edilmemiş →
 extension passthrough; prod DATABASE_URL hâlâ owner rolü → policy'ler de bypass edilir).
 Aktivasyon YAPILMADI — ayrı tur bekliyor.
 
@@ -22,8 +22,14 @@ EXISTS-parent **hashed SubPlan** (görünür order-id kümesi BİR KEZ, satır-b
 mevcut index'lere biniyor.
 
 **SONRAKİ OTURUM SIRASI:**
-1. (Opsiyonel temiz) **listing_invitations** (owner-via-listing + invited two-party, cron yok).
-2. (Karmaşık, sona) **listings + children** (tedarikçi görünürlük: PUBLIC/PRIVATE + embargo).
+1. ✅ listing_invitations (Faz 6g, 3829f708) — asimetrik iki-taraflı.
+2. **⚠️ listings + children — KARAR GEREKTİRİR (nuanced policy vs permissive).** Basit
+   iki-taraflı DEĞİL: görünürlük = owner OR PUBLIC OR invited(PRIVATE) OR has-bid(embargo)
+   → `listing-visibility.ts` servis helper'ında (INV-VIS-1). Ayrıca discover/search/
+   public-profile/sitemap listing'i CROSS-TENANT okur. Strict owner-policy discovery'i
+   KIRAR. Seçenek: (a) permissive bırak (4 directory gibi — servis-scope birincil gate,
+   RLS backstop zaten ikincil), (b) listing-visibility'yi replike eden karmaşık policy +
+   per-path bypass. force-fit ETME — analiz + kullanıcı kararı.
 3. **4 directory tablo** (companies/company_users/notifications/company_user_invitations) —
    bilinçli permissive KALIR (force-fit ETME; servis-scope birincil gate).
 4. **PROD AKTİVASYON — EN SON, ayrı adım, kullanıcı onayı:** adımlar
