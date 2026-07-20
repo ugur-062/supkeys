@@ -21,7 +21,10 @@ import {
   sellerShipsGoods,
   type PaymentCategory,
 } from "@rothern/shared";
-import { PrismaService } from "../../../common/prisma/prisma.service";
+import {
+  PrismaService,
+  PrismaBypassService,
+} from "../../../common/prisma/prisma.service";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { MAX_MONEY } from "../../../common/constants/money";
 import { sumPaymentsByStatus } from "../../../common/company/order-payments";
@@ -63,6 +66,12 @@ export class CompanyOrdersService {
     private readonly config: ConfigService,
     private readonly notifications: NotificationService,
     private readonly audit: AuditService,
+    // RLS: KÜRESEL cron sweep'i (sendDuePaymentReminders) tenant-bağlamsız çalışır
+    // ve TÜM firmaların vadesi gelen siparişlerini tarar → RLS'li client boş
+    // dönerdi. Bu tek yol bypass kullanır (gerekçe: inherently cross-tenant cron,
+    // bildirim/announce cron'larıyla aynı kategori). Kullanıcı-bağlamlı TÜM order
+    // işlemleri (accept/ship/complete/...) this.prisma (RLS-korumalı) kalır.
+    private readonly bypass: PrismaBypassService,
     @Optional() private readonly realtime?: RealtimeService,
   ) {}
 
@@ -1432,7 +1441,7 @@ export class CompanyOrdersService {
     let cursor: string | undefined;
     let sent = 0;
     for (;;) {
-      const candidates = await this.prisma.companyOrder.findMany({
+      const candidates = await this.bypass.companyOrder.findMany({
         where: {
           // YAŞAM DÖNGÜSÜ AYRIMI: vadeli sipariş artık teslim/kabul edilince
           // COMPLETED olabilir ama borç açık kalır → cron DELIVERED + COMPLETED
@@ -1475,7 +1484,7 @@ export class CompanyOrdersService {
 
       if (due.length > 0) {
         // Batch'in onaylı ödeme toplamları: TEK groupBy (per-order aggregate yok).
-        const sums = await this.prisma.companyOrderPayment.groupBy({
+        const sums = await this.bypass.companyOrderPayment.groupBy({
           by: ["orderId"],
           where: {
             orderId: { in: due.map((x) => x.o.id) },
@@ -1495,7 +1504,7 @@ export class CompanyOrdersService {
           if (this.isFullyPaid(totalDec, confirmed)) continue; // ödenmiş
           // Idempotent claim — yalnız hâlâ damgasız kayıt bildirim atar
           // (overlap/çift-replica güvenli).
-          const claimed = await this.prisma.companyOrder.updateMany({
+          const claimed = await this.bypass.companyOrder.updateMany({
             where: { id: o.id, paymentDueReminderSentAt: null },
             data: { paymentDueReminderSentAt: new Date() },
           });

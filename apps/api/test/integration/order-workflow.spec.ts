@@ -24,6 +24,7 @@ function makeOrdersService() {
     config as never,
     notifications,
     new AuditService(prisma as never),
+    prisma as never, // RLS bypass client (testte RLS kapali -> prisma ile ayni owner)
   );
 }
 
