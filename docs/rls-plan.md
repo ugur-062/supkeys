@@ -4,31 +4,37 @@
 > RLS satır-seviyesi → kolon-maske YAPAMAZ → kapalı-zarf (INV-BID-1) serviste kalır.
 > Detaylı zemin: `docs/invariants.md` INV-MT-5.
 
-## 🟢 GÜNCEL DURUM (2026-07-20) — sonraki oturum buradan devam et
+## 🟢 GÜNCEL DURUM (2026-07-21) — sonraki oturum buradan devam et
 
-**21 tablo RLS-korumalı, LOKAL-KANITLI. Prod'da KAPALI** (`RLS_ENABLED` set edilmemiş →
+**23 tablo RLS-korumalı, LOKAL-KANITLI. Prod'da KAPALI** (`RLS_ENABLED` set edilmemiş →
 extension passthrough; prod DATABASE_URL hâlâ owner rolü → policy'ler de bypass edilir).
 Aktivasyon YAPILMADI — ayrı tur bekliyor.
 
-**Bitti (Faz 1 plumbing + Faz 2-6e):** 9 direct + 2 transitif (approval steps) + 4
-iki-taraflı (connections/blocks/complaints/referrals) + 2 mesaj (thread/message) + bids
-(kapalı-zarf) + 3 bid-child. Her biri `rls-isolation.spec`'te izolasyon-kanıtlı; full-suite
-**98 suite / 900 test yeşil, 0 deadlock** (RLS lokalde AKTİF koşan tek yer bu spec).
+**Bitti (Faz 1 plumbing + Faz 2-6f):** 9 direct + 2 transitif (approval steps) + 4
+iki-taraflı (connections/blocks/complaints/referrals) + 2 mesaj + bids (kapalı-zarf) + 3
+bid-child + **orders (company_orders iki-taraflı + 4 çocuk EXISTS-parent, Step 1 cron-bypass
++ Step 2 policy)**. Her biri `rls-isolation.spec`'te izolasyon-kanıtlı; full-suite
+**98 suite / 901 test yeşil, 0 deadlock** (RLS lokalde AKTİF koşan tek yer bu spec).
 
-**Orders Faz 6f — Step 1 DONE (b2ebc131):** cron sweep bypass'a ayrıldı (davranış değişmez,
-policy öncesi hazırlık). **Step 2 (order+child policy) = SONRAKİ İŞ.**
+**Orders PERF kanıtı (Step 2):** EXPLAIN ANALYZE (100 tenant/1000 order/4000 item) →
+EXISTS-parent **hashed SubPlan** (görünür order-id kümesi BİR KEZ, satır-başı join DEĞİL)
++ parent BitmapOr buyer/seller index'lerinden. Exec 1.9ms. Sağlıklı — iki-taraf `IN`
+mevcut index'lere biniyor.
 
 **SONRAKİ OTURUM SIRASI:**
-1. **Step 2 — orders policy** (migration): `company_orders` `IN(buyer,seller)` + 4 child
-   (`company_order_items`/`_payments`/`_documents`/`order_revisions`) EXISTS-parent transitif.
-   ⚠️ **EXISTS-subquery PERF EXPLAIN ile ÖLÇ** (her child satırı için parent join; `orderId`
-   index'li ama iki-taraf `IN` + join maliyeti kanıtlanmalı). İzolasyon testi + full-suite yeşil + commit.
-2. (Opsiyonel temiz) **listing_invitations** (owner-via-listing + invited two-party, cron yok).
-3. (Karmaşık, sona) **listings + children** (tedarikçi görünürlük: PUBLIC/PRIVATE + embargo).
-4. **4 directory tablo** (companies/company_users/notifications/company_user_invitations) —
+1. (Opsiyonel temiz) **listing_invitations** (owner-via-listing + invited two-party, cron yok).
+2. (Karmaşık, sona) **listings + children** (tedarikçi görünürlük: PUBLIC/PRIVATE + embargo).
+3. **4 directory tablo** (companies/company_users/notifications/company_user_invitations) —
    bilinçli permissive KALIR (force-fit ETME; servis-scope birincil gate).
-5. **PROD AKTİVASYON — EN SON, ayrı adım, kullanıcı onayı:** adımlar
+4. **PROD AKTİVASYON — EN SON, ayrı adım, kullanıcı onayı:** adımlar
    `docs/launch-checklist.md` § "RLS aktivasyon"da sıralı.
+
+⚠️ **MIGRATION-HISTORY TUZAĞI (2026-07-21):** `packages/db/.env` symlink→kök `.env`
+(remote Supabase). Elle `prisma migrate deploy` çalıştırırken inline `DATABASE_URL`
+her zaman kazanmıyor → migration yanlış hedefe/şemaya gidebilir ("No pending" yalanı).
+Test DB'ye migration'ı **jest globalSetup uygular** (TEST_DB_URL, schema=rothern_test);
+yeni RLS migration'ını doğrulamak için elle apply yerine `npx jest rls-isolation -t <ad>`
+koş (globalSetup deploy eder, çıktıda "Applying migration…" görürsün).
 
 ## Tablo sınıflandırması
 - **13 DOĞRUDAN `companyId`:** CompanyUser, CompanyUserInvitation, Notification, CompanyAdminNote, CompanyMembershipEvent, CompanyBankAccount, CompanyAddress, Listing, ListingTemplate, SupplierTemplate, ListingQuestionTemplate, ApprovalFlow, ApprovalRequest. (+ Company kök: `id = current_company()`.)
@@ -63,8 +69,10 @@ Runtime = Supabase **transaction pooler 6543** (`pgbouncer, connection_limit=1`)
 - **Faz 6f — ORDERS** (iki-taraflı buyer/seller + EXISTS-parent child'lar):
   - **Step 1** ✅ (b2ebc131) cron sweep bypass'a ayrıldı (DAVRANIŞ DEĞİŞMEZ; policy gelince
     küresel vade-cron boş dönmesin). 3 okuma bypass, notifyOrderParty in-context korumalı.
-  - **Step 2** ⏳ (SONRAKİ İŞ) `company_orders` `IN(buyer,seller)` + 4 child EXISTS-parent.
-    ⚠️ EXISTS-subquery PERF EXPLAIN ile ölç.
+  - **Step 2** ✅ (c35ae74b) `company_orders` `IN(buyer,seller)` + 4 child EXISTS-parent
+    (20260720110000). Writer/reader audit temiz (award runTenantTx / transitions taraf /
+    admin+cron bypass; okumalar taraf-kapılı). **PERF EXPLAIN'lendi**: EXISTS-parent hashed
+    SubPlan (order-id kümesi bir kez) + BitmapOr buyer/seller index → Exec 1.9ms. **→ 23 tablo.**
 - **Kalan:** listing_invitations (owner-via-listing) → listings+children (tedarikçi görünürlük,
   karmaşık, sona) → 4 directory tablo (permissive kalır).
 - Her tabloda **USING (okuma) önce, WITH CHECK (yazma) sonra.**
