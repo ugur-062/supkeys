@@ -199,6 +199,29 @@ describe("Faz 2d/5 — RLS izolasyon (kısıtlı rol + policy)", () => {
     expect(asC.some((x) => x.id === inv.id)).toBe(false);
   });
 
+  it("İKİ-TARAFLI (Faz 6c): message thread A↔B + mesaj — HER İKİ taraf görür, üçüncü GÖREMEZ (EXISTS parent)", async () => {
+    const { a, b } = await seedAB();
+    const c = await makeCompany(prisma, { name: "C" });
+    const thread = await prisma.messageThread.create({
+      data: { buyerCompanyId: a.id, sellerCompanyId: b.id },
+    });
+    const msg = await prisma.message.create({
+      data: {
+        threadId: thread.id,
+        senderCompanyId: a.id,
+        senderName: "A User",
+        body: "merhaba",
+      },
+    });
+    const seesMsg = async (cid: string) =>
+      (await asCompany(cid, () => R().message.findMany())).some(
+        (x) => x.id === msg.id,
+      );
+    expect(await seesMsg(a.id)).toBe(true); // buyer
+    expect(await seesMsg(b.id)).toBe(true); // seller
+    expect(await seesMsg(c.id)).toBe(false); // üçüncü — GÖREMEZ
+  });
+
   it("YAZMA izolasyonu (WITH CHECK): A bağlamında B'ye adres yazılamaz", async () => {
     const { b } = await seedAB();
     await expect(
