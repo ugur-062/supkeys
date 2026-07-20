@@ -1,13 +1,12 @@
 /**
- * RLS Faz 2d — İZOLASYON KANITI (asıl test). Gerçek runtime yığını:
- * kısıtlı rol (rothern_app) + RLS extension (set_config) + ALS bağlamı + policy.
- * company_addresses/company_bank_accounts gerçek policy'li; listings hâlâ
- * permissive (kanıt-çifti için).
+ * RLS Faz 2d/5 — İZOLASYON KANITI (asıl test). Gerçek runtime yığını: kısıtlı rol
+ * (rothern_app) + RLS extension (set_config) + ALS bağlamı + policy.
  *
- * Kanıtlar: (1) A, B'yi GÖREMEZ; (2) aynı rol+bağlam farklı policy → permissive
- * tabloda görür, gerçek policy'de görmez (engelleyen = policy); (3) bypass/owner
- * cross-tenant okur; (4) bağlam yok → BOŞ (DB) + FIRLAT (app), sessiz yanlış-
- * tenant ASLA.
+ * ROBUST DESEN (deadlock-immune): beforeEach truncateAll YOK. RLS bağlamı
+ * companyId'ye göre DOĞAL izole eder (her test benzersiz firma yaratır → context=A
+ * yalnız A'nın satırlarını görür); owner/permissive sorgular testin kendi
+ * firma-id'lerine scope'lanır. Böylece TRUNCATE (AccessExclusiveLock) ↔ kısıtlı-
+ * bağlantı ters-kilit yarışı ORTADAN KALKAR (bkz. rls-db.ts + CLAUDE.md deadlock).
  */
 import { PrismaClient } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
@@ -30,12 +29,10 @@ beforeAll(async () => {
 afterAll(async () => {
   if (prevFlag === undefined) delete process.env.RLS_ENABLED;
   else process.env.RLS_ENABLED = prevFlag;
+  // Kısıtlı client ÖNCE kapatılır → truncate (owner) onunla yarışmaz.
   await restricted.$disconnect();
   await truncateAll();
   await prisma.$disconnect();
-});
-beforeEach(async () => {
-  await truncateAll();
 });
 
 const addr = (companyId: string, title: string) =>
@@ -51,29 +48,27 @@ async function seedAB() {
   return { a, b };
 }
 
+const R = () => rls as never as PrismaClient;
 // Bağlam içinde extended-restricted sorgu (runtime yolu birebir). await İÇERDE
 // olmalı — PrismaPromise LAZY, aksi halde sorgu ALS dışında koşar (bkz. Faz 1b).
 const asCompany = <T>(companyId: string, fn: () => Promise<T>): Promise<T> =>
   runWithTenantContext({ companyId, realm: "company" }, async () => await fn());
 
-describe("Faz 2d — RLS izolasyon (kısıtlı rol + policy)", () => {
+describe("Faz 2d/5 — RLS izolasyon (kısıtlı rol + policy)", () => {
   it("A firması YALNIZ kendi adresini görür — B'yi GÖREMEZ", async () => {
     const { a } = await seedAB();
-    const rows = await asCompany(a.id, () =>
-      (rls as never as PrismaClient).companyAddress.findMany(),
-    );
+    // RLS context=a → yalnız companyId=a satırları (a benzersiz → sadece bu testin A'sı).
+    const rows = await asCompany(a.id, () => R().companyAddress.findMany());
     expect(rows.map((r) => r.title)).toEqual(["A-adres"]);
   });
 
   it("B bağlamı → yalnız B", async () => {
     const { b } = await seedAB();
-    const rows = await asCompany(b.id, () =>
-      (rls as never as PrismaClient).companyAddress.findMany(),
-    );
+    const rows = await asCompany(b.id, () => R().companyAddress.findMany());
     expect(rows.map((r) => r.title)).toEqual(["B-adres"]);
   });
 
-  it("KANIT-ÇİFTİ: aynı rol+bağlam — permissive tabloda (listings) HEPSİNİ, gerçek-policy'de (addresses) YALNIZ kendini görür", async () => {
+  it("KANIT-ÇİFTİ: aynı rol+bağlam — permissive tabloda (listings) HER İKİ firmayı, gerçek-policy'de (addresses) YALNIZ kendini görür", async () => {
     const { a, b } = await seedAB();
     const ua = await makeUser(prisma, a.id);
     const ub = await makeUser(prisma, b.id);
@@ -84,35 +79,37 @@ describe("Faz 2d — RLS izolasyon (kısıtlı rol + policy)", () => {
       data: { companyId: b.id, type: "ALIM", title: "B-ilan", createdById: ub.id },
     });
     await asCompany(a.id, async () => {
-      const addrs = await (rls as never as PrismaClient).companyAddress.findMany();
-      const listings = await (rls as never as PrismaClient).listing.findMany();
-      // addresses: gerçek policy → yalnız A. listings: permissive → A+B.
-      expect(addrs.map((r) => r.title)).toEqual(["A-adres"]);
-      expect(listings.length).toBe(2);
+      const addrs = await R().companyAddress.findMany();
+      // listings permissive → cross-tenant görür; bu testin a+b ilanlarına scope.
+      const listings = await R().listing.findMany({
+        where: { companyId: { in: [a.id, b.id] } },
+      });
+      expect(addrs.map((r) => r.title)).toEqual(["A-adres"]); // gerçek policy
+      expect(listings.length).toBe(2); // permissive → A+B
     });
   });
 
   it("BYPASS/owner cross-tenant OKUR (bypass çalışıyor)", async () => {
-    await seedAB();
-    // owner prisma = RLS bypass (FORCE yok) → iki adresi de görür.
-    const all = await prisma.companyAddress.findMany();
+    const { a, b } = await seedAB();
+    const all = await prisma.companyAddress.findMany({
+      where: { companyId: { in: [a.id, b.id] } },
+    });
     expect(all.length).toBe(2);
   });
 
   it("BAĞLAM YOK → DB katmanı BOŞ döner (PATLAMAZ): raw kısıtlı sorgu, GUC unset", async () => {
     await seedAB();
-    // Extension YOK (raw restricted) → set_config yapılmaz → policy company=NULL
-    // → hiçbir satır. Sessiz yanlış-tenant DEĞİL, boş.
+    // Extension YOK (raw restricted) → set_config yok → policy companyId=NULL →
+    // HİÇBİR satır (var olan tüm veriye rağmen). Sessiz yanlış-tenant DEĞİL, boş.
     const rows = await restricted.companyAddress.findMany();
     expect(rows).toEqual([]);
   });
 
   it("BAĞLAM YOK → app katmanı FIRLAT (company realm + companyId yok, fail-closed)", async () => {
-    await seedAB();
     await expect(
       runWithTenantContext(
         { companyId: null, realm: "company" },
-        async () => await (rls as never as PrismaClient).companyAddress.findMany(),
+        async () => await R().companyAddress.findMany(),
       ),
     ).rejects.toThrow(/tenant bağlamı|fail-closed/);
   });
@@ -121,23 +118,49 @@ describe("Faz 2d — RLS izolasyon (kısıtlı rol + policy)", () => {
     const { a, b } = await seedAB();
     const ua = await makeUser(prisma, a.id);
     const ub = await makeUser(prisma, b.id);
-    await prisma.listingTemplate.create({
+    const at = await prisma.listingTemplate.create({
       data: { companyId: a.id, name: "A-tpl", payload: {}, createdById: ua.id },
     });
     await prisma.listingTemplate.create({
       data: { companyId: b.id, name: "B-tpl", payload: {}, createdById: ub.id },
     });
-    const rows = await asCompany(a.id, () =>
-      (rls as never as PrismaClient).listingTemplate.findMany(),
-    );
-    expect(rows.map((r) => r.name)).toEqual(["A-tpl"]);
+    const rows = await asCompany(a.id, () => R().listingTemplate.findMany());
+    expect(rows.map((r) => r.id)).toEqual([at.id]);
+  });
+
+  it("TRANSİTİF (Faz 5a) izolasyon: approval_flow_steps — A yalnız kendi step'ini görür (EXISTS parent)", async () => {
+    const { a, b } = await seedAB();
+    const ua = await makeUser(prisma, a.id);
+    const ub = await makeUser(prisma, b.id);
+    const fa = await prisma.approvalFlow.create({
+      data: {
+        companyId: a.id,
+        name: "A-flow",
+        type: "LISTING_AWARD",
+        createdById: ua.id,
+        steps: { create: [{ approverUserId: ua.id, order: 1 }] },
+      },
+      include: { steps: true },
+    });
+    await prisma.approvalFlow.create({
+      data: {
+        companyId: b.id,
+        name: "B-flow",
+        type: "LISTING_AWARD",
+        createdById: ub.id,
+        steps: { create: [{ approverUserId: ub.id, order: 1 }] },
+      },
+    });
+    const steps = await asCompany(a.id, () => R().approvalFlowStep.findMany());
+    // EXISTS parent: yalnız ebeveyni A'ya ait step (bu testin A-flow step'i).
+    expect(steps.map((s) => s.id)).toEqual([fa.steps[0]!.id]);
   });
 
   it("YAZMA izolasyonu (WITH CHECK): A bağlamında B'ye adres yazılamaz", async () => {
     const { b } = await seedAB();
     await expect(
-      asCompany("some-other-company-A", () =>
-        (rls as never as PrismaClient).companyAddress.create({
+      asCompany("baska-firma-A", () =>
+        R().companyAddress.create({
           data: {
             companyId: b.id, // bağlam A ama satır B → WITH CHECK reddeder
             title: "sızma",
