@@ -178,6 +178,27 @@ describe("Faz 2d/5 — RLS izolasyon (kısıtlı rol + policy)", () => {
     expect(await seesIt(c.id)).toBe(false); // üçüncü taraf — GÖREMEZ
   });
 
+  it("İKİ-TARAFLI (Faz 6b): referral invite — inviter görür, üçüncü firma GÖREMEZ", async () => {
+    const { a } = await seedAB();
+    const c = await makeCompany(prisma, { name: "C" });
+    const ua = await makeUser(prisma, a.id);
+    const inv = await prisma.companyReferralInvite.create({
+      data: {
+        inviterCompanyId: a.id,
+        email: `ref-${ua.id}@x.com`,
+        invitedById: ua.id,
+      },
+    });
+    const asInviter = await asCompany(a.id, () =>
+      R().companyReferralInvite.findMany(),
+    );
+    const asC = await asCompany(c.id, () =>
+      R().companyReferralInvite.findMany(),
+    );
+    expect(asInviter.some((x) => x.id === inv.id)).toBe(true);
+    expect(asC.some((x) => x.id === inv.id)).toBe(false);
+  });
+
   it("YAZMA izolasyonu (WITH CHECK): A bağlamında B'ye adres yazılamaz", async () => {
     const { b } = await seedAB();
     await expect(
