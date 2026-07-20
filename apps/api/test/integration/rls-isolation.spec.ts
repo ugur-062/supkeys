@@ -222,6 +222,37 @@ describe("Faz 2d/5 — RLS izolasyon (kısıtlı rol + policy)", () => {
     expect(await seesMsg(c.id)).toBe(false); // üçüncü — GÖREMEZ
   });
 
+  it("KAPALI-ZARF (Faz 6d): listing_bids — ilan sahibi TÜM teklifleri, teklif veren YALNIZ kendini görür; rakip GÖREMEZ (INV-BID-1)", async () => {
+    // O = ilan sahibi, X + Y = iki rakip teklif veren, Z = ilgisiz üçüncü.
+    const o = await makeCompany(prisma, { name: "O-owner" });
+    const x = await makeCompany(prisma, { name: "X-bidder" });
+    const y = await makeCompany(prisma, { name: "Y-bidder" });
+    const z = await makeCompany(prisma, { name: "Z-unrelated" });
+    const uo = await makeUser(prisma, o.id);
+    const ux = await makeUser(prisma, x.id);
+    const uy = await makeUser(prisma, y.id);
+    const listing = await prisma.listing.create({
+      data: { companyId: o.id, type: "ALIM", title: "L", createdById: uo.id },
+    });
+    const bidX = await prisma.listingBid.create({
+      data: { listingId: listing.id, bidderCompanyId: x.id, createdById: ux.id, amount: 100 },
+    });
+    const bidY = await prisma.listingBid.create({
+      data: { listingId: listing.id, bidderCompanyId: y.id, createdById: uy.id, amount: 200 },
+    });
+    const seen = async (cid: string) =>
+      (await asCompany(cid, () => R().listingBid.findMany())).map((b) => b.id);
+    // İlan sahibi → HER İKİ teklifi görür (EXISTS kolu).
+    const byOwner = await seen(o.id);
+    expect(byOwner).toContain(bidX.id);
+    expect(byOwner).toContain(bidY.id);
+    // X → yalnız kendi teklifini, Y'ninkini GÖREMEZ (kapalı zarf).
+    expect(await seen(x.id)).toEqual([bidX.id]);
+    expect(await seen(y.id)).toEqual([bidY.id]);
+    // Z → ilgisiz → HİÇBİRİ.
+    expect(await seen(z.id)).toEqual([]);
+  });
+
   it("YAZMA izolasyonu (WITH CHECK): A bağlamında B'ye adres yazılamaz", async () => {
     const { b } = await seedAB();
     await expect(
