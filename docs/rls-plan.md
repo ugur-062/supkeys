@@ -4,6 +4,32 @@
 > RLS satır-seviyesi → kolon-maske YAPAMAZ → kapalı-zarf (INV-BID-1) serviste kalır.
 > Detaylı zemin: `docs/invariants.md` INV-MT-5.
 
+## 🟢 GÜNCEL DURUM (2026-07-20) — sonraki oturum buradan devam et
+
+**21 tablo RLS-korumalı, LOKAL-KANITLI. Prod'da KAPALI** (`RLS_ENABLED` set edilmemiş →
+extension passthrough; prod DATABASE_URL hâlâ owner rolü → policy'ler de bypass edilir).
+Aktivasyon YAPILMADI — ayrı tur bekliyor.
+
+**Bitti (Faz 1 plumbing + Faz 2-6e):** 9 direct + 2 transitif (approval steps) + 4
+iki-taraflı (connections/blocks/complaints/referrals) + 2 mesaj (thread/message) + bids
+(kapalı-zarf) + 3 bid-child. Her biri `rls-isolation.spec`'te izolasyon-kanıtlı; full-suite
+**98 suite / 900 test yeşil, 0 deadlock** (RLS lokalde AKTİF koşan tek yer bu spec).
+
+**Orders Faz 6f — Step 1 DONE (b2ebc131):** cron sweep bypass'a ayrıldı (davranış değişmez,
+policy öncesi hazırlık). **Step 2 (order+child policy) = SONRAKİ İŞ.**
+
+**SONRAKİ OTURUM SIRASI:**
+1. **Step 2 — orders policy** (migration): `company_orders` `IN(buyer,seller)` + 4 child
+   (`company_order_items`/`_payments`/`_documents`/`order_revisions`) EXISTS-parent transitif.
+   ⚠️ **EXISTS-subquery PERF EXPLAIN ile ÖLÇ** (her child satırı için parent join; `orderId`
+   index'li ama iki-taraf `IN` + join maliyeti kanıtlanmalı). İzolasyon testi + full-suite yeşil + commit.
+2. (Opsiyonel temiz) **listing_invitations** (owner-via-listing + invited two-party, cron yok).
+3. (Karmaşık, sona) **listings + children** (tedarikçi görünürlük: PUBLIC/PRIVATE + embargo).
+4. **4 directory tablo** (companies/company_users/notifications/company_user_invitations) —
+   bilinçli permissive KALIR (force-fit ETME; servis-scope birincil gate).
+5. **PROD AKTİVASYON — EN SON, ayrı adım, kullanıcı onayı:** adımlar
+   `docs/launch-checklist.md` § "RLS aktivasyon"da sıralı.
+
 ## Tablo sınıflandırması
 - **13 DOĞRUDAN `companyId`:** CompanyUser, CompanyUserInvitation, Notification, CompanyAdminNote, CompanyMembershipEvent, CompanyBankAccount, CompanyAddress, Listing, ListingTemplate, SupplierTemplate, ListingQuestionTemplate, ApprovalFlow, ApprovalRequest. (+ Company kök: `id = current_company()`.)
 - **İki-taraflı** (`current_company() IN (a,b)`): MessageThread, Message, CompanyOrder, CompanyReview, CompanyConnection, CompanyBlock, CompanyReferralInvite, CompanyComplaint, ListingBid, ListingInvitation.
@@ -28,14 +54,22 @@ Runtime = Supabase **transaction pooler 6543** (`pgbouncer, connection_limit=1`)
   - **2c** ✅ Bypass client → admin/auth/cron'a wire (11 doğrudan-prisma site). ⚠️ cron-via-service (order.scheduler→notifications) boşluğu 2d-2'de.
   - **2c+ (bypass wiring tamamlama):** Aşama A ✅ (9172aad4) company-auth.service pre-context 27 sorgu → bypass (surgical; authenticated 20 site main'de RLS-korumalı); auth-precontext kanıt (bypass BULUR/RLS'li bağlamsız BULAMAZ→giriş kırılırdı). Aşama B ✅ (9bd94111) public-profile.service → bypass (public katalog cross-tenant); kanıt temp companies-policy. admin-inspection: zaten RLS-DOĞRU (cross-tenant=admin bypass, test owner=bypass eşdeğeri; wrong-lock YOK — rig yorumu netleştirildi). **Bypass kategorileri TAM:** admin/auth-precontext/public/cron-direct. KALAN: cron-via-service (notifications)=2d-2.
   - **2d-1** ✅ Gerçek policy addresses+bank (20260719132000, `"companyId"=current_setting`). **İZOLASYON KANITI** (rls-isolation.spec 7/7: A≠B, kanıt-çifti, bypass, no-ctx boş+throw, WITH CHECK). Full-suite 96/890 yeşil.
-  - **2d-2** (SIRADA) kalan 11 tablo dalga dalga. **WRITER-AUDIT:** pre-context/cron yazanlar (companies=signup, company_users=signup, company_user_invitations=accept, notifications=cron) gerçek-policy'de bloklanır → **sistem-bypass bağlamı** gerekir (ALS realm="system"→extension bypass-GUC + policy OR-dalı, VEYA o yazımları bypass client'a al). Güvenli olanlar (templates×3, approval×2, admin_notes, membership_events, listings) önce.
-- **Faz 3** — (Faz 2'ye katıldı: ilk gerçek tablo 2d-1'de kanıtlandı.)
-- **Faz 4** — Kalan 12 doğrudan tablo (yaprak→Listing→Approval→CompanyUser en son; CompanyUser jwt-validate pre-context → bypass client şart).
-- **Faz 5** — Transitif (EXISTS parent, ebeveyn enforce sonrası).
-- **Faz 6** — İki-taraflı (`IN (a,b)`, iki taraf da izolasyon testi).
-- **Faz 7** — Kapalı-zarf (yalnız satır-görünürlük), EN SON.
+  - **2d-2a** ✅ (d6977379) 7 güvenli tablo gerçek policy (templates×3, approval_flows/requests, admin_notes, membership_events; 20260719133000). Bypass wiring TAM (auth pre-context Aşama A + public katalog Aşama B). **→ 9 direct tablo gerçek-policy.** Kalan 4 (companies/company_users/notifications/company_user_invitations) = cross-tenant/pre-context BY DESIGN → permissive KALIR (bkz. altta "13 direct fazla saymış").
+- **Faz 5** ✅ (33567906) Transitif approval steps (20260719134000, EXISTS-parent). **→ 11 tablo.**
+- **Faz 6** ✅ İki-taraflı + kapalı-zarf (`IN(a,b)` / EXISTS-parent), her biri izolasyon-kanıtlı:
+  - 6a connections+blocks, 6b complaints+referrals (reviews HARİÇ=directory), 6c messages
+    (13a50df8), 6d listing_bids kapalı-zarf asimetrik (99317d2b, INV-BID-1 satır-düzeyi),
+    6e bid item/answer/document (da4db6e1, parent kapalı-zarfını miras). **→ 21 tablo.**
+- **Faz 6f — ORDERS** (iki-taraflı buyer/seller + EXISTS-parent child'lar):
+  - **Step 1** ✅ (b2ebc131) cron sweep bypass'a ayrıldı (DAVRANIŞ DEĞİŞMEZ; policy gelince
+    küresel vade-cron boş dönmesin). 3 okuma bypass, notifyOrderParty in-context korumalı.
+  - **Step 2** ⏳ (SONRAKİ İŞ) `company_orders` `IN(buyer,seller)` + 4 child EXISTS-parent.
+    ⚠️ EXISTS-subquery PERF EXPLAIN ile ölç.
+- **Kalan:** listing_invitations (owner-via-listing) → listings+children (tedarikçi görünürlük,
+  karmaşık, sona) → 4 directory tablo (permissive kalır).
 - Her tabloda **USING (okuma) önce, WITH CHECK (yazma) sonra.**
-- **Prod EN SON, ayrı adım:** rol provision + `DATABASE_URL` rol-geçişi + policy enable.
+- **Prod EN SON, ayrı adım:** rol provision + `DATABASE_URL` rol-geçişi + policy enable
+  → **sıralı adımlar `docs/launch-checklist.md` § "RLS aktivasyon".**
 
 ## Test stratejisi
 - Lokal test rolü `rothern` şemayı OWN eder → `FORCE ROW LEVEL SECURITY` + kısıtlı non-owner rolle koşan **ikinci PrismaClient** gerekir; `connection_limit=1` tek-session pooler'ı taklit etmez.
