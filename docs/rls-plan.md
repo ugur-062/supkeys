@@ -6,7 +6,7 @@
 
 ## 🟢 GÜNCEL DURUM (2026-07-21) — sonraki oturum buradan devam et
 
-**24 tablo RLS-korumalı, LOKAL-KANITLI. Prod'da KAPALI** (`RLS_ENABLED` set edilmemiş →
+**27 tablo RLS-korumalı, LOKAL-KANITLI. Prod'da KAPALI** (`RLS_ENABLED` set edilmemiş →
 extension passthrough; prod DATABASE_URL hâlâ owner rolü → policy'ler de bypass edilir).
 Aktivasyon YAPILMADI — ayrı tur bekliyor.
 
@@ -21,7 +21,11 @@ EXISTS-parent **hashed SubPlan** (görünür order-id kümesi BİR KEZ, satır-b
 + parent BitmapOr buyer/seller index'lerinden. Exec 1.9ms. Sağlıklı — iki-taraf `IN`
 mevcut index'lere biniyor.
 
-**✅ TABLO ROLLOUT MÜHÜRLENDİ — 24 tablo (2026-07-21).** Kalan tek iş = PROD AKTİVASYON.
+**✅ TABLO ROLLOUT MÜHÜRLENDİ — 27 gerçek-policy'li tablo (2026-07-21).** (Sayım: 9 direct +
+2 transitif + 6 iki-taraflı[connections/blocks/complaints/referrals/message_threads/
+listing_invitations] + 1 message + 4 kapalı-zarf[bid+3child] + 5 orders[+4child]. Not:
+oturum-içi ara sayımlar "24" dedi = order child'ları eksik saymış; migration CREATE POLICY
+toplamı = 27 kesin.) Kalan tek iş = PROD AKTİVASYON.
 
 - ✅ listing_invitations (Faz 6g, 3829f708) — asimetrik iki-taraflı.
 - **listings + children → PERMISSIVE KALIR (KARAR, 2026-07-21, kullanıcı onayı).** Görünürlük

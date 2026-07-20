@@ -4,6 +4,40 @@ Bu dosya tamamlanmış aşamaların detaylı kaydıdır. Aktif çalışma için 
 
 ---
 
+## 2026-07-19 → 07-21 — RLS multi-tenant backstop LOKAL ROLLOUT TAMAM (INV-MT-5)
+
+**Sonuç:** Postgres RLS güvenlik ağı **27 tabloda gerçek policy'li, lokal-kanıtlı** (kısıtlı
+rol `rothern_app` + `RLS_ENABLED=true` ile `rls-isolation.spec`'te izolasyon testli, full-suite
+98 suite / 902 test yeşil, fail-closed, kill-switch var). **Prod'da KAPALI** — aktivasyon ayrı/
+taze tur (adımlar: `docs/launch-checklist.md § RLS aktivasyon`). Plan: `docs/rls-plan.md`.
+
+- **Plumbing (Faz 1):** tenant ALS + interceptor/middleware, Prisma `$extends` RLS extension
+  (`RLS_ENABLED` flag-arkası, `SET LOCAL app.current_company_id` tx-içi), `runTenantTx`,
+  `PrismaBypassService` (owner rol, admin/auth-precontext/public/cron için).
+- **Policy'ler (Faz 2-6g):** 9 direct (`companyId=current`) + 2 transitif (approval steps,
+  EXISTS-parent) + 6 iki-taraflı (`IN(a,b)`: connections/blocks/complaints/referrals/
+  message_threads/listing_invitations) + 1 message + 4 kapalı-zarf (listing_bids + 3 child,
+  INV-BID-1 satır-düzeyi) + 5 orders (company_orders `IN(buyer,seller)` + 4 child EXISTS-parent).
+- **Orders özel:** cron sweep (`sendDuePaymentReminders`) bypass'a ayrıldı (Step 1, davranış
+  değişmez) → policy sonra (Step 2). **PERF EXPLAIN'lendi:** child EXISTS-parent = hashed SubPlan
+  (görünür order-id bir kez) + buyer/seller index BitmapOr → 1.9ms (sağlıklı).
+- **İLKE (INV-MT-5'e yazıldı):** tenant-scoped basit / iki-taraflı / kapalı-zarf / DAĞINIK-guard
+  (orders) → RLS AL; **tek-helper görünürlük (listings `listing-visibility.ts`) + directory
+  (companies/users/notifications/invitations) → bilinçli PERMISSIVE** (getiri < 4-yollu EXISTS bedeli).
+- **Test altyapısı dersi:** orphaned `pnpm test` wrapper'ları test DB'de çakışıp jest'i ~40
+  suite'te öldürür (deadlock değil) → `pkill` + DB-conn temizliği + tek `run_in_background`.
+  Migration-history tuzağı: `packages/db/.env` symlink→remote → test DB'ye migration jest
+  globalSetup uygular (elle `migrate deploy` yanlış hedef, "No pending" yalanı).
+
+**Bu oturum arkında ayrıca** (kullanıcı özeti — ilgili memory/commit'lerde izli): iş akışı
+(A1 satıcı iptal+DISPUTED, TTK 23 ayıp ihbarı, mal-mukabili+ADVANCE vadesi, sipariş/ödeme
+yaşam-döngüsü ayrımı, KDV konvansiyonu), lokal Postgres test altyapısı (4× hız + deadlock
+kökü connection_limit=1 + CI), CSRF canlı-bug (COOKIE_DOMAIN eksik) + prod-config boot-guard,
+INV-AUDIT-1 3. dalga, CSP nonce. **Kod tarafında launch-blocker YOK** (kalanlar backup/plan
+kurulumu = kullanıcı elinde, veya avukat: TTK 23 + KVKK).
+
+---
+
 ---
 
 ## Tamamlanan Aşamalar (Özet)

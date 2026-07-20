@@ -180,45 +180,47 @@ launch-blocker. Tedarikçi VERIFIED olmadan **teklif veremez**, firma PAKET olma
 
 ## RLS aktivasyon (multi-tenant backstop, INV-MT-5)
 
-> **DURUM (2026-07-20): RLS lokal-kanıtlı ama PROD'DA KAPALI.** 21 tablo policy'li +
-> `rls-isolation.spec` yeşil, ama prod'da (a) `RLS_ENABLED` set edilmemiş → extension
-> passthrough VE (b) prod `DATABASE_URL` owner rolü → policy'ler zaten bypass. Yani
-> **hiçbir davranış değişmedi.** Aktivasyon aşağıdaki sıralı adımlarla, AYRI turda,
-> önce staging'de. Plan/detay: `docs/rls-plan.md`. **Step 2 (orders policy) aktivasyondan
-> ÖNCE bitmeli** — yoksa order tabloları korumasız kalır.
+> **DURUM (2026-07-21): RLS LOKAL ROLLOUT TAMAM ama PROD'DA KAPALI.** **27 tablo gerçek
+> policy'li** (9 direct + 2 transitif + 6 iki-taraflı + 2 mesaj + 4 kapalı-zarf[bid+child] +
+> 5 orders[+child] — hepsi `rls-isolation.spec`'te kısıtlı rol + `RLS_ENABLED=true` ile
+> izolasyon-kanıtlı, full-suite yeşil, fail-closed). **listings + children + 4 directory
+> tablo bilinçli PERMISSIVE** (görünürlük tek-helper servis kapısında, INV-MT-5 İLKE'si).
+> Prod'da: (a) `RLS_ENABLED` set değil → extension passthrough, (b) prod `DATABASE_URL`
+> owner rolü → policy'ler bypass → **hiçbir davranış değişmedi.** Aktivasyon = ayrı/taze
+> tur, önce staging. Plan/detay: `docs/rls-plan.md`.
 >
 > ⚠️ Bu bir **veri-izolasyonu** değişikliği: yanlış aktivasyon = sessiz boş yanıt / kullanıcı
 > verisini göremez. `docs/migration-safety.md` + PITR/snapshot ZORUNLU.
 
-- [ ] **0. Ön-koşul:** Step 2 (orders) + istenirse listing_invitations policy'leri merge'li;
-      lokal full-suite + `rls-isolation.spec` yeşil. Kill-switch üç yolu da hazır (aşağıda).
-- [ ] **1. Supabase'de kısıtlı rol provision.** `rothern_app` (LOGIN NOSUPERUSER NOBYPASSRLS)
-      migration lokalde çalışıyor AMA **Supabase'de `CREATE ROLE` süper-yetki ister** — Supabase
-      SQL editor / dashboard'dan elle çalıştır, grant'leri (migration 20260719130000 SQL'i) doğrula.
-      Rol parolası migration'da YOK → Supabase'de elle `ALTER ROLE rothern_app WITH PASSWORD ...`
-      (secret manager'a koy, repo'ya YAZMA).
-- [ ] **2. Pooler auth riskini doğrula (KRİTİK, bilinmeyen).** Supabase **transaction pooler
-      (6543)** custom rol ile auth kabul ediyor mu? `rothern_app` kimliğiyle pooler üzerinden
-      bağlan + basit sorgu + `SET LOCAL`'in tx içinde tuttuğunu (set_config+read aynı tx) TEST
-      et. Pooler custom-rol'ü reddederse → direct 5432 veya alternatif pooler stratejisi gerekir
-      (bu, aktivasyonu bloklar).
-- [ ] **3. Policy migration'larını prod'a uygula** (`migrate deploy`). ENABLE RLS + policy'ler
-      **FORCE'suz** → owner hâlâ bypass eder → uygulama owner DATABASE_URL'inde çalışırken
-      DAVRANIŞ DEĞİŞMEZ (yalnız DDL). Migration güvenliği: `docs/migration-safety.md`.
-- [ ] **4. Bypass client env'i ayır.** `DATABASE_URL_BYPASS` = owner/BYPASSRLS rol (admin/auth
-      pre-context/public katalog/cron için). Set edilmezse ana `DATABASE_URL`'e düşer (bugünkü
-      birebir davranış) — ama aktivasyonda ana URL kısıtlı role dönünce **bypass'ın ayrı owner
-      URL'i ŞART** (yoksa admin/cron/auth kırılır).
-- [ ] **5. Ana `DATABASE_URL`'i kısıtlı role çevir + `RLS_ENABLED=true`.** GERÇEK aktivasyon anı.
-      **Önce staging**, sonra prod. Bu ikisi birlikte: kısıtlı rol (policy artık enforce) +
-      extension (GUC set eder). Sıra: env değiştir → tek instance → duman testi → yayılım.
-- [ ] **6. Duman + izolasyon doğrulama (prod/staging).** İki farklı tenant hesabıyla giriş →
-      her biri YALNIZ kendi verisini görüyor + cross-tenant erişim boş/403. Cron'lar (vade
-      hatırlatma, döviz, bildirim) çalışıyor (bypass ile). Boş-yanıt alarmı / canary izle.
-- [ ] **7. Kill-switch (geri alma) — üç yol, en hızlıdan:**
-      **(a)** `DATABASE_URL`'i owner role geri çevir (anında, DDL'siz — RLS bypass). →
-      **(b)** `RLS_ENABLED=false` (extension no-op). → **(c)** `ALTER TABLE x DISABLE ROW LEVEL
-      SECURITY` (tablo bazında, son çare). İlk aktivasyon penceresinde (a)'yı elinin altında tut.
+- [ ] **1. Kısıtlı rol provision (İLK ENGEL — önce çöz).** `rothern_app` (LOGIN NOSUPERUSER
+      NOBYPASSRLS) migration lokalde çalışıyor AMA **Supabase'de `CREATE ROLE` süper-yetki
+      ister** → dashboard/SQL editor'den mi çalışır, farklı grant modeli mi gerekir? Bunu
+      NET çöz (grant'ler = migration 20260719130000 SQL'i). Rol parolası migration'da YOK →
+      elle `ALTER ROLE rothern_app WITH PASSWORD ...` (secret manager'a, repo'ya YAZMA).
+      **AYRICA pooler auth (KRİTİK bilinmeyen):** Supabase transaction pooler (6543) custom
+      rolle auth kabul ediyor mu? `rothern_app` ile pooler'dan bağlan + `SET LOCAL`'in tx
+      içinde tuttuğunu test et. Reddederse → direct 5432 / alternatif strateji (aktivasyonu bloklar).
+- [ ] **2. `DATABASE_URL_BYPASS` = owner rol connection string** (Render env). admin/auth
+      pre-context/public katalog/cron bunu kullanır. Ana URL kısıtlı role dönünce bypass'ın
+      **ayrı owner URL'i ŞART** (yoksa admin/cron/auth kırılır).
+- [ ] **3. Migration'ları prod'a uygula** (`migrate deploy`): rol + ENABLE RLS + policy'ler.
+      FORCE'suz → owner hâlâ bypass → uygulama owner URL'indeyken DAVRANIŞ DEĞİŞMEZ (yalnız DDL).
+- [ ] **4. `RLS_ENABLED=true` — ama ÖNCE KADEMELİ.** Hepsini birden çevirme: bir(kaç) tabloyu
+      enforce et (diğerlerini `DISABLE ROW LEVEL SECURITY` bırak veya kısıtlı role dar kapsam),
+      canlı test et, sonra kalanları aç. Ana `DATABASE_URL`'i kısıtlı role çevirmek + flag birlikte
+      = gerçek aktivasyon anı. **Önce staging.** Sıra: env değiştir → tek instance → duman → yayılım.
+- [ ] **5. Kill-switch TESTİ (aktivasyondan önce prova).** `RLS_ENABLED=false` ile saniyeler
+      içinde kapanıyor mu — ÖLÇ. Üç yol, en hızlıdan: **(a)** `DATABASE_URL`→owner rol (anında,
+      DDL'siz). **(b)** `RLS_ENABLED=false` (extension no-op). **(c)** `ALTER TABLE x DISABLE ROW
+      LEVEL SECURITY` (tablo bazında, son çare). İlk pencerede (a)'yı elinin altında tut.
+- [ ] **6. Geri-alma migration'ı hazır:** policy DROP migration'ı önceden yaz/gözden geçir
+      (her `CREATE POLICY` için `DROP POLICY IF EXISTS` + gerekirse `DISABLE ROW LEVEL SECURITY`).
+- [ ] **7. Aktivasyon SONRASI canlı doğrulama (ZORUNLU).** İki farklı tenant hesabıyla giriş →
+      her biri YALNIZ kendi verisini görüyor + cross-tenant boş/403. **Giriş + kritik akışları
+      (kayıt/verify/2FA/reset, teklif, kazandır, sipariş, ödeme) MUTLAKA canlı test et.** Cron'lar
+      (vade/döviz/bildirim) bypass ile çalışıyor mu. Boş-yanıt alarmı / canary izle.
+      ⚠️ **RİSK:** tenant-bağlamı geçmeyen bir yol prod'da BOŞ döner (fail-closed = iyi, sessiz
+      yanlış-tenant değil) — ama bu bir kritik akışı sessizce kırabilir; #7 canlı testi bu yüzden şart.
 
 ## Netleştirilecek (deploy öncesi karar)
 
