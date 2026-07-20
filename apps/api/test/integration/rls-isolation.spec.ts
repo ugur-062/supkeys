@@ -323,6 +323,31 @@ describe("Faz 2d/5 — RLS izolasyon (kısıtlı rol + policy)", () => {
     expect(await seesItem(c.id)).toBe(false);
   });
 
+  it("İKİ-TARAFLI asimetrik (Faz 6g): listing_invitations — ilan sahibi TÜM davetleri, davetli YALNIZ kendini görür; üçüncü GÖREMEZ", async () => {
+    const o = await makeCompany(prisma, { name: "IO" }); // ilan sahibi
+    const x = await makeCompany(prisma, { name: "IX" }); // davetli 1
+    const y = await makeCompany(prisma, { name: "IY" }); // davetli 2
+    const z = await makeCompany(prisma, { name: "IZ" }); // ilgisiz
+    const uo = await makeUser(prisma, o.id);
+    const listing = await prisma.listing.create({
+      data: { companyId: o.id, type: "ALIM", title: "IL", createdById: uo.id },
+    });
+    const invX = await prisma.listingInvitation.create({
+      data: { listingId: listing.id, invitedCompanyId: x.id, invitedById: uo.id },
+    });
+    const invY = await prisma.listingInvitation.create({
+      data: { listingId: listing.id, invitedCompanyId: y.id, invitedById: uo.id },
+    });
+    const seen = async (cid: string) =>
+      (await asCompany(cid, () => R().listingInvitation.findMany())).map((i) => i.id);
+    const byOwner = await seen(o.id);
+    expect(byOwner).toContain(invX.id); // sahip → tüm davetler
+    expect(byOwner).toContain(invY.id);
+    expect(await seen(x.id)).toEqual([invX.id]); // davetli yalnız kendi (rakibi görmez)
+    expect(await seen(y.id)).toEqual([invY.id]);
+    expect(await seen(z.id)).toEqual([]); // ilgisiz → hiçbiri
+  });
+
   it("YAZMA izolasyonu (WITH CHECK): A bağlamında B'ye adres yazılamaz", async () => {
     const { b } = await seedAB();
     await expect(
