@@ -21,19 +21,24 @@ EXISTS-parent **hashed SubPlan** (görünür order-id kümesi BİR KEZ, satır-b
 + parent BitmapOr buyer/seller index'lerinden. Exec 1.9ms. Sağlıklı — iki-taraf `IN`
 mevcut index'lere biniyor.
 
-**SONRAKİ OTURUM SIRASI:**
-1. ✅ listing_invitations (Faz 6g, 3829f708) — asimetrik iki-taraflı.
-2. **⚠️ listings + children — KARAR GEREKTİRİR (nuanced policy vs permissive).** Basit
-   iki-taraflı DEĞİL: görünürlük = owner OR PUBLIC OR invited(PRIVATE) OR has-bid(embargo)
-   → `listing-visibility.ts` servis helper'ında (INV-VIS-1). Ayrıca discover/search/
-   public-profile/sitemap listing'i CROSS-TENANT okur. Strict owner-policy discovery'i
-   KIRAR. Seçenek: (a) permissive bırak (4 directory gibi — servis-scope birincil gate,
-   RLS backstop zaten ikincil), (b) listing-visibility'yi replike eden karmaşık policy +
-   per-path bypass. force-fit ETME — analiz + kullanıcı kararı.
-3. **4 directory tablo** (companies/company_users/notifications/company_user_invitations) —
-   bilinçli permissive KALIR (force-fit ETME; servis-scope birincil gate).
-4. **PROD AKTİVASYON — EN SON, ayrı adım, kullanıcı onayı:** adımlar
-   `docs/launch-checklist.md` § "RLS aktivasyon"da sıralı.
+**✅ TABLO ROLLOUT MÜHÜRLENDİ — 24 tablo (2026-07-21).** Kalan tek iş = PROD AKTİVASYON.
+
+- ✅ listing_invitations (Faz 6g, 3829f708) — asimetrik iki-taraflı.
+- **listings + children → PERMISSIVE KALIR (KARAR, 2026-07-21, kullanıcı onayı).** Görünürlük
+  BASİT row-rule DEĞİL: `listing-visibility.ts` (INV-VIS-1) 4-yollu servis fonksiyonu =
+  owner OR PUBLIC OR invited OR (CONNECTIONS && owner'a-aktif-bağlı). listings hot path'te
+  CROSS-TENANT okunur (discover feed status=OPEN scan, search, sellerTenders, public-profile,
+  sitemap). Gerekçe: görünürlük ZATEN tek-kaynak+test-edilmiş servis kapısında; RLS=backstop,
+  birincil değil. Full 4-yollu policy connection-EXISTS ile hot-feed perf riski + büyük
+  cross-tenant audit yüzeyi + all-or-nothing (kısmi policy CONNECTIONS'ı gizler→discovery
+  kırar). listings 2b'den beri RLS-enabled+permissive `USING(true)` → değişiklik yok.
+- **4 directory tablo** (companies/company_users/notifications/company_user_invitations) —
+  bilinçli permissive KALIR (servis-scope birincil gate).
+
+**→ PROD AKTİVASYON — EN SON, ayrı adım, kullanıcı onayı:** adımlar
+`docs/launch-checklist.md` § "RLS aktivasyon"da sıralı (Supabase rol provision → pooler
+custom-rol auth riski doğrula → policy migrate → DATABASE_URL_BYPASS ayır → ana URL→kısıtlı
+rol + RLS_ENABLED=true → duman/izolasyon → 3-yollu kill-switch).
 
 ⚠️ **MIGRATION-HISTORY TUZAĞI (2026-07-21):** `packages/db/.env` symlink→kök `.env`
 (remote Supabase). Elle `prisma migrate deploy` çalıştırırken inline `DATABASE_URL`
