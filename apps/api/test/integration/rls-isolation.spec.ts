@@ -117,6 +117,22 @@ describe("Faz 2d — RLS izolasyon (kısıtlı rol + policy)", () => {
     ).rejects.toThrow(/tenant bağlamı|fail-closed/);
   });
 
+  it("YENİ TABLO (2d-2a) izolasyon: listing_templates — A yalnız kendi şablonunu görür", async () => {
+    const { a, b } = await seedAB();
+    const ua = await makeUser(prisma, a.id);
+    const ub = await makeUser(prisma, b.id);
+    await prisma.listingTemplate.create({
+      data: { companyId: a.id, name: "A-tpl", payload: {}, createdById: ua.id },
+    });
+    await prisma.listingTemplate.create({
+      data: { companyId: b.id, name: "B-tpl", payload: {}, createdById: ub.id },
+    });
+    const rows = await asCompany(a.id, () =>
+      (rls as never as PrismaClient).listingTemplate.findMany(),
+    );
+    expect(rows.map((r) => r.name)).toEqual(["A-tpl"]);
+  });
+
   it("YAZMA izolasyonu (WITH CHECK): A bağlamında B'ye adres yazılamaz", async () => {
     const { b } = await seedAB();
     await expect(
