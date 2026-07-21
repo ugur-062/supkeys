@@ -15,7 +15,12 @@ const past = new Date(Date.now() - 86_400_000);
 const future = new Date(Date.now() + 86_400_000);
 
 function profileService() {
-  return new CompanyProfileService(prisma as never, {} as never, {} as never);
+  return new CompanyProfileService(
+    prisma as never,
+    {} as never,
+    {} as never,
+    { log: async () => undefined } as never, // audit assert edilmez → noop stub
+  );
 }
 
 async function paketWithEnd(endAt: Date | null) {

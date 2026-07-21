@@ -37,7 +37,7 @@ export class CompanyProfileController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: UpdateCompanyProfileDto,
   ) {
-    return this.service.update(user.companyId, dto);
+    return this.service.update(user.companyId, dto, user);
   }
 
   @Post("image/upload-url")

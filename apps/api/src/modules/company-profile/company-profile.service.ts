@@ -17,7 +17,9 @@ import {
   assertUploadedObjectValid,
   MAX_IMAGE_BYTES,
 } from "../../common/helpers/upload-validation";
+import { AuditService } from "../audit/audit.service";
 import { CategoryService } from "../categories/services/category.service";
+import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { StorageService } from "../storage/storage.service";
 import { UpdateCompanyProfileDto } from "./dto/update-company-profile.dto";
 
@@ -74,6 +76,7 @@ export class CompanyProfileService {
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
     private readonly categories: CategoryService,
+    private readonly audit: AuditService,
   ) {}
 
   /** Logo/kapak için presigned PUT URL üretir (tarayıcı doğrudan R2'ye yükler). */
@@ -150,8 +153,16 @@ export class CompanyProfileService {
     return base;
   }
 
-  /** Düzenlenebilir profil alanları (yetki: company:manage / YONETICI). */
-  async update(companyId: string, dto: UpdateCompanyProfileDto) {
+  /**
+   * Düzenlenebilir profil alanları (yetki: company:manage / YONETICI).
+   * INV-AUDIT-1: değişen alan ADLARI audit'e düşer (değerler değil; IBAN
+   * yalnız maskeli referans). `actor` controller'dan gelir; audit fail-safe.
+   */
+  async update(
+    companyId: string,
+    dto: UpdateCompanyProfileDto,
+    actor?: AuthenticatedCompanyUser,
+  ) {
     // Fix1: SAKLANAN görsel URL'leri kendi R2 tenant-profile deposundan olmalı —
     // harici/data: URL PATCH'i public profilde <img src> olarak render edilir.
     // GRANDFATHER: yalnız DEĞİŞEN/YENİ değeri doğrula (mevcut değer dokunulmuyorsa
@@ -287,6 +298,29 @@ export class CompanyProfileService {
       data,
       select: SELECT,
     });
+
+    const changedFields = Object.keys(data);
+    if (changedFields.length > 0) {
+      const moneyPathChanged =
+        changedFields.includes("iban") || changedFields.includes("ibanHolder");
+      await this.audit.log({
+        action: "company.profile.updated",
+        actorType: "company",
+        actorId: actor?.userId ?? null,
+        actorEmail: actor?.email ?? null,
+        tenantId: companyId,
+        entityType: "company",
+        entityId: companyId,
+        metadata: {
+          changedFields, // alan adları — değerler ASLA yazılmaz
+          ...(changedFields.includes("iban")
+            ? { ibanMaskedAfter: c.iban ? maskIban(c.iban) : null }
+            : {}),
+        },
+        // IBAN/hesap-sahibi değişimi para-yolu delilidir → critical.
+        critical: moneyPathChanged,
+      });
+    }
     return c;
   }
 

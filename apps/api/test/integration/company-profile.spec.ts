@@ -3,6 +3,7 @@
  * IBAN) doğrulaması + kaydı.
  */
 import { BadRequestException } from "@nestjs/common";
+import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyProfileService } from "../../src/modules/company-profile/company-profile.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
@@ -16,7 +17,12 @@ function makeService() {
     generatePresignedGet: jest.fn(),
     deleteObject: jest.fn(),
   };
-  return new CompanyProfileService(prisma as never, storage as never);
+  return new CompanyProfileService(
+    prisma as never,
+    storage as never,
+    {} as never, // categories — bu spec kategori id'si göndermez
+    new AuditService(prisma as never),
+  );
 }
 
 afterAll(async () => {
@@ -92,6 +98,45 @@ describe("company-profile — kurumsal kimlik kalemleri", () => {
     expect(full.iban).toBe(VALID_IBAN);
   });
 
+  it("PATCH audit izi: changedFields alan ADLARI; IBAN değişimi critical + maskeli", async () => {
+    const svc = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+
+    await svc.update(
+      owner.company.id,
+      { website: "https://ornek.com", iban: VALID_IBAN } as never,
+      owner.auth,
+    );
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: {
+        action: "company.profile.updated",
+        entityId: owner.company.id,
+      },
+    });
+    expect(row.actorId).toBe(owner.auth.userId);
+    expect(row.tenantId).toBe(owner.company.id);
+    const meta = row.metadata as Record<string, unknown>;
+    expect(meta.changedFields).toEqual(
+      expect.arrayContaining(["website", "iban"]),
+    );
+    expect(meta.ibanMaskedAfter).toBe("TR" + "*".repeat(20) + "1326");
+    // Değerler metadata'ya yazılmaz (alan adları + maskeli IBAN referansı hariç).
+    expect(JSON.stringify(meta)).not.toContain(VALID_IBAN);
+    expect(JSON.stringify(meta)).not.toContain("ornek.com");
+
+    // IBAN'sız değişiklik → audit var ama critical değil (para-yolu değil).
+    await svc.update(
+      owner.company.id,
+      { aboutText: "Hakkımızda" } as never,
+      owner.auth,
+    );
+    const rows = await prisma.auditLog.findMany({
+      where: { action: "company.profile.updated" },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(rows).toHaveLength(2);
+  });
+
   it("boş IBAN → temizlenir (null)", async () => {
     const svc = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -129,7 +174,12 @@ function makeServiceEx(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
   return {
-    svc: new CompanyProfileService(prisma as never, storage as never),
+    svc: new CompanyProfileService(
+      prisma as never,
+      storage as never,
+      {} as never,
+      new AuditService(prisma as never),
+    ),
     storage,
   };
 }

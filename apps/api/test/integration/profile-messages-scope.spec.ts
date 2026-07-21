@@ -18,8 +18,13 @@ beforeEach(async () => {
 });
 
 describe("profil KVKK gate", () => {
-  it("company:manage yoksa TCKN/IBAN maskeli (null) döner; varsa tam", async () => {
-    const svc = new CompanyProfileService(prisma as never, {} as never);
+  it("company:manage yoksa TCKN gizli + IBAN maskeli döner; varsa tam", async () => {
+    const svc = new CompanyProfileService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      new AuditService(prisma as never),
+    );
     const co = await makeCompanyWithUser(prisma, { tier: "PAKET" });
     await prisma.company.update({
       where: { id: co.company.id },
@@ -30,7 +35,8 @@ describe("profil KVKK gate", () => {
     expect(full.iban).toBe("TR120001");
     const limited = await svc.get(co.company.id, false);
     expect(limited.authorizedTckn).toBeNull();
-    expect(limited.iban).toBeNull();
+    // Fix(security): null yerine maskeli — banka listesiyle aynı maskIban kuralı.
+    expect(limited.iban).toBe("TR**0001");
     expect(limited.ibanHolder).toBeNull();
     // Hassas olmayan alan etkilenmez.
     expect(limited.name).toBe(full.name);
