@@ -30,18 +30,14 @@ export function useHasRole(role: string): boolean {
 /**
  * Efektif izin kontrolü — backend'in hesapladığı (rol + override + sahiplik)
  * izin kümesini kullanır; sahibin verdiği izin ekleri UI'da da açılır.
- * Eski önbellekte `permissions` yoksa Yönetici/sahip varsayımına düşer
- * (yalnızca yönetim izinleri için güvenli — /me yenilenince kendini düzeltir).
+ * Faz R: eski "permissions yoksa Kurucu/Yönetici→true" fallback'i KALDIRILDI —
+ * SAHIP artık işlem izni taşımaz, o varsayım yanlış butonlar açardı. Bayat
+ * önbellekte kapı kapalı kalır; /me yenilenince doğru küme gelir.
  */
 export function useHasCompanyPermission(permission: string): boolean {
   const user = useCompanyAuthStore((s) => s.user);
-  if (!user) return false;
-  if (user.permissions) return user.permissions.includes(permission);
-  return (
-    user.isOwner ||
-    user.roles.includes("SAHIP" as never) ||
-    user.roles.includes("YONETICI" as never)
-  );
+  if (!user?.permissions) return false;
+  return user.permissions.includes(permission);
 }
 
 export type CompanyLoginResult =

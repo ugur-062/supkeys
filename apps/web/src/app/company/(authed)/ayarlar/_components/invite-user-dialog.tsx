@@ -10,6 +10,7 @@ import {
 } from "@/components/catalyst/dialog";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useInviteUser } from "@/hooks/use-company-users";
 import type { CompanyRole } from "@/lib/company-auth/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -35,17 +36,19 @@ export function InviteUserDialog({
   onClose: () => void;
 }) {
   const invite = useInviteUser();
+  const { user: viewer } = useCompanyAuth();
   const [email, setEmail] = useState("");
   const [roles, setRoles] = useState<CompanyRole[]>(["SATIN_ALMACI"]);
 
-  // Kural: tek rol; istisna Satın Almacı + Satışçı birlikte.
+  // Faz R: münhasırlık kalktı — tüm roller birleşebilir (SAHIP davetle zaten
+  // verilemez). YONETICI etiketini yalnız Kurucu atayabilir → seçenek filtreli.
+  const assignableRoles = ROLES.filter(
+    (r) => r.key !== "YONETICI" || !!viewer?.isOwner,
+  );
   const toggle = (r: CompanyRole) =>
-    setRoles((cur) => {
-      if (cur.includes(r)) return cur.filter((x) => x !== r);
-      if (r === "YONETICI" || r === "ONAYLAYICI") return [r];
-      const ops = cur.filter((x) => x === "SATIN_ALMACI" || x === "SATISCI");
-      return [...ops, r];
-    });
+    setRoles((cur) =>
+      cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r],
+    );
 
   const canSave = email.includes("@") && roles.length > 0;
 
@@ -87,7 +90,7 @@ export function InviteUserDialog({
             Satışçı birlikte seçilebilir.
           </p>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            {ROLES.map((r) => {
+            {assignableRoles.map((r) => {
               const on = roles.includes(r.key);
               return (
                 <button

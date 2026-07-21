@@ -436,21 +436,16 @@ function EditUserModal({
     setPerms(m);
   };
 
-  // Kural: tek rol; istisna Satın Almacı + Satışçı birlikte. Rol değişince
-  // izinler yeni rolün varsayılanına SIFIRLANIR (eski sistem davranışı).
+  // Faz R kombo kuralları: YONETICI/ONAYLAYICI münhasırlığı KALKTI — her rol
+  // birleşebilir. Tek kısıt: SAHIP (etiket) yalnız SA/ST ile birleşir (yönetim/
+  // onay yetkisini zaten kapsar) ve buradan düşürülemez (yalnız devirle).
+  // Rol değişince izinler yeni kümenin varsayılanına SIFIRLANIR.
   const toggleRole = (r: CompanyRole) => {
     const hasSahip = roles.includes("SAHIP");
-    let next: CompanyRole[];
-    if (roles.includes(r)) next = roles.filter((x) => x !== r);
-    else if (r === "YONETICI" || r === "ONAYLAYICI") next = [r];
-    else
-      next = [
-        ...roles.filter((x) => x === "SATIN_ALMACI" || x === "SATISCI"),
-        r,
-      ];
-    // Kurucu rolü buradan düşürülemez (yalnız devirle) — hep korunur;
-    // SAHIP ⊇ Yönetici olduğundan onunla YONETICI/ONAYLAYICI birleşmez.
-    if (hasSahip && !next.includes("SAHIP")) {
+    let next: CompanyRole[] = roles.includes(r)
+      ? roles.filter((x) => x !== r)
+      : [...roles, r];
+    if (hasSahip) {
       next = [
         "SAHIP",
         ...next.filter((x) => x === "SATIN_ALMACI" || x === "SATISCI"),
@@ -563,22 +558,29 @@ function EditUserModal({
         <div>
           <span className="block text-sm font-medium text-zinc-950">Roller</span>
           <div className="mt-2 space-y-2">
-            {/* Kurucu: TAM YETKİ — ayrı rol atanmaz (operasyon dahil hepsini
-                kapsar). Kilitli; yalnız devirle değişir. */}
+            {/* Kurucu ETİKETİ (Faz R): yönetim + billing/silme/devir; İŞLEM
+                yetkisi vermez. Kilitli; yalnız devirle değişir. */}
             {user.isOwner ? (
               <div className="flex items-start gap-3 rounded-lg bg-violet-50 p-2.5 text-sm ring-1 ring-violet-200">
                 <Checkbox checked disabled className="mt-0.5" />
                 <span>
                   <span className="font-semibold text-zinc-900">Kurucu</span>
                   <span className="mt-0.5 block text-xs text-zinc-500">
-                    Tam yetki — yönetim, alış, satış ve billing/silme/devir dahil
-                    her şeyi kapsar. Ayrı rol atanmaz; yalnız devirle değişir.
+                    Yönetim etiketi — hesap/kullanıcı yönetimi ve billing/silme/
+                    devir. İşlem (ihale açma, teklif) için aşağıdan Satın Almacı/
+                    Satışçı rolü ekleyin. Yalnız devirle değişir.
                   </span>
                 </span>
               </div>
             ) : null}
-            {/* Kurucu'ya ek rol atanmaz; yalnız davetli/normal kullanıcılar. */}
-            {(user.isOwner ? [] : ROLES).map((r) => {
+            {/* Faz R: Kurucu'ya SA/ST eklenebilir (etiket işlem vermez);
+                YONETICI etiketini yalnız Kurucu atayabilir. */}
+            {(user.isOwner
+              ? ROLES.filter(
+                  (r) => r.key === "SATIN_ALMACI" || r.key === "SATISCI",
+                )
+              : ROLES.filter((r) => r.key !== "YONETICI" || viewerIsOwner)
+            ).map((r) => {
               const on = roles.includes(r.key);
               return (
                 <label

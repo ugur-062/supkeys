@@ -8,7 +8,7 @@ import { Switch } from "@/components/catalyst/switch";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
 import { Dropzone } from "@/components/ui/dropzone";
-import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import {
   useCompanyProfile,
   useUpdateCompanyProfile,
@@ -25,14 +25,11 @@ const IMG_MIME = ["image/jpeg", "image/png", "image/webp"];
 
 /** Herkese açık profil düzenleme — Bağlantılar > Profilim sekmesi. */
 export function PublicProfileForm() {
-  const { user } = useCompanyAuth();
   const { data: profile, isLoading } = useCompanyProfile();
   const update = useUpdateCompanyProfile();
-  const canEdit =
-    !!user &&
-    (user.isOwner ||
-      user.roles.includes("SAHIP") ||
-      user.roles.includes("YONETICI"));
+  // Faz R: backend PATCH kapısıyla birebir (company:manage) — override ile izin
+  // almış kullanıcılar da düzenleyebilir; rol-listesi varsayımı kaldırıldı.
+  const canEdit = useHasCompanyPermission("company:manage");
 
   const [form, setForm] = useState({
     aboutText: "",
