@@ -52,13 +52,14 @@ const SATISCI_PERMISSIONS: readonly string[] = [
 const ONAYLAYICI_PERMISSIONS: readonly string[] = ["approval:act"];
 
 export const COMPANY_ROLE_PERMISSIONS: Record<CompanyRole, readonly string[]> = {
-  // Kurucu = TAM YETKİ: tüm rollerin izinleri + sahibe-özel. Sahip,
-  // firmanın en üst yetkilisi; yönetir + operasyon yapar (ilan aç/teklif ver).
+  // Faz R — Kurucu (SAHIP) bir ETİKETTİR: yönetim + sahibe-özel yetkiler verir,
+  // İŞLEM (buy:*/sell:*) yetkisi VERMEZ. Kurucu işlem yapmak istiyorsa kendine
+  // SATIN_ALMACI/SATISCI rolü ekler ([SAHIP, SA] artık geçerli kombo) — koltuk
+  // sayımı (Faz K) bu op-rollere bakacak. İşlem-rolsüz Kurucu panelleri
+  // SALT-OKUNUR görür (servis assert'leri op-rol ister).
   SAHIP: [
     ...new Set([
       ...YONETICI_PERMISSIONS,
-      ...SATIN_ALMACI_PERMISSIONS,
-      ...SATISCI_PERMISSIONS,
       ...ONAYLAYICI_PERMISSIONS,
       ...OWNER_ONLY_PERMISSIONS,
     ]),
@@ -87,6 +88,10 @@ export interface CompanyPermissionOverride {
 /**
  * Atanabilir izin kataloğu — Ayarlar UI'ı grup grup gösterir; override
  * doğrulaması yalnızca bu anahtarlarla yapılır. OWNER_ONLY hariç (sahibe özel).
+ *
+ * Faz R — İŞLEM izinleri (buy:*, sell:*) katalogdan ÇIKARILDI: override ile
+ * işlem yetkisi verilemez/alınamaz (koltuk arka-kapısı kapalı — Faz K koltuğu
+ * SA/ST ROLÜNE sayar; izin de rolle gelmeli). İşlem yetkisi = rol ata/kaldır.
  */
 export const COMPANY_PERMISSION_CATALOG: {
   key: string;
@@ -97,20 +102,6 @@ export const COMPANY_PERMISSION_CATALOG: {
   { key: "users:manage", label: "Kullanıcı & rol yönetimi", group: "Yönetim" },
   { key: "connections:manage", label: "Bağlantı yönetimi", group: "Yönetim" },
   { key: "templates:manage", label: "Şablon yönetimi", group: "Yönetim" },
-  { key: "buy:listing:create", label: "Alım ilanı açma", group: "Satınalma" },
-  { key: "buy:listing:manage", label: "Alım ilanı yönetimi", group: "Satınalma" },
-  {
-    key: "buy:bid:review",
-    label: "Gelen teklifleri görme/karşılaştırma",
-    group: "Satınalma",
-  },
-  { key: "buy:award", label: "Kazandırma (alım)", group: "Satınalma" },
-  { key: "buy:order:manage", label: "Alım siparişi yönetimi", group: "Satınalma" },
-  { key: "sell:bid:submit", label: "Teklif verme", group: "Satış" },
-  { key: "sell:listing:create", label: "Satış ilanı açma", group: "Satış" },
-  { key: "sell:listing:manage", label: "Satış ilanı yönetimi", group: "Satış" },
-  { key: "sell:award", label: "Kazandırma (satış)", group: "Satış" },
-  { key: "sell:order:manage", label: "Satış siparişi yönetimi", group: "Satış" },
   { key: "approval:act", label: "Onay zincirinde onayla/reddet", group: "Onay" },
   {
     key: "approvals:manage",
@@ -119,8 +110,23 @@ export const COMPANY_PERMISSION_CATALOG: {
   },
 ];
 
+/** Override-atanabilir izinler (katalog anahtarları) — yalnız yönetim/onay. */
 export const ALL_COMPANY_PERMISSIONS: readonly string[] =
   COMPANY_PERMISSION_CATALOG.map((p) => p.key);
+
+/**
+ * Sistemce BİLİNEN tüm izinler — /me `permissions` listesi bu evrenden
+ * hesaplanır (serializeUser). Katalogdan AYRI: işlem izinleri override ile
+ * atanamaz ama SA/ST rolü taşıyanların /me'sinde görünmek zorunda (frontend
+ * buton gating'i `permissions.includes("buy:listing:manage")` okur).
+ */
+export const ALL_KNOWN_PERMISSIONS: readonly string[] = [
+  ...new Set([
+    ...Object.values(COMPANY_ROLE_PERMISSIONS).flat(),
+    ...OWNER_ONLY_PERMISSIONS,
+    ...ALL_COMPANY_PERMISSIONS,
+  ]),
+];
 
 /** Verilen rollerin birleşik izin kümesi. */
 export function permissionsForRoles(roles: CompanyRole[]): Set<string> {

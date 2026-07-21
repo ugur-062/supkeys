@@ -34,8 +34,7 @@ import { CompanyLoginDto } from "../dto/company-login.dto";
 import { CompanySignupDto } from "../dto/company-signup.dto";
 import { CompleteOnboardingDto } from "../dto/onboarding.dto";
 import {
-  ALL_COMPANY_PERMISSIONS,
-  OWNER_ONLY_PERMISSIONS,
+  ALL_KNOWN_PERMISSIONS,
   hasCompanyPermission,
   type CompanyPermissionOverride,
 } from "../permissions/company-permissions.constants";
@@ -1297,14 +1296,14 @@ export class CompanyAuthService {
   }
 
   private serializeUser(user: CompanyUser, isOwner: boolean) {
-    // Efektif izinler (rol + override + sahiplik) — UI kapıları bunu kullanır,
-    // böylece sahibin verdiği izin ekleri arayüzde de açılır.
+    // Efektif izinler (rol + override + sahiplik) — UI kapıları bunu kullanır.
+    // Faz R: evren ALL_KNOWN_PERMISSIONS (katalog DEĞİL) — işlem izinleri
+    // katalogdan çıktı ama SA/ST rolü taşıyanın /me'sinde görünmeye devam etmeli.
     const override =
       (user.permissionsOverride as CompanyPermissionOverride | null) ?? null;
-    const permissions = [
-      ...ALL_COMPANY_PERMISSIONS,
-      ...OWNER_ONLY_PERMISSIONS,
-    ].filter((p) => hasCompanyPermission(user.roles, isOwner, p, override));
+    const permissions = ALL_KNOWN_PERMISSIONS.filter((p) =>
+      hasCompanyPermission(user.roles, isOwner, p, override),
+    );
     return {
       id: user.id,
       email: user.email,
