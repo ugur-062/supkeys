@@ -1,0 +1,258 @@
+/**
+ * Faz R kabul testleri — etiket/rol modeli:
+ * - SAHIP/YONETICI = ETİKET: yönetim yetkisi verir, İŞLEM izni (buy:* ve
+ *   sell:* ailesi) VERMEZ.
+ * - İşlem yalnız SATIN_ALMACI/SATISCI rolüyle; kombo gevşek ([SAHIP,SA],
+ *   [YONETICI,ST], [ONAYLAYICI,SA] geçerli).
+ * - İşlem-rolsüz Kurucu SALT-OKUNUR: veriyi görür, mutasyon 403.
+ * - YONETICI etiketini yalnız Kurucu verir; rol atamayı Kurucu+Yönetici yapar.
+ * (İşlem izinlerinin override ile atanamadığı approvals.spec'te test edilir.)
+ */
+import { CompanyRole } from "@rothern/db";
+import { CompanyOrdersService } from "../../src/modules/company-orders/services/company-orders.service";
+import { CompanyUsersService } from "../../src/modules/company-users/company-users.service";
+import { AuditService } from "../../src/modules/audit/audit.service";
+import { NotificationService } from "../../src/modules/notifications/notification.service";
+import {
+  hasCompanyPermission,
+  permissionsForRoles,
+} from "../../src/modules/company-auth/permissions/company-permissions.constants";
+import { prisma, truncateAll } from "./test-db";
+import {
+  makeCompanyWithUser,
+  makeItem,
+  makeListing,
+  makeUser,
+} from "./factories";
+import { makeService } from "./make-service";
+
+const FUTURE = new Date(Date.now() + 7 * 24 * 3600 * 1000);
+
+function makeOrdersService() {
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "test" }) };
+  const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+  const notifications = new NotificationService(prisma as never);
+  return new CompanyOrdersService(
+    prisma as never,
+    email as never,
+    config as never,
+    notifications,
+    new AuditService(prisma as never),
+    prisma as never,
+  );
+}
+
+function makeUsersService() {
+  const supabase = {
+    createUser: jest.fn().mockResolvedValue({ authId: `auth-${Date.now()}` }),
+    deleteUser: jest.fn(),
+  };
+  const companyAuth = { createSession: jest.fn() };
+  const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+  const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+  return new CompanyUsersService(
+    prisma as never,
+    supabase as never,
+    companyAuth as never,
+    email as never,
+    config as never,
+    new AuditService(prisma as never),
+  );
+}
+
+const bid = (itemId: string, unitPrice = 100) =>
+  ({
+    items: [{ itemId, unitPrice }],
+    deliveryDate: FUTURE.toISOString(),
+    validityDays: 30,
+  }) as never;
+
+/** PUBLIC OPEN ilan + kalem (teklif hedefi). */
+async function openListing(type: "ALIM" | "SATIS") {
+  const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+  const listing = await makeListing(prisma, {
+    companyId: owner.company.id,
+    createdById: owner.user.id,
+    type,
+    status: "OPEN",
+    visibility: "PUBLIC",
+    closesAt: FUTURE,
+  });
+  const item = await makeItem(prisma, listing.id);
+  return { owner, listing, item };
+}
+
+afterAll(async () => {
+  await truncateAll();
+  await prisma.$disconnect();
+});
+beforeEach(async () => {
+  await truncateAll();
+});
+
+describe("Faz R — SAHIP-only salt-okunur (etiket işlem vermez)", () => {
+  it("izin yüzeyi: SAHIP-only'de buy:*/sell:* YOK; yönetim + OWNER_ONLY var", () => {
+    for (const p of [
+      "buy:listing:create",
+      "buy:award",
+      "sell:bid:submit",
+      "sell:listing:manage",
+    ]) {
+      expect(hasCompanyPermission([CompanyRole.SAHIP], true, p)).toBe(false);
+    }
+    for (const p of ["users:manage", "billing:manage", "approval:act"]) {
+      expect(hasCompanyPermission([CompanyRole.SAHIP], true, p)).toBe(true);
+    }
+  });
+
+  it("teklif veremez + kazandıramaz + sipariş adımı atamaz; ama ilan/sipariş DETAYINI OKUR", async () => {
+    const { service } = makeService();
+    const solo = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      roles: [CompanyRole.SAHIP],
+    });
+
+    // Teklif: SATIS ilanına teklif = alım → SATIN_ALMACI ister; SAHIP yetmez.
+    const { listing: satisListing, item } = await openListing("SATIS");
+    await expect(
+      service.placeBid(solo.auth, satisListing.id, bid(item.id)),
+    ).rejects.toThrow(/Satın Almacı rolü gerekir/);
+
+    // Kazandırma: kendi ALIM ihalesinde bile SAHIP-only yetkisiz (rol kapısı).
+    const own = await makeListing(prisma, {
+      companyId: solo.company.id,
+      createdById: solo.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      visibility: "PUBLIC",
+      closesAt: FUTURE,
+    });
+    await expect(service.award(solo.auth, own.id, "herhangi")).rejects.toThrow(
+      /Kazandırma için yetkiniz yok/,
+    );
+
+    // OKUMA: kendi ihalesinin sahip-görünümü tam döner (salt-okunur panel).
+    const detail = (await service.getOne(solo.auth, own.id)) as {
+      isOwner?: boolean;
+      bids?: unknown[];
+    };
+    expect(detail).toBeTruthy();
+
+    // Sipariş: satıcı-adımı (accept) SATISCI ister; okuma serbest.
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const orders = makeOrdersService();
+    const order = await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: solo.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 1000,
+        status: "PENDING",
+      },
+    });
+    await expect(
+      orders.accept(solo.auth, order.id, {
+        expectedDeliveryDate: FUTURE.toISOString(),
+      } as never),
+    ).rejects.toThrow(/Satışçı rolü gerekir/);
+    await expect(orders.getOne(solo.auth, order.id)).resolves.toBeTruthy();
+  });
+});
+
+describe("Faz R — etiket + op-rol komboları işlem yapar", () => {
+  it("Kurucu (default SAHIP+SA+ST) teklif verebilir", async () => {
+    const { service } = makeService();
+    const founder = await makeCompanyWithUser(prisma, { country: "TR" }); // default roller
+    const { listing, item } = await openListing("SATIS"); // alım tarafı → SA
+    await expect(
+      service.placeBid(founder.auth, listing.id, bid(item.id)),
+    ).resolves.toBeDefined();
+  });
+
+  it("YONETICI+SATISCI teklif verebilir (münhasırlık kalktı)", async () => {
+    const { service } = makeService();
+    const co = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      roles: [CompanyRole.YONETICI, CompanyRole.SATISCI],
+    });
+    const { listing, item } = await openListing("ALIM"); // satış tarafı → ST
+    await expect(
+      service.placeBid(co.auth, listing.id, bid(item.id)),
+    ).resolves.toBeDefined();
+  });
+
+  it("ONAYLAYICI+SATIN_ALMACI hem onay yetkisi taşır hem alım yapar", async () => {
+    const { service } = makeService();
+    const co = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      roles: [CompanyRole.ONAYLAYICI, CompanyRole.SATIN_ALMACI],
+    });
+    expect(
+      permissionsForRoles([CompanyRole.ONAYLAYICI, CompanyRole.SATIN_ALMACI]).has(
+        "approval:act",
+      ),
+    ).toBe(true);
+    const { listing, item } = await openListing("SATIS"); // alım tarafı → SA
+    await expect(
+      service.placeBid(co.auth, listing.id, bid(item.id)),
+    ).resolves.toBeDefined();
+  });
+});
+
+describe("Faz R — etiket/rol atama kuralları", () => {
+  it("YONETICI rol (SA/ST) atar; YONETICI etiketini ATAYAMAZ (yalnız Kurucu)", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const manager = await makeUser(prisma, owner.company.id, [
+      CompanyRole.YONETICI,
+    ]);
+    const managerAuth = {
+      userId: manager.id,
+      companyId: owner.company.id,
+      email: manager.email,
+      roles: [CompanyRole.YONETICI],
+      isOwner: false,
+    } as never;
+    const member = await makeUser(prisma, owner.company.id, [
+      CompanyRole.SATIN_ALMACI,
+    ]);
+
+    // Rol atama (SA/ST): Yönetici yapabilir.
+    await svc.updateRoles(managerAuth, member.id, {
+      roles: [CompanyRole.SATIN_ALMACI, CompanyRole.SATISCI],
+    } as never);
+
+    // Etiket atama: Yönetici başka Yönetici ÜRETEMEZ.
+    await expect(
+      svc.updateRoles(managerAuth, member.id, {
+        roles: [CompanyRole.YONETICI],
+      } as never),
+    ).rejects.toThrow(/Yönetici etiketini yalnızca Kurucu/);
+
+    // Kurucu verebilir.
+    await svc.updateRoles(owner.auth, member.id, {
+      roles: [CompanyRole.YONETICI],
+    } as never);
+    const after = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: member.id },
+    });
+    expect(after.roles).toEqual([CompanyRole.YONETICI]);
+
+    // Audit: etiket/rol ayrımı metadata'da.
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: {
+        action: "company.user.roles_changed",
+        entityId: member.id,
+        actorId: owner.auth.userId,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    const meta = row.metadata as {
+      labelChanges: { added: string[] };
+      roleChanges: { removed: string[] };
+    };
+    expect(meta.labelChanges.added).toEqual(["YONETICI"]);
+    expect(meta.roleChanges.removed.sort()).toEqual(
+      ["SATIN_ALMACI", "SATISCI"].sort(),
+    );
+  });
+});
