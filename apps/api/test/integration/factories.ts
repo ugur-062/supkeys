@@ -75,8 +75,14 @@ export async function makeCompanyWithUser(
       : {}),
     ...(opts.name ? { name: opts.name } : {}),
   });
-  // Gerçek model: Kurucu (SAHIP) tam yetkilidir — tek başına, ek op-rol yok.
-  const roles = opts.roles ?? [CompanyRole.SAHIP];
+  // Faz R: SAHIP etikettir (op-izin vermez) — prod default'uyla aynı şekilde
+  // Kurucu SA+ST op-rolleriyle kurulur; salt-okunur-Kurucu senaryoları
+  // opts.roles=[SAHIP] ile açıkça kurar.
+  const roles = opts.roles ?? [
+    CompanyRole.SAHIP,
+    CompanyRole.SATIN_ALMACI,
+    CompanyRole.SATISCI,
+  ];
   const user = await makeUser(prisma, company.id, roles);
   await prisma.company.update({
     where: { id: company.id },

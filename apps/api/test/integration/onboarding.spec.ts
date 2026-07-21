@@ -73,8 +73,13 @@ describe("completeOnboarding", () => {
     const u = await prisma.companyUser.findUniqueOrThrow({
       where: { id: owner.user.id },
     });
-    // Kurucu = tam yetkili SAHIP (ayrı operasyon rolü eklenmez).
-    expect(u.roles).toEqual([CompanyRole.SAHIP]);
+    // Faz R: SAHIP etikettir (op-izin vermez) — onboarding Kurucu'ya default
+    // op-rolleri de yazar (salt-okunur başlamasın; istemezse Ayarlar'dan bırakır).
+    expect(u.roles).toEqual([
+      CompanyRole.SAHIP,
+      CompanyRole.SATIN_ALMACI,
+      CompanyRole.SATISCI,
+    ]);
 
     const addrs = await prisma.companyAddress.findMany({
       where: { companyId: owner.company.id },

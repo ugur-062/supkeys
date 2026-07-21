@@ -141,7 +141,25 @@ describe("Sahiplik devri (updateRoles)", () => {
     expect(oldOwner.roles).not.toContain(CompanyRole.YONETICI);
   });
 
-  it("devirde eski Kurucu geçersiz kombinasyon (Yönetici+op) seçemez", async () => {
+  it("Faz R: devirde eski Kurucu Yönetici+op kombosunu SEÇEBİLİR (münhasırlık kalktı)", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    const member = await makeUser(prisma, owner.company.id, [
+      CompanyRole.SATISCI,
+    ]);
+    await svc.updateUser(owner.auth, member.id, {
+      roles: [CompanyRole.SAHIP],
+      previousOwnerRoles: [CompanyRole.YONETICI, CompanyRole.SATISCI],
+    } as never);
+    const oldOwner = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: owner.user.id },
+    });
+    expect(oldOwner.roles.sort()).toEqual(
+      [CompanyRole.SATISCI, CompanyRole.YONETICI].sort(),
+    );
+  });
+
+  it("Faz R: devirde SAHIP+YONETICI kombosu yine reddedilir (etiket etiketle birleşmez)", async () => {
     const svc = makeUsersService();
     const owner = await makeCompanyWithUser(prisma);
     const member = await makeUser(prisma, owner.company.id, [
@@ -149,10 +167,9 @@ describe("Sahiplik devri (updateRoles)", () => {
     ]);
     await expect(
       svc.updateUser(owner.auth, member.id, {
-        roles: [CompanyRole.SAHIP],
-        previousOwnerRoles: [CompanyRole.YONETICI, CompanyRole.SATISCI],
+        roles: [CompanyRole.SAHIP, CompanyRole.YONETICI],
       } as never),
-    ).rejects.toThrow(/tek başına|birleştir/i);
+    ).rejects.toThrow(/birleştirilemez/i);
   });
 
   it("sahip olmayan kullanıcı SAHIP veremez (devredemez)", async () => {

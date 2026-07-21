@@ -116,9 +116,14 @@ export class CompanyAuthService {
             firstName: dto.firstName.trim(),
             lastName: dto.lastName.trim(),
             phone: dto.phone.trim(),
-            // Firmayı kuran = Kurucu (görünür rol). Operasyon rolleri
-            // (Satın Almacı/Satışçı) onboarding'de isteğe bağlı eklenir.
-            roles: [CompanyRole.SAHIP],
+            // Faz R: Kurucu ETİKETİ işlem yetkisi vermez → kuran kişiye op-roller
+            // default eklenir (istemezse Ayarlar → Kullanıcılar'dan bırakır).
+            // SAHIP-only başlasaydı ilk teklif/ihaleye kadar salt-okunur kalırdı.
+            roles: [
+              CompanyRole.SAHIP,
+              CompanyRole.SATIN_ALMACI,
+              CompanyRole.SATISCI,
+            ],
             companyId: company.id,
             emailVerifiedAt: null, // 6-haneli kod ile doğrulanacak
             // Zorunlu sözleşme + opsiyonel rıza denetim izi.
@@ -409,9 +414,13 @@ export class CompanyAuthService {
       dto.subCategoryIds ?? [],
     );
 
-    // Kurucu = Kurucu (tam yetki: yönetim + tüm operasyonlar). Ayrı
-    // operasyon rolü seçtirmeye gerek yok — SAHIP zaten hepsini kapsar.
-    const roles: CompanyRole[] = [CompanyRole.SAHIP];
+    // Faz R: SAHIP etiketi işlem yetkisi vermez — Kurucu default op-rollerle
+    // (signup ile aynı; onboarding yeniden yazar, o yüzden burada da eksiksiz).
+    const roles: CompanyRole[] = [
+      CompanyRole.SAHIP,
+      CompanyRole.SATIN_ALMACI,
+      CompanyRole.SATISCI,
+    ];
     const deliverySame = dto.deliverySameAsBilling !== false;
 
     await runTenantTx(this.prisma, async (tx) => {

@@ -428,9 +428,31 @@ export class CompanyUsersService {
       entityType: "company_user",
       entityId: targetId,
       critical: true,
-      metadata: { before: target.roles, after: roles },
+      metadata: this.roleChangeMeta(target.roles as CompanyRole[], roles),
     });
     return { ok: true };
+  }
+
+  /**
+   * Faz R: rol-değişim audit metadata'sı — etiket (SAHIP/YONETICI) ile rol
+   * (SA/ST/ONAYLAYICI) değişimini ayrı alanlarda netleştirir (before/after kalır).
+   */
+  private roleChangeMeta(before: CompanyRole[], after: CompanyRole[]) {
+    const LABELS: readonly CompanyRole[] = ["SAHIP", "YONETICI"];
+    const added = after.filter((r) => !before.includes(r));
+    const removed = before.filter((r) => !after.includes(r));
+    return {
+      before,
+      after,
+      labelChanges: {
+        added: added.filter((r) => LABELS.includes(r)),
+        removed: removed.filter((r) => LABELS.includes(r)),
+      },
+      roleChanges: {
+        added: added.filter((r) => !LABELS.includes(r)),
+        removed: removed.filter((r) => !LABELS.includes(r)),
+      },
+    };
   }
 
   /** Kullanıcı bilgilerini güncelle (ad/soyad/telefon + roller). */
@@ -688,24 +710,25 @@ export class CompanyUsersService {
    * Satın Almacı + Satışçı birlikte verilebilir. Yönetici ve Onaylayıcı tek başına.
    * Kurucu (SAHIP) TAM YETKİLİDİR — tek başına olur, ek rol ile birleşmez.
    */
+  /**
+   * Faz R kombo kuralları — etiket/rol modeli:
+   * - SAHIP (etiket) YONETICI/ONAYLAYICI ile birleşemez (yönetim+onay yetkisini
+   *   zaten kapsar); SA/ST ile BİRLEŞEBİLİR (Kurucu işlem için kendine op-rol
+   *   ekler — koltuk Faz K'da buna sayılır). Firmada tek Kurucu + davetle
+   *   verilemez + devirle geçer kuralları ayrı yerlerde korunur.
+   * - SAHIP yoksa tüm kombinasyonlar serbest (eski YONETICI/ONAYLAYICI
+   *   münhasırlığı KALKTI: Yönetici/Onaylayıcı da op-rol alabilir).
+   */
   private assertValidRoleCombo(roles: CompanyRole[]) {
     if (roles.length === 0) {
       throw new BadRequestException("En az bir rol seçin");
     }
-    if (roles.includes("SAHIP")) {
-      if (roles.length > 1) {
-        throw new BadRequestException(
-          "Kurucu tam yetkilidir; ayrı rol (Satın Almacı/Satışçı vb.) ile birleştirilemez",
-        );
-      }
-      return;
-    }
-    const hasExclusive = roles.some(
-      (r) => r === "YONETICI" || r === "ONAYLAYICI",
-    );
-    if (hasExclusive && roles.length > 1) {
+    if (
+      roles.includes("SAHIP") &&
+      (roles.includes("YONETICI") || roles.includes("ONAYLAYICI"))
+    ) {
       throw new BadRequestException(
-        "Yönetici veya Onaylayıcı tek başına atanır; yalnızca Satın Almacı ve Satışçı birlikte tanımlanabilir",
+        "Kurucu, Yönetici/Onaylayıcı ile birleştirilemez (yetkilerini zaten kapsar); işlem için Satın Almacı/Satışçı ekleyin",
       );
     }
   }
@@ -735,13 +758,19 @@ export class CompanyUsersService {
         "Kuruculuğu yalnızca mevcut Kurucu devredebilir",
       );
     }
-    const grantsPrivileged = roles.some(
-      (r) => r === "YONETICI" || r === "ONAYLAYICI",
-    );
-    const actorIsAdmin = actor.isOwner || hasManagementRole(actor.roles);
-    if (grantsPrivileged && !actorIsAdmin) {
+    // Faz R: YONETICI bir ETİKETTİR — yalnız Kurucu verebilir (Yönetici başka
+    // Yönetici üretemez).
+    if (roles.includes("YONETICI") && !actor.isOwner) {
       throw new ForbiddenException(
-        "Yönetici veya Onaylayıcı rolünü yalnızca Kurucu veya Yönetici atayabilir",
+        "Yönetici etiketini yalnızca Kurucu verebilir",
+      );
+    }
+    // Roller (SA/ST/ONAYLAYICI): Kurucu veya Yönetici atar — users:manage
+    // override'lı ama etiketsiz kişi rol ATAYAMAZ (yetki-üretme kapısı kapalı).
+    const actorIsAdmin = actor.isOwner || hasManagementRole(actor.roles);
+    if (!actorIsAdmin) {
+      throw new ForbiddenException(
+        "Rol atamayı yalnızca Kurucu veya Yönetici yapabilir",
       );
     }
   }
@@ -798,9 +827,8 @@ export class CompanyUsersService {
     currentOwnerId: string | null,
     targetId: string,
     roles: CompanyRole[],
-    // Devirde eski Kurucu'nun yeni rolü — kişiye sorulur (Yönetici VEYA op-rol).
-    // Verilmezse varsayılan Yönetici. (Yönetici op-rolle birleşmez, bu yüzden
-    // "yönetim mi operasyon mu" tercihi.)
+    // Devirde eski Kurucu'nun yeni rolü — kişiye sorulur. Verilmezse varsayılan
+    // Yönetici. (Faz R: Yönetici+op-rol artık geçerli kombo — seçenekler geniş.)
     previousOwnerRoles?: CompanyRole[],
   ) {
     const targetWantsOwner = roles.includes("SAHIP");

@@ -82,8 +82,8 @@ function genCode(): string {
   return `${pick()}-${pick()}`;
 }
 
-// Kurucu (SAHIP) TAM YETKİLİDİR — tek başına, ayrı op-rol taşımaz.
-const OWNER_ROLES: CompanyRole[] = ["SAHIP"];
+// Faz R: SAHIP etikettir (işlem yetkisi vermez) — Kurucu default op-rollerle.
+const OWNER_ROLES: CompanyRole[] = ["SAHIP", "SATIN_ALMACI", "SATISCI"];
 
 // ──────────────────────────────────────────────────────────────────────────────
 

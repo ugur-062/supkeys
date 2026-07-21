@@ -569,7 +569,7 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
     );
   }
 
-  it("rol kombinasyonu: Yönetici/Onaylayıcı tek başına; son Yönetici düşürülemez; sahip korunur", async () => {
+  it("rol kombinasyonu (Faz R): Yönetici+op serbest; sahip korunur", async () => {
     const svc = makeUsersService();
     const owner = await makeCompanyWithUser(prisma, {
       country: "TR",
@@ -577,13 +577,15 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
     });
     const member = await addUser(owner.company.id, "TR", ["SATIN_ALMACI"]);
 
-    // Yönetici + operasyon rolü birlikte olamaz.
-    await expect(
-      svc.updateRoles(owner.auth, member.user.id, {
-        roles: ["YONETICI", "SATISCI"],
-      } as never),
-    ).rejects.toThrow(/tek başına/);
-    // Satın Almacı + Satışçı birlikte OLUR.
+    // Faz R: Yönetici + operasyon rolü ARTIK GEÇERLİ (münhasırlık kalktı).
+    await svc.updateRoles(owner.auth, member.user.id, {
+      roles: ["YONETICI", "SATISCI"],
+    } as never);
+    const combined = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: member.user.id },
+    });
+    expect(combined.roles.sort()).toEqual(["SATISCI", "YONETICI"].sort());
+    // Satın Almacı + Satışçı birlikte OLUR (eskiden beri).
     await svc.updateRoles(owner.auth, member.user.id, {
       roles: ["SATIN_ALMACI", "SATISCI"],
     } as never);
@@ -607,7 +609,7 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
   it("izin override yalnız SAHİP; rol-varsayılanıyla örtüşen kayıtlar sadeleştirilir", async () => {
     const svc = makeUsersService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
-    const member = await addUser(owner.company.id, "TR", ["SATIN_ALMACI"]);
+    const member = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
     const notOwner = await addUser(owner.company.id, "TR", ["YONETICI"]);
 
     await expect(
@@ -618,20 +620,29 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
       ),
     ).rejects.toThrow(/yalnızca Kurucu/);
 
+    // Faz R: İŞLEM izinleri override ile ATANAMAZ (katalog dışı → 400).
+    await expect(
+      svc.updatePermissions(
+        { ...(owner.auth as object), isOwner: true } as never,
+        member.user.id,
+        { added: ["sell:listing:create"], removed: [] } as never,
+      ),
+    ).rejects.toThrow(/Geçersiz izin/);
+
     await svc.updatePermissions(
       { ...(owner.auth as object), isOwner: true } as never,
       member.user.id,
-      // sell:listing:create SATIN_ALMACI'da yok → added'a girer;
-      // buy:bid:review roldeyse added'dan sadeleşir.
-      { added: ["sell:listing:create", "buy:bid:review"], removed: [] } as never,
+      // templates:manage ONAYLAYICI'da yok → added'a girer;
+      // approval:act roldeyse added'dan sadeleşir.
+      { added: ["templates:manage", "approval:act"], removed: [] } as never,
     );
     const u = await prisma.companyUser.findUniqueOrThrow({
       where: { id: member.user.id },
       select: { permissionsOverride: true },
     });
     const ov = u.permissionsOverride as { added: string[]; removed: string[] };
-    expect(ov.added).toContain("sell:listing:create");
-    expect(ov.added).not.toContain("buy:bid:review"); // rolde zaten var
+    expect(ov.added).toContain("templates:manage");
+    expect(ov.added).not.toContain("approval:act"); // rolde zaten var
   });
 
   it("yükseltme koruması: devredilen users:manage ile operasyon rollü kullanıcı kendini YONETICI yapamaz", async () => {
@@ -647,17 +658,20 @@ describe("Kullanıcı/rol yönetimi kuralları", () => {
       staff.user.id,
       { added: ["users:manage"], removed: [] } as never,
     );
-    // staff kullanıcı yönetebilir AMA kendini/başkasını YONETICI YAPAMAZ (rol tavanı).
+    // staff kendini/başkasını YONETICI YAPAMAZ (Faz R: etiketi yalnız Kurucu verir).
     await expect(
       svc.updateRoles(staff.auth, staff.user.id, {
         roles: ["YONETICI"],
       } as never),
-    ).rejects.toThrow(/yalnızca Kurucu veya Yönetici/);
-    // Operasyon rollerini yönetmek serbest (tavan yalnız YONETICI/ONAYLAYICI).
+    ).rejects.toThrow(/Yönetici etiketini yalnızca Kurucu/);
+    // Faz R: users:manage override'lı ama ETİKETSİZ kişi op-rol de ATAYAMAZ
+    // (rol atama K+Y'ye kapalı — koltuk/yetki üretim kapısı).
     const other = await addUser(owner.company.id, "TR", ["SATIN_ALMACI"]);
-    await svc.updateRoles(staff.auth, other.user.id, {
-      roles: ["SATISCI"],
-    } as never);
+    await expect(
+      svc.updateRoles(staff.auth, other.user.id, {
+        roles: ["SATISCI"],
+      } as never),
+    ).rejects.toThrow(/yalnızca Kurucu veya Yönetici/);
   });
 
   it("çıkarılan kullanıcının e-postası serbest kalır (yeniden davet/kayıt dead-end olmaz)", async () => {
