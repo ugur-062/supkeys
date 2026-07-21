@@ -6,12 +6,38 @@ import {
 import { CompanyAddressType, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
+import { AuditService } from "../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { UpsertAddressDto } from "./dto/company-address.dto";
 
+/**
+ * Adres defteri (fatura + teslimat). INV-AUDIT-1: CRUD audit izi bırakır
+ * (teslimat adresi değişimi sevkiyat-yönlendirme delili); yalnız başarılı
+ * mutasyon loglanır, silme-kilidi retleri loglanmaz. log() fail-safe.
+ */
 @Injectable()
 export class CompanyAddressesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
+
+  /** Ortak audit metadata'sı — adres satırının kimlik/rota alanları (PII'siz özet). */
+  private addressMeta(a: {
+    type: CompanyAddressType;
+    title: string;
+    city: string | null;
+    country: string;
+    isDefault: boolean;
+  }) {
+    return {
+      type: a.type,
+      title: a.title,
+      city: a.city,
+      country: a.country,
+      isDefault: a.isDefault,
+    };
+  }
 
   list(companyId: string) {
     return this.prisma.companyAddress.findMany({
@@ -45,6 +71,16 @@ export class CompanyAddressesService {
       }
       return created;
     });
+    await this.audit.log({
+      action: "company.address.created",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_address",
+      entityId: address.id,
+      metadata: this.addressMeta(address),
+    });
     return address;
   }
 
@@ -53,7 +89,7 @@ export class CompanyAddressesService {
     id: string,
     dto: UpsertAddressDto,
   ) {
-    await this.requireOwn(user.companyId, id);
+    const before = await this.requireOwn(user.companyId, id);
     const type = dto.type as CompanyAddressType;
     const updated = await runTenantTx(this.prisma, async (tx) => {
       const u = await tx.companyAddress.update({
@@ -78,11 +114,37 @@ export class CompanyAddressesService {
       }
       return u;
     });
+    const changedFields = (
+      [
+        "type",
+        "title",
+        "contactName",
+        "phone",
+        "country",
+        "city",
+        "district",
+        "addressLine",
+        "postalCode",
+        "taxOffice",
+        "taxNumber",
+        "isDefault",
+      ] as const
+    ).filter((k) => before[k] !== updated[k]);
+    await this.audit.log({
+      action: "company.address.updated",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_address",
+      entityId: updated.id,
+      metadata: { ...this.addressMeta(updated), changedFields },
+    });
     return updated;
   }
 
   async remove(user: AuthenticatedCompanyUser, id: string) {
-    await this.requireOwn(user.companyId, id);
+    const before = await this.requireOwn(user.companyId, id);
     // AKTİF ilanda kullanılan adres silinemez — Listing.deliveryAddressId/
     // billingAddressId düz String (FK yok); silinirse açık ilan sarkan id'ye
     // işaret eder ve teklifçiler teslimat adresini göremez olurdu.
@@ -133,13 +195,23 @@ export class CompanyAddressesService {
         where: { id, companyId: user.companyId },
       });
     });
+    await this.audit.log({
+      action: "company.address.deleted",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "company_address",
+      entityId: id,
+      metadata: this.addressMeta(before),
+    });
     return { ok: true };
   }
 
+  /** Firma-sahipliği doğrular; audit metadata'sı (before) için tam satır döner. */
   private async requireOwn(companyId: string, id: string) {
     const a = await this.prisma.companyAddress.findUnique({
       where: { id },
-      select: { id: true, companyId: true },
     });
     if (!a || a.companyId !== companyId) {
       throw new NotFoundException("Adres bulunamadı");

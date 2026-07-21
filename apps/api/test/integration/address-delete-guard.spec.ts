@@ -8,9 +8,13 @@
  */
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing, makeItem, makeBid } from "./factories";
+import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyAddressesService } from "../../src/modules/company-addresses/company-addresses.service";
 
-const svc = new CompanyAddressesService(prisma as never);
+const svc = new CompanyAddressesService(
+  prisma as never,
+  new AuditService(prisma as never),
+);
 const FUTURE = new Date(Date.now() + 7 * 24 * 3600 * 1000);
 
 afterAll(async () => {
@@ -71,5 +75,51 @@ describe("B2 — adres silme guard'ı gönderilmiş teklifleri de sayar", () => 
     const { buyer, addr } = await setup("LOST");
     await expect(svc.remove(buyer.auth, addr.id)).resolves.toEqual({ ok: true });
     expect(await prisma.companyAddress.count({ where: { id: addr.id } })).toBe(0);
+  });
+});
+
+describe("adres CRUD — audit izi (INV-AUDIT-1)", () => {
+  it("create/update/delete audit satırı bırakır; update changedFields taşır", async () => {
+    const co = await makeCompanyWithUser(prisma, { country: "TR" });
+    const addr = await svc.create(co.auth, {
+      type: "TESLIMAT",
+      title: "Depo",
+      addressLine: "Örnek mah. No:1",
+      city: "İstanbul",
+    } as never);
+    const created = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.address.created", entityId: addr.id },
+    });
+    expect(created.actorId).toBe(co.auth.userId);
+    expect(created.tenantId).toBe(co.company.id);
+    expect(created.metadata).toMatchObject({ type: "TESLIMAT", title: "Depo" });
+
+    await svc.update(co.auth, addr.id, {
+      type: "TESLIMAT",
+      title: "Depo 2",
+      addressLine: "Örnek mah. No:1",
+      city: "Ankara",
+    } as never);
+    const updated = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.address.updated", entityId: addr.id },
+    });
+    expect(
+      (updated.metadata as Record<string, unknown>).changedFields,
+    ).toEqual(expect.arrayContaining(["title", "city"]));
+
+    await svc.remove(co.auth, addr.id);
+    await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.address.deleted", entityId: addr.id },
+    });
+  });
+
+  it("silme-kilidi reddi audit BIRAKMAZ (yalnız başarılı mutasyon loglanır)", async () => {
+    const { buyer, addr } = await setup("SUBMITTED");
+    await expect(svc.remove(buyer.auth, addr.id)).rejects.toThrow();
+    expect(
+      await prisma.auditLog.count({
+        where: { action: "company.address.deleted", entityId: addr.id },
+      }),
+    ).toBe(0);
   });
 });

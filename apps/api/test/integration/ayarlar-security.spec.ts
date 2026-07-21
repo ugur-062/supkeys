@@ -5,6 +5,7 @@
  * adres defteri (varsayılan tekilliği, IDOR, aktif ilanda silme kilidi).
  */
 import { authenticator } from "otplib";
+import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyAddressesService } from "../../src/modules/company-addresses/company-addresses.service";
 import { CompanyJwtStrategy } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
 import { makeCompanyWithUser, makeListing } from "./factories";
@@ -365,7 +366,8 @@ describe("bildirim tercihleri", () => {
 // Adres defteri
 // ============================================================
 describe("adres defteri", () => {
-  const svc = () => new CompanyAddressesService(prisma as never);
+  const svc = () =>
+    new CompanyAddressesService(prisma as never, new AuditService(prisma as never));
 
   it("aynı tipte tek varsayılan — yeni varsayılan eskisini düşürür", async () => {
     const { auth } = await makeCompanyWithUser(prisma);
