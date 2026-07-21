@@ -70,15 +70,6 @@ export class HealthController {
   }
 
   /**
-   * GEÇİCİ — Sentry canlı doğrulama (SDK aktif mi + environment=production +
-   * reqId tag korelasyonu). Teyit sonrası bu endpoint KALDIRILACAK.
-   */
-  @Get("debug-sentry-0721")
-  debugSentry(): never {
-    throw new Error("Sentry canlı doğrulama testi — kasıtlı hata (geçici)");
-  }
-
-  /**
    * V2-2 — R2 bucket CORS state debug endpoint.
    * Browser upload başarısız olursa "AllowedOrigins" listesinin doğru olup
    * olmadığını buradan görebilirsin. YALNIZ ADMIN — bucket adı/envPrefix/CORS
