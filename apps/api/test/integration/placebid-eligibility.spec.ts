@@ -104,16 +104,25 @@ describe("placeBid — görünürlük/uygunluk", () => {
     ).rejects.toThrow(/rol|Satışçı/i);
   });
 
-  it("rol: Kurucu (SAHIP) tek başına teklif verebilir — tam yetki", async () => {
+  it("Faz R: SAHIP-only teklif VEREMEZ (etiket op-izin vermez); SAHIP+ST verir", async () => {
     const { service, listing, item } = await listingWithItem();
-    // Yalnız SAHIP rolü (op-rol yok), PAKET → premium PUBLIC'e teklif verebilir.
-    const founder = await makeCompanyWithUser(prisma, {
+    // Yalnız SAHIP (op-rol yok) → rol kapısına takılır.
+    const soloFounder = await makeCompanyWithUser(prisma, {
       country: "TR",
       roles: [CompanyRole.SAHIP],
     });
-    await service.placeBid(founder.auth, listing.id, bid(item.id));
+    await expect(
+      service.placeBid(soloFounder.auth, listing.id, bid(item.id)),
+    ).rejects.toThrow(/Satışçı rolü gerekir/);
+
+    // Kurucu kendine ST eklerse (yeni model) teklif verebilir.
+    const opFounder = await makeCompanyWithUser(prisma, {
+      country: "TR",
+      roles: [CompanyRole.SAHIP, CompanyRole.SATISCI],
+    });
+    await service.placeBid(opFounder.auth, listing.id, bid(item.id));
     const count = await prisma.listingBid.count({
-      where: { listingId: listing.id, bidderCompanyId: founder.company.id },
+      where: { listingId: listing.id, bidderCompanyId: opFounder.company.id },
     });
     expect(count).toBe(1);
   });

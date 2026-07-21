@@ -397,13 +397,14 @@ export class CompanyUsersService {
     });
     const roles = dto.roles as CompanyRole[];
     this.assertValidRoleCombo(roles);
-    this.assertCanGrantRoles(actor, roles);
-    // #8 — mevcut admin hedefini yalnız admin düşürebilir.
+    // #8 — mevcut admin hedefini yalnız admin düşürebilir. (Faz R: grant-kapısından
+    // ÖNCE koşar — admin-hedef denial'ı kendi audit iziyle [not_admin] düşsün.)
     this.assertCanModifyAdminTarget(
       actor,
       { id: targetId, roles: target.roles as CompanyRole[] },
       company?.ownerUserId ?? null,
     );
+    this.assertCanGrantRoles(actor, roles, targetId);
     void target;
     await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
       // Sahiplik önce çözülür (sahip-bırakma net "devret" hatası versin), sonra
@@ -476,14 +477,14 @@ export class CompanyUsersService {
     const roles = dto.roles as CompanyRole[] | undefined;
     if (roles) {
       this.assertValidRoleCombo(roles);
-      this.assertCanGrantRoles(actor, roles);
       // #8 — mevcut admin hedefini yalnız admin düşürebilir (updateRoles ile
-      // aynı sınıf; profil-alanı düzenlemesi kapsam dışı, yalnız rol değişimi).
+      // aynı sınıf ve SIRA: grant-kapısından önce, audit'li denial korunsun).
       this.assertCanModifyAdminTarget(
         actor,
         { id: targetId, roles: target.roles as CompanyRole[] },
         company?.ownerUserId ?? null,
       );
+      this.assertCanGrantRoles(actor, roles, targetId);
     }
     void target;
     const data = {
@@ -751,6 +752,8 @@ export class CompanyUsersService {
   private assertCanGrantRoles(
     actor: AuthenticatedCompanyUser,
     roles: CompanyRole[],
+    /** Bilinen hedef (updateRoles/updateUser) — non-admin denial'ı audit'lensin. */
+    targetId?: string,
   ) {
     // Sahiplik (SAHIP) yalnız mevcut firma sahibi tarafından devredilebilir.
     if (roles.includes("SAHIP") && !actor.isOwner) {
@@ -769,6 +772,21 @@ export class CompanyUsersService {
     // override'lı ama etiketsiz kişi rol ATAYAMAZ (yetki-üretme kapısı kapalı).
     const actorIsAdmin = actor.isOwner || hasManagementRole(actor.roles);
     if (!actorIsAdmin) {
+      // INV-AUDIT-1 (denial): assertCanModifyAdminTarget deseniyle aynı —
+      // reddedilen rol-atama denemesi iz bırakır (PII yok, yalnız id + roller).
+      if (targetId) {
+        void this.audit.log({
+          action: "company.user.role_change_denied",
+          actorType: "company",
+          actorId: actor.userId,
+          actorEmail: actor.email,
+          tenantId: actor.companyId,
+          entityType: "company_user",
+          entityId: targetId,
+          critical: false,
+          metadata: { reason: "not_admin_grant", requestedRoles: roles },
+        });
+      }
       throw new ForbiddenException(
         "Rol atamayı yalnızca Kurucu veya Yönetici yapabilir",
       );

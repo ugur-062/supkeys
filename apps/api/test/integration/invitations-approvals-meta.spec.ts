@@ -118,13 +118,20 @@ describe("token'lı davet-kabul", () => {
       } as never),
     ).rejects.toThrow(/zaten kayıtlı/i);
 
-    // Rol kombinasyon kuralı davette de geçerli.
+    // Faz R: YONETICI+SATISCI kombosu davette GEÇERLİ (münhasırlık kalktı).
     await expect(
       service.invite(owner.auth, {
         email: "baska@firma.com",
         roles: ["YONETICI", "SATISCI"],
       } as never),
-    ).rejects.toThrow(/tek başına/i);
+    ).resolves.toBeDefined();
+    // SAHIP davetle yine verilemez (etiket yalnız devirle geçer).
+    await expect(
+      service.invite(owner.auth, {
+        email: "kurucu-adayi@firma.com",
+        roles: ["SAHIP"],
+      } as never),
+    ).rejects.toThrow(/davetle verilemez/i);
   });
 
   it("kabul: kullanıcı KENDİ adı/parolası + sözleşmeleriyle açılır, davet ACCEPTED, oturum döner; ikinci kabul reddedilir", async () => {

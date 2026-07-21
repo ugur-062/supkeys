@@ -493,8 +493,9 @@ describe("yetki değişimi audit'i", () => {
       CompanyRole.SATISCI,
     ]);
 
+    // Faz R: işlem izinleri override-katalog dışı → yönetim izniyle test.
     await svc.updatePermissions(owner.auth, member.id, {
-      added: ["buy:listing:create"],
+      added: ["templates:manage"],
       removed: [],
     } as never);
 
@@ -508,7 +509,7 @@ describe("yetki değişimi audit'i", () => {
     const meta = row.metadata as {
       after: { added: string[]; removed: string[] };
     };
-    expect(meta.after.added).toContain("buy:listing:create");
+    expect(meta.after.added).toContain("templates:manage");
   });
 
   it("pasifleştirme → active_changed iz (active=false)", async () => {

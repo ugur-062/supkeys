@@ -99,10 +99,22 @@ describe("#8 admin-hedef düşürme koruması", () => {
       ).rejects.toThrow("REACHED_TX");
     });
 
-    it("operasyon-rollü actor NON-admin hedefi düzenleyebilir (guard karışmaz → tx'e ulaşır)", async () => {
-      const { svc } = makeService(OP_TARGET);
+    it("Faz R: operasyon-rollü actor NON-admin hedefe de rol ATAYAMAZ (grant-kapısı) → 403", async () => {
+      // Eski davranış: demote-guard karışmaz → tx'e ulaşırdı. Faz R'de rol
+      // atama toptan Kurucu+Yönetici'ye kapılı (assertCanGrantRoles son dal).
+      const { svc, $transaction } = makeService(OP_TARGET);
       await expect(
         svc.updateRoles(actor({}), OP_TARGET_ID, {
+          roles: [CompanyRole.SATISCI],
+        }),
+      ).rejects.toThrow(/yalnızca Kurucu veya Yönetici/);
+      expect($transaction).not.toHaveBeenCalled();
+    });
+
+    it("Faz R: Yönetici actor NON-admin hedefe rol atar (grant-kapısı geçer → tx'e ulaşır)", async () => {
+      const { svc } = makeService(OP_TARGET);
+      await expect(
+        svc.updateRoles(actor({ roles: [CompanyRole.YONETICI] }), OP_TARGET_ID, {
           roles: [CompanyRole.SATISCI],
         }),
       ).rejects.toThrow("REACHED_TX");
