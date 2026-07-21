@@ -15,6 +15,7 @@ import {
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
+import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import { CompanyBankAccountsService } from "./company-bank-accounts.service";
 import { UpsertBankAccountDto } from "./dto/company-bank-account.dto";
 
@@ -25,7 +26,16 @@ export class CompanyBankAccountsController {
 
   @Get()
   list(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    return this.service.list(user.companyId);
+    // Tam IBAN yalnız billing:manage'e (OWNER_ONLY → fiilen SAHIP) döner;
+    // diğer üyeler maskeli görür (profildeki canSeeSensitive deseniyle aynı).
+    // Sipariş-accept seçimi id ile gider, snapshot DB'den okunur → maske bozmaz.
+    const canSeeFullIban = hasCompanyPermission(
+      user.roles,
+      user.isOwner,
+      "billing:manage",
+      user.permissionsOverride,
+    );
+    return this.service.list(user.companyId, canSeeFullIban);
   }
 
   @Post()

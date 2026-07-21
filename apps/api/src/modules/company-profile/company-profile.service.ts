@@ -5,7 +5,12 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { generateSlug, isValidIbanTr, normalizeIban } from "@rothern/shared";
+import {
+  generateSlug,
+  isValidIbanTr,
+  maskIban,
+  normalizeIban,
+} from "@rothern/shared";
 import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import {
@@ -131,7 +136,9 @@ export class CompanyProfileService {
       return {
         ...base,
         authorizedTckn: null,
-        iban: null,
+        // Banka-hesabı listesiyle AYNI kural (tek kaynak maskIban): tam IBAN
+        // yerine maskeli referans — tanıma yeter, kopyalamaya yetmez.
+        iban: c.iban ? maskIban(c.iban) : null,
         ibanHolder: null,
         billingPhone: null,
         // Şahıs firmasında taxNumber = 11 haneli TCKN (kişisel veri) → onu da

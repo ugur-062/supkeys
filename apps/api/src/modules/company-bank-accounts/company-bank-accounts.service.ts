@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
-import { isValidIbanTr, normalizeIban } from "@rothern/shared";
+import { isValidIbanTr, maskIban, normalizeIban } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -18,11 +18,13 @@ import { UpsertBankAccountDto } from "./dto/company-bank-account.dto";
 export class CompanyBankAccountsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  list(companyId: string) {
-    return this.prisma.companyBankAccount.findMany({
+  async list(companyId: string, canSeeFullIban = true) {
+    const rows = await this.prisma.companyBankAccount.findMany({
       where: { companyId },
       orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
     });
+    if (canSeeFullIban) return rows;
+    return rows.map((r) => ({ ...r, iban: maskIban(r.iban) }));
   }
 
   async create(user: AuthenticatedCompanyUser, dto: UpsertBankAccountDto) {

@@ -76,6 +76,22 @@ describe("company-profile — kurumsal kimlik kalemleri", () => {
     ).rejects.toThrow(/KEP/i);
   });
 
+  it("hassas-olmayan görünümde IBAN maskeli döner (banka listesiyle aynı kural)", async () => {
+    const svc = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    await svc.update(owner.company.id, {
+      iban: VALID_IBAN,
+      ibanHolder: "Örnek A.Ş.",
+    } as never);
+
+    const pub = await svc.get(owner.company.id, false);
+    expect(pub.iban).toBe("TR" + "*".repeat(20) + "1326");
+    expect(pub.ibanHolder).toBeNull(); // maskelenmez, tamamen gizli kalır
+
+    const full = await svc.get(owner.company.id, true);
+    expect(full.iban).toBe(VALID_IBAN);
+  });
+
   it("boş IBAN → temizlenir (null)", async () => {
     const svc = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });

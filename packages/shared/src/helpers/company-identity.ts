@@ -102,6 +102,19 @@ export function isValidIbanTr(value: string): boolean {
   return remainder === 1;
 }
 
+/**
+ * IBAN maskesi — TEK KAYNAK: ülke kodu (ilk 2) + son 4 karakter açık, arası
+ * yıldız; boşluksuz kompakt döner (gruplama görüntü katmanının işi).
+ * Örn. TR330006100519786457841326 → "TR********************1326".
+ * Ham IBAN'ı yetkisiz kullanıcıya veya audit metadata'sına yazmak YASAK —
+ * o yüzeylerde her zaman bu helper kullanılır (üçüncü tanım yazma).
+ */
+export function maskIban(value: string): string {
+  const v = normalizeIban(value);
+  if (v.length < 8) return "*".repeat(v.length);
+  return v.slice(0, 2) + "*".repeat(v.length - 6) + v.slice(-4);
+}
+
 /** KEP / e-posta — basit e-posta format kontrolü. */
 export function isValidEmailLike(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());

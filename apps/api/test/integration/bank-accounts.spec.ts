@@ -184,6 +184,39 @@ describe("sipariş kabulünde banka hesabı seçimi", () => {
   });
 });
 
+describe("IBAN maskeleme — liste yalnız yetkiliye tam döner", () => {
+  const MASKED_TR_IBAN = "TR" + "*".repeat(20) + "1326";
+
+  it("canSeeFullIban=false → maskeli (son 4 açık), ham IBAN response'ta YOK", async () => {
+    const svc = makeBankService();
+    const c = await makeCompanyWithUser(prisma, { country: "TR" });
+    await svc.create(c.auth, {
+      title: "TL Vadesiz",
+      accountHolder: "Firma A.Ş.",
+      iban: VALID_TR_IBAN,
+    });
+
+    const masked = await svc.list(c.company.id, false);
+    expect(masked).toHaveLength(1);
+    expect(masked[0]!.iban).toBe(MASKED_TR_IBAN);
+    expect(JSON.stringify(masked)).not.toContain(VALID_TR_IBAN);
+
+    // Yetkili (Kurucu) tam görür — settings ekranı + düzenleme formu.
+    const full = await svc.list(c.company.id, true);
+    expect(full[0]!.iban).toBe(VALID_TR_IBAN);
+  });
+
+  it("controller kapısı: tam görüm billing:manage'e (OWNER_ONLY) bağlıdır", () => {
+    // list() handler'ı canSeeFullIban'ı bu izinden türetir — CRUD ile aynı eşik.
+    expect(
+      hasCompanyPermission([CompanyRole.SAHIP], true, "billing:manage"),
+    ).toBe(true);
+    expect(
+      hasCompanyPermission([CompanyRole.YONETICI], false, "billing:manage"),
+    ).toBe(false);
+  });
+});
+
 describe("banka hesabı yönetimi — yalnız Kurucu (billing:manage)", () => {
   it("banka hesabı yönetimi owner-only izne bağlıdır; Yönetici/Satışçı erişemez", () => {
     // Controller create/update/delete = @RequireCompanyPermission("billing:manage").
