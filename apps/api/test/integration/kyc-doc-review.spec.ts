@@ -2,6 +2,7 @@
  * Belge bazlı KYC inceleme — admin tek bir belgeyi reddeder, firma yalnız onu
  * yeniden yükler; onaylanan belgeler kilitli kalır. Durum makinesi + kilit.
  */
+import { AuditService } from "../../src/modules/audit/audit.service";
 import { AdminCompaniesService } from "../../src/modules/admin-companies/admin-companies.service";
 import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
 import { CompanyDocsService } from "../../src/modules/company-docs/company-docs.service";
@@ -22,7 +23,11 @@ function storageMock() {
 }
 
 function docsService() {
-  return new CompanyDocsService(prisma as never, storageMock() as never);
+  return new CompanyDocsService(
+    prisma as never,
+    storageMock() as never,
+    new AuditService(prisma as never),
+  );
 }
 
 function adminService() {
@@ -186,5 +191,53 @@ describe("belge bazlı KYC inceleme", () => {
     const co = await pendingCompany();
     await admin.reviewDocuments(co.id, ALL_APPROVED, "adm1");
     await expect(docs.submit(co.id)).rejects.toThrow(/doğrulanmış|inceleniyor/i);
+  });
+});
+
+describe("KYC belge — audit izi (INV-AUDIT-1)", () => {
+  it("commit → docs.uploaded (kind); submit → docs.submitted (alan adları + maskeli IBAN, critical)", async () => {
+    const docs = docsService();
+    const co = await makeCompany(prisma, {
+      country: "TR",
+      companyVerificationStatus: "UNVERIFIED",
+      docTaxPlateUrl: "company-docs/x/tax.pdf",
+      docTradeRegistryUrl: "company-docs/x/trade.pdf",
+      docSignatureCircularUrl: "company-docs/x/sig.pdf",
+      docActivityCertUrl: "company-docs/x/act.pdf",
+      docIdFrontUrl: "company-docs/x/idf.pdf",
+      docIdBackUrl: "company-docs/x/idb.pdf",
+    });
+    const actor = { userId: "user-1", email: "kyc@firma.com" } as never;
+
+    await docs.commit(co.id, "taxPlate", `company-docs/${co.id}/tax2.pdf`, actor);
+    const uploaded = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.docs.uploaded", entityId: co.id },
+    });
+    expect(uploaded.actorId).toBe("user-1");
+    expect(uploaded.tenantId).toBe(co.id);
+    expect(uploaded.metadata).toMatchObject({ kind: "taxPlate" });
+    // Key/URL metadata'ya yazılmaz.
+    expect(JSON.stringify(uploaded.metadata)).not.toContain("company-docs/");
+
+    const RAW_IBAN = "TR000000000000000000000000";
+    await docs.submit(
+      co.id,
+      {
+        mersisNo: "0000000000000000",
+        tradeRegistryNo: "123456",
+        iban: RAW_IBAN,
+        ibanHolder: "Firma A.Ş.",
+      },
+      actor,
+    );
+    const submitted = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.docs.submitted", entityId: co.id },
+    });
+    const meta = submitted.metadata as Record<string, unknown>;
+    expect(meta.kycFields).toEqual(
+      expect.arrayContaining(["mersisNo", "iban", "ibanHolder"]),
+    );
+    expect(meta.ibanMasked).toBe("TR" + "*".repeat(20) + "0000");
+    expect(JSON.stringify(meta)).not.toContain(RAW_IBAN);
   });
 });

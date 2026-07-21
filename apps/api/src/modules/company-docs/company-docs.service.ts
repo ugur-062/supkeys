@@ -5,7 +5,10 @@ import {
 } from "@nestjs/common";
 import type { CompanyVerificationStatus, KycDocStatus } from "@rothern/db";
 import { randomUUID } from "node:crypto";
+import { maskIban } from "@rothern/shared";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { AuditService } from "../audit/audit.service";
+import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { StorageService } from "../storage/storage.service";
 import {
   assertReportedSize,
@@ -77,6 +80,7 @@ export class CompanyDocsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: StorageService,
+    private readonly audit: AuditService,
   ) {}
 
   async get(companyId: string) {
@@ -160,7 +164,12 @@ export class CompanyDocsService {
     return { url, key };
   }
 
-  async commit(companyId: string, kind: string, key: string) {
+  async commit(
+    companyId: string,
+    kind: string,
+    key: string,
+    actor?: AuthenticatedCompanyUser,
+  ) {
     if (!(kind in DOC_META)) throw new BadRequestException("Geçersiz belge türü");
     const k = kind as DocKind;
     // GÜVENLİK: key yalnız BU firmanın klasörüne işaret edebilir; aksi halde
@@ -207,6 +216,17 @@ export class CompanyDocsService {
         [DOC_META[k].reason]: null,
       },
     });
+    // INV-AUDIT-1: KYC belge yüklemesi iz bırakır (tür adı; key/URL yazılmaz).
+    await this.audit.log({
+      action: "company.docs.uploaded",
+      actorType: "company",
+      actorId: actor?.userId ?? null,
+      actorEmail: actor?.email ?? null,
+      tenantId: companyId,
+      entityType: "company",
+      entityId: companyId,
+      metadata: { kind: k },
+    });
     return { ok: true };
   }
 
@@ -219,6 +239,7 @@ export class CompanyDocsService {
       iban?: string;
       ibanHolder?: string;
     } = {},
+    actor?: AuthenticatedCompanyUser,
   ) {
     const { docs, docStatus, status, required, country } =
       await this.get(companyId);
@@ -278,6 +299,26 @@ export class CompanyDocsService {
         ...(iban !== undefined ? { iban } : {}),
         ...(ibanHolder !== undefined ? { ibanHolder } : {}),
       },
+    });
+    // INV-AUDIT-1: doğrulamaya gönderim — KYC alan ADLARI + sıfırlanan belge
+    // türleri; IBAN yalnız maskeli referans. IBAN yazımı para-yolu → critical.
+    const kycFields = (
+      ["mersisNo", "tradeRegistryNo", "iban", "ibanHolder"] as const
+    ).filter((f) => kyc[f] !== undefined);
+    await this.audit.log({
+      action: "company.docs.submitted",
+      actorType: "company",
+      actorId: actor?.userId ?? null,
+      actorEmail: actor?.email ?? null,
+      tenantId: companyId,
+      entityType: "company",
+      entityId: companyId,
+      metadata: {
+        kycFields,
+        resetDocs: required.filter((k) => docStatus[k] !== "APPROVED"),
+        ...(iban !== undefined ? { ibanMasked: maskIban(iban) } : {}),
+      },
+      critical: iban !== undefined,
     });
     return { ok: true };
   }

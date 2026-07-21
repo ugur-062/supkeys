@@ -62,7 +62,7 @@ export class CompanyDocsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: CommitDto,
   ) {
-    return this.service.commit(user.companyId, dto.kind, dto.key);
+    return this.service.commit(user.companyId, dto.kind, dto.key, user);
   }
 
   @Post("submit")
@@ -71,6 +71,6 @@ export class CompanyDocsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: SubmitDocsDto,
   ) {
-    return this.service.submit(user.companyId, dto);
+    return this.service.submit(user.companyId, dto, user);
   }
 }

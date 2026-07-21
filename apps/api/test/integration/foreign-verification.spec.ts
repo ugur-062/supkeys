@@ -2,6 +2,7 @@
  * Faz 5 — yabancı belge seti (ülke-farkında zorunlu doküman) + VIES (AB VAT)
  * oto-doğrulama.
  */
+import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyDocsService } from "../../src/modules/company-docs/company-docs.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompany } from "./factories";
@@ -21,7 +22,11 @@ function docsService() {
     // commit, nesnenin R2'da var olduğunu doğrular (assertUploadedObjectValid).
     checkExists: jest.fn(async () => ({ exists: true, size: 1024 })),
   };
-  return new CompanyDocsService(prisma as never, storage as never);
+  return new CompanyDocsService(
+    prisma as never,
+    storage as never,
+    new AuditService(prisma as never),
+  );
 }
 
 afterAll(async () => {
