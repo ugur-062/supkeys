@@ -14,8 +14,11 @@ import { makeCompanyWithUser } from "./factories";
 
 const VALID_TR_IBAN = "TR330006100519786457841326";
 
-function makeBankService() {
-  return new CompanyBankAccountsService(prisma as never);
+function makeBankService(audit?: AuditService) {
+  return new CompanyBankAccountsService(
+    prisma as never,
+    audit ?? new AuditService(prisma as never),
+  );
 }
 
 function makeOrdersService() {
@@ -214,6 +217,82 @@ describe("IBAN maskeleme — liste yalnız yetkiliye tam döner", () => {
     expect(
       hasCompanyPermission([CompanyRole.YONETICI], false, "billing:manage"),
     ).toBe(false);
+  });
+});
+
+describe("banka hesabı CRUD — critical audit izi (INV-AUDIT-1)", () => {
+  const MASKED_TR_IBAN = "TR" + "*".repeat(20) + "1326";
+
+  it("create/update/delete audit satırı bırakır; ham IBAN metadata'da YOK", async () => {
+    const svc = makeBankService();
+    const c = await makeCompanyWithUser(prisma, { country: "TR" });
+
+    const acct = await svc.create(c.auth, {
+      title: "TL Vadesiz",
+      accountHolder: "Firma A.Ş.",
+      iban: VALID_TR_IBAN,
+      isDefault: true,
+    });
+    const createdRow = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.bank_account.created", entityId: acct.id },
+    });
+    expect(createdRow.actorType).toBe("company");
+    expect(createdRow.actorId).toBe(c.auth.userId);
+    expect(createdRow.tenantId).toBe(c.company.id);
+    expect(createdRow.entityType).toBe("company_bank_account");
+    expect(createdRow.metadata).toMatchObject({
+      title: "TL Vadesiz",
+      isDefault: true,
+      ibanMasked: MASKED_TR_IBAN,
+    });
+    expect(JSON.stringify(createdRow.metadata)).not.toContain(VALID_TR_IBAN);
+
+    // IBAN değişimi → changedFields + eski/yeni maskeli referans.
+    await svc.update(c.auth, acct.id, {
+      title: "TL Vadesiz",
+      accountHolder: "Firma A.Ş.",
+      iban: "DE89370400440532013000",
+    });
+    const updatedRow = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.bank_account.updated", entityId: acct.id },
+    });
+    const meta = updatedRow.metadata as Record<string, unknown>;
+    expect(meta.changedFields).toEqual(
+      expect.arrayContaining(["iban", "isDefault"]),
+    );
+    expect(meta.ibanMaskedBefore).toBe(MASKED_TR_IBAN);
+    expect(meta.ibanMaskedAfter).toBe("DE" + "*".repeat(16) + "3000");
+    expect(JSON.stringify(meta)).not.toContain(VALID_TR_IBAN);
+
+    await svc.remove(c.auth, acct.id);
+    const deletedRow = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.bank_account.deleted", entityId: acct.id },
+    });
+    expect(deletedRow.metadata).toMatchObject({
+      ibanMasked: "DE" + "*".repeat(16) + "3000",
+    });
+  });
+
+  it("fail-safe: audit yazımı patlasa da işlem BAŞARILI (log asla throw etmez)", async () => {
+    // Gerçek AuditService + bozuk prisma → log() içindeki catch devreye girer.
+    const brokenAudit = new AuditService({
+      auditLog: {
+        create: () => {
+          throw new Error("audit DB down");
+        },
+      },
+    } as never);
+    const svc = makeBankService(brokenAudit);
+    const c = await makeCompanyWithUser(prisma, { country: "TR" });
+
+    const acct = await svc.create(c.auth, {
+      title: "TL Vadesiz",
+      accountHolder: "Firma A.Ş.",
+      iban: VALID_TR_IBAN,
+    });
+    expect(acct.id).toBeTruthy(); // işlem bloklanmadı
+    await svc.remove(c.auth, acct.id);
+    expect(await svc.list(c.company.id)).toHaveLength(0);
   });
 });
 
