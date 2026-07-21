@@ -1010,11 +1010,9 @@ export class CompanyListingsService {
     const neededRole =
       type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
 
-    // Kurucu (SAHIP) tam yetkilidir — her rolü kapsar.
-    if (
-      !user.roles.includes(CompanyRole.SAHIP) &&
-      !user.roles.includes(neededRole)
-    ) {
+    // Faz R: SAHIP etikettir, işlem-rol muafiyeti YOK — Kurucu ilan açmak için
+    // kendine SATIN_ALMACI/SATISCI rolü ekler.
+    if (!user.roles.includes(neededRole)) {
       throw new ForbiddenException(
         type === "ALIM"
           ? "Alım ilanı açmak için Satın Almacı rolü gerekir"
@@ -2434,11 +2432,10 @@ export class CompanyListingsService {
       (listing.visibility === "PUBLIC" && (connected || isPremium));
     // Rol kapısı UI'a da yansısın: placeBid ALIM'da SATISCI, SATIS'ta
     // SATIN_ALMACI ister — kullanıcı formu doldurup 403 yemesin.
-    const roleAllowsBid =
-      user.roles.includes(CompanyRole.SAHIP) ||
-      user.roles.includes(
-        listing.type === "ALIM" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI,
-      );
+    // Faz R: SAHIP muafiyeti kaldırıldı — UI bayrağı placeBid kapısıyla birebir.
+    const roleAllowsBid = user.roles.includes(
+      listing.type === "ALIM" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI,
+    );
     // Pazarlık durumu — teklifçinin TUR HAKKI + kendi önceki toplamı.
     // Minimum azaltma payı KALDIRILDI (2026-07-13): tek kural "kendi önceki
     // teklifinden kesin daha iyi" (placeBid ile aynı). Rakip verisi İÇERMEZ —
@@ -2996,13 +2993,10 @@ export class CompanyListingsService {
     }
 
     // Rol (işleme göre): ALIM ilanı → teklifçi SATAR → Satışçı; SATIS → ALIR → Satın Almacı.
-    // Kurucu (SAHIP) tam yetkilidir — her iki tarafta da teklif verebilir.
+    // Faz R: SAHIP muafiyeti yok — Kurucu teklif için op-rol taşımalı.
     const neededRole =
       listing.type === "ALIM" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI;
-    if (
-      !user.roles.includes(CompanyRole.SAHIP) &&
-      !user.roles.includes(neededRole)
-    ) {
+    if (!user.roles.includes(neededRole)) {
       throw new ForbiddenException(
         listing.type === "ALIM"
           ? "Alım ilanına teklif (satış) için Satışçı rolü gerekir"
@@ -3707,10 +3701,7 @@ export class CompanyListingsService {
     if (!canBid) {
       throw new ForbiddenException("Bu ilana teklif için premium gerekir");
     }
-    if (
-      !user.roles.includes(CompanyRole.SAHIP) &&
-      !user.roles.includes(CompanyRole.SATIN_ALMACI)
-    ) {
+    if (!user.roles.includes(CompanyRole.SATIN_ALMACI)) {
       throw new ForbiddenException("Hemen-Al için Satın Almacı rolü gerekir");
     }
 
@@ -3941,10 +3932,7 @@ export class CompanyListingsService {
     }
     const neededRole =
       listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
-    if (
-      !user.roles.includes(CompanyRole.SAHIP) &&
-      !user.roles.includes(neededRole)
-    ) {
+    if (!user.roles.includes(neededRole)) {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
     }
     // 11 yönetim aksiyonuyla simetri: kazandırmayı yalnız ilanı açan doğru-taraf
@@ -4362,10 +4350,7 @@ export class CompanyListingsService {
     // SATIS'ta farklı alıcılara verilebilir (rol, tam kazandırmayla aynı).
     const neededRole =
       listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
-    if (
-      !user.roles.includes(CompanyRole.SAHIP) &&
-      !user.roles.includes(neededRole)
-    ) {
+    if (!user.roles.includes(neededRole)) {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
     }
     // 11 yönetim aksiyonuyla simetri: kazandırmayı yalnız ilanı açan doğru-taraf
@@ -4477,10 +4462,7 @@ export class CompanyListingsService {
     }
     const neededRole =
       listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
-    if (
-      !user.roles.includes(CompanyRole.SAHIP) &&
-      !user.roles.includes(neededRole)
-    ) {
+    if (!user.roles.includes(neededRole)) {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
     }
 
@@ -4543,10 +4525,7 @@ export class CompanyListingsService {
     }
     const neededRole =
       listing.type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
-    if (
-      !user.roles.includes(CompanyRole.SAHIP) &&
-      !user.roles.includes(neededRole)
-    ) {
+    if (!user.roles.includes(neededRole)) {
       throw new ForbiddenException("Kazandırma için yetkiniz yok");
     }
 

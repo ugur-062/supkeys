@@ -323,17 +323,14 @@ export class CompanyOrderDocumentsService {
     }
   }
 
-  /** Sipariş belgesi yükleme rolü (sipariş geçişleriyle aynı; SAHIP tam yetkili). */
+  /** Sipariş belgesi yükleme rolü (sipariş geçişleriyle aynı; Faz R: SAHIP muaf değil). */
   private assertUploadRole(
     user: AuthenticatedCompanyUser,
     side: "seller" | "buyer",
   ): void {
     const needed =
       side === "seller" ? CompanyRole.SATISCI : CompanyRole.SATIN_ALMACI;
-    if (
-      !user.roles.includes(CompanyRole.SAHIP) &&
-      !user.roles.includes(needed)
-    ) {
+    if (!user.roles.includes(needed)) {
       throw new ForbiddenException(
         side === "seller"
           ? "Belge yüklemek için Satışçı rolü gerekir"

@@ -561,23 +561,12 @@ export class CompanyApprovalsService {
     type: ApprovalType,
     listingType: "ALIM" | "SATIS",
   ) {
-    // BK-1: SAHIP rol-kapsamlı onay akışından MUAF DEĞİLDİR — görev-ayrılığının
-    // tüm amacı, kendine büyük tutarı kazandıran kişiyi durdurmaktır ve bunu en
-    // çok yapabilecek olan SAHIP'tir (self-onay yasağının kardeşi). Eskiden SAHIP
-    // hiçbir initiatorRoles'e girmediğinden (DTO'da seçilemez) rol-kapsamlı akış
-    // ONA HİÇ eşleşmiyordu → {approved:true}, ONAYSIZ kazandırma. Çözüm: SAHIP'i,
-    // kazandırma authz'ının kullandığı OPERASYONEL rolle (ALIM→SATIN_ALMACI,
-    // SATIS→SATISCI) genişlet. Deadlock riski YOK: SAHIP initiator → requestApproval
-    // ikame-sonra-reddet (Grup C, INV-APPR-1) devreye girer (tek-admin firma net
-    // hata alır, yeni deadlock oluşmaz).
-    const roles = user.roles.includes(CompanyRole.SAHIP)
-      ? [
-          ...user.roles,
-          listingType === "ALIM"
-            ? CompanyRole.SATIN_ALMACI
-            : CompanyRole.SATISCI,
-        ]
-      : user.roles;
+    // BK-1 (Faz R sonrası): SAHIP rol-kapsamlı onay akışından MUAF DEĞİLDİR.
+    // Eski SAHIP→op-rol GENİŞLETMESİ kaldırıldı — Faz R'de SAHIP'in işlem
+    // muafiyeti yok; kazandırabilen Kurucu zaten GERÇEK op-rol (SA/ST) taşır ve
+    // rol-kapsamlı akış o rolle doğal eşleşir. Görev-ayrılığı invariant'ı
+    // (kendine kazandıranı durdur) böylece genişletmesiz korunur.
+    const roles = user.roles;
     return this.prisma.approvalFlow.findFirst({
       where: {
         companyId: user.companyId,
@@ -586,8 +575,7 @@ export class CompanyApprovalsService {
         AND: [
           // İlan tipi: akış belirli tipe bağlıysa eşleşmeli; null = her ikisi.
           { OR: [{ listingType: null }, { listingType }] },
-          // Başlatıcı rol: boşsa kısıt yok; doluysa kullanıcının (SAHIP ise
-          // operasyonel-rolle genişletilmiş) rollerinden biri.
+          // Başlatıcı rol: boşsa kısıt yok; doluysa kullanıcının rollerinden biri.
           {
             OR: [
               { initiatorRoles: { isEmpty: true } },
