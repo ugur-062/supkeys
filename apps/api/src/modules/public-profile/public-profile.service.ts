@@ -72,6 +72,11 @@ export class PublicProfileService {
     void membershipEndAt; // INV-TIER-1 iç hesap alanı — public yanıtta sızmaz
     return {
       ...pub,
+      // Faz T: "Gold Üye" rozeti (yalnız GOLD; güven iddiası TAŞIMAZ —
+      // adlandırma bilinçli "Gold Üye").
+      goldMember:
+        effectiveTier(tier as string, membershipEndAt as Date | null) ===
+        "GOLD",
       rating: { avg: ratingAgg._avg.rating ?? 0, count: ratingAgg._count },
     };
   }

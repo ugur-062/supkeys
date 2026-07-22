@@ -15,6 +15,7 @@ import * as QRCode from "qrcode";
 import { CompanyRole, Prisma, type Company, type CompanyUser } from "@rothern/db";
 import {
   generateShortCode,
+  tierAtLeast,
   isValidCountryCode,
   isValidTaxIdForCountry,
   isValidTckn,
@@ -1357,6 +1358,14 @@ export class CompanyAuthService {
       publicEnabled: company.publicEnabled,
       isActive: company.isActive,
       website: company.website,
+      // Faz T: kademe-bayrakları — UI tüketicileri için hazır (AI özelliği
+      // henüz yok; Silver+ açılınca bu bayrak kapı olacak).
+      features: {
+        ai: tierAtLeast(
+          effectiveTier(company.tier, company.membershipEndAt),
+          "SILVER",
+        ),
+      },
     };
   }
 }

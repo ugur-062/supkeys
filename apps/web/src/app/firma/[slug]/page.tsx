@@ -8,6 +8,7 @@ export const revalidate = 300;
 
 interface PublicProfile {
   name: string;
+  goldMember?: boolean;
   slug: string | null;
   rothernId: string | null;
   industry: string | null;

@@ -803,6 +803,9 @@ export class CompanyConnectionsService {
         rothernId: c.rothernId,
         slug: c.slug,
         name: c.name,
+        // Faz T: "Gold Üye" rozeti (adlandırma bilinçli — güven iddiası taşımaz).
+        goldMember:
+          effectiveTier(c.tier, c.membershipEndAt) === "GOLD",
         industry: c.industry,
         city: c.city,
         country: c.country,

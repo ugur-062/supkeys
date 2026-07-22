@@ -52,6 +52,8 @@ export interface CompanyProfile {
     rothernId: string | null;
     slug: string | null;
     name: string;
+    /** Faz T: "Gold Üye" rozeti. */
+    goldMember?: boolean;
     industry: string | null;
     city: string | null;
     country: string | null;

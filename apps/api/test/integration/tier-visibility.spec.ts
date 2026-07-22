@@ -176,3 +176,58 @@ describe("Faz T — STANDART maskeli önizleme + teklif kapısı", () => {
     expect(detail.canBid).toBe(false);
   });
 });
+
+describe("Faz T — Gold Üye rozeti + akış-kurma SILVER kapısı", () => {
+  it("SEO public profil: yalnız GOLD'da goldMember:true", async () => {
+    const { PublicProfileService } = await import(
+      "../../src/modules/public-profile/public-profile.service"
+    );
+    const svc = new PublicProfileService(prisma as never, {
+      presignStoredObject: async () => null,
+      getPublicUrl: () => null,
+    } as never);
+    const gold = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await prisma.company.update({
+      where: { id: gold.company.id },
+      data: { publicEnabled: true, slug: `gold-${Date.now()}` },
+    });
+    const g = await prisma.company.findUniqueOrThrow({
+      where: { id: gold.company.id },
+    });
+    const pub = (await svc.getBySlug(g.slug!)) as { goldMember: boolean };
+    expect(pub.goldMember).toBe(true);
+
+    const silver = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    await prisma.company.update({
+      where: { id: silver.company.id },
+      data: { publicEnabled: true, slug: `silver-${Date.now()}` },
+    });
+    const s = await prisma.company.findUniqueOrThrow({
+      where: { id: silver.company.id },
+    });
+    const pub2 = (await svc.getBySlug(s.slug!)) as { goldMember: boolean };
+    expect(pub2.goldMember).toBe(false);
+  });
+
+  it("akış-KURMA uçları CompanyPaidTierGuard (Silver+) taşır; yönetme/karar uçları taşımaz", async () => {
+    const { CompanyApprovalsController } = await import(
+      "../../src/modules/company-approvals/company-approvals.controller"
+    );
+    const { CompanyPaidTierGuard } = await import(
+      "../../src/modules/company-auth/guards/company-paid-tier.guard"
+    );
+    const guardsOf = (m: string) =>
+      (Reflect.getMetadata(
+        "__guards__",
+        CompanyApprovalsController.prototype[
+          m as keyof typeof CompanyApprovalsController.prototype
+        ] as object,
+      ) ?? []) as unknown[];
+    expect(guardsOf("createFlow")).toContain(CompanyPaidTierGuard);
+    expect(guardsOf("duplicateFlow")).toContain(CompanyPaidTierGuard);
+    // Açık işlemler tamamlanabilir: mevcut akış yönetimi + karar tier'sız.
+    for (const m of ["updateFlow", "setStatus", "deleteFlow", "approve"]) {
+      expect(guardsOf(m)).not.toContain(CompanyPaidTierGuard);
+    }
+  });
+});

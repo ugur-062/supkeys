@@ -30,6 +30,8 @@ function ExternalLink({
 
 export interface ProfileViewData {
   name: string;
+  /** Faz T: "Gold Üye" rozeti — yalnız GOLD kademe (güven iddiası taşımaz). */
+  goldMember?: boolean;
   rothernId?: string | null;
   industry: string | null;
   city: string | null;
@@ -150,8 +152,13 @@ export function CompanyProfileView({
                 )}
               </div>
               <div className="mb-1.5 min-w-0">
-                <h1 className="text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">
+                <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">
                   {p.name}
+                  {p.goldMember ? (
+                    <span className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800">
+                      Gold Üye
+                    </span>
+                  ) : null}
                 </h1>
                 <p className="mt-1 text-sm text-zinc-500">
                   {[p.industry, location].filter(Boolean).join("  ·  ") ||

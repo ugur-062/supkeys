@@ -15,6 +15,7 @@ import {
 } from "../company-auth/decorators/current-company-user.decorator";
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { CompanyJwtAuthGuard } from "../company-auth/guards/company-jwt-auth.guard";
+import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { CompanyApprovalsService } from "./company-approvals.service";
 import {
@@ -37,6 +38,9 @@ export class CompanyApprovalsController {
   }
 
   @Post("flows")
+  // Faz T: YENİ akış kurma Silver+ (mevcut akışları yönetme/karar tier'sız —
+  // pakete düşen firma açık süreçlerini tamamlayabilir, yenisini kuramaz).
+  @UseGuards(CompanyPaidTierGuard)
   @RequireCompanyPermission("approvals:manage")
   createFlow(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
@@ -66,6 +70,7 @@ export class CompanyApprovalsController {
   }
 
   @Post("flows/:id/duplicate")
+  @UseGuards(CompanyPaidTierGuard)
   @RequireCompanyPermission("approvals:manage")
   duplicateFlow(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
