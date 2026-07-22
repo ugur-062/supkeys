@@ -35,7 +35,10 @@ import {
   effectiveTier,
   anyPackageWhere,
 } from "../../../common/company/effective-tier";
-import { isListingVisibleToViewer } from "../../../common/company/listing-visibility";
+import {
+  isListingVisibleToViewer,
+  listingBidEligibility,
+} from "../../../common/company/listing-visibility";
 import {
   PRICED_ITEM_WHERE,
   bidCoversAllItems,
@@ -1816,7 +1819,6 @@ export class CompanyListingsService {
         },
       }),
     ]);
-    const isPremium = tierAtLeast(user.tier, "BRONZ");
     const myCountry = user.country;
 
     const baseWhere = {
@@ -1977,9 +1979,16 @@ export class CompanyListingsService {
       const invited = invitedSet.has(l.id);
       const bid = bidByListing.get(l.id);
       const masked =
-        l.visibility === "PUBLIC" && !connected && !invited && !isPremium;
-      const canBid =
-        invited || connected || (l.visibility === "PUBLIC" && isPremium);
+        listingBidEligibility(l.visibility, {
+          isInvited: invited,
+          connectedToOwner: connected,
+          viewerTier: user.tier,
+        }).masked;
+      const { canBid } = listingBidEligibility(l.visibility, {
+        isInvited: invited,
+        connectedToOwner: connected,
+        viewerTier: user.tier,
+      });
       return {
         _open: l.status === "OPEN",
         id: l.id,
@@ -2155,7 +2164,6 @@ export class CompanyListingsService {
       : null;
 
     const connected = connectedIds.includes(listing.companyId);
-    const isPremium = tierAtLeast(user.tier, "BRONZ");
 
     // Kalemler (herkese görünür — teklif vermek için gerekli).
     const itemsOut = items.map((it) => ({
@@ -2417,14 +2425,16 @@ export class CompanyListingsService {
     // Davetli firma her görünürlükte maskesiz görür ve teklif verebilir
     // (alıcı onu açıkça seçti) — sellerTenders ile aynı kural.
     const masked =
-      listing.visibility === "PUBLIC" &&
-      !connected &&
-      !isPremium &&
-      !isInvited;
-    const canBid =
-      isInvited ||
-      (listing.visibility === "CONNECTIONS" && connected) ||
-      (listing.visibility === "PUBLIC" && (connected || isPremium));
+      listingBidEligibility(listing.visibility, {
+        isInvited,
+        connectedToOwner: connected,
+        viewerTier: user.tier,
+      }).masked;
+    const { canBid } = listingBidEligibility(listing.visibility, {
+      isInvited,
+      connectedToOwner: connected,
+      viewerTier: user.tier,
+    });
     // Rol kapısı UI'a da yansısın: placeBid ALIM'da SATISCI, SATIS'ta
     // SATIN_ALMACI ister — kullanıcı formu doldurup 403 yemesin.
     // Faz R: SAHIP muafiyeti kaldırıldı — UI bayrağı placeBid kapısıyla birebir.
@@ -2954,7 +2964,6 @@ export class CompanyListingsService {
       throw new NotFoundException("İlan bulunamadı");
     }
     const connected = connectedIds.includes(listing.companyId);
-    const isPremium = tierAtLeast(user.tier, "BRONZ");
     // Davet her görünürlükte teklif hakkı verir ve ÜLKE kapsamını da aşar
     // (alıcı firmayı açıkça seçti) — getOne/sellerTenders ile aynı kural.
     const isInvited = invitedCount > 0;
@@ -2975,10 +2984,11 @@ export class CompanyListingsService {
       throw new NotFoundException("İlan bulunamadı");
     }
 
-    const canBid =
-      isInvited ||
-      (listing.visibility === "CONNECTIONS" && connected) ||
-      (listing.visibility === "PUBLIC" && (connected || isPremium));
+    const { canBid } = listingBidEligibility(listing.visibility, {
+      isInvited,
+      connectedToOwner: connected,
+      viewerTier: user.tier,
+    });
     if (!canBid) {
       throw new ForbiddenException(
         listing.visibility === "PRIVATE"
@@ -3673,7 +3683,6 @@ export class CompanyListingsService {
       }),
     ]);
     const connected = connectedIds.includes(listing.companyId);
-    const isPremium = tierAtLeast(user.tier, "BRONZ");
     const isInvited = invitedCount > 0;
     const visible = isListingVisibleToViewer(listing.visibility, {
       isInvited,
@@ -3691,8 +3700,11 @@ export class CompanyListingsService {
     ) {
       throw new NotFoundException("İlan bulunamadı");
     }
-    const canBid =
-      isInvited || connected || (listing.visibility === "PUBLIC" && isPremium);
+    const { canBid } = listingBidEligibility(listing.visibility, {
+      isInvited,
+      connectedToOwner: connected,
+      viewerTier: user.tier,
+    });
     if (!canBid) {
       throw new ForbiddenException("Bu ilana teklif için premium gerekir");
     }

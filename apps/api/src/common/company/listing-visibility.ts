@@ -1,4 +1,5 @@
 import { Prisma } from "@rothern/db";
+import { tierAtLeast } from "@rothern/shared";
 
 /**
  * İlan görünürlük kuralı — TEK KAYNAK (X5/X7 drift önleme). Bir izleyici bir
@@ -25,6 +26,36 @@ export function isListingVisibleToViewer(
     visibility === "PUBLIC" ||
     (visibility === "CONNECTIONS" && opts.connectedToOwner)
   );
+}
+
+/**
+ * Faz T — teklif-uygunluğu + maske TEK KAYNAK (üçüncü tanım yasak; getOne,
+ * sellerTenders, placeBid, buyNow aynı formülü buradan okur):
+ * - canBid: davet ∨ (CONNECTIONS ∧ bağlı) ∨ (PUBLIC ∧ (bağlı ∨ BRONZ+)).
+ * - masked: PUBLIC ∧ bağlı-değil ∧ davetsiz ∧ paket yok (STANDART) →
+ *   freemium önizleme: liste/detay GÖRÜNÜR ama kısıtlı, teklif kapalı
+ *   ("Bronz+ gerekir" CTA'sı). Eski STANDARD maskeli-önizleme davranışının
+ *   devamı — eşik PAKET→BRONZ.
+ */
+export function listingBidEligibility(
+  visibility: string,
+  opts: {
+    isInvited: boolean;
+    connectedToOwner: boolean;
+    viewerTier: string;
+  },
+): { canBid: boolean; masked: boolean } {
+  const paid = tierAtLeast(opts.viewerTier, "BRONZ");
+  const canBid =
+    opts.isInvited ||
+    (visibility === "CONNECTIONS" && opts.connectedToOwner) ||
+    (visibility === "PUBLIC" && (opts.connectedToOwner || paid));
+  const masked =
+    visibility === "PUBLIC" &&
+    !opts.connectedToOwner &&
+    !opts.isInvited &&
+    !paid;
+  return { canBid, masked };
 }
 
 export function visibleOwnerListingWhere(

@@ -477,13 +477,13 @@ export default function TeklifVerPage() {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <Lock className="mx-auto h-8 w-8 text-amber-500" aria-hidden="true" />
-        <Heading className="mt-3">Teklif için premium üyelik gerekir</Heading>
+        <Heading className="mt-3">Teklif için paket (Bronz+) gerekir</Heading>
         <Text className="mt-2 text-sm text-zinc-500">
-          Bu herkese açık ihaleye teklif vermek için firmanızı doğrulayıp
-          premium&apos;a geçin veya ilan sahibiyle bağlantı kurun.
+          Bu herkese açık ihaleye teklif vermek için firmanızı doğrulayıp bir
+          paket alın veya ilan sahibiyle bağlantı kurun.
         </Text>
         <div className="mt-5 flex items-center justify-center gap-3">
-          <Button href="/company/premium">Premium&apos;a Geç</Button>
+          <Button href="/company/premium">Paket Al</Button>
           <Button href={detailHref} outline>
             İhale Detayına Dön
           </Button>

@@ -1450,11 +1450,11 @@ export default function ListingDetailPage() {
       {!l.canBid ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-5">
           <Text className="text-sm text-amber-800">
-            Bu ilana teklif vermek için <strong>premium üyelik</strong> gerekir
-            (veya ilanı açan firmayla bağlantı kur).
+            Bu ilana teklif vermek için <strong>bir paket (Bronz+)</strong>
+            gerekir (veya ilanı açan firmayla bağlantı kur).
           </Text>
           <Button href="/company/premium" className="shrink-0">
-            Premium&apos;a Geç
+            Paket Al
           </Button>
         </div>
       ) : l.roleAllowsBid === false ? (
@@ -1890,10 +1890,10 @@ export default function ListingDetailPage() {
               <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               Bu herkese açık ihale önizleme modunda — kalemleri görüyorsunuz
               ama {isAlim ? "alıcı" : "satıcı"} firma, fiyatlar ve dosyalar
-              gizli. Teklif vermek için premium üyelik gerekir.
+              gizli. Detayı görmek ve teklif vermek için paket alın (Bronz+).
             </p>
             <Button href="/company/premium" className="shrink-0">
-              Premium&apos;a Geç
+              Paket Al
             </Button>
           </div>
         ) : null}
