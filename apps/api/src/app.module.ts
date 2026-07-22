@@ -35,6 +35,7 @@ import { CompanyAddressesModule } from "./modules/company-addresses/company-addr
 import { CompanyBankAccountsModule } from "./modules/company-bank-accounts/company-bank-accounts.module";
 import { RealtimeModule } from "./modules/realtime/realtime.module";
 import { CompanyApprovalsModule } from "./modules/company-approvals/company-approvals.module";
+import { CompanyActivityModule } from "./modules/company-activity/company-activity.module";
 import { CompanyDocsModule } from "./modules/company-docs/company-docs.module";
 import { CompanyReportsModule } from "./modules/company-reports/company-reports.module";
 import { CompanyReviewsModule } from "./modules/company-reviews/company-reviews.module";
@@ -144,6 +145,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     CompanyBidDocumentsModule,
     CompanyListingDocumentsModule,
     CompanyUsersModule,
+    CompanyActivityModule,
     CompanyProfileModule,
     CompanyConnectionsModule,
     CompanyBlocksModule,

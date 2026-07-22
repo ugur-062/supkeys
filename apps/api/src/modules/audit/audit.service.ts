@@ -87,6 +87,56 @@ export class AuditService {
     }
   }
 
+  /**
+   * Faz O — FİRMA-yüzü aktivite logu: yalnız kendi tenant'ının `company.*`
+   * eylem kayıtları, SANITIZE edilmiş projeksiyon (ip/userAgent/actorType/
+   * tenantId YANITTA YOK — teknik log değil eylem kaydı; metadata zaten değer
+   * değil eylem-özeti taşır: maskeli IBAN referansı, changedFields adları,
+   * rol before/after). Denial kayıtları DAHİL (K+Y güvenlik gözetimi).
+   * Admin `query()` DEĞİŞMEDİ — bu ayrı, daha dar bir pencere.
+   */
+  async queryForTenant(
+    tenantId: string,
+    params: { page?: number; pageSize?: number; module?: string } = {},
+  ) {
+    const page = Math.max(1, params.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 50));
+    const where = {
+      tenantId,
+      action: {
+        startsWith: params.module ? `company.${params.module}.` : "company.",
+      },
+    };
+    const [total, rows] = await Promise.all([
+      this.prisma.auditLog.count({ where }),
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: {
+          id: true,
+          action: true,
+          actorEmail: true,
+          entityType: true,
+          entityId: true,
+          metadata: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+    return {
+      // JsonValue tip-referansı dışa sızmasın (TS2742) — metadata unknown.
+      items: rows.map((r) => ({ ...r, metadata: r.metadata as unknown })),
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / pageSize)),
+      },
+    };
+  }
+
   /** Admin denetim görüntüleyici — filtrelenmiş, sayfalı liste (en yeni önce). */
   async query(params: {
     actorType?: string;
