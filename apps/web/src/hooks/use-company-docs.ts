@@ -60,6 +60,14 @@ export interface KycFields {
   ibanHolder: string | null;
 }
 
+/** Faz Y A-modeli — VERIFIED-sonrası belge güncellemesinin son revizyonu. */
+export interface DocRevision {
+  status: DocStatus;
+  reason: string | null;
+  createdAt: string;
+  url: string | null;
+}
+
 export interface CompanyDocs extends KycFields {
   status: VerificationStatus;
   verifiedAt: string | null;
@@ -70,6 +78,8 @@ export interface CompanyDocs extends KycFields {
   docStatus: Record<DocKind, DocStatus>;
   docReason: Record<DocKind, string | null>;
   required: DocKind[];
+  // Kind başına SON revizyon (yalnız VERIFIED-sonrası akışta dolar).
+  revisions: Record<DocKind, DocRevision | null>;
 }
 
 export function useCompanyDocs() {

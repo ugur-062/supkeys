@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -128,7 +129,33 @@ export class CompanyDocsService {
     const docReason = Object.fromEntries(
       KINDS.map((k) => [k, (c[DOC_META[k].reason] as string | null) ?? null]),
     ) as Record<DocKind, string | null>;
+    // Faz Y: kind başına SON revizyon — firma bekleyen güncellemesini/ret
+    // gerekçesini görsün. Yeni belge de presigned GET ile sunulur (kendi belgesi).
+    const revRows = await this.prisma.companyKycRevision.findMany({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+    });
+    const revisions = Object.fromEntries(KINDS.map((k) => [k, null])) as Record<
+      DocKind,
+      {
+        status: KycDocStatus;
+        reason: string | null;
+        createdAt: Date;
+        url: string | null;
+      } | null
+    >;
+    for (const r of revRows) {
+      const k = r.kind as DocKind;
+      if (!(k in revisions) || revisions[k] !== null) continue; // yalnız en yeni
+      revisions[k] = {
+        status: r.status,
+        reason: r.reason,
+        createdAt: r.createdAt,
+        url: await this.storage.presignStoredObject("private", r.key),
+      };
+    }
     return {
+      revisions,
       status: c.companyVerificationStatus as CompanyVerificationStatus,
       verifiedAt: c.companyVerifiedAt as Date | null,
       rejectionReason: c.companyRejectionReason as string | null,
@@ -178,9 +205,11 @@ export class CompanyDocsService {
       throw new BadRequestException("Geçersiz dosya anahtarı");
     }
     // KİLİT: belge yalnız (a) hiç gönderilmemişken (UNVERIFIED) ya da (b) genel
-    // durum REJECTED iken ve BU belge onaylı değilken değiştirilebilir. İnceleme
-    // sürerken (PENDING) veya doğrulanmışken (VERIFIED) ya da onaylı belgeye
-    // yükleme reddedilir — UI kilidini atlayan istekler de burada durur.
+    // durum REJECTED iken ve BU belge onaylı değilken DOĞRUDAN değiştirilebilir.
+    // İnceleme sürerken (PENDING) veya onaylı belgeye yükleme reddedilir.
+    // Faz Y A-modeli: VERIFIED artık kilit DEĞİL — yükleme Company kolonlarına
+    // dokunmadan CompanyKycRevision'a (PENDING) düşer; admin onaylarsa geçerli
+    // olur, reddederse eski belge kalır. Firma bu süreçte VERIFIED kalır.
     const company = (await this.prisma.company.findUnique({
       where: { id: companyId },
       select: { companyVerificationStatus: true, [DOC_META[k].status]: true },
@@ -193,6 +222,9 @@ export class CompanyDocsService {
     if (!company) throw new NotFoundException("Firma bulunamadı");
     const overall = company.companyVerificationStatus;
     const docStatus = company[DOC_META[k].status] as KycDocStatus;
+    if (overall === "VERIFIED") {
+      return this.submitRevision(companyId, k, key, actor);
+    }
     const editable =
       overall === "UNVERIFIED" ||
       (overall === "REJECTED" && docStatus !== "APPROVED");
@@ -200,9 +232,7 @@ export class CompanyDocsService {
       throw new BadRequestException(
         overall === "PENDING"
           ? "Doğrulama inceleniyor; belge değiştirilemez"
-          : overall === "VERIFIED"
-            ? "Firma zaten doğrulandı; belge değiştirilemez"
-            : "Bu belge onaylandı; değiştirilemez",
+          : "Bu belge onaylandı; değiştirilemez",
       );
     }
     await assertUploadedObjectValid(this.storage, "private", key);
@@ -228,6 +258,61 @@ export class CompanyDocsService {
       metadata: { kind: k },
     });
     return { ok: true };
+  }
+
+  /**
+   * Faz Y A-modeli — VERIFIED firmanın belge güncellemesi: revizyon PENDING'e
+   * yazılır (kendi bekleyenini değiştirmek serbest — henüz incelenmedi), admin
+   * onayına düşer. Company doc kolonları ve VERIFIED statüsü DEĞİŞMEZ.
+   */
+  private async submitRevision(
+    companyId: string,
+    kind: DocKind,
+    key: string,
+    actor?: AuthenticatedCompanyUser,
+  ) {
+    await assertUploadedObjectValid(this.storage, "private", key);
+    const pending = await this.prisma.companyKycRevision.findFirst({
+      where: { companyId, kind, status: "PENDING" },
+      select: { id: true },
+    });
+    try {
+      if (pending) {
+        await this.prisma.companyKycRevision.update({
+          where: { id: pending.id },
+          data: { key, submittedById: actor?.userId ?? null },
+        });
+      } else {
+        await this.prisma.companyKycRevision.create({
+          data: {
+            companyId,
+            kind,
+            key,
+            submittedById: actor?.userId ?? null,
+          },
+        });
+      }
+    } catch (e) {
+      // Kısmi-unique yarışı (eşzamanlı iki commit) — X-CF-3 deseni.
+      if ((e as { code?: string }).code === "P2002") {
+        throw new ConflictException(
+          "Bu belge için bekleyen bir güncelleme zaten incelemede — sayfayı yenileyin",
+        );
+      }
+      throw e;
+    }
+    // INV-AUDIT-1: revizyon gönderimi iz bırakır (tür adı; key yazılmaz).
+    await this.audit.log({
+      action: "company.docs.revision_submitted",
+      actorType: "company",
+      actorId: actor?.userId ?? null,
+      actorEmail: actor?.email ?? null,
+      tenantId: companyId,
+      entityType: "company",
+      entityId: companyId,
+      metadata: { kind },
+    });
+    return { ok: true, revision: true };
   }
 
   /** Tüm belgeler yüklüyse doğrulamaya gönder (PENDING). */

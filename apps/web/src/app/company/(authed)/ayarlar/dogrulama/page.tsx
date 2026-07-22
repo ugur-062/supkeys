@@ -59,11 +59,14 @@ export default function DogrulamaPage() {
   const isTR = (data?.country ?? "TR").toUpperCase() === "TR";
   // Belge bazlı kilit: onaylanan belge her durumda kilitli; genel REJECTED iken
   // yalnız onaylı OLMAYAN (reddedilen/bekleyen) belgeler yeniden yüklenebilir.
+  // Faz Y A-modeli: VERIFIED'da yükleme SERBEST — Company belgesi değişmez,
+  // güncelleme revizyon olarak admin onayına düşer (firma VERIFIED kalır).
   const docEditable = (k: DocKind) => {
     if (!data) return false;
     if (data.status === "UNVERIFIED") return true;
     if (data.status === "REJECTED") return data.docStatus[k] !== "APPROVED";
-    return false; // PENDING / VERIFIED
+    if (data.status === "VERIFIED") return true; // → revizyon akışı
+    return false; // PENDING
   };
 
   const handleFile = async (kind: DocKind, file: File | undefined) => {
@@ -75,7 +78,11 @@ export default function DogrulamaPage() {
     setBusyKind(kind);
     try {
       await upload.mutateAsync({ kind, file });
-      toast.success("Belge yüklendi");
+      toast.success(
+        data?.status === "VERIFIED"
+          ? "Belge güncellemesi incelemeye gönderildi — mevcut belgeniz geçerliliğini koruyor"
+          : "Belge yüklendi",
+      );
     } catch (err) {
       toast.error(extractErrorMessage(err, "Yüklenemedi"));
     } finally {
@@ -145,6 +152,12 @@ export default function DogrulamaPage() {
           ) : data.status === "VERIFIED" ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
               Firmanız doğrulandı. Premium özellikleri kullanabilirsiniz.
+              {canManage ? (
+                <span className="mt-0.5 block text-xs text-emerald-700">
+                  Bir belgeyi güncellerseniz yeni belge ayrıca incelenir; onay
+                  gelene kadar mevcut belgeniz geçerli kalır.
+                </span>
+              ) : null}
             </div>
           ) : null}
 
@@ -221,6 +234,9 @@ export default function DogrulamaPage() {
                 const isBusy = busyKind === d.key;
                 const st = data.docStatus[d.key];
                 const editable = canManage && docEditable(d.key);
+                // Faz Y: VERIFIED-sonrası güncelleme revizyonu (bekleyen/reddedilen).
+                const rev =
+                  data.status === "VERIFIED" ? data.revisions?.[d.key] : null;
                 // Belge durum rozeti — genel PENDING/VERIFIED/REJECTED'de anlamlı.
                 const showStatus = data.status !== "UNVERIFIED";
                 return (
@@ -251,6 +267,11 @@ export default function DogrulamaPage() {
                         ) : (
                           <span className="text-xs text-zinc-400">Eksik</span>
                         )}
+                        {rev?.status === "PENDING" ? (
+                          <span className="text-xs font-medium text-amber-600">
+                            Yeni belge incelemede
+                          </span>
+                        ) : null}
                       </div>
                       <div className="flex items-center gap-2">
                         {url ? (
@@ -297,6 +318,14 @@ export default function DogrulamaPage() {
                     {st === "REJECTED" && data.docReason[d.key] ? (
                       <p className="pl-6 text-xs text-red-600">
                         {data.docReason[d.key]}
+                      </p>
+                    ) : null}
+                    {/* Faz Y: reddedilen güncelleme — mevcut belge geçerli kalır. */}
+                    {rev?.status === "REJECTED" ? (
+                      <p className="pl-6 text-xs text-red-600">
+                        Belge güncellemeniz reddedildi
+                        {rev.reason ? `: ${rev.reason}` : ""} — mevcut belgeniz
+                        geçerliliğini koruyor.
                       </p>
                     ) : null}
                   </li>
