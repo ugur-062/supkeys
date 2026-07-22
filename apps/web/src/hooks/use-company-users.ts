@@ -204,3 +204,39 @@ export function useRemoveUser() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["company-users"] }),
   });
 }
+
+/** Faz K — koltuk kullanımı (limit null = STANDART limitsiz). */
+export interface SeatUsage {
+  limit: number | null;
+  used: number;
+  pendingSeatInvites: number;
+  overflow: number;
+}
+
+export function useSeats() {
+  return useQuery({
+    queryKey: ["company-seats"],
+    queryFn: async () => {
+      const { data } = await companyApi.get<SeatUsage>("/company/users/seats");
+      return data;
+    },
+  });
+}
+
+/** Faz K — kurucu koltuk seçimi: kalacak SA/ST sahiplerinin id listesi. */
+export function useSeatSelection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (keepUserIds: string[]) => {
+      const { data } = await companyApi.post<{
+        ok: boolean;
+        droppedCount: number;
+      }>("/company/users/seat-selection", { keepUserIds });
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-users"] });
+      qc.invalidateQueries({ queryKey: ["company-seats"] });
+    },
+  });
+}

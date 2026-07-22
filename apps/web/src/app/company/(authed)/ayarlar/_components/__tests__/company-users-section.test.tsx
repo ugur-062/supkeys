@@ -30,6 +30,8 @@ vi.mock("@/hooks/use-company-users", () => ({
   useUpdateUser: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateUserPermissions: () => ({ mutateAsync: vi.fn(), isPending: false }),
   usePermissionCatalog: () => ({ data: undefined }),
+  useSeats: () => ({ data: undefined }),
+  useSeatSelection: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 import { CompanyUsersSection } from "../company-users-section";

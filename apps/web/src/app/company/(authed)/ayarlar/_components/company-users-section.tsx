@@ -37,6 +37,8 @@ import {
   usePermissionCatalog,
   useRemoveUser,
   useResendInvitation,
+  useSeats,
+  useSeatSelection,
   useSetUserActive,
   useUpdateUser,
   useUpdateUserPermissions,
@@ -82,11 +84,16 @@ export function CompanyUsersSection({
   meId: string | undefined;
 }) {
   const { data: users, isLoading } = useCompanyUsers();
+  const { data: seats } = useSeats();
+  const seatSelection = useSeatSelection();
   const setActive = useSetUserActive();
   const removeUser = useRemoveUser();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [editing, setEditing] = useState<CompanyTeamUser | null>(null);
   const [deleting, setDeleting] = useState<CompanyTeamUser | null>(null);
+  // Faz K — kurucu koltuk seçimi (aşkın durum).
+  const [seatSelOpen, setSeatSelOpen] = useState(false);
+  const [keepIds, setKeepIds] = useState<string[]>([]);
 
   const meIsOwner = (users ?? []).find((u) => u.id === meId)?.isOwner ?? false;
 
@@ -123,6 +130,38 @@ export function CompanyUsersSection({
           <Button onClick={() => setInviteOpen(true)}>Üye Davet Et</Button>
         ) : null}
       </header>
+
+      {/* Faz K — koltuk barı: SA/ST taşıyan aktif kişi sayısı / paket limiti. */}
+      {seats && seats.limit != null ? (
+        <div className="border-b border-zinc-950/5 px-5 py-2.5 text-xs text-zinc-600">
+          Koltuk: <strong>{seats.used}/{seats.limit}</strong>
+          {seats.pendingSeatInvites > 0
+            ? ` · bekleyen davet: ${seats.pendingSeatInvites}`
+            : ""}
+          <span className="ml-1 text-zinc-400">
+            (Satın Almacı/Satışçı rolü taşıyan aktif kişiler)
+          </span>
+        </div>
+      ) : null}
+      {seats && seats.overflow > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">
+          <span>
+            Paketinizde <strong>{seats.limit}</strong> koltuk var,{" "}
+            <strong>{seats.overflow}</strong> kişi fazla — yeni Satın Almacı/
+            Satışçı atanamaz. Mevcut kullanıcılar çalışmaya devam eder.
+          </span>
+          {meIsOwner ? (
+            <Button
+              onClick={() => {
+                setKeepIds([]);
+                setSeatSelOpen(true);
+              }}
+            >
+              Koltukları Seç
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       {isLoading ? (
         <p className="px-5 py-6 text-sm text-zinc-500">Yükleniyor…</p>
@@ -178,7 +217,7 @@ export function CompanyUsersSection({
                             </Badge>
                           ))
                         ) : (
-                          <span className="text-xs text-zinc-400">—</span>
+                          <span className="text-xs text-zinc-400">Rol yok</span>
                         )}
                       </div>
                     </TableCell>
@@ -282,6 +321,86 @@ export function CompanyUsersSection({
           </Button>
           <Button color="red" onClick={handleDelete} disabled={removeUser.isPending}>
             Çıkar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Faz K — kurucu koltuk seçimi: aşkın durumda kalacak SA/ST sahipleri. */}
+      <Dialog
+        open={seatSelOpen}
+        onClose={() => setSeatSelOpen(false)}
+        size="lg"
+      >
+        <DialogTitle>Koltukları Seç</DialogTitle>
+        <DialogDescription>
+          Paketinizde {seats?.limit ?? 0} koltuk var. Kalacak Satın Almacı/
+          Satışçı kullanıcılarını seçin — seçilmeyenlerin işlem rolleri
+          kaldırılır (hesapları ve diğer yetkileri aynen kalır; açık işlemleri
+          kalan ekip tamamlayabilir).
+        </DialogDescription>
+        <DialogBody className="space-y-2">
+          {(users ?? [])
+            .filter(
+              (u) =>
+                u.isActive &&
+                u.roles.some(
+                  (r) => r === "SATIN_ALMACI" || r === "SATISCI",
+                ),
+            )
+            .map((u) => {
+              const on = keepIds.includes(u.id);
+              const full =
+                !on && seats?.limit != null && keepIds.length >= seats.limit;
+              return (
+                <label
+                  key={u.id}
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg p-2.5 text-sm ring-1 ${
+                    on ? "bg-zinc-50 ring-2 ring-zinc-900" : "ring-zinc-950/10"
+                  } ${full ? "opacity-50" : ""}`}
+                >
+                  <Checkbox
+                    checked={on}
+                    disabled={full}
+                    onChange={() =>
+                      setKeepIds((cur) =>
+                        cur.includes(u.id)
+                          ? cur.filter((x) => x !== u.id)
+                          : [...cur, u.id],
+                      )
+                    }
+                  />
+                  <span className="min-w-0">
+                    <span className="font-semibold text-zinc-900">
+                      {u.firstName} {u.lastName}
+                      {u.isOwner ? " (Kurucu)" : ""}
+                    </span>
+                    <span className="block truncate text-xs text-zinc-500">
+                      {u.email} · {u.roles.map((r) => ROLE_LABEL[r]).join(", ")}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+        </DialogBody>
+        <DialogActions>
+          <Button plain onClick={() => setSeatSelOpen(false)}>
+            Vazgeç
+          </Button>
+          <Button
+            disabled={seatSelection.isPending || keepIds.length === 0}
+            onClick={async () => {
+              try {
+                const res = await seatSelection.mutateAsync(keepIds);
+                toast.success(
+                  `Koltuk seçimi uygulandı — ${res.droppedCount} kişinin işlem rolleri kaldırıldı`,
+                );
+                setSeatSelOpen(false);
+              } catch (err) {
+                toast.error(extractErrorMessage(err, "Uygulanamadı"));
+              }
+            }}
+          >
+            Uygula
           </Button>
         </DialogActions>
       </Dialog>

@@ -124,7 +124,7 @@ describe("TeklifVerPage — kapılar", () => {
     h.detail = baseDetail({ canBid: false, masked: true, owner: null });
     render(<TeklifVerPage />);
     expect(
-      screen.getByText("Teklif için premium üyelik gerekir"),
+      screen.getByText(/Teklif için paket \(Bronz\+\) gerekir/),
     ).toBeInTheDocument();
   });
 

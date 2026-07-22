@@ -11,6 +11,7 @@ import {
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { useSeats } from "@/hooks/use-company-users";
 import { useInviteUser } from "@/hooks/use-company-users";
 import type { CompanyRole } from "@/lib/company-auth/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -37,6 +38,10 @@ export function InviteUserDialog({
 }) {
   const invite = useInviteUser();
   const { user: viewer } = useCompanyAuth();
+  // Faz K: koltuk doluysa SA/ST seçenekleri kilitli (UX — asıl kapı backend).
+  const { data: seats } = useSeats();
+  const seatsFull =
+    seats?.limit != null && seats.used + seats.pendingSeatInvites >= seats.limit;
   const [email, setEmail] = useState("");
   const [roles, setRoles] = useState<CompanyRole[]>(["SATIN_ALMACI"]);
 
@@ -86,22 +91,30 @@ export function InviteUserDialog({
         <div>
           <p className="text-sm font-medium text-zinc-900">Rol</p>
           <p className="mt-0.5 text-xs text-zinc-500">
-            Yönetici ve Onaylayıcı tek başına atanır; yalnızca Satın Almacı +
-            Satışçı birlikte seçilebilir.
+            Roller birleştirilebilir; Yönetici etiketini yalnız Kurucu
+            atayabilir.
+            {seatsFull
+              ? " Koltuk dolu — Satın Almacı/Satışçı için paketi yükseltin."
+              : ""}
           </p>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {assignableRoles.map((r) => {
               const on = roles.includes(r.key);
+              const seatLocked =
+                seatsFull &&
+                !on &&
+                (r.key === "SATIN_ALMACI" || r.key === "SATISCI");
               return (
                 <button
                   key={r.key}
                   type="button"
+                  disabled={seatLocked}
                   onClick={() => toggle(r.key)}
                   className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
                     on
                       ? "border-zinc-900 bg-zinc-900 text-white"
                       : "border-zinc-200 text-zinc-600 hover:border-zinc-400"
-                  }`}
+                  } ${seatLocked ? "cursor-not-allowed opacity-40" : ""}`}
                 >
                   <div className="font-semibold">{r.label}</div>
                   <div className="mt-0.5 text-[11px] opacity-70">{r.hint}</div>
