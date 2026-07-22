@@ -23,6 +23,7 @@ import {
 import { CompanyUsersService } from "./company-users.service";
 import {
   InviteCompanyUserDto,
+  SeatSelectionDto,
   SetUserActiveDto,
   UpdateUserDto,
   UpdateUserPermissionsDto,
@@ -45,6 +46,16 @@ export class CompanyUsersController {
   @RequireCompanyPermission("users:manage")
   seats(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
     return this.service.seatUsage(user.companyId);
+  }
+
+  /** Faz K — kurucu koltuk seçimi (aşkın durumda kalacakları belirler). */
+  @Post("seat-selection")
+  @RequireCompanyPermission("users:manage")
+  seatSelection(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: SeatSelectionDto,
+  ) {
+    return this.service.applySeatSelection(user, dto.keepUserIds);
   }
 
   /** Atanabilir izin kataloğu + rol-varsayılan izinleri (Ayarlar izin editörü). */

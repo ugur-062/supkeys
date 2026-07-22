@@ -85,6 +85,13 @@ export class AcceptCompanyInvitationDto {
   profileImprovementConsent?: boolean;
 }
 
+/** Faz K — kurucu koltuk seçimi: kalacak SA/ST sahipleri. */
+export class SeatSelectionDto {
+  @IsArray()
+  @IsString({ each: true })
+  keepUserIds!: string[];
+}
+
 export class UpdateUserRolesDto {
   @IsArray()
   @ArrayMinSize(1, { message: "En az bir rol seçin" })

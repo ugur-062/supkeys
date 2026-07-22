@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { CompanyAuthModule } from "../company-auth/company-auth.module";
+import { NotificationModule } from "../notifications/notification.module";
 import { EmailModule } from "../email/email.module";
 import { SupabaseAuthModule } from "../supabase-auth/supabase-auth.module";
 import { CompanyInvitationsController } from "./company-invitations.controller";
@@ -7,7 +8,12 @@ import { CompanyUsersController } from "./company-users.controller";
 import { CompanyUsersService } from "./company-users.service";
 
 @Module({
-  imports: [CompanyAuthModule, SupabaseAuthModule, EmailModule],
+  imports: [
+    CompanyAuthModule,
+    SupabaseAuthModule,
+    EmailModule,
+    NotificationModule,
+  ],
   controllers: [CompanyUsersController, CompanyInvitationsController],
   providers: [CompanyUsersService],
 })

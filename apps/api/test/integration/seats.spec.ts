@@ -193,3 +193,155 @@ describe("Faz K — kapılar (BRONZ 2 koltuk)", () => {
     expect(pending).toBe(1);
   });
 });
+
+describe("Faz K — downgrade aşkın durum + kurucu seçimi", () => {
+  it("GOLD→BRONZ: mevcutlar aktif kalır (aşkın), yeni SA/ST reddedilir; seçim → düşenin SA/ST'si gider (YONETICI korunur), açık sipariş kalan koltukluyla tamamlanır; upgrade kapıyı açar", async () => {
+    const { svc } = makeUsersService();
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" }); // kurucu 1 koltuk
+    const u2 = await makeUser(prisma, co.company.id, [
+      CompanyRole.SATISCI,
+      CompanyRole.YONETICI,
+    ]); // 2
+    const u3 = await makeUser(prisma, co.company.id, [
+      CompanyRole.SATIN_ALMACI,
+    ]); // 3
+
+    // Downgrade → BRONZ (limit 2): aşkın 1.
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: { tier: "BRONZ", membershipEndAt: new Date(Date.now() + 86_400_000) },
+    });
+    const over = await svc.seatUsage(co.company.id);
+    expect(over).toMatchObject({ limit: 2, used: 3, overflow: 1 });
+    // Aşkın: kimse silinmedi, ama yeni SA/ST kilitli.
+    await expect(
+      svc.invite(co.auth, { email: "n@x.com", roles: ["SATISCI"] } as never),
+    ).rejects.toThrow(/Koltuk dolu/);
+
+    // Seçim yalnız kurucu (isOwner) yapabilir.
+    const managerAuth = {
+      userId: u2.id,
+      companyId: co.company.id,
+      email: u2.email,
+      roles: u2.roles,
+      isOwner: false,
+    } as never;
+    await expect(
+      svc.applySeatSelection(managerAuth, [co.user.id, u3.id]),
+    ).rejects.toThrow(/yalnızca Kurucu/);
+
+    // Açık sipariş (satıcı = firma) — u2'nin işi ama firma varlığı.
+    const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
+    const order = await prisma.companyOrder.create({
+      data: {
+        sellerCompanyId: co.company.id,
+        buyerCompanyId: buyer.company.id,
+        amount: 500,
+        status: "PENDING",
+      },
+    });
+
+    // Kurucu seçer: kurucu + u3 kalır → u2'nin SATISCI'sı düşer, YONETICI kalır.
+    const res = await svc.applySeatSelection(co.auth, [co.user.id, u3.id]);
+    expect(res).toEqual({ ok: true, droppedCount: 1 });
+    const u2After = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: u2.id },
+    });
+    expect(u2After.roles).toEqual([CompanyRole.YONETICI]); // etiket korundu
+    expect(u2After.isActive).toBe(true); // kişi pasifleşmedi
+    const after = await svc.seatUsage(co.company.id);
+    expect(after).toMatchObject({ limit: 2, used: 2, overflow: 0 });
+
+    // Audit: kişi-bazlı roles_changed (seat_selection) + toplu iz.
+    const row = await prisma.auditLog.findFirstOrThrow({
+      where: { action: "company.user.roles_changed", entityId: u2.id },
+      orderBy: { createdAt: "desc" },
+    });
+    expect(row.metadata).toMatchObject({ reason: "seat_selection" });
+    await prisma.auditLog.findFirstOrThrow({
+      where: {
+        action: "company.seats.selection_applied",
+        entityId: co.company.id,
+      },
+    });
+
+    // Açık işlem FİRMA düzeyinde devam eder: rolü düşen u2 adım atamaz ama
+    // kurucu (ST taşıyor) aynı siparişi kabul edebilir.
+    const { CompanyOrdersService } = await import(
+      "../../src/modules/company-orders/services/company-orders.service"
+    );
+    const { NotificationService } = await import(
+      "../../src/modules/notifications/notification.service"
+    );
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t" }) };
+    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+    const orders = new CompanyOrdersService(
+      prisma as never,
+      email as never,
+      config as never,
+      new NotificationService(prisma as never),
+      new AuditService(prisma as never),
+      prisma as never,
+    );
+    const acct = await prisma.companyBankAccount.create({
+      data: {
+        companyId: co.company.id,
+        title: "TL",
+        accountHolder: "Firma",
+        iban: "TR330006100519786457841326",
+      },
+    });
+    const acceptInput = {
+      expectedDeliveryDate: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      bankAccountId: acct.id,
+    } as never;
+    const u2Auth = {
+      userId: u2.id,
+      companyId: co.company.id,
+      email: u2.email,
+      roles: [CompanyRole.YONETICI],
+      isOwner: false,
+      companyVerificationStatus: "VERIFIED",
+      country: "TR",
+      tier: "BRONZ",
+    } as never;
+    await expect(orders.accept(u2Auth, order.id, acceptInput)).rejects.toThrow(
+      /Satışçı rolü/,
+    );
+    await expect(
+      orders.accept(co.auth, order.id, acceptInput),
+    ).resolves.toBeDefined(); // kalan koltuklu (kurucu ST) tamamlar
+
+    // Upgrade → GOLD: kapı açılır, düşen kişiye rol geri atanabilir.
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: { tier: "GOLD" },
+    });
+    await expect(
+      svc.updateRoles(co.auth, u2.id, {
+        roles: ["YONETICI", "SATISCI"],
+      } as never),
+    ).resolves.toBeDefined();
+  });
+
+  it("seçim doğrulamaları: limitsiz pakette reddedilir; limit üstü seçim + koltuksuz id reddedilir", async () => {
+    const { svc } = makeUsersService();
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    await expect(
+      svc.applySeatSelection(std.auth, [std.user.id]),
+    ).rejects.toThrow(/koltuk sınırı yok/);
+
+    const co = await makeCompanyWithUser(prisma, { tier: "BRONZ" });
+    const a = await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]);
+    const b = await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]);
+    const approver = await makeUser(prisma, co.company.id, [
+      CompanyRole.ONAYLAYICI,
+    ]);
+    await expect(
+      svc.applySeatSelection(co.auth, [co.user.id, a.id, b.id]),
+    ).rejects.toThrow(/En fazla 2/);
+    await expect(
+      svc.applySeatSelection(co.auth, [co.user.id, approver.id]),
+    ).rejects.toThrow(/koltuk kullanmayan/);
+  });
+});

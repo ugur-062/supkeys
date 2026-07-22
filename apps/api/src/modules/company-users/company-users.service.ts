@@ -5,6 +5,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "node:crypto";
@@ -23,6 +24,7 @@ import {
   permissionsForRoles,
 } from "../company-auth/permissions/company-permissions.constants";
 import { EmailService } from "../email/email.service";
+import { NotificationService } from "../notifications/notification.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { resolveWebUrl } from "../../common/config/web-url";
 import {
@@ -67,6 +69,9 @@ export class CompanyUsersService {
     private readonly email: EmailService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
+    // Faz K: seat-selection bildirimi — @Optional: elle kurulan test rig'leri
+    // 6-parametreli kalabilir (push best-effort, yoksa sessiz atlanır).
+    @Optional() private readonly notifications?: NotificationService,
   ) {}
 
   async list(companyId: string) {
@@ -1022,6 +1027,121 @@ export class CompanyUsersService {
           : `Koltuk dolu (${used}/${limit}) — Satın Almacı/Satışçı için paketi yükseltin veya bir koltuğu boşaltın`,
       );
     }
+  }
+
+  /**
+   * Faz K — kurucu koltuk seçimi (downgrade sonrası aşkın durum): kalacak
+   * SA/ST sahipleri `keepUserIds`; kalanların SA/ST rolleri DÜŞER, kişiler
+   * AKTİF kalır (etiket/ONAYLAYICI korunur; roller boşalabilir → roles=[]).
+   * Sistem-yazımı: assertValidRoleCombo bilinçli çağrılmaz. Kurucu kendini
+   * dışarıda bırakabilir (koltuk garantisi yok — Faz R salt-okunur modeli).
+   */
+  async applySeatSelection(
+    actor: AuthenticatedCompanyUser,
+    keepUserIds: string[],
+  ) {
+    if (!actor.isOwner) {
+      throw new ForbiddenException(
+        "Koltuk seçimini yalnızca Kurucu yapabilir",
+      );
+    }
+    const keep = [...new Set(keepUserIds)];
+    const seatRoles = [...SEAT_ROLES] as CompanyRole[];
+    const result = await this.lockedAdminTx(actor.companyId, async (tx) => {
+      const { limit } = await this.seatUsage(actor.companyId, tx);
+      if (limit == null) {
+        throw new BadRequestException("Bu pakette koltuk sınırı yok");
+      }
+      if (keep.length > limit) {
+        throw new BadRequestException(
+          `En fazla ${limit} kişi seçebilirsiniz (paket limiti)`,
+        );
+      }
+      const holders = await tx.companyUser.findMany({
+        where: {
+          companyId: actor.companyId,
+          deletedAt: null,
+          isActive: true,
+          roles: { hasSome: seatRoles },
+        },
+        select: { id: true, email: true, roles: true },
+      });
+      const holderIds = new Set(holders.map((h) => h.id));
+      for (const id of keep) {
+        if (!holderIds.has(id)) {
+          throw new BadRequestException(
+            "Seçim listesinde koltuk kullanmayan bir kullanıcı var",
+          );
+        }
+      }
+      const dropped = holders.filter((h) => !keep.includes(h.id));
+      for (const h of dropped) {
+        const newRoles = (h.roles as CompanyRole[]).filter(
+          (r) => !(SEAT_ROLES as readonly string[]).includes(r),
+        );
+        await tx.companyUser.update({
+          where: { id: h.id },
+          data: { roles: newRoles },
+        });
+      }
+      return {
+        limit,
+        dropped: dropped.map((h) => ({
+          id: h.id,
+          email: h.email,
+          before: h.roles as CompanyRole[],
+        })),
+      };
+    });
+    // Commit SONRASI: kişi başına roles_changed + toplu iz + best-effort bildirim.
+    for (const d of result.dropped) {
+      const after = d.before.filter(
+        (r) => !(SEAT_ROLES as readonly string[]).includes(r),
+      );
+      await this.audit.log({
+        action: "company.user.roles_changed",
+        actorType: "company",
+        actorId: actor.userId,
+        actorEmail: actor.email,
+        tenantId: actor.companyId,
+        entityType: "company_user",
+        entityId: d.id,
+        critical: true,
+        metadata: {
+          ...this.roleChangeMeta(d.before, after),
+          reason: "seat_selection",
+        },
+      });
+      void this.notifications
+        ?.pushToUser(d.id, {
+          type: "seat_selection",
+          title: "İşlem rolleriniz kaldırıldı",
+          body: "Paket küçültmesi nedeniyle Satın Almacı/Satışçı rolleriniz kaldırıldı. Hesabınız ve diğer yetkileriniz aynen devam ediyor.",
+        } as never)
+        .catch((err: unknown) =>
+          this.logger.warn(
+            `Seat-selection bildirimi yazılamadı (${d.id}): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
+    }
+    await this.audit.log({
+      action: "company.seats.selection_applied",
+      actorType: "company",
+      actorId: actor.userId,
+      actorEmail: actor.email,
+      tenantId: actor.companyId,
+      entityType: "company",
+      entityId: actor.companyId,
+      critical: true,
+      metadata: {
+        limit: result.limit,
+        keptCount: keep.length,
+        droppedCount: result.dropped.length,
+      },
+    });
+    return { ok: true, droppedCount: result.dropped.length };
   }
 
   private async lockedAdminTx<T>(
