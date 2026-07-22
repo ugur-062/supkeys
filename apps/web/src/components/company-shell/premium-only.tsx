@@ -1,20 +1,27 @@
 "use client";
 
+import { tierAtLeast } from "@rothern/shared";
 import { PremiumGate } from "@/components/company-shell/premium-gate";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 
 /**
- * Segment kapısı — yalnız PAKET (premium) firmalar içeriği görür; STANDARD'a
- * yükseltme çağrısı (PremiumGate) gösterir. Raporlar/Şablonlar gibi premium
- * özelliklerini rota segmenti seviyesinde (layout'ta) kapatmak için kullanılır;
- * böylece alt sayfalara doğrudan URL ile de girilemez.
+ * Segment kapısı — yalnız `minTier` ve üzeri kademeler içeriği görür; altına
+ * yükseltme çağrısı (PremiumGate) gösterilir. Raporlar/Şablonlar (Silver+) ve
+ * public profil (Bronz+) gibi özellikleri rota segmenti seviyesinde (layout)
+ * kapatmak için kullanılır; alt sayfalara doğrudan URL ile de girilemez.
  *
- * Asıl güvenlik sınırı SUNUCUDA (CompanyPaidTierGuard) — bu yalnız UX katmanı.
- * Firma bilgisi henüz yüklenmediyse (undefined) içerik render edilir; STANDARD
- * netleşince kapı gösterilir (premium kullanıcıda kapı yanıp sönmesin diye).
+ * Asıl güvenlik sınırı SUNUCUDA — bu yalnız UX katmanı. Firma bilgisi henüz
+ * yüklenmediyse (undefined) içerik render edilir; kademe netleşince kapı
+ * gösterilir (paketli kullanıcıda kapı yanıp sönmesin diye).
  */
-export function PremiumOnly({ children }: { children: React.ReactNode }) {
+export function PremiumOnly({
+  children,
+  minTier = "SILVER",
+}: {
+  children: React.ReactNode;
+  minTier?: "BRONZ" | "SILVER";
+}) {
   const { company } = useCompanyAuth();
-  if (company && company.tier !== "PAKET") return <PremiumGate />;
+  if (company && !tierAtLeast(company.tier, minTier)) return <PremiumGate />;
   return <>{children}</>;
 }

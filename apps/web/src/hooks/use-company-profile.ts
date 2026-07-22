@@ -42,7 +42,7 @@ export interface CompanyProfile {
   billingPhoneVerifiedAt: string | null;
   rothernId: string | null;
   slug: string | null;
-  tier: "STANDARD" | "PAKET";
+  tier: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
   companyVerificationStatus: string;
   onboardingCompletedAt: string | null;
 }

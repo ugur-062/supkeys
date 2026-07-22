@@ -1,5 +1,6 @@
 "use client";
 
+import { tierAtLeast } from "@rothern/shared";
 import {
   useCompanyAuth,
   useHasCompanyPermission,
@@ -134,7 +135,7 @@ export function CompanySidebarContent({
   const setLastPortal = usePortalStore((s) => s.setLastPortal);
   const pinned = usePortalStore((s) => s.sidebarPinned);
   const togglePinned = usePortalStore((s) => s.toggleSidebarPinned);
-  const isPaid = company?.tier === "PAKET";
+  const tier = company?.tier ?? "STANDART";
 
   const roles = user?.roles ?? [];
   const canAct = useHasCompanyPermission("approval:act");
@@ -142,7 +143,7 @@ export function CompanySidebarContent({
   const available = accessiblePortals(roles, company?.tier);
   // Operasyonel kullanıcıya (en az bir portal rolü) HER İKİ panel gösterilir;
   // giremediği panel kilitli görünür. Tıklayınca PortalGuard uygun ekranı açar
-  // (rol yoksa yetki ekranı, STANDARD ise Premium kapısı) — eski topbar mantığı.
+  // (rol yoksa yetki ekranı, kademe düşükse paket kapısı) — eski topbar mantığı.
   const canPurchase =
     roles.includes("SAHIP") ||
     roles.includes("YONETICI") ||
@@ -209,7 +210,7 @@ export function CompanySidebarContent({
               active={isPortalItemActive(item.href, pathname)}
               accent={portal.accent}
               expanded={expanded}
-              locked={item.paidOnly && !isPaid}
+              locked={!!item.minTier && !tierAtLeast(tier, item.minTier)}
               onClick={onNavigate}
             />
           ))}

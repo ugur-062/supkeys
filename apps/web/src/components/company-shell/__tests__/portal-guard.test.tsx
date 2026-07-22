@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   auth: {
     user: { roles: [] as string[] } as { roles: string[] } | null,
-    company: { tier: "STANDARD" } as { tier?: string } | undefined,
+    company: { tier: "STANDART" } as { tier?: string } | undefined,
   },
   replace: vi.fn(),
   setLastPortal: vi.fn(),
@@ -34,7 +34,7 @@ beforeEach(() => {
 describe("PortalGuard", () => {
   it("rol + tier uygun → içerik render, son portal kaydedilir", () => {
     h.auth.user = { roles: ["YONETICI"] };
-    h.auth.company = { tier: "PAKET" };
+    h.auth.company = { tier: "GOLD" };
     render(
       <PortalGuard portal="satis">
         <div data-testid="child">SATIŞ</div>
@@ -47,7 +47,7 @@ describe("PortalGuard", () => {
 
   it("satınalma rolü var ama STANDARD → premium kapısı (yönlendirme yok)", () => {
     h.auth.user = { roles: ["YONETICI"] };
-    h.auth.company = { tier: "STANDARD" };
+    h.auth.company = { tier: "STANDART" };
     render(
       <PortalGuard portal="satinalma">
         <div data-testid="child">SATINALMA</div>
@@ -60,7 +60,7 @@ describe("PortalGuard", () => {
 
   it("sadece Satışçı → Satınalma'da 'yetkiniz yok' ekranı (yönlendirme YOK)", () => {
     h.auth.user = { roles: ["SATISCI"] };
-    h.auth.company = { tier: "PAKET" };
+    h.auth.company = { tier: "GOLD" };
     render(
       <PortalGuard portal="satinalma">
         <div data-testid="child">SATINALMA</div>
@@ -74,7 +74,7 @@ describe("PortalGuard", () => {
 
   it("sadece Satın Almacı → Satış'ta 'yetkiniz yok' ekranı", () => {
     h.auth.user = { roles: ["SATIN_ALMACI"] };
-    h.auth.company = { tier: "PAKET" };
+    h.auth.company = { tier: "GOLD" };
     render(
       <PortalGuard portal="satis">
         <div data-testid="child">SATIŞ</div>

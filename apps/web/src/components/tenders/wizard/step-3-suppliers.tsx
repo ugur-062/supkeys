@@ -42,10 +42,17 @@ import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { toast } from "sonner";
 
-const TIER_LABEL = { STANDARD: "Standart", PAKET: "Premium" } as const;
+const TIER_LABEL = {
+  STANDART: "Standart",
+  BRONZ: "Bronz",
+  SILVER: "Silver",
+  GOLD: "Gold",
+} as const;
 const TIER_BADGE = {
-  STANDARD: "bg-zinc-100 text-zinc-700",
-  PAKET: "bg-amber-100 text-amber-800",
+  STANDART: "bg-zinc-100 text-zinc-700",
+  BRONZ: "bg-orange-100 text-orange-800",
+  SILVER: "bg-slate-200 text-slate-700",
+  GOLD: "bg-amber-100 text-amber-800",
 } as const;
 
 /** Wizard içinden yeni firma davet modalı (e-posta ile bağlantı isteği). */

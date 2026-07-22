@@ -1,3 +1,4 @@
+import { tierAtLeast } from "@rothern/shared";
 import type { CompanyRole } from "@/lib/company-auth/types";
 import {
   BuildingStorefrontIcon,
@@ -22,8 +23,8 @@ export interface PortalNavItem {
   icon: NavIcon;
   label: string;
   href: string;
-  /** Yalnızca PAKET üyelikte aktif (STANDARD'da kilitli teaser). */
-  paidOnly?: boolean;
+  /** En az bu kademede aktif (altındakine kilitli teaser). Faz T. */
+  minTier?: "BRONZ" | "SILVER";
 }
 
 export interface PortalDef {
@@ -54,7 +55,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         icon: ShoppingCartIcon,
         label: "Satın Al",
         href: "/company/satinalma/satin-al",
-        paidOnly: true,
+        minTier: "SILVER",
       },
       {
         icon: TagIcon,
@@ -70,13 +71,13 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         icon: ChartBarIcon,
         label: "Raporlar",
         href: "/company/satinalma/raporlar",
-        paidOnly: true,
+        minTier: "SILVER",
       },
       {
         icon: DocumentDuplicateIcon,
         label: "Şablonlar",
         href: "/company/satinalma/sablonlar",
-        paidOnly: true,
+        minTier: "SILVER",
       },
       {
         icon: UsersIcon,
@@ -102,9 +103,8 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         icon: TagIcon,
         label: "Satış İlanlarım",
         href: "/company/satis/ilanlarim",
-        // Satış ilanı oluşturma/yönetme PAKET özelliğidir — STANDARD yalnız
-        // teklif verir. Kilit ikonu + segment layout'unda PremiumOnly kapısı.
-        paidOnly: true,
+        // Satış ilanı açma Silver+ (kilit ikonu + segment layout kapısı).
+        minTier: "SILVER",
       },
       {
         icon: InboxArrowDownIcon,
@@ -125,13 +125,13 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         icon: ChartBarIcon,
         label: "Raporlar",
         href: "/company/satis/raporlar",
-        paidOnly: true,
+        minTier: "SILVER",
       },
       {
         icon: DocumentDuplicateIcon,
         label: "Şablonlar",
         href: "/company/satis/sablonlar",
-        paidOnly: true,
+        minTier: "SILVER",
       },
       {
         icon: BuildingStorefrontIcon,
@@ -142,8 +142,8 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
         icon: IdentificationIcon,
         label: "Profilim",
         href: "/company/satis/profilim",
-        // Herkese açık firma profili PAKET özelliğidir (kilit + PremiumOnly).
-        paidOnly: true,
+        // Herkese açık profil/dizin görünürlüğü Bronz'dan başlar.
+        minTier: "BRONZ",
       },
     ],
   },
@@ -165,17 +165,20 @@ export function activePortalFromPath(pathname: string | null): PortalKey | null 
  * birden sahip olabilir (ikisi de açılır).
  */
 /**
- * Erişilebilir portallar. Satınalma (alıcı/ihale açma) = **premium (PAKET)**;
- * STANDARD firma yalnızca satış (teklif) tarafına erişir.
+ * Erişilebilir portallar. Satınalma (alıcı/ihale açma) = **Silver+**;
+ * altındaki kademeler yalnızca satış (teklif) tarafına erişir.
  */
 export function accessiblePortals(
   roles: CompanyRole[],
-  tier?: "STANDARD" | "PAKET",
+  tier?: string,
 ): PortalKey[] {
   // Kurucu (SAHIP) ⊇ Yönetici — her iki portalı da görür.
   const isManager = roles.includes("YONETICI") || roles.includes("SAHIP");
   const out: PortalKey[] = [];
-  if ((isManager || roles.includes("SATIN_ALMACI")) && tier === "PAKET")
+  if (
+    (isManager || roles.includes("SATIN_ALMACI")) &&
+    tierAtLeast(tier ?? "STANDART", "SILVER")
+  )
     out.push("satinalma");
   if (isManager || roles.includes("SATISCI")) out.push("satis");
   return out;

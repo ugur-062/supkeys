@@ -1,5 +1,6 @@
 "use client";
 
+import { tierAtLeast } from "@rothern/shared";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -276,7 +277,7 @@ export function ConnectionsView() {
   // STANDARD: davet gönderemez + firma dizininde arama/keşif yapamaz; yalnızca
   // bağlantılarını görür ve gelen daveti kabul edip tedarikçi olabilir.
   const { company } = useCompanyAuth();
-  const isPaid = company?.tier === "PAKET";
+  const isPaid = tierAtLeast(company?.tier ?? "STANDART", "BRONZ");
   // Keşfet premium — STANDARD'da o sekme yok; URL'den gelse de Bağlantılarım'a düş.
   const shownTab: TabKey = !isPaid && tab === "discover" ? "mine" : tab;
   const [q, setQ] = useState("");

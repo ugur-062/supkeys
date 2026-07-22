@@ -63,7 +63,7 @@ describe("PremiumGate", () => {
   it("VERIFIED + 2FA → buton aktif; tıklayınca upgrade + başarı toast", async () => {
     const user = userEvent.setup();
     setMe("VERIFIED", true);
-    h.upgradeAsync.mockResolvedValue({ ok: true, tier: "PAKET" });
+    h.upgradeAsync.mockResolvedValue({ ok: true, tier: "GOLD" });
     render(<PremiumGate />);
 
     const btn = screen.getByRole("button", { name: "Premium'a Geç" });

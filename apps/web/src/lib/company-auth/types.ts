@@ -7,7 +7,8 @@ export type CompanyRole =
   | "SATISCI"
   | "ONAYLAYICI";
 
-export type CompanyTier = "STANDARD" | "PAKET";
+/** Faz T: 4 kademe — STANDART paketsiz-pasif; sıra karşılaştırması @rothern/shared tierAtLeast. */
+export type CompanyTier = "STANDART" | "BRONZ" | "SILVER" | "GOLD";
 
 export type CompanyVerificationStatus =
   | "UNVERIFIED"

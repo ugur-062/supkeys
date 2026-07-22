@@ -73,13 +73,13 @@ export function PremiumGate() {
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5" aria-hidden="true" />
             <span className="text-xs font-semibold uppercase tracking-wider text-blue-100">
-              Rothern Premium
+              Rothern Paketleri
             </span>
           </div>
-          <h1 className="mt-2 text-xl font-bold">Bu özellik Premium&apos;a özel</h1>
+          <h1 className="mt-2 text-xl font-bold">Bu özellik Silver ve üzeri paketlere özel</h1>
           <p className="mt-1 text-sm text-blue-100">
-            Standart üyeler açık ihalelere teklif verebilir. Premium ile
-            platformun tamamını açın.
+            Paketsiz üyeler yalnız davet edildikleri ve bağlantılarının
+            ihalelerine teklif verebilir. Paket alarak platformun tamamını açın.
           </p>
         </div>
 

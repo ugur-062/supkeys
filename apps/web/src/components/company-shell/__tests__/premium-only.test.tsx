@@ -33,7 +33,7 @@ describe("PremiumOnly", () => {
   });
 
   it("tier PAKET → içerik render edilir", () => {
-    h.auth.company = { tier: "PAKET" };
+    h.auth.company = { tier: "GOLD" };
     render(
       <PremiumOnly>
         <div data-testid="child">İÇERİK</div>
@@ -44,7 +44,7 @@ describe("PremiumOnly", () => {
   });
 
   it("tier STANDARD → PremiumGate gösterilir, içerik gizlenir", () => {
-    h.auth.company = { tier: "STANDARD" };
+    h.auth.company = { tier: "STANDART" };
     render(
       <PremiumOnly>
         <div data-testid="child">İÇERİK</div>

@@ -31,6 +31,13 @@ function initialsOf(first?: string | null, last?: string | null) {
  * sağda mesajlar + bildirimler + kullanıcı. Satınalma/Satış geçişi sol menünün
  * en üstünde (Anasayfa'nın üzerinde — kullanıcı isteği).
  */
+const TIER_TOPBAR_LABEL: Record<string, string> = {
+  STANDART: "Standart",
+  BRONZ: "Bronz",
+  SILVER: "Silver",
+  GOLD: "Gold",
+};
+
 export function CompanyTopbar({
   activePortal,
   onOpenMobileNav,
@@ -40,7 +47,7 @@ export function CompanyTopbar({
 }) {
   const { company, user } = useCompanyAuth();
   const logout = useCompanyLogout();
-  const isPaid = company?.tier === "PAKET";
+  const tier = company?.tier ?? "STANDART";
   const portal = PORTALS[activePortal];
 
   return (
@@ -76,10 +83,14 @@ export function CompanyTopbar({
         <span
           className={cn(
             "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-            isPaid ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-600",
+            tier === "GOLD"
+              ? "bg-amber-100 text-amber-700"
+              : tier === "STANDART"
+                ? "bg-zinc-100 text-zinc-600"
+                : "bg-blue-100 text-blue-700",
           )}
         >
-          {isPaid ? "Premium" : "Standart"}
+          {TIER_TOPBAR_LABEL[tier] ?? tier}
         </span>
       </div>
 

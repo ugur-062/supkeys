@@ -1,5 +1,6 @@
 "use client";
 
+import { tierAtLeast } from "@rothern/shared";
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Subheading } from "@/components/catalyst/heading";
@@ -94,7 +95,7 @@ export function PublicProfileForm() {
     return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
   }
 
-  if (profile.tier !== "PAKET") {
+  if (!tierAtLeast(profile.tier, "BRONZ")) {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
         <Lock className="mx-auto mb-2 h-7 w-7 text-amber-500" />

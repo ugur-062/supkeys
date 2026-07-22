@@ -29,6 +29,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+const TIER_LABEL: Record<string, string> = {
+  STANDART: "Standart",
+  BRONZ: "Bronz",
+  SILVER: "Silver",
+  GOLD: "Gold",
+};
+
 export function CompanyProfileSection() {
   const { user } = useCompanyAuth();
   const { data: profile, isLoading } = useCompanyProfile();
@@ -159,8 +166,8 @@ export function CompanyProfileSection() {
           </DescriptionDetails>
           <DescriptionTerm>Üyelik</DescriptionTerm>
           <DescriptionDetails>
-            <Badge color={profile.tier === "PAKET" ? "amber" : "zinc"}>
-              {profile.tier === "PAKET" ? "Premium" : "Standart"}
+            <Badge color={profile.tier === "GOLD" ? "amber" : profile.tier === "STANDART" ? "zinc" : "blue"}>
+              {TIER_LABEL[profile.tier] ?? profile.tier}
             </Badge>
           </DescriptionDetails>
           <DescriptionTerm>Doğrulama</DescriptionTerm>

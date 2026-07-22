@@ -10,5 +10,5 @@ export default function SatisProfilimLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <PremiumOnly>{children}</PremiumOnly>;
+  return <PremiumOnly minTier="BRONZ">{children}</PremiumOnly>;
 }

@@ -118,7 +118,7 @@ export default function DogrulamaPage() {
   return (
     <SettingsShell
       title="Doğrulama Belgeleri"
-      description="Firma doğrulaması için gerekli belge ve bilgileri girin. Premium (PAKET) üyelik için doğrulama zorunludur."
+      description="Firma doğrulaması için gerekli belge ve bilgileri girin. Paketli üyelik (Bronz ve üzeri) için doğrulama zorunludur."
     >
       {isLoading || !data ? (
         <Text className="text-sm text-zinc-500">Yükleniyor…</Text>

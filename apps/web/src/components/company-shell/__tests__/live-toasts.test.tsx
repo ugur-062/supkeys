@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   user: null as { id: string; roles: string[] } | null,
-  tier: "PAKET" as "PAKET" | "STANDARD",
+  tier: "GOLD" as "GOLD" | "STANDART",
   notifs: [] as unknown[],
   threads: {} as Record<string, unknown[]>,
   handlers: {} as Record<string, () => void>,
@@ -92,7 +92,7 @@ beforeEach(() => {
   h.threads = { satinalma: [], satis: [] };
   // Modül-seviyesi görülenler store'u kullanıcıya bağlı — her test taze kullanıcı.
   h.user = { id: `u${++userSeq}`, roles: ["SAHIP"] };
-  h.tier = "PAKET";
+  h.tier = "GOLD";
   window.history.pushState({}, "", "/company/satinalma");
   h.get.mockImplementation((url: string, opts?: { params?: { portal?: string } }) => {
     if (url === "/notifications") return Promise.resolve({ data: h.notifs });
