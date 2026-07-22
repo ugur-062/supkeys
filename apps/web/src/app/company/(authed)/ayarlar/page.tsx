@@ -4,7 +4,7 @@ import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
-import { BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, UserPlus2, Workflow, type LucideIcon } from "lucide-react";
+import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, UserPlus2, Workflow, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 interface SettingsCard {
@@ -82,6 +82,14 @@ const GROUPS: SettingsGroup[] = [
         icon: UserPlus2,
         title: "Kullanıcı Yönetimi",
         description: "Ekip üyeleri, roller ve izinler",
+        managerOnly: true,
+      },
+      {
+        // Faz O — firma-yüzü aktivite logu (Silver+; K+Y).
+        href: "/company/ayarlar/aktivite",
+        icon: Activity,
+        title: "Aktivite Logu",
+        description: "Firmanızda kim ne yaptı — eylem kayıtları",
         managerOnly: true,
       },
       {

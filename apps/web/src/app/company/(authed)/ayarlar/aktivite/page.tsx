@@ -1,0 +1,212 @@
+"use client";
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/catalyst/table";
+import { Button } from "@/components/catalyst/button";
+import { PremiumOnly } from "@/components/company-shell/premium-only";
+import {
+  useActivityLog,
+  type ActivityLogRow,
+} from "@/hooks/use-activity-log";
+import { format } from "date-fns";
+import { tr } from "date-fns/locale";
+import { useState } from "react";
+import { SettingsShell } from "../_components/settings-shell";
+
+/** Modül filtresi — backend whitelist ile birebir. */
+const MODULES: { value: string; label: string }[] = [
+  { value: "", label: "Tümü" },
+  { value: "listing", label: "İhaleler" },
+  { value: "bid", label: "Teklifler" },
+  { value: "order", label: "Siparişler" },
+  { value: "user", label: "Kullanıcılar" },
+  { value: "seats", label: "Koltuklar" },
+  { value: "bank_account", label: "Banka Hesapları" },
+  { value: "address", label: "Adresler" },
+  { value: "docs", label: "Belgeler (KYC)" },
+  { value: "approval", label: "Onaylar" },
+  { value: "connection", label: "Bağlantılar" },
+  { value: "profile", label: "Firma Profili" },
+];
+
+/** Eylem → TR etiket (bilinmeyen action ham string'e düşer). */
+const ACTION_LABELS: Record<string, string> = {
+  "company.listing.published": "İhale yayınlandı",
+  "company.listing.awarded": "İhale kazandırıldı",
+  "company.listing.cancelled": "İhale iptal edildi",
+  "company.listing.evaluation_started": "Değerlendirme başlatıldı",
+  "company.listing.closed_no_award": "İhale kazandırmasız kapatıldı",
+  "company.listing.next_round_created": "Pazarlık turu açıldı",
+  "company.listing.manage_denied": "İhale yönetimi reddedildi (yetkisiz deneme)",
+  "company.bid.submitted": "Teklif verildi",
+  "company.order.accepted": "Sipariş kabul edildi",
+  "company.order.rejected": "Sipariş reddedildi",
+  "company.order.shipped": "Sipariş gönderildi",
+  "company.order.received": "Sipariş teslim alındı",
+  "company.order.completed": "Sipariş tamamlandı",
+  "company.order.cancelled": "Sipariş iptal edildi",
+  "company.user.roles_changed": "Kullanıcı rolleri değişti",
+  "company.user.active_changed": "Kullanıcı aktif/pasif yapıldı",
+  "company.user.removed": "Kullanıcı çıkarıldı",
+  "company.user.permissions_overridden": "Kullanıcı izinleri düzenlendi",
+  "company.user.role_change_denied": "Rol değişikliği reddedildi (yetkisiz deneme)",
+  "company.seats.selection_applied": "Koltuk seçimi uygulandı",
+  "company.bank_account.created": "Banka hesabı eklendi",
+  "company.bank_account.updated": "Banka hesabı güncellendi (IBAN maskeli)",
+  "company.bank_account.deleted": "Banka hesabı silindi",
+  "company.address.created": "Adres eklendi",
+  "company.address.updated": "Adres güncellendi",
+  "company.address.deleted": "Adres silindi",
+  "company.docs.uploaded": "KYC belgesi yüklendi",
+  "company.docs.submitted": "KYC doğrulamaya gönderildi",
+  "company.docs.revision_submitted": "Belge güncellemesi incelemeye gönderildi",
+  "company.approval.approved": "Onay verildi",
+  "company.approval.step_approved": "Onay adımı geçildi",
+  "company.approval.rejected": "Onay reddedildi",
+  "company.connection.requested": "Bağlantı isteği gönderildi",
+  "company.connection.accepted": "Bağlantı kabul edildi",
+  "company.connection.rejected": "Bağlantı reddedildi",
+  "company.connection.disconnected": "Bağlantı koparıldı",
+  "company.connection.blocked": "Firma engellendi",
+  "company.connection.unblocked": "Engel kaldırıldı",
+  "company.profile.updated": "Firma profili güncellendi",
+  "company.signup": "Firma kaydı",
+};
+
+/** Metadata'dan kısa, değersiz özet (alan adları / maskeli referanslar). */
+function summarize(row: ActivityLogRow): string {
+  const m = row.metadata ?? {};
+  const parts: string[] = [];
+  if (Array.isArray(m.changedFields) && m.changedFields.length) {
+    parts.push(`alanlar: ${(m.changedFields as string[]).join(", ")}`);
+  }
+  if (typeof m.ibanMasked === "string") parts.push(m.ibanMasked);
+  if (typeof m.kind === "string") parts.push(String(m.kind));
+  if (Array.isArray(m.after)) parts.push(`yeni roller: ${(m.after as string[]).join(", ") || "—"}`);
+  if (typeof m.reason === "string") parts.push(m.reason);
+  return parts.join(" · ");
+}
+
+function fmtDate(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime())
+    ? "—"
+    : format(d, "d MMM yyyy HH:mm", { locale: tr });
+}
+
+export default function AktivitePage() {
+  const [page, setPage] = useState(1);
+  const [module, setModule] = useState("");
+  const { data, isLoading, isError } = useActivityLog(page, module || undefined);
+  const totalPages = data?.pagination.totalPages ?? 1;
+
+  return (
+    <SettingsShell
+      title="Aktivite Logu"
+      description="Firmanızdaki eylem kayıtları — kim ihale açtı, kim rol değiştirdi, kim banka hesabı güncelledi. Değerler değil eylemler kaydedilir; hassas alanlar maskeli referansla görünür."
+    >
+      <PremiumOnly minTier="SILVER">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-zinc-500" htmlFor="aktivite-modul">
+              Modül
+            </label>
+            <select
+              id="aktivite-modul"
+              value={module}
+              onChange={(e) => {
+                setModule(e.target.value);
+                setPage(1);
+              }}
+              className="rounded-lg border border-zinc-950/10 px-2.5 py-1.5 text-sm"
+            >
+              {MODULES.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {isError ? (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+              Aktivite logu yüklenemedi — bu sayfayı yalnızca Kurucu ve
+              Yönetici, Silver ve üzeri pakette görüntüleyebilir.
+            </p>
+          ) : isLoading && !data ? (
+            <p className="text-sm text-zinc-500">Yükleniyor…</p>
+          ) : (
+            <>
+              <Table dense>
+                <TableHead>
+                  <TableRow>
+                    <TableHeader>Tarih</TableHeader>
+                    <TableHeader>Eylem</TableHeader>
+                    <TableHeader>Kişi</TableHeader>
+                    <TableHeader>Detay</TableHeader>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {(data?.items ?? []).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-sm text-zinc-500">
+                        Kayıt yok
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    (data?.items ?? []).map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="whitespace-nowrap text-xs text-zinc-500">
+                          {fmtDate(r.createdAt)}
+                        </TableCell>
+                        <TableCell className="text-sm text-zinc-900">
+                          {ACTION_LABELS[r.action] ?? r.action}
+                        </TableCell>
+                        <TableCell className="text-xs text-zinc-600">
+                          {r.actorEmail ?? "sistem"}
+                        </TableCell>
+                        <TableCell className="max-w-[280px] truncate text-xs text-zinc-500">
+                          {summarize(r)}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+              {totalPages > 1 ? (
+                <div className="flex items-center justify-between text-xs text-zinc-500">
+                  <span>
+                    Sayfa {data?.pagination.page ?? 1}/{totalPages} —{" "}
+                    {data?.pagination.total ?? 0} kayıt
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      plain
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      Önceki
+                    </Button>
+                    <Button
+                      plain
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      Sonraki
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+      </PremiumOnly>
+    </SettingsShell>
+  );
+}
