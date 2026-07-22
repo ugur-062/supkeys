@@ -386,6 +386,7 @@ model Company {
   bankAccounts         CompanyBankAccount[]
   membershipEvents     CompanyMembershipEvent[]
   adminNotes           CompanyAdminNote[]
+  kycRevisions         CompanyKycRevision[]
   reviewsGiven         CompanyReview[]    @relation("ReviewsGiven")
   reviewsReceived      CompanyReview[]    @relation("ReviewsReceived")
 
@@ -1612,6 +1613,33 @@ model CompanyBankAccount {
 
   @@index([companyId])
   @@map("company_bank_accounts")
+}
+
+/**
+ * KYC A-modeli (Faz Y) — VERIFIED firmanın belge GÜNCELLEMESİ: firma VERIFIED
+ * kalır, yeni belge burada PENDING bekler; admin onaylarsa key Company doc
+ * kolonuna kopyalanır, reddederse ESKİ belge geçerliliğini korur. Kind başına
+ * TEK bekleyen revizyon (kısmi unique index — migration'da elle, Prisma
+ * partial index desteklemez).
+ */
+model CompanyKycRevision {
+  id                String       @id @default(cuid())
+  companyId         String
+  company           Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  kind              String // DocKind: taxPlate|tradeRegistry|signatureCircular|activityCert|idFront|idBack
+  key               String // R2 private object key (public URL değil)
+  status            KycDocStatus @default(PENDING)
+  reason            String? // ret gerekçesi (REJECTED'da zorunlu — servis kuralı)
+  submittedById     String?
+  reviewedByAdminId String?
+  reviewedAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, status])
+  @@index([status, createdAt]) // admin kuyruğu (bekleyen revizyonlar)
+  @@map("company_kyc_revisions")
 }
 
 model CompanyAddress {
