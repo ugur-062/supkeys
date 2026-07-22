@@ -23,3 +23,21 @@ export function tierAtLeast(t: string, min: TierName): boolean {
   const rank = TIER_ORDER[t as TierName] ?? 0;
   return rank >= TIER_ORDER[min];
 }
+
+/**
+ * Faz K — Koltuk: yalnız İŞLEM rolleri (SA/ST) koltuk tüketir; SA+ST taşıyan
+ * KİŞİ 1 koltuktur (rol sayısı değil). Etiketler (SAHIP/YONETICI) ve
+ * ONAYLAYICI koltuk tüketmez.
+ */
+export const SEAT_ROLES = ["SATIN_ALMACI", "SATISCI"] as const;
+
+/**
+ * Kademe başına koltuk limiti — `null` = limitsiz (STANDART: koltuk kavramı
+ * paket kapasitesidir; paketsiz firma zaten işlem-kapılı, sayım anlamsız).
+ */
+export const SEAT_LIMITS: Record<TierName, number | null> = {
+  STANDART: null,
+  BRONZ: 2,
+  SILVER: 4,
+  GOLD: 12,
+};

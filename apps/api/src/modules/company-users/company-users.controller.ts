@@ -40,6 +40,13 @@ export class CompanyUsersController {
     return this.service.list(user.companyId);
   }
 
+  /** Faz K — koltuk kullanımı: { limit, used, pendingSeatInvites, overflow }. */
+  @Get("seats")
+  @RequireCompanyPermission("users:manage")
+  seats(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.seatUsage(user.companyId);
+  }
+
   /** Atanabilir izin kataloğu + rol-varsayılan izinleri (Ayarlar izin editörü). */
   @Get("permission-catalog")
   permissionCatalog() {

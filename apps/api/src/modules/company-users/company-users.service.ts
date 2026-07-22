@@ -9,6 +9,8 @@ import {
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "node:crypto";
 import { CompanyRole, Prisma } from "@rothern/db";
+import { SEAT_LIMITS, SEAT_ROLES } from "@rothern/shared";
+import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
 import { AuditService } from "../audit/audit.service";
@@ -120,6 +122,15 @@ export class CompanyUsersService {
     // admin OLMAYAN (users:manage override'lı) bir kullanıcı, davetle YONETICI/
     // ONAYLAYICI atayıp kendine admin suç ortağı üretemesin.
     this.assertCanGrantRoles(actor, roles);
+    // Faz K: SA/ST daveti koltuk kontrolünden geçer — bekleyen SA/ST davetleri
+    // de sayılır (davet-yağmuruyla aşım kapalı). Danışma kontrolü; asıl
+    // yarış-güvenli kapı kabulde (tx + FOR UPDATE).
+    if (this.rolesConsumeSeat(roles)) {
+      await this.assertSeatAvailable(this.prisma, actor.companyId, {
+        includePending: true,
+        context: "invite",
+      });
+    }
     const email = dto.email.toLowerCase().trim();
 
     const existing = await this.prisma.companyUser.findUnique({
@@ -262,6 +273,17 @@ export class CompanyUsersService {
     let userId: string;
     try {
       userId = await runTenantTx(this.prisma, async (tx) => {
+        // Faz K — TOCTOU kapısı: koltuk sayımı + kullanıcı yazımı AYNI kilitte.
+        // Company satırı FOR UPDATE → iki eşzamanlı kabul serileşir; ikincisi
+        // limiti aşmış görüp reddedilir. Ret → tx rollback → davet PENDING
+        // kalır (upgrade sonrası yeniden kabul edilebilir); Supabase-user
+        // telafisi dışarıdaki catch'te.
+        await tx.$queryRaw`SELECT id FROM companies WHERE id = ${inv.companyId} FOR UPDATE`;
+        if (this.rolesConsumeSeat(inv.roles as CompanyRole[])) {
+          await this.assertSeatAvailable(tx, inv.companyId, {
+            context: "accept",
+          });
+        }
         // Yarış: davet hâlâ PENDING mi? (çift kabul / bu arada iptal)
         const claimed = await tx.companyUserInvitation.updateMany({
           where: { id: inv.id, status: "PENDING" },
@@ -407,6 +429,16 @@ export class CompanyUsersService {
     this.assertCanGrantRoles(actor, roles, targetId);
     void target;
     await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
+      // Faz K: koltuksuz kişiye SA/ST eklenirken kapı (tx + FOR UPDATE altında;
+      // SA/ST çıkarma koltuk boşaltır, kontrol gerekmez).
+      if (
+        !this.rolesConsumeSeat(target.roles as CompanyRole[]) &&
+        this.rolesConsumeSeat(roles)
+      ) {
+        await this.assertSeatAvailable(tx, actor.companyId, {
+          context: "assign",
+        });
+      }
       // Sahiplik önce çözülür (sahip-bırakma net "devret" hatası versin), sonra
       // son-yönetici garantisi.
       await this.resolveOwnership(
@@ -498,6 +530,15 @@ export class CompanyUsersService {
     // Rol değişimi yönetici sayısını + sahipliği etkileyebilir → atomik kilit.
     if (roles) {
       await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
+        // Faz K: updateRoles ile aynı koltuk kapısı.
+        if (
+          !this.rolesConsumeSeat(target.roles as CompanyRole[]) &&
+          this.rolesConsumeSeat(roles)
+        ) {
+          await this.assertSeatAvailable(tx, actor.companyId, {
+            context: "assign",
+          });
+        }
         await this.resolveOwnership(
           tx,
           actor.companyId,
@@ -534,7 +575,7 @@ export class CompanyUsersService {
     targetId: string,
     active: boolean,
   ) {
-    await this.requireMember(actor.companyId, targetId);
+    const target = await this.requireMember(actor.companyId, targetId);
     const company = await this.prisma.company.findUnique({
       where: { id: actor.companyId },
       select: { ownerUserId: true },
@@ -551,6 +592,18 @@ export class CompanyUsersService {
         await tx.companyUser.update({
           where: { id: targetId },
           data: { isActive: false },
+        });
+      });
+    } else if (this.rolesConsumeSeat(target.roles as CompanyRole[])) {
+      // Faz K: SA/ST taşıyan kişinin reaktivasyonu koltuk tüketir — kilitli
+      // tx'te kapı (aşkın firmada reaktivasyon da kilitli kalır).
+      await this.lockedAdminTx(actor.companyId, async (tx) => {
+        await this.assertSeatAvailable(tx, actor.companyId, {
+          context: "assign",
+        });
+        await tx.companyUser.update({
+          where: { id: targetId },
+          data: { isActive: true },
         });
       });
     } else {
@@ -886,6 +939,91 @@ export class CompanyUsersService {
    * firma satırını FOR UPDATE ile kilitler → iki eşzamanlı düşürme/pasifleştirme
    * TÜM aktif yöneticileri sıfırlayamaz (son-yönetici garantisi atomik uygulanır).
    */
+  // ============================================================
+  // Faz K — KOLTUK: SA/ST rolü taşıyan AKTİF kişi sayısı (kişi başı 1).
+  // Limit efektif tier'dan (SEAT_LIMITS, shared); STANDART limitsiz (null).
+  // Aşkın durum TÜRETİLİR (flag yok): used > limit → yeni SA/ST kapıları
+  // zaten reddeder, mevcutlar aktif kalır (zorla silme yok).
+  // ============================================================
+
+  /** Verilen roller koltuk tüketir mi (SA/ST içeriyor mu)? */
+  private rolesConsumeSeat(roles: readonly CompanyRole[]): boolean {
+    return roles.some((r) =>
+      (SEAT_ROLES as readonly string[]).includes(r),
+    );
+  }
+
+  /** Koltuk kullanımı — controller (GET seats) + kapılar tek kaynaktan okur. */
+  async seatUsage(
+    companyId: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ) {
+    const company = await db.company.findUnique({
+      where: { id: companyId },
+      select: { tier: true, membershipEndAt: true },
+    });
+    if (!company) throw new NotFoundException("Firma bulunamadı");
+    const limit =
+      SEAT_LIMITS[effectiveTier(company.tier, company.membershipEndAt)];
+    const seatRoles = [...SEAT_ROLES] as CompanyRole[];
+    const [used, pendingSeatInvites] = await Promise.all([
+      db.companyUser.count({
+        where: {
+          companyId,
+          deletedAt: null,
+          isActive: true,
+          roles: { hasSome: seatRoles },
+        },
+      }),
+      db.companyUserInvitation.count({
+        where: {
+          companyId,
+          status: "PENDING",
+          expiresAt: { gt: new Date() },
+          roles: { hasSome: seatRoles },
+        },
+      }),
+    ]);
+    return {
+      limit,
+      used,
+      pendingSeatInvites,
+      overflow: limit == null ? 0 : Math.max(0, used - limit),
+    };
+  }
+
+  /**
+   * Koltuk kapısı — +1 koltuk sığmıyorsa reddeder. YARIŞ GÜVENLİĞİ: koltuk
+   * tüketen yazımlar company-satırı FOR UPDATE kilidi altındaki tx'ten çağırır
+   * (lockedAdminTx / acceptInvitation tx'i); davet-GÖNDERME kilitsiz danışma
+   * kontrolüdür (asıl kapı kabulde) ve bekleyen SA/ST davetlerini de sayar
+   * (davet-yağmuruyla limit aşımı kapalı).
+   */
+  private async assertSeatAvailable(
+    db: Prisma.TransactionClient,
+    companyId: string,
+    opts: { includePending?: boolean; context: "invite" | "accept" | "assign" },
+  ) {
+    const { limit, used, pendingSeatInvites } = await this.seatUsage(
+      companyId,
+      db,
+    );
+    if (limit == null) return; // STANDART — limitsiz
+    const occupied = used + (opts.includePending ? pendingSeatInvites : 0);
+    if (occupied + 1 > limit) {
+      if (opts.context === "accept") {
+        throw new ConflictException(
+          "Koltuk dolu — davet şu an kabul edilemiyor; firma yöneticinize başvurun",
+        );
+      }
+      throw new BadRequestException(
+        opts.includePending && pendingSeatInvites > 0
+          ? `Koltuk dolu (${used} aktif + ${pendingSeatInvites} bekleyen davet / ${limit}) — Satın Almacı/Satışçı için paketi yükseltin veya bir koltuğu boşaltın`
+          : `Koltuk dolu (${used}/${limit}) — Satın Almacı/Satışçı için paketi yükseltin veya bir koltuğu boşaltın`,
+      );
+    }
+  }
+
   private async lockedAdminTx<T>(
     companyId: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
