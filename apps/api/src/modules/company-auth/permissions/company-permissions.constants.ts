@@ -21,6 +21,9 @@ const YONETICI_PERMISSIONS: readonly string[] = [
   "users:manage", // kullanıcı + rol atama/çıkarma
   "connections:manage", // bağlantılar (davet/kabul)
   "templates:manage",
+  // Faz Y: adres defteri yönetimden AYRIŞTI — işlem rolleri de taşır (operasyon
+  // kullanıcısı teslimat adresi ekleyebilmeli; company:manage'den dar).
+  "addresses:manage",
   "approvals:manage", // onay akışı oluştur/düzenle
   // Yönetici onay adımına onaycı olarak atanabilir (assertApproversValid) —
   // karar verebilmesi için approval:act şart (eski COMPANY_ADMIN paritesi).
@@ -41,6 +44,7 @@ const SATIN_ALMACI_PERMISSIONS: readonly string[] = [
   "buy:award", // kazandır
   "buy:order:manage", // alım siparişi (öde/teslim al)
   "sell:bid:submit", // başkasının satış ilanına teklif (mal alımı)
+  "addresses:manage", // Faz Y: teslimat/fatura adresi ekle/düzenle
 ];
 const SATISCI_PERMISSIONS: readonly string[] = [
   "sell:bid:submit", // alım ilanına teklif (satış)
@@ -48,6 +52,7 @@ const SATISCI_PERMISSIONS: readonly string[] = [
   "sell:listing:manage",
   "sell:award",
   "sell:order:manage", // satış siparişi (kargola)
+  "addresses:manage", // Faz Y: teslimat/fatura adresi ekle/düzenle
 ];
 const ONAYLAYICI_PERMISSIONS: readonly string[] = ["approval:act"];
 
@@ -102,6 +107,7 @@ export const COMPANY_PERMISSION_CATALOG: {
   { key: "users:manage", label: "Kullanıcı & rol yönetimi", group: "Yönetim" },
   { key: "connections:manage", label: "Bağlantı yönetimi", group: "Yönetim" },
   { key: "templates:manage", label: "Şablon yönetimi", group: "Yönetim" },
+  { key: "addresses:manage", label: "Adres defteri yönetimi", group: "Yönetim" },
   { key: "approval:act", label: "Onay zincirinde onayla/reddet", group: "Onay" },
   {
     key: "approvals:manage",

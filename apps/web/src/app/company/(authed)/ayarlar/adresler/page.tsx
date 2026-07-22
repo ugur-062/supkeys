@@ -9,7 +9,8 @@ import { SettingsShell } from "../_components/settings-shell";
 
 export default function Page() {
   const { user } = useCompanyAuth();
-  const canEdit = useHasCompanyPermission("company:manage");
+  // Faz Y: adres defteri işlem rollerine de açık (backend addresses:manage ile birebir).
+  const canEdit = useHasCompanyPermission("addresses:manage");
   return (
     <SettingsShell
       title="Adres Yönetimi"

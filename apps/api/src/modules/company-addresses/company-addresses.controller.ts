@@ -29,7 +29,7 @@ export class CompanyAddressesController {
   }
 
   @Post()
-  @RequireCompanyPermission("company:manage")
+  @RequireCompanyPermission("addresses:manage")
   create(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: UpsertAddressDto,
@@ -38,7 +38,7 @@ export class CompanyAddressesController {
   }
 
   @Patch(":id")
-  @RequireCompanyPermission("company:manage")
+  @RequireCompanyPermission("addresses:manage")
   update(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,
@@ -48,7 +48,7 @@ export class CompanyAddressesController {
   }
 
   @Delete(":id")
-  @RequireCompanyPermission("company:manage")
+  @RequireCompanyPermission("addresses:manage")
   remove(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

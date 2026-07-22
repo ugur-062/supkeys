@@ -256,3 +256,21 @@ describe("Faz R — etiket/rol atama kuralları", () => {
     );
   });
 });
+
+describe("Faz Y — addresses:manage izin yüzeyi", () => {
+  it("işlem rolleri + etiketler adres yönetir; ONAYLAYICI yönetemez", () => {
+    for (const roles of [
+      [CompanyRole.SATIN_ALMACI],
+      [CompanyRole.SATISCI],
+      [CompanyRole.YONETICI],
+    ]) {
+      expect(hasCompanyPermission(roles, false, "addresses:manage")).toBe(true);
+    }
+    expect(
+      hasCompanyPermission([CompanyRole.SAHIP], true, "addresses:manage"),
+    ).toBe(true); // SAHIP ⊇ YONETICI seti
+    expect(
+      hasCompanyPermission([CompanyRole.ONAYLAYICI], false, "addresses:manage"),
+    ).toBe(false);
+  });
+});
