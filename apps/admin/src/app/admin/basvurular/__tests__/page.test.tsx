@@ -48,9 +48,9 @@ beforeEach(() => {
 });
 
 describe("Başvurular kuyruğu", () => {
-  it("PENDING + en-eski-önce parametreleriyle sorgular", () => {
+  it("kyc-kuyruğu + en-eski-önce parametreleriyle sorgular (Faz Y: PENDING + revizyonlular)", () => {
     render(<AdminBasvurularPage />);
-    expect(h.lastParams).toMatchObject({ status: "PENDING", sort: "oldest" });
+    expect(h.lastParams).toMatchObject({ queue: "kyc", sort: "oldest" });
   });
 
   it("boş kuyruk mesajı", () => {

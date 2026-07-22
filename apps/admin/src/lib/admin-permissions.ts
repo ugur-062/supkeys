@@ -24,6 +24,7 @@ export type AdminAction =
   | "verify" // POST companies/:id/verify
   | "reject" // POST companies/:id/reject
   | "reviewDocs" // POST companies/:id/review
+  | "reviewDocRevision" // POST companies/:id/doc-revisions/:revId/review (Faz Y A-modeli)
   | "extendMembership" // POST companies/:id/membership/extend
   | "addNote" // POST companies/:id/notes
   | "notify" // POST companies/:id/notify
@@ -47,6 +48,7 @@ export const ADMIN_ACTION_ROLES: Record<AdminAction, AdminRole[]> = {
   verify: KYC,
   reject: KYC,
   reviewDocs: KYC,
+  reviewDocRevision: KYC,
   extendMembership: KYC,
   addNote: KYC,
   notify: KYC,

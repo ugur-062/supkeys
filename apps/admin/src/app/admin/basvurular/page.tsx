@@ -36,8 +36,10 @@ function waitBadge(updatedAt: string) {
  */
 function BasvurularView() {
   const [page, setPage] = useState(1);
+  // Faz Y: kuyruk = ilk-doğrulama PENDING'leri + VERIFIED kalıp belge
+  // güncellemesi (revizyon) bekleyenler — status filtresi tek başına yetmez.
   const query = useAdminCompanies({
-    status: "PENDING",
+    queue: "kyc",
     sort: "oldest",
     page,
     pageSize: PAGE_SIZE,
@@ -86,6 +88,11 @@ function BasvurularView() {
                     <span className="text-admin-text-muted block font-mono text-xs">
                       {c.rothernId ?? "—"}
                     </span>
+                    {c.pendingRevisionCount > 0 ? (
+                      <Badge color="purple" className="mt-1">
+                        Belge Güncellemesi ({c.pendingRevisionCount})
+                      </Badge>
+                    ) : null}
                   </TableCell>
                   <TableCell
                     className="text-admin-text text-sm whitespace-nowrap"

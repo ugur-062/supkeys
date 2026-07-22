@@ -38,6 +38,11 @@ class ListCompaniesDto {
   @IsIn(["UNVERIFIED", "PENDING", "VERIFIED", "REJECTED"])
   status?: string;
 
+  /** Faz Y: "kyc" → başvuru kuyruğu (PENDING + bekleyen belge-revizyonlular). */
+  @IsOptional()
+  @IsIn(["kyc"])
+  queue?: string;
+
   @IsOptional()
   @IsIn(["true"])
   blocked?: string;
@@ -96,6 +101,17 @@ class ReviewDocsDto {
   decisions!: Partial<
     Record<DocKind, { status: "APPROVED" | "REJECTED"; reason?: string }>
   >;
+}
+
+/** Faz Y A-modeli — tekil belge-güncelleme revizyonu kararı. */
+class ReviewDocRevisionDto {
+  @IsIn(["APPROVED", "REJECTED"])
+  status!: "APPROVED" | "REJECTED";
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
 }
 
 /** Firma kimlik düzeltme — yalnız gönderilen alanlar değişir. */
@@ -343,6 +359,19 @@ export class AdminCompaniesController {
     @Body() dto: ReviewDocsDto,
   ) {
     return this.service.reviewDocuments(id, dto.decisions, admin.id);
+  }
+
+  @Post("companies/:id/doc-revisions/:revId/review")
+  // Faz Y A-modeli: VERIFIED firmanın belge güncellemesi — tekil onay/red.
+  // Ret'te eski belge geçerli kalır; firma statüsü değişmez.
+  @RequireAdminRole("SUPER_ADMIN", "SALES")
+  reviewDocRevision(
+    @Param("id") id: string,
+    @Param("revId") revId: string,
+    @CurrentAdmin() admin: AuthenticatedAdmin,
+    @Body() dto: ReviewDocRevisionDto,
+  ) {
+    return this.service.reviewDocRevision(id, revId, dto, admin.id);
   }
 
   @Post("companies/:id/suspend")

@@ -158,3 +158,118 @@ describe("A-modeli — firma tarafı (VERIFIED'da commit → revizyon)", () => {
     ).toBe(0);
   });
 });
+
+describe("A-modeli — admin tarafı (revizyon incele)", () => {
+  it("APPROVE: yeni key Company'ye kopyalanır, firma VERIFIED kalır, bildirim + audit", async () => {
+    const docs = docsService();
+    const { svc, email, notifications } = adminService();
+    const co = await verifiedCompany();
+    await docs.commit(co.id, "taxPlate", `company-docs/${co.id}/yeni.pdf`);
+    const rev = await prisma.companyKycRevision.findFirstOrThrow({
+      where: { companyId: co.id, kind: "taxPlate" },
+    });
+
+    const res = await svc.reviewDocRevision(
+      co.id,
+      rev.id,
+      { status: "APPROVED" },
+      "adm1",
+    );
+    expect(res).toEqual({ ok: true, status: "APPROVED" });
+
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
+    expect(c.docTaxPlateUrl).toBe(`company-docs/${co.id}/yeni.pdf`); // yeni geçerli
+    expect(c.docTaxPlateStatus).toBe("APPROVED");
+    expect(c.companyVerificationStatus).toBe("VERIFIED"); // statü değişmedi
+
+    const after = await prisma.companyKycRevision.findUniqueOrThrow({
+      where: { id: rev.id },
+    });
+    expect(after.status).toBe("APPROVED");
+    expect(after.reviewedByAdminId).toBe("adm1");
+
+    // Bildirim tetiklendi (in-app push; e-posta fixture'da alıcı adres —
+    // kullanıcı/billingEmail — olmadığından bilinçli atlanır).
+    expect(notifications.pushToCompany).toHaveBeenCalled();
+    void email;
+
+    await prisma.auditLog.findFirstOrThrow({
+      where: {
+        action: "admin.company.doc_revision_reviewed",
+        entityId: co.id,
+      },
+    });
+  });
+
+  it("REJECT: eski belge geçerli kalır; gerekçesiz ret 400; PENDING-dışı tekrar karar 400", async () => {
+    const docs = docsService();
+    const { svc } = adminService();
+    const co = await verifiedCompany();
+    await docs.commit(co.id, "idFront", `company-docs/${co.id}/yeni-kimlik.pdf`);
+    const rev = await prisma.companyKycRevision.findFirstOrThrow({
+      where: { companyId: co.id, kind: "idFront" },
+    });
+
+    await expect(
+      svc.reviewDocRevision(co.id, rev.id, { status: "REJECTED" }, "adm1"),
+    ).rejects.toThrow(/gerekçe/i);
+
+    await svc.reviewDocRevision(
+      co.id,
+      rev.id,
+      { status: "REJECTED", reason: "Belge okunmuyor" },
+      "adm1",
+    );
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
+    expect(c.docIdFrontUrl).toBe("company-docs/x/idf.pdf"); // ESKİ belge duruyor
+    expect(c.companyVerificationStatus).toBe("VERIFIED");
+    const after = await prisma.companyKycRevision.findUniqueOrThrow({
+      where: { id: rev.id },
+    });
+    expect(after.status).toBe("REJECTED");
+    expect(after.reason).toBe("Belge okunmuyor");
+
+    // Karara bağlanmış revizyon tekrar incelenemez (CAS).
+    await expect(
+      svc.reviewDocRevision(co.id, rev.id, { status: "APPROVED" }, "adm2"),
+    ).rejects.toThrow(/bekleyen|karara bağlandı/i);
+  });
+
+  it("IDOR: başka firmanın revizyonu bu firma id'siyle incelenemez (404)", async () => {
+    const docs = docsService();
+    const { svc } = adminService();
+    const a = await verifiedCompany();
+    const b = await verifiedCompany();
+    await docs.commit(a.id, "taxPlate", `company-docs/${a.id}/yeni.pdf`);
+    const rev = await prisma.companyKycRevision.findFirstOrThrow({
+      where: { companyId: a.id },
+    });
+    await expect(
+      svc.reviewDocRevision(b.id, rev.id, { status: "APPROVED" }, "adm1"),
+    ).rejects.toThrow(/bulunamadı/i);
+  });
+
+  it("RET SONRASI yeniden yükleme → YENİ PENDING revizyon açılır", async () => {
+    const docs = docsService();
+    const { svc } = adminService();
+    const co = await verifiedCompany();
+    await docs.commit(co.id, "taxPlate", `company-docs/${co.id}/v1.pdf`);
+    const rev1 = await prisma.companyKycRevision.findFirstOrThrow({
+      where: { companyId: co.id, kind: "taxPlate" },
+    });
+    await svc.reviewDocRevision(
+      co.id,
+      rev1.id,
+      { status: "REJECTED", reason: "bulanık" },
+      "adm1",
+    );
+    await docs.commit(co.id, "taxPlate", `company-docs/${co.id}/v2.pdf`);
+    const rows = await prisma.companyKycRevision.findMany({
+      where: { companyId: co.id, kind: "taxPlate" },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows[1]!.status).toBe("PENDING");
+    expect(rows[1]!.key).toBe(`company-docs/${co.id}/v2.pdf`);
+  });
+});

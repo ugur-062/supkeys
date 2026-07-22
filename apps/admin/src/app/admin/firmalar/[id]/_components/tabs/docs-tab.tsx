@@ -3,6 +3,7 @@
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/ui/button";
 import {
+  useReviewDocRevision,
   useReviewDocuments,
   type AdminCompanyDetail,
   type DocDecision,
@@ -150,6 +151,25 @@ export function DocsTab({
 
   return (
     <div className="space-y-4">
+      {/* Faz Y A-modeli: VERIFIED firmanın bekleyen belge güncellemeleri —
+          tekil onay/red; ret'te eski belge geçerli kalır, firma VERIFIED kalır. */}
+      {(data.pendingRevisions ?? []).length > 0 ? (
+        <section className="admin-card px-5 py-4">
+          <h3 className="text-admin-text text-sm font-semibold">
+            Belge Güncellemeleri — onay bekliyor
+          </h3>
+          <p className="text-admin-text-muted mt-0.5 text-xs">
+            Firma doğrulanmış durumda; onaylarsanız yeni belge geçerli olur,
+            reddederseniz mevcut belge geçerliliğini korur.
+          </p>
+          <ul className="divide-admin-border border-admin-border mt-3 divide-y rounded-xl border">
+            {data.pendingRevisions.map((rev) => (
+              <RevisionRow key={rev.id} companyId={companyId} rev={rev} />
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {foreign ? (
         <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
           Yabancı firma ({data.country}) — zorunlu belge seti: Ticaret Sicil,
@@ -298,5 +318,106 @@ export function DocsTab({
         </div>
       </section>
     </div>
+  );
+}
+
+/** Faz Y — tek bekleyen belge-güncelleme revizyonu satırı (onay/red + gerekçe). */
+function RevisionRow({
+  companyId,
+  rev,
+}: {
+  companyId: string;
+  rev: AdminCompanyDetail["pendingRevisions"][number];
+}) {
+  const decide = useReviewDocRevision();
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState("");
+  const label = DOCS.find((d) => d.key === rev.kind)?.label ?? rev.kind;
+
+  const submit = (status: "APPROVED" | "REJECTED") => {
+    if (status === "REJECTED" && reason.trim().length < 3) {
+      toast.error("Red gerekçesi girin");
+      return;
+    }
+    decide.mutate(
+      { id: companyId, revId: rev.id, status, reason: reason.trim() || undefined },
+      {
+        onSuccess: () =>
+          toast.success(
+            status === "APPROVED"
+              ? `${label} güncellemesi onaylandı — yeni belge geçerli`
+              : `${label} güncellemesi reddedildi — eski belge geçerli`,
+          ),
+        onError: (e: unknown) =>
+          toast.error(e instanceof Error ? e.message : "Hata"),
+      },
+    );
+  };
+
+  return (
+    <li className="flex flex-col gap-2 px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <FileText className="text-admin-text-muted h-4 w-4 shrink-0" />
+          <span className="text-admin-text text-sm font-medium">{label}</span>
+          <Badge color="purple">Yeni belge</Badge>
+        </div>
+        <div className="flex items-center gap-2">
+          {rev.url ? (
+            <a
+              href={rev.url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs font-medium text-blue-600 hover:underline"
+            >
+              Yeni Belgeyi Görüntüle
+            </a>
+          ) : null}
+          <Button
+            size="sm"
+            onClick={() => submit("APPROVED")}
+            loading={decide.isPending}
+          >
+            <Check className="h-3.5 w-3.5" /> Onayla
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setRejecting((v) => !v)}
+            disabled={decide.isPending}
+          >
+            <X className="h-3.5 w-3.5" /> Reddet
+          </Button>
+        </div>
+      </div>
+      {rejecting ? (
+        <div className="flex flex-wrap items-center gap-2 pl-6">
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Red gerekçesi (firmaya iletilir)"
+            className="border-admin-border min-w-64 flex-1 rounded-lg border px-2.5 py-1.5 text-xs"
+          />
+          {REJECT_TEMPLATES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setReason(t)}
+              className="text-admin-text-muted rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] hover:bg-zinc-200"
+            >
+              {t}
+            </button>
+          ))}
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => submit("REJECTED")}
+            loading={decide.isPending}
+          >
+            Reddi Onayla
+          </Button>
+        </div>
+      ) : null}
+    </li>
   );
 }

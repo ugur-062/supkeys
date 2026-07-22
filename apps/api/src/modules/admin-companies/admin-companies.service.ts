@@ -157,9 +157,24 @@ export class AdminCompaniesService {
     sort?: string;
     page?: number;
     pageSize?: number;
+    /** "kyc" → başvuru kuyruğu: PENDING firmalar + bekleyen belge-revizyonlular. */
+    queue?: string;
   }) {
     const where: Record<string, unknown> = {};
-    if (query.status) {
+    if (query.queue === "kyc") {
+      // Faz Y: başvuru kuyruğu = ilk-doğrulama PENDING'leri VE VERIFIED kalıp
+      // belge-güncelleme revizyonu bekleyenler (A-modeli — firma statüsü
+      // PENDING'e düşmediği için status filtresi onları tek başına göremezdi).
+      // AND'e sarılı: aşağıdaki arama (q) kendi top-level OR'unu kullanıyor.
+      where.AND = [
+        {
+          OR: [
+            { companyVerificationStatus: "PENDING" },
+            { kycRevisions: { some: { status: "PENDING" } } },
+          ],
+        },
+      ];
+    } else if (query.status) {
       where.companyVerificationStatus = query.status as CompanyVerificationStatus;
     }
     if (query.blocked === "true") where.isBlocked = true;
@@ -204,7 +219,14 @@ export class AdminCompaniesService {
           isBlocked: true,
           createdAt: true,
           updatedAt: true,
-          _count: { select: { complaintsReceived: true, users: true } },
+          _count: {
+            select: {
+              complaintsReceived: true,
+              users: true,
+              // Faz Y: listede "Belge Güncellemesi" rozeti için.
+              kycRevisions: { where: { status: "PENDING" } },
+            },
+          },
         },
         // "oldest": KYC kuyruğu için en-eski-önce (updatedAt ≈ belgelerin
         // yüklendiği/PENDING'e geçtiği an) — SLA'ya göre işlem sırası.
@@ -231,6 +253,7 @@ export class AdminCompaniesService {
         isBlocked: c.isBlocked,
         complaintCount: c._count.complaintsReceived,
         userCount: c._count.users,
+        pendingRevisionCount: c._count.kycRevisions,
         createdAt: c.createdAt,
         updatedAt: c.updatedAt,
       })),
@@ -429,6 +452,20 @@ export class AdminCompaniesService {
       this.storage.presignStoredObject("private", c.docIdFrontUrl),
       this.storage.presignStoredObject("private", c.docIdBackUrl),
     ]);
+    // Faz Y: bekleyen belge-güncelleme revizyonları (A-modeli) — admin tekil
+    // onaylar/reddeder; presigned GET ile önizlenir.
+    const pendingRevs = await this.prisma.companyKycRevision.findMany({
+      where: { companyId: id, status: "PENDING" },
+      orderBy: { createdAt: "asc" },
+    });
+    const pendingRevisions = await Promise.all(
+      pendingRevs.map(async (r) => ({
+        id: r.id,
+        kind: r.kind,
+        createdAt: r.createdAt,
+        url: await this.storage.presignStoredObject("private", r.key),
+      })),
+    );
     // `users` yalnız suppression hesabı için çekildi — detay contract'ına ham
     // liste sızdırma (ayrı users endpoint'i var); yalnız suppressions dön.
     const { users: _users, ...company } = c;
@@ -442,6 +479,7 @@ export class AdminCompaniesService {
       docIdBackUrl,
       openComplaints,
       suppressions,
+      pendingRevisions,
     };
   }
 
@@ -689,6 +727,97 @@ export class AdminCompaniesService {
       );
     }
     return { ok: true, status };
+  }
+
+  /**
+   * Faz Y A-modeli — VERIFIED firmanın belge-güncelleme revizyonunu incele.
+   * APPROVE: yeni key Company doc kolonuna kopyalanır (belge APPROVED kalır);
+   * REJECT: revizyon gerekçeyle kapanır, ESKİ belge dokunulmadan geçerli kalır.
+   * Her iki durumda firma statüsü DEĞİŞMEZ (VERIFIED kalır).
+   */
+  async reviewDocRevision(
+    companyId: string,
+    revisionId: string,
+    decision: { status: "APPROVED" | "REJECTED"; reason?: string },
+    adminId: string,
+  ) {
+    if (decision.status !== "APPROVED" && decision.status !== "REJECTED") {
+      throw new BadRequestException("Geçersiz karar");
+    }
+    const rev = await this.prisma.companyKycRevision.findUnique({
+      where: { id: revisionId },
+    });
+    if (!rev || rev.companyId !== companyId) {
+      throw new NotFoundException("Revizyon bulunamadı");
+    }
+    if (rev.status !== "PENDING") {
+      throw new BadRequestException("Yalnızca bekleyen revizyon incelenebilir");
+    }
+    if (!(rev.kind in DOC_META)) {
+      throw new BadRequestException("Geçersiz belge türü");
+    }
+    const k = rev.kind as DocKind;
+    const reason = decision.reason?.trim();
+    if (decision.status === "REJECTED" && (!reason || reason.length < 3)) {
+      throw new BadRequestException("Reddedilen revizyona gerekçe gerekli");
+    }
+    await this.prisma.$transaction(async (tx) => {
+      // CAS: eşzamanlı iki admin kararı — yalnız hâlâ PENDING olan güncellenir.
+      const updated = await tx.companyKycRevision.updateMany({
+        where: { id: revisionId, status: "PENDING" },
+        data: {
+          status: decision.status,
+          reason: decision.status === "REJECTED" ? reason : null,
+          reviewedByAdminId: adminId,
+          reviewedAt: new Date(),
+        },
+      });
+      if (updated.count === 0) {
+        throw new BadRequestException("Revizyon az önce karara bağlandı");
+      }
+      if (decision.status === "APPROVED") {
+        await tx.company.update({
+          where: { id: companyId },
+          data: {
+            [DOC_META[k].url]: rev.key,
+            [DOC_META[k].status]: "APPROVED" as KycDocStatus,
+            [DOC_META[k].reason]: null,
+          },
+        });
+      }
+    });
+    await this.audit.log({
+      action: "admin.company.doc_revision_reviewed",
+      actorType: "admin",
+      actorId: adminId ?? null,
+      entityType: "company",
+      entityId: companyId,
+      metadata: { kind: k, status: decision.status },
+    });
+    if (decision.status === "APPROVED") {
+      void this.notifyCompany(
+        companyId,
+        "Belge güncellemeniz onaylandı",
+        [
+          "Merhaba,",
+          "Gönderdiğiniz yeni belge incelendi ve onaylandı; artık geçerli belgeniz olarak kayıtlıdır.",
+        ],
+        "company_verification",
+        { label: "Belgelerim", path: "/company/ayarlar/dogrulama" },
+      );
+    } else {
+      void this.notifyCompany(
+        companyId,
+        "Belge güncellemeniz reddedildi",
+        [
+          "Merhaba,",
+          "Gönderdiğiniz yeni belge onaylanmadı; mevcut belgeniz geçerliliğini korumaktadır. Gerekçeyi görüp yeni bir belge yükleyebilirsiniz.",
+        ],
+        "company_verification",
+        { label: "Belgelerim", path: "/company/ayarlar/dogrulama" },
+      );
+    }
+    return { ok: true, status: decision.status };
   }
 
   /** PAKET ver / al. PAKET → membershipEndAt = now + months (varsayılan 12). */

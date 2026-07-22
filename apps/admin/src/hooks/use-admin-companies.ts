@@ -17,6 +17,8 @@ export interface AdminCompanyRow {
   isBlocked: boolean;
   complaintCount: number;
   userCount: number;
+  /** Faz Y: bekleyen belge-güncelleme revizyonu sayısı (A-modeli rozeti). */
+  pendingRevisionCount: number;
   createdAt: string;
   /** Kuyruk yaşı için — PENDING'e geçiş/belge yükleme yaklaşık anı. */
   updatedAt: string;
@@ -31,6 +33,8 @@ export interface AdminCompanyListResponse {
 
 export interface AdminCompanyListParams {
   status?: string;
+  /** "kyc" → başvuru kuyruğu (PENDING + bekleyen belge-revizyonlular). */
+  queue?: string;
   blocked?: string;
   q?: string;
   country?: string;
@@ -173,6 +177,13 @@ export interface AdminCompanyDetail {
   createdAt: string;
   _count: { users: number; listings: number; complaintsReceived: number };
   openComplaints: number;
+  /** Faz Y A-modeli: bekleyen belge-güncelleme revizyonları (presigned önizleme). */
+  pendingRevisions: {
+    id: string;
+    kind: DocKind;
+    createdAt: string;
+    url: string | null;
+  }[];
   /** Firmaya bağlı adreslerden e-posta ALAMAYANLAR (hard-bounce/şikayet).
    *  Boşsa sorun yok. "Giriş yapamıyorum" destek çağrısında bakılır. */
   suppressions: EmailSuppression[];
@@ -214,6 +225,34 @@ export function useReviewDocuments() {
       const { data } = await api.post<{ ok: boolean; status: string }>(
         `/admin/companies/${id}/review`,
         { decisions },
+      );
+      return data;
+    },
+    onSuccess: (_d, { id }) => {
+      qc.invalidateQueries({ queryKey: ["admin-companies"] });
+      qc.invalidateQueries({ queryKey: ["admin-company-detail", id] });
+    },
+  });
+}
+
+/** Faz Y A-modeli — tekil belge-güncelleme revizyonu kararı (onay/red). */
+export function useReviewDocRevision() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      revId,
+      status,
+      reason,
+    }: {
+      id: string;
+      revId: string;
+      status: "APPROVED" | "REJECTED";
+      reason?: string;
+    }) => {
+      const { data } = await api.post<{ ok: boolean; status: string }>(
+        `/admin/companies/${id}/doc-revisions/${revId}/review`,
+        { status, reason },
       );
       return data;
     },

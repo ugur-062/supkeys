@@ -15,6 +15,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/hooks/use-admin-companies", () => ({
   useReviewDocuments: () => ({ mutate: h.reviewMutate, isPending: false }),
+  useReviewDocRevision: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
 import { DocsTab } from "../docs-tab";
@@ -23,6 +24,7 @@ import type { AdminCompanyDetail } from "@/hooks/use-admin-companies";
 function detail(over: Partial<AdminCompanyDetail> = {}): AdminCompanyDetail {
   return {
     id: "c1",
+    pendingRevisions: [],
     rothernId: "SK-001",
     name: "Acme A.Ş.",
     legalName: "Acme Anonim Şirketi",

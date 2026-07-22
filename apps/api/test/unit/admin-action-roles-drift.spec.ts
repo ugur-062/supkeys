@@ -42,6 +42,7 @@ const EXPECTED: Record<string, Spec> = {
   verify: { kind: "method", ctrl: AdminCompaniesController, method: "verify", roles: KYC },
   reject: { kind: "method", ctrl: AdminCompaniesController, method: "reject", roles: KYC },
   reviewDocs: { kind: "method", ctrl: AdminCompaniesController, method: "review", roles: KYC },
+  reviewDocRevision: { kind: "method", ctrl: AdminCompaniesController, method: "reviewDocRevision", roles: KYC },
   extendMembership: { kind: "method", ctrl: AdminCompaniesController, method: "extendMembership", roles: KYC },
   addNote: { kind: "method", ctrl: AdminCompaniesController, method: "addNote", roles: KYC },
   notify: { kind: "method", ctrl: AdminCompaniesController, method: "notify", roles: KYC },
