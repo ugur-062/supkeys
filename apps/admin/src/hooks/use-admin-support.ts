@@ -95,7 +95,7 @@ export function useAnnounce() {
     mutationFn: async (input: {
       subject: string;
       message: string;
-      tier?: "PAKET" | "STANDARD";
+      tier?: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
       country?: string;
       sendEmail?: boolean;
     }) => {

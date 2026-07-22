@@ -27,7 +27,7 @@ function pendingRow(id: string, daysWaiting: number, country = "TR") {
     country,
     stateRegion: null,
     city: null,
-    tier: "STANDARD",
+    tier: "STANDART",
     membershipEndAt: null,
     verification: "PENDING",
     isBlocked: false,

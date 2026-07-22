@@ -27,7 +27,7 @@ import { NotifyDialog } from "./notify-dialog";
 import { SummaryTab } from "./tabs/summary-tab";
 import { UsersTab } from "./tabs/users-tab";
 
-import { TIER_LABEL, VERIFY_META } from "@/lib/terms";
+import { TIER_COLOR, TIER_LABEL, VERIFY_META } from "@/lib/terms";
 
 const TABS = [
   { key: "ozet", label: "Özet" },
@@ -105,7 +105,7 @@ export function CompanyDetailView({
           </h1>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge color={meta.color}>{meta.label}</Badge>
-            <Badge color={data.tier === "PAKET" ? "amber" : "zinc"}>
+            <Badge color={TIER_COLOR[data.tier] ?? "zinc"}>
               {TIER_LABEL[data.tier]}
             </Badge>
             {data.isBlocked ? <Badge color="red">Askıda</Badge> : null}

@@ -39,8 +39,8 @@ function DuyuruView() {
         d.countryBreakdown.find((c) => c.country === form.country)?.count ?? 0
       );
     }
-    if (form.tier === "PAKET") return d.tierBreakdown.PAKET;
-    if (form.tier === "STANDARD") return d.tierBreakdown.STANDARD;
+    if (form.tier === "PAKET") return d.tierBreakdown.BRONZ + d.tierBreakdown.SILVER + d.tierBreakdown.GOLD;
+    if (form.tier === "STANDARD") return d.tierBreakdown.STANDART;
     return d.totalCompanies;
   })();
 
@@ -52,7 +52,12 @@ function DuyuruView() {
       {
         subject: form.subject.trim(),
         message: form.message.trim(),
-        tier: (form.tier || undefined) as "PAKET" | "STANDARD" | undefined,
+        tier: (form.tier || undefined) as
+          | "STANDART"
+          | "BRONZ"
+          | "SILVER"
+          | "GOLD"
+          | undefined,
         country: form.country || undefined,
         sendEmail: form.sendEmail,
       },
@@ -117,8 +122,10 @@ function DuyuruView() {
               onChange={(e) => set("tier", e.target.value)}
             >
               <option value="">Tüm üyelikler</option>
-              <option value="PAKET">Yalnız Premium</option>
-              <option value="STANDARD">Yalnız Standart</option>
+              <option value="GOLD">Yalnız Gold</option>
+              <option value="SILVER">Yalnız Silver</option>
+              <option value="BRONZ">Yalnız Bronz</option>
+              <option value="STANDART">Yalnız Standart</option>
             </Select>
           </label>
           <label className="flex flex-col gap-1">

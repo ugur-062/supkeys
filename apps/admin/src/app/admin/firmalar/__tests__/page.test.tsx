@@ -44,7 +44,7 @@ function row(overrides: Record<string, unknown> = {}) {
     country: "TR",
     stateRegion: null,
     city: "İstanbul",
-    tier: "STANDARD",
+    tier: "STANDART",
     membershipEndAt: null,
     verification: "PENDING",
     isBlocked: false,
@@ -93,7 +93,7 @@ describe("FirmalarView — durum tablosu", () => {
   it("satır render eder — ülke ve üyelik bitişi dahil", () => {
     const end = new Date("2026-06-01T00:00:00Z").toISOString();
     h.companies = {
-      data: paged([row({ tier: "PAKET", membershipEndAt: end })]),
+      data: paged([row({ tier: "GOLD", membershipEndAt: end })]),
       isLoading: false,
       isError: false,
     };
@@ -101,9 +101,9 @@ describe("FirmalarView — durum tablosu", () => {
     expect(screen.getByText("Acme A.Ş.")).toBeInTheDocument();
     // Ülke hücresi: bayrak + kod
     expect(screen.getByText(/TR/)).toBeInTheDocument();
-    // Premium rozet + bitiş tarihi ("Premium" ayrıca üyelik filtresi
+    // Gold rozet + bitiş tarihi ("Gold" ayrıca üyelik filtresi
     // option'ında da geçer → getAllBy).
-    expect(screen.getAllByText("Premium").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("Gold").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText(/1 Haz 26/)).toBeInTheDocument();
   });
 
@@ -120,18 +120,18 @@ describe("FirmalarView — durum tablosu", () => {
 });
 
 describe("FirmalarView — PAKET (tier) verme", () => {
-  it("PAKET Ver → PromptDialog açılır (başlık 'Premium (PAKET) Ver')", async () => {
+  it("Gold Tanımla → PromptDialog açılır (başlık 'Gold Paketi Tanımla')", async () => {
     const user = userEvent.setup();
     render(<AdminFirmalarPage />);
     await user.click(
       screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
     );
     await user.click(
-      await screen.findByRole("menuitem", { name: "Premium Tanımla" }),
+      await screen.findByRole("menuitem", { name: "Gold Tanımla" }),
     );
     const dialog = await screen.findByRole("dialog");
     expect(
-      within(dialog).getByText("Premium Üyelik Tanımla"),
+      within(dialog).getByText("Gold Paketi Tanımla"),
     ).toBeInTheDocument();
   });
 
@@ -142,15 +142,15 @@ describe("FirmalarView — PAKET (tier) verme", () => {
       screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
     );
     await user.click(
-      await screen.findByRole("menuitem", { name: "Premium Tanımla" }),
+      await screen.findByRole("menuitem", { name: "Gold Tanımla" }),
     );
     const dialog = await screen.findByRole("dialog");
-    const input = screen.getByLabelText(/Kaç ay premium verilsin/);
+    const input = screen.getByLabelText(/Kaç ay verilsin/);
     await user.clear(input);
     await user.type(input, "6");
     await user.click(within(dialog).getByRole("button", { name: "Tanımla" }));
     expect(h.tierMutate).toHaveBeenCalledWith(
-      { id: "c1", tier: "PAKET", months: 6 },
+      { id: "c1", tier: "GOLD", months: 6 },
       expect.anything(),
     );
   });
@@ -162,12 +162,12 @@ describe("FirmalarView — PAKET (tier) verme", () => {
       screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
     );
     await user.click(
-      await screen.findByRole("menuitem", { name: "Premium Tanımla" }),
+      await screen.findByRole("menuitem", { name: "Gold Tanımla" }),
     );
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Tanımla" }));
     expect(h.tierMutate).toHaveBeenCalledWith(
-      { id: "c1", tier: "PAKET", months: 12 },
+      { id: "c1", tier: "GOLD", months: 12 },
       expect.anything(),
     );
   });
@@ -179,15 +179,15 @@ describe("FirmalarView — PAKET (tier) verme", () => {
       screen.getByRole("button", { name: "Acme A.Ş. işlemleri" }),
     );
     await user.click(
-      await screen.findByRole("menuitem", { name: "Premium Tanımla" }),
+      await screen.findByRole("menuitem", { name: "Gold Tanımla" }),
     );
     const dialog = await screen.findByRole("dialog");
-    const input = screen.getByLabelText(/Kaç ay premium verilsin/);
+    const input = screen.getByLabelText(/Kaç ay verilsin/);
     await user.clear(input);
     await user.type(input, "0");
     await user.click(within(dialog).getByRole("button", { name: "Tanımla" }));
     expect(h.tierMutate).toHaveBeenCalledWith(
-      { id: "c1", tier: "PAKET", months: 12 },
+      { id: "c1", tier: "GOLD", months: 12 },
       expect.anything(),
     );
   });

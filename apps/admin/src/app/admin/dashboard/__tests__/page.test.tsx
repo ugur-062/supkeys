@@ -27,7 +27,7 @@ function statsFixture(over: Record<string, unknown> = {}) {
     pendingReview: 1,
     rejected: 1,
     openComplaints: 3,
-    tierBreakdown: { PAKET: 1, STANDARD: 3 },
+    tierBreakdown: { STANDART: 3, BRONZ: 0, SILVER: 0, GOLD: 1 },
     countryBreakdown: [
       { country: "TR", count: 3 },
       { country: "DE", count: 1 },
@@ -74,7 +74,7 @@ describe("AdminDashboardPage — DashboardContent", () => {
     expect(screen.getAllByText("3").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("İnceleme Bekleyen")).toBeInTheDocument();
     // Tier breakdown alt yazısı
-    expect(screen.getByText(/1 premium · 3 standart/)).toBeInTheDocument();
+    expect(screen.getByText(/1 gold · 0 silver · 0 bronz · 3 standart/)).toBeInTheDocument();
     // Kayıt hunisi (Faz 2) — 4 adım ve oran yüzdesi render olur.
     expect(screen.getByText("Kayıt Hunisi")).toBeInTheDocument();
     expect(screen.getByText("Kayıt tamamlandı")).toBeInTheDocument();

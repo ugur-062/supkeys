@@ -35,7 +35,7 @@ function detail(over: Partial<AdminCompanyDetail> = {}): AdminCompanyDetail {
     city: "İstanbul",
     addressLine: null,
     billingEmail: null,
-    tier: "STANDARD",
+    tier: "STANDART",
     membershipEndAt: null,
     industry: null,
     website: null,

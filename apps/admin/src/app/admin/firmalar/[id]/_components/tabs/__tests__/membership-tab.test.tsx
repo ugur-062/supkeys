@@ -24,7 +24,7 @@ function paketDetail(): AdminCompanyDetail {
   const end = new Date(Date.now() + 90 * 86_400_000).toISOString();
   return {
     id: "c1",
-    tier: "PAKET",
+    tier: "GOLD",
     membershipEndAt: end,
   } as AdminCompanyDetail;
 }
@@ -77,7 +77,7 @@ describe("MembershipTab — üyelik yönetimi", () => {
     await user.type(within(dialog).getByLabelText(/Gerekçe/), "iade");
     await user.click(within(dialog).getByRole("button", { name: "Kaldır" }));
     expect(h.tierMutate).toHaveBeenCalledWith(
-      { id: "c1", tier: "STANDARD", reason: "iade" },
+      { id: "c1", tier: "STANDART", reason: "iade" },
       expect.anything(),
     );
   });

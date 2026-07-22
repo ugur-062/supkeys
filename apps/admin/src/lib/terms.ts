@@ -6,11 +6,21 @@
 
 export type BadgeColor = "green" | "amber" | "red" | "zinc" | "blue";
 
-// ── Üyelik (tier) — iç enum "PAKET/STANDARD", ekranda "Premium/Standart" ──
+// ── Üyelik (tier) — Faz T: 4 kademe (STANDART paketsiz-pasif) ──
 export const TIER_LABEL: Record<string, string> = {
-  PAKET: "Premium",
-  STANDARD: "Standart",
+  STANDART: "Standart",
+  BRONZ: "Bronz",
+  SILVER: "Silver",
+  GOLD: "Gold",
 };
+export const TIER_COLOR: Record<string, "zinc" | "orange" | "sky" | "amber"> = {
+  STANDART: "zinc",
+  BRONZ: "orange",
+  SILVER: "sky",
+  GOLD: "amber",
+};
+/** Paralı kademeler — grant menüsü/rozet mantığı için. */
+export const PAID_TIER_OPTIONS = ["BRONZ", "SILVER", "GOLD"] as const;
 
 // ── Firma doğrulama durumu (KYC iç terimdir; ekranda "Doğrulama") ──
 export const VERIFY_META: Record<

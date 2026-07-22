@@ -30,6 +30,11 @@ import {
 } from "@/hooks/use-admin-companies";
 import { safeFormat } from "@/lib/date";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
+import {
+  PAID_TIER_OPTIONS,
+  TIER_COLOR,
+  TIER_LABEL,
+} from "@/lib/terms";
 import { canAdminDo } from "@/lib/admin-permissions";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -45,24 +50,49 @@ const ACTION_META: Record<
 };
 
 /** Ay + gerekçe isteyen küçük aksiyon dialog'u (tanımla/uzat). */
+type PaidTier = (typeof PAID_TIER_OPTIONS)[number];
+
 function MonthsReasonDialog({
   title,
   confirmLabel,
   onConfirm,
   onClose,
+  withTierSelect = false,
+  initialTier = "GOLD",
 }: {
   title: string;
   confirmLabel: string;
-  onConfirm: (months: number, reason: string) => void;
+  onConfirm: (months: number, reason: string, tier: PaidTier) => void;
   onClose: () => void;
+  /** Faz T: paket tanımlarken kademe seçimi (Bronz/Silver/Gold). */
+  withTierSelect?: boolean;
+  initialTier?: PaidTier;
 }) {
   const [months, setMonths] = useState("12");
   const [reason, setReason] = useState("");
+  const [tier, setTier] = useState<PaidTier>(initialTier);
 
   return (
     <Dialog open onClose={onClose} size="sm" aria-label={title}>
       <DialogTitle>{title}</DialogTitle>
       <DialogBody className="space-y-4">
+        {withTierSelect ? (
+          <Field>
+            <Label htmlFor="membership-tier">Paket</Label>
+            <select
+              id="membership-tier"
+              value={tier}
+              onChange={(e) => setTier(e.target.value as PaidTier)}
+              className="border-admin-border w-full rounded-lg border px-2.5 py-1.5 text-sm"
+            >
+              {PAID_TIER_OPTIONS.map((t) => (
+                <option key={t} value={t}>
+                  {TIER_LABEL[t]}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
         <Field>
           <Label htmlFor="membership-months">Ay sayısı</Label>
           <Input
@@ -96,7 +126,7 @@ function MonthsReasonDialog({
               toast.error("Ay 1-60 arası olmalı");
               return;
             }
-            onConfirm(n, reason.trim());
+            onConfirm(n, reason.trim(), tier);
           }}
         >
           {confirmLabel}
@@ -145,10 +175,10 @@ export function MembershipTab({
               Mevcut Üyelik
             </h3>
             <div className="mt-2 flex items-center gap-2">
-              <Badge color={data.tier === "PAKET" ? "amber" : "zinc"}>
-                {data.tier === "PAKET" ? "Premium" : "Standart"}
+              <Badge color={TIER_COLOR[data.tier] ?? "zinc"}>
+                {TIER_LABEL[data.tier] ?? data.tier}
               </Badge>
-              {data.tier === "PAKET" && data.membershipEndAt ? (
+              {data.tier !== "STANDART" && data.membershipEndAt ? (
                 <span className="text-admin-text-muted text-sm">
                   Bitiş: {safeFormat(data.membershipEndAt, "d MMMM yyyy")}
                   {daysLeft != null ? (
@@ -167,7 +197,7 @@ export function MembershipTab({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {data.tier === "PAKET" ? (
+            {data.tier !== "STANDART" ? (
               <>
                 {canAdminDo(role, "extendMembership") ? (
                   <Button size="sm" onClick={() => setDialog("extend")}>
@@ -189,14 +219,14 @@ export function MembershipTab({
                       disabled={tierAct.isPending}
                       onClick={() => setDialog("revoke")}
                     >
-                      Premium'u Kaldır
+                      Paketi Kaldır
                     </Button>
                   </>
                 ) : null}
               </>
             ) : canAdminDo(role, "setTier") ? (
               <Button size="sm" onClick={() => setDialog("grant")}>
-                Premium Tanımla
+                Paket Tanımla
               </Button>
             ) : null}
           </div>
@@ -265,16 +295,21 @@ export function MembershipTab({
       {dialog === "grant" ? (
         <MonthsReasonDialog
           title={
-            data.tier === "PAKET"
+            data.tier !== "STANDART"
               ? "Yeni Üyelik Dönemi Başlat"
-              : "Premium Üyelik Tanımla"
+              : "Paket Tanımla"
           }
           confirmLabel="Tanımla"
-          onConfirm={(months, reason) => {
+          withTierSelect
+          initialTier={
+            data.tier !== "STANDART" ? (data.tier as PaidTier) : "GOLD"
+          }
+          onConfirm={(months, reason, tier) => {
             tierAct.mutate(
-              { id: companyId, tier: "PAKET", months, reason: reason || undefined },
+              { id: companyId, tier, months, reason: reason || undefined },
               {
-                onSuccess: () => toast.success("Premium üyelik tanımlandı"),
+                onSuccess: () =>
+                  toast.success(`${TIER_LABEL[tier]} paketi tanımlandı`),
                 onError: err,
               },
             );
@@ -305,7 +340,7 @@ export function MembershipTab({
       ) : null}
       <PromptDialog
         open={dialog === "revoke"}
-        title="Premium'u Kaldır"
+        title="Paketi Kaldır"
         label="Gerekçe (opsiyonel — geçmişte görünür)"
         placeholder="Örn. iade talebi"
         confirmLabel="Kaldır"
@@ -313,11 +348,11 @@ export function MembershipTab({
           tierAct.mutate(
             {
               id: companyId,
-              tier: "STANDARD",
+              tier: "STANDART",
               reason: (v || "").trim() || undefined,
             },
             {
-              onSuccess: () => toast.success("Standart üyeliğe alındı"),
+              onSuccess: () => toast.success("Paket kaldırıldı (Standart)"),
               onError: err,
             },
           );

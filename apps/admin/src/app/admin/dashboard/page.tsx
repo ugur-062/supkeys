@@ -56,7 +56,7 @@ function DashboardContent() {
           href="/admin/firmalar"
           sub={
             s
-              ? `${s.tierBreakdown.PAKET} premium · ${s.tierBreakdown.STANDARD} standart`
+              ? `${s.tierBreakdown.GOLD} gold · ${s.tierBreakdown.SILVER} silver · ${s.tierBreakdown.BRONZ} bronz · ${s.tierBreakdown.STANDART} standart`
               : undefined
           }
         />
@@ -115,7 +115,7 @@ function DashboardContent() {
         <Panel
           title="Süresi Yaklaşan Üyelikler"
           titleIcon={CalendarClock}
-          moreHref="/admin/firmalar?tier=PAKET"
+          moreHref="/admin/firmalar?tier=GOLD"
         >
           {(s?.expiringMemberships ?? []).length === 0 ? (
             <p className="text-admin-text-muted p-6 text-center text-sm">

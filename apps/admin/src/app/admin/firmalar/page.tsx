@@ -47,7 +47,12 @@ import Link from "next/link";
 import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
-import { VERIFY_META } from "@/lib/terms";
+import {
+  PAID_TIER_OPTIONS,
+  TIER_COLOR,
+  TIER_LABEL,
+  VERIFY_META,
+} from "@/lib/terms";
 
 const PAGE_SIZE = 25;
 
@@ -79,7 +84,7 @@ async function exportCsv(params: Record<string, string | undefined>) {
       c.taxNumber ?? "",
       c.country,
       [c.stateRegion, c.city].filter(Boolean).join(" / "),
-      c.tier === "PAKET" ? "Premium" : "Standart",
+      TIER_LABEL[c.tier] ?? c.tier,
       c.membershipEndAt ? safeFormat(c.membershipEndAt, "yyyy-MM-dd") : "",
       VERIFY_META[c.verification]?.label ?? c.verification,
       c.isBlocked ? "Evet" : "",
@@ -128,20 +133,24 @@ function FirmalarView() {
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const [prompt, setPrompt] = useState<
-    | { kind: "tierMonths"; id: string }
+    | { kind: "tierMonths"; id: string; tier: "BRONZ" | "SILVER" | "GOLD" }
     | { kind: "suspendReason"; id: string }
     | null
   >(null);
 
-  const runTier = (id: string, tier: "STANDARD" | "PAKET", months?: number) =>
+  const runTier = (
+    id: string,
+    tier: "STANDART" | "BRONZ" | "SILVER" | "GOLD",
+    months?: number,
+  ) =>
     tierAct.mutate(
       { id, tier, months },
       {
         onSuccess: () =>
           toast.success(
-            tier === "PAKET"
-              ? "Premium üyelik tanımlandı"
-              : "Standart üyeliğe alındı",
+            tier !== "STANDART"
+              ? `${TIER_LABEL[tier]} paketi tanımlandı`
+              : "Paket kaldırıldı (Standart)",
           ),
         onError: (e: unknown) =>
           toast.error(e instanceof Error ? e.message : "Hata"),
@@ -204,8 +213,10 @@ function FirmalarView() {
           onChange={(v) => setFilters({ tier: v })}
           options={[
             { value: "", label: "Tüm üyelikler" },
-            { value: "PAKET", label: "Premium" },
-            { value: "STANDARD", label: "Standart" },
+            { value: "GOLD", label: "Gold" },
+            { value: "SILVER", label: "Silver" },
+            { value: "BRONZ", label: "Bronz" },
+            { value: "STANDART", label: "Standart" },
           ]}
         />
         <FilterSelect
@@ -294,10 +305,10 @@ function FirmalarView() {
                       {countryFlag(c.country)} {c.country}
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <Badge color={c.tier === "PAKET" ? "amber" : "zinc"}>
-                        {c.tier === "PAKET" ? "Premium" : "Standart"}
+                      <Badge color={TIER_COLOR[c.tier] ?? "zinc"}>
+                        {TIER_LABEL[c.tier] ?? c.tier}
                       </Badge>
-                      {c.tier === "PAKET" && c.membershipEndAt ? (
+                      {c.tier !== "STANDART" && c.membershipEndAt ? (
                         <span className="text-admin-text-muted ml-1.5 text-xs">
                           → {safeFormat(c.membershipEndAt, "d MMM yy")}
                         </span>
@@ -337,23 +348,29 @@ function FirmalarView() {
                               <EllipsisVertical className="size-4 text-zinc-500" />
                             </DropdownButton>
                             <DropdownMenu anchor="bottom end">
-                              {c.tier === "PAKET" ? (
+                              {PAID_TIER_OPTIONS.map((t) => (
                                 <DropdownItem
-                                  onClick={() => runTier(c.id, "STANDARD")}
-                                >
-                                  <DropdownLabel>
-                                    Premium&apos;u Kaldır
-                                  </DropdownLabel>
-                                </DropdownItem>
-                              ) : (
-                                <DropdownItem
+                                  key={t}
                                   onClick={() =>
-                                    setPrompt({ kind: "tierMonths", id: c.id })
+                                    setPrompt({
+                                      kind: "tierMonths",
+                                      id: c.id,
+                                      tier: t,
+                                    })
                                   }
                                 >
-                                  <DropdownLabel>Premium Tanımla</DropdownLabel>
+                                  <DropdownLabel>
+                                    {TIER_LABEL[t]} Tanımla
+                                  </DropdownLabel>
                                 </DropdownItem>
-                              )}
+                              ))}
+                              {c.tier !== "STANDART" ? (
+                                <DropdownItem
+                                  onClick={() => runTier(c.id, "STANDART")}
+                                >
+                                  <DropdownLabel>Paketi Kaldır</DropdownLabel>
+                                </DropdownItem>
+                              ) : null}
                               <DropdownDivider />
                               {c.isBlocked ? (
                                 <DropdownItem
@@ -402,8 +419,8 @@ function FirmalarView() {
 
       <PromptDialog
         open={prompt?.kind === "tierMonths"}
-        title="Premium Üyelik Tanımla"
-        label="Kaç ay premium verilsin?"
+        title={`${prompt?.kind === "tierMonths" ? TIER_LABEL[prompt.tier] : ""} Paketi Tanımla`}
+        label="Kaç ay verilsin?"
         type="number"
         min={1}
         max={60}
@@ -414,7 +431,7 @@ function FirmalarView() {
           if (prompt?.kind !== "tierMonths") return;
           // Geçersiz/1 altı → varsayılan 12; üst sınır backend @Max(60) ile birebir.
           const n = Math.floor(Number(v));
-          runTier(prompt.id, "PAKET", n >= 1 ? Math.min(60, n) : 12);
+          runTier(prompt.id, prompt.tier, n >= 1 ? Math.min(60, n) : 12);
           setPrompt(null);
         }}
         onClose={() => setPrompt(null)}
