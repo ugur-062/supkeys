@@ -24,12 +24,7 @@ import {
   type ListingVisibility,
 } from "@rothern/db";
 import { OnEvent } from "@nestjs/event-emitter";
-import {
-  derivePaymentTiming,
-  isValidCountryCode,
-  normalizeShortCode,
-  validateShortCode,
-} from "@rothern/shared";
+import { derivePaymentTiming, isValidCountryCode, normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import {
@@ -38,7 +33,7 @@ import {
 } from "../../../common/constants/money";
 import {
   effectiveTier,
-  effectivePaidWhere,
+  anyPackageWhere,
 } from "../../../common/company/effective-tier";
 import { isListingVisibleToViewer } from "../../../common/company/listing-visibility";
 import {
@@ -438,7 +433,7 @@ export class CompanyListingsService {
       where: {
         id: { notIn: [listing.companyId, ...blocked] },
         // INV-TIER-1: efektif PAKET (süresi-dolmuş lazy PAKET'e duyuru gitmesin).
-        ...effectivePaidWhere(),
+        ...anyPackageWhere(),
         isActive: true,
         ...countryWhere,
         users: {
@@ -966,9 +961,9 @@ export class CompanyListingsService {
     user: AuthenticatedCompanyUser,
     action: string,
   ) {
-    if (user.tier !== "PAKET") {
+    if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
-        `${action} için premium (PAKET) üyelik gerekir. Standart üyeler mevcut ihalelerini tamamlayabilir ancak yeni ilan işi başlatamaz.`,
+        `${action} için Silver veya üzeri paket gerekir. Mevcut ihalelerinizi tamamlayabilirsiniz ancak yeni ilan işi başlatamazsınız.`,
       );
     }
   }
@@ -994,9 +989,9 @@ export class CompanyListingsService {
     const type = dto.type as ListingType;
     this.validateListingDates(dto);
 
-    if (user.tier !== "PAKET") {
+    if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
-        "İlan/ihale açmak için premium (PAKET) üyelik gerekir. Standart üyeler yalnızca teklif verebilir.",
+        "İlan/ihale açmak için Silver veya üzeri paket gerekir.",
       );
     }
     // BK-A (kör-nokta denetimi): asDraft:false doğrudan status:OPEN üretir =
@@ -1821,7 +1816,7 @@ export class CompanyListingsService {
         },
       }),
     ]);
-    const isPremium = user.tier === "PAKET";
+    const isPremium = tierAtLeast(user.tier, "BRONZ");
     const myCountry = user.country;
 
     const baseWhere = {
@@ -2160,7 +2155,7 @@ export class CompanyListingsService {
       : null;
 
     const connected = connectedIds.includes(listing.companyId);
-    const isPremium = user.tier === "PAKET";
+    const isPremium = tierAtLeast(user.tier, "BRONZ");
 
     // Kalemler (herkese görünür — teklif vermek için gerekli).
     const itemsOut = items.map((it) => ({
@@ -2959,7 +2954,7 @@ export class CompanyListingsService {
       throw new NotFoundException("İlan bulunamadı");
     }
     const connected = connectedIds.includes(listing.companyId);
-    const isPremium = user.tier === "PAKET";
+    const isPremium = tierAtLeast(user.tier, "BRONZ");
     // Davet her görünürlükte teklif hakkı verir ve ÜLKE kapsamını da aşar
     // (alıcı firmayı açıkça seçti) — getOne/sellerTenders ile aynı kural.
     const isInvited = invitedCount > 0;
@@ -3678,7 +3673,7 @@ export class CompanyListingsService {
       }),
     ]);
     const connected = connectedIds.includes(listing.companyId);
-    const isPremium = user.tier === "PAKET";
+    const isPremium = tierAtLeast(user.tier, "BRONZ");
     const isInvited = invitedCount > 0;
     const visible = isListingVisibleToViewer(listing.visibility, {
       isInvited,
@@ -6438,7 +6433,7 @@ export class CompanyListingsService {
         // PAKET bağlantıyı canlı tutmasın (cron'u beklemeden).
         (r) =>
           r.origin === "ADMIN" ||
-          effectiveTier(r.inviter.tier, r.inviter.membershipEndAt) === "PAKET",
+          tierAtLeast(effectiveTier(r.inviter.tier, r.inviter.membershipEndAt), "BRONZ"),
       )
       .map((r) =>
         r.inviterCompanyId === companyId

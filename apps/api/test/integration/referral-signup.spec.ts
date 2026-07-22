@@ -66,11 +66,11 @@ const consume = (
 describe("BK-CONN-1: referral signup token-kapsamlı bağlantı", () => {
   it("iki firma aynı e-postayı davet etti; A'nın token'ıyla kayıt → A ACTIVE, B PENDING", async () => {
     const service = svc();
-    const a = await makeCompany(prisma, { tier: "PAKET" });
+    const a = await makeCompany(prisma, { tier: "GOLD" });
     const aUser = await makeUser(prisma, a.id, ["SAHIP"] as never);
-    const b = await makeCompany(prisma, { tier: "PAKET" });
+    const b = await makeCompany(prisma, { tier: "GOLD" });
     const bUser = await makeUser(prisma, b.id, ["SAHIP"] as never);
-    const c = await makeCompany(prisma, { tier: "PAKET" }); // yeni kaydolan
+    const c = await makeCompany(prisma, { tier: "GOLD" }); // yeni kaydolan
     const EMAIL = "yeni@firma.com";
     await referral(a.id, aUser.id, EMAIL, "tok-a");
     await referral(b.id, bUser.id, EMAIL, "tok-b");
@@ -94,9 +94,9 @@ describe("BK-CONN-1: referral signup token-kapsamlı bağlantı", () => {
 
   it("token YOK (doğrudan signup) → davet PENDING istek kalır (istenmeyen bağlantı yok)", async () => {
     const service = svc();
-    const a = await makeCompany(prisma, { tier: "PAKET" });
+    const a = await makeCompany(prisma, { tier: "GOLD" });
     const aUser = await makeUser(prisma, a.id, ["SAHIP"] as never);
-    const c = await makeCompany(prisma, { tier: "PAKET" });
+    const c = await makeCompany(prisma, { tier: "GOLD" });
     const EMAIL = "yeni2@firma.com";
     await referral(a.id, aUser.id, EMAIL, "tok-x");
 

@@ -28,15 +28,15 @@ describe("MembershipScheduler.downgradeExpired", () => {
     const future = new Date(Date.now() + 86_400_000);
 
     // A: süresi dolmuş PAKET → düşecek.
-    const a = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await prisma.company.update({
       where: { id: a.company.id },
       data: { membershipEndAt: past },
     });
-    const b = await makeCompanyWithUser(prisma, { tier: "PAKET" }); // A'nın davet ettiği
-    const c = await makeCompanyWithUser(prisma, { tier: "PAKET" }); // A'ya davet gönderen
+    const b = await makeCompanyWithUser(prisma, { tier: "GOLD" }); // A'nın davet ettiği
+    const c = await makeCompanyWithUser(prisma, { tier: "GOLD" }); // A'ya davet gönderen
     // D: süresi geçmemiş PAKET → dokunulmamalı.
-    const d = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const d = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await prisma.company.update({
       where: { id: d.company.id },
       data: { membershipEndAt: future },
@@ -77,14 +77,14 @@ describe("MembershipScheduler.downgradeExpired", () => {
     const aAfter = await prisma.company.findUniqueOrThrow({
       where: { id: a.company.id },
     });
-    expect(aAfter.tier).toBe("STANDARD");
+    expect(aAfter.tier).toBe("STANDART");
     // Y3: membershipEndAt TEMİZLENDİ (bayat geçmiş tarih kalmaz → sonraki cron
     // yeniden eşleştirmez, gelecekteki re-grant/upgrade kırılmaz).
     expect(aAfter.membershipEndAt).toBeNull();
     expect(
       (await prisma.company.findUniqueOrThrow({ where: { id: d.company.id } }))
         .tier,
-    ).toBe("PAKET");
+    ).toBe("GOLD");
 
     // A'nın gideni silindi, geleni korundu.
     expect(
@@ -109,11 +109,11 @@ describe("MembershipScheduler.downgradeExpired", () => {
       email as never,
       config as never,
     );
-    const a = await makeCompanyWithUser(prisma, { tier: "PAKET" }); // membershipEndAt null
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" }); // membershipEndAt null
     await scheduler.downgradeExpired();
     expect(
       (await prisma.company.findUniqueOrThrow({ where: { id: a.company.id } }))
         .tier,
-    ).toBe("PAKET");
+    ).toBe("GOLD");
   });
 });

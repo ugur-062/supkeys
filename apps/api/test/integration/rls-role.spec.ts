@@ -32,7 +32,7 @@ describe("Faz 2a — kısıtlı rol rothern_app", () => {
 
   it("INSERT/DELETE çalışır (DML grant tam) — policy YOK, permissive", async () => {
     const c = await restricted.company.create({
-      data: { name: "RLS Rol Testi", tier: "STANDARD", rothernId: "RLSA-0001" },
+      data: { name: "RLS Rol Testi", tier: "STANDART", rothernId: "RLSA-0001" },
     });
     expect(c.id).toBeTruthy();
     await restricted.company.delete({ where: { id: c.id } });

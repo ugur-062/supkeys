@@ -15,15 +15,15 @@ describe("CompanyPaidTierGuard", () => {
   const guard = new CompanyPaidTierGuard();
 
   it("PAKET üyelik → geçer", () => {
-    expect(guard.canActivate(ctx({ tier: "PAKET" }))).toBe(true);
+    expect(guard.canActivate(ctx({ tier: "GOLD" }))).toBe(true);
   });
 
   it("STANDARD üyelik → Forbidden (premium gerekir)", () => {
-    expect(() => guard.canActivate(ctx({ tier: "STANDARD" }))).toThrow(
+    expect(() => guard.canActivate(ctx({ tier: "STANDART" }))).toThrow(
       ForbiddenException,
     );
-    expect(() => guard.canActivate(ctx({ tier: "STANDARD" }))).toThrow(
-      /premium/i,
+    expect(() => guard.canActivate(ctx({ tier: "STANDART" }))).toThrow(
+      /Silver veya üzeri/i,
     );
   });
 

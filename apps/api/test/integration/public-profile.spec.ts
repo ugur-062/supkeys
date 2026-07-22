@@ -21,7 +21,7 @@ async function publicCompany(over: Record<string, unknown>) {
   const slug = `firma-${Math.floor(Math.random() * 1e9)}`;
   await makeCompany(prisma, {
     country: "TR",
-    tier: "PAKET",
+    tier: "GOLD",
     slug,
     publicEnabled: true,
     ...over,
@@ -37,7 +37,7 @@ describe("PublicProfile getBySlug — INV-TIER-1 (T7)", () => {
 
   it("süresi DOLMUŞ PAKET profil 404 (efektif STANDARD)", async () => {
     const slug = await publicCompany({
-      tier: "PAKET",
+      tier: "GOLD",
       membershipEndAt: new Date(Date.now() - 86_400_000),
     });
     await expect(svc.getBySlug(slug)).rejects.toThrow(/bulunamadı/i);

@@ -1,3 +1,4 @@
+import { tierAtLeast } from "@rothern/shared";
 import {
   BadRequestException,
   ForbiddenException,
@@ -82,7 +83,7 @@ export class CompanyListingDocumentsService {
 
     let allowed: boolean;
     if (listing.visibility === "PUBLIC") {
-      allowed = connected || user.tier === "PAKET";
+      allowed = connected || tierAtLeast(user.tier, "BRONZ");
     } else if (listing.visibility === "CONNECTIONS") {
       allowed = connected;
     } else {

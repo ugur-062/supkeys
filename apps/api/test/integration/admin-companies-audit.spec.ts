@@ -36,7 +36,7 @@ beforeEach(async () => {
 describe("Admin aksiyonları audit'lenir", () => {
   it("suspend → audit_log (admin actorId + action + entityId)", async () => {
     const { service } = rig();
-    const co = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await service.suspend(co.company.id, "spam", "admin-123");
     const row = await prisma.auditLog.findFirst({
       where: { action: "admin.company.suspended", entityId: co.company.id },
@@ -48,8 +48,8 @@ describe("Admin aksiyonları audit'lenir", () => {
 
   it("setTier → audit_log (actorId + tier metadata)", async () => {
     const { service } = rig();
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
-    await service.setTier(co.company.id, "PAKET", 12, "admin-9");
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    await service.setTier(co.company.id, "GOLD", 12, "admin-9");
     const row = await prisma.auditLog.findFirst({
       where: { action: "admin.company.tier_set", entityId: co.company.id },
     });
@@ -59,7 +59,7 @@ describe("Admin aksiyonları audit'lenir", () => {
 
   it("verification_set → audit_log", async () => {
     const { service } = rig();
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     await service.setVerification(co.company.id, "REJECTED", "admin-7");
     const row = await prisma.auditLog.findFirst({
       where: {
@@ -137,8 +137,8 @@ describe("updateProfile — kimlik düzeltme (Faz 2)", () => {
 describe("üyelik yönetimi — event kayıtları + ek-süreli uzatma (Faz 3)", () => {
   it("setTier PAKET → GRANT eventi (endBefore/After + gerekçe + admin)", async () => {
     const { service } = rig();
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
-    await service.setTier(co.company.id, "PAKET", 6, "admin-3", "satış");
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    await service.setTier(co.company.id, "GOLD", 6, "admin-3", "satış");
     const ev = await prisma.companyMembershipEvent.findFirst({
       where: { companyId: co.company.id, action: "GRANT" },
     });
@@ -151,7 +151,7 @@ describe("üyelik yönetimi — event kayıtları + ek-süreli uzatma (Faz 3)", 
 
   it("extend GELECEKTEKİ bitişe ay EKLER (bugünden yeniden hesaplamaz)", async () => {
     const { service } = rig();
-    const co = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     // Bitiş 6 ay sonra olsun.
     const end = new Date();
     end.setMonth(end.getMonth() + 6);
@@ -174,7 +174,7 @@ describe("üyelik yönetimi — event kayıtları + ek-süreli uzatma (Faz 3)", 
 
   it("bitiş geçmişteyse uzatma bugünden başlar; STANDARD'da uzatma reddedilir", async () => {
     const { service } = rig();
-    const co = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await prisma.company.update({
       where: { id: co.company.id },
       data: { membershipEndAt: new Date(Date.now() - 86_400_000) },
@@ -186,18 +186,18 @@ describe("üyelik yönetimi — event kayıtları + ek-süreli uzatma (Faz 3)", 
       Math.abs(res.membershipEndAt.getTime() - expected.getTime()),
     ).toBeLessThan(60_000);
 
-    const std = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     await expect(
       service.extendMembership(std.company.id, 3, "admin-1"),
-    ).rejects.toThrow(/yalnız premium/);
+    ).rejects.toThrow(/paketli üyelikte/);
   });
 
   it("membershipHistory + report toplamları (GRANT+EXTEND ay toplamı)", async () => {
     const { service } = rig();
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
-    await service.setTier(co.company.id, "PAKET", 12, "admin-1", "ilk satış");
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    await service.setTier(co.company.id, "GOLD", 12, "admin-1", "ilk satış");
     await service.extendMembership(co.company.id, 6, "admin-1", "yenileme");
-    await service.setTier(co.company.id, "STANDARD", undefined, "admin-1", "iade");
+    await service.setTier(co.company.id, "STANDART", undefined, "admin-1", "iade");
 
     const history = await service.membershipHistory(co.company.id);
     expect(history.map((h) => h.action)).toEqual([
@@ -255,11 +255,11 @@ describe("destek araçları (Faz 6) — notlar + arama + duyuru + şikayet sayfa
 
   it("announce: segment (tier) filtresine uyan firmalara in-app push + audit", async () => {
     const { service, notifications } = rig();
-    await makeCompanyWithUser(prisma, { tier: "PAKET" });
-    await makeCompanyWithUser(prisma, { tier: "PAKET" });
-    await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await makeCompanyWithUser(prisma, { tier: "STANDART" });
     const res = await service.announce(
-      { subject: "Bakım", message: "Planlı bakım bildirimi", tier: "PAKET" },
+      { subject: "Bakım", message: "Planlı bakım bildirimi", tier: "GOLD" },
       "admin-1",
     );
     expect(res.targets).toBe(2);
@@ -268,7 +268,7 @@ describe("destek araçları (Faz 6) — notlar + arama + duyuru + şikayet sayfa
     const log = await prisma.auditLog.findFirst({
       where: { action: "admin.announcement.sent" },
     });
-    expect(log?.metadata).toMatchObject({ tier: "PAKET", targets: 2 });
+    expect(log?.metadata).toMatchObject({ tier: "GOLD", targets: 2 });
   });
 
   it("listComplaints: paged + q araması (firma adı)", async () => {
@@ -348,13 +348,13 @@ describe("announce — toplu duyuru (batch + paralel, per-firma findUnique yok)"
   it("sendEmail: her firmaya in-app push + e-posta; per-firma company.findUnique ÇAĞRILMAZ", async () => {
     const { service, email, notifications } = announceRig();
     // 3 firma: biri billingEmail'li, ikisi user-fallback'li.
-    const a = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await prisma.company.update({
       where: { id: a.company.id },
       data: { billingEmail: "muhasebe@a.test" },
     });
-    await makeCompanyWithUser(prisma, { tier: "PAKET" });
-    await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await makeCompanyWithUser(prisma, { tier: "GOLD" });
 
     const findUniqueSpy = jest.spyOn(prisma.company, "findUnique");
 
@@ -382,8 +382,8 @@ describe("announce — toplu duyuru (batch + paralel, per-firma findUnique yok)"
 
   it("sendEmail=false: yalnız in-app push, e-posta yok", async () => {
     const { service, email, notifications } = announceRig();
-    await makeCompanyWithUser(prisma, { tier: "PAKET" });
-    await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await makeCompanyWithUser(prisma, { tier: "GOLD" });
 
     const res = await service.announce(
       { subject: "Duyuru", message: "yalnız uygulama-içi" },

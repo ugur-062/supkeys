@@ -262,8 +262,10 @@ enum CompanyRole {
 }
 
 enum CompanyTier {
-  STANDARD // bedava — pasif: sadece bağlantılı firmaların ilanına teklif; görünmez
-  PAKET // paralı — aktif: ilan aç + keşfet + public + görünür
+  STANDART // paketsiz-pasif: PUBLIC'i maskeli görür, teklif veremez; davet/bağlantı ihalesine teklif; dizinde görünmez
+  BRONZ // tedarikçi paketi: dizinde görünür, davet gönderir, PUBLIC'e teklif verir
+  SILVER // + satınalma paneli, ihale açma, rapor/şablon, onay-akışı, AI
+  GOLD // + "Gold Üye" rozeti (eski PAKET buraya eşlendi)
 }
 
 model Company {
@@ -309,7 +311,7 @@ model Company {
   sellerSubCategoryIds String[] @default([])
 
   // Üyelik (koltuk yok; sınırsız kullanıcı)
-  tier            CompanyTier @default(STANDARD)
+  tier            CompanyTier @default(STANDART)
   membershipEndAt DateTime?
 
   // KYC / doğrulama

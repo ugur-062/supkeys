@@ -26,7 +26,7 @@ function actor(
     firstName: "A",
     lastName: "B",
     roles: [CompanyRole.SATIN_ALMACI],
-    tier: "STANDARD" as AuthenticatedCompanyUser["tier"],
+    tier: "STANDART" as AuthenticatedCompanyUser["tier"],
     country: "TR",
     isOwner: false,
     permissionsOverride: null,

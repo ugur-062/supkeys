@@ -105,7 +105,7 @@ export class CompanyAuthService {
         const company = await tx.company.create({
           data: {
             name: `${dto.firstName.trim()} ${dto.lastName.trim()} Firması`,
-            tier: "STANDARD",
+            tier: "STANDART",
             rothernId,
           },
         });
@@ -763,8 +763,8 @@ export class CompanyAuthService {
     }
     // INV-TIER-1: efektif tier — süresi-dolmuş (lazy) PAKET firma "zaten premium"
     // engeline takılmadan yenileyebilsin; efektif STANDARD ise yükseltme akışına girer.
-    if (effectiveTier(company.tier, company.membershipEndAt) === "PAKET") {
-      return { ok: true as const, tier: "PAKET" };
+    if (effectiveTier(company.tier, company.membershipEndAt) === "GOLD") {
+      return { ok: true as const, tier: "GOLD" };
     }
     if (company.companyVerificationStatus !== "VERIFIED") {
       throw new BadRequestException(
@@ -787,9 +787,9 @@ export class CompanyAuthService {
     // doğrulama tamamlandıysa ücretsiz PAKET'e geçilir (açık seam).
     await this.prisma.company.update({
       where: { id: companyId },
-      data: { tier: "PAKET" },
+      data: { tier: "GOLD" },
     });
-    return { ok: true as const, tier: "PAKET" };
+    return { ok: true as const, tier: "GOLD" };
   }
 
   // ============================================================

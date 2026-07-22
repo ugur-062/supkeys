@@ -912,7 +912,7 @@ describe("ilan yönetim authz — assertListingManageRole", () => {
   const DENY = /yönetme yetkiniz yok/;
 
   function authFor(
-    company: { id: string; country: string; tier: "STANDARD" | "PAKET"; ownerUserId: string | null },
+    company: { id: string; country: string; tier: "STANDART" | "GOLD"; ownerUserId: string | null },
     user: { id: string; email: string; roles: CompanyRole[] },
     over: Partial<AuthenticatedCompanyUser> = {},
   ): AuthenticatedCompanyUser {
@@ -933,7 +933,7 @@ describe("ilan yönetim authz — assertListingManageRole", () => {
   // Owner firma (SAHİP) + ilanı açan doğru-taraf operatör + o operatörün açtığı ilan.
   async function setup(type: ListingType = "ALIM", status: ListingStatus = "OPEN") {
     const { service } = makeService();
-    const oc = await makeCompanyWithUser(prisma, { country: "TR", tier: "PAKET" });
+    const oc = await makeCompanyWithUser(prisma, { country: "TR", tier: "GOLD" });
     const opRole =
       type === "ALIM" ? CompanyRole.SATIN_ALMACI : CompanyRole.SATISCI;
     const creator = await makeUser(prisma, oc.company.id, [opRole]);

@@ -96,7 +96,7 @@ describe("notifyCategoryMatchedCompanies — ALIM → satıcılar", () => {
     const { service, email } = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     // buyerCategoryIds eşleşiyor ama SATISCI kullanıcı yok → ALIM için aday değil.
-    const buyerOnly = await makeCompany(prisma, { country: "TR", tier: "PAKET" });
+    const buyerOnly = await makeCompany(prisma, { country: "TR", tier: "GOLD" });
     await makeUser(prisma, buyerOnly.id, [CompanyRole.SATIN_ALMACI]);
     await prisma.company.update({
       where: { id: buyerOnly.id },
@@ -123,7 +123,7 @@ describe("notifyCategoryMatchedCompanies — ALIM → satıcılar", () => {
       data: {
         sellerCategoryIds: [SEG],
         billingEmail: "expired@firma.com",
-        tier: "PAKET",
+        tier: "GOLD",
         membershipEndAt: new Date(Date.now() - 86_400_000), // dün doldu (lazy)
       },
     });
@@ -149,7 +149,7 @@ describe("notifyCategoryMatchedCompanies — ALIM → satıcılar", () => {
       data: {
         sellerCategoryIds: [SEG],
         billingEmail: "aktif@firma.com",
-        tier: "PAKET",
+        tier: "GOLD",
         membershipEndAt: new Date(Date.now() + 86_400_000),
       },
     });

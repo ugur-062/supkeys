@@ -1,3 +1,4 @@
+import { tierAtLeast } from "@rothern/shared";
 import {
   ForbiddenException,
   Injectable,
@@ -37,7 +38,10 @@ export class CompanySupplierTemplatesService {
       // (eskiden burada HİÇ tier filtresi yoktu → bayat-PAKET bağlantı sızardı).
       const valid =
         r.origin === "ADMIN" ||
-        effectiveTier(r.inviter.tier, r.inviter.membershipEndAt) === "PAKET";
+        tierAtLeast(
+          effectiveTier(r.inviter.tier, r.inviter.membershipEndAt),
+          "BRONZ",
+        );
       if (!valid) continue;
       set.add(
         r.inviterCompanyId === companyId

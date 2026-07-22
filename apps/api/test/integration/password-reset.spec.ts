@@ -36,7 +36,7 @@ beforeEach(async () => {
 });
 
 async function userWithAuth() {
-  const owner = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+  const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
   await prisma.companyUser.update({
     where: { id: owner.user.id },
     data: { authId: `auth-${owner.user.id}` },

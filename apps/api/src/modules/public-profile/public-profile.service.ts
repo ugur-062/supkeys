@@ -1,8 +1,9 @@
+import { tierAtLeast } from "@rothern/shared";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import {
   effectiveTier,
-  effectivePaidWhere,
+  anyPackageWhere,
 } from "../../common/company/effective-tier";
 
 /**
@@ -52,7 +53,7 @@ export class PublicProfileService {
       c.isBlocked ||
       !c.publicEnabled ||
       // INV-TIER-1: efektif tier (süresi-dolmuş PAKET SEO profili görünmesin).
-      effectiveTier(c.tier, c.membershipEndAt) !== "PAKET"
+      !tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "BRONZ")
     ) {
       throw new NotFoundException("Profil bulunamadı");
     }
@@ -83,7 +84,7 @@ export class PublicProfileService {
         isActive: true,
         isBlocked: false,
         // INV-TIER-1: efektif PAKET (sitemap'te süresi-dolmuş PAKET olmasın).
-        ...effectivePaidWhere(),
+        ...anyPackageWhere(),
         slug: { not: null },
       },
       select: { slug: true, updatedAt: true },

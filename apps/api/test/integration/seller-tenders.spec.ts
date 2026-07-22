@@ -167,7 +167,7 @@ describe("sellerTenders", () => {
     const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
     const standard = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "STANDARD",
+      tier: "STANDART",
     });
     const premium = await makeCompanyWithUser(prisma, { country: "TR" });
     const l = await makeListing(prisma, {
@@ -198,7 +198,7 @@ describe("sellerTenders", () => {
     const buyer = await makeCompanyWithUser(prisma, { country: "TR" });
     const standard = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "STANDARD",
+      tier: "STANDART",
     });
     const l = await makeListing(prisma, {
       companyId: buyer.company.id,

@@ -1,3 +1,4 @@
+import { PAID_TIERS } from "@rothern/shared";
 import {
   BadRequestException,
   Injectable,
@@ -179,8 +180,9 @@ export class AdminCompaniesService {
     }
     if (query.blocked === "true") where.isBlocked = true;
     if (query.country) where.country = query.country.trim().toUpperCase();
-    if (query.tier === "PAKET" || query.tier === "STANDARD") {
-      where.tier = query.tier;
+    if (query.tier) {
+      // DTO @IsIn ile 4 kademeye doğrulanmış.
+      where.tier = query.tier as "STANDART" | "BRONZ" | "SILVER" | "GOLD";
     }
     if (query.q) {
       const q = query.q.trim();
@@ -304,7 +306,7 @@ export class AdminCompaniesService {
       // 30 gün içinde bitecek PAKET üyelikler — yenileme satışı için arama listesi.
       this.prisma.company.findMany({
         where: {
-          tier: "PAKET",
+          tier: { in: [...PAID_TIERS] },
           membershipEndAt: { not: null, gte: now, lte: in30 },
         },
         select: {
@@ -340,8 +342,10 @@ export class AdminCompaniesService {
       rejected: vmap.get("REJECTED") ?? 0,
       openComplaints,
       tierBreakdown: {
-        PAKET: tmap.get("PAKET") ?? 0,
-        STANDARD: tmap.get("STANDARD") ?? 0,
+        STANDART: tmap.get("STANDART") ?? 0,
+        BRONZ: tmap.get("BRONZ") ?? 0,
+        SILVER: tmap.get("SILVER") ?? 0,
+        GOLD: tmap.get("GOLD") ?? 0,
       },
       countryBreakdown: byCountry.map((g) => ({
         country: g.country,
@@ -823,7 +827,7 @@ export class AdminCompaniesService {
   /** PAKET ver / al. PAKET → membershipEndAt = now + months (varsayılan 12). */
   async setTier(
     id: string,
-    tier: "STANDARD" | "PAKET",
+    tier: "STANDART" | "BRONZ" | "SILVER" | "GOLD",
     months?: number,
     adminId?: string,
     reason?: string,
@@ -834,7 +838,7 @@ export class AdminCompaniesService {
     });
     if (!before) throw new NotFoundException("Firma bulunamadı");
     let membershipEndAt: Date | null = null;
-    if (tier === "PAKET") {
+    if (tier !== "STANDART") {
       // Takvim ayı (setMonth) — 30-gün çarpımı yılda ~5 gün drift ediyordu.
       const end = new Date();
       end.setMonth(end.getMonth() + (months ?? 12));
@@ -848,8 +852,8 @@ export class AdminCompaniesService {
     await this.prisma.companyMembershipEvent.create({
       data: {
         companyId: id,
-        action: tier === "PAKET" ? "GRANT" : "REVOKE",
-        months: tier === "PAKET" ? (months ?? 12) : null,
+        action: tier !== "STANDART" ? "GRANT" : "REVOKE",
+        months: tier !== "STANDART" ? (months ?? 12) : null,
         endBefore: before.membershipEndAt,
         endAfter: membershipEndAt,
         reason: reason?.trim() || null,
@@ -883,9 +887,9 @@ export class AdminCompaniesService {
       select: { tier: true, membershipEndAt: true },
     });
     if (!c) throw new NotFoundException("Firma bulunamadı");
-    if (c.tier !== "PAKET") {
+    if (c.tier === "STANDART") {
       throw new BadRequestException(
-        "Uzatma yalnız premium (PAKET) üyelikte — önce PAKET verin",
+        "Uzatma yalnız paketli üyelikte — önce bir paket (Bronz/Silver/Gold) verin",
       );
     }
     const now = new Date();
@@ -1237,7 +1241,7 @@ export class AdminCompaniesService {
     input: {
       subject: string;
       message: string;
-      tier?: "PAKET" | "STANDARD";
+      tier?: "STANDART" | "BRONZ" | "SILVER" | "GOLD";
       country?: string;
       sendEmail?: boolean;
     },
@@ -1582,7 +1586,7 @@ export class AdminCompaniesService {
           isBlocked: true,
           blockedReason: "KVKK silme talebi — anonimleştirildi",
           blockedAt: new Date(),
-          tier: "STANDARD",
+          tier: "STANDART",
           membershipEndAt: null,
         },
       }),

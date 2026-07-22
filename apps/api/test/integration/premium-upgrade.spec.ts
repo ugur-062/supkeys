@@ -17,7 +17,7 @@ beforeEach(async () => {
 });
 
 async function eligibleCompany() {
-  const co = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+  const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
   await prisma.company.update({
     where: { id: co.company.id },
     data: {
@@ -42,23 +42,23 @@ describe("Y2 — upgradeToPremium feature flag", () => {
     const after = await prisma.company.findUniqueOrThrow({
       where: { id: co.company.id },
     });
-    expect(after.tier).toBe("STANDARD");
+    expect(after.tier).toBe("STANDART");
   });
 
   it("flag AÇIK + önkoşullar tam → PAKET olur", async () => {
     const { service } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
     const co = await eligibleCompany();
     const res = await service.upgradeToPremium(co.user.id, co.company.id);
-    expect(res).toMatchObject({ ok: true, tier: "PAKET" });
+    expect(res).toMatchObject({ ok: true, tier: "GOLD" });
     const after = await prisma.company.findUniqueOrThrow({
       where: { id: co.company.id },
     });
-    expect(after.tier).toBe("PAKET");
+    expect(after.tier).toBe("GOLD");
   });
 
   it("flag AÇIK ama 2FA yoksa reddedilir (önkoşul zinciri korunur)", async () => {
     const { service } = makeAuthService({ PREMIUM_SELF_UPGRADE_ENABLED: "true" });
-    const co = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     await prisma.company.update({
       where: { id: co.company.id },
       data: {

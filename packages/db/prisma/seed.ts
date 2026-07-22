@@ -92,9 +92,9 @@ async function main() {
 
   await ensureSuperAdmin();
 
-  const c1 = await ensureCompany("firma@demo.com", "Demo Firma A.Ş.", "PAKET");
-  const c2 = await ensureCompany("firma2@demo.com", "İkinci Firma Ltd", "PAKET");
-  const c3 = await ensureCompany("firma3@demo.com", "Üçüncü Firma", "PAKET");
+  const c1 = await ensureCompany("firma@demo.com", "Demo Firma A.Ş.", "GOLD");
+  const c2 = await ensureCompany("firma2@demo.com", "İkinci Firma Ltd", "GOLD");
+  const c3 = await ensureCompany("firma3@demo.com", "Üçüncü Firma", "GOLD");
 
   // Üç premium firma tam bağlı ağ (ilan/teklif/mesaj demosu için).
   await ensureConnection(c1, c2);

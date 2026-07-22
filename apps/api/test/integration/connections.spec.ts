@@ -54,8 +54,8 @@ function rig() {
 
 /** İki PAKET firma + rothernId'ler. */
 async function twoCompanies() {
-  const a = await makeCompanyWithUser(prisma, { tier: "PAKET" });
-  const b = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+  const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+  const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
   const aCode = await giveRothernId(a.company.id);
   const bCode = await giveRothernId(b.company.id);
   return { a, b, aCode, bCode };
@@ -104,7 +104,7 @@ describe("bağlantı yaşam döngüsü", () => {
     // Daveti KURAN taraf (inviter = a) üyeliği doldu → efektif STANDARD.
     await prisma.company.update({
       where: { id: a.company.id },
-      data: { tier: "PAKET", membershipEndAt: new Date(Date.now() - 86_400_000) },
+      data: { tier: "GOLD", membershipEndAt: new Date(Date.now() - 86_400_000) },
     });
     // Ham tier hâlâ PAKET; eskiden bağlantı aktif görünüyordu (CL ile ıraksama).
     // Artık efektif STANDARD → iki listede de pasif.
@@ -152,7 +152,7 @@ describe("bağlantı yaşam döngüsü", () => {
   it("IDOR: üçüncü firma başkasının davetini kabul/ret/geri-çek edemez", async () => {
     const { service } = rig();
     const { a, b, bCode } = await twoCompanies();
-    const evil = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const evil = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const res = await service.invite(a.auth, bCode);
 
     await expect(service.accept(evil.auth, res.id)).rejects.toThrow(
@@ -172,10 +172,10 @@ describe("bağlantı yaşam döngüsü", () => {
 
   it("STANDARD firma Rothern ID ile davet gönderemez (premium kapısı)", async () => {
     const { service } = rig();
-    const std = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     const { bCode } = await twoCompanies();
     await expect(service.invite(std.auth, bCode)).rejects.toThrow(
-      /premium/i,
+      /Bronz/i,
     );
   });
 });
@@ -277,7 +277,7 @@ describe("engelleme etkileri", () => {
       messages.send(a.auth, "satinalma", b.company.id, "merhaba"),
     ).rejects.toThrow(/bulunamadı/i);
     // İlişkisiz üçüncü firmayla mesajlaşma çalışmaya devam eder.
-    const c = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const c = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await expect(
       messages.send(a.auth, "satinalma", c.company.id, "merhaba"),
     ).resolves.toMatchObject({ mine: true });
@@ -308,7 +308,7 @@ describe("e-posta daveti + referral", () => {
     expect(list).toHaveLength(1);
 
     // IDOR: başka firma iptal edemez.
-    const other = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const other = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await expect(
       service.cancelReferralInvite(other.auth, list[0]!.id),
     ).rejects.toThrow(/bulunamadı/i);
@@ -336,7 +336,7 @@ describe("toplu e-posta daveti", () => {
     const { service, email } = rig();
     const { a, b, bCode } = await twoCompanies();
     // a ile c zaten bağlı olsun.
-    const c = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const c = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await giveRothernId(c.company.id);
     await prisma.companyConnection.create({
       data: {
@@ -384,7 +384,7 @@ describe("toplu e-posta daveti", () => {
 describe("keşfet + profil", () => {
   it("discover: kategori kesişimine göre skorlar; bağlı/engelli/kendisi hariç", async () => {
     const { service, blocks } = rig();
-    const me = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const me = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await giveRothernId(me.company.id);
     await prisma.company.update({
       where: { id: me.company.id },
@@ -392,17 +392,17 @@ describe("keşfet + profil", () => {
     });
 
     // Eşleşen satıcı (2 kategori) — PAKET.
-    const match = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const match = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await prisma.company.update({
       where: { id: match.company.id },
       data: { sellerCategoryIds: ["10000000", "20000000"] },
     });
     // Eşleşmeyen PAKET.
-    const noMatch = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const noMatch = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     // STANDARD — keşifte görünmez.
-    await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    await makeCompanyWithUser(prisma, { tier: "STANDART" });
     // Engellenen PAKET.
-    const blocked = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const blocked = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const blockedCode = await giveRothernId(blocked.company.id);
     await blocks.block(me.auth, blockedCode);
 
@@ -417,7 +417,7 @@ describe("keşfet + profil", () => {
     expect(res.companies[0]!.matchScore).toBe(2);
 
     // STANDARD firma için kilitli.
-    const std = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     expect((await service.discover(std.auth)).locked).toBe(true);
   });
 
@@ -471,20 +471,20 @@ describe("keşfet + profil", () => {
 describe("STANDARD premium kapıları — davet + dizin", () => {
   it("STANDARD e-posta ile davet gönderemez (tekli + toplu)", async () => {
     const { service } = rig();
-    const std = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     await expect(
       service.inviteByEmail(std.auth, "biri@firma.com"),
-    ).rejects.toThrow(/premium/i);
+    ).rejects.toThrow(/Bronz/i);
     await expect(
       service.inviteByEmailBatch(std.auth, ["biri@firma.com"]),
-    ).rejects.toThrow(/premium/i);
+    ).rejects.toThrow(/Bronz/i);
   });
 
   it("STANDARD firma dizininde arama yapamaz — boş döner", async () => {
     const { service } = rig();
-    const std = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     // Aranabilir public bir PAKET firma olsa bile STANDARD boş alır.
-    const target = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const target = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await giveRothernId(target.company.id);
     await prisma.company.update({
       where: { id: target.company.id },
@@ -495,8 +495,8 @@ describe("STANDARD premium kapıları — davet + dizin", () => {
 
   it("STANDARD yalnız ilişkili firmanın profilini görür — yabancı 404, bağlı OK", async () => {
     const { service } = rig();
-    const std = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
-    const other = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    const other = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const otherCode = await giveRothernId(other.company.id);
     await prisma.company.update({
       where: { id: other.company.id },
@@ -525,8 +525,8 @@ describe("STANDARD premium kapıları — davet + dizin", () => {
 
   it("STANDARD HEDEF firma yalnız bağlantılarına görünür — PAKET izleyen bağlı değilse 404", async () => {
     const { service } = rig();
-    const viewer = await makeCompanyWithUser(prisma, { tier: "PAKET" });
-    const target = await makeCompanyWithUser(prisma, { tier: "STANDARD" });
+    const viewer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const target = await makeCompanyWithUser(prisma, { tier: "STANDART" });
     const targetCode = await giveRothernId(target.company.id);
     // publicEnabled açık olsa bile STANDARD firma dizinde/dışarıda görünmez.
     await prisma.company.update({
@@ -575,8 +575,8 @@ describe("bağlantı dayanıklılığı — kuran taraf premium kaldıkça aktif
 
   it("INVITE: KURAN taraf STANDARD'a düşünce iki tarafta da pasifleşir (bedava ağ tutulamaz)", async () => {
     const { service } = rig();
-    const a = await makeCompanyWithUser(prisma, { tier: "PAKET" });
-    const b = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await connect(a, b, "INVITE"); // kuran = A
 
     expect(await service.list(a.company.id)).toHaveLength(1);
@@ -585,7 +585,7 @@ describe("bağlantı dayanıklılığı — kuran taraf premium kaldıkça aktif
     // A (kuran) premium'u bırakır → kendi kurduğu bağlantı düşer.
     await prisma.company.update({
       where: { id: a.company.id },
-      data: { tier: "STANDARD" },
+      data: { tier: "STANDART" },
     });
     expect(await service.list(a.company.id)).toHaveLength(0);
     expect(await service.list(b.company.id)).toHaveLength(0);
@@ -593,14 +593,14 @@ describe("bağlantı dayanıklılığı — kuran taraf premium kaldıkça aktif
 
   it("KABUL EDEN taraf STANDARD'a düşse de aktif kalır (kuran hâlâ premium)", async () => {
     const { service } = rig();
-    const inviter = await makeCompanyWithUser(prisma, { tier: "PAKET" });
-    const invitee = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const inviter = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const invitee = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await connect(inviter, invitee, "PREMIUM"); // kuran = inviter
 
     // Kabul eden (tedarikçi) STANDARD'a düşer — kuran premium kaldıkça bağlı kalır.
     await prisma.company.update({
       where: { id: invitee.company.id },
-      data: { tier: "STANDARD" },
+      data: { tier: "STANDART" },
     });
     expect(await service.list(inviter.company.id)).toHaveLength(1);
     expect(await service.list(invitee.company.id)).toHaveLength(1);

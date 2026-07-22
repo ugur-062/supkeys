@@ -190,7 +190,7 @@ describe("list — görünürlük bazlı indirme yetkisi", () => {
     await seedDoc(listing.id, owner.company.id);
     const viewer = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "PAKET",
+      tier: "GOLD",
     });
     await expect(service.list(viewer.auth, listing.id)).resolves.toHaveLength(
       1,
@@ -206,7 +206,7 @@ describe("list — görünürlük bazlı indirme yetkisi", () => {
     await seedDoc(listing.id, owner.company.id);
     const viewer = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "PAKET",
+      tier: "GOLD",
     });
     // İlan sahibi bu firmayı engellemiş → blok listesinde görünür (M4 drift'i).
     blocks.blockedCompanyIds.mockResolvedValue([viewer.company.id]);

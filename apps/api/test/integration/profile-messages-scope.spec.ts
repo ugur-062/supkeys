@@ -25,7 +25,7 @@ describe("profil KVKK gate", () => {
       {} as never,
       new AuditService(prisma as never),
     );
-    const co = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await prisma.company.update({
       where: { id: co.company.id },
       data: { authorizedTckn: "12345678901", iban: "TR120001", ibanHolder: "X" },
@@ -57,8 +57,8 @@ describe("mesaj blok zorlaması (okuma + inbox)", () => {
       email as never,
       config as never,
     );
-    const a = await makeCompanyWithUser(prisma, { tier: "PAKET" });
-    const b = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const aCode = "AAAA-0001";
     await prisma.company.update({
       where: { id: a.company.id },

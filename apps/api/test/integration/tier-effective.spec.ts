@@ -24,7 +24,7 @@ function profileService() {
 }
 
 async function paketWithEnd(endAt: Date | null) {
-  const co = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+  const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
   await prisma.company.update({
     where: { id: co.company.id },
     data: { membershipEndAt: endAt },
@@ -45,11 +45,11 @@ describe("INV-TIER-1 — efektif tier /me + profil yüzeyleri", () => {
     const co = await paketWithEnd(past);
     const { service: auth } = makeAuthService();
     const me = await auth.getMe(co.user.id);
-    expect(me.company.tier).toBe("STANDARD");
+    expect(me.company.tier).toBe("STANDART");
     const prof = (await profileService().get(co.company.id)) as {
       tier: string;
     };
-    expect(prof.tier).toBe("STANDARD");
+    expect(prof.tier).toBe("STANDART");
     // membershipEndAt yanıttan çıkarıldı (yalnız hesap içindi).
     expect("membershipEndAt" in prof).toBe(false);
   });
@@ -57,16 +57,16 @@ describe("INV-TIER-1 — efektif tier /me + profil yüzeyleri", () => {
   it("süresi DOLMAMIŞ PAKET → her iki yüzey PAKET", async () => {
     const co = await paketWithEnd(future);
     const { service: auth } = makeAuthService();
-    expect((await auth.getMe(co.user.id)).company.tier).toBe("PAKET");
+    expect((await auth.getMe(co.user.id)).company.tier).toBe("GOLD");
     expect(
       ((await profileService().get(co.company.id)) as { tier: string }).tier,
-    ).toBe("PAKET");
+    ).toBe("GOLD");
   });
 
   it("membershipEndAt null (süresiz) PAKET → PAKET kalır", async () => {
     const co = await paketWithEnd(null);
     const { service: auth } = makeAuthService();
-    expect((await auth.getMe(co.user.id)).company.tier).toBe("PAKET");
+    expect((await auth.getMe(co.user.id)).company.tier).toBe("GOLD");
   });
 });
 

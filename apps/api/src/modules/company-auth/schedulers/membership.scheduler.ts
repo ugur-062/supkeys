@@ -1,3 +1,4 @@
+import { PAID_TIERS } from "@rothern/shared";
 import { Injectable, Logger, Optional, type OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Cron } from "@nestjs/schedule";
@@ -62,7 +63,7 @@ export class MembershipScheduler implements OnModuleInit {
   private async doDowngradeExpired(): Promise<void> {
     const expired = await this.prisma.company.findMany({
       where: {
-        tier: "PAKET",
+        tier: { in: [...PAID_TIERS] },
         membershipEndAt: { not: null, lt: new Date() },
       },
       select: {
@@ -87,11 +88,11 @@ export class MembershipScheduler implements OnModuleInit {
     const downgraded: typeof expired = [];
     for (const c of expired) {
       const claimed = await this.prisma.company.updateMany({
-        where: { id: c.id, tier: "PAKET" },
+        where: { id: c.id, tier: { in: [...PAID_TIERS] } },
         // Y3: membershipEndAt'i TEMİZLE — bayat geçmiş tarih kalırsa sonraki
         // cron bu firmayı yeniden eşleştirir + gelecekteki re-grant/upgrade bayat
         // tarihe takılır. Geçmiş EXPIRE event'inde (endBefore) korunur.
-        data: { tier: "STANDARD", membershipEndAt: null },
+        data: { tier: "STANDART", membershipEndAt: null },
       });
       if (claimed.count !== 1) continue;
       downgraded.push(c);

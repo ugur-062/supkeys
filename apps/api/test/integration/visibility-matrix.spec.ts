@@ -47,7 +47,7 @@ async function listing(visibility: "PUBLIC" | "CONNECTIONS" | "PRIVATE") {
 describe("getOne — görüntüleme & maskeleme matrisi", () => {
   it("PUBLIC + premium (PAKET) bağlı-değil → görür, maskesiz, teklif verebilir", async () => {
     const { service, l } = await listing("PUBLIC");
-    const v = await makeCompanyWithUser(prisma, { country: "TR", tier: "PAKET" });
+    const v = await makeCompanyWithUser(prisma, { country: "TR", tier: "GOLD" });
     const res = (await service.getOne(v.auth, l.id)) as {
       masked: boolean;
       canBid: boolean;
@@ -65,7 +65,7 @@ describe("getOne — görüntüleme & maskeleme matrisi", () => {
     const { service, l } = await listing("PUBLIC");
     const v = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "STANDARD",
+      tier: "STANDART",
     });
     const res = (await service.getOne(v.auth, l.id)) as {
       masked: boolean;
@@ -86,7 +86,7 @@ describe("getOne — görüntüleme & maskeleme matrisi", () => {
     const { service, owner, l } = await listing("PUBLIC");
     const v = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "STANDARD",
+      tier: "STANDART",
     });
     await connect(prisma, owner.company.id, v.company.id, owner.user.id);
     const res = (await service.getOne(v.auth, l.id)) as { masked: boolean };
@@ -95,7 +95,7 @@ describe("getOne — görüntüleme & maskeleme matrisi", () => {
 
   it("CONNECTIONS + PREMIUM ama bağlı-değil → GÖRMEMELİ (404)", async () => {
     const { service, l } = await listing("CONNECTIONS");
-    const v = await makeCompanyWithUser(prisma, { country: "TR", tier: "PAKET" });
+    const v = await makeCompanyWithUser(prisma, { country: "TR", tier: "GOLD" });
     await expect(service.getOne(v.auth, l.id)).rejects.toThrow();
   });
 
@@ -123,7 +123,7 @@ describe("İngiliz Usulü — BEST_AND_OWN_RANK", () => {
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const viewer = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "PAKET",
+      tier: "GOLD",
     });
     const rival = await makeCompanyWithUser(prisma, { country: "TR" });
     const l = await makeListing(prisma, {
@@ -179,7 +179,7 @@ describe("buyNow — yetki matrisi", () => {
 
   it("CONNECTIONS + bağlı-değil → görünmez (reddedilir)", async () => {
     const { service, l } = await satis("CONNECTIONS");
-    const v = await makeCompanyWithUser(prisma, { country: "TR", tier: "PAKET" });
+    const v = await makeCompanyWithUser(prisma, { country: "TR", tier: "GOLD" });
     await expect(service.buyNow(v.auth, l.id)).rejects.toThrow();
   });
 
@@ -187,7 +187,7 @@ describe("buyNow — yetki matrisi", () => {
     const { service, l } = await satis("PUBLIC");
     const v = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "STANDARD",
+      tier: "STANDART",
     });
     await expect(service.buyNow(v.auth, l.id)).rejects.toThrow(/premium/i);
   });
@@ -196,7 +196,7 @@ describe("buyNow — yetki matrisi", () => {
     const { service, owner, l } = await satis("PUBLIC");
     const v = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "STANDARD",
+      tier: "STANDART",
     });
     await connect(prisma, owner.company.id, v.company.id, owner.user.id);
     await expect(
@@ -211,7 +211,7 @@ describe("buyNow — yetki matrisi", () => {
     const { service, l } = await satis("PUBLIC");
     const v = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "PAKET",
+      tier: "GOLD",
       roles: [CompanyRole.SATISCI],
     });
     await expect(service.buyNow(v.auth, l.id)).rejects.toThrow(/rol/i);

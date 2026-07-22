@@ -29,7 +29,7 @@ async function auctionWithBids(bidVisibility: string) {
   const owner = await makeCompanyWithUser(prisma, { country: "TR" });
   const viewer = await makeCompanyWithUser(prisma, {
     country: "TR",
-    tier: "PAKET",
+    tier: "GOLD",
   });
   const rival = await makeCompanyWithUser(prisma, { country: "TR" });
   const listing = await makeListing(prisma, {

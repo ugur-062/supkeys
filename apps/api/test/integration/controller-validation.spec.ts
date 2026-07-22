@@ -383,7 +383,7 @@ describe("CompanyJwtStrategy — token-tipi izolasyonu", () => {
   });
 
   it("geçerli company token → DB'den taze kullanıcı döner", async () => {
-    const company = await makeCompany(prisma, { country: "TR", tier: "PAKET" });
+    const company = await makeCompany(prisma, { country: "TR", tier: "GOLD" });
     const user = await makeUser(prisma, company.id);
     const res = await strategy.validate({
       type: "company",
@@ -394,7 +394,7 @@ describe("CompanyJwtStrategy — token-tipi izolasyonu", () => {
     } as never);
     expect(res.companyId).toBe(company.id);
     expect(res.country).toBe("TR");
-    expect(res.tier).toBe("PAKET");
+    expect(res.tier).toBe("GOLD");
   });
 
   it("pasif kullanıcı reddedilir", async () => {

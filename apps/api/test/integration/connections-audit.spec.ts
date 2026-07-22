@@ -49,8 +49,8 @@ function rig() {
 }
 
 async function twoCompanies() {
-  const a = await makeCompanyWithUser(prisma, { tier: "PAKET" });
-  const b = await makeCompanyWithUser(prisma, { tier: "PAKET" });
+  const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+  const b = await makeCompanyWithUser(prisma, { tier: "GOLD" });
   const bCode = await giveRothernId(b.company.id);
   return { a, b, bCode };
 }

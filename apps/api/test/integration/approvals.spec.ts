@@ -74,7 +74,7 @@ async function addUser(
       email: u.email,
       roles,
       country,
-      tier: "PAKET",
+      tier: "GOLD",
     } as never,
   };
 }

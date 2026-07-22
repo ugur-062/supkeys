@@ -7,7 +7,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { normalizeShortCode, validateShortCode } from "@rothern/shared";
+import { normalizeShortCode, tierAtLeast, validateShortCode } from "@rothern/shared";
 import { Prisma } from "@rothern/db";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
@@ -19,7 +19,7 @@ import { NotificationService } from "../../notifications/notification.service";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import {
   effectiveTier,
-  effectivePaidWhere,
+  anyPackageWhere,
 } from "../../../common/company/effective-tier";
 import { visibleOwnerListingWhere } from "../../../common/company/listing-visibility";
 
@@ -71,9 +71,9 @@ export class CompanyConnectionsService {
    * Sadece PAKET gönderebilir; premium bitince bu bağlantı pasifleşir.
    */
   async invite(user: AuthenticatedCompanyUser, rothernIdRaw: string) {
-    if (user.tier !== "PAKET") {
+    if (!tierAtLeast(user.tier, "BRONZ")) {
       throw new ForbiddenException(
-        "Bağlantı daveti göndermek premium (PAKET) üyelik gerektirir. Standart üyeler yalnızca gelen davetleri kabul edip tedarikçi olabilir.",
+        "Bağlantı daveti göndermek için bir paket (Bronz+) gerekir. Paketsiz üyeler yalnızca gelen davetleri kabul edebilir.",
       );
     }
     const code = normalizeShortCode(rothernIdRaw);
@@ -96,9 +96,9 @@ export class CompanyConnectionsService {
    * (signup hook) otomatik INVITE bağlantı kurulur.
    */
   async inviteByEmail(user: AuthenticatedCompanyUser, emailRaw: string) {
-    if (user.tier !== "PAKET") {
+    if (!tierAtLeast(user.tier, "BRONZ")) {
       throw new ForbiddenException(
-        "Bağlantı daveti göndermek premium (PAKET) üyelik gerektirir. Standart üyeler yalnızca gelen davetleri kabul edip tedarikçi olabilir.",
+        "Bağlantı daveti göndermek için bir paket (Bronz+) gerekir. Paketsiz üyeler yalnızca gelen davetleri kabul edebilir.",
       );
     }
     const email = emailRaw.trim().toLowerCase();
@@ -181,9 +181,9 @@ export class CompanyConnectionsService {
    *               pasif firma / engelli) — reason ile
    */
   async inviteByEmailBatch(user: AuthenticatedCompanyUser, emails: string[]) {
-    if (user.tier !== "PAKET") {
+    if (!tierAtLeast(user.tier, "BRONZ")) {
       throw new ForbiddenException(
-        "Bağlantı daveti göndermek premium (PAKET) üyelik gerektirir. Standart üyeler yalnızca gelen davetleri kabul edip tedarikçi olabilir.",
+        "Bağlantı daveti göndermek için bir paket (Bronz+) gerekir. Paketsiz üyeler yalnızca gelen davetleri kabul edebilir.",
       );
     }
     // Normalize + sıra korumalı dedupe.
@@ -475,7 +475,10 @@ export class CompanyConnectionsService {
         // dolmuş inviter'ın bağlantısı bayat PAKET ile aktif görünmesin.
         (r) =>
           r.origin === "ADMIN" ||
-          effectiveTier(r.inviter.tier, r.inviter.membershipEndAt) === "PAKET",
+          tierAtLeast(
+            effectiveTier(r.inviter.tier, r.inviter.membershipEndAt),
+            "BRONZ",
+          ),
       )
       .map((r) => {
         const other = r.inviterCompanyId === companyId ? r.invitee : r.inviter;
@@ -488,7 +491,7 @@ export class CompanyConnectionsService {
             name: other.name,
             rothernId: other.rothernId,
             // INV-TIER-1: gösterilen tier rozeti efektif (süresi-dolmuş PAKET
-            // "PAKET" göstermesin).
+            // paketli göstermesin).
             tier: effectiveTier(other.tier, other.membershipEndAt),
             taxNumber: other.taxNumber,
             city: other.city,
@@ -510,7 +513,7 @@ export class CompanyConnectionsService {
    * Skor: (ben alırım ∩ o satar) + (ben satarım ∩ o alır). Bağlı/davetli hariç.
    */
   async discover(user: AuthenticatedCompanyUser) {
-    if (user.tier !== "PAKET") {
+    if (!tierAtLeast(user.tier, "BRONZ")) {
       return { locked: true as const, companies: [] };
     }
     const me = await this.prisma.company.findUnique({
@@ -543,7 +546,7 @@ export class CompanyConnectionsService {
     const companies = await this.prisma.company.findMany({
       where: {
         // INV-TIER-1: efektif PAKET (keşifte süresi-dolmuş PAKET aday çıkmasın).
-        ...effectivePaidWhere(),
+        ...anyPackageWhere(),
         isActive: true,
         isBlocked: false,
         id: { notIn: [...exclude] },
@@ -621,7 +624,7 @@ export class CompanyConnectionsService {
   async searchCompanies(user: AuthenticatedCompanyUser, qRaw?: string) {
     // Firma dizini araması premium özelliğidir — STANDARD firma dizinde arama
     // yapamaz, yalnızca mevcut bağlantılarını görür (Bağlantılarım sekmesi).
-    if (user.tier !== "PAKET") return [];
+    if (!tierAtLeast(user.tier, "BRONZ")) return [];
     const q = (qRaw ?? "").trim();
     const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     const text = q
@@ -640,7 +643,7 @@ export class CompanyConnectionsService {
         isBlocked: false,
         publicEnabled: true,
         // INV-TIER-1: efektif PAKET (dizin aramasında süresi-dolmuş PAKET çıkmasın).
-        ...effectivePaidWhere(),
+        ...anyPackageWhere(),
         ...text,
       },
       select: {
@@ -758,8 +761,8 @@ export class CompanyConnectionsService {
     // INV-TIER-1: hedefin EFEKTİF tier'ı (süresi-dolmuş PAKET profili public
     // dizinde görünmesin). user.tier zaten JWT'den efektif.
     const publiclyListed =
-      user.tier === "PAKET" &&
-      effectiveTier(c.tier, c.membershipEndAt) === "PAKET" &&
+      tierAtLeast(user.tier, "BRONZ") &&
+      tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "BRONZ") &&
       c.publicEnabled;
     if (!related && !publiclyListed) {
       throw new NotFoundException("Firma profili bulunamadı");

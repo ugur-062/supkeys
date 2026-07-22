@@ -21,7 +21,7 @@ export async function makeCompany(
     data: {
       name: `Firma ${uniq()}`,
       country: "TR",
-      tier: "PAKET" as CompanyTier,
+      tier: "GOLD" as CompanyTier,
       isActive: true,
       // INV-KYC-1: operasyonel test firması varsayılan VERIFIED (para-taahhüdü
       // kapıları bunu ister). KYC-akış testleri (kyc-doc-review/foreign-
@@ -69,7 +69,7 @@ export async function makeCompanyWithUser(
 ) {
   const company = await makeCompany(prisma, {
     country: opts.country ?? "TR",
-    tier: opts.tier ?? "PAKET",
+    tier: opts.tier ?? "GOLD",
     ...(opts.companyVerificationStatus
       ? { companyVerificationStatus: opts.companyVerificationStatus }
       : {}),

@@ -177,7 +177,7 @@ function authFor(
     email: user.email,
     roles,
     country: "TR",
-    tier: "PAKET",
+    tier: "GOLD",
     isOwner,
   } as AuthenticatedCompanyUser;
 }

@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Injectable,
 } from "@nestjs/common";
+import { tierAtLeast } from "@rothern/shared";
 import type { AuthenticatedCompanyUser } from "../strategies/company-jwt.strategy";
 
 /**
@@ -19,9 +20,9 @@ export class CompanyPaidTierGuard implements CanActivate {
     const req = context.switchToHttp().getRequest();
     const user = req.user as AuthenticatedCompanyUser | undefined;
     if (!user) throw new ForbiddenException("Yetkisiz");
-    if (user.tier !== "PAKET") {
+    if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
-        "Bu özellik premium (PAKET) üyelik gerektirir. Standart üyeler yalnızca teklif verebilir.",
+        "Bu özellik Silver veya üzeri paket gerektirir.",
       );
     }
     return true;

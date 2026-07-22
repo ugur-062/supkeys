@@ -86,7 +86,7 @@ describe("placeBid — görünürlük/uygunluk", () => {
     });
     const free = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "STANDARD",
+      tier: "STANDART",
     });
     await expect(
       service.placeBid(free.auth, listing.id, bid(item.id)),

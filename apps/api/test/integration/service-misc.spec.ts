@@ -103,7 +103,7 @@ describe("çok-kiracılı scope", () => {
     const other = await makeCompanyWithUser(prisma, { country: "TR" });
     const viewer = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "PAKET",
+      tier: "GOLD",
     });
     const theirs = await makeListing(prisma, {
       companyId: other.company.id,
@@ -243,7 +243,7 @@ describe("addInvitations / roundHistory / updateListing — guard'lar", () => {
     // PAKET'ken ihale açmış, sonra STANDARD'a düşmüş firma.
     const owner = await makeCompanyWithUser(prisma, {
       country: "TR",
-      tier: "STANDARD",
+      tier: "STANDART",
     });
     const draft = await makeListing(prisma, {
       companyId: owner.company.id,
@@ -261,15 +261,15 @@ describe("addInvitations / roundHistory / updateListing — guard'lar", () => {
     });
     await expect(
       service.publishListing(owner.auth, draft.id),
-    ).rejects.toThrow(/premium/i);
+    ).rejects.toThrow(/Silver veya üzeri/i);
     await expect(
       service.addInvitations(owner.auth, open.id, ["ROT-0001"]),
-    ).rejects.toThrow(/premium/i);
+    ).rejects.toThrow(/Silver veya üzeri/i);
     await expect(
       service.createNextRound(owner.auth, open.id, {
         closesAt: FUTURE,
       } as never),
-    ).rejects.toThrow(/premium/i);
+    ).rejects.toThrow(/Silver veya üzeri/i);
   });
 
   it("roundHistory sahip-dışı reddi + boş geçmiş []", async () => {
