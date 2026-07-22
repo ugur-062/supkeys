@@ -1640,6 +1640,43 @@ export class CompanyOrdersService {
    * SATISCI, alıcı tarafı aksiyonları SATIN_ALMACI rolü ister (firma doğru
    * olsa bile rolsüz kullanıcı sipariş adımı atamaz).
    */
+  /**
+   * Faz O — sipariş OKUMA kapısı: ONAYLAYICI-only (ve rolsüz) üye siparişi
+   * yalnız kaynağı olan ihalenin onayında adımı varsa görür (award onayını
+   * veren, doğan siparişi izleyebilir); listing bağı yoksa 404. Mutasyonlar
+   * ayrıca assertOrderRole ile kapılı.
+   */
+  private async assertOrderReadContext(
+    user: AuthenticatedCompanyUser,
+    listingId: string | null,
+  ): Promise<void> {
+    const fullRead =
+      user.isOwner ||
+      user.roles.some((r) =>
+        (
+          [
+            CompanyRole.SAHIP,
+            CompanyRole.YONETICI,
+            CompanyRole.SATIN_ALMACI,
+            CompanyRole.SATISCI,
+          ] as CompanyRole[]
+        ).includes(r),
+      );
+    if (fullRead) return;
+    if (listingId) {
+      const linked = await this.prisma.approvalRequest.findFirst({
+        where: {
+          listingId,
+          companyId: user.companyId,
+          steps: { some: { approverUserId: user.userId } },
+        },
+        select: { id: true },
+      });
+      if (linked) return;
+    }
+    throw new NotFoundException("Sipariş bulunamadı");
+  }
+
   private assertOrderRole(
     user: AuthenticatedCompanyUser,
     side: "seller" | "buyer",
@@ -1678,6 +1715,7 @@ export class CompanyOrdersService {
         deliveredAt: true,
         // Teslim şekli — "gönder" mi "teslime hazırla" mı adım/etiketini belirler.
         deliveryTerm: true,
+        listingId: true, // Faz O: okuma-kapısı (approval bağlamı) için
         sellerCompanyId: true,
         buyerCompanyId: true,
         // A1: iptal talebi bağlamı (approve'da cancelReason'a taşınır).
@@ -1696,6 +1734,9 @@ export class CompanyOrdersService {
     ) {
       throw new NotFoundException("Sipariş bulunamadı");
     }
+    // Faz O — dar-bağlam okuma kapısı (getOne ile simetrik; mutasyonlar ayrıca
+    // assertOrderRole ile kapılı, bu yalnız okuma sızıntısını kapatır).
+    await this.assertOrderReadContext(user, order.listingId);
     return order;
   }
 
@@ -2094,6 +2135,8 @@ export class CompanyOrdersService {
     ) {
       throw new NotFoundException("Sipariş bulunamadı");
     }
+    // Faz O — dar-bağlam okuma kapısı (listing getOne ile simetrik).
+    await this.assertOrderReadContext(user, o.listingId);
     const other = o.sellerCompanyId === user.companyId ? o.buyer : o.seller;
 
     // S3: gösterim toplamları tek-kaynak reducer'dan (eskiden inline döngü

@@ -2210,6 +2210,10 @@ export class CompanyListingsService {
     }));
 
     if (isOwner) {
+      // Faz O — dar-bağlam okuma kapısı: ONAYLAYICI-only (ve rolsüz) üye,
+      // owner-detayını (rakip teklifler + iç notlar) yalnız kendisine düşmüş
+      // onay bağlamında görebilir.
+      await this.assertOwnerReadContext(user, listing.id);
       // Bağımsız sorgular paralel (sahip detayı 4sn'de bir poll'lanabilir).
       const needsApproval =
         listing.status === "IN_APPROVAL" ||
@@ -6202,6 +6206,41 @@ export class CompanyListingsService {
    *      (isOwner — son çare emniyet supabı).
    * SAHİP her iki koşulu da sağlar (tüm izinler + isOwner).
    */
+  /**
+   * Faz O — owner-dal OKUMA kapısı (INV-VIS ailesi): FULL_READ (etiketler +
+   * işlem rolleri) tam görür; ONAYLAYICI-only ve rolsüz kişiler yalnız
+   * kendilerine düşmüş (bekleyen VEYA karar verilmiş) onaya bağlı ihaleyi
+   * görür — onay kararı bağlam ister, erişim kesilmez DARALTILIR. Aksi 404
+   * (varlık sızdırmaz). Sipariş tarafındaki kardeşi: assertOrderReadContext.
+   */
+  private async assertOwnerReadContext(
+    user: AuthenticatedCompanyUser,
+    listingId: string,
+  ): Promise<void> {
+    const fullRead =
+      user.isOwner ||
+      user.roles.some((r) =>
+        (
+          [
+            CompanyRole.SAHIP,
+            CompanyRole.YONETICI,
+            CompanyRole.SATIN_ALMACI,
+            CompanyRole.SATISCI,
+          ] as CompanyRole[]
+        ).includes(r),
+      );
+    if (fullRead) return;
+    const linked = await this.prisma.approvalRequest.findFirst({
+      where: {
+        listingId,
+        companyId: user.companyId,
+        steps: { some: { approverUserId: user.userId } },
+      },
+      select: { id: true },
+    });
+    if (!linked) throw new NotFoundException("İlan bulunamadı");
+  }
+
   private assertListingManageRole(
     user: AuthenticatedCompanyUser,
     listing: { id: string; type: ListingType; createdById: string },
