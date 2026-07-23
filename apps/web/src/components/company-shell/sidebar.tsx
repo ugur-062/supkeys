@@ -175,31 +175,52 @@ export function CompanySidebarContent({
   return (
     <div className="flex h-full flex-col overflow-hidden">
       {/* Satınalma/Satış geçişi — Anasayfa'nın ÜSTÜNDE (kullanıcı isteği).
-          Masaüstü rayda ikonla daralır; kilitli panel PortalGuard'a gider. */}
+          Eski topbar'daki segmentli (yan yana) görünüm; rayda daralınca dikey
+          ikon pill'ine döner. Kilitli panel PortalGuard'a gider. */}
       {visiblePortals.length > 1 ? (
-        <div className="mt-3 space-y-0.5 border-b border-zinc-950/5 px-2 pb-2">
-          {PORTAL_ORDER.filter((p) => visiblePortals.includes(p)).map((p) => {
-            const def = PORTALS[p];
-            const allowedP = available.includes(p);
-            return (
-              <RailItem
-                key={p}
-                href={def.basePath}
-                icon={
-                  p === "satinalma" ? ShoppingCartIcon : BuildingStorefrontIcon
-                }
-                label={def.label}
-                active={p === active}
-                accent={def.accent}
-                expanded={expanded}
-                locked={!allowedP}
-                onClick={() => {
-                  if (allowedP) setLastPortal(p);
-                  onNavigate?.();
-                }}
-              />
-            );
-          })}
+        <div className="mt-3 border-b border-zinc-950/5 px-2 pb-2">
+          <div
+            className={cn(
+              "grid gap-1 rounded-lg bg-zinc-100 p-1",
+              expanded ? "grid-cols-2" : "grid-cols-1",
+            )}
+          >
+            {PORTAL_ORDER.filter((p) => visiblePortals.includes(p)).map((p) => {
+              const def = PORTALS[p];
+              const allowedP = available.includes(p);
+              const on = p === active;
+              const Icon =
+                p === "satinalma" ? ShoppingCartIcon : BuildingStorefrontIcon;
+              return (
+                <Link
+                  key={p}
+                  href={def.basePath}
+                  title={expanded ? undefined : def.label}
+                  onClick={() => {
+                    if (allowedP) setLastPortal(p);
+                    onNavigate?.();
+                  }}
+                  className={cn(
+                    "flex h-8 items-center justify-center gap-1.5 rounded-md px-1 text-xs font-semibold whitespace-nowrap transition",
+                    on
+                      ? ACCENT[def.accent].switch
+                      : "text-zinc-500 hover:text-zinc-800",
+                  )}
+                >
+                  <Icon className="size-4 shrink-0" aria-hidden />
+                  {expanded ? (
+                    <span className="truncate">{def.label}</span>
+                  ) : null}
+                  {expanded && !allowedP ? (
+                    <LockClosedIcon
+                      className="size-3.5 shrink-0 text-zinc-400"
+                      aria-hidden
+                    />
+                  ) : null}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       ) : null}
 
