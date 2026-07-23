@@ -1,8 +1,10 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { CompanyRole } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 
@@ -40,6 +42,20 @@ export class CompanyReviewsService {
     if (order.status !== "COMPLETED") {
       throw new BadRequestException(
         "Yalnızca tamamlanmış siparişler değerlendirilebilir",
+      );
+    }
+    // Rol kapısı (salt-okunur garanti #5) — assertOrderRole deseni: firma
+    // adına KALICI itibar beyanını siparişin tarafı olan işlem rolü yazar
+    // (alıcı yanı Satın Almacı, satıcı yanı Satışçı). Etiket-only/rolsüz
+    // üye yazamaz (Faz R: SAHIP muaf değil).
+    const neededRole = isBuyer
+      ? CompanyRole.SATIN_ALMACI
+      : CompanyRole.SATISCI;
+    if (!user.roles.includes(neededRole)) {
+      throw new ForbiddenException(
+        isBuyer
+          ? "Değerlendirme yazmak için Satın Almacı rolü gerekir"
+          : "Değerlendirme yazmak için Satışçı rolü gerekir",
       );
     }
     const targetCompanyId = isBuyer
