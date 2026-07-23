@@ -16,6 +16,7 @@ import {
 } from "@/hooks/use-company-tenders";
 import { ArrowUpDown, Building2, CalendarRange, Globe, Plus, User as UserIcon } from "lucide-react";
 import Link from "next/link";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useMemo, useState } from "react";
 
 const SORT_OPTIONS = [
@@ -77,6 +78,9 @@ export function IhalelerView({
   listingType?: "ALIM" | "SATIS";
 } = {}) {
   const isSatis = listingType === "SATIS";
+  const canCreate = useHasCompanyPermission(
+    isSatis ? "sell:listing:create" : "buy:listing:create",
+  );
   const list = useTenders(listingType);
   const all = useMemo(() => list.data ?? [], [list.data]);
 
@@ -209,18 +213,22 @@ export function IhalelerView({
             : "Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın."
         }
         action={
-          <Link
-            href={
-              isSatis
-                ? "/company/satis/ilanlarim/yeni"
-                : "/company/satinalma/ihalelerim/yeni"
-            }
-          >
-            <Button variant="primary">
-              <Plus className="h-4 w-4" />
-              {isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
-            </Button>
-          </Link>
+          // F7: ilan açma buy|sell:listing:create ister (yalnız SA/ST taşır) —
+          // etiket-only gözetimde buton görünmez; liste salt-okunur kalır.
+          canCreate ? (
+            <Link
+              href={
+                isSatis
+                  ? "/company/satis/ilanlarim/yeni"
+                  : "/company/satinalma/ihalelerim/yeni"
+              }
+            >
+              <Button variant="primary">
+                <Plus className="h-4 w-4" />
+                {isSatis ? "Yeni Satış İhalesi" : "Yeni İhale Aç"}
+              </Button>
+            </Link>
+          ) : undefined
         }
       />
 

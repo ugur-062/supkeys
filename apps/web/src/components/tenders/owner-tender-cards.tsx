@@ -14,6 +14,11 @@ import {
   TenderTypeBadge,
 } from "@/components/tenders/status-badge";
 import { Button } from "@/components/ui/button";
+import {
+  useCompanyAuth,
+  useHasCompanyPermission,
+} from "@/hooks/use-company-auth";
+import { canManageListing } from "@/lib/tenders/can-manage-listing";
 import { usePublishListing } from "@/hooks/use-company-listings";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -50,6 +55,17 @@ export function OwnerTenderCard({
 }) {
   const isSatis = listingType === "SATIS";
   const urgency = closingUrgency(t.status, t.bidsCloseAt);
+  // F7: taslak Düzenle/Yayınla yönetim aksiyonudur — backend
+  // assertListingManageRole (izin ∧ oluşturan) ile birebir kapı.
+  const hasManagePermission = useHasCompanyPermission(
+    isSatis ? "sell:listing:manage" : "buy:listing:manage",
+  );
+  const { user } = useCompanyAuth();
+  const canManage = canManageListing({
+    hasManagePermission,
+    createdById: t.createdById,
+    userId: user?.id,
+  });
   const publish = usePublishListing(t.id);
   const fromHref = isSatis
     ? "/company/satis/ilanlarim"
@@ -135,7 +151,7 @@ export function OwnerTenderCard({
                     <Eye data-slot="icon" />
                     <DropdownLabel>Görüntüle</DropdownLabel>
                   </DropdownItem>
-                  {t.status === "DRAFT" ? (
+                  {canManage && t.status === "DRAFT" ? (
                     <>
                       <DropdownItem href={editHref}>
                         <Pencil data-slot="icon" />
@@ -244,6 +260,10 @@ export function OwnerTenderList({
   listingType?: "ALIM" | "SATIS";
   emptyCtaLabel?: string;
 }) {
+  // F7: boş-durum CTA'sı da ilan-açma iznine bağlı (yalnız SA/ST).
+  const canCreate = useHasCompanyPermission(
+    listingType === "SATIS" ? "sell:listing:create" : "buy:listing:create",
+  );
   if (isError) {
     return (
       <div className="space-y-3">
@@ -273,16 +293,22 @@ export function OwnerTenderList({
       <EmptyState
         icon={ClipboardList}
         title="Henüz ihale yok"
-        description="İlk ihaleni birkaç dakikada oluşturabilirsin — davetlileri seç, kalemleri gir, yayınla."
+        description={
+          canCreate
+            ? "İlk ihaleni birkaç dakikada oluşturabilirsin — davetlileri seç, kalemleri gir, yayınla."
+            : "İhale açma işlem rolü (Satın Almacı/Satışçı) gerektirir."
+        }
         variant="no-data"
         action={
-          <Link
-            href={createHref}
-            className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
-          >
-            <Plus className="size-4" aria-hidden />
-            {emptyCtaLabel}
-          </Link>
+          canCreate ? (
+            <Link
+              href={createHref}
+              className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            >
+              <Plus className="size-4" aria-hidden />
+              {emptyCtaLabel}
+            </Link>
+          ) : undefined
         }
       />
     );
